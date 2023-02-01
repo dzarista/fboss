@@ -1,0 +1,10 @@
+[Unit]
+Description=Start qsfp_service
+After=data_corral_service.service
+Wants=data_corral_service.service
+
+[Service]
+ExecStart=/opt/fboss/bin/qsfp_service
+
+[Install]
+WantedBy=multi-user.target

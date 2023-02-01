@@ -1,0 +1,10 @@
+[Unit]
+Description=Start fan_service
+After=data_corral_service.service sensor_service.service
+Wants=data_corral_service.service sensor_service.service
+
+[Service]
+ExecStart=/opt/fboss/bin/fan_service
+
+[Install]
+WantedBy=multi-user.target

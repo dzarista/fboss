@@ -1,0 +1,10 @@
+[Unit]
+Description=Start rackmon
+After=data_corral_service.service sensor_service.service fan_service.service
+Wants=data_corral_service.service sensor_service.service fan_service.service
+
+[Service]
+ExecStart=/opt/fboss/bin/rackmon
+
+[Install]
+WantedBy=multi-user.target
