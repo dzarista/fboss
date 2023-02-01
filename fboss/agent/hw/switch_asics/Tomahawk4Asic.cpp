@@ -91,6 +91,7 @@ bool Tomahawk4Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_PORT_GET_PMD_LANES:
     case HwAsic::Feature::SAI_PORT_VCO_CHANGE:
     case HwAsic::Feature::ROUTE_METADATA:
+    case HwAsic::Feature::DLB:
       return true;
     // features only supported by B0 version, or any physical device
     // where used chip is always B0.
@@ -137,6 +138,7 @@ bool Tomahawk4Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_TTL0_PACKET_FORWARD_ENABLE:
     case HwAsic::Feature::XPHY_SAI_WARMBOOT:
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
+    case HwAsic::Feature::P4_WARMBOOT:
       return false;
   }
   return false;

@@ -38,8 +38,6 @@ struct SaiPortTraits {
         EnumType,
         SAI_PORT_ATTR_HW_LANE_LIST,
         std::vector<uint32_t>>;
-#if defined(SAI_VERSION_8_2_0_0_ODP) || \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP)
     struct AttributeSerdesLaneList {
       std::optional<sai_attr_id_t> operator()();
     };
@@ -49,7 +47,6 @@ struct SaiPortTraits {
       std::optional<sai_attr_id_t> operator()();
     };
     using DiagModeEnable = SaiExtensionAttribute<bool, AttributeDiagModeEnable>;
-#endif
     using Speed = SaiAttribute<EnumType, SAI_PORT_ATTR_SPEED, sai_uint32_t>;
     using Type = SaiAttribute<EnumType, SAI_PORT_ATTR_TYPE, sai_int32_t>;
     using QosNumberOfQueues = SaiAttribute<
@@ -119,11 +116,7 @@ struct SaiPortTraits {
         SaiObjectIdDefault>;
     using DisableTtlDecrement = SaiAttribute<
         EnumType,
-#if SAI_API_VERSION >= SAI_VERSION(1, 7, 0)
         SAI_PORT_ATTR_DISABLE_DECREMENT_TTL,
-#else
-        SAI_PORT_ATTR_DECREMENT_TTL,
-#endif
         bool,
         SaiBoolDefaultFalse>;
     using InterfaceType = SaiAttribute<
@@ -161,7 +154,6 @@ struct SaiPortTraits {
         SAI_PORT_ATTR_EGRESS_SAMPLEPACKET_ENABLE,
         SaiObjectIdT,
         SaiObjectIdDefault>;
-#if SAI_API_VERSION >= SAI_VERSION(1, 7, 0)
     using IngressSampleMirrorSession = SaiAttribute<
         EnumType,
         SAI_PORT_ATTR_INGRESS_SAMPLE_MIRROR_SESSION,
@@ -172,7 +164,6 @@ struct SaiPortTraits {
         SAI_PORT_ATTR_EGRESS_SAMPLE_MIRROR_SESSION,
         std::vector<sai_object_id_t>,
         SaiObjectIdListDefault>;
-#endif
     using PrbsPolynomial =
         SaiAttribute<EnumType, SAI_PORT_ATTR_PRBS_POLYNOMIAL, sai_uint32_t>;
     using PrbsConfig =
@@ -319,10 +310,8 @@ struct SaiPortTraits {
       std::optional<Attributes::EgressMirrorSession>,
       std::optional<Attributes::IngressSamplePacketEnable>,
       std::optional<Attributes::EgressSamplePacketEnable>,
-#if SAI_API_VERSION >= SAI_VERSION(1, 7, 0)
       std::optional<Attributes::IngressSampleMirrorSession>,
       std::optional<Attributes::EgressSampleMirrorSession>,
-#endif
       std::optional<Attributes::IngressMacSecAcl>,
       std::optional<Attributes::EgressMacSecAcl>,
       std::optional<Attributes::SystemPortId>,
@@ -403,10 +392,8 @@ SAI_ATTRIBUTE_NAME(Port, IngressMirrorSession)
 SAI_ATTRIBUTE_NAME(Port, EgressMirrorSession)
 SAI_ATTRIBUTE_NAME(Port, IngressSamplePacketEnable)
 SAI_ATTRIBUTE_NAME(Port, EgressSamplePacketEnable)
-#if SAI_API_VERSION >= SAI_VERSION(1, 7, 0)
 SAI_ATTRIBUTE_NAME(Port, IngressSampleMirrorSession)
 SAI_ATTRIBUTE_NAME(Port, EgressSampleMirrorSession)
-#endif
 
 SAI_ATTRIBUTE_NAME(Port, PrbsPolynomial)
 SAI_ATTRIBUTE_NAME(Port, PrbsConfig)
@@ -437,11 +424,8 @@ SAI_ATTRIBUTE_NAME(Port, RxLockStatus)
 SAI_ATTRIBUTE_NAME(Port, InterFrameGap)
 #endif
 SAI_ATTRIBUTE_NAME(Port, LinkTrainingEnable)
-#if defined(SAI_VERSION_8_2_0_0_ODP) || \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP)
 SAI_ATTRIBUTE_NAME(Port, SerdesLaneList)
 SAI_ATTRIBUTE_NAME(Port, DiagModeEnable)
-#endif
 SAI_ATTRIBUTE_NAME(Port, FabricAttached);
 SAI_ATTRIBUTE_NAME(Port, FabricAttachedPortIndex);
 SAI_ATTRIBUTE_NAME(Port, FabricAttachedSwitchId);
@@ -533,128 +517,6 @@ struct SaiPortSerdesTraits {
     using RxAfeAdaptiveEnable = SaiExtensionAttribute<
         std::vector<sai_int32_t>,
         AttributeRxAfeAdaptiveEnableWrapper>;
-#if defined(TAJO_SDK_VERSION_1_56_1) || defined(TAJO_SDK_VERSION_1_58_1)
-    struct AttributeRxChannelReachWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeRxDiffEncoderEnWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeRxFbfCoefInitValWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeRxFbfLmsEnableWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeRxInstgScanOptimizeWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-    struct AttributeRxInstgTableEndRowWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeRxInstgTableStartRowWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeRxParityEncoderEnWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeRxThpEnWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeTxDiffEncoderEnWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-    struct AttributeTxDigGainWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeTxFfeCoeff0Wrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeTxFfeCoeff1Wrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeTxFfeCoeff2Wrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-
-    struct AttributeTxFfeCoeff3Wrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-    struct AttributeTxFfeCoeff4Wrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-    struct AttributeTxParityEncoderEnWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-    struct AttributeTxThpEnWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
-    using RxChannelReach = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeRxChannelReachWrapper>;
-    using RxDiffEncoderEn = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeRxDiffEncoderEnWrapper>;
-    using RxFbfCoefInitVal = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeRxFbfCoefInitValWrapper>;
-    using RxFbfLmsEnable = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeRxFbfLmsEnableWrapper>;
-    using RxInstgScanOptimize = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeRxInstgScanOptimizeWrapper>;
-    using RxInstgTableEndRow = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeRxInstgTableEndRowWrapper>;
-    using RxInstgTableStartRow = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeRxInstgTableStartRowWrapper>;
-    using RxParityEncoderEn = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeRxParityEncoderEnWrapper>;
-    using RxThpEn = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeRxThpEnWrapper>;
-    using TxDiffEncoderEn = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeTxDiffEncoderEnWrapper>;
-    using TxDigGain = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeTxDigGainWrapper>;
-    using TxFfeCoeff0 = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeTxFfeCoeff0Wrapper>;
-    using TxFfeCoeff1 = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeTxFfeCoeff1Wrapper>;
-    using TxFfeCoeff2 = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeTxFfeCoeff2Wrapper>;
-    using TxFfeCoeff3 = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeTxFfeCoeff3Wrapper>;
-    using TxFfeCoeff4 = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeTxFfeCoeff4Wrapper>;
-    using TxParityEncoderEn = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeTxParityEncoderEnWrapper>;
-    using TxThpEn = SaiExtensionAttribute<
-        std::vector<sai_int32_t>,
-        AttributeTxThpEnWrapper>;
-#endif
   };
   using AdapterKey = PortSerdesSaiId;
   using AdapterHostKey = Attributes::PortId;
@@ -676,29 +538,7 @@ struct SaiPortSerdesTraits {
       std::optional<Attributes::RxDspMode>,
       std::optional<Attributes::RxAfeTrim>,
       std::optional<Attributes::RxAcCouplingByPass>,
-      std::optional<Attributes::RxAfeAdaptiveEnable>
-#if defined(TAJO_SDK_VERSION_1_56_1) || defined(TAJO_SDK_VERSION_1_58_1)
-      ,
-      std::optional<Attributes::RxChannelReach>,
-      std::optional<Attributes::RxDiffEncoderEn>,
-      std::optional<Attributes::RxFbfCoefInitVal>,
-      std::optional<Attributes::RxFbfLmsEnable>,
-      std::optional<Attributes::RxInstgScanOptimize>,
-      std::optional<Attributes::RxInstgTableEndRow>,
-      std::optional<Attributes::RxInstgTableStartRow>,
-      std::optional<Attributes::RxParityEncoderEn>,
-      std::optional<Attributes::RxThpEn>,
-      std::optional<Attributes::TxDiffEncoderEn>,
-      std::optional<Attributes::TxDigGain>,
-      std::optional<Attributes::TxFfeCoeff0>,
-      std::optional<Attributes::TxFfeCoeff1>,
-      std::optional<Attributes::TxFfeCoeff2>,
-      std::optional<Attributes::TxFfeCoeff3>,
-      std::optional<Attributes::TxFfeCoeff4>,
-      std::optional<Attributes::TxParityEncoderEn>,
-      std::optional<Attributes::TxThpEn>
-#endif
-      >;
+      std::optional<Attributes::RxAfeAdaptiveEnable>>;
 };
 
 SAI_ATTRIBUTE_NAME(PortSerdes, PortId);
@@ -715,27 +555,6 @@ SAI_ATTRIBUTE_NAME(PortSerdes, RxDspMode);
 SAI_ATTRIBUTE_NAME(PortSerdes, RxAfeTrim);
 SAI_ATTRIBUTE_NAME(PortSerdes, RxAcCouplingByPass);
 SAI_ATTRIBUTE_NAME(PortSerdes, RxAfeAdaptiveEnable);
-
-#if defined(TAJO_SDK_VERSION_1_56_1) || defined(TAJO_SDK_VERSION_1_58_1)
-SAI_ATTRIBUTE_NAME(PortSerdes, RxChannelReach);
-SAI_ATTRIBUTE_NAME(PortSerdes, RxDiffEncoderEn);
-SAI_ATTRIBUTE_NAME(PortSerdes, RxFbfCoefInitVal);
-SAI_ATTRIBUTE_NAME(PortSerdes, RxFbfLmsEnable);
-SAI_ATTRIBUTE_NAME(PortSerdes, RxInstgScanOptimize);
-SAI_ATTRIBUTE_NAME(PortSerdes, RxInstgTableEndRow);
-SAI_ATTRIBUTE_NAME(PortSerdes, RxInstgTableStartRow);
-SAI_ATTRIBUTE_NAME(PortSerdes, RxParityEncoderEn);
-SAI_ATTRIBUTE_NAME(PortSerdes, RxThpEn);
-SAI_ATTRIBUTE_NAME(PortSerdes, TxDiffEncoderEn);
-SAI_ATTRIBUTE_NAME(PortSerdes, TxDigGain);
-SAI_ATTRIBUTE_NAME(PortSerdes, TxFfeCoeff0);
-SAI_ATTRIBUTE_NAME(PortSerdes, TxFfeCoeff1);
-SAI_ATTRIBUTE_NAME(PortSerdes, TxFfeCoeff2);
-SAI_ATTRIBUTE_NAME(PortSerdes, TxFfeCoeff3);
-SAI_ATTRIBUTE_NAME(PortSerdes, TxFfeCoeff4);
-SAI_ATTRIBUTE_NAME(PortSerdes, TxParityEncoderEn);
-SAI_ATTRIBUTE_NAME(PortSerdes, TxThpEn);
-#endif
 
 struct SaiPortConnectorTraits {
   static constexpr sai_object_type_t ObjectType =

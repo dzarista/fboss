@@ -543,19 +543,12 @@ if (NOT SAI_ONLY)
       fboss/agent/platforms/wedge/oss/WedgePlatform.cpp
   )
 
-  add_executable(qsfp_service
-      fboss/qsfp_service/QsfpServer.cpp
-      fboss/qsfp_service/oss/QsfpServer.cpp
-      fboss/qsfp_service/Main.cpp
-      fboss/qsfp_service/QsfpServiceHandler.cpp
-      fboss/qsfp_service/QsfpServiceSignalHandler.cpp
-  )
-
   # TODO (skhare) refactor fboss_agent and remove this library
   add_library(switch_asics_old STATIC
       fboss/agent/hw/switch_asics/FakeAsic.h
       fboss/agent/hw/switch_asics/HwAsic.cpp
       fboss/agent/hw/switch_asics/HwAsic.h
+      fboss/agent/hw/switch_asics/Tomahawk5Asic.cpp
       fboss/agent/hw/switch_asics/Tomahawk4Asic.cpp
       fboss/agent/hw/switch_asics/Tomahawk3Asic.cpp
       fboss/agent/hw/switch_asics/TomahawkAsic.cpp
@@ -980,45 +973,11 @@ if (NOT SAI_ONLY)
 
   target_link_libraries(switch_asics_old fboss_agent)
   target_link_libraries(wedge_agent fboss_agent)
-  target_link_libraries(qsfp_service
-      qsfp_module
-      fboss_agent
-      qsfp_config
-      phy_management_base
-      transceiver_manager
-      qsfp_platforms_wedge
-  )
 
   add_executable(cp2112_util
       fboss/util/cp2112_util.cpp
   )
   target_link_libraries(cp2112_util fboss_agent)
-
-  add_executable(wedge_qsfp_util
-      fboss/util/wedge_qsfp_util.cpp
-      fboss/util/qsfp_util_main.cpp
-      fboss/util/qsfp/QsfpUtilTx.cpp
-      fboss/util/qsfp/QsfpServiceDetector.cpp
-      fboss/util/oss/wedge_qsfp_util.cpp
-      fboss/lib/firmware_storage/FbossFirmware.cpp
-      fboss/lib/firmware_storage/FbossFirmware.h
-      fboss/lib/firmware_storage/FbossFwStorage.cpp
-      fboss/lib/firmware_storage/FbossFwStorage.h
-      fboss/lib/i2c/CdbCommandBlock.h
-      fboss/lib/i2c/CdbCommandBlock.cpp
-      fboss/lib/i2c/FirmwareUpgrader.cpp
-      fboss/lib/i2c/FirmwareUpgrader.h
-  )
-  target_link_libraries(wedge_qsfp_util
-      fboss_agent
-      qsfp_config
-      qsfp_lib
-      qsfp_module
-      ${YAML-CPP}
-      phy_management_base
-      transceiver_manager
-      qsfp_platforms_wedge
-  )
 
   # Don't include fboss/agent/test/ArpBenchmark.cpp
   # It depends on the Sim implementation and needs its own target

@@ -302,11 +302,11 @@ struct BlockedMacAddress {
 }
 
 struct SwitchSettingsFields {
-  1: switch_config.L2LearningMode l2LearningMode;
-  2: bool qcmEnable;
-  3: bool ptpTcEnable;
-  4: i32 l2AgeTimerSeconds;
-  5: i32 maxRouteCounterIDs;
+  1: switch_config.L2LearningMode l2LearningMode = switch_config.L2LearningMode.HARDWARE;
+  2: bool qcmEnable = false;
+  3: bool ptpTcEnable = false;
+  4: i32 l2AgeTimerSeconds = 300;
+  5: i32 maxRouteCounterIDs = 0;
   6: list<BlockedNeighbor> blockNeighbors;
   7: list<BlockedMacAddress> macAddrsToBlock;
   // Switch type
@@ -521,12 +521,12 @@ struct SwitchState {
   6: map<string, MirrorFields> mirrorMap;
   7: ControlPlaneFields controlPlane;
   8: SwitchSettingsFields switchSettings;
-  9: i16 defaultVlan;
-  10: i64 arpTimeout;
-  11: i64 ndpTimeout;
-  12: i32 arpAgerInterval;
-  13: i32 maxNeighborProbes;
-  14: i64 staleEntryInterval;
+  9: i16 defaultVlan = 0;
+  10: i64 arpTimeout = 60;
+  11: i64 ndpTimeout = 60;
+  12: i32 arpAgerInterval = 5;
+  13: i32 maxNeighborProbes = 300;
+  14: i64 staleEntryInterval = 10;
   15: Address.BinaryAddress dhcpV4RelaySrc;
   16: Address.BinaryAddress dhcpV6RelaySrc;
   17: Address.BinaryAddress dhcpV4ReplySrc;

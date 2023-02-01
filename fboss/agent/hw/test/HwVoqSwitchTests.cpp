@@ -11,6 +11,8 @@
 #include "fboss/agent/hw/test/HwTest.h"
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
+#include "fboss/agent/hw/test/HwTestPacketSnooper.h"
+#include "fboss/agent/hw/test/HwTestPacketTrapEntry.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/HwTestStatUtils.h"
 #include "fboss/agent/state/Interface.h"
@@ -184,16 +186,18 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
     }
   }
 
-  void sendPacketHelper(bool isFrontPanel) {
+  void sendPacketHelper(bool isFrontPanel, bool checkAclCounter = true) {
     utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
     const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
 
-    auto setup = [this, kPort, ecmpHelper]() {
-      addDscpAclWithCounter();
+    auto setup = [this, kPort, ecmpHelper, checkAclCounter]() {
+      if (checkAclCounter) {
+        addDscpAclWithCounter();
+      }
       addRemoveNeighbor(kPort, true /* add neighbor*/);
     };
 
-    auto verify = [this, kPort, ecmpHelper, isFrontPanel]() {
+    auto verify = [this, kPort, ecmpHelper, isFrontPanel, checkAclCounter]() {
       folly::IPAddressV6 kSrcIp("1::1");
       folly::IPAddressV6 kNeighborIp = ecmpHelper.ip(kPort);
       const auto srcMac = utility::kLocalCpuMac();
@@ -242,12 +246,13 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
             kDefaultQueue);
       };
 
-      auto getAclPackets = [this]() {
-        return utility::getAclInOutPackets(
-            getHwSwitch(),
-            getProgrammedState(),
-            kDscpAclName(),
-            kDscpAclCounterName());
+      auto getAclPackets = [this, checkAclCounter]() {
+        return checkAclCounter ? utility::getAclInOutPackets(
+                                     getHwSwitch(),
+                                     getProgrammedState(),
+                                     kDscpAclName(),
+                                     kDscpAclCounterName())
+                               : 0;
       };
 
       auto [beforeOutPkts, beforeOutBytes] = getPortOutPktsBytes();
@@ -294,7 +299,9 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
         // CS00012267635: debug why queue counter is 310, when txPacketSize is
         // 322
         EXPECT_EVENTUALLY_GE(afterQueueOutBytes, beforeQueueOutBytes);
-        EXPECT_EVENTUALLY_GT(afterAclPkts, beforeAclPkts);
+        if (checkAclCounter) {
+          EXPECT_EVENTUALLY_GT(afterAclPkts, beforeAclPkts);
+        }
         if (getAsic()->isSupported(HwAsic::Feature::VOQ)) {
           EXPECT_EVENTUALLY_GT(afterVoQOutBytes, beforeVoQOutBytes);
         }
@@ -326,7 +333,23 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
   }
 };
 
-TEST_F(HwVoqSwitchTest, init) {
+class HwVoqSwitchWithFabricPortsTest : public HwVoqSwitchTest {
+ public:
+  cfg::SwitchConfig initialConfig() const override {
+    auto cfg = utility::onePortPerInterfaceConfig(
+        getHwSwitch(),
+        masterLogicalPortIds(),
+        getAsic()->desiredLoopbackMode(),
+        true, /*interfaceHasSubnet*/
+        false, /*setInterfaceMac*/
+        utility::kBaseVlanId,
+        true /*enable fabric ports*/
+    );
+    return cfg;
+  }
+};
+
+TEST_F(HwVoqSwitchWithFabricPortsTest, init) {
   auto setup = [this]() {};
 
   auto verify = [this]() {
@@ -339,6 +362,15 @@ TEST_F(HwVoqSwitchTest, init) {
     }
   };
   verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchWithFabricPortsTest, collectStats) {
+  auto verify = [this]() {
+    EXPECT_GT(getProgrammedState()->getPorts()->size(), 0);
+    SwitchStats dummy;
+    getHwSwitch()->updateStats(&dummy);
+  };
+  verifyAcrossWarmBoots([] {}, verify);
 }
 
 TEST_F(HwVoqSwitchTest, remoteSystemPort) {
@@ -414,6 +446,22 @@ TEST_F(HwVoqSwitchTest, sendPacketFrontPanel) {
   sendPacketHelper(true /* front panel */);
 }
 
+TEST_F(HwVoqSwitchTest, trapPktsOnPort) {
+  auto verify = [this]() {
+    utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+    const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+    auto ensemble = getHwSwitchEnsemble();
+    auto snooper = std::make_unique<HwTestPacketSnooper>(ensemble);
+    auto entry = std::make_unique<HwTestPacketTrapEntry>(
+        ensemble->getHwSwitch(), kPort.phyPortID());
+    sendPacketHelper(true /* front panel */, false /*checkAclCounter*/);
+    WITH_RETRIES({
+      auto frameRx = snooper->waitForPacket(1);
+      EXPECT_EVENTUALLY_TRUE(frameRx.has_value());
+    });
+  };
+  verifyAcrossWarmBoots([] {}, verify);
+}
 TEST_F(HwVoqSwitchTest, rxPacketToCpu) {
   utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
   auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
@@ -550,12 +598,4 @@ TEST_F(HwVoqSwitchTest, checkFabricReacability) {
       [] {}, [this]() { checkFabricReachability(getHwSwitch()); });
 }
 
-TEST_F(HwVoqSwitchTest, collectStats) {
-  auto verify = [this]() {
-    EXPECT_GT(getProgrammedState()->getPorts()->size(), 0);
-    SwitchStats dummy;
-    getHwSwitch()->updateStats(&dummy);
-  };
-  verifyAcrossWarmBoots([] {}, verify);
-}
 } // namespace facebook::fboss

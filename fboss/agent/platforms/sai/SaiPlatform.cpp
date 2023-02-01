@@ -47,8 +47,6 @@ DEFINE_string(
     firmware_path,
     "/etc/packages/neteng-fboss-wedge_agent/current",
     "Path to load the firmware");
-// TODO - get this information from config
-DEFINE_int32(num_voq_switches, 10, "Num VOQ switches in cluster");
 namespace {
 
 std::unordered_map<std::string, std::string> kSaiProfileValues;
@@ -194,7 +192,9 @@ void SaiPlatform::initSaiProfileValues() {
       SAI_KEY_WARM_BOOT_WRITE_FILE, getWarmBootHelper()->warmBootDataPath()));
   kSaiProfileValues.insert(std::make_pair(
       SAI_KEY_BOOT_TYPE, getWarmBootHelper()->canWarmBoot() ? "1" : "0"));
-  kSaiProfileValues.insert(std::make_pair(SAI_KEY_BOOT_TYPE, "0"));
+  auto vendorProfileValues = getSaiProfileVendorExtensionValues();
+  kSaiProfileValues.insert(
+      vendorProfileValues.begin(), vendorProfileValues.end());
 }
 
 void SaiPlatform::initImpl(uint32_t hwFeaturesDesired) {
@@ -356,14 +356,16 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
       // For a mixed HW deployment, update config to reflect
       // ASIC type to switch mapping, then use that information
       // to compute total cores in VOQ switch cluster.
-      cores = FLAGS_num_voq_switches * getAsic()->getNumCores();
+      cores = getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_EBRO
+          ? 10
+          : 20 * getAsic()->getNumCores();
       sysPortConfigs = SaiSwitchTraits::Attributes::SysPortConfigList{
           getInternalSystemPortConfig()};
     }
   }
+  std::optional<SaiSwitchTraits::Attributes::DllPath> dllPath;
 #if defined(SAI_VERSION_8_2_0_0_ODP) || \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP)
-  std::optional<SaiSwitchTraits::Attributes::DllPath> dllPath;
   auto platformMode = getMode();
   if (platformMode == PlatformMode::FUJI ||
       platformMode == PlatformMode::ELBERT) {
@@ -426,10 +428,7 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
         std::nullopt, // Max ECMP member count
         std::nullopt, // ECMP member count
 #endif
-#if defined(SAI_VERSION_8_2_0_0_ODP) || \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP)
-        dllPath,
-#endif
+        dllPath, std::nullopt,
   };
 }
 

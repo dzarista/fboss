@@ -53,7 +53,7 @@ cfg::Fields getFullHashUdf() {
   hashFields.transportFields() = std::set<cfg::TransportField>(
       {cfg::TransportField::SOURCE_PORT,
        cfg::TransportField::DESTINATION_PORT});
-  hashFields.udfGroups() = std::vector<std::string>({"dstQueuePair"});
+  hashFields.udfGroups() = std::vector<std::string>({kUdfGroupName});
   return hashFields;
 }
 
@@ -160,16 +160,16 @@ cfg::UdfConfig addUdfConfig(void) {
   std::map<std::string, cfg::UdfGroup> udfMap;
   std::map<std::string, cfg::UdfPacketMatcher> udfPacketMatcherMap;
 
-  matchCfg.name() = "l4UdpRoce";
+  matchCfg.name() = kUdfPktMatcherName;
   matchCfg.l4PktType() = cfg::UdfMatchL4Type::UDF_L4_PKT_TYPE_UDP;
-  matchCfg.UdfL4DstPort() = 4791;
+  matchCfg.UdfL4DstPort() = kUdfL4DstPort;
 
-  udfGroupEntry.name() = "dstQueuePair";
+  udfGroupEntry.name() = kUdfGroupName;
   udfGroupEntry.header() = cfg::UdfBaseHeaderType::UDF_L4_HEADER;
-  udfGroupEntry.startOffsetInBytes() = 13;
-  udfGroupEntry.fieldSizeInBytes() = 3;
+  udfGroupEntry.startOffsetInBytes() = kUdfStartOffsetInBytes;
+  udfGroupEntry.fieldSizeInBytes() = kUdfFieldSizeInBytes;
   // has to be the same as in matchCfg
-  udfGroupEntry.udfPacketMatcherIds() = {"l4UdpRoce"};
+  udfGroupEntry.udfPacketMatcherIds() = {kUdfPktMatcherName};
 
   udfMap.insert(std::make_pair(*udfGroupEntry.name(), udfGroupEntry));
   udfPacketMatcherMap.insert(std::make_pair(*matchCfg.name(), matchCfg));
@@ -229,8 +229,8 @@ void pumpRoCETraffic(
         dstMac,
         srcIp, /* fixed */
         dstIp, /* fixed */
-        62946, /* arbit src port, fixed */
-        4791, /* RoCE fixed dst port */
+        kRandomUdfL4SrcPort, /* arbit src port, fixed */
+        kUdfL4DstPort, /* RoCE fixed dst port */
         0,
         hopLimit,
         rocePayload);
@@ -259,7 +259,7 @@ void pumpTraffic(
         folly::sformat(isV6 ? "1001::{}" : "100.0.0.{}", i + 1));
     for (auto j = 0; j < 100; ++j) {
       auto dstIp = folly::IPAddress(
-          folly::sformat(isV6 ? "2001::{}" : "200.0.0.{}", j + 1));
+          folly::sformat(isV6 ? "2001::{}" : "201.0.0.{}", j + 1));
       auto pkt = makeUDPTxPacket(
           hw,
           vlan,

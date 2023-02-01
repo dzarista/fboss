@@ -68,94 +68,24 @@ std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
   return SAI_PORT_SERDES_ATTR_EXT_FAKE_RX_AFE_ADAPTIVE_ENABLE;
 }
 
-#if defined(TAJO_SDK_VERSION_1_56_1) || defined(TAJO_SDK_VERSION_1_58_1)
 std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeRxChannelReachWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_RX_CHANNEL_REACH;
-}
-std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeRxDiffEncoderEnWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_RX_DIFF_ENCODER_EN;
-}
-
-std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
-    AttributeRxFbfCoefInitValWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_RX_FBF_COEF_INIT_VAL;
+SaiSwitchTraits::Attributes::AttributeDllPathWrapper::operator()() {
+  return SAI_SWITCH_ATTR_ISSU_CUSTOM_DLL_PATH;
 }
 
 std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeRxFbfLmsEnableWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_RX_FBF_LMS_ENABLE;
-}
-
-std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
-    AttributeRxInstgScanOptimizeWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_RX_INSTG_SCAN_OPTIMIZE;
-}
-
-std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
-    AttributeRxInstgTableEndRowWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_RX_INSTG_TABLE_END_ROW;
-}
-
-std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
-    AttributeRxInstgTableStartRowWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_RX_INSTG_TABLE_START_ROW;
-}
-
-std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
-    AttributeRxParityEncoderEnWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_RX_PARITY_ENCODER_EN;
+SaiPortTraits::Attributes::AttributeSerdesLaneList::operator()() {
+  return SAI_PORT_ATTR_SERDES_LANE_LIST;
 }
 
 std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeRxThpEnWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_RX_THP_EN;
+SaiPortTraits::Attributes::AttributeDiagModeEnable::operator()() {
+  return SAI_PORT_ATTR_DIAGNOSTICS_MODE_ENABLE;
 }
 
 std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeTxDiffEncoderEnWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_TX_DIFF_ENCODER_EN;
+SaiSwitchTraits::Attributes::AttributeRestartIssuWrapper::operator()() {
+  return SAI_SWITCH_ATTR_EXT_RESTART_ISSU;
 }
 
-std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeTxDigGainWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_TX_DIG_GAIN;
-}
-
-std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeTxFfeCoeff0Wrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_TX_FFE_COEFF_0;
-}
-
-std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeTxFfeCoeff1Wrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_TX_FFE_COEFF_1;
-}
-
-std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeTxFfeCoeff2Wrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_TX_FFE_COEFF_2;
-}
-
-std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeTxFfeCoeff3Wrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_TX_FFE_COEFF_3;
-}
-
-std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeTxFfeCoeff4Wrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_TX_FFE_COEFF_4;
-}
-
-std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
-    AttributeTxParityEncoderEnWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_TX_PARITY_ENCODER_EN;
-}
-
-std::optional<sai_attr_id_t>
-SaiPortSerdesTraits::Attributes::AttributeTxThpEnWrapper::operator()() {
-  return SAI_PORT_SERDES_ATTR_EXT_TX_THP_EN;
-}
-#endif
 } // namespace facebook::fboss

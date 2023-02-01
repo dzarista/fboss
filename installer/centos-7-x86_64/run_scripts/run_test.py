@@ -35,7 +35,26 @@ from argparse import ArgumentParser
 #  ./run_test.py sai --config fuji.agent.materialized_JSON --filter HwVlanTest.VlanApplyConfig --sdk_logging /root/skhare/sai_replayer_logs --no-oss --sai-bin /root/skhare/sai_test-brcm-7.2.0.0_odp --mgmt-if eth0
 #
 # All tests matching following filter are expected to PASS on Makalu
+# Basic VOQ switch tests
 # ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwVoqSwitchTest*
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwVoqSwitchWithFabriPortsTest.*
+# LB Tests
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwLoadBalancerTestV4.*:-*Ucmp*:-*Shrink*
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwLoadBalancerTestV6.*:-*Ucmp*:-*Shrink*
+# Route programming tests
+# ./run_test.py sai --config makalu.agent.materialized_JSON  --filter=HwAlpmStressTest.*
+# ./run_test.py sai --config makalu.agent.materialized_JSON  --filter=SaiNextHopGroupTest:-*addNextHopGroupPortDown*
+# V4 routes
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwRouteTest/0.*:-*Mpls*:*ClassId*:*ClassID*
+# V6 routes
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwRouteTest/1.*:-*Mpls*:*ClassId*:*ClassID*
+# ACLs
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwAclPriorityTest.*:-*AclsChanged*
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwAclCounterTest.*:-*Ttl*
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=SaiAclTableRecreateTests.*
+# ./run_test.py sai --config makalu.agent.materialized_JSON
+# --filter=HwAclStatTest.*:-*AclStatCreate:*AclStatCreateShared:*AclStatCreateMultiple:*AclStatMultipleActions:*AclStatDeleteShared*:*AclStatDeleteSharedPostWarmBoot:*AclStatRename*:*AclStatModify:*AclStatShuffle:*StatNumberOfCounters:*AclStatChangeCounterType
+
 # All tests matching following filter are expected to PASS on Kamet
 # ./run_test.py sai --config kamet.agent.materialized_JSON --filter=HwFabricSwitchTest*
 
@@ -59,7 +78,7 @@ class TestRunner(abc.ABC):
     WARMBOOT_SETUP_OPTION = "--setup-for-warmboot"
     COLDBOOT_PREFIX = "cold_boot."
     WARMBOOT_PREFIX = "warm_boot."
-    TESTRUN_TIMEOUT = 300
+    TESTRUN_TIMEOUT = 600
 
     _GTEST_RESULT_PATTERN = re.compile(
         r"""\[\s+(?P<status>(OK)|(FAILED)|(SKIPPED)|(TIMEOUT))\s+\]\s+
