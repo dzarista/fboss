@@ -91,6 +91,8 @@ To add support for a new platform, create a new directory in `platform` with
 any platform-specific code, then add a new spec file in `rpms/` with
 instructions on how to build the platform code. Any special initialization
 needs to be put in a `platform_init.sh` script that gets installed in
-`/opt/fboss/bin/`; this will automatically get called during the
-generic `fboss_init.sh`.
-
+`/opt/fboss/bin/`; this will automatically get called during the generic
+`fboss_init.sh`. If a sensor config is needed, make sure to include the config
+file and install it in `/opt/fboss/share/sensor_service/platform_sensors.conf`.
+Make sure to also include a `fruid.json` which FBOSS will use to identify the
+platform.
