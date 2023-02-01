@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Platform init script for Darwin. This currently assumes that the APL
-# kernel modules are already installed.
+# Platform init script for Darwin.
 
 load_kernel_modules() {
    # Load required kernel modules. The udev rules depend on these.

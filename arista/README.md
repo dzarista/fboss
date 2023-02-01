@@ -89,5 +89,8 @@ To delete the $FBOSS_BUILD_DIR/FBOSS_DIR directory, run `fbossctl clean`.
 
 To add support for a new platform, create a new directory in `platform` with
 any platform-specific code, then add a new spec file in `rpms/` with
-instructions on how to build the platform code.
+instructions on how to build the platform code. Any special initialization
+needs to be put in a `platform_init.sh` script that gets installed in
+`/opt/fboss/bin/`; this will automatically get called during the
+generic `fboss_init.sh`.
 
