@@ -75,7 +75,7 @@ copy your newly built RPMs to the switch. `fbossctl update-dut <dut>`
 provides a convenient way to copy the latest RPMs to <dut>:/tmp. After copying
 the RPMs, SSH to the DUT and install the RPMs using `rpm -ivh <rpm>`.
 
-To re-initialize FBOSS OSS, run `/opt/fboss/bin/init.sh`.
+To re-initialize FBOSS OSS, run `/opt/fboss/bin/fboss_init.sh`.
 
 ## Other fbossctl Options
 
