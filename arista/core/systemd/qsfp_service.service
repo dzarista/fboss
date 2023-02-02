@@ -4,7 +4,9 @@ After=data_corral_service.service
 Wants=data_corral_service.service
 
 [Service]
-ExecStart=/opt/fboss/bin/qsfp_service
+ExecStart=/opt/fboss/bin/run_qsfp_service.sh
+StandardOutput=file:/var/log/qsfp_service.log
+StandardError=file:/var/log/qsfp_service.log
 
 [Install]
 WantedBy=multi-user.target

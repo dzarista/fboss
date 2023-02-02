@@ -1,0 +1,12 @@
+[Unit]
+Description=Start wedge_agent
+After=qsfp_service.service
+Wants=qsfp__service.service
+
+[Service]
+ExecStart=/opt/fboss/bin/run_wedge_agent.sh
+StandardOutput=file:/var/log/wedge_agent.log
+StandardError=file:/var/log/wedge_agent.log
+
+[Install]
+WantedBy=multi-user.target

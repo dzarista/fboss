@@ -30,6 +30,9 @@ find %{SOURCEURL0}/%{_fboss_build_dir} -maxdepth 1 -type f -exec cp {} ./fboss_b
 mkdir -p %{_fboss_target_bin}
 cp -rf fboss_bins-*/* %{_fboss_target_opt}
 cp -f scripts/fboss_init.sh %{_fboss_target_bin}
+cp -f scripts/run_sensor_service.sh %{_fboss_target_bin}
+cp -f scripts/run_qsfp_service.sh %{_fboss_target_bin}
+cp -f scripts/run_wedge_agent.sh %{_fboss_target_bin}
 
 # Install systemd services.
 mkdir -p %{_fboss_target_systemd}
@@ -37,6 +40,7 @@ install systemd/data_corral_service.service %{_fboss_target_systemd}
 install systemd/sensor_service.service %{_fboss_target_systemd}
 install systemd/fan_service.service %{_fboss_target_systemd}
 install systemd/qsfp_service.service %{_fboss_target_systemd}
+install systemd/wedge_agent.service %{_fboss_target_systemd}
 install systemd/rackmon.service %{_fboss_target_systemd}
 
 %files

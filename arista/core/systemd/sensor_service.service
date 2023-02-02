@@ -4,7 +4,7 @@ After=data_corral_service.service
 Wants=data_corral_service.service
 
 [Service]
-ExecStart=/opt/fboss/bin/sensor_service -config_path /opt/fboss/share/sensor_service/platform_sensors.conf
+ExecStart=/opt/fboss/bin/run_sensor_service.sh
 
 [Install]
 WantedBy=multi-user.target

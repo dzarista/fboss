@@ -66,7 +66,7 @@ Built RPMs can be found in `$FBOSS_BUILD_DIR/FBOSS_DIR/rpmbuild/RPMS/`.
 
 To install FBOSS OSS on an Arista switch in the lab, first build and package the
 source as RPMs. With your RPMs built, sanitize your DUT using
-`a dut sanitize --os=fboss --osArgs="installOss=True ossRpmDir=<dir>"`.
+`a dut sanitize --os=fbossOss --osArgs="ossRpmDir=<dir>"`.
 
 ### How to Quickly Reinstall Changes
 
@@ -92,7 +92,6 @@ any platform-specific code, then add a new spec file in `rpms/` with
 instructions on how to build the platform code. Any special initialization
 needs to be put in a `platform_init.sh` script that gets installed in
 `/opt/fboss/bin/`; this will automatically get called during the generic
-`fboss_init.sh`. If a sensor config is needed, make sure to include the config
-file and install it in `/opt/fboss/share/sensor_service/platform_sensors.conf`.
-Make sure to also include a `fruid.json` which FBOSS will use to identify the
-platform.
+`fboss_init.sh`. Any service-specific configuration files should go in the
+`platform/<platform>/config` directory. Make sure to also include a `fruid.json`
+which FBOSS will use to identify the platform.
