@@ -5,7 +5,8 @@
 load_kernel_modules() {
    # Load required kernel modules. The udev rules depend on these.
    printf "\nLoading kernel modules\n"
-   kernel_lib_dir="/lib/modules/$(uname -r)"
+   kernel="$(uname -r)"
+   kernel_lib_dir="/lib/modules/${kernel}"
    declare -a kmodules=("i2c_dev_sysfs"
                         "amax5970"
                         "aslg4f4527"
@@ -16,6 +17,12 @@ load_kernel_modules() {
                         "scd-watchdog"
                         "rook-fan-cpld"
                        )
+
+   # In 5.x kernels, the scd-leds driver has a dependency on the led-class module.
+   if [[ "${kernel}" != *"4.18"* ]]; then
+      kmodules=("kernel/drivers/leds/led-class" "${kmodules[@]}")
+   fi
+
    for mod in "${kmodules[@]}"
    do
       if $(lsmod | grep "$(basename ${mod//-/_})" >& /dev/null); then

@@ -75,11 +75,12 @@ maybe_setup_build_env() {
    git pull
    git checkout SAI_8.1.0_GA
    wget http://dist/storage/fboss/FBOSS-SAI/patch0-Jupiter-SAI-Makefile.patch
-   # TODO: add patch for DNX
    wget http://dist/storage/fboss/FBOSS-SAI/patch1-Jupiter-SAI-xgs-static-build.patch
+   wget http://dist/storage/fboss/FBOSS-SAI/patch1-Jupiter-SAI-dnx-static-build.patch
    wget http://dist/storage/fboss/FBOSS-SAI/patch2-Jupiter-SAI-static-makefile.patch
    git apply patch0-Jupiter-SAI-Makefile.patch
    git apply patch1-Jupiter-SAI-xgs-static-build.patch
+   git apply patch1-Jupiter-SAI-dnx-static-build.patch
    git apply patch2-Jupiter-SAI-static-makefile.patch
    cd "${FBOSS_HOST_DIR}/Jupiter_SAI/sdk-src/hsdk_6.5.26_SAI_8.1.0_GA"
    wget http://dist/storage/arista-sonic/misc/sai/sai-sdk-all-6.5.26-a704867d9.tar.xz
