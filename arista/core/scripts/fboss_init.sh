@@ -40,6 +40,14 @@ printf "\nRunning fboss setup\n"
 source ./bin/setup_fboss_env
 ./bin/setup.py
 
+# Link binaries.
+printf "\nLinking FBOSS binaries\n"
+ln -sf /opt/fboss/bin/* /usr/bin/
+
+# Link libraries.
+printf "\nLinking FBOSS libraries\n"
+ln -sf /opt/fboss/lib64/* /usr/lib64/
+
 # Create links for services.
 printf "\nInstalling services\n"
 for service in /opt/fboss/share/systemd/*; do
