@@ -73,7 +73,7 @@ source as RPMs. With your RPMs built, sanitize your DUT using
 When quickly testing changes with an already sanitized DUT, you can simply
 copy your newly built RPMs to the switch. `fbossctl update-dut <dut>`
 provides a convenient way to copy the latest RPMs to <dut>:/tmp. After copying
-the RPMs, SSH to the DUT and install the RPMs using `rpm -ivh <rpm>`.
+the RPMs, SSH to the DUT and install the RPMs using `rpm -Uvh <rpm>`.
 
 To re-initialize FBOSS OSS, run `/opt/fboss/bin/fboss_init.sh`.
 
