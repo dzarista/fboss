@@ -7,14 +7,15 @@
 FBOSS_DIR="/opt/fboss"
 SYSTEMD_DIR="/etc/systemd/system"
 
+set -e
+
 # We need to cd into the FBOSS home directory because some of the setup scripts
 # have a dependency on the working dir.
 cd "${FBOSS_DIR}"
 
 # Install dependencies.
 printf "\nInstalling dependencies\n"
-declare -a deps=("python3-devel"
-                 "python3-yaml"
+declare -a deps=("python36-devel"
                  "epel-release"
                  "flashrom"
                  "lm_sensors"

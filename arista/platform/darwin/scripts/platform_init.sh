@@ -2,6 +2,8 @@
 
 # Platform init script for Darwin.
 
+set -e
+
 load_kernel_modules() {
    # Load required kernel modules. The udev rules depend on these.
    printf "\nLoading kernel modules\n"
@@ -37,7 +39,9 @@ load_kernel_modules() {
 enumerate_rook_pci() {
    # Add Rook CPLD PCI device; this is needed so that scd driver discovers Rook CPLD.
    printf "\nEnumerating Rook CPLD on PCI\n"
+   set +e
    echo "8086 6f76" > /sys/bus/pci/drivers/scd/new_id
+   set -e
 }
 
 load_udev_rules() {
