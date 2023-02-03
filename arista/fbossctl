@@ -28,9 +28,8 @@ usage() {
    echo
    echo "  build: Build FBOSS OSS + SAI + SDK"
    echo "    options:"
-   echo "      --rebuild-sdk: clear any cached SDK state before rebuilding"
-   echo "      --skip-sdk: skip the SDK"
-   echo "      --rebuild-fboss: clear any cached FBOSS OSS state before rebuilding"
+   echo "      --rebuild-all: rebuild SDK and FBOSS OSS"
+   echo "      --rebuild-fboss: rebuild FBOSS OSS only"
    echo "      --fboss-bins-only: rebuild only FBOSS OSS binaries (fastest)"
    echo "      --arch: specify the SDK architecture (dnx|xgs)"
    echo
@@ -76,6 +75,7 @@ maybe_setup_build_env() {
    git pull
    git checkout SAI_8.1.0_GA
    wget http://dist/storage/fboss/FBOSS-SAI/patch0-Jupiter-SAI-Makefile.patch
+   # TODO: add patch for DNX
    wget http://dist/storage/fboss/FBOSS-SAI/patch1-Jupiter-SAI-xgs-static-build.patch
    wget http://dist/storage/fboss/FBOSS-SAI/patch2-Jupiter-SAI-static-makefile.patch
    git apply patch0-Jupiter-SAI-Makefile.patch

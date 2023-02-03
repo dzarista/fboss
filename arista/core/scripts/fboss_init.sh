@@ -13,7 +13,9 @@ cd "${FBOSS_DIR}"
 
 # Install dependencies.
 printf "\nInstalling dependencies\n"
-declare -a deps=("epel-release"
+declare -a deps=("python3-devel"
+                 "python3-yaml"
+                 "epel-release"
                  "flashrom"
                  "lm_sensors"
                  "i2c-tools"
@@ -37,14 +39,6 @@ fi
 printf "\nRunning fboss setup\n"
 source ./bin/setup_fboss_env
 ./bin/setup.py
-
-# Link binaries.
-printf "\nLinking FBOSS binaries\n"
-ln -sf /opt/fboss/bin/* /usr/bin/
-
-# Link libraries.
-printf "\nLinking FBOSS libraries\n"
-ln -sf /opt/fboss/lib64/* /usr/lib64/
 
 # Create links for services.
 printf "\nInstalling services\n"

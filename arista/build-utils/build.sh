@@ -18,8 +18,8 @@ fi
 
 usage() {
    echo "Usage: $1 --arch <dnx|xgs> [ --build-dir <build directory> ] "
-   echo "          [ --rebuild-sdk ] [ --skip-sdk ] "
-   echo "          [ --rebuild-fboss ] [ --fboss-bins-only ]"
+   echo "          [ --rebuild-all ] [ --rebuild-fboss ] "
+   echo "          [ --fboss-bins-only ]"
    exit 1
 }
 
@@ -30,12 +30,9 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-    --rebuild-sdk)
+    --rebuild-all)
       REBUILD_SDK=TRUE
-      shift
-      ;;
-    --skip-sdk)
-      SKIP_SDK=TRUE
+      REBUILD_FBOSS=TRUE
       shift
       ;;
     --rebuild-fboss)
@@ -116,11 +113,8 @@ then
          rm -r "$SAI_BUILD_DIR/$dir"
       fi
    done
-fi
 
-echo "****SKIP_SDK $SKIP_SDK"
-if [ -z "$SKIP_SDK" ];
-then
+   echo "======= Starting SDK build ========"
    time make -j 8
    export KERNDIR="$KERNEL_SRC"
    export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.26_SAI_8.1.0_GA/$ARCH-sdk-6.5.26-gpl-modules"

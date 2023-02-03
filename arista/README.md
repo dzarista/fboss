@@ -16,7 +16,7 @@ The table below outlines the structure of this directory.
 | build-utils | Helper scripts for build tasks.                  |
 | core        | Core FBOSS scripts and config.                   |
 | platform    | Platform-specific scripts and config.            |
-| rpm         | Spec files for code Arista code packages.        |
+| rpm         | Spec files for Arista code packages.             |
 
 ## How to Build
 
@@ -44,10 +44,10 @@ extra `--build-dir` argument must be provided to specify the build directory.
 
 ### Rebuilding
 
-To rebuild the SDK from scratch, you must specify `--rebuild-sdk` to `fbossctl build`.
-To rebuild FBOSS OSS from scratch, you must specify `--rebuild-fboss`. To rebuild
-only the FBOSS OSS binaries, use `fbossctl build --skip-sdk --fboss-bins-only`; this
-is by far the fastest option.
+To rebuild the SDK and FBOSS OSS from scratch, use `fbossctl build --rebuild-all`.
+To rebuild just FBOSS OSS, use `fbossctl build --rebuild-fboss`.
+To rebuild only the FBOSS OSS binaries, use `fbossctl build --fboss-bins-only`;
+this is by far the fastest option.
 
 ## How to Package
 
