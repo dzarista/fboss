@@ -1,0 +1,8 @@
+[Unit]
+Description=Start data_corral_service
+
+[Service]
+ExecStart=/opt/fboss/bin/data_corral_service
+
+[Install]
+WantedBy=multi-user.target

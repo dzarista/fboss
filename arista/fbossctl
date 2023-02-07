@@ -1,0 +1,184 @@
+#!/bin/bash
+
+# fbossctl
+#
+# This script allows users to build, package, and install FBOSS OSS, as well as
+# enter the containerized build environment.
+
+FBOSS_IMG="docker.corp.arista.io/fboss-centos8:latest"
+
+DEFAULT_BUILD_DIR="//garage/${USER}/fboss-build"
+if [[ -z "${FBOSS_BUILD_DIR}" ]]; then
+   echo "No FBOSS_BUILD_DIR defined in environment, using ${DEFAULT_BUILD_DIR}" 
+   FBOSS_BUILD_DIR="${DEFAULT_BUILD_DIR}"
+fi
+
+FBOSS_HOST_DIR="${FBOSS_BUILD_DIR}/FBOSS_DIR"
+FBOSS_CONTAINER_BASE="/var/FBOSS"
+FBOSS_REPO_DIR="$(git rev-parse --show-toplevel)"
+FBOSS_RPM_DIR="${FBOSS_HOST_DIR}/rpmbuild/RPMS/"
+
+prog="$0"
+
+usage() {
+   echo "Usage: $prog <command> [command options]"
+   echo
+   echo "Commands:"
+   echo "  shell: Enter an FBOSS OSS build container"
+   echo
+   echo "  build: Build FBOSS OSS + SAI + SDK"
+   echo "    options:"
+   echo "      --rebuild-all: rebuild SDK and FBOSS OSS"
+   echo "      --rebuild-fboss: rebuild FBOSS OSS only"
+   echo "      --fboss-bins-only: rebuild only FBOSS OSS binaries (fastest)"
+   echo "      --arch: specify the SDK architecture (dnx|xgs)"
+   echo
+   echo "  package: Package FBOSS OSS into RPMs"
+   echo "    options:"
+   echo "      [rpm]: package only the specified RPM(s)"
+   echo
+   echo "  update-dut <dut>: copy latest RPMs to specified DUT"
+   echo
+   echo "  clean: Cleanup the FBOSS build environment"
+   echo
+   echo "  help: print this help message"
+   echo
+   echo
+}
+
+maybe_pull_docker_image() {
+   # If the docker image isn't installed locally, then pull it.
+   echo "Checking for required docker image: ${FBOSS_IMG}"
+   if [[ "$(docker images -q ${FBOSS_IMG} 2> /dev/null)" == "" ]]; then
+      echo "Cannot find ${FBOSS_IMG} locally. Pulling..."
+      docker pull "${FBOSS_IMG}"
+   fi
+}
+
+maybe_setup_build_env() {
+   # Setup the build environment by cloning SAI + SDK and creating the
+   # local FBOSS directory.
+   if [[ -d "${FBOSS_HOST_DIR}" ]]; then
+      echo "Found build environment in ${FBOSS_HOST_DIR}, skipping setup"
+      return
+   fi
+
+   echo "Creating build environment in ${FBOSS_HOST_DIR}"
+   set -ex
+   mkdir -p "${FBOSS_BUILD_DIR}"
+   mkdir "${FBOSS_HOST_DIR}"
+   cd "${FBOSS_HOST_DIR}"
+
+   # Clone the SAI + SDK and download patches.
+   git clone git@github.com:aristanetworks/Jupiter_SAI.git
+   cd "${FBOSS_HOST_DIR}/Jupiter_SAI"
+   git pull
+   git checkout SAI_8.1.0_GA
+   wget http://dist/storage/fboss/FBOSS-SAI/patch0-Jupiter-SAI-Makefile.patch
+   wget http://dist/storage/fboss/FBOSS-SAI/patch1-Jupiter-SAI-xgs-static-build.patch
+   wget http://dist/storage/fboss/FBOSS-SAI/patch1-Jupiter-SAI-dnx-static-build.patch
+   wget http://dist/storage/fboss/FBOSS-SAI/patch2-Jupiter-SAI-static-makefile.patch
+   git apply patch0-Jupiter-SAI-Makefile.patch
+   git apply patch1-Jupiter-SAI-xgs-static-build.patch
+   git apply patch1-Jupiter-SAI-dnx-static-build.patch
+   git apply patch2-Jupiter-SAI-static-makefile.patch
+   cd "${FBOSS_HOST_DIR}/Jupiter_SAI/sdk-src/hsdk_6.5.26_SAI_8.1.0_GA"
+   wget http://dist/storage/arista-sonic/misc/sai/sai-sdk-all-6.5.26-a704867d9.tar.xz
+   tar -xf sai-sdk-all-6.5.26-a704867d9.tar.xz
+
+   # Download FBOSS linux header files.
+   cd "${FBOSS_HOST_DIR}"
+   # KERNEL="FBOSS_KERNEL_SRC_5.12.0-0_fbk2_3390_g7ecb4ac46d7f.tar.gz"
+   KERNEL="FBOSS_KERNEL_SRC_4.18.0-408.el8.x86_64.tar.gz"
+   wget http://dist/storage/fboss/fbossImageFiles/"${KERNEL}"
+   tar -xf "${KERNEL}"
+   set +ex
+}
+
+cleanup_build_env() {
+   if [[ -d "${FBOSS_HOST_DIR}" ]]; then
+      echo "Deleting "${FBOSS_HOST_DIR}" contents"
+      sudo rm -rf "${FBOSS_HOST_DIR}"
+   fi
+}
+
+setup() {
+   maybe_pull_docker_image
+   maybe_setup_build_env
+   # Docker run's volume mount can't handle symlinks, so copy the latest versions
+   # of the build scripts every time.
+   cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/build.sh "${FBOSS_HOST_DIR}"
+   cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/package.sh "${FBOSS_HOST_DIR}"
+}
+
+run_cmd_container() {
+   # Run the given command in an FBOSS OSS build container. Note that we mount
+   # the git repo inside of the build directory: this is needed for the build
+   # scripts.
+   docker run -l owner="${USER}" --privileged --rm -it \
+      -v "${FBOSS_HOST_DIR}":/var/FBOSS/ \
+      -v "${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
+      -w /var/FBOSS --name=FBOSS_CENTOS8-"${USER}" "${FBOSS_IMG}" $@
+}
+
+enter_container_shell() {
+   setup
+   echo "Entering FBOSS OSS build container ('exit' or ctrl-d to exit)"
+   run_cmd_container bash
+}
+
+do_build() {
+   setup
+   run_cmd_container bash build.sh $@
+}
+
+do_package() {
+   setup
+   run_cmd_container bash package.sh $@
+}
+
+do_update_dut() {
+   dut="$1"
+
+   rpms=$(ls -A ${FBOSS_RPM_DIR})
+   if [[ -z "${rpms}" ]]; then
+      echo "Found no built RPMs in ${FBOSS_RPM_DIR}"
+      exit 1
+   fi
+
+   sshpass -p arastra a4 scp "${FBOSS_RPM_DIR}"/* root@"${dut}":/tmp/
+   echo "The following RPMs were copied to ${dut}:/tmp/"
+   echo "${rpms}"
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
+fi
+
+command="$1"
+shift
+
+case "${command}" in
+   shell)
+      enter_container_shell
+      ;;
+   build)
+      do_build $@
+      ;;
+   package)
+      do_package $@
+      ;;
+   clean)
+      cleanup_build_env
+      ;;
+   update-dut)
+      do_update_dut $1
+      ;;
+   *)
+      usage
+      exit 1
+      ;;
+esac
+
+exit $?
