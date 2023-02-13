@@ -11,7 +11,6 @@
 
 #include <fboss/agent/AddressUtil.h>
 #include <folly/IPAddress.h>
-#include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_constants.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
@@ -162,8 +161,6 @@ struct QcmCfgFields : public ThriftyFields<QcmCfgFields, state::QcmCfgFields> {
   bool operator!=(const QcmCfgFields& other) const {
     return !(data() == other.data());
   }
-  static folly::dynamic migrateToThrifty(folly::dynamic const& dyn);
-  static void migrateFromThrifty(folly::dynamic& dyn);
 };
 
 USE_THRIFT_COW(QcmCfg);

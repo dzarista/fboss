@@ -10,7 +10,6 @@
 #pragma once
 
 #include "fboss/agent/FbossError.h"
-#include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/state/MatchAction.h"
 #include "fboss/agent/state/NodeBase.h"
@@ -100,8 +99,6 @@ struct AclEntryFields
 
   state::AclEntryFields toThrift() const override;
   static AclEntryFields fromThrift(state::AclEntryFields const& ma);
-  static folly::dynamic migrateToThrifty(folly::dynamic const& dyn);
-  static void migrateFromThrifty(folly::dynamic& dyn);
 
   folly::dynamic toFollyDynamicLegacy() const;
   static AclEntryFields fromFollyDynamicLegacy(const folly::dynamic& json);

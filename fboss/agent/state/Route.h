@@ -12,7 +12,6 @@
 
 #include <folly/IPAddress.h>
 
-#include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
 #include "fboss/agent/state/NodeBase.h"
@@ -163,9 +162,6 @@ struct RouteFields
   static RouteFields fromThrift(ThriftFields const& fields) {
     return RouteFields(fields);
   }
-
-  static folly::dynamic migrateToThrifty(folly::dynamic const& dyn);
-  static void migrateFromThrifty(folly::dynamic& dyn);
 
   void clearFlags() {
     this->writableData().flags() = 0;

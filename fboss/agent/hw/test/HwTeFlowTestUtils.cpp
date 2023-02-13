@@ -19,15 +19,24 @@ using folly::IPAddress;
 using folly::StringPiece;
 
 void setExactMatchCfg(HwSwitchEnsemble* hwSwitchEnsemble, int prefixLength) {
+  auto newState = hwSwitchEnsemble->getProgrammedState();
+  setExactMatchCfg(&newState, prefixLength);
+  hwSwitchEnsemble->applyNewState(newState);
+}
+
+void setExactMatchCfg(std::shared_ptr<SwitchState>* state, int prefixLength) {
   cfg::ExactMatchTableConfig exactMatchTableConfigs;
   std::string teFlowTableName(cfg::switch_config_constants::TeFlowTableName());
   exactMatchTableConfigs.name() = teFlowTableName;
   exactMatchTableConfigs.dstPrefixLength() = prefixLength;
-  auto newState = hwSwitchEnsemble->getProgrammedState()->clone();
+  auto newState = *state;
+  if (newState->isPublished()) {
+    newState = newState->clone();
+  }
   auto newSwitchSettings = newState->getSwitchSettings()->clone();
   newSwitchSettings->setExactMatchTableConfig({exactMatchTableConfigs});
   newState->resetSwitchSettings(newSwitchSettings);
-  hwSwitchEnsemble->applyNewState(newState);
+  *state = newState;
 }
 
 IpPrefix ipPrefix(StringPiece ip, int length) {
@@ -107,6 +116,15 @@ void addFlowEntries(
   hwEnsemble->applyNewState(state, true);
 }
 
+void addFlowEntries(
+    std::shared_ptr<SwitchState>* state,
+    std::vector<std::shared_ptr<TeFlowEntry>>& flowEntries) {
+  auto teFlows = (*state)->getTeFlowTable()->modify(state);
+  for (auto& flowEntry : flowEntries) {
+    teFlows->addNode(flowEntry);
+  }
+}
+
 void deleteFlowEntry(
     HwSwitchEnsemble* hwEnsemble,
     std::shared_ptr<TeFlowEntry>& flowEntry) {
@@ -120,13 +138,18 @@ void deleteFlowEntry(
 void deleteFlowEntries(
     HwSwitchEnsemble* hwEnsemble,
     std::vector<std::shared_ptr<TeFlowEntry>>& flowEntries) {
-  auto teFlows = hwEnsemble->getProgrammedState()->getTeFlowTable()->clone();
+  auto newState = hwEnsemble->getProgrammedState();
+  deleteFlowEntries(&newState, flowEntries);
+  hwEnsemble->applyNewState(newState);
+}
+
+void deleteFlowEntries(
+    std::shared_ptr<SwitchState>* state,
+    std::vector<std::shared_ptr<TeFlowEntry>>& flowEntries) {
+  auto teFlows = (*state)->getTeFlowTable()->modify(state);
   for (auto& flowEntry : flowEntries) {
     teFlows->removeNode(flowEntry);
   }
-  auto newState = hwEnsemble->getProgrammedState()->clone();
-  newState->resetTeFlowTable(teFlows);
-  hwEnsemble->applyNewState(newState);
 }
 
 void modifyFlowEntry(

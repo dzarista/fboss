@@ -71,11 +71,11 @@ class ManagedVlanRifNeighbor : public SaiObjectEventAggregateSubscriber<
 
   std::string toString() const;
 
- private:
   SaiPortDescriptor getSaiPortDesc() const {
     return std::get<SaiPortDescriptor>(saiPortAndIntf_);
   }
 
+ private:
   RouterInterfaceSaiId getRouterInterfaceSaiId() const {
     return std::get<RouterInterfaceSaiId>(saiPortAndIntf_);
   }
@@ -98,23 +98,30 @@ class PortRifNeighbor {
       std::optional<sai_uint32_t> metadata,
       std::optional<sai_uint32_t> encapIndex,
       bool isLocal);
-  void handleLinkDown() {
-    // TODO
-  }
+
+  void handleLinkDown();
 
   SaiNeighborHandle* getHandle() const {
     return handle_.get();
   }
   void notifySubscribers() const {
-    // TODO
+    // noop
   }
 
   std::string toString() const {
     return fmt::format("{}", neighbor_->attributes());
   }
+  SaiPortDescriptor getSaiPortDesc() const {
+    return std::get<SaiPortDescriptor>(saiPortAndIntf_);
+  }
 
  private:
+  RouterInterfaceSaiId getRouterInterfaceSaiId() const {
+    return std::get<RouterInterfaceSaiId>(saiPortAndIntf_);
+  }
+
   SaiNeighborManager* manager_;
+  std::tuple<SaiPortDescriptor, RouterInterfaceSaiId> saiPortAndIntf_;
   std::shared_ptr<SaiNeighbor> neighbor_;
   std::unique_ptr<SaiNeighborHandle> handle_;
 };
@@ -146,6 +153,10 @@ class SaiNeighborEntry {
   std::string toString() const {
     return std::visit(
         [](auto& handle) { return handle->toString(); }, neighbor_);
+  }
+  SaiPortDescriptor getSaiPortDesc() const {
+    return std::visit(
+        [](auto& handle) { return handle->getSaiPortDesc(); }, neighbor_);
   }
 
  private:
@@ -195,6 +206,8 @@ class SaiNeighborManager {
 
   std::string listManagedObjects() const;
   SwitchSaiId getSwitchSaiId() const;
+
+  void handleLinkDown(const SaiPortDescriptor& /*port*/);
 
  private:
   SaiNeighborHandle* getNeighborHandleImpl(

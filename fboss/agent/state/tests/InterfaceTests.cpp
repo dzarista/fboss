@@ -635,3 +635,132 @@ TEST(Interface, getRemoteInterfacesBySwitchId) {
 
   EXPECT_EQ(stateV2->getInterfaces(SwitchID(remoteSwitchId))->size(), 1);
 }
+
+TEST(Interface, getInterfaceSysPortIDVoqSwitch) {
+  auto platform = createMockPlatform();
+  auto stateV0 = std::make_shared<SwitchState>();
+  auto config = testConfigA(cfg::SwitchType::VOQ);
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+  auto intf = stateV1->getInterfaces()->begin()->second;
+  EXPECT_TRUE(intf->getSystemPortID().has_value());
+  EXPECT_EQ(
+      static_cast<int64_t>(intf->getID()),
+      static_cast<int64_t>(intf->getSystemPortID().value()));
+}
+
+TEST(Interface, getInterfaceSysPortID) {
+  auto platform = createMockPlatform();
+  auto stateV0 = std::make_shared<SwitchState>();
+  auto config = testConfigA();
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+  auto intf = stateV1->getInterfaces()->begin()->second;
+  EXPECT_FALSE(intf->getSystemPortID().has_value());
+}
+
+TEST(Interface, getInterfacePortsVoqSwitch) {
+  auto platform = createMockPlatform();
+  auto stateV0 = std::make_shared<SwitchState>();
+  auto config = testConfigA(cfg::SwitchType::VOQ);
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+  auto intf = stateV1->getInterfaces()->begin()->second;
+  EXPECT_EQ(getPortsForInterface(intf->getID(), stateV1).size(), 1);
+}
+
+TEST(Interface, getInterfacePorts) {
+  auto platform = createMockPlatform();
+  auto stateV0 = std::make_shared<SwitchState>();
+  auto config = testConfigA();
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+  auto intf = stateV1->getInterfaces()->begin()->second;
+  EXPECT_EQ(getPortsForInterface(intf->getID(), stateV1).size(), 11);
+}
+
+TEST(Interface, verifyPseudoVlanProcessing) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+
+  auto verifyConfigPseudoVlansMatch = [](const auto& config,
+                                         const auto& state) {
+    for (const auto& interfaceCfg : *config.interfaces()) {
+      for (const auto& addr : *interfaceCfg.ipAddresses()) {
+        auto ipAddr = folly::IPAddress::createNetwork(addr, -1, false).first;
+        auto expectedMac = interfaceCfg.mac();
+        auto expectedIntfID = interfaceCfg.intfID();
+
+        if (ipAddr.isV4()) {
+          auto arpResponseEntry = state->getVlans()
+                                      ->getVlan(VlanID(0))
+                                      ->getArpResponseTable()
+                                      ->getEntry(ipAddr.asV4());
+          EXPECT_TRUE(arpResponseEntry != nullptr);
+          // no MAC for recycle port RIFs
+          if (expectedMac) {
+            EXPECT_EQ(*expectedMac, arpResponseEntry->getMac().toString());
+          }
+          EXPECT_EQ(
+              InterfaceID(*expectedIntfID), arpResponseEntry->getInterfaceID());
+        } else {
+          auto ndpResponseEntry = state->getVlans()
+                                      ->getVlan(VlanID(0))
+                                      ->getNdpResponseTable()
+                                      ->getEntry(ipAddr.asV6());
+          EXPECT_TRUE(ndpResponseEntry != nullptr);
+          // no MAC for recycle port RIFs
+          if (expectedMac) {
+            EXPECT_EQ(*expectedMac, ndpResponseEntry->getMac().toString());
+          }
+          EXPECT_EQ(
+              InterfaceID(*expectedIntfID), ndpResponseEntry->getInterfaceID());
+        }
+      }
+    }
+  };
+
+  // Verify if pseudo vlans are populated correctly
+  auto config = testConfigA(cfg::SwitchType::VOQ);
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  verifyConfigPseudoVlansMatch(config, stateV1);
+
+  // Apply same config, and verify no change in pseudo vlans
+  auto stateV2 = publishAndApplyConfig(stateV1, &config, platform.get());
+  EXPECT_EQ(nullptr, stateV2);
+
+  // Apply modified config (2 interfaces => 1 interface), and verify if pseudo
+  // vlans are populated correctly
+  auto config2 = testConfigA(cfg::SwitchType::VOQ);
+  config2.interfaces()->resize(1);
+  auto stateV3 = publishAndApplyConfig(stateV1, &config2, platform.get());
+  verifyConfigPseudoVlansMatch(config2, stateV3);
+
+  // Modify an interface (e.g. MAC addr for an interface), and verify if pseudo
+  // vlans are populated correctly
+  auto config3 = testConfigA(cfg::SwitchType::VOQ);
+  auto currMac = folly::MacAddress(*config3.interfaces()[0].mac());
+  auto newMac = folly::MacAddress::fromHBO(currMac.u64HBO() + 1);
+  config3.interfaces()[0].mac() = newMac.toString();
+  auto stateV4 = publishAndApplyConfig(stateV1, &config3, platform.get());
+  verifyConfigPseudoVlansMatch(config3, stateV4);
+}
+
+TEST(Interface, modify) {
+  auto platform = createMockPlatform();
+  auto stateV0 = std::make_shared<SwitchState>();
+  auto config = testConfigA();
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+  auto intf = stateV1->getInterfaces()->begin()->second;
+  auto intfModified = intf->modify(&stateV1);
+  EXPECT_EQ(intf.get(), intfModified);
+  intf->publish();
+  intfModified = intf->modify(&stateV1);
+  EXPECT_NE(intf.get(), intfModified);
+  auto oldMtu = intfModified->getMtu();
+  auto newMtu = oldMtu + 1000;
+  intfModified->setMtu(newMtu);
+  EXPECT_EQ(
+      stateV1->getInterfaces()->getInterface(intf->getID())->getMtu(), newMtu);
+}

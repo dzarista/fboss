@@ -7,6 +7,7 @@
 #include "fboss/lib/phy/PhyUtils.h"
 
 #include "fboss/agent/hw/test/ConfigFactory.h"
+#include "fboss/agent/hw/test/PhyCapabilities.h"
 
 namespace facebook::fboss {
 template <cfg::PortProfileID Profile>
@@ -70,14 +71,17 @@ class HwPortProfileTest : public HwTest {
 
     // Start with the expectation that PMD diagnostics are available if
     // supported by SDK and then exclude certain cases below
-    bool expectPmdSignalDetect = getHwSwitch()->rxSignalDetectSupportedInSdk();
-    bool expectPmdCdrLock = getHwSwitch()->rxLockStatusSupportedInSdk();
+    bool expectPmdSignalDetect = rxSignalDetectSupportedInSdk();
+    bool expectPmdCdrLock = rxLockStatusSupportedInSdk();
     if (getPlatform()->getAsic()->getAsicType() ==
         cfg::AsicType::ASIC_TYPE_TOMAHAWK) {
       // TH will never support these diagnostics with native or SAI SDKs
       expectPmdSignalDetect = false;
       expectPmdCdrLock = false;
     }
+
+    bool expectPcsRxLinkStatus = pcsRxLinkStatusSupportedInSdk();
+    bool expectFecAMLock = fecAlignmentLockSupportedInSdk();
 
     auto serializedSnapshot =
         apache::thrift::SimpleJSONSerializer::serialize<std::string>(phyInfo);
@@ -147,12 +151,31 @@ class HwPortProfileTest : public HwTest {
       }
     }
 
+    if (expectPcsRxLinkStatus) {
+      ASSERT_TRUE(lineState.pcs().has_value());
+      ASSERT_TRUE(lineState.pcs()->pcsRxStatusLive().has_value());
+      ASSERT_TRUE(lineState.pcs()->pcsRxStatusLatched().has_value());
+    }
+
     // Verify RsFEC counters if applicable
     auto isRsFec =
         utility::isReedSolomonFec(getHwSwitch()->getPortFECMode(portID));
     if (isRsFec) {
       ASSERT_TRUE(lineStats.pcs().has_value());
       ASSERT_TRUE(lineStats.pcs()->rsFec().has_value());
+
+      if (expectFecAMLock) {
+        ASSERT_TRUE(lineState.pcs().has_value());
+        ASSERT_TRUE(lineState.pcs()->rsFecState().has_value());
+        ASSERT_TRUE(
+            lineState.pcs()->rsFecState()->lanes()->size() ==
+            utility::reedSolomonFecLanes(port->getSpeed()));
+        for (auto fecLane :
+             *lineState.pcs().ensure().rsFecState().ensure().lanes()) {
+          ASSERT_TRUE(fecLane.second.fecAlignmentLockLive().has_value());
+          ASSERT_TRUE(fecLane.second.fecAlignmentLockChanged().has_value());
+        }
+      }
     }
   }
 

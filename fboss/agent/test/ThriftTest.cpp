@@ -192,6 +192,9 @@ TEST(ThriftEnum, assertPortSpeeds) {
       case PortSpeed::FOURHUNDREDG:
         EXPECT_EQ(static_cast<int>(key), 400000);
         break;
+      case PortSpeed::EIGHTHUNDREDG:
+        EXPECT_EQ(static_cast<int>(key), 800000);
+        break;
     }
   }
 }
@@ -1984,6 +1987,33 @@ TEST_F(ThriftTest, applySpeedAndProfileMismatchConfig) {
       FbossError);
 }
 
+TEST_F(ThriftTest, getCurrentStateJSON) {
+  ThriftHandler handler(sw_);
+  std::string out;
+  std::string in = "portMap/1";
+  handler.getCurrentStateJSON(out, std::make_unique<std::string>(in));
+  auto dyn = folly::parseJson(out);
+  EXPECT_EQ(dyn["portId"], 1);
+  EXPECT_EQ(dyn["portName"], "port1");
+  EXPECT_EQ(dyn["portState"], "ENABLED");
+
+  in = "portMap/1/portOperState";
+  handler.getCurrentStateJSON(out, std::make_unique<std::string>(in));
+  EXPECT_EQ(out, "false");
+
+  // Empty thrift path
+  in = "";
+  EXPECT_THROW(
+      handler.getCurrentStateJSON(out, std::make_unique<std::string>(in)),
+      FbossError);
+
+  // Invalid thrift path
+  in = "invalid/path";
+  EXPECT_THROW(
+      handler.getCurrentStateJSON(out, std::make_unique<std::string>(in)),
+      FbossError);
+}
+
 class ThriftTeFlowTest : public ::testing::Test {
  public:
   void SetUp() override {
@@ -2230,4 +2260,23 @@ TEST_F(ThriftTeFlowTest, teFlowSyncUpdateHwProtection) {
         }
       },
       FbossTeUpdateError);
+}
+
+class ThriftVoqSwitchTest : public ::testing::Test {
+ public:
+  void SetUp() override {
+    auto config = testConfigA(cfg::SwitchType::VOQ);
+    handle_ = createTestHandle(&config);
+    sw_ = handle_->getSw();
+    sw_->initialConfigApplied(std::chrono::steady_clock::now());
+  }
+  SwSwitch* sw_;
+  std::unique_ptr<HwTestHandle> handle_;
+};
+
+TEST_F(ThriftVoqSwitchTest, getDsfNodes) {
+  ThriftHandler handler(sw_);
+  std::map<int64_t, cfg::DsfNode> dsfNodes;
+  handler.getDsfNodes(dsfNodes);
+  EXPECT_EQ(dsfNodes.size(), 2);
 }

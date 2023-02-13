@@ -14,7 +14,6 @@
 
 #include <boost/container/flat_map.hpp>
 #include <boost/iterator/filter_iterator.hpp>
-#include <thrift/lib/cpp/util/EnumUtils.h>
 
 #include <folly/IPAddress.h>
 #include <folly/IPAddressV4.h>
@@ -78,6 +77,15 @@ folly::IPAddressV4 getAnyIntfIP(const std::shared_ptr<SwitchState>& state);
 folly::IPAddressV6 getSwitchVlanIPv6(
     const std::shared_ptr<SwitchState>& state,
     VlanID vlan);
+
+/**
+ * Helper function to get an IPv6 address for a particular interface
+ * used to set src IP address for DHCPv6 and ICMPv6 packets
+ * throw an FbossError in case no IPv6 address exists.
+ */
+folly::IPAddressV6 getSwitchIntfIPv6(
+    const std::shared_ptr<SwitchState>& state,
+    InterfaceID intfID);
 
 /**
  * Helper function to get an IPvv6 address of any(first) interface.
@@ -184,6 +192,13 @@ bool isAnyInterfacePortInLoopbackMode(
     std::shared_ptr<SwitchState> swState,
     const std::shared_ptr<Interface> interface);
 
+PortID getPortID(
+    SystemPortID sysPortId,
+    const std::shared_ptr<SwitchState>& state);
+std::vector<PortID> getPortsForInterface(
+    InterfaceID intf,
+    const std::shared_ptr<SwitchState>& state);
+
 class StopWatch {
  public:
   StopWatch(std::optional<std::string> name, bool json);
@@ -204,23 +219,6 @@ inline constexpr uint8_t kGetNetworkControlTrafficClass() {
   return 48 << 2;
 }
 
-template <typename Enum>
-std::string enumToName(Enum enumInput) {
-  auto name = apache::thrift::util::enumName(enumInput);
-  if (name == nullptr) {
-    XLOG(FATAL) << "Unexpected enum: " << static_cast<int>(enumInput);
-  }
-  return name;
-}
-
-template <typename Enum>
-Enum nameToEnum(const std::string& valueAsString) {
-  Enum enumOutput;
-  if (!apache::thrift::TEnumTraits<Enum>::findValue(
-          valueAsString, &enumOutput)) {
-    XLOG(FATAL) << "Invalid enum value as string: " << valueAsString;
-  }
-  return enumOutput;
-}
+void enableExactMatch(std::string& yamlCfg);
 
 } // namespace facebook::fboss

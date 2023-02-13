@@ -13,7 +13,6 @@
 #include "fboss/agent/AddressUtil.h"
 #include "fboss/agent/Constants.h"
 #include "fboss/agent/FbossError.h"
-#include "fboss/agent/Utils.h"
 #include "fboss/agent/state/NodeBase.h"
 #include "fboss/agent/state/NodeMap.h"
 
@@ -25,6 +24,8 @@
 #include "fboss/thrift_cow/nodes/Types.h"
 
 namespace facebook::fboss {
+
+class SwitchState;
 
 using switch_state_tags = state::switch_state_tags::strings;
 using switch_config_tags = cfg::switch_config_tags::strings;
@@ -48,48 +49,6 @@ static constexpr bool kIsThriftCowNode = IsThriftCowNode<NodeT>::value;
 
 // All thrift state maps need to have an items field
 inline constexpr folly::StringPiece kItems{"items"};
-
-template <typename ThriftKeyT, typename NodeT>
-struct ThriftyNodeMapTraits : public NodeMapTraits<
-                                  ThriftKeyT,
-                                  NodeT,
-                                  NodeMapNoExtraFields,
-                                  std::map<ThriftKeyT, NodeT>> {
-  static const std::string& getThriftKeyName() {
-    static const std::string _key = "id";
-    return _key;
-  }
-
-  template <typename NodeKeyT>
-  static const std::string getKeyFromLegacyNode(
-      const folly::dynamic& dyn,
-      const std::string& keyName) {
-    auto& legacyKey = dyn[keyName];
-    if (legacyKey.isNull() or legacyKey.isArray()) {
-      throw FbossError("key of map is null or array");
-    }
-    std::string key{};
-    if constexpr (!is_fboss_key_object_type<NodeKeyT>::value) {
-      key = legacyKey.asString();
-    } else {
-      // in cases where key is actually an object we need to convert this to
-      // proper string representation
-      key = NodeKeyT::fromFollyDynamicLegacy(legacyKey).str();
-    }
-    return key;
-  }
-
-  // convert key from cpp version to one thrift will like
-  template <typename NodeKey>
-  static const ThriftKeyT convertKey(const NodeKey& key) {
-    return static_cast<ThriftKeyT>(key);
-  }
-
-  // parse dynamic key into thrift acceptable type
-  static const ThriftKeyT parseKey(const folly::dynamic& key) {
-    return key.asInt();
-  }
-};
 
 class ThriftyUtils {
  public:
@@ -148,7 +107,8 @@ class ThriftyUtils {
 
   static bool nodeNeedsMigration(const folly::dynamic& dyn) {
     return !dyn.isObject() ||
-        !dyn.getDefault(kThriftySchemaUpToDate, false).asBool();
+        !dyn.getDefault(kThriftySchemaUpToDate, true /* migrated to thrift */)
+             .asBool();
   }
 
   // given folly dynamic of ip, return binary address
@@ -257,25 +217,16 @@ template <typename Derived, typename ThriftT>
 class ThriftyFields {
  public:
   using ThriftType = ThriftT;
+  using FieldsT = Derived;
+
   ThriftyFields() {}
   explicit ThriftyFields(const ThriftT& data) : data_(data) {}
 
   virtual ~ThriftyFields() = default;
 
-  //  migrateTo does not modify dyn so we don't have to change the call sites of
-  //  fromFollyDynamic, migrateFrom does not have this limitation
-  static folly::dynamic migrateToThrifty(const folly::dynamic& dyn) {
-    return dyn;
-  }
-  static void migrateFromThrifty(folly::dynamic& dyn) {
-    dyn[ThriftyUtils::kThriftySchemaUpToDate] = true;
-  }
-
-  using FieldsT = Derived;
-
   static FieldsT fromFollyDynamic(folly::dynamic const& dyn) {
     if (ThriftyUtils::nodeNeedsMigration(dyn)) {
-      return fromJson(folly::toJson(FieldsT::migrateToThrifty(dyn)));
+      XLOG(FATAL) << "incomptaible schema detected";
     } else {
       // Schema is up to date meaning there is no migration required
       return fromJson(folly::toJson(dyn));
@@ -284,7 +235,6 @@ class ThriftyFields {
 
   folly::dynamic toFollyDynamic() const {
     auto dyn = folly::parseJson(this->str());
-    FieldsT::migrateFromThrifty(dyn);
     return dyn;
   }
 
@@ -315,285 +265,6 @@ class ThriftyFields {
 
  protected:
   ThriftT data_;
-};
-
-// Base class to convert NodeMaps to thrift
-template <typename NodeMap, typename TraitsT, typename ThriftyTraitsT>
-class ThriftyNodeMapT : public NodeMapT<NodeMap, TraitsT> {
- public:
-  using NodeMapT<NodeMap, TraitsT>::NodeMapT;
-  using NodeT = typename TraitsT::Node;
-
-  using ThriftType = typename ThriftyTraitsT::NodeContainer;
-  using KeyType = typename TraitsT::KeyType;
-
-  template <
-      typename T = NodeT,
-      std::enable_if_t<!kIsThriftCowNode<T>, bool> = true>
-  static std::shared_ptr<NodeMap> fromThrift(
-      const typename ThriftyTraitsT::NodeContainer& map) {
-    auto mapObj = std::make_shared<NodeMap>();
-
-    for (auto& node : map) {
-      auto fieldsObj = TraitsT::Node::Fields::fromThrift(node.second);
-      mapObj->addNode(std::make_shared<typename TraitsT::Node>(fieldsObj));
-    }
-    return mapObj;
-  }
-
-  template <
-      typename T = NodeT,
-      std::enable_if_t<kIsThriftCowNode<T>, bool> = true>
-  static std::shared_ptr<NodeMap> fromThrift(
-      const typename ThriftyTraitsT::NodeContainer& map) {
-    auto mapObj = std::make_shared<NodeMap>();
-
-    for (auto& node : map) {
-      mapObj->addNode(std::make_shared<typename TraitsT::Node>(node.second));
-    }
-
-    return mapObj;
-  }
-
-  static std::shared_ptr<NodeMap> fromFollyDynamic(folly::dynamic const& dyn) {
-    if (ThriftyUtils::nodeNeedsMigration(dyn)) {
-      return fromFollyDynamicImpl(NodeMap::migrateToThrifty(dyn));
-    } else {
-      // Schema is up to date meaning there is not migration required
-      return fromFollyDynamicImpl(dyn);
-    }
-  }
-
-  static std::shared_ptr<NodeMap> fromFollyDynamicImpl(
-      folly::dynamic const& dyn) {
-    typename ThriftyTraitsT::NodeContainer mapTh;
-    for (auto& [key, val] : dyn.items()) {
-      if (key == kEntries || key == kExtraFields ||
-          key == ThriftyUtils::kThriftySchemaUpToDate) {
-        continue;
-      }
-      auto jsonStr = folly::toJson(val);
-      auto inBuf =
-          folly::IOBuf::wrapBufferAsValue(jsonStr.data(), jsonStr.size());
-      auto node = apache::thrift::SimpleJSONSerializer::deserialize<
-          typename ThriftyTraitsT::Node>(folly::io::Cursor{&inBuf});
-      mapTh[ThriftyTraitsT::parseKey(key)] = node;
-    }
-    return fromThrift(mapTh);
-  }
-
-  typename ThriftyTraitsT::NodeContainer toThrift() const {
-    typename ThriftyTraitsT::NodeContainer items;
-    for (auto& node : *this) {
-      items[getNodeThriftKey(node)] = node->getFields()->toThrift();
-    }
-
-    return items;
-  }
-
-  folly::dynamic toFollyDynamic() const override final {
-    auto obj = this->toThrift();
-    folly::dynamic dyn = folly::dynamic::object();
-    for (auto& [key, val] : obj) {
-      std::string jsonStr;
-      apache::thrift::SimpleJSONSerializer::serialize(val, &jsonStr);
-      dyn[folly::to<std::string>(key)] = folly::parseJson(jsonStr);
-    }
-    NodeMap::migrateFromThrifty(dyn);
-    return dyn;
-  }
-
-  /*
-   * Old style NodeMapT serlization has the nodes in a list but with thrift we
-   * can probably just encode a map directly. So in thrift we'll use the name
-   * "items" instead of "entries and to migrate we'll duplicate the data as a
-   * list under "entries" and a map under "items"
-   */
-  static folly::dynamic migrateToThrifty(const folly::dynamic& dyn) {
-    folly::dynamic newItems = folly::dynamic::object;
-    auto* entries = getEntries(dyn);
-    for (auto& item : *entries) {
-      if (ThriftyUtils::nodeNeedsMigration(item)) {
-        auto key = ThriftyTraitsT::template getKeyFromLegacyNode<KeyType>(
-            item, ThriftyTraitsT::getThriftKeyName());
-        if constexpr (!kIsThriftCowNode<typename TraitsT::Node>) {
-          newItems[key] = TraitsT::Node::Fields::migrateToThrifty(item);
-        } else {
-          newItems[key] = TraitsT::Node::LegacyFields::migrateToThrifty(item);
-        }
-      } else {
-        newItems[item[ThriftyTraitsT::getThriftKeyName()].asString()] = item;
-      }
-    }
-    return newItems;
-  }
-
-  static void migrateFromThrifty(folly::dynamic& dyn) {
-    auto schemaUpToDate = true;
-    folly::dynamic entries = folly::dynamic::array;
-    std::set<std::string> keys{};
-
-    for (auto& item : dyn.items()) {
-      // dyn.items() is an uordered map and the order in which items are
-      // returned is underterministic. enforce the order, so entries are always
-      // in the same order.
-      keys.insert(item.first.asString());
-    }
-
-    for (auto key : keys) {
-      auto& item = dyn[key];
-      if constexpr (!kIsThriftCowNode<typename TraitsT::Node>) {
-        TraitsT::Node::Fields::migrateFromThrifty(item);
-      } else {
-        TraitsT::Node::LegacyFields::migrateFromThrifty(item);
-      }
-      if (!item.getDefault(ThriftyUtils::kThriftySchemaUpToDate, false)
-               .asBool()) {
-        schemaUpToDate = false;
-      }
-      entries.push_back(item);
-    }
-
-    dyn[kEntries] = entries;
-    // TODO: fill out extra fields as needed
-    dyn[kExtraFields] = folly::dynamic::object;
-
-    dyn[ThriftyUtils::kThriftySchemaUpToDate] = schemaUpToDate;
-  }
-
-  // for testing purposes. These are mirrors of to/from FollyDynamic defined in
-  // NodeMap, but calling the legacy conversions of the node as well
-  folly::dynamic toFollyDynamicLegacy() const {
-    folly::dynamic nodesJson = folly::dynamic::array;
-    for (const auto& node : *this) {
-      nodesJson.push_back(node->toFollyDynamicLegacy());
-    }
-    folly::dynamic json = folly::dynamic::object;
-    json[kEntries] = std::move(nodesJson);
-    // TODO: extra files if needed
-    json[kExtraFields] = folly::dynamic::object();
-    return json;
-  }
-
-  static std::shared_ptr<NodeMap> fromFollyDynamicLegacy(
-      folly::dynamic const& dyn) {
-    auto nodeMap = std::make_shared<NodeMap>();
-    auto entries = dyn[kEntries];
-    for (const auto& entry : entries) {
-      nodeMap->addNode(TraitsT::Node::fromFollyDynamicLegacy(entry));
-    }
-    // TODO: extra files if needed
-    return nodeMap;
-  }
-
-  // return node id in the node map as it would be represented in thrift
-  static typename ThriftyTraitsT::KeyType getNodeThriftKey(
-      const std::shared_ptr<typename TraitsT::Node>& node) {
-    return ThriftyTraitsT::convertKey(TraitsT::getKey(node));
-  }
-
-  bool operator==(
-      const ThriftyNodeMapT<NodeMap, TraitsT, ThriftyTraitsT>& rhs) const {
-    if (this->size() != rhs.size()) {
-      return false;
-    }
-    for (auto& node : *this) {
-      if (auto other = rhs.getNodeIf(TraitsT::getKey(node));
-          !other || *node != *other) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  bool operator!=(
-      const ThriftyNodeMapT<NodeMap, TraitsT, ThriftyTraitsT>& rhs) const {
-    return !(*this == rhs);
-  }
-
- private:
-  static const folly::dynamic* getEntries(const folly::dynamic& dyn) {
-    if (dyn.isArray()) {
-      return &dyn;
-    }
-    CHECK(dyn.isObject());
-    return &dyn[kEntries];
-  }
-};
-
-//
-// Special version of NodeBaseT that features methods to convert
-// object to/from JSON using Thrift serializers. For this to work
-// one must supply Thrift type (ThrifT) that stores FieldsT state.
-//
-// TODO: in future, FieldsT and ThrifT should be one type
-//
-template <typename ThriftT, typename NodeT, typename FieldsT>
-class ThriftyBaseT : public NodeBaseT<NodeT, FieldsT> {
-  static_assert(std::is_base_of_v<ThriftyFields<FieldsT, ThriftT>, FieldsT>);
-
- public:
-  using BaseT = NodeBaseT<NodeT, FieldsT>;
-  using BaseT::BaseT;
-  using Fields = FieldsT;
-  using ThriftType = ThriftT;
-
-  static std::shared_ptr<NodeT> fromThrift(const ThriftT& obj) {
-    auto fields = FieldsT::fromThrift(obj);
-    return std::make_shared<NodeT>(fields);
-  }
-
-  static std::shared_ptr<NodeT> fromFollyDynamic(folly::dynamic const& dyn) {
-    if (ThriftyUtils::nodeNeedsMigration(dyn)) {
-      return fromJson(folly::toJson(FieldsT::migrateToThrifty(dyn)));
-    } else {
-      // Schema is up to date meaning there is no migration required
-      return fromJson(folly::toJson(dyn));
-    }
-  }
-
-  static std::shared_ptr<NodeT> fromJson(const folly::fbstring& jsonStr) {
-    auto inBuf =
-        folly::IOBuf::wrapBufferAsValue(jsonStr.data(), jsonStr.size());
-    auto obj = apache::thrift::SimpleJSONSerializer::deserialize<ThriftT>(
-        folly::io::Cursor{&inBuf});
-    return ThriftyBaseT::fromThrift(obj);
-  }
-
-  ThriftT toThrift() const {
-    return this->getFields()->toThrift();
-  }
-
-  std::string str() const {
-    auto obj = this->toThrift();
-    std::string jsonStr;
-    apache::thrift::SimpleJSONSerializer::serialize(obj, &jsonStr);
-    return jsonStr;
-  }
-
-  folly::dynamic toFollyDynamic() const override final {
-    auto dyn = folly::parseJson(this->str());
-    FieldsT::migrateFromThrifty(dyn);
-    return dyn;
-  }
-
-  // for testing purposes
-  folly::dynamic toFollyDynamicLegacy() const {
-    return this->getFields()->toFollyDynamicLegacy();
-  }
-
-  static std::shared_ptr<NodeT> fromFollyDynamicLegacy(
-      folly::dynamic const& dyn) {
-    return std::make_shared<NodeT>(FieldsT::fromFollyDynamicLegacy(dyn));
-  }
-
-  bool operator==(const BaseT& rhs) const {
-    return *this->getFields() == *rhs.getFields();
-  }
-
-  bool operator!=(const ThriftyBaseT<ThriftT, NodeT, FieldsT>& rhs) const {
-    return !(*this == rhs);
-  }
 };
 
 template <typename NODE, typename TType>

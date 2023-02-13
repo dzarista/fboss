@@ -373,6 +373,11 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, collectStats) {
   verifyAcrossWarmBoots([] {}, verify);
 }
 
+TEST_F(HwVoqSwitchWithFabricPortsTest, checkFabricReachability) {
+  verifyAcrossWarmBoots(
+      [] {}, [this]() { checkFabricReachability(getHwSwitch()); });
+}
+
 TEST_F(HwVoqSwitchTest, remoteSystemPort) {
   auto setup = [this]() { addRemoteSysPort(SystemPortID(401)); };
   verifyAcrossWarmBoots(setup, [] {});
@@ -544,16 +549,6 @@ TEST_F(HwVoqSwitchTest, rxPacketToCpu) {
   verifyAcrossWarmBoots([] {}, verify);
 }
 
-TEST_F(HwVoqSwitchTest, multipleDsfNodes) {
-  auto setup = [this]() {
-    auto cfg = initialConfig();
-    auto otherDsfNodeCfg = utility::dsfNodeConfig(*getPlatform()->getAsic());
-    cfg.dsfNodes()->insert({*otherDsfNodeCfg.switchId(), otherDsfNodeCfg});
-    applyNewConfig(cfg);
-  };
-  verifyAcrossWarmBoots(setup, [] {});
-}
-
 TEST_F(HwVoqSwitchTest, AclQualifiers) {
   auto setup = [=]() {
     auto newCfg = initialConfig();
@@ -593,9 +588,32 @@ TEST_F(HwVoqSwitchTest, AclCounter) {
   verifyAcrossWarmBoots(setup, verify);
 }
 
-TEST_F(HwVoqSwitchTest, checkFabricReacability) {
-  verifyAcrossWarmBoots(
-      [] {}, [this]() { checkFabricReachability(getHwSwitch()); });
+class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
+ public:
+  cfg::SwitchConfig initialConfig() const override {
+    auto cfg = HwVoqSwitchTest::initialConfig();
+    cfg.dsfNodes() = *overrideDsfNodes(*cfg.dsfNodes());
+    return cfg;
+  }
+  std::optional<std::map<int64_t, cfg::DsfNode>> overrideDsfNodes(
+      const std::map<int64_t, cfg::DsfNode>& curDsfNodes) const override {
+    CHECK(!curDsfNodes.empty());
+    auto dsfNodes = curDsfNodes;
+    const auto& firstDsfNode = dsfNodes.begin()->second;
+    CHECK(firstDsfNode.systemPortRange().has_value());
+    auto asic = HwAsic::makeAsic(
+        *firstDsfNode.asicType(),
+        cfg::SwitchType::VOQ,
+        *firstDsfNode.switchId(),
+        *firstDsfNode.systemPortRange());
+    auto otherDsfNodeCfg = utility::dsfNodeConfig(*asic);
+    dsfNodes.insert({*otherDsfNodeCfg.switchId(), otherDsfNodeCfg});
+    return dsfNodes;
+  }
+};
+
+TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, twoDsfNodes) {
+  verifyAcrossWarmBoots([] {}, [] {});
 }
 
 } // namespace facebook::fboss

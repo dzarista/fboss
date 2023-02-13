@@ -23,11 +23,11 @@ namespace facebook::fboss {
 
 BENCHMARK(RibResolutionBenchmark) {
   folly::BenchmarkSuspender suspender;
-  auto ensemble = createHwEnsemble(HwSwitchEnsemble::getAllFeatures());
+  auto ensemble = createAndInitHwEnsemble(HwSwitchEnsemble::getAllFeatures());
   auto config = utility::onePortPerInterfaceConfig(
       ensemble->getHwSwitch(), ensemble->masterLogicalPortIds());
   ensemble->applyInitialConfig(config);
-  utility::THAlpmRouteScaleGenerator gen(ensemble->getProgrammedState(), true);
+  utility::THAlpmRouteScaleGenerator gen(ensemble->getProgrammedState());
   const auto& routeChunks = gen.getThriftRoutes();
   // Create a dummy rib since we don't want to go through
   // HwSwitchEnsemble and write to HW

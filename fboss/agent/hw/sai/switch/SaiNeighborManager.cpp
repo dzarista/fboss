@@ -267,7 +267,9 @@ PortRifNeighbor::PortRifNeighbor(
     std::optional<sai_uint32_t> metadata,
     std::optional<sai_uint32_t> encapIndex,
     bool isLocal)
-    : manager_(manager), handle_(std::make_unique<SaiNeighborHandle>()) {
+    : manager_(manager),
+      saiPortAndIntf_(saiPortAndIntf),
+      handle_(std::make_unique<SaiNeighborHandle>()) {
   const auto& ip = std::get<folly::IPAddress>(intfIDAndIpAndMac);
   auto rifSaiId = std::get<RouterInterfaceSaiId>(saiPortAndIntf);
   auto adapterHostKey = SaiNeighborTraits::NeighborEntry(
@@ -375,6 +377,28 @@ void ManagedVlanRifNeighbor::handleLinkDown() {
   SaiObjectEventPublisher::getInstance()
       ->get<SaiNeighborTraits>()
       .notifyLinkDown(object->adapterHostKey());
+}
+
+void PortRifNeighbor::handleLinkDown() {
+  XLOGF(
+      DBG2,
+      "neighbor {} notifying link down to subscribed next hops",
+      neighbor_->adapterHostKey());
+  SaiObjectEventPublisher::getInstance()
+      ->get<SaiNeighborTraits>()
+      .notifyLinkDown(neighbor_->adapterHostKey());
+}
+
+void SaiNeighborManager::handleLinkDown(const SaiPortDescriptor& port) {
+  CHECK(platform_->getAsic()->getSwitchType() == cfg::SwitchType::VOQ);
+  for (auto& [nbrEntry, neighbor] : neighbors_) {
+    if (neighbor->getRifType() != cfg::InterfaceType::SYSTEM_PORT) {
+      continue;
+    }
+    if (neighbor->getSaiPortDesc() == port) {
+      neighbor->handleLinkDown();
+    }
+  }
 }
 
 template SaiNeighborTraits::NeighborEntry

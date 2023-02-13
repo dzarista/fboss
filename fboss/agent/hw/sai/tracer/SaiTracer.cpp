@@ -69,6 +69,11 @@ DEFINE_bool(
     "However, it's needed for testing e.g. HwL4PortBlackHolingTest");
 
 DEFINE_bool(
+    enable_elapsed_time_log,
+    false,
+    "Flag to indicate whether to log the elapsed time of SDK API calls.");
+
+DEFINE_bool(
     enable_get_attr_log,
     false,
     "Flag to indicate whether to log the get API calls. "
@@ -583,8 +588,7 @@ void SaiTracer::logSwitchCreateFn(
 void SaiTracer::logRouteEntryCreateFn(
     const sai_route_entry_t* route_entry,
     uint32_t attr_count,
-    const sai_attribute_t* attr_list,
-    sai_status_t rv) {
+    const sai_attribute_t* attr_list) {
   if (!FLAGS_enable_replayer) {
     return;
   }
@@ -595,9 +599,6 @@ void SaiTracer::logRouteEntryCreateFn(
 
   // Then setup route entry (switch, virtual router and destination)
   setRouteEntry(route_entry, lines);
-
-  // Log timestamp and return value
-  lines.push_back(logTimeAndRv(rv));
 
   // Make the function call
   lines.push_back(to<string>(
@@ -610,10 +611,7 @@ void SaiTracer::logRouteEntryCreateFn(
       attr_count,
       ",s_a)"));
 
-  // Check return value to be the same as the original run
-  lines.push_back(rvCheck(rv));
-
-  writeToFile(lines);
+  writeToFile(lines, false);
 }
 
 void SaiTracer::logNeighborEntryCreateFn(
@@ -724,7 +722,7 @@ void SaiTracer::logInsegEntryCreateFn(
   writeToFile(lines);
 }
 
-void SaiTracer::logCreateFn(
+std::string SaiTracer::logCreateFn(
     const string& fn_name,
     sai_object_id_t* create_object_id,
     sai_object_id_t switch_id,
@@ -732,7 +730,7 @@ void SaiTracer::logCreateFn(
     const sai_attribute_t* attr_list,
     sai_object_type_t object_type) {
   if (!FLAGS_enable_replayer) {
-    return;
+    return "";
   }
 
   // First fill in attribute list
@@ -749,20 +747,16 @@ void SaiTracer::logCreateFn(
       fn_name, varName, getVariable(switch_id), attr_count, object_type));
 
   writeToFile(lines, false);
+  return varName;
 }
 
-void SaiTracer::logRouteEntryRemoveFn(
-    const sai_route_entry_t* route_entry,
-    sai_status_t rv) {
+void SaiTracer::logRouteEntryRemoveFn(const sai_route_entry_t* route_entry) {
   if (!FLAGS_enable_replayer) {
     return;
   }
 
   vector<string> lines{};
   setRouteEntry(route_entry, lines);
-
-  // Log timestamp and return value
-  lines.push_back(logTimeAndRv(rv));
 
   lines.push_back(to<string>(
       "rv=",
@@ -772,10 +766,7 @@ void SaiTracer::logRouteEntryRemoveFn(
           "Unsupported Sai Object type in Sai Tracer"),
       "remove_route_entry(&r_e)"));
 
-  // Check return value to be the same as the original run
-  lines.push_back(rvCheck(rv));
-
-  writeToFile(lines);
+  writeToFile(lines, false);
 }
 
 void SaiTracer::logNeighborEntryRemoveFn(
@@ -862,16 +853,12 @@ void SaiTracer::logInsegEntryRemoveFn(
 void SaiTracer::logRemoveFn(
     const string& fn_name,
     sai_object_id_t remove_object_id,
-    sai_object_type_t object_type,
-    sai_status_t rv) {
+    sai_object_type_t object_type) {
   if (!FLAGS_enable_replayer) {
     return;
   }
 
   vector<string> lines{};
-
-  // Log current timestamp, object id and return value
-  lines.push_back(logTimeAndRv(rv, remove_object_id));
 
   // Make the remove call
   lines.push_back(to<string>(
@@ -883,10 +870,7 @@ void SaiTracer::logRemoveFn(
       getVariable(remove_object_id),
       ")"));
 
-  // Check return value to be the same as the original run
-  lines.push_back(rvCheck(rv));
-
-  writeToFile(lines);
+  writeToFile(lines, false);
 
   // Remove object from variables_
   variables_.erase(remove_object_id);
@@ -894,8 +878,7 @@ void SaiTracer::logRemoveFn(
 
 void SaiTracer::logRouteEntrySetAttrFn(
     const sai_route_entry_t* route_entry,
-    const sai_attribute_t* attr,
-    sai_status_t rv) {
+    const sai_attribute_t* attr) {
   if (!FLAGS_enable_replayer) {
     return;
   }
@@ -904,9 +887,6 @@ void SaiTracer::logRouteEntrySetAttrFn(
   vector<string> lines = setAttrList(attr, 1, SAI_OBJECT_TYPE_ROUTE_ENTRY);
 
   setRouteEntry(route_entry, lines);
-
-  // Log timestamp and return value
-  lines.push_back(logTimeAndRv(rv));
 
   // Make setAttribute call
   lines.push_back(to<string>(
@@ -917,10 +897,7 @@ void SaiTracer::logRouteEntrySetAttrFn(
           "Unsupported Sai Object type in Sai Tracer"),
       "set_route_entry_attribute(&r_e, s_a)"));
 
-  // Check return value to be the same as the original run
-  lines.push_back(rvCheck(rv));
-
-  writeToFile(lines);
+  writeToFile(lines, false);
 }
 
 void SaiTracer::logNeighborEntrySetAttrFn(
@@ -1021,8 +998,7 @@ void SaiTracer::logGetAttrFn(
     sai_object_id_t get_object_id,
     uint32_t attr_count,
     const sai_attribute_t* attr,
-    sai_object_type_t object_type,
-    sai_status_t rv) {
+    sai_object_type_t object_type) {
   if (!FLAGS_enable_replayer || !FLAGS_enable_get_attr_log) {
     return;
   }
@@ -1030,9 +1006,6 @@ void SaiTracer::logGetAttrFn(
   vector<string> lines = setAttrList(attr, attr_count, object_type);
   lines.push_back(
       to<string>("memset(get_attribute,0,ATTR_SIZE*", maxAttrCount_, ")"));
-
-  // Log current timestamp, object id and return value
-  lines.push_back(logTimeAndRv(rv, get_object_id));
 
   // Make getAttribute call
   lines.push_back(to<string>(
@@ -1046,27 +1019,20 @@ void SaiTracer::logGetAttrFn(
       attr_count,
       ",get_attribute)"));
 
-  // Check return value to be the same as the original run
-  lines.push_back(rvCheck(rv));
-
-  writeToFile(lines);
+  writeToFile(lines, false);
 }
 
 void SaiTracer::logSetAttrFn(
     const string& fn_name,
     sai_object_id_t set_object_id,
     const sai_attribute_t* attr,
-    sai_object_type_t object_type,
-    sai_status_t rv) {
+    sai_object_type_t object_type) {
   if (!FLAGS_enable_replayer) {
     return;
   }
 
   // Setup one attribute
   vector<string> lines = setAttrList(attr, 1, object_type);
-
-  // Log current timestamp, object id and return value
-  lines.push_back(logTimeAndRv(rv, set_object_id));
 
   // Make setAttribute call
   lines.push_back(to<string>(
@@ -1078,10 +1044,7 @@ void SaiTracer::logSetAttrFn(
       getVariable(set_object_id),
       ",s_a)"));
 
-  // Check return value to be the same as the original run
-  lines.push_back(rvCheck(rv));
-
-  writeToFile(lines);
+  writeToFile(lines, false);
 }
 
 void SaiTracer::logBulkSetAttrFn(
@@ -1287,8 +1250,6 @@ std::tuple<string, string> SaiTracer::declareVariable(
       varCounts_, object_type, "Unsupported Sai Object type in Sai Tracer")++;
   string varName = to<string>(varPrefix, num);
 
-  // Add this variable to the variable map
-  variables_.emplace(*object_id, varName);
   return std::make_tuple(to<string>(varType, varName), varName);
 }
 
@@ -1614,7 +1575,10 @@ string SaiTracer::rvCheck(sai_status_t rv) {
   return to<string>("rvCheck(rv,", rv, ",", numCalls_++, ")");
 }
 
-string SaiTracer::logTimeAndRv(sai_status_t rv, sai_object_id_t object_id) {
+string SaiTracer::logTimeAndRv(
+    sai_status_t rv,
+    sai_object_id_t object_id,
+    std::chrono::system_clock::time_point begin) {
   auto now = std::chrono::system_clock::now();
   auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                     now.time_since_epoch()) %
@@ -1635,6 +1599,14 @@ string SaiTracer::logTimeAndRv(sai_status_t rv, sai_object_id_t object_id) {
   }
 
   outStringStream << " rv: " << rv;
+
+  if (begin != std::chrono::system_clock::time_point::min()) {
+    outStringStream << " elapsed time " << std::dec
+                    << std::chrono::duration_cast<std::chrono::microseconds>(
+                           now - begin)
+                           .count()
+                    << " μs";
+  }
 
   return outStringStream.str();
 }
@@ -1679,10 +1651,20 @@ uint32_t SaiTracer::checkListCount(
   return FLAGS_default_list_size * sizeof(int) / elem_size;
 }
 
-void SaiTracer::logPostInvocation(sai_status_t rv, sai_object_id_t object_id) {
+void SaiTracer::logPostInvocation(
+    sai_status_t rv,
+    sai_object_id_t object_id,
+    std::chrono::system_clock::time_point begin,
+    std::optional<std::string> varName) {
+  // In the case of create fn, objectID is known after invocation.
+  // Therefore, add it to the variable mapping here.
+  if (varName) {
+    variables_.emplace(object_id, *varName);
+  }
+
   vector<string> lines;
   // Log current timestamp, object id and return value
-  lines.push_back(logTimeAndRv(rv, object_id));
+  lines.push_back(logTimeAndRv(rv, object_id, begin));
 
   // Check return value to be the same as the original run
   lines.push_back(rvCheck(rv));

@@ -9,7 +9,6 @@
 #include <memory>
 #include <optional>
 #include "fboss/agent/AddressUtil.h"
-#include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_constants.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/state/AclEntry.h"
@@ -236,8 +235,6 @@ struct MirrorFields : public ThriftyFields<MirrorFields, state::MirrorFields> {
   static MirrorFields fromFollyDynamicLegacy(const folly::dynamic& dyn);
   state::MirrorFields toThrift() const override;
   static MirrorFields fromThrift(state::MirrorFields const& fields);
-  static folly::dynamic migrateToThrifty(folly::dynamic const& dyn);
-  static void migrateFromThrifty(folly::dynamic& dyn);
 };
 
 USE_THRIFT_COW(Mirror);

@@ -36,6 +36,11 @@ DEFINE_uint32(
     1,
     "Counter refresh interval in seconds. Set it to 0 to fetch stats from HW");
 
+DEFINE_bool(
+    skip_setting_src_mac,
+    false,
+    "Flag to indicate whether to skip setting source mac in Sai switch during wb");
+
 namespace {
 using namespace facebook::fboss;
 sai_hash_algorithm_t toSaiHashAlgo(cfg::HashingAlgorithm algo) {
@@ -74,8 +79,10 @@ SaiSwitchManager::SaiSwitchManager(
         platform->getSwitchAttributes(true, switchType, switchId), swId);
     // Load all switch attributes
     switch_ = std::make_unique<SaiSwitchObj>(newSwitchId);
-    switch_->setOptionalAttribute(
-        SaiSwitchTraits::Attributes::SrcMac{platform->getLocalMac()});
+    if (!FLAGS_skip_setting_src_mac) {
+      switch_->setOptionalAttribute(
+          SaiSwitchTraits::Attributes::SrcMac{platform->getLocalMac()});
+    }
     switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::MacAgingTime{
         platform->getDefaultMacAgingTime()});
   } else {
@@ -541,6 +548,9 @@ bool SaiSwitchManager::isGlobalQoSMapSupported() const {
 
 bool SaiSwitchManager::isMplsQoSMapSupported() const {
 #if defined(SAI_VERSION_5_1_0_3_ODP) || defined(SAI_VERSION_7_2_0_0_ODP)
+  return false;
+#endif
+#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
   return false;
 #endif
   return platform_->getAsic()->isSupported(HwAsic::Feature::SAI_MPLS_QOS);

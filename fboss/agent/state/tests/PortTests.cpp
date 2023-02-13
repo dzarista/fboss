@@ -21,9 +21,11 @@
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/TestUtils.h"
 
+#include <boost/container/flat_map.hpp>
 #include <gtest/gtest.h>
 
 using namespace facebook::fboss;
+using boost::container::flat_map;
 using std::make_pair;
 using std::make_shared;
 using std::shared_ptr;
@@ -144,6 +146,12 @@ TEST(Port, applyConfig) {
   *config.vlanPorts()[0].logicalPort() = 1;
   *config.vlanPorts()[0].vlanID() = 2021;
   *config.vlanPorts()[0].emitTags() = false;
+  config.vlans()->resize(3);
+  *config.vlans()[2].id() = 2021;
+  config.interfaces()->resize(3);
+  *config.interfaces()[2].intfID() = 2021;
+  *config.interfaces()[2].vlanID() = 2021;
+  config.interfaces()[2].mac() = "00:00:00:00:00:21";
 
   Port::VlanMembership expectedVlansV2;
   expectedVlansV2.insert(make_pair(VlanID(2021), Port::VlanInfo(false)));
@@ -824,6 +832,14 @@ TEST(Port, portSerilization) {
   port->setExpectedLLDPValues(lldpMap);
   EXPECT_EQ(port->getLLDPValidations().size(), 1);
 
+  // expected Neighbor reachability values
+  EXPECT_TRUE(port->getExpectedNeighborValues()->empty());
+  cfg::PortNeighbor nbr;
+  nbr.remoteSystem() = "RemoteA";
+  nbr.remotePort() = "portA";
+  port->setExpectedNeighborReachability({nbr});
+  EXPECT_EQ(port->getExpectedNeighborValues()->size(), 1);
+
   // RxSaks
   EXPECT_TRUE(
       port->cref<switch_state_tags::rxSecureAssociationKeys>()->empty());
@@ -851,4 +867,99 @@ TEST(Port, portSerilization) {
   EXPECT_TRUE(port->getDropUnencrypted());
 
   validateNodeSerialization(*port);
+}
+
+TEST(Port, verifyInterfaceIDsForNonVoqSwitches) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  auto config = testConfigA();
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  auto getExpectedPort2Interface = [](const auto& config) {
+    flat_map<VlanID, int32_t> vlan2Interface;
+    for (const auto& interfaceCfg : *config.interfaces()) {
+      vlan2Interface[VlanID(*interfaceCfg.vlanID())] = *interfaceCfg.intfID();
+    }
+
+    flat_map<PortID, Port::VlanMembership> port2Vlans;
+    for (const auto& vp : *config.vlanPorts()) {
+      PortID portID(*vp.logicalPort());
+      VlanID vlanID(*vp.vlanID());
+
+      port2Vlans[portID].insert(
+          std::make_pair(vlanID, Port::VlanInfo(*vp.emitTags())));
+    }
+
+    flat_map<PortID, int32_t> port2Interface;
+    for (const auto& portCfg : *config.ports()) {
+      auto portID = PortID(*portCfg.logicalID());
+      for (const auto& [vlanID, vlanInfo] : port2Vlans[portID]) {
+        auto it = vlan2Interface.find(vlanID);
+        EXPECT_TRUE(it != vlan2Interface.end());
+        port2Interface.insert(std::make_pair(portID, it->second));
+      }
+    }
+    return port2Interface;
+  };
+
+  auto expectedPort2Interface = getExpectedPort2Interface(config);
+
+  for (const auto& port : std::as_const(*(stateV1->getPorts()))) {
+    for (const auto& intfID : *port.second->getInterfaceIDs()) {
+      auto portID = port.second->getID();
+      auto expectedIntfID = expectedPort2Interface[portID];
+      auto gotIntfID = int(intfID->cref());
+
+      EXPECT_EQ(expectedIntfID, gotIntfID);
+    }
+  }
+}
+
+TEST(Port, verifyInterfaceIDsForVoqSwitches) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  auto config = testConfigA(cfg::SwitchType::VOQ);
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  auto dsfIter = config.dsfNodes()->find(
+      static_cast<int64_t>(*config.switchSettings()->switchId()));
+  EXPECT_TRUE(dsfIter != config.dsfNodes()->end());
+  auto myNode = dsfIter->second;
+
+  for (const auto& port : std::as_const(*(stateV1->getPorts()))) {
+    for (const auto& intfID : *port.second->getInterfaceIDs()) {
+      auto expectedIntfID =
+          *myNode.systemPortRange()->minimum() + port.second->getID();
+      auto gotIntfID = static_cast<int>(intfID->cref());
+      EXPECT_EQ(expectedIntfID, gotIntfID);
+    }
+  }
+}
+
+TEST(Port, verifyNeighborReachability) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  auto config = testConfigA(cfg::SwitchType::VOQ);
+
+  cfg::PortNeighbor nbr;
+  nbr.remoteSystem() = "RemoteA";
+  nbr.remotePort() = "portA";
+
+  config.ports()[0].expectedNeighborReachability() = {nbr};
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  for (const auto& nbrIter : *(stateV1->getPorts()
+                                   ->getPortIf(PortID(1))
+                                   ->getExpectedNeighborValues())) {
+    EXPECT_EQ(
+        nbrIter->cref<switch_config_tags::remoteSystem>()->toThrift(),
+        "RemoteA");
+    EXPECT_EQ(
+        nbrIter->cref<switch_config_tags::remotePort>()->toThrift(), "portA");
+  }
 }

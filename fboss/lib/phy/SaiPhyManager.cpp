@@ -1097,7 +1097,7 @@ void SaiPhyManager::gracefulExit() {
     for (auto& platformItr : pimPlatform) {
       GlobalXphyID xphyID = platformItr.first;
       if (!getSaiPlatform(xphyID)->getAsic()->isSupported(
-              HwAsic::Feature::XPHY_SAI_WARMBOOT)) {
+              HwAsic::Feature::WARMBOOT)) {
         XLOG(DBG3) << "gracefulExit: Warmboot not supported for this platform";
         return;
       }
@@ -1109,7 +1109,6 @@ void SaiPhyManager::gracefulExit() {
       // Get the current SwitchState and ThriftState which will be used to call
       //  SaiSwitch::gracefulExit function
       folly::dynamic follySwitchState = folly::dynamic::object;
-      follySwitchState[kSwSwitch] = switchState->toFollyDynamic();
       state::WarmbootState thriftSwitchState;
       *thriftSwitchState.swSwitchState() = switchState->toThrift();
       saiSwitch->gracefulExit(follySwitchState, thriftSwitchState);

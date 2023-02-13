@@ -330,23 +330,28 @@ void SaiSwitch::processDefaultDataPlanePolicyDelta(
   auto& qosMapManager = managerTable_->qosMapManager();
   auto& portManager = managerTable_->portManager();
   auto& switchManager = managerTable_->switchManager();
+  auto& systemPortManager = managerTable_->systemPortManager();
   if ((qosDelta.getOld() != qosDelta.getNew())) {
     [[maybe_unused]] const auto& lock = lockPolicy.lock();
     if (qosDelta.getOld() && qosDelta.getNew()) {
       if (*qosDelta.getOld() != *qosDelta.getNew()) {
         portManager.clearQosPolicy();
+        systemPortManager.clearQosPolicy();
         switchManager.clearQosPolicy();
         qosMapManager.removeQosMap();
         qosMapManager.addQosMap(qosDelta.getNew());
         portManager.setQosPolicy();
+        systemPortManager.setQosPolicy();
         switchManager.setQosPolicy();
       }
     } else if (qosDelta.getNew()) {
       qosMapManager.addQosMap(qosDelta.getNew());
       portManager.setQosPolicy();
+      systemPortManager.setQosPolicy();
       switchManager.setQosPolicy();
     } else if (qosDelta.getOld()) {
       portManager.clearQosPolicy();
+      systemPortManager.clearQosPolicy();
       switchManager.clearQosPolicy();
       qosMapManager.removeQosMap();
     }
@@ -786,8 +791,12 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImpl(
       &SaiTunnelManager::addTunnel,
       &SaiTunnelManager::removeTunnel);
 
-  if (FLAGS_enable_acl_table_group &&
-      platform_->getAsic()->isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES)) {
+  bool multipleAclTableSupport =
+      platform_->getAsic()->isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
+#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+  multipleAclTableSupport = false;
+#endif
+  if (FLAGS_enable_acl_table_group && multipleAclTableSupport) {
     processDelta(
         delta.getAclTableGroupsDelta(),
         managerTable_->aclTableGroupManager(),
@@ -841,10 +850,14 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImpl(
       newRequiredQualifiers =
           delta.getAclsDelta().getNew()->requiredQualifiers();
     }
+    bool aclTableUpdateSupport = platform_->getAsic()->isSupported(
+        HwAsic::Feature::SAI_ACL_TABLE_UPDATE);
+#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+    aclTableUpdateSupport = false;
+#endif
     if (!oldRequiredQualifiers.empty() &&
         oldRequiredQualifiers != newRequiredQualifiers &&
-        platform_->getAsic()->isSupported(
-            HwAsic::Feature::SAI_ACL_TABLE_UPDATE) &&
+        aclTableUpdateSupport &&
         !managerTable_->aclTableManager()
              .areQualifiersSupportedInDefaultAclTable(newRequiredQualifiers)) {
       // qualifiers changed and default acl table doesn't support all of them,
@@ -1176,12 +1189,14 @@ std::map<PortID, phy::PhyInfo> SaiSwitch::updateAllPhyInfoLocked() {
     // Update PCS Info
     updatePcsInfo(
         *phyParams.line(),
+        *(*phyParams.state()).line(),
         *(*phyParams.stats()).line(),
         swPort,
         phy::Side::LINE,
         lastPhyInfo,
         fb303PortStat,
-        *phyParams.speed());
+        *phyParams.speed(),
+        portHandle->port);
 
     // Update Reconciliation Sublayer (RS) Info
     updateRsInfo(
@@ -1269,7 +1284,7 @@ void SaiSwitch::updatePmdInfo(
     laneStats[laneId] = laneStat;
   }
 
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
   auto pmdSignalDetect = managerTable_->portManager().getRxSignalDetect(
       port->adapterKey(), numPmdLanes);
   for (auto pmd : pmdSignalDetect) {
@@ -1346,17 +1361,50 @@ void SaiSwitch::updatePmdInfo(
 
 void SaiSwitch::updatePcsInfo(
     phy::PhySideInfo& sideInfo,
+    phy::PhySideState& sideState,
     phy::PhySideStats& sideStats,
     PortID swPort,
     phy::Side side,
     phy::PhyInfo& lastPhyInfo,
     const HwPortFb303Stats* fb303PortStat,
-    cfg::PortSpeed speed) {
+    cfg::PortSpeed speed,
+    std::shared_ptr<SaiPort> port) {
   auto fecMode = getPortFECMode(swPort);
+
+  phy::PcsState pcsState;
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
+  if (auto pcsLinkStatus =
+          managerTable_->portManager().getPcsRxLinkStatus(port->adapterKey())) {
+    pcsState.pcsRxStatusLive() = pcsLinkStatus->current_status;
+    pcsState.pcsRxStatusLatched() = pcsLinkStatus->changed;
+  }
+#endif
+
   if (utility::isReedSolomonFec(fecMode)) {
     phy::PcsStats pcsStats;
     phy::PcsInfo pcsInfo;
     phy::RsFecInfo rsFec;
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
+    auto fecLanes = utility::reedSolomonFecLanes(speed);
+    auto fecAmLock = managerTable_->portManager().getFecAlignmentLockStatus(
+        port->adapterKey(), fecLanes);
+    phy::RsFecState fecState;
+    for (auto fecAm : fecAmLock) {
+      // SDKs sometimes return data for more FEC lanes than the FEC block on the
+      // port actually uses
+      if (fecAm.lane < fecLanes) {
+        phy::RsFecLaneState fecLaneState;
+        fecLaneState.lane() = fecAm.lane;
+        fecLaneState.fecAlignmentLockLive() = fecAm.value.current_status;
+        fecLaneState.fecAlignmentLockChanged() = fecAm.value.changed;
+
+        fecState.lanes()[fecAm.lane] = fecLaneState;
+      }
+    }
+    pcsState.rsFecState() = fecState;
+#endif
+
     rsFec.correctedCodewords() =
         *(fb303PortStat->portStats().fecCorrectableErrors());
     rsFec.uncorrectedCodewords() =
@@ -1390,20 +1438,8 @@ void SaiSwitch::updatePcsInfo(
     sideInfo.pcs() = pcsInfo;
     sideStats.pcs() = pcsStats;
   }
-}
 
-bool SaiSwitch::rxSignalDetectSupportedInSdk() const {
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
-  return true;
-#endif
-  return false;
-}
-
-bool SaiSwitch::rxLockStatusSupportedInSdk() const {
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
-  return true;
-#endif
-  return false;
+  sideState.pcs() = pcsState;
 }
 
 void SaiSwitch::updateRsInfo(
@@ -1611,6 +1647,14 @@ void SaiSwitch::linkStateChangedCallbackBottomHalf(
         }
       }
       managerTable_->fdbManager().handleLinkDown(SaiPortDescriptor(swPortId));
+      if (getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ) {
+        // On VOQ switches, there are not FDB entries. Rather we only have
+        // L3 ports which in turn are associated with RIFs or type (system)
+        // port. Neighbors then tied to these RIFs. So we need to directly
+        // signal Port RIF neighbors of a corresponding link going down.
+        managerTable_->neighborManager().handleLinkDown(
+            SaiPortDescriptor(swPortId));
+      }
       /*
        * Enable AFE adaptive mode (S249471) on TAJO platforms when a port
        * flaps
@@ -1682,10 +1726,11 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
 
   // For VOQ switch, create system ports for existing egress ports
   if (switchType_ == cfg::SwitchType::VOQ) {
+    CHECK(getSwitchId().has_value());
     state->resetSystemPorts(
         managerTable_->systemPortManager().constructSystemPorts(
             state->getPorts(),
-            switchId_,
+            getSwitchId().value(),
             platform_->getAsic()->getSystemPortRange()));
   }
 
@@ -1719,8 +1764,7 @@ HwInitResult SaiSwitch::initLocked(
       ret.switchState =
           SwitchState::fromThrift(*switchStateThrift->swSwitchState());
     } else {
-      ret.switchState =
-          SwitchState::fromFollyDynamic(switchStateJson[kSwSwitch]);
+      XLOG(FATAL) << "Thrift switch state not found";
     }
     if (platform_->getAsic()->isSupported(HwAsic::Feature::OBJECT_KEY_CACHE)) {
       adapterKeysJson = std::make_unique<folly::dynamic>(
@@ -1996,7 +2040,16 @@ void SaiSwitch::packetRxCallbackPort(
     bool allowMissingSrcPort,
     cfg::PacketRxReason rxReason) {
   PortID swPortId(0);
-  VlanID swVlanId(0);
+  std::optional<VlanID> swVlanId = (switchType_ == cfg::SwitchType::VOQ ||
+                                    switchType_ == cfg::SwitchType::FABRIC)
+      ? std::nullopt
+      : std::make_optional(VlanID(0));
+  auto swVlanIdStr = [swVlanId]() {
+    return swVlanId.has_value()
+        ? folly::to<std::string>(static_cast<int>(swVlanId.value()))
+        : "None";
+  };
+
   auto rxPacket = std::make_unique<SaiRxPacket>(
       buffer_size, buffer, PortID(0), VlanID(0), rxReason);
   const auto portItr = concurrentIndices_->portIds.find(portSaiId);
@@ -2017,35 +2070,52 @@ void SaiSwitch::packetRxCallbackPort(
    * We use the cached cpu port id to avoid holding manager table locks in
    * the Rx path.
    */
-  if (portSaiId == getCPUPortSaiId() ||
-      (allowMissingSrcPort && portItr == concurrentIndices_->portIds.cend())) {
-    folly::io::Cursor cursor(rxPacket->buf());
-    EthHdr ethHdr{cursor};
-    auto vlanTags = ethHdr.getVlanTags();
-    if (vlanTags.size() == 1) {
-      swVlanId = VlanID(vlanTags[0].vid());
-      XLOG(DBG6) << "Rx packet on cpu port. "
-                 << "Found vlan from packet: " << swVlanId;
-    } else {
-      XLOG(ERR) << "RX packet on cpu port has no vlan tag "
-                << "or multiple vlan tags: 0x" << std::hex << portSaiId;
-      return;
-    }
-  } else if (portItr == concurrentIndices_->portIds.cend()) {
-    // TODO: add counter to keep track of spurious rx packet
-    XLOG(DBG) << "RX packet had port with unknown sai id: 0x" << std::hex
-              << portSaiId;
-    return;
-  } else {
-    swPortId = portItr->second;
-    const auto vlanItr =
-        concurrentIndices_->vlanIds.find(PortDescriptorSaiId(portSaiId));
-    if (vlanItr == concurrentIndices_->vlanIds.cend()) {
-      XLOG(ERR) << "RX packet had port in no known vlan: 0x" << std::hex
+  if (!(switchType_ == cfg::SwitchType::VOQ ||
+        switchType_ == cfg::SwitchType::FABRIC)) {
+    if (portSaiId == getCPUPortSaiId() ||
+        (allowMissingSrcPort &&
+         portItr == concurrentIndices_->portIds.cend())) {
+      folly::io::Cursor cursor(rxPacket->buf());
+      EthHdr ethHdr{cursor};
+      auto vlanTags = ethHdr.getVlanTags();
+      if (vlanTags.size() == 1) {
+        swVlanId = VlanID(vlanTags[0].vid());
+        XLOG(DBG6) << "Rx packet on cpu port. "
+                   << "Found vlan from packet: " << swVlanIdStr();
+      } else {
+        XLOG(ERR) << "RX packet on cpu port has no vlan tag "
+                  << "or multiple vlan tags: 0x" << std::hex << portSaiId;
+        return;
+      }
+    } else if (portItr == concurrentIndices_->portIds.cend()) {
+      // TODO: add counter to keep track of spurious rx packet
+      XLOG(DBG) << "RX packet had port with unknown sai id: 0x" << std::hex
                 << portSaiId;
       return;
+    } else {
+      swPortId = portItr->second;
+      const auto vlanItr =
+          concurrentIndices_->vlanIds.find(PortDescriptorSaiId(portSaiId));
+      if (vlanItr == concurrentIndices_->vlanIds.cend()) {
+        XLOG(ERR) << "RX packet had port in no known vlan: 0x" << std::hex
+                  << portSaiId;
+        return;
+      }
+      swVlanId = vlanItr->second;
     }
-    swVlanId = vlanItr->second;
+  } else { // VOQ / FABRIC
+    if (portSaiId != getCPUPortSaiId()) {
+      if (portItr == concurrentIndices_->portIds.cend()) {
+        // TODO: add counter to keep track of spurious rx packet
+        XLOG(ERR) << "RX packet had port with unknown sai id: 0x" << std::hex
+                  << portSaiId;
+        return;
+      } else {
+        swPortId = portItr->second;
+        XLOG(DBG6) << "VOQ RX packet with sai id: 0x" << std::hex << portSaiId
+                   << " portID: " << swPortId;
+      }
+    }
   }
 
   /*
@@ -2053,8 +2123,10 @@ void SaiSwitch::packetRxCallbackPort(
    */
   rxPacket->setSrcPort(swPortId);
   rxPacket->setSrcVlan(swVlanId);
-  XLOG(DBG6) << "Rx packet on port: " << swPortId << " vlan: " << swVlanId
+
+  XLOG(DBG6) << "Rx packet on port: " << swPortId << " vlan: " << swVlanIdStr()
              << " trap: " << packetRxReasonToString(rxReason);
+
   folly::io::Cursor c0(rxPacket->buf());
   XLOG(DBG6) << PktUtil::hexDump(c0);
   callback_->packetReceived(std::move(rxPacket));

@@ -282,6 +282,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getTeFlowTableDetails(std::vector<TeFlowDetails>& flowTable) override;
   void getFabricReachability(
       std::map<std::string, FabricEndpoint>& reachability) override;
+  void getDsfNodes(std::map<int64_t, cfg::DsfNode>& dsfNodes) override;
   /*
    * Event handler for when a connection is destroyed.  When there is an ongoing
    * duplex connection, there may be other threads that depend on the connection
@@ -348,9 +349,9 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getConfigAppliedInfo(ConfigAppliedInfo& configAppliedInfo) override;
 
   /**
-   * Serialize live running switch state at the path pointer by JSON Pointer
+   * Serialize live running switch state at the path pointer by thrift path
    */
-  void getCurrentStateJSON(std::string& ret, std::unique_ptr<std::string>)
+  void getCurrentStateJSON(std::string& ret, std::unique_ptr<std::string> path)
       override;
 
   /**

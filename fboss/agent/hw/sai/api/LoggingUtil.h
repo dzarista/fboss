@@ -255,7 +255,7 @@ struct formatter<sai_port_err_status_t> {
   }
 };
 
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
 // Formatting for sai_port_lane_latch_status_list_t
 template <>
 struct formatter<sai_port_lane_latch_status_t> {
@@ -275,6 +275,24 @@ struct formatter<sai_port_lane_latch_status_t> {
         latchStatus.lane,
         latchStatus.value.current_status,
         latchStatus.value.changed);
+  }
+};
+
+// Formatting for sai_latch_status_t
+template <>
+struct formatter<sai_latch_status_t> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const sai_latch_status_t& latchStatus, FormatContext& ctx) {
+    return format_to(
+        ctx.out(),
+        "latch_status.current_status: {}, latch_status.changed: {}",
+        latchStatus.current_status,
+        latchStatus.changed);
   }
 };
 #endif

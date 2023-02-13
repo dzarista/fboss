@@ -186,13 +186,18 @@ class SaiPortManager {
       PortSaiId saiPortId) const;
   std::vector<sai_port_err_status_t> getPortErrStatus(
       PortSaiId saiPortId) const;
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
   std::vector<sai_port_lane_latch_status_t> getRxSignalDetect(
       PortSaiId saiPortId,
       uint8_t numPmdLanes) const;
   std::vector<sai_port_lane_latch_status_t> getRxLockStatus(
       PortSaiId saiPortId,
       uint8_t numPmdLanes) const;
+  std::vector<sai_port_lane_latch_status_t> getFecAlignmentLockStatus(
+      PortSaiId saiPortId,
+      uint8_t numFecLanes) const;
+  std::optional<sai_latch_status_t> getPcsRxLinkStatus(
+      PortSaiId saiPortId) const;
 #endif
 
   void enableAfeAdaptiveMode(PortID portId);
