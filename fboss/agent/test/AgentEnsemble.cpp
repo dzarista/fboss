@@ -3,6 +3,7 @@
 #include "fboss/agent/test/AgentEnsemble.h"
 
 #include "fboss/agent/AgentConfig.h"
+#include "fboss/agent/Utils.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 
@@ -20,15 +21,38 @@ void initFlagDefaults(const std::map<std::string, std::string>& defaults) {
         item.first.c_str(), item.second.c_str(), gflags::SET_FLAGS_DEFAULT);
   }
 }
+
+int kArgc;
+char** kArgv;
+facebook::fboss::PlatformInitFn kPlatformInitFn;
+static std::string kInputConfigFile;
+
 } // namespace
+
 namespace facebook::fboss {
+AgentEnsemble::AgentEnsemble(const std::string& configFileName) {
+  configFile_ = configFileName;
+}
 
 void AgentEnsemble::setupEnsemble(
     int argc,
     char** argv,
     uint32_t hwFeaturesDesired,
     PlatformInitFn initPlatform,
-    AgentEnsembleConfigFn initialConfig) {
+    AgentEnsembleSwitchConfigFn initialConfigFn,
+    AgentEnsemblePlatformConfigFn platformConfigFn) {
+  // to ensure FLAGS_config is set, as this is used in case platform config is
+  // overriden by the application.
+  gflags::ParseCommandLineFlags(&argc, &argv, false);
+
+  if (platformConfigFn) {
+    auto agentConf =
+        AgentConfig::fromFile(AgentEnsemble::getInputConfigFile())->thrift;
+    platformConfigFn(*(agentConf.platform()));
+    // some platform config may need cold boots. so overwrite the config before
+    // creating a switch
+    writeConfig(agentConf, FLAGS_config);
+  }
   auto* initializer = agentInitializer();
   initializer->createSwitch(argc, argv, hwFeaturesDesired, initPlatform);
 
@@ -40,7 +64,7 @@ void AgentEnsemble::setupEnsemble(
   for (const auto& port : portsByControllingPort) {
     masterLogicalPortIds_.push_back(port.first);
   }
-  initialConfig_ = initialConfig(getHw(), masterLogicalPortIds_);
+  initialConfig_ = initialConfigFn(getHw(), masterLogicalPortIds_);
   writeConfig(initialConfig_);
   // reload the new config
   getPlatform()->reloadConfig();
@@ -61,14 +85,35 @@ void AgentEnsemble::startAgent() {
 }
 
 void AgentEnsemble::writeConfig(const cfg::SwitchConfig& config) {
-  auto agentConfig = AgentConfig::fromFile(FLAGS_config)->thrift;
+  auto* initializer = agentInitializer();
+  auto agentConfig = initializer->sw()->getPlatform()->config()->thrift;
   agentConfig.sw() = config;
+  writeConfig(agentConfig);
+}
+
+void AgentEnsemble::writeConfig(const cfg::AgentConfig& agentConfig) {
+  auto* initializer = agentInitializer();
+  auto testConfigDir =
+      initializer->sw()->getPlatform()->getPersistentStateDir() +
+      "/agent_ensemble/";
+  utilCreateDir(testConfigDir);
+  auto fileName = testConfigDir + configFile_;
+  writeConfig(agentConfig, fileName);
+}
+
+void AgentEnsemble::writeConfig(
+    const cfg::AgentConfig& agentConfig,
+    const std::string& fileName) {
   auto newAgentConfig = AgentConfig(
       agentConfig,
       apache::thrift::SimpleJSONSerializer::serialize<std::string>(
           agentConfig));
-  newAgentConfig.dumpConfig(FLAGS_config);
-
+  newAgentConfig.dumpConfig(fileName);
+  if (kInputConfigFile.empty()) {
+    // saving the original config file.
+    kInputConfigFile = FLAGS_config;
+  }
+  FLAGS_config = fileName;
   initFlagDefaults(*newAgentConfig.thrift.defaultCommandLineArgs());
 }
 
@@ -80,7 +125,9 @@ AgentEnsemble::~AgentEnsemble() {
   initializer->stopAgent(false);
 }
 
-void AgentEnsemble::applyNewConfig(cfg::SwitchConfig& config, bool activate) {
+void AgentEnsemble::applyNewConfig(
+    const cfg::SwitchConfig& config,
+    bool activate) {
   writeConfig(config);
   if (activate) {
     getSw()->applyConfig("applying new config", config);
@@ -127,6 +174,60 @@ void AgentEnsemble::gracefulExit() {
   auto* initializer = agentInitializer();
   // exit for warm boot
   initializer->stopAgent(true);
+}
+
+std::shared_ptr<SwitchState> AgentEnsemble::applyNewState(
+    std::shared_ptr<SwitchState> state,
+    bool transaction) {
+  if (!state) {
+    return getSw()->getState();
+  }
+  transaction
+      ? getSw()->updateStateWithHwFailureProtection(
+            "apply new state with failure protection",
+            [state](const std::shared_ptr<SwitchState>&) { return state; })
+      : getSw()->updateStateBlocking(
+            "apply new state",
+            [state](const std::shared_ptr<SwitchState>&) { return state; });
+  return getSw()->getState();
+}
+
+void AgentEnsemble::enableExactMatch(bcm::BcmConfig& config) {
+  if (auto yamlCfg = config.yamlConfig()) {
+    // use common func
+    facebook::fboss::enableExactMatch(*yamlCfg);
+  } else {
+    auto& cfg = *(config.config());
+    cfg["fpem_mem_entries"] = "0x10000";
+  }
+}
+
+std::string AgentEnsemble::getInputConfigFile() {
+  if (kInputConfigFile.empty()) {
+    return FLAGS_config;
+  }
+  return kInputConfigFile;
+}
+
+void ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform) {
+  kArgc = argc;
+  kArgv = argv;
+  kPlatformInitFn = std::move(initPlatform);
+}
+
+std::unique_ptr<AgentEnsemble> createAgentEnsemble(
+    AgentEnsembleSwitchConfigFn initialConfigFn,
+    AgentEnsemblePlatformConfigFn platformConfigFn,
+    uint32_t featuresDesired) {
+  auto ensemble = std::make_unique<AgentEnsemble>();
+  ensemble->setupEnsemble(
+      kArgc,
+      kArgv,
+      featuresDesired,
+      kPlatformInitFn,
+      initialConfigFn,
+      platformConfigFn);
+  return ensemble;
 }
 
 } // namespace facebook::fboss

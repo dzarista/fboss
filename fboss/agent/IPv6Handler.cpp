@@ -211,7 +211,8 @@ void IPv6Handler::handlePacket(
     sw_->portStats(port)->ipv6HopExceeded();
     // Look up cpu mac from platform
     MacAddress cpuMac = sw_->getPlatform()->getLocalMac();
-    sendICMPv6TimeExceeded(pkt->getSrcVlan(), cpuMac, cpuMac, ipv6, cursor);
+    sendICMPv6TimeExceeded(
+        port, pkt->getSrcVlan(), cpuMac, cpuMac, ipv6, cursor);
     return;
   }
 
@@ -219,12 +220,11 @@ void IPv6Handler::handlePacket(
     // packets destined for us
     // Anything not handled by the controller, we will forward it to the host,
     // i.e. ping, ssh, bgp...
-    PortID portID = pkt->getSrcPort();
     if (ipv6.payloadLength > intf->getMtu()) {
       // Generate PTB as interface to dst intf has MTU smaller than payload
       sendICMPv6PacketTooBig(
-          portID, pkt->getSrcVlan(), src, dst, ipv6, intf->getMtu(), cursor);
-      sw_->portStats(portID)->pktDropped();
+          port, pkt->getSrcVlan(), src, dst, ipv6, intf->getMtu(), cursor);
+      sw_->portStats(port)->pktDropped();
       return;
     }
     if (ipv6.nextHeader == static_cast<uint8_t>(IP_PROTO::IP_PROTO_IPV6_ICMP)) {
@@ -236,9 +236,9 @@ void IPv6Handler::handlePacket(
     }
 
     if (sw_->sendPacketToHost(intf->getID(), std::move(pkt))) {
-      sw_->portStats(portID)->pktToHost(l3Len);
+      sw_->portStats(port)->pktToHost(l3Len);
     } else {
-      sw_->portStats(portID)->pktDropped();
+      sw_->portStats(port)->pktDropped();
     }
     return;
   }
@@ -550,6 +550,7 @@ void IPv6Handler::handleNeighborAdvertisement(
 }
 
 void IPv6Handler::sendICMPv6TimeExceeded(
+    PortID srcPort,
     VlanID srcVlan,
     MacAddress dst,
     MacAddress src,
@@ -709,7 +710,7 @@ void IPv6Handler::sendUnicastNeighborSolicitation(
     const folly::IPAddressV6& srcIP,
     const folly::MacAddress& srcMac,
     const VlanID& vlanID,
-    const std::optional<PortDescriptor>& portDescriptor) {
+    const PortDescriptor& portDescriptor) {
   auto state = sw->getState();
   auto vlan = state->getVlans()->getVlanIf(vlanID);
   if (!Interface::isIpAttached(targetIP, vlan->getInterfaceID(), state)) {
@@ -886,7 +887,7 @@ void IPv6Handler::floodNeighborAdvertisements() {
         continue;
       }
       sendNeighborAdvertisement(
-          intf->getVlanID(),
+          intf->getVlanIDIf(),
           intf->getMac(),
           addrEntry.asV6(),
           MacAddress::BROADCAST,
@@ -896,7 +897,7 @@ void IPv6Handler::floodNeighborAdvertisements() {
 }
 
 void IPv6Handler::sendNeighborAdvertisement(
-    VlanID vlan,
+    std::optional<VlanID> vlan,
     MacAddress srcMac,
     IPAddressV6 srcIP,
     MacAddress dstMac,

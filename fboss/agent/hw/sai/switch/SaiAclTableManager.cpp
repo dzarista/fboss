@@ -917,8 +917,12 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
        fieldNeighborDstUserMeta.has_value() ||
        platform_->getAsic()->isSupported(HwAsic::Feature::EMPTY_ACL_MATCHER));
   if (fieldSrcPort.has_value()) {
-    matcherIsValid &= platform_->getAsic()->isSupported(
+    auto srcPortQualifierSupported = platform_->getAsic()->isSupported(
         HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER);
+#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+    srcPortQualifierSupported = false;
+#endif
+    matcherIsValid &= srcPortQualifierSupported;
   }
   auto actionIsValid =
       (aclActionPacketAction.has_value() || aclActionCounter.has_value() ||
@@ -1173,6 +1177,9 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
         cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
         cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE};
 
+#if defined(TAJO_SDK_VERSION_1_58_0) || defined(TAJO_SDK_VERSION_1_60_0)
+    tajoQualifiers.insert(cfg::AclTableQualifier::SRC_PORT);
+#endif
     return tajoQualifiers;
   } else if (isIndus) {
     // TODO(skhare)
@@ -1401,8 +1408,12 @@ bool SaiAclTableManager::areQualifiersSupportedInDefaultAclTable(
 void SaiAclTableManager::recreateAclTable(
     std::shared_ptr<SaiAclTable>& aclTable,
     const SaiAclTableTraits::CreateAttributes& newAttributes) {
-  if (!platform_->getAsic()->isSupported(
-          HwAsic::Feature::SAI_ACL_TABLE_UPDATE)) {
+  bool aclTableUpdateSupport =
+      platform_->getAsic()->isSupported(HwAsic::Feature::SAI_ACL_TABLE_UPDATE);
+#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+  aclTableUpdateSupport = false;
+#endif
+  if (!aclTableUpdateSupport) {
     XLOG(WARNING) << "feature to update acl table is not supported";
     return;
   }

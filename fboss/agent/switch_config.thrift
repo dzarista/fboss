@@ -101,6 +101,7 @@ enum PortSpeed {
   HUNDREDG = 100000, // 100G
   TWOHUNDREDG = 200000, // 200G
   FOURHUNDREDG = 400000, // 400G
+  EIGHTHUNDREDG = 800000, // 800G
 }
 
 // <speed>_<num_lanes>_<modulation>_<fec>
@@ -146,6 +147,8 @@ enum PortProfileID {
   PROFILE_400G_8_PAM4_RS544X2N_COPPER = 35,
   PROFILE_53POINT125G_1_PAM4_RS545_COPPER = 36,
   PROFILE_53POINT125G_1_PAM4_RS545_OPTICAL = 37,
+  PROFILE_400G_4_PAM4_RS544X2N_OPTICAL = 38,
+  PROFILE_800G_8_PAM4_RS544X2N_OPTICAL = 39,
 }
 
 /**
@@ -846,6 +849,12 @@ enum PortType {
   CPU_PORT = 2,
   RECYCLE_PORT = 3,
 }
+
+struct PortNeighbor {
+  1: string remoteSystem;
+  2: string remotePort;
+}
+
 /**
  * Configuration for a single logical port
  */
@@ -992,6 +1001,12 @@ struct Port {
    * Port type to convey type for this port
    */
   27: PortType portType = PortType.INTERFACE_PORT;
+
+  /*
+   * List of neighbors reachable over this link
+   * includes information on remote system and ports
+   */
+  28: list<PortNeighbor> expectedNeighborReachability = [];
 }
 
 enum LacpPortRate {
@@ -1429,6 +1444,8 @@ struct ExactMatchTableConfig {
   2: optional i32 dstPrefixLength;
 }
 
+const i16 DEFAULT_FLOWLET_TABLE_SIZE = 4096;
+
 /*
  * Switch specific settings: global to the switch
  */
@@ -1614,6 +1631,30 @@ struct UdfConfig {
   2: map<string, UdfPacketMatcher> udfPacketMatcher;
 }
 
+struct FlowletSwitchingConfig {
+  // wait for lack of activitiy interval on the flow before load balancing
+  1: i16 inactivityIntervalUsecs;
+  // flow set table size
+  2: i16 flowletTableSize = DEFAULT_FLOWLET_TABLE_SIZE;
+  // EWMA (exponentially weighted moving average) of historical member load in bytes
+  3: i16 dynamicEgressLoadExponent;
+  // EWMA of historical member queued bytes
+  4: i16 dynamicQueueExponent;
+  // minimum threshold, in bytes, used to quantize historical member queued bytes
+  5: i32 dynamicQueueMinThresholdBytes;
+  // maximum threshold, in bytes, used to quantize historical member queued bytes
+  6: i32 dynamicQueueMaxThresholdBytes;
+  // number of times historical member load and queued bytes are computed in a second
+  7: i32 dynamicSampleRate;
+  // TODO move the following 3 port params to port specific structure
+  // port scaling factor for dynamic load balancing
+  8: optional i16 portScalingFactor;
+  // weight of traffic load in determining ports quality
+  9: optional i16 portLoadWeight;
+  // weight of total queue size in determining port quality
+  10: optional i16 portQueueWeight;
+}
+
 /**
  * The configuration for a switch.
  *
@@ -1739,4 +1780,5 @@ struct SwitchConfig {
   // will be populated to reflect global DSF node info
   48: map<i64, DsfNode> dsfNodes = {};
   49: optional UdfConfig udfConfig;
+  50: optional FlowletSwitchingConfig flowletSwitchingConfig;
 }

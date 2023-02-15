@@ -9,7 +9,8 @@
  */
 #pragma once
 
-#include "fboss/agent/Utils.h"
+#include <folly/MacAddress.h>
+
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/state/NodeBase.h"
@@ -31,8 +32,6 @@ struct SwitchSettingsFields
   state::SwitchSettingsFields toThrift() const override;
   static SwitchSettingsFields fromThrift(
       state::SwitchSettingsFields const& fields);
-  static folly::dynamic migrateToThrifty(folly::dynamic const& dyn);
-  static void migrateFromThrifty(folly::dynamic& dyn);
 
   bool operator==(const SwitchSettingsFields& other) const {
     return std::tie(

@@ -9,6 +9,7 @@
  */
 
 #include "fboss/agent/hw/sai/switch/SaiSystemPortManager.h"
+#include "fboss/agent/hw/sai/switch/SaiSwitchManager.h"
 
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/hw/HwSysPortFb303Stats.h"
@@ -264,6 +265,37 @@ std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
   }
 
   return sysPortMap;
+}
+
+void SaiSystemPortManager::setQosMapOnAllSystemPorts(QosMapSaiId qosMapId) {
+  for (const auto& systemPortIdAndHandle : handles_) {
+    systemPortIdAndHandle.second->systemPort->setOptionalAttribute(
+        SaiSystemPortTraits::Attributes::QosTcToQueueMap{qosMapId});
+  }
+}
+
+void SaiSystemPortManager::setQosPolicy() {
+  if (platform_->getAsic()->getSwitchType() != cfg::SwitchType::VOQ) {
+    return;
+  }
+  if (managerTable_->switchManager().isGlobalQoSMapSupported()) {
+    return;
+  }
+  auto& qosMapManager = managerTable_->qosMapManager();
+  auto qosMapHandle = qosMapManager.getQosMap();
+  globalTcToQueueQosMap_ = qosMapHandle->tcToQueueMap;
+  setQosMapOnAllSystemPorts(globalTcToQueueQosMap_->adapterKey());
+}
+
+void SaiSystemPortManager::clearQosPolicy() {
+  if (platform_->getAsic()->getSwitchType() != cfg::SwitchType::VOQ) {
+    return;
+  }
+  if (managerTable_->switchManager().isGlobalQoSMapSupported()) {
+    return;
+  }
+  setQosMapOnAllSystemPorts(QosMapSaiId(SAI_NULL_OBJECT_ID));
+  globalTcToQueueQosMap_.reset();
 }
 
 } // namespace facebook::fboss

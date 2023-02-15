@@ -21,6 +21,8 @@ namespace facebook::fboss::utility {
 
 void setExactMatchCfg(HwSwitchEnsemble* hwSwitchEnsemble, int prefixLength);
 
+void setExactMatchCfg(std::shared_ptr<SwitchState>* state, int prefixLength);
+
 TeFlow makeFlowKey(std::string dstIp, uint16_t srcPort);
 
 std::shared_ptr<TeFlowEntry> makeFlowEntry(
@@ -37,6 +39,9 @@ void addFlowEntry(
 void addFlowEntries(
     HwSwitchEnsemble* hwEnsemble,
     std::vector<std::shared_ptr<TeFlowEntry>>& flowEntries);
+void addFlowEntries(
+    std::shared_ptr<SwitchState>* state,
+    std::vector<std::shared_ptr<TeFlowEntry>>& flowEntries);
 
 void deleteFlowEntry(
     HwSwitchEnsemble* hwEnsemble,
@@ -44,6 +49,9 @@ void deleteFlowEntry(
 
 void deleteFlowEntries(
     HwSwitchEnsemble* hwEnsemble,
+    std::vector<std::shared_ptr<TeFlowEntry>>& flowEntries);
+void deleteFlowEntries(
+    std::shared_ptr<SwitchState>* state,
     std::vector<std::shared_ptr<TeFlowEntry>>& flowEntries);
 
 void modifyFlowEntry(

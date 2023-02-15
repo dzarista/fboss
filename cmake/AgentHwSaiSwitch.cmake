@@ -39,7 +39,6 @@ set(SAI_SWITCH_SRC
   fboss/agent/hw/sai/switch/SaiVirtualRouterManager.cpp
   fboss/agent/hw/sai/switch/SaiWredManager.cpp
   fboss/agent/hw/sai/switch/oss/SaiBufferManager.cpp
-  fboss/agent/hw/sai/switch/oss/SaiDebugCounterManager.cpp
   fboss/agent/hw/sai/switch/oss/SaiHostifManager.cpp
   fboss/agent/hw/sai/switch/npu/SaiAclTableManager.cpp
   fboss/agent/hw/sai/switch/npu/SaiPortManager.cpp

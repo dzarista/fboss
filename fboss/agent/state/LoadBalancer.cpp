@@ -9,7 +9,6 @@
  */
 #include "fboss/agent/state/LoadBalancer.h"
 #include "fboss/agent/FbossError.h"
-#include "fboss/agent/Platform.h"
 #include "fboss/agent/state/NodeBase-defs.h"
 
 #include <folly/MacAddress.h>
@@ -304,18 +303,6 @@ LoadBalancerFields LoadBalancerFields::fromThrift(
       tr,
       mpls);
   return fields;
-}
-
-folly::dynamic LoadBalancerFields::migrateToThrifty(folly::dynamic const& dyn) {
-  folly::dynamic obj = dyn;
-  auto seed = static_cast<int32_t>(obj["seed"].asInt());
-  obj["seed"] = seed;
-  return obj;
-}
-
-void LoadBalancerFields::migrateFromThrifty(folly::dynamic& dyn) {
-  auto seed = dyn["seed"].asInt();
-  dyn["seed"] = static_cast<uint32_t>(seed);
 }
 
 std::shared_ptr<LoadBalancer> LoadBalancer::fromThrift(

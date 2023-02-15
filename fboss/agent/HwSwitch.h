@@ -275,9 +275,7 @@ class HwSwitch {
    */
   void gracefulExit(
       folly::dynamic& follySwitchState,
-      state::WarmbootState& thriftSwitchState) {
-    gracefulExitImpl(follySwitchState, thriftSwitchState);
-  }
+      state::WarmbootState& thriftSwitchState);
 
   /*
    * Get Hw Switch state in a folly::dynamic
@@ -389,15 +387,6 @@ class HwSwitch {
   virtual uint32_t generateDeterministicSeed(
       LoadBalancerID loadBalancerID,
       folly::MacAddress mac) const = 0;
-
-  // These functions return true when the SDK supports these diagnostics, not
-  // necessarily for a particular speed/ASIC
-  virtual bool rxSignalDetectSupportedInSdk() const {
-    return false;
-  }
-  virtual bool rxLockStatusSupportedInSdk() const {
-    return false;
-  }
 
  private:
   virtual HwInitResult initImpl(

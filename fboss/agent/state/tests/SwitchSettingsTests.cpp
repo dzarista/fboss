@@ -217,34 +217,6 @@ TEST(SwitchSettingsTest, applyMacAddrsToBlock) {
       macAddrToBlock.macAddress());
 }
 
-TEST(SwitchSettingsTest, ToFromJSON) {
-  std::string jsonStr = R"(
-        {
-          "l2LearningMode": 1,
-          "qcmEnable": true,
-          "ptpTcEnable": true,
-          "l2AgeTimerSeconds": 600,
-          "maxRouteCounterIDs": 10,
-          "blockNeighbors": [],
-          "macAddrsToBlock": [],
-          "switchType": 0
-        }
-  )";
-
-  auto switchSettings =
-      SwitchSettings::fromFollyDynamic(folly::parseJson(jsonStr));
-  EXPECT_EQ(cfg::L2LearningMode::SOFTWARE, switchSettings->getL2LearningMode());
-  EXPECT_TRUE(switchSettings->isQcmEnable());
-  EXPECT_TRUE(switchSettings->isPtpTcEnable());
-  EXPECT_EQ(600, switchSettings->getL2AgeTimerSeconds());
-  EXPECT_EQ(10, switchSettings->getMaxRouteCounterIDs());
-
-  auto dyn1 = switchSettings->toFollyDynamic();
-  auto dyn2 = folly::parseJson(jsonStr);
-
-  EXPECT_EQ(dyn1, dyn2);
-}
-
 TEST(SwitchSettingsTest, ThrifyMigration) {
   folly::IPAddress ip("1.1.1.1");
   auto addr = facebook::network::toBinaryAddress(ip);
@@ -305,21 +277,6 @@ TEST(SwitchSettingsTest, applyVoqSwitch) {
   EXPECT_EQ(switchSettingsV1->getSwitchType(), cfg::SwitchType::VOQ);
   EXPECT_EQ(switchSettingsV1->getSwitchId(), 1);
   validateNodeSerialization(*switchSettingsV1);
-
-  // Flip back to NPU switch type
-  *config.switchSettings()->switchType() = cfg::SwitchType::NPU;
-  config.switchSettings()->switchId().reset();
-  EXPECT_FALSE(config.switchSettings()->switchId().has_value());
-
-  auto stateV2 = publishAndApplyConfig(stateV1, &config, platform.get());
-  EXPECT_NE(nullptr, stateV2);
-  auto switchSettingsV2 = stateV2->getSwitchSettings();
-  ASSERT_NE(nullptr, switchSettingsV2);
-  EXPECT_FALSE(switchSettingsV2->isPublished());
-  EXPECT_EQ(switchSettingsV2->getSwitchType(), cfg::SwitchType::NPU);
-  EXPECT_FALSE(switchSettingsV2->getSwitchId().has_value());
-  validateNodeSerialization(*switchSettingsV2);
-  EXPECT_EQ(nullptr, publishAndApplyConfig(stateV2, &config, platform.get()));
 }
 
 TEST(SwitchSettingsTest, applyExactMatchTableConfig) {

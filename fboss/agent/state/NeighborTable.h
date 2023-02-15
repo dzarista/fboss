@@ -21,6 +21,7 @@ namespace facebook::fboss {
 
 class SwitchState;
 class Vlan;
+class Interface;
 
 template <typename IPADDR, typename ENTRY>
 struct NeighborTableTraits {
@@ -32,23 +33,6 @@ struct NeighborTableTraits {
 
   static KeyType getKey(const std::shared_ptr<Node>& entry) {
     return entry->getIP();
-  }
-};
-
-template <typename IPADDR, typename ENTRY>
-struct NeighborTableThriftTraits
-    : public ThriftyNodeMapTraits<std::string, state::NeighborEntryFields> {
-  static inline const std::string& getThriftKeyName() {
-    static const std::string _key = "ipaddress";
-    return _key;
-  }
-
-  static const KeyType convertKey(const IPADDR& key) {
-    return key.str();
-  }
-
-  static const KeyType parseKey(const folly::dynamic& key) {
-    return key.asString();
   }
 };
 
@@ -78,10 +62,6 @@ template <typename IPADDR, typename ENTRY, typename SUBCLASS>
 class NeighborTable
     : public ThriftMapNode<SUBCLASS, NbrTableTraits<SUBCLASS, ENTRY>> {
  public:
-  using LegacyBaseT = ThriftyNodeMapT<
-      SUBCLASS,
-      NeighborTableTraits<IPADDR, ENTRY>,
-      NeighborTableThriftTraits<IPADDR, ENTRY>>;
   typedef IPADDR AddressType;
   typedef ENTRY Entry;
 
@@ -94,15 +74,16 @@ class NeighborTable
   std::shared_ptr<Entry> getEntryIf(AddressType ip) const {
     return this->getNodeIf(ip.str());
   }
-
-  SUBCLASS* modify(Vlan** vlan, std::shared_ptr<SwitchState>* state);
-
   /**
    * Return a modifiable version of current table. If the table is cloned, all
    * nodes to the root are cloned, and cloned state is put in the output
    * parameter.
    */
+
+  SUBCLASS* modify(Vlan** vlan, std::shared_ptr<SwitchState>* state);
   SUBCLASS* modify(VlanID vlanId, std::shared_ptr<SwitchState>* state);
+  SUBCLASS* modify(Interface** intf, std::shared_ptr<SwitchState>* state);
+  SUBCLASS* modify(InterfaceID intfId, std::shared_ptr<SwitchState>* state);
 
   void addEntry(
       AddressType ip,

@@ -1440,7 +1440,9 @@ void BcmPort::updateStats() {
   std::vector<utility::CounterPrevAndCur> toSubtractFromInDiscardsRaw = {
       {*lastPortStats.inDstNullDiscards_(),
        *curPortStats.inDstNullDiscards_()}};
-  if (isMmuLossy()) {
+  if (isMmuLossy() &&
+      hw_->getPlatform()->getAsic()->isSupported(
+          HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS)) {
     // If MMU setup as lossy, all incoming pause frames will be
     // discarded and will count towards in discards. This makes in discards
     // counter somewhat useless. So instead calculate "in_non_pause_discards",
@@ -1638,6 +1640,10 @@ void BcmPort::updatePortPfcStats(
           &(portStats.outPfc_()[pfcPri]));
     }
   }
+
+  // out pfc collection
+  updateStat(
+      now, kOutPfc(), snmpBcmTxPFCControlFrame, &(*portStats.outPfcCtrl_()));
 
   /*
    * PFC count will be subtracted from the discards to compute the actual

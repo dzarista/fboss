@@ -50,7 +50,7 @@ target_link_libraries(bcm_fsw_scale_route_add_speed
   hw_fsw_scale_route_add_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -67,7 +67,7 @@ target_link_libraries(bcm_fsw_scale_route_del_speed
   hw_fsw_scale_route_del_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -84,7 +84,7 @@ target_link_libraries(bcm_th_alpm_scale_route_add_speed
   hw_th_alpm_scale_route_add_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -101,7 +101,7 @@ target_link_libraries(bcm_th_alpm_scale_route_del_speed
   hw_th_alpm_scale_route_del_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -118,7 +118,7 @@ target_link_libraries(bcm_hgrid_du_scale_route_add_speed
   hw_hgrid_du_scale_route_add_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -135,7 +135,7 @@ target_link_libraries(bcm_hgrid_du_scale_route_del_speed
   hw_hgrid_du_scale_route_del_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -152,7 +152,7 @@ target_link_libraries(bcm_hgrid_uu_scale_route_add_speed
   hw_hgrid_uu_scale_route_add_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -169,7 +169,7 @@ target_link_libraries(bcm_hgrid_uu_scale_route_del_speed
   hw_hgrid_uu_scale_route_del_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -186,7 +186,7 @@ target_link_libraries(bcm_anticipated_scale_route_add_speed
   hw_anticipated_scale_route_add_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -203,7 +203,7 @@ target_link_libraries(bcm_anticipated_scale_route_del_speed
   hw_anticipated_scale_route_del_speed
   route_scale_gen
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -344,12 +344,11 @@ target_link_libraries(bcm_teflow_scale_add
   -Wl,--whole-archive
   bcm
   config
-  bcm_switch_ensemble
   config_factory
   hw_teflow_scale_add
   bcm_teflow_utils
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -361,12 +360,11 @@ target_link_libraries(bcm_teflow_scale_del
   -Wl,--whole-archive
   bcm
   config
-  bcm_switch_ensemble
   config_factory
   hw_teflow_scale_del
   bcm_teflow_utils
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark
@@ -383,7 +381,7 @@ target_link_libraries(bcm_teflow_stats_collection_speed
   hw_teflow_stats_collection_speed
   bcm_teflow_utils
   -Wl,--no-whole-archive
-  hw_benchmark_main
+  bcm_agent_benchmarks_main
   Folly::folly
   ${OPENNSA}
   Folly::follybenchmark

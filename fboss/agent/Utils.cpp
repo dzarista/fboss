@@ -28,6 +28,7 @@
 #include <boost/filesystem/operations.hpp>
 #include <thrift/lib/cpp/util/EnumUtils.h>
 
+#include <re2/re2.h>
 #include <chrono>
 #include <iostream>
 
@@ -54,6 +55,17 @@ UnicastRoute makeUnicastRouteHelper(
   nr.adminDistance() = admin;
   return nr;
 }
+
+IPAddressV6 getIPv6Address(InterfaceID intfID, Interface::AddressesType addrs) {
+  for (auto iter : std::as_const(*addrs)) {
+    auto address = folly::IPAddress(iter.first);
+    if (address.isV6()) {
+      return address.asV6();
+    }
+  }
+  throw FbossError("Cannot find IPv6 address for interface ", intfID);
+}
+
 } // namespace
 void utilCreateDir(folly::StringPiece path) {
   try {
@@ -109,16 +121,17 @@ IPAddressV4 getSwitchVlanIP(
 IPAddressV6 getSwitchVlanIPv6(
     const std::shared_ptr<SwitchState>& state,
     VlanID vlan) {
-  IPAddressV6 switchIp;
   auto vlanInterface = state->getInterfaces()->getInterfaceInVlan(vlan);
-  for (auto iter : std::as_const(*vlanInterface->getAddresses())) {
-    auto address = folly::IPAddress(iter.first);
-    if (address.isV6()) {
-      switchIp = address.asV6();
-      return switchIp;
-    }
-  }
-  throw FbossError("Cannot find IPv6 address for vlan ", vlan);
+
+  return getIPv6Address(vlanInterface->getID(), vlanInterface->getAddresses());
+}
+
+IPAddressV6 getSwitchIntfIPv6(
+    const std::shared_ptr<SwitchState>& state,
+    InterfaceID intfID) {
+  auto interface = state->getInterfaces()->getInterface(intfID);
+
+  return getIPv6Address(intfID, interface->getAddresses());
 }
 
 void incNiceValue(const uint32_t increment) {
@@ -297,26 +310,57 @@ UnicastRoute makeUnicastRoute(
   return route;
 }
 
+PortID getPortID(
+    SystemPortID sysPortId,
+    const std::shared_ptr<SwitchState>& state) {
+  auto mySwitchId = state->getSwitchSettings()->getSwitchId();
+  CHECK(mySwitchId.has_value());
+  auto sysPortRange = state->getDsfNodes()
+                          ->getDsfNodeIf(SwitchID(*mySwitchId))
+                          ->getSystemPortRange();
+  CHECK(sysPortRange.has_value());
+  return PortID(static_cast<int64_t>(sysPortId) - *sysPortRange->minimum());
+}
+
+std::vector<PortID> getPortsForInterface(
+    InterfaceID intfId,
+    const std::shared_ptr<SwitchState>& state) {
+  auto intf = state->getInterfaces()->getInterfaceIf(intfId);
+  if (!intf) {
+    return {};
+  }
+  std::vector<PortID> ports;
+  switch (intf->getType()) {
+    case cfg::InterfaceType::VLAN: {
+      auto vlanId = intf->getVlanID();
+      auto vlan = state->getVlans()->getVlanIf(vlanId);
+      if (vlan) {
+        for (const auto& memberPort : vlan->getPorts()) {
+          ports.push_back(PortID(memberPort.first));
+        }
+      }
+    } break;
+    case cfg::InterfaceType::SYSTEM_PORT:
+      ports.push_back(getPortID(intf->getSystemPortID().value(), state));
+      break;
+  }
+  return ports;
+}
+
 bool isAnyInterfacePortInLoopbackMode(
     std::shared_ptr<SwitchState> swState,
     const std::shared_ptr<Interface> interface) {
-  auto vlanId = interface->getVlanID();
-  auto vlan = swState->getVlans()->getVlanIf(vlanId);
-  if (vlan) {
-    // walk all ports for the given interface and ensure that there are no
-    // loopbacks configured This is mostly for the agent tests for which we dont
-    // want to flood grat arp when we are in loopback resulting in these pkts
-    // getting looped back forever
-    for (const auto& memberPort : vlan->getPorts()) {
-      auto* port =
-          swState->getPorts()->getPortIf(PortID(memberPort.first)).get();
-      if (port) {
-        if (port->getLoopbackMode() != cfg::PortLoopbackMode::NONE) {
-          XLOG(DBG2) << "Port: " << port->getName()
-                     << " is in loopback mode for vlanId: " << (int)vlanId;
-          return true;
-        }
-      }
+  // walk all ports for the given interface and ensure that there are no
+  // loopbacks configured This is mostly for the agent tests for which we dont
+  // want to flood grat arp when we are in loopback resulting in these pkts
+  // getting looped back forever
+  for (auto portId : getPortsForInterface(interface->getID(), swState)) {
+    auto port = swState->getPorts()->getPortIf(portId);
+    if (port && port->getLoopbackMode() != cfg::PortLoopbackMode::NONE) {
+      XLOG(DBG2) << "Port: " << port->getName()
+                 << " in interface: " << interface->getID()
+                 << " is in loopback mode";
+      return true;
     }
   }
   return false;
@@ -336,6 +380,41 @@ StopWatch::~StopWatch() {
     std::cout << time << std::endl;
   } else {
     XLOG(DBG2) << *name_ << " : " << durationMillseconds;
+  }
+}
+
+void enableExactMatch(std::string& yamlCfg) {
+  std::string globalSt("global:\n");
+  std::string emSt("fpem_mem_entries:");
+  std::string emWidthSt("fpem_mem_entries_width:");
+  std::size_t glPos = yamlCfg.find(globalSt);
+  std::size_t emPos = yamlCfg.find(emSt);
+  std::size_t emWidthPos = yamlCfg.find(emWidthSt);
+  static const re2::RE2 emPattern(
+      "(fpem_mem_entries: )(0x[0-9a-fA-F]+|[0-9]+)(\n)");
+  static const re2::RE2 emWidthPattern(
+      "(fpem_mem_entries_width: )(0x[0-9a-fA-F]+|[0-9]+)(\n)");
+  if (glPos != std::string::npos) {
+    if (emPos == std::string::npos && emWidthPos == std::string::npos) {
+      yamlCfg.replace(
+          glPos,
+          globalSt.length(),
+          "global:\n      fpem_mem_entries_width: 1\n      fpem_mem_entries: 65536\n");
+    } else if (emPos != std::string::npos && emWidthPos == std::string::npos) {
+      yamlCfg.replace(
+          glPos,
+          globalSt.length(),
+          "global:\n      fpem_mem_entries_width: 1\n");
+      re2::RE2::Replace(&yamlCfg, emPattern, "fpem_mem_entries: 65536\n");
+    } else {
+      if (emPos != std::string::npos) {
+        re2::RE2::Replace(&yamlCfg, emPattern, "fpem_mem_entries: 65536\n");
+      }
+      if (emWidthPos != std::string::npos) {
+        re2::RE2::Replace(
+            &yamlCfg, emWidthPattern, "fpem_mem_entries_width: 1\n");
+      }
+    }
   }
 }
 } // namespace facebook::fboss

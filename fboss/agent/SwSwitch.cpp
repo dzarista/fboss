@@ -54,7 +54,6 @@
 #include "fboss/agent/SwSwitchRouteUpdateWrapper.h"
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/TeFlowNexthopHandler.h"
-#include "fboss/agent/ThriftHandler.h"
 #include "fboss/agent/TunManager.h"
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/Utils.h"
@@ -469,6 +468,7 @@ void SwSwitch::updateStats() {
             getHw()->getSwitchStats()->getHwAsicErrors();
         agentStats.teFlowStats() = getTeFlowStats();
         stats()->fillAgentStats(agentStats);
+        agentStats.bufferPoolStats() = getBufferPoolStats();
         fsdbSyncer_->statsUpdated(std::move(agentStats));
         publishedStatsToFsdbAt_ = now;
       }
@@ -521,6 +521,12 @@ TeFlowStats SwSwitch::getTeFlowStats() {
   teFlowStats.timestamp() = now.count();
   teFlowStats.hwTeFlowStats() = std::move(hwTeFlowStats);
   return teFlowStats;
+}
+
+HwBufferPoolStats SwSwitch::getBufferPoolStats() const {
+  HwBufferPoolStats stats;
+  stats.deviceWatermarkBytes() = getHw()->getDeviceWatermarkBytes();
+  return stats;
 }
 
 void SwSwitch::registerNeighborListener(
@@ -2083,6 +2089,16 @@ std::optional<VlanID> SwSwitch::getCPUVlan() const {
           getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::FABRIC
       ? std::nullopt
       : std::make_optional(VlanID(4095));
+}
+
+InterfaceID SwSwitch::getInterfaceIDForPort(PortID portID) const {
+  auto port = getState()->getPorts()->getPortIf(portID);
+  CHECK(port);
+  // On VOQ/Fabric switches, port and interface have 1:1 relation.
+  // For non VOQ/Fabric switches, in practice, a port is always part of a
+  // single VLAN (and thus single interface).
+  CHECK_EQ(port->getInterfaceIDs()->size(), 1);
+  return InterfaceID(port->getInterfaceIDs()->at(0)->cref());
 }
 
 } // namespace facebook::fboss

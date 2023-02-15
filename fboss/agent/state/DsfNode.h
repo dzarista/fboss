@@ -37,8 +37,8 @@ class DsfNode : public ThriftStructNode<DsfNode, cfg::DsfNode> {
   }
   std::set<folly::CIDRNetwork> getLoopbackIpsSorted() const;
   void setLoopbackIps(const std::vector<std::string>& loopbackIps);
-  cfg::Range64 getSystemPortRange() const;
-  folly::MacAddress getMac() const;
+  std::optional<cfg::Range64> getSystemPortRange() const;
+  std::optional<folly::MacAddress> getMac() const;
 
   static std::shared_ptr<DsfNode> fromFollyDynamic(const folly::dynamic& entry);
 

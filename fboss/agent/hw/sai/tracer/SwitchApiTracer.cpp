@@ -101,10 +101,14 @@ sai_status_t wrap_create_switch(
 }
 
 sai_status_t wrap_remove_switch(sai_object_id_t switch_id) {
+  SaiTracer::getInstance()->logRemoveFn(
+      "remove_switch", switch_id, SAI_OBJECT_TYPE_SWITCH);
+  auto begin = FLAGS_enable_elapsed_time_log
+      ? std::chrono::system_clock::now()
+      : std::chrono::system_clock::time_point::min();
   auto rv = SaiTracer::getInstance()->switchApi_->remove_switch(switch_id);
 
-  SaiTracer::getInstance()->logRemoveFn(
-      "remove_switch", switch_id, SAI_OBJECT_TYPE_SWITCH, rv);
+  SaiTracer::getInstance()->logPostInvocation(rv, switch_id, begin);
   return rv;
 }
 
@@ -118,10 +122,14 @@ sai_status_t wrap_set_switch_attribute(
     auto* tracer = SaiTracer::getInstance().get();
     rv = tracer->switchApi_->set_switch_attribute(switch_id, attr);
   } else {
+    SaiTracer::getInstance()->logSetAttrFn(
+        "set_switch_attribute", switch_id, attr, SAI_OBJECT_TYPE_SWITCH);
+    auto begin = FLAGS_enable_elapsed_time_log
+        ? std::chrono::system_clock::now()
+        : std::chrono::system_clock::time_point::min();
     rv = SaiTracer::getInstance()->switchApi_->set_switch_attribute(
         switch_id, attr);
-    SaiTracer::getInstance()->logSetAttrFn(
-        "set_switch_attribute", switch_id, attr, SAI_OBJECT_TYPE_SWITCH, rv);
+    SaiTracer::getInstance()->logPostInvocation(rv, switch_id, begin);
   }
   return rv;
 }
@@ -130,8 +138,19 @@ sai_status_t wrap_get_switch_attribute(
     sai_object_id_t switch_id,
     uint32_t attr_count,
     sai_attribute_t* attr_list) {
-  return SaiTracer::getInstance()->switchApi_->get_switch_attribute(
+  SaiTracer::getInstance()->logGetAttrFn(
+      "get_switch_attribute",
+      switch_id,
+      attr_count,
+      attr_list,
+      SAI_OBJECT_TYPE_SWITCH);
+  auto begin = FLAGS_enable_elapsed_time_log
+      ? std::chrono::system_clock::now()
+      : std::chrono::system_clock::time_point::min();
+  auto rv = SaiTracer::getInstance()->switchApi_->get_switch_attribute(
       switch_id, attr_count, attr_list);
+  SaiTracer::getInstance()->logPostInvocation(rv, switch_id, begin);
+  return rv;
 }
 
 sai_status_t wrap_get_switch_stats(

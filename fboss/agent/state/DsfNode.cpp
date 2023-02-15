@@ -8,6 +8,9 @@
  *
  */
 #include "fboss/agent/state/DsfNode.h"
+
+#include <folly/MacAddress.h>
+
 #include "fboss/agent/gen-cpp2/switch_config_fatal.h"
 #include "fboss/agent/gen-cpp2/switch_config_fatal_types.h"
 
@@ -40,12 +43,20 @@ void DsfNode::setLoopbackIps(const std::vector<std::string>& loopbackIps) {
   set<switch_config_tags::loopbackIps>(loopbackIps);
 }
 
-cfg::Range64 DsfNode::getSystemPortRange() const {
-  return get<switch_config_tags::systemPortRange>()->toThrift();
+std::optional<cfg::Range64> DsfNode::getSystemPortRange() const {
+  std::optional<cfg::Range64> sysPortRange;
+  if (get<switch_config_tags::systemPortRange>()) {
+    sysPortRange = get<switch_config_tags::systemPortRange>()->toThrift();
+  }
+  return sysPortRange;
 }
 
-folly::MacAddress DsfNode::getMac() const {
-  return folly::MacAddress(get<switch_config_tags::nodeMac>()->cref());
+std::optional<folly::MacAddress> DsfNode::getMac() const {
+  std::optional<folly::MacAddress> mac;
+  if (get<switch_config_tags::nodeMac>().has_value()) {
+    mac = folly::MacAddress(get<switch_config_tags::nodeMac>()->cref());
+  }
+  return mac;
 }
 
 std::shared_ptr<DsfNode> DsfNode::fromFollyDynamic(

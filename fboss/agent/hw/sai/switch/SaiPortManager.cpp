@@ -1094,7 +1094,7 @@ bool SaiPortManager::fecStatsSupported(PortID portId) const {
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) ||                                 \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                 \
     defined(TAJO_SDK_VERSION_1_42_4) || defined(SAI_VERSION_9_0_EA_ODP) ||  \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP)
+    defined(SAI_VERSION_9_0_EA_DNX_ODP) || defined(TAJO_SDK_VERSION_1_42_8)
     return true;
 #endif
   }
@@ -1177,8 +1177,13 @@ void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
   const auto& counters = handle->port->getStats();
   fillHwPortStats(counters, managerTable_->debugCounterManager(), curPortStats);
   std::vector<utility::CounterPrevAndCur> toSubtractFromInDiscardsRaw = {
-      {*prevPortStats.inDstNullDiscards_(), *curPortStats.inDstNullDiscards_()},
-      {*prevPortStats.inPause_(), *curPortStats.inPause_()}};
+      {*prevPortStats.inDstNullDiscards_(),
+       *curPortStats.inDstNullDiscards_()}};
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS)) {
+    toSubtractFromInDiscardsRaw.push_back(
+        {*prevPortStats.inPause_(), *curPortStats.inPause_()});
+  }
   *curPortStats.inDiscards_() += utility::subtractIncrements(
       {*prevPortStats.inDiscardsRaw_(), *curPortStats.inDiscardsRaw_()},
       toSubtractFromInDiscardsRaw);
@@ -1776,7 +1781,7 @@ std::vector<sai_port_lane_eye_values_t> SaiPortManager::getPortEyeValues(
       saiPortId, SaiPortTraits::Attributes::PortEyeValues{});
 }
 
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
 std::vector<sai_port_lane_latch_status_t> SaiPortManager::getRxSignalDetect(
     PortSaiId saiPortId,
     uint8_t numPmdLanes) const {
@@ -1802,6 +1807,30 @@ std::vector<sai_port_lane_latch_status_t> SaiPortManager::getRxLockStatus(
       saiPortId,
       SaiPortTraits::Attributes::RxLockStatus{
           std::vector<sai_port_lane_latch_status_t>(numPmdLanes)});
+}
+
+std::vector<sai_port_lane_latch_status_t>
+SaiPortManager::getFecAlignmentLockStatus(
+    PortSaiId saiPortId,
+    uint8_t numFecLanes) const {
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::FEC_AM_LOCK_STATUS)) {
+    return std::vector<sai_port_lane_latch_status_t>();
+  }
+
+  return SaiApiTable::getInstance()->portApi().getAttribute(
+      saiPortId,
+      SaiPortTraits::Attributes::FecAlignmentLock{
+          std::vector<sai_port_lane_latch_status_t>(numFecLanes)});
+}
+
+std::optional<sai_latch_status_t> SaiPortManager::getPcsRxLinkStatus(
+    PortSaiId saiPortId) const {
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::PCS_RX_LINK_STATUS)) {
+    return std::nullopt;
+  }
+
+  return SaiApiTable::getInstance()->portApi().getAttribute(
+      saiPortId, SaiPortTraits::Attributes::PcsRxLinkStatus{});
 }
 #endif
 

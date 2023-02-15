@@ -9,7 +9,6 @@
  */
 #pragma once
 
-#include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/state/NodeBase.h"
@@ -42,8 +41,6 @@ struct LoadBalancerFields
 
   state::LoadBalancerFields toThrift() const override;
   static LoadBalancerFields fromThrift(state::LoadBalancerFields const& fields);
-  static folly::dynamic migrateToThrifty(folly::dynamic const& dyn);
-  static void migrateFromThrifty(folly::dynamic& dyn);
 
   LoadBalancerFields(
       LoadBalancerID id,

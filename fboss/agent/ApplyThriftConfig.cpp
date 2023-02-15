@@ -89,6 +89,8 @@ namespace {
 
 const uint8_t kV6LinkLocalAddrMask{64};
 
+facebook::fboss::VlanID kPseudoVlanID(0);
+
 // Only one buffer pool is supported systemwide. Variable to track the name
 // and validate during a config change.
 std::optional<std::string> sharedBufferPoolName;
@@ -280,6 +282,9 @@ class ThriftConfigApplier {
   std::pair<folly::MacAddress, uint16_t> getSystemLacpConfig();
   uint8_t computeMinimumLinkCount(const cfg::AggregatePort& cfg);
   std::shared_ptr<VlanMap> updateVlans();
+  std::shared_ptr<VlanMap> updatePseudoVlans();
+  shared_ptr<Vlan> createPseudoVlan();
+  shared_ptr<Vlan> updatePseudoVlan(const shared_ptr<Vlan>& orig);
   std::shared_ptr<Vlan> createVlan(const cfg::Vlan* config);
   std::shared_ptr<Vlan> updateVlan(
       const std::shared_ptr<Vlan>& orig,
@@ -331,6 +336,7 @@ class ThriftConfigApplier {
       IPAddr ip,
       IntefaceIpInfo addrInfo);
   bool updateNeighborResponseTables(Vlan* vlan, const cfg::Vlan* config);
+  bool updateNbrResponseTablesFromAllIntfCfg(Vlan* vlan);
   bool updateDhcpOverrides(Vlan* vlan, const cfg::Vlan* config);
   std::shared_ptr<InterfaceMap> updateInterfaces();
   shared_ptr<Interface> createInterface(
@@ -392,6 +398,10 @@ class ThriftConfigApplier {
   void validateUdfConfig(const UdfConfig& newUdfConfig);
   std::shared_ptr<UdfConfig> updateUdfConfig(bool* changed);
 
+  void processInterfaceForPortForNonVoqSwitches();
+  void processInterfaceForPortForVoqSwitches();
+  void processInterfaceForPort();
+
   std::shared_ptr<SwitchState> orig_;
   std::shared_ptr<SwitchState> new_;
   const cfg::SwitchConfig* cfg_{nullptr};
@@ -417,6 +427,7 @@ class ThriftConfigApplier {
   flat_map<PortID, Port::VlanMembership> portVlans_;
   flat_map<VlanID, Vlan::MemberPorts> vlanPorts_;
   flat_map<VlanID, IntefaceInfo> vlanInterfaces_;
+  flat_map<PortID, std::vector<int32_t>> port2InterfaceId_;
 };
 
 shared_ptr<SwitchState> ThriftConfigApplier::run() {
@@ -452,22 +463,6 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
   }
 
   {
-    auto newPorts = updatePorts(new_->getTransceivers());
-    if (newPorts) {
-      new_->resetPorts(std::move(newPorts));
-      if (new_->getSwitchSettings()->getSwitchType() == cfg::SwitchType::VOQ) {
-        CHECK(cfg_->switchSettings()->switchId().has_value())
-            << "Switch id must be set for VOQ switch";
-        new_->resetSystemPorts(updateSystemPorts(
-            new_->getPorts(),
-            new_->getSwitchSettings()->getSwitchId(),
-            new_->getSwitchSettings()->getSystemPortRange()));
-      }
-      changed = true;
-    }
-  }
-
-  {
     auto newSwitchSettings = updateSwitchSettings();
     if (newSwitchSettings) {
       if (newSwitchSettings->getSwitchType() !=
@@ -483,6 +478,25 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
       changed = true;
     }
   }
+
+  processInterfaceForPort();
+
+  {
+    auto newPorts = updatePorts(new_->getTransceivers());
+    if (newPorts) {
+      new_->resetPorts(std::move(newPorts));
+      if (new_->getSwitchSettings()->getSwitchType() == cfg::SwitchType::VOQ) {
+        CHECK(cfg_->switchSettings()->switchId().has_value())
+            << "Switch id must be set for VOQ switch";
+        new_->resetSystemPorts(updateSystemPorts(
+            new_->getPorts(),
+            new_->getSwitchSettings()->getSwitchId(),
+            new_->getSwitchSettings()->getSystemPortRange()));
+      }
+      changed = true;
+    }
+  }
+
   {
     auto newAggPorts = updateAggregatePorts();
     if (newAggPorts) {
@@ -764,6 +778,26 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
       changed = true;
     }
   }
+
+  {
+    auto switchType = *cfg_->switchSettings()->switchType();
+
+    // VOQ/Fabric switches require that the packets are not tagged with any
+    // VLAN. We are gradually enhancing wedge_agent to handle tagged as well as
+    // untagged packets. During this transition, we will use VlanID 0 as
+    // "pseudoVlan" to populate SwitchState/Neighbor cache etc. data structures.
+    // Once the wedge_agent changes are complete, we will no longer need
+    // pseudoVlan notion.
+    if (switchType == cfg::SwitchType::VOQ ||
+        switchType == cfg::SwitchType::FABRIC) {
+      auto pseudoVlans = updatePseudoVlans();
+      if (pseudoVlans) {
+        new_->resetVlans(std::move(pseudoVlans));
+        changed = true;
+      }
+    }
+  }
+
   if (!changed) {
     return nullptr;
   }
@@ -787,7 +821,8 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
   thrift_cow::ThriftMapDelta delta(
       orig_->getDsfNodes().get(), new_->getDsfNodes().get());
   auto getRecyclePortId = [](const std::shared_ptr<DsfNode>& node) {
-    return *node->getSystemPortRange().minimum() + 1;
+    CHECK(node->getSystemPortRange().has_value());
+    return *node->getSystemPortRange()->minimum() + 1;
   };
   auto isLocal = [mySwitchId, this](const std::shared_ptr<DsfNode>& node) {
     return SwitchID(*mySwitchId) == node->getSwitchId();
@@ -824,7 +859,8 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
       addresses.insert(network);
       state::NeighborEntryFields neighbor;
       neighbor.ipaddress() = network.first.str();
-      neighbor.mac() = node->getMac().toString();
+      CHECK(node->getMac().has_value());
+      neighbor.mac() = node->getMac()->toString();
       neighbor.portId()->portType() = cfg::PortDescriptorType::SystemPort;
       neighbor.portId()->portId() = recyclePortId;
       neighbor.interfaceId() = recyclePortId;
@@ -875,12 +911,13 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
     auto sysPorts = new_->getRemoteSystemPorts()->clone();
     sysPorts->addNode(sysPort);
     new_->resetRemoteSystemPorts(sysPorts);
+    CHECK(node->getMac().has_value());
     auto intf = std::make_shared<Interface>(
         InterfaceID(recyclePortId),
         RouterID(0),
         std::optional<VlanID>(std::nullopt),
         folly::StringPiece(sysPort->getPortName()),
-        node->getMac(),
+        *node->getMac(),
         9000,
         true,
         true,
@@ -1033,6 +1070,73 @@ void ThriftConfigApplier::processVlanPorts() {
       throw FbossError(
           "duplicate VlanPort for vlan ", vlanID, ", port ", portID);
     }
+  }
+}
+
+void ThriftConfigApplier::processInterfaceForPortForVoqSwitches() {
+  auto systemPortRange = new_->getSwitchSettings()->getSystemPortRange();
+  for (const auto& portCfg : *cfg_->ports()) {
+    auto portType = *portCfg.portType();
+    auto portID = PortID(*portCfg.logicalID());
+
+    switch (portType) {
+      case cfg::PortType::INTERFACE_PORT:
+      case cfg::PortType::RECYCLE_PORT: {
+        // system port is 1:1 with every interface and recycle port.
+        // interface is 1:1 with system port.
+        // InterfaceID is chosen to be the same as systemPortID. Thus:
+        auto interfaceID = SystemPortID{*systemPortRange->minimum() + portID};
+        port2InterfaceId_[portID].push_back(interfaceID);
+      } break;
+      case cfg::PortType::FABRIC_PORT:
+      case cfg::PortType::CPU_PORT:
+        // no interface for fabric/cpu port
+        break;
+    }
+  }
+}
+
+void ThriftConfigApplier::processInterfaceForPortForNonVoqSwitches() {
+  flat_map<VlanID, InterfaceID> vlan2InterfaceId;
+  for (const auto& interfaceCfg : *cfg_->interfaces()) {
+    vlan2InterfaceId[VlanID(*interfaceCfg.vlanID())] =
+        InterfaceID(*interfaceCfg.intfID());
+  }
+
+  for (const auto& portCfg : *cfg_->ports()) {
+    auto portID = PortID(*portCfg.logicalID());
+
+    for (const auto& [vlanID, vlanInfo] : portVlans_[portID]) {
+      auto it = vlan2InterfaceId.find(vlanID);
+      // Skip if vlan has no interface && port is not enabled
+      if (it == vlan2InterfaceId.end()) {
+        if (*portCfg.state() != cfg::PortState::ENABLED) {
+          continue;
+        }
+        throw FbossError(
+            "VLAN ",
+            vlanID,
+            " has no interface, even when corresp port ",
+            portID,
+            " is enabled");
+      }
+      port2InterfaceId_[portID].push_back(it->second);
+    }
+  }
+}
+
+void ThriftConfigApplier::processInterfaceForPort() {
+  // Build Port -> interface mappings in port2InterfaceId_
+  auto switchType = *cfg_->switchSettings()->switchType();
+  switch (switchType) {
+    case cfg::SwitchType::VOQ:
+    case cfg::SwitchType::FABRIC:
+      processInterfaceForPortForVoqSwitches();
+      break;
+    case cfg::SwitchType::NPU:
+    case cfg::SwitchType::PHY:
+      processInterfaceForPortForNonVoqSwitches();
+      break;
   }
 }
 
@@ -1816,6 +1920,8 @@ shared_ptr<Port> ThriftConfigApplier::updatePort(
       *portConf->loopbackMode() == orig->getLoopbackMode() &&
       mirrorsUnChanged && newQosPolicy == orig->getQosPolicy() &&
       *portConf->expectedLLDPValues() == orig->getLLDPValidations() &&
+      *portConf->expectedNeighborReachability() ==
+          orig->getExpectedNeighborValues()->toThrift() &&
       *portConf->maxFrameSize() == orig->getMaxFrameSize() &&
       lookupClassesUnchanged && profileConfigUnchanged && pinConfigsUnchanged &&
       *portConf->portType() == orig->getPortType()) {
@@ -1854,6 +1960,9 @@ shared_ptr<Port> ThriftConfigApplier::updatePort(
   newPort->setProfileConfig(*newProfileConfigRef);
   newPort->resetPinConfigs(newPinConfigs);
   newPort->setPortType(*portConf->portType());
+  newPort->setInterfaceIDs(port2InterfaceId_[orig->getID()]);
+  newPort->setExpectedNeighborReachability(
+      *portConf->expectedNeighborReachability());
   return newPort;
 }
 
@@ -2038,6 +2147,24 @@ uint8_t ThriftConfigApplier::computeMinimumLinkCount(
 }
 
 shared_ptr<VlanMap> ThriftConfigApplier::updateVlans() {
+  // TODO(skhare)
+  // VOQ/Fabric switches require that the packets are not tagged with any
+  // VLAN. We are gradually enhancing wedge_agent to handle tagged as well as
+  // untagged packets. During this transition, we will use PseudoVlan (VlanID
+  // 0) to populate SwitchState/Neighbor cache etc. data structures.
+  // Thus, for VOQ/Fabric switches, cfg_ will not carry vlan, but after
+  // updatePseudoVlan() runs, origVlans will carry pseudoVlan which will be
+  // removed by updateVlans() processig.
+  // Avoid it by skipping updateVlans() for VOQ/Fabric switches.
+  // Once wedge_agent changes are complete, we can remove this check as
+  // cfg_->vlans and origVlans will always be empty for VOQ/Fabric switches and
+  // then this function will be a no-op
+  auto switchType = *cfg_->switchSettings()->switchType();
+  if (switchType == cfg::SwitchType::VOQ ||
+      switchType == cfg::SwitchType::FABRIC) {
+    return nullptr;
+  }
+
   auto origVlans = orig_->getVlans();
   VlanMap::NodeContainer newVlans;
   bool changed = false;
@@ -2134,6 +2261,54 @@ shared_ptr<Vlan> ThriftConfigApplier::updateVlan(
   newVlan->setDhcpV4Relay(newDhcpV4Relay);
   newVlan->setDhcpV6Relay(newDhcpV6Relay);
   return newVlan;
+}
+
+shared_ptr<VlanMap> ThriftConfigApplier::updatePseudoVlans() {
+  auto switchType = *cfg_->switchSettings()->switchType();
+  CHECK(
+      switchType == cfg::SwitchType::VOQ ||
+      switchType == cfg::SwitchType::FABRIC);
+
+  auto origVlans = orig_->getVlans();
+  auto origVlan = origVlans->getVlanIf(kPseudoVlanID);
+  VlanMap::NodeContainer newVlans;
+  bool changed = false;
+
+  shared_ptr<Vlan> newVlan;
+  if (origVlan) {
+    // update pseudo VLAN
+    newVlan = updatePseudoVlan(origVlan);
+  } else {
+    newVlan = createPseudoVlan();
+  }
+
+  changed |= updateMap(&newVlans, origVlan, newVlan);
+
+  if (!changed) {
+    return nullptr;
+  }
+
+  return origVlans->clone(std::move(newVlans));
+}
+
+shared_ptr<Vlan> ThriftConfigApplier::updatePseudoVlan(
+    const shared_ptr<Vlan>& orig) {
+  auto newVlan = orig->clone();
+  bool changed_neighbor_table =
+      updateNbrResponseTablesFromAllIntfCfg(newVlan.get());
+
+  if (!changed_neighbor_table) {
+    return nullptr;
+  }
+
+  return newVlan;
+}
+
+shared_ptr<Vlan> ThriftConfigApplier::createPseudoVlan() {
+  auto vlan = make_shared<Vlan>(kPseudoVlanID, std::string("pseudoVlan"));
+  updateNbrResponseTablesFromAllIntfCfg(vlan.get());
+
+  return vlan;
 }
 
 std::shared_ptr<QosPolicyMap> ThriftConfigApplier::updateQosPolicies() {
@@ -2881,6 +3056,60 @@ ThriftConfigApplier::updateNeighborResponseEntry(
   }
 }
 
+bool ThriftConfigApplier::updateNbrResponseTablesFromAllIntfCfg(Vlan* vlan) {
+  auto arpChanged = false, ndpChanged = false;
+  auto origArp = vlan->getArpResponseTable();
+  auto origNdp = vlan->getNdpResponseTable();
+  ArpResponseTable::NodeContainer arpTable;
+  NdpResponseTable::NodeContainer ndpTable;
+
+  std::set<std::pair<folly::IPAddress, uint8_t>> ipAddrsAdded;
+
+  // Add every interface IP address to neighbor response table for pseudo vlan.
+  for (const auto& interfaceCfg : *cfg_->interfaces()) {
+    auto mac = getInterfaceMac(&interfaceCfg);
+    auto intfID = InterfaceID(*interfaceCfg.intfID());
+    auto addresses = getInterfaceAddresses(&interfaceCfg);
+
+    for (const auto& [ip, mask] : addresses) {
+      auto ipAndMask = std::make_pair(ip, mask);
+      auto it = ipAddrsAdded.find(ipAndMask);
+      if (it != ipAddrsAdded.end()) {
+        continue;
+      }
+      ipAddrsAdded.insert(ipAndMask);
+
+      if (ip.isV4()) {
+        auto origNode = origArp->getEntry(ip.asV4());
+        auto newNode = updateNeighborResponseEntry(
+            origNode,
+            ip.asV4(),
+            ThriftConfigApplier::IntefaceIpInfo{mask, mac, intfID});
+        arpChanged |= updateMap(&arpTable, origNode, newNode);
+      } else {
+        auto origNode = origNdp->getEntry(ip.asV6());
+        auto newNode = updateNeighborResponseEntry(
+            origNode,
+            ip.asV6(),
+            ThriftConfigApplier::IntefaceIpInfo{mask, mac, intfID});
+        ndpChanged |= updateMap(&ndpTable, origNode, newNode);
+      }
+    }
+  }
+
+  arpChanged |= origArp->size() != arpTable.size();
+  ndpChanged |= origNdp->size() != ndpTable.size();
+
+  if (arpChanged) {
+    vlan->setArpResponseTable(origArp->clone(std::move(arpTable)));
+  }
+  if (ndpChanged) {
+    vlan->setNdpResponseTable(origNdp->clone(std::move(ndpTable)));
+  }
+
+  return arpChanged || ndpChanged;
+}
+
 bool ThriftConfigApplier::updateNeighborResponseTables(
     Vlan* vlan,
     const cfg::Vlan* config) {
@@ -2934,6 +3163,25 @@ std::shared_ptr<InterfaceMap> ThriftConfigApplier::updateInterfaces() {
     auto origIntf = origIntfs->getInterfaceIf(id);
     shared_ptr<Interface> newIntf;
     auto newAddrs = getInterfaceAddresses(&interfaceCfg);
+    if (interfaceCfg.type() == cfg::InterfaceType::SYSTEM_PORT) {
+      auto mySwitchId = cfg_->switchSettings()->switchId();
+      CHECK(mySwitchId.has_value());
+      auto myDsfNode = cfg_->dsfNodes()->find(*mySwitchId)->second;
+      auto sysPortRange = myDsfNode.systemPortRange();
+      CHECK(sysPortRange.has_value());
+      if (interfaceCfg.intfID() < sysPortRange->minimum() ||
+          interfaceCfg.intfID() > sysPortRange->maximum()) {
+        throw FbossError(
+            "Interface intfID :",
+            *interfaceCfg.intfID(),
+            "is out of range for this VOQ switch intfID: ",
+            *mySwitchId,
+            "sys port range, min: ",
+            *sysPortRange->minimum(),
+            " max: ",
+            *sysPortRange->maximum());
+      }
+    }
     if (origIntf) {
       newIntf = updateInterface(origIntf, &interfaceCfg, newAddrs);
       ++numExistingProcessed;
@@ -3133,17 +3381,17 @@ shared_ptr<BufferPoolCfgMap> ThriftConfigApplier::updateBufferPoolConfigs(
   BufferPoolCfgMap::NodeContainer newBufferPoolConfigMap;
   auto newCfgedBufferPools = cfg_->bufferPoolConfigs();
 
-  if (!newCfgedBufferPools && !origBufferPoolConfigs) {
+  if (!newCfgedBufferPools && origBufferPoolConfigs->empty()) {
     return nullptr;
   }
 
-  if (!newCfgedBufferPools && origBufferPoolConfigs) {
+  if (!newCfgedBufferPools && !origBufferPoolConfigs->empty()) {
     // old cfg eixists but new one doesn't
     *changed = true;
     return nullptr;
   }
 
-  if (newCfgedBufferPools && !origBufferPoolConfigs) {
+  if (newCfgedBufferPools && origBufferPoolConfigs->empty()) {
     *changed = true;
   }
 

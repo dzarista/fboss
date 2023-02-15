@@ -25,22 +25,6 @@ namespace facebook::fboss {
 
 using MacTableTraitsLegacy = NodeMapTraits<folly::MacAddress, MacEntry>;
 
-struct MacTableThriftTraits
-    : public ThriftyNodeMapTraits<std::string, state::MacEntryFields> {
-  static inline const std::string& getThriftKeyName() {
-    static const std::string _key = "mac";
-    return _key;
-  }
-
-  static const KeyType convertKey(const folly::MacAddress& key) {
-    return key.toString();
-  }
-
-  static const KeyType parseKey(const folly::dynamic& key) {
-    return key.asString();
-  }
-};
-
 using MacTableTypeClass = apache::thrift::type_class::map<
     apache::thrift::type_class::string,
     apache::thrift::type_class::structure>;
@@ -56,8 +40,6 @@ using MacTableTraits = ThriftMapNodeTraits<
 class MacTable : public ThriftMapNode<MacTable, MacTableTraits> {
  public:
   using Base = ThriftMapNode<MacTable, MacTableTraits>;
-  using LegacyBaseT =
-      ThriftyNodeMapT<MacTable, MacTableTraitsLegacy, MacTableThriftTraits>;
   MacTable();
   ~MacTable() override;
 

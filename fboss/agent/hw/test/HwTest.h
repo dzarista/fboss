@@ -133,7 +133,7 @@ class HwTest : public ::testing::Test,
       logStage("verifyPostWarmboot()");
       verifyPostWarmboot();
     }
-    if (FLAGS_setup_for_warmboot) {
+    if (FLAGS_setup_for_warmboot && isSupported(HwAsic::Feature::WARMBOOT)) {
       logStage("tearDownSwitchEnsemble() for warmboot");
       tearDownSwitchEnsemble(true);
     }
@@ -165,6 +165,10 @@ class HwTest : public ::testing::Test,
 
  private:
   virtual std::optional<TransceiverInfo> overrideTransceiverInfo() const {
+    return std::nullopt;
+  }
+  virtual std::optional<std::map<int64_t, cfg::DsfNode>> overrideDsfNodes(
+      const std::map<int64_t, cfg::DsfNode>& /*curDsfNodes*/) const {
     return std::nullopt;
   }
 

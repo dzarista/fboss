@@ -72,6 +72,7 @@ bool IndusAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::BUFFER_POOL:
       return true;
 
+    case HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS:
     case HwAsic::Feature::SAI_LAG_HASH:
     case HwAsic::Feature::HOSTTABLE_FOR_HOSTROUTES:
     case HwAsic::Feature::QOS_MAP_GLOBAL:
@@ -119,10 +120,12 @@ bool IndusAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::XPHY_PORT_STATE_TOGGLE:
     case HwAsic::Feature::SAI_PORT_GET_PMD_LANES:
     case HwAsic::Feature::SAI_PORT_VCO_CHANGE:
-    case HwAsic::Feature::XPHY_SAI_WARMBOOT:
+    case HwAsic::Feature::WARMBOOT:
     case HwAsic::Feature::ROUTE_METADATA:
     case HwAsic::Feature::DLB:
     case HwAsic::Feature::P4_WARMBOOT:
+    case HwAsic::Feature::FEC_AM_LOCK_STATUS:
+    case HwAsic::Feature::PCS_RX_LINK_STATUS:
       return false;
   }
   return false;

@@ -172,6 +172,14 @@ bool Interface::canReachAddress(const folly::IPAddress& dest) const {
   return getAddressToReach(dest).has_value();
 }
 
+std::optional<SystemPortID> Interface::getSystemPortID() const {
+  std::optional<SystemPortID> sysPort;
+  if (getType() == cfg::InterfaceType::SYSTEM_PORT) {
+    sysPort = SystemPortID(static_cast<int>(getID()));
+  }
+  return sysPort;
+}
+
 bool Interface::isIpAttached(
     folly::IPAddress ip,
     InterfaceID intfID,
@@ -184,6 +192,19 @@ bool Interface::isIpAttached(
 
   // Verify the address is reachable through this interface
   return intf->canReachAddress(ip);
+}
+
+Interface* Interface::modify(std::shared_ptr<SwitchState>* state) {
+  if (!isPublished()) {
+    CHECK(!(*state)->isPublished());
+    return this;
+  }
+
+  InterfaceMap* interfaces = (*state)->getInterfaces()->modify(state);
+  auto newInterface = clone();
+  auto* ptr = newInterface.get();
+  interfaces->updateInterface(std::move(newInterface));
+  return ptr;
 }
 
 template class ThriftStructNode<Interface, state::InterfaceFields>;

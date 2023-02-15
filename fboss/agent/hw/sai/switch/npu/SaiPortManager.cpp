@@ -99,8 +99,10 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
     }
     if (platform_->getAsic()->isSupported(
             HwAsic::Feature::SAI_MPLS_LABEL_LOOKUP_FAIL_COUNTER)) {
+#if !defined(TAJO_SDK_VERSION_1_42_1) && !defined(TAJO_SDK_VERSION_1_42_8)
       counterIds.emplace_back(managerTable_->debugCounterManager()
                                   .getMPLSLookupFailedCounterStatId());
+#endif
     }
     if (platform_->getAsic()->isSupported(HwAsic::Feature::PFC)) {
       counterIds.reserve(
@@ -326,12 +328,17 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   if (!hwLaneListIsPmdLaneList_) {
     // On Tomahawk4, HwLaneList means physical port list instead of pmd lane
     // list for now. One physical port maps to two pmd lanes. So, do the
-    // conversion here PMD lanes ==> physical ports [1,2,3,4] ==> [1,2]
+    // conversion here PMD lanes ==> physical ports, e.g.
+    // [1,2,3,4] ==> [1,2]
     // [5,6,7,8] ==> [3,4]
     // ......
+    // If only has one lane (e.g. 10G case), map to one physical port, e.g.
+    // [1] ==> [1]
+    // [5] ==> [3]
+    // ......
     std::vector<uint32_t> pportList;
-    for (int i = 0; i < hwLaneList.size() / 2; i++) {
-      pportList.push_back(hwLaneList[i * 2 + 1] / 2);
+    for (int i = 0; i < std::max(1, (int)hwLaneList.size() / 2); i++) {
+      pportList.push_back((hwLaneList[i * 2] + 1) / 2);
     }
     hwLaneList = pportList;
   }
@@ -562,8 +569,12 @@ void SaiPortManager::programSerdes(
   auto numPmdLanes = portKey.value().size();
   if (!hwLaneListIsPmdLaneList_) {
     // On Tomahawk4, HwLaneList means physical port list instead of pmd lane
-    // list for now. One physical port maps to two pmd lanes.
-    numPmdLanes *= 2;
+    // list for now. One physical port maps to two pmd lanes, except for one
+    // lane use case like 10G.
+    if (static_cast<cfg::PortSpeed>(GET_ATTR(
+            Port, Speed, saiPort->attributes())) >= cfg::PortSpeed::FORTYG) {
+      numPmdLanes *= 2;
+    }
   }
   if (numExpectedTxLanes) {
     CHECK_EQ(numExpectedTxLanes, numPmdLanes)

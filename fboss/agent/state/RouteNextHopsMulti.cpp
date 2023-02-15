@@ -10,7 +10,6 @@
 #include "fboss/agent/state/RouteNextHopsMulti.h"
 #include "fboss/agent/AddressUtil.h"
 #include "fboss/agent/FbossError.h"
-#include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/state/RouteNextHopEntry.h"
 #include "fboss/agent/state/StateUtils.h"
@@ -114,31 +113,6 @@ bool RouteNextHopsMulti::isSame(ClientID id, const RouteNextHopEntry& nhe)
 std::pair<ClientID, std::shared_ptr<const RouteNextHopEntry>>
 RouteNextHopsMulti::getBestEntry() const {
   return RouteNextHopsMulti::getBestEntry(toThrift());
-}
-
-folly::dynamic LegacyRouteNextHopsMulti::migrateToThrifty(
-    folly::dynamic const& dyn) {
-  folly::dynamic newDyn = folly::dynamic::dynamic::object;
-  folly::dynamic client2NextHopEntryDyn = folly::dynamic::object;
-  auto multi = fromFollyDynamicLegacy(dyn);
-  for (auto [key, value] : dyn.items()) {
-    client2NextHopEntryDyn[key] = RouteNextHopEntry::migrateToThrifty(value);
-  }
-  newDyn["client2NextHopEntry"] = client2NextHopEntryDyn;
-  newDyn["lowestAdminDistanceClientId"] =
-      static_cast<int>(multi->lowestAdminDistanceClientId());
-  return newDyn;
-}
-
-void LegacyRouteNextHopsMulti::migrateFromThrifty(folly::dynamic& dyn) {
-  for (auto [key, value] : dyn["client2NextHopEntry"].items()) {
-    auto clientID = key.asString();
-    auto multiDynamic = value;
-    RouteNextHopEntry::migrateFromThrifty(multiDynamic);
-    dyn[clientID] = multiDynamic;
-  }
-  dyn.erase("client2NextHopEntry");
-  dyn.erase("lowestAdminDistanceClientId");
 }
 
 std::pair<ClientID, std::shared_ptr<const RouteNextHopEntry>>

@@ -15,7 +15,6 @@
 #include <folly/dynamic.h>
 #include "fboss/agent/AddressUtil.h"
 #include "fboss/agent/FbossError.h"
-#include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/state/NodeBase.h"
@@ -98,6 +97,7 @@ RESOLVE_STRUCT_MEMBER(Interface, switch_state_tags::ndpTable, NdpTable)
 class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
  public:
   using Base = ThriftStructNode<Interface, state::InterfaceFields>;
+  using AddressesType = Base::Fields::TypeFor<switch_state_tags::addresses>;
   using Addresses = std::map<folly::IPAddress, uint8_t>;
   Interface(
       InterfaceID id,
@@ -125,6 +125,7 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
   InterfaceID getID() const {
     return InterfaceID(get<switch_state_tags::interfaceId>()->cref());
   }
+  std::optional<SystemPortID> getSystemPortID() const;
 
   RouterID getRouterID() const {
     return RouterID(get<switch_state_tags::routerId>()->cref());
@@ -164,6 +165,7 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
     return getType() == cfg::InterfaceType::VLAN ? getVlanID() : VlanID(0);
   }
 
+  Interface* modify(std::shared_ptr<SwitchState>* state);
   int getMtu() const {
     return get<switch_state_tags::mtu>()->cref();
   }
@@ -197,6 +199,15 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
   }
   void setIsStateSyncDisabled(bool isStateSyncDisabled) {
     set<switch_state_tags::isStateSyncDisabled>(isStateSyncDisabled);
+  }
+
+  template <typename NTableT>
+  auto getTable() const {
+    if constexpr (std::is_same_v<NTableT, ArpTable>) {
+      return getArpTable();
+    } else if constexpr (std::is_same_v<NTableT, NdpTable>) {
+      return getNdpTable();
+    }
   }
 
   std::shared_ptr<ArpTable> getArpTable() const {

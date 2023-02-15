@@ -31,25 +31,6 @@ struct NeighborResponseTableTraits {
   }
 };
 
-template <typename IPADDR, typename ENTRY>
-struct NeighborResponseTableThriftTraits
-    : public ThriftyNodeMapTraits<
-          std::string,
-          state::NeighborResponseEntryFields> {
-  static inline const std::string& getThriftKeyName() {
-    static const std::string _key = "ipAddress";
-    return _key;
-  }
-
-  static const KeyType convertKey(const IPADDR& key) {
-    return key.str();
-  }
-
-  static const KeyType parseKey(const folly::dynamic& key) {
-    return key.asString();
-  }
-};
-
 using NbrResponseTableTypeClass = apache::thrift::type_class::map<
     apache::thrift::type_class::string,
     apache::thrift::type_class::structure>;
@@ -74,27 +55,9 @@ template <typename IPADDR, typename ENTRY, typename SUBCLASS>
 class NeighborResponseTable
     : public ThriftMapNode<SUBCLASS, NbrResponseTableTraits<SUBCLASS, ENTRY>> {
  public:
-  using LegacyBaseT = ThriftyNodeMapT<
-      SUBCLASS,
-      NeighborResponseTableTraits<IPADDR, ENTRY>,
-      NeighborResponseTableThriftTraits<IPADDR, ENTRY>>;
-
   typedef IPADDR AddressType;
 
   NeighborResponseTable() {}
-
-  static folly::dynamic migrateToThrifty(const folly::dynamic& dyn) {
-    folly::dynamic newItems = folly::dynamic::object;
-    for (auto item : dyn.items()) {
-      // inject key into node for ThriftyNodeMapT to find
-      item.second[NeighborResponseTableThriftTraits<IPADDR, ENTRY>::
-                      getThriftKeyName()] = item.first;
-      newItems[item.first] = item.second;
-    }
-    return newItems;
-  }
-
-  static void migrateFromThrifty(folly::dynamic& /* dyn */) {}
 
   std::shared_ptr<ENTRY> getEntry(AddressType ip) const {
     return this->getNodeIf(ip.str());

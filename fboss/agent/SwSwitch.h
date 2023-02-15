@@ -769,7 +769,11 @@ class SwSwitch : public HwSwitch::Callback {
 
   TeFlowStats getTeFlowStats();
 
+  HwBufferPoolStats getBufferPoolStats() const;
+
   VlanID getVlanIDHelper(std::optional<VlanID> vlanID) const;
+
+  InterfaceID getInterfaceIDForPort(PortID portID) const;
 
  private:
   void updateStateBlockingImpl(
