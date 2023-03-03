@@ -10,6 +10,7 @@ Source: %{expand:%%(pwd)}
 
 %define _fboss_darwin_dir fboss.git/arista/platform/darwin
 %define _fboss_config_dir fboss.git/fboss/platform/config_lib/configs
+%define _fboss_bcm_sai_config_dir fboss.git/fboss/bcm_sai_configs
 
 %define _fboss_target_udev %{buildroot}/etc/udev/rules.d/
 %define _fboss_target_bin %{buildroot}/opt/fboss/bin/
@@ -25,6 +26,7 @@ set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_darwin_dir}/* .
 cp -af %{SOURCEURL0}/%{_fboss_config_dir}/sensor_service/darwin.json platform_sensors.conf
+cp -af %{SOURCEURL0}/%{_fboss_bcm_sai_config_dir}/darwin.agent.materialized_JSON .
 
 %install
 mkdir -p %{_fboss_target_bin}
@@ -34,7 +36,7 @@ install config/udev/99-darwin.rules %{_fboss_target_udev}
 mkdir -p %{_fboss_target_share}/sensor_service/
 install platform_sensors.conf %{_fboss_target_share}/sensor_service/
 mkdir -p %{_fboss_target_share}/wedge_agent/
-install config/wedge_agent/darwin_wedge_agent.conf %{_fboss_target_share}/wedge_agent/platform_wedge_agent.conf
+install darwin.agent.materialized_JSON %{_fboss_target_share}/wedge_agent/platform_wedge_agent.conf
 mkdir -p %{_fboss_target_share}/qsfp_service/
 install config/qsfp_service/darwin_qsfp.conf %{_fboss_target_share}/qsfp_service/platform_qsfp.conf
 mkdir -p %{_fboss_target_var}
