@@ -101,6 +101,7 @@ fi
 # Delete SDK var in the env. It can cause the SDK build to fail.
 export SDK=""
 cd $SAI_BUILD_DIR
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.26_SAI_8.1.0_GA/$ARCH-sdk-6.5.26-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
@@ -114,11 +115,13 @@ then
       fi
    done
 
+   cd $BCM_KERNEL_MODULES_DIR
    make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
       kernel_version=2_6 LINUX_UAPI_SPLIT=1 clean
 fi
 
 echo "======= Starting SDK build ========"
+cd $SAI_BUILD_DIR
 time make -j 8
 export KERNDIR="$KERNEL_SRC"
 export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.26_SAI_8.1.0_GA/$ARCH-sdk-6.5.26-gpl-modules"
