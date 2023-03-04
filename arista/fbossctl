@@ -70,21 +70,15 @@ maybe_setup_build_env() {
    cd "${FBOSS_HOST_DIR}"
 
    # Clone the SAI + SDK and download patches.
-   git clone git@github.com:aristanetworks/Jupiter_SAI.git
-   cd "${FBOSS_HOST_DIR}/Jupiter_SAI"
+   git clone git@github.com:aristanetworks/Aqua_SAI.git
+   cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
-   git checkout SAI_8.1.0_GA
+   git checkout REL_SAI_EA_9.0.0.6_META_030123
    wget http://dist/storage/fboss/FBOSS-SAI/patch0-Jupiter-SAI-Makefile.patch
-   wget http://dist/storage/fboss/FBOSS-SAI/patch1-Jupiter-SAI-xgs-static-build.patch
-   wget http://dist/storage/fboss/FBOSS-SAI/patch1-Jupiter-SAI-dnx-static-build.patch
-   wget http://dist/storage/fboss/FBOSS-SAI/patch2-Jupiter-SAI-static-makefile.patch
    git apply patch0-Jupiter-SAI-Makefile.patch
-   git apply patch1-Jupiter-SAI-xgs-static-build.patch
-   git apply patch1-Jupiter-SAI-dnx-static-build.patch
-   git apply patch2-Jupiter-SAI-static-makefile.patch
-   cd "${FBOSS_HOST_DIR}/Jupiter_SAI/sdk-src/hsdk_6.5.26_SAI_8.1.0_GA"
-   wget http://dist/storage/arista-sonic/misc/sai/sai-sdk-all-6.5.26-a704867d9.tar.xz
-   tar -xf sai-sdk-all-6.5.26-a704867d9.tar.xz
+   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.28_SAI_9.0.0_EA"
+   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.28-cf57740b7.tar.xz
+   tar -xf sai-sdk-all-6.5.28-cf57740b7.tar.xz
 
    # Download FBOSS linux header files.
    cd "${FBOSS_HOST_DIR}"
@@ -118,7 +112,7 @@ run_cmd_container() {
    docker run -l owner="${USER}" --privileged --rm -it \
       -v "${FBOSS_HOST_DIR}":/var/FBOSS/ \
       -v "${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
-      -w /var/FBOSS --name=FBOSS_CENTOS8-"${USER}" "${FBOSS_IMG}" $@
+      -w /var/FBOSS --name=FBOSS_CENTOS8-1-"${USER}" "${FBOSS_IMG}" $@
 }
 
 enter_container_shell() {
