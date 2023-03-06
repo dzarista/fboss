@@ -10,6 +10,7 @@
 #include "fboss/agent/state/AclTable.h"
 #include <folly/Conv.h>
 #include <thrift/lib/cpp/util/EnumUtils.h>
+#include <memory>
 #include "fboss/agent/state/AclEntry.h"
 #include "fboss/agent/state/NodeBase-defs.h"
 #include "fboss/agent/state/StateUtils.h"
@@ -31,76 +32,18 @@ constexpr auto kAclTable1 = "AclTable1";
 
 namespace facebook::fboss {
 
-folly::dynamic AclTableFields::toFollyDynamic() const {
-  folly::dynamic aclTable = folly::dynamic::object;
-  aclTable[kPriority] = *data().priority();
-  aclTable[kName] = *data().id();
-  if (aclMap_) {
-    aclTable[kAclMap] = aclMap_->toFollyDynamic();
-  }
-
-  aclTable[kActionTypes] = folly::dynamic::array;
-  for (const auto& actionType : *data().actionTypes()) {
-    aclTable[kActionTypes].push_back(static_cast<int>(actionType));
-  }
-
-  aclTable[kQualifiers] = folly::dynamic::array;
-  for (const auto& qualifier : *data().qualifiers()) {
-    aclTable[kQualifiers].push_back(static_cast<int>(qualifier));
-  }
-
-  return aclTable;
-}
-
-AclTableFields AclTableFields::fromFollyDynamic(
-    const folly::dynamic& aclTableJson) {
-  std::shared_ptr<AclMap> aclMap;
-  if (aclTableJson.find(kAclMap) != aclTableJson.items().end()) {
-    aclMap = AclMap::fromFollyDynamic(aclTableJson[kAclMap]);
-  }
-  AclTableFields aclTable(
-      aclTableJson[kPriority].asInt(), aclTableJson[kName].asString(), aclMap);
-
-  if (aclTableJson.find(kActionTypes) != aclTableJson.items().end()) {
-    for (const auto& entry : aclTableJson[kActionTypes]) {
-      auto actionType = cfg::AclTableActionType(entry.asInt());
-      aclTable.writableData().actionTypes()->push_back(actionType);
-    }
-  }
-
-  if (aclTableJson.find(kQualifiers) != aclTableJson.items().end()) {
-    for (const auto& entry : aclTableJson[kQualifiers]) {
-      auto qualifier = cfg::AclTableQualifier(entry.asInt());
-      aclTable.writableData().qualifiers()->push_back(qualifier);
-    }
-  }
-
-  return aclTable;
-}
-
-/* Create Default ACL table similar to the one created in Sai code today.
- * Leave the ACL Table and qualifiers empty to be populated during Delta
- * processing */
-AclTableFields AclTableFields::createDefaultAclTableFields(
-    const folly::dynamic& swJson) {
-  std::shared_ptr<AclMap> aclMap;
-
-  aclMap = AclMap::fromFollyDynamic(swJson);
-  AclTableFields aclTable(kAclTablePriority, kAclTable1, aclMap);
-
-  return aclTable;
-}
-
-AclTableFields AclTableFields::createDefaultAclTableFieldsFromThrift(
-    std::map<std::string, state::AclEntryFields> const& thriftMap) {
-  std::shared_ptr<AclMap> aclMap = std::make_shared<AclMap>(thriftMap);
-  AclTableFields aclTable(kAclTablePriority, kAclTable1, aclMap);
-  return aclTable;
-}
-
 AclTable::AclTable(int priority, const std::string& name) {
   set<switch_state_tags::priority>(priority);
   set<switch_state_tags::id>(name);
+}
+
+std::shared_ptr<AclTable> AclTable::createDefaultAclTableFromThrift(
+    std::map<std::string, state::AclEntryFields> const& thriftMap) {
+  state::AclTableFields data{};
+  data.priority() = kAclTablePriority;
+  data.id() = kAclTable1;
+  data.aclMap() = thriftMap;
+  return std::make_shared<AclTable>(data);
 }
 
 template class ThriftStructNode<AclTable, state::AclTableFields>;

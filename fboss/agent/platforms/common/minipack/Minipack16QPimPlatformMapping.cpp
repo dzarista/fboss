@@ -160843,5 +160843,10 @@ Minipack16QPimPlatformMapping::Minipack16QPimPlatformMapping(
              << (xphyVersion == ExternalPhyVersion::MILN4_2 ? "MILN4_2"
                                                             : "MILN5_2");
 }
+
+Minipack16QPimPlatformMapping::Minipack16QPimPlatformMapping(
+    const std::string& platformMappingStr)
+    : MultiPimPlatformMapping(platformMappingStr) {}
+
 } // namespace fboss
 } // namespace facebook

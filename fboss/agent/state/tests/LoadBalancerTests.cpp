@@ -279,9 +279,9 @@ TEST(LoadBalancer, deserializationInverseOfSerlization) {
       mplsFields,
       udfGroupIds);
 
-  auto serializedLoadBalancer = loadBalancer.toFollyDynamic();
+  auto serializedLoadBalancer = loadBalancer.toThrift();
   auto deserializedLoadBalancerPtr =
-      LoadBalancer::fromFollyDynamic(serializedLoadBalancer);
+      std::make_shared<LoadBalancer>(serializedLoadBalancer);
 
   checkLoadBalancer(
       deserializedLoadBalancerPtr,
@@ -598,9 +598,9 @@ TEST(LoadBalancerMap, deserializationInverseOfSerlization) {
       ecmpMplsFields,
       udfGroupIds));
 
-  auto serializedLoadBalancerMap = loadBalancerMap.toFollyDynamic();
+  auto serializedLoadBalancerMap = loadBalancerMap.toThrift();
   auto deserializedLoadBalancerMapPtr =
-      LoadBalancerMap::fromFollyDynamic(serializedLoadBalancerMap);
+      std::make_shared<LoadBalancerMap>(serializedLoadBalancerMap);
 
   checkLoadBalancer(
       deserializedLoadBalancerMapPtr->getLoadBalancerIf(

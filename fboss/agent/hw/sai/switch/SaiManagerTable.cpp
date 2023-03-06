@@ -106,10 +106,10 @@ void SaiManagerTable::createSaiTableManagers(
       saiStore, this, platform, concurrentIndices);
   wredManager_ = std::make_unique<SaiWredManager>(saiStore, this, platform);
   // CSP CS00011823810
-#if !defined(SAI_VERSION_5_1_0_3_ODP) && !defined(SAI_VERSION_7_2_0_0_ODP) && \
-    !defined(SAI_VERSION_8_2_0_0_ODP) &&                                      \
+#if !defined(SAI_VERSION_7_2_0_0_ODP) && !defined(SAI_VERSION_8_2_0_0_ODP) && \
     !defined(SAI_VERSION_8_2_0_0_DNX_ODP) &&                                  \
     !defined(SAI_VERSION_8_2_0_0_SIM_ODP) &&                                  \
+    !defined(SAI_VERSION_9_0_EA_SIM_ODP) &&                                   \
     !defined(SAI_VERSION_9_0_EA_ODP) && !defined(SAI_VERSION_9_0_EA_DNX_ODP)
   tamManager_ = std::make_unique<SaiTamManager>(saiStore, this, platform);
 #endif
@@ -157,6 +157,9 @@ void SaiManagerTable::reset(bool skipSwitchManager) {
   // dependency with mirror and can be removed.
   mirrorManager_.reset();
   macsecManager_.reset();
+  // Reset the qos maps on system port before ports are
+  // removed from the system.
+  systemPortManager_->resetQosMaps();
   // On Silicon one family chips, queues are tied to system
   // ports. So before we delete system ports, its required
   // to reset the queue associations.
@@ -187,10 +190,10 @@ void SaiManagerTable::reset(bool skipSwitchManager) {
   wredManager_.reset();
 
   // CSP CS00011823810
-#if !defined(SAI_VERSION_5_1_0_3_ODP) && !defined(SAI_VERSION_7_2_0_0_ODP) && \
-    !defined(SAI_VERSION_8_2_0_0_ODP) &&                                      \
+#if !defined(SAI_VERSION_7_2_0_0_ODP) && !defined(SAI_VERSION_8_2_0_0_ODP) && \
     !defined(SAI_VERSION_8_2_0_0_DNX_ODP) &&                                  \
     !defined(SAI_VERSION_8_2_0_0_SIM_ODP) &&                                  \
+    !defined(SAI_VERSION_9_0_EA_SIM_ODP) &&                                   \
     !defined(SAI_VERSION_9_0_EA_ODP) && !defined(SAI_VERSION_9_0_EA_DNX_ODP)
   tamManager_.reset();
 #endif

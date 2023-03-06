@@ -132,8 +132,10 @@ void HwTransceiverUtils::verifyMediaInterfaceCompliance(
       break;
 
     case cfg::PortProfileID::PROFILE_200G_4_PAM4_RS544X2N_COPPER:
-    case cfg::PortProfileID::PROFILE_53POINT125G_1_PAM4_RS545_COPPER:
       verifyCopper200gProfile(transceiver, mediaInterfaces);
+      break;
+    case cfg::PortProfileID::PROFILE_53POINT125G_1_PAM4_RS545_COPPER:
+      verifyCopper53gProfile(transceiver, mediaInterfaces);
       break;
 
     default:
@@ -231,6 +233,20 @@ void HwTransceiverUtils::verifyCopper200gProfile(
   }
 }
 
+void HwTransceiverUtils::verifyCopper53gProfile(
+    const TransceiverInfo& transceiver,
+    const std::vector<MediaInterfaceId>& mediaInterfaces) {
+  EXPECT_EQ(
+      TransmitterTechnology::COPPER,
+      *(transceiver.cable().value_or({}).transmitterTech()));
+
+  for (const auto& mediaId : mediaInterfaces) {
+    EXPECT_TRUE(
+        *mediaId.code() == MediaInterfaceCode::CR4_200G ||
+        *mediaId.code() == MediaInterfaceCode::CR8_400G);
+  }
+}
+
 void HwTransceiverUtils::verifyDataPathEnabled(
     const TransceiverInfo& transceiver) {
   auto mgmtInterface = transceiver.transceiverManagementInterface();
@@ -316,6 +332,7 @@ void HwTransceiverUtils::verifyDiagsCapability(
       return;
     case TransceiverManagementInterface::SFF8472:
     case TransceiverManagementInterface::NONE:
+    case TransceiverManagementInterface::UNKNOWN:
       EXPECT_FALSE(diagsCapability.has_value());
       return;
   }

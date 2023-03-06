@@ -27,10 +27,8 @@ using folly::MacAddress;
 
 template <typename NeighborEntryT>
 void serializeTest(const NeighborEntryT& entry) {
-  auto serialized = entry.toFollyDynamic();
-  auto entryBack = NeighborEntryT::fromFollyDynamic(serialized);
-
-  EXPECT_EQ(entry.toThrift(), entryBack->toThrift());
+  auto entryBack = NeighborEntryT(entry.toThrift());
+  EXPECT_EQ(entry.toThrift(), entryBack.toThrift());
 }
 
 TEST(ArpEntry, serialize) {
@@ -103,8 +101,8 @@ TEST(NeighborResponseEntry, serialize) {
       MacAddress("01:01:01:01:01:01"),
       InterfaceID(0));
 
-  auto serialized = entry->toFollyDynamic();
-  auto entryBack = ArpResponseEntry::fromFollyDynamic(serialized);
+  auto serialized = entry->toThrift();
+  auto entryBack = std::make_shared<ArpResponseEntry>(serialized);
 
   EXPECT_TRUE(*entry == *entryBack);
 }

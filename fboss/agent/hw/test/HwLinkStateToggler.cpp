@@ -14,8 +14,8 @@
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/Platform.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
-#include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/state/Port.h"
+#include "fboss/agent/test/TestEnsembleIf.h"
 
 #include <boost/container/flat_map.hpp>
 #include <folly/gen/Base.h>
@@ -69,7 +69,7 @@ void HwLinkStateToggler::portStateChangeImpl(
                << " event on : " << port;
 
     /* toggle the oper state */
-    newState = newState->clone();
+    newState = hwEnsemble_->getProgrammedState();
     newPort = newState->getPorts()->getPort(port)->modify(&newState);
     newPort->setOperState(up);
     hwEnsemble_->applyNewState(newState);

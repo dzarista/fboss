@@ -2,9 +2,9 @@
 
 #include "fboss/agent/Platform.h"
 #include "fboss/agent/SwitchStats.h"
+#include "fboss/agent/Utils.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
-#include "fboss/agent/hw/test/HwTest.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 
@@ -20,6 +20,28 @@ using folly::IPAddressV6;
 using std::string;
 
 namespace {
+static constexpr auto kGlobalSharedBytes{20000};
+static constexpr auto kGlobalHeadroomBytes{4771136};
+static constexpr auto kPgLimitBytes{2200};
+static constexpr auto kPgHeadroomBytes{293624};
+static constexpr auto kLosslessTrafficClass{2};
+static constexpr auto kLosslessPriority{2};
+static const std::vector<int> kLosslessPgIds{2, 3};
+
+struct PfcBufferParams {
+  int globalShared = kGlobalSharedBytes;
+  int globalHeadroom = kGlobalHeadroomBytes;
+  int pgLimit = kPgLimitBytes;
+  int pgHeadroom = kPgHeadroomBytes;
+  std::optional<facebook::fboss::cfg::MMUScalingFactor> scalingFactor =
+      facebook::fboss::cfg::MMUScalingFactor::ONE_128TH;
+};
+
+struct TrafficTestParams {
+  PfcBufferParams buffer = PfcBufferParams{};
+  bool expectDrop = false;
+};
+
 std::tuple<int, int, int> getPfcTxRxXonHwPortStats(
     const facebook::fboss::HwPortStats& portStats,
     const int pfcPriority) {
@@ -66,24 +88,57 @@ void validateBufferPoolWatermarkCounters(
     facebook::fboss::HwSwitchEnsemble* ensemble,
     const int /* pri */,
     const std::vector<facebook::fboss::PortID>& /* portIds */) {
-  int retries = 5;
-  uint64_t globalSharedWatermarks{};
-  while (retries-- && !globalSharedWatermarks) {
-    // TODO: Migrate to a waitStatsCondition() util
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    facebook::fboss::SwitchStats dummy;
-    ensemble->getHwSwitch()->updateStats(&dummy);
+  auto globalSharedWatermarksIncrementing = [&]() {
     auto counters = facebook::fb303::fbData->getRegexCounters(
         {"buffer_watermark_global_shared.*.p100.60"});
     for (const auto& ctr : counters) {
       if (ctr.second) {
-        globalSharedWatermarks = ctr.second;
         XLOG(DBG0) << ctr.first << " : " << ctr.second;
-        break;
+        return true;
       }
     }
-  }
-  EXPECT_TRUE(globalSharedWatermarks > 0);
+    return false;
+  };
+  auto updateStats = [&]() {
+    facebook::fboss::SwitchStats dummy;
+    ensemble->getHwSwitch()->updateStats(&dummy);
+  };
+  EXPECT_TRUE(ensemble->waitStatsCondition(
+      globalSharedWatermarksIncrementing, updateStats));
+}
+
+void validateIngressPriorityGroupWatermarkCounters(
+    facebook::fboss::HwSwitchEnsemble* ensemble,
+    const int pri,
+    const std::vector<facebook::fboss::PortID>& portIds) {
+  auto ingressPriorityGroupWatermarksIncrementing =
+      [&](const auto& /*newStats*/) {
+        for (const auto& portId : portIds) {
+          const auto& portName = ensemble->getProgrammedState()
+                                     ->getPorts()
+                                     ->getPort(portId)
+                                     ->getName();
+          std::string pg =
+              ensemble->isSai() ? folly::sformat(".pg{}", pri) : "";
+          auto regex = folly::sformat(
+              "buffer_watermark_pg_(shared|headroom).{}{}.p100.60",
+              portName,
+              pg);
+          auto counters = facebook::fb303::fbData->getRegexCounters(regex);
+          CHECK_EQ(counters.size(), 2);
+          for (const auto& ctr : counters) {
+            XLOG(DBG0) << ctr.first << " : " << ctr.second;
+            if (!ctr.second) {
+              return false;
+            }
+          }
+        }
+        return true;
+      };
+  EXPECT_TRUE(ensemble->waitPortStatsCondition(
+      ingressPriorityGroupWatermarksIncrementing,
+      5,
+      std::chrono::milliseconds(1000)));
 }
 
 } // namespace
@@ -94,6 +149,13 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
  private:
   void SetUp() override {
     FLAGS_mmu_lossless_mode = true;
+    /*
+     * Makes this flag available so that it can be used in early
+     * stages of init to setup common buffer pool for specific
+     * asics like Indus.
+     */
+    FLAGS_ingress_egress_buffer_pool_size =
+        kGlobalSharedBytes + kGlobalHeadroomBytes;
     HwLinkStateDependentTest::SetUp();
   }
 
@@ -211,10 +273,11 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
   void setupPortPgConfig(
       std::map<std::string, std::vector<cfg::PortPgConfig>>& portPgConfigMap,
       int pgLimit,
-      int pgHeadroom) {
+      int pgHeadroom,
+      std::optional<cfg::MMUScalingFactor> scalingFactor) {
     std::vector<cfg::PortPgConfig> portPgConfigs;
     // create 2 pgs
-    for (auto pgId = 0; pgId < 2; ++pgId) {
+    for (auto pgId : kLosslessPgIds) {
       cfg::PortPgConfig pgConfig;
       pgConfig.id() = pgId;
       pgConfig.bufferPoolName() = "bufferNew";
@@ -222,17 +285,17 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
       pgConfig.minLimitBytes() = pgLimit;
       // set large enough headroom to avoid drop
       pgConfig.headroomLimitBytes() = pgHeadroom;
+      // set scaling factor
+      if (scalingFactor) {
+        pgConfig.scalingFactor() = *scalingFactor;
+      }
       portPgConfigs.emplace_back(pgConfig);
     }
 
     portPgConfigMap["foo"] = portPgConfigs;
   }
 
-  void setupBuffers(
-      int globalSharedBytes = 20000,
-      int globalHeadroomBytes = 4771136,
-      int pgLimit = 2200,
-      int pgHeadroom = 293624) {
+  void setupBuffers(PfcBufferParams buffer = PfcBufferParams{}) {
     auto newCfg{initialConfig()};
     setupPfc(
         newCfg,
@@ -240,13 +303,17 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
          masterLogicalInterfacePortIds()[1]});
 
     std::map<std::string, std::vector<cfg::PortPgConfig>> portPgConfigMap;
-    setupPortPgConfig(portPgConfigMap, pgLimit, pgHeadroom);
+    setupPortPgConfig(
+        portPgConfigMap,
+        buffer.pgLimit,
+        buffer.pgHeadroom,
+        buffer.scalingFactor);
     newCfg.portPgConfigs() = portPgConfigMap;
 
     // create buffer pool
     std::map<std::string, cfg::BufferPoolConfig> bufferPoolCfgMap;
     setupBufferPoolConfig(
-        bufferPoolCfgMap, globalSharedBytes, globalHeadroomBytes);
+        bufferPoolCfgMap, buffer.globalShared, buffer.globalHeadroom);
     newCfg.bufferPoolConfigs() = bufferPoolCfgMap;
     cfg_ = newCfg;
     applyNewConfig(newCfg);
@@ -291,16 +358,18 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
   }
 
  protected:
-  void runTestWithDefaultPfcCfg(
+  void runTestWithCfg(
       const int trafficClass,
       const int pfcPriority,
+      TrafficTestParams testParams = TrafficTestParams{},
       std::function<void(
           HwSwitchEnsemble* ensemble,
           const int pri,
           const std::vector<PortID>& portIds)> validateCounterFn =
           validatePfcCounters) {
     auto setup = [&]() {
-      setupConfigAndEcmpTraffic();
+      setupBuffers(testParams.buffer);
+      setupEcmpTraffic();
       validateInitPfcCounters(
           {masterLogicalInterfacePortIds()[0],
            masterLogicalInterfacePortIds()[1]},
@@ -315,78 +384,13 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
           pfcPriority,
           {masterLogicalInterfacePortIds()[0],
            masterLogicalInterfacePortIds()[1]});
+      if (testParams.expectDrop) {
+        validateIngressDropCounters(
+            {masterLogicalInterfacePortIds()[0],
+             masterLogicalInterfacePortIds()[1]});
+      }
       // stop traffic so that unconfiguration can happen without issues
       stopTraffic(
-          {masterLogicalInterfacePortIds()[0],
-           masterLogicalInterfacePortIds()[1]});
-    };
-    verifyAcrossWarmBoots(setup, verify);
-  }
-
-  void runTestWithGlobalHeadRoomCfgToZero(
-      const int trafficClass,
-      const int pfcPriority) {
-    auto setup = [&]() {
-      setupBuffers(
-          20000, /* globalSharedBytes */
-          0, /* globalHeadroom */
-          2200, /* pgLimit */
-          293624 /* pgHeadroom */);
-      setupEcmpTraffic();
-      validateInitPfcCounters(
-          {masterLogicalInterfacePortIds()[0],
-           masterLogicalInterfacePortIds()[1]},
-          pfcPriority);
-    };
-    auto verify = [&]() {
-      // ensure counter is 0 before we start traffic
-      pumpTraffic(trafficClass);
-      // ensure counter is > 0, after the traffic
-      validatePfcCounters(
-          getHwSwitchEnsemble(),
-          pfcPriority,
-          {masterLogicalInterfacePortIds()[0],
-           masterLogicalInterfacePortIds()[1]});
-      // stop traffic so that unconfiguration can happen without issues
-      stopTraffic(
-          {masterLogicalInterfacePortIds()[0],
-           masterLogicalInterfacePortIds()[1]});
-      validateIngressDropCounters(
-          {masterLogicalInterfacePortIds()[0],
-           masterLogicalInterfacePortIds()[1]});
-    };
-    verifyAcrossWarmBoots(setup, verify);
-  }
-
-  void runTestWithPgHeadRoomCfgToZero(
-      const int trafficClass,
-      const int pfcPriority) {
-    auto setup = [&]() {
-      setupBuffers(
-          20000, /* globalSharedBytes */
-          4771136, /* globalHeadroom */
-          2200, /* pgLimit */
-          0 /* pgHeadroom */);
-      setupEcmpTraffic();
-      validateInitPfcCounters(
-          {masterLogicalInterfacePortIds()[0],
-           masterLogicalInterfacePortIds()[1]},
-          pfcPriority);
-    };
-    auto verify = [&]() {
-      // ensure counter is 0 before we start traffic
-      pumpTraffic(trafficClass);
-      // ensure counter is > 0, after the traffic
-      validatePfcCounters(
-          getHwSwitchEnsemble(),
-          pfcPriority,
-          {masterLogicalInterfacePortIds()[0],
-           masterLogicalInterfacePortIds()[1]});
-      // stop traffic so that unconfiguration can happen without issues
-      stopTraffic(
-          {masterLogicalInterfacePortIds()[0],
-           masterLogicalInterfacePortIds()[1]});
-      validateIngressDropCounters(
           {masterLogicalInterfacePortIds()[0],
            masterLogicalInterfacePortIds()[1]});
     };
@@ -501,16 +505,18 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
     EXPECT_TRUE(countersHit);
   }
 
-  void validateRxPfcCounterIncrement(const PortID& port) {
+  void validateRxPfcCounterIncrement(
+      const PortID& port,
+      const int pfcPriority) {
     int retries = 2;
     int rxPfcCtrOld = 0;
     std::tie(std::ignore, rxPfcCtrOld, std::ignore) =
-        getTxRxXonPfcCounters(port, 0);
+        getTxRxXonPfcCounters(port, pfcPriority);
     while (retries--) {
       int rxPfcCtrNew = 0;
       std::this_thread::sleep_for(std::chrono::seconds(1));
       std::tie(std::ignore, rxPfcCtrNew, std::ignore) =
-          getTxRxXonPfcCounters(port, 0);
+          getTxRxXonPfcCounters(port, pfcPriority);
       if (rxPfcCtrNew > rxPfcCtrOld) {
         return;
       }
@@ -523,53 +529,96 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
   cfg::SwitchConfig cfg_;
 };
 
-TEST_F(HwTrafficPfcTest, verifyPfcDefault) {
-  // default to map dscp to priority = 0
-  const int trafficClass = 0;
-  const int pfcPriority = 0;
-  runTestWithDefaultPfcCfg(trafficClass, pfcPriority);
+class HwTrafficPfcGenTest
+    : public HwTrafficPfcTest,
+      public testing::WithParamInterface<TrafficTestParams> {
+  void SetUp() override {
+    auto testParams = GetParam();
+    FLAGS_mmu_lossless_mode = true;
+    /*
+     * Makes this flag available so that it can be used in early
+     * stages of init to setup common buffer pool for specific
+     * asics like Indus.
+     */
+    FLAGS_ingress_egress_buffer_pool_size =
+        testParams.buffer.globalShared + testParams.buffer.globalHeadroom;
+    HwLinkStateDependentTest::SetUp();
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    HwTrafficPfcTest,
+    HwTrafficPfcGenTest,
+    testing::Values(
+        TrafficTestParams{},
+        TrafficTestParams{
+            .buffer =
+                PfcBufferParams{.pgHeadroom = 0, .scalingFactor = std::nullopt},
+            .expectDrop = true},
+        TrafficTestParams{
+            .buffer =
+                PfcBufferParams{
+                    .globalHeadroom = 0,
+                    .scalingFactor = std::nullopt},
+            .expectDrop = true}),
+    [](const ::testing::TestParamInfo<TrafficTestParams>& info) {
+      auto testParams = info.param;
+      if (testParams.buffer.pgHeadroom == 0) {
+        return "WithZeroPgHeadRoomCfg";
+      } else if (testParams.buffer.globalHeadroom == 0) {
+        return "WithZeroGlobalHeadRoomCfg";
+      } else {
+        return "WithDefaultCfg";
+      }
+    });
+
+TEST_P(HwTrafficPfcGenTest, verifyPfc) {
+  const int trafficClass = kLosslessTrafficClass;
+  const int pfcPriority = kLosslessPriority;
+  runTestWithCfg(trafficClass, pfcPriority, GetParam());
 }
 
 TEST_F(HwTrafficPfcTest, verifyBufferPoolWatermarks) {
-  // default to map dscp to priority = 0
-  const int trafficClass = 0;
-  const int pfcPriority = 0;
-  runTestWithDefaultPfcCfg(
-      trafficClass, pfcPriority, validateBufferPoolWatermarkCounters);
+  const int trafficClass = kLosslessTrafficClass;
+  const int pfcPriority = kLosslessPriority;
+  runTestWithCfg(
+      trafficClass,
+      pfcPriority,
+      TrafficTestParams{},
+      validateBufferPoolWatermarkCounters);
 }
 
-TEST_F(HwTrafficPfcTest, verifyPfcWithGlobalHeadRoomToZero) {
-  const int trafficClass = 0;
-  const int pfcPriority = 0;
-  runTestWithGlobalHeadRoomCfgToZero(trafficClass, pfcPriority);
-}
-
-TEST_F(HwTrafficPfcTest, verifyPfcWithPGHeadRoomToZero) {
-  const int trafficClass = 0;
-  const int pfcPriority = 0;
-  runTestWithPgHeadRoomCfgToZero(trafficClass, pfcPriority);
+TEST_F(HwTrafficPfcTest, verifyIngressPriorityGroupWatermarks) {
+  const int trafficClass = kLosslessTrafficClass;
+  const int pfcPriority = kLosslessPriority;
+  runTestWithCfg(
+      trafficClass,
+      pfcPriority,
+      TrafficTestParams{
+          .buffer = PfcBufferParams{.scalingFactor = std::nullopt}},
+      validateIngressPriorityGroupWatermarkCounters);
 }
 
 // intent of this test is to send traffic so that it maps to
-// tc 0, now map tc 0 to PG 1. Mapping from PG to pfc priority
-// is 1:1, which means PG 1 is mapped to pfc priority 1.
+// tc 2, now map tc 2 to PG 3. Mapping from PG to pfc priority
+// is 1:1, which means PG 3 is mapped to pfc priority 3.
 // Generate traffic to fire off PFC with smaller shared buffer
 TEST_F(HwTrafficPfcTest, verifyPfcWithMapChanges_0) {
-  const int trafficClass = 0;
-  const int pfcPriority = 1;
-  tc2PgOverride.insert(std::make_pair(0, 1));
-  runTestWithDefaultPfcCfg(trafficClass, pfcPriority);
+  const int trafficClass = kLosslessTrafficClass;
+  const int pfcPriority = 3;
+  tc2PgOverride.insert(std::make_pair(trafficClass, pfcPriority));
+  runTestWithCfg(trafficClass, pfcPriority);
 }
 
 // intent of this test is to send traffic so that it maps to
-// tc 7. Now we map tc 7 -> PG 0. Mapping from PG to pfc
-// priority is 1:1, which means PG 0 is mapped to pfc priority 0.
+// tc 7. Now we map tc 7 -> PG 2. Mapping from PG to pfc
+// priority is 1:1, which means PG 2 is mapped to pfc priority 2.
 // Generate traffic to fire off PFC with smaller shared buffer
 TEST_F(HwTrafficPfcTest, verifyPfcWithMapChanges_1) {
   const int trafficClass = 7;
-  const int pfcPriority = 0;
-  tc2PgOverride.insert(std::make_pair(7, 0));
-  runTestWithDefaultPfcCfg(trafficClass, pfcPriority);
+  const int pfcPriority = kLosslessPriority;
+  tc2PgOverride.insert(std::make_pair(trafficClass, pfcPriority));
+  runTestWithCfg(trafficClass, pfcPriority);
 }
 
 // intent of this test is to setup watchdog for the PFC
@@ -583,8 +632,9 @@ TEST_F(HwTrafficPfcTest, PfcWatchdog) {
   };
   auto verify = [&]() {
     validatePfcWatchdogCountersReset(masterLogicalInterfacePortIds()[0]);
-    pumpTraffic(0 /* traffic class */);
-    validateRxPfcCounterIncrement(masterLogicalInterfacePortIds()[0]);
+    pumpTraffic(kLosslessTrafficClass);
+    validateRxPfcCounterIncrement(
+        masterLogicalInterfacePortIds()[0], kLosslessPriority);
     validatePfcWatchdogCounters(masterLogicalInterfacePortIds()[0]);
   };
   // warmboot support to be added in next step
@@ -601,7 +651,7 @@ TEST_F(HwTrafficPfcTest, PfcWatchdogReset) {
   auto setup = [&]() {
     setupConfigAndEcmpTraffic();
     setupWatchdog(true /* enable watchdog */);
-    pumpTraffic(0 /* traffic class */);
+    pumpTraffic(kLosslessTrafficClass);
     // lets wait for the watchdog counters to be populated
     validatePfcWatchdogCounters(masterLogicalInterfacePortIds()[0]);
     // reset watchdog
@@ -615,7 +665,8 @@ TEST_F(HwTrafficPfcTest, PfcWatchdogReset) {
 
   auto verify = [&]() {
     // ensure that RX PFC continues to increment
-    validateRxPfcCounterIncrement(masterLogicalInterfacePortIds()[0]);
+    validateRxPfcCounterIncrement(
+        masterLogicalInterfacePortIds()[0], kLosslessPriority);
     // validate that pfc watchdog counters do not increment anymore
     validatePfcWatchdogCountersReset(masterLogicalInterfacePortIds()[0]);
   };

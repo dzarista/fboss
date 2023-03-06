@@ -40,6 +40,10 @@ using std::chrono::steady_clock;
 
 DEFINE_string(mac, "", "The local MAC address for this switch");
 DEFINE_string(mgmt_if, "eth0", "name of management interface");
+DEFINE_uint64(
+    ingress_egress_buffer_pool_size,
+    0,
+    "Common ingress/egress buffer pool size override");
 
 namespace facebook::fboss {
 
@@ -56,14 +60,21 @@ UnicastRoute makeUnicastRouteHelper(
   return nr;
 }
 
-IPAddressV6 getIPv6Address(InterfaceID intfID, Interface::AddressesType addrs) {
+template <typename AddrT>
+AddrT getIPAddress(InterfaceID intfID, const Interface::AddressesType addrs) {
   for (auto iter : std::as_const(*addrs)) {
     auto address = folly::IPAddress(iter.first);
-    if (address.isV6()) {
-      return address.asV6();
+    if constexpr (std::is_same_v<AddrT, IPAddressV4>) {
+      if (address.isV4()) {
+        return address.asV4();
+      }
+    } else {
+      if (address.isV6()) {
+        return address.asV6();
+      }
     }
   }
-  throw FbossError("Cannot find IPv6 address for interface ", intfID);
+  throw FbossError("Cannot find IP address for interface ", intfID);
 }
 
 } // namespace
@@ -108,14 +119,17 @@ IPAddressV4 getSwitchVlanIP(
     VlanID vlan) {
   IPAddressV4 switchIp;
   auto vlanInterface = state->getInterfaces()->getInterfaceInVlan(vlan);
-  for (auto iter : std::as_const(*vlanInterface->getAddresses())) {
-    auto address = folly::IPAddress(iter.first);
-    if (address.isV4()) {
-      switchIp = address.asV4();
-      return switchIp;
-    }
-  }
-  throw FbossError("Cannot find IP address for vlan", vlan);
+
+  return getIPAddress<IPAddressV4>(
+      vlanInterface->getID(), vlanInterface->getAddresses());
+}
+
+IPAddressV4 getSwitchIntfIP(
+    const std::shared_ptr<SwitchState>& state,
+    InterfaceID intfID) {
+  auto interface = state->getInterfaces()->getInterface(intfID);
+
+  return getIPAddress<IPAddressV4>(intfID, interface->getAddresses());
 }
 
 IPAddressV6 getSwitchVlanIPv6(
@@ -123,7 +137,8 @@ IPAddressV6 getSwitchVlanIPv6(
     VlanID vlan) {
   auto vlanInterface = state->getInterfaces()->getInterfaceInVlan(vlan);
 
-  return getIPv6Address(vlanInterface->getID(), vlanInterface->getAddresses());
+  return getIPAddress<IPAddressV6>(
+      vlanInterface->getID(), vlanInterface->getAddresses());
 }
 
 IPAddressV6 getSwitchIntfIPv6(
@@ -131,7 +146,7 @@ IPAddressV6 getSwitchIntfIPv6(
     InterfaceID intfID) {
   auto interface = state->getInterfaces()->getInterface(intfID);
 
-  return getIPv6Address(intfID, interface->getAddresses());
+  return getIPAddress<IPAddressV6>(intfID, interface->getAddresses());
 }
 
 void incNiceValue(const uint32_t increment) {
@@ -158,35 +173,6 @@ void incNiceValue(const uint32_t increment) {
 
 bool dumpStateToFile(const std::string& filename, const folly::dynamic& json) {
   return folly::writeFile(folly::toPrettyJson(json), filename.c_str());
-}
-
-bool dumpThriftStateToFile(
-    const std::string& filename,
-    const state::WarmbootState& thriftState) {
-  apache::thrift::BinaryProtocolWriter writer;
-  folly::IOBufQueue queue;
-  writer.setOutput(&queue);
-  auto bytesWritten = thriftState.write(&writer);
-  std::vector<std::byte> result;
-  result.resize(bytesWritten);
-  folly::io::Cursor(queue.front()).pull(result.data(), bytesWritten);
-  return folly::writeFile(result, filename.c_str());
-}
-
-bool readThriftStateFromFile(
-    const std::string& filename,
-    state::WarmbootState& thriftState) {
-  std::vector<std::byte> serializedThrift;
-  auto ret = folly::readFile(filename.c_str(), serializedThrift);
-  if (ret) {
-    auto buf = folly::IOBuf::copyBuffer(
-        serializedThrift.data(), serializedThrift.size());
-    apache::thrift::BinaryProtocolReader reader;
-    reader.setInput(buf.get());
-    thriftState.read(&reader);
-    return true;
-  }
-  return false;
 }
 
 bool isValidThriftStateFile(
@@ -320,6 +306,21 @@ PortID getPortID(
                           ->getSystemPortRange();
   CHECK(sysPortRange.has_value());
   return PortID(static_cast<int64_t>(sysPortId) - *sysPortRange->minimum());
+}
+
+SystemPortID getSystemPortID(
+    const PortID& portId,
+    const std::shared_ptr<SwitchState>& state) {
+  assert(state->getSwitchSettings()->getSwitchType() == cfg::SwitchType::VOQ);
+  auto mySwitchId = state->getSwitchSettings()->getSwitchId();
+  CHECK(mySwitchId.has_value());
+  auto sysPortRange = state->getDsfNodes()
+                          ->getDsfNodeIf(SwitchID(*mySwitchId))
+                          ->getSystemPortRange();
+  CHECK(sysPortRange.has_value());
+  auto systemPortId = static_cast<int64_t>(portId) + *sysPortRange->minimum();
+  CHECK_LE(systemPortId, *sysPortRange->maximum());
+  return SystemPortID(systemPortId);
 }
 
 std::vector<PortID> getPortsForInterface(

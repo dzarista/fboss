@@ -20,6 +20,7 @@ typedef binary (cpp2.type = "::folly::fbstring") fbbinary
 typedef string (cpp2.type = "::folly::fbstring") fbstring
 
 const i32 DEFAULT_CTRL_PORT = 5909;
+const i32 NO_VLAN = -1;
 
 // Using the defaults from here:
 // https://en.wikipedia.org/wiki/Administrative_distance
@@ -137,10 +138,13 @@ struct ArpEntryThrift {
   2: i32 port;
   3: string vlanName;
   4: Address.BinaryAddress ip;
-  5: i32 vlanID;
+  // VlanId populated only for interfaces of type VLAN
+  5: i32 vlanID = NO_VLAN;
   6: string state;
   7: i32 ttl;
   8: i32 classID;
+  9: bool isLocal = true;
+  10: optional i64 switchId;
 }
 
 enum L2EntryType {
@@ -217,7 +221,8 @@ struct LacpPartnerPair {
 struct InterfaceDetail {
   1: string interfaceName;
   2: i32 interfaceId;
-  3: i32 vlanId;
+  // VlanId populated only for interfaces of type VLAN
+  3: i32 vlanId = NO_VLAN;
   4: i32 routerId;
   5: string mac;
   6: list<IpPrefix> address;
@@ -355,10 +360,13 @@ struct NdpEntryThrift {
   2: string mac;
   3: i32 port;
   4: string vlanName;
-  5: i32 vlanID;
+  // VlanId populated only for interfaces of type VLAN
+  5: i32 vlanID = NO_VLAN;
   6: string state;
   7: i32 ttl;
   8: i32 classID;
+  9: bool isLocal = true;
+  10: optional i64 switchId;
 }
 
 enum BootType {
@@ -618,6 +626,8 @@ struct FabricEndpoint {
   // only when isAttached == true
   5: bool isAttached;
   6: switch_config.SwitchType switchType;
+  7: optional i64 expectedSwitchId;
+  8: optional i32 expectedPortId;
 }
 
 service FbossCtrl extends phy.FbossCommonPhyCtrl {
@@ -1242,6 +1252,9 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
     1: fboss.FbossBaseError error,
   );
   map<i64, switch_config.DsfNode> getDsfNodes() throws (
+    1: fboss.FbossBaseError error,
+  );
+  map<i64, common.SystemPortThrift> getSystemPorts() throws (
     1: fboss.FbossBaseError error,
   );
 }

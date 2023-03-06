@@ -35,18 +35,18 @@ from argparse import ArgumentParser
 #  ./run_test.py sai --config fuji.agent.materialized_JSON --filter HwVlanTest.VlanApplyConfig --sdk_logging /root/skhare/sai_replayer_logs --no-oss --sai-bin /root/skhare/sai_test-brcm-7.2.0.0_odp --mgmt-if eth0
 #
 # All tests matching the following filters pass on w400C in VOQ mode
-# Note: For w400c (VOQ) mode test runs, suffix --coldboot_only to all tests.
-# Warm boot# is not yet supported on w400c in voq mode.
 # VOQ tests
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwVoqSwitchTest.*:-*sendPacketCpu*:*trapPktsOnPort*:*AclQualifier*
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwVoqSwitchWithFabricPortsTest.*
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwVoqSwitchWithMultipleDsfNodesTest.*
 # ECMP Tests
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwEcmpTest.*
+# ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=SaiNextHopGroupTest.*
 # Basic forwarding tests
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwLoopBackTest.*
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwL4PortBlackHolingTest.*
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwJumboFramesTest.*
+# ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwRxReasonTests.*
 # Route programming tests
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwRouteTest/0.*:-*Mpls*
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwRouteTest/1.*:-*Mpls*
@@ -61,15 +61,12 @@ from argparse import ArgumentParser
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwAclStatTest.*
 # Counter Tests
 # ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwInDiscardsCounterTest.*
+# ./run_test.py sai --config wedge400c_voq.agent.materialized_JSON --filter=HwResourceStatsTest.aclStats
 #
 # All tests matching the following filters pass on w400C in fabric mode
-# Note: For w400c (fabric) mode test runs, suffix --coldboot_only to all tests.
-# Warm boot# is not yet supported on w400c in fabric mode.
 # ./run_test.py sai --config wedge400c_fabric.agent.materialized_JSON --filter=HwFabricSwitchTest.*
 
 # All tests matching following filters are expected to PASS on Makalu
-# Note: For Makalu test runs, suffix --coldboot_only to all tests. Warm boot
-# is not yet supported on Makalu
 # Basic VOQ switch tests
 # ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwVoqSwitchTest*
 # ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwVoqSwitchWithFabriPortsTest.*
@@ -80,6 +77,7 @@ from argparse import ArgumentParser
 # ./run_test.py sai --config makalu.agent.materialized_JSON  --filter=HwL4PortBlackHolingTest.*
 # Counter tests
 # ./run_test.py sai --config makalu.agent.materialized_JSON  --filter=HwInPauseDiscardsCounterTest.*
+# ./run_test.py sai --config makalu.agent.materialized_JSON  --filter=HwResourceStatsTest.l3Stats
 # ECMP Tests
 # ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwEcmpTest.*:-*Ucmp*
 # Load Balancer Tests
@@ -90,8 +88,8 @@ from argparse import ArgumentParser
 # LB Tests with ROCE traffic
 # ./run_test.py sai --config makalu.agent.materialized_JSON  --filter=HwLoadBalancerNegativeTestV6RoCE.*
 # Route programming tests
-# ./run_test.py sai --config makalu.agent.materialized_JSON  --filter=HwAlpmStressTest.*
-# ./run_test.py sai --config makalu.agent.materialized_JSON  --filter=SaiNextHopGroupTest:-*addNextHopGroupPortDown*
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwAlpmStressTest.*
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=SaiNextHopGroupTest.*
 # Neighbor programming tests
 # ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwNeighborTest/0.*:-*LookupClass
 # ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwNeighborTest/2.*:-*LookupClass
@@ -105,12 +103,18 @@ from argparse import ArgumentParser
 # ./run_test.py sai --config makalu.agent.materialized_JSON --filter=SaiAclTableRecreateTests.*
 # ./run_test.py sai --config makalu.agent.materialized_JSON
 # --filter=HwAclStatTest.*:-*AclStatCreate:*AclStatCreateShared:*AclStatCreateMultiple:*AclStatMultipleActions:*AclStatDeleteShared*:*AclStatDeleteSharedPostWarmBoot:*AclStatRename*:*AclStatModify:*AclStatShuffle:*StatNumberOfCounters:*AclStatChangeCounterType
+# Packet send test
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwPacketSendTest.PortTxEnableTest
 # PFC tests
 # ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwPfcTest.*:-*Watchdog*
-
+# PFC traffic tests
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwTrafficPfc*:-*Watchdog*:*Zero*
+# Qos  tests
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwOlympicQosTests.VerifyDscpQueueMappingFrontPanel
+# CoPP
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwRxReasonTests.*
+# ./run_test.py sai --config makalu.agent.materialized_JSON --filter=HwCoppTest/0.Ipv6LinkLocalMcastToMidPriQ:HwCoppTest/0.Ipv6LinkLocalMcastNetworkControlDscpToHighPriQ:HwCoppTest/0.L3MTUErrorToLowPriQ:HwCoppTest/0.UnresolvedRoutesToLowPriQueue
 # All tests matching following filter are expected to PASS on Kamet
-# Note: For Kamet test runs, suffix --coldboot_only to all tests. Warm boot
-# is not yet supported on Kamet
 # ./run_test.py sai --config kamet.agent.materialized_JSON --filter=HwFabricSwitchTest*
 
 OPT_ARG_COLDBOOT = "--coldboot_only"

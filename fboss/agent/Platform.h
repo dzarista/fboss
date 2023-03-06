@@ -20,7 +20,7 @@
 #include "fboss/agent/types.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 
-DECLARE_bool(skip_xphy_programming);
+DECLARE_bool(hide_fabric_ports);
 
 namespace facebook::fboss {
 

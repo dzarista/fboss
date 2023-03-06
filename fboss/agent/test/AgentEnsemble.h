@@ -6,10 +6,12 @@
 #include <fboss/agent/gen-cpp2/platform_config_types.h>
 #include <fboss/agent/gen-cpp2/switch_config_types.h>
 #include <fboss/agent/hw/bcm/gen-cpp2/bcm_config_types.h>
+#include <unistd.h>
 #include <functional>
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/Main.h"
 
+#include "fboss/agent/hw/test/HwLinkStateToggler.h"
 #include "fboss/agent/test/RouteDistributionGenerator.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
 
@@ -45,6 +47,8 @@ class AgentEnsemble : public TestEnsembleIf {
     return &agentInitializer_;
   }
 
+  void setupLinkStateToggler();
+
   AgentInitializer* agentInitializer() {
     return &agentInitializer_;
   }
@@ -57,8 +61,9 @@ class AgentEnsemble : public TestEnsembleIf {
     return getSw()->getState();
   }
 
-  void applyInitialConfig(const cfg::SwitchConfig& /* config */) override {
-    throw FbossError("Not Implement");
+  void applyInitialConfig(const cfg::SwitchConfig& config) override {
+    // agent will start after writing an initial config.
+    applyNewConfig(config, false);
   }
 
   std::shared_ptr<SwitchState> applyNewConfig(
@@ -99,22 +104,36 @@ class AgentEnsemble : public TestEnsembleIf {
 
   static std::string getInputConfigFile();
 
-  void packetReceived(std::unique_ptr<RxPacket> /*pkt*/) noexcept override {}
+  void packetReceived(std::unique_ptr<RxPacket> pkt) noexcept override {
+    getSw()->packetReceived(std::move(pkt));
+  }
 
   void linkStateChanged(
-      PortID /*port*/,
-      bool /*up*/,
-      std::optional<phy::LinkFaultStatus> /*iPhyFaultStatus*/ =
-          std::nullopt) override {}
+      PortID port,
+      bool up,
+      std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
+          std::nullopt) override {
+    if (getHwSwitch()->getRunState() >= SwitchRunState::INITIALIZED) {
+      if (linkToggler_) {
+        linkToggler_->linkStateChanged(port, up);
+      }
+    }
+  }
 
   void l2LearningUpdateReceived(
-      L2Entry /* l2Entry */,
-      L2EntryUpdateType /*l2EntryUpdateType*/) override {}
+      L2Entry l2Entry,
+      L2EntryUpdateType l2EntryUpdateType) override {
+    getSw()->l2LearningUpdateReceived(l2Entry, l2EntryUpdateType);
+  }
 
-  void exitFatal() const noexcept override {}
+  void exitFatal() const noexcept override {
+    getSw()->exitFatal();
+  }
 
-  void pfcWatchdogStateChanged(const PortID& /*port*/, const bool /*deadlock*/)
-      override {}
+  void pfcWatchdogStateChanged(const PortID& port, const bool deadlock)
+      override {
+    getSw()->pfcWatchdogStateChanged(port, deadlock);
+  }
 
   HwSwitch* getHwSwitch() override {
     return getHw();
@@ -122,6 +141,15 @@ class AgentEnsemble : public TestEnsembleIf {
 
   const HwSwitch* getHwSwitch() const override {
     return getHw();
+  }
+
+  std::map<PortID, HwPortStats> getLatestPortStats(
+      const std::vector<PortID>& ports);
+
+  HwPortStats getLatestPortStats(const PortID& port);
+
+  void setLoopbackMode(cfg::PortLoopbackMode mode) {
+    mode_ = mode;
   }
 
  private:
@@ -134,6 +162,8 @@ class AgentEnsemble : public TestEnsembleIf {
   std::unique_ptr<std::thread> asyncInitThread_{nullptr};
   std::vector<PortID> masterLogicalPortIds_;
   std::string configFile_{"agent.conf"};
+  std::unique_ptr<HwLinkStateToggler> linkToggler_;
+  cfg::PortLoopbackMode mode_{cfg::PortLoopbackMode::MAC};
 };
 
 void ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform);
@@ -144,6 +174,7 @@ std::unique_ptr<AgentEnsemble> createAgentEnsemble(
         AgentEnsemblePlatformConfigFn(),
     uint32_t featuresDesired =
         (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
-         HwSwitch::FeaturesDesired::LINKSCAN_DESIRED));
+         HwSwitch::FeaturesDesired::LINKSCAN_DESIRED),
+    bool startAgent = true);
 
 } // namespace facebook::fboss

@@ -44,6 +44,16 @@ namespace cfg {
 class SwitchConfig;
 }
 
+template <cfg::SwitchType type>
+struct SwitchTypeT {
+  static constexpr auto switchType = type;
+};
+
+using SwitchTypes = ::testing::Types<
+    SwitchTypeT<cfg::SwitchType::NPU>,
+    SwitchTypeT<cfg::SwitchType::VOQ>,
+    SwitchTypeT<cfg::SwitchType::FABRIC>>;
+
 /*
  * In the non unit test code state passed to apply*Config is the state
  * returned from SwSwitch init, which is always published. However this
@@ -216,6 +226,10 @@ std::shared_ptr<SwitchState> bringAllPortsUp(
 std::shared_ptr<SwitchState> bringAllPortsDown(
     const std::shared_ptr<SwitchState>& in);
 
+/*
+ * Fabric switch test config
+ */
+cfg::SwitchConfig testConfigFabricSwitch();
 /*
  * The returned configuration object, if applied to a SwitchState with ports
  * 1-20, will yield the same SwitchState as that returned by testStateA().
@@ -497,7 +511,7 @@ void validateNodeSerialization(const Node& node) {
 
 template <typename Node>
 void validateThriftStructNodeSerialization(const Node& node) {
-  auto nodeBack = Node::fromFollyDynamic(node.toFollyDynamic());
+  auto nodeBack = std::make_shared<Node>(node.toThrift());
   EXPECT_EQ(node, *nodeBack);
   nodeBack = std::make_shared<Node>();
   nodeBack->fromThrift(node.toThrift());
@@ -526,9 +540,7 @@ void validateNodeMapSerialization(const NodeMap& nodeMap) {
 
 template <typename NodeMap>
 void validateThriftMapMapSerialization(const NodeMap& nodeMap) {
-  auto nodeMapBack = NodeMap::fromFollyDynamic(nodeMap.toFollyDynamic());
-  EXPECT_TRUE(nodeMap.toThrift() == nodeMapBack->toThrift());
-  nodeMapBack->fromThrift(nodeMap.toThrift());
+  auto nodeMapBack = std::make_shared<NodeMap>(nodeMap.toThrift());
   EXPECT_TRUE(nodeMap.toThrift() == nodeMapBack->toThrift());
 }
 } // namespace facebook::fboss

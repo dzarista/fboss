@@ -191,7 +191,7 @@ add_fbthrift_cpp_library(
 
 add_library(hw_switch_test
   fboss/agent/hw/test/HwEcmpTests.cpp
-  fboss/agent/hw/test/HwFabricUtils.cpp
+  fboss/agent/hw/test/HwTestFabricUtils.cpp
   fboss/agent/hw/test/HwFabricSwitchTests.cpp
   fboss/agent/hw/test/HwFlexPortTests.cpp
   fboss/agent/hw/test/HwEcmpTrunkTests.cpp
@@ -358,4 +358,14 @@ target_link_libraries(hw_queue_per_host_utils
   switch_config_cpp2
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
+)
+
+add_library(hw_linkstate_toggler
+  fboss/agent/hw/test/HwLinkStateToggler.cpp
+)
+
+target_link_libraries(hw_linkstate_toggler
+  hw_switch
+  state
+  core
 )

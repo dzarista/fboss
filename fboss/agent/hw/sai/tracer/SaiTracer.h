@@ -65,8 +65,7 @@ class SaiTracer {
   void logSwitchCreateFn(
       sai_object_id_t* switch_id,
       uint32_t attr_count,
-      const sai_attribute_t* attr_list,
-      sai_status_t rv);
+      const sai_attribute_t* attr_list);
 
   void logRouteEntryCreateFn(
       const sai_route_entry_t* route_entry,
@@ -243,36 +242,43 @@ class SaiTracer {
       {TYPE_INDEX(sai_uint64_t), &u64Attr},
   };
 
-  std::unordered_map<std::size_t, AttributeFunction> attributeFuncMap_{
-      {TYPE_INDEX(sai_u32_range_t), &u32RangeAttr},
-      {TYPE_INDEX(sai_s32_range_t), &s32RangeAttr},
-      {TYPE_INDEX(folly::MacAddress), &macAddressAttr},
-      {TYPE_INDEX(folly::IPAddress), &ipAttr},
-      /* Acl Entry attributes */
-      {TYPE_INDEX(AclEntryFieldSaiObjectIdT), &aclEntryFieldSaiObjectIdAttr},
-      {TYPE_INDEX(AclEntryFieldIpV6), &aclEntryFieldIpV6Attr},
-      {TYPE_INDEX(AclEntryFieldIpV4), &aclEntryFieldIpV4Attr},
-      {TYPE_INDEX(AclEntryActionSaiObjectIdT), &aclEntryActionSaiObjectIdAttr},
-      {TYPE_INDEX(AclEntryFieldU32), &aclEntryFieldU32Attr},
-      {TYPE_INDEX(AclEntryActionU32), &aclEntryActionU32Attr},
-      {TYPE_INDEX(AclEntryFieldU16), &aclEntryFieldU16Attr},
-      {TYPE_INDEX(AclEntryFieldU8), &aclEntryFieldU8Attr},
-      {TYPE_INDEX(AclEntryActionU8), &aclEntryActionU8Attr},
-      {TYPE_INDEX(AclEntryFieldMac), &aclEntryFieldMacAttr},
-      // System port
-      {TYPE_INDEX(sai_system_port_config_t), &systemPortConfigAttr},
+  std::unordered_map<std::size_t, AttributeFunction> attributeFuncMap_ {
+    {TYPE_INDEX(sai_u32_range_t), &u32RangeAttr},
+        {TYPE_INDEX(sai_s32_range_t), &s32RangeAttr},
+        {TYPE_INDEX(folly::MacAddress), &macAddressAttr},
+        {TYPE_INDEX(folly::IPAddress), &ipAttr},
+        /* Acl Entry attributes */
+        {TYPE_INDEX(AclEntryFieldSaiObjectIdT), &aclEntryFieldSaiObjectIdAttr},
+        {TYPE_INDEX(AclEntryFieldIpV6), &aclEntryFieldIpV6Attr},
+        {TYPE_INDEX(AclEntryFieldIpV4), &aclEntryFieldIpV4Attr},
+        {TYPE_INDEX(AclEntryActionSaiObjectIdT),
+         &aclEntryActionSaiObjectIdAttr},
+        {TYPE_INDEX(AclEntryFieldU32), &aclEntryFieldU32Attr},
+        {TYPE_INDEX(AclEntryActionU32), &aclEntryActionU32Attr},
+        {TYPE_INDEX(AclEntryFieldU16), &aclEntryFieldU16Attr},
+        {TYPE_INDEX(AclEntryFieldU8), &aclEntryFieldU8Attr},
+        {TYPE_INDEX(AclEntryActionU8), &aclEntryActionU8Attr},
+        {TYPE_INDEX(AclEntryFieldMac), &aclEntryFieldMacAttr},
+        // System port
+        {TYPE_INDEX(sai_system_port_config_t), &systemPortConfigAttr},
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
+        {TYPE_INDEX(sai_latch_status_t), &latchStatusAttr},
+#endif
   };
 
-  std::unordered_map<std::size_t, ListFunction> listFuncMap_{
-      {TYPE_INDEX(std::vector<sai_object_id_t>), &oidListAttr},
-      {TYPE_INDEX(std::vector<sai_uint32_t>), &u32ListAttr},
-      {TYPE_INDEX(std::vector<sai_int32_t>), &s32ListAttr},
-      {TYPE_INDEX(std::vector<sai_qos_map_t>), &qosMapListAttr},
-      {TYPE_INDEX(AclEntryActionSaiObjectIdList),
-       &aclEntryActionSaiObjectIdListAttr},
-      {TYPE_INDEX(std::vector<sai_system_port_config_t>),
-       &systemPortConfigListAttr},
-
+  std::unordered_map<std::size_t, ListFunction> listFuncMap_ {
+    {TYPE_INDEX(std::vector<sai_object_id_t>), &oidListAttr},
+        {TYPE_INDEX(std::vector<sai_uint32_t>), &u32ListAttr},
+        {TYPE_INDEX(std::vector<sai_int32_t>), &s32ListAttr},
+        {TYPE_INDEX(std::vector<sai_qos_map_t>), &qosMapListAttr},
+        {TYPE_INDEX(AclEntryActionSaiObjectIdList),
+         &aclEntryActionSaiObjectIdListAttr},
+        {TYPE_INDEX(std::vector<sai_system_port_config_t>),
+         &systemPortConfigListAttr},
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
+        {TYPE_INDEX(std::vector<sai_port_lane_latch_status_t>),
+         &portLaneLatchStatusListAttr},
+#endif
   };
 
  private:
@@ -578,18 +584,18 @@ class SaiTracer {
       uint32_t attr_count,                                                   \
       sai_attribute_t* attr_list) {                                          \
     if (FLAGS_enable_get_attr_log) {                                         \
-      SaiTracer::getInstance()->logGetAttrFn(                                \
-          "get_" #obj_type "_attribute",                                     \
-          obj_type##_id,                                                     \
-          attr_count,                                                        \
-          attr_list,                                                         \
-          sai_obj_type);                                                     \
       auto begin = FLAGS_enable_elapsed_time_log                             \
           ? std::chrono::system_clock::now()                                 \
           : std::chrono::system_clock::time_point::min();                    \
       auto rv = SaiTracer::getInstance()                                     \
                     ->api_type##Api_->get_##obj_type##_attribute(            \
                         obj_type##_id, attr_count, attr_list);               \
+      SaiTracer::getInstance()->logGetAttrFn(                                \
+          "get_" #obj_type "_attribute",                                     \
+          obj_type##_id,                                                     \
+          attr_count,                                                        \
+          attr_list,                                                         \
+          sai_obj_type);                                                     \
       SaiTracer::getInstance()->logPostInvocation(rv, obj_type##_id, begin); \
       return rv;                                                             \
     }                                                                        \

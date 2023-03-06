@@ -283,6 +283,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getFabricReachability(
       std::map<std::string, FabricEndpoint>& reachability) override;
   void getDsfNodes(std::map<int64_t, cfg::DsfNode>& dsfNodes) override;
+  void getSystemPorts(std::map<int64_t, SystemPortThrift>& sysPorts) override;
   /*
    * Event handler for when a connection is destroyed.  When there is an ongoing
    * duplex connection, there may be other threads that depend on the connection
@@ -424,6 +425,8 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   }
 
  private:
+  void ensureNPU(folly::StringPiece function) const;
+  void ensureNotFabric(folly::StringPiece function) const;
   struct ThreadLocalListener {
     EventBase* eventBase;
     std::unordered_map<
@@ -463,6 +466,10 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
     FbossError error(folly::exceptionStr(ex));
     callback->exception(error);
   }
+  bool isNpuSwitch() const;
+  bool isFabricSwitch() const;
+  bool isVoqSwitch() const;
+  bool isSwitchType(cfg::SwitchType switchType) const;
 
   /*
    * A pointer to the SwSwitch.  We don't own this.

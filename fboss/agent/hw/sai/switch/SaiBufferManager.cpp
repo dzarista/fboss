@@ -12,6 +12,7 @@
 
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/Platform.h"
+#include "fboss/agent/Utils.h"
 #include "fboss/agent/hw/sai/api/SaiApiTable.h"
 #include "fboss/agent/hw/sai/api/SwitchApi.h"
 #include "fboss/agent/hw/sai/store/SaiStore.h"
@@ -178,7 +179,7 @@ void SaiBufferManager::setupIngressBufferPool(
 #if defined(TAJO_SDK) || defined(SAI_VERSION_8_2_0_0_ODP) ||                   \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP)
+    defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(SAI_VERSION_9_0_EA_DNX_ODP)
   if (platform_->getAsic()->isSupported(HwAsic::Feature::PFC)) {
     xoffSize = *bufferPoolCfg.headroomBytes() *
         platform_->getAsic()->getNumMemoryBuffers();
@@ -198,8 +199,14 @@ void SaiBufferManager::setupIngressEgressBufferPool(
   std::optional<SaiBufferPoolTraits::Attributes::XoffSize> xoffSize;
   if (!ingressEgressBufferPoolHandle_) {
     auto availableBuffer = getSwitchEgressPoolAvailableSize(platform_);
-    auto poolSize =
-        availableBuffer * platform_->getAsic()->getNumMemoryBuffers();
+    uint64_t poolSize;
+    if (FLAGS_ingress_egress_buffer_pool_size) {
+      // An option for test to override the buffer pool size to be used.
+      poolSize = FLAGS_ingress_egress_buffer_pool_size *
+          platform_->getAsic()->getNumMemoryBuffers();
+    } else {
+      poolSize = availableBuffer * platform_->getAsic()->getNumMemoryBuffers();
+    }
 
     ingressEgressBufferPoolHandle_ = std::make_unique<SaiBufferPoolHandle>();
     SaiBufferPoolTraits::CreateAttributes c{
@@ -289,6 +296,36 @@ void SaiBufferManager::updateStats() {
   publishDeviceWatermark(deviceWatermarkBytes_);
 }
 
+void SaiBufferManager::updateIngressPriorityGroupStats(
+    const PortID& portId,
+    const std::string& portName,
+    bool updateWatermarks) {
+  /*
+   * As of now, only watermark stats are supported for IngressPriorityGroup.
+   * Hence returning here if watermark stats collection is not needed. Will
+   * need modifications to this code if we enable non-watermark stats as well,
+   * to poll watermark and non-watermark stats differently based on the
+   * updateWatermarks option.
+   */
+  if (!updateWatermarks) {
+    return;
+  }
+  SaiPortHandle* portHandle =
+      managerTable_->portManager().getPortHandle(portId);
+  for (const auto& ipgInfo : portHandle->configuredIngressPriorityGroups) {
+    const auto& ingressPriorityGroup =
+        ipgInfo.second.pgHandle->ingressPriorityGroup;
+    ingressPriorityGroup->updateStats();
+    auto counters = ingressPriorityGroup->getStats();
+    auto maxPgSharedBytes =
+        counters[SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES];
+    auto maxPgHeadroomBytes =
+        counters[SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES];
+    publishPgWatermarks(
+        portName, ipgInfo.first, maxPgSharedBytes, maxPgHeadroomBytes);
+  }
+}
+
 SaiBufferProfileTraits::CreateAttributes SaiBufferManager::profileCreateAttrs(
     const PortQueue& queue) const {
   SaiBufferProfileTraits::Attributes::PoolId pool{
@@ -349,7 +386,7 @@ SaiBufferManager::ingressProfileCreateAttrs(
   SaiBufferProfileTraits::Attributes::SharedDynamicThreshold dynThresh{0};
   if (config.scalingFactor()) {
     mode = SAI_BUFFER_PROFILE_THRESHOLD_MODE_DYNAMIC;
-    dynThresh = static_cast<sai_uint8_t>(
+    dynThresh = platform_->getAsic()->getBufferDynThreshFromScalingFactor(
         nameToEnum<cfg::MMUScalingFactor>(*config.scalingFactor()));
   }
   SaiBufferProfileTraits::Attributes::XoffTh xoffTh{0};
@@ -414,6 +451,26 @@ void SaiBufferManager::setIngressPriorityGroupBufferProfile(
         bufferProfile->adapterKey()};
   }
   SaiApiTable::getInstance()->bufferApi().setAttribute(pgId, bufferProfileId);
+}
+
+SaiIngressPriorityGroupHandles SaiBufferManager::loadIngressPriorityGroups(
+    const std::vector<IngressPriorityGroupSaiId>& ingressPriorityGroupSaiIds) {
+  SaiIngressPriorityGroupHandles ingressPriorityGroupHandles;
+  auto& store = saiStore_->get<SaiIngressPriorityGroupTraits>();
+
+  for (auto ingressPriorityGroupSaiId : ingressPriorityGroupSaiIds) {
+    auto ingressPriorityGroupHandle =
+        std::make_unique<SaiIngressPriorityGroupHandle>();
+    ingressPriorityGroupHandle->ingressPriorityGroup =
+        store.loadObjectOwnedByAdapter(
+            SaiIngressPriorityGroupTraits::AdapterKey{
+                ingressPriorityGroupSaiId});
+    auto index = SaiApiTable::getInstance()->bufferApi().getAttribute(
+        ingressPriorityGroupSaiId,
+        SaiIngressPriorityGroupTraits::Attributes::Index{});
+    ingressPriorityGroupHandles[index] = std::move(ingressPriorityGroupHandle);
+  }
+  return ingressPriorityGroupHandles;
 }
 
 } // namespace facebook::fboss

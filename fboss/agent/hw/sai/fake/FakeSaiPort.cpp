@@ -32,6 +32,7 @@ sai_status_t create_port_fn(
   std::optional<bool> useExtendedFec;
   std::optional<sai_port_fec_mode_extended_t> extendedFecMode;
 #endif
+  std::optional<bool> fabricIsolate;
   std::optional<sai_port_internal_loopback_mode_t> internalLoopbackMode;
   std::optional<sai_port_flow_control_mode_t> flowControlMode;
   std::optional<sai_port_media_type_t> mediaType;
@@ -89,6 +90,11 @@ sai_status_t create_port_fn(
       case SAI_PORT_ATTR_FEC_MODE_EXTENDED:
         extendedFecMode =
             static_cast<sai_port_fec_mode_extended_t>(attr_list[i].value.u32);
+        break;
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
+      case SAI_PORT_ATTR_FABRIC_ISOLATE:
+        fabricIsolate = attr_list[i].value.booldata;
         break;
 #endif
       case SAI_PORT_ATTR_INTERNAL_LOOPBACK_MODE:
@@ -227,6 +233,9 @@ sai_status_t create_port_fn(
     port.extendedFecMode = extendedFecMode.value();
   }
 #endif
+  if (fabricIsolate) {
+    port.fabricIsolate = fabricIsolate.value();
+  }
   if (internalLoopbackMode.has_value()) {
     port.internalLoopbackMode = internalLoopbackMode.value();
   }
@@ -578,6 +587,11 @@ sai_status_t set_port_attribute_fn(
     case SAI_PORT_ATTR_LINK_TRAINING_ENABLE:
       port.linkTrainingEnable = attr->value.booldata;
       break;
+#if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
+    case SAI_PORT_ATTR_FABRIC_ISOLATE:
+      port.fabricIsolate = attr->value.booldata;
+      break;
+#endif
     default:
       res = SAI_STATUS_INVALID_PARAMETER;
       break;
@@ -839,6 +853,11 @@ sai_status_t get_port_attribute_fn(
       case SAI_PORT_ATTR_FABRIC_ATTACHED_PORT_INDEX:
         attr->value.u32 = 0;
         break;
+#if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
+      case SAI_PORT_ATTR_FABRIC_ISOLATE:
+        attr->value.booldata = port.fabricIsolate;
+        break;
+#endif
       default:
         return SAI_STATUS_INVALID_PARAMETER;
     }

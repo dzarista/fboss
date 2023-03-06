@@ -21,6 +21,7 @@
 #include "fboss/agent/platforms/sai/SaiBcmFujiPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmGalaxyPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmMinipackPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiBcmMontblancPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmWedge100PlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmWedge400PlatformPort.h"
@@ -34,6 +35,7 @@
 #include "fboss/agent/platforms/sai/SaiMakaluPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiSandiaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiWedge400CPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiYangraPlatformPort.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 #include "fboss/qsfp_service/lib/QsfpCache.h"
@@ -110,9 +112,18 @@ SaiPlatform::SaiPlatform(
       qsfpCache_(std::make_unique<AutoInitQsfpCache>()) {
   const auto& portsByMasterPort =
       utility::getSubsidiaryPortIDs(getPlatformPorts());
+  const auto& platPorts = getPlatformPorts();
   CHECK(portsByMasterPort.size() > 1);
   for (auto itPort : portsByMasterPort) {
-    masterLogicalPortIds_.push_back(itPort.first);
+    if (FLAGS_hide_fabric_ports) {
+      if (*platPorts.find(static_cast<int32_t>(itPort.first))
+               ->second.mapping()
+               ->portType() != cfg::PortType::FABRIC_PORT) {
+        masterLogicalPortIds_.push_back(itPort.first);
+      }
+    } else {
+      masterLogicalPortIds_.push_back(itPort.first);
+    }
   }
 }
 
@@ -252,8 +263,12 @@ void SaiPlatform::initPorts() {
       saiPort = std::make_unique<SaiSandiaPlatformPort>(portId, this);
     } else if (platformMode == PlatformMode::MAKALU) {
       saiPort = std::make_unique<SaiMakaluPlatformPort>(portId, this);
+    } else if (platformMode == PlatformMode::YANGRA) {
+      saiPort = std::make_unique<SaiYangraPlatformPort>(portId, this);
     } else if (platformMode == PlatformMode::KAMET) {
       saiPort = std::make_unique<SaiKametPlatformPort>(portId, this);
+    } else if (platformMode == PlatformMode::MONTBLANC) {
+      saiPort = std::make_unique<SaiBcmMontblancPlatformPort>(portId, this);
     } else {
       saiPort = std::make_unique<SaiFakePlatformPort>(portId, this);
     }
@@ -377,8 +392,9 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     }
   }
   std::optional<SaiSwitchTraits::Attributes::DllPath> dllPath;
-#if defined(SAI_VERSION_8_2_0_0_ODP) || \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP)
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
+    defined(SAI_VERSION_9_0_EA_SIM_ODP)
   auto platformMode = getMode();
   if (platformMode == PlatformMode::FUJI ||
       platformMode == PlatformMode::ELBERT) {

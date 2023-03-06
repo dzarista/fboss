@@ -134,19 +134,10 @@ struct PortFields {
   //     to this port.
   41: list<i32> interfaceIDs;
   42: list<switch_config.PortNeighbor> expectedNeighborReachability;
+  43: switch_config.PortDrainState drainState = switch_config.PortDrainState.UNDRAINED;
 }
 
-struct SystemPortFields {
-  1: i64 portId;
-  2: i64 switchId;
-  3: string portName; // switchId::portName
-  4: i64 coreIndex;
-  5: i64 corePortIndex;
-  6: i64 speedMbps;
-  7: i64 numVoqs;
-  9: bool enabled;
-  10: optional string qosPolicy;
-}
+typedef common.SystemPortThrift SystemPortFields
 
 struct TransceiverSpecFields {
   1: required i16 id;
@@ -571,7 +562,14 @@ struct SwitchState {
   501: map<i32, InterfaceFields> remoteInterfaceMap;
 }
 
+struct RouteTableFields {
+  1: map<string, RouteFields> v4NetworkToRoute;
+  2: map<string, RouteFields> v6NetworkToRoute;
+  3: map<i32, LabelForwardingEntryFields> labelToRoute;
+}
+
 struct WarmbootState {
   1: SwitchState swSwitchState;
+  2: map<i32, RouteTableFields> routeTables;
 // TODO: Extend for hwSwitchState
 }

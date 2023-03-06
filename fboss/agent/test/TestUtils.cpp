@@ -82,7 +82,14 @@ void initSwSwitchWithFlags(SwSwitch* sw, SwitchFlags flags) {
 unique_ptr<SwSwitch> createMockSw(
     const shared_ptr<SwitchState>& state,
     SwitchFlags flags) {
-  auto platform = createMockPlatform();
+  std::unique_ptr<MockPlatform> platform;
+  if (state) {
+    const auto& switchSettings = state->getSwitchSettings();
+    platform = createMockPlatform(
+        switchSettings->getSwitchType(), switchSettings->getSwitchId());
+  } else {
+    platform = createMockPlatform();
+  }
   return setupMockSwitchWithoutHW(std::move(platform), state, flags);
 }
 
@@ -123,7 +130,33 @@ void addRecyclePortRif(const cfg::DsfNode& myNode, cfg::SwitchConfig& cfg) {
   cfg.interfaces()->push_back(recyclePortRif);
 }
 
+cfg::SwitchConfig testConfigFabricSwitch() {
+  static constexpr auto kPortCount = 20;
+  cfg::SwitchConfig cfg;
+  cfg.switchSettings()->switchType() = cfg::SwitchType::FABRIC;
+  cfg.switchSettings()->switchId() = 2;
+  cfg.ports()->resize(kPortCount);
+  for (int p = 0; p < kPortCount; ++p) {
+    cfg.ports()[p].logicalID() = p + 1;
+    cfg.ports()[p].name() = folly::to<string>("port", p + 1);
+    cfg.ports()[p].state() = cfg::PortState::ENABLED;
+    cfg.ports()[p].speed() = cfg::PortSpeed::HUNDREDG;
+    cfg.ports()[p].speed() = cfg::PortSpeed::TWENTYFIVEG;
+    cfg.ports()[p].profileID() =
+        cfg::PortProfileID::PROFILE_25G_1_NRZ_CL74_COPPER;
+    cfg.ports()[p].portType() = cfg::PortType::FABRIC_PORT;
+  }
+  auto myNode = makeDsfNodeCfg(2, cfg::DsfNodeType::FABRIC_NODE);
+  cfg.dsfNodes()->insert({*myNode.switchId(), myNode});
+  cfg::DsfNode inNode = makeDsfNodeCfg(1);
+  cfg.dsfNodes()->insert({*inNode.switchId(), inNode});
+  return cfg;
+}
+
 cfg::SwitchConfig testConfigAImpl(bool isMhnic, cfg::SwitchType switchType) {
+  if (switchType == cfg::SwitchType::FABRIC) {
+    return testConfigFabricSwitch();
+  }
   cfg::SwitchConfig cfg;
   cfg.switchSettings()->switchType() = switchType;
   static constexpr auto kPortCount = 20;
@@ -217,9 +250,11 @@ cfg::SwitchConfig testConfigAImpl(bool isMhnic, cfg::SwitchType switchType) {
         cfg.interfaces()[i].name() = folly::sformat("fboss{}", intfId);
         cfg.interfaces()[i].mac() = "00:02:00:00:00:55";
         cfg.interfaces()[i].mtu() = 9000;
-        cfg.interfaces()[i].ipAddresses()->resize(1);
+        cfg.interfaces()[i].ipAddresses()->resize(2);
         cfg.interfaces()[i].ipAddresses()[0] = folly::sformat(
-            "2401:db00:2110:30{}::1/64", *cfg.ports()[i].logicalID());
+            "2401:db00:2110:30{:02d}::1/64", *cfg.ports()[i].logicalID());
+        cfg.interfaces()[i].ipAddresses()[1] =
+            folly::sformat("10.0.{}.1/24", *cfg.ports()[i].logicalID());
       }
       cfg::Port recyclePort;
       recyclePort.logicalID() = 1;
@@ -416,7 +451,14 @@ unique_ptr<HwTestHandle> createTestHandle(
   if (config) {
     for (const auto& port : *config->ports()) {
       auto id = *port.logicalID();
-      initialState->registerPort(PortID(id), folly::to<string>("port", id));
+      initialState->registerPort(
+          PortID(id), folly::to<string>("port", id), *port.portType());
+    }
+    initialState->getSwitchSettings()->setSwitchType(
+        *config->switchSettings()->switchType());
+    if (config->switchSettings()->switchId().has_value()) {
+      initialState->getSwitchSettings()->setSwitchId(
+          *config->switchSettings()->switchId());
     }
   }
 

@@ -39,72 +39,6 @@ class Vlan;
 using DhcpV4OverrideMap = std::map<folly::MacAddress, folly::IPAddressV4>;
 using DhcpV6OverrideMap = std::map<folly::MacAddress, folly::IPAddressV6>;
 
-struct VlanFields : public ThriftyFields<VlanFields, state::VlanFields> {
-  struct PortInfo {
-    explicit PortInfo(bool emitTags) : tagged(emitTags) {}
-    bool operator==(const PortInfo& other) const {
-      return tagged == other.tagged;
-    }
-    bool operator!=(const PortInfo& other) const {
-      return !(*this == other);
-    }
-    folly::dynamic toFollyDynamic() const;
-    static PortInfo fromFollyDynamic(const folly::dynamic& json);
-    bool tagged;
-  };
-  typedef boost::container::flat_map<PortID, PortInfo> MemberPorts;
-
-  VlanFields(VlanID id, std::string name);
-  VlanFields(
-      VlanID id,
-      std::string name,
-      InterfaceID intfID,
-      folly::IPAddressV4 dhcpV4Relay,
-      folly::IPAddressV6 dhcpV6Relay,
-      MemberPorts&& ports);
-
-  template <typename Fn>
-  void forEachChild(Fn fn) {
-    fn(arpTable.get());
-    fn(arpResponseTable.get());
-    fn(ndpTable.get());
-    fn(ndpResponseTable.get());
-    fn(macTable.get());
-  }
-
-  state::VlanFields toThrift() const override;
-  static VlanFields fromThrift(const state::VlanFields& vlanTh);
-
-  folly::dynamic toFollyDynamicLegacy() const;
-  static VlanFields fromFollyDynamicLegacy(const folly::dynamic& vlanJson);
-
-  // used primarily for testing
-  bool operator==(const VlanFields& other) const;
-
-  const VlanID id{0};
-  std::string name;
-  InterfaceID intfID{0};
-  // DHCP server IP for the DHCP relay
-  folly::IPAddressV4 dhcpV4Relay;
-  folly::IPAddressV6 dhcpV6Relay;
-  DhcpV4OverrideMap dhcpRelayOverridesV4;
-  DhcpV6OverrideMap dhcpRelayOverridesV6;
-  // The list of ports in the VLAN.
-  // We only store PortIDs, and not pointers to the actual Port objects.
-  // This way VLAN objects don't need to change when a Port object is modified.
-  //
-  // (Port state is copy-on-write, so when it changes a new copy of the Port
-  // object is created.  If we pointed at the Port object here we would also
-  // have to modify the Vlan object.  By storing only the PortID the Vlan does
-  // not need to be modified.)
-  MemberPorts ports;
-  std::shared_ptr<ArpTable> arpTable;
-  std::shared_ptr<ArpResponseTable> arpResponseTable;
-  std::shared_ptr<NdpTable> ndpTable;
-  std::shared_ptr<NdpResponseTable> ndpResponseTable;
-  std::shared_ptr<MacTable> macTable;
-};
-
 class Vlan;
 USE_THRIFT_COW(Vlan);
 RESOLVE_STRUCT_MEMBER(Vlan, switch_state_tags::arpTable, ArpTable)
@@ -122,37 +56,10 @@ RESOLVE_STRUCT_MEMBER(Vlan, switch_state_tags::macTable, MacTable)
 class Vlan : public ThriftStructNode<Vlan, state::VlanFields> {
  public:
   using Base = ThriftStructNode<Vlan, state::VlanFields>;
-  typedef VlanFields::PortInfo PortInfo;
   using MemberPorts = std::map<int16_t, bool>;
-  using LegacyFields = VlanFields;
 
   Vlan(VlanID id, std::string name);
   Vlan(const cfg::Vlan* config, MemberPorts ports);
-
-  static std::shared_ptr<Vlan> fromFollyDynamicLegacy(
-      const folly::dynamic& json) {
-    const auto fields = VlanFields::fromFollyDynamicLegacy(json);
-    return std::make_shared<Vlan>(fields.toThrift());
-  }
-
-  static std::shared_ptr<Vlan> fromFollyDynamic(const folly::dynamic& json) {
-    const auto fields = VlanFields::fromFollyDynamic(json);
-    return std::make_shared<Vlan>(fields.toThrift());
-  }
-
-  static std::shared_ptr<Vlan> fromJson(const folly::fbstring& jsonStr) {
-    return fromFollyDynamicLegacy(folly::parseJson(jsonStr));
-  }
-
-  folly::dynamic toFollyDynamicLegacy() const {
-    auto fields = VlanFields::fromThrift(toThrift());
-    return fields.toFollyDynamicLegacy();
-  }
-
-  folly::dynamic toFollyDynamic() const override {
-    auto fields = VlanFields::fromThrift(toThrift());
-    return fields.toFollyDynamic();
-  }
 
   VlanID getID() const {
     return static_cast<VlanID>(get<switch_state_tags::vlanId>()->cref());

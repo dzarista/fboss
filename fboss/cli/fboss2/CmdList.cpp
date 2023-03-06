@@ -29,7 +29,9 @@
 #include "fboss/cli/fboss2/commands/show/agent/CmdShowAgentSsl.h"
 #include "fboss/cli/fboss2/commands/show/aggregateport/CmdShowAggregatePort.h"
 #include "fboss/cli/fboss2/commands/show/arp/CmdShowArp.h"
+#include "fboss/cli/fboss2/commands/show/dsfnodes/CmdShowDsfNodes.h"
 #include "fboss/cli/fboss2/commands/show/fabric/CmdShowFabric.h"
+#include "fboss/cli/fboss2/commands/show/host/CmdShowHost.h"
 #include "fboss/cli/fboss2/commands/show/hwobject/CmdShowHwObject.h"
 #include "fboss/cli/fboss2/commands/show/interface/CmdShowInterface.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/CmdShowInterfaceCounters.h"
@@ -44,6 +46,7 @@
 #include "fboss/cli/fboss2/commands/show/interface/prbs/stats/CmdShowInterfacePrbsStats.h"
 #include "fboss/cli/fboss2/commands/show/interface/status/CmdShowInterfaceStatus.h"
 #include "fboss/cli/fboss2/commands/show/interface/traffic/CmdShowInterfaceTraffic.h"
+#include "fboss/cli/fboss2/commands/show/l2/CmdShowL2.h"
 #include "fboss/cli/fboss2/commands/show/lldp/CmdShowLldp.h"
 #include "fboss/cli/fboss2/commands/show/mac/CmdShowMacAddrToBlock.h"
 #include "fboss/cli/fboss2/commands/show/mac/CmdShowMacDetails.h"
@@ -55,6 +58,7 @@
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRouteDetails.h"
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRouteSummary.h"
 #include "fboss/cli/fboss2/commands/show/sdk/dump/CmdShowSdkDump.h"
+#include "fboss/cli/fboss2/commands/show/systemport/CmdShowSystemPort.h"
 #include "fboss/cli/fboss2/commands/show/teflow/CmdShowTeFlow.h"
 #include "fboss/cli/fboss2/commands/show/transceiver/CmdShowTransceiver.h"
 
@@ -96,6 +100,12 @@ const CommandTree& kCommandTree() {
        utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_NONE,
        "Show Fabric reachability",
        commandHandler<CmdShowFabric>},
+
+      {"show",
+       "dsfnodes",
+       utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_NONE,
+       "Show DsfNodes cluster",
+       commandHandler<CmdShowDsfNodes>},
 
       {"show",
        "lldp",
@@ -241,16 +251,35 @@ const CommandTree& kCommandTree() {
       },
 
       {"show",
+       "systemport",
+       utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_SYSTEM_PORT_LIST,
+       "Show system port information",
+       commandHandler<CmdShowSystemPort>,
+       getValidFilterHandler<CmdShowSystemPort>},
+
+      {"show",
        "teflow",
        utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_IPV6_LIST,
        "Show teflow information",
        commandHandler<CmdShowTeFlow>},
 
       {"show",
+       "host",
+       utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_NONE,
+       "Show Host Information",
+       commandHandler<CmdShowHost>},
+
+      {"show",
        "hw-object",
        utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_HW_OBJECT_LIST,
        "Show HW Objects",
        commandHandler<CmdShowHwObject>},
+
+      {"show",
+       "l2",
+       utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_NONE,
+       "Show L2 Packet Information",
+       commandHandler<CmdShowL2>},
 
       {"clear",
        "arp",

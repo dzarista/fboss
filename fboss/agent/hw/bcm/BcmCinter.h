@@ -290,6 +290,8 @@ class BcmCinter : public BcmSdkInterface, public BcmInterface {
       int* ethertype_array) override;
   int bcm_l3_egress_ecmp_member_status_set(int unit, bcm_if_t intf, int status)
       override;
+  int bcm_l3_egress_ecmp_member_status_get(int unit, bcm_if_t intf, int* status)
+      override;
   int bcm_switch_control_port_set(
       int unit,
       bcm_port_t port,
@@ -949,6 +951,19 @@ class BcmCinter : public BcmSdkInterface, public BcmInterface {
       int* /*intf_count*/) override {
     return 0;
   }
+
+  void bcm_l3_ecmp_dlb_port_quality_attr_t_init(
+      bcm_l3_ecmp_dlb_port_quality_attr_t* /*quality_attr*/) override {}
+
+  int bcm_l3_ecmp_dlb_port_quality_attr_set(
+      int /*unit*/,
+      bcm_port_t /*port*/,
+      bcm_l3_ecmp_dlb_port_quality_attr_t* /*quality_attr*/) override;
+
+  int bcm_l3_ecmp_dlb_port_quality_attr_get(
+      int /*unit*/,
+      bcm_port_t /*port*/,
+      bcm_l3_ecmp_dlb_port_quality_attr_t* /*quality_attr*/) override;
 
   int bcm_l3_enable_set(int unit, int enable) override;
 
@@ -2031,6 +2046,9 @@ class BcmCinter : public BcmSdkInterface, public BcmInterface {
   std::vector<std::string> cintForEcmpMembersArray(
       const bcm_l3_ecmp_member_t* members,
       int member_count);
+
+  std::vector<std::string> cintForDlbPortQualityAttr(
+      bcm_l3_ecmp_dlb_port_quality_attr_t quality_attr);
 
   std::vector<std::string> cintForPathsArray(
       const bcm_if_t* paths,

@@ -242,6 +242,28 @@ std::string getAdminDistanceStr(AdminDistance adminDistance) {
       std::to_string(static_cast<int>(adminDistance)));
 }
 
+const std::string removeFbDomains(const std::string& host) {
+  std::string hostCopy = host;
+  const RE2 fbDomains(".facebook.com$|.tfbnw.net$");
+  RE2::Replace(&hostCopy, fbDomains, "");
+  return hostCopy;
+}
+
+std::string getSpeedGbps(int64_t speedMbps) {
+  return std::to_string(speedMbps / 1000) + "G";
+}
+
+std::string getl2EntryTypeStr(L2EntryType l2EntryType) {
+  switch (l2EntryType) {
+    case L2EntryType::L2_ENTRY_TYPE_PENDING:
+      return "Pending";
+    case L2EntryType::L2_ENTRY_TYPE_VALIDATED:
+      return "Validated";
+    default:
+      return "Unknown";
+  }
+}
+
 bool comparePortName(
     const std::basic_string<char>& nameA,
     const std::basic_string<char>& nameB) {
@@ -275,6 +297,62 @@ bool comparePortName(
   }
 
   int ret;
+  if ((ret = moduleNameA.compare(moduleNameB)) != 0) {
+    return ret < 0;
+  }
+
+  if (moduleNumStrA.compare(moduleNumStrB) != 0) {
+    return stoi(moduleNumStrA) < stoi(moduleNumStrB);
+  }
+
+  if (portNumStrA.compare(portNumStrB) != 0) {
+    return stoi(portNumStrA) < stoi(portNumStrB);
+  }
+
+  return stoi(subportNumStrA) < stoi(subportNumStrB);
+}
+
+bool compareSystemPortName(
+    const std::basic_string<char>& nameA,
+    const std::basic_string<char>& nameB) {
+  static const RE2 exp("([^:]+):([a-z][a-z][a-z])(\\d+)/(\\d+)/(\\d)");
+  std::string switchNameA, moduleNameA, moduleNumStrA, portNumStrA,
+      subportNumStrA;
+  std::string switchNameB, moduleNameB, moduleNumStrB, portNumStrB,
+      subportNumStrB;
+  if (!RE2::FullMatch(
+          nameA,
+          exp,
+          &switchNameA,
+          &moduleNameA,
+          &moduleNumStrA,
+          &portNumStrA,
+          &subportNumStrA)) {
+    throw std::invalid_argument(folly::to<std::string>(
+        "Invalid port name: ",
+        nameA,
+        "\nPort name must match 'moduleNum/port/subport' pattern"));
+  }
+
+  if (!RE2::FullMatch(
+          nameB,
+          exp,
+          &switchNameB,
+          &moduleNameB,
+          &moduleNumStrB,
+          &portNumStrB,
+          &subportNumStrB)) {
+    throw std::invalid_argument(folly::to<std::string>(
+        "Invalid port name: ",
+        nameB,
+        "\nPort name must match 'moduleNum/port/subport' pattern"));
+  }
+
+  int ret;
+  if ((ret = switchNameA.compare(switchNameB)) != 0) {
+    return ret < 0;
+  }
+
   if ((ret = moduleNameA.compare(moduleNameB)) != 0) {
     return ret < 0;
   }

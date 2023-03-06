@@ -56,11 +56,7 @@ DEFINE_string(
     "/var/facebook/fboss/qsfp_service/phy",
     "Directory for storing phy persistent state");
 
-// Eventually we remove the whole xphy programming from wedge_agent.
-DEFINE_bool(
-    skip_xphy_programming,
-    true,
-    "Skip all xphy programming in wedge_agent");
+DEFINE_bool(hide_fabric_ports, false, "Elide ports of type fabric");
 
 namespace facebook::fboss {
 
@@ -147,7 +143,8 @@ void Platform::init(
     switchId = *switchSettings.switchId();
     const auto& dsfNodesConfig = *config_->thrift.sw()->dsfNodes();
     const auto& dsfNodeConfig = dsfNodesConfig.find(*switchId);
-    if (dsfNodeConfig != dsfNodesConfig.end()) {
+    if (dsfNodeConfig != dsfNodesConfig.end() &&
+        (*switchSettings.switchType() == cfg::SwitchType::VOQ)) {
       systemPortRange = *dsfNodeConfig->second.systemPortRange();
     }
   }

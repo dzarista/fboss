@@ -391,13 +391,14 @@ void SwSwitch::setFibSyncTimeForClient(ClientID clientId) {
 std::tuple<folly::dynamic, state::WarmbootState> SwSwitch::gracefulExitState()
     const {
   folly::dynamic follySwitchState = folly::dynamic::object;
+  state::WarmbootState thriftSwitchState;
   if (rib_) {
     // For RIB we employ a optmization to serialize only unresolved routes
     // and recover others from FIB
+    thriftSwitchState.routeTables() = rib_->warmBootState();
+    // TODO(pshaikh): delete rib's folly dynamic
     follySwitchState[kRib] = rib_->unresolvedRoutesFollyDynamic();
   }
-  // Only dump swSwitchState in thrift
-  state::WarmbootState thriftSwitchState;
   *thriftSwitchState.swSwitchState() = getAppliedState()->toThrift();
   return std::make_tuple(follySwitchState, thriftSwitchState);
 }
@@ -557,7 +558,7 @@ void SwSwitch::exitFatal() const noexcept {
   state::WarmbootState thriftSwitchState;
   *thriftSwitchState.swSwitchState() = getAppliedState()->toThrift();
   if (!dumpStateToFile(platform_->getCrashSwitchStateFile(), switchState) ||
-      !dumpThriftStateToFile(
+      !dumpBinaryThriftToFile(
           platform_->getCrashThriftSwitchStateFile(), thriftSwitchState)) {
     XLOG(ERR) << "Unable to write switch state JSON or Thrift to file";
   }
@@ -566,7 +567,7 @@ void SwSwitch::exitFatal() const noexcept {
 void SwSwitch::publishRxPacket(RxPacket* pkt, uint16_t ethertype) {
   RxPacketData pubPkt;
   pubPkt.srcPort = pkt->getSrcPort();
-  pubPkt.srcVlan = pkt->getSrcVlan();
+  pubPkt.srcVlan = getVlanIDHelper(pkt->getSrcVlanIf());
 
   for (const auto& r : pkt->getReasons()) {
     RxReason reason;
@@ -587,11 +588,14 @@ void SwSwitch::publishTxPacket(TxPacket* pkt, uint16_t ethertype) {
   pubPkt.packetData = copy_buf.moveToFbString();
 }
 
-void SwSwitch::init(std::unique_ptr<TunManager> tunMgr, SwitchFlags flags) {
+void SwSwitch::init(
+    HwSwitch::Callback* callback,
+    std::unique_ptr<TunManager> tunMgr,
+    SwitchFlags flags) {
   auto begin = steady_clock::now();
   flags_ = flags;
   auto hwInitRet = hw_->init(
-      this,
+      callback,
       false /*failHwCallsOnWarmboot*/,
       platform_->getAsic()->getSwitchType(),
       platform_->getAsic()->getSwitchId());
@@ -722,6 +726,10 @@ void SwSwitch::init(std::unique_ptr<TunManager> tunMgr, SwitchFlags flags) {
     logRouteUpdates("::", 0, kAllFibUpdates);
     logRouteUpdates("0.0.0.0", 0, kAllFibUpdates);
   }
+}
+
+void SwSwitch::init(std::unique_ptr<TunManager> tunMgr, SwitchFlags flags) {
+  this->init(this, std::move(tunMgr), flags);
 }
 
 void SwSwitch::initialConfigApplied(const steady_clock::time_point& startTime) {
@@ -1106,12 +1114,12 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
     // tasks before we fatal. An example would be to dump the current hw state.
     //
     // Another thing we could try here is rolling back to the old state.
+    XLOG(ERR) << "error applying state change to hardware: "
+              << folly::exceptionStr(ex);
     hw_->exitFatal();
 
     dumpBadStateUpdate(oldState, newState);
-
-    XLOG(FATAL) << "error applying state change to hardware: "
-                << folly::exceptionStr(ex);
+    XLOG(FATAL) << "encountered a fatal error: " << folly::exceptionStr(ex);
   }
 
   setStateInternal(newAppliedState);
@@ -1134,16 +1142,16 @@ void SwSwitch::dumpBadStateUpdate(
   // dump the previous state and target state to understand what led to the
   // crash
   utilCreateDir(platform_->getCrashBadStateUpdateDir());
-  if (!dumpStateToFile(
+  if (!dumpBinaryThriftToFile(
           platform_->getCrashBadStateUpdateOldStateFile(),
-          oldState->toFollyDynamic())) {
-    XLOG(ERR) << "Unable to write old switch state JSON to "
+          oldState->toThrift())) {
+    XLOG(ERR) << "Unable to write old switch state thrift to "
               << platform_->getCrashBadStateUpdateOldStateFile();
   }
-  if (!dumpStateToFile(
+  if (!dumpBinaryThriftToFile(
           platform_->getCrashBadStateUpdateNewStateFile(),
-          newState->toFollyDynamic())) {
-    XLOG(ERR) << "Unable to write new switch state JSON to "
+          newState->toThrift())) {
+    XLOG(ERR) << "Unable to write new switch state thrift to "
               << platform_->getCrashBadStateUpdateNewStateFile();
   }
 }
