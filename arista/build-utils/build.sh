@@ -90,18 +90,18 @@ alternatives --set python /usr/bin/python3
 # Install python3 module dependencies
 pip3 install GitPython
 
-SAI_DIR="$FBOSS_DIR/Jupiter_SAI/"
+SAI_DIR="$FBOSS_DIR/Aqua_SAI/"
 if [ $ARCH == "dnx" ];
 then
-   SAI_BUILD_DIR="$SAI_DIR/output/x86-dnx-deb"
+   SAI_BUILD_DIR="$SAI_DIR/output/x86-dnx-deb-static-meta"
 else
-   SAI_BUILD_DIR="$SAI_DIR/output/x86-xgsall-deb"
+   SAI_BUILD_DIR="$SAI_DIR/output/x86-xgsall-deb-static"
 fi
 
 # Delete SDK var in the env. It can cause the SDK build to fail.
 export SDK=""
 cd $SAI_BUILD_DIR
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.26_SAI_8.1.0_GA/$ARCH-sdk-6.5.26-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.28_SAI_9.0.0_EA/$ARCH-sdk-6.5.28-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
@@ -124,14 +124,14 @@ echo "======= Starting SDK build ========"
 cd $SAI_BUILD_DIR
 time make -j 8
 export KERNDIR="$KERNEL_SRC"
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.26_SAI_8.1.0_GA/$ARCH-sdk-6.5.26-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.28_SAI_9.0.0_EA/$ARCH-sdk-6.5.28-gpl-modules"
 cd $BCM_KERNEL_MODULES_DIR
 export SDK=$PWD
 make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
    kernel_version=2_6 LINUX_UAPI_SPLIT=1 kernel_modules
 
 # Need this defined for FBOSS operations below.
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.26_SAI_8.1.0_GA/$ARCH-sdk-6.5.26-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.28_SAI_9.0.0_EA/$ARCH-sdk-6.5.28-gpl-modules"
 
 # Instructions from
 # https://github.com/facebook/fboss/blob/main/installer/howto/Building_FBOSS_on_containers.md
