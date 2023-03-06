@@ -1,6 +1,7 @@
 // Copyright 2021-present Facebook. All Rights Reserved.
 #include "fboss/qsfp_service/TransceiverManager.h"
 
+#include <fb303/ThreadCachedServiceData.h>
 #include <folly/DynamicConverter.h>
 #include <folly/FileUtil.h>
 #include <folly/json.h>
@@ -46,6 +47,8 @@ constexpr auto kAgentConfigAppliedInfoStateKey = "agentConfigAppliedInfo";
 constexpr auto kAgentConfigLastAppliedInMsKey = "agentConfigLastAppliedInMs";
 constexpr auto kAgentConfigLastColdbootAppliedInMsKey =
     "agentConfigLastColdbootAppliedInMs";
+static constexpr auto kStateMachineThreadHeartbeatMissed =
+    "state_machine_thread_heartbeat_missed";
 } // namespace
 
 namespace facebook::fboss {
@@ -266,7 +269,12 @@ void TransceiverManager::startThreads() {
   heartbeatWatchdog_ = std::make_unique<ThreadHeartbeatWatchdog>(
       std::chrono::milliseconds(
           FLAGS_state_machine_update_thread_heartbeat_ms * 10),
-      [this]() { stateMachineThreadHeartbeatMissedCount_ += 1; });
+      [this]() {
+        stateMachineThreadHeartbeatMissedCount_ += 1;
+        tcData().setCounter(
+            kStateMachineThreadHeartbeatMissed,
+            stateMachineThreadHeartbeatMissedCount_);
+      });
   for (auto heartbeat : heartbeats_) {
     heartbeatWatchdog_->startMonitoringHeartbeat(heartbeat);
   }
@@ -482,11 +490,13 @@ bool TransceiverManager::getNeedResetDataPath(TransceiverID id) const {
 
 std::vector<TransceiverID> TransceiverManager::triggerProgrammingEvents() {
   std::vector<TransceiverID> programmedTcvrs;
-  int32_t numProgramIphy{0}, numProgramXphy{0}, numProgramTcvr{0};
+  int32_t numProgramIphy{0}, numProgramXphy{0}, numProgramTcvr{0},
+      numPrepareTcvr{0};
   BlockingStateUpdateResultList results;
   steady_clock::time_point begin = steady_clock::now();
   for (auto& stateMachine : stateMachines_) {
-    bool needProgramIphy{false}, needProgramXphy{false}, needProgramTcvr{false};
+    bool needProgramIphy{false}, needProgramXphy{false}, needProgramTcvr{false},
+        moduleStateReady{false};
     {
       const auto& lockedStateMachine =
           stateMachine.second->getStateMachine().rlock();
@@ -494,6 +504,9 @@ std::vector<TransceiverID> TransceiverManager::triggerProgrammingEvents() {
       needProgramXphy = !lockedStateMachine->get_attribute(isXphyProgrammed);
       needProgramTcvr =
           !lockedStateMachine->get_attribute(isTransceiverProgrammed);
+      moduleStateReady =
+          (getStateByOrder(*lockedStateMachine->current_state()) ==
+           TransceiverStateMachineState::TRANSCEIVER_READY);
     }
     auto tcvrID = stateMachine.first;
     if (needProgramIphy) {
@@ -511,10 +524,24 @@ std::vector<TransceiverID> TransceiverManager::triggerProgrammingEvents() {
         results.push_back(result);
       }
     } else if (needProgramTcvr) {
-      if (auto result = updateStateBlockingWithoutWait(
-              tcvrID, TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER)) {
+      std::shared_ptr<BlockingTransceiverStateMachineUpdateResult> result{
+          nullptr};
+
+      if (moduleStateReady) {
+        result = updateStateBlockingWithoutWait(
+            tcvrID, TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER);
+        if (result) {
+          ++numProgramTcvr;
+        }
+      } else {
+        result = updateStateBlockingWithoutWait(
+            tcvrID, TransceiverStateMachineEvent::PREPARE_TRANSCEIVER);
+        if (result) {
+          ++numPrepareTcvr;
+        }
+      }
+      if (result) {
         programmedTcvrs.push_back(tcvrID);
-        ++numProgramTcvr;
         results.push_back(result);
       }
     }
@@ -523,7 +550,8 @@ std::vector<TransceiverID> TransceiverManager::triggerProgrammingEvents() {
   XLOG_IF(DBG2, !programmedTcvrs.empty())
       << "triggerProgrammingEvents has " << numProgramIphy
       << " IPHY programming, " << numProgramXphy << " XPHY programming, "
-      << numProgramTcvr << " TCVR programming. Total execute time(ms):"
+      << numProgramTcvr << " TCVR programming, " << numPrepareTcvr
+      << " TCVR prepare. Total execute time(ms):"
       << duration_cast<milliseconds>(steady_clock::now() - begin).count();
   return programmedTcvrs;
 }
@@ -700,6 +728,25 @@ void TransceiverManager::programTransceiver(
              << " with speed=" << apache::thrift::util::enumNameSafe(speed)
              << (needResetDataPath ? " with" : " without")
              << " resetting data path";
+}
+
+/*
+ * readyTransceiver
+ *
+ * Calls the module type specific function to check their power control
+ * configuration and if needed, corrects it. Returns if the module is in ready
+ * state to proceed further with programming.
+ */
+bool TransceiverManager::readyTransceiver(TransceiverID id) {
+  auto lockedTransceivers = transceivers_.rlock();
+  auto tcvrIt = lockedTransceivers->find(id);
+  if (tcvrIt == lockedTransceivers->end()) {
+    XLOG(DBG2) << "Skip Ready Checking Transceiver=" << id
+               << ". Transeciver is not present";
+    return true;
+  }
+
+  return tcvrIt->second->readyTransceiver();
 }
 
 bool TransceiverManager::tryRemediateTransceiver(TransceiverID id) {

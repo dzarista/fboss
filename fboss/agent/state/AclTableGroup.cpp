@@ -27,52 +27,19 @@ constexpr auto kAclTableGroupName = "ingress-ACL-Table-Group";
 
 namespace facebook::fboss {
 
-folly::dynamic AclTableGroupFields::toFollyDynamic() const {
-  folly::dynamic aclTableGroup = folly::dynamic::object;
-  aclTableGroup[kAclStage] = static_cast<int>(*data().stage());
-  aclTableGroup[kName] = *data().name();
-  if (aclTableMap_) {
-    aclTableGroup[kAclTableMap] = aclTableMap_->toFollyDynamic();
-  }
-  return aclTableGroup;
-}
-
-AclTableGroupFields AclTableGroupFields::fromFollyDynamic(
-    const folly::dynamic& aclTableGroupJson) {
-  std::shared_ptr<AclTableMap> aclTableMap;
-  if (aclTableGroupJson.find(kAclTableMap) != aclTableGroupJson.items().end()) {
-    aclTableMap =
-        AclTableMap::fromFollyDynamic(aclTableGroupJson[kAclTableMap]);
-  }
-  AclTableGroupFields aclTableGroup(
-      cfg::AclStage(aclTableGroupJson[kAclStage].asInt()),
-      aclTableGroupJson[kName].asString(),
-      aclTableMap);
-
-  return aclTableGroup;
-}
-
-AclTableGroupFields AclTableGroupFields::createDefaultAclTableGroupFields(
-    const folly::dynamic& swJson) {
-  auto aclTableMap = AclTableMap::createDefaultAclTableMap(swJson);
-  AclTableGroupFields aclTableGroup(
-      cfg::AclStage::INGRESS, kAclTableGroupName, aclTableMap);
-
-  return aclTableGroup;
-}
-
-AclTableGroupFields
-AclTableGroupFields::createDefaultAclTableGroupFieldsFromThrift(
-    std::map<std::string, state::AclEntryFields> const& thriftMap) {
-  auto aclTableMap = AclTableMap::createDefaultAclTableMapFromThrift(thriftMap);
-  AclTableGroupFields aclTableGroup(
-      cfg::AclStage::INGRESS, kAclTableGroupName, aclTableMap);
-
-  return aclTableGroup;
-}
-
 AclTableGroup::AclTableGroup(cfg::AclStage stage) {
   set<switch_state_tags::stage>(stage);
+}
+
+std::shared_ptr<AclTableGroup>
+AclTableGroup::createDefaultAclTableGroupFromThrift(
+    const std::map<std::string, state::AclEntryFields>& aclMap) {
+  auto aclTableMap = AclTableMap::createDefaultAclTableMapFromThrift(aclMap);
+  state::AclTableGroupFields data{};
+  data.stage() = cfg::AclStage::INGRESS;
+  data.name() = kAclTableGroupName;
+  data.aclTableMap() = aclTableMap->toThrift();
+  return std::make_shared<AclTableGroup>(data);
 }
 
 template class ThriftStructNode<AclTableGroup, state::AclTableGroupFields>;

@@ -3,9 +3,9 @@
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwFabricUtils.h"
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 #include "fboss/agent/hw/test/HwTest.h"
+#include "fboss/agent/hw/test/HwTestFabricUtils.h"
 
 namespace facebook::fboss {
 
@@ -25,6 +25,11 @@ class HwFabricSwitchTest : public HwLinkStateDependentTest {
   void SetUp() override {
     HwLinkStateDependentTest::SetUp();
     ASSERT_EQ(getHwSwitch()->getSwitchType(), cfg::SwitchType::FABRIC);
+  }
+
+ private:
+  bool hideFabricPorts() const override {
+    return false;
   }
 };
 

@@ -29,7 +29,9 @@
 #include "fboss/cli/fboss2/commands/show/agent/CmdShowAgentSsl.h"
 #include "fboss/cli/fboss2/commands/show/aggregateport/CmdShowAggregatePort.h"
 #include "fboss/cli/fboss2/commands/show/arp/CmdShowArp.h"
+#include "fboss/cli/fboss2/commands/show/dsfnodes/CmdShowDsfNodes.h"
 #include "fboss/cli/fboss2/commands/show/fabric/CmdShowFabric.h"
+#include "fboss/cli/fboss2/commands/show/host/CmdShowHost.h"
 #include "fboss/cli/fboss2/commands/show/hwobject/CmdShowHwObject.h"
 #include "fboss/cli/fboss2/commands/show/interface/CmdShowInterface.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/CmdShowInterfaceCounters.h"
@@ -44,6 +46,7 @@
 #include "fboss/cli/fboss2/commands/show/interface/prbs/stats/CmdShowInterfacePrbsStats.h"
 #include "fboss/cli/fboss2/commands/show/interface/status/CmdShowInterfaceStatus.h"
 #include "fboss/cli/fboss2/commands/show/interface/traffic/CmdShowInterfaceTraffic.h"
+#include "fboss/cli/fboss2/commands/show/l2/CmdShowL2.h"
 #include "fboss/cli/fboss2/commands/show/lldp/CmdShowLldp.h"
 #include "fboss/cli/fboss2/commands/show/mac/CmdShowMacAddrToBlock.h"
 #include "fboss/cli/fboss2/commands/show/mac/CmdShowMacDetails.h"
@@ -55,6 +58,7 @@
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRouteDetails.h"
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRouteSummary.h"
 #include "fboss/cli/fboss2/commands/show/sdk/dump/CmdShowSdkDump.h"
+#include "fboss/cli/fboss2/commands/show/systemport/CmdShowSystemPort.h"
 #include "fboss/cli/fboss2/commands/show/teflow/CmdShowTeFlow.h"
 #include "fboss/cli/fboss2/commands/show/transceiver/CmdShowTransceiver.h"
 #include "fboss/cli/fboss2/utils/CmdClientUtils.h"
@@ -74,6 +78,7 @@
 #include "fboss/cli/fboss2/commands/show/agent/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/aggregateport/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/arp/gen-cpp2/model_visitation.h"
+#include "fboss/cli/fboss2/commands/show/dsfnodes/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/fabric/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/mka/gen-cpp2/model_visitation.h"
@@ -91,6 +96,7 @@
 #include "fboss/cli/fboss2/commands/show/ndp/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/port/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/route/gen-cpp2/model_visitation.h"
+#include "fboss/cli/fboss2/commands/show/systemport/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/transceiver/gen-cpp2/model_visitation.h"
 
 #include "fboss/agent/if/gen-cpp2/FbossCtrl.h"
@@ -242,6 +248,8 @@ template void
 CmdHandler<CmdShowAggregatePort, CmdShowAggregatePortTraits>::run();
 template void CmdHandler<CmdShowArp, CmdShowArpTraits>::run();
 template void CmdHandler<CmdShowFabric, CmdShowFabricTraits>::run();
+template void CmdHandler<CmdShowDsfNodes, CmdShowDsfNodesTraits>::run();
+template void CmdHandler<CmdShowL2, CmdShowL2Traits>::run();
 template void CmdHandler<CmdShowLldp, CmdShowLldpTraits>::run();
 template void
 CmdHandler<CmdShowMacAddrToBlock, CmdShowMacAddrToBlockTraits>::run();
@@ -249,6 +257,7 @@ template void CmdHandler<CmdShowMacDetails, CmdShowMacDetailsTraits>::run();
 template void CmdHandler<CmdShowNdp, CmdShowNdpTraits>::run();
 template void CmdHandler<CmdShowPort, CmdShowPortTraits>::run();
 template void CmdHandler<CmdShowPortQueue, CmdShowPortQueueTraits>::run();
+template void CmdHandler<CmdShowHost, CmdShowHostTraits>::run();
 template void CmdHandler<CmdShowHwObject, CmdShowHwObjectTraits>::run();
 template void CmdHandler<CmdShowInterface, CmdShowInterfaceTraits>::run();
 template void
@@ -275,6 +284,7 @@ CmdHandler<CmdShowInterfacePhymap, CmdShowInterfacePhymapTraits>::run();
 template void
 CmdHandler<CmdShowInterfaceTraffic, CmdShowInterfaceTrafficTraits>::run();
 template void CmdHandler<CmdShowSdkDump, CmdShowSdkDumpTraits>::run();
+template void CmdHandler<CmdShowSystemPort, CmdShowSystemPortTraits>::run();
 template void CmdHandler<CmdShowTransceiver, CmdShowTransceiverTraits>::run();
 
 template void CmdHandler<CmdClearInterface, CmdClearInterfaceTraits>::run();
@@ -305,6 +315,8 @@ template const ValidFilterMapType
 CmdHandler<CmdShowArp, CmdShowArpTraits>::getValidFilters();
 template const ValidFilterMapType
 CmdHandler<CmdShowFabric, CmdShowFabricTraits>::getValidFilters();
+template const ValidFilterMapType
+CmdHandler<CmdShowDsfNodes, CmdShowDsfNodesTraits>::getValidFilters();
 template const ValidFilterMapType
 CmdHandler<CmdShowLldp, CmdShowLldpTraits>::getValidFilters();
 template const ValidFilterMapType CmdHandler<
@@ -351,6 +363,8 @@ template const ValidFilterMapType CmdHandler<
     CmdShowInterfaceTrafficTraits>::getValidFilters();
 template const ValidFilterMapType
 CmdHandler<CmdShowSdkDump, CmdShowSdkDumpTraits>::getValidFilters();
+template const ValidFilterMapType
+CmdHandler<CmdShowSystemPort, CmdShowSystemPortTraits>::getValidFilters();
 template const ValidFilterMapType
 CmdHandler<CmdShowTransceiver, CmdShowTransceiverTraits>::getValidFilters();
 

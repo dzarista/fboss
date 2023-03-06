@@ -42,6 +42,8 @@ class MockSff8472Module : public Sff8472Module {
       : Sff8472Module(transceiverManager, std::move(qsfpImpl)) {
     ON_CALL(*this, updateQsfpData(testing::_))
         .WillByDefault(testing::Assign(&dirty_, false));
+    ON_CALL(*this, ensureTransceiverReadyLocked())
+        .WillByDefault(testing::Return(true));
   }
 
   MockSff8472TransceiverImpl* getTransceiverImpl() {
@@ -57,6 +59,7 @@ class MockSff8472Module : public Sff8472Module {
   MOCK_METHOD0(resetDataPath, void());
   MOCK_METHOD1(updateQsfpData, void(bool));
   MOCK_METHOD1(updateCachedTransceiverInfoLocked, void(ModuleStatus));
+  MOCK_METHOD0(ensureTransceiverReadyLocked, bool());
 };
 
 /*
@@ -82,6 +85,8 @@ class MockCmisModule : public CmisModule {
       : CmisModule(transceiverManager, std::move(qsfpImpl)) {
     ON_CALL(*this, updateQsfpData(testing::_))
         .WillByDefault(testing::Assign(&dirty_, false));
+    ON_CALL(*this, ensureTransceiverReadyLocked())
+        .WillByDefault(testing::Return(true));
   }
 
   MockCmisTransceiverImpl* getTransceiverImpl() {
@@ -98,6 +103,7 @@ class MockCmisModule : public CmisModule {
   MOCK_METHOD1(updateQsfpData, void(bool));
   MOCK_METHOD1(updateCachedTransceiverInfoLocked, void(ModuleStatus));
   MOCK_CONST_METHOD0(ensureOutOfReset, void());
+  MOCK_METHOD0(ensureTransceiverReadyLocked, bool());
 };
 
 /*
@@ -224,11 +230,13 @@ class TransceiverStateMachineTest : public TransceiverManagerTestHelper {
           overrideTcvrToPortAndProfile_);
       transceiverManager_->refreshStateMachines();
       // Because MockWedgeManager doesn't have PhyManager, so this second
-      // refreshStateMachines() will actually trigger programming xcvr
+      // refreshStateMachines() will actually trigger xcvr ready for prog
       transceiverManager_->refreshStateMachines();
     };
     auto setXcvtActiveState = [this, &programIphyAndXcvr](bool portUp) {
       programIphyAndXcvr();
+      // One more refresh() to get to programmed xcvr state
+      transceiverManager_->refreshStateMachines();
       transceiverManager_->setOverrideAgentPortStatusForTesting(
           portUp /* up */, true /* enabled */, false /* clearOnly */);
       transceiverManager_->refreshStateMachines();
@@ -259,8 +267,13 @@ class TransceiverStateMachineTest : public TransceiverManagerTestHelper {
         transceiverManager_->updateStateBlocking(
             id_, TransceiverStateMachineEvent::PROGRAM_XPHY);
         break;
+      case TransceiverStateMachineState::TRANSCEIVER_READY:
+        programIphyAndXcvr();
+        break;
       case TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED:
         programIphyAndXcvr();
+        transceiverManager_->updateStateBlocking(
+            id_, TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER);
         break;
       case TransceiverStateMachineState::ACTIVE:
         setXcvtActiveState(true);
@@ -285,6 +298,7 @@ class TransceiverStateMachineTest : public TransceiverManagerTestHelper {
         TransceiverStateMachineState::DISCOVERED,
         TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED,
         TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED,
+        TransceiverStateMachineState::TRANSCEIVER_READY,
         TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED,
         TransceiverStateMachineState::ACTIVE,
         TransceiverStateMachineState::INACTIVE,
@@ -551,11 +565,11 @@ TEST_F(TransceiverStateMachineTest, defaultState) {
 
 TEST_F(TransceiverStateMachineTest, detectTransceiver) {
   auto allStates = getAllStates();
-  // Only NOT_PRESENT can accept DETECT_TRANSCEIVER event
   verifyStateMachine(
       {TransceiverStateMachineState::NOT_PRESENT,
        TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED,
        TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED,
+       TransceiverStateMachineState::TRANSCEIVER_READY,
        TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED,
        TransceiverStateMachineState::INACTIVE},
       TransceiverStateMachineEvent::DETECT_TRANSCEIVER,
@@ -773,13 +787,41 @@ TEST_F(TransceiverStateMachineTest, programXphyFailed) {
       });
 }
 
-TEST_F(TransceiverStateMachineTest, programTransceiver) {
+TEST_F(TransceiverStateMachineTest, readyTransceiver) {
   auto allStates = getAllStates();
   // Both IPHY_PORTS_PROGRAMMED and XPHY_PORTS_PROGRAMMED
-  // can accept PROGRAM_TRANSCEIVER event
+  // can accept PREPARE_TRANSCEIVER event
   verifyStateMachine(
       {TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED,
        TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED},
+      TransceiverStateMachineEvent::PREPARE_TRANSCEIVER,
+      TransceiverStateMachineState::TRANSCEIVER_READY /* expected state */,
+      allStates,
+      [this]() {},
+      [this]() {
+        const auto& stateMachine =
+            transceiverManager_->getStateMachineForTesting(id_);
+        // Now isTransceiverProgrammed should be true
+        EXPECT_TRUE(stateMachine.get_attribute(isIphyProgrammed));
+        EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
+        EXPECT_TRUE(stateMachine.get_attribute(needMarkLastDownTime));
+        EXPECT_FALSE(stateMachine.get_attribute(needResetDataPath));
+      },
+      TransceiverType::MOCK_CMIS);
+  // Other states should not change even though we try to process the event
+  verifyStateUnchanged(
+      TransceiverStateMachineEvent::PREPARE_TRANSCEIVER,
+      allStates,
+      []() {} /* preUpdate */,
+      []() {} /* verify */,
+      TransceiverType::MOCK_CMIS);
+}
+
+TEST_F(TransceiverStateMachineTest, programTransceiver) {
+  auto allStates = getAllStates();
+  // TRANSCEIVER_READY state can accept PROGRAM_TRANSCEIVER event
+  verifyStateMachine(
+      {TransceiverStateMachineState::TRANSCEIVER_READY},
       TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER,
       TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED /* expected state */,
       allStates,
@@ -805,8 +847,7 @@ TEST_F(TransceiverStateMachineTest, programTransceiver) {
 
 TEST_F(TransceiverStateMachineTest, programTransceiverFailed) {
   std::set<TransceiverStateMachineState> stateSet = {
-      TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED,
-      TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED};
+      TransceiverStateMachineState::TRANSCEIVER_READY};
   // If any function inside QsfpModule::programTransceiver() failed,
   // state shouldn't change
   verifyStateUnchanged(
@@ -947,6 +988,7 @@ TEST_F(TransceiverStateMachineTest, removeTransceiver) {
   verifyStateMachine(
       {TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED,
        TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED,
+       TransceiverStateMachineState::TRANSCEIVER_READY,
        TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED,
        TransceiverStateMachineState::ACTIVE},
       TransceiverStateMachineEvent::REMOVE_TRANSCEIVER,
@@ -975,6 +1017,7 @@ TEST_F(TransceiverStateMachineTest, removeTransceiverFailed) {
   std::set<TransceiverStateMachineState> stateSet = {
       TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED,
       TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED,
+      TransceiverStateMachineState::TRANSCEIVER_READY,
       TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED,
       TransceiverStateMachineState::ACTIVE};
   // If never set port state to down, we can't change the state to NOT_PRESENT
@@ -1035,15 +1078,23 @@ TEST_F(TransceiverStateMachineTest, remediateCmisTransceiver) {
         const auto& stateMachine =
             transceiverManager_->getStateMachineForTesting(id_);
         EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
-        // Trigger a program transceiver which should fail because the cache is
+        // Trigger a prepare transceiver which should fail because the cache is
         // still dirty
         transceiverManager_->updateStateBlocking(
-            id_, TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER);
-        EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
+            id_, TransceiverStateMachineEvent::PREPARE_TRANSCEIVER);
         // Refresh the state machine again which will first do a successful
         // refresh and clear the dirty_ flag and then trigger
-        // PROGRAM_TRANSCEIVER
+        // PREPARE_TRANSCEIVER
         transceiverManager_->refreshStateMachines();
+        EXPECT_EQ(
+            transceiverManager_->getCurrentState(id_),
+            TransceiverStateMachineState::TRANSCEIVER_READY);
+        EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
+
+        // Next the program transceiver event will move it to xcvr programmed
+        // state
+        transceiverManager_->updateStateBlocking(
+            id_, TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER);
         EXPECT_FALSE(xcvr_->getDirty_());
         EXPECT_EQ(
             transceiverManager_->getCurrentState(id_),
@@ -1107,15 +1158,24 @@ TEST_F(TransceiverStateMachineTest, remediateSff8472Transceiver) {
         const auto& stateMachine =
             transceiverManager_->getStateMachineForTesting(id_);
         EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
-        // Trigger a program transceiver which should fail because the cache is
+        // Trigger a prepare transceiver which should fail because the cache is
         // still dirty
         transceiverManager_->updateStateBlocking(
-            id_, TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER);
-        EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
+            id_, TransceiverStateMachineEvent::PREPARE_TRANSCEIVER);
+
         // Refresh the state machine again which will first do a successful
         // refresh and clear the dirty_ flag and then trigger
-        // PROGRAM_TRANSCEIVER
+        // PREPARE_TRANSCEIVER
         transceiverManager_->refreshStateMachines();
+        EXPECT_EQ(
+            transceiverManager_->getCurrentState(id_),
+            TransceiverStateMachineState::TRANSCEIVER_READY);
+        EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
+
+        // Next trigger a program transceiver event which will move it to
+        // xcvr programmed state
+        transceiverManager_->updateStateBlocking(
+            id_, TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER);
         EXPECT_FALSE(xcvr_->getDirty_());
         EXPECT_EQ(
             transceiverManager_->getCurrentState(id_),
@@ -1174,10 +1234,10 @@ TEST_F(TransceiverStateMachineTest, remediateCmisTransceiverFailed) {
         ::testing::Sequence s;
         // Expect updateQsfpData and updateCachedTransceiverInfoLocked to be
         // called from refreshStateMachines() we do in verify() below
-        EXPECT_CALL(*mockXcvr, updateQsfpData(true)).Times(1).InSequence(s);
-        EXPECT_CALL(*mockXcvr, updateQsfpData(false)).Times(1).InSequence(s);
+        EXPECT_CALL(*mockXcvr, updateQsfpData(true)).Times(1);
+        EXPECT_CALL(*mockXcvr, updateQsfpData(false)).Times(2);
         EXPECT_CALL(*mockXcvr, updateCachedTransceiverInfoLocked(::testing::_))
-            .Times(1)
+            .Times(2)
             .InSequence(s);
         setProgramCmisModuleExpectation(true, s);
       },
@@ -1205,9 +1265,18 @@ TEST_F(TransceiverStateMachineTest, remediateCmisTransceiverFailed) {
 
         // Refresh the state machine again which will first do a successful
         // refresh and clear the dirty_ flag and then trigger
-        // PROGRAM_TRANSCEIVER
+        // PREPARE_TRANSCEIVER
         transceiverManager_->refreshStateMachines();
+        EXPECT_EQ(
+            transceiverManager_->getCurrentState(id_),
+            TransceiverStateMachineState::TRANSCEIVER_READY);
         EXPECT_FALSE(xcvr_->getDirty_());
+
+        // Next refresh() will trigger PROGRAM_TRANSCEIVER
+        transceiverManager_->refreshStateMachines();
+        EXPECT_EQ(
+            transceiverManager_->getCurrentState(id_),
+            TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED);
         const auto& afterProgrammingStateMachine =
             transceiverManager_->getStateMachineForTesting(id_);
         EXPECT_TRUE(afterProgrammingStateMachine.get_attribute(
@@ -1234,8 +1303,8 @@ TEST_F(TransceiverStateMachineTest, remediateSffTransceiver) {
 
         MockSffModule* mockXcvr = static_cast<MockSffModule*>(xcvr_);
         ::testing::InSequence s;
-        EXPECT_CALL(*mockXcvr, ensureTxEnabled()).Times(1);
         EXPECT_CALL(*mockXcvr, resetLowPowerMode()).Times(1);
+        EXPECT_CALL(*mockXcvr, ensureTxEnabled()).Times(1);
       },
       [this]() { triggerRemediateEvents(); },
       [this]() {
@@ -1246,15 +1315,22 @@ TEST_F(TransceiverStateMachineTest, remediateSffTransceiver) {
         const auto& stateMachine =
             transceiverManager_->getStateMachineForTesting(id_);
         EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
-        // Trigger a program transceiver which should fail because the cache is
+        // Trigger a prepare transceiver which should fail because the cache is
         // still dirty
         transceiverManager_->updateStateBlocking(
-            id_, TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER);
-        EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
+            id_, TransceiverStateMachineEvent::PREPARE_TRANSCEIVER);
         // Refresh the state machine again which will first do a successful
         // refresh and clear the dirty_ flag and then trigger
-        // PROGRAM_TRANSCEIVER
+        // PREPARE_TRANSCEIVER
         transceiverManager_->refreshStateMachines();
+        EXPECT_EQ(
+            transceiverManager_->getCurrentState(id_),
+            TransceiverStateMachineState::TRANSCEIVER_READY);
+        EXPECT_FALSE(stateMachine.get_attribute(isTransceiverProgrammed));
+
+        // Next trigger PROGRAM_TRANSCEIVER to move it to xcvr programmed
+        transceiverManager_->updateStateBlocking(
+            id_, TransceiverStateMachineEvent::PROGRAM_TRANSCEIVER);
         EXPECT_FALSE(xcvr_->getDirty_());
         EXPECT_EQ(
             transceiverManager_->getCurrentState(id_),
@@ -1278,8 +1354,8 @@ TEST_F(TransceiverStateMachineTest, remediateSffTransceiver) {
 
         MockSffModule* mockXcvr = static_cast<MockSffModule*>(xcvr_);
         ::testing::InSequence s;
-        EXPECT_CALL(*mockXcvr, ensureTxEnabled()).Times(0);
         EXPECT_CALL(*mockXcvr, resetLowPowerMode()).Times(0);
+        EXPECT_CALL(*mockXcvr, ensureTxEnabled()).Times(0);
       } /* preUpdate */,
       [this]() { triggerRemediateEvents(); },
       []() {} /* verify */,
@@ -1291,7 +1367,7 @@ TEST_F(TransceiverStateMachineTest, remediateSffTransceiverFailed) {
   enableRemediationTesting();
   std::set<TransceiverStateMachineState> stateSet = {
       TransceiverStateMachineState::INACTIVE};
-  // If ensureTxEnabled() failed, state shouldn't change
+  // If resetLowPowerMode() failed, state shouldn't change
   verifyStateUnchanged(
       stateSet,
       [this]() {
@@ -1303,10 +1379,10 @@ TEST_F(TransceiverStateMachineTest, remediateSffTransceiverFailed) {
 
         MockSffModule* mockXcvr = static_cast<MockSffModule*>(xcvr_);
         ::testing::InSequence s;
-        EXPECT_CALL(*mockXcvr, ensureTxEnabled())
+        EXPECT_CALL(*mockXcvr, resetLowPowerMode())
             .Times(2)
             .WillOnce(ThrowFbossError());
-        EXPECT_CALL(*mockXcvr, resetLowPowerMode()).Times(1);
+        EXPECT_CALL(*mockXcvr, ensureTxEnabled()).Times(1);
       },
       [this]() { triggerRemediateEvents(); },
       [this]() {
@@ -1333,9 +1409,10 @@ TEST_F(TransceiverStateMachineTest, remediateSffTransceiverFailed) {
 
         // Refresh the state machine again which will first do a successful
         // refresh and clear the dirty_ flag and then trigger
-        // PROGRAM_TRANSCEIVER
+        // PREPARE_TRANSCEIVER. Next refresh will trigger PROGRAM_TRANSCEIVER
         transceiverManager_->refreshStateMachines();
         EXPECT_FALSE(xcvr_->getDirty_());
+        transceiverManager_->refreshStateMachines();
         const auto& afterProgrammingStateMachine =
             transceiverManager_->getStateMachineForTesting(id_);
         EXPECT_TRUE(afterProgrammingStateMachine.get_attribute(
@@ -1354,6 +1431,7 @@ TEST_F(TransceiverStateMachineTest, agentConfigChangedWarmBoot) {
   verifyStateMachine(
       {TransceiverStateMachineState::ACTIVE,
        TransceiverStateMachineState::INACTIVE,
+       TransceiverStateMachineState::TRANSCEIVER_READY,
        TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED,
        TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED,
        TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED},
@@ -1392,6 +1470,7 @@ TEST_F(TransceiverStateMachineTest, agentConfigChangedColdBoot) {
   verifyStateMachine(
       {TransceiverStateMachineState::ACTIVE,
        TransceiverStateMachineState::INACTIVE,
+       TransceiverStateMachineState::TRANSCEIVER_READY,
        TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED,
        TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED,
        TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED},
@@ -1416,6 +1495,7 @@ TEST_F(TransceiverStateMachineTest, agentConfigChangedColdBoot) {
         // refresh twice state machine so that we can finish programming xcvr
         transceiverManager_->refreshStateMachines();
         transceiverManager_->refreshStateMachines();
+        transceiverManager_->refreshStateMachines();
         EXPECT_FALSE(stateMachine.get_attribute(needResetDataPath));
       } /* verify */,
       TransceiverType::MOCK_CMIS,
@@ -1436,6 +1516,7 @@ TEST_F(TransceiverStateMachineTest, agentConfigChangedWarmBootOnAbsentXcvr) {
   verifyStateMachine(
       {TransceiverStateMachineState::ACTIVE,
        TransceiverStateMachineState::INACTIVE,
+       TransceiverStateMachineState::TRANSCEIVER_READY,
        TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED,
        TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED,
        TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED},
@@ -1478,6 +1559,7 @@ TEST_F(TransceiverStateMachineTest, agentConfigChangedColdBootOnAbsentXcvr) {
   verifyStateMachine(
       {TransceiverStateMachineState::ACTIVE,
        TransceiverStateMachineState::INACTIVE,
+       TransceiverStateMachineState::TRANSCEIVER_READY,
        TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED,
        TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED,
        TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED},
@@ -1504,9 +1586,24 @@ TEST_F(TransceiverStateMachineTest, agentConfigChangedColdBootOnAbsentXcvr) {
         // Cold boot agent will need a reset data path for CMIS module
         EXPECT_TRUE(stateMachine.get_attribute(needResetDataPath));
 
-        // refresh twice state machine so that we can finish programming xcvr
+        // refresh thrice state machine so that we can finish programming xcvr
         transceiverManager_->refreshStateMachines();
+        EXPECT_TRUE(stateMachine.get_attribute(isIphyProgrammed));
+        EXPECT_EQ(
+            transceiverManager_->getCurrentState(id_),
+            TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED);
+
         transceiverManager_->refreshStateMachines();
+        EXPECT_EQ(
+            transceiverManager_->getCurrentState(id_),
+            TransceiverStateMachineState::TRANSCEIVER_READY);
+
+        transceiverManager_->refreshStateMachines();
+        EXPECT_TRUE(stateMachine.get_attribute(isTransceiverProgrammed));
+        EXPECT_EQ(
+            transceiverManager_->getCurrentState(id_),
+            TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED);
+
         EXPECT_FALSE(stateMachine.get_attribute(needResetDataPath));
       } /* verify */,
       TransceiverType::MOCK_CMIS,
@@ -1633,15 +1730,21 @@ TEST_F(TransceiverStateMachineTest, reseatTransceiver) {
       // valid
       MockCmisModule* mockXcvr = static_cast<MockCmisModule*>(xcvr_);
       ::testing::Sequence s;
-      EXPECT_CALL(*mockXcvr, updateQsfpData(false)).Times(1).InSequence(s);
+      EXPECT_CALL(*mockXcvr, updateQsfpData(false)).Times(2);
       EXPECT_CALL(*mockXcvr, updateCachedTransceiverInfoLocked(::testing::_))
-          .Times(1)
-          .InSequence(s);
+          .Times(2);
       setProgramCmisModuleExpectation(true);
     }
     // Refresh the state machine again which will first do a successful
     // refresh and clear the dirty_ flag and then trigger
-    // PROGRAM_TRANSCEIVER
+    // PREPARE_TRANSCEIVER. Next refresh will trigger PROGRAM_TRANSCEIVER
+    EXPECT_EQ(
+        transceiverManager_->getCurrentState(id_),
+        TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED);
+    transceiverManager_->refreshStateMachines();
+    EXPECT_EQ(
+        transceiverManager_->getCurrentState(id_),
+        TransceiverStateMachineState::TRANSCEIVER_READY);
     transceiverManager_->refreshStateMachines();
     if (!isRemoval) {
       // Only check when xcvr is there

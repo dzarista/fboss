@@ -25,8 +25,6 @@
 #include "fboss/agent/benchmarks/AgentBenchmarks.h"
 #include "fboss/agent/test/AgentEnsemble.h"
 
-DECLARE_bool(json);
-
 namespace facebook::fboss {
 
 /*
@@ -43,7 +41,6 @@ void routeAddDelBenchmarker(bool measureAdd) {
         return utility::onePortPerInterfaceConfig(hwSwitch, ports);
       };
   auto ensemble = createAgentEnsemble(initialConfigFn);
-  ensemble->startAgent();
   auto* sw = ensemble->getSw();
 
   auto routeGenerator = RouteScaleGeneratorT(sw->getState());

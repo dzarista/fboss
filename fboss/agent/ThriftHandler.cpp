@@ -598,6 +598,77 @@ PortLoopbackMode toThriftLoopbackMode(cfg::PortLoopbackMode mode) {
   }
   throw FbossError("Bogus loopback mode: ", mode);
 }
+// NOTE : pass by value of state is deliberate. We want to bump
+// a reference cnt and not have sw switch state deleted from
+// underneath us due to parallel updates
+template <typename AddressT, typename NeighborThriftT>
+void addRemoteNeighbors(
+    const std::shared_ptr<SwitchState> state,
+    std::vector<NeighborThriftT>& nbrs) {
+  if (state->getSwitchSettings()->getSwitchType() != cfg::SwitchType::VOQ) {
+    return;
+  }
+
+  CHECK(state->getSwitchSettings()->getSwitchId().has_value());
+  for (auto& nbr : nbrs) {
+    nbr.switchId() = *state->getSwitchSettings()->getSwitchId();
+  }
+  const auto& remoteRifs = state->getRemoteInterfaces();
+  const auto& remoteSysPorts = state->getRemoteSystemPorts();
+  for (const auto& idAndRif : std::as_const(*remoteRifs)) {
+    const auto& rif = idAndRif.second;
+    const auto& nbrTable =
+        std::as_const(*rif->getNeighborEntryTable<AddressT>());
+    for (const auto& ipAndEntry : nbrTable) {
+      const auto& entry = ipAndEntry.second;
+      NeighborThriftT nbrThrift;
+      nbrThrift.ip() = facebook::network::toBinaryAddress(entry->getIP());
+      nbrThrift.mac() = entry->getMac().toString();
+      CHECK(rif->getSystemPortID().has_value());
+      nbrThrift.port() = static_cast<int32_t>(*rif->getSystemPortID());
+      nbrThrift.vlanName() = "--";
+      nbrThrift.state() = "--";
+      nbrThrift.isLocal() = false;
+      const auto& sysPort =
+          remoteSysPorts->getSystemPortIf(*rif->getSystemPortID());
+      if (sysPort) {
+        nbrThrift.switchId() = static_cast<int64_t>(sysPort->getSwitchId());
+      }
+      nbrs.push_back(nbrThrift);
+    }
+  }
+}
+template <typename AddressT, typename NeighborThriftT>
+void addRecylePortRifNeighbors(
+    const std::shared_ptr<SwitchState> state,
+    std::vector<NeighborThriftT>& nbrs) {
+  if (state->getSwitchSettings()->getSwitchType() != cfg::SwitchType::VOQ) {
+    return;
+  }
+
+  constexpr auto kRecylePortId = 1;
+  auto localRecycleRifId = InterfaceID(
+      *state->getSwitchSettings()->getSystemPortRange()->minimum() +
+      kRecylePortId);
+  const auto& localRecycleRif =
+      state->getInterfaces()->getInterface(localRecycleRifId);
+  const auto& nbrTable =
+      std::as_const(*localRecycleRif->getNeighborEntryTable<AddressT>());
+  for (const auto& ipAndEntry : nbrTable) {
+    const auto& entry = ipAndEntry.second;
+    NeighborThriftT nbrThrift;
+    nbrThrift.ip() = facebook::network::toBinaryAddress(entry->getIP());
+    nbrThrift.mac() = entry->getMac().toString();
+    nbrThrift.port() = kRecylePortId;
+    nbrThrift.vlanName() = "--";
+    nbrThrift.state() = "--";
+    nbrThrift.isLocal() = true;
+    nbrThrift.switchId() =
+        static_cast<int64_t>(*state->getSwitchSettings()->getSwitchId());
+
+    nbrs.push_back(nbrThrift);
+  }
+}
 } // namespace
 
 namespace facebook::fboss {
@@ -720,6 +791,7 @@ void ThriftHandler::addUnicastRoutesInVrf(
   auto clientName = apache::thrift::util::enumNameSafe(ClientID(client));
   auto log = LOG_THRIFT_CALL(DBG1, clientName);
   ensureConfigured(__func__);
+  ensureNotFabric(__func__);
   updateUnicastRoutesImpl(vrf, client, routes, "addUnicastRoutesInVrf", false);
 }
 
@@ -745,6 +817,7 @@ void ThriftHandler::deleteUnicastRoutesInVrf(
   auto clientName = apache::thrift::util::enumNameSafe(ClientID(client));
   auto log = LOG_THRIFT_CALL(DBG1, clientName);
   ensureConfigured(__func__);
+  ensureNotFabric(__func__);
 
   auto updater = sw_->getRouteUpdater();
   auto routerID = RouterID(vrf);
@@ -834,7 +907,9 @@ static void populateInterfaceDetail(
     const std::shared_ptr<Interface> intf) {
   *interfaceDetail.interfaceName() = intf->getName();
   *interfaceDetail.interfaceId() = intf->getID();
-  *interfaceDetail.vlanId() = intf->getVlanID();
+  if (intf->getVlanIDIf().has_value()) {
+    *interfaceDetail.vlanId() = intf->getVlanID();
+  }
   *interfaceDetail.routerId() = intf->getRouterID();
   *interfaceDetail.mtu() = intf->getMtu();
   *interfaceDetail.mac() = intf->getMac().toString();
@@ -894,6 +969,8 @@ void ThriftHandler::getNdpTable(std::vector<NdpEntryThrift>& ndpTable) {
       ndpTable.begin(),
       std::make_move_iterator(std::begin(entries)),
       std::make_move_iterator(std::end(entries)));
+  addRecylePortRifNeighbors<folly::IPAddressV6>(sw_->getState(), ndpTable);
+  addRemoteNeighbors<folly::IPAddressV6>(sw_->getState(), ndpTable);
 }
 
 void ThriftHandler::getArpTable(std::vector<ArpEntryThrift>& arpTable) {
@@ -905,6 +982,8 @@ void ThriftHandler::getArpTable(std::vector<ArpEntryThrift>& arpTable) {
       arpTable.begin(),
       std::make_move_iterator(std::begin(entries)),
       std::make_move_iterator(std::end(entries)));
+  addRecylePortRifNeighbors<folly::IPAddressV4>(sw_->getState(), arpTable);
+  addRemoteNeighbors<folly::IPAddressV4>(sw_->getState(), arpTable);
 }
 
 void ThriftHandler::getL2Table(std::vector<L2EntryThrift>& l2Table) {
@@ -2031,6 +2110,28 @@ void ThriftHandler::ensureConfigured(StringPiece function) const {
       "fully configured yet");
 }
 
+void ThriftHandler::ensureNPU(StringPiece function) const {
+  ensureConfigured(function);
+  if (isNpuSwitch()) {
+    return;
+  }
+
+  if (!function.empty()) {
+    XLOG(DBG1) << function << " only supported on NPU Switch type: ";
+  }
+  throw FbossError(function, " is only supported on NPU switch type");
+}
+
+void ThriftHandler::ensureNotFabric(StringPiece function) const {
+  ensureConfigured(function);
+  if (isFabricSwitch()) {
+    if (!function.empty()) {
+      XLOG(DBG1) << function << " not supported on Fabric Switch type: ";
+    }
+    throw FbossError(function, " not supported on Fabric switch type");
+  }
+}
+
 // If this is a premature client disconnect from a duplex connection, we need to
 // clean up state.  Failure to do so may allow the server's duplex clients to
 // use the destroyed context => segfaults.
@@ -2436,8 +2537,27 @@ void ThriftHandler::getBlockedNeighbors(
   }
 }
 
+bool ThriftHandler::isSwitchType(cfg::SwitchType switchType) const {
+  return sw_->getState()->getSwitchSettings()->getSwitchType() == switchType;
+}
+
+bool ThriftHandler::isFabricSwitch() const {
+  return isSwitchType(cfg::SwitchType::FABRIC);
+}
+
+bool ThriftHandler::isVoqSwitch() const {
+  return isSwitchType(cfg::SwitchType::VOQ);
+}
+
+bool ThriftHandler::isNpuSwitch() const {
+  return isSwitchType(cfg::SwitchType::NPU);
+}
+
 void ThriftHandler::setNeighborsToBlock(
     std::unique_ptr<std::vector<cfg::Neighbor>> neighborsToBlock) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  ensureNPU(__func__);
   std::string neighborsToBlockStr;
   std::vector<std::pair<VlanID, folly::IPAddress>> blockNeighbors;
 
@@ -2467,8 +2587,6 @@ void ThriftHandler::setNeighborsToBlock(
           folly::IPAddress(*neighborToBlock.ipAddress()));
     }
   }
-
-  auto log = LOG_THRIFT_CALL(DBG1, neighborsToBlockStr);
 
   sw_->updateStateBlocking(
       "Update blocked neighbors ",
@@ -2500,6 +2618,8 @@ void ThriftHandler::getMacAddrsToBlock(
 
 void ThriftHandler::setMacAddrsToBlock(
     std::unique_ptr<std::vector<cfg::MacAndVlan>> macAddrsToBlock) {
+  ensureConfigured(__func__);
+  ensureNPU(__func__);
   std::string macAddrsToBlockStr;
   std::vector<std::pair<VlanID, folly::MacAddress>> blockMacAddrs;
 
@@ -2595,8 +2715,39 @@ void ThriftHandler::addTeFlows(
 void ThriftHandler::addTeFlowsImpl(
     std::shared_ptr<SwitchState>* state,
     const std::vector<FlowEntry>& teFlowEntries) const {
+  auto exactMatchTableConfigs =
+      (*state)->getSwitchSettings()->getExactMatchTableConfig()->toThrift();
+  std::string teFlowTableName(cfg::switch_config_constants::TeFlowTableName());
+  auto dstIpPrefixLength = 0;
+  for (const auto& tableConfig : exactMatchTableConfigs) {
+    if ((tableConfig.name() == teFlowTableName) &&
+        tableConfig.dstPrefixLength().has_value()) {
+      dstIpPrefixLength = tableConfig.dstPrefixLength().value();
+    }
+  }
+  if (!dstIpPrefixLength) {
+    throw FbossError("Invalid dstIpPrefixLength configuration");
+  }
+
   auto teFlowTable = (*state)->getTeFlowTable().get()->modify(state);
   for (const auto& teFlowEntry : teFlowEntries) {
+    if (!teFlowEntry.flow()->dstPrefix().has_value() ||
+        !teFlowEntry.flow()->srcPort().has_value()) {
+      throw FbossError("Invalid dstPrefix or srcPort in TeFlow entry");
+    }
+
+    auto prefix = teFlowEntry.flow()->dstPrefix().value();
+    if (*prefix.prefixLength() != dstIpPrefixLength) {
+      std::string flowString{};
+      folly::IPAddress ipaddr = network::toIPAddress(*prefix.ip());
+      flowString.append(fmt::format(
+          "dstPrefix:{}/{},srcPort:{}",
+          ipaddr.str(),
+          *prefix.prefixLength(),
+          teFlowEntry.flow()->srcPort().value()));
+      throw FbossError("Invalid prefix length in TeFlow entry: ", flowString);
+    }
+
     teFlowTable = teFlowTable->addTeFlowEntry(state, teFlowEntry);
   }
 }
@@ -2657,6 +2808,8 @@ void ThriftHandler::getTeFlowTableDetails(
 
 void ThriftHandler::getFabricReachability(
     std::map<std::string, FabricEndpoint>& reachability) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
   auto portId2FabricEndpoint = sw_->getHw()->getFabricReachability();
   auto state = sw_->getState();
   static MakaluPlatformMapping makalu;
@@ -2666,9 +2819,15 @@ void ThriftHandler::getFabricReachability(
   for (auto [portId, fabricEndpoint] : portId2FabricEndpoint) {
     auto portName = state->getPorts()->getPort(portId)->getName();
     if (*fabricEndpoint.isAttached()) {
-      if (fabricEndpoint.switchType() == cfg::SwitchType::FABRIC) {
+      // Some SAI implementations don't support setting non-0 switchID for
+      // Fabric switches. For such implementations, FBOSS sets switchID=0 for
+      // Fabric switches. Thus, ignore received switchID for Fabric switches on
+      // these implementations.
+      if (fabricEndpoint.switchType() == cfg::SwitchType::FABRIC &&
+          fabricEndpoint.switchId() == 0) {
         fabricEndpoint.switchId() = -1;
       }
+
       auto swId = *fabricEndpoint.switchId();
       auto node = state->getDsfNodes()->getDsfNodeIf(SwitchID(swId));
       // Pull platform mapping of remote end. Used to lookup remote
@@ -2705,6 +2864,11 @@ void ThriftHandler::getFabricReachability(
             }
             break;
           case cfg::AsicType::ASIC_TYPE_INDUS:
+            /*
+             * TODO: Introduce platform mode and use it create platofrm mapping
+             * instead of the ASIC. Certain platforms like Yangra/Makalu will
+             * use the same ASIC but different platform
+             */
             platformMapping = &makalu;
             remotePortOffset = 256;
             break;
@@ -2727,6 +2891,19 @@ void ThriftHandler::getFabricReachability(
 }
 
 void ThriftHandler::getDsfNodes(std::map<int64_t, cfg::DsfNode>& dsfNodes) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
   dsfNodes = sw_->getState()->getDsfNodes()->toThrift();
 }
+
+void ThriftHandler::getSystemPorts(
+    std::map<int64_t, SystemPortThrift>& sysPorts) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  auto state = sw_->getState();
+  sysPorts = state->getSystemPorts()->toThrift();
+  auto remoteSysPorts = state->getRemoteSystemPorts()->toThrift();
+  sysPorts.merge(remoteSysPorts);
+}
+
 } // namespace facebook::fboss

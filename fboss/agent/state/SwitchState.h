@@ -26,6 +26,7 @@
 #include "fboss/agent/state/BufferPoolConfigMap.h"
 #include "fboss/agent/state/ControlPlane.h"
 #include "fboss/agent/state/DsfNodeMap.h"
+#include "fboss/agent/state/FlowletSwitchingConfig.h"
 #include "fboss/agent/state/ForwardingInformationBaseMap.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/InterfaceMap.h"
@@ -61,103 +62,7 @@ class SwitchSettings;
 class QcmCfg;
 class BufferPoolCfg;
 class BufferPoolCfgMap;
-
-struct SwitchStateFields
-    : public ThriftyFields<SwitchStateFields, state::SwitchState> {
-  SwitchStateFields();
-
-  explicit SwitchStateFields(const state::SwitchState& data) {
-    writableData() = data;
-  }
-  template <typename Fn>
-  void forEachChild(Fn fn) {
-    fn(ports.get());
-    fn(aggPorts.get());
-    fn(vlans.get());
-    fn(interfaces.get());
-    fn(acls.get());
-    fn(aclTableGroups.get());
-    fn(sFlowCollectors.get());
-    fn(qosPolicies.get());
-    fn(controlPlane.get());
-    fn(loadBalancers.get());
-    fn(mirrors.get());
-    fn(fibs.get());
-    fn(labelFib.get());
-    fn(switchSettings.get());
-    fn(transceivers.get());
-    fn(systemPorts.get());
-    fn(ipTunnels.get());
-    fn(teFlowTable.get());
-    fn(remoteSystemPorts.get());
-    fn(remoteInterfaces.get());
-    fn(dsfNodes.get());
-  }
-
-  state::SwitchState toThrift() const override;
-  static SwitchStateFields fromThrift(const state::SwitchState& state);
-
-  // Used for testing thrifty conversion
-  bool operator==(const SwitchStateFields& other) const;
-
-  /*
-   * Reconstruct object from folly::dynamic
-   */
-  static SwitchStateFields fromFollyDynamic(const folly::dynamic& json);
-
-  // Static state, which can be accessed without locking.
-  std::shared_ptr<PortMap> ports;
-  std::shared_ptr<AggregatePortMap> aggPorts;
-  std::shared_ptr<VlanMap> vlans;
-  std::shared_ptr<InterfaceMap> interfaces;
-  std::shared_ptr<AclMap> acls;
-  std::shared_ptr<AclTableGroupMap> aclTableGroups;
-  std::shared_ptr<SflowCollectorMap> sFlowCollectors;
-  std::shared_ptr<QosPolicyMap> qosPolicies;
-  std::shared_ptr<ControlPlane> controlPlane;
-  std::shared_ptr<LoadBalancerMap> loadBalancers;
-  std::shared_ptr<MirrorMap> mirrors;
-  std::shared_ptr<ForwardingInformationBaseMap> fibs;
-  std::shared_ptr<LabelForwardingInformationBase> labelFib;
-  std::shared_ptr<SwitchSettings> switchSettings;
-  std::shared_ptr<QcmCfg> qcmCfg;
-  std::shared_ptr<BufferPoolCfgMap> bufferPoolCfgs;
-  std::shared_ptr<TransceiverMap> transceivers;
-  std::shared_ptr<SystemPortMap> systemPorts;
-  std::shared_ptr<IpTunnelMap> ipTunnels;
-  std::shared_ptr<TeFlowTable> teFlowTable;
-  std::shared_ptr<DsfNodeMap> dsfNodes;
-  VlanID defaultVlan{0};
-
-  std::shared_ptr<QosPolicy> defaultDataPlaneQosPolicy;
-  // Remote objects
-  std::shared_ptr<SystemPortMap> remoteSystemPorts;
-  std::shared_ptr<InterfaceMap> remoteInterfaces;
-  std::shared_ptr<UdfConfig> udfConfig;
-
-  // Timeout settings
-  // TODO(aeckert): Figure out a nicer way to store these config fields
-  // in an accessible way
-  std::chrono::seconds arpTimeout{60};
-  std::chrono::seconds ndpTimeout{60};
-  std::chrono::seconds arpAgerInterval{5};
-
-  // NeighborCache configuration values
-  // Keep maxNeighborProbes sufficiently large
-  // so we don't expire arp/ndp entries during
-  // agent restart on our neighbors
-  uint32_t maxNeighborProbes{300};
-  std::chrono::seconds staleEntryInterval{10};
-  // source IP of the DHCP relay pkt to the DHCP server
-  folly::IPAddressV4 dhcpV4RelaySrc;
-  folly::IPAddressV6 dhcpV6RelaySrc;
-  // source IP of the DHCP reply pkt to the client host
-  folly::IPAddressV4 dhcpV4ReplySrc;
-  folly::IPAddressV6 dhcpV6ReplySrc;
-
-  // PFC watchdog recovery action configuration
-  std::optional<cfg::PfcWatchdogRecoveryAction> pfcWatchdogRecoveryAction{};
-};
+class FlowletSwitchingConfig;
 
 USE_THRIFT_COW(SwitchState);
 RESOLVE_STRUCT_MEMBER(SwitchState, switch_state_tags::portMap, PortMap);
@@ -233,6 +138,10 @@ RESOLVE_STRUCT_MEMBER(
     QosPolicy);
 RESOLVE_STRUCT_MEMBER(SwitchState, switch_state_tags::qcmCfg, QcmCfg);
 RESOLVE_STRUCT_MEMBER(SwitchState, switch_state_tags::udfConfig, UdfConfig);
+RESOLVE_STRUCT_MEMBER(
+    SwitchState,
+    switch_state_tags::flowletSwitchingConfig,
+    FlowletSwitchingConfig);
 
 /*
  * SwitchState stores the current switch configuration.
@@ -500,6 +409,11 @@ class SwitchState : public ThriftStructNode<SwitchState, state::SwitchState> {
     return cref<switch_state_tags::udfConfig>();
   }
 
+  const std::shared_ptr<FlowletSwitchingConfig>& getFlowletSwitchingConfig()
+      const {
+    return cref<switch_state_tags::flowletSwitchingConfig>();
+  }
+
   /*
    * Remote objects
    */
@@ -524,7 +438,10 @@ class SwitchState : public ThriftStructNode<SwitchState, state::SwitchState> {
    * state.
    */
 
-  void registerPort(PortID id, const std::string& name);
+  void registerPort(
+      PortID id,
+      const std::string& name,
+      cfg::PortType portType = cfg::PortType::INTERFACE_PORT);
   void addPort(const std::shared_ptr<Port>& port);
   void resetPorts(std::shared_ptr<PortMap> ports);
   void resetAggregatePorts(std::shared_ptr<AggregatePortMap> aggPorts);
@@ -560,6 +477,8 @@ class SwitchState : public ThriftStructNode<SwitchState, state::SwitchState> {
   std::shared_ptr<AclTableGroupMap>& getAclTablesForStage(
       const folly::dynamic& swJson);
   void resetUdfConfig(std::shared_ptr<UdfConfig> udf);
+  void resetFlowletSwitchingConfig(
+      std::shared_ptr<FlowletSwitchingConfig> flowletSwitchingConfig);
 
   void resetRemoteSystemPorts(std::shared_ptr<SystemPortMap> systemPorts);
   void resetRemoteIntfs(std::shared_ptr<InterfaceMap> intfs);

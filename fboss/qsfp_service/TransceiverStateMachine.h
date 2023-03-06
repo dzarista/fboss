@@ -133,6 +133,7 @@ BOOST_MSM_EUML_STATE((), TRANSCEIVER_PROGRAMMED)
 BOOST_MSM_EUML_STATE((activeStateEntry), ACTIVE)
 BOOST_MSM_EUML_STATE((markLastDownTime), INACTIVE)
 BOOST_MSM_EUML_STATE((), UPGRADING)
+BOOST_MSM_EUML_STATE((), TRANSCEIVER_READY)
 
 // Transceiver State Machine Events
 BOOST_MSM_EUML_EVENT(DETECT_TRANSCEIVER)
@@ -151,6 +152,7 @@ BOOST_MSM_EUML_EVENT(REMOVE_TRANSCEIVER)
 // Remediate transceiver will reset back to XPHY_PORTS_PROGRAMMED so that we'll
 // trigger a `PROGRAM_TRANSCEIVER` later
 BOOST_MSM_EUML_EVENT(REMEDIATE_TRANSCEIVER)
+BOOST_MSM_EUML_EVENT(PREPARE_TRANSCEIVER)
 
 // Module State Machine Actions
 template <class State>
@@ -165,6 +167,8 @@ TransceiverStateMachineState stateToStateEnum(State& /* state */) {
     return TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED;
   } else if constexpr (std::is_same_v<State, decltype(XPHY_PORTS_PROGRAMMED)>) {
     return TransceiverStateMachineState::XPHY_PORTS_PROGRAMMED;
+  } else if constexpr (std::is_same_v<State, decltype(TRANSCEIVER_READY)>) {
+    return TransceiverStateMachineState::TRANSCEIVER_READY;
   } else if constexpr (std::
                            is_same_v<State, decltype(TRANSCEIVER_PROGRAMMED)>) {
     return TransceiverStateMachineState::TRANSCEIVER_PROGRAMMED;
@@ -268,6 +272,34 @@ bool operator()(
 }
 };
 
+BOOST_MSM_EUML_ACTION(readyTransceiver) {
+template <class Event, class Fsm, class Source, class Target>
+bool operator()(
+    const Event& /* ev */,
+    Fsm& fsm,
+    Source& /* src */,
+    Target& /* trg */) {
+  auto tcvrID = fsm.get_attribute(transceiverID);
+  try {
+    bool ready = fsm.get_attribute(transceiverMgrPtr)->readyTransceiver(tcvrID);
+    if (!ready) {
+      XLOG(WARN) << "[Transceiver:" << tcvrID
+                 << "] readyTransceiver returned False";
+    } else {
+      XLOG(INFO) << "[Transceiver:" << tcvrID
+                 << "] readyTransceiver returned True";
+    }
+    return ready;
+  } catch (const std::exception& ex) {
+    // We have retry mechanism to handle failure. No crash here
+    XLOG(WARN) << "[Transceiver:" << tcvrID
+               << "] readyTransceiver failed with abort:"
+               << folly::exceptionStr(ex);
+    return false;
+  }
+}
+};
+
 BOOST_MSM_EUML_ACTION(programTransceiver) {
 template <class Event, class Fsm, class Source, class Target>
 bool operator()(
@@ -360,8 +392,9 @@ BOOST_MSM_EUML_TRANSITION_TABLE((
     DISCOVERED             + PROGRAM_IPHY           [programIphyPorts]         / logStateChanged == IPHY_PORTS_PROGRAMMED,
     IPHY_PORTS_PROGRAMMED  + PROGRAM_XPHY           [programXphyPorts]         / logStateChanged == XPHY_PORTS_PROGRAMMED,
     // For non-xphy platform, we will program tcvr after programming iphy ports
-    IPHY_PORTS_PROGRAMMED  + PROGRAM_TRANSCEIVER    [programTransceiver]       / logStateChanged == TRANSCEIVER_PROGRAMMED,
-    XPHY_PORTS_PROGRAMMED  + PROGRAM_TRANSCEIVER    [programTransceiver]       / logStateChanged == TRANSCEIVER_PROGRAMMED,
+    IPHY_PORTS_PROGRAMMED + PREPARE_TRANSCEIVER     [readyTransceiver]         / logStateChanged == TRANSCEIVER_READY,
+    XPHY_PORTS_PROGRAMMED + PREPARE_TRANSCEIVER     [readyTransceiver]         / logStateChanged == TRANSCEIVER_READY,
+    TRANSCEIVER_READY     + PROGRAM_TRANSCEIVER     [programTransceiver]       / logStateChanged == TRANSCEIVER_PROGRAMMED,
     // Only trigger port status events after TRANSCEIVER_PROGRAMMED
     TRANSCEIVER_PROGRAMMED + PORT_UP                                           / logStateChanged == ACTIVE,
     TRANSCEIVER_PROGRAMMED + ALL_PORTS_DOWN                                    / logStateChanged == INACTIVE,
@@ -370,18 +403,21 @@ BOOST_MSM_EUML_TRANSITION_TABLE((
     // Flip all stable states back to DISCOVERED state for RESET_TO_DISCOVERED event. This is for present transceivers
     ACTIVE                 + RESET_TO_DISCOVERED                               / logStateChanged == DISCOVERED,
     INACTIVE               + RESET_TO_DISCOVERED                               / logStateChanged == DISCOVERED,
+    TRANSCEIVER_READY      + RESET_TO_DISCOVERED                               / logStateChanged == DISCOVERED,
     TRANSCEIVER_PROGRAMMED + RESET_TO_DISCOVERED                               / logStateChanged == DISCOVERED,
     XPHY_PORTS_PROGRAMMED  + RESET_TO_DISCOVERED                               / logStateChanged == DISCOVERED,
     IPHY_PORTS_PROGRAMMED  + RESET_TO_DISCOVERED                               / logStateChanged == DISCOVERED,
     // Flip all stable states back to NOT_PRESENT state for RESET_TO_NOT_PRESENT event
     ACTIVE                 + RESET_TO_NOT_PRESENT                              / logStateChanged == NOT_PRESENT,
     INACTIVE               + RESET_TO_NOT_PRESENT                              / logStateChanged == NOT_PRESENT,
+    TRANSCEIVER_READY      + RESET_TO_NOT_PRESENT                              / logStateChanged == NOT_PRESENT,
     TRANSCEIVER_PROGRAMMED + RESET_TO_NOT_PRESENT                              / logStateChanged == NOT_PRESENT,
     XPHY_PORTS_PROGRAMMED  + RESET_TO_NOT_PRESENT                              / logStateChanged == NOT_PRESENT,
     IPHY_PORTS_PROGRAMMED  + RESET_TO_NOT_PRESENT                              / logStateChanged == NOT_PRESENT,
     // Remove transceiver only if all ports are down
     ACTIVE                 + REMOVE_TRANSCEIVER     [isSafeToRemove]           / logStateChanged == NOT_PRESENT,
     INACTIVE               + REMOVE_TRANSCEIVER     [isSafeToRemove]           / logStateChanged == NOT_PRESENT,
+    TRANSCEIVER_READY      + REMOVE_TRANSCEIVER     [isSafeToRemove]           / logStateChanged == NOT_PRESENT,
     TRANSCEIVER_PROGRAMMED + REMOVE_TRANSCEIVER     [isSafeToRemove]           / logStateChanged == NOT_PRESENT,
     XPHY_PORTS_PROGRAMMED  + REMOVE_TRANSCEIVER     [isSafeToRemove]           / logStateChanged == NOT_PRESENT,
     IPHY_PORTS_PROGRAMMED  + REMOVE_TRANSCEIVER     [isSafeToRemove]           / logStateChanged == NOT_PRESENT,
@@ -397,6 +433,7 @@ BOOST_MSM_EUML_TRANSITION_TABLE((
     // at the beginning of this table to avoid changing the original order.
     IPHY_PORTS_PROGRAMMED  + DETECT_TRANSCEIVER                                / logStateChanged == PRESENT,
     XPHY_PORTS_PROGRAMMED  + DETECT_TRANSCEIVER                                / logStateChanged == PRESENT,
+    TRANSCEIVER_READY      + DETECT_TRANSCEIVER                                / logStateChanged == PRESENT,
     TRANSCEIVER_PROGRAMMED + DETECT_TRANSCEIVER                                / logStateChanged == PRESENT,
     INACTIVE               + DETECT_TRANSCEIVER                                / logStateChanged == PRESENT
 //  +------------------------------------------------------------------------------------------------------------+

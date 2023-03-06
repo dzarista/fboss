@@ -214,7 +214,9 @@ PortSaiId SaiSwitch::getCPUPortSaiId() const {
 SaiSwitch::SaiSwitch(SaiPlatform* platform, uint32_t featuresDesired)
     : HwSwitch(featuresDesired),
       platform_(platform),
-      saiStore_(std::make_unique<SaiStore>()) {
+      saiStore_(std::make_unique<SaiStore>()),
+      fabricReachabilityManager_(
+          std::make_unique<FabricReachabilityManager>()) {
   utilCreateDir(platform_->getVolatileStateDir());
   utilCreateDir(platform_->getPersistentStateDir());
 }
@@ -250,7 +252,7 @@ HwInitResult SaiSwitch::initImpl(
 #if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP)
+    defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(SAI_VERSION_9_0_EA_DNX_ODP)
     // TODO(zecheng): Remove after devices warmbooted to 8.2.
     managerTable_->wredManager().removeUnclaimedWredProfile();
 #endif
@@ -594,6 +596,12 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImpl(
         &SaiVlanManager::changeVlan,
         &SaiVlanManager::addVlan,
         &SaiVlanManager::removeVlan);
+  }
+
+  {
+    // this is specific for fabric/voq switches for now
+    [[maybe_unused]] const auto& lock = lockPolicy.lock();
+    fabricReachabilityManager_->stateUpdated(delta);
   }
 
   // LAGs
@@ -1468,9 +1476,10 @@ std::map<PortID, FabricEndpoint> SaiSwitch::getFabricReachability() const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   return getFabricReachabilityLocked();
 }
+
 std::map<PortID, FabricEndpoint> SaiSwitch::getFabricReachabilityLocked()
     const {
-  return managerTable_->portManager().getFabricReachability();
+  return fabricReachabilityManager_->getReachabilityInfo();
 }
 
 void SaiSwitch::fetchL2Table(std::vector<L2EntryThrift>* l2Table) const {
@@ -1720,8 +1729,19 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
   if (platform_->getAsic()->getAsicType() !=
       cfg::AsicType::ASIC_TYPE_ELBERT_8DD) {
     // reconstruct ports
-    state->resetPorts(
-        managerTable_->portManager().reconstructPortsFromStore(switchType_));
+    auto portMap =
+        managerTable_->portManager().reconstructPortsFromStore(switchType_);
+    auto ports = std::make_shared<PortMap>();
+    if (FLAGS_hide_fabric_ports) {
+      for (auto [id, port] : *portMap) {
+        if (port->getPortType() != cfg::PortType::FABRIC_PORT) {
+          ports->addPort(port);
+        }
+      }
+    } else {
+      ports = std::move(portMap);
+    }
+    state->resetPorts(ports);
   }
 
   // For VOQ switch, create system ports for existing egress ports
@@ -1780,7 +1800,14 @@ HwInitResult SaiSwitch::initLocked(
       adapterKeys2AdapterHostKeysJson = std::make_unique<folly::dynamic>(
           switchStateJson[kHwSwitch][kAdapterKey2AdapterHostKey]);
     }
-    if (switchStateJson.find(kRib) != switchStateJson.items().end()) {
+    const auto& routeTables = *(switchStateThrift->routeTables());
+    if (!routeTables.empty()) {
+      ret.rib = RoutingInformationBase::fromThrift(
+          routeTables,
+          ret.switchState->getFibs(),
+          ret.switchState->getLabelForwardingInformationBase());
+
+    } else if (switchStateJson.find(kRib) != switchStateJson.items().end()) {
       ret.rib = RoutingInformationBase::fromFollyDynamic(
           switchStateJson[kRib],
           ret.switchState->getFibs(),
@@ -2212,11 +2239,10 @@ void SaiSwitch::unregisterCallbacksLocked(
     switchApi.unregisterRxCallback(switchId_);
   }
   if (isFeatureSetupLocked(FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED, lock)) {
-#if defined(SAI_VERSION_5_1_0_3_ODP) || defined(SAI_VERSION_7_2_0_0_ODP) ||    \
-    defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+#if defined(SAI_VERSION_7_2_0_0_ODP) || defined(SAI_VERSION_8_2_0_0_ODP) ||    \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP)
+    defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(SAI_VERSION_9_0_EA_DNX_ODP)
     switchApi.unregisterParityErrorSwitchEventCallback(switchId_);
 #else
     switchApi.unregisterTamEventCallback(switchId_);
@@ -2504,11 +2530,10 @@ void SaiSwitch::switchRunStateChangedImplLocked(
       }
       if (getFeaturesDesired() & FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED) {
         auto& switchApi = SaiApiTable::getInstance()->switchApi();
-#if defined(SAI_VERSION_5_1_0_3_ODP) || defined(SAI_VERSION_7_2_0_0_ODP) ||    \
-    defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+#if defined(SAI_VERSION_7_2_0_0_ODP) || defined(SAI_VERSION_8_2_0_0_ODP) ||    \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP)
+    defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(SAI_VERSION_9_0_EA_DNX_ODP)
         switchApi.registerParityErrorSwitchEventCallback(
             switchId_, (void*)__gParityErrorSwitchEventCallback);
 #else

@@ -22,6 +22,7 @@
 #include "fboss/agent/hw/sai/switch/SaiManagerTable.h"
 #include "fboss/agent/hw/sai/switch/SaiPortUtils.h"
 #include "fboss/agent/hw/sai/switch/SaiQueueManager.h"
+#include "fboss/agent/hw/sai/switch/SaiSwitch.h"
 #include "fboss/agent/hw/sai/switch/SaiSwitchManager.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/platforms/sai/SaiPlatform.h"
@@ -297,9 +298,12 @@ SaiPortManager::SaiPortManager(
       removePortsAtExit_(platform_->getAsic()->isSupported(
           HwAsic::Feature::REMOVE_PORTS_FOR_COLDBOOT)),
       concurrentIndices_(concurrentIndices),
-      hwLaneListIsPmdLaneList_(true) {
-#if defined(SAI_VERSION_8_2_0_0_ODP) || \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP)
+      hwLaneListIsPmdLaneList_(true),
+      tcToQueueMapAllowedOnPort_(!platform_->getAsic()->isSupported(
+          HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT)) {
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
+    defined(SAI_VERSION_9_0_EA_SIM_ODP)
   auto& portStore = saiStore_->get<SaiPortTraits>();
   auto saiPort = portStore.objects().begin()->second.lock();
   auto portSaiId = saiPort->adapterKey();
@@ -352,7 +356,7 @@ void SaiPortManager::resetSamplePacket(SaiPortHandle* portHandle) {
 void SaiPortManager::releasePortPfcBuffers() {
   for (const auto& handle : handles_) {
     const auto& saiPortHandle = handle.second;
-    removePriorityGroupBufferProfile(saiPortHandle.get());
+    removeIngressPriorityGroupMappings(saiPortHandle.get());
   }
 }
 
@@ -558,17 +562,18 @@ void SaiPortManager::removePfc(const std::shared_ptr<Port>& swPort) {
 }
 
 void SaiPortManager::removePfcBuffers(const std::shared_ptr<Port>& swPort) {
-  removePriorityGroupBufferProfile(getPortHandle(swPort->getID()));
+  removeIngressPriorityGroupMappings(getPortHandle(swPort->getID()));
 }
 
-void SaiPortManager::removePriorityGroupBufferProfile(
+void SaiPortManager::removeIngressPriorityGroupMappings(
     SaiPortHandle* portHandle) {
   // Unset the bufferProfile applied per IngressPriorityGroup
-  for (const auto& pgEntries : portHandle->priorityGroupBufferProfiles) {
+  for (const auto& ipgIndexInfo : portHandle->configuredIngressPriorityGroups) {
+    const auto& ipgInfo = ipgIndexInfo.second;
     managerTable_->bufferManager().setIngressPriorityGroupBufferProfile(
-        pgEntries.first, std::nullptr_t());
+        ipgInfo.pgHandle->ingressPriorityGroup->adapterKey(), std::nullptr_t());
   }
-  portHandle->priorityGroupBufferProfiles.clear();
+  portHandle->configuredIngressPriorityGroups.clear();
 }
 
 cfg::PortType SaiPortManager::getPortType(PortID portId) const {
@@ -597,23 +602,12 @@ SaiPortManager::getIngressPriorityGroupSaiIds(
       ingressPriorityGroupAttribute{ingressPriorityGroupSaiIds};
   auto ingressPgIds = SaiApiTable::getInstance()->portApi().getAttribute(
       portId, ingressPriorityGroupAttribute);
-  std::vector<IngressPriorityGroupSaiId> ingressPgSaiId{numPgsPerPort};
+  std::vector<IngressPriorityGroupSaiId> ingressPgSaiIds{numPgsPerPort};
   for (int pgId = 0; pgId < numPgsPerPort; pgId++) {
-    // TODO: Return a vector indexed by IngressPriorityGroupAttribute::Index
-    ingressPgSaiId.at(pgId) =
+    ingressPgSaiIds.at(pgId) =
         static_cast<IngressPriorityGroupSaiId>(ingressPgIds.at(pgId));
   }
-  return ingressPgSaiId;
-}
-
-void SaiPortManager::applyPriorityGroupBufferProfile(
-    const std::shared_ptr<Port>& swPort,
-    std::shared_ptr<SaiBufferProfile> bufferProfile,
-    IngressPriorityGroupSaiId ingressPgSaiId) {
-  managerTable_->bufferManager().setIngressPriorityGroupBufferProfile(
-      ingressPgSaiId, bufferProfile);
-  SaiPortHandle* portHandle = getPortHandle(swPort->getID());
-  portHandle->priorityGroupBufferProfiles[ingressPgSaiId] = bufferProfile;
+  return ingressPgSaiIds;
 }
 
 void SaiPortManager::programPfcBuffers(const std::shared_ptr<Port>& swPort) {
@@ -622,18 +616,29 @@ void SaiPortManager::programPfcBuffers(const std::shared_ptr<Port>& swPort) {
     return;
   }
   managerTable_->bufferManager().createIngressBufferPool(swPort);
+  SaiPortHandle* portHandle = getPortHandle(swPort->getID());
   const auto& portPgCfgs = swPort->getPortPgConfigs();
   if (portPgCfgs) {
     const auto& ingressPgSaiIds = getIngressPriorityGroupSaiIds(swPort);
+    auto ingressPriorityGroupHandles =
+        managerTable_->bufferManager().loadIngressPriorityGroups(
+            ingressPgSaiIds);
     for (const auto& portPgCfg : *portPgCfgs) {
       // THRIFT_COPY
       auto portPgCfgThrift = portPgCfg->toThrift();
+      auto pgId = *portPgCfgThrift.id();
       auto bufferProfile =
           managerTable_->bufferManager().getOrCreateIngressProfile(
               portPgCfgThrift);
-      auto pgId = *portPgCfgThrift.id();
-      applyPriorityGroupBufferProfile(
-          swPort, bufferProfile, ingressPgSaiIds.at(pgId));
+      auto ingressPriorityGroupSaiId =
+          ingressPriorityGroupHandles[pgId]->ingressPriorityGroup->adapterKey();
+      managerTable_->bufferManager().setIngressPriorityGroupBufferProfile(
+          ingressPriorityGroupSaiId, bufferProfile);
+      // Keep track of ingressPriorityGroupHandle and bufferProfile per PG ID
+      portHandle
+          ->configuredIngressPriorityGroups[static_cast<IngressPriorityGroupID>(
+              pgId)] = SaiIngressPriorityGroupHandleAndProfile{
+          std::move(ingressPriorityGroupHandles[pgId]), bufferProfile};
     }
   }
 }
@@ -950,8 +955,9 @@ std::shared_ptr<Port> SaiPortManager::swPortFromAttributes(
     PortSaiId portSaiId,
     cfg::SwitchType switchType) const {
   auto speed = static_cast<cfg::PortSpeed>(GET_ATTR(Port, Speed, attributes));
-#if defined(SAI_VERSION_8_2_0_0_ODP) || \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP)
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
+    defined(SAI_VERSION_9_0_EA_SIM_ODP)
   std::vector<uint32_t> lanes;
   if (hwLaneListIsPmdLaneList_) {
     lanes = GET_ATTR(Port, HwLaneList, attributes);
@@ -1090,51 +1096,72 @@ SaiQueueHandle* SaiPortManager::getQueueHandle(
 bool SaiPortManager::fecStatsSupported(PortID portId) const {
   if (platform_->getAsic()->isSupported(HwAsic::Feature::SAI_FEC_COUNTERS) &&
       utility::isReedSolomonFec(getFECMode(portId))) {
-#if defined(SAI_VERSION_7_2_0_0_ODP) || defined(SAI_VERSION_8_2_0_0_ODP) || \
-    defined(SAI_VERSION_8_2_0_0_DNX_ODP) ||                                 \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                 \
-    defined(TAJO_SDK_VERSION_1_42_4) || defined(SAI_VERSION_9_0_EA_ODP) ||  \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(SAI_VERSION_7_2_0_0_ODP) || defined(SAI_VERSION_8_2_0_0_ODP) ||    \
+    defined(SAI_VERSION_8_2_0_0_DNX_ODP) ||                                    \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
+    defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(TAJO_SDK_VERSION_1_42_4) || \
+    defined(SAI_VERSION_9_0_EA_ODP) || defined(SAI_VERSION_9_0_EA_DNX_ODP) ||  \
+    defined(TAJO_SDK_VERSION_1_42_8)
     return true;
 #endif
   }
   return false;
 }
 
+std::optional<FabricEndpoint> SaiPortManager::getFabricReachabilityForPort(
+    const PortID& portId,
+    const SaiPortHandle* portHandle) const {
+  if (getPortType(portId) != cfg::PortType::FABRIC_PORT) {
+    return std::nullopt;
+  }
+
+  FabricEndpoint endpoint;
+  auto saiPortId = portHandle->port->adapterKey();
+  endpoint.isAttached() = SaiApiTable::getInstance()->portApi().getAttribute(
+      saiPortId, SaiPortTraits::Attributes::FabricAttached{});
+  if (*endpoint.isAttached()) {
+    auto swId = SaiApiTable::getInstance()->portApi().getAttribute(
+        saiPortId, SaiPortTraits::Attributes::FabricAttachedSwitchId{});
+    auto swType = SaiApiTable::getInstance()->portApi().getAttribute(
+        saiPortId, SaiPortTraits::Attributes::FabricAttachedSwitchType{});
+    auto endpointPortId = SaiApiTable::getInstance()->portApi().getAttribute(
+        saiPortId, SaiPortTraits::Attributes::FabricAttachedPortIndex{});
+    endpoint.switchId() = swId;
+    endpoint.portId() = endpointPortId;
+    switch (swType) {
+      case SAI_SWITCH_TYPE_VOQ:
+        endpoint.switchType() = cfg::SwitchType::VOQ;
+        break;
+      case SAI_SWITCH_TYPE_FABRIC:
+        endpoint.switchType() = cfg::SwitchType::FABRIC;
+        break;
+      default:
+        XLOG(ERR) << " Unexpected switch type value: " << swType;
+        break;
+    }
+  }
+  return endpoint;
+}
+
 std::map<PortID, FabricEndpoint> SaiPortManager::getFabricReachability() const {
   std::map<PortID, FabricEndpoint> port2FabricEndpoint;
   for (const auto& portIdAndHandle : handles_) {
-    if (getPortType(portIdAndHandle.first) != cfg::PortType::FABRIC_PORT) {
-      continue;
+    if (auto endpoint = getFabricReachabilityForPort(
+            portIdAndHandle.first, portIdAndHandle.second.get())) {
+      port2FabricEndpoint.insert({PortID(portIdAndHandle.first), *endpoint});
     }
-    auto saiPortId = portIdAndHandle.second->port->adapterKey();
-    FabricEndpoint endpoint;
-    endpoint.isAttached() = SaiApiTable::getInstance()->portApi().getAttribute(
-        saiPortId, SaiPortTraits::Attributes::FabricAttached{});
-    if (*endpoint.isAttached()) {
-      auto swId = SaiApiTable::getInstance()->portApi().getAttribute(
-          saiPortId, SaiPortTraits::Attributes::FabricAttachedSwitchId{});
-      auto swType = SaiApiTable::getInstance()->portApi().getAttribute(
-          saiPortId, SaiPortTraits::Attributes::FabricAttachedSwitchType{});
-      auto portId = SaiApiTable::getInstance()->portApi().getAttribute(
-          saiPortId, SaiPortTraits::Attributes::FabricAttachedPortIndex{});
-      endpoint.switchId() = swId;
-      endpoint.portId() = portId;
-      switch (swType) {
-        case SAI_SWITCH_TYPE_VOQ:
-          endpoint.switchType() = cfg::SwitchType::VOQ;
-          break;
-        case SAI_SWITCH_TYPE_FABRIC:
-          endpoint.switchType() = cfg::SwitchType::FABRIC;
-          break;
-        default:
-          XLOG(ERR) << " Unexpected switch type value: " << swType;
-          break;
-      }
-    }
-    port2FabricEndpoint.insert({PortID(portIdAndHandle.first), endpoint});
   }
   return port2FabricEndpoint;
+}
+
+std::optional<FabricEndpoint> SaiPortManager::getFabricReachabilityForPort(
+    const PortID& portId) const {
+  std::optional<FabricEndpoint> endpoint = std::nullopt;
+  auto handlesItr = handles_.find(portId);
+  if (handlesItr != handles_.end()) {
+    endpoint = getFabricReachabilityForPort(portId, handlesItr->second.get());
+  }
+  return endpoint;
 }
 
 void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
@@ -1190,6 +1217,8 @@ void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
   managerTable_->queueManager().updateStats(
       handle->configuredQueues, curPortStats, updateWatermarks);
   managerTable_->macsecManager().updateStats(portId, curPortStats);
+  managerTable_->bufferManager().updateIngressPriorityGroupStats(
+      portId, *curPortStats.portName_(), updateWatermarks);
   portStats_[portId]->updateStats(curPortStats, now);
 }
 
@@ -1239,9 +1268,7 @@ void SaiPortManager::clearStats(PortID port) {
         statsToClear.end());
   }
   portHandle->port->clearStats(statsToClear);
-  for (auto& queueAndHandle : portHandle->queues) {
-    queueAndHandle.second->queue->clearStats();
-  }
+  managerTable_->queueManager().clearStats(portHandle->configuredQueues);
 }
 
 const HwPortFb303Stats* SaiPortManager::getLastPortStat(PortID port) const {
@@ -1289,8 +1316,19 @@ void SaiPortManager::setQosMaps(
               SaiPortTraits::Attributes::QosDscpToTcMap{mapping});
           break;
         case SAI_QOS_MAP_TYPE_TC_TO_QUEUE:
-          port->setOptionalAttribute(
-              SaiPortTraits::Attributes::QosTcToQueueMap{mapping});
+          /*
+           * On certain platforms, applying TC to QUEUE mapping on front panel
+           * port will be applied on system port by the underlying SDK.
+           * It can applied in either of them - Front panel port or on system
+           * port. We decided to go with system port for two reasons 1) Remote
+           * system port on a local device also need to be applied with this TC
+           * to Queue Map 2) Cleaner approach to have the separation of applying
+           * TC to Queue map on all system ports in VOQ mode
+           */
+          if (tcToQueueMapAllowedOnPort_) {
+            port->setOptionalAttribute(
+                SaiPortTraits::Attributes::QosTcToQueueMap{mapping});
+          }
           break;
         case SAI_QOS_MAP_TYPE_TC_TO_PRIORITY_GROUP:
           port->setOptionalAttribute(
@@ -1888,8 +1926,9 @@ TransmitterTechnology SaiPortManager::getMedium(PortID portID) const {
 }
 
 uint8_t SaiPortManager::getNumPmdLanes(PortSaiId saiPortId) const {
-#if defined(SAI_VERSION_8_2_0_0_ODP) || \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP)
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
+    defined(SAI_VERSION_9_0_EA_SIM_ODP)
   std::vector<uint32_t> lanes;
   if (hwLaneListIsPmdLaneList_) {
     lanes = SaiApiTable::getInstance()->portApi().getAttribute(

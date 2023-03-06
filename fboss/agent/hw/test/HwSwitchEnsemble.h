@@ -29,6 +29,7 @@
 DECLARE_bool(mmu_lossless_mode);
 DECLARE_bool(qgroup_guarantee_enable);
 DECLARE_bool(enable_exact_match);
+DECLARE_bool(flowletSwitchingEnable);
 
 namespace folly {
 class FunctionScheduler;
@@ -170,6 +171,12 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       std::function<bool(const std::map<PortID, HwPortStats>&)> conditionFn,
       uint32_t retries = 20,
       std::chrono::duration<uint32_t, std::milli> msBetweenRetry =
+          std::chrono::milliseconds(20));
+  bool waitStatsCondition(
+      const std::function<bool()>& conditionFn,
+      const std::function<void()>& updateStatsFn,
+      uint32_t retries = 20,
+      const std::chrono::duration<uint32_t, std::milli> msBetweenRetry =
           std::chrono::milliseconds(20));
 
   virtual std::vector<PortID> masterLogicalPortIds(

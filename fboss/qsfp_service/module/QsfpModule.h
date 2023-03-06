@@ -202,6 +202,8 @@ class QsfpModule : public Transceiver {
   void programTransceiver(cfg::PortSpeed speed, bool needResetDataPath)
       override;
 
+  bool readyTransceiver() override;
+
   virtual void triggerVdmStatsCapture() override {}
 
   void publishSnapshots() override;
@@ -238,6 +240,10 @@ class QsfpModule : public Transceiver {
   void setModulePauseRemediation(int32_t timeout) override;
 
   time_t getModulePauseRemediationUntil() override;
+
+  static TransceiverManagementInterface getTransceiverManagementInterface(
+      const uint8_t moduleId,
+      const unsigned int oneBasedPort);
 
  protected:
   /* Qsfp Internal Implementation */
@@ -282,6 +288,12 @@ class QsfpModule : public Transceiver {
    */
   virtual void customizeTransceiverLocked(
       cfg::PortSpeed speed = cfg::PortSpeed::DEFAULT) = 0;
+
+  /*
+   * If the current power state is not same as desired one then change it and
+   * return true when module is in ready state
+   */
+  virtual bool ensureTransceiverReadyLocked() = 0;
 
   /*
    * This function returns a pointer to the value in the static cached
@@ -461,7 +473,7 @@ class QsfpModule : public Transceiver {
    * Returns whether customization is supported at all. Basically
    * checks if something is plugged in and checks if copper.
    */
-  bool customizationSupported() const;
+  virtual bool customizationSupported() const;
 
   /*
    * Whether enough time has passed that we should refresh our data.

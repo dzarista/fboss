@@ -411,6 +411,15 @@ bool HwSwitchEnsemble::waitPortStatsCondition(
       getPortStatsFn);
 }
 
+bool HwSwitchEnsemble::waitStatsCondition(
+    const std::function<bool()>& conditionFn,
+    const std::function<void()>& updateStatsFn,
+    uint32_t retries,
+    const std::chrono::duration<uint32_t, std::milli> msBetweenRetry) {
+  return utility::waitStatsCondition(
+      conditionFn, updateStatsFn, retries, msBetweenRetry);
+}
+
 HwPortStats HwSwitchEnsemble::getLatestPortStats(PortID port) {
   return getLatestPortStats(std::vector<PortID>{port})[port];
 }
@@ -529,6 +538,8 @@ void HwSwitchEnsemble::switchRunStateChanged(SwitchRunState switchState) {
 std::tuple<folly::dynamic, state::WarmbootState>
 HwSwitchEnsemble::gracefulExitState() const {
   folly::dynamic follySwitchState = folly::dynamic::object;
+  state::WarmbootState thriftSwitchState;
+
   // For RIB we employ a optmization to serialize only unresolved routes
   // and recover others from FIB
   if (routingInformationBase_) {
@@ -536,9 +547,8 @@ HwSwitchEnsemble::gracefulExitState() const {
     // and recover others from FIB
     follySwitchState[kRib] =
         routingInformationBase_->unresolvedRoutesFollyDynamic();
+    thriftSwitchState.routeTables() = routingInformationBase_->warmBootState();
   }
-  // Only dump swSwitchState in thrift
-  state::WarmbootState thriftSwitchState;
   *thriftSwitchState.swSwitchState() = getProgrammedState()->toThrift();
   return std::make_tuple(follySwitchState, thriftSwitchState);
 }

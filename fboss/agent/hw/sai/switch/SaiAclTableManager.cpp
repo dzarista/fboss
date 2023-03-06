@@ -644,7 +644,7 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
       std::nullopt};
   if (addedAclEntry->getIcmpType()) {
     if (addedAclEntry->getProto()) {
-      if (addedAclEntry->getProto().value() == AclEntryFields::kProtoIcmp) {
+      if (addedAclEntry->getProto().value() == AclEntry::kProtoIcmp) {
         fieldIcmpV4Type = SaiAclEntryTraits::Attributes::FieldIcmpV4Type{
             AclEntryFieldU8(std::make_pair(
                 addedAclEntry->getIcmpType().value(), kIcmpTypeMask))};
@@ -653,8 +653,7 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
               AclEntryFieldU8(std::make_pair(
                   addedAclEntry->getIcmpCode().value(), kIcmpCodeMask))};
         }
-      } else if (
-          addedAclEntry->getProto().value() == AclEntryFields::kProtoIcmpv6) {
+      } else if (addedAclEntry->getProto().value() == AclEntry::kProtoIcmpv6) {
         fieldIcmpV6Type = SaiAclEntryTraits::Attributes::FieldIcmpV6Type{
             AclEntryFieldU8(std::make_pair(
                 addedAclEntry->getIcmpType().value(), kIcmpTypeMask))};
@@ -1179,6 +1178,23 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
 
 #if defined(TAJO_SDK_VERSION_1_58_0) || defined(TAJO_SDK_VERSION_1_60_0)
     tajoQualifiers.insert(cfg::AclTableQualifier::SRC_PORT);
+#endif
+
+#if defined(TAJO_SDK_VERSION_1_60_0)
+    std::vector<cfg::AclTableQualifier> tajoExtraQualifierList = {
+        cfg::AclTableQualifier::L4_SRC_PORT,
+        cfg::AclTableQualifier::L4_DST_PORT,
+        cfg::AclTableQualifier::TCP_FLAGS,
+        cfg::AclTableQualifier::IP_FRAG,
+        cfg::AclTableQualifier::ICMPV4_TYPE,
+        cfg::AclTableQualifier::ICMPV4_CODE,
+        cfg::AclTableQualifier::ICMPV6_TYPE,
+        cfg::AclTableQualifier::ICMPV6_CODE,
+        cfg::AclTableQualifier::DST_MAC,
+    };
+    for (const auto& qualifier : tajoExtraQualifierList) {
+      tajoQualifiers.insert(qualifier);
+    }
 #endif
     return tajoQualifiers;
   } else if (isIndus) {

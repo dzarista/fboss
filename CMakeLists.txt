@@ -66,6 +66,16 @@ if ($ENV{SAI_BRCM_IMPL})
   set (SAI_BRCM_IMPL ON)
 endif()
 
+option(BUILD_SAI_FAKE_LINK_TEST "Building of SAI Fake Link Test binaries" OFF)
+if ($ENV{BUILD_SAI_FAKE_LINK_TEST})
+  message(STATUS "ENV BUILD_SAI_FAKE_LINK_TEST is set")
+  set (BUILD_SAI_FAKE_LINK_TEST ON)
+endif()
+
+if (BUILD_SAI_FAKE_LINK_TEST)
+  message(STATUS "Configured to build SAI Fake Link Test binaries")
+endif()
+
 if (SAI_BRCM_IMPL)
   # TODO (skhare) IS_OSS_BRCM_SAI is only a short-term change to unblock.
   # Refactor/fix the code and then remove this flag.
@@ -221,6 +231,13 @@ add_fbthrift_cpp_library(
     reflection
 )
 add_fbthrift_cpp_library(
+  fboss_common_cpp2
+  fboss/lib/if/fboss_common.thrift
+  OPTIONS
+    json
+    reflection
+)
+add_fbthrift_cpp_library(
   switch_config_cpp2
   fboss/agent/switch_config.thrift
   OPTIONS
@@ -228,6 +245,7 @@ add_fbthrift_cpp_library(
     reflection
   DEPENDS
     common_cpp2
+    fboss_common_cpp2
     mpls_cpp2
 )
 add_fbthrift_cpp_library(
@@ -577,9 +595,9 @@ if (NOT SAI_ONLY)
       fboss/agent/DHCPv4Handler.cpp
       fboss/agent/DHCPv6Handler.cpp
       fboss/agent/DsfSubscriber.cpp
+      fboss/agent/FabricReachabilityManager.cpp
       fboss/agent/EncapIndexAllocator.cpp
       fboss/agent/FibHelpers.cpp
-      fboss/agent/FsdbSyncer.cpp
       fboss/agent/InterfaceStats.cpp
       fboss/agent/L2Entry.cpp
       fboss/agent/hw/BufferStatsLogger.cpp
@@ -729,7 +747,6 @@ if (NOT SAI_ONLY)
       fboss/agent/oss/DsfSubscriber.cpp
       fboss/agent/oss/AggregatePortStats.cpp
       fboss/agent/oss/FbossInit.cpp
-      fboss/agent/oss/FsdbStateDeltaConverter.cpp
       fboss/agent/oss/FsdbSyncer.cpp
       fboss/agent/oss/Main.cpp
       fboss/agent/oss/PacketLogger.cpp
@@ -804,6 +821,7 @@ if (NOT SAI_ONLY)
       fboss/agent/state/UdfGroupMap.cpp
       fboss/agent/state/UdfPacketMatcher.cpp
       fboss/agent/state/UdfPacketMatcherMap.cpp
+      fboss/agent/state/FlowletSwitchingConfig.cpp
       fboss/agent/state/ForwardingInformationBase.cpp
       fboss/agent/state/ForwardingInformationBaseContainer.cpp
       fboss/agent/state/ForwardingInformationBaseDelta.cpp
@@ -955,6 +973,7 @@ if (NOT SAI_ONLY)
       galaxy_platform_mapping
       kamet_platform_mapping
       makalu_platform_mapping
+      yangra_platform_mapping
       qsfp_cpp2
       qsfp_service_client
       wedge_led_utils
@@ -1058,8 +1077,8 @@ foreach(cmakeFile ${cmakeFiles})
     message(status " Skipping OpenNSA BCM binaries")
   # Skip building LinkTest, enable this for non SAI_ONLY build
   # once the compilation issues with LinkTest are fixed
-  elseif(${cmakeFile} MATCHES "LinkTest")
-    message(status " Skipping LinkTest binaries")
+  elseif(NOT SAI_ONLY AND ${cmakeFile} MATCHES "BcmLinkTest")
+    message(status " Skipping BCM LinkTest binaries")
   else()
     message(status " INCLUDE ${cmakeFile}")
     INCLUDE(${cmakeFile})
@@ -1079,3 +1098,9 @@ install(
 install(
   TARGETS
   sai_replayer-fake-${SAI_VER_SUFFIX})
+
+if (BUILD_SAI_FAKE_LINK_TEST)
+install(
+  TARGETS
+  sai_link_test-fake-${SAI_VER_SUFFIX})
+endif()

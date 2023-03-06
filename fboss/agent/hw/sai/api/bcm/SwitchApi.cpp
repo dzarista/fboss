@@ -41,8 +41,9 @@ SaiSwitchTraits::Attributes::HwEccErrorInitiateWrapper::operator()() {
 
 std::optional<sai_attr_id_t>
 SaiSwitchTraits::Attributes::AttributeDllPathWrapper::operator()() {
-#if defined(SAI_VERSION_8_2_0_0_ODP) || \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP)
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
+    defined(SAI_VERSION_9_0_EA_SIM_ODP)
   return SAI_SWITCH_ATTR_ISSU_CUSTOM_DLL_PATH;
 #else
   return std::nullopt;
@@ -57,11 +58,10 @@ SaiSwitchTraits::Attributes::AttributeRestartIssuWrapper::operator()() {
 void SwitchApi::registerParityErrorSwitchEventCallback(
     SwitchSaiId id,
     void* switch_event_cb) const {
-#if defined(SAI_VERSION_5_1_0_3_ODP) || defined(SAI_VERSION_7_2_0_0_ODP) ||    \
-    defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+#if defined(SAI_VERSION_7_2_0_0_ODP) || defined(SAI_VERSION_8_2_0_0_ODP) ||    \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP)
+    defined(SAI_VERSION_9_0_EA_DNX_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP)
   sai_attribute_t attr;
   attr.value.ptr = switch_event_cb;
   attr.id = SAI_SWITCH_ATTR_SWITCH_EVENT_NOTIFY;
@@ -95,6 +95,15 @@ void SwitchApi::registerParityErrorSwitchEventCallback(
     saiLogError(rv, ApiType, "Unable to unregister TAM event callback");
   }
 #endif
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeForceTrafficOverFabricWrapper::operator()() {
+#if defined(SAI_VERSION_9_0_EA_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
+    defined(SAI_VERSION_9_0_EA_SIM_ODP)
+  return SAI_SWITCH_ATTR_FORCE_TRAFFIC_OVER_FABRIC;
+#endif
+  return std::nullopt;
 }
 
 } // namespace facebook::fboss

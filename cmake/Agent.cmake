@@ -109,9 +109,9 @@ add_library(core
   fboss/agent/DHCPv4Handler.cpp
   fboss/agent/DHCPv6Handler.cpp
   fboss/agent/DsfSubscriber.cpp
+  fboss/agent/FabricReachabilityManager.cpp
   fboss/agent/EncapIndexAllocator.cpp
   fboss/agent/FibHelpers.cpp
-  fboss/agent/FsdbSyncer.cpp
   fboss/agent/HwSwitch.cpp
   fboss/agent/IPHeaderV4.cpp
   fboss/agent/IPv4Handler.cpp
@@ -157,7 +157,6 @@ add_library(core
   fboss/agent/oss/RouteUpdateLogger.cpp
   fboss/agent/oss/SwSwitch.cpp
   fboss/agent/oss/DsfSubscriber.cpp
-  fboss/agent/oss/FsdbStateDeltaConverter.cpp
   fboss/agent/oss/FsdbSyncer.cpp
 )
 
@@ -224,6 +223,7 @@ target_link_libraries(handler
   wedge400c_platform_mapping
   kamet_platform_mapping
   makalu_platform_mapping
+  yangra_platform_mapping
 )
 
 target_link_libraries(fboss_types

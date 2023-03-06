@@ -28,17 +28,36 @@ class FsdbSyncManager {
       const std::vector<std::string>& basePath,
       bool isStats,
       bool publishDeltas)
-      : pubSubMgr_(std::make_unique<fsdb::FsdbPubSubManager>(clientId)),
+      : FsdbSyncManager(
+            std::make_shared<fsdb::FsdbPubSubManager>(clientId),
+            basePath,
+            isStats,
+            publishDeltas) {}
+
+  FsdbSyncManager(
+      const std::shared_ptr<fsdb::FsdbPubSubManager>& pubSubMr,
+      const std::vector<std::string>& basePath,
+      bool isStats,
+      bool publishDeltas)
+      : pubSubMgr_(pubSubMr),
         basePath_(basePath),
         isStats_(isStats),
         publishDeltas_(publishDeltas),
         storage_([this](const auto& oldState, const auto& newState) {
           processDelta(oldState, newState);
-        }) {}
+        }) {
+    CHECK(pubSubMr);
+    // make sure publisher is not already created for shared pubSubMgr
+    if (publishDeltas_) {
+      CHECK(!(pubSubMgr_->getDeltaPublisher(isStats)));
+    } else {
+      CHECK(!(pubSubMgr_->getPathPublisher(isStats)));
+    }
+  }
 
   ~FsdbSyncManager() {
     CHECK(!pubSubMgr_) << "Syncer not stopped";
-    CHECK(!readyForPublishing_);
+    CHECK(!readyForPublishing_.load());
   }
 
   // Starts publishing to fsdb. This method should only be called once all state
@@ -71,8 +90,10 @@ class FsdbSyncManager {
   }
 
   void stop() {
-    storage_.getEventBase()->runInEventBaseThreadAndWait(
-        [this]() { pubSubMgr_.reset(); });
+    storage_.getEventBase()->runInEventBaseThreadAndWait([this]() {
+      readyForPublishing_.store(false);
+      stopInternal();
+    });
   }
 
   //  update internal storage of SyncManager which will then automatically be
@@ -96,7 +117,7 @@ class FsdbSyncManager {
       const std::shared_ptr<CowState>& oldState,
       const std::shared_ptr<CowState>& newState) {
     // TODO: hold lock here to sync with stop()?
-    if (readyForPublishing_) {
+    if (readyForPublishing_.load()) {
       if (publishDeltas_) {
         publishDelta(oldState, newState);
       } else {
@@ -108,15 +129,14 @@ class FsdbSyncManager {
   void publisherStateChanged(
       FsdbStreamClient::State /* oldState */,
       FsdbStreamClient::State newState) {
-    readyForPublishing_ = newState == FsdbStreamClient::State::CONNECTED;
     if (newState == FsdbStreamClient::State::CONNECTED) {
       storage_.getEventBase()->runInEventBaseThreadAndWait([this]() {
         doInitialSync();
-        readyForPublishing_ = true;
+        readyForPublishing_.store(true);
       });
     } else {
       // TODO: sync b/w here and processDelta?
-      readyForPublishing_ = false;
+      readyForPublishing_.store(false);
     }
   }
 
@@ -185,7 +205,24 @@ class FsdbSyncManager {
     }
   }
 
-  std::unique_ptr<FsdbPubSubManager> pubSubMgr_;
+  void stopInternal() {
+    if (isStats_ && FLAGS_publish_stats_to_fsdb) {
+      if (publishDeltas_) {
+        pubSubMgr_->removeStatDeltaPublisher();
+      } else {
+        pubSubMgr_->removeStatPathPublisher();
+      }
+    } else if (!isStats_ && FLAGS_publish_state_to_fsdb) {
+      if (publishDeltas_) {
+        pubSubMgr_->removeStateDeltaPublisher();
+      } else {
+        pubSubMgr_->removeStatePathPublisher();
+      }
+    }
+    pubSubMgr_.reset();
+  }
+
+  std::shared_ptr<FsdbPubSubManager> pubSubMgr_;
   std::vector<std::string> basePath_;
   bool isStats_;
   bool publishDeltas_;

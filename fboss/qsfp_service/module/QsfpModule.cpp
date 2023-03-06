@@ -312,10 +312,10 @@ void QsfpModule::updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus) {
 }
 
 bool QsfpModule::customizationSupported() const {
-  // TODO: there may be a better way of determining this rather than
-  // looking at transmitter tech.
+  // Customization is allowed on present Optical modules only. We should skip
+  // other types
   auto tech = getQsfpTransmitterTechnology();
-  return present_ && tech != TransmitterTechnology::COPPER;
+  return present_ && tech == TransmitterTechnology::OPTICAL;
 }
 
 bool QsfpModule::shouldRefresh(time_t cooldown) const {
@@ -844,6 +844,38 @@ MediaInterfaceCode QsfpModule::getModuleMediaInterface() {
   return MediaInterfaceCode::UNKNOWN;
 }
 
+TransceiverManagementInterface QsfpModule::getTransceiverManagementInterface(
+    const uint8_t moduleId,
+    const unsigned int oneBasedPort) {
+  if (moduleId ==
+          static_cast<uint8_t>(TransceiverModuleIdentifier::QSFP_PLUS_CMIS) ||
+      moduleId == static_cast<uint8_t>(TransceiverModuleIdentifier::QSFP_DD)) {
+    return TransceiverManagementInterface::CMIS;
+  } else if (
+      moduleId ==
+          static_cast<uint8_t>(TransceiverModuleIdentifier::QSFP_PLUS) ||
+      moduleId == static_cast<uint8_t>(TransceiverModuleIdentifier::QSFP) ||
+      moduleId ==
+          static_cast<uint8_t>(TransceiverModuleIdentifier::MINIPHOTON_OBO) ||
+      moduleId == static_cast<uint8_t>(TransceiverModuleIdentifier::QSFP28)) {
+    return TransceiverManagementInterface::SFF;
+  } else if (
+      moduleId == static_cast<uint8_t>(TransceiverModuleIdentifier::SFP_PLUS)) {
+    return TransceiverManagementInterface::SFF8472;
+  } else if (
+      moduleId != static_cast<uint8_t>(TransceiverModuleIdentifier::UNKNOWN)) {
+    XLOG(ERR) << fmt::format(
+        "QSFP {:d}: Unrecognized non zero module Id = {:d}",
+        oneBasedPort,
+        moduleId);
+    return TransceiverManagementInterface::UNKNOWN;
+  }
+
+  XLOG(ERR) << fmt::format(
+      "QSFP {:d}: Bad module Id = {:d}", oneBasedPort, moduleId);
+  return TransceiverManagementInterface::NONE;
+}
+
 void QsfpModule::programTransceiver(
     cfg::PortSpeed speed,
     bool needResetDataPath) {
@@ -901,6 +933,52 @@ void QsfpModule::programTransceiver(
   } else {
     via(i2cEvb)
         .thenValue([programTcvrFunc](auto&&) mutable { programTcvrFunc(); })
+        .get();
+  }
+}
+
+/*
+ * readyTransceiver
+ *
+ * Runs a function in the i2c controller's event base thread to check if the
+ * module's power control configuration is same as the desired one. If it is
+ * same then return true or false based on whether module is in ready state or
+ * not. If the power controll config value is not same as desired one then
+ * configure it correctly and return false
+ */
+bool QsfpModule::readyTransceiver() {
+  // Always use i2cEvb to program transceivers if there's an i2cEvb
+  auto powerStateCheckFn = [this]() -> bool {
+    lock_guard<std::mutex> g(qsfpModuleMutex_);
+    if (present_) {
+      if (!cacheIsValid()) {
+        QSFP_LOG(DBG1, this) << folly::sformat(
+            "Transceiver {:s} - Cache is not valid, so cannot check the transceiver state",
+            getNameString());
+        return false;
+      }
+      // Check the transceiver power configuration state and then return
+      // accordingly. This function's implementation is dependent on optics
+      // type (Cmis, Sff etc)
+      return ensureTransceiverReadyLocked();
+    } else {
+      // If module is not present then don't block state machine transition
+      // and return true
+      return true;
+    }
+  };
+
+  auto i2cEvb = qsfpImpl_->getI2cEventBase();
+  if (!i2cEvb) {
+    // Certain platforms cannot execute multiple I2C transactions in parallel
+    // and therefore don't have an I2C evb thread. For them, call the function
+    // directly from current thread
+    return powerStateCheckFn();
+  } else {
+    // Call the function in I2c controller's event base thread
+    return via(i2cEvb)
+        .thenValue(
+            [powerStateCheckFn](auto&&) mutable { return powerStateCheckFn(); })
         .get();
   }
 }

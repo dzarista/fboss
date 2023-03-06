@@ -11,6 +11,7 @@ namespace php fboss_switch_config
 
 include "fboss/agent/if/common.thrift"
 include "fboss/agent/if/mpls.thrift"
+include "fboss/lib/if/fboss_common.thrift"
 
 typedef i64 (cpp.type = "uint64_t") u64
 
@@ -855,6 +856,11 @@ struct PortNeighbor {
   2: string remotePort;
 }
 
+enum PortDrainState {
+  UNDRAINED = 0,
+  DRAINED = 1,
+}
+
 /**
  * Configuration for a single logical port
  */
@@ -1007,6 +1013,11 @@ struct Port {
    * includes information on remote system and ports
    */
   28: list<PortNeighbor> expectedNeighborReachability = [];
+
+  /*
+   * Represents if this port is drained in DSF
+   */
+  29: PortDrainState drainState = PortDrainState.UNDRAINED;
 }
 
 enum LacpPortRate {
@@ -1334,6 +1345,7 @@ enum HashingAlgorithm {
 
   CRC32_KOOPMAN_LO = 7,
   CRC32_KOOPMAN_HI = 8,
+  CRC = 9,
 }
 
 struct LoadBalancer {
@@ -1556,6 +1568,7 @@ struct DsfNode {
   5: optional Range64 systemPortRange;
   6: optional string nodeMac;
   7: AsicType asicType;
+  8: fboss_common.PlatformType platformType;
 }
 
 /**

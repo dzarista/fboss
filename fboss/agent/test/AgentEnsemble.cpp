@@ -3,7 +3,9 @@
 #include "fboss/agent/test/AgentEnsemble.h"
 
 #include "fboss/agent/AgentConfig.h"
+#include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/Utils.h"
+
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 
@@ -65,7 +67,7 @@ void AgentEnsemble::setupEnsemble(
     masterLogicalPortIds_.push_back(port.first);
   }
   initialConfig_ = initialConfigFn(getHw(), masterLogicalPortIds_);
-  writeConfig(initialConfig_);
+  applyInitialConfig(initialConfig_);
   // reload the new config
   getPlatform()->reloadConfig();
 }
@@ -78,10 +80,17 @@ void AgentEnsemble::startAgent() {
   // setting this flag and emply CLI option to disable tun manager.
   FLAGS_tun_intf = false;
   auto* initializer = agentInitializer();
-  asyncInitThread_.reset(
-      new std::thread([initializer] { initializer->initAgent(); }));
-  asyncInitThread_->detach();
+  asyncInitThread_.reset(new std::thread([this, initializer] {
+    // hardware switch events will be dispatched to agent ensemble
+    // agent ensemble is responsible to dispatch them to SwSwitch
+    initializer->initAgent(this);
+  }));
   initializer->initializer()->waitForInitDone();
+  // if cold booting, invoke link toggler
+  if (getHw()->getBootType() != BootType::WARM_BOOT &&
+      linkToggler_ != nullptr) {
+    linkToggler_->applyInitialConfig(initialConfig_);
+  }
 }
 
 void AgentEnsemble::writeConfig(const cfg::SwitchConfig& config) {
@@ -119,10 +128,9 @@ void AgentEnsemble::writeConfig(
 
 AgentEnsemble::~AgentEnsemble() {
   auto* initializer = agentInitializer();
-
-  // if ensemble is leaked and released it would be exit for warmboot.
-  // exit for cold boot.
   initializer->stopAgent(false);
+  asyncInitThread_->join();
+  asyncInitThread_.reset();
 }
 
 void AgentEnsemble::applyNewConfig(
@@ -202,6 +210,13 @@ void AgentEnsemble::enableExactMatch(bcm::BcmConfig& config) {
   }
 }
 
+void AgentEnsemble::setupLinkStateToggler() {
+  if (linkToggler_) {
+    return;
+  }
+  linkToggler_ = createHwLinkStateToggler(this, mode_);
+}
+
 std::string AgentEnsemble::getInputConfigFile() {
   if (kInputConfigFile.empty()) {
     return FLAGS_config;
@@ -218,7 +233,8 @@ void ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform) {
 std::unique_ptr<AgentEnsemble> createAgentEnsemble(
     AgentEnsembleSwitchConfigFn initialConfigFn,
     AgentEnsemblePlatformConfigFn platformConfigFn,
-    uint32_t featuresDesired) {
+    uint32_t featuresDesired,
+    bool startAgent) {
   auto ensemble = std::make_unique<AgentEnsemble>();
   ensemble->setupEnsemble(
       kArgc,
@@ -227,7 +243,34 @@ std::unique_ptr<AgentEnsemble> createAgentEnsemble(
       kPlatformInitFn,
       initialConfigFn,
       platformConfigFn);
+  if (featuresDesired & HwSwitch::FeaturesDesired::LINKSCAN_DESIRED) {
+    ensemble->setupLinkStateToggler();
+  }
+  if (startAgent) {
+    ensemble->startAgent();
+  }
   return ensemble;
 }
 
+std::map<PortID, HwPortStats> AgentEnsemble::getLatestPortStats(
+    const std::vector<PortID>& ports) {
+  std::map<PortID, HwPortStats> portIdStatsMap;
+  SwitchStats dummy{};
+  getHw()->updateStats(&dummy);
+
+  auto swState = getSw()->getState();
+  auto stats = getHw()->getPortStats();
+  for (auto [portName, stats] : stats) {
+    auto portId = swState->getPorts()->getPort(portName)->getID();
+    if (std::find(ports.begin(), ports.end(), (PortID)portId) == ports.end()) {
+      continue;
+    }
+    portIdStatsMap.emplace((PortID)portId, stats);
+  }
+  return portIdStatsMap;
+}
+
+HwPortStats AgentEnsemble::getLatestPortStats(const PortID& port) {
+  return getLatestPortStats(std::vector<PortID>{port})[port];
+}
 } // namespace facebook::fboss

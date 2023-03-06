@@ -2973,6 +2973,17 @@ int BcmCinter::bcm_l3_egress_ecmp_member_status_set(
   return 0;
 }
 
+int BcmCinter::bcm_l3_egress_ecmp_member_status_get(
+    int unit,
+    bcm_if_t intf,
+    int* status) {
+  writeCintLines(wrapFunc(to<string>(
+      "bcm_l3_egress_ecmp_member_status_get(",
+      makeParamStr(unit, intf, *status),
+      ")")));
+  return 0;
+}
+
 int BcmCinter::bcm_l3_ecmp_create(
     int unit,
     uint32 options,
@@ -3046,6 +3057,41 @@ int BcmCinter::bcm_l3_egress_ecmp_create(
       make_move_iterator(cintForFn.begin()),
       make_move_iterator(cintForFn.end()));
   writeCintLines(std::move(cint));
+  return 0;
+}
+
+std::vector<std::string> BcmCinter::cintForDlbPortQualityAttr(
+    bcm_l3_ecmp_dlb_port_quality_attr_t quality_attr) {
+  return {
+      "bcm_l3_ecmp_dlb_port_quality_attr_t_init(&quality_attr)",
+      to<string>("quality_attr.load_weight = ", quality_attr.load_weight),
+      to<string>(
+          "quality_attr.queue_size_weight = ", quality_attr.queue_size_weight),
+      to<string>(
+          "quality_attr.scaling_factor = ", quality_attr.scaling_factor)};
+}
+
+int BcmCinter::bcm_l3_ecmp_dlb_port_quality_attr_set(
+    int unit,
+    bcm_port_t port,
+    bcm_l3_ecmp_dlb_port_quality_attr_t* quality_attr) {
+  writeCintLines(cintForDlbPortQualityAttr(*quality_attr));
+  writeCintLines(wrapFunc(fmt::format(
+      "bcm_l3_ecmp_dlb_port_quality_attr_set({}, {}, &quality_attr)",
+      unit,
+      port)));
+  return 0;
+}
+
+int BcmCinter::bcm_l3_ecmp_dlb_port_quality_attr_get(
+    int unit,
+    bcm_port_t port,
+    bcm_l3_ecmp_dlb_port_quality_attr_t* quality_attr) {
+  writeCintLines(cintForDlbPortQualityAttr(*quality_attr));
+  writeCintLines(wrapFunc(fmt::format(
+      "bcm_l3_ecmp_dlb_port_quality_attr_get({}, {}, &quality_attr)",
+      unit,
+      port)));
   return 0;
 }
 

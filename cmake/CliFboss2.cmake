@@ -32,8 +32,29 @@ add_fbthrift_cpp_library(
 )
 
 add_fbthrift_cpp_library(
+  show_dsfnodes_model
+  fboss/cli/fboss2/commands/show/dsfnodes/model.thrift
+  OPTIONS
+    json
+)
+
+add_fbthrift_cpp_library(
   show_fabric_model
   fboss/cli/fboss2/commands/show/fabric/model.thrift
+  OPTIONS
+    json
+)
+
+add_fbthrift_cpp_library(
+  show_host_model
+  fboss/cli/fboss2/commands/show/host/model.thrift
+  OPTIONS
+    json
+)
+
+add_fbthrift_cpp_library(
+  show_l2_model
+  fboss/cli/fboss2/commands/show/l2/model.thrift
   OPTIONS
     json
 )
@@ -62,6 +83,13 @@ add_fbthrift_cpp_library(
 add_fbthrift_cpp_library(
   show_aggregateport_model
   fboss/cli/fboss2/commands/show/aggregateport/model.thrift
+  OPTIONS
+    json
+)
+
+add_fbthrift_cpp_library(
+  show_systemport_model
+  fboss/cli/fboss2/commands/show/systemport/model.thrift
   OPTIONS
     json
 )
@@ -217,7 +245,10 @@ add_executable(fboss2
   fboss/cli/fboss2/commands/show/agent/CmdShowAgentSsl.h
   fboss/cli/fboss2/commands/show/aggregateport/CmdShowAggregatePort.h
   fboss/cli/fboss2/commands/show/arp/CmdShowArp.h
+  fboss/cli/fboss2/commands/show/dsfnodes/CmdShowDsfNodes.h
   fboss/cli/fboss2/commands/show/fabric/CmdShowFabric.h
+  fboss/cli/fboss2/commands/show/host/CmdShowHost.h
+  fboss/cli/fboss2/commands/show/l2/CmdShowL2.h
   fboss/cli/fboss2/commands/show/lldp/CmdShowLldp.h
   fboss/cli/fboss2/commands/show/ndp/CmdShowNdp.h
   fboss/cli/fboss2/commands/show/port/CmdShowPort.h
@@ -241,6 +272,7 @@ add_executable(fboss2
   fboss/cli/fboss2/commands/show/interface/prbs/state/CmdShowInterfacePrbsState.h
   fboss/cli/fboss2/commands/show/interface/prbs/stats/CmdShowInterfacePrbsStats.h
   fboss/cli/fboss2/commands/show/sdk/dump/CmdShowSdkDump.h
+  fboss/cli/fboss2/commands/show/systemport/CmdShowSystemPort.h
   fboss/cli/fboss2/commands/show/teflow/CmdShowTeFlow.h
   fboss/cli/fboss2/commands/show/transceiver/CmdShowTransceiver.h
   fboss/cli/fboss2/CmdSubcommands.cpp
@@ -280,7 +312,10 @@ target_link_libraries(fboss2
   show_agent_model
   show_aggregateport_model
   show_arp_model
+  show_dsfnodes_model
   show_fabric_model
+  show_host_model
+  show_l2_model
   show_lldp_model
   show_ndp_model
   show_port_model
@@ -299,6 +334,7 @@ target_link_libraries(fboss2
   show_route_model
   show_mpls_route_model
   show_mac_model
+  show_systemport_model
   show_teflow_model
   ${RE2}
 )
