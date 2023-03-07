@@ -10,14 +10,14 @@
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include <thrift/lib/cpp/util/EnumUtils.h>
 #include "fboss/agent/FbossError.h"
-#include "fboss/agent/hw/switch_asics/BeasAsic.h"
 #include "fboss/agent/hw/switch_asics/CredoPhyAsic.h"
 #include "fboss/agent/hw/switch_asics/EbroAsic.h"
 #include "fboss/agent/hw/switch_asics/FakeAsic.h"
 #include "fboss/agent/hw/switch_asics/GaronneAsic.h"
-#include "fboss/agent/hw/switch_asics/IndusAsic.h"
+#include "fboss/agent/hw/switch_asics/Jericho2Asic.h"
 #include "fboss/agent/hw/switch_asics/MarvelPhyAsic.h"
 #include "fboss/agent/hw/switch_asics/MockAsic.h"
+#include "fboss/agent/hw/switch_asics/RamonAsic.h"
 #include "fboss/agent/hw/switch_asics/Tomahawk3Asic.h"
 #include "fboss/agent/hw/switch_asics/Tomahawk4Asic.h"
 #include "fboss/agent/hw/switch_asics/Tomahawk5Asic.h"
@@ -96,10 +96,11 @@ std::unique_ptr<HwAsic> HwAsic::makeAsic(
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
       return std::make_unique<MarvelPhyAsic>(
           switchType, switchId, systemPortRange);
-    case cfg::AsicType::ASIC_TYPE_INDUS:
-      return std::make_unique<IndusAsic>(switchType, switchId, systemPortRange);
-    case cfg::AsicType::ASIC_TYPE_BEAS:
-      return std::make_unique<BeasAsic>(switchType, switchId, systemPortRange);
+    case cfg::AsicType::ASIC_TYPE_JERICHO2:
+      return std::make_unique<Jericho2Asic>(
+          switchType, switchId, systemPortRange);
+    case cfg::AsicType::ASIC_TYPE_RAMON:
+      return std::make_unique<RamonAsic>(switchType, switchId, systemPortRange);
   };
   throw FbossError("Unexcepted asic type: ", asicType);
 }

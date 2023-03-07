@@ -27,12 +27,12 @@
 #include "fboss/agent/platforms/sai/SaiBcmWedge40Platform.h"
 #include "fboss/agent/platforms/sai/SaiBcmYampPlatform.h"
 #include "fboss/agent/platforms/sai/SaiCloudRipperPlatform.h"
-#include "fboss/agent/platforms/sai/SaiKametPlatform.h"
 #include "fboss/agent/platforms/sai/SaiLassenPlatform.h"
-#include "fboss/agent/platforms/sai/SaiMakaluPlatform.h"
+#include "fboss/agent/platforms/sai/SaiMeru400bfuPlatform.h"
+#include "fboss/agent/platforms/sai/SaiMeru400biaPlatform.h"
+#include "fboss/agent/platforms/sai/SaiMeru400biuPlatform.h"
 #include "fboss/agent/platforms/sai/SaiSandiaPlatform.h"
 #include "fboss/agent/platforms/sai/SaiWedge400CPlatform.h"
-#include "fboss/agent/platforms/sai/SaiYangraPlatform.h"
 
 DEFINE_string(
     platform_mapping_override_path,
@@ -103,14 +103,14 @@ std::unique_ptr<SaiPlatform> chooseSaiPlatform(
   } else if (productInfo->getMode() == PlatformMode::ELBERT) {
     return std::make_unique<SaiBcmElbertPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
-  } else if (productInfo->getMode() == PlatformMode::MAKALU) {
-    return std::make_unique<SaiMakaluPlatform>(
+  } else if (productInfo->getMode() == PlatformMode::MERU400BIU) {
+    return std::make_unique<SaiMeru400biuPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
-  } else if (productInfo->getMode() == PlatformMode::YANGRA) {
-    return std::make_unique<SaiYangraPlatform>(
+  } else if (productInfo->getMode() == PlatformMode::MERU400BIA) {
+    return std::make_unique<SaiMeru400biaPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
-  } else if (productInfo->getMode() == PlatformMode::KAMET) {
-    return std::make_unique<SaiKametPlatform>(
+  } else if (productInfo->getMode() == PlatformMode::MERU400BFU) {
+    return std::make_unique<SaiMeru400bfuPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
   } else if (productInfo->getMode() == PlatformMode::MONTBLANC) {
     return std::make_unique<SaiBcmMontblancPlatform>(

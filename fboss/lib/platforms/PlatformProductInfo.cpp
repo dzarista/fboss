@@ -133,14 +133,15 @@ void PlatformProductInfo::initMode() {
         modelName.find("8508-F-SYS-HV") == 0) {
       mode_ = PlatformMode::SANDIA;
     } else if (
-        modelName.find("Makalu") == 0 ||
+        modelName.find("Meru400biu") == 0 ||
         modelName.find("S9710-76D-BB12") == 0) {
-      mode_ = PlatformMode::MAKALU;
-    } else if (modelName.find("Yangra") == 0) {
-      mode_ = PlatformMode::YANGRA;
+      mode_ = PlatformMode::MERU400BIU;
+    } else if (modelName.find("Meru400bia") == 0) {
+      mode_ = PlatformMode::MERU400BIA;
     } else if (
-        modelName.find("Kamet") == 0 || modelName.find("S9705-48D-4B4") == 0) {
-      mode_ = PlatformMode::KAMET;
+        modelName.find("Meru400bfu") == 0 ||
+        modelName.find("S9705-48D-4B4") == 0) {
+      mode_ = PlatformMode::MERU400BFU;
     } else if (
         modelName.find("Montblanc") == 0 || modelName.find("MONTBLANC") == 0) {
       mode_ = PlatformMode::MONTBLANC;
@@ -174,12 +175,12 @@ void PlatformProductInfo::initMode() {
       mode_ = PlatformMode::LASSEN;
     } else if (FLAGS_mode == "sandia") {
       mode_ = PlatformMode::SANDIA;
-    } else if (FLAGS_mode == "makalu") {
-      mode_ = PlatformMode::MAKALU;
-    } else if (FLAGS_mode == "yangra") {
-      mode_ = PlatformMode::YANGRA;
-    } else if (FLAGS_mode == "kamet") {
-      mode_ = PlatformMode::KAMET;
+    } else if (FLAGS_mode == "meru400biu") {
+      mode_ = PlatformMode::MERU400BIU;
+    } else if (FLAGS_mode == "meru400bia") {
+      mode_ = PlatformMode::MERU400BIA;
+    } else if (FLAGS_mode == "meru400bfu") {
+      mode_ = PlatformMode::MERU400BFU;
     } else if (FLAGS_mode == "wedge400c") {
       mode_ = PlatformMode::WEDGE400C;
     } else if (FLAGS_mode == "wedge400c_voq") {

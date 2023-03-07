@@ -20,7 +20,7 @@
 #include "fboss/agent/hw/sai/switch/SaiSwitch.h"
 #include "fboss/agent/hw/sai/switch/SaiSwitchManager.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
-#include "fboss/agent/hw/switch_asics/IndusAsic.h"
+#include "fboss/agent/hw/switch_asics/Jericho2Asic.h"
 #include "fboss/agent/hw/switch_asics/Tomahawk3Asic.h"
 #include "fboss/agent/hw/switch_asics/Tomahawk4Asic.h"
 #include "fboss/agent/hw/switch_asics/Tomahawk5Asic.h"
@@ -57,7 +57,7 @@ void assertMaxBufferPoolSize(const SaiPlatform* platform) {
     case cfg::AsicType::ASIC_TYPE_GARONNE:
     case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
-    case cfg::AsicType::ASIC_TYPE_BEAS:
+    case cfg::AsicType::ASIC_TYPE_RAMON:
       XLOG(FATAL) << " Not supported";
       break;
     case cfg::AsicType::ASIC_TYPE_FAKE:
@@ -67,7 +67,7 @@ void assertMaxBufferPoolSize(const SaiPlatform* platform) {
       // Available buffer is per XPE
       CHECK_EQ(maxEgressPoolSize, availableBuffer * 4);
       break;
-    case cfg::AsicType::ASIC_TYPE_INDUS:
+    case cfg::AsicType::ASIC_TYPE_JERICHO2:
     case cfg::AsicType::ASIC_TYPE_TRIDENT2:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK3:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK4:
@@ -123,10 +123,10 @@ uint64_t SaiBufferManager::getMaxEgressPoolBytes(const SaiPlatform* platform) {
       return kCellsAvailable *
           static_cast<const Tomahawk5Asic*>(asic)->getMMUCellSize();
     }
-    case cfg::AsicType::ASIC_TYPE_INDUS: {
+    case cfg::AsicType::ASIC_TYPE_JERICHO2: {
       /*
        * XXX: TODO: Need to check if there is a way to compute the
-       * buffers available for use in Indus without using the
+       * buffers available for use in Jericho2 without using the
        * egress buffer attribute.
        */
       auto saiSwitch = static_cast<SaiSwitch*>(platform->getHwSwitch());
@@ -136,7 +136,7 @@ uint64_t SaiBufferManager::getMaxEgressPoolBytes(const SaiPlatform* platform) {
     }
     case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
-    case cfg::AsicType::ASIC_TYPE_BEAS:
+    case cfg::AsicType::ASIC_TYPE_RAMON:
       throw FbossError(
           "Not supported to get max egress pool for ASIC: ",
           asic->getAsicType());
@@ -264,7 +264,8 @@ void SaiBufferManager::updateIngressBufferPoolStats() {
   if (!counterIdsToReadAndClear.size()) {
     // TODO: Request for per ITM buffer pool stats in SAI
     counterIdsToReadAndClear.push_back(SAI_BUFFER_POOL_STAT_WATERMARK_BYTES);
-    if (platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_INDUS) {
+    if (platform_->getAsic()->getAsicType() ==
+        cfg::AsicType::ASIC_TYPE_JERICHO2) {
       // TODO: Wait for the fix for CS00012274607 to enable this for all!
       counterIdsToReadAndClear.push_back(
           SAI_BUFFER_POOL_STAT_XOFF_ROOM_WATERMARK_BYTES);

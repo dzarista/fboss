@@ -15,7 +15,7 @@
 #include "fboss/agent/hw/sai/switch/SaiSwitch.h"
 #include "fboss/agent/hw/switch_asics/EbroAsic.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
-#include "fboss/agent/hw/switch_asics/IndusAsic.h"
+#include "fboss/agent/hw/switch_asics/Jericho2Asic.h"
 #include "fboss/agent/platforms/sai/SaiBcmDarwinPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmElbertPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmFujiPlatformPort.h"
@@ -30,12 +30,12 @@
 #include "fboss/agent/platforms/sai/SaiCloudRipperPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiElbert8DDPhyPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiFakePlatformPort.h"
-#include "fboss/agent/platforms/sai/SaiKametPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiLassenPlatformPort.h"
-#include "fboss/agent/platforms/sai/SaiMakaluPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiMeru400bfuPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiMeru400biaPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiMeru400biuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiSandiaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiWedge400CPlatformPort.h"
-#include "fboss/agent/platforms/sai/SaiYangraPlatformPort.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 #include "fboss/qsfp_service/lib/QsfpCache.h"
@@ -261,12 +261,12 @@ void SaiPlatform::initPorts() {
       saiPort = std::make_unique<SaiLassenPlatformPort>(portId, this);
     } else if (platformMode == PlatformMode::SANDIA) {
       saiPort = std::make_unique<SaiSandiaPlatformPort>(portId, this);
-    } else if (platformMode == PlatformMode::MAKALU) {
-      saiPort = std::make_unique<SaiMakaluPlatformPort>(portId, this);
-    } else if (platformMode == PlatformMode::YANGRA) {
-      saiPort = std::make_unique<SaiYangraPlatformPort>(portId, this);
-    } else if (platformMode == PlatformMode::KAMET) {
-      saiPort = std::make_unique<SaiKametPlatformPort>(portId, this);
+    } else if (platformMode == PlatformMode::MERU400BIU) {
+      saiPort = std::make_unique<SaiMeru400biuPlatformPort>(portId, this);
+    } else if (platformMode == PlatformMode::MERU400BIA) {
+      saiPort = std::make_unique<SaiMeru400biaPlatformPort>(portId, this);
+    } else if (platformMode == PlatformMode::MERU400BFU) {
+      saiPort = std::make_unique<SaiMeru400bfuPlatformPort>(portId, this);
     } else if (platformMode == PlatformMode::MONTBLANC) {
       saiPort = std::make_unique<SaiBcmMontblancPlatformPort>(portId, this);
     } else {
@@ -369,14 +369,14 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
       auto agentCfg = config();
       CHECK(agentCfg) << " agent config must be set ";
       uint32_t systemCores = 0;
-      const IndusAsic indus(cfg::SwitchType::VOQ, 0, std::nullopt);
+      const Jericho2Asic indus(cfg::SwitchType::VOQ, 0, std::nullopt);
       const EbroAsic ebro(cfg::SwitchType::VOQ, 0, std::nullopt);
       for (const auto& [id, dsfNode] : *agentCfg->thrift.sw()->dsfNodes()) {
         if (dsfNode.type() != cfg::DsfNodeType::INTERFACE_NODE) {
           continue;
         }
         switch (*dsfNode.asicType()) {
-          case cfg::AsicType::ASIC_TYPE_INDUS:
+          case cfg::AsicType::ASIC_TYPE_JERICHO2:
             systemCores += indus.getNumCores();
             break;
           case cfg::AsicType::ASIC_TYPE_EBRO:
