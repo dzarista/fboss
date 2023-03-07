@@ -9,8 +9,8 @@ URL: https://github.com/aristanetworks/arista-fboss
 Source: %{expand:%%(pwd)}
 
 %define _fboss_yamp_dir fboss.git/arista/platform/yamp
-%define _fboss_config_dir fboss.git/fboss/platform/config_lib/configs
-%define _fboss_bcm_sai_config_dir fboss.git/fboss/bcm_sai_configs
+%define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
+%define _fboss_bcm_sai_config_dir %{_fboss_build_repo_dir}/fboss/bcm_sai_configs
 
 %define _fboss_target_share %{buildroot}/opt/fboss/share
 %define _fboss_target_var %{buildroot}/var/facebook/fboss/

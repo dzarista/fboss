@@ -23,7 +23,7 @@ set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/tmp_build_dir/fboss_bins-* .
 cp -af %{SOURCEURL0}/%{_fboss_core_dir}/* .
-find %{SOURCEURL0}/%{_fboss_build_dir} -maxdepth 1 -type f -exec cp {} ./fboss_bins-*/bin/ \;
+find %{SOURCEURL0}/%{_fboss_build_dir} -maxdepth 1 -type f -executable -exec cp {} ./fboss_bins-*/bin/ \;
 
 %install
 # Install core binaries.
