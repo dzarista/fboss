@@ -11,10 +11,10 @@
 
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
-#include "fboss/agent/hw/switch_asics/BeasAsic.h"
 #include "fboss/agent/hw/switch_asics/EbroAsic.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
-#include "fboss/agent/hw/switch_asics/IndusAsic.h"
+#include "fboss/agent/hw/switch_asics/Jericho2Asic.h"
+#include "fboss/agent/hw/switch_asics/RamonAsic.h"
 #include "fboss/agent/hw/test/HwPortUtils.h"
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/state/Port.h"
@@ -102,11 +102,11 @@ cfg::DsfNode dsfNodeConfig(const HwAsic& myAsic, int64_t otherSwitchId) {
       systemPortRange = range;
     }
     switch (fromAsic.getAsicType()) {
-      case cfg::AsicType::ASIC_TYPE_INDUS:
-        return std::make_unique<IndusAsic>(
+      case cfg::AsicType::ASIC_TYPE_JERICHO2:
+        return std::make_unique<Jericho2Asic>(
             fromAsic.getSwitchType(), switchId, systemPortRange);
-      case cfg::AsicType::ASIC_TYPE_BEAS:
-        return std::make_unique<BeasAsic>(
+      case cfg::AsicType::ASIC_TYPE_RAMON:
+        return std::make_unique<RamonAsic>(
             fromAsic.getSwitchType(), switchId, std::nullopt);
       case cfg::AsicType::ASIC_TYPE_EBRO:
         return std::make_unique<EbroAsic>(

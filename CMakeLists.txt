@@ -573,8 +573,8 @@ if (NOT SAI_ONLY)
       fboss/agent/hw/switch_asics/Tomahawk3Asic.cpp
       fboss/agent/hw/switch_asics/TomahawkAsic.cpp
       fboss/agent/hw/switch_asics/Trident2Asic.cpp
-      fboss/agent/hw/switch_asics/IndusAsic.cpp
-      fboss/agent/hw/switch_asics/BeasAsic.cpp
+      fboss/agent/hw/switch_asics/Jericho2Asic.cpp
+      fboss/agent/hw/switch_asics/RamonAsic.cpp
       fboss/agent/hw/switch_asics/BroadcomXgsAsic.cpp
   )
 
@@ -971,9 +971,9 @@ if (NOT SAI_ONLY)
       wedge400c_platform_mapping
       wedge100_platform_mapping
       galaxy_platform_mapping
-      kamet_platform_mapping
-      makalu_platform_mapping
-      yangra_platform_mapping
+      meru400bfu_platform_mapping
+      meru400biu_platform_mapping
+      meru400bia_platform_mapping
       qsfp_cpp2
       qsfp_service_client
       wedge_led_utils

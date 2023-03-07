@@ -62,8 +62,8 @@ class HwParityErrorTest : public HwLinkStateDependentTest {
       case cfg::AsicType::ASIC_TYPE_MOCK:
       case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
       case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
-      case cfg::AsicType::ASIC_TYPE_INDUS:
-      case cfg::AsicType::ASIC_TYPE_BEAS:
+      case cfg::AsicType::ASIC_TYPE_JERICHO2:
+      case cfg::AsicType::ASIC_TYPE_RAMON:
         XLOG(FATAL) << "Unsupported HwAsic";
         break;
       case cfg::AsicType::ASIC_TYPE_EBRO:

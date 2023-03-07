@@ -1159,8 +1159,8 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
       HwAsic::AsicVendor::ASIC_VENDOR_TAJO;
   bool isTrident2 =
       platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_TRIDENT2;
-  bool isIndus =
-      platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_INDUS;
+  bool isJericho2 =
+      platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2;
 
   if (isTajo) {
     std::set<cfg::AclTableQualifier> tajoQualifiers = {
@@ -1197,7 +1197,7 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
     }
 #endif
     return tajoQualifiers;
-  } else if (isIndus) {
+  } else if (isJericho2) {
     // TODO(skhare)
     // Extend this list once the SAI implementation supports more qualifiers
     std::set<cfg::AclTableQualifier> indusQualifiers = {

@@ -29,8 +29,8 @@
 #include "fboss/agent/capture/PktCaptureManager.h"
 #include "fboss/agent/hw/mock/MockRxPacket.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
-#include "fboss/agent/platforms/common/kamet/KametPlatformMapping.h"
-#include "fboss/agent/platforms/common/makalu/MakaluPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru400bfu/Meru400bfuPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru400biu/Meru400biuPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400c/Wedge400CFabricPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400c/Wedge400CVoqPlatformMapping.h"
 #include "fboss/agent/rib/ForwardingInformationBaseUpdater.h"
@@ -2812,8 +2812,8 @@ void ThriftHandler::getFabricReachability(
   ensureConfigured(__func__);
   auto portId2FabricEndpoint = sw_->getHw()->getFabricReachability();
   auto state = sw_->getState();
-  static MakaluPlatformMapping makalu;
-  static KametPlatformMapping kamet;
+  static Meru400biuPlatformMapping meru400biu;
+  static Meru400bfuPlatformMapping meru400bfu;
   static Wedge400CVoqPlatformMapping w400cVoq;
   static Wedge400CFabricPlatformMapping w400cFabric;
   for (auto [portId, fabricEndpoint] : portId2FabricEndpoint) {
@@ -2839,7 +2839,7 @@ void ThriftHandler::getFabricReachability(
       const PlatformMapping* platformMapping{nullptr};
       if (node) {
         fabricEndpoint.switchName() = node->getName();
-        // Indus ASIC fabric port numbers are offset by 256
+        // Jericho2 ASIC fabric port numbers are offset by 256
         int remotePortOffset{0};
         switch (node->getAsicType()) {
           case cfg::AsicType::ASIC_TYPE_FAKE:
@@ -2863,17 +2863,18 @@ void ThriftHandler::getFabricReachability(
                         << static_cast<int>(*fabricEndpoint.switchType());
             }
             break;
-          case cfg::AsicType::ASIC_TYPE_INDUS:
+          case cfg::AsicType::ASIC_TYPE_JERICHO2:
             /*
              * TODO: Introduce platform mode and use it create platofrm mapping
-             * instead of the ASIC. Certain platforms like Yangra/Makalu will
-             * use the same ASIC but different platform
+             * instead of the ASIC. Certain platforms like
+             * Meru400bia/Meru400biu will use the same ASIC but different
+             * platform
              */
-            platformMapping = &makalu;
+            platformMapping = &meru400biu;
             remotePortOffset = 256;
             break;
-          case cfg::AsicType::ASIC_TYPE_BEAS:
-            platformMapping = &kamet;
+          case cfg::AsicType::ASIC_TYPE_RAMON:
+            platformMapping = &meru400bfu;
             break;
         }
         fabricEndpoint.portId() = *fabricEndpoint.portId() + remotePortOffset;

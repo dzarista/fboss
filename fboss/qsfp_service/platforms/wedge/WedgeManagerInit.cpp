@@ -9,11 +9,11 @@
  */
 #include "fboss/qsfp_service/platforms/wedge/WedgeManagerInit.h"
 
-#include "fboss/agent/platforms/common/kamet/KametPlatformMapping.h"
-#include "fboss/agent/platforms/common/makalu/MakaluPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru400bfu/Meru400bfuPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru400biu/Meru400biuPlatformMapping.h"
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
-#include "fboss/lib/bsp/kamet/KametBspPlatformMapping.h"
-#include "fboss/lib/bsp/makalu/MakaluBspPlatformMapping.h"
+#include "fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.h"
+#include "fboss/lib/bsp/meru400biu/Meru400biuBspPlatformMapping.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 #include "fboss/qsfp_service/platforms/wedge/BspWedgeManager.h"
 #include "fboss/qsfp_service/platforms/wedge/GalaxyManager.h"
@@ -47,10 +47,10 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
     return createElbertWedgeManager();
   } else if (mode == PlatformMode::SANDIA) {
     return createSandiaWedgeManager();
-  } else if (mode == PlatformMode::KAMET) {
-    return createKametWedgeManager();
-  } else if (mode == PlatformMode::MAKALU) {
-    return createMakaluWedgeManager();
+  } else if (mode == PlatformMode::MERU400BFU) {
+    return createMeru400bfuWedgeManager();
+  } else if (mode == PlatformMode::MERU400BIU) {
+    return createMeru400biuWedgeManager();
   } else if (
       mode == PlatformMode::FUJI || mode == PlatformMode::MINIPACK ||
       mode == PlatformMode::WEDGE400 || mode == PlatformMode::WEDGE400C ||
@@ -60,24 +60,26 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
   return std::make_unique<Wedge40Manager>();
 }
 
-std::unique_ptr<WedgeManager> createKametWedgeManager() {
+std::unique_ptr<WedgeManager> createMeru400bfuWedgeManager() {
   auto systemContainer =
-      BspGenericSystemContainer<KametBspPlatformMapping>::getInstance().get();
+      BspGenericSystemContainer<Meru400bfuBspPlatformMapping>::getInstance()
+          .get();
   return std::make_unique<BspWedgeManager>(
       systemContainer,
       std::make_unique<BspTransceiverApi>(systemContainer),
-      std::make_unique<KametPlatformMapping>(),
-      PlatformMode::KAMET);
+      std::make_unique<Meru400bfuPlatformMapping>(),
+      PlatformMode::MERU400BFU);
 }
 
-std::unique_ptr<WedgeManager> createMakaluWedgeManager() {
+std::unique_ptr<WedgeManager> createMeru400biuWedgeManager() {
   auto systemContainer =
-      BspGenericSystemContainer<MakaluBspPlatformMapping>::getInstance().get();
+      BspGenericSystemContainer<Meru400biuBspPlatformMapping>::getInstance()
+          .get();
   return std::make_unique<BspWedgeManager>(
       systemContainer,
       std::make_unique<BspTransceiverApi>(systemContainer),
-      std::make_unique<MakaluPlatformMapping>(),
-      PlatformMode::MAKALU);
+      std::make_unique<Meru400biuPlatformMapping>(),
+      PlatformMode::MERU400BIU);
 }
 } // namespace fboss
 } // namespace facebook

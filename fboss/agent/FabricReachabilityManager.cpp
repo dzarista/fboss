@@ -8,8 +8,8 @@
 #include "fboss/agent/state/SwitchState.h"
 
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
-#include "fboss/agent/platforms/common/kamet/KametPlatformMapping.h"
-#include "fboss/agent/platforms/common/makalu/MakaluPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru400bfu/Meru400bfuPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru400biu/Meru400biuPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400c/Wedge400CFabricPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400c/Wedge400CVoqPlatformMapping.h"
 
@@ -75,8 +75,8 @@ static PlatformMapping* FOLLY_NULLABLE getPlatformMappingForDsfNode(
     const cfg::AsicType asicType,
     const cfg::SwitchType switchType,
     int* remotePortOffset) {
-  static MakaluPlatformMapping makalu;
-  static KametPlatformMapping kamet;
+  static Meru400biuPlatformMapping meru400biu;
+  static Meru400bfuPlatformMapping meru400bfu;
   static Wedge400CVoqPlatformMapping w400cVoq;
   static Wedge400CFabricPlatformMapping w400cFabric;
 
@@ -92,12 +92,12 @@ static PlatformMapping* FOLLY_NULLABLE getPlatformMappingForDsfNode(
         return &w400cFabric;
       }
       break;
-    case cfg::AsicType::ASIC_TYPE_INDUS:
+    case cfg::AsicType::ASIC_TYPE_JERICHO2:
       *remotePortOffset = 256;
-      return &makalu;
+      return &meru400biu;
       break;
-    case cfg::AsicType::ASIC_TYPE_BEAS:
-      return &kamet;
+    case cfg::AsicType::ASIC_TYPE_RAMON:
+      return &meru400bfu;
       break;
     default:
       break;
