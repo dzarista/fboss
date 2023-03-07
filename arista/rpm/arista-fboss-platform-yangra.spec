@@ -11,6 +11,7 @@ Source: %{expand:%%(pwd)}
 %define _fboss_yangra_dir fboss.git/arista/platform/yangra
 %define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
 %define _fboss_bcm_sai_config_dir %{_fboss_build_repo_dir}/fboss/bcm_sai_configs
+%define _sai_sdk_src_dir Aqua_SAI/sdk-src
 
 %define _fboss_target_share %{buildroot}/opt/fboss/share
 %define _fboss_target_var %{buildroot}/var/facebook/fboss/
@@ -23,11 +24,13 @@ Yangra (QuartzDD) switches.
 set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_yangra_dir}/* .
-cp -af %{SOURCEURL0}/%{_fboss_bcm_sai_config_dir}/yangra.agent.materialized_JSON .
+cp -af %{SOURCEURL0}/%{_fboss_bcm_sai_config_dir}/meru400bia.agent.materialized_JSON .
+find %{SOURCEURL0}/%{_sai_sdk_src_dir} -wholename "*/tools/sand/db" -exec cp -r {} . \;
 
 %install
 mkdir -p %{_fboss_target_share}/wedge_agent/
-install yangra.agent.materialized_JSON %{_fboss_target_share}/wedge_agent/platform_wedge_agent.conf
+install meru400bia.agent.materialized_JSON %{_fboss_target_share}/wedge_agent/platform_wedge_agent.conf
+cp -rf db %{_fboss_target_share}/
 mkdir -p %{_fboss_target_share}/qsfp_service/
 install config/qsfp_service/yangra_qsfp.conf %{_fboss_target_share}/qsfp_service/platform_qsfp.conf
 mkdir -p %{_fboss_target_var}
@@ -35,5 +38,6 @@ install config/fruid/fruid.json %{_fboss_target_var}
 
 %files
 /var/facebook/fboss/fruid.json
+/opt/fboss/share/db
 /opt/fboss/share/wedge_agent/platform_wedge_agent.conf
 /opt/fboss/share/qsfp_service/platform_qsfp.conf
