@@ -33,6 +33,11 @@ cp -f scripts/fboss_init.sh %{_fboss_target_bin}
 cp -f scripts/run_sensor_service.sh %{_fboss_target_bin}
 cp -f scripts/run_qsfp_service.sh %{_fboss_target_bin}
 cp -f scripts/run_wedge_agent.sh %{_fboss_target_bin}
+# Fake the MERU400BIA bcm conf file from an existing bcm conf file.
+# NOTE : This will go away soon since FBOSS does not use the separate bcm config
+# files anymore, but they haven't fixed setup.py to not look for the config files
+# yet.
+cp -f fboss_bins-*/share/bcm_configs/YAMP+SSW-bcm.conf %{_fboss_target_opt}/share/bcm_configs/MERU400BIA-bcm.conf
 
 # Install systemd services.
 mkdir -p %{_fboss_target_systemd}
