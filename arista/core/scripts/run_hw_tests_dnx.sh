@@ -4,7 +4,7 @@ function runTest() {
    testName=$(echo $testNameAndFilter | sed 's/\(.*\)\(\..*\)/\1/g')
    testCases=$(sai_test-sai_impl-1.11.0 --gtest_filter="$testNameAndFilter" --gtest_list_tests | grep -v "$testName")
    testName=$(echo $testNameAndFilter | sed 's/\(.*\)\(\..*\)/\1/g')
-   if [ ! -z "$2" ];
+   if [ -n "$2" ];
    then
       echo "***************Running test cases"
       for testCase in $testCases; do echo "$testName.$testCase"; done
@@ -12,7 +12,7 @@ function runTest() {
    failedTestCases=""
    for testCase in $testCases
    do
-      if [ ! -z "$2" ];
+      if [ -n "$2" ];
       then
          DPP_DB_PATH=/opt/fboss/share/db sai_test-sai_impl-1.11.0 --config /opt/fboss/share/wedge_agent/platform_wedge_agent.conf --gtest_filter="$testName"."$testCase" --mgmt-if enp1s0
       else
@@ -30,10 +30,10 @@ function runTest() {
          echo "$testName.$testCase PASSED"
       fi
    done
-   if [ ! -z "$failedTestCases" -a ! -z "$2" ]; then echo -ne "FAILED TEST CASES\n$failedTestCases"; fi
+   if [ -n "$failedTestCases" -a -n "$2" ]; then echo -ne "FAILED TEST CASES\n$failedTestCases"; fi
 }
 
-if [ ! -z "$1" ];
+if [ -n "$1" ];
 then
    runTest "$1" "DEBUG"
 else
