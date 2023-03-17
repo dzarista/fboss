@@ -3,7 +3,6 @@ function runTest() {
    testNameAndFilter="$1"
    testName=$(echo $testNameAndFilter | sed 's/\(.*\)\(\..*\)/\1/g')
    testCases=$(sai_test-sai_impl-1.11.0 --gtest_filter="$testNameAndFilter" --gtest_list_tests | grep -v "$testName")
-   testName=$(echo $testNameAndFilter | sed 's/\(.*\)\(\..*\)/\1/g')
    if [ -n "$2" ];
    then
       echo "***************Running test cases"
