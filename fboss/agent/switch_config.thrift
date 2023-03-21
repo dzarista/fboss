@@ -619,6 +619,7 @@ enum MMUScalingFactor {
   ONE_HALF = 8,
   TWO = 9,
   FOUR = 10,
+  ONE_32768 = 11,
 }
 
 // This determines how packets are scheduled on a per queue basis
@@ -1485,6 +1486,7 @@ struct SwitchSettings {
   // Switch id (only applicable for VOQ based systems)
   9: optional i64 switchId;
   10: list<ExactMatchTableConfig> exactMatchTableConfigs = [];
+  11: map<i64, SwitchType> switchIdToSwitchType = {0: SwitchType.NPU};
 }
 
 // Global buffer pool shared by {port, pgs}
@@ -1794,4 +1796,5 @@ struct SwitchConfig {
   48: map<i64, DsfNode> dsfNodes = {};
   49: optional UdfConfig udfConfig;
   50: optional FlowletSwitchingConfig flowletSwitchingConfig;
+  51: list<PortQueue> defaultVoqConfig = [];
 }

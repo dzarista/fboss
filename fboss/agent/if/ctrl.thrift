@@ -15,6 +15,7 @@ include "fboss/qsfp_service/if/transceiver.thrift"
 include "fboss/agent/switch_config.thrift"
 include "fboss/agent/platform_config.thrift"
 include "fboss/lib/phy/phy.thrift"
+include "fboss/agent/hw/hardware_stats.thrift"
 
 typedef binary (cpp2.type = "::folly::fbstring") fbbinary
 typedef string (cpp2.type = "::folly::fbstring") fbstring
@@ -346,6 +347,47 @@ struct PortInfoThrift {
   21: optional PortHardwareDetails hw;
   22: optional TransceiverIdxThrift transceiverIdx;
   23: optional i32 hwLogicalPortId;
+  24: bool isDrained;
+}
+
+// Port queueing configuration
+struct PortQueueFields {
+  1: i16 id = 0;
+  2: i32 weight = 1;
+  3: optional i32 reserved;
+  // TODO: replace with switch_config.MMUScalingFactor?
+  4: optional string scalingFactor;
+  // TODO: replace with switch_config.QueueScheduling?
+  5: string scheduling = "WEIGHTED_ROUND_ROBIN";
+  // TODO: replace with switch_config.StreamType?
+  6: string streamType = "UNICAST";
+  7: optional list<switch_config.ActiveQueueManagement> aqms;
+  8: optional string name;
+  /*
+  * Refer PortQueueRate which is a generalized version and allows configuring
+  * pps as well as kbps.
+  */
+  10: optional i32 packetsPerSec_DEPRECATED;
+  11: optional i32 sharedBytes;
+  12: optional switch_config.PortQueueRate portQueueRate;
+
+  13: optional i32 bandwidthBurstMinKbits;
+  14: optional i32 bandwidthBurstMaxKbits;
+  15: optional i16 trafficClass;
+  16: optional list<i16> pfcPriorities;
+}
+
+struct SystemPortThrift {
+  1: i64 portId;
+  2: i64 switchId;
+  3: string portName; // switchId::portName
+  4: i64 coreIndex;
+  5: i64 corePortIndex;
+  6: i64 speedMbps;
+  7: i64 numVoqs;
+  9: bool enabled;
+  10: optional string qosPolicy;
+  11: list<PortQueueFields> queues;
 }
 
 struct PortHardwareDetails {
@@ -388,6 +430,7 @@ struct PortStatus {
   4: optional TransceiverIdxThrift transceiverIdx;
   5: i64 speedMbps; // TODO: i32 (someone is optimistic about port speeds)
   6: string profileID;
+  7: bool drained;
 }
 
 enum CaptureDirection {
@@ -867,6 +910,13 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
   );
 
   /*
+   * Set drain state for a port
+   */
+  void setPortDrainState(1: i32 portId, 2: bool drain) throws (
+    1: fboss.FbossBaseError error,
+  );
+
+  /*
    * Set loopback mode for a port. Primarily used by tests
    */
   void setPortLoopbackMode(1: i32 portId, 2: PortLoopbackMode mode) throws (
@@ -944,6 +994,15 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
     1: fboss.FbossBaseError error,
   );
   map<i32, PortInfoThrift> getAllPortStats() throws (
+    1: fboss.FbossBaseError error,
+  );
+  map<string, hardware_stats.HwSysPortStats> getSysPortStats() throws (
+    1: fboss.FbossBaseError error,
+  );
+  map<string, hardware_stats.HwPortStats> getHwPortStats() throws (
+    1: fboss.FbossBaseError error,
+  );
+  hardware_stats.CpuPortStats getCpuPortStats() throws (
     1: fboss.FbossBaseError error,
   );
 
@@ -1256,7 +1315,7 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
   map<i64, switch_config.DsfNode> getDsfNodes() throws (
     1: fboss.FbossBaseError error,
   );
-  map<i64, common.SystemPortThrift> getSystemPorts() throws (
+  map<i64, SystemPortThrift> getSystemPorts() throws (
     1: fboss.FbossBaseError error,
   );
 }

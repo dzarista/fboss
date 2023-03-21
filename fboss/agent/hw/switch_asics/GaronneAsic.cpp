@@ -19,7 +19,7 @@ bool GaronneAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::MPLS_ECMP:
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv6:
-    case HwAsic::Feature::HOSTTABLE_FOR_HOSTROUTES:
+
     case HwAsic::Feature::ECN:
     case HwAsic::Feature::L3_QOS:
     case HwAsic::Feature::QOS_MAP_GLOBAL:
@@ -134,6 +134,8 @@ bool GaronneAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::PCS_RX_LINK_STATUS:
     case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
+    case HwAsic::Feature::PORT_FABRIC_ISOLATE:
+    case HwAsic::Feature::QUEUE_ECN_COUNTER:
       return false;
   }
   return false;

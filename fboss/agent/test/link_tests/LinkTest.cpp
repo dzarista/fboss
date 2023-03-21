@@ -143,9 +143,9 @@ std::map<int32_t, TransceiverInfo> LinkTest::waitForTransceiverInfo(
 // If the expectedLLDPValues in the switch config has an entry, we expect
 // that port to take part in the test
 void LinkTest::initializeCabledPorts() {
-  const auto& platformPorts =
-      sw()->getPlatform()->getPlatformMapping()->getPlatformPorts();
-  const auto& chips = sw()->getPlatform()->getPlatformMapping()->getChips();
+  const auto& platformPorts = sw()->getPlatformMapping()->getPlatformPorts();
+
+  const auto& chips = sw()->getPlatformMapping()->getChips();
   for (const auto& port : *sw()->getConfig().ports()) {
     if (!(*port.expectedLLDPValues()).empty()) {
       auto portID = *port.logicalID();
@@ -265,12 +265,23 @@ void LinkTest::createL3DataplaneFlood(
   XLOG(DBG2) << "Created L3 Data Plane Flood";
 }
 
-bool LinkTest::lldpNeighborsOnAllCabledPorts() const {
+bool LinkTest::checkReachabilityOnAllCabledPorts() const {
   auto lldpDb = sw()->getLldpMgr()->getDB();
   for (const auto& port : getCabledPorts()) {
-    if (!lldpDb->getNeighbors(port).size()) {
+    auto portType = platform()->getPlatformPort(port)->getPortType();
+    if (portType == cfg::PortType::INTERFACE_PORT &&
+        !lldpDb->getNeighbors(port).size()) {
       XLOG(DBG2) << " No lldp neighbors on : " << getPortName(port);
       return false;
+    }
+    if (portType == cfg::PortType::FABRIC_PORT) {
+      auto fabricReachabilityEntries = sw()->getHw()->getFabricReachability();
+      auto fabricPortEndPoint = fabricReachabilityEntries.find(port);
+      if (fabricPortEndPoint == fabricReachabilityEntries.end() ||
+          !*fabricPortEndPoint->second.isAttached()) {
+        XLOG(DBG2) << " No fabric end points on : " << getPortName(port);
+        return false;
+      }
     }
   }
   return true;
@@ -378,7 +389,7 @@ void LinkTest::waitForLldpOnCabledPorts(
     uint32_t retries,
     std::chrono::duration<uint32_t, std::milli> msBetweenRetry) const {
   WITH_RETRIES_N_TIMED(retries, msBetweenRetry, {
-    ASSERT_EVENTUALLY_TRUE(lldpNeighborsOnAllCabledPorts());
+    ASSERT_EVENTUALLY_TRUE(checkReachabilityOnAllCabledPorts());
   });
 }
 

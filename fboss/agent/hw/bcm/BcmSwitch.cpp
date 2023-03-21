@@ -641,14 +641,15 @@ std::shared_ptr<SwitchState> BcmSwitch::getColdBootSwitchState() const {
         "L2 Learning mode is neither SOFTWARE, nor HARDWARE, flags: ", flags);
   }
 
-  auto switchSettings = make_shared<SwitchSettings>();
-  switchSettings->setL2LearningMode(l2LearningMode);
-  bootState->resetSwitchSettings(switchSettings);
-
   bcm_vlan_t defaultVlan;
   auto rv = bcm_vlan_default_get(getUnit(), &defaultVlan);
   bcmCheckError(rv, "Unable to get default VLAN");
-  bootState->setDefaultVlan(VlanID(defaultVlan));
+
+  auto switchSettings = make_shared<SwitchSettings>();
+  switchSettings->setL2LearningMode(l2LearningMode);
+  switchSettings->setDefaultVlan(VlanID(defaultVlan));
+  bootState->resetSwitchSettings(switchSettings);
+
   // get cpu queue settings
   auto cpu = make_shared<ControlPlane>();
   auto cpuQueues = controlPlane_->getMulticastQueueSettings();
@@ -1254,6 +1255,17 @@ void BcmSwitch::processFlowletSwitchingConfigChanges(const StateDelta& delta) {
   }
 
   XLOG(DBG2) << "Flowlet switching config enabled";
+  if (newFlowletSwitching) {
+    XLOG(DBG2) << "Flowlet switching setting ether type";
+    int ecmp_dlb_ethtypes[] = {0x0800, 0x86DD};
+    auto rv = bcm_l3_egress_ecmp_ethertype_set(
+        unit_,
+        BCM_L3_ECMP_DYNAMIC_ETHERTYPE_ELIGIBLE,
+        (sizeof(ecmp_dlb_ethtypes) / sizeof(ecmp_dlb_ethtypes[0])),
+        ecmp_dlb_ethtypes);
+    bcmCheckError(rv, "failed to set bcm_l3_egress_ecmp_ethertype_set");
+  }
+
   processDynamicEgressLoadExponentChanged(
       oldFlowletSwitching, newFlowletSwitching);
   processDynamicQueueExponentChanged(oldFlowletSwitching, newFlowletSwitching);

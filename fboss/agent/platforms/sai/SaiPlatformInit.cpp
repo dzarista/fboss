@@ -34,11 +34,6 @@
 #include "fboss/agent/platforms/sai/SaiSandiaPlatform.h"
 #include "fboss/agent/platforms/sai/SaiWedge400CPlatform.h"
 
-DEFINE_string(
-    platform_mapping_override_path,
-    "",
-    "The path to the Platform Mapping JSON file");
-
 namespace facebook::fboss {
 
 std::unique_ptr<SaiPlatform> chooseSaiPlatform(
@@ -70,10 +65,6 @@ std::unique_ptr<SaiPlatform> chooseSaiPlatform(
     return std::make_unique<SaiBcmYampPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
   } else if (productInfo->getMode() == PlatformMode::WEDGE400C) {
-    if (isLEB()) {
-      return getLEBPlatform(
-          std::move(productInfo), localMac, platformMappingStr);
-    }
     return std::make_unique<SaiWedge400CPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
   } else if (productInfo->getMode() == PlatformMode::WEDGE400C_VOQ) {

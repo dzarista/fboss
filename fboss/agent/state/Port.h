@@ -80,6 +80,7 @@ USE_THRIFT_COW(Port);
 class Port : public ThriftStructNode<Port, state::PortFields> {
  public:
   using BaseT = ThriftStructNode<Port, state::PortFields>;
+  using BaseT::modify;
   using LegacyFields = PortFields;
   using VlanInfo = PortFields::VlanInfo;
   using VlanMembership = PortFields::VlanMembership;
@@ -196,6 +197,10 @@ class Port : public ThriftStructNode<Port, state::PortFields> {
     return getAdminState() == cfg::PortState::ENABLED;
   }
 
+  bool isDrained() const {
+    return getPortDrainState() == cfg::PortDrainState::DRAINED;
+  }
+
   bool isUp() const {
     return cref<switch_state_tags::portOperState>()->cref();
   }
@@ -289,7 +294,7 @@ class Port : public ThriftStructNode<Port, state::PortFields> {
   }
   void resetPortQueues(QueueConfig& queues) {
     // TODO(zecheng): change type to ThriftListNode
-    std::vector<state::PortQueueFields> queuesThrift{};
+    std::vector<PortQueueFields> queuesThrift{};
     for (auto queue : queues) {
       queuesThrift.push_back(queue->toThrift());
     }
@@ -299,7 +304,7 @@ class Port : public ThriftStructNode<Port, state::PortFields> {
   bool hasValidPortQueues() const {
     constexpr auto kDefaultProbability = 100;
     for (const auto& portQueue : *getPortQueues()) {
-      const auto& aqms = portQueue->get<switch_state_tags::aqms>();
+      const auto& aqms = portQueue->get<ctrl_if_tags::aqms>();
       if (!aqms) {
         continue;
       }

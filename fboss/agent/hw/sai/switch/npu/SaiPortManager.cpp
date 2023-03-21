@@ -21,11 +21,6 @@ DEFINE_bool(
     "Use interface type in platform mapping to derive the medium "
     "instead of deriving it from the medium field");
 
-DEFINE_bool(
-    sai_configure_six_tap,
-    false,
-    "Flag to indicate whether to program six tap attributes in sai");
-
 namespace facebook::fboss {
 
 namespace {
@@ -327,11 +322,19 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
     bool /* lineSide */) const {
   bool adminState =
       swPort->getAdminState() == cfg::PortState::ENABLED ? true : false;
+
 #if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
-  bool isDrained = swPort->getPortDrainState() == cfg::PortDrainState::DRAINED
-      ? true
-      : false;
+  std::optional<bool> isDrained = std::nullopt;
+  if (platform_->getAsic()->isSupported(HwAsic::Feature::PORT_FABRIC_ISOLATE)) {
+    isDrained = swPort->getPortDrainState() == cfg::PortDrainState::DRAINED;
+    if ((isDrained == true) &&
+        swPort->getPortType() != cfg::PortType::FABRIC_PORT) {
+      throw FbossError(
+          "Cannot isolate/drain a non-fabric port ", swPort->getID());
+    }
+  }
 #endif
+
   auto portID = swPort->getID();
   auto platformPort = platform_->getPort(portID);
   auto speed = swPort->getSpeed();
@@ -394,7 +397,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   }
   std::optional<SaiPortTraits::Attributes::FecMode> fecMode;
   if (platform_->getAsic()->isSupported(HwAsic::Feature::FEC)) {
-    auto enableFec = (speed >= cfg::PortSpeed::HUNDREDG) ||
+    auto enableFec = (speed >= cfg::PortSpeed::FIFTYTHREEPOINTONETWOFIVEG) ||
         !platformPort->shouldDisableFEC();
     if (!enableFec) {
       fecMode = SAI_PORT_FEC_MODE_NONE;

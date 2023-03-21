@@ -220,10 +220,6 @@ target_link_libraries(handler
   ctrl_cpp2
   log_thrift_call
   Folly::folly
-  wedge400c_platform_mapping
-  meru400bfu_platform_mapping
-  meru400biu_platform_mapping
-  meru400bia_platform_mapping
 )
 
 target_link_libraries(fboss_types
@@ -296,4 +292,13 @@ add_library(fsdb_helper
 target_link_libraries(fsdb_helper
   fsdb_oper_cpp2
   state
+)
+
+add_library(npu_matcher
+  fboss/agent/NpuMatcher.cpp
+)
+
+target_link_libraries(hwswitch_matcher
+  fboss_error
+  fboss_types
 )

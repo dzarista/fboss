@@ -113,7 +113,10 @@ TEST(Udf, addUpdateRemove) {
   udfConfig->fromThrift(udf);
 
   // update the state
-  state->resetUdfConfig(udfConfig);
+  auto switchSettings = state->getSwitchSettings();
+  switchSettings = switchSettings->clone();
+  switchSettings->setUdfConfig(udfConfig);
+  state->resetSwitchSettings(switchSettings);
 
   // both entries should be present
   EXPECT_EQ(state->getUdfConfig()->getUdfGroupMap()->size(), 2);
@@ -203,7 +206,9 @@ TEST(Udf, addUpdate) {
   udfConfig->fromThrift(udf);
 
   // update the state with udfCfg
-  state->resetUdfConfig(udfConfig);
+  auto switchSettings = std::make_shared<SwitchSettings>();
+  switchSettings->setUdfConfig(udfConfig);
+  state->resetSwitchSettings(switchSettings);
 
   EXPECT_EQ(state->getUdfConfig()->getUdfGroupMap()->size(), 0);
 
@@ -271,12 +276,19 @@ TEST(Udf, applyConfig) {
   EXPECT_EQ(stateV2->getUdfConfig()->getUdfGroupMap()->size(), 1);
   // one entry has been added <matchCfg_1>
   EXPECT_EQ(stateV2->getUdfConfig()->getUdfPacketMatcherMap()->size(), 1);
+  EXPECT_EQ(
+      stateV2->getUdfConfig(), stateV2->getSwitchSettings()->getUdfConfig());
+  const auto stateThrift = stateV2->toThrift();
+  // make sure we are writing the global and switchSettings entry for
+  // compatibility
+  EXPECT_EQ(
+      stateThrift.udfConfig(), *(stateThrift.switchSettings()->udfConfig()));
 
   // undo udf cfg
   config.udfConfig().reset();
   auto stateV3 = publishAndApplyConfig(stateV2, &config, platform.get());
   ASSERT_NE(nullptr, stateV3);
-  EXPECT_EQ(stateV3->getUdfConfig(), nullptr);
+  EXPECT_EQ(stateV3->getUdfConfig()->toThrift(), cfg::UdfConfig());
 }
 
 TEST(Udf, validateMissingPacketMatcherConfig) {
@@ -392,7 +404,7 @@ TEST(Udf, removeUdfConfigStateDelta) {
   config.udfConfig().reset();
   auto stateV3 = publishAndApplyConfig(stateV2, &config, platform.get());
   ASSERT_NE(nullptr, stateV3);
-  EXPECT_EQ(stateV3->getUdfConfig(), nullptr);
+  EXPECT_EQ(stateV3->getUdfConfig()->toThrift(), cfg::UdfConfig());
 
   StateDelta delta(stateV2, stateV3);
   std::set<std::string> foundRemovedUdfGroup;

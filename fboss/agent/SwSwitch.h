@@ -128,6 +128,13 @@ class SwSwitch : public HwSwitch::Callback {
       folly::ThreadLocalPtr<SwitchStats, SwSwitch>::Accessor;
 
   explicit SwSwitch(std::unique_ptr<Platform> platform);
+  /*
+   * Needed for mock platforms that do cannot initialize platform mapping
+   * based on fruid file
+   */
+  SwSwitch(
+      std::unique_ptr<Platform> platform,
+      std::unique_ptr<PlatformMapping> platformMapping);
   ~SwSwitch() override;
 
   HwSwitch* getHw() const {
@@ -139,6 +146,13 @@ class SwSwitch : public HwSwitch::Callback {
   }
   Platform* getPlatform() {
     return platform_.get();
+  }
+
+  const PlatformMapping* getPlatformMapping() const {
+    return platformMapping_.get();
+  }
+  PlatformMapping* getPlatformMapping() {
+    return platformMapping_.get();
   }
 
   TunManager* getTunManager() {
@@ -874,6 +888,7 @@ class SwSwitch : public HwSwitch::Callback {
   // The HwSwitch object.  This object is owned by the Platform.
   HwSwitch* hw_;
   std::unique_ptr<Platform> platform_;
+  const std::unique_ptr<PlatformProductInfo> platformProductInfo_;
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};
   folly::ThreadLocalPtr<SwitchStats, SwSwitch> stats_;
   /**
@@ -1010,6 +1025,7 @@ class SwSwitch : public HwSwitch::Callback {
   std::unique_ptr<FsdbSyncer> fsdbSyncer_;
   std::unique_ptr<TeFlowNexthopHandler> teFlowNextHopHandler_;
   std::unique_ptr<DsfSubscriber> dsfSubscriber_;
+  std::unique_ptr<PlatformMapping> platformMapping_;
 
   folly::Synchronized<ConfigAppliedInfo> configAppliedInfo_;
   std::optional<std::chrono::time_point<std::chrono::steady_clock>>

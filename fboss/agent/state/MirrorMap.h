@@ -26,7 +26,9 @@ using MirrorMapTraits = ThriftMapNodeTraits<
 
 class MirrorMap : public ThriftMapNode<MirrorMap, MirrorMapTraits> {
  public:
+  using Traits = MirrorMapTraits;
   using BaseT = ThriftMapNode<MirrorMap, MirrorMapTraits>;
+  using BaseT::modify;
   MirrorMap() {}
   virtual ~MirrorMap() {}
 
@@ -47,6 +49,49 @@ class MirrorMap : public ThriftMapNode<MirrorMap, MirrorMapTraits> {
     }
     return map;
   }
+
+ private:
+  // Inherit the constructors required for clone()
+  using BaseT::BaseT;
+  friend class CloneAllocator;
+};
+
+using MultiMirrorMapTypeClass = apache::thrift::type_class::
+    map<apache::thrift::type_class::string, MirrorMapTypeClass>;
+using MultiMirrorMapThriftType = std::map<std::string, MirrorMapThriftType>;
+
+class MultiMirrorMap;
+
+using MultiMirrorMapTraits = ThriftMultiMapNodeTraits<
+    MultiMirrorMap,
+    MultiMirrorMapTypeClass,
+    MultiMirrorMapThriftType,
+    MirrorMap>;
+
+class HwSwitchMatcher;
+
+class MultiMirrorMap
+    : public ThriftMapNode<MultiMirrorMap, MultiMirrorMapTraits> {
+ public:
+  using Traits = MultiMirrorMapTraits;
+  using BaseT = ThriftMapNode<MultiMirrorMap, MultiMirrorMapTraits>;
+  using BaseT::modify;
+
+  MultiMirrorMap() {}
+  virtual ~MultiMirrorMap() {}
+
+  std::shared_ptr<const MirrorMap> getMirrorMapIf(
+      const HwSwitchMatcher& matcher) const;
+
+  void addMirrorMap(
+      const HwSwitchMatcher& matcher,
+      std::shared_ptr<MirrorMap> mirrorMap);
+
+  void changeMirrorMap(
+      const HwSwitchMatcher& matcher,
+      std::shared_ptr<MirrorMap> mirrorMap);
+
+  void removeMirrorMap(const HwSwitchMatcher& matcher);
 
  private:
   // Inherit the constructors required for clone()

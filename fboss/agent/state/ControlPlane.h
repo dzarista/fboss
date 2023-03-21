@@ -34,6 +34,7 @@ class ControlPlane
     : public ThriftStructNode<ControlPlane, state::ControlPlaneFields> {
  public:
   using BaseT = ThriftStructNode<ControlPlane, state::ControlPlaneFields>;
+  using BaseT::modify;
   using PortQueues =
       BaseT::Fields::NamedMemberTypes::type_of<switch_state_tags::queues>;
   using PacketRxReasonToQueue = BaseT::Fields::NamedMemberTypes::type_of<
@@ -47,7 +48,7 @@ class ControlPlane
     return cref<switch_state_tags::queues>();
   }
   void resetQueues(QueueConfig& queues) {
-    std::vector<state::PortQueueFields> queuesThrift{};
+    std::vector<PortQueueFields> queuesThrift{};
     for (auto queue : queues) {
       queuesThrift.push_back(queue->toThrift());
     }

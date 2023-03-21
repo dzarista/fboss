@@ -27,12 +27,9 @@
 #include "fboss/agent/Utils.h"
 #include "fboss/agent/capture/PktCapture.h"
 #include "fboss/agent/capture/PktCaptureManager.h"
+#include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 #include "fboss/agent/hw/mock/MockRxPacket.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
-#include "fboss/agent/platforms/common/meru400bfu/Meru400bfuPlatformMapping.h"
-#include "fboss/agent/platforms/common/meru400biu/Meru400biuPlatformMapping.h"
-#include "fboss/agent/platforms/common/wedge400c/Wedge400CFabricPlatformMapping.h"
-#include "fboss/agent/platforms/common/wedge400c/Wedge400CVoqPlatformMapping.h"
 #include "fboss/agent/rib/ForwardingInformationBaseUpdater.h"
 #include "fboss/agent/rib/NetworkToRouteMap.h"
 #include "fboss/agent/state/AclMap.h"
@@ -374,6 +371,9 @@ void getPortInfoHelper(
   }
 
   fillPortStats(portInfo, portInfo.portQueues()->size());
+  *portInfo.isDrained() =
+      (port->getPortDrainState() ==
+       facebook::fboss::cfg::PortDrainState::DRAINED);
 }
 
 LacpPortRateThrift fromLacpPortRate(facebook::fboss::cfg::LacpPortRate rate) {
@@ -667,6 +667,44 @@ void addRecylePortRifNeighbors(
         static_cast<int64_t>(*state->getSwitchSettings()->getSwitchId());
 
     nbrs.push_back(nbrThrift);
+  }
+}
+
+int getDstIpPrefixLength(const std::shared_ptr<SwitchState>& state) {
+  auto exactMatchTableConfigs =
+      state->getSwitchSettings()->getExactMatchTableConfig()->toThrift();
+  std::string teFlowTableName(cfg::switch_config_constants::TeFlowTableName());
+  auto dstIpPrefixLength = 0;
+  for (const auto& tableConfig : exactMatchTableConfigs) {
+    if ((tableConfig.name() == teFlowTableName) &&
+        tableConfig.dstPrefixLength().has_value()) {
+      dstIpPrefixLength = tableConfig.dstPrefixLength().value();
+    }
+  }
+  if (!dstIpPrefixLength) {
+    throw FbossError("Invalid dstIpPrefixLength configuration");
+  }
+  return dstIpPrefixLength;
+}
+
+void validateFlowEntry(
+    const FlowEntry& flowEntry,
+    const int& dstIpPrefixLength) {
+  if (!flowEntry.flow()->dstPrefix().has_value() ||
+      !flowEntry.flow()->srcPort().has_value()) {
+    throw FbossError("Invalid dstPrefix or srcPort in TeFlow entry");
+  }
+
+  auto prefix = flowEntry.flow()->dstPrefix().value();
+  if (*prefix.prefixLength() != dstIpPrefixLength) {
+    std::string flowString{};
+    folly::IPAddress ipaddr = toIPAddress(*prefix.ip());
+    flowString.append(fmt::format(
+        "dstPrefix:{}/{},srcPort:{}",
+        ipaddr.str(),
+        *prefix.prefixLength(),
+        flowEntry.flow()->srcPort().value()));
+    throw FbossError("Invalid prefix length in TeFlow entry: ", flowString);
   }
 }
 } // namespace
@@ -1274,7 +1312,7 @@ void ThriftHandler::getSupportedPrbsPolynomials(
   if (component != phy::PortComponent::ASIC) {
     throw FbossError("Unsupported component");
   }
-  auto portID = sw_->getPlatform()->getPlatformMapping()->getPortID(*portName);
+  auto portID = sw_->getPlatformMapping()->getPortID(*portName);
   prbsCapabilities = sw_->getPortPrbsPolynomials(portID);
 }
 
@@ -1286,7 +1324,7 @@ void ThriftHandler::getInterfacePrbsState(
   if (component != phy::PortComponent::ASIC) {
     throw FbossError("Unsupported component");
   }
-  auto portID = sw_->getPlatform()->getPlatformMapping()->getPortID(*portName);
+  auto portID = sw_->getPlatformMapping()->getPortID(*portName);
   prbsState = sw_->getPortPrbsState(portID);
 }
 
@@ -1297,7 +1335,7 @@ void ThriftHandler::clearInterfacePrbsStats(
   if (component != phy::PortComponent::ASIC) {
     throw FbossError("Unsupported component");
   }
-  auto portID = sw_->getPlatform()->getPlatformMapping()->getPortID(*portName);
+  auto portID = sw_->getPlatformMapping()->getPortID(*portName);
   clearPortPrbsStats(portID, component);
 }
 
@@ -1309,7 +1347,7 @@ void ThriftHandler::getInterfacePrbsStats(
   if (component != phy::PortComponent::ASIC) {
     throw FbossError("Unsupported component");
   }
-  auto portID = sw_->getPlatform()->getPlatformMapping()->getPortID(*portName);
+  auto portID = sw_->getPlatformMapping()->getPortID(*portName);
   getPortPrbsStats(response, portID, component);
 }
 
@@ -1325,7 +1363,7 @@ void ThriftHandler::setInterfacePrbs(
       !state->checkerEnabled().has_value()) {
     throw FbossError("Neither generator or checker specified for PRBS setting");
   }
-  auto portID = sw_->getPlatform()->getPlatformMapping()->getPortID(*portName);
+  auto portID = sw_->getPlatformMapping()->getPortID(*portName);
   bool enabled = (state->generatorEnabled().has_value() &&
                   state->generatorEnabled().value()) ||
       (state->checkerEnabled().has_value() && state->checkerEnabled().value());
@@ -1471,6 +1509,39 @@ void ThriftHandler::setPortState(int32_t portNum, bool enable) {
   sw_->updateStateBlocking("set port state", updateFn);
 }
 
+void ThriftHandler::setPortDrainState(int32_t portNum, bool drain) {
+  auto log = LOG_THRIFT_CALL(DBG1, portNum, drain);
+  ensureConfigured(__func__);
+  PortID portId = PortID(portNum);
+  const auto port = sw_->getState()->getPorts()->getPortIf(portId);
+  if (!port) {
+    throw FbossError("no such port ", portNum);
+  }
+
+  if (port->getPortType() != cfg::PortType::FABRIC_PORT) {
+    throw FbossError("Cannot drain/undrain non-fabric port ", portNum);
+  }
+
+  cfg::PortDrainState newPortDrainState =
+      drain ? cfg::PortDrainState::DRAINED : cfg::PortDrainState::UNDRAINED;
+
+  auto updateFn =
+      [portId, newPortDrainState, drain](
+          const shared_ptr<SwitchState>& state) -> shared_ptr<SwitchState> {
+    const auto oldPort = state->getPorts()->getPortIf(portId);
+    if (oldPort->getPortDrainState() == newPortDrainState) {
+      XLOG(DBG2) << "setPortDrainState: port already in state "
+                 << (drain ? "DRAINED" : "UNDRAINED");
+      return nullptr;
+    }
+    shared_ptr<SwitchState> newState{state};
+    auto newPort = oldPort->modify(&newState);
+    newPort->setPortDrainState(newPortDrainState);
+    return newState;
+  };
+  sw_->updateStateBlocking("set port drain state", updateFn);
+}
+
 void ThriftHandler::setPortLoopbackMode(
     int32_t portNum,
     PortLoopbackMode mode) {
@@ -1521,7 +1592,7 @@ void ThriftHandler::programInternalPhyPorts(
 
   // Check whether the transceiver has valid id
   std::optional<phy::DataPlanePhyChip> tcvrChip;
-  for (const auto& chip : sw_->getPlatform()->getDataPlanePhyChips()) {
+  for (const auto& chip : sw_->getPlatformMapping()->getChips()) {
     if (*chip.second.type() == phy::DataPlanePhyChipType::TRANSCEIVER &&
         *chip.second.physicalID() == id) {
       tcvrChip = chip.second;
@@ -1538,7 +1609,7 @@ void ThriftHandler::programInternalPhyPorts(
   const auto tcvr =
       sw_->getState()->getTransceivers()->getTransceiverIf(tcvrID);
   const auto& platformPorts = utility::getPlatformPortsByChip(
-      sw_->getPlatform()->getPlatformPorts(), *tcvrChip);
+      sw_->getPlatformMapping()->getPlatformPorts(), *tcvrChip);
   // Check whether the current Transceiver in the SwitchState matches the
   // input TransceiverInfo
   if (!tcvr && !newTransceiver) {
@@ -1560,14 +1631,13 @@ void ThriftHandler::programInternalPhyPorts(
         newTransceiverMap->addTransceiver(newTransceiver);
       }
 
-      auto platform = sw_->getPlatform();
       // Now we also need to update the port profile config and pin configs
       // using the newTransceiver
       std::optional<cfg::PlatformPortConfigOverrideFactor> factor;
       if (newTransceiver != nullptr) {
         factor = newTransceiver->toPlatformPortConfigOverrideFactor();
       }
-      platform->getPlatformMapping()->customizePlatformPortConfigOverrideFactor(
+      sw_->getPlatformMapping()->customizePlatformPortConfigOverrideFactor(
           factor);
       for (const auto& platformPort : platformPorts) {
         const auto oldPort =
@@ -1577,7 +1647,8 @@ void ThriftHandler::programInternalPhyPorts(
         }
         PlatformPortProfileConfigMatcher matcher{
             oldPort->getProfileID(), oldPort->getID(), factor};
-        auto portProfileCfg = platform->getPortProfileConfig(matcher);
+        auto portProfileCfg =
+            sw_->getPlatformMapping()->getPortProfileConfig(matcher);
         if (!portProfileCfg) {
           throw FbossError(
               "No port profile config found with matcher:", matcher.toString());
@@ -1593,7 +1664,7 @@ void ThriftHandler::programInternalPhyPorts(
         }
         auto newProfileConfigRef = portProfileCfg->iphy();
         const auto& newPinConfigs =
-            platform->getPlatformMapping()->getPortIphyPinConfigs(matcher);
+            sw_->getPlatformMapping()->getPortIphyPinConfigs(matcher);
 
         auto newPort = oldPort->modify(&newState);
         newPort->setProfileConfig(*newProfileConfigRef);
@@ -2507,7 +2578,7 @@ void ThriftHandler::getHwDebugDump(std::string& out) {
 }
 
 void ThriftHandler::getPlatformMapping(cfg::PlatformMapping& ret) {
-  ret = sw_->getPlatform()->getPlatformMapping()->toThrift();
+  ret = sw_->getPlatformMapping()->toThrift();
 }
 
 void ThriftHandler::listHwObjects(
@@ -2666,7 +2737,7 @@ void ThriftHandler::publishLinkSnapshots(
     std::unique_ptr<std::vector<std::string>> portNames) {
   auto log = LOG_THRIFT_CALL(DBG1);
   for (const auto& portName : *portNames) {
-    auto portID = sw_->getPlatform()->getPlatformMapping()->getPortID(portName);
+    auto portID = sw_->getPlatformMapping()->getPortID(portName);
     sw_->publishPhyInfoSnapshots(portID);
   }
 }
@@ -2677,14 +2748,12 @@ void ThriftHandler::getInterfacePhyInfo(
   auto log = LOG_THRIFT_CALL(DBG1);
   std::vector<PortID> portIDs;
   for (const auto& portName : *portNames) {
-    portIDs.push_back(
-        sw_->getPlatform()->getPlatformMapping()->getPortID(portName));
+    portIDs.push_back(sw_->getPlatformMapping()->getPortID(portName));
   }
   auto portPhyInfo = sw_->getIPhyInfo(portIDs);
   for (const auto& portName : *portNames) {
     phyInfos[portName] =
-        portPhyInfo[sw_->getPlatform()->getPlatformMapping()->getPortID(
-            portName)];
+        portPhyInfo[sw_->getPlatformMapping()->getPortID(portName)];
   }
 }
 
@@ -2715,39 +2784,10 @@ void ThriftHandler::addTeFlows(
 void ThriftHandler::addTeFlowsImpl(
     std::shared_ptr<SwitchState>* state,
     const std::vector<FlowEntry>& teFlowEntries) const {
-  auto exactMatchTableConfigs =
-      (*state)->getSwitchSettings()->getExactMatchTableConfig()->toThrift();
-  std::string teFlowTableName(cfg::switch_config_constants::TeFlowTableName());
-  auto dstIpPrefixLength = 0;
-  for (const auto& tableConfig : exactMatchTableConfigs) {
-    if ((tableConfig.name() == teFlowTableName) &&
-        tableConfig.dstPrefixLength().has_value()) {
-      dstIpPrefixLength = tableConfig.dstPrefixLength().value();
-    }
-  }
-  if (!dstIpPrefixLength) {
-    throw FbossError("Invalid dstIpPrefixLength configuration");
-  }
-
+  auto dstIpPrefixLength = getDstIpPrefixLength(*state);
   auto teFlowTable = (*state)->getTeFlowTable().get()->modify(state);
   for (const auto& teFlowEntry : teFlowEntries) {
-    if (!teFlowEntry.flow()->dstPrefix().has_value() ||
-        !teFlowEntry.flow()->srcPort().has_value()) {
-      throw FbossError("Invalid dstPrefix or srcPort in TeFlow entry");
-    }
-
-    auto prefix = teFlowEntry.flow()->dstPrefix().value();
-    if (*prefix.prefixLength() != dstIpPrefixLength) {
-      std::string flowString{};
-      folly::IPAddress ipaddr = network::toIPAddress(*prefix.ip());
-      flowString.append(fmt::format(
-          "dstPrefix:{}/{},srcPort:{}",
-          ipaddr.str(),
-          *prefix.prefixLength(),
-          teFlowEntry.flow()->srcPort().value()));
-      throw FbossError("Invalid prefix length in TeFlow entry: ", flowString);
-    }
-
+    validateFlowEntry(teFlowEntry, dstIpPrefixLength);
     teFlowTable = teFlowTable->addTeFlowEntry(state, teFlowEntry);
   }
 }
@@ -2777,11 +2817,43 @@ void ThriftHandler::syncTeFlows(
   auto numFlows = teFlowEntries->size();
   auto oldNumFlows = sw_->getState()->getTeFlowTable()->size();
   auto updateFn = [=, teFlows = std::move(*teFlowEntries)](
-                      const std::shared_ptr<SwitchState>& state) {
+                      const std::shared_ptr<SwitchState>& state)
+      -> shared_ptr<SwitchState> {
     auto newState = state->clone();
-    auto teFlowTable = std::make_shared<TeFlowTable>();
-    newState->resetTeFlowTable(teFlowTable);
-    addTeFlowsImpl(&newState, teFlows);
+    auto newTeFlowTable = std::make_shared<TeFlowTable>();
+    newState->resetTeFlowTable(newTeFlowTable);
+    auto teFlowTable = state->getTeFlowTable();
+    auto dstIpPrefixLength = getDstIpPrefixLength(state);
+    bool tableChanged = false;
+
+    for (const auto& flowEntry : teFlows) {
+      validateFlowEntry(flowEntry, dstIpPrefixLength);
+      TeFlow flow = *flowEntry.flow();
+      auto oldFlowEntry = teFlowTable->getTeFlowIf(flow);
+      // new entry add it
+      if (!oldFlowEntry) {
+        newTeFlowTable->addTeFlowEntry(&newState, flowEntry);
+        tableChanged = true;
+      } else {
+        newTeFlowTable->addTeFlowEntry(&newState, flowEntry);
+        auto newFlowEntry = newTeFlowTable->getTeFlowIf(flow);
+        // if entries are same remove the new entry and
+        // add the old entry to the new table
+        if (*oldFlowEntry == *newFlowEntry) {
+          newTeFlowTable->removeNode(newFlowEntry->getID());
+          newTeFlowTable->addNode(oldFlowEntry);
+        } else {
+          tableChanged = true;
+        }
+      }
+    }
+
+    if (numFlows != oldNumFlows) {
+      tableChanged = true;
+    }
+    if (!tableChanged) {
+      return nullptr;
+    }
     if (!sw_->isValidStateUpdate(StateDelta(state, newState))) {
       throw FbossError("Invalid TE flows");
     }
@@ -2810,83 +2882,12 @@ void ThriftHandler::getFabricReachability(
     std::map<std::string, FabricEndpoint>& reachability) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
+  // get cached data as stored in the fabric manager
   auto portId2FabricEndpoint = sw_->getHw()->getFabricReachability();
   auto state = sw_->getState();
-  static Meru400biuPlatformMapping meru400biu;
-  static Meru400bfuPlatformMapping meru400bfu;
-  static Wedge400CVoqPlatformMapping w400cVoq;
-  static Wedge400CFabricPlatformMapping w400cFabric;
+
   for (auto [portId, fabricEndpoint] : portId2FabricEndpoint) {
     auto portName = state->getPorts()->getPort(portId)->getName();
-    if (*fabricEndpoint.isAttached()) {
-      // Some SAI implementations don't support setting non-0 switchID for
-      // Fabric switches. For such implementations, FBOSS sets switchID=0 for
-      // Fabric switches. Thus, ignore received switchID for Fabric switches on
-      // these implementations.
-      if (fabricEndpoint.switchType() == cfg::SwitchType::FABRIC &&
-          fabricEndpoint.switchId() == 0) {
-        fabricEndpoint.switchId() = -1;
-      }
-
-      auto swId = *fabricEndpoint.switchId();
-      auto node = state->getDsfNodes()->getDsfNodeIf(SwitchID(swId));
-      // Pull platform mapping of remote end. Used to lookup remote
-      // port id to name.
-      // NOTE: that this assumes a 1:1 mapping b/w {ASIC, switch} type
-      // to platform. This is true in our DSF deployments. However, if
-      // it changes, we will need to embed platform type info in
-      // DSFNode config as well.
-      const PlatformMapping* platformMapping{nullptr};
-      if (node) {
-        fabricEndpoint.switchName() = node->getName();
-        // Jericho2 ASIC fabric port numbers are offset by 256
-        int remotePortOffset{0};
-        switch (node->getAsicType()) {
-          case cfg::AsicType::ASIC_TYPE_FAKE:
-          case cfg::AsicType::ASIC_TYPE_MOCK:
-          case cfg::AsicType::ASIC_TYPE_TRIDENT2:
-          case cfg::AsicType::ASIC_TYPE_TOMAHAWK:
-          case cfg::AsicType::ASIC_TYPE_TOMAHAWK3:
-          case cfg::AsicType::ASIC_TYPE_TOMAHAWK4:
-          case cfg::AsicType::ASIC_TYPE_TOMAHAWK5:
-          case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
-          case cfg::AsicType::ASIC_TYPE_GARONNE:
-          case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
-            break;
-          case cfg::AsicType::ASIC_TYPE_EBRO:
-            if (fabricEndpoint.switchType() == cfg::SwitchType::VOQ) {
-              platformMapping = &w400cVoq;
-            } else if (fabricEndpoint.switchType() == cfg::SwitchType::FABRIC) {
-              platformMapping = &w400cFabric;
-            } else {
-              XLOG(ERR) << " Unexpected w400C switch type : "
-                        << static_cast<int>(*fabricEndpoint.switchType());
-            }
-            break;
-          case cfg::AsicType::ASIC_TYPE_JERICHO2:
-            /*
-             * TODO: Introduce platform mode and use it create platofrm mapping
-             * instead of the ASIC. Certain platforms like
-             * Meru400bia/Meru400biu will use the same ASIC but different
-             * platform
-             */
-            platformMapping = &meru400biu;
-            remotePortOffset = 256;
-            break;
-          case cfg::AsicType::ASIC_TYPE_RAMON:
-            platformMapping = &meru400bfu;
-            break;
-        }
-        fabricEndpoint.portId() = *fabricEndpoint.portId() + remotePortOffset;
-        if (platformMapping) {
-          const auto& platPorts = platformMapping->getPlatformPorts();
-          auto pitr = platPorts.find(*fabricEndpoint.portId());
-          if (pitr != platPorts.end()) {
-            fabricEndpoint.portName() = *pitr->second.mapping()->name();
-          }
-        }
-      }
-    }
     reachability.insert({portName, fabricEndpoint});
   }
 }
@@ -2905,6 +2906,21 @@ void ThriftHandler::getSystemPorts(
   sysPorts = state->getSystemPorts()->toThrift();
   auto remoteSysPorts = state->getRemoteSystemPorts()->toThrift();
   sysPorts.merge(remoteSysPorts);
+}
+
+void ThriftHandler::getSysPortStats(
+    std::map<std::string, HwSysPortStats>& hwSysPortStats) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  hwSysPortStats = sw_->getHw()->getSysPortStats();
+}
+
+void ThriftHandler::getHwPortStats(
+    std::map<std::string, HwPortStats>& hwPortStats) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  const auto& portStats = sw_->getHw()->getPortStats();
+  hwPortStats.insert(portStats.begin(), portStats.end());
 }
 
 } // namespace facebook::fboss

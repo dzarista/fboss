@@ -9,7 +9,6 @@
  */
 #pragma once
 
-#include "fboss/agent/FabricReachabilityManager.h"
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/hw/HwSwitchStats.h"
@@ -35,6 +34,7 @@ namespace facebook::fboss {
 
 struct ConcurrentIndices;
 class SaiStore;
+class FabricReachabilityManager;
 
 /*
  * This is equivalent to sai_fdb_event_notification_data_t. Copy only the
@@ -460,6 +460,8 @@ class SaiSwitch : public HwSwitch {
   phy::InterfaceType getInterfaceType(
       PortID portID,
       phy::DataPlanePhyChipType chipType) const;
+
+  void checkAndSetSdkDowngradeVersion() const;
 
   /*
    * SaiSwitch must support a few varieties of concurrent access:

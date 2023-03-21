@@ -45,7 +45,7 @@ SaiSwitchTraits::Attributes::AttributeDllPathWrapper::operator()() {
 
 std::optional<sai_attr_id_t>
 SaiSwitchTraits::Attributes::AttributeRestartIssuWrapper::operator()() {
-#if defined(TAJO_SDK_VERSION_1_60_0)
+#if defined(TAJO_SDK_VERSION_1_62_0)
   return SAI_SWITCH_ATTR_EXT_RESTART_ISSU;
 #else
   return std::nullopt;
@@ -55,6 +55,15 @@ SaiSwitchTraits::Attributes::AttributeRestartIssuWrapper::operator()() {
 std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
     AttributeForceTrafficOverFabricWrapper::operator()() {
   return std::nullopt;
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeWarmBootTargetVersionWrapper::operator()() {
+#if defined(TAJO_SDK_VERSION_1_42_8)
+  return SAI_SWITCH_ATTR_EXT_WARM_BOOT_TARGET_VERSION;
+#else
+  return std::nullopt;
+#endif
 }
 
 void SwitchApi::registerParityErrorSwitchEventCallback(

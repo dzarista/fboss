@@ -62,6 +62,7 @@
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/SwitchState.h"
 
+#include "fboss/agent/FabricReachabilityManager.h"
 #include "fboss/agent/hw/HwSwitchWarmBootHelper.h"
 #include "fboss/agent/hw/UnsupportedFeatureManager.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
@@ -1505,12 +1506,15 @@ void SaiSwitch::gracefulExitLocked(
   SaiSwitchTraits::Attributes::SwitchRestartWarm restartWarm{true};
   SaiApiTable::getInstance()->switchApi().setAttribute(switchId_, restartWarm);
   if (platform_->getAsic()->isSupported(HwAsic::Feature::P4_WARMBOOT)) {
-#if defined(TAJO_SDK_VERSION_1_60_0)
+#if defined(TAJO_SDK_VERSION_1_62_0)
     SaiSwitchTraits::Attributes::RestartIssu restartIssu{true};
     SaiApiTable::getInstance()->switchApi().setAttribute(
         switchId_, restartIssu);
 #endif
   }
+#if defined(TAJO_SDK_VERSION_1_42_8)
+  checkAndSetSdkDowngradeVersion();
+#endif
   follySwitchState[kHwSwitch] = toFollyDynamicLocked(lock);
   platform_->getWarmBootHelper()->storeWarmBootState(
       follySwitchState, thriftSwitchState);
