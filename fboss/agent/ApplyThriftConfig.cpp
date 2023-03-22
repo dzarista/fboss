@@ -441,15 +441,6 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
   bool changed = false;
 
   {
-    bool qcmChanged = false;
-    auto newQcmConfig = updateQcmCfg(&qcmChanged);
-    if (qcmChanged) {
-      new_->resetQcmCfg(newQcmConfig);
-      changed = true;
-    }
-  }
-
-  {
     auto newControlPlane = updateControlPlane();
     if (newControlPlane) {
       new_->resetControlPlane(std::move(newControlPlane));
@@ -545,15 +536,6 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
     }
   }
 
-  // reset the default qos policy
-  {
-    auto newDefaultQosPolicy = updateDataplaneDefaultQosPolicy();
-    if (new_->getDefaultDataPlaneQosPolicy() != newDefaultQosPolicy) {
-      new_->setDefaultDataPlaneQosPolicy(newDefaultQosPolicy);
-      changed = true;
-    }
-  }
-
   {
     auto newIntfs = updateInterfaces();
     if (newIntfs) {
@@ -623,8 +605,6 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
     if (newVlans->getVlanIf(dfltVlan) == nullptr) {
       throw FbossError("Default VLAN ", dfltVlan, " does not exist");
     }
-    new_->setDefaultVlan(dfltVlan);
-    changed = true;
   }
 
   // Make sure all interfaces refer to valid VLANs.
@@ -658,70 +638,6 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
       new_->setPfcWatchdogRecoveryAction(pfcWatchdogRecoveryAction);
       changed = true;
     }
-  }
-
-  std::chrono::seconds arpAgerInterval(*cfg_->arpAgerInterval());
-  if (orig_->getArpAgerInterval() != arpAgerInterval) {
-    new_->setArpAgerInterval(arpAgerInterval);
-    changed = true;
-  }
-
-  std::chrono::seconds arpTimeout(*cfg_->arpTimeoutSeconds());
-  if (orig_->getArpTimeout() != arpTimeout) {
-    new_->setArpTimeout(arpTimeout);
-
-    // TODO(aeckert): add ndpTimeout field to SwitchConfig. For now use the same
-    // timeout for both ARP and NDP
-    new_->setNdpTimeout(arpTimeout);
-    changed = true;
-  }
-
-  uint32_t maxNeighborProbes(*cfg_->maxNeighborProbes());
-  if (orig_->getMaxNeighborProbes() != maxNeighborProbes) {
-    new_->setMaxNeighborProbes(maxNeighborProbes);
-    changed = true;
-  }
-
-  auto oldDhcpV4RelaySrc = orig_->getDhcpV4RelaySrc();
-  auto newDhcpV4RelaySrc = cfg_->dhcpRelaySrcOverrideV4()
-      ? IPAddressV4(*cfg_->dhcpRelaySrcOverrideV4())
-      : IPAddressV4();
-  if (oldDhcpV4RelaySrc != newDhcpV4RelaySrc) {
-    new_->setDhcpV4RelaySrc(newDhcpV4RelaySrc);
-    changed = true;
-  }
-
-  auto oldDhcpV6RelaySrc = orig_->getDhcpV6RelaySrc();
-  auto newDhcpV6RelaySrc = cfg_->dhcpRelaySrcOverrideV6()
-      ? IPAddressV6(*cfg_->dhcpRelaySrcOverrideV6())
-      : IPAddressV6("::");
-  if (oldDhcpV6RelaySrc != newDhcpV6RelaySrc) {
-    new_->setDhcpV6RelaySrc(newDhcpV6RelaySrc);
-    changed = true;
-  }
-
-  auto oldDhcpV4ReplySrc = orig_->getDhcpV4ReplySrc();
-  auto newDhcpV4ReplySrc = cfg_->dhcpReplySrcOverrideV4()
-      ? IPAddressV4(*cfg_->dhcpReplySrcOverrideV4())
-      : IPAddressV4();
-  if (oldDhcpV4ReplySrc != newDhcpV4ReplySrc) {
-    new_->setDhcpV4ReplySrc(newDhcpV4ReplySrc);
-    changed = true;
-  }
-
-  auto oldDhcpV6ReplySrc = orig_->getDhcpV6ReplySrc();
-  auto newDhcpV6ReplySrc = cfg_->dhcpReplySrcOverrideV6()
-      ? IPAddressV6(*cfg_->dhcpReplySrcOverrideV6())
-      : IPAddressV6("::");
-  if (oldDhcpV6ReplySrc != newDhcpV6ReplySrc) {
-    new_->setDhcpV6ReplySrc(newDhcpV6ReplySrc);
-    changed = true;
-  }
-
-  std::chrono::seconds staleEntryInterval(*cfg_->staleEntryInterval());
-  if (orig_->getStaleEntryInterval() != staleEntryInterval) {
-    new_->setStaleEntryInterval(staleEntryInterval);
-    changed = true;
   }
 
   // Add sFlow collectors
@@ -772,25 +688,6 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
             new_->getSwitchSettings()->getSwitchId(),
             new_->getSwitchSettings()->getSystemPortRange()));
       }
-      changed = true;
-    }
-  }
-
-  {
-    bool udfCfgChanged = false;
-    auto newUdfCfg = updateUdfConfig(&udfCfgChanged);
-    if (udfCfgChanged) {
-      new_->resetUdfConfig(std::move(newUdfCfg));
-      changed = true;
-    }
-  }
-
-  {
-    bool flowletSwitchingChanged = false;
-    auto newFlowletSwitchingConfig =
-        updateFlowletSwitchingConfig(&flowletSwitchingChanged);
-    if (flowletSwitchingChanged) {
-      new_->resetFlowletSwitchingConfig(std::move(newFlowletSwitchingConfig));
       changed = true;
     }
   }
@@ -1021,7 +918,7 @@ std::shared_ptr<UdfConfig> ThriftConfigApplier::updateUdfConfig(bool* changed) {
     if (origUdfConfig->isUdfConfigPopulated()) {
       *changed = true;
     }
-    return nullptr;
+    return newUdfConfig;
   }
 
   // new cfg exists
@@ -1034,7 +931,7 @@ std::shared_ptr<UdfConfig> ThriftConfigApplier::updateUdfConfig(bool* changed) {
     return newUdfConfig;
   }
 
-  return nullptr;
+  return newUdfConfig;
 }
 
 std::shared_ptr<DsfNodeMap> ThriftConfigApplier::updateDsfNodes() {
@@ -1236,6 +1133,7 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
     const std::shared_ptr<PortMap>& ports,
     std::optional<int64_t> switchIdOpt,
     std::optional<cfg::Range64> systemPortRange) {
+  const auto kNumVoqs = 8;
   auto sysPorts = std::make_shared<SystemPortMap>();
   if (*cfg_->switchSettings()->switchType() != cfg::SwitchType::VOQ) {
     return sysPorts;
@@ -1243,6 +1141,16 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
   CHECK(switchIdOpt.has_value());
   auto switchId = *switchIdOpt;
   auto nodeName = *cfg_->dsfNodes()->find(switchId)->second.name();
+
+  QueueConfig systemPortQueues;
+  if (cfg_->defaultVoqConfig()->size()) {
+    systemPortQueues = updatePortQueues(
+        QueueConfig(),
+        *cfg_->defaultVoqConfig(),
+        kNumVoqs,
+        cfg::StreamType::UNICAST);
+  }
+
   std::set<cfg::PortType> kCreateSysPortsFor = {
       cfg::PortType::INTERFACE_PORT, cfg::PortType::RECYCLE_PORT};
   for (const auto& port : std::as_const(*ports)) {
@@ -1259,9 +1167,10 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
     sysPort->setCoreIndex(*platformPort->getAttachedCoreId());
     sysPort->setCorePortIndex(*platformPort->getCorePortIndex());
     sysPort->setSpeedMbps(static_cast<int>(port.second->getSpeed()));
-    sysPort->setNumVoqs(8);
+    sysPort->setNumVoqs(kNumVoqs);
     sysPort->setEnabled(port.second->isEnabled());
     sysPort->setQosPolicy(port.second->getQosPolicy());
+    sysPort->resetPortQueues(systemPortQueues);
     sysPorts->addSystemPort(std::move(sysPort));
   }
 
@@ -3638,6 +3547,113 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings() {
     auto origSysPortRange = origSwitchSettings->getSystemPortRange();
     if (!origSysPortRange || *origSysPortRange != myNode.systemPortRange()) {
       newSwitchSettings->setSystemPortRange(*myNode.systemPortRange());
+      switchSettingsChange = true;
+    }
+  }
+
+  VlanID defaultVlan(*cfg_->defaultVlan());
+  if (orig_->getDefaultVlan() != defaultVlan) {
+    newSwitchSettings->setDefaultVlan(defaultVlan);
+    switchSettingsChange = true;
+  }
+
+  std::chrono::seconds arpTimeout(*cfg_->arpTimeoutSeconds());
+  if (orig_->getArpTimeout() != arpTimeout) {
+    newSwitchSettings->setArpTimeout(arpTimeout);
+
+    // TODO: add ndpTimeout field to SwitchConfig. For now use the same
+    // timeout for both ARP and NDP
+    newSwitchSettings->setNdpTimeout(arpTimeout);
+    switchSettingsChange = true;
+  }
+
+  std::chrono::seconds staleEntryInterval(*cfg_->staleEntryInterval());
+  if (orig_->getStaleEntryInterval() != staleEntryInterval) {
+    newSwitchSettings->setStaleEntryInterval(staleEntryInterval);
+    switchSettingsChange = true;
+  }
+
+  std::chrono::seconds arpAgerInterval(*cfg_->arpAgerInterval());
+  if (orig_->getArpAgerInterval() != arpAgerInterval) {
+    newSwitchSettings->setArpAgerInterval(arpAgerInterval);
+    switchSettingsChange = true;
+  }
+
+  uint32_t maxNeighborProbes(*cfg_->maxNeighborProbes());
+  if (orig_->getMaxNeighborProbes() != maxNeighborProbes) {
+    newSwitchSettings->setMaxNeighborProbes(maxNeighborProbes);
+    switchSettingsChange = true;
+  }
+
+  auto oldDhcpV4RelaySrc = orig_->getDhcpV4RelaySrc();
+  auto newDhcpV4RelaySrc = cfg_->dhcpRelaySrcOverrideV4()
+      ? IPAddressV4(*cfg_->dhcpRelaySrcOverrideV4())
+      : IPAddressV4();
+  if (oldDhcpV4RelaySrc != newDhcpV4RelaySrc) {
+    newSwitchSettings->setDhcpV4RelaySrc(newDhcpV4RelaySrc);
+    switchSettingsChange = true;
+  }
+
+  auto oldDhcpV6RelaySrc = orig_->getDhcpV6RelaySrc();
+  auto newDhcpV6RelaySrc = cfg_->dhcpRelaySrcOverrideV6()
+      ? IPAddressV6(*cfg_->dhcpRelaySrcOverrideV6())
+      : IPAddressV6("::");
+  if (oldDhcpV6RelaySrc != newDhcpV6RelaySrc) {
+    newSwitchSettings->setDhcpV6RelaySrc(newDhcpV6RelaySrc);
+    switchSettingsChange = true;
+  }
+
+  auto oldDhcpV4ReplySrc = orig_->getDhcpV4ReplySrc();
+  auto newDhcpV4ReplySrc = cfg_->dhcpReplySrcOverrideV4()
+      ? IPAddressV4(*cfg_->dhcpReplySrcOverrideV4())
+      : IPAddressV4();
+  if (oldDhcpV4ReplySrc != newDhcpV4ReplySrc) {
+    newSwitchSettings->setDhcpV4ReplySrc(newDhcpV4ReplySrc);
+    switchSettingsChange = true;
+  }
+
+  auto oldDhcpV6ReplySrc = orig_->getDhcpV6ReplySrc();
+  auto newDhcpV6ReplySrc = cfg_->dhcpReplySrcOverrideV6()
+      ? IPAddressV6(*cfg_->dhcpReplySrcOverrideV6())
+      : IPAddressV6("::");
+  if (oldDhcpV6ReplySrc != newDhcpV6ReplySrc) {
+    newSwitchSettings->setDhcpV6ReplySrc(newDhcpV6ReplySrc);
+    switchSettingsChange = true;
+  }
+
+  {
+    bool qcmChanged = false;
+    auto newQcmConfig = updateQcmCfg(&qcmChanged);
+    if (qcmChanged) {
+      newSwitchSettings->setQcmCfg(newQcmConfig);
+      switchSettingsChange = true;
+    }
+  }
+
+  {
+    auto newDefaultQosPolicy = updateDataplaneDefaultQosPolicy();
+    if (new_->getDefaultDataPlaneQosPolicy() != newDefaultQosPolicy) {
+      newSwitchSettings->setDefaultDataPlaneQosPolicy(newDefaultQosPolicy);
+      switchSettingsChange = true;
+    }
+  }
+
+  {
+    bool udfCfgChanged = false;
+    auto newUdfCfg = updateUdfConfig(&udfCfgChanged);
+    if (udfCfgChanged) {
+      newSwitchSettings->setUdfConfig(std::move(newUdfCfg));
+      switchSettingsChange = true;
+    }
+  }
+
+  {
+    bool flowletSwitchingChanged = false;
+    auto newFlowletSwitchingConfig =
+        updateFlowletSwitchingConfig(&flowletSwitchingChanged);
+    if (flowletSwitchingChanged) {
+      newSwitchSettings->setFlowletSwitchingConfig(
+          std::move(newFlowletSwitchingConfig));
       switchSettingsChange = true;
     }
   }

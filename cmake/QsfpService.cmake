@@ -45,6 +45,7 @@ add_library(bsp_platform_mapping
 
 target_link_libraries(bsp_platform_mapping
   bsp_platform_mapping_cpp2
+  FBThrift::thriftcpp2
 )
 
 add_library(meru400bfu_bsp
@@ -53,6 +54,7 @@ add_library(meru400bfu_bsp
 
 target_link_libraries(meru400bfu_bsp
   bsp_platform_mapping_cpp2
+  FBThrift::thriftcpp2
 )
 
 add_library(meru400biu_bsp
@@ -61,6 +63,16 @@ add_library(meru400biu_bsp
 
 target_link_libraries(meru400biu_bsp
   bsp_platform_mapping_cpp2
+  FBThrift::thriftcpp2
+)
+
+add_library(montblanc_bsp
+  fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.cpp
+)
+
+target_link_libraries(montblanc_bsp
+  bsp_platform_mapping_cpp2
+  FBThrift::thriftcpp2
 )
 
 add_library(qsfp_bsp_core
@@ -87,6 +99,7 @@ target_link_libraries(qsfp_bsp_core
   Folly::folly
   meru400bfu_bsp
   meru400biu_bsp
+  montblanc_bsp
   device_mdio
   fpga_device
   phy_management_base

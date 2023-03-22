@@ -3,6 +3,7 @@ namespace py neteng.fboss.hardware_stats
 namespace go neteng.fboss.hardware_stats
 namespace py3 neteng.fboss
 namespace py.asyncio neteng.fboss.asyncio.hardware_stats
+namespace php fboss_hw
 
 include "fboss/mka_service/if/mka_structs.thrift"
 
@@ -84,6 +85,7 @@ struct HwSysPortStats {
   1: map<i16, i64> queueOutDiscardBytes_ = {};
   2: map<i16, i64> queueOutBytes_ = {};
   3: map<i16, i64> queueWatermarkBytes_ = {};
+  4: map<i16, i64> queueWredDroppedPackets_ = {};
 
   // seconds from epoch
   // Field index at a distance to allow for other stat additions
@@ -215,4 +217,10 @@ struct HwRxReasonStats {
 
 struct HwBufferPoolStats {
   1: i64 deviceWatermarkBytes;
+}
+
+struct CpuPortStats {
+  1: map<i32, i64> queueInPackets_;
+  2: map<i32, i64> queueDiscardPackets_;
+  3: map<i32, string> queueToName_;
 }

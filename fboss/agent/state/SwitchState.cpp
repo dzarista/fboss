@@ -37,6 +37,7 @@
 #include "fboss/agent/state/Vlan.h"
 #include "fboss/agent/state/VlanMap.h"
 
+#include "fboss/agent/HwSwitchMatcher.h"
 #include "fboss/agent/state/NodeBase-defs.h"
 #include "folly/IPAddress.h"
 #include "folly/IPAddressV4.h"
@@ -105,6 +106,8 @@ SwitchState::SwitchState() {
 
   set<switch_state_tags::aclTableGroupMap>(
       std::map<cfg::AclStage, state::AclTableGroupFields>{});
+  // default mirror map (for single npu) system
+  resetMirrors(std::make_shared<MirrorMap>());
 }
 
 SwitchState::~SwitchState() {}
@@ -148,30 +151,6 @@ void SwitchState::addVlan(const std::shared_ptr<Vlan>& vlan) {
     ref<switch_state_tags::vlanMap>() = vlans;
   }
   ref<switch_state_tags::vlanMap>()->addVlan(vlan);
-}
-
-void SwitchState::setDefaultVlan(const VlanID& id) {
-  set<switch_state_tags::defaultVlan>(id);
-}
-
-void SwitchState::setArpTimeout(seconds timeout) {
-  set<switch_state_tags::arpTimeout>(timeout.count());
-}
-
-void SwitchState::setNdpTimeout(seconds timeout) {
-  set<switch_state_tags::ndpTimeout>(timeout.count());
-}
-
-void SwitchState::setArpAgerInterval(seconds interval) {
-  set<switch_state_tags::arpAgerInterval>(interval.count());
-}
-
-void SwitchState::setMaxNeighborProbes(uint32_t maxNeighborProbes) {
-  set<switch_state_tags::maxNeighborProbes>(maxNeighborProbes);
-}
-
-void SwitchState::setStaleEntryInterval(seconds interval) {
-  set<switch_state_tags::staleEntryInterval>(interval.count());
 }
 
 void SwitchState::addIntf(const std::shared_ptr<Interface>& intf) {
@@ -249,17 +228,8 @@ void SwitchState::resetSwitchSettings(
   ref<switch_state_tags::switchSettings>() = switchSettings;
 }
 
-void SwitchState::resetQcmCfg(std::shared_ptr<QcmCfg> qcmCfg) {
-  ref<switch_state_tags::qcmCfg>() = qcmCfg;
-}
-
 void SwitchState::resetBufferPoolCfgs(std::shared_ptr<BufferPoolCfgMap> cfgs) {
   ref<switch_state_tags::bufferPoolCfgMap>() = cfgs;
-}
-
-void SwitchState::resetFlowletSwitchingConfig(
-    std::shared_ptr<FlowletSwitchingConfig> flowletSwitchingConfig) {
-  ref<switch_state_tags::flowletSwitchingConfig>() = flowletSwitchingConfig;
 }
 
 const std::shared_ptr<LoadBalancerMap>& SwitchState::getLoadBalancers() const {
@@ -267,11 +237,19 @@ const std::shared_ptr<LoadBalancerMap>& SwitchState::getLoadBalancers() const {
 }
 
 void SwitchState::resetMirrors(std::shared_ptr<MirrorMap> mirrors) {
-  ref<switch_state_tags::mirrorMap>() = mirrors;
+  const auto& matcher = HwSwitchMatcher::defaultHwSwitchMatcher();
+  auto mirrorMaps = cref<switch_state_tags::mirrorMaps>()->clone();
+  if (!mirrorMaps->getMirrorMapIf(matcher)) {
+    mirrorMaps->addMirrorMap(matcher, mirrors);
+  } else {
+    mirrorMaps->changeMirrorMap(matcher, mirrors);
+  }
+  ref<switch_state_tags::mirrorMaps>() = mirrorMaps;
 }
 
 const std::shared_ptr<MirrorMap>& SwitchState::getMirrors() const {
-  return cref<switch_state_tags::mirrorMap>();
+  return cref<switch_state_tags::mirrorMaps>()->cref(
+      HwSwitchMatcher::defaultHwSwitchMatcher().matcherString());
 }
 
 const std::shared_ptr<ForwardingInformationBaseMap>& SwitchState::getFibs()
@@ -339,10 +317,6 @@ void SwitchState::resetTeFlowTable(std::shared_ptr<TeFlowTable> flowTable) {
 
 void SwitchState::resetDsfNodes(std::shared_ptr<DsfNodeMap> dsfNodes) {
   ref<switch_state_tags::dsfNodes>() = dsfNodes;
-}
-
-void SwitchState::resetUdfConfig(std::shared_ptr<UdfConfig> udfConfig) {
-  ref<switch_state_tags::udfConfig>() = udfConfig;
 }
 
 std::shared_ptr<const AclTableMap> SwitchState::getAclTablesForStage(
@@ -477,10 +451,21 @@ std::unique_ptr<SwitchState> SwitchState::uniquePtrFromThrift(
       state->ref<switch_state_tags::aclTableGroupMap>()->clear();
     }
   }
+  /* forward compatibility */
+  if (!state->cref<switch_state_tags::mirrorMap>()->empty()) {
+    auto mirrors = state->cref<switch_state_tags::mirrorMap>();
+    state->resetMirrors(mirrors);
+    state->set<switch_state_tags::mirrorMap>(
+        std::map<std::string, state::MirrorFields>());
+  }
   return state;
 }
 
 VlanID SwitchState::getDefaultVlan() const {
+  auto defaultVlan = getSwitchSettings()->getDefaultVlan();
+  if (defaultVlan.has_value()) {
+    return VlanID(defaultVlan.value());
+  }
   return VlanID(cref<switch_state_tags::defaultVlan>()->toThrift());
 }
 
@@ -510,6 +495,103 @@ state::SwitchState SwitchState::toThrift() const {
         aclMap = aclMapPtr->toThrift();
       }
       aclTableGroupMap->clear();
+    }
+  }
+  // Write defaultVlan to switchSettings and old fields for transition
+  if (data.switchSettings()->defaultVlan().has_value()) {
+    data.defaultVlan() = data.switchSettings()->defaultVlan().value();
+  } else {
+    data.switchSettings()->defaultVlan() = data.defaultVlan().value();
+  }
+  // Write arpTimeout to switchSettings and old fields for transition
+  if (data.switchSettings()->arpTimeout().has_value()) {
+    data.arpTimeout() = data.switchSettings()->arpTimeout().value();
+  } else {
+    data.switchSettings()->arpTimeout() = data.arpTimeout().value();
+  }
+  // Write ndpTimeout to switchSettings and old fields for transition
+  if (data.switchSettings()->ndpTimeout().has_value()) {
+    data.ndpTimeout() = data.switchSettings()->ndpTimeout().value();
+  } else {
+    data.switchSettings()->ndpTimeout() = data.ndpTimeout().value();
+  }
+  // Write arpAgerInterval to switchSettings and old fields for transition
+  if (data.switchSettings()->arpAgerInterval().has_value()) {
+    data.arpAgerInterval() = data.switchSettings()->arpAgerInterval().value();
+  } else {
+    data.switchSettings()->arpAgerInterval() = data.arpAgerInterval().value();
+  }
+  // Write staleEntryInterval to switchSettings and old fields for transition
+  if (data.switchSettings()->staleEntryInterval().has_value()) {
+    data.staleEntryInterval() =
+        data.switchSettings()->staleEntryInterval().value();
+  } else {
+    data.switchSettings()->staleEntryInterval() =
+        data.staleEntryInterval().value();
+  }
+  // Write maxNeighborProbes to switchSettings and old fields for transition
+  if (data.switchSettings()->maxNeighborProbes().has_value()) {
+    data.maxNeighborProbes() =
+        data.switchSettings()->maxNeighborProbes().value();
+  } else {
+    data.switchSettings()->maxNeighborProbes() =
+        data.maxNeighborProbes().value();
+  }
+  // Write dhcp fields to switchSettings and old fields for transition
+  if (data.switchSettings()->dhcpV4RelaySrc().has_value()) {
+    data.dhcpV4RelaySrc() = data.switchSettings()->dhcpV4RelaySrc().value();
+  } else {
+    data.switchSettings()->dhcpV4RelaySrc() = data.dhcpV4RelaySrc().value();
+  }
+  if (data.switchSettings()->dhcpV6RelaySrc().has_value()) {
+    data.dhcpV6RelaySrc() = data.switchSettings()->dhcpV6RelaySrc().value();
+  } else {
+    data.switchSettings()->dhcpV6RelaySrc() = data.dhcpV6RelaySrc().value();
+  }
+  if (data.switchSettings()->dhcpV4ReplySrc().has_value()) {
+    data.dhcpV4ReplySrc() = data.switchSettings()->dhcpV4ReplySrc().value();
+  } else {
+    data.switchSettings()->dhcpV4ReplySrc() = data.dhcpV4ReplySrc().value();
+  }
+  if (data.switchSettings()->dhcpV6ReplySrc().has_value()) {
+    data.dhcpV6ReplySrc() = data.switchSettings()->dhcpV6ReplySrc().value();
+  } else {
+    data.switchSettings()->dhcpV6ReplySrc() = data.dhcpV6ReplySrc().value();
+  }
+  // Write QcmCfg to switchSettings and old fields for transition
+  if (data.switchSettings()->qcmCfg().has_value()) {
+    data.qcmCfg() = data.switchSettings()->qcmCfg().value();
+  } else if (data.qcmCfg().has_value()) {
+    data.switchSettings()->qcmCfg() = data.qcmCfg().value();
+  }
+  // Write defaultQosPolicy to switchSettings and old fields for transition
+  if (data.switchSettings()->defaultDataPlaneQosPolicy().has_value()) {
+    data.defaultDataPlaneQosPolicy() =
+        data.switchSettings()->defaultDataPlaneQosPolicy().value();
+  } else if (data.defaultDataPlaneQosPolicy().has_value()) {
+    data.switchSettings()->defaultDataPlaneQosPolicy() =
+        data.defaultDataPlaneQosPolicy().value();
+  }
+  // Write udfConfig to switchSettings and old fields for transition
+  if (data.switchSettings()->udfConfig().has_value()) {
+    data.udfConfig() = data.switchSettings()->udfConfig().value();
+  } else if (data.udfConfig().is_set()) {
+    data.switchSettings()->udfConfig() = data.udfConfig().value();
+  }
+  // Write flowletSwitchingConfig to switchSettings and old fields for
+  // transition
+  if (data.switchSettings()->flowletSwitchingConfig().has_value()) {
+    data.flowletSwitchingConfig() =
+        data.switchSettings()->flowletSwitchingConfig().value();
+  } else if (data.flowletSwitchingConfig().has_value()) {
+    data.switchSettings()->flowletSwitchingConfig() =
+        data.flowletSwitchingConfig().value();
+  }
+  /* backward compatibility */
+  if (!cref<switch_state_tags::mirrorMaps>()->empty()) {
+    if (auto mirrors = cref<switch_state_tags::mirrorMaps>()->getMirrorMapIf(
+            HwSwitchMatcher::defaultHwSwitchMatcher())) {
+      data.mirrorMap() = mirrors->toThrift();
     }
   }
   return data;

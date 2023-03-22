@@ -104,7 +104,9 @@ target_link_libraries(state
   switch_state_cpp2
   mka_structs_cpp2
   fboss_cpp2
+  fsdb_helper
   label_forwarding_action
+  hwswitch_matcher
   nodebase
   state_utils
   radix_tree

@@ -115,6 +115,31 @@ void addNetworkAIQueueConfig(
   }
 }
 
+void addVoqQueueConfig(
+    cfg::SwitchConfig* config,
+    cfg::StreamType streamType,
+    bool addWredConfig) {
+  std::vector<cfg::PortQueue> voqConfig;
+  for (auto queueId = kOlympicSilverQueueId; queueId <= kOlympicNCQueueId;
+       queueId++) {
+    cfg::PortQueue queue;
+    *queue.id() = queueId;
+    queue.streamType() = streamType;
+    queue.name() = folly::to<std::string>("queue", queueId);
+    *queue.scheduling() = cfg::QueueScheduling::INTERNAL;
+
+    if (queueId == kOlympicEcn1QueueId) {
+      queue.aqms() = {};
+      queue.aqms()->push_back(kGetOlympicEcnConfig());
+      if (addWredConfig) {
+        queue.aqms()->push_back(kGetWredConfig());
+      }
+    }
+    voqConfig.push_back(queue);
+  }
+  config->defaultVoqConfig() = voqConfig;
+}
+
 // XXX This is FSW config, add RSW config. Prefix queue names with portName
 void addOlympicQueueConfig(
     cfg::SwitchConfig* config,
@@ -197,7 +222,14 @@ void addOlympicQueueConfig(
 
   config->portQueueConfigs()["queue_config"] = portQueues;
   for (auto& port : *config->ports()) {
-    port.portQueueConfigName() = "queue_config";
+    if (*port.portType() == cfg::PortType::INTERFACE_PORT) {
+      // Apply queue configs on INTERFACE_PORTS only
+      port.portQueueConfigName() = "queue_config";
+    }
+  }
+  // For VoQ switches, add the default VoQ queue config as well!
+  if (asic->getSwitchType() == cfg::SwitchType::VOQ) {
+    addVoqQueueConfig(config, streamType, addWredConfig);
   }
 }
 

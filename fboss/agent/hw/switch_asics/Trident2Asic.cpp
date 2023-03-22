@@ -6,7 +6,6 @@ namespace facebook::fboss {
 
 bool Trident2Asic::isSupported(Feature feature) const {
   switch (feature) {
-    case HwAsic::Feature::HOSTTABLE_FOR_HOSTROUTES:
     case HwAsic::Feature::SPAN:
     case HwAsic::Feature::ERSPANv4:
     case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
@@ -125,6 +124,8 @@ bool Trident2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PCS_RX_LINK_STATUS:
     case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
+    case HwAsic::Feature::PORT_FABRIC_ISOLATE:
+    case HwAsic::Feature::QUEUE_ECN_COUNTER:
       return false;
   }
   return false;

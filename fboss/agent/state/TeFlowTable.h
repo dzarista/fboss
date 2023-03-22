@@ -37,6 +37,8 @@ using TeFlowTableThriftTraits = ThriftMapNodeTraits<
 class TeFlowTable : public ThriftMapNode<TeFlowTable, TeFlowTableThriftTraits> {
  public:
   using Base = ThriftMapNode<TeFlowTable, TeFlowTableThriftTraits>;
+  using Base::modify;
+
   TeFlowTable();
   ~TeFlowTable() override;
 
@@ -63,5 +65,12 @@ class TeFlowTable : public ThriftMapNode<TeFlowTable, TeFlowTableThriftTraits> {
   // Inherit the constructors required for clone()
   using Base::Base;
   friend class CloneAllocator;
+  void fillTeFlowEntry(
+      std::shared_ptr<TeFlowEntry>& teFlowEntry,
+      const FlowEntry& entry,
+      std::shared_ptr<SwitchState>* state);
+  std::shared_ptr<TeFlowEntry> createTeFlowEntry(
+      const FlowEntry& entry,
+      std::shared_ptr<SwitchState>* state);
 };
 } // namespace facebook::fboss

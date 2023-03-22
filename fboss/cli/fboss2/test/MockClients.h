@@ -37,6 +37,8 @@ class MockFbossCtrlAgent : public FbossCtrlSvIf {
   using Out = std::string&;
   using Ports = std::unique_ptr<std::vector<int32_t>>;
   using HwObjects = std::unique_ptr<std::vector<HwObjectType>>;
+  MOCK_METHOD(void, startPktCapture, (std::unique_ptr<CaptureInfo>));
+  MOCK_METHOD(void, stopPktCapture, (std::unique_ptr<std::string>));
   MOCK_METHOD(void, getAllPortInfo, (PortInfoMap));
   MOCK_METHOD(void, getPortStatus, (PortStatusMap, Ports));
   MOCK_METHOD(void, listHwObjects, (Out, HwObjects, bool));
@@ -67,6 +69,7 @@ class MockFbossCtrlAgent : public FbossCtrlSvIf {
       void,
       getTeFlowTableDetails,
       (std::vector<facebook::fboss::TeFlowDetails>&));
+  MOCK_METHOD(void, getCurrentStateJSON, (Out, std::unique_ptr<std::string>));
 };
 
 class MockFbossQsfpService : public QsfpServiceSvIf {

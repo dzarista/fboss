@@ -284,6 +284,48 @@ TYPED_TEST(ThriftTestAllSwitchTypes, setPortState) {
   EXPECT_FALSE(port->isEnabled());
 }
 
+TYPED_TEST(ThriftTestAllSwitchTypes, setPortDrainState) {
+  const PortID port5{5};
+  auto port = this->sw_->getState()->getPorts()->getPortIf(port5);
+  EXPECT_FALSE(port->isDrained());
+
+  ThriftHandler handler(this->sw_);
+  if (this->isFabric()) {
+    handler.setPortDrainState(port5, true);
+    waitForStateUpdates(this->sw_);
+    port = this->sw_->getState()->getPorts()->getPortIf(port5);
+    EXPECT_TRUE(port->isDrained());
+
+    handler.setPortDrainState(port5, false);
+    waitForStateUpdates(this->sw_);
+    port = this->sw_->getState()->getPorts()->getPortIf(port5);
+    EXPECT_FALSE(port->isDrained());
+  } else {
+    EXPECT_THROW(handler.setPortDrainState(port5, true), FbossError);
+    EXPECT_THROW(handler.setPortDrainState(port5, false), FbossError);
+  }
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getPortStatus) {
+  const PortID port5{5};
+  auto port = this->sw_->getState()->getPorts()->getPortIf(port5);
+  ThriftHandler handler(this->sw_);
+
+  std::map<int32_t, PortStatus> statusMap;
+  std::vector<int> ports{5};
+  handler.getPortStatus(statusMap, std::make_unique<std::vector<int>>(ports));
+  auto portStatus = statusMap.find(5);
+  EXPECT_FALSE(*portStatus->second.drained());
+
+  if (this->isFabric()) {
+    handler.setPortDrainState(port5, true);
+    waitForStateUpdates(this->sw_);
+    handler.getPortStatus(statusMap, std::make_unique<std::vector<int>>(ports));
+    portStatus = statusMap.find(5);
+    EXPECT_TRUE(*portStatus->second.drained());
+  }
+}
+
 TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
   ThriftHandler handler(this->sw_);
 
@@ -406,6 +448,20 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getSysPorts) {
   } else {
     EXPECT_EQ(sysPorts.size(), 0);
   }
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getSysPortStats) {
+  ThriftHandler handler(this->sw_);
+  std::map<std::string, HwSysPortStats> sysPortStats;
+  EXPECT_HW_CALL(this->sw_, getSysPortStats()).Times(1);
+  handler.getSysPortStats(sysPortStats);
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getHwPortStats) {
+  ThriftHandler handler(this->sw_);
+  std::map<std::string, HwPortStats> hwPortStats;
+  EXPECT_HW_CALL(this->sw_, getPortStats()).Times(1);
+  handler.getHwPortStats(hwPortStats);
 }
 
 std::unique_ptr<UnicastRoute> makeUnicastRoute(
@@ -2255,6 +2311,10 @@ TEST_F(ThriftTeFlowTest, syncTeFlows) {
     EXPECT_NE(tableEntry, nullptr);
   }
 
+  TeFlow flow;
+  flow.dstPrefix() = ipPrefix("100::1", 64);
+  flow.srcPort() = 100;
+  auto teflowEntryBeforeSync = teFlowTable->getTeFlowIf(flow);
   auto syncPrefixes = {"100::1", "101::1", "104::1"};
   auto syncFlowEntries = std::make_unique<std::vector<FlowEntry>>();
   for (const auto& prefix : syncPrefixes) {
@@ -2281,6 +2341,38 @@ TEST_F(ThriftTeFlowTest, syncTeFlows) {
     auto tableEntry = teFlowTable->getTeFlowIf(flow);
     EXPECT_EQ(tableEntry, nullptr);
   }
+  // Ensure that pointer to entries and contents are same
+  auto teflowEntryAfterSync = teFlowTable->getTeFlowIf(flow);
+  EXPECT_EQ(teflowEntryBeforeSync, teflowEntryAfterSync);
+  EXPECT_EQ(*teflowEntryBeforeSync, *teflowEntryAfterSync);
+  // Sync with no change in entries and verify table is same
+  auto syncFlowEntries2 = std::make_unique<std::vector<FlowEntry>>();
+  for (const auto& prefix : syncPrefixes) {
+    auto flowEntry = makeFlow(prefix);
+    syncFlowEntries2->emplace_back(flowEntry);
+  }
+  handler.syncTeFlows(std::move(syncFlowEntries2));
+  state = sw_->getState();
+  auto teFlowTableAfterSync = state->getTeFlowTable();
+  // Ensure teflow table pointers and contents are same
+  EXPECT_EQ(teFlowTable, teFlowTableAfterSync);
+  EXPECT_EQ(*teFlowTable, *teFlowTableAfterSync);
+  // Update an entry and check the pointer and content changed
+  flow.dstPrefix() = ipPrefix("104::1", 64);
+  flow.srcPort() = 100;
+  teflowEntryBeforeSync = teFlowTable->getTeFlowIf(flow);
+  auto updateEntries = std::make_unique<std::vector<FlowEntry>>();
+  auto flowEntry1 = makeFlow("100::1");
+  auto flowEntry2 = makeFlow("104::1", kNhopAddrA, "counter1", "fboss1");
+  updateEntries->emplace_back(flowEntry1);
+  updateEntries->emplace_back(flowEntry2);
+  handler.syncTeFlows(std::move(updateEntries));
+  state = sw_->getState();
+  teFlowTable = state->getTeFlowTable();
+  teflowEntryAfterSync = teFlowTable->getTeFlowIf(flow);
+  // Ensure that pointer to entries and contents are different
+  EXPECT_NE(teflowEntryBeforeSync, teflowEntryAfterSync);
+  EXPECT_NE(*teflowEntryBeforeSync, *teflowEntryAfterSync);
   // sync flows with no entries
   auto nullFlowEntries = std::make_unique<std::vector<FlowEntry>>();
   handler.syncTeFlows(std::move(nullFlowEntries));
