@@ -93,9 +93,9 @@ pip3 install GitPython
 SAI_DIR="$FBOSS_DIR/Aqua_SAI/"
 if [ $ARCH == "dnx" ];
 then
-   SAI_BUILD_DIR="$SAI_DIR/output/x86-dnx-deb-static-meta"
+   SAI_BUILD_DIR="$SAI_DIR/output/x86-dnx-deb-static-fboss"
 else
-   SAI_BUILD_DIR="$SAI_DIR/output/x86-xgsall-deb-static"
+   SAI_BUILD_DIR="$SAI_DIR/output/x86-xgsall-deb-static-fboss"
 fi
 
 # Delete SDK var in the env. It can cause the SDK build to fail.
