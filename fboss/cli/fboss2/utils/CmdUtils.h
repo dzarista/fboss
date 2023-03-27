@@ -326,10 +326,6 @@ class MirrorList : public BaseObjectArgType<std::string> {
 // initialization steps
 void postAppInit(int argc, char* argv[], CLI::App& app);
 
-timeval splitFractionalSecondsFromTimer(const long& timer);
-const std::string parseTimeToTimeStamp(const long& timeToParse);
-
-const std::string formatBandwidth(const float bandwidthBytesPerSecond);
 std::vector<int32_t> getPortIDList(
     const std::vector<std::string>& ifList,
     std::map<int32_t, facebook::fboss::PortInfoThrift>& portEntries);
@@ -366,4 +362,10 @@ bool comparePortName(
 bool compareSystemPortName(
     const std::basic_string<char>& nameA,
     const std::basic_string<char>& nameB);
+
+std::optional<std::string> getMyHostname(const std::string& hostname);
+
+std::string getSSHCmdPrefix(const std::string& hostname);
+std::string runCmd(const std::string& cmd);
+
 } // namespace facebook::fboss::utils

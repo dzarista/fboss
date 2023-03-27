@@ -17,6 +17,7 @@
 #include "fboss/cli/fboss2/commands/clear/interface/CmdClearInterface.h"
 #include "fboss/cli/fboss2/commands/clear/interface/prbs/CmdClearInterfacePrbs.h"
 #include "fboss/cli/fboss2/commands/clear/interface/prbs/stats/CmdClearInterfacePrbsStats.h"
+#include "fboss/cli/fboss2/commands/get/pcap/CmdGetPcap.h"
 #include "fboss/cli/fboss2/commands/help/CmdHelp.h"
 #include "fboss/cli/fboss2/commands/set/interface/CmdSetInterface.h"
 #include "fboss/cli/fboss2/commands/set/interface/prbs/CmdSetInterfacePrbs.h"
@@ -31,6 +32,7 @@
 #include "fboss/cli/fboss2/commands/show/aggregateport/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/arp/CmdShowArp.h"
 #include "fboss/cli/fboss2/commands/show/arp/gen-cpp2/model_visitation.h"
+#include "fboss/cli/fboss2/commands/show/cpuport/CmdShowCpuPort.h"
 #include "fboss/cli/fboss2/commands/show/dsfnodes/CmdShowDsfNodes.h"
 #include "fboss/cli/fboss2/commands/show/dsfnodes/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/fabric/CmdShowFabric.h"
@@ -100,6 +102,7 @@ namespace facebook::fboss {
 
 // Avoid template linker error
 // https://isocpp.org/wiki/faq/templates#separate-template-fn-defn-from-decl
+template void CmdHandler<CmdGetPcap, CmdGetPcapTraits>::run();
 template void CmdHandler<CmdShowAcl, CmdShowAclTraits>::run();
 template void CmdHandler<CmdShowAgentSsl, CmdShowAgentSslTraits>::run();
 template void
@@ -144,6 +147,7 @@ template void
 CmdHandler<CmdShowInterfaceTraffic, CmdShowInterfaceTrafficTraits>::run();
 template void CmdHandler<CmdShowSdkDump, CmdShowSdkDumpTraits>::run();
 template void CmdHandler<CmdShowSystemPort, CmdShowSystemPortTraits>::run();
+template void CmdHandler<CmdShowCpuPort, CmdShowCpuPortTraits>::run();
 template void CmdHandler<CmdShowTransceiver, CmdShowTransceiverTraits>::run();
 
 template void CmdHandler<CmdClearInterface, CmdClearInterfaceTraits>::run();
@@ -228,6 +232,8 @@ template const ValidFilterMapType
 CmdHandler<CmdShowSystemPort, CmdShowSystemPortTraits>::getValidFilters();
 template const ValidFilterMapType
 CmdHandler<CmdShowTransceiver, CmdShowTransceiverTraits>::getValidFilters();
+template const ValidFilterMapType
+CmdHandler<CmdShowCpuPort, CmdShowCpuPortTraits>::getValidFilters();
 
 template const ValidFilterMapType
 CmdHandler<CmdClearInterface, CmdClearInterfaceTraits>::getValidFilters();

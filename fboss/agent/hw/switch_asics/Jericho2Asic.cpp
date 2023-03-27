@@ -75,6 +75,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PORT_FABRIC_ISOLATE:
     case HwAsic::Feature::QUEUE_ECN_COUNTER:
     case HwAsic::Feature::SAI_ECN_WRED:
+    case HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT:
       return true;
 
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
@@ -132,6 +133,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PCS_RX_LINK_STATUS:
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
     case HwAsic::Feature::SAI_SAMPLEPACKET_TRAP:
+    case HwAsic::Feature::TRAP_PRIORITY_LOWER_VAL_IS_LOWER_PRI:
       return false;
   }
   return false;

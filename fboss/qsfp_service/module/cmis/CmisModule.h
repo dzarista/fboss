@@ -42,6 +42,7 @@ class CmisModule : public QsfpModule {
     uint8_t moduleMediaInterface;
     int hostLaneCount;
     int mediaLaneCount;
+    std::unordered_set<int> hostStartLanes;
   };
 
   /*
@@ -130,12 +131,8 @@ class CmisModule : public QsfpModule {
   /*
    * Perform transceiver customization
    * This must be called with a lock held on qsfpModuleMutex_
-   *
-   * Default speed is set to DEFAULT - this will prevent any speed specific
-   * settings from being applied
    */
-  void customizeTransceiverLocked(
-      cfg::PortSpeed speed = cfg::PortSpeed::DEFAULT) override;
+  void customizeTransceiverLocked(TransceiverPortState& portState) override;
 
   /*
    * If the current power state is not same as desired one then change it and
@@ -333,6 +330,13 @@ class CmisModule : public QsfpModule {
 
   void resetDataPath() override;
 
+  /*
+   * Returns the ApplicationAdvertisingField corresponding to the application or
+   * nullopt if it doesn't exist
+   */
+  std::optional<ApplicationAdvertisingField> getApplicationField(
+      uint8_t application) const;
+
  private:
   // no copy or assignment
   CmisModule(CmisModule const&) = delete;
@@ -392,9 +396,9 @@ class CmisModule : public QsfpModule {
   virtual bool getModuleStateChanged();
 
   /*
-   * ApplicationCode to ApplicationCodeSel mapping.
+   * Application advertising fields.
    */
-  std::map<uint8_t, ApplicationAdvertisingField> moduleCapabilities_;
+  std::vector<ApplicationAdvertisingField> moduleCapabilities_;
 
   /*
    * Gets the module media interface. This is the intended media interface

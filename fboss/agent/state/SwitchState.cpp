@@ -106,8 +106,10 @@ SwitchState::SwitchState() {
 
   set<switch_state_tags::aclTableGroupMap>(
       std::map<cfg::AclStage, state::AclTableGroupFields>{});
-  // default mirror map (for single npu) system
+  // default multi-map (for single npu) system
   resetMirrors(std::make_shared<MirrorMap>());
+  resetForwardingInformationBases(
+      std::make_shared<ForwardingInformationBaseMap>());
 }
 
 SwitchState::~SwitchState() {}
@@ -237,24 +239,25 @@ const std::shared_ptr<LoadBalancerMap>& SwitchState::getLoadBalancers() const {
 }
 
 void SwitchState::resetMirrors(std::shared_ptr<MirrorMap> mirrors) {
-  const auto& matcher = HwSwitchMatcher::defaultHwSwitchMatcher();
+  const auto& matcher = HwSwitchMatcher::defaultHwSwitchMatcherKey();
   auto mirrorMaps = cref<switch_state_tags::mirrorMaps>()->clone();
-  if (!mirrorMaps->getMirrorMapIf(matcher)) {
-    mirrorMaps->addMirrorMap(matcher, mirrors);
+  if (!mirrorMaps->getNodeIf(matcher)) {
+    mirrorMaps->addNode(matcher, mirrors);
   } else {
-    mirrorMaps->changeMirrorMap(matcher, mirrors);
+    mirrorMaps->updateNode(matcher, mirrors);
   }
   ref<switch_state_tags::mirrorMaps>() = mirrorMaps;
 }
 
 const std::shared_ptr<MirrorMap>& SwitchState::getMirrors() const {
   return cref<switch_state_tags::mirrorMaps>()->cref(
-      HwSwitchMatcher::defaultHwSwitchMatcher().matcherString());
+      HwSwitchMatcher::defaultHwSwitchMatcherKey());
 }
 
 const std::shared_ptr<ForwardingInformationBaseMap>& SwitchState::getFibs()
     const {
-  return cref<switch_state_tags::fibs>();
+  return cref<switch_state_tags::fibsMap>()->cref(
+      HwSwitchMatcher::defaultHwSwitchMatcherKey());
 }
 
 void SwitchState::resetLabelForwardingInformationBase(
@@ -264,7 +267,14 @@ void SwitchState::resetLabelForwardingInformationBase(
 
 void SwitchState::resetForwardingInformationBases(
     std::shared_ptr<ForwardingInformationBaseMap> fibs) {
-  ref<switch_state_tags::fibs>() = fibs;
+  const auto& matcher = HwSwitchMatcher::defaultHwSwitchMatcherKey();
+  auto fibsMap = cref<switch_state_tags::fibsMap>()->clone();
+  if (!fibsMap->getNodeIf(matcher)) {
+    fibsMap->addNode(matcher, fibs);
+  } else {
+    fibsMap->updateNode(matcher, fibs);
+  }
+  ref<switch_state_tags::fibsMap>() = fibsMap;
 }
 
 void SwitchState::addTransceiver(
@@ -452,12 +462,25 @@ std::unique_ptr<SwitchState> SwitchState::uniquePtrFromThrift(
     }
   }
   /* forward compatibility */
-  if (!state->cref<switch_state_tags::mirrorMap>()->empty()) {
-    auto mirrors = state->cref<switch_state_tags::mirrorMap>();
+  auto& mirrors = state->cref<switch_state_tags::mirrorMap>();
+  auto& multiMirrors = state->cref<switch_state_tags::mirrorMaps>();
+  if (multiMirrors->empty() || state->getMirrors()->empty()) {
+    // keep map for default npu
     state->resetMirrors(mirrors);
+    // clear legacy mirror map
     state->set<switch_state_tags::mirrorMap>(
         std::map<std::string, state::MirrorFields>());
   }
+  auto& fibs = state->cref<switch_state_tags::fibs>();
+  auto& multiFibs = state->cref<switch_state_tags::fibsMap>();
+  if (multiFibs->empty() || state->getFibs()->empty()) {
+    // keep fib for default npu
+    state->resetForwardingInformationBases(fibs);
+    // clear legacy fibs
+    state->set<switch_state_tags::fibs>(
+        std::map<int16_t, state::FibContainerFields>());
+  }
+
   return state;
 }
 
@@ -589,9 +612,15 @@ state::SwitchState SwitchState::toThrift() const {
   }
   /* backward compatibility */
   if (!cref<switch_state_tags::mirrorMaps>()->empty()) {
-    if (auto mirrors = cref<switch_state_tags::mirrorMaps>()->getMirrorMapIf(
-            HwSwitchMatcher::defaultHwSwitchMatcher())) {
+    auto key = HwSwitchMatcher::defaultHwSwitchMatcherKey();
+    if (auto mirrors = cref<switch_state_tags::mirrorMaps>()->getNodeIf(key)) {
       data.mirrorMap() = mirrors->toThrift();
+    }
+  }
+  if (!cref<switch_state_tags::fibsMap>()->empty()) {
+    auto key = HwSwitchMatcher::defaultHwSwitchMatcherKey();
+    if (auto fibs = cref<switch_state_tags::fibsMap>()->getNodeIf(key)) {
+      data.fibs() = fibs->toThrift();
     }
   }
   return data;

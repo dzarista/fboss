@@ -40,6 +40,7 @@ std::map<int32_t, PortInfoThrift> createPortEntries() {
   pfcCfg.rx() = true;
   pfcCfg.watchdog() = true;
   portEntry1.pfc() = pfcCfg;
+  portEntry1.isDrained() = false;
 
   PortInfoThrift portEntry2;
   portEntry2.portId() = 2;
@@ -53,6 +54,7 @@ std::map<int32_t, PortInfoThrift> createPortEntries() {
   tcvr2.transceiverId() = 1;
   portEntry2.transceiverIdx() = tcvr2;
   portEntry2.rxPause() = true;
+  portEntry2.isDrained() = false;
 
   PortInfoThrift portEntry3;
   portEntry3.portId() = 3;
@@ -65,6 +67,7 @@ std::map<int32_t, PortInfoThrift> createPortEntries() {
   TransceiverIdxThrift tcvr3;
   tcvr3.transceiverId() = 2;
   portEntry3.transceiverIdx() = tcvr3;
+  portEntry3.isDrained() = false;
 
   PortInfoThrift portEntry4;
   portEntry4.portId() = 8;
@@ -77,6 +80,7 @@ std::map<int32_t, PortInfoThrift> createPortEntries() {
   TransceiverIdxThrift tcvr4;
   tcvr4.transceiverId() = 3;
   portEntry4.transceiverIdx() = tcvr4;
+  portEntry4.isDrained() = true;
 
   PortInfoThrift portEntry5;
   portEntry5.portId() = 7;
@@ -89,6 +93,7 @@ std::map<int32_t, PortInfoThrift> createPortEntries() {
   TransceiverIdxThrift tcvr5;
   tcvr5.transceiverId() = 4;
   portEntry5.transceiverIdx() = tcvr5;
+  portEntry5.isDrained() = false;
 
   PortInfoThrift portEntry6;
   portEntry6.portId() = 9;
@@ -101,6 +106,7 @@ std::map<int32_t, PortInfoThrift> createPortEntries() {
   TransceiverIdxThrift tcvr6;
   tcvr6.transceiverId() = 5;
   portEntry6.transceiverIdx() = tcvr6;
+  portEntry6.isDrained() = false;
 
   portMap[portEntry1.get_portId()] = portEntry1;
   portMap[portEntry2.get_portId()] = portEntry2;
@@ -179,6 +185,7 @@ cli::ShowPortModel createPortModel() {
   entry1.numUnicastQueues() = 0;
   // when pfc exists, pause shouldn't
   entry1.pfc() = "TX RX WD";
+  entry1.isDrained() = "No";
 
   entry2.id() = 2;
   entry2.hwLogicalPortId() = 2;
@@ -191,6 +198,7 @@ cli::ShowPortModel createPortModel() {
   entry2.tcvrPresent() = "Present";
   entry2.numUnicastQueues() = 0;
   entry2.pause() = "RX";
+  entry2.isDrained() = "No";
 
   entry3.id() = 3;
   entry3.hwLogicalPortId() = 3;
@@ -203,6 +211,7 @@ cli::ShowPortModel createPortModel() {
   entry3.tcvrPresent() = "Absent";
   entry3.numUnicastQueues() = 0;
   entry3.pause() = "";
+  entry3.isDrained() = "No";
 
   entry4.id() = 8;
   entry4.hwLogicalPortId() = 8;
@@ -215,6 +224,7 @@ cli::ShowPortModel createPortModel() {
   entry4.tcvrPresent() = "Absent";
   entry4.numUnicastQueues() = 0;
   entry4.pause() = "";
+  entry4.isDrained() = "Yes";
 
   entry5.id() = 7;
   entry5.hwLogicalPortId() = 7;
@@ -227,6 +237,7 @@ cli::ShowPortModel createPortModel() {
   entry5.tcvrPresent() = "Present";
   entry5.numUnicastQueues() = 0;
   entry5.pause() = "";
+  entry5.isDrained() = "No";
 
   entry6.id() = 9;
   entry6.hwLogicalPortId() = 9;
@@ -239,10 +250,27 @@ cli::ShowPortModel createPortModel() {
   entry6.tcvrPresent() = "Present";
   entry6.numUnicastQueues() = 0;
   entry6.pause() = "";
+  entry6.isDrained() = "No";
 
   // sorted by name
   model.portEntries() = {entry6, entry1, entry2, entry3, entry5, entry4};
   return model;
+}
+
+std::vector<std::string> createDrainedInterfaces() {
+  std::vector<std::string> drainedInterfaces;
+  // To be populated in next diff
+  return drainedInterfaces;
+}
+
+std::string createMockedBgpConfig() {
+  std::string bgpConfigStr;
+  bgp::thrift::BgpConfig bgpConfig;
+  std::vector<std::string> drainedInterfaces;
+  // To be populated in next diff
+  bgpConfig.drained_interfaces() = std::move(drainedInterfaces);
+  apache::thrift::SimpleJSONSerializer::serialize(bgpConfig, &bgpConfigStr);
+  return bgpConfigStr;
 }
 
 class CmdShowPortTestFixture : public CmdHandlerTestBase {
@@ -252,18 +280,26 @@ class CmdShowPortTestFixture : public CmdHandlerTestBase {
   std::map<int32_t, facebook::fboss::TransceiverInfo> mockTransceiverEntries;
   std::map<std::string, facebook::fboss::HwPortStats> mockPortStats;
   cli::ShowPortModel normalizedModel;
+  std::vector<std::string> mockDrainedInterfaces;
+  std::string mockBgpRunningConfig;
 
   void SetUp() override {
     CmdHandlerTestBase::SetUp();
     mockPortEntries = createPortEntries();
     mockTransceiverEntries = createTransceiverEntries();
     normalizedModel = createPortModel();
+    mockDrainedInterfaces = createDrainedInterfaces();
+    mockBgpRunningConfig = createMockedBgpConfig();
   }
 };
 
 TEST_F(CmdShowPortTestFixture, sortByName) {
   auto model = CmdShowPort().createModel(
-      mockPortEntries, mockTransceiverEntries, queriedEntries, mockPortStats);
+      mockPortEntries,
+      mockTransceiverEntries,
+      queriedEntries,
+      mockPortStats,
+      mockDrainedInterfaces);
 
   EXPECT_THRIFT_EQ(model, normalizedModel);
 }
@@ -276,7 +312,8 @@ TEST_F(CmdShowPortTestFixture, invalidPortName) {
         invalidPortEntries,
         mockTransceiverEntries,
         queriedEntries,
-        mockPortStats);
+        mockPortStats,
+        mockDrainedInterfaces);
     FAIL();
   } catch (const std::invalid_argument& expected) {
     ASSERT_STREQ(
@@ -288,12 +325,17 @@ TEST_F(CmdShowPortTestFixture, invalidPortName) {
 
 TEST_F(CmdShowPortTestFixture, queryClient) {
   setupMockedAgentServer();
+  setupMockedBgpServer();
   EXPECT_CALL(getMockAgent(), getAllPortInfo(_))
       .WillOnce(Invoke([&](auto& entries) { entries = mockPortEntries; }));
 
   EXPECT_CALL(getQsfpService(), getTransceiverInfo(_, _))
       .WillOnce(Invoke(
           [&](auto& entries, auto) { entries = mockTransceiverEntries; }));
+
+  EXPECT_CALL(getBgpService(), getRunningConfig(_))
+      .WillOnce(Invoke(
+          [&](auto& bgpConfigStr) { bgpConfigStr = mockBgpRunningConfig; }));
 
   auto cmd = CmdShowPort();
   CmdShowPortTraits::ObjectArgType queriedEntries;
@@ -308,14 +350,14 @@ TEST_F(CmdShowPortTestFixture, printOutput) {
 
   std::string output = ss.str();
   std::string expectOutput =
-      " ID  Name        AdminState  LinkState  Transceiver  TcvrID  Speed  ProfileID                        HwLogicalPortId \n"
-      "-------------------------------------------------------------------------------------------------------------------------------\n"
-      " 9   eth1/4/1    Enabled     Up         Present      5       100G   PROFILE_100G_4_NRZ_CL91_OPTICAL  9               \n"
-      " 1   eth1/5/1    Enabled     Down       Present      0       100G   PROFILE_100G_4_NRZ_CL91_COPPER   1               \n"
-      " 2   eth1/5/2    Disabled    Down       Present      1       25G    PROFILE_25G_1_NRZ_CL74_COPPER    2               \n"
-      " 3   eth1/5/3    Enabled     Up         Absent       2       100G   PROFILE_100G_4_NRZ_CL91_COPPER   3               \n"
-      " 7   eth1/10/2   Enabled     Up         Present      4       100G   PROFILE_100G_4_NRZ_CL91_OPTICAL  7               \n"
-      " 8   fab402/9/1  Enabled     Up         Absent       3       100G   PROFILE_100G_4_NRZ_NOFEC_COPPER  8               \n\n";
+      " ID  Name        AdminState  LinkState  Transceiver  TcvrID  Speed  ProfileID                        HwLogicalPortId  Drained \n"
+      "-----------------------------------------------------------------------------------------------------------------------------------------\n"
+      " 9   eth1/4/1    Enabled     Up         Present      5       100G   PROFILE_100G_4_NRZ_CL91_OPTICAL  9                No      \n"
+      " 1   eth1/5/1    Enabled     Down       Present      0       100G   PROFILE_100G_4_NRZ_CL91_COPPER   1                No      \n"
+      " 2   eth1/5/2    Disabled    Down       Present      1       25G    PROFILE_25G_1_NRZ_CL74_COPPER    2                No      \n"
+      " 3   eth1/5/3    Enabled     Up         Absent       2       100G   PROFILE_100G_4_NRZ_CL91_COPPER   3                No      \n"
+      " 7   eth1/10/2   Enabled     Up         Present      4       100G   PROFILE_100G_4_NRZ_CL91_OPTICAL  7                No      \n"
+      " 8   fab402/9/1  Enabled     Up         Absent       3       100G   PROFILE_100G_4_NRZ_NOFEC_COPPER  8                Yes     \n\n";
 
   EXPECT_EQ(output, expectOutput);
 }

@@ -28,12 +28,16 @@ def parse_args():
             + "=/opt/app"
         ),
     )
+    parser.add_argument(
+        "--compress", help="Compress the FBOSS Binaries", action="store_true"
+    )
     return parser.parse_args()
 
 
 class PackageFboss:
     FBOSS_BINS = "fboss_bins-1"
     FBOSS_BINS_SPEC = FBOSS_BINS + ".spec"
+    FBOSS_BIN_TAR = "fboss_bins.tar.gz"
 
     HOME_DIR_ABS = os.path.expanduser("~")
 
@@ -115,12 +119,12 @@ class PackageFboss:
 
     def _copy_configs(self, tmp_dir_name):
         bcm_sai_configs_path = os.path.join(
-            self._get_git_root(__file__), "fboss/bcm_sai_configs"
+            self._get_git_root(__file__), "fboss/oss/hw_test_configs"
         )
         print(f"Copying {bcm_sai_configs_path} to {tmp_dir_name}")
         shutil.copytree(
-            "fboss/bcm_sai_configs",
-            os.path.join(tmp_dir_name, PackageFboss.DATA, "bcm_sai_configs"),
+            "fboss/oss/hw_test_configs",
+            os.path.join(tmp_dir_name, PackageFboss.DATA, "hw_test_configs"),
         )
 
     def _copy_known_bad_tests(self, tmp_dir_name):
@@ -134,14 +138,9 @@ class PackageFboss:
         )
 
     def _copy_kos(self, tmp_dir_name):
+        ko_path = ""
         if self.ko_path:
             ko_path = self.ko_path
-        else:
-            # If kernel modules are built (e.g. by build-bcm-ko.sh), copy those
-            opennsa_base_dir = self._get_install_dir_for("OpenNSA")
-            ko_path = os.path.join(
-                opennsa_base_dir, "src/gpl-modules/build/linux-x86-smp_generic_64-2_6"
-            )
         if os.path.exists(ko_path):
             linux_user_bde_path = os.path.join(ko_path, "linux-user-bde.ko")
             linux_kernel_bde_path = os.path.join(ko_path, "linux-kernel-bde.ko")
@@ -215,12 +214,20 @@ class PackageFboss:
         self._prepare_for_build()
         self._build_rpm_helper()
 
+    def _compress_binaries(self):
+        print(f"Compressing FBOSS Binaries...")
+        tar_path = os.path.join(args.scratch_path, PackageFboss.FBOSS_BIN_TAR)
+        subprocess.run(["tar", "-cvzf", tar_path, self.tmp_dir_name])
+        print(f"Compressed to {tar_path}")
+
     def run(self, args):
         if args.rpm:
             print(f"Building RPM...")
             self._build_rpm()
         else:
             self._copy_binaries(self.tmp_dir_name)
+            if args.compress:
+                self._compress_binaries()
 
 
 if __name__ == "__main__":
