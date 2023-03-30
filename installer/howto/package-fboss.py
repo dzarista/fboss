@@ -34,7 +34,6 @@ def parse_args():
 
 
 class PackageFboss:
-    FBOSS_BINS = "fboss_bins-1"
     FBOSS_BIN_TAR = "fboss_bins.tar.gz"
 
     SCRIPT_DIR_ABS = os.path.dirname(os.path.realpath(__file__))
@@ -54,7 +53,7 @@ class PackageFboss:
         "glog": (LIB64, []),
         "libevent": (LIB, []),
         "libsodium": (LIB, []),
-        #"python-ld": (LIB, []),
+        "python-ld": (LIB, []),
     }
 
     def __init__(self):
@@ -69,16 +68,11 @@ class PackageFboss:
         os.makedirs(os.path.join(self.tmp_dir_name, PackageFboss.DATA))
 
     def _get_install_dir_for(self, name):
-        # TODO: Getdeps' show-inst-dir has issues. This needs to be
-        # investigated and fixed. Until then, use a workaround using
-        # regex matching for the directory name.
         if self.scratch_path is not None:
             scratch_path = self.scratch_path
             scratch_path_installed_dir = scratch_path + "/" + "installed/"
             target_installed_dir = glob.glob(scratch_path_installed_dir + name + "*")
-            if not target_installed_dir:
-                import pdb; pdb.set_trace()
-            return target_installed_dir[0]
+            return target_installed_dir
 
         get_install_dir_cmd = [PackageFboss.GETDEPS, "show-inst-dir", name]
         return (

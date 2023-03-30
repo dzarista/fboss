@@ -23,6 +23,19 @@ class HwAsic;
 
 namespace facebook::fboss::utility {
 
+enum class OlympicQueueType {
+  SILVER,
+  GOLD,
+  ECN1,
+  BRONZE,
+  ICP,
+  NC,
+};
+
+enum class AllSPOlympicQueueType { NCNF, BRONZE, SILVER, GOLD, ICP, NC };
+
+enum class NetworkAIQueueType { MONITORING, RDMA, NC };
+
 /* Olympic QoS queues */
 constexpr int kOlympicSilverQueueId = 0;
 constexpr int kOlympicGoldQueueId = 1;
@@ -31,14 +44,19 @@ constexpr int kOlympicBronzeQueueId = 4;
 constexpr int kOlympicICPQueueId = 6;
 constexpr int kOlympicNCQueueId = 7;
 
+constexpr int kOlympicSilverQueueId2 = 7;
+constexpr int kOlympicGoldQueueId2 = 6;
+constexpr int kOlympicEcn1QueueId2 = 5;
+constexpr int kOlympicBronzeQueueId2 = 3;
+constexpr int kOlympicICPQueueId2 = 2;
+constexpr int kOlympicNCQueueId2 = 1;
+
 constexpr uint32_t kOlympicSilverWeight = 15;
 constexpr uint32_t kOlympicGoldWeight = 80;
 constexpr uint32_t kOlympicEcn1Weight = 8;
 constexpr uint32_t kOlympicBronzeWeight = 5;
 
-constexpr int kOlympicDefaultQueueId = kOlympicSilverQueueId;
 constexpr int kOlympicHighestSPQueueId = kOlympicNCQueueId;
-constexpr int kOlympicHighestQueueId = kOlympicNCQueueId;
 
 /* Olympic ALL SP QoS queues */
 constexpr int kOlympicAllSPNCNFQueueId = 0;
@@ -48,9 +66,14 @@ constexpr int kOlympicAllSPGoldQueueId = 3;
 constexpr int kOlympicAllSPICPQueueId = 6;
 constexpr int kOlympicAllSPNCQueueId = 7;
 
-constexpr int kOlympicAllSPDefaultQueueId = kOlympicAllSPSilverQueueId;
+constexpr int kOlympicAllSPNCNFQueueId2 = 7;
+constexpr int kOlympicAllSPBronzeQueueId2 = 6;
+constexpr int kOlympicAllSPSilverQueueId2 = 5;
+constexpr int kOlympicAllSPGoldQueueId2 = 4;
+constexpr int kOlympicAllSPICPQueueId2 = 2;
+constexpr int kOlympicAllSPNCQueueId2 = 1;
+
 constexpr int kOlympicAllSPHighestSPQueueId = kOlympicAllSPNCQueueId;
-constexpr int kOlympicAllSPHighestQueueId = kOlympicAllSPNCQueueId;
 
 /* Queue config params */
 constexpr int kQueueConfigBurstSizeMinKb = 1;
@@ -64,9 +87,16 @@ constexpr int kNetworkAIMonitoringQueueId = 0;
 constexpr int kNetworkAIRdmaQueueId = 6;
 constexpr int kNetworkAINCQueueId = 7;
 
+constexpr int kNetworkAIMonitoringQueueId2 = 7;
+constexpr int kNetworkAIRdmaQueueId2 = 2;
+constexpr int kNetworkAINCQueueId2 = 1;
+
+constexpr int kNetworkAIHighestQueueId = kNetworkAINCQueueId;
+
 void addNetworkAIQueueConfig(
     cfg::SwitchConfig* config,
-    cfg::StreamType streamType);
+    cfg::StreamType streamType,
+    const HwAsic* hwAsic);
 
 void addOlympicQueueConfig(
     cfg::SwitchConfig* config,
@@ -78,17 +108,18 @@ void addQueueWredDropConfig(
     cfg::StreamType streamType,
     const HwAsic* asic);
 
-void addOlympicQosMaps(cfg::SwitchConfig& cfg);
+void addOlympicQosMaps(cfg::SwitchConfig& cfg, const HwAsic* hwAsic);
 
 std::string getOlympicCounterNameForDscp(uint8_t dscp);
 
-const std::map<int, std::vector<uint8_t>>& kOlympicQueueToDscp();
+const std::map<int, std::vector<uint8_t>> kOlympicQueueToDscp(
+    const HwAsic* hwAsic);
 const std::map<int, uint8_t>& kOlympicWRRQueueToWeight();
 
-const std::vector<int>& kOlympicWRRQueueIds();
-const std::vector<int>& kOlympicSPQueueIds();
-const std::vector<int>& kOlympicWRRAndICPQueueIds();
-const std::vector<int>& kOlympicWRRAndNCQueueIds();
+const std::vector<int> kOlympicWRRQueueIds(const HwAsic* hwAsic);
+const std::vector<int> kOlympicSPQueueIds(const HwAsic* hwAsic);
+const std::vector<int> kOlympicWRRAndICPQueueIds(const HwAsic* hwAsic);
+const std::vector<int> kOlympicWRRAndNCQueueIds(const HwAsic* hwAsic);
 
 bool isOlympicWRRQueueId(int queueId);
 
@@ -96,11 +127,13 @@ int getMaxWeightWRRQueue(const std::map<int, uint8_t>& queueToWeight);
 
 void addOlympicAllSPQueueConfig(
     cfg::SwitchConfig* config,
-    cfg::StreamType streamType);
-void addOlympicAllSPQosMaps(cfg::SwitchConfig& cfg);
+    cfg::StreamType streamType,
+    const HwAsic* asic);
+void addOlympicAllSPQosMaps(cfg::SwitchConfig& cfg, const HwAsic* asic);
 
-const std::map<int, std::vector<uint8_t>>& kOlympicAllSPQueueToDscp();
-const std::vector<int>& kOlympicAllSPQueueIds();
+const std::map<int, std::vector<uint8_t>> kOlympicAllSPQueueToDscp(
+    const HwAsic* hwAsic);
+const std::vector<int> kOlympicAllSPQueueIds(const HwAsic* hwAsic);
 cfg::ActiveQueueManagement kGetOlympicEcnConfig(
     int minLength = 41600,
     int maxLength = 41600);
@@ -129,5 +162,11 @@ void addQueueBurstSizeConfig(
     const int queueId,
     const uint32_t minKbits,
     const uint32_t maxKbits);
+
+int getOlympicQueueId(const HwAsic* hwAsic, OlympicQueueType queueType);
+
+int getOlympicSPQueueId(const HwAsic* hwAsic, AllSPOlympicQueueType queueType);
+
+int getNetworkAIQueueId(const HwAsic* hwAsic, NetworkAIQueueType queueType);
 
 } // namespace facebook::fboss::utility
