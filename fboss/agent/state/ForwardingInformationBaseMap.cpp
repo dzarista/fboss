@@ -12,6 +12,8 @@
 
 #include "fboss/agent/state/SwitchState.h"
 
+#include "fboss/agent/HwSwitchMatcher.h"
+
 namespace facebook::fboss {
 
 ForwardingInformationBaseMap::ForwardingInformationBaseMap() {}

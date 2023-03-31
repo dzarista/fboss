@@ -409,6 +409,16 @@ void getQsfpFieldAddress(
   length = info.length;
 }
 
+std::optional<CmisModule::ApplicationAdvertisingField>
+CmisModule::getApplicationField(uint8_t application) const {
+  for (const auto& capability : moduleCapabilities_) {
+    if (capability.moduleMediaInterface == application) {
+      return capability;
+    }
+  }
+  return std::nullopt;
+}
+
 CmisModule::CmisModule(
     TransceiverManager* transceiverManager,
     std::unique_ptr<TransceiverImpl> qsfpImpl)
@@ -798,11 +808,10 @@ unsigned int CmisModule::numHostLanes() const {
   } else if (mediaTypeEncoding == MediaTypeEncodings::PASSIVE_CU) {
     application = static_cast<uint8_t>(PassiveCuMediaInterfaceCode::COPPER);
   }
-  auto capabilityIter = moduleCapabilities_.find(application);
-  if (capabilityIter == moduleCapabilities_.end()) {
-    return 4;
+  if (auto capability = getApplicationField(application)) {
+    return capability->hostLaneCount;
   }
-  return capabilityIter->second.hostLaneCount;
+  return 4;
 }
 
 unsigned int CmisModule::numMediaLanes() const {
@@ -813,11 +822,10 @@ unsigned int CmisModule::numMediaLanes() const {
   } else if (mediaTypeEncoding == MediaTypeEncodings::PASSIVE_CU) {
     application = static_cast<uint8_t>(PassiveCuMediaInterfaceCode::COPPER);
   }
-  auto capabilityIter = moduleCapabilities_.find(application);
-  if (capabilityIter == moduleCapabilities_.end()) {
-    return 4;
+  if (auto capability = getApplicationField(application)) {
+    return capability->mediaLaneCount;
   }
-  return capabilityIter->second.mediaLaneCount;
+  return 4;
 }
 
 SMFMediaInterfaceCode CmisModule::getSmfMediaInterface() const {
@@ -922,12 +930,6 @@ void CmisModule::getApplicationCapabilities() {
       break;
     }
 
-    if (moduleCapabilities_.find(data[1]) != moduleCapabilities_.end()) {
-      // Capability for this application already exists. Prioritize the first
-      // one that was found
-      continue;
-    }
-
     QSFP_LOG(DBG3, this) << folly::sformat(
         "Adding module capability: {:#x} at position {:d}", data[1], i + 1);
     ApplicationAdvertisingField applicationAdvertisingField;
@@ -937,8 +939,13 @@ void CmisModule::getApplicationCapabilities() {
         (data[2] & FieldMasks::UPPER_FOUR_BITS_MASK) >> 4;
     applicationAdvertisingField.mediaLaneCount =
         data[2] & FieldMasks::LOWER_FOUR_BITS_MASK;
+    for (int lane = 0; lane < 8; lane++) {
+      if (data[3] & (1 << lane)) {
+        applicationAdvertisingField.hostStartLanes.insert(lane);
+      }
+    }
 
-    moduleCapabilities_[data[1]] = applicationAdvertisingField;
+    moduleCapabilities_.push_back(applicationAdvertisingField);
   }
 }
 
@@ -1737,19 +1744,18 @@ void CmisModule::setApplicationCodeLocked(cfg::PortSpeed speed) {
       return;
     }
 
-    auto capabilityIter =
-        moduleCapabilities_.find(static_cast<uint8_t>(application));
+    auto capability = getApplicationField(static_cast<uint8_t>(application));
 
     // Check if the module supports the application
-    if (capabilityIter == moduleCapabilities_.end()) {
+    if (!capability) {
       continue;
     }
 
-    auto setApplicationSelectCode = [this, &capabilityIter]() {
+    auto setApplicationSelectCode = [this, &capability]() {
       // Currently we will have only one data path and apply the default
       // settings. So assume the lower four bits are all zero here.
       // CMIS4.0-8.7.3
-      uint8_t newApSelCode = capabilityIter->second.ApSelCode << 4;
+      uint8_t newApSelCode = capability->ApSelCode << 4;
 
       QSFP_LOG(INFO, this) << folly::sformat(
           "newApSelCode: {:#x}", newApSelCode);
@@ -1757,7 +1763,7 @@ void CmisModule::setApplicationCodeLocked(cfg::PortSpeed speed) {
       // We can't use numHostLanes() to get the hostLaneCount here since that
       // function relies on the configured application select but at this point
       // appSel hasn't been updated.
-      auto hostLanes = capabilityIter->second.hostLaneCount;
+      auto hostLanes = capability->hostLaneCount;
 
       for (int channel = 0; channel < hostLanes; channel++) {
         // Assign ApSel code to each lane
@@ -1768,7 +1774,7 @@ void CmisModule::setApplicationCodeLocked(cfg::PortSpeed speed) {
       writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySet0);
 
       QSFP_LOG(INFO, this) << folly::sformat(
-          "set application to {:#x}", capabilityIter->first);
+          "set application to {:#x}", capability->moduleMediaInterface);
     };
 
     // In 400G-FR4 case we will have 8 host lanes instead of 4. Further more,
@@ -1779,7 +1785,8 @@ void CmisModule::setApplicationCodeLocked(cfg::PortSpeed speed) {
     // Check if the config has been applied correctly or not
     if (!checkLaneConfigError()) {
       QSFP_LOG(ERR, this) << folly::sformat(
-          "application {:#x} could not be set", capabilityIter->first);
+          "application {:#x} could not be set",
+          capability->moduleMediaInterface);
     }
     // Done with application configuration
     return;
@@ -1934,7 +1941,15 @@ void CmisModule::ensureRxOutputSquelchEnabled(
   }
 }
 
-void CmisModule::customizeTransceiverLocked(cfg::PortSpeed speed) {
+void CmisModule::customizeTransceiverLocked(TransceiverPortState& portState) {
+  auto& portName = portState.portName;
+  auto speed = portState.speed;
+  auto startHostLane = portState.startHostLane;
+  QSFP_LOG(INFO, this) << folly::sformat(
+      "customizeTransceiverLocked: PortName {}, Speed {}, StartHostLane {}",
+      portName,
+      apache::thrift::util::enumNameSafe(speed),
+      startHostLane);
   /*
    * This must be called with a lock held on qsfpModuleMutex_
    */
@@ -2083,9 +2098,10 @@ MediaInterfaceCode CmisModule::getModuleMediaInterface() {
   auto maxSpeed = cfg::PortSpeed::DEFAULT;
   auto moduleMediaInterface = MediaInterfaceCode::UNKNOWN;
   auto mediaTypeEncoding = getMediaTypeEncoding();
-  for (auto moduleCapIter : moduleCapabilities_) {
+  for (const auto& moduleCapIter : moduleCapabilities_) {
     if (mediaTypeEncoding == MediaTypeEncodings::OPTICAL_SMF) {
-      auto smfCode = static_cast<SMFMediaInterfaceCode>(moduleCapIter.first);
+      auto smfCode = static_cast<SMFMediaInterfaceCode>(
+          moduleCapIter.moduleMediaInterface);
       if (mediaInterfaceToPortSpeedMapping.find(smfCode) !=
               mediaInterfaceToPortSpeedMapping.end() &&
           mediaInterfaceMapping.find(smfCode) != mediaInterfaceMapping.end()) {

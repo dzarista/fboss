@@ -12,7 +12,7 @@
 #include "fboss/cli/fboss2/CmdArgsLists.h"
 #include "fboss/cli/fboss2/CmdLocalOptions.h"
 #include "fboss/cli/fboss2/utils/CLIParserUtils.h"
-#include "fboss/cli/fboss2/utils/CmdCommonUtils.h"
+#include "fboss/cli/fboss2/utils/CmdUtilsCommon.h"
 
 #include <folly/Singleton.h>
 #include <stdexcept>
@@ -31,6 +31,7 @@ const std::map<std::string, std::string>& kSupportedVerbs() {
       {"stream", "Continuously stream"},
       {"start", "Start event"},
       {"stop", "Stop event"},
+      {"get", "Get object"},
   };
 
   return supportedVerbs;

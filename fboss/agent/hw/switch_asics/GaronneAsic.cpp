@@ -60,6 +60,7 @@ bool GaronneAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::WARMBOOT:
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::SAI_SAMPLEPACKET_TRAP:
+    case HwAsic::Feature::TRAP_PRIORITY_LOWER_VAL_IS_LOWER_PRI:
       return true;
     case HwAsic::Feature::HOSTTABLE:
     case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
@@ -136,6 +137,8 @@ bool GaronneAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
     case HwAsic::Feature::PORT_FABRIC_ISOLATE:
     case HwAsic::Feature::QUEUE_ECN_COUNTER:
+    case HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT:
+    case HwAsic::Feature::QUEUE_PRIORITY_LOWER_VAL_IS_HIGH_PRI:
       return false;
   }
   return false;

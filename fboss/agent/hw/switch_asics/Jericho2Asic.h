@@ -86,7 +86,7 @@ class Jericho2Asic : public BroadcomAsic {
     return 2;
   }
   bool scalingFactorBasedDynamicThresholdSupported() const override {
-    return false;
+    return true;
   }
   cfg::Range64 getReservedEncapIndexRange() const override;
   HwAsic::RecyclePortInfo getRecyclePortInfo() const override;
@@ -96,7 +96,7 @@ class Jericho2Asic : public BroadcomAsic {
   int getBufferDynThreshFromScalingFactor(
       cfg::MMUScalingFactor scalingFactor) const override {
     switch (scalingFactor) {
-      case cfg::MMUScalingFactor::ONE_32768:
+      case cfg::MMUScalingFactor::ONE_32768TH:
         return -15;
       default:
         return BroadcomAsic::getBufferDynThreshFromScalingFactor(scalingFactor);

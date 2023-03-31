@@ -28,27 +28,6 @@ using folly::IPAddressV6;
 
 namespace facebook::fboss::utils {
 
-// Converts a readable representation of a link-bandwidth value
-//
-// bandwidthBytesPerSecond: must be positive number in bytes per second
-const std::string formatBandwidth(const float bandwidthBytesPerSecond) {
-  if (bandwidthBytesPerSecond < 1.0f) {
-    return "Not set";
-  }
-  const std::string suffixes[] = {"", "K", "M"};
-  // Represent the bandwidth in bits per second
-  // Use long and floor to ensure that we have integer to start with
-  long bandwidthBitsPerSecond = floor(bandwidthBytesPerSecond) * 8;
-  for (const auto& suffix : suffixes) {
-    if (bandwidthBitsPerSecond < 1000) {
-      return folly::to<std::string>(bandwidthBitsPerSecond) + suffix + "bps";
-    }
-    // we don't round up
-    bandwidthBitsPerSecond /= 1000;
-  }
-  return folly::to<std::string>(bandwidthBitsPerSecond) + "Gbps";
-}
-
 /* Takes a list of "friendly" interface names and returns a list of portID
    integers.  This is an operation that is frequently needed so making this
    available as a helper function
@@ -247,4 +226,39 @@ bool compareSystemPortName(
 
   return stoi(subportNumStrA) < stoi(subportNumStrB);
 }
+
+std::optional<std::string> getMyHostname(const std::string& hostname) {
+  if (hostname != "localhost") {
+    return utils::removeFbDomains(hostname);
+  }
+
+  char actualHostname[HOST_NAME_MAX];
+  if (gethostname(actualHostname, HOST_NAME_MAX) != 0) {
+    return std::nullopt;
+  }
+
+  return utils::removeFbDomains(std::string(actualHostname));
+}
+
+std::string getSSHCmdPrefix(const std::string& hostname) {
+  return hostname == "localhost"
+      ? ""
+      : folly::to<std::string>("ssh -o LogLevel=error netops@", hostname, " ");
+}
+
+std::string runCmd(const std::string& cmd) {
+  std::array<char, 1024> buffer;
+  std::string result;
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(
+      popen(cmd.c_str(), "r"), pclose);
+  if (!pipe) {
+    throw std::runtime_error("popen() failed!");
+  }
+  while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+    result += buffer.data();
+  }
+
+  return result;
+}
+
 } // namespace facebook::fboss::utils

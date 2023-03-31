@@ -9,6 +9,7 @@
  */
 #include "fboss/agent/state/StateDelta.h"
 
+#include "ForwardingInformationBaseMap.h"
 #include "fboss/agent/state/AclEntry.h"
 #include "fboss/agent/state/AclMap.h"
 #include "fboss/agent/state/AclTableGroup.h"
@@ -38,6 +39,16 @@
 #include "fboss/agent/FsdbHelper.h"
 
 using std::shared_ptr;
+
+DEFINE_bool(
+    enable_state_oper_delta,
+    false,
+    "Generate and process oper delta for state delta processing");
+
+DEFINE_bool(
+    verify_apply_oper_delta,
+    false,
+    "Make sure oper delta apply is correct, this is expensive operation to be used only in tests");
 
 namespace facebook::fboss {
 
@@ -186,10 +197,9 @@ DeltaValue<ControlPlane> StateDelta::getControlPlaneDelta() const {
 }
 
 thrift_cow::ThriftMapDelta<MirrorMap> StateDelta::getMirrorsDelta() const {
-  auto oldMirrors = old_->cref<switch_state_tags::mirrorMaps>()->getMirrorMapIf(
-      HwSwitchMatcher::defaultHwSwitchMatcher());
-  auto newMirrors = new_->cref<switch_state_tags::mirrorMaps>()->getMirrorMapIf(
-      HwSwitchMatcher::defaultHwSwitchMatcher());
+  const auto& key = HwSwitchMatcher::defaultHwSwitchMatcherKey();
+  auto oldMirrors = old_->cref<switch_state_tags::mirrorMaps>()->getNodeIf(key);
+  auto newMirrors = new_->cref<switch_state_tags::mirrorMaps>()->getNodeIf(key);
 
   return thrift_cow::ThriftMapDelta<MirrorMap>(
       oldMirrors.get(), newMirrors.get());
@@ -202,8 +212,11 @@ thrift_cow::ThriftMapDelta<TransceiverMap> StateDelta::getTransceiversDelta()
 }
 
 ForwardingInformationBaseMapDelta StateDelta::getFibsDelta() const {
-  return ForwardingInformationBaseMapDelta(
-      old_->getFibs().get(), new_->getFibs().get());
+  const auto& key = HwSwitchMatcher::defaultHwSwitchMatcherKey();
+  auto oldFibs = old_->cref<switch_state_tags::fibsMap>()->getNodeIf(key);
+  auto newFibs = new_->cref<switch_state_tags::fibsMap>()->getNodeIf(key);
+
+  return ForwardingInformationBaseMapDelta(oldFibs.get(), newFibs.get());
 }
 
 DeltaValue<SwitchSettings> StateDelta::getSwitchSettingsDelta() const {
@@ -253,7 +266,7 @@ thrift_cow::ThriftMapDelta<TeFlowTable> StateDelta::getTeFlowEntriesDelta()
       old_->getTeFlowTable().get(), new_->getTeFlowTable().get());
 }
 
-const fsdb::OperDelta& StateDelta::getOperDelta() {
+const fsdb::OperDelta& StateDelta::getOperDelta() const {
   if (!operDelta_.has_value()) {
     operDelta_.emplace(computeOperDelta(old_, new_, switchStateRootPath()));
   }

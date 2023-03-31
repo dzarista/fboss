@@ -15,16 +15,17 @@
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/QsfpService.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
+#include "neteng/fboss/bgp/if/gen-cpp2/TBgpService.h"
 
 using namespace ::testing;
 namespace facebook::fboss {
 
+using namespace facebook::neteng::fboss::bgp::thrift;
 extern std::vector<facebook::fboss::ArpEntryThrift> createArpEntries();
 
 class MockFbossCtrlAgent : public FbossCtrlSvIf {
  public:
   MOCK_METHOD(void, getAclTable, (std::vector<AclEntryThrift>&));
-  MOCK_METHOD(void, getL2Table, (std::vector<L2EntryThrift>&));
   MOCK_METHOD(void, getNdpTable, (std::vector<NdpEntryThrift>&));
 
   MOCK_METHOD(
@@ -40,6 +41,7 @@ class MockFbossCtrlAgent : public FbossCtrlSvIf {
   MOCK_METHOD(void, startPktCapture, (std::unique_ptr<CaptureInfo>));
   MOCK_METHOD(void, stopPktCapture, (std::unique_ptr<std::string>));
   MOCK_METHOD(void, getAllPortInfo, (PortInfoMap));
+  MOCK_METHOD(void, getCpuPortStats, (facebook::fboss::CpuPortStats&));
   MOCK_METHOD(void, getPortStatus, (PortStatusMap, Ports));
   MOCK_METHOD(void, listHwObjects, (Out, HwObjects, bool));
   MOCK_METHOD(SSLType, getSSLPolicy, ());
@@ -79,5 +81,10 @@ class MockFbossQsfpService : public QsfpServiceSvIf {
   MOCK_METHOD2(
       getTransceiverInfo,
       void(transceiverEntries, std::unique_ptr<std::vector<int32_t>>));
+};
+
+class MockFbossBgpService : public TBgpServiceSvIf {
+ public:
+  MOCK_METHOD(void, getRunningConfig, (std::string&));
 };
 } // namespace facebook::fboss

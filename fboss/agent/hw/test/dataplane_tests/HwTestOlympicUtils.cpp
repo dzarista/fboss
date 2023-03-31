@@ -8,10 +8,77 @@
  *
  */
 #include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
+#include "fboss/agent/FbossError.h"
 
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 
 namespace facebook::fboss::utility {
+
+int getOlympicQueueId(const HwAsic* hwAsic, OlympicQueueType queueType) {
+  bool queueLowerValHighPri = hwAsic->isSupported(
+      HwAsic::Feature::QUEUE_PRIORITY_LOWER_VAL_IS_HIGH_PRI);
+  switch (queueType) {
+    case OlympicQueueType::SILVER:
+      return queueLowerValHighPri ? kOlympicSilverQueueId2
+                                  : kOlympicSilverQueueId;
+    case OlympicQueueType::GOLD:
+      return queueLowerValHighPri ? kOlympicGoldQueueId2 : kOlympicGoldQueueId;
+    case OlympicQueueType::ECN1:
+      return queueLowerValHighPri ? kOlympicEcn1QueueId2 : kOlympicEcn1QueueId;
+    case OlympicQueueType::BRONZE:
+      return queueLowerValHighPri ? kOlympicBronzeQueueId2
+                                  : kOlympicBronzeQueueId;
+    case OlympicQueueType::ICP:
+      return queueLowerValHighPri ? kOlympicICPQueueId2 : kOlympicICPQueueId;
+    case OlympicQueueType::NC:
+      return queueLowerValHighPri ? kOlympicNCQueueId2 : kOlympicNCQueueId;
+  }
+  throw FbossError("Invalid olympic queue type ", queueType);
+}
+
+int getOlympicAllSPQueueId(
+    const HwAsic* hwAsic,
+    AllSPOlympicQueueType queueType) {
+  bool queueLowerValHighPri = hwAsic->isSupported(
+      HwAsic::Feature::QUEUE_PRIORITY_LOWER_VAL_IS_HIGH_PRI);
+  switch (queueType) {
+    case AllSPOlympicQueueType::NCNF:
+      return queueLowerValHighPri ? kOlympicAllSPNCNFQueueId2
+                                  : kOlympicAllSPNCNFQueueId;
+    case AllSPOlympicQueueType::BRONZE:
+      return queueLowerValHighPri ? kOlympicAllSPBronzeQueueId2
+                                  : kOlympicAllSPBronzeQueueId;
+    case AllSPOlympicQueueType::SILVER:
+      return queueLowerValHighPri ? kOlympicAllSPSilverQueueId2
+                                  : kOlympicAllSPSilverQueueId;
+    case AllSPOlympicQueueType::GOLD:
+      return queueLowerValHighPri ? kOlympicAllSPGoldQueueId2
+                                  : kOlympicAllSPGoldQueueId;
+    case AllSPOlympicQueueType::ICP:
+      return queueLowerValHighPri ? kOlympicAllSPICPQueueId2
+                                  : kOlympicAllSPICPQueueId;
+    case AllSPOlympicQueueType::NC:
+      return queueLowerValHighPri ? kOlympicAllSPNCQueueId2
+                                  : kOlympicAllSPNCQueueId;
+  }
+  throw FbossError("Invalid all SP olympic queue type ", queueType);
+}
+
+int getNetworkAIQueueId(const HwAsic* hwAsic, NetworkAIQueueType queueType) {
+  bool queueLowerValHighPri = hwAsic->isSupported(
+      HwAsic::Feature::QUEUE_PRIORITY_LOWER_VAL_IS_HIGH_PRI);
+  switch (queueType) {
+    case NetworkAIQueueType::MONITORING:
+      return queueLowerValHighPri ? kNetworkAIMonitoringQueueId2
+                                  : kNetworkAIMonitoringQueueId;
+    case NetworkAIQueueType::RDMA:
+      return queueLowerValHighPri ? kNetworkAIRdmaQueueId2
+                                  : kNetworkAIRdmaQueueId;
+    case NetworkAIQueueType::NC:
+      return queueLowerValHighPri ? kNetworkAINCQueueId2 : kNetworkAINCQueueId;
+  }
+  throw FbossError("Invalid all network AI queue type ", queueType);
+}
 
 cfg::ActiveQueueManagement kGetOlympicEcnConfig(int minLength, int maxLength) {
   cfg::ActiveQueueManagement ecnAQM;
@@ -85,25 +152,26 @@ void addQueueWredConfig(
 
 void addNetworkAIQueueConfig(
     cfg::SwitchConfig* config,
-    cfg::StreamType streamType) {
+    cfg::StreamType streamType,
+    const HwAsic* hwAsic) {
   std::vector<cfg::PortQueue> portQueues;
 
   cfg::PortQueue queue0;
-  queue0.id() = kNetworkAIMonitoringQueueId;
+  queue0.id() = getNetworkAIQueueId(hwAsic, NetworkAIQueueType::MONITORING);
   queue0.name() = "queue0.monitoring";
   queue0.streamType() = streamType;
   queue0.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
   portQueues.push_back(queue0);
 
   cfg::PortQueue queue1;
-  queue0.id() = kNetworkAIRdmaQueueId;
+  queue0.id() = getNetworkAIQueueId(hwAsic, NetworkAIQueueType::RDMA);
   queue0.name() = "queue6.rdma";
   queue0.streamType() = streamType;
   queue0.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
   portQueues.push_back(queue1);
 
   cfg::PortQueue queue2;
-  queue0.id() = kNetworkAINCQueueId;
+  queue0.id() = getNetworkAIQueueId(hwAsic, NetworkAIQueueType::NC);
   queue0.name() = "queue7.nc";
   queue0.streamType() = streamType;
   queue0.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
@@ -149,7 +217,7 @@ void addOlympicQueueConfig(
   std::vector<cfg::PortQueue> portQueues;
 
   cfg::PortQueue queue0;
-  *queue0.id() = kOlympicSilverQueueId;
+  *queue0.id() = getOlympicQueueId(asic, OlympicQueueType::SILVER);
   queue0.name() = "queue0.silver";
   queue0.streamType() = streamType;
   *queue0.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
@@ -163,7 +231,7 @@ void addOlympicQueueConfig(
   portQueues.push_back(queue0);
 
   cfg::PortQueue queue1;
-  *queue1.id() = kOlympicGoldQueueId;
+  *queue1.id() = getOlympicQueueId(asic, OlympicQueueType::GOLD);
   queue1.name() = "queue1.gold";
   queue1.streamType() = streamType;
   *queue1.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
@@ -177,7 +245,7 @@ void addOlympicQueueConfig(
   portQueues.push_back(queue1);
 
   cfg::PortQueue queue2;
-  *queue2.id() = kOlympicEcn1QueueId;
+  *queue2.id() = getOlympicQueueId(asic, OlympicQueueType::ECN1);
   queue2.name() = "queue2.ecn1";
   queue2.streamType() = streamType;
   *queue2.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
@@ -193,7 +261,7 @@ void addOlympicQueueConfig(
   portQueues.push_back(queue2);
 
   cfg::PortQueue queue4;
-  *queue4.id() = kOlympicBronzeQueueId;
+  *queue4.id() = getOlympicQueueId(asic, OlympicQueueType::BRONZE);
   queue4.name() = "queue4.bronze";
   queue4.streamType() = streamType;
   *queue4.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
@@ -201,7 +269,7 @@ void addOlympicQueueConfig(
   portQueues.push_back(queue4);
 
   cfg::PortQueue queue6;
-  *queue6.id() = kOlympicICPQueueId;
+  *queue6.id() = getOlympicQueueId(asic, OlympicQueueType::ICP);
   queue6.name() = "queue6.platinum";
   queue6.streamType() = streamType;
   *queue6.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
@@ -214,7 +282,7 @@ void addOlympicQueueConfig(
   portQueues.push_back(queue6);
 
   cfg::PortQueue queue7;
-  *queue7.id() = kOlympicNCQueueId;
+  *queue7.id() = getOlympicQueueId(asic, OlympicQueueType::NC);
   queue7.name() = "queue7.network_control";
   queue7.streamType() = streamType;
   *queue7.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
@@ -246,7 +314,7 @@ void addQueueWredDropConfig(
   auto constexpr maxThresh = 7000 * 256;
 
   cfg::PortQueue queue0;
-  queue0.id() = kOlympicSilverQueueId;
+  queue0.id() = getOlympicQueueId(asic, OlympicQueueType::SILVER);
   queue0.name() = "queue0";
   queue0.streamType() = streamType;
   queue0.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
@@ -259,7 +327,7 @@ void addQueueWredDropConfig(
   portQueues.push_back(queue0);
 
   cfg::PortQueue queue2;
-  queue2.id() = kOlympicEcn1QueueId;
+  queue2.id() = getOlympicQueueId(asic, OlympicQueueType::ECN1);
   queue2.name() = "queue2";
   queue2.streamType() = streamType;
   queue2.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
@@ -277,27 +345,30 @@ void addQueueWredDropConfig(
   }
 }
 
-const std::map<int, std::string>& kOlympicAllSPQueueIdToQueueName() {
-  static const std::map<int, std::string> queueIdToQueueName = {
-      {kOlympicAllSPNCNFQueueId, "queue0.ncnf"},
-      {kOlympicAllSPBronzeQueueId, "queue1.bronze"},
-      {kOlympicAllSPSilverQueueId, "queue2.silver"},
-      {kOlympicAllSPGoldQueueId, "queue3.gold"},
-      {kOlympicAllSPICPQueueId, "queeu6.icp"},
-      {kOlympicAllSPNCQueueId, "queue7.nc"},
-  };
+const std::map<AllSPOlympicQueueType, std::string>&
+kOlympicAllSPQueueIdToQueueName() {
+  static const std::map<AllSPOlympicQueueType, std::string> queueIdToQueueName =
+      {
+          {AllSPOlympicQueueType::NCNF, "queue0.ncnf"},
+          {AllSPOlympicQueueType::BRONZE, "queue1.bronze"},
+          {AllSPOlympicQueueType::SILVER, "queue2.silver"},
+          {AllSPOlympicQueueType::GOLD, "queue3.gold"},
+          {AllSPOlympicQueueType::ICP, "queeu6.icp"},
+          {AllSPOlympicQueueType::NC, "queue7.nc"},
+      };
 
   return queueIdToQueueName;
 }
 
 void addOlympicAllSPQueueConfig(
     cfg::SwitchConfig* config,
-    cfg::StreamType streamType) {
+    cfg::StreamType streamType,
+    const HwAsic* asic) {
   std::vector<cfg::PortQueue> portQueues;
 
-  for (const auto& [queueId, queueName] : kOlympicAllSPQueueIdToQueueName()) {
+  for (const auto& [queueType, queueName] : kOlympicAllSPQueueIdToQueueName()) {
     cfg::PortQueue queue;
-    queue.id() = queueId;
+    queue.id() = getOlympicAllSPQueueId(asic, queueType);
     queue.name() = queueName;
     queue.streamType() = streamType;
     queue.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
@@ -318,31 +389,39 @@ std::string getOlympicCounterNameForDscp(uint8_t dscp) {
   return folly::to<std::string>("dscp", dscp, "_counter");
 }
 
-const std::map<int, std::vector<uint8_t>>& kOlympicQueueToDscp() {
-  static const std::map<int, std::vector<uint8_t>> queueToDscp = {
-      {kOlympicSilverQueueId, {0,  1,  2,  3,  4,  6,  7,  8,  9,  12, 13,
-                               14, 15, 40, 41, 42, 43, 44, 45, 46, 47, 49}},
-
-      {kOlympicGoldQueueId, {18, 24, 31, 33, 34, 36, 37, 38, 39}},
-      {kOlympicEcn1QueueId, {5}},
-      {kOlympicBronzeQueueId, {10, 11, 16, 17, 19, 20, 21, 22, 23, 25, 50, 51,
-                               52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63}},
-      {kOlympicICPQueueId, {26, 27, 28, 29, 30, 32, 35}},
-      {kOlympicNCQueueId, {48}}};
+const std::map<int, std::vector<uint8_t>> kOlympicQueueToDscp(
+    const HwAsic* hwAsic) {
+  const std::map<int, std::vector<uint8_t>> queueToDscp = {
+      {getOlympicQueueId(hwAsic, OlympicQueueType::SILVER),
+       {0,  1,  2,  3,  4,  6,  7,  8,  9,  12, 13,
+        14, 15, 40, 41, 42, 43, 44, 45, 46, 47, 49}},
+      {getOlympicQueueId(hwAsic, OlympicQueueType::GOLD),
+       {18, 24, 31, 33, 34, 36, 37, 38, 39}},
+      {getOlympicQueueId(hwAsic, OlympicQueueType::ECN1), {5}},
+      {getOlympicQueueId(hwAsic, OlympicQueueType::BRONZE),
+       {10, 11, 16, 17, 19, 20, 21, 22, 23, 25, 50, 51,
+        52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63}},
+      {getOlympicQueueId(hwAsic, OlympicQueueType::ICP),
+       {26, 27, 28, 29, 30, 32, 35}},
+      {getOlympicQueueId(hwAsic, OlympicQueueType::NC), {48}}};
   return queueToDscp;
 }
 
-const std::map<int, std::vector<uint8_t>>& kOlympicAllSPQueueToDscp() {
-  static const std::map<int, std::vector<uint8_t>> queueToDscp = {
-      {kOlympicAllSPNCNFQueueId, {50, 51, 52, 53, 54, 55, 56, 57, 58, 59}},
-      {kOlympicAllSPBronzeQueueId,
+const std::map<int, std::vector<uint8_t>> kOlympicAllSPQueueToDscp(
+    const HwAsic* hwAsic) {
+  const std::map<int, std::vector<uint8_t>> queueToDscp = {
+      {getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::NCNF),
+       {50, 51, 52, 53, 54, 55, 56, 57, 58, 59}},
+      {getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::BRONZE),
        {10, 11, 16, 17, 19, 20, 21, 22, 23, 25, 60, 61, 62, 63}},
-      {kOlympicAllSPSilverQueueId,
+      {getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::SILVER),
        {0,  1,  2,  3,  4,  6,  7,  8,  9,  12, 13,
         14, 15, 40, 41, 42, 43, 44, 45, 46, 47, 49}},
-      {kOlympicAllSPGoldQueueId, {18, 24, 31, 33, 34, 36, 37, 38, 39}},
-      {kOlympicAllSPICPQueueId, {26, 27, 28, 29, 30, 32, 35}},
-      {kOlympicAllSPNCQueueId, {48}}};
+      {getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::GOLD),
+       {18, 24, 31, 33, 34, 36, 37, 38, 39}},
+      {getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::ICP),
+       {26, 27, 28, 29, 30, 32, 35}},
+      {getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::NC), {48}}};
   return queueToDscp;
 }
 
@@ -357,40 +436,41 @@ const std::map<int, uint8_t>& kOlympicWRRQueueToWeight() {
   return wrrQueueToWeight;
 }
 
-const std::vector<int>& kOlympicWRRQueueIds() {
-  static const std::vector<int> wrrQueueIds = {
-      kOlympicSilverQueueId,
-      kOlympicGoldQueueId,
-      kOlympicEcn1QueueId,
-      kOlympicBronzeQueueId};
+const std::vector<int> kOlympicWRRQueueIds(const HwAsic* hwAsic) {
+  const std::vector<int> wrrQueueIds = {
+      getOlympicQueueId(hwAsic, OlympicQueueType::SILVER),
+      getOlympicQueueId(hwAsic, OlympicQueueType::GOLD),
+      getOlympicQueueId(hwAsic, OlympicQueueType::ECN1),
+      getOlympicQueueId(hwAsic, OlympicQueueType::BRONZE)};
 
   return wrrQueueIds;
 }
 
-const std::vector<int>& kOlympicSPQueueIds() {
-  static const std::vector<int> spQueueIds = {
-      kOlympicICPQueueId, kOlympicNCQueueId};
+const std::vector<int> kOlympicSPQueueIds(const HwAsic* hwAsic) {
+  const std::vector<int> spQueueIds = {
+      getOlympicQueueId(hwAsic, OlympicQueueType::ICP),
+      getOlympicQueueId(hwAsic, OlympicQueueType::NC)};
 
   return spQueueIds;
 }
 
-const std::vector<int>& kOlympicWRRAndICPQueueIds() {
-  static const std::vector<int> wrrAndICPQueueIds = {
-      kOlympicSilverQueueId,
-      kOlympicGoldQueueId,
-      kOlympicEcn1QueueId,
-      kOlympicBronzeQueueId,
-      kOlympicICPQueueId};
+const std::vector<int> kOlympicWRRAndICPQueueIds(const HwAsic* hwAsic) {
+  const std::vector<int> wrrAndICPQueueIds = {
+      getOlympicQueueId(hwAsic, OlympicQueueType::SILVER),
+      getOlympicQueueId(hwAsic, OlympicQueueType::GOLD),
+      getOlympicQueueId(hwAsic, OlympicQueueType::ECN1),
+      getOlympicQueueId(hwAsic, OlympicQueueType::BRONZE),
+      getOlympicQueueId(hwAsic, OlympicQueueType::ICP)};
   return wrrAndICPQueueIds;
 }
 
-const std::vector<int>& kOlympicWRRAndNCQueueIds() {
-  static const std::vector<int> wrrAndNCQueueIds = {
-      kOlympicSilverQueueId,
-      kOlympicGoldQueueId,
-      kOlympicEcn1QueueId,
-      kOlympicBronzeQueueId,
-      kOlympicNCQueueId};
+const std::vector<int> kOlympicWRRAndNCQueueIds(const HwAsic* hwAsic) {
+  const std::vector<int> wrrAndNCQueueIds = {
+      getOlympicQueueId(hwAsic, OlympicQueueType::SILVER),
+      getOlympicQueueId(hwAsic, OlympicQueueType::GOLD),
+      getOlympicQueueId(hwAsic, OlympicQueueType::ECN1),
+      getOlympicQueueId(hwAsic, OlympicQueueType::BRONZE),
+      getOlympicQueueId(hwAsic, OlympicQueueType::NC)};
   return wrrAndNCQueueIds;
 }
 
@@ -399,14 +479,14 @@ bool isOlympicWRRQueueId(int queueId) {
       kOlympicWRRQueueToWeight().end();
 }
 
-const std::vector<int>& kOlympicAllSPQueueIds() {
-  static const std::vector<int> queueIds = {
-      kOlympicAllSPNCNFQueueId,
-      kOlympicAllSPBronzeQueueId,
-      kOlympicAllSPSilverQueueId,
-      kOlympicAllSPGoldQueueId,
-      kOlympicAllSPICPQueueId,
-      kOlympicAllSPNCQueueId};
+const std::vector<int> kOlympicAllSPQueueIds(const HwAsic* hwAsic) {
+  const std::vector<int> queueIds = {
+      getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::NCNF),
+      getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::BRONZE),
+      getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::SILVER),
+      getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::GOLD),
+      getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::ICP),
+      getOlympicAllSPQueueId(hwAsic, AllSPOlympicQueueType::NC)};
 
   return queueIds;
 }
@@ -440,12 +520,12 @@ void addOlympicQosMapsHelper(
   cfg.cpuTrafficPolicy() = cpuConfig;
 }
 
-void addOlympicQosMaps(cfg::SwitchConfig& cfg) {
-  addOlympicQosMapsHelper(cfg, kOlympicQueueToDscp());
+void addOlympicQosMaps(cfg::SwitchConfig& cfg, const HwAsic* hwAsic) {
+  addOlympicQosMapsHelper(cfg, kOlympicQueueToDscp(hwAsic));
 }
 
-void addOlympicAllSPQosMaps(cfg::SwitchConfig& cfg) {
-  addOlympicQosMapsHelper(cfg, kOlympicAllSPQueueToDscp());
+void addOlympicAllSPQosMaps(cfg::SwitchConfig& cfg, const HwAsic* hwAsic) {
+  addOlympicQosMapsHelper(cfg, kOlympicAllSPQueueToDscp(hwAsic));
 }
 
 int getMaxWeightWRRQueue(const std::map<int, uint8_t>& queueToWeight) {

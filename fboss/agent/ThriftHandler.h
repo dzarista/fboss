@@ -287,6 +287,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getSystemPorts(std::map<int64_t, SystemPortThrift>& sysPorts) override;
   void getSysPortStats(
       std::map<std::string, HwSysPortStats>& hwSysPortStats) override;
+  void getCpuPortStats(CpuPortStats& hwCpuPortStats) override;
   void getHwPortStats(std::map<std::string, HwPortStats>& hwPortStats) override;
   /*
    * Event handler for when a connection is destroyed.  When there is an ongoing
@@ -418,9 +419,6 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getPortStatusImpl(
       std::map<int32_t, PortStatus>& statusMap,
       const std::unique_ptr<std::vector<int32_t>>& ports) const;
-  void addTeFlowsImpl(
-      std::shared_ptr<SwitchState>* state,
-      const std::vector<FlowEntry>& teFlowEntries) const;
 
   void ensureConfigured(folly::StringPiece function) const;
   void ensureConfigured() const {

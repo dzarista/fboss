@@ -18,6 +18,8 @@ struct PortEntry {
   11: optional string pause;
   12: optional string pfc;
   13: PortHwStatsEntry hwPortStats;
+  14: map<i16, string> queueIdToName;
+  15: string isDrained;
 }
 
 struct PortHwStatsEntry {

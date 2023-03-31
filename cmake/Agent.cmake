@@ -198,6 +198,7 @@ target_link_libraries(core
   ${NETLINK3}
   ${NETLINKROUTE3}
   thread_heartbeat
+  platform_mapping_utils
 )
 
 add_library(error
@@ -294,8 +295,8 @@ target_link_libraries(fsdb_helper
   state
 )
 
-add_library(npu_matcher
-  fboss/agent/NpuMatcher.cpp
+add_library(hwswitch_matcher
+  fboss/agent/HwSwitchMatcher.cpp
 )
 
 target_link_libraries(hwswitch_matcher

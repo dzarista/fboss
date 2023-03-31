@@ -41,6 +41,7 @@ class ForwardingInformationBaseMap : public ThriftMapNode<
                                          ForwardingInformationBaseMap,
                                          ForwardingInformationBaseMapTraits> {
  public:
+  using Traits = ForwardingInformationBaseMapTraits;
   using BaseT = ThriftMapNode<
       ForwardingInformationBaseMap,
       ForwardingInformationBaseMapTraits>;
@@ -60,6 +61,41 @@ class ForwardingInformationBaseMap : public ThriftMapNode<
 
   void updateForwardingInformationBaseContainer(
       const std::shared_ptr<ForwardingInformationBaseContainer>& fibContainer);
+
+ private:
+  // Inherit the constructors required for clone()
+  using BaseT::BaseT;
+  friend class CloneAllocator;
+};
+
+using MultiForwardingInformationBaseMapTypeClass = apache::thrift::type_class::
+    map<apache::thrift::type_class::string, ForwardingInformationBaseMapClass>;
+using MultiForwardingInformationBaseMapThriftType =
+    std::map<std::string, ForwardingInformationBaseMapThriftType>;
+
+class MultiForwardingInformationBaseMap;
+
+using MultiForwardingInformationBaseMapTraits = ThriftMultiMapNodeTraits<
+    MultiForwardingInformationBaseMap,
+    MultiForwardingInformationBaseMapTypeClass,
+    MultiForwardingInformationBaseMapThriftType,
+    ForwardingInformationBaseMap>;
+
+class HwSwitchMatcher;
+
+class MultiForwardingInformationBaseMap
+    : public ThriftMapNode<
+          MultiForwardingInformationBaseMap,
+          MultiForwardingInformationBaseMapTraits> {
+ public:
+  using Traits = MultiForwardingInformationBaseMapTraits;
+  using BaseT = ThriftMapNode<
+      MultiForwardingInformationBaseMap,
+      MultiForwardingInformationBaseMapTraits>;
+  using BaseT::modify;
+
+  MultiForwardingInformationBaseMap() {}
+  virtual ~MultiForwardingInformationBaseMap() {}
 
  private:
   // Inherit the constructors required for clone()

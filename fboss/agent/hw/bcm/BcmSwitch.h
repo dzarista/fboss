@@ -399,6 +399,10 @@ class BcmSwitch : public BcmSwitchIf {
     return {};
   }
 
+  CpuPortStats getCpuPortStats() const override {
+    throw FbossError("Unsupported platform for retrieving cpuPort stats");
+  }
+
   uint64_t getDeviceWatermarkBytes() const override;
 
   /*
@@ -1059,6 +1063,14 @@ class BcmSwitch : public BcmSwitchIf {
   bool processChangedIngressPoolCfg(
       std::optional<state::BufferPoolFields> oldBufferPoolCfgPtr,
       std::optional<state::BufferPoolFields> newBufferPoolCfgPtr);
+
+  std::shared_ptr<SwitchState> stateChangedLocked(
+      const StateDelta& delta,
+      const std::lock_guard<std::mutex>& lock);
+
+  std::shared_ptr<SwitchState> stateChangedWithOperDeltaLocked(
+      const StateDelta& delta,
+      const std::lock_guard<std::mutex>& lock);
 
   /*
    * Member variables

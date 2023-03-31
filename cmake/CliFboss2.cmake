@@ -53,13 +53,6 @@ add_fbthrift_cpp_library(
 )
 
 add_fbthrift_cpp_library(
-  show_l2_model
-  fboss/cli/fboss2/commands/show/l2/model.thrift
-  OPTIONS
-    json
-)
-
-add_fbthrift_cpp_library(
   show_lldp_model
   fboss/cli/fboss2/commands/show/lldp/model.thrift
   OPTIONS
@@ -97,6 +90,13 @@ add_fbthrift_cpp_library(
 add_fbthrift_cpp_library(
   show_systemport_model
   fboss/cli/fboss2/commands/show/systemport/model.thrift
+  OPTIONS
+    json
+)
+
+add_fbthrift_cpp_library(
+  show_cpuport_model
+  fboss/cli/fboss2/commands/show/cpuport/model.thrift
   OPTIONS
     json
 )
@@ -247,6 +247,7 @@ add_executable(fboss2
   fboss/cli/fboss2/CmdArgsLists.cpp
   fboss/cli/fboss2/CmdList.cpp
   fboss/cli/fboss2/CmdLocalOptions.cpp
+  fboss/cli/fboss2/commands/get/pcap/CmdGetPcap.h
   fboss/cli/fboss2/commands/set/interface/CmdSetInterface.h
   fboss/cli/fboss2/commands/set/interface/prbs/CmdSetInterfacePrbs.h
   fboss/cli/fboss2/commands/set/interface/prbs/state/CmdSetInterfacePrbsState.h
@@ -284,6 +285,7 @@ add_executable(fboss2
   fboss/cli/fboss2/commands/show/interface/prbs/stats/CmdShowInterfacePrbsStats.h
   fboss/cli/fboss2/commands/show/sdk/dump/CmdShowSdkDump.h
   fboss/cli/fboss2/commands/show/systemport/CmdShowSystemPort.h
+  fboss/cli/fboss2/commands/show/cpuport/CmdShowCpuPort.h
   fboss/cli/fboss2/commands/show/teflow/CmdShowTeFlow.h
   fboss/cli/fboss2/commands/show/transceiver/CmdShowTransceiver.h
   fboss/cli/fboss2/commands/start/pcap/CmdStartPcap.h
@@ -330,7 +332,6 @@ target_link_libraries(fboss2
   show_dsfnodes_model
   show_fabric_model
   show_host_model
-  show_l2_model
   show_lldp_model
   show_mirror_model
   show_ndp_model
@@ -351,6 +352,7 @@ target_link_libraries(fboss2
   show_mpls_route_model
   show_mac_model
   show_systemport_model
+  show_cpuport_model
   show_teflow_model
   ${RE2}
 )

@@ -11,11 +11,10 @@
 
 #include <functional>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include "fboss/cli/fboss2/CmdGlobalOptions.h"
-#include "fboss/cli/fboss2/utils/CmdCommonUtils.h"
+#include "fboss/cli/fboss2/utils/CmdUtilsCommon.h"
 
 namespace facebook::fboss {
 
@@ -185,12 +184,17 @@ struct HelpInfo {
   CmdVerb verb;
   CmdHelpMsg helpMsg;
   ValidFilterMapType validFilterMap;
+  std::vector<utils::LocalOption> localOptions;
 
   HelpInfo(
       const CmdVerb& verb,
       const CmdHelpMsg& helpMsg,
-      const ValidFilterMapType& validFilterMap)
-      : verb(verb), helpMsg(helpMsg), validFilterMap(validFilterMap) {}
+      const ValidFilterMapType& validFilterMap,
+      const std::vector<utils::LocalOption>& localOptions)
+      : verb(verb),
+        helpMsg(helpMsg),
+        validFilterMap(validFilterMap),
+        localOptions(localOptions) {}
 
   bool operator==(const HelpInfo& info) const {
     return verb == info.verb && helpMsg == info.helpMsg;

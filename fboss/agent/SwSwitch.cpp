@@ -261,6 +261,9 @@ void SwSwitch::stop(bool revertToMinAlpmState) {
   setSwitchRunState(SwitchRunState::EXITING);
 
   XLOG(DBG2) << "Stopping SwSwitch...";
+  // Stop DSF subscriber to let us unsubscribe gracefully before stoppping
+  // packet TX/RX functionality
+  dsfSubscriber_.reset();
 
   // First tell the hw to stop sending us events by unregistering the callback
   // After this we should no longer receive packets or link state changed events
@@ -2113,6 +2116,25 @@ VlanID SwSwitch::getVlanIDHelper(std::optional<VlanID> vlanID) const {
   // populate SwitchState/Neighbor cache etc. data structures. Once the
   // wedge_agent changes are complete, we will no longer need this function.
   return vlanID.has_value() ? vlanID.value() : VlanID(0);
+}
+
+std::optional<VlanID> SwSwitch::getVlanIDForPkt(VlanID vlanID) const {
+  // TODO(skhare)
+  // VOQ/Fabric switches require that the packets are not tagged with any
+  // VLAN. We are gradually enhancing wedge_agent to handle tagged as well as
+  // untagged packets. During this transition, we will use VlanID 0 to
+  // populate SwitchState/Neighbor cache etc. data structures.
+  // However, the packets on wire must not carry VLANs for VOQ/Fabric switches.
+  // Once the wedge_agent changes are complete, we will no longer need this
+  // function.
+
+  if (getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ ||
+      getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::FABRIC) {
+    CHECK_EQ(vlanID, VlanID(0));
+    return std::nullopt;
+  } else {
+    return vlanID;
+  }
 }
 
 std::optional<VlanID> SwSwitch::getCPUVlan() const {

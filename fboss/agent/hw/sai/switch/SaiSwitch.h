@@ -109,6 +109,7 @@ class SaiSwitch : public HwSwitch {
 
   folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
   std::map<std::string, HwSysPortStats> getSysPortStats() const override;
+  CpuPortStats getCpuPortStats() const override;
 
   uint64_t getDeviceWatermarkBytes() const override;
 
@@ -462,6 +463,16 @@ class SaiSwitch : public HwSwitch {
       phy::DataPlanePhyChipType chipType) const;
 
   void checkAndSetSdkDowngradeVersion() const;
+
+  template <typename LockPolicyT>
+  std::shared_ptr<SwitchState> stateChanged(
+      const StateDelta& delta,
+      const LockPolicyT& lockPolicy);
+
+  template <typename LockPolicyT>
+  std::shared_ptr<SwitchState> stateChangedWithOperDeltaLocked(
+      const StateDelta& delta,
+      const LockPolicyT& lockPolicy);
 
   /*
    * SaiSwitch must support a few varieties of concurrent access:

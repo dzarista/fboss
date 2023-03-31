@@ -19,6 +19,7 @@
 #include "fboss/cli/fboss2/commands/clear/interface/CmdClearInterface.h"
 #include "fboss/cli/fboss2/commands/clear/interface/prbs/CmdClearInterfacePrbs.h"
 #include "fboss/cli/fboss2/commands/clear/interface/prbs/stats/CmdClearInterfacePrbsStats.h"
+#include "fboss/cli/fboss2/commands/get/pcap/CmdGetPcap.h"
 #include "fboss/cli/fboss2/commands/help/CmdHelp.h"
 #include "fboss/cli/fboss2/commands/set/interface/CmdSetInterface.h"
 #include "fboss/cli/fboss2/commands/set/interface/prbs/CmdSetInterfacePrbs.h"
@@ -29,6 +30,7 @@
 #include "fboss/cli/fboss2/commands/show/agent/CmdShowAgentSsl.h"
 #include "fboss/cli/fboss2/commands/show/aggregateport/CmdShowAggregatePort.h"
 #include "fboss/cli/fboss2/commands/show/arp/CmdShowArp.h"
+#include "fboss/cli/fboss2/commands/show/cpuport/CmdShowCpuPort.h"
 #include "fboss/cli/fboss2/commands/show/dsfnodes/CmdShowDsfNodes.h"
 #include "fboss/cli/fboss2/commands/show/fabric/CmdShowFabric.h"
 #include "fboss/cli/fboss2/commands/show/host/CmdShowHost.h"
@@ -258,6 +260,13 @@ const CommandTree& kCommandTree() {
       },
 
       {"show",
+       "cpuport",
+       "Show cpu port information",
+       commandHandler<CmdShowCpuPort>,
+       validFilterHandler<CmdShowCpuPort>,
+       argTypeHandler<CmdShowCpuPortTraits>},
+
+      {"show",
        "systemport",
        "Show system port information",
        commandHandler<CmdShowSystemPort>,
@@ -284,7 +293,7 @@ const CommandTree& kCommandTree() {
 
       {"show",
        "l2",
-       "Show L2 Packet Information",
+       "Show L2 Table",
        commandHandler<CmdShowL2>,
        argTypeHandler<CmdShowL2Traits>},
 
@@ -368,6 +377,13 @@ const CommandTree& kCommandTree() {
        commandHandler<CmdStopPcap>,
        argTypeHandler<CmdStopPcapTraits>,
        localOptionsHandler<CmdStopPcapTraits>},
+
+      {"get",
+       "pcap",
+       "Show Packet Capture",
+       commandHandler<CmdGetPcap>,
+       argTypeHandler<CmdGetPcapTraits>,
+       localOptionsHandler<CmdGetPcapTraits>},
   };
   return root;
 }

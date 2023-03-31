@@ -515,6 +515,13 @@ bool SaiSwitch::l2LearningModeChangeProhibited() const {
 
 std::shared_ptr<SwitchState> SaiSwitch::stateChanged(const StateDelta& delta) {
   FineGrainedLockPolicy lockPolicy(saiSwitchMutex_);
+  return stateChanged(delta, lockPolicy);
+}
+
+template <typename LockPolicyT>
+std::shared_ptr<SwitchState> SaiSwitch::stateChanged(
+    const StateDelta& delta,
+    const LockPolicyT& lockPolicy) {
   return stateChangedImpl(delta, lockPolicy);
 }
 
@@ -1049,6 +1056,12 @@ uint64_t SaiSwitch::getDeviceWatermarkBytesLocked(
 folly::F14FastMap<std::string, HwPortStats> SaiSwitch::getPortStats() const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   return getPortStatsLocked(lock);
+}
+
+CpuPortStats SaiSwitch::getCpuPortStats() const {
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  auto& cpuStat = managerTable_->hostifManager().getCpuFb303Stats();
+  return cpuStat.getCpuPortStats();
 }
 
 folly::F14FastMap<std::string, HwPortStats> SaiSwitch::getPortStatsLocked(

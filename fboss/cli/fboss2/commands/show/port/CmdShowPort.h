@@ -10,7 +10,9 @@
 
 #pragma once
 
+#include <folly/json.h>
 #include <thrift/lib/cpp/transport/TTransportException.h>
+#include "configerator/structs/neteng/fboss/bgp/gen-cpp2/bgp_config_types.h"
 #include "fboss/cli/fboss2/CmdHandler.h"
 #include "fboss/cli/fboss2/commands/show/port/gen-cpp2/model_types.h"
 #include "fboss/cli/fboss2/commands/show/port/gen-cpp2/model_visitation.h"
@@ -18,6 +20,8 @@
 #include "fboss/cli/fboss2/utils/CmdUtils.h"
 #include "fboss/cli/fboss2/utils/Table.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
+#include "neteng/fboss/bgp/if/gen-cpp2/TBgpService.h"
+#include "neteng/fboss/bgp/if/gen-cpp2/bgp_thrift_types.h"
 
 #include <unistd.h>
 #include <algorithm>
@@ -25,6 +29,7 @@
 namespace facebook::fboss {
 
 using utils::Table;
+using namespace facebook::neteng::fboss::bgp::thrift;
 
 struct CmdShowPortTraits : public BaseCommandTraits {
   static constexpr utils::ObjectArgTypeId ObjectArgTypeId =
@@ -48,6 +53,8 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
     std::map<std::string, facebook::fboss::HwPortStats> portStats;
 
     std::vector<int32_t> requiredTransceiverEntries;
+    std::vector<std::string> bgpDrainedInterfaces;
+    std::string bgpConfigStr;
 
     auto client =
         utils::createClient<facebook::fboss::FbossCtrlAsyncClient>(hostInfo);
@@ -69,8 +76,24 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
       std::cerr << "Cannot connect to qsfp_service\n";
     }
 
+    try {
+      auto bgpClient = utils::createClient<TBgpServiceAsyncClient>(hostInfo);
+      bgpClient->sync_getRunningConfig(bgpConfigStr);
+    } catch (apache::thrift::transport::TTransportException& e) {
+      std::cerr << "Cannot connect to bgp_service\n";
+    }
+
+    bgp::thrift::BgpConfig bgpConfig;
+    apache::thrift::SimpleJSONSerializer serializer;
+    serializer.deserialize(bgpConfigStr, bgpConfig);
+    bgpDrainedInterfaces = *bgpConfig.drained_interfaces();
+
     return createModel(
-        portEntries, transceiverEntries, queriedPorts.data(), portStats);
+        portEntries,
+        transceiverEntries,
+        queriedPorts.data(),
+        portStats,
+        bgpDrainedInterfaces);
   }
 
   std::unordered_map<std::string, std::vector<std::string>>
@@ -129,10 +152,19 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
             "    Egress (bytes)                \t\t {}",
             portHwStats.get_egressBytes()));
         for (const auto& queueBytes : portHwStats.get_queueOutBytes()) {
-          detailedOutput.emplace_back(fmt::format(
-              "\tQueue {}                      \t\t {}",
-              queueBytes.first,
-              queueBytes.second));
+          const auto iter = portInfo.get_queueIdToName().find(queueBytes.first);
+          std::string queueName = "";
+          if (iter != portInfo.get_queueIdToName().end()) {
+            queueName = folly::to<std::string>("(", iter->second, ")");
+          }
+          // print either if the queue is valid or queue has non zero traffic
+          if (queueBytes.second || !queueName.empty()) {
+            detailedOutput.emplace_back(fmt::format(
+                "\tQueue {} {:12}    \t\t {}",
+                queueBytes.first,
+                queueName,
+                queueBytes.second));
+          }
         }
         detailedOutput.emplace_back(fmt::format(
             "    Received Unicast (pkts)       \t\t {}",
@@ -151,10 +183,20 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
             portHwStats.get_outCongestionDiscardPkts()));
         for (const auto& queueDiscardBytes :
              portHwStats.get_queueOutDiscardBytes()) {
-          detailedOutput.emplace_back(fmt::format(
-              "\tQueue {}                      \t\t {}",
-              queueDiscardBytes.first,
-              queueDiscardBytes.second));
+          const auto iter =
+              portInfo.get_queueIdToName().find(queueDiscardBytes.first);
+          std::string queueName = "";
+          if (iter != portInfo.get_queueIdToName().end()) {
+            queueName = folly::to<std::string>("(", iter->second, ")");
+          }
+          // print either if the queue is valid or queue has non zero traffic
+          if (queueDiscardBytes.second || !queueName.empty()) {
+            detailedOutput.emplace_back(fmt::format(
+                "\tQueue {} {:12}    \t\t {}",
+                queueDiscardBytes.first,
+                queueName,
+                queueDiscardBytes.second));
+          }
         }
         if (portHwStats.get_outPfcPackets()) {
           detailedOutput.emplace_back(fmt::format(
@@ -207,7 +249,8 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
            "TcvrID",
            "Speed",
            "ProfileID",
-           "HwLogicalPortId"});
+           "HwLogicalPortId",
+           "Drained"});
 
       for (auto const& portInfo : model.get_portEntries()) {
         std::string hwLogicalPortId;
@@ -223,7 +266,8 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
              folly::to<std::string>(portInfo.get_tcvrID()),
              portInfo.get_speed(),
              portInfo.get_profileId(),
-             hwLogicalPortId});
+             hwLogicalPortId,
+             portInfo.get_isDrained()});
       }
       out << table << std::endl;
     }
@@ -281,7 +325,8 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
       std::map<int32_t, facebook::fboss::PortInfoThrift> portEntries,
       std::map<int32_t, facebook::fboss::TransceiverInfo> transceiverEntries,
       const ObjectArgType& queriedPorts,
-      std::map<std::string, facebook::fboss::HwPortStats> portStats) {
+      std::map<std::string, facebook::fboss::HwPortStats> portStats,
+      const std::vector<std::string>& drainedInterfaces) {
     RetType model;
     std::unordered_set<std::string> queriedSet(
         queriedPorts.begin(), queriedPorts.end());
@@ -289,7 +334,6 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
     for (const auto& entry : portEntries) {
       auto portInfo = entry.second;
       auto portName = portInfo.get_name();
-
       auto operState = getOperStateStr(portInfo.get_operState());
 
       if (queriedPorts.size() == 0 || queriedSet.count(portName)) {
@@ -302,6 +346,14 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
         portDetails.profileId() = portInfo.get_profileID();
         if (auto hwLogicalPortId = portInfo.hwLogicalPortId()) {
           portDetails.hwLogicalPortId() = *hwLogicalPortId;
+        }
+        portDetails.isDrained() = "No";
+        if ((std::find(
+                 drainedInterfaces.begin(),
+                 drainedInterfaces.end(),
+                 portName) != drainedInterfaces.end()) ||
+            portInfo.get_isDrained()) {
+          portDetails.isDrained() = "Yes";
         }
         if (auto tcvrId = portInfo.transceiverIdx()) {
           const auto transceiverId = tcvrId->get_transceiverId();
@@ -332,6 +384,12 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
           portDetails.pause() = pauseString;
         }
         portDetails.numUnicastQueues() = portInfo.get_portQueues().size();
+        for (const auto& queue : portInfo.get_portQueues()) {
+          if (!queue.get_name().empty()) {
+            portDetails.queueIdToName()->insert(
+                {queue.get_id(), queue.get_name()});
+          }
+        }
 
         const auto& iter = portStats.find(portName);
         if (iter != portStats.end()) {

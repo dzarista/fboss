@@ -97,7 +97,7 @@ class QsfpModule : public Transceiver {
    * speed - the speed the port is running at - this will allow setting
    * different qsfp settings based on speed
    */
-  void customizeTransceiver(cfg::PortSpeed speed) override;
+  void customizeTransceiver(TransceiverPortState& portState) override;
 
   /*
    * Returns the entire QSFP information
@@ -199,8 +199,9 @@ class QsfpModule : public Transceiver {
     return snapshots_.copy();
   }
 
-  void programTransceiver(cfg::PortSpeed speed, bool needResetDataPath)
-      override;
+  void programTransceiver(
+      ProgramTransceiverState& programTcvrState,
+      bool needResetDataPath) override;
 
   bool readyTransceiver() override;
 
@@ -286,8 +287,7 @@ class QsfpModule : public Transceiver {
    * Default speed is set to DEFAULT - this will prevent any speed specific
    * settings from being applied
    */
-  virtual void customizeTransceiverLocked(
-      cfg::PortSpeed speed = cfg::PortSpeed::DEFAULT) = 0;
+  virtual void customizeTransceiverLocked(TransceiverPortState& portState) = 0;
 
   /*
    * If the current power state is not same as desired one then change it and
