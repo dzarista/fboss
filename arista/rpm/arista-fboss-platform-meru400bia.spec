@@ -10,7 +10,7 @@ Source: %{expand:%%(pwd)}
 
 %define _fboss_meru400bia_dir fboss.git/arista/platform/meru400bia
 %define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
-%define _fboss_bcm_sai_config_dir %{_fboss_build_repo_dir}/fboss/bcm_sai_configs
+%define _fboss_bcm_hw_config_dir %{_fboss_build_repo_dir}/fboss/oss/hw_test_configs
 %define _sai_sdk_src_dir Aqua_SAI/sdk-src
 
 %define _fboss_target_share %{buildroot}/opt/fboss/share
@@ -24,7 +24,7 @@ Meru400bia (QuartzDD) switches.
 set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_meru400bia_dir}/* .
-cp -af %{SOURCEURL0}/%{_fboss_bcm_sai_config_dir}/meru400bia.agent.materialized_JSON .
+cp -af %{SOURCEURL0}/%{_fboss_bcm_hw_config_dir}/meru400bia.agent.materialized_JSON .
 find %{SOURCEURL0}/%{_sai_sdk_src_dir} -wholename "*/tools/sand/db" -exec cp -r {} . \;
 
 %install
