@@ -36,10 +36,12 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --rebuild-fboss)
+      REBUILD_SDK=FALSE
       REBUILD_FBOSS=TRUE
       shift
       ;;
     --fboss-bins-only)
+      REBUILD_SDK=FALSE
       FBOSS_BINS_ONLY=TRUE
       shift
       ;;
@@ -101,6 +103,7 @@ fi
 # Delete SDK var in the env. It can cause the SDK build to fail.
 export SDK=""
 cd $SAI_BUILD_DIR
+export KERNDIR="$KERNEL_SRC"
 export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.28_SAI_9.0.0_EA/$ARCH-sdk-6.5.28-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
@@ -115,23 +118,15 @@ then
       fi
    done
 
+   echo "======= Starting Broadcom SDK build ========"
+   time make -j 8
    cd $BCM_KERNEL_MODULES_DIR
+   export SDK=$PWD
    make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
       kernel_version=2_6 LINUX_UAPI_SPLIT=1 clean
+else
+   export SDK=$BCM_KERNEL_MODULES_DIR
 fi
-
-echo "======= Starting SDK build ========"
-cd $SAI_BUILD_DIR
-time make -j 8
-export KERNDIR="$KERNEL_SRC"
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.28_SAI_9.0.0_EA/$ARCH-sdk-6.5.28-gpl-modules"
-cd $BCM_KERNEL_MODULES_DIR
-export SDK=$PWD
-make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
-   kernel_version=2_6 LINUX_UAPI_SPLIT=1 kernel_modules
-
-# Need this defined for FBOSS operations below.
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.28_SAI_9.0.0_EA/$ARCH-sdk-6.5.28-gpl-modules"
 
 # Instructions from
 # https://github.com/facebook/fboss/blob/main/installer/howto/Building_FBOSS_on_containers.md
@@ -158,7 +153,7 @@ cd $FBOSS_DIR/fboss.git
 # stable commit hash
 rm -rf build/deps/github_hashes/facebook
 rm -rf build/deps/github_hashes/facebookincubator
-tar -xvf fboss/stable_commits/latest_stable_hashes.tar.gz
+tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz
 
 echo "======= Starting FBOSS build ========"
 
@@ -178,7 +173,7 @@ else
    mkdir -p $FBOSS_DIR/built-bcm-sai
    cp $SAI_BUILD_DIR/libraries/libsai.a $FBOSS_DIR/built-bcm-sai/libsai_impl.a
    cp $SAI_DIR/include/experimental/*.* $FBOSS_DIR/built-sai/experimental
-   cd $FBOSS_DIR/fboss.git/installer/centos-8-x64_64
+   cd $FBOSS_DIR/fboss.git/fboss/oss/scripts
    ./build-helper.py $FBOSS_DIR/built-bcm-sai/libsai_impl.a \
       $FBOSS_DIR/built-sai/experimental/ $FBOSS_DIR/sai_impl_output
 
@@ -191,7 +186,7 @@ else
    time ./build/fbcode_builder/getdeps.py build --num-jobs 8 --allow-system-packages \
       --scratch-path "$SCRATCH_DIR" fboss
    cd $FBOSS_DIR/fboss.git
-   ./installer/centos-7-x86_64/package-fboss.py --scratch-path "$SCRATCH_DIR"
+   ./fboss/oss/scripts/package-fboss.py --scratch-path "$SCRATCH_DIR"
 
    # Check if any dynamic libraries are missing in the output directory and copy them over.
    fboss_output_dir=$(find $SCRATCH_DIR -maxdepth 1 -name "fboss_bins*")
