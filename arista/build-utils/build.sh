@@ -36,12 +36,10 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --rebuild-fboss)
-      REBUILD_SDK=FALSE
       REBUILD_FBOSS=TRUE
       shift
       ;;
     --fboss-bins-only)
-      REBUILD_SDK=FALSE
       FBOSS_BINS_ONLY=TRUE
       shift
       ;;
@@ -118,12 +116,17 @@ then
       fi
    done
 
+   cd $BCM_KERNEL_MODULES_DIR
+   make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
+      kernel_version=2_6 LINUX_UAPI_SPLIT=1 clean
+
    echo "======= Starting Broadcom SDK build ========"
+   cd $SAI_BUILD_DIR
    time make -j 8
    cd $BCM_KERNEL_MODULES_DIR
    export SDK=$PWD
    make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
-      kernel_version=2_6 LINUX_UAPI_SPLIT=1 clean
+      kernel_version=2_6 LINUX_UAPI_SPLIT=1 kernel_modules
 else
    export SDK=$BCM_KERNEL_MODULES_DIR
 fi
