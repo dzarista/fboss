@@ -187,6 +187,10 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     {CmisField::ACTIVE_CTRL_LANE_2, {CmisPages::PAGE11, 207, 1}},
     {CmisField::ACTIVE_CTRL_LANE_3, {CmisPages::PAGE11, 208, 1}},
     {CmisField::ACTIVE_CTRL_LANE_4, {CmisPages::PAGE11, 209, 1}},
+    {CmisField::ACTIVE_CTRL_LANE_5, {CmisPages::PAGE11, 210, 1}},
+    {CmisField::ACTIVE_CTRL_LANE_6, {CmisPages::PAGE11, 211, 1}},
+    {CmisField::ACTIVE_CTRL_LANE_7, {CmisPages::PAGE11, 212, 1}},
+    {CmisField::ACTIVE_CTRL_LANE_8, {CmisPages::PAGE11, 213, 1}},
     {CmisField::TX_CDR_CONTROL, {CmisPages::PAGE11, 221, 1}},
     {CmisField::RX_CDR_CONTROL, {CmisPages::PAGE11, 222, 1}},
     {CmisField::RX_OUT_PRE_CURSOR, {CmisPages::PAGE11, 223, 4}},
@@ -319,6 +323,17 @@ static std::unordered_map<int, CmisField> laneToAppSelField = {
     {5, CmisField::APP_SEL_LANE_6},
     {6, CmisField::APP_SEL_LANE_7},
     {7, CmisField::APP_SEL_LANE_8},
+};
+
+static std::unordered_map<int, CmisField> laneToActiveCtrlField = {
+    {0, CmisField::ACTIVE_CTRL_LANE_1},
+    {1, CmisField::ACTIVE_CTRL_LANE_2},
+    {2, CmisField::ACTIVE_CTRL_LANE_3},
+    {3, CmisField::ACTIVE_CTRL_LANE_4},
+    {4, CmisField::ACTIVE_CTRL_LANE_5},
+    {5, CmisField::ACTIVE_CTRL_LANE_6},
+    {6, CmisField::ACTIVE_CTRL_LANE_7},
+    {7, CmisField::ACTIVE_CTRL_LANE_8},
 };
 
 static CmisFieldMultiplier qsfpMultiplier = {
@@ -828,14 +843,18 @@ unsigned int CmisModule::numMediaLanes() const {
   return 4;
 }
 
-SMFMediaInterfaceCode CmisModule::getSmfMediaInterface() const {
+SMFMediaInterfaceCode CmisModule::getSmfMediaInterface(uint8_t lane) const {
+  if (lane >= 8) {
+    QSFP_LOG(ERR, this) << "Invalid lane number " << lane;
+    return SMFMediaInterfaceCode::UNKNOWN;
+  }
   // Pick the first application for flatMem modules. FlatMem modules don't
   // support page11h that contains the current operational app sel code
   uint8_t currentApplicationSel = flatMem_
       ? 1
-      : getSettingsValue(CmisField::ACTIVE_CTRL_LANE_1, APP_SEL_MASK);
+      : getSettingsValue(laneToActiveCtrlField[lane], APP_SEL_MASK);
   // The application sel code is at the higher four bits of the field.
-  currentApplicationSel = currentApplicationSel >> 4;
+  currentApplicationSel = currentApplicationSel >> APP_SEL_BITSHIFT;
 
   // Application select value 0 means application is not selected by module yet
   if (currentApplicationSel == 0) {
@@ -879,9 +898,8 @@ bool CmisModule::getMediaInterfaceId(
   assert(mediaInterface.size() == numMediaLanes());
   MediaTypeEncodings encoding = getMediaTypeEncoding();
   if (encoding == MediaTypeEncodings::OPTICAL_SMF) {
-    // Currently setting the same media interface for all media lanes
-    auto smfMediaInterface = getSmfMediaInterface();
     for (int lane = 0; lane < mediaInterface.size(); lane++) {
+      auto smfMediaInterface = getSmfMediaInterface(lane);
       mediaInterface[lane].lane() = lane;
       MediaInterfaceUnion media;
       media.smfCode_ref() = smfMediaInterface;
@@ -1679,7 +1697,13 @@ void CmisModule::updateQsfpData(bool allPages) {
   }
 }
 
-void CmisModule::setApplicationCodeLocked(cfg::PortSpeed speed) {
+void CmisModule::setApplicationCodeLocked(
+    cfg::PortSpeed speed,
+    uint8_t startHostLane) {
+  QSFP_LOG(INFO, this) << folly::sformat(
+      "Trying to set application code for speed {} on startHostLane {}",
+      apache::thrift::util::enumNameSafe(speed),
+      startHostLane);
   auto applicationIter = speedApplicationMapping.find(speed);
 
   if (applicationIter == speedApplicationMapping.end()) {
@@ -1694,10 +1718,10 @@ void CmisModule::setApplicationCodeLocked(cfg::PortSpeed speed) {
   // Currently we will have the same application across all the lanes. So here
   // we only take one of them to look at.
   uint8_t currentApplicationSel =
-      getSettingsValue(CmisField::ACTIVE_CTRL_LANE_1, APP_SEL_MASK);
+      getSettingsValue(laneToActiveCtrlField[startHostLane], APP_SEL_MASK);
 
   // The application sel code is at the higher four bits of the field.
-  currentApplicationSel = currentApplicationSel >> 4;
+  currentApplicationSel = currentApplicationSel >> APP_SEL_BITSHIFT;
 
   QSFP_LOG(INFO, this) << folly::sformat(
       "currentApplicationSel: {:#x}", currentApplicationSel);
@@ -1751,36 +1775,39 @@ void CmisModule::setApplicationCodeLocked(cfg::PortSpeed speed) {
       continue;
     }
 
-    auto setApplicationSelectCode = [this, &capability]() {
-      // Currently we will have only one data path and apply the default
-      // settings. So assume the lower four bits are all zero here.
-      // CMIS4.0-8.7.3
-      uint8_t newApSelCode = capability->ApSelCode << 4;
+    auto hostLanes = capability->hostLaneCount;
+    uint8_t hostLaneMask = (1 << hostLanes) - 1;
 
-      QSFP_LOG(INFO, this) << folly::sformat(
-          "newApSelCode: {:#x}", newApSelCode);
+    auto setApplicationSelectCode =
+        [this, &capability, startHostLane, hostLanes, hostLaneMask]() {
+          uint8_t dataPathId = startHostLane;
+          uint8_t explicitControl = 0; // Use application dependent settings
+          uint8_t newApSelCode = (capability->ApSelCode << 4) |
+              (dataPathId << 1) | explicitControl;
 
-      // We can't use numHostLanes() to get the hostLaneCount here since that
-      // function relies on the configured application select but at this point
-      // appSel hasn't been updated.
-      auto hostLanes = capability->hostLaneCount;
+          QSFP_LOG(INFO, this)
+              << folly::sformat("newApSelCode: {:#x}", newApSelCode);
 
-      for (int channel = 0; channel < hostLanes; channel++) {
-        // Assign ApSel code to each lane
-        writeCmisField(laneToAppSelField[channel], &newApSelCode);
-      }
-      uint8_t applySet0 = (hostLanes == 8) ? 0xff : 0x0f;
+          // We can't use numHostLanes() to get the hostLaneCount here since
+          // that function relies on the configured application select but at
+          // this point appSel hasn't been updated.
 
-      writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySet0);
+          for (int channel = startHostLane; channel < hostLanes; channel++) {
+            // Assign ApSel code to each lane
+            writeCmisField(laneToAppSelField[channel], &newApSelCode);
+          }
+          uint8_t applySet0 = hostLaneMask << startHostLane;
 
-      QSFP_LOG(INFO, this) << folly::sformat(
-          "set application to {:#x}", capability->moduleMediaInterface);
-    };
+          writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySet0);
+
+          QSFP_LOG(INFO, this) << folly::sformat(
+              "set application to {:#x}", capability->moduleMediaInterface);
+        };
 
     // In 400G-FR4 case we will have 8 host lanes instead of 4. Further more,
     // we need to deactivate all the lanes when we switch to an application with
     // a different lane count. CMIS4.0-8.8.4
-    resetDataPathWithFunc(setApplicationSelectCode);
+    resetDataPathWithFunc(setApplicationSelectCode, hostLaneMask);
 
     // Check if the config has been applied correctly or not
     if (!checkLaneConfigError()) {
@@ -1960,7 +1987,7 @@ void CmisModule::customizeTransceiverLocked(TransceiverPortState& portState) {
     setPowerOverrideIfSupportedLocked(*settings.powerControl());
 
     if (speed != cfg::PortSpeed::DEFAULT) {
-      setApplicationCodeLocked(speed);
+      setApplicationCodeLocked(speed, startHostLane);
     }
 
     // For 200G-FR4 module operating in 2x50G mode, disable squelch on all lanes
@@ -2754,12 +2781,16 @@ void CmisModule::resetDataPath() {
 }
 
 void CmisModule::resetDataPathWithFunc(
-    std::optional<std::function<void()>> afterDataPathDeinitFunc) {
+    std::optional<std::function<void()>> afterDataPathDeinitFunc,
+    uint8_t hostLaneMask) {
   if (flatMem_) {
     return;
   }
+
+  uint8_t dataPathDeInitReg;
+  readCmisField(CmisField::DATA_PATH_DEINIT, &dataPathDeInitReg);
   // First deactivate all the lanes
-  uint8_t dataPathDeInit = 0xff;
+  uint8_t dataPathDeInit = dataPathDeInitReg | hostLaneMask;
   writeCmisField(CmisField::DATA_PATH_DEINIT, &dataPathDeInit);
   /* sleep override */
   usleep(kUsecBetweenLaneInit);
@@ -2770,7 +2801,7 @@ void CmisModule::resetDataPathWithFunc(
   }
 
   // Release the lanes from DeInit.
-  dataPathDeInit = 0x0;
+  dataPathDeInit = dataPathDeInitReg & ~(hostLaneMask);
   writeCmisField(CmisField::DATA_PATH_DEINIT, &dataPathDeInit);
   /* sleep override */
   usleep(kUsecBetweenLaneInit);

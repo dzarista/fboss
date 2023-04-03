@@ -213,6 +213,7 @@ class BcmSwitchIf : public HwSwitch {
 class BcmSwitch : public BcmSwitchIf {
  public:
   using HwSwitch::FeaturesDesired;
+  using HwSwitch::stateChanged;
   /*
    * Construct a new BcmSwitch.
    *
@@ -376,14 +377,6 @@ class BcmSwitch : public BcmSwitchIf {
   BcmControlPlane* getControlPlane() const override {
     return controlPlane_.get();
   }
-
-  // The following function will modify the object. In particular, the return
-  // state will be published (to indicate what has actually been applied). If
-  // everything from delta was successfully applied, then the "new" state in
-  // delta will be published.
-  //
-  // Lock has to be performed in the function.
-  std::shared_ptr<SwitchState> stateChanged(const StateDelta& delta) override;
 
   std::shared_ptr<SwitchState> stateChangedTransaction(
       const StateDelta& delta) override;
@@ -785,7 +778,17 @@ class BcmSwitch : public BcmSwitchIf {
       const std::shared_ptr<UdfPacketMatcher>& udfPacketMatcher);
   void processRemovedUdfGroup(const std::shared_ptr<UdfGroup>& udfGroup);
 
-  std::shared_ptr<SwitchState> stateChangedImpl(const StateDelta& delta);
+  // The following function will modify the object. In particular, the return
+  // state will be published (to indicate what has actually been applied). If
+  // everything from delta was successfully applied, then the "new" state in
+  // delta will be published.
+  //
+  // Lock has to be performed in the function.
+  std::shared_ptr<SwitchState> stateChangedImpl(
+      const StateDelta& delta) override;
+  std::shared_ptr<SwitchState> stateChangedImplLocked(
+      const StateDelta& delta,
+      const std::lock_guard<std::mutex>& lock);
 
   void processSflowSamplingRateChanges(const StateDelta& delta);
   void processSflowCollectorChanges(const StateDelta& delta);
@@ -1065,10 +1068,6 @@ class BcmSwitch : public BcmSwitchIf {
       std::optional<state::BufferPoolFields> newBufferPoolCfgPtr);
 
   std::shared_ptr<SwitchState> stateChangedLocked(
-      const StateDelta& delta,
-      const std::lock_guard<std::mutex>& lock);
-
-  std::shared_ptr<SwitchState> stateChangedWithOperDeltaLocked(
       const StateDelta& delta,
       const std::lock_guard<std::mutex>& lock);
 

@@ -247,7 +247,8 @@ HwInitResult SaiSwitch::initImpl(
 
   {
     HwWriteBehaviorRAII writeBehavior{behavior};
-    stateChanged(StateDelta(std::make_shared<SwitchState>(), ret.switchState));
+    stateChangedImpl(
+        StateDelta(std::make_shared<SwitchState>(), ret.switchState));
     managerTable_->fdbManager().removeUnclaimedDynanicEntries();
     managerTable_->hashManager().removeUnclaimedDefaultHash();
 #if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
@@ -453,7 +454,7 @@ void SaiSwitch::rollback(
         HwWriteBehavior::FAIL,
         &hwSwitchJson[kAdapterKeys],
         &hwSwitchJson[kAdapterKey2AdapterHostKey]);
-    stateChangedImpl(
+    stateChangedImplLocked(
         StateDelta(std::make_shared<SwitchState>(), knownGoodState),
         lockPolicy);
     saiStore_->printWarmbootHandles();
@@ -513,7 +514,8 @@ bool SaiSwitch::l2LearningModeChangeProhibited() const {
   return getSwitchRunState() >= l2LearningChangeProhibitedAfter;
 }
 
-std::shared_ptr<SwitchState> SaiSwitch::stateChanged(const StateDelta& delta) {
+std::shared_ptr<SwitchState> SaiSwitch::stateChangedImpl(
+    const StateDelta& delta) {
   FineGrainedLockPolicy lockPolicy(saiSwitchMutex_);
   return stateChanged(delta, lockPolicy);
 }
@@ -522,11 +524,11 @@ template <typename LockPolicyT>
 std::shared_ptr<SwitchState> SaiSwitch::stateChanged(
     const StateDelta& delta,
     const LockPolicyT& lockPolicy) {
-  return stateChangedImpl(delta, lockPolicy);
+  return stateChangedImplLocked(delta, lockPolicy);
 }
 
 template <typename LockPolicyT>
-std::shared_ptr<SwitchState> SaiSwitch::stateChangedImpl(
+std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
     const StateDelta& delta,
     const LockPolicyT& lockPolicy) {
   // Unsupported features

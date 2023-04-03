@@ -58,6 +58,7 @@ struct FdbEventNotificationData {
 
 class SaiSwitch : public HwSwitch {
  public:
+  using HwSwitch::stateChanged;
   explicit SaiSwitch(
       SaiPlatform* platform,
       uint32_t featuresDesired =
@@ -87,7 +88,8 @@ class SaiSwitch : public HwSwitch {
     return switchType_ == cfg::SwitchType::NPU;
   }
 
-  std::shared_ptr<SwitchState> stateChanged(const StateDelta& delta) override;
+  std::shared_ptr<SwitchState> stateChangedImpl(
+      const StateDelta& delta) override;
 
   bool isValidStateUpdate(const StateDelta& delta) const override;
 
@@ -211,7 +213,7 @@ class SaiSwitch : public HwSwitch {
       state::WarmbootState& thriftSwitchState) override;
 
   template <typename LockPolicyT>
-  std::shared_ptr<SwitchState> stateChangedImpl(
+  std::shared_ptr<SwitchState> stateChangedImplLocked(
       const StateDelta& delta,
       const LockPolicyT& lk);
   friend class SaiRollbackTest;
@@ -466,11 +468,6 @@ class SaiSwitch : public HwSwitch {
 
   template <typename LockPolicyT>
   std::shared_ptr<SwitchState> stateChanged(
-      const StateDelta& delta,
-      const LockPolicyT& lockPolicy);
-
-  template <typename LockPolicyT>
-  std::shared_ptr<SwitchState> stateChangedWithOperDeltaLocked(
       const StateDelta& delta,
       const LockPolicyT& lockPolicy);
 

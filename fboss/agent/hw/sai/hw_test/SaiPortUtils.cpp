@@ -232,21 +232,20 @@ void verifyTxSettting(
   EXPECT_EQ(main, GET_OPT_ATTR(PortSerdes, TxFirMain, expectedTx));
   EXPECT_EQ(post, GET_OPT_ATTR(PortSerdes, TxFirPost1, expectedTx));
 
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
   if (saiPlatform->getAsic()->isSupported(
-          HwAsic::Feature::SAI_CONFIGURE_SIX_TAP)) {
+          HwAsic::Feature::SAI_CONFIGURE_SIX_TAP) ||
+      saiPlatform->getAsic()->isSupported(
+          HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP)) {
     pre2 = portApi.getAttribute(
         serdes->adapterKey(), SaiPortSerdesTraits::Attributes::TxFirPre2{});
     post2 = portApi.getAttribute(
         serdes->adapterKey(), SaiPortSerdesTraits::Attributes::TxFirPost2{});
     post3 = portApi.getAttribute(
         serdes->adapterKey(), SaiPortSerdesTraits::Attributes::TxFirPost3{});
-
-    EXPECT_EQ(pre2, GET_OPT_ATTR(PortSerdes, TxFirPre2, expectedTx));
     EXPECT_EQ(post2, GET_OPT_ATTR(PortSerdes, TxFirPost2, expectedTx));
     EXPECT_EQ(post3, GET_OPT_ATTR(PortSerdes, TxFirPost3, expectedTx));
+    EXPECT_EQ(pre2, GET_OPT_ATTR(PortSerdes, TxFirPre2, expectedTx));
   }
-#endif
 
   // Also verify sixtap attributes against expected pin config
   EXPECT_EQ(pre.size(), txSettings.size());
@@ -255,14 +254,31 @@ void verifyTxSettting(
     EXPECT_EQ(pre[i], expectedTxFromPin.pre());
     EXPECT_EQ(main[i], expectedTxFromPin.main());
     EXPECT_EQ(post[i], expectedTxFromPin.post());
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
     if (saiPlatform->getAsic()->isSupported(
-            HwAsic::Feature::SAI_CONFIGURE_SIX_TAP)) {
+            HwAsic::Feature::SAI_CONFIGURE_SIX_TAP) ||
+        saiPlatform->getAsic()->isSupported(
+            HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP)) {
       EXPECT_EQ(pre2[i], expectedTxFromPin.pre2());
       EXPECT_EQ(post2[i], expectedTxFromPin.post2());
       EXPECT_EQ(post3[i], expectedTxFromPin.post3());
     }
-#endif
+  }
+
+  if (saiPlatform->getAsic()->isSupported(
+          HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP)) {
+    SaiPortSerdesTraits::CreateAttributes expectedSerdes =
+        saiSwitch->managerTable()
+            ->portManager()
+            .serdesAttributesFromSwPinConfigs(
+                saiPortHandle->port->adapterKey(), expectedPinConfigs, serdes);
+
+    if (auto expectedTxLutMode =
+            std::get<std::optional<SaiPortSerdesTraits::Attributes::TxLutMode>>(
+                expectedSerdes)) {
+      auto txLutMode = portApi.getAttribute(
+          serdes->adapterKey(), SaiPortSerdesTraits::Attributes::TxLutMode{});
+      EXPECT_EQ(txLutMode, expectedTxLutMode->value());
+    }
   }
 
   if (auto expectedDriveCurrent =
@@ -288,23 +304,23 @@ void verifyLedStatus(HwSwitchEnsemble* ensemble, PortID port, bool up) {
   SaiPlatformPort* platformPort = platform->getPort(port);
   uint32_t currentVal = platformPort->getCurrentLedState();
   uint32_t expectedVal = 0;
-  switch (platform->getMode()) {
-    case PlatformMode::WEDGE: {
+  switch (platform->getType()) {
+    case PlatformType::PLATFORM_WEDGE: {
       expectedVal =
           static_cast<uint32_t>(Wedge40LedUtils::getExpectedLEDState(up, up));
     } break;
-    case PlatformMode::WEDGE100: {
+    case PlatformType::PLATFORM_WEDGE100: {
       expectedVal = static_cast<uint32_t>(Wedge100LedUtils::getExpectedLEDState(
           platform->getLaneCount(platformPort->getCurrentProfile()), up, up));
     } break;
-    case PlatformMode::GALAXY_FC:
-    case PlatformMode::GALAXY_LC: {
+    case PlatformType::PLATFORM_GALAXY_FC:
+    case PlatformType::PLATFORM_GALAXY_LC: {
       expectedVal = GalaxyLedUtils::getExpectedLEDState(up, up);
     } break;
-    case PlatformMode::WEDGE400:
-    case PlatformMode::WEDGE400_GRANDTETON:
-    case PlatformMode::WEDGE400C:
-    case PlatformMode::WEDGE400C_GRANDTETON: {
+    case PlatformType::PLATFORM_WEDGE400:
+    case PlatformType::PLATFORM_WEDGE400_GRANDTETON:
+    case PlatformType::PLATFORM_WEDGE400C:
+    case PlatformType::PLATFORM_WEDGE400C_GRANDTETON: {
       expectedVal = static_cast<uint32_t>(Wedge400LedUtils::getLedState(
           platform->getLaneCount(platformPort->getCurrentProfile()), up, up));
     } break;

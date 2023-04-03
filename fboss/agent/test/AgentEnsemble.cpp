@@ -6,6 +6,7 @@
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/Utils.h"
 
+#include "fboss/agent/EncapIndexAllocator.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 
@@ -46,6 +47,8 @@ void AgentEnsemble::setupEnsemble(
   // to ensure FLAGS_config is set, as this is used in case platform config is
   // overriden by the application.
   gflags::ParseCommandLineFlags(&argc, &argv, false);
+
+  FLAGS_verify_apply_oper_delta = true;
 
   if (platformConfigFn) {
     auto agentConf =
@@ -142,7 +145,7 @@ void AgentEnsemble::applyNewConfig(
   }
 }
 
-const std::vector<PortID>& AgentEnsemble::masterLogicalPortIds() const {
+std::vector<PortID> AgentEnsemble::masterLogicalPortIds() const {
   return masterLogicalPortIds_;
 }
 
@@ -190,6 +193,8 @@ std::shared_ptr<SwitchState> AgentEnsemble::applyNewState(
   if (!state) {
     return getSw()->getState();
   }
+  state = EncapIndexAllocator::updateEncapIndices(
+      StateDelta(getProgrammedState(), state), *getPlatform()->getAsic());
   transaction
       ? getSw()->updateStateWithHwFailureProtection(
             "apply new state with failure protection",

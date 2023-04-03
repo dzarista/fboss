@@ -437,8 +437,8 @@ class HwCoppTest : public HwLinkStateDependentTest {
       int queueId,
       const int numPktsToSend = 1,
       const int expectedPktDelta = 1) {
-    auto vlanId = VlanID(*initialConfig().vlanPorts()[0].vlanID());
-    auto intfMac = utility::getInterfaceMac(getProgrammedState(), vlanId);
+    auto vlanId = utility::firstVlanID(getProgrammedState());
+    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
     auto neighborMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     auto beforeOutPkts = getQueueOutPacketsWithRetry(
         queueId, 0 /* retryTimes */, 0 /* expectedNumPkts */);
@@ -524,10 +524,24 @@ class HwCoppQosTest : public HwLinkStateDependentTest {
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = utility::twoL3IntfConfig(
         getHwSwitch(),
-        masterLogicalPortIds()[0],
-        masterLogicalPortIds()[1],
+        masterLogicalInterfacePortIds()[0],
+        masterLogicalInterfacePortIds()[1],
         getAsic()->desiredLoopbackMode());
     utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
+    std::vector<cfg::PacketRxReasonToQueue> rxReasons;
+    // Exclude TTL_1 trap since on some devices we disable it
+    // to set up data plane loops
+    CHECK(cfg.cpuTrafficPolicy().has_value());
+    CHECK(cfg.cpuTrafficPolicy()->rxReasonToQueueOrderedList().has_value());
+    if (cfg.cpuTrafficPolicy()->rxReasonToQueueOrderedList()->size()) {
+      for (auto rxReasonAndQueue :
+           *cfg.cpuTrafficPolicy()->rxReasonToQueueOrderedList()) {
+        if (*rxReasonAndQueue.rxReason() != cfg::PacketRxReason::TTL_1) {
+          rxReasons.push_back(rxReasonAndQueue);
+        }
+      }
+    }
+    cfg.cpuTrafficPolicy()->rxReasonToQueueOrderedList() = rxReasons;
     addCustomCpuQueueConfig(cfg, getAsic());
     return cfg;
   }
@@ -538,7 +552,7 @@ class HwCoppQosTest : public HwLinkStateDependentTest {
     utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState(), dstMac);
     resolveNeigborAndProgramRoutes(ecmpHelper, 1);
     auto& nextHop = ecmpHelper.getNextHops()[0];
-    utility::disableTTLDecrements(
+    utility::ttlDecrementHandlingForLoopbackTraffic(
         getHwSwitch(), ecmpHelper.getRouterId(), nextHop);
   }
 
@@ -605,29 +619,27 @@ class HwCoppQosTest : public HwLinkStateDependentTest {
       PortID port,
       std::optional<VlanID> vlanId,
       const folly::IPAddress& dstIpAddress) {
+    // Some ASICs require extra pkts to be sent for line rate
+    // when its done in conjunction with copying the pkt to cpu
     auto minPktsForLineRate =
-        getHwSwitchEnsemble()->getMinPktsForLineRate(port);
+        getHwSwitchEnsemble()->getMinPktsForLineRate(port) * 2;
     auto dstMac = utility::getFirstInterfaceMac(initialConfig());
 
     // Create a loop with specified destination packets.
     // We want to send atleast 2 traffic streams to ensure we dont run
     // into throughput limits with single flow and flow cache for TAJO.
-    sendTcpPktsOnPort(
-        port,
-        vlanId,
-        minPktsForLineRate / 2,
-        dstIpAddress,
-        utility::kNonSpecialPort1,
-        utility::kNonSpecialPort2,
-        dstMac);
-    sendTcpPktsOnPort(
-        port,
-        vlanId,
-        minPktsForLineRate / 2,
-        dstIpAddress,
-        utility::kNonSpecialPort1 + 1,
-        utility::kNonSpecialPort2 + 1,
-        dstMac);
+    for (auto i = 0; i < minPktsForLineRate; ++i) {
+      for (auto j = 0; j < 2; ++j) {
+        sendTcpPktsOnPort(
+            port,
+            vlanId,
+            1,
+            dstIpAddress,
+            utility::kNonSpecialPort1 + j,
+            utility::kNonSpecialPort2 + j,
+            dstMac);
+      }
+    }
     std::string vlanStr = (vlanId ? folly::to<std::string>(*vlanId) : "None");
     XLOG(DBG0) << "Sent " << minPktsForLineRate << " TCP packets on port "
                << (int)port << " / VLAN " << vlanStr;
@@ -796,12 +808,7 @@ class HwCoppQosTest : public HwLinkStateDependentTest {
 class HwCoppQueueStuckTest : public HwCoppQosTest {
  protected:
   cfg::SwitchConfig initialConfig() const override {
-    auto cfg = utility::twoL3IntfConfig(
-        getHwSwitch(),
-        masterLogicalPortIds()[0],
-        masterLogicalPortIds()[1],
-        getAsic()->desiredLoopbackMode());
-    utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
+    auto cfg = HwCoppQosTest::initialConfig();
     addCustomCpuQueueConfig(cfg, getAsic(), true /*addEcnConfig*/);
     return cfg;
   }
@@ -1298,7 +1305,7 @@ TEST_F(HwCoppQueueStuckTest, CpuQueueHighRateTraffic) {
     // Create dataplane loop with lowerPriority traffic on port0
     auto baseVlan = utility::firstVlanID(initialConfig());
     createLineRateTrafficOnPort(
-        masterLogicalPortIds()[0], baseVlan, ipForLowPriorityQueue);
+        masterLogicalInterfacePortIds()[0], baseVlan, ipForLowPriorityQueue);
 
     bool lowPriorityTrafficMissing{false};
     uint64_t previousLowPriorityPacketCount{};
@@ -1370,11 +1377,12 @@ TEST_F(HwCoppQosTest, HighVsLowerPriorityCpuQueueTrafficPrioritization) {
 
     // Get initial packet count on port1 for high priority traffic
     auto initialHighPriorityPacketCount =
-        getLatestPortStats(masterLogicalPortIds()[1]).get_outUnicastPkts_();
+        getLatestPortStats(masterLogicalInterfacePortIds()[1])
+            .get_outUnicastPkts_();
 
     // Create dataplane loop with lowerPriority traffic on port0
     createLineRateTrafficOnPort(
-        masterLogicalPortIds()[0], baseVlan, ipForLowPriorityQueue);
+        masterLogicalInterfacePortIds()[0], baseVlan, ipForLowPriorityQueue);
     std::optional<VlanID> nextVlan;
     if (baseVlan) {
       nextVlan = *baseVlan + 1;
@@ -1382,7 +1390,7 @@ TEST_F(HwCoppQosTest, HighVsLowerPriorityCpuQueueTrafficPrioritization) {
 
     // Send a fixed number of high priority packets on port1
     sendPacketBursts(
-        masterLogicalPortIds()[1],
+        masterLogicalInterfacePortIds()[1],
         nextVlan,
         kHighPriorityPacketCount,
         packetsPerBurst,
@@ -1391,7 +1399,7 @@ TEST_F(HwCoppQosTest, HighVsLowerPriorityCpuQueueTrafficPrioritization) {
         utility::kBgpPort);
 
     auto allHighPriorityPacketsSent = [&](const auto& newStats) {
-      auto portStatsIter = newStats.find(masterLogicalPortIds()[1]);
+      auto portStatsIter = newStats.find(masterLogicalInterfacePortIds()[1]);
       auto outCount = (portStatsIter == newStats.end())
           ? 0
           : portStatsIter->second.get_outUnicastPkts_();

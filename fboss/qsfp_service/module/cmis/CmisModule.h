@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <sys/types.h>
 #include "fboss/qsfp_service/module/QsfpModule.h"
 
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
@@ -155,7 +156,7 @@ class CmisModule : public QsfpModule {
   /*
    * Set appropriate application code for PortSpeed, if supported
    */
-  void setApplicationCodeLocked(cfg::PortSpeed speed);
+  void setApplicationCodeLocked(cfg::PortSpeed speed, uint8_t startHostLane);
   /*
    * returns individual sensor values after scaling
    */
@@ -274,7 +275,7 @@ class CmisModule : public QsfpModule {
   /*
    * Gets the Single Mode Fiber Interface codes from SFF-8024
    */
-  SMFMediaInterfaceCode getSmfMediaInterface() const;
+  SMFMediaInterfaceCode getSmfMediaInterface(uint8_t lane = 0) const;
   /*
    * Returns the firmware version
    * <Module firmware version, DSP version, Build revision>
@@ -411,7 +412,8 @@ class CmisModule : public QsfpModule {
 
   void resetDataPathWithFunc(
       std::optional<std::function<void()>> afterDataPathDeinitFunc =
-          std::nullopt);
+          std::nullopt,
+      uint8_t hostLaneMask = 0xFF);
 
   /*
    * Set the PRBS Generator and Checker on a module for the desired side (Line

@@ -6,6 +6,9 @@
 
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 
+#include <set>
+#include <vector>
+
 namespace facebook::fboss {
 
 class SwitchState;
@@ -13,6 +16,10 @@ class SwitchState;
 class TestEnsembleIf : public HwSwitch::Callback {
  public:
   ~TestEnsembleIf() override {}
+  virtual std::vector<PortID> masterLogicalPortIds() const = 0;
+  std::vector<PortID> masterLogicalPortIds(
+      const std::set<cfg::PortType>& portTypes) const;
+
   virtual std::shared_ptr<SwitchState> applyNewState(
       std::shared_ptr<SwitchState> state,
       bool rollbackOnHwOverflow = false) = 0;
