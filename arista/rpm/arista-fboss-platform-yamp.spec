@@ -10,7 +10,7 @@ Source: %{expand:%%(pwd)}
 
 %define _fboss_yamp_dir fboss.git/arista/platform/yamp
 %define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
-%define _fboss_bcm_sai_config_dir %{_fboss_build_repo_dir}/fboss/bcm_sai_configs
+%define _fboss_bcm_hw_config_dir %{_fboss_build_repo_dir}/fboss/oss/hw_test_configs
 
 %define _fboss_target_share %{buildroot}/opt/fboss/share
 %define _fboss_target_var %{buildroot}/var/facebook/fboss/
@@ -23,7 +23,7 @@ Yamp switches.
 set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_yamp_dir}/* .
-cp -af %{SOURCEURL0}/%{_fboss_bcm_sai_config_dir}/yamp.agent.materialized_JSON .
+cp -af %{SOURCEURL0}/%{_fboss_bcm_hw_config_dir}/yamp.agent.materialized_JSON .
 
 %install
 mkdir -p %{_fboss_target_share}/wedge_agent/

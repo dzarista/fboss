@@ -11,7 +11,7 @@ Source: %{expand:%%(pwd)}
 %define _fboss_darwin_dir fboss.git/arista/platform/darwin
 %define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
 %define _fboss_config_dir %{_fboss_build_repo_dir}/fboss/platform/config_lib/configs
-%define _fboss_bcm_sai_config_dir %{_fboss_build_repo_dir}/fboss/bcm_sai_configs
+%define _fboss_bcm_hw_config_dir %{_fboss_build_repo_dir}/fboss/oss/hw_test_configs
 
 %define _fboss_target_udev %{buildroot}/etc/udev/rules.d/
 %define _fboss_target_bin %{buildroot}/opt/fboss/bin/
@@ -27,7 +27,7 @@ set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_darwin_dir}/* .
 cp -af %{SOURCEURL0}/%{_fboss_config_dir}/sensor_service/darwin.json platform_sensors.conf
-cp -af %{SOURCEURL0}/%{_fboss_bcm_sai_config_dir}/darwin.agent.materialized_JSON .
+cp -af %{SOURCEURL0}/%{_fboss_bcm_hw_config_dir}/darwin.agent.materialized_JSON .
 
 %install
 mkdir -p %{_fboss_target_bin}
