@@ -218,11 +218,14 @@ else
    cp -L $lib_path $fboss_output_dir/lib64
 
    # Copy over kernel modules
+   if ! [ -d "$fboss_output_dir/lib/modules" ]; then
+      mkdir -p "$fboss_output_dir/lib/modules"
+   fi
    for kernel_module in linux-kernel-bde.ko linux-user-bde.ko linux-bcm-knet.ko
    do
       module_path=$(find $BCM_KERNEL_MODULES_DIR -name "$kernel_module" | head -n 1)
-      echo "Copying $module from $module_path to $fboss_output_dir/lib/modules"
-      cp $module_path $fboss_output_dir/lib/modules
+      echo "Copying $kernel_module from $module_path to $fboss_output_dir/lib/modules"
+      cp $module_path $fboss_output_dir/lib/modules/
    done
 
    # Copy over firmware files

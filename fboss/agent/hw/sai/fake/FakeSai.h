@@ -35,6 +35,7 @@
 #include "fboss/agent/hw/sai/fake/FakeSaiSystemPort.h"
 #include "fboss/agent/hw/sai/fake/FakeSaiTam.h"
 #include "fboss/agent/hw/sai/fake/FakeSaiTunnel.h"
+#include "fboss/agent/hw/sai/fake/FakeSaiUdf.h"
 #include "fboss/agent/hw/sai/fake/FakeSaiVirtualRouter.h"
 #include "fboss/agent/hw/sai/fake/FakeSaiVlan.h"
 #include "fboss/agent/hw/sai/fake/FakeSaiWred.h"
@@ -82,6 +83,9 @@ struct FakeSai {
   FakeSamplePacketManager samplePacketManager;
   FakeSchedulerManager scheduleManager;
   FakeSwitchManager switchManager;
+  FakeUdfManager udfManager;
+  FakeUdfGroupManager udfGroupManager;
+  FakeUdfMatchManager udfMatchManager;
   FakeVirtualRouterManager virtualRouteManager;
   FakeVlanManager vlanManager;
   FakeWredManager wredManager;

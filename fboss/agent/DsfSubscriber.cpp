@@ -59,23 +59,44 @@ void DsfSubscriber::scheduleUpdate(
         bool changed{false};
         auto out = in->clone();
 
-        auto makeRemoteSysPort = [&](const auto& node) { return node; };
-        auto makeRemoteRif = [&](const auto& node) {
-          auto clonedNode = node->clone();
-
-          if (node->isPublished()) {
-            clonedNode->setArpTable(node->getArpTable()->toThrift());
-            clonedNode->setNdpTable(node->getNdpTable()->toThrift());
-          }
-
+        auto skipProgramming = [&](const auto& nbrEntryIter) -> bool {
           // Local neighbor entry on one DSF node is remote neighbor entry on
           // every other DSF node. Thus, for neighbor entry received from other
           // DSF nodes, set isLocal = False before programming it.
-          for (const auto& arpEntry : *clonedNode->getArpTable()) {
-            arpEntry.second->setIsLocal(false);
+          // Also, link local only has significance for Servers directly
+          // connected to Interface Node. Thus, skip programming remote link
+          // local neighbors.
+          return nbrEntryIter->second->getIP().isLinkLocal();
+        };
+
+        auto makeRemoteSysPort = [&](const auto& /*oldNode*/,
+                                     const auto& newNode) { return newNode; };
+        auto makeRemoteRif = [&](const auto& /*oldNode*/, const auto& newNode) {
+          auto clonedNode = newNode->clone();
+
+          if (newNode->isPublished()) {
+            clonedNode->setArpTable(newNode->getArpTable()->toThrift());
+            clonedNode->setNdpTable(newNode->getNdpTable()->toThrift());
           }
-          for (const auto& ndpEntry : *clonedNode->getNdpTable()) {
-            ndpEntry.second->setIsLocal(false);
+
+          auto arpEntryIter = (*clonedNode->getArpTable()).begin();
+          while (arpEntryIter != (*clonedNode->getArpTable()).end()) {
+            if (skipProgramming(arpEntryIter)) {
+              arpEntryIter = (*clonedNode->getArpTable()).erase(arpEntryIter);
+            } else {
+              arpEntryIter->second->setIsLocal(false);
+              ++arpEntryIter;
+            }
+          }
+
+          auto ndpEntryIter = (*clonedNode->getNdpTable()).begin();
+          while (ndpEntryIter != (*clonedNode->getNdpTable()).end()) {
+            if (skipProgramming(ndpEntryIter)) {
+              ndpEntryIter = (*clonedNode->getNdpTable()).erase(ndpEntryIter);
+            } else {
+              ndpEntryIter->second->setIsLocal(false);
+              ++ndpEntryIter;
+            }
           }
 
           return clonedNode;
@@ -91,13 +112,14 @@ void DsfSubscriber::scheduleUpdate(
                       // map from deserialized FSDB
                       // subscriptions. So can't just rely on
                       // pointer comparison here.
-                      auto clonedNode = makeRemote(newNode);
+                      auto clonedNode = makeRemote(oldNode, newNode);
                       mapToUpdate->updateNode(clonedNode);
                       changed = true;
                     }
                   },
                   [&](const auto& newNode) {
-                    auto clonedNode = makeRemote(newNode);
+                    auto clonedNode = makeRemote(
+                        std::decay_t<decltype(newNode)>{nullptr}, newNode);
                     mapToUpdate->addNode(clonedNode);
                     changed = true;
                   },
