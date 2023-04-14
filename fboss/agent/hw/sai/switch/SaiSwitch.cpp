@@ -398,24 +398,7 @@ void SaiSwitch::processLinkStateChangeDelta(
 }
 
 bool SaiSwitch::transactionsSupported() const {
-  // FIXME : Stoo skipping for Tajo once T79717530 resolved
-  return platform_->getAsic()->getAsicVendor() !=
-      HwAsic::AsicVendor::ASIC_VENDOR_TAJO;
-}
-
-std::shared_ptr<SwitchState> SaiSwitch::stateChangedTransaction(
-    const StateDelta& delta) {
-  CHECK(
-      platform_->getAsic()->getAsicVendor() !=
-      HwAsic::AsicVendor::ASIC_VENDOR_TAJO);
-  try {
-    return stateChanged(delta);
-  } catch (const FbossError& e) {
-    XLOG(WARNING) << " Transaction failed with error : " << *e.message()
-                  << " attempting rollback";
-    rollback(delta.oldState());
-  }
-  return delta.oldState();
+  return true;
 }
 
 void SaiSwitch::rollback(
@@ -517,13 +500,6 @@ bool SaiSwitch::l2LearningModeChangeProhibited() const {
 std::shared_ptr<SwitchState> SaiSwitch::stateChangedImpl(
     const StateDelta& delta) {
   FineGrainedLockPolicy lockPolicy(saiSwitchMutex_);
-  return stateChanged(delta, lockPolicy);
-}
-
-template <typename LockPolicyT>
-std::shared_ptr<SwitchState> SaiSwitch::stateChanged(
-    const StateDelta& delta,
-    const LockPolicyT& lockPolicy) {
   return stateChangedImplLocked(delta, lockPolicy);
 }
 
@@ -3025,5 +3001,11 @@ uint32_t SaiSwitch::generateDeterministicSeed(
 
 phy::FecMode SaiSwitch::getPortFECMode(PortID portId) const {
   return managerTable_->portManager().getFECMode(portId);
+}
+
+void SaiSwitch::rollbackInTest(
+    const std::shared_ptr<SwitchState>& knownGoodState) {
+  rollback(knownGoodState);
+  setProgrammedState(knownGoodState);
 }
 } // namespace facebook::fboss

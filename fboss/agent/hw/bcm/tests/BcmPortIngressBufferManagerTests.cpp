@@ -13,6 +13,7 @@
 #include "fboss/agent/hw/bcm/BcmPortIngressBufferManager.h"
 //#include "fboss/agent/hw/bcm/BcmPortTable.h"
 #include "fboss/agent/hw/bcm/tests/BcmTest.h"
+#include "fboss/agent/hw/test/HwTestPfcUtils.h"
 #include "fboss/agent/platforms/tests/utils/BcmTestPlatform.h"
 #include "fboss/agent/types.h"
 
@@ -34,7 +35,7 @@ constexpr std::string_view kBufferPoolName = "fooBuffer";
 // pass in number of queues and use queueId, deltaValue to differ
 // PG params
 std::vector<cfg::PortPgConfig> getPortPgConfig(
-    int mmuCellByes,
+    int mmuCellBytes,
     const std::vector<int>& queues,
     int deltaValue = 0,
     const bool enableHeadroom = true) {
@@ -46,12 +47,12 @@ std::vector<cfg::PortPgConfig> getPortPgConfig(
     // use queueId value to assign different values for each param/queue
     if (enableHeadroom) {
       pgConfig.headroomLimitBytes() =
-          (kPgHeadroomLimitCells + queueId + deltaValue) * mmuCellByes;
+          (kPgHeadroomLimitCells + queueId + deltaValue) * mmuCellBytes;
     }
     pgConfig.minLimitBytes() =
-        (kPgMinLimitCells + queueId + deltaValue) * mmuCellByes;
+        (kPgMinLimitCells + queueId + deltaValue) * mmuCellBytes;
     pgConfig.resumeOffsetBytes() =
-        (kPgResumeOffsetCells + queueId + deltaValue) * mmuCellByes;
+        (kPgResumeOffsetCells + queueId + deltaValue) * mmuCellBytes;
     pgConfig.scalingFactor() = cfg::MMUScalingFactor::EIGHT;
     pgConfig.bufferPoolName() = kBufferPoolName;
     portPgConfigs.emplace_back(pgConfig);
@@ -92,10 +93,11 @@ class BcmPortIngressBufferManagerTest : public BcmTest {
     std::map<std::string, cfg::BufferPoolConfig> bufferPoolCfgMap;
     cfg::BufferPoolConfig bufferPoolConfig;
     if (useLargeHwValues) {
-      bufferPoolConfig =
-          getBufferPoolHighDefaultConfig(getPlatform()->getMMUCellBytes());
+      bufferPoolConfig = getBufferPoolHighDefaultConfig(
+          getPlatform()->getAsic()->getPacketBufferUnitSize());
     } else {
-      bufferPoolConfig = getBufferPoolConfig(getPlatform()->getMMUCellBytes());
+      bufferPoolConfig = getBufferPoolConfig(
+          getPlatform()->getAsic()->getPacketBufferUnitSize());
     }
 
     bufferPoolCfgMap.insert(
@@ -106,7 +108,7 @@ class BcmPortIngressBufferManagerTest : public BcmTest {
   void setupPgBuffers(cfg::SwitchConfig& cfg, const bool enableHeadroom) {
     std::map<std::string, std::vector<cfg::PortPgConfig>> portPgConfigMap;
     portPgConfigMap["foo"] = getPortPgConfig(
-        getPlatform()->getMMUCellBytes(),
+        getPlatform()->getAsic()->getPacketBufferUnitSize(),
         {0, 1},
         0 /* delta value */,
         enableHeadroom);
@@ -183,78 +185,8 @@ class BcmPortIngressBufferManagerTest : public BcmTest {
     EXPECT_EQ(bcmPort->getProgrammedPfcStatusInPg(0), 0);
   }
 
-  // routine to validate if the SW and HW match for the PG cfg
-  void checkSwHwPgCfgMatch(bool pfcEnable = true) {
-    PortPgConfigs portPgsHw;
-
-    auto bcmPort = getHwSwitch()->getPortTable()->getBcmPort(
-        PortID(masterLogicalPortIds()[0]));
-
-    portPgsHw = bcmPort->getCurrentProgrammedPgSettings();
-    const auto bufferPoolHwPtr = bcmPort->getCurrentIngressPoolSettings();
-
-    auto swPort =
-        getProgrammedState()->getPort(PortID(masterLogicalPortIds()[0]));
-    auto swPgConfig = swPort->getPortPgConfigs();
-
-    EXPECT_EQ(swPort->getPortPgConfigs()->size(), portPgsHw.size());
-
-    int i = 0;
-    // both vectors are sorted to start with lowest pg id
-    for (const auto& pgConfig : std::as_const(*swPgConfig)) {
-      auto id = pgConfig->cref<switch_state_tags::id>()->cref();
-      EXPECT_EQ(id, portPgsHw[i]->getID());
-
-      cfg::MMUScalingFactor scalingFactor;
-      if (auto scalingFactorStr =
-              pgConfig->cref<switch_state_tags::scalingFactor>()) {
-        scalingFactor =
-            nameToEnum<cfg::MMUScalingFactor>(scalingFactorStr->cref());
-        EXPECT_EQ(scalingFactor, *portPgsHw[i]->getScalingFactor());
-      } else {
-        EXPECT_EQ(std::nullopt, portPgsHw[i]->getScalingFactor());
-      }
-      EXPECT_EQ(
-          pgConfig->cref<switch_state_tags::resumeOffsetBytes>()->cref(),
-          portPgsHw[i]->getResumeOffsetBytes().value());
-      EXPECT_EQ(
-          pgConfig->cref<switch_state_tags::minLimitBytes>()->cref(),
-          portPgsHw[i]->getMinLimitBytes());
-
-      int pgHeadroom = 0;
-      // for pgs with headroom, lossless mode + pfc should be enabled
-      if (auto pgHdrmOpt =
-              pgConfig->cref<switch_state_tags::headroomLimitBytes>()) {
-        pgHeadroom = pgHdrmOpt->cref();
-      }
-      EXPECT_EQ(pgHeadroom, portPgsHw[i]->getHeadroomLimitBytes());
-      const auto bufferPool =
-          pgConfig->cref<switch_state_tags::bufferPoolConfig>();
-      EXPECT_EQ(
-          bufferPool->cref<switch_state_tags::sharedBytes>()->cref(),
-          (*bufferPoolHwPtr).getSharedBytes());
-      EXPECT_EQ(
-          bufferPool->cref<switch_state_tags::headroomBytes>()->cref(),
-          (*bufferPoolHwPtr).getHeadroomBytes());
-      // we are in lossless mode if headroom > 0, else lossless mode = 0
-      EXPECT_EQ(bcmPort->getProgrammedPgLosslessMode(id), pgHeadroom ? 1 : 0);
-      EXPECT_EQ(bcmPort->getProgrammedPfcStatusInPg(id), pfcEnable ? 1 : 0);
-      i++;
-    }
-  }
   cfg::SwitchConfig cfg_;
 };
-
-// Create PG config, associate with PFC config
-// validate that SDK programming is as per the cfg
-// Read back from HW (using SDK calls) and validate
-TEST_F(BcmPortIngressBufferManagerTest, validateConfig) {
-  auto setup = [=]() { setupHelper(); };
-
-  auto verify = [&]() { checkSwHwPgCfgMatch(); };
-
-  verifyAcrossWarmBoots(setup, verify);
-}
 
 // Create PG config, associate with PFC config and reset it
 // Ensure that its getting reset to the defaults in HW as expected
@@ -273,59 +205,24 @@ TEST_F(BcmPortIngressBufferManagerTest, validateConfigReset) {
   verifyAcrossWarmBoots(setup, verify);
 }
 
-// Create PG, Ingress pool config, associate with PFC config
-// Modify the ingress pool params onlyand ensure that its getting re-programmed
-TEST_F(BcmPortIngressBufferManagerTest, validateIngressPoolParamChange) {
-  auto setup = [&]() {
-    setupHelper();
-    // setup bufferPool
-    std::map<std::string, cfg::BufferPoolConfig> bufferPoolCfgMap;
-    bufferPoolCfgMap.insert(make_pair(
-        static_cast<std::string>(kBufferPoolName),
-        getBufferPoolConfig(getPlatform()->getMMUCellBytes(), 1)));
-    cfg_.bufferPoolConfigs() = bufferPoolCfgMap;
-    // update one PG, and see ifs reflected in the HW
-    applyNewConfig(cfg_);
-  };
-
-  auto verify = [&]() { checkSwHwPgCfgMatch(); };
-
-  verifyAcrossWarmBoots(setup, verify);
-}
-
-// Create PG config, associate with PFC config
-// Modify the PG config params and ensure that its getting re-programmed
-TEST_F(BcmPortIngressBufferManagerTest, validatePGParamChange) {
-  auto setup = [&]() {
-    setupHelper();
-    // update one PG, and see ifs reflected in the HW
-    std::map<std::string, std::vector<cfg::PortPgConfig>> portPgConfigMap;
-    portPgConfigMap["foo"] =
-        getPortPgConfig(getPlatform()->getMMUCellBytes(), {0, 1}, 1);
-    cfg_.portPgConfigs() = portPgConfigMap;
-    applyNewConfig(cfg_);
-  };
-
-  auto verify = [&]() { checkSwHwPgCfgMatch(); };
-
-  verifyAcrossWarmBoots(setup, verify);
-}
-
-// Create PG config, associate with PFC config
-// Modify the PG queue config params and ensure that its getting re-programmed
+// Create PG config, associate with PFC config. Modify the PG queue
+// config params and ensure that its getting re-programmed.
 TEST_F(BcmPortIngressBufferManagerTest, validatePGQueueChanges) {
   auto setup = [&]() {
     setupHelper();
     // update one PG, and see ifs reflected in the HW
     std::map<std::string, std::vector<cfg::PortPgConfig>> portPgConfigMap;
-    portPgConfigMap["foo"] =
-        getPortPgConfig(getPlatform()->getMMUCellBytes(), {1});
+    portPgConfigMap["foo"] = getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(), {1});
     cfg_.portPgConfigs() = portPgConfigMap;
     applyNewConfig(cfg_);
   };
 
   auto verify = [&]() {
-    checkSwHwPgCfgMatch();
+    utility::checkSwHwPgCfgMatch(
+        getHwSwitch(),
+        getProgrammedState()->getPort(PortID(masterLogicalPortIds()[0])),
+        true /*pfcEnable*/);
     // retrive the PG list thats explicitly programmed
     auto bcmPort = getHwSwitch()->getPortTable()->getBcmPort(
         PortID(masterLogicalPortIds()[0]));
@@ -334,41 +231,6 @@ TEST_F(BcmPortIngressBufferManagerTest, validatePGQueueChanges) {
     EXPECT_EQ(pgList, pgIdSetExpected);
   };
 
-  verifyAcrossWarmBoots(setup, verify);
-}
-
-// Create PG config, associate with PFC config
-// do not create the headroom cfg, PGs should be in lossy mode now
-// validate that SDK programming is as per the cfg
-TEST_F(BcmPortIngressBufferManagerTest, validateLossyMode) {
-  auto setup = [&]() { setupHelper(false /* enable headroom */); };
-
-  auto verify = [&]() { checkSwHwPgCfgMatch(); };
-
-  verifyAcrossWarmBoots(setup, verify);
-}
-
-// validate the Pg's pfc mode bit
-// by default we have been enabling PFC on the port and hence
-// on every PG. Force the port to have no PFC
-// Validate that Pg's pfc mode is False now
-TEST_F(BcmPortIngressBufferManagerTest, validatePgNoPfc) {
-  auto setup = [&]() {
-    setupHelper(true /* enable headroom */, false /* pfc */);
-  };
-  auto verify = [&]() { checkSwHwPgCfgMatch(false /* pfc*/); };
-
-  verifyAcrossWarmBoots(setup, verify);
-}
-
-// validate that if we program the global buffer with high values
-// we don't throw any errors programming
-// we saw this issue, when we try programming higher values and logic
-// has been added to program whaever buffer value is lower than
-// programmed first to workaround the sdk error
-TEST_F(BcmPortIngressBufferManagerTest, validateHighBufferValues) {
-  auto setup = [&]() { setupHelperWithHighBufferValues(); };
-  auto verify = [&]() { checkSwHwPgCfgMatch(); };
   verifyAcrossWarmBoots(setup, verify);
 }
 

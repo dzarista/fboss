@@ -19,6 +19,7 @@ add_library(fboss_init
 
 target_link_libraries(fboss_init
   Folly::folly
+  fboss_common_cpp2
 )
 
 # TODO (rsunkad) re-enable this library for use with linking with libmain
@@ -169,7 +170,7 @@ target_link_libraries(core
   capture
   diag_cmd_filter
   hardware_stats_cpp2
-  hw_switch_stats
+  hw_switch_fb303_stats
   switch_asics
   ctrl_cpp2
   fboss_cpp2
@@ -266,7 +267,7 @@ target_link_libraries(hw_switch
   fboss_cpp2
   Folly::folly
   platform_base
-  hw_switch_stats
+  hw_switch_fb303_stats
 )
 
 add_library(async_logger

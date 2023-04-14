@@ -38,7 +38,7 @@ class StateDelta;
 class RxPacket;
 class TxPacket;
 class L2Entry;
-class HwSwitchStats;
+class HwSwitchFb303Stats;
 
 enum class L2EntryUpdateType : uint8_t;
 
@@ -163,7 +163,9 @@ class HwSwitch {
       std::optional<int64_t> switchId = std::nullopt) {
     switchType_ = switchType;
     switchId_ = switchId;
-    return initImpl(callback, failHwCallsOnWarmboot, switchType, switchId);
+    auto ret = initImpl(callback, failHwCallsOnWarmboot, switchType, switchId);
+    setProgrammedState(ret.switchState);
+    return ret;
   }
 
   cfg::SwitchType getSwitchType() const {
@@ -194,7 +196,10 @@ class HwSwitch {
       const StateDelta& delta) = 0;
 
   virtual std::shared_ptr<SwitchState> stateChangedTransaction(
-      const StateDelta& delta) = 0;
+      const StateDelta& delta);
+  virtual void rollback(
+      const std::shared_ptr<SwitchState>& knownGoodState) noexcept;
+
   virtual bool transactionsSupported() const {
     return false;
   }
@@ -383,13 +388,20 @@ class HwSwitch {
       const std::vector<HwObjectType>& types,
       bool cached) const = 0;
 
-  HwSwitchStats* getSwitchStats() const;
+  HwSwitchFb303Stats* getSwitchStats() const;
 
   uint32_t generateDeterministicSeed(LoadBalancerID loadBalancerID);
 
   virtual uint32_t generateDeterministicSeed(
       LoadBalancerID loadBalancerID,
       folly::MacAddress mac) const = 0;
+
+  std::shared_ptr<SwitchState> getProgrammedState() const;
+  fsdb::OperDelta stateChanged(const fsdb::OperDelta& delta);
+  fsdb::OperDelta stateChangedTransaction(const fsdb::OperDelta& delta);
+
+ protected:
+  void setProgrammedState(const std::shared_ptr<SwitchState>& state);
 
  private:
   virtual HwInitResult initImpl(
@@ -414,9 +426,11 @@ class HwSwitch {
   // mutable to allow for lazy init from getter. This is needed to
   // create the var in the thread local storage (TLS) of the calling
   // thread and cannot be created up front.
-  mutable folly::ThreadLocalPtr<HwSwitchStats> hwSwitchStats_;
+  mutable folly::ThreadLocalPtr<HwSwitchFb303Stats> hwSwitchStats_;
   cfg::SwitchType switchType_{cfg::SwitchType::NPU};
   std::optional<int64_t> switchId_;
+
+  folly::Synchronized<std::shared_ptr<SwitchState>> programmedState_;
 };
 
 } // namespace facebook::fboss

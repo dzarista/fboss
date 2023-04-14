@@ -424,10 +424,17 @@ void getQsfpFieldAddress(
   length = info.length;
 }
 
+uint8_t laneMask(uint8_t startLane, uint8_t numLanes) {
+  return ((1 << numLanes) - 1) << startLane;
+}
+
 std::optional<CmisModule::ApplicationAdvertisingField>
-CmisModule::getApplicationField(uint8_t application) const {
+CmisModule::getApplicationField(uint8_t application, uint8_t startHostLane)
+    const {
   for (const auto& capability : moduleCapabilities_) {
-    if (capability.moduleMediaInterface == application) {
+    if (capability.moduleMediaInterface == application &&
+        capability.hostStartLanes.find(startHostLane) !=
+            capability.hostStartLanes.end()) {
       return capability;
     }
   }
@@ -815,32 +822,62 @@ bool CmisModule::getHostLaneSettings(
   return true;
 }
 
-unsigned int CmisModule::numHostLanes() const {
+// Returns the currently configured mediaInterfaceCode on a host lane
+uint8_t CmisModule::currentConfiguredMediaInterfaceCode(
+    uint8_t hostLane) const {
   auto mediaTypeEncoding = getMediaTypeEncoding();
   uint8_t application = 0;
   if (mediaTypeEncoding == MediaTypeEncodings::OPTICAL_SMF) {
-    application = static_cast<uint8_t>(getSmfMediaInterface());
+    application = static_cast<uint8_t>(getSmfMediaInterface(hostLane));
   } else if (mediaTypeEncoding == MediaTypeEncodings::PASSIVE_CU) {
     application = static_cast<uint8_t>(PassiveCuMediaInterfaceCode::COPPER);
   }
-  if (auto capability = getApplicationField(application)) {
-    return capability->hostLaneCount;
+  return application;
+}
+
+// Returns the list of host lanes configured in the same datapath as the
+// provided hostLane
+std::vector<uint8_t> CmisModule::configuredHostLanes(uint8_t hostLane) const {
+  std::vector<uint8_t> cfgLanes;
+  auto currentMediaInterface = currentConfiguredMediaInterfaceCode(hostLane);
+  if (auto applicationAdvertisingField =
+          getApplicationField(currentMediaInterface, hostLane)) {
+    for (uint8_t lane = hostLane;
+         lane < hostLane + applicationAdvertisingField->hostLaneCount;
+         lane++) {
+      cfgLanes.push_back(lane);
+    }
   }
-  return 4;
+  return cfgLanes;
+}
+
+// Returns the list of media lanes configured in the same datapath as the
+// provided hostLane
+std::vector<uint8_t> CmisModule::configuredMediaLanes(uint8_t hostLane) const {
+  std::vector<uint8_t> cfgLanes;
+  auto currentMediaInterface = currentConfiguredMediaInterfaceCode(hostLane);
+  if (auto applicationAdvertisingField =
+          getApplicationField(currentMediaInterface, hostLane)) {
+    // Assumes startMediaLane = hostLane
+    for (uint8_t start = hostLane;
+         start < hostLane + applicationAdvertisingField->mediaLaneCount;
+         start++) {
+      cfgLanes.push_back(start);
+    }
+  }
+  return cfgLanes;
+}
+
+unsigned int CmisModule::numHostLanes() const {
+  // For now assume only lane 0 is configured. This needs to be changed to
+  // account for multiple ports
+  return configuredHostLanes(0).size();
 }
 
 unsigned int CmisModule::numMediaLanes() const {
-  auto mediaTypeEncoding = getMediaTypeEncoding();
-  uint8_t application = 0;
-  if (mediaTypeEncoding == MediaTypeEncodings::OPTICAL_SMF) {
-    application = static_cast<uint8_t>(getSmfMediaInterface());
-  } else if (mediaTypeEncoding == MediaTypeEncodings::PASSIVE_CU) {
-    application = static_cast<uint8_t>(PassiveCuMediaInterfaceCode::COPPER);
-  }
-  if (auto capability = getApplicationField(application)) {
-    return capability->mediaLaneCount;
-  }
-  return 4;
+  // For now assume only lane 0 is configured. This needs to be changed to
+  // account for multiple ports
+  return configuredMediaLanes(0).size();
 }
 
 SMFMediaInterfaceCode CmisModule::getSmfMediaInterface(uint8_t lane) const {
@@ -1768,7 +1805,8 @@ void CmisModule::setApplicationCodeLocked(
       return;
     }
 
-    auto capability = getApplicationField(static_cast<uint8_t>(application));
+    auto capability =
+        getApplicationField(static_cast<uint8_t>(application), startHostLane);
 
     // Check if the module supports the application
     if (!capability) {
@@ -1776,7 +1814,7 @@ void CmisModule::setApplicationCodeLocked(
     }
 
     auto hostLanes = capability->hostLaneCount;
-    uint8_t hostLaneMask = (1 << hostLanes) - 1;
+    uint8_t hostLaneMask = laneMask(startHostLane, hostLanes);
 
     auto setApplicationSelectCode =
         [this, &capability, startHostLane, hostLanes, hostLaneMask]() {
@@ -1791,12 +1829,24 @@ void CmisModule::setApplicationCodeLocked(
           // We can't use numHostLanes() to get the hostLaneCount here since
           // that function relies on the configured application select but at
           // this point appSel hasn't been updated.
+          uint8_t applySet0 = hostLaneMask;
 
-          for (int channel = startHostLane; channel < hostLanes; channel++) {
+          // First release the lanes if they are already part of any datapath
+          for (int channel = startHostLane; channel < startHostLane + hostLanes;
+               channel++) {
+            uint8_t zeroApSelCode = 0;
+            // Assign ApSel code of 0 to each lane to indicate that the lane is
+            // not part of any datapath
+            writeCmisField(laneToAppSelField[channel], &zeroApSelCode);
+          }
+          writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySet0);
+
+          // Now assign the correct ApSel code to all relevant lanes
+          for (int channel = startHostLane; channel < startHostLane + hostLanes;
+               channel++) {
             // Assign ApSel code to each lane
             writeCmisField(laneToAppSelField[channel], &newApSelCode);
           }
-          uint8_t applySet0 = hostLaneMask << startHostLane;
 
           writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySet0);
 
@@ -1810,7 +1860,7 @@ void CmisModule::setApplicationCodeLocked(
     resetDataPathWithFunc(setApplicationSelectCode, hostLaneMask);
 
     // Check if the config has been applied correctly or not
-    if (!checkLaneConfigError()) {
+    if (!checkLaneConfigError(startHostLane, hostLanes)) {
       QSFP_LOG(ERR, this) << folly::sformat(
           "application {:#x} could not be set",
           capability->moduleMediaInterface);
@@ -1832,7 +1882,9 @@ void CmisModule::setApplicationCodeLocked(
  * rejected. This function should be run after ApSel setting or any other
  * lane configuration like Rx Equalizer setting etc
  */
-bool CmisModule::checkLaneConfigError() {
+bool CmisModule::checkLaneConfigError(
+    uint8_t startHostLane,
+    uint8_t hostLaneCount) {
   bool success;
 
   uint8_t configErrors[4];
@@ -1847,7 +1899,8 @@ bool CmisModule::checkLaneConfigError() {
     bool allStatusAvailable = true;
     success = true;
 
-    for (int channel = 0; channel < numHostLanes(); channel++) {
+    for (int channel = startHostLane; channel < startHostLane + hostLaneCount;
+         channel++) {
       uint8_t byte = channel / 2;
       uint8_t cfgErr = configErrors[byte] >> ((channel % 2) * 4);
       cfgErr &= 0x0f;
@@ -2078,16 +2131,24 @@ bool CmisModule::ensureTransceiverReadyLocked() {
  * is done only if current serdes setting is different from desired one and if
  * the setting is specified in the qsfp config
  */
-void CmisModule::configureModule() {
+void CmisModule::configureModule(uint8_t startHostLane) {
   if (getMediaTypeEncoding() == MediaTypeEncodings::PASSIVE_CU) {
     // Nothing to configure for passive copper modules
     return;
   }
 
-  auto appCode = getSmfMediaInterface();
+  auto appCode = getSmfMediaInterface(startHostLane);
+  auto capability =
+      getApplicationField(static_cast<uint8_t>(appCode), startHostLane);
 
+  if (!capability) {
+    QSFP_LOG(ERR, this) << "can't find the application capability for "
+                        << apache::thrift::util::enumNameSafe(appCode);
+    return;
+  }
   QSFP_LOG(INFO, this) << "configureModule for application "
-                       << apache::thrift::util::enumNameSafe(appCode);
+                       << apache::thrift::util::enumNameSafe(appCode)
+                       << " starting on host lane " << startHostLane;
 
   if (!getTransceiverManager()->getQsfpConfig()) {
     QSFP_LOG(ERR, this) << "qsfpConfig is NULL, skipping module configuration";
@@ -2110,7 +2171,8 @@ void CmisModule::configureModule() {
       // Check if this override factor requires overriding RxEqualizerSettings
       if (auto rxEqSetting =
               cmisRxEqualizerSettingOverride(*override.config())) {
-        setModuleRxEqualizerLocked(*rxEqSetting);
+        setModuleRxEqualizerLocked(
+            *rxEqSetting, startHostLane, capability->hostLaneCount);
         return;
       }
     }
@@ -2159,13 +2221,17 @@ MediaInterfaceCode CmisModule::getModuleMediaInterface() {
  * 5. Write P10h, B145-152 bit 0 = 1 to use Staged Set 0 values
  * 6. Write P10h, B144 = 0xFF to apply stage 0 control value immediately
  */
-void CmisModule::setModuleRxEqualizerLocked(RxEqualizerSettings rxEqualizer) {
+void CmisModule::setModuleRxEqualizerLocked(
+    RxEqualizerSettings rxEqualizer,
+    uint8_t startHostLane,
+    uint8_t hostLaneCount) {
   uint8_t currPre[4], currPost[4], currMain[4];
   uint8_t desiredPre[4], desiredPost[4], desiredMain[4];
   bool changePre = false, changePost = false, changeMain = false;
-  uint8_t numLanes = numHostLanes();
 
-  QSFP_LOG(INFO, this) << "setModuleRxEqualizerLocked called";
+  QSFP_LOG(INFO, this) << "setModuleRxEqualizerLocked called with startLane = "
+                       << startHostLane
+                       << ", hostLaneCount = " << hostLaneCount;
 
   for (int i = 0; i < 4; i++) {
     desiredPre[i] = ((*rxEqualizer.preCursor() & 0xf) << 4) |
@@ -2176,13 +2242,14 @@ void CmisModule::setModuleRxEqualizerLocked(RxEqualizerSettings rxEqualizer) {
         (*rxEqualizer.mainAmplitude() & 0xf);
   }
 
-  auto compareSettings = [numLanes](
+  auto compareSettings = [startHostLane, hostLaneCount](
                              uint8_t currSettings[],
                              uint8_t desiredSettings[],
                              int length,
                              bool& changeNeeded) {
     // Two lanes share the same byte so loop only until numLanes / 2
-    for (auto i = 0; i <= (numLanes - 1) / 2; i++) {
+    for (auto i = startHostLane; i <= (startHostLane + hostLaneCount - 1) / 2;
+         i++) {
       if (i < length && currSettings[i] != desiredSettings[i]) {
         // Some of the pre-cursor value needs to be changed so break from
         // here
@@ -2238,18 +2305,18 @@ void CmisModule::setModuleRxEqualizerLocked(RxEqualizerSettings rxEqualizer) {
     // Apply the change using stage 0 control
     uint8_t stage0Control[8];
     readCmisField(CmisField::APP_SEL_ALL_LANES, stage0Control);
-    for (int i = 0; i < numLanes; i++) {
+    for (int i = startHostLane; i < startHostLane + hostLaneCount; i++) {
       stage0Control[i] |= 1;
       writeCmisField(
           laneToAppSelField[i], stage0Control, true /* skipPageChange */);
     }
 
     // Trigger the stage 0 control values to be operational in optics
-    uint8_t stage0ControlTrigger = (1 << numLanes) - 1;
+    uint8_t stage0ControlTrigger = laneMask(startHostLane, hostLaneCount);
     writeCmisField(CmisField::STAGE_CTRL_SET0_IMMEDIATE, &stage0ControlTrigger);
 
     // Check if the config has been applied correctly or not
-    if (!checkLaneConfigError()) {
+    if (!checkLaneConfigError(startHostLane, hostLaneCount)) {
       QSFP_LOG(ERR, this) << "customization config rejected";
     }
   }

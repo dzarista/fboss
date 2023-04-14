@@ -35,6 +35,7 @@ set(SAI_SWITCH_SRC
   fboss/agent/hw/sai/switch/SaiSwitchManager.cpp
   fboss/agent/hw/sai/switch/SaiSystemPortManager.cpp
   fboss/agent/hw/sai/switch/SaiTunnelManager.cpp
+  fboss/agent/hw/sai/switch/SaiUdfManager.cpp
   fboss/agent/hw/sai/switch/SaiVlanManager.cpp
   fboss/agent/hw/sai/switch/SaiVirtualRouterManager.cpp
   fboss/agent/hw/sai/switch/SaiWredManager.cpp
@@ -78,7 +79,7 @@ target_link_libraries(sai_switch
   # allow unresolved-symbols here.
   -Wl,--unresolved-symbols=ignore-all
   core
-  hw_switch_stats
+  hw_switch_fb303_stats
   hw_trunk_counters
   hw_fb303_stats
   hw_cpu_fb303_stats

@@ -18,6 +18,7 @@ DECLARE_bool(tun_intf);
 DECLARE_string(volatile_state_dir);
 DECLARE_bool(setup_for_warmboot);
 DECLARE_string(config);
+DECLARE_bool(disable_neighbor_updates);
 
 namespace facebook::fboss {
 
@@ -106,7 +107,7 @@ class LinkTest : public AgentTest {
 
   void setCmdLineFlagOverrides() const override;
 
-  void restartQsfpService() const;
+  void restartQsfpService(bool coldboot) const;
 
   void TearDown() override;
 

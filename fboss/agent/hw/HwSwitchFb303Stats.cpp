@@ -8,7 +8,7 @@
  *
  */
 
-#include "fboss/agent/hw/HwSwitchStats.h"
+#include "fboss/agent/hw/HwSwitchFb303Stats.h"
 
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/lib/CommonUtils.h"
@@ -18,7 +18,7 @@ using facebook::fb303::SUM;
 
 namespace facebook::fboss {
 
-HwSwitchStats::HwSwitchStats(
+HwSwitchFb303Stats::HwSwitchFb303Stats(
     ThreadLocalStatsMap* map,
     const std::string& vendor)
     : txPktAlloc_(
@@ -76,9 +76,28 @@ HwSwitchStats::HwSwitchStats(
           map,
           SwitchStats::kCounterPrefix + vendor + ".asic.error",
           SUM,
+          RATE),
+      globalDrops_(
+          map,
+          SwitchStats::kCounterPrefix + "global_drops",
+          SUM,
+          RATE),
+      globalReachDrops_(
+          map,
+          SwitchStats::kCounterPrefix + "global_reachability_drops",
+          SUM,
           RATE) {}
 
-HwAsicErrors HwSwitchStats::getHwAsicErrors() const {
+void HwSwitchFb303Stats::update(const HwSwitchDropStats& dropStats) {
+  if (dropStats.globalDrops().has_value()) {
+    globalDrops_.addValue(*dropStats.globalDrops());
+  }
+  if (dropStats.globalReachabilityDrops().has_value()) {
+    globalReachDrops_.addValue(*dropStats.globalReachabilityDrops());
+  }
+}
+
+HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   HwAsicErrors asicErrors;
   asicErrors.parityErrors() = getCumulativeValue(parityErrors_);
   asicErrors.correctedParityErrors() = getCumulativeValue(corrParityErrors_);

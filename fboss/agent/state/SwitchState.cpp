@@ -94,6 +94,29 @@ DEFINE_bool(
 
 namespace facebook::fboss {
 
+template <typename MultiMapName, typename Map>
+void SwitchState::resetDefaultMap(std::shared_ptr<Map> map) {
+  const auto& matcher = HwSwitchMatcher::defaultHwSwitchMatcherKey();
+  auto multiMap = cref<MultiMapName>()->clone();
+  if (!multiMap->getNodeIf(matcher)) {
+    multiMap->addNode(matcher, map);
+  } else {
+    multiMap->updateNode(matcher, map);
+  }
+  ref<MultiMapName>() = multiMap;
+}
+
+template <typename MultiMapName, typename Map>
+const std::shared_ptr<Map>& SwitchState::getDefaultMap() const {
+  return cref<MultiMapName>()->cref(
+      HwSwitchMatcher::defaultHwSwitchMatcherKey());
+}
+
+template <typename MultiMapName, typename Map>
+std::shared_ptr<Map>& SwitchState::getDefaultMap() {
+  return ref<MultiMapName>()->ref(HwSwitchMatcher::defaultHwSwitchMatcherKey());
+}
+
 SwitchState::SwitchState() {
   set<switch_state_tags::dhcpV4RelaySrc>(
       network::toBinaryAddress(folly::IPAddress("0.0.0.0")));
@@ -110,6 +133,20 @@ SwitchState::SwitchState() {
   resetMirrors(std::make_shared<MirrorMap>());
   resetForwardingInformationBases(
       std::make_shared<ForwardingInformationBaseMap>());
+  resetSflowCollectors(std::make_shared<SflowCollectorMap>());
+  resetLabelForwardingInformationBase(
+      std::make_shared<LabelForwardingInformationBase>());
+  resetQosPolicies(std::make_shared<QosPolicyMap>());
+  resetTunnels(std::make_shared<IpTunnelMap>());
+  resetTeFlowTable(std::make_shared<TeFlowTable>());
+  resetAggregatePorts(std::make_shared<AggregatePortMap>());
+  resetLoadBalancers(std::make_shared<LoadBalancerMap>());
+  resetTransceivers(std::make_shared<TransceiverMap>());
+  resetBufferPoolCfgs(std::make_shared<BufferPoolCfgMap>());
+  resetVlans(std::make_shared<VlanMap>());
+  resetPorts(std::make_shared<PortMap>());
+  resetIntfs(std::make_shared<InterfaceMap>());
+  resetAclTableGroups(std::make_shared<AclTableGroupMap>());
 }
 
 SwitchState::~SwitchState() {}
@@ -129,44 +166,57 @@ void SwitchState::registerPort(
     PortID id,
     const std::string& name,
     cfg::PortType portType) {
-  ref<switch_state_tags::portMap>()->registerPort(id, name, portType);
+  getDefaultMap<switch_state_tags::portMaps>()->registerPort(
+      id, name, portType);
 }
 
 void SwitchState::addPort(const std::shared_ptr<Port>& port) {
-  ref<switch_state_tags::portMap>()->addPort(port);
+  getDefaultMap<switch_state_tags::portMaps>()->addPort(port);
 }
 
 void SwitchState::resetPorts(std::shared_ptr<PortMap> ports) {
-  ref<switch_state_tags::portMap>() = ports;
+  resetDefaultMap<switch_state_tags::portMaps>(ports);
+}
+
+const std::shared_ptr<PortMap>& SwitchState::getPorts() const {
+  return getDefaultMap<switch_state_tags::portMaps>();
 }
 
 void SwitchState::resetVlans(std::shared_ptr<VlanMap> vlans) {
-  ref<switch_state_tags::vlanMap>() = vlans;
+  resetDefaultMap<switch_state_tags::vlanMaps>(vlans);
+}
+
+const std::shared_ptr<VlanMap>& SwitchState::getVlans() const {
+  return getDefaultMap<switch_state_tags::vlanMaps>();
 }
 
 void SwitchState::addVlan(const std::shared_ptr<Vlan>& vlan) {
-  if (cref<switch_state_tags::vlanMap>()->isPublished()) {
+  if (getVlans()->isPublished()) {
     // For ease-of-use, automatically clone the VlanMap if we are still
     // pointing to a published map.
-    auto vlans = cref<switch_state_tags::vlanMap>()->clone();
+    auto vlans = getVlans()->clone();
 
-    ref<switch_state_tags::vlanMap>() = vlans;
+    resetVlans(vlans);
   }
-  ref<switch_state_tags::vlanMap>()->addVlan(vlan);
+  getDefaultMap<switch_state_tags::vlanMaps>()->addVlan(vlan);
 }
 
 void SwitchState::addIntf(const std::shared_ptr<Interface>& intf) {
-  if (cref<switch_state_tags::interfaceMap>()->isPublished()) {
+  if (getInterfaces()->isPublished()) {
     // For ease-of-use, automatically clone the InterfaceMap if we are still
     // pointing to a published map.
-    auto intfs = cref<switch_state_tags::interfaceMap>()->clone();
-    ref<switch_state_tags::interfaceMap>() = intfs;
+    auto intfs = getInterfaces()->clone();
+    resetIntfs(intfs);
   }
-  ref<switch_state_tags::interfaceMap>()->addInterface(intf);
+  getDefaultMap<switch_state_tags::interfaceMaps>()->addInterface(intf);
 }
 
 void SwitchState::resetIntfs(std::shared_ptr<InterfaceMap> intfs) {
-  ref<switch_state_tags::interfaceMap>() = intfs;
+  resetDefaultMap<switch_state_tags::interfaceMaps>(intfs);
+}
+
+const std::shared_ptr<InterfaceMap>& SwitchState::getInterfaces() const {
+  return getDefaultMap<switch_state_tags::interfaceMaps>();
 }
 
 void SwitchState::resetRemoteIntfs(std::shared_ptr<InterfaceMap> intfs) {
@@ -198,21 +248,39 @@ void SwitchState::resetAcls(std::shared_ptr<AclMap> acls) {
 
 void SwitchState::resetAclTableGroups(
     std::shared_ptr<AclTableGroupMap> aclTableGroups) {
-  ref<switch_state_tags::aclTableGroupMap>() = aclTableGroups;
+  resetDefaultMap<switch_state_tags::aclTableGroupMaps>(aclTableGroups);
+}
+
+const std::shared_ptr<AclTableGroupMap>& SwitchState::getAclTableGroups()
+    const {
+  return getDefaultMap<switch_state_tags::aclTableGroupMaps>();
 }
 
 void SwitchState::resetAggregatePorts(
     std::shared_ptr<AggregatePortMap> aggPorts) {
-  ref<switch_state_tags::aggregatePortMap>() = aggPorts;
+  resetDefaultMap<switch_state_tags::aggregatePortMaps>(aggPorts);
+}
+
+const std::shared_ptr<AggregatePortMap>& SwitchState::getAggregatePorts()
+    const {
+  return getDefaultMap<switch_state_tags::aggregatePortMaps>();
 }
 
 void SwitchState::resetSflowCollectors(
-    const std::shared_ptr<SflowCollectorMap>& collectors) {
-  ref<switch_state_tags::sflowCollectorMap>() = collectors;
+    const std::shared_ptr<SflowCollectorMap>& sflowCollectors) {
+  resetDefaultMap<switch_state_tags::sflowCollectorMaps>(sflowCollectors);
 }
 
-void SwitchState::resetQosPolicies(std::shared_ptr<QosPolicyMap> qosPolicies) {
-  ref<switch_state_tags::qosPolicyMap>() = qosPolicies;
+void SwitchState::resetQosPolicies(
+    const std::shared_ptr<QosPolicyMap>& qosPolicies) {
+  const auto& matcher = HwSwitchMatcher::defaultHwSwitchMatcherKey();
+  auto qosPolicyMaps = cref<switch_state_tags::qosPolicyMaps>()->clone();
+  if (!qosPolicyMaps->getNodeIf(matcher)) {
+    qosPolicyMaps->addNode(matcher, qosPolicies);
+  } else {
+    qosPolicyMaps->updateNode(matcher, qosPolicies);
+  }
+  ref<switch_state_tags::qosPolicyMaps>() = qosPolicyMaps;
 }
 
 void SwitchState::resetControlPlane(
@@ -222,7 +290,7 @@ void SwitchState::resetControlPlane(
 
 void SwitchState::resetLoadBalancers(
     std::shared_ptr<LoadBalancerMap> loadBalancers) {
-  ref<switch_state_tags::loadBalancerMap>() = loadBalancers;
+  resetDefaultMap<switch_state_tags::loadBalancerMaps>(loadBalancers);
 }
 
 void SwitchState::resetSwitchSettings(
@@ -231,66 +299,74 @@ void SwitchState::resetSwitchSettings(
 }
 
 void SwitchState::resetBufferPoolCfgs(std::shared_ptr<BufferPoolCfgMap> cfgs) {
-  ref<switch_state_tags::bufferPoolCfgMap>() = cfgs;
+  resetDefaultMap<switch_state_tags::bufferPoolCfgMaps>(cfgs);
+}
+
+const std::shared_ptr<BufferPoolCfgMap> SwitchState::getBufferPoolCfgs() const {
+  return getDefaultMap<switch_state_tags::bufferPoolCfgMaps>();
 }
 
 const std::shared_ptr<LoadBalancerMap>& SwitchState::getLoadBalancers() const {
-  return cref<switch_state_tags::loadBalancerMap>();
+  return getDefaultMap<switch_state_tags::loadBalancerMaps>();
 }
 
 void SwitchState::resetMirrors(std::shared_ptr<MirrorMap> mirrors) {
-  const auto& matcher = HwSwitchMatcher::defaultHwSwitchMatcherKey();
-  auto mirrorMaps = cref<switch_state_tags::mirrorMaps>()->clone();
-  if (!mirrorMaps->getNodeIf(matcher)) {
-    mirrorMaps->addNode(matcher, mirrors);
-  } else {
-    mirrorMaps->updateNode(matcher, mirrors);
-  }
-  ref<switch_state_tags::mirrorMaps>() = mirrorMaps;
+  resetDefaultMap<switch_state_tags::mirrorMaps>(mirrors);
+}
+
+const std::shared_ptr<SflowCollectorMap>& SwitchState::getSflowCollectors()
+    const {
+  return getDefaultMap<switch_state_tags::sflowCollectorMaps>();
 }
 
 const std::shared_ptr<MirrorMap>& SwitchState::getMirrors() const {
-  return cref<switch_state_tags::mirrorMaps>()->cref(
+  return getDefaultMap<switch_state_tags::mirrorMaps>();
+}
+
+const std::shared_ptr<QosPolicyMap>& SwitchState::getQosPolicies() const {
+  return cref<switch_state_tags::qosPolicyMaps>()->cref(
       HwSwitchMatcher::defaultHwSwitchMatcherKey());
 }
 
 const std::shared_ptr<ForwardingInformationBaseMap>& SwitchState::getFibs()
     const {
-  return cref<switch_state_tags::fibsMap>()->cref(
-      HwSwitchMatcher::defaultHwSwitchMatcherKey());
+  return getDefaultMap<switch_state_tags::fibsMap>();
+}
+
+const std::shared_ptr<LabelForwardingInformationBase>&
+SwitchState::getLabelForwardingInformationBase() const {
+  return getDefaultMap<switch_state_tags::labelFibMap>();
 }
 
 void SwitchState::resetLabelForwardingInformationBase(
     std::shared_ptr<LabelForwardingInformationBase> labelFib) {
-  ref<switch_state_tags::labelFib>() = labelFib;
+  resetDefaultMap<switch_state_tags::labelFibMap>(labelFib);
 }
 
 void SwitchState::resetForwardingInformationBases(
     std::shared_ptr<ForwardingInformationBaseMap> fibs) {
-  const auto& matcher = HwSwitchMatcher::defaultHwSwitchMatcherKey();
-  auto fibsMap = cref<switch_state_tags::fibsMap>()->clone();
-  if (!fibsMap->getNodeIf(matcher)) {
-    fibsMap->addNode(matcher, fibs);
-  } else {
-    fibsMap->updateNode(matcher, fibs);
-  }
-  ref<switch_state_tags::fibsMap>() = fibsMap;
+  resetDefaultMap<switch_state_tags::fibsMap>(fibs);
 }
 
 void SwitchState::addTransceiver(
     const std::shared_ptr<TransceiverSpec>& transceiver) {
   // For ease-of-use, automatically clone the TransceiverMap if we are still
   // pointing to a published map.
-  if (cref<switch_state_tags::transceiverMap>()->isPublished()) {
-    auto xcvrs = cref<switch_state_tags::transceiverMap>()->clone();
-    ref<switch_state_tags::transceiverMap>() = xcvrs;
+  if (getTransceivers()->isPublished()) {
+    auto xcvrs = getTransceivers()->clone();
+    resetTransceivers(xcvrs);
   }
-  ref<switch_state_tags::transceiverMap>()->addTransceiver(transceiver);
+  getDefaultMap<switch_state_tags::transceiverMaps>()->addTransceiver(
+      transceiver);
 }
 
 void SwitchState::resetTransceivers(
     std::shared_ptr<TransceiverMap> transceivers) {
-  ref<switch_state_tags::transceiverMap>() = transceivers;
+  resetDefaultMap<switch_state_tags::transceiverMaps>(transceivers);
+}
+
+const std::shared_ptr<TransceiverMap>& SwitchState::getTransceivers() const {
+  return getDefaultMap<switch_state_tags::transceiverMaps>();
 }
 
 void SwitchState::addSystemPort(const std::shared_ptr<SystemPort>& systemPort) {
@@ -310,19 +386,27 @@ void SwitchState::resetSystemPorts(std::shared_ptr<SystemPortMap> systemPorts) {
 void SwitchState::addTunnel(const std::shared_ptr<IpTunnel>& tunnel) {
   // For ease-of-use, automatically clone the TunnelMap if we are still
   // pointing to a published map.
-  if (cref<switch_state_tags::ipTunnelMap>()->isPublished()) {
-    auto ipTunnelMap = cref<switch_state_tags::ipTunnelMap>()->clone();
-    ref<switch_state_tags::ipTunnelMap>() = ipTunnelMap;
+  if (getTunnels()->isPublished()) {
+    auto ipTunnelMap = getTunnels()->clone();
+    resetTunnels(ipTunnelMap);
   }
-  ref<switch_state_tags::ipTunnelMap>()->addTunnel(tunnel);
+  getDefaultMap<switch_state_tags::ipTunnelMaps>()->addTunnel(tunnel);
 }
 
 void SwitchState::resetTunnels(std::shared_ptr<IpTunnelMap> tunnels) {
-  ref<switch_state_tags::ipTunnelMap>() = tunnels;
+  resetDefaultMap<switch_state_tags::ipTunnelMaps>(tunnels);
+}
+
+const std::shared_ptr<IpTunnelMap>& SwitchState::getTunnels() const {
+  return getDefaultMap<switch_state_tags::ipTunnelMaps>();
 }
 
 void SwitchState::resetTeFlowTable(std::shared_ptr<TeFlowTable> flowTable) {
-  ref<switch_state_tags::teFlowTable>() = flowTable;
+  resetDefaultMap<switch_state_tags::teFlowTables>(flowTable);
+}
+
+const std::shared_ptr<TeFlowTable>& SwitchState::getTeFlowTable() const {
+  return getDefaultMap<switch_state_tags::teFlowTables>();
 }
 
 void SwitchState::resetDsfNodes(std::shared_ptr<DsfNodeMap> dsfNodes) {
@@ -441,6 +525,32 @@ void SwitchState::revertNewTeFlowEntry(
   }
 }
 
+/*
+ * if a multi map is empty or has no node for default key matcher or default key
+ * matcher is empty, populate it from corresponding map.
+ *
+ * if multi map has non empty and default key matcher map and corresponding map
+ * is not empty then confirm they are same.
+ */
+template <typename MultiMapName, typename MapName>
+void SwitchState::fromThrift() {
+  const auto& matcher = HwSwitchMatcher::defaultHwSwitchMatcherKey();
+  auto& map = this->ref<MapName>();
+  auto& multiMap = this->ref<MultiMapName>();
+  if (multiMap->empty() || !multiMap->getNodeIf(matcher)) {
+    multiMap->addNode(matcher, map->clone());
+  } else if (auto matchedNode = multiMap->getNodeIf(matcher)) {
+    if (matchedNode->empty()) {
+      multiMap->updateNode(matcher, map->clone());
+    } else if (!map->empty()) {
+      // THRIFT_COPY
+      CHECK(map->toThrift() == matchedNode->toThrift())
+          << "different default matcher maps exist in state";
+    }
+  }
+  map->fromThrift({});
+}
+
 std::unique_ptr<SwitchState> SwitchState::uniquePtrFromThrift(
     const state::SwitchState& switchState) {
   auto state = std::make_unique<SwitchState>();
@@ -459,28 +569,63 @@ std::unique_ptr<SwitchState> SwitchState::uniquePtrFromThrift(
       state->ref<switch_state_tags::aclMap>() =
           AclTableGroupMap::getDefaultAclTableGroupMap(*aclTableGroupMap);
       state->ref<switch_state_tags::aclTableGroupMap>()->clear();
+    } else if (
+        auto aclMap =
+            state->cref<switch_state_tags::aclTableGroupMaps>()->getAclMap()) {
+      state->ref<switch_state_tags::aclMap>() = aclMap;
+      // multi-acl table support is disabled, so clear the group map
+      state->cref<switch_state_tags::aclTableGroupMaps>()->clear();
     }
   }
   /* forward compatibility */
-  auto& mirrors = state->cref<switch_state_tags::mirrorMap>();
-  auto& multiMirrors = state->cref<switch_state_tags::mirrorMaps>();
-  if (multiMirrors->empty() || state->getMirrors()->empty()) {
+  auto& qosPolicyMap = state->cref<switch_state_tags::qosPolicyMap>();
+  auto& multiQosPolicyMap = state->cref<switch_state_tags::qosPolicyMaps>();
+  if (multiQosPolicyMap->empty() || state->getQosPolicies()->empty()) {
     // keep map for default npu
-    state->resetMirrors(mirrors);
+    state->resetQosPolicies(qosPolicyMap);
     // clear legacy mirror map
-    state->set<switch_state_tags::mirrorMap>(
-        std::map<std::string, state::MirrorFields>());
+    state->set<switch_state_tags::qosPolicyMap>(
+        std::map<std::string, state::QosPolicyFields>());
   }
-  auto& fibs = state->cref<switch_state_tags::fibs>();
-  auto& multiFibs = state->cref<switch_state_tags::fibsMap>();
-  if (multiFibs->empty() || state->getFibs()->empty()) {
-    // keep fib for default npu
-    state->resetForwardingInformationBases(fibs);
-    // clear legacy fibs
-    state->set<switch_state_tags::fibs>(
-        std::map<int16_t, state::FibContainerFields>());
+  state->fromThrift<
+      switch_state_tags::labelFibMap,
+      switch_state_tags::labelFib>();
+  state->fromThrift<
+      switch_state_tags::sflowCollectorMaps,
+      switch_state_tags::sflowCollectorMap>();
+  state->fromThrift<
+      switch_state_tags::mirrorMaps,
+      switch_state_tags::mirrorMap>();
+  state->fromThrift<switch_state_tags::fibsMap, switch_state_tags::fibs>();
+  state->fromThrift<
+      switch_state_tags::ipTunnelMaps,
+      switch_state_tags::ipTunnelMap>();
+  state->fromThrift<
+      switch_state_tags::teFlowTables,
+      switch_state_tags::teFlowTable>();
+  state->fromThrift<
+      switch_state_tags::aggregatePortMaps,
+      switch_state_tags::aggregatePortMap>();
+  state->fromThrift<
+      switch_state_tags::loadBalancerMaps,
+      switch_state_tags::loadBalancerMap>();
+  state->fromThrift<
+      switch_state_tags::transceiverMaps,
+      switch_state_tags::transceiverMap>();
+  state->fromThrift<
+      switch_state_tags::bufferPoolCfgMaps,
+      switch_state_tags::bufferPoolCfgMap>();
+  state->fromThrift<switch_state_tags::vlanMaps, switch_state_tags::vlanMap>();
+  state->fromThrift<switch_state_tags::portMaps, switch_state_tags::portMap>();
+  state->fromThrift<
+      switch_state_tags::interfaceMaps,
+      switch_state_tags::interfaceMap>();
+  if (switchState.aclTableGroupMap()) {
+    // set multi map if acl table group map exists
+    state->fromThrift<
+        switch_state_tags::aclTableGroupMaps,
+        switch_state_tags::aclTableGroupMap>();
   }
-
   return state;
 }
 
@@ -497,6 +642,19 @@ std::shared_ptr<SwitchState> SwitchState::fromThrift(
   auto uniqState = uniquePtrFromThrift(data);
   std::shared_ptr<SwitchState> state = std::move(uniqState);
   return state;
+}
+
+template <typename MultiMapType, typename ThriftType>
+std::optional<ThriftType> SwitchState::toThrift(
+    const std::shared_ptr<MultiMapType>& multiMap) const {
+  if (!multiMap || multiMap->empty()) {
+    return std::nullopt;
+  }
+  const auto& key = HwSwitchMatcher::defaultHwSwitchMatcherKey();
+  if (auto map = multiMap->getNodeIf(key)) {
+    return map->toThrift();
+  }
+  return std::nullopt;
 }
 
 state::SwitchState SwitchState::toThrift() const {
@@ -518,6 +676,11 @@ state::SwitchState SwitchState::toThrift() const {
         aclMap = aclMapPtr->toThrift();
       }
       aclTableGroupMap->clear();
+    } else if (
+        auto aclMapPtr =
+            cref<switch_state_tags::aclTableGroupMaps>()->getAclMap()) {
+      aclMap = aclMapPtr->toThrift();
+      data.aclTableGroupMaps()->clear();
     }
   }
   // Write defaultVlan to switchSettings and old fields for transition
@@ -611,18 +774,56 @@ state::SwitchState SwitchState::toThrift() const {
         data.flowletSwitchingConfig().value();
   }
   /* backward compatibility */
-  if (!cref<switch_state_tags::mirrorMaps>()->empty()) {
+  if (auto obj = toThrift(cref<switch_state_tags::mirrorMaps>())) {
+    data.mirrorMap() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::fibsMap>())) {
+    data.fibs() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::labelFibMap>())) {
+    data.labelFib() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::sflowCollectorMaps>())) {
+    data.sflowCollectorMap() = *obj;
+  }
+  if (!cref<switch_state_tags::qosPolicyMaps>()->empty()) {
     auto key = HwSwitchMatcher::defaultHwSwitchMatcherKey();
-    if (auto mirrors = cref<switch_state_tags::mirrorMaps>()->getNodeIf(key)) {
-      data.mirrorMap() = mirrors->toThrift();
+    if (auto qosPolicys =
+            cref<switch_state_tags::qosPolicyMaps>()->getNodeIf(key)) {
+      data.qosPolicyMap() = qosPolicys->toThrift();
     }
   }
-  if (!cref<switch_state_tags::fibsMap>()->empty()) {
-    auto key = HwSwitchMatcher::defaultHwSwitchMatcherKey();
-    if (auto fibs = cref<switch_state_tags::fibsMap>()->getNodeIf(key)) {
-      data.fibs() = fibs->toThrift();
-    }
+  if (auto obj = toThrift(cref<switch_state_tags::ipTunnelMaps>())) {
+    data.ipTunnelMap() = *obj;
   }
+  if (auto obj = toThrift(cref<switch_state_tags::teFlowTables>())) {
+    data.teFlowTable() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::aggregatePortMaps>())) {
+    data.aggregatePortMap() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::loadBalancerMaps>())) {
+    data.loadBalancerMap() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::transceiverMaps>())) {
+    data.transceiverMap() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::bufferPoolCfgMaps>())) {
+    data.bufferPoolCfgMap() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::vlanMaps>())) {
+    data.vlanMap() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::portMaps>())) {
+    data.portMap() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::interfaceMaps>())) {
+    data.interfaceMap() = *obj;
+  }
+  if (auto obj = toThrift(cref<switch_state_tags::aclTableGroupMaps>())) {
+    data.aclTableGroupMap() = *obj;
+  }
+
   return data;
 }
 

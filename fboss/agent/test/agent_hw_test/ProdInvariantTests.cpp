@@ -42,14 +42,12 @@ void ProdInvariantTest::setupAgentTestEcmp(
     ports.insert(ecmpPort);
   });
 
-  // When prod config is used, uplink's subnetIp should be used as the nextHop
-  // IP. Therefore, no offset should be added in the IP address.
-  utility::EcmpSetupTargetedPorts6 ecmp6(
-      sw()->getState(), /* forProdConfig */ useProdConfig_);
   sw()->updateStateBlocking("Resolve nhops", [&](auto state) {
+    utility::EcmpSetupTargetedPorts6 ecmp6(state);
     return ecmp6.resolveNextHops(state, ports);
   });
 
+  utility::EcmpSetupTargetedPorts6 ecmp6(sw()->getState());
   ecmp6.programRoutes(
       std::make_unique<SwSwitchRouteUpdateWrapper>(sw()->getRouteUpdater()),
       ports);
@@ -96,10 +94,14 @@ cfg::SwitchConfig ProdInvariantTest::getConfigFromFlag() {
 }
 
 cfg::SwitchConfig ProdInvariantTest::initialConfig() {
+  if (useProdConfig_.has_value()) {
+    return *(platform()->config()->thrift.sw());
+  }
   cfg::SwitchConfig cfg;
   std::vector<PortID> ports;
   ports.reserve(0);
   if (checkBaseConfigPortsEmpty()) {
+    useProdConfig_ = false;
     ports = getAllPlatformPorts(platform()->getPlatformPorts());
     cfg = utility::createProdRswConfig(platform()->getHwSwitch(), ports);
     return cfg;
@@ -244,6 +246,7 @@ void ProdInvariantTest::verifySafeDiagCommands() {
     case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
     case cfg::AsicType::ASIC_TYPE_JERICHO2:
+    case cfg::AsicType::ASIC_TYPE_JERICHO3:
     case cfg::AsicType::ASIC_TYPE_RAMON:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK5:
       break;
@@ -357,6 +360,10 @@ class ProdInvariantRswMhnicTest : public ProdInvariantTest {
     XLOG(DBG2) << "ProdInvariantTest setup done";
   }
   cfg::SwitchConfig initialConfig() override {
+    if (useProdConfig_.has_value()) {
+      return *(platform()->config()->thrift.sw());
+    }
+
     // TODO: Currently ProdInvariantTests only has support for BCM switches.
     // That's why we're passing false in the call below.
     if (checkBaseConfigPortsEmpty()) {
@@ -364,8 +371,10 @@ class ProdInvariantRswMhnicTest : public ProdInvariantTest {
           platform()->getHwSwitch(),
           getAllPlatformPorts(platform()->getPlatformPorts()),
           false /* isSai() */);
+      useProdConfig_ = false;
       return config;
     } else {
+      useProdConfig_ = true;
       return getConfigFromFlag();
     }
   }
