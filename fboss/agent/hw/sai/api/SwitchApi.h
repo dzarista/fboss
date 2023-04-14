@@ -481,6 +481,11 @@ struct SaiSwitchTraits {
       std::optional<Attributes::DllPath>,
       std::optional<Attributes::RestartIssu>,
       std::optional<Attributes::SwitchIsolate>>;
+  static constexpr std::array<sai_stat_id_t, 2> CounterIdsToRead = {
+      SAI_SWITCH_STAT_REACHABILITY_DROP,
+      SAI_SWITCH_STAT_GLOBAL_DROP,
+  };
+  static constexpr std::array<sai_stat_id_t, 0> CounterIdsToReadAndClear = {};
 };
 
 SAI_ATTRIBUTE_NAME(Switch, InitSwitch)
@@ -570,6 +575,9 @@ SAI_ATTRIBUTE_NAME(Switch, ForceTrafficOverFabric)
 SAI_ATTRIBUTE_NAME(Switch, WarmBootTargetVersion)
 SAI_ATTRIBUTE_NAME(Switch, SwitchIsolate)
 
+template <>
+struct SaiObjectHasStats<SaiSwitchTraits> : public std::true_type {};
+
 class SwitchApi : public SaiApi<SwitchApi> {
  public:
   static constexpr sai_api_t ApiType = SAI_API_SWITCH;
@@ -630,6 +638,30 @@ class SwitchApi : public SaiApi<SwitchApi> {
   sai_status_t _setAttribute(SwitchSaiId id, const sai_attribute_t* attr)
       const {
     return api_->set_switch_attribute(id, attr);
+  }
+  sai_status_t _getStats(
+      SwitchSaiId key,
+      uint32_t num_of_counters,
+      const sai_stat_id_t* counter_ids,
+      sai_stats_mode_t mode,
+      uint64_t* counters) const {
+    /*
+     * Unfortunately not all vendors implement the ext stats api.
+     * ext stats api matter only for modes other than the (default)
+     * SAI_STATS_MODE_READ. So play defensive and call ext mode only
+     * when called with something other than default
+     */
+    return mode == SAI_STATS_MODE_READ
+        ? api_->get_switch_stats(key, num_of_counters, counter_ids, counters)
+        : api_->get_switch_stats_ext(
+              key, num_of_counters, counter_ids, mode, counters);
+  }
+
+  sai_status_t _clearStats(
+      SwitchSaiId key,
+      uint32_t num_of_counters,
+      const sai_stat_id_t* counter_ids) const {
+    return api_->clear_switch_stats(key, num_of_counters, counter_ids);
   }
 
   sai_switch_api_t* api_;

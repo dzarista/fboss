@@ -156,7 +156,7 @@ class QsfpModule : public Transceiver {
    */
   virtual unsigned int numMediaLanes() const = 0;
 
-  virtual void configureModule() {}
+  virtual void configureModule(uint8_t /* startHostLane */) {}
 
   bool isVdmSupported() const {
     auto diagsCapability = diagsCapability_.rlock();
@@ -245,6 +245,12 @@ class QsfpModule : public Transceiver {
   static TransceiverManagementInterface getTransceiverManagementInterface(
       const uint8_t moduleId,
       const unsigned int oneBasedPort);
+
+  virtual std::vector<uint8_t> configuredHostLanes(
+      uint8_t hostStartLane) const = 0;
+
+  virtual std::vector<uint8_t> configuredMediaLanes(
+      uint8_t hostStartLane) const = 0;
 
  protected:
   /* Qsfp Internal Implementation */

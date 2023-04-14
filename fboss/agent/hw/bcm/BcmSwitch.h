@@ -378,9 +378,6 @@ class BcmSwitch : public BcmSwitchIf {
     return controlPlane_.get();
   }
 
-  std::shared_ptr<SwitchState> stateChangedTransaction(
-      const StateDelta& delta) override;
-
   /*
    * BcmSwitch state as folly::dynamic
    * For now we only dump Host table.
@@ -1066,10 +1063,6 @@ class BcmSwitch : public BcmSwitchIf {
   bool processChangedIngressPoolCfg(
       std::optional<state::BufferPoolFields> oldBufferPoolCfgPtr,
       std::optional<state::BufferPoolFields> newBufferPoolCfgPtr);
-
-  std::shared_ptr<SwitchState> stateChangedLocked(
-      const StateDelta& delta,
-      const std::lock_guard<std::mutex>& lock);
 
   /*
    * Member variables

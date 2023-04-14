@@ -16,12 +16,12 @@
 
 namespace facebook::fboss {
 
-class HwSwitchStats {
+class HwSwitchFb303Stats {
  public:
   using ThreadLocalStatsMap =
       fb303::ThreadCachedServiceData::ThreadLocalStatsMap;
 
-  HwSwitchStats(ThreadLocalStatsMap* map, const std::string& vendor);
+  HwSwitchFb303Stats(ThreadLocalStatsMap* map, const std::string& vendor);
 
   void txPktAlloc() {
     txPktAlloc_.addValue(1);
@@ -58,6 +58,7 @@ class HwSwitchStats {
     asicErrors_.addValue(1);
   }
 
+  void update(const HwSwitchDropStats& dropStats);
   // TODO: FSDB needs to support count() method on stats
 
   int64_t getTxPktAllocCount() {
@@ -91,8 +92,8 @@ class HwSwitchStats {
 
  private:
   // Forbidden copy constructor and assignment operator
-  HwSwitchStats(HwSwitchStats const&) = delete;
-  HwSwitchStats& operator=(HwSwitchStats const&) = delete;
+  HwSwitchFb303Stats(HwSwitchFb303Stats const&) = delete;
+  HwSwitchFb303Stats& operator=(HwSwitchFb303Stats const&) = delete;
 
   using TLTimeseries = fb303::ThreadCachedServiceData::TLTimeseries;
   using TLHistogram = fb303::ThreadCachedServiceData::TLHistogram;
@@ -118,6 +119,9 @@ class HwSwitchStats {
 
   // Other ASIC errors
   TLTimeseries asicErrors_;
+  // Drops
+  TLTimeseries globalDrops_;
+  TLTimeseries globalReachDrops_;
 };
 
 } // namespace facebook::fboss

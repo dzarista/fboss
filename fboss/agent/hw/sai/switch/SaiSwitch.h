@@ -11,7 +11,7 @@
 
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/L2Entry.h"
-#include "fboss/agent/hw/HwSwitchStats.h"
+#include "fboss/agent/hw/HwSwitchFb303Stats.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 #include "fboss/agent/hw/sai/api/SaiApiTable.h"
 #include "fboss/agent/hw/sai/switch/SaiManagerTable.h"
@@ -192,9 +192,6 @@ class SaiSwitch : public HwSwitch {
       const override;
   void dumpDebugState(const std::string& /*path*/) const override;
 
-  std::shared_ptr<SwitchState> stateChangedTransaction(
-      const StateDelta& delta) override;
-
   bool transactionsSupported() const override;
   bool l2LearningModeChangeProhibited() const;
 
@@ -207,6 +204,8 @@ class SaiSwitch : public HwSwitch {
   phy::FecMode getPortFECMode(PortID port) const override;
   std::map<PortID, FabricEndpoint> getFabricReachability() const override;
 
+  void rollbackInTest(const std::shared_ptr<SwitchState>& knownGoodState);
+
  private:
   void gracefulExitImpl(
       folly::dynamic& switchState,
@@ -216,8 +215,8 @@ class SaiSwitch : public HwSwitch {
   std::shared_ptr<SwitchState> stateChangedImplLocked(
       const StateDelta& delta,
       const LockPolicyT& lk);
-  friend class SaiRollbackTest;
-  void rollback(const std::shared_ptr<SwitchState>& knownGoodState) noexcept;
+  void rollback(
+      const std::shared_ptr<SwitchState>& knownGoodState) noexcept override;
   std::string listObjectsLocked(
       const std::vector<sai_object_type_t>& objects,
       bool cached,
@@ -465,11 +464,6 @@ class SaiSwitch : public HwSwitch {
       phy::DataPlanePhyChipType chipType) const;
 
   void checkAndSetSdkDowngradeVersion() const;
-
-  template <typename LockPolicyT>
-  std::shared_ptr<SwitchState> stateChanged(
-      const StateDelta& delta,
-      const LockPolicyT& lockPolicy);
 
   /*
    * SaiSwitch must support a few varieties of concurrent access:

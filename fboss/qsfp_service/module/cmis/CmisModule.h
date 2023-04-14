@@ -90,7 +90,7 @@ class CmisModule : public QsfpModule {
    */
   unsigned int numMediaLanes() const override;
 
-  void configureModule() override;
+  void configureModule(uint8_t startHostLane) override;
 
   /*
    * This function veifies the Module eeprom register checksum for various
@@ -336,7 +336,16 @@ class CmisModule : public QsfpModule {
    * nullopt if it doesn't exist
    */
   std::optional<ApplicationAdvertisingField> getApplicationField(
-      uint8_t application) const;
+      uint8_t application,
+      uint8_t startHostLane) const;
+
+  // Returns the list of host lanes configured in the same datapath as the
+  // provided hostLane
+  std::vector<uint8_t> configuredHostLanes(uint8_t hostLane) const override;
+
+  // Returns the list of media lanes configured in the same datapath as the
+  // provided hostLane
+  std::vector<uint8_t> configuredMediaLanes(uint8_t hostLane) const override;
 
  private:
   // no copy or assignment
@@ -367,7 +376,10 @@ class CmisModule : public QsfpModule {
   /*
    * Set the optics Rx euqlizer pre/post/main values
    */
-  void setModuleRxEqualizerLocked(RxEqualizerSettings rxEqualizer);
+  void setModuleRxEqualizerLocked(
+      RxEqualizerSettings rxEqualizer,
+      uint8_t startHostLane,
+      uint8_t numLanes);
 
   /*
    * We found that some module did not enable Rx output squelch by default,
@@ -382,7 +394,7 @@ class CmisModule : public QsfpModule {
    * ApSel or other settings like RxEqualizer setting. In case of config
    * rejection the function returns false
    */
-  bool checkLaneConfigError();
+  bool checkLaneConfigError(uint8_t startHostLane, uint8_t hostLaneCount);
 
   /*
    * This function veifies the Module eeprom register checksum for a given page
@@ -435,6 +447,9 @@ class CmisModule : public QsfpModule {
   void updateCmisStateChanged(
       ModuleStatus& moduleStatus,
       std::optional<ModuleStatus> curModuleStatus = std::nullopt) override;
+
+  // Returns the currently configured mediaInterfaceCode on a host lane
+  uint8_t currentConfiguredMediaInterfaceCode(uint8_t hostLane) const;
 };
 
 } // namespace fboss

@@ -479,11 +479,6 @@ struct SaiPortSerdesTraits {
         SAI_PORT_SERDES_ATTR_TX_FIR_PRE1,
         std::vector<sai_uint32_t>,
         SaiU32ListDefault>;
-    using TxFirPre2 = SaiAttribute<
-        EnumType,
-        SAI_PORT_SERDES_ATTR_TX_FIR_PRE2,
-        std::vector<sai_uint32_t>,
-        SaiU32ListDefault>;
     using TxFirMain = SaiAttribute<
         EnumType,
         SAI_PORT_SERDES_ATTR_TX_FIR_MAIN,
@@ -492,6 +487,11 @@ struct SaiPortSerdesTraits {
     using TxFirPost1 = SaiAttribute<
         EnumType,
         SAI_PORT_SERDES_ATTR_TX_FIR_POST1,
+        std::vector<sai_uint32_t>,
+        SaiU32ListDefault>;
+    using TxFirPre2 = SaiAttribute<
+        EnumType,
+        SAI_PORT_SERDES_ATTR_TX_FIR_PRE2,
         std::vector<sai_uint32_t>,
         SaiU32ListDefault>;
     using TxFirPost2 = SaiAttribute<
@@ -504,12 +504,10 @@ struct SaiPortSerdesTraits {
         SAI_PORT_SERDES_ATTR_TX_FIR_POST3,
         std::vector<sai_uint32_t>,
         SaiU32ListDefault>;
-
     /* extension attributes */
     struct AttributeTxLutModeIdWrapper {
       std::optional<sai_attr_id_t> operator()();
     };
-
     struct AttributeRxCtleCodeIdWrapper {
       std::optional<sai_attr_id_t> operator()();
     };
@@ -553,14 +551,19 @@ struct SaiPortSerdesTraits {
   using CreateAttributes = std::tuple<
       Attributes::PortId,
       std::optional<Attributes::Preemphasis>,
+
       std::optional<Attributes::IDriver>,
       std::optional<Attributes::TxFirPre1>,
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
       std::optional<Attributes::TxFirPre2>,
+#endif
       std::optional<Attributes::TxFirMain>,
       std::optional<Attributes::TxFirPost1>,
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
       std::optional<Attributes::TxFirPost2>,
       std::optional<Attributes::TxFirPost3>,
       std::optional<Attributes::TxLutMode>,
+#endif
       std::optional<Attributes::RxCtleCode>,
       std::optional<Attributes::RxDspMode>,
       std::optional<Attributes::RxAfeTrim>,

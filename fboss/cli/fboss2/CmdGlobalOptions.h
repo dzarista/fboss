@@ -410,6 +410,10 @@ class CmdGlobalOptions {
     return fsdbThriftPort_;
   }
 
+  int getLocalDrainerThriftPort() const {
+    return localDrainerThriftPort_;
+  }
+
   int getOpenrThriftPort() const {
     return openrThriftPort_;
   }
@@ -479,6 +483,10 @@ class CmdGlobalOptions {
     openrThriftPort_ = port;
   }
 
+  void setCoopThriftPort(int port) {
+    coopThriftPort_ = port;
+  }
+
   void setVipThriftPort(int port) {
     vipInjectorThriftPort_ = port;
   }
@@ -538,6 +546,7 @@ class CmdGlobalOptions {
   std::string filter_;
   std::string aggregate_;
   bool aggregateAcrossDevices_{false};
+  int localDrainerThriftPort_{10701};
 };
 
 } // namespace facebook::fboss

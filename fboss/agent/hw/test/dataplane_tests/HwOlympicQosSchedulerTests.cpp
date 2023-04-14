@@ -23,7 +23,8 @@
 
 namespace {
 auto constexpr kRetries = 10;
-}
+auto constexpr kEcmpWidthForTest = 1;
+} // namespace
 namespace facebook::fboss {
 
 class HwOlympicQosSchedulerTest : public HwLinkStateDependentTest {
@@ -33,16 +34,12 @@ class HwOlympicQosSchedulerTest : public HwLinkStateDependentTest {
         getHwSwitch(),
         masterLogicalPortIds(),
         getAsic()->desiredLoopbackMode());
-    if (isSupported(HwAsic::Feature::L3_QOS)) {
-      auto streamType =
-          *(getPlatform()
-                ->getAsic()
-                ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
-                .begin());
-      utility::addOlympicQueueConfig(
-          &cfg, streamType, getPlatform()->getAsic());
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
-    }
+    auto streamType = *(getPlatform()
+                            ->getAsic()
+                            ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
+                            .begin());
+    utility::addOlympicQueueConfig(&cfg, streamType, getPlatform()->getAsic());
+    utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
     return cfg;
   }
   MacAddress dstMac() const {
@@ -74,8 +71,15 @@ class HwOlympicQosSchedulerTest : public HwLinkStateDependentTest {
         std::vector<uint8_t>(1200, 0xff));
   }
 
-  void sendUdpPkt(uint8_t dscpVal) {
-    getHwSwitch()->sendPacketSwitchedSync(createUdpPkt(dscpVal));
+  void sendUdpPkt(uint8_t dscpVal, bool frontPanel = true) {
+    utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState()};
+    if (frontPanel) {
+      getHwSwitch()->sendPacketOutOfPortAsync(
+          createUdpPkt(dscpVal),
+          ecmpHelper6.ecmpPortDescriptorAt(kEcmpWidthForTest).phyPortID());
+    } else {
+      getHwSwitch()->sendPacketSwitchedSync(createUdpPkt(dscpVal));
+    }
   }
 
   /*
@@ -118,9 +122,9 @@ class HwOlympicQosSchedulerTest : public HwLinkStateDependentTest {
    *  risk of test being flaky, we choose 2 * 50 number of packets for the
    *  test.
    */
-  void sendUdpPkts(uint8_t dscpVal, int cnt) {
+  void sendUdpPkts(uint8_t dscpVal, int cnt, bool frontPanel = true) {
     for (int i = 0; i < cnt; i++) {
-      sendUdpPkt(dscpVal);
+      sendUdpPkt(dscpVal, frontPanel);
     }
   }
 
@@ -132,30 +136,25 @@ class HwOlympicQosSchedulerTest : public HwLinkStateDependentTest {
    */
   void sendUdpPktsForAllQueues(
       const std::vector<int>& queueIds,
-      const std::map<int, std::vector<uint8_t>>& queueToDscp) {
+      const std::map<int, std::vector<uint8_t>>& queueToDscp,
+      bool frontPanel = true) {
     // Higher speed ports need more packets to reach line rate
     auto pktsToSend = getHwSwitchEnsemble()->getMinPktsForLineRate(outPort());
     for (const auto& queueId : queueIds) {
-      sendUdpPkts(queueToDscp.at(queueId).front(), pktsToSend);
+      sendUdpPkts(queueToDscp.at(queueId).front(), pktsToSend, frontPanel);
     }
   }
 
   void _setup(
       const utility::EcmpSetupAnyNPorts6& ecmpHelper6,
       const std::vector<int>& queueIds) {
-    auto kEcmpWidthForTest = 1;
     resolveNeigborAndProgramRoutes(ecmpHelper6, kEcmpWidthForTest);
     utility::ttlDecrementHandlingForLoopbackTraffic(
         getHwSwitch(), ecmpHelper6.getRouterId(), ecmpHelper6.nhop(0));
   }
 
   void verifyWRRAndSP(const std::vector<int>& queueIds, int trafficQueueId) {
-    if (!isSupported(HwAsic::Feature::L3_QOS)) {
-      return;
-    }
-
     utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
-
     auto setup = [=]() { _setup(ecmpHelper6, queueIds); };
 
     auto verify = [=]() {
@@ -182,7 +181,7 @@ class HwOlympicQosSchedulerTest : public HwLinkStateDependentTest {
 
  protected:
   void verifyWRR();
-  void verifySP();
+  void verifySP(bool frontPanelTraffic = true);
   void verifyWRRAndICP();
   void verifyWRRAndNC();
 
@@ -294,10 +293,6 @@ bool HwOlympicQosSchedulerTest::verifySPHelper(int trafficQueueId) {
 }
 
 void HwOlympicQosSchedulerTest::verifyWRR() {
-  if (!isSupported(HwAsic::Feature::L3_QOS)) {
-    return;
-  }
-
   utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
 
   auto setup = [=]() {
@@ -317,11 +312,7 @@ void HwOlympicQosSchedulerTest::verifyWRR() {
   verifyAcrossWarmBoots(setup, verify);
 }
 
-void HwOlympicQosSchedulerTest::verifySP() {
-  if (!isSupported(HwAsic::Feature::L3_QOS)) {
-    return;
-  }
-
+void HwOlympicQosSchedulerTest::verifySP(bool frontPanelTraffic) {
   utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
 
   auto setup = [=]() {
@@ -331,7 +322,8 @@ void HwOlympicQosSchedulerTest::verifySP() {
   auto verify = [=]() {
     sendUdpPktsForAllQueues(
         utility::kOlympicSPQueueIds(getAsic()),
-        utility::kOlympicQueueToDscp(getAsic()));
+        utility::kOlympicQueueToDscp(getAsic()),
+        frontPanelTraffic);
     EXPECT_TRUE(verifySPHelper(
         // SP queue with highest queueId
         // should starve other SP queues
@@ -359,14 +351,9 @@ void HwOlympicQosSchedulerTest::verifyWRRAndNC() {
 }
 
 void HwOlympicQosSchedulerTest::verifyWRRToAllSPDscpToQueue() {
-  if (!isSupported(HwAsic::Feature::L3_QOS)) {
-    return;
-  }
-
   utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
 
   auto setup = [=]() {
-    auto kEcmpWidthForTest = 1;
     resolveNeigborAndProgramRoutes(ecmpHelper6, kEcmpWidthForTest);
   };
 
@@ -393,10 +380,6 @@ void HwOlympicQosSchedulerTest::verifyWRRToAllSPDscpToQueue() {
 }
 
 void HwOlympicQosSchedulerTest::verifyWRRToAllSPTraffic() {
-  if (!isSupported(HwAsic::Feature::L3_QOS)) {
-    return;
-  }
-
   utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
 
   auto setup = [=]() {
@@ -436,6 +419,35 @@ TEST_F(HwOlympicQosSchedulerTest, VerifyWRR) {
 
 TEST_F(HwOlympicQosSchedulerTest, VerifySP) {
   verifySP();
+}
+
+/*
+ * This test asserts that CPU injected traffic from a higher priority
+ * queue will preempt traffic from a lower priority queue. We only
+ * test for CPU traffic explicitly as VerifySP above already
+ * tests front panel traffic.
+ */
+TEST_F(HwOlympicQosSchedulerTest, VerifySPPreemptionCPUTraffic) {
+  auto spQueueIds = utility::kOlympicSPQueueIds(getAsic());
+  auto getQueueIndex = [&](int queueId) {
+    for (auto i = 0; i < spQueueIds.size(); ++i) {
+      if (spQueueIds[i] == queueId) {
+        return i;
+      }
+    }
+    throw FbossError("Could not find queueId: ", queueId);
+  };
+  // Assert that ICP comes before NC in the queueIds array.
+  // We will send traffic to all queues in order. So for
+  // preemption we want lower pri (ICP) queue to go before
+  // higher pri queue (NC).
+  ASSERT_LT(
+      getQueueIndex(
+          getOlympicQueueId(getAsic(), utility::OlympicQueueType::ICP)),
+      getQueueIndex(
+          getOlympicQueueId(getAsic(), utility::OlympicQueueType::NC)));
+
+  verifySP(false /*frontPanelTraffic*/);
 }
 
 TEST_F(HwOlympicQosSchedulerTest, VerifyWRRAndICP) {

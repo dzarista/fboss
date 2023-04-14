@@ -1207,6 +1207,7 @@ enum AsicType {
   ASIC_TYPE_JERICHO2 = 11,
   ASIC_TYPE_RAMON = 12,
   ASIC_TYPE_TOMAHAWK5 = 13,
+  ASIC_TYPE_JERICHO3 = 14,
 }
 /**
  * The configuration for an interface
@@ -1464,6 +1465,11 @@ struct ExactMatchTableConfig {
 
 const i16 DEFAULT_FLOWLET_TABLE_SIZE = 4096;
 
+struct SwitchInfo {
+  1: SwitchType switchType;
+  2: AsicType asicType;
+}
+
 /*
  * Switch specific settings: global to the switch
  */
@@ -1491,8 +1497,9 @@ struct SwitchSettings {
   // Switch id (only applicable for VOQ based systems)
   9: optional i64 switchId;
   10: list<ExactMatchTableConfig> exactMatchTableConfigs = [];
-  11: map<i64, SwitchType> switchIdToSwitchType = {0: SwitchType.NPU};
+  11: map<i64, SwitchType> switchIdToSwitchType_DEPRECATED;
   12: SwitchDrainState switchDrainState = SwitchDrainState.UNDRAINED;
+  13: map<i64, SwitchInfo> switchIdToSwitchInfo;
 }
 
 // Global buffer pool shared by {port, pgs}

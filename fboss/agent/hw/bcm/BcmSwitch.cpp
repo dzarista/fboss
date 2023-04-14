@@ -32,7 +32,7 @@
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/hw/BufferStatsLogger.h"
-#include "fboss/agent/hw/HwSwitchStats.h"
+#include "fboss/agent/hw/HwSwitchFb303Stats.h"
 #include "fboss/agent/hw/UnsupportedFeatureManager.h"
 #include "fboss/agent/hw/bcm/BcmAPI.h"
 #include "fboss/agent/hw/bcm/BcmAclEntry.h"
@@ -1301,22 +1301,10 @@ void BcmSwitch::processMacTableChanges(const StateDelta& stateDelta) {
 std::shared_ptr<SwitchState> BcmSwitch::stateChangedImpl(
     const StateDelta& delta) {
   // Take the lock before modifying any objects
-  std::lock_guard<std::mutex> g(lock_);
-  return stateChangedLocked(delta, g);
-}
-
-std::shared_ptr<SwitchState> BcmSwitch::stateChangedLocked(
-    const StateDelta& delta,
-    const std::lock_guard<std::mutex>& lock) {
+  std::lock_guard<std::mutex> lock(lock_);
   auto appliedState = stateChangedImplLocked(delta, lock);
   appliedState->publish();
   return appliedState;
-}
-
-std::shared_ptr<SwitchState> BcmSwitch::stateChangedTransaction(
-    const StateDelta& delta) {
-  throw FbossError("Transactions not supported on BcmSwitch");
-  return nullptr;
 }
 
 std::shared_ptr<SwitchState> BcmSwitch::stateChangedImplLocked(
@@ -3735,6 +3723,7 @@ void BcmSwitch::disableHotSwap() const {
       case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
       case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
       case cfg::AsicType::ASIC_TYPE_JERICHO2:
+      case cfg::AsicType::ASIC_TYPE_JERICHO3:
       case cfg::AsicType::ASIC_TYPE_RAMON:
         CHECK(0) << " Invalid ASIC type";
     }

@@ -47,8 +47,10 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
       };
       return counterIds;
     }
-    if (platform_->getAsic()->getAsicType() ==
-        cfg::AsicType::ASIC_TYPE_JERICHO2) {
+    if ((platform_->getAsic()->getAsicType() ==
+         cfg::AsicType::ASIC_TYPE_JERICHO2) ||
+        (platform_->getAsic()->getAsicType() ==
+         cfg::AsicType::ASIC_TYPE_JERICHO3)) {
       /*
        * TODO(skhare) JERICHO2 ASIC supports only a small set of stats today.
        * Remove this check once JERICHO2 ASIC supports querying all (most) of
@@ -653,10 +655,12 @@ SaiPortManager::serdesAttributesFromSwPinConfigs(
   SaiPortSerdesTraits::Attributes::TxFirMain::ValueType txMain;
   SaiPortSerdesTraits::Attributes::TxFirPost1::ValueType txPost1;
   SaiPortSerdesTraits::Attributes::IDriver::ValueType txIDriver;
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
   SaiPortSerdesTraits::Attributes::TxFirPre2::ValueType txPre2;
   SaiPortSerdesTraits::Attributes::TxFirPost2::ValueType txPost2;
   SaiPortSerdesTraits::Attributes::TxFirPost3::ValueType txPost3;
   SaiPortSerdesTraits::Attributes::TxLutMode::ValueType txLutMode;
+#endif
   SaiPortSerdesTraits::Attributes::RxCtleCode::ValueType rxCtleCode;
   SaiPortSerdesTraits::Attributes::RxDspMode::ValueType rxDspMode;
   SaiPortSerdesTraits::Attributes::RxAfeTrim::ValueType rxAfeTrim;
@@ -672,22 +676,21 @@ SaiPortManager::serdesAttributesFromSwPinConfigs(
       txPre1.push_back(*tx->pre());
       txMain.push_back(*tx->main());
       txPost1.push_back(*tx->post());
-      if ((FLAGS_sai_configure_six_tap &&
-           platform_->getAsic()->isSupported(
-               HwAsic::Feature::SAI_CONFIGURE_SIX_TAP)) ||
-          (platform_->getAsic()->isSupported(
-              HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP))) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
+      if (FLAGS_sai_configure_six_tap &&
+          platform_->getAsic()->isSupported(
+              HwAsic::Feature::SAI_CONFIGURE_SIX_TAP)) {
         txPost2.push_back(*tx->post2());
         txPost3.push_back(*tx->post3());
         txPre2.push_back(*tx->pre2());
-      }
-
-      if (platform_->getAsic()->isSupported(
-              HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP)) {
-        if (auto lutMode = tx->lutMode()) {
-          txLutMode.push_back(*lutMode);
+        if (platform_->getAsic()->getAsicVendor() ==
+            HwAsic::AsicVendor::ASIC_VENDOR_TAJO) {
+          if (auto lutMode = tx->lutMode()) {
+            txLutMode.push_back(*lutMode);
+          }
         }
       }
+#endif
 
       if (auto driveCurrent = tx->driveCurrent()) {
         txIDriver.push_back(driveCurrent.value());
@@ -724,20 +727,20 @@ SaiPortManager::serdesAttributesFromSwPinConfigs(
   setTxRxAttr(attrs, SaiPortSerdesTraits::Attributes::TxFirMain{}, txMain);
   setTxRxAttr(attrs, SaiPortSerdesTraits::Attributes::IDriver{}, txIDriver);
 
-  if ((FLAGS_sai_configure_six_tap &&
-       platform_->getAsic()->isSupported(
-           HwAsic::Feature::SAI_CONFIGURE_SIX_TAP)) ||
-      (platform_->getAsic()->isSupported(
-          HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP))) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
+  if (FLAGS_sai_configure_six_tap &&
+      platform_->getAsic()->isSupported(
+          HwAsic::Feature::SAI_CONFIGURE_SIX_TAP)) {
     setTxRxAttr(attrs, SaiPortSerdesTraits::Attributes::TxFirPre2{}, txPre2);
     setTxRxAttr(attrs, SaiPortSerdesTraits::Attributes::TxFirPost2{}, txPost2);
     setTxRxAttr(attrs, SaiPortSerdesTraits::Attributes::TxFirPost3{}, txPost3);
+    if (platform_->getAsic()->getAsicVendor() ==
+        HwAsic::AsicVendor::ASIC_VENDOR_TAJO) {
+      setTxRxAttr(
+          attrs, SaiPortSerdesTraits::Attributes::TxLutMode{}, txLutMode);
+    }
   }
-
-  if (platform_->getAsic()->isSupported(
-          HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP)) {
-    setTxRxAttr(attrs, SaiPortSerdesTraits::Attributes::TxLutMode{}, txLutMode);
-  }
+#endif
 
   if (platform_->getAsic()->getPortSerdesPreemphasis().has_value()) {
     SaiPortSerdesTraits::Attributes::Preemphasis::ValueType preempahsis(

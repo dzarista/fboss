@@ -144,9 +144,63 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramEntryForVoq(Entry* entry) {
   auto updateFn = [this,
                    fields](const std::shared_ptr<SwitchState>& state) mutable
       -> std::shared_ptr<SwitchState> {
-    std::shared_ptr<SwitchState> newState{state};
+    auto asic = sw_->getPlatform()->getAsic();
+    if (asic->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)) {
+      fields.encapIndex =
+          EncapIndexAllocator::getNextAvailableEncapIdx(state, *asic);
+    }
 
-    // TODO
+    auto systemPortRange =
+        sw_->getState()->getSwitchSettings()->getSystemPortRange();
+    auto systemPortID = *systemPortRange->minimum() + fields.port.phyPortID();
+
+    auto newState = state->clone();
+    auto intfMap = newState->getInterfaces()->modify(&newState);
+    // interfaceID is same as the systemPortID
+    auto interfaceID = InterfaceID(systemPortID);
+    auto intf = intfMap->getInterface(interfaceID);
+    auto intfNew = intf->clone();
+
+    auto nbrTable = intf->getTable<NTable>();
+    auto updatedNbrTable = nbrTable->toThrift();
+    auto nbrEntry = state::NeighborEntryFields();
+    nbrEntry.ipaddress() = fields.ip.str();
+    nbrEntry.mac() = fields.mac.toString();
+    nbrEntry.portId() = PortDescriptor(SystemPortID(systemPortID)).toThrift();
+    nbrEntry.interfaceId() = static_cast<uint32_t>(interfaceID);
+    nbrEntry.state() = static_cast<state::NeighborState>(fields.state);
+    nbrEntry.encapIndex() = fields.encapIndex.value();
+    nbrEntry.isLocal() = fields.isLocal;
+    if (fields.classID.has_value()) {
+      nbrEntry.classID() = fields.classID.value();
+    }
+
+    auto node = nbrTable->getEntryIf(fields.ip);
+    if (!node) {
+      updatedNbrTable.insert({fields.ip.str(), nbrEntry});
+      XLOG(DBG2)
+          << "Adding entry for: "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 nbrEntry);
+    } else {
+      if (node->getMac() == fields.mac && node->getPort().isSystemPort() &&
+          node->getPort().sysPortID() == systemPortID &&
+          node->getIntfID() == interfaceID &&
+          node->getState() == fields.state && !node->isPending() &&
+          node->getClassID() == fields.classID) {
+        return nullptr;
+      }
+      updatedNbrTable.erase(fields.ip.str());
+      updatedNbrTable.insert({fields.ip.str(), nbrEntry});
+      XLOG(DBG2)
+          << "Updating entry for: "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 nbrEntry);
+    }
+
+    intfNew->setNdpTable(updatedNbrTable);
+    intfMap->updateNode(intfNew);
+
     return newState;
   };
 
@@ -154,7 +208,37 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramEntryForVoq(Entry* entry) {
 }
 
 template <typename NTable>
-void NeighborCacheImpl<NTable>::programPendingEntry(Entry* entry, bool force) {
+void NeighborCacheImpl<NTable>::programPendingEntry(
+    Entry* entry,
+    PortDescriptor port,
+    bool force) {
+  SwSwitch::StateUpdateFn updateFn;
+
+  switch (sw_->getState()->getSwitchSettings()->getSwitchType()) {
+    case cfg::SwitchType::NPU:
+      updateFn = getUpdateFnToProgramPendingEntryForNpu(entry, port, force);
+      break;
+    case cfg::SwitchType::VOQ:
+      updateFn = getUpdateFnToProgramPendingEntryForVoq(entry, port, force);
+      break;
+    case cfg::SwitchType::FABRIC:
+    case cfg::SwitchType::PHY:
+      throw FbossError(
+          "Programming entry is not supported for switch type: ",
+          (sw_->getState()->getSwitchSettings()->getSwitchType()));
+  }
+
+  sw_->updateStateNoCoalescing(
+      folly::to<std::string>("add pending entry ", entry->getFields().ip),
+      std::move(updateFn));
+}
+
+template <typename NTable>
+SwSwitch::StateUpdateFn
+NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntryForNpu(
+    Entry* entry,
+    PortDescriptor /*port*/,
+    bool force) {
   CHECK(entry->isPending());
 
   auto fields = entry->getFields();
@@ -188,9 +272,83 @@ void NeighborCacheImpl<NTable>::programPendingEntry(Entry* entry, bool force) {
     return newState;
   };
 
-  sw_->updateStateNoCoalescing(
-      folly::to<std::string>("add pending entry ", fields.ip),
-      std::move(updateFn));
+  return updateFn;
+}
+
+template <typename NTable>
+SwSwitch::StateUpdateFn
+NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntryForVoq(
+    Entry* entry,
+    PortDescriptor port,
+    bool force) {
+  auto fields = entry->getFields();
+  auto updateFn =
+      [this, fields, port, force](const std::shared_ptr<SwitchState>& state)
+      -> std::shared_ptr<SwitchState> {
+    if (port.isPhysicalPort() && port.phyPortID() == PortID(0)) {
+      // If the entry is pointing to the CPU port, it is not programmed in the
+      // hardware, thus no-op.
+      return nullptr;
+    }
+
+    // TODO: Handle aggregate ports for VOQ switches
+    CHECK(port.isPhysicalPort());
+
+    auto systemPortRange =
+        sw_->getState()->getSwitchSettings()->getSystemPortRange();
+    auto systemPortID = *systemPortRange->minimum() + port.phyPortID();
+
+    auto asic = sw_->getPlatform()->getAsic();
+    auto encapIndex =
+        EncapIndexAllocator::getNextAvailableEncapIdx(state, *asic);
+
+    auto newState = state->clone();
+    auto intfMap = newState->getInterfaces()->modify(&newState);
+    // interfaceID is same as the systemPortID
+    auto interfaceID = InterfaceID(systemPortID);
+    auto intf = intfMap->getInterface(interfaceID);
+    auto intfNew = intf->clone();
+
+    auto nbrTable = intf->getTable<NTable>();
+    auto updatedNbrTable = nbrTable->toThrift();
+
+    auto node = nbrTable->getEntryIf(fields.ip);
+    if (node) {
+      if (!force) {
+        // don't replace an existing entry with a pending one unless
+        // explicitly allowed
+        return nullptr;
+      }
+
+      updatedNbrTable.erase(fields.ip.str());
+    }
+
+    auto nbrEntry = state::NeighborEntryFields();
+    nbrEntry.ipaddress() = fields.ip.str();
+    nbrEntry.mac() = fields.mac.toString();
+    nbrEntry.portId() = PortDescriptor(SystemPortID(systemPortID)).toThrift();
+    nbrEntry.interfaceId() = static_cast<uint32_t>(interfaceID);
+    nbrEntry.state() =
+        static_cast<state::NeighborState>(state::NeighborState::Pending);
+    nbrEntry.encapIndex() = encapIndex;
+    nbrEntry.isLocal() = fields.isLocal;
+    if (fields.classID.has_value()) {
+      nbrEntry.classID() = fields.classID.value();
+    }
+
+    XLOG(DBG2) << "Adding pending entry for " << fields.ip << " on interface "
+               << fields.interfaceID << " entry: "
+               << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                      nbrEntry);
+
+    updatedNbrTable.insert({fields.ip.str(), nbrEntry});
+    intfNew->setNdpTable(updatedNbrTable);
+    intfMap->updateNode(intfNew);
+
+    return newState;
+  };
+
+  return updateFn;
 }
 
 template <typename NTable>
@@ -309,7 +467,10 @@ NeighborCacheEntry<NTable>* NeighborCacheImpl<NTable>::setEntryInternal(
 }
 
 template <typename NTable>
-void NeighborCacheImpl<NTable>::setPendingEntry(AddressType ip, bool force) {
+void NeighborCacheImpl<NTable>::setPendingEntry(
+    AddressType ip,
+    PortDescriptor port,
+    bool force) {
   if (!force && getCacheEntry(ip)) {
     // only overwrite an existing entry with a pending entry if we say it is
     // ok with the 'force' parameter
@@ -321,7 +482,7 @@ void NeighborCacheImpl<NTable>::setPendingEntry(AddressType ip, bool force) {
       NeighborEntryState::INCOMPLETE,
       true);
   if (entry) {
-    programPendingEntry(entry, force);
+    programPendingEntry(entry, port, force);
   }
 }
 
@@ -444,7 +605,7 @@ void NeighborCacheImpl<NTable>::portDown(PortDescriptor port) {
     // programmed. Also we need to notify the HwSwitch for ECMP expand
     // when the port comes back up and changing an entry from pending
     // to reachable is how we currently do this.
-    setPendingEntry(item.second->getIP(), true);
+    setPendingEntry(item.second->getIP(), port, true);
   }
 }
 

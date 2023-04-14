@@ -66,6 +66,15 @@ target_link_libraries(meru400biu_bsp
   FBThrift::thriftcpp2
 )
 
+add_library(meru800bia_bsp
+  fboss/lib/bsp/meru800bia/Meru800biaBspPlatformMapping.cpp
+)
+
+target_link_libraries(meru800bia_bsp
+  bsp_platform_mapping_cpp2
+  FBThrift::thriftcpp2
+)
+
 add_library(montblanc_bsp
   fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.cpp
 )
@@ -99,6 +108,7 @@ target_link_libraries(qsfp_bsp_core
   Folly::folly
   meru400bfu_bsp
   meru400biu_bsp
+  meru800bia_bsp
   montblanc_bsp
   device_mdio
   fpga_device

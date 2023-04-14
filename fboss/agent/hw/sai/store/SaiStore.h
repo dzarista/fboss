@@ -508,11 +508,11 @@ class SaiObjectStore {
  * Specialize SaiSwitchObj to allow for stand alone construction
  * since we don't create a object store for SaiSwitchObj
  */
-class SaiSwitchObj : public SaiObject<SaiSwitchTraits> {
+class SaiSwitchObj : public SaiObjectWithCounters<SaiSwitchTraits> {
  public:
   template <typename... Args>
   SaiSwitchObj(Args&&... args)
-      : SaiObject<SaiSwitchTraits>(std::forward<Args>(args)...) {}
+      : SaiObjectWithCounters<SaiSwitchTraits>(std::forward<Args>(args)...) {}
 };
 /*
  * SaiStore represents FBOSS's knowledge of objects and their attributes
@@ -585,11 +585,9 @@ class SaiStore {
       SaiObjectStore<SaiDebugCounterTraits>,
       SaiObjectStore<SaiSystemPortTraits>,
       SaiObjectStore<SaiPortTraits>,
-#if !defined(TAJO_SDK)
       SaiObjectStore<SaiUdfTraits>,
       SaiObjectStore<SaiUdfGroupTraits>,
       SaiObjectStore<SaiUdfMatchTraits>,
-#endif
       SaiObjectStore<SaiVlanTraits>,
       SaiObjectStore<SaiVlanMemberTraits>,
       SaiObjectStore<SaiRouteTraits>,
