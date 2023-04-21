@@ -10,8 +10,6 @@ Author : seerpini@arista.com
 Script for generating the Viper fabric port platform mapping.
 Assumptions:
     - viper_platform_mapping.json exists in CWD and is a valid json file.
-    - "chips" dict is already populated correctly for "fab1/X" ports and the corresponding BC(Y) cores.
-      this script does not populate the "chips" dictionary.
     - Each fabric serdes is enumerated as a 100G port. Supported profiles 36, 37 correspond to 100G optical and copper.
 Output:
     - Updated platform mapping is written to new_viper_mapping.json
@@ -23,6 +21,12 @@ Instructions:
 # Variables to control the behavior for the script
 # Existing mappings at a port level are not replaced if preserveExistingMappings=True
 preserveExistingMappings = True
+# Logical port base in the SDK for NIF ports.
+nifPortBase = 2
+# Total number of NIF ports. Since we are operating in either 400G-4 or 800G-8 and we
+# only plan to use the first port in the slot in 400G-4 mode, we have a total of 18
+# front panel NIF ports.
+numNifPorts = 18
 # Logical port base in the SDK for fabric ports.
 fabricPortBase = 1024
 # Total number of fabric ports.
@@ -34,8 +38,40 @@ platMapping = None
 with open( "viper_platform_mapping.json" ) as fh:
    platMapping = json.load( fh, object_pairs_hook=OrderedDict )
 
+# Viper has a non-linear front panel slot to port type mapping.
+def frontPanelSlotToPortType( slot ):
+   assert 1 <= slot <= 38
+   if 11 <= slot <= 28:
+      # The 18 ports in between are ethernet ports.
+      return "eth"
+   else:
+      # First 10 ports and last 10 ports on the front panel are fabric ports.
+      return "fab"
+
+nifSerdesCoreToCoreAndFrontPanelSlot = {
+      # serdes Octet : J3 core, front panel slot
+      0 : ( 0, '19' ),
+      1 : ( 0, '16' ),
+      2 : ( 0, '18' ),
+      3 : ( 0, '15' ),
+      4 : ( 0, '17' ),
+      5 : ( 1, '13' ),
+      6 : ( 1, '11' ),
+      7 : ( 1, '14' ),
+      8 : ( 1, '12' ),
+      9 : ( 2, '20' ),
+      10 : ( 2, '21' ),
+      11 : ( 2, '22' ), 
+      12 : ( 2, '23' ),
+      13 : ( 3, '27' ),
+      14 : ( 3, '28' ),
+      15 : ( 3, '25' ),
+      16 : ( 3, '26' ),
+      17 : ( 3, '24' )
+}
+
 # Fixed fabric serdes octet to front panel slot mapping for Viper.
-fabSerdesOctetToFrontPanelSlot = {
+fabSerdesCoreToFrontPanelSlot = {
       0 : '10',
       1 : '9',
       2 : '8',
@@ -58,66 +94,215 @@ fabSerdesOctetToFrontPanelSlot = {
       19 : '36'
 }
 
-def getFabricPortMappingTemplate( supportedProfiles=[] ):
-   templatePortMapping = OrderedDict()
-   templatePortMapping[ "id" ] = 0
-   templatePortMapping[ "name" ] = ""
-   templatePortMapping[ "controllingPort" ] = 0
-   pinMapping = OrderedDict()
-   pinMapping[ "a" ] = OrderedDict()
-   pinMapping[ "a" ][ "chip" ] = ""
-   pinMapping[ "a" ][ "lane" ] = 0
-   pinMapping[ "z" ] = OrderedDict()
-   pinMapping[ "z" ][ "end" ] = OrderedDict()
-   pinMapping[ "z" ][ "end" ][ "chip" ] = ""
-   pinMapping[ "z" ][ "end" ][ "lane" ] = 0
-   templatePortMapping[ "pins" ] = [ pinMapping, ]
-   templatePortMapping[ "portType" ] = 1
-   pinIPhyMapping = OrderedDict()
-   pinIPhyMapping[ "id" ] = OrderedDict()
-   pinIPhyMapping[ "id" ][ "chip" ] = ""
-   pinIPhyMapping[ "id" ][ "lane" ] = 0
-   templateSuppProfiles = OrderedDict()
+# Assuming 100G lanes, number of lanes required by each supported port profile.
+numLanesFromSupportedProfile = {
+      "11" : 1,
+      "36" : 1,
+      "37" : 1,
+      "38" : 4,
+      "39" : 8
+}
+
+def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
+      firstLane=0, supportedProfiles=None, attachedCoreId=0, attachedCorePortIndex=0,
+      portType=0 ):
+   # Front panel port would be et1/X and based on the first lane, this can be et1/X/Y
+   # where Y is firstLane+1.
+   name=f"{frontPanelPort}/{firstLane+1}"
+   portMapping = OrderedDict( {
+      "mapping": OrderedDict( {
+         "id": portId,
+         "name": name,
+         "controllingPort": portId,
+         "pins": [],
+         "portType": portType,
+         "attachedCoreId": attachedCoreId,
+         "attachedCorePortIndex": attachedCorePortIndex
+      } ),
+      "supportedProfiles": OrderedDict()
+   } )
+   for lane in range( firstLane, firstLane+numLanes ):
+      pinMapping = OrderedDict( {
+         "a" : OrderedDict( {
+            "chip" : serdesCore,
+            "lane" : lane
+         } ),
+         "z" : OrderedDict( {
+            "end" : OrderedDict( {
+               "chip" : frontPanelPort,
+               "lane" : lane
+            } )
+         } )
+      } )
+      portMapping[ "mapping" ][ "pins" ].append( pinMapping )
+
+   templateSuppProfiles = portMapping[ "supportedProfiles" ]
+   # numLanes is the total lanes that this port can use. However, based on the port
+   # profile, we might not need to use all the lanes. For eg, for 400G-4, we will
+   # only need the first 4 lanes. 800G-8 will need all 8 lanes.
+   if supportedProfiles is None:
+      supportedProfiles = []
    for suppProfile in supportedProfiles:
-       templateSuppProfiles[ suppProfile ] = OrderedDict()
-       templateSuppProfiles[ suppProfile ][ "pins" ] = OrderedDict( { "iphy" : [
-          copy.deepcopy(pinIPhyMapping), ] } )
-   portMapping = OrderedDict()
-   portMapping[ "mapping" ] = templatePortMapping
-   portMapping[ "supportedProfiles" ] = templateSuppProfiles
+      if suppProfile not in templateSuppProfiles:
+         templateSuppProfiles[ suppProfile ] = OrderedDict(
+               { "pins" : OrderedDict(
+                  {
+                     "iphy" : [],
+         #            "transceiver" : [],
+                  } )
+               } )
+      reqLanes = numLanesFromSupportedProfile[ suppProfile ]
+      assert reqLanes <= numLanes
+      for lane in range( firstLane, firstLane+reqLanes ):
+         pinIPhyMapping = OrderedDict( {
+            "id" : OrderedDict( {
+               "chip" : serdesCore,
+               "lane" : lane
+            } )
+         } )
+         xcvrMapping = OrderedDict( {
+            "id" : OrderedDict( {
+               "chip" : frontPanelPort,
+               "lane" : lane
+            } )
+         } )
+         templateSuppProfiles[ suppProfile ][ "pins" ][ "iphy" ].append(
+               pinIPhyMapping )
+         #templateSuppProfiles[ suppProfile ][ "pins" ][ "transceiver" ].append(
+         #      xcvrMapping )
    return portMapping
 
+def getRecyclePortMapping( portId, attachedCoreId=0 ):
+   serdesCore = f"rcy{portId}"
+   # There is no frontPanelPort for the recycle, hack it to match what
+   # getBasePortMapping() expects.
+   frontPanelPort = f"{serdesCore}/1"
+   portMapping = getBasePortMapping( portId=portId, serdesCore=serdesCore,
+         frontPanelPort=frontPanelPort, numLanes=1, firstLane=0,
+         supportedProfiles=[ "11", ], attachedCoreId=attachedCoreId,
+         attachedCorePortIndex=portId, portType=3 )
+   # Recycle port does not have a "z" side of the port.
+   del portMapping[ "mapping" ][ "pins" ][0][ "z" ]
+   return portMapping
+
+def getNifPortMapping( portId, serdesCore, frontPanelPort, coreId,
+                       supportedProfiles=None ):
+   return getBasePortMapping( portId=portId, serdesCore=serdesCore,
+         frontPanelPort=frontPanelPort, numLanes=8, firstLane=0,
+         supportedProfiles=supportedProfiles, attachedCoreId=coreId,
+         attachedCorePortIndex=portId, portType=0 )
+
+def getFabricPortMapping( portId, serdesCore, frontPanelPort, firstLane,
+                          supportedProfiles=None ):
+   portMapping = getBasePortMapping( portId=portId, serdesCore=serdesCore,
+         frontPanelPort=frontPanelPort, numLanes=1, firstLane=firstLane,
+         supportedProfiles=supportedProfiles, portType=1 )
+   del portMapping[ "mapping" ][ "attachedCoreId" ]
+   del portMapping[ "mapping" ][ "attachedCorePortIndex" ]
+   return portMapping
+
+platMapping = OrderedDict()
+platMapping[ "ports" ] = OrderedDict( {
+   "1" : getRecyclePortMapping( 1 )
+   } )
+
+# Append nif ports.
+for port in range( nifPortBase, nifPortBase + numNifPorts ):
+   portStr = str( port )
+   # We are not describing non-master sub ports.
+   portOctet = port - nifPortBase
+   if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
+      continue
+   supportedProfiles = [ '38', '39', ]
+   serdesCore = f"BC{portOctet}"
+   coreId, frontPanelSlot = nifSerdesCoreToCoreAndFrontPanelSlot[ portOctet ]
+   frontPanelPort = f"eth1/{frontPanelSlot}"
+   portMapping = getNifPortMapping( portId=port, serdesCore=serdesCore,
+         frontPanelPort=frontPanelPort, coreId=coreId,
+         supportedProfiles=supportedProfiles )
+   platMapping[ 'ports' ][ portStr ] = portMapping
+   if debug:
+      print( portMapping )
+
+# Append the fabric ports.
+# Each serdes is described as a fabric port, so the enumeration here is somewhat
+# different from the NIF ports.
 for port in range( fabricPortBase, fabricPortBase + numFabricPorts ):
    portStr = str( port )
    portOctet = ( port - fabricPortBase ) // 8
    portLane = ( port % 8 )
    if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
       continue
-   else:
-      supportedProfiles = [ '36', '37', ]
-      portMapping = getFabricPortMappingTemplate( supportedProfiles=supportedProfiles )
-      assert 'mapping' in portMapping
-      portMapping[ 'mapping' ][ 'id' ] = port
-      portMapping[ 'mapping' ][ 'controllingPort' ] = port
-      fabFrontPanelMasterPortStr = "fab1/" + fabSerdesOctetToFrontPanelSlot[ portOctet ]
-      portMapping[ 'mapping' ][ 'name' ] = fabFrontPanelMasterPortStr + "/" + str(
-            portLane+1 )
-      portMapping[ 'mapping' ][ 'pins'][ 0 ][ 'a' ][ 'chip' ] = "BC" + str( portOctet )
-      portMapping[ 'mapping' ][ 'pins'][ 0 ][ 'a' ][ 'lane' ] = portLane
-      portMapping[ 'mapping' ][ 'pins'][ 0 ][ 'z' ][ 'end' ][ 'chip' ] = fabFrontPanelMasterPortStr
-      portMapping[ 'mapping' ][ 'pins'][ 0 ][ 'z' ][ 'end' ][ 'lane' ] = portLane
-      assert 'supportedProfiles' in portMapping
-      for suppProfile in supportedProfiles:
-         assert suppProfile in portMapping[ 'supportedProfiles' ]
-         portMapping[ 'supportedProfiles' ][ suppProfile ][ 'pins' ][ 'iphy' ][
-               0 ][ 'id' ][ 'chip' ] = "BC" + str( portOctet )
-         portMapping[ 'supportedProfiles' ][ suppProfile ][ 'pins' ][ 'iphy' ][
-               0 ][ 'id' ][ 'lane' ] = portLane
-      platMapping[ 'ports' ][ portStr ] = portMapping
-      if debug:
-          print( portMapping )
+   supportedProfiles = [ '36', '37', ]
+   serdesCore = f"BC{portOctet}"
+   frontPanelSlot = fabSerdesCoreToFrontPanelSlot[ portOctet ]
+   frontPanelPort = f"fab1/{frontPanelSlot}"
+   portMapping = getFabricPortMapping( portId=port, serdesCore=serdesCore,
+         frontPanelPort=frontPanelPort, firstLane=portLane,
+         supportedProfiles=supportedProfiles )
+   platMapping[ 'ports' ][ portStr ] = portMapping
+   if debug:
+      print( portMapping )
+
+# Append the chips enumeration.
+# Serdes cores is a superset of octet cores required for fabric and front panel
+# ports.
+platMapping[ "chips" ] = []
+platMapping[ "chips" ].append( OrderedDict( {
+      "name" : "rcy1",
+      "type" : 1,
+      "physicalID" : 55
+} ) )
+serdesCores = max( numNifPorts, numFabricPorts//8 )
+for core in range( serdesCores ):
+   platMapping[ "chips" ].append( OrderedDict(
+      {
+         "name": f"BC{core}",
+         "type" : 1,
+         "physicalID": core
+      } ) )
+numFrontPanelPorts = 38
+for port in range( 1, numFrontPanelPorts+1 ):
+   platMapping[ "chips" ].append( OrderedDict(
+      {
+         "name": f"{frontPanelSlotToPortType(port)}1/{port}",
+         "type" : 3,
+         "physicalID": port 
+      } ) )
+
+platMapping[ "platformSettings" ] = OrderedDict()
+platMapping[ "portConfigOverrides" ] = []
+platMapping[ "platformSupportedProfiles" ] = []
+# Port Attributes by profile
+portAttrsByProfile = {
+      #profileId : ( speed, numLanes, modulation, fed, medium, interfaceMode )
+      11 : ( 10000, 1, 1, 1, 1, 10 ),
+      36 : ( 53125, 1, 2, 545, 1, 41 ),
+      37 : ( 53125, 1, 2, 545, 3, 41 ),
+      38 : ( 400000, 4, 2, 11, 2, 21 ),
+      39 : ( 800000, 8, 2, 11, 2, 23 ),
+}
+# Append the supportedProfiles information.
+for profileID in ( 11, 36, 37, 38, 39 ):
+   profilePortAttrs = portAttrsByProfile[ profileID ]
+   platMapping[ "platformSupportedProfiles" ].append(
+         OrderedDict( {
+            "factor" : {
+               "profileID" : profileID
+            },
+            "profile": OrderedDict( {
+               "speed": profilePortAttrs[ 0 ],
+               "iphy" : OrderedDict( {
+                  "numLanes" : profilePortAttrs[ 1 ],
+                  "modulation" : profilePortAttrs[ 2 ],
+                  "fec" : profilePortAttrs[ 3 ],
+                  "medium" : profilePortAttrs[ 4 ],
+                  "interfaceMode" : profilePortAttrs[ 5 ],
+                  "interfaceType" : profilePortAttrs[ 5 ]
+               } )
+            } )
+         } ) )
 
 json_out = json.dumps( platMapping, indent=2, sort_keys=False )
-
 with open( "new_viper_mapping.json", "w") as fh:
    fh.write( json_out )
