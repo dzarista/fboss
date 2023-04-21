@@ -148,7 +148,7 @@ def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
                { "pins" : OrderedDict(
                   {
                      "iphy" : [],
-         #            "transceiver" : [],
+                     "transceiver" : [],
                   } )
                } )
       reqLanes = numLanesFromSupportedProfile[ suppProfile ]
@@ -168,8 +168,8 @@ def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
          } )
          templateSuppProfiles[ suppProfile ][ "pins" ][ "iphy" ].append(
                pinIPhyMapping )
-         #templateSuppProfiles[ suppProfile ][ "pins" ][ "transceiver" ].append(
-         #      xcvrMapping )
+         templateSuppProfiles[ suppProfile ][ "pins" ][ "transceiver" ].append(
+               xcvrMapping )
    return portMapping
 
 def getRecyclePortMapping( portId, attachedCoreId=0 ):
