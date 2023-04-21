@@ -19,12 +19,19 @@
       },
       "supportedProfiles": {
         "11": {
-          "subsumedPorts": [],
           "pins": {
             "iphy": [
               {
                 "id": {
                   "chip": "rcy1",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "rcy1/1",
                   "lane": 0
                 }
               }
@@ -168,6 +175,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -219,6 +252,56 @@
               {
                 "id": {
                   "chip": "BC0",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/19",
                   "lane": 7
                 }
               }
@@ -362,6 +445,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -413,6 +522,56 @@
               {
                 "id": {
                   "chip": "BC1",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/16",
                   "lane": 7
                 }
               }
@@ -556,6 +715,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -607,6 +792,56 @@
               {
                 "id": {
                   "chip": "BC2",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/18",
                   "lane": 7
                 }
               }
@@ -750,6 +985,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -801,6 +1062,56 @@
               {
                 "id": {
                   "chip": "BC3",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/15",
                   "lane": 7
                 }
               }
@@ -944,6 +1255,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -995,6 +1332,56 @@
               {
                 "id": {
                   "chip": "BC4",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/17",
                   "lane": 7
                 }
               }
@@ -1138,6 +1525,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -1189,6 +1602,56 @@
               {
                 "id": {
                   "chip": "BC5",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/13",
                   "lane": 7
                 }
               }
@@ -1332,6 +1795,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -1383,6 +1872,56 @@
               {
                 "id": {
                   "chip": "BC6",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/11",
                   "lane": 7
                 }
               }
@@ -1526,6 +2065,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -1577,6 +2142,56 @@
               {
                 "id": {
                   "chip": "BC7",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/14",
                   "lane": 7
                 }
               }
@@ -1720,6 +2335,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -1771,6 +2412,56 @@
               {
                 "id": {
                   "chip": "BC8",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/12",
                   "lane": 7
                 }
               }
@@ -1914,6 +2605,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -1965,6 +2682,56 @@
               {
                 "id": {
                   "chip": "BC9",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/20",
                   "lane": 7
                 }
               }
@@ -2108,6 +2875,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -2159,6 +2952,56 @@
               {
                 "id": {
                   "chip": "BC10",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/21",
                   "lane": 7
                 }
               }
@@ -2302,6 +3145,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -2353,6 +3222,56 @@
               {
                 "id": {
                   "chip": "BC11",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/22",
                   "lane": 7
                 }
               }
@@ -2496,6 +3415,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -2547,6 +3492,56 @@
               {
                 "id": {
                   "chip": "BC12",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/23",
                   "lane": 7
                 }
               }
@@ -2690,6 +3685,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -2741,6 +3762,56 @@
               {
                 "id": {
                   "chip": "BC13",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/27",
                   "lane": 7
                 }
               }
@@ -2884,6 +3955,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -2935,6 +4032,56 @@
               {
                 "id": {
                   "chip": "BC14",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/28",
                   "lane": 7
                 }
               }
@@ -3078,6 +4225,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -3129,6 +4302,56 @@
               {
                 "id": {
                   "chip": "BC15",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/25",
                   "lane": 7
                 }
               }
@@ -3272,6 +4495,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -3323,6 +4572,56 @@
               {
                 "id": {
                   "chip": "BC16",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/26",
                   "lane": 7
                 }
               }
@@ -3466,6 +4765,32 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -3520,6 +4845,56 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 0
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 1
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 2
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 3
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 4
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 5
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 6
+                }
+              },
+              {
+                "id": {
+                  "chip": "eth1/24",
+                  "lane": 7
+                }
+              }
             ]
           }
         }
@@ -3556,6 +4931,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -3565,6 +4948,14 @@
               {
                 "id": {
                   "chip": "BC0",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
                   "lane": 0
                 }
               }
@@ -3604,6 +4995,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -3613,6 +5012,14 @@
               {
                 "id": {
                   "chip": "BC0",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
                   "lane": 1
                 }
               }
@@ -3652,6 +5059,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -3661,6 +5076,14 @@
               {
                 "id": {
                   "chip": "BC0",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
                   "lane": 2
                 }
               }
@@ -3700,6 +5123,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -3709,6 +5140,14 @@
               {
                 "id": {
                   "chip": "BC0",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
                   "lane": 3
                 }
               }
@@ -3748,6 +5187,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -3757,6 +5204,14 @@
               {
                 "id": {
                   "chip": "BC0",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
                   "lane": 4
                 }
               }
@@ -3796,6 +5251,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -3805,6 +5268,14 @@
               {
                 "id": {
                   "chip": "BC0",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
                   "lane": 5
                 }
               }
@@ -3844,6 +5315,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -3853,6 +5332,14 @@
               {
                 "id": {
                   "chip": "BC0",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
                   "lane": 6
                 }
               }
@@ -3892,6 +5379,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -3901,6 +5396,14 @@
               {
                 "id": {
                   "chip": "BC0",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/10",
                   "lane": 7
                 }
               }
@@ -3940,6 +5443,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -3949,6 +5460,14 @@
               {
                 "id": {
                   "chip": "BC1",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
                   "lane": 0
                 }
               }
@@ -3988,6 +5507,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -3997,6 +5524,14 @@
               {
                 "id": {
                   "chip": "BC1",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
                   "lane": 1
                 }
               }
@@ -4036,6 +5571,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -4045,6 +5588,14 @@
               {
                 "id": {
                   "chip": "BC1",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
                   "lane": 2
                 }
               }
@@ -4084,6 +5635,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -4093,6 +5652,14 @@
               {
                 "id": {
                   "chip": "BC1",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
                   "lane": 3
                 }
               }
@@ -4132,6 +5699,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -4141,6 +5716,14 @@
               {
                 "id": {
                   "chip": "BC1",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
                   "lane": 4
                 }
               }
@@ -4180,6 +5763,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -4189,6 +5780,14 @@
               {
                 "id": {
                   "chip": "BC1",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
                   "lane": 5
                 }
               }
@@ -4228,6 +5827,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -4237,6 +5844,14 @@
               {
                 "id": {
                   "chip": "BC1",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
                   "lane": 6
                 }
               }
@@ -4276,6 +5891,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -4285,6 +5908,14 @@
               {
                 "id": {
                   "chip": "BC1",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/9",
                   "lane": 7
                 }
               }
@@ -4324,6 +5955,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -4333,6 +5972,14 @@
               {
                 "id": {
                   "chip": "BC2",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
                   "lane": 0
                 }
               }
@@ -4372,6 +6019,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -4381,6 +6036,14 @@
               {
                 "id": {
                   "chip": "BC2",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
                   "lane": 1
                 }
               }
@@ -4420,6 +6083,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -4429,6 +6100,14 @@
               {
                 "id": {
                   "chip": "BC2",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
                   "lane": 2
                 }
               }
@@ -4468,6 +6147,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -4477,6 +6164,14 @@
               {
                 "id": {
                   "chip": "BC2",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
                   "lane": 3
                 }
               }
@@ -4516,6 +6211,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -4525,6 +6228,14 @@
               {
                 "id": {
                   "chip": "BC2",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
                   "lane": 4
                 }
               }
@@ -4564,6 +6275,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -4573,6 +6292,14 @@
               {
                 "id": {
                   "chip": "BC2",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
                   "lane": 5
                 }
               }
@@ -4612,6 +6339,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -4621,6 +6356,14 @@
               {
                 "id": {
                   "chip": "BC2",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
                   "lane": 6
                 }
               }
@@ -4660,6 +6403,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -4669,6 +6420,14 @@
               {
                 "id": {
                   "chip": "BC2",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/8",
                   "lane": 7
                 }
               }
@@ -4708,6 +6467,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -4717,6 +6484,14 @@
               {
                 "id": {
                   "chip": "BC3",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
                   "lane": 0
                 }
               }
@@ -4756,6 +6531,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -4765,6 +6548,14 @@
               {
                 "id": {
                   "chip": "BC3",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
                   "lane": 1
                 }
               }
@@ -4804,6 +6595,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -4813,6 +6612,14 @@
               {
                 "id": {
                   "chip": "BC3",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
                   "lane": 2
                 }
               }
@@ -4852,6 +6659,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -4861,6 +6676,14 @@
               {
                 "id": {
                   "chip": "BC3",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
                   "lane": 3
                 }
               }
@@ -4900,6 +6723,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -4909,6 +6740,14 @@
               {
                 "id": {
                   "chip": "BC3",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
                   "lane": 4
                 }
               }
@@ -4948,6 +6787,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -4957,6 +6804,14 @@
               {
                 "id": {
                   "chip": "BC3",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
                   "lane": 5
                 }
               }
@@ -4996,6 +6851,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -5005,6 +6868,14 @@
               {
                 "id": {
                   "chip": "BC3",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
                   "lane": 6
                 }
               }
@@ -5044,6 +6915,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -5053,6 +6932,14 @@
               {
                 "id": {
                   "chip": "BC3",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/7",
                   "lane": 7
                 }
               }
@@ -5092,6 +6979,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -5101,6 +6996,14 @@
               {
                 "id": {
                   "chip": "BC4",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
                   "lane": 0
                 }
               }
@@ -5140,6 +7043,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -5149,6 +7060,14 @@
               {
                 "id": {
                   "chip": "BC4",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
                   "lane": 1
                 }
               }
@@ -5188,6 +7107,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -5197,6 +7124,14 @@
               {
                 "id": {
                   "chip": "BC4",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
                   "lane": 2
                 }
               }
@@ -5236,6 +7171,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -5245,6 +7188,14 @@
               {
                 "id": {
                   "chip": "BC4",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
                   "lane": 3
                 }
               }
@@ -5284,6 +7235,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -5293,6 +7252,14 @@
               {
                 "id": {
                   "chip": "BC4",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
                   "lane": 4
                 }
               }
@@ -5332,6 +7299,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -5341,6 +7316,14 @@
               {
                 "id": {
                   "chip": "BC4",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
                   "lane": 5
                 }
               }
@@ -5380,6 +7363,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -5389,6 +7380,14 @@
               {
                 "id": {
                   "chip": "BC4",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
                   "lane": 6
                 }
               }
@@ -5428,6 +7427,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -5437,6 +7444,14 @@
               {
                 "id": {
                   "chip": "BC4",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/6",
                   "lane": 7
                 }
               }
@@ -5476,6 +7491,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -5485,6 +7508,14 @@
               {
                 "id": {
                   "chip": "BC5",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
                   "lane": 0
                 }
               }
@@ -5524,6 +7555,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -5533,6 +7572,14 @@
               {
                 "id": {
                   "chip": "BC5",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
                   "lane": 1
                 }
               }
@@ -5572,6 +7619,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -5581,6 +7636,14 @@
               {
                 "id": {
                   "chip": "BC5",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
                   "lane": 2
                 }
               }
@@ -5620,6 +7683,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -5629,6 +7700,14 @@
               {
                 "id": {
                   "chip": "BC5",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
                   "lane": 3
                 }
               }
@@ -5668,6 +7747,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -5677,6 +7764,14 @@
               {
                 "id": {
                   "chip": "BC5",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
                   "lane": 4
                 }
               }
@@ -5716,6 +7811,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -5725,6 +7828,14 @@
               {
                 "id": {
                   "chip": "BC5",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
                   "lane": 5
                 }
               }
@@ -5764,6 +7875,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -5773,6 +7892,14 @@
               {
                 "id": {
                   "chip": "BC5",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
                   "lane": 6
                 }
               }
@@ -5812,6 +7939,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -5821,6 +7956,14 @@
               {
                 "id": {
                   "chip": "BC5",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/5",
                   "lane": 7
                 }
               }
@@ -5860,6 +8003,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -5869,6 +8020,14 @@
               {
                 "id": {
                   "chip": "BC6",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
                   "lane": 0
                 }
               }
@@ -5908,6 +8067,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -5917,6 +8084,14 @@
               {
                 "id": {
                   "chip": "BC6",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
                   "lane": 1
                 }
               }
@@ -5956,6 +8131,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -5965,6 +8148,14 @@
               {
                 "id": {
                   "chip": "BC6",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
                   "lane": 2
                 }
               }
@@ -6004,6 +8195,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -6013,6 +8212,14 @@
               {
                 "id": {
                   "chip": "BC6",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
                   "lane": 3
                 }
               }
@@ -6052,6 +8259,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -6061,6 +8276,14 @@
               {
                 "id": {
                   "chip": "BC6",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
                   "lane": 4
                 }
               }
@@ -6100,6 +8323,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -6109,6 +8340,14 @@
               {
                 "id": {
                   "chip": "BC6",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
                   "lane": 5
                 }
               }
@@ -6148,6 +8387,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -6157,6 +8404,14 @@
               {
                 "id": {
                   "chip": "BC6",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
                   "lane": 6
                 }
               }
@@ -6196,6 +8451,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -6205,6 +8468,14 @@
               {
                 "id": {
                   "chip": "BC6",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/4",
                   "lane": 7
                 }
               }
@@ -6244,6 +8515,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -6253,6 +8532,14 @@
               {
                 "id": {
                   "chip": "BC7",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
                   "lane": 0
                 }
               }
@@ -6292,6 +8579,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -6301,6 +8596,14 @@
               {
                 "id": {
                   "chip": "BC7",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
                   "lane": 1
                 }
               }
@@ -6340,6 +8643,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -6349,6 +8660,14 @@
               {
                 "id": {
                   "chip": "BC7",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
                   "lane": 2
                 }
               }
@@ -6388,6 +8707,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -6397,6 +8724,14 @@
               {
                 "id": {
                   "chip": "BC7",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
                   "lane": 3
                 }
               }
@@ -6436,6 +8771,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -6445,6 +8788,14 @@
               {
                 "id": {
                   "chip": "BC7",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
                   "lane": 4
                 }
               }
@@ -6484,6 +8835,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -6493,6 +8852,14 @@
               {
                 "id": {
                   "chip": "BC7",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
                   "lane": 5
                 }
               }
@@ -6532,6 +8899,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -6541,6 +8916,14 @@
               {
                 "id": {
                   "chip": "BC7",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
                   "lane": 6
                 }
               }
@@ -6580,6 +8963,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -6589,6 +8980,14 @@
               {
                 "id": {
                   "chip": "BC7",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/3",
                   "lane": 7
                 }
               }
@@ -6628,6 +9027,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -6637,6 +9044,14 @@
               {
                 "id": {
                   "chip": "BC8",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
                   "lane": 0
                 }
               }
@@ -6676,6 +9091,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -6685,6 +9108,14 @@
               {
                 "id": {
                   "chip": "BC8",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
                   "lane": 1
                 }
               }
@@ -6724,6 +9155,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -6733,6 +9172,14 @@
               {
                 "id": {
                   "chip": "BC8",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
                   "lane": 2
                 }
               }
@@ -6772,6 +9219,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -6781,6 +9236,14 @@
               {
                 "id": {
                   "chip": "BC8",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
                   "lane": 3
                 }
               }
@@ -6820,6 +9283,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -6829,6 +9300,14 @@
               {
                 "id": {
                   "chip": "BC8",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
                   "lane": 4
                 }
               }
@@ -6868,6 +9347,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -6877,6 +9364,14 @@
               {
                 "id": {
                   "chip": "BC8",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
                   "lane": 5
                 }
               }
@@ -6916,6 +9411,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -6925,6 +9428,14 @@
               {
                 "id": {
                   "chip": "BC8",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
                   "lane": 6
                 }
               }
@@ -6964,6 +9475,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -6973,6 +9492,14 @@
               {
                 "id": {
                   "chip": "BC8",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/1",
                   "lane": 7
                 }
               }
@@ -7012,6 +9539,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -7021,6 +9556,14 @@
               {
                 "id": {
                   "chip": "BC9",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
                   "lane": 0
                 }
               }
@@ -7060,6 +9603,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -7069,6 +9620,14 @@
               {
                 "id": {
                   "chip": "BC9",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
                   "lane": 1
                 }
               }
@@ -7108,6 +9667,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -7117,6 +9684,14 @@
               {
                 "id": {
                   "chip": "BC9",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
                   "lane": 2
                 }
               }
@@ -7156,6 +9731,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -7165,6 +9748,14 @@
               {
                 "id": {
                   "chip": "BC9",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
                   "lane": 3
                 }
               }
@@ -7204,6 +9795,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -7213,6 +9812,14 @@
               {
                 "id": {
                   "chip": "BC9",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
                   "lane": 4
                 }
               }
@@ -7252,6 +9859,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -7261,6 +9876,14 @@
               {
                 "id": {
                   "chip": "BC9",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
                   "lane": 5
                 }
               }
@@ -7300,6 +9923,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -7309,6 +9940,14 @@
               {
                 "id": {
                   "chip": "BC9",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
                   "lane": 6
                 }
               }
@@ -7348,6 +9987,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -7357,6 +10004,14 @@
               {
                 "id": {
                   "chip": "BC9",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/2",
                   "lane": 7
                 }
               }
@@ -7396,6 +10051,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -7405,6 +10068,14 @@
               {
                 "id": {
                   "chip": "BC10",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
                   "lane": 0
                 }
               }
@@ -7444,6 +10115,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -7453,6 +10132,14 @@
               {
                 "id": {
                   "chip": "BC10",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
                   "lane": 1
                 }
               }
@@ -7492,6 +10179,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -7501,6 +10196,14 @@
               {
                 "id": {
                   "chip": "BC10",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
                   "lane": 2
                 }
               }
@@ -7540,6 +10243,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -7549,6 +10260,14 @@
               {
                 "id": {
                   "chip": "BC10",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
                   "lane": 3
                 }
               }
@@ -7588,6 +10307,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -7597,6 +10324,14 @@
               {
                 "id": {
                   "chip": "BC10",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
                   "lane": 4
                 }
               }
@@ -7636,6 +10371,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -7645,6 +10388,14 @@
               {
                 "id": {
                   "chip": "BC10",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
                   "lane": 5
                 }
               }
@@ -7684,6 +10435,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -7693,6 +10452,14 @@
               {
                 "id": {
                   "chip": "BC10",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
                   "lane": 6
                 }
               }
@@ -7732,6 +10499,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -7741,6 +10516,14 @@
               {
                 "id": {
                   "chip": "BC10",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/30",
                   "lane": 7
                 }
               }
@@ -7780,6 +10563,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -7789,6 +10580,14 @@
               {
                 "id": {
                   "chip": "BC11",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
                   "lane": 0
                 }
               }
@@ -7828,6 +10627,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -7837,6 +10644,14 @@
               {
                 "id": {
                   "chip": "BC11",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
                   "lane": 1
                 }
               }
@@ -7876,6 +10691,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -7885,6 +10708,14 @@
               {
                 "id": {
                   "chip": "BC11",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
                   "lane": 2
                 }
               }
@@ -7924,6 +10755,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -7933,6 +10772,14 @@
               {
                 "id": {
                   "chip": "BC11",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
                   "lane": 3
                 }
               }
@@ -7972,6 +10819,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -7981,6 +10836,14 @@
               {
                 "id": {
                   "chip": "BC11",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
                   "lane": 4
                 }
               }
@@ -8020,6 +10883,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -8029,6 +10900,14 @@
               {
                 "id": {
                   "chip": "BC11",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
                   "lane": 5
                 }
               }
@@ -8068,6 +10947,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -8077,6 +10964,14 @@
               {
                 "id": {
                   "chip": "BC11",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
                   "lane": 6
                 }
               }
@@ -8116,6 +11011,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -8125,6 +11028,14 @@
               {
                 "id": {
                   "chip": "BC11",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/29",
                   "lane": 7
                 }
               }
@@ -8164,6 +11075,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -8173,6 +11092,14 @@
               {
                 "id": {
                   "chip": "BC12",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
                   "lane": 0
                 }
               }
@@ -8212,6 +11139,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -8221,6 +11156,14 @@
               {
                 "id": {
                   "chip": "BC12",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
                   "lane": 1
                 }
               }
@@ -8260,6 +11203,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -8269,6 +11220,14 @@
               {
                 "id": {
                   "chip": "BC12",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
                   "lane": 2
                 }
               }
@@ -8308,6 +11267,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -8317,6 +11284,14 @@
               {
                 "id": {
                   "chip": "BC12",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
                   "lane": 3
                 }
               }
@@ -8356,6 +11331,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -8365,6 +11348,14 @@
               {
                 "id": {
                   "chip": "BC12",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
                   "lane": 4
                 }
               }
@@ -8404,6 +11395,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -8413,6 +11412,14 @@
               {
                 "id": {
                   "chip": "BC12",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
                   "lane": 5
                 }
               }
@@ -8452,6 +11459,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -8461,6 +11476,14 @@
               {
                 "id": {
                   "chip": "BC12",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
                   "lane": 6
                 }
               }
@@ -8500,6 +11523,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -8509,6 +11540,14 @@
               {
                 "id": {
                   "chip": "BC12",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/32",
                   "lane": 7
                 }
               }
@@ -8548,6 +11587,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -8557,6 +11604,14 @@
               {
                 "id": {
                   "chip": "BC13",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
                   "lane": 0
                 }
               }
@@ -8596,6 +11651,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -8605,6 +11668,14 @@
               {
                 "id": {
                   "chip": "BC13",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
                   "lane": 1
                 }
               }
@@ -8644,6 +11715,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -8653,6 +11732,14 @@
               {
                 "id": {
                   "chip": "BC13",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
                   "lane": 2
                 }
               }
@@ -8692,6 +11779,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -8701,6 +11796,14 @@
               {
                 "id": {
                   "chip": "BC13",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
                   "lane": 3
                 }
               }
@@ -8740,6 +11843,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -8749,6 +11860,14 @@
               {
                 "id": {
                   "chip": "BC13",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
                   "lane": 4
                 }
               }
@@ -8788,6 +11907,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -8797,6 +11924,14 @@
               {
                 "id": {
                   "chip": "BC13",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
                   "lane": 5
                 }
               }
@@ -8836,6 +11971,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -8845,6 +11988,14 @@
               {
                 "id": {
                   "chip": "BC13",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
                   "lane": 6
                 }
               }
@@ -8884,6 +12035,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -8893,6 +12052,14 @@
               {
                 "id": {
                   "chip": "BC13",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/33",
                   "lane": 7
                 }
               }
@@ -8932,6 +12099,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -8941,6 +12116,14 @@
               {
                 "id": {
                   "chip": "BC14",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
                   "lane": 0
                 }
               }
@@ -8980,6 +12163,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -8989,6 +12180,14 @@
               {
                 "id": {
                   "chip": "BC14",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
                   "lane": 1
                 }
               }
@@ -9028,6 +12227,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -9037,6 +12244,14 @@
               {
                 "id": {
                   "chip": "BC14",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
                   "lane": 2
                 }
               }
@@ -9076,6 +12291,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -9085,6 +12308,14 @@
               {
                 "id": {
                   "chip": "BC14",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
                   "lane": 3
                 }
               }
@@ -9124,6 +12355,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -9133,6 +12372,14 @@
               {
                 "id": {
                   "chip": "BC14",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
                   "lane": 4
                 }
               }
@@ -9172,6 +12419,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -9181,6 +12436,14 @@
               {
                 "id": {
                   "chip": "BC14",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
                   "lane": 5
                 }
               }
@@ -9220,6 +12483,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -9229,6 +12500,14 @@
               {
                 "id": {
                   "chip": "BC14",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
                   "lane": 6
                 }
               }
@@ -9268,6 +12547,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -9277,6 +12564,14 @@
               {
                 "id": {
                   "chip": "BC14",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/31",
                   "lane": 7
                 }
               }
@@ -9316,6 +12611,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -9325,6 +12628,14 @@
               {
                 "id": {
                   "chip": "BC15",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
                   "lane": 0
                 }
               }
@@ -9364,6 +12675,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -9373,6 +12692,14 @@
               {
                 "id": {
                   "chip": "BC15",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
                   "lane": 1
                 }
               }
@@ -9412,6 +12739,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -9421,6 +12756,14 @@
               {
                 "id": {
                   "chip": "BC15",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
                   "lane": 2
                 }
               }
@@ -9460,6 +12803,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -9469,6 +12820,14 @@
               {
                 "id": {
                   "chip": "BC15",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
                   "lane": 3
                 }
               }
@@ -9508,6 +12867,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -9517,6 +12884,14 @@
               {
                 "id": {
                   "chip": "BC15",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
                   "lane": 4
                 }
               }
@@ -9556,6 +12931,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -9565,6 +12948,14 @@
               {
                 "id": {
                   "chip": "BC15",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
                   "lane": 5
                 }
               }
@@ -9604,6 +12995,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -9613,6 +13012,14 @@
               {
                 "id": {
                   "chip": "BC15",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
                   "lane": 6
                 }
               }
@@ -9652,6 +13059,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -9661,6 +13076,14 @@
               {
                 "id": {
                   "chip": "BC15",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/34",
                   "lane": 7
                 }
               }
@@ -9700,6 +13123,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -9709,6 +13140,14 @@
               {
                 "id": {
                   "chip": "BC16",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
                   "lane": 0
                 }
               }
@@ -9748,6 +13187,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -9757,6 +13204,14 @@
               {
                 "id": {
                   "chip": "BC16",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
                   "lane": 1
                 }
               }
@@ -9796,6 +13251,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -9805,6 +13268,14 @@
               {
                 "id": {
                   "chip": "BC16",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
                   "lane": 2
                 }
               }
@@ -9844,6 +13315,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -9853,6 +13332,14 @@
               {
                 "id": {
                   "chip": "BC16",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
                   "lane": 3
                 }
               }
@@ -9892,6 +13379,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -9901,6 +13396,14 @@
               {
                 "id": {
                   "chip": "BC16",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
                   "lane": 4
                 }
               }
@@ -9940,6 +13443,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -9949,6 +13460,14 @@
               {
                 "id": {
                   "chip": "BC16",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
                   "lane": 5
                 }
               }
@@ -9988,6 +13507,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -9997,6 +13524,14 @@
               {
                 "id": {
                   "chip": "BC16",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
                   "lane": 6
                 }
               }
@@ -10036,6 +13571,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -10045,6 +13588,14 @@
               {
                 "id": {
                   "chip": "BC16",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/38",
                   "lane": 7
                 }
               }
@@ -10084,6 +13635,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -10093,6 +13652,14 @@
               {
                 "id": {
                   "chip": "BC17",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
                   "lane": 0
                 }
               }
@@ -10132,6 +13699,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -10141,6 +13716,14 @@
               {
                 "id": {
                   "chip": "BC17",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
                   "lane": 1
                 }
               }
@@ -10180,6 +13763,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -10189,6 +13780,14 @@
               {
                 "id": {
                   "chip": "BC17",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
                   "lane": 2
                 }
               }
@@ -10228,6 +13827,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -10237,6 +13844,14 @@
               {
                 "id": {
                   "chip": "BC17",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
                   "lane": 3
                 }
               }
@@ -10276,6 +13891,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -10285,6 +13908,14 @@
               {
                 "id": {
                   "chip": "BC17",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
                   "lane": 4
                 }
               }
@@ -10324,6 +13955,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -10333,6 +13972,14 @@
               {
                 "id": {
                   "chip": "BC17",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
                   "lane": 5
                 }
               }
@@ -10372,6 +14019,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -10381,6 +14036,14 @@
               {
                 "id": {
                   "chip": "BC17",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
                   "lane": 6
                 }
               }
@@ -10420,6 +14083,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -10429,6 +14100,14 @@
               {
                 "id": {
                   "chip": "BC17",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/37",
                   "lane": 7
                 }
               }
@@ -10468,6 +14147,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -10477,6 +14164,14 @@
               {
                 "id": {
                   "chip": "BC18",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
                   "lane": 0
                 }
               }
@@ -10516,6 +14211,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -10525,6 +14228,14 @@
               {
                 "id": {
                   "chip": "BC18",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
                   "lane": 1
                 }
               }
@@ -10564,6 +14275,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -10573,6 +14292,14 @@
               {
                 "id": {
                   "chip": "BC18",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
                   "lane": 2
                 }
               }
@@ -10612,6 +14339,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -10621,6 +14356,14 @@
               {
                 "id": {
                   "chip": "BC18",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
                   "lane": 3
                 }
               }
@@ -10660,6 +14403,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -10669,6 +14420,14 @@
               {
                 "id": {
                   "chip": "BC18",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
                   "lane": 4
                 }
               }
@@ -10708,6 +14467,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -10717,6 +14484,14 @@
               {
                 "id": {
                   "chip": "BC18",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
                   "lane": 5
                 }
               }
@@ -10756,6 +14531,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -10765,6 +14548,14 @@
               {
                 "id": {
                   "chip": "BC18",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
                   "lane": 6
                 }
               }
@@ -10804,6 +14595,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -10813,6 +14612,14 @@
               {
                 "id": {
                   "chip": "BC18",
+                  "lane": 7
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/35",
                   "lane": 7
                 }
               }
@@ -10852,6 +14659,14 @@
                   "lane": 0
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
+                  "lane": 0
+                }
+              }
             ]
           }
         },
@@ -10861,6 +14676,14 @@
               {
                 "id": {
                   "chip": "BC19",
+                  "lane": 0
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
                   "lane": 0
                 }
               }
@@ -10900,6 +14723,14 @@
                   "lane": 1
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
+                  "lane": 1
+                }
+              }
             ]
           }
         },
@@ -10909,6 +14740,14 @@
               {
                 "id": {
                   "chip": "BC19",
+                  "lane": 1
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
                   "lane": 1
                 }
               }
@@ -10948,6 +14787,14 @@
                   "lane": 2
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
+                  "lane": 2
+                }
+              }
             ]
           }
         },
@@ -10957,6 +14804,14 @@
               {
                 "id": {
                   "chip": "BC19",
+                  "lane": 2
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
                   "lane": 2
                 }
               }
@@ -10996,6 +14851,14 @@
                   "lane": 3
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
+                  "lane": 3
+                }
+              }
             ]
           }
         },
@@ -11005,6 +14868,14 @@
               {
                 "id": {
                   "chip": "BC19",
+                  "lane": 3
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
                   "lane": 3
                 }
               }
@@ -11044,6 +14915,14 @@
                   "lane": 4
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
+                  "lane": 4
+                }
+              }
             ]
           }
         },
@@ -11053,6 +14932,14 @@
               {
                 "id": {
                   "chip": "BC19",
+                  "lane": 4
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
                   "lane": 4
                 }
               }
@@ -11092,6 +14979,14 @@
                   "lane": 5
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
+                  "lane": 5
+                }
+              }
             ]
           }
         },
@@ -11101,6 +14996,14 @@
               {
                 "id": {
                   "chip": "BC19",
+                  "lane": 5
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
                   "lane": 5
                 }
               }
@@ -11140,6 +15043,14 @@
                   "lane": 6
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
+                  "lane": 6
+                }
+              }
             ]
           }
         },
@@ -11149,6 +15060,14 @@
               {
                 "id": {
                   "chip": "BC19",
+                  "lane": 6
+                }
+              }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
                   "lane": 6
                 }
               }
@@ -11188,6 +15107,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
+                  "lane": 7
+                }
+              }
             ]
           }
         },
@@ -11200,6 +15127,14 @@
                   "lane": 7
                 }
               }
+            ],
+            "transceiver": [
+              {
+                "id": {
+                  "chip": "fab1/36",
+                  "lane": 7
+                }
+              }
             ]
           }
         }
@@ -11207,6 +15142,11 @@
     }
   },
   "chips": [
+    {
+      "name": "rcy1",
+      "type": 1,
+      "physicalID": 55
+    },
     {
       "name": "BC0",
       "type": 1,
@@ -11496,18 +15436,59 @@
       "name": "fab1/38",
       "type": 3,
       "physicalID": 38
-    },
-    {
-      "name": "rcy1",
-      "type": 1,
-      "physicalID": 55
     }
   ],
-  "platformSettings": {
-    "1": "68:00"
-  },
+  "platformSettings": {},
   "portConfigOverrides": [],
   "platformSupportedProfiles": [
+    {
+      "factor": {
+        "profileID": 11
+      },
+      "profile": {
+        "speed": 10000,
+        "iphy": {
+          "numLanes": 1,
+          "modulation": 1,
+          "fec": 1,
+          "medium": 1,
+          "interfaceMode": 10,
+          "interfaceType": 10
+        }
+      }
+    },
+    {
+      "factor": {
+        "profileID": 36
+      },
+      "profile": {
+        "speed": 53125,
+        "iphy": {
+          "numLanes": 1,
+          "modulation": 2,
+          "fec": 545,
+          "medium": 1,
+          "interfaceMode": 41,
+          "interfaceType": 41
+        }
+      }
+    },
+    {
+      "factor": {
+        "profileID": 37
+      },
+      "profile": {
+        "speed": 53125,
+        "iphy": {
+          "numLanes": 1,
+          "modulation": 2,
+          "fec": 545,
+          "medium": 3,
+          "interfaceMode": 41,
+          "interfaceType": 41
+        }
+      }
+    },
     {
       "factor": {
         "profileID": 38
@@ -11537,22 +15518,6 @@
           "medium": 2,
           "interfaceMode": 23,
           "interfaceType": 23
-        }
-      }
-    },
-    {
-      "factor": {
-        "profileID": 11
-      },
-      "profile": {
-        "speed": 10000,
-        "iphy": {
-          "numLanes": 1,
-          "modulation": 1,
-          "fec": 1,
-          "medium": 1,
-          "interfaceMode": 10,
-          "interfaceType": 10
         }
       }
     }
