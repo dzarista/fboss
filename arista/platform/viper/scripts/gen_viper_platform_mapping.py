@@ -2,7 +2,6 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 import json
-import copy
 from collections import OrderedDict
 
 """
@@ -33,10 +32,6 @@ fabricPortBase = 1024
 numFabricPorts = 160
 # Print debug information
 debug = False
-
-platMapping = None
-with open( "viper_platform_mapping.json" ) as fh:
-   platMapping = json.load( fh, object_pairs_hook=OrderedDict )
 
 # Viper has a non-linear front panel slot to port type mapping.
 def frontPanelSlotToPortType( slot ):
@@ -304,5 +299,5 @@ for profileID in ( 11, 36, 37, 38, 39 ):
          } ) )
 
 json_out = json.dumps( platMapping, indent=2, sort_keys=False )
-with open( "new_viper_mapping.json", "w") as fh:
+with open( "viper_platform_mapping.json", "w") as fh:
    fh.write( json_out )
