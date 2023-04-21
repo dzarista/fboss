@@ -8,16 +8,20 @@ from collections import OrderedDict
 Author : seerpini@arista.com
 Script for generating the Viper fabric port platform mapping.
 Assumptions:
-    - viper_platform_mapping.json exists in CWD and is a valid json file.
     - Each fabric serdes is enumerated as a 100G port. Supported profiles 36, 37 correspond to 100G optical and copper.
+    - Each front panel port is enumerated as either 400G-4 (only master port is
+      used), or 800G-8.
 Output:
-    - Updated platform mapping is written to new_viper_mapping.json
+    - Generated platform is written to viper_platform_mapping.json
 Instructions:
     - Please update the following variables to control how fabric port mappings are generated.
-    - Port speed and breakout are not currently parameterized by the script.
+    - Port speed and breakout are not currently configurable.
+TODO
+    - Accept platform settings from input/config file and generate mapping
+      accordingly.
 """
 
-# Variables to control the behavior for the script
+# Variables to control the behavior for this script.
 # Existing mappings at a port level are not replaced if preserveExistingMappings=True
 preserveExistingMappings = True
 # Logical port base in the SDK for NIF ports.
@@ -28,7 +32,8 @@ nifPortBase = 2
 numNifPorts = 18
 # Logical port base in the SDK for fabric ports.
 fabricPortBase = 1024
-# Total number of fabric ports.
+# Total number of fabric ports assuming that each fabric serdes is enumerated as a
+# separate port.
 numFabricPorts = 160
 # Print debug information
 debug = False
