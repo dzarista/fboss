@@ -13,6 +13,7 @@
 #include "fboss/agent/PacketObserver.h"
 #include "fboss/agent/RestartTimeTracker.h"
 #include "fboss/agent/SwSwitchRouteUpdateWrapper.h"
+#include "fboss/agent/SwitchInfoTable.h"
 #include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
@@ -56,6 +57,7 @@ class PortUpdateHandler;
 class RxPacket;
 class SwitchState;
 class SwitchStats;
+class SwitchIdScopeResolver;
 class StateDelta;
 class NeighborUpdater;
 class PacketLogger;
@@ -79,6 +81,8 @@ class Interface;
 class FsdbSyncer;
 class TeFlowNexthopHandler;
 class DsfSubscriber;
+class HwAsicTable;
+class MultiHwSwitchSyncer;
 
 enum class SwitchFlags : int {
   DEFAULT = 0,
@@ -134,7 +138,8 @@ class SwSwitch : public HwSwitch::Callback {
    */
   SwSwitch(
       std::unique_ptr<Platform> platform,
-      std::unique_ptr<PlatformMapping> platformMapping);
+      std::unique_ptr<PlatformMapping> platformMapping,
+      cfg::SwitchConfig* config);
   ~SwSwitch() override;
 
   HwSwitch* getHw() const {
@@ -158,17 +163,9 @@ class SwSwitch : public HwSwitch::Callback {
   TunManager* getTunManager() {
     return tunMgr_.get();
   }
-
-  /**
-   * Return the vlan where the CPU sits
-   *
-   * This vlan ID is used to encode the l2 vlan info when CPU sends traffic
-   * through the HW.
-   * Note: It does not mean the HW will send the packet with this vlan value.
-   * For example, Broadcom HW will overwrite this value based on its egress
-   * programming.
-   */
-  std::optional<VlanID> getCPUVlan() const;
+  const SwitchIdScopeResolver* getScopeResolver() const {
+    return scopeResolver_.get();
+  }
 
   /*
    * Initialize the switch.
@@ -217,6 +214,8 @@ class SwSwitch : public HwSwitch::Callback {
   bool isExiting() const;
 
   void updateLldpStats();
+
+  void publishStatsToFsdb();
 
   void updateStats();
 
@@ -567,9 +566,7 @@ class SwSwitch : public HwSwitch::Callback {
    *
    * @param pkt The packet that has L3 packet stored to send out
    */
-  void sendL3Packet(
-      std::unique_ptr<TxPacket> pkt,
-      std::optional<InterfaceID> ifID = std::nullopt) noexcept;
+  void sendL3Packet(std::unique_ptr<TxPacket> pkt, InterfaceID ifID) noexcept;
 
   /**
    * method to send out a packet from HW to host.
@@ -796,7 +793,16 @@ class SwSwitch : public HwSwitch::Callback {
   VlanID getVlanIDHelper(std::optional<VlanID> vlanID) const;
   std::optional<VlanID> getVlanIDForPkt(VlanID vlanID) const;
 
-  InterfaceID getInterfaceIDForPort(PortID portID) const;
+  InterfaceID getInterfaceIDForAggregatePort(
+      AggregatePortID aggregatePortID) const;
+
+  const SwitchInfoTable& getSwitchInfoTable() const {
+    return switchInfoTable_;
+  }
+
+  const HwAsicTable* getHwAsicTable() const {
+    return hwAsicTable_.get();
+  }
 
  private:
   void updateStateBlockingImpl(
@@ -882,6 +888,13 @@ class SwSwitch : public HwSwitch::Callback {
   void setPortStatusCounter(PortID port, bool up);
 
   void updateConfigAppliedInfo();
+
+  std::shared_ptr<SwitchState> stateChanged(
+      const StateDelta& delta,
+      bool transaction) const;
+
+  fsdb::OperDelta stateChanged(const fsdb::OperDelta& delta, bool transaction)
+      const;
 
   std::string curConfigStr_;
   cfg::SwitchConfig curConfig_;
@@ -1026,7 +1039,11 @@ class SwSwitch : public HwSwitch::Callback {
   std::unique_ptr<FsdbSyncer> fsdbSyncer_;
   std::unique_ptr<TeFlowNexthopHandler> teFlowNextHopHandler_;
   std::unique_ptr<DsfSubscriber> dsfSubscriber_;
+  SwitchInfoTable switchInfoTable_;
   std::unique_ptr<PlatformMapping> platformMapping_;
+  std::unique_ptr<HwAsicTable> hwAsicTable_;
+  std::unique_ptr<SwitchIdScopeResolver> scopeResolver_;
+  std::unique_ptr<MultiHwSwitchSyncer> multiHwSwitchSyncer_;
 
   folly::Synchronized<ConfigAppliedInfo> configAppliedInfo_;
   std::optional<std::chrono::time_point<std::chrono::steady_clock>>

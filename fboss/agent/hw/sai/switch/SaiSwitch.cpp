@@ -52,6 +52,7 @@
 #include "fboss/agent/hw/sai/switch/SaiTamManager.h"
 #include "fboss/agent/hw/sai/switch/SaiTunnelManager.h"
 #include "fboss/agent/hw/sai/switch/SaiTxPacket.h"
+#include "fboss/agent/hw/sai/switch/SaiUdfManager.h"
 #include "fboss/agent/hw/sai/switch/SaiVlanManager.h"
 #include "fboss/agent/packet/EthHdr.h"
 #include "fboss/agent/packet/PktUtil.h"
@@ -757,6 +758,65 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
         &SaiInSegEntryManager::processRemovedInSegEntry);
   }
 
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+  if (platform_->getAsic()->isSupported(HwAsic::Feature::SAI_UDF_HASH)) {
+    // There're several constraints for load balancer and Udf objects.
+    // 1. Udf Match needs to be processed before Udf Group (create, remove and
+    // changed).
+    // 2. In the case of removing Udf group: load balancer needs to remove
+    // association with Udf Group.
+    // 3. In the case of creating load balancer: Udf group needs to be created
+    // first.
+    // 4. In the case of changing load balancer: a. new Udf group needs to be
+    // created, b. Load balancer starts to use new Udf group, c. Remove old Udf
+    // group.
+    processAddedDelta(
+        delta.getUdfPacketMatcherDelta(),
+        managerTable_->udfManager(),
+        lockPolicy,
+        &SaiUdfManager::addUdfMatch);
+    processAddedDelta(
+        delta.getUdfGroupDelta(),
+        managerTable_->udfManager(),
+        lockPolicy,
+        &SaiUdfManager::addUdfGroup);
+    processAddedDelta(
+        delta.getLoadBalancersDelta(),
+        managerTable_->switchManager(),
+        lockPolicy,
+        &SaiSwitchManager::addOrUpdateLoadBalancer);
+    // TODO(zecheng): Process Udf Match changed
+    // TODO(zecheng): Process Udf Group changed
+    processChangedDelta(
+        delta.getLoadBalancersDelta(),
+        managerTable_->switchManager(),
+        lockPolicy,
+        &SaiSwitchManager::changeLoadBalancer);
+    processRemovedDelta(
+        delta.getLoadBalancersDelta(),
+        managerTable_->switchManager(),
+        lockPolicy,
+        &SaiSwitchManager::removeLoadBalancer);
+    processRemovedDelta(
+        delta.getUdfPacketMatcherDelta(),
+        managerTable_->udfManager(),
+        lockPolicy,
+        &SaiUdfManager::removeUdfMatch);
+    processRemovedDelta(
+        delta.getUdfGroupDelta(),
+        managerTable_->udfManager(),
+        lockPolicy,
+        &SaiUdfManager::removeUdfGroup);
+  } else {
+    processDelta(
+        delta.getLoadBalancersDelta(),
+        managerTable_->switchManager(),
+        lockPolicy,
+        &SaiSwitchManager::changeLoadBalancer,
+        &SaiSwitchManager::addOrUpdateLoadBalancer,
+        &SaiSwitchManager::removeLoadBalancer);
+  }
+#else
   processDelta(
       delta.getLoadBalancersDelta(),
       managerTable_->switchManager(),
@@ -764,6 +824,7 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
       &SaiSwitchManager::changeLoadBalancer,
       &SaiSwitchManager::addOrUpdateLoadBalancer,
       &SaiSwitchManager::removeLoadBalancer);
+#endif
 
   /*
    * Add/update mirrors before processing ACL, as ACLs with action
@@ -774,7 +835,7 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
       managerTable_->mirrorManager(),
       lockPolicy,
       &SaiMirrorManager::changeMirror,
-      &SaiMirrorManager::addMirror,
+      &SaiMirrorManager::addNode,
       &SaiMirrorManager::removeMirror);
 
   processDelta(
@@ -976,6 +1037,12 @@ void SaiSwitch::processSwitchSettingsChangedLocked(
       newSwitchSettings->getMaxRouteCounterIDs()) {
     managerTable_->counterManager().setMaxRouteCounterIDs(
         newSwitchSettings->getMaxRouteCounterIDs());
+  }
+
+  const auto oldVal = oldSwitchSettings->isSwitchDrained();
+  const auto newVal = newSwitchSettings->isSwitchDrained();
+  if (oldVal != newVal) {
+    managerTable_->switchManager().setSwitchIsolate(newVal);
   }
 }
 
@@ -1474,6 +1541,16 @@ std::map<PortID, FabricEndpoint> SaiSwitch::getFabricReachabilityLocked()
   return fabricReachabilityManager_->getReachabilityInfo();
 }
 
+std::vector<PortID> SaiSwitch::getSwitchReachability(SwitchID switchId) const {
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  return getSwitchReachabilityLocked(switchId);
+}
+
+std::vector<PortID> SaiSwitch::getSwitchReachabilityLocked(
+    SwitchID switchId) const {
+  return managerTable_->portManager().getFabricReachabilityForSwitch(switchId);
+}
+
 void SaiSwitch::fetchL2Table(std::vector<L2EntryThrift>* l2Table) const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   fetchL2TableLocked(lock, l2Table);
@@ -1776,8 +1853,22 @@ HwInitResult SaiSwitch::initLocked(
     auto [switchStateJson, switchStateThrift] =
         platform_->getWarmBootHelper()->getWarmBootState();
     if (switchStateThrift) {
-      ret.switchState =
-          SwitchState::fromThrift(*switchStateThrift->swSwitchState());
+      try {
+        ret.switchState =
+            SwitchState::fromThrift(*switchStateThrift->swSwitchState());
+      } catch (const FbossError& error) {
+        if (!dumpBinaryThriftToFile(
+                platform_->getCrashThriftSwitchStateFile(),
+                *switchStateThrift->swSwitchState())) {
+          XLOG(ERR) << "failed to dump switch state to file: "
+                    << getPlatform()->getCrashThriftSwitchStateFile();
+        } else {
+          XLOG(DBG2) << "dumped switch state to file: "
+                     << getPlatform()->getCrashThriftSwitchStateFile();
+        }
+        XLOG(FATAL) << "Failed to recover switch state from thrift. "
+                    << error.what();
+      }
     } else {
       XLOG(FATAL) << "Thrift switch state not found";
     }
@@ -2299,7 +2390,7 @@ bool SaiSwitch::isValidStateUpdateLocked(
     throw FbossError("QCM is not supported on SAI");
   }
 
-  if (delta.newState()->getMirrors()->size() >
+  if (delta.newState()->getMirrors()->numNodes() >
       getPlatform()->getAsic()->getMaxMirrors()) {
     XLOG(ERR) << "Number of mirrors configured is high on this platform";
     return false;
@@ -2317,19 +2408,6 @@ bool SaiSwitch::isValidStateUpdateLocked(
           isValid = false;
         }
       });
-
-  // Ensure only one sflow mirror session is configured
-  int sflowMirrorCount = 0;
-  for (auto iter : std::as_const(*(delta.newState()->getMirrors()))) {
-    auto mirror = iter.second;
-    if (mirror->type() == Mirror::Type::SFLOW) {
-      sflowMirrorCount++;
-    }
-  }
-  if (sflowMirrorCount > 1) {
-    XLOG(ERR) << "More than one sflow mirrors configured";
-    isValid = false;
-  }
 
   auto qualifiersSupported =
       managerTable_->aclTableManager().getSupportedQualifierSet();
@@ -2357,6 +2435,27 @@ bool SaiSwitch::isValidStateUpdateLocked(
       }
 
   );
+
+  // Only single watchdog recovery action is supported.
+  // TODO - Add support for per port watchdog recovery action
+  std::shared_ptr<Port> firstPort;
+  std::optional<cfg::PfcWatchdogRecoveryAction> recoveryAction{};
+  for (const auto& port : std::as_const(*delta.newState()->getPorts())) {
+    if (port.second->getPfc().has_value() &&
+        port.second->getPfc()->watchdog().has_value()) {
+      auto pfcWd = port.second->getPfc()->watchdog().value();
+      if (!recoveryAction.has_value()) {
+        recoveryAction = *pfcWd.recoveryAction();
+        firstPort = port.second;
+      } else if (*recoveryAction != *pfcWd.recoveryAction()) {
+        // Error: All ports should have the same recovery action configured
+        XLOG(ERR) << "PFC watchdog deadlock recovery action on "
+                  << port.second->getName() << " conflicting with "
+                  << firstPort->getName();
+        isValid = false;
+      }
+    }
+  }
 
   return isValid;
 }

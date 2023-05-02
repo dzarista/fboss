@@ -35,6 +35,7 @@ using AclMapTraits =
 class AclMap : public ThriftMapNode<AclMap, AclMapTraits> {
  public:
   using Base = ThriftMapNode<AclMap, AclMapTraits>;
+  using Traits = AclMapTraits;
   using Base::modify;
 
   AclMap();
@@ -147,5 +148,35 @@ using AclMapDelta = NodeMapDelta<
     PrioAclMap,
     DeltaValue<PrioAclMap::Node>,
     MapUniquePointerTraits<PrioAclMap>>;
+
+using MultiSwitchAclMapTypeClass = apache::thrift::type_class::
+    map<apache::thrift::type_class::string, AclMapTypeClass>;
+using MultiSwitchAclMapThriftType = std::map<std::string, AclMapThriftType>;
+
+class MultiSwitchAclMap;
+
+using MultiSwitchAclMapTraits = ThriftMultiSwitchMapNodeTraits<
+    MultiSwitchAclMap,
+    MultiSwitchAclMapTypeClass,
+    MultiSwitchAclMapThriftType,
+    AclMap>;
+
+class HwSwitchMatcher;
+
+class MultiSwitchAclMap : public ThriftMultiSwitchMapNode<
+                              MultiSwitchAclMap,
+                              MultiSwitchAclMapTraits> {
+ public:
+  using Traits = MultiSwitchAclMapTraits;
+  using BaseT =
+      ThriftMultiSwitchMapNode<MultiSwitchAclMap, MultiSwitchAclMapTraits>;
+
+  std::shared_ptr<AclMap> getAclMap() const;
+
+ private:
+  // Inherit the constructors required for clone()
+  using BaseT::BaseT;
+  friend class CloneAllocator;
+};
 
 } // namespace facebook::fboss

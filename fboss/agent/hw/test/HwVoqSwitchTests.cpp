@@ -177,8 +177,12 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
         if (!getAsic()->isSupported(HwAsic::Feature::VOQ)) {
           return 0L;
         }
-        auto sysPortRange =
-            getProgrammedState()->getSwitchSettings()->getSystemPortRange();
+        auto switchId = getHwSwitch()->getSwitchId();
+        CHECK(switchId.has_value());
+        auto sysPortRange = getProgrammedState()
+                                ->getDsfNodes()
+                                ->getNodeIf(SwitchID(*switchId))
+                                ->getSystemPortRange();
         CHECK(sysPortRange.has_value());
         const SystemPortID sysPortId(kPort.intID() + *sysPortRange->minimum());
         return getLatestSysPortStats(sysPortId).get_queueOutBytes_().at(
@@ -642,11 +646,13 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
     auto dsfNodes = curDsfNodes;
     const auto& firstDsfNode = dsfNodes.begin()->second;
     CHECK(firstDsfNode.systemPortRange().has_value());
+    auto mac = getPlatform()->getLocalMac();
     auto asic = HwAsic::makeAsic(
         *firstDsfNode.asicType(),
         cfg::SwitchType::VOQ,
         *firstDsfNode.switchId(),
-        *firstDsfNode.systemPortRange());
+        *firstDsfNode.systemPortRange(),
+        mac);
     auto otherDsfNodeCfg = utility::dsfNodeConfig(*asic, kRemoteSwitchId);
     dsfNodes.insert({*otherDsfNodeCfg.switchId(), otherDsfNodeCfg});
     return dsfNodes;

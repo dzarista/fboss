@@ -105,21 +105,22 @@ using MultiLabelForwardingInformationBaseThriftType =
 
 class MultiLabelForwardingInformationBase;
 
-using MultiLabelForwardingInformationBaseTraits = ThriftMultiMapNodeTraits<
-    MultiLabelForwardingInformationBase,
-    MultiLabelForwardingInformationBaseTypeClass,
-    MultiLabelForwardingInformationBaseThriftType,
-    LabelForwardingInformationBase>;
+using MultiLabelForwardingInformationBaseTraits =
+    ThriftMultiSwitchMapNodeTraits<
+        MultiLabelForwardingInformationBase,
+        MultiLabelForwardingInformationBaseTypeClass,
+        MultiLabelForwardingInformationBaseThriftType,
+        LabelForwardingInformationBase>;
 
 class HwSwitchMatcher;
 
 class MultiLabelForwardingInformationBase
-    : public ThriftMapNode<
+    : public ThriftMultiSwitchMapNode<
           MultiLabelForwardingInformationBase,
           MultiLabelForwardingInformationBaseTraits> {
  public:
   using Traits = MultiLabelForwardingInformationBaseTraits;
-  using BaseT = ThriftMapNode<
+  using BaseT = ThriftMultiSwitchMapNode<
       MultiLabelForwardingInformationBase,
       MultiLabelForwardingInformationBaseTraits>;
   using BaseT::modify;

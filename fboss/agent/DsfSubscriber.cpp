@@ -36,9 +36,14 @@ DsfSubscriber::~DsfSubscriber() {
   stop();
 }
 
+bool DsfSubscriber::isLocal(SwitchID nodeSwitchId) const {
+  auto localSwitchIds = sw_->getSwitchInfoTable().getSwitchIDs();
+  return localSwitchIds.find(nodeSwitchId) != localSwitchIds.end();
+}
+
 void DsfSubscriber::scheduleUpdate(
     const std::shared_ptr<SystemPortMap>& newSysPorts,
-    const std::shared_ptr<MultiInterfaceMap>& newRifs,
+    const std::shared_ptr<InterfaceMap>& newRifs,
     const std::string& nodeName,
     SwitchID nodeSwitchId) {
   XLOG(DBG2) << " For , switchId: " << static_cast<int64_t>(nodeSwitchId)
@@ -50,9 +55,9 @@ void DsfSubscriber::scheduleUpdate(
       folly::sformat("Update state for node: {}", nodeName),
       [this, newSysPorts, newRifs, nodeSwitchId, nodeName](
           const std::shared_ptr<SwitchState>& in) {
-        if (nodeSwitchId == SwitchID(*in->getSwitchSettings()->getSwitchId())) {
+        if (isLocal(nodeSwitchId)) {
           throw FbossError(
-              " Got updates for my switch ID, from: ",
+              " Got updates for a local switch ID, from: ",
               nodeName,
               " id: ",
               nodeSwitchId);
@@ -142,22 +147,14 @@ void DsfSubscriber::scheduleUpdate(
 
         if (newSysPorts) {
           auto origSysPorts = out->getSystemPorts(nodeSwitchId);
-          thrift_cow::ThriftMapDelta<SystemPortMap> delta(
+          ThriftMapDelta<SystemPortMap> delta(
               origSysPorts.get(), newSysPorts.get());
           auto remoteSysPorts = out->getRemoteSystemPorts()->modify(&out);
           processDelta(delta, remoteSysPorts, makeRemoteSysPort);
         }
         if (newRifs) {
           auto origRifs = out->getInterfaces(nodeSwitchId);
-          auto getDefaultInterfaces = [](auto interfaceMaps) -> InterfaceMap* {
-            CHECK(interfaceMaps);
-            auto interfaceMap = interfaceMaps->getNodeIf(
-                HwSwitchMatcher::defaultHwSwitchMatcherKey());
-            CHECK(interfaceMap);
-            return interfaceMap.get();
-          };
-          InterfaceMapDelta delta(
-              origRifs.get(), getDefaultInterfaces(newRifs));
+          InterfaceMapDelta delta(origRifs.get(), newRifs.get());
           auto remoteRifs = out->getRemoteInterfaces()->modify(&out);
           processDelta(delta, remoteRifs, makeRemoteRif);
         }
@@ -172,9 +169,10 @@ void DsfSubscriber::scheduleUpdate(
 }
 
 void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
-  const auto& oldSwitchSettings = stateDelta.oldState()->getSwitchSettings();
-  const auto& newSwitchSettings = stateDelta.newState()->getSwitchSettings();
-  if (newSwitchSettings->getSwitchType() == cfg::SwitchType::VOQ) {
+  // Setup Fsdb subscriber if we have switch ids of type VOQ
+  auto voqSwitchIds =
+      sw_->getSwitchInfoTable().getSwitchIdsOfType(cfg::SwitchType::VOQ);
+  if (voqSwitchIds.size()) {
     if (!fsdbPubSubMgr_) {
       fsdbPubSubMgr_ = std::make_unique<fsdb::FsdbPubSubManager>(folly::sformat(
           "{}:agent:{}",
@@ -182,20 +180,17 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
           fb303::ServiceData::get()->getAliveSince().count()));
     }
   } else {
-    fsdbPubSubMgr_.reset();
-    if (oldSwitchSettings->getSwitchType() == cfg::SwitchType::VOQ) {
+    if (fsdbPubSubMgr_) {
+      // If we had a fsdbManager, it implies that we went from having VOQ
+      // switches to no VOQ switches. This is not supported.
       XLOG(FATAL)
           << " Transition from VOQ to non-VOQ swtich type is not supported";
     }
     // No processing needed on non VOQ switches
     return;
   }
-  auto mySwitchId = newSwitchSettings->getSwitchId();
-
-  auto isLocal = [mySwitchId](const std::shared_ptr<DsfNode>& node) {
-    CHECK(mySwitchId) << " Dsf node config requires local switch ID to be set";
-    return SwitchID(*mySwitchId) == node->getSwitchId();
-  };
+  // Should never get here if we don't have voq switch Ids
+  CHECK(voqSwitchIds.size());
   auto isInterfaceNode = [](const std::shared_ptr<DsfNode>& node) {
     return node->getType() == cfg::DsfNodeType::INTERFACE_NODE;
   };
@@ -207,12 +202,14 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
     return network.first.str();
   };
 
-  auto getServerOptions = [mySwitchId, getLoopbackIp](
+  auto getServerOptions = [&voqSwitchIds, getLoopbackIp](
                               const std::shared_ptr<DsfNode>& node,
                               const auto& state) {
-    auto selfDsfNode = state->getDsfNodes()->getNodeIf(*mySwitchId);
-    CHECK(selfDsfNode);
-    CHECK(selfDsfNode->getLoopbackIpsSorted().size() != 0);
+    // Use loopback IP of any local VOQ switch as src for FSDB subscriptions
+    // TODO: Evaluate what we should do if one or more VOQ switches go down
+    auto localDsfNode = state->getDsfNodes()->getNodeIf(*voqSwitchIds.begin());
+    CHECK(localDsfNode);
+    CHECK(localDsfNode->getLoopbackIpsSorted().size() != 0);
 
     // Subscribe to FSDB of DSF node in the cluster with:
     //  dstIP = inband IP of that DSF node
@@ -221,7 +218,7 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
     auto serverOptions = fsdb::FsdbStreamClient::ServerOptions(
         getLoopbackIp(node),
         FLAGS_fsdbPort,
-        (*selfDsfNode->getLoopbackIpsSorted().begin()).first.str());
+        (*localDsfNode->getLoopbackIpsSorted().begin()).first.str());
 
     return serverOptions;
   };
@@ -229,7 +226,7 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
   auto addDsfNode = [&](const std::shared_ptr<DsfNode>& node) {
     // No need to setup subscriptions to (local) yourself
     // Only IN nodes have control plane, so ignore non IN DSF nodes
-    if (isLocal(node) || !isInterfaceNode(node)) {
+    if (isLocal(node->getSwitchId()) || !isInterfaceNode(node)) {
       return;
     }
     auto nodeName = node->getName();
@@ -245,7 +242,7 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
         },
         [this, nodeName, nodeSwitchId](fsdb::OperSubPathUnit&& operStateUnit) {
           std::shared_ptr<SystemPortMap> newSysPorts;
-          std::shared_ptr<MultiInterfaceMap> newRifs;
+          std::shared_ptr<InterfaceMap> newRifs;
           for (const auto& change : *operStateUnit.changes()) {
             if (change.path()->path() == getSystemPortsPath()) {
               XLOG(DBG2) << " Got sys port update from : " << nodeName;
@@ -257,11 +254,12 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
                           *change.state()->contents()));
             } else if (change.path()->path() == getInterfacesPath()) {
               XLOG(DBG2) << " Got rif update from : " << nodeName;
-              newRifs = std::make_shared<MultiInterfaceMap>();
-              newRifs->fromThrift(thrift_cow::deserialize<
-                                  MultiInterfaceMapTypeClass,
-                                  MultiInterfaceMapThriftType>(
-                  fsdb::OperProtocol::BINARY, *change.state()->contents()));
+              newRifs = std::make_shared<InterfaceMap>();
+              newRifs->fromThrift(
+                  thrift_cow::
+                      deserialize<ThriftMapTypeClass, InterfaceMapThriftType>(
+                          fsdb::OperProtocol::BINARY,
+                          *change.state()->contents()));
             } else {
               throw FbossError(
                   " Got unexpected state update for : ",
@@ -277,7 +275,7 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
   auto rmDsfNode = [&](const std::shared_ptr<DsfNode>& node) {
     // No need to setup subscriptions to (local) yourself
     // Only IN nodes have control plane, so ignore non IN DSF nodes
-    if (isLocal(node) || !isInterfaceNode(node)) {
+    if (isLocal(node->getSwitchId()) || !isInterfaceNode(node)) {
       return;
     }
     XLOG(DBG2) << " Removing DSF subscriptions to : " << node->getName();

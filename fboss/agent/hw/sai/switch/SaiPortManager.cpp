@@ -447,7 +447,7 @@ void SaiPortManager::loadPortQueues(const Port& swPort) {
       saiPort->adapterKey(), portHandle->queues, updatedPortQueue);
 }
 
-void SaiPortManager::addMirror(const std::shared_ptr<Port>& swPort) {
+void SaiPortManager::addNode(const std::shared_ptr<Port>& swPort) {
   bool samplingMirror = swPort->getSampleDestination().has_value() &&
       swPort->getSampleDestination() == cfg::SampleDestination::MIRROR;
   /*
@@ -531,9 +531,13 @@ std::pair<sai_uint8_t, sai_uint8_t> SaiPortManager::preparePfcConfigs(
   sai_uint8_t rxPfc = 0;
 
   if (pfc.has_value()) {
-    // PFC is enabled for all priorities on a port
-    txPfc = (*pfc->tx()) ? 0xff : 0;
-    rxPfc = (*pfc->rx()) ? 0xff : 0;
+    sai_uint8_t enabledPriorities = 0; // Bitmap of enabled PFC priorities
+    for (auto pri : swPort->getPfcPriorities()) {
+      enabledPriorities |= (1 << static_cast<PfcPriority>(pri));
+    }
+    // PFC is enabled for priorities specified in PG configs
+    txPfc = (*pfc->tx()) ? enabledPriorities : 0;
+    rxPfc = (*pfc->rx()) ? enabledPriorities : 0;
   }
   return std::pair(txPfc, rxPfc);
 }
@@ -1123,6 +1127,23 @@ bool SaiPortManager::fecStatsSupported(PortID portId) const {
 #endif
   }
   return false;
+}
+
+std::vector<PortID> SaiPortManager::getFabricReachabilityForSwitch(
+    const SwitchID& switchId) const {
+  std::vector<PortID> reachablePorts;
+  const auto& portApi = SaiApiTable::getInstance()->portApi();
+  for (const auto& [portId, handle] : handles_) {
+    if (getPortType(portId) == cfg::PortType::FABRIC_PORT) {
+      sai_fabric_port_reachability_t reachability;
+      reachability.switch_id = switchId;
+      auto attr = SaiPortTraits::Attributes::FabricReachability{reachability};
+      if (portApi.getAttribute(handle->port->adapterKey(), attr).reachable) {
+        reachablePorts.push_back(portId);
+      }
+    }
+  }
+  return reachablePorts;
 }
 
 std::optional<FabricEndpoint> SaiPortManager::getFabricReachabilityForPort(

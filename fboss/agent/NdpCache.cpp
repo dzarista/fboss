@@ -135,7 +135,24 @@ inline void NdpCache::checkReachability(
     XLOG(DBG2) << "Vlan " << getVlanID() << " not found. Skip sending probe";
     return;
   }
-  auto srcIntf = state->getInterfaces()->getInterfaceIf(vlan->getInterfaceID());
+
+  InterfaceID intfID;
+  std::shared_ptr<Interface> srcIntf;
+  switch (port.type()) {
+    case PortDescriptor::PortType::PHYSICAL:
+      intfID = getSw()->getState()->getInterfaceIDForPort(port.phyPortID());
+      srcIntf = state->getInterfaces()->getInterfaceIf(intfID);
+      break;
+    case PortDescriptor::PortType::AGGREGATE:
+      intfID = getSw()->getInterfaceIDForAggregatePort(port.aggPortID());
+      srcIntf = state->getInterfaces()->getInterfaceIf(intfID);
+      break;
+    case PortDescriptor::PortType::SYSTEM_PORT:
+      // We expect the caller to resolve the system port down to its underlying
+      // physical port.
+      throw FbossError("Received checkReachability query on systemPort");
+      break;
+  }
 
   if (!srcIntf) {
     // srcIntf must/can never be nullptr
@@ -151,7 +168,13 @@ inline void NdpCache::checkReachability(
   }
   // unicast solicitation
   IPv6Handler::sendUnicastNeighborSolicitation(
-      getSw(), targetIP, targetMac, srcIP, srcMac, vlan->getID(), port);
+      getSw(),
+      targetIP,
+      targetMac,
+      srcIP,
+      srcMac,
+      getSw()->getVlanIDForPkt(vlan->getID()),
+      port);
 }
 
 inline void NdpCache::probeFor(folly::IPAddressV6 ip) const {
@@ -161,7 +184,7 @@ inline void NdpCache::probeFor(folly::IPAddressV6 ip) const {
     return;
   }
   // multicast solicitation
-  IPv6Handler::sendMulticastNeighborSolicitation(getSw(), ip, vlan);
+  IPv6Handler::sendMulticastNeighborSolicitation(getSw(), ip);
 }
 
 std::list<NdpEntryThrift> NdpCache::getNdpCacheData() {

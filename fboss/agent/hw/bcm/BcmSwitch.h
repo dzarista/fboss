@@ -610,6 +610,9 @@ class BcmSwitch : public BcmSwitchIf {
   std::map<PortID, FabricEndpoint> getFabricReachability() const override {
     return {};
   }
+  std::vector<PortID> getSwitchReachability(SwitchID switchId) const override {
+    return {};
+  }
 
  private:
   enum Flags : uint32_t {

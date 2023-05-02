@@ -98,8 +98,7 @@ class HwNeighborTest : public HwLinkStateDependentTest {
     return cfg;
   }
   VlanID kVlanID() const {
-    if (getProgrammedState()->getSwitchSettings()->getSwitchType() ==
-        cfg::SwitchType::NPU) {
+    if (getSwitchType() == cfg::SwitchType::NPU) {
       auto vlanId = utility::firstVlanID(getProgrammedState());
       CHECK(vlanId.has_value());
       return *vlanId;
@@ -107,19 +106,14 @@ class HwNeighborTest : public HwLinkStateDependentTest {
     XLOG(FATAL) << " No vlans on non-npu switches";
   }
   InterfaceID kIntfID() const {
-    auto switchType =
-        getProgrammedState()->getSwitchSettings()->getSwitchType();
+    auto switchType = getSwitchType();
     if (switchType == cfg::SwitchType::NPU) {
       return InterfaceID(static_cast<int>(kVlanID()));
     } else if (switchType == cfg::SwitchType::VOQ) {
       CHECK(!programToTrunk) << " Trunks not supported yet on VOQ switches";
       auto portId = this->portDescriptor().phyPortID();
-      return InterfaceID((*getProgrammedState()
-                               ->getPorts()
-                               ->getPort(portId)
-                               ->getInterfaceIDs()
-                               ->begin())
-                             ->toThrift());
+      return InterfaceID(
+          (*getProgrammedState()->getPort(portId)->getInterfaceIDs().begin()));
     }
     XLOG(FATAL) << "Unexpected switch type " << static_cast<int>(switchType);
   }
@@ -132,8 +126,7 @@ class HwNeighborTest : public HwLinkStateDependentTest {
   }
 
   auto getNeighborTable(std::shared_ptr<SwitchState> state) {
-    auto switchType =
-        getProgrammedState()->getSwitchSettings()->getSwitchType();
+    auto switchType = getSwitchType();
     if (switchType == cfg::SwitchType::NPU) {
       return state->getVlans()
           ->getVlan(kVlanID())
@@ -262,8 +255,7 @@ class HwNeighborOnMultiplePortsTest : public HwLinkStateDependentTest {
   }
 
   InterfaceID getInterfaceId(const PortID& portId) const {
-    auto switchType =
-        getProgrammedState()->getSwitchSettings()->getSwitchType();
+    auto switchType = getSwitchType();
     if (switchType == cfg::SwitchType::NPU) {
       return InterfaceID(static_cast<int>((*getProgrammedState()
                                                 ->getPorts()
@@ -272,12 +264,11 @@ class HwNeighborOnMultiplePortsTest : public HwLinkStateDependentTest {
                                                 .begin())
                                               .first));
     } else if (switchType == cfg::SwitchType::VOQ) {
-      return InterfaceID((*getProgrammedState()
-                               ->getPorts()
-                               ->getPort(portId)
-                               ->getInterfaceIDs()
-                               ->begin())
-                             ->toThrift());
+      return InterfaceID(*getProgrammedState()
+                              ->getPorts()
+                              ->getPort(portId)
+                              ->getInterfaceIDs()
+                              .begin());
     }
     XLOG(FATAL) << "Unexpected switch type " << static_cast<int>(switchType);
   }

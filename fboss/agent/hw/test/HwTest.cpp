@@ -66,6 +66,10 @@ cfg::AsicType HwTest::getAsicType() const {
   return getAsic()->getAsicType();
 }
 
+cfg::SwitchType HwTest::getSwitchType() const {
+  return getAsic()->getSwitchType();
+}
+
 bool HwTest::isSupported(HwAsic::Feature feature) const {
   return getAsic()->isSupported(feature);
 }
@@ -231,5 +235,11 @@ std::vector<cfg::AsicType> HwTest::getOtherAsicTypes() const {
       std::end(asicList));
 
   return asicList;
+}
+
+SwitchIdScopeResolver HwTest::scopeResolver() const {
+  CHECK(getProgrammedState());
+  return SwitchIdScopeResolver(
+      getProgrammedState()->getSwitchSettings()->getSwitchIdToSwitchInfo());
 }
 } // namespace facebook::fboss

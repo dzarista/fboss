@@ -25,6 +25,7 @@
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/hw/mock/MockHwSwitch.h"
 #include "fboss/agent/state/RouteNextHopEntry.h"
+#include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/test/RouteDistributionGenerator.h"
 
 namespace facebook::fboss {
@@ -81,18 +82,20 @@ std::shared_ptr<SwitchState> publishAndApplyConfig(
  */
 std::unique_ptr<HwTestHandle> createTestHandle(
     const std::shared_ptr<SwitchState>& = nullptr,
-    SwitchFlags flags = SwitchFlags::DEFAULT);
+    SwitchFlags flags = SwitchFlags::DEFAULT,
+    cfg::SwitchConfig* cfg = nullptr);
 std::unique_ptr<HwTestHandle> createTestHandle(
     cfg::SwitchConfig* cfg,
     SwitchFlags flags = SwitchFlags::DEFAULT);
 
 std::unique_ptr<MockPlatform> createMockPlatform(
     cfg::SwitchType switchType = cfg::SwitchType::NPU,
-    std::optional<int64_t> switchId = std::nullopt);
+    int64_t switchId = 0);
 std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
     std::unique_ptr<MockPlatform> platform,
     const std::shared_ptr<SwitchState>& state,
-    SwitchFlags flags);
+    SwitchFlags flags,
+    cfg::SwitchConfig* config = nullptr);
 
 std::unique_ptr<SwSwitch> setupMockSwitchWithHW(
     std::unique_ptr<MockPlatform> platform,
@@ -101,11 +104,6 @@ std::unique_ptr<SwSwitch> setupMockSwitchWithHW(
 cfg::DsfNode makeDsfNodeCfg(
     int64_t switchId = 0,
     cfg::DsfNodeType type = cfg::DsfNodeType::INTERFACE_NODE);
-
-cfg::SwitchConfig updateSwitchID(
-    const cfg::SwitchConfig& origCfg,
-    int64_t oldSwitchId,
-    int64_t newSwitchId);
 
 std::shared_ptr<SystemPort> makeSysPort(
     const std::optional<std::string>& qosPolicy,
@@ -199,7 +197,8 @@ void checkField(
  *       192.168.55.1/24
  *       2401:db00:2110:3055::0001/64
  */
-std::shared_ptr<SwitchState> testStateA();
+std::shared_ptr<SwitchState> testStateA(
+    cfg::SwitchType switchType = cfg::SwitchType::NPU);
 /*
  * Same as testStateA but with all ports
  * enabled and up
@@ -356,6 +355,46 @@ RoutePrefixV6 makePrefixV6(std::string str);
       *tun,                                         \
       sendPacketToHost_(                            \
           RxPacketMatcher::createMatcher(name, dstIfID, matchFn)))
+
+/**
+ * Convenience macro for expecting stateChanged
+ * usage:
+ *  EXPECT_STATE_UPDATE(sw)
+ */
+#define EXPECT_STATE_UPDATE(sw) EXPECT_HW_CALL(sw, stateChangedImpl(_));
+
+#define EXPECT_STATE_UPDATE_TIMES(sw, times) \
+  EXPECT_HW_CALL(sw, stateChangedImpl(_)).Times(times);
+
+#define EXPECT_STATE_UPDATE_TIMES_ATLEAST(sw, times) \
+  EXPECT_HW_CALL(sw, stateChangedImpl(_)).Times(::testing::AtLeast(times));
+
+/**
+ * Convenience macro for expecting stateChanged
+ * usage:
+ *  EXPECT_STATE_UPDATE_TRANSACTION(sw)
+ */
+#define EXPECT_STATE_UPDATE_TRANSACTION(sw)         \
+  if (!FLAGS_enable_state_oper_delta) {             \
+    EXPECT_HW_CALL(sw, stateChangedTransaction(_)); \
+  } else {                                          \
+    EXPECT_HW_CALL(sw, stateChangedImpl(_));        \
+  }
+
+#define EXPECT_STATE_UPDATE_TRANSACTION_TIMES(sw, times)         \
+  if (!FLAGS_enable_state_oper_delta) {                          \
+    EXPECT_HW_CALL(sw, stateChangedTransaction(_)).Times(times); \
+  } else {                                                       \
+    EXPECT_HW_CALL(sw, stateChangedImpl(_)).Times(times);        \
+  }
+
+#define EXPECT_STATE_UPDATE_TRANSACTION_TIMES_ATLEAST(sw, times)              \
+  if (!FLAGS_enable_state_oper_delta) {                                       \
+    EXPECT_HW_CALL(sw, stateChangedTransaction(_))                            \
+        .Times(::testing::AtLeast(times));                                    \
+  } else {                                                                    \
+    EXPECT_HW_CALL(sw, stateChangedImpl(_)).Times(::testing::AtLeast(times)); \
+  }
 
 /**
  * Templatized version of Matching function for Tx/Rx packet.
@@ -554,4 +593,24 @@ state::FibContainerFields makeFibContainerFields(
     int vrf,
     const std::set<std::string>& v4Prefixes,
     const std::set<std::string>& v6Prefixes);
+
+void addSwitchInfo(
+    std::shared_ptr<SwitchState>& state,
+    cfg::SwitchType switchType = cfg::SwitchType::NPU,
+    int64_t SwitchId = 0,
+    cfg::AsicType asicType = cfg::AsicType::ASIC_TYPE_MOCK,
+    int64_t portIdMin = 0,
+    int64_t portIdMax = 1023,
+    int16_t switchIndex = 0,
+    std::optional<int64_t> sysPortMin = std::nullopt,
+    std::optional<int64_t> sysPortMax = std::nullopt);
+
+cfg::SwitchInfo createSwitchInfo(
+    cfg::SwitchType switchType,
+    cfg::AsicType asicType = cfg::AsicType::ASIC_TYPE_MOCK,
+    int64_t portIdMin = 0,
+    int64_t portIdMax = 1023,
+    int16_t switchIndex = 0,
+    std::optional<int64_t> sysPortMin = std::nullopt,
+    std::optional<int64_t> sysPortMax = std::nullopt);
 } // namespace facebook::fboss

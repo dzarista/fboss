@@ -1312,12 +1312,20 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
   map<string, FabricEndpoint> getFabricReachability() throws (
     1: fboss.FbossBaseError error,
   );
+  map<string, list<string>> getSwitchReachability(
+    1: list<string> switchNames,
+  ) throws (1: fboss.FbossBaseError error);
   map<i64, switch_config.DsfNode> getDsfNodes() throws (
     1: fboss.FbossBaseError error,
   );
   map<i64, SystemPortThrift> getSystemPorts() throws (
     1: fboss.FbossBaseError error,
   );
+
+  /*
+   * Only applicable to DSF Fabric Switch
+   */
+  bool isSwitchDrained() throws (1: fboss.FbossBaseError error);
 }
 
 service NeighborListenerClient extends fb303.FacebookService {

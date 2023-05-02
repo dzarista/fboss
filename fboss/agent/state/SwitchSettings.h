@@ -24,6 +24,8 @@ namespace facebook::fboss {
 
 class SwitchState;
 
+using SwitchIdToSwitchInfo = std::map<int64_t, cfg::SwitchInfo>;
+
 USE_THRIFT_COW(SwitchSettings)
 RESOLVE_STRUCT_MEMBER(SwitchSettings, switch_state_tags::qcmCfg, QcmCfg)
 RESOLVE_STRUCT_MEMBER(
@@ -152,27 +154,22 @@ class SwitchSettings
     set<switch_state_tags::macAddrsToBlock>(macAddrs);
   }
 
-  cfg::SwitchType getSwitchType() const {
-    return cref<switch_state_tags::switchType>()->toThrift();
-  }
-  void setSwitchType(cfg::SwitchType type) {
-    set<switch_state_tags::switchType>(type);
+  cfg::SwitchType getSwitchType(int64_t switchId) const {
+    auto switchIdToSwitchInfo = getSwitchIdToSwitchInfo();
+    auto iter = switchIdToSwitchInfo.find(switchId);
+    if (iter != switchIdToSwitchInfo.end()) {
+      return *iter->second.switchType();
+    }
+    throw FbossError("No SwitchType configured for switchId ", switchId);
   }
 
-  std::optional<int64_t> getSwitchId() const {
-    if (auto switchId = cref<switch_state_tags::switchId>()) {
-      return switchId->toThrift();
-    }
-    return std::nullopt;
-  }
-  void setSwitchId(std::optional<int64_t> switchId) {
-    if (!switchId) {
-      ref<switch_state_tags::switchId>().reset();
-    } else {
-      set<switch_state_tags::switchId>(*switchId);
-    }
-  }
+  std::unordered_set<SwitchID> getSwitchIds() const;
+  std::unordered_set<SwitchID> getSwitchIdsOfType(cfg::SwitchType type) const;
+  bool vlansSupported() const;
 
+  bool isSwitchDrained() const {
+    return getSwitchDrainState() == cfg::SwitchDrainState::DRAINED;
+  }
   cfg::SwitchDrainState getSwitchDrainState() const {
     return cref<switch_state_tags::switchDrainState>()->toThrift();
   }
@@ -190,20 +187,11 @@ class SwitchSettings
     set<switch_state_tags::exactMatchTableConfigs>(exactMatchConfigs);
   }
 
-  std::optional<cfg::Range64> getSystemPortRange() const {
-    if (auto range = cref<switch_state_tags::systemPortRange>()) {
-      return range->toThrift();
-    }
-    return std::nullopt;
-  }
-  void setSystemPortRange(std::optional<cfg::Range64> systemPortRange) {
-    if (!systemPortRange) {
-      ref<switch_state_tags::systemPortRange>().reset();
-    } else {
-      set<switch_state_tags::systemPortRange>(*systemPortRange);
-    }
-  }
-
+  /*
+   * 0 or more l3 switch types {NPU, VOQ} are supported on
+   * a CPU-NPUs complex
+   */
+  std::optional<cfg::SwitchType> l3SwitchType() const;
   std::optional<int64_t> getDefaultVlan() const {
     if (auto defaultVlan = cref<switch_state_tags::defaultVlan>()) {
       return defaultVlan->toThrift();
@@ -395,7 +383,50 @@ class SwitchSettings
     ref<switch_state_tags::flowletSwitchingConfig>() = flowletConfig;
   }
 
+  const SwitchIdToSwitchInfo getSwitchIdToSwitchInfo() const {
+    // THRIFT_COPY
+    return get<switch_state_tags::switchIdToSwitchInfo>()->toThrift();
+  }
+
+  void setSwitchIdToSwitchInfo(const SwitchIdToSwitchInfo& switchInfo) {
+    set<switch_state_tags::switchIdToSwitchInfo>(switchInfo);
+  }
+
   SwitchSettings* modify(std::shared_ptr<SwitchState>* state);
+
+ private:
+  // Inherit the constructors required for clone()
+  using BaseT::BaseT;
+  friend class CloneAllocator;
+};
+
+using MultiSwitchSettingsTypeClass = apache::thrift::type_class::map<
+    apache::thrift::type_class::string,
+    apache::thrift::type_class::structure>;
+using MultiSwitchSettingsThriftType =
+    std::map<std::string, state::SwitchSettingsFields>;
+
+class MultiSwitchSettings;
+
+using MultiSwitchSettingsTraits = ThriftMapNodeTraits<
+    MultiSwitchSettings,
+    MultiSwitchSettingsTypeClass,
+    MultiSwitchSettingsThriftType,
+    SwitchSettings>;
+
+class HwSwitchMatcher;
+
+class MultiSwitchSettings
+    : public ThriftMapNode<MultiSwitchSettings, MultiSwitchSettingsTraits> {
+ public:
+  using Traits = MultiSwitchSettingsTraits;
+  using BaseT = ThriftMapNode<MultiSwitchSettings, MultiSwitchSettingsTraits>;
+  using BaseT::modify;
+
+  MultiSwitchSettings() {}
+  virtual ~MultiSwitchSettings() {}
+
+  std::shared_ptr<SwitchSettings> getSwitchSettings() const;
 
  private:
   // Inherit the constructors required for clone()

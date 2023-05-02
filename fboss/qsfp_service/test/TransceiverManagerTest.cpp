@@ -30,8 +30,11 @@ TEST_F(TransceiverManagerTest, coldBootTest) {
     EXPECT_FALSE(transceiverManager_->canWarmBoot());
     // We expect a cold boot in this case and that should trigger hard resets of
     // QSFP modules
+    MockTransceiverPlatformApi* xcvrApi =
+        static_cast<MockTransceiverPlatformApi*>(
+            transceiverManager_->getQsfpPlatformApi());
     for (int i = 0; i < transceiverManager_->getNumQsfpModules(); i++) {
-      EXPECT_CALL(*transceiverManager_, triggerQsfpHardReset(i)).Times(1);
+      EXPECT_CALL(*xcvrApi, triggerQsfpHardReset(i + 1)).Times(1);
     }
     transceiverManager_->init();
 
@@ -75,8 +78,11 @@ TEST_F(TransceiverManagerTest, warmBootTest) {
 
   // We expect a warm boot in this case and that should NOT trigger hard resets
   // of QSFP modules
+  MockTransceiverPlatformApi* xcvrApi =
+      static_cast<MockTransceiverPlatformApi*>(
+          transceiverManager_->getQsfpPlatformApi());
   for (int i = 0; i < transceiverManager_->getNumQsfpModules(); i++) {
-    EXPECT_CALL(*transceiverManager_, triggerQsfpHardReset(i)).Times(0);
+    EXPECT_CALL(*xcvrApi, triggerQsfpHardReset(i + 1)).Times(0);
   }
   transceiverManager_->init();
 
@@ -95,7 +101,7 @@ TEST_F(TransceiverManagerTest, getInterfacePhyInfo) {
   EXPECT_TRUE(phyInfos.find("eth1/1/1") != phyInfos.end());
   // Simulate an exception from xphyInfo and confirm that the map doesn't
   // include that interface's key
-  EXPECT_CALL(*transceiverManager_, getXphyInfo(PortID(5)))
+  EXPECT_CALL(*transceiverManager_, getXphyInfo(PortID(9)))
       .Times(1)
       .WillRepeatedly(ThrowFbossError());
   transceiverManager_->getInterfacePhyInfo(phyInfos, "eth1/2/1");

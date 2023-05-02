@@ -65,15 +65,6 @@ class SffModule : public QsfpModule {
   using LengthAndGauge = std::pair<double, uint8_t>;
 
   /*
-   * Returns the number of lanes on the host side
-   */
-  unsigned int numHostLanes() const override;
-  /*
-   * Returns the number of lanes on the media side
-   */
-  unsigned int numMediaLanes() const override;
-
-  /*
    * This function veifies the Module eeprom register checksum for various
    * pages.
    */
@@ -274,6 +265,8 @@ class SffModule : public QsfpModule {
   std::vector<uint8_t> configuredMediaLanes(
       uint8_t hostStartLane) const override;
 
+  MediaInterfaceCode getModuleMediaInterface() const override;
+
  private:
   // no copy or assignment
   SffModule(SffModule const&) = delete;
@@ -389,7 +382,9 @@ class SffModule : public QsfpModule {
    * disruptive, but have worked in the past to recover a transceiver.
    * Only return true if there's an actual remediation happened
    */
-  bool remediateFlakyTransceiver() override;
+  bool remediateFlakyTransceiver(
+      bool allPortsDown,
+      const std::vector<std::string>& ports) override;
 
   // make sure that tx_disable bits are clear
   virtual void ensureTxEnabled() override;

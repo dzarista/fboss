@@ -362,7 +362,7 @@ TEST(ThriftySwitchState, EmptyMultiMap) {
   state = SwitchState::fromThrift(stThr);
   /* mirror0 is found in multi map for default npu and is same as what was added
    * in legacy map */
-  EXPECT_EQ(state->getMirrors()->getNode("mirror0")->toThrift(), mirror);
+  EXPECT_EQ(state->getMirrors()->getNodeIf("mirror0")->toThrift(), mirror);
   auto mirrors = *state->toThrift().mirrorMap();
   EXPECT_EQ(mirrors.size(), 1);
 
@@ -373,4 +373,33 @@ TEST(ThriftySwitchState, EmptyMultiMap) {
   EXPECT_EQ(*stThr.mirrorMap(), mirrors);
   EXPECT_EQ(stThr.mirrorMaps()->size(), 1);
   EXPECT_EQ(*stThr.mirrorMap(), stThr.mirrorMaps()->at("id=0"));
+}
+
+TEST(ThriftySwitchState, MultiMapsDifferent) {
+  state::SwitchState stateThrift0{};
+
+  stateThrift0.fibs()->emplace(
+      0,
+      makeFibContainerFields(
+          0,
+          {"1.1.1.1/24", "2.1.1.1/24", "3.1.1.1/24"},
+          {"1::1/64", "2::1/64", "3::1/64"}));
+
+  stateThrift0.fibs()->emplace(
+      1,
+      makeFibContainerFields(
+          1,
+          {"10.1.1.1/24", "20.1.1.1/24", "30.1.1.1/24"},
+          {"10::1/64", "20::1/64", "30::1/64"}));
+
+  stateThrift0.fibsMap()->emplace("id=0", *stateThrift0.fibs());
+  stateThrift0.fibs()->emplace(
+      2,
+      makeFibContainerFields(
+          1, {"100.1.1.1/24", "200.1.1.1/24"}, {"101::1/64", "201::1/64"}));
+
+  EXPECT_NO_THROW(SwitchState::fromThrift(stateThrift0));
+
+  auto fibs = utility::TagName<switch_state_tags::fibs>::value();
+  EXPECT_EQ(fibs, "fibs");
 }

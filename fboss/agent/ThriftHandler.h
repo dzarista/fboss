@@ -283,6 +283,9 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getTeFlowTableDetails(std::vector<TeFlowDetails>& flowTable) override;
   void getFabricReachability(
       std::map<std::string, FabricEndpoint>& reachability) override;
+  void getSwitchReachability(
+      std::map<std::string, std::vector<std::string>>& reachabilityMatrix,
+      std::unique_ptr<std::vector<std::string>> switchNames) override;
   void getDsfNodes(std::map<int64_t, cfg::DsfNode>& dsfNodes) override;
   void getSystemPorts(std::map<int64_t, SystemPortThrift>& sysPorts) override;
   void getSysPortStats(
@@ -403,6 +406,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getInterfacePhyInfo(
       std::map<std::string, phy::PhyInfo>& phyInfos,
       std::unique_ptr<std::vector<std::string>> portNames) override;
+  bool isSwitchDrained() override;
 
  protected:
   void addMplsRoutesImpl(
@@ -429,6 +433,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
  private:
   void ensureNPU(folly::StringPiece function) const;
   void ensureNotFabric(folly::StringPiece function) const;
+  void ensureVoqOrFabric(folly::StringPiece function) const;
   struct ThreadLocalListener {
     EventBase* eventBase;
     std::unordered_map<
@@ -468,10 +473,10 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
     FbossError error(folly::exceptionStr(ex));
     callback->exception(error);
   }
-  bool isNpuSwitch() const;
-  bool isFabricSwitch() const;
-  bool isVoqSwitch() const;
-  bool isSwitchType(cfg::SwitchType switchType) const;
+  template <typename AddressT, typename NeighborThriftT>
+  void addRemoteNeighbors(
+      const std::shared_ptr<SwitchState> state,
+      std::vector<NeighborThriftT>& nbrs) const;
 
   /*
    * A pointer to the SwSwitch.  We don't own this.

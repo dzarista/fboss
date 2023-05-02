@@ -35,6 +35,7 @@
 
 #include <folly/experimental/FunctionScheduler.h>
 #include <folly/gen/Base.h>
+#include <utility>
 
 DEFINE_bool(
     setup_thrift,
@@ -146,12 +147,21 @@ std::shared_ptr<SwitchState> HwSwitchEnsemble::applyNewConfig(
   if (routingInformationBase_) {
     auto routeUpdater = getRouteUpdater();
     applyNewState(applyThriftConfig(
-        originalState, &config, getPlatform(), &routeUpdater));
+        originalState,
+        &config,
+        getPlatform(),
+        getPlatform()->getPlatformMapping(),
+        hwAsicTable_.get(),
+        &routeUpdater));
     routeUpdater.program();
     return getProgrammedState();
   }
-  return applyNewState(
-      applyThriftConfig(originalState, &config, getPlatform()));
+  return applyNewState(applyThriftConfig(
+      originalState,
+      &config,
+      getPlatform(),
+      getPlatform()->getPlatformMapping(),
+      hwAsicTable_.get()));
 }
 
 std::shared_ptr<SwitchState> HwSwitchEnsemble::updateEncapIndices(
@@ -290,8 +300,13 @@ std::vector<SystemPortID> HwSwitchEnsemble::masterLogicalSysPortIds() const {
   if (getAsic()->getSwitchType() != cfg::SwitchType::VOQ) {
     return sysPorts;
   }
-  auto sysPortRange =
-      getProgrammedState()->getSwitchSettings()->getSystemPortRange();
+  auto switchId = getHwSwitch()->getSwitchId();
+  CHECK(switchId.has_value());
+  auto sysPortRange = getProgrammedState()
+                          ->getDsfNodes()
+                          ->getNodeIf(SwitchID(*switchId))
+                          ->getSystemPortRange();
+  CHECK(sysPortRange.has_value());
   for (auto port : masterLogicalPortIds({cfg::PortType::INTERFACE_PORT})) {
     sysPorts.push_back(
         SystemPortID(*sysPortRange->minimum() + static_cast<int>(port)));
@@ -420,6 +435,17 @@ void HwSwitchEnsemble::setupEnsemble(
     const HwSwitchEnsembleInitInfo& initInfo) {
   platform_ = std::move(platform);
   linkToggler_ = std::move(linkToggler);
+  auto asic = platform_->getAsic();
+  cfg::SwitchInfo switchInfo;
+  switchInfo.switchType() = asic->getSwitchType();
+  switchInfo.asicType() = asic->getAsicType();
+  cfg::Range64 portIdRange;
+  portIdRange.minimum() = 0;
+  portIdRange.maximum() = 1023;
+  switchInfo.portIdRange() = portIdRange;
+  hwAsicTable_ =
+      std::make_unique<HwAsicTable>(std::map<int64_t, cfg::SwitchInfo>(
+          {{asic->getSwitchId() ? *asic->getSwitchId() : 0, switchInfo}}));
 
   auto hwInitResult = getHwSwitch()->init(
       this,
