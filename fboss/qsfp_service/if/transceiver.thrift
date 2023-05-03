@@ -194,6 +194,7 @@ enum MediaInterfaceCode {
   SR_10G = 8,
   CR4_200G = 9,
   CR8_400G = 10,
+  FR4_400Gx2 = 11,
 }
 
 // The extended specification compliance code of the transceiver module.
@@ -218,6 +219,7 @@ enum TransceiverModuleIdentifier {
   QSFP28 = 0x11,
   QSFP_DD = 0x18,
   QSFP_PLUS_CMIS = 0x1E,
+  OSFP = 0x19,
   MINIPHOTON_OBO = 0x91,
 }
 
@@ -233,6 +235,7 @@ enum CmisModuleState {
 enum SMFMediaInterfaceCode {
   UNKNOWN = 0x0,
   CWDM4_100G = 0x10,
+  FR1_100G = 0x15,
   FR4_200G = 0x18,
   FR4_400G = 0x1D,
   LR4_10_400G = 0x1E,
@@ -409,6 +412,9 @@ struct TcvrState {
   18: optional bool eepromCsumValid;
   19: optional MediaInterfaceCode moduleMediaInterface;
   20: optional TransceiverStateMachineState stateMachineState;
+  21: map<string, list<i32>> portNameToHostLanes;
+  22: map<string, list<i32>> portNameToMediaLanes;
+  23: i64 timeCollected;
 }
 
 struct TcvrStats {
@@ -418,6 +424,9 @@ struct TcvrStats {
   4: optional i64 remediationCounter;
   5: optional VdmDiagsStats vdmDiagsStats;
   6: optional VdmDiagsStats vdmDiagsStatsForOds;
+  7: map<string, list<i32>> portNameToHostLanes;
+  8: map<string, list<i32>> portNameToMediaLanes;
+  9: i64 timeCollected;
 }
 
 struct TransceiverInfo {

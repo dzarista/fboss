@@ -102,19 +102,20 @@ cfg::DsfNode dsfNodeConfig(const HwAsic& myAsic, int64_t otherSwitchId) {
       range.maximum() = *range.minimum() + blockSize;
       systemPortRange = range;
     }
+    auto localMac = utility::kLocalCpuMac();
     switch (fromAsic.getAsicType()) {
       case cfg::AsicType::ASIC_TYPE_JERICHO2:
         return std::make_unique<Jericho2Asic>(
-            fromAsic.getSwitchType(), switchId, systemPortRange);
+            fromAsic.getSwitchType(), switchId, systemPortRange, localMac);
       case cfg::AsicType::ASIC_TYPE_JERICHO3:
         return std::make_unique<Jericho3Asic>(
-            fromAsic.getSwitchType(), switchId, systemPortRange);
+            fromAsic.getSwitchType(), switchId, systemPortRange, localMac);
       case cfg::AsicType::ASIC_TYPE_RAMON:
         return std::make_unique<RamonAsic>(
-            fromAsic.getSwitchType(), switchId, std::nullopt);
+            fromAsic.getSwitchType(), switchId, std::nullopt, localMac);
       case cfg::AsicType::ASIC_TYPE_EBRO:
         return std::make_unique<EbroAsic>(
-            fromAsic.getSwitchType(), switchId, systemPortRange);
+            fromAsic.getSwitchType(), switchId, systemPortRange, localMac);
       default:
         throw FbossError("Unexpected asic type: ", fromAsic.getAsicTypeStr());
     }
@@ -321,15 +322,26 @@ cfg::SwitchConfig genPortVlanCfg(
     bool enableFabricPorts = false) {
   cfg::SwitchConfig config;
   auto asic = hwSwitch->getPlatform()->getAsic();
-  config.switchSettings()->switchType() = asic->getSwitchType();
+  auto switchType = asic->getSwitchType();
+  int64_t switchId{0};
   if (asic->getSwitchId().has_value()) {
-    config.switchSettings()->switchId() = *asic->getSwitchId();
-    if (*config.switchSettings()->switchType() == cfg::SwitchType::VOQ ||
-        *config.switchSettings()->switchType() == cfg::SwitchType::FABRIC) {
+    switchId = *asic->getSwitchId();
+    if (switchType == cfg::SwitchType::VOQ ||
+        switchType == cfg::SwitchType::FABRIC) {
       config.dsfNodes()->insert(
           {*asic->getSwitchId(), dsfNodeConfig(*asic, *asic->getSwitchId())});
     }
   }
+  cfg::SwitchInfo switchInfo;
+  cfg::Range64 portIdRange;
+  portIdRange.minimum() = 0;
+  portIdRange.maximum() = 1023;
+  switchInfo.portIdRange() = portIdRange;
+  switchInfo.switchIndex() = 0;
+  switchInfo.switchType() = switchType;
+  switchInfo.asicType() = asic->getAsicType();
+  config.switchSettings()->switchIdToSwitchInfo() = {
+      std::make_pair(switchId, switchInfo)};
   // Use getPortToDefaultProfileIDMap() to genetate the default config instead
   // of using PlatformMapping.
   // The main reason is to avoid using PlatformMapping is because some of the
@@ -634,10 +646,9 @@ cfg::SwitchConfig multiplePortsPerIntfConfig(
       if (kCreateIntfsFor.find(*port.portType()) == kCreateIntfsFor.end()) {
         continue;
       }
-      // Make thrift linter happy. switchId must not be null
-      // for VOQ switch type
+      CHECK(config.switchSettings()->switchIdToSwitchInfo()->size());
       auto mySwitchId =
-          apache::thrift::can_throw(*config.switchSettings()->switchId());
+          config.switchSettings()->switchIdToSwitchInfo()->begin()->first;
       auto sysportRangeBegin =
           *config.dsfNodes()[mySwitchId].systemPortRange()->minimum();
       auto intfId = sysportRangeBegin + *port.logicalID();

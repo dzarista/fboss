@@ -143,8 +143,9 @@ fsdb::OperDelta HwSwitch::stateChangedTransaction(
     throw FbossError("Transactions not supported on this switch");
   }
   auto goodKnownState = getProgrammedState();
+  fsdb::OperDelta result{};
   try {
-    stateChanged(delta);
+    result = stateChanged(delta);
   } catch (const FbossError& e) {
     XLOG(WARNING) << " Transaction failed with error : " << *e.message()
                   << " attempting rollback";
@@ -152,7 +153,60 @@ fsdb::OperDelta HwSwitch::stateChangedTransaction(
     setProgrammedState(goodKnownState);
     return delta;
   }
-  return fsdb::OperDelta{};
+  return result;
+}
+
+std::shared_ptr<SwitchState> HwSwitch::fillinPortInterfaces(
+    const std::shared_ptr<SwitchState>& oldState) {
+  if (getBootType() != BootType::WARM_BOOT) {
+    return oldState;
+  }
+
+  // Populate newly added InterfaceIDs for port
+  auto newState = oldState->clone();
+  auto newPortMap = newState->getPorts()->modify(&newState);
+  for (auto port : *newPortMap) {
+    auto newPort = port.second->clone();
+
+    if (newPort->getInterfaceIDs().size() != 0) {
+      continue;
+    }
+
+    std::vector<int32_t> interfaceIDs;
+    for (const auto& vlanMember : port.second->getVlans()) {
+      interfaceIDs.push_back(vlanMember.first);
+    }
+    newPort->setInterfaceIDs(interfaceIDs);
+    newPortMap->updatePort(newPort);
+  }
+
+  auto newAggregatePortMap = newState->getAggregatePorts()->modify(&newState);
+  for (auto aggregatePort : *newAggregatePortMap) {
+    auto newAggregatePort = aggregatePort.second->clone();
+
+    if (newAggregatePort->getInterfaceIDs()->size() != 0) {
+      continue;
+    }
+    auto subports = newAggregatePort->sortedSubports();
+    if (subports.size() == 0) {
+      continue;
+    }
+
+    // all Aggregate member ports always belong to the same interface(s). Thus,
+    // pick the interface for any member port
+    auto portID = subports.front().portID;
+
+    std::vector<int32_t> intfIDs;
+    for (auto intfID :
+         newState->getPorts()->getPort(portID)->getInterfaceIDs()) {
+      intfIDs.push_back(intfID);
+    }
+
+    newAggregatePort->setInterfaceIDs(intfIDs);
+    newAggregatePortMap->updateAggregatePort(newAggregatePort);
+  }
+  newState->publish();
+  return newState;
 }
 
 } // namespace facebook::fboss

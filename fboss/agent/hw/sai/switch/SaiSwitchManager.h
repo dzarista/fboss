@@ -85,6 +85,9 @@ class SaiSwitchManager {
 
   void updateStats();
 
+  void configureCreditWatchdog(bool enable);
+  void setSwitchIsolate(bool isolate);
+
  private:
   void programEcmpLoadBalancerParams(
       std::optional<sai_uint32_t> seed,
@@ -95,6 +98,9 @@ class SaiSwitchManager {
       std::optional<sai_uint32_t> seed,
       std::optional<cfg::HashingAlgorithm> algo);
   void addOrUpdateLagLoadBalancer(const std::shared_ptr<LoadBalancer>& newLb);
+
+  std::vector<sai_object_id_t> getUdfGroupIds(
+      const std::shared_ptr<LoadBalancer>& newLb) const;
 
   template <typename HashAttrT>
   SaiHashTraits::CreateAttributes getProgrammedHashAttr();

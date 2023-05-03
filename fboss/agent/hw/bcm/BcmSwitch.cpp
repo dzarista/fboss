@@ -792,7 +792,6 @@ HwInitResult BcmSwitch::initImpl(
     std::optional<int64_t> switchId) {
   CHECK(switchType == cfg::SwitchType::NPU)
       << " Only NPU switch type supported";
-  CHECK(!switchId.has_value()) << "Can't specify switch id for Bcm switch";
   HwInitResult ret;
   ret.rib = std::make_unique<RoutingInformationBase>();
 
@@ -1870,7 +1869,7 @@ bool BcmSwitch::isValidPortUpdate(
     const shared_ptr<Port>& newPort,
     const shared_ptr<SwitchState>& newState) const {
   if (auto mirrorName = newPort->getIngressMirror()) {
-    auto mirror = newState->getMirrors()->getMirrorIf(mirrorName.value());
+    auto mirror = newState->getMirrors()->getNodeIf(mirrorName.value());
     if (!mirror) {
       XLOG(ERR) << "Ingress mirror " << mirrorName.value()
                 << " for port : " << newPort->getID() << " not found";
@@ -1879,7 +1878,7 @@ bool BcmSwitch::isValidPortUpdate(
   }
 
   if (auto mirrorName = newPort->getEgressMirror()) {
-    auto mirror = newState->getMirrors()->getMirrorIf(mirrorName.value());
+    auto mirror = newState->getMirrors()->getNodeIf(mirrorName.value());
     if (!mirror) {
       XLOG(ERR) << "Egress mirror " << mirrorName.value()
                 << " for port : " << newPort->getID() << " not found";
@@ -1898,7 +1897,7 @@ bool BcmSwitch::isValidPortUpdate(
       return false;
     }
     auto ingressMirror =
-        newState->getMirrors()->getMirrorIf(ingressMirrorName.value());
+        newState->getMirrors()->getNodeIf(ingressMirrorName.value());
     if (ingressMirror->type() != Mirror::Type::SFLOW) {
       XLOG(ERR) << "Ingress mirror " << ingressMirrorName.value()
                 << " for sampled port not sflow : " << newPort->getID();
@@ -1990,7 +1989,8 @@ bool BcmSwitch::isValidStateUpdate(const StateDelta& delta) const {
         }
       });
   isValid = isValid &&
-      (newState->getMirrors()->size() <= platform_->getAsic()->getMaxMirrors());
+      (newState->getMirrors()->numNodes() <=
+       platform_->getAsic()->getMaxMirrors());
 
   forEachChanged(
       delta.getMirrorsDelta(),
@@ -2005,18 +2005,6 @@ bool BcmSwitch::isValidStateUpdate(const StateDelta& delta) const {
         }
       });
 
-  int sflowMirrorCount = 0;
-  for (auto iter : std::as_const(*(newState->getMirrors()))) {
-    auto mirror = iter.second;
-    if (mirror->type() == Mirror::Type::SFLOW) {
-      sflowMirrorCount++;
-    }
-  }
-
-  if (sflowMirrorCount > 1) {
-    XLOG(ERR) << "More than one sflow mirrors configured";
-    isValid = false;
-  }
   forEachAdded(
       delta.getQosPoliciesDelta(),
       [&](const std::shared_ptr<QosPolicy>& qosPolicy) {
@@ -2071,6 +2059,24 @@ bool BcmSwitch::isValidStateUpdate(const StateDelta& delta) const {
         });
   }
 
+  std::shared_ptr<Port> firstPort;
+  std::optional<cfg::PfcWatchdogRecoveryAction> recoveryAction{};
+  for (const auto& port : std::as_const(*newState->getPorts())) {
+    if (port.second->getPfc().has_value() &&
+        port.second->getPfc()->watchdog().has_value()) {
+      auto pfcWd = port.second->getPfc()->watchdog().value();
+      if (!recoveryAction.has_value()) {
+        recoveryAction = *pfcWd.recoveryAction();
+        firstPort = port.second;
+      } else if (*recoveryAction != *pfcWd.recoveryAction()) {
+        // Error: All ports should have the same recovery action configured
+        XLOG(ERR) << "PFC watchdog deadlock recovery action on "
+                  << port.second->getName() << " conflicting with "
+                  << firstPort->getName();
+        isValid = false;
+      }
+    }
+  }
   return isValid;
 }
 
@@ -2527,8 +2533,7 @@ void BcmSwitch::processNeighborTableDelta(
       ArpTable,
       NdpTable>;
   using NeighborEntryT = typename NeighborTableT::Entry;
-  using NeighborEntryDeltaT =
-      typename thrift_cow::ThriftMapDelta<NeighborTableT>::VALUE;
+  using NeighborEntryDeltaT = typename ThriftMapDelta<NeighborTableT>::VALUE;
   std::vector<NeighborEntryDeltaT> discardedNeighborEntryDelta;
 
   for (const auto& vlanDelta : stateDelta.getVlansDelta()) {

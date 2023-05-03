@@ -18,6 +18,7 @@
 #include "fboss/agent/FbossHwUpdateError.h"
 #include "fboss/agent/FibHelpers.h"
 
+#include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/IPv4Handler.h"
 #include "fboss/agent/IPv6Handler.h"
@@ -27,6 +28,7 @@
 #include "fboss/agent/LldpManager.h"
 #include "fboss/agent/LookupClassRouteUpdater.h"
 #include "fboss/agent/LookupClassUpdater.h"
+#include "fboss/agent/SwitchInfoUtils.h"
 #include "fboss/agent/hw/HwSwitchWarmBootHelper.h"
 #include "fboss/lib/phy/gen-cpp2/prbs_types.h"
 #if FOLLY_HAS_COROUTINES
@@ -38,6 +40,7 @@
 #include "fboss/agent/MPLSHandler.h"
 #include "fboss/agent/MacTableManager.h"
 #include "fboss/agent/MirrorManager.h"
+#include "fboss/agent/MultiHwSwitchSyncer.h"
 #include "fboss/agent/NeighborUpdater.h"
 #include "fboss/agent/PacketLogger.h"
 #include "fboss/agent/PacketObserver.h"
@@ -52,6 +55,7 @@
 #include "fboss/agent/RxPacket.h"
 #include "fboss/agent/StaticL2ForNeighborObserver.h"
 #include "fboss/agent/SwSwitchRouteUpdateWrapper.h"
+#include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/TeFlowNexthopHandler.h"
 #include "fboss/agent/TunManager.h"
@@ -114,6 +118,10 @@ using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 
+using facebook::fboss::AgentConfig;
+using facebook::fboss::cfg::SwitchConfig;
+using facebook::fboss::cfg::SwitchInfo;
+using facebook::fboss::cfg::SwitchType;
 using facebook::fboss::DeltaFunctions::forEachChanged;
 
 using namespace std::chrono;
@@ -223,7 +231,12 @@ SwSwitch::SwSwitch(std::unique_ptr<Platform> platform)
           new PhySnapshotManager<kIphySnapshotIntervalSeconds>()),
       aclNexthopHandler_(new AclNexthopHandler(this)),
       teFlowNextHopHandler_(new TeFlowNexthopHandler(this)),
-      dsfSubscriber_(new DsfSubscriber(this)) {
+      dsfSubscriber_(new DsfSubscriber(this)),
+      switchInfoTable_(getSwitchInfoFromConfig(platform_.get())),
+      hwAsicTable_(new HwAsicTable(getSwitchInfoFromConfig(platform_.get()))),
+      scopeResolver_(
+          new SwitchIdScopeResolver(getSwitchInfoFromConfig(platform_.get()))),
+      multiHwSwitchSyncer_(nullptr) {
   // Create the platform-specific state directories if they
   // don't exist already.
   utilCreateDir(platform_->getVolatileStateDir());
@@ -243,9 +256,18 @@ SwSwitch::SwSwitch(std::unique_ptr<Platform> platform)
 
 SwSwitch::SwSwitch(
     std::unique_ptr<Platform> platform,
-    std::unique_ptr<PlatformMapping> platformMapping)
+    std::unique_ptr<PlatformMapping> platformMapping,
+    cfg::SwitchConfig* config)
     : SwSwitch(std::move(platform)) {
   platformMapping_ = std::move(platformMapping);
+  if (config) {
+    switchInfoTable_ =
+        SwitchInfoTable(getSwitchInfoFromConfig(config, platform_.get()));
+    hwAsicTable_ = std::make_unique<HwAsicTable>(
+        getSwitchInfoFromConfig(config, platform_.get()));
+    scopeResolver_ = std::make_unique<SwitchIdScopeResolver>(
+        getSwitchInfoFromConfig(config, platform_.get()));
+  }
 }
 
 SwSwitch::~SwSwitch() {
@@ -352,7 +374,8 @@ void SwSwitch::stop(bool revertToMinAlpmState) {
   // state. Thus, directly calling underlying hw_->stateChanged()
   if (revertToMinAlpmState) {
     XLOG(DBG3) << "setup min ALPM state";
-    hw_->stateChanged(StateDelta(getState(), getMinAlpmRouteState(getState())));
+    stateChanged(
+        StateDelta(getState(), getMinAlpmRouteState(getState())), false);
   }
 }
 
@@ -479,6 +502,18 @@ void SwSwitch::updateLldpStats() {
   stats()->LldpNeighborsSize(lldpManager_->getDB()->pruneExpiredNeighbors());
 }
 
+void SwSwitch::publishStatsToFsdb() {
+  AgentStats agentStats;
+  agentStats.hwPortStats() = getHw()->getPortStats();
+  agentStats.sysPortStats() = getHw()->getSysPortStats();
+
+  agentStats.hwAsicErrors() = getHw()->getSwitchStats()->getHwAsicErrors();
+  agentStats.teFlowStats() = getTeFlowStats();
+  stats()->fillAgentStats(agentStats);
+  agentStats.bufferPoolStats() = getBufferPoolStats();
+  fsdbSyncer_->statsUpdated(std::move(agentStats));
+}
+
 void SwSwitch::updateStats() {
   SCOPE_EXIT {
     if (FLAGS_publish_stats_to_fsdb) {
@@ -487,16 +522,7 @@ void SwSwitch::updateStats() {
           std::chrono::duration_cast<std::chrono::seconds>(
               now - *publishedStatsToFsdbAt_)
                   .count() > FLAGS_fsdbStatsStreamIntervalSeconds) {
-        AgentStats agentStats;
-        agentStats.hwPortStats() = getHw()->getPortStats();
-        agentStats.sysPortStats() = getHw()->getSysPortStats();
-
-        agentStats.hwAsicErrors() =
-            getHw()->getSwitchStats()->getHwAsicErrors();
-        agentStats.teFlowStats() = getTeFlowStats();
-        stats()->fillAgentStats(agentStats);
-        agentStats.bufferPoolStats() = getBufferPoolStats();
-        fsdbSyncer_->statsUpdated(std::move(agentStats));
+        publishStatsToFsdb();
         publishedStatsToFsdbAt_ = now;
       }
     }
@@ -625,6 +651,10 @@ void SwSwitch::init(
       false /*failHwCallsOnWarmboot*/,
       platform_->getAsic()->getSwitchType(),
       platform_->getAsic()->getSwitchId());
+  const auto& [switchID, switchInfo] =
+      *switchInfoTable_.getSwitchIdToSwitchInfo().begin();
+  multiHwSwitchSyncer_ = std::make_unique<MultiHwSwitchSyncer>(
+      hw_, switchInfoTable_.getSwitchIdToSwitchInfo());
   auto initialState = hwInitRet.switchState;
   bootType_ = hwInitRet.bootType;
   rib_ = std::move(hwInitRet.rib);
@@ -665,6 +695,7 @@ void SwSwitch::init(
         StateDelta(std::make_shared<SwitchState>(), initialState));
   });
 
+  multiHwSwitchSyncer_->start();
   startThreads();
   XLOG(DBG2)
       << "Time to init switch and start all threads "
@@ -744,7 +775,8 @@ void SwSwitch::init(
   heartbeatWatchdog_->start();
 
   setSwitchRunState(SwitchRunState::INITIALIZED);
-  if (platform_->getAsic()->isSupported(HwAsic::Feature::ROUTE_PROGRAMMING)) {
+  if (getHwAsicTable()->isFeatureSupportedOnAnyAsic(
+          HwAsic::Feature::ROUTE_PROGRAMMING)) {
     SwSwitchRouteUpdateWrapper(this, rib_.get()).programMinAlpmState();
   }
   if (FLAGS_log_all_fib_updates) {
@@ -1133,8 +1165,7 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
   // undesirable.  So far I don't think this brief discrepancy should cause
   // major issues.
   try {
-    newAppliedState = isTransaction ? hw_->stateChangedTransaction(delta)
-                                    : hw_->stateChanged(delta);
+    newAppliedState = stateChanged(delta, isTransaction);
   } catch (const std::exception& ex) {
     // Notify the hw_ of the crash so it can execute any device specific
     // tasks before we fatal. An example would be to dump the current hw state.
@@ -1312,12 +1343,17 @@ void SwSwitch::handlePacket(std::unique_ptr<RxPacket> pkt) {
     ethertype = c.readBE<uint16_t>();
   }
 
+  auto vlanID = pkt->getSrcVlanIf();
+  auto vlanIDStr = vlanID.has_value()
+      ? folly::to<std::string>(static_cast<int>(vlanID.value()))
+      : "None";
+
   std::stringstream ss;
   ss << "trapped packet: src_port=" << pkt->getSrcPort() << " srcAggPort="
      << (pkt->isFromAggregatePort()
              ? folly::to<string>(pkt->getSrcAggregatePort())
              : "None")
-     << " vlan=" << pkt->getSrcVlan() << " length=" << len << " src=" << srcMac
+     << " vlan=" << vlanIDStr << " length=" << len << " src=" << srcMac
      << " dst=" << dstMac << " ethertype=0x" << std::hex << ethertype
      << " :: " << pkt->describeDetails();
   XLOG(DBG5) << ss.str();
@@ -1528,10 +1564,8 @@ void SwSwitch::threadLoop(StringPiece name, EventBase* eventBase) {
 
 uint32_t SwSwitch::getEthernetHeaderSize() const {
   // VOQ/Fabric switches require that the packets are not VLAN tagged.
-  return (getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ ||
-          getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::FABRIC)
-      ? EthHdr::UNTAGGED_PKT_SIZE
-      : EthHdr::SIZE;
+  return getSwitchInfoTable().vlansSupported() ? EthHdr::SIZE
+                                               : EthHdr::UNTAGGED_PKT_SIZE;
 }
 
 std::unique_ptr<TxPacket> SwSwitch::allocatePacket(uint32_t size) {
@@ -1666,7 +1700,7 @@ void SwSwitch::sendPacketSwitchedAsync(std::unique_ptr<TxPacket> pkt) noexcept {
 
 void SwSwitch::sendL3Packet(
     std::unique_ptr<TxPacket> pkt,
-    std::optional<InterfaceID> maybeIfID) noexcept {
+    InterfaceID ifID) noexcept {
   if (!isFullyInitialized()) {
     XLOG(DBG2) << " Dropping L3 packet since device not yet initialized";
     stats()->pktDropped();
@@ -1694,19 +1728,15 @@ void SwSwitch::sendL3Packet(
 
   auto state = getState();
 
-  // Get VlanID associated with interface
-  auto vlanID = getCPUVlan();
-  if (maybeIfID.has_value()) {
-    auto intf = state->getInterfaces()->getInterfaceIf(*maybeIfID);
-    if (!intf) {
-      XLOG(ERR) << "Interface " << *maybeIfID << " doesn't exists in state.";
-      stats()->pktDropped();
-      return;
-    }
-
-    // Extract primary Vlan associated with this interface, if any
-    vlanID = intf->getVlanIDIf();
+  auto intf = state->getInterfaces()->getInterfaceIf(ifID);
+  if (!intf) {
+    XLOG(ERR) << "Interface " << ifID << " doesn't exists in state.";
+    stats()->pktDropped();
+    return;
   }
+
+  // Extract primary Vlan associated with this interface, if any
+  auto vlanID = intf->getVlanIDIf();
 
   try {
     uint16_t protocol{0};
@@ -1771,8 +1801,19 @@ void SwSwitch::sendL3Packet(
       } else {
         const auto dstAddrV6 = dstAddr.asV6();
         try {
-          auto entry = vlan->getNdpTable()->getEntry(dstAddrV6);
-          dstMac = entry->getMac();
+          auto entry = getNeighborEntryForIP(state, intf, dstAddrV6);
+          if (entry) {
+            dstMac = entry->getMac();
+          } else {
+            // TODO (skhare)
+            // The current logic relies on this block throwing an error when
+            // neighbor entry is absent so that multicast neighbor solicitation
+            // would be issued. There are unit tests (and may be some other
+            // assumptions in the code) around it. Thus, retain that behavior
+            // for now. However, consider simplifying this to an if-else block
+            // instead of try-catch.
+            throw FbossError("No neighbor entry for: ", dstAddrV6.str());
+          }
         } catch (...) {
           // We don't have dstAddr in our NDP table. Request solicitation for
           // it and let this packet be dropped.
@@ -1795,7 +1836,7 @@ void SwSwitch::sendL3Packet(
         ipv6_->sendMulticastNeighborSolicitations(PortID(0), dstAddr.asV6());
       } else {
         // TODO(skhare) Support optional VLAN arg to resolveMac
-        ipv4_->resolveMac(state, PortID(0), dstAddr.asV4(), vlanID.value());
+        ipv4_->resolveMac(state, PortID(0), dstAddr.asV4());
       }
     }
 
@@ -1862,12 +1903,16 @@ void SwSwitch::applyConfig(
                                    originalState,
                                    &newConfig,
                                    getPlatform(),
+                                   platformMapping_.get(),
+                                   hwAsicTable_.get(),
                                    &routeUpdater,
                                    aclNexthopHandler_.get())
                              : applyThriftConfig(
                                    originalState,
                                    &newConfig,
                                    getPlatform(),
+                                   platformMapping_.get(),
+                                   hwAsicTable_.get(),
                                    (RoutingInformationBase*)nullptr,
                                    aclNexthopHandler_.get());
 
@@ -1968,6 +2013,20 @@ bool SwSwitch::isValidStateUpdate(const StateDelta& delta) const {
       },
       [&](const shared_ptr<Port>& /* delport */) {});
 
+  // Ensure only one sflow mirror session is configured
+  int sflowMirrorCount = 0;
+  for (auto mniter : std::as_const(*(delta.newState()->getMirrors()))) {
+    for (auto iter : std::as_const(*mniter.second)) {
+      auto mirror = iter.second;
+      if (mirror->type() == Mirror::Type::SFLOW) {
+        sflowMirrorCount++;
+      }
+    }
+  }
+  if (sflowMirrorCount > 1) {
+    XLOG(ERR) << "More than one sflow mirrors configured";
+    isValid = false;
+  }
   return isValid && hw_->isValidStateUpdate(delta);
 }
 
@@ -2080,23 +2139,20 @@ bool SwSwitch::sendNdpSolicitationHelper(
     std::shared_ptr<SwitchState> state,
     const folly::IPAddressV6& target) {
   bool sent = false;
-  auto vlanID = intf->getVlanID();
-  auto vlan = state->getVlans()->getVlanIf(vlanID);
-  if (vlan) {
-    auto entry = vlan->getNdpTable()->getEntryIf(target);
-    if (entry == nullptr) {
-      // No entry in NDP table, create a neighbor solicitation packet
-      IPv6Handler::sendMulticastNeighborSolicitation(
-          this, target, intf->getMac(), vlan->getID());
+  auto entry = getNeighborEntryForIP(state, intf, target);
+  if (entry == nullptr) {
+    // No entry in NDP table, create a neighbor solicitation packet
+    IPv6Handler::sendMulticastNeighborSolicitation(
+        this, target, intf->getMac(), intf->getVlanIDIf());
 
-      // Notify the updater that we sent a solicitation out
-      getNeighborUpdater()->sentNeighborSolicitation(vlanID, target);
-      sent = true;
-    } else {
-      XLOG(DBG5) << "not sending neighbor solicitation for " << target.str()
-                 << ", " << ((entry->isPending()) ? "pending" : "")
-                 << " entry already exists";
-    }
+    // Notify the updater that we sent a solicitation out
+    getNeighborUpdater()->sentNeighborSolicitation(
+        getVlanIDHelper(intf->getVlanIDIf()), target);
+    sent = true;
+  } else {
+    XLOG(DBG5) << "not sending neighbor solicitation for " << target.str()
+               << ", " << ((entry->isPending()) ? "pending" : "")
+               << " entry already exists";
   }
 
   return sent;
@@ -2104,10 +2160,7 @@ bool SwSwitch::sendNdpSolicitationHelper(
 
 VlanID SwSwitch::getVlanIDHelper(std::optional<VlanID> vlanID) const {
   // if vlanID does not have value, it must be VOQ or FABRIC switch
-  CHECK(
-      vlanID.has_value() ||
-      getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ ||
-      getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::FABRIC);
+  CHECK(vlanID.has_value() || !getSwitchInfoTable().vlansSupported());
 
   // TODO(skhare)
   // VOQ/Fabric switches require that the packets are not tagged with any
@@ -2128,8 +2181,7 @@ std::optional<VlanID> SwSwitch::getVlanIDForPkt(VlanID vlanID) const {
   // Once the wedge_agent changes are complete, we will no longer need this
   // function.
 
-  if (getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ ||
-      getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::FABRIC) {
+  if (!getSwitchInfoTable().vlansSupported()) {
     CHECK_EQ(vlanID, VlanID(0));
     return std::nullopt;
   } else {
@@ -2137,21 +2189,28 @@ std::optional<VlanID> SwSwitch::getVlanIDForPkt(VlanID vlanID) const {
   }
 }
 
-std::optional<VlanID> SwSwitch::getCPUVlan() const {
-  return getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ ||
-          getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::FABRIC
-      ? std::nullopt
-      : std::make_optional(VlanID(4095));
-}
-
-InterfaceID SwSwitch::getInterfaceIDForPort(PortID portID) const {
-  auto port = getState()->getPorts()->getPortIf(portID);
-  CHECK(port);
+InterfaceID SwSwitch::getInterfaceIDForAggregatePort(
+    AggregatePortID aggregatePortID) const {
+  auto aggregatePort =
+      getState()->getAggregatePorts()->getAggregatePortIf(aggregatePortID);
+  CHECK(aggregatePort);
   // On VOQ/Fabric switches, port and interface have 1:1 relation.
   // For non VOQ/Fabric switches, in practice, a port is always part of a
   // single VLAN (and thus single interface).
-  CHECK_EQ(port->getInterfaceIDs()->size(), 1);
-  return InterfaceID(port->getInterfaceIDs()->at(0)->cref());
+  CHECK_EQ(aggregatePort->getInterfaceIDs()->size(), 1);
+  return InterfaceID(aggregatePort->getInterfaceIDs()->at(0)->cref());
 }
 
+std::shared_ptr<SwitchState> SwSwitch::stateChanged(
+    const StateDelta& delta,
+    bool transaction) const {
+  return multiHwSwitchSyncer_->stateChanged(delta, transaction);
+}
+
+fsdb::OperDelta SwSwitch::stateChanged(
+    const fsdb::OperDelta& delta,
+    bool transaction) const {
+  return transaction ? hw_->stateChangedTransaction(delta)
+                     : hw_->stateChanged(delta);
+}
 } // namespace facebook::fboss

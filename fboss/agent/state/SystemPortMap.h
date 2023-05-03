@@ -39,6 +39,7 @@ using SystemPortMapTraits = ThriftMapNodeTraits<
 class SystemPortMap : public ThriftMapNode<SystemPortMap, SystemPortMapTraits> {
  public:
   using Base = ThriftMapNode<SystemPortMap, SystemPortMapTraits>;
+  using Traits = SystemPortMapTraits;
   using Base::modify;
   SystemPortMap();
   ~SystemPortMap() override;
@@ -63,4 +64,39 @@ class SystemPortMap : public ThriftMapNode<SystemPortMap, SystemPortMapTraits> {
   friend class CloneAllocator;
   bool isRemote_;
 };
+
+using MultiSwitchSystemPortMapTypeClass = apache::thrift::type_class::
+    map<apache::thrift::type_class::string, SystemPortMapTypeClass>;
+using MultiSwitchSystemPortMapThriftType =
+    std::map<std::string, SystemPortMapThriftType>;
+
+class MultiSwitchSystemPortMap;
+
+using MultiSwitchSystemPortMapTraits = ThriftMultiSwitchMapNodeTraits<
+    MultiSwitchSystemPortMap,
+    MultiSwitchSystemPortMapTypeClass,
+    MultiSwitchSystemPortMapThriftType,
+    SystemPortMap>;
+
+class HwSwitchMatcher;
+
+class MultiSwitchSystemPortMap : public ThriftMultiSwitchMapNode<
+                                     MultiSwitchSystemPortMap,
+                                     MultiSwitchSystemPortMapTraits> {
+ public:
+  using Traits = MultiSwitchSystemPortMapTraits;
+  using BaseT = ThriftMultiSwitchMapNode<
+      MultiSwitchSystemPortMap,
+      MultiSwitchSystemPortMapTraits>;
+  using BaseT::modify;
+
+  MultiSwitchSystemPortMap() {}
+  virtual ~MultiSwitchSystemPortMap() {}
+
+ private:
+  // Inherit the constructors required for clone()
+  using BaseT::BaseT;
+  friend class CloneAllocator;
+};
+
 } // namespace facebook::fboss

@@ -73,12 +73,12 @@ maybe_setup_build_env() {
    git clone git@github.com:aristanetworks/Aqua_SAI.git
    cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
-   git checkout REL_SAI_EA_9.0.0.7_META_032223
+   git checkout REL_SAI_EA_9.2.0.0_META_041723
    wget http://dist/storage/fboss/FBOSS-SAI/patch0-Jupiter-SAI-Makefile.patch
    git apply patch0-Jupiter-SAI-Makefile.patch
-   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.28_SAI_9.0.0_EA"
-   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.28-02b1402dd.tar.xz
-   tar -xf sai-sdk-all-6.5.28-02b1402dd.tar.xz
+   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.28_SAI_9.2.0_EA"
+   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.28-c55e21149.tar.xz
+   tar -xf sai-sdk-all-6.5.28-c55e21149.tar.xz
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.28
    wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_28_DNX_Kernel_Module_fixes.patch
    patch "dnx-sdk-6.5.28-gpl-modules/make/Make.config" < patch3-SDK-6_5_28_DNX_Kernel_Module_fixes.patch

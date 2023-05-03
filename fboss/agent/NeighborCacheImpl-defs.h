@@ -17,8 +17,10 @@
 #include <list>
 #include "fboss/agent/ArpHandler.h"
 #include "fboss/agent/EncapIndexAllocator.h"
+#include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/IPv6Handler.h"
 #include "fboss/agent/NeighborCacheImpl.h"
+#include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/state/ArpTable.h"
 #include "fboss/agent/state/NdpTable.h"
@@ -66,7 +68,8 @@ template <typename NTable>
 void NeighborCacheImpl<NTable>::programEntry(Entry* entry) {
   SwSwitch::StateUpdateFn updateFn;
 
-  switch (sw_->getState()->getSwitchSettings()->getSwitchType()) {
+  auto switchType = sw_->getSwitchInfoTable().l3SwitchType();
+  switch (switchType) {
     case cfg::SwitchType::NPU:
       updateFn = getUpdateFnToProgramEntryForNpu(entry);
       break;
@@ -76,8 +79,7 @@ void NeighborCacheImpl<NTable>::programEntry(Entry* entry) {
     case cfg::SwitchType::FABRIC:
     case cfg::SwitchType::PHY:
       throw FbossError(
-          "Programming entry is not supported for switch type: ",
-          (sw_->getState()->getSwitchSettings()->getSwitchType()));
+          "Programming entry is not supported for switch type: ", switchType);
   }
 
   sw_->updateState(
@@ -104,10 +106,19 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramEntryForNpu(Entry* entry) {
     std::shared_ptr<SwitchState> newState{state};
     auto* table = vlan->template getNeighborTable<NTable>().get();
     auto node = table->getNodeIf(fields.ip.str());
-    auto asic = sw_->getPlatform()->getAsic();
-    if (asic->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)) {
-      fields.encapIndex =
-          EncapIndexAllocator::getNextAvailableEncapIdx(state, *asic);
+
+    auto port = fields.port;
+    // No support for encap index for agg ports. On NPU switches encap index
+    // is used only by mock asic for verification.
+    if (port.isPhysicalPort()) {
+      auto switchIds =
+          sw_->getScopeResolver()->scope(fields.port.phyPortID()).switchIds();
+      CHECK_EQ(switchIds.size(), 1);
+      auto asic = sw_->getHwAsicTable()->getHwAsicIf(*switchIds.begin());
+      if (asic->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)) {
+        fields.encapIndex =
+            EncapIndexAllocator::getNextAvailableEncapIdx(state, *asic);
+      }
     }
 
     if (!node) {
@@ -144,14 +155,18 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramEntryForVoq(Entry* entry) {
   auto updateFn = [this,
                    fields](const std::shared_ptr<SwitchState>& state) mutable
       -> std::shared_ptr<SwitchState> {
-    auto asic = sw_->getPlatform()->getAsic();
+    auto switchIds =
+        sw_->getScopeResolver()->scope(fields.port.phyPortID()).switchIds();
+    CHECK_EQ(switchIds.size(), 1);
+    auto asic = sw_->getHwAsicTable()->getHwAsicIf(*switchIds.begin());
     if (asic->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)) {
       fields.encapIndex =
           EncapIndexAllocator::getNextAvailableEncapIdx(state, *asic);
     }
 
-    auto systemPortRange =
-        sw_->getState()->getSwitchSettings()->getSystemPortRange();
+    auto systemPortRange = sw_->getState()->getAssociatedSystemPortRangeIf(
+        fields.port.phyPortID());
+    CHECK(systemPortRange.has_value());
     auto systemPortID = *systemPortRange->minimum() + fields.port.phyPortID();
 
     auto newState = state->clone();
@@ -214,7 +229,8 @@ void NeighborCacheImpl<NTable>::programPendingEntry(
     bool force) {
   SwSwitch::StateUpdateFn updateFn;
 
-  switch (sw_->getState()->getSwitchSettings()->getSwitchType()) {
+  auto switchType = sw_->getSwitchInfoTable().l3SwitchType();
+  switch (switchType) {
     case cfg::SwitchType::NPU:
       updateFn = getUpdateFnToProgramPendingEntryForNpu(entry, port, force);
       break;
@@ -224,8 +240,7 @@ void NeighborCacheImpl<NTable>::programPendingEntry(
     case cfg::SwitchType::FABRIC:
     case cfg::SwitchType::PHY:
       throw FbossError(
-          "Programming entry is not supported for switch type: ",
-          (sw_->getState()->getSwitchSettings()->getSwitchType()));
+          "Programming entry is not supported for switch type: ", switchType);
   }
 
   sw_->updateStateNoCoalescing(
@@ -295,10 +310,14 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntryForVoq(
     CHECK(port.isPhysicalPort());
 
     auto systemPortRange =
-        sw_->getState()->getSwitchSettings()->getSystemPortRange();
+        sw_->getState()->getAssociatedSystemPortRangeIf(port.phyPortID());
+    CHECK(systemPortRange.has_value());
     auto systemPortID = *systemPortRange->minimum() + port.phyPortID();
 
-    auto asic = sw_->getPlatform()->getAsic();
+    auto switchIds =
+        sw_->getScopeResolver()->scope(fields.port.phyPortID()).switchIds();
+    CHECK_EQ(switchIds.size(), 1);
+    auto asic = sw_->getHwAsicTable()->getHwAsicIf(*switchIds.begin());
     auto encapIndex =
         EncapIndexAllocator::getNextAvailableEncapIdx(state, *asic);
 

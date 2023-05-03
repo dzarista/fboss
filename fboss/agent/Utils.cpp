@@ -299,10 +299,10 @@ UnicastRoute makeUnicastRoute(
 PortID getPortID(
     SystemPortID sysPortId,
     const std::shared_ptr<SwitchState>& state) {
-  auto mySwitchId = state->getSwitchSettings()->getSwitchId();
-  CHECK(mySwitchId.has_value());
+  auto sysPort = state->getSystemPorts()->getSystemPort(sysPortId);
+  auto voqSwitchId = sysPort->getSwitchId();
   auto sysPortRange = state->getDsfNodes()
-                          ->getDsfNodeIf(SwitchID(*mySwitchId))
+                          ->getNodeIf(SwitchID(voqSwitchId))
                           ->getSystemPortRange();
   CHECK(sysPortRange.has_value());
   return PortID(static_cast<int64_t>(sysPortId) - *sysPortRange->minimum());
@@ -311,12 +311,7 @@ PortID getPortID(
 SystemPortID getSystemPortID(
     const PortID& portId,
     const std::shared_ptr<SwitchState>& state) {
-  assert(state->getSwitchSettings()->getSwitchType() == cfg::SwitchType::VOQ);
-  auto mySwitchId = state->getSwitchSettings()->getSwitchId();
-  CHECK(mySwitchId.has_value());
-  auto sysPortRange = state->getDsfNodes()
-                          ->getDsfNodeIf(SwitchID(*mySwitchId))
-                          ->getSystemPortRange();
+  auto sysPortRange = state->getAssociatedSystemPortRangeIf(portId);
   CHECK(sysPortRange.has_value());
   auto systemPortId = static_cast<int64_t>(portId) + *sysPortRange->minimum();
   CHECK_LE(systemPortId, *sysPortRange->maximum());
@@ -442,6 +437,42 @@ std::shared_ptr<NdpEntry> getNeighborEntryForIP(
   }
 
   return entry;
+}
+
+OperDeltaFilter::OperDeltaFilter(SwitchID switchId) : switchId_(switchId) {}
+
+std::optional<fsdb::OperDelta> OperDeltaFilter::filter(
+    const fsdb::OperDelta& delta,
+    int index) const {
+  fsdb::OperDelta result{};
+  result.protocol() = *delta.protocol();
+  if (delta.metadata().has_value()) {
+    result.metadata() = *delta.metadata();
+  }
+
+  for (const auto& change : *delta.changes()) {
+    auto& path = *change.path()->raw();
+    if (path.size() < index + 1) {
+      continue;
+    }
+    const auto& matcherStr = path[index];
+    auto iter = matchersCache_.find(matcherStr);
+    if (iter == matchersCache_.end()) {
+      // if matcher string is not found in cache, cache it.
+      HwSwitchMatcher matcher(matcherStr);
+      auto result =
+          matchersCache_.emplace(matcherStr, HwSwitchMatcher(matcherStr));
+      iter = result.first;
+    }
+    CHECK(iter != matchersCache_.end());
+    if (iter->second.has(switchId_)) {
+      result.changes()->push_back(change);
+    }
+  }
+  if (result.changes()->empty()) {
+    return std::nullopt;
+  }
+  return result;
 }
 
 } // namespace facebook::fboss

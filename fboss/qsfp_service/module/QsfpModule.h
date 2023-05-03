@@ -91,6 +91,8 @@ class QsfpModule : public Transceiver {
   virtual void refresh() override;
   folly::Future<folly::Unit> futureRefresh() override;
 
+  void removeTransceiver() override;
+
   /*
    * Customize QSPF fields as necessary
    *
@@ -146,15 +148,15 @@ class QsfpModule : public Transceiver {
   ModuleStatus readAndClearCachedModuleStatus() override;
 
   /*
-   * Returns the number of host lanes. Should be overridden by the appropriate
-   * module's subclass
+   * Returns the total number of media lanes supported by the inserted
+   * transceiver
    */
-  virtual unsigned int numHostLanes() const = 0;
+  unsigned int numHostLanes() const;
   /*
-   * Returns the number of media lanes. Should be overridden by the appropriate
-   * module's subclass
+   * Returns the total number of media lanes supported by the inserted
+   * transceiver
    */
-  virtual unsigned int numMediaLanes() const = 0;
+  unsigned int numMediaLanes() const;
 
   virtual void configureModule(uint8_t /* startHostLane */) {}
 
@@ -212,8 +214,11 @@ class QsfpModule : public Transceiver {
   /*
    * Try to remediate such Transceiver if needed.
    * Return true means remediation is needed.
+   * When allPortsDown is true, we trigger a full remediation otherwise we just
+   * remediate specific datapaths
    */
-  bool tryRemediate() override;
+  bool tryRemediate(bool allPortsDown, const std::vector<std::string>& ports)
+      override;
 
   bool shouldRemediate() override;
 
@@ -251,6 +256,24 @@ class QsfpModule : public Transceiver {
 
   virtual std::vector<uint8_t> configuredMediaLanes(
       uint8_t hostStartLane) const = 0;
+
+  const std::map<uint8_t, std::string>& getHostLaneToPortName() const {
+    return hostLaneToPortName;
+  }
+
+  const std::map<uint8_t, std::string>& getMediaLaneToPortName() const {
+    return mediaLaneToPortName;
+  }
+
+  const std::unordered_map<std::string, std::set<uint8_t>>&
+  getPortNameToHostLanes() const {
+    return portNameToHostLanes;
+  }
+
+  const std::unordered_map<std::string, std::set<uint8_t>>&
+  getPortNameToMediaLanes() const {
+    return portNameToMediaLanes;
+  }
 
  protected:
   /* Qsfp Internal Implementation */
@@ -448,7 +471,9 @@ class QsfpModule : public Transceiver {
    * disruptive, but have worked in the past to recover a transceiver.
    * Only return true if there's an actual remediation happened
    */
-  virtual bool remediateFlakyTransceiver() {
+  virtual bool remediateFlakyTransceiver(
+      bool /* allPortsDown */,
+      const std::vector<std::string>& /* ports */) {
     return false;
   }
 
@@ -466,7 +491,7 @@ class QsfpModule : public Transceiver {
    * configured for 100G-CWDM4 application, then getModuleMediaInterface will
    * return 200G-FR4
    */
-  virtual MediaInterfaceCode getModuleMediaInterface();
+  virtual MediaInterfaceCode getModuleMediaInterface() const = 0;
 
   /*
    * Returns true if getting the mediaInterfaceId is successful, false otherwise
@@ -542,13 +567,19 @@ class QsfpModule : public Transceiver {
   void refreshLocked();
   virtual void updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus);
 
+  void removeTransceiverLocked();
+
   TransceiverPresenceDetectionStatus detectPresenceLocked();
 
   /*
    * Try to remediate such Transceiver if needed.
    * Return true means remediation is needed.
+   * When allPortsDown is true, we trigger a full remediation otherwise we just
+   * remediate specific datapaths
    */
-  bool tryRemediateLocked();
+  bool tryRemediateLocked(
+      bool allPortsDown,
+      const std::vector<std::string>& ports);
   /*
    * Perform a raw register read on the transceiver
    * This must be called with a lock held on qsfpModuleMutex_
@@ -617,6 +648,16 @@ class QsfpModule : public Transceiver {
       std::optional<ModuleStatus> /* curModuleStatus */ = std::nullopt) {}
 
   friend class TransceiverStateMachineTest;
+
+  std::map<uint8_t, std::string> hostLaneToPortName;
+  std::map<uint8_t, std::string> mediaLaneToPortName;
+
+  void updateLaneToPortNameMapping(
+      const std::string& portName,
+      uint8_t startHostLane);
+
+  std::unordered_map<std::string, std::set<uint8_t>> portNameToHostLanes;
+  std::unordered_map<std::string, std::set<uint8_t>> portNameToMediaLanes;
 };
 } // namespace fboss
 } // namespace facebook

@@ -118,6 +118,8 @@ class Transceiver {
   virtual void refresh() = 0;
   virtual folly::Future<folly::Unit> futureRefresh() = 0;
 
+  virtual void removeTransceiver() = 0;
+
   /*
    * Return all of the transceiver information
    */
@@ -204,8 +206,12 @@ class Transceiver {
   /*
    * Try to remediate such Transceiver if needed.
    * Return true means remediation is needed.
+   * When allPortsDown is true, we trigger a full remediation otherwise we just
+   * remediate specific datapaths
    */
-  virtual bool tryRemediate() = 0;
+  virtual bool tryRemediate(
+      bool allPortsDown,
+      const std::vector<std::string>& ports) = 0;
 
   virtual bool shouldRemediate() = 0;
 

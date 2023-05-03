@@ -193,6 +193,7 @@ TEST(Port, emptyConfig) {
   auto platform = createMockPlatform();
   PortID portID(1);
   auto state = make_shared<SwitchState>();
+  addSwitchInfo(state);
   state->registerPort(portID, "port1");
   auto port = state->getPorts()->getPortIf(portID);
   prepareDefaultSwPort(platform.get(), port);
@@ -335,6 +336,7 @@ TEST(Port, verifyPfcConfig) {
 TEST(Port, pauseConfig) {
   auto platform = createMockPlatform();
   auto state = make_shared<SwitchState>();
+  addSwitchInfo(state);
   auto portID = PortID(1);
   state->registerPort(portID, "port1");
   auto port = state->getPorts()->getPortIf(portID);
@@ -559,6 +561,7 @@ void checkChangedPorts(
 TEST(PortMap, applyConfig) {
   auto platform = createMockPlatform();
   auto stateV0 = make_shared<SwitchState>();
+  addSwitchInfo(stateV0);
   auto portsV0 = stateV0->getPorts();
   auto registerPort = [&](int i) {
     state::PortFields portFields;
@@ -859,11 +862,11 @@ TEST(Port, portSerilization) {
   EXPECT_EQ(port->getGbLinePrbs(), prbsState);
 
   // Pfc Priorities
-  EXPECT_TRUE(!port->getPfcPriorities());
+  EXPECT_TRUE(port->getPfcPriorities().empty());
   std::optional<std::vector<int16_t>> pfcPriorities{{42}};
   port->setPfcPriorities(pfcPriorities);
-  EXPECT_TRUE(port->getPfcPriorities());
-  EXPECT_EQ(port->getPfcPriorities()->size(), 1);
+  EXPECT_TRUE(!port->getPfcPriorities().empty());
+  EXPECT_EQ(port->getPfcPriorities().size(), 1);
 
   // expected LLDP values
   EXPECT_TRUE(port->getLLDPValidations().empty());
@@ -946,13 +949,9 @@ TEST(Port, verifyInterfaceIDsForNonVoqSwitches) {
   auto expectedPort2Interface = getExpectedPort2Interface(config);
 
   for (const auto& port : std::as_const(*(stateV1->getPorts()))) {
-    for (const auto& intfID : *port.second->getInterfaceIDs()) {
-      auto portID = port.second->getID();
-      auto expectedIntfID = expectedPort2Interface[portID];
-      auto gotIntfID = int(intfID->cref());
-
-      EXPECT_EQ(expectedIntfID, gotIntfID);
-    }
+    auto portID = port.second->getID();
+    auto expectedIntfID = InterfaceID(expectedPort2Interface[portID]);
+    EXPECT_EQ(expectedIntfID, port.second->getInterfaceID());
   }
 }
 
@@ -964,21 +963,70 @@ TEST(Port, verifyInterfaceIDsForVoqSwitches) {
   auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
   ASSERT_NE(nullptr, stateV1);
 
-  auto dsfIter = config.dsfNodes()->find(
-      static_cast<int64_t>(*config.switchSettings()->switchId()));
-  EXPECT_TRUE(dsfIter != config.dsfNodes()->end());
-  auto myNode = dsfIter->second;
-
   for (const auto& port : std::as_const(*(stateV1->getPorts()))) {
-    for (const auto& intfID : *port.second->getInterfaceIDs()) {
-      auto expectedIntfID =
-          *myNode.systemPortRange()->minimum() + port.second->getID();
-      auto gotIntfID = static_cast<int>(intfID->cref());
-      EXPECT_EQ(expectedIntfID, gotIntfID);
-    }
+    auto portID = port.second->getID();
+    auto expectedIntfID = InterfaceID(
+        *stateV1->getAssociatedSystemPortRangeIf(portID)->minimum() +
+        port.second->getID());
+    EXPECT_EQ(expectedIntfID, port.second->getInterfaceID());
   }
 }
 
+TEST(Port, verifySysPortRangeForNonVoqSwitches) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  auto config = testConfigA();
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  for (const auto& port : std::as_const(*(stateV1->getPorts()))) {
+    auto portID = port.second->getID();
+    EXPECT_FALSE(stateV1->getAssociatedSystemPortRangeIf(portID).has_value());
+  }
+}
+
+TEST(Port, verifySwitchIdForVoqSwitches) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  auto config = testConfigA(cfg::SwitchType::VOQ);
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  for (const auto& port : std::as_const(*(stateV1->getPorts()))) {
+    auto portID = port.second->getID();
+    EXPECT_EQ(stateV1->getAssociatedSwitchID(portID), SwitchID(1));
+  }
+}
+
+TEST(Port, verifySwitchIdForNonVoqSwitches) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  auto config = testConfigA();
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  for (const auto& port : std::as_const(*(stateV1->getPorts()))) {
+    auto portID = port.second->getID();
+    EXPECT_THROW(stateV1->getAssociatedSwitchID(portID), FbossError);
+  }
+}
+
+TEST(Port, verifySysPortRangeForVoqSwitches) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  auto config = testConfigA(cfg::SwitchType::VOQ);
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  for (const auto& port : std::as_const(*(stateV1->getPorts()))) {
+    auto portID = port.second->getID();
+    EXPECT_TRUE(stateV1->getAssociatedSystemPortRangeIf(portID).has_value());
+  }
+}
 TEST(Port, verifyNeighborReachability) {
   auto platform = createMockPlatform();
   auto stateV0 = make_shared<SwitchState>();

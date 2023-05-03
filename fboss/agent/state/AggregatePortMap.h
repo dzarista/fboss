@@ -74,31 +74,33 @@ class AggregatePortMap
   friend class CloneAllocator;
 };
 
-using MultiAggregatePortMapTypeClass = apache::thrift::type_class::
+using MultiSwitchAggregatePortMapTypeClass = apache::thrift::type_class::
     map<apache::thrift::type_class::string, AggregatePortMapTypeClass>;
-using MultiAggregatePortMapThriftType =
+using MultiSwitchAggregatePortMapThriftType =
     std::map<std::string, AggregatePortMapThriftType>;
 
-class MultiAggregatePortMap;
+class MultiSwitchAggregatePortMap;
 
-using MultiAggregatePortMapTraits = ThriftMultiMapNodeTraits<
-    MultiAggregatePortMap,
-    MultiAggregatePortMapTypeClass,
-    MultiAggregatePortMapThriftType,
+using MultiSwitchAggregatePortMapTraits = ThriftMultiSwitchMapNodeTraits<
+    MultiSwitchAggregatePortMap,
+    MultiSwitchAggregatePortMapTypeClass,
+    MultiSwitchAggregatePortMapThriftType,
     AggregatePortMap>;
 
 class HwSwitchMatcher;
 
-class MultiAggregatePortMap
-    : public ThriftMapNode<MultiAggregatePortMap, MultiAggregatePortMapTraits> {
+class MultiSwitchAggregatePortMap : public ThriftMultiSwitchMapNode<
+                                        MultiSwitchAggregatePortMap,
+                                        MultiSwitchAggregatePortMapTraits> {
  public:
-  using Traits = MultiAggregatePortMapTraits;
-  using BaseT =
-      ThriftMapNode<MultiAggregatePortMap, MultiAggregatePortMapTraits>;
+  using Traits = MultiSwitchAggregatePortMapTraits;
+  using BaseT = ThriftMultiSwitchMapNode<
+      MultiSwitchAggregatePortMap,
+      MultiSwitchAggregatePortMapTraits>;
   using BaseT::modify;
 
-  MultiAggregatePortMap() {}
-  virtual ~MultiAggregatePortMap() {}
+  MultiSwitchAggregatePortMap() {}
+  virtual ~MultiSwitchAggregatePortMap() {}
 
  private:
   // Inherit the constructors required for clone()

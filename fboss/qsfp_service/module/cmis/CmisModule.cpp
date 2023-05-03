@@ -129,6 +129,7 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     {CmisField::TX_SIG_INT_CONT_AD, {CmisPages::PAGE01, 161, 1}},
     {CmisField::RX_SIG_INT_CONT_AD, {CmisPages::PAGE01, 162, 1}},
     {CmisField::CDB_SUPPORT, {CmisPages::PAGE01, 163, 1}},
+    {CmisField::MEDIA_LANE_ASSIGNMENT, {CmisPages::PAGE01, 176, 15}},
     {CmisField::DSP_FW_VERSION, {CmisPages::PAGE01, 194, 2}},
     {CmisField::BUILD_REVISION, {CmisPages::PAGE01, 196, 2}},
     {CmisField::APPLICATION_ADVERTISING2, {CmisPages::PAGE01, 223, 4}},
@@ -348,7 +349,8 @@ static CmisFieldMultiplier qsfpMultiplier = {
 static SpeedApplicationMapping speedApplicationMapping = {
     {cfg::PortSpeed::FIFTYTHREEPOINTONETWOFIVEG,
      {SMFMediaInterfaceCode::FR4_200G}},
-    {cfg::PortSpeed::HUNDREDG, {SMFMediaInterfaceCode::CWDM4_100G}},
+    {cfg::PortSpeed::HUNDREDG,
+     {SMFMediaInterfaceCode::CWDM4_100G, SMFMediaInterfaceCode::FR1_100G}},
     {cfg::PortSpeed::TWOHUNDREDG, {SMFMediaInterfaceCode::FR4_200G}},
     {cfg::PortSpeed::FOURHUNDREDG,
      {SMFMediaInterfaceCode::FR4_400G, SMFMediaInterfaceCode::LR4_10_400G}},
@@ -357,6 +359,7 @@ static SpeedApplicationMapping speedApplicationMapping = {
 static std::unordered_map<SMFMediaInterfaceCode, cfg::PortSpeed>
     mediaInterfaceToPortSpeedMapping = {
         {SMFMediaInterfaceCode::CWDM4_100G, cfg::PortSpeed::HUNDREDG},
+        {SMFMediaInterfaceCode::FR1_100G, cfg::PortSpeed::HUNDREDG},
         {SMFMediaInterfaceCode::FR4_200G, cfg::PortSpeed::TWOHUNDREDG},
         {SMFMediaInterfaceCode::FR4_400G, cfg::PortSpeed::FOURHUNDREDG},
         {SMFMediaInterfaceCode::LR4_10_400G, cfg::PortSpeed::FOURHUNDREDG},
@@ -365,6 +368,7 @@ static std::unordered_map<SMFMediaInterfaceCode, cfg::PortSpeed>
 static std::map<SMFMediaInterfaceCode, MediaInterfaceCode>
     mediaInterfaceMapping = {
         {SMFMediaInterfaceCode::CWDM4_100G, MediaInterfaceCode::CWDM4_100G},
+        {SMFMediaInterfaceCode::FR1_100G, MediaInterfaceCode::FR1_100G},
         {SMFMediaInterfaceCode::FR4_200G, MediaInterfaceCode::FR4_200G},
         {SMFMediaInterfaceCode::FR4_400G, MediaInterfaceCode::FR4_400G},
         {SMFMediaInterfaceCode::LR4_10_400G, MediaInterfaceCode::LR4_400G_10KM},
@@ -433,8 +437,10 @@ CmisModule::getApplicationField(uint8_t application, uint8_t startHostLane)
     const {
   for (const auto& capability : moduleCapabilities_) {
     if (capability.moduleMediaInterface == application &&
-        capability.hostStartLanes.find(startHostLane) !=
-            capability.hostStartLanes.end()) {
+        std::find(
+            capability.hostStartLanes.begin(),
+            capability.hostStartLanes.end(),
+            startHostLane) != capability.hostStartLanes.end()) {
       return capability;
     }
   }
@@ -836,14 +842,16 @@ uint8_t CmisModule::currentConfiguredMediaInterfaceCode(
 }
 
 // Returns the list of host lanes configured in the same datapath as the
-// provided hostLane
-std::vector<uint8_t> CmisModule::configuredHostLanes(uint8_t hostLane) const {
+// provided startHostLane
+std::vector<uint8_t> CmisModule::configuredHostLanes(
+    uint8_t startHostLane) const {
   std::vector<uint8_t> cfgLanes;
-  auto currentMediaInterface = currentConfiguredMediaInterfaceCode(hostLane);
+  auto currentMediaInterface =
+      currentConfiguredMediaInterfaceCode(startHostLane);
   if (auto applicationAdvertisingField =
-          getApplicationField(currentMediaInterface, hostLane)) {
-    for (uint8_t lane = hostLane;
-         lane < hostLane + applicationAdvertisingField->hostLaneCount;
+          getApplicationField(currentMediaInterface, startHostLane)) {
+    for (uint8_t lane = startHostLane;
+         lane < startHostLane + applicationAdvertisingField->hostLaneCount;
          lane++) {
       cfgLanes.push_back(lane);
     }
@@ -852,32 +860,57 @@ std::vector<uint8_t> CmisModule::configuredHostLanes(uint8_t hostLane) const {
 }
 
 // Returns the list of media lanes configured in the same datapath as the
-// provided hostLane
-std::vector<uint8_t> CmisModule::configuredMediaLanes(uint8_t hostLane) const {
+// provided startHostLane
+std::vector<uint8_t> CmisModule::configuredMediaLanes(
+    uint8_t startHostLane) const {
   std::vector<uint8_t> cfgLanes;
-  auto currentMediaInterface = currentConfiguredMediaInterfaceCode(hostLane);
+  if (flatMem_) {
+    // FlatMem_ modules won't have page01 to read the media lane assignment
+    return cfgLanes;
+  }
+
+  auto currentMediaInterface =
+      currentConfiguredMediaInterfaceCode(startHostLane);
   if (auto applicationAdvertisingField =
-          getApplicationField(currentMediaInterface, hostLane)) {
-    // Assumes startMediaLane = hostLane
-    for (uint8_t start = hostLane;
-         start < hostLane + applicationAdvertisingField->mediaLaneCount;
+          getApplicationField(currentMediaInterface, startHostLane)) {
+    // The assignment byte has a '1' for every datapath that starts at that
+    // lane. We first need to find out the 'index (say n)' of the datapath
+    // using the given start host lane. We'll then look for a nth '1' in the
+    // corresponding media lane assignment.
+    // For example, if the hostLaneAssignment is 0x55, the corresponding
+    // mediaLaneAssignment can be 0xF. Which means that the pairing of
+    // host->media lanes will be (hostLane:0, mediaLane:0), (hostLane:2,
+    // mediaLane:1), (hostLane:4, mediaLane:2), (hostLane:6, mediaLane:3)
+    auto it = std::find(
+        applicationAdvertisingField->hostStartLanes.begin(),
+        applicationAdvertisingField->hostStartLanes.end(),
+        startHostLane);
+    if (it == applicationAdvertisingField->hostStartLanes.end()) {
+      QSFP_LOG(ERR, this) << "Couldn't find the hostStartLane "
+                          << startHostLane;
+      return cfgLanes;
+    }
+
+    auto index =
+        std::distance(applicationAdvertisingField->hostStartLanes.begin(), it);
+    uint8_t mediaStartLane = 0;
+    if (index < applicationAdvertisingField->mediaStartLanes.size()) {
+      mediaStartLane = applicationAdvertisingField->mediaStartLanes[index];
+    } else {
+      QSFP_LOG(ERR, this) << "Index " << index << " out of range for "
+                          << folly::join(
+                                 ",",
+                                 applicationAdvertisingField->mediaStartLanes);
+      return cfgLanes;
+    }
+
+    for (uint8_t start = mediaStartLane;
+         start < mediaStartLane + applicationAdvertisingField->mediaLaneCount;
          start++) {
       cfgLanes.push_back(start);
     }
   }
   return cfgLanes;
-}
-
-unsigned int CmisModule::numHostLanes() const {
-  // For now assume only lane 0 is configured. This needs to be changed to
-  // account for multiple ports
-  return configuredHostLanes(0).size();
-}
-
-unsigned int CmisModule::numMediaLanes() const {
-  // For now assume only lane 0 is configured. This needs to be changed to
-  // account for multiple ports
-  return configuredMediaLanes(0).size();
 }
 
 SMFMediaInterfaceCode CmisModule::getSmfMediaInterface(uint8_t lane) const {
@@ -974,11 +1007,10 @@ void CmisModule::getApplicationCapabilities() {
   int length;
   int dataAddress;
 
-  getQsfpFieldAddress(
-      CmisField::APPLICATION_ADVERTISING1, dataAddress, offset, length);
-
   moduleCapabilities_.clear();
   for (uint8_t i = 0; i < 8; i++) {
+    getQsfpFieldAddress(
+        CmisField::APPLICATION_ADVERTISING1, dataAddress, offset, length);
     data = getQsfpValuePtr(dataAddress, offset + i * length, length);
 
     if (data[0] == 0xff) {
@@ -996,7 +1028,20 @@ void CmisModule::getApplicationCapabilities() {
         data[2] & FieldMasks::LOWER_FOUR_BITS_MASK;
     for (int lane = 0; lane < 8; lane++) {
       if (data[3] & (1 << lane)) {
-        applicationAdvertisingField.hostStartLanes.insert(lane);
+        applicationAdvertisingField.hostStartLanes.push_back(lane);
+      }
+    }
+
+    if (!flatMem_) {
+      getQsfpFieldAddress(
+          CmisField::MEDIA_LANE_ASSIGNMENT, dataAddress, offset, length);
+      offset += i;
+      uint8_t mediaLaneAssignment;
+      getQsfpValue(dataAddress, offset, 1, &mediaLaneAssignment);
+      for (int lane = 0; lane < 8; lane++) {
+        if (mediaLaneAssignment & (1 << lane)) {
+          applicationAdvertisingField.mediaStartLanes.push_back(lane);
+        }
       }
     }
 
@@ -1052,23 +1097,16 @@ bool CmisModule::getSignalsPerMediaLane(
     return false;
   }
 
-  // TODO(ccpowers): remove the TX flags once nobody reads them anymore
-  auto txLos = getSettingsValue(CmisField::TX_LOS_FLAG);
   auto rxLos = getSettingsValue(CmisField::RX_LOS_FLAG);
-  auto txLol = getSettingsValue(CmisField::TX_LOL_FLAG);
   auto rxLol = getSettingsValue(CmisField::RX_LOL_FLAG);
   auto txFault = getSettingsValue(CmisField::TX_FAULT_FLAG);
-  auto txEq = getSettingsValue(CmisField::TX_EQ_FLAG);
 
   for (int lane = 0; lane < signals.size(); lane++) {
     auto laneMask = (1 << lane);
     signals[lane].lane() = lane;
-    signals[lane].txLos() = txLos & laneMask;
     signals[lane].rxLos() = rxLos & laneMask;
-    signals[lane].txLol() = txLol & laneMask;
     signals[lane].rxLol() = rxLol & laneMask;
     signals[lane].txFault() = txFault & laneMask;
-    signals[lane].txAdaptEqFault() = txEq & laneMask;
   }
 
   return true;
@@ -1943,14 +1981,40 @@ bool CmisModule::checkLaneConfigError(
  * disruptive, but have worked in the past to recover a transceiver.
  * Always return true
  */
-bool CmisModule::remediateFlakyTransceiver() {
-  QSFP_LOG(INFO, this) << "Performing potentially disruptive remediations";
+bool CmisModule::remediateFlakyTransceiver(
+    bool allPortsDown,
+    const std::vector<std::string>& ports) {
+  QSFP_LOG(INFO, this) << "allPortsDown = " << allPortsDown
+                       << ". Performing potentially disruptive remediations on "
+                       << folly::join(",", ports);
 
-  // This api accept 1 based module id however the module id in WedgeManager
-  // is 0 based.
-  getTransceiverManager()->getQsfpPlatformApi()->triggerQsfpHardReset(
-      static_cast<unsigned int>(getID()) + 1);
-  moduleResetCounter_++;
+  if (allPortsDown) {
+    // This api accept 1 based module id however the module id in WedgeManager
+    // is 0 based.
+    getTransceiverManager()->getQsfpPlatformApi()->triggerQsfpHardReset(
+        static_cast<unsigned int>(getID()) + 1);
+    moduleResetCounter_++;
+  } else {
+    auto portNameToHostLanesMap = getPortNameToHostLanes();
+    for (const auto& port : ports) {
+      if (portNameToHostLanesMap.find(port) != portNameToHostLanesMap.end()) {
+        auto& lanes = portNameToHostLanesMap[port];
+        if (!lanes.empty()) {
+          auto portLaneMask = laneMask(*lanes.begin(), lanes.size());
+          QSFP_LOG(INFO, this)
+              << "Doing datapath reinit for " << port << " with lane mask "
+              << static_cast<int>(portLaneMask);
+          resetDataPathWithFunc(std::nullopt, portLaneMask);
+        } else {
+          QSFP_LOG(ERR, this) << "Host lanes empty for " << port
+                              << ". Skipping individual datapath remediation.";
+        }
+      } else {
+        QSFP_LOG(ERR, this) << "Host lanes unavailable for " << port
+                            << ". Skipping individual datapath remediation.";
+      }
+    }
+  }
 
   // Reset lastRemediateTime_ so we can use cool down before next remediation
   lastRemediateTime_ = std::time(nullptr);
@@ -2182,28 +2246,25 @@ void CmisModule::configureModule(uint8_t startHostLane) {
       << "Rx Equalizer configuration not specified in the QSFP config";
 }
 
-MediaInterfaceCode CmisModule::getModuleMediaInterface() {
-  // Go over all module capabilities and return the one with max speed
-  auto maxSpeed = cfg::PortSpeed::DEFAULT;
+MediaInterfaceCode CmisModule::getModuleMediaInterface() const {
+  // Return the MediaInterfaceCode based on the first application
   auto moduleMediaInterface = MediaInterfaceCode::UNKNOWN;
   auto mediaTypeEncoding = getMediaTypeEncoding();
-  for (const auto& moduleCapIter : moduleCapabilities_) {
-    if (mediaTypeEncoding == MediaTypeEncodings::OPTICAL_SMF) {
-      auto smfCode = static_cast<SMFMediaInterfaceCode>(
-          moduleCapIter.moduleMediaInterface);
-      if (mediaInterfaceToPortSpeedMapping.find(smfCode) !=
-              mediaInterfaceToPortSpeedMapping.end() &&
-          mediaInterfaceMapping.find(smfCode) != mediaInterfaceMapping.end()) {
-        auto speed = mediaInterfaceToPortSpeedMapping[smfCode];
-        if (speed > maxSpeed) {
-          maxSpeed = speed;
-          moduleMediaInterface = mediaInterfaceMapping[smfCode];
-        }
-      }
-    } else if (mediaTypeEncoding == MediaTypeEncodings::PASSIVE_CU) {
-      // FIXME: Remove CR8_400G hardcoding and derive this from number of
-      // lanes/host electrical interface instead
-      moduleMediaInterface = MediaInterfaceCode::CR8_400G;
+  if (mediaTypeEncoding == MediaTypeEncodings::PASSIVE_CU) {
+    // FIXME: Remove CR8_400G hardcoding and derive this from number of
+    // lanes/host electrical interface instead
+    moduleMediaInterface = MediaInterfaceCode::CR8_400G;
+  } else if (
+      mediaTypeEncoding == MediaTypeEncodings::OPTICAL_SMF &&
+      moduleCapabilities_.size() > 0) {
+    auto firstModuleCapability = moduleCapabilities_.begin();
+    auto smfCode = static_cast<SMFMediaInterfaceCode>(
+        firstModuleCapability->moduleMediaInterface);
+    if (smfCode == SMFMediaInterfaceCode::FR4_400G &&
+        firstModuleCapability->hostStartLanes.size() == 2) {
+      moduleMediaInterface = MediaInterfaceCode::FR4_400Gx2;
+    } else {
+      moduleMediaInterface = mediaInterfaceMapping[smfCode];
     }
   }
 

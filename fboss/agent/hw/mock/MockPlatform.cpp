@@ -14,13 +14,14 @@
 #include "fboss/agent/SysError.h"
 #include "fboss/agent/ThriftHandler.h"
 #include "fboss/agent/hw/mock/MockHwSwitch.h"
+#include "fboss/agent/hw/mock/MockPlatformMapping.h"
 #include "fboss/agent/hw/mock/MockPlatformPort.h"
 #include "fboss/agent/hw/mock/MockTestHandle.h"
-#include "fboss/agent/platforms/common/wedge100/Wedge100PlatformMapping.h"
 #include "fboss/agent/test/HwTestHandle.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 
 #include <gmock/gmock.h>
+#include <memory>
 
 using std::make_unique;
 using std::string;
@@ -74,8 +75,10 @@ MockPlatform::~MockPlatform() {}
 void MockPlatform::setupAsic(
     cfg::SwitchType switchType,
     std::optional<int64_t> switchId,
-    std::optional<cfg::Range64> systemPortRange) {
-  asic_ = std::make_unique<MockAsic>(switchType, switchId, systemPortRange);
+    std::optional<cfg::Range64> systemPortRange,
+    folly::MacAddress& mac) {
+  asic_ =
+      std::make_unique<MockAsic>(switchType, switchId, systemPortRange, mac);
 }
 HwSwitch* MockPlatform::getHwSwitch() const {
   return hw_.get();

@@ -12,7 +12,9 @@
 #include "fboss/agent/AddressUtil.h"
 #include "fboss/agent/ApplyThriftConfig.h"
 #include "fboss/agent/FbossHwUpdateError.h"
+#include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/SwSwitch.h"
+#include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/ThriftHandler.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/hw/mock/MockPlatform.h"
@@ -158,18 +160,59 @@ class ThriftTestAllSwitchTypes : public ::testing::Test {
     return switchType == cfg::SwitchType::NPU;
   }
   int interfaceIdBegin() const {
+    auto switchId = getSwitchIdAndType().first;
     return isVoq() ? *sw_->getState()
-                          ->getSwitchSettings()
+                          ->getDsfNodes()
+                          ->getNodeIf(switchId)
                           ->getSystemPortRange()
                           ->minimum() +
             5
                    : 1;
+  }
+
+  std::pair<SwitchID, cfg::SwitchType> getSwitchIdAndType() const {
+    if (isNpu()) {
+      return {SwitchID(0), cfg::SwitchType::NPU};
+    } else if (isFabric()) {
+      return {SwitchID(2), cfg::SwitchType::FABRIC};
+    } else if (isVoq()) {
+      return {SwitchID(1), cfg::SwitchType::VOQ};
+    }
+    throw FbossError("Invalid switch type");
   }
   SwSwitch* sw_;
   std::unique_ptr<HwTestHandle> handle_;
 };
 
 TYPED_TEST_SUITE(ThriftTestAllSwitchTypes, SwitchTypes);
+
+TYPED_TEST(ThriftTestAllSwitchTypes, checkSwitchId) {
+  auto switchInfoTable = this->sw_->getSwitchInfoTable();
+  auto switchIdAndType = this->getSwitchIdAndType();
+  for (const auto& type :
+       {cfg::SwitchType::NPU, cfg::SwitchType::VOQ, cfg::SwitchType::FABRIC}) {
+    if (type == switchIdAndType.second) {
+      EXPECT_EQ(
+          *switchInfoTable.getSwitchIdsOfType(switchIdAndType.second).begin(),
+          switchIdAndType.first);
+    } else {
+      EXPECT_EQ(switchInfoTable.getSwitchIdsOfType(type).size(), 0);
+    }
+  }
+  auto hwAsicTable = this->sw_->getHwAsicTable();
+  EXPECT_NE(hwAsicTable, nullptr);
+  auto hwAsic = hwAsicTable->getHwAsicIf(switchIdAndType.first);
+  EXPECT_NE(hwAsic, nullptr);
+  EXPECT_EQ(SwitchID(*hwAsic->getSwitchId()), switchIdAndType.first);
+  EXPECT_EQ(hwAsic->getSwitchType(), switchIdAndType.second);
+  auto config = testConfigA(switchIdAndType.second);
+  EXPECT_EQ(
+      *(this->sw_->getScopeResolver()
+            ->scope(PortID(*(config.ports()[0].logicalID())))
+            .switchIds()
+            .begin()),
+      switchIdAndType.first);
+}
 
 TYPED_TEST(ThriftTestAllSwitchTypes, listHwObjects) {
   ThriftHandler handler(this->sw_);
@@ -218,6 +261,9 @@ TEST(ThriftEnum, assertPortSpeeds) {
         break;
       case PortSpeed::HUNDREDG:
         EXPECT_EQ(static_cast<int>(key), 100000);
+        break;
+      case PortSpeed::HUNDREDANDSIXPOINTTWOFIVEG:
+        EXPECT_EQ(static_cast<int>(key), 106250);
         break;
       case PortSpeed::TWOHUNDREDG:
         EXPECT_EQ(static_cast<int>(key), 200000);
@@ -326,6 +372,24 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getPortStatus) {
   }
 }
 
+TYPED_TEST(ThriftTestAllSwitchTypes, getSetSwitchDrainState) {
+  ThriftHandler handler(this->sw_);
+  auto switchDrainFn =
+      [this](const shared_ptr<SwitchState>& state) -> shared_ptr<SwitchState> {
+    shared_ptr<SwitchState> newState{state};
+    auto oldSwitchSettings = state->getSwitchSettings();
+    auto newSwitchSettings = oldSwitchSettings->modify(&newState);
+    newSwitchSettings->setSwitchDrainState(cfg::SwitchDrainState::DRAINED);
+    return newState;
+  };
+
+  if (this->isFabric()) {
+    EXPECT_FALSE(handler.isSwitchDrained());
+    this->sw_->updateStateBlocking("Switch drain", switchDrainFn);
+    EXPECT_TRUE(handler.isSwitchDrained());
+  }
+}
+
 TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
   ThriftHandler handler(this->sw_);
 
@@ -430,9 +494,12 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
 TYPED_TEST(ThriftTestAllSwitchTypes, getDsfNodes) {
   ThriftHandler handler(this->sw_);
   std::map<int64_t, cfg::DsfNode> dsfNodes;
-  handler.getDsfNodes(dsfNodes);
-  auto expected = this->isNpu() ? 0 : 2;
-  EXPECT_EQ(dsfNodes.size(), expected);
+  if (this->isNpu()) {
+    EXPECT_THROW(handler.getDsfNodes(dsfNodes), FbossError);
+  } else {
+    handler.getDsfNodes(dsfNodes);
+    EXPECT_EQ(dsfNodes.size(), 2);
+  }
 }
 
 TYPED_TEST(ThriftTestAllSwitchTypes, getSysPorts) {
@@ -469,6 +536,25 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getCpuPortStats) {
   CpuPortStats cpuPortStats;
   EXPECT_HW_CALL(this->sw_, getCpuPortStats()).Times(1);
   handler.getCpuPortStats(cpuPortStats);
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getSwitchReachability) {
+  ThriftHandler handler(this->sw_);
+  std::unique_ptr<std::vector<std::string>> switchNames =
+      std::make_unique<std::vector<std::string>>();
+  switchNames->push_back("dsfNodeCfg1");
+  std::map<std::string, std::vector<std::string>> reachabilityMatrix;
+  if (this->isNpu()) {
+    EXPECT_HW_CALL(this->sw_, getSwitchReachability(testing::_)).Times(0);
+    EXPECT_THROW(
+        handler.getSwitchReachability(
+            reachabilityMatrix, std::move(switchNames)),
+        FbossError);
+  } else {
+    EXPECT_HW_CALL(this->sw_, getSwitchReachability(testing::_)).Times(1);
+    handler.getSwitchReachability(reachabilityMatrix, std::move(switchNames));
+    EXPECT_EQ(reachabilityMatrix.size(), 1);
+  }
 }
 
 std::unique_ptr<UnicastRoute> makeUnicastRoute(
@@ -1298,7 +1384,7 @@ TEST_F(ThriftTest, syncFibIsHwProtected) {
   UnicastRoute nr1 =
       *makeUnicastRoute("aaaa::/64", "2401:db00:2110:3001::1").get();
   addRoutes->push_back(nr1);
-  EXPECT_HW_CALL(sw_, stateChangedImpl(_));
+  EXPECT_STATE_UPDATE(sw_);
   handler.addUnicastRoutes(10, std::move(addRoutes));
   auto newRoutes = std::make_unique<std::vector<UnicastRoute>>();
   UnicastRoute nr2 = *makeUnicastRoute("bbbb::/64", "42::42").get();
@@ -1440,7 +1526,7 @@ TEST_F(ThriftTest, hwUpdateErrorAfterPartialUpdate) {
       *makeUnicastRoute("aaaa::/64", "2401:db00:2110:3001::1").get();
   std::vector<UnicastRoute> routes;
   routes.push_back(nr1);
-  EXPECT_HW_CALL(sw_, stateChangedImpl(_)).Times(2);
+  EXPECT_STATE_UPDATE_TIMES(sw_, 2);
   handler.addUnicastRoutes(
       10, std::make_unique<std::vector<UnicastRoute>>(routes));
   auto oneRouteAddedState = sw_->getState();

@@ -441,26 +441,25 @@ TransceiverSettings SffModule::getTransceiverSettingsInfo() {
 }
 
 std::vector<uint8_t> SffModule::configuredHostLanes(
-    uint8_t /* hostStartLane */) const {
+    uint8_t hostStartLane) const {
+  if (hostStartLane != 0) {
+    return {};
+  }
   return {0, 1, 2, 3};
 }
 
 std::vector<uint8_t> SffModule::configuredMediaLanes(
-    uint8_t /* hostStartLane */) const {
+    uint8_t hostStartLane) const {
+  if (hostStartLane != 0 || flatMem_) {
+    return {};
+  }
+
   auto ext_comp_code = getExtendedSpecificationComplianceCode();
 
   if (ext_comp_code && *ext_comp_code == ExtendedSpecComplianceCode::FR1_100G) {
     return {0};
   }
   return {0, 1, 2, 3};
-}
-
-unsigned int SffModule::numHostLanes() const {
-  return configuredHostLanes(0).size();
-}
-
-unsigned int SffModule::numMediaLanes() const {
-  return configuredMediaLanes(0).size();
 }
 
 RateSelectSetting SffModule::getRateSelectSettingValue(RateSelectState state) {
@@ -568,23 +567,16 @@ bool SffModule::getSignalsPerHostLane(std::vector<HostLaneSignals>& signals) {
 bool SffModule::getSignalsPerMediaLane(std::vector<MediaLaneSignals>& signals) {
   assert(signals.size() == numMediaLanes());
 
-  // TODO(ccpowers): Remove tx flags once everyone uses hostLaneSignals
-  auto txLos = getSettingsValue(SffField::LOS, UPPER_BITS_MASK) >> 4;
   auto rxLos = getSettingsValue(SffField::LOS, LOWER_BITS_MASK);
-  auto txLol = getSettingsValue(SffField::LOL, UPPER_BITS_MASK) >> 4;
   auto rxLol = getSettingsValue(SffField::LOL, LOWER_BITS_MASK);
   auto txFault = getSettingsValue(SffField::FAULT, LOWER_BITS_MASK);
-  auto txAdaptEqFault = getSettingsValue(SffField::FAULT, UPPER_BITS_MASK) >> 4;
 
   for (int lane = 0; lane < signals.size(); lane++) {
     auto laneMask = (1 << lane);
     signals[lane].lane() = lane;
-    signals[lane].txLos() = txLos & laneMask;
     signals[lane].rxLos() = rxLos & laneMask;
-    signals[lane].txLol() = txLol & laneMask;
     signals[lane].rxLol() = rxLol & laneMask;
     signals[lane].txFault() = txFault & laneMask;
-    signals[lane].txAdaptEqFault() = txAdaptEqFault & laneMask;
   }
 
   return true;
@@ -798,6 +790,23 @@ bool SffModule::getMediaInterfaceId(
   }
 
   return true;
+}
+
+MediaInterfaceCode SffModule::getModuleMediaInterface() const {
+  auto extSpecCompliance = getExtendedSpecificationComplianceCode();
+  if (!extSpecCompliance) {
+    QSFP_LOG(ERR, this)
+        << "getExtendedSpecificationComplianceCode returned nullopt";
+    return MediaInterfaceCode::UNKNOWN;
+  }
+  if (auto it = mediaInterfaceMapping.find(*extSpecCompliance);
+      it != mediaInterfaceMapping.end()) {
+    return it->second;
+  }
+  QSFP_LOG(ERR, this) << "Cannot find "
+                      << apache::thrift::util::enumNameSafe(*extSpecCompliance)
+                      << " in mediaInterfaceMapping";
+  return MediaInterfaceCode::UNKNOWN;
 }
 
 ModuleStatus SffModule::getModuleStatus() {
@@ -1230,7 +1239,9 @@ void SffModule::setPowerOverrideIfSupportedLocked(
  * disruptive, but have worked in the past to recover a transceiver.
  * Only return true if there's an actual remediation happened
  */
-bool SffModule::remediateFlakyTransceiver() {
+bool SffModule::remediateFlakyTransceiver(
+    bool /* allPortsDown */,
+    const std::vector<std::string>& /* ports */) {
   QSFP_LOG(INFO, this) << "Performing potentially disruptive remediations";
 
   resetLowPowerMode();

@@ -102,9 +102,14 @@ QsfpModule::QsfpModule(
   markLastDownTime();
 }
 
-QsfpModule::~QsfpModule() {
-  // The transceiver has been removed
+QsfpModule::~QsfpModule() {}
+
+void QsfpModule::removeTransceiver() {
   lock_guard<std::mutex> g(qsfpModuleMutex_);
+  removeTransceiverLocked();
+}
+
+void QsfpModule::removeTransceiverLocked() {
   getTransceiverManager()->updateStateBlocking(
       getID(), TransceiverStateMachineEvent::TCVR_EV_REMOVE_TRANSCEIVER);
 }
@@ -173,6 +178,52 @@ QsfpModule::detectPresenceLocked() {
     *info_.wlock() = info;
   }
   return {currentQsfpStatus, statusChanged};
+}
+
+unsigned int QsfpModule::numHostLanes() const {
+  switch (getModuleMediaInterface()) {
+    case MediaInterfaceCode::LR_10G:
+    case MediaInterfaceCode::SR_10G:
+      return 1;
+    case MediaInterfaceCode::CWDM4_100G:
+    case MediaInterfaceCode::CR4_100G:
+    case MediaInterfaceCode::FR1_100G:
+    case MediaInterfaceCode::FR4_200G:
+    case MediaInterfaceCode::CR4_200G:
+      return 4;
+    case MediaInterfaceCode::FR4_400G:
+    case MediaInterfaceCode::LR4_400G_10KM:
+    case MediaInterfaceCode::CR8_400G:
+    case MediaInterfaceCode::FR4_400Gx2:
+      return 8;
+    case MediaInterfaceCode::UNKNOWN:
+      return 0;
+    default:
+      throw QsfpModuleError("invalid module media interface");
+  }
+}
+
+unsigned int QsfpModule::numMediaLanes() const {
+  switch (getModuleMediaInterface()) {
+    case MediaInterfaceCode::LR_10G:
+    case MediaInterfaceCode::SR_10G:
+    case MediaInterfaceCode::FR1_100G:
+      return 1;
+    case MediaInterfaceCode::CWDM4_100G:
+    case MediaInterfaceCode::CR4_100G:
+    case MediaInterfaceCode::FR4_200G:
+    case MediaInterfaceCode::CR4_200G:
+    case MediaInterfaceCode::FR4_400G:
+    case MediaInterfaceCode::LR4_400G_10KM:
+      return 4;
+    case MediaInterfaceCode::CR8_400G:
+    case MediaInterfaceCode::FR4_400Gx2:
+      return 8;
+    case MediaInterfaceCode::UNKNOWN:
+      return 0;
+    default:
+      throw QsfpModuleError("invalid module media interface");
+  }
 }
 
 void QsfpModule::updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus) {
@@ -295,6 +346,9 @@ void QsfpModule::updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus) {
     }
 
     info.timeCollected() = lastRefreshTime_;
+    tcvrState.timeCollected() = lastRefreshTime_;
+    tcvrStats.timeCollected() = lastRefreshTime_;
+
     info.remediationCounter() = numRemediation_;
     info.eepromCsumValid() = verifyEepromChecksums();
 
@@ -303,6 +357,18 @@ void QsfpModule::updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus) {
     tcvrStats.remediationCounter().copy_from(info.remediationCounter());
     tcvrState.eepromCsumValid().copy_from(info.eepromCsumValid());
     tcvrState.moduleMediaInterface().copy_from(info.moduleMediaInterface());
+
+    for (auto it : getPortNameToHostLanes()) {
+      tcvrState.portNameToHostLanes()[it.first] =
+          std::vector<int>(it.second.begin(), it.second.end());
+    }
+    tcvrStats.portNameToHostLanes() = *tcvrState.portNameToHostLanes();
+
+    for (auto it : getPortNameToMediaLanes()) {
+      tcvrState.portNameToMediaLanes()[it.first] =
+          std::vector<int>(it.second.begin(), it.second.end());
+    }
+    tcvrStats.portNameToMediaLanes() = *tcvrState.portNameToMediaLanes();
   }
 
   phy::LinkSnapshot snapshot;
@@ -842,23 +908,13 @@ ModuleStatus QsfpModule::readAndClearCachedModuleStatus() {
   return moduleStatus;
 }
 
-MediaInterfaceCode QsfpModule::getModuleMediaInterface() {
-  std::vector<MediaInterfaceId> mediaInterfaceCodes(numMediaLanes());
-  if (!getMediaInterfaceId(mediaInterfaceCodes)) {
-    return MediaInterfaceCode::UNKNOWN;
-  }
-  if (!mediaInterfaceCodes.empty()) {
-    return mediaInterfaceCodes[0].get_code();
-  }
-  return MediaInterfaceCode::UNKNOWN;
-}
-
 TransceiverManagementInterface QsfpModule::getTransceiverManagementInterface(
     const uint8_t moduleId,
     const unsigned int oneBasedPort) {
   if (moduleId ==
           static_cast<uint8_t>(TransceiverModuleIdentifier::QSFP_PLUS_CMIS) ||
-      moduleId == static_cast<uint8_t>(TransceiverModuleIdentifier::QSFP_DD)) {
+      moduleId == static_cast<uint8_t>(TransceiverModuleIdentifier::QSFP_DD) ||
+      moduleId == static_cast<uint8_t>(TransceiverModuleIdentifier::OSFP)) {
     return TransceiverManagementInterface::CMIS;
   } else if (
       moduleId ==
@@ -938,6 +994,18 @@ void QsfpModule::programTransceiver(
       // Since we're touching the transceiver, we need to update the cached
       // transceiver info
       updateQsfpData(false);
+
+      // Cache has been updated, populate the host/mediaLane to port name
+      // mapping
+      // First clear the existing mappings
+      hostLaneToPortName.clear();
+      mediaLaneToPortName.clear();
+      portNameToHostLanes.clear();
+      portNameToMediaLanes.clear();
+      for (auto portIt : programTcvrState.ports) {
+        auto startHostLane = portIt.second.startHostLane;
+        updateLaneToPortNameMapping(portIt.first, startHostLane);
+      }
       updateCachedTransceiverInfoLocked({});
     }
   };
@@ -951,6 +1019,26 @@ void QsfpModule::programTransceiver(
     via(i2cEvb)
         .thenValue([programTcvrFunc](auto&&) mutable { programTcvrFunc(); })
         .get();
+  }
+}
+
+void QsfpModule::updateLaneToPortNameMapping(
+    const std::string& portName,
+    uint8_t startHostLane) {
+  auto hostLanes = configuredHostLanes(startHostLane);
+  auto mediaLanes = configuredMediaLanes(
+      startHostLane); // assumption: startMediaLane = startHostLane
+
+  portNameToHostLanes[portName] = {};
+  for (auto lane : hostLanes) {
+    hostLaneToPortName[lane] = portName;
+    portNameToHostLanes[portName].insert(lane);
+  }
+
+  portNameToMediaLanes[portName] = {};
+  for (auto lane : mediaLanes) {
+    mediaLaneToPortName[lane] = portName;
+    portNameToMediaLanes[portName].insert(lane);
   }
 }
 
@@ -1006,11 +1094,13 @@ void QsfpModule::publishSnapshots() {
   snapshotsLocked->publishFutureSnapshots();
 }
 
-bool QsfpModule::tryRemediate() {
+bool QsfpModule::tryRemediate(
+    bool allPortsDown,
+    const std::vector<std::string>& ports) {
   // Always use i2cEvb to program transceivers if there's an i2cEvb
-  auto remediateTcvrFunc = [this]() {
+  auto remediateTcvrFunc = [this, allPortsDown, &ports]() {
     lock_guard<std::mutex> g(qsfpModuleMutex_);
-    return tryRemediateLocked();
+    return tryRemediateLocked(allPortsDown, ports);
   };
   auto i2cEvb = qsfpImpl_->getI2cEventBase();
   if (!i2cEvb) {
@@ -1028,10 +1118,13 @@ bool QsfpModule::tryRemediate() {
   }
 }
 
-bool QsfpModule::tryRemediateLocked() {
+bool QsfpModule::tryRemediateLocked(
+    bool allPortsDown,
+    const std::vector<std::string>& ports) {
   // Only update numRemediation_ iff this transceiver should remediate and
   // remediation actually happens
-  if (shouldRemediateLocked() && remediateFlakyTransceiver()) {
+  if (shouldRemediateLocked() &&
+      remediateFlakyTransceiver(allPortsDown, ports)) {
     ++numRemediation_;
     // Remediation touches the hardware, hard resetting the optics in Cmis case,
     // so set dirty so that we always do a refresh in the next cycle and update

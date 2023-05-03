@@ -52,7 +52,7 @@ TEST(SwitchSettingsTest, applySwitchDrainState) {
   auto platform = createMockPlatform();
   auto stateV0 = make_shared<SwitchState>();
 
-  cfg::SwitchConfig config;
+  cfg::SwitchConfig config = testConfigA(cfg::SwitchType::FABRIC);
   *config.switchSettings()->switchDrainState() = cfg::SwitchDrainState::DRAINED;
   auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
   EXPECT_NE(nullptr, stateV1);
@@ -75,6 +75,25 @@ TEST(SwitchSettingsTest, applySwitchDrainState) {
   EXPECT_EQ(
       cfg::SwitchDrainState::UNDRAINED,
       switchSettingsV2->getSwitchDrainState());
+}
+
+TEST(SwitchSettingsTest, applySwitchDrainOnNonFabricSwitch) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+
+  // VoQ switch config
+  cfg::SwitchConfig voqConfig = testConfigA(cfg::SwitchType::VOQ);
+  *voqConfig.switchSettings()->switchDrainState() =
+      cfg::SwitchDrainState::DRAINED;
+  EXPECT_THROW(
+      publishAndApplyConfig(stateV0, &voqConfig, platform.get()), FbossError);
+
+  // NPU switch config
+  cfg::SwitchConfig npuConfig;
+  *npuConfig.switchSettings()->switchDrainState() =
+      cfg::SwitchDrainState::DRAINED;
+  EXPECT_THROW(
+      publishAndApplyConfig(stateV0, &npuConfig, platform.get()), FbossError);
 }
 
 TEST(SwitchSettingsTest, applyQcmConfig) {
@@ -283,6 +302,9 @@ TEST(SwitchSettingsTest, ThrifyMigration) {
 
   auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
   EXPECT_NE(nullptr, stateV1);
+  EXPECT_EQ(
+      *stateV1->getSwitchSettings()->l3SwitchType(), cfg::SwitchType::NPU);
+  EXPECT_TRUE(stateV1->getSwitchSettings()->vlansSupported());
   validateNodeSerialization(*stateV1->getSwitchSettings());
 }
 
@@ -297,14 +319,61 @@ TEST(SwitchSettingsTest, applyVoqSwitch) {
 
   // Check if value is updated
   cfg::SwitchConfig config = testConfigA(cfg::SwitchType::VOQ);
-  *config.switchSettings()->switchType() = cfg::SwitchType::VOQ;
   auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
   EXPECT_NE(nullptr, stateV1);
   auto switchSettingsV1 = stateV1->getSwitchSettings();
   ASSERT_NE(nullptr, switchSettingsV1);
   EXPECT_FALSE(switchSettingsV1->isPublished());
-  EXPECT_EQ(switchSettingsV1->getSwitchType(), cfg::SwitchType::VOQ);
-  EXPECT_EQ(switchSettingsV1->getSwitchId(), 1);
+  EXPECT_EQ(switchSettingsV1->getSwitchIds().size(), 1);
+  EXPECT_EQ(*switchSettingsV1->getSwitchIds().begin(), SwitchID(1));
+  EXPECT_EQ(switchSettingsV1->getSwitchIdToSwitchInfo().size(), 1);
+  auto switchInfo = switchSettingsV1->getSwitchIdToSwitchInfo().at(1);
+  EXPECT_EQ(switchInfo.switchType(), cfg::SwitchType::VOQ);
+  EXPECT_EQ(switchInfo.switchIndex(), 0);
+  EXPECT_EQ(switchInfo.portIdRange()->minimum(), 0);
+  EXPECT_EQ(switchInfo.portIdRange()->maximum(), 1023);
+  EXPECT_EQ(
+      *stateV1->getSwitchSettings()->l3SwitchType(), cfg::SwitchType::VOQ);
+  EXPECT_EQ(
+      stateV1->getSwitchSettings()
+          ->getSwitchIdsOfType(cfg::SwitchType::VOQ)
+          .size(),
+      1);
+  EXPECT_EQ(
+      stateV1->getSwitchSettings()
+          ->getSwitchIdsOfType(cfg::SwitchType::NPU)
+          .size(),
+      0);
+  EXPECT_FALSE(stateV1->getSwitchSettings()->vlansSupported());
+  EXPECT_EQ(switchInfo.asicType(), cfg::AsicType::ASIC_TYPE_MOCK);
+  EXPECT_THROW(switchSettingsV1->getSwitchType(0), FbossError);
+  cfg::SwitchInfo switchInfo2;
+  switchInfo2.switchType() = cfg::SwitchType::FABRIC;
+  switchInfo2.asicType() = cfg::AsicType::ASIC_TYPE_MOCK;
+  cfg::Range64 portIdRange;
+  portIdRange.minimum() = 0;
+  portIdRange.maximum() = 1023;
+  switchInfo2.portIdRange() = portIdRange;
+  config.switchSettings()->switchIdToSwitchInfo() = {
+      std::make_pair(2, switchInfo2)};
+  EXPECT_THROW(
+      publishAndApplyConfig(stateV1, &config, platform.get()), FbossError);
+  // Should allow range and switchIndex changes
+  // TODO - block this after config is rolled out everywhere
+  switchInfo2.switchType() = cfg::SwitchType::VOQ;
+  cfg::Range64 portIdRange2;
+  portIdRange2.minimum() = 0;
+  portIdRange2.maximum() = 2047;
+  switchInfo2.portIdRange() = portIdRange2;
+  config.switchSettings()->switchIdToSwitchInfo() = {
+      std::make_pair(1, switchInfo2)};
+  auto stateV2 = publishAndApplyConfig(stateV1, &config, platform.get());
+  EXPECT_NE(nullptr, stateV2);
+  auto switchSettingsV2 = stateV2->getSwitchSettings();
+  ASSERT_NE(nullptr, switchSettingsV2);
+  auto switchInfo3 = switchSettingsV2->getSwitchIdToSwitchInfo().at(1);
+  EXPECT_EQ(switchInfo3.portIdRange()->minimum(), 0);
+  EXPECT_EQ(switchInfo3.portIdRange()->maximum(), 2047);
   validateNodeSerialization(*switchSettingsV1);
 }
 

@@ -88,8 +88,7 @@ class IPv6Handler : public StateObserver {
       const std::optional<VlanID>& vlanID);
   static void sendMulticastNeighborSolicitation(
       SwSwitch* sw,
-      const folly::IPAddressV6& targetIP,
-      const std::shared_ptr<Vlan>& vlan);
+      const folly::IPAddressV6& targetIP);
 
   static void sendUnicastNeighborSolicitation(
       SwSwitch* sw,
@@ -97,7 +96,7 @@ class IPv6Handler : public StateObserver {
       const folly::MacAddress& targetMac,
       const folly::IPAddressV6& srcIP,
       const folly::MacAddress& srcMac,
-      const VlanID& vlanID,
+      const std::optional<VlanID>& vlanID,
       const PortDescriptor& portDescriptor);
 
  private:
@@ -114,7 +113,7 @@ class IPv6Handler : public StateObserver {
 
   void sendICMPv6TimeExceeded(
       PortID srcPort,
-      VlanID srcVlan,
+      std::optional<VlanID> srcVlan,
       folly::MacAddress dst,
       folly::MacAddress src,
       IPv6Hdr& v6Hdr,
@@ -122,7 +121,7 @@ class IPv6Handler : public StateObserver {
 
   void sendICMPv6PacketTooBig(
       PortID srcPort,
-      VlanID srcVlan,
+      std::optional<VlanID> srcVlan,
       folly::MacAddress dst,
       folly::MacAddress src,
       IPv6Hdr& v6Hdr,

@@ -38,6 +38,11 @@ DEFINE_int32(
     10000,
     "State machine update thread's heartbeat interval (ms)");
 
+DEFINE_bool(
+    use_platform_mapping,
+    false,
+    "Use platform mapping for programming ports in qsfp_service");
+
 namespace {
 constexpr auto kForceColdBootFileName = "cold_boot_once_qsfp_service";
 constexpr auto kWarmBootFlag = "can_warm_boot";
@@ -667,6 +672,8 @@ TransceiverInfo TransceiverManager::getTransceiverInfo(TransceiverID id) {
     absentTcvr.present() = false;
     absentTcvr.port() = id;
     absentTcvr.timeCollected() = std::time(nullptr);
+    absentTcvr.tcvrState()->timeCollected() = std::time(nullptr);
+    absentTcvr.tcvrStats()->timeCollected() = std::time(nullptr);
     return absentTcvr;
   }
 }
@@ -691,8 +698,21 @@ void TransceiverManager::programTransceiver(
       throw FbossError(
           "Can't find a portName for portId ", portToPortInfo.first);
     }
-    // TODO: Use Platform Mapping to get start lane and remove hardcoding of 0
     uint8_t tcvrStartLane = 0;
+    if (FLAGS_use_platform_mapping) {
+      auto tcvrHostLanes = platformMapping_->getTransceiverHostLanes(
+          PlatformPortProfileConfigMatcher(
+              portProfile /* profileID */,
+              portToPortInfo.first /* portID */,
+              std::nullopt /* portConfigOverrideFactor */));
+      if (tcvrHostLanes.empty()) {
+        throw FbossError(
+            "tcvrHostLanes empty for portId ", portToPortInfo.first);
+      }
+      // tcvrHostLanes is an ordered set. So begin() gives us the first lane
+      tcvrStartLane = *tcvrHostLanes.begin();
+    }
+
     if (tcvrStartLane > 8) {
       throw FbossError(
           "Invalid start lane of ",
@@ -756,9 +776,14 @@ bool TransceiverManager::tryRemediateTransceiver(TransceiverID id) {
                << ". Transeciver is not present";
     return false;
   }
-  bool didRemediate = tcvrIt->second->tryRemediate();
+  bool allPortsDown;
+  std::vector<std::string> portsToRemediate;
+  std::tie(allPortsDown, portsToRemediate) = areAllPortsDown(id);
+  bool didRemediate =
+      tcvrIt->second->tryRemediate(allPortsDown, portsToRemediate);
   XLOG_IF(INFO, didRemediate)
-      << "Remediated Transceiver for Transceiver=" << id;
+      << "Remediated Transceiver for Transceiver=" << id
+      << " and ports=" << folly::join(",", portsToRemediate);
   return didRemediate;
 }
 
@@ -1197,7 +1222,7 @@ std::optional<PortID> TransceiverManager::getPortIDByPortName(
  * string (ie: eth2/1/1)
  */
 std::optional<std::string> TransceiverManager::getPortNameByPortId(
-    PortID portId) {
+    PortID portId) const {
   auto portMapIt = portNameToPortID_.right.find(portId);
   if (portMapIt != portNameToPortID_.right.end()) {
     return portMapIt->second;
@@ -1253,30 +1278,38 @@ void TransceiverManager::setOverrideAgentConfigAppliedInfoForTesting(
   overrideAgentConfigAppliedInfoForTesting_ = configAppliedInfo;
 }
 
-bool TransceiverManager::areAllPortsDown(TransceiverID id) const noexcept {
+std::pair<bool, std::vector<std::string>> TransceiverManager::areAllPortsDown(
+    TransceiverID id) const noexcept {
   auto portToPortInfoIt = tcvrToPortInfo_.find(id);
   if (portToPortInfoIt == tcvrToPortInfo_.end()) {
     XLOG(WARN) << "Can't find Transceiver:" << id
                << " in cached tcvrToPortInfo_";
-    return false;
+    return {false, {}};
   }
   auto portToPortInfoWithLock = portToPortInfoIt->second->rlock();
   if (portToPortInfoWithLock->empty()) {
     XLOG(WARN) << "Can't find any programmed port for Transceiver:" << id
                << " in cached tcvrToPortInfo_";
-    return false;
+    return {false, {}};
   }
+  bool anyPortUp = false;
+  std::vector<std::string> downPorts;
   for (const auto& [portID, portInfo] : *portToPortInfoWithLock) {
     if (!portInfo.status.has_value()) {
       // If no status set, assume ports are up so we won't trigger any
       // disruptive event
-      return false;
+      return {false, {}};
     }
     if (*portInfo.status->up()) {
-      return false;
+      anyPortUp = true;
+    } else {
+      auto portName = getPortNameByPortId(portID);
+      if (portName.has_value()) {
+        downPorts.push_back(*portName);
+      }
     }
   }
-  return true;
+  return {!anyPortUp, downPorts};
 }
 
 void TransceiverManager::triggerRemediateEvents(
@@ -1286,19 +1319,28 @@ void TransceiverManager::triggerRemediateEvents(
   }
   BlockingStateUpdateResultList results;
   for (auto tcvrID : stableTcvrs) {
-    // For stabled transceivers, we check whether the current state machine
-    // state is INACTIVE, which means all the ports are down for such
-    // Transceiver, so that it's safe to call remediate
-    auto curState = getCurrentState(tcvrID);
-    if (curState != TransceiverStateMachineState::INACTIVE) {
-      continue;
-    }
     const auto& programmedPortToPortInfo =
         getProgrammedIphyPortToPortInfo(tcvrID);
     if (programmedPortToPortInfo.empty()) {
       // This is due to the iphy ports are disabled. So no need to remediate
       continue;
     }
+
+    auto curState = getCurrentState(tcvrID);
+    // If we are not in the active or inactive state, don't try to remediate yet
+    if (curState != TransceiverStateMachineState::ACTIVE &&
+        curState != TransceiverStateMachineState::INACTIVE) {
+      continue;
+    }
+
+    // If we are here because we are in active state, check if any of the ports
+    // are down. If yes, try to remediate (partial). If we are here because we
+    // are in inactive state, areAllPortsDown will return a non-empty list of
+    // down ports anyways, so we will try to remediate
+    if (areAllPortsDown(tcvrID).second.empty()) {
+      continue;
+    }
+
     // Then check whether we should remediate so that we don't have to create
     // too many unnecessary state machine update
     auto lockedTransceivers = transceivers_.rlock();
@@ -1736,6 +1778,7 @@ Transceiver* FOLLY_NULLABLE TransceiverManager::overrideTransceiverForTesting(
   auto lockedTransceivers = transceivers_.wlock();
   // Keep the same logic as updateTransceiverMap()
   if (auto it = lockedTransceivers->find(id); it != lockedTransceivers->end()) {
+    it->second->removeTransceiver();
     lockedTransceivers->erase(it);
   }
   // Only set the override transceiver if it's not null so that we can support

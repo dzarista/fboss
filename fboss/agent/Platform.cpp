@@ -139,16 +139,31 @@ void Platform::init(
   const auto switchSettings = *config_->thrift.sw()->switchSettings();
   std::optional<int64_t> switchId;
   std::optional<cfg::Range64> systemPortRange;
-  if (switchSettings.switchId().has_value()) {
-    switchId = *switchSettings.switchId();
-    const auto& dsfNodesConfig = *config_->thrift.sw()->dsfNodes();
-    const auto& dsfNodeConfig = dsfNodesConfig.find(*switchId);
-    if (dsfNodeConfig != dsfNodesConfig.end() &&
-        (*switchSettings.switchType() == cfg::SwitchType::VOQ)) {
-      systemPortRange = *dsfNodeConfig->second.systemPortRange();
+  auto switchType{cfg::SwitchType::NPU};
+  if (switchSettings.switchIdToSwitchInfo()->size()) {
+    // TODO - Initialize with correct SwitchId for the HwSwitch
+    // instead of using first switchId in the list
+    switchId = switchSettings.switchIdToSwitchInfo()->begin()->first;
+    switchType =
+        *(switchSettings.switchIdToSwitchInfo()->begin()->second.switchType());
+    auto asicType =
+        *(switchSettings.switchIdToSwitchInfo()->begin()->second.asicType());
+    if (switchType == cfg::SwitchType::VOQ) {
+      const auto& dsfNodesConfig = *config_->thrift.sw()->dsfNodes();
+      const auto& dsfNodeConfig = dsfNodesConfig.find(*switchId);
+      if (dsfNodeConfig != dsfNodesConfig.end() &&
+          dsfNodeConfig->second.systemPortRange().has_value()) {
+        systemPortRange = *dsfNodeConfig->second.systemPortRange();
+      }
+    }
+    // SwitchId not supported in fabric mode
+    if (switchType == cfg::SwitchType::FABRIC &&
+        (asicType == cfg::AsicType::ASIC_TYPE_EBRO ||
+         asicType == cfg::AsicType::ASIC_TYPE_GARONNE)) {
+      switchId = std::nullopt;
     }
   }
-  setupAsic(*switchSettings.switchType(), switchId, systemPortRange);
+  setupAsic(switchType, switchId, systemPortRange, localMac_);
   initImpl(hwFeaturesDesired);
   // We should always initPorts() here instead of leaving the hw/ to call
   initPorts();
@@ -219,6 +234,8 @@ int Platform::getLaneCount(cfg::PortProfileID profile) const {
     case cfg::PortProfileID::PROFILE_25G_1_NRZ_NOFEC_COPPER_RACK_YV3_T1:
     case cfg::PortProfileID::PROFILE_53POINT125G_1_PAM4_RS545_COPPER:
     case cfg::PortProfileID::PROFILE_53POINT125G_1_PAM4_RS545_OPTICAL:
+    case cfg::PortProfileID::PROFILE_106POINT25G_1_PAM4_RS544_COPPER:
+    case cfg::PortProfileID::PROFILE_106POINT25G_1_PAM4_RS544_OPTICAL:
       return 1;
 
     case cfg::PortProfileID::PROFILE_20G_2_NRZ_NOFEC:
@@ -229,6 +246,7 @@ int Platform::getLaneCount(cfg::PortProfileID profile) const {
     case cfg::PortProfileID::PROFILE_50G_2_NRZ_RS528_COPPER:
     case cfg::PortProfileID::PROFILE_20G_2_NRZ_NOFEC_OPTICAL:
     case cfg::PortProfileID::PROFILE_50G_2_NRZ_NOFEC_OPTICAL:
+    case cfg::PortProfileID::PROFILE_100G_2_PAM4_RS544X2N_OPTICAL:
       return 2;
 
     case cfg::PortProfileID::PROFILE_40G_4_NRZ_NOFEC:

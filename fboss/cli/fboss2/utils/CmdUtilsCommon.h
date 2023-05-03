@@ -44,6 +44,7 @@ enum class ObjectArgTypeId : uint8_t {
   OBJECT_ARG_TYPE_ID_AREA_LIST,
   OBJECT_ARG_TYPE_ID_NODE_LIST,
   OBJECT_ARG_TYPE_ID_HW_OBJECT_LIST,
+  OBJECT_ARG_TYPE_ID_SWITCH_NAME_LIST,
   OBJECT_ARG_TYPE_DEBUG_LEVEL,
   OBJECT_ARG_TYPE_PRBS_COMPONENT,
   OBJECT_ARG_TYPE_PRBS_STATE,
@@ -177,6 +178,7 @@ const std::string getDurationStr(folly::stop_watch<>& watch);
 const std::string getPrettyElapsedTime(const int64_t& start_time);
 
 std::string getUserInfo();
+std::string getUnixname();
 
 void setLogLevel(const std::string& logLevelStr);
 void logUsage(const CmdLogInfo& cmdLogInfo);

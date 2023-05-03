@@ -146,6 +146,8 @@ class SaiPortManager {
   const HwPortFb303Stats* getLastPortStat(PortID port) const;
 
   std::map<PortID, FabricEndpoint> getFabricReachability() const;
+  std::vector<PortID> getFabricReachabilityForSwitch(
+      const SwitchID& switchId) const;
   const Stats& getLastPortStats() const {
     return portStats_;
   }
@@ -270,7 +272,7 @@ class SaiPortManager {
       MirrorDirection direction,
       MirrorAction action,
       std::optional<std::string> mirrorId);
-  void addMirror(const std::shared_ptr<Port>& swPort);
+  void addNode(const std::shared_ptr<Port>& swPort);
   void removeMirror(const std::shared_ptr<Port>& swPort);
   void addSamplePacket(const std::shared_ptr<Port>& swPort);
   void removeSamplePacket(const std::shared_ptr<Port>& swPort);

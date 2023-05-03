@@ -295,11 +295,10 @@ struct SwitchSettingsFields {
   6: list<BlockedNeighbor> blockNeighbors;
   7: list<BlockedMacAddress> macAddrsToBlock;
   // Switch type
-  8: switch_config.SwitchType switchType = switch_config.SwitchType.NPU;
-  // Switch id (only applicable for VOQ based systems)
-  9: optional i64 switchId;
+  8: switch_config.SwitchType switchType_DEPRECATED;
+  9: optional i64 switchId_DEPRECATED;
   10: list<switch_config.ExactMatchTableConfig> exactMatchTableConfigs;
-  11: optional switch_config.Range64 systemPortRange;
+  11: optional switch_config.Range64 systemPortRange_DEPRECATED;
   12: optional i16 defaultVlan;
   13: optional i64 arpTimeout;
   14: optional i64 ndpTimeout;
@@ -470,6 +469,8 @@ struct AggregatePortFields {
   8: map<i32, bool> portToFwdState;
   // PortId to ParticipantInfo struct
   9: map<i32, ParticipantInfo> portToPartnerState;
+  // List of interfaces for given aggregate port
+  10: list<i32> interfaceIDs;
 }
 
 struct TeFlowEntryFields {
@@ -537,6 +538,7 @@ struct SwitchState {
   16: Address.BinaryAddress dhcpV6RelaySrc;
   17: Address.BinaryAddress dhcpV4ReplySrc;
   18: Address.BinaryAddress dhcpV6ReplySrc;
+  // Deprecated field. The portPfc field in port object is used instead.
   19: optional switch_config.PfcWatchdogRecoveryAction pfcWatchdogRecoveryAction;
   20: map<i64, SystemPortFields> systemPortMap;
   21: map<i16, FibContainerFields> fibs;

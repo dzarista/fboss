@@ -101,17 +101,14 @@ class HwEcmpTest : public HwLinkStateDependentTest {
       const std::vector<NextHopWeight>& hwWs);
 
   auto getNdpTable(PortDescriptor port, std::shared_ptr<SwitchState>& state) {
-    auto switchType =
-        getProgrammedState()->getSwitchSettings()->getSwitchType();
-    if (switchType == cfg::SwitchType::NPU) {
+    if (getSwitchType() == cfg::SwitchType::NPU) {
       auto vlanId = ecmpHelper_->getVlan(port, getProgrammedState());
       return state->getVlans()->getVlan(*vlanId)->getNdpTable()->modify(
           *vlanId, &state);
     } else {
       auto portId = port.phyPortID();
       InterfaceID intfId(
-          (*state->getPorts()->getPort(portId)->getInterfaceIDs()->begin())
-              ->toThrift());
+          *state->getPorts()->getPort(portId)->getInterfaceIDs().begin());
       return state->getInterfaces()
           ->getInterface(intfId)
           ->getNdpTable()
