@@ -193,6 +193,9 @@ else
 
    # Check if any dynamic libraries are missing in the output directory and copy them over.
    fboss_output_dir=$(find $SCRATCH_DIR -maxdepth 1 -name "fboss_bins*")
+   if ! [ -d "$fboss_output_dir/lib64" ]; then
+      mkdir -p "$fboss_output_dir/lib64"
+   fi
    ld_lib_path="$LD_LIBRARY_PATH:$fboss_output_dir/lib:$fboss_output_dir/lib64"
    sai_test=$(find $fboss_output_dir -name "sai_test-sai_impl*")
    missing_libs=$(LD_LIBRARY_PATH="$ld_lib_path" ldd "$sai_test" | awk '/not found/{print $1}')
