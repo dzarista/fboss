@@ -35,7 +35,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-1",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH0"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS0_CH0"
               },
               "tcvrLaneToLedId": {
 
@@ -61,7 +61,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-2",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH1"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS0_CH1"
               },
               "tcvrLaneToLedId": {
 
@@ -87,7 +87,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-3",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH2"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS0_CH2"
               },
               "tcvrLaneToLedId": {
 
@@ -113,7 +113,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-4",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH3"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS0_CH3"
               },
               "tcvrLaneToLedId": {
 
@@ -139,7 +139,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-5",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH4"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS0_CH4"
               },
               "tcvrLaneToLedId": {
 
@@ -165,7 +165,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-6",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH5"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS0_CH5"
               },
               "tcvrLaneToLedId": {
 
@@ -191,7 +191,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-7",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH6"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS0_CH6"
               },
               "tcvrLaneToLedId": {
 
@@ -217,7 +217,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-8",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH7"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS0_CH7"
               },
               "tcvrLaneToLedId": {
 
@@ -243,7 +243,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-9",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH0"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH0"
               },
               "tcvrLaneToLedId": {
 
@@ -269,7 +269,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-10",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH1"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH1"
               },
               "tcvrLaneToLedId": {
 
@@ -295,7 +295,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-11",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH2"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH2"
               },
               "tcvrLaneToLedId": {
 
@@ -321,7 +321,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-12",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH3"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH3"
               },
               "tcvrLaneToLedId": {
 
@@ -347,7 +347,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-13",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH4"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH4"
               },
               "tcvrLaneToLedId": {
 
@@ -373,7 +373,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-14",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH5"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH5"
               },
               "tcvrLaneToLedId": {
 
@@ -399,7 +399,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-15",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH6"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH6"
               },
               "tcvrLaneToLedId": {
 
@@ -425,7 +425,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-16",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH7"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS1_CH7"
               },
               "tcvrLaneToLedId": {
 
@@ -451,7 +451,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-17",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS3_CH0"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH0"
               },
               "tcvrLaneToLedId": {
 
@@ -477,7 +477,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
               "io": {
                 "controllerId": "ioController-18",
                 "type": 1,
-                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS3_CH1"
+                "devicePath": "/run/devmap/i2c-busses/SCD_SMBUS2_CH1"
               },
               "tcvrLaneToLedId": {
 
