@@ -9,15 +9,13 @@ import Tac
 
 """
 Author : seerpini@arista.com
-Script for generating the Viper fabric port platform mapping.
+Script for generating the QuartzDD platform mapping.
 Assumptions:
-    - Each fabric serdes is enumerated as a 100G port. Supported profiles 36, 37 correspond to 100G optical and copper.
-    - Each front panel port is enumerated as either 400G-4 (only master port is
-      used), or 800G-8.
+    - Each front panel port is enumerated as 400G-8.
 Output:
-    - Generated platform is written to viper_platform_mapping.json
+    - Generated platform is written to platform_mapping.json by default, can be
+      override with --platform-mapping-out
 Instructions:
-    - Please update the following variables to control how fabric port mappings are generated.
     - Port speed and breakout are not currently configurable.
 TODO
     - Accept platform settings from input/config file and generate mapping
@@ -66,7 +64,7 @@ nifSerdesOctetCoreToCoreAndFrontPanelSlot = {
       17 : ( 1, '9' )
 }
 
-# Fixed fabric serdes octet to front panel slot mapping for Viper.
+# Fixed fabric serdes octet to front panel slot mapping.
 fabSerdesCoreToFrontPanelSlot = {}
 
 # Assuming 100G lanes, number of lanes required by each supported port profile.
