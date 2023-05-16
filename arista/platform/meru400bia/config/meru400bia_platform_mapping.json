@@ -8063,7 +8063,7 @@
   "platformSupportedProfiles": [
     {
       "factor": {
-        "profileID": "11"
+        "profileID": 11
       },
       "profile": {
         "speed": 10000,
@@ -8079,10 +8079,10 @@
     },
     {
       "factor": {
-        "profileID": "22"
+        "profileID": 22
       },
       "profile": {
-        "speed": 10000,
+        "speed": 100000,
         "iphy": {
           "numLanes": 4,
           "modulation": 1,
@@ -8095,10 +8095,10 @@
     },
     {
       "factor": {
-        "profileID": "23"
+        "profileID": 23
       },
       "profile": {
-        "speed": 10000,
+        "speed": 100000,
         "iphy": {
           "numLanes": 4,
           "modulation": 1,
@@ -8111,10 +8111,10 @@
     },
     {
       "factor": {
-        "profileID": "26"
+        "profileID": 26
       },
       "profile": {
-        "speed": 40000,
+        "speed": 400000,
         "iphy": {
           "numLanes": 8,
           "modulation": 2,
@@ -8127,10 +8127,10 @@
     },
     {
       "factor": {
-        "profileID": "35"
+        "profileID": 35
       },
       "profile": {
-        "speed": 40000,
+        "speed": 400000,
         "iphy": {
           "numLanes": 8,
           "modulation": 2,
