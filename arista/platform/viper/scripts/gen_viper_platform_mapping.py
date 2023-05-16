@@ -275,7 +275,7 @@ platMapping[ "portConfigOverrides" ] = []
 platMapping[ "platformSupportedProfiles" ] = []
 # Port Attributes by profile
 portAttrsByProfile = {
-      #profileId : ( speed, numLanes, modulation, fed, medium, interfaceMode )
+      #profileId : ( speed, numLanes, modulation, fec, medium, interfaceMode )
       11 : ( 10000, 1, 1, 1, 1, 10 ),
       36 : ( 53125, 1, 2, 545, 1, 41 ),
       37 : ( 53125, 1, 2, 545, 3, 41 ),
