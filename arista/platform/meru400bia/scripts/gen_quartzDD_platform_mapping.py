@@ -70,6 +70,8 @@ fabSerdesCoreToFrontPanelSlot = {}
 # Assuming 100G lanes, number of lanes required by each supported port profile.
 numLanesFromSupportedProfile = {
       "11" : 1,
+      "22" : 4,
+      "23" : 4,
       "26" : 8,
       "35" : 8,
 }
@@ -223,7 +225,7 @@ def main():
       portOctet = port - nifPortBase
       if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
          continue
-      supportedProfiles = [ '26', '35', ]
+      supportedProfiles = [ '22', '23', '26', '35', ]
       maxLanesPerPort = max( [ numLanesFromSupportedProfile[ prof ] for prof in
          supportedProfiles ] )
       portSerdesCore = portOctet * ( maxLanesPerPort // lanesPerSerdesCore )
@@ -292,6 +294,8 @@ def main():
    portAttrsByProfile = {
          #profileId : ( speed, numLanes, modulation, fec, medium, interfaceMode )
          '11' : ( 10000, 1, 1, 1, 1, 10 ),
+         '22' : ( 10000, 4, 1, 528, 1, 12 ),
+         '23' : ( 10000, 4, 1, 528, 3, 12 ),
          # TODO : we might need to adjust some of the attributes here.
          '26' : ( 40000, 8, 2, 545, 3, 41 ),
          '35' : ( 40000, 8, 2, 545, 1, 41 ),
