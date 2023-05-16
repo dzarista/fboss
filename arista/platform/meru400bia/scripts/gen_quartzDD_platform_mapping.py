@@ -294,11 +294,11 @@ def main():
    portAttrsByProfile = {
          #profileId : ( speed, numLanes, modulation, fec, medium, interfaceMode )
          '11' : ( 10000, 1, 1, 1, 1, 10 ),
-         '22' : ( 10000, 4, 1, 528, 1, 12 ),
-         '23' : ( 10000, 4, 1, 528, 3, 12 ),
+         '22' : ( 100000, 4, 1, 528, 1, 12 ),
+         '23' : ( 100000, 4, 1, 528, 3, 12 ),
          # TODO : we might need to adjust some of the attributes here.
-         '26' : ( 40000, 8, 2, 545, 3, 41 ),
-         '35' : ( 40000, 8, 2, 545, 1, 41 ),
+         '26' : ( 400000, 8, 2, 545, 3, 41 ),
+         '35' : ( 400000, 8, 2, 545, 1, 41 ),
    }
    # Append the supportedProfiles information.
    for profileID in numLanesFromSupportedProfile.keys():
@@ -306,7 +306,7 @@ def main():
       platMapping[ "platformSupportedProfiles" ].append(
             OrderedDict( {
                "factor" : {
-                  "profileID" : profileID
+                  "profileID" : int( profileID )
                },
                "profile": OrderedDict( {
                   "speed": profilePortAttrs[ 0 ],
