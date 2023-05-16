@@ -209,6 +209,10 @@ def main():
    if not args.fabric_enabled:
       numFabricPorts = 0
 
+   bcmSocProps = OrderedDict( {
+      'laneMapping': OrderedDict(),
+      'ports' : [] } )
+
    platMapping = OrderedDict()
    platMapping[ "ports" ] = OrderedDict( {
       "1" : getRecyclePortMapping( 1 )
@@ -232,6 +236,7 @@ def main():
             frontPanelPort=frontPanelPort, coreId=coreId,
             supportedProfiles=supportedProfiles )
       platMapping[ 'ports' ][ portStr ] = portMapping
+      bcmSocProps[ 'ports' ].append( f"\"ucode_port_{port}.BCM8885X\": \"CDGE{portSerdesCore}:core_{coreId}.{port}\"" )
       if args.debug:
          print( portMapping )
 
@@ -318,7 +323,7 @@ def main():
    with open( args.platform_mapping_out, "w") as fh:
       fh.write( json_out )
 
-   laneMapping = {}
+   laneMapping = bcmSocProps[ 'laneMapping' ]
    for line in open( args.product_info, "r"):
       if line.startswith( 'SystemComponent' ):
          continue
@@ -336,17 +341,18 @@ def main():
          laneMapping[ nifLane ] = {}
       laneMapping[ nifLane ][ direction ] = ( serdes, "1" if swap == "Yes" else "0" )
    with open( args.bcm_config_out, "w" ) as fh:
-      for lane in laneMapping:
-         output = '"lane_to_serdes_map_nif_lane{}": '.format( lane )
-         laneInfo = laneMapping[ lane ]
-         output += '"rx{}:tx{}",'.format( laneInfo[ 'rx' ][ 0 ], laneInfo[ 'tx' ][ 0 ] )
-         fh.write( output + "\n" )
+      fh.write( ",\n".join( bcmSocProps[ "ports" ] ) + ",\n" )
       for lane in laneMapping:
          laneInfo = laneMapping[ lane ]
-         fh.write( '"phy_{}_polarity_flip_phy{}.0": "{}",'.format( 'rx', lane, laneInfo[ 'rx'
-            ][ 1 ] ) + "\n" )
-         fh.write( '"phy_{}_polarity_flip_phy{}.0": "{}",'.format( 'tx', lane, laneInfo[ 'tx'
-            ][ 1 ] ) + "\n" )
+         laneMapOutput = f'"lane_to_serdes_map_nif_lane{lane}": '
+         for direction in ( 'rx', 'tx' ):
+            laneInfoEntry = laneInfo[ direction ]
+            if direction == 'rx':
+               laneMapOutput += f'"{direction}{laneInfoEntry[0]}:'
+            else:
+               laneMapOutput += f'{direction}{laneInfoEntry[0]}",\n'
+            fh.write( f'"phy_{direction}_polarity_flip_phy{lane}.0": "{laneInfoEntry[1]}",\n' )
+         fh.write( laneMapOutput )
 
 if __name__ == '__main__':
    main()
