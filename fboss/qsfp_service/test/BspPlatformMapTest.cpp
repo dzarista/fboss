@@ -24,7 +24,7 @@ TEST_F(BspPlatformMapTest, checkNumPimTransceivers) {
   auto m400bfuBspPlatformMap = Meru400bfuBspPlatformMapping();
   EXPECT_EQ(m400bfuBspPlatformMap.numPims(), 1);
   EXPECT_EQ(m400bfuBspPlatformMap.numTransceivers(), 48);
-  // Check Yangra
+  // Check Meru400bia
   auto m400biaBspPlatformMap = Meru400biaBspPlatformMapping();
   EXPECT_EQ(m400biaBspPlatformMap.numPims(), 1);
   EXPECT_EQ(m400biaBspPlatformMap.numTransceivers(), 18);
