@@ -7970,92 +7970,92 @@
     {
       "name": "eth1/1",
       "type": 3,
-      "physicalID": 1
+      "physicalID": 0
     },
     {
       "name": "eth1/2",
       "type": 3,
-      "physicalID": 2
+      "physicalID": 1
     },
     {
       "name": "eth1/3",
       "type": 3,
-      "physicalID": 3
+      "physicalID": 2
     },
     {
       "name": "eth1/4",
       "type": 3,
-      "physicalID": 4
+      "physicalID": 3
     },
     {
       "name": "eth1/5",
       "type": 3,
-      "physicalID": 5
+      "physicalID": 4
     },
     {
       "name": "eth1/6",
       "type": 3,
-      "physicalID": 6
+      "physicalID": 5
     },
     {
       "name": "eth1/7",
       "type": 3,
-      "physicalID": 7
+      "physicalID": 6
     },
     {
       "name": "eth1/8",
       "type": 3,
-      "physicalID": 8
+      "physicalID": 7
     },
     {
       "name": "eth1/9",
       "type": 3,
-      "physicalID": 9
+      "physicalID": 8
     },
     {
       "name": "eth1/10",
       "type": 3,
-      "physicalID": 10
+      "physicalID": 9
     },
     {
       "name": "eth1/11",
       "type": 3,
-      "physicalID": 11
+      "physicalID": 10
     },
     {
       "name": "eth1/12",
       "type": 3,
-      "physicalID": 12
+      "physicalID": 11
     },
     {
       "name": "eth1/13",
       "type": 3,
-      "physicalID": 13
+      "physicalID": 12
     },
     {
       "name": "eth1/14",
       "type": 3,
-      "physicalID": 14
+      "physicalID": 13
     },
     {
       "name": "eth1/15",
       "type": 3,
-      "physicalID": 15
+      "physicalID": 14
     },
     {
       "name": "eth1/16",
       "type": 3,
-      "physicalID": 16
+      "physicalID": 15
     },
     {
       "name": "eth1/17",
       "type": 3,
-      "physicalID": 17
+      "physicalID": 16
     },
     {
       "name": "eth1/18",
       "type": 3,
-      "physicalID": 18
+      "physicalID": 17
     }
   ],
   "platformSettings": {},
