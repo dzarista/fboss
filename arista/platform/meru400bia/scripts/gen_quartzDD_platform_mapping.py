@@ -279,7 +279,7 @@ def main():
             "physicalID": core
          } ) )
    numFrontPanelPorts = 18
-   for port in range( 0, numFrontPanelPorts ):
+   for port in range( numFrontPanelPorts ):
       platMapping[ "chips" ].append( OrderedDict(
          {
             "name": f"{frontPanelSlotToPortType(port)}1/{port+1}",
