@@ -47,7 +47,9 @@ ln -sf /opt/fboss/bin/* /usr/bin/
 
 # Link libraries.
 printf "\nLinking FBOSS libraries\n"
+ln -sf /opt/fboss/lib/lib* /usr/lib/
 ln -sf /opt/fboss/lib64/* /usr/lib64/
+ldconfig
 
 # Create links for services.
 printf "\nInstalling services\n"

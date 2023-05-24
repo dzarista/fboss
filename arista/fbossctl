@@ -73,7 +73,7 @@ maybe_setup_build_env() {
    git clone git@github.com:aristanetworks/Aqua_SAI.git
    cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
-   git checkout REL_SAI_EA_9.2.0.0_META_041723
+   git checkout REL_SAI_EA_9.2.0.0_META_041723_PATCHED
    wget http://dist/storage/fboss/FBOSS-SAI/patch0-Jupiter-SAI-Makefile.patch
    git apply patch0-Jupiter-SAI-Makefile.patch
    cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.28_SAI_9.2.0_EA"

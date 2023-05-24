@@ -186,13 +186,14 @@ else
    export GETDEPS_USE_WGET=1
    cd "$FBOSS_DIR/fboss.git"
 
-   time ./build/fbcode_builder/getdeps.py build --num-jobs 8 --allow-system-packages \
+   time ./build/fbcode_builder/getdeps.py build --num-jobs 20 --allow-system-packages \
       --scratch-path "$SCRATCH_DIR" fboss
    cd $FBOSS_DIR/fboss.git
    ./fboss/oss/scripts/package-fboss.py --scratch-path "$SCRATCH_DIR"
 
    # Check if any dynamic libraries are missing in the output directory and copy them over.
    fboss_output_dir=$(find $SCRATCH_DIR -maxdepth 1 -name "fboss_bins*")
+   mkdir -p "$fboss_output_dir/lib64"
    ld_lib_path="$LD_LIBRARY_PATH:$fboss_output_dir/lib:$fboss_output_dir/lib64"
    sai_test=$(find $fboss_output_dir -name "sai_test-sai_impl*")
    missing_libs=$(LD_LIBRARY_PATH="$ld_lib_path" ldd "$sai_test" | awk '/not found/{print $1}')
@@ -218,9 +219,7 @@ else
    cp -L $lib_path $fboss_output_dir/lib64
 
    # Copy over kernel modules
-   if ! [ -d "$fboss_output_dir/lib/modules" ]; then
-      mkdir -p "$fboss_output_dir/lib/modules"
-   fi
+   mkdir -p "$fboss_output_dir/lib/modules"
    for kernel_module in linux-kernel-bde.ko linux-user-bde.ko linux-bcm-knet.ko
    do
       module_path=$(find $BCM_KERNEL_MODULES_DIR -name "$kernel_module" | head -n 1)
