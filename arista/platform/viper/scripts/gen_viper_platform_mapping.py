@@ -262,10 +262,12 @@ for core in range( serdesCores ):
          "physicalID": core
       } ) )
 numFrontPanelPorts = 38
-for port in range( 1, numFrontPanelPorts+1 ):
+for port in range( numFrontPanelPorts ):
+   frontPanelSlot = port+1
+   frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
    platMapping[ "chips" ].append( OrderedDict(
       {
-         "name": f"{frontPanelSlotToPortType(port)}1/{port}",
+         "name": f"{frontPanelPortType}1/{frontPanelSlot}",
          "type" : 3,
          "physicalID": port 
       } ) )
