@@ -27,12 +27,13 @@ TODO
 preserveExistingMappings = True
 # Logical port base in the SDK for fabric ports.
 fabricPortBase = 0
+# Whistler has two Ramon3 ASICs with 512x100G serdes on each ASIC.
+numAsics = 2
 # Total number of fabric ports assuming that each fabric serdes is enumerated as a
 # separate port.
 numFabricPorts = 128 * 8
 # Print debug information
 debug = False
-numAsics = 2
 numNifPorts = 0
 
 # Assuming 100G lanes, number of lanes required by each supported port profile.
@@ -44,8 +45,8 @@ numLanesFromSupportedProfile = {
 def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
       firstLane=0, supportedProfiles=None, attachedCoreId=0, attachedCorePortIndex=0,
       portType=0 ):
-   # Front panel port would be et1/X and based on the first lane, this can be et1/X/Y
-   # where Y is firstLane+1.
+   # Front panel port would be et1/X or fab1/X and based on the first lane, this can
+   # be et1/X/Y (or fab1/X/Y) where Y is firstLane+1.
    name=f"{frontPanelPort}/{firstLane+1}"
    portMapping = OrderedDict( {
       "mapping": OrderedDict( {
