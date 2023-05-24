@@ -13,6 +13,7 @@
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/L2Entry.h"
+#include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
@@ -42,6 +43,7 @@ namespace facebook::fboss {
 class Platform;
 class SwitchState;
 class HwLinkStateToggler;
+class SwitchIdScopeResolver;
 
 class HwSwitchEnsemble : public TestEnsembleIf {
  public:
@@ -125,6 +127,10 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   }
   const HwAsic* getAsic() const {
     return getPlatform()->getAsic();
+  }
+  // Used for testing only
+  HwAsicTable* getHwAsicTable() {
+    return hwAsicTable_.get();
   }
   virtual std::map<int64_t, cfg::DsfNode> dsfNodesFromInputConfig() const {
     return {};
@@ -241,6 +247,8 @@ class HwSwitchEnsemble : public TestEnsembleIf {
 
   virtual bool isSai() const = 0;
 
+  const SwitchIdScopeResolver& scopeResolver() const override;
+
  protected:
   /*
    * Setup ensemble
@@ -299,6 +307,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   mutable std::mutex updateStateMutex_;
 
   std::unique_ptr<HwAsicTable> hwAsicTable_;
+  std::unique_ptr<SwitchIdScopeResolver> scopeResolver_;
 };
 
 } // namespace facebook::fboss

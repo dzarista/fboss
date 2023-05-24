@@ -53,15 +53,18 @@ DEFINE_bool(
 namespace facebook::fboss {
 
 namespace {
-template <typename Map, typename MultiNpuMap>
-ThriftMapDelta<Map> getFirstMapDelta(
+template <
+    typename Map,
+    typename MultiNpuMap,
+    typename Delta = ThriftMapDelta<Map>>
+Delta getFirstMapDelta(
     const std::shared_ptr<MultiNpuMap>& oldMnpuMap,
     const std::shared_ptr<MultiNpuMap>& newMnpuMap) {
   auto oldMap =
       oldMnpuMap->size() ? oldMnpuMap->cbegin()->second.get() : nullptr;
   auto newMap =
       newMnpuMap->size() ? newMnpuMap->cbegin()->second.get() : nullptr;
-  return ThriftMapDelta<Map>(oldMap, newMap);
+  return Delta(oldMap, newMap);
 }
 } // namespace
 
@@ -86,22 +89,23 @@ StateDelta::StateDelta(
 
 StateDelta::~StateDelta() {}
 
-ThriftMapDelta<PortMap> StateDelta::getPortsDelta() const {
-  return ThriftMapDelta<PortMap>(
+MultiSwitchMapDelta<MultiSwitchPortMap> StateDelta::getPortsDelta() const {
+  return MultiSwitchMapDelta<MultiSwitchPortMap>(
       old_->getPorts().get(), new_->getPorts().get());
 }
 
-VlanMapDelta StateDelta::getVlansDelta() const {
-  return VlanMapDelta(old_->getVlans().get(), new_->getVlans().get());
+MultiSwitchMapDelta<MultiSwitchVlanMap> StateDelta::getVlansDelta() const {
+  return MultiSwitchMapDelta<MultiSwitchVlanMap>(
+      old_->getVlans().get(), new_->getVlans().get());
 }
 
-InterfaceMapDelta StateDelta::getIntfsDelta() const {
-  return InterfaceMapDelta(
+MultiSwitchInterfaceMapDelta StateDelta::getIntfsDelta() const {
+  return MultiSwitchInterfaceMapDelta(
       old_->getInterfaces().get(), new_->getInterfaces().get());
 }
 
-InterfaceMapDelta StateDelta::getRemoteIntfsDelta() const {
-  return InterfaceMapDelta(
+MultiSwitchInterfaceMapDelta StateDelta::getRemoteIntfsDelta() const {
+  return MultiSwitchInterfaceMapDelta(
       old_->getRemoteInterfaces().get(), new_->getRemoteInterfaces().get());
 }
 
@@ -123,13 +127,19 @@ AclMapDelta StateDelta::getAclsDelta(
     }
   } else {
     // Single ACL Table support
-    if (old_->getAcls()) {
-      oldAcls.reset(new PrioAclMap());
-      oldAcls->addAcls(old_->getAcls());
+    auto oldMultiSwitchAcls = old_->getAcls();
+    oldAcls.reset(new PrioAclMap());
+    for (const auto& iter : std::as_const(*oldMultiSwitchAcls)) {
+      if (iter.second) {
+        oldAcls->addAcls(iter.second);
+      }
     }
-    if (new_->getAcls()) {
-      newAcls.reset(new PrioAclMap());
-      newAcls->addAcls(new_->getAcls());
+    auto newMultiSwitchAcls = new_->getAcls();
+    newAcls.reset(new PrioAclMap());
+    for (const auto& iter : std::as_const(*newMultiSwitchAcls)) {
+      if (iter.second) {
+        newAcls->addAcls(iter.second);
+      }
     }
   }
 
@@ -143,28 +153,33 @@ ThriftMapDelta<AclTableMap> StateDelta::getAclTablesDelta(
       new_->getAclTablesForStage(aclStage).get());
 }
 
-ThriftMapDelta<AclTableGroupMap> StateDelta::getAclTableGroupsDelta() const {
-  return ThriftMapDelta<AclTableGroupMap>(
+MultiSwitchMapDelta<MultiSwitchAclTableGroupMap>
+StateDelta::getAclTableGroupsDelta() const {
+  return MultiSwitchMapDelta<MultiSwitchAclTableGroupMap>(
       old_->getAclTableGroups().get(), new_->getAclTableGroups().get());
 }
 
-QosPolicyMapDelta StateDelta::getQosPoliciesDelta() const {
-  return QosPolicyMapDelta(
+MultiSwitchMapDelta<MultiSwitchQosPolicyMap> StateDelta::getQosPoliciesDelta()
+    const {
+  return MultiSwitchMapDelta<MultiSwitchQosPolicyMap>(
       old_->getQosPolicies().get(), new_->getQosPolicies().get());
 }
 
-ThriftMapDelta<AggregatePortMap> StateDelta::getAggregatePortsDelta() const {
-  return ThriftMapDelta<AggregatePortMap>(
+MultiSwitchMapDelta<MultiSwitchAggregatePortMap>
+StateDelta::getAggregatePortsDelta() const {
+  return MultiSwitchMapDelta<MultiSwitchAggregatePortMap>(
       old_->getAggregatePorts().get(), new_->getAggregatePorts().get());
 }
 
-ThriftMapDelta<SflowCollectorMap> StateDelta::getSflowCollectorsDelta() const {
-  return ThriftMapDelta<SflowCollectorMap>(
+MultiSwitchMapDelta<MultiSwitchSflowCollectorMap>
+StateDelta::getSflowCollectorsDelta() const {
+  return MultiSwitchMapDelta<MultiSwitchSflowCollectorMap>(
       old_->getSflowCollectors().get(), new_->getSflowCollectors().get());
 }
 
-ThriftMapDelta<LoadBalancerMap> StateDelta::getLoadBalancersDelta() const {
-  return ThriftMapDelta<LoadBalancerMap>(
+MultiSwitchMapDelta<MultiSwitchLoadBalancerMap>
+StateDelta::getLoadBalancersDelta() const {
+  return MultiSwitchMapDelta<MultiSwitchLoadBalancerMap>(
       old_->getLoadBalancers().get(), new_->getLoadBalancers().get());
 }
 
@@ -195,8 +210,10 @@ ThriftMapDelta<UdfPacketMatcherMap> StateDelta::getUdfPacketMatcherDelta()
       oldUdfPacketMatcherMap.get(), newUdfPacketMatcherMap.get());
 }
 
-ThriftMapDelta<DsfNodeMap> StateDelta::getDsfNodesDelta() const {
-  return getFirstMapDelta<DsfNodeMap>(old_->getDsfNodes(), new_->getDsfNodes());
+MultiSwitchMapDelta<MultiSwitchDsfNodeMap> StateDelta::getDsfNodesDelta()
+    const {
+  return MultiSwitchMapDelta<MultiSwitchDsfNodeMap>(
+      old_->getDsfNodes().get(), new_->getDsfNodes().get());
 }
 
 DeltaValue<ControlPlane> StateDelta::getControlPlaneDelta() const {
@@ -204,8 +221,9 @@ DeltaValue<ControlPlane> StateDelta::getControlPlaneDelta() const {
       old_->getControlPlane(), new_->getControlPlane());
 }
 
-ThriftMapDelta<MirrorMap> StateDelta::getMirrorsDelta() const {
-  return getFirstMapDelta<MirrorMap>(old_->getMirrors(), new_->getMirrors());
+MultiSwitchMapDelta<MultiSwitchMirrorMap> StateDelta::getMirrorsDelta() const {
+  return MultiSwitchMapDelta<MultiSwitchMirrorMap>(
+      old_->getMirrors().get(), new_->getMirrors().get());
 }
 
 ThriftMapDelta<TransceiverMap> StateDelta::getTransceiversDelta() const {
@@ -213,12 +231,9 @@ ThriftMapDelta<TransceiverMap> StateDelta::getTransceiversDelta() const {
       old_->getTransceivers().get(), new_->getTransceivers().get());
 }
 
-ForwardingInformationBaseMapDelta StateDelta::getFibsDelta() const {
-  const auto& key = HwSwitchMatcher::defaultHwSwitchMatcher();
-  auto oldFibs = old_->cref<switch_state_tags::fibsMap>()->getMapNodeIf(key);
-  auto newFibs = new_->cref<switch_state_tags::fibsMap>()->getMapNodeIf(key);
-
-  return ForwardingInformationBaseMapDelta(oldFibs.get(), newFibs.get());
+MultiSwitchForwardingInformationBaseMapDelta StateDelta::getFibsDelta() const {
+  return MultiSwitchForwardingInformationBaseMapDelta(
+      old_->getFibs().get(), new_->getFibs().get());
 }
 
 DeltaValue<SwitchSettings> StateDelta::getSwitchSettingsDelta() const {
@@ -232,9 +247,9 @@ DeltaValue<FlowletSwitchingConfig> StateDelta::getFlowletSwitchingConfigDelta()
       old_->getFlowletSwitchingConfig(), new_->getFlowletSwitchingConfig());
 }
 
-ThriftMapDelta<LabelForwardingInformationBase>
+MultiSwitchMapDelta<MultiLabelForwardingInformationBase>
 StateDelta::getLabelForwardingInformationBaseDelta() const {
-  return ThriftMapDelta<LabelForwardingInformationBase>(
+  return MultiSwitchMapDelta<MultiLabelForwardingInformationBase>(
       old_->getLabelForwardingInformationBase().get(),
       new_->getLabelForwardingInformationBase().get());
 }
@@ -245,23 +260,25 @@ DeltaValue<QosPolicy> StateDelta::getDefaultDataPlaneQosPolicyDelta() const {
       new_->getDefaultDataPlaneQosPolicy());
 }
 
-ThriftMapDelta<SystemPortMap> StateDelta::getSystemPortsDelta() const {
-  return ThriftMapDelta<SystemPortMap>(
+MultiSwitchMapDelta<MultiSwitchSystemPortMap> StateDelta::getSystemPortsDelta()
+    const {
+  return MultiSwitchMapDelta<MultiSwitchSystemPortMap>(
       old_->getSystemPorts().get(), new_->getSystemPorts().get());
 }
 
-ThriftMapDelta<SystemPortMap> StateDelta::getRemoteSystemPortsDelta() const {
-  return ThriftMapDelta<SystemPortMap>(
+MultiSwitchMapDelta<MultiSwitchSystemPortMap>
+StateDelta::getRemoteSystemPortsDelta() const {
+  return MultiSwitchMapDelta<MultiSwitchSystemPortMap>(
       old_->getRemoteSystemPorts().get(), new_->getRemoteSystemPorts().get());
 }
 
 ThriftMapDelta<IpTunnelMap> StateDelta::getIpTunnelsDelta() const {
-  return ThriftMapDelta<IpTunnelMap>(
-      old_->getTunnels().get(), new_->getTunnels().get());
+  return getFirstMapDelta<IpTunnelMap>(old_->getTunnels(), new_->getTunnels());
 }
 
-ThriftMapDelta<TeFlowTable> StateDelta::getTeFlowEntriesDelta() const {
-  return ThriftMapDelta<TeFlowTable>(
+MultiSwitchMapDelta<MultiTeFlowTable> StateDelta::getTeFlowEntriesDelta()
+    const {
+  return MultiSwitchMapDelta<MultiTeFlowTable>(
       old_->getTeFlowTable().get(), new_->getTeFlowTable().get());
 }
 
@@ -321,5 +338,21 @@ template struct ThriftMapDelta<LabelForwardingInformationBase>;
 template struct ThriftMapDelta<SystemPortMap>;
 template struct ThriftMapDelta<IpTunnelMap>;
 template struct ThriftMapDelta<TeFlowTable>;
+
+template struct MultiSwitchMapDelta<MultiSwitchMirrorMap>;
+template struct MultiSwitchMapDelta<MultiSwitchSflowCollectorMap>;
+template struct MultiSwitchMapDelta<MultiLabelForwardingInformationBase>;
+template struct MultiSwitchMapDelta<MultiSwitchQosPolicyMap>;
+template struct MultiSwitchMapDelta<MultiSwitchIpTunnelMap>;
+template struct MultiSwitchMapDelta<MultiTeFlowTable>;
+template struct MultiSwitchMapDelta<MultiSwitchAggregatePortMap>;
+template struct MultiSwitchMapDelta<MultiSwitchLoadBalancerMap>;
+template struct MultiSwitchMapDelta<MultiSwitchTransceiverMap>;
+template struct MultiSwitchMapDelta<MultiSwitchBufferPoolCfgMap>;
+template struct MultiSwitchMapDelta<MultiSwitchPortMap>;
+template struct MultiSwitchMapDelta<MultiSwitchAclTableGroupMap>;
+template struct MultiSwitchMapDelta<MultiSwitchDsfNodeMap>;
+template struct MultiSwitchMapDelta<MultiSwitchSystemPortMap>;
+template struct MultiSwitchMapDelta<MultiSwitchAclMap>;
 
 } // namespace facebook::fboss

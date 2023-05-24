@@ -85,6 +85,12 @@ uint32_t NeighborUpdaterNoopImpl::flushEntry(
   return 0;
 }
 
+uint32_t NeighborUpdaterNoopImpl::flushEntryForIntf(
+    InterfaceID /*intfID*/,
+    IPAddress /*ip*/) {
+  return 0;
+}
+
 void NeighborUpdaterNoopImpl::vlanAdded(
     VlanID /*vlanID*/,
     std::shared_ptr<SwitchState> /*state*/) {}
@@ -110,4 +116,11 @@ void NeighborUpdaterNoopImpl::updateNdpEntryClassID(
     VlanID /*vlan*/,
     folly::IPAddressV6 /*ip*/,
     std::optional<cfg::AclLookupClass> /*classID*/) {}
+
+void NeighborUpdaterNoopImpl::interfaceAdded(
+    InterfaceID intfID,
+    std::shared_ptr<SwitchState> state) {}
+
+void NeighborUpdaterNoopImpl::interfaceRemoved(InterfaceID intfID) {}
+
 } // namespace facebook::fboss

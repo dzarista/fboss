@@ -61,8 +61,8 @@ std::shared_ptr<Mirror> MirrorManagerImpl<AddrT>::updateMirror(
         break;
       case PortDescriptor::PortType::AGGREGATE: {
         // pick first forwarding member port
-        auto aggPort = state->getAggregatePorts()->getAggregatePortIf(
-            entry->getPort().aggPortID());
+        auto aggPort =
+            state->getAggregatePorts()->getNodeIf(entry->getPort().aggPortID());
         if (!aggPort) {
           XLOG(ERR) << "mirror resolved to non-existing aggregate port "
                     << entry->getPort().aggPortID();
@@ -134,9 +134,8 @@ MirrorManagerImpl<AddrT>::resolveMirrorNextHopNeighbor(
   AddrT mirrorNextHopIp = getIPAddress<AddrT>(nexthop.addr());
   InterfaceID mirrorEgressInterface = nexthop.intf();
 
-  auto interface =
-      state->getInterfaces()->getInterfaceIf(mirrorEgressInterface);
-  auto vlan = state->getVlans()->getVlanIf(interface->getVlanID());
+  auto interface = state->getInterfaces()->getNodeIf(mirrorEgressInterface);
+  auto vlan = state->getVlans()->getNodeIf(interface->getVlanID());
 
   if (interface->hasAddress(mirrorNextHopIp)) {
     /* if mirror destination is directly connected */
@@ -157,7 +156,7 @@ MirrorTunnel MirrorManagerImpl<AddrT>::resolveMirrorTunnel(
     const NextHop& nextHop,
     const std::shared_ptr<NeighborEntryT>& neighbor,
     const std::optional<TunnelUdpPorts>& udpPorts) {
-  const auto interface = state->getInterfaces()->getInterfaceIf(nextHop.intf());
+  const auto interface = state->getInterfaces()->getNodeIf(nextHop.intf());
   const auto iter = interface->getAddressToReach(neighbor->getIP());
 
   if (udpPorts.has_value()) {

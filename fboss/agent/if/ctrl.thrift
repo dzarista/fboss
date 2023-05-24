@@ -146,6 +146,7 @@ struct ArpEntryThrift {
   8: i32 classID;
   9: bool isLocal = true;
   10: optional i64 switchId;
+  11: optional i64 resolvedSince;
 }
 
 enum L2EntryType {
@@ -272,6 +273,7 @@ enum PortLoopbackMode {
   NONE = 0,
   MAC = 1,
   PHY = 2,
+  NIF = 3,
 }
 
 struct LinearQueueCongestionDetection {
@@ -409,6 +411,7 @@ struct NdpEntryThrift {
   8: i32 classID;
   9: bool isLocal = true;
   10: optional i64 switchId;
+  11: optional i64 resolvedSince;
 }
 
 enum BootType {

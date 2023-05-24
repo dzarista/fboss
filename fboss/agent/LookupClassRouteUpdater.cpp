@@ -55,7 +55,7 @@ bool LookupClassRouteUpdater::vlanHasOtherPortsWithClassIDs(
   for (auto& [id, portInfo] : vlan->getPorts()) {
     auto portID = PortID(id);
     std::ignore = portInfo;
-    auto port = switchState->getPorts()->getPortIf(portID);
+    auto port = switchState->getPorts()->getNodeIf(portID);
 
     if (portID != removedPort->getID() &&
         port->getLookupClassesToDistributeTrafficOn().size() != 0) {
@@ -104,7 +104,7 @@ LookupClassRouteUpdater::getClassIDForLinkLocal(
     const folly::IPAddressV6& ipAddressV6) {
   CHECK(ipAddressV6.isLinkLocal());
 
-  auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+  auto vlan = switchState->getVlans()->getNodeIf(vlanID);
   if (!vlan) {
     return std::nullopt;
   }
@@ -135,7 +135,7 @@ LookupClassRouteUpdater::getClassIDForNeighbor(
     const std::shared_ptr<SwitchState>& switchState,
     VlanID vlanID,
     const folly::IPAddress& ipAddress) {
-  auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+  auto vlan = switchState->getVlans()->getNodeIf(vlanID);
   if (!vlan) {
     return std::nullopt;
   }
@@ -182,14 +182,14 @@ void LookupClassRouteUpdater::updateSubnetsCache(
   bool subnetCacheUpdated = false;
   for (const auto& [vlanID, vlanInfo] : port->getVlans()) {
     std::ignore = vlanInfo;
-    auto vlan = newState->getVlans()->getVlanIf(vlanID);
+    auto vlan = newState->getVlans()->getNodeIf(vlanID);
     if (!vlan) {
       continue;
     }
 
     auto& subnetsCache = vlan2SubnetsCache_[vlanID];
     auto interface =
-        newState->getInterfaces()->getInterfaceIf(vlan->getInterfaceID());
+        newState->getInterfaces()->getNodeIf(vlan->getInterfaceID());
     if (interface) {
       for (auto iter : std::as_const(*interface->getAddresses())) {
         auto address =
@@ -240,13 +240,12 @@ void LookupClassRouteUpdater::processPortRemovedForVlan(
     return;
   }
 
-  auto vlan = newState->getVlans()->getVlanIf(vlanID);
+  auto vlan = newState->getVlans()->getNodeIf(vlanID);
   if (!vlan || vlanHasOtherPortsWithClassIDs(newState, vlan, removedPort)) {
     return;
   }
 
-  auto interface =
-      newState->getInterfaces()->getInterfaceIf(vlan->getInterfaceID());
+  auto interface = newState->getInterfaces()->getNodeIf(vlan->getInterfaceID());
   if (!interface) {
     return;
   }
@@ -339,7 +338,7 @@ void LookupClassRouteUpdater::processInterfaceAdded(
   auto switchState = stateDelta.newState();
 
   auto vlanID = addedInterface->getVlanID();
-  auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+  auto vlan = switchState->getVlans()->getNodeIf(vlanID);
   if (!vlan) {
     return;
   }
@@ -347,7 +346,7 @@ void LookupClassRouteUpdater::processInterfaceAdded(
   for (auto& [id, portInfo] : vlan->getPorts()) {
     PortID portID(id);
     std::ignore = portInfo;
-    auto port = switchState->getPorts()->getPortIf(portID);
+    auto port = switchState->getPorts()->getNodeIf(portID);
     // routes are re-added once outside the for loop
     processPortAdded(stateDelta, port, false /* don't re-add all routes */);
   }
@@ -442,7 +441,7 @@ void LookupClassRouteUpdater::processInterfaceRemoved(
   auto switchState = stateDelta.newState();
 
   auto vlanID = removedInterface->getVlanID();
-  auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+  auto vlan = switchState->getVlans()->getNodeIf(vlanID);
   if (!vlan) {
     return;
   }
@@ -450,7 +449,7 @@ void LookupClassRouteUpdater::processInterfaceRemoved(
   for (auto& [id, portInfo] : vlan->getPorts()) {
     PortID portID(id);
     std::ignore = portInfo;
-    auto port = switchState->getPorts()->getPortIf(portID);
+    auto port = switchState->getPorts()->getNodeIf(portID);
     /*
      * Subnets for an interface could be cached in following cases:
      *   - port has non-empty lookup class list,
@@ -500,7 +499,7 @@ bool LookupClassRouteUpdater::isNeighborReachable(
     const std::shared_ptr<SwitchState>& switchState,
     VlanID vlanID,
     const folly::IPAddressV6& neighborIP) {
-  auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+  auto vlan = switchState->getVlans()->getNodeIf(vlanID);
   if (!vlan) {
     return false;
   }
@@ -763,7 +762,7 @@ bool LookupClassRouteUpdater::addRouteToMultiNextHopMap(
     const RidAndCidr& ridAndCidr) {
   for (const auto& nextHop : route->getForwardInfo().getNextHopSet()) {
     auto vlanID =
-        newState->getInterfaces()->getInterfaceIf(nextHop.intf())->getVlanID();
+        newState->getInterfaces()->getNodeIf(nextHop.intf())->getVlanID();
     if (!belongsToSubnetInCache(vlanID, nextHop.addr())) {
       continue;
     }
@@ -805,7 +804,7 @@ LookupClassRouteUpdater::addRouteAndFindClassID(
   std::set<folly::IPAddress> neighborsWithClassId;
   for (const auto& nextHop : addedRoute->getForwardInfo().getNextHopSet()) {
     auto vlanID =
-        newState->getInterfaces()->getInterfaceIf(nextHop.intf())->getVlanID();
+        newState->getInterfaces()->getNodeIf(nextHop.intf())->getVlanID();
     if (!belongsToSubnetInCache(vlanID, nextHop.addr())) {
       continue;
     }
@@ -1023,7 +1022,7 @@ void LookupClassRouteUpdater::processRouteRemoved(
   auto& newState = stateDelta.newState();
   for (const auto& nextHop : removedRoute->getForwardInfo().getNextHopSet()) {
     auto vlanID =
-        newState->getInterfaces()->getInterfaceIf(nextHop.intf())->getVlanID();
+        newState->getInterfaces()->getNodeIf(nextHop.intf())->getVlanID();
     if (!belongsToSubnetInCache(vlanID, nextHop.addr())) {
       continue;
     }
@@ -1041,7 +1040,7 @@ void LookupClassRouteUpdater::processRouteRemoved(
     if (withClassIDPrefixes.empty() && withoutClassIDPrefixes.empty()) {
       // if this was the only route this entry was NextHop for, and there is no
       // neighbor corresponding to this NextHop, erase it.
-      auto vlan = newState->getVlans()->getVlanIf(vlanID);
+      auto vlan = newState->getVlans()->getNodeIf(vlanID);
       if (vlan) {
         if (nextHop.addr().isV6()) {
           auto ndpEntry =
@@ -1148,13 +1147,13 @@ LookupClassRouteUpdater::getInterfaceSubnetForIPIf(
     const std::shared_ptr<SwitchState>& switchState,
     VlanID vlanID,
     const folly::IPAddress& ipAddress) const {
-  auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+  auto vlan = switchState->getVlans()->getNodeIf(vlanID);
   if (!vlan) {
     return std::nullopt;
   }
 
   auto interface =
-      switchState->getInterfaces()->getInterfaceIf(vlan->getInterfaceID());
+      switchState->getInterfaces()->getNodeIf(vlan->getInterfaceID());
   if (interface) {
     for (auto iter : std::as_const(*interface->getAddresses())) {
       std::pair<folly::IPAddress, uint8_t> address(
@@ -1196,35 +1195,37 @@ bool LookupClassRouteUpdater::isSubnetCachedByLookupClasses(
     const std::shared_ptr<SwitchState>& switchState,
     VlanID vlanID,
     const folly::CIDRNetwork& addressToSearch) const {
-  auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+  auto vlan = switchState->getVlans()->getNodeIf(vlanID);
   if (!vlan) {
     return false;
   }
 
   auto interface =
-      switchState->getInterfaces()->getInterfaceIf(vlan->getInterfaceID());
+      switchState->getInterfaces()->getNodeIf(vlan->getInterfaceID());
   if (!interface) {
     return false;
   }
 
   bool searchInterfaceAddresses = false;
-  for (const auto& port : std::as_const(*switchState->getPorts())) {
-    if (port.second->getLookupClassesToDistributeTrafficOn().size() == 0) {
-      continue;
-    }
+  for (const auto& portMap : std::as_const(*switchState->getPorts())) {
+    for (const auto& port : std::as_const(*portMap.second)) {
+      if (port.second->getLookupClassesToDistributeTrafficOn().size() == 0) {
+        continue;
+      }
 
-    // port is member of vlan for addressToSearch i.e. blocked IP
-    auto it = port.second->getVlans().find(vlanID);
-    if (it == port.second->getVlans().end()) {
-      continue;
-    }
+      // port is member of vlan for addressToSearch i.e. blocked IP
+      auto it = port.second->getVlans().find(vlanID);
+      if (it == port.second->getVlans().end()) {
+        continue;
+      }
 
-    /*
-     * There is a port with non-empty lookupClasses && that port is member of
-     * vlan for addressToearch i.e. blocked IP.
-     */
-    searchInterfaceAddresses = true;
-    break;
+      /*
+       * There is a port with non-empty lookupClasses && that port is member of
+       * vlan for addressToearch i.e. blocked IP.
+       */
+      searchInterfaceAddresses = true;
+      break;
+    }
   }
 
   if (searchInterfaceAddresses) {
@@ -1284,7 +1285,7 @@ void LookupClassRouteUpdater::processBlockNeighborRemoved(
     if (address.has_value() &&
         !isSubnetCachedByLookupClasses(newState, vlanID, address.value()) &&
         !isSubnetCachedByBlockedNeighborIP(newState, vlanID, address.value())) {
-      auto vlan = newState->getVlans()->getVlanIf(vlanID);
+      auto vlan = newState->getVlans()->getNodeIf(vlanID);
       if (!vlan) {
         continue;
       }
@@ -1339,7 +1340,7 @@ bool LookupClassRouteUpdater::addBlockedNeighborIPtoSubnetCache(
     const folly::MacAddress& blockedNeighborMac,
     const std::shared_ptr<SwitchState>& newState) {
   bool subnetCacheUpdated = false;
-  auto vlan = newState->getVlans()->getVlanIf(vlanID);
+  auto vlan = newState->getVlans()->getNodeIf(vlanID);
   for (auto iter :
        std::as_const(*VlanTableDeltaCallbackGenerator::getTable<AddrT>(vlan))) {
     auto neighborEntry = iter.second;
@@ -1365,7 +1366,7 @@ void LookupClassRouteUpdater::removeBlockedNeighborIPfromSubnetCache(
     const folly::MacAddress& blockedNeighborMac,
     const StateDelta& stateDelta) {
   auto newState = stateDelta.newState();
-  auto vlan = newState->getVlans()->getVlanIf(vlanID);
+  auto vlan = newState->getVlans()->getNodeIf(vlanID);
   for (auto iter :
        std::as_const(*VlanTableDeltaCallbackGenerator::getTable<AddrT>(vlan))) {
     auto neighborEntry = iter.second;
@@ -1399,7 +1400,7 @@ void LookupClassRouteUpdater::processMacAddrsToBlockAdded(
   bool subnetCacheUpdated = false;
 
   for (const auto& [vlanID, blockedNeighborMac] : toBeAddedMacAddrsToBlock) {
-    auto vlan = newState->getVlans()->getVlanIf(vlanID);
+    auto vlan = newState->getVlans()->getNodeIf(vlanID);
     if (!vlan) {
       continue;
     }
@@ -1430,7 +1431,7 @@ void LookupClassRouteUpdater::processMacAddrsToBlockRemoved(
   auto newState = stateDelta.newState();
 
   for (const auto& [vlanID, blockedNeighborMac] : toBeRemovedMacAddrsToBlock) {
-    auto vlan = newState->getVlans()->getVlanIf(vlanID);
+    auto vlan = newState->getVlans()->getNodeIf(vlanID);
     if (!vlan) {
       continue;
     }

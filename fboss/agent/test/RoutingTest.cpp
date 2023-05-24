@@ -175,6 +175,17 @@ class RoutingFixture : public ::testing::Test {
  public:
   void SetUp() override {
     auto config = getSwitchConfig();
+    config.switchSettings()->switchIdToSwitchInfo() = {
+        {0,
+         createSwitchInfo(
+             cfg::SwitchType::NPU,
+             cfg::AsicType::ASIC_TYPE_MOCK,
+             cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MIN(),
+             cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MAX(),
+             0, /* switchIndex */
+             std::nullopt, /* sysPortMin */
+             std::nullopt, /* sysPortMax */
+             MockPlatform::getMockLocalMac().toString())}};
     handle = createTestHandle(&config, SwitchFlags::ENABLE_TUN);
     sw = handle->getSw();
 
@@ -186,8 +197,8 @@ class RoutingFixture : public ::testing::Test {
     // as well.
     auto updateFn = [=](const std::shared_ptr<SwitchState>& state) {
       std::shared_ptr<SwitchState> newState{state};
-      auto* vlan1 = newState->getVlans()->getVlanIf(VlanID(1)).get();
-      auto* vlan2 = newState->getVlans()->getVlanIf(VlanID(2)).get();
+      auto* vlan1 = newState->getVlans()->getNodeIf(VlanID(1)).get();
+      auto* vlan2 = newState->getVlans()->getNodeIf(VlanID(2)).get();
       auto* arpTable1 = vlan1->getArpTable().get()->modify(&vlan1, &newState);
       auto* ndpTable1 = vlan1->getNdpTable().get()->modify(&vlan1, &newState);
       auto* arpTable2 = vlan2->getArpTable().get()->modify(&vlan2, &newState);

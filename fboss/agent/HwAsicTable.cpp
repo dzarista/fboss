@@ -3,6 +3,7 @@
 #include "fboss/agent/HwAsicTable.h"
 #include <optional>
 #include "fboss/agent/FbossError.h"
+#include "fboss/agent/Utils.h"
 #include "fboss/agent/platforms/common/PlatformMappingUtils.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 
@@ -10,8 +11,16 @@ namespace facebook::fboss {
 HwAsicTable::HwAsicTable(
     const std::map<int64_t, cfg::SwitchInfo>& switchIdToSwitchInfo) {
   for (const auto& switchIdAndSwitchInfo : switchIdToSwitchInfo) {
-    // TODO - pass proper mac to asic create
     folly::MacAddress mac;
+    if (switchIdAndSwitchInfo.second.switchMac()) {
+      mac = folly::MacAddress(*switchIdAndSwitchInfo.second.switchMac());
+    } else {
+      try {
+        mac = getLocalMacAddress();
+      } catch (const std::exception& e) {
+        // Expected when fake bcm tests run without config
+      }
+    }
     hwAsics_.emplace(
         SwitchID(switchIdAndSwitchInfo.first),
         HwAsic::makeAsic(
@@ -23,12 +32,36 @@ HwAsicTable::HwAsicTable(
   }
 }
 
-const HwAsic* HwAsicTable::getHwAsicIf(SwitchID switchID) const {
+HwAsic* HwAsicTable::getHwAsicIfImpl(SwitchID switchID) const {
   auto iter = hwAsics_.find(switchID);
   if (iter != hwAsics_.end()) {
     return iter->second.get();
   }
   return nullptr;
+}
+
+const HwAsic* HwAsicTable::getHwAsicIf(SwitchID switchID) const {
+  return getHwAsicIfImpl(switchID);
+}
+
+HwAsic* HwAsicTable::getHwAsicIf(SwitchID switchID) {
+  return getHwAsicIfImpl(switchID);
+}
+
+const HwAsic* HwAsicTable::getHwAsic(SwitchID switchID) const {
+  auto asic = getHwAsicIfImpl(switchID);
+  if (!asic) {
+    throw FbossError("Unable to find asic for switch ID: ", switchID);
+  }
+  return asic;
+}
+
+std::unordered_set<SwitchID> HwAsicTable::getSwitchIDs() const {
+  std::unordered_set<SwitchID> swIds;
+  for (const auto& [swId, _] : hwAsics_) {
+    swIds.insert(SwitchID(swId));
+  }
+  return swIds;
 }
 
 bool HwAsicTable::isFeatureSupported(SwitchID switchId, HwAsic::Feature feature)

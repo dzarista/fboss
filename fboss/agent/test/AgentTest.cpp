@@ -4,6 +4,7 @@
 #include <folly/gen/Base.h>
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/Main.h"
+#include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/qsfp_service/lib/QsfpClient.h"
@@ -65,7 +66,7 @@ void AgentTest::resolveNeighbor(
     folly::MacAddress mac) {
   // TODO support agg ports as well.
   CHECK(portDesc.isPhysicalPort());
-  auto port = sw()->getState()->getPort(portDesc.phyPortID());
+  auto port = sw()->getState()->getPorts()->getNodeIf(portDesc.phyPortID());
   auto vlan = port->getVlans().begin()->first;
   if (ip.isV4()) {
     resolveNeighbor(portDesc, ip.asV4(), vlan, mac);
@@ -82,7 +83,7 @@ void AgentTest::resolveNeighbor(
     folly::MacAddress mac) {
   auto resolveNeighborFn = [=](const std::shared_ptr<SwitchState>& state) {
     auto outputState{state->clone()};
-    auto vlan = outputState->getVlans()->getVlan(vlanId);
+    auto vlan = outputState->getVlans()->getNode(vlanId);
     auto nbrTable = vlan->template getNeighborEntryTable<AddrT>()->modify(
         vlanId, &outputState);
     if (nbrTable->getEntryIf(ip)) {
@@ -123,12 +124,11 @@ bool AgentTest::waitForSwitchStateCondition(
 void AgentTest::setPortStatus(PortID portId, bool up) {
   auto configFnLinkDown = [=](const std::shared_ptr<SwitchState>& state) {
     auto newState = state->clone();
-    auto ports = newState->getPorts()->clone();
-    auto port = ports->getPort(portId)->clone();
+    auto ports = newState->getPorts()->modify(&newState);
+    auto port = ports->getNodeIf(portId)->clone();
     port->setAdminState(
         up ? cfg::PortState::ENABLED : cfg::PortState::DISABLED);
-    ports->updateNode(port);
-    newState->resetPorts(ports);
+    ports->updateNode(port, sw()->getScopeResolver()->scope(port));
     return newState;
   };
   sw()->updateStateBlocking("set port state", configFnLinkDown);
@@ -137,11 +137,9 @@ void AgentTest::setPortStatus(PortID portId, bool up) {
 void AgentTest::setPortLoopbackMode(PortID portId, cfg::PortLoopbackMode mode) {
   auto setLbMode = [=](const std::shared_ptr<SwitchState>& state) {
     auto newState = state->clone();
-    auto ports = newState->getPorts()->clone();
-    auto port = ports->getPort(portId)->clone();
+    auto ports = newState->getPorts()->modify(&newState);
+    auto port = ports->getNodeIf(portId)->clone();
     port->setLoopbackMode(mode);
-    ports->updateNode(port);
-    newState->resetPorts(ports);
     return newState;
   };
   sw()->updateStateBlocking("set port loopback mode", setLbMode);
@@ -151,7 +149,7 @@ void AgentTest::setPortLoopbackMode(PortID portId, cfg::PortLoopbackMode mode) {
 std::vector<std::string> AgentTest::getPortNames(
     const std::vector<PortID>& ports) const {
   return folly::gen::from(ports) | folly::gen::map([&](PortID port) {
-           return sw()->getState()->getPort(port)->getName();
+           return sw()->getState()->getPorts()->getNodeIf(port)->getName();
          }) |
       folly::gen::as<std::vector<std::string>>();
 }

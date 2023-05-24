@@ -130,7 +130,7 @@ inline void NdpCache::checkReachability(
     folly::MacAddress targetMac,
     PortDescriptor port) const {
   const auto state = getSw()->getState();
-  auto vlan = state->getVlans()->getVlanIf(getVlanID());
+  auto vlan = state->getVlans()->getNodeIf(getVlanID());
   if (!vlan) {
     XLOG(DBG2) << "Vlan " << getVlanID() << " not found. Skip sending probe";
     return;
@@ -141,11 +141,11 @@ inline void NdpCache::checkReachability(
   switch (port.type()) {
     case PortDescriptor::PortType::PHYSICAL:
       intfID = getSw()->getState()->getInterfaceIDForPort(port.phyPortID());
-      srcIntf = state->getInterfaces()->getInterfaceIf(intfID);
+      srcIntf = state->getInterfaces()->getNodeIf(intfID);
       break;
     case PortDescriptor::PortType::AGGREGATE:
       intfID = getSw()->getInterfaceIDForAggregatePort(port.aggPortID());
-      srcIntf = state->getInterfaces()->getInterfaceIf(intfID);
+      srcIntf = state->getInterfaces()->getNodeIf(intfID);
       break;
     case PortDescriptor::PortType::SYSTEM_PORT:
       // We expect the caller to resolve the system port down to its underlying
@@ -178,11 +178,6 @@ inline void NdpCache::checkReachability(
 }
 
 inline void NdpCache::probeFor(folly::IPAddressV6 ip) const {
-  auto vlan = getSw()->getState()->getVlans()->getVlanIf(getVlanID());
-  if (!vlan) {
-    XLOG(DBG2) << "Vlan " << getVlanID() << " not found. Skip sending probe";
-    return;
-  }
   // multicast solicitation
   IPv6Handler::sendMulticastNeighborSolicitation(getSw(), ip);
 }

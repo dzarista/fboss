@@ -299,7 +299,7 @@ const unsigned int kMaxSflowSnapLen = 128;
 bool isValidLabeledNextHopSet(
     facebook::fboss::BcmPlatform* platform,
     const facebook::fboss::LabelNextHopSet& nexthops) {
-  if (!facebook::fboss::LabelForwardingInformationBase::isValidNextHopSet(
+  if (!facebook::fboss::MultiLabelForwardingInformationBase::isValidNextHopSet(
           nexthops)) {
     return false;
   }
@@ -661,6 +661,7 @@ std::shared_ptr<SwitchState> BcmSwitch::getColdBootSwitchState() const {
   // On cold boot all ports are in Vlan 1
   auto vlan = make_shared<Vlan>(VlanID(1), std::string("InitVlan"));
   Vlan::MemberPorts memberPorts;
+  HwSwitchMatcher scopeMatcher(std::unordered_set<SwitchID>({SwitchID(0)}));
   for (const auto& kv : std::as_const(*portTable_)) {
     PortID portID = kv.first;
     BcmPort* bcmPort = kv.second;
@@ -688,12 +689,12 @@ std::shared_ptr<SwitchState> BcmSwitch::getColdBootSwitchState() const {
       auto queues = bcmPort->getCurrentQueueSettings();
       swPort->resetPortQueues(queues);
     }
-    bootState->addPort(swPort);
+    bootState->getPorts()->addNode(swPort, scopeMatcher);
 
     memberPorts.insert(make_pair(portID, false));
   }
   vlan->setPorts(memberPorts);
-  bootState->addVlan(vlan);
+  bootState->getVlans()->addNode(vlan, scopeMatcher);
   bootState->publish();
   return bootState;
 }
@@ -2061,19 +2062,21 @@ bool BcmSwitch::isValidStateUpdate(const StateDelta& delta) const {
 
   std::shared_ptr<Port> firstPort;
   std::optional<cfg::PfcWatchdogRecoveryAction> recoveryAction{};
-  for (const auto& port : std::as_const(*newState->getPorts())) {
-    if (port.second->getPfc().has_value() &&
-        port.second->getPfc()->watchdog().has_value()) {
-      auto pfcWd = port.second->getPfc()->watchdog().value();
-      if (!recoveryAction.has_value()) {
-        recoveryAction = *pfcWd.recoveryAction();
-        firstPort = port.second;
-      } else if (*recoveryAction != *pfcWd.recoveryAction()) {
-        // Error: All ports should have the same recovery action configured
-        XLOG(ERR) << "PFC watchdog deadlock recovery action on "
-                  << port.second->getName() << " conflicting with "
-                  << firstPort->getName();
-        isValid = false;
+  for (const auto& portMap : std::as_const(*newState->getPorts())) {
+    for (const auto& port : std::as_const(*portMap.second)) {
+      if (port.second->getPfc().has_value() &&
+          port.second->getPfc()->watchdog().has_value()) {
+        auto pfcWd = port.second->getPfc()->watchdog().value();
+        if (!recoveryAction.has_value()) {
+          recoveryAction = *pfcWd.recoveryAction();
+          firstPort = port.second;
+        } else if (*recoveryAction != *pfcWd.recoveryAction()) {
+          // Error: All ports should have the same recovery action configured
+          XLOG(ERR) << "PFC watchdog deadlock recovery action on "
+                    << port.second->getName() << " conflicting with "
+                    << firstPort->getName();
+          isValid = false;
+        }
       }
     }
   }
@@ -2315,8 +2318,8 @@ void BcmSwitch::processTeFlowChanges(
     auto newFlowTable = delta.newState()->getTeFlowTable();
     auto oldFlowTable = delta.oldState()->getTeFlowTable();
     for (const auto& flow : discardedFlows) {
-      auto oldEntry = oldFlowTable->getTeFlowIf(flow);
-      auto newEntry = newFlowTable->getTeFlowIf(flow);
+      auto oldEntry = oldFlowTable->getNodeIf(getTeFlowStr(flow));
+      auto newEntry = newFlowTable->getNodeIf(getTeFlowStr(flow));
       SwitchState::revertNewTeFlowEntry(newEntry, oldEntry, appliedState);
     }
   }
@@ -3785,7 +3788,8 @@ bool BcmSwitch::isValidPortQosPolicyUpdate(
     // either no policy or global default poliicy is provided
     return true;
   }
-  auto qosPolicy = newState->getQosPolicy(portQosPolicyName.value());
+  auto qosPolicy =
+      newState->getQosPolicies()->getNodeIf(portQosPolicyName.value());
   // qos policy for port must not have exp, since this is not supported
   return qosPolicy->getExpMap()->cref<switch_state_tags::to>()->empty() &&
       qosPolicy->getExpMap()->cref<switch_state_tags::from>()->empty();

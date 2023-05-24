@@ -76,7 +76,7 @@ BENCHMARK(AgentTeFlowStatsPublishToFsdb) {
       dstIpStart, nextHopAddr, ifName, ports[0], numEntries);
   auto flowEntries = generator->generateFlowEntries();
   state = ensemble->getSw()->getState();
-  utility::addFlowEntries(&state, flowEntries);
+  utility::addFlowEntries(&state, flowEntries, ensemble->scopeResolver());
   ensemble->applyNewState(state, true /* rollback on fail */);
   // verify TeFlowStats size
   auto teFlowStats = ensemble->getSw()->getTeFlowStats();
@@ -86,7 +86,7 @@ BENCHMARK(AgentTeFlowStatsPublishToFsdb) {
   // wait for FsdbSyncer to be ready to publish stats to FSDB
   auto waitForFsdbConnection = [&ensemble](int timeout) -> bool {
     for (int i = 0; i < timeout; i++) {
-      if (ensemble->getSw()->fsdbSyncer()->isReadyForStatPublishing()) {
+      if (ensemble->getSw()->fsdbStatPublishReady()) {
         return true;
       }
       // @lint-ignore CLANGTIDY

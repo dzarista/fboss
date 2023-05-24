@@ -28,6 +28,19 @@ class InterfaceDelta : public DeltaValue<Interface> {
  public:
   using NeighborEntriesDelta = MapDelta<state::NeighborEntries>;
   using DeltaValue<Interface>::DeltaValue;
+  using ArpTableDelta = ThriftMapDelta<ArpTable>;
+  using NdpTableDelta = ThriftMapDelta<NdpTable>;
+
+  ArpTableDelta getArpDelta() const {
+    return ArpTableDelta(
+        getOld() ? getOld()->getArpTable().get() : nullptr,
+        getNew() ? getNew()->getArpTable().get() : nullptr);
+  }
+  NdpTableDelta getNdpDelta() const {
+    return NdpTableDelta(
+        getOld() ? getOld()->getNdpTable().get() : nullptr,
+        getNew() ? getNew()->getNdpTable().get() : nullptr);
+  }
 
  private:
   auto* getArpEntries(const std::shared_ptr<Interface>& intf) const {
@@ -49,14 +62,24 @@ class InterfaceDelta : public DeltaValue<Interface> {
 template <typename IGNORED>
 struct InterfaceMapDeltaTraits {
   using mapped_type = typename InterfaceMap::mapped_type;
-  using Extractor = Extractor<InterfaceMap>;
-  using DeltaValue = InterfaceDelta;
-  using NodeWrapper = typename DeltaValue::NodeWrapper;
+  using Extractor = ExtractorT<InterfaceMap>;
+  using Delta = InterfaceDelta;
+  using NodeWrapper = typename Delta::NodeWrapper;
   using DeltaValueIterator =
-      DeltaValueIterator<InterfaceMap, DeltaValue, Extractor>;
-  using MapPointerTraits = MapPointerTraits<InterfaceMap>;
+      DeltaValueIteratorT<InterfaceMap, Delta, Extractor>;
+  using MapPointerTraits = MapPointerTraitsT<InterfaceMap>;
 };
 
 using InterfaceMapDelta = MapDelta<InterfaceMap, InterfaceMapDeltaTraits>;
 
+using MultiSwitchInterafceMapDeltaTraits = NestedMapDeltaTraits<
+    MultiSwitchInterfaceMap,
+    InterfaceMap,
+    ThriftMapDelta,
+    MapDelta,
+    MapDeltaTraits,
+    InterfaceMapDeltaTraits>;
+
+using MultiSwitchInterfaceMapDelta =
+    NestedMapDelta<MultiSwitchInterafceMapDeltaTraits>;
 } // namespace facebook::fboss

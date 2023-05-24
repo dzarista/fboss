@@ -12,11 +12,16 @@ add_fbthrift_cpp_library(
 )
 
 add_library(led_core_lib
+  fboss/led_service/FsdbSwitchStateSubscriber.cpp
+  fboss/led_service/oss/FsdbSwitchStateSubscriber.cpp
   fboss/led_service/LedManager.cpp
+  fboss/led_service/LedService.cpp
+  fboss/led_service/LedServiceHandler.cpp
 )
 
 target_link_libraries(led_core_lib
   bsp_platform_mapping_cpp2
+  qsfp_bsp_core
   ledIO
   led_structs_types_cpp2
   log_thrift_call
@@ -29,3 +34,15 @@ target_link_libraries(led_core_lib
   fsdb_pub_sub
   fsdb_flags
 )
+
+add_executable(led_service
+  fboss/led_service/Main.cpp
+)
+
+target_link_libraries(led_service
+  led_core_lib
+  platform_utils
+  fb303::fb303
+)
+
+install(TARGETS led_service)

@@ -41,7 +41,8 @@ TEST_F(ManagerTestBase, checkTeFlowSupport) {
   auto newFlowTable = newState->getTeFlowTable();
   TeFlow flow;
   flow.srcPort() = 42;
-  newFlowTable->addNode(std::make_shared<TeFlowEntry>(flow));
+  auto entry = std::make_shared<TeFlowEntry>(flow);
+  newFlowTable->addNode(entry, scopeResolver().scope(entry));
   newState->resetTeFlowTable(newFlowTable);
   EXPECT_THROW(applyNewState(newState), FbossError);
 }

@@ -25,6 +25,7 @@ const std::map<std::string, std::string>& kSupportedVerbs() {
       {"show", "Show object info"},
       {"clear", "Clear object info"},
       {"create", "Create object"},
+      {"delete", "Delete object"},
       {"debug", "Debug object"},
       {"set", "Set object"},
       {"bounce", "Disable/Enable object"},
@@ -32,6 +33,7 @@ const std::map<std::string, std::string>& kSupportedVerbs() {
       {"start", "Start event"},
       {"stop", "Stop event"},
       {"get", "Get object"},
+      {"reload", "Reload object"},
   };
 
   return supportedVerbs;

@@ -69,12 +69,11 @@ WedgeManager::~WedgeManager() {
 }
 
 void WedgeManager::loadConfig() {
-  agentConfig_ = AgentConfig::fromDefaultFile();
-
-  // Process agent config info here.
-  for (const auto& port : *agentConfig_->thrift.sw()->ports()) {
+  const auto& platformPorts = platformMapping_->getPlatformPorts();
+  for (const auto& it : platformPorts) {
+    auto port = it.second;
     // Get the transceiver id based on the port info from config.
-    auto portId = *port.logicalID();
+    auto portId = *port.mapping()->id();
     auto transceiverId = getTransceiverID(PortID(portId));
     if (!transceiverId) {
       XLOG(ERR) << "Did not find transceiver id for port id " << portId;
@@ -83,15 +82,13 @@ void WedgeManager::loadConfig() {
     // Add the port to the transceiver indexed port group.
     auto portGroupIt = portGroupMap_.find(transceiverId.value());
     if (portGroupIt == portGroupMap_.end()) {
-      portGroupMap_[transceiverId.value()] = std::set<cfg::Port>{port};
+      portGroupMap_[transceiverId.value()] =
+          std::set<cfg::PlatformPortEntry>{port};
     } else {
       portGroupIt->second.insert(port);
     }
-    std::string portName = "";
-    if (auto name = port.name()) {
-      portName = *name;
-      portNameToModule_[portName] = transceiverId.value();
-    }
+    std::string portName = *port.mapping()->name();
+    portNameToModule_[portName] = transceiverId.value();
     XLOG(INFO) << "Added port " << portName << " with portId " << portId
                << " to transceiver " << transceiverId.value();
   }
@@ -884,18 +881,23 @@ void WedgeManager::setOverrideTcvrToPortAndProfileForTesting(
       auto tcvrID = TransceiverID(*chip.second.physicalID());
       overrideTcvrToPortAndProfileForTest_[tcvrID] = {};
     }
-    // Use Agent config to get the iphy port and profile
-    const auto& swConfig = agentConfig_->thrift.sw();
-    for (const auto& port : *swConfig->ports()) {
-      // Only need ENABLED ports
-      if (*port.state() != cfg::PortState::ENABLED) {
-        continue;
-      }
+    // Use QSFP config to get the iphy port and profile
+    auto qsfpTestConfig = qsfpConfig_->thrift.qsfpTestConfig();
+    CHECK(qsfpTestConfig.has_value());
+    for (const auto& portPairs : *qsfpTestConfig->cabledPortPairs()) {
+      auto aPortID = getPortIDByPortName(*portPairs.aPortName());
+      auto zPortID = getPortIDByPortName(*portPairs.zPortName());
+      CHECK(aPortID.has_value());
+      CHECK(zPortID.has_value());
       // If the SW port has transceiver id, add it to
       // overrideTcvrToPortAndProfile
-      if (auto tcvrID = getTransceiverID(PortID(*port.logicalID()))) {
+      if (auto tcvrID = getTransceiverID(PortID(*aPortID))) {
         overrideTcvrToPortAndProfileForTest_[*tcvrID].emplace(
-            *port.logicalID(), *port.profileID());
+            *aPortID, *portPairs.profileID());
+      }
+      if (auto tcvrID = getTransceiverID(PortID(*zPortID))) {
+        overrideTcvrToPortAndProfileForTest_[*tcvrID].emplace(
+            *zPortID, *portPairs.profileID());
       }
     }
   }

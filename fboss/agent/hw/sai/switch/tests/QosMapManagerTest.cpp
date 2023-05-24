@@ -198,7 +198,7 @@ TEST_F(QosMapManagerTest, addPortQos) {
   portFields.portName() = "eth1/1/1";
   auto port = std::make_shared<Port>(std::move(portFields));
   port->setQosPolicy("qos");
-  switchState->getPorts()->addPort(port);
+  switchState->getPorts()->addNode(port, scopeResolver().scope(port));
   EXPECT_FALSE(saiPlatform->getHwSwitch()->isValidStateUpdate(
       StateDelta(std::make_shared<SwitchState>(), switchState)));
 }
@@ -211,8 +211,8 @@ TEST_F(QosMapManagerTest, changAddsPortQos) {
   portFields.portName() = "eth1/1/1";
   auto port = std::make_shared<Port>(std::move(portFields));
   port->setQosPolicy("qos");
-  auto ports = std::make_shared<PortMap>();
-  ports->addPort(port);
+  auto ports = std::make_shared<MultiSwitchPortMap>();
+  ports->addNode(port, scopeResolver().scope(port));
   oldState->resetPorts(ports);
   oldState->publish();
   EXPECT_TRUE(saiPlatform->getHwSwitch()->isValidStateUpdate(

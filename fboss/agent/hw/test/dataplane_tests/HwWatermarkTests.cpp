@@ -90,12 +90,13 @@ class HwWatermarkTest : public HwLinkStateDependentTest {
       bool isVoq) {
     std::string portName;
     if (!isVoq) {
-      portName = getProgrammedState()->getPorts()->getPort(portId)->getName();
+      portName = getProgrammedState()->getPorts()->getNodeIf(portId)->getName();
+
     } else {
       auto systemPortId = getSystemPortID(portId, getProgrammedState());
       portName = getProgrammedState()
                      ->getSystemPorts()
-                     ->getSystemPort(systemPortId)
+                     ->getNodeIf(systemPortId)
                      ->getPortName();
     }
 
@@ -124,7 +125,9 @@ class HwWatermarkTest : public HwLinkStateDependentTest {
       int retries,
       bool isVoq) {
     std::map<int16_t, int64_t> queueWaterMarks;
-    auto portName = getProgrammedState()->getPorts()->getPort(port)->getName();
+    auto portName =
+        getProgrammedState()->getPorts()->getNodeIf(port)->getName();
+
     auto queueTypeStr = isVoq ? " voq queueId: " : " queueId: ";
     auto watermarkStatsCheck = [&]() {
       XLOG(DBG2) << "Port: " << portName << queueTypeStr << queueId

@@ -202,9 +202,14 @@ std::unordered_map<PortID, cfg::PortProfileID> getSafeProfileIDs(
       }
       throw FbossError("Can't find safe profiles for ports:", portSetStr);
     }
+
+    bool isJericho2 =
+        platform->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2;
+    bool isJericho3 =
+        platform->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3;
+
     auto bestSpeed = cfg::PortSpeed::DEFAULT;
-    if (platform->getAsic()->getAsicType() ==
-        cfg::AsicType::ASIC_TYPE_JERICHO2) {
+    if (isJericho2 || isJericho3) {
       // For J2c we always want to choose the following
       // speeds since that's what we have in hw chip config
       // and J2c does not support dynamic port speed change yet.
@@ -215,10 +220,11 @@ std::unordered_map<PortID, cfg::PortProfileID> getSafeProfileIDs(
       }
       switch (*platPortItr->second.mapping()->portType()) {
         case cfg::PortType::INTERFACE_PORT:
-          bestSpeed = cfg::PortSpeed::HUNDREDG;
+          bestSpeed =
+              getDefaultInterfaceSpeed(platform->getAsic()->getAsicType());
           break;
         case cfg::PortType::FABRIC_PORT:
-          bestSpeed = cfg::PortSpeed::FIFTYTHREEPOINTONETWOFIVEG;
+          bestSpeed = getDefaultFabricSpeed(platform->getAsic()->getAsicType());
           break;
         case cfg::PortType::RECYCLE_PORT:
           bestSpeed = cfg::PortSpeed::XG;
@@ -334,12 +340,17 @@ cfg::SwitchConfig genPortVlanCfg(
   }
   cfg::SwitchInfo switchInfo;
   cfg::Range64 portIdRange;
-  portIdRange.minimum() = 0;
-  portIdRange.maximum() = 1023;
+  portIdRange.minimum() =
+      cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MIN();
+  portIdRange.maximum() =
+      cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MAX();
   switchInfo.portIdRange() = portIdRange;
   switchInfo.switchIndex() = 0;
   switchInfo.switchType() = switchType;
   switchInfo.asicType() = asic->getAsicType();
+  if (asic->getSystemPortRange().has_value()) {
+    switchInfo.systemPortRange() = *asic->getSystemPortRange();
+  }
   config.switchSettings()->switchIdToSwitchInfo() = {
       std::make_pair(switchId, switchInfo)};
   // Use getPortToDefaultProfileIDMap() to genetate the default config instead
@@ -423,21 +434,24 @@ cfg::SwitchConfig genPortVlanCfg(
 } // namespace
 
 void setPortToDefaultProfileIDMap(
-    const std::shared_ptr<PortMap>& ports,
+    const std::shared_ptr<MultiSwitchPortMap>& ports,
     const Platform* platform) {
   // Most of the platforms will have default ports created when the HW is
   // initialized. But for those who don't have any default port, we'll fall
   // back to use PlatformPort and the safe PortProfileID
-  if (ports->numPorts() > 0) {
-    for (const auto& port : std::as_const(*ports)) {
-      auto profileID = port.second->getProfileID();
-      // In case the profileID learnt from HW is using default, then use speed
-      // to get the real profileID
-      if (profileID == cfg::PortProfileID::PROFILE_DEFAULT) {
-        auto platformPort = platform->getPlatformPort(port.second->getID());
-        profileID = platformPort->getProfileIDBySpeed(port.second->getSpeed());
+  if (ports->numNodes() > 0) {
+    for (const auto& portMap : std::as_const(*ports)) {
+      for (const auto& port : std::as_const(*portMap.second)) {
+        auto profileID = port.second->getProfileID();
+        // In case the profileID learnt from HW is using default, then use speed
+        // to get the real profileID
+        if (profileID == cfg::PortProfileID::PROFILE_DEFAULT) {
+          auto platformPort = platform->getPlatformPort(port.second->getID());
+          profileID =
+              platformPort->getProfileIDBySpeed(port.second->getSpeed());
+        }
+        getPortToDefaultProfileIDMap().emplace(port.second->getID(), profileID);
       }
-      getPortToDefaultProfileIDMap().emplace(port.second->getID(), profileID);
     }
   } else {
     const auto& safeProfileIDs = getSafeProfileIDs(
@@ -448,7 +462,6 @@ void setPortToDefaultProfileIDMap(
   XLOG(DBG2) << "PortToDefaultProfileIDMap has "
              << getPortToDefaultProfileIDMap().size() << " ports";
 }
-
 folly::MacAddress kLocalCpuMac() {
   static const folly::MacAddress kLocalMac(
       FLAGS_nodeZ ? "02:00:00:00:00:02" : "02:00:00:00:00:01");
