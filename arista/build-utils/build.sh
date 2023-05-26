@@ -102,7 +102,7 @@ fi
 export SDK=""
 cd $SAI_BUILD_DIR
 export KERNDIR="$KERNEL_SRC"
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.28_SAI_9.2.0_EA/$ARCH-sdk-6.5.28-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.28_SAI_10.0.0_EA/$ARCH-sdk-6.5.28-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
