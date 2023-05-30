@@ -239,7 +239,7 @@ class HwLabelEdgeRouteTest : public HwLinkStateDependentTest {
     EXPECT_TRUE(vlanID.has_value());
     auto intfID = getProgrammedState()
                       ->getVlans()
-                      ->getVlan(vlanID.value())
+                      ->getNode(vlanID.value())
                       ->getInterfaceID();
     PrefixT dstPrefx{dstAddr, mask};
     utility::verifyProgrammedStack<AddrT>(

@@ -126,13 +126,13 @@ TEST_F(RibSerializationTest, serializeOnlyUnresolvedRoutes) {
 TEST_F(RibSerializationTest, deserializeOnlyUnresolvedRoutes) {
   auto deserializedRibEmptyFib = RoutingInformationBase::fromFollyDynamic(
       rib.unresolvedRoutesFollyDynamic(),
-      std::make_shared<ForwardingInformationBaseMap>(),
-      std::make_shared<LabelForwardingInformationBase>());
+      std::make_shared<MultiSwitchForwardingInformationBaseMap>(),
+      std::make_shared<MultiLabelForwardingInformationBase>());
 
   auto deserializedRibEmptyFibThrift = RoutingInformationBase::fromThrift(
       rib.warmBootState(),
-      std::make_shared<ForwardingInformationBaseMap>(),
-      std::make_shared<LabelForwardingInformationBase>());
+      std::make_shared<MultiSwitchForwardingInformationBaseMap>(),
+      std::make_shared<MultiLabelForwardingInformationBase>());
 
   auto deserializedRibNoFib = RoutingInformationBase::fromFollyDynamic(
       rib.unresolvedRoutesFollyDynamic(), nullptr, nullptr);

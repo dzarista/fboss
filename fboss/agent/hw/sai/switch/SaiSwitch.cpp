@@ -255,7 +255,9 @@ HwInitResult SaiSwitch::initImpl(
 #if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
-    defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(SAI_VERSION_9_0_EA_DNX_ODP)
+    defined(SAI_VERSION_9_0_EA_SIM_ODP) ||                                     \
+    defined(SAI_VERSION_9_0_EA_DNX_ODP) ||                                     \
+    defined(SAI_VERSION_9_0_EA_DNX_SIM_ODP)
     // TODO(zecheng): Remove after devices warmbooted to 8.2.
     managerTable_->wredManager().removeUnclaimedWredProfile();
 #endif
@@ -862,36 +864,9 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
 
     if (delta.getAclTableGroupsDelta().getNew()) {
       // Process delta for the entries of each table in the new state
-      for (const auto& iter :
-           std::as_const(*delta.getAclTableGroupsDelta().getNew())) {
-        const auto& tableGroup = iter.second;
-        auto aclStage = tableGroup->getID();
-
-        processDelta(
-            delta.getAclTablesDelta(aclStage),
-            managerTable_->aclTableManager(),
-            lockPolicy,
-            &SaiAclTableManager::changedAclTable,
-            &SaiAclTableManager::addAclTable,
-            &SaiAclTableManager::removeAclTable,
-            aclStage);
-
-        if (delta.getAclTablesDelta(aclStage).getNew()) {
-          // Process delta for the entries of each table in the new state
-          for (const auto& iter :
-               std::as_const(*delta.getAclTablesDelta(aclStage).getNew())) {
-            auto table = iter.second;
-            auto tableName = table->getID();
-            processDelta(
-                delta.getAclsDelta(aclStage, tableName),
-                managerTable_->aclTableManager(),
-                lockPolicy,
-                &SaiAclTableManager::changedAclEntry,
-                &SaiAclTableManager::addAclEntry,
-                &SaiAclTableManager::removeAclEntry,
-                tableName);
-          }
-        }
+      for (const auto& [_, tableGroupMap] :
+           *delta.getAclTableGroupsDelta().getNew()) {
+        processAclTableGroupDelta(delta, *tableGroupMap, lockPolicy);
       }
     }
   } else {
@@ -1800,18 +1775,24 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
   // Temporarily skip resetPorts for ASIC_TYPE_ELBERT_8DD
   if (platform_->getAsic()->getAsicType() !=
       cfg::AsicType::ASIC_TYPE_ELBERT_8DD) {
+    auto switchId = platform_->getAsic()->getSwitchId()
+        ? *platform_->getAsic()->getSwitchId()
+        : 0;
+    HwSwitchMatcher matcher(std::unordered_set<SwitchID>({SwitchID(switchId)}));
     // reconstruct ports
-    auto portMap =
-        managerTable_->portManager().reconstructPortsFromStore(switchType_);
-    auto ports = std::make_shared<PortMap>();
+    auto portMaps = managerTable_->portManager().reconstructPortsFromStore(
+        switchType_, matcher);
+    auto ports = std::make_shared<MultiSwitchPortMap>();
     if (FLAGS_hide_fabric_ports) {
-      for (auto [id, port] : *portMap) {
-        if (port->getPortType() != cfg::PortType::FABRIC_PORT) {
-          ports->addPort(port);
+      for (const auto& portMap : std::as_const(*portMaps)) {
+        for (const auto& [id, port] : std::as_const(*portMap.second)) {
+          if (port->getPortType() != cfg::PortType::FABRIC_PORT) {
+            ports->addNode(port, matcher);
+          }
         }
       }
     } else {
-      ports = std::move(portMap);
+      ports = std::move(portMaps);
     }
     state->resetPorts(ports);
   }
@@ -1819,11 +1800,15 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
   // For VOQ switch, create system ports for existing egress ports
   if (switchType_ == cfg::SwitchType::VOQ) {
     CHECK(getSwitchId().has_value());
-    state->resetSystemPorts(
+    auto sysPorts = std::make_shared<MultiSwitchSystemPortMap>();
+    sysPorts->addMapNode(
         managerTable_->systemPortManager().constructSystemPorts(
             state->getPorts(),
             getSwitchId().value(),
-            platform_->getAsic()->getSystemPortRange()));
+            platform_->getAsic()->getSystemPortRange()),
+        HwSwitchMatcher(
+            std::unordered_set<SwitchID>({SwitchID(getSwitchId().value())})));
+    state->resetSystemPorts(sysPorts);
   }
 
   return state;
@@ -2328,7 +2313,9 @@ void SaiSwitch::unregisterCallbacksLocked(
 #if defined(SAI_VERSION_7_2_0_0_ODP) || defined(SAI_VERSION_8_2_0_0_ODP) ||    \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
-    defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(SAI_VERSION_9_0_EA_DNX_ODP)
+    defined(SAI_VERSION_9_0_EA_SIM_ODP) ||                                     \
+    defined(SAI_VERSION_9_0_EA_DNX_ODP) ||                                     \
+    defined(SAI_VERSION_9_0_EA_DNX_SIM_ODP)
     switchApi.unregisterParityErrorSwitchEventCallback(switchId_);
 #else
     switchApi.unregisterTamEventCallback(switchId_);
@@ -2360,7 +2347,7 @@ bool SaiSwitch::isValidStateUpdateLocked(
   }
 
   auto qosDelta = delta.getQosPoliciesDelta();
-  if (qosDelta.getNew()->size() > 0) {
+  if (qosDelta.getNew()->numNodes() > 0) {
     XLOG(ERR) << "Only default data plane qos policy is supported";
     return false;
   }
@@ -2440,19 +2427,21 @@ bool SaiSwitch::isValidStateUpdateLocked(
   // TODO - Add support for per port watchdog recovery action
   std::shared_ptr<Port> firstPort;
   std::optional<cfg::PfcWatchdogRecoveryAction> recoveryAction{};
-  for (const auto& port : std::as_const(*delta.newState()->getPorts())) {
-    if (port.second->getPfc().has_value() &&
-        port.second->getPfc()->watchdog().has_value()) {
-      auto pfcWd = port.second->getPfc()->watchdog().value();
-      if (!recoveryAction.has_value()) {
-        recoveryAction = *pfcWd.recoveryAction();
-        firstPort = port.second;
-      } else if (*recoveryAction != *pfcWd.recoveryAction()) {
-        // Error: All ports should have the same recovery action configured
-        XLOG(ERR) << "PFC watchdog deadlock recovery action on "
-                  << port.second->getName() << " conflicting with "
-                  << firstPort->getName();
-        isValid = false;
+  for (const auto& portMap : std::as_const(*delta.newState()->getPorts())) {
+    for (const auto& port : std::as_const(*portMap.second)) {
+      if (port.second->getPfc().has_value() &&
+          port.second->getPfc()->watchdog().has_value()) {
+        auto pfcWd = port.second->getPfc()->watchdog().value();
+        if (!recoveryAction.has_value()) {
+          recoveryAction = *pfcWd.recoveryAction();
+          firstPort = port.second;
+        } else if (*recoveryAction != *pfcWd.recoveryAction()) {
+          // Error: All ports should have the same recovery action configured
+          XLOG(ERR) << "PFC watchdog deadlock recovery action on "
+                    << port.second->getName() << " conflicting with "
+                    << firstPort->getName();
+          isValid = false;
+        }
       }
     }
   }
@@ -2627,7 +2616,9 @@ void SaiSwitch::switchRunStateChangedImplLocked(
 #if defined(SAI_VERSION_7_2_0_0_ODP) || defined(SAI_VERSION_8_2_0_0_ODP) ||    \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
-    defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(SAI_VERSION_9_0_EA_DNX_ODP)
+    defined(SAI_VERSION_9_0_EA_SIM_ODP) ||                                     \
+    defined(SAI_VERSION_9_0_EA_DNX_ODP) ||                                     \
+    defined(SAI_VERSION_9_0_EA_DNX_SIM_ODP)
         switchApi.registerParityErrorSwitchEventCallback(
             switchId_, (void*)__gParityErrorSwitchEventCallback);
 #else
@@ -3106,5 +3097,41 @@ void SaiSwitch::rollbackInTest(
     const std::shared_ptr<SwitchState>& knownGoodState) {
   rollback(knownGoodState);
   setProgrammedState(knownGoodState);
+}
+
+template <typename LockPolicyT>
+void SaiSwitch::processAclTableGroupDelta(
+    const StateDelta& delta,
+    const AclTableGroupMap& aclTableGroupMap,
+    const LockPolicyT& lockPolicy) {
+  for (const auto& [_, tableGroup] : aclTableGroupMap) {
+    auto aclStage = tableGroup->getID();
+
+    processDelta(
+        delta.getAclTablesDelta(aclStage),
+        managerTable_->aclTableManager(),
+        lockPolicy,
+        &SaiAclTableManager::changedAclTable,
+        &SaiAclTableManager::addAclTable,
+        &SaiAclTableManager::removeAclTable,
+        aclStage);
+
+    if (delta.getAclTablesDelta(aclStage).getNew()) {
+      // Process delta for the entries of each table in the new state
+      for (const auto& iter :
+           std::as_const(*delta.getAclTablesDelta(aclStage).getNew())) {
+        auto table = iter.second;
+        auto tableName = table->getID();
+        processDelta(
+            delta.getAclsDelta(aclStage, tableName),
+            managerTable_->aclTableManager(),
+            lockPolicy,
+            &SaiAclTableManager::changedAclEntry,
+            &SaiAclTableManager::addAclEntry,
+            &SaiAclTableManager::removeAclEntry,
+            tableName);
+      }
+    }
+  }
 }
 } // namespace facebook::fboss

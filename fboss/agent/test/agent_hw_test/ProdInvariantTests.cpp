@@ -42,12 +42,16 @@ void ProdInvariantTest::setupAgentTestEcmp(
     ports.insert(ecmpPort);
   });
 
+  // When prod config is used, use uplink's subnet IP with last bit flipped as
+  // the next hop IP.
+  auto forProdConfig =
+      useProdConfig_.has_value() ? useProdConfig_.value() : false;
+  utility::EcmpSetupTargetedPorts6 ecmp6(sw()->getState(), forProdConfig);
+
   sw()->updateStateBlocking("Resolve nhops", [&](auto state) {
-    utility::EcmpSetupTargetedPorts6 ecmp6(state);
     return ecmp6.resolveNextHops(state, ports);
   });
 
-  utility::EcmpSetupTargetedPorts6 ecmp6(sw()->getState());
   ecmp6.programRoutes(
       std::make_unique<SwSwitchRouteUpdateWrapper>(sw()->getRouteUpdater()),
       ports);
@@ -90,6 +94,11 @@ cfg::SwitchConfig ProdInvariantTest::getConfigFromFlag() {
   for (auto& port : *config.ports()) {
     port.loopbackMode() = cfg::PortLoopbackMode::MAC;
   }
+  for (auto& intf : *config.interfaces()) {
+    if (intf.ndp()) {
+      intf.ndp()->routerAdvertisementSeconds() = 0;
+    }
+  }
   return config;
 }
 
@@ -114,19 +123,18 @@ cfg::SwitchConfig ProdInvariantTest::initialConfig() {
 void ProdInvariantTest::setupConfigFlag() {
   cfg::AgentConfig testConfig;
   utility::setPortToDefaultProfileIDMap(
-      std::make_shared<PortMap>(), platform());
-  if (checkBaseConfigPortsEmpty()) {
-    testConfig.sw() = initialConfig();
-    const auto& baseConfig = platform()->config();
-    testConfig.platform() = *baseConfig->thrift.platform();
-    auto newcfg = AgentConfig(
-        testConfig,
-        apache::thrift::SimpleJSONSerializer::serialize<std::string>(
-            testConfig));
-    auto newCfgFile = getTestConfigPath();
-    newcfg.dumpConfig(newCfgFile);
-    FLAGS_config = newCfgFile;
-  }
+      std::make_shared<MultiSwitchPortMap>(), platform());
+  testConfig.sw() = initialConfig();
+  const auto& baseConfig = platform()->config();
+  testConfig.defaultCommandLineArgs() =
+      *baseConfig->thrift.defaultCommandLineArgs();
+  testConfig.platform() = *baseConfig->thrift.platform();
+  auto newCfg = AgentConfig(
+      testConfig,
+      apache::thrift::SimpleJSONSerializer::serialize<std::string>(testConfig));
+  auto newCfgFile = getTestConfigPath();
+  newCfg.dumpConfig(newCfgFile);
+  FLAGS_config = newCfgFile;
   // reload config so that test config is loaded
   platform()->reloadConfig();
 }
@@ -229,7 +237,7 @@ TEST_F(ProdInvariantTest, verifyInvariants) {
     verifyAcl();
     // TODO: Uncomment once tests are more stable.
     verifyCopp();
-    // verifyLoadBalancing();
+    verifyLoadBalancing();
     // verifyDscpToQueueMapping();
     verifySafeDiagCommands();
   };

@@ -19,6 +19,7 @@
 
 namespace facebook::fboss {
 class PortMap;
+class MultiSwitchPortMap;
 class HwSwitchEnsemble;
 } // namespace facebook::fboss
 
@@ -166,7 +167,7 @@ cfg::SwitchConfig createRtswUplinkDownlinkConfig(
 std::unordered_map<PortID, cfg::PortProfileID>& getPortToDefaultProfileIDMap();
 
 void setPortToDefaultProfileIDMap(
-    const std::shared_ptr<PortMap>& ports,
+    const std::shared_ptr<MultiSwitchPortMap>& ports,
     const Platform* platform);
 
 std::map<int, std::vector<uint8_t>> getOlympicQosMaps(

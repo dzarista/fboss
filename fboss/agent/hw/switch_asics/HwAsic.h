@@ -141,6 +141,8 @@ class HwAsic {
     SAI_CONFIGURE_SEVEN_TAP,
     SWITCH_DROP_STATS,
     SAI_UDF_HASH,
+    INGRESS_PRIORITY_GROUP_HEADROOM_WATERMARK,
+    RX_LANE_SQUELCH_ENABLE,
   };
 
   enum class AsicMode {
@@ -285,6 +287,11 @@ class HwAsic {
   void setDefaultStreamType(cfg::StreamType streamType) {
     defaultStreamType_ = streamType;
   }
+
+  const folly::MacAddress& getAsicMac() const {
+    return asicMac_;
+  }
+
   struct RecyclePortInfo {
     uint32_t coreId;
     uint32_t corePortIndex;

@@ -165,16 +165,18 @@ std::set<cfg::AclTableQualifier> AclEntry::getRequiredAclTableQualifiers()
   return qualifiers;
 }
 
-AclEntry* AclEntry::modify(std::shared_ptr<SwitchState>* state) {
+AclEntry* AclEntry::modify(
+    std::shared_ptr<SwitchState>* state,
+    const HwSwitchMatcher& matcher) {
   if (!isPublished()) {
     CHECK(!(*state)->isPublished());
     return this;
   }
 
-  AclMap* acls = (*state)->getAcls()->modify(state);
+  MultiSwitchAclMap* acls = (*state)->getAcls()->modify(state);
   auto newEntry = clone();
   auto* ptr = newEntry.get();
-  acls->updateNode(std::move(newEntry));
+  acls->updateNode(std::move(newEntry), matcher);
   return ptr;
 }
 

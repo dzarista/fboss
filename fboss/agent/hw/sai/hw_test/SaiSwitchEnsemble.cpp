@@ -81,11 +81,7 @@ std::unique_ptr<std::thread> SaiSwitchEnsemble::createThriftThread(
     folly::EventBase* eventBase = new folly::EventBase();
     auto handler = std::make_shared<SaiTestHandler>(hwSwitch);
     auto server = setupThriftServer(
-        *eventBase,
-        handler,
-        {FLAGS_thrift_port},
-        false /* isDuplex */,
-        true /* setupSSL*/);
+        *eventBase, handler, {FLAGS_thrift_port}, true /* setupSSL*/);
     SignalHandler signalHandler(eventBase);
     server->serve();
   });
@@ -170,6 +166,13 @@ void SaiSwitchEnsemble::init(
       std::move(linkToggler),
       std::move(thriftThread),
       info);
+  // TODO - set streamtype correctly based on sdk version from config
+  HwAsic* hwAsicTableEntry = getHwAsicTable()->getHwAsicIf(
+      getPlatform()->getAsic()->getSwitchId()
+          ? SwitchID(*getPlatform()->getAsic()->getSwitchId())
+          : SwitchID(0));
+  hwAsicTableEntry->setDefaultStreamType(
+      getPlatform()->getAsic()->getDefaultStreamType());
   getPlatform()->initLEDs();
   auto hw = static_cast<SaiSwitch*>(getHwSwitch());
   diagShell_ = std::make_unique<DiagShell>(hw);

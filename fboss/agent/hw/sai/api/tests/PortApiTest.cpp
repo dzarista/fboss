@@ -63,6 +63,7 @@ class PortApiTest : public ::testing::Test {
           std::nullopt, // Inter frame gap
 #endif
           std::nullopt, // Link Training Enable
+          std::nullopt, // Rx Lane Squelch Enable
     };
     return portApi->create<SaiPortTraits>(a, 0);
   }
@@ -223,6 +224,15 @@ TEST_F(PortApiTest, setGetOptionalAttributes) {
   portApi->setAttribute(portId, fecMode);
   auto gotFecMode = portApi->getAttribute(portId, fecMode);
   EXPECT_EQ(gotFecMode, saiFecMode);
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+  // Internal Loopback Mode get/set
+  int32_t saiLoopbackMode = SAI_PORT_LOOPBACK_MODE_MAC;
+  SaiPortTraits::Attributes::PortLoopbackMode loopbackMode{saiLoopbackMode};
+  portApi->setAttribute(portId, loopbackMode);
+  auto gotLoopbackMode = portApi->getAttribute(portId, loopbackMode);
+  EXPECT_EQ(gotLoopbackMode, saiLoopbackMode);
+#endif
 
   // Internal Loopback Mode get/set
   int32_t saiInternalLoopbackMode = SAI_PORT_INTERNAL_LOOPBACK_MODE_MAC;

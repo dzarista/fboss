@@ -368,8 +368,13 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
     hwLaneList = pportList;
   }
   auto globalFlowControlMode = utility::getSaiPortPauseMode(swPort->getPause());
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+  auto loopbackMode =
+      utility::getSaiPortLoopbackMode(swPort->getLoopbackMode());
+#else
   auto internalLoopbackMode =
       utility::getSaiPortInternalLoopbackMode(swPort->getLoopbackMode());
+#endif
 
   // Now use profileConfig from SW port as the source of truth
   auto portProfileConfig = swPort->getProfileConfig();
@@ -441,10 +446,13 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
 #if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
         isDrained,
 #endif
-
-        internalLoopbackMode, mediaType, globalFlowControlMode, vlanId,
-        swPort->getMaxFrameSize(), std::nullopt, std::nullopt, std::nullopt,
-        interfaceType, std::nullopt,
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+        loopbackMode,
+#else
+        internalLoopbackMode,
+#endif
+        mediaType, globalFlowControlMode, vlanId, swPort->getMaxFrameSize(),
+        std::nullopt, std::nullopt, std::nullopt, interfaceType, std::nullopt,
         std::nullopt, // Ingress Mirror Session
         std::nullopt, // Egress Mirror Session
         std::nullopt, // Ingress Sample Packet
@@ -467,6 +475,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         interFrameGap, // Inter Frame Gap
 #endif
         std::nullopt, // Link Training Enable
+        std::nullopt, // Rx Lane Squelch Enable
   };
 }
 
@@ -566,6 +575,7 @@ void SaiPortManager::programSerdes(
     !defined(SAI_VERSION_8_2_0_0_DNX_ODP) &&                                  \
     !defined(SAI_VERSION_8_2_0_0_SIM_ODP) &&                                  \
     !defined(SAI_VERSION_9_0_EA_SIM_ODP) &&                                   \
+    !defined(SAI_VERSION_9_0_EA_DNX_SIM_ODP) &&                               \
     !defined(SAI_VERSION_9_0_EA_ODP) && !defined(SAI_VERSION_9_0_EA_DNX_ODP)
     // serdes is not yet programmed or reloaded from adapter
     std::optional<SaiPortTraits::Attributes::SerdesId> serdesAttr{};

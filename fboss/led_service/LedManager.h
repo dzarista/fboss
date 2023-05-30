@@ -17,6 +17,8 @@
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/platforms/common/PlatformMapping.h"
+#include "fboss/fsdb/client/FsdbPubSubManager.h"
+#include "fboss/led_service/FsdbSwitchStateSubscriber.h"
 #include "fboss/lib/bsp/BspSystemContainer.h"
 #include "fboss/lib/led/LedIO.h"
 #include "fboss/lib/led/gen-cpp2/led_mapping_types.h"
@@ -46,8 +48,9 @@ class LedManager {
   // Initialize the Led Manager, get system container
   virtual void initLedManager() {}
 
-  // On getting the update from FSDB, update portDisplayList_
-  void updateLedStatus() {}
+  // On getting the update from FSDB, update portDisplayMap_
+  void updateLedStatus(
+      std::map<uint16_t, fboss::state::PortFields> newSwitchState);
 
   folly::EventBase* getEventBase() {
     return eventBase_.get();
@@ -57,9 +60,6 @@ class LedManager {
   LedManager(LedManager const&) = delete;
   LedManager& operator=(LedManager const&) = delete;
 
-  folly::Synchronized<std::map<uint16_t, fboss::state::PortFields>>
-      subscribedAgentSwitchStatePortData_;
-
  protected:
   // System container to get LED controller
   BspSystemContainer* bspSystemContainer_{nullptr};
@@ -68,16 +68,30 @@ class LedManager {
   std::unique_ptr<PlatformMapping> platformMapping_;
 
   // Port Name to PortDisplayInfo map, no lock needed
-  std::map<uint32_t, PortDisplayInfo> portDisplayList_;
+  std::map<uint32_t, PortDisplayInfo> portDisplayMap_;
+
+  std::unique_ptr<FsdbSwitchStateSubscriber> fsdbSwitchStateSubscriber_;
+  std::unique_ptr<fsdb::FsdbPubSubManager> fsdbPubSubMgr_;
 
   virtual led::LedColor calculateLedColor(
       uint32_t portId,
-      cfg::PortProfileID portProfile) {
-    return led::LedColor::UNKNOWN;
-  }
-  virtual void setLedColor(uint32_t portId, led::LedColor ledColor) {}
+      cfg::PortProfileID portProfile);
+
+  virtual led::LedColor getLedColorFromPortStatus(
+      bool anyPortUp,
+      bool allPortsUp,
+      bool allPortsReachable);
+
+  virtual void setLedColor(
+      uint32_t portId,
+      cfg::PortProfileID portProfile,
+      led::LedColor ledColor);
 
   std::vector<int> getLedIdFromSwPort(
+      uint32_t portId,
+      cfg::PortProfileID portProfile) const;
+
+  std::vector<uint32_t> getCommonLedSwPorts(
       uint32_t portId,
       cfg::PortProfileID portProfile) const;
 

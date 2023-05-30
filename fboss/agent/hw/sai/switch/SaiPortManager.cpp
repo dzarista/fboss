@@ -1052,9 +1052,15 @@ std::shared_ptr<Port> SaiPortManager::swPortFromAttributes(
   auto vlan = GET_OPT_ATTR(Port, PortVlanId, attributes);
   port->setIngressVlan(static_cast<VlanID>(vlan));
 
-  auto lbMode = GET_OPT_ATTR(Port, InternalLoopbackMode, attributes);
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+  auto lbMode = GET_OPT_ATTR(Port, PortLoopbackMode, attributes);
+  port->setLoopbackMode(utility::getCfgPortLoopbackMode(
+      static_cast<sai_port_loopback_mode_t>(lbMode)));
+#else
+  auto ilbMode = GET_OPT_ATTR(Port, InternalLoopbackMode, attributes);
   port->setLoopbackMode(utility::getCfgPortInternalLoopbackMode(
-      static_cast<sai_port_internal_loopback_mode_t>(lbMode)));
+      static_cast<sai_port_internal_loopback_mode_t>(ilbMode)));
+#endif
 
   // TODO: support Preemphasis once it is also used
 
@@ -1122,7 +1128,8 @@ bool SaiPortManager::fecStatsSupported(PortID portId) const {
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(TAJO_SDK_VERSION_1_42_4) || \
     defined(SAI_VERSION_9_0_EA_ODP) || defined(SAI_VERSION_9_0_EA_DNX_ODP) ||  \
-    defined(TAJO_SDK_VERSION_1_42_8)
+    defined(TAJO_SDK_VERSION_1_42_8) || defined(TAJO_SDK_VERSION_1_62_0) ||    \
+    defined(SAI_VERSION_9_0_EA_DNX_SIM_ODP)
     return true;
 #endif
   }
@@ -1321,15 +1328,16 @@ cfg::PortSpeed SaiPortManager::getMaxSpeed(PortID port) const {
   return platform_->getPortMaxSpeed(port);
 }
 
-std::shared_ptr<PortMap> SaiPortManager::reconstructPortsFromStore(
-    cfg::SwitchType switchType) const {
+std::shared_ptr<MultiSwitchPortMap> SaiPortManager::reconstructPortsFromStore(
+    cfg::SwitchType switchType,
+    const HwSwitchMatcher& matcher) const {
   auto& portStore = saiStore_->get<SaiPortTraits>();
-  auto portMap = std::make_shared<PortMap>();
+  auto portMap = std::make_shared<MultiSwitchPortMap>();
   for (auto& iter : portStore.objects()) {
     auto saiPort = iter.second.lock();
     auto port = swPortFromAttributes(
         saiPort->attributes(), saiPort->adapterKey(), switchType);
-    portMap->addNode(port);
+    portMap->addNode(port, matcher);
   }
   return portMap;
 }

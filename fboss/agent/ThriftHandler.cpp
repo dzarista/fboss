@@ -17,6 +17,7 @@
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/IPv6Handler.h"
+#include "fboss/agent/LabelFibUtils.h"
 #include "fboss/agent/LinkAggregationManager.h"
 #include "fboss/agent/LldpManager.h"
 #include "fboss/agent/NeighborUpdater.h"
@@ -101,10 +102,6 @@ using facebook::network::toBinaryAddress;
 using facebook::network::toIPAddress;
 
 using namespace facebook::fboss;
-
-// TODO: can remove this flag and all corresponding code once emulation
-// environment has migrated away from duplex
-DEFINE_bool(disable_duplex, false, "Disable thrift duplex");
 
 DEFINE_bool(
     enable_running_config_mutations,
@@ -196,7 +193,7 @@ void getPortInfoHelper(
     qosPolicy =
         *appliedPolicyName == state->getDefaultDataPlaneQosPolicy()->getName()
         ? state->getDefaultDataPlaneQosPolicy()
-        : state->getQosPolicy(*appliedPolicyName);
+        : state->getQosPolicies()->getNodeIf(*appliedPolicyName);
     if (!qosPolicy) {
       throw std::runtime_error("qosPolicy state is null");
     }
@@ -504,7 +501,7 @@ LinkNeighborThrift thriftLinkNeighbor(
   if (!n->getPortDescription().empty()) {
     tn.portDescription() = n->getPortDescription();
   }
-  const auto port = sw.getState()->getPorts()->getPortIf(n->getLocalPort());
+  const auto port = sw.getState()->getPorts()->getNodeIf(n->getLocalPort());
   if (port) {
     tn.localPortName() = port->getName();
   }
@@ -586,6 +583,8 @@ cfg::PortLoopbackMode toLoopbackMode(PortLoopbackMode mode) {
       return cfg::PortLoopbackMode::MAC;
     case PortLoopbackMode::PHY:
       return cfg::PortLoopbackMode::PHY;
+    case PortLoopbackMode::NIF:
+      return cfg::PortLoopbackMode::NIF;
   }
   throw FbossError("Bogus loopback mode: ", mode);
 }
@@ -597,6 +596,8 @@ PortLoopbackMode toThriftLoopbackMode(cfg::PortLoopbackMode mode) {
       return PortLoopbackMode::MAC;
     case cfg::PortLoopbackMode::PHY:
       return PortLoopbackMode::PHY;
+    case cfg::PortLoopbackMode::NIF:
+      return PortLoopbackMode::NIF;
   }
   throw FbossError("Bogus loopback mode: ", mode);
 }
@@ -616,7 +617,7 @@ void addRecylePortRifNeighbors(
     auto localRecycleRifId =
         InterfaceID(*dsfNode->getSystemPortRange()->minimum() + kRecylePortId);
     const auto& localRecycleRif =
-        state->getInterfaces()->getInterface(localRecycleRifId);
+        state->getInterfaces()->getNode(localRecycleRifId);
     const auto& nbrTable =
         std::as_const(*localRecycleRif->getNeighborEntryTable<AddressT>());
     for (const auto& ipAndEntry : nbrTable) {
@@ -662,21 +663,7 @@ class RouteUpdateStats {
   std::chrono::time_point<std::chrono::steady_clock> start_;
 };
 
-ThriftHandler::ThriftHandler(SwSwitch* sw) : FacebookBase2("FBOSS"), sw_(sw) {
-  if (sw && !FLAGS_disable_duplex) {
-    sw->registerNeighborListener([=](const std::vector<std::string>& added,
-                                     const std::vector<std::string>& deleted) {
-      for (auto& listener : listeners_.accessAllThreads()) {
-        XLOG(DBG2) << "Sending notification to bgpD";
-        auto listenerPtr = &listener;
-        listener.eventBase->runInEventBaseThread([=] {
-          XLOG(DBG2) << "firing off notification";
-          invokeNeighborListeners(listenerPtr, added, deleted);
-        });
-      }
-    });
-  }
-}
+ThriftHandler::ThriftHandler(SwSwitch* sw) : FacebookBase2("FBOSS"), sw_(sw) {}
 
 fb_status ThriftHandler::getStatus() {
   if (sw_->isExiting()) {
@@ -893,10 +880,12 @@ void ThriftHandler::getAllInterfaces(
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
   const auto interfaceMap = sw_->getState()->getInterfaces();
-  for (auto iter : std::as_const(*interfaceMap)) {
-    const auto& intf = iter.second;
-    auto& interfaceDetail = interfaces[intf->getID()];
-    populateInterfaceDetail(interfaceDetail, intf);
+  for (const auto& [_, intfs] : std::as_const(*interfaceMap)) {
+    for (auto iter : std::as_const(*intfs)) {
+      const auto& intf = iter.second;
+      auto& interfaceDetail = interfaces[intf->getID()];
+      populateInterfaceDetail(interfaceDetail, intf);
+    }
   }
 }
 
@@ -904,9 +893,11 @@ void ThriftHandler::getInterfaceList(std::vector<std::string>& interfaceList) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
   const auto interfaceMap = sw_->getState()->getInterfaces();
-  for (auto iter : std::as_const(*interfaceMap)) {
-    auto intf = iter.second;
-    interfaceList.push_back(intf->getName());
+  for (const auto& [_, intfs] : std::as_const(*interfaceMap)) {
+    for (auto iter : std::as_const(*intfs)) {
+      auto intf = iter.second;
+      interfaceList.push_back(intf->getName());
+    }
   }
 }
 
@@ -915,8 +906,8 @@ void ThriftHandler::getInterfaceDetail(
     int32_t interfaceId) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  const auto intf = sw_->getState()->getInterfaces()->getInterfaceIf(
-      InterfaceID(interfaceId));
+  const auto intf =
+      sw_->getState()->getInterfaces()->getNodeIf(InterfaceID(interfaceId));
 
   if (!intf) {
     throw FbossError("no such interface ", interfaceId);
@@ -941,38 +932,47 @@ void ThriftHandler::addRemoteNeighbors(
   }
   const auto& remoteRifs = state->getRemoteInterfaces();
   const auto& remoteSysPorts = state->getRemoteSystemPorts();
-  for (const auto& idAndRif : std::as_const(*remoteRifs)) {
-    const auto& rif = idAndRif.second;
-    const auto& nbrTable =
-        std::as_const(*rif->getNeighborEntryTable<AddressT>());
-    for (const auto& ipAndEntry : nbrTable) {
-      const auto& entry = ipAndEntry.second;
-      NeighborThriftT nbrThrift;
-      nbrThrift.ip() = facebook::network::toBinaryAddress(entry->getIP());
-      nbrThrift.mac() = entry->getMac().toString();
-      CHECK(rif->getSystemPortID().has_value());
-      nbrThrift.port() = static_cast<int32_t>(*rif->getSystemPortID());
-      nbrThrift.vlanName() = "--";
+  for (const auto& [_, rifMap] : std::as_const(*remoteRifs)) {
+    for (const auto& idAndRif : std::as_const(*rifMap)) {
+      const auto& rif = idAndRif.second;
+      const auto& nbrTable =
+          std::as_const(*rif->template getNeighborEntryTable<AddressT>());
+      for (const auto& ipAndEntry : nbrTable) {
+        const auto& entry = ipAndEntry.second;
+        NeighborThriftT nbrThrift;
+        nbrThrift.ip() = facebook::network::toBinaryAddress(entry->getIP());
+        nbrThrift.mac() = entry->getMac().toString();
+        CHECK(rif->getSystemPortID().has_value());
+        nbrThrift.port() = static_cast<int32_t>(*rif->getSystemPortID());
+        nbrThrift.vlanName() = "--";
 
-      switch (entry->getType()) {
-        case state::NeighborEntryType::STATIC_ENTRY:
-          nbrThrift.state() = "STATIC";
-          break;
-        case state::NeighborEntryType::DYNAMIC_ENTRY:
-          nbrThrift.state() = "DYNAMIC";
-          break;
-      }
+        switch (entry->getType()) {
+          case state::NeighborEntryType::STATIC_ENTRY:
+            nbrThrift.state() = "STATIC";
+            break;
+          case state::NeighborEntryType::DYNAMIC_ENTRY:
+            nbrThrift.state() = "DYNAMIC";
+            break;
+        }
 
-      nbrThrift.isLocal() = false;
-      const auto& sysPort =
-          remoteSysPorts->getSystemPortIf(*rif->getSystemPortID());
-      if (sysPort) {
-        nbrThrift.switchId() = static_cast<int64_t>(sysPort->getSwitchId());
+        nbrThrift.isLocal() = false;
+        const auto& sysPort =
+            remoteSysPorts->getNodeIf(*rif->getSystemPortID());
+        if (sysPort) {
+          nbrThrift.switchId() = static_cast<int64_t>(sysPort->getSwitchId());
+        }
+        if (entry->getResolvedSince().has_value()) {
+          nbrThrift.resolvedSince() = entry->getResolvedSince().value();
+        } else {
+          XLOG(WARNING) << "Neighbor entry " << ipAndEntry.first
+                        << " is missing resolved timestamp";
+        }
+        nbrs.push_back(nbrThrift);
       }
-      nbrs.push_back(nbrThrift);
     }
   }
 }
+
 void ThriftHandler::getNdpTable(std::vector<NdpEntryThrift>& ndpTable) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
@@ -1009,10 +1009,12 @@ void ThriftHandler::getL2Table(std::vector<L2EntryThrift>& l2Table) {
 void ThriftHandler::getAclTable(std::vector<AclEntryThrift>& aclTable) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  aclTable.reserve(sw_->getState()->getAcls()->numEntries());
-  for (const auto& iter : std::as_const(*(sw_->getState()->getAcls()))) {
-    const auto& aclEntry = iter.second;
-    aclTable.push_back(populateAclEntryThrift(*aclEntry));
+  aclTable.reserve(sw_->getState()->getAcls()->numNodes());
+  for (const auto& mIter : std::as_const(*(sw_->getState()->getAcls()))) {
+    for (const auto& iter : std::as_const(*mIter.second)) {
+      const auto& aclEntry = iter.second;
+      aclTable.push_back(populateAclEntryThrift(*aclEntry));
+    }
   }
 }
 
@@ -1030,7 +1032,7 @@ void ThriftHandler::getAggregatePort(
   auto aggregatePortID = static_cast<AggregatePortID>(aggregatePortIDThrift);
 
   auto aggregatePort =
-      sw_->getState()->getAggregatePorts()->getAggregatePortIf(aggregatePortID);
+      sw_->getState()->getAggregatePorts()->getNodeIf(aggregatePortID);
 
   if (!aggregatePort) {
     throw FbossError(
@@ -1050,12 +1052,14 @@ void ThriftHandler::getAggregatePortTable(
   aggregatePortsThrift.clear();
 
   const auto& aggregatePortMap = sw_->getState()->getAggregatePorts();
-  aggregatePortsThrift.reserve(aggregatePortMap->size());
-  for (const auto& aggregatePortAndID : std::as_const(*aggregatePortMap)) {
-    aggregatePortsThrift.emplace_back();
+  aggregatePortsThrift.reserve(aggregatePortMap->numNodes());
+  for (const auto& [_, entry] : std::as_const(*aggregatePortMap)) {
+    for (const auto& aggregatePortAndID : std::as_const(*entry)) {
+      aggregatePortsThrift.emplace_back();
 
-    populateAggregatePortThrift(
-        aggregatePortAndID.second, aggregatePortsThrift.back());
+      populateAggregatePortThrift(
+          aggregatePortAndID.second, aggregatePortsThrift.back());
+    }
   }
 }
 
@@ -1063,7 +1067,7 @@ void ThriftHandler::getPortInfo(PortInfoThrift& portInfo, int32_t portId) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
 
-  const auto port = sw_->getState()->getPorts()->getPortIf(PortID(portId));
+  const auto port = sw_->getState()->getPorts()->getNodeIf(PortID(portId));
   if (!port) {
     throw FbossError("no such port ", portId);
   }
@@ -1078,10 +1082,12 @@ void ThriftHandler::getAllPortInfo(map<int32_t, PortInfoThrift>& portInfoMap) {
   // NOTE: important to take pointer to switch state before iterating over
   // list of ports
   std::shared_ptr<SwitchState> swState = sw_->getState();
-  for (const auto& port : std::as_const(*(swState->getPorts()))) {
-    auto portId = port.second->getID();
-    auto& portInfo = portInfoMap[portId];
-    getPortInfoHelper(*sw_, portInfo, port.second);
+  for (const auto& portMap : std::as_const(*(swState->getPorts()))) {
+    for (const auto& port : std::as_const(*portMap.second)) {
+      auto portId = port.second->getID();
+      auto& portInfo = portInfoMap[portId];
+      getPortInfoHelper(*sw_, portInfo, port.second);
+    }
   }
 }
 
@@ -1161,7 +1167,7 @@ void ThriftHandler::clearPortStats(unique_ptr<vector<int32_t>> ports) {
 
   auto statsMap = facebook::fb303::fbData->getStatMap();
   for (const auto& portId : *ports) {
-    const auto port = sw_->getState()->getPorts()->getPortIf(PortID(portId));
+    const auto port = sw_->getState()->getPorts()->getNodeIf(PortID(portId));
     std::vector<std::string> portKeys;
     getPortCounterKeys(portKeys, "out_", port);
     getPortCounterKeys(portKeys, "in_", port);
@@ -1193,8 +1199,10 @@ void ThriftHandler::clearAllPortStats() {
   ensureConfigured(__func__);
   auto allPorts = std::make_unique<std::vector<int32_t>>();
   std::shared_ptr<SwitchState> swState = sw_->getState();
-  for (const auto& port : std::as_const(*(swState->getPorts()))) {
-    allPorts->push_back(port.second->getID());
+  for (const auto& portMap : std::as_const(*(swState->getPorts()))) {
+    for (const auto& port : std::as_const(*portMap.second)) {
+      allPorts->push_back(port.second->getID());
+    }
   }
   clearPortStats(std::move(allPorts));
 }
@@ -1408,7 +1416,7 @@ void ThriftHandler::setPortPrbs(
   auto log = LOG_THRIFT_CALL(DBG1, portNum, enable);
   ensureConfigured(__func__);
   PortID portId = PortID(portNum);
-  const auto port = sw_->getState()->getPorts()->getPortIf(portId);
+  const auto port = sw_->getState()->getPorts()->getNodeIf(portId);
   if (!port) {
     throw FbossError("no such port ", portNum);
   }
@@ -1460,7 +1468,7 @@ void ThriftHandler::setPortState(int32_t portNum, bool enable) {
   auto log = LOG_THRIFT_CALL(DBG1, portNum, enable);
   ensureConfigured(__func__);
   PortID portId = PortID(portNum);
-  const auto port = sw_->getState()->getPorts()->getPortIf(portId);
+  const auto port = sw_->getState()->getPorts()->getNodeIf(portId);
   if (!port) {
     throw FbossError("no such port ", portNum);
   }
@@ -1474,8 +1482,10 @@ void ThriftHandler::setPortState(int32_t portNum, bool enable) {
     return;
   }
 
-  auto updateFn = [portId, newPortState](const shared_ptr<SwitchState>& state) {
-    const auto oldPort = state->getPorts()->getPortIf(portId);
+  auto scopeResolver = sw_->getScopeResolver();
+  auto updateFn = [portId, newPortState, &scopeResolver](
+                      const shared_ptr<SwitchState>& state) {
+    const auto oldPort = state->getPorts()->getNodeIf(portId);
     shared_ptr<SwitchState> newState{state};
     auto newPort = oldPort->modify(&newState);
     newPort->setAdminState(newPortState);
@@ -1488,7 +1498,7 @@ void ThriftHandler::setPortDrainState(int32_t portNum, bool drain) {
   auto log = LOG_THRIFT_CALL(DBG1, portNum, drain);
   ensureConfigured(__func__);
   PortID portId = PortID(portNum);
-  const auto port = sw_->getState()->getPorts()->getPortIf(portId);
+  const auto port = sw_->getState()->getPorts()->getNodeIf(portId);
   if (!port) {
     throw FbossError("no such port ", portNum);
   }
@@ -1500,10 +1510,11 @@ void ThriftHandler::setPortDrainState(int32_t portNum, bool drain) {
   cfg::PortDrainState newPortDrainState =
       drain ? cfg::PortDrainState::DRAINED : cfg::PortDrainState::UNDRAINED;
 
+  auto scopeResolver = sw_->getScopeResolver();
   auto updateFn =
-      [portId, newPortDrainState, drain](
+      [portId, newPortDrainState, drain, &scopeResolver](
           const shared_ptr<SwitchState>& state) -> shared_ptr<SwitchState> {
-    const auto oldPort = state->getPorts()->getPortIf(portId);
+    const auto oldPort = state->getPorts()->getNodeIf(portId);
     if (oldPort->getPortDrainState() == newPortDrainState) {
       XLOG(DBG2) << "setPortDrainState: port already in state "
                  << (drain ? "DRAINED" : "UNDRAINED");
@@ -1523,7 +1534,7 @@ void ThriftHandler::setPortLoopbackMode(
   auto log = LOG_THRIFT_CALL(DBG1, portNum, mode);
   ensureConfigured(__func__);
   PortID portId = PortID(portNum);
-  const auto port = sw_->getState()->getPorts()->getPortIf(portId);
+  const auto port = sw_->getState()->getPorts()->getNodeIf(portId);
   if (!port) {
     throw FbossError("no such port ", portNum);
   }
@@ -1536,9 +1547,10 @@ void ThriftHandler::setPortLoopbackMode(
     return;
   }
 
-  auto updateFn = [portId,
-                   newLoopbackMode](const shared_ptr<SwitchState>& state) {
-    const auto oldPort = state->getPorts()->getPortIf(portId);
+  auto scopeResolver = sw_->getScopeResolver();
+  auto updateFn = [portId, newLoopbackMode, &scopeResolver](
+                      const shared_ptr<SwitchState>& state) {
+    const auto oldPort = state->getPorts()->getNodeIf(portId);
     shared_ptr<SwitchState> newState{state};
     auto newPort = oldPort->modify(&newState);
     newPort->setLoopbackMode(newLoopbackMode);
@@ -1551,9 +1563,11 @@ void ThriftHandler::getAllPortLoopbackMode(
     std::map<int32_t, PortLoopbackMode>& port2LbMode) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  for (auto& port : std::as_const(*sw_->getState()->getPorts())) {
-    port2LbMode[port.second->getID()] =
-        toThriftLoopbackMode(port.second->getLoopbackMode());
+  for (auto& portMap : std::as_const(*sw_->getState()->getPorts())) {
+    for (auto& port : std::as_const(*portMap.second)) {
+      port2LbMode[port.second->getID()] =
+          toThriftLoopbackMode(port.second->getLoopbackMode());
+    }
   }
 }
 
@@ -1616,7 +1630,7 @@ void ThriftHandler::programInternalPhyPorts(
           factor);
       for (const auto& platformPort : platformPorts) {
         const auto oldPort =
-            state->getPorts()->getPortIf(PortID(*platformPort.mapping()->id()));
+            state->getPorts()->getNodeIf(PortID(*platformPort.mapping()->id()));
         if (!oldPort) {
           continue;
         }
@@ -1654,7 +1668,7 @@ void ThriftHandler::programInternalPhyPorts(
 
   // fetch the programmed profiles
   for (const auto& platformPort : platformPorts) {
-    const auto port = sw_->getState()->getPorts()->getPortIf(
+    const auto port = sw_->getState()->getPorts()->getNodeIf(
         PortID(*platformPort.mapping()->id()));
     if (port && port->isEnabled()) {
       // Only return ports actually exist and are enabled
@@ -1855,51 +1869,9 @@ void ThriftHandler::getLldpNeighbors(vector<LinkNeighborThrift>& results) {
   }
 }
 
-void ThriftHandler::invokeNeighborListeners(
-    ThreadLocalListener* listener,
-    std::vector<std::string> added,
-    std::vector<std::string> removed) {
-  if (FLAGS_disable_duplex) {
-    return;
-  }
-  // Collect the iterators to avoid erasing and potentially reordering
-  // the iterators in the list.
-  for (const auto& ctx : brokenClients_) {
-    listener->clients.erase(ctx);
-  }
-  brokenClients_.clear();
-  for (auto& client : listener->clients) {
-    auto clientDone = [&](ClientReceiveState&& state) {
-      try {
-        NeighborListenerClientAsyncClient::recv_neighborsChanged(state);
-      } catch (const std::exception& ex) {
-        XLOG(ERR) << "Exception in neighbor listener: " << ex.what();
-        brokenClients_.push_back(client.first);
-      }
-    };
-    client.second->neighborsChanged(clientDone, added, removed);
-  }
-}
-
 void ThriftHandler::async_eb_registerForNeighborChanged(
     ThriftCallback<void> cb) {
-  if (FLAGS_disable_duplex) {
-    throw FbossError("ThriftDuplex Neighbor Listener is no longer supported");
-  }
-  auto ctx = cb->getRequestContext()->getConnectionContext();
-  auto client = ctx->getDuplexClient<NeighborListenerClientAsyncClient>();
-  auto info = listeners_.get();
-  CHECK(cb->getEventBase()->isInEventBaseThread());
-  if (!info) {
-    info = new ThreadLocalListener(cb->getEventBase());
-    listeners_.reset(info);
-  }
-  DCHECK_EQ(info->eventBase, cb->getEventBase());
-  if (!info->eventBase) {
-    info->eventBase = cb->getEventBase();
-  }
-  info->clients.emplace(ctx, client);
-  cb->done();
+  throw FbossError("ThriftDuplex Neighbor Listener is no longer supported");
 }
 
 void ThriftHandler::startPktCapture(unique_ptr<CaptureInfo> info) {
@@ -2066,21 +2038,28 @@ void ThriftHandler::txPktL3(unique_ptr<fbstring> payload) {
 
   // Use any configured interface
   const auto interfaceMap = sw_->getState()->getInterfaces();
-  if (interfaceMap->size() == 0) {
+  if (interfaceMap->numNodes() == 0) {
     throw FbossError("No interface configured");
   }
-  auto intfID = interfaceMap->at(0)->getID();
+  std::optional<InterfaceID> intfID;
+  for (const auto& [_, intfs] : std::as_const(*interfaceMap)) {
+    if (!intfs->empty()) {
+      intfID = intfs->at(0)->getID();
+      break;
+    }
+  }
+  CHECK(intfID.has_value());
 
   unique_ptr<TxPacket> pkt = sw_->allocateL3TxPacket(payload->size());
   RWPrivateCursor cursor(pkt->buf());
   cursor.push(StringPiece(*payload));
 
-  sw_->sendL3Packet(std::move(pkt), intfID);
+  sw_->sendL3Packet(std::move(pkt), *intfID);
 }
 
 Vlan* ThriftHandler::getVlan(int32_t vlanId) {
   ensureConfigured(__func__);
-  return sw_->getState()->getVlans()->getVlan(VlanID(vlanId)).get();
+  return sw_->getState()->getVlans()->getNode(VlanID(vlanId)).get();
 }
 
 Vlan* ThriftHandler::getVlan(const std::string& vlanName) {
@@ -2101,6 +2080,7 @@ int32_t ThriftHandler::flushNeighborEntry(
 
 void ThriftHandler::getVlanAddresses(Addresses& addrs, int32_t vlan) {
   auto log = LOG_THRIFT_CALL(DBG1);
+  ensureNPU(__func__);
   getVlanAddresses(getVlan(vlan), addrs, toAddress);
 }
 
@@ -2108,6 +2088,7 @@ void ThriftHandler::getVlanAddressesByName(
     Addresses& addrs,
     unique_ptr<string> vlan) {
   auto log = LOG_THRIFT_CALL(DBG1);
+  ensureNPU(__func__);
   getVlanAddresses(getVlan(*vlan), addrs, toAddress);
 }
 
@@ -2115,6 +2096,7 @@ void ThriftHandler::getVlanBinaryAddresses(
     BinaryAddresses& addrs,
     int32_t vlan) {
   auto log = LOG_THRIFT_CALL(DBG1);
+  ensureNPU(__func__);
   getVlanAddresses(getVlan(vlan), addrs, toBinaryAddress);
 }
 
@@ -2122,6 +2104,7 @@ void ThriftHandler::getVlanBinaryAddressesByName(
     BinaryAddresses& addrs,
     const std::unique_ptr<std::string> vlan) {
   auto log = LOG_THRIFT_CALL(DBG1);
+  ensureNPU(__func__);
   getVlanAddresses(getVlan(*vlan), addrs, toBinaryAddress);
 }
 
@@ -2130,15 +2113,16 @@ void ThriftHandler::getVlanAddresses(
     const Vlan* vlan,
     std::vector<ADDR_TYPE>& addrs,
     ADDR_CONVERTER& converter) {
-  ensureConfigured(__func__);
   CHECK(vlan);
   // Explicitly take ownership of interface map
   auto interfaces = sw_->getState()->getInterfaces();
-  for (auto iter : std::as_const(*interfaces)) {
-    auto intf = iter.second;
-    if (intf->getVlanID() == vlan->getID()) {
-      for (auto addrAndMask : intf->getAddressesCopy()) {
-        addrs.push_back(converter(addrAndMask.first));
+  for (const auto& [_, intfMap] : std::as_const(*interfaces)) {
+    for (auto iter : std::as_const(*intfMap)) {
+      auto intf = iter.second;
+      if (intf->getVlanID() == vlan->getID()) {
+        for (auto addrAndMask : intf->getAddressesCopy()) {
+          addrs.push_back(converter(addrAndMask.first));
+        }
       }
     }
   }
@@ -2194,19 +2178,6 @@ void ThriftHandler::ensureVoqOrFabric(StringPiece function) const {
                  << " only supported on Voq or Fabric Switch type: ";
     }
     throw FbossError(function, " only supported on Voq or Fabric Switch type");
-  }
-}
-
-// If this is a premature client disconnect from a duplex connection, we need to
-// clean up state.  Failure to do so may allow the server's duplex clients to
-// use the destroyed context => segfaults.
-void ThriftHandler::connectionDestroyed(TConnectionContext* ctx) {
-  if (FLAGS_disable_duplex) {
-    return;
-  }
-  // Port status notifications
-  if (listeners_) {
-    listeners_->clients.erase(ctx);
   }
 }
 
@@ -2336,8 +2307,6 @@ void ThriftHandler::addMplsRoutesImpl(
   folly::F14FastMap<std::pair<RouterID, folly::IPAddress>, InterfaceID>
       labelFibEntryNextHopAddress2Interface;
 
-  auto labelFib =
-      (*state)->getLabelForwardingInformationBase().get()->modify(state);
   for (const auto& mplsRoute : mplsRoutes) {
     auto topLabel = *mplsRoute.topLabel();
     if (topLabel > mpls_constants::MAX_MPLS_LABEL_) {
@@ -2407,13 +2376,14 @@ void ThriftHandler::addMplsRoutesImpl(
           nexthop.labelForwardingAction()));
     }
 
-    // validate top label
-    labelFib = labelFib->programLabel(
-        state,
+    auto newState = programLabel(
+        *(sw_->getScopeResolver()),
+        *state,
         topLabel,
         ClientID(clientId),
         adminDistance,
         std::move(nexthops));
+    *state = newState;
   }
 }
 
@@ -2454,13 +2424,12 @@ void ThriftHandler::deleteMplsRoutes(
   auto updateFn = [=, topLabels = std::move(*topLabels)](
                       const std::shared_ptr<SwitchState>& state) {
     auto newState = state->clone();
-    auto labelFib = state->getLabelForwardingInformationBase().get();
     for (const auto topLabel : topLabels) {
       if (topLabel > mpls_constants::MAX_MPLS_LABEL_) {
         throw FbossError("invalid value for label ", topLabel);
       }
-      labelFib =
-          labelFib->unprogramLabel(&newState, topLabel, ClientID(clientId));
+      newState = unprogramLabel(
+          *(sw_->getScopeResolver()), newState, topLabel, ClientID(clientId));
     }
     return newState;
   };
@@ -2496,10 +2465,8 @@ void ThriftHandler::syncMplsFib(
   }
   auto updateFn = [=, routes = std::move(*mplsRoutes)](
                       const std::shared_ptr<SwitchState>& state) {
-    auto newState = state->clone();
-    auto labelFib = newState->getLabelForwardingInformationBase();
-
-    labelFib->purgeEntriesForClient(&newState, ClientID(clientId));
+    auto newState = purgeEntriesForClient(
+        *(sw_->getScopeResolver()), state, ClientID(clientId));
     addMplsRoutesImpl(&newState, ClientID(clientId), routes);
     if (!sw_->isValidStateUpdate(StateDelta(state, newState))) {
       throw FbossError("Invalid MPLS routes");
@@ -2520,17 +2487,18 @@ void ThriftHandler::getMplsRouteTableByClient(
   ensureConfigured(__func__);
   auto labelFib = sw_->getState()->getLabelForwardingInformationBase();
   for (const auto& iter : std::as_const(*labelFib)) {
-    const auto& entry = iter.second;
-    auto labelNextHopEntry = entry->getEntryForClient(ClientID(clientId));
-    if (!labelNextHopEntry) {
-      continue;
+    for (const auto& [_, entry] : std::as_const(*iter.second)) {
+      auto labelNextHopEntry = entry->getEntryForClient(ClientID(clientId));
+      if (!labelNextHopEntry) {
+        continue;
+      }
+      MplsRoute mplsRoute;
+      mplsRoute.topLabel() = entry->getID();
+      mplsRoute.adminDistance() = labelNextHopEntry->getAdminDistance();
+      mplsRoute.nextHops() =
+          util::fromRouteNextHopSet(labelNextHopEntry->getNextHopSet());
+      mplsRoutes.emplace_back(std::move(mplsRoute));
     }
-    MplsRoute mplsRoute;
-    mplsRoute.topLabel() = entry->getID();
-    mplsRoute.adminDistance() = labelNextHopEntry->getAdminDistance();
-    mplsRoute.nextHops() =
-        util::fromRouteNextHopSet(labelNextHopEntry->getNextHopSet());
-    mplsRoutes.emplace_back(std::move(mplsRoute));
   }
 }
 
@@ -2540,10 +2508,11 @@ void ThriftHandler::getAllMplsRouteDetails(
   ensureConfigured(__func__);
   const auto labelFib = sw_->getState()->getLabelForwardingInformationBase();
   for (const auto& iter : std::as_const(*labelFib)) {
-    const auto& entry = iter.second;
-    MplsRouteDetails details;
-    getMplsRouteDetails(details, entry->getID());
-    mplsRouteDetails.push_back(details);
+    for (const auto& [_, entry] : std::as_const(*iter.second)) {
+      MplsRouteDetails details;
+      getMplsRouteDetails(details, entry->getID());
+      mplsRouteDetails.push_back(details);
+    }
   }
 }
 
@@ -2552,9 +2521,8 @@ void ThriftHandler::getMplsRouteDetails(
     MplsLabel topLabel) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  const auto entry = sw_->getState()
-                         ->getLabelForwardingInformationBase()
-                         ->getLabelForwardingEntry(topLabel);
+  const auto entry =
+      sw_->getState()->getLabelForwardingInformationBase()->getNode(topLabel);
   mplsRouteDetail.topLabel() = entry->getID();
   mplsRouteDetail.nextHopMulti() = entry->getEntryForClients().toThriftLegacy();
   const auto& fwd = entry->getForwardInfo();
@@ -2745,7 +2713,12 @@ void ThriftHandler::addTeFlows(
   auto updateFn = [=, teFlows = std::move(*teFlowEntries)](
                       const std::shared_ptr<SwitchState>& state) {
     TeFlowSyncer teFlowSyncer;
-    auto newState = teFlowSyncer.programFlowEntries(state, teFlows, {}, false);
+    auto newState = teFlowSyncer.programFlowEntries(
+        sw_->getScopeResolver()->scope(std::shared_ptr<TeFlowEntry>()),
+        state,
+        teFlows,
+        {},
+        false);
     if (!sw_->isValidStateUpdate(StateDelta(state, newState))) {
       throw FbossError("Invalid TE flow entries");
     }
@@ -2765,7 +2738,12 @@ void ThriftHandler::deleteTeFlows(
   auto updateFn = [=, flows = std::move(*teFlows)](
                       const std::shared_ptr<SwitchState>& state) {
     TeFlowSyncer teFlowSyncer;
-    auto newState = teFlowSyncer.programFlowEntries(state, {}, flows, false);
+    auto newState = teFlowSyncer.programFlowEntries(
+        sw_->getScopeResolver()->scope(std::shared_ptr<TeFlowEntry>()),
+        state,
+        {},
+        flows,
+        false);
     return newState;
   };
   sw_->updateStateBlocking("deleteTeFlows", updateFn);
@@ -2779,7 +2757,12 @@ void ThriftHandler::syncTeFlows(
                       const std::shared_ptr<SwitchState>& state)
       -> shared_ptr<SwitchState> {
     TeFlowSyncer teFlowSyncer;
-    auto newState = teFlowSyncer.programFlowEntries(state, teFlows, {}, true);
+    auto newState = teFlowSyncer.programFlowEntries(
+        sw_->getScopeResolver()->scope(std::shared_ptr<TeFlowEntry>()),
+        state,
+        teFlows,
+        {},
+        true);
     if (state == newState) {
       return nullptr;
     }
@@ -2799,9 +2782,13 @@ void ThriftHandler::getTeFlowTableDetails(
     std::vector<TeFlowDetails>& flowTable) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  auto teFlowTable = sw_->getState()->getTeFlowTable();
-  for (const auto& [flowStr, flowEntry] : std::as_const(*teFlowTable)) {
-    flowTable.emplace_back(flowEntry->toDetails());
+  auto multiTeFlowTable = sw_->getState()->getTeFlowTable();
+  for (auto iter = multiTeFlowTable->cbegin(); iter != multiTeFlowTable->cend();
+       iter++) {
+    auto teFlowTable = iter->second;
+    for (const auto& [flowStr, flowEntry] : std::as_const(*teFlowTable)) {
+      flowTable.emplace_back(flowEntry->toDetails());
+    }
   }
 }
 
@@ -2814,7 +2801,7 @@ void ThriftHandler::getFabricReachability(
   auto state = sw_->getState();
 
   for (auto [portId, fabricEndpoint] : portId2FabricEndpoint) {
-    auto portName = state->getPorts()->getPort(portId)->getName();
+    auto portName = state->getPorts()->getNodeIf(portId)->getName();
     reachability.insert({portName, fabricEndpoint});
   }
 }
@@ -2839,7 +2826,7 @@ void ThriftHandler::getSwitchReachability(
         for (const auto& port :
              sw_->getHw()->getSwitchReachability(node->getSwitchId())) {
           reachablePorts.push_back(
-              sw_->getState()->getPorts()->getPort(port)->getName());
+              sw_->getState()->getPorts()->getNodeIf(port)->getName());
         }
         reachabilityMatrix.insert({node->getName(), std::move(reachablePorts)});
       }
@@ -2861,13 +2848,17 @@ void ThriftHandler::getDsfNodes(std::map<int64_t, cfg::DsfNode>& dsfNodes) {
 }
 
 void ThriftHandler::getSystemPorts(
-    std::map<int64_t, SystemPortThrift>& sysPorts) {
+    std::map<int64_t, SystemPortThrift>& sysPortsThrift) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
+  auto fillSysPorts = [&sysPortsThrift](const auto& mSwitchSysPorts) {
+    for (const auto& [_, sysPorts] : std::as_const(*mSwitchSysPorts)) {
+      sysPortsThrift.merge(sysPorts->toThrift());
+    }
+  };
   auto state = sw_->getState();
-  sysPorts = state->getSystemPorts()->toThrift();
-  auto remoteSysPorts = state->getRemoteSystemPorts()->toThrift();
-  sysPorts.merge(remoteSysPorts);
+  fillSysPorts(state->getSystemPorts());
+  fillSysPorts(state->getRemoteSystemPorts());
 }
 
 void ThriftHandler::getSysPortStats(

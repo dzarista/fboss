@@ -96,10 +96,21 @@ shared_ptr<SwitchState> testState() {
   auto state = testStateA();
   const auto& vlans = state->getVlans();
   // Configure DHCPV6 relay settings for the test VLAN
-  vlans->getVlan(VlanID(1))->setDhcpV6Relay(kDhcpV6Relay);
+  vlans->getNode(VlanID(1))->setDhcpV6Relay(kDhcpV6Relay);
   DhcpV6OverrideMap overrides;
   overrides[kClientMacOverride] = kDhcpV6RelayOverride;
-  vlans->getVlan(VlanID(1))->setDhcpV6RelayOverrides(overrides);
+  vlans->getNode(VlanID(1))->setDhcpV6RelayOverrides(overrides);
+  addSwitchInfo(
+      state,
+      cfg::SwitchType::NPU,
+      0, /*SwitchId*/
+      cfg::AsicType::ASIC_TYPE_MOCK,
+      cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MIN(),
+      cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MAX(),
+      0, /* switchIndex*/
+      std::nullopt, /* sysPort min*/
+      std::nullopt, /*sysPort max()*/
+      MockPlatform::getMockLocalMac().toString());
   return state;
 }
 unique_ptr<HwTestHandle> setupTestHandle() {
@@ -112,7 +123,17 @@ shared_ptr<SwitchState> testStateNAT() {
   switchSettings->setDhcpV6RelaySrc(kDhcpV6RelaySrc);
   switchSettings->setDhcpV6ReplySrc(kDhcpV6ReplySrc);
   state->resetSwitchSettings(switchSettings);
-  addSwitchInfo(state);
+  addSwitchInfo(
+      state,
+      cfg::SwitchType::NPU,
+      0, /*SwitchId*/
+      cfg::AsicType::ASIC_TYPE_MOCK,
+      cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MIN(),
+      cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MAX(),
+      0, /* switchIndex*/
+      std::nullopt, /* sysPort min*/
+      std::nullopt, /*sysPort max()*/
+      MockPlatform::getMockLocalMac().toString());
   return state;
 }
 

@@ -14,8 +14,8 @@ HwResourceStatsTest.l3Stats
 HwEcmpTest.*:-*Ucmp*
 # Load Balancer Tests
 # UCMP support lacking in DNX
-HwLoadBalancerTestV4.*:-*Ucmp*
-HwLoadBalancerTestV6.*:-*Ucmp*
+HwLoadBalancerTestV4.*:-*Ucmp*:*Mpls*
+HwLoadBalancerTestV6.*:-*Ucmp*:*Mpls*
 HwHashConsistencyTest.*:-*EcmpExpand*:*MemberOrder*
 # LB Tests with ROCE traffic
 HwLoadBalancerNegativeTestV6RoCE.*
@@ -50,7 +50,9 @@ HwSendPacketToQueueTest.*
 # PFC tests
 HwPfcTest.*:-*Watchdog*
 # PFC traffic tests
-HwTrafficPfc*:-*Watchdog*:*Zero*:*IngressPriorityGroup*
+HwTrafficPfc*:-*Watchdog*:*Zero*
+# Ingress buffer tests
+HwIngressBufferTest.*
 # Watermark tests
 HwWatermarkTest.*
 # Qos  tests
@@ -60,3 +62,4 @@ Hw2QueueToOlympicQoSTest.*
 HwRxReasonTests.*
 HwCoppTest/0.LocalDstIpBgpPortToHighPriQ:HwCoppTest/0.LocalDstIpNonBgpPortToMidPriQ:HwCoppTest/0.Ipv6LinkLocalMcastToMidPriQ:HwCoppTest/0.Ipv6LinkLocalMcastTxFromCpu:HwCoppTest/0.SlowProtocolsMacToHighPriQ:HwCoppTest/0.Ipv6LinkLocalMcastNetworkControlDscpToHighPriQ:HwCoppTest/0.L3MTUErrorToLowPriQ:HwCoppTest/0.ArpRequestAndReplyToHighPriQ:HwCoppTest/0.NdpSolicitationToHighPriQ:HwCoppTest/0.UnresolvedRoutesToLowPriQueue:HwCoppTest/0.JumboFramesToQueues:HwCoppTest/0.Ttl1PacketToLowPriQ:HwCoppTest/0.DhcpPacketToMidPriQ:HwCoppTest/0.DHCPv6AdvertiseToMidPriQ:HwCoppTest/0.LldpProtocolToMidPriQ
 HwCoppQosTest.*
+HwOlympicQosSchedulerTest.*

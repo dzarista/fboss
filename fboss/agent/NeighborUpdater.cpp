@@ -80,6 +80,25 @@ void NeighborUpdater::waitForPendingUpdates() {
   folly::via(sw_->getNeighborCacheEvb(), [impl = this->impl_]() {}).get();
 }
 
+void NeighborUpdater::processInterfaceUpdates(const StateDelta& stateDelta) {
+  for (const auto& delta : stateDelta.getIntfsDelta()) {
+    sendNeighborUpdatesForIntf(delta);
+    auto oldInterface = delta.getOld();
+    auto newInterface = delta.getNew();
+
+    if (!oldInterface && newInterface) {
+      interfaceAdded(newInterface->getID(), stateDelta.newState());
+    } else if (oldInterface && !newInterface) {
+      interfaceRemoved(oldInterface->getID());
+    } else {
+      // From the neighbor cache perspective, we only care about the
+      // interfaceID which cannot change for a given interface. Thus, no need
+      // to process change to interface
+      ;
+    }
+  }
+}
+
 void NeighborUpdater::stateUpdated(const StateDelta& delta) {
   CHECK(sw_->getUpdateEvb()->inRunningEventBaseThread());
   for (const auto& entry : delta.getVlansDelta()) {
@@ -150,6 +169,16 @@ void collectPresenceChange(
 }
 
 void NeighborUpdater::sendNeighborUpdates(const VlanDelta& delta) {
+  std::vector<std::string> added;
+  std::vector<std::string> deleted;
+  collectPresenceChange(delta.getArpDelta(), &added, &deleted);
+  collectPresenceChange(delta.getNdpDelta(), &added, &deleted);
+  if (!(added.empty() && deleted.empty())) {
+    sw_->invokeNeighborListener(added, deleted);
+  }
+}
+
+void NeighborUpdater::sendNeighborUpdatesForIntf(const InterfaceDelta& delta) {
   std::vector<std::string> added;
   std::vector<std::string> deleted;
   collectPresenceChange(delta.getArpDelta(), &added, &deleted);

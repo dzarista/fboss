@@ -57,6 +57,7 @@
 #include "fboss/agent/SwSwitchRouteUpdateWrapper.h"
 #include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/SwitchStats.h"
+#include "fboss/agent/SwitchStatsObserver.h"
 #include "fboss/agent/TeFlowNexthopHandler.h"
 #include "fboss/agent/TunManager.h"
 #include "fboss/agent/TxPacket.h"
@@ -236,7 +237,8 @@ SwSwitch::SwSwitch(std::unique_ptr<Platform> platform)
       hwAsicTable_(new HwAsicTable(getSwitchInfoFromConfig(platform_.get()))),
       scopeResolver_(
           new SwitchIdScopeResolver(getSwitchInfoFromConfig(platform_.get()))),
-      multiHwSwitchSyncer_(nullptr) {
+      multiHwSwitchSyncer_(nullptr),
+      switchStatsObserver_(new SwitchStatsObserver(this)) {
   // Create the platform-specific state directories if they
   // don't exist already.
   utilCreateDir(platform_->getVolatileStateDir());
@@ -279,7 +281,23 @@ SwSwitch::~SwSwitch() {
   }
 }
 
+bool SwSwitch::fsdbStatPublishReady() const {
+  return fsdbSyncer_.withRLock(
+      [](const auto& syncer) { return syncer->isReadyForStatPublishing(); });
+}
+
+bool SwSwitch::fsdbStatePublishReady() const {
+  return fsdbSyncer_.withRLock(
+      [](const auto& syncer) { return syncer->isReadyForStatePublishing(); });
+}
+
 void SwSwitch::stop(bool revertToMinAlpmState) {
+  // Clean up connections to FSDB before stopping
+  // packet flow.
+  runFsdbSyncFunction([](auto& syncer) {
+    syncer->stop();
+    syncer.reset();
+  });
   setSwitchRunState(SwitchRunState::EXITING);
 
   XLOG(DBG2) << "Stopping SwSwitch...";
@@ -349,9 +367,6 @@ void SwSwitch::stop(bool revertToMinAlpmState) {
 #endif
   phySnapshotManager_.reset();
 
-  if (fsdbSyncer_) {
-    fsdbSyncer_->stop();
-  }
   // stops the background and update threads.
   stopThreads();
 
@@ -361,7 +376,6 @@ void SwSwitch::stop(bool revertToMinAlpmState) {
   pcapMgr_.reset();
   pktObservers_.reset();
 
-  fsdbSyncer_.reset();
   // reset tunnel manager only after pkt thread is stopped
   // as there could be state updates in progress which will
   // access entries in tunnel manager
@@ -511,7 +525,10 @@ void SwSwitch::publishStatsToFsdb() {
   agentStats.teFlowStats() = getTeFlowStats();
   stats()->fillAgentStats(agentStats);
   agentStats.bufferPoolStats() = getBufferPoolStats();
-  fsdbSyncer_->statsUpdated(std::move(agentStats));
+
+  runFsdbSyncFunction([&agentStats](auto& syncer) {
+    syncer->statsUpdated(std::move(agentStats));
+  });
 }
 
 void SwSwitch::updateStats() {
@@ -555,19 +572,21 @@ TeFlowStats SwSwitch::getTeFlowStats() {
   TeFlowStats teFlowStats;
   std::map<std::string, HwTeFlowStats> hwTeFlowStats;
   auto statMap = facebook::fb303::fbData->getStatMap();
-  for (const auto& [flowStr, flowEntry] :
+  for (const auto& [_, teFlowTable] :
        std::as_const(*getState()->getTeFlowTable())) {
-    std::ignore = flowStr;
-    if (const auto& counter = flowEntry->getCounterID()) {
-      auto statName = folly::to<std::string>(counter->toThrift(), ".bytes");
-      // returns default stat if statName does not exists
-      auto statPtr = statMap->getStatPtrNoExport(statName);
-      auto lockedStatPtr = statPtr->lock();
-      auto numLevels = lockedStatPtr->numLevels();
-      // Cumulative (ALLTIME) counters are at (numLevels - 1)
-      HwTeFlowStats flowStat;
-      flowStat.bytes() = lockedStatPtr->sum(numLevels - 1);
-      hwTeFlowStats.emplace(counter->toThrift(), std::move(flowStat));
+    for (const auto& [flowStr, flowEntry] : std::as_const(*teFlowTable)) {
+      std::ignore = flowStr;
+      if (const auto& counter = flowEntry->getCounterID()) {
+        auto statName = folly::to<std::string>(counter->toThrift(), ".bytes");
+        // returns default stat if statName does not exists
+        auto statPtr = statMap->getStatPtrNoExport(statName);
+        auto lockedStatPtr = statPtr->lock();
+        auto numLevels = lockedStatPtr->numLevels();
+        // Cumulative (ALLTIME) counters are at (numLevels - 1)
+        HwTeFlowStats flowStat;
+        flowStat.bytes() = lockedStatPtr->sum(numLevels - 1);
+        hwTeFlowStats.emplace(counter->toThrift(), std::move(flowStat));
+      }
     }
   }
   auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
@@ -651,8 +670,6 @@ void SwSwitch::init(
       false /*failHwCallsOnWarmboot*/,
       platform_->getAsic()->getSwitchType(),
       platform_->getAsic()->getSwitchId());
-  const auto& [switchID, switchInfo] =
-      *switchInfoTable_.getSwitchIdToSwitchInfo().begin();
   multiHwSwitchSyncer_ = std::make_unique<MultiHwSwitchSyncer>(
       hw_, switchInfoTable_.getSwitchIdToSwitchInfo());
   auto initialState = hwInitRet.switchState;
@@ -775,7 +792,13 @@ void SwSwitch::init(
   heartbeatWatchdog_->start();
 
   setSwitchRunState(SwitchRunState::INITIALIZED);
-  if (getHwAsicTable()->isFeatureSupportedOnAnyAsic(
+  const auto& switchInfo =
+      switchInfoTable_.getSwitchIdToSwitchInfo().begin()->second;
+  auto npuOrVoq =
+      (*switchInfo.switchType() == cfg::SwitchType::VOQ ||
+       *switchInfo.switchType() == cfg::SwitchType::NPU);
+  if (npuOrVoq &&
+      getHwAsicTable()->isFeatureSupportedOnAnyAsic(
           HwAsic::Feature::ROUTE_PROGRAMMING)) {
     SwSwitchRouteUpdateWrapper(this, rib_.get()).programMinAlpmState();
   }
@@ -830,9 +853,11 @@ void SwSwitch::initialConfigApplied(const steady_clock::time_point& startTime) {
     mkaServiceManager_ = std::make_unique<MKAServiceManager>(this);
   }
 #endif
-  // Start FSDB state syncer post initial config applied. FSDB state
-  // syncer will do a full sync upon connection establishment to FSDB
-  fsdbSyncer_ = std::make_unique<FsdbSyncer>(this);
+  fsdbSyncer_.withWLock([this](auto& syncer) {
+    // Start FSDB state syncer post initial config applied. FSDB state
+    // syncer will do a full sync upon connection establishment to FSDB
+    syncer = std::make_unique<FsdbSyncer>(this);
+  });
 }
 
 void SwSwitch::logRouteUpdates(
@@ -900,6 +925,16 @@ void SwSwitch::notifyStateObservers(const StateDelta& delta) {
                   << " of update: " << folly::exceptionStr(ex);
     }
   }
+  runFsdbSyncFunction([&delta](auto& syncer) { syncer->stateUpdated(delta); });
+}
+
+template <typename FsdbFunc>
+void SwSwitch::runFsdbSyncFunction(FsdbFunc&& fn) {
+  fsdbSyncer_.withWLock([&](auto& syncer) {
+    if (syncer) {
+      fn(syncer);
+    }
+  });
 }
 
 bool SwSwitch::updateState(unique_ptr<StateUpdate> update) {
@@ -1223,7 +1258,7 @@ PortStats* SwSwitch::portStats(PortID portID) {
   if (portStats) {
     return portStats;
   }
-  auto portIf = getState()->getPorts()->getPortIf(portID);
+  auto portIf = getState()->getPorts()->getNodeIf(portID);
   if (portIf) {
     // get portName from current state
     return stats()->createPortStats(
@@ -1244,7 +1279,7 @@ InterfaceStats* SwSwitch::interfaceStats(InterfaceID intfID) {
   if (intfStats) {
     return intfStats;
   }
-  auto interfaceIf = getState()->getInterfaces()->getInterfaceIf(intfID);
+  auto interfaceIf = getState()->getInterfaces()->getNodeIf(intfID);
   if (!interfaceIf) {
     XLOG(DBG0) << "Interface node doesn't exist, use default name=intf"
                << intfID;
@@ -1256,9 +1291,11 @@ InterfaceStats* SwSwitch::interfaceStats(InterfaceID intfID) {
 
 map<int32_t, PortStatus> SwSwitch::getPortStatus() {
   map<int32_t, PortStatus> statusMap;
-  std::shared_ptr<PortMap> portMap = getState()->getPorts();
-  for (const auto& p : std::as_const(*portMap)) {
-    statusMap[p.second->getID()] = fillInPortStatus(*p.second, this);
+  std::shared_ptr<MultiSwitchPortMap> portMaps = getState()->getPorts();
+  for (const auto& portMap : std::as_const(*portMaps)) {
+    for (const auto& p : std::as_const(*portMap.second)) {
+      statusMap[p.second->getID()] = fillInPortStatus(*p.second, this);
+    }
   }
   return statusMap;
 }
@@ -1452,7 +1489,7 @@ void SwSwitch::linkStateChanged(
   // Schedule an update for port's operational status
   auto updateOperStateFn = [=](const std::shared_ptr<SwitchState>& state) {
     std::shared_ptr<SwitchState> newState(state);
-    auto* port = newState->getPorts()->getPortIf(portId).get();
+    auto* port = newState->getPorts()->getNodeIf(portId).get();
 
     if (port) {
       if (port->isUp() != up) {
@@ -1616,7 +1653,7 @@ void SwSwitch::sendPacketOutOfPortAsync(
     PortID portID,
     std::optional<uint8_t> queue) noexcept {
   auto state = getState();
-  if (!state->getPorts()->getPortIf(portID)) {
+  if (!state->getPorts()->getNodeIf(portID)) {
     XLOG(ERR) << "SendPacketOutOfPortAsync: dropping packet to unexpected port "
               << portID;
     stats()->pktDropped();
@@ -1649,7 +1686,7 @@ void SwSwitch::sendPacketOutOfPortAsync(
     std::unique_ptr<TxPacket> pkt,
     AggregatePortID aggPortID,
     std::optional<uint8_t> queue) noexcept {
-  auto aggPort = getState()->getAggregatePorts()->getAggregatePortIf(aggPortID);
+  auto aggPort = getState()->getAggregatePorts()->getNodeIf(aggPortID);
   if (!aggPort) {
     XLOG(ERR) << "failed to send packet out aggregate port " << aggPortID
               << ": no aggregate port corresponding to identifier";
@@ -1698,6 +1735,28 @@ void SwSwitch::sendPacketSwitchedAsync(std::unique_ptr<TxPacket> pkt) noexcept {
   }
 }
 
+std::optional<folly::MacAddress> SwSwitch::getSourceMac(
+    const std::shared_ptr<Interface>& intf) const {
+  try {
+    auto switchIds = getScopeResolver()->scope(intf, getState()).switchIds();
+    if (switchIds.empty()) {
+      throw FbossError("No switchId scope found for intf: ", intf->getID());
+    }
+    auto switchId = *switchIds.begin();
+    // We always use our CPU's mac-address as source mac-address
+    return getHwAsicTable()->getHwAsic(switchId)->getAsicMac();
+  } catch (const std::exception& ex) {
+    XLOG(ERR) << "Failed to get Mac for intf :" << intf->getID() << " "
+              << folly::exceptionStr(ex);
+    auto swIds = getHwAsicTable()->getSwitchIDs();
+    if (swIds.size()) {
+      XLOG(DBG2) << " Falling back to first switchID mac";
+      return getHwAsicTable()->getHwAsic(*swIds.begin())->getAsicMac();
+    }
+  }
+  return std::nullopt;
+}
+
 void SwSwitch::sendL3Packet(
     std::unique_ptr<TxPacket> pkt,
     InterfaceID ifID) noexcept {
@@ -1728,7 +1787,7 @@ void SwSwitch::sendL3Packet(
 
   auto state = getState();
 
-  auto intf = state->getInterfaces()->getInterfaceIf(ifID);
+  auto intf = state->getInterfaces()->getNodeIf(ifID);
   if (!intf) {
     XLOG(ERR) << "Interface " << ifID << " doesn't exists in state.";
     stats()->pktDropped();
@@ -1769,8 +1828,12 @@ void SwSwitch::sendL3Packet(
       buf->append(tailRoom);
     }
 
-    // We always use our CPU's mac-address as source mac-address
-    const folly::MacAddress srcMac = getPlatform()->getLocalMac();
+    auto srcMacOpt = getSourceMac(intf);
+    if (!srcMacOpt.has_value()) {
+      XLOG(WARNING) << " Failed to get source mac for intf: " << intf->getID();
+      return;
+    }
+    auto srcMac = *srcMacOpt;
 
     // Derive destination mac address
     folly::MacAddress dstMac{};
@@ -1787,7 +1850,6 @@ void SwSwitch::sendL3Packet(
       // Resolve neighbor mac address for given destination address. If address
       // doesn't exists in NDP table then request neighbor solicitation for it.
       CHECK(dstAddr.isLinkLocal());
-      auto vlan = state->getVlans()->getVlan(getVlanIDHelper(vlanID));
       if (dstAddr.isV4()) {
         // We do not consult ARP table to forward v4 link local addresses.
         // Reason explained below.
@@ -1801,7 +1863,7 @@ void SwSwitch::sendL3Packet(
       } else {
         const auto dstAddrV6 = dstAddr.asV6();
         try {
-          auto entry = getNeighborEntryForIP(state, intf, dstAddrV6);
+          auto entry = getNeighborEntryForIP<NdpEntry>(state, intf, dstAddrV6);
           if (entry) {
             dstMac = entry->getMac();
           } else {
@@ -1957,10 +2019,9 @@ void SwSwitch::applyConfig(
    */
 
   routeUpdater.program();
-  if (fsdbSyncer_) {
-    // TODO - figure out a way to send full agent config
-    fsdbSyncer_->cfgUpdated(oldConfig, newConfig);
-  }
+  runFsdbSyncFunction([&oldConfig, &newConfig](auto& syncer) {
+    syncer->cfgUpdated(oldConfig, newConfig);
+  });
 }
 
 void SwSwitch::updateConfigAppliedInfo() {
@@ -2112,23 +2173,20 @@ bool SwSwitch::sendArpRequestHelper(
     folly::IPAddressV4 source,
     folly::IPAddressV4 target) {
   bool sent = false;
-  auto vlanID = intf->getVlanID();
-  auto vlan = state->getVlans()->getVlanIf(vlanID);
-  if (vlan) {
-    auto entry = vlan->getArpTable()->getEntryIf(target);
-    if (entry == nullptr) {
-      // No entry in ARP table, send ARP request
-      auto mac = intf->getMac();
-      ArpHandler::sendArpRequest(this, vlanID, mac, source, target);
+  auto entry = getNeighborEntryForIP<ArpEntry>(state, intf, target);
+  if (entry == nullptr) {
+    // No entry in ARP table, send ARP request
+    ArpHandler::sendArpRequest(
+        this, intf->getVlanIDIf(), intf->getMac(), source, target);
 
-      // Notify the updater that we sent an arp request
-      getNeighborUpdater()->sentArpRequest(vlanID, target);
-      sent = true;
-    } else {
-      XLOG(DBG4) << "not sending arp for " << target.str() << ", "
-                 << ((entry->isPending()) ? "pending " : "")
-                 << "entry already exists";
-    }
+    // Notify the updater that we sent an arp request
+    getNeighborUpdater()->sentArpRequest(
+        getVlanIDHelper(intf->getVlanIDIf()), target);
+    sent = true;
+  } else {
+    XLOG(DBG5) << "not sending arp for " << target.str() << ", "
+               << ((entry->isPending()) ? "pending " : "")
+               << "entry already exists";
   }
 
   return sent;
@@ -2139,7 +2197,7 @@ bool SwSwitch::sendNdpSolicitationHelper(
     std::shared_ptr<SwitchState> state,
     const folly::IPAddressV6& target) {
   bool sent = false;
-  auto entry = getNeighborEntryForIP(state, intf, target);
+  auto entry = getNeighborEntryForIP<NdpEntry>(state, intf, target);
   if (entry == nullptr) {
     // No entry in NDP table, create a neighbor solicitation packet
     IPv6Handler::sendMulticastNeighborSolicitation(
@@ -2192,7 +2250,7 @@ std::optional<VlanID> SwSwitch::getVlanIDForPkt(VlanID vlanID) const {
 InterfaceID SwSwitch::getInterfaceIDForAggregatePort(
     AggregatePortID aggregatePortID) const {
   auto aggregatePort =
-      getState()->getAggregatePorts()->getAggregatePortIf(aggregatePortID);
+      getState()->getAggregatePorts()->getNodeIf(aggregatePortID);
   CHECK(aggregatePort);
   // On VOQ/Fabric switches, port and interface have 1:1 relation.
   // For non VOQ/Fabric switches, in practice, a port is always part of a

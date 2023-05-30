@@ -33,6 +33,7 @@
 #endif
 
 NEIGHBOR_UPDATER_METHOD(public, flushEntry, uint32_t, VlanID, vlan, folly::IPAddress, ip)
+NEIGHBOR_UPDATER_METHOD(public, flushEntryForIntf, uint32_t, InterfaceID, intfID, folly::IPAddress, ip)
 
 // Ndp events
 NEIGHBOR_UPDATER_METHOD(public, sentNeighborSolicitation, void, VlanID, vlan, folly::IPAddressV6, ip)
@@ -47,18 +48,31 @@ NEIGHBOR_UPDATER_METHOD(public, receivedArpNotMine, void, VlanID, vlan, folly::I
 NEIGHBOR_UPDATER_METHOD(public, portDown, void, PortDescriptor, port)
 NEIGHBOR_UPDATER_METHOD(public, portFlushEntries, void, PortDescriptor, port)
 
+// TODO(skhare) Remove after completely migrating to intfCaches_
 NEIGHBOR_UPDATER_METHOD_NO_ARGS(public, getArpCacheData, std::list<ArpEntryThrift>)
 NEIGHBOR_UPDATER_METHOD_NO_ARGS(public, getNdpCacheData, std::list<NdpEntryThrift>)
 
+NEIGHBOR_UPDATER_METHOD_NO_ARGS(public, getArpCacheDataForIntf, std::list<ArpEntryThrift>)
+NEIGHBOR_UPDATER_METHOD_NO_ARGS(public, getNdpCacheDataForIntf, std::list<NdpEntryThrift>)
+
 // State update helpers
+// TODO(skhare) Remove after completely migrating to intfCaches_
 NEIGHBOR_UPDATER_METHOD(private, vlanAdded, void, VlanID, vlanID, const std::shared_ptr<SwitchState>, state)
 NEIGHBOR_UPDATER_METHOD(private, vlanDeleted, void, VlanID, vlanID)
 NEIGHBOR_UPDATER_METHOD(private, vlanChanged, void, VlanID, vlanID, InterfaceID, intfID, std::string, vlanName)
+
+NEIGHBOR_UPDATER_METHOD(private, interfaceAdded, void, InterfaceID, intfID, const std::shared_ptr<SwitchState>, state)
+NEIGHBOR_UPDATER_METHOD(private, interfaceRemoved, void, InterfaceID, intfID)
+
 NEIGHBOR_UPDATER_METHOD(private, timeoutsChanged, void, std::chrono::seconds, arpTimeout, std::chrono::seconds, ndpTimeout, std::chrono::seconds, staleEntryInterval, uint32_t, maxNeighborProbes)
 
 // Lookup class updaters
+// TODO(skhare) Remove after completely migrating to intfCaches_
 NEIGHBOR_UPDATER_METHOD(private, updateArpEntryClassID, void, VlanID, vlan, folly::IPAddressV4, ip, std::optional<cfg::AclLookupClass>, classID);
 NEIGHBOR_UPDATER_METHOD(private, updateNdpEntryClassID, void, VlanID, vlan, folly::IPAddressV6, ip, std::optional<cfg::AclLookupClass>, classID);
+
+NEIGHBOR_UPDATER_METHOD(private, updateArpEntryClassIDForIntf, void, InterfaceID, intfID, folly::IPAddressV4, ip, std::optional<cfg::AclLookupClass>, classID);
+NEIGHBOR_UPDATER_METHOD(private, updateNdpEntryClassIDForIntf, void, InterfaceID, intfID, folly::IPAddressV6, ip, std::optional<cfg::AclLookupClass>, classID);
 
 #undef ARG_LIST
 #undef GET_MACRO

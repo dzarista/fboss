@@ -73,38 +73,42 @@ class StateDelta {
     return new_;
   }
 
-  ThriftMapDelta<PortMap> getPortsDelta() const;
-  VlanMapDelta getVlansDelta() const;
-  InterfaceMapDelta getIntfsDelta() const;
+  MultiSwitchMapDelta<MultiSwitchPortMap> getPortsDelta() const;
+  MultiSwitchMapDelta<MultiSwitchVlanMap> getVlansDelta() const;
+  MultiSwitchInterfaceMapDelta getIntfsDelta() const;
   DeltaValue<QosPolicy> getDefaultDataPlaneQosPolicyDelta() const;
   AclMapDelta getAclsDelta(
       cfg::AclStage aclStage = cfg::AclStage::INGRESS,
       std::optional<std::string> tableName = std::nullopt) const;
   ThriftMapDelta<AclTableMap> getAclTablesDelta(cfg::AclStage aclStage) const;
-  ThriftMapDelta<AclTableGroupMap> getAclTableGroupsDelta() const;
-  QosPolicyMapDelta getQosPoliciesDelta() const;
-  ThriftMapDelta<AggregatePortMap> getAggregatePortsDelta() const;
-  ThriftMapDelta<SflowCollectorMap> getSflowCollectorsDelta() const;
-  ThriftMapDelta<LoadBalancerMap> getLoadBalancersDelta() const;
+  MultiSwitchMapDelta<MultiSwitchAclTableGroupMap> getAclTableGroupsDelta()
+      const;
+  MultiSwitchMapDelta<MultiSwitchQosPolicyMap> getQosPoliciesDelta() const;
+  MultiSwitchMapDelta<MultiSwitchAggregatePortMap> getAggregatePortsDelta()
+      const;
+  MultiSwitchMapDelta<MultiSwitchSflowCollectorMap> getSflowCollectorsDelta()
+      const;
+  MultiSwitchMapDelta<MultiSwitchLoadBalancerMap> getLoadBalancersDelta() const;
   DeltaValue<ControlPlane> getControlPlaneDelta() const;
   ThriftMapDelta<UdfPacketMatcherMap> getUdfPacketMatcherDelta() const;
   ThriftMapDelta<UdfGroupMap> getUdfGroupDelta() const;
 
-  ThriftMapDelta<MirrorMap> getMirrorsDelta() const;
+  MultiSwitchMapDelta<MultiSwitchMirrorMap> getMirrorsDelta() const;
 
   ThriftMapDelta<TransceiverMap> getTransceiversDelta() const;
-  ForwardingInformationBaseMapDelta getFibsDelta() const;
-  ThriftMapDelta<LabelForwardingInformationBase>
+  MultiSwitchForwardingInformationBaseMapDelta getFibsDelta() const;
+  MultiSwitchMapDelta<MultiLabelForwardingInformationBase>
   getLabelForwardingInformationBaseDelta() const;
   DeltaValue<SwitchSettings> getSwitchSettingsDelta() const;
   DeltaValue<FlowletSwitchingConfig> getFlowletSwitchingConfigDelta() const;
-  ThriftMapDelta<SystemPortMap> getSystemPortsDelta() const;
+  MultiSwitchMapDelta<MultiSwitchSystemPortMap> getSystemPortsDelta() const;
   ThriftMapDelta<IpTunnelMap> getIpTunnelsDelta() const;
-  ThriftMapDelta<TeFlowTable> getTeFlowEntriesDelta() const;
+  MultiSwitchMapDelta<MultiTeFlowTable> getTeFlowEntriesDelta() const;
   // Remote object deltas
-  ThriftMapDelta<SystemPortMap> getRemoteSystemPortsDelta() const;
-  InterfaceMapDelta getRemoteIntfsDelta() const;
-  ThriftMapDelta<DsfNodeMap> getDsfNodesDelta() const;
+  MultiSwitchMapDelta<MultiSwitchSystemPortMap> getRemoteSystemPortsDelta()
+      const;
+  MultiSwitchInterfaceMapDelta getRemoteIntfsDelta() const;
+  MultiSwitchMapDelta<MultiSwitchDsfNodeMap> getDsfNodesDelta() const;
 
   const fsdb::OperDelta& getOperDelta() const;
 

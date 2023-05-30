@@ -65,7 +65,7 @@ void LookupClassUpdater::removeClassIDForPortAndMac(
   CHECK(!isNoHostRoute(removedEntry));
 
   auto portID = removedEntry->getPort().phyPortID();
-  auto port = switchState->getPorts()->getPortIf(portID);
+  auto port = switchState->getPorts()->getNodeIf(portID);
 
   bool isDropClassID = removedEntry->getClassID().has_value() &&
       removedEntry->getClassID().value() == cfg::AclLookupClass::CLASS_DROP;
@@ -154,7 +154,7 @@ void LookupClassUpdater::updateNeighborClassID(
   CHECK(newEntry->getPort().isPhysicalPort());
 
   auto portID = newEntry->getPort().phyPortID();
-  auto port = switchState->getPorts()->getPortIf(portID);
+  auto port = switchState->getPorts()->getNodeIf(portID);
   if (!port) {
     return;
   }
@@ -383,10 +383,10 @@ template <typename AddrT>
 void LookupClassUpdater::clearClassIdsForResolvedNeighbors(
     const std::shared_ptr<SwitchState>& switchState,
     PortID portID) {
-  auto port = switchState->getPorts()->getPortIf(portID);
+  auto port = switchState->getPorts()->getNodeIf(portID);
   for (auto vlanMember : port->getVlans()) {
     auto vlanID = vlanMember.first;
-    auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+    auto vlan = switchState->getVlans()->getNodeIf(vlanID);
     if (!vlan) {
       continue;
     }
@@ -426,10 +426,10 @@ template <typename AddrT>
 void LookupClassUpdater::repopulateClassIdsForResolvedNeighbors(
     const std::shared_ptr<SwitchState>& switchState,
     PortID portID) {
-  auto port = switchState->getPorts()->getPortIf(portID);
+  auto port = switchState->getPorts()->getNodeIf(portID);
   for (auto vlanMember : port->getVlans()) {
     auto vlanID = vlanMember.first;
-    auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+    auto vlan = switchState->getVlans()->getNodeIf(vlanID);
     if (!vlan) {
       continue;
     }
@@ -500,7 +500,7 @@ void LookupClassUpdater::processPortRemoved(
    */
   for (auto vlanMember : removedPort->getVlans()) {
     auto vlanID = vlanMember.first;
-    auto vlan = switchState->getVlans()->getVlanIf(vlanID);
+    auto vlan = switchState->getVlans()->getNodeIf(vlanID);
     if (!vlan) {
       continue;
     }
@@ -695,20 +695,23 @@ void LookupClassUpdater::updateStateObserverLocalCache(
     const std::shared_ptr<SwitchState>& switchState) {
   CHECK(!inited_);
 
-  for (auto port : std::as_const(*switchState->getPorts())) {
-    initPort(switchState, port.second);
-    // THRIFT_COPY
-    for (auto vlanMember : port.second->getVlans()) {
-      auto vlanID = vlanMember.first;
-      auto vlan = switchState->getVlans()->getVlanIf(vlanID);
-      if (!vlan) {
-        continue;
+  for (auto portMap : std::as_const(*switchState->getPorts())) {
+    for (auto port : std::as_const(*portMap.second)) {
+      initPort(switchState, port.second);
+      // THRIFT_COPY
+      for (auto vlanMember : port.second->getVlans()) {
+        auto vlanID = vlanMember.first;
+        auto vlan = switchState->getVlans()->getNodeIf(vlanID);
+        if (!vlan) {
+          continue;
+        }
+        updateStateObserverLocalCacheHelper<folly::MacAddress>(
+            vlan, port.second);
+        updateStateObserverLocalCacheHelper<folly::IPAddressV6>(
+            vlan, port.second);
+        updateStateObserverLocalCacheHelper<folly::IPAddressV4>(
+            vlan, port.second);
       }
-      updateStateObserverLocalCacheHelper<folly::MacAddress>(vlan, port.second);
-      updateStateObserverLocalCacheHelper<folly::IPAddressV6>(
-          vlan, port.second);
-      updateStateObserverLocalCacheHelper<folly::IPAddressV4>(
-          vlan, port.second);
     }
   }
 }
@@ -821,7 +824,7 @@ void LookupClassUpdater::processBlockNeighborUpdates(
 
   blockedNeighbors_ = newBlockedNeighbors;
   for (const auto& [vlanID, ipAddress] : toBeUpdatedBlockNeighbors) {
-    auto vlan = newState->getVlans()->getVlanIf(vlanID);
+    auto vlan = newState->getVlans()->getNodeIf(vlanID);
     if (!vlan) {
       continue;
     }
@@ -921,7 +924,7 @@ void LookupClassUpdater::processMacAddrsToBlockUpdates(
 
   macAddrsToBlock_ = newMacAddrsToBlock;
   for (const auto& [vlanID, macAddress] : toBeUpdatedMacAddrsToBlock) {
-    auto vlan = newState->getVlans()->getVlanIf(vlanID);
+    auto vlan = newState->getVlans()->getNodeIf(vlanID);
     XLOG(DBG2) << "Starting to Processing mac address "
                << macAddress.toString();
     if (!vlan) {
