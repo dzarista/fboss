@@ -186,6 +186,7 @@ else
    export GETDEPS_USE_WGET=1
    cd "$FBOSS_DIR/fboss.git"
 
+   export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo
    time ./build/fbcode_builder/getdeps.py build --num-jobs 20 --allow-system-packages \
       --scratch-path "$SCRATCH_DIR" fboss
    cd $FBOSS_DIR/fboss.git
