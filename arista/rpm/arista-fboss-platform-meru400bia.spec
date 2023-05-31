@@ -31,7 +31,6 @@ find %{SOURCEURL0}/%{_sai_sdk_src_dir} -wholename "*/tools/sand/db" -exec cp -r 
 %install
 mkdir -p %{_fboss_target_share}/wedge_agent/
 install meru400bia.agent.materialized_JSON %{_fboss_target_share}/wedge_agent/platform_wedge_agent.conf
-install config/meru400bia_platform_mapping.json %{_fboss_target_share}/wedge_agent/platform_mapping.json
 cp -rf db %{_fboss_target_share}/
 mkdir -p %{_fboss_target_share}/qsfp_service/
 install config/qsfp_service/meru400bia_qsfp.conf %{_fboss_target_share}/qsfp_service/platform_qsfp.conf
@@ -46,7 +45,6 @@ install config/udev/99-meru400bia.rules %{_fboss_target_udev}
 /var/facebook/fboss/fruid.json
 /opt/fboss/share/db
 /opt/fboss/share/wedge_agent/platform_wedge_agent.conf
-/opt/fboss/share/wedge_agent/platform_mapping.json
 /opt/fboss/share/qsfp_service/platform_qsfp.conf
 /opt/fboss/bin/platform_init.sh
 /etc/udev/rules.d/99-meru400bia.rules
