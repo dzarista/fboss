@@ -43,6 +43,10 @@ while [[ $# -gt 0 ]]; do
       FBOSS_BINS_ONLY=TRUE
       shift
       ;;
+    --known-good-hash)
+      BUILD_KNOWN_GOOD_HASH=TRUE
+      shift
+      ;;
     --arch)
       if [ "$2" == "dnx" ];
       then
@@ -186,7 +190,9 @@ else
    export GETDEPS_USE_WGET=1
    cd "$FBOSS_DIR/fboss.git"
 
-   export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo
+   if ! [ -z "$BUILD_KNOWN_GOOD_HASH" ]; then
+      export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
+   fi
    time ./build/fbcode_builder/getdeps.py build --num-jobs 20 --allow-system-packages \
       --scratch-path "$SCRATCH_DIR" fboss
    cd $FBOSS_DIR/fboss.git
