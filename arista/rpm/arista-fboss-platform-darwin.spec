@@ -9,8 +9,9 @@ URL: https://github.com/aristanetworks/arista-fboss
 Source: %{expand:%%(pwd)}
 
 %define _fboss_darwin_dir fboss.git/arista/platform/darwin
-%define _fboss_config_dir fboss.git/fboss/platform/config_lib/configs
-%define _fboss_bcm_hw_config_dir fboss.git/fboss/oss/hw_test_configs
+%define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
+%define _fboss_config_dir %{_fboss_build_repo_dir}/fboss/platform/config_lib/configs
+%define _fboss_bcm_hw_config_dir %{_fboss_build_repo_dir}/fboss/oss/hw_test_configs
 
 %define _fboss_target_udev %{buildroot}/etc/udev/rules.d/
 %define _fboss_target_bin %{buildroot}/opt/fboss/bin/

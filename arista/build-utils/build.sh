@@ -146,12 +146,14 @@ then
 fi
 
 # Cleanup fboss build artefacts with --rebuild-fboss
+echo "****REBUILD_FBOSS $REBUILD_FBOSS"
 if ! [ -z "$REBUILD_FBOSS" ];
 then
    echo "======== Clean up FBOSS build artifacts ========"
    rm -rf $SCRATCH_DIR/build # remove existing build dir if any
-   rm -rf $SCRATCH_DIR/installed # remove existing build dir if any
-   rm -rf $SCRATCH_DIR/extracted # remove existing build dir if any
+   rm -rf $SCRATCH_DIR/installed
+   rm -rf $SCRATCH_DIR/extracted
+   rm -rf $SCRATCH_DIR/repos/github.com-facebook-fboss.git
    rm -rf "$SCRATCH_DIR"/fboss_bins*
 fi
 cd $FBOSS_DIR/fboss.git
@@ -190,7 +192,8 @@ else
    export GETDEPS_USE_WGET=1
    cd "$FBOSS_DIR/fboss.git"
 
-   if ! [ -z "$BUILD_KNOWN_GOOD_HASH" ]; then
+   echo "****BUILD_KNOWN_GOOD_HASH $BUILD_KNOWN_GOOD_HASH"
+   if [ -z "$BUILD_KNOWN_GOOD_HASH" ]; then
       export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
    fi
    time ./build/fbcode_builder/getdeps.py build --num-jobs 20 --allow-system-packages \

@@ -9,7 +9,8 @@ URL: https://github.com/aristanetworks/arista-fboss
 Source: %{expand:%%(pwd)}
 
 %define _fboss_meru400bia_dir fboss.git/arista/platform/meru400bia
-%define _fboss_bcm_hw_config_dir fboss.git/fboss/oss/hw_test_configs
+%define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
+%define _fboss_bcm_hw_config_dir %{_fboss_build_repo_dir}/fboss/oss/hw_test_configs
 %define _sai_sdk_src_dir Aqua_SAI/sdk-src
 
 %define _fboss_target_share %{buildroot}/opt/fboss/share
