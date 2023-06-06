@@ -558,7 +558,8 @@ class BuildCmd(ProjectCmdBase):
                 build_dir = loader.get_project_build_dir(m)
                 inst_dir = loader.get_project_install_dir(m)
                 src_dir = os.path.join(
-                      os.path.dirname( build_dir[:-1] ), 'repos/github.com-facebook-fboss.git'
+                      loader.build_opts.scratch_dir,
+                      'repos/github.com-facebook-fboss.git'
                 )
                 os.symlink( loader.build_opts.repo_root, src_dir )
 

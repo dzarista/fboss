@@ -153,7 +153,7 @@ then
    rm -rf $SCRATCH_DIR/build # remove existing build dir if any
    rm -rf $SCRATCH_DIR/installed
    rm -rf $SCRATCH_DIR/extracted
-   rm -rf $SCRATCH_DIR/repos/github.com-facebook-fboss.git
+   rm -rf $SCRATCH_DIR/repos
    rm -rf "$SCRATCH_DIR"/fboss_bins*
 fi
 cd $FBOSS_DIR/fboss.git
