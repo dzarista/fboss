@@ -56,6 +56,7 @@ void assertMaxBufferPoolSize(const SaiPlatform* platform) {
   switch (asic->getAsicType()) {
     case cfg::AsicType::ASIC_TYPE_EBRO:
     case cfg::AsicType::ASIC_TYPE_GARONNE:
+    case cfg::AsicType::ASIC_TYPE_YUBA:
     case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
     case cfg::AsicType::ASIC_TYPE_RAMON:
@@ -95,6 +96,7 @@ uint64_t SaiBufferManager::getMaxEgressPoolBytes(const SaiPlatform* platform) {
     case cfg::AsicType::ASIC_TYPE_MOCK:
     case cfg::AsicType::ASIC_TYPE_EBRO:
     case cfg::AsicType::ASIC_TYPE_GARONNE:
+    case cfg::AsicType::ASIC_TYPE_YUBA:
       return asic->getMMUSizeBytes();
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK: {
       auto constexpr kNumXpes = 4;
@@ -184,8 +186,8 @@ void SaiBufferManager::setupIngressBufferPool(
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
     defined(SAI_VERSION_9_0_EA_SIM_ODP) ||                                     \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP) ||                                     \
-    defined(SAI_VERSION_9_0_EA_DNX_SIM_ODP)
+    defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
+    defined(SAI_VERSION_10_0_EA_DNX_ODP)
   if (platform_->getAsic()->isSupported(HwAsic::Feature::PFC)) {
     xoffSize = *bufferPoolCfg.headroomBytes() *
         platform_->getAsic()->getNumMemoryBuffers();
@@ -231,6 +233,13 @@ void SaiBufferManager::setupIngressEgressBufferPool(
     poolSize = FLAGS_ingress_egress_buffer_pool_size *
         platform_->getAsic()->getNumMemoryBuffers();
   } else {
+    // For Jericho ASIC family, there is a single ingress/egress buffer
+    // pool and hence the usage getSwitchEgressPoolAvailableSize() might
+    // be a bit confusing. Using this attribute to avoid a new attribute
+    // to get buffers size for these ASICs. Also, the size returned is
+    // the combined SRAM/DRAM size. From DRAM however, the whole size is
+    // not available for use, a note on the same from Broadcom is captured
+    // in CS00012297372.
     poolSize = getSwitchEgressPoolAvailableSize(platform_) *
         platform_->getAsic()->getNumMemoryBuffers();
   }

@@ -5,6 +5,7 @@
 #include "fboss/agent/HwSwitchMatcher.h"
 #include "fboss/agent/types.h"
 
+#include <boost/container/flat_set.hpp>
 #include <unordered_set>
 
 namespace facebook::fboss {
@@ -16,6 +17,7 @@ class AclEntry;
 class SystemPort;
 class Port;
 class BufferPoolConfig;
+class PortFlowletConfig;
 class QosPolicy;
 class SflowCollector;
 } // namespace cfg
@@ -30,15 +32,18 @@ class TeFlowEntry;
 class SwitchState;
 class Interface;
 class Port;
+class PortDescriptor;
 class AclTableGroup;
 class ForwardingInformationBaseContainer;
 class BufferPoolCfg;
+class PortFlowletCfg;
 class QosPolicy;
 template <typename T>
 class Route;
 class ControlPlane;
 class AggregatePort;
 class SflowCollector;
+class SwitchSettings;
 
 class SwitchIdScopeResolver {
  public:
@@ -71,6 +76,7 @@ class SwitchIdScopeResolver {
   HwSwitchMatcher scope(PortID portId) const;
   HwSwitchMatcher scope(const std::shared_ptr<Port>& port) const;
   HwSwitchMatcher scope(const cfg::Port& port) const;
+  HwSwitchMatcher scope(const std::vector<PortID>& portIds) const;
   HwSwitchMatcher scope(const cfg::AggregatePort& aggPort) const;
   HwSwitchMatcher scope(const std::shared_ptr<AggregatePort>& aggPort) const;
   const HwSwitchMatcher& scope(const cfg::IpInIpTunnel& /*m*/) const {
@@ -123,6 +129,30 @@ class SwitchIdScopeResolver {
   const HwSwitchMatcher& scope(
       const std::shared_ptr<SflowCollector>& collector) const;
   const HwSwitchMatcher& scope(const cfg::SflowCollector& collector) const;
+  const HwSwitchMatcher& scope(
+      const std::shared_ptr<SwitchSettings>& /*s*/) const {
+    return allSwitchMatcher();
+  }
+  const HwSwitchMatcher& scope(const cfg::PortFlowletConfig& /*p*/) const {
+    return l3SwitchMatcher();
+  }
+  const HwSwitchMatcher& scope(
+      const std::shared_ptr<PortFlowletCfg>& /*p*/) const {
+    return l3SwitchMatcher();
+  }
+
+  HwSwitchMatcher scope(
+      const std::shared_ptr<SwitchState>& state,
+      const boost::container::flat_set<PortDescriptor>& ports) const;
+  HwSwitchMatcher scope(
+      const std::shared_ptr<SwitchState>& state,
+      const PortDescriptor& portDesc) const;
+  HwSwitchMatcher scope(
+      const std::shared_ptr<SwitchState>& state,
+      const PortID& portId) const;
+  HwSwitchMatcher scope(
+      const std::shared_ptr<SwitchState>& state,
+      const AggregatePortID& aggPortId) const;
 
  private:
   void checkL3() const;

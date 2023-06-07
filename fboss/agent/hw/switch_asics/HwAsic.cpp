@@ -24,6 +24,7 @@
 #include "fboss/agent/hw/switch_asics/Tomahawk5Asic.h"
 #include "fboss/agent/hw/switch_asics/TomahawkAsic.h"
 #include "fboss/agent/hw/switch_asics/Trident2Asic.h"
+#include "fboss/agent/hw/switch_asics/YubaAsic.h"
 
 DEFINE_int32(acl_gid, -1, "Content aware processor group ID for ACLs");
 DEFINE_int32(teFlow_gid, -1, "Exact Match group ID for TeFlows");
@@ -100,6 +101,9 @@ std::unique_ptr<HwAsic> HwAsic::makeAsic(
     case cfg::AsicType::ASIC_TYPE_GARONNE:
       return std::make_unique<GaronneAsic>(
           switchType, switchId, systemPortRange, mac);
+    case cfg::AsicType::ASIC_TYPE_YUBA:
+      return std::make_unique<YubaAsic>(
+          switchType, switchId, systemPortRange, mac);
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
       return std::make_unique<MarvelPhyAsic>(
           switchType, switchId, systemPortRange, mac);
@@ -162,5 +166,22 @@ cfg::Range64 HwAsic::makeRange(int64_t min, int64_t max) {
 }
 std::string HwAsic::getAsicTypeStr() const {
   return apache::thrift::util::enumNameSafe(getAsicType());
+}
+
+const std::map<cfg::PortType, cfg::PortLoopbackMode>&
+HwAsic::desiredLoopbackModes() const {
+  static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMode = {
+      {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::MAC}};
+  return kLoopbackMode;
+}
+
+cfg::PortLoopbackMode HwAsic::getDesiredLoopbackMode(
+    cfg::PortType portType) const {
+  const auto loopbackModeMap = desiredLoopbackModes();
+  auto itr = loopbackModeMap.find(portType);
+  if (itr != loopbackModeMap.end()) {
+    return itr->second;
+  }
+  throw FbossError("Unable to find the portType ", portType);
 }
 } // namespace facebook::fboss

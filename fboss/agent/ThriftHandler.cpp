@@ -12,6 +12,7 @@
 #include "common/logging/logging.h"
 #include "fboss/agent/AddressUtil.h"
 #include "fboss/agent/ArpHandler.h"
+#include "fboss/agent/DsfSubscriber.h"
 #include "fboss/agent/FbossHwUpdateError.h"
 #include "fboss/agent/FibHelpers.h"
 #include "fboss/agent/HwAsicTable.h"
@@ -181,7 +182,8 @@ void getPortInfoHelper(
   for (auto entry : port->getVlans()) {
     portInfo.vlans()->push_back(entry.first);
   }
-  auto platformPort = sw.getPlatform()->getPlatformPort(port->getID());
+  auto platformPort =
+      sw.getPlatform_DEPRECATED()->getPlatformPort(port->getID());
   if (platformPort->getHwLogicalPortId().has_value()) {
     portInfo.hwLogicalPortId() = platformPort->getHwLogicalPortId().value();
   }
@@ -334,15 +336,15 @@ void getPortInfoHelper(
   *portInfo.profileID() = apache::thrift::util::enumName(port->getProfileID());
 
   if (port->isEnabled()) {
-    const auto platformPort = sw.getPlatform()->getPlatformPort(port->getID());
+    const auto pPort =
+        sw.getPlatform_DEPRECATED()->getPlatformPort(port->getID());
     PortHardwareDetails hw;
     hw.profile() = port->getProfileID();
-    hw.profileConfig() =
-        platformPort->getPortProfileConfigFromCache(*hw.profile());
-    hw.pinConfig() = platformPort->getPortPinConfigs(*hw.profile());
+    hw.profileConfig() = pPort->getPortProfileConfigFromCache(*hw.profile());
+    hw.pinConfig() = pPort->getPortPinConfigs(*hw.profile());
     // Use SW Port pinConfig directly
     hw.pinConfig()->iphy() = port->getPinConfigs();
-    hw.chips() = platformPort->getPortDataplaneChips(*hw.profile());
+    hw.chips() = pPort->getPortDataplaneChips(*hw.profile());
     portInfo.hw() = hw;
 
     auto fec = hw.profileConfig()->iphy()->fec().value();
@@ -363,8 +365,8 @@ void getPortInfoHelper(
     portInfo.pfc() = pc;
   }
   try {
-    portInfo.transceiverIdx() =
-        sw.getPlatform()->getPortMapping(port->getID(), port->getSpeed());
+    portInfo.transceiverIdx() = sw.getPlatform_DEPRECATED()->getPortMapping(
+        port->getID(), port->getSpeed());
   } catch (const facebook::fboss::FbossError& err) {
     // No problem, we just don't set the other info
   }
@@ -605,8 +607,10 @@ template <typename AddressT, typename NeighborThriftT>
 void addRecylePortRifNeighbors(
     const std::shared_ptr<SwitchState> state,
     std::vector<NeighborThriftT>& nbrs) {
+  CHECK(!state->getSwitchSettings()->empty());
   for (const auto& switchIdAndInfo :
-       state->getSwitchSettings()->getSwitchIdToSwitchInfo()) {
+       util::getFirstNodeIf(state->getSwitchSettings())
+           ->getSwitchIdToSwitchInfo()) {
     if (switchIdAndInfo.second.switchType() != cfg::SwitchType::VOQ) {
       continue;
     }
@@ -976,7 +980,18 @@ void ThriftHandler::addRemoteNeighbors(
 void ThriftHandler::getNdpTable(std::vector<NdpEntryThrift>& ndpTable) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  auto entries = sw_->getNeighborUpdater()->getNdpCacheData().get();
+
+  // Lookup neighbor entries in the interface neighborTable.
+  // If empty, fallback to looking up vlan neighborTable.
+  // TODO(skhare) Remove this fallback logic once we completely cut over to
+  // interface neighborTable.
+  auto entries = sw_->getNeighborUpdater()->getNdpCacheDataForIntf().get();
+  if (entries.size() == 0) {
+    XLOG(DBG5)
+        << "Interface NDP table is empty, fallback to using VLAN neighbor table";
+    entries = sw_->getNeighborUpdater()->getNdpCacheData().get();
+  }
+
   ndpTable.reserve(entries.size());
   ndpTable.insert(
       ndpTable.begin(),
@@ -989,7 +1004,18 @@ void ThriftHandler::getNdpTable(std::vector<NdpEntryThrift>& ndpTable) {
 void ThriftHandler::getArpTable(std::vector<ArpEntryThrift>& arpTable) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  auto entries = sw_->getNeighborUpdater()->getArpCacheData().get();
+
+  // Lookup neighbor entries in the interface neighborTable.
+  // If empty, fallback to looking up vlan neighborTable.
+  // TODO(skhare) Remove this fallback logic once we completely cut over to
+  // interface neighborTable.
+  auto entries = sw_->getNeighborUpdater()->getArpCacheDataForIntf().get();
+  if (entries.size() == 0) {
+    XLOG(DBG5)
+        << "Interface ARP table is empty, fallback to using VLAN neighbor table";
+    entries = sw_->getNeighborUpdater()->getArpCacheData().get();
+  }
+
   arpTable.reserve(entries.size());
   arpTable.insert(
       arpTable.begin(),
@@ -1595,8 +1621,7 @@ void ThriftHandler::programInternalPhyPorts(
   TransceiverID tcvrID = TransceiverID(id);
   auto newTransceiver = TransceiverSpec::createPresentTransceiver(*transceiver);
 
-  const auto tcvr =
-      sw_->getState()->getTransceivers()->getTransceiverIf(tcvrID);
+  const auto tcvr = sw_->getState()->getTransceivers()->getNodeIf(tcvrID);
   const auto& platformPorts = utility::getPlatformPortsByChip(
       sw_->getPlatformMapping()->getPlatformPorts(), *tcvrChip);
   // Check whether the current Transceiver in the SwitchState matches the
@@ -1612,12 +1637,22 @@ void ThriftHandler::programInternalPhyPorts(
     auto updateFn = [&, tcvrID](const shared_ptr<SwitchState>& state) {
       auto newState = state->clone();
       auto newTransceiverMap = newState->getTransceivers()->modify(&newState);
+      std::vector<PortID> portIds;
+      for (const auto& platformPort : platformPorts) {
+        const auto port =
+            state->getPorts()->getNodeIf(PortID(*platformPort.mapping()->id()));
+        if (port) {
+          portIds.emplace_back(port->getID());
+        }
+      }
       if (!newTransceiver) {
-        newTransceiverMap->removeTransceiver(tcvrID);
-      } else if (newTransceiverMap->getTransceiverIf(tcvrID)) {
-        newTransceiverMap->updateTransceiver(newTransceiver);
+        newTransceiverMap->removeNode(tcvrID);
+      } else if (newTransceiverMap->getNodeIf(tcvrID)) {
+        newTransceiverMap->updateNode(
+            newTransceiver, sw_->getScopeResolver()->scope(portIds));
       } else {
-        newTransceiverMap->addTransceiver(newTransceiver);
+        newTransceiverMap->addNode(
+            newTransceiver, sw_->getScopeResolver()->scope(portIds));
       }
 
       // Now we also need to update the port profile config and pin configs
@@ -2264,7 +2299,7 @@ void ThriftHandler::setExternalLedState(
   ensureConfigured(__func__);
   PortID portId = PortID(portNum);
 
-  const auto plport = sw_->getPlatform()->getPlatformPort(portId);
+  const auto plport = sw_->getPlatform_DEPRECATED()->getPlatformPort(portId);
 
   if (!plport) {
     throw FbossError("No such port ", portNum);
@@ -2556,9 +2591,10 @@ void ThriftHandler::getBlockedNeighbors(
     std::vector<cfg::Neighbor>& blockedNeighbors) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-
-  for (const auto& iter :
-       *(sw_->getState()->getSwitchSettings()->getBlockNeighbors())) {
+  CHECK(!sw_->getState()->getSwitchSettings()->empty());
+  const auto& switchSettings =
+      util::getFirstNodeIf(sw_->getState()->getSwitchSettings());
+  for (const auto& iter : *(switchSettings->getBlockNeighbors())) {
     cfg::Neighbor blockedNeighbor;
     blockedNeighbor.vlanID() =
         iter->cref<switch_state_tags::blockNeighborVlanID>()->toThrift();
@@ -2574,13 +2610,15 @@ void ThriftHandler::setNeighborsToBlock(
     std::unique_ptr<std::vector<cfg::Neighbor>> neighborsToBlock) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureNPU(__func__);
+  ensureConfigured(__func__);
   std::string neighborsToBlockStr;
   std::vector<std::pair<VlanID, folly::IPAddress>> blockNeighbors;
 
+  auto switchSettings =
+      util::getFirstNodeIf(sw_->getState()->getSwitchSettings());
   if (neighborsToBlock) {
     if ((*neighborsToBlock).size() != 0 &&
-        sw_->getState()->getSwitchSettings()->getMacAddrsToBlock()->size() !=
-            0) {
+        switchSettings->getMacAddrsToBlock()->size() != 0) {
       throw FbossError(
           "Setting MAC addr blocklist and Neighbor blocklist simultaneously is not supported");
     }
@@ -2608,7 +2646,8 @@ void ThriftHandler::setNeighborsToBlock(
       "Update blocked neighbors ",
       [blockNeighbors](const std::shared_ptr<SwitchState>& state) {
         std::shared_ptr<SwitchState> newState{state};
-        auto newSwitchSettings = state->getSwitchSettings()->modify(&newState);
+        auto newSwitchSettings =
+            util::getFirstNodeIf(state->getSwitchSettings())->modify(&newState);
         newSwitchSettings->setBlockNeighbors(blockNeighbors);
         return newState;
       });
@@ -2620,7 +2659,8 @@ void ThriftHandler::getMacAddrsToBlock(
   ensureConfigured(__func__);
 
   for (const auto& iter :
-       *(sw_->getState()->getSwitchSettings()->getMacAddrsToBlock())) {
+       *(util::getFirstNodeIf(sw_->getState()->getSwitchSettings())
+             ->getMacAddrsToBlock())) {
     auto vlanID = VlanID(
         iter->cref<switch_state_tags::macAddrToBlockVlanID>()->toThrift());
     auto macAddress = folly::MacAddress(
@@ -2640,8 +2680,9 @@ void ThriftHandler::setMacAddrsToBlock(
 
   if (macAddrsToBlock) {
     if ((*macAddrsToBlock).size() != 0 &&
-        sw_->getState()->getSwitchSettings()->getBlockNeighbors()->size() !=
-            0) {
+        util::getFirstNodeIf(sw_->getState()->getSwitchSettings())
+                ->getBlockNeighbors()
+                ->size() != 0) {
       throw FbossError(
           "Setting MAC addr blocklist and Neighbor blocklist simultaneously is not supported");
     }
@@ -2671,7 +2712,8 @@ void ThriftHandler::setMacAddrsToBlock(
       "Update MAC addrs to block ",
       [blockMacAddrs](const std::shared_ptr<SwitchState>& state) {
         std::shared_ptr<SwitchState> newState{state};
-        auto newSwitchSettings = state->getSwitchSettings()->modify(&newState);
+        auto newSwitchSettings =
+            util::getFirstNodeIf(state->getSwitchSettings())->modify(&newState);
         newSwitchSettings->setMacAddrsToBlock(blockMacAddrs);
         return newState;
       });
@@ -2702,7 +2744,10 @@ void ThriftHandler::getInterfacePhyInfo(
 }
 
 bool ThriftHandler::isSwitchDrained() {
-  return sw_->getState()->getSwitchSettings()->getSwitchDrainState() ==
+  ensureConfigured(__func__);
+  CHECK(!sw_->getState()->getSwitchSettings()->empty());
+  auto switchSettings = sw_->getState()->getSwitchSettings()->cbegin()->second;
+  return switchSettings->getSwitchDrainState() ==
       cfg::SwitchDrainState::DRAINED;
 }
 
@@ -2843,6 +2888,42 @@ void ThriftHandler::getDsfNodes(std::map<int64_t, cfg::DsfNode>& dsfNodes) {
       dsfNodes.insert(
           {static_cast<int64_t>(idAndNode.first),
            idAndNode.second->toThrift()});
+    }
+  }
+}
+
+void ThriftHandler::getDsfSubscriptions(
+    std::vector<FsdbSubscriptionThrift>& subscriptions) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureVoqOrFabric(__func__);
+  // Build a map of <loopbackIp, switchName> from DsfNodes
+  std::unordered_map<std::string, std::string> loopbackIpToName;
+  for (const auto& [_, dsfNodes] :
+       std::as_const(*sw_->getState()->getDsfNodes())) {
+    for (const auto& [_, node] : std::as_const(*dsfNodes)) {
+      if (node->getType() == cfg::DsfNodeType::INTERFACE_NODE) {
+        const auto ipv6Loopback =
+            (*node->getLoopbackIps()->cbegin())->toThrift();
+        loopbackIpToName.emplace(
+            ipv6Loopback.substr(0, ipv6Loopback.find("/")), node->getName());
+      }
+    }
+  }
+
+  for (const auto& subscriptionInfo :
+       sw_->getDsfSubscriber()->getSubscriptionInfo()) {
+    FsdbSubscriptionThrift subscriptionThrift;
+    subscriptionThrift.paths() = subscriptionInfo.paths;
+    subscriptionThrift.state() =
+        fsdb::FsdbPubSubManager::subscriptionStateToString(
+            subscriptionInfo.state);
+    if (loopbackIpToName.find(subscriptionInfo.server) !=
+        loopbackIpToName.end()) {
+      subscriptionThrift.name() = loopbackIpToName[subscriptionInfo.server];
+      subscriptions.push_back(subscriptionThrift);
+    } else {
+      XLOG(ERR) << "Unable to find loopback ip " << subscriptionInfo.server
+                << " from DsfSubscription in Dsf nodes";
     }
   }
 }

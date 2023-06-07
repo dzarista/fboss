@@ -52,6 +52,7 @@ namespace facebook::fboss {
 
 class SwitchState;
 class ControlPlane;
+class MultiControlPlane;
 
 /*
  * StateDelta contains code for examining the differences between two
@@ -89,17 +90,17 @@ class StateDelta {
   MultiSwitchMapDelta<MultiSwitchSflowCollectorMap> getSflowCollectorsDelta()
       const;
   MultiSwitchMapDelta<MultiSwitchLoadBalancerMap> getLoadBalancersDelta() const;
-  DeltaValue<ControlPlane> getControlPlaneDelta() const;
+  ThriftMapDelta<MultiControlPlane> getControlPlaneDelta() const;
   ThriftMapDelta<UdfPacketMatcherMap> getUdfPacketMatcherDelta() const;
   ThriftMapDelta<UdfGroupMap> getUdfGroupDelta() const;
 
   MultiSwitchMapDelta<MultiSwitchMirrorMap> getMirrorsDelta() const;
 
-  ThriftMapDelta<TransceiverMap> getTransceiversDelta() const;
+  MultiSwitchMapDelta<MultiSwitchTransceiverMap> getTransceiversDelta() const;
   MultiSwitchForwardingInformationBaseMapDelta getFibsDelta() const;
   MultiSwitchMapDelta<MultiLabelForwardingInformationBase>
   getLabelForwardingInformationBaseDelta() const;
-  DeltaValue<SwitchSettings> getSwitchSettingsDelta() const;
+  ThriftMapDelta<MultiSwitchSettings> getSwitchSettingsDelta() const;
   DeltaValue<FlowletSwitchingConfig> getFlowletSwitchingConfigDelta() const;
   MultiSwitchMapDelta<MultiSwitchSystemPortMap> getSystemPortsDelta() const;
   ThriftMapDelta<IpTunnelMap> getIpTunnelsDelta() const;

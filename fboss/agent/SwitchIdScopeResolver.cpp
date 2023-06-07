@@ -8,6 +8,7 @@
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/LabelForwardingEntry.h"
 #include "fboss/agent/state/Port.h"
+#include "fboss/agent/state/PortDescriptor.h"
 #include "fboss/agent/state/SflowCollector.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/state/SystemPort.h"
@@ -91,6 +92,16 @@ HwSwitchMatcher SwitchIdScopeResolver::scope(PortID portId) const {
     }
   }
   throw FbossError("No switch found for port ", portId);
+}
+
+HwSwitchMatcher SwitchIdScopeResolver::scope(
+    const std::vector<PortID>& portIds) const {
+  std::unordered_set<SwitchID> switchIds;
+  for (const auto& portId : portIds) {
+    auto portSwitchIds = scope(portId).switchIds();
+    switchIds.insert(portSwitchIds.begin(), portSwitchIds.end());
+  }
+  return HwSwitchMatcher(switchIds);
 }
 
 HwSwitchMatcher SwitchIdScopeResolver::scope(
@@ -234,6 +245,50 @@ const HwSwitchMatcher& SwitchIdScopeResolver::scope(
 const HwSwitchMatcher& SwitchIdScopeResolver::scope(
     const cfg::SflowCollector& /*entry*/) const {
   return l3SwitchMatcher();
+}
+
+HwSwitchMatcher SwitchIdScopeResolver::scope(
+    const std::shared_ptr<SwitchState>& state,
+    const boost::container::flat_set<PortDescriptor>& ports) const {
+  std::unordered_set<SwitchID> switchIds;
+
+  for (auto port : ports) {
+    auto matcher = scope(state, port);
+    for (auto switchId : matcher.switchIds()) {
+      switchIds.insert(switchId);
+    }
+  }
+  return HwSwitchMatcher(switchIds);
+}
+
+HwSwitchMatcher SwitchIdScopeResolver::scope(
+    const std::shared_ptr<SwitchState>& state,
+    const PortDescriptor& portDesc) const {
+  switch (portDesc.type()) {
+    case PortDescriptor::PortType::PHYSICAL:
+      return scope(state, portDesc.phyPortID());
+
+    case PortDescriptor::PortType::AGGREGATE:
+      return scope(state, portDesc.aggPortID());
+
+    case PortDescriptor::PortType::SYSTEM_PORT:
+      return scope(portDesc.sysPortID());
+  }
+  throw FbossError("unknown port type");
+}
+
+HwSwitchMatcher SwitchIdScopeResolver::scope(
+    const std::shared_ptr<SwitchState>& state,
+    const PortID& portId) const {
+  auto port = state->getPorts()->getNode(portId);
+  return scope(port);
+}
+
+HwSwitchMatcher SwitchIdScopeResolver::scope(
+    const std::shared_ptr<SwitchState>& state,
+    const AggregatePortID& aggPortId) const {
+  auto aggPport = state->getAggregatePorts()->getNode(aggPortId);
+  return scope(aggPport);
 }
 
 } // namespace facebook::fboss

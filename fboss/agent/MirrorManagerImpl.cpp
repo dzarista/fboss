@@ -14,9 +14,30 @@
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/state/Vlan.h"
 
+DECLARE_bool(intf_nbr_tables);
+
 template <typename AddrT>
 using NeighborEntryT =
     typename facebook::fboss::MirrorManagerImpl<AddrT>::NeighborEntryT;
+
+namespace {
+
+using facebook::fboss::Interface;
+using facebook::fboss::SwitchState;
+
+template <typename AddrT>
+auto getNeighborEntryTableHelper(
+    const std::shared_ptr<SwitchState>& state,
+    const std::shared_ptr<Interface>& interface) {
+  if (FLAGS_intf_nbr_tables) {
+    return interface->template getNeighborEntryTable<AddrT>();
+  } else {
+    auto vlan = state->getVlans()->getNodeIf(interface->getVlanID());
+    return vlan->template getNeighborEntryTable<AddrT>();
+  }
+}
+
+} // namespace
 
 namespace facebook::fboss {
 
@@ -139,11 +160,11 @@ MirrorManagerImpl<AddrT>::resolveMirrorNextHopNeighbor(
 
   if (interface->hasAddress(mirrorNextHopIp)) {
     /* if mirror destination is directly connected */
-    neighbor = vlan->template getNeighborEntryTable<AddrT>()->getEntryIf(
-        destinationIp);
+    neighbor = getNeighborEntryTableHelper<AddrT>(state, interface)
+                   ->getEntryIf(destinationIp);
   } else {
-    neighbor = vlan->template getNeighborEntryTable<AddrT>()->getEntryIf(
-        mirrorNextHopIp);
+    neighbor = getNeighborEntryTableHelper<AddrT>(state, interface)
+                   ->getEntryIf(mirrorNextHopIp);
   }
   return neighbor;
 }

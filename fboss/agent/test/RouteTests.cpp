@@ -213,7 +213,7 @@ TEST_F(RouteTest, routeApi) {
   RouteNextHopSet nhops = makeNextHops({"2::10"});
   RouteNextHopEntry nhopEntry(nhops, DISTANCE);
   auto testRouteApi = [&](auto route) {
-    EXPECT_TRUE(route.fromFollyDynamic(route.toFollyDynamic())->isSame(&route));
+    EXPECT_TRUE(std::make_shared<RouteV6>(route.toThrift())->isSame(&route));
     EXPECT_EQ(pfx6, route.prefix());
     EXPECT_EQ(route.toRouteDetails(), route.toRouteDetails());
     EXPECT_EQ(route.str(), route.str());
@@ -1032,7 +1032,6 @@ TEST_F(RouteTest, applyNewConfig) {
   config.interfaces()[5].ipAddresses()[0] = "5.1.1.1/24";
   config.interfaces()[5].ipAddresses()[1] = "::1/48";
 
-  auto platform = this->sw_->getPlatform();
   auto rib = this->sw_->getRib();
   auto stateV0 = this->sw_->getState();
   this->sw_->applyConfig("Apply config1", config);

@@ -12,8 +12,10 @@ namespace php fboss_switch_config
 include "fboss/agent/if/common.thrift"
 include "fboss/agent/if/mpls.thrift"
 include "fboss/lib/if/fboss_common.thrift"
+include "thrift/annotation/cpp.thrift"
 
-typedef i64 (cpp.type = "uint64_t") u64
+@cpp.Type{name = "uint64_t"}
+typedef i64 u64
 
 enum PortDescriptorType {
   Physical = 0,
@@ -1220,6 +1222,7 @@ enum AsicType {
   ASIC_TYPE_RAMON = 12,
   ASIC_TYPE_TOMAHAWK5 = 13,
   ASIC_TYPE_JERICHO3 = 14,
+  ASIC_TYPE_YUBA = 15,
 }
 /**
  * The configuration for an interface
@@ -1520,6 +1523,28 @@ struct SwitchSettings {
   11: map<i64, SwitchType> switchIdToSwitchType_DEPRECATED;
   12: SwitchDrainState switchDrainState = SwitchDrainState.UNDRAINED;
   13: map<i64, SwitchInfo> switchIdToSwitchInfo;
+
+  /*
+   * VOQ switch may use these thresholds as below:
+   *  - During init, create switch device Isolated.
+   *  - When numActiveLinks > minLinksToJoinVOQDomain => Unisolate device.
+   *  - When numActiveLinks < minLinksToRemainInVOQDomain => Isolate device.
+   *
+   * In practice, these thresholds will be configured to provide hysteresis:
+   *  - 0 < minLinksToRemainInVOQDomain < minLinksToJoinVOQDomain < maxActiveLinks
+   *  - numActiveLinks in [0, minLinksToRemainInVOQDomain) => device isolated.
+   *  - numActiveLinks in (minLinksToJoinVOQDomain, maxActiveLinks] => device unisolated
+   *  - numActiveLinks in [minLinksToRemainInVOQDomain, minLinksToJoinVOQDomain]
+   *    => Whether or not the device is isolated depends on how we got to this state.
+   *    => For example, during init, as links gradually turn active, the device
+   *       will be isolated for these numActiveLinks as minLinksToJoinVOQDomain is not
+   *       yet hit.
+   *    => On the other hand, if the links are active but start turning inactive,
+   *       the device will be unisolated for these numActiveLinks since
+   *       minLinksToRemainInVOQDomain is not yet thit.
+   */
+  14: optional i32 minLinksToRemainInVOQDomain;
+  15: optional i32 minLinksToJoinVOQDomain;
 }
 
 // Global buffer pool shared by {port, pgs}

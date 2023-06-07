@@ -30,6 +30,7 @@
 #include "fboss/agent/LookupClassUpdater.h"
 #include "fboss/agent/SwitchInfoUtils.h"
 #include "fboss/agent/hw/HwSwitchWarmBootHelper.h"
+#include "fboss/agent/state/StateUtils.h"
 #include "fboss/lib/phy/gen-cpp2/prbs_types.h"
 #if FOLLY_HAS_COROUTINES
 #include "fboss/agent/MKAServiceManager.h"
@@ -79,6 +80,7 @@
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/StateUpdateHelpers.h"
 #include "fboss/agent/state/SwitchState.h"
+#include "fboss/lib/config/PlatformConfigUtils.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 #include "fboss/qsfp_service/lib/QsfpCache.h"
@@ -155,6 +157,9 @@ DEFINE_int32(
     update_phy_info_interval_s,
     10,
     "Update phy info interval in seconds");
+
+DECLARE_bool(intf_nbr_tables);
+
 namespace {
 
 /**
@@ -190,8 +195,8 @@ facebook::fboss::PortStatus fillInPortStatus(
   *status.drained() = port.isDrained();
 
   try {
-    status.transceiverIdx() =
-        sw->getPlatform()->getPortMapping(port.getID(), port.getSpeed());
+    status.transceiverIdx() = sw->getPlatform_DEPRECATED()->getPortMapping(
+        port.getID(), port.getSpeed());
   } catch (const facebook::fboss::FbossError& err) {
     // No problem, we just don't set the other info
   }
@@ -459,8 +464,6 @@ std::tuple<folly::dynamic, state::WarmbootState> SwSwitch::gracefulExitState()
     // For RIB we employ a optmization to serialize only unresolved routes
     // and recover others from FIB
     thriftSwitchState.routeTables() = rib_->warmBootState();
-    // TODO(pshaikh): delete rib's folly dynamic
-    follySwitchState[kRib] = rib_->unresolvedRoutesFollyDynamic();
   }
   *thriftSwitchState.swSwitchState() = getAppliedState()->toThrift();
   return std::make_tuple(follySwitchState, thriftSwitchState);
@@ -1150,7 +1153,9 @@ void SwSwitch::handlePendingUpdates() {
 void SwSwitch::updatePtpTcCounter() {
   // update fb303 counter to reflect current state of PTP
   // should be invoked post update
-  auto switchSettings = getState()->getSwitchSettings();
+  auto switchSettings = util::getFirstNodeIf(getState()->getSwitchSettings())
+      ? util::getFirstNodeIf(getState()->getSwitchSettings())
+      : std::make_shared<SwitchSettings>();
   fb303::fbData->setCounter(
       SwitchStats::kCounterPrefix + "ptp_tc_enabled",
       switchSettings->isPtpTcEnable() ? 1 : 0);
@@ -1950,10 +1955,11 @@ void SwSwitch::applyConfig(
         // wedge_agent use TrransceiverMap to build Port::profileConfig and
         // pinConfigs. To do so, we need to manually build this TransceiverMap
         // by using QsfpCache to fetch all transceiver infos.
-        auto qsfpCache = getPlatform()->getQsfpCache();
+        auto qsfpCache = getPlatform_DEPRECATED()->getQsfpCache();
         if (qsfpCache) {
           const auto& currentTcvrs = qsfpCache->getAllTransceivers();
-          auto tempState = SwitchState::modifyTransceivers(state, currentTcvrs);
+          auto tempState = modifyTransceivers(
+              state, currentTcvrs, getPlatformMapping(), getScopeResolver());
           if (tempState) {
             originalState = tempState;
           }
@@ -1964,7 +1970,7 @@ void SwSwitch::applyConfig(
         auto newState = rib_ ? applyThriftConfig(
                                    originalState,
                                    &newConfig,
-                                   getPlatform(),
+                                   getPlatform_DEPRECATED(),
                                    platformMapping_.get(),
                                    hwAsicTable_.get(),
                                    &routeUpdater,
@@ -1972,7 +1978,7 @@ void SwSwitch::applyConfig(
                              : applyThriftConfig(
                                    originalState,
                                    &newConfig,
-                                   getPlatform(),
+                                   getPlatform_DEPRECATED(),
                                    platformMapping_.get(),
                                    hwAsicTable_.get(),
                                    (RoutingInformationBase*)nullptr,
@@ -2271,4 +2277,75 @@ fsdb::OperDelta SwSwitch::stateChanged(
   return transaction ? hw_->stateChangedTransaction(delta)
                      : hw_->stateChanged(delta);
 }
+
+std::shared_ptr<SwitchState> SwSwitch::modifyTransceivers(
+    const std::shared_ptr<SwitchState>& state,
+    const std::unordered_map<TransceiverID, TransceiverInfo>& currentTcvrs,
+    const PlatformMapping* platformMapping,
+    const SwitchIdScopeResolver* scopeResolver) {
+  auto origTcvrs = state->getTransceivers();
+  TransceiverMap::NodeContainer newTcvrs;
+  bool changed = false;
+  for (const auto& tcvrInfo : currentTcvrs) {
+    auto origTcvr = origTcvrs->getNodeIf(tcvrInfo.first);
+    auto newTcvr = TransceiverSpec::createPresentTransceiver(tcvrInfo.second);
+    if (!newTcvr) {
+      // If the transceiver used to be present but now was removed
+      changed |= (origTcvr != nullptr);
+      continue;
+    } else {
+      if (origTcvr && *origTcvr == *newTcvr) {
+        newTcvrs.emplace(origTcvr->getID(), origTcvr);
+      } else {
+        changed = true;
+        newTcvrs.emplace(newTcvr->getID(), newTcvr);
+      }
+    }
+  }
+
+  if (changed) {
+    XLOG(DBG2) << "New TransceiverMap has " << newTcvrs.size()
+               << " present transceivers, original map has "
+               << origTcvrs->size();
+    auto newState = state->clone();
+    std::unordered_map<PortID, TransceiverID> portIdToTransceiverID;
+    const auto& platformPorts = platformMapping->getPlatformPorts();
+    for (const auto& [portId, platformPort] : platformPorts) {
+      auto transceiverId =
+          utility::getTransceiverId(platformPort, platformMapping->getChips());
+      if (transceiverId) {
+        portIdToTransceiverID.emplace(PortID(portId), *transceiverId);
+      }
+    }
+    auto getPortIdsForTransceiver = [&portIdToTransceiverID](
+                                        const TransceiverID& id) {
+      std::vector<PortID> portIds;
+      for (const auto& [portId, transceiverId] : portIdToTransceiverID) {
+        if (id == transceiverId) {
+          portIds.emplace_back(portId);
+        }
+      }
+      CHECK_NE(portIds.size(), 0) << "No portId found for transceiver " << id;
+      return portIds;
+    };
+    auto transceiverMap = std::make_shared<TransceiverMap>(std::move(newTcvrs));
+    auto multiSwitchTransceiverMap =
+        std::make_shared<MultiSwitchTransceiverMap>();
+    for (const auto& entry : std::as_const(*transceiverMap)) {
+      multiSwitchTransceiverMap->addNode(
+          entry.second,
+          scopeResolver->scope(
+              getPortIdsForTransceiver(TransceiverID(entry.first))));
+    }
+    newState->resetTransceivers(multiSwitchTransceiverMap);
+    return newState;
+  } else {
+    XLOG(DBG2)
+        << "Current transceivers from QsfpCache has the same transceiver size:"
+        << origTcvrs->size()
+        << ", no need to reset TransceiverMap in current SwitchState";
+    return nullptr;
+  }
+}
+
 } // namespace facebook::fboss

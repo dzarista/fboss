@@ -38,6 +38,8 @@ using folly::IPAddressV6;
 using folly::MacAddress;
 using std::shared_ptr;
 
+DECLARE_bool(intf_nbr_tables);
+
 namespace facebook::fboss {
 
 using facebook::fboss::DeltaFunctions::forEachChanged;
@@ -192,6 +194,35 @@ void NeighborUpdaterImpl::receivedNdpNotMine(
   cache->receivedNdpNotMine(ip, mac, port, type, flags);
 }
 
+void NeighborUpdaterImpl::sentNeighborSolicitationForIntf(
+    InterfaceID intfID,
+    IPAddressV6 ip) {
+  auto cache = getNdpCacheForIntf(intfID);
+  cache->sentNeighborSolicitation(ip);
+}
+
+void NeighborUpdaterImpl::receivedNdpMineForIntf(
+    InterfaceID intfID,
+    IPAddressV6 ip,
+    MacAddress mac,
+    PortDescriptor port,
+    ICMPv6Type type,
+    uint32_t flags) {
+  auto cache = getNdpCacheForIntf(intfID);
+  cache->receivedNdpMine(ip, mac, port, type, flags);
+}
+
+void NeighborUpdaterImpl::receivedNdpNotMineForIntf(
+    InterfaceID intfID,
+    IPAddressV6 ip,
+    MacAddress mac,
+    PortDescriptor port,
+    ICMPv6Type type,
+    uint32_t flags) {
+  auto cache = getNdpCacheForIntf(intfID);
+  cache->receivedNdpNotMine(ip, mac, port, type, flags);
+}
+
 void NeighborUpdaterImpl::sentArpRequest(VlanID vlan, IPAddressV4 ip) {
   auto cache = getArpCacheFor(vlan);
   cache->sentArpRequest(ip);
@@ -217,23 +248,66 @@ void NeighborUpdaterImpl::receivedArpNotMine(
   cache->receivedArpNotMine(ip, mac, port, op);
 }
 
-void NeighborUpdaterImpl::portDown(PortDescriptor port) {
-  for (auto vlanCaches : caches_) {
-    auto arpCache = vlanCaches.second->arpCache;
-    arpCache->portDown(port);
+void NeighborUpdaterImpl::sentArpRequestForIntf(
+    InterfaceID intfID,
+    IPAddressV4 ip) {
+  auto cache = getArpCacheForIntf(intfID);
+  cache->sentArpRequest(ip);
+}
 
-    auto ndpCache = vlanCaches.second->ndpCache;
-    ndpCache->portDown(port);
+void NeighborUpdaterImpl::receivedArpMineForIntf(
+    InterfaceID intfID,
+    IPAddressV4 ip,
+    MacAddress mac,
+    PortDescriptor port,
+    ArpOpCode op) {
+  auto cache = getArpCacheForIntf(intfID);
+  cache->receivedArpMine(ip, mac, port, op);
+}
+
+void NeighborUpdaterImpl::receivedArpNotMineForIntf(
+    InterfaceID intfID,
+    IPAddressV4 ip,
+    MacAddress mac,
+    PortDescriptor port,
+    ArpOpCode op) {
+  auto cache = getArpCacheForIntf(intfID);
+  cache->receivedArpNotMine(ip, mac, port, op);
+}
+
+void NeighborUpdaterImpl::portDown(PortDescriptor port) {
+  auto portDownHelper = [port](auto& caches) {
+    for (auto id2NbrCaches : caches) {
+      auto arpCache = id2NbrCaches.second->arpCache;
+      arpCache->portDown(port);
+
+      auto ndpCache = id2NbrCaches.second->ndpCache;
+      ndpCache->portDown(port);
+    }
+  };
+
+  if (FLAGS_intf_nbr_tables) {
+    portDownHelper(intfCaches_);
+  } else {
+    portDownHelper(caches_);
   }
 }
 
 void NeighborUpdaterImpl::portFlushEntries(PortDescriptor port) {
-  for (auto vlanCaches : caches_) {
-    auto arpCache = vlanCaches.second->arpCache;
-    arpCache->portFlushEntries(port);
+  auto portFlushEntriesHelper = [port](auto& caches) {
+    for (auto id2NbrCaches : caches) {
+      auto arpCache = id2NbrCaches.second->arpCache;
+      arpCache->portFlushEntries(port);
 
-    auto ndpCache = vlanCaches.second->ndpCache;
-    ndpCache->portFlushEntries(port);
+      auto ndpCache = id2NbrCaches.second->ndpCache;
+      ndpCache->portFlushEntries(port);
+    }
+  };
+
+  if (FLAGS_intf_nbr_tables) {
+    portFlushEntriesHelper(intfCaches_);
+  } else {
+    portFlushEntriesHelper(caches_);
   }
 }
 
@@ -353,15 +427,23 @@ void NeighborUpdaterImpl::timeoutsChanged(
     std::chrono::seconds ndpTimeout,
     std::chrono::seconds staleEntryInterval,
     uint32_t maxNeighborProbes) {
-  for (auto& vlanAndCaches : caches_) {
-    auto& arpCache = vlanAndCaches.second->arpCache;
-    auto& ndpCache = vlanAndCaches.second->ndpCache;
-    arpCache->setTimeout(arpTimeout);
-    arpCache->setMaxNeighborProbes(maxNeighborProbes);
-    arpCache->setStaleEntryInterval(staleEntryInterval);
-    ndpCache->setTimeout(ndpTimeout);
-    ndpCache->setMaxNeighborProbes(maxNeighborProbes);
-    ndpCache->setStaleEntryInterval(staleEntryInterval);
+  auto timeOutChangedHelper = [&](auto& caches) {
+    for (auto& id2NbrCaches : caches) {
+      auto& arpCache = id2NbrCaches.second->arpCache;
+      auto& ndpCache = id2NbrCaches.second->ndpCache;
+      arpCache->setTimeout(arpTimeout);
+      arpCache->setMaxNeighborProbes(maxNeighborProbes);
+      arpCache->setStaleEntryInterval(staleEntryInterval);
+      ndpCache->setTimeout(ndpTimeout);
+      ndpCache->setMaxNeighborProbes(maxNeighborProbes);
+      ndpCache->setStaleEntryInterval(staleEntryInterval);
+    }
+  };
+
+  if (FLAGS_intf_nbr_tables) {
+    timeOutChangedHelper(intfCaches_);
+  } else {
+    timeOutChangedHelper(caches_);
   }
 }
 

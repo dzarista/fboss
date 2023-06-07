@@ -43,6 +43,8 @@ DEFINE_bool(
     false,
     "Disable neighbor updater in agent");
 
+DECLARE_bool(intf_nbr_tables);
+
 namespace facebook::fboss {
 
 using facebook::fboss::DeltaFunctions::forEachChanged;
@@ -99,9 +101,8 @@ void NeighborUpdater::processInterfaceUpdates(const StateDelta& stateDelta) {
   }
 }
 
-void NeighborUpdater::stateUpdated(const StateDelta& delta) {
-  CHECK(sw_->getUpdateEvb()->inRunningEventBaseThread());
-  for (const auto& entry : delta.getVlansDelta()) {
+void NeighborUpdater::processVlanUpdates(const StateDelta& stateDelta) {
+  for (const auto& entry : stateDelta.getVlansDelta()) {
     sendNeighborUpdates(entry);
     auto oldEntry = entry.getOld();
     auto newEntry = entry.getNew();
@@ -109,7 +110,7 @@ void NeighborUpdater::stateUpdated(const StateDelta& delta) {
     if (!newEntry) {
       vlanDeleted(oldEntry->getID());
     } else if (!oldEntry) {
-      vlanAdded(newEntry->getID(), delta.newState());
+      vlanAdded(newEntry->getID(), stateDelta.newState());
     } else {
       if (newEntry->getInterfaceID() != oldEntry->getInterfaceID() ||
           newEntry->getName() != oldEntry->getName()) {
@@ -118,6 +119,16 @@ void NeighborUpdater::stateUpdated(const StateDelta& delta) {
             newEntry->getID(), newEntry->getInterfaceID(), newEntry->getName());
       }
     }
+  }
+}
+
+void NeighborUpdater::stateUpdated(const StateDelta& delta) {
+  CHECK(sw_->getUpdateEvb()->inRunningEventBaseThread());
+
+  if (FLAGS_intf_nbr_tables) {
+    processInterfaceUpdates(delta);
+  } else {
+    processVlanUpdates(delta);
   }
 
   const auto& oldState = delta.oldState();

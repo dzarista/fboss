@@ -111,6 +111,13 @@ class AgentTest : public ::testing::Test, public AgentInitializer {
   void reloadConfig(std::string reason) const;
   virtual void logLinkDbgMessage(std::vector<PortID>& /* portIDs */) const {}
 
+  SwitchID scope(const boost::container::flat_set<PortDescriptor>& ports);
+  SwitchID scope(
+      const std::shared_ptr<SwitchState>& state,
+      const boost::container::flat_set<PortDescriptor>& ports);
+
+  PortID getPortID(const std::string& portName) const;
+
  private:
   template <typename AddrT>
   void resolveNeighbor(
@@ -128,5 +135,9 @@ class AgentTest : public ::testing::Test, public AgentInitializer {
   std::unique_ptr<std::thread> asyncInitThread_{nullptr};
 };
 
-void initAgentTest(int argc, char** argv, PlatformInitFn initPlatformFn);
+void initAgentTest(
+    int argc,
+    char** argv,
+    PlatformInitFn initPlatformFn,
+    std::optional<cfg::StreamType> streamType = std::nullopt);
 } // namespace facebook::fboss

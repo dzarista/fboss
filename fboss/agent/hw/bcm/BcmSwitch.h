@@ -107,6 +107,8 @@ class UnsupportedFeatureManager;
 class BcmUdfManager;
 class UdfPacketMatcher;
 class UdfGroup;
+class MultiSwitchSettings;
+class SwitchSettings;
 
 /*
  * Virtual interface to BcmSwitch, primarily for mocking/testing
@@ -673,13 +675,14 @@ class BcmSwitch : public BcmSwitchIf {
   void processAddedIntf(const std::shared_ptr<Interface>& intf);
   void processRemovedIntf(const std::shared_ptr<Interface>& intf);
 
+  template <typename MapDeltaT>
   void processNeighborDelta(
-      const StateDelta& delta,
+      const MapDeltaT& mapDelta,
       std::shared_ptr<SwitchState>* appliedState,
       DeltaType optype);
-  template <typename AddrT>
+  template <typename MapDeltaT, typename AddrT>
   void processNeighborTableDelta(
-      const StateDelta& stateDelta,
+      const MapDeltaT& mapDelta,
       std::shared_ptr<SwitchState>* appliedState,
       DeltaType optype);
 
@@ -815,6 +818,10 @@ class BcmSwitch : public BcmSwitchIf {
   bool isValidLabelForwardingEntry(const Route<LabelID>* entry) const;
 
   void processSwitchSettingsChanged(const StateDelta& delta);
+  void processSwitchSettingsEntryChanged(
+      const std::shared_ptr<SwitchSettings>& oldSwitchSettings,
+      const std::shared_ptr<SwitchSettings>& newSwitchSettings,
+      const StateDelta& delta);
 
   void processFlowletSwitchingConfigChanges(const StateDelta& delta);
 
@@ -1066,6 +1073,14 @@ class BcmSwitch : public BcmSwitchIf {
   bool processChangedIngressPoolCfg(
       std::optional<state::BufferPoolFields> oldBufferPoolCfgPtr,
       std::optional<state::BufferPoolFields> newBufferPoolCfgPtr);
+
+  void processControlPlaneEntryChanged(
+      const std::shared_ptr<ControlPlane>& oldCPU,
+      const std::shared_ptr<ControlPlane>& newCPU);
+  void processControlPlaneEntryAdded(
+      const std::shared_ptr<ControlPlane>& newCPU);
+  void processControlPlaneEntryRemoved(
+      const std::shared_ptr<ControlPlane>& oldCPU);
 
   /*
    * Member variables

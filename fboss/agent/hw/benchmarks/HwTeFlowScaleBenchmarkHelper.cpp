@@ -44,7 +44,9 @@ void teFlowAddDelEntriesBenchmarkHelper(bool measureAdd) {
       [](HwSwitch* hwSwitch, const std::vector<PortID>& ports) {
         CHECK_GT(ports.size(), 0);
         return utility::onePortPerInterfaceConfig(
-            hwSwitch, {ports[0], ports[1]}, cfg::PortLoopbackMode::MAC);
+            hwSwitch,
+            {ports[0], ports[1]},
+            hwSwitch->getPlatform()->getAsic()->desiredLoopbackModes());
       };
   AgentEnsemblePlatformConfigFn platformConfigFn =
       [](cfg::PlatformConfig& config) {

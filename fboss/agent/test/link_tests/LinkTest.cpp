@@ -266,14 +266,17 @@ void LinkTest::disableTTLDecrements(
 void LinkTest::createL3DataplaneFlood(
     const boost::container::flat_set<PortDescriptor>& ecmpPorts) {
   utility::EcmpSetupTargetedPorts6 ecmp6(
-      sw()->getState(), sw()->getPlatform()->getLocalMac());
+      sw()->getState(), sw()->getPlatform_DEPRECATED()->getLocalMac());
   programDefaultRoute(ecmpPorts, ecmp6);
   disableTTLDecrements(ecmpPorts);
   auto vlanID = util::getFirstMap(sw()->getState()->getVlans())
                     ->cbegin()
                     ->second->getID();
   utility::pumpTraffic(
-      true, sw()->getHw(), sw()->getPlatform()->getLocalMac(), vlanID);
+      true,
+      sw()->getHw(),
+      sw()->getPlatform_DEPRECATED()->getLocalMac(),
+      vlanID);
   // TODO: Assert that traffic reached a certain rate
   XLOG(DBG2) << "Created L3 Data Plane Flood";
 }
@@ -474,9 +477,13 @@ void LinkTest::setLinkState(bool enable, std::vector<PortID>& portIds) {
       waitForLinkStatus(portIds, enable, 60, std::chrono::milliseconds(1000)););
 }
 
-int linkTestMain(int argc, char** argv, PlatformInitFn initPlatformFn) {
+int linkTestMain(
+    int argc,
+    char** argv,
+    PlatformInitFn initPlatformFn,
+    std::optional<cfg::StreamType> streamType) {
   ::testing::InitGoogleTest(&argc, argv);
-  initAgentTest(argc, argv, initPlatformFn);
+  initAgentTest(argc, argv, initPlatformFn, streamType);
   return RUN_ALL_TESTS();
 }
 

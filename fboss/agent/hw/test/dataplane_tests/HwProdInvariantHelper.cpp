@@ -87,7 +87,7 @@ void HwProdInvariantHelper::sendTrafficOnDownlink() {
 
 void HwProdInvariantHelper::verifyLoadBalacing() {
   CHECK(ecmpHelper_);
-  bool loadBalanced = utility::pumpTrafficAndVerifyLoadBalanced(
+  utility::pumpTrafficAndVerifyLoadBalanced(
       [=]() { sendTrafficOnDownlink(); },
       [=]() {
         auto ports = std::make_unique<std::vector<int32_t>>();
@@ -101,7 +101,6 @@ void HwProdInvariantHelper::verifyLoadBalacing() {
         return ecmpHelper_->isLoadBalanced(
             ecmpPorts_, std::vector<NextHopWeight>(kEcmpWidth, 1), 25);
       });
-  EXPECT_TRUE(loadBalanced);
 }
 
 std::shared_ptr<SwitchState> HwProdInvariantHelper::getProgrammedState() const {
@@ -146,7 +145,6 @@ void HwProdInvariantHelper::verifyDscpToQueueMapping() {
   if (!ensemble_->getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
     return;
   }
-  auto portId = getDownlinkPort();
   // lambda that returns HwPortStats for the given port
   auto getPortStats = [this]() {
     return ensemble_->getLatestPortStats(ensemble_->masterLogicalPortIds());
@@ -158,8 +156,7 @@ void HwProdInvariantHelper::verifyDscpToQueueMapping() {
       ensemble_->getHwSwitch(),
       getProgrammedState(),
       getPortStats,
-      getEcmpPortIds(),
-      portId));
+      getEcmpPortIds()));
 }
 
 void HwProdInvariantHelper::verifySafeDiagCmds() {
@@ -169,6 +166,7 @@ void HwProdInvariantHelper::verifySafeDiagCmds() {
     case cfg::AsicType::ASIC_TYPE_MOCK:
     case cfg::AsicType::ASIC_TYPE_EBRO:
     case cfg::AsicType::ASIC_TYPE_GARONNE:
+    case cfg::AsicType::ASIC_TYPE_YUBA:
     case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
     case cfg::AsicType::ASIC_TYPE_JERICHO2:

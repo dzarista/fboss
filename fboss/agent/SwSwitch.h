@@ -147,10 +147,10 @@ class SwSwitch : public HwSwitch::Callback {
     return hw_;
   }
 
-  const Platform* getPlatform() const {
+  const Platform* getPlatform_DEPRECATED() const {
     return platform_.get();
   }
-  Platform* getPlatform() {
+  Platform* getPlatform_DEPRECATED() {
     return platform_.get();
   }
 
@@ -798,11 +798,20 @@ class SwSwitch : public HwSwitch::Callback {
     return switchInfoTable_;
   }
 
-  const HwAsicTable* getHwAsicTable() const {
+  HwAsicTable* getHwAsicTable() const {
     return hwAsicTable_.get();
   }
   bool fsdbStatPublishReady() const;
   bool fsdbStatePublishReady() const;
+
+  // Helper function to clone a new SwitchState to modify the original
+  // TransceiverMap if there's a change.
+  // This can be removed after deleting qsfp cache
+  static std::shared_ptr<SwitchState> modifyTransceivers(
+      const std::shared_ptr<SwitchState>& state,
+      const std::unordered_map<TransceiverID, TransceiverInfo>& currentTcvrs,
+      const PlatformMapping* platformMapping,
+      const SwitchIdScopeResolver* scopeResolver);
 
  private:
   std::optional<folly::MacAddress> getSourceMac(

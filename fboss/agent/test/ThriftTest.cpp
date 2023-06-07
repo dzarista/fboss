@@ -388,7 +388,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getSetSwitchDrainState) {
   auto switchDrainFn =
       [this](const shared_ptr<SwitchState>& state) -> shared_ptr<SwitchState> {
     shared_ptr<SwitchState> newState{state};
-    auto oldSwitchSettings = state->getSwitchSettings();
+    auto oldSwitchSettings = util::getFirstNodeIf(state->getSwitchSettings());
     auto newSwitchSettings = oldSwitchSettings->modify(&newState);
     newSwitchSettings->setSwitchDrainState(cfg::SwitchDrainState::DRAINED);
     return newState;
@@ -426,10 +426,10 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
         }
         waitForStateUpdates(handler.getSw());
 
-        auto gotBlockedNeighbors = handler.getSw()
-                                       ->getState()
-                                       ->getSwitchSettings()
-                                       ->getBlockNeighbors_DEPRECATED();
+        auto gotBlockedNeighbors =
+            util::getFirstNodeIf(
+                handler.getSw()->getState()->getSwitchSettings())
+                ->getBlockNeighbors_DEPRECATED();
 
         std::vector<cfg::Neighbor> gotBlockedNeighborsViaThrift;
         handler.getBlockedNeighbors(gotBlockedNeighborsViaThrift);
@@ -470,8 +470,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
   setNeighborsToBlock({});
   EXPECT_EQ(
       0,
-      this->sw_->getState()
-          ->getSwitchSettings()
+      util::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
           ->getBlockNeighbors_DEPRECATED()
           .size());
   handler.getBlockedNeighbors(blockedNeighbors);
@@ -481,8 +480,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
   setNeighborsToBlock(std::move(neighborsToBlock));
   EXPECT_EQ(
       0,
-      this->sw_->getState()
-          ->getSwitchSettings()
+      util::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
           ->getBlockNeighbors_DEPRECATED()
           .size());
   handler.getBlockedNeighbors(blockedNeighbors);
@@ -601,6 +599,33 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getSwitchReachability) {
     EXPECT_HW_CALL(this->sw_, getSwitchReachability(testing::_)).Times(1);
     handler.getSwitchReachability(reachabilityMatrix, std::move(switchNames));
     EXPECT_EQ(reachabilityMatrix.size(), 1);
+  }
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getDsfSubscriptions) {
+  ThriftHandler handler(this->sw_);
+  std::vector<FsdbSubscriptionThrift> subscriptions;
+  if (this->isNpu()) {
+    EXPECT_THROW(handler.getDsfSubscriptions(subscriptions), FbossError);
+  } else if (this->isFabric()) {
+    handler.getDsfSubscriptions(subscriptions);
+    EXPECT_EQ(subscriptions.size(), 0);
+  } else {
+    // VOQ
+    handler.getDsfSubscriptions(subscriptions);
+    EXPECT_EQ(subscriptions.size(), 0);
+
+    // Add 1 IN node to DSF config
+    cfg::SwitchConfig config = testConfigA(cfg::SwitchType::VOQ);
+    auto dsfNodeCfg = makeDsfNodeCfg(5);
+    config.dsfNodes()->insert({5, dsfNodeCfg});
+    this->sw_->applyConfig("Config with 1 more IN node", config);
+
+    handler.getDsfSubscriptions(subscriptions);
+    EXPECT_EQ(subscriptions.size(), 1);
+    EXPECT_EQ(*subscriptions[0].name(), *dsfNodeCfg.name());
+    EXPECT_EQ((*subscriptions[0].paths()).size(), 2);
+    EXPECT_EQ(*subscriptions[0].state(), "DISCONNECTED");
   }
 }
 
@@ -915,10 +940,10 @@ TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
         handler.setMacAddrsToBlock(std::move(cfgMacAddrsToBlock));
         waitForStateUpdates(handler.getSw());
 
-        auto gotMacAddrsToBlock = handler.getSw()
-                                      ->getState()
-                                      ->getSwitchSettings()
-                                      ->getMacAddrsToBlock_DEPRECATED();
+        auto gotMacAddrsToBlock =
+            util::getFirstNodeIf(
+                handler.getSw()->getState()->getSwitchSettings())
+                ->getMacAddrsToBlock_DEPRECATED();
         EXPECT_EQ(macAddrsToBlock, gotMacAddrsToBlock);
 
         std::vector<cfg::MacAndVlan> gotMacAddrsToBlockViaThrift;
@@ -943,8 +968,7 @@ TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
   waitForStateUpdates(sw_);
   EXPECT_EQ(
       0,
-      sw_->getState()
-          ->getSwitchSettings()
+      util::getFirstNodeIf(sw_->getState()->getSwitchSettings())
           ->getMacAddrsToBlock_DEPRECATED()
           .size());
   handler.getMacAddrsToBlock(macAddrsToBlock);
@@ -956,8 +980,7 @@ TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
   waitForStateUpdates(sw_);
   EXPECT_EQ(
       0,
-      sw_->getState()
-          ->getSwitchSettings()
+      util::getFirstNodeIf(sw_->getState()->getSwitchSettings())
           ->getMacAddrsToBlock_DEPRECATED()
           .size());
   handler.getMacAddrsToBlock(macAddrsToBlock);
@@ -2271,8 +2294,8 @@ TEST_F(ThriftTest, programInternalPhyPorts) {
             cfg::PortProfileID::PROFILE_100G_4_NRZ_CL91_COPPER);
 
         // Make sure the enabled ports using the new profile config/pin configs
-        auto platform = sw_->getPlatform();
-        auto tcvr = sw_->getState()->getTransceivers()->getTransceiverIf(id);
+        auto platform = sw_->getPlatform_DEPRECATED();
+        auto tcvr = sw_->getState()->getTransceivers()->getNodeIf(id);
         std::optional<cfg::PlatformPortConfigOverrideFactor> factor;
         if (tcvr != nullptr) {
           factor = tcvr->toPlatformPortConfigOverrideFactor();
@@ -2301,7 +2324,7 @@ TEST_F(ThriftTest, programInternalPhyPorts) {
       programmedPorts, preparedTcvrInfo(kCableLength), false);
 
   checkProgrammedPorts(programmedPorts);
-  auto tcvr = sw_->getState()->getTransceivers()->getTransceiver(id);
+  auto tcvr = sw_->getState()->getTransceivers()->getNode(id);
   EXPECT_EQ(tcvr->getID(), id);
   EXPECT_EQ(*tcvr->getCableLength(), kCableLength);
   EXPECT_EQ(*tcvr->getMediaInterface(), kMediaInterface);
@@ -2316,7 +2339,7 @@ TEST_F(ThriftTest, programInternalPhyPorts) {
       programmedPorts2, preparedTcvrInfo(kCableLength2), false);
 
   checkProgrammedPorts(programmedPorts2);
-  tcvr = sw_->getState()->getTransceivers()->getTransceiver(id);
+  tcvr = sw_->getState()->getTransceivers()->getNode(id);
   EXPECT_EQ(tcvr->getID(), id);
   EXPECT_EQ(*tcvr->getCableLength(), kCableLength2);
   EXPECT_EQ(*tcvr->getMediaInterface(), kMediaInterface);
@@ -2346,7 +2369,7 @@ TEST_F(ThriftTest, programInternalPhyPorts) {
 
   // Still return programmed ports even though no transceiver there
   checkProgrammedPorts(programmedPorts3);
-  tcvr = sw_->getState()->getTransceivers()->getTransceiverIf(id);
+  tcvr = sw_->getState()->getTransceivers()->getNodeIf(id);
   EXPECT_TRUE(tcvr == nullptr);
 
   // Remove the same Transceiver again, and make sure no new state created.
@@ -2359,7 +2382,7 @@ TEST_F(ThriftTest, programInternalPhyPorts) {
       programmedPorts3, std::move(unpresentTcvr), false);
   // Still return programmed ports even though no transceiver there
   checkProgrammedPorts(programmedPorts3);
-  tcvr = sw_->getState()->getTransceivers()->getTransceiverIf(id);
+  tcvr = sw_->getState()->getTransceivers()->getNodeIf(id);
   EXPECT_TRUE(tcvr == nullptr);
   EXPECT_EQ(beforeGen, sw_->getState()->getGeneration());
 }

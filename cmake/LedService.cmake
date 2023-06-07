@@ -14,6 +14,7 @@ add_fbthrift_cpp_library(
 add_library(led_core_lib
   fboss/led_service/FsdbSwitchStateSubscriber.cpp
   fboss/led_service/oss/FsdbSwitchStateSubscriber.cpp
+  fboss/led_service/oss/MinipackLedManager.cpp
   fboss/led_service/LedManager.cpp
   fboss/led_service/LedService.cpp
   fboss/led_service/LedServiceHandler.cpp
@@ -26,6 +27,7 @@ target_link_libraries(led_core_lib
   led_structs_types_cpp2
   log_thrift_call
   montblanc_bsp
+  fuji_platform_mapping
   montblanc_platform_mapping
   product_info
   Folly::folly

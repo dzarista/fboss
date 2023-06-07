@@ -29,6 +29,16 @@ std::list<NdpEntryThrift> NeighborUpdaterNoopImpl::getNdpCacheData() {
   return entries;
 }
 
+std::list<ArpEntryThrift> NeighborUpdaterNoopImpl::getArpCacheDataForIntf() {
+  std::list<ArpEntryThrift> entries{};
+  return entries;
+}
+
+std::list<NdpEntryThrift> NeighborUpdaterNoopImpl::getNdpCacheDataForIntf() {
+  std::list<NdpEntryThrift> entries{};
+  return entries;
+}
+
 void NeighborUpdaterNoopImpl::portChanged(
     const std::shared_ptr<Port>& /*oldPort*/,
     const std::shared_ptr<Port>& /*newPort*/) {}
@@ -57,6 +67,26 @@ void NeighborUpdaterNoopImpl::receivedNdpNotMine(
     ICMPv6Type /*type*/,
     uint32_t /*flags*/) {}
 
+void NeighborUpdaterNoopImpl::sentNeighborSolicitationForIntf(
+    InterfaceID /*intfID*/,
+    IPAddressV6 /*ip*/) {}
+
+void NeighborUpdaterNoopImpl::receivedNdpMineForIntf(
+    InterfaceID /*intfID*/,
+    IPAddressV6 /*ip*/,
+    MacAddress /*mac*/,
+    PortDescriptor /*port*/,
+    ICMPv6Type /*type*/,
+    uint32_t /*flags*/) {}
+
+void NeighborUpdaterNoopImpl::receivedNdpNotMineForIntf(
+    InterfaceID /*intfID*/,
+    IPAddressV6 /*ip*/,
+    MacAddress /*mac*/,
+    PortDescriptor /*port*/,
+    ICMPv6Type /*type*/,
+    uint32_t /*flags*/) {}
+
 void NeighborUpdaterNoopImpl::sentArpRequest(
     VlanID /*vlan*/,
     IPAddressV4 /*ip*/) {}
@@ -70,6 +100,24 @@ void NeighborUpdaterNoopImpl::receivedArpMine(
 
 void NeighborUpdaterNoopImpl::receivedArpNotMine(
     VlanID /*vlan*/,
+    IPAddressV4 /*ip*/,
+    MacAddress /*mac*/,
+    PortDescriptor /*port*/,
+    ArpOpCode /*op*/) {}
+
+void NeighborUpdaterNoopImpl::sentArpRequestForIntf(
+    InterfaceID /*intfID*/,
+    IPAddressV4 /*ip*/) {}
+
+void NeighborUpdaterNoopImpl::receivedArpMineForIntf(
+    InterfaceID /*intfID*/,
+    IPAddressV4 /*ip*/,
+    MacAddress /*mac*/,
+    PortDescriptor /*port*/,
+    ArpOpCode /*op*/) {}
+
+void NeighborUpdaterNoopImpl::receivedArpNotMineForIntf(
+    InterfaceID /*intfID*/,
     IPAddressV4 /*ip*/,
     MacAddress /*mac*/,
     PortDescriptor /*port*/,

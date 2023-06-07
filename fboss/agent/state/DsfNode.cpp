@@ -35,6 +35,10 @@ cfg::DsfNodeType DsfNode::getType() const {
   return get<switch_config_tags::type>()->cref();
 }
 
+void DsfNode::setType(cfg::DsfNodeType type) {
+  set<switch_config_tags::type>(type);
+}
+
 cfg::AsicType DsfNode::getAsicType() const {
   return get<switch_config_tags::asicType>()->cref();
 }
@@ -61,13 +65,6 @@ std::optional<folly::MacAddress> DsfNode::getMac() const {
     mac = folly::MacAddress(get<switch_config_tags::nodeMac>()->cref());
   }
   return mac;
-}
-
-std::shared_ptr<DsfNode> DsfNode::fromFollyDynamic(
-    const folly::dynamic& entry) {
-  auto node = std::make_shared<DsfNode>();
-  static_cast<std::shared_ptr<BaseT>>(node)->fromFollyDynamic(entry);
-  return node;
 }
 
 std::set<folly::CIDRNetwork> DsfNode::getLoopbackIpsSorted() const {
