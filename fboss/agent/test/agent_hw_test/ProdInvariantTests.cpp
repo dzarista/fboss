@@ -143,11 +143,7 @@ void ProdInvariantTest::sendTraffic() {
   auto mac = utility::getInterfaceMac(
       sw()->getState(), sw()->getState()->getVlans()->getFirstVlanID());
   utility::pumpTraffic(
-      true,
-      sw()->getHw(),
-      mac,
-      sw()->getState()->getVlans()->getFirstVlanID(),
-      getDownlinkPort());
+      true, sw()->getHw(), mac, sw()->getState()->getVlans()->getFirstVlanID());
 }
 
 PortID ProdInvariantTest::getDownlinkPort() {
@@ -182,12 +178,27 @@ std::vector<PortID> ProdInvariantTest::getEcmpPortIds() {
   return ecmpPortIds;
 }
 
+void ProdInvariantTest::verifyAcl() {
+  auto isEnabled = utility::verifyAclEnabled(sw()->getHw());
+  EXPECT_TRUE(isEnabled);
+  XLOG(DBG2) << "Verify ACL Done";
+}
+
+void ProdInvariantTest::verifyCopp() {
+  utility::verifyCoppInvariantHelper(
+      sw()->getHw(),
+      sw()->getPlatform_DEPRECATED()->getAsic(),
+      sw()->getState(),
+      getDownlinkPort());
+  XLOG(DBG2) << "Verify COPP Done";
+}
+
 void ProdInvariantTest::verifyLoadBalancing() {
   auto getPortStatsFn =
       [&](const std::vector<PortID>& portIds) -> std::map<PortID, HwPortStats> {
     return getLatestPortStats(portIds);
   };
-  bool loadBalanced = utility::pumpTrafficAndVerifyLoadBalanced(
+  utility::pumpTrafficAndVerifyLoadBalanced(
       [=]() { sendTraffic(); },
       [=]() {
         auto ports = std::make_unique<std::vector<int32_t>>();
@@ -204,85 +215,43 @@ void ProdInvariantTest::verifyLoadBalancing() {
             getPortStatsFn,
             25);
       });
-  EXPECT_TRUE(loadBalanced);
-  XLOG(DBG2) << "Verify loadbalancing done";
+  XLOG(DBG2) << "Verify Load Balancing Done";
 }
 
-void ProdInvariantTest::verifyAcl() {
-  auto isEnabled = utility::verifyAclEnabled(sw()->getHw());
-  EXPECT_TRUE(isEnabled);
-}
+void ProdInvariantTest::verifyDscpToQueueMapping() {
+  if (!sw()->getPlatform_DEPRECATED()->getAsic()->isSupported(
+          HwAsic::Feature::L3_QOS)) {
+    return;
+  }
 
-void ProdInvariantTest::verifyCopp() {
-  utility::verifyCoppInvariantHelper(
-      sw()->getHw(),
-      sw()->getPlatform()->getAsic(),
-      sw()->getState(),
-      getDownlinkPort());
-  XLOG(DBG2) << "Verify COPP done";
-}
+  auto uplinkDownlinkPorts = utility::getAllUplinkDownlinkPorts(
+      platform()->getHwSwitch(), initialConfig(), kEcmpWidth, false);
 
-int ProdInvariantTestMain(
-    int argc,
-    char** argv,
-    PlatformInitFn initPlatformFn) {
-  ::testing::InitGoogleTest(&argc, argv);
-  initAgentTest(argc, argv, initPlatformFn);
-  return RUN_ALL_TESTS();
-}
+  // gather all uplink + downlink ports
+  std::vector<PortID> portIds = uplinkDownlinkPorts.first;
+  for (auto it = uplinkDownlinkPorts.second.begin();
+       it != uplinkDownlinkPorts.second.end();
+       ++it) {
+    portIds.push_back(*it);
+  }
 
-TEST_F(ProdInvariantTest, verifyInvariants) {
-  auto setup = [&]() {};
-  auto verify = [&]() {
-    verifyAcl();
-    // TODO: Uncomment once tests are more stable.
-    verifyCopp();
-    verifyLoadBalancing();
-    // verifyDscpToQueueMapping();
-    verifySafeDiagCommands();
+  auto getPortStatsFn = [&]() -> std::map<PortID, HwPortStats> {
+    return getLatestPortStats(portIds);
   };
-  verifyAcrossWarmBoots(setup, verify);
+
+  auto q2dscpMap = utility::getOlympicQosMaps(initialConfig());
+  // To account for switches that take longer to update port stats, bump sleep
+  // time to 100ms.
+  EXPECT_TRUE(utility::verifyQueueMappingsInvariantHelper(
+      q2dscpMap,
+      sw()->getHw(),
+      sw()->getState(),
+      getPortStatsFn,
+      getEcmpPortIds(),
+      100 /* sleep in ms */));
+  XLOG(DBG2) << "Verify DSCP to Queue Mapping Done";
 }
 
-void ProdInvariantTest::verifySafeDiagCommands() {
-  std::set<std::string> diagCmds;
-  switch (sw()->getPlatform()->getAsic()->getAsicType()) {
-    case cfg::AsicType::ASIC_TYPE_FAKE:
-    case cfg::AsicType::ASIC_TYPE_MOCK:
-    case cfg::AsicType::ASIC_TYPE_EBRO:
-    case cfg::AsicType::ASIC_TYPE_GARONNE:
-    case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
-    case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
-    case cfg::AsicType::ASIC_TYPE_JERICHO2:
-    case cfg::AsicType::ASIC_TYPE_JERICHO3:
-    case cfg::AsicType::ASIC_TYPE_RAMON:
-    case cfg::AsicType::ASIC_TYPE_TOMAHAWK5:
-      break;
-
-    case cfg::AsicType::ASIC_TYPE_TRIDENT2:
-      diagCmds = validated_shell_commands_constants::TD2_TESTED_CMDS();
-      break;
-    case cfg::AsicType::ASIC_TYPE_TOMAHAWK:
-      diagCmds = validated_shell_commands_constants::TH_TESTED_CMDS();
-      break;
-    case cfg::AsicType::ASIC_TYPE_TOMAHAWK3:
-      diagCmds = validated_shell_commands_constants::TH3_TESTED_CMDS();
-      break;
-    case cfg::AsicType::ASIC_TYPE_TOMAHAWK4:
-      diagCmds = validated_shell_commands_constants::TH4_TESTED_CMDS();
-      break;
-  }
-  if (diagCmds.size()) {
-    for (auto i = 0; i < 10; ++i) {
-      for (auto cmd : diagCmds) {
-        std::string out;
-        platform()->getHwSwitch()->printDiagCmd(cmd + "\n");
-      }
-    }
-    std::string out;
-    platform()->getHwSwitch()->printDiagCmd("quit\n");
-  }
-}
 void ProdInvariantTest::verifyQueuePerHostMapping(bool dscpMarkingTest) {
   auto vlanId = utility::firstVlanID(sw()->getState());
   auto intfMac = utility::getFirstInterfaceMac(sw()->getState());
@@ -317,39 +286,70 @@ void ProdInvariantTest::verifyQueuePerHostMapping(bool dscpMarkingTest) {
       l4SrcPort,
       std::nullopt, /* l4DstPort */
       dscp);
+  XLOG(DBG2) << "Verify Queue per Host Mapping Done";
 }
-void ProdInvariantTest::verifyDscpToQueueMapping() {
-  if (!sw()->getPlatform()->getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
-    return;
+
+void ProdInvariantTest::verifySafeDiagCommands() {
+  std::set<std::string> diagCmds;
+  switch (sw()->getPlatform_DEPRECATED()->getAsic()->getAsicType()) {
+    case cfg::AsicType::ASIC_TYPE_FAKE:
+    case cfg::AsicType::ASIC_TYPE_MOCK:
+    case cfg::AsicType::ASIC_TYPE_EBRO:
+    case cfg::AsicType::ASIC_TYPE_GARONNE:
+    case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
+    case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
+    case cfg::AsicType::ASIC_TYPE_JERICHO2:
+    case cfg::AsicType::ASIC_TYPE_JERICHO3:
+    case cfg::AsicType::ASIC_TYPE_RAMON:
+    case cfg::AsicType::ASIC_TYPE_TOMAHAWK5:
+    case cfg::AsicType::ASIC_TYPE_YUBA:
+      break;
+
+    case cfg::AsicType::ASIC_TYPE_TRIDENT2:
+      diagCmds = validated_shell_commands_constants::TD2_TESTED_CMDS();
+      break;
+    case cfg::AsicType::ASIC_TYPE_TOMAHAWK:
+      diagCmds = validated_shell_commands_constants::TH_TESTED_CMDS();
+      break;
+    case cfg::AsicType::ASIC_TYPE_TOMAHAWK3:
+      diagCmds = validated_shell_commands_constants::TH3_TESTED_CMDS();
+      break;
+    case cfg::AsicType::ASIC_TYPE_TOMAHAWK4:
+      diagCmds = validated_shell_commands_constants::TH4_TESTED_CMDS();
+      break;
   }
-
-  auto uplinkDownlinkPorts = utility::getAllUplinkDownlinkPorts(
-      platform()->getHwSwitch(), initialConfig(), kEcmpWidth, false);
-
-  // pick the first one
-  auto downlinkPortId = uplinkDownlinkPorts.second[0];
-  // gather all uplink + downlink ports
-  std::vector<PortID> portIds = uplinkDownlinkPorts.first;
-  for (auto it = uplinkDownlinkPorts.second.begin();
-       it != uplinkDownlinkPorts.second.end();
-       ++it) {
-    portIds.push_back(*it);
+  if (diagCmds.size()) {
+    for (auto i = 0; i < 10; ++i) {
+      for (auto cmd : diagCmds) {
+        std::string out;
+        platform()->getHwSwitch()->printDiagCmd(cmd + "\n");
+      }
+    }
+    std::string out;
+    platform()->getHwSwitch()->printDiagCmd("quit\n");
   }
+  XLOG(DBG2) << "Verify Safe Diagnostic Commands Done";
+}
 
-  auto getPortStatsFn = [&]() -> std::map<PortID, HwPortStats> {
-    return getLatestPortStats(portIds);
+int ProdInvariantTestMain(
+    int argc,
+    char** argv,
+    PlatformInitFn initPlatformFn) {
+  ::testing::InitGoogleTest(&argc, argv);
+  initAgentTest(argc, argv, initPlatformFn);
+  return RUN_ALL_TESTS();
+}
+
+TEST_F(ProdInvariantTest, verifyInvariants) {
+  auto setup = [&]() {};
+  auto verify = [&]() {
+    verifyAcl();
+    verifyCopp();
+    verifyLoadBalancing();
+    verifyDscpToQueueMapping();
+    verifySafeDiagCommands();
   };
-
-  auto q2dscpMap = utility::getOlympicQosMaps(initialConfig());
-  EXPECT_TRUE(utility::verifyQueueMappingsInvariantHelper(
-      q2dscpMap,
-      sw()->getHw(),
-      sw()->getState(),
-      getPortStatsFn,
-      getEcmpPortIds(),
-      downlinkPortId));
-
-  XLOG(DBG2) << "Verify DSCP to Queue mapping done";
+  verifyAcrossWarmBoots(setup, verify);
 }
 
 class ProdInvariantRswMhnicTest : public ProdInvariantTest {

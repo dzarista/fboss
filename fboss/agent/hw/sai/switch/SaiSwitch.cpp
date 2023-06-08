@@ -256,8 +256,8 @@ HwInitResult SaiSwitch::initImpl(
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
     defined(SAI_VERSION_9_0_EA_SIM_ODP) ||                                     \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP) ||                                     \
-    defined(SAI_VERSION_9_0_EA_DNX_SIM_ODP)
+    defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
+    defined(SAI_VERSION_10_0_EA_DNX_ODP)
     // TODO(zecheng): Remove after devices warmbooted to 8.2.
     managerTable_->wredManager().removeUnclaimedWredProfile();
 #endif
@@ -743,11 +743,10 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
         routerID, routeDelta.getFibDelta<folly::IPAddressV6>());
   }
   {
-    auto controlPlaneDelta = delta.getControlPlaneDelta();
-    if (*controlPlaneDelta.getOld() != *controlPlaneDelta.getNew()) {
-      [[maybe_unused]] const auto& lock = lockPolicy.lock();
-      managerTable_->hostifManager().processHostifDelta(controlPlaneDelta);
-    }
+    auto multiSwitchControlPlaneDelta = delta.getControlPlaneDelta();
+    [[maybe_unused]] const auto& lock = lockPolicy.lock();
+    managerTable_->hostifManager().processHostifDelta(
+        multiSwitchControlPlaneDelta);
   }
 
   if (platform_->getAsic()->isSupported(HwAsic::Feature::SAI_MPLS_INSEGMENT)) {
@@ -968,12 +967,31 @@ void SaiSwitch::updateResourceUsage(const LockPolicyT& lockPolicy) {
 }
 
 void SaiSwitch::processSwitchSettingsChangedLocked(
-    const std::lock_guard<std::mutex>& /*lock*/,
+    const std::lock_guard<std::mutex>& lock,
     const StateDelta& delta) {
-  const auto switchSettingsDelta = delta.getSwitchSettingsDelta();
-  const auto& oldSwitchSettings = switchSettingsDelta.getOld();
-  const auto& newSwitchSettings = switchSettingsDelta.getNew();
+  const auto switchSettingDelta = delta.getSwitchSettingsDelta();
+  DeltaFunctions::forEachAdded(
+      switchSettingDelta, [&](const auto& newSwitchSettings) {
+        processSwitchSettingsChangedEntryLocked(
+            lock, std::make_shared<SwitchSettings>(), newSwitchSettings);
+      });
+  DeltaFunctions::forEachChanged(
+      switchSettingDelta,
+      [&](const auto& oldSwitchSettings, const auto& newSwitchSettings) {
+        processSwitchSettingsChangedEntryLocked(
+            lock, oldSwitchSettings, newSwitchSettings);
+      });
+  DeltaFunctions::forEachRemoved(
+      switchSettingDelta, [&](const auto& oldSwitchSettings) {
+        processSwitchSettingsChangedEntryLocked(
+            lock, oldSwitchSettings, std::make_shared<SwitchSettings>());
+      });
+}
 
+void SaiSwitch::processSwitchSettingsChangedEntryLocked(
+    const std::lock_guard<std::mutex>& /*lock*/,
+    const std::shared_ptr<SwitchSettings>& oldSwitchSettings,
+    const std::shared_ptr<SwitchSettings>& newSwitchSettings) {
   if (oldSwitchSettings->getL2LearningMode() !=
       newSwitchSettings->getL2LearningMode()) {
     XLOG(DBG3) << "Configuring L2LearningMode old: "
@@ -1749,12 +1767,19 @@ SaiManagerTable* SaiSwitch::managerTable() {
 std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
   auto state = std::make_shared<SwitchState>();
 
+  auto switchId = platform_->getAsic()->getSwitchId()
+      ? *platform_->getAsic()->getSwitchId()
+      : 0;
+  auto matcher =
+      HwSwitchMatcher(std::unordered_set<SwitchID>({SwitchID(switchId)}));
   if (platform_->getAsic()->isSupported(HwAsic::Feature::CPU_PORT)) {
     // get cpu queue settings
     auto cpu = std::make_shared<ControlPlane>();
     auto cpuQueues = managerTable_->hostifManager().getQueueSettings();
     cpu->resetQueues(cpuQueues);
-    state->resetControlPlane(cpu);
+    auto multiSwitchControlPlane = std::make_shared<MultiControlPlane>();
+    multiSwitchControlPlane->addNode(matcher.matcherString(), cpu);
+    state->resetControlPlane(multiSwitchControlPlane);
   }
   if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
     if (switchType_ == cfg::SwitchType::FABRIC ||
@@ -1806,11 +1831,14 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
             state->getPorts(),
             getSwitchId().value(),
             platform_->getAsic()->getSystemPortRange()),
-        HwSwitchMatcher(
-            std::unordered_set<SwitchID>({SwitchID(getSwitchId().value())})));
+        matcher);
     state->resetSystemPorts(sysPorts);
   }
 
+  auto multiSwitchSwitchSettings = std::make_shared<MultiSwitchSettings>();
+  multiSwitchSwitchSettings->addNode(
+      matcher.matcherString(), std::make_shared<SwitchSettings>());
+  state->resetSwitchSettings(multiSwitchSwitchSettings);
   return state;
 }
 
@@ -1877,12 +1905,6 @@ HwInitResult SaiSwitch::initLocked(
           routeTables,
           ret.switchState->getFibs(),
           ret.switchState->getLabelForwardingInformationBase());
-
-    } else if (switchStateJson.find(kRib) != switchStateJson.items().end()) {
-      ret.rib = RoutingInformationBase::fromFollyDynamic(
-          switchStateJson[kRib],
-          ret.switchState->getFibs(),
-          ret.switchState->getLabelForwardingInformationBase());
     }
   }
   initStoreAndManagersLocked(
@@ -1892,15 +1914,21 @@ HwInitResult SaiSwitch::initLocked(
       adapterKeys2AdapterHostKeysJson.get());
   if (bootType_ != BootType::WARM_BOOT) {
     ret.switchState = getColdBootSwitchState();
+    CHECK(ret.switchState->getSwitchSettings()->size());
     if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::MAC_AGING)) {
       managerTable_->switchManager().setMacAgingSeconds(
-          ret.switchState->getSwitchSettings()->getL2AgeTimerSeconds());
+          ret.switchState->getSwitchSettings()
+              ->cbegin()
+              ->second->getL2AgeTimerSeconds());
     }
   }
   if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::L2_LEARNING)) {
     // for both cold and warm boot, recover l2 learning mode
+    CHECK(ret.switchState->getSwitchSettings()->size());
     managerTable_->bridgeManager().setL2LearningMode(
-        ret.switchState->getSwitchSettings()->getL2LearningMode());
+        ret.switchState->getSwitchSettings()
+            ->cbegin()
+            ->second->getL2LearningMode());
   }
 
   ret.switchState->publish();
@@ -2314,8 +2342,8 @@ void SaiSwitch::unregisterCallbacksLocked(
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
     defined(SAI_VERSION_9_0_EA_SIM_ODP) ||                                     \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP) ||                                     \
-    defined(SAI_VERSION_9_0_EA_DNX_SIM_ODP)
+    defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
+    defined(SAI_VERSION_10_0_EA_DNX_ODP)
     switchApi.unregisterParityErrorSwitchEventCallback(switchId_);
 #else
     switchApi.unregisterTamEventCallback(switchId_);
@@ -2351,31 +2379,30 @@ bool SaiSwitch::isValidStateUpdateLocked(
     XLOG(ERR) << "Only default data plane qos policy is supported";
     return false;
   }
-  const auto switchSettingsDelta = delta.getSwitchSettingsDelta();
-  const auto& oldSwitchSettings = switchSettingsDelta.getOld();
-  const auto& newSwitchSettings = switchSettingsDelta.getNew();
 
-  /*
-   * SwitchSettings are mandatory and can thus only be modified.
-   * Every field in SwitchSettings must always be set in new SwitchState.
-   */
-  if (!oldSwitchSettings || !newSwitchSettings) {
-    throw FbossError("Switch settings must be present in SwitchState");
+  if (delta.oldState()->getSwitchSettings()->size() &&
+      delta.newState()->getSwitchSettings()->empty()) {
+    throw FbossError("Switch settings cannot be removed from SwitchState");
   }
 
-  if (oldSwitchSettings != newSwitchSettings) {
-    if (oldSwitchSettings->getL2LearningMode() !=
-        newSwitchSettings->getL2LearningMode()) {
-      if (l2LearningModeChangeProhibited()) {
-        throw FbossError(
-            "Chaging L2 learning mode after initial config "
-            "application is not permitted");
-      }
-    }
-  }
-  if (newSwitchSettings->isQcmEnable()) {
-    throw FbossError("QCM is not supported on SAI");
-  }
+  DeltaFunctions::forEachChanged(
+      delta.getSwitchSettingsDelta(),
+      [&](const std::shared_ptr<SwitchSettings>& oldSwitchSettings,
+          const std::shared_ptr<SwitchSettings>& newSwitchSettings) {
+        if (*oldSwitchSettings != *newSwitchSettings) {
+          if (oldSwitchSettings->getL2LearningMode() !=
+              newSwitchSettings->getL2LearningMode()) {
+            if (l2LearningModeChangeProhibited()) {
+              throw FbossError(
+                  "Chaging L2 learning mode after initial config "
+                  "application is not permitted");
+            }
+          }
+        }
+        if (newSwitchSettings->isQcmEnable()) {
+          throw FbossError("QCM is not supported on SAI");
+        }
+      });
 
   if (delta.newState()->getMirrors()->numNodes() >
       getPlatform()->getAsic()->getMaxMirrors()) {
@@ -2617,8 +2644,8 @@ void SaiSwitch::switchRunStateChangedImplLocked(
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) || defined(SAI_VERSION_9_0_EA_ODP) || \
     defined(SAI_VERSION_9_0_EA_SIM_ODP) ||                                     \
-    defined(SAI_VERSION_9_0_EA_DNX_ODP) ||                                     \
-    defined(SAI_VERSION_9_0_EA_DNX_SIM_ODP)
+    defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
+    defined(SAI_VERSION_10_0_EA_DNX_ODP)
         switchApi.registerParityErrorSwitchEventCallback(
             switchId_, (void*)__gParityErrorSwitchEventCallback);
 #else

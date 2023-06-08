@@ -33,9 +33,9 @@ void setExactMatchCfg(std::shared_ptr<SwitchState>* state, int prefixLength) {
   if (newState->isPublished()) {
     newState = newState->clone();
   }
-  auto newSwitchSettings = newState->getSwitchSettings()->clone();
+  auto switchSettings = util::getFirstNodeIf(newState->getSwitchSettings());
+  auto newSwitchSettings = switchSettings->modify(&newState);
   newSwitchSettings->setExactMatchTableConfig({exactMatchTableConfigs});
-  newState->resetSwitchSettings(newSwitchSettings);
   *state = newState;
 }
 
@@ -46,10 +46,10 @@ IpPrefix ipPrefix(StringPiece ip, int length) {
   return result;
 }
 
-TeFlow makeFlowKey(std::string dstIp, uint16_t srcPort) {
+TeFlow makeFlowKey(std::string dstIp, uint16_t srcPort, int prefixLength) {
   TeFlow flow;
   flow.srcPort() = srcPort;
-  flow.dstPrefix() = ipPrefix(dstIp, 56);
+  flow.dstPrefix() = ipPrefix(dstIp, prefixLength);
   return flow;
 }
 

@@ -136,9 +136,9 @@ TEST(ThriftySwitchState, TransceiverMap) {
   auto transceiver1 = std::make_shared<TransceiverSpec>(TransceiverID(1));
   auto transceiver2 = std::make_shared<TransceiverSpec>(TransceiverID(2));
 
-  auto transceiverMap = std::make_shared<TransceiverMap>();
-  transceiverMap->addTransceiver(transceiver1);
-  transceiverMap->addTransceiver(transceiver2);
+  auto transceiverMap = std::make_shared<MultiSwitchTransceiverMap>();
+  transceiverMap->addNode(transceiver1, scope());
+  transceiverMap->addNode(transceiver2, scope());
 
   auto state = SwitchState();
   state.resetTransceivers(transceiverMap);
@@ -167,9 +167,9 @@ TEST(ThriftySwitchState, QosPolicyMap) {
   auto qosPolicy1 = std::make_shared<QosPolicy>(kQosPolicy1Name, DscpMap());
   auto qosPolicy2 = std::make_shared<QosPolicy>(kQosPolicy2Name, DscpMap());
 
-  auto map = std::make_shared<QosPolicyMap>();
-  map->addNode(qosPolicy1);
-  map->addNode(qosPolicy2);
+  auto map = std::make_shared<MultiSwitchQosPolicyMap>();
+  map->addNode(qosPolicy1, scope());
+  map->addNode(qosPolicy2, scope());
 
   auto state = SwitchState();
   state.resetQosPolicies(map);

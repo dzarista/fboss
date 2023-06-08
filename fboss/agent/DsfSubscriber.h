@@ -3,6 +3,7 @@
 #pragma once
 
 #include "fboss/agent/StateObserver.h"
+#include "fboss/fsdb/client/FsdbPubSubManager.h"
 
 #include <gtest/gtest.h>
 #include <memory>
@@ -31,6 +32,14 @@ class DsfSubscriber : public StateObserver {
   // made by DsfSubscriber
   const std::shared_ptr<SwitchState> cachedState() const {
     return cachedState_;
+  }
+
+  const std::vector<fsdb::FsdbPubSubManager::SubscriptionInfo>
+  getSubscriptionInfo() const {
+    if (fsdbPubSubMgr_) {
+      return fsdbPubSubMgr_->getSubscriptionInfo();
+    }
+    return {};
   }
 
  private:

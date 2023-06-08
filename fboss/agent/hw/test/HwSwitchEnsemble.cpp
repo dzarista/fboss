@@ -19,6 +19,7 @@
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/Platform.h"
+#include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
@@ -134,8 +135,11 @@ std::shared_ptr<SwitchState> HwSwitchEnsemble::applyNewConfig(
     const auto& currentTcvrs = overrideTcvrInfos
         ? *overrideTcvrInfos
         : qsfpCache->getAllTransceivers();
-    auto tempState =
-        SwitchState::modifyTransceivers(getProgrammedState(), currentTcvrs);
+    auto tempState = SwSwitch::modifyTransceivers(
+        getProgrammedState(),
+        currentTcvrs,
+        getPlatform()->getPlatformMapping(),
+        scopeResolver_.get());
     if (tempState) {
       originalState = tempState;
     }
@@ -457,9 +461,9 @@ void HwSwitchEnsemble::setupEnsemble(
 
   programmedState_ = hwInitResult.switchState;
   programmedState_ = programmedState_->clone();
-  auto settings = programmedState_->getSwitchSettings()->clone();
-  settings->setSwitchIdToSwitchInfo(switchIdToSwitchInfo);
-  programmedState_->resetSwitchSettings(settings);
+  auto settings = util::getFirstNodeIf(programmedState_->getSwitchSettings());
+  auto newSettings = settings->modify(&programmedState_);
+  newSettings->setSwitchIdToSwitchInfo(switchIdToSwitchInfo);
   routingInformationBase_ = std::move(hwInitResult.rib);
   // HwSwitch::init() returns an unpublished programmedState_.  SwSwitch is
   // normally responsible for publishing it.  Go ahead and call publish now.
@@ -522,8 +526,6 @@ HwSwitchEnsemble::gracefulExitState() const {
   if (routingInformationBase_) {
     // For RIB we employ a optmization to serialize only unresolved routes
     // and recover others from FIB
-    follySwitchState[kRib] =
-        routingInformationBase_->unresolvedRoutesFollyDynamic();
     thriftSwitchState.routeTables() = routingInformationBase_->warmBootState();
   }
   *thriftSwitchState.swSwitchState() = getProgrammedState()->toThrift();

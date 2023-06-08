@@ -30,6 +30,7 @@ class DsfNode : public ThriftStructNode<DsfNode, cfg::DsfNode> {
   std::string getName() const;
   void setName(const std::string& name);
   cfg::DsfNodeType getType() const;
+  void setType(cfg::DsfNodeType type);
   cfg::AsicType getAsicType() const;
 
   auto getLoopbackIps() const {
@@ -40,8 +41,6 @@ class DsfNode : public ThriftStructNode<DsfNode, cfg::DsfNode> {
   std::optional<cfg::Range64> getSystemPortRange() const;
   std::optional<folly::MacAddress> getMac() const;
   PlatformType getPlatformType() const;
-
-  static std::shared_ptr<DsfNode> fromFollyDynamic(const folly::dynamic& entry);
 
  private:
   // Inherit the constructors required for clone()

@@ -216,9 +216,9 @@ MultiSwitchMapDelta<MultiSwitchDsfNodeMap> StateDelta::getDsfNodesDelta()
       old_->getDsfNodes().get(), new_->getDsfNodes().get());
 }
 
-DeltaValue<ControlPlane> StateDelta::getControlPlaneDelta() const {
-  return DeltaValue<ControlPlane>(
-      old_->getControlPlane(), new_->getControlPlane());
+ThriftMapDelta<MultiControlPlane> StateDelta::getControlPlaneDelta() const {
+  return ThriftMapDelta<MultiControlPlane>(
+      old_->getControlPlane().get(), new_->getControlPlane().get());
 }
 
 MultiSwitchMapDelta<MultiSwitchMirrorMap> StateDelta::getMirrorsDelta() const {
@@ -226,8 +226,9 @@ MultiSwitchMapDelta<MultiSwitchMirrorMap> StateDelta::getMirrorsDelta() const {
       old_->getMirrors().get(), new_->getMirrors().get());
 }
 
-ThriftMapDelta<TransceiverMap> StateDelta::getTransceiversDelta() const {
-  return ThriftMapDelta<TransceiverMap>(
+MultiSwitchMapDelta<MultiSwitchTransceiverMap>
+StateDelta::getTransceiversDelta() const {
+  return MultiSwitchMapDelta<MultiSwitchTransceiverMap>(
       old_->getTransceivers().get(), new_->getTransceivers().get());
 }
 
@@ -236,9 +237,9 @@ MultiSwitchForwardingInformationBaseMapDelta StateDelta::getFibsDelta() const {
       old_->getFibs().get(), new_->getFibs().get());
 }
 
-DeltaValue<SwitchSettings> StateDelta::getSwitchSettingsDelta() const {
-  return DeltaValue<SwitchSettings>(
-      old_->getSwitchSettings(), new_->getSwitchSettings());
+ThriftMapDelta<MultiSwitchSettings> StateDelta::getSwitchSettingsDelta() const {
+  return ThriftMapDelta<MultiSwitchSettings>(
+      old_->getSwitchSettings().get(), new_->getSwitchSettings().get());
 }
 
 DeltaValue<FlowletSwitchingConfig> StateDelta::getFlowletSwitchingConfigDelta()

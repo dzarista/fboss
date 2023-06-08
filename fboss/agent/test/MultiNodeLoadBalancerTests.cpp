@@ -110,11 +110,12 @@ class MultiNodeLoadBalancerTest : public MultiNodeTest {
     auto config = utility::onePortPerInterfaceConfig(
         platform()->getHwSwitch(),
         testPorts(),
-        cfg::PortLoopbackMode::NONE,
+        utility::kDefaultLoopbackMap(),
         true /*interfaceHasSubnet*/,
         false /*setInterfaceMac*/);
     config.loadBalancers()->push_back(
-        facebook::fboss::utility::getEcmpFullHashConfig(sw()->getPlatform()));
+        facebook::fboss::utility::getEcmpFullHashConfig(
+            sw()->getPlatform_DEPRECATED()));
     return config;
   }
 };

@@ -2,8 +2,10 @@
 
 #include "fboss/led_service/LedManager.h"
 #include "fboss/agent/EnumUtils.h"
+#include "fboss/agent/platforms/common/fuji/FujiPlatformMapping.h"
 #include "fboss/agent/platforms/common/montblanc/MontblancPlatformMapping.h"
 #include "fboss/lib/CommonFileUtils.h"
+#include "fboss/lib/CommonPortUtils.h"
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
 #include "fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
@@ -29,6 +31,8 @@ LedManager::LedManager() {
             .get();
 
     platformMapping_ = std::make_unique<MontblancPlatformMapping>();
+  } else if (mode == PlatformType::PLATFORM_FUJI) {
+    platformMapping_ = std::make_unique<FujiPlatformMapping>("");
   }
 
   eventBase_ = std::make_unique<folly::EventBase>();
@@ -152,7 +156,7 @@ std::vector<uint32_t> LedManager::getCommonLedSwPorts(
  */
 led::LedColor LedManager::calculateLedColor(
     uint32_t portId,
-    cfg::PortProfileID portProfile) {
+    cfg::PortProfileID portProfile) const {
   if (portDisplayMap_.find(portId) == portDisplayMap_.end()) {
     XLOG(ERR) << folly::sformat(
         "Port {:d} LED color undetermined as the port operational info is not available",
@@ -177,11 +181,11 @@ led::LedColor LedManager::calculateLedColor(
       continue;
     }
 
-    auto thisPortUp = portDisplayMap_[swPort].operationStateUp;
+    auto thisPortUp = portDisplayMap_.at(swPort).operationStateUp;
     anyPortUp = anyPortUp || thisPortUp;
     allPortsUp = allPortsUp && thisPortUp;
 
-    auto thisPortReachable = portDisplayMap_[swPort].neighborReachable;
+    auto thisPortReachable = portDisplayMap_.at(swPort).neighborReachable;
     anyPortReachable = anyPortReachable || thisPortReachable;
     allPortsReachable = allPortsReachable && thisPortReachable;
   }
@@ -210,7 +214,7 @@ led::LedColor LedManager::calculateLedColor(
 led::LedColor LedManager::getLedColorFromPortStatus(
     bool anyPortUp,
     bool allPortsUp,
-    bool allPortsReachable) {
+    bool allPortsReachable) const {
   led::LedColor currPortColor{led::LedColor::UNKNOWN};
 
   if (!anyPortUp) {
