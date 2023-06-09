@@ -121,7 +121,7 @@
               "maximum": 120
             },
             "switchMac": "02:00:00:00:00:01",
-            "connectionHandle": "68:00"
+            "connectionHandle": "06:00"
         }
       }
     },
@@ -138,7 +138,8 @@
             "maximum": 120
           },
           "nodeMac": "02:00:00:00:0F:0B",
-          "asicType": 11
+          "asicType": 11,
+          "platformType": 20
       }
     }
   },
@@ -298,7 +299,9 @@
           "sai_acl_qset_optimization": "0x1",
           "sai_async_fdb_nbr_enable": "0x1",
           "sai_common_hash_crc": "0x1",
+          "sai_dis_ctr_incr_on_port_ln_dn": "0",
           "sai_disable_srcmacqedstmac_ctrl": "0x1",
+          "sai_ecmp_group_members_increment": "1",
           "sai_ifp_enable_on_cpu_tx": "0x1",
           "sai_macro_flow_based_hash": "1",
           "sai_mmu_qgroups_default": "1",
