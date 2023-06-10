@@ -218,6 +218,9 @@ def main():
       "1" : getRecyclePortMapping( 1 )
       } )
 
+   # Though FBOSS assumes 4 lanes per serdes core, in reality we have 8, use the
+   # actualLanesPerSerdesCore to calculate serdes octet below.
+   actualLanesPerSerdesCore = 8
    # Append nif ports.
    for port in range( nifPortBase, nifPortBase + numNifPorts ):
       portStr = str( port )
@@ -228,7 +231,7 @@ def main():
       supportedProfiles = [ '22', '23', '26', '35', ]
       maxLanesPerPort = max( [ numLanesFromSupportedProfile[ prof ] for prof in
          supportedProfiles ] )
-      portSerdesCore = portOctet * ( maxLanesPerPort // lanesPerSerdesCore )
+      portSerdesCore = portOctet * ( maxLanesPerPort // actualLanesPerSerdesCore )
       serdesCore = f"BC{portSerdesCore}"
       coreId, frontPanelSlot = nifSerdesOctetCoreToCoreAndFrontPanelSlot[ portOctet ]
       frontPanelPort = f"eth1/{frontPanelSlot}"
