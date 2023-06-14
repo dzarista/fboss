@@ -57,3 +57,30 @@ for service in /opt/fboss/share/systemd/*; do
    name=$(basename "${service}")
    ln -sf "${service}" "${SYSTEMD_DIR}"/"${name}"
 done
+
+# Link configs to correct locations. We do this by rading the model name from the fru.json file then using that model
+# name to grab the correct service configuration files.
+printf  "\nLinking service configuration files\n"
+FRU="/var/facebook/fboss/fruid.json"
+MODEL_NAME=$(cat "${FRU}" | python3 -c "import sys, json; print(json.load(sys.stdin)['Information']['Product Name'].lower())")
+echo "Found model name ${MODEL_NAME} in ${FRU}"
+mkdir -p /etc/coop
+
+FBOSS_SHARE_DIR="/opt/fboss/share"
+WEDGE_AGENT_PLATFORM_CONFIG="${FBOSS_SHARE_DIR}/hw_test_configs/${MODEL_NAME}.agent.materialized_JSON"
+WEDGE_AGENT_DEFAULT_CONFIG="/etc/coop/agent.conf"
+if [ -f "${WEDGE_AGENT_PLATFORM_CONFIG}" ]; then
+   echo "Linking ${WEDGE_AGENT_PLATFORM_CONFIG} to ${WEDGE_AGENT_DEFAULT_CONFIG}"
+   ln -sf "${WEDGE_AGENT_PLATFORM_CONFIG}" "${WEDGE_AGENT_DEFAULT_CONFIG}"
+else
+   echo "No platform wedge_agent config found"
+fi
+
+QSFP_PLATFORM_CONFIG="$FBOSS_SHARE_DIR/qsfp_test_configs/$MODEL_NAME.materialized_JSON"
+QSFP_DEFAULT_CONFIG="/etc/coop/qsfp.conf"
+if [ -f "$QSFP_PLATFORM_CONFIG" ]; then
+   echo "Linking $QSFP_PLATFORM_CONFIG to $QSFP_DEFAULT_CONFIG"
+   ln -sf "${QSFP_PLATFORM_CONFIG}" "${QSFP_DEFAULT_CONFIG}"
+else
+   echo "No platform qsfp_service config found"
+fi
