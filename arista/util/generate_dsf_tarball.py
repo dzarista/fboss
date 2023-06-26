@@ -3,10 +3,9 @@
 
 import argparse
 import os
+import subprocess
 import sys
 import time
-
-import Tac
 
 # -----------------------------------------------------------------------------------
 # NOTE: Ensure the used links and commit hashes are valid
@@ -41,37 +40,40 @@ TEST_RESULTS_FILENAME = 'test_results.txt'
 TEST_RESULTS_LINK = f'http://dist/storage/alamsi/{TEST_RESULTS_FILENAME}'
 # -----------------------------------------------------------------------------------
 
+def runCmd(cmd: list, captureOutput = False):
+   if captureOutput:
+      return subprocess.run(cmd, capture_output=True, text=True).stdout.strip('\n')
+   subprocess.run(cmd)
+
 def createTarball(targetDir):
    print('Creating .tar file...')
    tarFileName = '{}.tar'.format(targetDir)
-   Tac.run(['tar', '-cvf', tarFileName, targetDir])
+   runCmd(['tar', '-cvf', tarFileName, targetDir])
    print('')
-   Tac.run(['sha1sum', tarFileName])
+   runCmd(['sha1sum', tarFileName])
 
 def handleBmc(targetDir) -> str:
-   Tac.run(['wget', BMC_FW_LINK, '-O', os.path.join(targetDir, BMC_FW_FILENAME)])
-   sha1sum = Tac.run(['sha1sum', os.path.join(targetDir, BMC_FW_FILENAME)],
-                     stdout=Tac.CAPTURE)
+   runCmd(['wget', BMC_FW_LINK, '-O', os.path.join(targetDir, BMC_FW_FILENAME)])
+   sha1sum = runCmd(['sha1sum', os.path.join(targetDir, BMC_FW_FILENAME)], True)
+
    BMC_README = f'\nBMC Image:\n---------------------\n{sha1sum}'
    BMC_README += f'Commit Hash: {BMC_COMMIT_HASH}\n'
 
    return BMC_README
     
 def handleAboot(targetDir) -> str:
-   Tac.run(['wget', ABOOT_LINK, '-O', os.path.join(targetDir, ABOOT_FILENAME)])
+   runCmd(['wget', ABOOT_LINK, '-O', os.path.join(targetDir, ABOOT_FILENAME)])
+   sha1sum = runCmd(['sha1sum', os.path.join(targetDir, ABOOT_FILENAME)], True)
 
-   sha1sum = Tac.run(['sha1sum', os.path.join(targetDir, ABOOT_FILENAME)],
-                     stdout=Tac.CAPTURE)
-   ABOOT_README = f'\nAboot Image:\n---------------------\n{sha1sum}'
+   ABOOT_README = f'\nAboot Image:\n---------------------\n{sha1sum}\n'
 
    return ABOOT_README
 
 def handleFwnCPLD(targetDir) -> str:
-   Tac.run(['wget', FWN_CPLD_LINK, '-O',
-            os.path.join(targetDir, FWN_CPLD_FILENAME)])
-   sha1sum = Tac.run(['sha1sum', os.path.join(targetDir, FWN_CPLD_FILENAME)],
-                     stdout=Tac.CAPTURE)
-   FWN_CPLD_README = f'\nFairywren CPLD Image:\n---------------------\n{sha1sum}'
+   runCmd(['wget', FWN_CPLD_LINK, '-O', os.path.join(targetDir, FWN_CPLD_FILENAME)])
+   sha1sum = runCmd(['sha1sum', os.path.join(targetDir, FWN_CPLD_FILENAME)], True)
+
+   FWN_CPLD_README = f'\nFairywren CPLD Image:\n---------------------\n{sha1sum}\n'
 
    return FWN_CPLD_README
 
@@ -80,7 +82,7 @@ def packageProgrammables(targetDir) -> str:
    newTargetDir = f'{targetDir}/{programmablesDir}'
 
    # Create new programmables directory
-   Tac.run(['mkdir', newTargetDir])
+   runCmd(['mkdir', newTargetDir])
 
    README = \
       f'''\n----------------------------------------
@@ -120,8 +122,9 @@ def handleKnownIssues() -> str:
    return KNOWN_ISSUES_README
 
 def handleTestResults(targetDir) -> str:
-   Tac.run(['wget', TEST_RESULTS_LINK, '-O', 
+   runCmd(['wget', TEST_RESULTS_LINK, '-O', 
             os.path.join(targetDir, TEST_RESULTS_FILENAME)])
+   
    TR_README = '\nTest Results:\n---------------------\n'
    TR_README += f'Find in {targetDir}\{TEST_RESULTS_FILENAME}\n'
 
@@ -136,7 +139,7 @@ def generateTarball(targetDir, echoReadme=False, createTarFile=False):
       print('targetDir tarball already exists, please delete this directory first.')
       sys.exit(1)
 
-   Tac.run(['mkdir', targetDir])
+   runCmd(['mkdir', targetDir])
 
    date = time.asctime()
    README = \
@@ -183,7 +186,7 @@ e.g To generate DSF-EFT7 directory and tarball
 generate_dsf_tarball.py --target-dir DSF-EFT7 --create-tarball
 
 NOTE: This is using the following hardcoded versions:
-BMC {}
+BMC: {}
 ABOOT: {}
 CPLD: {}
 Please update this script if those versions changes'''.format(
