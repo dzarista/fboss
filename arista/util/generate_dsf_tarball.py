@@ -11,9 +11,10 @@ import time
 # NOTE: Ensure the used links and commit hashes are valid
 
 # BMC VERSION
+BMC_REPO = 'https://github.com/aristanetworks/arista-openbmc.git'
 BMC_FW_FILENAME = 'flash-meru-jun13'
 BMC_FW_LINK = f'http://dist/openbmc/mfgrelease/meru/20230613/{BMC_FW_FILENAME}'
-BMC_COMMIT_HASH = 'da2689d72193865c66d5d74927be64fb02639f68'
+BMC_COMMIT_HASH = 'e7a7f0e0ac675e8c9bd02f125b5ad291946496d8'
 
 # Aboot
 ABOOT_FILENAME = 'Aboot-norcal13-13.1.0-32240247.rom'
@@ -24,10 +25,12 @@ FWN_CPLD_FILENAME = 'cpld-scd_fwn_p1_m2gl025t.stp'
 FWN_CPLD_LINK = f'http://dist/storage/fboss/programmables/{FWN_CPLD_FILENAME}'
 
 # FBOSS
+FBOSS_REPO = 'https://github.com/aristanetworks/arista-fboss.git'
 FBOSS_COMMIT_HASH = '632c2d06c77e775c4c24c2feadf17937fc633562'
 
 # apl.facebook
-APL_COMMIT_HASH = '632c2d06c77e775c4c24c2feadf17937fc633562'
+APL_REPO = 'https://github.com/aristanetworks/apl.facebook'
+APL_COMMIT_HASH = '176b7c87ea31b5ce23dd7611104a8c11bbe7c3ff'
 
 # Release Notes
 RELEASE_NOTES = '''N/A'''
@@ -45,6 +48,61 @@ def runCmd(cmd: list, captureOutput = False):
       return subprocess.run(cmd, capture_output=True, text=True).stdout.strip('\n')
    subprocess.run(cmd)
 
+def cloneRepo(repo, dest):
+   try:
+      subprocess.check_call(['git', 'clone', repo, dest])
+      print(f'Repo {repo} has been cloned to {dest}')
+   except subprocess.CalledProcessError as e:
+      print(f'Error occurred while cloning the repo: {str(e)}')
+
+def removeRepo(dest):
+   if not os.path.exists(dest):
+      raise ValueError(f'No repo found at {dest}')
+
+   try:
+      runCmd(['rm', '-rf', dest])
+      print(f'Repo at {dest} has been cleaned')
+   except OSError as e:
+      print(f'Error occurred when cleaning the {dest} repo: {str(e)}')
+
+def verifyCommit(repoDir, hash):
+   try:
+      subprocess.check_output(['git', '-C', f'{repoDir}/', 'cat-file', '-t', hash])
+      return True
+   except subprocess.CalledProcessError:
+      return False
+
+def verifyInput():
+   # Verify BMC commit hash
+   openbmcDest = 'OpenBmc'
+   cloneRepo(BMC_REPO, openbmcDest)
+   if not verifyCommit(openbmcDest, BMC_COMMIT_HASH):
+      removeRepo(openbmcDest)
+      print(f'Openbmc commit hash {BMC_COMMIT_HASH} is invalid')
+      return False
+   print('OpenBmc commit hash is valid!')
+   removeRepo(openbmcDest)
+
+   fbossDest = 'fboss'
+   cloneRepo(FBOSS_REPO, fbossDest)
+   if not verifyCommit(fbossDest, FBOSS_COMMIT_HASH):
+      removeRepo(fbossDest)
+      print(f'Fboss commit hash {FBOSS_COMMIT_HASH} is invalid')
+      return False
+   print('fboss commit hash is valid!')
+   removeRepo(fbossDest)
+
+   aplDest = 'apl'
+   cloneRepo(APL_REPO, aplDest)
+   if not verifyCommit(aplDest, APL_COMMIT_HASH):
+      removeRepo(aplDest)
+      print(f'apl.facebook commit hash {APL_COMMIT_HASH} is invalid')
+      return False
+   print('apl.facebook commit hash is valid!')
+   removeRepo(aplDest)
+
+   return True
+
 def createTarball(targetDir):
    print('Creating .tar file...')
    tarFileName = '{}.tar'.format(targetDir)
@@ -56,7 +114,7 @@ def handleBmc(targetDir) -> str:
    runCmd(['wget', BMC_FW_LINK, '-O', os.path.join(targetDir, BMC_FW_FILENAME)])
    sha1sum = runCmd(['sha1sum', os.path.join(targetDir, BMC_FW_FILENAME)], True)
 
-   BMC_README = f'\nBMC Image:\n---------------------\n{sha1sum}'
+   BMC_README = f'\nBMC Image:\n---------------------\n{sha1sum}\n'
    BMC_README += f'Commit Hash: {BMC_COMMIT_HASH}\n'
 
    return BMC_README
@@ -138,6 +196,9 @@ def generateTarball(targetDir, echoReadme=False, createTarFile=False):
    if os.path.exists(targetDir + '.tar') and createTarFile:
       print('targetDir tarball already exists, please delete this directory first.')
       sys.exit(1)
+
+   if not verifyInput():
+      return
 
    runCmd(['mkdir', targetDir])
 
