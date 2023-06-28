@@ -17,6 +17,14 @@ include "thrift/annotation/cpp.thrift"
 @cpp.Type{name = "uint64_t"}
 typedef i64 u64
 
+const i16 defaultVlanId = 0;
+const i64 arpTimeoutDefault = 60;
+const i64 ndpTimeoutDefault = 60;
+const i32 arpAgerIntervalDefault = 5;
+const i32 arpRefreshSecondsDefault = 20;
+const i32 maxNeighborProbesDefault = 300;
+const i64 staleEntryIntervalDefault = 10;
+
 enum PortDescriptorType {
   Physical = 0,
   Aggregate = 1,
@@ -1223,6 +1231,7 @@ enum AsicType {
   ASIC_TYPE_TOMAHAWK5 = 13,
   ASIC_TYPE_JERICHO3 = 14,
   ASIC_TYPE_YUBA = 15,
+  ASIC_TYPE_RAMON3 = 16,
 }
 /**
  * The configuration for an interface
@@ -1728,13 +1737,12 @@ struct FlowletSwitchingConfig {
   6: i32 dynamicQueueMaxThresholdBytes;
   // number of times historical member load and queued bytes are computed in a second
   7: i32 dynamicSampleRate;
-  // TODO move the following 3 port params to port specific structure
-  // port scaling factor for dynamic load balancing
-  8: optional i16 portScalingFactor;
-  // weight of traffic load in determining ports quality
-  9: optional i16 portLoadWeight;
-  // weight of total queue size in determining port quality
-  10: optional i16 portQueueWeight;
+  // minimum threshold, in mbps, used to quantize historical member load
+  8: i32 dynamicEgressMinThresholdBytes;
+  // maximum threshold, in mbps, used to quantize historical member load
+  9: i32 dynamicEgressMaxThresholdBytes;
+  // EWMA of historical member bytes in physical queue
+  10: i16 dynamicPhysicalQueueExponent;
 }
 
 /**
@@ -1757,9 +1765,9 @@ struct SwitchConfig {
    */
   5: i32 defaultVlan;
   6: list<Interface> interfaces = [];
-  7: i32 arpTimeoutSeconds = 60;
-  8: i32 arpRefreshSeconds = 20;
-  9: i32 arpAgerInterval = 5;
+  7: i32 arpTimeoutSeconds = arpTimeoutDefault;
+  8: i32 arpRefreshSeconds = arpRefreshSecondsDefault;
+  9: i32 arpAgerInterval = arpAgerIntervalDefault;
   10: bool proactiveArp = 0;
   // The MAC address to use for the switch CPU.
   11: optional string cpuMAC;
@@ -1789,8 +1797,8 @@ struct SwitchConfig {
   // safety measure here to avoid catastrophic failure if such a situation
   // arises again.On vendor devices we set ARP expiry to be as high as 1500
   // seconds.
-  16: i32 maxNeighborProbes = 300;
-  17: i32 staleEntryInterval = 10;
+  16: i32 maxNeighborProbes = maxNeighborProbesDefault;
+  17: i32 staleEntryInterval = staleEntryIntervalDefault;
   18: list<AggregatePort> aggregatePorts = [];
   // What admin distance to use for each potential clientID
   // These mappings map a ClientID to a AdminDistance

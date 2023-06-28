@@ -416,6 +416,24 @@ shared_ptr<SwitchState> removeVlanIPv4Address(
   return newState;
 }
 
+/*
+ * Applies the config to a switch and returns the new state.
+ * This helper also does fixup of config if some of the needed
+ * fields such as switchInfo is missing.
+ */
+shared_ptr<SwitchState> publishAndApplyConfig(
+    const shared_ptr<SwitchState>& state,
+    cfg::SwitchConfig* config,
+    const Platform* platform,
+    RoutingInformationBase* rib) {
+  if (config->switchSettings()->switchIdToSwitchInfo()->empty()) {
+    config->switchSettings()->switchIdToSwitchInfo() = {
+        {0, createSwitchInfo(cfg::SwitchType::NPU)}};
+  }
+  return publishAndApplyConfig(
+      state, (const cfg::SwitchConfig*)config, platform, rib);
+}
+
 shared_ptr<SwitchState> publishAndApplyConfig(
     const shared_ptr<SwitchState>& state,
     const cfg::SwitchConfig* config,
@@ -429,7 +447,12 @@ shared_ptr<SwitchState> publishAndApplyConfig(
           : std::map<int64_t, cfg::SwitchInfo>(
                 {{0, createSwitchInfo(cfg::SwitchType::NPU)}}));
   return applyThriftConfig(
-      state, config, platform, platformMapping.get(), &hwAsicTable, rib);
+      state,
+      config,
+      platform->supportsAddRemovePort(),
+      platformMapping.get(),
+      &hwAsicTable,
+      rib);
 }
 
 std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
@@ -481,6 +504,7 @@ unique_ptr<MockPlatform> createMockPlatform(
       std::make_pair(switchId, createSwitchInfo(switchType))};
   auto agentCfg = std::make_unique<AgentConfig>(thrift, "");
   mock->init(std::move(agentCfg), 0);
+  FLAGS_mac = mock->getLocalMac().toString();
   return std::move(mock);
 }
 
@@ -544,7 +568,7 @@ unique_ptr<HwTestHandle> createTestHandle(
 }
 
 MockHwSwitch* getMockHw(SwSwitch* sw) {
-  return boost::polymorphic_downcast<MockHwSwitch*>(sw->getHw());
+  return boost::polymorphic_downcast<MockHwSwitch*>(sw->getHw_DEPRECATED());
 }
 
 MockPlatform* getMockPlatform(SwSwitch* sw) {
@@ -553,7 +577,7 @@ MockPlatform* getMockPlatform(SwSwitch* sw) {
 }
 
 MockHwSwitch* getMockHw(std::unique_ptr<SwSwitch>& sw) {
-  return boost::polymorphic_downcast<MockHwSwitch*>(sw->getHw());
+  return boost::polymorphic_downcast<MockHwSwitch*>(sw->getHw_DEPRECATED());
 }
 
 MockPlatform* getMockPlatform(std::unique_ptr<SwSwitch>& sw) {

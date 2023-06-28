@@ -1017,6 +1017,9 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
   hardware_stats.CpuPortStats getCpuPortStats() throws (
     1: fboss.FbossBaseError error,
   );
+  hardware_stats.FabricReachabilityStats getFabricReachabilityStats() throws (
+    1: fboss.FbossBaseError error,
+  );
 
   /* Return running config */
   string getRunningConfig() throws (1: fboss.FbossBaseError error);
@@ -1333,6 +1336,8 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
   list<FsdbSubscriptionThrift> getDsfSubscriptions() throws (
     1: fboss.FbossBaseError error,
   );
+  string getDsfSubscriptionClientId() throws (1: fboss.FbossBaseError error);
+
   map<i64, SystemPortThrift> getSystemPorts() throws (
     1: fboss.FbossBaseError error,
   );

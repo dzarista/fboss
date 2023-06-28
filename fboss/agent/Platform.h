@@ -32,7 +32,6 @@ struct ProductInfo;
 class HwAsic;
 class HwSwitchWarmBootHelper;
 class PlatformProductInfo;
-class QsfpCache;
 
 /*
  * Platform represents a specific switch/router platform.
@@ -123,7 +122,7 @@ class Platform {
   /*
    * Get the product information
    */
-  void getProductInfo(ProductInfo& info);
+  void getProductInfo(ProductInfo& info) const;
 
   bool isProductInfoExist() {
     if (!productInfo_) {
@@ -259,8 +258,6 @@ class Platform {
    * initPorts() will be called during port initialization.
    */
   virtual void initPorts() = 0;
-
-  virtual QsfpCache* getQsfpCache() const = 0;
 
   virtual bool supportsAddRemovePort() const {
     return false;

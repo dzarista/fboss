@@ -350,7 +350,7 @@ class SwitchSettings
   }
 
   std::shared_ptr<QcmCfg> getQcmCfg() const {
-    return cref<switch_state_tags::qcmCfg>();
+    return safe_cref<switch_state_tags::qcmCfg>();
   }
 
   void setQcmCfg(std::shared_ptr<QcmCfg> qcmCfg) {
@@ -358,24 +358,24 @@ class SwitchSettings
   }
 
   const std::shared_ptr<QosPolicy> getDefaultDataPlaneQosPolicy() const {
-    return cref<switch_state_tags::defaultDataPlaneQosPolicy>();
+    return safe_cref<switch_state_tags::defaultDataPlaneQosPolicy>();
   }
 
   void setDefaultDataPlaneQosPolicy(std::shared_ptr<QosPolicy> qosPolicy) {
     ref<switch_state_tags::defaultDataPlaneQosPolicy>() = qosPolicy;
   }
 
-  const std::shared_ptr<UdfConfig>& getUdfConfig() const {
-    return cref<switch_state_tags::udfConfig>();
+  const std::shared_ptr<UdfConfig> getUdfConfig() const {
+    return safe_cref<switch_state_tags::udfConfig>();
   }
 
   void setUdfConfig(std::shared_ptr<UdfConfig> udfConfig) {
     ref<switch_state_tags::udfConfig>() = udfConfig;
   }
 
-  const std::shared_ptr<FlowletSwitchingConfig>& getFlowletSwitchingConfig()
+  const std::shared_ptr<FlowletSwitchingConfig> getFlowletSwitchingConfig()
       const {
-    return cref<switch_state_tags::flowletSwitchingConfig>();
+    return safe_cref<switch_state_tags::flowletSwitchingConfig>();
   }
 
   void setFlowletSwitchingConfig(

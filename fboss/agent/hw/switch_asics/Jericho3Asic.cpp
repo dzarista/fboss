@@ -81,6 +81,7 @@ bool Jericho3Asic::isSupported(Feature feature) const {
       return getAsicMode() != AsicMode::ASIC_MODE_SIM;
 
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
+    case HwAsic::Feature::SLOW_STAT_UPDATE:
       // supported only on the SIM
       return getAsicMode() == AsicMode::ASIC_MODE_SIM;
 
@@ -139,7 +140,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
     case HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP:
     case HwAsic::Feature::SAI_SAMPLEPACKET_TRAP:
-    case HwAsic::Feature::TRAP_PRIORITY_LOWER_VAL_IS_LOWER_PRI:
     case HwAsic::Feature::SAI_UDF_HASH:
     case HwAsic::Feature::PTP_TC:
     case HwAsic::Feature::PTP_TC_PCS:
@@ -210,7 +210,7 @@ Jericho3Asic::desiredLoopbackModes() const {
   static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMode = {
       {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::NIF},
       {cfg::PortType::FABRIC_PORT, cfg::PortLoopbackMode::MAC},
-      {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::MAC}};
+      {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE}};
   return kLoopbackMode;
 }
 } // namespace facebook::fboss

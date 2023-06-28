@@ -136,11 +136,11 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
     case HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP:
     case HwAsic::Feature::SAI_SAMPLEPACKET_TRAP:
-    case HwAsic::Feature::TRAP_PRIORITY_LOWER_VAL_IS_LOWER_PRI:
     case HwAsic::Feature::ROUTE_COUNTERS:
     case HwAsic::Feature::SAI_UDF_HASH:
     case HwAsic::Feature::INGRESS_PRIORITY_GROUP_HEADROOM_WATERMARK:
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
+    case HwAsic::Feature::SLOW_STAT_UPDATE:
       return false;
   }
   return false;
@@ -203,7 +203,7 @@ Jericho2Asic::desiredLoopbackModes() const {
   static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMode = {
       {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::MAC},
       {cfg::PortType::FABRIC_PORT, cfg::PortLoopbackMode::MAC},
-      {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::MAC}};
+      {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE}};
   return kLoopbackMode;
 }
 } // namespace facebook::fboss
