@@ -11,7 +11,6 @@ Source: %{expand:%%(pwd)}
 %define _fboss_darwin_dir fboss.git/arista/platform/darwin
 %define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
 %define _fboss_config_dir %{_fboss_build_repo_dir}/fboss/platform/config_lib/configs
-%define _fboss_bcm_hw_config_dir %{_fboss_build_repo_dir}/fboss/oss/hw_test_configs
 
 %define _fboss_target_udev %{buildroot}/etc/udev/rules.d/
 %define _fboss_target_bin %{buildroot}/opt/fboss/bin/
@@ -27,7 +26,6 @@ set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_darwin_dir}/* .
 cp -af %{SOURCEURL0}/%{_fboss_config_dir}/sensor_service/darwin.json platform_sensors.conf
-cp -af %{SOURCEURL0}/%{_fboss_bcm_hw_config_dir}/darwin.agent.materialized_JSON .
 
 %install
 mkdir -p %{_fboss_target_bin}
@@ -36,10 +34,6 @@ mkdir -p %{_fboss_target_udev}
 install config/udev/99-darwin.rules %{_fboss_target_udev}
 mkdir -p %{_fboss_target_share}/sensor_service/
 install platform_sensors.conf %{_fboss_target_share}/sensor_service/
-mkdir -p %{_fboss_target_share}/wedge_agent/
-install darwin.agent.materialized_JSON %{_fboss_target_share}/wedge_agent/platform_wedge_agent.conf
-mkdir -p %{_fboss_target_share}/qsfp_service/
-install config/qsfp_service/darwin_qsfp.conf %{_fboss_target_share}/qsfp_service/platform_qsfp.conf
 mkdir -p %{_fboss_target_var}
 install config/fruid/fruid.json %{_fboss_target_var}
 
@@ -48,5 +42,3 @@ install config/fruid/fruid.json %{_fboss_target_var}
 /etc/udev/rules.d/99-darwin.rules
 /var/facebook/fboss/fruid.json
 /opt/fboss/share/sensor_service/platform_sensors.conf
-/opt/fboss/share/wedge_agent/platform_wedge_agent.conf
-/opt/fboss/share/qsfp_service/platform_qsfp.conf
