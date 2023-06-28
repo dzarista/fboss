@@ -121,7 +121,7 @@ inline bool operator&(SwitchFlags lhs, SwitchFlags rhs) {
  * must be used in conjunction with a HwSwitch object, which provides an
  * interface to the switch hardware.
  */
-class SwSwitch : public HwSwitch::Callback {
+class SwSwitch : public HwSwitchCallback {
  public:
   typedef std::function<std::shared_ptr<SwitchState>(
       const std::shared_ptr<SwitchState>&)>
@@ -143,7 +143,7 @@ class SwSwitch : public HwSwitch::Callback {
       cfg::SwitchConfig* config);
   ~SwSwitch() override;
 
-  HwSwitch* getHw() const {
+  HwSwitch* getHw_DEPRECATED() const {
     return hw_;
   }
 
@@ -200,7 +200,7 @@ class SwSwitch : public HwSwitch::Callback {
   // injected between HwSwitch and SwSwitch an ensemble must dispatch events to
   // SwSwitch as soon as it receives.
   void init(
-      HwSwitch::Callback* callback,
+      HwSwitchCallback* callback,
       std::unique_ptr<TunManager> tunMgr,
       SwitchFlags flags = SwitchFlags::DEFAULT);
 
@@ -486,7 +486,7 @@ class SwSwitch : public HwSwitch::Callback {
    */
   void packetReceivedThrowExceptionOnError(std::unique_ptr<RxPacket> pkt);
 
-  // HwSwitch::Callback methods
+  // HwSwitchCallback methods
   void packetReceived(std::unique_ptr<RxPacket> pkt) noexcept override;
   void linkStateChanged(
       PortID port,
@@ -794,6 +794,14 @@ class SwSwitch : public HwSwitch::Callback {
   InterfaceID getInterfaceIDForAggregatePort(
       AggregatePortID aggregatePortID) const;
 
+  void sentArpRequest(
+      const std::shared_ptr<Interface>& intf,
+      folly::IPAddressV4 ip);
+
+  void sentNeighborSolicitation(
+      const std::shared_ptr<Interface>& intf,
+      const folly::IPAddressV6& target);
+
   const SwitchInfoTable& getSwitchInfoTable() const {
     return switchInfoTable_;
   }
@@ -812,6 +820,14 @@ class SwSwitch : public HwSwitch::Callback {
       const std::unordered_map<TransceiverID, TransceiverInfo>& currentTcvrs,
       const PlatformMapping* platformMapping,
       const SwitchIdScopeResolver* scopeResolver);
+
+  folly::MacAddress getLocalMac(SwitchID switchId) const;
+
+  TransceiverIdxThrift getTransceiverIdxThrift(PortID port) const;
+
+  std::optional<uint32_t> getHwLogicalPortId(PortID port) const;
+
+  void switchRunStateChanged(SwitchRunState newState);
 
  private:
   std::optional<folly::MacAddress> getSourceMac(
@@ -851,7 +867,12 @@ class SwSwitch : public HwSwitch::Callback {
   void publishSwitchInfo(const HwInitResult& hwInitRet);
   void setSwitchRunState(SwitchRunState desiredState);
   SwitchStats* createSwitchStats();
+
   void handlePacket(std::unique_ptr<RxPacket> pkt);
+  template <typename VlanOrIntfT>
+  void handlePacketImpl(
+      std::unique_ptr<RxPacket> pkt,
+      const std::shared_ptr<VlanOrIntfT>& vlanOrIntf);
 
   void updatePtpTcCounter();
   static void handlePendingUpdatesHelper(SwSwitch* sw);
@@ -903,9 +924,6 @@ class SwSwitch : public HwSwitch::Callback {
   std::shared_ptr<SwitchState> stateChanged(
       const StateDelta& delta,
       bool transaction) const;
-
-  fsdb::OperDelta stateChanged(const fsdb::OperDelta& delta, bool transaction)
-      const;
 
   template <typename FsdbFunc>
   void runFsdbSyncFunction(FsdbFunc&& fn);

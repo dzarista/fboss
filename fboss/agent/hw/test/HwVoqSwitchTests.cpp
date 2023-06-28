@@ -28,9 +28,6 @@ constexpr uint8_t kDefaultQueue = 0;
 }
 
 namespace facebook::fboss {
-namespace {
-const SwitchID kRemoteSwitchId(2);
-}
 class HwVoqSwitchTest : public HwLinkStateDependentTest {
   using pktReceivedCb = folly::Function<void(RxPacket* pkt) const>;
 
@@ -66,13 +63,14 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
     std::vector<std::pair<cfg::PacketRxReason, uint16_t>>
         rxReasonToQueueMappings = {
             std::pair(
-                cfg::PacketRxReason::CPU_IS_NHOP, utility::kCoppMidPriQueueId),
-            std::pair(
                 cfg::PacketRxReason::BGP,
                 utility::getCoppHighPriQueueId(this->getAsic())),
             std::pair(
                 cfg::PacketRxReason::BGPV6,
                 utility::getCoppHighPriQueueId(this->getAsic())),
+            std::pair(
+                cfg::PacketRxReason::CPU_IS_NHOP, utility::kCoppMidPriQueueId),
+
         };
     for (auto rxEntry : rxReasonToQueueMappings) {
       auto rxReasonToQueue = cfg::PacketRxReasonToQueue();
@@ -224,48 +222,57 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
       }
       auto txPacketSize = sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
 
-      WITH_RETRIES({
-        auto afterVoQOutBytes = getVoQOutBytes();
-        if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
-          auto queueOutPktsAndBytes = getQueueOutPktsBytes();
-          afterQueueOutPkts = queueOutPktsAndBytes.first;
-          afterQueueOutBytes = queueOutPktsAndBytes.second;
-        }
-        auto afterAclPkts = getAclPackets();
-        auto portOutPktsAndBytes = getPortOutPktsBytes();
-        auto afterOutPkts = portOutPktsAndBytes.first;
-        auto afterOutBytes = portOutPktsAndBytes.second;
+      auto [maxRetryCount, sleepTimeMsecs] =
+          utility::getRetryCountAndDelay(getAsic());
+      WITH_RETRIES_N_TIMED(
+          maxRetryCount, std::chrono::milliseconds(sleepTimeMsecs), {
+            auto afterVoQOutBytes = getVoQOutBytes();
+            if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
+              auto queueOutPktsAndBytes = getQueueOutPktsBytes();
+              afterQueueOutPkts = queueOutPktsAndBytes.first;
+              afterQueueOutBytes = queueOutPktsAndBytes.second;
+            }
+            auto afterAclPkts = getAclPackets();
+            auto portOutPktsAndBytes = getPortOutPktsBytes();
+            auto afterOutPkts = portOutPktsAndBytes.first;
+            auto afterOutBytes = portOutPktsAndBytes.second;
 
-        XLOG(DBG2) << "Stats:: beforeOutPkts: " << beforeOutPkts
-                   << " beforeOutBytes: " << beforeOutBytes
-                   << " beforeQueueOutPkts: " << beforeQueueOutPkts
-                   << " beforeQueueOutBytes: " << beforeQueueOutBytes
-                   << " beforeVoQOutBytes: " << beforeVoQOutBytes
-                   << " beforeAclPkts: " << beforeAclPkts
-                   << " txPacketSize: " << txPacketSize
-                   << " afterOutPkts: " << afterOutPkts
-                   << " afterOutBytes: " << afterOutBytes
-                   << " afterQueueOutPkts: " << afterQueueOutPkts
-                   << " afterQueueOutBytes: " << afterQueueOutBytes
-                   << " afterVoQOutBytes: " << afterVoQOutBytes
-                   << " afterAclPkts: " << afterAclPkts;
+            XLOG(DBG2) << "Stats:: beforeOutPkts: " << beforeOutPkts
+                       << " beforeOutBytes: " << beforeOutBytes
+                       << " beforeQueueOutPkts: " << beforeQueueOutPkts
+                       << " beforeQueueOutBytes: " << beforeQueueOutBytes
+                       << " beforeVoQOutBytes: " << beforeVoQOutBytes
+                       << " beforeAclPkts: " << beforeAclPkts
+                       << " txPacketSize: " << txPacketSize
+                       << " afterOutPkts: " << afterOutPkts
+                       << " afterOutBytes: " << afterOutBytes
+                       << " afterQueueOutPkts: " << afterQueueOutPkts
+                       << " afterQueueOutBytes: " << afterQueueOutBytes
+                       << " afterVoQOutBytes: " << afterVoQOutBytes
+                       << " afterAclPkts: " << afterAclPkts;
 
-        EXPECT_EVENTUALLY_EQ(afterOutPkts - 1, beforeOutPkts);
-        // CS00012267635: debug why we get 4 extra bytes
-        EXPECT_EVENTUALLY_EQ(afterOutBytes - txPacketSize - 4, beforeOutBytes);
-        if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
-          EXPECT_EVENTUALLY_EQ(afterQueueOutPkts - 1, beforeQueueOutPkts);
-          // CS00012267635: debug why queue counter is 310, when txPacketSize is
-          // 322
-          EXPECT_EVENTUALLY_GE(afterQueueOutBytes, beforeQueueOutBytes);
-        }
-        if (checkAclCounter) {
-          EXPECT_EVENTUALLY_GT(afterAclPkts, beforeAclPkts);
-        }
-        if (getAsic()->isSupported(HwAsic::Feature::VOQ)) {
-          EXPECT_EVENTUALLY_GT(afterVoQOutBytes, beforeVoQOutBytes);
-        }
-      });
+            EXPECT_EVENTUALLY_EQ(afterOutPkts - 1, beforeOutPkts);
+            int extraByteOffset = 0;
+            if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2) {
+              // CS00012267635: debug why we get 4 extra bytes
+              // CS00012299306 why we don't get extra 4 bytes for J3
+              extraByteOffset = 4;
+            }
+            EXPECT_EVENTUALLY_EQ(
+                afterOutBytes - txPacketSize - extraByteOffset, beforeOutBytes);
+            if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
+              EXPECT_EVENTUALLY_EQ(afterQueueOutPkts - 1, beforeQueueOutPkts);
+              // CS00012267635: debug why queue counter is 310, when
+              // txPacketSize is 322
+              EXPECT_EVENTUALLY_GE(afterQueueOutBytes, beforeQueueOutBytes);
+            }
+            if (checkAclCounter) {
+              EXPECT_EVENTUALLY_GT(afterAclPkts, beforeAclPkts);
+            }
+            if (getAsic()->isSupported(HwAsic::Feature::VOQ)) {
+              EXPECT_EVENTUALLY_GT(afterVoQOutBytes, beforeVoQOutBytes);
+            }
+          });
     };
 
     verifyAcrossWarmBoots(setup, verify);
@@ -663,6 +670,15 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
     cfg.dsfNodes() = *overrideDsfNodes(*cfg.dsfNodes());
     return cfg;
   }
+
+  const SwitchID kGetRemoteSwitchId() const {
+    if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      // with maxCores = 4 , remote switchId has to be atleast 4
+      return SwitchID(4);
+    }
+    return SwitchID(2);
+  }
+
   std::optional<std::map<int64_t, cfg::DsfNode>> overrideDsfNodes(
       const std::map<int64_t, cfg::DsfNode>& curDsfNodes) const override {
     CHECK(!curDsfNodes.empty());
@@ -677,7 +693,7 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
         *firstDsfNode.switchId(),
         *firstDsfNode.systemPortRange(),
         mac);
-    auto otherDsfNodeCfg = utility::dsfNodeConfig(*asic, kRemoteSwitchId);
+    auto otherDsfNodeCfg = utility::dsfNodeConfig(*asic, kGetRemoteSwitchId());
     dsfNodes.insert({*otherDsfNodeCfg.switchId(), otherDsfNodeCfg});
     return dsfNodes;
   }
@@ -691,7 +707,7 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
         newState->getRemoteSystemPorts()->modify(&newState);
     auto numPrevPorts = remoteSystemPorts->numNodes();
     auto remoteSysPort = std::make_shared<SystemPort>(portId);
-    remoteSysPort->setSwitchId(kRemoteSwitchId);
+    remoteSysPort->setSwitchId(kGetRemoteSwitchId());
     remoteSysPort->setNumVoqs(localPort->getNumVoqs());
     remoteSysPort->setCoreIndex(localPort->getCoreIndex());
     remoteSysPort->setCorePortIndex(localPort->getCorePortIndex());

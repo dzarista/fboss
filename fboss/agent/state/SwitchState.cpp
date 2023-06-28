@@ -135,17 +135,6 @@ std::shared_ptr<Map>& SwitchState::getMap(const HwSwitchMatcher& matcher) {
 }
 
 SwitchState::SwitchState() {
-  set<switch_state_tags::dhcpV4RelaySrc>(
-      network::toBinaryAddress(folly::IPAddress("0.0.0.0")));
-  set<switch_state_tags::dhcpV4ReplySrc>(
-      network::toBinaryAddress(folly::IPAddress("0.0.0.0")));
-  set<switch_state_tags::dhcpV6RelaySrc>(
-      network::toBinaryAddress(folly::IPAddress("::")));
-  set<switch_state_tags::dhcpV6ReplySrc>(
-      network::toBinaryAddress(folly::IPAddress("::")));
-
-  set<switch_state_tags::aclTableGroupMap>(
-      std::map<cfg::AclStage, state::AclTableGroupFields>{});
   resetIntfs(std::make_shared<MultiSwitchInterfaceMap>());
   resetRemoteIntfs(std::make_shared<MultiSwitchInterfaceMap>());
   resetTransceivers(std::make_shared<MultiSwitchTransceiverMap>());
@@ -511,95 +500,36 @@ std::unique_ptr<SwitchState> SwitchState::uniquePtrFromThrift(
   auto state = std::make_unique<SwitchState>();
   state->BaseT::fromThrift(switchState);
   if (FLAGS_enable_acl_table_group) {
-    // Use old map if valid else use mmap
-    auto aclMap = state->cref<switch_state_tags::aclMap>();
-    aclMap = aclMap->size()
-        ? aclMap
-        : state->cref<switch_state_tags::aclMaps>()->getAclMap();
+    auto aclMap = util::getFirstMap(state->cref<switch_state_tags::aclMaps>());
     if (aclMap && aclMap->size()) {
-      state->ref<switch_state_tags::aclTableGroupMap>() =
+      auto multiSwitchAclGroupMap =
+          std::make_shared<MultiSwitchAclTableGroupMap>();
+      auto matcher = HwSwitchMatcher(
+          state->cref<switch_state_tags::aclMaps>()->cbegin()->first);
+      multiSwitchAclGroupMap->addMapNode(
           AclTableGroupMap::createDefaultAclTableGroupMapFromThrift(
-              aclMap->toThrift());
+              aclMap->toThrift()),
+          matcher);
+      state->ref<switch_state_tags::aclTableGroupMaps>() =
+          multiSwitchAclGroupMap;
       state->resetAcls(std::make_shared<MultiSwitchAclMap>());
-      state->ref<switch_state_tags::aclMap>()->clear();
     }
   }
   if (!FLAGS_enable_acl_table_group) {
-    // check legacy table first
-    auto aclMap = state->cref<switch_state_tags::aclTableGroupMap>()
+    auto firstTableGroupMap =
+        util::getFirstMap(state->cref<switch_state_tags::aclTableGroupMaps>());
+    auto aclMap = firstTableGroupMap
         ? AclTableGroupMap::getDefaultAclTableGroupMap(
-              state->cref<switch_state_tags::aclTableGroupMap>()->toThrift())
+              firstTableGroupMap->toThrift())
         : nullptr;
-    aclMap = aclMap && aclMap->size()
-        ? aclMap
-        : state->cref<switch_state_tags::aclTableGroupMaps>()->getAclMap();
     if (aclMap && aclMap->size()) {
-      state->set<switch_state_tags::aclMap>(aclMap->toThrift());
-      state->ref<switch_state_tags::aclTableGroupMap>().reset();
+      auto multiSwitchAclMap = std::make_shared<MultiSwitchAclMap>();
+      auto matcher = HwSwitchMatcher(
+          state->cref<switch_state_tags::aclTableGroupMaps>()->cbegin()->first);
+      multiSwitchAclMap->addMapNode(aclMap, matcher);
+      state->set<switch_state_tags::aclMaps>(multiSwitchAclMap->toThrift());
     }
   }
-  /* forward compatibility */
-  state->fromThrift<
-      switch_state_tags::qosPolicyMaps,
-      switch_state_tags::qosPolicyMap>(true /*emptyMnpuMapOk*/);
-
-  state
-      ->fromThrift<switch_state_tags::labelFibMap, switch_state_tags::labelFib>(
-          true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::sflowCollectorMaps,
-      switch_state_tags::sflowCollectorMap>(true /*emptyMnpuMapOk*/);
-  state
-      ->fromThrift<switch_state_tags::mirrorMaps, switch_state_tags::mirrorMap>(
-          true /*emptyMnpuMapOk*/);
-  state->fromThrift<switch_state_tags::fibsMap, switch_state_tags::fibs>(
-      true /* emptyMnpuMapOk */);
-  state->fromThrift<
-      switch_state_tags::ipTunnelMaps,
-      switch_state_tags::ipTunnelMap>(true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::teFlowTables,
-      switch_state_tags::teFlowTable>(true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::aggregatePortMaps,
-      switch_state_tags::aggregatePortMap>(true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::loadBalancerMaps,
-      switch_state_tags::loadBalancerMap>(true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::transceiverMaps,
-      switch_state_tags::transceiverMap>(true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::bufferPoolCfgMaps,
-      switch_state_tags::bufferPoolCfgMap>(true /*emptyMnpuMapOk*/);
-  state->fromThrift<switch_state_tags::vlanMaps, switch_state_tags::vlanMap>(
-      true /*emptyMnpuMapOk*/);
-  state->fromThrift<switch_state_tags::portMaps, switch_state_tags::portMap>(
-      true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::interfaceMaps,
-      switch_state_tags::interfaceMap>(true /*emptyMnpuMapOk*/);
-  if (state->cref<switch_state_tags::aclTableGroupMap>()) {
-    // set multi map if acl table group map exists
-    state->fromThrift<
-        switch_state_tags::aclTableGroupMaps,
-        switch_state_tags::aclTableGroupMap>(true /*emptyMnpuMapOk*/);
-  }
-  state
-      ->fromThrift<switch_state_tags::dsfNodesMap, switch_state_tags::dsfNodes>(
-          true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::remoteInterfaceMaps,
-      switch_state_tags::remoteInterfaceMap>(true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::systemPortMaps,
-      switch_state_tags::systemPortMap>(true /*emptyMnpuMapOk*/);
-  state->fromThrift<
-      switch_state_tags::remoteSystemPortMaps,
-      switch_state_tags::remoteSystemPortMap>(true /*emptyMnpuMapOk*/);
-
-  state->fromThrift<switch_state_tags::aclMaps, switch_state_tags::aclMap>(
-      true /*emptyMnpuMapOk*/);
   return state;
 }
 
@@ -611,7 +541,10 @@ VlanID SwitchState::getDefaultVlan() const {
   if (defaultVlan.has_value()) {
     return VlanID(defaultVlan.value());
   }
-  return VlanID(cref<switch_state_tags::defaultVlan>()->toThrift());
+  // TODO - remove the default value return. Defaut vlan is
+  // mandatory on broadcom NPU switches. Set it in config
+  // for required switches.
+  return VlanID(cfg::switch_config_constants::defaultVlanId());
 }
 
 SwitchID SwitchState::getAssociatedSwitchID(PortID portID) const {
@@ -712,178 +645,6 @@ state::SwitchState SwitchState::toThrift() const {
       }
     }
     aclTableGroupMaps->clear();
-  }
-
-  // SwitchSettings need to restored before the transition logic
-  // for new SwitchSettings members is executed
-  auto multiSwitchSwitchSettings = cref<switch_state_tags::switchSettingsMap>();
-  if (!multiSwitchSwitchSettings->empty()) {
-    data.switchSettings() =
-        multiSwitchSwitchSettings->cbegin()->second->toThrift();
-  }
-
-  // Write defaultVlan to switchSettings and old fields for transition
-  if (data.switchSettings()->defaultVlan().has_value()) {
-    data.defaultVlan() = data.switchSettings()->defaultVlan().value();
-  } else {
-    data.switchSettings()->defaultVlan() = data.defaultVlan().value();
-  }
-  // Write arpTimeout to switchSettings and old fields for transition
-  if (data.switchSettings()->arpTimeout().has_value()) {
-    data.arpTimeout() = data.switchSettings()->arpTimeout().value();
-  } else {
-    data.switchSettings()->arpTimeout() = data.arpTimeout().value();
-  }
-  // Write ndpTimeout to switchSettings and old fields for transition
-  if (data.switchSettings()->ndpTimeout().has_value()) {
-    data.ndpTimeout() = data.switchSettings()->ndpTimeout().value();
-  } else {
-    data.switchSettings()->ndpTimeout() = data.ndpTimeout().value();
-  }
-  // Write arpAgerInterval to switchSettings and old fields for transition
-  if (data.switchSettings()->arpAgerInterval().has_value()) {
-    data.arpAgerInterval() = data.switchSettings()->arpAgerInterval().value();
-  } else {
-    data.switchSettings()->arpAgerInterval() = data.arpAgerInterval().value();
-  }
-  // Write staleEntryInterval to switchSettings and old fields for transition
-  if (data.switchSettings()->staleEntryInterval().has_value()) {
-    data.staleEntryInterval() =
-        data.switchSettings()->staleEntryInterval().value();
-  } else {
-    data.switchSettings()->staleEntryInterval() =
-        data.staleEntryInterval().value();
-  }
-  // Write maxNeighborProbes to switchSettings and old fields for transition
-  if (data.switchSettings()->maxNeighborProbes().has_value()) {
-    data.maxNeighborProbes() =
-        data.switchSettings()->maxNeighborProbes().value();
-  } else {
-    data.switchSettings()->maxNeighborProbes() =
-        data.maxNeighborProbes().value();
-  }
-  // Write dhcp fields to switchSettings and old fields for transition
-  if (data.switchSettings()->dhcpV4RelaySrc().has_value()) {
-    data.dhcpV4RelaySrc() = data.switchSettings()->dhcpV4RelaySrc().value();
-  } else {
-    data.switchSettings()->dhcpV4RelaySrc() = data.dhcpV4RelaySrc().value();
-  }
-  if (data.switchSettings()->dhcpV6RelaySrc().has_value()) {
-    data.dhcpV6RelaySrc() = data.switchSettings()->dhcpV6RelaySrc().value();
-  } else {
-    data.switchSettings()->dhcpV6RelaySrc() = data.dhcpV6RelaySrc().value();
-  }
-  if (data.switchSettings()->dhcpV4ReplySrc().has_value()) {
-    data.dhcpV4ReplySrc() = data.switchSettings()->dhcpV4ReplySrc().value();
-  } else {
-    data.switchSettings()->dhcpV4ReplySrc() = data.dhcpV4ReplySrc().value();
-  }
-  if (data.switchSettings()->dhcpV6ReplySrc().has_value()) {
-    data.dhcpV6ReplySrc() = data.switchSettings()->dhcpV6ReplySrc().value();
-  } else {
-    data.switchSettings()->dhcpV6ReplySrc() = data.dhcpV6ReplySrc().value();
-  }
-  // Write QcmCfg to switchSettings and old fields for transition
-  if (data.switchSettings()->qcmCfg().has_value()) {
-    data.qcmCfg() = data.switchSettings()->qcmCfg().value();
-  } else if (data.qcmCfg().has_value()) {
-    data.switchSettings()->qcmCfg() = data.qcmCfg().value();
-  }
-  // Write defaultQosPolicy to switchSettings and old fields for transition
-  if (data.switchSettings()->defaultDataPlaneQosPolicy().has_value()) {
-    data.defaultDataPlaneQosPolicy() =
-        data.switchSettings()->defaultDataPlaneQosPolicy().value();
-  } else if (data.defaultDataPlaneQosPolicy().has_value()) {
-    data.switchSettings()->defaultDataPlaneQosPolicy() =
-        data.defaultDataPlaneQosPolicy().value();
-  }
-  // Write udfConfig to switchSettings and old fields for transition
-  if (data.switchSettings()->udfConfig().has_value()) {
-    data.udfConfig() = data.switchSettings()->udfConfig().value();
-  } else if (data.udfConfig().is_set()) {
-    data.switchSettings()->udfConfig() = data.udfConfig().value();
-  }
-  // Write flowletSwitchingConfig to switchSettings and old fields for
-  // transition
-  if (data.switchSettings()->flowletSwitchingConfig().has_value()) {
-    data.flowletSwitchingConfig() =
-        data.switchSettings()->flowletSwitchingConfig().value();
-  } else if (data.flowletSwitchingConfig().has_value()) {
-    data.switchSettings()->flowletSwitchingConfig() =
-        data.flowletSwitchingConfig().value();
-  }
-  /* backward compatibility */
-  if (auto obj = toThrift(cref<switch_state_tags::mirrorMaps>())) {
-    data.mirrorMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::fibsMap>())) {
-    data.fibs() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::labelFibMap>())) {
-    data.labelFib() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::sflowCollectorMaps>())) {
-    data.sflowCollectorMap() = *obj;
-  }
-  if (!cref<switch_state_tags::qosPolicyMaps>()->empty()) {
-    auto key = HwSwitchMatcher::defaultHwSwitchMatcher();
-    if (auto qosPolicys =
-            cref<switch_state_tags::qosPolicyMaps>()->getMapNodeIf(key)) {
-      data.qosPolicyMap() = qosPolicys->toThrift();
-    }
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::ipTunnelMaps>())) {
-    data.ipTunnelMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::teFlowTables>())) {
-    data.teFlowTable() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::aggregatePortMaps>())) {
-    data.aggregatePortMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::loadBalancerMaps>())) {
-    data.loadBalancerMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::transceiverMaps>())) {
-    data.transceiverMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::bufferPoolCfgMaps>())) {
-    data.bufferPoolCfgMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::vlanMaps>())) {
-    data.vlanMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::portMaps>())) {
-    data.portMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::remoteSystemPortMaps>())) {
-    data.remoteSystemPortMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::interfaceMaps>())) {
-    data.interfaceMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::aclTableGroupMaps>())) {
-    data.aclTableGroupMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::dsfNodesMap>())) {
-    data.dsfNodes() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::remoteInterfaceMaps>())) {
-    data.remoteInterfaceMap() = *obj;
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::systemPortMaps>())) {
-    data.systemPortMap() = *obj;
-  }
-  if (auto controlPlane =
-          cref<switch_state_tags::controlPlaneMap>()->getControlPlane()) {
-    data.controlPlane() = controlPlane->toThrift();
-  }
-  if (auto obj = toThrift(cref<switch_state_tags::aclMaps>())) {
-    data.aclMap() = *obj;
-  }
-  // for backward compatibility
-  if (const auto& pfcWatchdogRecoveryAction = getPfcWatchdogRecoveryAction()) {
-    data.pfcWatchdogRecoveryAction() = pfcWatchdogRecoveryAction.value();
   }
   return data;
 }

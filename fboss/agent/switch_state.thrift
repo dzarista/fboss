@@ -109,6 +109,8 @@ struct PortFields {
   42: list<switch_config.PortNeighbor> expectedNeighborReachability;
   43: switch_config.PortDrainState drainState = switch_config.PortDrainState.UNDRAINED;
   44: optional string flowletConfigName;
+  45: optional PortFlowletFields flowletConfig;
+  46: optional ctrl.PortLedExternalState portLedExternalState;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields
@@ -255,7 +257,7 @@ struct MirrorTunnel {
   4: string dstMac;
   5: optional i16 udpSrcPort;
   6: optional i16 udpDstPort;
-  7: i16 ttl = 255;
+  7: i16 ttl = 127;
 }
 
 struct MirrorFields {
@@ -531,48 +533,42 @@ struct QcmCfgFields {
 typedef string SwitchIdList
 
 struct SwitchState {
-  1: map<i16, PortFields> portMap;
-  2: map<i16, VlanFields> vlanMap;
-  3: map<string, AclEntryFields> aclMap;
-  4: map<i16, TransceiverSpecFields> transceiverMap;
-  5: map<string, BufferPoolFields> bufferPoolCfgMap;
-  6: map<string, MirrorFields> mirrorMap;
-  7: ControlPlaneFields controlPlane;
-  8: SwitchSettingsFields switchSettings;
-  9: i16 defaultVlan = 0;
-  10: i64 arpTimeout = 60;
-  11: i64 ndpTimeout = 60;
-  12: i32 arpAgerInterval = 5;
-  13: i32 maxNeighborProbes = 300;
-  14: i64 staleEntryInterval = 10;
-  15: Address.BinaryAddress dhcpV4RelaySrc;
-  16: Address.BinaryAddress dhcpV6RelaySrc;
-  17: Address.BinaryAddress dhcpV4ReplySrc;
-  18: Address.BinaryAddress dhcpV6ReplySrc;
-  // Deprecated field. The portPfc field in port object is used instead.
-  19: optional switch_config.PfcWatchdogRecoveryAction pfcWatchdogRecoveryAction;
-  20: map<i64, SystemPortFields> systemPortMap;
-  21: map<i16, FibContainerFields> fibs;
-  22: map<i32, LabelForwardingEntryFields> labelFib;
-  23: map<string, QosPolicyFields> qosPolicyMap;
-  24: map<string, SflowCollectorFields> sflowCollectorMap;
-  25: map<string, IpTunnelFields> ipTunnelMap;
-  26: map<string, TeFlowEntryFields> teFlowTable;
-  27: map<i16, AggregatePortFields> aggregatePortMap;
-  28: map<switch_config.LoadBalancerID, LoadBalancerFields> loadBalancerMap;
-  29: optional map<
-    switch_config.AclStage,
-    AclTableGroupFields
-  > aclTableGroupMap;
-  30: map<i32, InterfaceFields> interfaceMap;
-  31: optional QcmCfgFields qcmCfg;
-  32: optional QosPolicyFields defaultDataPlaneQosPolicy;
-  33: map<i64, switch_config.DsfNode> dsfNodes;
-  34: switch_config.UdfConfig udfConfig;
-  35: optional switch_config.FlowletSwitchingConfig flowletSwitchingConfig;
+  1: map<i16, PortFields> portMap_DEPRECATED;
+  2: map<i16, VlanFields> vlanMap_DEPRECATED;
+  3: map<string, AclEntryFields> aclMap_DEPRECATED;
+  4: map<i16, TransceiverSpecFields> transceiverMap_DEPRECATED;
+  5: map<string, BufferPoolFields> bufferPoolCfgMap_DEPRECATED;
+  6: map<string, MirrorFields> mirrorMap_DEPRECATED;
+  7: ControlPlaneFields controlPlane_DEPRECATED;
+  8: SwitchSettingsFields switchSettings_DEPRECATED;
+  9: i16 defaultVlan_DEPRECATED;
+  10: i64 arpTimeout_DEPRECATED;
+  11: i64 ndpTimeout_DEPRECATED;
+  12: i32 arpAgerInterval_DEPRECATED;
+  13: i32 maxNeighborProbes_DEPRECATED;
+  14: i64 staleEntryInterval_DEPRECATED;
+  15: Address.BinaryAddress dhcpV4RelaySrc_DEPRECATED;
+  16: Address.BinaryAddress dhcpV6RelaySrc_DEPRECATED;
+  17: Address.BinaryAddress dhcpV4ReplySrc_DEPRECATED;
+  18: Address.BinaryAddress dhcpV6ReplySrc_DEPRECATED;
+  20: map<i64, SystemPortFields> systemPortMap_DEPRECATED;
+  21: map<i16, FibContainerFields> fibs_DEPRECATED;
+  22: map<i32, LabelForwardingEntryFields> labelFib_DEPRECATED;
+  23: map<string, QosPolicyFields> qosPolicyMap_DEPRECATED;
+  24: map<string, SflowCollectorFields> sflowCollectorMap_DEPRECATED;
+  25: map<string, IpTunnelFields> ipTunnelMap_DEPRECATED;
+  26: map<string, TeFlowEntryFields> teFlowTable_DEPRECATED;
+  27: map<i16, AggregatePortFields> aggregatePortMap_DEPRECATED;
+  28: map<
+    switch_config.LoadBalancerID,
+    LoadBalancerFields
+  > loadBalancerMap_DEPRECATED;
+  30: map<i32, InterfaceFields> interfaceMap_DEPRECATED;
+  33: map<i64, switch_config.DsfNode> dsfNodes_DEPRECATED;
+  34: switch_config.UdfConfig udfConfig_DEPRECATED;
   // Remote objects
-  500: map<i64, SystemPortFields> remoteSystemPortMap;
-  501: map<i32, InterfaceFields> remoteInterfaceMap;
+  500: map<i64, SystemPortFields> remoteSystemPortMap_DEPRECATED;
+  501: map<i32, InterfaceFields> remoteInterfaceMap_DEPRECATED;
 
   // Multi NPU table definitions
   100: map<SwitchIdList, map<i16, PortFields>> portMaps;

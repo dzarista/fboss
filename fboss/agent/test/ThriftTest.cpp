@@ -629,6 +629,17 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getDsfSubscriptions) {
   }
 }
 
+TYPED_TEST(ThriftTestAllSwitchTypes, getDsfSubscriptionClientId) {
+  ThriftHandler handler(this->sw_);
+  std::string ret;
+  if (this->isNpu() || this->isFabric()) {
+    EXPECT_THROW(handler.getDsfSubscriptionClientId(ret), FbossError);
+  } else {
+    handler.getDsfSubscriptionClientId(ret);
+    EXPECT_TRUE(ret.find(":agent:") != std::string::npos);
+  }
+}
+
 std::unique_ptr<UnicastRoute> makeUnicastRoute(
     std::string prefixStr,
     std::string nxtHop,
@@ -2246,6 +2257,17 @@ TEST_F(ThriftTest, setLoopbackMode) {
     EXPECT_EQ(port2LoopbackMode.find(firstPort)->second, lbMode);
     otherPortsUnchanged();
   }
+}
+
+TEST_F(ThriftTest, programLedExternalState) {
+  ThriftHandler handler(sw_);
+  auto firstPort =
+      sw_->getState()->getPorts()->cbegin()->second->cbegin()->second->getID();
+  handler.setExternalLedState(
+      firstPort, PortLedExternalState::EXTERNAL_FORCE_ON);
+  auto port = sw_->getState()->getPorts()->getNode(firstPort);
+  EXPECT_EQ(
+      port->getLedPortExternalState(), PortLedExternalState::EXTERNAL_FORCE_ON);
 }
 
 TEST_F(ThriftTest, programInternalPhyPorts) {

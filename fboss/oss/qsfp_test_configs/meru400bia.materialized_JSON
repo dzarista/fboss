@@ -7,12 +7,12 @@
   ],
   "qsfpTestConfig": {
     "cabledPortPairs": [
-      { 
+      {
         "aPortName": "eth1/8/1",
         "zPortName": "eth1/9/1",
         "profileID": 23
       },
-      { 
+      {
         "aPortName": "eth1/11/1",
         "zPortName": "eth1/12/1",
         "profileID": 22
