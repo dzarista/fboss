@@ -111,7 +111,7 @@ echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
    echo "======== Clean up Broadcom SDK build artifacts ========"
-   time make clean -j 8
+   time make clean -j 16
    for dir in $(ls $SAI_BUILD_DIR)
    do
       if [ -d $SAI_BUILD_DIR/$dir ];
@@ -126,7 +126,7 @@ then
 
    echo "======= Starting Broadcom SDK build ========"
    cd $SAI_BUILD_DIR
-   time make -j 8
+   time make -j 16
    cd $BCM_KERNEL_MODULES_DIR
    export SDK=$PWD
    make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
@@ -196,7 +196,7 @@ else
    if [ -z "$BUILD_KNOWN_GOOD_HASH" ]; then
       export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
    fi
-   time ./build/fbcode_builder/getdeps.py build --num-jobs 20 --allow-system-packages \
+   time ./build/fbcode_builder/getdeps.py build --allow-system-packages \
       --scratch-path "$SCRATCH_DIR" fboss
    cd $FBOSS_DIR/fboss.git
    ./fboss/oss/scripts/package-fboss.py --scratch-path "$SCRATCH_DIR"
