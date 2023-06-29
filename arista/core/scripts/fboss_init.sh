@@ -84,3 +84,12 @@ if [ -f "$QSFP_PLATFORM_CONFIG" ]; then
 else
    echo "No platform qsfp_service config found for model name ${MODEL_NAME}"
 fi
+
+LINK_PLATFORM_CONFIG="$FBOSS_SHARE_DIR/link_test_configs/$MODEL_NAME.materialized_JSON"
+LINK_DEFAULT_CONFIG="/etc/coop/link.conf"
+if [ -f "$LINK_PLATFORM_CONFIG" ]; then
+   echo "Linking $LINK_PLATFORM_CONFIG to $LINK_DEFAULT_CONFIG"
+   ln -sf "${LINK_PLATFORM_CONFIG}" "${LINK_DEFAULT_CONFIG}"
+else
+   echo "No platform hw_link_test config found for model name ${MODEL_NAME}"
+fi
