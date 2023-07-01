@@ -74,6 +74,8 @@ def verifyCommit(repoDir, hash):
 
 def verifyInput():
    # Verify BMC commit hash
+   print("Verifying commit hashes...")
+
    openbmcDest = 'OpenBmc'
    cloneRepo(BMC_REPO, openbmcDest)
    if not verifyCommit(openbmcDest, BMC_COMMIT_HASH):
@@ -104,18 +106,21 @@ def verifyInput():
    return True
 
 def createTarball(targetDir):
-   print('Creating .tar file...')
-   tarFileName = '{}.tar'.format(targetDir)
+   print('Creating .tar file...\n')
+   tarFileName = f'{targetDir}.tar'
    runCmd(['tar', '-cvf', tarFileName, targetDir])
-   print('')
    runCmd(['sha1sum', tarFileName])
 
 def handleBmc(targetDir) -> str:
    runCmd(['wget', BMC_FW_LINK, '-O', os.path.join(targetDir, BMC_FW_FILENAME)])
    sha1sum = runCmd(['sha1sum', os.path.join(targetDir, BMC_FW_FILENAME)], True)
 
-   BMC_README = f'\nBMC Image:\n---------------------\n{sha1sum}\n'
-   BMC_README += f'Commit Hash: {BMC_COMMIT_HASH}\n'
+   BMC_README = f'''
+BMC Image:
+---------------------
+{sha1sum}
+Commit Hash: {BMC_COMMIT_HASH}
+'''
 
    return BMC_README
     
@@ -123,7 +128,11 @@ def handleAboot(targetDir) -> str:
    runCmd(['wget', ABOOT_LINK, '-O', os.path.join(targetDir, ABOOT_FILENAME)])
    sha1sum = runCmd(['sha1sum', os.path.join(targetDir, ABOOT_FILENAME)], True)
 
-   ABOOT_README = f'\nAboot Image:\n---------------------\n{sha1sum}\n'
+   ABOOT_README = f'''
+Aboot Image:
+---------------------
+{sha1sum}
+'''
 
    return ABOOT_README
 
@@ -131,7 +140,11 @@ def handleFwnCPLD(targetDir) -> str:
    runCmd(['wget', FWN_CPLD_LINK, '-O', os.path.join(targetDir, FWN_CPLD_FILENAME)])
    sha1sum = runCmd(['sha1sum', os.path.join(targetDir, FWN_CPLD_FILENAME)], True)
 
-   FWN_CPLD_README = f'\nFairywren CPLD Image:\n---------------------\n{sha1sum}\n'
+   FWN_CPLD_README = f'''
+Fairywren CPLD Image:
+---------------------
+{sha1sum}
+'''
 
    return FWN_CPLD_README
 
@@ -142,9 +155,11 @@ def packageProgrammables(targetDir) -> str:
    # Create new programmables directory
    runCmd(['mkdir', newTargetDir])
 
-   README = \
-      f'''\n----------------------------------------
-      Programmables \n----------------------------------------\n'''
+   README = '''
+----------------------------------------
+   Programmables
+----------------------------------------
+'''
 
    # BMC
    README += handleBmc(newTargetDir)
@@ -156,26 +171,38 @@ def packageProgrammables(targetDir) -> str:
    return README
 
 def handleFboss() -> str:
-   FBOSS_README = f'\nFBOSS:\n---------------------\n'
-   FBOSS_README += f'Commit Hash: {FBOSS_COMMIT_HASH}\n'
+   FBOSS_README = f'''
+FBOSS:
+---------------------
+Commit Hash: {FBOSS_COMMIT_HASH}
+'''
 
    return FBOSS_README
 
 def handleAplFacebook() -> str:
-   APL_README = f'\napl.facebook:\n---------------------\n'
-   APL_README += f'Commit Hash: {APL_COMMIT_HASH}\n'
+   APL_README = f'''
+apl.facebook:
+---------------------
+Commit Hash: {APL_COMMIT_HASH}
+'''
 
    return APL_README
 
 def handleReleaseNotes() -> str:
-   RELEASE_NOTES_README = f'\nRelease Notes:\n---------------------\n'
-   RELEASE_NOTES_README += f'{RELEASE_NOTES}\n'
+   RELEASE_NOTES_README = f'''
+Release Notes:
+---------------------
+{RELEASE_NOTES}
+'''
 
    return RELEASE_NOTES_README
 
 def handleKnownIssues() -> str:
-   KNOWN_ISSUES_README = f'\nKnown Issues:\n---------------------\n'
-   KNOWN_ISSUES_README += f'{KNOWN_ISSUES}\n'
+   KNOWN_ISSUES_README = f'''
+Known Issues:
+---------------------
+{KNOWN_ISSUES}
+'''
 
    return KNOWN_ISSUES_README
 
@@ -183,18 +210,21 @@ def handleTestResults(targetDir) -> str:
    runCmd(['wget', TEST_RESULTS_LINK, '-O', 
             os.path.join(targetDir, TEST_RESULTS_FILENAME)])
    
-   TR_README = '\nTest Results:\n---------------------\n'
-   TR_README += f'Find in {targetDir}\{TEST_RESULTS_FILENAME}\n'
+   TR_README = f'''
+Test Results:
+---------------------
+Find in {targetDir}\{TEST_RESULTS_FILENAME}
+'''
 
    return TR_README
 
 def generateTarball(targetDir, echoReadme=False, createTarFile=False):
    if os.path.exists(targetDir):
-      print('targetDir already exists, please delete this directory first.')
+      print(f'./{targetDir} already exists, please delete this directory first.')
       sys.exit(1)
 
    if os.path.exists(targetDir + '.tar') and createTarFile:
-      print('targetDir tarball already exists, please delete this directory first.')
+      print(f'./{targetDir}.tar already exists, please delete it first.')
       sys.exit(1)
 
    if not verifyInput():
@@ -238,7 +268,7 @@ def generateTarball(targetDir, echoReadme=False, createTarFile=False):
 
 def main():
    parser = argparse.ArgumentParser(
-      description='''
+      description=f'''
 Generate DSF drop bundle that includes:
 Programmables, release notes tracking known issues, testing report, 
 commit hashes of apl.facebook and fboss, and OpenBMC version.
@@ -247,11 +277,10 @@ e.g To generate DSF-EFT7 directory and tarball
 generate_dsf_tarball.py --target-dir DSF-EFT7 --create-tarball
 
 NOTE: This is using the following hardcoded versions:
-BMC: {}
-ABOOT: {}
-CPLD: {}
-Please update this script if those versions changes'''.format(
-         BMC_FW_FILENAME, ABOOT_FILENAME, FWN_CPLD_FILENAME),
+BMC: {BMC_FW_FILENAME}
+ABOOT: {ABOOT_FILENAME}
+CPLD: {FWN_CPLD_FILENAME}
+Please update this script if those versions changes''',
       formatter_class=argparse.RawTextHelpFormatter)
    parser.add_argument(
       '--target-dir', required=True,
