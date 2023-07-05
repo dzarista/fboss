@@ -2,7 +2,6 @@ Name: arista-fboss-core
 Version: 1
 Release: 1%{?dist}
 Summary: Arista FBOSS OSS Core Utilities
-Requires: kernel-arista
 
 License: GPLv2
 URL: https://github.com/aristanetworks/arista-fboss

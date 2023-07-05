@@ -43,6 +43,9 @@ class SetupFboss:
     TH = "th"
     TH3 = "th3"
     J2CP = "j2cp"
+    ### ARISTA START ###
+    J3 = "j3"
+    ### ARISTA END ###
 
     def __init__(self):
         output = subprocess.check_output(["lspci"]).decode("utf-8").split("\n")
@@ -70,6 +73,16 @@ class SetupFboss:
             self.src_bde_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J2CP, SetupFboss.BDE_CONF]
             )
+    ### ARISTA START ###
+        else:
+            self.src_fruid_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.FRUID_CONF]
+            )
+            self.src_bde_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
+            )
+    ### ARISTA END ###
+
 
     def _cleanup_old_setup(self):
         if os.path.exists(SetupFboss.FRUID_FULL_PATH):
