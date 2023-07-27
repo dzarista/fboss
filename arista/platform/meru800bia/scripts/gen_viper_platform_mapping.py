@@ -61,7 +61,7 @@ nifSerdesCoreToCoreAndFrontPanelSlot = {
       8 : ( 1, '12' ),
       9 : ( 2, '20' ),
       10 : ( 2, '21' ),
-      11 : ( 2, '22' ), 
+      11 : ( 2, '22' ),
       12 : ( 2, '23' ),
       13 : ( 3, '27' ),
       14 : ( 3, '28' ),
@@ -97,10 +97,13 @@ fabSerdesCoreToFrontPanelSlot = {
 # Assuming 100G lanes, number of lanes required by each supported port profile.
 numLanesFromSupportedProfile = {
       "11" : 1,
+      "24" : 4,
       "36" : 1,
       "37" : 1,
       "38" : 4,
-      "39" : 8
+      "39" : 8,
+      "41" : 1,
+      "42" : 1,
 }
 
 def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
@@ -148,7 +151,7 @@ def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
                { "pins" : OrderedDict(
                   {
                      "iphy" : [],
-                     "transceiver" : [],
+                     #"transceiver" : [],
                   } )
                } )
       reqLanes = numLanesFromSupportedProfile[ suppProfile ]
@@ -168,8 +171,8 @@ def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
          } )
          templateSuppProfiles[ suppProfile ][ "pins" ][ "iphy" ].append(
                pinIPhyMapping )
-         templateSuppProfiles[ suppProfile ][ "pins" ][ "transceiver" ].append(
-               xcvrMapping )
+         #templateSuppProfiles[ suppProfile ][ "pins" ][ "transceiver" ].append(
+         #      xcvrMapping )
    return portMapping
 
 def getRecyclePortMapping( portId, attachedCoreId=0 ):
@@ -213,7 +216,7 @@ for port in range( nifPortBase, nifPortBase + numNifPorts ):
    portOctet = port - nifPortBase
    if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
       continue
-   supportedProfiles = [ '38', '39', ]
+   supportedProfiles = [ '24', '38', '39', ]
    serdesCore = f"BC{portOctet}"
    coreId, frontPanelSlot = nifSerdesCoreToCoreAndFrontPanelSlot[ portOctet ]
    frontPanelPort = f"eth1/{frontPanelSlot}"
@@ -233,7 +236,7 @@ for port in range( fabricPortBase, fabricPortBase + numFabricPorts ):
    portLane = ( port % 8 )
    if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
       continue
-   supportedProfiles = [ '36', '37', ]
+   supportedProfiles = [ '36', '37', '41', '42']
    serdesCore = f"BC{portOctet}"
    frontPanelSlot = fabSerdesCoreToFrontPanelSlot[ portOctet ]
    frontPanelPort = f"fab1/{frontPanelSlot}"
@@ -269,7 +272,7 @@ for port in range( numFrontPanelPorts ):
       {
          "name": f"{frontPanelPortType}1/{frontPanelSlot}",
          "type" : 3,
-         "physicalID": port 
+         "physicalID": port
       } ) )
 
 platMapping[ "platformSettings" ] = OrderedDict()
@@ -277,15 +280,18 @@ platMapping[ "portConfigOverrides" ] = []
 platMapping[ "platformSupportedProfiles" ] = []
 # Port Attributes by profile
 portAttrsByProfile = {
-      #profileId : ( speed, numLanes, modulation, fec, medium, interfaceMode )
+      #profileId : ( speed, numLanes, modulation, fed, medium, interfaceMode )
       11 : ( 10000, 1, 1, 1, 1, 10 ),
+      24 : ( 200000, 4, 2, 11, 1, 12 ),
       36 : ( 53125, 1, 2, 545, 1, 41 ),
       37 : ( 53125, 1, 2, 545, 3, 41 ),
       38 : ( 400000, 4, 2, 11, 2, 21 ),
       39 : ( 800000, 8, 2, 11, 2, 23 ),
+      41 : ( 106250, 1, 2, 544, 1, 41 ),
+      42 : ( 106250, 1, 2, 544, 3, 41 ),
 }
 # Append the supportedProfiles information.
-for profileID in ( 11, 36, 37, 38, 39 ):
+for profileID in ( 11, 24, 36, 37, 38, 39 ):
    profilePortAttrs = portAttrsByProfile[ profileID ]
    platMapping[ "platformSupportedProfiles" ].append(
          OrderedDict( {
