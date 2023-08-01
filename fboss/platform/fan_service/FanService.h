@@ -7,26 +7,25 @@
 #include "ControlLogic.h"
 #include "Mokujin.h"
 #include "SensorData.h"
-#include "ServiceConfig.h"
+
+#include "fboss/platform/fan_service/if/gen-cpp2/fan_service_config_types.h"
 
 namespace folly {
 class EventBase;
 }
-namespace facebook::fboss::platform {
+namespace facebook::fboss::platform::fan_service {
 
 // FanService    : The main Class the represent the fan_service
 //                 Instantiates the following classes.
 //
 //               - ControlLogic class : PWM control logic
-//               - ServiceConfig class : parse config file, and keep the info
 //               - Bsp class : All I/O functions including Thrift handler
 //                    - Mokujin class : A mock of Bsp class for unit testing
 //               - SensorData class : Stores sensor data and the timestamps
 
 class FanService {
  public:
-  // Constructor / destructor
-  FanService();
+  explicit FanService(const std::string& configFile);
   ~FanService() {} // Make compiler happy in handling smart pointers
   // Instantiates all classes used by Fan Service
   void kickstart();
@@ -37,7 +36,7 @@ class FanService {
   int runMock(std::string mockInputFile, std::string mockOutputFile);
 
   void getSensorDataThrift(std::shared_ptr<SensorData> pSensorData) const {
-    return pBsp_->getSensorDataThrift(pConfig_, pSensorData);
+    return pBsp_->getSensorDataThrift(pSensorData);
   }
   const SensorData& sensorData() const {
     return *(pSensorData_.get());
@@ -51,8 +50,8 @@ class FanService {
   // Attributes
   // BSP contains platform specific I/O methonds
   std::shared_ptr<Bsp> pBsp_;
-  // ServiceConfig parses the configuration, and keep the data
-  std::shared_ptr<ServiceConfig> pConfig_;
+  // fan_service config
+  FanServiceConfig config_;
   // Control logic determines fan pwm based on config and sensor read
   std::shared_ptr<ControlLogic> pControlLogic_;
   // SensorData keeps all the latest sensor reading. Also provides
@@ -66,10 +65,8 @@ class FanService {
   uint64_t lastSensorFetchTimeSec_;
   // How often we run fan control logic?
   uint64_t controlFrequencySec_;
+  std::string confFileName_{};
 
-  // Methods
-  // Control Logic Execution Frequency in seconds
-  void setControlFrequency(uint64_t sec);
   unsigned int getControlFrequency() const;
   // The factory method to return the proper BSP object,
   // based on the platform type specified in config file
@@ -77,4 +74,4 @@ class FanService {
   // Main Loop for standalone execution
   int mainLoop();
 };
-} // namespace facebook::fboss::platform
+} // namespace facebook::fboss::platform::fan_service

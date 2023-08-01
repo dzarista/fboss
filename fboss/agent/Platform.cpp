@@ -12,6 +12,7 @@
 
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/FbossError.h"
+#include "fboss/agent/SwitchInfoUtils.h"
 #include "fboss/agent/Utils.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 
@@ -66,7 +67,8 @@ Platform::Platform(
     folly::MacAddress localMac)
     : productInfo_(std::move(productInfo)),
       platformMapping_(std::move(platformMapping)),
-      localMac_(localMac) {}
+      localMac_(localMac),
+      scopeResolver_({}) {}
 Platform::~Platform() {}
 
 std::string Platform::getCrashHwStateFile() const {
@@ -89,12 +91,16 @@ const AgentConfig* Platform::config() {
 }
 
 const AgentConfig* Platform::reloadConfig() {
-  config_ = AgentConfig::fromDefaultFile();
+  auto agentConfig = AgentConfig::fromDefaultFile();
+  setConfig(std::move(agentConfig));
   return config_.get();
 }
 
 void Platform::setConfig(std::unique_ptr<AgentConfig> config) {
   config_ = std::move(config);
+  auto swConfig = config_->thrift.sw();
+  scopeResolver_ =
+      SwitchIdScopeResolver(getSwitchInfoFromConfig(&(swConfig.value())));
 }
 
 const std::map<int32_t, cfg::PlatformPortEntry>& Platform::getPlatformPorts()
@@ -128,39 +134,41 @@ cfg::PortSpeed Platform::getPortMaxSpeed(PortID portID) const {
 
 void Platform::init(
     std::unique_ptr<AgentConfig> config,
-    uint32_t hwFeaturesDesired) {
+    uint32_t hwFeaturesDesired,
+    int16_t switchIndex) {
   // take ownership of the config if passed in
-  config_ = std::move(config);
+  setConfig(std::move(config));
   auto macStr = getPlatformAttribute(cfg::PlatformAttributes::MAC);
   const auto switchSettings = *config_->thrift.sw()->switchSettings();
   std::optional<int64_t> switchId;
   std::optional<cfg::Range64> systemPortRange;
   auto switchType{cfg::SwitchType::NPU};
   if (switchSettings.switchIdToSwitchInfo()->size()) {
-    // TODO - Initialize with correct SwitchId for the HwSwitch
-    // instead of using first switchId in the list
-    switchId = switchSettings.switchIdToSwitchInfo()->begin()->first;
-    switchType =
-        *(switchSettings.switchIdToSwitchInfo()->begin()->second.switchType());
-    auto asicType =
-        *(switchSettings.switchIdToSwitchInfo()->begin()->second.asicType());
-    if (switchType == cfg::SwitchType::VOQ) {
-      const auto& dsfNodesConfig = *config_->thrift.sw()->dsfNodes();
-      const auto& dsfNodeConfig = dsfNodesConfig.find(*switchId);
-      if (dsfNodeConfig != dsfNodesConfig.end() &&
-          dsfNodeConfig->second.systemPortRange().has_value()) {
-        systemPortRange = *dsfNodeConfig->second.systemPortRange();
+    for (const auto& switchInfo : *switchSettings.switchIdToSwitchInfo()) {
+      if (switchInfo.second.switchIndex() == switchIndex) {
+        switchId = switchInfo.first;
+        switchType = *switchInfo.second.switchType();
+        auto asicType = *switchInfo.second.asicType();
+        if (switchType == cfg::SwitchType::VOQ) {
+          const auto& dsfNodesConfig = *config_->thrift.sw()->dsfNodes();
+          const auto& dsfNodeConfig = dsfNodesConfig.find(*switchId);
+          if (dsfNodeConfig != dsfNodesConfig.end() &&
+              dsfNodeConfig->second.systemPortRange().has_value()) {
+            systemPortRange = *dsfNodeConfig->second.systemPortRange();
+          }
+        }
+        // SwitchId not supported in fabric mode
+        if (switchType == cfg::SwitchType::FABRIC &&
+            (asicType == cfg::AsicType::ASIC_TYPE_EBRO ||
+             asicType == cfg::AsicType::ASIC_TYPE_GARONNE)) {
+          switchId = std::nullopt;
+        }
+        if (switchInfo.second.switchMac()) {
+          macStr = *switchInfo.second.switchMac();
+        }
+        break;
       }
-    }
-    // SwitchId not supported in fabric mode
-    if (switchType == cfg::SwitchType::FABRIC &&
-        (asicType == cfg::AsicType::ASIC_TYPE_EBRO ||
-         asicType == cfg::AsicType::ASIC_TYPE_GARONNE)) {
-      switchId = std::nullopt;
-    }
-    if (switchSettings.switchIdToSwitchInfo()->begin()->second.switchMac()) {
-      macStr =
-          *switchSettings.switchIdToSwitchInfo()->begin()->second.switchMac();
+      throw FbossError("No SwitchInfo found for switchIndex", switchIndex);
     }
   }
   // Override local mac from config if set

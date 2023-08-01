@@ -68,6 +68,13 @@ if ($ENV{BUILD_SAI_FAKE_LINK_TEST})
   set (BUILD_SAI_FAKE_LINK_TEST ON)
 endif()
 
+option(BUILD_FBOSS_CLI "Build FBOSS CLI" OFF)
+if ($ENV{BUILD_FBOSS_CLI})
+  message(STATUS "ENV BUILD_FBOSS_CLI is set")
+  set (BUILD_FBOSS_CLI ON)
+endif()
+
+
 if (BUILD_SAI_FAKE_LINK_TEST)
   message(STATUS "Configured to build SAI Fake Link Test binaries")
 endif()
@@ -79,14 +86,11 @@ if (SAI_BRCM_IMPL)
   # Build for BCM DNX by default. For XGS, set the ENV variable SAI_SDK_VERSION
   # to build for BCM XGS.
   set(SAI_SDK_VERSION "SAI_VERSION_10_0_EA_DNX_ODP")
-  set(SAI_VER_MAJOR "1")
-  set(SAI_VER_MINOR "12")
-  set(SAI_VER_RELEASE "0")
-else()
-  set(SAI_VER_MAJOR "1")
-  set(SAI_VER_MINOR "7")
-  set(SAI_VER_RELEASE "1")
 endif()
+
+set(SAI_VER_MAJOR "1")
+set(SAI_VER_MINOR "12")
+set(SAI_VER_RELEASE "0")
 
 if (NOT "$ENV{SAI_SDK_VERSION}" STREQUAL "")
   message(STATUS "ENV SAI_SDK_VERSION is set to $ENV{SAI_SDK_VERSION}")
@@ -137,14 +141,6 @@ if (WITH_ASAN)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libasan")
 endif()
 
-# TODO (skhare) Once CMakeLists.txt is modified to follow buck hierarchy in
-# cmake/*, set BCM-specific flags for BCM libs only
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DINCLUDE_L3 -DLONGS_ARE_64BITS \
-    -DBCM_ESW_SUPPORT -DBCMDRD_INCLUDE_CUSTOM_CONFIG \
-    -DBCMDRD_CONFIG_INCLUDE_BCM56990_Bx=1 \
-    -DBCMDRD_CONFIG_INCLUDE_CHIP_DEFAULT=0 \
-    -DINCLUDE_PSTATS -DBCM_RPC_SUPPORT -DBC")
-
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_BUILD_DIR})
 
@@ -181,6 +177,18 @@ include_directories(${Python3_INCLUDE_DIR})
 
 find_path(SAI_INCLUDE_DIR NAMES sai.h)
 include_directories(${SAI_INCLUDE_DIR})
+
+if (SAI_BRCM_IMPL)
+  find_path(SAI_EXPERIMENTAL_INCLUDE_DIR NAMES saiswitchextensions.h)
+  include_directories(${SAI_EXPERIMENTAL_INCLUDE_DIR})
+  message(STATUS, "Experimental dir: ${SAI_EXPERIMENTAL_INCLUDE_DIR}")
+else()
+  find_path(SAI_EXPERIMENTAL_INCLUDE_DIR
+    NAMES
+    experimental/saiswitchextensions.h)
+  include_directories(${SAI_EXPERIMENTAL_INCLUDE_DIR}/experimental)
+  message(STATUS, "Experimental Dir: ${SAI_EXPERIMENTAL_INCLUDE_DIR}")
+endif()
 
 message(STATUS "Found SAI_INCLUDE_DIR: ${SAI_INCLUDE_DIR}")
 
@@ -504,12 +512,22 @@ add_fbthrift_cpp_library(
 )
 
 add_fbthrift_cpp_library(
+  hw_ctrl_cpp2
+  fboss/agent/if/hw_ctrl.thrift
+  SERVICES
+    FbossHwCtrl
+  DEPENDS
+    ctrl_cpp2
+)
+
+add_fbthrift_cpp_library(
   sai_ctrl_cpp2
   fboss/agent/hw/sai/switch/sai_ctrl.thrift
   SERVICES
     SaiCtrl
   DEPENDS
     ctrl_cpp2
+    hw_ctrl_cpp2
 )
 
 add_fbthrift_cpp_library(
@@ -529,6 +547,16 @@ add_fbthrift_cpp_library(
   DEPENDS
     ctrl_cpp2
     hw_test_ctrl_cpp2
+)
+
+add_fbthrift_cpp_library(
+  multiswitch_ctrl_cpp2
+  fboss/agent/if/multiswitch_ctrl.thrift
+  SERVICES
+    MultiSwitchCtrl
+  DEPENDS
+    ctrl_cpp2
+    fsdb_oper_cpp2
 )
 
 find_library(USB usb-1.0)
@@ -565,10 +593,6 @@ enable_testing()
 # Build all cmake files under cmake/*cmake
 file(GLOB cmakeFiles ${CMAKE_CURRENT_SOURCE_DIR}/cmake/*.cmake)
 foreach(cmakeFile ${cmakeFiles})
-  if(${cmakeFile} MATCHES "CliFboss2")
-      message(status " Skipping FBOSS2 CLI  binaries")
-  else()
-    message(status " INCLUDE ${cmakeFile}")
-    INCLUDE(${cmakeFile})
-  endif()
+  message(status " INCLUDE ${cmakeFile}")
+  INCLUDE(${cmakeFile})
 endforeach(cmakeFile)

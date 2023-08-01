@@ -348,6 +348,7 @@ class BcmPort {
       const int value,
       const std::string& controlStr);
   std::vector<PfcPriority> getLastConfiguredPfcPriorities();
+  void programFlowletPortQuality(std::optional<PortFlowletCfgPtr> portFlowlet);
 
   void setTxSetting(const std::shared_ptr<Port>& swPort);
   void setTxSettingViaPhyControl(
@@ -430,7 +431,14 @@ class BcmPort {
 
   std::atomic<int> numLanes_{0};
 
-  phy::PhyInfo lastPhyInfo_;
+  // TODO: remove this when removing the deprecated fields
+  phy::PhyInfo defaultPhyInfo() {
+    phy::PhyInfo phyInfo;
+    phyInfo.phyChip().ensure();
+    phyInfo.line().ensure();
+    return phyInfo;
+  }
+  phy::PhyInfo lastPhyInfo_ = defaultPhyInfo();
 };
 
 } // namespace facebook::fboss

@@ -119,6 +119,9 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
 
 TEST_F(HwFlowletSwitchingTest, VerifyFlowletSwitchingEnable) {
   if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
     return;
   }
 
@@ -132,6 +135,17 @@ TEST_F(HwFlowletSwitchingTest, VerifyFlowletSwitchingEnable) {
 
   auto verify = [&]() {
     auto flowletCfg = this->getFlowletSwitchingConfig();
+
+    if (getHwSwitch()->getPlatform()->getAsic()->isSupported(
+            HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES)) {
+      cfg::PortFlowletConfig portFlowletConfig;
+      portFlowletConfig.scalingFactor() = kScalingFactor;
+      portFlowletConfig.loadWeight() = kLoadWeight;
+      portFlowletConfig.queueWeight() = kQueueWeight;
+      EXPECT_TRUE(utility::validatePortFlowletQuality(
+          getHwSwitch(), masterLogicalPortIds()[0], portFlowletConfig));
+    }
+
     EXPECT_TRUE(
         utility::validateFlowletSwitchingEnabled(getHwSwitch(), flowletCfg));
     EXPECT_TRUE(utility::verifyEcmpForFlowletSwitching(

@@ -36,6 +36,7 @@ constexpr uint8_t kNotECT{0}; // Not ECN-Capable Transport, Not-ECT
 struct AqmTestStats {
   uint64_t wredDroppedPackets;
   uint64_t outEcnCounter;
+  uint64_t outPackets;
 };
 
 /*
@@ -43,12 +44,12 @@ struct AqmTestStats {
  * an error to account for more / less drops while its worked out.
  */
 void verifyWredDroppedPacketCount(
-    facebook::fboss::HwPortStats& after,
-    facebook::fboss::HwPortStats& before,
+    AqmTestStats& after,
+    AqmTestStats& before,
     int expectedDroppedPkts) {
   constexpr auto kAcceptableError = 2;
   auto deltaWredDroppedPackets =
-      *after.wredDroppedPackets_() - *before.wredDroppedPackets_();
+      after.wredDroppedPackets - before.wredDroppedPackets;
   XLOG(DBG0) << "Delta WRED dropped pkts: " << deltaWredDroppedPackets;
   EXPECT_GT(deltaWredDroppedPackets, expectedDroppedPkts - kAcceptableError);
   EXPECT_LT(deltaWredDroppedPackets, expectedDroppedPkts + kAcceptableError);
@@ -60,12 +61,11 @@ void verifyWredDroppedPacketCount(
  * count.
  */
 void verifyEcnMarkedPacketCount(
-    facebook::fboss::HwPortStats& after,
-    facebook::fboss::HwPortStats& before,
+    AqmTestStats& after,
+    AqmTestStats& before,
     int expectedMarkedPkts) {
-  auto deltaEcnMarkedPackets =
-      *after.outEcnCounter_() - *before.outEcnCounter_();
-  auto deltaOutPackets = getPortOutPkts(after) - getPortOutPkts(before);
+  auto deltaEcnMarkedPackets = after.outEcnCounter - before.outEcnCounter;
+  auto deltaOutPackets = after.outPackets - before.outPackets;
   XLOG(DBG0) << "Delta ECN marked pkts: " << deltaEcnMarkedPackets
              << ", delta out packets: " << deltaOutPackets;
   EXPECT_TRUE(deltaEcnMarkedPackets >= expectedMarkedPkts);
@@ -292,34 +292,37 @@ class HwAqmTest : public HwLinkStateDependentTest {
    * However, AQM stats are collected either from queue or from port depending
    * on test requirement, specified using useQueueStatsForAqm.
    */
-  AqmTestStats extractAqmTestStats(
+  void extractAqmTestStats(
       const HwPortStats& portStats,
       const uint8_t queueId,
-      bool useQueueStatsForAqm) {
-    AqmTestStats stats{};
+      bool useQueueStatsForAqm,
+      AqmTestStats& stats) {
     if (useQueueStatsForAqm) {
       if (getPlatform()->getAsic()->isSupported(
               HwAsic::Feature::QUEUE_ECN_COUNTER)) {
-        stats.outEcnCounter =
+        stats.outEcnCounter +=
             portStats.get_queueEcnMarkedPackets_().find(queueId)->second;
       }
-      stats.wredDroppedPackets =
+      stats.wredDroppedPackets +=
           portStats.get_queueWredDroppedPackets_().find(queueId)->second;
     } else {
-      stats.outEcnCounter = portStats.get_outEcnCounter_();
-      stats.wredDroppedPackets = portStats.get_wredDroppedPackets_();
+      stats.outEcnCounter += portStats.get_outEcnCounter_();
+      stats.wredDroppedPackets += portStats.get_wredDroppedPackets_();
     }
-    return stats;
+    // Always populate outPackets
+    stats.outPackets += getPortOutPkts(portStats);
   }
 
-  // For VoQ, all stats are collected per queue.
-  AqmTestStats extractAqmTestStats(
-      const HwSysPortStats& portStats,
-      const uint8_t& queueId) {
-    AqmTestStats stats{};
-    stats.wredDroppedPackets =
-        portStats.get_queueWredDroppedPackets_().find(queueId)->second;
-    return stats;
+  // For VoQ systems, WRED stat is collected from sysPorts and
+  // outpackets is from egress.
+  void extractAqmTestStats(
+      const HwSysPortStats& sysPortStats,
+      const HwPortStats& portStats,
+      const uint8_t& queueId,
+      AqmTestStats& stats) const {
+    stats.wredDroppedPackets +=
+        sysPortStats.get_queueWredDroppedPackets_().find(queueId)->second;
+    stats.outPackets += portStats.get_queueOutPackets_().at(queueId);
   }
 
   template <typename StatsT>
@@ -349,27 +352,29 @@ class HwAqmTest : public HwLinkStateDependentTest {
       const bool useQueueStatsForAqm) {
     AqmTestStats stats{};
     uint64_t queueWatermark{};
+    // Always collect port stats!
+    auto portStats = getHwSwitchEnsemble()->getLatestPortStats(portId);
+    if (isEct(ecnVal) ||
+        getPlatform()->getAsic()->getSwitchType() != cfg::SwitchType::VOQ) {
+      // Get ECNs marked packet stats for VoQ/non-voq switches and
+      // watermarks for non-voq switches.
+      extractAqmTestStats(portStats, queueId, useQueueStatsForAqm, stats);
+      if (getPlatform()->getAsic()->getSwitchType() != cfg::SwitchType::VOQ) {
+        queueWatermark = extractQueueWatermarkStats(portStats, queueId);
+      }
+    }
     if (getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ) {
       // Gets watermarks + WRED drops in case of non-ECN traffic and
       // watermarks for ECN traffic for VoQ switches.
       auto sysPortId = getSystemPortID(portId, getProgrammedState());
       auto sysPortStats =
           getHwSwitchEnsemble()->getLatestSysPortStats(sysPortId);
-      stats = extractAqmTestStats(sysPortStats, queueId);
+      extractAqmTestStats(sysPortStats, portStats, queueId, stats);
       queueWatermark = extractQueueWatermarkStats(sysPortStats, queueId);
-    }
-    if (isEct(ecnVal) ||
-        getPlatform()->getAsic()->getSwitchType() != cfg::SwitchType::VOQ) {
-      // Get ECNs marked packet stats for VoQ/non-voq switches and
-      // watermarks for non-voq switches.
-      auto portStats = getHwSwitchEnsemble()->getLatestPortStats(portId);
-      stats = extractAqmTestStats(portStats, queueId, useQueueStatsForAqm);
-      if (getPlatform()->getAsic()->getSwitchType() != cfg::SwitchType::VOQ) {
-        queueWatermark = extractQueueWatermarkStats(portStats, queueId);
-      }
     }
     XLOG(DBG0) << "Queue " << static_cast<int>(queueId)
                << ", watermark: " << queueWatermark
+               << ", Out packets: " << stats.outPackets
                << ", WRED drops: " << stats.wredDroppedPackets
                << ", ECN marked: " << stats.outEcnCounter;
     return stats;
@@ -503,44 +508,39 @@ class HwAqmTest : public HwLinkStateDependentTest {
       const int queueId,
       const uint64_t expectedOutPkts,
       const uint64_t expectedDropPkts,
-      HwPortStats& before) {
-    auto waitForExpectedOutPackets = [&](const auto& newStats) {
+      AqmTestStats& before) {
+    WITH_RETRIES_N_TIMED(10, std::chrono::milliseconds(1000), {
       uint64_t outPackets{0}, wredDrops{0}, ecnMarking{0};
-      auto portStatsIter = newStats.find(port);
-      if (portStatsIter != newStats.end()) {
-        auto portStats = portStatsIter->second;
-        outPackets = (*portStats.queueOutPackets_())[queueId] -
-            (*before.queueOutPackets_())[queueId];
-        if (isEct(ecnVal)) {
-          ecnMarking = *portStats.outEcnCounter_() - *before.outEcnCounter_();
-        } else {
-          wredDrops =
-              *portStats.wredDroppedPackets_() - *before.wredDroppedPackets_();
-        }
+      // For VoQ switch, AQM stats are collected from queue!
+      auto useQueueStatsForAqm =
+          getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ;
+      auto aqmStats =
+          getAqmTestStats(ecnVal, port, queueId, useQueueStatsForAqm);
+
+      outPackets = aqmStats.outPackets - before.outPackets;
+      if (isEct(ecnVal)) {
+        ecnMarking = aqmStats.outEcnCounter - before.outEcnCounter;
+      } else {
+        wredDrops = aqmStats.wredDroppedPackets - before.wredDroppedPackets;
       }
       /*
        * Check for outpackets as expected and ensure that ECN or WRED
        * counters are incrementing too! In case of WRED, make sure that
        * dropped packets + out packets >= expected drop + out packets.
        */
-      return (outPackets >= expectedOutPkts) &&
+      EXPECT_EVENTUALLY_TRUE(
+          (outPackets >= expectedOutPkts) &&
           ((isEct(ecnVal) && ecnMarking) ||
            (!isEct(ecnVal) &&
-            (wredDrops + outPackets) >= (expectedOutPkts + expectedDropPkts)));
-    };
-
-    constexpr auto kNumRetries{5};
-    getHwSwitchEnsemble()->waitPortStatsCondition(
-        waitForExpectedOutPackets,
-        kNumRetries,
-        std::chrono::milliseconds(std::chrono::seconds(1)));
+            (wredDrops + outPackets) >= (expectedOutPkts + expectedDropPkts))));
+    });
   }
 
   void validateEcnWredThresholds(
       const uint8_t ecnVal,
       int thresholdBytes,
       int markedOrDroppedPacketCount,
-      std::optional<std::function<void(HwPortStats&, HwPortStats&, int)>>
+      std::optional<std::function<void(AqmTestStats&, AqmTestStats&, int)>>
           verifyPacketCountFn = std::nullopt,
       std::optional<std::function<
           void(cfg::SwitchConfig&, std::vector<int>, const int txPacketLen)>>
@@ -626,11 +626,15 @@ class HwAqmTest : public HwLinkStateDependentTest {
       };
 
       // Send traffic with queue buildup and get the stats at the start!
-      auto before = utility::sendPacketsWithQueueBuildup(
+      auto beforePortStats = utility::sendPacketsWithQueueBuildup(
           sendPackets,
           getHwSwitchEnsemble(),
           masterLogicalInterfacePortIds()[0],
           numPacketsToSend);
+
+      AqmTestStats before{};
+      extractAqmTestStats(
+          beforePortStats, kQueueId, false /*useQueueStatsForAqm*/, before);
 
       // For ECN all packets are sent out, for WRED, account for drops!
       const uint64_t kDroppedPackets =
@@ -646,10 +650,13 @@ class HwAqmTest : public HwLinkStateDependentTest {
           kExpectedOutPackets,
           kDroppedPackets,
           before);
-      auto after = getHwSwitchEnsemble()->getLatestPortStats(
+      auto afterPortStats = getHwSwitchEnsemble()->getLatestPortStats(
           masterLogicalInterfacePortIds()[0]);
-      auto deltaOutPackets = (*after.queueOutPackets_())[kQueueId] -
-          (*before.queueOutPackets_())[kQueueId];
+      AqmTestStats after{};
+      extractAqmTestStats(
+          afterPortStats, kQueueId, false /*useQueueStatsForAqm*/, after);
+      auto deltaOutPackets = after.outPackets - before.outPackets;
+
       /*
        * Might see more outPackets than expected due to
        * utility::sendPacketsWithQueueBuildup()
@@ -730,7 +737,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
           getHwSwitchEnsemble()->getMinPktsForLineRate(portId);
       sendPkts(
           utility::kOlympicQueueToDscp(getAsic()).at(queueId).front(),
-          true,
+          kECT1,
           kNumPacketsToSend);
     };
 
@@ -738,36 +745,33 @@ class HwAqmTest : public HwLinkStateDependentTest {
       getHwSwitchEnsemble()->waitForLineRateOnPort(portId);
 
       // Get stats to verify if additional packets are getting ECN marked
-      auto before = getHwSwitchEnsemble()->getLatestPortStats(portId);
+      auto beforePortStats = getHwSwitchEnsemble()->getLatestPortStats(portId);
+      AqmTestStats before{};
+      extractAqmTestStats(
+          beforePortStats, queueId, true /*useQueueStatsForAqm*/, before);
 
       auto verifyPerQueueEcnMarkedStats = [&](const auto& newStats) {
-        auto portStatsIter = newStats.find(portId);
-        auto after = portStatsIter->second;
+        auto& afterPortStats = newStats.find(portId)->second;
+        AqmTestStats after{};
+        extractAqmTestStats(
+            afterPortStats, queueId, true /*useQueueStatsForAqm*/, after);
 
         auto deltaQueueEcnMarkedPackets =
-            after.queueEcnMarkedPackets_()->find(queueId)->second -
-            before.queueEcnMarkedPackets_()->find(queueId)->second;
+            after.outEcnCounter - before.outEcnCounter;
 
-        if (deltaQueueEcnMarkedPackets == 0) {
+        // Details for debugging
+        auto deltaOutPackets = after.outPackets - before.outPackets;
+        auto deltaPortEcnMarkedPackets = *afterPortStats.outEcnCounter_() -
+            *beforePortStats.outEcnCounter_();
+        XLOG(DBG3) << "queue(" << queueId << "): delta/total"
+                   << " EcnMarked: " << deltaQueueEcnMarkedPackets << "/"
+                   << after.outEcnCounter << " outPackets: " << deltaOutPackets
+                   << "/" << after.outPackets
+                   << " Port.EcnMarked: " << deltaPortEcnMarkedPackets << "/"
+                   << *afterPortStats.outEcnCounter_();
+
+        if (!deltaQueueEcnMarkedPackets) {
           XLOG(DBG0) << "queue(" << queueId << "): No ECN marked packets seen!";
-
-          // detail for debugging test failures
-          auto deltaOutPackets = getPortOutPkts(after) - getPortOutPkts(before);
-          auto deltaQueueOutPackets =
-              after.queueOutPackets_()->find(queueId)->second -
-              before.queueOutPackets_()->find(queueId)->second;
-          auto deltaEcnMarkedPackets =
-              *after.outEcnCounter_() - *before.outEcnCounter_();
-          XLOG(DBG3) << "queue(" << queueId << "): delta/total"
-                     << " EcnMarked: " << deltaQueueEcnMarkedPackets << "/"
-                     << after.queueEcnMarkedPackets_()->find(queueId)->second
-                     << " outPackets: " << deltaQueueOutPackets << "/"
-                     << after.queueOutPackets_()->find(queueId)->second
-                     << "; Port.EcnMarked: " << deltaEcnMarkedPackets << "/"
-                     << *after.outEcnCounter_()
-                     << ", Port.outPackets: " << deltaOutPackets << "/"
-                     << getPortOutPkts(after);
-
           return false;
         }
 
@@ -899,7 +903,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
 
       // Disable TX to build up queue for each port
       for (auto const& port : ports) {
-        utility::setPortTxEnable(
+        utility::setCreditWatchdogAndPortTx(
             getHwSwitchEnsemble()->getHwSwitch(), port, false);
       }
 
@@ -918,7 +922,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
 
       // Enable TX to let traffic egress
       for (auto const& port : ports) {
-        utility::setPortTxEnable(
+        utility::setCreditWatchdogAndPortTx(
             getHwSwitchEnsemble()->getHwSwitch(), port, true);
       }
 

@@ -3,6 +3,7 @@
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
+#include "fboss/agent/hw/HwSwitchFb303Stats.h"
 #include "fboss/agent/hw/switch_asics/EbroAsic.h"
 #include "fboss/agent/hw/switch_asics/Jericho2Asic.h"
 #include "fboss/agent/hw/switch_asics/Jericho3Asic.h"
@@ -15,6 +16,7 @@
 #include "fboss/agent/hw/test/HwTestPacketSnooper.h"
 #include "fboss/agent/hw/test/HwTestPacketTrapEntry.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
+#include "fboss/agent/hw/test/HwTestPortUtils.h"
 #include "fboss/agent/hw/test/HwTestStatUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
 #include "fboss/agent/state/Interface.h"
@@ -25,7 +27,8 @@
 
 namespace {
 constexpr uint8_t kDefaultQueue = 0;
-}
+constexpr auto kSystemPortCountPerNode = 15;
+} // namespace
 
 namespace facebook::fboss {
 class HwVoqSwitchTest : public HwLinkStateDependentTest {
@@ -120,6 +123,17 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
     }
   }
 
+  SystemPortID getSystemPortID(const PortDescriptor& port) {
+    auto switchId = getHwSwitch()->getSwitchId();
+    CHECK(switchId.has_value());
+    auto sysPortRange = getProgrammedState()
+                            ->getDsfNodes()
+                            ->getNodeIf(SwitchID(*switchId))
+                            ->getSystemPortRange();
+    CHECK(sysPortRange.has_value());
+    return SystemPortID(port.intID() + *sysPortRange->minimum());
+  }
+
   int sendPacket(
       const folly::IPAddressV6& dstIp,
       std::optional<PortID> frontPanelPort) {
@@ -150,132 +164,6 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
       getHwSwitch()->sendPacketSwitchedAsync(std::move(txPacket));
     }
     return txPacketSize;
-  }
-
-  void sendPacketHelper(bool isFrontPanel, bool checkAclCounter = true) {
-    utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
-    const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
-
-    auto setup = [this, kPort, ecmpHelper, checkAclCounter]() {
-      if (checkAclCounter) {
-        addDscpAclWithCounter();
-      }
-      addRemoveNeighbor(kPort, true /* add neighbor*/);
-    };
-
-    auto verify = [this, kPort, ecmpHelper, isFrontPanel, checkAclCounter]() {
-      auto getPortOutPktsBytes = [kPort, this]() {
-        return std::make_pair(
-            getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_(),
-            getLatestPortStats(kPort.phyPortID()).get_outBytes_());
-      };
-
-      auto getQueueOutPktsBytes = [kPort, this]() {
-        return std::make_pair(
-            getLatestPortStats(kPort.phyPortID())
-                .get_queueOutPackets_()
-                .at(kDefaultQueue),
-            getLatestPortStats(kPort.phyPortID())
-                .get_queueOutBytes_()
-                .at(kDefaultQueue));
-      };
-      auto getVoQOutBytes = [kPort, this]() {
-        if (!getAsic()->isSupported(HwAsic::Feature::VOQ)) {
-          return 0L;
-        }
-        auto switchId = getHwSwitch()->getSwitchId();
-        CHECK(switchId.has_value());
-        auto sysPortRange = getProgrammedState()
-                                ->getDsfNodes()
-                                ->getNodeIf(SwitchID(*switchId))
-                                ->getSystemPortRange();
-        CHECK(sysPortRange.has_value());
-        const SystemPortID sysPortId(kPort.intID() + *sysPortRange->minimum());
-        return getLatestSysPortStats(sysPortId).get_queueOutBytes_().at(
-            kDefaultQueue);
-      };
-
-      auto getAclPackets = [this, checkAclCounter]() {
-        return checkAclCounter ? utility::getAclInOutPackets(
-                                     getHwSwitch(),
-                                     getProgrammedState(),
-                                     kDscpAclName(),
-                                     kDscpAclCounterName())
-                               : 0;
-      };
-
-      int64_t beforeQueueOutPkts = 0, beforeQueueOutBytes = 0;
-      int64_t afterQueueOutPkts = 0, afterQueueOutBytes = 0;
-
-      auto beforeVoQOutBytes = getVoQOutBytes();
-      if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
-        auto beforeQueueOut = getQueueOutPktsBytes();
-        beforeQueueOutPkts = beforeQueueOut.first;
-        beforeQueueOutBytes = beforeQueueOut.second;
-      }
-
-      auto [beforeOutPkts, beforeOutBytes] = getPortOutPktsBytes();
-      auto beforeAclPkts = getAclPackets();
-      std::optional<PortID> frontPanelPort;
-      if (isFrontPanel) {
-        frontPanelPort = ecmpHelper.ecmpPortDescriptorAt(1).phyPortID();
-      }
-      auto txPacketSize = sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
-
-      auto [maxRetryCount, sleepTimeMsecs] =
-          utility::getRetryCountAndDelay(getAsic());
-      WITH_RETRIES_N_TIMED(
-          maxRetryCount, std::chrono::milliseconds(sleepTimeMsecs), {
-            auto afterVoQOutBytes = getVoQOutBytes();
-            if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
-              auto queueOutPktsAndBytes = getQueueOutPktsBytes();
-              afterQueueOutPkts = queueOutPktsAndBytes.first;
-              afterQueueOutBytes = queueOutPktsAndBytes.second;
-            }
-            auto afterAclPkts = getAclPackets();
-            auto portOutPktsAndBytes = getPortOutPktsBytes();
-            auto afterOutPkts = portOutPktsAndBytes.first;
-            auto afterOutBytes = portOutPktsAndBytes.second;
-
-            XLOG(DBG2) << "Stats:: beforeOutPkts: " << beforeOutPkts
-                       << " beforeOutBytes: " << beforeOutBytes
-                       << " beforeQueueOutPkts: " << beforeQueueOutPkts
-                       << " beforeQueueOutBytes: " << beforeQueueOutBytes
-                       << " beforeVoQOutBytes: " << beforeVoQOutBytes
-                       << " beforeAclPkts: " << beforeAclPkts
-                       << " txPacketSize: " << txPacketSize
-                       << " afterOutPkts: " << afterOutPkts
-                       << " afterOutBytes: " << afterOutBytes
-                       << " afterQueueOutPkts: " << afterQueueOutPkts
-                       << " afterQueueOutBytes: " << afterQueueOutBytes
-                       << " afterVoQOutBytes: " << afterVoQOutBytes
-                       << " afterAclPkts: " << afterAclPkts;
-
-            EXPECT_EVENTUALLY_EQ(afterOutPkts - 1, beforeOutPkts);
-            int extraByteOffset = 0;
-            if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2) {
-              // CS00012267635: debug why we get 4 extra bytes
-              // CS00012299306 why we don't get extra 4 bytes for J3
-              extraByteOffset = 4;
-            }
-            EXPECT_EVENTUALLY_EQ(
-                afterOutBytes - txPacketSize - extraByteOffset, beforeOutBytes);
-            if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
-              EXPECT_EVENTUALLY_EQ(afterQueueOutPkts - 1, beforeQueueOutPkts);
-              // CS00012267635: debug why queue counter is 310, when
-              // txPacketSize is 322
-              EXPECT_EVENTUALLY_GE(afterQueueOutBytes, beforeQueueOutBytes);
-            }
-            if (checkAclCounter) {
-              EXPECT_EVENTUALLY_GT(afterAclPkts, beforeAclPkts);
-            }
-            if (getAsic()->isSupported(HwAsic::Feature::VOQ)) {
-              EXPECT_EVENTUALLY_GT(afterVoQOutBytes, beforeVoQOutBytes);
-            }
-          });
-    };
-
-    verifyAcrossWarmBoots(setup, verify);
   }
 
   void
@@ -406,7 +294,7 @@ class HwVoqSwitchWithFabricPortsTest : public HwVoqSwitchTest {
         masterLogicalPortIds(),
         getAsic()->desiredLoopbackModes(),
         true, /*interfaceHasSubnet*/
-        false, /*setInterfaceMac*/
+        true, /*setInterfaceMac*/
         utility::kBaseVlanId,
         true /*enable fabric ports*/
     );
@@ -448,11 +336,7 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, collectStats) {
 }
 
 TEST_F(HwVoqSwitchWithFabricPortsTest, checkFabricReachability) {
-  auto verify = [this]() {
-    SwitchStats dummy;
-    getHwSwitch()->updateStats(&dummy);
-    checkFabricReachability(getHwSwitch());
-  };
+  auto verify = [this]() { checkFabricReachability(getHwSwitch()); };
   verifyAcrossWarmBoots([] {}, verify);
 }
 
@@ -474,6 +358,18 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, fabricIsolate) {
     getHwSwitch()->updateStats(&dummy);
     checkPortFabricReachability(getHwSwitch(), fabricPortId);
   };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchWithFabricPortsTest, switchIsolate) {
+  auto setup = [=]() {
+    auto newCfg = initialConfig();
+    *newCfg.switchSettings()->switchDrainState() =
+        cfg::SwitchDrainState::DRAINED;
+    applyNewConfig(newCfg);
+  };
+
+  auto verify = [=]() { checkFabricReachability(getHwSwitch()); };
   verifyAcrossWarmBoots(setup, verify);
 }
 
@@ -578,12 +474,126 @@ TEST_F(HwVoqSwitchTest, addRemoveNeighbor) {
   verifyAcrossWarmBoots(setup, [] {});
 }
 
-TEST_F(HwVoqSwitchTest, sendPacketCpu) {
-  sendPacketHelper(false /* cpu */);
-}
+TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
 
-TEST_F(HwVoqSwitchTest, sendPacketFrontPanel) {
-  sendPacketHelper(true /* front panel */);
+  auto setup = [this, kPort, ecmpHelper]() {
+    addDscpAclWithCounter();
+    addRemoveNeighbor(kPort, true /* add neighbor*/);
+  };
+
+  auto verify = [this, kPort, ecmpHelper]() {
+    auto sendPacketCpuFrontPanelHelper = [this, kPort, ecmpHelper](
+                                             bool isFrontPanel) {
+      auto getPortOutPktsBytes = [kPort, this]() {
+        return std::make_pair(
+            getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_(),
+            getLatestPortStats(kPort.phyPortID()).get_outBytes_());
+      };
+
+      auto getQueueOutPktsBytes = [kPort, this]() {
+        return std::make_pair(
+            getLatestPortStats(kPort.phyPortID())
+                .get_queueOutPackets_()
+                .at(kDefaultQueue),
+            getLatestPortStats(kPort.phyPortID())
+                .get_queueOutBytes_()
+                .at(kDefaultQueue));
+      };
+      auto getVoQOutBytes = [kPort, this]() {
+        if (!getAsic()->isSupported(HwAsic::Feature::VOQ)) {
+          return 0L;
+        }
+        return getLatestSysPortStats(getSystemPortID(kPort))
+            .get_queueOutBytes_()
+            .at(kDefaultQueue);
+      };
+
+      auto getAclPackets = [this]() {
+        return utility::getAclInOutPackets(
+            getHwSwitch(),
+            getProgrammedState(),
+            kDscpAclName(),
+            kDscpAclCounterName());
+      };
+
+      int64_t beforeQueueOutPkts = 0, beforeQueueOutBytes = 0;
+      int64_t afterQueueOutPkts = 0, afterQueueOutBytes = 0;
+
+      auto beforeVoQOutBytes = getVoQOutBytes();
+      if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
+        auto beforeQueueOut = getQueueOutPktsBytes();
+        beforeQueueOutPkts = beforeQueueOut.first;
+        beforeQueueOutBytes = beforeQueueOut.second;
+      }
+
+      auto [beforeOutPkts, beforeOutBytes] = getPortOutPktsBytes();
+      auto beforeAclPkts = getAclPackets();
+      std::optional<PortID> frontPanelPort;
+      if (isFrontPanel) {
+        frontPanelPort = ecmpHelper.ecmpPortDescriptorAt(1).phyPortID();
+      }
+      auto txPacketSize = sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
+
+      auto [maxRetryCount, sleepTimeMsecs] =
+          utility::getRetryCountAndDelay(getAsic());
+      WITH_RETRIES_N_TIMED(
+          maxRetryCount, std::chrono::milliseconds(sleepTimeMsecs), {
+            auto afterVoQOutBytes = getVoQOutBytes();
+            if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
+              std::tie(afterQueueOutPkts, afterQueueOutBytes) =
+                  getQueueOutPktsBytes();
+            }
+            auto afterAclPkts = getAclPackets();
+            auto portOutPktsAndBytes = getPortOutPktsBytes();
+            auto afterOutPkts = portOutPktsAndBytes.first;
+            auto afterOutBytes = portOutPktsAndBytes.second;
+
+            XLOG(DBG2) << "Verifying: "
+                       << (isFrontPanel ? "Send Packet from Front Panel Port"
+                                        : "Send Packet from CPU Port")
+                       << " Stats:: beforeOutPkts: " << beforeOutPkts
+                       << " beforeOutBytes: " << beforeOutBytes
+                       << " beforeQueueOutPkts: " << beforeQueueOutPkts
+                       << " beforeQueueOutBytes: " << beforeQueueOutBytes
+                       << " beforeVoQOutBytes: " << beforeVoQOutBytes
+                       << " beforeAclPkts: " << beforeAclPkts
+                       << " txPacketSize: " << txPacketSize
+                       << " afterOutPkts: " << afterOutPkts
+                       << " afterOutBytes: " << afterOutBytes
+                       << " afterQueueOutPkts: " << afterQueueOutPkts
+                       << " afterQueueOutBytes: " << afterQueueOutBytes
+                       << " afterVoQOutBytes: " << afterVoQOutBytes
+                       << " afterAclPkts: " << afterAclPkts;
+
+            EXPECT_EVENTUALLY_EQ(afterOutPkts - 1, beforeOutPkts);
+            int extraByteOffset = 0;
+            if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2) {
+              // CS00012267635: debug why we get 4 extra bytes
+              // CS00012299306 why we don't get extra 4 bytes for J3
+              extraByteOffset = 4;
+            }
+            EXPECT_EVENTUALLY_EQ(
+                afterOutBytes - txPacketSize - extraByteOffset, beforeOutBytes);
+            if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
+              EXPECT_EVENTUALLY_EQ(afterQueueOutPkts - 1, beforeQueueOutPkts);
+              // CS00012267635: debug why queue counter is 310, when
+              // txPacketSize is 322
+              EXPECT_EVENTUALLY_GE(afterQueueOutBytes, beforeQueueOutBytes);
+            }
+            EXPECT_EVENTUALLY_GT(afterAclPkts, beforeAclPkts);
+            if (getAsic()->isSupported(HwAsic::Feature::VOQ)) {
+              EXPECT_EVENTUALLY_GT(afterVoQOutBytes, beforeVoQOutBytes);
+            }
+          });
+    };
+
+    sendPacketCpuFrontPanelHelper(false /* cpu */);
+    sendPacketCpuFrontPanelHelper(true /* front panel*/);
+  };
+
+  verifyAcrossWarmBoots(setup, verify);
 }
 
 TEST_F(HwVoqSwitchTest, trapPktsOnPort) {
@@ -594,7 +604,8 @@ TEST_F(HwVoqSwitchTest, trapPktsOnPort) {
     auto snooper = std::make_unique<HwTestPacketSnooper>(ensemble);
     auto entry = std::make_unique<HwTestPacketTrapEntry>(
         ensemble->getHwSwitch(), kPort.phyPortID());
-    sendPacketHelper(true /* front panel */, false /*checkAclCounter*/);
+    auto frontPanelPort = ecmpHelper.ecmpPortDescriptorAt(1).phyPortID();
+    sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
     WITH_RETRIES({
       auto frameRx = snooper->waitForPacket(1);
       EXPECT_EVENTUALLY_TRUE(frameRx.has_value());
@@ -624,43 +635,180 @@ TEST_F(HwVoqSwitchTest, rxPacketToCpuBgpSrcPort) {
       utility::getCoppHighPriQueueId(this->getAsic()));
 }
 
-TEST_F(HwVoqSwitchTest, AclQualifiers) {
-  auto setup = [=]() {
+TEST_F(HwVoqSwitchTest, AclQualifiersWithCounter) {
+  auto kAclName = "acl1";
+  auto kAclCounterName = "aclCounter1";
+
+  auto setup = [kAclName, kAclCounterName, this]() {
     auto newCfg = initialConfig();
-    auto* acl = utility::addAcl(&newCfg, "acl1", cfg::AclActionType::DENY);
+
+    auto* acl = utility::addAcl(&newCfg, kAclName);
     utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
     acl->srcIp() = "::ffff:c0a8:1"; // fails: CS00012270649
     acl->dstIp() = "2401:db00:3020:70e2:face:0:63:0/64"; // fails: CS00012270650
     acl->srcPort() = ecmpHelper.ecmpPortDescriptorAt(0).phyPortID();
     acl->dscp() = 0x24;
+
+    utility::addAclStat(&newCfg, kAclName, kAclCounterName, kCounterTypes());
+
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [kAclName, kAclCounterName, this]() {
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch()));
     EXPECT_EQ(utility::getAclTableNumAclEntries(getHwSwitch()), 1);
-    utility::checkSwHwAclMatch(getHwSwitch(), getProgrammedState(), "acl1");
-  };
+    utility::checkSwHwAclMatch(getHwSwitch(), getProgrammedState(), kAclName);
 
-  verifyAcrossWarmBoots(setup, verify);
-}
-
-TEST_F(HwVoqSwitchTest, AclCounter) {
-  auto setup = [=]() { addDscpAclWithCounter(); };
-
-  auto verify = [=]() {
-    // Needs CS00012270647 (support SAI_ACL_COUNTER_ATTR_LABEL) to PASS
     utility::checkAclEntryAndStatCount(
         getHwSwitch(), /*ACLs*/ 1, /*stats*/ 1, /*counters*/ 2);
     utility::checkAclStat(
         getHwSwitch(),
         getProgrammedState(),
-        {kDscpAclName()},
-        kDscpAclCounterName(),
+        {kAclName},
+        kAclCounterName,
         kCounterTypes());
   };
 
   verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchTest, voqDelete) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  auto port = ecmpHelper.ecmpPortDescriptorAt(0);
+  auto setup = [=]() {
+    addRemoveNeighbor(port, true /*add*/);
+    // Disable port TX
+    utility::setPortTx(getHwSwitch(), port.phyPortID(), false);
+  };
+  auto verify = [=]() {
+    auto getVoQDeletedPkts = [port, this]() {
+      if (!getAsic()->isSupported(HwAsic::Feature::VOQ_DELETE_COUNTER)) {
+        return 0L;
+      }
+      return getLatestSysPortStats(getSystemPortID(port))
+          .get_queueCreditWatchdogDeletedPackets_()
+          .at(kDefaultQueue);
+    };
+
+    auto voqDeletedPktsBefore = getVoQDeletedPkts();
+    const auto dstIp = ecmpHelper.ip(port);
+    for (auto i = 0; i < 100; ++i) {
+      // Send pkts via front panel
+      sendPacket(dstIp, ecmpHelper.ecmpPortDescriptorAt(1).phyPortID());
+    }
+    WITH_RETRIES({
+      auto voqDeletedPktsAfter = getVoQDeletedPkts();
+      XLOG(INFO) << "Voq deleted pkts, before: " << voqDeletedPktsBefore
+                 << " after: " << voqDeletedPktsAfter;
+      EXPECT_EVENTUALLY_EQ(voqDeletedPktsBefore + 100, voqDeletedPktsAfter);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchTest, packetIntegrityError) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  auto port = ecmpHelper.ecmpPortDescriptorAt(0);
+  auto setup = [=]() { addRemoveNeighbor(port, true /*add*/); };
+  auto verify = [=]() {
+    const auto dstIp = ecmpHelper.ip(port);
+    std::string out;
+    getHwSwitchEnsemble()->runDiagCommand(
+        "m SPB_FORCE_CRC_ERROR FORCE_CRC_ERROR_ON_DATA=1 FORCE_CRC_ERROR_ON_CRC=1\n",
+        out);
+    sendPacket(dstIp, std::nullopt);
+    WITH_RETRIES({
+      SwitchStats dummy;
+      getHwSwitch()->updateStats(&dummy);
+      auto pktIntegrityDrops =
+          getHwSwitch()->getSwitchStats()->getPacketIntegrityDropsCount();
+      XLOG(INFO) << " Packet integrity drops: " << pktIntegrityDrops;
+      EXPECT_EVENTUALLY_GT(pktIntegrityDrops, 0);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchTest, localForwardingPostIsolate) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+  auto setup = [this, kPort]() {
+    auto newCfg = initialConfig();
+    *newCfg.switchSettings()->switchDrainState() =
+        cfg::SwitchDrainState::DRAINED;
+    applyNewConfig(newCfg);
+    addRemoveNeighbor(kPort, true /* add neighbor*/);
+  };
+
+  auto verify = [this, kPort, &ecmpHelper]() {
+    auto sendPktAndVerify = [&](std::optional<PortID> portToSendFrom) {
+      auto beforePkts =
+          getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_();
+      sendPacket(ecmpHelper.ip(kPort), portToSendFrom);
+      WITH_RETRIES({
+        auto afterPkts =
+            getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_();
+        XLOG(DBG2) << "Before pkts: " << beforePkts
+                   << " After pkts: " << afterPkts;
+        EXPECT_EVENTUALLY_GE(afterPkts, beforePkts + 1);
+      });
+    };
+    // CPU send
+    sendPktAndVerify(std::nullopt);
+    // Front panel send
+    sendPktAndVerify(ecmpHelper.ecmpPortDescriptorAt(1).phyPortID());
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchTest, stressLocalForwardingPostIsolate) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+  auto setup = [this, kPort]() {
+    auto newCfg = initialConfig();
+    *newCfg.switchSettings()->switchDrainState() =
+        cfg::SwitchDrainState::DRAINED;
+    applyNewConfig(newCfg);
+    addRemoveNeighbor(kPort, true /* add neighbor*/);
+  };
+
+  auto verify = [this, kPort, &ecmpHelper]() {
+    auto beforePkts =
+        getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_();
+    for (auto i = 0; i < 10000; ++i) {
+      // CPU send
+      sendPacket(ecmpHelper.ip(kPort), std::nullopt);
+      // Front panel send
+      sendPacket(
+          ecmpHelper.ip(kPort), ecmpHelper.ecmpPortDescriptorAt(1).phyPortID());
+    }
+    WITH_RETRIES({
+      auto afterPkts =
+          getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_();
+      XLOG(DBG2) << "Before pkts: " << beforePkts
+                 << " After pkts: " << afterPkts;
+      EXPECT_EVENTUALLY_GE(afterPkts, beforePkts + 20000);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchTest, localSystemPortEcmp) {
+  auto setup = [this]() {
+    utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
+    auto prefix = RoutePrefixV6{folly::IPAddressV6("1::1"), 128};
+    flat_set<PortDescriptor> localSysPorts;
+    for (auto& systemPortMap :
+         std::as_const(*getProgrammedState()->getSystemPorts())) {
+      for (auto& [_, localSysPort] : std::as_const(*systemPortMap.second)) {
+        localSysPorts.insert(PortDescriptor(localSysPort->getID()));
+      }
+    }
+    applyNewState(
+        ecmpHelper.resolveNextHops(getProgrammedState(), localSysPorts));
+    ecmpHelper.programRoutes(getRouteUpdater(), localSysPorts, {prefix});
+  };
+  verifyAcrossWarmBoots(setup, [] {});
 }
 
 class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
@@ -671,12 +819,8 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
     return cfg;
   }
 
-  const SwitchID kGetRemoteSwitchId() const {
-    if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
-      // with maxCores = 4 , remote switchId has to be atleast 4
-      return SwitchID(4);
-    }
-    return SwitchID(2);
+  static SwitchID getRemoteSwitchId() {
+    return SwitchID(4);
   }
 
   std::optional<std::map<int64_t, cfg::DsfNode>> overrideDsfNodes(
@@ -693,13 +837,15 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
         *firstDsfNode.switchId(),
         *firstDsfNode.systemPortRange(),
         mac);
-    auto otherDsfNodeCfg = utility::dsfNodeConfig(*asic, kGetRemoteSwitchId());
+    auto otherDsfNodeCfg = utility::dsfNodeConfig(*asic, getRemoteSwitchId());
     dsfNodes.insert({*otherDsfNodeCfg.switchId(), otherDsfNodeCfg});
     return dsfNodes;
   }
 
  protected:
-  void addRemoteSysPort(SystemPortID portId) {
+  void addRemoteSysPort(
+      SystemPortID portId,
+      SwitchID remoteSwitchId = getRemoteSwitchId()) {
     auto newState = getProgrammedState()->clone();
     const auto& localPorts = newState->getSystemPorts()->cbegin()->second;
     auto localPort = localPorts->cbegin()->second;
@@ -707,7 +853,7 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
         newState->getRemoteSystemPorts()->modify(&newState);
     auto numPrevPorts = remoteSystemPorts->numNodes();
     auto remoteSysPort = std::make_shared<SystemPort>(portId);
-    remoteSysPort->setSwitchId(kGetRemoteSwitchId());
+    remoteSysPort->setSwitchId(remoteSwitchId);
     remoteSysPort->setNumVoqs(localPort->getNumVoqs());
     remoteSysPort->setCoreIndex(localPort->getCoreIndex());
     remoteSysPort->setCorePortIndex(localPort->getCorePortIndex());
@@ -720,13 +866,24 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
         getProgrammedState()->getRemoteSystemPorts()->numNodes(),
         numPrevPorts + 1);
   }
+  void removeRemoteSysPort(SystemPortID portId) {
+    auto newState = getProgrammedState()->clone();
+    auto remoteSystemPorts =
+        newState->getRemoteSystemPorts()->modify(&newState);
+    auto numPrevPorts = remoteSystemPorts->numNodes();
+    remoteSystemPorts->removeNode(portId);
+    applyNewState(newState);
+    EXPECT_EQ(
+        getProgrammedState()->getRemoteSystemPorts()->numNodes(),
+        numPrevPorts - 1);
+  }
   void addRemoteInterface(
       InterfaceID intfId,
       const Interface::Addresses& subnets) {
     auto newState = getProgrammedState();
     auto newRemoteInterfaces =
         newState->getRemoteInterfaces()->modify(&newState);
-    auto numPrevIntfs = newRemoteInterfaces->size();
+    auto numPrevIntfs = newRemoteInterfaces->numNodes();
     auto newRemoteInterface = std::make_shared<Interface>(
         intfId,
         RouterID(0),
@@ -745,6 +902,17 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
     EXPECT_EQ(
         getProgrammedState()->getRemoteInterfaces()->numNodes(),
         numPrevIntfs + 1);
+  }
+  void removeRemoteInterface(InterfaceID intfId) {
+    auto newState = getProgrammedState();
+    auto newRemoteInterfaces =
+        newState->getRemoteInterfaces()->modify(&newState);
+    auto numPrevIntfs = newRemoteInterfaces->numNodes();
+    newRemoteInterfaces->removeNode(intfId);
+    applyNewState(newState);
+    EXPECT_EQ(
+        getProgrammedState()->getRemoteInterfaces()->numNodes(),
+        numPrevIntfs - 1);
   }
   void addRemoveRemoteNeighbor(
       const folly::IPAddressV6& neighborIp,
@@ -776,6 +944,26 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
     interfaceMap->updateNode(
         interface, scopeResolver().scope(interface, outState));
     applyNewState(outState);
+  }
+  void assertVoqTailDrops(
+      const folly::IPAddressV6& nbrIp,
+      const SystemPortID& sysPortId) {
+    auto sendPkts = [=]() {
+      for (auto i = 0; i < 1000; ++i) {
+        sendPacket(nbrIp, std::nullopt);
+      }
+    };
+    auto voqDiscardBytes = 0;
+    WITH_RETRIES_N(100, {
+      sendPkts();
+      SwitchStats dummy;
+      getHwSwitch()->updateStats(&dummy);
+      voqDiscardBytes =
+          getLatestSysPortStats(sysPortId).get_queueOutDiscardBytes_().at(
+              kDefaultQueue);
+      XLOG(INFO) << " VOQ discard bytes: " << voqDiscardBytes;
+      EXPECT_EVENTUALLY_GT(voqDiscardBytes, 0);
+    });
   }
 };
 
@@ -833,6 +1021,188 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, addRemoveRemoteNeighbor) {
     addRemoveRemoteNeighbor(
         kNeighborIp, kIntfId, kPort, false, dummyEncapIndex);
   };
+  verifyAcrossWarmBoots(setup, [] {});
+}
+
+TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, stressAddRemoveObjects) {
+  auto setup = [=]() {
+    // Disable credit watchdog
+    utility::enableCreditWatchdog(getHwSwitch(), false);
+  };
+  auto verify = [this]() {
+    auto numIterations = 500;
+    auto constexpr remotePortId = 401;
+    const SystemPortID kRemoteSysPortId(remotePortId);
+    folly::IPAddressV6 kNeighborIp("100::2");
+    utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+    const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+    for (auto i = 0; i < numIterations; ++i) {
+      // add local neighbor
+      addRemoveNeighbor(kPort, true /* add neighbor*/);
+      // Remote objs
+      addRemoteSysPort(kRemoteSysPortId);
+      const InterfaceID kIntfId(remotePortId);
+      addRemoteInterface(
+          kIntfId,
+          // TODO - following assumes we haven't
+          // already used up the subnets below for
+          // local interfaces. In that sense it
+          // has a implicit coupling with how ConfigFactory
+          // generates subnets for local interfaces
+          {
+              {folly::IPAddress("100::1"), 64},
+              {folly::IPAddress("100.0.0.1"), 24},
+          });
+      uint64_t dummyEncapIndex = 401;
+      PortDescriptor kRemotePort(kRemoteSysPortId);
+      // Add neighbor
+      addRemoveRemoteNeighbor(
+          kNeighborIp, kIntfId, kRemotePort, true, dummyEncapIndex);
+      // Delete on all but the last iteration. In the last iteration
+      // we will leave the entries intact and then forward pkts
+      // to this VOQ
+      if (i < numIterations - 1) {
+        addRemoveNeighbor(kPort, false /* remove neighbor*/);
+        // Remove neighbor
+        addRemoveRemoteNeighbor(
+            kNeighborIp, kIntfId, kRemotePort, false, dummyEncapIndex);
+        // Remove rif
+        removeRemoteInterface(kIntfId);
+        // Remove sys port
+        removeRemoteSysPort(kRemoteSysPortId);
+      }
+    }
+    assertVoqTailDrops(kNeighborIp, kRemoteSysPortId);
+    auto beforePkts =
+        getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_();
+    // CPU send
+    sendPacket(ecmpHelper.ip(kPort), std::nullopt);
+    auto frontPanelPort = ecmpHelper.ecmpPortDescriptorAt(1).phyPortID();
+    sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
+    WITH_RETRIES({
+      auto afterPkts =
+          getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_();
+      EXPECT_EVENTUALLY_EQ(afterPkts, beforePkts + 2);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, voqTailDropCounter) {
+  folly::IPAddressV6 kNeighborIp("100::2");
+  auto constexpr remotePortId = 401;
+  const SystemPortID kRemoteSysPortId(remotePortId);
+  auto setup = [=]() {
+    // Disable credit watchdog
+    utility::enableCreditWatchdog(getHwSwitch(), false);
+    addRemoteSysPort(kRemoteSysPortId);
+    const InterfaceID kIntfId(remotePortId);
+    addRemoteInterface(
+        kIntfId,
+        {
+            {folly::IPAddress("100::1"), 64},
+            {folly::IPAddress("100.0.0.1"), 24},
+        });
+    uint64_t dummyEncapIndex = 401;
+    PortDescriptor kPort(kRemoteSysPortId);
+    // Add neighbor
+    addRemoveRemoteNeighbor(kNeighborIp, kIntfId, kPort, true, dummyEncapIndex);
+  };
+
+  auto verify = [=]() { assertVoqTailDrops(kNeighborIp, kRemoteSysPortId); };
+  verifyAcrossWarmBoots(setup, verify);
+};
+
+// FullScaleDsfNode Test sets up 128 remote DSF nodes for J2 and 256 for J3.
+class HwVoqSwitchFullScaleDsfNodesTest
+    : public HwVoqSwitchWithMultipleDsfNodesTest {
+ public:
+  cfg::SwitchConfig initialConfig() const override {
+    auto cfg = HwVoqSwitchTest::initialConfig();
+    cfg.dsfNodes() = *overrideDsfNodes(*cfg.dsfNodes());
+    return cfg;
+  }
+
+  std::optional<std::map<int64_t, cfg::DsfNode>> overrideDsfNodes(
+      const std::map<int64_t, cfg::DsfNode>& curDsfNodes) const override {
+    CHECK(!curDsfNodes.empty());
+    auto dsfNodes = curDsfNodes;
+    const auto& firstDsfNode = dsfNodes.begin()->second;
+    CHECK(firstDsfNode.systemPortRange().has_value());
+    CHECK(firstDsfNode.nodeMac().has_value());
+    folly::MacAddress mac(*firstDsfNode.nodeMac());
+    auto asic = HwAsic::makeAsic(
+        *firstDsfNode.asicType(),
+        cfg::SwitchType::VOQ,
+        *firstDsfNode.switchId(),
+        *firstDsfNode.systemPortRange(),
+        mac);
+    int numCores = asic->getNumCores();
+    for (int remoteSwitchId = numCores;
+         remoteSwitchId < getDsfNodeCount(asic.get()) * numCores;
+         remoteSwitchId += numCores) {
+      // Ideally there's no need to add extra offset if each dsfNode has 15
+      // ports. However, local switch already used 1 CPU, 1 recyle and 16 system
+      // ports. Adding an extra offset of 5 for remote system ports.
+      const auto systemPortMin =
+          (remoteSwitchId / numCores) * kSystemPortCountPerNode + 5;
+      cfg::Range64 systemPortRange;
+      systemPortRange.minimum() = systemPortMin;
+      systemPortRange.maximum() = systemPortMin + kSystemPortCountPerNode - 1;
+      auto remoteDsfNodeCfg = utility::dsfNodeConfig(
+          *asic, SwitchID(remoteSwitchId), systemPortMin);
+      dsfNodes.insert({remoteSwitchId, remoteDsfNodeCfg});
+    }
+    return dsfNodes;
+  }
+
+ protected:
+  void setupRemoteIntfAndSysPorts() {
+    cfg::SwitchConfig initConfig = initialConfig();
+    for (const auto& [remoteSwitchId, dsfNode] : *initConfig.dsfNodes()) {
+      if (remoteSwitchId == 0) {
+        continue;
+      }
+      CHECK(dsfNode.systemPortRange().has_value());
+      const auto minPortID = *dsfNode.systemPortRange()->minimum();
+      // 0th port for CPU and 1st port for recycle port
+      for (int i = 2; i < kSystemPortCountPerNode; i++) {
+        const auto newSysPortId = minPortID + i;
+        const SystemPortID remoteSysPortId(newSysPortId);
+        const InterfaceID remoteIntfId(newSysPortId);
+        const PortDescriptor portDesc(remoteSysPortId);
+        const uint64_t encapEndx = newSysPortId;
+
+        // Use subnet 100:(dsfNodeId):(localIntfId)::1/64
+        // and 100.(dsfNodeId).(localIntfId).1/24
+        folly::IPAddressV6 neighborIp(
+            folly::to<std::string>("100:", remoteSwitchId, ":", i, "::2"));
+
+        addRemoteSysPort(remoteSysPortId, SwitchID(remoteSwitchId));
+        addRemoteInterface(
+            remoteIntfId,
+            {
+                {folly::IPAddress(folly::to<std::string>(
+                     "100:", remoteSwitchId, ":", i, "::1")),
+                 64},
+                {folly::IPAddress(folly::to<std::string>(
+                     "100.", remoteSwitchId, ".", i, ".1")),
+                 24},
+            });
+        addRemoveRemoteNeighbor(
+            neighborIp, remoteIntfId, portDesc, true /* add */, encapEndx);
+      }
+    }
+  }
+
+ private:
+  int getDsfNodeCount(HwAsic* asic) const {
+    return asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2 ? 128 : 256;
+  }
+};
+
+TEST_F(HwVoqSwitchFullScaleDsfNodesTest, systemPortScaleTest) {
+  auto setup = [this]() { setupRemoteIntfAndSysPorts(); };
   verifyAcrossWarmBoots(setup, [] {});
 }
 } // namespace facebook::fboss

@@ -10,7 +10,7 @@
 
 DEFINE_bool(run_forever, false, "run the test forever");
 
-using namespace facebook::fboss::platform;
+using namespace facebook::fboss::platform::fan_service;
 
 namespace {
 
@@ -57,7 +57,7 @@ void restartSensorService() {
 class FanSensorFsdbIntegrationTests : public ::testing::Test {
  public:
   void SetUp() override {
-    fanService_ = std::make_unique<FanService>();
+    fanService_ = std::make_unique<FanService>("");
     fanService_->kickstart();
   }
 
@@ -83,7 +83,7 @@ class FanSensorFsdbIntegrationTests : public ::testing::Test {
 
 } // namespace
 
-namespace facebook::fboss::platform {
+namespace facebook::fboss::platform::fan_service {
 
 TEST_F(FanSensorFsdbIntegrationTests, sensorUpdate) {
   SensorData prevSensorData;
@@ -218,7 +218,37 @@ TEST_F(FanSensorFsdbIntegrationTests, fsdbRestart) {
   });
 }
 
-} // namespace facebook::fboss::platform
+TEST_F(FanSensorFsdbIntegrationTests, qsfpSync) {
+  std::unordered_map<
+      std::string,
+      std::pair<uint64_t /* timestamp */, int /* count */>>
+      lastSyncTimeAndCountMap;
+
+  WITH_RETRIES_N_TIMED(9, std::chrono::seconds(10), {
+    // Kick off the control fan logic, which will try to process the optics data
+    // synced from fsdb
+    getFanService()->controlFan();
+    SensorData sensorData = getFanService()->sensorData();
+    // Ensure that the optic entry is not empty
+    ASSERT_EVENTUALLY_TRUE(sensorData.opticEntrySize());
+    for (const auto& [opticName, opticEntry] : sensorData.getOpticEntries()) {
+      if (lastSyncTimeAndCountMap.find(opticName) ==
+          lastSyncTimeAndCountMap.end()) {
+        lastSyncTimeAndCountMap[opticName] = {0, 0};
+      }
+      // For every optic sensor that is synced, this timestamp should advance.
+      auto& [timestamp, count] = lastSyncTimeAndCountMap[opticName];
+      if (opticEntry.dataProcessTimeStamp > timestamp) {
+        count++;
+        timestamp = opticEntry.dataProcessTimeStamp;
+      }
+      // Let the test verify at least 2 syncs
+      ASSERT_EVENTUALLY_TRUE(count >= 2);
+    }
+  });
+}
+
+} // namespace facebook::fboss::platform::fan_service
 
 int main(int argc, char* argv[]) {
   testing::InitGoogleTest(&argc, argv);

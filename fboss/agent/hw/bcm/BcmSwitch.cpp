@@ -611,8 +611,7 @@ bool BcmSwitch::isPortUp(PortID port) const {
 }
 
 std::shared_ptr<SwitchState> BcmSwitch::getColdBootSwitchState() const {
-  auto bootState = make_shared<SwitchState>();
-
+  auto bootState = getProgrammedState()->clone();
   uint32_t flags = 0;
   for (const auto& kv : std::as_const(*portTable_)) {
     uint32_t port_flags;
@@ -646,17 +645,16 @@ std::shared_ptr<SwitchState> BcmSwitch::getColdBootSwitchState() const {
   auto rv = bcm_vlan_default_get(getUnit(), &defaultVlan);
   bcmCheckError(rv, "Unable to get default VLAN");
 
+  auto* scopeResolver = platform_->scopeResolver();
   auto multiSwitchSwitchSettings = make_shared<MultiSwitchSettings>();
   auto switchSettings = make_shared<SwitchSettings>();
   switchSettings->setL2LearningMode(l2LearningMode);
   switchSettings->setDefaultVlan(VlanID(defaultVlan));
+  switchSettings->setSwitchIdToSwitchInfo(
+      scopeResolver->switchIdToSwitchInfo());
   multiSwitchSwitchSettings->addNode(
-      HwSwitchMatcher(std::unordered_set<SwitchID>({SwitchID(0)}))
-          .matcherString(),
-      switchSettings);
+      scopeResolver->scope(switchSettings).matcherString(), switchSettings);
   bootState->resetSwitchSettings(multiSwitchSwitchSettings);
-
-  HwSwitchMatcher scopeMatcher(std::unordered_set<SwitchID>({SwitchID(0)}));
 
   // get cpu queue settings
   auto cpu = make_shared<ControlPlane>();
@@ -665,12 +663,14 @@ std::shared_ptr<SwitchState> BcmSwitch::getColdBootSwitchState() const {
   cpu->resetQueues(cpuQueues);
   cpu->resetRxReasonToQueue(rxReasonToQueue);
   auto multiSwitchControlPlane = std::make_shared<MultiControlPlane>();
-  multiSwitchControlPlane->addNode(scopeMatcher.matcherString(), cpu);
+  multiSwitchControlPlane->addNode(
+      scopeResolver->scope(cpu).matcherString(), cpu);
   bootState->resetControlPlane(multiSwitchControlPlane);
 
   // On cold boot all ports are in Vlan 1
   auto vlan = make_shared<Vlan>(VlanID(1), std::string("InitVlan"));
   Vlan::MemberPorts memberPorts;
+  auto ports = bootState->getPorts()->modify(&bootState);
   for (const auto& kv : std::as_const(*portTable_)) {
     PortID portID = kv.first;
     BcmPort* bcmPort = kv.second;
@@ -698,12 +698,13 @@ std::shared_ptr<SwitchState> BcmSwitch::getColdBootSwitchState() const {
       auto queues = bcmPort->getCurrentQueueSettings();
       swPort->resetPortQueues(queues);
     }
-    bootState->getPorts()->addNode(swPort, scopeMatcher);
+    ports->addNode(swPort, scopeResolver->scope(swPort));
 
     memberPorts.insert(make_pair(portID, false));
   }
   vlan->setPorts(memberPorts);
-  bootState->getVlans()->addNode(vlan, scopeMatcher);
+  auto vlans = bootState->getVlans()->modify(&bootState);
+  vlans->addNode(vlan, scopeResolver->scope(vlan));
   bootState->publish();
   return bootState;
 }
@@ -987,6 +988,9 @@ HwInitResult BcmSwitch::initImpl(
       }
     }
   } else {
+    auto bootState = std::make_shared<SwitchState>();
+    bootState->publish();
+    setProgrammedState(bootState);
     ret.switchState = getColdBootSwitchState();
     CHECK(ret.switchState->getSwitchSettings()->size());
     auto switchSettings =
@@ -1224,6 +1228,16 @@ void BcmSwitch::processDynamicQueueMinThresholdBytesChanged(
         newDynamicQueueMinThresholdBytes);
     bcmCheckError(
         rv, "Failed to set bcmSwitchEcmpDynamicQueuedBytesMinThreshold");
+
+    // this is per ITM and should be half of newDynamicQueueMinThresholdBytes
+    // above (as we have 2 ITMs)
+    rv = bcm_switch_control_set(
+        unit_,
+        bcmSwitchEcmpDynamicPhysicalQueuedBytesMinThreshold,
+        newDynamicQueueMinThresholdBytes >> 1);
+    bcmCheckError(
+        rv,
+        "Failed to set bcmSwitchEcmpDynamicPhysicalQueuedBytesMinThreshold");
   }
 }
 
@@ -1247,6 +1261,16 @@ void BcmSwitch::processDynamicQueueMaxThresholdBytesChanged(
         newDynamicQueueMaxThresholdBytes);
     bcmCheckError(
         rv, "Failed to set bcmSwitchEcmpDynamicQueuedBytesMaxThreshold");
+
+    // this is per ITM and should be half of
+    // bcmSwitchEcmpDynamicEgressBytesMaxThreshold above (as we have 2 ITMs)
+    rv = bcm_switch_control_set(
+        unit_,
+        bcmSwitchEcmpDynamicPhysicalQueuedBytesMaxThreshold,
+        newDynamicQueueMaxThresholdBytes >> 1);
+    bcmCheckError(
+        rv,
+        "Failed to set bcmSwitchEcmpDynamicPhysicalQueuedBytesMaxThreshold");
   }
 }
 
@@ -1349,7 +1373,7 @@ void BcmSwitch::processFlowletSwitchingConfigChanges(const StateDelta& delta) {
 
   XLOG(DBG2) << "Flowlet switching config enabled";
   if (newFlowletSwitching) {
-    XLOG(DBG2) << "Flowlet switching setting ether type";
+    XLOG(DBG3) << "Flowlet switching setting ether type";
     int ecmp_dlb_ethtypes[] = {0x0800, 0x86DD};
     auto rv = bcm_l3_egress_ecmp_ethertype_set(
         unit_,
@@ -1357,6 +1381,10 @@ void BcmSwitch::processFlowletSwitchingConfigChanges(const StateDelta& delta) {
         (sizeof(ecmp_dlb_ethtypes) / sizeof(ecmp_dlb_ethtypes[0])),
         ecmp_dlb_ethtypes);
     bcmCheckError(rv, "failed to set bcm_l3_egress_ecmp_ethertype_set");
+
+    // seed value is as recommended by BCM
+    rv = bcm_switch_control_set(unit_, bcmSwitchEcmpDynamicRandomSeed, 0x5555);
+    bcmCheckError(rv, "failed to set bcmSwitchEcmpDynamicRandomSeed");
   }
 
   processDynamicEgressLoadExponentChanged(

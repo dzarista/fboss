@@ -4,12 +4,25 @@
 // for functional description
 #include "fboss/platform/fan_service/FanService.h"
 
-#include "fboss/platform/fan_service/if/gen-cpp2/fan_config_structs_types.h"
-// Additional FB helper funtion
-#include "common/time/Time.h"
+#include <folly/FileUtil.h>
+#include <folly/logging/xlog.h>
+#include <thrift/lib/cpp2/protocol/Serializer.h>
+#include <stdexcept>
 
-namespace facebook::fboss::platform {
-FanService::FanService() {
+#include "common/time/Time.h"
+#include "fboss/platform/config_lib/ConfigLib.h"
+#include "fboss/platform/fan_service/Utils.h"
+#include "fboss/platform/fan_service/if/gen-cpp2/fan_service_config_types.h"
+
+namespace {
+auto constexpr kDefaultSensorReadFrequencyInSec = 30;
+auto constexpr kDefaultFanControlFrequencyInSec = 30;
+} // namespace
+
+namespace facebook::fboss::platform::fan_service {
+
+FanService::FanService(const std::string& configFile)
+    : confFileName_(configFile) {
   lastControlExecutionTimeSec_ = 0;
   lastSensorFetchTimeSec_ = 0;
 
@@ -19,31 +32,27 @@ FanService::FanService() {
   return;
 }
 
-void FanService::setControlFrequency(uint64_t sec) {
-  controlFrequencySec_ = sec;
-}
-
 unsigned int FanService::getControlFrequency() const {
-  return controlFrequencySec_;
+  return kDefaultFanControlFrequencyInSec;
 }
 
 unsigned int FanService::getSensorFetchFrequency() const {
-  return pConfig_->getSensorFetchFrequency();
+  return kDefaultSensorReadFrequencyInSec;
 }
 
 std::shared_ptr<Bsp> FanService::BspFactory() {
   Bsp* returnVal = NULL;
-  switch (pConfig_->bspType) {
+  switch (*config_.bspType()) {
     // In many cases, generic BSP is enough.
-    case fan_config_structs::BspType::kBspGeneric:
-    case fan_config_structs::BspType::kBspDarwin:
-    case fan_config_structs::BspType::kBspLassen:
-    case fan_config_structs::BspType::kBspMinipack3:
-      returnVal = new Bsp();
+    case BspType::kBspGeneric:
+    case BspType::kBspDarwin:
+    case BspType::kBspLassen:
+    case BspType::kBspMinipack3:
+      returnVal = new Bsp(config_);
       break;
     // For unit testing, we use Mock (Mokujin) BSP.
-    case fan_config_structs::BspType::kBspMokujin:
-      returnVal = static_cast<Bsp*>(new Mokujin());
+    case BspType::kBspMokujin:
+      returnVal = static_cast<Bsp*>(new Mokujin(config_));
       break;
 
     default:
@@ -56,8 +65,27 @@ std::shared_ptr<Bsp> FanService::BspFactory() {
 
 void FanService::kickstart() {
   // Read Config
-  pConfig_ = std::make_shared<ServiceConfig>();
-  pConfig_->parse();
+  std::string fanServiceConfJson;
+  if (confFileName_.empty()) {
+    XLOG(INFO) << "No config file was provided. Inferring from config_lib";
+    fanServiceConfJson = ConfigLib().getFanServiceConfig();
+  } else {
+    XLOG(INFO) << "Using config file: " << confFileName_;
+    if (!folly::readFile(confFileName_.c_str(), fanServiceConfJson)) {
+      throw std::runtime_error(
+          "Can not find sensor config file: " + confFileName_);
+    }
+  }
+
+  apache::thrift::SimpleJSONSerializer::deserialize<FanServiceConfig>(
+      fanServiceConfJson, config_);
+  XLOG(INFO) << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+      config_);
+
+  if (!Utils().isValidConfig(config_)) {
+    XLOG(ERR) << "Invalid config! Aborting...";
+    throw std::runtime_error("Invalid Config.  Aborting...");
+  }
 
   // Get the proper BSP object from BSP factory,
   // according to the parsed config, then run init routine.
@@ -71,7 +99,7 @@ void FanService::kickstart() {
   pSensorData_->setLastQsfpSvcTime(pBsp_->getCurrentTime());
 
   // Start control logic, and attach bsp and sensors
-  pControlLogic_ = std::make_shared<ControlLogic>(pConfig_, pBsp_);
+  pControlLogic_ = std::make_shared<ControlLogic>(config_, pBsp_);
 }
 
 int FanService::controlFan(/*folly::EventBase* evb*/) {
@@ -81,18 +109,17 @@ int FanService::controlFan(/*folly::EventBase* evb*/) {
     transitionValueSet_ = true;
     XLOG(INFO)
         << "Upon fan_service start up, program all fan pwm with transitional value of "
-        << pConfig_->getPwmTransitionValue();
+        << *config_.pwmTransitionValue();
     pControlLogic_->setTransitionValue();
   }
   // Update Sensor Value based according to fetch frequency
-  if ((currentTimeSec - lastSensorFetchTimeSec_) >=
-      pConfig_->getSensorFetchFrequency()) {
+  if ((currentTimeSec - lastSensorFetchTimeSec_) >= getSensorFetchFrequency()) {
     bool sensorReadOK = false;
     bool opticsReadOK = false;
 
     // Get the updated sensor data
     try {
-      pBsp_->getSensorData(pConfig_, pSensorData_);
+      pBsp_->getSensorData(pSensorData_);
       sensorReadOK = true;
       XLOG(INFO) << "Successfully fetched sensor data.";
     } catch (std::exception& e) {
@@ -102,7 +129,7 @@ int FanService::controlFan(/*folly::EventBase* evb*/) {
     // Also get the updated optics data
     try {
       // Get the updated optics data
-      pBsp_->getOpticsData(pConfig_, pSensorData_);
+      pBsp_->getOpticsData(pSensorData_);
       opticsReadOK = true;
       XLOG(INFO) << "Successfully fetched optics data.";
     } catch (std::exception& e) {
@@ -117,12 +144,12 @@ int FanService::controlFan(/*folly::EventBase* evb*/) {
   }
   // Change Fan PWM as needed according to control execution frequency
   if ((currentTimeSec - lastControlExecutionTimeSec_) >=
-      pConfig_->getControlFrequency()) {
+      getControlFrequency()) {
     lastControlExecutionTimeSec_ = currentTimeSec;
     pControlLogic_->updateControl(pSensorData_);
   }
 
-  pBsp_->kickWatchdog(pConfig_);
+  pBsp_->kickWatchdog();
 
   return rc;
 }
@@ -134,7 +161,7 @@ int FanService::runMock(std::string mockInputFile, std::string mockOutputFile) {
   std::string simulationSensorName;
   float simulationSensorValue;
   // Make sure BSP is a mock bsp type
-  if (pConfig_->bspType != fan_config_structs::BspType::kBspMokujin) {
+  if (*config_.bspType() != BspType::kBspMokujin) {
     XLOG(ERR) << "Mock mode is enabled, but BSP is not a Mock BSP!";
     return -1;
   }
@@ -165,20 +192,19 @@ int FanService::runMock(std::string mockInputFile, std::string mockOutputFile) {
     XLOG(INFO)
         << "Done changing system state according to simulation scenario.";
     // Read sensor if needed
-    if ((currentTimeSec - lastSensorFetchTimeSec_) >=
-        pConfig_->getSensorFetchFrequency()) {
+    if ((currentTimeSec - lastSensorFetchTimeSec_) >= getControlFrequency()) {
       lastSensorFetchTimeSec_ = currentTimeSec;
       XLOG(INFO) << "Time to read sensor data";
-      pBsp_->getSensorData(pConfig_, pSensorData_);
+      pBsp_->getSensorData(pSensorData_);
       XLOG(INFO) << "Done reading sensor data";
     }
     // Update fan as needed
     if ((currentTimeSec - lastControlExecutionTimeSec_) >=
-        pConfig_->getControlFrequency()) {
+        getControlFrequency()) {
       lastControlExecutionTimeSec_ = currentTimeSec;
       XLOG(INFO) << "Time for running fan control logic";
       pControlLogic_->updateControl(pSensorData_);
-      pBsp_->getOpticsData(pConfig_, pSensorData_);
+      pBsp_->getOpticsData(pSensorData_);
       XLOG(INFO) << "Done adjusting fan speed";
     }
 
@@ -188,16 +214,14 @@ int FanService::runMock(std::string mockInputFile, std::string mockOutputFile) {
     // event calculation (still too much. try not to use watchdog
     // in simulation config, as it will generate too much bogus
     // output)
-    pBsp_->kickWatchdog(pConfig_);
+    pBsp_->kickWatchdog();
 
     // Figure out when is the next event,
     // so that we can jump to that time in the future.
-    timeToAdvanceSec =
-        lastSensorFetchTimeSec_ + pConfig_->getSensorFetchFrequency();
+    timeToAdvanceSec = lastSensorFetchTimeSec_ + getSensorFetchFrequency();
     if (timeToAdvanceSec >
-        lastControlExecutionTimeSec_ + pConfig_->getControlFrequency()) {
-      timeToAdvanceSec =
-          lastControlExecutionTimeSec_ + pConfig_->getControlFrequency();
+        lastControlExecutionTimeSec_ + getControlFrequency()) {
+      timeToAdvanceSec = lastControlExecutionTimeSec_ + getControlFrequency();
     }
     if (timeToAdvanceSec > pMokujin->getNextEventTime()) {
       timeToAdvanceSec = pMokujin->getNextEventTime();
@@ -213,4 +237,4 @@ int FanService::runMock(std::string mockInputFile, std::string mockOutputFile) {
   XLOG(INFO) << "File closed. Exiting...";
   return rc;
 }
-} // namespace facebook::fboss::platform
+} // namespace facebook::fboss::platform::fan_service

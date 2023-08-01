@@ -50,8 +50,9 @@ class WedgePlatform : public BcmPlatform, public StateObserver {
   virtual std::unique_ptr<WedgePortMapping> createPortMapping() = 0;
 
   HwSwitch* getHwSwitch() const override;
-  void onHwInitialized(SwSwitch* sw) override;
-  std::unique_ptr<ThriftHandler> createHandler(SwSwitch* sw) override;
+  void onHwInitialized(HwSwitchCallback* sw) override;
+  std::shared_ptr<apache::thrift::AsyncProcessorFactory> createHandler()
+      override;
 
   std::string getVolatileStateDir() const override;
   std::string getPersistentStateDir() const override;
@@ -59,7 +60,7 @@ class WedgePlatform : public BcmPlatform, public StateObserver {
   void onUnitCreate(int unit) override;
   void onUnitAttach(int unit) override;
   void preWarmbootStateApplied() override;
-  void onInitialConfigApplied(SwSwitch* sw) override {}
+  void onInitialConfigApplied(HwSwitchCallback* /*sw*/) override {}
 
   bool canUseHostTableForHostRoutes() const override {
     return FLAGS_enable_routes_in_host_table;

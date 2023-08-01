@@ -49,9 +49,16 @@ const std::map<cfg::PortType, cfg::PortLoopbackMode>& kDefaultLoopbackMap();
 
 folly::MacAddress kLocalCpuMac();
 
+bool isEnabledPortWithSubnet(
+    const cfg::Port& port,
+    const cfg::SwitchConfig& config);
+
 std::vector<std::string> getLoopbackIps(SwitchID switchId);
 
-cfg::DsfNode dsfNodeConfig(const HwAsic& myAsic, int64_t otherSwitchId = 4);
+cfg::DsfNode dsfNodeConfig(
+    const HwAsic& myAsic,
+    int64_t otherSwitchId = 4,
+    std::optional<int> systemPortMin = std::nullopt);
 
 cfg::SwitchConfig oneL3IntfConfig(
     const HwSwitch* hwSwitch,

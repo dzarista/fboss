@@ -37,10 +37,21 @@ class LedManager {
     cfg::PortProfileID portProfileId;
     bool operationStateUp{false};
     bool neighborReachable{false};
+    bool cablingError{false};
+    bool forcedOn{false};
+    bool forcedOff{false};
     led::LedColor currentLedColor{led::LedColor::UNKNOWN};
   };
 
  public:
+  using LedSwitchStateUpdate = struct LedSwitchStateUpdate {
+    short swPortId;
+    std::string portName;
+    std::string portProfile;
+    bool operState;
+    std::optional<PortLedExternalState> ledExternalState;
+  };
+
   LedManager();
   virtual ~LedManager();
 
@@ -48,12 +59,17 @@ class LedManager {
   virtual void initLedManager() {}
 
   // On getting the update from FSDB, update portDisplayMap_
-  void updateLedStatus(
-      std::map<uint16_t, fboss::state::PortFields> newSwitchState);
+  void updateLedStatus(std::map<short, LedSwitchStateUpdate> newSwitchState);
 
   folly::EventBase* getEventBase() {
     return eventBase_.get();
   }
+
+  fsdb::FsdbPubSubManager* pubSubMgr() const {
+    return fsdbPubSubMgr_.get();
+  }
+
+  void setExternalLedState(int32_t portNum, PortLedExternalState ledState);
 
   // Forbidden copy constructor and assignment operator
   LedManager(LedManager const&) = delete;

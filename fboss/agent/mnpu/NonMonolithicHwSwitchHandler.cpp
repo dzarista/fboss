@@ -8,13 +8,6 @@ namespace facebook::fboss {
 
 NonMonolithicHwSwitchHandler::NonMonolithicHwSwitchHandler() {}
 
-HwInitResult NonMonolithicHwSwitchHandler::initHw(
-    HwSwitchCallback* /*callback*/,
-    bool /*failHwCallsOnWarmboot*/) {
-  // TODO: implement this
-  return HwInitResult{};
-}
-
 void NonMonolithicHwSwitchHandler::exitFatal() const {
   // TODO: implement this
 }
@@ -34,6 +27,12 @@ bool NonMonolithicHwSwitchHandler::sendPacketOutOfPortAsync(
 }
 
 bool NonMonolithicHwSwitchHandler::sendPacketSwitchedSync(
+    std::unique_ptr<TxPacket> /*pkt*/) noexcept {
+  // TODO: implement this
+  return true;
+}
+
+bool NonMonolithicHwSwitchHandler::sendPacketSwitchedAsync(
     std::unique_ptr<TxPacket> /*pkt*/) noexcept {
   // TODO: implement this
   return true;
@@ -74,6 +73,167 @@ std::optional<uint32_t> NonMonolithicHwSwitchHandler::getHwLogicalPortId(
 
 void NonMonolithicHwSwitchHandler::initPlatformData() {
   // TODO: implement this
+}
+
+void NonMonolithicHwSwitchHandler::onHwInitialized(
+    HwSwitchCallback* /*callback*/) {
+  // TODO: implement this
+}
+
+void NonMonolithicHwSwitchHandler::onInitialConfigApplied(
+    HwSwitchCallback* /*callback*/) {
+  // TODO: implement this
+}
+
+void NonMonolithicHwSwitchHandler::platformStop() {
+  // TODO: implement this
+}
+
+const AgentConfig* NonMonolithicHwSwitchHandler::config() {
+  // TODO: implement this
+  // @lint-ignore CLANGTIDY
+  return nullptr;
+}
+
+const AgentConfig* NonMonolithicHwSwitchHandler::reloadConfig() {
+  // TODO: implement this
+  // @lint-ignore CLANGTIDY
+  return nullptr;
+}
+
+bool NonMonolithicHwSwitchHandler::transactionsSupported() const {
+  // TODO: implement this
+  return false;
+}
+
+folly::F14FastMap<std::string, HwPortStats>
+NonMonolithicHwSwitchHandler::getPortStats() const {
+  // TODO: implement this
+  return {};
+}
+
+std::map<std::string, HwSysPortStats>
+NonMonolithicHwSwitchHandler::getSysPortStats() const {
+  // TODO: implement this
+  return {};
+}
+
+void NonMonolithicHwSwitchHandler::updateStats(SwitchStats* /*switchStats*/) {
+  // TODO: implement this
+}
+
+std::map<PortID, phy::PhyInfo>
+NonMonolithicHwSwitchHandler::updateAllPhyInfo() {
+  // TODO: implement this
+  return {};
+}
+
+uint64_t NonMonolithicHwSwitchHandler::getDeviceWatermarkBytes() const {
+  // TODO: implement this
+  return 0;
+}
+
+HwSwitchFb303Stats* NonMonolithicHwSwitchHandler::getSwitchStats() const {
+  // TODO: implement this
+  // @lint-ignore CLANGTIDY
+  return nullptr;
+}
+
+void NonMonolithicHwSwitchHandler::clearPortStats(
+    const std::unique_ptr<std::vector<int32_t>>& /*ports*/) {
+  // TODO: implement this
+}
+
+std::vector<phy::PrbsLaneStats>
+NonMonolithicHwSwitchHandler::getPortAsicPrbsStats(int32_t /*portId*/) {
+  // TODO: implement this
+  return {};
+}
+
+void NonMonolithicHwSwitchHandler::clearPortAsicPrbsStats(int32_t /*portId*/) {
+  // TODO: implement this
+}
+
+std::vector<prbs::PrbsPolynomial>
+NonMonolithicHwSwitchHandler::getPortPrbsPolynomials(int32_t /*portId*/) {
+  // TODO: implement this
+  return {};
+}
+
+prbs::InterfacePrbsState NonMonolithicHwSwitchHandler::getPortPrbsState(
+    PortID /* portId */) {
+  // TODO: implement this
+  return prbs::InterfacePrbsState{};
+}
+
+std::vector<phy::PrbsLaneStats>
+NonMonolithicHwSwitchHandler::getPortGearboxPrbsStats(
+    int32_t /*portId*/,
+    phy::Side /*side*/) {
+  // TODO: implement this
+  return {};
+}
+
+void NonMonolithicHwSwitchHandler::clearPortGearboxPrbsStats(
+    int32_t /*portId*/,
+    phy::Side /*side*/) {
+  // TODO: implement this
+}
+
+void NonMonolithicHwSwitchHandler::switchRunStateChanged(
+    SwitchRunState /*newState*/) {
+  // TODO: implement this
+}
+
+std::shared_ptr<SwitchState> NonMonolithicHwSwitchHandler::stateChanged(
+    const StateDelta& /*delta*/,
+    bool /*transaction*/) {
+  // TODO: implement this
+  return nullptr;
+}
+
+CpuPortStats NonMonolithicHwSwitchHandler::getCpuPortStats() const {
+  throw FbossError("getCpuPortStats not implemented");
+}
+
+std::map<PortID, FabricEndpoint>
+NonMonolithicHwSwitchHandler::getFabricReachability() const {
+  throw FbossError("getFabricReachability not implemented");
+}
+
+std::vector<PortID> NonMonolithicHwSwitchHandler::getSwitchReachability(
+    SwitchID /*switchId*/) const {
+  throw FbossError("getSwitchReachability not implemented");
+}
+
+std::string NonMonolithicHwSwitchHandler::getDebugDump() const {
+  throw FbossError("getDebugDump not implemented");
+}
+
+void NonMonolithicHwSwitchHandler::fetchL2Table(
+    std::vector<L2EntryThrift>* /*l2Table*/) const {
+  throw FbossError("fetchL2Table not implemented");
+}
+
+std::string NonMonolithicHwSwitchHandler::listObjects(
+    const std::vector<HwObjectType>& /*types*/,
+    bool /*cached*/) const {
+  throw FbossError("listObjects not implemented");
+}
+
+FabricReachabilityStats
+NonMonolithicHwSwitchHandler::getFabricReachabilityStats() const {
+  throw FbossError("getFabricReachabilityStats not implemented");
+}
+
+bool NonMonolithicHwSwitchHandler::needL2EntryForNeighbor() const {
+  throw FbossError("listObjects not implemented");
+}
+
+fsdb::OperDelta NonMonolithicHwSwitchHandler::stateChanged(
+    const fsdb::OperDelta& /*delta*/,
+    bool /*transaction*/) {
+  throw FbossError("stateChanged not implemented");
 }
 
 } // namespace facebook::fboss

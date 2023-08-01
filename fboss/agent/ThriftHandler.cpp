@@ -16,7 +16,6 @@
 #include "fboss/agent/FbossHwUpdateError.h"
 #include "fboss/agent/FibHelpers.h"
 #include "fboss/agent/HwAsicTable.h"
-#include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/IPv6Handler.h"
 #include "fboss/agent/LabelFibUtils.h"
 #include "fboss/agent/LinkAggregationManager.h"
@@ -34,6 +33,7 @@
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 #include "fboss/agent/hw/mock/MockRxPacket.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
+#include "fboss/agent/platforms/common/PlatformMapping.h"
 #include "fboss/agent/rib/ForwardingInformationBaseUpdater.h"
 #include "fboss/agent/rib/NetworkToRouteMap.h"
 #include "fboss/agent/state/AclMap.h"
@@ -334,15 +334,19 @@ void getPortInfoHelper(
   *portInfo.profileID() = apache::thrift::util::enumName(port->getProfileID());
 
   if (port->isEnabled()) {
-    const auto pPort =
-        sw.getPlatform_DEPRECATED()->getPlatformPort(port->getID());
+    const auto pPort = sw.getPlatformMapping()->getPlatformPort(port->getID());
     PortHardwareDetails hw;
     hw.profile() = port->getProfileID();
-    hw.profileConfig() = pPort->getPortProfileConfigFromCache(*hw.profile());
-    hw.pinConfig() = pPort->getPortPinConfigs(*hw.profile());
+    auto matcher =
+        PlatformPortProfileConfigMatcher(port->getProfileID(), port->getID());
+    if (auto portProfileCfg =
+            sw.getPlatformMapping()->getPortProfileConfig(matcher)) {
+      hw.profileConfig() = *portProfileCfg;
+    }
+    hw.pinConfig() = sw.getPlatformMapping()->getPortXphyPinConfig(matcher);
     // Use SW Port pinConfig directly
     hw.pinConfig()->iphy() = port->getPinConfigs();
-    hw.chips() = pPort->getPortDataplaneChips(*hw.profile());
+    hw.chips() = sw.getPlatformMapping()->getPortDataplaneChips(matcher);
     portInfo.hw() = hw;
 
     auto fec = hw.profileConfig()->iphy()->fec().value();
@@ -1025,8 +1029,10 @@ void ThriftHandler::getArpTable(std::vector<ArpEntryThrift>& arpTable) {
 void ThriftHandler::getL2Table(std::vector<L2EntryThrift>& l2Table) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  sw_->getHw_DEPRECATED()->fetchL2Table(&l2Table);
-  XLOG(DBG6) << "L2 Table size:" << l2Table.size();
+  if (sw_->getSwitchInfoTable().l3SwitchType() == cfg::SwitchType::NPU) {
+    sw_->getHwSwitchHandler()->fetchL2Table(&l2Table);
+    XLOG(DBG6) << "L2 Table size:" << l2Table.size();
+  }
 }
 
 void ThriftHandler::getAclTable(std::vector<AclEntryThrift>& aclTable) {
@@ -2570,7 +2576,7 @@ void ThriftHandler::getMplsRouteDetails(
 void ThriftHandler::getHwDebugDump(std::string& out) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  out = sw_->getHw_DEPRECATED()->getDebugDump();
+  out = sw_->getHwSwitchHandler()->getDebugDump();
 }
 
 void ThriftHandler::getPlatformMapping(cfg::PlatformMapping& ret) {
@@ -2583,7 +2589,7 @@ void ThriftHandler::listHwObjects(
     bool cached) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  out = sw_->getHw_DEPRECATED()->listObjects(*hwObjects, cached);
+  out = sw_->getHwSwitchHandler()->listObjects(*hwObjects, cached);
 }
 
 void ThriftHandler::getBlockedNeighbors(
@@ -2841,7 +2847,8 @@ void ThriftHandler::getFabricReachability(
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureVoqOrFabric(__func__);
   // get cached data as stored in the fabric manager
-  auto portId2FabricEndpoint = sw_->getHw_DEPRECATED()->getFabricReachability();
+  auto portId2FabricEndpoint =
+      sw_->getHwSwitchHandler()->getFabricReachability();
   auto state = sw_->getState();
 
   for (auto [portId, fabricEndpoint] : portId2FabricEndpoint) {
@@ -2867,7 +2874,8 @@ void ThriftHandler::getSwitchReachability(
               switchNameSet.begin(), switchNameSet.end(), node->getName()) !=
           switchNameSet.end()) {
         std::vector<std::string> reachablePorts;
-        for (const auto& port : sw_->getHw_DEPRECATED()->getSwitchReachability(
+        for (const auto& port :
+             sw_->getHwSwitchHandler()->getSwitchReachability(
                  node->getSwitchId())) {
           reachablePorts.push_back(
               sw_->getState()->getPorts()->getNodeIf(port)->getName());
@@ -2952,21 +2960,29 @@ void ThriftHandler::getSysPortStats(
     std::map<std::string, HwSysPortStats>& hwSysPortStats) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  hwSysPortStats = sw_->getHw_DEPRECATED()->getSysPortStats();
+  hwSysPortStats = sw_->getHwSwitchHandler()->getSysPortStats();
 }
 
 void ThriftHandler::getCpuPortStats(CpuPortStats& cpuPortStats) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  cpuPortStats = sw_->getHw_DEPRECATED()->getCpuPortStats();
+  cpuPortStats = sw_->getHwSwitchHandler()->getCpuPortStats();
 }
 
 void ThriftHandler::getHwPortStats(
     std::map<std::string, HwPortStats>& hwPortStats) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  const auto& portStats = sw_->getHw_DEPRECATED()->getPortStats();
+  const auto& portStats = sw_->getHwSwitchHandler()->getPortStats();
   hwPortStats.insert(portStats.begin(), portStats.end());
+}
+
+void ThriftHandler::getFabricReachabilityStats(
+    FabricReachabilityStats& fabricReachabilityStats) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  fabricReachabilityStats =
+      sw_->getHwSwitchHandler()->getFabricReachabilityStats();
 }
 
 } // namespace facebook::fboss

@@ -76,6 +76,11 @@ void fillHwSwitchDropStats(
       case SAI_SWITCH_STAT_GLOBAL_DROP:
         hwSwitchDropStats.globalDrops() = value;
         break;
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+      case SAI_SWITCH_STAT_PACKET_INTEGRITY_DROP:
+        hwSwitchDropStats.packetIntegrityDrops() = value;
+        break;
+#endif
       default:
         throw FbossError("Got unexpected switch counter id: ", counterId);
     }
@@ -577,7 +582,8 @@ bool SaiSwitchManager::isGlobalQoSMapSupported() const {
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) ||                                    \
     defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP) || \
     defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
-    defined(SAI_VERSION_10_0_EA_DNX_ODP)
+    defined(SAI_VERSION_10_0_EA_DNX_ODP) ||                                    \
+    defined(SAI_VERSION_10_0_EA_ODP) || defined(SAI_VERSION_10_0_EA_SIM_ODP)
   return false;
 #endif
   return platform_->getAsic()->isSupported(HwAsic::Feature::QOS_MAP_GLOBAL);
@@ -593,12 +599,58 @@ bool SaiSwitchManager::isMplsQoSMapSupported() const {
   return platform_->getAsic()->isSupported(HwAsic::Feature::SAI_MPLS_QOS);
 }
 
-void SaiSwitchManager::updateStats() {
+const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedDropStats() const {
+  static std::vector<sai_stat_id_t> stats;
+  if (stats.size()) {
+    // initialized
+    return stats;
+  }
   if (platform_->getAsic()->isSupported(HwAsic::Feature::SWITCH_DROP_STATS)) {
+    stats.insert(
+        stats.end(),
+        SaiSwitchTraits::CounterIdsToRead.begin(),
+        SaiSwitchTraits::CounterIdsToRead.end());
+    if (!platform_->getAsic()->isSupported(
+            HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS)) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+      stats.erase(std::find(
+          stats.begin(), stats.end(), SAI_SWITCH_STAT_PACKET_INTEGRITY_DROP));
+#endif
+    }
+  }
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedDramStats() const {
+  static std::vector<sai_stat_id_t> stats;
+  if (stats.size()) {
+    // initialized
+    return stats;
+  }
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS)) {
+    stats.insert(
+        stats.end(),
+        SaiSwitchTraits::dramStats().begin(),
+        SaiSwitchTraits::dramStats().end());
+  }
+  return stats;
+}
+
+void SaiSwitchManager::updateStats() {
+  auto switchDropStats = supportedDropStats();
+  if (switchDropStats.size()) {
+    switch_->updateStats(switchDropStats, SAI_STATS_MODE_READ);
     HwSwitchDropStats dropStats;
-    switch_->updateStats();
     fillHwSwitchDropStats(switch_->getStats(), dropStats);
     platform_->getHwSwitch()->getSwitchStats()->update(dropStats);
+  }
+  auto switchDramStats = supportedDramStats();
+  if (switchDramStats.size()) {
+    switch_->updateStats(switchDramStats, SAI_STATS_MODE_READ_AND_CLEAR);
+    HwSwitchDramStats dramStats;
+    fillHwSwitchDramStats(switch_->getStats(), dramStats);
+    platform_->getHwSwitch()->getSwitchStats()->update(dramStats);
   }
 }
 

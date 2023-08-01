@@ -45,6 +45,16 @@ facebook::fboss::cfg::AgentConfig getDummyConfig() {
   config.platform()->platformSettings()->insert(std::make_pair(
       facebook::fboss::cfg::PlatformAttributes::CONNECTION_HANDLE,
       "test connection handle"));
+  facebook::fboss::cfg::SwitchInfo info{};
+  info.switchType() = facebook::fboss::cfg::SwitchType::NPU;
+  info.asicType() = facebook::fboss::cfg::AsicType::ASIC_TYPE_MOCK;
+  facebook::fboss::cfg::Range64 portIdRange;
+  portIdRange.minimum() = 0;
+  portIdRange.maximum() = 0;
+  info.portIdRange() = portIdRange;
+  info.switchIndex() = 0;
+  info.connectionHandle() = "test connection handle";
+  config.sw()->switchSettings()->switchIdToSwitchInfo()->emplace(0, info);
   return config;
 }
 } // namespace
@@ -68,7 +78,8 @@ void ManagerTestBase::setupSaiPlatform() {
   saiPlatform->init(
       std::move(agentConfig),
       (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
-       HwSwitch::FeaturesDesired::LINKSCAN_DESIRED));
+       HwSwitch::FeaturesDesired::LINKSCAN_DESIRED),
+      0);
   auto ret = saiPlatform->getHwSwitch()->init(nullptr, false);
   auto saiSwitch = static_cast<SaiSwitch*>(saiPlatform->getHwSwitch());
   saiPlatform->initPorts();
@@ -585,8 +596,7 @@ std::shared_ptr<QosPolicy> ManagerTestBase::makeQosPolicy(
 
 void ManagerTestBase::applyNewState(
     const std::shared_ptr<SwitchState>& newState) {
-  auto oldState =
-      programmedState ? programmedState : std::make_shared<SwitchState>();
+  auto oldState = saiPlatform->getHwSwitch()->getProgrammedState();
   StateDelta delta(oldState, newState);
   EXPECT_TRUE(saiPlatform->getHwSwitch()->isValidStateUpdate(delta));
   saiPlatform->getHwSwitch()->stateChanged(delta);

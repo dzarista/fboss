@@ -6,6 +6,11 @@
 #include "fboss/lib/CommonPortUtils.h"
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
 
+namespace {
+constexpr facebook::fboss::led::LedColor kCablingErrorLedColor =
+    facebook::fboss::led::LedColor::YELLOW;
+}
+
 namespace facebook::fboss {
 
 /*
@@ -41,7 +46,7 @@ std::set<int> BspLedManager::getLedIdFromSwPort(
   std::set<int> ledIdSet;
   for (auto tcvrLane : tcvrHostLanes) {
     auto ledId = bspSystemContainer_->getBspPlatformMapping()->getLedId(
-        tcvrId, tcvrLane);
+        tcvrId + 1, tcvrLane + 1);
     ledIdSet.insert(ledId);
   }
   return ledIdSet;
@@ -133,6 +138,8 @@ led::LedColor BspLedManager::calculateLedColor(
 
   bool anyPortUp{false}, allPortsUp{true};
   bool anyPortReachable{false}, allPortsReachable{true};
+  bool anyCablingError{false};
+  bool anyForcedOn{false}, anyForcedOff{false};
 
   for (auto swPort : commonSwPorts) {
     if (portDisplayMap_.find(swPort) == portDisplayMap_.end()) {
@@ -146,41 +153,50 @@ led::LedColor BspLedManager::calculateLedColor(
     auto thisPortReachable = portDisplayMap_.at(swPort).neighborReachable;
     anyPortReachable = anyPortReachable || thisPortReachable;
     allPortsReachable = allPortsReachable && thisPortReachable;
+
+    anyCablingError |= portDisplayMap_.at(swPort).cablingError;
+    anyForcedOn |= portDisplayMap_.at(swPort).forcedOn;
+    anyForcedOff |= portDisplayMap_.at(swPort).forcedOff;
+  }
+
+  // Sanity check warning
+  if (anyForcedOn && anyForcedOff) {
+    XLOG(WARN) << fmt::format(
+        "Port {:d} LED is Forced inconsistently On and Off", portId);
+  }
+
+  // Foced LED value overrides the status
+  if (anyForcedOn) {
+    XLOG(DBG2) << fmt::format("Port {:d} Forced On", portId);
+    return led::LedColor::BLUE;
+  } else if (anyForcedOff) {
+    XLOG(DBG2) << fmt::format("Port {:d} Forced Off", portId);
+    return led::LedColor::OFF;
   }
 
   XLOG(DBG2) << fmt::format(
-      "Port {:d}, anyPortUp={:s} allPortsUp={:s} anyPortReachable={:s} allPortsReachable={:s}",
+      "Port {:d}, anyPortUp={:s} allPortsUp={:s} anyPortReachable={:s} \
+      allPortsReachable = {:s} anyCablingError = {:s} ",
       portId,
       (anyPortUp ? "True" : "False"),
       (allPortsUp ? "True" : "False"),
       (anyPortReachable ? "True" : "False"),
-      (allPortsReachable ? "True" : "False"));
+      (allPortsReachable ? "True" : "False"),
+      (anyCablingError ? "True" : "False"));
 
-  return getLedColorFromPortStatus(anyPortUp, allPortsUp, allPortsReachable);
-}
+  // BSP LED color scheme:
+  //  - ALL ports on a fiber are down                         --> LED OFF
+  //  - ALL ports are up and have proper reachability/cabling --> LED GREEN
+  //  - Any other state                                       --> LED YELLOW
 
-/*
- * getLedColorFromPortStatus
- *
- * Helper function to determine the LED color based on how many ports (attached
- * to the same LED) are Up and if all are reachable from neighbors.
- * Default LED scheme:
- *     All ports Up and neighbor reachable       -> Blue
- *     Some ports down or unreachable            -> Yellow
- *     All ports Down                            -> Off
- */
-led::LedColor BspLedManager::getLedColorFromPortStatus(
-    bool anyPortUp,
-    bool allPortsUp,
-    bool allPortsReachable) const {
   led::LedColor currPortColor{led::LedColor::UNKNOWN};
 
   if (!anyPortUp) {
     currPortColor = led::LedColor::OFF;
-  } else if (allPortsUp && allPortsReachable) {
-    currPortColor = led::LedColor::BLUE;
+  } else if (allPortsUp && allPortsReachable && !anyCablingError) {
+    currPortColor = led::LedColor::GREEN;
   } else {
-    currPortColor = led::LedColor::YELLOW;
+    currPortColor = kCablingErrorLedColor;
   }
   return currPortColor;
 }
@@ -204,7 +220,8 @@ void BspLedManager::setLedColor(
 
   auto tcvrId = platformMapping_->getTransceiverIdFromSwPort(PortID(portId));
 
-  for (auto& ledController : bspSystemContainer_->getLedController(tcvrId)) {
+  for (auto& ledController :
+       bspSystemContainer_->getLedController(tcvrId + 1)) {
     if (std::find(ledIds.begin(), ledIds.end(), ledController.first) !=
         ledIds.end()) {
       ledController.second->setColor(ledColor);

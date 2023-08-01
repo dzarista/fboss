@@ -4,6 +4,7 @@
 #include <folly/gen/Base.h>
 #include <optional>
 #include "fboss/agent/AgentConfig.h"
+#include "fboss/agent/CommonInit.h"
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/Main.h"
 #include "fboss/agent/SwitchIdScopeResolver.h"
@@ -28,17 +29,17 @@ DECLARE_string(config);
 namespace facebook::fboss {
 
 void AgentTest::setupAgent() {
-  AgentInitializer::createSwitch(
-      argCount,
-      argVec,
+  setVersionInfo();
+  auto config = fbossCommonInit(argCount, argVec);
+  MonolithicAgentInitializer::createSwitch(
+      std::move(config),
       (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
        HwSwitch::FeaturesDesired::LINKSCAN_DESIRED),
       initPlatform);
   if (streamTypeOpt.has_value()) {
     HwAsic* hwAsicTableEntry = sw()->getHwAsicTable()->getHwAsicIf(
-        sw()->getPlatform_DEPRECATED()->getAsic()->getSwitchId()
-            ? SwitchID(
-                  *sw()->getPlatform_DEPRECATED()->getAsic()->getSwitchId())
+        platform()->getAsic()->getSwitchId()
+            ? SwitchID(*platform()->getAsic()->getSwitchId())
             : SwitchID(0));
     hwAsicTableEntry->setDefaultStreamType(streamTypeOpt.value());
   }
@@ -46,7 +47,7 @@ void AgentTest::setupAgent() {
   utilCreateDir(getAgentTestDir());
   setupConfigFlag();
   asyncInitThread_.reset(
-      new std::thread([this] { AgentInitializer::initAgent(); }));
+      new std::thread([this] { MonolithicAgentInitializer::initAgent(); }));
   // Cannot join the thread because initAgent starts a thrift server in the main
   // thread and that runs for lifetime of the application.
   asyncInitThread_->detach();
@@ -59,12 +60,12 @@ void AgentTest::TearDown() {
       (::testing::Test::HasFailure() && FLAGS_run_forever_on_failure)) {
     runForever();
   }
-  AgentInitializer::stopAgent(FLAGS_setup_for_warmboot);
+  MonolithicAgentInitializer::stopAgent(FLAGS_setup_for_warmboot);
 }
 
 std::map<std::string, HwPortStats> AgentTest::getPortStats(
     const std::vector<std::string>& ports) const {
-  auto allPortStats = sw()->getHw_DEPRECATED()->getPortStats();
+  auto allPortStats = platform()->getHwSwitch()->getPortStats();
   std::map<std::string, HwPortStats> portStats;
   std::for_each(ports.begin(), ports.end(), [&](const auto& portName) {
     portStats.insert({portName, allPortStats[portName]});
@@ -210,7 +211,7 @@ void AgentTest::assertNoInDiscards(int maxNumDiscards) {
   int maxRetry = 5;
   while (numRounds < 2 && maxRetry-- > 0) {
     bool retry = false;
-    auto portStats = sw()->getHw_DEPRECATED()->getPortStats();
+    auto portStats = platform()->getHwSwitch()->getPortStats();
     for (auto [port, stats] : portStats) {
       auto inDiscards = *stats.inDiscards_();
       XLOG(DBG2) << "Port: " << port << " in discards: " << inDiscards

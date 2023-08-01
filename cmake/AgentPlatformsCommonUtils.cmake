@@ -7,6 +7,7 @@ add_library(wedge_led_utils
   fboss/agent/platforms/common/utils/GalaxyLedUtils.cpp
   fboss/agent/platforms/common/utils/MinipackLedUtils.cpp
   fboss/agent/platforms/common/utils/Wedge100LedUtils.cpp
+  fboss/agent/platforms/common/utils/oss/Wedge100LedUtils.cpp
   fboss/agent/platforms/common/utils/Wedge40LedUtils.cpp
   fboss/agent/platforms/common/utils/Wedge400LedUtils.cpp
 )
@@ -17,7 +18,6 @@ target_link_libraries(wedge_led_utils
   fboss_types
   transceiver_cpp2
   fboss_i2c_lib
-  qsfp_lib
 )
 
 add_library(bcm_yaml_config

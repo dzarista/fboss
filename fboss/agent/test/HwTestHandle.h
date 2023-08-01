@@ -11,20 +11,33 @@
 
 #include <folly/io/IOBuf.h>
 
+#include "fboss/agent/Platform.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/types.h"
 
 namespace facebook::fboss {
 
+class Platform;
+
 class HwTestHandle {
  public:
-  explicit HwTestHandle(std::unique_ptr<SwSwitch> sw) : sw_(std::move(sw)) {}
+  explicit HwTestHandle(
+      std::unique_ptr<SwSwitch> sw,
+      std::unique_ptr<Platform> platform)
+      : platform_(std::move(platform)), sw_(std::move(sw)) {}
   virtual ~HwTestHandle() = default;
 
   SwSwitch* getSw() const {
     return sw_.get();
   }
 
+  Platform* getPlatform() const {
+    return platform_.get();
+  }
+
+  HwSwitch* getHwSwitch() const {
+    return platform_->getHwSwitch();
+  }
   virtual void prepareForTesting() {}
 
   // Useful helpers for testing low level events
@@ -37,6 +50,7 @@ class HwTestHandle {
   virtual void forcePortFlap(const PortID port) = 0;
 
  private:
+  std::unique_ptr<Platform> platform_;
   std::unique_ptr<SwSwitch> sw_{nullptr};
 };
 

@@ -619,6 +619,24 @@ void BcmPort::enableLinkscan() {
   bcmCheckError(rv, "Failed to enable linkscan on port ", port_);
 }
 
+void BcmPort::programFlowletPortQuality(
+    std::optional<PortFlowletCfgPtr> portFlowlet) {
+  bcm_l3_ecmp_dlb_port_quality_attr_t quality_attr;
+  bcm_l3_ecmp_dlb_port_quality_attr_t_init(&quality_attr);
+
+  if (portFlowlet.has_value()) {
+    auto flowlet = portFlowlet.value();
+    quality_attr.scaling_factor = flowlet->getScalingFactor();
+    quality_attr.load_weight = flowlet->getLoadWeight();
+    quality_attr.queue_size_weight = flowlet->getQueueWeight();
+  }
+  int rv = bcm_l3_ecmp_dlb_port_quality_attr_set(unit_, port_, &quality_attr);
+  bcmCheckError(rv, "Failed to program flowlet cfg on port ", port_);
+
+  XLOG(DBG3) << "Flowlet port quality on port: " << port_
+             << "programmed: " << std::boolalpha << portFlowlet.has_value();
+}
+
 void BcmPort::program(const shared_ptr<Port>& port) {
   // This function must have two properties:
   // 1) idempotency
@@ -674,6 +692,11 @@ void BcmPort::program(const shared_ptr<Port>& port) {
       setCosqProfile(getDefaultProfileId());
     }
     ingressBufferManager_->programIngressBuffers(port);
+  }
+
+  if (hw_->getPlatform()->getAsic()->isSupported(
+          HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES)) {
+    programFlowletPortQuality(port->getPortFlowletConfig());
   }
 
   // Update Tx Setting if needed.
@@ -1137,6 +1160,9 @@ std::string BcmPort::statName(
 
 phy::PhyInfo BcmPort::updateIPhyInfo() {
   phy::PhyInfo info;
+  info.phyChip().ensure();
+  info.line().ensure();
+
   phy::PhyState state;
   phy::PhyStats stats;
 
@@ -1166,9 +1192,11 @@ phy::PhyInfo BcmPort::updateIPhyInfo() {
       rsFec.uncorrectedCodewords() = *((*portStats).fecUncorrectableErrors());
 
       phy::RsFecInfo lastRsFec;
-      if (auto lastPcs = lastPhyInfo_.line()->pcs()) {
-        if (auto lastFec = lastPcs->rsFec()) {
-          lastRsFec = *lastFec;
+      if (auto lastLine = lastPhyInfo_.line()) {
+        if (auto lastPcs = lastLine->pcs()) {
+          if (auto lastFec = lastPcs->rsFec()) {
+            lastRsFec = *lastFec;
+          }
         }
       }
       std::optional<uint64_t> correctedBitsFromHw;
@@ -1202,7 +1230,9 @@ phy::PhyInfo BcmPort::updateIPhyInfo() {
   phy::PmdState pmdState;
   phy::PmdStats pmdStats;
   int totalPmdLanes = numLanes_;
-  phy::PmdInfo lastPmd = *lastPhyInfo_.line()->pmd();
+  std::optional<phy::PmdInfo> lastPmd = lastPhyInfo_.line()
+      ? std::make_optional(*lastPhyInfo_.line()->pmd())
+      : std::nullopt;
   phy::PmdState lastPmdState;
   if (auto lastState = lastPhyInfo_.state()) {
     lastPmdState = *lastState->line()->pmd();
@@ -1256,8 +1286,10 @@ phy::PhyInfo BcmPort::updateIPhyInfo() {
         bool changed = lock_status.rx_lock_change_bmp & (1 << lane);
         pmd.lanes_ref()[lane].cdrLockChanged_ref() = changed;
         pmdState.lanes_ref()[lane].cdrLockChanged_ref() = changed;
-        utility::updateCdrLockChangedCount(
-            changed, lane, pmd.lanes_ref()[lane], lastPmd);
+        if (lastPmd) {
+          utility::updateCdrLockChangedCount(
+              changed, lane, pmd.lanes_ref()[lane], *lastPmd);
+        }
         utility::updateCdrLockChangedCount(
             changed, lane, pmdStats.lanes_ref()[lane], lastPmdStats);
       }
@@ -1284,8 +1316,10 @@ phy::PhyInfo BcmPort::updateIPhyInfo() {
         bool changed = sd_status.signal_detect_change_bmp & (1 << lane);
         pmd.lanes_ref()[lane].signalDetectChanged_ref() = changed;
         pmdState.lanes_ref()[lane].signalDetectChanged_ref() = changed;
-        utility::updateSignalDetectChangedCount(
-            changed, lane, pmd.lanes_ref()[lane], lastPmd);
+        if (lastPmd) {
+          utility::updateSignalDetectChangedCount(
+              changed, lane, pmd.lanes_ref()[lane], *lastPmd);
+        }
         utility::updateSignalDetectChangedCount(
             changed, lane, pmdStats.lanes_ref()[lane], lastPmdStats);
       }
@@ -1358,6 +1392,7 @@ void BcmPort::updateStats() {
           hardware_stats_constants::STAT_UNINITIALIZED()
       ? 0
       : *curPortStats.inDiscards_();
+  curPortStats.portName_() = getPortName();
   curPortStats.timestamp_() = now.count();
 
   updateStat(now, kInBytes(), snmpIfHCInOctets, &(*curPortStats.inBytes_()));

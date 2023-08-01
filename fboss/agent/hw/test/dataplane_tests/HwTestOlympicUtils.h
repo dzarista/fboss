@@ -97,8 +97,8 @@ constexpr int kOlympicAllSPHighestSPQueueId = kOlympicAllSPNCQueueId;
 /* Queue config params */
 constexpr int kQueueConfigBurstSizeMinKb = 1;
 constexpr int kQueueConfigBurstSizeMaxKb = 224;
-constexpr int kQueueConfigAqmsEcnThresholdMinMax = 120000;
-constexpr int kQueueConfigAqmsWredThresholdMinMax = 660000;
+constexpr int kQueueConfigAqmsEcnThresholdMinMax = 40600;
+constexpr int kQueueConfigAqmsWredThresholdMinMax = 48600;
 constexpr int kQueueConfigAqmsWredDropProbability = 100;
 
 /* network AI Qos queues*/
@@ -117,7 +117,18 @@ void addNetworkAIQueueConfig(
     cfg::StreamType streamType,
     const HwAsic* hwAsic);
 
+void addOlympicQueueConfigWithSchedulingHelper(
+    cfg::SwitchConfig* config,
+    cfg::StreamType streamType,
+    const HwAsic* asic,
+    bool addWredConfig,
+    cfg::QueueScheduling schedType);
 void addOlympicQueueConfig(
+    cfg::SwitchConfig* config,
+    cfg::StreamType streamType,
+    const HwAsic* asic,
+    bool addWredConfig = false);
+void addFswRswAllSPOlympicQueueConfig(
     cfg::SwitchConfig* config,
     cfg::StreamType streamType,
     const HwAsic* asic,

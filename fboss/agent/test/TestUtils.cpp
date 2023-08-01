@@ -20,10 +20,12 @@
 #include "fboss/agent/hw/mock/MockHwSwitch.h"
 #include "fboss/agent/hw/mock/MockPlatform.h"
 #include "fboss/agent/hw/mock/MockPlatformMapping.h"
+#include "fboss/agent/hw/mock/MockTestHandle.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/RouteNextHop.h"
 
+#include "fboss/agent/single/MonolithicHwSwitchHandler.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/state/Vlan.h"
 #include "fboss/agent/state/VlanMap.h"
@@ -79,13 +81,13 @@ void initSwSwitchWithFlags(SwSwitch* sw, SwitchFlags flags) {
     auto mockTunMgr =
         std::make_unique<MockTunManager>(sw, sw->getBackgroundEvb());
     EXPECT_CALL(*mockTunMgr.get(), doProbe(_)).Times(1);
-    sw->init(std::move(mockTunMgr), flags);
+    sw->init(std::move(mockTunMgr), mockHwSwitchInitFn(sw), flags);
   } else {
-    sw->init(nullptr, flags);
+    sw->init(nullptr, mockHwSwitchInitFn(sw), flags);
   }
 }
 
-unique_ptr<SwSwitch> createMockSw(
+std::pair<unique_ptr<SwSwitch>, unique_ptr<MockPlatform>> createMockSw(
     const shared_ptr<SwitchState>& state,
     SwitchFlags flags,
     cfg::SwitchConfig* config) {
@@ -99,7 +101,8 @@ unique_ptr<SwSwitch> createMockSw(
   } else {
     platform = createMockPlatform();
   }
-  return setupMockSwitchWithoutHW(std::move(platform), state, flags, config);
+  auto sw = setupMockSwitchWithoutHW(platform.get(), state, flags, config);
+  return std::make_pair(std::move(sw), std::move(platform));
 }
 
 shared_ptr<SwitchState> setAllPortState(
@@ -456,13 +459,12 @@ shared_ptr<SwitchState> publishAndApplyConfig(
 }
 
 std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
-    std::unique_ptr<MockPlatform> platform,
+    MockPlatform* platform,
     const std::shared_ptr<SwitchState>& state,
     SwitchFlags flags,
     cfg::SwitchConfig* config) {
   // Since we are just applying a initial state and to created
   // switch, set initial config to empty.
-  platform->setConfig(createEmptyAgentConfig());
   auto platformMapping = std::make_unique<MockPlatformMapping>();
   cfg::SwitchConfig emptyConfig;
   if (!config) {
@@ -481,15 +483,29 @@ std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
           std::make_pair(0, createSwitchInfo(cfg::SwitchType::NPU))};
     }
   }
+  auto agentConfig = createEmptyAgentConfig()->thrift;
+  agentConfig.sw() = *config;
+  platform->setConfig(std::make_unique<AgentConfig>(agentConfig));
   auto sw = make_unique<SwSwitch>(
-      std::move(platform), std::move(platformMapping), config);
+      std::make_unique<MonolinithicHwSwitchHandler>(platform),
+      std::move(platformMapping),
+      config);
   HwInitResult ret;
   ret.switchState = state ? state : make_shared<SwitchState>();
   ret.bootType = BootType::COLD_BOOT;
-  ret.rib = std::make_unique<RoutingInformationBase>();
+  std::map<int32_t, state::RouteTableFields> routeTables{};
+  auto switchInfo =
+      config->switchSettings()->switchIdToSwitchInfo()->begin()->second;
+  if (*switchInfo.switchType() == cfg::SwitchType::NPU ||
+      *switchInfo.switchType() == cfg::SwitchType::VOQ) {
+    routeTables.emplace(kDefaultVrf, state::RouteTableFields{});
+  }
+  ret.rib = RoutingInformationBase::fromThrift(routeTables);
   getMockHw(sw)->setInitialState(ret.switchState);
   EXPECT_HW_CALL(sw, initImpl(_, false, _, _))
       .WillOnce(Return(ByMove(std::move(ret))));
+  // return same as ret.BootType
+  EXPECT_HW_CALL(sw, getBootType).WillRepeatedly(Return(BootType::COLD_BOOT));
   initSwSwitchWithFlags(sw.get(), flags);
   waitForStateUpdates(sw.get());
   return sw;
@@ -503,7 +519,8 @@ unique_ptr<MockPlatform> createMockPlatform(
   thrift.sw()->switchSettings()->switchIdToSwitchInfo() = {
       std::make_pair(switchId, createSwitchInfo(switchType))};
   auto agentCfg = std::make_unique<AgentConfig>(thrift, "");
-  mock->init(std::move(agentCfg), 0);
+  mock->init(
+      std::move(agentCfg), 0 /* features  desired*/, 0 /* switchIndex */);
   FLAGS_mac = mock->getLocalMac().toString();
   return std::move(mock);
 }
@@ -512,9 +529,9 @@ unique_ptr<HwTestHandle> createTestHandle(
     const shared_ptr<SwitchState>& state,
     SwitchFlags flags,
     cfg::SwitchConfig* config) {
-  auto sw = createMockSw(state, flags, config);
-  auto platform = static_cast<MockPlatform*>(sw->getPlatform_DEPRECATED());
-  auto handle = platform->createTestHandle(std::move(sw));
+  auto [sw, platform] = createMockSw(state, flags, config);
+  auto handle =
+      std::make_unique<MockTestHandle>(std::move(sw), std::move(platform));
   handle->prepareForTesting();
   return handle;
 }
@@ -568,21 +585,27 @@ unique_ptr<HwTestHandle> createTestHandle(
 }
 
 MockHwSwitch* getMockHw(SwSwitch* sw) {
-  return boost::polymorphic_downcast<MockHwSwitch*>(sw->getHw_DEPRECATED());
+  auto handler = boost::polymorphic_downcast<MonolinithicHwSwitchHandler*>(
+      sw->getHwSwitchHandler());
+  return boost::polymorphic_downcast<MockHwSwitch*>(handler->getHwSwitch());
 }
 
 MockPlatform* getMockPlatform(SwSwitch* sw) {
-  return boost::polymorphic_downcast<MockPlatform*>(
-      sw->getPlatform_DEPRECATED());
+  auto handler = boost::polymorphic_downcast<MonolinithicHwSwitchHandler*>(
+      sw->getHwSwitchHandler());
+  return boost::polymorphic_downcast<MockPlatform*>(handler->getPlatform());
 }
 
 MockHwSwitch* getMockHw(std::unique_ptr<SwSwitch>& sw) {
-  return boost::polymorphic_downcast<MockHwSwitch*>(sw->getHw_DEPRECATED());
+  auto handler = boost::polymorphic_downcast<MonolinithicHwSwitchHandler*>(
+      sw->getHwSwitchHandler());
+  return boost::polymorphic_downcast<MockHwSwitch*>(handler->getHwSwitch());
 }
 
 MockPlatform* getMockPlatform(std::unique_ptr<SwSwitch>& sw) {
-  return boost::polymorphic_downcast<MockPlatform*>(
-      sw->getPlatform_DEPRECATED());
+  auto handler = boost::polymorphic_downcast<MonolinithicHwSwitchHandler*>(
+      sw->getHwSwitchHandler());
+  return boost::polymorphic_downcast<MockPlatform*>(handler->getPlatform());
 }
 
 std::shared_ptr<SwitchState> waitForStateUpdates(SwSwitch* sw) {
@@ -1141,6 +1164,19 @@ void addSwitchSettingsToState(
           .matcherString(),
       switchSettings);
   state->resetSwitchSettings(std::move(multiSwitchSwitchSettings));
+}
+
+HwSwitchInitFn mockHwSwitchInitFn(SwSwitch* sw) {
+  return [sw](HwSwitchCallback* callback, bool failHwCallsOnWarmboot) {
+    return getMockHw(sw)->init(
+        callback,
+        failHwCallsOnWarmboot,
+        *(sw->getSwitchInfoTable()
+              .getSwitchIdToSwitchInfo()
+              .cbegin()
+              ->second.switchType()),
+        sw->getSwitchInfoTable().getSwitchIdToSwitchInfo().cbegin()->first);
+  };
 }
 
 } // namespace facebook::fboss

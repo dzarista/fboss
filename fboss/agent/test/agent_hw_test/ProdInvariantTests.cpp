@@ -144,7 +144,7 @@ void ProdInvariantTest::sendTraffic() {
       sw()->getState(), sw()->getState()->getVlans()->getFirstVlanID());
   utility::pumpTraffic(
       true,
-      sw()->getHw_DEPRECATED(),
+      platform()->getHwSwitch(),
       mac,
       sw()->getState()->getVlans()->getFirstVlanID());
 }
@@ -153,7 +153,7 @@ PortID ProdInvariantTest::getDownlinkPort() {
   // pick the first downlink in the list
   auto downlinkPort =
       utility::getAllUplinkDownlinkPorts(
-          sw()->getHw_DEPRECATED(), initialConfig(), kEcmpWidth, false)
+          platform()->getHwSwitch(), initialConfig(), kEcmpWidth, false)
           .second[0];
   return downlinkPort;
 }
@@ -161,7 +161,7 @@ PortID ProdInvariantTest::getDownlinkPort() {
 std::map<PortID, HwPortStats> ProdInvariantTest::getLatestPortStats(
     const std::vector<PortID>& ports) {
   std::map<PortID, HwPortStats> portIdStatsMap;
-  auto portNameStatsMap = sw()->getHw_DEPRECATED()->getPortStats();
+  auto portNameStatsMap = platform()->getHwSwitch()->getPortStats();
   for (auto [portName, stats] : portNameStatsMap) {
     auto portId = sw()->getState()->getPorts()->getPort(portName)->getID();
     if (std::find(ports.begin(), ports.end(), (PortID)portId) == ports.end()) {
@@ -183,15 +183,15 @@ std::vector<PortID> ProdInvariantTest::getEcmpPortIds() {
 }
 
 void ProdInvariantTest::verifyAcl() {
-  auto isEnabled = utility::verifyAclEnabled(sw()->getHw_DEPRECATED());
+  auto isEnabled = utility::verifyAclEnabled(platform()->getHwSwitch());
   EXPECT_TRUE(isEnabled);
   XLOG(DBG2) << "Verify ACL Done";
 }
 
 void ProdInvariantTest::verifyCopp() {
   utility::verifyCoppInvariantHelper(
-      sw()->getHw_DEPRECATED(),
-      sw()->getPlatform_DEPRECATED()->getAsic(),
+      platform()->getHwSwitch(),
+      platform()->getAsic(),
       sw()->getState(),
       getDownlinkPort());
   XLOG(DBG2) << "Verify COPP Done";
@@ -210,7 +210,7 @@ void ProdInvariantTest::verifyLoadBalancing() {
         for (auto ecmpPortId : ecmpPortIds) {
           ports->push_back(static_cast<int32_t>(ecmpPortId));
         }
-        sw()->getHw_DEPRECATED()->clearPortStats(ports);
+        platform()->getHwSwitch()->clearPortStats(ports);
       },
       [=]() {
         return utility::isLoadBalanced(
@@ -223,8 +223,7 @@ void ProdInvariantTest::verifyLoadBalancing() {
 }
 
 void ProdInvariantTest::verifyDscpToQueueMapping() {
-  if (!sw()->getPlatform_DEPRECATED()->getAsic()->isSupported(
-          HwAsic::Feature::L3_QOS)) {
+  if (!platform()->getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
     return;
   }
 
@@ -248,7 +247,7 @@ void ProdInvariantTest::verifyDscpToQueueMapping() {
   // time to 100ms.
   EXPECT_TRUE(utility::verifyQueueMappingsInvariantHelper(
       q2dscpMap,
-      sw()->getHw_DEPRECATED(),
+      platform()->getHwSwitch(),
       sw()->getState(),
       getPortStatsFn,
       getEcmpPortIds(),
@@ -295,7 +294,7 @@ void ProdInvariantTest::verifyQueuePerHostMapping(bool dscpMarkingTest) {
 
 void ProdInvariantTest::verifySafeDiagCommands() {
   std::set<std::string> diagCmds;
-  switch (sw()->getPlatform_DEPRECATED()->getAsic()->getAsicType()) {
+  switch (platform()->getAsic()->getAsicType()) {
     case cfg::AsicType::ASIC_TYPE_FAKE:
     case cfg::AsicType::ASIC_TYPE_MOCK:
     case cfg::AsicType::ASIC_TYPE_EBRO:
@@ -336,6 +335,18 @@ void ProdInvariantTest::verifySafeDiagCommands() {
   XLOG(DBG2) << "Verify Safe Diagnostic Commands Done";
 }
 
+void ProdInvariantTest::verifySwSwitchHandler() {
+  std::shared_ptr<folly::ScopedEventBaseThread> evbThread;
+  auto client = setupClient<apache::thrift::Client<FbossCtrl>>("sw", evbThread);
+  auto runState = client->sync_getSwitchRunState();
+  EXPECT_GE(runState, SwitchRunState::CONFIGURED);
+}
+
+void ProdInvariantTest::verifyThriftHandler() {
+  verifySwSwitchHandler();
+  verifyHwSwitchHandler();
+}
+
 int ProdInvariantTestMain(
     int argc,
     char** argv,
@@ -353,6 +364,7 @@ TEST_F(ProdInvariantTest, verifyInvariants) {
     verifyLoadBalancing();
     verifyDscpToQueueMapping();
     verifySafeDiagCommands();
+    verifyThriftHandler();
   };
   verifyAcrossWarmBoots(setup, verify);
 }

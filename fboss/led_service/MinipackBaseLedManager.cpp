@@ -24,9 +24,6 @@ MinipackBaseLedManager::MinipackBaseLedManager() : LedManager() {}
  * expects the port oprational values (ie: portDisplayMap_.operationalStateUp)
  * is already updated with latest. This function will take care of port
  * operational state, LLDP cabling error, user forced LED color also
- *
- * TODO(rajank):
- * 1. Add LLDP cabling error and forced LED case here
  */
 led::LedColor MinipackBaseLedManager::calculateLedColor(
     uint32_t portId,
@@ -40,10 +37,35 @@ led::LedColor MinipackBaseLedManager::calculateLedColor(
 
   auto portName = portDisplayMap_.at(portId).portName;
   auto portUp = portDisplayMap_.at(portId).operationStateUp;
-  auto ledColor = portUp ? led::LedColor::BLUE : led::LedColor::OFF;
+  auto cablingError = portDisplayMap_.at(portId).cablingError;
+  auto forcedOn = portDisplayMap_.at(portId).forcedOn;
+  auto forcedOff = portDisplayMap_.at(portId).forcedOff;
+  auto ledColor = led::LedColor::UNKNOWN;
+
+  // Sanity check warning
+  if (forcedOn && forcedOff) {
+    XLOG(WARN) << fmt::format(
+        "Port {:d} LED is Forced inconsistently On and Off", portId);
+  }
+
+  // User forced on/off overrides all status
+  // Cabling error overrides the port status
+  if (forcedOn) {
+    ledColor = led::LedColor::WHITE;
+  } else if (forcedOff) {
+    ledColor = led::LedColor::OFF;
+  } else if (cablingError) {
+    ledColor = led::LedColor::YELLOW;
+  } else {
+    ledColor = portUp ? led::LedColor::BLUE : led::LedColor::OFF;
+  }
 
   XLOG(DBG2) << fmt::format(
-      "Port {:s}, portUp={:s}", portName, (portUp ? "True" : "False"));
+      "Port {:s}, portUp={:s}, cablingError={:s}, Forced={:s}",
+      portName,
+      (portUp ? "True" : "False"),
+      (cablingError ? "True" : "False"),
+      (forcedOn ? "On" : (forcedOff ? "Off" : "None")));
 
   return ledColor;
 }

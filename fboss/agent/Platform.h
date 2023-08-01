@@ -12,9 +12,11 @@
 #include <folly/Conv.h>
 #include <folly/MacAddress.h>
 #include <folly/io/async/EventBase.h>
+#include <thrift/lib/cpp2/server/ThriftServer.h>
 #include <memory>
 #include <unordered_map>
 #include "fboss/agent/PlatformPort.h"
+#include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
 #include "fboss/agent/platforms/common/PlatformMapping.h"
 #include "fboss/agent/types.h"
@@ -24,7 +26,7 @@ DECLARE_bool(hide_fabric_ports);
 
 namespace facebook::fboss {
 
-class AgentConfig;
+struct AgentConfig;
 class HwSwitch;
 class SwSwitch;
 class ThriftHandler;
@@ -32,6 +34,7 @@ struct ProductInfo;
 class HwAsic;
 class HwSwitchWarmBootHelper;
 class PlatformProductInfo;
+class HwSwitchCallback;
 
 /*
  * Platform represents a specific switch/router platform.
@@ -67,7 +70,10 @@ class Platform {
    * control platform initialization using the same config mechanism
    * as other parts of the agent.
    */
-  void init(std::unique_ptr<AgentConfig> config, uint32_t hwFeaturesDesired);
+  void init(
+      std::unique_ptr<AgentConfig> config,
+      uint32_t hwFeaturesDesired,
+      int16_t switchIndex);
 
   /*
    * Allows the platorm to run any necessary cleanup steps like
@@ -148,21 +154,20 @@ class Platform {
    * initialized.  Platform-specific initialization that requires access to the
    * HwSwitch can be performed here.
    */
-  virtual void onHwInitialized(SwSwitch* sw) = 0;
+  virtual void onHwInitialized(HwSwitchCallback* sw) = 0;
 
   /*
    * onInitialConfigApplied() will be called after the initial
    * configuration has been applied.  Platform-specific initialization
    * that needs to happen after this can be performed here.
    */
-  virtual void onInitialConfigApplied(SwSwitch* sw) = 0;
+  virtual void onInitialConfigApplied(HwSwitchCallback* sw) = 0;
 
   /*
-   * Create the ThriftHandler.
-   *
-   * This will be invoked by fbossMain() during the initialization process.
+   * Create the handler for HwSwitch service
    */
-  virtual std::unique_ptr<ThriftHandler> createHandler(SwSwitch* sw) = 0;
+  virtual std::shared_ptr<apache::thrift::AsyncProcessorFactory>
+  createHandler() = 0;
 
   /*
    * Get the local MAC address for the switch.
@@ -302,6 +307,14 @@ class Platform {
   }
   virtual HwSwitchWarmBootHelper* getWarmBootHelper() = 0;
 
+  const SwitchIdScopeResolver* scopeResolver() const {
+    return &scopeResolver_;
+  }
+
+  SwitchIdScopeResolver* scopeResolver() {
+    return &scopeResolver_;
+  }
+
  private:
   /*
    * Subclasses can override this to do custom initialization. This is
@@ -326,6 +339,7 @@ class Platform {
   const std::unique_ptr<PlatformProductInfo> productInfo_;
   const std::unique_ptr<PlatformMapping> platformMapping_;
   folly::MacAddress localMac_;
+  SwitchIdScopeResolver scopeResolver_;
 
   // The map of override version of TransceiverInfo.
   // This is to be used only for HwTests under test environment,

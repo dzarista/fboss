@@ -24,7 +24,6 @@
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/LacpTypes.h"
 #include "fboss/agent/LoadBalancerConfigApplier.h"
-#include "fboss/agent/Platform.h"
 #include "fboss/agent/RouteUpdateWrapper.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/SwitchIdScopeResolver.h"
@@ -32,6 +31,7 @@
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/if/gen-cpp2/mpls_types.h"
 #include "fboss/agent/normalization/Normalizer.h"
+#include "fboss/agent/platforms/common/PlatformMapping.h"
 #include "fboss/agent/rib/RoutingInformationBase.h"
 #include "fboss/agent/state/AclEntry.h"
 #include "fboss/agent/state/AclMap.h"
@@ -556,7 +556,9 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
           ? util::getFirstNodeIf(orig_->getSwitchSettings())
           : make_shared<SwitchSettings>();
       if ((newSwitchSettings->getSwitchIdToSwitchInfo() !=
-           origSwitchSettings->getSwitchIdToSwitchInfo())) {
+           origSwitchSettings->getSwitchIdToSwitchInfo()) ||
+          (newSwitchSettings->getDefaultVoqConfig() !=
+           origSwitchSettings->getDefaultVoqConfig())) {
         new_->resetSystemPorts(toMultiSwitchMap<MultiSwitchSystemPortMap>(
             updateSystemPorts(new_->getPorts(), newSwitchSettings),
             scopeResolver_));
@@ -1244,14 +1246,6 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
 
   static const std::set<cfg::PortType> kCreateSysPortsFor = {
       cfg::PortType::INTERFACE_PORT, cfg::PortType::RECYCLE_PORT};
-  QueueConfig systemPortQueues;
-  if (cfg_->defaultVoqConfig()->size()) {
-    systemPortQueues = updatePortQueues(
-        QueueConfig(),
-        *cfg_->defaultVoqConfig(),
-        kNumVoqs,
-        cfg::StreamType::UNICAST);
-  }
   auto sysPorts = std::make_shared<SystemPortMap>();
   for (const auto& switchIdAndInfo :
        switchSettings->getSwitchIdToSwitchInfo()) {
@@ -1287,7 +1281,7 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
         sysPort->setNumVoqs(kNumVoqs);
         sysPort->setEnabled(port.second->isEnabled());
         sysPort->setQosPolicy(port.second->getQosPolicy());
-        sysPort->resetPortQueues(systemPortQueues);
+        sysPort->resetPortQueues(switchSettings->getDefaultVoqConfig());
         sysPorts->addSystemPort(std::move(sysPort));
       }
     }
@@ -3837,6 +3831,19 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings() {
     switchSettingsChange = true;
   }
 
+  if (cfg_->defaultVoqConfig()->size()) {
+    const auto kNumVoqs = 8;
+    auto defaultVoqConfig = updatePortQueues(
+        QueueConfig(),
+        *cfg_->defaultVoqConfig(),
+        kNumVoqs,
+        cfg::StreamType::UNICAST);
+    if (origSwitchSettings->getDefaultVoqConfig() != defaultVoqConfig) {
+      newSwitchSettings->setDefaultVoqConfig(defaultVoqConfig);
+      switchSettingsChange = true;
+    }
+  }
+
   // TODO - Disallow changing any switchInfo parameter after first
   // config apply. Currently we check only switchId and SwitchType
   // This is to allow rollout of new parameters - portIdRange and
@@ -3873,9 +3880,13 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings() {
 
   if (origSwitchSettings->getSwitchDrainState() !=
       *cfg_->switchSettings()->switchDrainState()) {
-    if (newSwitchSettings->getSwitchIdsOfType(cfg::SwitchType::FABRIC).size() ==
-        0) {
-      throw FbossError("Switch drain/isolate is supported only on FDSW");
+    auto numVoqSwtitches =
+        newSwitchSettings->getSwitchIdsOfType(cfg::SwitchType::VOQ).size();
+    auto numFabSwtitches =
+        newSwitchSettings->getSwitchIdsOfType(cfg::SwitchType::FABRIC).size();
+    if (numFabSwtitches == 0 && numVoqSwtitches == 0) {
+      throw FbossError(
+          "Switch drain/isolate is supported only on VOQ, Fabric switches");
     }
     newSwitchSettings->setSwitchDrainState(
         *cfg_->switchSettings()->switchDrainState());
@@ -4018,6 +4029,41 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings() {
           std::move(newFlowletSwitchingConfig));
       switchSettingsChange = true;
     }
+  }
+
+  std::optional<int32_t> newMinLinksToRemainInVOQDomain{std::nullopt};
+  if (cfg_->switchSettings()->minLinksToRemainInVOQDomain()) {
+    if (newSwitchSettings->getSwitchIdsOfType(cfg::SwitchType::VOQ).size() ==
+        0) {
+      throw FbossError(
+          "Min links to remain in VOQ Domain is supported only for VOQ switches");
+    }
+
+    newMinLinksToRemainInVOQDomain =
+        *cfg_->switchSettings()->minLinksToRemainInVOQDomain();
+  }
+  if (origSwitchSettings->getMinLinksToRemainInVOQDomain() !=
+      newMinLinksToRemainInVOQDomain) {
+    newSwitchSettings->setMinLinksToRemainInVOQDomain(
+        newMinLinksToRemainInVOQDomain);
+    switchSettingsChange = true;
+  }
+
+  std::optional<int32_t> newMinLinksToJoinVOQDomain{std::nullopt};
+  if (cfg_->switchSettings()->minLinksToJoinVOQDomain()) {
+    if (newSwitchSettings->getSwitchIdsOfType(cfg::SwitchType::VOQ).size() ==
+        0) {
+      throw FbossError(
+          "Min links to join VOQ Domain is supported only for VOQ switches");
+    }
+
+    newMinLinksToJoinVOQDomain =
+        *cfg_->switchSettings()->minLinksToJoinVOQDomain();
+  }
+  if (origSwitchSettings->getMinLinksToJoinVOQDomain() !=
+      newMinLinksToJoinVOQDomain) {
+    newSwitchSettings->setMinLinksToJoinVOQDomain(newMinLinksToJoinVOQDomain);
+    switchSettingsChange = true;
   }
 
   if (switchSettingsChange) {
@@ -4332,7 +4378,17 @@ std::shared_ptr<Mirror> ThriftConfigApplier::createMirror(
         mirrorToPort->getEgressMirror() != *mirrorConfig->name()) {
       mirrorEgressPort = PortID(mirrorToPort->getID());
     } else {
-      throw FbossError("Invalid port name or ID");
+      throw FbossError(
+          "MirrorConfig ",
+          *mirrorConfig->name(),
+          " doesn't match ingress ",
+          mirrorToPort && mirrorToPort->getIngressMirror().has_value()
+              ? mirrorToPort->getIngressMirror().value()
+              : "",
+          " or egress mirror ",
+          mirrorToPort && mirrorToPort->getEgressMirror().has_value()
+              ? mirrorToPort->getEgressMirror().value()
+              : "");
     }
   }
 
@@ -4347,7 +4403,9 @@ std::shared_ptr<Mirror> ThriftConfigApplier::createMirror(
       if (destinationIp->isV6() &&
           !hwAsicTable_->isFeatureSupportedOnAnyAsic(
               HwAsic::Feature::SFLOWv6)) {
-        throw FbossError("SFLOWv6 is not supported on this platform");
+        throw FbossError(
+            "SFLOWv6 is not supported on this platform for  ",
+            *mirrorConfig->name());
       }
       udpPorts = TunnelUdpPorts(
           *sflowTunnel->udpSrcPort(), *sflowTunnel->udpDstPort());
@@ -4356,7 +4414,9 @@ std::shared_ptr<Mirror> ThriftConfigApplier::createMirror(
       if (destinationIp->isV6() &&
           !hwAsicTable_->isFeatureSupportedOnAnyAsic(
               HwAsic::Feature::ERSPANv6)) {
-        throw FbossError("ERSPANv6 is not supported on this platform");
+        throw FbossError(
+            "ERSPANv6 is not supported on this platform ",
+            *mirrorConfig->name());
       }
     }
 

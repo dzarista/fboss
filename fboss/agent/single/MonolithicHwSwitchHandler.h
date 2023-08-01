@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "fboss/agent/FbossInit.h"
 #include "fboss/agent/HwSwitchHandler.h"
 
 namespace facebook::fboss {
@@ -12,19 +13,9 @@ class TxPacket;
 
 class MonolinithicHwSwitchHandler : public HwSwitchHandler {
  public:
-  using PlatformInitFn = std::function<std::unique_ptr<Platform>(
-      std::unique_ptr<AgentConfig>,
-      uint32_t featuresDesired)>;
-
-  explicit MonolinithicHwSwitchHandler(PlatformInitFn initPlatformFn);
+  explicit MonolinithicHwSwitchHandler(Platform* platform);
 
   virtual ~MonolinithicHwSwitchHandler() override {}
-
-  void initPlatform(std::unique_ptr<AgentConfig> config, uint32_t features)
-      override;
-
-  HwInitResult initHw(HwSwitchCallback* callback, bool failHwCallsOnWarmboot)
-      override;
 
   void exitFatal() const override;
 
@@ -36,6 +27,8 @@ class MonolinithicHwSwitchHandler : public HwSwitchHandler {
       std::optional<uint8_t> queue = std::nullopt) noexcept override;
 
   bool sendPacketSwitchedSync(std::unique_ptr<TxPacket> pkt) noexcept override;
+
+  bool sendPacketSwitchedAsync(std::unique_ptr<TxPacket> pkt) noexcept override;
 
   bool isValidStateUpdate(const StateDelta& delta) const override;
 
@@ -53,10 +46,88 @@ class MonolinithicHwSwitchHandler : public HwSwitchHandler {
 
   void initPlatformData() override;
 
+  folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
+
+  std::map<std::string, HwSysPortStats> getSysPortStats() const override;
+
+  void updateStats(SwitchStats* switchStats) override;
+
+  std::map<PortID, phy::PhyInfo> updateAllPhyInfo() override;
+
+  uint64_t getDeviceWatermarkBytes() const override;
+
+  HwSwitchFb303Stats* getSwitchStats() const override;
+
+  void clearPortStats(
+      const std::unique_ptr<std::vector<int32_t>>& ports) override;
+
+  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(int32_t portId) override;
+
+  void clearPortAsicPrbsStats(int32_t portId) override;
+
+  std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
+      int32_t portId) override;
+
+  prbs::InterfacePrbsState getPortPrbsState(PortID portId) override;
+
+  std::vector<phy::PrbsLaneStats> getPortGearboxPrbsStats(
+      int32_t portId,
+      phy::Side side) override;
+
+  void clearPortGearboxPrbsStats(int32_t portId, phy::Side side) override;
+
+  void switchRunStateChanged(SwitchRunState newState) override;
+
+  // platform access apis
+  void onHwInitialized(HwSwitchCallback* callback) override;
+
+  void onInitialConfigApplied(HwSwitchCallback* sw) override;
+
+  void platformStop() override;
+
+  const AgentConfig* config() override;
+
+  const AgentConfig* reloadConfig() override;
+
+  std::shared_ptr<SwitchState> stateChanged(
+      const StateDelta& delta,
+      bool transaction) override;
+
+  fsdb::OperDelta stateChanged(const fsdb::OperDelta& delta, bool transaction)
+      override;
+
+  bool transactionsSupported() const override;
+
+  /* TODO: remove this method */
+  HwSwitch* getHwSwitch() const {
+    return hw_;
+  }
+
+  /* TODO: remove this method */
+  Platform* getPlatform() const {
+    return platform_;
+  }
+
+  CpuPortStats getCpuPortStats() const override;
+
+  std::map<PortID, FabricEndpoint> getFabricReachability() const override;
+
+  FabricReachabilityStats getFabricReachabilityStats() const override;
+
+  std::vector<PortID> getSwitchReachability(SwitchID switchId) const override;
+
+  std::string getDebugDump() const override;
+
+  void fetchL2Table(std::vector<L2EntryThrift>* l2Table) const override;
+
+  std::string listObjects(const std::vector<HwObjectType>& types, bool cached)
+      const override;
+
+  bool needL2EntryForNeighbor() const override;
+
  private:
-  PlatformInitFn initPlatformFn_;
+  Platform* platform_;
   HwSwitch* hw_;
-  std::unique_ptr<Platform> platform_;
 };
 
 } // namespace facebook::fboss

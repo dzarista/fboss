@@ -4,8 +4,8 @@
 # cmake/FooBar.cmake
 
 add_fbthrift_cpp_library(
-  fan_config_structs_types_cpp2
-  fboss/platform/fan_service/if/fan_config_structs.thrift
+  fan_service_config_types_cpp2
+  fboss/platform/fan_service/if/fan_service_config.thrift
   OPTIONS
     json
     reflection
@@ -15,14 +15,13 @@ add_fbthrift_cpp_library(
 add_library(fan_service_lib
   fboss/platform/fan_service/Bsp.cpp
   fboss/platform/fan_service/ControlLogic.cpp
-  fboss/platform/fan_service/DarwinFSConfig.cpp
   fboss/platform/fan_service/FanService.cpp
   fboss/platform/fan_service/FanServiceHandler.cpp
   fboss/platform/fan_service/FsdbSensorSubscriber.cpp
   fboss/platform/fan_service/Mokujin.cpp
   fboss/platform/fan_service/MokujinFSConfig.cpp
   fboss/platform/fan_service/SensorData.cpp
-  fboss/platform/fan_service/ServiceConfig.cpp
+  fboss/platform/fan_service/Utils.cpp
   fboss/platform/fan_service/oss/FsdbSensorSubscriber.cpp
   fboss/platform/fan_service/oss/OssHelper.cpp
 )
@@ -31,8 +30,9 @@ target_link_libraries(fan_service_lib
   log_thrift_call
   product_info
   common_file_utils
+  platform_config_lib
   platform_utils
-  fan_config_structs_types_cpp2
+  fan_service_config_types_cpp2
   Folly::folly
   qsfp_service_client
   FBThrift::thriftcpp2
@@ -54,7 +54,6 @@ install(TARGETS fan_service)
 
 add_executable(fan_service_sw_test
   fboss/platform/fan_service/tests/BspTests.cpp
-  fboss/platform/fan_service/tests/ServiceConfigTests.cpp
 )
 
 target_link_libraries(fan_service_sw_test

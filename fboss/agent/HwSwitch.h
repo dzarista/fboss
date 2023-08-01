@@ -42,8 +42,6 @@ class TxPacket;
 class L2Entry;
 class HwSwitchFb303Stats;
 
-enum class L2EntryUpdateType : uint8_t;
-
 template <typename Delta, typename Mgr>
 void checkUnsupportedDelta(const Delta& delta, Mgr& mgr) {
   DeltaFunctions::forEachChanged(
@@ -84,6 +82,8 @@ void checkUnsupportedDelta(const Delta& delta, Mgr& mgr) {
 class HwSwitch {
  public:
   using Callback = HwSwitchCallback;
+  using StateChangedFn =
+      std::function<std::shared_ptr<SwitchState>(const StateDelta& delta)>;
 
   enum FeaturesDesired : uint32_t {
     PACKET_RX_DESIRED = 0x01,
@@ -118,15 +118,7 @@ class HwSwitch {
       Callback* callback,
       bool failHwCallsOnWarmboot,
       cfg::SwitchType switchType = cfg::SwitchType::NPU,
-      std::optional<int64_t> switchId = std::nullopt) {
-    switchType_ = switchType;
-    switchId_ = switchId;
-    auto ret = initImpl(callback, failHwCallsOnWarmboot, switchType, switchId);
-    ret.switchState = fillinPortInterfaces(ret.switchState);
-
-    setProgrammedState(ret.switchState);
-    return ret;
-  }
+      std::optional<int64_t> switchId = std::nullopt);
 
   cfg::SwitchType getSwitchType() const {
     return switchType_;
@@ -234,6 +226,7 @@ class HwSwitch {
   virtual std::vector<PortID> getSwitchReachability(
       SwitchID switchId) const = 0;
   virtual std::map<std::string, HwSysPortStats> getSysPortStats() const = 0;
+  virtual FabricReachabilityStats getFabricReachabilityStats() const = 0;
 
   /*
    * Get latest device watermark bytes
@@ -362,6 +355,10 @@ class HwSwitch {
   fsdb::OperDelta stateChanged(const fsdb::OperDelta& delta);
   fsdb::OperDelta stateChangedTransaction(const fsdb::OperDelta& delta);
 
+  void ensureConfigured(folly::StringPiece function) const;
+
+  bool isFullyConfigured() const;
+
  protected:
   void setProgrammedState(const std::shared_ptr<SwitchState>& state);
 
@@ -399,6 +396,15 @@ class HwSwitch {
   // fleet has migrated to Agent V2 or later.
   std::shared_ptr<SwitchState> fillinPortInterfaces(
       const std::shared_ptr<SwitchState>& oldState);
+
+  std::shared_ptr<SwitchState> getMinAlpmState(
+      RoutingInformationBase* rib,
+      const std::shared_ptr<SwitchState>& state);
+
+  std::shared_ptr<SwitchState> programMinAlpmState(RoutingInformationBase* rib);
+  std::shared_ptr<SwitchState> programMinAlpmState(
+      RoutingInformationBase* rib,
+      StateChangedFn func);
 
   uint32_t featuresDesired_;
   SwitchRunState runState_{SwitchRunState::UNINITIALIZED};

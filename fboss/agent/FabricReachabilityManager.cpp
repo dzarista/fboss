@@ -13,6 +13,8 @@
 #include "fboss/agent/platforms/common/meru400bfu/Meru400bfuPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400bia/Meru400biaPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400biu/Meru400biuPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru800bfa/Meru800bfaPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru800bia/Meru800biaPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400c/Wedge400CFabricPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400c/Wedge400CVoqPlatformMapping.h"
 
@@ -92,6 +94,8 @@ static const PlatformMapping* FOLLY_NULLABLE getPlatformMappingForDsfNode(
   static Meru400biuPlatformMapping meru400biu;
   static Meru400biaPlatformMapping meru400bia;
   static Meru400bfuPlatformMapping meru400bfu;
+  static Meru800bfaPlatformMapping meru800bfa;
+  static Meru800biaPlatformMapping meru800bia;
   static Wedge400CVoqPlatformMapping w400cVoq;
   static Wedge400CFabricPlatformMapping w400cFabric;
   static CloudRipperFabricPlatformMapping cloudRipperFabric;
@@ -117,6 +121,11 @@ static const PlatformMapping* FOLLY_NULLABLE getPlatformMappingForDsfNode(
     case PlatformType::PLATFORM_MERU400BFU:
       return &meru400bfu;
       break;
+    case PlatformType::PLATFORM_MERU800BFA:
+      return &meru800bfa;
+      break;
+    case PlatformType::PLATFORM_MERU800BIA:
+      return &meru800bia;
     default:
       break;
   }

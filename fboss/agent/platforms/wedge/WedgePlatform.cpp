@@ -12,7 +12,6 @@
 #include <folly/Memory.h>
 #include <folly/logging/xlog.h>
 
-#include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/SysError.h"
 #include "fboss/agent/hw/bcm/BcmAPI.h"
 #include "fboss/agent/hw/bcm/BcmConfig.h"
@@ -85,7 +84,7 @@ WedgePlatform::BcmPlatformPortMap WedgePlatform::getPlatformPortMap() {
 
 void WedgePlatform::stop() {}
 
-void WedgePlatform::onHwInitialized(SwSwitch* sw) {
+void WedgePlatform::onHwInitialized(HwSwitchCallback* sw) {
   // could populate with initial ports here, but should get taken care
   // of through state changes sent to the stateUpdated method.
   initLEDs();

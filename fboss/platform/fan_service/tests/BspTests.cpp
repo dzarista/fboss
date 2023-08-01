@@ -9,44 +9,38 @@
  */
 
 #include "fboss/platform/fan_service/Bsp.h"
-#include "fboss/platform/fan_service/ServiceConfig.h"
-#include "fboss/platform/fan_service/if/gen-cpp2/fan_config_structs_types.h"
+#include "fboss/platform/fan_service/if/gen-cpp2/fan_service_config_constants.h"
+#include "fboss/platform/fan_service/if/gen-cpp2/fan_service_config_types.h"
 
 #include <gtest/gtest.h>
 
-using namespace facebook::fboss::platform;
+using namespace facebook::fboss::platform::fan_service;
 using facebook::fboss::FbossError;
+using constants =
+    facebook::fboss::platform::fan_service::fan_service_config_constants;
 
 class BspTest : public ::testing::Test {
   static auto constexpr kSensorName = "sensor";
 
  protected:
-  std::shared_ptr<ServiceConfig> makeServiceConfig(
-      fan_config_structs::AccessMethod accessMethod) const {
-    auto config = std::make_shared<ServiceConfig>();
-    facebook::fboss::platform::Sensor sensor;
-    sensor.sensorName = kSensorName;
-    sensor.access = accessMethod;
-    config->sensors.push_back(sensor);
+  FanServiceConfig makeConfig(AccessMethod accessMethod) const {
+    auto config = FanServiceConfig{};
+    Sensor sensor;
+    sensor.sensorName() = kSensorName;
+    sensor.access() = accessMethod;
+    config.sensors()->push_back(sensor);
     return config;
   }
-
- public:
-  void getSensorOverRest() {
-    fan_config_structs::AccessMethod access;
-    access.accessType() = fan_config_structs::SourceType::kSrcRest;
-    bsp.getSensorData(
-        makeServiceConfig(access), std::make_shared<SensorData>());
-  }
-  Bsp bsp;
 };
 
 TEST_F(BspTest, getSensorOverRest) {
-  EXPECT_THROW(getSensorOverRest(), FbossError);
+  AccessMethod access;
+  access.accessType() = constants::ACCESS_TYPE_REST();
+  auto bsp = Bsp(makeConfig(access));
+  EXPECT_THROW(bsp.getSensorData(std::make_shared<SensorData>()), FbossError);
 }
 
 TEST_F(BspTest, getSensorMethodUnset) {
-  EXPECT_THROW(
-      bsp.getSensorData(makeServiceConfig({}), std::make_shared<SensorData>()),
-      FbossError);
+  auto bsp = Bsp(makeConfig({}));
+  EXPECT_THROW(bsp.getSensorData(std::make_shared<SensorData>()), FbossError);
 }

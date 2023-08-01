@@ -10,7 +10,6 @@
 
 #include "fboss/agent/platforms/sai/SaiPlatform.h"
 
-#include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/hw/HwSwitchWarmBootHelper.h"
 #include "fboss/agent/hw/sai/switch/SaiSwitch.h"
 #include "fboss/agent/hw/switch_asics/EbroAsic.h"
@@ -159,7 +158,7 @@ HwSwitch* SaiPlatform::getHwSwitch() const {
   return saiSwitch_.get();
 }
 
-void SaiPlatform::onHwInitialized(SwSwitch* sw) {
+void SaiPlatform::onHwInitialized(HwSwitchCallback* sw) {
   initLEDs();
   sw->registerStateObserver(this, "SaiPlatform");
 }
@@ -168,12 +167,13 @@ void SaiPlatform::stateUpdated(const StateDelta& delta) {
   updatePorts(delta);
 }
 
-void SaiPlatform::onInitialConfigApplied(SwSwitch* /* sw */) {}
+void SaiPlatform::onInitialConfigApplied(HwSwitchCallback* /* sw */) {}
 
 void SaiPlatform::stop() {}
 
-std::unique_ptr<ThriftHandler> SaiPlatform::createHandler(SwSwitch* sw) {
-  return std::make_unique<SaiHandler>(sw, saiSwitch_.get());
+std::shared_ptr<apache::thrift::AsyncProcessorFactory>
+SaiPlatform::createHandler() {
+  return std::make_shared<SaiHandler>(saiSwitch_.get());
 }
 
 TransceiverIdxThrift SaiPlatform::getPortMapping(
@@ -405,9 +405,10 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     }
   }
   std::optional<SaiSwitchTraits::Attributes::DllPath> dllPath;
-#if defined(SAI_VERSION_8_2_0_0_ODP) ||     \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || \
-    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP)
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
+    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP) || \
+    defined(SAI_VERSION_10_0_EA_ODP) || defined(SAI_VERSION_10_0_EA_SIM_ODP)
   auto platformMode = getType();
   if (platformMode == PlatformType::PLATFORM_FUJI ||
       platformMode == PlatformType::PLATFORM_ELBERT) {
@@ -475,6 +476,7 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
         std::nullopt, // Switch Isolate
         std::nullopt, // Credit Watchdog
         maxCores, // Max cores
+        std::nullopt, // PFC DLR Packet Action
   };
 }
 

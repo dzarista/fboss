@@ -9,7 +9,7 @@
  */
 #pragma once
 
-#include "fboss/agent/HwSwitch.h"
+#include "fboss/agent/HwSwitchHandler.h"
 #include "fboss/agent/PacketObserver.h"
 #include "fboss/agent/RestartTimeTracker.h"
 #include "fboss/agent/SwSwitchRouteUpdateWrapper.h"
@@ -49,7 +49,8 @@ class LinkAggregationManager;
 class LldpManager;
 class MPLSHandler;
 class PktCaptureManager;
-class Platform;
+class PlatformMapping;
+class PlatformProductInfo;
 class Port;
 class PortDescriptor;
 class PortStats;
@@ -84,6 +85,8 @@ class DsfSubscriber;
 class HwAsicTable;
 class MultiHwSwitchSyncer;
 class SwitchStatsObserver;
+struct HwSwitchHandler;
+class MultiSwitchPacketStreamMap;
 
 enum class SwitchFlags : int {
   DEFAULT = 0,
@@ -132,26 +135,23 @@ class SwSwitch : public HwSwitchCallback {
   using AllThreadsSwitchStats =
       folly::ThreadLocalPtr<SwitchStats, SwSwitch>::Accessor;
 
-  explicit SwSwitch(std::unique_ptr<Platform> platform);
+  explicit SwSwitch(std::unique_ptr<HwSwitchHandler> hwSwitchHandler);
   /*
    * Needed for mock platforms that do cannot initialize platform mapping
    * based on fruid file
    */
   SwSwitch(
-      std::unique_ptr<Platform> platform,
+      std::unique_ptr<HwSwitchHandler> hwSwitchHandler,
       std::unique_ptr<PlatformMapping> platformMapping,
       cfg::SwitchConfig* config);
   ~SwSwitch() override;
 
-  HwSwitch* getHw_DEPRECATED() const {
-    return hw_;
+  HwSwitchHandler* getHwSwitchHandler() {
+    return hwSwitchHandler_.get();
   }
 
-  const Platform* getPlatform_DEPRECATED() const {
-    return platform_.get();
-  }
-  Platform* getPlatform_DEPRECATED() {
-    return platform_.get();
+  const HwSwitchHandler* getHwSwitchHandler() const {
+    return hwSwitchHandler_.get();
   }
 
   const PlatformMapping* getPlatformMapping() const {
@@ -194,6 +194,7 @@ class SwSwitch : public HwSwitchCallback {
    */
   void init(
       std::unique_ptr<TunManager> tunMgr,
+      HwSwitchInitFn hwSwitchInitFn,
       SwitchFlags flags = SwitchFlags::DEFAULT);
 
   // can be used in the tests, where a test orchestrating ensemble can be
@@ -202,6 +203,7 @@ class SwSwitch : public HwSwitchCallback {
   void init(
       HwSwitchCallback* callback,
       std::unique_ptr<TunManager> tunMgr,
+      HwSwitchInitFn hwSwitchInitFn,
       SwitchFlags flags = SwitchFlags::DEFAULT);
 
   bool isFullyInitialized() const;
@@ -347,8 +349,9 @@ class SwSwitch : public HwSwitchCallback {
    * The only required method for observers is stateUpdated and observers can
    * count on this always being called from the update thread.
    */
-  void registerStateObserver(StateObserver* observer, const std::string name);
-  void unregisterStateObserver(StateObserver* observer);
+  void registerStateObserver(StateObserver* observer, const std::string& name)
+      override;
+  void unregisterStateObserver(StateObserver* observer) override;
 
   /*
    * Signal to the switch that initial config is applied.
@@ -541,6 +544,14 @@ class SwSwitch : public HwSwitchCallback {
       AggregatePortID aggPortID,
       std::optional<uint8_t> queue = std::nullopt) noexcept;
 
+  /*
+   * Send a packet to HwSwitch using thrift stream
+   */
+  void sendPacketOutViaThriftStream(
+      std::unique_ptr<TxPacket> pkt,
+      SwitchID switchId,
+      std::optional<PortID> portID,
+      std::optional<uint8_t> queue = std::nullopt) noexcept;
   /*
    * Send a packet, using switching logic to send it out the correct port(s)
    * for the specified VLAN and destination MAC.
@@ -829,6 +840,10 @@ class SwSwitch : public HwSwitchCallback {
 
   void switchRunStateChanged(SwitchRunState newState);
 
+  MultiSwitchPacketStreamMap* getPacketStreamMap() {
+    return packetStreamMap_.get();
+  }
+
  private:
   std::optional<folly::MacAddress> getSourceMac(
       const std::shared_ptr<Interface>& intf) const;
@@ -931,8 +946,8 @@ class SwSwitch : public HwSwitchCallback {
   cfg::SwitchConfig curConfig_;
 
   // The HwSwitch object.  This object is owned by the Platform.
-  HwSwitch* hw_;
-  std::unique_ptr<Platform> platform_;
+  std::unique_ptr<HwSwitchHandler> hwSwitchHandler_;
+  PlatformData platformData_;
   const std::unique_ptr<PlatformProductInfo> platformProductInfo_;
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};
   folly::ThreadLocalPtr<SwitchStats, SwSwitch> stats_;
@@ -1080,6 +1095,7 @@ class SwSwitch : public HwSwitchCallback {
   folly::Synchronized<ConfigAppliedInfo> configAppliedInfo_;
   std::optional<std::chrono::time_point<std::chrono::steady_clock>>
       publishedStatsToFsdbAt_;
+  std::unique_ptr<MultiSwitchPacketStreamMap> packetStreamMap_;
 };
 
 } // namespace facebook::fboss

@@ -107,6 +107,8 @@ target_link_libraries(sai_platform
   meru800bia_platform_mapping
   meru800bfa_platform_mapping
   montblanc_platform_mapping
+  led_structs_types_cpp2
+  led_mapping_cpp2
 )
 
 set_target_properties(sai_platform PROPERTIES COMPILE_FLAGS
@@ -126,6 +128,7 @@ function(BUILD_SAI_WEDGE_AGENT SAI_IMPL_NAME SAI_IMPL_ARG)
   target_link_libraries(wedge_agent-${SAI_IMPL_NAME}-${SAI_VER_SUFFIX}
     -Wl,--whole-archive
     main
+    monolithic_agent_initializer
     sai_platform
     ${SAI_IMPL_ARG}
     -Wl,--no-whole-archive

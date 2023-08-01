@@ -98,41 +98,61 @@ std::unordered_map<PortID, cfg::PortProfileID>& getPortToDefaultProfileIDMap() {
   return portProfileIDMap;
 }
 
-cfg::DsfNode dsfNodeConfig(const HwAsic& myAsic, int64_t otherSwitchId) {
-  auto createAsic = [](const HwAsic& fromAsic,
-                       int64_t switchId) -> std::shared_ptr<HwAsic> {
+cfg::DsfNode dsfNodeConfig(
+    const HwAsic& myAsic,
+    int64_t otherSwitchId,
+    std::optional<int> systemPortMin) {
+  auto createAsic = [&](const HwAsic& fromAsic, int64_t switchId)
+      -> std::pair<std::shared_ptr<HwAsic>, PlatformType> {
     std::optional<cfg::Range64> systemPortRange;
     auto fromAsicSystemPortRange = fromAsic.getSystemPortRange();
     if (fromAsicSystemPortRange.has_value()) {
       cfg::Range64 range;
       auto blockSize = *fromAsicSystemPortRange->maximum() -
           *fromAsicSystemPortRange->minimum();
-      range.minimum() = 100 + switchId * blockSize;
+      range.minimum() = systemPortMin.has_value() ? 100 + systemPortMin.value()
+                                                  : 100 + switchId * blockSize;
       range.maximum() = *range.minimum() + blockSize;
       systemPortRange = range;
     }
     auto localMac = utility::kLocalCpuMac();
     switch (fromAsic.getAsicType()) {
       case cfg::AsicType::ASIC_TYPE_JERICHO2:
-        return std::make_unique<Jericho2Asic>(
-            fromAsic.getSwitchType(), switchId, systemPortRange, localMac);
+        return std::pair(
+            std::make_unique<Jericho2Asic>(
+                fromAsic.getSwitchType(), switchId, systemPortRange, localMac),
+            PlatformType::PLATFORM_MERU400BIU);
       case cfg::AsicType::ASIC_TYPE_JERICHO3:
-        return std::make_unique<Jericho3Asic>(
-            fromAsic.getSwitchType(), switchId, systemPortRange, localMac);
+        return std::pair(
+            std::make_unique<Jericho3Asic>(
+                fromAsic.getSwitchType(), switchId, systemPortRange, localMac),
+            PlatformType::PLATFORM_MERU800BIA);
       case cfg::AsicType::ASIC_TYPE_RAMON:
-        return std::make_unique<RamonAsic>(
-            fromAsic.getSwitchType(), switchId, std::nullopt, localMac);
+        return std::pair(
+            std::make_unique<RamonAsic>(
+                fromAsic.getSwitchType(), switchId, std::nullopt, localMac),
+            PlatformType::PLATFORM_MERU400BFU);
       case cfg::AsicType::ASIC_TYPE_RAMON3:
-        return std::make_unique<Ramon3Asic>(
-            fromAsic.getSwitchType(), switchId, std::nullopt, localMac);
+        return std::pair(
+            std::make_unique<Ramon3Asic>(
+                fromAsic.getSwitchType(), switchId, std::nullopt, localMac),
+            PlatformType::PLATFORM_MERU800BFA);
       case cfg::AsicType::ASIC_TYPE_EBRO:
-        return std::make_unique<EbroAsic>(
-            fromAsic.getSwitchType(), switchId, systemPortRange, localMac);
+        PlatformType platformType;
+        if (fromAsic.getSwitchType() == cfg::SwitchType::FABRIC) {
+          platformType = PlatformType::PLATFORM_WEDGE400C_FABRIC;
+        } else {
+          platformType = PlatformType::PLATFORM_WEDGE400C_VOQ;
+        }
+        return std::pair(
+            std::make_unique<EbroAsic>(
+                fromAsic.getSwitchType(), switchId, systemPortRange, localMac),
+            platformType);
       default:
         throw FbossError("Unexpected asic type: ", fromAsic.getAsicTypeStr());
     }
   };
-  auto otherAsic = createAsic(myAsic, otherSwitchId);
+  auto [otherAsic, otherPlatformType] = createAsic(myAsic, otherSwitchId);
   cfg::DsfNode dsfNode;
   dsfNode.switchId() = *otherAsic->getSwitchId();
   dsfNode.name() = folly::sformat("hwTestSwitch{}", *dsfNode.switchId());
@@ -152,6 +172,7 @@ cfg::DsfNode dsfNodeConfig(const HwAsic& myAsic, int64_t otherSwitchId) {
       throw FbossError("Unexpected switch type: ", otherAsic->getSwitchType());
   }
   dsfNode.asicType() = otherAsic->getAsicType();
+  dsfNode.platformType() = otherPlatformType;
   return dsfNode;
 }
 
@@ -171,6 +192,13 @@ cfg::Port createDefaultPortConfig(
   defaultConfig.ingressVlan() = kDefaultVlanId;
   defaultConfig.state() = cfg::PortState::DISABLED;
   defaultConfig.portType() = *entry.mapping()->portType();
+  auto switchType = platform->getAsic()->getSwitchType();
+  if (switchType == cfg::SwitchType::VOQ ||
+      switchType == cfg::SwitchType::FABRIC) {
+    defaultConfig.ingressVlan() = 0;
+  } else {
+    defaultConfig.ingressVlan() = kDefaultVlanId;
+  }
   return defaultConfig;
 }
 
@@ -488,18 +516,20 @@ folly::MacAddress kLocalCpuMac() {
 
 const std::map<cfg::PortType, cfg::PortLoopbackMode>& kDefaultLoopbackMap() {
   static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMap = {
-      {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::NONE}};
+      {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::NONE},
+      {cfg::PortType::FABRIC_PORT, cfg::PortLoopbackMode::NONE},
+      {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE}};
   return kLoopbackMap;
 }
 
 std::vector<std::string> getLoopbackIps(SwitchID switchId) {
   auto switchIdVal = static_cast<int64_t>(switchId);
-  CHECK_LT(switchIdVal, 10) << " Switch Id >= 10, not supported";
+  CHECK_LT(switchIdVal, 256) << " Switch Id >= 256, not supported";
 
-  auto v6 = FLAGS_nodeZ ? folly::sformat("20{}::2/64", switchIdVal)
-                        : folly::sformat("20{}::1/64", switchIdVal);
-  auto v4 = FLAGS_nodeZ ? folly::sformat("20{}.0.0.2/24", switchIdVal)
-                        : folly::sformat("20{}.0.0.1/24", switchIdVal);
+  auto v6 = FLAGS_nodeZ ? folly::sformat("200:{}::2/64", switchIdVal)
+                        : folly::sformat("200:{}::1/64", switchIdVal);
+  auto v4 = FLAGS_nodeZ ? folly::sformat("200.{}.0.2/24", switchIdVal)
+                        : folly::sformat("200.{}.0.1/24", switchIdVal);
   return {v6, v4};
 }
 
@@ -1184,6 +1214,20 @@ std::vector<PortDescriptor> getUplinksForEcmp(
   return ecmpPorts;
 }
 
+bool isEnabledPortWithSubnet(
+    const cfg::Port& port,
+    const cfg::SwitchConfig& config) {
+  auto ingressVlan = port.get_ingressVlan();
+  for (const auto& intf : *config.interfaces()) {
+    if (intf.get_vlanID() == ingressVlan) {
+      return (
+          !intf.get_ipAddresses().empty() &&
+          port.get_state() == cfg::PortState::ENABLED);
+    }
+  }
+  return false;
+}
+
 /*
  * Generic function to separate uplinks and downlinks, given a HwSwitch* and a
  * SwitchConfig.
@@ -1213,7 +1257,7 @@ UplinkDownlinkPair getAllUplinkDownlinkPorts(
   PortList masterPorts;
 
   for (const auto& port : *config.ports()) {
-    if (port.get_state() == cfg::PortState::ENABLED) {
+    if (isEnabledPortWithSubnet(port, config)) {
       masterPorts.push_back(PortID(port.get_logicalID()));
     }
   }

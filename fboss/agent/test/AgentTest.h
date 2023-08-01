@@ -2,7 +2,10 @@
 
 #pragma once
 
+#include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/Main.h"
+#include "fboss/agent/Platform.h"
+#include "fboss/agent/single/MonolithicAgentInitializer.h"
 #include "fboss/agent/state/PortDescriptor.h"
 
 #include <gtest/gtest.h>
@@ -10,7 +13,7 @@
 namespace facebook::fboss {
 class SwitchState;
 
-class AgentTest : public ::testing::Test, public AgentInitializer {
+class AgentTest : public ::testing::Test, public MonolithicAgentInitializer {
  public:
   virtual ~AgentTest();
   void SetUp() override {
