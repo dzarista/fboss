@@ -197,7 +197,7 @@ else
       export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
    fi
    time ./build/fbcode_builder/getdeps.py build --allow-system-packages \
-      --scratch-path "$SCRATCH_DIR" fboss
+      --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines='{"CMAKE_BUILD_TYPE": "MinSizeRel"}'
    cd $FBOSS_DIR/fboss.git
    ./fboss/oss/scripts/package-fboss.py --scratch-path "$SCRATCH_DIR"
 
