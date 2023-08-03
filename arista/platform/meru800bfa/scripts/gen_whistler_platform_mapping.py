@@ -43,11 +43,12 @@ numLanesFromSupportedProfile = {
 }
 
 def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
-      firstLane=0, supportedProfiles=None, attachedCoreId=0, attachedCorePortIndex=0,
+      firstSerdesCoreLane=0, firstFrontPanelLane=0, supportedProfiles=None,
+      attachedCoreId=0, attachedCorePortIndex=0,
       portType=0 ):
    # Front panel port would be et1/X or fab1/X and based on the first lane, this can
-   # be et1/X/Y (or fab1/X/Y) where Y is firstLane+1.
-   name=f"{frontPanelPort}/{firstLane+1}"
+   # be et1/X/Y (or fab1/X/Y) where Y is firstFrontPanelLane+1.
+   name=f"{frontPanelPort}/{firstFrontPanelLane+1}"
    portMapping = OrderedDict( {
       "mapping": OrderedDict( {
          "id": portId,
@@ -60,16 +61,16 @@ def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
       } ),
       "supportedProfiles": OrderedDict()
    } )
-   for lane in range( firstLane, firstLane+numLanes ):
+   for lane in range( numLanes ):
       pinMapping = OrderedDict( {
          "a" : OrderedDict( {
             "chip" : serdesCore,
-            "lane" : lane
+            "lane" : firstSerdesCoreLane+lane
          } ),
          "z" : OrderedDict( {
             "end" : OrderedDict( {
                "chip" : frontPanelPort,
-               "lane" : lane
+               "lane" : firstFrontPanelLane+lane
             } )
          } )
       } )
@@ -92,17 +93,17 @@ def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
                } )
       reqLanes = numLanesFromSupportedProfile[ suppProfile ]
       assert reqLanes <= numLanes
-      for lane in range( firstLane, firstLane+reqLanes ):
+      for lane in range(reqLanes ):
          pinIPhyMapping = OrderedDict( {
             "id" : OrderedDict( {
                "chip" : serdesCore,
-               "lane" : lane
+               "lane" : firstSerdesCoreLane+lane
             } )
          } )
          xcvrMapping = OrderedDict( {
             "id" : OrderedDict( {
                "chip" : frontPanelPort,
-               "lane" : lane
+               "lane" : firstFrontPanelLane+lane
             } )
          } )
          templateSuppProfiles[ suppProfile ][ "pins" ][ "iphy" ].append(
@@ -111,10 +112,12 @@ def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
                xcvrMapping )
    return portMapping
 
-def getFabricPortMapping( portId, serdesCore, frontPanelPort, firstLane,
-                          supportedProfiles=None ):
+def getFabricPortMapping( portId, serdesCore, frontPanelPort, firstSerdesCoreLane,
+                          firstFrontPanelLane, supportedProfiles=None ):
    portMapping = getBasePortMapping( portId=portId, serdesCore=serdesCore,
-         frontPanelPort=frontPanelPort, numLanes=1, firstLane=firstLane,
+         frontPanelPort=frontPanelPort, numLanes=1,
+         firstSerdesCoreLane=firstSerdesCoreLane,
+         firstFrontPanelLane=firstFrontPanelLane,
          supportedProfiles=supportedProfiles, portType=1 )
    del portMapping[ "mapping" ][ "attachedCoreId" ]
    return portMapping
@@ -142,6 +145,7 @@ for portId in range( numFabricPorts ):
    portStr = str( portId )
    frontPanelSlot = ( ( portId ) // 8 ) + 1
    assert str( frontPanelSlot ) == frontPanelInfo[ 3 ]
+   serdesCoreLane = int( frontPanelInfo[ 11 ] )
    frontPanelLane = ( portId % 8 )
    assert str( frontPanelLane + 1 ) == frontPanelInfo[ 4 ]
    if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
@@ -151,7 +155,8 @@ for portId in range( numFabricPorts ):
    serdesCore = f"BC{serdesCore}"
    frontPanelPort = f"fab1/{frontPanelSlot}"
    portMapping = getFabricPortMapping( portId=portId, serdesCore=serdesCore,
-         frontPanelPort=frontPanelPort, firstLane=frontPanelLane,
+         frontPanelPort=frontPanelPort, firstFrontPanelLane=frontPanelLane,
+         firstSerdesCoreLane=serdesCoreLane,
          supportedProfiles=supportedProfiles )
    platMapping[ 'ports' ][ portStr ] = portMapping
    if debug:
