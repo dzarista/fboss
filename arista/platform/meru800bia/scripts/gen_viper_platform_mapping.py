@@ -209,6 +209,11 @@ platMapping[ "ports" ] = OrderedDict( {
    "1" : getRecyclePortMapping( 1 )
    } )
 
+supportedProfilesByPortType = {
+      'eth' :  [ '24', '38', '39', ],
+      'fab' :  [ '36', '37', '41', '42'],
+}
+
 # Append nif ports.
 for port in range( nifPortBase, nifPortBase + numNifPorts ):
    portStr = str( port )
@@ -216,7 +221,7 @@ for port in range( nifPortBase, nifPortBase + numNifPorts ):
    portOctet = port - nifPortBase
    if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
       continue
-   supportedProfiles = [ '24', '38', '39', ]
+   supportedProfiles = supportedProfilesByPortType[ 'eth' ]
    serdesCore = f"BC{portOctet}"
    coreId, frontPanelSlot = nifSerdesCoreToCoreAndFrontPanelSlot[ portOctet ]
    frontPanelPort = f"eth1/{frontPanelSlot}"
@@ -236,7 +241,7 @@ for port in range( fabricPortBase, fabricPortBase + numFabricPorts ):
    portLane = ( port % 8 )
    if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
       continue
-   supportedProfiles = [ '36', '37', '41', '42']
+   supportedProfiles = supportedProfilesByPortType[ 'fab' ]
    serdesCore = f"BC{portOctet}"
    frontPanelSlot = fabSerdesCoreToFrontPanelSlot[ portOctet ]
    frontPanelPort = f"fab1/{frontPanelSlot}"
@@ -314,3 +319,80 @@ for profileID in ( 11, 24, 36, 37, 38, 39 ):
 json_out = json.dumps( platMapping, indent=2, sort_keys=False )
 with open( "viper_platform_mapping.json", "w") as fh:
    fh.write( json_out )
+
+nifFrontPanelSlotToJ3CoreAndSerdesCore = {}
+with open( "viper_static_mapping.csv", "w" ) as fh:
+   # Description of attributes for front panel serdes in the order of their
+   # occurence.
+   # A_SLOT_ID : Linecard slot Id, 1 for fixed systems
+   # A_CHIP_ID : ASIC id on the system slot, Viper only has one J3, so always 1
+   # A_CHIP_TYPE : NPU
+   # A_CORE_ID : ASIC serdes core ID
+   # A_CORE_TYPE : ASIC serdes core type, FE/NIF
+   # A_CORE_LANE : 0,numLanes - numLanes per core is 8 on J3, so this value
+   # goes from 0,7.
+   # A_PHYSICAL_TX_LANE : Physical tx trace corresponding to serdes core lane.
+   # A_PHYSICAL_RX_LANE : Physical rx trace corresponding to serdes core lane.
+   # A_TX_POLARITY_SWAP : bool, is polarity swapped for tx trace.
+   # A_RX_POLARITY_SWAP : bool, is polarity swapped for rx trace.
+   # Z_SLOT_ID : Transceiver system slot Id, 1 for fixed systems.
+   # Z_CHIP_ID : Transceiver front panel slot Id.
+   # Z_CHIP_TYPE : TRANSCEIVER
+   # Z_CORE_ID : Always 0, since we don't have external PHYs or cores within a
+   # single XCVR slot.
+   # Z_CORE_TYPE : OSFP for Viper/Whistler
+   # Z_CORE_LANE : 0-7, lane within the XCVR slot.
+   # Z_PHYSICAL_TX_LANE : Physical tx trace corresponding to XCVR lane.
+   # Z_PHYSICAL_RX_LANE : Physical rx trace corresponding to XCVR lane.
+   # Z_TX_POLARITY_SWAP : bool, is polarity swapped for tx trace.
+   # Z_RX_POLARITY_SWAP : bool, is polarity swapped for rx trace.
+
+   # Special entry for recycle port, which is attached to J3 with a special serdes
+   # core Id 55 (this serdes core Id is derived from a reverse calculation of the bcm
+   # soc property for recycle port base).
+   fh.write( "1,1,NPU,55,J3_RCY,0,,,,,,,,,,,,,,\n" )
+   for serdesCore in nifSerdesCoreToCoreAndFrontPanelSlot.keys():
+      frontPanelSlot = nifSerdesCoreToCoreAndFrontPanelSlot[ serdesCore ][ 1 ]
+      nifFrontPanelSlotToJ3CoreAndSerdesCore[ int( frontPanelSlot ) ] = \
+            ( nifSerdesCoreToCoreAndFrontPanelSlot[ serdesCore ][ 0 ], serdesCore )
+      for lane in range( 8 ):
+         fh.write(
+               f"1,1,NPU,{serdesCore},J3_NIF,{lane},{lane},{lane},N,N,1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
+               )
+   for serdesCore,frontPanelSlot in fabSerdesCoreToFrontPanelSlot.items():
+      for lane in range( 8 ):
+         fh.write(
+               f"1,1,NPU,{serdesCore},J3_FE,{lane},{lane},{lane},N,N,1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
+               )
+
+with open( "viper_port_profile_mapping.csv", "w" ) as fh:
+   # Recycle port is a special port with port id 1, it is given internal serdes core
+   # ID 55.
+   fh.write("1,rcy1/1/55,11,0,1\n")
+   # CPU port is 0, RCY port is 1, NIF ports start from logical port Id 2.
+   # Fabric ports start from logical port Id 1024.
+   nifLogicalPortIdBase = 2
+   fabLogicalPortId = 1024
+   fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ] )
+   nifSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'eth' ] )
+   for port in range( numFrontPanelPorts ):
+      frontPanelSlot = port+1
+      frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
+      portStrPrefix = f"{frontPanelPortType}1/{frontPanelSlot}"
+      if frontPanelPortType == "fab":
+         for subPort in range( 1,9 ):
+            portStr = f"{portStrPrefix}/{subPort}"
+            fh.write( f"{fabLogicalPortId},{portStr},{fabSupportedProfiles},,\n" )
+            fabLogicalPortId += 1
+      elif frontPanelPortType == "eth":
+         portStr = f"{portStrPrefix}/1"
+         # fapPortId
+         attachedCoreId, serdesCoreId = nifFrontPanelSlotToJ3CoreAndSerdesCore[ frontPanelSlot ]
+         nifLogicalPortId = nifLogicalPortIdBase + serdesCoreId
+         attachedCorePortId = nifLogicalPortId
+         assert nifLogicalPortId - nifLogicalPortIdBase < numNifPorts
+         fh.write(
+               f"{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
+         nifLogicalPortId += 1
+      else:
+         assert False, "Invalid frontPanelPortType"
