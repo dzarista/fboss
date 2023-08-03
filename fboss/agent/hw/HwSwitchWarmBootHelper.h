@@ -43,8 +43,16 @@ class HwSwitchWarmBootHelper {
   bool storeWarmBootState(
       const folly::dynamic& switchState,
       const state::WarmbootState& switchStateThrift);
+
+  bool storeSwSwitchWarmBootState(
+      const state::WarmbootState& switchStateThrift);
+  bool storeHwSwitchWarmBootState(const folly::dynamic& switchState);
+
   std::tuple<folly::dynamic, std::optional<state::WarmbootState>>
   getWarmBootState() const;
+
+  state::WarmbootState getSwSwitchWarmBootState() const;
+  folly::dynamic getHwSwitchWarmBootState() const;
 
   std::string startupSdkDumpFile() const;
   std::string shutdownSdkDumpFile() const;
@@ -69,7 +77,8 @@ class HwSwitchWarmBootHelper {
 
   std::string warmBootFlag() const;
   std::string forceColdBootOnceFlag() const;
-  std::string warmBootFollySwitchStateFile() const;
+  std::string warmBootHwSwitchStateFile_DEPRECATED() const;
+  std::string warmBootHwSwitchStateFile() const;
   std::string warmBootThriftSwitchStateFile() const;
 
   void setupWarmBootFile();
@@ -85,6 +94,8 @@ class HwSwitchWarmBootHelper {
    * or not the user wishes for another cold boot.
    */
   bool checkAndClearWarmBootFlags();
+
+  folly::dynamic getHwSwitchWarmBootState(const std::string& fileName) const;
 
   int switchId_{-1};
   std::string warmBootDir_;

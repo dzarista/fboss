@@ -6,6 +6,7 @@
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/Utils.h"
 
+#include "fboss/agent/CommonInit.h"
 #include "fboss/agent/EncapIndexAllocator.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -18,13 +19,6 @@ DEFINE_bool(
     "tests doing a full process warmboot and verifying expectations");
 
 namespace {
-void initFlagDefaults(const std::map<std::string, std::string>& defaults) {
-  for (auto item : defaults) {
-    gflags::SetCommandLineOptionWithMode(
-        item.first.c_str(), item.second.c_str(), gflags::SET_FLAGS_DEFAULT);
-  }
-}
-
 int kArgc;
 char** kArgv;
 facebook::fboss::PlatformInitFn kPlatformInitFn;
@@ -58,8 +52,10 @@ void AgentEnsemble::setupEnsemble(
     // creating a switch
     writeConfig(agentConf, FLAGS_config);
   }
+  setVersionInfo();
+  auto config = fbossCommonInit(argc, argv);
   auto* initializer = agentInitializer();
-  initializer->createSwitch(argc, argv, hwFeaturesDesired, initPlatform);
+  initializer->createSwitch(std::move(config), hwFeaturesDesired, initPlatform);
 
   utility::setPortToDefaultProfileIDMap(
       std::make_shared<MultiSwitchPortMap>(), getPlatform());
@@ -98,8 +94,7 @@ void AgentEnsemble::startAgent() {
 
 void AgentEnsemble::writeConfig(const cfg::SwitchConfig& config) {
   auto* initializer = agentInitializer();
-  auto agentConfig =
-      initializer->sw()->getPlatform_DEPRECATED()->config()->thrift;
+  auto agentConfig = initializer->platform()->config()->thrift;
   agentConfig.sw() = config;
   writeConfig(agentConfig);
 }
@@ -107,8 +102,7 @@ void AgentEnsemble::writeConfig(const cfg::SwitchConfig& config) {
 void AgentEnsemble::writeConfig(const cfg::AgentConfig& agentConfig) {
   auto* initializer = agentInitializer();
   auto testConfigDir =
-      initializer->sw()->getPlatform_DEPRECATED()->getPersistentStateDir() +
-      "/agent_ensemble/";
+      initializer->platform()->getPersistentStateDir() + "/agent_ensemble/";
   utilCreateDir(testConfigDir);
   auto fileName = testConfigDir + configFile_;
   writeConfig(agentConfig, fileName);
@@ -280,5 +274,15 @@ std::map<PortID, HwPortStats> AgentEnsemble::getLatestPortStats(
 
 HwPortStats AgentEnsemble::getLatestPortStats(const PortID& port) {
   return getLatestPortStats(std::vector<PortID>{port})[port];
+}
+
+void AgentEnsemble::registerStateObserver(
+    StateObserver* observer,
+    const std::string& name) {
+  getSw()->registerStateObserver(observer, name);
+}
+
+void AgentEnsemble::unregisterStateObserver(StateObserver* observer) {
+  getSw()->unregisterStateObserver(observer);
 }
 } // namespace facebook::fboss

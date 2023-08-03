@@ -114,8 +114,7 @@ class MultiNodeLoadBalancerTest : public MultiNodeTest {
         true /*interfaceHasSubnet*/,
         false /*setInterfaceMac*/);
     config.loadBalancers()->push_back(
-        facebook::fboss::utility::getEcmpFullHashConfig(
-            sw()->getPlatform_DEPRECATED()));
+        facebook::fboss::utility::getEcmpFullHashConfig(platform()));
     return config;
   }
 };
@@ -127,7 +126,7 @@ TEST_F(MultiNodeLoadBalancerTest, verifyFullHashLoadBalance) {
     auto localMac = state->getInterfaces()->getInterfaceInVlan(vlan)->getMac();
     for (auto isV6 : {true, false}) {
       facebook::fboss::utility::pumpTraffic(
-          isV6, sw()->getHw_DEPRECATED(), localMac, vlan);
+          isV6, platform()->getHwSwitch(), localMac, vlan);
     }
     // Let all packets get through
     sleep(5);

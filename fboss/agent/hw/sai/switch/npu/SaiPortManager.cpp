@@ -71,11 +71,16 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
           SAI_PORT_STAT_IF_OUT_DISCARDS,
           SAI_PORT_STAT_IF_OUT_ERRORS,
           SAI_PORT_STAT_PAUSE_TX_PKTS,
+          SAI_PORT_STAT_ECN_MARKED_PACKETS,
       };
       if (platform_->getAsic()->isSupported(
               HwAsic::Feature::SAI_PORT_ETHER_STATS)) {
         counterIds.emplace_back(SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS);
         counterIds.emplace_back(SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS);
+      }
+      if (platform_->getAsic()->isSupported(HwAsic::Feature::DEBUG_COUNTER)) {
+        counterIds.emplace_back(managerTable_->debugCounterManager()
+                                    .getPortL3BlackHoleCounterStatId());
       }
       counterIds.reserve(
           counterIds.size() + SaiPortTraits::PfcCounterIdsToRead.size());
@@ -440,9 +445,21 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
     interFrameGap = *portProfileConfig.interPacketGapBits();
   }
 #endif
+  std::optional<SaiPortTraits::Attributes::LinkTrainingEnable>
+      linkTrainingEnable;
+  if (platform_->getAsic()->isSupported(HwAsic::Feature::LINK_TRAINING)) {
+    linkTrainingEnable = false;
+  }
   auto ptpStatusOpt = managerTable_->switchManager().getPtpTcEnabled();
   uint16_t vlanId = swPort->getIngressVlan();
   auto systemPortId = getSystemPortId(platform_, swPort->getID());
+
+  // Skip setting MTU for fabric ports if not supported
+  std::optional<SaiPortTraits::Attributes::Mtu> mtu{};
+  if (swPort->getPortType() != cfg::PortType::FABRIC_PORT ||
+      platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORT_MTU)) {
+    mtu = swPort->getMaxFrameSize();
+  }
   return SaiPortTraits::CreateAttributes {
     hwLaneList, static_cast<uint32_t>(speed), adminState, fecMode,
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
@@ -456,8 +473,8 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
 #else
         internalLoopbackMode,
 #endif
-        mediaType, globalFlowControlMode, vlanId, swPort->getMaxFrameSize(),
-        std::nullopt, std::nullopt, std::nullopt, interfaceType, std::nullopt,
+        mediaType, globalFlowControlMode, vlanId, mtu, std::nullopt,
+        std::nullopt, std::nullopt, interfaceType, std::nullopt,
         std::nullopt, // Ingress Mirror Session
         std::nullopt, // Egress Mirror Session
         std::nullopt, // Ingress Sample Packet
@@ -479,7 +496,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
 #if SAI_API_VERSION >= SAI_VERSION(1, 9, 0)
         interFrameGap, // Inter Frame Gap
 #endif
-        std::nullopt, // Link Training Enable
+        linkTrainingEnable,
         std::nullopt, // Rx Lane Squelch Enable
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
         std::nullopt, // PFC Deadlock Detection Interval
@@ -585,7 +602,10 @@ void SaiPortManager::programSerdes(
     !defined(SAI_VERSION_8_2_0_0_SIM_ODP) &&                                  \
     !defined(SAI_VERSION_9_0_EA_SIM_ODP) &&                                   \
     !defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) &&                              \
-    !defined(SAI_VERSION_9_2_0_0_ODP) && !defined(SAI_VERSION_10_0_EA_DNX_ODP)
+    !defined(SAI_VERSION_9_2_0_0_ODP) &&                                      \
+    !defined(SAI_VERSION_10_0_EA_DNX_ODP) &&                                  \
+    !defined(SAI_VERSION_10_0_EA_ODP) && !defined(SAI_VERSION_10_0_EA_SIM_ODP)
+
     // serdes is not yet programmed or reloaded from adapter
     std::optional<SaiPortTraits::Attributes::SerdesId> serdesAttr{};
     auto serdesId = SaiApiTable::getInstance()->portApi().getAttribute(
@@ -656,7 +676,12 @@ void SaiPortManager::programSerdes(
   // create if serdes doesn't exist or update existing serdes
   portHandle->serdes = store.setObject(serdesKey, serdesAttributes);
 
-  if (platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_GARONNE) {
+  // TODO(daiweix): Remove the TH5 from the port toggle workaround after SDK
+  // 6.5.29 integration. The new Serdes firmware should take care of Serdes
+  // init issue
+  if (platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_GARONNE ||
+      platform_->getAsic()->getAsicType() ==
+          cfg::AsicType::ASIC_TYPE_TOMAHAWK5) {
     /*
      * SI settings are not programmed to the hardware when the port is
      * created with admin UP. We need to explicitly toggle the admin

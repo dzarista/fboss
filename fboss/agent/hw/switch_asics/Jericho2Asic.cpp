@@ -78,12 +78,14 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::QUEUE_PRIORITY_LOWER_VAL_IS_HIGH_PRI:
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
+    case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
+    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
+    case HwAsic::Feature::DEBUG_COUNTER:
       return true;
 
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS:
     case HwAsic::Feature::SAI_LAG_HASH:
-
     case HwAsic::Feature::QOS_MAP_GLOBAL:
     case HwAsic::Feature::QCM:
     case HwAsic::Feature::SMAC_EQUALS_DMAC_CHECK_ENABLED:
@@ -119,7 +121,6 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     // is created (or supported for now).
     case HwAsic::Feature::BRIDGE_PORT_8021Q:
     // TODO - get the features working on Jericho2 ASIC
-    case HwAsic::Feature::DEBUG_COUNTER:
     case HwAsic::Feature::FABRIC_PORT_MTU:
     case HwAsic::Feature::EXTENDED_FEC:
     case HwAsic::Feature::SAI_RX_REASON_COUNTER:
@@ -141,6 +142,10 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::INGRESS_PRIORITY_GROUP_HEADROOM_WATERMARK:
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
     case HwAsic::Feature::SLOW_STAT_UPDATE:
+    case HwAsic::Feature::VOQ_DELETE_COUNTER:
+    case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
+    case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
+    case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
       return false;
   }
   return false;

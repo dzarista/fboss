@@ -17,9 +17,9 @@
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/FbossHwUpdateError.h"
 #include "fboss/agent/FibHelpers.h"
+#include "fboss/agent/Utils.h"
 
 #include "fboss/agent/HwAsicTable.h"
-#include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/IPv4Handler.h"
 #include "fboss/agent/IPv6Handler.h"
 #include "fboss/agent/L2Entry.h"
@@ -42,11 +42,11 @@
 #include "fboss/agent/MacTableManager.h"
 #include "fboss/agent/MirrorManager.h"
 #include "fboss/agent/MultiHwSwitchSyncer.h"
+#include "fboss/agent/MultiSwitchPacketStreamMap.h"
 #include "fboss/agent/NeighborUpdater.h"
 #include "fboss/agent/PacketLogger.h"
 #include "fboss/agent/PacketObserver.h"
 #include "fboss/agent/PhySnapshotManager-defs.h"
-#include "fboss/agent/Platform.h"
 #include "fboss/agent/PortStats.h"
 #include "fboss/agent/PortUpdateHandler.h"
 #include "fboss/agent/ResolvedNexthopMonitor.h"
@@ -207,9 +207,9 @@ auto constexpr kHwUpdateFailures = "hw_update_failures";
 
 namespace facebook::fboss {
 
-SwSwitch::SwSwitch(std::unique_ptr<Platform> platform)
-    : hw_(platform->getHwSwitch()),
-      platform_(std::move(platform)),
+SwSwitch::SwSwitch(std::unique_ptr<HwSwitchHandler> hwSwitchHandler)
+    : hwSwitchHandler_(std::move(hwSwitchHandler)),
+      platformData_(hwSwitchHandler_->getPlatformData()),
       platformProductInfo_(
           std::make_unique<PlatformProductInfo>(FLAGS_fruid_filepath)),
       pktObservers_(new PacketObservers()),
@@ -218,7 +218,7 @@ SwSwitch::SwSwitch(std::unique_ptr<Platform> platform)
       ipv6_(new IPv6Handler(this)),
       nUpdater_(new NeighborUpdater(this)),
       pcapMgr_(new PktCaptureManager(
-          getPlatform_DEPRECATED()->getPersistentStateDir(),
+          platformData_.persistentStateDir,
           pktObservers_.get())),
       mirrorManager_(new MirrorManager(this)),
       mplsHandler_(new MPLSHandler(this)),
@@ -240,11 +240,12 @@ SwSwitch::SwSwitch(std::unique_ptr<Platform> platform)
       hwAsicTable_(new HwAsicTable(getSwitchInfoFromConfig())),
       scopeResolver_(new SwitchIdScopeResolver(getSwitchInfoFromConfig())),
       multiHwSwitchSyncer_(nullptr),
-      switchStatsObserver_(new SwitchStatsObserver(this)) {
+      switchStatsObserver_(new SwitchStatsObserver(this)),
+      packetStreamMap_(new MultiSwitchPacketStreamMap()) {
   // Create the platform-specific state directories if they
   // don't exist already.
-  utilCreateDir(getPlatform_DEPRECATED()->getVolatileStateDir());
-  utilCreateDir(getPlatform_DEPRECATED()->getPersistentStateDir());
+  utilCreateDir(platformData_.volatileStateDir);
+  utilCreateDir(platformData_.persistentStateDir);
   try {
     platformProductInfo_->initialize();
     platformMapping_ =
@@ -256,10 +257,10 @@ SwSwitch::SwSwitch(std::unique_ptr<Platform> platform)
 }
 
 SwSwitch::SwSwitch(
-    std::unique_ptr<Platform> platform,
+    std::unique_ptr<HwSwitchHandler> hwSwitchHandler,
     std::unique_ptr<PlatformMapping> platformMapping,
     cfg::SwitchConfig* config)
-    : SwSwitch(std::move(platform)) {
+    : SwSwitch(std::move(hwSwitchHandler)) {
   platformMapping_ = std::move(platformMapping);
   if (config) {
     switchInfoTable_ = SwitchInfoTable(getSwitchInfoFromConfig(config));
@@ -306,7 +307,7 @@ void SwSwitch::stop(bool revertToMinAlpmState) {
   // First tell the hw to stop sending us events by unregistering the callback
   // After this we should no longer receive packets or link state changed events
   // while we are destroying ourselves
-  hw_->unregisterCallbacks();
+  hwSwitchHandler_->unregisterCallbacks();
 
   // Stop tunMgr so we don't get any packets to process
   // in software that were sent to the switch ip or were
@@ -383,7 +384,7 @@ void SwSwitch::stop(bool revertToMinAlpmState) {
   // blow away all routes except the min required for ALPM,
   // so as to properly destroy hw switch. This is part of
   // exit logic, but updateStateBlocking() won't work in EXITING
-  // state. Thus, directly calling underlying hw_->stateChanged()
+  // state. Thus, directly calling underlying getHw_DEPRECATED()->stateChanged()
   if (revertToMinAlpmState) {
     XLOG(DBG3) << "setup min ALPM state";
     stateChanged(
@@ -488,7 +489,7 @@ void SwSwitch::gracefulExit() {
                       switchStateToFollyDone - stopThreadsAndHandlersDone)
                       .count();
     // Cleanup if we ever initialized
-    hw_->gracefulExit(follySwitchState, thriftSwitchState);
+    hwSwitchHandler_->gracefulExit(follySwitchState, thriftSwitchState);
     XLOG(DBG2)
         << "[Exit] SwSwitch Graceful Exit time "
         << duration_cast<duration<float>>(steady_clock::now() - begin).count();
@@ -496,7 +497,8 @@ void SwSwitch::gracefulExit() {
 }
 
 void SwSwitch::getProductInfo(ProductInfo& productInfo) const {
-  getPlatform_DEPRECATED()->getProductInfo(productInfo);
+  CHECK(platformProductInfo_);
+  platformProductInfo_->getInfo(productInfo);
 }
 
 void SwSwitch::publishPhyInfoSnapshots(PortID portID) const {
@@ -514,11 +516,11 @@ void SwSwitch::updateLldpStats() {
 
 void SwSwitch::publishStatsToFsdb() {
   AgentStats agentStats;
-  agentStats.hwPortStats() = getHw_DEPRECATED()->getPortStats();
-  agentStats.sysPortStats() = getHw_DEPRECATED()->getSysPortStats();
+  agentStats.hwPortStats() = hwSwitchHandler_->getPortStats();
+  agentStats.sysPortStats() = hwSwitchHandler_->getSysPortStats();
 
   agentStats.hwAsicErrors() =
-      getHw_DEPRECATED()->getSwitchStats()->getHwAsicErrors();
+      hwSwitchHandler_->getSwitchStats()->getHwAsicErrors();
   agentStats.teFlowStats() = getTeFlowStats();
   stats()->fillAgentStats(agentStats);
   agentStats.bufferPoolStats() = getBufferPoolStats();
@@ -546,7 +548,7 @@ void SwSwitch::updateStats() {
   updateLldpStats();
   updateTeFlowStats();
   try {
-    getHw_DEPRECATED()->updateStats(stats());
+    hwSwitchHandler_->updateStats(stats());
   } catch (const std::exception& ex) {
     stats()->updateStatsException();
     XLOG(ERR) << "Error running updateStats: " << folly::exceptionStr(ex);
@@ -557,8 +559,7 @@ void SwSwitch::updateStats() {
   if (now - phyInfoUpdateTime_ >= FLAGS_update_phy_info_interval_s) {
     phyInfoUpdateTime_ = now;
     try {
-      phySnapshotManager_->updatePhyInfos(
-          getHw_DEPRECATED()->updateAllPhyInfo());
+      phySnapshotManager_->updatePhyInfos(hwSwitchHandler_->updateAllPhyInfo());
     } catch (const std::exception& ex) {
       stats()->updateStatsException();
       XLOG(ERR) << "Error running updatePhyInfos: " << folly::exceptionStr(ex);
@@ -595,7 +596,7 @@ TeFlowStats SwSwitch::getTeFlowStats() {
 
 HwBufferPoolStats SwSwitch::getBufferPoolStats() const {
   HwBufferPoolStats stats;
-  stats.deviceWatermarkBytes() = getHw_DEPRECATED()->getDeviceWatermarkBytes();
+  stats.deviceWatermarkBytes() = hwSwitchHandler_->getDeviceWatermarkBytes();
   return stats;
 }
 
@@ -618,19 +619,17 @@ void SwSwitch::invokeNeighborListener(
 }
 
 bool SwSwitch::getAndClearNeighborHit(RouterID vrf, folly::IPAddress ip) {
-  return hw_->getAndClearNeighborHit(vrf, ip);
+  return hwSwitchHandler_->getAndClearNeighborHit(vrf, ip);
 }
 
 void SwSwitch::exitFatal() const noexcept {
   folly::dynamic switchState = folly::dynamic::object;
-  switchState[kHwSwitch] = hw_->toFollyDynamic();
+  switchState[kHwSwitch] = hwSwitchHandler_->toFollyDynamic();
   state::WarmbootState thriftSwitchState;
   *thriftSwitchState.swSwitchState() = getAppliedState()->toThrift();
-  if (!dumpStateToFile(
-          getPlatform_DEPRECATED()->getCrashSwitchStateFile(), switchState) ||
+  if (!dumpStateToFile(platformData_.crashSwitchStateFile, switchState) ||
       !dumpBinaryThriftToFile(
-          getPlatform_DEPRECATED()->getCrashThriftSwitchStateFile(),
-          thriftSwitchState)) {
+          platformData_.crashThriftSwitchStateFile, thriftSwitchState)) {
     XLOG(ERR) << "Unable to write switch state JSON or Thrift to file";
   }
 }
@@ -662,16 +661,13 @@ void SwSwitch::publishTxPacket(TxPacket* pkt, uint16_t ethertype) {
 void SwSwitch::init(
     HwSwitchCallback* callback,
     std::unique_ptr<TunManager> tunMgr,
+    HwSwitchInitFn hwSwitchInitFn,
     SwitchFlags flags) {
   auto begin = steady_clock::now();
   flags_ = flags;
-  auto hwInitRet = hw_->init(
-      callback,
-      false /*failHwCallsOnWarmboot*/,
-      getPlatform_DEPRECATED()->getAsic()->getSwitchType(),
-      getPlatform_DEPRECATED()->getAsic()->getSwitchId());
+  auto hwInitRet = hwSwitchInitFn(callback, false /*failHwCallsOnWarmboot*/);
   multiHwSwitchSyncer_ = std::make_unique<MultiHwSwitchSyncer>(
-      hw_, switchInfoTable_.getSwitchIdToSwitchInfo());
+      getHwSwitchHandler(), switchInfoTable_.getSwitchIdToSwitchInfo());
   auto initialState = hwInitRet.switchState;
   bootType_ = hwInitRet.bootType;
   rib_ = std::move(hwInitRet.rib);
@@ -681,8 +677,7 @@ void SwSwitch::init(
              << " seconds; applying initial config";
 
   restart_time::init(
-      getPlatform_DEPRECATED()->getWarmBootDir(),
-      bootType_ == BootType::WARM_BOOT);
+      platformData_.warmBootDir, bootType_ == BootType::WARM_BOOT);
 
   // Store the initial state
   initialState->publish();
@@ -705,7 +700,7 @@ void SwSwitch::init(
     }
     tunMgr_->probe();
   }
-  getPlatform_DEPRECATED()->onHwInitialized(this);
+  hwSwitchHandler_->onHwInitialized(this);
 
   // Notify the state observers of the initial state
   updateEventBase_.runInEventBaseThread([initialState, this]() {
@@ -810,13 +805,16 @@ void SwSwitch::init(
   }
 }
 
-void SwSwitch::init(std::unique_ptr<TunManager> tunMgr, SwitchFlags flags) {
-  this->init(this, std::move(tunMgr), flags);
+void SwSwitch::init(
+    std::unique_ptr<TunManager> tunMgr,
+    HwSwitchInitFn hwSwitchInitFn,
+    SwitchFlags flags) {
+  this->init(this, std::move(tunMgr), hwSwitchInitFn, flags);
 }
 
 void SwSwitch::initialConfigApplied(const steady_clock::time_point& startTime) {
   // notify the hw
-  getPlatform_DEPRECATED()->onInitialConfigApplied(this);
+  hwSwitchHandler_->onInitialConfigApplied(this);
   setSwitchRunState(SwitchRunState::CONFIGURED);
 
   if (tunMgr_) {
@@ -878,7 +876,7 @@ void SwSwitch::stopLoggingRouteUpdates(const std::string& identifier) {
 
 void SwSwitch::registerStateObserver(
     StateObserver* observer,
-    const string name) {
+    const string& name) {
   XLOG(DBG2) << "Registering state observer: " << name;
   updateEventBase_.runImmediatelyOrRunInEventBaseThreadAndWait(
       [=]() { addStateObserver(observer, name); });
@@ -1094,7 +1092,7 @@ void SwSwitch::handlePendingUpdates() {
   // Now apply the update and notify subscribers
   if (newDesiredState != oldAppliedState) {
     auto isTransaction = updates.begin()->hwFailureProtected() &&
-        getHw_DEPRECATED()->transactionsSupported();
+        hwSwitchHandler_->transactionsSupported();
     // There was some change during these state updates
     newAppliedState =
         applyUpdate(oldAppliedState, newDesiredState, isTransaction);
@@ -1211,7 +1209,7 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
     // Another thing we could try here is rolling back to the old state.
     XLOG(ERR) << "error applying state change to hardware: "
               << folly::exceptionStr(ex);
-    hw_->exitFatal();
+    hwSwitchHandler_->exitFatal();
 
     dumpBadStateUpdate(oldState, newState);
     XLOG(FATAL) << "encountered a fatal error: " << folly::exceptionStr(ex);
@@ -1236,18 +1234,18 @@ void SwSwitch::dumpBadStateUpdate(
     const std::shared_ptr<SwitchState>& newState) const {
   // dump the previous state and target state to understand what led to the
   // crash
-  utilCreateDir(getPlatform_DEPRECATED()->getCrashBadStateUpdateDir());
+  utilCreateDir(platformData_.crashBadStateUpdateDir);
   if (!dumpBinaryThriftToFile(
-          getPlatform_DEPRECATED()->getCrashBadStateUpdateOldStateFile(),
+          platformData_.crashBadStateUpdateOldStateFile,
           oldState->toThrift())) {
     XLOG(ERR) << "Unable to write old switch state thrift to "
-              << getPlatform_DEPRECATED()->getCrashBadStateUpdateOldStateFile();
+              << platformData_.crashBadStateUpdateOldStateFile;
   }
   if (!dumpBinaryThriftToFile(
-          getPlatform_DEPRECATED()->getCrashBadStateUpdateNewStateFile(),
+          platformData_.crashBadStateUpdateNewStateFile,
           newState->toThrift())) {
     XLOG(ERR) << "Unable to write new switch state thrift to "
-              << getPlatform_DEPRECATED()->getCrashBadStateUpdateNewStateFile();
+              << platformData_.crashBadStateUpdateNewStateFile;
   }
 }
 
@@ -1609,7 +1607,7 @@ void SwSwitch::stopThreads() {
     }
   } while (!updatesDrained);
 
-  getPlatform_DEPRECATED()->stop();
+  hwSwitchHandler_->platformStop();
 }
 
 void SwSwitch::threadLoop(StringPiece name, EventBase* eventBase) {
@@ -1624,14 +1622,14 @@ uint32_t SwSwitch::getEthernetHeaderSize() const {
 }
 
 std::unique_ptr<TxPacket> SwSwitch::allocatePacket(uint32_t size) {
-  return hw_->allocatePacket(size);
+  return hwSwitchHandler_->allocatePacket(size);
 }
 
 std::unique_ptr<TxPacket> SwSwitch::allocateL3TxPacket(uint32_t l3Len) {
   const uint32_t l2Len = getEthernetHeaderSize();
   const uint32_t minLen = 68;
   auto len = std::max(l2Len + l3Len, minLen);
-  auto pkt = hw_->allocatePacket(len);
+  auto pkt = hwSwitchHandler_->allocatePacket(len);
   auto buf = pkt->buf();
   // make sure the whole buffer is available
   buf->clear();
@@ -1691,7 +1689,8 @@ void SwSwitch::sendPacketOutOfPortAsync(
     ethertype = c.readBE<uint16_t>();
   }
 
-  if (!hw_->sendPacketOutOfPortAsync(std::move(pkt), portID, queue)) {
+  if (!hwSwitchHandler_->sendPacketOutOfPortAsync(
+          std::move(pkt), portID, queue)) {
     // Just log an error for now.  There's not much the caller can do about
     // send failures--even on successful return from sendPacket*() the
     // send may ultimately fail since it occurs asynchronously in the
@@ -1742,9 +1741,31 @@ void SwSwitch::sendPacketOutOfPortAsync(
              << ": aggregate port has no enabled physical ports";
 }
 
+void SwSwitch::sendPacketOutViaThriftStream(
+    std::unique_ptr<TxPacket> pkt,
+    SwitchID switchId,
+    std::optional<PortID> portID,
+    std::optional<uint8_t> queue) noexcept {
+  multiswitch::TxPacket txPacket;
+  if (portID) {
+    txPacket.port() = portID.value();
+  }
+  if (queue) {
+    txPacket.queue() = queue.value();
+  }
+  txPacket.data() = Packet::extractIOBuf(std::move(pkt));
+  try {
+    getPacketStreamMap()->getStream(switchId).next(std::move(txPacket));
+  } catch (const std::exception& e) {
+    stats()->pktDropped();
+    XLOG(DBG2) << "Error sending packet via thrift stream to switch "
+               << switchId;
+  }
+}
+
 void SwSwitch::sendPacketSwitchedAsync(std::unique_ptr<TxPacket> pkt) noexcept {
   pcapMgr_->packetSent(pkt.get());
-  if (!hw_->sendPacketSwitchedAsync(std::move(pkt))) {
+  if (!hwSwitchHandler_->sendPacketSwitchedAsync(std::move(pkt))) {
     // Just log an error for now.  There's not much the caller can do about
     // send failures--even on successful return from sendPacketSwitchedAsync()
     // the send may ultimately fail since it occurs asynchronously in the
@@ -1947,11 +1968,11 @@ bool SwSwitch::sendPacketToHost(
 }
 
 void SwSwitch::applyConfig(const std::string& reason, bool reload) {
-  auto target = reload ? getPlatform_DEPRECATED()->reloadConfig()
-                       : getPlatform_DEPRECATED()->config();
+  auto target =
+      reload ? hwSwitchHandler_->reloadConfig() : hwSwitchHandler_->config();
   const auto& newConfig = *target->thrift.sw();
   applyConfig(reason, newConfig);
-  target->dumpConfig(getPlatform_DEPRECATED()->getRunningConfigDumpFile());
+  target->dumpConfig(platformData_.runningConfigDumpFile);
 }
 
 void SwSwitch::applyConfig(
@@ -1964,23 +1985,22 @@ void SwSwitch::applyConfig(
       reason,
       [&](const shared_ptr<SwitchState>& state) -> shared_ptr<SwitchState> {
         auto originalState = state;
-        auto newState = rib_
-            ? applyThriftConfig(
-                  originalState,
-                  &newConfig,
-                  getPlatform_DEPRECATED()->supportsAddRemovePort(),
-                  platformMapping_.get(),
-                  hwAsicTable_.get(),
-                  &routeUpdater,
-                  aclNexthopHandler_.get())
-            : applyThriftConfig(
-                  originalState,
-                  &newConfig,
-                  getPlatform_DEPRECATED()->supportsAddRemovePort(),
-                  platformMapping_.get(),
-                  hwAsicTable_.get(),
-                  (RoutingInformationBase*)nullptr,
-                  aclNexthopHandler_.get());
+        auto newState = rib_ ? applyThriftConfig(
+                                   originalState,
+                                   &newConfig,
+                                   platformData_.supportsAddRemovePort,
+                                   platformMapping_.get(),
+                                   hwAsicTable_.get(),
+                                   &routeUpdater,
+                                   aclNexthopHandler_.get())
+                             : applyThriftConfig(
+                                   originalState,
+                                   &newConfig,
+                                   platformData_.supportsAddRemovePort,
+                                   platformMapping_.get(),
+                                   hwAsicTable_.get(),
+                                   (RoutingInformationBase*)nullptr,
+                                   aclNexthopHandler_.get());
 
         if (newState && !isValidStateUpdate(StateDelta(state, newState))) {
           throw FbossError("Invalid config passed in, skipping");
@@ -2092,60 +2112,43 @@ bool SwSwitch::isValidStateUpdate(const StateDelta& delta) const {
     XLOG(ERR) << "More than one sflow mirrors configured";
     isValid = false;
   }
-  return isValid && hw_->isValidStateUpdate(delta);
+  return isValid && hwSwitchHandler_->isValidStateUpdate(delta);
 }
 
 AdminDistance SwSwitch::clientIdToAdminDistance(int clientId) const {
-  auto distance = curConfig_.clientIdToAdminDistance()->find(clientId);
-  if (distance == curConfig_.clientIdToAdminDistance()->end()) {
-    // In case we get a client id we don't know about
-    XLOG(ERR) << "No admin distance mapping available for client id "
-              << clientId << ". Using default distance - MAX_ADMIN_DISTANCE";
-    return AdminDistance::MAX_ADMIN_DISTANCE;
-  }
-
-  if (XLOG_IS_ON(DBG3)) {
-    auto clientName = apache::thrift::util::enumNameSafe(ClientID(clientId));
-    auto distanceString = apache::thrift::util::enumNameSafe(
-        static_cast<AdminDistance>(distance->second));
-    XLOG(DBG3) << "Mapping client id " << clientId << " (" << clientName
-               << ") to admin distance " << distance->second << " ("
-               << distanceString << ").";
-  }
-
-  return static_cast<AdminDistance>(distance->second);
+  return getAdminDistanceForClientId(curConfig_, clientId);
 }
 
 void SwSwitch::clearPortStats(
     const std::unique_ptr<std::vector<int32_t>>& ports) {
-  getHw_DEPRECATED()->clearPortStats(ports);
+  hwSwitchHandler_->clearPortStats(ports);
 }
 
 std::vector<PrbsLaneStats> SwSwitch::getPortAsicPrbsStats(int32_t portId) {
-  return getHw_DEPRECATED()->getPortAsicPrbsStats(portId);
+  return hwSwitchHandler_->getPortAsicPrbsStats(portId);
 }
 
 void SwSwitch::clearPortAsicPrbsStats(int32_t portId) {
-  getHw_DEPRECATED()->clearPortAsicPrbsStats(portId);
+  hwSwitchHandler_->clearPortAsicPrbsStats(portId);
 }
 
 std::vector<prbs::PrbsPolynomial> SwSwitch::getPortPrbsPolynomials(
     int32_t portId) {
-  return getHw_DEPRECATED()->getPortPrbsPolynomials(portId);
+  return hwSwitchHandler_->getPortPrbsPolynomials(portId);
 }
 
 prbs::InterfacePrbsState SwSwitch::getPortPrbsState(PortID portId) {
-  return getHw_DEPRECATED()->getPortPrbsState(portId);
+  return hwSwitchHandler_->getPortPrbsState(portId);
 }
 
 std::vector<PrbsLaneStats> SwSwitch::getPortGearboxPrbsStats(
     int32_t portId,
     phy::Side side) {
-  return getHw_DEPRECATED()->getPortGearboxPrbsStats(portId, side);
+  return hwSwitchHandler_->getPortGearboxPrbsStats(portId, side);
 }
 
 void SwSwitch::clearPortGearboxPrbsStats(int32_t portId, phy::Side side) {
-  getHw_DEPRECATED()->clearPortGearboxPrbsStats(portId, side);
+  hwSwitchHandler_->clearPortGearboxPrbsStats(portId, side);
 }
 
 template <typename AddressT>
@@ -2388,13 +2391,12 @@ TransceiverIdxThrift SwSwitch::getTransceiverIdxThrift(PortID portID) const {
 }
 
 std::optional<uint32_t> SwSwitch::getHwLogicalPortId(PortID portID) const {
-  auto platformPort = getPlatform_DEPRECATED()->getPlatformPort(portID);
-  return platformPort->getHwLogicalPortId();
+  return hwSwitchHandler_->getHwLogicalPortId(portID);
 }
 
 void SwSwitch::switchRunStateChanged(SwitchRunState newState) {
   // TODO (m-NPU): handle m-NPU support
-  getHw_DEPRECATED()->switchRunStateChanged(newState);
+  hwSwitchHandler_->switchRunStateChanged(newState);
 }
 
 } // namespace facebook::fboss

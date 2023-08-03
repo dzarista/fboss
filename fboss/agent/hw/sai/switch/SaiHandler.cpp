@@ -16,11 +16,8 @@
 
 namespace facebook::fboss {
 
-SaiHandler::SaiHandler(SwSwitch* sw, const SaiSwitch* hw)
-    : ThriftHandler(sw),
-      hw_(hw),
-      diagShell_(hw),
-      diagCmdServer_(hw, &diagShell_) {}
+SaiHandler::SaiHandler(const SaiSwitch* hw)
+    : hw_(hw), diagShell_(hw), diagCmdServer_(hw, &diagShell_) {}
 
 SaiHandler::~SaiHandler() {}
 
@@ -55,8 +52,12 @@ void SaiHandler::diagCmd(
     int16_t /* unused */,
     bool /* unused */) {
   auto log = LOG_THRIFT_CALL(WARN, *cmd);
-  ensureConfigured(__func__);
+  hw_->ensureConfigured(__func__);
   result = diagCmdServer_.diagCmd(std::move(cmd), std::move(client));
+}
+
+SwitchRunState SaiHandler::getHwSwitchRunState() {
+  return hw_->getRunState();
 }
 
 } // namespace facebook::fboss

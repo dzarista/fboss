@@ -15,6 +15,7 @@
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/state/FlowletSwitchingConfig.h"
 #include "fboss/agent/state/NodeBase.h"
+#include "fboss/agent/state/PortQueue.h"
 #include "fboss/agent/state/QcmConfig.h"
 #include "fboss/agent/state/QosPolicyMap.h"
 #include "fboss/agent/state/Thrifty.h"
@@ -178,6 +179,15 @@ class SwitchSettings
     set<switch_state_tags::switchDrainState>(switchDrainState);
   }
 
+  cfg::SwitchDrainState getDesiredSwitchDrainState() const {
+    return cref<switch_state_tags::desiredSwitchDrainState>()->toThrift();
+  }
+
+  void setDesiredSwitchDrainState(
+      cfg::SwitchDrainState desiredSwitchDrainState) {
+    set<switch_state_tags::desiredSwitchDrainState>(desiredSwitchDrainState);
+  }
+
   auto getExactMatchTableConfig() const {
     return safe_cref<switch_state_tags::exactMatchTableConfigs>();
   }
@@ -185,6 +195,41 @@ class SwitchSettings
   void setExactMatchTableConfig(
       const std::vector<cfg::ExactMatchTableConfig>& exactMatchConfigs) {
     set<switch_state_tags::exactMatchTableConfigs>(exactMatchConfigs);
+  }
+
+  std::optional<int32_t> getMinLinksToRemainInVOQDomain() const {
+    if (auto minLinksToRemainInVOQDomain =
+            cref<switch_state_tags::minLinksToRemainInVOQDomain>()) {
+      return minLinksToRemainInVOQDomain->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setMinLinksToRemainInVOQDomain(
+      std::optional<int64_t> minLinksToRemainInVOQDomain) {
+    if (!minLinksToRemainInVOQDomain) {
+      ref<switch_state_tags::minLinksToRemainInVOQDomain>().reset();
+    } else {
+      set<switch_state_tags::minLinksToRemainInVOQDomain>(
+          *minLinksToRemainInVOQDomain);
+    }
+  }
+
+  std::optional<int32_t> getMinLinksToJoinVOQDomain() const {
+    if (auto minLinksToJoinVOQDomain =
+            cref<switch_state_tags::minLinksToJoinVOQDomain>()) {
+      return minLinksToJoinVOQDomain->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setMinLinksToJoinVOQDomain(
+      std::optional<int64_t> minLinksToJoinVOQDomain) {
+    if (!minLinksToJoinVOQDomain) {
+      ref<switch_state_tags::minLinksToJoinVOQDomain>().reset();
+    } else {
+      set<switch_state_tags::minLinksToJoinVOQDomain>(*minLinksToJoinVOQDomain);
+    }
   }
 
   /*
@@ -390,6 +435,19 @@ class SwitchSettings
 
   void setSwitchIdToSwitchInfo(const SwitchIdToSwitchInfo& switchInfo) {
     set<switch_state_tags::switchIdToSwitchInfo>(switchInfo);
+  }
+
+  void setDefaultVoqConfig(const QueueConfig& queues) {
+    std::vector<PortQueueFields> queuesThrift{};
+    for (auto queue : queues) {
+      queuesThrift.push_back(queue->toThrift());
+    }
+    set<switch_state_tags::defaultVoqConfig>(std::move(queuesThrift));
+  }
+
+  const QueueConfig& getDefaultVoqConfig() const {
+    const auto& queues = cref<switch_state_tags::defaultVoqConfig>();
+    return queues->impl();
   }
 
   SwitchSettings* modify(std::shared_ptr<SwitchState>* state);

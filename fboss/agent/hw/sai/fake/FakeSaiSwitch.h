@@ -254,6 +254,22 @@ class FakeSwitch {
     ecmpMemberCount_ = count;
   }
 
+  void setCreditWatchdogEnable(bool enable) {
+    creditWatchDogEnable_ = enable;
+  }
+
+  bool getCreditWatchdogEnable() const {
+    return creditWatchDogEnable_;
+  }
+
+  void setPfcDlrPacketAction(sai_packet_action_t pktAction) {
+    pfcDlrPacketAction_ = pktAction;
+  }
+
+  sai_packet_action_t getPfcDlrPacketAction() const {
+    return pfcDlrPacketAction_;
+  }
+
   sai_object_id_t id;
 
   sai_status_t setLed(const sai_attribute_t* attr);
@@ -302,6 +318,8 @@ class FakeSwitch {
   sai_object_id_t defaultVlanId_;
   sai_uint32_t maxEcmpMemberCount_{4096};
   sai_uint32_t ecmpMemberCount_{64};
+  bool creditWatchDogEnable_{true};
+  sai_packet_action_t pfcDlrPacketAction_{SAI_PACKET_ACTION_DROP};
 };
 
 using FakeSwitchManager = FakeManager<sai_object_id_t, FakeSwitch>;

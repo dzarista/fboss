@@ -42,7 +42,7 @@ using std::shared_ptr;
 
 DEFINE_bool(
     enable_state_oper_delta,
-    false,
+    true,
     "Generate and process oper delta for state delta processing");
 
 DEFINE_bool(
@@ -72,6 +72,14 @@ Delta getFirstMapDelta(
   return Delta(oldMap, newMap);
 }
 } // namespace
+
+// This template is expensive to compile. Extern it and compile as part of
+// another cpp file StateDeltaExternTemplates.cpp to parallelize the build
+extern template fsdb::OperDelta fsdb::computeOperDelta<SwitchState>(
+    const std::shared_ptr<SwitchState>&,
+    const std::shared_ptr<SwitchState>&,
+    const std::vector<std::string>&,
+    bool);
 
 StateDelta::StateDelta(
     std::shared_ptr<SwitchState> oldState,

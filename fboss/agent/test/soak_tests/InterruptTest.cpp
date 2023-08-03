@@ -35,21 +35,21 @@ void InterruptTest::SetUp() {
   AgentTest::SetUp();
   setUpPorts();
 
-  originalIntrTimeout_ = sw()->getPlatform_DEPRECATED()->getIntrTimeout();
+  originalIntrTimeout_ = platform()->getIntrTimeout();
 
   XLOG(DBG2) << "The original intr_timeout is " << originalIntrTimeout_;
 
   // Set the timeout to be 1 sec, so the scheduling latency should not be a
   // factor. If we see any non-zero intr_timeout_count, it should be from real
   // hw interrupt miss.
-  sw()->getPlatform_DEPRECATED()->setIntrTimeout(1000000);
+  platform()->setIntrTimeout(1000000);
 
   XLOG(DBG2) << "Soak Test setup ready";
 }
 
 void InterruptTest::TearDown() {
   // Undo the intr_timeout setting change done in SetUp()
-  sw()->getPlatform_DEPRECATED()->setIntrTimeout(originalIntrTimeout_);
+  platform()->setIntrTimeout(originalIntrTimeout_);
 
   AgentTest::TearDown();
 }
@@ -61,10 +61,8 @@ bool InterruptTest::RunOneLoop(SoakLoopArgs* args) {
   XLOG(DBG5) << "numPktsPerLoop = " << numPktsPerLoop;
 
   SwSwitch* swSwitch = sw();
-  Platform* platform = swSwitch->getPlatform_DEPRECATED();
-
-  uint64_t intrTimeoutCountStart = platform->getIntrTimeoutCount();
-  uint64_t intrCountStart = platform->getIntrCount();
+  uint64_t intrTimeoutCountStart = platform()->getIntrTimeoutCount();
+  uint64_t intrCountStart = platform()->getIntrCount();
 
   auto vlan =
       util::getFirstMap(swSwitch->getState()->getVlans())->cbegin()->second;
@@ -72,16 +70,16 @@ bool InterruptTest::RunOneLoop(SoakLoopArgs* args) {
   auto switchId = scope.switchId();
   utility::pumpTraffic(
       true, // is IPv6
-      swSwitch->getHw_DEPRECATED(),
+      platform()->getHwSwitch(),
       swSwitch->getLocalMac(switchId),
       vlan->getID(),
       frontPanelPortToLoopTraffic_);
 
-  uint64_t intrTimeoutCountEnd = platform->getIntrTimeoutCount();
+  uint64_t intrTimeoutCountEnd = platform()->getIntrTimeoutCount();
 
   EXPECT_EQ(intrTimeoutCountStart, intrTimeoutCountEnd);
 
-  uint64_t intrCountEnd = platform->getIntrCount();
+  uint64_t intrCountEnd = platform()->getIntrCount();
 
   uint64_t intrCountDiff = intrCountEnd - intrCountStart;
   XLOG(DBG2) << "intr_count = " << intrCountEnd << ", diff = " << intrCountDiff;

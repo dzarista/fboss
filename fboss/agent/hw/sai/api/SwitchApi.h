@@ -435,12 +435,25 @@ struct SaiSwitchTraits {
     struct AttributeCreditWdWrapper {
       std::optional<sai_attr_id_t> operator()();
     };
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+    using CreditWd = SaiAttribute<
+        EnumType,
+        SAI_SWITCH_ATTR_CREDIT_WD,
+        bool,
+        SaiBoolDefaultTrue>;
+#else
     using CreditWd = SaiExtensionAttribute<bool, AttributeCreditWdWrapper>;
+#endif
     struct AttributeMaxCoresWrapper {
       std::optional<sai_attr_id_t> operator()();
     };
     using MaxCores =
         SaiExtensionAttribute<sai_uint32_t, AttributeMaxCoresWrapper>;
+    using PfcDlrPacketAction = SaiAttribute<
+        EnumType,
+        SAI_SWITCH_ATTR_PFC_DLR_PACKET_ACTION,
+        sai_int32_t,
+        SaiPacketActionDefaultDrop>;
   };
   using AdapterKey = SwitchSaiId;
   using AdapterHostKey = std::monostate;
@@ -490,12 +503,23 @@ struct SaiSwitchTraits {
       std::optional<Attributes::RestartIssu>,
       std::optional<Attributes::SwitchIsolate>,
       std::optional<Attributes::CreditWd>,
-      std::optional<Attributes::MaxCores>>;
+      std::optional<Attributes::MaxCores>,
+      std::optional<Attributes::PfcDlrPacketAction>>;
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+  static constexpr std::array<sai_stat_id_t, 3> CounterIdsToRead = {
+      SAI_SWITCH_STAT_REACHABILITY_DROP,
+      SAI_SWITCH_STAT_GLOBAL_DROP,
+      SAI_SWITCH_STAT_PACKET_INTEGRITY_DROP,
+  };
+#else
   static constexpr std::array<sai_stat_id_t, 2> CounterIdsToRead = {
       SAI_SWITCH_STAT_REACHABILITY_DROP,
       SAI_SWITCH_STAT_GLOBAL_DROP,
   };
+#endif
   static constexpr std::array<sai_stat_id_t, 0> CounterIdsToReadAndClear = {};
+  static const std::vector<sai_stat_id_t>& dramStats();
 };
 
 SAI_ATTRIBUTE_NAME(Switch, InitSwitch)
@@ -586,6 +610,7 @@ SAI_ATTRIBUTE_NAME(Switch, WarmBootTargetVersion)
 SAI_ATTRIBUTE_NAME(Switch, SwitchIsolate)
 SAI_ATTRIBUTE_NAME(Switch, CreditWd)
 SAI_ATTRIBUTE_NAME(Switch, MaxCores)
+SAI_ATTRIBUTE_NAME(Switch, PfcDlrPacketAction)
 
 template <>
 struct SaiObjectHasStats<SaiSwitchTraits> : public std::true_type {};

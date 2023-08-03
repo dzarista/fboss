@@ -160,6 +160,9 @@ void LinkTest::initializeCabledPorts() {
     if (!(*port.expectedLLDPValues()).empty()) {
       auto portID = *port.logicalID();
       cabledPorts_.push_back(PortID(portID));
+      if (*port.portType() == cfg::PortType::FABRIC_PORT) {
+        cabledFabricPorts_.push_back(PortID(portID));
+      }
       const auto platformPortEntry = platformPorts.find(portID);
       EXPECT_TRUE(platformPortEntry != platformPorts.end())
           << "Can't find port:" << portID << " in PlatformMapping";
@@ -258,7 +261,7 @@ void LinkTest::disableTTLDecrements(
   for (const auto& nextHop : ecmp6.getNextHops()) {
     if (ecmpPorts.find(nextHop.portDesc) != ecmpPorts.end()) {
       utility::disableTTLDecrements(
-          sw()->getHw_DEPRECATED(), ecmp6.getRouterId(), nextHop);
+          platform()->getHwSwitch(), ecmp6.getRouterId(), nextHop);
     }
   }
 }
@@ -273,7 +276,7 @@ void LinkTest::createL3DataplaneFlood(
                     ->cbegin()
                     ->second->getID();
   utility::pumpTraffic(
-      true, sw()->getHw_DEPRECATED(), sw()->getLocalMac(switchId), vlanID);
+      true, platform()->getHwSwitch(), sw()->getLocalMac(switchId), vlanID);
   // TODO: Assert that traffic reached a certain rate
   XLOG(DBG2) << "Created L3 Data Plane Flood";
 }
@@ -289,7 +292,7 @@ bool LinkTest::checkReachabilityOnAllCabledPorts() const {
     }
     if (portType == cfg::PortType::FABRIC_PORT) {
       auto fabricReachabilityEntries =
-          sw()->getHw_DEPRECATED()->getFabricReachability();
+          platform()->getHwSwitch()->getFabricReachability();
       auto fabricPortEndPoint = fabricReachabilityEntries.find(port);
       if (fabricPortEndPoint == fabricReachabilityEntries.end() ||
           !*fabricPortEndPoint->second.isAttached()) {
@@ -310,6 +313,15 @@ std::string LinkTest::getPortName(PortID portId) const {
     }
   }
   throw FbossError("No port with ID: ", portId);
+}
+
+std::vector<std::string> LinkTest::getPortName(
+    const std::vector<PortID>& portIDs) const {
+  std::vector<std::string> portNames;
+  for (auto port : portIDs) {
+    portNames.push_back(getPortName(port));
+  }
+  return portNames;
 }
 
 std::set<std::pair<PortID, PortID>> LinkTest::getConnectedPairs() const {

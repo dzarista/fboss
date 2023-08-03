@@ -83,6 +83,7 @@ struct HwSysPortStats {
   2: map<i16, i64> queueOutBytes_ = {};
   3: map<i16, i64> queueWatermarkBytes_ = {};
   4: map<i16, i64> queueWredDroppedPackets_ = {};
+  5: map<i16, i64> queueCreditWatchdogDeletedPackets_ = {};
 
   // seconds from epoch
   // Field index at a distance to allow for other stat additions
@@ -230,4 +231,10 @@ struct CpuPortStats {
 struct HwSwitchDropStats {
   1: optional i64 globalDrops;
   2: optional i64 globalReachabilityDrops;
+  3: optional i64 packetIntegrityDrops;
+}
+
+struct HwSwitchDramStats {
+  1: optional i64 dramEnqueuedBytes;
+  2: optional i64 dramDequeuedBytes;
 }

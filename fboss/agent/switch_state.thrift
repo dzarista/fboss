@@ -327,6 +327,10 @@ struct SwitchSettingsFields {
   27: map<i64, switch_config.SwitchType> switchIdToSwitchType_DEPRECATED;
   28: switch_config.SwitchDrainState switchDrainState = switch_config.SwitchDrainState.UNDRAINED;
   29: map<i64, switch_config.SwitchInfo> switchIdToSwitchInfo;
+  30: optional i32 minLinksToRemainInVOQDomain;
+  31: optional i32 minLinksToJoinVOQDomain;
+  32: switch_config.SwitchDrainState desiredSwitchDrainState = switch_config.SwitchDrainState.UNDRAINED;
+  33: list<ctrl.PortQueueFields> defaultVoqConfig;
 }
 
 struct RoutePrefix {
@@ -492,6 +496,7 @@ struct TeFlowEntryFields {
   4: list<common.NextHopThrift> resolvedNexthops;
   5: bool enabled;
   6: optional ctrl.TeCounterID counterID;
+  7: optional bool statEnabled;
 }
 
 struct AclTableFields {

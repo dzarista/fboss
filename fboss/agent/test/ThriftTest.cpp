@@ -81,9 +81,12 @@ FlowEntry makeFlow(
   flowEntry.flow()->srcPort() = 100;
   flowEntry.flow()->dstPrefix() = ipPrefix(dstIp, 64);
   flowEntry.counterID() = counter;
-  flowEntry.nextHops()->resize(1);
-  flowEntry.nextHops()[0].address() = toBinaryAddress(IPAddress(nhip));
-  flowEntry.nextHops()[0].address()->ifName() = nhopAddr;
+  std::vector<NextHopThrift> nexthops;
+  NextHopThrift nexthop;
+  nexthop.address() = toBinaryAddress(IPAddress(nhip));
+  nexthop.address()->ifName() = nhopAddr;
+  nexthops.push_back(nexthop);
+  flowEntry.nexthops() = nexthops;
   return flowEntry;
 }
 } // unnamed namespace
@@ -240,6 +243,20 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getHwDebugDump) {
   EXPECT_HW_CALL(this->sw_, dumpDebugState(testing::_)).Times(1);
   // Mock getHwDebugDump doesn't write any thing so expect FbossError
   EXPECT_THROW(handler.getHwDebugDump(out), FbossError);
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getL2Table) {
+  ThriftHandler handler(this->sw_);
+  std::string out;
+  EXPECT_HW_CALL(this->sw_, fetchL2Table(testing::_))
+      .Times(this->isNpu() ? 1 : 0);
+
+  std::vector<L2EntryThrift> l2Entries;
+  if (this->isFabric()) {
+    EXPECT_THROW(handler.getL2Table(l2Entries), FbossError);
+  } else {
+    handler.getL2Table(l2Entries);
+  }
 }
 
 TEST(ThriftEnum, assertPortSpeeds) {
@@ -540,6 +557,13 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getHwPortStats) {
   handler.getHwPortStats(hwPortStats);
 }
 
+TYPED_TEST(ThriftTestAllSwitchTypes, getFabricReachabilityStats) {
+  ThriftHandler handler(this->sw_);
+  FabricReachabilityStats stats;
+  EXPECT_HW_CALL(this->sw_, getFabricReachabilityStats()).Times(1);
+  handler.getFabricReachabilityStats(stats);
+}
+
 TYPED_TEST(ThriftTestAllSwitchTypes, getCpuPortStats) {
   ThriftHandler handler(this->sw_);
   CpuPortStats cpuPortStats;
@@ -636,7 +660,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getDsfSubscriptionClientId) {
     EXPECT_THROW(handler.getDsfSubscriptionClientId(ret), FbossError);
   } else {
     handler.getDsfSubscriptionClientId(ret);
-    EXPECT_TRUE(ret.find(":agent:") != std::string::npos);
+    EXPECT_TRUE(ret.find(":agent") != std::string::npos);
   }
 }
 
@@ -2316,26 +2340,26 @@ TEST_F(ThriftTest, programInternalPhyPorts) {
             cfg::PortProfileID::PROFILE_100G_4_NRZ_CL91_COPPER);
 
         // Make sure the enabled ports using the new profile config/pin configs
-        auto platform = sw_->getPlatform_DEPRECATED();
         auto tcvr = sw_->getState()->getTransceivers()->getNodeIf(id);
         std::optional<cfg::PlatformPortConfigOverrideFactor> factor;
         if (tcvr != nullptr) {
           factor = tcvr->toPlatformPortConfigOverrideFactor();
         }
-        platform->getPlatformMapping()
-            ->customizePlatformPortConfigOverrideFactor(factor);
+        sw_->getPlatformMapping()->customizePlatformPortConfigOverrideFactor(
+            factor);
         // Port must exist in the SwitchState
         const auto port =
             sw_->getState()->getPorts()->getNodeIf(PortID(kEnabledPort));
         EXPECT_TRUE(port->isEnabled());
         PlatformPortProfileConfigMatcher matcher{
             port->getProfileID(), port->getID(), factor};
-        auto portProfileCfg = platform->getPortProfileConfig(matcher);
+        auto portProfileCfg =
+            sw_->getPlatformMapping()->getPortProfileConfig(matcher);
         CHECK(portProfileCfg) << "No port profile config found with matcher:"
                               << matcher.toString();
         auto expectedProfileConfig = *portProfileCfg->iphy();
         const auto& expectedPinConfigs =
-            platform->getPlatformMapping()->getPortIphyPinConfigs(matcher);
+            sw_->getPlatformMapping()->getPortIphyPinConfigs(matcher);
 
         EXPECT_TRUE(expectedProfileConfig == port->getProfileConfig());
         EXPECT_TRUE(expectedPinConfigs == port->getPinConfigs());

@@ -44,6 +44,7 @@ class Platform;
 class SwitchState;
 class HwLinkStateToggler;
 class SwitchIdScopeResolver;
+class StateObserver;
 
 class HwSwitchEnsemble : public TestEnsembleIf {
  public:
@@ -249,6 +250,11 @@ class HwSwitchEnsemble : public TestEnsembleIf {
 
   const SwitchIdScopeResolver& scopeResolver() const override;
 
+  void registerStateObserver(
+      StateObserver* /*observer*/,
+      const std::string& /*name*/) override {}
+  void unregisterStateObserver(StateObserver* /*observer*/) override {}
+
  protected:
   /*
    * Setup ensemble
@@ -272,10 +278,6 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       const std::shared_ptr<SwitchState>& newState,
       bool transaction,
       bool disableAppliedStateVerification = false);
-  bool applyUpdate(
-      const StateDelta& delta,
-      const std::lock_guard<std::mutex>& lock,
-      bool transaction);
   bool applyUpdate(
       const fsdb::OperDelta& operDelta,
       const std::lock_guard<std::mutex>& lock,

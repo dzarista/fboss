@@ -76,6 +76,9 @@ class HwTeFlowTest : public HwLinkStateDependentTest {
 
 TEST_F(HwTeFlowTest, VerifyTeFlowGroupEnable) {
   if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
     return;
   }
 
@@ -93,6 +96,9 @@ TEST_F(HwTeFlowTest, VerifyTeFlowGroupEnable) {
 
 TEST_F(HwTeFlowTest, validateAddDeleteTeFlow) {
   if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
     return;
   }
 
@@ -166,6 +172,9 @@ TEST_F(HwTeFlowTest, validateAddDeleteTeFlow) {
 
 TEST_F(HwTeFlowTest, validateEnableDisableTeFlow) {
   if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
     return;
   }
 
@@ -259,6 +268,9 @@ TEST_F(HwTeFlowTest, validateEnableDisableTeFlow) {
 
 TEST_F(HwTeFlowTest, validateExactMatchTableConfigs) {
   if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
     return;
   }
 
@@ -329,6 +341,9 @@ TEST_F(HwTeFlowTest, validateHwProtection) {
   if (this->skipTest() ||
       getPlatform()->getAsic()->getAsicType() ==
           cfg::AsicType::ASIC_TYPE_FAKE) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
     return;
   }
   setExactMatchCfg(getHwSwitchEnsemble(), kPrefixLength1);
@@ -349,6 +364,9 @@ TEST_F(HwTeFlowTest, validateHwProtection) {
 
 TEST_F(HwTeFlowTest, verifyTeFlowScale) {
   if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
     return;
   }
 
@@ -367,4 +385,51 @@ TEST_F(HwTeFlowTest, verifyTeFlowScale) {
 
   verifyAcrossWarmBoots(setup, verify);
 }
+
+TEST_F(HwTeFlowTest, validateAddDeleteTeFlowWithoutNextHop) {
+  if (this->skipTest()) {
+    return;
+  }
+  FLAGS_emStatOnlyMode = true;
+
+  std::optional<std::string> nhopAdd;
+  std::optional<std::string> ifName;
+  auto setup = [&]() {
+    setExactMatchCfg(getHwSwitchEnsemble(), kPrefixLength1);
+    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[0]));
+    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[1]));
+
+    auto flowEntry1 = makeFlowEntry(
+        "100::", nhopAdd, ifName, masterLogicalPortIds()[0], kCounterID0);
+    addFlowEntry(getHwSwitchEnsemble(), flowEntry1);
+  };
+
+  auto verify = [&]() {
+    auto flowId = makeFlowKey("100::", masterLogicalPortIds()[0]);
+    auto flowEntry =
+        getProgrammedState()->getTeFlowTable()->getNodeIf(getTeFlowStr(flowId));
+    EXPECT_TRUE(*flowEntry->getStatEnabled());
+    EXPECT_EQ(utility::getNumTeFlowEntries(getHwSwitch()), 1);
+    utility::checkSwHwTeFlowMatch(getHwSwitch(), getProgrammedState(), flowId);
+    // Update the flow entry with nextHop and check
+    auto newFlowEntry1 = makeFlowEntry(
+        "100::", kNhopAddrB, kIfName2, masterLogicalPortIds()[0], kCounterID0);
+    modifyFlowEntry(getHwSwitchEnsemble(), newFlowEntry1, true);
+    flowEntry =
+        getProgrammedState()->getTeFlowTable()->getNodeIf(getTeFlowStr(flowId));
+    EXPECT_TRUE(*flowEntry->getStatEnabled());
+    utility::checkSwHwTeFlowMatch(getHwSwitch(), getProgrammedState(), flowId);
+    // Remove the nextHop in the flow entry and check
+    newFlowEntry1 = makeFlowEntry(
+        "100::", nhopAdd, ifName, masterLogicalPortIds()[0], kCounterID0);
+    modifyFlowEntry(getHwSwitchEnsemble(), newFlowEntry1, false);
+    flowEntry =
+        getProgrammedState()->getTeFlowTable()->getNodeIf(getTeFlowStr(flowId));
+    EXPECT_TRUE(*flowEntry->getStatEnabled());
+    utility::checkSwHwTeFlowMatch(getHwSwitch(), getProgrammedState(), flowId);
+  };
+
+  verifyAcrossWarmBoots(setup, verify);
+}
+
 } // namespace facebook::fboss

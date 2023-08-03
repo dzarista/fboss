@@ -11,7 +11,6 @@
 
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/FbossError.h"
-#include "fboss/agent/Platform.h"
 #include "fboss/agent/gen-cpp2/switch_config_constants.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 
@@ -35,9 +34,9 @@ const std::map<int64_t, cfg::SwitchInfo> getSwitchInfoFromConfig(
       if (switchInfo.switchType() == cfg::SwitchType::VOQ &&
           !switchInfo.systemPortRange()) {
         auto dsfItr =
-            *config->dsfNodes()->find(static_cast<int64_t>(entry.first));
-        if (dsfItr != *config->dsfNodes()->end()) {
-          auto localNode = dsfItr.second;
+            config->dsfNodes()->find(static_cast<int64_t>(entry.first));
+        if (dsfItr != config->dsfNodes()->end()) {
+          auto localNode = dsfItr->second;
           CHECK(localNode.systemPortRange().has_value());
           switchInfo.systemPortRange() = *localNode.systemPortRange();
         }

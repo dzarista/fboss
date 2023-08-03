@@ -73,6 +73,10 @@ std::map<int32_t, std::pair<std::string, std::size_t>> _SwitchMap {
       SAI_ATTR_MAP(Switch, MaxEcmpMemberCount),
       SAI_ATTR_MAP(Switch, EcmpMemberCount),
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+      SAI_ATTR_MAP(Switch, CreditWd),
+#endif
+      SAI_ATTR_MAP(Switch, PfcDlrPacketAction),
 };
 
 void handleExtensionAttributes() {
@@ -82,7 +86,17 @@ void handleExtensionAttributes() {
   SAI_EXT_ATTR_MAP(Switch, EgressPoolAvaialableSize)
   SAI_EXT_ATTR_MAP(Switch, HwEccErrorInitiate)
   SAI_EXT_ATTR_MAP(Switch, WarmBootTargetVersion)
+  SAI_EXT_ATTR_MAP(Switch, SwitchIsolate)
   SAI_EXT_ATTR_MAP(Switch, MaxCores)
+  SAI_EXT_ATTR_MAP(Switch, DllPath)
+  SAI_EXT_ATTR_MAP(Switch, RestartIssu)
+  SAI_EXT_ATTR_MAP(Switch, ForceTrafficOverFabric)
+  SAI_EXT_ATTR_MAP(Switch, WarmBootTargetVersion)
+  SAI_EXT_ATTR_MAP(Switch, SwitchIsolate)
+  SAI_EXT_ATTR_MAP(Switch, MaxCores)
+#if SAI_API_VERSION < SAI_VERSION(1, 12, 0)
+  SAI_EXT_ATTR_MAP(Switch, CreditWd)
+#endif
 }
 
 } // namespace
@@ -96,97 +110,19 @@ sai_status_t wrap_create_switch(
   auto begin = FLAGS_enable_elapsed_time_log
       ? std::chrono::system_clock::now()
       : std::chrono::system_clock::time_point::min();
+  SaiTracer::getInstance()->logSwitchCreateFn(switch_id, attr_count, attr_list);
   auto rv = SaiTracer::getInstance()->switchApi_->create_switch(
       switch_id, attr_count, attr_list);
-  SaiTracer::getInstance()->logSwitchCreateFn(switch_id, attr_count, attr_list);
   SaiTracer::getInstance()->logPostInvocation(rv, *switch_id, begin);
   return rv;
 }
 
-sai_status_t wrap_remove_switch(sai_object_id_t switch_id) {
-  SaiTracer::getInstance()->logRemoveFn(
-      "remove_switch", switch_id, SAI_OBJECT_TYPE_SWITCH);
-  auto begin = FLAGS_enable_elapsed_time_log
-      ? std::chrono::system_clock::now()
-      : std::chrono::system_clock::time_point::min();
-  auto rv = SaiTracer::getInstance()->switchApi_->remove_switch(switch_id);
-
-  SaiTracer::getInstance()->logPostInvocation(rv, switch_id, begin);
-  return rv;
-}
-
-sai_status_t wrap_set_switch_attribute(
-    sai_object_id_t switch_id,
-    const sai_attribute_t* attr) {
-  sai_status_t rv{0};
-  if (attr->id == SAI_SWITCH_ATTR_SWITCH_SHELL_ENABLE) {
-    // this blocks forever, can't hold singleton or tracer must be leaky
-    // singleton
-    auto* tracer = SaiTracer::getInstance().get();
-    rv = tracer->switchApi_->set_switch_attribute(switch_id, attr);
-  } else {
-    SaiTracer::getInstance()->logSetAttrFn(
-        "set_switch_attribute", switch_id, attr, SAI_OBJECT_TYPE_SWITCH);
-    auto begin = FLAGS_enable_elapsed_time_log
-        ? std::chrono::system_clock::now()
-        : std::chrono::system_clock::time_point::min();
-    rv = SaiTracer::getInstance()->switchApi_->set_switch_attribute(
-        switch_id, attr);
-    SaiTracer::getInstance()->logPostInvocation(rv, switch_id, begin);
-  }
-  return rv;
-}
-
-sai_status_t wrap_get_switch_attribute(
-    sai_object_id_t switch_id,
-    uint32_t attr_count,
-    sai_attribute_t* attr_list) {
-  if (FLAGS_enable_get_attr_log) {
-    auto begin = FLAGS_enable_elapsed_time_log
-        ? std::chrono::system_clock::now()
-        : std::chrono::system_clock::time_point::min();
-    auto rv = SaiTracer::getInstance()->switchApi_->get_switch_attribute(
-        switch_id, attr_count, attr_list);
-    SaiTracer::getInstance()->logGetAttrFn(
-        "get_switch_attribute",
-        switch_id,
-        attr_count,
-        attr_list,
-        SAI_OBJECT_TYPE_SWITCH,
-        rv);
-    SaiTracer::getInstance()->logPostInvocation(rv, switch_id, begin);
-    return rv;
-  }
-  return SaiTracer::getInstance()->switchApi_->get_switch_attribute(
-      switch_id, attr_count, attr_list);
-}
-
-sai_status_t wrap_get_switch_stats(
-    sai_object_id_t switch_id,
-    uint32_t number_of_counters,
-    const sai_stat_id_t* counter_ids,
-    uint64_t* counters) {
-  return SaiTracer::getInstance()->switchApi_->get_switch_stats(
-      switch_id, number_of_counters, counter_ids, counters);
-}
-
-sai_status_t wrap_get_switch_stats_ext(
-    sai_object_id_t switch_id,
-    uint32_t number_of_counters,
-    const sai_stat_id_t* counter_ids,
-    sai_stats_mode_t mode,
-    uint64_t* counters) {
-  return SaiTracer::getInstance()->switchApi_->get_switch_stats_ext(
-      switch_id, number_of_counters, counter_ids, mode, counters);
-}
-
-sai_status_t wrap_clear_switch_stats(
-    sai_object_id_t switch_id,
-    uint32_t number_of_counters,
-    const sai_stat_id_t* counter_ids) {
-  return SaiTracer::getInstance()->switchApi_->clear_switch_stats(
-      switch_id, number_of_counters, counter_ids);
-}
+WRAP_REMOVE_FUNC(switch, SAI_OBJECT_TYPE_SWITCH, switch);
+WRAP_SET_ATTR_FUNC(switch, SAI_OBJECT_TYPE_SWITCH, switch);
+WRAP_GET_ATTR_FUNC(switch, SAI_OBJECT_TYPE_SWITCH, switch);
+WRAP_GET_STATS_FUNC(switch, SAI_OBJECT_TYPE_SWITCH, switch);
+WRAP_GET_STATS_EXT_FUNC(switch, SAI_OBJECT_TYPE_SWITCH, switch);
+WRAP_CLEAR_STATS_FUNC(switch, SAI_OBJECT_TYPE_SWITCH, switch);
 
 sai_switch_api_t* wrappedSwitchApi() {
   handleExtensionAttributes();

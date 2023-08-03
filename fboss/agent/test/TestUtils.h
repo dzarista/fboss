@@ -98,7 +98,7 @@ std::unique_ptr<MockPlatform> createMockPlatform(
     cfg::SwitchType switchType = cfg::SwitchType::NPU,
     int64_t switchId = 0);
 std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
-    std::unique_ptr<MockPlatform> platform,
+    MockPlatform* platform,
     const std::shared_ptr<SwitchState>& state,
     SwitchFlags flags,
     cfg::SwitchConfig* config = nullptr);
@@ -629,4 +629,5 @@ void addSwitchSettingsToState(
         std::make_shared<SwitchSettings>(),
     int64_t switchId = 0);
 
+HwSwitchInitFn mockHwSwitchInitFn(SwSwitch* sw);
 } // namespace facebook::fboss

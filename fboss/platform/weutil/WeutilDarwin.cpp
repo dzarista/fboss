@@ -13,8 +13,7 @@
 #include "fboss/platform/weutil/WeutilDarwin.h"
 #include "fboss/platform/weutil/prefdl/Prefdl.h"
 
-using namespace facebook::fboss::platform::helpers;
-DEFINE_bool(h, false, "Help");
+using namespace facebook::fboss::platform;
 
 namespace {
 const std::string kPathPrefix = "/tmp/WeutilDarwin";
@@ -50,10 +49,23 @@ const std::unordered_map<std::string, std::string> kMapping{
     {"Product Serial Number", "SerialNumber"},
 };
 
+const std::unordered_set<std::string> kFlashType = {
+    "MX25L12805D",
+    "N25Q128..3E"};
+
+std::string getFlashType(const std::string& str) {
+  for (auto& it : kFlashType) {
+    if (str.find(it) != std::string::npos) {
+      return it;
+    }
+  }
+  return "";
+}
+
 } // namespace
 
 namespace facebook::fboss::platform {
-WeutilDarwin::WeutilDarwin(std::string eeprom) : eeprom_(eeprom) {
+WeutilDarwin::WeutilDarwin(const std::string& eeprom) : eeprom_(eeprom) {
   std::transform(eeprom_.begin(), eeprom_.end(), eeprom_.begin(), ::tolower);
   if (eeprom_ == "" || eeprom_ == "chassis") {
     genSpiPrefdlFile();
@@ -70,8 +82,8 @@ WeutilDarwin::WeutilDarwin(std::string eeprom) : eeprom_(eeprom) {
 }
 
 void WeutilDarwin::genSpiPrefdlFile(void) {
-  int retVal = 0;
-  std::string ret;
+  int exitStatus = 0;
+  std::string standardOut;
 
   if (!std::filesystem::exists(kPathPrefix)) {
     if (!std::filesystem::create_directory(kPathPrefix)) {
@@ -79,25 +91,26 @@ void WeutilDarwin::genSpiPrefdlFile(void) {
     }
   }
 
-  ret = execCommandUnchecked(kCreteLayout, retVal);
-  if (retVal != 0) {
+  std::tie(exitStatus, standardOut) = helpers::execCommand(kCreteLayout);
+  if (exitStatus != 0) {
     throw std::runtime_error("Cannot create layout file with: " + kCreteLayout);
   }
 
   // Get flash type
-  ret = execCommandUnchecked(kFlashromGetFlashType + " 2>&1 ", retVal);
+  std::tie(exitStatus, standardOut) =
+      helpers::execCommand(kFlashromGetFlashType + " 2>&1 ");
 
   /* Since flashrom will return 1 for "flashrom -p internal"
    * we ignore retVal == 1
    */
 
-  if ((retVal != 0) && (retVal != 1)) {
+  if ((exitStatus != 0) && (exitStatus != 1)) {
     throw std::runtime_error(
         "Cannot get flash type with: " + kFlashromGetFlashType);
   }
 
   std::string getPrefdl;
-  std::string flashType = getFlashType(ret);
+  std::string flashType = getFlashType(standardOut);
 
   if (!flashType.empty()) {
     getPrefdl = folly::to<std::string>(
@@ -107,24 +120,24 @@ void WeutilDarwin::genSpiPrefdlFile(void) {
         folly::to<std::string>(kFlashromGetFlashType, kFlashromGetContent);
   }
 
-  ret = execCommandUnchecked(getPrefdl, retVal);
-  if (retVal != 0) {
+  std::tie(exitStatus, standardOut) = helpers::execCommand(getPrefdl);
+  if (exitStatus != 0) {
     throw std::runtime_error(folly::to<std::string>(
         "Cannot create BIOS file with: ",
         getPrefdl,
         " ",
         ", return value: ",
-        std::to_string(retVal)));
+        std::to_string(exitStatus)));
   }
 
-  ret = execCommandUnchecked(kddComands, retVal);
-  if (retVal != 0) {
+  std::tie(exitStatus, standardOut) = helpers::execCommand(kddComands);
+  if (exitStatus != 0) {
     throw std::runtime_error("Cannot create prefdl file with: " + kddComands);
   }
 }
 
 std::vector<std::pair<std::string, std::string>> WeutilDarwin::getInfo(
-    __attribute__((unused)) std::string eeprom) {
+    const std::string&) {
   PrefdlBase prefdl(kPredfl);
 
   std::vector<std::pair<std::string, std::string>> ret;
@@ -205,10 +218,6 @@ void WeutilDarwin::printInfoJson() {
 }
 
 bool WeutilDarwin::verifyOptions(void) {
-  if (FLAGS_h) {
-    printUsage();
-    return false;
-  }
   if (eeprom_ != "") {
     if (eeprom_ != "pem" && eeprom_ != "fanspinner" && eeprom_ != "rackmon" &&
         eeprom_ != "chassis") {
@@ -221,7 +230,7 @@ bool WeutilDarwin::verifyOptions(void) {
 
 void WeutilDarwin::printUsage(void) {
   std::cout
-      << "weutil [--h] [-json] [--eeprom pem|fanspinner|rackmon|chassis(default)]"
+      << "weutil [--h] [--json] [--eeprom pem|fanspinner|rackmon|chassis(default)]"
       << std::endl;
 
   std::cout << "usage examples:" << std::endl;

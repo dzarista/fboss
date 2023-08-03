@@ -10,21 +10,16 @@
 //           the input with test scenario file, and the output with
 //           test output file describing when pwm changes and so on.
 
-namespace facebook::fboss::platform {
+namespace facebook::fboss::platform::fan_service {
 class Mokujin : public Bsp {
  public:
+  explicit Mokujin(const FanServiceConfig& config);
   ~Mokujin();
   // Override some methods in Bsp class
-  void getSensorData(
-      std::shared_ptr<ServiceConfig> pServiceConfig,
-      std::shared_ptr<SensorData> pSensorData) override;
-  int emergencyShutdown(
-      std::shared_ptr<ServiceConfig> pServiceConfig,
-      bool enable) override;
+  void getSensorData(std::shared_ptr<SensorData> pSensorData) override;
+  int emergencyShutdown(bool enable) override;
   uint64_t getCurrentTime() const override;
-  void getOpticsData(
-      std::shared_ptr<ServiceConfig> pServiceConfig,
-      std::shared_ptr<SensorData> pSensorData) override;
+  void getOpticsData(std::shared_ptr<SensorData> pSensorData) override;
 
   // The following public methods are used by Fan Service to interact with
   // this Mock DSP, so that it will timewarp when there is no more current
@@ -65,4 +60,4 @@ class Mokujin : public Bsp {
       int pwm) override;
   int run(const std::string& cmd) override;
 };
-} // namespace facebook::fboss::platform
+} // namespace facebook::fboss::platform::fan_service

@@ -4,19 +4,40 @@
 // for function description
 
 #include "fboss/platform/fan_service/ControlLogic.h"
-#include "fboss/platform/fan_service/if/gen-cpp2/fan_config_structs_types.h"
-// Additional FB helper funtion
+
+#include <folly/logging/xlog.h>
+
 #include "common/time/Time.h"
+#include "fboss/platform/fan_service/if/gen-cpp2/fan_service_config_constants.h"
+#include "fboss/platform/fan_service/if/gen-cpp2/fan_service_config_types.h"
 
 namespace {
 auto constexpr kFanWriteFailure = "fan_write.{}.{}.failure";
+auto constexpr kFanFailThresholdInSec = 300;
+auto constexpr kSensorFailThresholdInSec = 300;
+
+using namespace facebook::fboss::platform::fan_service;
+using constants =
+    facebook::fboss::platform::fan_service::fan_service_config_constants;
+
+std::optional<TempToPwmMap> getConfigOpticTable(
+    const Optic& optic,
+    OpticTableType dataType) {
+  for (const auto& [tableType, tempToPwmMap] : *optic.tempToPwmMaps()) {
+    if (tableType == dataType) {
+      return tempToPwmMap;
+    }
+  }
+  return std::nullopt;
 }
 
-namespace facebook::fboss::platform {
+} // namespace
+
+namespace facebook::fboss::platform::fan_service {
 ControlLogic::ControlLogic(
-    std::shared_ptr<ServiceConfig> pC,
-    std::shared_ptr<Bsp> pB) {
-  pConfig_ = pC;
+    const FanServiceConfig& config,
+    std::shared_ptr<Bsp> pB)
+    : config_(config) {
   pBsp_ = pB;
   numFanFailed_ = 0;
   numSensorFailed_ = 0;
@@ -29,219 +50,200 @@ void ControlLogic::getFanUpdate() {
   SensorEntryType entryType;
 
   // Zeroth, check Fan RPM and Status
-  for (auto fanItem = pConfig_->fans.begin(); fanItem != pConfig_->fans.end();
-       ++fanItem) {
-    XLOG(INFO) << "Control :: Fan name " << fanItem->fanName
-               << " Access type : "
-               << static_cast<int>(*fanItem->rpmAccess.accessType());
+  for (const auto& fan : *config_.fans()) {
+    std::string fanName = *fan.fanName();
+    auto rpmAccessType = *fan.rpmAccess()->accessType();
+    XLOG(INFO) << "Control :: Fan name " << *fan.fanName()
+               << " Access type : " << rpmAccessType;
     bool fanAccessFail = false, fanMissing = false;
     int fanRpm;
     uint64_t rpmTimeStamp;
-    std::string fanItemName = fanItem->fanName;
+
     // Check if RPM name in Thrift data is overridden
-    if (fanItem->rpmAccess.accessType() ==
-        fan_config_structs::SourceType::kSrcThrift) {
-      fanItemName = *fanItem->rpmAccess.path();
+    if (rpmAccessType == constants::ACCESS_TYPE_THRIFT()) {
+      fanName = *fan.rpmAccess()->path();
     }
-    if (!checkIfFanPresent(std::addressof(*fanItem))) {
+    if (!isFanPresentInDevice(fan)) {
       fanMissing = true;
     }
-    // If source type is not specified (SRC_INVALID), we treat it as Thrift.
-    if ((fanItem->rpmAccess.accessType() ==
-         fan_config_structs::SourceType::kSrcInvalid) ||
-        (fanItem->rpmAccess.accessType() ==
-         fan_config_structs::SourceType::kSrcThrift)) {
-      if (pSensor_->checkIfEntryExists(fanItemName)) {
-        entryType = pSensor_->getSensorEntryType(fanItemName);
+    if (rpmAccessType == constants::ACCESS_TYPE_THRIFT()) {
+      if (pSensor_->checkIfEntryExists(fanName)) {
+        entryType = pSensor_->getSensorEntryType(fanName);
         switch (entryType) {
           case SensorEntryType::kSensorEntryInt:
-            fanRpm = static_cast<int>(pSensor_->getSensorDataInt(fanItemName));
+            fanRpm = static_cast<int>(pSensor_->getSensorDataInt(fanName));
             break;
           case SensorEntryType::kSensorEntryFloat:
-            fanRpm =
-                static_cast<int>(pSensor_->getSensorDataFloat(fanItemName));
+            fanRpm = static_cast<int>(pSensor_->getSensorDataFloat(fanName));
             break;
         }
-        rpmTimeStamp = pSensor_->getLastUpdated(fanItemName);
-        if (rpmTimeStamp == fanItem->fanStatus.timeStamp) {
+        rpmTimeStamp = pSensor_->getLastUpdated(fanName);
+        if (rpmTimeStamp == fanStatuses_[fanName].timeStamp) {
           // If read method is Thrift, but read time stamp is stale
           // , consider that as access failure
           fanAccessFail = true;
         } else {
-          fanItem->fanStatus.rpm = fanRpm;
-          fanItem->fanStatus.timeStamp = rpmTimeStamp;
+          fanStatuses_[fanName].rpm = fanRpm;
+          fanStatuses_[fanName].timeStamp = rpmTimeStamp;
         }
       } else {
         // If no entry in Thrift response, consider that as failure
         fanAccessFail = true;
       }
-    } else if (
-        fanItem->rpmAccess.accessType() ==
-        fan_config_structs::SourceType::kSrcSysfs) {
+    } else if (rpmAccessType == constants::ACCESS_TYPE_SYSFS()) {
       try {
-        fanItem->fanStatus.rpm = pBsp_->readSysfs(*fanItem->rpmAccess.path());
-        fanItem->fanStatus.timeStamp = pBsp_->getCurrentTime();
+        fanStatuses_[fanName].rpm = pBsp_->readSysfs(*fan.rpmAccess()->path());
+        fanStatuses_[fanName].timeStamp = pBsp_->getCurrentTime();
       } catch (std::exception& e) {
-        XLOG(ERR) << "Fan RPM access fail " << *fanItem->rpmAccess.path();
+        XLOG(ERR) << "Fan RPM access fail " << *fan.rpmAccess()->path();
         // Obvious. Sysfs fail means access fail
         fanAccessFail = true;
       }
     } else {
       facebook::fboss::FbossError(
           "Unable to fetch Fan RPM due to invalide RPM sensor entry type :",
-          fanItemName);
+          fanName);
     }
 
     // We honor fan presence bit first,
     // If fan is present, then check if access has failed
     if (fanMissing) {
-      setFanFailState(std::addressof(*fanItem), true);
+      setFanFailState(fan, true);
     } else if (fanAccessFail) {
       uint64_t timeDiffInSec =
-          pBsp_->getCurrentTime() - fanItem->fanStatus.timeStamp;
-      if (timeDiffInSec >= fanItem->fanFailThresholdInSec) {
-        setFanFailState(std::addressof(*fanItem), true);
+          pBsp_->getCurrentTime() - fanStatuses_[fanName].timeStamp;
+      if (timeDiffInSec >= kFanFailThresholdInSec) {
+        setFanFailState(fan, true);
         numFanFailed_++;
       }
     } else {
-      setFanFailState(std::addressof(*fanItem), false);
+      setFanFailState(fan, false);
     }
-    XLOG(INFO) << "Control :: RPM :" << fanItem->fanStatus.rpm
-               << " Failed : " << (fanItem->fanStatus.fanFailed ? "Yes" : "No");
+    XLOG(INFO) << "Control :: RPM :" << fanStatuses_[fanName].rpm
+               << " Failed : "
+               << (fanStatuses_[fanName].fanFailed ? "Yes" : "No");
   }
   XLOG(INFO) << "Control :: Done checking Fans Status";
   return;
 }
 
-void ControlLogic::updateTargetPwm(Sensor* sensorItem) {
+void ControlLogic::updateTargetPwm(const Sensor& sensor) {
   bool accelerate, deadFanExists;
   float previousSensorValue, sensorValue, targetPwm;
   float value, lastPwm, kp, ki, kd, previousRead1, previousRead2, pwm;
-  float minVal, maxVal, error, d;
+  float error;
+  float minVal = *sensor.setPoint() - *sensor.negHysteresis();
+  float maxVal = *sensor.setPoint() + *sensor.posHysteresis();
   uint64_t dT;
-  std::vector<std::pair<float, float>> tableToUse;
-  switch (sensorItem->calculationType) {
-    case fan_config_structs::SensorPwmCalcType::kSensorPwmCalcFourLinearTable:
-      accelerate = true;
-      previousSensorValue = sensorItem->fourCurves.previousSensorRead;
-      sensorValue = sensorItem->processedData.adjustedReadCache;
-      targetPwm = 0.0;
-      deadFanExists = (numFanFailed_ > 0);
-      accelerate =
-          ((previousSensorValue == 0) || (sensorValue > previousSensorValue));
-      if (accelerate && !deadFanExists) {
-        tableToUse = sensorItem->fourCurves.normalUp;
-      } else if (!accelerate && !deadFanExists) {
-        tableToUse = sensorItem->fourCurves.normalDown;
-      } else if (accelerate && deadFanExists) {
-        tableToUse = sensorItem->fourCurves.failUp;
-      } else {
-        tableToUse = sensorItem->fourCurves.failDown;
-      }
-      // Start with the lowest value
-      targetPwm = tableToUse[0].second;
-      for (auto tableEntry = tableToUse.begin(); tableEntry != tableToUse.end();
-           ++tableEntry) {
-        if (sensorValue > tableEntry->first) {
-          targetPwm = tableEntry->second;
-        }
-      }
-      if (accelerate) {
-        // If accleration is needed, new pwm should be bigger than old value
-        if (targetPwm < sensorItem->processedData.targetPwmCache) {
-          targetPwm = sensorItem->processedData.targetPwmCache;
-        }
-      } else {
-        // If deceleration is needed, new pwm should be smaller than old one
-        if (targetPwm > sensorItem->processedData.targetPwmCache) {
-          targetPwm = sensorItem->processedData.targetPwmCache;
-        }
-      }
-      sensorItem->fourCurves.previousSensorRead = sensorValue;
-      sensorItem->processedData.targetPwmCache = targetPwm;
-      XLOG(INFO) << "Control :: Sensor : " << sensorItem->sensorName
-                 << " Value : " << sensorValue << " [4CUV] Pwm : " << targetPwm;
-      break;
+  TempToPwmMap tableToUse;
+  auto& readCache = sensorReadCaches_[*sensor.sensorName()];
+  auto& pwmCalcCache = pwmCalcCaches_[*sensor.sensorName()];
+  const auto& pwmCalcType = *sensor.pwmCalcType();
 
-    case fan_config_structs::SensorPwmCalcType::kSensorPwmCalcIncrementPid:
-      value = sensorItem->processedData.adjustedReadCache;
-      lastPwm = sensorItem->incrementPid.previousTargetPwm;
-      kp = sensorItem->incrementPid.kp;
-      ki = sensorItem->incrementPid.ki;
-      kd = sensorItem->incrementPid.kd;
-      previousRead1 = sensorItem->incrementPid.previousRead1;
-      previousRead2 = sensorItem->incrementPid.previousRead2;
-      pwm = lastPwm + (kp * (value - previousRead1)) +
-          (ki * (value - sensorItem->incrementPid.setPoint)) +
-          (kd * (value - 2 * previousRead1 + previousRead2));
-      // Even though the previous Target Pwm should be the zone pwm,
-      // the best effort is made here. Zone should update this value.
-      sensorItem->incrementPid.previousTargetPwm = pwm;
-      sensorItem->processedData.targetPwmCache = pwm;
-      sensorItem->incrementPid.previousRead2 = previousRead1;
-      sensorItem->incrementPid.previousRead1 = value;
-      XLOG(INFO) << "Control :: Sensor : " << sensorItem->sensorName
-                 << " Value : " << value << " [IPID] Pwm : " << pwm;
-      XLOG(INFO) << "           Prev1  : " << previousRead1
-                 << " Prev2 : " << previousRead2;
-
-      break;
-
-    case fan_config_structs::SensorPwmCalcType::kSensorPwmCalcPid:
-      value = sensorItem->processedData.adjustedReadCache;
-      lastPwm = sensorItem->incrementPid.previousTargetPwm;
-      pwm = lastPwm;
-      kp = sensorItem->incrementPid.kp;
-      ki = sensorItem->incrementPid.ki;
-      kd = sensorItem->incrementPid.kd;
-      previousRead1 = sensorItem->incrementPid.previousRead1;
-      previousRead2 = sensorItem->incrementPid.previousRead2;
-      dT = pBsp_->getCurrentTime() - lastControlUpdateSec_;
-      minVal = sensorItem->incrementPid.minVal;
-      maxVal = sensorItem->incrementPid.maxVal;
-
-      if (value < minVal) {
-        sensorItem->incrementPid.i = 0;
-        sensorItem->incrementPid.previousTargetPwm = 0;
+  if (pwmCalcType == constants::SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE()) {
+    accelerate = true;
+    previousSensorValue = pwmCalcCache.previousSensorRead;
+    sensorValue = readCache.adjustedReadCache;
+    targetPwm = 0.0;
+    deadFanExists = (numFanFailed_ > 0);
+    accelerate =
+        ((previousSensorValue == 0) || (sensorValue > previousSensorValue));
+    if (accelerate && !deadFanExists) {
+      tableToUse = *sensor.normalUpTable();
+    } else if (!accelerate && !deadFanExists) {
+      tableToUse = *sensor.normalDownTable();
+    } else if (accelerate && deadFanExists) {
+      tableToUse = *sensor.failUpTable();
+    } else {
+      tableToUse = *sensor.failDownTable();
+    }
+    // Start with the lowest value
+    targetPwm = tableToUse.begin()->second;
+    for (const auto& [temp, pwm] : tableToUse) {
+      if (sensorValue > temp) {
+        targetPwm = pwm;
       }
-      if (value > maxVal) {
-        error = maxVal - value;
-        sensorItem->incrementPid.i = sensorItem->incrementPid.i + error * dT;
-        d = (error - sensorItem->incrementPid.last_error);
-        pwm = kp * error + ki * sensorItem->incrementPid.i + kd * d;
-        sensorItem->processedData.targetPwmCache = pwm;
-        sensorItem->incrementPid.previousTargetPwm = pwm;
-        sensorItem->incrementPid.last_error = error;
+    }
+    if (accelerate) {
+      // If accleration is needed, new pwm should be bigger than old value
+      if (targetPwm < readCache.targetPwmCache) {
+        targetPwm = readCache.targetPwmCache;
       }
-      sensorItem->incrementPid.previousRead2 = previousRead1;
-      sensorItem->incrementPid.previousRead1 = value;
-      XLOG(INFO) << "Control :: Sensor : " << sensorItem->sensorName
-                 << " Value : " << value << " [PID] Pwm : " << pwm;
-      XLOG(INFO) << "               dT : " << dT
-                 << " Time : " << pBsp_->getCurrentTime()
-                 << " LUD : " << lastControlUpdateSec_ << " Min : " << minVal
-                 << " Max : " << maxVal;
-      break;
-
-    case fan_config_structs::SensorPwmCalcType::kSensorPwmCalcDisable:
-      // Do nothing
-      XLOG(WARN) << "Control :: Sensor : " << sensorItem->sensorName
-                 << "Do Nothing ";
-      break;
-    default:
-      facebook::fboss::FbossError(
-          "Invalid PWM Calculation Type for sensor", sensorItem->sensorName);
-      break;
+    } else {
+      // If deceleration is needed, new pwm should be smaller than old one
+      if (targetPwm > readCache.targetPwmCache) {
+        targetPwm = readCache.targetPwmCache;
+      }
+    }
+    pwmCalcCache.previousSensorRead = sensorValue;
+    readCache.targetPwmCache = targetPwm;
+    XLOG(INFO) << "Control :: Sensor : " << *sensor.sensorName()
+               << " Value : " << sensorValue << " [4CUV] Pwm : " << targetPwm;
   }
+
+  if (pwmCalcType == constants::SENSOR_PWM_CALC_TYPE_INCREMENT_PID()) {
+    value = readCache.adjustedReadCache;
+    lastPwm = pwmCalcCache.previousTargetPwm;
+    kp = *sensor.kp();
+    ki = *sensor.ki();
+    kd = *sensor.kd();
+    previousRead1 = pwmCalcCache.previousRead1;
+    previousRead2 = pwmCalcCache.previousRead2;
+    pwm = lastPwm + (kp * (value - previousRead1)) +
+        (ki * (value - *sensor.setPoint())) +
+        (kd * (value - 2 * previousRead1 + previousRead2));
+    // Even though the previous Target Pwm should be the zone pwm,
+    // the best effort is made here. Zone should update this value.
+    pwmCalcCache.previousTargetPwm = pwm;
+    readCache.targetPwmCache = pwm;
+    pwmCalcCache.previousRead2 = previousRead1;
+    pwmCalcCache.previousRead1 = value;
+    XLOG(INFO) << "Control :: Sensor : " << *sensor.sensorName()
+               << " Value : " << value << " [IPID] Pwm : " << pwm;
+    XLOG(INFO) << "           Prev1  : " << previousRead1
+               << " Prev2 : " << previousRead2;
+  }
+
+  if (pwmCalcType == constants::SENSOR_PWM_CALC_TYPE_PID()) {
+    value = readCache.adjustedReadCache;
+    lastPwm = pwmCalcCache.previousTargetPwm;
+    pwm = lastPwm;
+    kp = *sensor.kp();
+    ki = *sensor.ki();
+    kd = *sensor.kd();
+    previousRead1 = pwmCalcCache.previousRead1;
+    previousRead2 = pwmCalcCache.previousRead2;
+    dT = pBsp_->getCurrentTime() - lastControlUpdateSec_;
+
+    if (value < minVal) {
+      pwmCalcCache.integral = 0;
+      pwmCalcCache.previousTargetPwm = 0;
+    }
+    if (value > maxVal) {
+      error = maxVal - value;
+      pwmCalcCache.integral = pwmCalcCache.integral + error * dT;
+      auto derivative = (error - pwmCalcCache.last_error) / dT;
+      pwm = kp * error + ki * pwmCalcCache.integral + kd * derivative;
+      readCache.targetPwmCache = pwm;
+      pwmCalcCache.previousTargetPwm = pwm;
+      pwmCalcCache.last_error = error;
+    }
+    pwmCalcCache.previousRead2 = previousRead1;
+    pwmCalcCache.previousRead1 = value;
+    XLOG(INFO) << "Control :: Sensor : " << *sensor.sensorName()
+               << " Value : " << value << " [PID] Pwm : " << pwm;
+    XLOG(INFO) << "               dT : " << dT
+               << " Time : " << pBsp_->getCurrentTime()
+               << " LUD : " << lastControlUpdateSec_ << " Min : " << minVal
+               << " Max : " << maxVal;
+  }
+
   // No matter what, PWM should be within
   // predefined upper and lower thresholds
-  if (sensorItem->processedData.targetPwmCache >
-      pConfig_->getPwmUpperThreshold()) {
-    sensorItem->processedData.targetPwmCache = pConfig_->getPwmUpperThreshold();
-  } else if (
-      sensorItem->processedData.targetPwmCache <
-      pConfig_->getPwmLowerThreshold()) {
-    sensorItem->processedData.targetPwmCache = pConfig_->getPwmLowerThreshold();
+  if (readCache.targetPwmCache > *config_.pwmUpperThreshold()) {
+    readCache.targetPwmCache = *config_.pwmUpperThreshold();
+  } else if (readCache.targetPwmCache < *config_.pwmLowerThreshold()) {
+    readCache.targetPwmCache = *config_.pwmLowerThreshold();
   }
   return;
 }
@@ -250,12 +252,10 @@ void ControlLogic::getSensorUpdate() {
   std::string sensorItemName;
   float rawValue = 0.0, adjustedValue;
   uint64_t calculatedTime = 0;
-  for (auto configSensorItem = pConfig_->sensors.begin();
-       configSensorItem != pConfig_->sensors.end();
-       ++configSensorItem) {
-    XLOG(INFO) << "Control :: Sensor Name : " << configSensorItem->sensorName;
+  for (auto& sensor : *config_.sensors()) {
+    XLOG(INFO) << "Control :: Sensor Name : " << *sensor.sensorName();
     bool sensorAccessFail = false;
-    sensorItemName = configSensorItem->sensorName;
+    sensorItemName = *sensor.sensorName();
     if (pSensor_->checkIfEntryExists(sensorItemName)) {
       XLOG(INFO) << "Control :: Sensor Exists. Getting the entry type";
       // 1.a Get the reading
@@ -263,11 +263,11 @@ void ControlLogic::getSensorUpdate() {
       switch (entryType) {
         case SensorEntryType::kSensorEntryInt:
           rawValue = pSensor_->getSensorDataInt(sensorItemName);
-          rawValue = rawValue / configSensorItem->scale;
+          rawValue = rawValue / *sensor.scale();
           break;
         case SensorEntryType::kSensorEntryFloat:
           rawValue = pSensor_->getSensorDataFloat(sensorItemName);
-          rawValue = rawValue / configSensorItem->scale;
+          rawValue = rawValue / *sensor.scale();
           break;
         default:
           facebook::fboss::FbossError(
@@ -280,112 +280,108 @@ void ControlLogic::getSensorUpdate() {
     }
     XLOG(INFO) << "Control :: Done raw sensor reading";
 
+    auto& readCache = sensorReadCaches_[sensorItemName];
+
     if (sensorAccessFail) {
       // If the sensor data cache is stale for a while, we consider it as the
       // failure of such sensor
-      uint64_t timeDiffInSec = pBsp_->getCurrentTime() -
-          configSensorItem->processedData.lastUpdatedTime;
-      if (timeDiffInSec >= configSensorItem->sensorFailThresholdInSec) {
-        configSensorItem->processedData.sensorFailed = true;
+      uint64_t timeDiffInSec =
+          pBsp_->getCurrentTime() - readCache.lastUpdatedTime;
+      if (timeDiffInSec >= kSensorFailThresholdInSec) {
+        readCache.sensorFailed = true;
         numSensorFailed_++;
       }
     } else {
       calculatedTime = pSensor_->getLastUpdated(sensorItemName);
-      configSensorItem->processedData.lastUpdatedTime = calculatedTime;
-      configSensorItem->processedData.sensorFailed = false;
+      readCache.lastUpdatedTime = calculatedTime;
+      readCache.sensorFailed = false;
     }
 
     // 1.b If adjustment table exists, adjust the raw value
-    if (configSensorItem->offsetTable.size() == 0) {
+    if (sensor.adjustmentTable()->size() == 0) {
       adjustedValue = rawValue;
     } else {
       float offset = 0;
-      for (auto tableEntry = configSensorItem->offsetTable.begin();
-           tableEntry != configSensorItem->offsetTable.end();
-           ++tableEntry) {
-        if (rawValue >= tableEntry->first) {
-          offset = tableEntry->second;
+      for (const auto& [k, v] : *sensor.adjustmentTable()) {
+        if (rawValue >= k) {
+          offset = v;
         }
         adjustedValue = rawValue + offset;
       }
     }
-    configSensorItem->processedData.adjustedReadCache = adjustedValue;
+    readCache.adjustedReadCache = adjustedValue;
     XLOG(INFO) << "Control :: Adjusted Value : " << adjustedValue;
     // 1.c Check and trigger alarm
-    bool prevMajorAlarm = configSensorItem->processedData.majorAlarmTriggered;
-    configSensorItem->processedData.majorAlarmTriggered =
-        (adjustedValue >= configSensorItem->alarm.high_major);
+    bool prevMajorAlarm = readCache.majorAlarmTriggered;
+    readCache.majorAlarmTriggered =
+        (adjustedValue >= *sensor.alarm()->highMajor());
     // If major alarm was triggered, write it as a ERR log
-    if (!prevMajorAlarm &&
-        configSensorItem->processedData.majorAlarmTriggered) {
-      XLOG(ERR) << "Major Alarm Triggered on " << configSensorItem->sensorName
+    if (!prevMajorAlarm && readCache.majorAlarmTriggered) {
+      XLOG(ERR) << "Major Alarm Triggered on " << *sensor.sensorName()
                 << " at value " << adjustedValue;
-    } else if (
-        prevMajorAlarm &&
-        !configSensorItem->processedData.majorAlarmTriggered) {
-      XLOG(WARN) << "Major Alarm Cleared on " << configSensorItem->sensorName
+    } else if (prevMajorAlarm && !readCache.majorAlarmTriggered) {
+      XLOG(WARN) << "Major Alarm Cleared on " << *sensor.sensorName()
                  << " at value " << adjustedValue;
     }
-    bool prevMinorAlarm = configSensorItem->processedData.minorAlarmTriggered;
-    if (adjustedValue >= configSensorItem->alarm.high_minor) {
-      if (configSensorItem->processedData.soakStarted) {
-        uint64_t timeDiffInSec = pBsp_->getCurrentTime() -
-            configSensorItem->processedData.soakStartedAt;
-        if (timeDiffInSec >= configSensorItem->alarm.high_minor_soak) {
-          configSensorItem->processedData.minorAlarmTriggered = true;
-          configSensorItem->processedData.soakStarted = false;
+    bool prevMinorAlarm = readCache.minorAlarmTriggered;
+    if (adjustedValue >= *sensor.alarm()->highMinor()) {
+      if (readCache.soakStarted) {
+        uint64_t timeDiffInSec =
+            pBsp_->getCurrentTime() - readCache.soakStartedAt;
+        if (timeDiffInSec >= *sensor.alarm()->minorSoakSeconds()) {
+          readCache.minorAlarmTriggered = true;
+          readCache.soakStarted = false;
         }
       } else {
-        configSensorItem->processedData.soakStarted = true;
-        configSensorItem->processedData.soakStartedAt = calculatedTime;
+        readCache.soakStarted = true;
+        readCache.soakStartedAt = calculatedTime;
       }
     } else {
-      configSensorItem->processedData.minorAlarmTriggered = false;
-      configSensorItem->processedData.soakStarted = false;
+      readCache.minorAlarmTriggered = false;
+      readCache.soakStarted = false;
     }
     // If minor alarm was triggered, write it as a WARN log
-    if (!prevMinorAlarm &&
-        configSensorItem->processedData.minorAlarmTriggered) {
-      XLOG(WARN) << "Minor Alarm Triggered on " << configSensorItem->sensorName
+    if (!prevMinorAlarm && readCache.minorAlarmTriggered) {
+      XLOG(WARN) << "Minor Alarm Triggered on " << *sensor.sensorName()
                  << " at value " << adjustedValue;
     }
-    if (prevMinorAlarm &&
-        !configSensorItem->processedData.minorAlarmTriggered) {
-      XLOG(WARN) << "Minor Alarm Cleared on " << configSensorItem->sensorName
+    if (prevMinorAlarm && !readCache.minorAlarmTriggered) {
+      XLOG(WARN) << "Minor Alarm Cleared on " << *sensor.sensorName()
                  << " at value " << adjustedValue;
     }
     // 1.d Check the range (if required), and do emergency
     // shutdown, if the value is out of range for more than
     // the "tolerance" times
-    if (configSensorItem->rangeCheck.enabled) {
-      if ((adjustedValue > configSensorItem->rangeCheck.rangeHigh) ||
-          (adjustedValue < configSensorItem->rangeCheck.rangeLow)) {
-        configSensorItem->rangeCheck.invalidCount += 1;
-        if (configSensorItem->rangeCheck.invalidCount >=
-            configSensorItem->rangeCheck.tolerance) {
+
+    if (sensor.rangeCheck()) {
+      if ((adjustedValue > *sensor.rangeCheck()->high()) ||
+          (adjustedValue < *sensor.rangeCheck()->low())) {
+        readCache.invalidRangeCheckCount++;
+        if (readCache.invalidRangeCheckCount >=
+            *sensor.rangeCheck()->tolerance()) {
           // ERR log only once.
-          if (configSensorItem->rangeCheck.invalidCount ==
-              configSensorItem->rangeCheck.tolerance) {
-            XLOG(ERR) << "Sensor " << configSensorItem->sensorName
+          if (readCache.invalidRangeCheckCount ==
+              *sensor.rangeCheck()->tolerance()) {
+            XLOG(ERR) << "Sensor " << *sensor.sensorName()
                       << " out of range for too long!";
           }
           // If we are not yet in emergency state, do the emergency shutdown.
-          if ((configSensorItem->rangeCheck.action ==
-               kRangeCheckActionShutdown) &&
+          if ((*sensor.rangeCheck()->invalidRangeAction() ==
+               constants::RANGE_CHECK_ACTION_SHUTDOWN()) &&
               (pBsp_->getEmergencyState() == false)) {
-            pBsp_->emergencyShutdown(pConfig_, true);
+            pBsp_->emergencyShutdown(true);
           }
         }
       } else {
-        configSensorItem->rangeCheck.invalidCount = 0;
+        readCache.invalidRangeCheckCount = 0;
       }
     }
     // 1.e Calculate the target pwm in percent
     //     (the table or incremental pid should produce
     //      percent as its output)
-    updateTargetPwm(&(*configSensorItem));
-    XLOG(INFO) << configSensorItem->sensorName << " has the target PWM of "
-               << configSensorItem->processedData.targetPwmCache;
+    updateTargetPwm(sensor);
+    XLOG(INFO) << *sensor.sensorName() << " has the target PWM of "
+               << readCache.targetPwmCache;
   }
   return;
 }
@@ -394,10 +390,9 @@ void ControlLogic::getOpticsUpdate() {
   // For all optics entry
   // Read optics array and set calculated pwm
   // No need to worry about timestamp, but update it anyway
-  for (auto optic = pConfig_->optics.begin(); optic != pConfig_->optics.end();
-       ++optic) {
-    XLOG(INFO) << "Control :: Optics Group Name : " << optic->opticName;
-    std::string opticName = optic->opticName;
+  for (const auto& optic : *config_.optics()) {
+    XLOG(INFO) << "Control :: Optics Group Name : " << *optic.opticName();
+    std::string opticName = *optic.opticName();
 
     if (!pSensor_->checkIfOpticEntryExists(opticName)) {
       // No data found. Skip this config entry
@@ -413,24 +408,17 @@ void ControlLogic::getOpticsUpdate() {
         // This data set is empty, already processed. Ignore.
         continue;
       } else {
-        for (auto dataPair = opticData->data.begin();
-             dataPair != opticData->data.end();
-             ++dataPair) {
-          auto dataType = dataPair->first;
-          auto value = dataPair->second;
+        for (const auto& [dataType, value] : opticData->data) {
           int pwmForThis = 0;
-          auto tablePointer =
-              pConfig_->getConfigOpticTable(opticName, dataType);
+          auto tablePointer = getConfigOpticTable(optic, dataType);
           // We have <type, value> pair. If we have table entry for this
           // optics type, get the matching pwm value using the optics value
-          if (tablePointer != nullptr) {
+          if (tablePointer) {
             // Start with the minumum, then continue the comparison
-            pwmForThis = (*tablePointer)[0].second;
-            for (auto tableEntry = tablePointer->begin();
-                 tableEntry != tablePointer->end();
-                 ++tableEntry) {
-              if (value >= tableEntry->first) {
-                pwmForThis = tableEntry->second;
+            pwmForThis = tablePointer->begin()->second;
+            for (const auto& [temp, pwm] : *tablePointer) {
+              if (value >= temp) {
+                pwmForThis = pwm;
               }
             }
           }
@@ -447,93 +435,85 @@ void ControlLogic::getOpticsUpdate() {
   }
 }
 
-Sensor* ControlLogic::findSensorConfig(std::string sensorName) {
-  for (auto sensorConfig = pConfig_->sensors.begin();
-       sensorConfig != pConfig_->sensors.end();
-       ++sensorConfig) {
-    if (sensorConfig->sensorName == sensorName) {
-      return &(*sensorConfig);
+bool ControlLogic::isSensorPresentInConfig(const std::string& sensorName) {
+  for (auto& sensor : *config_.sensors()) {
+    if (*sensor.sensorName() == sensorName) {
+      return true;
     }
   }
-  facebook::fboss::FbossError("Enable to find sensorConfig : ", sensorName);
-  return nullptr;
+  return false;
 }
 
-bool ControlLogic::checkIfFanPresent(Fan* fan) {
+bool ControlLogic::isFanPresentInDevice(const Fan& fan) {
   unsigned int readVal;
   bool readSuccessful = false;
   uint64_t nowSec;
 
   // If no access method is listed in config,
   // skip any check and return true
-  if (fan->presence.path() == "") {
+  if (*fan.presenceAccess()->path() == "") {
     return true;
   }
 
-  std::string presenceKey = fan->fanName + "_presence";
-  auto presenceAccessType = *fan->presence.accessType();
-  switch (presenceAccessType) {
-    case fan_config_structs::SourceType::kSrcThrift:
-      // In the case of Thrift, we use the last data from Thrift read
-      readVal = pSensor_->getSensorDataFloat(presenceKey);
+  std::string presenceKey = *fan.fanName() + "_presence";
+  auto presenceAccessType = *fan.presenceAccess()->accessType();
+  if (presenceAccessType == constants::ACCESS_TYPE_THRIFT()) {
+    // In the case of Thrift, we use the last data from Thrift read
+    readVal = pSensor_->getSensorDataFloat(presenceKey);
+    readSuccessful = true;
+  } else if (presenceAccessType == constants::ACCESS_TYPE_SYSFS()) {
+    nowSec = facebook::WallClockUtil::NowInSecFast();
+    try {
+      readVal = static_cast<unsigned>(
+          pBsp_->readSysfs(*fan.presenceAccess()->path()));
       readSuccessful = true;
-      break;
-    case fan_config_structs::SourceType::kSrcSysfs:
-      nowSec = facebook::WallClockUtil::NowInSecFast();
-      try {
-        readVal =
-            static_cast<unsigned>(pBsp_->readSysfs(*fan->presence.path()));
-        readSuccessful = true;
-      } catch (std::exception& e) {
-        XLOG(ERR) << "Failed to read sysfs " << *fan->presence.path();
-      }
-      // If the read is successful, also update the SW state
-      if (readSuccessful) {
-        pSensor_->updateEntryFloat(presenceKey, readVal, nowSec);
-      }
-      readSuccessful = true;
-      break;
-    case fan_config_structs::SourceType::kSrcInvalid:
-    case fan_config_structs::SourceType::kSrcRest:
-    case fan_config_structs::SourceType::kSrcUtil:
-    default:
-      throw facebook::fboss::FbossError(
-          "Only Thrift and sysfs are supported for fan presence detection!");
-      break;
+    } catch (std::exception& e) {
+      XLOG(ERR) << "Failed to read sysfs " << *fan.presenceAccess()->path();
+    }
+    // If the read is successful, also update the SW state
+    if (readSuccessful) {
+      pSensor_->updateEntryFloat(presenceKey, readVal, nowSec);
+    }
+    readSuccessful = true;
+  } else {
+    throw facebook::fboss::FbossError(
+        "Only Thrift and sysfs are supported for fan presence detection!");
   }
   XLOG(INFO) << "Control :: " << presenceKey << " : " << readVal << " vs good "
-             << fan->fanPresentVal << " - bad " << fan->fanMissingVal;
+             << *fan.fanPresentVal() << " - bad " << *fan.fanMissingVal();
 
   if (readSuccessful) {
-    if (readVal == fan->fanPresentVal) {
+    if (readVal == *fan.fanPresentVal()) {
       return true;
     }
   }
   return false;
 }
-void ControlLogic::programFan(Zone* zone, float pwmSoFar) {
-  for (auto fan = pConfig_->fans.begin(); fan != pConfig_->fans.end(); ++fan) {
-    auto srcType = *fan->pwm.accessType();
+
+void ControlLogic::programFan(const Zone& zone, float pwmSoFar) {
+  for (const auto& fan : *config_.fans()) {
+    auto srcType = *fan.pwmAccess()->accessType();
     float pwmToProgram = 0;
-    float currentPwm = fan->fanStatus.currentPwm;
+    float currentPwm = fanStatuses_[*fan.fanName()].currentPwm;
     bool writeSuccess{false};
     // If this fan does not belong to the current zone, do not do anything
-    if (std::find(zone->fanNames.begin(), zone->fanNames.end(), fan->fanName) ==
-        zone->fanNames.end()) {
+    if (std::find(
+            zone.fanNames()->begin(), zone.fanNames()->end(), *fan.fanName()) ==
+        zone.fanNames()->end()) {
       continue;
     }
-    if ((zone->slope == 0) || (currentPwm == 0)) {
+    if ((*zone.slope() == 0) || (currentPwm == 0)) {
       pwmToProgram = pwmSoFar;
     } else {
       if (pwmSoFar > currentPwm) {
-        if ((pwmSoFar - currentPwm) > zone->slope) {
-          pwmToProgram = currentPwm + zone->slope;
+        if ((pwmSoFar - currentPwm) > *zone.slope()) {
+          pwmToProgram = currentPwm + *zone.slope();
         } else {
           pwmToProgram = pwmSoFar;
         }
       } else if (pwmSoFar < currentPwm) {
-        if ((currentPwm - pwmSoFar) > zone->slope) {
-          pwmToProgram = currentPwm - zone->slope;
+        if ((currentPwm - pwmSoFar) > *zone.slope()) {
+          pwmToProgram = currentPwm - *zone.slope();
         } else {
           pwmToProgram = pwmSoFar;
         }
@@ -542,181 +522,151 @@ void ControlLogic::programFan(Zone* zone, float pwmSoFar) {
       }
     }
     int pwmInt =
-        (int)(((fan->pwmMax) - (fan->pwmMin)) * pwmToProgram / 100.0 + fan->pwmMin);
-    if (pwmInt < fan->pwmMin) {
-      pwmInt = fan->pwmMin;
-    } else if (pwmInt > fan->pwmMax) {
-      pwmInt = fan->pwmMax;
+        (int)(((*fan.pwmMax()) - (*fan.pwmMin())) * pwmToProgram / 100.0 + *fan.pwmMin());
+    if (pwmInt < *fan.pwmMin()) {
+      pwmInt = *fan.pwmMin();
+    } else if (pwmInt > *fan.pwmMax()) {
+      pwmInt = *fan.pwmMax();
     }
-    switch (srcType) {
-      case fan_config_structs::SourceType::kSrcSysfs:
-        writeSuccess = pBsp_->setFanPwmSysfs(*fan->pwm.path(), pwmInt);
-        if (!writeSuccess) {
-          setFanFailState(std::addressof(*fan), true);
-        }
-        break;
-      case fan_config_structs::SourceType::kSrcUtil:
-        writeSuccess =
-            pBsp_->setFanPwmShell(*fan->pwm.path(), fan->fanName, pwmInt);
-        if (!writeSuccess) {
-          setFanFailState(std::addressof(*fan), true);
-        }
-        break;
-      case fan_config_structs::SourceType::kSrcThrift:
-      case fan_config_structs::SourceType::kSrcRest:
-      case fan_config_structs::SourceType::kSrcInvalid:
-      default:
-        facebook::fboss::FbossError(
-            "Unsupported PWM access type for : ", fan->fanName);
+    if (srcType == constants::ACCESS_TYPE_SYSFS()) {
+      writeSuccess = pBsp_->setFanPwmSysfs(*fan.pwmAccess()->path(), pwmInt);
+      if (!writeSuccess) {
+        setFanFailState(fan, true);
+      }
+    } else if (srcType == constants::ACCESS_TYPE_UTIL()) {
+      writeSuccess = pBsp_->setFanPwmShell(
+          *fan.pwmAccess()->path(), *fan.fanName(), pwmInt);
+      if (!writeSuccess) {
+        setFanFailState(fan, true);
+      }
+    } else {
+      XLOG(ERR) << "Unsupported PWM access type for : ", *fan.fanName();
     }
     fb303::fbData->setCounter(
-        fmt::format(kFanWriteFailure, zone->zoneName, fan->fanName),
+        fmt::format(kFanWriteFailure, *zone.zoneName(), *fan.fanName()),
         !writeSuccess);
-    fan->fanStatus.currentPwm = pwmToProgram;
+    fanStatuses_[*fan.fanName()].currentPwm = pwmToProgram;
   }
 }
 
-void ControlLogic::setFanFailState(Fan* fan, bool fanFailed) {
-  XLOG(INFO) << "Control :: Enter LED for " << fan->fanName;
+void ControlLogic::setFanFailState(const Fan& fan, bool fanFailed) {
+  XLOG(INFO) << "Control :: Enter LED for " << *fan.fanName();
   bool ledAccessNeeded = false;
-  if (fan->fanStatus.firstTimeLedAccess) {
+  if (fanStatuses_[*fan.fanName()].firstTimeLedAccess) {
     ledAccessNeeded = true;
-    fan->fanStatus.firstTimeLedAccess = false;
+    fanStatuses_[*fan.fanName()].firstTimeLedAccess = false;
   }
   if (fanFailed) {
     // Fan failed.
     // If the previous status was fan good, we need to set fan LED color
-    if (!fan->fanStatus.fanFailed) {
+    if (!fanStatuses_[*fan.fanName()].fanFailed) {
       // We need to change internal state
-      fan->fanStatus.fanFailed = true;
+      fanStatuses_[*fan.fanName()].fanFailed = true;
       // Also change led color to "FAIL", if Fan LED is available
-      if (fan->pwm.path() != "") {
+      if (*fan.pwmAccess()->path() != "") {
         ledAccessNeeded = true;
       }
     }
   } else {
     // Fan did NOT fail (is in a good shape)
     // If the previous status was fan fail, we need to set fan LED color
-    if (fan->fanStatus.fanFailed) {
+    if (fanStatuses_[*fan.fanName()].fanFailed) {
       // We need to change internal state
-      fan->fanStatus.fanFailed = false;
+      fanStatuses_[*fan.fanName()].fanFailed = false;
       // Also change led color to "GOOD", if Fan LED is available
       ledAccessNeeded = true;
     }
   }
   if (ledAccessNeeded) {
     unsigned int valueToWrite =
-        (fanFailed ? fan->fanFailLedVal : fan->fanGoodLedVal);
-    switch (*fan->led.accessType()) {
-      case fan_config_structs::SourceType::kSrcSysfs:
-        pBsp_->setFanLedSysfs(*fan->led.path(), valueToWrite);
-        break;
-      case fan_config_structs::SourceType::kSrcUtil:
-        pBsp_->setFanLedShell(*fan->led.path(), fan->fanName, valueToWrite);
-        break;
-      case fan_config_structs::SourceType::kSrcThrift:
-      case fan_config_structs::SourceType::kSrcRest:
-      case fan_config_structs::SourceType::kSrcInvalid:
-      default:
-        facebook::fboss::FbossError(
-            "Unsupported LED access type for : ", fan->fanName);
+        (fanFailed ? *fan.fanFailLedVal() : *fan.fanGoodLedVal());
+    if (*fan.ledAccess()->accessType() == constants::ACCESS_TYPE_SYSFS()) {
+      pBsp_->setFanLedSysfs(*fan.ledAccess()->path(), valueToWrite);
+    } else if (
+        *fan.ledAccess()->accessType() == constants::ACCESS_TYPE_UTIL()) {
+      pBsp_->setFanLedShell(
+          *fan.ledAccess()->path(), *fan.fanName(), valueToWrite);
+    } else {
+      XLOG(ERR) << "Unsupported LED access type for : ", *fan.fanName();
     }
-    XLOG(INFO) << "Control :: Set the LED of " << fan->fanName << " to "
+    XLOG(INFO) << "Control :: Set the LED of " << *fan.fanName() << " to "
                << (fanFailed ? "Fail" : "Good") << "(" << valueToWrite << ") "
-               << fan->fanFailLedVal << " vs " << fan->fanGoodLedVal;
+               << *fan.fanFailLedVal() << " vs " << *fan.fanGoodLedVal();
   }
 }
 
 void ControlLogic::adjustZoneFans(bool boostMode) {
-  for (auto zone = pConfig_->zones.begin(); zone != pConfig_->zones.end();
-       ++zone) {
+  for (const auto& zone : *config_.zones()) {
     float pwmSoFar = 0;
-    XLOG(INFO) << "Zone : " << zone->zoneName;
+    XLOG(INFO) << "Zone : " << *zone.zoneName();
     // First, calculate the pwm value for this zone
-    auto zoneType = zone->type;
+    auto zoneType = *zone.zoneType();
     int totalPwmConsidered = 0;
-    for (auto sensorName = zone->sensorNames.begin();
-         sensorName != zone->sensorNames.end();
-         sensorName++) {
-      auto pSensorConfig_ = findSensorConfig(*sensorName);
-      if ((pSensorConfig_ != nullptr) ||
-          (pSensor_->checkIfOpticEntryExists(*sensorName))) {
+    for (const auto& sensorName : *zone.sensorNames()) {
+      if (isSensorPresentInConfig(sensorName) ||
+          pSensor_->checkIfOpticEntryExists(sensorName)) {
         totalPwmConsidered++;
         float pwmForThisSensor;
-        if (pSensorConfig_ != nullptr) {
+        if (isSensorPresentInConfig(sensorName)) {
           // If this is a sensor name
-          pwmForThisSensor = pSensorConfig_->processedData.targetPwmCache;
+          pwmForThisSensor = sensorReadCaches_[sensorName].targetPwmCache;
         } else {
           // If this is an optics name
-          pwmForThisSensor = pSensor_->getOpticsPwm(*sensorName);
+          pwmForThisSensor = pSensor_->getOpticsPwm(sensorName);
         }
-        switch (zoneType) {
-          case fan_config_structs::ZoneType::kZoneMax:
-            if (pwmSoFar < pwmForThisSensor) {
-              pwmSoFar = pwmForThisSensor;
-            }
-            break;
-          case fan_config_structs::ZoneType::kZoneMin:
-            if (pwmSoFar > pwmForThisSensor) {
-              pwmSoFar = pwmForThisSensor;
-            }
-            break;
-          case fan_config_structs::ZoneType::kZoneAvg:
-            pwmSoFar += pwmForThisSensor;
-            break;
-          case fan_config_structs::ZoneType::kZoneInval:
-          default:
-            facebook::fboss::FbossError(
-                "Undefined Zone Type for zone : ", zone->zoneName);
-            break;
+        if (zoneType == constants::ZONE_TYPE_MAX()) {
+          if (pwmSoFar < pwmForThisSensor) {
+            pwmSoFar = pwmForThisSensor;
+          }
+        } else if (zoneType == constants::ZONE_TYPE_MIN()) {
+          if (pwmSoFar > pwmForThisSensor) {
+            pwmSoFar = pwmForThisSensor;
+          }
+        } else if (zoneType == constants::ZONE_TYPE_AVG()) {
+          pwmSoFar += pwmForThisSensor;
+        } else {
+          XLOG(ERR) << "Undefined Zone Type for zone : ", *zone.zoneName();
         }
-        XLOG(INFO) << "  Sensor/Optic " << *sensorName << " : "
+        XLOG(INFO) << "  Sensor/Optic " << sensorName << " : "
                    << pwmForThisSensor << " Overall so far : " << pwmSoFar;
       }
     }
-    if (zoneType == fan_config_structs::ZoneType::kZoneAvg) {
+    if (zoneType == constants::ZONE_TYPE_AVG()) {
       pwmSoFar /= (float)totalPwmConsidered;
     }
     XLOG(INFO) << "  Final PWM : " << pwmSoFar;
     if (boostMode) {
-      if (pwmSoFar < pConfig_->getPwmBoostValue()) {
-        pwmSoFar = pConfig_->getPwmBoostValue();
+      if (pwmSoFar < *config_.pwmBoostValue()) {
+        pwmSoFar = *config_.pwmBoostValue();
       }
     }
     // Update the previous pwm value in each associated sensors,
     // so that they may be used in the next calculation.
-    for (auto sensorName = zone->sensorNames.begin();
-         sensorName != zone->sensorNames.end();
-         sensorName++) {
-      auto pSensorConfig_ = findSensorConfig(*sensorName);
-      if (pSensorConfig_ != nullptr) {
-        pSensorConfig_->incrementPid.previousTargetPwm = pwmSoFar;
+    for (const auto& sensorName : *zone.sensorNames()) {
+      if (isSensorPresentInConfig(sensorName)) {
+        pwmCalcCaches_[sensorName].previousTargetPwm = pwmSoFar;
       }
     }
     // Secondly, set Zone pwm value to all the fans in the zone
-    programFan(&(*zone), pwmSoFar);
+    programFan(zone, pwmSoFar);
   }
 }
 
 void ControlLogic::setTransitionValue() {
-  for (auto zone = pConfig_->zones.begin(); zone != pConfig_->zones.end();
-       ++zone) {
-    for (auto fan = pConfig_->fans.begin(); fan != pConfig_->fans.end();
-         ++fan) {
-      // If this a fan belongs to the zone, then write the transitional value
+  for (const auto& zone : *config_.zones()) {
+    for (const auto& fan : *config_.fans()) {
+      // If this fan belongs to the zone, then write the transitional value
       if (std::find(
-              zone->fanNames.begin(), zone->fanNames.end(), fan->fanName) !=
-          zone->fanNames.end()) {
-        for (auto sensorName = zone->sensorNames.begin();
-             sensorName != zone->sensorNames.end();
-             sensorName++) {
-          auto pSensorConfig_ = findSensorConfig(*sensorName);
-          if (pSensorConfig_ != nullptr) {
-            pSensorConfig_->incrementPid.previousTargetPwm =
-                pConfig_->getPwmTransitionValue();
+              zone.fanNames()->begin(),
+              zone.fanNames()->end(),
+              *fan.fanName()) != zone.fanNames()->end()) {
+        for (const auto& sensorName : *zone.sensorNames()) {
+          if (isSensorPresentInConfig(sensorName)) {
+            pwmCalcCaches_[sensorName].previousTargetPwm =
+                *config_.pwmTransitionValue();
           }
         }
-        programFan(&(*zone), pConfig_->getPwmTransitionValue());
+        programFan(zone, *config_.pwmTransitionValue());
       }
     }
   }
@@ -735,7 +685,7 @@ void ControlLogic::updateControl(std::shared_ptr<SensorData> pS) {
   // do it now.
   if (!pBsp_->checkIfInitialSensorDataRead()) {
     XLOG(INFO) << "Control :: Reading sensors for the first time";
-    pBsp_->getSensorData(pConfig_, pSensor_);
+    pBsp_->getSensorData(pSensor_);
   }
 
   // Now, check if Fan is in good shape, based on the previously read
@@ -757,19 +707,19 @@ void ControlLogic::updateControl(std::shared_ptr<SensorData> pS) {
 
   uint64_t secondsSinceLastOpticsUpdate =
       pBsp_->getCurrentTime() - pSensor_->getLastQsfpSvcTime();
-  if ((pConfig_->pwmBoostNoQsfpAfterInSec != 0) &&
-      (secondsSinceLastOpticsUpdate >= pConfig_->pwmBoostNoQsfpAfterInSec)) {
+  if ((*config_.pwmBoostOnNoQsfpAfterInSec() != 0) &&
+      (secondsSinceLastOpticsUpdate >= *config_.pwmBoostOnNoQsfpAfterInSec())) {
     boost_due_to_no_qsfp = true;
     XLOG(INFO) << "Control :: Boost mode condition for no optics update "
                << secondsSinceLastOpticsUpdate << " > "
-               << pConfig_->pwmBoostNoQsfpAfterInSec;
+               << *config_.pwmBoostOnNoQsfpAfterInSec();
   }
 
   boostMode =
-      (((pConfig_->pwmBoostOnDeadFan != 0) &&
-        (numFanFailed_ >= pConfig_->pwmBoostOnDeadFan)) ||
-       ((pConfig_->pwmBoostOnDeadSensor != 0) &&
-        (numSensorFailed_ >= pConfig_->pwmBoostOnDeadSensor)) ||
+      (((*config_.pwmBoostOnNumDeadFan() != 0) &&
+        (numFanFailed_ >= *config_.pwmBoostOnNumDeadFan())) ||
+       ((*config_.pwmBoostOnNumDeadSensor() != 0) &&
+        (numSensorFailed_ >= *config_.pwmBoostOnNumDeadSensor())) ||
        boost_due_to_no_qsfp);
   XLOG(INFO) << "Control :: Boost mode " << (boostMode ? "On" : "Off");
   XLOG(INFO) << "Control :: Updating Zones with new Fan value";
@@ -782,4 +732,4 @@ void ControlLogic::updateControl(std::shared_ptr<SensorData> pS) {
   lastControlUpdateSec_ = pBsp_->getCurrentTime();
 }
 
-} // namespace facebook::fboss::platform
+} // namespace facebook::fboss::platform::fan_service

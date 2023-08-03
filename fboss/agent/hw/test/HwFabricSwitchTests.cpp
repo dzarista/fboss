@@ -51,6 +51,25 @@ TEST_F(HwFabricSwitchTest, init) {
   verifyAcrossWarmBoots(setup, verify);
 }
 
+TEST_F(HwFabricSwitchTest, checkFabricReachabilityStats) {
+  auto setup = [=]() {
+    auto newCfg = initialConfig();
+    // reset the neighbor reachability information
+    for (const auto& portID : masterLogicalPortIds()) {
+      auto portCfg = utility::findCfgPort(newCfg, portID);
+      if (portCfg->portType() == cfg::PortType::FABRIC_PORT) {
+        portCfg->expectedNeighborReachability() = {};
+      }
+    }
+    applyNewConfig(newCfg);
+  };
+  auto verify = [this]() {
+    EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
+    checkFabricReachabilityStats(getHwSwitch());
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
 TEST_F(HwFabricSwitchTest, collectStats) {
   auto verify = [this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
@@ -63,8 +82,6 @@ TEST_F(HwFabricSwitchTest, collectStats) {
 TEST_F(HwFabricSwitchTest, checkFabricReachability) {
   auto verify = [this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    SwitchStats dummy;
-    getHwSwitch()->updateStats(&dummy);
     checkFabricReachability(getHwSwitch());
   };
   verifyAcrossWarmBoots([] {}, verify);
@@ -86,11 +103,8 @@ TEST_F(HwFabricSwitchTest, fabricIsolate) {
 
   auto verify = [=]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    SwitchStats dummy;
-    getHwSwitch()->updateStats(&dummy);
     auto fabricPortId =
         PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
-    getHwSwitch()->updateStats(&dummy);
     checkPortFabricReachability(getHwSwitch(), fabricPortId);
   };
   verifyAcrossWarmBoots(setup, verify);
@@ -98,16 +112,11 @@ TEST_F(HwFabricSwitchTest, fabricIsolate) {
 
 TEST_F(HwFabricSwitchTest, fabricSwitchIsolate) {
   auto setup = [=]() {
-    auto newCfg = initialConfig();
-    *newCfg.switchSettings()->switchDrainState() =
-        cfg::SwitchDrainState::DRAINED;
-    applyNewConfig(newCfg);
+    setSwitchDrainState(initialConfig(), cfg::SwitchDrainState::DRAINED);
   };
 
   auto verify = [=]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    SwitchStats dummy;
-    getHwSwitch()->updateStats(&dummy);
     checkFabricReachability(getHwSwitch());
   };
   verifyAcrossWarmBoots(setup, verify);

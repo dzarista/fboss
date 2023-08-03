@@ -10,10 +10,12 @@
 #include "fboss/agent/HwSwitch.h"
 
 #include "fboss/agent/FbossError.h"
+#include "fboss/agent/HwSwitchRouteUpdateWrapper.h"
 #include "fboss/agent/Utils.h"
 #include "fboss/agent/hw/HwSwitchFb303Stats.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/normalization/Normalizer.h"
+#include "fboss/agent/rib/ForwardingInformationBaseUpdater.h"
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/state/TransceiverMap.h"
@@ -89,22 +91,27 @@ void HwSwitch::gracefulExit(
 
 std::shared_ptr<SwitchState> HwSwitch::stateChangedTransaction(
     const StateDelta& delta) {
-  if (FLAGS_enable_state_oper_delta) {
-    stateChangedTransaction(delta.getOperDelta());
+  if (!FLAGS_enable_state_oper_delta) {
+    // failback to move away from oper delta
+    if (!transactionsSupported()) {
+      throw FbossError("Transactions not supported on this switch");
+    }
+    try {
+      setProgrammedState(stateChanged(delta));
+    } catch (const FbossError& e) {
+      XLOG(WARNING) << " Transaction failed with error : " << *e.message()
+                    << " attempting rollback";
+      this->rollback(delta.oldState());
+      setProgrammedState(delta.oldState());
+    }
     return getProgrammedState();
   }
-  if (!transactionsSupported()) {
-    throw FbossError("Transactions not supported on this switch");
+  auto result = stateChangedTransaction(delta.getOperDelta());
+  if (!result.changes()->empty()) {
+    // changes have been rolled back to last good known state
+    return delta.oldState();
   }
-  try {
-    setProgrammedState(stateChanged(delta));
-  } catch (const FbossError& e) {
-    XLOG(WARNING) << " Transaction failed with error : " << *e.message()
-                  << " attempting rollback";
-    this->rollback(delta.oldState());
-    setProgrammedState(delta.oldState());
-  }
-  return getProgrammedState();
+  return delta.newState();
 }
 
 void HwSwitch::rollback(
@@ -121,6 +128,7 @@ std::shared_ptr<SwitchState> HwSwitch::getProgrammedState() const {
 void HwSwitch::setProgrammedState(const std::shared_ptr<SwitchState>& state) {
   auto programmedState = programmedState_.wlock();
   *programmedState = state;
+  (*programmedState)->publish();
 }
 
 fsdb::OperDelta HwSwitch::stateChanged(const fsdb::OperDelta& delta) {
@@ -211,6 +219,92 @@ std::shared_ptr<SwitchState> HwSwitch::fillinPortInterfaces(
   }
   newState->publish();
   return newState;
+}
+
+bool HwSwitch::isFullyConfigured() const {
+  auto state = getRunState();
+  return state >= SwitchRunState::CONFIGURED &&
+      state != SwitchRunState::EXITING;
+}
+
+void HwSwitch::ensureConfigured(folly::StringPiece function) const {
+  if (isFullyConfigured()) {
+    return;
+  }
+
+  if (!function.empty()) {
+    XLOG(DBG1) << "failing thrift prior to switch configuration: " << function;
+  }
+  throw FbossError(
+      "switch is still initializing or is exiting and is not "
+      "fully configured yet");
+}
+
+std::shared_ptr<SwitchState> HwSwitch::getMinAlpmState(
+    RoutingInformationBase* rib,
+    const std::shared_ptr<SwitchState>& state) {
+  CHECK(getRunState() < SwitchRunState::INITIALIZED)
+      << "Invalid run state for programming ALPM state";
+  CHECK(getBootType() == BootType::COLD_BOOT)
+      << "ALPM minimum state can only be programmed on cold boot";
+  CHECK(
+      getPlatform()->getAsic()->isSupported(HwAsic::Feature::ROUTE_PROGRAMMING))
+      << "Route programming is not supported";
+  CHECK(
+      getSwitchType() == cfg::SwitchType::VOQ ||
+      getSwitchType() == cfg::SwitchType::NPU)
+      << "ALPM minimum state can only be programmed on support VOQ or NPU switch";
+
+  std::shared_ptr<SwitchState> minAlpmState{};
+  HwSwitchRouteUpdateWrapper routeUpdater(
+      this, rib, [&minAlpmState](const StateDelta& delta) {
+        minAlpmState = delta.newState();
+        return minAlpmState;
+      });
+  routeUpdater.programMinAlpmState();
+  return minAlpmState;
+}
+
+std::shared_ptr<SwitchState> HwSwitch::programMinAlpmState(
+    RoutingInformationBase* rib) {
+  return programMinAlpmState(
+      rib, [=](const StateDelta& delta) { return stateChanged(delta); });
+}
+
+std::shared_ptr<SwitchState> HwSwitch::programMinAlpmState(
+    RoutingInformationBase* rib,
+    StateChangedFn func) {
+  auto state = getProgrammedState();
+  auto minAlpmState = getMinAlpmState(rib, state);
+  return func(StateDelta(state, minAlpmState));
+}
+
+HwInitResult HwSwitch::init(
+    Callback* callback,
+    bool failHwCallsOnWarmboot,
+    cfg::SwitchType switchType,
+    std::optional<int64_t> switchId) {
+  switchType_ = switchType;
+  switchId_ = switchId;
+  auto ret = initImpl(callback, failHwCallsOnWarmboot, switchType, switchId);
+  ret.switchState = fillinPortInterfaces(ret.switchState);
+  setProgrammedState(ret.switchState);
+  if (ret.bootType == BootType::WARM_BOOT ||
+      !getPlatform()->getAsic()->isSupported(
+          HwAsic::Feature::ROUTE_PROGRAMMING) ||
+      (switchType_ != cfg::SwitchType::NPU &&
+       switchType != cfg::SwitchType::VOQ)) {
+    return ret;
+  }
+  // program min alpm state for npu and voq
+  std::map<int32_t, state::RouteTableFields> routeTables{};
+  routeTables.emplace(kDefaultVrf, state::RouteTableFields{});
+  ret.rib = RoutingInformationBase::fromThrift(routeTables);
+  programMinAlpmState(ret.rib.get(), [this](const StateDelta& delta) {
+    return stateChanged(delta);
+  });
+  ret.switchState = getProgrammedState();
+  return ret;
 }
 
 } // namespace facebook::fboss

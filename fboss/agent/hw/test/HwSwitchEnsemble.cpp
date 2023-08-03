@@ -191,9 +191,7 @@ std::shared_ptr<SwitchState> HwSwitchEnsemble::applyNewStateImpl(
   bool applyUpdateSuccess = true;
   {
     std::lock_guard<std::mutex> lk(updateStateMutex_);
-    applyUpdateSuccess = FLAGS_enable_state_oper_delta
-        ? applyUpdate(delta.getOperDelta(), lk, transaction)
-        : applyUpdate(delta, lk, transaction);
+    applyUpdateSuccess = applyUpdate(delta.getOperDelta(), lk, transaction);
     // We are about to give up the lock, cache programmedState
     // applied by this function invocation
     appliedState = programmedState_;
@@ -204,16 +202,6 @@ std::shared_ptr<SwitchState> HwSwitchEnsemble::applyNewStateImpl(
     throw FbossHwUpdateError(toApply, appliedState);
   }
   return appliedState;
-}
-
-bool HwSwitchEnsemble::applyUpdate(
-    const StateDelta& delta,
-    const std::lock_guard<std::mutex>& /*lock*/,
-    bool transaction) {
-  programmedState_ = transaction ? getHwSwitch()->stateChangedTransaction(delta)
-                                 : getHwSwitch()->stateChanged(delta);
-  programmedState_->publish();
-  return (delta.newState() == programmedState_);
 }
 
 bool HwSwitchEnsemble::applyUpdate(
@@ -413,7 +401,14 @@ std::map<SystemPortID, HwSysPortStats> HwSwitchEnsemble::getLatestSysPortStats(
   auto swState = getProgrammedState();
   auto stats = getHwSwitch()->getSysPortStats();
   for (auto [portName, stats] : stats) {
-    auto portId = swState->getSystemPorts()->getSystemPort(portName)->getID();
+    SystemPortID portId;
+    try {
+      portId = swState->getSystemPorts()->getSystemPort(portName)->getID();
+    } catch (const FbossError&) {
+      // Look in remote sys ports if we couldn't find in local sys ports
+      portId =
+          swState->getRemoteSystemPorts()->getSystemPort(portName)->getID();
+    }
     if (std::find(ports.begin(), ports.end(), portId) == ports.end()) {
       continue;
     }

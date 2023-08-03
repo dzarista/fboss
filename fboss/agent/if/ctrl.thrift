@@ -16,12 +16,11 @@ include "fboss/agent/switch_config.thrift"
 include "fboss/agent/platform_config.thrift"
 include "fboss/lib/phy/phy.thrift"
 include "fboss/agent/hw/hardware_stats.thrift"
-include "thrift/annotation/cpp.thrift"
+include "thrift/annotation/python.thrift"
 
-@cpp.Type{name = "::folly::fbstring"}
-typedef binary fbbinary
-@cpp.Type{name = "::folly::fbstring"}
-typedef string fbstring
+typedef common.fbbinary fbbinary
+typedef common.fbstring fbstring
+typedef common.ClientInformation ClientInformation
 
 const i32 DEFAULT_CTRL_PORT = 5909;
 const i32 NO_VLAN = -1;
@@ -37,15 +36,7 @@ enum AdminDistance {
   MAX_ADMIN_DISTANCE = 255,
 }
 
-// SwSwitch run states. SwSwitch moves forward from a
-// lower numbered state to the next
-enum SwitchRunState {
-  UNINITIALIZED = 0,
-  INITIALIZED = 1,
-  CONFIGURED = 2,
-  FIB_SYNCED = 3,
-  EXITING = 4,
-}
+typedef common.SwitchRunState SwitchRunState
 
 enum SSLType {
   DISABLED = 0,
@@ -157,6 +148,11 @@ enum L2EntryType {
   L2_ENTRY_TYPE_VALIDATED = 1,
 }
 
+enum L2EntryUpdateType {
+  L2_ENTRY_UPDATE_TYPE_DELETE = 0,
+  L2_ENTRY_UPDATE_TYPE_ADD = 1,
+}
+
 struct L2EntryThrift {
   1: string mac;
   2: i32 port;
@@ -254,7 +250,8 @@ struct QueueStats {
  */
 struct PortCounters {
   // avoid typechecker error here as bytes is a py3 reserved keyword
-  1: i64 bytes (py3.name = "bytes_");
+  @python.Name{name = "bytes_"}
+  1: i64 bytes;
   2: i64 ucastPkts;
   3: i64 multicastPkts;
   4: i64 broadcastPkts;
@@ -587,11 +584,6 @@ struct AclEntryThrift {
   23: optional bool enabled;
 }
 
-struct ClientInformation {
-  1: optional fbstring username;
-  2: optional fbstring hostname;
-}
-
 enum HwObjectType {
   PORT = 0,
   LAG = 1,
@@ -646,8 +638,10 @@ typedef string TeCounterID
 
 struct FlowEntry {
   1: TeFlow flow;
+  // DEPRECATED: nextHops is replaced by the optional nexthops field.
   2: list<common.NextHopThrift> nextHops;
   3: optional TeCounterID counterID;
+  4: optional list<common.NextHopThrift> nexthops;
 }
 
 safe stateful server exception FbossTeUpdateError {
@@ -1152,21 +1146,6 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
     1: i32 portNum,
     2: PortLedExternalState ledState,
   ) throws (1: fboss.FbossBaseError error);
-
-  /*
-   * Enables submitting diag cmds to the switch
-   */
-  fbstring diagCmd(
-    1: fbstring cmd,
-    2: ClientInformation client,
-    3: i16 serverTimeoutMsecs = 0,
-    4: bool bypassFilter = false,
-  );
-
-  /*
-   * Get formatted string for diag cmd filters configuration
-   */
-  fbstring cmdFiltersAsString() throws (1: fboss.FbossBaseError error);
 
   /*
   * Return the system's platform mapping (see platform_config.thrift)

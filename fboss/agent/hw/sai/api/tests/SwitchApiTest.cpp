@@ -618,3 +618,26 @@ TEST_F(SwitchApiTest, getSomeStats) {
       switchId, {SAI_SWITCH_STAT_GLOBAL_DROP}, SAI_STATS_MODE_READ);
   EXPECT_EQ(stats.size(), 1);
 }
+
+TEST_F(SwitchApiTest, setGetCreditWatchdog) {
+  SaiSwitchTraits::Attributes::CreditWd wd{false};
+  switchApi->setAttribute(switchId, wd);
+  SaiSwitchTraits::Attributes::CreditWd blank{true};
+  EXPECT_FALSE(switchApi->getAttribute(switchId, blank));
+}
+
+TEST_F(SwitchApiTest, setGetPfcDlrPacketAction) {
+  SaiSwitchTraits::Attributes::PfcDlrPacketAction pktActionDef{
+      SAI_PACKET_ACTION_DROP};
+  EXPECT_EQ(
+      switchApi->getAttribute(
+          switchId, SaiSwitchTraits::Attributes::PfcDlrPacketAction{}),
+      pktActionDef);
+  SaiSwitchTraits::Attributes::PfcDlrPacketAction pktAction{
+      SAI_PACKET_ACTION_FORWARD};
+  switchApi->setAttribute(switchId, pktAction);
+  EXPECT_EQ(
+      switchApi->getAttribute(
+          switchId, SaiSwitchTraits::Attributes::PfcDlrPacketAction{}),
+      pktAction);
+}

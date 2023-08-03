@@ -6,6 +6,7 @@
 
 #include "fboss/lib/platforms/PlatformMode.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
+#include "fboss/platform/weutil/WeutilImpl.h"
 
 namespace facebook::fboss::platform {
 
@@ -22,10 +23,18 @@ std::unique_ptr<WeutilInterface> get_plat_weutil(std::string eeprom) {
     } else {
       return nullptr;
     }
+  } else {
+    std::unique_ptr<WeutilImpl> pWeutilImpl =
+        std::make_unique<WeutilImpl>(eeprom);
+    if (pWeutilImpl->verifyOptions()) {
+      return std::move(pWeutilImpl);
+    } else {
+      return nullptr;
+    }
   }
 
   XLOG(INFO) << "The platform (" << toString(prodInfo.getType())
-             << ") is not supported" << std::endl;
+             << ") is not supported";
   return nullptr;
 }
 

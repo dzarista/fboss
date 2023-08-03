@@ -51,7 +51,20 @@ void setPortLoopbackMode(
 #endif
 }
 
-void setPortTxEnable(const HwSwitch* hw, PortID port, bool enable) {
+void setCreditWatchdogAndPortTx(const HwSwitch* hw, PortID port, bool enable) {
+  setPortTx(hw, port, enable);
+  if (hw->getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ) {
+    enableCreditWatchdog(hw, enable);
+  }
+}
+
+void enableCreditWatchdog(const HwSwitch* hw, bool enable) {
+  auto switchID = static_cast<const SaiSwitch*>(hw)->getSaiSwitchId();
+  SaiApiTable::getInstance()->switchApi().setAttribute(
+      switchID, SaiSwitchTraits::Attributes::CreditWd{enable});
+}
+
+void setPortTx(const HwSwitch* hw, PortID port, bool enable) {
   auto portHandle = static_cast<const SaiSwitch*>(hw)
                         ->managerTable()
                         ->portManager()
@@ -59,15 +72,7 @@ void setPortTxEnable(const HwSwitch* hw, PortID port, bool enable) {
 
   portHandle->port->setOptionalAttribute(
       SaiPortTraits::Attributes::PktTxEnable{enable});
-  auto switchID = static_cast<const SaiSwitch*>(hw)->getSaiSwitchId();
-  // Disable credit WD for VoQ switches to avoid drop in queue when TX is
-  // disabled!
-  if (hw->getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ) {
-    SaiApiTable::getInstance()->switchApi().setAttribute(
-        switchID, SaiSwitchTraits::Attributes::CreditWd{enable});
-  }
 }
-
 void enableTransceiverProgramming(bool enable) {
   FLAGS_skip_transceiver_programming = !enable;
 }

@@ -329,9 +329,10 @@ SaiPortManager::SaiPortManager(
       hwLaneListIsPmdLaneList_(true),
       tcToQueueMapAllowedOnPort_(!platform_->getAsic()->isSupported(
           HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT)) {
-#if defined(SAI_VERSION_8_2_0_0_ODP) ||     \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || \
-    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP)
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
+    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP) || \
+    defined(SAI_VERSION_10_0_EA_ODP) || defined(SAI_VERSION_10_0_EA_SIM_ODP)
   auto& portStore = saiStore_->get<SaiPortTraits>();
   auto saiPort = portStore.objects().begin()->second.lock();
   auto portSaiId = saiPort->adapterKey();
@@ -999,9 +1000,10 @@ std::shared_ptr<Port> SaiPortManager::swPortFromAttributes(
     PortSaiId portSaiId,
     cfg::SwitchType switchType) const {
   auto speed = static_cast<cfg::PortSpeed>(GET_ATTR(Port, Speed, attributes));
-#if defined(SAI_VERSION_8_2_0_0_ODP) ||     \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || \
-    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP)
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
+    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP) || \
+    defined(SAI_VERSION_10_0_EA_ODP) || defined(SAI_VERSION_10_0_EA_SIM_ODP)
   std::vector<uint32_t> lanes;
   if (hwLaneListIsPmdLaneList_) {
     lanes = GET_ATTR(Port, HwLaneList, attributes);
@@ -1151,7 +1153,7 @@ bool SaiPortManager::fecStatsSupported(PortID portId) const {
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(TAJO_SDK_VERSION_1_42_4) || \
     defined(SAI_VERSION_9_0_EA_ODP) || defined(TAJO_SDK_VERSION_1_42_8) ||     \
-    defined(TAJO_SDK_VERSION_1_62_0) ||                                        \
+    defined(TAJO_SDK_VERSION_1_62_0) || defined(TAJO_SDK_VERSION_1_65_0) ||    \
     defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
     defined(SAI_VERSION_10_0_EA_DNX_ODP)
     return true;
@@ -1354,15 +1356,15 @@ cfg::PortSpeed SaiPortManager::getMaxSpeed(PortID port) const {
 }
 
 std::shared_ptr<MultiSwitchPortMap> SaiPortManager::reconstructPortsFromStore(
-    cfg::SwitchType switchType,
-    const HwSwitchMatcher& matcher) const {
+    cfg::SwitchType switchType) const {
+  auto* scopeResolver = platform_->scopeResolver();
   auto& portStore = saiStore_->get<SaiPortTraits>();
   auto portMap = std::make_shared<MultiSwitchPortMap>();
   for (auto& iter : portStore.objects()) {
     auto saiPort = iter.second.lock();
     auto port = swPortFromAttributes(
         saiPort->attributes(), saiPort->adapterKey(), switchType);
-    portMap->addNode(port, matcher);
+    portMap->addNode(port, scopeResolver->scope(port));
   }
   return portMap;
 }
@@ -1997,9 +1999,10 @@ TransmitterTechnology SaiPortManager::getMedium(PortID portID) const {
 }
 
 uint8_t SaiPortManager::getNumPmdLanes(PortSaiId saiPortId) const {
-#if defined(SAI_VERSION_8_2_0_0_ODP) ||     \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) || \
-    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP)
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
+    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP) || \
+    defined(SAI_VERSION_10_0_EA_ODP) || defined(SAI_VERSION_10_0_EA_SIM_ODP)
   std::vector<uint32_t> lanes;
   if (hwLaneListIsPmdLaneList_) {
     lanes = SaiApiTable::getInstance()->portApi().getAttribute(

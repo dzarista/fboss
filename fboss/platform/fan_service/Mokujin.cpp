@@ -4,7 +4,11 @@
 // for functional description.
 #include "Mokujin.h"
 
-namespace facebook::fboss::platform {
+#include <folly/logging/xlog.h>
+
+namespace facebook::fboss::platform::fan_service {
+
+Mokujin::Mokujin(const FanServiceConfig& config) : Bsp(config) {}
 
 void Mokujin::openIOFiles(std::string iFileName, std::string oFileName) {
   try {
@@ -60,27 +64,23 @@ uint64_t Mokujin::getTimeStamp() {
 void Mokujin::updateSimulationData(std::string key, float value) {
   simulatedSensorRead_[key] = value;
 }
-void Mokujin::getSensorData(
-    std::shared_ptr<ServiceConfig> pServiceConfig,
-    std::shared_ptr<SensorData> pSensorData) {
-  for (auto sensor = begin(pServiceConfig->sensors);
-       sensor != end(pServiceConfig->sensors);
+void Mokujin::getSensorData(std::shared_ptr<SensorData> pSensorData) {
+  for (auto sensor = begin(*config_.sensors());
+       sensor != end(*config_.sensors());
        ++sensor) {
-    std::string sensorName = sensor->sensorName;
+    std::string sensorName = *sensor->sensorName();
     if (simulatedSensorRead_.find(sensorName) != simulatedSensorRead_.end()) {
       pSensorData->updateEntryFloat(
           sensorName, simulatedSensorRead_[sensorName], currentTimeStampSec_);
       facebook::fboss::FbossError(
           "Mokujin sensor read failure simulated : ", sensorName);
     } else {
-      XLOG(ERR) << "Failed to read sensor : " << sensor->sensorName;
+      XLOG(ERR) << "Failed to read sensor : " << *sensor->sensorName();
     }
   }
   return;
 }
-int Mokujin::emergencyShutdown(
-    std::shared_ptr<ServiceConfig> pServiceConfig,
-    bool enable) {
+int Mokujin::emergencyShutdown(bool /* enable */) {
   int rc = 0;
   setEmergencyState(true);
   oFs_ << std::to_string(currentTimeStampSec_) << "::"
@@ -219,17 +219,15 @@ bool Mokujin::initializeQsfpService() {
   return true;
 }
 
-void Mokujin::getOpticsData(
-    std::shared_ptr<ServiceConfig> pServiceConfig,
-    std::shared_ptr<SensorData> pSensorData) {
+void Mokujin::getOpticsData(std::shared_ptr<SensorData> pSensorData) {
   // Basically, for each qsfpgroup if <name>Speed and <name>Temp both exists,
   // use this to fill up the table For each optics group, check if the key for
   // table type and table temperature
-  for (auto opticGroup = pServiceConfig->optics.begin();
-       opticGroup != pServiceConfig->optics.end();
+  for (auto opticGroup = config_.optics()->begin();
+       opticGroup != config_.optics()->end();
        ++opticGroup) {
-    std::string opticTypeKey = opticGroup->opticName + "TYPE";
-    std::string opticTempKey = opticGroup->opticName + "TEMP";
+    std::string opticTypeKey = *opticGroup->opticName() + "TYPE";
+    std::string opticTempKey = *opticGroup->opticName() + "TEMP";
     // If both key exists, then fetch the value, otherwise, just move on.
     if ((simulatedSensorRead_.find(opticTypeKey) !=
          simulatedSensorRead_.end()) &&
@@ -237,12 +235,12 @@ void Mokujin::getOpticsData(
          simulatedSensorRead_.end())) {
       int typeInt = static_cast<int>(simulatedSensorRead_[opticTypeKey]);
       float value = simulatedSensorRead_[opticTempKey];
-      std::pair<fan_config_structs::OpticTableType, float> prepData = {
-          static_cast<fan_config_structs::OpticTableType>(typeInt), value};
+      std::pair<OpticTableType, float> prepData = {
+          static_cast<OpticTableType>(typeInt), value};
       // Add the data, and set the timestamp
       pSensorData->setLastQsfpSvcTime(getCurrentTime());
       OpticEntry* opticData =
-          pSensorData->getOrCreateOpticEntry(opticGroup->opticName);
+          pSensorData->getOrCreateOpticEntry(*opticGroup->opticName());
       opticData->data.clear();
       opticData->data.push_back(prepData);
       opticData->lastOpticsUpdateTimeInSec = getCurrentTime();
@@ -253,4 +251,4 @@ void Mokujin::getOpticsData(
   return;
 }
 
-} // namespace facebook::fboss::platform
+} // namespace facebook::fboss::platform::fan_service

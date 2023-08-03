@@ -83,6 +83,8 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::SAI_SAMPLEPACKET_TRAP:
     case HwAsic::Feature::SAI_UDF_HASH:
+    case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
+    case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
       return true;
     // features not working well with bcmsim
     case HwAsic::Feature::MIRROR_PACKET_TRUNCATION:
@@ -133,10 +135,14 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::QUEUE_PRIORITY_LOWER_VAL_IS_HIGH_PRI:
     case HwAsic::Feature::SAI_CONFIGURE_SEVEN_TAP:
     case HwAsic::Feature::SWITCH_DROP_STATS:
+    case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
     case HwAsic::Feature::INGRESS_PRIORITY_GROUP_HEADROOM_WATERMARK:
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
     case HwAsic::Feature::SLOW_STAT_UPDATE:
+    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
+    case HwAsic::Feature::VOQ_DELETE_COUNTER:
+    case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
       return false;
   }
   return false;

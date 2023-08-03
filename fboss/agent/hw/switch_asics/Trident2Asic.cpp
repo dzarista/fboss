@@ -48,6 +48,7 @@ bool Trident2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::WARMBOOT:
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::SAI_SAMPLEPACKET_TRAP:
+    case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
       return true;
 
     case HwAsic::Feature::ERSPANv6:
@@ -130,11 +131,16 @@ bool Trident2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT:
     case HwAsic::Feature::QUEUE_PRIORITY_LOWER_VAL_IS_HIGH_PRI:
     case HwAsic::Feature::SWITCH_DROP_STATS:
+    case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
     case HwAsic::Feature::SAI_UDF_HASH:
     case HwAsic::Feature::INGRESS_PRIORITY_GROUP_HEADROOM_WATERMARK:
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
     case HwAsic::Feature::SLOW_STAT_UPDATE:
+    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
+    case HwAsic::Feature::VOQ_DELETE_COUNTER:
+    case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
+    case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
       return false;
   }
   return false;
