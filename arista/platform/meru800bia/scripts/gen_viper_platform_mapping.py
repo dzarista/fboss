@@ -366,6 +366,13 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
                )
 
 with open( "viper_port_profile_mapping.csv", "w" ) as fh:
+   # Description of fields in the order of their appearance:
+   # Logical_PortID : Logical port ID used in the bcm soc properties.
+   # Port_Name : Port name used in the platform mapping.
+   # Attached_CoreId : CoreId on ASIC that the port is attached to.
+   # Attached_Core_PortID : Core local portID assigned to this port.
+   # NOTE : For Fabric ports, there is no core binding, the corresponding
+   # Attached_CoreId and Attached_Core_PortID can be left empty.
    # Recycle port is a special port with port id 1, it is given internal serdes core
    # ID 55.
    fh.write("1,rcy1/1/55,11,0,1\n")
