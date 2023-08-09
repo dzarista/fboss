@@ -40,6 +40,8 @@ numNifPorts = 0
 numLanesFromSupportedProfile = {
       "36" : 1,
       "37" : 1,
+      "41" : 1,
+      "42" : 1,
 }
 
 def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
@@ -195,9 +197,12 @@ portAttrsByProfile = {
       37 : ( 53125, 1, 2, 545, 3, 41 ),
       38 : ( 400000, 4, 2, 11, 2, 21 ),
       39 : ( 800000, 8, 2, 11, 2, 23 ),
+      41 : ( 106250, 1, 2, 544, 1, 41 ),
+      42 : ( 106250, 1, 2, 544, 3, 41 ),
 }
 # Append the supportedProfiles information.
-for profileID in ( 36, 37 ):
+for profileID in numLanesFromSupportedProfile.keys():
+   profileID = int( profileID )
    profilePortAttrs = portAttrsByProfile[ profileID ]
    platMapping[ "platformSupportedProfiles" ].append(
          OrderedDict( {
@@ -220,3 +225,64 @@ for profileID in ( 36, 37 ):
 json_out = json.dumps( platMapping, indent=2, sort_keys=False )
 with open( "whistler_platform_mapping.json", "w") as fh:
    fh.write( json_out )
+
+with open( "whistler_static_mapping.csv", "w" ) as fh:
+   # Description of attributes for front panel serdes in the order of their
+   # occurence.
+   # A_SLOT_ID : Linecard slot Id, 1 for fixed systems
+   # A_CHIP_ID : ASIC id on the system slot, Whistler has two R3, can be 0,1
+   # A_CHIP_TYPE : NPU
+   # A_CORE_ID : ASIC serdes core ID
+   # A_CORE_TYPE : ASIC serdes core type, FE/NIF
+   # A_CORE_LANE : 0,numLanes - numLanes per core is 8 on J3/R3, so this value
+   # goes from 0,7.
+   # A_PHYSICAL_TX_LANE : Physical tx trace corresponding to serdes core lane.
+   # A_PHYSICAL_RX_LANE : Physical rx trace corresponding to serdes core lane.
+   # A_TX_POLARITY_SWAP : bool, is polarity swapped for tx trace.
+   # A_RX_POLARITY_SWAP : bool, is polarity swapped for rx trace.
+   # Z_SLOT_ID : Transceiver system slot Id, 1 for fixed systems.
+   # Z_CHIP_ID : Transceiver front panel slot Id.
+   # Z_CHIP_TYPE : TRANSCEIVER
+   # Z_CORE_ID : Always 0, since we don't have external PHYs or cores within a
+   # single XCVR slot.
+   # Z_CORE_TYPE : OSFP for Viper/Whistler
+   # Z_CORE_LANE : 0-7, lane within the XCVR slot.
+   # Z_PHYSICAL_TX_LANE : Physical tx trace corresponding to XCVR lane.
+   # Z_PHYSICAL_RX_LANE : Physical rx trace corresponding to XCVR lane.
+   # Z_TX_POLARITY_SWAP : bool, is polarity swapped for tx trace.
+   # Z_RX_POLARITY_SWAP : bool, is polarity swapped for rx trace.
+   for portId in range( numFabricPorts ):
+      frontPanelPort = str( portId + 1 )
+      frontPanelInfo = fabricFrontPanelMap[ frontPanelPort ]
+      portId += fabricPortBase
+      portStr = str( portId )
+      frontPanelSlot = ( ( portId ) // 8 ) + 1
+      assert str( frontPanelSlot ) == frontPanelInfo[ 3 ]
+      serdesCoreLane = int( frontPanelInfo[ 11 ] )
+      physicalLane = int( frontPanelInfo[ 9 ] )
+      frontPanelLane = ( portId % 8 )
+      assert str( frontPanelLane + 1 ) == frontPanelInfo[ 4 ]
+      # Ramon ID, 0,1
+      chipId = int( frontPanelInfo[ 5 ] )
+      serdesCore = frontPanelInfo[ 8 ]
+      fh.write(
+            f"1,{chipId},NPU,{serdesCore},R3_FE,{serdesCoreLane},{physicalLane},{physicalLane},N,N,1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
+            )
+
+with open( "whistler_port_profile_mapping.csv", "w" ) as fh:
+   # Description of fields in the order of their appearance:
+   # Logical_PortID : Logical port ID used in the bcm soc properties.
+   # Port_Name : Port name used in the platform mapping.
+   # Attached_CoreId : CoreId on ASIC that the port is attached to.
+   # Attached_Core_PortID : Core local portID assigned to this port.
+   # NOTE : For Fabric ports, there is no core binding, the corresponding
+   # Attached_CoreId and Attached_Core_PortID can be left empty.
+   fabSupportedProfiles = '-'.join( numLanesFromSupportedProfile.keys() )
+   for portId in range( numFabricPorts ):
+      portId += fabricPortBase
+      frontPanelSlot = ( ( portId ) // 8 ) + 1
+      frontPanelPortType = "fab"
+      portStrPrefix = f"{frontPanelPortType}1/{frontPanelSlot}"
+      subPort = ( portId % 8 ) + 1
+      portStr = f"{portStrPrefix}/{subPort}"
+      fh.write( f"{portId},{portStr},{fabSupportedProfiles},,\n" )
