@@ -13,6 +13,12 @@ if [[ -z "${FBOSS_BUILD_DIR}" ]]; then
    FBOSS_BUILD_DIR="${DEFAULT_BUILD_DIR}"
 fi
 
+DEFAULT_LINUX_KERNEL="5.12"
+if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
+   echo "No FBOSS_LINUX_KERNEL defined in environment, using ${DEFAULT_LINUX_KERNEL}"
+   FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
+fi
+
 FBOSS_HOST_DIR="${FBOSS_BUILD_DIR}/FBOSS_DIR"
 FBOSS_CONTAINER_BASE="/var/FBOSS"
 FBOSS_REPO_DIR="$(git rev-parse --show-toplevel)"
@@ -59,9 +65,24 @@ maybe_pull_docker_image() {
 maybe_setup_build_env() {
    # Setup the build environment by cloning SAI + SDK and creating the
    # local FBOSS directory.
-   if [[ -d "${FBOSS_HOST_DIR}" ]]; then
+
+   # Select kernel.
+   if [[ "${FBOSS_LINUX_KERNEL}" == "5.12" ]]; then
+      KERNEL_TAR="FBOSS_KERNEL_SRC_5.12.0-0_fbk2_3390_g7ecb4ac46d7f.tar.gz"
+   elif [[ "${FBOSS_LINUX_KERNEL}" == "4.18" ]]; then
+      KERNEL_TAR="FBOSS_KERNEL_SRC_4.18.0-408.el8.x86_64.tar.gz"
+   else
+      echo "Unsupported kernel version: ${FBOSS_LINUX_KERNEL}"
+      exit 1
+   fi
+   echo "Using Linux Kernel ${FBOSS_LINUX_KERNEL} from ${KERNEL_TAR}"
+
+   if [[ -d "${FBOSS_HOST_DIR}" ]] && [[ -f "${FBOSS_HOST_DIR}/${KERNEL_TAR}" ]]; then
       echo "Found build environment in ${FBOSS_HOST_DIR}, skipping setup"
       return
+   elif [[ -d "${FBOSS_HOST_DIR}" ]] && [[ ! -f "${FBOSS_HOST_DIR}/${KERNEL_TAR}" ]]; then
+      echo "Build environment found but has wrong linux kernel. Cleaning up and rebuilding."
+      cleanup_build_env
    fi
 
    echo "Creating build environment in ${FBOSS_HOST_DIR}"
@@ -85,12 +106,16 @@ maybe_setup_build_env() {
    wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_28_DNX_Kernel_Module_fixes.patch
    patch "dnx-sdk-6.5.28-gpl-modules/make/Make.config" < patch3-SDK-6_5_28_DNX_Kernel_Module_fixes.patch
 
+   # If kernel is newer than 4.18, need to patch ksal.c for compatibility with newer kernel.
+   if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then
+      wget http://dist/storage/fboss/FBOSS-SAI/patch5-SAI-ksal.patch
+      patch -p1 < patch5-SAI-ksal.patch
+   fi
+
    # Download FBOSS linux header files.
    cd "${FBOSS_HOST_DIR}"
-   # KERNEL="FBOSS_KERNEL_SRC_5.12.0-0_fbk2_3390_g7ecb4ac46d7f.tar.gz"
-   KERNEL="FBOSS_KERNEL_SRC_4.18.0-408.el8.x86_64.tar.gz"
-   wget http://dist/storage/fboss/fbossImageFiles/"${KERNEL}"
-   tar -xf "${KERNEL}"
+   wget http://dist/storage/fboss/fbossImageFiles/"${KERNEL_TAR}"
+   tar -xf "${KERNEL_TAR}"
    set +ex
 }
 
@@ -128,7 +153,7 @@ enter_container_shell() {
 
 do_build() {
    setup
-   run_cmd_container bash build.sh $@
+   run_cmd_container bash build.sh $@ --kernel "${FBOSS_LINUX_KERNEL}"
 }
 
 do_package() {
