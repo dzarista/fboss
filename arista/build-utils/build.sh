@@ -17,7 +17,8 @@ else
 fi
 
 usage() {
-   echo "Usage: $1 --arch <dnx|xgs> [ --build-dir <build directory> ] "
+   echo "Usage: $1 --arch <dnx|xgs> --kernel <4.18|5.12> "
+   echo "          [ --build-dir <build directory> ] "
    echo "          [ --rebuild-all ] [ --rebuild-fboss ] "
    echo "          [ --fboss-bins-only ]"
    exit 1
@@ -61,6 +62,20 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --kernel)
+      if [ "$2" == "4.18" ];
+      then
+         KERNEL="4.18"
+      elif [ "$2" == "5.12" ];
+      then
+         KERNEL="5.12"
+      else
+         echo "Unsupported kernel $2, please provide one of 4.18 or 5.12."
+	 exit 1
+      fi
+      shift
+      shift
+      ;;
     -*|--*)
       echo "Unknown option $1"
       exit 1
@@ -77,11 +92,16 @@ if [ -z "$ARCH" ]; then
 fi
 
 set -ex
-echo "================= Running build with $FBOSS_DIR and ARCH=$ARCH"
+echo "================= Running build with $FBOSS_DIR and ARCH=$ARCH and KERNEL=$KERNEL"
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-export KERNEL_SRC="$FBOSS_DIR/4.18.0-408.el8.x86_64"
+if [ $KERNEL == "4.18" ];
+then
+   export KERNEL_SRC="$FBOSS_DIR/4.18.0-408.el8.x86_64"
+else
+   export KERNEL_SRC="$FBOSS_DIR/5.12.0-0_fbk2_3390_g7ecb4ac46d7f"
+fi
 
 # install missing dependencies for SDK build.
 dnf install -y sudo
