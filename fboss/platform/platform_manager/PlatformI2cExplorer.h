@@ -3,33 +3,45 @@
 #pragma once
 
 #include <map>
+#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <vector>
+
+#include "fboss/platform/helpers/PlatformUtils.h"
 
 namespace facebook::fboss::platform::platform_manager {
 
 class PlatformI2cExplorer {
  public:
-  // This function takes as input the list of `i2cBussesFromMainBoard` defined
-  // in the platform_manager_config.thrift, and outputs a map from
-  // `i2cBussesFromMainBoard` to the corresponding i2c bus names assigned on the
-  // board by the kernel.
-  std::map<std::string, std::string> getBusesfromBsp(
-      const std::vector<std::string>& i2cBussesFromMainBoard);
+  virtual ~PlatformI2cExplorer() {}
+  PlatformI2cExplorer(
+      const std::shared_ptr<PlatformUtils>& platformUtils =
+          std::make_shared<PlatformUtils>())
+      : platformUtils_(platformUtils){};
+
+  // This function takes as input the list of `i2cBussesFromCpu` defined
+  // in the platform_manager_config.thrift, and provides the corresponding
+  // kernel assigned names for the buses.
+  std::map<std::string, std::string> getKernelAssignedNames(
+      const std::vector<std::string>& i2cBussesFromCpu);
 
   // Returns the FRU Type name based on the contents read from the EEPROM
   std::string getFruTypeName(const std::string& eepromPath);
 
-  bool createI2cDevice(
-      const std::string& deviceName,
+  // Checks if a I2c devices is present at `addr` on `busName`.
+  virtual bool isI2cDevicePresent(const std::string& busName, uint8_t addr);
+
+  // Returns the i2c device name if present at `addr` on `busName`.
+  virtual std::optional<std::string> getI2cDeviceName(
       const std::string& busName,
       uint8_t addr);
 
-  bool createI2cMux(
+  // Creates an i2c device for `deviceName` on `busName` and `addr`.
+  void createI2cDevice(
       const std::string& deviceName,
       const std::string& busName,
-      uint8_t addr,
-      uint8_t numChannels);
+      uint8_t addr);
 
   // Returns the I2C Buses whih were created for the channels behind the I2C Mux
   // at `busName`@`addr`. They are listed in the ascending order of channels. It
@@ -41,7 +53,12 @@ class PlatformI2cExplorer {
       uint8_t addr);
 
   // Return sysfs path to the device at `addr` on `i2cBusName`.
-  static std::string getI2cPath(const std::string& i2cBusName, uint8_t addr);
+  static std::string getDeviceI2cPath(
+      const std::string& i2cBusName,
+      uint8_t addr);
+
+ private:
+  std::shared_ptr<PlatformUtils> platformUtils_{};
 };
 
 } // namespace facebook::fboss::platform::platform_manager

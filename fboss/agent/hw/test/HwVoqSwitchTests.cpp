@@ -18,6 +18,7 @@
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/HwTestPortUtils.h"
 #include "fboss/agent/hw/test/HwTestStatUtils.h"
+#include "fboss/agent/hw/test/HwVoqUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/InterfaceMap.h"
@@ -136,7 +137,9 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
 
   int sendPacket(
       const folly::IPAddressV6& dstIp,
-      std::optional<PortID> frontPanelPort) {
+      std::optional<PortID> frontPanelPort,
+      std::optional<std::vector<uint8_t>> payload =
+          std::optional<std::vector<uint8_t>>()) {
     folly::IPAddressV6 kSrcIp("1::1");
     const auto srcMac = utility::kLocalCpuMac();
     const auto dstMac = utility::kLocalCpuMac();
@@ -150,7 +153,9 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
         dstIp,
         8000, // l4 src port
         8001, // l4 dst port
-        0x24 << 2); // dscp
+        0x24 << 2, // dscp
+        255, // hopLimit
+        payload);
     size_t txPacketSize = txPacket->buf()->length();
 
     XLOG(DBG5) << "\n"
@@ -819,132 +824,12 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
     return cfg;
   }
 
-  static SwitchID getRemoteSwitchId() {
-    return SwitchID(4);
-  }
-
   std::optional<std::map<int64_t, cfg::DsfNode>> overrideDsfNodes(
       const std::map<int64_t, cfg::DsfNode>& curDsfNodes) const override {
-    CHECK(!curDsfNodes.empty());
-    auto dsfNodes = curDsfNodes;
-    const auto& firstDsfNode = dsfNodes.begin()->second;
-    CHECK(firstDsfNode.systemPortRange().has_value());
-    CHECK(firstDsfNode.nodeMac().has_value());
-    folly::MacAddress mac(*firstDsfNode.nodeMac());
-    auto asic = HwAsic::makeAsic(
-        *firstDsfNode.asicType(),
-        cfg::SwitchType::VOQ,
-        *firstDsfNode.switchId(),
-        *firstDsfNode.systemPortRange(),
-        mac);
-    auto otherDsfNodeCfg = utility::dsfNodeConfig(*asic, getRemoteSwitchId());
-    dsfNodes.insert({*otherDsfNodeCfg.switchId(), otherDsfNodeCfg});
-    return dsfNodes;
+    return utility::addRemoteDsfNodeCfg(curDsfNodes, 1);
   }
 
  protected:
-  void addRemoteSysPort(
-      SystemPortID portId,
-      SwitchID remoteSwitchId = getRemoteSwitchId()) {
-    auto newState = getProgrammedState()->clone();
-    const auto& localPorts = newState->getSystemPorts()->cbegin()->second;
-    auto localPort = localPorts->cbegin()->second;
-    auto remoteSystemPorts =
-        newState->getRemoteSystemPorts()->modify(&newState);
-    auto numPrevPorts = remoteSystemPorts->numNodes();
-    auto remoteSysPort = std::make_shared<SystemPort>(portId);
-    remoteSysPort->setSwitchId(remoteSwitchId);
-    remoteSysPort->setNumVoqs(localPort->getNumVoqs());
-    remoteSysPort->setCoreIndex(localPort->getCoreIndex());
-    remoteSysPort->setCorePortIndex(localPort->getCorePortIndex());
-    remoteSysPort->setSpeedMbps(localPort->getSpeedMbps());
-    remoteSysPort->setEnabled(true);
-    remoteSystemPorts->addNode(
-        remoteSysPort, scopeResolver().scope(remoteSysPort));
-    applyNewState(newState);
-    EXPECT_EQ(
-        getProgrammedState()->getRemoteSystemPorts()->numNodes(),
-        numPrevPorts + 1);
-  }
-  void removeRemoteSysPort(SystemPortID portId) {
-    auto newState = getProgrammedState()->clone();
-    auto remoteSystemPorts =
-        newState->getRemoteSystemPorts()->modify(&newState);
-    auto numPrevPorts = remoteSystemPorts->numNodes();
-    remoteSystemPorts->removeNode(portId);
-    applyNewState(newState);
-    EXPECT_EQ(
-        getProgrammedState()->getRemoteSystemPorts()->numNodes(),
-        numPrevPorts - 1);
-  }
-  void addRemoteInterface(
-      InterfaceID intfId,
-      const Interface::Addresses& subnets) {
-    auto newState = getProgrammedState();
-    auto newRemoteInterfaces =
-        newState->getRemoteInterfaces()->modify(&newState);
-    auto numPrevIntfs = newRemoteInterfaces->numNodes();
-    auto newRemoteInterface = std::make_shared<Interface>(
-        intfId,
-        RouterID(0),
-        std::optional<VlanID>(std::nullopt),
-        folly::StringPiece("RemoteIntf"),
-        folly::MacAddress("c6:ca:2b:2a:b1:b6"),
-        9000,
-        false,
-        false,
-        cfg::InterfaceType::SYSTEM_PORT);
-    newRemoteInterface->setAddresses(subnets);
-    newRemoteInterfaces->addNode(
-        newRemoteInterface,
-        scopeResolver().scope(newRemoteInterface, newState));
-    applyNewState(newState);
-    EXPECT_EQ(
-        getProgrammedState()->getRemoteInterfaces()->numNodes(),
-        numPrevIntfs + 1);
-  }
-  void removeRemoteInterface(InterfaceID intfId) {
-    auto newState = getProgrammedState();
-    auto newRemoteInterfaces =
-        newState->getRemoteInterfaces()->modify(&newState);
-    auto numPrevIntfs = newRemoteInterfaces->numNodes();
-    newRemoteInterfaces->removeNode(intfId);
-    applyNewState(newState);
-    EXPECT_EQ(
-        getProgrammedState()->getRemoteInterfaces()->numNodes(),
-        numPrevIntfs - 1);
-  }
-  void addRemoveRemoteNeighbor(
-      const folly::IPAddressV6& neighborIp,
-      InterfaceID intfID,
-      PortDescriptor port,
-      bool add,
-      std::optional<int64_t> encapIndex = std::nullopt) {
-    auto outState = getProgrammedState();
-    auto interfaceMap = outState->getRemoteInterfaces()->modify(&outState);
-    auto interface = interfaceMap->getNode(intfID)->clone();
-    auto ndpTable = interfaceMap->getNode(intfID)->getNdpTable()->clone();
-    if (add) {
-      const folly::MacAddress kNeighborMac{"2:3:4:5:6:7"};
-      state::NeighborEntryFields ndp;
-      ndp.mac() = kNeighborMac.toString();
-      ndp.ipaddress() = neighborIp.str();
-      ndp.portId() = port.toThrift();
-      ndp.interfaceId() = static_cast<int>(intfID);
-      ndp.state() = state::NeighborState::Reachable;
-      if (encapIndex) {
-        ndp.encapIndex() = *encapIndex;
-      }
-      ndp.isLocal() = encapIndex == std::nullopt;
-      ndpTable->emplace(neighborIp.str(), std::move(ndp));
-    } else {
-      ndpTable->remove(neighborIp.str());
-    }
-    interface->setNdpTable(ndpTable->toThrift());
-    interfaceMap->updateNode(
-        interface, scopeResolver().scope(interface, outState));
-    applyNewState(outState);
-  }
   void assertVoqTailDrops(
       const folly::IPAddressV6& nbrIp,
       const SystemPortID& sysPortId) {
@@ -972,15 +857,21 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, twoDsfNodes) {
 }
 
 TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, remoteSystemPort) {
-  auto setup = [this]() { addRemoteSysPort(SystemPortID(401)); };
+  auto setup = [this]() {
+    applyNewState(utility::addRemoteSysPort(
+        getProgrammedState(), scopeResolver(), SystemPortID(401)));
+  };
   verifyAcrossWarmBoots(setup, [] {});
 }
 
 TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, remoteRouterInterface) {
   auto setup = [this]() {
     auto constexpr remotePortId = 401;
-    addRemoteSysPort(SystemPortID(remotePortId));
-    addRemoteInterface(
+    applyNewState(utility::addRemoteSysPort(
+        getProgrammedState(), scopeResolver(), SystemPortID(remotePortId)));
+    applyNewState(utility::addRemoteInterface(
+        getProgrammedState(),
+        scopeResolver(),
         InterfaceID(remotePortId),
         // TODO - following assumes we haven't
         // already used up the subnets below for
@@ -990,7 +881,7 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, remoteRouterInterface) {
         {
             {folly::IPAddress("100::1"), 64},
             {folly::IPAddress("100.0.0.1"), 24},
-        });
+        }));
   };
   verifyAcrossWarmBoots(setup, [] {});
 }
@@ -999,9 +890,12 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, addRemoveRemoteNeighbor) {
   auto setup = [this]() {
     auto constexpr remotePortId = 401;
     const SystemPortID kRemoteSysPortId(remotePortId);
-    addRemoteSysPort(kRemoteSysPortId);
+    applyNewState(utility::addRemoteSysPort(
+        getProgrammedState(), scopeResolver(), kRemoteSysPortId));
     const InterfaceID kIntfId(remotePortId);
-    addRemoteInterface(
+    applyNewState(utility::addRemoteInterface(
+        getProgrammedState(),
+        scopeResolver(),
         kIntfId,
         // TODO - following assumes we haven't
         // already used up the subnets below for
@@ -1011,15 +905,28 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, addRemoveRemoteNeighbor) {
         {
             {folly::IPAddress("100::1"), 64},
             {folly::IPAddress("100.0.0.1"), 24},
-        });
+        }));
     folly::IPAddressV6 kNeighborIp("100::2");
     uint64_t dummyEncapIndex = 401;
     PortDescriptor kPort(kRemoteSysPortId);
     // Add neighbor
-    addRemoveRemoteNeighbor(kNeighborIp, kIntfId, kPort, true, dummyEncapIndex);
+    applyNewState(utility::addRemoveRemoteNeighbor(
+        getProgrammedState(),
+        scopeResolver(),
+        kNeighborIp,
+        kIntfId,
+        kPort,
+        true,
+        dummyEncapIndex));
     // Remove neighbor
-    addRemoveRemoteNeighbor(
-        kNeighborIp, kIntfId, kPort, false, dummyEncapIndex);
+    applyNewState(utility::addRemoveRemoteNeighbor(
+        getProgrammedState(),
+        scopeResolver(),
+        kNeighborIp,
+        kIntfId,
+        kPort,
+        false,
+        dummyEncapIndex));
   };
   verifyAcrossWarmBoots(setup, [] {});
 }
@@ -1040,9 +947,12 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, stressAddRemoveObjects) {
       // add local neighbor
       addRemoveNeighbor(kPort, true /* add neighbor*/);
       // Remote objs
-      addRemoteSysPort(kRemoteSysPortId);
+      applyNewState(utility::addRemoteSysPort(
+          getProgrammedState(), scopeResolver(), kRemoteSysPortId));
       const InterfaceID kIntfId(remotePortId);
-      addRemoteInterface(
+      applyNewState(utility::addRemoteInterface(
+          getProgrammedState(),
+          scopeResolver(),
           kIntfId,
           // TODO - following assumes we haven't
           // already used up the subnets below for
@@ -1052,24 +962,38 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, stressAddRemoveObjects) {
           {
               {folly::IPAddress("100::1"), 64},
               {folly::IPAddress("100.0.0.1"), 24},
-          });
+          }));
       uint64_t dummyEncapIndex = 401;
       PortDescriptor kRemotePort(kRemoteSysPortId);
       // Add neighbor
-      addRemoveRemoteNeighbor(
-          kNeighborIp, kIntfId, kRemotePort, true, dummyEncapIndex);
+      applyNewState(utility::addRemoveRemoteNeighbor(
+          getProgrammedState(),
+          scopeResolver(),
+          kNeighborIp,
+          kIntfId,
+          kRemotePort,
+          true,
+          dummyEncapIndex));
       // Delete on all but the last iteration. In the last iteration
       // we will leave the entries intact and then forward pkts
       // to this VOQ
       if (i < numIterations - 1) {
         addRemoveNeighbor(kPort, false /* remove neighbor*/);
         // Remove neighbor
-        addRemoveRemoteNeighbor(
-            kNeighborIp, kIntfId, kRemotePort, false, dummyEncapIndex);
+        applyNewState(utility::addRemoveRemoteNeighbor(
+            getProgrammedState(),
+            scopeResolver(),
+            kNeighborIp,
+            kIntfId,
+            kRemotePort,
+            false,
+            dummyEncapIndex));
         // Remove rif
-        removeRemoteInterface(kIntfId);
+        applyNewState(
+            utility::removeRemoteInterface(getProgrammedState(), kIntfId));
         // Remove sys port
-        removeRemoteSysPort(kRemoteSysPortId);
+        applyNewState(utility::removeRemoteSysPort(
+            getProgrammedState(), kRemoteSysPortId));
       }
     }
     assertVoqTailDrops(kNeighborIp, kRemoteSysPortId);
@@ -1095,18 +1019,28 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, voqTailDropCounter) {
   auto setup = [=]() {
     // Disable credit watchdog
     utility::enableCreditWatchdog(getHwSwitch(), false);
-    addRemoteSysPort(kRemoteSysPortId);
+    applyNewState(utility::addRemoteSysPort(
+        getProgrammedState(), scopeResolver(), kRemoteSysPortId));
     const InterfaceID kIntfId(remotePortId);
-    addRemoteInterface(
+    applyNewState(utility::addRemoteInterface(
+        getProgrammedState(),
+        scopeResolver(),
         kIntfId,
         {
             {folly::IPAddress("100::1"), 64},
             {folly::IPAddress("100.0.0.1"), 24},
-        });
+        }));
     uint64_t dummyEncapIndex = 401;
     PortDescriptor kPort(kRemoteSysPortId);
     // Add neighbor
-    addRemoveRemoteNeighbor(kNeighborIp, kIntfId, kPort, true, dummyEncapIndex);
+    applyNewState(utility::addRemoveRemoteNeighbor(
+        getProgrammedState(),
+        scopeResolver(),
+        kNeighborIp,
+        kIntfId,
+        kPort,
+        true,
+        dummyEncapIndex));
   };
 
   auto verify = [=]() { assertVoqTailDrops(kNeighborIp, kRemoteSysPortId); };
@@ -1125,84 +1059,115 @@ class HwVoqSwitchFullScaleDsfNodesTest
 
   std::optional<std::map<int64_t, cfg::DsfNode>> overrideDsfNodes(
       const std::map<int64_t, cfg::DsfNode>& curDsfNodes) const override {
-    CHECK(!curDsfNodes.empty());
-    auto dsfNodes = curDsfNodes;
-    const auto& firstDsfNode = dsfNodes.begin()->second;
-    CHECK(firstDsfNode.systemPortRange().has_value());
-    CHECK(firstDsfNode.nodeMac().has_value());
-    folly::MacAddress mac(*firstDsfNode.nodeMac());
-    auto asic = HwAsic::makeAsic(
-        *firstDsfNode.asicType(),
-        cfg::SwitchType::VOQ,
-        *firstDsfNode.switchId(),
-        *firstDsfNode.systemPortRange(),
-        mac);
-    int numCores = asic->getNumCores();
-    for (int remoteSwitchId = numCores;
-         remoteSwitchId < getDsfNodeCount(asic.get()) * numCores;
-         remoteSwitchId += numCores) {
-      // Ideally there's no need to add extra offset if each dsfNode has 15
-      // ports. However, local switch already used 1 CPU, 1 recyle and 16 system
-      // ports. Adding an extra offset of 5 for remote system ports.
-      const auto systemPortMin =
-          (remoteSwitchId / numCores) * kSystemPortCountPerNode + 5;
-      cfg::Range64 systemPortRange;
-      systemPortRange.minimum() = systemPortMin;
-      systemPortRange.maximum() = systemPortMin + kSystemPortCountPerNode - 1;
-      auto remoteDsfNodeCfg = utility::dsfNodeConfig(
-          *asic, SwitchID(remoteSwitchId), systemPortMin);
-      dsfNodes.insert({remoteSwitchId, remoteDsfNodeCfg});
-    }
-    return dsfNodes;
+    return utility::addRemoteDsfNodeCfg(curDsfNodes);
   }
 
  protected:
-  void setupRemoteIntfAndSysPorts() {
-    cfg::SwitchConfig initConfig = initialConfig();
-    for (const auto& [remoteSwitchId, dsfNode] : *initConfig.dsfNodes()) {
-      if (remoteSwitchId == 0) {
-        continue;
-      }
-      CHECK(dsfNode.systemPortRange().has_value());
-      const auto minPortID = *dsfNode.systemPortRange()->minimum();
-      // 0th port for CPU and 1st port for recycle port
-      for (int i = 2; i < kSystemPortCountPerNode; i++) {
-        const auto newSysPortId = minPortID + i;
-        const SystemPortID remoteSysPortId(newSysPortId);
-        const InterfaceID remoteIntfId(newSysPortId);
-        const PortDescriptor portDesc(remoteSysPortId);
-        const uint64_t encapEndx = newSysPortId;
-
-        // Use subnet 100:(dsfNodeId):(localIntfId)::1/64
-        // and 100.(dsfNodeId).(localIntfId).1/24
-        folly::IPAddressV6 neighborIp(
-            folly::to<std::string>("100:", remoteSwitchId, ":", i, "::2"));
-
-        addRemoteSysPort(remoteSysPortId, SwitchID(remoteSwitchId));
-        addRemoteInterface(
-            remoteIntfId,
-            {
-                {folly::IPAddress(folly::to<std::string>(
-                     "100:", remoteSwitchId, ":", i, "::1")),
-                 64},
-                {folly::IPAddress(folly::to<std::string>(
-                     "100.", remoteSwitchId, ".", i, ".1")),
-                 24},
-            });
-        addRemoveRemoteNeighbor(
-            neighborIp, remoteIntfId, portDesc, true /* add */, encapEndx);
-      }
-    }
+  int getMaxEcmpWidth(const HwAsic* asic) const {
+    return asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2 ? 128 : 512;
   }
 
- private:
-  int getDsfNodeCount(HwAsic* asic) const {
-    return asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2 ? 128 : 256;
+  int getMaxEcmpGroup() const {
+    return 64;
+  }
+
+  // Resolve and return list of remote nhops
+  std::vector<PortDescriptor> resolveRemoteNhops(
+      utility::EcmpSetupTargetedPorts6& ecmpHelper) {
+    auto remoteSysPorts =
+        getProgrammedState()->getRemoteSystemPorts()->getAllNodes();
+    std::vector<PortDescriptor> sysPortDescs;
+    std::for_each(
+        remoteSysPorts->begin(),
+        remoteSysPorts->end(),
+        [&sysPortDescs](const auto& idAndPort) {
+          sysPortDescs.push_back(
+              PortDescriptor(static_cast<SystemPortID>(idAndPort.first)));
+        });
+    auto currState = getProgrammedState();
+    for (const auto& sysPortDesc : sysPortDescs) {
+      currState = ecmpHelper.resolveNextHops(
+          currState,
+          {sysPortDesc},
+          false,
+          /* encapIndex */ sysPortDesc.sysPortID());
+    }
+    applyNewState(currState);
+    return sysPortDescs;
   }
 };
 
 TEST_F(HwVoqSwitchFullScaleDsfNodesTest, systemPortScaleTest) {
-  auto setup = [this]() { setupRemoteIntfAndSysPorts(); };
+  auto setup = [this]() {
+    applyNewState(utility::setupRemoteIntfAndSysPorts(
+        getProgrammedState(), scopeResolver(), initialConfig()));
+  };
+  verifyAcrossWarmBoots(setup, [] {});
+}
+
+TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
+  auto kEcmpWidth = getMaxEcmpWidth(getAsic());
+  FLAGS_ecmp_width = kEcmpWidth;
+  auto setup = [&]() {
+    applyNewState(utility::setupRemoteIntfAndSysPorts(
+        getProgrammedState(), scopeResolver(), initialConfig()));
+    utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
+    // Trigger config apply to add remote interface routes as directly connected
+    // in RIB. This is to resolve ECMP members pointing to remote nexthops.
+    applyNewConfig(initialConfig());
+
+    // Resolve remote nhops and get a list of remote sysPort descriptors
+    auto sysPortDescs = resolveRemoteNhops(ecmpHelper);
+
+    for (int i = 0; i < getMaxEcmpGroup(); i++) {
+      auto prefix = RoutePrefixV6{
+          folly::IPAddressV6(folly::to<std::string>(i + 1, "::", i + 1)), 128};
+      ecmpHelper.programRoutes(
+          getRouteUpdater(),
+          flat_set<PortDescriptor>(
+              std::make_move_iterator(sysPortDescs.begin() + i),
+              std::make_move_iterator(sysPortDescs.begin() + i + kEcmpWidth)),
+          {prefix});
+    }
+  };
+  // TODO: Send and verify packets across voq drops.
+  verifyAcrossWarmBoots(setup, [] {});
+}
+
+TEST_F(HwVoqSwitchFullScaleDsfNodesTest, stressProgramEcmpRoutes) {
+  auto kEcmpWidth = getMaxEcmpWidth(getAsic());
+  FLAGS_ecmp_width = kEcmpWidth;
+  // Stress add/delete 100 iterations of 5 routes with ECMP width.
+  const auto routeScale = 5;
+  const auto numIterations = 100;
+  auto setup = [&]() {
+    applyNewState(utility::setupRemoteIntfAndSysPorts(
+        getProgrammedState(), scopeResolver(), initialConfig()));
+    utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
+    // Trigger config apply to add remote interface routes as directly connected
+    // in RIB. This is to resolve ECMP members pointing to remote nexthops.
+    applyNewConfig(initialConfig());
+
+    // Resolve remote nhops and get a list of remote sysPort descriptors
+    auto sysPortDescs = resolveRemoteNhops(ecmpHelper);
+
+    for (int iter = 0; iter < numIterations; iter++) {
+      std::vector<RoutePrefixV6> routes;
+      for (int i = 0; i < routeScale; i++) {
+        auto prefix = RoutePrefixV6{
+            folly::IPAddressV6(folly::to<std::string>(i + 1, "::", i + 1)),
+            128};
+        ecmpHelper.programRoutes(
+            getRouteUpdater(),
+            flat_set<PortDescriptor>(
+                std::make_move_iterator(sysPortDescs.begin() + i),
+                std::make_move_iterator(sysPortDescs.begin() + i + kEcmpWidth)),
+            {prefix});
+        routes.push_back(prefix);
+      }
+      ecmpHelper.unprogramRoutes(getRouteUpdater(), routes);
+    }
+  };
   verifyAcrossWarmBoots(setup, [] {});
 }
 } // namespace facebook::fboss

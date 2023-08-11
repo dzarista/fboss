@@ -5,9 +5,9 @@
 
 #include <folly/experimental/FunctionScheduler.h>
 #include <thrift/lib/cpp2/server/ThriftServer.h>
-#include "fboss/agent/AgentInitializer.h"
 #include "fboss/agent/CommonInit.h"
 #include "fboss/agent/HwAgent.h"
+#include "fboss/agent/SwAgentInitializer.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/TunManager.h"
 
@@ -31,69 +31,35 @@ namespace facebook::fboss {
 struct AgentConfig;
 class Platform;
 
-class MonolithicSwSwitchInitializer {
+class MonolithicSwSwitchInitializer : public SwSwitchInitializer {
  public:
   MonolithicSwSwitchInitializer(SwSwitch* sw, HwAgent* hwAgent)
-      : sw_(sw), hwAgent_(hwAgent) {}
-  void start();
-  void start(HwSwitchCallback* callback);
-  void stopFunctionScheduler();
-  void waitForInitDone();
+      : SwSwitchInitializer(sw), hwAgent_(hwAgent) {}
   Platform* platform() {
     return hwAgent_->getPlatform();
   }
 
  private:
-  void initThread(HwSwitchCallback* callback);
-  SwitchFlags setupFlags();
-  void initImpl(HwSwitchCallback* callback);
-  SwSwitch* sw_;
+  void initImpl(HwSwitchCallback* callback) override;
   HwAgent* hwAgent_;
-  std::unique_ptr<folly::FunctionScheduler> fs_;
-  std::mutex initLock_;
-  std::condition_variable initCondition_;
 };
 
-class MonolithicAgentSignalHandler : public SignalHandler {
- public:
-  MonolithicAgentSignalHandler(
-      folly::EventBase* eventBase,
-      SwSwitch* sw,
-      SignalHandler::StopServices stopServices)
-      : SignalHandler(eventBase, stopServices), sw_(sw) {}
-
-  void signalReceived(int /*signum*/) noexcept override;
-
- private:
-  SwSwitch* sw_;
-};
-
-class MonolithicAgentInitializer : public AgentInitializer {
+class MonolithicAgentInitializer : public SwAgentInitializer {
  public:
   MonolithicAgentInitializer() {}
   MonolithicAgentInitializer(
       std::unique_ptr<AgentConfig> config,
       uint32_t hwFeaturesDesired,
       PlatformInitFn initPlatform);
-  SwSwitch* sw() const {
-    return sw_.get();
-  }
   Platform* platform() const {
     return hwAgent_->getPlatform();
   }
-  MonolithicSwSwitchInitializer* initializer() const {
-    return initializer_.get();
-  }
 
   virtual ~MonolithicAgentInitializer() override {}
-  void stopServices();
   void createSwitch(
       std::unique_ptr<AgentConfig> config,
       uint32_t hwFeaturesDesired,
       PlatformInitFn initPlatform);
-  int initAgent() override;
-  int initAgent(HwSwitchCallback* callback);
-  void stopAgent(bool setupWarmboot) override;
 
   /*
    * API to all flag overrides for individual tests. Primarily
@@ -103,12 +69,13 @@ class MonolithicAgentInitializer : public AgentInitializer {
    */
   virtual void setCmdLineFlagOverrides() const {}
 
+  void handleExitSignal() override;
+
+  std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
+  getThrifthandlers() override;
+
  private:
   std::unique_ptr<HwAgent> hwAgent_;
-  std::unique_ptr<SwSwitch> sw_;
-  std::unique_ptr<MonolithicSwSwitchInitializer> initializer_;
-  std::unique_ptr<apache::thrift::ThriftServer> server_;
-  folly::EventBase* eventBase_;
 };
 
 } // namespace facebook::fboss

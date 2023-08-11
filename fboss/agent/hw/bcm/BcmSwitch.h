@@ -564,11 +564,6 @@ class BcmSwitch : public BcmSwitchIf {
   std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(int32_t portId) override;
   void clearPortAsicPrbsStats(int32_t portId) override;
 
-  std::vector<phy::PrbsLaneStats> getPortGearboxPrbsStats(
-      int32_t portId,
-      phy::Side side) override;
-  void clearPortGearboxPrbsStats(int32_t portId, phy::Side side) override;
-
   std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
       int32_t /* portId */) override;
   prbs::InterfacePrbsState getPortPrbsState(PortID portId) override;
@@ -642,9 +637,7 @@ class BcmSwitch : public BcmSwitchIf {
    * state changes while we are calling cleanup
    * shutdown apis in the BCM sdk.
    */
-  void gracefulExitImpl(
-      folly::dynamic& follyWwitchState,
-      state::WarmbootState& thriftSwitchState) override;
+  void gracefulExitImpl() override;
   /*
    * Handle SwitchRunState changes
    */
@@ -1097,6 +1090,8 @@ class BcmSwitch : public BcmSwitchIf {
       const std::shared_ptr<ControlPlane>& newCPU);
   void processControlPlaneEntryRemoved(
       const std::shared_ptr<ControlPlane>& oldCPU);
+
+  void initialStateApplied() override;
 
   /*
    * Member variables

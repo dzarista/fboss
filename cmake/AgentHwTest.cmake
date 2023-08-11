@@ -11,6 +11,7 @@ add_library(config_factory
 target_link_libraries(config_factory
   fboss_types
   hw_switch
+  hwagent
   switch_config_cpp2
   Folly::folly
   fboss_config_utils
@@ -141,6 +142,9 @@ target_link_libraries(hw_switch_ensemble
   core
   hw_test_utils
   test_ensemble_if
+  sw_switch_warmboot_helper
+  multiswitch_test_server
+  split_agent_thrift_syncer
 )
 
 add_library(load_balancer_utils
@@ -319,6 +323,7 @@ target_link_libraries(hw_switch_test
   agent_test_utils
   hw_packet_utils
   hw_switch_ensemble
+  hw_voq_utils
   load_balancer_utils
   prod_config_factory
   prod_config_utils
@@ -385,4 +390,29 @@ target_link_libraries(hw_linkstate_toggler
   hw_switch
   state
   core
+)
+
+add_library(hw_voq_utils
+  fboss/agent/hw/test/HwVoqUtils.cpp
+)
+
+target_link_libraries(hw_voq_utils
+  config_factory
+  fboss_types
+  switchid_scope_resolver
+  switch_asics
+  switch_config_cpp2
+  state
+  Folly::folly
+)
+
+add_library(multiswitch_test_server
+  fboss/agent/test/MultiSwitchTestServer.cpp
+)
+
+target_link_libraries(multiswitch_test_server
+  core
+  handler
+  multiswitch_service
+  Folly::folly
 )

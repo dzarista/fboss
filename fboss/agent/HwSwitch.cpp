@@ -19,6 +19,7 @@
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/state/TransceiverMap.h"
+#include "fboss/lib/HwWriteBehavior.h"
 
 #include <fb303/ThreadCachedServiceData.h>
 #include <folly/FileUtil.h>
@@ -81,16 +82,15 @@ uint32_t HwSwitch::generateDeterministicSeed(LoadBalancerID loadBalancerID) {
       loadBalancerID, getPlatform()->getLocalMac());
 }
 
-void HwSwitch::gracefulExit(
-    folly::dynamic& follySwitchState,
-    state::WarmbootState& thriftSwitchState) {
+void HwSwitch::gracefulExit(const state::WarmbootState& thriftSwitchState) {
   if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::WARMBOOT)) {
-    gracefulExitImpl(follySwitchState, thriftSwitchState);
+    gracefulExitImpl();
   }
 }
 
 std::shared_ptr<SwitchState> HwSwitch::stateChangedTransaction(
-    const StateDelta& delta) {
+    const StateDelta& delta,
+    const HwWriteBehaviorRAII& behavior) {
   if (!FLAGS_enable_state_oper_delta) {
     // failback to move away from oper delta
     if (!transactionsSupported()) {
@@ -106,7 +106,7 @@ std::shared_ptr<SwitchState> HwSwitch::stateChangedTransaction(
     }
     return getProgrammedState();
   }
-  auto result = stateChangedTransaction(delta.getOperDelta());
+  auto result = stateChangedTransaction(delta.getOperDelta(), behavior);
   if (!result.changes()->empty()) {
     // changes have been rolled back to last good known state
     return delta.oldState();
@@ -131,7 +131,9 @@ void HwSwitch::setProgrammedState(const std::shared_ptr<SwitchState>& state) {
   (*programmedState)->publish();
 }
 
-fsdb::OperDelta HwSwitch::stateChanged(const fsdb::OperDelta& delta) {
+fsdb::OperDelta HwSwitch::stateChanged(
+    const fsdb::OperDelta& delta,
+    const HwWriteBehaviorRAII& /*behavior*/) {
   auto stateDelta = StateDelta(getProgrammedState(), delta);
   auto state = stateChangedImpl(stateDelta);
   setProgrammedState(state);
@@ -146,7 +148,8 @@ fsdb::OperDelta HwSwitch::stateChanged(const fsdb::OperDelta& delta) {
 }
 
 fsdb::OperDelta HwSwitch::stateChangedTransaction(
-    const fsdb::OperDelta& delta) {
+    const fsdb::OperDelta& delta,
+    const HwWriteBehaviorRAII& /*behavior*/) {
   if (!transactionsSupported()) {
     throw FbossError("Transactions not supported on this switch");
   }
@@ -162,63 +165,6 @@ fsdb::OperDelta HwSwitch::stateChangedTransaction(
     return delta;
   }
   return result;
-}
-
-std::shared_ptr<SwitchState> HwSwitch::fillinPortInterfaces(
-    const std::shared_ptr<SwitchState>& oldState) {
-  if (getBootType() != BootType::WARM_BOOT) {
-    return oldState;
-  }
-
-  // Populate newly added InterfaceIDs for port
-  auto newState = oldState->clone();
-  auto newPortMaps = newState->getPorts()->modify(&newState);
-  for (auto portMap : *newPortMaps) {
-    for (auto port : *portMap.second) {
-      auto newPort = port.second->clone();
-
-      if (newPort->getInterfaceIDs().size() != 0) {
-        continue;
-      }
-
-      std::vector<int32_t> interfaceIDs;
-      for (const auto& vlanMember : port.second->getVlans()) {
-        interfaceIDs.push_back(vlanMember.first);
-      }
-      newPort->setInterfaceIDs(interfaceIDs);
-      newPortMaps->updateNode(newPort, HwSwitchMatcher(portMap.first));
-    }
-  }
-
-  auto newAggregatePortMap = newState->getAggregatePorts()->modify(&newState);
-  for (const auto& [_, aggregatePorts] : *newAggregatePortMap) {
-    for (auto aggregatePort : *aggregatePorts) {
-      auto newAggregatePort = aggregatePort.second->clone();
-
-      if (newAggregatePort->getInterfaceIDs()->size() != 0) {
-        continue;
-      }
-      auto subports = newAggregatePort->sortedSubports();
-      if (subports.size() == 0) {
-        continue;
-      }
-
-      // all Aggregate member ports always belong to the same interface(s).
-      // Thus, pick the interface for any member port
-      auto portID = subports.front().portID;
-
-      std::vector<int32_t> intfIDs;
-      for (auto intfID :
-           newState->getPorts()->getNode(portID)->getInterfaceIDs()) {
-        intfIDs.push_back(intfID);
-      }
-
-      newAggregatePort->setInterfaceIDs(intfIDs);
-      aggregatePorts->updateNode(newAggregatePort);
-    }
-  }
-  newState->publish();
-  return newState;
 }
 
 bool HwSwitch::isFullyConfigured() const {
@@ -279,21 +225,24 @@ std::shared_ptr<SwitchState> HwSwitch::programMinAlpmState(
   return func(StateDelta(state, minAlpmState));
 }
 
-HwInitResult HwSwitch::init(
-    Callback* callback,
-    bool failHwCallsOnWarmboot,
-    cfg::SwitchType switchType,
-    std::optional<int64_t> switchId) {
-  switchType_ = switchType;
-  switchId_ = switchId;
-  auto ret = initImpl(callback, failHwCallsOnWarmboot, switchType, switchId);
-  ret.switchState = fillinPortInterfaces(ret.switchState);
+HwInitResult HwSwitch::init(Callback* callback, bool failHwCallsOnWarmboot) {
+  switchType_ = getPlatform()->getAsic()->getSwitchType();
+  switchId_ = getPlatform()->getAsic()->getSwitchId();
+  auto ret = initImpl(callback, failHwCallsOnWarmboot, switchType_, switchId_);
+  if (ret.bootType == BootType::WARM_BOOT) {
+    // apply state only for warm boot. cold boot state is already applied.
+    auto writeBehavior = getWarmBootWriteBehavior(failHwCallsOnWarmboot);
+    setProgrammedState(std::make_shared<SwitchState>());
+    ret.switchState = stateChanged(
+        StateDelta(getProgrammedState(), ret.switchState), writeBehavior);
+  }
   setProgrammedState(ret.switchState);
+  initialStateApplied();
   if (ret.bootType == BootType::WARM_BOOT ||
       !getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::ROUTE_PROGRAMMING) ||
       (switchType_ != cfg::SwitchType::NPU &&
-       switchType != cfg::SwitchType::VOQ)) {
+       switchType_ != cfg::SwitchType::VOQ)) {
     return ret;
   }
   // program min alpm state for npu and voq
@@ -307,4 +256,13 @@ HwInitResult HwSwitch::init(
   return ret;
 }
 
+HwWriteBehaviorRAII HwSwitch::getWarmBootWriteBehavior(
+    bool failHwCallsOnWarmboot) const {
+  if (failHwCallsOnWarmboot &&
+      getPlatform()->getAsic()->isSupported(
+          HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT)) {
+    return HwWriteBehaviorRAII(HwWriteBehavior::FAIL);
+  }
+  return HwWriteBehaviorRAII(HwWriteBehavior::WRITE);
+}
 } // namespace facebook::fboss

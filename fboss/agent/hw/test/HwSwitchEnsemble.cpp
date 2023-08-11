@@ -20,6 +20,7 @@
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/Platform.h"
 #include "fboss/agent/SwSwitch.h"
+#include "fboss/agent/SwSwitchWarmBootHelper.h"
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
@@ -35,6 +36,7 @@
 
 #include <folly/experimental/FunctionScheduler.h>
 #include <folly/gen/Base.h>
+#include <memory>
 #include <utility>
 
 DEFINE_bool(
@@ -60,6 +62,43 @@ using namespace std::chrono_literals;
 
 namespace facebook::fboss {
 
+class HwEnsembleMultiSwitchThriftHandler
+    : public apache::thrift::ServiceHandler<multiswitch::MultiSwitchCtrl> {
+ public:
+#if FOLLY_HAS_COROUTINES
+  folly::coro::Task<apache::thrift::SinkConsumer<fsdb::OperDelta, bool>>
+  co_notifyStateUpdateResult(int64_t switchId) override {
+    co_return {};
+  }
+
+  folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>>
+  co_notifyLinkEvent(int64_t switchId) override {
+    co_return {};
+  }
+
+  folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::FdbEvent, bool>>
+  co_notifyFdbEvent(int64_t switchId) override {
+    co_return {};
+  }
+
+  folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::RxPacket, bool>>
+  co_notifyRxPacket(int64_t switchId) override {
+    co_return {};
+  }
+
+  folly::coro::Task<apache::thrift::ServerStream<fsdb::OperDelta>>
+  co_getStateUpdates(int64_t switchId) override {
+    co_return apache::thrift::ServerStream<fsdb::OperDelta>::createEmpty();
+  }
+
+  folly::coro::Task<apache::thrift::ServerStream<multiswitch::TxPacket>>
+  co_getTxPackets(int64_t switchId) override {
+    co_return apache::thrift::ServerStream<
+        multiswitch::TxPacket>::createEmpty();
+  }
+#endif
+};
+
 HwSwitchEnsemble::HwSwitchEnsemble(const Features& featuresDesired)
     : featuresDesired_(featuresDesired) {}
 
@@ -70,9 +109,10 @@ HwSwitchEnsemble::~HwSwitchEnsemble() {
   if (fs_) {
     fs_->shutdown();
   }
-  if (platform_ && getHwSwitch() &&
+  if (hwAgent_ && getPlatform() && getHwSwitch() &&
       getHwSwitch()->getRunState() >= SwitchRunState::INITIALIZED) {
-    if (platform_->getAsic()->isSupported(HwAsic::Feature::ROUTE_PROGRAMMING)) {
+    if (getPlatform()->getAsic()->isSupported(
+            HwAsic::Feature::ROUTE_PROGRAMMING)) {
       auto minRouteState = getMinAlpmRouteState(getProgrammedState());
       applyNewState(minRouteState);
     }
@@ -98,6 +138,7 @@ uint32_t HwSwitchEnsemble::getHwSwitchFeatures() const {
         features |= HwSwitch::TAM_EVENT_NOTIFY_DESIRED;
         break;
       case STATS_COLLECTION:
+      case MULTISWITCH_THRIFT_SERVER:
         // No HwSwitch feture need to turned on.
         // Handled by HwSwitchEnsemble
         break;
@@ -107,7 +148,7 @@ uint32_t HwSwitchEnsemble::getHwSwitchFeatures() const {
 }
 
 HwSwitch* HwSwitchEnsemble::getHwSwitch() {
-  return platform_->getHwSwitch();
+  return getPlatform()->getHwSwitch();
 }
 
 std::shared_ptr<SwitchState> HwSwitchEnsemble::getProgrammedState() const {
@@ -128,7 +169,7 @@ std::shared_ptr<SwitchState> HwSwitchEnsemble::applyNewConfig(
     const cfg::SwitchConfig& config) {
   // Mimic SwSwitch::applyConfig() to modifyTransceiverMap
   auto originalState = getProgrammedState();
-  auto overrideTcvrInfos = platform_->getOverrideTransceiverInfos();
+  auto overrideTcvrInfos = getPlatform()->getOverrideTransceiverInfos();
   if (overrideTcvrInfos) {
     const auto& currentTcvrs = *overrideTcvrInfos;
     auto tempState = SwSwitch::modifyTransceivers(
@@ -191,9 +232,15 @@ std::shared_ptr<SwitchState> HwSwitchEnsemble::applyNewStateImpl(
   bool applyUpdateSuccess = true;
   {
     std::lock_guard<std::mutex> lk(updateStateMutex_);
-    applyUpdateSuccess = applyUpdate(delta.getOperDelta(), lk, transaction);
+    auto resultOperDelta = applyUpdate(delta.getOperDelta(), lk, transaction);
+    applyUpdateSuccess = resultOperDelta.changes()->empty();
     // We are about to give up the lock, cache programmedState
     // applied by this function invocation
+    if (applyUpdateSuccess) {
+      programmedState_ = toApply;
+    } else {
+      programmedState_ = StateDelta(toApply, resultOperDelta).newState();
+    }
     appliedState = programmedState_;
   }
   StaticL2ForNeighborHwSwitchUpdater updater(this);
@@ -204,16 +251,14 @@ std::shared_ptr<SwitchState> HwSwitchEnsemble::applyNewStateImpl(
   return appliedState;
 }
 
-bool HwSwitchEnsemble::applyUpdate(
+fsdb::OperDelta HwSwitchEnsemble::applyUpdate(
     const fsdb::OperDelta& operDelta,
     const std::lock_guard<std::mutex>& /*lock*/,
     bool transaction) {
   auto resultOperDelta = transaction
       ? getHwSwitch()->stateChangedTransaction(operDelta)
       : getHwSwitch()->stateChanged(operDelta);
-  programmedState_ = getHwSwitch()->getProgrammedState();
-  programmedState_->publish();
-  return resultOperDelta.changes()->empty();
+  return resultOperDelta;
 }
 
 void HwSwitchEnsemble::applyInitialConfig(const cfg::SwitchConfig& initCfg) {
@@ -424,13 +469,13 @@ HwTrunkStats HwSwitchEnsemble::getLatestAggregatePortStats(
 }
 
 void HwSwitchEnsemble::setupEnsemble(
-    std::unique_ptr<Platform> platform,
+    std::unique_ptr<HwAgent> hwAgent,
     std::unique_ptr<HwLinkStateToggler> linkToggler,
     std::unique_ptr<std::thread> thriftThread,
     const HwSwitchEnsembleInitInfo& initInfo) {
-  platform_ = std::move(platform);
+  hwAgent_ = std::move(hwAgent);
   linkToggler_ = std::move(linkToggler);
-  auto asic = platform_->getAsic();
+  auto asic = getPlatform()->getAsic();
   cfg::SwitchInfo switchInfo;
   switchInfo.switchType() = asic->getSwitchType();
   switchInfo.asicType() = asic->getAsicType();
@@ -443,12 +488,23 @@ void HwSwitchEnsemble::setupEnsemble(
   auto switchIdToSwitchInfo = std::map<int64_t, cfg::SwitchInfo>(
       {{asic->getSwitchId() ? *asic->getSwitchId() : 0, switchInfo}});
   hwAsicTable_ = std::make_unique<HwAsicTable>(switchIdToSwitchInfo);
+  if (haveFeature(MULTISWITCH_THRIFT_SERVER)) {
+    std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
+        handlers;
+    handlers.emplace_back(
+        std::make_shared<HwEnsembleMultiSwitchThriftHandler>());
+    swSwitchTestServer_ = std::make_unique<MultiSwitchTestServer>(handlers);
+    XLOG(DBG2) << "Started thrift server on port "
+               << swSwitchTestServer_->getPort();
+    thriftSyncer_ = std::make_unique<SplitAgentThriftSyncer>(
+        getPlatform()->getHwSwitch(), swSwitchTestServer_->getPort());
+  }
 
   auto hwInitResult = getHwSwitch()->init(
-      this,
-      true /*failHwCallsOnWarmboot*/,
-      platform_->getAsic()->getSwitchType(),
-      platform_->getAsic()->getSwitchId());
+      haveFeature(MULTISWITCH_THRIFT_SERVER)
+          ? static_cast<HwSwitchCallback*>(thriftSyncer_.get())
+          : this,
+      true /*failHwCallsOnWarmboot*/);
 
   programmedState_ = hwInitResult.switchState;
   programmedState_ = programmedState_->clone();
@@ -467,7 +523,8 @@ void HwSwitchEnsemble::setupEnsemble(
   updater.stateUpdated(
       StateDelta(std::make_shared<SwitchState>(), programmedState_));
 
-  if (platform_->getAsic()->isSupported(HwAsic::Feature::ROUTE_PROGRAMMING)) {
+  if (getPlatform()->getAsic()->isSupported(
+          HwAsic::Feature::ROUTE_PROGRAMMING)) {
     // ALPM requires that default routes be programmed
     // before any other routes. We handle that setup here. Similarly ALPM
     // requires that default routes be deleted last. That aspect is handled
@@ -476,6 +533,9 @@ void HwSwitchEnsemble::setupEnsemble(
   }
 
   thriftThread_ = std::move(thriftThread);
+  if (haveFeature(MULTISWITCH_THRIFT_SERVER)) {
+    thriftSyncer_->connect();
+  }
   switchRunStateChanged(SwitchRunState::INITIALIZED);
   if (routingInformationBase_) {
     auto curProgrammedState = programmedState_;
@@ -507,9 +567,7 @@ void HwSwitchEnsemble::switchRunStateChanged(SwitchRunState switchState) {
   }
 }
 
-std::tuple<folly::dynamic, state::WarmbootState>
-HwSwitchEnsemble::gracefulExitState() const {
-  folly::dynamic follySwitchState = folly::dynamic::object;
+state::WarmbootState HwSwitchEnsemble::gracefulExitState() const {
   state::WarmbootState thriftSwitchState;
 
   // For RIB we employ a optmization to serialize only unresolved routes
@@ -520,7 +578,7 @@ HwSwitchEnsemble::gracefulExitState() const {
     thriftSwitchState.routeTables() = routingInformationBase_->warmBootState();
   }
   *thriftSwitchState.swSwitchState() = getProgrammedState()->toThrift();
-  return std::make_tuple(follySwitchState, thriftSwitchState);
+  return thriftSwitchState;
 }
 
 void HwSwitchEnsemble::stopObservers() {
@@ -543,8 +601,10 @@ void HwSwitchEnsemble::gracefulExit() {
   // Initiate warm boot
   getHwSwitch()->unregisterCallbacks();
   stopObservers();
-  auto [follySwitchState, thriftSwitchState] = gracefulExitState();
-  getHwSwitch()->gracefulExit(follySwitchState, thriftSwitchState);
+  auto thriftSwitchState = gracefulExitState();
+  getHwSwitch()->gracefulExit(thriftSwitchState);
+  // store or dump sw switch state
+  storeWarmBootState(thriftSwitchState);
 }
 
 /*
@@ -706,5 +766,11 @@ void HwSwitchEnsemble::clearPfcWatchdogCounter(
 const SwitchIdScopeResolver& HwSwitchEnsemble::scopeResolver() const {
   CHECK(scopeResolver_);
   return *scopeResolver_;
+}
+
+void HwSwitchEnsemble::storeWarmBootState(const state::WarmbootState& state) {
+  SwSwitchWarmBootHelper warmBootHelper(
+      getHwSwitch()->getPlatform()->getWarmBootDir());
+  warmBootHelper.storeWarmBootState(state);
 }
 } // namespace facebook::fboss

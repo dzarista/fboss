@@ -4,9 +4,14 @@
 
 namespace facebook::fboss {
 
+class Platform;
+
 class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
  public:
-  NonMonolithicHwSwitchHandler();
+  NonMonolithicHwSwitchHandler(
+      Platform* platform,
+      const SwitchID& switchId,
+      const cfg::SwitchInfo& info);
 
   virtual ~NonMonolithicHwSwitchHandler() override = default;
 
@@ -27,9 +32,7 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
 
   void unregisterCallbacks() override;
 
-  void gracefulExit(
-      folly::dynamic& follySwitchState,
-      state::WarmbootState& thriftSwitchState) override;
+  void gracefulExit(state::WarmbootState& thriftSwitchState) override;
 
   bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) override;
 
@@ -64,12 +67,6 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
       int32_t portId) override;
 
   prbs::InterfacePrbsState getPortPrbsState(PortID portId) override;
-
-  std::vector<phy::PrbsLaneStats> getPortGearboxPrbsStats(
-      int32_t portId,
-      phy::Side side) override;
-
-  void clearPortGearboxPrbsStats(int32_t portId, phy::Side side) override;
 
   void switchRunStateChanged(SwitchRunState newState) override;
 

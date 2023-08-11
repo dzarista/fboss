@@ -158,6 +158,11 @@ struct SaiSwitchTraits {
         SAI_SWITCH_ATTR_RESTART_WARM,
         bool,
         SaiBoolDefaultFalse>;
+    using SwitchPreShutdown = SaiAttribute<
+        EnumType,
+        SAI_SWITCH_ATTR_PRE_SHUTDOWN,
+        bool,
+        SaiBoolDefaultFalse>;
     using QosDscpToTcMap = SaiAttribute<
         EnumType,
         SAI_SWITCH_ATTR_QOS_DSCP_TO_TC_MAP,
@@ -447,8 +452,10 @@ struct SaiSwitchTraits {
     struct AttributeMaxCoresWrapper {
       std::optional<sai_attr_id_t> operator()();
     };
-    using MaxCores =
-        SaiExtensionAttribute<sai_uint32_t, AttributeMaxCoresWrapper>;
+    using MaxCores = SaiExtensionAttribute<
+        sai_uint32_t,
+        AttributeMaxCoresWrapper,
+        SaiIntDefault<uint32_t>>;
     using PfcDlrPacketAction = SaiAttribute<
         EnumType,
         SAI_SWITCH_ATTR_PFC_DLR_PACKET_ACTION,
@@ -535,6 +542,7 @@ SAI_ATTRIBUTE_NAME(Switch, LagDefaultHashSeed)
 SAI_ATTRIBUTE_NAME(Switch, EcmpDefaultHashAlgorithm)
 SAI_ATTRIBUTE_NAME(Switch, LagDefaultHashAlgorithm)
 SAI_ATTRIBUTE_NAME(Switch, SwitchRestartWarm)
+SAI_ATTRIBUTE_NAME(Switch, SwitchPreShutdown)
 
 SAI_ATTRIBUTE_NAME(Switch, CpuPort)
 SAI_ATTRIBUTE_NAME(Switch, DefaultVlanId)

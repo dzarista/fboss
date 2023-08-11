@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "fboss/agent/HwAgent.h"
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/L2Entry.h"
@@ -17,8 +18,10 @@
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
+#include "fboss/agent/mnpu/SplitAgentThriftSyncer.h"
 #include "fboss/agent/platforms/tests/utils/TestPlatformTypes.h"
 #include "fboss/agent/rib/RoutingInformationBase.h"
+#include "fboss/agent/test/MultiSwitchTestServer.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
 #include "fboss/agent/types.h"
 
@@ -91,6 +94,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
     LINKSCAN,
     STATS_COLLECTION,
     TAM_NOTIFY,
+    MULTISWITCH_THRIFT_SERVER, /* Start multiswitch service on test server */
   };
   using Features = std::set<Feature>;
 
@@ -117,10 +121,10 @@ class HwSwitchEnsemble : public TestEnsembleIf {
     return routingInformationBase_.get();
   }
   virtual Platform* getPlatform() {
-    return platform_.get();
+    return hwAgent_->getPlatform();
   }
   virtual const Platform* getPlatform() const {
-    return platform_.get();
+    return hwAgent_->getPlatform();
   }
   HwSwitch* getHwSwitch() override;
   const HwSwitch* getHwSwitch() const override {
@@ -214,7 +218,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       const std::vector<AggregatePortID>& aggregatePorts) = 0;
   HwTrunkStats getLatestAggregatePortStats(AggregatePortID port);
 
-  std::tuple<folly::dynamic, state::WarmbootState> gracefulExitState() const;
+  state::WarmbootState gracefulExitState() const;
   /*
    * Initiate graceful exit
    */
@@ -260,7 +264,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
    * Setup ensemble
    */
   void setupEnsemble(
-      std::unique_ptr<Platform> platform,
+      std::unique_ptr<HwAgent> hwAgent,
       std::unique_ptr<HwLinkStateToggler> linkToggler,
       std::unique_ptr<std::thread> thriftThread,
       const HwSwitchEnsembleInitInfo& info);
@@ -270,6 +274,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   }
 
  private:
+  void storeWarmBootState(const state::WarmbootState& state);
   std::shared_ptr<SwitchState> updateEncapIndices(
       const std::shared_ptr<SwitchState>& in) const;
   // To update programmed state after rollback
@@ -278,7 +283,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       const std::shared_ptr<SwitchState>& newState,
       bool transaction,
       bool disableAppliedStateVerification = false);
-  bool applyUpdate(
+  fsdb::OperDelta applyUpdate(
       const fsdb::OperDelta& operDelta,
       const std::lock_guard<std::mutex>& lock,
       bool transaction);
@@ -295,7 +300,8 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   std::shared_ptr<SwitchState> programmedState_{nullptr};
   std::unique_ptr<RoutingInformationBase> routingInformationBase_;
   std::unique_ptr<HwLinkStateToggler> linkToggler_;
-  std::unique_ptr<Platform> platform_;
+  std::unique_ptr<SplitAgentThriftSyncer> thriftSyncer_{nullptr};
+  std::unique_ptr<HwAgent> hwAgent_;
   const Features featuresDesired_;
   folly::Synchronized<std::set<HwSwitchEventObserverIf*>> hwEventObservers_;
   std::unique_ptr<std::thread> thriftThread_;
@@ -310,6 +316,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
 
   std::unique_ptr<HwAsicTable> hwAsicTable_;
   std::unique_ptr<SwitchIdScopeResolver> scopeResolver_;
+  std::unique_ptr<MultiSwitchTestServer> swSwitchTestServer_;
 };
 
 } // namespace facebook::fboss

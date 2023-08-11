@@ -21,14 +21,14 @@ HwAgent::HwAgent(
     : platform_(
           initPlatformFn(std::move(config), hwFeaturesDesired, switchIndex)) {}
 
+HwAgent::HwAgent(std::unique_ptr<Platform> platform)
+    : platform_(std::move(platform)) {}
+
 HwInitResult HwAgent::initAgent(
     bool failHwCallsOnWarmboot,
     HwSwitchCallback* callback) {
-  auto hwInitResult = getPlatform()->getHwSwitch()->init(
-      callback,
-      failHwCallsOnWarmboot,
-      getPlatform()->getAsic()->getSwitchType(),
-      getPlatform()->getAsic()->getSwitchId());
+  auto hwInitResult =
+      getPlatform()->getHwSwitch()->init(callback, failHwCallsOnWarmboot);
   XLOG(DBG2) << "HwSwitch init done";
   return hwInitResult;
 }

@@ -23,7 +23,6 @@
 #include "fboss/agent/hw/sai/api/BridgeApi.h"
 #include "fboss/agent/hw/sai/api/FdbApi.h"
 #include "fboss/agent/hw/sai/api/HostifApi.h"
-#include "fboss/agent/hw/sai/api/HwWriteBehavior.h"
 #include "fboss/agent/hw/sai/api/LoggingUtil.h"
 #include "fboss/agent/hw/sai/api/SaiApiTable.h"
 #include "fboss/agent/hw/sai/api/SaiObjectApi.h"
@@ -57,6 +56,7 @@
 #include "fboss/agent/packet/EthHdr.h"
 #include "fboss/agent/packet/PktUtil.h"
 #include "fboss/agent/platforms/sai/SaiPlatform.h"
+#include "fboss/lib/HwWriteBehavior.h"
 
 #include "fboss/agent/rib/RoutingInformationBase.h"
 #include "fboss/agent/state/Port.h"
@@ -248,53 +248,9 @@ HwInitResult SaiSwitch::initImpl(
 
   {
     HwWriteBehaviorRAII writeBehavior{behavior};
-    stateChangedImpl(
-        StateDelta(std::make_shared<SwitchState>(), ret.switchState));
-    managerTable_->fdbManager().removeUnclaimedDynanicEntries();
-    managerTable_->hashManager().removeUnclaimedDefaultHash();
-#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
-    defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
-    defined(SAI_VERSION_8_2_0_0_DNX_ODP) ||                                    \
-    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP) || \
-    defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
-    defined(SAI_VERSION_10_0_EA_DNX_ODP) ||                                    \
-    defined(SAI_VERSION_10_0_EA_ODP) || defined(SAI_VERSION_10_0_EA_SIM_ODP)
-    // TODO(zecheng): Remove after devices warmbooted to 8.2.
-    managerTable_->wredManager().removeUnclaimedWredProfile();
-#endif
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
-    // Sai spec 1.10.2 introduces the new attribute of Label for Acl counter.
-    // Therefore, counters created before sai spec 1.10.2 will be treated as
-    // unclaimed since they have no label (and SDK gives default values to the
-    // label field).
-    managerTable_->aclTableManager().removeUnclaimedAclCounter();
-#endif
-    if (bootType_ == BootType::WARM_BOOT) {
-      saiStore_->printWarmbootHandles();
-      if (FLAGS_check_wb_handles == true) {
-        saiStore_->checkUnexpectedUnclaimedWarmbootHandles();
-      } else {
-        saiStore_->removeUnexpectedUnclaimedWarmbootHandles();
-      }
-
-      /* handle the case where warm boot happened before sw switch could be
-       * notified and process link down event. this retains objects such as
-       * static fdb entry and neighbor. reapplying warm boot state would expand
-       * ecmp group to a port that is down. rectify that as quick as possible to
-       * prevent drops. */
-      std::vector<sai_port_oper_status_notification_t> portStatus{};
-      for (auto entry : saiStore_->get<SaiPortTraits>()) {
-        auto port = entry.second.lock();
-        auto portOperStatus =
-            SaiApiTable::getInstance()->portApi().getAttribute(
-                port->adapterKey(), SaiPortTraits::Attributes::OperStatus{});
-        sai_port_oper_status_notification_t notification{};
-        notification.port_id = port->adapterKey();
-        notification.port_state =
-            static_cast<sai_port_oper_status_t>(portOperStatus);
-        portStatus.push_back(notification);
-      }
-      linkStateChangedCallbackBottomHalf(std::move(portStatus));
+    if (bootType_ != BootType::WARM_BOOT) {
+      stateChangedImpl(
+          StateDelta(std::make_shared<SwitchState>(), ret.switchState));
     }
   }
   return ret;
@@ -952,22 +908,25 @@ void SaiSwitch::updateResourceUsage(const LockPolicyT& lockPolicy) {
 
     auto& switchApi = SaiApiTable::getInstance()->switchApi();
     hwResourceStats_.lpm_ipv4_free() = switchApi.getAttribute(
-        switchId_, SaiSwitchTraits::Attributes::AvailableIpv4RouteEntry{});
+        saiSwitchId_, SaiSwitchTraits::Attributes::AvailableIpv4RouteEntry{});
     hwResourceStats_.lpm_ipv6_free() = switchApi.getAttribute(
-        switchId_, SaiSwitchTraits::Attributes::AvailableIpv6RouteEntry{});
+        saiSwitchId_, SaiSwitchTraits::Attributes::AvailableIpv6RouteEntry{});
     hwResourceStats_.l3_ipv4_nexthops_free() = switchApi.getAttribute(
-        switchId_, SaiSwitchTraits::Attributes::AvailableIpv4NextHopEntry{});
+        saiSwitchId_, SaiSwitchTraits::Attributes::AvailableIpv4NextHopEntry{});
     hwResourceStats_.l3_ipv6_nexthops_free() = switchApi.getAttribute(
-        switchId_, SaiSwitchTraits::Attributes::AvailableIpv6NextHopEntry{});
+        saiSwitchId_, SaiSwitchTraits::Attributes::AvailableIpv6NextHopEntry{});
     hwResourceStats_.l3_ecmp_groups_free() = switchApi.getAttribute(
-        switchId_, SaiSwitchTraits::Attributes::AvailableNextHopGroupEntry{});
+        saiSwitchId_,
+        SaiSwitchTraits::Attributes::AvailableNextHopGroupEntry{});
     hwResourceStats_.l3_ecmp_group_members_free() = switchApi.getAttribute(
-        switchId_,
+        saiSwitchId_,
         SaiSwitchTraits::Attributes::AvailableNextHopGroupMemberEntry{});
     hwResourceStats_.l3_ipv4_host_free() = switchApi.getAttribute(
-        switchId_, SaiSwitchTraits::Attributes::AvailableIpv4NeighborEntry{});
+        saiSwitchId_,
+        SaiSwitchTraits::Attributes::AvailableIpv4NeighborEntry{});
     hwResourceStats_.l3_ipv6_host_free() = switchApi.getAttribute(
-        switchId_, SaiSwitchTraits::Attributes::AvailableIpv6NeighborEntry{});
+        saiSwitchId_,
+        SaiSwitchTraits::Attributes::AvailableIpv6NeighborEntry{});
     hwResourceStats_.hw_table_stats_stale() = false;
   } catch (const SaiApiError& e) {
     XLOG(ERR) << " Failed to get resource usage hwResourceStats_: "
@@ -1569,37 +1528,35 @@ void SaiSwitch::fetchL2Table(std::vector<L2EntryThrift>* l2Table) const {
   fetchL2TableLocked(lock, l2Table);
 }
 
-void SaiSwitch::gracefulExitImpl(
-    folly::dynamic& follySwitchState,
-    state::WarmbootState& thriftSwitchState) {
+void SaiSwitch::gracefulExitImpl() {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
-  gracefulExitLocked(lock, follySwitchState, thriftSwitchState);
+  gracefulExitLocked(lock);
 }
 
-void SaiSwitch::gracefulExitLocked(
-    const std::lock_guard<std::mutex>& lock,
-    folly::dynamic& follySwitchState,
-    state::WarmbootState& thriftSwitchState) {
+void SaiSwitch::gracefulExitLocked(const std::lock_guard<std::mutex>& lock) {
   std::chrono::steady_clock::time_point begin =
       std::chrono::steady_clock::now();
   XLOG(DBG2) << "[Exit] Starting SAI Switch graceful exit";
 
   SaiSwitchTraits::Attributes::SwitchRestartWarm restartWarm{true};
-  SaiApiTable::getInstance()->switchApi().setAttribute(switchId_, restartWarm);
+  SaiApiTable::getInstance()->switchApi().setAttribute(
+      saiSwitchId_, restartWarm);
+  SaiSwitchTraits::Attributes::SwitchPreShutdown preShutdown{true};
+  SaiApiTable::getInstance()->switchApi().setAttribute(
+      saiSwitchId_, preShutdown);
   if (platform_->getAsic()->isSupported(HwAsic::Feature::P4_WARMBOOT)) {
 #if defined(TAJO_SDK_VERSION_1_62_0) || defined(TAJO_SDK_VERSION_1_65_0)
     SaiSwitchTraits::Attributes::RestartIssu restartIssu{true};
     SaiApiTable::getInstance()->switchApi().setAttribute(
-        switchId_, restartIssu);
+        saiSwitchId_, restartIssu);
 #endif
   }
 #if defined(TAJO_SDK_VERSION_1_42_8)
   checkAndSetSdkDowngradeVersion();
 #endif
+  folly::dynamic follySwitchState = folly::dynamic::object;
   follySwitchState[kHwSwitch] = toFollyDynamicLocked(lock);
-  platform_->getWarmBootHelper()->storeWarmBootState(
-      follySwitchState, thriftSwitchState);
-  platform_->getWarmBootHelper()->setCanWarmBoot();
+  platform_->getWarmBootHelper()->storeHwSwitchWarmBootState(follySwitchState);
   std::chrono::steady_clock::time_point wbSaiSwitchWrite =
       std::chrono::steady_clock::now();
   XLOG(DBG2) << "[Exit] SaiSwitch warm boot state write time: "
@@ -1785,7 +1742,7 @@ SaiManagerTable* SaiSwitch::managerTable() {
 // Begin Locked functions with actual SaiSwitch functionality
 
 std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
-  auto state = getProgrammedState()->clone();
+  auto state = std::make_shared<SwitchState>();
 
   auto switchId = platform_->getAsic()->getSwitchId()
       ? *platform_->getAsic()->getSwitchId()
@@ -1803,29 +1760,10 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
         scopeResolver->scope(cpu).matcherString(), cpu);
     state->resetControlPlane(multiSwitchControlPlane);
   }
-  if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
-    if (switchType_ == cfg::SwitchType::FABRIC ||
-        switchType_ == cfg::SwitchType::VOQ) {
-      auto& switchApi = SaiApiTable::getInstance()->switchApi();
-      auto fabricPorts = switchApi.getAttribute(
-          switchId_, SaiSwitchTraits::Attributes::FabricPortList{});
-      auto& portStore = saiStore_->get<SaiPortTraits>();
-      for (auto& fid : fabricPorts) {
-        // Add to warm boot handles so object has a reference and
-        // is preserved in Port store
-        portStore.loadObjectOwnedByAdapter(
-            PortSaiId(fid), true /* add to warm boot handles*/);
-      }
-    }
-  }
   // TODO(joseph5wu) We need to design how to restore xphy ports for the state
   // Temporarily skip resetPorts for ASIC_TYPE_ELBERT_8DD
   if (platform_->getAsic()->getAsicType() !=
       cfg::AsicType::ASIC_TYPE_ELBERT_8DD) {
-    auto switchId = platform_->getAsic()->getSwitchId()
-        ? *platform_->getAsic()->getSwitchId()
-        : 0;
-    HwSwitchMatcher matcher(std::unordered_set<SwitchID>({SwitchID(switchId)}));
     // reconstruct ports
     auto portMaps =
         managerTable_->portManager().reconstructPortsFromStore(switchType_);
@@ -1865,7 +1803,22 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
       scopeResolver->switchIdToSwitchInfo());
   multiSwitchSwitchSettings->addNode(
       scopeResolver->scope(switchSettings).matcherString(), switchSettings);
+
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::LINK_STATE_BASED_ISOLATE)) {
+    CHECK(getSwitchId().has_value());
+    // In practice, this will read and populate the value set during switch
+    // create viz. DRAINED
+    auto& switchApi = SaiApiTable::getInstance()->switchApi();
+    auto switchIsolate = switchApi.getAttribute(
+        saiSwitchId_, SaiSwitchTraits::Attributes::SwitchIsolate{});
+    auto drainState = switchIsolate ? cfg::SwitchDrainState::DRAINED
+                                    : cfg::SwitchDrainState::UNDRAINED;
+    switchSettings->setActualSwitchDrainState(drainState);
+  }
+
   state->resetSwitchSettings(multiSwitchSwitchSettings);
+  state->publish();
   return state;
 }
 
@@ -1885,9 +1838,9 @@ HwInitResult SaiSwitch::initLocked(
   concurrentIndices_ = std::make_unique<ConcurrentIndices>();
   managerTable_ = std::make_unique<SaiManagerTable>(
       platform_, bootType_, switchType, switchId);
-  switchId_ = managerTable_->switchManager().getSwitchSaiId();
+  saiSwitchId_ = managerTable_->switchManager().getSwitchSaiId();
   callback_ = callback;
-  __gSaiIdToSwitch.insert_or_assign(switchId_, this);
+  __gSaiIdToSwitch.insert_or_assign(saiSwitchId_, this);
   SaiApiTable::getInstance()->enableLogging(FLAGS_enable_sai_log);
   if (bootType_ == BootType::WARM_BOOT) {
     auto [switchStateJson, switchStateThrift] =
@@ -1940,7 +1893,6 @@ HwInitResult SaiSwitch::initLocked(
       adapterKeysJson.get(),
       adapterKeys2AdapterHostKeysJson.get());
   if (bootType_ != BootType::WARM_BOOT) {
-    setProgrammedState(std::make_shared<SwitchState>());
     ret.switchState = getColdBootSwitchState();
     CHECK(ret.switchState->getSwitchSettings()->size());
     if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::MAC_AGING)) {
@@ -1950,15 +1902,6 @@ HwInitResult SaiSwitch::initLocked(
               ->second->getL2AgeTimerSeconds());
     }
   }
-  if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::L2_LEARNING)) {
-    // for both cold and warm boot, recover l2 learning mode
-    CHECK(ret.switchState->getSwitchSettings()->size());
-    managerTable_->bridgeManager().setL2LearningMode(
-        ret.switchState->getSwitchSettings()
-            ->cbegin()
-            ->second->getL2LearningMode());
-  }
-
   ret.switchState->publish();
   return ret;
 }
@@ -1968,7 +1911,7 @@ void SaiSwitch::initStoreAndManagersLocked(
     HwWriteBehavior behavior,
     const folly::dynamic* adapterKeys,
     const folly::dynamic* adapterKeys2AdapterHostKeys) {
-  saiStore_->setSwitchId(switchId_);
+  saiStore_->setSwitchId(saiSwitchId_);
   saiStore_->reload(adapterKeys, adapterKeys2AdapterHostKeys);
   managerTable_->createSaiTableManagers(
       saiStore_.get(), platform_, concurrentIndices_.get());
@@ -2023,6 +1966,21 @@ void SaiSwitch::initStoreAndManagersLocked(
             HwAsic::Feature::COUNTER_REFRESH_INTERVAL)) {
       managerTable_->switchManager().setupCounterRefreshInterval();
     }
+    if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
+      if (switchType_ == cfg::SwitchType::FABRIC ||
+          switchType_ == cfg::SwitchType::VOQ) {
+        auto& switchApi = SaiApiTable::getInstance()->switchApi();
+        auto fabricPorts = switchApi.getAttribute(
+            saiSwitchId_, SaiSwitchTraits::Attributes::FabricPortList{});
+        auto& portStore = saiStore_->get<SaiPortTraits>();
+        for (auto& fid : fabricPorts) {
+          // Add to warm boot handles so object has a reference and
+          // is preserved in Port store
+          portStore.loadObjectOwnedByAdapter(
+              PortSaiId(fid), true /* add to warm boot handles*/);
+        }
+      }
+    }
   }
 } // namespace facebook::fboss
 
@@ -2035,7 +1993,7 @@ void SaiSwitch::initLinkScanLocked(
   linkStateBottomHalfEventBase_.runInEventBaseThread([=]() {
     auto& switchApi = SaiApiTable::getInstance()->switchApi();
     switchApi.registerPortStateChangeCallback(
-        switchId_, __glinkStateChangedNotification);
+        saiSwitchId_, __glinkStateChangedNotification);
 
     /* report initial link status after registering link scan call back.  link
      * state changes after reporting initial link state and before registering
@@ -2360,10 +2318,10 @@ void SaiSwitch::unregisterCallbacksLocked(
     const std::lock_guard<std::mutex>& lock) noexcept {
   auto& switchApi = SaiApiTable::getInstance()->switchApi();
   if (isFeatureSetupLocked(FeaturesDesired::LINKSCAN_DESIRED, lock)) {
-    switchApi.unregisterPortStateChangeCallback(switchId_);
+    switchApi.unregisterPortStateChangeCallback(saiSwitchId_);
   }
   if (isFeatureSetupLocked(FeaturesDesired::PACKET_RX_DESIRED, lock)) {
-    switchApi.unregisterRxCallback(switchId_);
+    switchApi.unregisterRxCallback(saiSwitchId_);
   }
   if (isFeatureSetupLocked(FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED, lock)) {
 #if defined(SAI_VERSION_7_2_0_0_ODP) || defined(SAI_VERSION_8_2_0_0_ODP) ||    \
@@ -2373,12 +2331,12 @@ void SaiSwitch::unregisterCallbacksLocked(
     defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
     defined(SAI_VERSION_10_0_EA_DNX_ODP) ||                                    \
     defined(SAI_VERSION_10_0_EA_ODP) || defined(SAI_VERSION_10_0_EA_SIM_ODP)
-    switchApi.unregisterParityErrorSwitchEventCallback(switchId_);
+    switchApi.unregisterParityErrorSwitchEventCallback(saiSwitchId_);
 #else
-    switchApi.unregisterTamEventCallback(switchId_);
+    switchApi.unregisterTamEventCallback(saiSwitchId_);
 #endif
   }
-  switchApi.unregisterFdbEventCallback(switchId_);
+  switchApi.unregisterFdbEventCallback(saiSwitchId_);
 }
 
 bool SaiSwitch::isValidStateUpdateLocked(
@@ -2532,7 +2490,7 @@ bool SaiSwitch::sendPacketSwitchedSync(std::unique_ptr<TxPacket> pkt) noexcept {
       reinterpret_cast<void*>(pkt->buf()->writableData()),
       pkt->buf()->length()};
   auto& hostifApi = SaiApiTable::getInstance()->hostifApi();
-  auto rv = hostifApi.send(attributes, switchId_, txPacket);
+  auto rv = hostifApi.send(attributes, saiSwitchId_, txPacket);
   if (rv != SAI_STATUS_SUCCESS) {
     saiLogError(
         rv, SAI_API_HOSTIF, "failed to send packet with pipeline lookup");
@@ -2592,7 +2550,7 @@ bool SaiSwitch::sendPacketOutOfPortSync(
   SaiTxPacketTraits::TxAttributes attributes{
       txType, egressPort, egressQueueIndex};
   auto& hostifApi = SaiApiTable::getInstance()->hostifApi();
-  auto rv = hostifApi.send(attributes, switchId_, txPacket);
+  auto rv = hostifApi.send(attributes, saiSwitchId_, txPacket);
   if (rv != SAI_STATUS_SUCCESS) {
     saiLogError(rv, SAI_API_HOSTIF, "failed to send packet pipeline bypass");
   }
@@ -2611,7 +2569,7 @@ folly::dynamic SaiSwitch::toFollyDynamicLocked(
   // Need to provide full namespace scope for toFollyDynamic to disambiguate
   // from member SaiSwitch::toFollyDynamic
   auto switchKeys = folly::dynamic::array(
-      facebook::fboss::toFollyDynamic<SaiSwitchTraits>(switchId_));
+      facebook::fboss::toFollyDynamic<SaiSwitchTraits>(saiSwitchId_));
   adapterKeys[saiObjectTypeToString(SaiSwitchTraits::ObjectType)] = switchKeys;
 
   folly::dynamic hwSwitch = folly::dynamic::object;
@@ -2640,7 +2598,7 @@ void SaiSwitch::switchRunStateChangedImplLocked(
         fdbEventBottomHalfEventBase_.loopForever();
       });
       auto& switchApi = SaiApiTable::getInstance()->switchApi();
-      switchApi.registerFdbEventCallback(switchId_, __gFdbEventCallback);
+      switchApi.registerFdbEventCallback(saiSwitchId_, __gFdbEventCallback);
     } break;
     case SwitchRunState::CONFIGURED: {
       if (getFeaturesDesired() & FeaturesDesired::LINKSCAN_DESIRED) {
@@ -2665,7 +2623,7 @@ void SaiSwitch::switchRunStateChangedImplLocked(
       }
       if (getFeaturesDesired() & FeaturesDesired::PACKET_RX_DESIRED) {
         auto& switchApi = SaiApiTable::getInstance()->switchApi();
-        switchApi.registerRxCallback(switchId_, __gPacketRxCallback);
+        switchApi.registerRxCallback(saiSwitchId_, __gPacketRxCallback);
       }
       if (getFeaturesDesired() & FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED) {
         auto& switchApi = SaiApiTable::getInstance()->switchApi();
@@ -2677,9 +2635,9 @@ void SaiSwitch::switchRunStateChangedImplLocked(
     defined(SAI_VERSION_10_0_EA_DNX_ODP) ||                                    \
     defined(SAI_VERSION_10_0_EA_ODP) || defined(SAI_VERSION_10_0_EA_SIM_ODP)
         switchApi.registerParityErrorSwitchEventCallback(
-            switchId_, (void*)__gParityErrorSwitchEventCallback);
+            saiSwitchId_, (void*)__gParityErrorSwitchEventCallback);
 #else
-        switchApi.registerTamEventCallback(switchId_, __gTamEventCallback);
+        switchApi.registerTamEventCallback(saiSwitchId_, __gTamEventCallback);
 #endif
       }
     } break;
@@ -3191,4 +3149,53 @@ void SaiSwitch::processAclTableGroupDelta(
     }
   }
 }
+
+void SaiSwitch::initialStateApplied() {
+  managerTable_->fdbManager().removeUnclaimedDynanicEntries();
+  managerTable_->hashManager().removeUnclaimedDefaultHash();
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
+    defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
+    defined(SAI_VERSION_8_2_0_0_DNX_ODP) ||                                    \
+    defined(SAI_VERSION_9_2_0_0_ODP) || defined(SAI_VERSION_9_0_EA_SIM_ODP) || \
+    defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
+    defined(SAI_VERSION_10_0_EA_DNX_ODP) ||                                    \
+    defined(SAI_VERSION_10_0_EA_ODP) || defined(SAI_VERSION_10_0_EA_SIM_ODP)
+  // TODO(zecheng): Remove after devices warmbooted to 8.2.
+  managerTable_->wredManager().removeUnclaimedWredProfile();
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
+  // Sai spec 1.10.2 introduces the new attribute of Label for Acl counter.
+  // Therefore, counters created before sai spec 1.10.2 will be treated as
+  // unclaimed since they have no label (and SDK gives default values to the
+  // label field).
+  managerTable_->aclTableManager().removeUnclaimedAclCounter();
+#endif
+  if (bootType_ == BootType::WARM_BOOT) {
+    saiStore_->printWarmbootHandles();
+    if (FLAGS_check_wb_handles == true) {
+      saiStore_->checkUnexpectedUnclaimedWarmbootHandles();
+    } else {
+      saiStore_->removeUnexpectedUnclaimedWarmbootHandles();
+    }
+
+    /* handle the case where warm boot happened before sw switch could be
+     * notified and process link down event. this retains objects such as
+     * static fdb entry and neighbor. reapplying warm boot state would expand
+     * ecmp group to a port that is down. rectify that as quick as possible to
+     * prevent drops. */
+    std::vector<sai_port_oper_status_notification_t> portStatus{};
+    for (auto entry : saiStore_->get<SaiPortTraits>()) {
+      auto port = entry.second.lock();
+      auto portOperStatus = SaiApiTable::getInstance()->portApi().getAttribute(
+          port->adapterKey(), SaiPortTraits::Attributes::OperStatus{});
+      sai_port_oper_status_notification_t notification{};
+      notification.port_id = port->adapterKey();
+      notification.port_state =
+          static_cast<sai_port_oper_status_t>(portOperStatus);
+      portStatus.push_back(notification);
+    }
+    linkStateChangedCallbackBottomHalf(std::move(portStatus));
+  }
+}
+
 } // namespace facebook::fboss

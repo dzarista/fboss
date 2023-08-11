@@ -6,7 +6,11 @@
 
 namespace facebook::fboss {
 
-NonMonolithicHwSwitchHandler::NonMonolithicHwSwitchHandler() {}
+NonMonolithicHwSwitchHandler::NonMonolithicHwSwitchHandler(
+    Platform* /*platform*/,
+    const SwitchID& switchId,
+    const cfg::SwitchInfo& info)
+    : HwSwitchHandler(switchId, info) {}
 
 void NonMonolithicHwSwitchHandler::exitFatal() const {
   // TODO: implement this
@@ -49,7 +53,6 @@ void NonMonolithicHwSwitchHandler::unregisterCallbacks() {
 }
 
 void NonMonolithicHwSwitchHandler::gracefulExit(
-    folly::dynamic& /*follySwitchState*/,
     state::WarmbootState& /*thriftSwitchState*/) {
   // TODO: implement this
 }
@@ -164,20 +167,6 @@ prbs::InterfacePrbsState NonMonolithicHwSwitchHandler::getPortPrbsState(
     PortID /* portId */) {
   // TODO: implement this
   return prbs::InterfacePrbsState{};
-}
-
-std::vector<phy::PrbsLaneStats>
-NonMonolithicHwSwitchHandler::getPortGearboxPrbsStats(
-    int32_t /*portId*/,
-    phy::Side /*side*/) {
-  // TODO: implement this
-  return {};
-}
-
-void NonMonolithicHwSwitchHandler::clearPortGearboxPrbsStats(
-    int32_t /*portId*/,
-    phy::Side /*side*/) {
-  // TODO: implement this
 }
 
 void NonMonolithicHwSwitchHandler::switchRunStateChanged(
