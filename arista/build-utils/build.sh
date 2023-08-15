@@ -17,7 +17,7 @@ else
 fi
 
 usage() {
-   echo "Usage: $1 --arch <dnx|xgs> --kernel <4.18|5.12> "
+   echo "Usage: $1 --arch <dnx|xgs> --kernel <4.18|5.12|5.19> "
    echo "          [ --build-dir <build directory> ] "
    echo "          [ --rebuild-all ] [ --rebuild-fboss ] "
    echo "          [ --fboss-bins-only ]"
@@ -69,8 +69,11 @@ while [[ $# -gt 0 ]]; do
       elif [ "$2" == "5.12" ];
       then
          KERNEL="5.12"
+      elif [ "$2" == "5.19" ];
+      then
+         KERNEL="5.19"
       else
-         echo "Unsupported kernel $2, please provide one of 4.18 or 5.12."
+         echo "Unsupported kernel $2, please provide one of 4.18, 5.12, or 5.19."
 	 exit 1
       fi
       shift
@@ -96,11 +99,12 @@ echo "================= Running build with $FBOSS_DIR and ARCH=$ARCH and KERNEL=
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-if [ $KERNEL == "4.18" ];
-then
+if [ $KERNEL == "4.18" ]; then
    export KERNEL_SRC="$FBOSS_DIR/4.18.0-408.el8.x86_64"
-else
+elif [ $KERNEL == "5.12" ]; then
    export KERNEL_SRC="$FBOSS_DIR/5.12.0-0_fbk2_3390_g7ecb4ac46d7f"
+else
+   export KERNEL_SRC="$FBOSS_DIR/5.19.0"
 fi
 
 # install missing dependencies for SDK build.
