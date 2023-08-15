@@ -15,6 +15,7 @@ Source: %{expand:%%(pwd)}
 
 %define _fboss_target_share %{buildroot}/opt/fboss/share
 %define _fboss_target_var %{buildroot}/var/facebook/fboss/
+%define _fboss_target_bin %{buildroot}/opt/fboss/bin/
 %define _fboss_target_udev %{buildroot}/etc/udev/rules.d/
 
 %description
@@ -32,10 +33,13 @@ mkdir -p %{_fboss_target_share}
 cp -rf db %{_fboss_target_share}/
 mkdir -p %{_fboss_target_var}
 install config/fruid/fruid.json %{_fboss_target_var}
+mkdir -p %{_fboss_target_bin}
+install -m 755 scripts/platform_init.sh %{_fboss_target_bin}
 mkdir -p %{_fboss_target_udev}
 install config/udev/99-meru800bia.rules %{_fboss_target_udev}
 
 %files
 /var/facebook/fboss/fruid.json
 /opt/fboss/share/db
+/opt/fboss/bin/platform_init.sh
 /etc/udev/rules.d/99-meru800bia.rules
