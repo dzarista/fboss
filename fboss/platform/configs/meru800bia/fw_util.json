@@ -8,11 +8,11 @@
       "verifyFwCmd" : "bios_filename=$(head -n 1 /tmp/bios_filename.txt); flashrom -p internal -l /tmp/bios_spi_layout -i image -i aboot_conf --noverify-all -v $bios_filename",
       "readFwCmd" : "bios_filename=$(head -n 1 /tmp/bios_filename.txt); flashrom -p internal -l /tmp/bios_spi_layout -i image -i aboot_conf --noverify-all -r $bios_filename"
     },
-    "meru_cpu_cpld" : {
+    "meru_scm_cpld" : {
       "preUpgradeCmd" : "",
       "getVersionCmd" : "cpu_cpld_ver=$((`cat /sys/bus/pci/drivers/scd/0000:07:00.0/fpga_ver`));cpu_cpld_subver=$((`cat /sys/bus/pci/drivers/scd/0000:07:00.0/fpga_sub_ver`));echo $cpu_cpld_ver'.'$cpu_cpld_subver",
       "priority" : 2,
-      "upgradeCmd" : "cpu_cpld_filename=$(head -n 1 /tmp/meru_cpu_cpld_filename.txt);/usr/bin/jam -aprogram -fmeru_cpu_cpld -v $cpu_cpld_filename",
+      "upgradeCmd" : "cpu_cpld_filename=$(head -n 1 /tmp/meru_scm_cpld_filename.txt);/usr/bin/jam -aprogram -fmeru_cpu_cpld -v $cpu_cpld_filename",
       "postUpgradeCmd" : ""
     }
   }
