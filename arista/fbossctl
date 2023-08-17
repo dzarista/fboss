@@ -13,7 +13,7 @@ if [[ -z "${FBOSS_BUILD_DIR}" ]]; then
    FBOSS_BUILD_DIR="${DEFAULT_BUILD_DIR}"
 fi
 
-DEFAULT_LINUX_KERNEL="5.12"
+DEFAULT_LINUX_KERNEL="5.19"
 if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
    echo "No FBOSS_LINUX_KERNEL defined in environment, using ${DEFAULT_LINUX_KERNEL}"
    FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
@@ -69,6 +69,8 @@ maybe_setup_build_env() {
    # Select kernel.
    if [[ "${FBOSS_LINUX_KERNEL}" == "5.12" ]]; then
       KERNEL_TAR="FBOSS_KERNEL_SRC_5.12.0-0_fbk2_3390_g7ecb4ac46d7f.tar.gz"
+   elif [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]]; then
+      KERNEL_TAR="FBOSS_KERNEL_SRC_5.19.0.tar.gz"
    elif [[ "${FBOSS_LINUX_KERNEL}" == "4.18" ]]; then
       KERNEL_TAR="FBOSS_KERNEL_SRC_4.18.0-408.el8.x86_64.tar.gz"
    else
@@ -110,6 +112,12 @@ maybe_setup_build_env() {
    if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then
       wget http://dist/storage/fboss/FBOSS-SAI/patch5-SAI-ksal.patch
       patch -p1 < patch5-SAI-ksal.patch
+   fi
+
+   # In kernel 5.19, a DMA patch is required.
+   if [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]]; then
+      wget http://dist/storage/fboss/FBOSS-SAI/patch6-SAI-dma_set_mask.patch
+      patch -p1 < patch6-SAI-dma_set_mask.patch
    fi
 
    # Download FBOSS linux header files.
