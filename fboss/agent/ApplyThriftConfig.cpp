@@ -129,13 +129,8 @@ std::shared_ptr<MultiMap> toMultiSwitchMap(
     const std::shared_ptr<EntryT>& entry,
     const facebook::fboss::SwitchIdScopeResolver& resolver) {
   auto multiMap = std::make_shared<MultiMap>();
-  if constexpr (std::
-                    is_same_v<MultiMap, facebook::fboss::MultiSwitchSettings>) {
-    multiMap->addNode(resolver.scope(entry).matcherString(), entry);
-  } else {
-    for (const auto& idAndNode : *entry) {
-      multiMap->addNode(idAndNode.second, resolver.scope(idAndNode.second));
-    }
+  for (const auto& idAndNode : *entry) {
+    multiMap->addNode(idAndNode.second, resolver.scope(idAndNode.second));
   }
   return multiMap;
 }
@@ -419,7 +414,11 @@ class ThriftConfigApplier {
   shared_ptr<SflowCollector> updateSflowCollector(
       const shared_ptr<SflowCollector>& orig,
       const cfg::SflowCollector* config);
-  shared_ptr<SwitchSettings> updateSwitchSettings();
+  shared_ptr<MultiSwitchSettings> updateMultiSwitchSettings();
+  shared_ptr<SwitchSettings> updateSwitchSettings(
+      HwSwitchMatcher matcher,
+      const std::shared_ptr<MultiSwitchSettings>& origSwitchSettings);
+
   // bufferPool specific configs
   shared_ptr<MultiSwitchBufferPoolCfgMap> updateBufferPoolConfigs(
       bool* changed);
@@ -483,6 +482,7 @@ class ThriftConfigApplier {
 
   folly::MacAddress getLocalMac(SwitchID switchId) const;
   SwitchID getSwitchId(const cfg::Interface& intfConfig) const;
+  void addRemoteIntfRoute();
 
   std::shared_ptr<SwitchState> orig_;
   std::shared_ptr<SwitchState> new_;
@@ -548,25 +548,10 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
     }
   }
 
-  {
-    auto newSwitchSettings = updateSwitchSettings();
-    if (newSwitchSettings) {
-      const auto& origSwitchSettings =
-          util::getFirstNodeIf(orig_->getSwitchSettings())
-          ? util::getFirstNodeIf(orig_->getSwitchSettings())
-          : make_shared<SwitchSettings>();
-      if ((newSwitchSettings->getSwitchIdToSwitchInfo() !=
-           origSwitchSettings->getSwitchIdToSwitchInfo()) ||
-          (newSwitchSettings->getDefaultVoqConfig() !=
-           origSwitchSettings->getDefaultVoqConfig())) {
-        new_->resetSystemPorts(toMultiSwitchMap<MultiSwitchSystemPortMap>(
-            updateSystemPorts(new_->getPorts(), newSwitchSettings),
-            scopeResolver_));
-      }
-      new_->resetSwitchSettings(toMultiSwitchMap<MultiSwitchSettings>(
-          newSwitchSettings, scopeResolver_));
-      changed = true;
-    }
+  auto newMultiSwitchSettings = updateMultiSwitchSettings();
+  if (newMultiSwitchSettings) {
+    new_->resetSwitchSettings(newMultiSwitchSettings);
+    changed = true;
   }
 
   processInterfaceForPort();
@@ -651,6 +636,9 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
       changed = true;
     }
   }
+
+  // Add remote interface routes to route table.
+  addRemoteIntfRoute();
 
   if (routeUpdater_) {
     routeUpdater_->setRoutesToConfig(
@@ -3760,8 +3748,61 @@ ThriftConfigApplier::updateFlowletSwitchingConfig(bool* changed) {
   return newFlowletSwitchingConfig;
 }
 
-shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings() {
-  auto origSwitchSettings = util::getFirstNodeIf(orig_->getSwitchSettings());
+shared_ptr<MultiSwitchSettings>
+ThriftConfigApplier::updateMultiSwitchSettings() {
+  bool multiSwitchSettingsChange = false;
+  auto origMultiSwitchSettings = orig_->getSwitchSettings();
+  auto newMultiSwitchSettings = origMultiSwitchSettings
+      ? origMultiSwitchSettings->clone()
+      : std::make_shared<MultiSwitchSettings>();
+
+  origMultiSwitchSettings = origMultiSwitchSettings
+      ? origMultiSwitchSettings
+      : std::make_shared<MultiSwitchSettings>();
+
+  for (auto& switchIdAndSwitchInfo :
+       *cfg_->switchSettings()->switchIdToSwitchInfo()) {
+    auto switchId = switchIdAndSwitchInfo.first;
+    auto matcher = HwSwitchMatcher(
+        std::unordered_set<SwitchID>({static_cast<SwitchID>(switchId)}));
+
+    auto origSwitchSettings =
+        origMultiSwitchSettings->getNodeIf(matcher.matcherString());
+
+    // If origmultiSwitchSettings is already populated, and if config carries
+    // switchId that is not present in origMultiSwitchSettings, throw error
+    if (origMultiSwitchSettings->size() != 0) {
+      if (!origSwitchSettings) {
+        throw FbossError("SwitchId cannot be changed on the fly");
+      }
+    }
+
+    auto newSwitchSettings =
+        updateSwitchSettings(matcher, origMultiSwitchSettings);
+    if (newSwitchSettings) {
+      if (origSwitchSettings) {
+        newMultiSwitchSettings->updateNode(
+            matcher.matcherString(), newSwitchSettings);
+      } else {
+        newMultiSwitchSettings->addNode(
+            matcher.matcherString(), newSwitchSettings);
+      }
+      multiSwitchSettingsChange = true;
+    }
+  }
+
+  if (multiSwitchSettingsChange) {
+    return newMultiSwitchSettings;
+  }
+
+  return nullptr;
+}
+
+shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings(
+    HwSwitchMatcher matcher,
+    const std::shared_ptr<MultiSwitchSettings>& origMultiSwitchSettings) {
+  auto origSwitchSettings =
+      origMultiSwitchSettings->getNodeIf(matcher.matcherString());
   bool switchSettingsChange = false;
   auto newSwitchSettings = origSwitchSettings
       ? origSwitchSettings->clone()
@@ -3890,6 +3931,15 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings() {
     }
     newSwitchSettings->setSwitchDrainState(
         *cfg_->switchSettings()->switchDrainState());
+
+    auto newActualSwitchDrainState = computeActualSwitchDrainState(
+        newSwitchSettings,
+        getNumUpPorts(orig_, matcher, cfg::PortType::FABRIC_PORT));
+    if (newActualSwitchDrainState !=
+        origSwitchSettings->getSwitchDrainState()) {
+      newSwitchSettings->setActualSwitchDrainState(newActualSwitchDrainState);
+    }
+
     switchSettingsChange = true;
   }
 
@@ -4802,6 +4852,26 @@ folly::MacAddress ThriftConfigApplier::getLocalMac(SwitchID switchId) const {
   }
   XLOG(WARNING) << " No mac address found for switch " << switchId;
   return getLocalMacAddress();
+}
+
+void ThriftConfigApplier::addRemoteIntfRoute() {
+  // In order to resolve ECMP members pointing to remote nexthops,
+  // also treat remote Interfaces as directly connected route in rib.
+  // HwSwitch will point remote nextHops as dropped such that switch does not
+  // attract traffic for remote nexthops.
+  for (const auto& remoteInterfaceMap :
+       std::as_const(*orig_->getRemoteInterfaces())) {
+    for (const auto& [_, remoteInterface] :
+         std::as_const(*remoteInterfaceMap.second)) {
+      for (const auto& [addr, mask] :
+           std::as_const(*remoteInterface->getAddresses())) {
+        intfRouteTables_[remoteInterface->getRouterID()].emplace(
+            IPAddress::createNetwork(
+                folly::to<std::string>(addr, "/", mask->toThrift())),
+            std::make_pair(remoteInterface->getID(), addr));
+      }
+    }
+  }
 }
 
 std::shared_ptr<SwitchState> applyThriftConfig(

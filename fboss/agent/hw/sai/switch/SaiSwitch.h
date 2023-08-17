@@ -173,7 +173,7 @@ class SaiSwitch : public HwSwitch {
       const sai_attribute_t* attr_list);
 
   SwitchSaiId getSaiSwitchId() const {
-    return switchId_;
+    return saiSwitchId_;
   }
   SaiPlatform* getPlatform() const override {
     return platform_;
@@ -209,9 +209,7 @@ class SaiSwitch : public HwSwitch {
   void rollbackInTest(const std::shared_ptr<SwitchState>& knownGoodState);
 
  private:
-  void gracefulExitImpl(
-      folly::dynamic& switchState,
-      state::WarmbootState& thriftSwitchState) override;
+  void gracefulExitImpl() override;
 
   template <typename LockPolicyT>
   std::shared_ptr<SwitchState> stateChangedImplLocked(
@@ -277,10 +275,7 @@ class SaiSwitch : public HwSwitch {
 
   std::vector<PortID> getSwitchReachabilityLocked(SwitchID switchId) const;
 
-  void gracefulExitLocked(
-      const std::lock_guard<std::mutex>& lock,
-      folly::dynamic& follySwitchState,
-      state::WarmbootState& thriftSwitchState);
+  void gracefulExitLocked(const std::lock_guard<std::mutex>& lock);
 
   folly::dynamic toFollyDynamicLocked(
       const std::lock_guard<std::mutex>& lock) const;
@@ -306,9 +301,6 @@ class SaiSwitch : public HwSwitch {
       const std::lock_guard<std::mutex>& lock) const;
   SaiManagerTable* managerTableLocked(const std::lock_guard<std::mutex>& lock);
 
-  void gracefulExitLocked(
-      folly::dynamic& switchState,
-      const std::lock_guard<std::mutex>& lock);
   void initLinkScanLocked(const std::lock_guard<std::mutex>& lock);
   void initRxLocked(const std::lock_guard<std::mutex>& lock);
 
@@ -480,6 +472,8 @@ class SaiSwitch : public HwSwitch {
       const AclTableGroupMap& aclTableGroupMap,
       const LockPolicyT& lockPolicy);
 
+  void initialStateApplied() override;
+
   /*
    * SaiSwitch must support a few varieties of concurrent access:
    * 1. state updates on the SwSwitch update thread calling stateChanged
@@ -514,7 +508,7 @@ class SaiSwitch : public HwSwitch {
   std::atomic<BootType> bootType_{BootType::UNINITIALIZED};
   Callback* callback_{nullptr};
 
-  SwitchSaiId switchId_;
+  SwitchSaiId saiSwitchId_;
 
   std::unique_ptr<std::thread> linkStateBottomHalfThread_;
   folly::EventBase linkStateBottomHalfEventBase_;

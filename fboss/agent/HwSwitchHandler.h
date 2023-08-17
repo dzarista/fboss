@@ -4,13 +4,28 @@
 
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/HwSwitchCallback.h"
+#include "fboss/agent/Utils.h"
+#include "fboss/agent/gen-cpp2/switch_config_types.h"
+#include "fboss/agent/state/SwitchState.h"
+#include "fboss/agent/types.h"
+
+#include <folly/futures/Future.h>
+#include <folly/io/async/EventBase.h>
 
 namespace facebook::fboss {
 
-class TxPacket;
 class StateDelta;
+class TxPacket;
 class SwitchStats;
 class HwSwitchFb303Stats;
+
+struct HwSwitchStateUpdate {
+  HwSwitchStateUpdate(const StateDelta& delta, bool transaction);
+  std::shared_ptr<SwitchState> oldState;
+  std::shared_ptr<SwitchState> newState;
+  fsdb::OperDelta inDelta;
+  bool isTransaction;
+};
 
 struct PlatformData {
   std::string volatileStateDir;
@@ -25,8 +40,16 @@ struct PlatformData {
   bool supportsAddRemovePort;
 };
 
-struct HwSwitchHandler {
-  virtual ~HwSwitchHandler() = default;
+class HwSwitchHandler {
+ public:
+  HwSwitchHandler(const SwitchID& switchId, const cfg::SwitchInfo& info);
+
+  void start();
+
+  virtual ~HwSwitchHandler();
+
+  folly::Future<std::shared_ptr<SwitchState>> stateChanged(
+      HwSwitchStateUpdate update);
 
   virtual void exitFatal() const = 0;
 
@@ -47,9 +70,7 @@ struct HwSwitchHandler {
 
   virtual void unregisterCallbacks() = 0;
 
-  virtual void gracefulExit(
-      folly::dynamic& follySwitchState,
-      state::WarmbootState& thriftSwitchState) = 0;
+  virtual void gracefulExit(state::WarmbootState& thriftSwitchState) = 0;
 
   virtual bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) = 0;
 
@@ -89,12 +110,6 @@ struct HwSwitchHandler {
       int32_t portId) = 0;
 
   virtual prbs::InterfacePrbsState getPortPrbsState(PortID portId) = 0;
-
-  virtual std::vector<phy::PrbsLaneStats> getPortGearboxPrbsStats(
-      int32_t portId,
-      phy::Side side) = 0;
-
-  virtual void clearPortGearboxPrbsStats(int32_t portId, phy::Side side) = 0;
 
   virtual void switchRunStateChanged(SwitchRunState newState) = 0;
 
@@ -137,6 +152,24 @@ struct HwSwitchHandler {
  protected:
   virtual void initPlatformData() = 0;
   PlatformData platformData_;
+
+ private:
+  std::shared_ptr<SwitchState> stateChangedImpl(
+      const HwSwitchStateUpdate& update);
+
+  fsdb::OperDelta stateChangedImpl(
+      const fsdb::OperDelta& delta,
+      bool transaction);
+
+  void run();
+
+  void stop();
+
+  SwitchID switchId_;
+  cfg::SwitchInfo info_;
+  folly::EventBase hwSwitchManagerEvb_;
+  std::unique_ptr<std::thread> hwSwitchManagerThread_;
+  OperDeltaFilter operDeltaFilter_;
 };
 
 } // namespace facebook::fboss

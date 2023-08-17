@@ -10,69 +10,73 @@
 
 namespace facebook::fboss {
 
-MonolinithicHwSwitchHandler::MonolinithicHwSwitchHandler(Platform* platform)
-    : platform_(platform), hw_(platform_->getHwSwitch()) {
+MonolithicHwSwitchHandler::MonolithicHwSwitchHandler(
+    Platform* platform,
+    const SwitchID& switchId,
+    const cfg::SwitchInfo& info)
+    : HwSwitchHandler(switchId, info),
+      platform_(platform),
+      hw_(platform_->getHwSwitch()) {
   initPlatformData();
 }
 
-void MonolinithicHwSwitchHandler::exitFatal() const {
+void MonolithicHwSwitchHandler::exitFatal() const {
   return hw_->exitFatal();
 }
 
-std::unique_ptr<TxPacket> MonolinithicHwSwitchHandler::allocatePacket(
+std::unique_ptr<TxPacket> MonolithicHwSwitchHandler::allocatePacket(
     uint32_t size) const {
   return hw_->allocatePacket(size);
 }
 
-bool MonolinithicHwSwitchHandler::sendPacketOutOfPortAsync(
+bool MonolithicHwSwitchHandler::sendPacketOutOfPortAsync(
     std::unique_ptr<TxPacket> pkt,
     PortID portID,
     std::optional<uint8_t> queue) noexcept {
   return hw_->sendPacketOutOfPortAsync(std::move(pkt), portID, queue);
 }
 
-bool MonolinithicHwSwitchHandler::sendPacketSwitchedSync(
+bool MonolithicHwSwitchHandler::sendPacketSwitchedSync(
     std::unique_ptr<TxPacket> pkt) noexcept {
   return hw_->sendPacketSwitchedSync(std::move(pkt));
 }
 
-bool MonolinithicHwSwitchHandler::sendPacketSwitchedAsync(
+bool MonolithicHwSwitchHandler::sendPacketSwitchedAsync(
     std::unique_ptr<TxPacket> pkt) noexcept {
   return hw_->sendPacketSwitchedAsync(std::move(pkt));
 }
 
-bool MonolinithicHwSwitchHandler::isValidStateUpdate(
+bool MonolithicHwSwitchHandler::isValidStateUpdate(
     const StateDelta& delta) const {
   return hw_->isValidStateUpdate(delta);
 }
 
-void MonolinithicHwSwitchHandler::unregisterCallbacks() {
+void MonolithicHwSwitchHandler::unregisterCallbacks() {
   hw_->unregisterCallbacks();
 }
 
-void MonolinithicHwSwitchHandler::gracefulExit(
-    folly::dynamic& follySwitchState,
+void MonolithicHwSwitchHandler::gracefulExit(
     state::WarmbootState& thriftSwitchState) {
-  hw_->gracefulExit(follySwitchState, thriftSwitchState);
+  hw_->gracefulExit(thriftSwitchState);
 }
 
-bool MonolinithicHwSwitchHandler::getAndClearNeighborHit(
+bool MonolithicHwSwitchHandler::getAndClearNeighborHit(
     RouterID vrf,
     folly::IPAddress& ip) {
   return hw_->getAndClearNeighborHit(vrf, ip);
 }
 
-folly::dynamic MonolinithicHwSwitchHandler::toFollyDynamic() const {
+folly::dynamic MonolithicHwSwitchHandler::toFollyDynamic() const {
   return hw_->toFollyDynamic();
 }
 
-std::optional<uint32_t> MonolinithicHwSwitchHandler::getHwLogicalPortId(
+std::optional<uint32_t> MonolithicHwSwitchHandler::getHwLogicalPortId(
     PortID portID) const {
   auto platformPort = platform_->getPlatformPort(portID);
   return platformPort->getHwLogicalPortId();
 }
 
-void MonolinithicHwSwitchHandler::initPlatformData() {
+void MonolithicHwSwitchHandler::initPlatformData() {
   platformData_.volatileStateDir = platform_->getVolatileStateDir();
   platformData_.persistentStateDir = platform_->getPersistentStateDir();
   platformData_.crashSwitchStateFile = platform_->getCrashSwitchStateFile();
@@ -88,145 +92,131 @@ void MonolinithicHwSwitchHandler::initPlatformData() {
   platformData_.supportsAddRemovePort = platform_->supportsAddRemovePort();
 }
 
-void MonolinithicHwSwitchHandler::onHwInitialized(HwSwitchCallback* callback) {
+void MonolithicHwSwitchHandler::onHwInitialized(HwSwitchCallback* callback) {
   platform_->onHwInitialized(callback);
 }
 
-void MonolinithicHwSwitchHandler::onInitialConfigApplied(
+void MonolithicHwSwitchHandler::onInitialConfigApplied(
     HwSwitchCallback* callback) {
   platform_->onInitialConfigApplied(callback);
 }
 
-void MonolinithicHwSwitchHandler::platformStop() {
+void MonolithicHwSwitchHandler::platformStop() {
   platform_->stop();
 }
 
-const AgentConfig* MonolinithicHwSwitchHandler::config() {
+const AgentConfig* MonolithicHwSwitchHandler::config() {
   return platform_->config();
 }
 
-const AgentConfig* MonolinithicHwSwitchHandler::reloadConfig() {
+const AgentConfig* MonolithicHwSwitchHandler::reloadConfig() {
   return platform_->reloadConfig();
 }
 
-bool MonolinithicHwSwitchHandler::transactionsSupported() const {
+bool MonolithicHwSwitchHandler::transactionsSupported() const {
   return hw_->transactionsSupported();
 }
 
 folly::F14FastMap<std::string, HwPortStats>
-MonolinithicHwSwitchHandler::getPortStats() const {
+MonolithicHwSwitchHandler::getPortStats() const {
   return hw_->getPortStats();
 }
 
 std::map<std::string, HwSysPortStats>
-MonolinithicHwSwitchHandler::getSysPortStats() const {
+MonolithicHwSwitchHandler::getSysPortStats() const {
   return hw_->getSysPortStats();
 }
 
-void MonolinithicHwSwitchHandler::updateStats(SwitchStats* switchStats) {
+void MonolithicHwSwitchHandler::updateStats(SwitchStats* switchStats) {
   return hw_->updateStats(switchStats);
 }
 
-std::map<PortID, phy::PhyInfo> MonolinithicHwSwitchHandler::updateAllPhyInfo() {
+std::map<PortID, phy::PhyInfo> MonolithicHwSwitchHandler::updateAllPhyInfo() {
   return hw_->updateAllPhyInfo();
 }
 
-uint64_t MonolinithicHwSwitchHandler::getDeviceWatermarkBytes() const {
+uint64_t MonolithicHwSwitchHandler::getDeviceWatermarkBytes() const {
   return hw_->getDeviceWatermarkBytes();
 }
 
-HwSwitchFb303Stats* MonolinithicHwSwitchHandler::getSwitchStats() const {
+HwSwitchFb303Stats* MonolithicHwSwitchHandler::getSwitchStats() const {
   return hw_->getSwitchStats();
 }
 
-void MonolinithicHwSwitchHandler::clearPortStats(
+void MonolithicHwSwitchHandler::clearPortStats(
     const std::unique_ptr<std::vector<int32_t>>& ports) {
   hw_->clearPortStats(ports);
 }
 
-std::vector<phy::PrbsLaneStats>
-MonolinithicHwSwitchHandler::getPortAsicPrbsStats(int32_t portId) {
+std::vector<phy::PrbsLaneStats> MonolithicHwSwitchHandler::getPortAsicPrbsStats(
+    int32_t portId) {
   return hw_->getPortAsicPrbsStats(portId);
 }
 
-void MonolinithicHwSwitchHandler::clearPortAsicPrbsStats(int32_t portId) {
+void MonolithicHwSwitchHandler::clearPortAsicPrbsStats(int32_t portId) {
   hw_->clearPortAsicPrbsStats(portId);
 }
 
 std::vector<prbs::PrbsPolynomial>
-MonolinithicHwSwitchHandler::getPortPrbsPolynomials(int32_t portId) {
+MonolithicHwSwitchHandler::getPortPrbsPolynomials(int32_t portId) {
   return hw_->getPortPrbsPolynomials(portId);
 }
 
-prbs::InterfacePrbsState MonolinithicHwSwitchHandler::getPortPrbsState(
+prbs::InterfacePrbsState MonolithicHwSwitchHandler::getPortPrbsState(
     PortID portId) {
   return hw_->getPortPrbsState(portId);
 }
 
-std::vector<phy::PrbsLaneStats>
-MonolinithicHwSwitchHandler::getPortGearboxPrbsStats(
-    int32_t portId,
-    phy::Side side) {
-  return hw_->getPortGearboxPrbsStats(portId, side);
-}
-
-void MonolinithicHwSwitchHandler::clearPortGearboxPrbsStats(
-    int32_t portId,
-    phy::Side side) {
-  hw_->clearPortGearboxPrbsStats(portId, side);
-}
-
-void MonolinithicHwSwitchHandler::switchRunStateChanged(
-    SwitchRunState newState) {
+void MonolithicHwSwitchHandler::switchRunStateChanged(SwitchRunState newState) {
   hw_->switchRunStateChanged(newState);
 }
 
-std::shared_ptr<SwitchState> MonolinithicHwSwitchHandler::stateChanged(
+std::shared_ptr<SwitchState> MonolithicHwSwitchHandler::stateChanged(
     const StateDelta& delta,
     bool transaction) {
   return transaction ? hw_->stateChangedTransaction(delta)
                      : hw_->stateChanged(delta);
 }
 
-CpuPortStats MonolinithicHwSwitchHandler::getCpuPortStats() const {
+CpuPortStats MonolithicHwSwitchHandler::getCpuPortStats() const {
   return hw_->getCpuPortStats();
 }
 
 std::map<PortID, FabricEndpoint>
-MonolinithicHwSwitchHandler::getFabricReachability() const {
+MonolithicHwSwitchHandler::getFabricReachability() const {
   return hw_->getFabricReachability();
 }
 
-std::vector<PortID> MonolinithicHwSwitchHandler::getSwitchReachability(
+std::vector<PortID> MonolithicHwSwitchHandler::getSwitchReachability(
     SwitchID switchId) const {
   return hw_->getSwitchReachability(switchId);
 }
 
-std::string MonolinithicHwSwitchHandler::getDebugDump() const {
+std::string MonolithicHwSwitchHandler::getDebugDump() const {
   return hw_->getDebugDump();
 }
 
-void MonolinithicHwSwitchHandler::fetchL2Table(
+void MonolithicHwSwitchHandler::fetchL2Table(
     std::vector<L2EntryThrift>* l2Table) const {
   hw_->fetchL2Table(l2Table);
 }
 
-std::string MonolinithicHwSwitchHandler::listObjects(
+std::string MonolithicHwSwitchHandler::listObjects(
     const std::vector<HwObjectType>& types,
     bool cached) const {
   return hw_->listObjects(types, cached);
 }
 
-FabricReachabilityStats
-MonolinithicHwSwitchHandler::getFabricReachabilityStats() const {
+FabricReachabilityStats MonolithicHwSwitchHandler::getFabricReachabilityStats()
+    const {
   return hw_->getFabricReachabilityStats();
 }
 
-bool MonolinithicHwSwitchHandler::needL2EntryForNeighbor() const {
+bool MonolithicHwSwitchHandler::needL2EntryForNeighbor() const {
   return hw_->needL2EntryForNeighbor();
 }
 
-fsdb::OperDelta MonolinithicHwSwitchHandler::stateChanged(
+fsdb::OperDelta MonolithicHwSwitchHandler::stateChanged(
     const fsdb::OperDelta& delta,
     bool transaction) {
   return transaction ? hw_->stateChangedTransaction(delta)

@@ -501,9 +501,7 @@ void BcmSwitch::unregisterCallbacks() {
   }
 }
 
-void BcmSwitch::gracefulExitImpl(
-    folly::dynamic& follySwitchState,
-    state::WarmbootState& thriftSwitchState) {
+void BcmSwitch::gracefulExitImpl() {
   steady_clock::time_point begin = steady_clock::now();
   XLOG(DBG2) << "[Exit] Starting BCM Switch graceful exit";
   // Ideally, preparePortsForGracefulExit() would run in update EVB of the
@@ -519,8 +517,9 @@ void BcmSwitch::gracefulExitImpl(
   // the underlying bcm sdk state
   dumpState(platform_->getWarmBootHelper()->shutdownSdkDumpFile());
 
+  folly::dynamic follySwitchState = folly::dynamic::object;
   follySwitchState[kHwSwitch] = toFollyDynamic();
-  unitObject_->writeWarmBootState(follySwitchState, thriftSwitchState);
+  unitObject_->writeWarmBootState(follySwitchState);
   unitObject_.reset();
   XLOG(DBG2)
       << "[Exit] BRCM Graceful Exit time "
@@ -970,22 +969,6 @@ HwInitResult BcmSwitch::initImpl(
           routeTables,
           ret.switchState->getFibs(),
           ret.switchState->getLabelForwardingInformationBase());
-    }
-    stateChangedImplLocked(
-        StateDelta(make_shared<SwitchState>(), ret.switchState), g);
-    hostTable_->warmBootHostEntriesSynced();
-    // Done with warm boot, clear warm boot cache
-    warmBootCache_->clear();
-    if (getPlatform()->getAsic()->getAsicType() ==
-        cfg::AsicType::ASIC_TYPE_TRIDENT2) {
-      for (auto ip : {folly::IPAddress("0.0.0.0"), folly::IPAddress("::")}) {
-        bcm_l3_route_t rt;
-        bcm_l3_route_t_init(&rt);
-        rt.l3a_flags |= ip.isV6() ? BCM_L3_IP6 : 0;
-        bcm_l3_route_get(getUnit(), &rt);
-        rt.l3a_flags |= BCM_L3_REPLACE;
-        bcm_l3_route_add(getUnit(), &rt);
-      }
     }
   } else {
     auto bootState = std::make_shared<SwitchState>();
@@ -3252,18 +3235,6 @@ void BcmSwitch::clearPortAsicPrbsStats(int32_t portId) {
   bcmStatUpdater_->clearPortAsicPrbsStats(portId);
 }
 
-std::vector<PrbsLaneStats> BcmSwitch::getPortGearboxPrbsStats(
-    int32_t portId,
-    phy::Side side) {
-  return portTable_->getBcmPort(portId)->getPlatformPort()->getGearboxPrbsStats(
-      side);
-}
-
-void BcmSwitch::clearPortGearboxPrbsStats(int32_t portId, phy::Side side) {
-  portTable_->getBcmPort(portId)->getPlatformPort()->clearGearboxPrbsStats(
-      side);
-}
-
 void BcmSwitch::dumpState(const std::string& path) const {
   auto stateString = gatherSdkState();
   if (stateString.length() > 0) {
@@ -3984,6 +3955,26 @@ uint32_t BcmSwitch::generateDeterministicSeed(
       break;
   }
   return seed;
+}
+
+void BcmSwitch::initialStateApplied() {
+  if (bootType_ != BootType::WARM_BOOT) {
+    return;
+  }
+  hostTable_->warmBootHostEntriesSynced();
+  // Done with warm boot, clear warm boot cache
+  warmBootCache_->clear();
+  if (getPlatform()->getAsic()->getAsicType() ==
+      cfg::AsicType::ASIC_TYPE_TRIDENT2) {
+    for (auto ip : {folly::IPAddress("0.0.0.0"), folly::IPAddress("::")}) {
+      bcm_l3_route_t rt;
+      bcm_l3_route_t_init(&rt);
+      rt.l3a_flags |= ip.isV6() ? BCM_L3_IP6 : 0;
+      bcm_l3_route_get(getUnit(), &rt);
+      rt.l3a_flags |= BCM_L3_REPLACE;
+      bcm_l3_route_add(getUnit(), &rt);
+    }
+  }
 }
 
 } // namespace facebook::fboss

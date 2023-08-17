@@ -1,7 +1,5 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#include "fboss/agent/HwSwitchSyncer.h"
-
 #include "fboss/agent/HwSwitchHandler.h"
 #include "fboss/agent/Utils.h"
 #include "fboss/agent/state/StateDelta.h"
@@ -20,25 +18,21 @@ HwSwitchStateUpdate::HwSwitchStateUpdate(
   }
 }
 
-HwSwitchSyncer::HwSwitchSyncer(
-    HwSwitchHandler* hwSwitchHandler,
+HwSwitchHandler::HwSwitchHandler(
     const SwitchID& switchId,
     const cfg::SwitchInfo& info)
-    : hwSwitchHandler_(hwSwitchHandler),
-      switchId_(switchId),
-      info_(info),
-      operDeltaFilter_(switchId) {}
+    : switchId_(switchId), info_(info), operDeltaFilter_(switchId) {}
 
-void HwSwitchSyncer::start() {
+void HwSwitchHandler::start() {
   hwSwitchManagerThread_.reset(new std::thread([this]() { run(); }));
 }
 
-void HwSwitchSyncer::run() {
-  initThread(folly::to<std::string>("HwSwitchSyncer-", switchId_));
+void HwSwitchHandler::run() {
+  initThread(folly::to<std::string>("HwSwitchHandler-", switchId_));
   hwSwitchManagerEvb_.loopForever();
 }
 
-void HwSwitchSyncer::stop() {
+void HwSwitchHandler::stop() {
   if (!hwSwitchManagerThread_) {
     return;
   }
@@ -48,11 +42,11 @@ void HwSwitchSyncer::stop() {
   hwSwitchManagerThread_.reset();
 }
 
-HwSwitchSyncer::~HwSwitchSyncer() {
+HwSwitchHandler::~HwSwitchHandler() {
   stop();
 }
 
-folly::Future<std::shared_ptr<SwitchState>> HwSwitchSyncer::stateChanged(
+folly::Future<std::shared_ptr<SwitchState>> HwSwitchHandler::stateChanged(
     HwSwitchStateUpdate update) {
   auto [promise, semiFuture] =
       folly::makePromiseContract<std::shared_ptr<SwitchState>>();
@@ -67,11 +61,11 @@ folly::Future<std::shared_ptr<SwitchState>> HwSwitchSyncer::stateChanged(
   return future;
 }
 
-std::shared_ptr<SwitchState> HwSwitchSyncer::stateChangedImpl(
+std::shared_ptr<SwitchState> HwSwitchHandler::stateChangedImpl(
     const HwSwitchStateUpdate& update) {
   if (!FLAGS_enable_state_oper_delta) {
     StateDelta stateDelta(update.oldState, update.newState);
-    return hwSwitchHandler_->stateChanged(stateDelta, update.isTransaction);
+    return stateChanged(stateDelta, update.isTransaction);
   }
   // filter out deltas that don't apply to this switch
   auto inDelta = operDeltaFilter_.filter(update.inDelta, 1);
@@ -90,10 +84,10 @@ std::shared_ptr<SwitchState> HwSwitchSyncer::stateChangedImpl(
   return StateDelta(update.newState, outDelta).newState();
 }
 
-fsdb::OperDelta HwSwitchSyncer::stateChangedImpl(
+fsdb::OperDelta HwSwitchHandler::stateChangedImpl(
     const fsdb::OperDelta& delta,
     bool transaction) {
-  return hwSwitchHandler_->stateChanged(delta, transaction);
+  return stateChanged(delta, transaction);
 }
 
 } // namespace facebook::fboss

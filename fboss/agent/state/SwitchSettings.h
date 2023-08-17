@@ -169,8 +169,9 @@ class SwitchSettings
   bool vlansSupported() const;
 
   bool isSwitchDrained() const {
-    return getSwitchDrainState() == cfg::SwitchDrainState::DRAINED;
+    return getActualSwitchDrainState() == cfg::SwitchDrainState::DRAINED;
   }
+
   cfg::SwitchDrainState getSwitchDrainState() const {
     return cref<switch_state_tags::switchDrainState>()->toThrift();
   }
@@ -179,13 +180,12 @@ class SwitchSettings
     set<switch_state_tags::switchDrainState>(switchDrainState);
   }
 
-  cfg::SwitchDrainState getDesiredSwitchDrainState() const {
-    return cref<switch_state_tags::desiredSwitchDrainState>()->toThrift();
+  cfg::SwitchDrainState getActualSwitchDrainState() const {
+    return cref<switch_state_tags::actualSwitchDrainState>()->toThrift();
   }
 
-  void setDesiredSwitchDrainState(
-      cfg::SwitchDrainState desiredSwitchDrainState) {
-    set<switch_state_tags::desiredSwitchDrainState>(desiredSwitchDrainState);
+  void setActualSwitchDrainState(cfg::SwitchDrainState actualSwitchDrainState) {
+    set<switch_state_tags::actualSwitchDrainState>(actualSwitchDrainState);
   }
 
   auto getExactMatchTableConfig() const {
@@ -448,6 +448,14 @@ class SwitchSettings
   const QueueConfig& getDefaultVoqConfig() const {
     const auto& queues = cref<switch_state_tags::defaultVoqConfig>();
     return queues->impl();
+  }
+
+  void setSwitchInfo(const cfg::SwitchInfo& switchInfo) {
+    set<switch_state_tags::switchInfo>(switchInfo);
+  }
+
+  const cfg::SwitchInfo getSwitchInfo() const {
+    return get<switch_state_tags::switchInfo>()->toThrift();
   }
 
   SwitchSettings* modify(std::shared_ptr<SwitchState>* state);

@@ -610,4 +610,78 @@ AdminDistance getAdminDistanceForClientId(
   return static_cast<AdminDistance>(distance->second);
 }
 
+size_t getNumUpPorts(
+    const std::shared_ptr<SwitchState>& state,
+    const HwSwitchMatcher& matcher,
+    cfg::PortType portType) {
+  auto portMap = state->getPorts()->getMapNodeIf(matcher);
+  if (!portMap) {
+    return 0;
+  }
+
+  return std::count_if(
+      std::begin(std::as_const(*portMap)),
+      std::end(std::as_const(*portMap)),
+      [portType](const auto& port) {
+        return port.second->getPortType() == portType && port.second->isUp();
+      });
+}
+
+/*
+ * SwitchDrainState can be modified from configuration.
+ * However, some VOQ switch implementations require that the switch must be
+ * initialized as DRAINED and can be in UNDRAINED state iff certain
+ * number (pre-configured threshold) of fabric links are up.
+ *
+ * Thus, if configured switch state is
+ *    - DRAINED => return DRAINED.
+ *    - UNDRAINED => compute DRAINED/UNDRAINED based on the number of
+ *                   fabric links and threshold and return that value.
+ */
+cfg::SwitchDrainState computeActualSwitchDrainState(
+    const std::shared_ptr<SwitchSettings>& switchSettings,
+    int numFabricPortsUp) {
+  CHECK(switchSettings);
+
+  // TODO(skhare)
+  // Once SwitchSettingsFields are made unique for HwSwitch,
+  // SwitchSettingsFields will carry switchInfo instead of
+  // switchIdToSwitchInfo. At that time, ASSERT for SwitchType VOQ here.
+
+  cfg::SwitchDrainState newSwitchDrainState;
+
+  switch (switchSettings->getSwitchDrainState()) {
+    case cfg::SwitchDrainState::DRAINED:
+      // If the desired (configured) state is DRAINED, actual state will be
+      // DRAINED.
+      newSwitchDrainState = cfg::SwitchDrainState::DRAINED;
+      break;
+    case cfg::SwitchDrainState::UNDRAINED:
+      // If the desired (configured) state is UNDRAINED, actual state will be
+      // DRAINED/UNDRAINED depending on the threshold.
+      switch (switchSettings->getSwitchDrainState()) {
+        case cfg::SwitchDrainState::UNDRAINED:
+          if (switchSettings->getMinLinksToRemainInVOQDomain().has_value() &&
+              numFabricPortsUp <
+                  switchSettings->getMinLinksToRemainInVOQDomain().value()) {
+            newSwitchDrainState = cfg::SwitchDrainState::DRAINED;
+          } else {
+            newSwitchDrainState = cfg::SwitchDrainState::UNDRAINED;
+          }
+          break;
+        case cfg::SwitchDrainState::DRAINED:
+          if (switchSettings->getMinLinksToJoinVOQDomain().has_value() &&
+              numFabricPortsUp >=
+                  switchSettings->getMinLinksToJoinVOQDomain().value()) {
+            newSwitchDrainState = cfg::SwitchDrainState::UNDRAINED;
+          } else {
+            newSwitchDrainState = cfg::SwitchDrainState::DRAINED;
+          }
+          break;
+      }
+  }
+
+  return newSwitchDrainState;
+}
+
 } // namespace facebook::fboss

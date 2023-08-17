@@ -56,7 +56,6 @@ target_link_libraries(monolithic_switch_handler
   hw_switch_fb303_stats
   switch_asics
 )
-
 add_library(async_packet_transport
   fboss/agent/AsyncPacketTransport.h
 )
@@ -139,7 +138,7 @@ add_library(core
   fboss/agent/FibHelpers.cpp
   fboss/agent/HwAsicTable.cpp
   fboss/agent/HwSwitch.cpp
-  fboss/agent/HwSwitchSyncer.cpp
+  fboss/agent/HwSwitchHandler.cpp
   fboss/agent/IPHeaderV4.cpp
   fboss/agent/IPv4Handler.cpp
   fboss/agent/IPv6Handler.cpp
@@ -159,7 +158,7 @@ add_library(core
   fboss/agent/MirrorManager.cpp
   fboss/agent/MirrorManagerImpl.cpp
   fboss/agent/MPLSHandler.cpp
-  fboss/agent/MultiHwSwitchSyncer.cpp
+  fboss/agent/MultiHwSwitchHandler.cpp
   fboss/agent/MultiSwitchPacketStreamMap.cpp
   fboss/agent/NdpCache.cpp
   fboss/agent/NeighborUpdater.cpp
@@ -234,6 +233,8 @@ target_link_libraries(core
   ${NETLINKROUTE3}
   thread_heartbeat
   platform_mapping_utils
+  sw_switch_warmboot_helper
+  hw_write_behavior
 )
 
 add_library(error
@@ -305,6 +306,7 @@ target_link_libraries(hw_switch
   platform_base
   route_update_wrapper
   hw_switch_fb303_stats
+  hw_write_behavior
 )
 
 add_library(async_logger
@@ -367,16 +369,6 @@ target_link_libraries(hwagent
   switch_asics
 )
 
-add_library(split_agent_hwswitch_callback_handler
-  fboss/agent/mnpu/SplitAgentHwSwitchCallbackHandler.cpp
-)
-
-target_link_libraries(split_agent_hwswitch_callback_handler
-  Folly::folly
-  fboss_types
-  state
-)
-
 add_library(hwagent-main
   fboss/agent/HwAgentMain.cpp
   fboss/agent/oss/Main.cpp
@@ -384,7 +376,6 @@ add_library(hwagent-main
 
 target_link_libraries(hwagent-main
   fboss_common_init
-  split_agent_hwswitch_callback_handler
   platform_base
   fboss_common_cpp2
   restart_time_tracker
@@ -472,9 +463,11 @@ target_link_libraries(monolithic_agent_initializer
   fboss_common_init
   handler
   hw_switch
+  hwagent
   load_agent_config
   monolithic_switch_handler
   setup_thrift
+  sw_agent_initializer
   switch_asics
   utils
   Folly::folly
@@ -482,18 +475,46 @@ target_link_libraries(monolithic_agent_initializer
 
 
 add_library(split_agent_initializer
-  fboss/agent/mnpu/SwAgentInitializer.cpp
+  fboss/agent/mnpu/SplitSwAgentInitializer.cpp
 )
 
 target_link_libraries(split_agent_initializer
   Folly::folly
+  sw_agent_initializer
+  multiswitch_service
 )
 
 add_executable(fboss_sw_agent
   fboss/agent/FbossSwAgent.cpp
 )
 
-  target_link_libraries(fboss_sw_agent
-    main
-    split_agent_initializer
-  )
+target_link_libraries(fboss_sw_agent
+  main
+  split_agent_initializer
+)
+
+add_library(sw_switch_warmboot_helper
+  fboss/agent/SwSwitchWarmBootHelper.cpp
+)
+
+target_link_libraries(sw_switch_warmboot_helper
+  async_logger
+  fboss_error
+  utils
+  common_file_utils
+  Folly::folly
+  switch_state_cpp2
+)
+
+add_library(sw_agent_initializer
+  fboss/agent/SwAgentInitializer.cpp
+)
+
+target_link_libraries(sw_agent_initializer
+  core
+  Folly::folly
+  FBThrift::thriftcpp2
+  handler
+  setup_thrift
+  utils
+)

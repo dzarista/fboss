@@ -18,6 +18,7 @@
 #include "fboss/agent/rib/RoutingInformationBase.h"
 #include "fboss/agent/state/DeltaFunctions.h"
 #include "fboss/agent/types.h"
+#include "fboss/lib/HwWriteBehavior.h"
 
 #include "fboss/agent/HwSwitchCallback.h"
 
@@ -114,11 +115,7 @@ class HwSwitch {
    * reload, the SwitchState should reflect the base configuration after the
    * hardware has been reinitialized.
    */
-  HwInitResult init(
-      Callback* callback,
-      bool failHwCallsOnWarmboot,
-      cfg::SwitchType switchType = cfg::SwitchType::NPU,
-      std::optional<int64_t> switchId = std::nullopt);
+  HwInitResult init(Callback* callback, bool failHwCallsOnWarmboot);
 
   cfg::SwitchType getSwitchType() const {
     return switchType_;
@@ -142,13 +139,18 @@ class HwSwitch {
    *
    * @ret   The actual state that was applied in the hardware.
    */
-  std::shared_ptr<SwitchState> stateChanged(const StateDelta& delta);
+  std::shared_ptr<SwitchState> stateChanged(
+      const StateDelta& delta,
+      const HwWriteBehaviorRAII& behavior =
+          HwWriteBehaviorRAII(HwWriteBehavior::WRITE));
 
   virtual std::shared_ptr<SwitchState> stateChangedImpl(
       const StateDelta& delta) = 0;
 
   virtual std::shared_ptr<SwitchState> stateChangedTransaction(
-      const StateDelta& delta);
+      const StateDelta& delta,
+      const HwWriteBehaviorRAII& behavior =
+          HwWriteBehaviorRAII(HwWriteBehavior::WRITE));
   virtual void rollback(
       const std::shared_ptr<SwitchState>& knownGoodState) noexcept;
 
@@ -236,9 +238,7 @@ class HwSwitch {
    * Allow hardware to perform any warm boot related cleanup
    * before we exit the application.
    */
-  void gracefulExit(
-      folly::dynamic& follySwitchState,
-      state::WarmbootState& thriftSwitchState);
+  void gracefulExit(const state::WarmbootState& thriftSwitchState);
 
   /*
    * Get Hw Switch state in a folly::dynamic
@@ -310,12 +310,6 @@ class HwSwitch {
   }
   virtual void clearPortAsicPrbsStats(int32_t /*portId*/) {}
 
-  virtual std::vector<phy::PrbsLaneStats> getPortGearboxPrbsStats(
-      int32_t /*portId*/,
-      phy::Side /* side */) {
-    return std::vector<phy::PrbsLaneStats>();
-  }
-
   virtual std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
       int32_t /* portId */) {
     return std::vector<prbs::PrbsPolynomial>();
@@ -324,10 +318,6 @@ class HwSwitch {
   virtual prbs::InterfacePrbsState getPortPrbsState(PortID /* portId */) {
     return prbs::InterfacePrbsState();
   }
-
-  virtual void clearPortGearboxPrbsStats(
-      int32_t /*portId*/,
-      phy::Side /* side */) {}
 
   virtual BootType getBootType() const = 0;
 
@@ -352,8 +342,14 @@ class HwSwitch {
       folly::MacAddress mac) const = 0;
 
   std::shared_ptr<SwitchState> getProgrammedState() const;
-  fsdb::OperDelta stateChanged(const fsdb::OperDelta& delta);
-  fsdb::OperDelta stateChangedTransaction(const fsdb::OperDelta& delta);
+  fsdb::OperDelta stateChanged(
+      const fsdb::OperDelta& delta,
+      const HwWriteBehaviorRAII& behavior =
+          HwWriteBehaviorRAII(HwWriteBehavior::WRITE));
+  fsdb::OperDelta stateChangedTransaction(
+      const fsdb::OperDelta& delta,
+      const HwWriteBehaviorRAII& behavior =
+          HwWriteBehaviorRAII(HwWriteBehavior::WRITE));
 
   void ensureConfigured(folly::StringPiece function) const;
 
@@ -361,6 +357,8 @@ class HwSwitch {
 
  protected:
   void setProgrammedState(const std::shared_ptr<SwitchState>& state);
+
+  virtual void initialStateApplied() = 0;
 
  private:
   virtual HwInitResult initImpl(
@@ -372,30 +370,7 @@ class HwSwitch {
 
   virtual void updateStatsImpl(SwitchStats* switchStats) = 0;
 
-  virtual void gracefulExitImpl(
-      folly::dynamic& follySwitchState,
-      state::WarmbootState& thriftSwitchState) = 0;
-
-  // Modify the state read by HwSwitch from the warmboot file before returning
-  // it to the SwSwitch.
-  // Example use case:
-  //  - Agent V2: adds new SwitchState fields, populates during config apply
-  //  - Agent V1: does not contain new fields
-  //  - Agent V1: warmboot exit, writes old SwitchState minus new fields.
-  //  - Agent V2: reads SwitchState minus populated values for new fields
-  // Agent V2 config application, which will populate these new fields, will
-  // happen later. But other Agent logic (e.g. state observers) can run before
-  // config application and could fail given these fields are not populated.
-  // Thus, populate new fields before returning the SwitchState to SwSwitch.
-  //
-  // For a given use case, the logic in this function:
-  //  - Should populate new fields while warmbooting from Agent V1 to Agent V2
-  //  - Should be no-op while warmbooting from Agent V2 to Agent V2 or later.
-  //
-  // The logic for a given use case could be safely removed once the entire
-  // fleet has migrated to Agent V2 or later.
-  std::shared_ptr<SwitchState> fillinPortInterfaces(
-      const std::shared_ptr<SwitchState>& oldState);
+  virtual void gracefulExitImpl() = 0;
 
   std::shared_ptr<SwitchState> getMinAlpmState(
       RoutingInformationBase* rib,
@@ -406,6 +381,8 @@ class HwSwitch {
       RoutingInformationBase* rib,
       StateChangedFn func);
 
+  HwWriteBehaviorRAII getWarmBootWriteBehavior(
+      bool failHwCallsOnWarmboot) const;
   uint32_t featuresDesired_;
   SwitchRunState runState_{SwitchRunState::UNINITIALIZED};
 

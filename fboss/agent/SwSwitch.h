@@ -10,6 +10,7 @@
 #pragma once
 
 #include "fboss/agent/HwSwitchHandler.h"
+#include "fboss/agent/MultiHwSwitchHandler.h"
 #include "fboss/agent/PacketObserver.h"
 #include "fboss/agent/RestartTimeTracker.h"
 #include "fboss/agent/SwSwitchRouteUpdateWrapper.h"
@@ -83,10 +84,10 @@ class FsdbSyncer;
 class TeFlowNexthopHandler;
 class DsfSubscriber;
 class HwAsicTable;
-class MultiHwSwitchSyncer;
+class MultiHwSwitchHandler;
 class SwitchStatsObserver;
-struct HwSwitchHandler;
 class MultiSwitchPacketStreamMap;
+class SwSwitchWarmBootHelper;
 
 enum class SwitchFlags : int {
   DEFAULT = 0,
@@ -135,23 +136,25 @@ class SwSwitch : public HwSwitchCallback {
   using AllThreadsSwitchStats =
       folly::ThreadLocalPtr<SwitchStats, SwSwitch>::Accessor;
 
-  explicit SwSwitch(std::unique_ptr<HwSwitchHandler> hwSwitchHandler);
+  explicit SwSwitch(
+      HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
+      cfg::SwitchConfig* config = nullptr);
   /*
    * Needed for mock platforms that do cannot initialize platform mapping
    * based on fruid file
    */
   SwSwitch(
-      std::unique_ptr<HwSwitchHandler> hwSwitchHandler,
+      HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
       std::unique_ptr<PlatformMapping> platformMapping,
       cfg::SwitchConfig* config);
   ~SwSwitch() override;
 
-  HwSwitchHandler* getHwSwitchHandler() {
-    return hwSwitchHandler_.get();
+  MultiHwSwitchHandler* getHwSwitchHandler() {
+    return multiHwSwitchHandler_.get();
   }
 
-  const HwSwitchHandler* getHwSwitchHandler() const {
-    return hwSwitchHandler_.get();
+  const MultiHwSwitchHandler* getHwSwitchHandler() const {
+    return multiHwSwitchHandler_.get();
   }
 
   const PlatformMapping* getPlatformMapping() const {
@@ -222,7 +225,7 @@ class SwSwitch : public HwSwitchCallback {
 
   void updateStats();
 
-  std::tuple<folly::dynamic, state::WarmbootState> gracefulExitState() const;
+  state::WarmbootState gracefulExitState() const;
 
   /*
    * Get a pointer to the current switch state.
@@ -755,10 +758,6 @@ class SwSwitch : public HwSwitchCallback {
   std::vector<PrbsLaneStats> getPortAsicPrbsStats(int32_t portId);
   void clearPortAsicPrbsStats(int32_t portId);
 
-  std::vector<PrbsLaneStats> getPortGearboxPrbsStats(
-      int32_t portId,
-      phy::Side side);
-  void clearPortGearboxPrbsStats(int32_t portId, phy::Side side);
   SwitchRunState getSwitchRunState() const;
 
   std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
@@ -942,11 +941,13 @@ class SwSwitch : public HwSwitchCallback {
 
   template <typename FsdbFunc>
   void runFsdbSyncFunction(FsdbFunc&& fn);
+
+  void storeWarmBootState(const state::WarmbootState& state);
+
   std::string curConfigStr_;
   cfg::SwitchConfig curConfig_;
 
-  // The HwSwitch object.  This object is owned by the Platform.
-  std::unique_ptr<HwSwitchHandler> hwSwitchHandler_;
+  std::unique_ptr<MultiHwSwitchHandler> multiHwSwitchHandler_;
   PlatformData platformData_;
   const std::unique_ptr<PlatformProductInfo> platformProductInfo_;
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};
@@ -1089,13 +1090,13 @@ class SwSwitch : public HwSwitchCallback {
   std::unique_ptr<PlatformMapping> platformMapping_;
   std::unique_ptr<HwAsicTable> hwAsicTable_;
   std::unique_ptr<SwitchIdScopeResolver> scopeResolver_;
-  std::unique_ptr<MultiHwSwitchSyncer> multiHwSwitchSyncer_;
   std::unique_ptr<SwitchStatsObserver> switchStatsObserver_;
 
   folly::Synchronized<ConfigAppliedInfo> configAppliedInfo_;
   std::optional<std::chrono::time_point<std::chrono::steady_clock>>
       publishedStatsToFsdbAt_;
   std::unique_ptr<MultiSwitchPacketStreamMap> packetStreamMap_;
+  std::unique_ptr<SwSwitchWarmBootHelper> swSwitchWarmbootHelper_;
 };
 
 } // namespace facebook::fboss

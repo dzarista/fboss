@@ -21,7 +21,8 @@ void PlatformExplorer::explore() {
   XLOG(INFO) << "Exploring the device";
 
   for (const auto& [busName, kernelBusName] :
-       i2cExplorer_.getBusesfromBsp(*platformConfig_.i2cBussesFromCPU())) {
+       i2cExplorer_.getKernelAssignedNames(
+           *platformConfig_.i2cBussesFromCPU())) {
     updateKernelI2cBusNames("", busName, kernelBusName);
   }
 
@@ -63,17 +64,18 @@ void PlatformExplorer::exploreFRU(
     if (!isChildFruPlugged) {
       continue;
     }
-    auto fruEepromConfig =
-        *platformConfig_.slotTypeConfigs()[*slotConfig.slotType()].fruEeprom();
+    auto eepromConfig =
+        *platformConfig_.slotTypeConfigs()[*slotConfig.slotType()]
+             .eepromConfig();
     auto eepromI2cBusName = getKernelI2cBusName(
         fruName,
-        slotConfig.outgoingI2cBusNames()[*fruEepromConfig.incomingBusIndex()]);
+        slotConfig.outgoingI2cBusNames()[*eepromConfig.incomingBusIndex()]);
     i2cExplorer_.createI2cDevice(
-        *fruEepromConfig.kernelDeviceName(),
+        *eepromConfig.kernelDeviceName(),
         eepromI2cBusName,
-        *fruEepromConfig.address());
-    auto eepromPath =
-        i2cExplorer_.getI2cPath(eepromI2cBusName, *fruEepromConfig.address());
+        *eepromConfig.address());
+    auto eepromPath = i2cExplorer_.getDeviceI2cPath(
+        eepromI2cBusName, *eepromConfig.address());
     auto pluggedInFruTypeName = i2cExplorer_.getFruTypeName(eepromPath);
     exploreFRU(
         fruName,
@@ -88,12 +90,11 @@ void PlatformExplorer::exploreI2cDevices(
     const std::string& fruName,
     const std::vector<I2cDeviceConfig>& i2cDeviceConfigs) {
   for (const auto& i2cDeviceConfig : i2cDeviceConfigs) {
+    i2cExplorer_.createI2cDevice(
+        *i2cDeviceConfig.kernelDeviceName(),
+        getKernelI2cBusName(fruName, *i2cDeviceConfig.busName()),
+        *i2cDeviceConfig.addr());
     if (i2cDeviceConfig.numOutgoingChannels()) {
-      i2cExplorer_.createI2cMux(
-          *i2cDeviceConfig.kernelDeviceName(),
-          getKernelI2cBusName(fruName, *i2cDeviceConfig.busName()),
-          *i2cDeviceConfig.addr(),
-          *i2cDeviceConfig.numOutgoingChannels());
       auto channelBusNames = i2cExplorer_.getMuxChannelI2CBuses(
           getKernelI2cBusName(fruName, *i2cDeviceConfig.busName()),
           *i2cDeviceConfig.addr());
@@ -104,11 +105,6 @@ void PlatformExplorer::exploreI2cDevices(
             fmt::format("{}@{}", *i2cDeviceConfig.fruScopedName(), i),
             channelBusNames[i]);
       }
-    } else {
-      i2cExplorer_.createI2cDevice(
-          *i2cDeviceConfig.kernelDeviceName(),
-          getKernelI2cBusName(fruName, *i2cDeviceConfig.busName()),
-          *i2cDeviceConfig.addr());
     }
   }
 }

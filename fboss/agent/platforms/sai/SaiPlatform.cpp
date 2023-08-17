@@ -345,7 +345,7 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
   std::optional<SaiSwitchTraits::Attributes::HwInfo> hwInfo = getHwInfo(this);
   std::optional<SaiSwitchTraits::Attributes::SrcMac> srcMac;
   std::optional<SaiSwitchTraits::Attributes::MacAgingTime> macAgingTime;
-  if (!mandatoryOnly) {
+  if (!mandatoryOnly && swType != cfg::SwitchType::FABRIC) {
     srcMac = getLocalMac();
     macAgingTime = getDefaultMacAgingTime();
   }
@@ -371,6 +371,7 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
       auto agentCfg = config();
       CHECK(agentCfg) << " agent config must be set ";
       uint32_t systemCores = 0;
+      uint32_t maxCoreCount = 0;
       auto localMac = getLocalMac();
       const EbroAsic ebro(cfg::SwitchType::VOQ, 0, std::nullopt, localMac);
       const Jericho2Asic j2(cfg::SwitchType::VOQ, 0, std::nullopt, localMac);
@@ -384,13 +385,13 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
             systemCores += j2.getNumCores();
             // for directly connected interface nodes we don't expect
             // asic type to change across dsf nodes
-            maxCores = j2.getNumCores();
+            maxCoreCount = std::max(j2.getNumCores(), maxCoreCount);
             break;
           case cfg::AsicType::ASIC_TYPE_JERICHO3:
             systemCores += j3.getNumCores();
             // for directly connected interface nodes we don't expect
             // asic type to change across dsf nodes
-            maxCores = j3.getNumCores();
+            maxCoreCount = std::max(j3.getNumCores(), maxCoreCount);
             break;
           case cfg::AsicType::ASIC_TYPE_EBRO:
             systemCores += ebro.getNumCores();
@@ -399,6 +400,7 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
             throw FbossError("Unexpected asic type: ", *dsfNode.asicType());
         }
       }
+      maxCores = maxCoreCount;
       cores = systemCores;
       sysPortConfigs = SaiSwitchTraits::Attributes::SysPortConfigList{
           getInternalSystemPortConfig()};
@@ -431,6 +433,13 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
         std::back_inserter(firmwarePathNameArray));
     firmwarePathName = firmwarePathNameArray;
   }
+
+  std::optional<SaiSwitchTraits::Attributes::SwitchIsolate> switchIsolate{
+      std::nullopt};
+  if (getAsic()->isSupported(HwAsic::Feature::LINK_STATE_BASED_ISOLATE)) {
+    switchIsolate = true;
+  }
+
   return {
     initSwitch,
         hwInfo, // hardware info
@@ -473,7 +482,7 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
 #endif
         dllPath,
         std::nullopt, // Restart Issu
-        std::nullopt, // Switch Isolate
+        switchIsolate,
         std::nullopt, // Credit Watchdog
         maxCores, // Max cores
         std::nullopt, // PFC DLR Packet Action
