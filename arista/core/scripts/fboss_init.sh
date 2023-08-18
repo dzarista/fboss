@@ -37,9 +37,13 @@ if [ -f "./bin/platform_init.sh" ]; then
 fi
 
 # Now run the core setup scripts.
-echo -ne "\nRunning fboss setup\n"
 source ./bin/setup_fboss_env
-./bin/setup.py
+if [ ! -f /tmp/.fboss_skip_setup ]; then
+   echo -ne "\nRunning fboss setup\n"
+   ./bin/setup.py
+else
+   echo -ne "Skipping fboss setup\n"
+fi
 
 # Link binaries.
 echo -ne "\nLinking FBOSS binaries\n"
