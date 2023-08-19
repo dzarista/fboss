@@ -47,6 +47,7 @@ void Rackmon::loadRegisterMap(const nlohmann::json& config) {
     allPossibleDevAddrs_.push_back(uint8_t(addr));
   }
   nextDeviceToProbe_ = allPossibleDevAddrs_.begin();
+  monitorInterval_ = std::chrono::seconds(registerMapDB_.minMonitorInterval());
 }
 
 void Rackmon::load(const std::string& confPath, const std::string& regmapDir) {
@@ -89,6 +90,15 @@ bool Rackmon::probe(Modbus& interface, uint8_t addr) {
   } catch (std::exception& e) {
     return false;
   }
+}
+
+bool Rackmon::probe(uint8_t addr) {
+  // We do not support the same address
+  // on multiple interfaces.
+  return std::any_of(
+      interfaces_.begin(), interfaces_.end(), [this, addr](const auto& iface) {
+        return probe(*iface, addr);
+      });
 }
 
 std::vector<uint8_t> Rackmon::inspectDormant() {
@@ -159,33 +169,44 @@ ModbusDevice& Rackmon::getModbusDevice(uint8_t addr) {
 
 void Rackmon::fullScan() {
   logInfo << "Starting scan of all devices" << std::endl;
-
-  for (auto& modbus : interfaces_) {
-    for (auto& addr : allPossibleDevAddrs_) {
-      if (isDeviceKnown(addr)) {
-        continue;
+  bool atLeastOne = false;
+  for (auto& addr : allPossibleDevAddrs_) {
+    if (isDeviceKnown(addr)) {
+      continue;
+    }
+    for (int i = 0; i < kScanNumRetry; i++) {
+      if (reqForceScan_.load() == false) {
+        logWarn << "Full scan aborted" << std::endl;
+        return;
       }
-      for (int i = 0; i < kScanNumRetry; i++) {
-        if (probe(*modbus, addr)) {
-          break;
-        }
+      if (probe(addr)) {
+        atLeastOne = true;
+        break;
       }
     }
   }
+  // When scan is complete, request for a monitor.
+  if (atLeastOne) {
+    if (auto monThread = monitorThread_; monThread) {
+      monThread->tick(true);
+    }
+  }
+  reqForceScan_ = false;
 }
 
 void Rackmon::scan() {
   // Circular iterator.
   if (reqForceScan_.load()) {
     fullScan();
-    reqForceScan_ = false;
     return;
   }
 
   // Probe for the address only if we already dont know it.
   if (!isDeviceKnown(*nextDeviceToProbe_)) {
-    for (auto& modbus : interfaces_) {
-      probe(*modbus, *nextDeviceToProbe_);
+    if (probe(*nextDeviceToProbe_)) {
+      if (auto monThread = monitorThread_; monThread) {
+        monThread->tick(true);
+      }
     }
     lastScanTime_ = std::time(nullptr);
   }
@@ -197,13 +218,14 @@ void Rackmon::scan() {
   }
 }
 
-std::unique_ptr<PollThread<Rackmon>> Rackmon::makeThread(
+std::shared_ptr<PollThread<Rackmon>> Rackmon::makeThread(
     std::function<void(Rackmon*)> func,
     PollThreadTime interval) {
-  return std::make_unique<PollThread<Rackmon>>(func, this, interval);
+  return std::make_shared<PollThread<Rackmon>>(func, this, interval);
 }
 
 void Rackmon::start(PollThreadTime interval) {
+  logInfo << "Start was requested" << std::endl;
   if (scanThread_ != nullptr || monitorThread_ != nullptr) {
     throw std::runtime_error("Already running");
   }
@@ -212,13 +234,17 @@ void Rackmon::start(PollThreadTime interval) {
   }
   scanThread_ = makeThread(&Rackmon::scan, interval);
   scanThread_->start();
-  monitorThread_ = makeThread(&Rackmon::monitor, interval);
+  monitorThread_ = makeThread(&Rackmon::monitor, monitorInterval_);
   monitorThread_->start();
 }
 
-void Rackmon::stop() {
+void Rackmon::stop(bool forceStop) {
+  logInfo << "Stop was requested" << std::endl;
   for (auto& dev_it : devices_) {
     dev_it.second->setExclusiveMode(true);
+  }
+  if (forceStop) {
+    reqForceScan_ = false;
   }
   // TODO We probably need a timer to ensure we
   // are not waiting here forever.
@@ -229,6 +255,15 @@ void Rackmon::stop() {
   if (scanThread_ != nullptr) {
     scanThread_->stop();
     scanThread_ = nullptr;
+  }
+}
+
+void Rackmon::forceScan() {
+  logInfo << "Force Scan was requested" << std::endl;
+  reqForceScan_ = true;
+  auto scanThread = scanThread_;
+  if (scanThread) {
+    scanThread->tick(true);
   }
 }
 

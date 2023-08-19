@@ -8,6 +8,7 @@
 #include <memory>
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/HwSwitchCallback.h"
+#include "fboss/agent/if/gen-cpp2/MultiSwitchCtrl.h"
 
 namespace facebook::fboss {
 
@@ -18,7 +19,6 @@ class TxPacket;
 class SwitchStats;
 class HwSwitchFb303Stats;
 struct HwSwitchStateUpdate;
-struct PlatformData;
 
 using HwSwitchHandlerInitFn = std::function<std::unique_ptr<HwSwitchHandler>(
     const SwitchID& switchId,
@@ -35,6 +35,14 @@ class MultiHwSwitchHandler {
   void start();
 
   void stop();
+
+  bool isRunning() const {
+    return !stopped_.load();
+  }
+
+  multiswitch::StateOperDelta getNextStateOperDelta(int64_t switchId);
+
+  void cancelOperDeltaRequest(int64_t switchId);
 
   std::shared_ptr<SwitchState> stateChanged(
       const StateDelta& delta,
@@ -64,8 +72,6 @@ class MultiHwSwitchHandler {
   folly::dynamic toFollyDynamic();
 
   std::optional<uint32_t> getHwLogicalPortId(PortID portID);
-
-  const PlatformData& getPlatformData() const;
 
   bool transactionsSupported();
 

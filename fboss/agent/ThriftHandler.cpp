@@ -2752,6 +2752,19 @@ bool ThriftHandler::isSwitchDrained() {
       cfg::SwitchDrainState::DRAINED;
 }
 
+void ThriftHandler::getActualSwitchDrainState(
+    std::map<int64_t, cfg::SwitchDrainState>& switchId2ActualSwitchDrainState) {
+  ensureConfigured(__func__);
+
+  for (auto& [matcherString, switchSettings] :
+       std::as_const(*sw_->getState()->getSwitchSettings())) {
+    auto matcher = HwSwitchMatcher(matcherString);
+    switchId2ActualSwitchDrainState.insert(
+        {static_cast<int64_t>(matcher.switchId()),
+         switchSettings->getActualSwitchDrainState()});
+  }
+}
+
 void ThriftHandler::addTeFlows(
     std::unique_ptr<std::vector<FlowEntry>> teFlowEntries) {
   auto log = LOG_THRIFT_CALL(DBG1);
@@ -2936,6 +2949,12 @@ void ThriftHandler::getDsfSubscriptionClientId(std::string& ret) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureVoqOrFabric(__func__);
   ret = sw_->getDsfSubscriber()->getClientId();
+}
+
+void ThriftHandler::getDsfSessions(std::vector<DsfSessionThrift>& dsfSessions) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureVoqOrFabric(__func__);
+  dsfSessions = this->sw_->getDsfSubscriber()->getDsfSessionsThrift();
 }
 
 void ThriftHandler::getSystemPorts(

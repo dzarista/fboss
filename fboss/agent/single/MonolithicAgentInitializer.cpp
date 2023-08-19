@@ -71,7 +71,8 @@ void MonolithicSwSwitchInitializer::initImpl(
       hwSwitchCallback,
       nullptr,
       [this](HwSwitchCallback* callback, bool failHwCallsOnWarmboot) {
-        return hwAgent_->initAgent(failHwCallsOnWarmboot, callback);
+        return hwAgent_->initMonolithicHwAgent(
+            failHwCallsOnWarmboot, nullptr, callback);
       },
       setupFlags());
 }
@@ -101,7 +102,9 @@ void MonolithicAgentInitializer::createSwitch(
       [platform](const SwitchID& switchId, const cfg::SwitchInfo& info) {
         return std::make_unique<MonolithicHwSwitchHandler>(
             platform, switchId, info);
-      });
+      },
+      platform->getDirectoryUtil(),
+      platform->supportsAddRemovePort());
   initializer_ = std::make_unique<MonolithicSwSwitchInitializer>(
       sw_.get(), hwAgent_.get());
 }

@@ -16,9 +16,7 @@ MonolithicHwSwitchHandler::MonolithicHwSwitchHandler(
     const cfg::SwitchInfo& info)
     : HwSwitchHandler(switchId, info),
       platform_(platform),
-      hw_(platform_->getHwSwitch()) {
-  initPlatformData();
-}
+      hw_(platform_->getHwSwitch()) {}
 
 void MonolithicHwSwitchHandler::exitFatal() const {
   return hw_->exitFatal();
@@ -74,22 +72,6 @@ std::optional<uint32_t> MonolithicHwSwitchHandler::getHwLogicalPortId(
     PortID portID) const {
   auto platformPort = platform_->getPlatformPort(portID);
   return platformPort->getHwLogicalPortId();
-}
-
-void MonolithicHwSwitchHandler::initPlatformData() {
-  platformData_.volatileStateDir = platform_->getVolatileStateDir();
-  platformData_.persistentStateDir = platform_->getPersistentStateDir();
-  platformData_.crashSwitchStateFile = platform_->getCrashSwitchStateFile();
-  platformData_.crashThriftSwitchStateFile =
-      platform_->getCrashThriftSwitchStateFile();
-  platformData_.warmBootDir = platform_->getWarmBootDir();
-  platformData_.crashBadStateUpdateDir = platform_->getCrashBadStateUpdateDir();
-  platformData_.crashBadStateUpdateOldStateFile =
-      platform_->getCrashBadStateUpdateOldStateFile();
-  platformData_.crashBadStateUpdateNewStateFile =
-      platform_->getCrashBadStateUpdateNewStateFile();
-  platformData_.runningConfigDumpFile = platform_->getRunningConfigDumpFile();
-  platformData_.supportsAddRemovePort = platform_->supportsAddRemovePort();
 }
 
 void MonolithicHwSwitchHandler::onHwInitialized(HwSwitchCallback* callback) {
@@ -222,4 +204,13 @@ fsdb::OperDelta MonolithicHwSwitchHandler::stateChanged(
   return transaction ? hw_->stateChangedTransaction(delta)
                      : hw_->stateChanged(delta);
 }
+
+multiswitch::StateOperDelta MonolithicHwSwitchHandler::getNextStateOperDelta() {
+  throw FbossError("Not supported");
+}
+
+void MonolithicHwSwitchHandler::cancelOperDeltaRequest() {
+  throw FbossError("Not supported");
+}
+
 } // namespace facebook::fboss

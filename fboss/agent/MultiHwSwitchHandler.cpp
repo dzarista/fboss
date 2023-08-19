@@ -3,6 +3,7 @@
 #include "fboss/agent/MultiHwSwitchHandler.h"
 #include "fboss/agent/HwSwitchHandler.h"
 #include "fboss/agent/TxPacket.h"
+#include "fboss/agent/if/gen-cpp2/MultiSwitchCtrl.h"
 
 namespace facebook::fboss {
 
@@ -130,12 +131,6 @@ folly::dynamic MultiHwSwitchHandler::toFollyDynamic() {
   // Not supported with multiple switches
   CHECK_EQ(hwSwitchSyncers_.size(), 1);
   return hwSwitchSyncers_.begin()->second->toFollyDynamic();
-}
-
-const PlatformData& MultiHwSwitchHandler::getPlatformData() const {
-  // Not supported with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->getPlatformData();
 }
 
 bool MultiHwSwitchHandler::transactionsSupported() {
@@ -354,6 +349,25 @@ MultiHwSwitchHandler::getHwSwitchHandlers() {
     handlers.emplace(switchId, handler);
   }
   return handlers;
+}
+
+multiswitch::StateOperDelta MultiHwSwitchHandler::getNextStateOperDelta(
+    int64_t switchId) {
+  if (!isRunning()) {
+    throw FbossError("multi hw switch syncer not started");
+  }
+  auto iter = hwSwitchSyncers_.find(SwitchID(switchId));
+  CHECK(iter != hwSwitchSyncers_.end());
+  return iter->second->getNextStateOperDelta();
+}
+
+void MultiHwSwitchHandler::cancelOperDeltaRequest(int64_t switchId) {
+  if (!isRunning()) {
+    throw FbossError("multi hw switch syncer not started");
+  }
+  auto iter = hwSwitchSyncers_.find(SwitchID(switchId));
+  CHECK(iter != hwSwitchSyncers_.end());
+  return iter->second->cancelOperDeltaRequest();
 }
 
 } // namespace facebook::fboss

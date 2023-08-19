@@ -65,7 +65,7 @@ void AgentEnsemble::setupEnsemble(
   for (const auto& port : portsByControllingPort) {
     masterLogicalPortIds_.push_back(port.first);
   }
-  initialConfig_ = initialConfigFn(getHw(), masterLogicalPortIds_);
+  initialConfig_ = initialConfigFn(getSw(), masterLogicalPortIds_);
   applyInitialConfig(initialConfig_);
   // reload the new config
   getPlatform()->reloadConfig();
@@ -102,7 +102,8 @@ void AgentEnsemble::writeConfig(const cfg::SwitchConfig& config) {
 void AgentEnsemble::writeConfig(const cfg::AgentConfig& agentConfig) {
   auto* initializer = agentInitializer();
   auto testConfigDir =
-      initializer->platform()->getPersistentStateDir() + "/agent_ensemble/";
+      initializer->platform()->getDirectoryUtil()->getPersistentStateDir() +
+      "/agent_ensemble/";
   utilCreateDir(testConfigDir);
   auto fileName = testConfigDir + configFile_;
   writeConfig(agentConfig, fileName);

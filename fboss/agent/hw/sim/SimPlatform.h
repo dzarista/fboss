@@ -34,8 +34,6 @@ class SimPlatform : public Platform {
     return nullptr;
   }
 
-  std::string getVolatileStateDir() const override;
-  std::string getPersistentStateDir() const override;
   TransceiverIdxThrift getPortMapping(
       PortID /* unused */,
       cfg::PortSpeed /* speed */) const override {
@@ -50,6 +48,10 @@ class SimPlatform : public Platform {
   void initPorts() override;
   HwSwitchWarmBootHelper* getWarmBootHelper() override {
     return nullptr;
+  }
+
+  const AgentDirectoryUtil* getDirectoryUtil() const override {
+    return agentDirUtil_.get();
   }
 
  private:
@@ -69,6 +71,7 @@ class SimPlatform : public Platform {
   std::unique_ptr<SimSwitch> hw_;
   uint32_t numPorts_;
   std::unordered_map<PortID, std::unique_ptr<SimPlatformPort>> portMapping_;
+  std::unique_ptr<AgentDirectoryUtil> agentDirUtil_;
 };
 
 } // namespace facebook::fboss

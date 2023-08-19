@@ -51,7 +51,10 @@ MockPlatform::MockPlatform(
           std::make_unique<MockPlatformMapping>(),
           getMockLocalMac()),
       tmpDir_("fboss_mock_state"),
-      hw_(std::move(hw)) {
+      hw_(std::move(hw)),
+      agentDirUtil_(new AgentDirectoryUtil(
+          tmpDir_.path().string() + "/volatile",
+          tmpDir_.path().string() + "/persist")) {
   ON_CALL(*hw_, stateChangedImpl(_))
       .WillByDefault(WithArg<0>(
           Invoke([=](const StateDelta& delta) { return delta.newState(); })));
@@ -82,14 +85,6 @@ void MockPlatform::setupAsic(
 }
 HwSwitch* MockPlatform::getHwSwitch() const {
   return hw_.get();
-}
-
-string MockPlatform::getVolatileStateDir() const {
-  return tmpDir_.path().string() + "/volatile";
-}
-
-string MockPlatform::getPersistentStateDir() const {
-  return tmpDir_.path().string() + "/persist";
 }
 
 HwAsic* MockPlatform::getAsic() const {

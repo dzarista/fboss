@@ -286,6 +286,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getDsfSubscriptions(
       std::vector<FsdbSubscriptionThrift>& subscriptions) override;
   void getDsfSubscriptionClientId(std::string& ret) override;
+  void getDsfSessions(std::vector<DsfSessionThrift>& dsfSessions) override;
   void getSystemPorts(std::map<int64_t, SystemPortThrift>& sysPorts) override;
   void getSysPortStats(
       std::map<std::string, HwSysPortStats>& hwSysPortStats) override;
@@ -398,6 +399,8 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
       std::map<std::string, phy::PhyInfo>& phyInfos,
       std::unique_ptr<std::vector<std::string>> portNames) override;
   bool isSwitchDrained() override;
+  void getActualSwitchDrainState(std::map<int64_t, cfg::SwitchDrainState>&
+                                     switchId2ActualSwitchDrainState) override;
 
  protected:
   void addMplsRoutesImpl(

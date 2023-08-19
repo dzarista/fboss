@@ -88,6 +88,11 @@ class MultiHwSwitchHandler;
 class SwitchStatsObserver;
 class MultiSwitchPacketStreamMap;
 class SwSwitchWarmBootHelper;
+class AgentDirectoryUtil;
+
+namespace fsdb {
+enum class FsdbSubscriptionState;
+}
 
 enum class SwitchFlags : int {
   DEFAULT = 0,
@@ -138,6 +143,8 @@ class SwSwitch : public HwSwitchCallback {
 
   explicit SwSwitch(
       HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
+      const AgentDirectoryUtil* agentDirUtil,
+      bool supportsAddRemovePort,
       cfg::SwitchConfig* config = nullptr);
   /*
    * Needed for mock platforms that do cannot initialize platform mapping
@@ -146,6 +153,8 @@ class SwSwitch : public HwSwitchCallback {
   SwSwitch(
       HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
       std::unique_ptr<PlatformMapping> platformMapping,
+      const AgentDirectoryUtil* agentDirUtil,
+      bool supportsAddRemovePort,
       cfg::SwitchConfig* config);
   ~SwSwitch() override;
 
@@ -446,6 +455,16 @@ class SwSwitch : public HwSwitchCallback {
    * Get Product Information.
    */
   void getProductInfo(ProductInfo& productInfo) const;
+
+  /*
+   * Get Platform Type information.
+   */
+  PlatformType getPlatformType() const;
+
+  /*
+   * Get Platform data supportsAddRemovePort
+   */
+  bool getPlatformSupportsAddRemovePort() const;
 
   /*
    * Get the PortStats for the ingress port of this packet.
@@ -843,6 +862,11 @@ class SwSwitch : public HwSwitchCallback {
     return packetStreamMap_.get();
   }
 
+  void updateDsfSubscriberState(
+      const std::string& nodeName,
+      fsdb::FsdbSubscriptionState oldState,
+      fsdb::FsdbSubscriptionState newState);
+
  private:
   std::optional<folly::MacAddress> getSourceMac(
       const std::shared_ptr<Interface>& intf) const;
@@ -871,8 +895,6 @@ class SwSwitch : public HwSwitchCallback {
    * Update the current states.
    */
   void setStateInternal(std::shared_ptr<SwitchState> newAppliedState);
-
-  void setDesiredState(std::shared_ptr<SwitchState> newDesiredState);
 
   void publishInitTimes(std::string name, const float& time);
   void updatePortInfo();
@@ -948,7 +970,8 @@ class SwSwitch : public HwSwitchCallback {
   cfg::SwitchConfig curConfig_;
 
   std::unique_ptr<MultiHwSwitchHandler> multiHwSwitchHandler_;
-  PlatformData platformData_;
+  const AgentDirectoryUtil* agentDirUtil_;
+  bool supportsAddRemovePort_;
   const std::unique_ptr<PlatformProductInfo> platformProductInfo_;
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};
   folly::ThreadLocalPtr<SwitchStats, SwSwitch> stats_;

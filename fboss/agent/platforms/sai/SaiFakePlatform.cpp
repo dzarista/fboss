@@ -36,7 +36,11 @@ SaiFakePlatform::SaiFakePlatform(
     : SaiPlatform(
           std::move(productInfo),
           std::make_unique<FakeTestPlatformMapping>(getControllingPortIDs()),
-          kLocalMac) {}
+          kLocalMac) {
+  agentDirUtil_ = std::make_unique<AgentDirectoryUtil>(
+      tmpDir_.path().string() + "/volatile",
+      tmpDir_.path().string() + "/persist");
+}
 
 void SaiFakePlatform::setupAsic(
     cfg::SwitchType switchType,
@@ -45,14 +49,6 @@ void SaiFakePlatform::setupAsic(
     folly::MacAddress& mac) {
   asic_ =
       std::make_unique<FakeAsic>(switchType, switchId, systemPortRange, mac);
-}
-
-std::string SaiFakePlatform::getVolatileStateDir() const {
-  return tmpDir_.path().string() + "/volatile";
-}
-
-std::string SaiFakePlatform::getPersistentStateDir() const {
-  return tmpDir_.path().string() + "/persist";
 }
 
 std::string SaiFakePlatform::getHwConfig() {

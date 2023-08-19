@@ -26,6 +26,7 @@ enum RegisterEndian { BIG, LITTLE };
 
 // Fully describes a Register (Retrieved from register map JSON)
 struct RegisterDescriptor {
+  static constexpr time_t kDefaultInterval = 3 * 60;
   using FlagDescType = std::tuple<uint8_t, std::string>;
   using FlagsDescType = std::vector<FlagDescType>;
   // Starting address of the Register
@@ -52,8 +53,17 @@ struct RegisterDescriptor {
   // the precision.
   uint16_t precision = 0;
 
+  // Scale floating point value.
+  float scale = 1.0;
+
+  // Shift floating point value.
+  float shift = 0.0;
+
   // If the register stores flags, this provides the desc.
   FlagsDescType flags{};
+
+  // Monitoring interval
+  time_t interval = kDefaultInterval;
 };
 
 struct FlagType {
@@ -90,7 +100,11 @@ struct RegisterValue {
   void makeString(const std::vector<uint16_t>& reg);
   void makeHex(const std::vector<uint16_t>& reg);
   void makeInteger(const std::vector<uint16_t>& reg, RegisterEndian end);
-  void makeFloat(const std::vector<uint16_t>& reg, uint16_t precision);
+  void makeFloat(
+      const std::vector<uint16_t>& reg,
+      uint16_t precision,
+      float scale,
+      float shift);
   void makeFlags(
       const std::vector<uint16_t>& reg,
       const RegisterDescriptor::FlagsDescType& flagsDesc);
@@ -215,7 +229,7 @@ struct RegisterStore {
   std::vector<uint16_t>& beginReloadRegister();
 
   // Request to commit the loaded register
-  void endReloadRegister();
+  void endReloadRegister(time_t reloadTime = std::time(nullptr));
 
   // Returns a reference to the last written value (Back of the list)
   Register& back();
@@ -234,6 +248,10 @@ struct RegisterStore {
 
   const std::string& name() const {
     return desc_.name;
+  }
+
+  time_t interval() const {
+    return desc_.interval;
   }
 
   // Returns a string formatted representation of the historical record.
@@ -313,6 +331,8 @@ struct RegisterMapDatabase {
 
   // Loads a configuration JSON into the DB.
   void load(const nlohmann::json& j);
+
+  time_t minMonitorInterval() const;
 };
 
 // JSON conversion

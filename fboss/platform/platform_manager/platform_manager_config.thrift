@@ -89,7 +89,7 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 //                    └──────────────────────────────────────────┘
 struct I2cDeviceConfig {
   1: string busName;
-  2: i32 addr;
+  2: i32 address;
   3: string kernelDeviceName;
   4: string fruScopedName;
   5: optional i32 numOutgoingChannels;
@@ -160,12 +160,8 @@ struct PlatformConfig {
   // Name of the platform.  Should match the name set in dmedicode
   1: string platformName;
 
-  // Each platform should have a Main Board FruTypeConfig defined.
-  // This refers to the Switch Main Board (SMB)
-  2: FruTypeConfig mainBoardFruTypeConfig;
-
-  // chassisSlotConfig describes the virtual Chassis slot where the Chassis is
-  // plugged in.
+  // mainBoardSlotConfig describes the virtual slot where the main board
+  // is plugged into the system.
   3: SlotConfig mainBoardSlotConfig;
 
   // The EEPROM which holds the chassis information
@@ -177,8 +173,11 @@ struct PlatformConfig {
   // List of FRUs which the platform can support. Key is the FRU name.
   12: map<FruType, FruTypeConfig> fruTypeConfigs;
 
-  // List of the i2c busses created from the CPU / System Control Module (SCM)
-  13: list<string> i2cBussesFromCPU;
+  // List of the i2c buses created from the CPU / System Control Module (SCM)
+  // We are assuming the i2c Adapter name (content of
+  // /sys/bus/i2c/devices/i2c-N/name) is unique for buses directly coming of
+  // CPU. We have to revisit this logic if this assumption changes.
+  13: list<string> i2cAdaptersFromCpu;
 
   // Global mapping from the i2c device paths to an application friendly sysfs
   // path.

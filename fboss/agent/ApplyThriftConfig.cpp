@@ -3872,6 +3872,18 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings(
     switchSettingsChange = true;
   }
 
+  if (origSwitchSettings->getVendorMacOuis()->toThrift() !=
+      *cfg_->switchSettings()->vendorMacOuis()) {
+    newSwitchSettings->setVendorMacOuis(
+        *cfg_->switchSettings()->vendorMacOuis());
+    switchSettingsChange = true;
+  }
+  if (origSwitchSettings->getMetaMacOuis()->toThrift() !=
+      *cfg_->switchSettings()->metaMacOuis()) {
+    newSwitchSettings->setMetaMacOuis(*cfg_->switchSettings()->metaMacOuis());
+    switchSettingsChange = true;
+  }
+
   if (cfg_->defaultVoqConfig()->size()) {
     const auto kNumVoqs = 8;
     auto defaultVoqConfig = updatePortQueues(
@@ -3889,33 +3901,74 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings(
   // config apply. Currently we check only switchId and SwitchType
   // This is to allow rollout of new parameters - portIdRange and
   // switchIndex without breaking warmboot
-  auto validateSwitchInfoChange = [](const auto& oldSwitchInfo,
-                                     const auto& newSwitchInfo) {
-    if (oldSwitchInfo.size() != newSwitchInfo.size()) {
-      return false;
-    }
-    for (const auto& switchIdAndInfo : newSwitchInfo) {
-      const auto switchId = switchIdAndInfo.first;
-      const auto& switchInfo = switchIdAndInfo.second;
-      // Disallow SwitchId and SwitchType changes
-      if (oldSwitchInfo.find(switchId) == oldSwitchInfo.end() ||
-          switchInfo.switchType() != oldSwitchInfo.at(switchId).switchType()) {
-        return false;
-      }
-    }
-    return true;
-  };
+  auto validateSwitchIdToSwitchInfoChange =
+      [](const auto& oldSwitchIdToSwitchInfo,
+         const auto& newSwitchIdToSwitchInfo) {
+        if (oldSwitchIdToSwitchInfo.size() != newSwitchIdToSwitchInfo.size()) {
+          return false;
+        }
+        for (const auto& switchIdAndInfo : newSwitchIdToSwitchInfo) {
+          const auto switchId = switchIdAndInfo.first;
+          const auto& switchInfo = switchIdAndInfo.second;
+          // Disallow SwitchId and SwitchType changes
+          if (oldSwitchIdToSwitchInfo.find(switchId) ==
+                  oldSwitchIdToSwitchInfo.end() ||
+              switchInfo.switchType() !=
+                  oldSwitchIdToSwitchInfo.at(switchId).switchType()) {
+            return false;
+          }
+        }
+        return true;
+      };
 
-  SwitchIdToSwitchInfo switchIdtoSwitchInfo = getSwitchInfoFromConfig(cfg_);
-  if (origSwitchSettings->getSwitchIdToSwitchInfo() != switchIdtoSwitchInfo) {
+  SwitchIdToSwitchInfo switchIdToSwitchInfo = getSwitchInfoFromConfig(cfg_);
+  if (origSwitchSettings->getSwitchIdToSwitchInfo() != switchIdToSwitchInfo) {
     if (origSwitchSettings->getSwitchIdToSwitchInfo().size() &&
-        !validateSwitchInfoChange(
+        !validateSwitchIdToSwitchInfoChange(
             origSwitchSettings->getSwitchIdToSwitchInfo(),
-            switchIdtoSwitchInfo)) {
+            switchIdToSwitchInfo)) {
       throw FbossError(
           "SwitchId and SwitchInfo type cannot be changed on the fly");
     }
-    newSwitchSettings->setSwitchIdToSwitchInfo(switchIdtoSwitchInfo);
+    newSwitchSettings->setSwitchIdToSwitchInfo(switchIdToSwitchInfo);
+    switchSettingsChange = true;
+  }
+
+  // computeActualSwitchDrainState relies on minLinksToRemainInVOQDomain and
+  // minLinksToJoinVOQDomain. Thus, setting these fields must precede call to
+  // computeActualSwitchDrainState.
+  std::optional<int32_t> newMinLinksToRemainInVOQDomain{std::nullopt};
+  if (cfg_->switchSettings()->minLinksToRemainInVOQDomain()) {
+    if (newSwitchSettings->getSwitchIdsOfType(cfg::SwitchType::VOQ).size() ==
+        0) {
+      throw FbossError(
+          "Min links to remain in VOQ Domain is supported only for VOQ switches");
+    }
+
+    newMinLinksToRemainInVOQDomain =
+        *cfg_->switchSettings()->minLinksToRemainInVOQDomain();
+  }
+  if (origSwitchSettings->getMinLinksToRemainInVOQDomain() !=
+      newMinLinksToRemainInVOQDomain) {
+    newSwitchSettings->setMinLinksToRemainInVOQDomain(
+        newMinLinksToRemainInVOQDomain);
+    switchSettingsChange = true;
+  }
+
+  std::optional<int32_t> newMinLinksToJoinVOQDomain{std::nullopt};
+  if (cfg_->switchSettings()->minLinksToJoinVOQDomain()) {
+    if (newSwitchSettings->getSwitchIdsOfType(cfg::SwitchType::VOQ).size() ==
+        0) {
+      throw FbossError(
+          "Min links to join VOQ Domain is supported only for VOQ switches");
+    }
+
+    newMinLinksToJoinVOQDomain =
+        *cfg_->switchSettings()->minLinksToJoinVOQDomain();
+  }
+  if (origSwitchSettings->getMinLinksToJoinVOQDomain() !=
+      newMinLinksToJoinVOQDomain) {
+    newSwitchSettings->setMinLinksToJoinVOQDomain(newMinLinksToJoinVOQDomain);
     switchSettingsChange = true;
   }
 
@@ -3931,15 +3984,15 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings(
     }
     newSwitchSettings->setSwitchDrainState(
         *cfg_->switchSettings()->switchDrainState());
+    switchSettingsChange = true;
+  }
 
-    auto newActualSwitchDrainState = computeActualSwitchDrainState(
-        newSwitchSettings,
-        getNumUpPorts(orig_, matcher, cfg::PortType::FABRIC_PORT));
-    if (newActualSwitchDrainState !=
-        origSwitchSettings->getSwitchDrainState()) {
-      newSwitchSettings->setActualSwitchDrainState(newActualSwitchDrainState);
-    }
-
+  auto newActualSwitchDrainState = computeActualSwitchDrainState(
+      newSwitchSettings,
+      getNumUpPorts(orig_, matcher, cfg::PortType::FABRIC_PORT));
+  if (newActualSwitchDrainState !=
+      origSwitchSettings->getActualSwitchDrainState()) {
+    newSwitchSettings->setActualSwitchDrainState(newActualSwitchDrainState);
     switchSettingsChange = true;
   }
 
@@ -4079,41 +4132,6 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings(
           std::move(newFlowletSwitchingConfig));
       switchSettingsChange = true;
     }
-  }
-
-  std::optional<int32_t> newMinLinksToRemainInVOQDomain{std::nullopt};
-  if (cfg_->switchSettings()->minLinksToRemainInVOQDomain()) {
-    if (newSwitchSettings->getSwitchIdsOfType(cfg::SwitchType::VOQ).size() ==
-        0) {
-      throw FbossError(
-          "Min links to remain in VOQ Domain is supported only for VOQ switches");
-    }
-
-    newMinLinksToRemainInVOQDomain =
-        *cfg_->switchSettings()->minLinksToRemainInVOQDomain();
-  }
-  if (origSwitchSettings->getMinLinksToRemainInVOQDomain() !=
-      newMinLinksToRemainInVOQDomain) {
-    newSwitchSettings->setMinLinksToRemainInVOQDomain(
-        newMinLinksToRemainInVOQDomain);
-    switchSettingsChange = true;
-  }
-
-  std::optional<int32_t> newMinLinksToJoinVOQDomain{std::nullopt};
-  if (cfg_->switchSettings()->minLinksToJoinVOQDomain()) {
-    if (newSwitchSettings->getSwitchIdsOfType(cfg::SwitchType::VOQ).size() ==
-        0) {
-      throw FbossError(
-          "Min links to join VOQ Domain is supported only for VOQ switches");
-    }
-
-    newMinLinksToJoinVOQDomain =
-        *cfg_->switchSettings()->minLinksToJoinVOQDomain();
-  }
-  if (origSwitchSettings->getMinLinksToJoinVOQDomain() !=
-      newMinLinksToJoinVOQDomain) {
-    newSwitchSettings->setMinLinksToJoinVOQDomain(newMinLinksToJoinVOQDomain);
-    switchSettingsChange = true;
   }
 
   if (switchSettingsChange) {

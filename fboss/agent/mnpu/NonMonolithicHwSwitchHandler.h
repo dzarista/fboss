@@ -1,15 +1,13 @@
 #pragma once
 
 #include "fboss/agent/HwSwitchHandler.h"
+#include "fboss/agent/if/gen-cpp2/MultiSwitchCtrl.h"
 
 namespace facebook::fboss {
-
-class Platform;
 
 class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
  public:
   NonMonolithicHwSwitchHandler(
-      Platform* platform,
       const SwitchID& switchId,
       const cfg::SwitchInfo& info);
 
@@ -39,8 +37,6 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
   folly::dynamic toFollyDynamic() const override;
 
   std::optional<uint32_t> getHwLogicalPortId(PortID portID) const override;
-
-  void initPlatformData() override;
 
   bool transactionsSupported() const override;
 
@@ -104,6 +100,19 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
       const override;
 
   bool needL2EntryForNeighbor() const override;
+
+  multiswitch::StateOperDelta getNextStateOperDelta() override;
+
+  void cancelOperDeltaRequest(void) override;
+
+ private:
+  std::condition_variable stateUpdateCV_;
+  std::mutex stateUpdateMutex_;
+  multiswitch::StateOperDelta* nextOperDelta_{nullptr};
+  bool connected_{false};
+  bool deltaReady_{false};
+  bool ackReceived_{false};
+  bool deltaReadCancelled_{false};
 };
 
 } // namespace facebook::fboss

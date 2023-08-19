@@ -66,6 +66,13 @@ cfg::SwitchConfig oneL3IntfConfig(
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap(),
     int baseVlanId = kBaseVlanId);
+cfg::SwitchConfig oneL3IntfConfig(
+    const PlatformMapping* platformMapping,
+    const HwAsic* asic,
+    PortID port,
+    const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
+        kDefaultLoopbackMap(),
+    int baseVlanId = kBaseVlanId);
 cfg::SwitchConfig oneL3IntfNoIPAddrConfig(
     const HwSwitch* hwSwitch,
     PortID port,
@@ -78,7 +85,8 @@ cfg::SwitchConfig oneL3IntfTwoPortConfig(
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap());
 cfg::SwitchConfig oneL3IntfNPortConfig(
-    const HwSwitch* hwSwitch,
+    const PlatformMapping* platformMapping,
+    const HwAsic* asic,
     const std::vector<PortID>& ports,
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap(),
@@ -95,8 +103,19 @@ cfg::SwitchConfig onePortPerInterfaceConfig(
     bool setInterfaceMac = true,
     int baseVlanId = kBaseVlanId,
     bool enableFabricPorts = false);
+cfg::SwitchConfig onePortPerInterfaceConfig(
+    const PlatformMapping* platformMapping,
+    const HwAsic* asic,
+    const std::vector<PortID>& ports,
+    const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
+        kDefaultLoopbackMap(),
+    bool interfaceHasSubnet = true,
+    bool setInterfaceMac = true,
+    int baseIntfId = kBaseVlanId,
+    bool enableFabricPorts = false);
 cfg::SwitchConfig multiplePortsPerIntfConfig(
-    const HwSwitch* hwSwitch,
+    const PlatformMapping* platformMapping,
+    const HwAsic* asic,
     const std::vector<PortID>& ports,
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap(),
@@ -113,7 +132,8 @@ cfg::SwitchConfig twoL3IntfConfig(
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap());
 void updatePortSpeed(
-    const HwSwitch& hwSwitch,
+    const PlatformMapping* platformMapping,
+    bool supportsAddRemovePort,
     cfg::SwitchConfig& cfg,
     PortID port,
     cfg::PortSpeed speed);
@@ -124,7 +144,8 @@ std::vector<cfg::Port>::iterator findCfgPortIf(
     cfg::SwitchConfig& cfg,
     PortID portID);
 void configurePortGroup(
-    const HwSwitch& hwSwitch,
+    const PlatformMapping* platformMapping,
+    bool supportsAddRemovePort,
     cfg::SwitchConfig& config,
     cfg::PortSpeed speed,
     std::vector<PortID> allPortsInGroup);
@@ -141,7 +162,9 @@ void addMatcher(
     const std::string& matcherName,
     const cfg::MatchAction& matchAction);
 void delMatcher(cfg::SwitchConfig* config, const std::string& matcherName);
-std::vector<PortID> getAllPortsInGroup(const HwSwitch* hwSwitch, PortID portID);
+std::vector<PortID> getAllPortsInGroup(
+    const PlatformMapping* platformMapping,
+    PortID portID);
 
 std::vector<PortDescriptor> getUplinksForEcmp(
     const HwSwitch* hwSwitch,
@@ -150,7 +173,10 @@ std::vector<PortDescriptor> getUplinksForEcmp(
     const bool mmu_lossless_mode = false);
 
 cfg::SwitchConfig createUplinkDownlinkConfig(
-    const HwSwitch* hwSwitch,
+    const PlatformMapping* platformMapping,
+    const HwAsic* asic,
+    PlatformType platformType,
+    bool supportsAddRemovePort,
     const std::vector<PortID>& masterLogicalPortIds,
     uint16_t uplinksCount,
     cfg::PortSpeed uplinkPortSpeed,

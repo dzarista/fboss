@@ -681,6 +681,22 @@ struct FsdbSubscriptionThrift {
   3: string state;
 }
 
+enum DsfSessionState {
+  IDLE = 1,
+  CONNECT = 2,
+  WAIT_FOR_REMOTE = 3,
+  ESTABLISHED = 4,
+  DISCONNECTED = 5,
+  REMOTE_DISCONNECTED = 6,
+}
+
+struct DsfSessionThrift {
+  1: string remoteName;
+  2: DsfSessionState state;
+  3: optional i64 lastEstablishedAt;
+  4: optional i64 lastDisconnectedAt;
+}
+
 service FbossCtrl extends phy.FbossCommonPhyCtrl {
   /*
    * Retrieve up-to-date counters from the hardware, and publish all
@@ -1316,6 +1332,12 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
     1: fboss.FbossBaseError error,
   );
   string getDsfSubscriptionClientId() throws (1: fboss.FbossBaseError error);
+  /*
+   * Get bi-directional session status for dsf subscriptions.
+   */
+  list<DsfSessionThrift> getDsfSessions() throws (
+    1: fboss.FbossBaseError error,
+  );
 
   map<i64, SystemPortThrift> getSystemPorts() throws (
     1: fboss.FbossBaseError error,
@@ -1325,6 +1347,15 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
    * Only applicable to DSF Fabric Switch
    */
   bool isSwitchDrained() throws (1: fboss.FbossBaseError error);
+
+  /*
+   * On VOQ switches, actual switch drain state is determined by the number of
+   * fabric ports UP and configured thresholds, so could be different from the
+   * configured desired switch drain state.
+   */
+  map<i64, switch_config.SwitchDrainState> getActualSwitchDrainState() throws (
+    1: fboss.FbossBaseError error,
+  );
 }
 
 service NeighborListenerClient extends fb303.FacebookService {

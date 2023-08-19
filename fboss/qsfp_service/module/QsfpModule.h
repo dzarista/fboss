@@ -275,6 +275,12 @@ class QsfpModule : public Transceiver {
     return portNameToMediaLanes;
   }
 
+  virtual bool setTransceiverTx(
+      const std::string& portName,
+      bool lineSide,
+      std::optional<uint8_t> userChannelMask,
+      bool enable) override;
+
  protected:
   /* Qsfp Internal Implementation */
   std::unique_ptr<TransceiverImpl> qsfpImpl_;
@@ -540,6 +546,21 @@ class QsfpModule : public Transceiver {
   virtual std::optional<VdmDiagsStats> getVdmDiagsStatsInfo() {
     return std::nullopt;
   }
+
+  virtual bool setTransceiverTxLocked(
+      const std::string& /* portName */,
+      bool /* lineSide */,
+      std::optional<uint8_t> /* userChannelMask */,
+      bool /* enable */) {
+    return false;
+  }
+
+  /*
+   * Returns a set of Transceiver lanes for a given SW port for a given side
+   */
+  std::set<uint8_t> getTcvrLanesForPort(
+      const std::string& portName,
+      bool lineSide) const;
 
   unsigned int moduleResetCounter_{0};
 

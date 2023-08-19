@@ -15,6 +15,7 @@
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 
 DECLARE_string(platform_mapping_override_path);
+DECLARE_bool(multi_npu_platform_mapping);
 
 namespace facebook {
 namespace fboss {
@@ -117,6 +118,13 @@ class PlatformMapping {
   int getPimID(PortID portID) const;
 
   int getPimID(const cfg::PlatformPortEntry& platformPort) const;
+
+  cfg::PortProfileID getProfileIDBySpeed(PortID portID, cfg::PortSpeed speed)
+      const;
+
+  std::optional<cfg::PortProfileID> getProfileIDBySpeedIf(
+      PortID portID,
+      cfg::PortSpeed speed) const;
 
   const phy::DataPlanePhyChip& getPortIphyChip(PortID port) const;
 

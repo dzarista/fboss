@@ -9,13 +9,13 @@
  */
 #pragma once
 
-#include "fboss/agent/platforms/sai/SaiHwPlatform.h"
+#include "fboss/agent/platforms/sai/SaiPlatform.h"
 
 namespace facebook::fboss {
 
 class MarvelPhyAsic;
 
-class SaiSandiaPhyPlatform : public SaiHwPlatform {
+class SaiSandiaPhyPlatform : public SaiPlatform {
  public:
   static const std::string& getFirmwareDirectory();
 
@@ -30,13 +30,6 @@ class SaiSandiaPhyPlatform : public SaiHwPlatform {
     return pimId_;
   }
 
-  std::string getPersistentStateDir() const override {
-    return FLAGS_persistent_state_dir_phy + "/" +
-        folly::to<std::string>(phyId_);
-  }
-  std::string getVolatileStateDir() const override {
-    return FLAGS_volatile_state_dir_phy + "/" + folly::to<std::string>(phyId_);
-  }
   std::string getHwConfig() override;
   HwAsic* getAsic() const override;
   std::vector<PortID> getAllPortsInGroup(PortID portID) const override;
@@ -64,6 +57,9 @@ class SaiSandiaPhyPlatform : public SaiHwPlatform {
   void setSwitchAttributes(SaiSwitchTraits::CreateAttributes attrs) {
     switchCreateAttrs_ = attrs;
   }
+  const AgentDirectoryUtil* getDirectoryUtil() const override {
+    return agentDirUtil_.get();
+  }
 
  private:
   void setupAsic(
@@ -75,6 +71,7 @@ class SaiSandiaPhyPlatform : public SaiHwPlatform {
   int phyId_{0};
   std::unique_ptr<MarvelPhyAsic> asic_;
   std::optional<SaiSwitchTraits::CreateAttributes> switchCreateAttrs_;
+  std::unique_ptr<AgentDirectoryUtil> agentDirUtil_;
 
   void initImpl(uint32_t hwFeaturesDesired) override;
   void initSandiaSaiProfileValues();

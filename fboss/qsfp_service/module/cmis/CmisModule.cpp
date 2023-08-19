@@ -18,6 +18,7 @@
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 #include "fboss/qsfp_service/lib/QsfpConfigParserHelper.h"
 #include "fboss/qsfp_service/module/QsfpFieldInfo.h"
+#include "fboss/qsfp_service/module/QsfpHelper.h"
 #include "fboss/qsfp_service/module/TransceiverImpl.h"
 #include "fboss/qsfp_service/module/cmis/CmisFieldInfo.h"
 
@@ -125,6 +126,8 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     {CmisField::LENGTH_OM3, {CmisPages::PAGE01, 135, 1}},
     {CmisField::LENGTH_OM2, {CmisPages::PAGE01, 136, 1}},
     {CmisField::VDM_DIAG_SUPPORT, {CmisPages::PAGE01, 142, 1}},
+    {CmisField::TX_CONTROL_SUPPORT, {CmisPages::PAGE01, 155, 1}},
+    {CmisField::RX_CONTROL_SUPPORT, {CmisPages::PAGE01, 156, 1}},
     {CmisField::TX_BIAS_MULTIPLIER, {CmisPages::PAGE01, 160, 1}},
     {CmisField::TX_SIG_INT_CONT_AD, {CmisPages::PAGE01, 161, 1}},
     {CmisField::RX_SIG_INT_CONT_AD, {CmisPages::PAGE01, 162, 1}},
@@ -2508,6 +2511,13 @@ void CmisModule::setDiagsCapability() {
     readFromCacheOrHw(CmisField::CDB_SUPPORT, &data);
     diags.cdb() = (data & FieldMasks::CDB_SUPPORT_MASK) ? true : false;
 
+    readFromCacheOrHw(CmisField::TX_CONTROL_SUPPORT, &data);
+    diags.txOutputControl() =
+        (data & FieldMasks::TX_DISABLE_SUPPORT_MASK) ? true : false;
+    readFromCacheOrHw(CmisField::RX_CONTROL_SUPPORT, &data);
+    diags.rxOutputControl() =
+        (data & FieldMasks::RX_DISABLE_SUPPORT_MASK) ? true : false;
+
     if (*diags.diagnostics()) {
       readFromCacheOrHw(CmisField::LOOPBACK_CAPABILITY, &data);
       diags.loopbackSystem() =
@@ -3026,5 +3036,46 @@ void CmisModule::updateCmisStateChanged(
     moduleStatus.cmisStateChanged() = getModuleStateChanged();
   }
 }
+
+/*
+ * setTransceiverTx
+ *
+ * Set the Tx output enabled/disabled for the given channels of a transceiver
+ * in either line side or host side. For line side, this will cause LOS on the
+ * peer optics Rx. For host side, this will cause LOS on the corresponding
+ * IPHY lanes or the XPHY lanes in case of system with external PHY
+ */
+bool CmisModule::setTransceiverTxLocked(
+    const std::string& portName,
+    bool lineSide,
+    std::optional<uint8_t> userChannelMask,
+    bool enable) {
+  // Get the list of lanes to disable/enable the Tx output
+  auto tcvrLanes = getTcvrLanesForPort(portName, lineSide);
+  if (tcvrLanes.empty()) {
+    XLOG(ERR) << fmt::format("Empty lane list for port {:s}", portName);
+    return false;
+  }
+
+  // Set the Tx output register for these lanes in given direction
+  auto txDisableRegister =
+      lineSide ? CmisField::TX_DISABLE : CmisField::RX_DISABLE;
+  uint8_t txDisableVal;
+
+  readCmisField(txDisableRegister, &txDisableVal);
+
+  txDisableVal =
+      setTxChannelMask(tcvrLanes, userChannelMask, enable, txDisableVal);
+
+  writeCmisField(txDisableRegister, &txDisableVal);
+  return true;
+}
+
+/*
+ * setTransceiverRx
+ *
+ *
+ */
+
 } // namespace fboss
 } // namespace facebook

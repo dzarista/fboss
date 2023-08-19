@@ -209,6 +209,19 @@ void __gTamEventCallback(
       tam_event_id, buffer_size, buffer, attr_count, attr_list);
 }
 
+void _gPfcDeadlockNotificationCallback(
+    uint32_t count,
+    const sai_queue_deadlock_notification_data_t* data) {
+  auto portSaiId = SaiApiTable::getInstance()->queueApi().getAttribute(
+      static_cast<QueueSaiId>(data->queue_id),
+      SaiQueueTraits::Attributes::Port{});
+  auto queueId = SaiApiTable::getInstance()->queueApi().getAttribute(
+      static_cast<QueueSaiId>(data->queue_id),
+      SaiQueueTraits::Attributes::Index{});
+  __gSaiIdToSwitch.begin()->second->pfcDeadlockNotificationCallback(
+      static_cast<PortSaiId>(portSaiId), queueId, data->event, count);
+}
+
 PortSaiId SaiSwitch::getCPUPortSaiId() const {
   return managerTable_->switchManager().getCpuPort();
 }
@@ -219,21 +232,18 @@ SaiSwitch::SaiSwitch(SaiPlatform* platform, uint32_t featuresDesired)
       saiStore_(std::make_unique<SaiStore>()),
       fabricReachabilityManager_(
           std::make_unique<FabricReachabilityManager>()) {
-  utilCreateDir(platform_->getVolatileStateDir());
-  utilCreateDir(platform_->getPersistentStateDir());
+  utilCreateDir(platform_->getDirectoryUtil()->getVolatileStateDir());
+  utilCreateDir(platform_->getDirectoryUtil()->getPersistentStateDir());
 }
 
 SaiSwitch::~SaiSwitch() {}
 
 HwInitResult SaiSwitch::initImpl(
     Callback* callback,
-    bool failHwCallsOnWarmboot,
-    cfg::SwitchType switchType,
-    std::optional<int64_t> switchId) noexcept {
+    BootType bootType,
+    bool failHwCallsOnWarmboot) noexcept {
   asicType_ = platform_->getAsic()->getAsicType();
-  bootType_ = platform_->getWarmBootHelper()->canWarmBoot()
-      ? BootType::WARM_BOOT
-      : BootType::COLD_BOOT;
+  bootType_ = bootType;
   auto behavior{HwWriteBehavior::WRITE};
   if (bootType_ == BootType::WARM_BOOT && failHwCallsOnWarmboot &&
       platform_->getAsic()->isSupported(
@@ -243,7 +253,7 @@ HwInitResult SaiSwitch::initImpl(
   HwInitResult ret;
   {
     std::lock_guard<std::mutex> lock(saiSwitchMutex_);
-    ret = initLocked(lock, behavior, callback, switchType, switchId);
+    ret = initLocked(lock, behavior, callback, getSwitchType(), getSwitchId());
   }
 
   {
@@ -275,13 +285,15 @@ void SaiSwitch::unregisterCallbacks() noexcept {
   // just need to block until the last event is processed
   if (runState_ >= SwitchRunState::CONFIGURED &&
       getFeaturesDesired() & FeaturesDesired::LINKSCAN_DESIRED) {
-    linkStateBottomHalfEventBase_.terminateLoopSoon();
+    linkStateBottomHalfEventBase_.runInEventBaseThreadAndWait(
+        [this]() { linkStateBottomHalfEventBase_.terminateLoopSoon(); });
     linkStateBottomHalfThread_->join();
     // link scan is completely shut-off
   }
 
   if (runState_ >= SwitchRunState::INITIALIZED) {
-    fdbEventBottomHalfEventBase_.terminateLoopSoon();
+    fdbEventBottomHalfEventBase_.runInEventBaseThreadAndWait(
+        [this]() { fdbEventBottomHalfEventBase_.terminateLoopSoon(); });
     fdbEventBottomHalfThread_->join();
   }
 }
@@ -542,8 +554,8 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
 
   // VOQ/Fabric switches require that the packets are not tagged with any VLAN.
   // Thus, no VLAN delta processing is needed for these switches
-  if (!(switchType_ == cfg::SwitchType::FABRIC ||
-        switchType_ == cfg::SwitchType::VOQ)) {
+  if (!(getSwitchType() == cfg::SwitchType::FABRIC ||
+        getSwitchType() == cfg::SwitchType::VOQ)) {
     processDelta(
         delta.getVlansDelta(),
         managerTable_->vlanManager(),
@@ -1131,119 +1143,86 @@ std::map<PortID, phy::PhyInfo> SaiSwitch::updateAllPhyInfoLocked() {
     }
 
     phy::PhyInfo lastPhyInfo;
-    lastPhyInfo.phyChip().ensure();
-    lastPhyInfo.line().ensure();
     if (auto itr = lastPhyInfos_.find(swPort); itr != lastPhyInfos_.end()) {
       lastPhyInfo = itr->second;
     }
 
     phy::PhyInfo phyParams;
-    phyParams.phyChip().ensure();
-    phyParams.line().ensure();
-
     phyParams.state() = phy::PhyState();
     phyParams.stats() = phy::PhyStats();
     // LINE Side always exists
     phyParams.state()->line()->side() = phy::Side::LINE;
     phyParams.stats()->line()->side() = phy::Side::LINE;
 
-    phyParams.name() = fb303PortStat->portName();
-    phyParams.state()->name() = *phyParams.name();
-    phyParams.switchID() = getSaiSwitchId();
-    phyParams.state()->switchID() = *phyParams.switchID();
+    phyParams.state()->name() = fb303PortStat->portName();
+    phyParams.state()->switchID() = getSaiSwitchId();
     // Global phy parameters
     phy::DataPlanePhyChip phyChip;
     auto chipType = getPlatform()->getAsic()->getDataPlanePhyChipType();
     phyChip.type() = chipType;
     bool isXphy = *phyChip.type() == phy::DataPlanePhyChipType::XPHY;
-    phyParams.phyChip() = phyChip;
-    phyParams.state()->phyChip() = *phyParams.phyChip();
-    phyParams.linkState() = portManager.isUp(swPort);
-    phyParams.state()->linkState() = *phyParams.linkState();
-    phyParams.speed() = portManager.getSpeed(swPort);
-    phyParams.state()->speed() = *phyParams.speed();
-    phyParams.line()->side() = phy::Side::LINE;
+    phyParams.state()->phyChip() = phyChip;
+    phyParams.state()->linkState() = portManager.isUp(swPort);
+    phyParams.state()->speed() = portManager.getSpeed(swPort);
 
     if (isXphy) {
-      phyParams.system() = phy::PhySideInfo();
-      phyParams.system()->side() = phy::Side::SYSTEM;
-
       phyParams.state()->system() = phy::PhySideState();
       phyParams.state()->system()->side() = phy::Side::SYSTEM;
       phyParams.stats()->system() = phy::PhySideStats();
       phyParams.stats()->system()->side() = phy::Side::SYSTEM;
     }
 
-    phyParams.line()->interfaceType() = getInterfaceType(swPort, chipType);
     phyParams.state()->line()->interfaceType() =
-        *phyParams.line()->interfaceType();
-    phyParams.line()->medium() = portManager.getMedium(swPort);
-    phyParams.state()->line()->medium() = *phyParams.line()->medium();
+        getInterfaceType(swPort, chipType);
+    phyParams.state()->line()->medium() = portManager.getMedium(swPort);
     // Update PMD Info
-    phy::PmdInfo lastLinePmdInfo = *lastPhyInfo.line()->pmd();
     phy::PmdState lastLinePmdState;
-    if (auto lastState = lastPhyInfo.state()) {
-      lastLinePmdState = *lastState->line()->pmd();
-    }
+    auto lastState = lastPhyInfo.state();
+    lastLinePmdState = *lastState->line()->pmd();
     phy::PmdStats lastLinePmdStats;
-    if (auto lastStats = lastPhyInfo.stats()) {
-      lastLinePmdStats = *lastStats->line()->pmd();
-    }
+    auto lastStats = lastPhyInfo.stats();
+    lastLinePmdStats = *lastStats->line()->pmd();
     updatePmdInfo(
-        *phyParams.line(),
         *phyParams.state()->line(),
         *phyParams.stats()->line(),
         portHandle->port,
-        lastLinePmdInfo,
         lastLinePmdState,
         lastLinePmdStats);
     if (isXphy) {
-      CHECK(phyParams.system().has_value());
       CHECK(phyParams.state()->system().has_value());
       CHECK(phyParams.stats()->system().has_value());
-      phy::PmdInfo lastSysPmdInfo;
       phy::PmdState lastSysPmdState;
       phy::PmdStats lastSysPmdStats;
-      if (auto lastSys = lastPhyInfo.system()) {
-        lastSysPmdInfo = *lastSys->pmd();
-      }
-      if (lastPhyInfo.state().has_value() &&
-          lastPhyInfo.state()->system().has_value()) {
+      if (lastPhyInfo.state()->system().has_value()) {
         lastSysPmdState = *lastPhyInfo.state()->system()->pmd();
       }
-      if (lastPhyInfo.stats().has_value() &&
-          lastPhyInfo.stats()->system().has_value()) {
+      if (lastPhyInfo.stats()->system().has_value()) {
         lastSysPmdStats = *lastPhyInfo.stats()->system()->pmd();
       }
       updatePmdInfo(
-          *phyParams.system(),
           *phyParams.state()->system(),
           *phyParams.stats()->system(),
           portHandle->sysPort,
-          lastSysPmdInfo,
           lastSysPmdState,
           lastSysPmdStats);
     }
 
     // Update PCS Info
     updatePcsInfo(
-        *phyParams.line(),
         *(*phyParams.state()).line(),
         *(*phyParams.stats()).line(),
         swPort,
         phy::Side::LINE,
         lastPhyInfo,
         fb303PortStat,
-        *phyParams.speed(),
+        *phyParams.state()->speed(),
         portHandle->port);
 
     // Update Reconciliation Sublayer (RS) Info
-    updateRsInfo(
-        *phyParams.line(), *phyParams.state()->line(), portHandle->port);
+    updateRsInfo(*phyParams.state()->line(), portHandle->port);
 
     // PhyInfo update timestamp
     auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
-    phyParams.timeCollected() = now.count();
     phyParams.state()->timeCollected() = now.count();
     phyParams.stats()->timeCollected() = now.count();
     returnPhyParams[swPort] = phyParams;
@@ -1253,11 +1232,9 @@ std::map<PortID, phy::PhyInfo> SaiSwitch::updateAllPhyInfoLocked() {
 }
 
 void SaiSwitch::updatePmdInfo(
-    phy::PhySideInfo& sideInfo,
     phy::PhySideState& sideState,
     phy::PhySideStats& sideStats,
     std::shared_ptr<SaiPort> port,
-    [[maybe_unused]] phy::PmdInfo& lastPmdInfo,
     [[maybe_unused]] phy::PmdState& lastPmdState,
     [[maybe_unused]] phy::PmdStats& lastPmdStats) {
   uint32_t numPmdLanes;
@@ -1274,7 +1251,6 @@ void SaiSwitch::updatePmdInfo(
     return;
   }
 
-  std::map<int, phy::LaneInfo> laneInfos;
   std::map<int, phy::LaneStats> laneStats;
   std::map<int, phy::LaneState> laneStates;
   auto eyeStatus =
@@ -1306,17 +1282,10 @@ void SaiSwitch::updatePmdInfo(
 
   for (auto eyeInfo : eyeInfos) {
     auto laneId = eyeInfo.first;
-    phy::LaneInfo laneInfo;
     phy::LaneStats laneStat;
-    if (laneInfos.find(laneId) != laneInfos.end()) {
-      laneInfo = laneInfos[laneId];
-    }
     if (laneStats.find(laneId) != laneStats.end()) {
       laneStat = laneStats[laneId];
     }
-    laneInfo.lane() = laneId;
-    laneInfo.eyes() = eyeInfo.second;
-    laneInfos[laneId] = laneInfo;
 
     laneStat.lane() = laneId;
     laneStat.eyes() = eyeInfo.second;
@@ -1328,12 +1297,8 @@ void SaiSwitch::updatePmdInfo(
       port->adapterKey(), numPmdLanes);
   for (auto pmd : pmdSignalDetect) {
     auto laneId = pmd.lane;
-    phy::LaneInfo laneInfo;
     phy::LaneStats laneStat;
     phy::LaneState laneState;
-    if (laneInfos.find(laneId) != laneInfos.end()) {
-      laneInfo = laneInfos[laneId];
-    }
     if (laneStats.find(laneId) != laneStats.end()) {
       laneStat = laneStats[laneId];
     }
@@ -1342,15 +1307,10 @@ void SaiSwitch::updatePmdInfo(
     }
     laneState.lane() = laneId;
     laneStat.lane() = laneId;
-    laneInfo.signalDetectLive() = pmd.value.current_status;
-    laneInfo.signalDetectChanged() = pmd.value.changed;
     laneState.signalDetectLive() = pmd.value.current_status;
     laneState.signalDetectChanged() = pmd.value.changed;
     utility::updateSignalDetectChangedCount(
-        pmd.value.changed, laneId, laneInfo, lastPmdInfo);
-    utility::updateSignalDetectChangedCount(
         pmd.value.changed, laneId, laneStat, lastPmdStats);
-    laneInfos[laneId] = laneInfo;
     laneStats[laneId] = laneStat;
     laneStates[laneId] = laneState;
   }
@@ -1359,12 +1319,8 @@ void SaiSwitch::updatePmdInfo(
       port->adapterKey(), numPmdLanes);
   for (auto pmd : pmdLockStatus) {
     auto laneId = pmd.lane;
-    phy::LaneInfo laneInfo;
     phy::LaneStats laneStat;
     phy::LaneState laneState;
-    if (laneInfos.find(laneId) != laneInfos.end()) {
-      laneInfo = laneInfos[laneId];
-    }
     if (laneStats.find(laneId) != laneStats.end()) {
       laneStat = laneStats[laneId];
     }
@@ -1373,23 +1329,15 @@ void SaiSwitch::updatePmdInfo(
     }
     laneState.lane() = laneId;
     laneStat.lane() = laneId;
-    laneInfo.cdrLockLive() = pmd.value.current_status;
     laneState.cdrLockLive() = pmd.value.current_status;
-    laneInfo.cdrLockChanged() = pmd.value.changed;
     laneState.cdrLockChanged() = pmd.value.changed;
     utility::updateCdrLockChangedCount(
-        pmd.value.changed, laneId, laneInfo, lastPmdInfo);
-    utility::updateCdrLockChangedCount(
         pmd.value.changed, laneId, laneStat, lastPmdStats);
-    laneInfos[laneId] = laneInfo;
     laneStats[laneId] = laneStat;
     laneStates[laneId] = laneState;
   }
 #endif
 
-  for (auto laneInfo : laneInfos) {
-    sideInfo.pmd()->lanes()[laneInfo.first] = laneInfo.second;
-  }
   for (auto laneStat : laneStats) {
     sideStats.pmd()->lanes()[laneStat.first] = laneStat.second;
   }
@@ -1399,7 +1347,6 @@ void SaiSwitch::updatePmdInfo(
 }
 
 void SaiSwitch::updatePcsInfo(
-    phy::PhySideInfo& sideInfo,
     phy::PhySideState& sideState,
     phy::PhySideStats& sideStats,
     PortID swPort,
@@ -1421,7 +1368,6 @@ void SaiSwitch::updatePcsInfo(
 
   if (utility::isReedSolomonFec(fecMode)) {
     phy::PcsStats pcsStats;
-    phy::PcsInfo pcsInfo;
     phy::RsFecInfo rsFec;
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
@@ -1450,12 +1396,12 @@ void SaiSwitch::updatePcsInfo(
         *(fb303PortStat->portStats().fecUncorrectableErrors());
 
     phy::RsFecInfo lastRsFec;
-    std::optional<phy::PcsInfo> lastPcs;
+    std::optional<phy::PcsStats> lastPcs;
     if (side == phy::Side::LINE) {
-      if (auto pcs = lastPhyInfo.line()->pcs()) {
+      if (auto pcs = lastPhyInfo.stats()->line()->pcs()) {
         lastPcs = *pcs;
       }
-    } else if (auto sysSide = lastPhyInfo.system()) {
+    } else if (auto sysSide = lastPhyInfo.stats()->system()) {
       if (sysSide->pcs().has_value()) {
         lastPcs = *sysSide->pcs();
       }
@@ -1469,12 +1415,11 @@ void SaiSwitch::updatePcsInfo(
         rsFec, /* current RsFecInfo to update */
         lastRsFec, /* previous RsFecInfo */
         std::nullopt, /* counter not available from hardware */
-        now.count() - *lastPhyInfo.timeCollected(), /* timeDeltaInSeconds */
+        now.count() -
+            *lastPhyInfo.state()->timeCollected(), /* timeDeltaInSeconds */
         fecMode, /* operational FecMode */
         speed /* operational Speed */);
-    pcsInfo.rsFec() = rsFec;
     pcsStats.rsFec() = rsFec;
-    sideInfo.pcs() = pcsInfo;
     sideStats.pcs() = pcsStats;
   }
 
@@ -1482,7 +1427,6 @@ void SaiSwitch::updatePcsInfo(
 }
 
 void SaiSwitch::updateRsInfo(
-    phy::PhySideInfo& sideInfo,
     phy::PhySideState& sideState,
     std::shared_ptr<SaiPort> port) {
   auto errStatus =
@@ -1498,7 +1442,6 @@ void SaiSwitch::updateRsInfo(
   if (*faultStatus.localFault() || *faultStatus.remoteFault()) {
     phy::RsInfo rsInfo;
     rsInfo.faultStatus() = faultStatus;
-    sideInfo.rs() = rsInfo;
     sideState.rs() = rsInfo;
   }
 }
@@ -1766,7 +1709,7 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
       cfg::AsicType::ASIC_TYPE_ELBERT_8DD) {
     // reconstruct ports
     auto portMaps =
-        managerTable_->portManager().reconstructPortsFromStore(switchType_);
+        managerTable_->portManager().reconstructPortsFromStore(getSwitchType());
     auto ports = std::make_shared<MultiSwitchPortMap>();
     if (FLAGS_hide_fabric_ports) {
       for (const auto& portMap : std::as_const(*portMaps)) {
@@ -1783,7 +1726,7 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
   }
 
   // For VOQ switch, create system ports for existing egress ports
-  if (switchType_ == cfg::SwitchType::VOQ) {
+  if (getSwitchType() == cfg::SwitchType::VOQ) {
     CHECK(getSwitchId().has_value());
     auto multiSysPorts = std::make_shared<MultiSwitchSystemPortMap>();
     auto sysPorts = managerTable_->systemPortManager().constructSystemPorts(
@@ -1801,8 +1744,7 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
   auto switchSettings = std::make_shared<SwitchSettings>();
   switchSettings->setSwitchIdToSwitchInfo(
       scopeResolver->switchIdToSwitchInfo());
-  multiSwitchSwitchSettings->addNode(
-      scopeResolver->scope(switchSettings).matcherString(), switchSettings);
+  multiSwitchSwitchSettings->addNode(matcher.matcherString(), switchSettings);
 
   if (platform_->getAsic()->isSupported(
           HwAsic::Feature::LINK_STATE_BASED_ISOLATE)) {
@@ -1829,7 +1771,6 @@ HwInitResult SaiSwitch::initLocked(
     cfg::SwitchType switchType,
     std::optional<int64_t> switchId) noexcept {
   HwInitResult ret;
-  switchType_ = switchType;
   ret.rib = std::make_unique<RoutingInformationBase>();
   ret.bootType = bootType_;
   std::unique_ptr<folly::dynamic> adapterKeysJson;
@@ -1851,13 +1792,17 @@ HwInitResult SaiSwitch::initLocked(
             SwitchState::fromThrift(*switchStateThrift->swSwitchState());
       } catch (const FbossError& error) {
         if (!dumpBinaryThriftToFile(
-                platform_->getCrashThriftSwitchStateFile(),
+                platform_->getDirectoryUtil()->getCrashThriftSwitchStateFile(),
                 *switchStateThrift->swSwitchState())) {
           XLOG(ERR) << "failed to dump switch state to file: "
-                    << getPlatform()->getCrashThriftSwitchStateFile();
+                    << getPlatform()
+                           ->getDirectoryUtil()
+                           ->getCrashThriftSwitchStateFile();
         } else {
           XLOG(DBG2) << "dumped switch state to file: "
-                     << getPlatform()->getCrashThriftSwitchStateFile();
+                     << getPlatform()
+                            ->getDirectoryUtil()
+                            ->getCrashThriftSwitchStateFile();
         }
         XLOG(FATAL) << "Failed to recover switch state from thrift. "
                     << error.what();
@@ -1894,6 +1839,8 @@ HwInitResult SaiSwitch::initLocked(
       adapterKeys2AdapterHostKeysJson.get());
   if (bootType_ != BootType::WARM_BOOT) {
     ret.switchState = getColdBootSwitchState();
+    ret.switchState->publish();
+    setProgrammedState(ret.switchState);
     CHECK(ret.switchState->getSwitchSettings()->size());
     if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::MAC_AGING)) {
       managerTable_->switchManager().setMacAgingSeconds(
@@ -1967,8 +1914,8 @@ void SaiSwitch::initStoreAndManagersLocked(
       managerTable_->switchManager().setupCounterRefreshInterval();
     }
     if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
-      if (switchType_ == cfg::SwitchType::FABRIC ||
-          switchType_ == cfg::SwitchType::VOQ) {
+      if (getSwitchType() == cfg::SwitchType::FABRIC ||
+          getSwitchType() == cfg::SwitchType::VOQ) {
         auto& switchApi = SaiApiTable::getInstance()->switchApi();
         auto fabricPorts = switchApi.getAttribute(
             saiSwitchId_, SaiSwitchTraits::Attributes::FabricPortList{});
@@ -1979,6 +1926,19 @@ void SaiSwitch::initStoreAndManagersLocked(
           portStore.loadObjectOwnedByAdapter(
               PortSaiId(fid), true /* add to warm boot handles*/);
         }
+      }
+    }
+
+    // during warm boot, all default system ports created for the platform
+    // show up as unclaimed store objects. These obejcts are created once at
+    // init and not need to be removed during warm boot. Change ownership for
+    // them explicitly to adapter to remove it from unclaimed object
+    if (getSwitchType() == cfg::SwitchType::VOQ) {
+      auto& systemPortStore = saiStore_->get<SaiSystemPortTraits>();
+      for (auto& sysPort : platform_->getInternalSystemPortConfig()) {
+        SaiSystemPortTraits::Attributes::ConfigInfo confInfo{sysPort};
+        const auto& obj = systemPortStore.get(confInfo);
+        systemPortStore.loadObjectOwnedByAdapter(obj->adapterKey(), true);
       }
     }
   }
@@ -2068,6 +2028,7 @@ void SaiSwitch::packetRxCallback(
   std::optional<PortSaiId> portSaiIdOpt;
   std::optional<LagSaiId> lagSaiIdOpt;
   std::optional<HostifTrapSaiId> hostifTrapSaiIdOpt;
+  std::optional<uint8_t> hostifQueueIdOpt;
   for (uint32_t index = 0; index < attr_count; index++) {
     switch (attr_list[index].id) {
       case SAI_HOSTIF_PACKET_ATTR_INGRESS_PORT:
@@ -2078,6 +2039,9 @@ void SaiSwitch::packetRxCallback(
         break;
       case SAI_HOSTIF_PACKET_ATTR_HOSTIF_TRAP_ID:
         hostifTrapSaiIdOpt = attr_list[index].value.oid;
+        break;
+      case SAI_HOSTIF_PACKET_ATTR_EGRESS_QUEUE_INDEX:
+        hostifQueueIdOpt = attr_list[index].value.u8;
         break;
       default:
         XLOG(DBG2) << "invalid attribute received";
@@ -2131,9 +2095,16 @@ void SaiSwitch::packetRxCallback(
     }
   }
 
+  auto queueId = hostifQueueIdOpt.has_value() ? hostifQueueIdOpt.value() : 0;
+
   if (!lagSaiIdOpt) {
     packetRxCallbackPort(
-        buffer_size, buffer, portSaiId, allowMissingSrcPort, packetRxReason);
+        buffer_size,
+        buffer,
+        portSaiId,
+        allowMissingSrcPort,
+        packetRxReason,
+        queueId);
   } else {
     packetRxCallbackLag(
         buffer_size,
@@ -2141,7 +2112,8 @@ void SaiSwitch::packetRxCallback(
         lagSaiIdOpt.value(),
         portSaiId,
         allowMissingSrcPort,
-        packetRxReason);
+        packetRxReason,
+        queueId);
   }
 }
 
@@ -2150,10 +2122,11 @@ void SaiSwitch::packetRxCallbackPort(
     const void* buffer,
     PortSaiId portSaiId,
     bool allowMissingSrcPort,
-    cfg::PacketRxReason rxReason) {
+    cfg::PacketRxReason rxReason,
+    uint8_t queueId) {
   PortID swPortId(0);
-  std::optional<VlanID> swVlanId = (switchType_ == cfg::SwitchType::VOQ ||
-                                    switchType_ == cfg::SwitchType::FABRIC)
+  std::optional<VlanID> swVlanId = (getSwitchType() == cfg::SwitchType::VOQ ||
+                                    getSwitchType() == cfg::SwitchType::FABRIC)
       ? std::nullopt
       : std::make_optional(VlanID(0));
   auto swVlanIdStr = [swVlanId]() {
@@ -2163,7 +2136,7 @@ void SaiSwitch::packetRxCallbackPort(
   };
 
   auto rxPacket = std::make_unique<SaiRxPacket>(
-      buffer_size, buffer, PortID(0), VlanID(0), rxReason);
+      buffer_size, buffer, PortID(0), VlanID(0), rxReason, queueId);
   const auto portItr = concurrentIndices_->portIds.find(portSaiId);
   /*
    * When a packet is received with source port as cpu port, do the following:
@@ -2182,8 +2155,8 @@ void SaiSwitch::packetRxCallbackPort(
    * We use the cached cpu port id to avoid holding manager table locks in
    * the Rx path.
    */
-  if (!(switchType_ == cfg::SwitchType::VOQ ||
-        switchType_ == cfg::SwitchType::FABRIC)) {
+  if (!(getSwitchType() == cfg::SwitchType::VOQ ||
+        getSwitchType() == cfg::SwitchType::FABRIC)) {
     if (portSaiId == getCPUPortSaiId() ||
         (allowMissingSrcPort &&
          portItr == concurrentIndices_->portIds.cend())) {
@@ -2250,12 +2223,13 @@ void SaiSwitch::packetRxCallbackLag(
     LagSaiId lagSaiId,
     PortSaiId portSaiId,
     bool allowMissingSrcPort,
-    cfg::PacketRxReason rxReason) {
+    cfg::PacketRxReason rxReason,
+    uint8_t queueId) {
   AggregatePortID swAggPortId(0);
   PortID swPortId(0);
   VlanID swVlanId(0);
   auto rxPacket = std::make_unique<SaiRxPacket>(
-      buffer_size, buffer, PortID(0), VlanID(0), rxReason);
+      buffer_size, buffer, PortID(0), VlanID(0), rxReason, queueId);
 
   const auto aggPortItr = concurrentIndices_->aggregatePortIds.find(lagSaiId);
 
@@ -3198,4 +3172,99 @@ void SaiSwitch::initialStateApplied() {
   }
 }
 
+void SaiSwitch::processPfcDeadlockNotificationCallback(
+    std::optional<cfg::PfcWatchdogRecoveryAction> oldRecoveryAction,
+    std::optional<cfg::PfcWatchdogRecoveryAction> newRecoveryAction) {
+  // Needed if PFC watchdog enabled status changes at device level
+  if (oldRecoveryAction.has_value() == newRecoveryAction.has_value()) {
+    XLOG(DBG4) << "PFC deadlock notification callback unchanged!";
+    return;
+  }
+  auto& switchApi = SaiApiTable::getInstance()->switchApi();
+  if (newRecoveryAction.has_value()) {
+    // Register the PFC deadlock recovery callback function
+    switchApi.registerQueuePfcDeadlockNotificationCallback(
+        saiSwitchId_, _gPfcDeadlockNotificationCallback);
+  } else {
+    // Unregister the PFC deadlock recovery callback function
+    switchApi.unregisterQueuePfcDeadlockNotificationCallback(saiSwitchId_);
+  }
+  auto registration =
+      newRecoveryAction.has_value() ? "registered" : "unregistered";
+  XLOG(DBG2) << "PFC deadlock notification callback " << registration;
+}
+
+void SaiSwitch::processPfcDeadlockRecoveryAction(
+    std::optional<cfg::PfcWatchdogRecoveryAction> recoveryAction) {
+  int currentPfcDlrPacketAction =
+      SaiApiTable::getInstance()->switchApi().getAttribute(
+          saiSwitchId_, SaiSwitchTraits::Attributes::PfcDlrPacketAction{});
+  std::optional<int> newPfcDlrPacketAction;
+  auto recoveryActionConfig = cfg::PfcWatchdogRecoveryAction::NO_DROP;
+  if (recoveryAction.has_value() &&
+      (*recoveryAction == cfg::PfcWatchdogRecoveryAction::DROP)) {
+    newPfcDlrPacketAction = SAI_PACKET_ACTION_DROP;
+    recoveryActionConfig = *recoveryAction;
+  } else {
+#if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
+    newPfcDlrPacketAction = SAI_PACKET_ACTION_DONOTDROP;
+#else
+    XLOG(ERR) << "PFC WD recovery action NO_DROP unsupported!";
+    return;
+#endif
+  }
+  CHECK(newPfcDlrPacketAction.has_value());
+  if (currentPfcDlrPacketAction != *newPfcDlrPacketAction) {
+    SaiApiTable::getInstance()->switchApi().setAttribute(
+        saiSwitchId_,
+        SaiSwitchTraits::Attributes::PfcDlrPacketAction{
+            *newPfcDlrPacketAction});
+    XLOG(DBG2) << "PFC watchdog deadlock recovery action "
+               << apache::thrift::util::enumNameSafe(recoveryActionConfig)
+               << " programmed!";
+  } else {
+    XLOG(DBG4) << "PFC deadlock recovery packet action unchanged!";
+  }
+}
+
+void SaiSwitch::processPfcWatchdogGlobalDelta(const StateDelta& delta) {
+  auto oldRecoveryAction = delta.oldState()->getPfcWatchdogRecoveryAction();
+  auto newRecoveryAction = delta.newState()->getPfcWatchdogRecoveryAction();
+
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::PFC)) {
+    // Look for PFC watchdog only if PFC is supported on platform
+    return;
+  }
+
+  processPfcDeadlockNotificationCallback(oldRecoveryAction, newRecoveryAction);
+  processPfcDeadlockRecoveryAction(newRecoveryAction);
+}
+
+void SaiSwitch::pfcDeadlockNotificationCallback(
+    PortSaiId portSaiId,
+    uint8_t queueId,
+    sai_queue_pfc_deadlock_event_type_t deadlockEvent,
+    uint32_t /* count */) {
+  const auto portItr = concurrentIndices_->portIds.find(portSaiId);
+  if (portItr == concurrentIndices_->portIds.cend()) {
+    XLOG(ERR) << "Unable to map Sai Port ID " << portSaiId
+              << " in PFC deadlock notification processing to a valid port!";
+    return;
+  }
+  PortID portId = portItr->second;
+  XLOG_EVERY_MS(WARNING, 5000)
+      << "PFC deadlock notification callback invoked for qid: " << queueId
+      << ", on port: " << portId << ", with event: " << deadlockEvent;
+  switch (deadlockEvent) {
+    case SAI_QUEUE_PFC_DEADLOCK_EVENT_TYPE_DETECTED:
+      callback_->pfcWatchdogStateChanged(portId, true);
+      break;
+    case SAI_QUEUE_PFC_DEADLOCK_EVENT_TYPE_RECOVERED:
+      callback_->pfcWatchdogStateChanged(portId, false);
+      break;
+    default:
+      XLOG(ERR) << "Unknown event " << deadlockEvent
+                << " in PFC deadlock notify callback";
+  }
+}
 } // namespace facebook::fboss

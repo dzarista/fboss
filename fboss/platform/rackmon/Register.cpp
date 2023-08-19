@@ -73,11 +73,13 @@ void RegisterValue::makeInteger(
 
 void RegisterValue::makeFloat(
     const std::vector<uint16_t>& reg,
-    uint16_t precision) {
+    uint16_t precision,
+    float scale,
+    float shift) {
   makeInteger(reg, RegisterEndian::BIG);
   int32_t intValue = std::get<int32_t>(value);
-  // Y = X / 2^N
-  value = float(intValue) / float(1 << precision);
+  // Y = shift + scale * (X / 2^N)
+  value = shift + (scale * (float(intValue) / float(1 << precision)));
 }
 
 void RegisterValue::makeFlags(
@@ -110,7 +112,7 @@ RegisterValue::RegisterValue(
       makeInteger(reg, desc.endian);
       break;
     case RegisterValueType::FLOAT:
-      makeFloat(reg, desc.precision);
+      makeFloat(reg, desc.precision, desc.scale, desc.shift);
       break;
     case RegisterValueType::FLAGS:
       makeFlags(reg, desc.flags);
@@ -195,9 +197,9 @@ std::vector<uint16_t>& RegisterStore::beginReloadRegister() {
   return front().getInactive().value;
 }
 
-void RegisterStore::endReloadRegister() {
+void RegisterStore::endReloadRegister(time_t reloadTime) {
   std::unique_lock lk(historyMutex_);
-  front().getInactive().timestamp = std::time(nullptr);
+  front().getInactive().timestamp = reloadTime;
   // Update the front and bump indexs.
   front().swapActive();
   // If we care about changes only and the values
@@ -260,6 +262,18 @@ void RegisterMapDatabase::load(const nlohmann::json& j) {
   regmaps.push_back(std::move(rmap));
 }
 
+time_t RegisterMapDatabase::minMonitorInterval() const {
+  time_t retVal = RegisterDescriptor::kDefaultInterval;
+  for (const auto& regmap : regmaps) {
+    for (const auto& desc : regmap->registerDescriptors) {
+      if (desc.second.interval < retVal) {
+        retVal = desc.second.interval;
+      }
+    }
+  }
+  return retVal;
+}
+
 void from_json(const json& j, AddrRange& a) {
   a.range = j;
 }
@@ -296,8 +310,17 @@ void from_json(const json& j, RegisterDescriptor& i) {
   i.storeChangesOnly = j.value("changes_only", false);
   i.endian = j.value("endian", RegisterEndian::BIG);
   i.format = j.value("format", RegisterValueType::HEX);
+  if (j.contains("interval")) {
+    j.at("interval").get_to(i.interval);
+  }
   if (i.format == RegisterValueType::FLOAT) {
     j.at("precision").get_to(i.precision);
+    if (j.contains("scale")) {
+      j.at("scale").get_to(i.scale);
+    }
+    if (j.contains("shift")) {
+      j.at("shift").get_to(i.shift);
+    }
   } else if (i.format == RegisterValueType::FLAGS) {
     j.at("flags").get_to(i.flags);
     for (const auto& [pos, name] : i.flags) {

@@ -22,16 +22,20 @@ class PlatformExplorer {
       const SlotConfig& parentSlot,
       const std::string& fruTypeName,
       const FruTypeConfig& fruTypeConfig);
+  void exploreSlot(
+      const std::string& fruName,
+      const std::string& slotName,
+      const SlotConfig& slotConfig);
   void exploreI2cDevices(
       const std::string& fruName,
       const std::vector<I2cDeviceConfig>& i2cDeviceConfigs);
-  std::string getKernelI2cBusName(
+  uint16_t getI2cBusNum(
       const std::string& fruName,
-      const std::string& fruScopeBusName);
-  void updateKernelI2cBusNames(
+      const std::string& fruScopeBusName) const;
+  void updateI2cBusNum(
       const std::string& fruName,
       const std::string& fruScopeBusName,
-      const std::string& kernelI2cBusName);
+      uint16_t busNum);
 
  private:
   folly::FunctionScheduler scheduler_;
@@ -40,8 +44,7 @@ class PlatformExplorer {
   PresenceDetector presenceDetector_{};
   // Map from <fruName, fruScopeBusName> to kernel i2c bus name.
   // Example: <CHASSIS/PIMSlot0:PIM-8DD, INCOMING@3> -> i2c-54
-  std::map<std::pair<std::string, std::string>, std::string>
-      kernelI2cBusNames_{};
+  std::map<std::pair<std::string, std::string>, uint16_t> i2cBusNamesToNums_{};
 };
 
 } // namespace facebook::fboss::platform::platform_manager

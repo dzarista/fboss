@@ -14,6 +14,7 @@
 #include "fboss/agent/state/SystemPortMap.h"
 #include "fboss/fsdb/client/FsdbPubSubManager.h"
 #include "fboss/fsdb/common/Flags.h"
+#include "fboss/fsdb/if/gen-cpp2/fsdb_common_types.h"
 #include "fboss/thrift_cow/nodes/Serializer.h"
 
 #include <memory>
@@ -30,8 +31,10 @@ using ThriftMapTypeClass = apache::thrift::type_class::map<
     apache::thrift::type_class::integral,
     apache::thrift::type_class::structure>;
 
-DsfSubscriber::DsfSubscriber(SwSwitch* sw) : sw_(sw) {
-  sw_->registerStateObserver(this, "DSFSubscriber");
+DsfSubscriber::DsfSubscriber(SwSwitch* sw)
+    : sw_(sw), localNodeName_(getLocalHostnameUqdn()) {
+  // TODO(aeckert): add dedicated config field for localNodeName
+  sw_->registerStateObserver(this, "DsfSubscriber");
 }
 
 DsfSubscriber::~DsfSubscriber() {
@@ -215,7 +218,7 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
   if (voqSwitchIds.size()) {
     if (!fsdbPubSubMgr_) {
       fsdbPubSubMgr_ = std::make_unique<fsdb::FsdbPubSubManager>(
-          folly::sformat("{}:agent", getLocalHostname()));
+          folly::sformat("{}:agent", localNodeName_));
     }
   } else {
     if (fsdbPubSubMgr_) {
@@ -273,30 +276,52 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
     auto nodeSwitchId = node->getSwitchId();
     // Subscription is not established until state becomes CONNECTED
     this->sw_->stats()->failedDsfSubscription(1);
+
+    dsfSessions_.wlock()->emplace(nodeName, nodeName);
     XLOG(DBG2) << " Setting up DSF subscriptions to : " << nodeName;
     fsdbPubSubMgr_->addStatePathSubscription(
-        {getSystemPortsPath(), getInterfacesPath()},
+        getAllSubscribePaths(localNodeName_),
         [this, nodeName](auto oldState, auto newState) {
-          switch (newState) {
-            case fsdb::FsdbStreamClient::State::CONNECTING:
-              XLOG(DBG2) << "Try connecting to " << nodeName;
-              break;
-            case fsdb::FsdbStreamClient::State::CONNECTED:
-              XLOG(DBG2) << "Connected to " << nodeName;
+          if (XLOG_IS_ON(DBG2)) {
+            switch (newState) {
+              case fsdb::FsdbStreamClient::State::CONNECTING:
+                XLOG(DBG2) << "Try connecting to " << nodeName;
+                break;
+              case fsdb::FsdbStreamClient::State::CONNECTED:
+                XLOG(DBG2) << "Connected to " << nodeName;
+                break;
+              case fsdb::FsdbStreamClient::State::DISCONNECTED:
+                XLOG(DBG2) << "Disconnected from " << nodeName;
+                break;
+              case fsdb::FsdbStreamClient::State::CANCELLED:
+                XLOG(DBG2) << "Cancelled " << nodeName;
+                break;
+            }
+          }
+
+          auto oldThriftState =
+              (oldState == fsdb::FsdbStreamClient::State::CONNECTED)
+              ? fsdb::FsdbSubscriptionState::CONNECTED
+              : fsdb::FsdbSubscriptionState::DISCONNECTED;
+          auto newThriftState =
+              (newState == fsdb::FsdbStreamClient::State::CONNECTED)
+              ? fsdb::FsdbSubscriptionState::CONNECTED
+              : fsdb::FsdbSubscriptionState::DISCONNECTED;
+
+          if (oldThriftState != newThriftState) {
+            if (newThriftState == fsdb::FsdbSubscriptionState::CONNECTED) {
               this->sw_->stats()->failedDsfSubscription(-1);
-              break;
-            case fsdb::FsdbStreamClient::State::DISCONNECTED:
-              XLOG(DBG2) << "Disconnected from " << nodeName;
-              if (oldState == fsdb::FsdbStreamClient::State::CONNECTED) {
-                this->sw_->stats()->failedDsfSubscription(1);
-              }
-              break;
-            case fsdb::FsdbStreamClient::State::CANCELLED:
-              XLOG(DBG2) << "Cancelled " << nodeName;
-              if (oldState == fsdb::FsdbStreamClient::State::CONNECTED) {
-                this->sw_->stats()->failedDsfSubscription(1);
-              }
-              break;
+            } else {
+              this->sw_->stats()->failedDsfSubscription(1);
+            }
+
+            this->sw_->updateDsfSubscriberState(
+                nodeName, oldThriftState, newThriftState);
+            auto lockedDsfSessions = this->dsfSessions_.wlock();
+            if (auto it = lockedDsfSessions->find(nodeName);
+                it != lockedDsfSessions->end()) {
+              it->second.localSubStateChanged(newThriftState);
+            }
           }
         },
         [this, nodeName, nodeSwitchId](fsdb::OperSubPathUnit&& operStateUnit) {
@@ -319,6 +344,23 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
                                       MultiSwitchInterfaceMapThriftType>(
                   fsdb::OperProtocol::BINARY, *change.state()->contents()));
               newRifs = mswitchIntfs.getAllNodes();
+            } else if (
+                change.path()->path() ==
+                getDsfSubscriptionsPath(localNodeName_)) {
+              XLOG(DBG2) << " Got dsf sub update from : " << nodeName;
+
+              using targetType = fsdb::FsdbSubscriptionState;
+              using targetTypeClass = apache::thrift::type_class::enumeration;
+
+              auto newRemoteState =
+                  thrift_cow::deserialize<targetTypeClass, targetType>(
+                      fsdb::OperProtocol::BINARY, *change.state()->contents());
+
+              auto lockedDsfSessions = this->dsfSessions_.wlock();
+              if (auto it = lockedDsfSessions->find(nodeName);
+                  it != lockedDsfSessions->end()) {
+                it->second.remoteSubStateChanged(newRemoteState);
+              }
             } else {
               throw FbossError(
                   " Got unexpected state update for : ",
@@ -337,15 +379,17 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
     if (isLocal(node->getSwitchId()) || !isInterfaceNode(node)) {
       return;
     }
-    XLOG(DBG2) << " Removing DSF subscriptions to : " << node->getName();
+    auto nodeName = node->getName();
+    XLOG(DBG2) << " Removing DSF subscriptions to : " << nodeName;
+    dsfSessions_.wlock()->erase(nodeName);
     if (fsdbPubSubMgr_->getStatePathSubsriptionState(
-            {getSystemPortsPath(), getInterfacesPath()}, getLoopbackIp(node)) !=
+            getAllSubscribePaths(localNodeName_), getLoopbackIp(node)) !=
         fsdb::FsdbStreamClient::State::CONNECTED) {
       // Subscription was not established - decrement failedDSF counter.
       this->sw_->stats()->failedDsfSubscription(-1);
     }
     fsdbPubSubMgr_->removeStatePathSubscription(
-        {getSystemPortsPath(), getInterfacesPath()}, getLoopbackIp(node));
+        getAllSubscribePaths(localNodeName_), getLoopbackIp(node));
   };
   DeltaFunctions::forEachChanged(
       stateDelta.getDsfNodesDelta(),
@@ -360,6 +404,23 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
 void DsfSubscriber::stop() {
   sw_->unregisterStateObserver(this);
   fsdbPubSubMgr_.reset();
+}
+
+std::vector<std::vector<std::string>> DsfSubscriber::getAllSubscribePaths(
+    const std::string& localNodeName) {
+  return {
+      getSystemPortsPath(),
+      getInterfacesPath(),
+      getDsfSubscriptionsPath(localNodeName)};
+}
+
+std::vector<DsfSessionThrift> DsfSubscriber::getDsfSessionsThrift() const {
+  auto lockedSessions = dsfSessions_.rlock();
+  std::vector<DsfSessionThrift> thriftSessions;
+  for (const auto& [key, value] : *lockedSessions) {
+    thriftSessions.emplace_back(value.toThrift());
+  }
+  return thriftSessions;
 }
 
 } // namespace facebook::fboss

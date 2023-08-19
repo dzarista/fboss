@@ -29,8 +29,8 @@ class Rackmon {
   static constexpr int kScanNumRetry = 3;
   static constexpr time_t kDormantMinInactiveTime = 300;
   static constexpr ModbusTime kProbeTimeout = std::chrono::milliseconds(50);
-  std::unique_ptr<PollThread<Rackmon>> monitorThread_;
-  std::unique_ptr<PollThread<Rackmon>> scanThread_;
+  std::shared_ptr<PollThread<Rackmon>> monitorThread_;
+  std::shared_ptr<PollThread<Rackmon>> scanThread_;
   // Has to be before defining active or dormant devices
   // to ensure users get destroyed before the interface.
   std::vector<std::unique_ptr<Modbus>> interfaces_{};
@@ -56,8 +56,15 @@ class Rackmon {
   time_t lastScanTime_;
   time_t lastMonitorTime_;
 
+  // Interval at which we will monitor all the discovered
+  // devices.
+  PollThreadTime monitorInterval_ = std::chrono::minutes(3);
+
   // Probe an interface for the presence of the address.
   bool probe(Modbus& interface, uint8_t addr);
+
+  // Probe for the presence of an address
+  bool probe(uint8_t addr);
 
   // --------- Private Methods --------
 
@@ -72,8 +79,6 @@ class Rackmon {
 
   bool isDeviceKnown(uint8_t);
 
-  ModbusDevice& getModbusDevice(uint8_t addr);
-
   // Monitor loop. Blocks forever as long as req_stop is true.
   void monitor();
 
@@ -84,6 +89,9 @@ class Rackmon {
   void scan();
 
  protected:
+  // Return the device given address.
+  ModbusDevice& getModbusDevice(uint8_t addr);
+
   PollThread<Rackmon>& getScanThread() {
     if (!scanThread_) {
       throw std::runtime_error("Invalid scanThread state");
@@ -121,19 +129,17 @@ class Rackmon {
   void load(const std::string& confPath, const std::string& regmapDir);
 
   // Create a worker thread
-  virtual std::unique_ptr<PollThread<Rackmon>> makeThread(
+  virtual std::shared_ptr<PollThread<Rackmon>> makeThread(
       std::function<void(Rackmon*)> func,
       PollThreadTime interval);
 
   // Start the monitoring/scanning loops
   void start(PollThreadTime interval = std::chrono::minutes(3));
   // Stop the monitoring/scanning loops
-  void stop();
+  void stop(bool forceStop = true);
 
   // Force rackmond to do a full scan on the next scan loop.
-  void forceScan() {
-    reqForceScan_ = true;
-  }
+  void forceScan();
 
   // Executes the Raw command. Throws an exception on error.
   void rawCmd(Request& req, Response& resp, ModbusTime timeout);
