@@ -566,6 +566,79 @@ std::pair<sai_uint8_t, sai_uint8_t> SaiPortManager::preparePfcConfigs(
   return std::pair(txPfc, rxPfc);
 }
 
+std::vector<sai_map_t> SaiPortManager::preparePfcDeadlockQueueTimers(
+    std::vector<PfcPriority>& enabledPfcPriorities,
+    uint32_t timerVal) {
+  std::vector<sai_map_t> mapToValueList;
+  mapToValueList.reserve(enabledPfcPriorities.size());
+  for (const auto& pri : enabledPfcPriorities) {
+    sai_map_t mapping{};
+    mapping.key = pri;
+    mapping.value = timerVal;
+    mapToValueList.push_back(mapping);
+  }
+  return mapToValueList;
+}
+
+void SaiPortManager::programPfcWatchdogTimers(
+    const std::shared_ptr<Port>& swPort,
+    std::vector<PfcPriority>& enabledPfcPriorities,
+    const bool portPfcWdEnabled) {
+  auto portHandle = getPortHandle(swPort->getID());
+  CHECK(portHandle);
+  uint32_t recoveryTimeMsecs = 0;
+  uint32_t detectionTimeMsecs = 0;
+  if (portPfcWdEnabled) {
+    CHECK(swPort->getPfc()->watchdog().has_value());
+    recoveryTimeMsecs = *swPort->getPfc()->watchdog()->recoveryTimeMsecs();
+    detectionTimeMsecs = *swPort->getPfc()->watchdog()->detectionTimeMsecs();
+  }
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
+  // Set deadlock detection timer interval for PFC queues
+  auto pfcDldTimerMap =
+      preparePfcDeadlockQueueTimers(enabledPfcPriorities, detectionTimeMsecs);
+  portHandle->port->setOptionalAttribute(
+      SaiPortTraits::Attributes::PfcTcDldInterval{pfcDldTimerMap});
+  // Set deadlock recovery timer interval for PFC queues
+  auto pfcDlrTimerMap =
+      preparePfcDeadlockQueueTimers(enabledPfcPriorities, recoveryTimeMsecs);
+  portHandle->port->setOptionalAttribute(
+      SaiPortTraits::Attributes::PfcTcDlrInterval{pfcDlrTimerMap});
+#endif
+}
+
+void SaiPortManager::programPfcWatchdogPerQueueEnable(
+    const std::shared_ptr<Port>& swPort,
+    std::vector<PfcPriority>& enabledPfcPriorities,
+    const bool portPfcWdEnabled) {
+  // Enabled PFC priorities cannot be changed without a cold boot
+  // and hence in this flow, just take care of a case where PFC
+  // WD is being enabled or disabled for queues.
+  for (auto pfcPri : enabledPfcPriorities) {
+    // Assume 1:1 mapping b/w pfcPriority and queueId
+    auto queueHandle =
+        getQueueHandle(swPort->getID(), static_cast<uint8_t>(pfcPri));
+    SaiApiTable::getInstance()->queueApi().setAttribute(
+        queueHandle->queue->adapterKey(),
+        SaiQueueTraits::Attributes::EnablePfcDldr{portPfcWdEnabled});
+  }
+}
+
+void SaiPortManager::programPfcWatchdog(
+    const std::shared_ptr<Port>& swPort,
+    std::vector<PfcPriority>& enabledPfcPriorities,
+    const bool portPfcWdEnabled) {
+  auto pfcEnabledStatus = portPfcWdEnabled ? "enable" : "disable";
+  XLOG(DBG4) << "PFC WD " << pfcEnabledStatus << " programming for "
+             << swPort->getName();
+  // Program PFC watchdog timers per port/queue
+  programPfcWatchdogTimers(swPort, enabledPfcPriorities, portPfcWdEnabled);
+
+  // Enable/disable PFC watchdog per queue
+  programPfcWatchdogPerQueueEnable(
+      swPort, enabledPfcPriorities, portPfcWdEnabled);
+}
+
 void SaiPortManager::addPfc(const std::shared_ptr<Port>& swPort) {
   if (swPort->getPfc().has_value()) {
     // PFC is enabled for all priorities on a port
@@ -591,6 +664,41 @@ void SaiPortManager::removePfc(const std::shared_ptr<Port>& swPort) {
   if (swPort->getPfc().has_value()) {
     sai_uint8_t txPfc = 0, rxPfc = 0;
     programPfc(swPort, txPfc, rxPfc);
+  }
+}
+
+void SaiPortManager::addPfcWatchdog(const std::shared_ptr<Port>& swPort) {
+  if (swPort->getPfc().has_value() &&
+      swPort->getPfc()->watchdog().has_value()) {
+    auto pfcEnabledPriorities = swPort->getPfcPriorities();
+    programPfcWatchdog(swPort, pfcEnabledPriorities, true /* wdEnabled */);
+  }
+}
+
+void SaiPortManager::changePfcWatchdog(
+    const std::shared_ptr<Port>& oldPort,
+    const std::shared_ptr<Port>& newPort) {
+  std::optional<cfg::PfcWatchdog> oldPfcWd, newPfcWd;
+  if (oldPort->getPfc() && oldPort->getPfc()->watchdog()) {
+    oldPfcWd = *oldPort->getPfc()->watchdog();
+  }
+  if (newPort->getPfc() && newPort->getPfc()->watchdog()) {
+    newPfcWd = *newPort->getPfc()->watchdog();
+  }
+  if ((oldPfcWd.has_value() != newPfcWd.has_value()) ||
+      (newPfcWd.has_value() && (newPfcWd.value() != oldPfcWd.value()))) {
+    auto pfcEnabledPriorities = newPort->getPfcPriorities();
+    programPfcWatchdog(newPort, pfcEnabledPriorities, newPfcWd.has_value());
+  } else {
+    XLOG(DBG4) << "PFC watchdog setting unchanged for port "
+               << newPort->getName();
+  }
+}
+
+void SaiPortManager::removePfcWatchdog(const std::shared_ptr<Port>& swPort) {
+  if (swPort->getPfc().has_value()) {
+    auto pfcEnabledPriorities = swPort->getPfcPriorities();
+    programPfcWatchdog(swPort, pfcEnabledPriorities, false /* wdEnabled */);
   }
 }
 
@@ -1143,6 +1251,20 @@ SaiQueueHandle* SaiPortManager::getQueueHandle(
     PortID swId,
     const SaiQueueConfig& saiQueueConfig) {
   return getQueueHandleImpl(swId, saiQueueConfig);
+}
+
+SaiQueueHandle* SaiPortManager::getQueueHandle(PortID swId, uint8_t queueId)
+    const {
+  auto portHandle = getPortHandleImpl(swId);
+  if (!portHandle) {
+    XLOG(FATAL) << "Invalid null SaiPortHandle for " << swId;
+  }
+  for (const auto& queue : portHandle->queues) {
+    if (queue.first.first == queueId) {
+      return queue.second.get();
+    }
+  }
+  XLOG(FATAL) << "Invalid queue ID " << queueId << " for port " << swId;
 }
 
 bool SaiPortManager::fecStatsSupported(PortID portId) const {

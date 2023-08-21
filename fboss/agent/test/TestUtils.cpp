@@ -470,18 +470,35 @@ std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
   if (!config) {
     config = &emptyConfig;
   }
+
+  int64_t switchId;
+  cfg::SwitchType switchType;
+
   if (config->switchSettings()->switchIdToSwitchInfo()->empty()) {
     if (state &&
         util::getFirstNodeIf(state->getSwitchSettings())
             ->getSwitchIdToSwitchInfo()
             .size()) {
+      switchId = HwSwitchMatcher(state->getSwitchSettings()->cbegin()->first)
+                     .switchId();
+      switchType =
+          state->getSwitchSettings()->cbegin()->second->getSwitchType(switchId);
       config->switchSettings()->switchIdToSwitchInfo() =
           util::getFirstNodeIf(state->getSwitchSettings())
               ->getSwitchIdToSwitchInfo();
     } else {
+      switchType = cfg::SwitchType::NPU;
+      switchId = 0;
       config->switchSettings()->switchIdToSwitchInfo() = {
-          std::make_pair(0, createSwitchInfo(cfg::SwitchType::NPU))};
+          std::make_pair(switchId, createSwitchInfo(switchType))};
     }
+  } else {
+    switchId =
+        config->switchSettings()->switchIdToSwitchInfo()->cbegin()->first;
+    switchType = *config->switchSettings()
+                      ->switchIdToSwitchInfo()
+                      ->cbegin()
+                      ->second.switchType();
   }
   auto agentConfig = createEmptyAgentConfig()->thrift;
   agentConfig.sw() = *config;
@@ -492,9 +509,14 @@ std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
             platform, switchId, info);
       };
   auto sw = make_unique<SwSwitch>(
-      std::move(hwSwitchHandlerInitFn), std::move(platformMapping), config);
+      std::move(hwSwitchHandlerInitFn),
+      std::move(platformMapping),
+      platform->getDirectoryUtil(),
+      platform->supportsAddRemovePort(),
+      config);
   HwInitResult ret;
   ret.switchState = state ? state : make_shared<SwitchState>();
+  addSwitchInfo(ret.switchState, switchType, switchId);
   ret.bootType = BootType::COLD_BOOT;
   std::map<int32_t, state::RouteTableFields> routeTables{};
   auto switchInfo =
@@ -505,7 +527,7 @@ std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
   }
   ret.rib = RoutingInformationBase::fromThrift(routeTables);
   getMockHw(sw)->setInitialState(ret.switchState);
-  EXPECT_HW_CALL(sw, initImpl(_, false, _, _))
+  EXPECT_HW_CALL(sw, initImpl(_, _, false))
       .WillOnce(Return(ByMove(std::move(ret))));
   // return same as ret.BootType
   EXPECT_HW_CALL(sw, getBootType).WillRepeatedly(Return(BootType::COLD_BOOT));
@@ -575,8 +597,11 @@ unique_ptr<HwTestHandle> createTestHandle(
 
   auto switchSettings = std::make_shared<SwitchSettings>();
   switchSettings->setSwitchIdToSwitchInfo(switchIdToSwitchInfo);
-  addSwitchSettingsToState(
-      initialState, switchSettings, switchIdToSwitchInfo.begin()->first);
+  addSwitchInfo(
+      initialState,
+      *switchIdToSwitchInfo.begin()->second.switchType(),
+      switchIdToSwitchInfo.begin()->first);
+
   auto handle = createTestHandle(initialState, flags, config);
   auto sw = handle->getSw();
 
@@ -1080,10 +1105,12 @@ void addSwitchInfo(
     auto newSwitchSettings = switchSettings->modify(&state);
     newSwitchSettings->setSwitchIdToSwitchInfo(
         {std::make_pair(switchId, switchInfo)});
+    newSwitchSettings->setSwitchInfo(switchInfo);
   } else {
     auto newSwitchSettings = std::make_shared<SwitchSettings>();
     newSwitchSettings->setSwitchIdToSwitchInfo(
         {std::make_pair(switchId, switchInfo)});
+    newSwitchSettings->setSwitchInfo(switchInfo);
     addSwitchSettingsToState(state, newSwitchSettings, switchId);
   }
 }
@@ -1171,7 +1198,7 @@ void addSwitchSettingsToState(
 
 HwSwitchInitFn mockHwSwitchInitFn(SwSwitch* sw) {
   return [sw](HwSwitchCallback* callback, bool failHwCallsOnWarmboot) {
-    return getMockHw(sw)->init(callback, failHwCallsOnWarmboot);
+    return getMockHw(sw)->init(callback, nullptr, failHwCallsOnWarmboot);
   };
 }
 

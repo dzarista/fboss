@@ -77,10 +77,10 @@ void addLoadBalancerToConfig(
   }
   switch (hashType) {
     case LBHash::FULL_HASH:
-      config.loadBalancers()->push_back(getEcmpFullHashConfig(platform));
+      config.loadBalancers()->push_back(getEcmpFullHashConfig(*hwAsic));
       break;
     case LBHash::HALF_HASH:
-      config.loadBalancers()->push_back(getEcmpHalfHashConfig(platform));
+      config.loadBalancers()->push_back(getEcmpHalfHashConfig(*hwAsic));
       break;
     default:
       throw FbossError("invalid hashing option ", hashType);
@@ -243,7 +243,10 @@ cfg::SwitchConfig createProdRswConfig(
 
   // Create initial config to which we can add the rest of the features.
   auto config = createUplinkDownlinkConfig(
-      hwSwitch,
+      hwSwitch->getPlatform()->getPlatformMapping(),
+      hwSwitch->getPlatform()->getAsic(),
+      hwSwitch->getPlatform()->getType(),
+      hwSwitch->getPlatform()->supportsAddRemovePort(),
       masterLogicalPortIds,
       numUplinks,
       uplinkSpeed,
@@ -285,7 +288,10 @@ cfg::SwitchConfig createProdFswConfig(
   auto downlinkSpeed = getPortSpeed(hwSwitch);
 
   auto config = createUplinkDownlinkConfig(
-      hwSwitch,
+      hwSwitch->getPlatform()->getPlatformMapping(),
+      hwSwitch->getPlatform()->getAsic(),
+      hwSwitch->getPlatform()->getType(),
+      hwSwitch->getPlatform()->supportsAddRemovePort(),
       masterLogicalPortIds,
       numUplinks,
       uplinkSpeed,
@@ -318,7 +324,10 @@ cfg::SwitchConfig createProdRswMhnicConfig(
   auto downlinkSpeed = getPortSpeed(hwSwitch);
 
   auto config = createUplinkDownlinkConfig(
-      hwSwitch,
+      hwSwitch->getPlatform()->getPlatformMapping(),
+      hwSwitch->getPlatform()->getAsic(),
+      hwSwitch->getPlatform()->getType(),
+      hwSwitch->getPlatform()->supportsAddRemovePort(),
       masterLogicalPortIds,
       numUplinks,
       uplinkSpeed,

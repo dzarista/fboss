@@ -45,8 +45,6 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
 
   std::optional<uint32_t> getHwLogicalPortId(PortID portID) const override;
 
-  void initPlatformData() override;
-
   folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
 
   std::map<std::string, HwSysPortStats> getSysPortStats() const override;
@@ -119,6 +117,10 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
       const override;
 
   bool needL2EntryForNeighbor() const override;
+
+  multiswitch::StateOperDelta getNextStateOperDelta() override;
+
+  void cancelOperDeltaRequest() override;
 
  private:
   Platform* platform_;

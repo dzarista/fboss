@@ -119,6 +119,9 @@ HwSwitchEnsemble::~HwSwitchEnsemble() {
     // Unregister callbacks before we start destroying hwSwitch
     getHwSwitch()->unregisterCallbacks();
   }
+  if (routingInformationBase_) {
+    routingInformationBase_->stop();
+  }
   // HwSwitch is about to go away, stop observers to let them finish any
   // in flight events.
   stopObservers();
@@ -500,11 +503,8 @@ void HwSwitchEnsemble::setupEnsemble(
         getPlatform()->getHwSwitch(), swSwitchTestServer_->getPort());
   }
 
-  auto hwInitResult = getHwSwitch()->init(
-      haveFeature(MULTISWITCH_THRIFT_SERVER)
-          ? static_cast<HwSwitchCallback*>(thriftSyncer_.get())
-          : this,
-      true /*failHwCallsOnWarmboot*/);
+  auto hwInitResult =
+      getHwSwitch()->init(this, nullptr, true /*failHwCallsOnWarmboot*/);
 
   programmedState_ = hwInitResult.switchState;
   programmedState_ = programmedState_->clone();
@@ -770,7 +770,7 @@ const SwitchIdScopeResolver& HwSwitchEnsemble::scopeResolver() const {
 
 void HwSwitchEnsemble::storeWarmBootState(const state::WarmbootState& state) {
   SwSwitchWarmBootHelper warmBootHelper(
-      getHwSwitch()->getPlatform()->getWarmBootDir());
+      getHwSwitch()->getPlatform()->getDirectoryUtil()->getWarmBootDir());
   warmBootHelper.storeWarmBootState(state);
 }
 } // namespace facebook::fboss

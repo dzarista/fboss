@@ -91,71 +91,33 @@ void validatePhyInfo(
     const phy::PhyInfo& prev,
     const phy::PhyInfo& curr,
     phy::DataPlanePhyChipType chipType) {
-  SCOPED_TRACE(folly::to<std::string>("port ", *prev.name()));
+  SCOPED_TRACE(folly::to<std::string>("port ", *prev.state()->name()));
   SCOPED_TRACE(
       folly::to<std::string>("previous: ", apache::thrift::debugString(prev)));
   SCOPED_TRACE(
       folly::to<std::string>("current: ", apache::thrift::debugString(curr)));
 
-  ASSERT_TRUE(curr.state().has_value());
-  auto currState = curr.state().value_or({});
-  ASSERT_TRUE(curr.stats().has_value());
-  auto currStats = curr.stats().value_or({});
-  ASSERT_TRUE(prev.state().has_value());
-  auto prevState = prev.state().value_or({});
-  ASSERT_TRUE(prev.stats().has_value());
-  auto prevStats = prev.stats().value_or({});
+  auto& currState = *curr.state();
+  auto& currStats = *curr.stats();
+  auto& prevState = *prev.state();
+  auto& prevStats = *prev.stats();
 
   // Assert that a phy info update happened
-  EXPECT_TRUE(*curr.timeCollected() > *prev.timeCollected());
   EXPECT_TRUE(*currState.timeCollected() > *prevState.timeCollected());
   EXPECT_TRUE(*currStats.timeCollected() > *prevStats.timeCollected());
-  CHECK(curr.phyChip().has_value());
-  CHECK(prev.phyChip().has_value());
-  EXPECT_EQ(*curr.phyChip()->type(), chipType);
-  EXPECT_EQ(*prev.phyChip()->type(), chipType);
   EXPECT_EQ(*currState.phyChip()->type(), chipType);
   EXPECT_EQ(*prevState.phyChip()->type(), chipType);
   if (chipType == phy::DataPlanePhyChipType::IPHY) {
     // both current and previous linkState should be true for iphy
-    if (auto linkState = prev.linkState()) {
-      EXPECT_TRUE(*linkState);
-    } else {
-      throw FbossError("linkState of previous iphy info is not set");
-    }
     if (auto linkState = prevState.linkState()) {
       EXPECT_TRUE(*linkState);
     } else {
       throw FbossError("linkState of previous iphy info is not set");
     }
-    if (auto linkState = curr.linkState()) {
-      EXPECT_TRUE(*linkState);
-    } else {
-      throw FbossError("linkState of current iphy info is not set");
-    }
     if (auto linkState = currState.linkState()) {
       EXPECT_TRUE(*linkState);
     } else {
       throw FbossError("linkState of current iphy info is not set");
-    }
-  }
-
-  if (auto prevPcsInfo = prev.line()->pcs()) {
-    // If previous has pcs info, current should also have such info
-    EXPECT_TRUE(curr.line()->pcs());
-    if (auto prevRsFecInfo = prevPcsInfo->rsFec()) {
-      EXPECT_TRUE(curr.line()->pcs()->rsFec());
-      auto currRsFecInfo =
-          apache::thrift::can_throw(curr.line()->pcs()->rsFec());
-      // Assert that fec uncorrectable error count didn't increase
-      EXPECT_EQ(
-          *prevRsFecInfo->uncorrectedCodewords(),
-          *currRsFecInfo->uncorrectedCodewords());
-
-      // Assert that fec correctable error count is the same or increased
-      EXPECT_LE(
-          *prevRsFecInfo->correctedCodewords(),
-          *currRsFecInfo->correctedCodewords());
     }
   }
 
@@ -177,36 +139,6 @@ void validatePhyInfo(
           *currRsFecInfo->correctedCodewords());
     }
   }
-
-  auto checkSideInfo = [](const phy::PhySideInfo& sideInfo) {
-    // PMD checks
-    for (const auto& lane : *sideInfo.pmd()->lanes()) {
-      SCOPED_TRACE(folly::to<std::string>("lane ", lane.first));
-      if (auto cdrLiveStatus = lane.second.cdrLockLive()) {
-        EXPECT_TRUE(*cdrLiveStatus);
-      }
-      if (const auto eyesRef = lane.second.eyes()) {
-        for (const auto& eye : *eyesRef) {
-          if (const auto widthRef = eye.width()) {
-            EXPECT_GT(*widthRef, 0);
-          }
-          if (const auto heightRef = eye.height()) {
-            EXPECT_GT(*heightRef, 0);
-          }
-        }
-      }
-      if (auto snrRef = lane.second.snr()) {
-        EXPECT_NE(*snrRef, 0.0);
-      }
-      // TODO: Also expect > 0 lanes on platforms that support the pmd apis with
-      // sdk >= 6.5.24
-    }
-
-    // Check that interfaceType and medium dont conflict
-    if (sideInfo.interfaceType().has_value()) {
-      validateInterfaceAndMedium(*sideInfo.interfaceType(), *sideInfo.medium());
-    }
-  };
 
   auto checkSideState = [](const phy::PhySideState& sideState) {
     // PMD checks
@@ -252,20 +184,10 @@ void validatePhyInfo(
     SCOPED_TRACE("line side");
     {
       SCOPED_TRACE("previous");
-      EXPECT_EQ(prev.line()->side(), phy::Side::LINE);
-      checkSideInfo(*prev.line());
-    }
-    {
-      SCOPED_TRACE("previous");
       EXPECT_EQ(prevState.line()->side(), phy::Side::LINE);
       EXPECT_EQ(prevStats.line()->side(), phy::Side::LINE);
       checkSideState(*prevState.line());
       checkSideStats(*prevStats.line());
-    }
-    {
-      SCOPED_TRACE("current");
-      EXPECT_EQ(curr.line()->side(), phy::Side::LINE);
-      checkSideInfo(*curr.line());
     }
     {
       SCOPED_TRACE("current");
@@ -277,13 +199,6 @@ void validatePhyInfo(
   }
   if (chipType == phy::DataPlanePhyChipType::XPHY) {
     SCOPED_TRACE("system side");
-    if (auto sysInfo = prev.system()) {
-      checkSideInfo(*sysInfo);
-      EXPECT_TRUE(curr.system());
-      EXPECT_EQ(prev.system()->side(), phy::Side::SYSTEM);
-      EXPECT_EQ(curr.system()->side(), phy::Side::SYSTEM);
-      checkSideInfo(*apache::thrift::can_throw(curr.system()));
-    }
     if (auto sysState = prevState.system()) {
       checkSideState(*sysState);
       EXPECT_TRUE(currState.system());
@@ -330,16 +245,11 @@ TEST_F(LinkTest, iPhyInfoTest) {
           auto phyIt = phyInfoBefore.find(port);
           ASSERT_EVENTUALLY_NE(phyIt, phyInfoBefore.end());
           EXPECT_EVENTUALLY_GT(
-              phyIt->second.timeCollected(), startTime.count());
-          EXPECT_EVENTUALLY_TRUE(phyIt->second.linkState().value_or({}));
+              phyIt->second.state()->timeCollected(), startTime.count());
           EXPECT_EVENTUALLY_GT(
-              phyIt->second.state().value_or({}).timeCollected(),
-              startTime.count());
-          EXPECT_EVENTUALLY_GT(
-              phyIt->second.stats().value_or({}).timeCollected(),
-              startTime.count());
+              phyIt->second.stats()->timeCollected(), startTime.count());
           EXPECT_EVENTUALLY_TRUE(
-              phyIt->second.state().value_or({}).linkState().value_or({}));
+              phyIt->second.state()->linkState().value_or({}));
         }
       });
 
@@ -352,16 +262,12 @@ TEST_F(LinkTest, iPhyInfoTest) {
           auto phyIt = phyInfoAfter.find(port);
           ASSERT_EVENTUALLY_NE(phyIt, phyInfoAfter.end());
           EXPECT_EVENTUALLY_GE(
-              *(phyInfoAfter[port].timeCollected()) -
-                  *(phyInfoBefore[port].timeCollected()),
+              *(phyInfoAfter[port].state()->timeCollected()) -
+                  *(phyInfoBefore[port].state()->timeCollected()),
               20);
           EXPECT_EVENTUALLY_GE(
-              *(phyInfoAfter[port].state().value_or({}).timeCollected()) -
-                  *(phyInfoBefore[port].state().value_or({}).timeCollected()),
-              20);
-          EXPECT_EVENTUALLY_GE(
-              *(phyInfoAfter[port].stats().value_or({}).timeCollected()) -
-                  *(phyInfoBefore[port].stats().value_or({}).timeCollected()),
+              *(phyInfoAfter[port].stats()->timeCollected()) -
+                  *(phyInfoBefore[port].stats()->timeCollected()),
               20);
         }
       });
@@ -398,14 +304,10 @@ TEST_F(LinkTest, xPhyInfoTest) {
           // ASSERT_EVENTUALLY will retry the whole block if failed
           ASSERT_EVENTUALLY_TRUE(phyInfo.has_value())
               << getPortName(port) << " has no xphy info.";
-          ASSERT_EVENTUALLY_TRUE(*phyInfo->timeCollected() > now.count())
-              << getPortName(port) << " didn't update phyInfo";
           ASSERT_EVENTUALLY_TRUE(
-              phyInfo->state().has_value() &&
               *phyInfo->state()->timeCollected() > now.count())
               << getPortName(port) << " didn't update phy state";
           ASSERT_EVENTUALLY_TRUE(
-              phyInfo->stats().has_value() &&
               *phyInfo->stats()->timeCollected() > now.count())
               << getPortName(port) << " didn't update phy stats";
           phyInfoBefore.emplace(port, *phyInfo);
@@ -431,18 +333,13 @@ TEST_F(LinkTest, xPhyInfoTest) {
           ASSERT_EVENTUALLY_TRUE(phyInfo.has_value())
               << getPortName(port) << " has no xphy info.";
           ASSERT_EVENTUALLY_GE(
-              phyInfo->get_timeCollected() -
-                  phyInfoBefore[port].get_timeCollected(),
-              kSecondsBetweenSnapshots)
-              << getPortName(port) << " has no updated xphy info.";
-          ASSERT_EVENTUALLY_GE(
-              phyInfo->state().value_or({}).get_timeCollected() -
-                  phyInfoBefore[port].state().value_or({}).get_timeCollected(),
+              phyInfo->state()->get_timeCollected() -
+                  phyInfoBefore[port].state()->get_timeCollected(),
               kSecondsBetweenSnapshots)
               << getPortName(port) << " has no updated xphy state.";
           ASSERT_EVENTUALLY_GE(
-              phyInfo->stats().value_or({}).get_timeCollected() -
-                  phyInfoBefore[port].stats().value_or({}).get_timeCollected(),
+              phyInfo->stats()->get_timeCollected() -
+                  phyInfoBefore[port].stats()->get_timeCollected(),
               kSecondsBetweenSnapshots)
               << getPortName(port) << " has no updated xphy stats.";
           phyInfoAfter.emplace(port, *phyInfo);

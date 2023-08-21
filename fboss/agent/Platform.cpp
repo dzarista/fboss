@@ -11,6 +11,7 @@
 #include "fboss/agent/Platform.h"
 
 #include "fboss/agent/AgentConfig.h"
+#include "fboss/agent/AgentDirectoryUtil.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/SwitchInfoUtils.h"
 #include "fboss/agent/Utils.h"
@@ -18,44 +19,6 @@
 
 #include <folly/logging/xlog.h>
 #include <string>
-
-DEFINE_string(
-    crash_switch_state_file,
-    "crash_switch_state",
-    "File for dumping SwitchState state on crash");
-
-DEFINE_string(
-    crash_thrift_switch_state_file,
-    "crash_thrift_switch_state",
-    "File for dumping SwitchState thrift on crash");
-
-DEFINE_string(
-    crash_hw_state_file,
-    "crash_hw_state",
-    "File for dumping HW state on crash");
-
-DEFINE_string(
-    hw_config_file,
-    "hw_config",
-    "File for dumping HW config on startup");
-
-DEFINE_string(
-    volatile_state_dir,
-    "/dev/shm/fboss",
-    "Directory for storing volatile state");
-DEFINE_string(
-    persistent_state_dir,
-    "/var/facebook/fboss",
-    "Directory for storing persistent state");
-
-DEFINE_string(
-    volatile_state_dir_phy,
-    "/dev/shm/fboss/qsfp_service/phy",
-    "Directory for storing phy volatile state");
-DEFINE_string(
-    persistent_state_dir_phy,
-    "/var/facebook/fboss/qsfp_service/phy",
-    "Directory for storing phy persistent state");
 
 DEFINE_bool(hide_fabric_ports, false, "Elide ports of type fabric");
 
@@ -68,20 +31,11 @@ Platform::Platform(
     : productInfo_(std::move(productInfo)),
       platformMapping_(std::move(platformMapping)),
       localMac_(localMac),
-      scopeResolver_({}) {}
+      scopeResolver_({}),
+      agentDirUtil_(new AgentDirectoryUtil(
+          FLAGS_volatile_state_dir,
+          FLAGS_persistent_state_dir)) {}
 Platform::~Platform() {}
-
-std::string Platform::getCrashHwStateFile() const {
-  return getCrashInfoDir() + "/" + FLAGS_crash_hw_state_file;
-}
-
-std::string Platform::getCrashSwitchStateFile() const {
-  return getCrashInfoDir() + "/" + FLAGS_crash_switch_state_file;
-}
-
-std::string Platform::getCrashThriftSwitchStateFile() const {
-  return getCrashInfoDir() + "/" + FLAGS_crash_thrift_switch_state_file;
-}
 
 const AgentConfig* Platform::config() {
   if (!config_) {
@@ -247,8 +201,8 @@ int Platform::getLaneCount(cfg::PortProfileID profile) const {
     case cfg::PortProfileID::PROFILE_25G_1_NRZ_NOFEC_COPPER_RACK_YV3_T1:
     case cfg::PortProfileID::PROFILE_53POINT125G_1_PAM4_RS545_COPPER:
     case cfg::PortProfileID::PROFILE_53POINT125G_1_PAM4_RS545_OPTICAL:
-    case cfg::PortProfileID::PROFILE_106POINT25G_1_PAM4_RS544_COPPER:
-    case cfg::PortProfileID::PROFILE_106POINT25G_1_PAM4_RS544_OPTICAL:
+    case cfg::PortProfileID::PROFILE_100G_1_PAM4_RS544_COPPER:
+    case cfg::PortProfileID::PROFILE_100G_1_PAM4_RS544_OPTICAL:
       return 1;
 
     case cfg::PortProfileID::PROFILE_20G_2_NRZ_NOFEC:

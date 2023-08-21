@@ -18,8 +18,6 @@ class SaiFakePlatform : public SaiPlatform {
  public:
   explicit SaiFakePlatform(std::unique_ptr<PlatformProductInfo> productInfo);
   ~SaiFakePlatform() override;
-  std::string getVolatileStateDir() const override;
-  std::string getPersistentStateDir() const override;
   std::string getHwConfig() override;
   HwAsic* getAsic() const override;
   std::vector<PortID> getAllPortsInGroup(PortID portID) const override {
@@ -53,6 +51,10 @@ class SaiFakePlatform : public SaiPlatform {
 
   const std::set<sai_api_t>& getSupportedApiList() const override;
 
+  const AgentDirectoryUtil* getDirectoryUtil() const override {
+    return agentDirUtil_.get();
+  }
+
  private:
   void setupAsic(
       cfg::SwitchType switchType,
@@ -61,6 +63,7 @@ class SaiFakePlatform : public SaiPlatform {
       folly::MacAddress& mac) override;
   folly::test::TemporaryDirectory tmpDir_;
   std::unique_ptr<FakeAsic> asic_;
+  std::unique_ptr<AgentDirectoryUtil> agentDirUtil_;
 };
 
 } // namespace facebook::fboss

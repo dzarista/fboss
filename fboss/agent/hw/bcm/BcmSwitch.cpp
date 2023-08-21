@@ -377,7 +377,13 @@ BcmSwitch::BcmSwitch(BcmPlatform* platform, uint32_t featuresDesired)
       ptpTcMgr_(new BcmPtpTcMgr(this)),
       sysPortMgr_(new UnsupportedFeatureManager("system ports")),
       remoteRifMgr_(new UnsupportedFeatureManager("remote RIF")),
-      udfManager_(new BcmUdfManager(this)) {}
+      udfManager_(new BcmUdfManager(this)) {
+  CHECK(!unitObject_);
+  unitObject_ = BcmAPI::createOnlyUnit(platform_);
+  unit_ = unitObject_->getNumber();
+  unitObject_->setCookie(this);
+  BcmAPI::initUnit(unit_, platform_);
+}
 
 BcmSwitch::~BcmSwitch() {
   XLOG(DBG2) << "Destroying BcmSwitch";
@@ -651,8 +657,14 @@ std::shared_ptr<SwitchState> BcmSwitch::getColdBootSwitchState() const {
   switchSettings->setDefaultVlan(VlanID(defaultVlan));
   switchSettings->setSwitchIdToSwitchInfo(
       scopeResolver->switchIdToSwitchInfo());
-  multiSwitchSwitchSettings->addNode(
-      scopeResolver->scope(switchSettings).matcherString(), switchSettings);
+
+  auto switchId = platform_->getAsic()->getSwitchId()
+      ? *platform_->getAsic()->getSwitchId()
+      : 0;
+  auto matcher =
+      HwSwitchMatcher(std::unordered_set<SwitchID>({SwitchID(switchId)}));
+  multiSwitchSwitchSettings->addNode(matcher.matcherString(), switchSettings);
+
   bootState->resetSwitchSettings(multiSwitchSwitchSettings);
 
   // get cpu queue settings
@@ -783,13 +795,6 @@ void BcmSwitch::setMacAging(std::chrono::seconds agingInterval) {
 void BcmSwitch::minimalInit() {
   std::lock_guard<std::mutex> g(lock_);
 
-  CHECK(!unitObject_);
-  unitObject_ = BcmAPI::createOnlyUnit(platform_);
-  unit_ = unitObject_->getNumber();
-  unitObject_->setCookie(this);
-
-  BcmAPI::initUnit(unit_, platform_);
-
   bootType_ = platform_->getWarmBootHelper()->canWarmBoot()
       ? BootType::WARM_BOOT
       : BootType::COLD_BOOT;
@@ -797,10 +802,9 @@ void BcmSwitch::minimalInit() {
 
 HwInitResult BcmSwitch::initImpl(
     Callback* callback,
-    bool /*failHwCallsOnWarmboot*/,
-    cfg::SwitchType switchType,
-    std::optional<int64_t> switchId) {
-  CHECK(switchType == cfg::SwitchType::NPU)
+    BootType bootType,
+    bool /*failHwCallsOnWarmboot*/) {
+  CHECK(getSwitchType() == cfg::SwitchType::NPU)
       << " Only NPU switch type supported";
   HwInitResult ret;
   ret.rib = std::make_unique<RoutingInformationBase>();
@@ -808,16 +812,8 @@ HwInitResult BcmSwitch::initImpl(
   std::lock_guard<std::mutex> g(lock_);
 
   steady_clock::time_point begin = steady_clock::now();
-  CHECK(!unitObject_);
-  unitObject_ = BcmAPI::createOnlyUnit(platform_);
-  unit_ = unitObject_->getNumber();
-  unitObject_->setCookie(this);
 
-  BcmAPI::initUnit(unit_, platform_);
-
-  bootType_ = platform_->getWarmBootHelper()->canWarmBoot()
-      ? BootType::WARM_BOOT
-      : BootType::COLD_BOOT;
+  bootType_ = bootType;
   auto warmBoot = bootType_ == BootType::WARM_BOOT;
   callback_ = callback;
 
@@ -975,6 +971,8 @@ HwInitResult BcmSwitch::initImpl(
     bootState->publish();
     setProgrammedState(bootState);
     ret.switchState = getColdBootSwitchState();
+    ret.switchState->publish();
+    setProgrammedState(ret.switchState);
     CHECK(ret.switchState->getSwitchSettings()->size());
     auto switchSettings =
         ret.switchState->getSwitchSettings()->cbegin()->second;
@@ -3044,8 +3042,8 @@ bool BcmSwitch::getAndClearNeighborHit(
 }
 
 void BcmSwitch::exitFatal() const {
-  utilCreateDir(platform_->getCrashInfoDir());
-  dumpState(platform_->getCrashHwStateFile());
+  utilCreateDir(platform_->getDirectoryUtil()->getCrashInfoDir());
+  dumpState(platform_->getDirectoryUtil()->getCrashHwStateFile());
   callback_->exitFatal();
 }
 

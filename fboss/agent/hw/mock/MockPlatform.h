@@ -40,13 +40,14 @@ class MockPlatform : public Platform {
   ~MockPlatform() override;
 
   HwSwitch* getHwSwitch() const override;
-  std::string getVolatileStateDir() const override;
-  std::string getPersistentStateDir() const override;
   HwAsic* getAsic() const override;
   static const folly::MacAddress& getMockLocalMac();
   static const folly::IPAddressV6& getMockLinkLocalIp6();
   PlatformPort* getPlatformPort(PortID id) const override;
   HwSwitchWarmBootHelper* getWarmBootHelper() override;
+  const AgentDirectoryUtil* getDirectoryUtil() const override {
+    return agentDirUtil_.get();
+  }
 
   MOCK_METHOD0(
       createHandler,
@@ -83,6 +84,7 @@ class MockPlatform : public Platform {
   std::unique_ptr<MockHwSwitch> hw_;
   std::unique_ptr<MockAsic> asic_;
   std::unordered_map<PortID, std::unique_ptr<MockPlatformPort>> portMapping_;
+  std::unique_ptr<AgentDirectoryUtil> agentDirUtil_;
 };
 
 } // namespace facebook::fboss

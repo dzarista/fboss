@@ -70,9 +70,8 @@ class SaiSwitch : public HwSwitch {
 
   HwInitResult initImpl(
       Callback* callback,
-      bool failHwCallsOnWarmboot,
-      cfg::SwitchType switchType,
-      std::optional<int64_t> switchId) noexcept override;
+      BootType bootType,
+      bool failHwCallsOnWarmboot) noexcept override;
 
   void unregisterCallbacks() noexcept override;
   /*
@@ -85,7 +84,7 @@ class SaiSwitch : public HwSwitch {
    * port RIF is enough to get the egress port.
    */
   bool needL2EntryForNeighbor() const override {
-    return switchType_ == cfg::SwitchType::NPU;
+    return getSwitchType() == cfg::SwitchType::NPU;
   }
 
   std::shared_ptr<SwitchState> stateChangedImpl(
@@ -142,6 +141,11 @@ class SaiSwitch : public HwSwitch {
       sai_size_t buffer_size,
       const void* buffer,
       uint32_t event_type);
+  void pfcDeadlockNotificationCallback(
+      PortSaiId portSaiId,
+      uint8_t queueId,
+      sai_queue_pfc_deadlock_event_type_t deadlockEvent,
+      uint32_t count);
 
   /**
    * Runs a diag cmd on the corresponding unit
@@ -316,16 +320,13 @@ class SaiSwitch : public HwSwitch {
   std::map<PortID, phy::PhyInfo> updateAllPhyInfoLocked();
 
   void updatePmdInfo(
-      phy::PhySideInfo& sideInfo,
       phy::PhySideState& sideState,
       phy::PhySideStats& sideStats,
       std::shared_ptr<SaiPort> port,
-      phy::PmdInfo& lastPmdInfo,
       phy::PmdState& lastPmdState,
       phy::PmdStats& lastPmdStats);
 
   void updatePcsInfo(
-      phy::PhySideInfo& sideInfo,
       phy::PhySideState& sideState,
       phy::PhySideStats& sideStats,
       PortID swPort,
@@ -336,7 +337,6 @@ class SaiSwitch : public HwSwitch {
       std::shared_ptr<SaiPort> port);
 
   void updateRsInfo(
-      phy::PhySideInfo& sideInfo,
       phy::PhySideState& sideState,
       std::shared_ptr<SaiPort> port);
 
@@ -443,7 +443,8 @@ class SaiSwitch : public HwSwitch {
       const void* buffer,
       PortSaiId inPort,
       bool allowMissingSrcPort,
-      cfg::PacketRxReason rxReason);
+      cfg::PacketRxReason rxReason,
+      uint8_t queueId);
 
   void packetRxCallbackLag(
       sai_size_t buffer_size,
@@ -451,7 +452,8 @@ class SaiSwitch : public HwSwitch {
       LagSaiId inAggPort,
       PortSaiId inPort,
       bool allowMissingSrcPort,
-      cfg::PacketRxReason rxReason);
+      cfg::PacketRxReason rxReason,
+      uint8_t queueId);
 
   std::shared_ptr<SwitchState> getColdBootSwitchState();
 
@@ -473,6 +475,13 @@ class SaiSwitch : public HwSwitch {
       const LockPolicyT& lockPolicy);
 
   void initialStateApplied() override;
+
+  void processPfcWatchdogGlobalDelta(const StateDelta& delta);
+  void processPfcDeadlockNotificationCallback(
+      std::optional<cfg::PfcWatchdogRecoveryAction> oldRecoveryAction,
+      std::optional<cfg::PfcWatchdogRecoveryAction> newRecoveryAction);
+  void processPfcDeadlockRecoveryAction(
+      std::optional<cfg::PfcWatchdogRecoveryAction> recoveryAction);
 
   /*
    * SaiSwitch must support a few varieties of concurrent access:
@@ -520,7 +529,6 @@ class SaiSwitch : public HwSwitch {
 
   int64_t watermarkStatsUpdateTime_{0};
   cfg::AsicType asicType_;
-  cfg::SwitchType switchType_{cfg::SwitchType::NPU};
 
   std::map<PortID, phy::PhyInfo> lastPhyInfos_;
   std::unique_ptr<FabricReachabilityManager> fabricReachabilityManager_;

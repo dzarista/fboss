@@ -226,7 +226,7 @@ TEST_F(RackmonTest, BasicScanFoundNone) {
   mon.start();
   std::vector<ModbusDeviceInfo> devs = mon.listDevices();
   EXPECT_EQ(devs.size(), 0);
-  mon.stop();
+  mon.stop(false);
   Request req;
   Response resp;
   req.raw[0] = 100; // Some unknown address, this should throw
@@ -303,7 +303,7 @@ TEST_F(RackmonTest, BasicScanFoundOneMon) {
 
   // Fake that a tick has elapsed on monitor's pollthread.
   mon.monitorTick();
-  mon.stop();
+  mon.stop(false);
   std::vector<ModbusDeviceValueData> data;
   mon.getValueData(data);
   EXPECT_EQ(data.size(), 1);
@@ -351,8 +351,8 @@ TEST_F(RackmonTest, BasicScanFoundOneMon) {
 }
 
 TEST_F(RackmonTest, DormantRecovery) {
-  MockRackmon mon;
   bool commandTimeout = false;
+  MockRackmon mon;
   auto make_flaky = [&commandTimeout]() {
     json exp = R"({
       "device_path": "/tmp/blah",
@@ -396,7 +396,8 @@ TEST_F(RackmonTest, DormantRecovery) {
       {
         "begin": 0,
         "length": 1,
-        "name": "MFG_ID"
+        "name": "MFG_ID",
+        "interval": 0
       }
     ]
   })"_json;

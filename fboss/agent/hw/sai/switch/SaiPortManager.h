@@ -137,6 +137,7 @@ class SaiPortManager {
   SaiQueueHandle* getQueueHandle(
       PortID swId,
       const SaiQueueConfig& saiQueueConfig);
+  SaiQueueHandle* getQueueHandle(PortID swId, uint8_t queueId) const;
   std::map<PortID, HwPortStats> getPortStats() const;
   void changeQueue(
       const std::shared_ptr<Port>& swPort,
@@ -293,13 +294,33 @@ class SaiPortManager {
       const std::shared_ptr<Port>& swPort,
       sai_uint8_t txPfc,
       sai_uint8_t rxPfc);
+  void programPfcWatchdog(
+      const std::shared_ptr<Port>& swPort,
+      std::vector<PfcPriority>& enabledPfcPriorities,
+      const bool portPfcWdEnabled);
+  void programPfcWatchdogTimers(
+      const std::shared_ptr<Port>& swPort,
+      std::vector<PfcPriority>& enabledPfcPriorities,
+      const bool portPfcWdEnabled);
+  void programPfcWatchdogPerQueueEnable(
+      const std::shared_ptr<Port>& swPort,
+      std::vector<PfcPriority>& enabledPfcPriorities,
+      const bool portPfcWdEnabled);
   std::pair<sai_uint8_t, sai_uint8_t> preparePfcConfigs(
       const std::shared_ptr<Port>& swPort);
+  std::vector<sai_map_t> preparePfcDeadlockQueueTimers(
+      std::vector<PfcPriority>& enabledPfcPriorities,
+      uint32_t timerVal);
   void addPfc(const std::shared_ptr<Port>& swPort);
   void changePfc(
       const std::shared_ptr<Port>& oldPort,
       const std::shared_ptr<Port>& newPort);
   void removePfc(const std::shared_ptr<Port>& swPort);
+  void addPfcWatchdog(const std::shared_ptr<Port>& swPort);
+  void changePfcWatchdog(
+      const std::shared_ptr<Port>& oldPort,
+      const std::shared_ptr<Port>& newPort);
+  void removePfcWatchdog(const std::shared_ptr<Port>& swPort);
   void setPortType(PortID portId, cfg::PortType portType);
   void programPfcBuffers(const std::shared_ptr<Port>& swPort);
   void removePfcBuffers(const std::shared_ptr<Port>& swPort);

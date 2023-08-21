@@ -13,12 +13,15 @@
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleFactory.h"
+#include "fboss/agent/hw/test/HwVoqUtils.h"
 
 #include "fboss/agent/benchmarks/AgentBenchmarks.h"
 
 #include <folly/Benchmark.h>
 #include <folly/IPAddress.h>
 #include <folly/logging/xlog.h>
+
+DECLARE_bool(enable_stats_update_thread);
 
 namespace facebook::fboss {
 
@@ -56,24 +59,51 @@ BENCHMARK(HwStatsCollection) {
 
   AgentEnsembleSwitchConfigFn initialConfigFn =
       [numPortsToCollectStats, numRouteCounters](
-          HwSwitch* hwSwitch, const std::vector<PortID>& ports) {
+          SwSwitch* swSwitch, const std::vector<PortID>& ports) {
+        // Disable stats collection thread.
+        FLAGS_enable_stats_update_thread = false;
+
+        // Before m-mpu agent test, use first Asic for initialization.
+        auto switchIds = swSwitch->getHwAsicTable()->getSwitchIDs();
+        CHECK_GE(switchIds.size(), 1);
+        auto asic = swSwitch->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
+
         auto portsNew = ports;
         portsNew.resize(std::min((int)ports.size(), numPortsToCollectStats));
 
         auto config = utility::onePortPerInterfaceConfig(
-            hwSwitch,
+            swSwitch->getPlatformMapping(),
+            asic,
             portsNew,
-            hwSwitch->getPlatform()->getAsic()->desiredLoopbackModes());
-        config.switchSettings()->maxRouteCounterIDs() = numRouteCounters;
+            asic->desiredLoopbackModes());
+        if (asic->isSupported(HwAsic::Feature::ROUTE_COUNTERS)) {
+          config.switchSettings()->maxRouteCounterIDs() = numRouteCounters;
+        }
+        if (asic->getSwitchType() == cfg::SwitchType::VOQ) {
+          config.dsfNodes() = *utility::addRemoteDsfNodeCfg(*config.dsfNodes());
+        }
         return config;
       };
+
   ensemble = createAgentEnsemble(initialConfigFn);
-  auto hwSwitch = ensemble->getHw();
+  int iterations = 10'000;
+
+  // Setup Remote Intf and System Ports
+  if (ensemble->getSw()->getSwitchInfoTable().haveVoqSwitches()) {
+    ensemble->applyNewState(utility::setupRemoteIntfAndSysPorts(
+        ensemble->getProgrammedState(),
+        ensemble->scopeResolver(),
+        ensemble->getSw()->getConfig()));
+    // For VOQ switches we have 2K - 4K remote system ports (each with 4-8
+    // VOQs). This is >10x of local ports on NPU platforms. Therefore, only run
+    // 1000 iterations.
+    iterations = 1000;
+  }
 
   std::vector<PortID> ports = ensemble->masterLogicalPortIds();
   ports.resize(std::min((int)ports.size(), numPortsToCollectStats));
 
-  if (hwSwitch->getPlatform()->getAsic()->isSupported(
+  if (ensemble->getSw()->getHwAsicTable()->isFeatureSupportedOnAnyAsic(
           HwAsic::Feature::ROUTE_COUNTERS)) {
     auto updater = ensemble->getSw()->getRouteUpdater();
     for (auto i = 0; i < numRouteCounters; i++) {
@@ -89,10 +119,9 @@ BENCHMARK(HwStatsCollection) {
     updater.program();
   }
 
-  SwitchStats dummy;
   suspender.dismiss();
-  for (auto i = 0; i < 10'000; ++i) {
-    hwSwitch->updateStats(&dummy);
+  for (auto i = 0; i < iterations; ++i) {
+    ensemble->getSw()->updateStats();
   }
   suspender.rehire();
 }

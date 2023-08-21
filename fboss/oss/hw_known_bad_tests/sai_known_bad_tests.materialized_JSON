@@ -745,6 +745,9 @@
           "test_name_regex": "HwLoadBalancerTestV[46].*"
         },
         {
+          "test_name_regex": "HwVoqSwitchTest.dramEnqueueDequeueBytes"
+        },
+        {
           "test_name_regex": "HwL4PortBlackHolingTest.v[46]UDP"
         },
         {
@@ -830,6 +833,9 @@
         },
         {
           "test_name_regex": "HwWatermarkTest.*"
+        },
+        {
+          "test_name_regex": "HwSplitAgentCallbackTest.txPacket"
         }
     ],
     "brcm/10.0_ea_odp/10.0_ea_odp/tomahawk5": [
@@ -948,9 +954,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -988,9 +991,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -1310,9 +1310,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -1350,9 +1347,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -1801,9 +1795,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -1841,9 +1832,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -2400,9 +2388,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -2440,9 +2425,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -2756,9 +2738,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -2796,9 +2775,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -3167,9 +3143,6 @@
           "test_name_regex": "HwSflowMirrorTest.VerifySampledPacketCount"
         },
         {
-          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRToAllSPTraffic"
-        },
-        {
           "test_name_regex": "HwTest_PROFILE_100G_4_NRZ_RS528.TestProfile"
         },
         {
@@ -3310,9 +3283,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -3350,9 +3320,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -3813,9 +3780,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -3853,9 +3817,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -4199,9 +4160,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -4239,9 +4197,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -4610,9 +4565,6 @@
           "test_name_regex": "HwSflowMirrorTest.VerifySampledPacketCount"
         },
         {
-          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRToAllSPTraffic"
-        },
-        {
           "test_name_regex": "HwTest_PROFILE_100G_4_NRZ_RS528.TestProfile"
         },
         {
@@ -4804,9 +4756,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -4844,9 +4793,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -5313,9 +5259,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -5353,9 +5296,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -5675,9 +5615,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -5715,9 +5652,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -6086,9 +6020,6 @@
           "test_name_regex": "HwSflowMirrorTest.VerifySampledPacketCount"
         },
         {
-          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRToAllSPTraffic"
-        },
-        {
           "test_name_regex": "HwTest_PROFILE_100G_4_NRZ_RS528.TestProfile"
         },
         {
@@ -6256,9 +6187,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -6296,9 +6224,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -6612,9 +6537,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -6652,9 +6574,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -7121,9 +7040,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -7161,9 +7077,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -7507,9 +7420,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -7547,9 +7457,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -7918,9 +7825,6 @@
           "test_name_regex": "HwSflowMirrorTest.VerifySampledPacketCount"
         },
         {
-          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRToAllSPTraffic"
-        },
-        {
           "test_name_regex": "HwTest_PROFILE_100G_4_NRZ_RS528.TestProfile"
         },
         {
@@ -8112,9 +8016,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -8152,9 +8053,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -8492,9 +8390,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -8532,9 +8427,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -8899,9 +8791,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -8939,9 +8828,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -9492,9 +9378,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -9532,9 +9415,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -9854,9 +9734,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -9894,9 +9771,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -10265,9 +10139,6 @@
           "test_name_regex": "HwSflowMirrorTest.VerifySampledPacketCount"
         },
         {
-          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRToAllSPTraffic"
-        },
-        {
           "test_name_regex": "HwTest_PROFILE_100G_4_NRZ_RS528.TestProfile"
         },
         {
@@ -10435,9 +10306,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -10475,9 +10343,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -10791,9 +10656,6 @@
           "test_name_regex": "HwTrunkLoadBalancerTest.*"
         },
         {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRR$"
-        },
-        {
           "test_name_regex": "HwMacLearningTest.VerifySwToHw.*"
         },
         {
@@ -10831,9 +10693,6 @@
         },
         {
           "test_name_regex": "HwTeFlowTrafficTest.*"
-        },
-        {
-          "test_name_regex": "HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
         },
         {
           "test_name_regex": "HwCoppQosTest.*"
@@ -11445,6 +11304,12 @@
         },
         {
           "test_name_regex": "HwAclCounterTest.VerifyCounterBumpOnTtlHitCpu$"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
         }
     ],
     "leaba/1.42.1/1.42.1/simulator": [
@@ -12457,6 +12322,12 @@
         },
         {
           "test_name_regex": "HwAclCounterTest.VerifyCounterBumpOnTtlHitCpu$"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
         }
     ],
     "leaba/1.42.8/1.42.8/gibraltar": [
@@ -12822,6 +12693,12 @@
         },
         {
           "test_name_regex": "HwAclCounterTest.VerifyCounterBumpOnTtlHitCpu$"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
         }
     ],
     "leaba/1.42.8/1.42.8/simulator": [
@@ -13471,371 +13348,6 @@
           "test_name_regex": "HwRouteTest/[01].verifyCpuRouteChange$"
         }
     ],
-    "leaba/1.62.0/1.62.0/gibraltar": [
-        {
-          "test_name_regex": "HwTrafficPfcTest.*"
-        },
-        {
-          "test_name_regex": "HwPfcTest.*"
-        },
-        {
-          "test_name_regex": "HwProdInvariantsMmuLosslessTest.*"
-        },
-        {
-          "test_name_regex": "HwIngressBufferTest.*"
-        },
-        {
-          "test_name_regex": "HwCoppTest/[01].EapolToHighPriQ"
-        },
-        {
-          "test_name_regex": "HwAclCoppTest.*$"
-        },
-        {
-          "test_name_regex": "HwAclQualifierTest.AclIcmp4Qualifiers$"
-        },
-        {
-          "test_name_regex": "HwAclQualifierTest.AclIcmp6Qualifiers$"
-        },
-        {
-          "test_name_regex": "HwAclQualifierTest.AclIp4TcpQualifiers$"
-        },
-        {
-          "test_name_regex": "HwAclQualifierTest.AclIp6TcpQualifiers$"
-        },
-        {
-          "test_name_regex": "HwAclQualifierTest.AclModifyQualifier$"
-        },
-        {
-          "test_name_regex": "HwAclQualifierTest.AclEmptyCodeIcmp$"
-        },
-        {
-          "test_name_regex": "HwAclQualifierTest.AclVlanIDQualifier$"
-        },
-        {
-          "test_name_regex": "HwAclStatTest.AclStatCreateShared$"
-        },
-        {
-          "test_name_regex": "HwAclStatTest.AclStatDeleteShared$"
-        },
-        {
-          "test_name_regex": "HwAclStatTest.AclStatRenameShared$"
-        },
-        {
-          "test_name_regex": "SaiAclTableGroupTest.*$"
-        },
-        {
-          "test_name_regex": "SaiAclTableGroupTrafficTest.*$"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyEcn$"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyEct[01]$"
-        },
-        {
-          "test_name_regex": "HwInDiscardsCounterTest.*$"
-        },
-        {
-          "test_name_regex": "HwInPauseDiscardsCounterTest.rxPauseDisabled$"
-        },
-        {
-          "test_name_regex": "HwLabelEdgeRouteTest/1.ExceedMaxLabels$"
-        },
-        {
-          "test_name_regex": "HwLabelEdgeRouteTest.*TunnelRefTest$"
-        },
-        {
-          "test_name_regex": "HwL2ClassIDTest.*$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/[01].NdpAdvertisementToHighPriQ$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/[01].Ipv6LinkLocalUcastToMidPriQ$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/[01].UnresolvedRoutesToLowPriQueue$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/1.L3MTUErrorToLowPriQ$"
-        },
-        {
-          "test_name_regex": "HwDscpMarkingTest.*$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwMacLearningTest.VerifyHwAgingForTrunk$"
-        },
-        {
-          "test_name_regex": "HwMacLearningTest.VerifySwToHw.*$"
-        },
-        {
-          "test_name_regex": "HwMacLearningTest.VerifyHwToSw.*$"
-        },
-        {
-          "test_name_regex": "HwMacLearningTest.VerifyMacLearningScale$"
-        },
-        {
-          "test_name_regex": "HwMacLearningBatchEntriesTest.*$"
-        },
-        {
-          "test_name_regex": "HwMacLearningMacMoveTest.VerifyMacMoveForPort$"
-        },
-        {
-          "test_name_regex": "HwRouteScaleTest.turboFabricScaleTest$"
-        },
-        {
-          "test_name_regex": "HwMmuTuningTest.*$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/0.JumboFramesToQueues$"
-        },
-        {
-          "test_name_regex": "HwMirrorTest.*$"
-        },
-        {
-          "test_name_regex": "HwPacketFloodTest.*$"
-        },
-        {
-          "test_name_regex": "HwCoppQosTest.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTest.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTrafficTest.*$"
-        },
-        {
-          "test_name_regex": "HwDataPlaneMirrorTest/[01].SpanAclMirror$"
-        },
-        {
-          "test_name_regex": "HwDataPlaneMirrorTest/[01].ErspanAclMirror$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwTrunkTest.TrunkMemberPortDownMinLinksViolated$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwEcmpTrunkTest.TrunkL2ResolveNhopThenLinkDownThenUpThenStateUp$"
-        },
-        {
-          "test_name_regex": "HwL3Test.*$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwAclStatTest.AclStatDelete$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwAclStatTest.AclStatRename$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwAclStatTest.StatNumberOfCounters$"
-        },
-        {
-          "test_name_regex": "HwJumboFramesTest.SuperJumboFramesGetDropped$"
-        },
-        {
-          "test_name_regex": "HwLabelEdgeRouteTest/1.OneLabel$"
-        },
-        {
-          "test_name_regex": "HwLabelEdgeRouteTest/1.MaxLabels$"
-        },
-        {
-          "test_name_regex": "HwMPLSTest/[0123].Pop2Cpu$"
-        },
-        {
-          "test_name_regex": "HwMPLSTest/[0123].MplsMatchPktsNottrapped$"
-        },
-        {
-          "test_name_regex": "HwMPLSTest/[0123].MplsNoMatchPktsToLowPriQ$"
-        },
-        {
-          "test_name_regex": "HwLabelSwitchRouteTest/[01].EcmpModify$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwDataPlaneMirrorTest/[01].ErspanMirrorWithLagMember$"
-        },
-        {
-          "test_name_regex": "HwDataPlaneMirrorTest/[01].TrucatePortErspanMirror$"
-        },
-        {
-          "test_name_regex": "HwDscpQueueMappingTest.VerifyAclAndQosMapConflictCpu$"
-        },
-        {
-          "test_name_regex": ".*VerifyHostToQueueMappingClassIDCpu$"
-        },
-        {
-          "test_name_regex": ".*VerifyHostToQueueMappingClassIDsWithResolveCpu$"
-        },
-        {
-          "test_name_regex": ".*VerifyHostToQueueMappingClassIDsAfterResolveCpu$"
-        },
-        {
-          "test_name_regex": "HwProdInvariantsFswTest.verifyInvariants$"
-        },
-        {
-          "test_name_regex": "HwProdInvariantsRswMhnicTest.verifyInvariants$"
-        },
-        {
-          "test_name_regex": "HwAclPriorityTest.AclsChanged$"
-        },
-        {
-          "test_name_regex": "HwHashPolarizationTest.*$"
-        },
-        {
-          "test_name_regex": "HwHashTrunk[4|8]x[2|3]PolarizationTests.*$"
-        },
-        {
-          "test_name_regex": "HwDiagShellStressTest.stressDiagCmds$"
-        },
-        {
-          "test_name_regex": "HwCoppQueueStuckTest.CpuQueueHighRateTraffic$"
-        },
-        {
-          "test_name_regex": "HwLabelSwitchRouteTest/[01].Swap2Php$"
-        },
-        {
-          "test_name_regex": "HwSflowTest.SflowSamplingEnabled$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwSflowMirrorTest.VerifySampledPacketWithLagMemberAsEgressPort$"
-        },
-        {
-          "test_name_regex": "HwMPLSTest/0.ExpiringTTL$"
-        },
-        {
-          "test_name_regex": "HwMPLSTest/1.ExpiringTTL$"
-        },
-        {
-          "test_name_regex": "HwMPLSTest/2.ExpiringTTL$"
-        },
-        {
-          "test_name_regex": "HwMPLSTest/3.ExpiringTTL$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/[01].Ttl1PacketToLowPriQ$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/[01].DhcpPacketToMidPriQ$"
-        },
-        {
-          "test_name_regex": "HwCoppTest/[01].NdpSolicitNeighbor$"
-        },
-        {
-          "test_name_regex": "HwWatermarkTest.VerifyDeviceWatermark$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwEcmpTrunkTest.TrunkL2ResolveNhopThenLinkAndLACPDownThenUpBeforeReinit$"
-        },
-        {
-          "test_name_regex": "HwRouteTest/[01].VerifyRouting$"
-        },
-        {
-          "test_name_regex": "HwMPLSTest/[01].AclRedirectToNexthop.*$"
-        },
-        {
-          "test_name_regex": "HwMPLSTest/[01].punt2Cpu$"
-        },
-        {
-          "test_name_regex": "HwSflowMirrorTest.VerifySampledPacketCount$"
-        },
-        {
-          "test_name_regex": "HwHashConsistencyTest.*$"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyEcnTrafficNoDrop$"
-        },
-        {
-          "test_name_regex": "HwIpInIpTunnelTest.*$"
-        },
-        {
-          "test_name_regex": "HwPortBandwidthTest/HwPortBandwidthParamTest.VerifyPortRateTraffic/0$"
-        },
-        {
-          "test_name_regex": "HwNeighborTest/0.LinkDownAndUpOnResolvedEntry$"
-        },
-        {
-          "test_name_regex": "HwNeighborTest/0.LinkDownOnResolvedEntry$"
-        },
-        {
-          "test_name_regex": "HwNeighborTest/0.ResolvePendingEntry$"
-        },
-        {
-          "test_name_regex": "HwNeighborTest/0.ResolvePendingEntryThenChangeLookupClass$"
-        },
-        {
-          "test_name_regex": "HwAclStatTest.AclStatCreateMultiple$"
-        },
-        {
-          "test_name_regex": "HwAclStatTest.AclStatShuffle$"
-        },
-        {
-          "test_name_regex": "HwAclStatTest.AclStatDeleteSharedPostWarmBoot$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6RoCE.*$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest.*Sport.*$"
-        },
-        {
-          "test_name_regex": "HwFlowletSwitchingTest.*$"
-        },
-        {
-          "test_name_regex": "HwVoqSwitchWithFabricPortsTest.fabricIsolate$"
-        },
-        {
-          "test_name_regex": "HwUdfTest.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6Flowlet.*$"
-        },
-        {
-          "test_name_regex": "SaiRouteRollbackTest.*WithTrunk.*$"
-        },
-        {
-          "test_name_regex": "HwVoqSwitch*"
-        },
-        {
-          "test_name_regex": "HwFabricSwitchTest.*"
-        },
-        {
-          "test_name_regex": "warm_boot.HwMacLearningAndMyStationInteractionTest.verifyInteractionHwMacLearning$"
-        },
-        {
-          "test_name_regex": "warm_boot.HwMacLearningAndMyStationInteractionTest.verifyInteractionSwMacLearning$"
-        },
-        {
-          "test_name_regex": "HwWatermarkTest.VerifyQueueWatermarkAccuracy$"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyWredThreshold$"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyEcnThreshold$"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
-        },
-        {
-          "test_name_regex": "HwPacketSendTest.PortTxEnableTest$"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyPerQueueWredDropStats$"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyEcnTrafficNoDrop$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest.VerifyCounterBumpOnTtlHitCpu$"
-        }
-    ],
     "leaba/1.65.0/1.65.0/gibraltar": [
         {
           "test_name_regex": "HwTrafficPfcTest.*"
@@ -14199,6 +13711,12 @@
         },
         {
           "test_name_regex": "HwAclCounterTest.VerifyCounterBumpOnTtlHitCpu$"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
         }
     ]
   }

@@ -71,7 +71,8 @@ class MultiNodeLacpTest : public MultiNodeTest {
   cfg::SwitchConfig getConfigWithAggPort(
       cfg::LacpPortRate rate = cfg::LacpPortRate::SLOW) const {
     auto config = utility::multiplePortsPerIntfConfig(
-        platform()->getHwSwitch(),
+        platform()->getPlatformMapping(),
+        platform()->getAsic(),
         testPorts(),
         utility::kDefaultLoopbackMap(),
         true, /* interfaceHasSubnet */
@@ -84,7 +85,7 @@ class MultiNodeLacpTest : public MultiNodeTest {
       addAggPort(aggId, {portList[idx++], portList[idx++]}, &config, rate);
     }
     config.loadBalancers() =
-        utility::getEcmpFullTrunkHalfHashConfig(platform());
+        utility::getEcmpFullTrunkHalfHashConfig(*platform()->getAsic());
 
     config.staticRoutesWithNhops()->clear();
     setupDefaultRoutes(&config, 2);

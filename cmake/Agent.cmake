@@ -132,6 +132,7 @@ add_library(core
   fboss/agent/ArpHandler.cpp
   fboss/agent/DHCPv4Handler.cpp
   fboss/agent/DHCPv6Handler.cpp
+  fboss/agent/DsfSession.cpp
   fboss/agent/DsfSubscriber.cpp
   fboss/agent/FabricReachabilityManager.cpp
   fboss/agent/EncapIndexAllocator.cpp
@@ -225,6 +226,7 @@ target_link_libraries(core
   Folly::folly
   normalizer
   bidirectional_packet_stream
+  fsdb_common_cpp2
   fsdb_stream_client
   fsdb_pub_sub
   fsdb_flags
@@ -282,6 +284,7 @@ add_library(platform_base
 
 target_link_libraries(platform_base
   agent_config_cpp2
+  agent_dir_util
   ctrl_cpp2
   error
   fboss_types
@@ -307,6 +310,7 @@ target_link_libraries(hw_switch
   route_update_wrapper
   hw_switch_fb303_stats
   hw_write_behavior
+  hw_switch_warmboot_helper
 )
 
 add_library(async_logger
@@ -482,6 +486,14 @@ target_link_libraries(split_agent_initializer
   Folly::folly
   sw_agent_initializer
   multiswitch_service
+)
+
+add_library(agent_dir_util
+  fboss/agent/AgentDirectoryUtil.cpp
+)
+
+target_link_libraries(agent_dir_util
+  Folly::folly
 )
 
 add_executable(fboss_sw_agent

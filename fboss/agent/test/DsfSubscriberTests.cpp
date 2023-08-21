@@ -71,16 +71,16 @@ class DsfSubscriberTest : public ::testing::Test {
 
   void updateDsfInNode(
       MultiSwitchDsfNodeMap* dsfNodes,
-      cfg::DsfNode& dsfConifg,
+      cfg::DsfNode& dsfConfig,
       bool add) {
     if (add) {
-      auto dsfNode = std::make_shared<DsfNode>(SwitchID(*dsfConifg.switchId()));
-      dsfNode->setName(*dsfConifg.name());
-      dsfNode->setType(*dsfConifg.type());
-      dsfNode->setLoopbackIps(*dsfConifg.loopbackIps());
+      auto dsfNode = std::make_shared<DsfNode>(SwitchID(*dsfConfig.switchId()));
+      dsfNode->setName(*dsfConfig.name());
+      dsfNode->setType(*dsfConfig.type());
+      dsfNode->setLoopbackIps(*dsfConfig.loopbackIps());
       dsfNodes->addNode(dsfNode, matcher());
     } else {
-      dsfNodes->removeNode(*dsfConifg.switchId());
+      dsfNodes->removeNode(*dsfConfig.switchId());
     }
   }
 
@@ -224,16 +224,27 @@ TEST_F(DsfSubscriberTest, setupNeighbors) {
 }
 
 TEST_F(DsfSubscriberTest, addSubscription) {
-  auto verifySubsriptionState = [&](cfg::DsfNode& nodeConfig,
-                                    auto subscriptionInfoList) {
+  auto verifySubscriptionState = [&](cfg::DsfNode& nodeConfig,
+                                     const auto& subscriptionInfoList) {
     auto ipv6Loopback = (*nodeConfig.loopbackIps())[0];
     auto serverStr = ipv6Loopback.substr(0, ipv6Loopback.find("/"));
     for (const auto& subscriptionInfo : subscriptionInfoList) {
       if (subscriptionInfo.server == serverStr) {
-        EXPECT_EQ(subscriptionInfo.paths.size(), 2);
+        EXPECT_EQ(subscriptionInfo.paths.size(), 3);
         EXPECT_EQ(
             subscriptionInfo.state,
             fsdb::FsdbStreamClient::State::DISCONNECTED);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  auto verifyDsfSessionState = [&](cfg::DsfNode& nodeConfig,
+                                   const auto dsfSessionsThrift) {
+    for (const auto& dsfSession : dsfSessionsThrift) {
+      if (dsfSession.remoteName() == nodeConfig.name()) {
+        EXPECT_EQ(*dsfSession.state(), DsfSessionState::CONNECT);
         return true;
       }
     }
@@ -254,8 +265,10 @@ TEST_F(DsfSubscriberTest, addSubscription) {
         return newState;
       });
   EXPECT_EQ(sw_->getDsfSubscriber()->getSubscriptionInfo().size(), 1);
-  EXPECT_TRUE(verifySubsriptionState(
+  EXPECT_TRUE(verifySubscriptionState(
       node5DsfConfig, sw_->getDsfSubscriber()->getSubscriptionInfo()));
+  EXPECT_TRUE(verifyDsfSessionState(
+      node5DsfConfig, sw_->getDsfSubscriber()->getDsfSessionsThrift()));
 
   auto node6DsfConfig = makeDsfNodeCfg(6);
   sw_->updateStateBlocking(
@@ -268,8 +281,10 @@ TEST_F(DsfSubscriberTest, addSubscription) {
         return newState;
       });
   EXPECT_EQ(sw_->getDsfSubscriber()->getSubscriptionInfo().size(), 2);
-  EXPECT_TRUE(verifySubsriptionState(
+  EXPECT_TRUE(verifySubscriptionState(
       node6DsfConfig, sw_->getDsfSubscriber()->getSubscriptionInfo()));
+  EXPECT_TRUE(verifyDsfSessionState(
+      node6DsfConfig, sw_->getDsfSubscriber()->getDsfSessionsThrift()));
 
   // Remove 2 IN nodes
   sw_->updateStateBlocking(
@@ -286,6 +301,7 @@ TEST_F(DsfSubscriberTest, addSubscription) {
         return newState;
       });
   EXPECT_EQ(sw_->getDsfSubscriber()->getSubscriptionInfo().size(), 0);
+  EXPECT_EQ(sw_->getDsfSubscriber()->getDsfSessionsThrift().size(), 0);
 }
 
 TEST_F(DsfSubscriberTest, failedDsfCounter) {
