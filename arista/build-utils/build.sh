@@ -144,6 +144,13 @@ then
       fi
    done
 
+   # 5.19 kernel has additional requirements.
+   if [ $KERNEL == "5.19" ]; then
+      export NO_PRECOMPILED_MODULE=1
+      mkdir -p /tools/
+      ln -s /usr/bin/ /tools/bin
+   fi
+
    cd $BCM_KERNEL_MODULES_DIR
    make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
       kernel_version=2_6 LINUX_UAPI_SPLIT=1 clean

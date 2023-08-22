@@ -114,10 +114,25 @@ maybe_setup_build_env() {
       patch -p1 < patch5-SAI-ksal.patch
    fi
 
-   # In kernel 5.19, a DMA patch is required.
+   # Kernel 5.19 patches.
    if [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]]; then
+      # Patch to account for a DMA header change.
       wget http://dist/storage/fboss/FBOSS-SAI/patch6-SAI-dma_set_mask.patch
       patch -p1 < patch6-SAI-dma_set_mask.patch
+
+      # Patches from BRCM needed for built kmods to work with 5.19 kernel.
+      wget http://dist/storage/fboss/FBOSS-SAI/patch7-SDK-5.19-pre.patch
+      patch -p1 < patch7-SDK-5.19-pre.patch
+      wget http://dist/storage/fboss/FBOSS-SAI/CS00012296362.tar.gz
+      tar -xvf CS00012296362.tar.gz
+      while read -r patchfile; do
+         patch -p0 < ${patchfile}
+      done <<< "$(cat patch_order.txt | tail -n 17 | awk '{print $2}')"
+
+      # More patches! Now we need to fix some conflicting build options and fix the
+      # linux-user-bde Makefile to support NO_PRECOMPILED_MODULE=1.
+      wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post.patch
+      patch -p1 < patch9-SDK-5.19-post.patch
    fi
 
    # Download FBOSS linux header files.
