@@ -160,7 +160,6 @@ then
    time make -j 16
    cd $BCM_KERNEL_MODULES_DIR
    export SDK=$PWD
-
    make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
       kernel_version=2_6 LINUX_UAPI_SPLIT=1 kernel_modules
 else
