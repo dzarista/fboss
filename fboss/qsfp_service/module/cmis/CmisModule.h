@@ -93,7 +93,7 @@ class CmisModule : public QsfpModule {
   /*
    * Returns the current state of prbs (enabled/polynomial)
    */
-  prbs::InterfacePrbsState getPortPrbsStateLocked(Side side) override;
+  prbs::InterfacePrbsState getPortPrbsStateLocked(phy::Side side) override;
 
  protected:
   // QSFP+ requires a bottom 128 byte page describing important monitoring
@@ -319,9 +319,7 @@ class CmisModule : public QsfpModule {
    */
   void latchAndReadVdmDataLocked() override;
 
-  bool supportRemediate() override {
-    return true;
-  }
+  bool supportRemediate() override;
 
   void resetDataPath() override;
 

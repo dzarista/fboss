@@ -56,6 +56,8 @@ std::array<std::string, 9> channelConfigErrorMsg = {
 namespace facebook {
 namespace fboss {
 
+using namespace facebook::fboss::phy;
+
 enum DiagnosticFeatureEncoding {
   NONE = 0x0,
   BER = 0x1,
@@ -3035,6 +3037,16 @@ void CmisModule::updateCmisStateChanged(
     // the latest moduleStateChanged
     moduleStatus.cmisStateChanged() = getModuleStateChanged();
   }
+}
+
+bool CmisModule::supportRemediate() {
+  if (getTransceiverManager()->getPlatformType() ==
+          PlatformType::PLATFORM_MERU400BIU ||
+      getTransceiverManager()->getPlatformType() ==
+          PlatformType::PLATFORM_MERU400BFU) {
+    return false;
+  }
+  return true;
 }
 
 /*

@@ -205,6 +205,29 @@ facebook::fboss::PortStatus fillInPortStatus(
 
 auto constexpr kHwUpdateFailures = "hw_update_failures";
 
+std::string getDrainStateChangedStr(
+    const std::shared_ptr<facebook::fboss::SwitchState>& oldState,
+    const std::shared_ptr<facebook::fboss::SwitchState>& newState,
+    const facebook::fboss::HwSwitchMatcher& matcher) {
+  auto oldActualSwitchDrainState = oldState->getSwitchSettings()
+                                       ->getNodeIf(matcher.matcherString())
+                                       ->getActualSwitchDrainState();
+  auto newActualSwitchDrainState = newState->getSwitchSettings()
+                                       ->getNodeIf(matcher.matcherString())
+                                       ->getActualSwitchDrainState();
+
+  return oldActualSwitchDrainState != newActualSwitchDrainState
+      ? folly::to<std::string>(
+            "[",
+            apache::thrift::util::enumNameSafe(oldActualSwitchDrainState),
+            "->",
+            apache::thrift::util::enumNameSafe(newActualSwitchDrainState),
+            "]")
+      : folly::to<std::string>(
+            apache::thrift::util::enumNameSafe(oldActualSwitchDrainState),
+            "(UNCHANGED)");
+}
+
 } // anonymous namespace
 
 namespace facebook::fboss {
@@ -279,6 +302,24 @@ SwSwitch::SwSwitch(
           supportsAddRemovePort,
           config) {
   platformMapping_ = std::move(platformMapping);
+}
+
+SwSwitch::SwSwitch(
+    HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
+    std::unique_ptr<PlatformMapping> platformMapping,
+    const AgentDirectoryUtil* agentDirUtil,
+    bool supportsAddRemovePort,
+    cfg::SwitchConfig* config,
+    const std::shared_ptr<SwitchState>& initialState)
+    : SwSwitch(
+          std::move(hwSwitchHandlerInitFn),
+          std::move(platformMapping),
+          agentDirUtil,
+          supportsAddRemovePort,
+          config) {
+  initialState->publish();
+  setStateInternal(initialState);
+  CHECK(getAppliedState());
 }
 
 SwSwitch::~SwSwitch() {
@@ -364,9 +405,7 @@ void SwSwitch::stop(bool revertToMinAlpmState) {
   packetTxThreadHeartbeat_.reset();
   lacpThreadHeartbeat_.reset();
   neighborCacheThreadHeartbeat_.reset();
-  if (rib_) {
-    rib_->stop();
-  }
+  rib_->stop();
 
   lookupClassUpdater_.reset();
   lookupClassRouteUpdater_.reset();
@@ -462,11 +501,9 @@ void SwSwitch::setFibSyncTimeForClient(ClientID clientId) {
 
 state::WarmbootState SwSwitch::gracefulExitState() const {
   state::WarmbootState thriftSwitchState;
-  if (rib_) {
-    // For RIB we employ a optmization to serialize only unresolved routes
-    // and recover others from FIB
-    thriftSwitchState.routeTables() = rib_->warmBootState();
-  }
+  // For RIB we employ a optmization to serialize only unresolved routes
+  // and recover others from FIB
+  thriftSwitchState.routeTables() = rib_->warmBootState();
   *thriftSwitchState.swSwitchState() = getAppliedState()->toThrift();
   return thriftSwitchState;
 }
@@ -687,9 +724,41 @@ void SwSwitch::init(
   auto begin = steady_clock::now();
   flags_ = flags;
   auto hwInitRet = hwSwitchInitFn(callback, false /*failHwCallsOnWarmboot*/);
-  auto initialState = hwInitRet.switchState;
-  bootType_ = hwInitRet.bootType;
-  rib_ = std::move(hwInitRet.rib);
+  bootType_ = swSwitchWarmbootHelper_->canWarmBoot() ? BootType::WARM_BOOT
+                                                     : BootType::COLD_BOOT;
+  if (hwInitRet.bootType != bootType_) {
+    // this is being done for preprod2trunk migration. further until tooling is
+    // updated to affect both warm boot flags, HwSwitch will override SwSwitch
+    // boot flag (for monolithic agent).
+    auto bootStr = [](BootType type) {
+      return type == BootType::WARM_BOOT ? "WARM_BOOT" : "COLD_BOOT";
+    };
+    XLOG(INFO) << "Overriding boot type from " << bootStr(bootType_) << " to "
+               << bootStr(hwInitRet.bootType);
+    bootType_ = hwInitRet.bootType;
+  }
+  multiHwSwitchHandler_->start();
+  std::optional<state::WarmbootState> wbState{};
+  if (bootType_ == BootType::WARM_BOOT) {
+    wbState = swSwitchWarmbootHelper_->getWarmBootState();
+  }
+  auto [state, rib] = SwSwitchWarmBootHelper::reconstructStateAndRib(
+      wbState, scopeResolver_->hasL3());
+  rib_ = std::move(rib);
+  auto initialState = state;
+  if (!getAppliedState()) {
+    // Store the initial state
+    initialState->publish();
+    setStateInternal(initialState);
+  } else {
+    // seeded by test
+    initialState = getAppliedState();
+  }
+  auto emptyState = std::make_shared<SwitchState>();
+  emptyState->publish();
+  multiHwSwitchHandler_->stateChanged(
+      StateDelta(emptyState, initialState), false);
+
   fb303::fbData->setCounter(kHwUpdateFailures, 0);
 
   XLOG(DBG0) << "hardware initialized in " << hwInitRet.bootTime
@@ -697,10 +766,6 @@ void SwSwitch::init(
 
   restart_time::init(
       agentDirUtil_->getWarmBootDir(), bootType_ == BootType::WARM_BOOT);
-
-  // Store the initial state
-  initialState->publish();
-  setStateInternal(initialState);
 
   // start LACP thread
   lacpThread_.reset(new std::thread(
@@ -727,7 +792,6 @@ void SwSwitch::init(
         StateDelta(std::make_shared<SwitchState>(), initialState));
   });
 
-  multiHwSwitchHandler_->start();
   startThreads();
   XLOG(DBG2)
       << "Time to init switch and start all threads "
@@ -1514,31 +1578,6 @@ void SwSwitch::linkStateChanged(
     return;
   }
 
-  auto getDrainStateChangedStr =
-      [](const std::shared_ptr<SwitchState>& oldState,
-         const std::shared_ptr<SwitchState>& newState,
-         const HwSwitchMatcher& matcher) {
-        auto oldActualSwitchDrainState =
-            oldState->getSwitchSettings()
-                ->getNodeIf(matcher.matcherString())
-                ->getActualSwitchDrainState();
-        auto newActualSwitchDrainState =
-            newState->getSwitchSettings()
-                ->getNodeIf(matcher.matcherString())
-                ->getActualSwitchDrainState();
-
-        return oldActualSwitchDrainState != newActualSwitchDrainState
-            ? folly::to<std::string>(
-                  "[",
-                  apache::thrift::util::enumNameSafe(oldActualSwitchDrainState),
-                  "->",
-                  apache::thrift::util::enumNameSafe(newActualSwitchDrainState),
-                  "]")
-            : folly::to<std::string>(
-                  apache::thrift::util::enumNameSafe(oldActualSwitchDrainState),
-                  "(UNCHANGED)");
-      };
-
   // Schedule an update for port's operational status
   auto updateOperStateFn = [=](const std::shared_ptr<SwitchState>& state) {
     std::shared_ptr<SwitchState> newState(state);
@@ -2050,22 +2089,14 @@ void SwSwitch::applyConfig(
       reason,
       [&](const shared_ptr<SwitchState>& state) -> shared_ptr<SwitchState> {
         auto originalState = state;
-        auto newState = rib_ ? applyThriftConfig(
-                                   originalState,
-                                   &newConfig,
-                                   supportsAddRemovePort_,
-                                   platformMapping_.get(),
-                                   hwAsicTable_.get(),
-                                   &routeUpdater,
-                                   aclNexthopHandler_.get())
-                             : applyThriftConfig(
-                                   originalState,
-                                   &newConfig,
-                                   supportsAddRemovePort_,
-                                   platformMapping_.get(),
-                                   hwAsicTable_.get(),
-                                   (RoutingInformationBase*)nullptr,
-                                   aclNexthopHandler_.get());
+        auto newState = applyThriftConfig(
+            originalState,
+            &newConfig,
+            supportsAddRemovePort_,
+            platformMapping_.get(),
+            hwAsicTable_.get(),
+            &routeUpdater,
+            aclNexthopHandler_.get());
 
         if (newState && !isValidStateUpdate(StateDelta(state, newState))) {
           throw FbossError("Invalid config passed in, skipping");
@@ -2189,7 +2220,7 @@ void SwSwitch::clearPortStats(
   multiHwSwitchHandler_->clearPortStats(ports);
 }
 
-std::vector<PrbsLaneStats> SwSwitch::getPortAsicPrbsStats(int32_t portId) {
+std::vector<phy::PrbsLaneStats> SwSwitch::getPortAsicPrbsStats(int32_t portId) {
   return multiHwSwitchHandler_->getPortAsicPrbsStats(portId);
 }
 
@@ -2467,5 +2498,4 @@ void SwSwitch::updateDsfSubscriberState(
         syncer->updateDsfSubscriberState(nodeName, oldState, newState);
       });
 }
-
 } // namespace facebook::fboss

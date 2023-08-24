@@ -45,15 +45,25 @@ namespace cfg {
 class SwitchConfig;
 }
 
-template <cfg::SwitchType type>
-struct SwitchTypeT {
+template <cfg::SwitchType type, bool enableIntfNbrTable>
+struct SwitchTypeAndEnableIntfNbrTableT {
   static constexpr auto switchType = type;
+  static constexpr auto intfNbrTable = enableIntfNbrTable;
 };
 
-using SwitchTypes = ::testing::Types<
-    SwitchTypeT<cfg::SwitchType::NPU>,
-    SwitchTypeT<cfg::SwitchType::VOQ>,
-    SwitchTypeT<cfg::SwitchType::FABRIC>>;
+/*
+ * VOQ switches don't support VLANs. Thus, we are in the process of migrating
+ * from using VLAN neighbor tables to Interface neighbor tables.
+ *
+ * Thus, test all switches with Interface neighbor tables enabled.
+ * TODO(skhare) Once migration is complete, stop testing for VLAN neighbor
+ * tables i.e. remove <cfg::SwitchType::NPU, false>.
+ */
+using SwitchTypeAndEnableIntfNbrTable = ::testing::Types<
+    SwitchTypeAndEnableIntfNbrTableT<cfg::SwitchType::NPU, false>,
+    SwitchTypeAndEnableIntfNbrTableT<cfg::SwitchType::NPU, true>,
+    SwitchTypeAndEnableIntfNbrTableT<cfg::SwitchType::VOQ, true>,
+    SwitchTypeAndEnableIntfNbrTableT<cfg::SwitchType::FABRIC, true>>;
 
 /*
  * In the non unit test code state passed to apply*Config is the state

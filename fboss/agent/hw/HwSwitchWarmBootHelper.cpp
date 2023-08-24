@@ -121,7 +121,6 @@ void HwSwitchWarmBootHelper::setCanWarmBoot() {
     throw SysError(errno, "Unable to create ", wbFlag);
   }
   close(updateFd);
-
   XLOG(DBG1) << "Wrote can warm boot flag: " << wbFlag;
 }
 

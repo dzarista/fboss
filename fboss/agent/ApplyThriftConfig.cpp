@@ -101,8 +101,6 @@ namespace {
 
 const uint8_t kV6LinkLocalAddrMask{64};
 
-facebook::fboss::VlanID kPseudoVlanID(0);
-
 // Only one buffer pool is supported systemwide. Variable to track the name
 // and validate during a config change.
 std::optional<std::string> sharedBufferPoolName;
@@ -276,7 +274,7 @@ class ThriftConfigApplier {
       const std::shared_ptr<MultiSwitchTransceiverMap>& transceiverMap);
   std::shared_ptr<SystemPortMap> updateSystemPorts(
       const std::shared_ptr<MultiSwitchPortMap>& ports,
-      const std::shared_ptr<SwitchSettings>& switchSettings);
+      const std::shared_ptr<MultiSwitchSettings>& multiSwitchSettings);
   std::shared_ptr<Port> updatePort(
       const std::shared_ptr<Port>& orig,
       const cfg::Port* cfg,
@@ -331,9 +329,6 @@ class ThriftConfigApplier {
   std::pair<folly::MacAddress, uint16_t> getSystemLacpConfig();
   uint8_t computeMinimumLinkCount(const cfg::AggregatePort& cfg);
   std::shared_ptr<VlanMap> updateVlans();
-  std::shared_ptr<VlanMap> updatePseudoVlans();
-  shared_ptr<Vlan> createPseudoVlan();
-  shared_ptr<Vlan> updatePseudoVlan(const shared_ptr<Vlan>& orig);
   std::shared_ptr<Vlan> createVlan(const cfg::Vlan* config);
   std::shared_ptr<Vlan> updateVlan(
       const std::shared_ptr<Vlan>& orig,
@@ -392,7 +387,6 @@ class ThriftConfigApplier {
       IPAddr ip,
       InterfaceIpInfo addrInfo);
   bool updateNeighborResponseTables(Vlan* vlan, const cfg::Vlan* config);
-  bool updateNbrResponseTablesFromAllIntfCfg(Vlan* vlan);
   bool updateDhcpOverrides(Vlan* vlan, const cfg::Vlan* config);
   std::shared_ptr<InterfaceMap> updateInterfaces();
   shared_ptr<Interface> createInterface(
@@ -483,6 +477,9 @@ class ThriftConfigApplier {
   folly::MacAddress getLocalMac(SwitchID switchId) const;
   SwitchID getSwitchId(const cfg::Interface& intfConfig) const;
   void addRemoteIntfRoute();
+  std::optional<SwitchID> getAnyVoqSwitchId();
+  std::optional<QueueConfig> getDefaultVoqConfigIfChanged(
+      std::shared_ptr<SwitchSettings> switchSettings);
 
   std::shared_ptr<SwitchState> orig_;
   std::shared_ptr<SwitchState> new_;
@@ -562,9 +559,7 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
       new_->resetPorts(
           toMultiSwitchMap<MultiSwitchPortMap>(newPorts, scopeResolver_));
       new_->resetSystemPorts(toMultiSwitchMap<MultiSwitchSystemPortMap>(
-          updateSystemPorts(
-              new_->getPorts(),
-              util::getFirstNodeIf(new_->getSwitchSettings())),
+          updateSystemPorts(new_->getPorts(), new_->getSwitchSettings()),
           scopeResolver_));
       changed = true;
     }
@@ -762,34 +757,30 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
   }
 
   {
+    auto voqSwitchId = getAnyVoqSwitchId();
+    std::shared_ptr<SwitchSettings> origSwitchSettings{};
+    if (voqSwitchId.has_value()) {
+      auto matcher =
+          HwSwitchMatcher(std::unordered_set<SwitchID>({*voqSwitchId}));
+      origSwitchSettings =
+          orig_->getSwitchSettings()->getNodeIf(matcher.matcherString());
+    }
+
     auto newDsfNodes = updateDsfNodes();
     if (newDsfNodes) {
       new_->resetDsfNodes(
           toMultiSwitchMap<MultiSwitchDsfNodeMap>(newDsfNodes, scopeResolver_));
       processUpdatedDsfNodes();
+    }
+    // defaultVoqConfig is used to program VoQ (which is tied to system
+    // port) and hence needs updateSystemPorts() to be invoked if this
+    // changes in addition to DsfNodes itself.
+    if (newDsfNodes ||
+        getDefaultVoqConfigIfChanged(origSwitchSettings).has_value()) {
       new_->resetSystemPorts(toMultiSwitchMap<MultiSwitchSystemPortMap>(
-          updateSystemPorts(
-              new_->getPorts(),
-              util::getFirstNodeIf(new_->getSwitchSettings())),
+          updateSystemPorts(new_->getPorts(), new_->getSwitchSettings()),
           scopeResolver_));
       changed = true;
-    }
-  }
-
-  if (!FLAGS_intf_nbr_tables) {
-    // VOQ/Fabric switches require that the packets are not tagged with any
-    // VLAN. We are gradually enhancing wedge_agent to handle tagged as well as
-    // untagged packets. During this transition, we will use VlanID 0 as
-    // "pseudoVlan" to populate SwitchState/Neighbor cache etc. data structures.
-    // Once the wedge_agent changes are complete, we will no longer need
-    // pseudoVlan notion.
-    if (!util::getFirstNodeIf(new_->getSwitchSettings())->vlansSupported()) {
-      auto pseudoVlans = updatePseudoVlans();
-      if (pseudoVlans) {
-        new_->resetVlans(
-            toMultiSwitchMap<MultiSwitchVlanMap>(pseudoVlans, scopeResolver_));
-        changed = true;
-      }
     }
   }
 
@@ -799,22 +790,67 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
   return new_;
 }
 
+std::optional<SwitchID> ThriftConfigApplier::getAnyVoqSwitchId() {
+  std::optional<SwitchID> switchId;
+  for (const auto& switchIdAndSwitchInfo :
+       *cfg_->switchSettings()->switchIdToSwitchInfo()) {
+    if (switchIdAndSwitchInfo.second.switchType() == cfg::SwitchType::VOQ) {
+      switchId = static_cast<SwitchID>(switchIdAndSwitchInfo.first);
+      break;
+    }
+  }
+  // Returns a switchId only if we have a VoQ switch in config!
+  return switchId;
+}
+
+// Return the new defaultVoqConfig if it is different from the
+// original config.
+std::optional<QueueConfig> ThriftConfigApplier::getDefaultVoqConfigIfChanged(
+    std::shared_ptr<SwitchSettings> origSwitchSettings) {
+  if (cfg_->defaultVoqConfig()->size()) {
+    const auto kNumVoqs = 8;
+    std::optional<QueueConfig> defaultVoqConfig = updatePortQueues(
+        QueueConfig(),
+        *cfg_->defaultVoqConfig(),
+        kNumVoqs,
+        cfg::StreamType::UNICAST);
+    if (!origSwitchSettings ||
+        (origSwitchSettings->getDefaultVoqConfig() != *defaultVoqConfig)) {
+      return defaultVoqConfig;
+    }
+  }
+  return std::nullopt;
+}
+
 void ThriftConfigApplier::processUpdatedDsfNodes() {
-  const auto& switchSettings = util::getFirstNodeIf(new_->getSwitchSettings());
-  auto localSwitchIds = switchSettings->getSwitchIds();
-  for (auto localSwitchId : localSwitchIds) {
+  bool hasVoqSwitch = false;
+  std::unordered_set<SwitchID> localSwitchIds;
+
+  for (auto& [matcherString, switchSettings] :
+       std::as_const(*new_->getSwitchSettings())) {
+    auto localSwitchId = HwSwitchMatcher(matcherString).switchId();
+    localSwitchIds.insert(localSwitchId);
+
     auto origDsfNode = orig_->getDsfNodes()->getNodeIf(localSwitchId);
     if (origDsfNode &&
         origDsfNode->getType() !=
             new_->getDsfNodes()->getNodeIf(localSwitchId)->getType()) {
       throw FbossError("Change in DSF node type is not supported");
     }
+
+    if (switchSettings->l3SwitchType()) {
+      hasVoqSwitch |=
+          (switchSettings->l3SwitchType().value() == cfg::SwitchType::VOQ);
+    }
   }
 
-  if (switchSettings->getSwitchIdsOfType(cfg::SwitchType::VOQ).size() == 0) {
-    // DSF node processing only needed on VOQ Switches
+  // On VOQ switches, DSF nodes in the SwitchState are consumed by the DSF
+  // subscriber to subscribe to every other VOQ switch. Thus, process DSF
+  // nodes if at least one of the switchIDs is for VOQ switch.
+  if (!hasVoqSwitch) {
     return;
   }
+
   auto delta = StateDelta(orig_, new_).getDsfNodesDelta();
   auto getRecyclePortId = [](const std::shared_ptr<DsfNode>& node) {
     CHECK(node->getSystemPortRange().has_value());
@@ -1229,51 +1265,51 @@ void ThriftConfigApplier::updateVlanInterfaces(const Interface* intf) {
 
 shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
     const std::shared_ptr<MultiSwitchPortMap>& ports,
-    const std::shared_ptr<SwitchSettings>& switchSettings) {
+    const std::shared_ptr<MultiSwitchSettings>& multiSwitchSettings) {
   const auto kNumVoqs = 8;
 
   static const std::set<cfg::PortType> kCreateSysPortsFor = {
       cfg::PortType::INTERFACE_PORT, cfg::PortType::RECYCLE_PORT};
   auto sysPorts = std::make_shared<SystemPortMap>();
-  for (const auto& switchIdAndInfo :
-       switchSettings->getSwitchIdToSwitchInfo()) {
-    if (switchIdAndInfo.second.switchType() != cfg::SwitchType::VOQ) {
+
+  for (const auto& [matcherString, portMap] : std::as_const(*ports)) {
+    auto switchId = HwSwitchMatcher(matcherString).switchId();
+    auto switchSettings = multiSwitchSettings->getNodeIf(matcherString);
+    if (switchSettings->l3SwitchType() != cfg::SwitchType::VOQ) {
       continue;
     }
 
-    auto switchId = switchIdAndInfo.first;
     auto dsfNode = cfg_->dsfNodes()->find(switchId)->second;
     auto nodeName = *dsfNode.name();
     CHECK(dsfNode.systemPortRange());
     auto systemPortRange = *dsfNode.systemPortRange();
 
-    for (const auto& portMap : std::as_const(*ports)) {
-      for (const auto& port : std::as_const(*portMap.second)) {
-        if (kCreateSysPortsFor.find(port.second->getPortType()) ==
-            kCreateSysPortsFor.end()) {
-          continue;
-        }
-        auto sysPort = std::make_shared<SystemPort>(
-            SystemPortID{*systemPortRange.minimum() + port.second->getID()});
-        sysPort->setSwitchId(SwitchID(switchId));
-        sysPort->setPortName(
-            folly::sformat("{}:{}", nodeName, port.second->getName()));
-        auto platformPort =
-            platformMapping_->getPlatformPort(port.second->getID());
-        CHECK(platformPort.mapping()->attachedCoreId().has_value());
-        CHECK(platformPort.mapping()->attachedCorePortIndex().has_value());
-        sysPort->setCoreIndex(platformPort.mapping()->attachedCoreId().value());
-        sysPort->setCorePortIndex(
-            platformPort.mapping()->attachedCorePortIndex().value());
-        sysPort->setSpeedMbps(static_cast<int>(port.second->getSpeed()));
-        sysPort->setNumVoqs(kNumVoqs);
-        sysPort->setEnabled(port.second->isEnabled());
-        sysPort->setQosPolicy(port.second->getQosPolicy());
-        sysPort->resetPortQueues(switchSettings->getDefaultVoqConfig());
-        sysPorts->addSystemPort(std::move(sysPort));
+    for (const auto& port : std::as_const(*portMap)) {
+      if (kCreateSysPortsFor.find(port.second->getPortType()) ==
+          kCreateSysPortsFor.end()) {
+        continue;
       }
+      auto sysPort = std::make_shared<SystemPort>(
+          SystemPortID{*systemPortRange.minimum() + port.second->getID()});
+      sysPort->setSwitchId(SwitchID(switchId));
+      sysPort->setPortName(
+          folly::sformat("{}:{}", nodeName, port.second->getName()));
+      auto platformPort =
+          platformMapping_->getPlatformPort(port.second->getID());
+      CHECK(platformPort.mapping()->attachedCoreId().has_value());
+      CHECK(platformPort.mapping()->attachedCorePortIndex().has_value());
+      sysPort->setCoreIndex(platformPort.mapping()->attachedCoreId().value());
+      sysPort->setCorePortIndex(
+          platformPort.mapping()->attachedCorePortIndex().value());
+      sysPort->setSpeedMbps(static_cast<int>(port.second->getSpeed()));
+      sysPort->setNumVoqs(kNumVoqs);
+      sysPort->setEnabled(port.second->isEnabled());
+      sysPort->setQosPolicy(port.second->getQosPolicy());
+      sysPort->resetPortQueues(switchSettings->getDefaultVoqConfig());
+      sysPorts->addSystemPort(std::move(sysPort));
     }
   }
+
   return sysPorts;
 }
 
@@ -1657,12 +1693,11 @@ QueueConfig ThriftConfigApplier::updatePortQueues(
          const std::shared_ptr<PortQueue>& q2) {
         return q1->getID() < q2->getID();
       });
-
   if (newQueues.size() > 0) {
     throw FbossError(
         "Port queue config listed for invalid queues. Maximum",
         " number of queues on this platform is ",
-        origPortQueues.size());
+        maxQueues);
   }
   return newPortQueues;
 }
@@ -1785,6 +1820,7 @@ shared_ptr<Port> ThriftConfigApplier::updatePort(
           .switchIds();
   CHECK_EQ(switchIds.size(), 1);
   auto asic = hwAsicTable_->getHwAsicIf(*switchIds.begin());
+  CHECK(asic != nullptr);
   QueueConfig portQueues;
   for (auto streamType : asic->getQueueStreamTypes(*portConf->portType())) {
     auto maxQueues = asic->getDefaultNumPortQueues(streamType, false);
@@ -2379,54 +2415,6 @@ shared_ptr<Vlan> ThriftConfigApplier::updateVlan(
   newVlan->setDhcpV4Relay(newDhcpV4Relay);
   newVlan->setDhcpV6Relay(newDhcpV6Relay);
   return newVlan;
-}
-
-shared_ptr<VlanMap> ThriftConfigApplier::updatePseudoVlans() {
-  const auto& switchSettings = util::getFirstNodeIf(new_->getSwitchSettings());
-  // Pseudo vlan only case of non vlan supporting configs
-  CHECK(!switchSettings->vlansSupported());
-
-  auto origVlans = orig_->getVlans();
-  auto origVlan = origVlans->getNodeIf(kPseudoVlanID);
-  VlanMap::NodeContainer newVlans;
-  bool changed = false;
-
-  shared_ptr<Vlan> newVlan;
-  if (origVlan) {
-    // update pseudo VLAN
-    newVlan = updatePseudoVlan(origVlan);
-  } else {
-    newVlan = createPseudoVlan();
-  }
-
-  changed |= updateMap(&newVlans, origVlan, newVlan);
-
-  if (!changed) {
-    return nullptr;
-  }
-
-  auto vlans = std::make_shared<VlanMap>(std::move(newVlans));
-  return vlans;
-}
-
-shared_ptr<Vlan> ThriftConfigApplier::updatePseudoVlan(
-    const shared_ptr<Vlan>& orig) {
-  auto newVlan = orig->clone();
-  bool changed_neighbor_table =
-      updateNbrResponseTablesFromAllIntfCfg(newVlan.get());
-
-  if (!changed_neighbor_table) {
-    return nullptr;
-  }
-
-  return newVlan;
-}
-
-shared_ptr<Vlan> ThriftConfigApplier::createPseudoVlan() {
-  auto vlan = make_shared<Vlan>(kPseudoVlanID, std::string("pseudoVlan"));
-  updateNbrResponseTablesFromAllIntfCfg(vlan.get());
-
-  return vlan;
 }
 
 std::shared_ptr<QosPolicyMap> ThriftConfigApplier::updateQosPolicies() {
@@ -3189,60 +3177,6 @@ ThriftConfigApplier::updateNeighborResponseEntry(
   }
 }
 
-bool ThriftConfigApplier::updateNbrResponseTablesFromAllIntfCfg(Vlan* vlan) {
-  auto arpChanged = false, ndpChanged = false;
-  auto origArp = vlan->getArpResponseTable();
-  auto origNdp = vlan->getNdpResponseTable();
-  ArpResponseTable::NodeContainer arpTable;
-  NdpResponseTable::NodeContainer ndpTable;
-
-  std::set<std::pair<folly::IPAddress, uint8_t>> ipAddrsAdded;
-
-  // Add every interface IP address to neighbor response table for pseudo vlan.
-  for (const auto& interfaceCfg : *cfg_->interfaces()) {
-    auto mac = getInterfaceMac(&interfaceCfg);
-    auto intfID = InterfaceID(*interfaceCfg.intfID());
-    auto addresses = getInterfaceAddresses(&interfaceCfg);
-
-    for (const auto& [ip, mask] : addresses) {
-      auto ipAndMask = std::make_pair(ip, mask);
-      auto it = ipAddrsAdded.find(ipAndMask);
-      if (it != ipAddrsAdded.end()) {
-        continue;
-      }
-      ipAddrsAdded.insert(ipAndMask);
-
-      if (ip.isV4()) {
-        auto origNode = origArp->getEntry(ip.asV4());
-        auto newNode = updateNeighborResponseEntry(
-            origNode,
-            ip.asV4(),
-            ThriftConfigApplier::InterfaceIpInfo{mask, mac, intfID});
-        arpChanged |= updateMap(&arpTable, origNode, newNode);
-      } else {
-        auto origNode = origNdp->getEntry(ip.asV6());
-        auto newNode = updateNeighborResponseEntry(
-            origNode,
-            ip.asV6(),
-            ThriftConfigApplier::InterfaceIpInfo{mask, mac, intfID});
-        ndpChanged |= updateMap(&ndpTable, origNode, newNode);
-      }
-    }
-  }
-
-  arpChanged |= origArp->size() != arpTable.size();
-  ndpChanged |= origNdp->size() != ndpTable.size();
-
-  if (arpChanged) {
-    vlan->setArpResponseTable(origArp->clone(std::move(arpTable)));
-  }
-  if (ndpChanged) {
-    vlan->setNdpResponseTable(origNdp->clone(std::move(ndpTable)));
-  }
-
-  return arpChanged || ndpChanged;
-}
-
 bool ThriftConfigApplier::updateNeighborResponseTables(
     Vlan* vlan,
     const cfg::Vlan* config) {
@@ -3760,8 +3694,11 @@ ThriftConfigApplier::updateMultiSwitchSettings() {
       ? origMultiSwitchSettings
       : std::make_shared<MultiSwitchSettings>();
 
-  for (auto& switchIdAndSwitchInfo :
-       *cfg_->switchSettings()->switchIdToSwitchInfo()) {
+  if (scopeResolver_.switchIdToSwitchInfo().size() == 0) {
+    throw FbossError("SwitchIdToSwitchInfo cannot be empty");
+  }
+
+  for (auto& switchIdAndSwitchInfo : scopeResolver_.switchIdToSwitchInfo()) {
     auto switchId = switchIdAndSwitchInfo.first;
     auto matcher = HwSwitchMatcher(
         std::unordered_set<SwitchID>({static_cast<SwitchID>(switchId)}));
@@ -3792,6 +3729,9 @@ ThriftConfigApplier::updateMultiSwitchSettings() {
   }
 
   if (multiSwitchSettingsChange) {
+    if (newMultiSwitchSettings->empty()) {
+      throw FbossError("SwitchSettings cannot be empty");
+    }
     return newMultiSwitchSettings;
   }
 
@@ -3884,17 +3824,10 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings(
     switchSettingsChange = true;
   }
 
-  if (cfg_->defaultVoqConfig()->size()) {
-    const auto kNumVoqs = 8;
-    auto defaultVoqConfig = updatePortQueues(
-        QueueConfig(),
-        *cfg_->defaultVoqConfig(),
-        kNumVoqs,
-        cfg::StreamType::UNICAST);
-    if (origSwitchSettings->getDefaultVoqConfig() != defaultVoqConfig) {
-      newSwitchSettings->setDefaultVoqConfig(defaultVoqConfig);
-      switchSettingsChange = true;
-    }
+  auto defaultVoqConfig = getDefaultVoqConfigIfChanged(origSwitchSettings);
+  if (defaultVoqConfig.has_value()) {
+    newSwitchSettings->setDefaultVoqConfig(*defaultVoqConfig);
+    switchSettingsChange = true;
   }
 
   // TODO - Disallow changing any switchInfo parameter after first
@@ -4223,21 +4156,30 @@ shared_ptr<MultiControlPlane> ThriftConfigApplier::updateControlPlane() {
 
   // check whether queue setting changed
   QueueConfig newQueues;
+  auto switchIds = scopeResolver_.scope(origCPU).switchIds();
+  CHECK(scopeResolver_.hasL3());
+  CHECK_GT(switchIds.size(), 0);
+  // all switches on a given box will have same ASIC, so just pick the first
+  auto asic = hwAsicTable_->getHwAsicIf(*switchIds.begin());
   for (auto streamType : hwAsicTable_->getCpuPortQueueStreamTypes()) {
     auto tmpPortQueues = updatePortQueues(
         origCPU->getQueuesConfig(),
         *cfg_->cpuQueues(),
-        origCPU->getQueues()->size(),
+        asic->getDefaultNumPortQueues(streamType, true),
         streamType,
         qosMap);
     newQueues.insert(
         newQueues.begin(), tmpPortQueues.begin(), tmpPortQueues.end());
   }
-  bool queuesUnchanged = newQueues.size() == origCPU->getQueues()->size();
-  for (int i = 0; i < newQueues.size() && queuesUnchanged; i++) {
-    if (*(newQueues.at(i)) != *(origCPU->getQueues()->at(i))) {
-      queuesUnchanged = false;
-      break;
+  bool queuesUnchanged = false;
+  if (origCPU->getQueues()->size() > 0) {
+    /* on cold boot original queues are 0 */
+    queuesUnchanged = (newQueues.size() == origCPU->getQueues()->size());
+    for (int i = 0; i < newQueues.size() && queuesUnchanged; i++) {
+      if (*(newQueues.at(i)) != *(origCPU->getQueues()->at(i))) {
+        queuesUnchanged = false;
+        break;
+      }
     }
   }
 

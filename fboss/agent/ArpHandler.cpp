@@ -241,7 +241,7 @@ void ArpHandler::floodGratuituousArp() {
       // mostly for agent tests where we dont want to flood arp
       // causing loop, when ports are in loopback
       if (isAnyInterfacePortInLoopbackMode(sw_->getState(), intf)) {
-        XLOG(DBG2) << "Do not flood gratuituous arp on interface: "
+        XLOG(DBG2) << "Do not flood gratuitous arp on interface: "
                    << intf->getName();
         continue;
       }
@@ -250,6 +250,19 @@ void ArpHandler::floodGratuituousArp() {
         if (!addrEntry.isV4()) {
           continue;
         }
+
+        std::optional<PortDescriptor> portDescriptor{std::nullopt};
+        auto switchType = sw_->getSwitchInfoTable().l3SwitchType();
+        if (switchType == cfg::SwitchType::VOQ) {
+          // VOQ switches don't use VLANs (no broadcast domain).
+          // Find the port to send out the pkt with pipeline bypass on.
+          CHECK(intf->getSystemPortID().has_value());
+          portDescriptor = PortDescriptor(
+              getPortID(*intf->getSystemPortID(), sw_->getState()));
+          XLOG(DBG4) << "Sending gratuitous ARP for " << addrEntry.str()
+                     << " Using port: " << portDescriptor.value().str();
+        }
+
         auto v4Addr = addrEntry.asV4();
         // Gratuitous arps have both source and destination IPs set to
         // originator's address
@@ -260,7 +273,8 @@ void ArpHandler::floodGratuituousArp() {
             intf->getMac(),
             v4Addr,
             MacAddress::BROADCAST,
-            v4Addr);
+            v4Addr,
+            portDescriptor);
       }
     }
   }
@@ -298,6 +312,20 @@ void ArpHandler::sendArpRequest(
   sw->getPacketLogger()->log(
       "ARP", "TX", vlanID, srcMac.toString(), senderIP.str(), targetIP.str());
   sw->stats()->arpRequestTx();
+
+  std::optional<PortDescriptor> portDescriptor{std::nullopt};
+  auto switchType = sw->getSwitchInfoTable().l3SwitchType();
+  if (switchType == cfg::SwitchType::VOQ) {
+    // VOQ switches don't use VLANs (no broadcast domain).
+    // Find the port to send out the pkt with pipeline bypass on.
+    auto portID = getInterfacePortToReach(sw->getState(), targetIP);
+    if (portID.has_value()) {
+      portDescriptor = PortDescriptor(portID.value());
+      XLOG(DBG4) << "Sending ARP request for " << targetIP.str()
+                 << " Using port: " << portDescriptor.value().str();
+    }
+  }
+
   sendArp(
       sw,
       vlanID,
@@ -305,7 +333,8 @@ void ArpHandler::sendArpRequest(
       srcMac,
       senderIP,
       MacAddress::BROADCAST,
-      targetIP);
+      targetIP,
+      portDescriptor);
 }
 
 void ArpHandler::sendArpRequest(

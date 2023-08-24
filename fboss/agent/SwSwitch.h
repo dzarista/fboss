@@ -156,6 +156,16 @@ class SwSwitch : public HwSwitchCallback {
       const AgentDirectoryUtil* agentDirUtil,
       bool supportsAddRemovePort,
       cfg::SwitchConfig* config);
+
+  /* used in tests */
+  SwSwitch(
+      HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
+      std::unique_ptr<PlatformMapping> platformMapping,
+      const AgentDirectoryUtil* agentDirUtil,
+      bool supportsAddRemovePort,
+      cfg::SwitchConfig* config,
+      const std::shared_ptr<SwitchState>& initialState);
+
   ~SwSwitch() override;
 
   MultiHwSwitchHandler* getHwSwitchHandler() {
@@ -774,7 +784,7 @@ class SwSwitch : public HwSwitchCallback {
    */
   void clearPortStats(const std::unique_ptr<std::vector<int32_t>>& ports);
 
-  std::vector<PrbsLaneStats> getPortAsicPrbsStats(int32_t portId);
+  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(int32_t portId);
   void clearPortAsicPrbsStats(int32_t portId);
 
   SwitchRunState getSwitchRunState() const;
