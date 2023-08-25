@@ -109,6 +109,8 @@ DEFINE_bool(
     false,
     "Allow external mutations of running config");
 
+DECLARE_bool(intf_nbr_tables);
+
 namespace facebook::fboss {
 
 namespace util {
@@ -608,7 +610,6 @@ template <typename AddressT, typename NeighborThriftT>
 void addRecylePortRifNeighbors(
     const std::shared_ptr<SwitchState> state,
     std::vector<NeighborThriftT>& nbrs) {
-  CHECK(!state->getSwitchSettings()->empty());
   for (const auto& switchIdAndInfo :
        util::getFirstNodeIf(state->getSwitchSettings())
            ->getSwitchIdToSwitchInfo()) {
@@ -632,6 +633,7 @@ void addRecylePortRifNeighbors(
       nbrThrift.mac() = entry->getMac().toString();
       nbrThrift.port() = kRecylePortId;
       nbrThrift.vlanName() = "--";
+      nbrThrift.interfaceID() = kRecylePortId;
       // Local recycle port for RIF, should always be STATIC
       CHECK(entry->getType() == state::NeighborEntryType::STATIC_ENTRY);
       nbrThrift.state() = "STATIC";
@@ -950,6 +952,7 @@ void ThriftHandler::addRemoteNeighbors(
         CHECK(rif->getSystemPortID().has_value());
         nbrThrift.port() = static_cast<int32_t>(*rif->getSystemPortID());
         nbrThrift.vlanName() = "--";
+        nbrThrift.interfaceID() = static_cast<int32_t>(*rif->getSystemPortID());
 
         switch (entry->getType()) {
           case state::NeighborEntryType::STATIC_ENTRY:
@@ -2108,8 +2111,29 @@ int32_t ThriftHandler::flushNeighborEntry(
   ensureConfigured(__func__);
 
   auto parsedIP = toIPAddress(*ip);
-  VlanID vlanID(vlan);
-  return sw_->getNeighborUpdater()->flushEntry(vlanID, parsedIP).get();
+
+  try {
+    if (FLAGS_intf_nbr_tables) {
+      // VOQ switches don't support VLANs. The thrift client will pass
+      // interfaceID instead of VLAN. NPU switches support VLANs, but vlanID is
+      // identical to interfaceID.
+      InterfaceID intfID = InterfaceID(vlan);
+      return sw_->getNeighborUpdater()
+          ->flushEntryForIntf(intfID, parsedIP)
+          .get();
+    } else {
+      VlanID vlanID(vlan);
+      return sw_->getNeighborUpdater()->flushEntry(vlanID, parsedIP).get();
+    }
+  } catch (...) {
+    // TODO(skhare)
+    // Lookup IP in STATIC/DYNAMIC IPs. If present, print error.
+    // If absent, lookup in neighborUpdater(), and flush if present.
+    throw FbossError(
+        "Entry : ",
+        parsedIP,
+        " could not be deleted. Entry is either of type STATIC, DYNAMIC or does not exist");
+  }
 }
 
 void ThriftHandler::getVlanAddresses(Addresses& addrs, int32_t vlan) {
@@ -2592,7 +2616,6 @@ void ThriftHandler::getBlockedNeighbors(
     std::vector<cfg::Neighbor>& blockedNeighbors) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  CHECK(!sw_->getState()->getSwitchSettings()->empty());
   const auto& switchSettings =
       util::getFirstNodeIf(sw_->getState()->getSwitchSettings());
   for (const auto& iter : *(switchSettings->getBlockNeighbors())) {
@@ -2746,7 +2769,6 @@ void ThriftHandler::getInterfacePhyInfo(
 
 bool ThriftHandler::isSwitchDrained() {
   ensureConfigured(__func__);
-  CHECK(!sw_->getState()->getSwitchSettings()->empty());
   auto switchSettings = sw_->getState()->getSwitchSettings()->cbegin()->second;
   return switchSettings->getSwitchDrainState() ==
       cfg::SwitchDrainState::DRAINED;

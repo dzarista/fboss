@@ -478,6 +478,8 @@ void HwSwitchEnsemble::setupEnsemble(
     const HwSwitchEnsembleInitInfo& initInfo) {
   hwAgent_ = std::move(hwAgent);
   linkToggler_ = std::move(linkToggler);
+  swSwitchWarmBootHelper_ = std::make_unique<SwSwitchWarmBootHelper>(
+      getPlatform()->getDirectoryUtil()->getWarmBootDir());
   auto asic = getPlatform()->getAsic();
   cfg::SwitchInfo switchInfo;
   switchInfo.switchType() = asic->getSwitchType();
@@ -491,6 +493,8 @@ void HwSwitchEnsemble::setupEnsemble(
   auto switchIdToSwitchInfo = std::map<int64_t, cfg::SwitchInfo>(
       {{asic->getSwitchId() ? *asic->getSwitchId() : 0, switchInfo}});
   hwAsicTable_ = std::make_unique<HwAsicTable>(switchIdToSwitchInfo);
+  scopeResolver_ =
+      std::make_unique<SwitchIdScopeResolver>(switchIdToSwitchInfo);
   if (haveFeature(MULTISWITCH_THRIFT_SERVER)) {
     std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
         handlers;
@@ -503,22 +507,53 @@ void HwSwitchEnsemble::setupEnsemble(
         getPlatform()->getHwSwitch(), swSwitchTestServer_->getPort());
   }
 
+  auto bootType = swSwitchWarmBootHelper_->canWarmBoot() ? BootType::WARM_BOOT
+                                                         : BootType::COLD_BOOT;
+  std::optional<state::WarmbootState> wbState;
+  if (bootType == BootType::WARM_BOOT) {
+    wbState = swSwitchWarmBootHelper_->getWarmBootState();
+  }
+  auto [initState, rib] = SwSwitchWarmBootHelper::reconstructStateAndRib(
+      wbState, scopeResolver_->hasL3());
+  routingInformationBase_ = std::move(rib);
   auto hwInitResult =
-      getHwSwitch()->init(this, nullptr, true /*failHwCallsOnWarmboot*/);
-
-  programmedState_ = hwInitResult.switchState;
-  programmedState_ = programmedState_->clone();
-  auto settings = util::getFirstNodeIf(programmedState_->getSwitchSettings());
-  auto newSettings = settings->modify(&programmedState_);
-  newSettings->setSwitchIdToSwitchInfo(switchIdToSwitchInfo);
-  routingInformationBase_ = std::move(hwInitResult.rib);
+      getHwSwitch()->init(this, initState, true /*failHwCallsOnWarmboot*/);
+  if (hwInitResult.bootType != bootType) {
+    // this is being done for preprod2trunk migration. further until tooling is
+    // updated to affect both warm boot flags, HwSwitch will override SwSwitch
+    // boot flag (for monolithic agent).
+    auto bootStr = [](BootType type) {
+      return type == BootType::WARM_BOOT ? "WARM_BOOT" : "COLD_BOOT";
+    };
+    XLOG(INFO) << "Overriding boot type from " << bootStr(bootType) << " to "
+               << bootStr(hwInitResult.bootType);
+    bootType = hwInitResult.bootType;
+  }
+  programmedState_ = initState->clone();
+  if (bootType == BootType::WARM_BOOT) {
+    auto settings = util::getFirstNodeIf(programmedState_->getSwitchSettings());
+    auto newSettings = settings->modify(&programmedState_);
+    newSettings->setSwitchIdToSwitchInfo(switchIdToSwitchInfo);
+  } else {
+    /* setup scope info in switch settings */
+    auto multiSwitchSwitchSettings = std::make_shared<MultiSwitchSettings>();
+    auto switchSettings = std::make_shared<SwitchSettings>();
+    switchSettings->setSwitchIdToSwitchInfo(
+        scopeResolver_->switchIdToSwitchInfo());
+    // this is supporting single ASIC (or switch only)
+    for (auto& switchIdAndSwitchInfo : switchIdToSwitchInfo) {
+      auto matcher = HwSwitchMatcher(std::unordered_set<SwitchID>(
+          {static_cast<SwitchID>(switchIdAndSwitchInfo.first)}));
+      multiSwitchSwitchSettings->addNode(
+          matcher.matcherString(), switchSettings);
+    }
+    programmedState_->resetSwitchSettings(multiSwitchSwitchSettings);
+  }
   // HwSwitch::init() returns an unpublished programmedState_.  SwSwitch is
   // normally responsible for publishing it.  Go ahead and call publish now.
   // This will catch errors if test cases accidentally try to modify this
   // programmedState_ without first cloning it.
   programmedState_->publish();
-  scopeResolver_ =
-      std::make_unique<SwitchIdScopeResolver>(switchIdToSwitchInfo);
   StaticL2ForNeighborHwSwitchUpdater updater(this);
   updater.stateUpdated(
       StateDelta(std::make_shared<SwitchState>(), programmedState_));
@@ -769,8 +804,6 @@ const SwitchIdScopeResolver& HwSwitchEnsemble::scopeResolver() const {
 }
 
 void HwSwitchEnsemble::storeWarmBootState(const state::WarmbootState& state) {
-  SwSwitchWarmBootHelper warmBootHelper(
-      getHwSwitch()->getPlatform()->getDirectoryUtil()->getWarmBootDir());
-  warmBootHelper.storeWarmBootState(state);
+  swSwitchWarmBootHelper_->storeWarmBootState(state);
 }
 } // namespace facebook::fboss
