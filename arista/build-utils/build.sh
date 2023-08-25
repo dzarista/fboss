@@ -157,6 +157,8 @@ then
 
    echo "======= Starting Broadcom SDK build ========"
    cd $SAI_BUILD_DIR
+   # BRCM SAI 10.0.0.3 EA does not compile without setting SAI_TUNNEL_SUPPORT=1, this
+   # should ideally be set in one of the Make flags file.
    time make SAI_TUNNEL_SUPPORT=1 -j 16
    cd $BCM_KERNEL_MODULES_DIR
    export SDK=$PWD
