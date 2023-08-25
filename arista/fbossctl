@@ -97,42 +97,41 @@ maybe_setup_build_env() {
    git clone git@github.com:aristanetworks/Aqua_SAI.git
    cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
-   git checkout REL_SAI_EA_10.0.0.2_META_071023
+   git checkout REL_SAI_EA_10.0.0.3_META_081123
    # Use patch0-Jupiter-SAI-Makefile.patch w/SAI < 10.0.0
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
-   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.28_SAI_10.0.0_EA"
-   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.28-d9adc99c1.tar.xz
-   tar -xf sai-sdk-all-6.5.28-d9adc99c1.tar.xz
+   # Patch fixes for 10.0.0.3 SAI EA version due to the HW lane map issue for ports.
+   wget http://dist/storage/fboss/FBOSS-SAI/patch8-SAI-10.0.0.3-port-lane-fix.patch
+   git apply patch8-SAI-10.0.0.3-port-lane-fix.patch
+   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.29_SAI_10.0.0_EA"
+   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.29-d862bc69d.tar.xz
+   tar -xf sai-sdk-all-6.5.29-d862bc69d.tar.xz
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.28
    wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_28_DNX_Kernel_Module_fixes.patch
-   patch "dnx-sdk-6.5.28-gpl-modules/make/Make.config" < patch3-SDK-6_5_28_DNX_Kernel_Module_fixes.patch
+   patch "dnx-sdk-6.5.29-gpl-modules/make/Make.config" < patch3-SDK-6_5_28_DNX_Kernel_Module_fixes.patch
 
    # If kernel is newer than 4.18, need to patch ksal.c for compatibility with newer kernel.
    if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then
-      wget http://dist/storage/fboss/FBOSS-SAI/patch5-SAI-ksal.patch
-      patch -p1 < patch5-SAI-ksal.patch
+      wget http://dist/storage/fboss/FBOSS-SAI/patch5-SAI-ksal-SDK-6_5_29-bringup.patch
+      patch -p1 < patch5-SAI-ksal-SDK-6_5_29-bringup.patch
    fi
 
    # Kernel 5.19 patches.
    if [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]]; then
-      # Patch to account for a DMA header change.
-      wget http://dist/storage/fboss/FBOSS-SAI/patch6-SAI-dma_set_mask.patch
-      patch -p1 < patch6-SAI-dma_set_mask.patch
-
       # Patches from BRCM needed for built kmods to work with 5.19 kernel.
-      wget http://dist/storage/fboss/FBOSS-SAI/patch7-SDK-5.19-pre.patch
-      patch -p1 < patch7-SDK-5.19-pre.patch
-      wget http://dist/storage/fboss/FBOSS-SAI/CS00012296362.tar.gz
-      tar -xvf CS00012296362.tar.gz
+      wget http://dist/storage/fboss/FBOSS-SAI/patch7-SDK-5.19-pre-SDK-6_5_29.patch
+      patch -p1 < patch7-SDK-5.19-pre-SDK-6_5_29.patch
+      wget http://dist/storage/fboss/FBOSS-SAI/CS00012296362-SDK-6_5_29.tar.gz
+      tar -xvf CS00012296362-SDK-6_5_29.tar.gz
       while read -r patchfile; do
          patch -p0 < ${patchfile}
-      done <<< "$(cat patch_order.txt | tail -n 17 | awk '{print $2}')"
+      done <<< "$(cat patch_order.txt | tail -n 3 | awk '{print $2}')"
 
       # More patches! Now we need to fix some conflicting build options and fix the
       # linux-user-bde Makefile to support NO_PRECOMPILED_MODULE=1.
-      wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post.patch
-      patch -p1 < patch9-SDK-5.19-post.patch
+      wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post-SDK-6_5_29.patch
+      patch -p1 < patch9-SDK-5.19-post-SDK-6_5_29.patch
    fi
 
    # Download FBOSS linux header files.

@@ -130,7 +130,7 @@ fi
 export SDK=""
 cd $SAI_BUILD_DIR
 export KERNDIR="$KERNEL_SRC"
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.28_SAI_10.0.0_EA/$ARCH-sdk-6.5.28-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.29_SAI_10.0.0_EA/$ARCH-sdk-6.5.29-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
@@ -157,7 +157,7 @@ then
 
    echo "======= Starting Broadcom SDK build ========"
    cd $SAI_BUILD_DIR
-   time make -j 16
+   time make SAI_TUNNEL_SUPPORT=1 -j 16
    cd $BCM_KERNEL_MODULES_DIR
    export SDK=$PWD
    make -C systems/linux/user/common/ platform=x86-smp_generic_64-2_6 \
