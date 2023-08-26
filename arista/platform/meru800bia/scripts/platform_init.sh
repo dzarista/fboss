@@ -16,6 +16,7 @@ load_kernel_modules() {
                         "scd-smbus"
                         "scd-watchdog"
                         "scd-xcvr"
+                        "dsf-fan-cpld"
                        )
 
    for mod in "${kmodules[@]}"
@@ -38,11 +39,3 @@ load_udev_rules() {
 # Meru800bia init.
 load_kernel_modules
 load_udev_rules
-
-# TODO FIXME: if running kernel 5.19, skip setup.py because the BCM kernel
-# modules will fail to load.
-kernel=$(uname -r)
-if [[ "${kernel}" == "5.19.0" ]]; then
-   touch /tmp/.fboss_skip_setup
-   depmod -A
-fi
