@@ -1,4 +1,4 @@
-# udev rules for MERU800BIA 8/22/2023.
+# udev rules for MERU800BIA 9/1/2023.
 
 # MERU_SCM_CPLD
 SUBSYSTEM=="pci", KERNEL=="0000:07:00.0", ATTR{device}=="0x0001", ATTR{subsystem_vendor}=="0x3475", ATTR{subsystem_device}=="0x0008", RUN{builtin}+="kmod load scd"
@@ -27,7 +27,6 @@ SUBSYSTEM=="i2c", ATTRS{name}=="SCD 0000:07:00.0 SMBus master 0 bus 1", KERNEL==
 
 # SCM I2C SENSORS
 SUBSYSTEM=="hwmon", ATTR{name}=="coretemp", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/CPU_CORE_TEMP"
-SUBSYSTEM=="hwmon", ATTR{name}=="nvme", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/CPU_NVME_TEMP"
 SUBSYSTEM=="hwmon", ATTR{name}=="pmbus", DEVPATH=="*/0000:07:00.0/scm-smbus.0/i2c-*/*-0040/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/CPU_MPS_PMBUS"
 SUBSYSTEM=="hwmon", ATTR{name}=="pxm1310", DEVPATH=="*/0000:07:00.0/scm-smbus.0/i2c-*/*-0030/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/CPU_PXM1310_1"
 SUBSYSTEM=="hwmon", ATTR{name}=="pxe1610", DEVPATH=="*/0000:07:00.0/scm-smbus.0/i2c-*/*-003e/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/CPU_PXE1211"
@@ -106,10 +105,6 @@ SUBSYSTEM=="i2c", ATTR{name}=="SCD 0000:07:00.0 SMBus master 1 bus 0", RUN+="/bi
 SUBSYSTEM=="i2c", ATTR{name}=="SCD 0000:07:00.0 SMBus master 1 bus 2", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0049 || echo tmp75 0x49 > /sys/bus/i2c/devices/i2c-%n/new_device'", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-004a || echo tmp75 0x4a > /sys/bus/i2c/devices/i2c-%n/new_device'"
 SUBSYSTEM=="i2c", ATTR{name}=="SCD 0000:01:00.0 SMBus master 0 bus 0", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0045 || echo raa228228 0x45 > /sys/bus/i2c/devices/i2c-%n/new_device'", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0054 || echo isl68226 0x54 > /sys/bus/i2c/devices/i2c-%n/new_device'", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0055 || echo isl68226 0x55 > /sys/bus/i2c/devices/i2c-%n/new_device'"
 
-# SMB WATCHDOG
-SUBSYSTEM=="watchdog", ACTION=="add", DEVPATH=="/devices/pci0000:00/*/0000:01:00.0/scd-watchdog*", SYMLINK+="watchdog-meru800bia", MODE="0600"
-SUBSYSTEM=="watchdog", ACTION=="add", DEVPATH=="/devices/pci0000:00/*/0000:01:00.0/scd-watchdog*", RUN+="/bin/mkdir -p /run/devmap/watchdogs", RUN+="/bin/ln -sf /dev/watchdog%n /run/devmap/watchdogs/FBOSS_WDT"
-
 # FAN_CPLD
 SUBSYSTEM=="i2c", ATTR{name}=="pali2_cpld", RUN+="/bin/mkdir -p /run/devmap/cplds", RUN+="/bin/ln -sf %S/%p /run/devmap/cplds/FAN_CPLD"
 
@@ -128,4 +123,3 @@ SUBSYSTEM=="pci", ACTION=="remove", RUN+="/bin/sh -c 'find /run/devmap/fpgas/ -x
 SUBSYSTEM=="i2c", ACTION=="remove", RUN+="/bin/sh -c 'find /run/devmap/i2c-busses/ -xtype l -delete'", RUN+="/bin/sh -c 'find /run/devmap/eeproms/ -xtype l -delete'", RUN+="/bin/sh -c 'find /run/devmap/cplds/ -xtype l -delete'"
 SUBSYSTEM=="hwmon", ACTION=="remove", RUN+="/bin/sh -c 'find /run/devmap/sensors/ -xtype l -delete'"
 SUBSYSTEM=="gpio", ACTION=="remove", RUN+="/bin/sh -c 'find /run/devmap/gpiochips/ -xtype l -delete'"
-SUBSYSTEM=="watchdog", ACTION=="remove", RUN+="/bin/sh -c 'find /run/devmap/watchdogs/ -xtype l -delete'"
