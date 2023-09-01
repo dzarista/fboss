@@ -37,7 +37,7 @@ SUBSYSTEM=="i2c", ATTR{name}=="SCD 0000:07:00.0 SMBus master 0 bus 1", RUN+="/bi
 SUBSYSTEM=="i2c", ATTR{name}=="SCD 0000:07:00.0 SMBus master 0 bus 2", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0030 || echo pxm1310 0x30 > /sys/bus/i2c/devices/i2c-%n/new_device'", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-003e || echo pxe1610 0x3e > /sys/bus/i2c/devices/i2c-%n/new_device'", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0040 || echo pxm1310 0x40 > /sys/bus/i2c/devices/i2c-%n/new_device'"
 
 # MERU800BIA_SMB_FPGA
-SUBSYSTEM=="pci", KERNEL=="0000:01:00.0", ATTR{device}=="0x0001", ATTR{subsystem_vendor}=="0x3475", ATTR{subsystem_device}=="0x0001", RUN{builtin}+="kmod load scd"
+SUBSYSTEM=="pci", KERNEL=="0000:01:00.0", ATTR{device}=="0x0001", ATTR{subsystem_vendor}=="0x3475", ATTR{subsystem_device}=="0x0003", RUN{builtin}+="kmod load scd"
 SUBSYSTEM=="pci", KERNEL=="0000:01:00.0", ATTR{vendor}=="0x3475", RUN+="/bin/mkdir -p /run/devmap/fpgas", RUN+="/bin/ln -sf %S%p /run/devmap/fpgas/MERU800BIA_SMB_FPGA"
 
 # MERU800BIA_SMB_FPGA I2C BUS
