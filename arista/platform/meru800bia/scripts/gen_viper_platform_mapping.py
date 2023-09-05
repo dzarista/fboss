@@ -382,7 +382,7 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
          else:
             asicCoreType = "J3_FE"
          fh.write(
-               f"1,1,NPU,{serdesCore},{asicCoreType},{lane},{lane},{lane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{txLane},{rxLane},N,N\n"
+               f"1,1,NPU,{serdesCore},{asicCoreType},{lane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
                )
 
 with open( "viper_port_profile_mapping.csv", "w" ) as fh:
