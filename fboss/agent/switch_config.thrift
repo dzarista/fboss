@@ -827,6 +827,7 @@ enum PacketRxReason {
   DHCPV6 = 17, // DHCPv6
   SAMPLEPACKET = 18, // Sample Packet
   TTL_0 = 19, // Packets with TTL as 0
+  EAPOL = 20, // EAPOL for Macsec
 }
 
 enum PortLoopbackMode {
@@ -1284,6 +1285,15 @@ struct Interface {
   10: bool isStateSyncDisabled = 0;
 
   11: InterfaceType type = InterfaceType.VLAN;
+
+  /* V4 DHCP relay address */
+  12: optional string dhcpRelayAddressV4;
+  /* V6 DHCP relay address */
+  13: optional string dhcpRelayAddressV6;
+
+  /* Override DHCPv4/6 relayer on a per host basis */
+  14: optional map<string, string> dhcpRelayOverridesV4;
+  15: optional map<string, string> dhcpRelayOverridesV6;
 }
 
 struct StaticRouteWithNextHops {
@@ -1562,6 +1572,7 @@ struct SwitchSettings {
   // MAC OUIs used by meta for VM purpose.
   // When queue-per-host is enabled, MACs matching any OUI from this list could get any queue.
   17: list<string> metaMacOuis = [];
+  18: bool needL2EntryForNeighbor;
 }
 
 // Global buffer pool shared by {port, pgs}

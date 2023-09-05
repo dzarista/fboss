@@ -151,6 +151,8 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
+    case HwAsic::Feature::SAI_EAPOL_TRAP:
+    case HwAsic::Feature::L3_MTU_ERROR_TRAP:
       return false;
   }
   return false;
@@ -214,7 +216,7 @@ HwAsic::RecyclePortInfo Jericho3Asic::getRecyclePortInfo() const {
 const std::map<cfg::PortType, cfg::PortLoopbackMode>&
 Jericho3Asic::desiredLoopbackModes() const {
   static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMode = {
-      {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::NIF},
+      {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::PHY},
       {cfg::PortType::FABRIC_PORT, cfg::PortLoopbackMode::MAC},
       {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE}};
   return kLoopbackMode;

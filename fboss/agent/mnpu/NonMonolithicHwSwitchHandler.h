@@ -11,7 +11,7 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
       const SwitchID& switchId,
       const cfg::SwitchInfo& info);
 
-  virtual ~NonMonolithicHwSwitchHandler() override = default;
+  virtual ~NonMonolithicHwSwitchHandler() override;
 
   void exitFatal() const override;
 
@@ -73,10 +73,6 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
 
   void platformStop() override;
 
-  const AgentConfig* config() override;
-
-  const AgentConfig* reloadConfig() override;
-
   std::shared_ptr<SwitchState> stateChanged(
       const StateDelta& delta,
       bool transaction) override;
@@ -101,14 +97,17 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
 
   bool needL2EntryForNeighbor() const override;
 
-  multiswitch::StateOperDelta getNextStateOperDelta() override;
+  multiswitch::StateOperDelta getNextStateOperDelta(
+      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) override;
 
-  void cancelOperDeltaRequest(void) override;
+  void notifyHwSwitchGracefulExit() override;
+  void cancelOperDeltaSync();
 
  private:
   std::condition_variable stateUpdateCV_;
   std::mutex stateUpdateMutex_;
   multiswitch::StateOperDelta* nextOperDelta_{nullptr};
+  multiswitch::StateOperDelta* prevOperDeltaResult_{nullptr};
   bool connected_{false};
   bool deltaReady_{false};
   bool ackReceived_{false};

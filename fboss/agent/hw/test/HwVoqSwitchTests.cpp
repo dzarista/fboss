@@ -93,22 +93,16 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
   std::string kDscpAclCounterName() const {
     return "dscp_acl_counter";
   }
-  std::vector<cfg::CounterType> kCounterTypes() const {
-    // At times, it is non-trivial for SAI implementations to support enabling
-    // bytes counters only or packet counters only. In such cases, SAI
-    // implementations enable bytes as well as packet counters even if only one
-    // of the two is enabled. FBOSS use case does not require enabling only
-    // one, but always enables both packets and bytes counters. Thus, enable
-    // both in the test.
-    // Reference: CS00012271364
-    return {cfg::CounterType::BYTES, cfg::CounterType::PACKETS};
-  }
+
   void addDscpAclWithCounter() {
     auto newCfg = initialConfig();
     auto* acl = utility::addAcl(&newCfg, kDscpAclName());
     acl->dscp() = 0x24;
     utility::addAclStat(
-        &newCfg, kDscpAclName(), kDscpAclCounterName(), kCounterTypes());
+        &newCfg,
+        kDscpAclName(),
+        kDscpAclCounterName(),
+        utility::getAclCounterTypes(getHwSwitch()));
     applyNewConfig(newCfg);
   }
   void addRemoveNeighbor(
@@ -654,7 +648,11 @@ TEST_F(HwVoqSwitchTest, AclQualifiersWithCounter) {
     acl->srcPort() = ecmpHelper.ecmpPortDescriptorAt(0).phyPortID();
     acl->dscp() = 0x24;
 
-    utility::addAclStat(&newCfg, kAclName, kAclCounterName, kCounterTypes());
+    utility::addAclStat(
+        &newCfg,
+        kAclName,
+        kAclCounterName,
+        utility::getAclCounterTypes(getHwSwitch()));
 
     applyNewConfig(newCfg);
   };
@@ -671,7 +669,7 @@ TEST_F(HwVoqSwitchTest, AclQualifiersWithCounter) {
         getProgrammedState(),
         {kAclName},
         kAclCounterName,
-        kCounterTypes());
+        utility::getAclCounterTypes(getHwSwitch()));
   };
 
   verifyAcrossWarmBoots(setup, verify);
@@ -967,7 +965,7 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, addRemoveRemoteNeighbor) {
             {folly::IPAddress("100.0.0.1"), 24},
         }));
     folly::IPAddressV6 kNeighborIp("100::2");
-    uint64_t dummyEncapIndex = 401;
+    uint64_t dummyEncapIndex = 0x200001;
     PortDescriptor kPort(kRemoteSysPortId);
     // Add neighbor
     applyNewState(utility::addRemoveRemoteNeighbor(
@@ -1029,7 +1027,7 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, stressAddRemoveObjects) {
               {folly::IPAddress("100::1"), 64},
               {folly::IPAddress("100.0.0.1"), 24},
           }));
-      uint64_t dummyEncapIndex = 401;
+      uint64_t dummyEncapIndex = 0x200001;
       PortDescriptor kRemotePort(kRemoteSysPortId);
       // Add neighbor
       applyNewState(utility::addRemoveRemoteNeighbor(
@@ -1102,7 +1100,7 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, voqTailDropCounter) {
             {folly::IPAddress("100::1"), 64},
             {folly::IPAddress("100.0.0.1"), 24},
         }));
-    uint64_t dummyEncapIndex = 401;
+    uint64_t dummyEncapIndex = 0x200001;
     PortDescriptor kPort(kRemoteSysPortId);
     // Add neighbor
     applyNewState(utility::addRemoveRemoteNeighbor(
@@ -1162,7 +1160,7 @@ class HwVoqSwitchFullScaleDsfNodesTest
           currState,
           {sysPortDesc},
           false,
-          /* encapIndex */ sysPortDesc.sysPortID());
+          /* encapIndex */ 0x200001);
     }
     applyNewState(currState);
     return sysPortDescs;

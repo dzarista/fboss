@@ -247,18 +247,6 @@ void MultiHwSwitchHandler::platformStop() {
   }
 }
 
-const AgentConfig* MultiHwSwitchHandler::config() {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->config();
-}
-
-const AgentConfig* MultiHwSwitchHandler::reloadConfig() {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->reloadConfig();
-}
-
 std::map<PortID, FabricEndpoint> MultiHwSwitchHandler::getFabricReachability() {
   // TODO - support with multiple switches
   CHECK_EQ(hwSwitchSyncers_.size(), 1);
@@ -357,22 +345,27 @@ MultiHwSwitchHandler::getHwSwitchHandlers() {
 }
 
 multiswitch::StateOperDelta MultiHwSwitchHandler::getNextStateOperDelta(
-    int64_t switchId) {
+    int64_t switchId,
+    std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) {
   if (!isRunning()) {
     throw FbossError("multi hw switch syncer not started");
   }
   auto iter = hwSwitchSyncers_.find(SwitchID(switchId));
   CHECK(iter != hwSwitchSyncers_.end());
-  return iter->second->getNextStateOperDelta();
+  return iter->second->getNextStateOperDelta(std::move(prevOperResult));
 }
 
-void MultiHwSwitchHandler::cancelOperDeltaRequest(int64_t switchId) {
+void MultiHwSwitchHandler::notifyHwSwitchGracefulExit(int64_t switchId) {
   if (!isRunning()) {
     throw FbossError("multi hw switch syncer not started");
   }
   auto iter = hwSwitchSyncers_.find(SwitchID(switchId));
   CHECK(iter != hwSwitchSyncers_.end());
-  return iter->second->cancelOperDeltaRequest();
+
+  // cancel any pending long poll request
+  iter->second->notifyHwSwitchGracefulExit();
+
+  // TODO - remove hwswitch from switch state update list
 }
 
 } // namespace facebook::fboss

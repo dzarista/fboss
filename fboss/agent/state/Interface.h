@@ -32,6 +32,9 @@ namespace facebook::fboss {
 
 class SwitchState;
 
+using DhcpV4OverrideMap = std::map<folly::MacAddress, folly::IPAddressV4>;
+using DhcpV6OverrideMap = std::map<folly::MacAddress, folly::IPAddressV6>;
+
 // both arp table and ndp table have same thrift type representation as map of
 // string to neighbor entry fields. define which of these two members of struct
 // resolves to which class.
@@ -198,6 +201,14 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
   void setNdpTable(state::NeighborEntries ndpTable) {
     set<switch_state_tags::ndpTable>(std::move(ndpTable));
   }
+
+  void setArpTable(std::shared_ptr<ArpTable> table) {
+    ref<switch_state_tags::arpTable>() = std::move(table);
+  }
+  void setNdpTable(std::shared_ptr<NdpTable> table) {
+    ref<switch_state_tags::ndpTable>() = std::move(table);
+  }
+
   template <typename AddressType>
   void setNeighborEntryTable(state::NeighborEntries nbrTable) {
     if constexpr (std::is_same_v<AddressType, folly::IPAddressV4>) {
@@ -218,6 +229,74 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
   }
   void setNdpResponseTable(std::shared_ptr<NdpResponseTable> table) {
     ref<switch_state_tags::ndpResponseTable>() = std::move(table);
+  }
+
+  std::optional<folly::IPAddressV4> getDhcpV4Relay() const {
+    if (auto dhcpV4Relay = cref<switch_state_tags::dhcpV4Relay>()) {
+      return folly::IPAddressV4(dhcpV4Relay->toThrift());
+    }
+    return std::nullopt;
+  }
+
+  void setDhcpV4Relay(std::optional<folly::IPAddressV4> dhcpV4Relay) {
+    if (!dhcpV4Relay) {
+      ref<switch_state_tags::dhcpV4Relay>().reset();
+    } else {
+      set<switch_state_tags::dhcpV4Relay>((*dhcpV4Relay).str());
+    }
+  }
+
+  std::optional<folly::IPAddressV6> getDhcpV6Relay() const {
+    if (auto dhcpV6Relay = cref<switch_state_tags::dhcpV6Relay>()) {
+      return folly::IPAddressV6(dhcpV6Relay->toThrift());
+    }
+    return std::nullopt;
+  }
+
+  void setDhcpV6Relay(std::optional<folly::IPAddressV6> dhcpV6Relay) {
+    if (!dhcpV6Relay) {
+      ref<switch_state_tags::dhcpV6Relay>().reset();
+    } else {
+      set<switch_state_tags::dhcpV6Relay>((*dhcpV6Relay).str());
+    }
+  }
+
+  DhcpV4OverrideMap getDhcpV4RelayOverrides() const {
+    DhcpV4OverrideMap overrideMap{};
+    for (auto iter :
+         std::as_const(*get<switch_state_tags::dhcpRelayOverridesV4>())) {
+      overrideMap.emplace(
+          folly::MacAddress(iter.first),
+          folly::IPAddressV4(iter.second->cref()));
+    }
+    return overrideMap;
+  }
+
+  void setDhcpV4RelayOverrides(DhcpV4OverrideMap map) {
+    std::map<std::string, std::string> overrideMap{};
+    for (auto iter : map) {
+      overrideMap.emplace(iter.first.toString(), iter.second.str());
+    }
+    set<switch_state_tags::dhcpRelayOverridesV4>(std::move(overrideMap));
+  }
+
+  DhcpV6OverrideMap getDhcpV6RelayOverrides() const {
+    DhcpV6OverrideMap overrideMap{};
+    for (auto iter :
+         std::as_const(*get<switch_state_tags::dhcpRelayOverridesV6>())) {
+      overrideMap.emplace(
+          folly::MacAddress(iter.first),
+          folly::IPAddressV6(iter.second->cref()));
+    }
+    return overrideMap;
+  }
+
+  void setDhcpV6RelayOverrides(DhcpV6OverrideMap map) {
+    std::map<std::string, std::string> overrideMap{};
+    for (auto iter : map) {
+      overrideMap.emplace(iter.first.toString(), iter.second.str());
+    }
+    set<switch_state_tags::dhcpRelayOverridesV6>(std::move(overrideMap));
   }
 
   auto getAddresses() const {

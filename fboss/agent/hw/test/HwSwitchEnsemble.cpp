@@ -19,6 +19,7 @@
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/Platform.h"
+#include "fboss/agent/SwRxPacket.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/SwSwitchWarmBootHelper.h"
 #include "fboss/agent/SwitchStats.h"
@@ -65,44 +66,147 @@ namespace facebook::fboss {
 class HwEnsembleMultiSwitchThriftHandler
     : public apache::thrift::ServiceHandler<multiswitch::MultiSwitchCtrl> {
  public:
-#if FOLLY_HAS_COROUTINES
-  folly::coro::Task<apache::thrift::SinkConsumer<fsdb::OperDelta, bool>>
-  co_notifyStateUpdateResult(int64_t switchId) override {
-    co_return {};
-  }
+  explicit HwEnsembleMultiSwitchThriftHandler(HwSwitchEnsemble* ensemble)
+      : ensemble_(ensemble) {}
 
+#if FOLLY_HAS_COROUTINES
   folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>>
   co_notifyLinkEvent(int64_t switchId) override {
-    co_return {};
+    co_return apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>{
+        [switchId,
+         this](folly::coro::AsyncGenerator<multiswitch::LinkEvent&&> gen)
+            -> folly::coro::Task<bool> {
+          while (auto item = co_await gen.next()) {
+            XLOG(DBG3) << "Got link event from switch " << switchId
+                       << " for port " << *item->port()
+                       << " up :" << *item->up();
+            ensemble_->linkStateChanged(PortID(*item->port()), *item->up());
+          }
+          co_return true;
+        },
+        1000 /* buffer size */
+    };
   }
 
   folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::FdbEvent, bool>>
   co_notifyFdbEvent(int64_t switchId) override {
-    co_return {};
+    co_return apache::thrift::SinkConsumer<multiswitch::FdbEvent, bool>{
+        [this,
+         switchId](folly::coro::AsyncGenerator<multiswitch::FdbEvent&&> gen)
+            -> folly::coro::Task<bool> {
+          while (auto item = co_await gen.next()) {
+            XLOG(DBG3) << "Got fdb event from switch " << switchId
+                       << " for port " << *item->entry()->port()
+                       << " mac :" << *item->entry()->mac();
+            auto l2Entry = MultiSwitchThriftHandler::getL2Entry(*item->entry());
+            ensemble_->l2LearningUpdateReceived(l2Entry, *item->updateType());
+          }
+          co_return true;
+        },
+        100 /* buffer size */
+    };
   }
 
   folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::RxPacket, bool>>
   co_notifyRxPacket(int64_t switchId) override {
-    co_return {};
-  }
-
-  folly::coro::Task<apache::thrift::ServerStream<fsdb::OperDelta>>
-  co_getStateUpdates(int64_t switchId) override {
-    co_return apache::thrift::ServerStream<fsdb::OperDelta>::createEmpty();
+    co_return apache::thrift::SinkConsumer<multiswitch::RxPacket, bool>{
+        [this](folly::coro::AsyncGenerator<multiswitch::RxPacket&&> gen)
+            -> folly::coro::Task<bool> {
+          while (auto item = co_await gen.next()) {
+            auto pkt = make_unique<SwRxPacket>(std::move(*item->data()));
+            pkt->setSrcPort(PortID(*item->port()));
+            if (item->vlan()) {
+              pkt->setSrcVlan(VlanID(*item->vlan()));
+            }
+            if (item->aggPort()) {
+              pkt->setSrcAggregatePort(AggregatePortID(*item->aggPort()));
+            }
+            ensemble_->packetReceived(std::move(pkt));
+          }
+          co_return true;
+        },
+        1000 /* buffer size */
+    };
   }
 
   folly::coro::Task<apache::thrift::ServerStream<multiswitch::TxPacket>>
   co_getTxPackets(int64_t switchId) override {
-    co_return apache::thrift::ServerStream<
-        multiswitch::TxPacket>::createEmpty();
+    auto streamAndPublisher =
+        apache::thrift::ServerStream<multiswitch::TxPacket>::createPublisher(
+            [switchId] {
+              XLOG(DBG2) << "Removed stream for switch " << switchId;
+            });
+    auto streamPublisher = std::make_unique<
+        apache::thrift::ServerStreamPublisher<multiswitch::TxPacket>>(
+        std::move(streamAndPublisher.second));
+    // save publisher for serving the stream
+    txStream_ = std::move(streamPublisher);
+    // return stream to the client
+    co_return std::move(streamAndPublisher.first);
   }
 #endif
+
+  void enqueueTxPacket(multiswitch::TxPacket pkt) {
+    txStream_->next(std::move(pkt));
+  }
+
+  void getNextStateOperDelta(
+      multiswitch::StateOperDelta& operDelta,
+      int64_t /*switchId*/,
+      std::unique_ptr<multiswitch::StateOperDelta> /*prevOperResult*/)
+      override {
+    std::unique_lock<std::mutex> lk(operDeltaMutex_);
+    if (!nextOperReady_) {
+      operDeltaCV_.wait(
+          lk, [this] { return nextOperReady_ || operDeltaCancelled_; });
+    }
+    if (nextOperReady_) {
+      operDelta = nextOperDelta_;
+      nextOperReady_ = false;
+      return;
+    }
+    // return empty delta if cancelled
+    operDelta.operDelta() = fsdb::OperDelta();
+    return;
+  }
+
+  void enqueueOperDelta(multiswitch::StateOperDelta delta) {
+    {
+      std::unique_lock<std::mutex> lk(operDeltaMutex_);
+      if (nextOperReady_) {
+        operDeltaCV_.wait(lk, [this] { return !nextOperReady_; });
+      }
+      nextOperDelta_ = std::move(delta);
+      nextOperReady_ = true;
+    }
+    operDeltaCV_.notify_one();
+  }
+
+  void gracefulExit(int64_t /*switchId*/) override {
+    std::unique_lock<std::mutex> lk(operDeltaMutex_);
+    operDeltaCancelled_ = true;
+    operDeltaCV_.notify_one();
+  }
+
+ private:
+  HwSwitchEnsemble* ensemble_;
+  multiswitch::StateOperDelta nextOperDelta_;
+  bool nextOperReady_{false};
+  bool operDeltaCancelled_{false};
+  std::mutex operDeltaMutex_;
+  std::condition_variable operDeltaCV_;
+
+  std::unique_ptr<apache::thrift::ServerStreamPublisher<multiswitch::TxPacket>>
+      txStream_{nullptr};
 };
 
 HwSwitchEnsemble::HwSwitchEnsemble(const Features& featuresDesired)
     : featuresDesired_(featuresDesired) {}
 
 HwSwitchEnsemble::~HwSwitchEnsemble() {
+  if (thriftSyncer_) {
+    thriftSyncer_->stop();
+  }
   if (thriftThread_) {
     thriftThread_->join();
   }
@@ -498,13 +602,17 @@ void HwSwitchEnsemble::setupEnsemble(
   if (haveFeature(MULTISWITCH_THRIFT_SERVER)) {
     std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
         handlers;
-    handlers.emplace_back(
-        std::make_shared<HwEnsembleMultiSwitchThriftHandler>());
+    auto multiSwitchHandler =
+        std::make_shared<HwEnsembleMultiSwitchThriftHandler>(this);
+    multiSwitchThriftHandler_ = multiSwitchHandler.get();
+    handlers.emplace_back(multiSwitchHandler);
     swSwitchTestServer_ = std::make_unique<MultiSwitchTestServer>(handlers);
     XLOG(DBG2) << "Started thrift server on port "
                << swSwitchTestServer_->getPort();
     thriftSyncer_ = std::make_unique<SplitAgentThriftSyncer>(
-        getPlatform()->getHwSwitch(), swSwitchTestServer_->getPort());
+        getPlatform()->getHwSwitch(),
+        swSwitchTestServer_->getPort(),
+        asic->getSwitchId() ? SwitchID(*asic->getSwitchId()) : SwitchID(0));
   }
 
   auto bootType = swSwitchWarmBootHelper_->canWarmBoot() ? BootType::WARM_BOOT
@@ -516,8 +624,11 @@ void HwSwitchEnsemble::setupEnsemble(
   auto [initState, rib] = SwSwitchWarmBootHelper::reconstructStateAndRib(
       wbState, scopeResolver_->hasL3());
   routingInformationBase_ = std::move(rib);
+  HwSwitchCallback* callback = haveFeature(MULTISWITCH_THRIFT_SERVER)
+      ? static_cast<HwSwitchCallback*>(thriftSyncer_.get())
+      : this;
   auto hwInitResult =
-      getHwSwitch()->init(this, initState, true /*failHwCallsOnWarmboot*/);
+      getHwSwitch()->init(callback, initState, true /*failHwCallsOnWarmboot*/);
   if (hwInitResult.bootType != bootType) {
     // this is being done for preprod2trunk migration. further until tooling is
     // updated to affect both warm boot flags, HwSwitch will override SwSwitch
@@ -569,7 +680,7 @@ void HwSwitchEnsemble::setupEnsemble(
 
   thriftThread_ = std::move(thriftThread);
   if (haveFeature(MULTISWITCH_THRIFT_SERVER)) {
-    thriftSyncer_->connect();
+    thriftSyncer_->start();
   }
   switchRunStateChanged(SwitchRunState::INITIALIZED);
   if (routingInformationBase_) {
@@ -600,6 +711,14 @@ void HwSwitchEnsemble::switchRunStateChanged(SwitchRunState switchState) {
     fs_->addFunction(statsCollect, timeInterval, "updateStats");
     fs_->start();
   }
+}
+
+void HwSwitchEnsemble::enqueueTxPacket(multiswitch::TxPacket pkt) {
+  multiSwitchThriftHandler_->enqueueTxPacket(std::move(pkt));
+}
+
+void HwSwitchEnsemble::enqueueOperDelta(multiswitch::StateOperDelta operDelta) {
+  multiSwitchThriftHandler_->enqueueOperDelta(std::move(operDelta));
 }
 
 state::WarmbootState HwSwitchEnsemble::gracefulExitState() const {

@@ -23,7 +23,7 @@ void MultiSwitchThriftHandler::ensureConfigured(
       "fully configured yet");
 }
 
-L2Entry MultiSwitchThriftHandler::getL2Entry(L2EntryThrift thriftEntry) const {
+L2Entry MultiSwitchThriftHandler::getL2Entry(L2EntryThrift thriftEntry) {
   PortDescriptor port = thriftEntry.trunk()
       ? PortDescriptor(AggregatePortID(*thriftEntry.port()))
       : PortDescriptor(PortID(*thriftEntry.port()));
@@ -44,11 +44,6 @@ L2Entry MultiSwitchThriftHandler::getL2Entry(L2EntryThrift thriftEntry) const {
 }
 
 #if FOLLY_HAS_COROUTINES
-folly::coro::Task<apache::thrift::SinkConsumer<fsdb::OperDelta, bool>>
-MultiSwitchThriftHandler::co_notifyStateUpdateResult(int64_t /*switchId*/) {
-  co_return {};
-}
-
 folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>>
 MultiSwitchThriftHandler::co_notifyLinkEvent(int64_t switchId) {
   ensureConfigured(__func__);
@@ -60,7 +55,11 @@ MultiSwitchThriftHandler::co_notifyLinkEvent(int64_t switchId) {
           XLOG(DBG3) << "Got link event from switch " << switchId
                      << " for port " << *item->port() << " up :" << *item->up();
           PortID portId = PortID(*item->port());
-          sw_->linkStateChanged(portId, *item->up());
+          std::optional<phy::LinkFaultStatus> faultStatus;
+          if (item->iPhyLinkFaultStatus()) {
+            faultStatus = *item->iPhyLinkFaultStatus();
+          }
+          sw_->linkStateChanged(portId, *item->up(), faultStatus);
         }
         co_return true;
       },
@@ -112,11 +111,6 @@ MultiSwitchThriftHandler::co_notifyRxPacket(int64_t switchId) {
   };
 }
 
-folly::coro::Task<apache::thrift::ServerStream<fsdb::OperDelta>>
-MultiSwitchThriftHandler::co_getStateUpdates(int64_t /*switchId*/) {
-  co_return apache::thrift::ServerStream<fsdb::OperDelta>::createEmpty();
-}
-
 folly::coro::Task<apache::thrift::ServerStream<multiswitch::TxPacket>>
 MultiSwitchThriftHandler::co_getTxPackets(int64_t switchId) {
   auto streamAndPublisher =
@@ -136,7 +130,14 @@ MultiSwitchThriftHandler::co_getTxPackets(int64_t switchId) {
 
 void MultiSwitchThriftHandler::getNextStateOperDelta(
     multiswitch::StateOperDelta& operDelta,
-    int64_t switchId) {
-  operDelta = sw_->getHwSwitchHandler()->getNextStateOperDelta(switchId);
+    int64_t switchId,
+    std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) {
+  operDelta = sw_->getHwSwitchHandler()->getNextStateOperDelta(
+      switchId, std::move(prevOperResult));
 }
+
+void MultiSwitchThriftHandler::gracefulExit(int64_t switchId) {
+  sw_->getHwSwitchHandler()->notifyHwSwitchGracefulExit(switchId);
+}
+
 } // namespace facebook::fboss

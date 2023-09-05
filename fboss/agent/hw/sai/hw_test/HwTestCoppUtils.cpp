@@ -79,8 +79,6 @@ std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueues(
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::CPU_IS_NHOP, kCoppMidPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
-          cfg::PacketRxReason::L3_MTU_ERROR, kCoppLowPriQueueId),
-      ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::LACP, coppHighPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::TTL_1, kCoppLowPriQueueId),
@@ -92,6 +90,11 @@ std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueues(
           cfg::PacketRxReason::DHCPV6, kCoppMidPriQueueId),
   };
 
+  if (hwAsic->isSupported(HwAsic::Feature::SAI_EAPOL_TRAP)) {
+    rxReasonToQueues.push_back(ControlPlane::makeRxReasonToQueueEntry(
+        cfg::PacketRxReason::EAPOL, coppHighPriQueueId));
+  }
+
   if (hwAsic->isSupported(HwAsic::Feature::SAI_MPLS_TTL_1_TRAP)) {
 #if !defined(TAJO_SDK_VERSION_1_42_1) && !defined(TAJO_SDK_VERSION_1_42_8)
     rxReasonToQueues.push_back(ControlPlane::makeRxReasonToQueueEntry(
@@ -102,6 +105,13 @@ std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueues(
   if (hwAsic->isSupported(HwAsic::Feature::SAI_SAMPLEPACKET_TRAP)) {
     rxReasonToQueues.push_back(ControlPlane::makeRxReasonToQueueEntry(
         cfg::PacketRxReason::SAMPLEPACKET, kCoppLowPriQueueId));
+  }
+
+  // TODO: remove once CS00012311423 is fixed. Gate setting the L3 mtu error
+  // trap on J2/J3 more specifically.
+  if (hwAsic->isSupported(HwAsic::Feature::L3_MTU_ERROR_TRAP)) {
+    rxReasonToQueues.push_back(ControlPlane::makeRxReasonToQueueEntry(
+        cfg::PacketRxReason::L3_MTU_ERROR, kCoppLowPriQueueId));
   }
 
   return rxReasonToQueues;

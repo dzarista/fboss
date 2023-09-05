@@ -8,6 +8,7 @@ namespace py.asyncio neteng.fboss.asyncio.multiswitch_ctrl
 include "fboss/fsdb/if/fsdb_oper.thrift"
 include "fboss/agent/if/ctrl.thrift"
 include "thrift/annotation/cpp.thrift"
+include "fboss/lib/phy/phy.thrift"
 
 @cpp.Type{name = "std::unique_ptr<folly::IOBuf>"}
 typedef binary fbbinary
@@ -15,6 +16,7 @@ typedef binary fbbinary
 struct LinkEvent {
   1: i32 port;
   2: bool up;
+  3: optional phy.LinkFaultStatus iPhyLinkFaultStatus;
 }
 
 struct FdbEvent {
@@ -41,12 +43,6 @@ struct StateOperDelta {
 }
 
 service MultiSwitchCtrl {
-  /* notify result of state update, that was last applied, through sink */
-  sink<fsdb_oper.OperDelta, bool> notifyStateUpdateResult(1: i64 switchId);
-
-  /* keep getting state updates from SwSwitch, through stream */
-  stream<fsdb_oper.OperDelta> getStateUpdates(1: i64 switchId);
-
   /* notify link event through sink */
   sink<LinkEvent, bool> notifyLinkEvent(1: i64 switchId);
 
@@ -60,5 +56,11 @@ service MultiSwitchCtrl {
   stream<TxPacket> getTxPackets(1: i64 switchId);
 
   /* get next oper delta from SwSwitch */
-  StateOperDelta getNextStateOperDelta(1: i64 switchId);
+  StateOperDelta getNextStateOperDelta(
+    1: i64 switchId,
+    2: StateOperDelta prevOperResult,
+  );
+
+  /* HwAgent graceful shutdown notification */
+  void gracefulExit(1: i64 switchId);
 }

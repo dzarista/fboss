@@ -112,10 +112,6 @@ class HwSwitchHandler {
 
   virtual void platformStop() = 0;
 
-  virtual const AgentConfig* config() = 0;
-
-  virtual const AgentConfig* reloadConfig() = 0;
-
   virtual std::map<PortID, FabricEndpoint> getFabricReachability() const = 0;
 
   virtual FabricReachabilityStats getFabricReachabilityStats() const = 0;
@@ -133,9 +129,10 @@ class HwSwitchHandler {
 
   virtual bool needL2EntryForNeighbor() const = 0;
 
-  virtual multiswitch::StateOperDelta getNextStateOperDelta() = 0;
+  virtual multiswitch::StateOperDelta getNextStateOperDelta(
+      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) = 0;
 
-  virtual void cancelOperDeltaRequest() = 0;
+  virtual void notifyHwSwitchGracefulExit() = 0;
 
  private:
   std::shared_ptr<SwitchState> stateChangedImpl(

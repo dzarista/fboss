@@ -185,6 +185,48 @@ void addNeighborEntry(
   }
 }
 
+// Add NeighborEntry to given state. The added entry can be pending or resolved
+// based on port value (nullptr indicates pending entry).
+template <typename NTable>
+void addNeighborEntryToIntfNeighborTable(
+    shared_ptr<SwitchState>* state, // published or unpublished
+    typename NTable::AddressType* ip,
+    MacAddress* mac,
+    InterfaceID* intfID,
+    PortDescriptor* port) { // null port indicates pending entry
+  CHECK(ip);
+  CHECK(intfID);
+
+  shared_ptr<NTable> newNeighborTable = make_shared<NTable>();
+  NTable* newNeighborTablePtr = newNeighborTable.get();
+
+  auto oldNeighborTable = (*state)
+                              ->getInterfaces()
+                              ->getNode(*intfID)
+                              ->template getNeighborTable<NTable>();
+
+  if (oldNeighborTable) {
+    newNeighborTablePtr = oldNeighborTable->modify(*intfID, state);
+  }
+
+  if (port) {
+    newNeighborTablePtr->addEntry(*ip, *mac, *port, *intfID);
+  } else {
+    newNeighborTablePtr->addPendingEntry(*ip, *intfID);
+  }
+
+  if (!oldNeighborTable) {
+    auto intfPtr = (*state)->getInterfaces()->getNode(*intfID).get();
+    intfPtr = intfPtr->modify(state);
+
+    if constexpr (std::is_same_v<NTable, ArpTable>) {
+      intfPtr->setArpTable(std::move(newNeighborTable));
+    } else {
+      intfPtr->setNdpTable(std::move(newNeighborTable));
+    }
+  }
+}
+
 // Test that we can add Arp and Ndp entries to a state and revert them from the
 // published state.
 TEST(SwitchStatePruningTests, AddNeighborEntry) {
@@ -573,4 +615,136 @@ TEST(SwitchStatePruningTests, ModifyArpTableMultipleTimes) {
   state3->publish();
   ASSERT_EQ(state2, state3);
   ASSERT_EQ(state2->getVlans(), state3->getVlans());
+}
+
+shared_ptr<SwitchState> createSwitch() {
+  auto platform = createMockPlatform();
+  SwitchConfig config;
+  shared_ptr<SwitchState> state0 = make_shared<SwitchState>();
+
+  std::map<PortID, VlanID> port2VlanMap = {
+      {PortID(1), VlanID(21)},
+      {PortID(2), VlanID(21)},
+      {PortID(3), VlanID(21)}};
+  std::map<VlanID, MacAddress> vlan2OutgoingMac = {
+      {VlanID(21), MacAddress("fa:ce:b0:0c:21:00")}};
+
+  registerPortsAndPopulateConfig(
+      port2VlanMap, &vlan2OutgoingMac, state0, config);
+
+  auto state1 = publishAndApplyConfig(state0, &config, platform.get());
+  state1->publish();
+
+  return state1;
+}
+
+shared_ptr<SwitchState> addNeighbors(
+    shared_ptr<SwitchState> state1,
+    bool vlanNeighbors) {
+  shared_ptr<SwitchState> state2{state1};
+
+  auto host1Ip = IPAddressV4("10.0.21.1");
+  auto host1Mac = MacAddress("fa:ce:b0:0c:21:01");
+  auto host2Ip = IPAddressV6("face:b00c:0:21::2");
+  auto host2Mac = MacAddress("fa:ce:b0:0c:21:02");
+
+  auto hostVlan = VlanID(21);
+  auto hostIntf = InterfaceID(21);
+  auto hostPort = PortDescriptor(PortID(1));
+
+  if (vlanNeighbors) {
+    addNeighborEntry<ArpTable>(
+        &state2, &host1Ip, &host1Mac, &hostVlan, &hostPort);
+    addNeighborEntry<NdpTable>(
+        &state2, &host2Ip, &host2Mac, &hostVlan, &hostPort);
+  } else {
+    addNeighborEntryToIntfNeighborTable<ArpTable>(
+        &state2, &host1Ip, &host1Mac, &hostIntf, &hostPort);
+    addNeighborEntryToIntfNeighborTable<NdpTable>(
+        &state2, &host2Ip, &host2Mac, &hostIntf, &hostPort);
+  }
+
+  state2->publish();
+  return state2;
+}
+
+template <typename MultiMapT>
+void verifyNbrTablesEmpty(const shared_ptr<MultiMapT> multiMap) {
+  for (const auto& table : *multiMap) {
+    for (const auto& [_, vlanOrIntf] : *table.second) {
+      EXPECT_TRUE(
+          vlanOrIntf->getArpTable() == nullptr ||
+          vlanOrIntf->getArpTable()->size() == 0);
+      EXPECT_TRUE(
+          vlanOrIntf->getNdpTable() == nullptr ||
+          vlanOrIntf->getNdpTable()->size() == 0);
+      EXPECT_TRUE(
+          vlanOrIntf->getArpResponseTable() == nullptr ||
+          vlanOrIntf->getArpResponseTable()->size() == 0);
+      EXPECT_TRUE(
+          vlanOrIntf->getNdpResponseTable() == nullptr ||
+          vlanOrIntf->getNdpResponseTable()->size() == 0);
+    }
+  }
+}
+
+template <typename MultiMapT>
+void verifyNbrTablesNonEmpty(const shared_ptr<MultiMapT> multiMap) {
+  for (const auto& table : *multiMap) {
+    for (const auto& [_, vlanOrIntf] : *table.second) {
+      EXPECT_NE(vlanOrIntf->getArpTable(), nullptr);
+      EXPECT_EQ(vlanOrIntf->getArpTable()->size(), 1);
+      EXPECT_EQ(
+          vlanOrIntf->getArpTable()->cbegin()->second->getIP(),
+          IPAddressV4("10.0.21.1"));
+
+      EXPECT_NE(vlanOrIntf->getNdpTable(), nullptr);
+      EXPECT_EQ(vlanOrIntf->getNdpTable()->size(), 1);
+      EXPECT_EQ(
+          vlanOrIntf->getNdpTable()->cbegin()->second->getIP(),
+          IPAddressV6("face:b00c:0:21::2"));
+    }
+  }
+}
+
+TEST(SwitchStatePruningTests, VlanNbrTablesWbToVlanNbrTables) {
+  FLAGS_intf_nbr_tables = false;
+  auto state = addNeighbors(createSwitch(), true /* vlan neighbors */);
+  auto thrifty = state->toThrift();
+
+  auto thriftStateBack = SwitchState::fromThrift(thrifty);
+  verifyNbrTablesNonEmpty(thriftStateBack->getVlans());
+  verifyNbrTablesEmpty(thriftStateBack->getInterfaces());
+}
+
+TEST(SwitchStatePruningTests, VlanNbrTablesWbToIntfNbrTables) {
+  FLAGS_intf_nbr_tables = false;
+  auto state = addNeighbors(createSwitch(), true /* vlan neighbors */);
+  auto thrifty = state->toThrift();
+
+  FLAGS_intf_nbr_tables = true;
+  auto thriftStateBack = SwitchState::fromThrift(thrifty);
+  verifyNbrTablesEmpty(thriftStateBack->getVlans());
+  verifyNbrTablesNonEmpty(thriftStateBack->getInterfaces());
+}
+
+TEST(SwitchStatePruningTests, IntfNbrTablesWbVlanNbrTables) {
+  FLAGS_intf_nbr_tables = true;
+  auto state = addNeighbors(createSwitch(), false /* intf neighbors */);
+  auto thrifty = state->toThrift();
+
+  FLAGS_intf_nbr_tables = false;
+  auto thriftStateBack = SwitchState::fromThrift(thrifty);
+  verifyNbrTablesNonEmpty(thriftStateBack->getVlans());
+  verifyNbrTablesEmpty(thriftStateBack->getInterfaces());
+}
+
+TEST(SwitchStatePruningTests, IntfNbrTablesWbToIntfNbrTables) {
+  FLAGS_intf_nbr_tables = true;
+  auto state = addNeighbors(createSwitch(), false /* intf neighbors */);
+  auto thrifty = state->toThrift();
+
+  auto thriftStateBack = SwitchState::fromThrift(thrifty);
+  verifyNbrTablesEmpty(thriftStateBack->getVlans());
+  verifyNbrTablesNonEmpty(thriftStateBack->getInterfaces());
 }

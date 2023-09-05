@@ -37,6 +37,13 @@ DECLARE_string(qsfp_service_volatile_dir);
 DECLARE_bool(can_qsfp_service_warm_boot);
 
 namespace facebook::fboss {
+struct NpuPortStatus {
+  int portId;
+  bool operState; // true for link up, false for link down
+  bool portEnabled; // true for enabled, false for disabled
+  std::string profileID;
+};
+
 class TransceiverManager {
   using PortNameMap = std::map<std::string, int32_t>;
   using PortGroups = std::map<int32_t, std::set<cfg::PlatformPortEntry>>;
@@ -306,7 +313,7 @@ class TransceiverManager {
   // A struct to keep track of the software port profile and status
   struct TransceiverPortInfo {
     cfg::PortProfileID profile;
-    std::optional<PortStatus> status;
+    std::optional<NpuPortStatus> status;
   };
   std::unordered_map<PortID, TransceiverPortInfo>
   getProgrammedIphyPortToPortInfo(TransceiverID id) const;
@@ -431,6 +438,12 @@ class TransceiverManager {
   bool isSystemInitialized() const {
     return isSystemInitialized_;
   }
+
+  /*
+   * Sync the NpuPortStatus' received from FSDB
+   */
+  void syncNpuPortStatusUpdate(
+      std::map<int, facebook::fboss::NpuPortStatus>& portStatus);
 
  protected:
   /*
@@ -621,7 +634,7 @@ class TransceiverManager {
 
   // TEST ONLY
   // This private map is an override of agent getPortStatus()
-  std::map<int32_t, PortStatus> overrideAgentPortStatusForTesting_;
+  std::map<int32_t, NpuPortStatus> overrideAgentPortStatusForTesting_;
   // This ConfigAppliedInfo is an override of agent getConfigAppliedInfo()
   std::optional<ConfigAppliedInfo> overrideAgentConfigAppliedInfoForTesting_;
 
@@ -707,6 +720,17 @@ class TransceiverManager {
    * was missed. This counter is periodically published to ODS by StatsPublisher
    */
   std::atomic<long> stateMachineThreadHeartbeatMissedCount_{0};
+
+  void updateNpuPortStatusCache(
+      std::map<int, facebook::fboss::NpuPortStatus>& portStatus);
+
+  /*
+   * This cache is updated from the FSDB subscription thread and read by the
+   * main thread
+   */
+  folly::Synchronized<
+      std::map<int /* agent logical port id */, facebook::fboss::NpuPortStatus>>
+      npuPortStatusCache_;
 
   friend class TransceiverStateMachineTest;
 };

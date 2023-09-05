@@ -10,6 +10,7 @@
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
+#include "fboss/fsdb/common/Flags.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
@@ -48,6 +49,20 @@ constexpr auto kAgentConfigLastColdbootAppliedInMsKey =
     "agentConfigLastColdbootAppliedInMs";
 static constexpr auto kStateMachineThreadHeartbeatMissed =
     "state_machine_thread_heartbeat_missed";
+
+std::map<int, facebook::fboss::NpuPortStatus> getNpuPortStatus(
+    const std::map<int32_t, facebook::fboss::PortStatus>& portStatus) {
+  std::map<int, facebook::fboss::NpuPortStatus> npuPortStatus;
+  for (const auto& [portId, status] : portStatus) {
+    facebook::fboss::NpuPortStatus npuStatus;
+    npuStatus.portId = portId;
+    npuStatus.operState = status.get_up();
+    npuStatus.portEnabled = status.get_enabled();
+    npuStatus.profileID = status.get_profileID();
+    npuPortStatus.emplace(portId, npuStatus);
+  }
+  return npuPortStatus;
+}
 } // namespace
 
 namespace facebook::fboss {
@@ -681,6 +696,8 @@ TransceiverInfo TransceiverManager::getTransceiverInfo(TransceiverID id) {
     absentTcvr.present() = false;
     absentTcvr.port() = id;
     absentTcvr.timeCollected() = std::time(nullptr);
+    absentTcvr.tcvrState()->present() = false;
+    absentTcvr.tcvrState()->port() = id;
     absentTcvr.tcvrState()->timeCollected() = std::time(nullptr);
     absentTcvr.tcvrStats()->timeCollected() = std::time(nullptr);
     return absentTcvr;
@@ -806,24 +823,42 @@ bool TransceiverManager::supportRemediateTransceiver(TransceiverID id) {
   return tcvrIt->second->supportRemediate();
 }
 
+void TransceiverManager::syncNpuPortStatusUpdate(
+    std::map<int, facebook::fboss::NpuPortStatus>& portStatus) {
+  XLOG(INFO) << "Syncing NPU port status update";
+  updateNpuPortStatusCache(portStatus);
+}
+
+void TransceiverManager::updateNpuPortStatusCache(
+    std::map<int, facebook::fboss::NpuPortStatus>& portStatus) {
+  npuPortStatusCache_.wlock()->swap(portStatus);
+}
+
 void TransceiverManager::updateTransceiverPortStatus() noexcept {
   steady_clock::time_point begin = steady_clock::now();
-  std::map<int32_t, PortStatus> newPortToPortStatus;
-  try {
-    // Then call wedge_agent getPortStatus() to get current port status
-    auto wedgeAgentClient = utils::createWedgeAgentClient();
-    wedgeAgentClient->sync_getPortStatus(newPortToPortStatus, {});
-  } catch (const std::exception& ex) {
-    // We have retry mechanism to handle failure. No crash here
-    XLOG(WARN) << "Failed to call wedge_agent getPortStatus(). "
-               << folly::exceptionStr(ex);
-    if (overrideAgentPortStatusForTesting_.empty()) {
-      return;
-    } else {
-      XLOG(WARN) << "[TEST ONLY] Use overrideAgentPortStatusForTesting_ "
-                 << "for wedge_agent getPortStatus()";
-      newPortToPortStatus = overrideAgentPortStatusForTesting_;
+  std::map<int32_t, NpuPortStatus> newPortToPortStatus;
+  if (!overrideAgentPortStatusForTesting_.empty()) {
+    XLOG(WARN) << "[TEST ONLY] Use overrideAgentPortStatusForTesting_ "
+               << "for wedge_agent getPortStatus()";
+    newPortToPortStatus = overrideAgentPortStatusForTesting_;
+  } else if (FLAGS_subscribe_to_state_from_fsdb) {
+    newPortToPortStatus = *npuPortStatusCache_.rlock();
+  } else {
+    try {
+      // Then call wedge_agent getPortStatus() to get current port status
+      auto wedgeAgentClient = utils::createWedgeAgentClient();
+      std::map<int32_t, PortStatus> portStatus;
+      wedgeAgentClient->sync_getPortStatus(portStatus, {});
+      newPortToPortStatus = getNpuPortStatus(portStatus);
+    } catch (const std::exception& ex) {
+      // We have retry mechanism to handle failure. No crash here
+      XLOG(WARN) << "Failed to call wedge_agent getPortStatus(). "
+                 << folly::exceptionStr(ex);
     }
+  }
+  if (newPortToPortStatus.empty()) {
+    XLOG(WARN) << "No port status to process in updateTransceiverPortStatus";
+    return;
   }
 
   int numResetToDiscovered{0}, numResetToNotPresent{0}, numPortStatusChanged{0};
@@ -871,8 +906,8 @@ void TransceiverManager::updateTransceiverPortStatus() noexcept {
           if (cachedPortInfoIt == portToPortInfoWithLock->end()) {
             continue;
           } else {
-            // Agent remove such port, we need to trigger a state machine reset
-            // to trigger programming to get the new sw ports
+            // Agent remove such port, we need to trigger a state machine
+            // reset to trigger programming to get the new sw ports
             portToPortInfoWithLock->erase(cachedPortInfoIt);
             genStateMachineResetEvent(event, isTcvrPresent);
           }
@@ -880,14 +915,14 @@ void TransceiverManager::updateTransceiverPortStatus() noexcept {
           // But if the port is disabled, we don't need disabled ports in the
           // cache, since we only store enabled ports as we do in the
           // programInternalPhyPorts()
-          if (!(*portStatusIt->second.enabled())) {
+          if (!(portStatusIt->second.portEnabled)) {
             if (cachedPortInfoIt != portToPortInfoWithLock->end()) {
               portToPortInfoWithLock->erase(cachedPortInfoIt);
               genStateMachineResetEvent(event, isTcvrPresent);
             }
           } else {
             // Only care about enabled port status
-            anyPortUp = anyPortUp || *portStatusIt->second.up();
+            anyPortUp = anyPortUp || portStatusIt->second.operState;
             // Agent create such port, we need to trigger a state machine
             // reset to trigger programming to get the new sw ports
             if (cachedPortInfoIt == portToPortInfoWithLock->end()) {
@@ -899,8 +934,8 @@ void TransceiverManager::updateTransceiverPortStatus() noexcept {
               // Both agent and cache here have such port, update the cached
               // status
               if (!cachedPortInfoIt->second.status ||
-                  *cachedPortInfoIt->second.status->up() !=
-                      *portStatusIt->second.up()) {
+                  cachedPortInfoIt->second.status->operState !=
+                      portStatusIt->second.operState) {
                 statusChangedPorts.insert(portID);
               }
               cachedPortInfoIt->second.status.emplace(portStatusIt->second);
@@ -954,6 +989,7 @@ void TransceiverManager::updateTransceiverPortStatus() noexcept {
 void TransceiverManager::updateTransceiverActiveState(
     const std::set<TransceiverID>& tcvrs,
     const std::map<int32_t, PortStatus>& portStatus) noexcept {
+  std::map<int32_t, NpuPortStatus> npuPortStatus = getNpuPortStatus(portStatus);
   int numPortStatusChanged{0};
   BlockingStateUpdateResultList results;
   for (auto tcvrID : tcvrs) {
@@ -973,25 +1009,26 @@ void TransceiverManager::updateTransceiverActiveState(
       auto portToPortInfoWithLock = tcvrToPortInfoIt->second->wlock();
       for (auto& [portID, tcvrPortInfo] : *portToPortInfoWithLock) {
         // Check whether there's a new port status for such port
-        auto portStatusIt = portStatus.find(portID);
+        auto portStatusIt = npuPortStatus.find(portID);
         // If port doesn't need to be updated, use the current cached status
         // to indicate whether we need a state update
-        if (portStatusIt == portStatus.end()) {
+        if (portStatusIt == npuPortStatus.end()) {
           if (tcvrPortInfo.status) {
-            anyPortUp = anyPortUp || *tcvrPortInfo.status->up();
+            anyPortUp = anyPortUp || tcvrPortInfo.status->operState;
           }
         } else {
           // Only care about enabled port status
-          if (*portStatusIt->second.enabled()) {
-            anyPortUp = anyPortUp || *portStatusIt->second.up();
+          if (portStatusIt->second.portEnabled) {
+            anyPortUp = anyPortUp || portStatusIt->second.operState;
             if (!tcvrPortInfo.status ||
-                *tcvrPortInfo.status->up() != *portStatusIt->second.up()) {
+                tcvrPortInfo.status->operState !=
+                    portStatusIt->second.operState) {
               statusChangedPorts.insert(portID);
               // No need to do the transceiverRefresh() in this code path
               // because that will again enqueue state machine update on i2c
               // event base. That will result in deadlock with
-              // stateMachineRefresh() generated update which also runs in same
-              // i2c event base
+              // stateMachineRefresh() generated update which also runs in
+              // same i2c event base
             }
             // And also update the cached port status
             tcvrPortInfo.status = portStatusIt->second;
@@ -1230,8 +1267,8 @@ std::optional<PortID> TransceiverManager::getPortIDByPortName(
 /*
  * getPortNameByPortId
  *
- * This function takes the software port id and returns corresponding port name
- * string (ie: eth2/1/1)
+ * This function takes the software port id and returns corresponding port
+ * name string (ie: eth2/1/1)
  */
 std::optional<std::string> TransceiverManager::getPortNameByPortId(
     PortID portId) const {
@@ -1276,10 +1313,10 @@ void TransceiverManager::setOverrideAgentPortStatusForTesting(
   }
   for (const auto& it : overrideTcvrToPortAndProfileForTest_) {
     for (const auto& [portID, profileID] : it.second) {
-      PortStatus status;
-      status.enabled() = enabled;
-      status.up() = up;
-      status.profileID() = apache::thrift::util::enumNameSafe(profileID);
+      NpuPortStatus status;
+      status.portEnabled = enabled;
+      status.operState = up;
+      status.profileID = apache::thrift::util::enumNameSafe(profileID);
       overrideAgentPortStatusForTesting_.emplace(portID, std::move(status));
     }
   }
@@ -1312,7 +1349,7 @@ std::pair<bool, std::vector<std::string>> TransceiverManager::areAllPortsDown(
       // disruptive event
       return {false, {}};
     }
-    if (*portInfo.status->up()) {
+    if (portInfo.status->operState) {
       anyPortUp = true;
     } else {
       auto portName = getPortNameByPortId(portID);
@@ -1339,16 +1376,17 @@ void TransceiverManager::triggerRemediateEvents(
     }
 
     auto curState = getCurrentState(tcvrID);
-    // If we are not in the active or inactive state, don't try to remediate yet
+    // If we are not in the active or inactive state, don't try to remediate
+    // yet
     if (curState != TransceiverStateMachineState::ACTIVE &&
         curState != TransceiverStateMachineState::INACTIVE) {
       continue;
     }
 
-    // If we are here because we are in active state, check if any of the ports
-    // are down. If yes, try to remediate (partial). If we are here because we
-    // are in inactive state, areAllPortsDown will return a non-empty list of
-    // down ports anyways, so we will try to remediate
+    // If we are here because we are in active state, check if any of the
+    // ports are down. If yes, try to remediate (partial). If we are here
+    // because we are in inactive state, areAllPortsDown will return a
+    // non-empty list of down ports anyways, so we will try to remediate
     if (areAllPortsDown(tcvrID).second.empty()) {
       continue;
     }
@@ -1459,7 +1497,8 @@ bool TransceiverManager::verifyEepromChecksums(TransceiverID id) {
 }
 
 bool TransceiverManager::checkWarmBootFlags() {
-  // Return true if coldBootOnceFile does not exist and canWarmBoot file exists
+  // Return true if coldBootOnceFile does not exist and canWarmBoot file
+  // exists
   const auto& forceColdBootFile = forceColdBootFileName();
   bool forceColdBoot = removeFile(forceColdBootFile);
   if (forceColdBoot) {
@@ -1816,8 +1855,8 @@ std::vector<TransceiverID> TransceiverManager::refreshTransceivers(
 
     for (const auto& transceiver : *lockedTransceivers) {
       TransceiverID id = TransceiverID(transceiver.second->getID());
-      // If we're trying to refresh a subset and this transceiver is not in that
-      // subset, skip it.
+      // If we're trying to refresh a subset and this transceiver is not in
+      // that subset, skip it.
       if (!transceivers.empty() &&
           transceivers.find(id) == transceivers.end()) {
         continue;
@@ -1945,7 +1984,7 @@ std::vector<phy::TxRxEnableResponse> TransceiverManager::setInterfaceTxRx(
     auto component = txRxEnableRequest.component().value();
     auto enable = txRxEnableRequest.enable().value();
     auto channelMask = txRxEnableRequest.laneMask().to_optional();
-    auto txOrRx = txRxEnableRequest.txOrRx().value();
+    auto direction = txRxEnableRequest.direction().value();
 
     auto swPort = getPortIDByPortName(portName);
     if (!swPort.has_value()) {
@@ -1958,7 +1997,7 @@ std::vector<phy::TxRxEnableResponse> TransceiverManager::setInterfaceTxRx(
           "TransceiverManager::setInterfaceTxRx - component not supported {}",
           apache::thrift::util::enumNameSafe(component)));
     }
-    if (!txOrRx) {
+    if (direction == phy::Direction::RECEIVE) {
       throw FbossError(folly::sformat(
           "setInterfaceTxRx: Transceiver Rx lane control not implemented for {}",
           portName));
