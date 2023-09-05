@@ -197,13 +197,11 @@ supportedProfilesByPortType = {
 asicSerdesMappings = []
 for asic in range( numAsics ):
    asicSerdesMappings.append( {} )
-print( asicSerdesMappings )
 with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
    for line in fh:
       if line.startswith( "System" ):
          continue
       asic, asicSerdesId, frontPanelSlot, frontPanelLane, _, connectionType, polaritySwap = line.rstrip().split(",")
-      print( f"Inserting serdesId {asicSerdesId}" )
       asic = int( asic )
       asicSerdesId = int( asicSerdesId )
       frontPanelSlot = int( frontPanelSlot )
@@ -384,7 +382,7 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
          else:
             asicCoreType = "J3_FE"
          fh.write(
-               f"1,1,NPU,{serdesCore},{asicCoreType},{lane},{lane},{lane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{txLane},{rxLane},{txPolSwap},{rxPolSwap}\n"
+               f"1,1,NPU,{serdesCore},{asicCoreType},{lane},{lane},{lane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{txLane},{rxLane},N,N\n"
                )
 
 with open( "viper_port_profile_mapping.csv", "w" ) as fh:
