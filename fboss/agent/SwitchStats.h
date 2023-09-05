@@ -278,6 +278,10 @@ class SwitchStats : public boost::noncopyable {
     neighborCacheHeartbeatDelay_.addValue(value);
   }
 
+  void packetRxHeartbeatDelay(int delay) {
+    packetRxHeartbeatDelay_.addValue(delay);
+  }
+
   void bgEventBacklog(int value) {
     bgEventBacklog_.addValue(value);
   }
@@ -365,12 +369,6 @@ class SwitchStats : public boost::noncopyable {
   }
   void ThreadHeartbeatMissCount() {
     threadHeartbeatMissCount_.addValue(1);
-  }
-  void FabricReachabilityMissingCount() {
-    fabricReachabilityMissingCount_.addValue(1);
-  }
-  void FabricReachabilityMismatchCount() {
-    fabricReachabilityMismatchCount_.addValue(1);
   }
 
   void localSystemPort(int value) {
@@ -535,6 +533,10 @@ class SwitchStats : public boost::noncopyable {
    */
   TLHistogram packetTxHeartbeatDelay_;
   /**
+   * Fboss packet Rx thread heartbeat delay (ms)
+   */
+  TLHistogram packetRxHeartbeatDelay_;
+  /**
    * LACP thread heartbeat delay in milliseconds
    */
   TLHistogram lacpHeartbeatDelay_;
@@ -619,10 +621,6 @@ class SwitchStats : public boost::noncopyable {
   TLTimeseries pfcDeadlockRecoveryCount_;
   // Number of thread heartbeat misses
   TLTimeseries threadHeartbeatMissCount_;
-  // Number of missing data in neighbor reachability
-  TLTimeseries fabricReachabilityMissingCount_;
-  // Number of mismatching data in neighbor reachability
-  TLTimeseries fabricReachabilityMismatchCount_;
 
   // Number of system ports in switch state
   TLCounter localSystemPort_;

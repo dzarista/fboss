@@ -40,9 +40,11 @@ class MultiHwSwitchHandler {
     return !stopped_.load();
   }
 
-  multiswitch::StateOperDelta getNextStateOperDelta(int64_t switchId);
+  multiswitch::StateOperDelta getNextStateOperDelta(
+      int64_t switchId,
+      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult);
 
-  void cancelOperDeltaRequest(int64_t switchId);
+  void notifyHwSwitchGracefulExit(int64_t switchId);
 
   std::shared_ptr<SwitchState> stateChanged(
       const StateDelta& delta,
@@ -107,10 +109,6 @@ class MultiHwSwitchHandler {
   void onInitialConfigApplied(HwSwitchCallback* sw);
 
   void platformStop();
-
-  const AgentConfig* config();
-
-  const AgentConfig* reloadConfig();
 
   std::map<PortID, FabricEndpoint> getFabricReachability();
 

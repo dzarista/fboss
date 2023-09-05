@@ -14,9 +14,6 @@ class MultiSwitchThriftHandler
   explicit MultiSwitchThriftHandler(SwSwitch* sw) : sw_(sw) {}
 
 #if FOLLY_HAS_COROUTINES
-  folly::coro::Task<apache::thrift::SinkConsumer<fsdb::OperDelta, bool>>
-  co_notifyStateUpdateResult(int64_t switchId) override;
-
   folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>>
   co_notifyLinkEvent(int64_t switchId) override;
 
@@ -26,19 +23,20 @@ class MultiSwitchThriftHandler
   folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::RxPacket, bool>>
   co_notifyRxPacket(int64_t switchId) override;
 
-  folly::coro::Task<apache::thrift::ServerStream<fsdb::OperDelta>>
-  co_getStateUpdates(int64_t switchId) override;
-
   folly::coro::Task<apache::thrift::ServerStream<multiswitch::TxPacket>>
   co_getTxPackets(int64_t switchId) override;
 #endif
   void getNextStateOperDelta(
       multiswitch::StateOperDelta& operDelta,
-      int64_t switchId) override;
+      int64_t switchId,
+      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) override;
+
+  void gracefulExit(int64_t switchId) override;
+
+  static L2Entry getL2Entry(L2EntryThrift thriftEntry);
 
  private:
   void ensureConfigured(folly::StringPiece function) const;
-  L2Entry getL2Entry(L2EntryThrift thriftEntry) const;
   SwSwitch* sw_;
 };
 } // namespace facebook::fboss

@@ -4,6 +4,7 @@
 # cmake/FooBar.cmake
 
 add_library(qsfp_lib
+  fboss/qsfp_service/fsdb/QsfpFsdbSubscriber.cpp
   fboss/qsfp_service/fsdb/QsfpFsdbSyncManager.cpp
   fboss/qsfp_service/fsdb/oss/QsfpFsdbSyncManager.cpp
   fboss/qsfp_service/oss/StatsPublisher.cpp
@@ -26,7 +27,10 @@ target_link_libraries(qsfp_lib
     fsdb_pub_sub
     fsdb_flags
     fsdb_syncer
+    fsdb_model_cpp2
     qsfp_bsp_core
+    thrift_cow_serializer
+    thriftpath_lib
 )
 
 add_library(qsfp_config
@@ -147,6 +151,7 @@ target_link_libraries(transceiver_manager
   thread_heartbeat
   utils
   product_info
+  fsdb_flags
 )
 
 add_library(qsfp_handler
@@ -157,6 +162,9 @@ target_link_libraries(qsfp_handler
   Folly::folly
   transceiver_manager
   log_thrift_call
+  fsdb_stream_client
+  fsdb_pub_sub
+  fsdb_flags
 )
 
 add_library(qsfp_core

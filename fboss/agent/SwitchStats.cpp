@@ -111,6 +111,15 @@ SwitchStats::SwitchStats(ThreadLocalStatsMap* map)
           AVG,
           50,
           100),
+      packetRxHeartbeatDelay_(
+          map,
+          kCounterPrefix + "packetRx_heartbeat_delay.ms",
+          100,
+          0,
+          30000,
+          AVG,
+          50,
+          100),
       lacpHeartbeatDelay_(
           map,
           kCounterPrefix + "lacp_heartbeat_delay.ms",
@@ -238,16 +247,6 @@ SwitchStats::SwitchStats(ThreadLocalStatsMap* map)
           map,
           kCounterPrefix + "thread_heartbeat_miss",
           SUM),
-      fabricReachabilityMissingCount_(
-          map,
-          kCounterPrefix + "fabric_reachability_missing",
-          SUM,
-          RATE),
-      fabricReachabilityMismatchCount_(
-          map,
-          kCounterPrefix + "fabric_reachability_mismatch",
-          SUM,
-          RATE),
       localSystemPort_(map, kCounterPrefix + "systemPort"),
       remoteSystemPort_(map, kCounterPrefix + "remoteSystemPort"),
       localRifs_(map, kCounterPrefix + "localRifs"),

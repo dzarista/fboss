@@ -301,6 +301,13 @@ TEST(Interface, applyConfig) {
   *intfConfig->vlanID() = 1;
   *intfConfig->routerID() = 0;
   intfConfig->mac() = "00:02:00:11:22:33";
+  intfConfig->dhcpRelayAddressV4() = "30.1.1.1";
+  intfConfig->dhcpRelayAddressV6() = "2a03:2880:10:1f07:face:b00c:0:0";
+  intfConfig->dhcpRelayOverridesV4() = {};
+  (*intfConfig->dhcpRelayOverridesV4())["02:00:00:00:00:02"] = "1.2.3.4";
+  intfConfig->dhcpRelayOverridesV6() = {};
+  (*intfConfig->dhcpRelayOverridesV6())["02:00:00:00:00:02"] =
+      "2a03:2880:10:1f07:face:b00c:0:0";
 
   InterfaceID id(1);
   shared_ptr<SwitchState> oldState;
@@ -330,6 +337,20 @@ TEST(Interface, applyConfig) {
   EXPECT_EQ(0, interface->routerAdvertisementSeconds());
   auto vlan1 = state->getVlans()->getNodeIf(VlanID(1));
   EXPECT_EQ(InterfaceID(1), vlan1->getInterfaceID());
+  EXPECT_EQ(folly::IPAddressV4("30.1.1.1"), interface->getDhcpV4Relay());
+  EXPECT_EQ(
+      folly::IPAddressV6("2a03:2880:10:1f07:face:b00c:0:0"),
+      interface->getDhcpV6Relay());
+
+  auto map4 = interface->getDhcpV4RelayOverrides();
+  EXPECT_EQ(
+      folly::IPAddressV4("1.2.3.4"),
+      folly::IPAddressV4(map4[folly::MacAddress("02:00:00:00:00:02")]));
+  auto map6 = interface->getDhcpV6RelayOverrides();
+  EXPECT_EQ(
+      folly::IPAddressV6("2a03:2880:10:1f07:face:b00c:0:0"),
+      folly::IPAddressV6(map6[folly::MacAddress("02:00:00:00:00:02")]));
+
   // same configuration cause nothing changed
   EXPECT_EQ(nullptr, publishAndApplyConfig(state, &config, platform.get()));
 
@@ -477,6 +498,34 @@ TEST(Interface, applyConfig) {
   EXPECT_EQ(oldInterface->getGeneration() + 1, interface->getGeneration());
   EXPECT_NE(oldInterface->getNdpConfig(), interface->getNdpConfig());
   EXPECT_EQ(0, interface->routerAdvertisementSeconds());
+
+  // Change DHCP relay configuration
+  config.interfaces()[1].dhcpRelayAddressV4() = "30.1.1.2";
+  config.interfaces()[1].dhcpRelayAddressV6() =
+      "2a03:2880:10:1f07:face:b00c:0:2";
+  updateState();
+  EXPECT_EQ(folly::IPAddressV4("30.1.1.2"), interface->getDhcpV4Relay());
+  EXPECT_EQ(
+      folly::IPAddressV6("2a03:2880:10:1f07:face:b00c:0:2"),
+      interface->getDhcpV6Relay());
+
+  // Change DHCP relay override configuration
+  config.interfaces()[1].dhcpRelayOverridesV4() = {};
+  (*config.interfaces()[1].dhcpRelayOverridesV4())["02:00:00:00:00:02"] =
+      "1.2.3.5";
+  config.interfaces()[1].dhcpRelayOverridesV6() = {};
+  (*config.interfaces()[1].dhcpRelayOverridesV6())["02:00:00:00:00:02"] =
+      "2a03:2880:10:1f07:face:b00c:0:2";
+  updateState();
+
+  auto map44 = interface->getDhcpV4RelayOverrides();
+  EXPECT_EQ(
+      folly::IPAddressV4("1.2.3.5"),
+      folly::IPAddressV4(map44[folly::MacAddress("02:00:00:00:00:02")]));
+  auto map66 = interface->getDhcpV6RelayOverrides();
+  EXPECT_EQ(
+      folly::IPAddressV6("2a03:2880:10:1f07:face:b00c:0:2"),
+      folly::IPAddressV6(map66[folly::MacAddress("02:00:00:00:00:02")]));
 
   // Changing the ID creates a new interface
   *config.interfaces()[0].intfID() = 2;

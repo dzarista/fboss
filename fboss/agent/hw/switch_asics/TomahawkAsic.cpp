@@ -67,6 +67,7 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::SAI_SAMPLEPACKET_TRAP:
     case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
+    case HwAsic::Feature::L3_MTU_ERROR_TRAP:
       return true;
 
     case HwAsic::Feature::ERSPANv6:
@@ -141,6 +142,7 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
+    case HwAsic::Feature::SAI_EAPOL_TRAP:
       return false;
   }
   return false;

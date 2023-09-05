@@ -513,7 +513,14 @@ class HwCoppTest : public HwLinkStateDependentTest {
 
  private:
   HwSwitchEnsemble::Features featuresDesired() const override {
-    return {HwSwitchEnsemble::LINKSCAN, HwSwitchEnsemble::PACKET_RX};
+    return {
+        HwSwitchEnsemble::LINKSCAN,
+        HwSwitchEnsemble::PACKET_RX
+#ifndef IS_OSS
+        ,
+        HwSwitchEnsemble::MULTISWITCH_THRIFT_SERVER
+#endif
+    };
   }
 };
 
@@ -543,6 +550,7 @@ class HwCoppQosTest : public HwLinkStateDependentTest {
     }
     cfg.cpuTrafficPolicy()->rxReasonToQueueOrderedList() = rxReasons;
     addCustomCpuQueueConfig(cfg, getAsic());
+    utility::setTTLZeroCpuConfig(getAsic(), cfg);
     return cfg;
   }
 

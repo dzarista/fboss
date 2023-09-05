@@ -80,6 +80,8 @@ TEST(Vlan, applyConfig) {
   config.vlans()->resize(1);
   config.vlans()[0].id() = 1234;
   config.vlans()[0].name() = kVlan1234;
+  config.vlans()[0].dhcpRelayAddressV4() = "30.1.1.1";
+  config.vlans()[0].dhcpRelayAddressV6() = "2a03:2880:10:1f07:face:b00c:0:0";
   config.vlans()[0].dhcpRelayOverridesV4() = {};
   (*config.vlans()[0].dhcpRelayOverridesV4())["02:00:00:00:00:02"] = "1.2.3.4";
   config.vlans()[0].dhcpRelayOverridesV6() = {};
@@ -115,6 +117,10 @@ TEST(Vlan, applyConfig) {
   EXPECT_EQ(expectedPorts, vlanV1->getPorts());
   EXPECT_EQ(0, vlanV1->getArpResponseTable()->size());
   EXPECT_EQ(InterfaceID(1234), vlanV1->getInterfaceID());
+  EXPECT_EQ(folly::IPAddressV4("30.1.1.1"), vlanV1->getDhcpV4Relay());
+  EXPECT_EQ(
+      folly::IPAddressV6("2a03:2880:10:1f07:face:b00c:0:0"),
+      vlanV1->getDhcpV6Relay());
 
   auto map4 = vlanV1->getDhcpV4RelayOverrides();
   EXPECT_EQ(
@@ -264,6 +270,17 @@ TEST(Vlan, applyConfig) {
   ASSERT_NE(nullptr, stateV5);
   auto vlan100 = stateV5->getVlans()->getNode(VlanID(100));
   EXPECT_EQ(InterfaceID(100), vlan100->getInterfaceID());
+
+  // Change DHCP relay configuration
+  config.vlans()[0].dhcpRelayAddressV4() = "30.1.1.2";
+  config.vlans()[0].dhcpRelayAddressV6() = "2a03:2880:10:1f07:face:b00c:0:2";
+  auto stateV6 = publishAndApplyConfig(stateV5, &config, platform.get());
+  auto vlanV6 = stateV6->getVlans()->getNode(VlanID(1234));
+
+  EXPECT_EQ(folly::IPAddressV4("30.1.1.2"), vlanV6->getDhcpV4Relay());
+  EXPECT_EQ(
+      folly::IPAddressV6("2a03:2880:10:1f07:face:b00c:0:2"),
+      vlanV6->getDhcpV6Relay());
 }
 
 /*

@@ -10,6 +10,8 @@
 #pragma once
 #include <memory>
 
+#include "fboss/agent/mnpu/SplitAgentThriftSyncerClient.h"
+
 #include <folly/io/async/ScopedEventBaseThread.h>
 #include <gflags/gflags.h>
 #include <string>
@@ -20,10 +22,16 @@
 namespace facebook::fboss {
 
 class HwSwitch;
+class FdbEventSyncer;
+class LinkEventSyncer;
+class RxPktEventSyncer;
+class TxPktEventSyncer;
+class OperDeltaSyncer;
 
 class SplitAgentThriftSyncer : public HwSwitchCallback {
  public:
-  SplitAgentThriftSyncer(HwSwitch* hw, uint16_t serverPort);
+  SplitAgentThriftSyncer(HwSwitch* hw, uint16_t serverPort, SwitchID switchId);
+  ~SplitAgentThriftSyncer() override;
 
   void packetReceived(std::unique_ptr<RxPacket> pkt) noexcept override;
   void linkStateChanged(
@@ -41,13 +49,17 @@ class SplitAgentThriftSyncer : public HwSwitchCallback {
       override;
   void unregisterStateObserver(StateObserver* observer) override;
 
-  void connect();
+  void start();
+  void stop();
 
  private:
-  HwSwitch* hw_;
-  std::shared_ptr<folly::ScopedEventBaseThread> evbThread_;
-  std::unique_ptr<apache::thrift::Client<multiswitch::MultiSwitchCtrl>>
-      multiSwitchClient_;
-  uint16_t serverPort_{0};
+  std::shared_ptr<folly::ScopedEventBaseThread> retryThread_;
+  SwitchID switchId_;
+  std::unique_ptr<LinkEventSyncer> linkEventSinkClient_;
+  std::unique_ptr<TxPktEventSyncer> txPktEventStreamClient_;
+  std::unique_ptr<OperDeltaSyncer> operDeltaClient_;
+  std::unique_ptr<FdbEventSyncer> fdbEventSinkClient_;
+  std::unique_ptr<RxPktEventSyncer> rxPktEventSinkClient_;
+  bool isRunning_{false};
 };
 } // namespace facebook::fboss

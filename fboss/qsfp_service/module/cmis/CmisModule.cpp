@@ -39,6 +39,7 @@ namespace {
 constexpr int kUsecBetweenPowerModeFlap = 100000;
 constexpr int kUsecBetweenLaneInit = 10000;
 constexpr int kUsecVdmLatchHold = 100000;
+constexpr int kUsecDiagSelectLatchWait = 10000;
 
 std::array<std::string, 9> channelConfigErrorMsg = {
     "No status available, config under progress",
@@ -836,8 +837,13 @@ uint8_t CmisModule::currentConfiguredMediaInterfaceCode(
   uint8_t application = 0;
   if (mediaTypeEncoding == MediaTypeEncodings::OPTICAL_SMF) {
     application = static_cast<uint8_t>(getSmfMediaInterface(hostLane));
-  } else if (mediaTypeEncoding == MediaTypeEncodings::PASSIVE_CU) {
-    application = static_cast<uint8_t>(PassiveCuMediaInterfaceCode::COPPER);
+  } else if (
+      mediaTypeEncoding == MediaTypeEncodings::PASSIVE_CU &&
+      !moduleCapabilities_.empty()) {
+    // For Passive DAC cables that don't get programmed, just return the media
+    // interface code for the first capability.
+    auto firstModuleCapability = moduleCapabilities_.begin();
+    application = firstModuleCapability->moduleMediaInterface;
   }
   return application;
 }
@@ -985,11 +991,17 @@ bool CmisModule::getMediaInterfaceId(
       }
       mediaInterface[lane].media() = media;
     }
-  } else if (encoding == MediaTypeEncodings::PASSIVE_CU) {
+  } else if (
+      encoding == MediaTypeEncodings::PASSIVE_CU &&
+      !moduleCapabilities_.empty()) {
+    // For Passive DAC cables that don't get programmed, just return the media
+    // interface code for the first capability.
+    auto firstModuleCapability = moduleCapabilities_.begin();
     for (int lane = 0; lane < mediaInterface.size(); lane++) {
       mediaInterface[lane].lane() = lane;
       MediaInterfaceUnion media;
-      media.passiveCuCode_ref() = PassiveCuMediaInterfaceCode::COPPER;
+      media.passiveCuCode_ref() = static_cast<PassiveCuMediaInterfaceCode>(
+          firstModuleCapability->moduleMediaInterface);
       // FIXME: Remove CR8_400G hardcoding and derive this from number of
       // lanes/host electrical interface instead
       mediaInterface[lane].code() = MediaInterfaceCode::CR8_400G;
@@ -1118,19 +1130,12 @@ bool CmisModule::getSignalsPerMediaLane(
  */
 
 bool CmisModule::getSignalsPerHostLane(std::vector<HostLaneSignals>& signals) {
-  const uint8_t* data;
-  int offset;
-  int length;
-  int dataAddress;
-
   assert(signals.size() == numHostLanes());
   if (flatMem_) {
     return false;
   }
 
   auto dataPathDeInit = getSettingsValue(CmisField::DATA_PATH_DEINIT);
-  getQsfpFieldAddress(CmisField::DATA_PATH_STATE, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
 
   auto txLos = getSettingsValue(CmisField::TX_LOS_FLAG);
   auto txLol = getSettingsValue(CmisField::TX_LOL_FLAG);
@@ -1140,9 +1145,7 @@ bool CmisModule::getSignalsPerHostLane(std::vector<HostLaneSignals>& signals) {
     signals[lane].lane() = lane;
     signals[lane].dataPathDeInit() = dataPathDeInit & (1 << lane);
 
-    bool evenLane = (lane % 2 == 0);
-    signals[lane].cmisLaneState() =
-        (CmisLaneState)(evenLane ? data[lane / 2] & 0xF : (data[lane / 2] >> 4) & 0xF);
+    signals[lane].cmisLaneState() = getDatapathLaneStateLocked(lane);
 
     auto laneMask = (1 << lane);
     signals[lane].lane() = lane;
@@ -2943,7 +2946,7 @@ phy::PrbsStats CmisModule::getPortPrbsStatsSideLocked(
   uint8_t diagSel = 1; // Diag Sel 1 is to obtain BER values
   writeCmisField(CmisField::DIAG_SEL, &diagSel);
   /* sleep override */
-  usleep(kUsecBetweenLaneInit);
+  usleep(kUsecDiagSelectLatchWait);
 
   // Step 2.b: Read the BER values for all lanes
   cmisRegister = (side == phy::Side::LINE) ? CmisField::MEDIA_BER_HOST_SNR
@@ -2986,8 +2989,36 @@ void CmisModule::resetDataPathWithFunc(
   // First deactivate all the lanes
   uint8_t dataPathDeInit = dataPathDeInitReg | hostLaneMask;
   writeCmisField(CmisField::DATA_PATH_DEINIT, &dataPathDeInit);
-  /* sleep override */
-  usleep(kUsecBetweenLaneInit);
+
+  // Lambda to check if lanes datapath are deactivated
+  auto isDatapathDeactivated = [&](uint8_t laneMask) -> bool {
+    for (uint8_t lane = 0; lane < numHostLanes(); lane++) {
+      if (!((1 << lane) & laneMask)) {
+        continue;
+      }
+      if (getDatapathLaneStateLocked(lane, false) !=
+          CmisLaneState::DEACTIVATED) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Wait for all datapath state machines to get Deactivated
+  auto maxRetries = 10;
+  auto retries = 0;
+  while (retries++ < maxRetries) {
+    /* sleep override */
+    usleep(kUsecBetweenLaneInit);
+    if (isDatapathDeactivated(hostLaneMask)) {
+      break;
+    }
+  }
+  if (retries >= maxRetries) {
+    XLOG(ERR) << fmt::format(
+        "Datapath could not deactivate even after waiting {:d} uSec",
+        kUsecBetweenLaneInit * maxRetries);
+  }
 
   // Call the afterDataPathDeinitFunc() after detactivate all lanes
   if (afterDataPathDeinitFunc) {
@@ -3003,6 +3034,38 @@ void CmisModule::resetDataPathWithFunc(
   QSFP_LOG(INFO, this) << folly::sformat(
       "DATA_PATH_DEINIT set and reset done for host lane mask 0x{:#x}",
       hostLaneMask);
+}
+
+/*
+ * getDatapathLaneStateLocked
+ *
+ * Reads the datapath state for a given lane of transceiver either from HW or
+ * from SW cache (default)
+ */
+CmisLaneState CmisModule::getDatapathLaneStateLocked(
+    uint8_t lane,
+    bool readFromCache) {
+  CHECK_LE(lane, 8);
+  if (!readFromCache) {
+    uint8_t dataPathStates[4];
+    readCmisField(CmisField::DATA_PATH_STATE, dataPathStates);
+    auto laneDatapathState = dataPathStates[lane / 2];
+    laneDatapathState = ((lane % 2) == 0) ? (laneDatapathState & 0xF)
+                                          : ((laneDatapathState >> 4) & 0xF);
+    return (CmisLaneState)laneDatapathState;
+  } else {
+    const uint8_t* data;
+    int offset;
+    int length;
+    int dataAddress;
+    getQsfpFieldAddress(
+        CmisField::DATA_PATH_STATE, dataAddress, offset, length);
+    data = getQsfpValuePtr(dataAddress, offset, length);
+    auto laneDatapathState = data[lane / 2];
+    laneDatapathState = ((lane % 2) == 0) ? (laneDatapathState & 0xF)
+                                          : ((laneDatapathState >> 4) & 0xF);
+    return (CmisLaneState)laneDatapathState;
+  }
 }
 
 void CmisModule::updateVdmCacheLocked() {
@@ -3069,6 +3132,15 @@ bool CmisModule::setTransceiverTxLocked(
     return false;
   }
 
+  // Check if the module supports Tx control feature first
+  if (!isTransceiverFeatureSupported(
+          TransceiverFeature::TX_DISABLE, lineSide)) {
+    throw FbossError(fmt::format(
+        "Module {:s} does not support transceiver TX output control on {:s}",
+        portName,
+        (lineSide ? "Line" : "System")));
+  }
+
   // Set the Tx output register for these lanes in given direction
   auto txDisableRegister =
       lineSide ? CmisField::TX_DISABLE : CmisField::RX_DISABLE;
@@ -3082,12 +3154,6 @@ bool CmisModule::setTransceiverTxLocked(
   writeCmisField(txDisableRegister, &txDisableVal);
   return true;
 }
-
-/*
- * setTransceiverRx
- *
- *
- */
 
 } // namespace fboss
 } // namespace facebook

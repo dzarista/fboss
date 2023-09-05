@@ -387,7 +387,10 @@ class ThriftConfigApplier {
       IPAddr ip,
       InterfaceIpInfo addrInfo);
   bool updateNeighborResponseTables(Vlan* vlan, const cfg::Vlan* config);
-  bool updateDhcpOverrides(Vlan* vlan, const cfg::Vlan* config);
+  template <typename VlanOrIntfT, typename CfgVlanOrIntfT>
+  bool updateDhcpOverrides(
+      VlanOrIntfT* vlanOrIntf,
+      const CfgVlanOrIntfT* config);
   std::shared_ptr<InterfaceMap> updateInterfaces();
   shared_ptr<Interface> createInterface(
       const cfg::Interface* config,
@@ -2367,6 +2370,16 @@ shared_ptr<Vlan> ThriftConfigApplier::createVlan(const cfg::Vlan* config) {
       vlan->setInterfaceID(*(entry.interfaces.begin()));
     }
   }
+
+  auto dhcpV4Relay = config->dhcpRelayAddressV4()
+      ? IPAddressV4(*config->dhcpRelayAddressV4())
+      : IPAddressV4();
+  auto dhcpV6Relay = config->dhcpRelayAddressV6()
+      ? IPAddressV6(*config->dhcpRelayAddressV6())
+      : IPAddressV6("::");
+  vlan->setDhcpV4Relay(dhcpV4Relay);
+  vlan->setDhcpV6Relay(dhcpV6Relay);
+
   return vlan;
 }
 
@@ -3121,9 +3134,10 @@ shared_ptr<AclEntry> ThriftConfigApplier::createAcl(
   return newAcl;
 }
 
+template <typename VlanOrIntfT, typename CfgVlanOrIntfT>
 bool ThriftConfigApplier::updateDhcpOverrides(
-    Vlan* vlan,
-    const cfg::Vlan* config) {
+    VlanOrIntfT* vlanOrIntf,
+    const CfgVlanOrIntfT* config) {
   DhcpV4OverrideMap newDhcpV4OverrideMap;
   if (config->dhcpRelayOverridesV4()) {
     for (const auto& pair : *config->dhcpRelayOverridesV4()) {
@@ -3149,14 +3163,14 @@ bool ThriftConfigApplier::updateDhcpOverrides(
   }
 
   bool changed = false;
-  auto oldDhcpV4OverrideMap = vlan->getDhcpV4RelayOverrides();
+  auto oldDhcpV4OverrideMap = vlanOrIntf->getDhcpV4RelayOverrides();
   if (oldDhcpV4OverrideMap != newDhcpV4OverrideMap) {
-    vlan->setDhcpV4RelayOverrides(newDhcpV4OverrideMap);
+    vlanOrIntf->setDhcpV4RelayOverrides(newDhcpV4OverrideMap);
     changed = true;
   }
-  auto oldDhcpV6OverrideMap = vlan->getDhcpV6RelayOverrides();
+  auto oldDhcpV6OverrideMap = vlanOrIntf->getDhcpV6RelayOverrides();
   if (oldDhcpV6OverrideMap != newDhcpV6OverrideMap) {
-    vlan->setDhcpV6RelayOverrides(newDhcpV6OverrideMap);
+    vlanOrIntf->setDhcpV6RelayOverrides(newDhcpV6OverrideMap);
     changed = true;
   }
   return changed;
@@ -3293,6 +3307,7 @@ shared_ptr<Interface> ThriftConfigApplier::createInterface(
       *config->isStateSyncDisabled(),
       *config->type());
   updateNeighborResponseTablesForIntfs(intf.get(), addrs);
+  updateDhcpOverrides(intf.get(), config);
   intf->setAddresses(addrs);
   if (auto ndp = config->ndp()) {
     if (ndp->routerAddress() &&
@@ -3304,6 +3319,16 @@ shared_ptr<Interface> ThriftConfigApplier::createInterface(
     }
     intf->setNdpConfig(*ndp);
   }
+
+  auto dhcpV4Relay = config->dhcpRelayAddressV4()
+      ? IPAddressV4(*config->dhcpRelayAddressV4())
+      : IPAddressV4();
+  auto dhcpV6Relay = config->dhcpRelayAddressV6()
+      ? IPAddressV6(*config->dhcpRelayAddressV6())
+      : IPAddressV6("::");
+  intf->setDhcpV4Relay(dhcpV4Relay);
+  intf->setDhcpV6Relay(dhcpV6Relay);
+
   return intf;
 }
 
@@ -3320,6 +3345,20 @@ shared_ptr<Interface> ThriftConfigApplier::updateInterface(
   auto name = getInterfaceName(config);
   auto mac = getInterfaceMac(config);
   auto mtu = config->mtu().value_or(Interface::kDefaultMtu);
+  auto oldDhcpV4Relay = orig->getDhcpV4Relay();
+  auto newDhcpV4Relay = config->dhcpRelayAddressV4()
+      ? IPAddressV4(*config->dhcpRelayAddressV4())
+      : IPAddressV4();
+  auto oldDhcpV6Relay = orig->getDhcpV6Relay();
+  auto newDhcpV6Relay = config->dhcpRelayAddressV6()
+      ? IPAddressV6(*config->dhcpRelayAddressV6())
+      : IPAddressV6("::");
+
+  auto newIntf = orig->clone();
+  bool changed_neighbor_table =
+      updateNeighborResponseTablesForIntfs(newIntf.get(), addrs);
+  bool changed_dhcp_overrides = updateDhcpOverrides(newIntf.get(), config);
+
   if (orig->getRouterID() == RouterID(*config->routerID()) &&
       (!orig->getVlanIDIf().has_value() ||
        orig->getVlanIDIf().value() == VlanID(*config->vlanID())) &&
@@ -3328,12 +3367,13 @@ shared_ptr<Interface> ThriftConfigApplier::updateInterface(
       orig->getNdpConfig()->toThrift() == ndp && orig->getMtu() == mtu &&
       orig->isVirtual() == *config->isVirtual() &&
       orig->isStateSyncDisabled() == *config->isStateSyncDisabled() &&
-      orig->getType() == *config->type()) {
+      orig->getType() == *config->type() && oldDhcpV4Relay == newDhcpV4Relay &&
+      oldDhcpV6Relay == newDhcpV6Relay && !changed_neighbor_table &&
+      !changed_dhcp_overrides) {
     // No change
     return nullptr;
   }
 
-  auto newIntf = orig->clone();
   newIntf->setRouterID(RouterID(*config->routerID()));
   newIntf->setType(*config->type());
   if (newIntf->getType() == cfg::InterfaceType::VLAN) {
@@ -3346,13 +3386,19 @@ shared_ptr<Interface> ThriftConfigApplier::updateInterface(
   newIntf->setMtu(mtu);
   newIntf->setIsVirtual(*config->isVirtual());
   newIntf->setIsStateSyncDisabled(*config->isStateSyncDisabled());
-  updateNeighborResponseTablesForIntfs(newIntf.get(), addrs);
+  newIntf->setDhcpV4Relay(newDhcpV4Relay);
+  newIntf->setDhcpV6Relay(newDhcpV6Relay);
   return newIntf;
 }
 
 bool ThriftConfigApplier::updateNeighborResponseTablesForIntfs(
     Interface* intf,
     const Interface::Addresses& addrs) {
+  if (!FLAGS_intf_nbr_tables) {
+    // Neighbor response tables are consumed from VLANs
+    return false;
+  }
+
   auto arpChanged = false, ndpChanged = false;
   auto origArp = intf->getArpResponseTable();
   auto origNdp = intf->getNdpResponseTable();

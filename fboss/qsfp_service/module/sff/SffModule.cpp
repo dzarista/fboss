@@ -104,6 +104,10 @@ static QsfpFieldInfo<SffField, SffPages>::QsfpFieldMap qsfpFields = {
     {SffField::LENGTH_COPPER_DECIMETERS, {SffPages::PAGE0, 236, 1}},
     {SffField::DAC_GAUGE, {SffPages::PAGE0, 237, 1}},
 
+    // Page 1 values, diagnostic capabilities
+    {SffField::RX_CONTROL_SUPPORT, {SffPages::PAGE0, 194, 1}},
+    {SffField::TX_CONTROL_SUPPORT, {SffPages::PAGE0, 195, 1}},
+
     // Page 3 values, including alarm and warning threshold values:
     {SffField::TEMPERATURE_THRESH, {SffPages::PAGE3, 128, 8}},
     {SffField::VCC_THRESH, {SffPages::PAGE3, 144, 8}},
@@ -1645,6 +1649,27 @@ void SffModule::setDiagsCapability() {
     if (auto diagsCapabilityOverride = getDiagsCapabilityOverride()) {
       *diagsCapability = *diagsCapabilityOverride;
     }
+
+    auto txOpCtrl = getSettingsValue(
+                        SffField::TX_CONTROL_SUPPORT,
+                        DiagsCapabilityMask::TX_DISABLE_SUPPORT_MASK)
+        ? true
+        : false;
+    auto rxOpCtrl = getSettingsValue(
+                        SffField::RX_CONTROL_SUPPORT,
+                        DiagsCapabilityMask::RX_DISABLE_SUPPORT_MASK)
+        ? true
+        : false;
+
+    if ((*diagsCapability).has_value()) {
+      diagsCapability->value().txOutputControl() = txOpCtrl;
+      diagsCapability->value().rxOutputControl() = rxOpCtrl;
+    } else {
+      DiagsCapability diags;
+      diags.txOutputControl() = txOpCtrl;
+      diags.rxOutputControl() = rxOpCtrl;
+      *diagsCapability = diags;
+    }
   }
 }
 
@@ -1724,6 +1749,15 @@ bool SffModule::setTransceiverTxLocked(
   if (tcvrLanes.empty()) {
     XLOG(ERR) << fmt::format("No lanes available for port {:s}", portName);
     return false;
+  }
+
+  // Check if the module supports Tx control feature first
+  if (!isTransceiverFeatureSupported(
+          TransceiverFeature::TX_DISABLE, lineSide)) {
+    throw FbossError(fmt::format(
+        "Module {:s} does not support transceiver TX output control on {:s}",
+        portName,
+        (lineSide ? "Line" : "System")));
   }
 
   auto txControlReg =

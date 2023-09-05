@@ -16,9 +16,7 @@ void NonMonolithicHwSwitchHandler::exitFatal() const {
 
 std::unique_ptr<TxPacket> NonMonolithicHwSwitchHandler::allocatePacket(
     uint32_t size) const {
-  auto txPacket = std::make_unique<TxPacket>();
-  txPacket->buf()->reserve(0, size);
-  return txPacket;
+  return TxPacket::allocateTxPacket(size);
 }
 
 bool NonMonolithicHwSwitchHandler::sendPacketOutOfPortAsync(
@@ -85,18 +83,6 @@ void NonMonolithicHwSwitchHandler::onInitialConfigApplied(
 
 void NonMonolithicHwSwitchHandler::platformStop() {
   // TODO: implement this
-}
-
-const AgentConfig* NonMonolithicHwSwitchHandler::config() {
-  // TODO: implement this
-  // @lint-ignore CLANGTIDY
-  return nullptr;
-}
-
-const AgentConfig* NonMonolithicHwSwitchHandler::reloadConfig() {
-  // TODO: implement this
-  // @lint-ignore CLANGTIDY
-  return nullptr;
 }
 
 bool NonMonolithicHwSwitchHandler::transactionsSupported() const {
@@ -223,8 +209,13 @@ fsdb::OperDelta NonMonolithicHwSwitchHandler::stateChanged(
   // if HwSwitch is not connected, wait for connection
   {
     std::unique_lock<std::mutex> lk(stateUpdateMutex_);
-    if (!connected_) {
-      stateUpdateCV_.wait(lk, [this] { return connected_; });
+    if (!connected_ && !deltaReadCancelled_) {
+      stateUpdateCV_.wait(
+          lk, [this] { return connected_ || deltaReadCancelled_; });
+    }
+    if (deltaReadCancelled_) {
+      // return incoming delta to indicate that none of the changes were applied
+      return delta;
     }
     nextOperDelta_ = &stateDelta;
     ackReceived_ = false;
@@ -238,16 +229,17 @@ fsdb::OperDelta NonMonolithicHwSwitchHandler::stateChanged(
     stateUpdateCV_.wait(
         lk, [this] { return ackReceived_ || deltaReadCancelled_; });
     if (deltaReadCancelled_) {
-      // TODO - handle cancellation by HwSwitch
-      throw FbossError("client cancelled delta read during update");
+      // return incoming delta to indicate that none of the changes were applied
+      return delta;
     }
   }
-  // received ack. return empty delta to indicate success
-  return fsdb::OperDelta();
+  // received ack. return result from HwSwitch
+  // TODO - handle failures and do rollback on succeeded switches
+  return *prevOperDeltaResult_->operDelta();
 }
 
-multiswitch::StateOperDelta
-NonMonolithicHwSwitchHandler::getNextStateOperDelta() {
+multiswitch::StateOperDelta NonMonolithicHwSwitchHandler::getNextStateOperDelta(
+    std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) {
   // check whether it is a new connection.
   {
     std::unique_lock<std::mutex> lk(stateUpdateMutex_);
@@ -257,6 +249,7 @@ NonMonolithicHwSwitchHandler::getNextStateOperDelta() {
       // For existing connections, we treat a new get request
       // as an ack to pending state update.
       ackReceived_ = true;
+      prevOperDeltaResult_ = prevOperResult.get();
     }
   }
   stateUpdateCV_.notify_one();
@@ -275,7 +268,12 @@ NonMonolithicHwSwitchHandler::getNextStateOperDelta() {
   }
 }
 
-void NonMonolithicHwSwitchHandler::cancelOperDeltaRequest() {
+void NonMonolithicHwSwitchHandler::notifyHwSwitchGracefulExit() {
+  // cancel any pending operations.
+  cancelOperDeltaSync();
+}
+
+void NonMonolithicHwSwitchHandler::cancelOperDeltaSync() {
   {
     std::unique_lock<std::mutex> lk(stateUpdateMutex_);
     connected_ = false;
@@ -283,4 +281,9 @@ void NonMonolithicHwSwitchHandler::cancelOperDeltaRequest() {
   }
   stateUpdateCV_.notify_all();
 }
+
+NonMonolithicHwSwitchHandler::~NonMonolithicHwSwitchHandler() {
+  cancelOperDeltaSync();
+}
+
 } // namespace facebook::fboss

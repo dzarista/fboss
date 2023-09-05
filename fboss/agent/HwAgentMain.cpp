@@ -15,6 +15,7 @@
 #include "fboss/agent/HwAgent.h"
 #include "fboss/agent/RestartTimeTracker.h"
 #include "fboss/agent/SetupThrift.h"
+#include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/mnpu/SplitAgentThriftSyncer.h"
 
 #include <chrono>
@@ -56,7 +57,9 @@ int hwAgentMain(
       std::move(config), hwFeaturesDesired, initPlatformFn, FLAGS_switchIndex);
 
   auto thriftSyncer = std::make_unique<SplitAgentThriftSyncer>(
-      hwAgent->getPlatform()->getHwSwitch(), FLAGS_swswitch_port);
+      hwAgent->getPlatform()->getHwSwitch(),
+      FLAGS_swswitch_port,
+      SwitchID(*hwAgent->getPlatform()->getAsic()->getSwitchId()));
 
   auto ret =
       hwAgent->initAgent(true /* failHwCallsOnWarmboot */, thriftSyncer.get());
@@ -65,6 +68,8 @@ int hwAgentMain(
       hwAgent->getPlatform()->getDirectoryUtil()->getWarmBootDir(),
       ret.bootType == BootType::WARM_BOOT);
 
+  thriftSyncer->start();
+
   folly::EventBase eventBase;
   auto server = setupThriftServer(
       eventBase,
@@ -72,7 +77,8 @@ int hwAgentMain(
       {FLAGS_hwagent_port_base + FLAGS_switchIndex},
       true /*setupSSL*/);
 
-  SplitHwAgentSignalHandler signalHandler(&eventBase, []() {});
+  SplitHwAgentSignalHandler signalHandler(
+      &eventBase, [&thriftSyncer]() { thriftSyncer->stop(); });
 
   restart_time::mark(RestartEvent::INITIALIZED);
 

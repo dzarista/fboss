@@ -1603,7 +1603,7 @@ void ThriftHandler::programInternalPhyPorts(
     std::map<int32_t, cfg::PortProfileID>& programmedPorts,
     std::unique_ptr<TransceiverInfo> transceiver,
     bool force) {
-  int32_t id = *transceiver->port();
+  int32_t id = *transceiver->tcvrState()->port();
   auto log = LOG_THRIFT_CALL(DBG1, id, force);
   ensureConfigured(__func__);
 
@@ -2126,9 +2126,6 @@ int32_t ThriftHandler::flushNeighborEntry(
       return sw_->getNeighborUpdater()->flushEntry(vlanID, parsedIP).get();
     }
   } catch (...) {
-    // TODO(skhare)
-    // Lookup IP in STATIC/DYNAMIC IPs. If present, print error.
-    // If absent, lookup in neighborUpdater(), and flush if present.
     throw FbossError(
         "Entry : ",
         parsedIP,

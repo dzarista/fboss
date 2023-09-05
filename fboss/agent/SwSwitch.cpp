@@ -236,7 +236,8 @@ SwSwitch::SwSwitch(
     HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
     const AgentDirectoryUtil* agentDirUtil,
     bool supportsAddRemovePort,
-    cfg::SwitchConfig* config)
+    const AgentConfig* config,
+    const std::shared_ptr<SwitchState>& initialState)
     : multiHwSwitchHandler_(new MultiHwSwitchHandler(
           getSwitchInfoFromConfig(config),
           std::move(hwSwitchHandlerInitFn))),
@@ -288,6 +289,11 @@ SwSwitch::SwSwitch(
     // Expected when fruid file is not of a switch (eg: on devservers)
     XLOG(INFO) << "Couldn't initialize platform mapping " << ex.what();
   }
+  if (initialState) {
+    initialState->publish();
+    setStateInternal(initialState);
+    CHECK(getAppliedState());
+  }
 }
 
 SwSwitch::SwSwitch(
@@ -295,31 +301,15 @@ SwSwitch::SwSwitch(
     std::unique_ptr<PlatformMapping> platformMapping,
     const AgentDirectoryUtil* agentDirUtil,
     bool supportsAddRemovePort,
-    cfg::SwitchConfig* config)
-    : SwSwitch(
-          std::move(hwSwitchHandlerInitFn),
-          agentDirUtil,
-          supportsAddRemovePort,
-          config) {
-  platformMapping_ = std::move(platformMapping);
-}
-
-SwSwitch::SwSwitch(
-    HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
-    std::unique_ptr<PlatformMapping> platformMapping,
-    const AgentDirectoryUtil* agentDirUtil,
-    bool supportsAddRemovePort,
-    cfg::SwitchConfig* config,
+    const AgentConfig* config,
     const std::shared_ptr<SwitchState>& initialState)
     : SwSwitch(
           std::move(hwSwitchHandlerInitFn),
-          std::move(platformMapping),
           agentDirUtil,
           supportsAddRemovePort,
-          config) {
-  initialState->publish();
-  setStateInternal(initialState);
-  CHECK(getAppliedState());
+          config,
+          initialState) {
+  platformMapping_ = std::move(platformMapping);
 }
 
 SwSwitch::~SwSwitch() {
@@ -1401,6 +1391,13 @@ void SwSwitch::setPortStatusCounter(PortID port, bool up) {
 void SwSwitch::packetReceived(std::unique_ptr<RxPacket> pkt) noexcept {
   PortID port = pkt->getSrcPort();
   try {
+    auto now = steady_clock::now();
+    auto lastTime = lastPacketRxTime_.load();
+    if (lastTime != std::chrono::steady_clock::time_point::min()) {
+      auto delay = duration_cast<milliseconds>(now - lastPacketRxTime_.load());
+      stats()->packetRxHeartbeatDelay(delay.count());
+    }
+    lastPacketRxTime_ = now;
     handlePacket(std::move(pkt));
   } catch (const std::exception& ex) {
     portStats(port)->pktError();
@@ -1744,26 +1741,38 @@ std::unique_ptr<TxPacket> SwSwitch::allocateL3TxPacket(uint32_t l3Len) {
 
 void SwSwitch::sendNetworkControlPacketAsync(
     std::unique_ptr<TxPacket> pkt,
-    std::optional<PortDescriptor> port) noexcept {
-  if (port) {
-    // TODO(joseph5wu): Control this by distinguishing the highest priority
-    // queue from the config.
-    static const uint8_t kNCStrictPriorityQueue = 7;
-    auto portVal = *port;
-    switch (portVal.type()) {
+    std::optional<PortDescriptor> portDescriptor) noexcept {
+  // TODO(joseph5wu): Control this by distinguishing the highest priority
+  // queue from the config.
+  static const uint8_t kNCStrictPriorityQueue = 7;
+
+  sendPacketAsync(
+      std::move(pkt),
+      portDescriptor,
+      portDescriptor ? std::make_optional(kNCStrictPriorityQueue)
+                     : std::nullopt);
+}
+
+void SwSwitch::sendPacketAsync(
+    std::unique_ptr<TxPacket> pkt,
+    std::optional<PortDescriptor> portDescriptor,
+    std::optional<uint8_t> queueId) noexcept {
+  if (portDescriptor.has_value()) {
+    switch (portDescriptor.value().type()) {
       case PortDescriptor::PortType::PHYSICAL:
         sendPacketOutOfPortAsync(
-            std::move(pkt), portVal.phyPortID(), kNCStrictPriorityQueue);
+            std::move(pkt), portDescriptor.value().phyPortID(), queueId);
         break;
       case PortDescriptor::PortType::AGGREGATE:
         sendPacketOutOfPortAsync(
-            std::move(pkt), portVal.aggPortID(), kNCStrictPriorityQueue);
+            std::move(pkt), portDescriptor.value().aggPortID(), queueId);
         break;
       case PortDescriptor::PortType::SYSTEM_PORT:
         XLOG(FATAL) << " Packet send over system ports not handled yet";
         break;
     };
   } else {
+    CHECK(!queueId.has_value());
     this->sendPacketSwitchedAsync(std::move(pkt));
   }
 }
@@ -2072,11 +2081,19 @@ bool SwSwitch::sendPacketToHost(
 }
 
 void SwSwitch::applyConfig(const std::string& reason, bool reload) {
-  auto target = reload ? multiHwSwitchHandler_->reloadConfig()
-                       : multiHwSwitchHandler_->config();
-  const auto& newConfig = *target->thrift.sw();
-  applyConfig(reason, newConfig);
-  target->dumpConfig(agentDirUtil_->getRunningConfigDumpFile());
+  auto applyAgentConfig = [=](const AgentConfig* agentConfig) {
+    const auto& newConfig = *agentConfig->thrift.sw();
+    applyConfig(reason, newConfig);
+    agentConfig->dumpConfig(agentDirUtil_->getRunningConfigDumpFile());
+  };
+  if (!agentConfig_ || reload) {
+    auto agentConfig = loadConfig();
+    applyAgentConfig(agentConfig.get());
+    // set agent config applying it
+    agentConfig_ = std::move(agentConfig);
+  } else {
+    applyAgentConfig(agentConfig_.get());
+  }
 }
 
 void SwSwitch::applyConfig(
@@ -2101,13 +2118,6 @@ void SwSwitch::applyConfig(
         if (newState && !isValidStateUpdate(StateDelta(state, newState))) {
           throw FbossError("Invalid config passed in, skipping");
         }
-
-        // Update config cached in SwSwitch. Update this even if the config did
-        // not change (as this might be during warmboot).
-        curConfig_ = newConfig;
-        curConfigStr_ =
-            apache::thrift::SimpleJSONSerializer::serialize<std::string>(
-                newConfig);
 
         if (!newState) {
           // if config is not updated, the new state will return null
@@ -2212,7 +2222,7 @@ bool SwSwitch::isValidStateUpdate(const StateDelta& delta) const {
 }
 
 AdminDistance SwSwitch::clientIdToAdminDistance(int clientId) const {
-  return getAdminDistanceForClientId(curConfig_, clientId);
+  return getAdminDistanceForClientId(getConfig(), clientId);
 }
 
 void SwSwitch::clearPortStats(
@@ -2498,4 +2508,31 @@ void SwSwitch::updateDsfSubscriberState(
         syncer->updateDsfSubscriberState(nodeName, oldState, newState);
       });
 }
+
+std::string SwSwitch::getConfigStr() const {
+  return apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+      getConfig());
+}
+
+cfg::SwitchConfig SwSwitch::getConfig() const {
+  if (!agentConfig_) {
+    return cfg::SwitchConfig();
+  }
+  return agentConfig_->thrift.sw().value();
+}
+
+std::unique_ptr<AgentConfig> SwSwitch::loadConfig() {
+  try {
+    return AgentConfig::fromDefaultFile();
+  } catch (const std::exception& ex) {
+    XLOG(ERR) << "Couldn't load agent config from default file";
+    throw;
+  }
+}
+
+void SwSwitch::setConfig(std::unique_ptr<AgentConfig> config) {
+  // used only for tests
+  agentConfig_ = std::move(config);
+}
+
 } // namespace facebook::fboss
