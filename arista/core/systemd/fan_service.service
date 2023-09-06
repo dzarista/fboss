@@ -4,7 +4,7 @@ After=data_corral_service.service sensor_service.service
 Wants=data_corral_service.service sensor_service.service
 
 [Service]
-ExecStart=/opt/fboss/bin/fan_service
+ExecStart=/opt/fboss/bin/run_fan_service.sh
 
 [Install]
 WantedBy=multi-user.target

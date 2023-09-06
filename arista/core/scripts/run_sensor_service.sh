@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BIN=/opt/fboss/bin/sensor_service
-CONF=/opt/fboss/share/sensor_service/platform_sensors.conf
+CONF=/opt/fboss/share/platform_configs/sensor_service.json
 ARGS=()
 
 # Config is provided by the platform.
