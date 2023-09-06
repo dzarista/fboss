@@ -24,17 +24,21 @@ TODO
 # Variables to control the behavior for this script.
 # Existing mappings at a port level are not replaced if preserveExistingMappings=True
 preserveExistingMappings = True
+# Number of ASICs in the system
+numAsics = 1
+# Number of serdes per serdes core. Peregrine 8x100G serdes core on J3.
+numSerdesPerCore = 8
 # Logical port base in the SDK for NIF ports.
 nifPortBase = 2
 # Total number of NIF ports. Since we are operating in either 400G-4 or 800G-8 and we
 # only plan to use the first port in the slot in 400G-4 mode, we have a total of 18
 # front panel NIF ports.
-numNifPorts = 18
+numNifSerdesCores = 18
 # Logical port base in the SDK for fabric ports.
 fabricPortBase = 1024
 # Total number of fabric ports assuming that each fabric serdes is enumerated as a
 # separate port.
-numFabricPorts = 160
+numFabricSerdesCores = 20
 # Print debug information
 debug = False
 
@@ -48,50 +52,26 @@ def frontPanelSlotToPortType( slot ):
       # First 10 ports and last 10 ports on the front panel are fabric ports.
       return "fab"
 
-nifSerdesCoreToCoreAndFrontPanelSlot = {
-      # serdes Octet : J3 core, front panel slot
-      0 : ( 0, '19' ),
-      1 : ( 0, '16' ),
-      2 : ( 0, '18' ),
-      3 : ( 0, '15' ),
-      4 : ( 0, '17' ),
-      5 : ( 1, '13' ),
-      6 : ( 1, '11' ),
-      7 : ( 1, '14' ),
-      8 : ( 1, '12' ),
-      9 : ( 2, '20' ),
-      10 : ( 2, '21' ),
-      11 : ( 2, '22' ),
-      12 : ( 2, '23' ),
-      13 : ( 3, '27' ),
-      14 : ( 3, '28' ),
-      15 : ( 3, '25' ),
-      16 : ( 3, '26' ),
-      17 : ( 3, '24' )
-}
-
-# Fixed fabric serdes octet to front panel slot mapping for Viper.
-fabSerdesCoreToFrontPanelSlot = {
-      0 : '10',
-      1 : '9',
-      2 : '8',
-      3 : '7',
-      4 : '6',
-      5 : '5',
-      6 : '4',
-      7 : '3',
-      8 : '1',
-      9 : '2',
-      10 : '30',
-      11 : '29',
-      12 : '32',
-      13 : '33',
-      14 : '31',
-      15 : '34',
-      16 : '38',
-      17 : '37',
-      18 : '35',
-      19 : '36'
+nifSerdesCoreToAsicCore = {
+      # serdes Octet : J3 core
+      0 : 0,
+      1 : 0,
+      2 : 0,
+      3 : 0,
+      4 : 0,
+      5 : 1,
+      6 : 1,
+      7 : 1,
+      8 : 1,
+      9 : 2,
+      10 : 2,
+      11 : 2,
+      12 : 2,
+      13 : 3,
+      14 : 3,
+      15 : 3,
+      16 : 3,
+      17 : 3,
 }
 
 # Assuming 100G lanes, number of lanes required by each supported port profile.
@@ -214,19 +194,43 @@ supportedProfilesByPortType = {
       'fab' :  [ '36', '37', '41', '42'],
 }
 
-# Append nif ports.
-for port in range( nifPortBase, nifPortBase + numNifPorts ):
-   portStr = str( port )
+asicSerdesMappings = []
+for asic in range( numAsics ):
+   asicSerdesMappings.append( {} )
+with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
+   for line in fh:
+      if line.startswith( "System" ):
+         continue
+      asic, asicSerdesId, frontPanelSlot, frontPanelLane, _, connectionType, polaritySwap = line.rstrip().split(",")
+      asic = int( asic )
+      asicSerdesId = int( asicSerdesId )
+      frontPanelSlot = int( frontPanelSlot )
+      frontPanelLane = int( frontPanelLane )
+      assert asic < numAsics
+      asicMapping = asicSerdesMappings[ asic ]
+      if asicSerdesId not in asicMapping:
+         asicMapping[ asicSerdesId ] = {}
+      asicMapping[ asicSerdesId ][ connectionType ] = ( frontPanelSlot,
+               frontPanelLane, polaritySwap )
+asicId = 0
+# Append nif ports. Since we are only setting up master ports (first port in each
+# serdes core, we can iterate over the number of cores).
+for nifSerdesCore in range(  numNifSerdesCores ):
    # We are not describing non-master sub ports.
-   portOctet = port - nifPortBase
+   port = nifPortBase + nifSerdesCore
+   portStr = str( port )
    if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
       continue
    supportedProfiles = supportedProfilesByPortType[ 'eth' ]
-   serdesCore = f"BC{portOctet}"
-   coreId, frontPanelSlot = nifSerdesCoreToCoreAndFrontPanelSlot[ portOctet ]
+   serdesCore = f"BC{nifSerdesCore}"
+   asicCoreId = nifSerdesCoreToAsicCore[ nifSerdesCore ]
+   asicSerdesId = nifSerdesCore*numSerdesPerCore
+   assert nifSerdesCore*numSerdesPerCore in asicSerdesMappings[ asicId ]
+   frontPanelSlot, _, _ = asicSerdesMappings[ asicId ][ asicSerdesId ][ "rx" ]
+   assert frontPanelSlotToPortType( frontPanelSlot ) == "eth"
    frontPanelPort = f"eth1/{frontPanelSlot}"
    portMapping = getNifPortMapping( portId=port, serdesCore=serdesCore,
-         frontPanelPort=frontPanelPort, coreId=coreId,
+         frontPanelPort=frontPanelPort, coreId=asicCoreId,
          supportedProfiles=supportedProfiles )
    platMapping[ 'ports' ][ portStr ] = portMapping
    if debug:
@@ -235,22 +239,25 @@ for port in range( nifPortBase, nifPortBase + numNifPorts ):
 # Append the fabric ports.
 # Each serdes is described as a fabric port, so the enumeration here is somewhat
 # different from the NIF ports.
-for port in range( fabricPortBase, fabricPortBase + numFabricPorts ):
-   portStr = str( port )
-   portOctet = ( port - fabricPortBase ) // 8
-   portLane = ( port % 8 )
-   if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
-      continue
-   supportedProfiles = supportedProfilesByPortType[ 'fab' ]
-   serdesCore = f"BC{portOctet}"
-   frontPanelSlot = fabSerdesCoreToFrontPanelSlot[ portOctet ]
-   frontPanelPort = f"fab1/{frontPanelSlot}"
-   portMapping = getFabricPortMapping( portId=port, serdesCore=serdesCore,
-         frontPanelPort=frontPanelPort, firstLane=portLane,
-         supportedProfiles=supportedProfiles )
-   platMapping[ 'ports' ][ portStr ] = portMapping
-   if debug:
-      print( portMapping )
+for fabSerdesCore in range( numFabricSerdesCores ):
+   port = fabricPortBase + fabSerdesCore * numSerdesPerCore
+   for serdes in range( numSerdesPerCore ):
+      port += serdes
+      portStr = str( port )
+      if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
+         continue
+      supportedProfiles = supportedProfilesByPortType[ 'fab' ]
+      serdesCore = f"BC{fabSerdesCore}"
+      asicSerdesId = (fabSerdesCore * numSerdesPerCore + serdes) + ( numNifSerdesCores * numSerdesPerCore )
+      frontPanelSlot, _, _ = asicSerdesMappings[ asicId ][ asicSerdesId ][ "rx" ]
+      assert frontPanelSlotToPortType( frontPanelSlot ) == "fab"
+      frontPanelPort = f"fab1/{frontPanelSlot}"
+      portMapping = getFabricPortMapping( portId=port, serdesCore=serdesCore,
+            frontPanelPort=frontPanelPort, firstLane=serdes,
+            supportedProfiles=supportedProfiles )
+      platMapping[ 'ports' ][ portStr ] = portMapping
+      if debug:
+         print( portMapping )
 
 # Append the chips enumeration.
 # Serdes cores is a superset of octet cores required for fabric and front panel
@@ -261,7 +268,7 @@ platMapping[ "chips" ].append( OrderedDict( {
       "type" : 1,
       "physicalID" : 55
 } ) )
-serdesCores = max( numNifPorts, numFabricPorts//8 )
+serdesCores = max( numNifSerdesCores, numFabricSerdesCores )
 for core in range( serdesCores ):
    platMapping[ "chips" ].append( OrderedDict(
       {
@@ -269,7 +276,7 @@ for core in range( serdesCores ):
          "type" : 1,
          "physicalID": core
       } ) )
-numFrontPanelPorts = 38
+numFrontPanelPorts = numFabricSerdesCores + numNifSerdesCores
 for port in range( numFrontPanelPorts ):
    frontPanelSlot = port+1
    frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
@@ -320,7 +327,7 @@ json_out = json.dumps( platMapping, indent=2, sort_keys=False )
 with open( "viper_platform_mapping.json", "w") as fh:
    fh.write( json_out )
 
-nifFrontPanelSlotToJ3CoreAndSerdesCore = {}
+nifFrontPanelSlotToAsicCoreAndSerdesCore = {}
 with open( "viper_static_mapping.csv", "w" ) as fh:
    # Description of attributes for front panel serdes in the order of their
    # occurence.
@@ -351,18 +358,31 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
    # core Id 55 (this serdes core Id is derived from a reverse calculation of the bcm
    # soc property for recycle port base).
    fh.write( "1,1,NPU,55,J3_RCY,0,,,,,,,,,,,,,,\n" )
-   for serdesCore in nifSerdesCoreToCoreAndFrontPanelSlot.keys():
-      frontPanelSlot = nifSerdesCoreToCoreAndFrontPanelSlot[ serdesCore ][ 1 ]
-      nifFrontPanelSlotToJ3CoreAndSerdesCore[ int( frontPanelSlot ) ] = \
-            ( nifSerdesCoreToCoreAndFrontPanelSlot[ serdesCore ][ 0 ], serdesCore )
-      for lane in range( 8 ):
+   for serdesCore in range( numNifSerdesCores+numFabricSerdesCores ):
+      for lane in range( numSerdesPerCore ):
+         serdesId = serdesCore * numSerdesPerCore + lane
+         frontPanelSlot, rxLane, rxPolSwap = asicSerdesMappings[ asicId ][ serdesId
+               ][ "rx" ]
+         _frontPanelSlot, txLane, txPolSwap = asicSerdesMappings[ asicId ][ serdesId
+               ][ "tx" ]
+         assert frontPanelSlot == _frontPanelSlot
+         if serdesId < 144:
+            nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ] = (
+                  nifSerdesCoreToAsicCore[ serdesCore ], serdesCore )
+         if rxPolSwap == "Yes":
+            rxPolSwap = "Y"
+         else:
+            rxPolSwap = "N"
+         if txPolSwap == "Yes":
+            txPolSwap = "Y"
+         else:
+            txPolSwap = "N"
+         if serdesId < 144:
+            asicCoreType = "J3_NIF"
+         else:
+            asicCoreType = "J3_FE"
          fh.write(
-               f"1,1,NPU,{serdesCore},J3_NIF,{lane},{lane},{lane},N,N,1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
-               )
-   for serdesCore,frontPanelSlot in fabSerdesCoreToFrontPanelSlot.items():
-      for lane in range( 8 ):
-         fh.write(
-               f"1,1,NPU,{serdesCore},J3_FE,{lane},{lane},{lane},N,N,1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
+               f"1,1,NPU,{serdesCore},{asicCoreType},{lane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
                )
 
 with open( "viper_port_profile_mapping.csv", "w" ) as fh:
@@ -394,10 +414,10 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
       elif frontPanelPortType == "eth":
          portStr = f"{portStrPrefix}/1"
          # fapPortId
-         attachedCoreId, serdesCoreId = nifFrontPanelSlotToJ3CoreAndSerdesCore[ frontPanelSlot ]
+         attachedCoreId, serdesCoreId = nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ]
          nifLogicalPortId = nifLogicalPortIdBase + serdesCoreId
          attachedCorePortId = nifLogicalPortId
-         assert nifLogicalPortId - nifLogicalPortIdBase < numNifPorts
+         assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores
          fh.write(
                f"{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
          nifLogicalPortId += 1
