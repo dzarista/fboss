@@ -76,12 +76,12 @@
       },
       "SCM_ECB_VIN" : {
         "path" : "/run/devmap/sensors/CPU_MPS_PMBUS/in1_input",
-        "compute" : "@/1000.0",
+        "compute" : "@/32000.0",
         "type" : 1
       },
       "SCM_ECB_VOUT" : {
         "path" : "/run/devmap/sensors/CPU_MPS_PMBUS/in2_input",
-        "compute" : "@/1000.0",
+        "compute" : "@/32000.0",
         "type" : 1
       },
       "SCM_ECB_IOUT" : {
@@ -240,6 +240,16 @@
       },
       "SMB_VRM2_VOUT_J3_1V2" : {
         "path" : "/run/devmap/sensors/SMB_ISL68226_J3/in5_input",
+        "compute" : "@/1000.0",
+        "type" : 1
+      },
+      "SMB_VRM3_VIN" : {
+        "path" : "/run/devmap/sensors/SMB_ISL68226_OPTICS/in1_input",
+        "compute" : "@/1000.0",
+        "type" : 1
+      },
+      "SMB_VRM3_VOUT_OPTICS_3V3" : {
+        "path" : "/run/devmap/sensors/SMB_ISL68226_OPTICS/in3_input",
         "compute" : "@/1000.0",
         "type" : 1
       }
