@@ -84,11 +84,6 @@
         "compute" : "@/1000.0",
         "type" : 1
       },
-      "SCM_ECB_TEMP" : {
-        "path" : "/run/devmap/sensors/CPU_MPS_PMBUS/temp1_input",
-        "compute" : "@/1000.0",
-        "type" : 3
-      },
       "SCM_ECB_IOUT" : {
         "path" : "/run/devmap/sensors/CPU_MPS_PMBUS/curr1_input",
         "compute" : "@/1000.0",
