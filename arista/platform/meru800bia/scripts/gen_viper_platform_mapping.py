@@ -201,17 +201,19 @@ with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
    for line in fh:
       if line.startswith( "System" ):
          continue
-      asic, asicSerdesId, frontPanelSlot, frontPanelLane, _, connectionType, polaritySwap = line.rstrip().split(",")
+      asic, systemSerdesId, frontPanelSlot, lineSideLane, _, connectionType, polaritySwap = line.rstrip().split(",")
       asic = int( asic )
-      asicSerdesId = int( asicSerdesId )
+      systemSerdesId = int( systemSerdesId )
+      systemSideLane = systemSerdesId % numSerdesPerCore
       frontPanelSlot = int( frontPanelSlot )
-      frontPanelLane = int( frontPanelLane )
+      lineSideLane = int( lineSideLane )
+      lineSideSerdes = ( systemSerdesId - systemSideLane ) + lineSideLane
       assert asic < numAsics
       asicMapping = asicSerdesMappings[ asic ]
-      if asicSerdesId not in asicMapping:
-         asicMapping[ asicSerdesId ] = {}
-      asicMapping[ asicSerdesId ][ connectionType ] = ( frontPanelSlot,
-               frontPanelLane, polaritySwap )
+      if lineSideSerdes not in asicMapping:
+         asicMapping[ lineSideSerdes ] = {}
+      asicMapping[ lineSideSerdes ][ connectionType ] = ( frontPanelSlot,
+               systemSideLane, polaritySwap )
 asicId = 0
 # Append nif ports. Since we are only setting up master ports (first port in each
 # serdes core, we can iterate over the number of cores).
@@ -385,8 +387,39 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
                f"1,1,NPU,{serdesCore},{asicCoreType},{lane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
                )
 
+# Generate BCM soc properties for lane and polarity swaps.
+with open( "bcm_config", "w" ) as fh:
+   for serdesCore in range( numNifSerdesCores+numFabricSerdesCores ):
+      for lane in range( numSerdesPerCore ):
+         serdesId = serdesCore * numSerdesPerCore + lane
+         frontPanelSlot, rxLane, rxPolSwap = asicSerdesMappings[ asicId ][ serdesId
+               ][ "rx" ]
+         _frontPanelSlot, txLane, txPolSwap = asicSerdesMappings[ asicId ][ serdesId
+               ][ "tx" ]
+         assert frontPanelSlot == _frontPanelSlot
+         if rxPolSwap == "Yes":
+            rxPolSwap = "1"
+         else:
+            rxPolSwap = "0"
+         if txPolSwap == "Yes":
+            txPolSwap = "1"
+         else:
+            txPolSwap = "0"
+         if serdesId < 144:
+            fh.write(
+                  f"\"lane_to_serdes_map_nif_lane{serdesId}.BCM8886X\": \"rx{rxLane}:tx{txLane}\"\n" )
+            fh.write( f"\"phy_rx_polarity_flip_phy{serdesId}.BCM8886X\": \"{rxPolSwap}\",\n" )
+            fh.write( f"\"phy_tx_polarity_flip_phy{serdesId}.BCM8886X\": \"{txPolSwap}\",\n" )
+         else:
+            serdesId -= 144
+            fh.write(
+                  f"\"lane_to_serdes_map_fabric_lane{serdesId}.BCM8886X\": \"rx{rxLane}:tx{txLane}\"\n" )
+            fh.write( f"\"phy_rx_polarity_flip_fabric{serdesId}.BCM8886X\": \"{rxPolSwap}\",\n" )
+            fh.write( f"\"phy_tx_polarity_flip_fabric{serdesId}.BCM8886X\": \"{txPolSwap}\",\n" )
+
 with open( "viper_port_profile_mapping.csv", "w" ) as fh:
    # Description of fields in the order of their appearance:
+   # Global PortID : Global port ID across all ASICs in the system.
    # Logical_PortID : Logical port ID used in the bcm soc properties.
    # Port_Name : Port name used in the platform mapping.
    # Attached_CoreId : CoreId on ASIC that the port is attached to.
@@ -419,7 +452,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
          attachedCorePortId = nifLogicalPortId
          assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores
          fh.write(
-               f"{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
+               f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
          nifLogicalPortId += 1
       else:
          assert False, "Invalid frontPanelPortType"
