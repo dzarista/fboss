@@ -330,6 +330,7 @@ with open( "viper_platform_mapping.json", "w") as fh:
    fh.write( json_out )
 
 nifFrontPanelSlotToAsicCoreAndSerdesCore = {}
+bcmConfigFh = open( "bcm_config", "w" )
 with open( "viper_static_mapping.csv", "w" ) as fh:
    # Description of attributes for front panel serdes in the order of their
    # occurence.
@@ -371,51 +372,36 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
          if serdesId < 144:
             nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ] = (
                   nifSerdesCoreToAsicCore[ serdesCore ], serdesCore )
-         if rxPolSwap == "Yes":
-            rxPolSwap = "Y"
+         rxPolSwap = rxPolSwap[ 0 ]
+         txPolSwap = txPolSwap[ 0 ]
+         if rxPolSwap == "Y":
+            rxPolSwapProp = "1"
          else:
-            rxPolSwap = "N"
-         if txPolSwap == "Yes":
-            txPolSwap = "Y"
+            rxPolSwapProp = "0"
+         if txPolSwap == "Y":
+            txPolSwapProp = "1"
          else:
-            txPolSwap = "N"
+            txPolSwapProp = "0"
          if serdesId < 144:
             asicCoreType = "J3_NIF"
+            laneMapType = "nif"
+            polaritySwapType = "phy"
          else:
+            serdesId -= 144
             asicCoreType = "J3_FE"
+            laneMapType = "fabric"
+            polaritySwapType = "fabric"
+
          fh.write(
                f"1,1,NPU,{serdesCore},{asicCoreType},{lane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
                )
-
-# Generate BCM soc properties for lane and polarity swaps.
-with open( "bcm_config", "w" ) as fh:
-   for serdesCore in range( numNifSerdesCores+numFabricSerdesCores ):
-      for lane in range( numSerdesPerCore ):
-         serdesId = serdesCore * numSerdesPerCore + lane
-         frontPanelSlot, rxLane, rxPolSwap = asicSerdesMappings[ asicId ][ serdesId
-               ][ "rx" ]
-         _frontPanelSlot, txLane, txPolSwap = asicSerdesMappings[ asicId ][ serdesId
-               ][ "tx" ]
-         assert frontPanelSlot == _frontPanelSlot
-         if rxPolSwap == "Yes":
-            rxPolSwap = "1"
-         else:
-            rxPolSwap = "0"
-         if txPolSwap == "Yes":
-            txPolSwap = "1"
-         else:
-            txPolSwap = "0"
-         if serdesId < 144:
-            fh.write(
-                  f"\"lane_to_serdes_map_nif_lane{serdesId}.BCM8886X\": \"rx{rxLane}:tx{txLane}\"\n" )
-            fh.write( f"\"phy_rx_polarity_flip_phy{serdesId}.BCM8886X\": \"{rxPolSwap}\",\n" )
-            fh.write( f"\"phy_tx_polarity_flip_phy{serdesId}.BCM8886X\": \"{txPolSwap}\",\n" )
-         else:
-            serdesId -= 144
-            fh.write(
-                  f"\"lane_to_serdes_map_fabric_lane{serdesId}.BCM8886X\": \"rx{rxLane}:tx{txLane}\"\n" )
-            fh.write( f"\"phy_rx_polarity_flip_fabric{serdesId}.BCM8886X\": \"{rxPolSwap}\",\n" )
-            fh.write( f"\"phy_tx_polarity_flip_fabric{serdesId}.BCM8886X\": \"{txPolSwap}\",\n" )
+         # BCM soc properties for lane maps and polarity swaps.
+         bcmConfigFh.write(
+               f"\"lane_to_serdes_map_{laneMapType}_lane{serdesId}.BCM8886X\": \"rx{rxLane}:tx{txLane}\"\n" )
+         bcmConfigFh.write(
+               f"\"phy_rx_polarity_flip_{polaritySwapType}{serdesId}.BCM8886X\": \"{rxPolSwapProp}\",\n" )
+         bcmConfigFh.write(
+               f"\"phy_tx_polarity_flip_{polaritySwapType}{serdesId}.BCM8886X\": \"{txPolSwapProp}\",\n" )
 
 with open( "viper_port_profile_mapping.csv", "w" ) as fh:
    # Description of fields in the order of their appearance:
