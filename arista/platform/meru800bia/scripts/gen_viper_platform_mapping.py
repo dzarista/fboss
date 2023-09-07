@@ -399,8 +399,13 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
          fh.write(
                f"1,1,NPU,{serdesCorePrinted},{asicCoreType},{lane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
                )
-         rxLane += serdesCore * numSerdesPerCore
-         txLane += serdesCore * numSerdesPerCore
+         if serdesCore < 18:
+            rxLane += serdesCore * numSerdesPerCore
+            txLane += serdesCore * numSerdesPerCore
+         else:
+            rxLane += ( serdesCore * numSerdesPerCore - 144 )
+            txLane += ( serdesCore * numSerdesPerCore - 144 )
+
          # BCM soc properties for lane maps and polarity swaps.
          bcmConfigFh.write(
                f"\"lane_to_serdes_map_{laneMapType}_lane{serdesId}.BCM8886X\": \"rx{rxLane}:tx{txLane}\",\n" )
