@@ -217,6 +217,8 @@ with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
 asicId = 0
 # Append nif ports. Since we are only setting up master ports (first port in each
 # serdes core, we can iterate over the number of cores).
+# NOTE : This is currenlty broken since META generates the platform mapping
+# differently from the vendor mapping CSVs.
 for nifSerdesCore in range(  numNifSerdesCores ):
    # We are not describing non-master sub ports.
    port = nifPortBase + nifSerdesCore
@@ -420,7 +422,9 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
    nifLogicalPortIdBase = 2
    fabLogicalPortId = 1024
    fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ] )
-   nifSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'eth' ] )
+   nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'eth' ] )
+   nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'eth' ][ : -1
+      ] )
    for port in range( numFrontPanelPorts ):
       frontPanelSlot = port+1
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
@@ -431,14 +435,25 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
             fh.write( f"{fabLogicalPortId},{portStr},{fabSupportedProfiles},,\n" )
             fabLogicalPortId += 1
       elif frontPanelPortType == "eth":
-         portStr = f"{portStrPrefix}/1"
-         # fapPortId
-         attachedCoreId, serdesCoreId = nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ]
-         nifLogicalPortId = nifLogicalPortIdBase + serdesCoreId
-         attachedCorePortId = nifLogicalPortId
-         assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores
-         fh.write(
-               f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
-         nifLogicalPortId += 1
+         for subPort in ( "1", "5" ):
+            portStr = f"{portStrPrefix}/{subPort}"
+            # fapPortId
+            attachedCoreId, serdesCoreId = nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ]
+            # 400G-4 CDGE core Id
+            if subPort == "1":
+               cdgeCore_4 = serdesCoreId * 2
+               nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
+               nifSupportedProfiles = nifSupportedProfilesMain
+            elif subPort == "5":
+               cdgeCore_4 = serdesCoreId * 2 + 1
+               nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
+               nifSupportedProfiles = nifSupportedProfilesSubPort
+            attachedCorePortId = nifLogicalPortId
+            assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores*2
+            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\"\n" )
+            fh.write(
+                  f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
+            nifLogicalPortId += 1
       else:
          assert False, "Invalid frontPanelPortType"
+bcmConfigFh.close()
