@@ -385,21 +385,25 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
          else:
             txPolSwapProp = "0"
          if serdesId < 144:
+            serdesCorePrinted = serdesCore
             asicCoreType = "J3_NIF"
             laneMapType = "nif"
             polaritySwapType = "phy"
          else:
             serdesId -= 144
+            serdesCorePrinted = serdesCore - 18
             asicCoreType = "J3_FE"
             laneMapType = "fabric"
             polaritySwapType = "fabric"
 
          fh.write(
-               f"1,1,NPU,{serdesCore},{asicCoreType},{lane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
+               f"1,1,NPU,{serdesCorePrinted},{asicCoreType},{lane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
                )
+         rxLane += serdesCore * numSerdesPerCore
+         txLane += serdesCore * numSerdesPerCore
          # BCM soc properties for lane maps and polarity swaps.
          bcmConfigFh.write(
-               f"\"lane_to_serdes_map_{laneMapType}_lane{serdesId}.BCM8886X\": \"rx{rxLane}:tx{txLane}\"\n" )
+               f"\"lane_to_serdes_map_{laneMapType}_lane{serdesId}.BCM8886X\": \"rx{rxLane}:tx{txLane}\",\n" )
          bcmConfigFh.write(
                f"\"phy_rx_polarity_flip_{polaritySwapType}{serdesId}.BCM8886X\": \"{rxPolSwapProp}\",\n" )
          bcmConfigFh.write(
@@ -450,7 +454,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
                nifSupportedProfiles = nifSupportedProfilesSubPort
             attachedCorePortId = nifLogicalPortId
             assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores*2
-            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\"\n" )
+            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
                   f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
             nifLogicalPortId += 1
