@@ -416,7 +416,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
    # Attached_CoreId and Attached_Core_PortID can be left empty.
    # Recycle port is a special port with port id 1, it is given internal serdes core
    # ID 55.
-   fh.write("1,rcy1/1/55,11,0,1\n")
+   fh.write("1,1,rcy1/1/55,11,0,1\n")
    # CPU port is 0, RCY port is 1, NIF ports start from logical port Id 2.
    # Fabric ports start from logical port Id 1024.
    nifLogicalPortIdBase = 2
