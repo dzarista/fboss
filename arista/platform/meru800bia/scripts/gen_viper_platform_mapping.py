@@ -432,7 +432,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
       if frontPanelPortType == "fab":
          for subPort in range( 1,9 ):
             portStr = f"{portStrPrefix}/{subPort}"
-            fh.write( f"{fabLogicalPortId},{portStr},{fabSupportedProfiles},,\n" )
+            fh.write( f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,\n" )
             fabLogicalPortId += 1
       elif frontPanelPortType == "eth":
          for subPort in ( "1", "5" ):
