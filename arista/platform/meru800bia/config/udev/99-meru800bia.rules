@@ -109,6 +109,7 @@ SUBSYSTEM=="i2c", ATTR{name}=="SCD 0000:01:00.0 SMBus master 0 bus 0", RUN+="/bi
 SUBSYSTEM=="i2c", ATTR{name}=="pali2_cpld", RUN+="/bin/mkdir -p /run/devmap/cplds", RUN+="/bin/ln -sf %S/%p /run/devmap/cplds/FAN_CPLD"
 
 # FAN I2C SENSORS
+SUBSYSTEM=="hwmon", ATTR{name}=="pali2_cpld", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/FAN_CPLD"
 SUBSYSTEM=="hwmon", ATTR{name}=="tmp75", DEVPATH=="*/0000:07:00.0/scm-smbus.1/i2c-*/*-0048/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/FAN_TMP75"
 SUBSYSTEM=="i2c", ATTR{name}=="SCD 0000:07:00.0 SMBus master 1 bus 3", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0048 || echo tmp75 0x48 > /sys/bus/i2c/devices/i2c-%n/new_device'", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0060 || echo pali2_cpld 0x60 > /sys/bus/i2c/devices/i2c-%n/new_device'"
 

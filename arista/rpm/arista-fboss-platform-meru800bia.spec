@@ -28,7 +28,8 @@ set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_meru800bia_dir}/* .
 find %{SOURCEURL0}/%{_sai_sdk_src_dir} -wholename "*/tools/sand/db" -exec cp -r {} . \;
-cp -af %{SOURCEURL0}/%{_fboss_config_dir}/meru800bia/sensor_service.json platform_sensors.conf
+cp -af %{SOURCEURL0}/%{_fboss_config_dir}/meru800bia/sensor_service.json .
+cp -af %{SOURCEURL0}/%{_fboss_config_dir}/meru800bia/fan_service.json .
 
 %install
 mkdir -p %{_fboss_target_share}
@@ -39,12 +40,13 @@ mkdir -p %{_fboss_target_bin}
 install -m 755 scripts/platform_init.sh %{_fboss_target_bin}
 mkdir -p %{_fboss_target_udev}
 install config/udev/99-meru800bia.rules %{_fboss_target_udev}
-mkdir -p %{_fboss_target_share}/sensor_service/
-install platform_sensors.conf %{_fboss_target_share}/sensor_service/
+mkdir -p %{_fboss_target_share}/platform_configs
+install sensor_service.json %{_fboss_target_share}/platform_configs/
+install fan_service.json %{_fboss_target_share}/platform_configs/
 
 %files
 /var/facebook/fboss/fruid.json
 /opt/fboss/share/db
 /opt/fboss/bin/platform_init.sh
 /etc/udev/rules.d/99-meru800bia.rules
-/opt/fboss/share/sensor_service/platform_sensors.conf
+/opt/fboss/share/platform_configs
