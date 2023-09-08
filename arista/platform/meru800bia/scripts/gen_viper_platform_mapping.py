@@ -378,12 +378,16 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
          txPolSwap = txPolSwap[ 0 ]
          if rxPolSwap == "Y":
             rxPolSwapProp = "1"
-         else:
+         elif rxPolSwap == "N":
             rxPolSwapProp = "0"
+         else:
+            assert False
          if txPolSwap == "Y":
             txPolSwapProp = "1"
-         else:
+         elif txPolSwap == "N":
             txPolSwapProp = "0"
+         else:
+            assert False
          if serdesId < 144:
             serdesCorePrinted = serdesCore
             asicCoreType = "J3_NIF"
