@@ -733,13 +733,33 @@ void LookupClassRouteUpdater::processNeighborChanged(
   }
 }
 
-template <typename AddrT>
+// VOQ switches don't use VLANs. Thus, neighbor tables are being migrated
+// from VLANs to Interfaces.
+// However, LookupClassUpdater heavily uses VLANs and is enabled only for NPU
+// switches today.
+// Thus, this function works as follows:
+// - Compute neighbor table delta for VLAN neighbor tables or Interface
+//   neighbor tables depending on the feature flag.
+// - For the old/new interface, derive corresponding VLAN ID.
+//   There is always 1:1 between interface and VLAN for NPU switches.
+// Use the VLAN ID to pass to other methods in LookupClassUpdater.
+template <typename AddrT, typename MapDeltaT>
 void LookupClassRouteUpdater::processNeighborUpdates(
-    const StateDelta& stateDelta) {
-  for (const auto& vlanDelta : stateDelta.getVlansDelta()) {
-    auto newVlan = vlanDelta.getNew();
-    if (!newVlan) {
-      auto oldVlan = vlanDelta.getOld();
+    const StateDelta& stateDelta,
+    const MapDeltaT& mapDelta) {
+  for (const auto& mapDeltaEntry : mapDelta) {
+    auto newVlanOrIntf = mapDeltaEntry.getNew();
+    if (!newVlanOrIntf) {
+      auto oldVlanOrIntf = mapDeltaEntry.getOld();
+
+      std::shared_ptr<Vlan> oldVlan;
+      if constexpr (std::is_same_v<MapDeltaT, MultiSwitchInterfaceMapDelta>) {
+        // Lookup VLAN corresponding to the interface
+        oldVlan = stateDelta.oldState()->getVlans()->getNodeIf(
+            oldVlanOrIntf->getVlanID());
+      } else {
+        oldVlan = oldVlanOrIntf;
+      }
 
       for (auto iter :
            std::as_const(*NeighborTableDeltaCallbackGenerator::getTable<AddrT>(
@@ -747,13 +767,21 @@ void LookupClassRouteUpdater::processNeighborUpdates(
         auto entry = iter.second;
         processNeighborRemoved(stateDelta, oldVlan->getID(), entry);
       }
+
       continue;
     }
 
-    auto vlan = newVlan->getID();
+    VlanID vlanID;
+    if constexpr (std::is_same_v<MapDeltaT, MultiSwitchInterfaceMapDelta>) {
+      // Lookup VLAN corresponding to the interface
+      vlanID = newVlanOrIntf->getVlanID();
+    } else {
+      vlanID = newVlanOrIntf->getID();
+    }
 
     for (const auto& delta :
-         NeighborTableDeltaCallbackGenerator::getTableDelta<AddrT>(vlanDelta)) {
+         NeighborTableDeltaCallbackGenerator::getTableDelta<AddrT>(
+             mapDeltaEntry)) {
       auto oldNeighbor = delta.getOld();
       auto newNeighbor = delta.getNew();
 
@@ -767,11 +795,11 @@ void LookupClassRouteUpdater::processNeighborUpdates(
       }
 
       if (!oldNeighbor) {
-        processNeighborAdded(stateDelta, vlan, newNeighbor);
+        processNeighborAdded(stateDelta, vlanID, newNeighbor);
       } else if (!newNeighbor) {
-        processNeighborRemoved(stateDelta, vlan, oldNeighbor);
+        processNeighborRemoved(stateDelta, vlanID, oldNeighbor);
       } else {
-        processNeighborChanged(stateDelta, vlan, oldNeighbor, newNeighbor);
+        processNeighborChanged(stateDelta, vlanID, oldNeighbor, newNeighbor);
       }
     }
   }
@@ -1570,9 +1598,24 @@ void LookupClassRouteUpdater::stateUpdated(const StateDelta& stateDelta) {
     return;
   }
 
-  processNeighborUpdates<folly::MacAddress>(stateDelta);
-  processNeighborUpdates<folly::IPAddressV6>(stateDelta);
-  processNeighborUpdates<folly::IPAddressV4>(stateDelta);
+  // VOQ switches don't support VLANs.
+  // Thus, we arein the process of migrating the Neighbor tables from VLANs to
+  // Interfaces. Thus, process neighbor updates from VLAN / Interface neighbor
+  // tables depending on the feature flag.
+  // MAC Tables continue to be part of the VLANs.
+  processNeighborUpdates<folly::MacAddress>(
+      stateDelta, stateDelta.getVlansDelta());
+  if (FLAGS_intf_nbr_tables) {
+    processNeighborUpdates<folly::IPAddressV6>(
+        stateDelta, stateDelta.getIntfsDelta());
+    processNeighborUpdates<folly::IPAddressV4>(
+        stateDelta, stateDelta.getIntfsDelta());
+  } else {
+    processNeighborUpdates<folly::IPAddressV6>(
+        stateDelta, stateDelta.getVlansDelta());
+    processNeighborUpdates<folly::IPAddressV4>(
+        stateDelta, stateDelta.getVlansDelta());
+  }
 
   processRouteUpdates<folly::IPAddressV6>(stateDelta);
   processRouteUpdates<folly::IPAddressV4>(stateDelta);

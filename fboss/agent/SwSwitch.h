@@ -894,6 +894,8 @@ class SwSwitch : public HwSwitchCallback {
   // used by tests to avoid having to reload config from disk
   void setConfig(std::unique_ptr<AgentConfig> config);
 
+  bool needL2EntryForNeighbor() const;
+
  private:
   std::optional<folly::MacAddress> getSourceMac(
       const std::shared_ptr<Interface>& intf) const;
@@ -994,6 +996,16 @@ class SwSwitch : public HwSwitchCallback {
   void storeWarmBootState(const state::WarmbootState& state);
 
   std::unique_ptr<AgentConfig> loadConfig();
+
+  void applyConfigImpl(
+      const std::string& reason,
+      const cfg::SwitchConfig& newConfig);
+
+  void setConfigImpl(std::unique_ptr<AgentConfig> config);
+
+  std::shared_ptr<SwitchState> init(SwitchFlags flags = SwitchFlags::DEFAULT);
+
+  void initDone(const HwInitResult* HwInitResult);
 
   std::unique_ptr<MultiHwSwitchHandler> multiHwSwitchHandler_;
   const AgentDirectoryUtil* agentDirUtil_;
@@ -1148,6 +1160,6 @@ class SwSwitch : public HwSwitchCallback {
   std::unique_ptr<SwSwitchWarmBootHelper> swSwitchWarmbootHelper_;
   std::atomic<std::chrono::time_point<std::chrono::steady_clock>>
       lastPacketRxTime_{std::chrono::steady_clock::time_point::min()};
-  std::unique_ptr<AgentConfig> agentConfig_;
+  folly::Synchronized<std::unique_ptr<AgentConfig>> agentConfig_;
 };
 } // namespace facebook::fboss

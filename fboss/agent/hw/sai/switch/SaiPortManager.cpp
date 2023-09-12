@@ -544,7 +544,7 @@ void SaiPortManager::programPfc(
     return folly::to<std::string>(
         tx ? "True/" : "False/", rx ? "True" : "False");
   };
-  XLOG(DBG3) << "Successfully enabled pfc on " << swPort->getName()
+  XLOG(DBG3) << "Successfully enabled PFC on " << swPort->getName()
              << ", TX/RX = " << logHelper(txPfc, rxPfc);
 }
 
@@ -628,15 +628,14 @@ void SaiPortManager::programPfcWatchdog(
     const std::shared_ptr<Port>& swPort,
     std::vector<PfcPriority>& enabledPfcPriorities,
     const bool portPfcWdEnabled) {
-  auto pfcEnabledStatus = portPfcWdEnabled ? "enable" : "disable";
-  XLOG(DBG4) << "PFC WD " << pfcEnabledStatus << " programming for "
-             << swPort->getName();
   // Program PFC watchdog timers per port/queue
   programPfcWatchdogTimers(swPort, enabledPfcPriorities, portPfcWdEnabled);
 
   // Enable/disable PFC watchdog per queue
   programPfcWatchdogPerQueueEnable(
       swPort, enabledPfcPriorities, portPfcWdEnabled);
+  auto pfcWdEnabledStatus = portPfcWdEnabled ? "enabled" : "disabled";
+  XLOG(DBG3) << "PFC WD " << pfcWdEnabledStatus << " for " << swPort->getName();
 }
 
 void SaiPortManager::addPfc(const std::shared_ptr<Port>& swPort) {
@@ -645,6 +644,8 @@ void SaiPortManager::addPfc(const std::shared_ptr<Port>& swPort) {
     sai_uint8_t txPfc, rxPfc;
     std::tie(txPfc, rxPfc) = preparePfcConfigs(swPort);
     programPfc(swPort, txPfc, rxPfc);
+    // Add PFC WD
+    addPfcWatchdog(swPort);
   }
 }
 
@@ -652,24 +653,32 @@ void SaiPortManager::changePfc(
     const std::shared_ptr<Port>& oldPort,
     const std::shared_ptr<Port>& newPort) {
   if (oldPort->getPfc() != newPort->getPfc()) {
-    sai_uint8_t txPfc, rxPfc;
-    std::tie(txPfc, rxPfc) = preparePfcConfigs(newPort);
-    programPfc(newPort, txPfc, rxPfc);
+    sai_uint8_t oldTxPfc, oldRxPfc;
+    sai_uint8_t newTxPfc, newRxPfc;
+    std::tie(oldTxPfc, oldRxPfc) = preparePfcConfigs(oldPort);
+    std::tie(newTxPfc, newRxPfc) = preparePfcConfigs(newPort);
+    if (oldTxPfc != newTxPfc || oldRxPfc != newRxPfc) {
+      programPfc(newPort, newTxPfc, newRxPfc);
+    } else {
+      XLOG(DBG4) << "PFC enabled setting unchanged for " << newPort->getName();
+    }
+    changePfcWatchdog(oldPort, newPort);
   } else {
-    XLOG(DBG4) << "PFC setting unchanged for port " << oldPort->getName();
+    XLOG(DBG4) << "PFC setting unchanged for " << newPort->getName();
   }
 }
 
 void SaiPortManager::removePfc(const std::shared_ptr<Port>& swPort) {
   if (swPort->getPfc().has_value()) {
+    // PFC WD to be removed first
+    removePfcWatchdog(swPort);
     sai_uint8_t txPfc = 0, rxPfc = 0;
     programPfc(swPort, txPfc, rxPfc);
   }
 }
 
 void SaiPortManager::addPfcWatchdog(const std::shared_ptr<Port>& swPort) {
-  if (swPort->getPfc().has_value() &&
-      swPort->getPfc()->watchdog().has_value()) {
+  if (swPort->getPfc()->watchdog().has_value()) {
     auto pfcEnabledPriorities = swPort->getPfcPriorities();
     programPfcWatchdog(swPort, pfcEnabledPriorities, true /* wdEnabled */);
   }
@@ -690,13 +699,12 @@ void SaiPortManager::changePfcWatchdog(
     auto pfcEnabledPriorities = newPort->getPfcPriorities();
     programPfcWatchdog(newPort, pfcEnabledPriorities, newPfcWd.has_value());
   } else {
-    XLOG(DBG4) << "PFC watchdog setting unchanged for port "
-               << newPort->getName();
+    XLOG(DBG4) << "PFC watchdog setting unchanged for " << newPort->getName();
   }
 }
 
 void SaiPortManager::removePfcWatchdog(const std::shared_ptr<Port>& swPort) {
-  if (swPort->getPfc().has_value()) {
+  if (swPort->getPfc()->watchdog()) {
     auto pfcEnabledPriorities = swPort->getPfcPriorities();
     programPfcWatchdog(swPort, pfcEnabledPriorities, false /* wdEnabled */);
   }
@@ -1275,7 +1283,7 @@ bool SaiPortManager::fecStatsSupported(PortID portId) const {
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(TAJO_SDK_VERSION_1_42_4) || \
     defined(SAI_VERSION_9_0_EA_ODP) || defined(TAJO_SDK_VERSION_1_42_8) ||     \
-    defined(TAJO_SDK_VERSION_1_62_0) || defined(TAJO_SDK_VERSION_1_65_0) ||    \
+    defined(TAJO_SDK_VERSION_1_65_0) ||                                        \
     defined(SAI_VERSION_10_0_EA_DNX_SIM_ODP) ||                                \
     defined(SAI_VERSION_10_0_EA_DNX_ODP)
     return true;

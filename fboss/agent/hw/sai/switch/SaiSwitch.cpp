@@ -886,6 +886,8 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
         kAclTable1);
   }
 
+  processPfcWatchdogGlobalDelta(delta, lockPolicy);
+
   if (platform_->getAsic()->isSupported(
           HwAsic::Feature::RESOURCE_USAGE_STATS)) {
     updateResourceUsage(lockPolicy);
@@ -939,6 +941,18 @@ void SaiSwitch::updateResourceUsage(const LockPolicyT& lockPolicy) {
     hwResourceStats_.l3_ipv6_host_free() = switchApi.getAttribute(
         saiSwitchId_,
         SaiSwitchTraits::Attributes::AvailableIpv6NeighborEntry{});
+    if (getSwitchType() == cfg::SwitchType::VOQ) {
+      uint64_t sysPortsFree, voqsFree;
+      saiCheckError(sai_object_type_get_availability(
+          saiSwitchId_, SAI_OBJECT_TYPE_SYSTEM_PORT, 0, NULL, &sysPortsFree));
+      hwResourceStats_.system_ports_free() = sysPortsFree;
+      std::array<sai_attribute_t, 1> attr;
+      attr[0].id = SAI_QUEUE_ATTR_TYPE;
+      attr[0].value.u32 = SAI_QUEUE_TYPE_ALL;
+      sai_object_type_get_availability(
+          saiSwitchId_, SAI_OBJECT_TYPE_QUEUE, 1, attr.data(), &voqsFree);
+      hwResourceStats_.voqs_free() = voqsFree;
+    }
     hwResourceStats_.hw_table_stats_stale() = false;
   } catch (const SaiApiError& e) {
     XLOG(ERR) << " Failed to get resource usage hwResourceStats_: "
@@ -1488,7 +1502,7 @@ void SaiSwitch::gracefulExitLocked(const std::lock_guard<std::mutex>& lock) {
   SaiApiTable::getInstance()->switchApi().setAttribute(
       saiSwitchId_, preShutdown);
   if (platform_->getAsic()->isSupported(HwAsic::Feature::P4_WARMBOOT)) {
-#if defined(TAJO_SDK_VERSION_1_62_0) || defined(TAJO_SDK_VERSION_1_65_0)
+#if defined(TAJO_SDK_VERSION_1_65_0)
     SaiSwitchTraits::Attributes::RestartIssu restartIssu{true};
     SaiApiTable::getInstance()->switchApi().setAttribute(
         saiSwitchId_, restartIssu);
@@ -3230,12 +3244,7 @@ void SaiSwitch::processPfcDeadlockRecoveryAction(
     newPfcDlrPacketAction = SAI_PACKET_ACTION_DROP;
     recoveryActionConfig = *recoveryAction;
   } else {
-#if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
-    newPfcDlrPacketAction = SAI_PACKET_ACTION_DONOTDROP;
-#else
-    XLOG(ERR) << "PFC WD recovery action NO_DROP unsupported!";
-    return;
-#endif
+    newPfcDlrPacketAction = SAI_PACKET_ACTION_FORWARD;
   }
   CHECK(newPfcDlrPacketAction.has_value());
   if (currentPfcDlrPacketAction != *newPfcDlrPacketAction) {
@@ -3251,17 +3260,24 @@ void SaiSwitch::processPfcDeadlockRecoveryAction(
   }
 }
 
-void SaiSwitch::processPfcWatchdogGlobalDelta(const StateDelta& delta) {
+void SaiSwitch::processPfcWatchdogGlobalDeltaLocked(
+    const StateDelta& delta,
+    const std::lock_guard<std::mutex>& /* lock */) {
   auto oldRecoveryAction = delta.oldState()->getPfcWatchdogRecoveryAction();
   auto newRecoveryAction = delta.newState()->getPfcWatchdogRecoveryAction();
 
-  if (!platform_->getAsic()->isSupported(HwAsic::Feature::PFC)) {
-    // Look for PFC watchdog only if PFC is supported on platform
-    return;
+  if (oldRecoveryAction != newRecoveryAction) {
+    processPfcDeadlockNotificationCallback(
+        oldRecoveryAction, newRecoveryAction);
+    processPfcDeadlockRecoveryAction(newRecoveryAction);
   }
+}
 
-  processPfcDeadlockNotificationCallback(oldRecoveryAction, newRecoveryAction);
-  processPfcDeadlockRecoveryAction(newRecoveryAction);
+template <typename LockPolicyT>
+void SaiSwitch::processPfcWatchdogGlobalDelta(
+    const StateDelta& delta,
+    const LockPolicyT& lockPolicy) {
+  processPfcWatchdogGlobalDeltaLocked(delta, lockPolicy.lock());
 }
 
 void SaiSwitch::pfcDeadlockNotificationCallback(

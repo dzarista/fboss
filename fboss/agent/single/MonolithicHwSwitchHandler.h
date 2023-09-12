@@ -10,13 +10,15 @@ namespace facebook::fboss {
 class HwSwitch;
 class Platform;
 class TxPacket;
+class SwSwitch;
 
 class MonolithicHwSwitchHandler : public HwSwitchHandler {
  public:
   MonolithicHwSwitchHandler(
       Platform* platform,
       const SwitchID& switchId,
-      const cfg::SwitchInfo& info);
+      const cfg::SwitchInfo& info,
+      SwSwitch* sw);
 
   virtual ~MonolithicHwSwitchHandler() override {}
 
@@ -112,7 +114,7 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
   std::string listObjects(const std::vector<HwObjectType>& types, bool cached)
       const override;
 
-  bool needL2EntryForNeighbor() const override;
+  bool needL2EntryForNeighbor(const cfg::SwitchConfig* config) const override;
 
   multiswitch::StateOperDelta getNextStateOperDelta(
       std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) override;

@@ -5,12 +5,6 @@
           "test_name_regex": "warm_boot.*"
         },
         {
-          "test_name_regex": "HwNeighborTest/0.ResolvePendingEntryThenChangeLookupClass"
-        },
-        {
-          "test_name_regex": "HwNeighborTest/2.ResolvePendingEntryThenChangeLookupClass"
-        },
-        {
           "test_name_regex": "HwLoadBalancerTestV[46].*Ucmp.*"
         },
         {
@@ -116,12 +110,6 @@
           "test_name_regex": "HwSflowTest.*"
         },
         {
-          "test_name_regex": "HwQueuePerHostRouteTest/[01].*"
-        },
-        {
-          "test_name_regex": "HwQueuePerHostTest/[01].*"
-        },
-        {
           "test_name_regex": "HwPortBandwidthTest.*"
         },
         {
@@ -173,7 +161,16 @@
           "test_name_regex": "HwMirrorTest/[01].*"
         },
         {
-          "test_name_regex": "HwNeighborTest/1.*"
+          "test_name_regex": "HwNeighborTest/[1357].*"
+        },
+        {
+          "test_name_regex": "HwNeighborTest/[01234567].ResolvePendingEntryThenChangeLookupClass"
+        },
+        {
+          "test_name_regex": "HwQueuePerHostRouteTest/[01].*"
+        },
+        {
+          "test_name_regex": "HwQueuePerHostTest/[0123].*"
         },
         {
           "test_name_regex": "HwLabelSwitchRouteTest/[01].*"
@@ -246,9 +243,6 @@
         },
         {
           "test_name_regex": "HwPtpTcTest.*"
-        },
-        {
-          "test_name_regex": "HwNeighborTest/3.*"
         },
         {
           "test_name_regex": "HwTeFlowTest.*"
@@ -367,12 +361,6 @@
           "test_name_regex": "warm_boot.*"
         },
         {
-          "test_name_regex": "HwNeighborTest/0.ResolvePendingEntryThenChangeLookupClass"
-        },
-        {
-          "test_name_regex": "HwNeighborTest/2.ResolvePendingEntryThenChangeLookupClass"
-        },
-        {
           "test_name_regex": "HwLoadBalancerTestV[46].*Ucmp.*"
         },
         {
@@ -478,12 +466,6 @@
           "test_name_regex": "HwSflowTest.*"
         },
         {
-          "test_name_regex": "HwQueuePerHostRouteTest/[01].*"
-        },
-        {
-          "test_name_regex": "HwQueuePerHostTest/[01].*"
-        },
-        {
           "test_name_regex": "HwPortBandwidthTest.*"
         },
         {
@@ -535,7 +517,16 @@
           "test_name_regex": "HwMirrorTest/[01].*"
         },
         {
-          "test_name_regex": "HwNeighborTest/1.*"
+          "test_name_regex": "HwNeighborTest/[1357].*"
+        },
+        {
+          "test_name_regex": "HwNeighborTest/[01234567].ResolvePendingEntryThenChangeLookupClass"
+        },
+        {
+          "test_name_regex": "HwQueuePerHostRouteTest/[01].*"
+        },
+        {
+          "test_name_regex": "HwQueuePerHostTest/[0123].*"
         },
         {
           "test_name_regex": "HwLabelSwitchRouteTest/[01].*"
@@ -608,9 +599,6 @@
         },
         {
           "test_name_regex": "HwPtpTcTest.*"
-        },
-        {
-          "test_name_regex": "HwNeighborTest/3.*"
         },
         {
           "test_name_regex": "HwTeFlowTest.*"
@@ -1155,6 +1143,9 @@
           "test_name_regex": "HwAqmTest.verifyEcnTrafficNoDrop"
         },
         {
+          "test_name_regex": "HwAqmTest.verifyEcnWithoutWredConfig"
+        },
+        {
           "test_name_regex": "HwMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange"
         },
         {
@@ -1509,6 +1500,9 @@
         },
         {
           "test_name_regex": "HwAqmTest.verifyEcnTrafficNoDrop"
+        },
+        {
+          "test_name_regex": "HwAqmTest.verifyEcnWithoutWredConfig"
         },
         {
           "test_name_regex": "HwMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange"
@@ -1997,6 +1991,9 @@
         },
         {
           "test_name_regex": "HwAqmTest.verifyEcnTrafficNoDrop"
+        },
+        {
+          "test_name_regex": "HwAqmTest.verifyEcnWithoutWredConfig"
         },
         {
           "test_name_regex": "HwMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange"
@@ -3532,6 +3529,9 @@
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
         },
         {
+          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
+        },
+        {
           "test_name_regex": "HwNeighborTest/[13].*"
         },
         {
@@ -5005,6 +5005,9 @@
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
         },
         {
+          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
+        },
+        {
           "test_name_regex": "HwNeighborTest/[13].*"
         },
         {
@@ -6394,6 +6397,9 @@
           "test_name_regex": "HwAqmTest.verifyEcnTrafficNoDrop"
         },
         {
+          "test_name_regex": "HwAqmTest.verifyEcnWithoutWredConfig"
+        },
+        {
           "test_name_regex": "HwMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange"
         },
         {
@@ -6784,6 +6790,9 @@
         },
         {
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
+        },
+        {
+          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
         },
         {
           "test_name_regex": "HwNeighborTest/[13].*"
@@ -8223,6 +8232,9 @@
           "test_name_regex": "HwAqmTest.verifyEcnTrafficNoDrop"
         },
         {
+          "test_name_regex": "HwAqmTest.verifyEcnWithoutWredConfig"
+        },
+        {
           "test_name_regex": "HwMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange"
         },
         {
@@ -8639,6 +8651,9 @@
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
         },
         {
+          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
+        },
+        {
           "test_name_regex": "HwNeighborTest/[13].*"
         },
         {
@@ -8996,6 +9011,9 @@
         },
         {
           "test_name_regex": "HwAqmTest.verifyEcnTrafficNoDrop"
+        },
+        {
+          "test_name_regex": "HwAqmTest.verifyEcnWithoutWredConfig"
         },
         {
           "test_name_regex": "HwMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange"
@@ -10519,6 +10537,9 @@
           "test_name_regex": "HwAqmTest.verifyEcnTrafficNoDrop"
         },
         {
+          "test_name_regex": "HwAqmTest.verifyEcnWithoutWredConfig"
+        },
+        {
           "test_name_regex": "HwMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange"
         },
         {
@@ -10911,6 +10932,9 @@
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
         },
         {
+          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
+        },
+        {
           "test_name_regex": "HwNeighborTest/[13].*"
         },
         {
@@ -11073,6 +11097,9 @@
         },
         {
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
+        },
+        {
+          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
         },
         {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
@@ -11447,6 +11474,9 @@
         },
         {
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
+        },
+        {
+          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
         },
         {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
@@ -12099,6 +12129,9 @@
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
         },
         {
+          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
         },
         {
@@ -12473,6 +12506,9 @@
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
         },
         {
+          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
         },
         {
@@ -12845,6 +12881,9 @@
         },
         {
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
+        },
+        {
+          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
         },
         {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
@@ -13495,6 +13534,9 @@
         },
         {
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
+        },
+        {
+          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
         },
         {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"

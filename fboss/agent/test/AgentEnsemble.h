@@ -160,6 +160,10 @@ class AgentEnsemble : public TestEnsembleIf {
     return *(getSw()->getScopeResolver());
   }
 
+  HwAsicTable* getHwAsicTable() override {
+    return getSw()->getHwAsicTable();
+  }
+
   void registerStateObserver(StateObserver* observer, const std::string& name)
       override;
   void unregisterStateObserver(StateObserver* observer) override;
@@ -178,7 +182,7 @@ class AgentEnsemble : public TestEnsembleIf {
   cfg::PortLoopbackMode mode_{cfg::PortLoopbackMode::MAC};
 };
 
-void ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform);
+int ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform);
 
 std::unique_ptr<AgentEnsemble> createAgentEnsemble(
     AgentEnsembleSwitchConfigFn initialConfigFn,

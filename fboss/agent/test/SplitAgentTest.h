@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/test/AgentEnsemble.h"
 
 #include <gtest/gtest.h>
+
+DECLARE_int32(update_watermark_stats_interval_s);
 
 namespace facebook::fboss {
 
@@ -21,6 +24,7 @@ class SplitAgentTest : public ::testing::Test {
   ~SplitAgentTest() override = default;
   void SetUp() override;
   void TearDown() override;
+  void tearDownAgentEnsemble(bool doWarmboot = false);
 
  protected:
   template <
@@ -55,6 +59,11 @@ class SplitAgentTest : public ::testing::Test {
         verifyPostWarmboot();
       }
     }
+    if (FLAGS_setup_for_warmboot &&
+        isSupportedOnAllAsics(HwAsic::Feature::WARMBOOT)) {
+      XLOG(DBG2) << "tearDownAgentEnsemble() for warmboot";
+      tearDownAgentEnsemble(true);
+    }
   }
 
   template <typename SETUP_FN, typename VERIFY_FN>
@@ -67,13 +76,18 @@ class SplitAgentTest : public ::testing::Test {
     verifyAcrossWarmBoots([]() {}, verify, []() {}, []() {});
   }
 
-  void setupInitialConfig(AgentEnsembleSwitchConfigFn initialConfigFn) {
-    initialConfigFn_ = std::move(initialConfigFn);
-  }
-
   void setupPlatformConfig(AgentEnsemblePlatformConfigFn platformConfigFn) {
     platformConfigFn_ = std::move(platformConfigFn);
   }
+
+  void runForever() const;
+  std::shared_ptr<SwitchState> applyNewConfig(const cfg::SwitchConfig& config);
+
+  const std::map<SwitchID, const HwAsic*> getAsics() const;
+  bool isSupportedOnAllAsics(HwAsic::Feature feature) const;
+  AgentEnsemble* getAgentEnsemble() const;
+  const std::shared_ptr<SwitchState> getProgrammedState() const;
+  std::vector<PortID> masterLogicalPortIds() const;
 
  private:
   /*
@@ -84,7 +98,12 @@ class SplitAgentTest : public ::testing::Test {
     return true;
   }
 
-  AgentEnsembleSwitchConfigFn initialConfigFn_ = nullptr;
+  virtual bool hideFabricPorts() const;
+
+  virtual cfg::SwitchConfig initialConfig(
+      SwSwitch* swSwitch,
+      const std::vector<PortID>& ports) const = 0;
+
   AgentEnsemblePlatformConfigFn platformConfigFn_ = nullptr;
   std::unique_ptr<AgentEnsemble> agentEnsemble_;
 };
