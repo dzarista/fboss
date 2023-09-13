@@ -407,9 +407,15 @@ cfg::SwitchConfig genPortVlanCfg(
   // those new ports on the hardware.
   const auto& portToDefaultProfileID = getPortToDefaultProfileIDMap();
   CHECK_GT(portToDefaultProfileID.size(), 0);
+  const auto& platformPorts = platformMapping->getPlatformPorts();
   for (auto const& [portID, profileID] : portToDefaultProfileID) {
-    config.ports()->push_back(
-        createDefaultPortConfig(platformMapping, asic, portID, profileID));
+    if (!FLAGS_hide_fabric_ports ||
+        *platformPorts.find(static_cast<int32_t>(portID))
+                ->second.mapping()
+                ->portType() != cfg::PortType::FABRIC_PORT) {
+      config.ports()->push_back(
+          createDefaultPortConfig(platformMapping, asic, portID, profileID));
+    }
   }
   auto const kFabricTxQueueConfig = "FabricTxQueueConfig";
   config.portQueueConfigs()[kFabricTxQueueConfig] = getFabTxQueueConfig();
@@ -480,7 +486,8 @@ cfg::SwitchConfig genPortVlanCfg(
 
 void setPortToDefaultProfileIDMap(
     const std::shared_ptr<MultiSwitchPortMap>& ports,
-    const Platform* platform) {
+    const PlatformMapping* platformMapping,
+    const HwAsic* asic) {
   // Most of the platforms will have default ports created when the HW is
   // initialized. But for those who don't have any default port, we'll fall
   // back to use PlatformPort and the safe PortProfileID
@@ -491,18 +498,17 @@ void setPortToDefaultProfileIDMap(
         // In case the profileID learnt from HW is using default, then use speed
         // to get the real profileID
         if (profileID == cfg::PortProfileID::PROFILE_DEFAULT) {
-          auto platformPort = platform->getPlatformPort(port.second->getID());
-          profileID =
-              platformPort->getProfileIDBySpeed(port.second->getSpeed());
+          profileID = platformMapping->getProfileIDBySpeed(
+              port.second->getID(), port.second->getSpeed());
         }
         getPortToDefaultProfileIDMap().emplace(port.second->getID(), profileID);
       }
     }
   } else {
     const auto& safeProfileIDs = getSafeProfileIDs(
-        platform->getPlatformMapping(),
-        platform->getAsic(),
-        getSubsidiaryPortIDs(platform->getPlatformPorts()));
+        platformMapping,
+        asic,
+        getSubsidiaryPortIDs(platformMapping->getPlatformPorts()));
     getPortToDefaultProfileIDMap().insert(
         safeProfileIDs.begin(), safeProfileIDs.end());
   }

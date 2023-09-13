@@ -46,6 +46,8 @@ target_link_libraries(fan_service_lib
   fan_service_cpp2
   Folly::folly
   qsfp_service_client
+  qsfp_state_cpp2
+  qsfp_stats_cpp2
   FBThrift::thriftcpp2
   fsdb_stream_client
   fsdb_pub_sub
@@ -65,6 +67,7 @@ install(TARGETS fan_service)
 
 add_executable(fan_service_sw_test
   fboss/platform/fan_service/tests/BspTests.cpp
+  fboss/platform/fan_service/tests/ControlLogicTests.cpp
 )
 
 target_link_libraries(fan_service_sw_test

@@ -12,6 +12,9 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 // FRU's perspective the origin of the bus can be external (coming directly
 // from the slot), or can be a mux within a FRU.
 //
+// If the I2C Adapter name is known, then that should be used as bus name.
+// If not, use the below logic.
+//
 // If the source of the bus is the slot where the FRU is plugged in, then the
 // bus is named INCOMING@<incoming_index>.  In the below example, FRU A has two
 // incoming buses falling into this category.  Similarly FRU B has three
@@ -53,7 +56,7 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 //
 // `busName`: Refer to Bus Naming Convention above.
 //
-// `addr`: I2c address used by the i2c device
+// `address`: I2c address used by the device in hex notation
 //
 // `kernelDeviceName`: The device name used by kernel to identify the device
 //
@@ -65,14 +68,14 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 // For example, the three i2c devices in the below sample_fru will be modeled
 // as follows
 //
-// sensor1 = I2cDeviceConfig( busName="INCOMING@0", addr=12, kernelDeviceName="lm75",
-// fruScopeName="sensor1")
+// sensor1 = I2cDeviceConfig( busName="INCOMING@0", address="0x12",
+// kernelDeviceName="lm75", fruScopeName="sensor1")
 //
-// sensor2 = I2cDeviceConfig( busName="mux1@0", addr=13, kernelDeviceName="lm75",
-// fruScopeName="sensor2")
+// sensor2 = I2cDeviceConfig( busName="mux1@0", address="0x13",
+// kernelDeviceName="lm75", fruScopeName="sensor2")
 //
-// mux1 = I2cDeviceConfig( busName="INCOMING@1", addr=54, kernelDeviceName="pca9x48",
-// fruScopeName="mux1", numOutgoingChannels=3)
+// mux1 = I2cDeviceConfig( busName="INCOMING@1", address="0x54",
+// kernelDeviceName="pca9x48", fruScopeName="mux1", numOutgoingChannels=3)
 //                    ┌──────────────────────────────────────────┐
 //                    │                sample_fru                │
 //    INCOMING@0      │                       ┌────┬─────┐       │
@@ -89,23 +92,44 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 //                    └──────────────────────────────────────────┘
 struct I2cDeviceConfig {
   1: string busName;
-  2: i32 address;
+  2: string address;
   3: string kernelDeviceName;
   4: string fruScopedName;
   5: optional i32 numOutgoingChannels;
 }
 
-// The EEPROM which contains information about the FRU or Chassis
+// The IDPROM which contains information about the FRU or Chassis
 //
-// `incomingBusIndex`: One of the incoming buses into the FRU should directly
-// connect to the FRU. i.e., not a bus originating from a mux within the FRU.
-// Note, this bus can originate from a mux in an upstream FRU.
+// `busName`: This bus should be directly from the CPU, or an incoming bus into
+// the FRU (i.e., there should not be any mux or fpga in between).  In the case
+// of former, the I2C Adapter name should be used, and in the case of latter,
+// the INCOMING@ notation should be used. Note, this bus can originate from a
+// mux/fpga in an upstream FRU.
+//
+// `address`: I2C address of the IDPROM in hex notation
 //
 // `kernelDeviceName`: The device name used by kernel to identify the device
-struct EepromConfig {
-  1: i32 incomingBusIndex;
-  2: i32 address;
+struct IdpromConfig {
+  1: string busName;
+  2: string address;
   3: string kernelDeviceName;
+}
+
+// `vendorId`: PCIe Vendor ID, and it must be a 4-digit heximal value, such as
+// “1d9b”
+//
+// `deviceId`: PCIe Device ID, and it must be a 4-digit heximal value, such as
+// “0011”
+//
+// `i2CAdapterNameToOffset`: This is a mapping from `i2cAdapterName` to its
+// `offset` inside the FPGA memory. The `i2CAdapterName` is the name that will
+// be eventually assigned to the i2c controller created at the corresponding
+// `offset`. It should be string output for the corresponding
+// /sys/bus/i2c/devices/i2c-#/name
+struct PciDevice {
+  1: string vendorId;
+  2: string deviceId;
+  3: map<string, i32> i2CAdapterNameToOffset;
 }
 
 // These are the FRU Slot types. Examples: "PIM", "PSU", "CHASSIS" and "FAN".
@@ -116,10 +140,19 @@ typedef string FruType
 
 // The below struct holds the global properties for each SlotType within any
 // platform.  This means all slots of the same SlotType within a platform
-// should have the same number of outgoing I2C buses, and same EepromConfig
+// should have the same number of outgoing I2C buses, and same IdpromConfig. At
+// least one of idpromConfig or fruType should be present.
+//
+// If both are present, the exploration will use fruType to proceed with
+// exploration.
+//
+// Also, if both are present, the fruType in idprom contents should match
+// fruType defined here.  The exploration will warn if there is mismatch of
+// fruType.
 struct SlotTypeConfig {
   1: i32 numOutgoingI2cBuses;
-  2: EepromConfig eepromConfig;
+  2: optional IdpromConfig idpromConfig;
+  3: optional FruType fruType;
 }
 
 // SlotConfig holds information specific to each slot.
@@ -153,6 +186,7 @@ struct FruTypeConfig {
   1: SlotType pluggedInSlotType;
   2: list<I2cDeviceConfig> i2cDeviceConfigs;
   3: map<string, SlotConfig> outgoingSlotConfigs;
+  4: list<PciDevice> pciDevices;
 }
 
 // Defines the whole Platform. The top level struct.
@@ -160,12 +194,9 @@ struct PlatformConfig {
   // Name of the platform.  Should match the name set in dmedicode
   1: string platformName;
 
-  // mainBoardSlotConfig describes the virtual slot where the main board
-  // is plugged into the system.
-  3: SlotConfig mainBoardSlotConfig;
-
-  // The EEPROM which holds the chassis information
-  4: EepromConfig chassisEepromConfig;
+  // This is the FRU from which the exploration will begin. The IDPROM of this
+  // FRU should be directly connected to the CPU SMBus.
+  2: FruType rootFruType;
 
   // Map from SlotType name to the global properties of the SlotType.
   11: map<SlotType, SlotTypeConfig> slotTypeConfigs;

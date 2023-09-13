@@ -30,13 +30,35 @@ using folly::MacAddress;
 
 namespace facebook::fboss {
 
-template <typename AddrT>
+template <typename AddrType, bool enableIntfNbrTable>
+struct IpAddrAndEnableIntfNbrTableT {
+  using AddrT = AddrType;
+  static constexpr auto intfNbrTable = enableIntfNbrTable;
+};
+
+using TestTypes = ::testing::Types<
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV4, false>,
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV4, true>,
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV6, false>,
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV6, true>,
+    IpAddrAndEnableIntfNbrTableT<folly::MacAddress, false>,
+    IpAddrAndEnableIntfNbrTableT<folly::MacAddress, true>>;
+
+template <typename IpAddrAndEnableIntfNbrTableT>
 class LookupClassUpdaterTest : public ::testing::Test {
  public:
   using Func = folly::Function<void()>;
   using StateUpdateFn = SwSwitch::StateUpdateFn;
+  using AddrT = typename IpAddrAndEnableIntfNbrTableT::AddrT;
+  static auto constexpr intfNbrTable =
+      IpAddrAndEnableIntfNbrTableT::intfNbrTable;
+
+  bool isIntfNbrTable() const {
+    return intfNbrTable == true;
+  }
 
   void SetUp() override {
+    FLAGS_intf_nbr_tables = this->isIntfNbrTable();
     handle_ = createTestHandle(testStateAWithLookupClasses());
     sw_ = handle_->getSw();
   }
@@ -63,6 +85,10 @@ class LookupClassUpdaterTest : public ::testing::Test {
 
   VlanID kVlan() const {
     return VlanID(1);
+  }
+
+  InterfaceID kInterfaceID() const {
+    return InterfaceID(1);
   }
 
   PortID kPortID() const {
@@ -145,20 +171,40 @@ class LookupClassUpdaterTest : public ::testing::Test {
      * assert if valid CLASSID is associated with the newly resolved neighbor.
      */
     if constexpr (std::is_same<AddrT, folly::IPAddressV4>::value) {
-      sw_->getNeighborUpdater()->receivedArpMine(
-          kVlan(),
-          ipAddress.asV4(),
-          macAddress,
-          PortDescriptor(kPortID()),
-          ArpOpCode::ARP_OP_REPLY);
+      if (isIntfNbrTable()) {
+        sw_->getNeighborUpdater()->receivedArpMineForIntf(
+            kInterfaceID(),
+            ipAddress.asV4(),
+            macAddress,
+            PortDescriptor(kPortID()),
+            ArpOpCode::ARP_OP_REPLY);
+
+      } else {
+        sw_->getNeighborUpdater()->receivedArpMine(
+            kVlan(),
+            ipAddress.asV4(),
+            macAddress,
+            PortDescriptor(kPortID()),
+            ArpOpCode::ARP_OP_REPLY);
+      }
     } else {
-      sw_->getNeighborUpdater()->receivedNdpMine(
-          kVlan(),
-          ipAddress.asV6(),
-          macAddress,
-          PortDescriptor(kPortID()),
-          ICMPv6Type::ICMPV6_TYPE_NDP_NEIGHBOR_SOLICITATION,
-          0);
+      if (isIntfNbrTable()) {
+        sw_->getNeighborUpdater()->receivedNdpMineForIntf(
+            kInterfaceID(),
+            ipAddress.asV6(),
+            macAddress,
+            PortDescriptor(kPortID()),
+            ICMPv6Type::ICMPV6_TYPE_NDP_NEIGHBOR_SOLICITATION,
+            0);
+      } else {
+        sw_->getNeighborUpdater()->receivedNdpMine(
+            kVlan(),
+            ipAddress.asV6(),
+            macAddress,
+            PortDescriptor(kPortID()),
+            ICMPv6Type::ICMPV6_TYPE_NDP_NEIGHBOR_SOLICITATION,
+            0);
+      }
     }
     if (wait) {
       sw_->getNeighborUpdater()->waitForPendingUpdates();
@@ -170,7 +216,11 @@ class LookupClassUpdaterTest : public ::testing::Test {
   }
 
   void unresolveNeighbor(IPAddress ipAddress) {
-    sw_->getNeighborUpdater()->flushEntry(kVlan(), ipAddress);
+    if (isIntfNbrTable()) {
+      sw_->getNeighborUpdater()->flushEntryForIntf(kInterfaceID(), ipAddress);
+    } else {
+      sw_->getNeighborUpdater()->flushEntry(kVlan(), ipAddress);
+    }
 
     sw_->getNeighborUpdater()->waitForPendingUpdates();
     waitForBackgroundThread(sw_);
@@ -187,24 +237,30 @@ class LookupClassUpdaterTest : public ::testing::Test {
         NdpTable>;
 
     auto state = sw_->getState();
-    auto vlan = state->getVlans()->getNode(kVlan());
-    auto neighborTable = vlan->template getNeighborTable<NeighborTableT>();
 
-    auto verifyNeighbor =
-        [this, ipClassID, macClassID, neighborTable](auto ipAddr) {
-          auto entry = neighborTable->getEntry(ipAddr);
-          XLOG(DBG) << entry->str();
-          EXPECT_EQ(entry->getClassID(), ipClassID);
-          if (entry->isReachable() && !entry->getMac().isBroadcast()) {
-            // We assume here that class ID of mac matches that of
-            // neighbor. That's true for our tests, since for neighbor
-            // entries we add a Mac entry in sequence. And since Mac
-            // entries round robin over the same sequence of classIDs
-            // the paired MAC entry gets a identical classID.
-            verifyMacClassIDHelper(
-                entry->getMac(), macClassID, MacEntryType::STATIC_ENTRY);
-          }
-        };
+    auto verifyNeighbor = [this, ipClassID, macClassID, state](auto ipAddr) {
+      std::shared_ptr<NeighborTableT> neighborTable;
+      if (isIntfNbrTable()) {
+        auto intf = state->getInterfaces()->getNode(kInterfaceID());
+        neighborTable = intf->template getNeighborTable<NeighborTableT>();
+      } else {
+        auto vlan = state->getVlans()->getNode(kVlan());
+        neighborTable = vlan->template getNeighborTable<NeighborTableT>();
+      }
+
+      auto entry = neighborTable->getEntry(ipAddr);
+      XLOG(DBG) << entry->str();
+      EXPECT_EQ(entry->getClassID(), ipClassID);
+      if (entry->isReachable() && !entry->getMac().isBroadcast()) {
+        // We assume here that class ID of mac matches that of
+        // neighbor. That's true for our tests, since for neighbor
+        // entries we add a Mac entry in sequence. And since Mac
+        // entries round robin over the same sequence of classIDs
+        // the paired MAC entry gets a identical classID.
+        verifyMacClassIDHelper(
+            entry->getMac(), macClassID, MacEntryType::STATIC_ENTRY);
+      }
+    };
     if constexpr (std::is_same<AddrT, folly::IPAddressV4>::value) {
       verifyNeighbor(ipAddress.asV4());
     } else {
@@ -416,10 +472,11 @@ class LookupClassUpdaterTest : public ::testing::Test {
   SwSwitch* sw_;
 };
 
-using TestTypes =
-    ::testing::Types<folly::IPAddressV4, folly::IPAddressV6, folly::MacAddress>;
-using TestTypesNeighbor =
-    ::testing::Types<folly::IPAddressV4, folly::IPAddressV6>;
+using TestTypesNeighbor = ::testing::Types<
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV4, false>,
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV4, true>,
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV6, false>,
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV6, true>>;
 
 TYPED_TEST_SUITE(LookupClassUpdaterTest, TestTypes);
 
@@ -457,12 +514,21 @@ TYPED_TEST(LookupClassUpdaterTest, VerifyClassIDPortDown) {
    *  - L2 entries should get pruned with neighbor dereference
    */
   this->verifyStateUpdate([=]() {
-    if constexpr (std::is_same_v<TypeParam, folly::MacAddress>) {
+    if constexpr (std::is_same_v<
+                      TypeParam,
+                      IpAddrAndEnableIntfNbrTableT<folly::MacAddress, false>>) {
       this->verifyMacClassIDHelper(
           this->kMacAddress(),
           cfg::AclLookupClass::CLASS_QUEUE_PER_HOST_QUEUE_0,
           MacEntryType::DYNAMIC_ENTRY);
-
+    } else if constexpr (
+        std::is_same_v<
+            TypeParam,
+            IpAddrAndEnableIntfNbrTableT<folly::MacAddress, true>>) {
+      this->verifyMacClassIDHelper(
+          this->kMacAddress(),
+          cfg::AclLookupClass::CLASS_QUEUE_PER_HOST_QUEUE_0,
+          MacEntryType::DYNAMIC_ENTRY);
     } else {
       this->verifyClassIDHelper(
           this->getIpAddress(),
@@ -569,9 +635,12 @@ TYPED_TEST(LookupClassUpdaterTest, MacMove) {
 /*
  * Tests that are valid for arp/ndp neighbors only and not for Mac addresses
  */
-template <typename AddrT>
-class LookupClassUpdaterNeighborTest : public LookupClassUpdaterTest<AddrT> {
+template <typename IpAddrAndEnableIntfNbrTableT>
+class LookupClassUpdaterNeighborTest
+    : public LookupClassUpdaterTest<IpAddrAndEnableIntfNbrTableT> {
  public:
+  using AddrT = typename IpAddrAndEnableIntfNbrTableT::AddrT;
+
   void verifySameMacDifferentIpsHelper() {
     auto lookupClassUpdater = this->sw_->getLookupClassUpdater();
 
@@ -646,6 +715,38 @@ class LookupClassUpdaterNeighborTest : public LookupClassUpdaterTest<AddrT> {
           classID2 /* macClassID */);
     });
   }
+
+  void verifyNoNeighborEntryHelper() const {
+    using NeighborTableT = std::conditional_t<
+        std::is_same<AddrT, folly::IPAddressV4>::value,
+        ArpTable,
+        NdpTable>;
+
+    auto state = this->sw_->getState();
+
+    std::shared_ptr<NeighborTableT> neighborTable;
+    if (this->isIntfNbrTable()) {
+      auto intf = state->getInterfaces()->getNode(this->kInterfaceID());
+      neighborTable = intf->template getNeighborTable<NeighborTableT>();
+    } else {
+      auto vlan = state->getVlans()->getNode(this->kVlan());
+      neighborTable = vlan->template getNeighborTable<NeighborTableT>();
+    }
+
+    if constexpr (std::is_same<AddrT, folly::IPAddressV4>::value) {
+      EXPECT_EQ(
+          neighborTable->getEntryIf(this->getIpAddress().asV4()), nullptr);
+      for (const auto& ip : this->getLinkLocalIpAddresses()) {
+        EXPECT_EQ(neighborTable->getEntryIf(ip.asV4()), nullptr);
+      }
+    } else {
+      EXPECT_EQ(
+          neighborTable->getEntryIf(this->getIpAddress().asV6()), nullptr);
+      for (const auto& ip : this->getLinkLocalIpAddresses()) {
+        EXPECT_EQ(neighborTable->getEntryIf(ip.asV6()), nullptr);
+      }
+    }
+  }
 };
 
 TYPED_TEST_SUITE(LookupClassUpdaterNeighborTest, TestTypesNeighbor);
@@ -653,11 +754,6 @@ TYPED_TEST_SUITE(LookupClassUpdaterNeighborTest, TestTypesNeighbor);
 TYPED_TEST(
     LookupClassUpdaterNeighborTest,
     ResolveUnresolveResolveVerifyClassID) {
-  using NeighborTableT = std::conditional_t<
-      std::is_same<TypeParam, folly::IPAddressV4>::value,
-      ArpTable,
-      NdpTable>;
-
   auto verifyClassIDs = [this]() {
     this->verifyStateUpdateAfterNeighborCachePropagation([=]() {
       this->verifyClassIDHelper(
@@ -690,20 +786,8 @@ TYPED_TEST(
   this->unresolveNeighbor(this->getNonMacLinkLocalIpAddress());
 
   auto state = this->sw_->getState();
-  auto vlan = state->getVlans()->getNode(this->kVlan());
-  auto neighborTable = vlan->template getNeighborTable<NeighborTableT>();
 
-  if constexpr (std::is_same<TypeParam, folly::IPAddressV4>::value) {
-    EXPECT_EQ(neighborTable->getEntryIf(this->getIpAddress().asV4()), nullptr);
-    for (const auto& ip : this->getLinkLocalIpAddresses()) {
-      EXPECT_EQ(neighborTable->getEntryIf(ip.asV4()), nullptr);
-    }
-  } else {
-    EXPECT_EQ(neighborTable->getEntryIf(this->getIpAddress().asV6()), nullptr);
-    for (const auto& ip : this->getLinkLocalIpAddresses()) {
-      EXPECT_EQ(neighborTable->getEntryIf(ip.asV6()), nullptr);
-    }
-  }
+  this->verifyNoNeighborEntryHelper();
 
   this->resolve(this->getIpAddress(), this->kMacAddress());
   this->resolveLinkLocals(this->kMacAddress());
@@ -871,19 +955,25 @@ TYPED_TEST(LookupClassUpdaterNeighborTest, ResolveUnresolveResolve) {
 
   this->unresolveNeighbor(this->getIpAddress());
   this->verifyStateUpdate([=]() {
-    using NeighborTableT = std::conditional_t<
-        std::is_same<TypeParam, folly::IPAddressV4>::value,
-        ArpTable,
-        NdpTable>;
-
     auto state = this->sw_->getState();
     auto vlan = state->getVlans()->getNode(this->kVlan());
-    auto neighborTable = vlan->template getNeighborTable<NeighborTableT>();
 
-    if constexpr (std::is_same<TypeParam, folly::IPAddressV4>::value) {
+    if constexpr (
+        std::is_same_v<
+            TypeParam,
+            IpAddrAndEnableIntfNbrTableT<folly::IPAddressV4, false>>) {
+      auto neighborTable = vlan->getArpTable();
+      EXPECT_EQ(
+          neighborTable->getEntryIf(this->getIpAddress().asV4()), nullptr);
+    } else if constexpr (
+        std::is_same_v<
+            TypeParam,
+            IpAddrAndEnableIntfNbrTableT<folly::IPAddressV4, true>>) {
+      auto neighborTable = vlan->getArpTable();
       EXPECT_EQ(
           neighborTable->getEntryIf(this->getIpAddress().asV4()), nullptr);
     } else {
+      auto neighborTable = vlan->getNdpTable();
       EXPECT_EQ(
           neighborTable->getEntryIf(this->getIpAddress().asV6()), nullptr);
     }
@@ -1362,10 +1452,14 @@ TYPED_TEST(
   this->verifyMultipleBlockedMacsHelper({}, std::nullopt, std::nullopt);
 }
 
-template <typename AddrT>
-class LookupClassUpdaterWarmbootTest : public LookupClassUpdaterTest<AddrT> {
+template <typename IpAddrAndEnableIntfNbrTableT>
+class LookupClassUpdaterWarmbootTest
+    : public LookupClassUpdaterTest<IpAddrAndEnableIntfNbrTableT> {
  public:
+  using AddrT = typename IpAddrAndEnableIntfNbrTableT::AddrT;
+
   void SetUp() override {
+    FLAGS_intf_nbr_tables = this->isIntfNbrTable();
     using NeighborTableT = std::conditional_t<
         std::is_same<AddrT, folly::IPAddressV4>::value,
         ArpTable,
@@ -1373,22 +1467,27 @@ class LookupClassUpdaterWarmbootTest : public LookupClassUpdaterTest<AddrT> {
 
     auto newState = testStateAWithLookupClasses();
 
-    auto vlanID = VlanID(1);
-    auto vlan = newState->getVlans()->getNodeIf(vlanID);
-    auto neighborTable = vlan->template getNeighborTable<NeighborTableT>();
+    std::shared_ptr<NeighborTableT> neighborTable;
+    if (this->isIntfNbrTable()) {
+      auto intf = newState->getInterfaces()->getNodeIf(this->kInterfaceID());
+      neighborTable = intf->template getNeighborTable<NeighborTableT>();
+    } else {
+      auto vlan = newState->getVlans()->getNodeIf(this->kVlan());
+      neighborTable = vlan->template getNeighborTable<NeighborTableT>();
+    }
 
     neighborTable->addEntry(NeighborEntryFields(
         this->getIpAddr(),
         this->kMacAddress(),
         PortDescriptor(this->kPortID()),
-        InterfaceID(1),
+        this->kInterfaceID(),
         NeighborState::PENDING));
 
     neighborTable->updateEntry(
         this->getIpAddr(),
         this->kMacAddress(),
         PortDescriptor(this->kPortID()),
-        InterfaceID(1),
+        this->kInterfaceID(),
         NeighborState::REACHABLE,
         cfg::AclLookupClass::CLASS_QUEUE_PER_HOST_QUEUE_0);
 

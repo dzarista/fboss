@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Bsp.h"
-#include "SensorData.h"
+#include "fboss/platform/fan_service/Bsp.h"
+#include "fboss/platform/fan_service/SensorData.h"
 
 namespace facebook::fboss::platform::fan_service {
 
@@ -11,8 +11,6 @@ struct FanStatus {
   int rpm;
   float currentPwm{0};
   bool fanFailed{false};
-  bool fanAccessLost{false};
-  bool firstTimeLedAccess{true};
   uint64_t timeStamp;
 };
 
@@ -47,11 +45,14 @@ class ControlLogic {
  public:
   // Constructor / Destructor
   ControlLogic(const FanServiceConfig& config, std::shared_ptr<Bsp> pB);
-  ~ControlLogic();
+  ~ControlLogic() = default;
   // updateControl : Main entry for the control logic to process sensor
   //                 readings and set PWM value accordingly
   void updateControl(std::shared_ptr<SensorData> pS);
   void setTransitionValue();
+  const std::map<std::string, FanStatus> getFanStatuses() {
+    return fanStatuses_.copy();
+  }
 
  private:
   // Private Attributess :
@@ -60,23 +61,29 @@ class ControlLogic {
   std::shared_ptr<Bsp> pBsp_;
   std::shared_ptr<SensorData> pSensor_;
   // Internal variable storing the number of failed sensors and fans
-  int numFanFailed_;
-  int numSensorFailed_;
+  int numFanFailed_ = 0;
+  int numSensorFailed_ = 0;
   // Last control update time. Used for dT calculation
   uint64_t lastControlUpdateSec_;
 
   // Private Methods
   void getSensorUpdate();
-  void getFanUpdate();
+  std::tuple<bool /*fan failed*/, int /*rpm*/, uint64_t /*timestamp*/>
+  getFanUpdate(const Fan& fan, const FanStatus& fanStatus);
   void getOpticsUpdate();
-  void programFan(const Zone& zone, float pwmSoFar);
-  void adjustZoneFans(bool boostMode);
+  std::pair<bool /* pwm update fail */, float /* pwm */> programFan(
+      const Zone& zone,
+      const Fan& fan,
+      float currentPwm,
+      float pwmSoFar);
+  float calculateZonePwm(const Zone& zone, bool boostMode);
   void updateTargetPwm(const Sensor& sensorItem);
-  void setFanFailState(const Fan& fan, bool fanFailed);
+  void programLed(const Fan& fan, bool fanFailed);
   bool isFanPresentInDevice(const Fan& fan);
   bool isSensorPresentInConfig(const std::string& sensorName);
 
-  std::map<std::string /* fanName */, FanStatus> fanStatuses_;
+  folly::Synchronized<std::map<std::string /* fanName */, FanStatus>>
+      fanStatuses_;
   std::map<std::string /* sensorName */, SensorReadCache> sensorReadCaches_;
   std::map<std::string /* sensorName */, PwmCalcCache> pwmCalcCaches_;
 };

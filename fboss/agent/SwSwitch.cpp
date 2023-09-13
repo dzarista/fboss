@@ -240,7 +240,8 @@ SwSwitch::SwSwitch(
     const std::shared_ptr<SwitchState>& initialState)
     : multiHwSwitchHandler_(new MultiHwSwitchHandler(
           getSwitchInfoFromConfig(config),
-          std::move(hwSwitchHandlerInitFn))),
+          std::move(hwSwitchHandlerInitFn),
+          this)),
       agentDirUtil_(agentDirUtil),
       supportsAddRemovePort_(supportsAddRemovePort),
       platformProductInfo_(
@@ -706,6 +707,43 @@ void SwSwitch::publishTxPacket(TxPacket* pkt, uint16_t ethertype) {
   pubPkt.packetData = copy_buf.moveToFbString();
 }
 
+std::shared_ptr<SwitchState> SwSwitch::init(SwitchFlags flags) {
+  auto begin = steady_clock::now();
+  flags_ = flags;
+  bootType_ = swSwitchWarmbootHelper_->canWarmBoot() ? BootType::WARM_BOOT
+                                                     : BootType::COLD_BOOT;
+  multiHwSwitchHandler_->start();
+  std::optional<state::WarmbootState> wbState{};
+  if (bootType_ == BootType::WARM_BOOT) {
+    wbState = swSwitchWarmbootHelper_->getWarmBootState();
+  }
+  restart_time::init(
+      agentDirUtil_->getWarmBootDir(), bootType_ == BootType::WARM_BOOT);
+
+  auto [state, rib] = SwSwitchWarmBootHelper::reconstructStateAndRib(
+      wbState, scopeResolver_->hasL3());
+  rib_ = std::move(rib);
+
+  if (bootType_ != BootType::WARM_BOOT) {
+    state = setupMinAlpmRouteState(*scopeResolver_, state);
+  }
+
+  fb303::fbData->setCounter(kHwUpdateFailures, 0);
+
+  startThreads();
+
+  // start lagMananger
+  if (flags_ & SwitchFlags::ENABLE_LACP) {
+    lagManager_ = std::make_unique<LinkAggregationManager>(this);
+  }
+
+  XLOG(DBG2)
+      << "Time to init switch and start all threads "
+      << duration_cast<duration<float>>(steady_clock::now() - begin).count();
+
+  return state;
+}
+
 void SwSwitch::init(
     HwSwitchCallback* callback,
     std::unique_ptr<TunManager> tunMgr,
@@ -714,8 +752,7 @@ void SwSwitch::init(
   auto begin = steady_clock::now();
   flags_ = flags;
   auto hwInitRet = hwSwitchInitFn(callback, false /*failHwCallsOnWarmboot*/);
-  bootType_ = swSwitchWarmbootHelper_->canWarmBoot() ? BootType::WARM_BOOT
-                                                     : BootType::COLD_BOOT;
+  auto initialState = init(flags);
   if (hwInitRet.bootType != bootType_) {
     // this is being done for preprod2trunk migration. further until tooling is
     // updated to affect both warm boot flags, HwSwitch will override SwSwitch
@@ -727,46 +764,25 @@ void SwSwitch::init(
                << bootStr(hwInitRet.bootType);
     bootType_ = hwInitRet.bootType;
   }
-  multiHwSwitchHandler_->start();
-  std::optional<state::WarmbootState> wbState{};
-  if (bootType_ == BootType::WARM_BOOT) {
-    wbState = swSwitchWarmbootHelper_->getWarmBootState();
-  }
-  auto [state, rib] = SwSwitchWarmBootHelper::reconstructStateAndRib(
-      wbState, scopeResolver_->hasL3());
-  rib_ = std::move(rib);
-  auto initialState = state;
-  if (!getAppliedState()) {
-    // Store the initial state
-    initialState->publish();
-    setStateInternal(initialState);
-  } else {
-    // seeded by test
+  if (getAppliedState()) {
+    // applied state is already seeded by test
     initialState = getAppliedState();
   }
+  initialState->publish();
   auto emptyState = std::make_shared<SwitchState>();
   emptyState->publish();
   multiHwSwitchHandler_->stateChanged(
       StateDelta(emptyState, initialState), false);
-
-  fb303::fbData->setCounter(kHwUpdateFailures, 0);
+  // For cold boot there will be discripancy between applied state and state
+  // that exists in hardware. this discrepancy is until config is applied, after
+  // that the two states are in sync. tolerating this discrepancy for now
+  setStateInternal(initialState);
 
   XLOG(DBG0) << "hardware initialized in " << hwInitRet.bootTime
              << " seconds; applying initial config";
 
-  restart_time::init(
-      agentDirUtil_->getWarmBootDir(), bootType_ == BootType::WARM_BOOT);
-
-  // start LACP thread
-  lacpThread_.reset(new std::thread(
-      [=] { this->threadLoop("fbossLacpThread", &lacpEventBase_); }));
-
-  // start lagMananger
-  if (flags & SwitchFlags::ENABLE_LACP) {
-    lagManager_ = std::make_unique<LinkAggregationManager>(this);
-  }
-
   if (flags & SwitchFlags::ENABLE_TUN) {
+    // for monolithic agent enable tun manager early to retain existing behavior
     if (tunMgr) {
       tunMgr_ = std::move(tunMgr);
     } else {
@@ -782,85 +798,12 @@ void SwSwitch::init(
         StateDelta(std::make_shared<SwitchState>(), initialState));
   });
 
-  startThreads();
   XLOG(DBG2)
-      << "Time to init switch and start all threads "
+      << "Time to init switch and start all threads and apply the state"
       << duration_cast<duration<float>>(steady_clock::now() - begin).count();
 
-  // Publish timers after we aked TunManager to do a probe. This
-  // is not required but since both stats publishing and tunnel
-  // interface probing happens on backgroundEventBase_ its somewhat
-  // nicer to have tun inteface probing finish faster since then
-  // we don't have to wait for the initial probe to complete before
-  // applying initial config.
-  if (flags & SwitchFlags::PUBLISH_STATS) {
-    publishSwitchInfo(hwInitRet);
-  }
+  initDone(&hwInitRet);
 
-  if (flags & SwitchFlags::ENABLE_LLDP) {
-    lldpManager_ = std::make_unique<LldpManager>(this);
-  }
-
-  auto bgHeartbeatStatsFunc = [this](int delay, int backLog) {
-    stats()->bgHeartbeatDelay(delay);
-    stats()->bgEventBacklog(backLog);
-  };
-  bgThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
-      &backgroundEventBase_,
-      "fbossBgThread",
-      FLAGS_thread_heartbeat_ms,
-      bgHeartbeatStatsFunc);
-
-  auto updHeartbeatStatsFunc = [this](int delay, int backLog) {
-    stats()->updHeartbeatDelay(delay);
-    stats()->updEventBacklog(backLog);
-  };
-  updThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
-      &updateEventBase_,
-      "fbossUpdateThread",
-      FLAGS_thread_heartbeat_ms,
-      updHeartbeatStatsFunc);
-
-  auto packetTxHeartbeatStatsFunc = [this](int delay, int backLog) {
-    stats()->packetTxHeartbeatDelay(delay);
-    stats()->packetTxEventBacklog(backLog);
-  };
-  packetTxThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
-      &packetTxEventBase_,
-      "fbossPktTxThread",
-      FLAGS_thread_heartbeat_ms,
-      packetTxHeartbeatStatsFunc);
-
-  auto updateLacpThreadHeartbeatStats = [this](int delay, int backLog) {
-    stats()->lacpHeartbeatDelay(delay);
-    stats()->lacpEventBacklog(backLog);
-  };
-  lacpThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
-      &lacpEventBase_,
-      *folly::getThreadName(lacpThread_->get_id()),
-      FLAGS_thread_heartbeat_ms,
-      updateLacpThreadHeartbeatStats);
-
-  neighborCacheThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
-      &neighborCacheEventBase_,
-      *folly::getThreadName(neighborCacheThread_->get_id()),
-      FLAGS_thread_heartbeat_ms,
-      [this](int delay, int backlog) {
-        stats()->neighborCacheHeartbeatDelay(delay);
-        stats()->neighborCacheEventBacklog(backlog);
-      });
-
-  heartbeatWatchdog_ = std::make_unique<ThreadHeartbeatWatchdog>(
-      std::chrono::milliseconds(FLAGS_thread_heartbeat_ms * 10),
-      [this]() { stats()->ThreadHeartbeatMissCount(); });
-  heartbeatWatchdog_->startMonitoringHeartbeat(bgThreadHeartbeat_);
-  heartbeatWatchdog_->startMonitoringHeartbeat(packetTxThreadHeartbeat_);
-  heartbeatWatchdog_->startMonitoringHeartbeat(updThreadHeartbeat_);
-  heartbeatWatchdog_->startMonitoringHeartbeat(lacpThreadHeartbeat_);
-  heartbeatWatchdog_->startMonitoringHeartbeat(neighborCacheThreadHeartbeat_);
-  heartbeatWatchdog_->start();
-
-  setSwitchRunState(SwitchRunState::INITIALIZED);
   if (scopeResolver_->hasL3()) {
     SwSwitchRouteUpdateWrapper(this, rib_.get()).programMinAlpmState();
   }
@@ -882,6 +825,16 @@ void SwSwitch::initialConfigApplied(const steady_clock::time_point& startTime) {
   // notify the hw
   multiHwSwitchHandler_->onInitialConfigApplied(this);
   setSwitchRunState(SwitchRunState::CONFIGURED);
+
+  if (flags_ & SwitchFlags::ENABLE_TUN) {
+    // skip if mock tun manager was set by tests or during monolithic agent
+    // initialization.
+    // this is created only for split software agent after config is applied
+    if (!tunMgr_) {
+      tunMgr_ = std::make_unique<TunManager>(this, &packetTxEventBase_);
+      tunMgr_->probe();
+    }
+  }
 
   if (tunMgr_) {
     // We check for syncing tun interface only on state changes after the
@@ -1645,6 +1598,80 @@ void SwSwitch::startThreads() {
   neighborCacheThread_.reset(new std::thread([=] {
     this->threadLoop("fbossNeighborCacheThread", &neighborCacheEventBase_);
   }));
+  // start LACP thread, start before creating LinkAggregationManager
+  lacpThread_.reset(new std::thread(
+      [=] { this->threadLoop("fbossLacpThread", &lacpEventBase_); }));
+}
+
+void SwSwitch::initDone(const HwInitResult* hwInitResult) {
+  if (flags_ & SwitchFlags::ENABLE_LLDP) {
+    lldpManager_ = std::make_unique<LldpManager>(this);
+  }
+
+  if (flags_ & SwitchFlags::PUBLISH_STATS && hwInitResult) {
+    publishSwitchInfo(*hwInitResult);
+  }
+
+  auto bgHeartbeatStatsFunc = [this](int delay, int backLog) {
+    stats()->bgHeartbeatDelay(delay);
+    stats()->bgEventBacklog(backLog);
+  };
+  bgThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
+      &backgroundEventBase_,
+      "fbossBgThread",
+      FLAGS_thread_heartbeat_ms,
+      bgHeartbeatStatsFunc);
+
+  auto updHeartbeatStatsFunc = [this](int delay, int backLog) {
+    stats()->updHeartbeatDelay(delay);
+    stats()->updEventBacklog(backLog);
+  };
+  updThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
+      &updateEventBase_,
+      "fbossUpdateThread",
+      FLAGS_thread_heartbeat_ms,
+      updHeartbeatStatsFunc);
+
+  auto packetTxHeartbeatStatsFunc = [this](int delay, int backLog) {
+    stats()->packetTxHeartbeatDelay(delay);
+    stats()->packetTxEventBacklog(backLog);
+  };
+  packetTxThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
+      &packetTxEventBase_,
+      "fbossPktTxThread",
+      FLAGS_thread_heartbeat_ms,
+      packetTxHeartbeatStatsFunc);
+
+  auto updateLacpThreadHeartbeatStats = [this](int delay, int backLog) {
+    stats()->lacpHeartbeatDelay(delay);
+    stats()->lacpEventBacklog(backLog);
+  };
+  lacpThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
+      &lacpEventBase_,
+      *folly::getThreadName(lacpThread_->get_id()),
+      FLAGS_thread_heartbeat_ms,
+      updateLacpThreadHeartbeatStats);
+
+  neighborCacheThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
+      &neighborCacheEventBase_,
+      *folly::getThreadName(neighborCacheThread_->get_id()),
+      FLAGS_thread_heartbeat_ms,
+      [this](int delay, int backlog) {
+        stats()->neighborCacheHeartbeatDelay(delay);
+        stats()->neighborCacheEventBacklog(backlog);
+      });
+
+  heartbeatWatchdog_ = std::make_unique<ThreadHeartbeatWatchdog>(
+      std::chrono::milliseconds(FLAGS_thread_heartbeat_ms * 10),
+      [this]() { stats()->ThreadHeartbeatMissCount(); });
+  heartbeatWatchdog_->startMonitoringHeartbeat(bgThreadHeartbeat_);
+  heartbeatWatchdog_->startMonitoringHeartbeat(packetTxThreadHeartbeat_);
+  heartbeatWatchdog_->startMonitoringHeartbeat(updThreadHeartbeat_);
+  heartbeatWatchdog_->startMonitoringHeartbeat(lacpThreadHeartbeat_);
+  heartbeatWatchdog_->startMonitoringHeartbeat(neighborCacheThreadHeartbeat_);
+  heartbeatWatchdog_->start();
+
+  setSwitchRunState(SwitchRunState::INITIALIZED);
 }
 
 void SwSwitch::stopThreads() {
@@ -2083,20 +2110,43 @@ bool SwSwitch::sendPacketToHost(
 void SwSwitch::applyConfig(const std::string& reason, bool reload) {
   auto applyAgentConfig = [=](const AgentConfig* agentConfig) {
     const auto& newConfig = *agentConfig->thrift.sw();
-    applyConfig(reason, newConfig);
+    applyConfigImpl(reason, newConfig);
     agentConfig->dumpConfig(agentDirUtil_->getRunningConfigDumpFile());
   };
-  if (!agentConfig_ || reload) {
-    auto agentConfig = loadConfig();
-    applyAgentConfig(agentConfig.get());
-    // set agent config applying it
-    agentConfig_ = std::move(agentConfig);
+  if (reload) {
+    auto loadedAgentConfig = loadConfig();
+    applyAgentConfig(loadedAgentConfig.get());
+    setConfigImpl(std::move(loadedAgentConfig));
+    return;
   } else {
-    applyAgentConfig(agentConfig_.get());
+    auto agentConfigLocked = agentConfig_.rlock();
+    auto agentConfig = agentConfigLocked->get();
+    if (agentConfig) {
+      applyAgentConfig(agentConfig);
+      return;
+    }
   }
+  applyConfig(reason, true);
 }
 
 void SwSwitch::applyConfig(
+    const std::string& reason,
+    const cfg::SwitchConfig& newConfig) {
+  cfg::AgentConfig agentConfigThrift{};
+  {
+    auto agentConfigLocked = agentConfig_.rlock();
+    CHECK(agentConfigLocked->get());
+    agentConfigThrift = agentConfigLocked->get()->thrift;
+  }
+  agentConfigThrift.sw_ref() = newConfig;
+  auto newAgentConfig = std::make_unique<AgentConfig>(agentConfigThrift);
+  applyConfigImpl(reason, newConfig);
+  /* apply and reset software switch config in the already applied agent config
+   */
+  setConfigImpl(std::move(newAgentConfig));
+}
+
+void SwSwitch::applyConfigImpl(
     const std::string& reason,
     const cfg::SwitchConfig& newConfig) {
   // We don't need to hold a lock here. updateStateBlocking() does that for us.
@@ -2222,7 +2272,8 @@ bool SwSwitch::isValidStateUpdate(const StateDelta& delta) const {
 }
 
 AdminDistance SwSwitch::clientIdToAdminDistance(int clientId) const {
-  return getAdminDistanceForClientId(getConfig(), clientId);
+  auto config = getConfig();
+  return getAdminDistanceForClientId(config, clientId);
 }
 
 void SwSwitch::clearPortStats(
@@ -2515,10 +2566,11 @@ std::string SwSwitch::getConfigStr() const {
 }
 
 cfg::SwitchConfig SwSwitch::getConfig() const {
-  if (!agentConfig_) {
+  const auto& agentConfigLocked = agentConfig_.rlock();
+  if (!agentConfigLocked->get()) {
     return cfg::SwitchConfig();
   }
-  return agentConfig_->thrift.sw().value();
+  return agentConfigLocked->get()->thrift.sw().value();
 }
 
 std::unique_ptr<AgentConfig> SwSwitch::loadConfig() {
@@ -2532,7 +2584,19 @@ std::unique_ptr<AgentConfig> SwSwitch::loadConfig() {
 
 void SwSwitch::setConfig(std::unique_ptr<AgentConfig> config) {
   // used only for tests
-  agentConfig_ = std::move(config);
+  setConfigImpl(std::move(config));
 }
 
+void SwSwitch::setConfigImpl(std::unique_ptr<AgentConfig> config) {
+  auto agentConfigLocked = agentConfig_.wlock();
+  *agentConfigLocked = std::move(config);
+}
+
+bool SwSwitch::needL2EntryForNeighbor() const {
+  if (!isFullyConfigured()) {
+    return getHwSwitchHandler()->needL2EntryForNeighbor(nullptr);
+  }
+  const auto& config = getConfig();
+  return getHwSwitchHandler()->needL2EntryForNeighbor(&config);
+}
 } // namespace facebook::fboss
