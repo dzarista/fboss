@@ -231,6 +231,8 @@ class SwSwitch : public HwSwitchCallback {
       HwSwitchInitFn hwSwitchInitFn,
       SwitchFlags flags = SwitchFlags::DEFAULT);
 
+  void init(SwitchFlags flags = SwitchFlags::DEFAULT);
+
   bool isFullyInitialized() const;
 
   bool isInitialized() const;
@@ -788,6 +790,7 @@ class SwSwitch : public HwSwitchCallback {
 
   std::string getConfigStr() const;
   cfg::SwitchConfig getConfig() const;
+  cfg::AgentConfig getAgentConfig() const;
 
   AdminDistance clientIdToAdminDistance(int clientId) const;
   void publishRxPacket(RxPacket* packet, uint16_t ethertype);
@@ -880,6 +883,8 @@ class SwSwitch : public HwSwitchCallback {
 
   std::optional<uint32_t> getHwLogicalPortId(PortID port) const;
 
+  const AgentDirectoryUtil* getDirUtil() const;
+
   void switchRunStateChanged(SwitchRunState newState);
 
   MultiSwitchPacketStreamMap* getPacketStreamMap() {
@@ -895,6 +900,10 @@ class SwSwitch : public HwSwitchCallback {
   void setConfig(std::unique_ptr<AgentConfig> config);
 
   bool needL2EntryForNeighbor() const;
+
+  SwSwitchWarmBootHelper* getWarmBootHelper() {
+    return swSwitchWarmbootHelper_.get();
+  }
 
  private:
   std::optional<folly::MacAddress> getSourceMac(
@@ -1003,9 +1012,10 @@ class SwSwitch : public HwSwitchCallback {
 
   void setConfigImpl(std::unique_ptr<AgentConfig> config);
 
-  std::shared_ptr<SwitchState> init(SwitchFlags flags = SwitchFlags::DEFAULT);
+  std::shared_ptr<SwitchState> preInit(
+      SwitchFlags flags = SwitchFlags::DEFAULT);
 
-  void initDone(const HwInitResult* HwInitResult);
+  void postInit(const HwInitResult* HwInitResult = nullptr);
 
   std::unique_ptr<MultiHwSwitchHandler> multiHwSwitchHandler_;
   const AgentDirectoryUtil* agentDirUtil_;
