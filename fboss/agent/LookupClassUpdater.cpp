@@ -17,13 +17,38 @@
 #include "fboss/agent/NeighborTableDeltaCallbackGenerator.h"
 #include "fboss/agent/NeighborUpdater.h"
 #include "fboss/agent/SwSwitch.h"
+#include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/SwitchState.h"
 
 DEFINE_bool(
-    dedicated_queue_per_physical_host,
+    queue_per_physical_host,
     false,
-    "Flag to enable allocating dedicated queue per physical host. This flag is applicable only when Queue-Per-Host feature is enabled.");
+    "Flag to enable allocating separate queue for each physical host. This flag is applicable only when Queue-Per-Host feature is enabled.");
+
+namespace {
+
+int getClassIDIndexFromMac(folly::MacAddress mac) {
+  // find queue id based on physical mac address
+  // Assume MH-NIC host mac follow this pattern
+  // mac0 : Host0, mac0 is even, e.g. (000 >> 1) = 0, thus firstClassID
+  // mac0 + 1 : OOB
+  // mac0 + 2 : Host1 e.g. (010 >> 1) = 1, thus second classID
+  // mac0 + 4 : Host2 e.g. (100 >> 1) = 2, thus thrid classID
+  // mac0 + 6 : Host3 e.g. (110 >> 1) = 3, thus fourth classID
+  int lastThreeBits = mac.u64HBO() & 0b111;
+  int idx = 0;
+  if ((lastThreeBits & 0b1) == 1) {
+    // oob mac
+    idx = 4;
+  } else {
+    // physical host mac
+    idx = lastThreeBits >> 1;
+  }
+  return idx;
+}
+
+} // namespace
 
 namespace facebook::fboss {
 
@@ -51,7 +76,7 @@ int LookupClassUpdater::getRefCnt(
 }
 
 cfg::AclLookupClass LookupClassUpdater::getClassIDwithMinimumNeighbors(
-    ClassID2Count classID2Count) const {
+    const ClassID2Count& classID2Count) const {
   auto minItr = std::min_element(
       classID2Count.begin(),
       classID2Count.end(),
@@ -59,6 +84,32 @@ cfg::AclLookupClass LookupClassUpdater::getClassIDwithMinimumNeighbors(
 
   CHECK(minItr != classID2Count.end());
   return minItr->first;
+}
+
+cfg::AclLookupClass LookupClassUpdater::getClassIDwithQueuePerPhysicalHost(
+
+    const ClassID2Count& classID2Count,
+    const folly::MacAddress& mac) const {
+  auto oui = getMacOui(mac);
+  if (vendorMacOuis_.find(oui) != vendorMacOuis_.end()) {
+    int idx = getClassIDIndexFromMac(mac);
+    if (idx >= classID2Count.size()) {
+      XLOG(WARN)
+          << "unable to use classID at idx " << idx
+          << " and the total number of classIDs is " << classID2Count.size()
+          << ", use defaut allocated classID instead. Please verify agent config is valid.";
+      return getClassIDwithMinimumNeighbors(classID2Count);
+    }
+    return classID2Count.nth(idx)->first;
+  }
+  if (metaMacOuis_.find(oui) == metaMacOuis_.end() &&
+      !mac.isLocallyAdministered()) {
+    XLOG(WARN) << "found outlier mac address " << mac.toString();
+  } else {
+    XLOG(DBG2) << "found VM mac address " << mac.toString();
+  }
+  // use old classID allocation scheme for VM macs or outlier macs
+  return getClassIDwithMinimumNeighbors(classID2Count);
 }
 
 template <typename RemovedEntryT>
@@ -122,6 +173,7 @@ void LookupClassUpdater::initPort(
   for (auto classID : port->getLookupClassesToDistributeTrafficOn()) {
     classID2Count[classID] = 0;
   }
+  port2MacAndVlanEntriesUpdated_ = true;
 }
 
 template <typename NewEntryT>
@@ -184,8 +236,13 @@ void LookupClassUpdater::updateNeighborClassID(
       return;
     }
 
-    classID = setDropClassID ? cfg::AclLookupClass::CLASS_DROP
-                             : getClassIDwithMinimumNeighbors(classID2Count);
+    if (setDropClassID) {
+      classID = cfg::AclLookupClass::CLASS_DROP;
+    } else if (FLAGS_queue_per_physical_host) {
+      classID = getClassIDwithQueuePerPhysicalHost(classID2Count, mac);
+    } else {
+      classID = getClassIDwithMinimumNeighbors(classID2Count);
+    }
     macAndVlan2ClassIDAndRefCnt.insert(std::make_pair(
         std::make_pair(mac, vlanID),
         std::make_pair(classID, 1 /* initialize refCnt */)));
@@ -228,6 +285,7 @@ void LookupClassUpdater::updateNeighborClassID(
     auto updater = sw_->getNeighborUpdater();
     updater->updateEntryClassID(vlanID, newEntry->getIP(), classID);
   }
+  port2MacAndVlanEntriesUpdated_ = true;
 }
 
 template <typename NeighborEntryT>
@@ -521,6 +579,7 @@ void LookupClassUpdater::processPortRemoved(
 
   port2MacAndVlanEntries_.erase(portID);
   port2ClassIDAndCount_.erase(portID);
+  port2MacAndVlanEntriesUpdated_ = true;
 }
 
 void LookupClassUpdater::processPortChanged(
@@ -638,6 +697,7 @@ void LookupClassUpdater::removeNeighborFromLocalCacheForEntry(
 
     macAndVlan2ClassIDAndRefCnt.erase(std::make_pair(mac, vlanID));
   }
+  port2MacAndVlanEntriesUpdated_ = true;
 }
 
 template <typename NewEntryT>
@@ -675,6 +735,7 @@ void LookupClassUpdater::updateStateObserverLocalCacheForEntry(
     CHECK(classID_ == classID);
     refCnt++;
   }
+  port2MacAndVlanEntriesUpdated_ = true;
 }
 
 template <typename AddrT>
@@ -997,6 +1058,58 @@ void LookupClassUpdater::processMacOuis(
   }
 }
 
+void LookupClassUpdater::updateMaxNumHostsPerQueueCounter() {
+  if (!port2MacAndVlanEntriesUpdated_) {
+    // no need to update max number of physical host per queue counter
+    // since no change to port2MacAndVlanEntries_;
+    return;
+  }
+  port2MacAndVlanEntriesUpdated_ = false;
+  int preMaxNumHostsPerQueue = maxNumHostsPerQueue_;
+  maxNumHostsPerQueue_ = 0;
+  PortID maxPortID;
+  cfg::AclLookupClass maxClassID;
+  for (const auto& [port, macAndVlan2ClassIDAndRefCnt] :
+       port2MacAndVlanEntries_) {
+    // for each port
+    std::unordered_map<cfg::AclLookupClass, int> classID2NumMacs;
+    for (const auto& [macAndVlan, classIDAndRefCnt] :
+         macAndVlan2ClassIDAndRefCnt) {
+      // count each physical host mac
+      auto mac = macAndVlan.first;
+      auto oui = getMacOui(mac);
+      auto classID = classIDAndRefCnt.first;
+      if (vendorMacOuis_.find(oui) != vendorMacOuis_.end()) {
+        classID2NumMacs[classID]++;
+      } else if (
+          metaMacOuis_.find(oui) == metaMacOuis_.end() &&
+          !mac.isLocallyAdministered()) {
+        XLOG(DBG4)
+            << "found outlier mac, need to update host mac oui or meta mac oui for "
+            << mac.toString();
+        // also count outlier mac
+        classID2NumMacs[classID]++;
+      }
+      if (classID2NumMacs[classID] >= maxNumHostsPerQueue_) {
+        maxNumHostsPerQueue_ = classID2NumMacs[classID];
+        maxClassID = classID;
+        maxPortID = port;
+      }
+    }
+  }
+  XLOG(DBG4) << "new maximum number of hosts per host is "
+             << maxNumHostsPerQueue_;
+  // warn if more than one physical hosts are assigned to the same
+  // class id/queue
+  if (maxNumHostsPerQueue_ > 1 &&
+      maxNumHostsPerQueue_ != preMaxNumHostsPerQueue) {
+    XLOG(WARN) << maxNumHostsPerQueue_
+               << " physical hosts are allocated to port " << maxPortID
+               << " classID " << (int)maxClassID;
+  }
+  sw_->stats()->maxNumOfPhysicalHostsPerQueue(maxNumHostsPerQueue_);
+}
+
 void LookupClassUpdater::stateUpdated(const StateDelta& stateDelta) {
   // The current LookupClassUpdater logic relies on VLANs, MAC learning
   // callbacks etc. that are not supported on VOQ/Fabric switches. Thus, run
@@ -1014,6 +1127,7 @@ void LookupClassUpdater::stateUpdated(const StateDelta& stateDelta) {
   processPortUpdates(stateDelta);
   processBlockNeighborUpdates(stateDelta);
   processMacAddrsToBlockUpdates(stateDelta);
+  updateMaxNumHostsPerQueueCounter();
   inited_ = true;
 }
 
