@@ -16,6 +16,11 @@ struct PublisherConfig {
   1: list<PathConfig> paths = [];
 }
 
+struct SubscriberConfig {
+  1: bool trackReconnect = true;
+  2: bool allowExtendedSubscriptions = false;
+}
+
 struct Config {
   @cpp.Type{template = "std::unordered_map"}
   1: map<string, string> defaultCommandLineArgs;
@@ -27,4 +32,9 @@ struct Config {
   3: list<string> trustedSubnets = [];
   @cpp.Type{template = "std::unordered_map"}
   4: map<fsdb_common.PublisherId, PublisherConfig> publishers = {};
+  // subscribers{} allows SubscriberConfig to be specified for dynamic
+  // SubscriberId strings with a common suffix starting with ":", e.g.
+  // ":agent" will match all SubscriberId strings that end with that suffix.
+  @cpp.Type{template = "std::unordered_map"}
+  5: map<fsdb_common.SubscriberId, SubscriberConfig> subscribers = {};
 }
