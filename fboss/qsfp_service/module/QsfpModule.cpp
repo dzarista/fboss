@@ -130,7 +130,7 @@ bool QsfpModule::cacheIsValid() const {
   return present_ && !dirty_;
 }
 
-TransceiverInfo QsfpModule::getTransceiverInfo() {
+TransceiverInfo QsfpModule::getTransceiverInfo() const {
   auto cachedInfo = info_.rlock();
   if (!cachedInfo->has_value()) {
     throw QsfpModuleError("Still populating data...");
@@ -1035,6 +1035,16 @@ void QsfpModule::programTransceiver(
   auto programTcvrFunc = [this, &programTcvrState, needResetDataPath]() {
     lock_guard<std::mutex> g(qsfpModuleMutex_);
     if (present_) {
+      // Don't consider ports for programming if they have a startHostLane >=
+      // the number of lanes on the plugged in transceiver.
+      auto hostLaneCount = numHostLanes();
+      for (auto portIt : programTcvrState.ports) {
+        // startHostLane is 0-indexed hence the >= comparison
+        if (portIt.second.startHostLane >= hostLaneCount) {
+          programTcvrState.ports.erase(portIt.first);
+        }
+      }
+
       if (!cacheIsValid()) {
         throw FbossError(
             "Transceiver: ",

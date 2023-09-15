@@ -16,7 +16,7 @@ class TomahawkAsic;
 
 class SaiBcmGalaxyLCPlatform : public SaiBcmGalaxyPlatform {
  public:
-  explicit SaiBcmGalaxyLCPlatform(
+  SaiBcmGalaxyLCPlatform(
       std::unique_ptr<PlatformProductInfo> productInfo,
       folly::MacAddress localMac,
       const std::string& platformMappingStr);
@@ -30,6 +30,7 @@ class SaiBcmGalaxyLCPlatform : public SaiBcmGalaxyPlatform {
   void setupAsic(
       cfg::SwitchType switchType,
       std::optional<int64_t> switchId,
+      int16_t switchIndex,
       std::optional<cfg::Range64> systemPortRange,
       folly::MacAddress& mac) override;
   std::unique_ptr<TomahawkAsic> asic_;

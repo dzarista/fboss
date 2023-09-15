@@ -1210,6 +1210,9 @@
         },
         {
           "test_name_regex": "HwTest_PROFILE"
+        },
+        {
+          "test_name_regex": "HwHashPolarizationTests.fullXfullHash"
         }
     ],
     "brcm/10.0_ea_sim_odp/10.0_ea_sim_odp/tomahawk4/simulator": [
@@ -2060,6 +2063,9 @@
         },
         {
           "test_name_regex": "HwTest_PROFILE"
+        },
+        {
+          "test_name_regex": "HwHashPolarizationTests.fullXfullHash"
         },
         {
           "test_name_regex": "warm_boot.*"
@@ -3527,9 +3533,6 @@
         },
         {
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
-        },
-        {
-          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
         },
         {
           "test_name_regex": "HwNeighborTest/[13].*"
@@ -5003,9 +5006,6 @@
         },
         {
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
-        },
-        {
-          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
         },
         {
           "test_name_regex": "HwNeighborTest/[13].*"
@@ -6790,9 +6790,6 @@
         },
         {
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
-        },
-        {
-          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
         },
         {
           "test_name_regex": "HwNeighborTest/[13].*"
@@ -8649,9 +8646,6 @@
         },
         {
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
-        },
-        {
-          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
         },
         {
           "test_name_regex": "HwNeighborTest/[13].*"
@@ -10932,9 +10926,6 @@
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState"
         },
         {
-          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ"
-        },
-        {
           "test_name_regex": "HwNeighborTest/[13].*"
         },
         {
@@ -11099,9 +11090,6 @@
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
         },
         {
-          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
-        },
-        {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
         },
         {
@@ -11337,6 +11325,9 @@
         },
         {
           "test_name_regex": "SaiRouteRollbackTest.*WithTrunk.*$"
+        },
+        {
+          "test_name_regex": "HwPortLedTest.TestLedFromSwitchState$"
         },
         {
           "test_name_regex": "HwVoqSwitch*"
@@ -11476,9 +11467,6 @@
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
         },
         {
-          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
-        },
-        {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
         },
         {
@@ -11714,6 +11702,9 @@
         },
         {
           "test_name_regex": "SaiRouteRollbackTest.*WithTrunk.*$"
+        },
+        {
+          "test_name_regex": "HwPortLedTest.TestLedFromSwitchState$"
         },
         {
           "test_name_regex": "HwVoqSwitch*"
@@ -12129,9 +12120,6 @@
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
         },
         {
-          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
-        },
-        {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
         },
         {
@@ -12367,6 +12355,9 @@
         },
         {
           "test_name_regex": "SaiRouteRollbackTest.*WithTrunk.*$"
+        },
+        {
+          "test_name_regex": "HwPortLedTest.TestLedFromSwitchState$"
         },
         {
           "test_name_regex": "HwVoqSwitch*"
@@ -12506,9 +12497,6 @@
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
         },
         {
-          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
-        },
-        {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
         },
         {
@@ -12744,6 +12732,9 @@
         },
         {
           "test_name_regex": "SaiRouteRollbackTest.*WithTrunk.*$"
+        },
+        {
+          "test_name_regex": "HwPortLedTest.TestLedFromSwitchState$"
         },
         {
           "test_name_regex": "HwVoqSwitch*"
@@ -12883,9 +12874,6 @@
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
         },
         {
-          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
-        },
-        {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
         },
         {
@@ -13121,6 +13109,9 @@
         },
         {
           "test_name_regex": "SaiRouteRollbackTest.*WithTrunk.*$"
+        },
+        {
+          "test_name_regex": "HwPortLedTest.TestLedFromSwitchState$"
         },
         {
           "test_name_regex": "HwVoqSwitch*"
@@ -13536,9 +13527,6 @@
           "test_name_regex": "HwCoppTest/[01].NdpSolicitationToHighPriQ$"
         },
         {
-          "test_name_regex": "HwCoppTest/[01].VerifyCoppPpsLowPri$"
-        },
-        {
           "test_name_regex": "HwCoppTest/1.JumboFramesToQueues$"
         },
         {
@@ -13774,6 +13762,9 @@
         },
         {
           "test_name_regex": "SaiRouteRollbackTest.*WithTrunk.*$"
+        },
+        {
+          "test_name_regex": "HwPortLedTest.TestLedFromSwitchState$"
         },
         {
           "test_name_regex": "HwVoqSwitch*"

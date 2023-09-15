@@ -10,8 +10,8 @@ namespace facebook::fboss::platform::platform_manager {
 
 bool PlatformValidator::isValidSlotTypeConfig(
     const SlotTypeConfig& slotTypeConfig) {
-  if (!slotTypeConfig.idpromConfig_ref() && !slotTypeConfig.fruType_ref()) {
-    XLOG(ERR) << "SlotTypeConfig must have either EEPROM or FRUType name";
+  if (!slotTypeConfig.idpromConfig_ref() && !slotTypeConfig.pmUnitName()) {
+    XLOG(ERR) << "SlotTypeConfig must have either IDPROM or PmUnit name";
     return false;
   }
   if (slotTypeConfig.idpromConfig_ref()) {
@@ -48,25 +48,6 @@ bool PlatformValidator::isValid(const PlatformConfig& config) {
 
   // TODO: Validate platformName matches what is set in dmidecode on BIOS
 
-  // Verify presence of CHASSIS_SLOT SlotTypeConfig
-  if (config.slotTypeConfigs()->find("CHASSIS_SLOT") ==
-      config.slotTypeConfigs()->end()) {
-    XLOG(ERR) << "CHASSIS_SLOT SlotTypeConfig is not found";
-    return false;
-  }
-
-  // Verify presence of CHASSIS FruTypeConfig
-  int count(0);
-  for (const auto& [fruTypeName, fruTypeConfig] : *config.fruTypeConfigs()) {
-    if (*fruTypeConfig.pluggedInSlotType() == "CHASSIS_SLOT") {
-      count++;
-    }
-  }
-  if (count != 1) {
-    XLOG(ERR) << "Exactly one CHASSIS FruTypeConfig is expected";
-    return false;
-  }
-
   // Validate SlotTypeConfigs.
   for (const auto& [slotName, slotTypeConfig] : *config.slotTypeConfigs()) {
     if (!isValidSlotTypeConfig(slotTypeConfig)) {
@@ -75,8 +56,8 @@ bool PlatformValidator::isValid(const PlatformConfig& config) {
   }
 
   // Validate I2cDeviceConfigs
-  for (const auto& [name, fruTypeConfig] : *config.fruTypeConfigs_ref()) {
-    for (const auto& i2cDeviceConfig : *fruTypeConfig.i2cDeviceConfigs_ref()) {
+  for (const auto& [name, pmUnitConfig] : *config.pmUnitConfigs()) {
+    for (const auto& i2cDeviceConfig : *pmUnitConfig.i2cDeviceConfigs_ref()) {
       if (!isValidI2cDeviceConfig(i2cDeviceConfig)) {
         return false;
       }

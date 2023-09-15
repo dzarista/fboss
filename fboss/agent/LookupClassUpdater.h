@@ -53,6 +53,10 @@ class LookupClassUpdater : public StateObserver {
     return port2ClassIDAndCount_;
   }
 
+  int getMaxNumHostsPerQueue() {
+    return maxNumHostsPerQueue_;
+  }
+
  private:
   bool portHasClassID(const std::shared_ptr<Port>& port);
 
@@ -95,7 +99,11 @@ class LookupClassUpdater : public StateObserver {
       const std::shared_ptr<RemovedEntryT>& removedEntry);
 
   cfg::AclLookupClass getClassIDwithMinimumNeighbors(
-      ClassID2Count classID2Count) const;
+      const ClassID2Count& classID2Count) const;
+
+  cfg::AclLookupClass getClassIDwithQueuePerPhysicalHost(
+      const ClassID2Count& classID2Count,
+      const folly::MacAddress& mac) const;
 
   template <typename RemovedEntryT>
   void removeNeighborFromLocalCacheForEntry(
@@ -173,15 +181,22 @@ class LookupClassUpdater : public StateObserver {
       const std::shared_ptr<Vlan>& vlan,
       folly::MacAddress macAddress);
 
+  void removeAndUpdateClassIDForMacVlan(
+      const std::shared_ptr<SwitchState>& switchState,
+      folly::MacAddress macAddress,
+      VlanID vlanID);
+
   void processMacAddrsToBlockUpdates(const StateDelta& stateDelta);
 
-  void processMacOuis(const std::shared_ptr<SwitchState>& switchState);
+  void processMacOuis(const StateDelta& stateDelta);
 
   /*
    * Methods to iterate over MacTable, ArpTable or NdpTable or table deltas.
    */
   template <typename AddrT>
   auto getTable(const std::shared_ptr<Vlan>& vlan);
+
+  void updateMaxNumHostsPerQueueCounter();
 
   SwSwitch* sw_;
 
@@ -215,6 +230,7 @@ class LookupClassUpdater : public StateObserver {
       std::pair<cfg::AclLookupClass, int>>;
   boost::container::flat_map<PortID, MacAndVlan2ClassIDAndRefCnt>
       port2MacAndVlanEntries_;
+  bool port2MacAndVlanEntriesUpdated_{false};
 
   /*
    * Some use cases (e.g. DR) requires blocking traffic to specific neighbors.
@@ -273,6 +289,7 @@ class LookupClassUpdater : public StateObserver {
   std::set<std::pair<VlanID, folly::MacAddress>> macAddrsToBlock_;
   std::set<uint64_t> vendorMacOuis_;
   std::set<uint64_t> metaMacOuis_;
+  int maxNumHostsPerQueue_{0};
 
   friend class NeighborTableDeltaCallbackGenerator;
   bool inited_{false};
