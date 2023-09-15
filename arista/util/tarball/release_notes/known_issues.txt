@@ -1,0 +1,3 @@
+- BIOS upgrade from FBOSS requires P1 Meru hardware without workaround.
+- BUG854014: scd_smbus driver logs verbose out-of-bounds reads when qsfp_service
+             is running.

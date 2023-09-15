@@ -1,0 +1,57 @@
+{
+   "latestReleaseNotes" : {
+         "name" : "September 20 2023 EFT",
+         "notesFile" : "release_notes/sep20_eft.txt"
+   },
+   "pastReleaseNotes" : [
+      {
+         "name" : "September 8 2023 EFT",
+         "notesFile" : "release_notes/sep8_eft.txt"
+      },
+      {
+         "name" : "August 18 2023 EFT",
+         "notesFile" : "release_notes/aug18_eft.txt"
+      },
+      {
+         "name" : "July 28 2023 EFT",
+         "notesFile" : "release_notes/july28_eft.txt"
+      }
+   ],
+   "knownIssuesFile" : "release_notes/known_issues.txt",
+   "patches" : [
+      {
+         "name" : "jam",
+         "patchFile" : "patches/jam.patch",
+         "instructionsFile" : "patches/jam_instructions.txt"
+      },
+      {
+         "name" : "flashrom",
+         "patchFile" : "patches/flashrom.patch",
+         "instructionsFile" : "patches/flashrom_instructions.txt"
+      }
+   ],
+   "programmables" : [
+      {
+         "name" : "BMC Image",
+         "imageFile" : "programmables/flash-meru-arista-dev.bin"
+      },
+      {
+         "name" : "Aboot Image",
+         "imageFile" : "programmables/Aboot-norcal13-13.1.0-lcc-32m-ENG-33260098.rom"
+      },
+      {
+         "name" : "Meru SCM SPLD Image",
+         "imageFile" : "programmables/meru-scm-cpld.stp"
+      }
+   ],
+   "repos" : [
+      {
+         "name" : "APL",
+         "url" : "https://github.com/aristanetworks/apl.facebook.git",
+         "branch" : "main",
+         "commitHash" : "a396d2c0925897fb02d8a3e617ff502e93572763",
+         "note" : "- kernel drivers in src/\n- udev rules in udev/\n- BSP configs in bsp/"
+      }
+   ],
+   "testResults" : []
+}
