@@ -40,7 +40,7 @@
          "imageFile" : "programmables/Aboot-norcal13-13.1.0-lcc-32m-ENG-33260098.rom"
       },
       {
-         "name" : "Meru SCM SPLD Image",
+         "name" : "Meru SCM CPLD Image",
          "imageFile" : "programmables/meru-scm-cpld.stp"
       }
    ],
