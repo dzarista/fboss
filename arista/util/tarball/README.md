@@ -7,6 +7,35 @@ specifies which information should be included in the tarball entirely via a JSO
 configuration file. The accepted keys in the JSON config file are defined in
 the section below.
 
+## How to Generate a Tarball for a New EFT
+The process to generate a new tarball is as follows:
+
+1) Write a new release notes file in ./release_notes.
+2) Edit the dsf-eft.json config file so that your new release notes file is
+   the latestReleaseNotes. Move the current latestReleaseNotes to the beginning
+   of the pastReleaseNotes list.
+3) Edit the ./release_notes/known_issues.txt file to reflect the known issues
+   in the new EFT drop.
+4) If a new patch is included with the new EFT drop, place the patch file and
+   a instructions.txt file in the patches directory and update the patches
+   config in dsf-eft.json to include your new patch.
+5) If programmable images in the new EFT have changed, copy the new programmable
+   image files to the ./programmables directory and update the programmables
+   config in dsf-eft.json accordingly.
+6) If some deliverables in the current EFT drop are found in GitHub repos,
+   update the repos config in dsf-eft.json to include the correct repo(s)
+   with the correct commit hashes.
+7) If test results are expected with the EFT drop, add the test results to a
+   ./test_results directory and update the testResults section in dsf-eft.json.
+8) Run the generate_dsf_tarball.py script to create the new tarball.
+9) Publish your new tarball to dist:/dist/storage/fboss/programmables and send
+   out an internal email to the team for review.
+10) Once internal review is complete, generate an FTP link to the tarball
+    using `a ftp up`, then email the link and the latest release notes to
+    fboss_dsf_dev@meta.com (making sure to CC dsf-support@arista.com). Make
+    sure to include the entire contents of the tarball README at the end of
+    the email.
+
 ## Example Usage
 This script will typically be run as follows:
 ```
