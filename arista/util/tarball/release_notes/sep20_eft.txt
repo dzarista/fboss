@@ -1,0 +1,13 @@
+- FBOSS BSP:
+  - Meru800bfa initial udev rules added
+  - Meru800bfa platform mapping shared
+  - Arista scd driver functional for Meru800bfa SMB FPGAs 0-3
+  - Arista dsf-fan-cpld driver functional for Meru800bfa fan CPLD.
+    - Fans initialized to 30% when driver is loaded
+  - Fan watchdog support added for dsf-fan-cpld driver on Meru800bia and Meru800bfa
+- OpenBMC:
+  - New OpenBMC image <TODO: ADD ME>.
+  - weutil now uses meta-fboss-lite/wedge-eeprom v2 with support for Meta V4 EEPROM format.
+  - ipmi-lite/kcsd support for SEL from x86 CPU added.
+- Programmables:
+  - <TODO: ADD ME>
