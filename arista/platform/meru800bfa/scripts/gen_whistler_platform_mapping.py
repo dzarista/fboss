@@ -164,10 +164,7 @@ with open( "SocPropertiesP1.csv" ) as fh:
       chipId, propKey, propVal = line.rstrip().split( "," )
       if not propKey.startswith( "lane_to" ):
          continue
-      if line.startswith( "0" ):
-         print( line )
       chipId = int( chipId )
-      print( chipId )
       logicalLane = int( propKey.removeprefix( "lane_to_serdes_map_fabric_lane" ) )
       rxPhysicalSerdes = 0
       txPhysicalSerdes = 0
@@ -206,7 +203,6 @@ for asicId in range( numAsics ):
    for fabSerdesCore in range( numFabricSerdesCoresPerAsic ):
       port = fabSerdesCore * numSerdesPerCore
       for serdes in range( numSerdesPerCore ):
-         print( port )
          # Globally unique logical port Id
          logicalPortId = port + fabricPortBase
          portStr = str( logicalPortId )
@@ -372,13 +368,18 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh:
    # NOTE : For Fabric ports, there is no core binding, the corresponding
    # Attached_CoreId and Attached_Core_PortID can be left empty.
    fabSupportedProfiles = '-'.join( numLanesFromSupportedProfile.keys() )
-   for portId in range( numFabricPorts ):
-      portId += fabricPortBase
-      frontPanelSlot = ( ( portId ) // 8 ) + 1
-      frontPanelPortType = "fab"
-      portStrPrefix = f"{frontPanelPortType}1/{frontPanelSlot}"
-      subPort = ( portId % 8 ) + 1
-      portStr = f"{portStrPrefix}/{subPort}"
-      fh.write( f"{portId},{portId},{portStr},{fabSupportedProfiles},,\n" )
+   globalPortId = 0
+   for asicId in range( numAsics ):
+      logicalPortId = 0
+      for serdesCore in range( numFabricSerdesCoresPerAsic ):
+         for lane in range( numSerdesPerCore ):
+            frontPanelSlot = ( ( globalPortId ) // 8 ) + 1
+            frontPanelPortType = "fab"
+            portStrPrefix = f"{frontPanelPortType}1/{frontPanelSlot}"
+            subPort = ( logicalPortId % 8 ) + 1
+            portStr = f"{portStrPrefix}/{subPort}"
+            fh.write( f"{globalPortId},{logicalPortId},{portStr},{fabSupportedProfiles},,\n" )
+            logicalPortId += 1
+            globalPortId += 1
 
 bcmConfigFh.close()
