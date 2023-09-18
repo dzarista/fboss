@@ -197,6 +197,11 @@ supportedProfilesByPortType = {
 asicSerdesMappings = []
 for asic in range( numAsics ):
    asicSerdesMappings.append( {} )
+# For Viper, since each serdes core maps to a single OSFP port, we can figure out the
+# lanes from reverse mapping the line side lane to the system side serdes lane.
+# This also means that the logical lanes on the ASIC side always match the OSFP front
+# panel lanes. The lane maps tell us how a logical lane maps to rx, tx physical
+# lanes.
 with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
    for line in fh:
       if line.startswith( "System" ):
