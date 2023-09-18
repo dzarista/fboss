@@ -72,10 +72,10 @@ from datetime import datetime
 #      desc: Runs a single test by providing the entire test name as a filter
 #
 #  8. Enable SAI Replayer Logging:
-#      ./run_test.py sai --config $confFile --filter=HwVlanTest.VlanApplyConfig --sdk_logging /tmp/XYZ #
+#      ./run_test.py sai --config $confFile --filter=HwVlanTest.VlanApplyConfig --sai_replayer_logging /tmp/XYZ #
 #      desc: Enables SAI Replayer Logging for the specified test case
 #
-#      ./run_test.py sai --config $confFile --sdk_logging /root/all_replayer_logs
+#      ./run_test.py sai --config $confFile --sai_replayer_logging /root/all_replayer_logs
 #      desc: Enables SAI replayer Logging for all test cases
 #
 #  9. Running a single test in coldboot mode:
@@ -107,8 +107,12 @@ from datetime import datetime
 #      desc: Instead of eth0, provide a custom mgmt-if
 #
 #  16. Running non-OSS Binary using run_test helper:
-#      ./run_test.py sai --config fuji.agent.materialized_JSON --filter HwVlanTest.VlanApplyConfig --sdk_logging /root/skhare/sai_replayer_logs --no-oss --sai-bin /root/skhare/sai_test-brcm-8.2.0.0_odp --mgmt-if eth0
+#      ./run_test.py sai --config fuji.agent.materialized_JSON --filter HwVlanTest.VlanApplyConfig --sai_replayer_logging /root/skhare/sai_replayer_logs --no-oss --sai-bin /root/skhare/sai_test-brcm-8.2.0.0_odp --mgmt-if eth0
 #      desc: Runs tests but does not use OSS binary for testing
+#
+#  17. Enable more FBOSS Logging:
+#      ./run_test.py sai --config $confFile --filter=HwVlanTest.VlanApplyConfig --fboss_logging DBG5
+#      desc: Enable more FBOSS logging
 #
 #
 # TERMS & DEFINITIONS:
@@ -150,7 +154,7 @@ OPT_ARG_FILTER_FILE = "--filter_file"
 OPT_ARG_LIST_TESTS = "--list_tests"
 OPT_ARG_CONFIG_FILE = "--config"
 OPT_ARG_QSFP_CONFIG_FILE = "--qsfp-config"
-OPT_ARG_SDK_LOGGING = "--sdk_logging"
+OPT_ARG_SAI_REPLAYER_LOGGING = "--sai_replayer_logging"
 OPT_ARG_SKIP_KNOWN_BAD_TESTS = "--skip-known-bad-tests"
 OPT_ARG_OSS = "--oss"
 OPT_ARG_NO_OSS = "--no-oss"
@@ -159,6 +163,7 @@ OPT_ARG_SAI_BIN = "--sai-bin"
 OPT_ARG_FRUID_PATH = "--fruid-path"
 OPT_ARG_SIMULATOR = "--simulator"
 OPT_ARG_SAI_LOGGING = "--sai_logging"
+OPT_ARG_FBOSS_LOGGING = "--fboss_logging"
 SUB_CMD_BCM = "bcm"
 SUB_CMD_SAI = "sai"
 SUB_CMD_QSFP = "qsfp"
@@ -234,7 +239,7 @@ class TestRunner(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def _get_sdk_logging_flags(self):
+    def _get_sai_replayer_logging_flags(self):
         pass
 
     @abc.abstractmethod
@@ -450,18 +455,21 @@ class TestRunner(abc.ABC):
         test_to_run,
         setup_warmboot,
         warmrun,
-        sdk_logging_dir,
+        sai_replayer_logging_dir,
         sai_logging,
+        fboss_logging,
     ):
         flags = [self.WARMBOOT_SETUP_OPTION] if setup_warmboot else []
         test_prefix = self.WARMBOOT_PREFIX if warmrun else self.COLDBOOT_PREFIX
 
-        if sdk_logging_dir:
-            flags = flags + self._get_sdk_logging_flags(
-                sdk_logging_dir, test_prefix, test_to_run
+        if sai_replayer_logging_dir:
+            flags = flags + self._get_sai_replayer_logging_flags(
+                sai_replayer_logging_dir, test_prefix, test_to_run
             )
 
         flags += self._get_sai_logging_flags(sai_logging)
+
+        flags += ["--logging", fboss_logging]
 
         try:
             print(
@@ -506,15 +514,41 @@ class TestRunner(abc.ABC):
             ).encode("utf-8")
         return run_test_result
 
+    def _string_in_file(self, file_path, string):
+        try:
+            with open(file_path, "r") as file:
+                file_contents = file.read()
+            return string in file_contents
+        except FileNotFoundError:
+            print(f"File not found when replacing string: {file_path}")
+
+    def _replace_string_in_file(self, file_path, old_str, new_str):
+        try:
+            with open(file_path, "r") as file:
+                file_contents = file.read()
+
+            new_file_contents = file_contents.replace(old_str, new_str)
+
+            if new_file_contents != file_contents:
+                with open(file_path, "w") as file:
+                    file.write(new_file_contents)
+                print(f"Replaced {old_str} by {new_str} in file {file_path}")
+        except FileNotFoundError:
+            print(f"File not found when replacing string: {file_path}")
+        except Exception as e:
+            print(f"Error when replacing string in {file_path}: {str(e)}")
+
     def _run_tests(self, tests_to_run, args):
-        if args.sdk_logging:
-            if os.path.isdir(args.sdk_logging) or os.path.isfile(args.sdk_logging):
+        if args.sai_replayer_logging:
+            if os.path.isdir(args.sai_replayer_logging) or os.path.isfile(
+                args.sai_replayer_logging
+            ):
                 raise ValueError(
-                    f"File or directory {args.sdk_logging} already exists."
+                    f"File or directory {args.sai_replayer_logging} already exists."
                     "Remove or specify another directory and retry. Exitting"
                 )
 
-            os.makedirs(args.sdk_logging)
+            os.makedirs(args.sai_replayer_logging)
         if args.simulator in XGS_SIMULATOR_ASICS:
             self.ENV_VAR["SOC_TARGET_SERVER"] = "127.0.0.1"
             self.ENV_VAR["BCM_SIM_PATH"] = "1"
@@ -548,6 +582,11 @@ class TestRunner(abc.ABC):
         conf_file = (
             args.config if (args.config is not None) else self._get_config_path()
         )
+        if args.oss and self._string_in_file(args.fruid_path, "MONTBLANC"):
+            # TH5 SVK platform need to set AUTOLOAD_BOARD_SETTINGS=1
+            self._replace_string_in_file(
+                conf_file, "AUTOLOAD_BOARD_SETTINGS: 0", "AUTOLOAD_BOARD_SETTINGS: 1"
+            )
         if test_binary_name != "qsfp_hw_test" and not os.path.exists(conf_file):
             print("########## Conf file not found: " + conf_file)
             return []
@@ -565,8 +604,9 @@ class TestRunner(abc.ABC):
                 test_to_run,
                 warmboot,
                 False,
-                args.sdk_logging,
+                args.sai_replayer_logging,
                 args.sai_logging,
+                args.fboss_logging,
             )
             output = test_output.decode("utf-8")
             print(
@@ -587,8 +627,9 @@ class TestRunner(abc.ABC):
                     test_to_run,
                     False,
                     True,
-                    args.sdk_logging,
+                    args.sai_replayer_logging,
                     args.sai_logging,
+                    args.fboss_logging,
                 )
                 output = test_output.decode("utf-8")
                 print(
@@ -658,7 +699,9 @@ class BcmTestRunner(TestRunner):
     def _get_test_binary_name(self):
         return "bcm_test"
 
-    def _get_sdk_logging_flags(self, sdk_logging_dir, test_prefix, test_to_run):
+    def _get_sai_replayer_logging_flags(
+        self, sai_replayer_logging_dir, test_prefix, test_to_run
+    ):
         # TODO
         return []
 
@@ -693,14 +736,16 @@ class SaiTestRunner(TestRunner):
     def _get_test_binary_name(self):
         return args.sai_bin if args.sai_bin else "sai_test-sai_impl-1.12.0"
 
-    def _get_sdk_logging_flags(self, sdk_logging_dir, test_prefix, test_to_run):
+    def _get_sai_replayer_logging_flags(
+        self, sai_replayer_logging_dir, test_prefix, test_to_run
+    ):
         return [
             "--enable-replayer",
             "--enable_get_attr_log",
             "--enable_packet_log",
             "--sai-log",
             os.path.join(
-                sdk_logging_dir,
+                sai_replayer_logging_dir,
                 "replayer-log-" + test_prefix + test_to_run.replace("/", "-"),
             ),
         ]
@@ -734,7 +779,9 @@ class QsfpTestRunner(TestRunner):
     def _get_test_binary_name(self):
         return "qsfp_hw_test"
 
-    def _get_sdk_logging_flags(self, sdk_logging_dir, test_prefix, test_to_run):
+    def _get_sai_replayer_logging_flags(
+        self, sai_replayer_logging_dir, test_prefix, test_to_run
+    ):
         return []
 
     def _get_sai_logging_flags(self, sai_logging):
@@ -770,7 +817,9 @@ class LinkTestRunner(TestRunner):
     def _get_test_binary_name(self):
         return "sai_link_test-sai_impl-1.12.0"
 
-    def _get_sdk_logging_flags(self, sdk_logging_dir, test_prefix, test_to_run):
+    def _get_sai_replayer_logging_flags(
+        self, sai_replayer_logging_dir, test_prefix, test_to_run
+    ):
         return []
 
     def _get_sai_logging_flags(self, sai_logging):
@@ -846,10 +895,10 @@ if __name__ == "__main__":
         ),
     )
     ap.add_argument(
-        OPT_ARG_SDK_LOGGING,
+        OPT_ARG_SAI_REPLAYER_LOGGING,
         type=str,
         help=(
-            "Enable SDK logging (e.g. SAI replayer for sai tests"
+            "Enable SAI Replayer logging (e.g. SAI replayer for sai tests"
             "and store the logs in the supplied directory)"
         ),
     )
@@ -907,6 +956,12 @@ if __name__ == "__main__":
         type=str,
         default="WARN",
         help=("Enable SAI logging (Options: DEBUG|INFO|NOTICE|WARN|ERROR|CRITICAL)"),
+    )
+    ap.add_argument(
+        OPT_ARG_FBOSS_LOGGING,
+        type=str,
+        default="DBG4",
+        help=("Enable FBOSS logging (Options: INFO|ERR|DBG0-9)"),
     )
 
     # Add subparsers for different test types

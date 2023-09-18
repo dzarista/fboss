@@ -5,11 +5,14 @@
 
 namespace facebook::fboss {
 
+class SwSwitch;
+
 class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
  public:
   NonMonolithicHwSwitchHandler(
       const SwitchID& switchId,
-      const cfg::SwitchInfo& info);
+      const cfg::SwitchInfo& info,
+      SwSwitch* sw);
 
   virtual ~NonMonolithicHwSwitchHandler() override;
 
@@ -95,7 +98,7 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
   std::string listObjects(const std::vector<HwObjectType>& types, bool cached)
       const override;
 
-  bool needL2EntryForNeighbor() const override;
+  bool needL2EntryForNeighbor(const cfg::SwitchConfig* config) const override;
 
   multiswitch::StateOperDelta getNextStateOperDelta(
       std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) override;
@@ -103,7 +106,13 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
   void notifyHwSwitchGracefulExit() override;
   void cancelOperDeltaSync();
 
+  bool sendPacketOutViaThriftStream(
+      std::unique_ptr<TxPacket> pkt,
+      std::optional<PortID> portID = std::nullopt,
+      std::optional<uint8_t> queue = std::nullopt);
+
  private:
+  SwSwitch* sw_;
   std::condition_variable stateUpdateCV_;
   std::mutex stateUpdateMutex_;
   multiswitch::StateOperDelta* nextOperDelta_{nullptr};

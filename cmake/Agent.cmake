@@ -139,6 +139,7 @@ add_library(core
   fboss/agent/FibHelpers.cpp
   fboss/agent/HwAsicTable.cpp
   fboss/agent/HwSwitch.cpp
+  fboss/agent/HwSwitchConnectionStatusTable.cpp
   fboss/agent/HwSwitchHandler.cpp
   fboss/agent/IPHeaderV4.cpp
   fboss/agent/IPv4Handler.cpp
@@ -484,6 +485,17 @@ target_link_libraries(monolithic_agent_initializer
   Folly::folly
 )
 
+add_library(non_monolithic_hw_switch_handler
+  fboss/agent/mnpu/NonMonolithicHwSwitchHandler.cpp
+)
+
+target_link_libraries(non_monolithic_hw_switch_handler
+  core
+  packet
+  stats
+  agent_config_cpp2
+  multiswitch_ctrl_cpp2
+)
 
 add_library(split_agent_initializer
   fboss/agent/mnpu/SplitSwAgentInitializer.cpp
@@ -493,6 +505,7 @@ target_link_libraries(split_agent_initializer
   Folly::folly
   sw_agent_initializer
   multiswitch_service
+  non_monolithic_hw_switch_handler
 )
 
 add_library(agent_dir_util

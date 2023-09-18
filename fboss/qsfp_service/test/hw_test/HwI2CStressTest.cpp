@@ -57,7 +57,9 @@ TEST_F(HwTest, i2cStressRead) {
 
       TransceiverModuleIdentifier identifier =
           static_cast<TransceiverModuleIdentifier>(*(curr.data()->data()));
-      EXPECT_EQ(identifier, transceiversInfo[tcvrId].identifier().value_or({}));
+      EXPECT_EQ(
+          identifier,
+          transceiversInfo[tcvrId].tcvrState()->identifier().value_or({}));
       EXPECT_TRUE(identifier != TransceiverModuleIdentifier::UNKNOWN);
       if (iteration != 1) {
         auto prev = previousResponse[tcvrId];
@@ -71,23 +73,11 @@ TEST_F(HwTest, i2cStressRead) {
 }
 
 TEST_F(HwTest, i2cStressWrite) {
-  auto transceivers = utility::legacyTransceiverIds(
-      utility::getCabledPortTranceivers(getHwQsfpEnsemble()));
   auto wedgeManager = getHwQsfpEnsemble()->getWedgeManager();
-  std::map<int32_t, TransceiverInfo> transceiversInfo;
-  getHwQsfpEnsemble()->getWedgeManager()->getTransceiversInfo(
-      transceiversInfo, std::make_unique<std::vector<int32_t>>(transceivers));
-
   // Only work with optical transceivers. The offset that this test is
   // writing is not writable on copper/flatMem modules
-  auto opticalTransceivers =
-      folly::gen::from(transceivers) |
-      folly::gen::filter([&transceiversInfo](int32_t tcvrId) {
-        auto tcvrInfo = transceiversInfo[tcvrId];
-        auto transmitterTech = *tcvrInfo.cable().value_or({}).transmitterTech();
-        return transmitterTech == TransmitterTechnology::OPTICAL;
-      }) |
-      folly::gen::as<std::vector>();
+
+  auto opticalTransceivers = getCabledOpticalTransceiverIDs();
 
   EXPECT_TRUE(!opticalTransceivers.empty());
 

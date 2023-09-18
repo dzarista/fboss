@@ -286,7 +286,47 @@ void testSendArpRequest(
 
 } // unnamed namespace
 
-TEST(ArpTest, BasicSendRequest) {
+template <bool enableIntfNbrTable>
+struct EnableIntfNbrTable {
+  static constexpr auto intfNbrTable = enableIntfNbrTable;
+};
+
+using NbrTableTypes =
+    ::testing::Types<EnableIntfNbrTable<false>, EnableIntfNbrTable<true>>;
+
+template <typename EnableIntfNbrTableT>
+class ArpTest : public ::testing::Test {
+  static auto constexpr intfNbrTable = EnableIntfNbrTableT::intfNbrTable;
+
+ public:
+  bool isIntfNbrTable() const {
+    return intfNbrTable == true;
+  }
+
+  void SetUp() override {
+    FLAGS_intf_nbr_tables = isIntfNbrTable();
+  }
+
+  std::shared_ptr<ArpTable>
+  getArpTable(const SwSwitch* sw, VlanID vlanID, InterfaceID intfID) {
+    return isIntfNbrTable()
+        ? sw->getState()->getInterfaces()->getNode(intfID)->getArpTable()
+        : sw->getState()->getVlans()->getNode(vlanID)->getArpTable();
+  }
+};
+
+TYPED_TEST_SUITE(ArpTest, NbrTableTypes);
+
+TYPED_TEST(ArpTest, BasicSendRequest) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
   VlanID vlanID(1);
@@ -326,10 +366,11 @@ TEST(ArpTest, BasicSendRequest) {
   counters.checkDelta(SwitchStats::kCounterPrefix + "arp.reply.rx.sum", 0);
 }
 
-TEST(ArpTest, TableUpdates) {
+TYPED_TEST(ArpTest, TableUpdates) {
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
   VlanID vlanID(1);
+  InterfaceID intfID(1);
 
   // Create an ARP request for 10.0.0.1 from an unreachable source
   auto buf = make_unique<IOBuf>(PktUtil::parseHexData(
@@ -373,7 +414,7 @@ TEST(ArpTest, TableUpdates) {
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   // Check the new ArpTable does not have any entry
-  auto arpTable = sw->getState()->getVlans()->getNode(vlanID)->getArpTable();
+  std::shared_ptr<ArpTable> arpTable = this->getArpTable(sw, vlanID, intfID);
   EXPECT_EQ(0, arpTable->size());
 
   // Create an ARP request for 10.0.0.1
@@ -421,7 +462,7 @@ TEST(ArpTest, TableUpdates) {
   waitForStateUpdates(sw);
 
   // Check the new ArpTable contents
-  arpTable = sw->getState()->getVlans()->getNode(vlanID)->getArpTable();
+  arpTable = this->getArpTable(sw, vlanID, intfID);
   EXPECT_EQ(1, arpTable->size());
   auto entry = arpTable->getEntry(IPAddressV4("10.0.0.15"));
   EXPECT_EQ(MacAddress("00:02:00:01:02:03"), entry->getMac());
@@ -543,7 +584,7 @@ TEST(ArpTest, TableUpdates) {
   counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.drops.sum", 1);
   counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.error.sum", 0);
 
-  arpTable = sw->getState()->getVlans()->getNode(vlanID)->getArpTable();
+  arpTable = this->getArpTable(sw, vlanID, intfID);
   EXPECT_EQ(1, arpTable->size());
   entry = arpTable->getEntry(IPAddressV4("10.0.0.15"));
   EXPECT_EQ(MacAddress("00:02:00:01:02:08"), entry->getMac());
@@ -598,7 +639,7 @@ TEST(ArpTest, TableUpdates) {
   counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.drops.sum", 0);
   counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.error.sum", 0);
 
-  arpTable = sw->getState()->getVlans()->getNode(vlanID)->getArpTable();
+  arpTable = this->getArpTable(sw, vlanID, intfID);
   EXPECT_EQ(2, arpTable->size());
   entry = arpTable->getEntry(IPAddressV4("10.0.0.15"));
   EXPECT_EQ(MacAddress("00:02:00:01:02:08"), entry->getMac());
@@ -657,7 +698,7 @@ TEST(ArpTest, TableUpdates) {
   counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.drops.sum", 0);
   counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.error.sum", 0);
 
-  arpTable = sw->getState()->getVlans()->getNode(vlanID)->getArpTable();
+  arpTable = this->getArpTable(sw, vlanID, intfID);
   EXPECT_EQ(3, arpTable->size());
   entry = arpTable->getEntry(IPAddressV4("10.0.0.15"));
   EXPECT_EQ(MacAddress("00:02:00:01:02:08"), entry->getMac());
@@ -673,7 +714,7 @@ TEST(ArpTest, TableUpdates) {
   EXPECT_EQ(InterfaceID(1), entry->getIntfID());
 }
 
-TEST(ArpTest, NotMine) {
+TYPED_TEST(ArpTest, NotMine) {
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
 
@@ -712,7 +753,7 @@ TEST(ArpTest, NotMine) {
   counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.error.sum", 0);
 }
 
-TEST(ArpTest, BadHlen) {
+TYPED_TEST(ArpTest, BadHlen) {
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
 
@@ -788,7 +829,7 @@ void sendArpReply(
   handle->getSw()->getNeighborUpdater()->waitForPendingUpdates();
 }
 
-TEST(ArpTest, FlushEntry) {
+TYPED_TEST(ArpTest, FlushEntry) {
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
 
@@ -872,7 +913,16 @@ TEST(ArpTest, FlushEntry) {
       thriftHandler.flushNeighborEntry(std::move(binAddrPtr), 123), FbossError);
 }
 
-TEST(ArpTest, PendingArp) {
+TYPED_TEST(ArpTest, PendingArp) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
 
@@ -978,7 +1028,16 @@ TEST(ArpTest, PendingArp) {
   EXPECT_EQ(entry->isPending(), false);
 };
 
-TEST(ArpTest, PendingArpCleanup) {
+TYPED_TEST(ArpTest, PendingArpCleanup) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle(std::chrono::seconds(1));
   auto sw = handle->getSw();
 
@@ -1013,7 +1072,16 @@ TEST(ArpTest, PendingArpCleanup) {
   }
 }
 
-TEST(ArpTest, ArpTableSerialization) {
+TYPED_TEST(ArpTest, ArpTableSerialization) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
 
@@ -1046,7 +1114,16 @@ TEST(ArpTest, ArpTableSerialization) {
   EXPECT_NE(sw, nullptr);
 }
 
-TEST(ArpTest, ArpExpiration) {
+TYPED_TEST(ArpTest, ArpExpiration) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle(std::chrono::seconds(1));
   auto sw = handle->getSw();
 
@@ -1149,7 +1226,16 @@ TEST(ArpTest, ArpExpiration) {
   EXPECT_TRUE(arpExpirations[0]->wait());
 }
 
-TEST(ArpTest, FlushEntryWithConcurrentUpdate) {
+TYPED_TEST(ArpTest, FlushEntryWithConcurrentUpdate) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
   ThriftHandler thriftHandler(sw);
@@ -1207,7 +1293,16 @@ TEST(ArpTest, FlushEntryWithConcurrentUpdate) {
   arpReplies.join();
 }
 
-TEST(ArpTest, PortFlapRecover) {
+TYPED_TEST(ArpTest, PortFlapRecover) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
 
@@ -1309,7 +1404,16 @@ TEST(ArpTest, PortFlapRecover) {
   EXPECT_EQ(unaffectedEntry->isPending(), false);
 }
 
-TEST(ArpTest, receivedPacketWithDirectlyConnectedDestination) {
+TYPED_TEST(ArpTest, receivedPacketWithDirectlyConnectedDestination) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
   VlanID vlanID(1);
@@ -1370,7 +1474,16 @@ TEST(ArpTest, receivedPacketWithDirectlyConnectedDestination) {
   counters.checkDelta(SwitchStats::kCounterPrefix + "ipv4.no_arp.sum", 0);
 }
 
-TEST(ArpTest, receivedPacketWithNoRouteToDestination) {
+TYPED_TEST(ArpTest, receivedPacketWithNoRouteToDestination) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
   VlanID vlanID(1);
@@ -1421,7 +1534,16 @@ TEST(ArpTest, receivedPacketWithNoRouteToDestination) {
   counters.checkDelta(SwitchStats::kCounterPrefix + "ipv4.no_arp.sum", 1);
 }
 
-TEST(ArpTest, receivedPacketWithRouteToDestination) {
+TYPED_TEST(ArpTest, receivedPacketWithRouteToDestination) {
+  /*
+   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
+   */
+  if (this->isIntfNbrTable()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+  }
+
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
   VlanID vlanID(1);

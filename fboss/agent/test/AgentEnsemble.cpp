@@ -11,6 +11,8 @@
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 
+#include <gtest/gtest.h>
+
 DECLARE_bool(tun_intf);
 DEFINE_bool(
     setup_for_warmboot,
@@ -57,13 +59,24 @@ void AgentEnsemble::setupEnsemble(
   auto* initializer = agentInitializer();
   initializer->createSwitch(std::move(config), hwFeaturesDesired, initPlatform);
 
-  utility::setPortToDefaultProfileIDMap(
-      std::make_shared<MultiSwitchPortMap>(), getPlatform());
-  auto portsByControllingPort =
-      utility::getSubsidiaryPortIDs(getPlatform()->getPlatformPorts());
+  // TODO: Handle multiple Asics
+  auto asic = getSw()->getHwAsicTable()->getHwAsics().cbegin()->second;
 
+  utility::setPortToDefaultProfileIDMap(
+      std::make_shared<MultiSwitchPortMap>(),
+      getSw()->getPlatformMapping(),
+      asic);
+  auto portsByControllingPort = utility::getSubsidiaryPortIDs(
+      getSw()->getPlatformMapping()->getPlatformPorts());
+
+  const auto& platformPorts = getSw()->getPlatformMapping()->getPlatformPorts();
   for (const auto& port : portsByControllingPort) {
-    masterLogicalPortIds_.push_back(port.first);
+    if (!FLAGS_hide_fabric_ports ||
+        *platformPorts.find(static_cast<int32_t>(port.first))
+                ->second.mapping()
+                ->portType() != cfg::PortType::FABRIC_PORT) {
+      masterLogicalPortIds_.push_back(port.first);
+    }
   }
   initialConfig_ = initialConfigFn(getSw(), masterLogicalPortIds_);
   applyInitialConfig(initialConfig_);
@@ -94,7 +107,7 @@ void AgentEnsemble::startAgent() {
 
 void AgentEnsemble::writeConfig(const cfg::SwitchConfig& config) {
   auto* initializer = agentInitializer();
-  auto agentConfig = initializer->platform()->config()->thrift;
+  auto agentConfig = initializer->sw()->getAgentConfig();
   agentConfig.sw() = config;
   writeConfig(agentConfig);
 }
@@ -102,7 +115,7 @@ void AgentEnsemble::writeConfig(const cfg::SwitchConfig& config) {
 void AgentEnsemble::writeConfig(const cfg::AgentConfig& agentConfig) {
   auto* initializer = agentInitializer();
   auto testConfigDir =
-      initializer->platform()->getDirectoryUtil()->getPersistentStateDir() +
+      initializer->sw()->getDirUtil()->getPersistentStateDir() +
       "/agent_ensemble/";
   utilCreateDir(testConfigDir);
   auto fileName = testConfigDir + configFile_;
@@ -189,8 +202,12 @@ std::shared_ptr<SwitchState> AgentEnsemble::applyNewState(
   if (!state) {
     return getSw()->getState();
   }
+
+  // TODO: Handle multiple Asics
+  auto asic = getSw()->getHwAsicTable()->getHwAsics().cbegin()->second;
+
   state = EncapIndexAllocator::updateEncapIndices(
-      StateDelta(getProgrammedState(), state), *getPlatform()->getAsic());
+      StateDelta(getProgrammedState(), state), *asic);
   transaction
       ? getSw()->updateStateWithHwFailureProtection(
             "apply new state with failure protection",
@@ -215,9 +232,7 @@ void AgentEnsemble::setupLinkStateToggler() {
   if (linkToggler_) {
     return;
   }
-  const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMode = {
-      {cfg::PortType::INTERFACE_PORT, mode_}};
-  linkToggler_ = createHwLinkStateToggler(this, kLoopbackMode);
+  linkToggler_ = createHwLinkStateToggler(this);
 }
 
 std::string AgentEnsemble::getInputConfigFile() {
@@ -227,10 +242,11 @@ std::string AgentEnsemble::getInputConfigFile() {
   return kInputConfigFile;
 }
 
-void ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform) {
+int ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform) {
   kArgc = argc;
   kArgv = argv;
   kPlatformInitFn = std::move(initPlatform);
+  return RUN_ALL_TESTS();
 }
 
 std::unique_ptr<AgentEnsemble> createAgentEnsemble(

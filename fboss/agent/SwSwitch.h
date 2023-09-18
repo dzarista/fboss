@@ -231,6 +231,8 @@ class SwSwitch : public HwSwitchCallback {
       HwSwitchInitFn hwSwitchInitFn,
       SwitchFlags flags = SwitchFlags::DEFAULT);
 
+  void init(SwitchFlags flags = SwitchFlags::DEFAULT);
+
   bool isFullyInitialized() const;
 
   bool isInitialized() const;
@@ -788,6 +790,7 @@ class SwSwitch : public HwSwitchCallback {
 
   std::string getConfigStr() const;
   cfg::SwitchConfig getConfig() const;
+  cfg::AgentConfig getAgentConfig() const;
 
   AdminDistance clientIdToAdminDistance(int clientId) const;
   void publishRxPacket(RxPacket* packet, uint16_t ethertype);
@@ -880,6 +883,8 @@ class SwSwitch : public HwSwitchCallback {
 
   std::optional<uint32_t> getHwLogicalPortId(PortID port) const;
 
+  const AgentDirectoryUtil* getDirUtil() const;
+
   void switchRunStateChanged(SwitchRunState newState);
 
   MultiSwitchPacketStreamMap* getPacketStreamMap() {
@@ -893,6 +898,12 @@ class SwSwitch : public HwSwitchCallback {
 
   // used by tests to avoid having to reload config from disk
   void setConfig(std::unique_ptr<AgentConfig> config);
+
+  bool needL2EntryForNeighbor() const;
+
+  SwSwitchWarmBootHelper* getWarmBootHelper() {
+    return swSwitchWarmbootHelper_.get();
+  }
 
  private:
   std::optional<folly::MacAddress> getSourceMac(
@@ -994,6 +1005,17 @@ class SwSwitch : public HwSwitchCallback {
   void storeWarmBootState(const state::WarmbootState& state);
 
   std::unique_ptr<AgentConfig> loadConfig();
+
+  void applyConfigImpl(
+      const std::string& reason,
+      const cfg::SwitchConfig& newConfig);
+
+  void setConfigImpl(std::unique_ptr<AgentConfig> config);
+
+  std::shared_ptr<SwitchState> preInit(
+      SwitchFlags flags = SwitchFlags::DEFAULT);
+
+  void postInit(const HwInitResult* HwInitResult = nullptr);
 
   std::unique_ptr<MultiHwSwitchHandler> multiHwSwitchHandler_;
   const AgentDirectoryUtil* agentDirUtil_;
@@ -1148,6 +1170,6 @@ class SwSwitch : public HwSwitchCallback {
   std::unique_ptr<SwSwitchWarmBootHelper> swSwitchWarmbootHelper_;
   std::atomic<std::chrono::time_point<std::chrono::steady_clock>>
       lastPacketRxTime_{std::chrono::steady_clock::time_point::min()};
-  std::unique_ptr<AgentConfig> agentConfig_;
+  folly::Synchronized<std::unique_ptr<AgentConfig>> agentConfig_;
 };
 } // namespace facebook::fboss

@@ -263,6 +263,7 @@ void SaiPortManager::changePortImpl(
   changeMirror(oldPort, newPort);
   changeSamplePacket(oldPort, newPort);
   changePfc(oldPort, newPort);
+  changeRxLaneSquelch(oldPort, newPort);
   programPfcBuffers(newPort);
 
   if (newPort->isEnabled()) {
@@ -676,12 +677,7 @@ void SaiPortManager::programSerdes(
   // create if serdes doesn't exist or update existing serdes
   portHandle->serdes = store.setObject(serdesKey, serdesAttributes);
 
-  // TODO(daiweix): Remove the TH5 from the port toggle workaround after SDK
-  // 6.5.29 integration. The new Serdes firmware should take care of Serdes
-  // init issue
-  if (platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_GARONNE ||
-      platform_->getAsic()->getAsicType() ==
-          cfg::AsicType::ASIC_TYPE_TOMAHAWK5) {
+  if (platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_GARONNE) {
     /*
      * SI settings are not programmed to the hardware when the port is
      * created with admin UP. We need to explicitly toggle the admin
@@ -708,6 +704,7 @@ SaiPortManager::serdesAttributesFromSwPinConfigs(
   SaiPortSerdesTraits::Attributes::TxFirMain::ValueType txMain;
   SaiPortSerdesTraits::Attributes::TxFirPost1::ValueType txPost1;
   SaiPortSerdesTraits::Attributes::IDriver::ValueType txIDriver;
+  SaiPortSerdesTraits::Attributes::TxFirPre3::ValueType txPre3;
   SaiPortSerdesTraits::Attributes::TxFirPre2::ValueType txPre2;
   SaiPortSerdesTraits::Attributes::TxFirPost2::ValueType txPost2;
   SaiPortSerdesTraits::Attributes::TxFirPost3::ValueType txPost3;
@@ -739,6 +736,9 @@ SaiPortManager::serdesAttributesFromSwPinConfigs(
             txLutMode.push_back(*lutMode);
           }
         }
+      }
+      if (auto pre3 = tx->pre3()) {
+        txPre3.push_back(*pre3);
       }
 
       if (auto driveCurrent = tx->driveCurrent()) {
@@ -787,6 +787,10 @@ SaiPortManager::serdesAttributesFromSwPinConfigs(
       setTxRxAttr(
           attrs, SaiPortSerdesTraits::Attributes::TxLutMode{}, txLutMode);
     }
+  }
+
+  if (!txPre3.empty()) {
+    setTxRxAttr(attrs, SaiPortSerdesTraits::Attributes::TxFirPre3{}, txPre3);
   }
 
   if (platform_->getAsic()->getPortSerdesPreemphasis().has_value()) {

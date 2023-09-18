@@ -16,6 +16,7 @@
 #include "fboss/agent/hw/sai/api/AclApi.h"
 #include "fboss/agent/hw/sai/store/SaiStore.h"
 #include "fboss/agent/hw/sai/switch/SaiAclTableGroupManager.h"
+#include "fboss/agent/hw/sai/switch/SaiHostifManager.h"
 #include "fboss/agent/hw/sai/switch/SaiManagerTable.h"
 #include "fboss/agent/hw/sai/switch/SaiMirrorManager.h"
 #include "fboss/agent/hw/sai/switch/SaiPortManager.h"
@@ -789,9 +790,15 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
 
   std::optional<std::string> ingressMirror{std::nullopt};
   std::optional<std::string> egressMirror{std::nullopt};
+  std::shared_ptr<SaiHostifUserDefinedTrapHandle> userDefinedTrap{nullptr};
 
   std::optional<SaiAclEntryTraits::Attributes::ActionMacsecFlow>
       aclActionMacsecFlow{std::nullopt};
+
+#if !defined(TAJO_SDK)
+  std::optional<SaiAclEntryTraits::Attributes::ActionSetUserTrap>
+      aclActionSetUserTrap{std::nullopt};
+#endif
 
   auto action = addedAclEntry->getAclAction();
   if (action) {
@@ -853,6 +860,24 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
               setCopyOrTrap(sendToQueue, SAI_PACKET_ACTION_TRAP);
               break;
           }
+        }
+
+        if (platform_->getAsic()->isSupported(
+                HwAsic::Feature::SAI_USER_DEFINED_TRAP) &&
+            FLAGS_sai_user_defined_trap) {
+          // Some platform requires implementing ACL copy/trap to cpu action
+          // along with user defined trap action mapping to the desrited cpu
+          // queue, so as to make ACL rule take precedence over hostif trap
+          // rule.
+#if !defined(TAJO_SDK)
+          userDefinedTrap =
+              managerTable_->hostifManager().ensureHostifUserDefinedTrap(
+                  *sendToQueue.first.queueId());
+          aclActionSetUserTrap =
+              SaiAclEntryTraits::Attributes::ActionSetUserTrap{
+                  AclEntryActionSaiObjectIdT(
+                      userDefinedTrap->trap->adapterKey())};
+#endif
         }
       }
     }
@@ -946,7 +971,11 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
       (aclActionPacketAction.has_value() || aclActionCounter.has_value() ||
        aclActionSetTC.has_value() || aclActionSetDSCP.has_value() ||
        aclActionMirrorIngress.has_value() ||
-       aclActionMirrorEgress.has_value() || aclActionMacsecFlow.has_value());
+       aclActionMirrorEgress.has_value() || aclActionMacsecFlow.has_value()
+#if !defined(TAJO_SDK)
+       || aclActionSetUserTrap.has_value()
+#endif
+      );
 
   if (!(matcherIsValid && actionIsValid)) {
     XLOG(WARNING) << "Unsupported field/action for aclEntry: "
@@ -956,41 +985,22 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
     return AclEntrySaiId{0};
   }
 
-  SaiAclEntryTraits::CreateAttributes attributes{
-      aclTableId,
-      priority,
-      true,
-      fieldSrcIpV6,
-      fieldDstIpV6,
-      fieldSrcIpV4,
-      fieldDstIpV4,
-      fieldSrcPort,
-      fieldOutPort,
-      fieldL4SrcPort,
-      fieldL4DstPort,
-      fieldIpProtocol,
-      fieldTcpFlags,
-      fieldIpFrag,
-      fieldIcmpV4Type,
-      fieldIcmpV4Code,
-      fieldIcmpV6Type,
-      fieldIcmpV6Code,
-      fieldDscp,
-      fieldDstMac,
-      fieldIpType,
-      fieldTtl,
-      fieldFdbDstUserMeta,
-      fieldRouteDstUserMeta,
-      fieldNeighborDstUserMeta,
-      fieldEtherType,
-      fieldOuterVlanId,
-      aclActionPacketAction,
-      aclActionCounter,
-      aclActionSetTC,
-      aclActionSetDSCP,
-      aclActionMirrorIngress,
-      aclActionMirrorEgress,
-      aclActionMacsecFlow,
+  SaiAclEntryTraits::CreateAttributes attributes {
+    aclTableId, priority, true, fieldSrcIpV6, fieldDstIpV6, fieldSrcIpV4,
+        fieldDstIpV4, fieldSrcPort, fieldOutPort, fieldL4SrcPort,
+        fieldL4DstPort, fieldIpProtocol, fieldTcpFlags, fieldIpFrag,
+        fieldIcmpV4Type, fieldIcmpV4Code, fieldIcmpV6Type, fieldIcmpV6Code,
+        fieldDscp, fieldDstMac, fieldIpType, fieldTtl, fieldFdbDstUserMeta,
+        fieldRouteDstUserMeta, fieldNeighborDstUserMeta, fieldEtherType,
+        fieldOuterVlanId, aclActionPacketAction, aclActionCounter,
+        aclActionSetTC, aclActionSetDSCP, aclActionMirrorIngress,
+        aclActionMirrorEgress, aclActionMacsecFlow,
+// action not supported by tajo. Besides, user defined trap
+// is used to make ACL take precedence over Hostif trap.
+// Tajo already supports this behavior
+#if !defined(TAJO_SDK)
+        aclActionSetUserTrap,
+#endif
   };
 
   auto saiAclEntry = aclEntryStore.setObject(adapterHostKey, attributes);
@@ -1000,6 +1010,7 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
   entryHandle->aclCounterTypeAndName = aclCounterTypeAndName;
   entryHandle->ingressMirror = ingressMirror;
   entryHandle->egressMirror = egressMirror;
+  entryHandle->userDefinedTrap = userDefinedTrap;
   auto [it, inserted] = aclTableHandle->aclTableMembers.emplace(
       addedAclEntry->getPriority(), std::move(entryHandle));
   CHECK(inserted);
@@ -1197,7 +1208,7 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
         cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
         cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE};
 
-#if defined(TAJO_SDK_VERSION_1_62_0) || defined(TAJO_SDK_VERSION_1_65_0)
+#if defined(TAJO_SDK_VERSION_1_65_0)
     std::vector<cfg::AclTableQualifier> tajoExtraQualifierList = {
         cfg::AclTableQualifier::SRC_PORT,
         cfg::AclTableQualifier::L4_SRC_PORT,

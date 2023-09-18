@@ -52,11 +52,12 @@ SaiWedge400CPlatform::SaiWedge400CPlatform(
 void SaiWedge400CPlatform::setupAsic(
     cfg::SwitchType switchType,
     std::optional<int64_t> switchId,
+    int16_t /*switchIndex*/,
     std::optional<cfg::Range64> systemPortRange,
     folly::MacAddress& mac) {
   asic_ =
       std::make_unique<EbroAsic>(switchType, switchId, systemPortRange, mac);
-#if defined(TAJO_SDK_VERSION_1_62_0) || defined(TAJO_SDK_VERSION_1_65_0)
+#if defined(TAJO_SDK_VERSION_1_65_0)
   asic_->setDefaultStreamType(cfg::StreamType::UNICAST);
 #endif
 }

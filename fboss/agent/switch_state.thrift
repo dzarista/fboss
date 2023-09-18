@@ -111,6 +111,7 @@ struct PortFields {
   44: optional string flowletConfigName;
   45: optional PortFlowletFields flowletConfig;
   46: optional ctrl.PortLedExternalState portLedExternalState;
+  47: bool rxLaneSquelch = false;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields
@@ -132,6 +133,11 @@ struct SendToQueue {
   2: bool sendToCPU;
 }
 
+struct SetTc {
+  1: switch_config.SetTcAction action;
+  2: bool sendToCPU;
+}
+
 struct RedirectToNextHopAction {
   1: switch_config.RedirectToNextHopAction action;
   2: list<common.NextHopThrift> resolvedNexthops;
@@ -146,6 +152,8 @@ struct MatchAction {
   6: optional switch_config.ToCpuAction toCpuAction;
   7: optional switch_config.MacsecFlowAction macsecFlow;
   8: optional RedirectToNextHopAction redirectToNextHop;
+  9: optional SetTc setTc;
+  10: optional switch_config.UserDefinedTrapAction userDefinedTrap;
 }
 
 struct AclEntryFields {

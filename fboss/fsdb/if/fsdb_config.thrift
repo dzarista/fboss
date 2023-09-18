@@ -9,11 +9,16 @@ include "thrift/annotation/cpp.thrift"
 
 struct PathConfig {
   1: fsdb_oper.OperPath path;
-  2: bool isExpected; // whether stream is expected to be connected on this path in healthy state
+  2: bool isExpected = false; // whether stream is expected to be connected on this path in healthy state
 }
 
 struct PublisherConfig {
   1: list<PathConfig> paths = [];
+}
+
+struct SubscriberConfig {
+  1: bool trackReconnect = true;
+  2: bool allowExtendedSubscriptions = false;
 }
 
 struct Config {
@@ -27,4 +32,9 @@ struct Config {
   3: list<string> trustedSubnets = [];
   @cpp.Type{template = "std::unordered_map"}
   4: map<fsdb_common.PublisherId, PublisherConfig> publishers = {};
+  // subscribers{} allows SubscriberConfig to be specified for dynamic
+  // SubscriberId strings with a common suffix starting with ":", e.g.
+  // ":agent" will match all SubscriberId strings that end with that suffix.
+  @cpp.Type{template = "std::unordered_map"}
+  5: map<fsdb_common.SubscriberId, SubscriberConfig> subscribers = {};
 }

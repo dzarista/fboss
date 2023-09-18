@@ -18,88 +18,124 @@ PlatformExplorer::PlatformExplorer(
 }
 
 void PlatformExplorer::explore() {
-  XLOG(INFO) << "Exploring the device";
+  XLOG(INFO) << "Exploring the platform";
   for (const auto& [busName, busNum] :
        i2cExplorer_.getBusNums(*platformConfig_.i2cAdaptersFromCpu())) {
     updateI2cBusNum("", busName, busNum);
   }
-  exploreSlot("", "MainBoard_Slot@0", *platformConfig_.mainBoardSlotConfig());
+  const PmUnitConfig& rootPmUnitConfig =
+      platformConfig_.pmUnitConfigs()->at(*platformConfig_.rootPmUnitName());
+  SlotConfig rootSlotConfig{};
+  rootSlotConfig.slotType_ref() = *rootPmUnitConfig.pluggedInSlotType_ref();
+  exploreSlot("", "", rootSlotConfig);
 }
 
-void PlatformExplorer::exploreFRU(
-    const std::string& parentFruName,
+void PlatformExplorer::explorePmUnit(
+    const std::string& parentPmUnitPath,
     const std::string& parentSlotName,
-    const SlotConfig& parentSlot,
-    const std::string& fruTypeName,
-    const FruTypeConfig& fruTypeConfig) {
-  auto fruName =
-      fmt::format("{}::{}/{}", parentFruName, parentSlotName, fruTypeName);
-  XLOG(INFO) << fmt::format("Exploring FRU {}", fruName);
+    const SlotConfig& parentSlotConfig,
+    const std::string& pmUnitName) {
+  auto pmUnitPath =
+      fmt::format("{}::{}/{}", parentPmUnitPath, parentSlotName, pmUnitName);
+  auto pmUnitConfig = platformConfig_.pmUnitConfigs()->at(pmUnitName);
+  XLOG(INFO) << fmt::format("Exploring PmUnit {}", pmUnitPath);
+
   int i = 0;
-  for (const auto& busName : *parentSlot.outgoingI2cBusNames()) {
-    auto busNum = getI2cBusNum(parentFruName, busName);
-    updateI2cBusNum(fruName, fmt::format("INCOMING@{}", i++), busNum);
+  for (const auto& busName : *parentSlotConfig.outgoingI2cBusNames()) {
+    auto busNum = getI2cBusNum(parentPmUnitPath, busName);
+    updateI2cBusNum(pmUnitPath, fmt::format("INCOMING@{}", i++), busNum);
   }
-  exploreI2cDevices(fruName, *fruTypeConfig.i2cDeviceConfigs());
+
+  XLOG(INFO) << fmt::format(
+      "Exploring I2C Devices for PmUnit {}. Count {}",
+      pmUnitPath,
+      pmUnitConfig.i2cDeviceConfigs_ref()->size());
+  exploreI2cDevices(pmUnitPath, *pmUnitConfig.i2cDeviceConfigs());
+
+  XLOG(INFO) << fmt::format(
+      "Exploring Slots for PmUnit {}. Count {}",
+      pmUnitPath,
+      pmUnitConfig.outgoingSlotConfigs_ref()->size());
   for (const auto& [slotName, slotConfig] :
-       *fruTypeConfig.outgoingSlotConfigs()) {
-    exploreSlot(fruName, slotName, slotConfig);
+       *pmUnitConfig.outgoingSlotConfigs()) {
+    exploreSlot(pmUnitPath, slotName, slotConfig);
   }
 }
 
 void PlatformExplorer::exploreSlot(
-    const std::string& fruName,
+    const std::string& pmUnitPath,
     const std::string& slotName,
     const SlotConfig& slotConfig) {
-  XLOG(INFO) << fmt::format("Exploring Slot {}::{}", fruName, slotName);
-  bool isChildFruPlugged =
-      presenceDetector_.isPresent(*slotConfig.presenceDetection());
-  if (!isChildFruPlugged) {
+  XLOG(INFO) << fmt::format("Exploring Slot {}::{}", pmUnitPath, slotName);
+  auto pluggedInPmUnitName = getPmUnitNameFromSlot(slotConfig, pmUnitPath);
+
+  if (!pluggedInPmUnitName) {
     XLOG(INFO) << fmt::format(
-        "No device detected at Slot {}::{}", fruName, slotName);
+        "No device could be read in Slot {}::{}", pmUnitPath, slotName);
     return;
   }
-  auto eepromConfig =
-      *platformConfig_.slotTypeConfigs()[*slotConfig.slotType()].eepromConfig();
-  auto eepromI2cBusNum = getI2cBusNum(
-      fruName,
-      slotConfig.outgoingI2cBusNames()[*eepromConfig.incomingBusIndex()]);
-  i2cExplorer_.createI2cDevice(
-      *eepromConfig.kernelDeviceName(),
-      eepromI2cBusNum,
-      *eepromConfig.address());
-  auto eepromPath =
-      i2cExplorer_.getDeviceI2cPath(eepromI2cBusNum, *eepromConfig.address());
-  auto pluggedInFruTypeName = i2cExplorer_.getFruTypeName(eepromPath);
-  exploreFRU(
-      fruName,
-      slotName,
-      slotConfig,
-      pluggedInFruTypeName,
-      platformConfig_.fruTypeConfigs()[pluggedInFruTypeName]);
+
+  explorePmUnit(pmUnitPath, slotName, slotConfig, *pluggedInPmUnitName);
+}
+
+std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
+    const SlotConfig& slotConfig,
+    const std::string& pmUnitPath) {
+  bool isChildPmUnitPlugged =
+      presenceDetector_.isPresent(*slotConfig.presenceDetection());
+  if (!isChildPmUnitPlugged) {
+    XLOG(INFO) << "No device detected";
+    return std::nullopt;
+  }
+  auto slotTypeConfig =
+      platformConfig_.slotTypeConfigs_ref()->at(*slotConfig.slotType());
+  std::optional<std::string> pmUnitNameInEeprom{std::nullopt};
+  if (slotTypeConfig.idpromConfig_ref()) {
+    auto idpromConfig = *slotTypeConfig.idpromConfig_ref();
+    auto eepromI2cBusNum = getI2cBusNum(pmUnitPath, *idpromConfig.busName());
+    i2cExplorer_.createI2cDevice(
+        *idpromConfig.kernelDeviceName(),
+        eepromI2cBusNum,
+        I2cAddr(*idpromConfig.address()));
+    auto eepromPath = i2cExplorer_.getDeviceI2cPath(
+        eepromI2cBusNum, I2cAddr(*idpromConfig.address()));
+    try {
+      pmUnitNameInEeprom = i2cExplorer_.getPmUnitName(eepromPath);
+    } catch (const std::exception& e) {
+      XLOG(ERR) << fmt::format(
+          "Could not fetch contents of IDPROM {}. {}", eepromPath, e.what());
+    }
+  }
+  if (slotTypeConfig.pmUnitName()) {
+    if (pmUnitNameInEeprom &&
+        *pmUnitNameInEeprom != *slotTypeConfig.pmUnitName()) {
+      XLOG(WARNING) << fmt::format(
+          "The PmUnit type in eeprom `{}` is different from the one in config `{}`",
+          *pmUnitNameInEeprom,
+          *slotTypeConfig.pmUnitName());
+    }
+    return *slotTypeConfig.pmUnitName();
+  }
+  return pmUnitNameInEeprom;
 }
 
 void PlatformExplorer::exploreI2cDevices(
-    const std::string& fruName,
+    const std::string& pmUnitPath,
     const std::vector<I2cDeviceConfig>& i2cDeviceConfigs) {
-  XLOG(INFO) << fmt::format(
-      "Exploring I2C Devices for FRU {}. Count {}",
-      fruName,
-      i2cDeviceConfigs.size());
   for (const auto& i2cDeviceConfig : i2cDeviceConfigs) {
     i2cExplorer_.createI2cDevice(
         *i2cDeviceConfig.kernelDeviceName(),
-        getI2cBusNum(fruName, *i2cDeviceConfig.busName()),
-        *i2cDeviceConfig.address());
+        getI2cBusNum(pmUnitPath, *i2cDeviceConfig.busName()),
+        I2cAddr(*i2cDeviceConfig.address()));
     if (i2cDeviceConfig.numOutgoingChannels()) {
       auto channelBusNums = i2cExplorer_.getMuxChannelI2CBuses(
-          getI2cBusNum(fruName, *i2cDeviceConfig.busName()),
-          *i2cDeviceConfig.address());
+          getI2cBusNum(pmUnitPath, *i2cDeviceConfig.busName()),
+          I2cAddr(*i2cDeviceConfig.address()));
       assert(channelBusNums.size() == i2cDeviceConfig.numOutgoingChannels());
       for (int i = 0; i < i2cDeviceConfig.numOutgoingChannels(); ++i) {
         updateI2cBusNum(
-            fruName,
-            fmt::format("{}@{}", *i2cDeviceConfig.fruScopedName(), i),
+            pmUnitPath,
+            fmt::format("{}@{}", *i2cDeviceConfig.pmUnitScopedName(), i),
             channelBusNums[i]);
       }
     }
@@ -107,22 +143,22 @@ void PlatformExplorer::exploreI2cDevices(
 }
 
 uint16_t PlatformExplorer::getI2cBusNum(
-    const std::string& fruName,
-    const std::string& fruScopeBusName) const {
-  return i2cBusNamesToNums_.at(std::make_pair(fruName, fruScopeBusName));
+    const std::string& pmUnitPath,
+    const std::string& pmUnitScopeBusName) const {
+  return i2cBusNamesToNums_.at(std::make_pair(pmUnitPath, pmUnitScopeBusName));
 }
 
 void PlatformExplorer::updateI2cBusNum(
-    const std::string& fruName,
-    const std::string& fruScopeBusName,
+    const std::string& pmUnitPath,
+    const std::string& pmUnitScopeBusName,
     uint16_t busNum) {
   XLOG(INFO) << fmt::format(
-      "Updating bus `{}` in fru `{}` to bus number {} (i2c-{})",
-      fruScopeBusName,
-      fruName,
+      "Updating bus `{}` in PmUnit `{}` to bus number {} (i2c-{})",
+      pmUnitScopeBusName,
+      pmUnitPath,
       busNum,
       busNum);
-  i2cBusNamesToNums_[std::make_pair(fruName, fruScopeBusName)] = busNum;
+  i2cBusNamesToNums_[std::make_pair(pmUnitPath, pmUnitScopeBusName)] = busNum;
 }
 
 } // namespace facebook::fboss::platform::platform_manager

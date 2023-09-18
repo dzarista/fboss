@@ -8,6 +8,7 @@
 #include <memory>
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/HwSwitchCallback.h"
+#include "fboss/agent/HwSwitchConnectionStatusTable.h"
 #include "fboss/agent/if/gen-cpp2/MultiSwitchCtrl.h"
 
 namespace facebook::fboss {
@@ -19,16 +20,19 @@ class TxPacket;
 class SwitchStats;
 class HwSwitchFb303Stats;
 struct HwSwitchStateUpdate;
+class SwSwitch;
 
 using HwSwitchHandlerInitFn = std::function<std::unique_ptr<HwSwitchHandler>(
     const SwitchID& switchId,
-    const cfg::SwitchInfo& info)>;
+    const cfg::SwitchInfo& info,
+    SwSwitch* sw)>;
 
 class MultiHwSwitchHandler {
  public:
   MultiHwSwitchHandler(
       const std::map<int64_t, cfg::SwitchInfo>& switchInfoMap,
-      HwSwitchHandlerInitFn hwSwitchHandlerInitFn);
+      HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
+      SwSwitch* sw);
 
   ~MultiHwSwitchHandler();
 
@@ -42,7 +46,8 @@ class MultiHwSwitchHandler {
 
   multiswitch::StateOperDelta getNextStateOperDelta(
       int64_t switchId,
-      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult);
+      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
+      bool initialSync);
 
   void notifyHwSwitchGracefulExit(int64_t switchId);
 
@@ -122,10 +127,16 @@ class MultiHwSwitchHandler {
 
   std::string listObjects(const std::vector<HwObjectType>& types, bool cached);
 
-  bool needL2EntryForNeighbor();
+  bool needL2EntryForNeighbor(const cfg::SwitchConfig* config) const;
 
   // For test purpose
   std::map<SwitchID, HwSwitchHandler*> getHwSwitchHandlers();
+
+  /*
+   * blocks till atleast one HwSwitch is connected.
+   * returns false if wait is cancelled
+   */
+  bool waitUntilHwSwitchConnected();
 
  private:
   HwSwitchHandler* getHwSwitchHandler(SwitchID id);
@@ -137,8 +148,10 @@ class MultiHwSwitchHandler {
   std::shared_ptr<SwitchState> getStateUpdateResult(
       std::vector<folly::Future<std::shared_ptr<SwitchState>>>& futures);
 
+  SwSwitch* sw_;
   std::map<SwitchID, std::unique_ptr<HwSwitchHandler>> hwSwitchSyncers_;
   std::atomic<bool> stopped_{true};
+  HwSwitchConnectionStatusTable connectionStatusTable_;
 };
 
 } // namespace facebook::fboss
