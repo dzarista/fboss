@@ -21,6 +21,8 @@
 #include "fboss/agent/test/ResourceLibUtil.h"
 #include "fboss/agent/test/TrunkUtils.h"
 
+DECLARE_bool(intf_nbr_tables);
+
 namespace facebook::fboss {
 
 namespace {
@@ -32,10 +34,13 @@ const cfg::AclLookupClass kLookupClass{
 
 template <
     cfg::L2LearningMode mode = cfg::L2LearningMode::HARDWARE,
-    bool trunk = false>
+    bool trunk = false,
+    bool intfNbrTable = false>
 struct LearningModeAndPortTypesT {
   static constexpr auto kLearningMode = mode;
   static constexpr auto kIsTrunk = trunk;
+  static auto constexpr isIntfNbrTable = intfNbrTable;
+
   static cfg::SwitchConfig initialConfig(cfg::SwitchConfig config) {
     config.switchSettings()->l2LearningMode() = kLearningMode;
     if (kIsTrunk) {
@@ -54,20 +59,33 @@ struct LearningModeAndPortTypesT {
   }
 };
 
-using SwLearningModeAndTrunk =
-    LearningModeAndPortTypesT<cfg::L2LearningMode::SOFTWARE, true>;
-using SwLearningModeAndPort =
-    LearningModeAndPortTypesT<cfg::L2LearningMode::SOFTWARE, false>;
-using HwLearningModeAndTrunk =
-    LearningModeAndPortTypesT<cfg::L2LearningMode::HARDWARE, true>;
-using HwLearningModeAndPort =
-    LearningModeAndPortTypesT<cfg::L2LearningMode::HARDWARE, false>;
+using SwLearningModeAndTrunkVlanNbrTable =
+    LearningModeAndPortTypesT<cfg::L2LearningMode::SOFTWARE, true, false>;
+using SwLearningModeAndPortVlanNbrTable =
+    LearningModeAndPortTypesT<cfg::L2LearningMode::SOFTWARE, false, false>;
+using HwLearningModeAndTrunkVlanNbrTable =
+    LearningModeAndPortTypesT<cfg::L2LearningMode::HARDWARE, true, false>;
+using HwLearningModeAndPortVlanNbrTable =
+    LearningModeAndPortTypesT<cfg::L2LearningMode::HARDWARE, false, false>;
+
+using SwLearningModeAndTrunkIntfNbrTable =
+    LearningModeAndPortTypesT<cfg::L2LearningMode::SOFTWARE, true, true>;
+using SwLearningModeAndPortIntfNbrTable =
+    LearningModeAndPortTypesT<cfg::L2LearningMode::SOFTWARE, false, true>;
+using HwLearningModeAndTrunkIntfNbrTable =
+    LearningModeAndPortTypesT<cfg::L2LearningMode::HARDWARE, true, true>;
+using HwLearningModeAndPortIntfNbrTable =
+    LearningModeAndPortTypesT<cfg::L2LearningMode::HARDWARE, false, true>;
 
 using LearningAndPortTypes = ::testing::Types<
-    SwLearningModeAndTrunk,
-    SwLearningModeAndPort,
-    HwLearningModeAndTrunk,
-    HwLearningModeAndPort>;
+    SwLearningModeAndTrunkVlanNbrTable,
+    SwLearningModeAndPortVlanNbrTable,
+    HwLearningModeAndTrunkVlanNbrTable,
+    HwLearningModeAndPortVlanNbrTable,
+    SwLearningModeAndTrunkIntfNbrTable,
+    SwLearningModeAndPortIntfNbrTable,
+    HwLearningModeAndTrunkIntfNbrTable,
+    HwLearningModeAndPortIntfNbrTable>;
 
 } // namespace
 
@@ -76,8 +94,14 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
  public:
   static auto constexpr kLearningMode = LearningModeAndPortT::kLearningMode;
   static auto constexpr kIsTrunk = LearningModeAndPortT::kIsTrunk;
+  static auto constexpr isIntfNbrTable = LearningModeAndPortT::isIntfNbrTable;
 
  protected:
+  void SetUp() override {
+    FLAGS_intf_nbr_tables = isIntfNbrTable;
+    HwLinkStateDependentTest::SetUp();
+  }
+
   cfg::SwitchConfig initialConfig() const override {
     auto inConfig = utility::oneL3IntfNPortConfig(
         getHwSwitch()->getPlatform()->getPlatformMapping(),
@@ -235,11 +259,26 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
       PortDescriptor port,
       const AddrT& addr,
       std::optional<cfg::AclLookupClass> lookupClass = std::nullopt) {
+    using NeighborTableT = typename std::conditional_t<
+        std::is_same<AddrT, folly::IPAddressV4>::value,
+        ArpTable,
+        NdpTable>;
+
     auto state = getProgrammedState()->clone();
-    auto neighborTable = state->getVlans()
-                             ->getNode(kVlanID)
-                             ->template getNeighborEntryTable<AddrT>()
-                             ->modify(kVlanID, &state);
+
+    NeighborTableT* neighborTable;
+    if (isIntfNbrTable) {
+      neighborTable = state->getInterfaces()
+                          ->getNode(kIntfID)
+                          ->template getNeighborEntryTable<AddrT>()
+                          ->modify(kIntfID, &state);
+    } else {
+      neighborTable = state->getVlans()
+                          ->getNode(kVlanID)
+                          ->template getNeighborEntryTable<AddrT>()
+                          ->modify(kVlanID, &state);
+    }
+
     if (neighborTable->getEntryIf(addr)) {
       neighborTable->updateEntry(
           addr,
@@ -263,11 +302,25 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
   }
   template <typename AddrT>
   void removeNeighbor(const AddrT& ip) {
+    using NeighborTableT = typename std::conditional_t<
+        std::is_same<AddrT, folly::IPAddressV4>::value,
+        ArpTable,
+        NdpTable>;
+
     auto newState{getProgrammedState()->clone()};
-    auto neighborTable = newState->getVlans()
-                             ->getNode(kVlanID)
-                             ->template getNeighborEntryTable<AddrT>()
-                             ->modify(kVlanID, &newState);
+
+    NeighborTableT* neighborTable;
+    if (isIntfNbrTable) {
+      neighborTable = newState->getInterfaces()
+                          ->getNode(kIntfID)
+                          ->template getNeighborEntryTable<AddrT>()
+                          ->modify(kIntfID, &newState);
+    } else {
+      neighborTable = newState->getVlans()
+                          ->getNode(kVlanID)
+                          ->template getNeighborEntryTable<AddrT>()
+                          ->modify(kVlanID, &newState);
+    }
 
     neighborTable->removeEntry(ip);
     applyNewState(newState);

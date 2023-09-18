@@ -23,11 +23,25 @@
 
 DECLARE_bool(enable_acl_table_group);
 
+DECLARE_bool(intf_nbr_tables);
+
 namespace facebook::fboss {
 
+template <bool enableIntfNbrTable>
+struct EnableIntfNbrTable {
+  static constexpr auto intfNbrTable = enableIntfNbrTable;
+};
+
+using NbrTableTypes =
+    ::testing::Types<EnableIntfNbrTable<false>, EnableIntfNbrTable<true>>;
+
+template <typename EnableIntfNbrTableT>
 class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
+  static auto constexpr isIntfNbrTable = EnableIntfNbrTableT::intfNbrTable;
+
  protected:
   void SetUp() override {
+    FLAGS_intf_nbr_tables = isIntfNbrTable;
     FLAGS_enable_acl_table_group = true;
     HwLinkStateDependentTest::SetUp();
     helper_ = std::make_unique<utility::EcmpSetupAnyNPorts6>(
@@ -133,10 +147,20 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
 
     for (const auto& ipToMacAndClassID : getIpToMacAndClassID<AddrT>()) {
       auto ip = ipToMacAndClassID.first;
-      auto neighborTable = outState->getVlans()
-                               ->getNode(kVlanID)
-                               ->template getNeighborTable<NeighborTableT>()
-                               ->modify(kVlanID, &outState);
+
+      NeighborTableT* neighborTable;
+      if (isIntfNbrTable) {
+        neighborTable = outState->getInterfaces()
+                            ->getNode(kIntfID)
+                            ->template getNeighborTable<NeighborTableT>()
+                            ->modify(kIntfID, &outState);
+      } else {
+        neighborTable = outState->getVlans()
+                            ->getNode(kVlanID)
+                            ->template getNeighborTable<NeighborTableT>()
+                            ->modify(kVlanID, &outState);
+      }
+
       neighborTable->addPendingEntry(ip, kIntfID);
     }
 
@@ -159,10 +183,20 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
       auto macAndClassID = ipToMacAndClassID.second;
       auto neighborMac = macAndClassID.first;
       auto classID = macAndClassID.second;
-      auto neighborTable = outState->getVlans()
-                               ->getNode(kVlanID)
-                               ->template getNeighborTable<NeighborTableT>()
-                               ->modify(kVlanID, &outState);
+
+      NeighborTableT* neighborTable;
+      if (isIntfNbrTable) {
+        neighborTable = outState->getInterfaces()
+                            ->getNode(kIntfID)
+                            ->template getNeighborTable<NeighborTableT>()
+                            ->modify(kIntfID, &outState);
+      } else {
+        neighborTable = outState->getVlans()
+                            ->getNode(kVlanID)
+                            ->template getNeighborTable<NeighborTableT>()
+                            ->modify(kVlanID, &outState);
+      }
+
       if (setClassIDs) {
         neighborTable->updateEntry(
             ip,
@@ -363,7 +397,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
        */
       bool addTtlQualifier = false;
       resolveNeigborAndProgramRoutes(*helper_, kEcmpWidth);
-#if defined(TAJO_SDK_VERSION_1_62_0) || defined(TAJO_SDK_VERSION_1_65_0)
+#if defined(TAJO_SDK_VERSION_1_65_0)
       addTtlQualifier = true;
 #endif
 
@@ -372,7 +406,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
       auto state2 = addResolvedNeighborWithClassID<folly::IPAddressV6>(state1);
       applyNewState(state2);
 
-      if (isSupported()) {
+      if (this->isSupported()) {
         auto newCfg{initialConfig()};
         utility::addQueuePerHostQueueConfig(&newCfg);
         utility::addQueuePerHostAclTables(
@@ -523,7 +557,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
        */
       bool addTtlQualifier = false;
       resolveNeigborAndProgramRoutes(*helper_, kEcmpWidth);
-#if defined(TAJO_SDK_VERSION_1_62_0)
+#if defined(TAJO_SDK_VERSION_1_65_0)
       addTtlQualifier = true;
 #endif
 
@@ -532,7 +566,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
       auto state2 = addResolvedNeighborWithClassID<folly::IPAddressV6>(state1);
       applyNewState(state2);
 
-      if (isSupported()) {
+      if (this->isSupported()) {
         auto newCfg{initialConfig()};
         utility::addOlympicQosMaps(newCfg, getAsic());
         utility::addDscpAclTable(
@@ -654,52 +688,56 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
   std::unique_ptr<utility::EcmpSetupAnyNPorts6> helper_;
 };
 
-TEST_F(
+TYPED_TEST_SUITE(SaiAclTableGroupTrafficTest, NbrTableTypes);
+
+TYPED_TEST(
     SaiAclTableGroupTrafficTest,
     VerifyQueuePerHostAclTableAndTtlAclTableFrontPanel) {
-  if (!isSupported()) {
+  if (!this->isSupported()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
 #endif
     return;
   }
 
-  verifyMultipleAclTablesHelper(false /* cpu port */);
+  this->verifyMultipleAclTablesHelper(false /* cpu port */);
 }
 
-TEST_F(
+TYPED_TEST(
     SaiAclTableGroupTrafficTest,
     VerifyQueuePerHostAclTableAndTtlAclTableCpu) {
-  if (!isSupported()) {
+  if (!this->isSupported()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
 #endif
     return;
   }
 
-  verifyMultipleAclTablesHelper(true /* cpu port */);
+  this->verifyMultipleAclTablesHelper(true /* cpu port */);
 }
 
-TEST_F(SaiAclTableGroupTrafficTest, VerifyDscpMarkingAndTtlAclTableCpu) {
-  if (!isSupported()) {
+TYPED_TEST(SaiAclTableGroupTrafficTest, VerifyDscpMarkingAndTtlAclTableCpu) {
+  if (!this->isSupported()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
 #endif
     return;
   }
 
-  verifyDscpTtlAclTablesHelper(true /* cpu port */);
+  this->verifyDscpTtlAclTablesHelper(true /* cpu port */);
 }
 
-TEST_F(SaiAclTableGroupTrafficTest, VerifyDscpMarkingAndTtlAclTableFrontPanel) {
-  if (!isSupported()) {
+TYPED_TEST(
+    SaiAclTableGroupTrafficTest,
+    VerifyDscpMarkingAndTtlAclTableFrontPanel) {
+  if (!this->isSupported()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
 #endif
     return;
   }
 
-  verifyDscpTtlAclTablesHelper(false /* cpu port */);
+  this->verifyDscpTtlAclTablesHelper(false /* cpu port */);
 }
 
 } // namespace facebook::fboss

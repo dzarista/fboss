@@ -29,12 +29,8 @@ class TestEnsembleIf;
 
 class HwLinkStateToggler {
  public:
-  explicit HwLinkStateToggler(
-      TestEnsembleIf* ensemble,
-      const std::map<cfg::PortType, cfg::PortLoopbackMode>&
-          desiredLoopbackModes =
-              {{cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::NONE}})
-      : hwEnsemble_(ensemble), desiredLoopbackModes_(desiredLoopbackModes) {}
+  explicit HwLinkStateToggler(TestEnsembleIf* ensemble)
+      : hwEnsemble_(ensemble) {}
   virtual ~HwLinkStateToggler() {}
 
   void applyInitialConfig(const cfg::SwitchConfig& initCfg);
@@ -71,16 +67,6 @@ class HwLinkStateToggler {
   virtual void setPortPreemphasis(
       const std::shared_ptr<Port>& port,
       int preemphasis) = 0;
-  virtual void setLinkTraining(
-      const std::shared_ptr<Port>& port,
-      bool enable) = 0;
-  virtual void setRxLaneSquelchImpl(
-      const std::shared_ptr<Port>& /* port */,
-      bool /* enable */) {}
-  void setRxLaneSquelch(
-      PortID /* portID */,
-      cfg::PortType /* portType */,
-      bool /* enable */);
 
   mutable std::mutex linkEventMutex_;
   std::optional<PortID> portIdToWaitFor_;
@@ -89,11 +75,9 @@ class HwLinkStateToggler {
   std::condition_variable linkEventCV_;
 
   TestEnsembleIf* hwEnsemble_;
-  const std::map<cfg::PortType, cfg::PortLoopbackMode> desiredLoopbackModes_;
 };
 
 std::unique_ptr<HwLinkStateToggler> createHwLinkStateToggler(
-    TestEnsembleIf* ensemble,
-    const std::map<cfg::PortType, cfg::PortLoopbackMode>& desiredLoopbackModes);
+    TestEnsembleIf* ensemble);
 
 } // namespace facebook::fboss

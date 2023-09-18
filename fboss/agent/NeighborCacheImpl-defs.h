@@ -43,14 +43,16 @@ template <typename NTable>
 bool checkVlanAndIntf(
     const std::shared_ptr<SwitchState>& state,
     const typename NeighborCacheEntry<NTable>::EntryFields& fields,
-    VlanID vlanID) {
-  // Make sure vlan exists
-  auto* vlan = state->getVlans()->getNodeIf(vlanID).get();
-  if (!vlan) {
-    // This VLAN no longer exists.  Just ignore the entry update.
-    XLOG(DBG3) << "VLAN " << vlanID << " deleted before entry " << fields.ip
-               << " --> " << fields.mac << " could be updated";
-    return false;
+    std::optional<VlanID> vlanID) {
+  if (vlanID.has_value()) {
+    // Make sure vlan exists
+    auto* vlan = state->getVlans()->getNodeIf(vlanID.value()).get();
+    if (!vlan) {
+      // This VLAN no longer exists.  Just ignore the entry update.
+      XLOG(DBG3) << "VLAN " << vlanID.value() << " deleted before entry "
+                 << fields.ip << " --> " << fields.mac << " could be updated";
+      return false;
+    }
   }
 
   // In case the interface subnets have changed, make sure the IP address
@@ -178,6 +180,12 @@ SwSwitch::StateUpdateFn NeighborCacheImpl<NTable>::getUpdateFnToProgramEntry(
       -> std::shared_ptr<SwitchState> {
     InterfaceID interfaceID;
     std::optional<SystemPortID> systemPortID;
+
+    if (!ncachehelpers::checkVlanAndIntf<NTable>(
+            state, fields, std::nullopt /* vlanID */)) {
+      // intf is no longer valid.
+      return nullptr;
+    }
 
     if (switchType == cfg::SwitchType::VOQ) {
       auto switchIds =
@@ -353,6 +361,12 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntry(
       return nullptr;
     }
 
+    if (!ncachehelpers::checkVlanAndIntf<NTable>(
+            state, fields, std::nullopt /* vlanID */)) {
+      // intf is no longer valid.
+      return nullptr;
+    }
+
     InterfaceID interfaceID;
     SystemPortID systemPortID;
     int64_t encapIndex;
@@ -491,11 +505,20 @@ void NeighborCacheImpl<NTable>::updateEntryClassID(
 
     auto updateClassIDFn =
         [this, ip, classID](const std::shared_ptr<SwitchState>& state) {
-          auto vlan = state->getVlans()->getNodeIf(vlanID_).get();
           std::shared_ptr<SwitchState> newState{state};
-          auto* table = vlan->template getNeighborTable<NTable>().get();
-          auto node = table->getNodeIf(ip.str());
 
+          NTable* table;
+          Interface* intf;
+          Vlan* vlan;
+          if (FLAGS_intf_nbr_tables) {
+            intf = state->getInterfaces()->getNodeIf(intfID_).get();
+            table = intf->template getNeighborTable<NTable>().get();
+          } else {
+            vlan = state->getVlans()->getNodeIf(vlanID_).get();
+            table = vlan->template getNeighborTable<NTable>().get();
+          }
+
+          auto node = table->getNodeIf(ip.str());
           if (node) {
             auto fields = EntryFields(
                 node->getIP(),
@@ -506,7 +529,13 @@ void NeighborCacheImpl<NTable>::updateEntryClassID(
                 classID,
                 node->getEncapIndex(),
                 node->getIsLocal());
-            table = table->modify(&vlan, &newState);
+
+            if (FLAGS_intf_nbr_tables) {
+              table = table->modify(&intf, &newState);
+            } else {
+              table = table->modify(&vlan, &newState);
+            }
+
             table->updateEntry(fields);
           }
 

@@ -19,10 +19,27 @@
 
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
 
+DECLARE_bool(intf_nbr_tables);
+
 namespace facebook::fboss {
 
-template <typename AddrT>
+template <typename AddrType, bool enableIntfNbrTable>
+struct IpAddrAndEnableIntfNbrTableT {
+  using AddrT = AddrType;
+  static constexpr auto intfNbrTable = enableIntfNbrTable;
+};
+
+using TestTypes = ::testing::Types<
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV4, false>,
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV4, true>,
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV6, false>,
+    IpAddrAndEnableIntfNbrTableT<folly::IPAddressV6, true>>;
+
+template <typename IpAddrAndEnableIntfNbrTableT>
 class HwQueuePerHostTest : public HwLinkStateDependentTest {
+  using AddrT = typename IpAddrAndEnableIntfNbrTableT::AddrT;
+  static auto constexpr isIntfNbrTable =
+      IpAddrAndEnableIntfNbrTableT::intfNbrTable;
   using NeighborTableT = typename std::conditional_t<
       std::is_same<AddrT, folly::IPAddressV4>::value,
       ArpTable,
@@ -30,6 +47,7 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
 
  protected:
   void SetUp() override {
+    FLAGS_intf_nbr_tables = isIntfNbrTable;
     HwLinkStateDependentTest::SetUp();
     helper_ = std::make_unique<utility::EcmpSetupAnyNPorts6>(
         getProgrammedState(), RouterID(0));
@@ -111,10 +129,20 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
 
     for (const auto& ipToMacAndClassID : getIpToMacAndClassID()) {
       auto ip = ipToMacAndClassID.first;
-      auto neighborTable = outState->getVlans()
-                               ->getNode(kVlanID)
-                               ->template getNeighborTable<NeighborTableT>()
-                               ->modify(kVlanID, &outState);
+
+      NeighborTableT* neighborTable;
+      if (isIntfNbrTable) {
+        neighborTable = outState->getInterfaces()
+                            ->getNode(kIntfID)
+                            ->template getNeighborTable<NeighborTableT>()
+                            ->modify(kIntfID, &outState);
+      } else {
+        neighborTable = outState->getVlans()
+                            ->getNode(kVlanID)
+                            ->template getNeighborTable<NeighborTableT>()
+                            ->modify(kVlanID, &outState);
+      }
+
       neighborTable->addPendingEntry(ip, kIntfID);
     }
 
@@ -133,10 +161,20 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
       auto neighborMac = macAndClassID.first;
       auto classID = blockNeighbor ? cfg::AclLookupClass::CLASS_DROP
                                    : macAndClassID.second;
-      auto neighborTable = outState->getVlans()
-                               ->getNode(kVlanID)
-                               ->template getNeighborTable<NeighborTableT>()
-                               ->modify(kVlanID, &outState);
+
+      NeighborTableT* neighborTable;
+      if (isIntfNbrTable) {
+        neighborTable = outState->getInterfaces()
+                            ->getNode(kIntfID)
+                            ->template getNeighborTable<NeighborTableT>()
+                            ->modify(kIntfID, &outState);
+      } else {
+        neighborTable = outState->getVlans()
+                            ->getNode(kVlanID)
+                            ->template getNeighborTable<NeighborTableT>()
+                            ->modify(kVlanID, &outState);
+      }
+
       if (setClassIDs) {
         neighborTable->updateEntry(
             ip,
@@ -437,8 +475,6 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
   const InterfaceID kIntfID{utility::kBaseVlanId};
   std::unique_ptr<utility::EcmpSetupAnyNPorts6> helper_;
 };
-
-using TestTypes = ::testing::Types<folly::IPAddressV4, folly::IPAddressV6>;
 
 TYPED_TEST_SUITE(HwQueuePerHostTest, TestTypes);
 

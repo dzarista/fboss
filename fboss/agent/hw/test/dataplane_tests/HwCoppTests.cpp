@@ -32,6 +32,8 @@
 
 #include <gtest/gtest.h>
 
+DECLARE_bool(sai_user_defined_trap);
+
 namespace {
 constexpr auto kGetQueueOutPktsRetryTimes = 5;
 /**
@@ -63,6 +65,11 @@ namespace facebook::fboss {
 
 template <typename TestType>
 class HwCoppTest : public HwLinkStateDependentTest {
+  void SetUp() override {
+    FLAGS_sai_user_defined_trap = true;
+    HwLinkStateDependentTest::SetUp();
+  }
+
  protected:
   static constexpr auto isTrunk = std::is_same_v<TestType, AggregatePortID>;
 
@@ -283,6 +290,15 @@ class HwCoppTest : public HwLinkStateDependentTest {
       int postMatchRetryTimes = 2) {
     uint64_t outPkts = 0, outBytes = 0;
     do {
+      for (auto i = 0; i <= utility::getCoppHighPriQueueId(
+                                getHwSwitch()->getPlatform()->getAsic());
+           i++) {
+        auto [qOutPkts, qOutBytes] =
+            utility::getCpuQueueOutPacketsAndBytes(getHwSwitch(), i);
+        XLOG(DBG2) << "QueueID: " << i << " qOutPkts: " << qOutPkts
+                   << " outBytes: " << qOutBytes;
+      }
+
       std::tie(outPkts, outBytes) =
           utility::getCpuQueueOutPacketsAndBytes(getHwSwitch(), queueId);
       if (retryTimes == 0 || (outPkts >= expectedNumPkts)) {
@@ -832,7 +848,6 @@ TYPED_TEST(HwCoppTest, VerifyCoppPpsLowPri) {
     auto kMinDurationInSecs = 12;
     const double kVariance = 0.30; // i.e. + or -30%
 
-    auto beforeSecs = getCurrentTime();
     auto beforeOutPkts = this->getQueueOutPacketsWithRetry(
         utility::kCoppLowPriQueueId,
         0 /* retryTimes */,
@@ -846,6 +861,7 @@ TYPED_TEST(HwCoppTest, VerifyCoppPpsLowPri) {
      * kMinDurationInSecs. But to be safe, keep sending packets for
      * at least kMinDurationInSecs.
      */
+    auto beforeSecs = getCurrentTime();
     do {
       this->sendTcpPkts(
           kNumPktsToSend,
@@ -1085,8 +1101,9 @@ TYPED_TEST(HwCoppTest, Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ) {
     // Device link local unicast address + kNetworkControlDscp should use
     // high-pri queue
     {
+      XLOG(DBG2) << "send device link local packet";
       const folly::IPAddressV6 linkLocalAddr = folly::IPAddressV6(
-          folly::IPAddressV6::LINK_LOCAL, this->getPlatform()->getLocalMac());
+          folly::IPAddressV6::LINK_LOCAL, utility::kLocalCpuMac());
 
       this->sendPktAndVerifyCpuQueue(
           utility::getCoppHighPriQueueId(this->getAsic()),
@@ -1099,6 +1116,7 @@ TYPED_TEST(HwCoppTest, Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ) {
     // Non device link local unicast address + kNetworkControlDscp dscp should
     // also use high-pri queue
     {
+      XLOG(DBG2) << "send non-device link local packet";
       this->sendPktAndVerifyCpuQueue(
           utility::getCoppHighPriQueueId(this->getAsic()),
           kIPv6LinkLocalUcastAddress,

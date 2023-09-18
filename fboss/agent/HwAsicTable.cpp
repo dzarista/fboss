@@ -21,13 +21,17 @@ HwAsicTable::HwAsicTable(
         // Expected when fake bcm tests run without config
       }
     }
+    std::optional<cfg::Range64> systemPortRange;
+    if (switchIdAndSwitchInfo.second.systemPortRange().has_value()) {
+      systemPortRange = *switchIdAndSwitchInfo.second.systemPortRange();
+    }
     hwAsics_.emplace(
         SwitchID(switchIdAndSwitchInfo.first),
         HwAsic::makeAsic(
             *switchIdAndSwitchInfo.second.asicType(),
             *switchIdAndSwitchInfo.second.switchType(),
             switchIdAndSwitchInfo.first,
-            std::nullopt,
+            systemPortRange,
             mac));
   }
 }
@@ -56,6 +60,14 @@ const HwAsic* HwAsicTable::getHwAsic(SwitchID switchID) const {
   return asic;
 }
 
+const std::map<SwitchID, const HwAsic*> HwAsicTable::getHwAsics() const {
+  std::map<SwitchID, const HwAsic*> hwAsicsMap;
+  for (const auto& [id, asic] : hwAsics_) {
+    hwAsicsMap.emplace(id, asic.get());
+  }
+  return hwAsicsMap;
+}
+
 std::unordered_set<SwitchID> HwAsicTable::getSwitchIDs() const {
   std::unordered_set<SwitchID> swIds;
   for (const auto& [swId, _] : hwAsics_) {
@@ -78,6 +90,15 @@ bool HwAsicTable::isFeatureSupportedOnAnyAsic(HwAsic::Feature feature) const {
     }
   }
   return false;
+}
+
+bool HwAsicTable::isFeatureSupportedOnAllAsic(HwAsic::Feature feature) const {
+  for (const auto& entry : hwAsics_) {
+    if (!isFeatureSupported(entry.first, feature)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 std::vector<std::string> HwAsicTable::asicNames() const {

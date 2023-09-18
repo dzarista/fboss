@@ -50,13 +50,11 @@ void HwLinkStateToggler::portStateChangeImpl(
   auto newState = switchState;
   for (auto port : ports) {
     auto currPort = newState->getPorts()->getNodeIf(port);
-    auto iter = desiredLoopbackModes_.find(currPort->getPortType());
-    if (iter == desiredLoopbackModes_.end()) {
-      throw FbossError(
-          "Unable to find the desired looped back mode for port : ",
-          currPort->getPortType());
-    }
-    auto desiredLoopbackMode = up ? iter->second : cfg::PortLoopbackMode::NONE;
+    auto switchId = hwEnsemble_->scopeResolver().scope(currPort).switchId();
+    auto asic = hwEnsemble_->getHwAsicTable()->getHwAsic(switchId);
+    auto desiredLoopbackMode = up
+        ? asic->getDesiredLoopbackMode(currPort->getPortType())
+        : cfg::PortLoopbackMode::NONE;
     if (currPort->getLoopbackMode() == desiredLoopbackMode) {
       continue;
     }
@@ -64,12 +62,6 @@ void HwLinkStateToggler::portStateChangeImpl(
     auto newPort = currPort->modify(&newState);
     setPortIDAndStateToWaitFor(port, up);
     newPort->setLoopbackMode(desiredLoopbackMode);
-    // On DNX platforms, especially on fabric ports which link up on just a good
-    // RX, need to enable Squelch to force the link down
-    if (!up) {
-      setRxLaneSquelch(
-          port, newState->getPorts()->getNodeIf(port)->getPortType(), true);
-    }
     hwEnsemble_->applyNewState(newState);
     invokeLinkScanIfNeeded(port, up);
     XLOG(DBG2) << " Wait for port " << (up ? "up" : "down")
@@ -138,17 +130,6 @@ HwLinkStateToggler::applyInitialConfigWithPortsDown(
     // Set all port preemphasis values to 0 so that we can bring ports up and
     // down by setting their loopback mode to PHY and NONE respectively.
     // TODO: use sw port's pinConfigs to set this
-
-    // Some ASICs require disabling Link Training before we can disable
-    // preemphasis.
-    if (hwEnsemble_->getHwSwitch()->getPlatform()->getAsic()->isSupported(
-            HwAsic::Feature::LINK_TRAINING)) {
-      setLinkTraining(
-          hwEnsemble_->getProgrammedState()->getPorts()->getNodeIf(
-              PortID(*port.logicalID())),
-          false /* disable link training */);
-    }
-
     setPortPreemphasis(
         hwEnsemble_->getProgrammedState()->getPorts()->getNodeIf(
             PortID(*port.logicalID())),
@@ -160,9 +141,14 @@ HwLinkStateToggler::applyInitialConfigWithPortsDown(
 
   // Some platforms silently undo squelch setting on admin enable. Prevent it
   // by setting squelch after admin enable.
-  for (auto& port : *cfg.ports()) {
-    setRxLaneSquelch(PortID(*port.logicalID()), *port.portType(), true);
+  auto switchState = hwEnsemble_->getProgrammedState();
+  for (auto& cfgPort : *cfg.ports()) {
+    auto port = switchState->getPorts()
+                    ->getNodeIf(PortID(*cfgPort.logicalID()))
+                    ->modify(&switchState);
+    port->setRxLaneSquelch(true);
   }
+  hwEnsemble_->applyNewState(switchState);
 
   hwEnsemble_->getHwSwitch()->switchRunStateChanged(SwitchRunState::CONFIGURED);
   return hwEnsemble_->getProgrammedState();
@@ -179,25 +165,6 @@ void HwLinkStateToggler::bringUpPorts(
     return PortID(*port.logicalID());
   }) | folly::gen::appendTo(portsToBringUp);
   bringUpPorts(newState, portsToBringUp);
-}
-
-void HwLinkStateToggler::setRxLaneSquelch(
-    PortID portID,
-    cfg::PortType portType,
-    bool enable) {
-  // On DNX platforms, fabric ports come up when the RX alone is UP. In these
-  // platforms, setting preemphasis to 0 doesn't bring the port down when
-  // there is an active remote partner. If the RX_LANE_SQUELCH_ENABLE is
-  // supported, set that true which will cutoff any signal coming from the
-  // remote side and bring down the local link
-  if ((portType == cfg::PortType::FABRIC_PORT ||
-       portType == cfg::PortType::INTERFACE_PORT) &&
-      hwEnsemble_->getHwSwitch()->getPlatform()->getAsic()->isSupported(
-          HwAsic::Feature::RX_LANE_SQUELCH_ENABLE)) {
-    setRxLaneSquelchImpl(
-        hwEnsemble_->getProgrammedState()->getPorts()->getNodeIf(portID),
-        enable);
-  }
 }
 
 } // namespace facebook::fboss

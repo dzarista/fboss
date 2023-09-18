@@ -1,0 +1,46 @@
+diff -Naur ../original/flashrom-v1.2.1/chipset_enable.c flashrom-v1.2.1/chipset_enable.c
+--- ../original/flashrom-v1.2.1/chipset_enable.c	2022-09-29 10:05:24.000000000 -0700
++++ flashrom-v1.2.1/chipset_enable.c	2023-08-16 23:13:59.144236055 -0700
+@@ -1815,6 +1815,7 @@
+ 	{0x8086, 0x0f1f, B_FS,   NT,  "Intel", "Bay Trail",			enable_flash_silvermont},
+ 	{0x8086, 0x122e, B_P,    OK,  "Intel", "PIIX",				enable_flash_piix4},
+ 	{0x8086, 0x1234, B_P,    NT,  "Intel", "MPIIX",				enable_flash_piix4},
++        {0x8086, 0x18e0, B_S,    NT,  "Intel", "Cedar Fork",			enable_flash_c620},
+ 	{0x8086, 0x1c44, B_FS,   DEP, "Intel", "Z68",				enable_flash_pch6},
+ 	{0x8086, 0x1c46, B_FS,   DEP, "Intel", "P67",				enable_flash_pch6},
+ 	{0x8086, 0x1c47, B_FS,   NT,  "Intel", "UM67",				enable_flash_pch6},
+diff -Naur ../original/flashrom-v1.2.1/ich_descriptors.c flashrom-v1.2.1/ich_descriptors.c
+--- ../original/flashrom-v1.2.1/ich_descriptors.c	2019-10-05 16:26:25.000000000 -0700
++++ flashrom-v1.2.1/ich_descriptors.c	2023-08-16 23:14:31.322401791 -0700
+@@ -916,6 +916,8 @@
+ 			return CHIPSET_ICH10;
+ 		else if (content->ISL <= 16)
+ 			return CHIPSET_5_SERIES_IBEX_PEAK;
++		else if (content->ISL <= 143)
++			return CHIPSET_C620_SERIES_LEWISBURG;
+ 		else if (content->FLMAP2 == 0) {
+ 			if (content->ISL != 19)
+ 				msg_pwarn("Peculiar firmware descriptor, assuming Apollo Lake compatibility.\n");
+diff -Naur ../original/flashrom-v1.2.1/ichspi.c flashrom-v1.2.1/ichspi.c
+--- ../original/flashrom-v1.2.1/ichspi.c	2022-10-30 02:43:35.000000000 -0700
++++ flashrom-v1.2.1/ichspi.c	2023-08-16 23:13:19.623366586 -0700
+@@ -2004,6 +2004,7 @@
+ 
+ 		if (ich_spi_mode == ich_auto &&
+ 		    (ich_gen == CHIPSET_100_SERIES_SUNRISE_POINT ||
++                     ich_gen == CHIPSET_C620_SERIES_LEWISBURG ||
+ 		     ich_gen == CHIPSET_300_SERIES_CANNON_POINT)) {
+ 			msg_pdbg("Enabling hardware sequencing by default for 100+ series PCH.\n");
+ 			ich_spi_mode = ich_hwseq;
+diff -Naur ../original/flashrom-v1.2.1/Makefile flashrom-v1.2.1/Makefile
+--- ../original/flashrom-v1.2.1/Makefile	2022-10-05 18:03:11.000000000 -0700
++++ flashrom-v1.2.1/Makefile	2023-08-16 23:18:10.867353099 -0700
+@@ -703,6 +703,8 @@
+ # Disable wiki printing by default. It is only useful if you have wiki access.
+ CONFIG_PRINT_WIKI ?= no
+ 
++# Disable libusb support
++CONFIG_ENABLE_LIBUSB1_PROGRAMMERS=no
+ # Disable all features if CONFIG_NOTHING=yes is given unless CONFIG_EVERYTHING was also set
+ ifeq ($(CONFIG_NOTHING), yes)
+   ifeq ($(CONFIG_EVERYTHING), yes)

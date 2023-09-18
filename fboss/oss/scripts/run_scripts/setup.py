@@ -45,6 +45,7 @@ class SetupFboss:
     J2CP = "j2cp"
     ### ARISTA START ###
     J3 = "j3"
+    R3 = "r3"
     ### ARISTA END ###
 
     def __init__(self):
@@ -74,7 +75,22 @@ class SetupFboss:
                 *[os.environ["FBOSS_DATA"], SetupFboss.J2CP, SetupFboss.BDE_CONF]
             )
     ### ARISTA START ###
+        elif [x for x in output if "Broadcom" in x and "8860" in x]:
+            self.src_fruid_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.FRUID_CONF]
+            )
+            self.src_bde_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
+            )
+        elif [x for x in output if "Broadcom" in x and "8920" in x]:
+            self.src_fruid_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.R3, SetupFboss.FRUID_CONF]
+            )
+            self.src_bde_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.R3, SetupFboss.BDE_CONF]
+            )
         else:
+            # Standalone Fairywren
             self.src_fruid_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.FRUID_CONF]
             )

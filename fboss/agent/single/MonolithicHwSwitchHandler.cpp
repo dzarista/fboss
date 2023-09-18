@@ -13,7 +13,8 @@ namespace facebook::fboss {
 MonolithicHwSwitchHandler::MonolithicHwSwitchHandler(
     Platform* platform,
     const SwitchID& switchId,
-    const cfg::SwitchInfo& info)
+    const cfg::SwitchInfo& info,
+    SwSwitch* /*sw*/)
     : HwSwitchHandler(switchId, info),
       platform_(platform),
       hw_(platform_->getHwSwitch()) {}
@@ -186,7 +187,8 @@ FabricReachabilityStats MonolithicHwSwitchHandler::getFabricReachabilityStats()
   return hw_->getFabricReachabilityStats();
 }
 
-bool MonolithicHwSwitchHandler::needL2EntryForNeighbor() const {
+bool MonolithicHwSwitchHandler::needL2EntryForNeighbor(
+    const cfg::SwitchConfig* /*config*/) const {
   return hw_->needL2EntryForNeighbor();
 }
 

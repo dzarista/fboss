@@ -22,18 +22,14 @@ class TestEnsembleIf;
 
 class BcmLinkStateToggler : public HwLinkStateToggler {
  public:
-  BcmLinkStateToggler(
-      TestEnsembleIf* ensemble,
-      const std::map<cfg::PortType, cfg::PortLoopbackMode>&
-          desiredLoopbackModes)
-      : HwLinkStateToggler(ensemble, desiredLoopbackModes) {}
+  explicit BcmLinkStateToggler(TestEnsembleIf* ensemble)
+      : HwLinkStateToggler(ensemble) {}
 
  private:
   BcmSwitch* getHw();
   void invokeLinkScanIfNeeded(PortID port, bool isUp) override;
   void setPortPreemphasis(const std::shared_ptr<Port>& port, int preemphasis)
       override;
-  void setLinkTraining(const std::shared_ptr<Port>& port, bool enable) override;
 };
 
 } // namespace facebook::fboss

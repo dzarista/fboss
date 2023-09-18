@@ -32,9 +32,53 @@ void verifySwitchStateSerialization(const SwitchState& state) {
   auto stateBack = SwitchState::fromThrift(state.toThrift());
   EXPECT_EQ(state, *stateBack);
 }
+
 HwSwitchMatcher scope() {
   return HwSwitchMatcher{std::unordered_set<SwitchID>{SwitchID(0)}};
 }
+
+template <typename VlanOrIntfT>
+void setNeighborTablesAndDHCPRelay(
+    const std::shared_ptr<VlanOrIntfT> vlanOrIntf1,
+    const std::shared_ptr<VlanOrIntfT> vlanOrIntf2) {
+  vlanOrIntf1->setDhcpV4Relay(IPAddressV4("1.2.3.4"));
+  vlanOrIntf1->setDhcpV4RelayOverrides(
+      {{MacAddress("02:00:00:00:00:02"), IPAddressV4("1.2.3.4")}});
+
+  auto arpTable = std::make_shared<ArpTable>();
+  arpTable->addEntry(
+      IPAddressV4("1.2.3.4"),
+      MacAddress("02:00:00:00:00:03"),
+      PortDescriptor(PortID(1)),
+      InterfaceID(1));
+  vlanOrIntf1->setArpTable(arpTable);
+
+  auto ndpTable = std::make_shared<NdpTable>();
+  ndpTable->addEntry(
+      IPAddressV6("2401:db00:21:70cb:face:0:96:0"),
+      MacAddress("02:00:00:00:00:04"),
+      PortDescriptor(PortID(2)),
+      InterfaceID(2));
+  vlanOrIntf1->setNdpTable(ndpTable);
+
+  auto arpResponseTable = std::make_shared<ArpResponseTable>();
+  arpResponseTable->setEntry(
+      IPAddressV4("1.2.3.5"), MacAddress("02:00:00:00:00:06"), InterfaceID(3));
+  vlanOrIntf1->setArpResponseTable(arpResponseTable);
+
+  auto ndpResponseTable = std::make_shared<NdpResponseTable>();
+  ndpResponseTable->setEntry(
+      IPAddressV6("2401:db00:21:70cb:face:0:96:1"),
+      MacAddress("02:00:00:00:00:07"),
+      InterfaceID(4));
+  vlanOrIntf1->setNdpResponseTable(ndpResponseTable);
+
+  vlanOrIntf2->setDhcpV6Relay(IPAddressV6("2401:db00:21:70cb:face:0:96:0"));
+  vlanOrIntf2->setDhcpV6RelayOverrides(
+      {{MacAddress("02:00:00:00:00:03"),
+        IPAddressV6("2401:db00:21:70cb:face:0:96:0")}});
+}
+
 } // namespace
 
 TEST(ThriftySwitchState, BasicTest) {
@@ -62,61 +106,36 @@ TEST(ThriftySwitchState, PortMap) {
 }
 
 TEST(ThriftySwitchState, VlanMap) {
-  auto vlan1 = std::make_shared<Vlan>(VlanID(1), std::string("vlan1"));
-  auto vlan2 = std::make_shared<Vlan>(VlanID(2), std::string("vlan2"));
+  auto verifyVlanMap = [](bool use_intf_nbr_tables) {
+    FLAGS_intf_nbr_tables = use_intf_nbr_tables;
 
-  vlan1->setDhcpV4Relay(IPAddressV4("1.2.3.4"));
-  vlan1->setDhcpV4RelayOverrides(
-      {{MacAddress("02:00:00:00:00:02"), IPAddressV4("1.2.3.4")}});
-  vlan1->setInterfaceID(InterfaceID(1));
+    auto vlan1 = std::make_shared<Vlan>(VlanID(1), std::string("vlan1"));
+    auto vlan2 = std::make_shared<Vlan>(VlanID(2), std::string("vlan2"));
+    vlan1->setInterfaceID(InterfaceID(1));
+    vlan1->setInterfaceID(InterfaceID(2));
 
-  auto arpTable = std::make_shared<ArpTable>();
-  arpTable->addEntry(
-      IPAddressV4("1.2.3.4"),
-      MacAddress("02:00:00:00:00:03"),
-      PortDescriptor(PortID(1)),
-      InterfaceID(1));
-  vlan1->setArpTable(arpTable);
+    if (!use_intf_nbr_tables) {
+      setNeighborTablesAndDHCPRelay(vlan1, vlan2);
+    }
 
-  auto ndpTable = std::make_shared<NdpTable>();
-  ndpTable->addEntry(
-      IPAddressV6("2401:db00:21:70cb:face:0:96:0"),
-      MacAddress("02:00:00:00:00:04"),
-      PortDescriptor(PortID(2)),
-      InterfaceID(2));
-  vlan1->setNdpTable(ndpTable);
+    auto macTable = std::make_shared<MacTable>();
+    auto macEntry = std::make_shared<MacEntry>(
+        MacAddress("02:00:00:00:00:08"),
+        PortDescriptor(PortID(4)),
+        std::optional<cfg::AclLookupClass>(cfg::AclLookupClass::CLASS_DROP));
+    macTable->addEntry(macEntry);
 
-  auto arpResponseTable = std::make_shared<ArpResponseTable>();
-  arpResponseTable->setEntry(
-      IPAddressV4("1.2.3.5"), MacAddress("02:00:00:00:00:06"), InterfaceID(3));
-  vlan1->setArpResponseTable(arpResponseTable);
+    auto vlanMap = std::make_shared<MultiSwitchVlanMap>();
+    vlanMap->addNode(vlan1, scope());
+    vlanMap->addNode(vlan2, scope());
 
-  auto ndpResponseTable = std::make_shared<NdpResponseTable>();
-  ndpResponseTable->setEntry(
-      IPAddressV6("2401:db00:21:70cb:face:0:96:1"),
-      MacAddress("02:00:00:00:00:07"),
-      InterfaceID(4));
-  vlan1->setNdpResponseTable(ndpResponseTable);
+    auto state = SwitchState();
+    state.resetVlans(vlanMap);
+    verifySwitchStateSerialization(state);
+  };
 
-  auto macTable = std::make_shared<MacTable>();
-  auto macEntry = std::make_shared<MacEntry>(
-      MacAddress("02:00:00:00:00:08"),
-      PortDescriptor(PortID(4)),
-      std::optional<cfg::AclLookupClass>(cfg::AclLookupClass::CLASS_DROP));
-  macTable->addEntry(macEntry);
-
-  vlan2->setDhcpV6Relay(IPAddressV6("2401:db00:21:70cb:face:0:96:0"));
-  vlan2->setDhcpV6RelayOverrides(
-      {{MacAddress("02:00:00:00:00:03"),
-        IPAddressV6("2401:db00:21:70cb:face:0:96:0")}});
-
-  auto vlanMap = std::make_shared<MultiSwitchVlanMap>();
-  vlanMap->addNode(vlan1, scope());
-  vlanMap->addNode(vlan2, scope());
-
-  auto state = SwitchState();
-  state.resetVlans(vlanMap);
-  verifySwitchStateSerialization(state);
+  verifyVlanMap(false /* VLAN neighbor table */);
+  verifyVlanMap(true /* Interface neighbor table */);
 }
 
 TEST(ThriftySwitchState, AclMap) {
@@ -298,6 +317,39 @@ TEST(ThriftySwitchState, InterfaceMap) {
 
   auto state = SwitchState();
   state.resetIntfs(interfaces);
+  verifySwitchStateSerialization(state);
+}
+
+TEST(ThriftySwitchState, InterfaceMapNbrTables) {
+  FLAGS_intf_nbr_tables = true;
+
+  auto intf1 = make_shared<Interface>(
+      InterfaceID(1),
+      RouterID(0),
+      std::optional<VlanID>(1),
+      folly::StringPiece("fboss1"),
+      MacAddress("00:02:00:00:00:01"),
+      9000,
+      false, /* is virtual */
+      false /* is state_sync disabled */);
+  auto intf2 = make_shared<Interface>(
+      InterfaceID(2),
+      RouterID(0),
+      std::optional<VlanID>(2),
+      folly::StringPiece("fboss2"),
+      MacAddress("00:02:00:00:00:01"),
+      9000,
+      false, /* is virtual */
+      false /* is state_sync disabled */);
+
+  setNeighborTablesAndDHCPRelay(intf1, intf2);
+
+  auto intfMap = std::make_shared<MultiSwitchInterfaceMap>();
+  intfMap->addNode(intf1, scope());
+  intfMap->addNode(intf2, scope());
+
+  auto state = SwitchState();
+  state.resetIntfs(intfMap);
   verifySwitchStateSerialization(state);
 }
 

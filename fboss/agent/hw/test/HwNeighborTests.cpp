@@ -24,14 +24,17 @@
  */
 DEFINE_bool(disable_loopback, false, "Disable loopback on test ports");
 
+DECLARE_bool(intf_nbr_tables);
+
 using namespace ::testing;
 
 namespace facebook::fboss {
 
-template <typename AddrType, bool trunk = false>
+template <typename AddrType, bool trunk = false, bool intfNbrTable = false>
 struct NeighborT {
   using IPAddrT = AddrType;
   static constexpr auto isTrunk = trunk;
+  static auto constexpr isIntfNbrTable = intfNbrTable;
 
   template <typename AddrT = IPAddrT>
   std::enable_if_t<
@@ -48,27 +51,45 @@ struct NeighborT {
   }
 };
 
-using PortNeighborV4 = NeighborT<folly::IPAddressV4, false>;
-using TrunkNeighborV4 = NeighborT<folly::IPAddressV4, true>;
-using PortNeighborV6 = NeighborT<folly::IPAddressV6, false>;
-using TrunkNeighborV6 = NeighborT<folly::IPAddressV6, true>;
+using PortNeighborV4VlanNbrTable = NeighborT<folly::IPAddressV4, false, false>;
+using TrunkNeighborV4VlanNbrTable = NeighborT<folly::IPAddressV4, true, false>;
+using PortNeighborV6VlanNbrTable = NeighborT<folly::IPAddressV6, false, false>;
+using TrunkNeighborV6VlanNbrTable = NeighborT<folly::IPAddressV6, true, false>;
+
+using PortNeighborV4IntfNbrTable = NeighborT<folly::IPAddressV4, false, true>;
+using TrunkNeighborV4IntfNbrTable = NeighborT<folly::IPAddressV4, true, true>;
+using PortNeighborV6IntfNbrTable = NeighborT<folly::IPAddressV6, false, true>;
+using TrunkNeighborV6IntfNbrTable = NeighborT<folly::IPAddressV6, true, true>;
 
 const facebook::fboss::AggregatePortID kAggID{1};
 
-using NeighborTypes = ::testing::
-    Types<PortNeighborV4, TrunkNeighborV4, PortNeighborV6, TrunkNeighborV6>;
+using NeighborTypes = ::testing::Types<
+    PortNeighborV4VlanNbrTable,
+    TrunkNeighborV4VlanNbrTable,
+    PortNeighborV6VlanNbrTable,
+    TrunkNeighborV6VlanNbrTable,
+    PortNeighborV4IntfNbrTable,
+    TrunkNeighborV4IntfNbrTable,
+    PortNeighborV6IntfNbrTable,
+    TrunkNeighborV6IntfNbrTable>;
 
 template <typename NeighborT>
 class HwNeighborTest : public HwLinkStateDependentTest {
  protected:
   using IPAddrT = typename NeighborT::IPAddrT;
   static auto constexpr programToTrunk = NeighborT::isTrunk;
+  static auto constexpr isIntfNbrTable = NeighborT::isIntfNbrTable;
   using NTable = typename std::conditional_t<
       std::is_same<IPAddrT, folly::IPAddressV4>::value,
       ArpTable,
       NdpTable>;
 
  protected:
+  void SetUp() override {
+    FLAGS_intf_nbr_tables = isIntfNbrTable;
+    HwLinkStateDependentTest::SetUp();
+  }
+
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = programToTrunk ? utility::oneL3IntfTwoPortConfig(
                                     getHwSwitch(),
@@ -130,17 +151,19 @@ class HwNeighborTest : public HwLinkStateDependentTest {
 
   auto getNeighborTable(std::shared_ptr<SwitchState> state) {
     auto switchType = getSwitchType();
-    if (switchType == cfg::SwitchType::NPU) {
-      return state->getVlans()
-          ->getNode(kVlanID())
-          ->template getNeighborTable<NTable>()
-          ->modify(kVlanID(), &state);
-    } else if (switchType == cfg::SwitchType::VOQ) {
+
+    if (isIntfNbrTable || switchType == cfg::SwitchType::VOQ) {
       return state->getInterfaces()
           ->getNode(kIntfID())
           ->template getNeighborEntryTable<IPAddrT>()
           ->modify(kIntfID(), &state);
+    } else if (switchType == cfg::SwitchType::NPU) {
+      return state->getVlans()
+          ->getNode(kVlanID())
+          ->template getNeighborTable<NTable>()
+          ->modify(kVlanID(), &state);
     }
+
     XLOG(FATAL) << "Unexpected switch type " << static_cast<int>(switchType);
   }
   std::shared_ptr<SwitchState> addNeighbor(
@@ -213,74 +236,6 @@ class HwNeighborTest : public HwLinkStateDependentTest {
       cfg::AclLookupClass::CLASS_QUEUE_PER_HOST_QUEUE_2};
   const cfg::AclLookupClass kLookupClass2{
       cfg::AclLookupClass::CLASS_QUEUE_PER_HOST_QUEUE_3};
-};
-
-class HwNeighborOnMultiplePortsTest : public HwLinkStateDependentTest {
- protected:
-  cfg::SwitchConfig initialConfig() const override {
-    return utility::onePortPerInterfaceConfig(
-        getHwSwitch(),
-        masterLogicalPortIds(),
-        getAsic()->desiredLoopbackModes());
-  }
-
-  void oneNeighborPerPortSetup(const std::vector<PortID>& portIds) {
-    auto cfg = initialConfig();
-    if (FLAGS_disable_loopback) {
-      // Disable loopback on specific ports
-      for (auto portId : portIds) {
-        auto portCfg = utility::findCfgPortIf(cfg, portId);
-        if (portCfg != cfg.ports()->end()) {
-          portCfg->loopbackMode() = cfg::PortLoopbackMode::NONE;
-        }
-      }
-      applyNewConfig(cfg);
-    }
-
-    // Create adjacencies on all test ports
-    auto dstMac = utility::getFirstInterfaceMac(cfg);
-    for (int idx = 0; idx < portIds.size(); idx++) {
-      utility::EcmpSetupAnyNPorts6 ecmpHelper6(
-          getProgrammedState(),
-          utility::MacAddressGenerator().get(dstMac.u64NBO() + idx + 1));
-      applyNewState(ecmpHelper6.resolveNextHops(
-          getProgrammedState(), {PortDescriptor(portIds[idx])}));
-    }
-
-    // Dump the local interface config
-    XLOG(DBG0) << "Dumping port configurations:";
-    for (int idx = 0; idx < portIds.size(); idx++) {
-      auto mac = utility::getFirstInterfaceMac(getProgrammedState());
-      XLOG(DBG0) << "   Port " << portIds[idx]
-                 << ", IPv6: " << cfg.interfaces()[idx].ipAddresses()[1]
-                 << ", Intf MAC: " << mac;
-    }
-  }
-
-  InterfaceID getInterfaceId(const PortID& portId) const {
-    auto switchType = getSwitchType();
-    if (switchType == cfg::SwitchType::NPU) {
-      return InterfaceID(static_cast<int>((*getProgrammedState()
-                                                ->getPorts()
-                                                ->getNodeIf(portId)
-                                                ->getVlans()
-                                                .begin())
-                                              .first));
-    } else if (switchType == cfg::SwitchType::VOQ) {
-      return InterfaceID(*getProgrammedState()
-                              ->getPorts()
-                              ->getNodeIf(portId)
-                              ->getInterfaceIDs()
-                              .begin());
-    }
-    XLOG(FATAL) << "Unexpected switch type " << static_cast<int>(switchType);
-  }
-
-  bool isProgrammedToCPU(const PortID& portId, const folly::IPAddress& ip)
-      const {
-    auto intfId = getInterfaceId(portId);
-    return utility::nbrProgrammedToCpu(this->getHwSwitch(), intfId, ip);
-  }
 };
 
 TYPED_TEST_SUITE(HwNeighborTest, NeighborTypes);
@@ -409,19 +364,107 @@ TYPED_TEST(HwNeighborTest, LinkDownAndUpOnResolvedEntry) {
   this->verifyAcrossWarmBoots(setup, verify);
 }
 
-TEST_F(HwNeighborOnMultiplePortsTest, ResolveOnTwoPorts) {
+template <bool enableIntfNbrTable>
+struct EnableIntfNbrTable {
+  static constexpr auto intfNbrTable = enableIntfNbrTable;
+};
+
+using IntfNbrTableTypes =
+    ::testing::Types<EnableIntfNbrTable<false>, EnableIntfNbrTable<true>>;
+
+template <typename EnableIntfNbrTableT>
+class HwNeighborOnMultiplePortsTest : public HwLinkStateDependentTest {
+  static auto constexpr isIntfNbrTable = EnableIntfNbrTableT::intfNbrTable;
+
+ protected:
+  void SetUp() override {
+    FLAGS_intf_nbr_tables = isIntfNbrTable;
+    HwLinkStateDependentTest::SetUp();
+  }
+
+  cfg::SwitchConfig initialConfig() const override {
+    return utility::onePortPerInterfaceConfig(
+        getHwSwitch(),
+        masterLogicalPortIds(),
+        getAsic()->desiredLoopbackModes());
+  }
+
+  void oneNeighborPerPortSetup(const std::vector<PortID>& portIds) {
+    auto cfg = initialConfig();
+    if (FLAGS_disable_loopback) {
+      // Disable loopback on specific ports
+      for (auto portId : portIds) {
+        auto portCfg = utility::findCfgPortIf(cfg, portId);
+        if (portCfg != cfg.ports()->end()) {
+          portCfg->loopbackMode() = cfg::PortLoopbackMode::NONE;
+        }
+      }
+      applyNewConfig(cfg);
+    }
+
+    // Create adjacencies on all test ports
+    auto dstMac = utility::getFirstInterfaceMac(cfg);
+    for (int idx = 0; idx < portIds.size(); idx++) {
+      utility::EcmpSetupAnyNPorts6 ecmpHelper6(
+          getProgrammedState(),
+          utility::MacAddressGenerator().get(dstMac.u64NBO() + idx + 1));
+      applyNewState(ecmpHelper6.resolveNextHops(
+          getProgrammedState(), {PortDescriptor(portIds[idx])}));
+    }
+
+    // Dump the local interface config
+    XLOG(DBG0) << "Dumping port configurations:";
+    for (int idx = 0; idx < portIds.size(); idx++) {
+      auto mac = utility::getFirstInterfaceMac(getProgrammedState());
+      XLOG(DBG0) << "   Port " << portIds[idx]
+                 << ", IPv6: " << cfg.interfaces()[idx].ipAddresses()[1]
+                 << ", Intf MAC: " << mac;
+    }
+  }
+
+  InterfaceID getInterfaceId(const PortID& portId) const {
+    auto switchType = getSwitchType();
+
+    if (isIntfNbrTable || switchType == cfg::SwitchType::VOQ) {
+      return InterfaceID(*getProgrammedState()
+                              ->getPorts()
+                              ->getNodeIf(portId)
+                              ->getInterfaceIDs()
+                              .begin());
+    } else if (switchType == cfg::SwitchType::NPU) {
+      return InterfaceID(static_cast<int>((*getProgrammedState()
+                                                ->getPorts()
+                                                ->getNodeIf(portId)
+                                                ->getVlans()
+                                                .begin())
+                                              .first));
+    }
+
+    XLOG(FATAL) << "Unexpected switch type " << static_cast<int>(switchType);
+  }
+
+  bool isProgrammedToCPU(const PortID& portId, const folly::IPAddress& ip)
+      const {
+    auto intfId = getInterfaceId(portId);
+    return utility::nbrProgrammedToCpu(this->getHwSwitch(), intfId, ip);
+  }
+};
+
+TYPED_TEST_SUITE(HwNeighborOnMultiplePortsTest, IntfNbrTableTypes);
+
+TYPED_TEST(HwNeighborOnMultiplePortsTest, ResolveOnTwoPorts) {
   auto setup = [&]() {
-    oneNeighborPerPortSetup(
-        {masterLogicalInterfacePortIds()[0],
-         masterLogicalInterfacePortIds()[1]});
+    this->oneNeighborPerPortSetup(
+        {this->masterLogicalInterfacePortIds()[0],
+         this->masterLogicalInterfacePortIds()[1]});
   };
   auto verify = [&]() {
-    EXPECT_FALSE(isProgrammedToCPU(
-        masterLogicalInterfacePortIds()[0], folly::IPAddressV6("1::1")));
-    EXPECT_FALSE(isProgrammedToCPU(
-        masterLogicalInterfacePortIds()[1], folly::IPAddressV6("2::2")));
+    EXPECT_FALSE(this->isProgrammedToCPU(
+        this->masterLogicalInterfacePortIds()[0], folly::IPAddressV6("1::1")));
+    EXPECT_FALSE(this->isProgrammedToCPU(
+        this->masterLogicalInterfacePortIds()[1], folly::IPAddressV6("2::2")));
   };
-  verifyAcrossWarmBoots(setup, verify);
+  this->verifyAcrossWarmBoots(setup, verify);
 }
 
 } // namespace facebook::fboss
