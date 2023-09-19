@@ -333,10 +333,10 @@ with open( "whistler_static_mapping.csv", "w" ) as fh:
    for portId in range( numFabricPorts ):
       frontPanelSlot  = ( portId // 8 ) + 1
       frontPanelLane = portId % 8
-      frontPanelStr = f"{frontPanelSlot}/{frontPanelLane}"
-      chipId = frontPanelToAsicSerdesMap[ frontPanelStr ][ "chipId" ]
-      rxPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelStr ][ "rx" ]
-      txPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelStr ][ "tx" ]
+      frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane}"
+      chipId = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ]
+      rxPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "rx" ]
+      txPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "tx" ]
       logicalLane = asicSerdesToLogicalLaneMap[ chipId ][ "rx" ][ rxPhysicalLane ]
       assert logicalLane == asicSerdesToLogicalLaneMap[ chipId ][ "tx" ][ txPhysicalLane ]
       serdesCore = logicalLane // 8
@@ -389,18 +389,24 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh:
    # NOTE : For Fabric ports, there is no core binding, the corresponding
    # Attached_CoreId and Attached_Core_PortID can be left empty.
    fabSupportedProfiles = '-'.join( numLanesFromSupportedProfile.keys() )
-   globalPortId = 0
+   asicLogicalPortId = {}
+   asicGlobalPortId = {}
+   # FBOSS assigns a range of 2k ports to each NPU, we will only use the first 512
+   # IDs from this space.
+   fabricPortsPerAsic = 2048
    for asicId in range( numAsics ):
-      logicalPortId = 0
-      for serdesCore in range( numFabricSerdesCoresPerAsic ):
-         for lane in range( numSerdesPerCore ):
-            frontPanelSlot = ( ( globalPortId ) // 8 ) + 1
-            frontPanelPortType = "fab"
-            portStrPrefix = f"{frontPanelPortType}1/{frontPanelSlot}"
-            subPort = ( logicalPortId % 8 ) + 1
-            portStr = f"{portStrPrefix}/{subPort}"
-            fh.write( f"{globalPortId},{logicalPortId},{portStr},{fabSupportedProfiles},,\n" )
-            logicalPortId += 1
-            globalPortId += 1
+      asicLogicalPortId[ asicId ] = 0
+      asicGlobalPortId[ asicId ] = ( fabricPortsPerAsic * asicId )
+   for portId in range( numFabricPorts ):
+      frontPanelSlot  = ( portId // 8 ) + 1
+      frontPanelLane = portId % 8
+      frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane}"
+      chipId = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ]
+      portStrPrefix = f"fab1/{frontPanelSlot}"
+      subPort = frontPanelLane + 1
+      portStr = f"{portStrPrefix}/{subPort}"
+      fh.write( f"{asicGlobalPortId[chipId]},{asicLogicalPortId[chipId]},{portStr},{fabSupportedProfiles},,\n" )
+      asicLogicalPortId[ chipId ] += 1
+      asicGlobalPortId[ chipId ] += 1
 
 bcmConfigFh.close()
