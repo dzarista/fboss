@@ -41,15 +41,15 @@
       },
       {
          "name" : "Meru SCM CPLD Image",
-         "imageFile" : "programmables/meru-scm-cpld.stp"
+         "imageFile" : "programmables/meru-scm-cpld.astp"
       }
    ],
    "repos" : [
       {
          "name" : "APL",
-         "url" : "https://github.com/aristanetworks/apl.facebook.git",
+         "url" : "git@github.com:aristanetworks/apl.facebook.git",
          "branch" : "main",
-         "commitHash" : "a396d2c0925897fb02d8a3e617ff502e93572763",
+         "commitHash" : "1ce22ca06edd4f402236a4e11d8b53c9e76b78b9",
          "note" : "- kernel drivers in src/\n- udev rules in udev/\n- BSP configs in bsp/"
       }
    ],
