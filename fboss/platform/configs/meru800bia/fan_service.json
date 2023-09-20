@@ -7,7 +7,7 @@
   "pwmTransitionValue" : 50,
   "pwmLowerThreshold" : 24,
   "pwmUpperThreshold" : 100,
-  "shutdownCmd" : "wedge_power reset -s",
+  "shutdownCmd" : "echo 0xdead > /run/devmap/fpgas/MERU_SCM_CPLD/chassis_power_cycle",  
   "optics" : [
   ],
   "sensors" : [
