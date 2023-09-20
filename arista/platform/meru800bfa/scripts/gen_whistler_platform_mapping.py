@@ -24,17 +24,25 @@ TODO
 
 # Variables to control the behavior for this script.
 # Existing mappings at a port level are not replaced if preserveExistingMappings=True
-preserveExistingMappings = True
+preserveExistingMappings = False
 # Logical port base in the SDK for fabric ports.
 fabricPortBase = 0
 # Whistler has two Ramon3 ASICs with 512x100G serdes on each ASIC.
 numAsics = 2
-# Total number of fabric ports assuming that each fabric serdes is enumerated as a
-# separate port.
-numFabricPorts = 128 * 8
 # Print debug information
 debug = False
 numNifPorts = 0
+# Number of fabric serdes cores per ASIC.
+numFabricSerdesCoresPerAsic = 64
+# Number of serdes per serdes core. Peregrine 8x100G serdes core on R3.
+numSerdesPerCore = 8
+# Total serdes in the system
+numSystemSerdes = numFabricSerdesCoresPerAsic * numAsics * numSerdesPerCore
+# Since each front panel slot has 8 lanes, total front panel ports is :
+numFrontPanelPorts = numSystemSerdes // 8
+# Total number of fabric ports assuming that each fabric serdes is enumerated as a
+# separate port.
+numFabricPorts = numSystemSerdes
 
 # Assuming 100G lanes, number of lanes required by each supported port profile.
 numLanesFromSupportedProfile = {
@@ -136,47 +144,117 @@ with open( "Whistler_port_mapping_v1_meta.csv" ) as csvFile:
          continue
       fabricFrontPanelMap[ row[ 0 ] ] = row[ 1: ]
 
+# Map ASIC physical rx and tx serdes/lanes to front panel slot, lane.
+asicSerdesToFrontPanelMap = []
+# Map front panel port to ASIC physical rx and tx serdes.
+# X/Y => {chipId, rxPhysicalLane, txPhysicalLane}
+frontPanelToAsicSerdesMap = {}
+# Map ASIC logical lanes to physical rx and tx serdes/lanes.
+asicLogicalLaneToSerdesMap = []
+# Map ASIC physical rx and tx serdes/lanes to logical lanes.
+asicSerdesToLogicalLaneMap = []
+for asic in range( numAsics ):
+   asicSerdesToFrontPanelMap.append( { "rx" : {}, "tx" : {} } )
+   asicSerdesToLogicalLaneMap.append( { "rx" : {}, "tx" : {} } )
+   asicLogicalLaneToSerdesMap.append( {} )
+
+# On whistler each serdes is a port, we cannot derive the lane maps just by parsing
+# the system side serdes to line side lane mapping information.
+# For now we will just use the pre-generated lane mapping CSV to map logical lanes to
+# rx, tx physical lanes. We can then look up the system serdes id (which would be the
+# rx, tx physical lane) to map it to a front panel slot and lane.
+# The result of all this is that unlike Viper, on Whistler, the front panel lane will
+# not always match the ASIC logical lane.
+with open( "SocPropertiesP1.csv" ) as fh:
+   for line in fh:
+      if line.startswith( "chipId" ):
+         continue
+      chipId, propKey, propVal = line.rstrip().split( "," )
+      if not propKey.startswith( "lane_to" ):
+         continue
+      chipId = int( chipId )
+      logicalLane = int( propKey.removeprefix( "lane_to_serdes_map_fabric_lane" ) )
+      rxPhysicalSerdes = 0
+      txPhysicalSerdes = 0
+      for physicalSerdes in propVal.rstrip().split( ":" ):
+         if physicalSerdes.startswith( "rx" ):
+            rxPhysicalSerdes = int( physicalSerdes.removeprefix( "rx" ) )
+         elif physicalSerdes.startswith( "tx" ):
+            txPhysicalSerdes = int( physicalSerdes.removeprefix( "tx" ) )
+         else:
+            assert False
+      # We should only see one line per logical lane per chip
+      assert logicalLane not in asicLogicalLaneToSerdesMap[ chipId ]
+      asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ] = {}
+      asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ][ "rx" ]  = rxPhysicalSerdes
+      asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ][ "tx" ]  = txPhysicalSerdes
+      asicSerdesToLogicalLaneMap[ chipId ][ "rx" ][ rxPhysicalSerdes ] = logicalLane
+      asicSerdesToLogicalLaneMap[ chipId ][ "tx" ][ txPhysicalSerdes ] = logicalLane
+
+# Map system side physical serdes to front panel OSFP slot and lane.
+with open( "Trace_whistler_1.0_Ramon3ToOSFP-800G.csv" ) as fh:
+   for line in fh:
+      if line.startswith( "System" ):
+         continue
+      chipId, physicalSerdesId, frontPanelSlot, frontPanelLane, _, direction, polaritySwap = line.rstrip().split(",")
+      chipId = int( chipId )
+      physicalSerdesId = int( physicalSerdesId )
+      frontPanelSlot = int( frontPanelSlot )
+      frontPanelLane = int( frontPanelLane )
+      assert chipId < numAsics
+      asicSerdesToFrontPanelMap[ chipId ][ direction ][ physicalSerdesId ] = ( frontPanelSlot,
+            frontPanelLane, polaritySwap )
+      frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane}"
+      if frontPanelPortStrKey not in frontPanelToAsicSerdesMap:
+         frontPanelToAsicSerdesMap[ frontPanelPortStrKey ] = {}
+      frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ] = chipId
+      frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ direction ] = physicalSerdesId
+
+
 # Append the fabric ports.
 # Each serdes is described as a fabric port, so the enumeration here is somewhat
 # different from the NIF ports.
-assert len( fabricFrontPanelMap ) == numFabricPorts
-for portId in range( numFabricPorts ):
-   frontPanelPort = str( portId + 1 )
-   frontPanelInfo = fabricFrontPanelMap[ frontPanelPort ]
-   portId += fabricPortBase
-   portStr = str( portId )
-   frontPanelSlot = ( ( portId ) // 8 ) + 1
-   assert str( frontPanelSlot ) == frontPanelInfo[ 3 ]
-   serdesCoreLane = int( frontPanelInfo[ 11 ] )
-   frontPanelLane = ( portId % 8 )
-   assert str( frontPanelLane + 1 ) == frontPanelInfo[ 4 ]
-   if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
-      continue
-   supportedProfiles = [ '36', '37', ]
-   serdesCore = frontPanelInfo[ 8 ]
-   serdesCore = f"BC{serdesCore}"
-   frontPanelPort = f"fab1/{frontPanelSlot}"
-   portMapping = getFabricPortMapping( portId=portId, serdesCore=serdesCore,
-         frontPanelPort=frontPanelPort, firstFrontPanelLane=frontPanelLane,
-         firstSerdesCoreLane=serdesCoreLane,
-         supportedProfiles=supportedProfiles )
-   platMapping[ 'ports' ][ portStr ] = portMapping
-   if debug:
-      print( portMapping )
+for asicId in range( numAsics ):
+   fabricPortBase = ( asicId * numFabricSerdesCoresPerAsic * numSerdesPerCore )
+   for fabSerdesCore in range( numFabricSerdesCoresPerAsic ):
+      port = fabSerdesCore * numSerdesPerCore
+      for serdes in range( numSerdesPerCore ):
+         # Globally unique logical port Id
+         logicalPortId = port + fabricPortBase
+         portStr = str( logicalPortId )
+         if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
+            continue
+         supportedProfiles = [ '36', '37', ]
+         serdesCore = f"BC{fabSerdesCore}"
+         # Since each serdes is a port, "port" is the logical lane on the ASIC side
+         # Map from port, which is the logicalLane to physical rx and tx lanes and
+         # then map those to front panel slot and lane.
+         rxPhysicalLane = asicLogicalLaneToSerdesMap[ asicId ][ port ][ "rx" ]
+         txPhysicalLane = asicLogicalLaneToSerdesMap[ asicId ][ port ][ "tx" ]
+         frontPanelSlot, frontPanelLane, _ = asicSerdesToFrontPanelMap[ asicId ][ "rx" ][
+               rxPhysicalLane ]
+         frontPanelSlotComp, frontPanelLaneComp, _ = asicSerdesToFrontPanelMap[ asicId ][
+               "tx" ][ txPhysicalLane ]
+         assert frontPanelSlot == frontPanelSlotComp
+         assert frontPanelLane == frontPanelLaneComp
+         frontPanelPort = f"fab1/{frontPanelSlot}"
+         portMapping = getFabricPortMapping( portId=logicalPortId, serdesCore=serdesCore,
+               frontPanelPort=frontPanelPort, firstFrontPanelLane=frontPanelLane,
+               firstSerdesCoreLane=serdes, supportedProfiles=supportedProfiles )
+         platMapping[ 'ports' ][ portStr ] = portMapping
+         if debug:
+            print( portMapping )
+         port += 1
 
 # Append the chips enumeration.
-# Serdes cores is a superset of octet cores required for fabric and front panel
-# ports.
 platMapping[ "chips" ] = []
-serdesCores = max( numNifPorts, numFabricPorts//8 ) // numAsics
-for core in range( serdesCores ):
+for core in range( numFabricSerdesCoresPerAsic ):
    platMapping[ "chips" ].append( OrderedDict(
       {
          "name": f"BC{core}",
          "type" : 1,
          "physicalID": core
       } ) )
-numFrontPanelPorts = 128
 for port in range( numFrontPanelPorts ):
    frontPanelSlot = port + 1
    platMapping[ "chips" ].append( OrderedDict(
@@ -226,6 +304,7 @@ json_out = json.dumps( platMapping, indent=2, sort_keys=False )
 with open( "whistler_platform_mapping.json", "w") as fh:
    fh.write( json_out )
 
+bcmConfigFh = open( "bcm_config", "w" )
 with open( "whistler_static_mapping.csv", "w" ) as fh:
    # Description of attributes for front panel serdes in the order of their
    # occurence.
@@ -252,25 +331,57 @@ with open( "whistler_static_mapping.csv", "w" ) as fh:
    # Z_TX_POLARITY_SWAP : bool, is polarity swapped for tx trace.
    # Z_RX_POLARITY_SWAP : bool, is polarity swapped for rx trace.
    for portId in range( numFabricPorts ):
-      frontPanelPort = str( portId + 1 )
-      frontPanelInfo = fabricFrontPanelMap[ frontPanelPort ]
-      portId += fabricPortBase
-      portStr = str( portId )
-      frontPanelSlot = ( ( portId ) // 8 ) + 1
-      assert str( frontPanelSlot ) == frontPanelInfo[ 3 ]
-      serdesCoreLane = int( frontPanelInfo[ 11 ] )
-      physicalLane = int( frontPanelInfo[ 9 ] )
-      frontPanelLane = ( portId % 8 )
-      assert str( frontPanelLane + 1 ) == frontPanelInfo[ 4 ]
-      # Ramon ID, 0,1
-      chipId = int( frontPanelInfo[ 5 ] )
-      serdesCore = frontPanelInfo[ 8 ]
+      frontPanelSlot  = ( portId // 8 ) + 1
+      frontPanelLane = portId % 8
+      frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane}"
+      chipId = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ]
+      rxPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "rx" ]
+      txPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "tx" ]
+      logicalLane = asicSerdesToLogicalLaneMap[ chipId ][ "rx" ][ rxPhysicalLane ]
+      assert logicalLane == asicSerdesToLogicalLaneMap[ chipId ][ "tx" ][ txPhysicalLane ]
+      serdesCore = logicalLane // 8
+
+      _frontPanelSlot, _frontPanelLane, rxPolSwap = asicSerdesToFrontPanelMap[ chipId ][ "rx" ][
+            rxPhysicalLane ]
+      assert frontPanelSlot == _frontPanelSlot
+      assert frontPanelLane == _frontPanelLane
+      _frontPanelSlot, _frontPanelLane, txPolSwap = asicSerdesToFrontPanelMap[ chipId ][ "tx" ][
+            txPhysicalLane ]
+      assert frontPanelSlot == _frontPanelSlot
+      assert frontPanelLane == _frontPanelLane
+      rxPolSwap = rxPolSwap[ 0 ]
+      txPolSwap = txPolSwap[ 0 ]
+      if rxPolSwap == "Y":
+         rxPolSwapProp = "1"
+      elif rxPolSwap == "N":
+         rxPolSwapProp = "0"
+      else:
+         assert False
+      if txPolSwap == "Y":
+         txPolSwapProp = "1"
+      elif txPolSwap == "N":
+         txPolSwapProp = "0"
+      else:
+         assert False
+      asicCoreType = "R3_FE"
+      laneMapType = "fabric"
+      polaritySwapType = "fabric"
       fh.write(
-            f"1,{chipId},NPU,{serdesCore},R3_FE,{serdesCoreLane},{physicalLane},{physicalLane},N,N,1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
+            f"1,{chipId+1},NPU,{serdesCore},{asicCoreType},{logicalLane%8},{txPhysicalLane%8},{rxPhysicalLane%8},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
             )
+      # BCM soc properties for lane maps and polarity swaps.
+      # NOTE : Currently this only generates
+      bcmConfigFh.write(
+            f"\"lane_to_serdes_map_{laneMapType}_lane{logicalLane}.BCM8886X.{chipId}\": \"rx{rxPhysicalLane}:tx{txPhysicalLane}\",\n" )
+      bcmConfigFh.write(
+            f"\"phy_rx_polarity_flip_{polaritySwapType}{logicalLane}.BCM8886X.{chipId}\": \"{rxPolSwapProp}\",\n" )
+      bcmConfigFh.write(
+            f"\"phy_tx_polarity_flip_{polaritySwapType}{logicalLane}.BCM8886X.{chipId}\": \"{txPolSwapProp}\",\n" )
 
 with open( "whistler_port_profile_mapping.csv", "w" ) as fh:
+   fabricPortBase = 0
    # Description of fields in the order of their appearance:
+   # Global PortID : Global port ID across all ASICs in the system.
    # Logical_PortID : Logical port ID used in the bcm soc properties.
    # Port_Name : Port name used in the platform mapping.
    # Attached_CoreId : CoreId on ASIC that the port is attached to.
@@ -278,11 +389,24 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh:
    # NOTE : For Fabric ports, there is no core binding, the corresponding
    # Attached_CoreId and Attached_Core_PortID can be left empty.
    fabSupportedProfiles = '-'.join( numLanesFromSupportedProfile.keys() )
+   asicLogicalPortId = {}
+   asicGlobalPortId = {}
+   # FBOSS assigns a range of 2k ports to each NPU, we will only use the first 512
+   # IDs from this space.
+   fabricPortsPerAsic = 2048
+   for asicId in range( numAsics ):
+      asicLogicalPortId[ asicId ] = 0
+      asicGlobalPortId[ asicId ] = ( fabricPortsPerAsic * asicId )
    for portId in range( numFabricPorts ):
-      portId += fabricPortBase
-      frontPanelSlot = ( ( portId ) // 8 ) + 1
-      frontPanelPortType = "fab"
-      portStrPrefix = f"{frontPanelPortType}1/{frontPanelSlot}"
-      subPort = ( portId % 8 ) + 1
+      frontPanelSlot  = ( portId // 8 ) + 1
+      frontPanelLane = portId % 8
+      frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane}"
+      chipId = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ]
+      portStrPrefix = f"fab1/{frontPanelSlot}"
+      subPort = frontPanelLane + 1
       portStr = f"{portStrPrefix}/{subPort}"
-      fh.write( f"{portId},{portStr},{fabSupportedProfiles},,\n" )
+      fh.write( f"{asicGlobalPortId[chipId]},{asicLogicalPortId[chipId]},{portStr},{fabSupportedProfiles},,\n" )
+      asicLogicalPortId[ chipId ] += 1
+      asicGlobalPortId[ chipId ] += 1
+
+bcmConfigFh.close()
