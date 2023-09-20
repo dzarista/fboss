@@ -37,7 +37,7 @@
       },
       {
          "name" : "Aboot Image",
-         "imageFile" : "programmables/Aboot-norcal13-13.1.0-lcc-32m-ENG-33260098.rom"
+         "imageFile" : "programmables/Aboot-norcal13-13.1.0-lcc-64m-ENG-33522315.rom"
       },
       {
          "name" : "Meru SCM CPLD Image",
