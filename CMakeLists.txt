@@ -89,7 +89,7 @@ if (SAI_BRCM_IMPL)
 endif()
 
 set(SAI_VER_MAJOR "1")
-set(SAI_VER_MINOR "12")
+set(SAI_VER_MINOR "13")
 set(SAI_VER_RELEASE "0")
 
 if (NOT "$ENV{SAI_SDK_VERSION}" STREQUAL "")
@@ -494,6 +494,14 @@ add_fbthrift_cpp_library(
 )
 
 add_fbthrift_cpp_library(
+  led_config_cpp2
+  fboss/led_service/if/led_service_config.thrift
+  OPTIONS
+    json
+    reflection
+)
+
+add_fbthrift_cpp_library(
   qsfp_cpp2
   fboss/qsfp_service/if/qsfp.thrift
   SERVICES
@@ -611,4 +619,5 @@ add_dependencies(fboss_platform_services
   platform_manager
   fw_util
   weutil
+  led_service
 )

@@ -9,6 +9,7 @@
 #include <string>
 #include "common/time/Time.h"
 #include "fboss/agent/FbossError.h"
+#include "fboss/lib/i2c/FirmwareUpgrader.h"
 #include "fboss/lib/phy/gen-cpp2/prbs_types.h"
 #include "fboss/lib/platforms/PlatformMode.h"
 #include "fboss/lib/usb/TransceiverI2CApi.h"
@@ -2053,9 +2054,7 @@ bool CmisModule::remediateFlakyTransceiver(
   if (allPortsDown) {
     // This api accept 1 based module id however the module id in WedgeManager
     // is 0 based.
-    getTransceiverManager()->getQsfpPlatformApi()->triggerQsfpHardReset(
-        static_cast<unsigned int>(getID()) + 1);
-    moduleResetCounter_++;
+    triggerModuleResetLocked();
   } else {
     auto portNameToHostLanesMap = getPortNameToHostLanes();
     for (const auto& port : ports) {
@@ -2545,6 +2544,10 @@ void CmisModule::setDiagsCapability() {
             CmisField::HOST_SUPPORTED_GENERATOR_PATTERNS,
             CmisField::HOST_SUPPORTED_CHECKER_PATTERNS);
       }
+
+      readFromCacheOrHw(CmisField::DIAGNOSTIC_CAPABILITY, &data);
+      diags.snrLine() = data & FieldMasks::SNR_LINE_SUPPORT_MASK;
+      diags.snrSystem() = data & FieldMasks::SNR_SYS_SUPPORT_MASK;
     }
 
     *diagsCapability = diags;
@@ -2700,6 +2703,7 @@ bool CmisModule::getModuleStateChanged() {
  * This function expects the caller to hold the qsfp module level lock
  */
 bool CmisModule::setPortPrbsLocked(
+    const std::string& portName,
     phy::Side side,
     const prbs::InterfacePrbsState& prbs) {
   // If PRBS is not supported then return
@@ -2713,6 +2717,14 @@ bool CmisModule::setPortPrbsLocked(
   // Return error for invalid PRBS polynominal
   auto prbsPatternItr = prbsPatternMap.left.find(
       static_cast<prbs::PrbsPolynomial>(*prbs.polynomial()));
+
+  // Get the list of lanes to enable/disable PRBS
+  auto tcvrLanes = getTcvrLanesForPort(portName, side == phy::Side::LINE);
+  if (tcvrLanes.empty()) {
+    QSFP_LOG(ERR, this) << fmt::format(
+        "Empty lane list for port {:s}", portName);
+    return false;
+  }
 
   bool startGen{false}, stopGen{false};
   bool startChk{false}, stopChk{false};
@@ -2733,12 +2745,12 @@ bool CmisModule::setPortPrbsLocked(
 
   // Step 1: Set the pattern for Generator (for starting case)
   if (startGen) {
-    auto mediaFields = {
+    std::array<CmisField, 4> mediaFields = {
         CmisField::MEDIA_PATTERN_SELECT_LANE_2_1,
         CmisField::MEDIA_PATTERN_SELECT_LANE_4_3,
         CmisField::MEDIA_PATTERN_SELECT_LANE_6_5,
         CmisField::MEDIA_PATTERN_SELECT_LANE_8_7};
-    auto hostFields = {
+    std::array<CmisField, 4> hostFields = {
         CmisField::HOST_PATTERN_SELECT_LANE_2_1,
         CmisField::HOST_PATTERN_SELECT_LANE_4_3,
         CmisField::HOST_PATTERN_SELECT_LANE_6_5,
@@ -2754,9 +2766,14 @@ bool CmisModule::setPortPrbsLocked(
     }
     auto prbsPolynominal = prbsPatternItr->second;
     // There are 4 bytes, each contains pattern for 2 lanes
-    uint8_t patternVal = (prbsPolynominal & 0xF) << 4 | (prbsPolynominal & 0xF);
-    for (auto field : cmisRegisters) {
-      writeCmisField(field, &patternVal);
+    uint8_t patternVal;
+    for (auto lane : tcvrLanes) {
+      auto cmisReg = cmisRegisters[lane / 2];
+      readCmisField(cmisReg, &patternVal);
+      patternVal = (lane % 2 == 0)
+          ? (patternVal & 0xF0) | (prbsPolynominal & 0x0F)
+          : (patternVal & 0x0F) | ((prbsPolynominal << 4) & 0xF0);
+      writeCmisField(cmisReg, &patternVal);
     }
   }
 
@@ -2767,12 +2784,13 @@ bool CmisModule::setPortPrbsLocked(
 
   if (startGen || stopGen) {
     uint8_t startGenLaneMask;
-    if (startGen) {
-      startGenLaneMask = (side == phy::Side::LINE)
-          ? ((1 << numMediaLanes()) - 1)
-          : ((1 << numHostLanes()) - 1);
-    } else {
-      startGenLaneMask = 0;
+    readCmisField(cmisRegister, &startGenLaneMask);
+    for (auto lane : tcvrLanes) {
+      if (startGen) {
+        startGenLaneMask |= (1 << lane);
+      } else {
+        startGenLaneMask &= ~(1 << lane);
+      }
     }
     writeCmisField(cmisRegister, &startGenLaneMask);
 
@@ -2785,13 +2803,13 @@ bool CmisModule::setPortPrbsLocked(
 
   // Step 3: Set the pattern for Checker (for starting case)
   if (startChk) {
-    auto mediaFields = {
+    std::array<CmisField, 4> mediaFields = {
         CmisField::MEDIA_CHECKER_PATTERN_SELECT_LANE_2_1,
         CmisField::MEDIA_CHECKER_PATTERN_SELECT_LANE_4_3,
         CmisField::MEDIA_CHECKER_PATTERN_SELECT_LANE_6_5,
         CmisField::MEDIA_CHECKER_PATTERN_SELECT_LANE_8_7,
     };
-    auto hostFields = {
+    std::array<CmisField, 4> hostFields = {
         CmisField::HOST_CHECKER_PATTERN_SELECT_LANE_2_1,
         CmisField::HOST_CHECKER_PATTERN_SELECT_LANE_4_3,
         CmisField::HOST_CHECKER_PATTERN_SELECT_LANE_6_5,
@@ -2808,9 +2826,14 @@ bool CmisModule::setPortPrbsLocked(
     }
     auto prbsPolynominal = prbsPatternItr->second;
     // There are 4 bytes, each contains pattern for 2 lanes
-    uint8_t patternVal = (prbsPolynominal & 0xF) << 4 | (prbsPolynominal & 0xF);
-    for (auto field : cmisFields) {
-      writeCmisField(field, &patternVal);
+    uint8_t patternVal;
+    for (auto lane : tcvrLanes) {
+      auto cmisReg = cmisFields[lane / 2];
+      readCmisField(cmisReg, &patternVal);
+      patternVal = (lane % 2 == 0)
+          ? (patternVal & 0xF0) | (prbsPolynominal & 0x0F)
+          : (patternVal & 0x0F) | ((prbsPolynominal << 4) & 0xF0);
+      writeCmisField(cmisReg, &patternVal);
     }
   }
 
@@ -2820,12 +2843,13 @@ bool CmisModule::setPortPrbsLocked(
 
   if (startChk || stopChk) {
     uint8_t startChkLaneMask;
-    if (startChk) {
-      startChkLaneMask = (side == phy::Side::LINE)
-          ? ((1 << numMediaLanes()) - 1)
-          : ((1 << numHostLanes()) - 1);
-    } else {
-      startChkLaneMask = 0;
+    readCmisField(cmisRegister, &startChkLaneMask);
+    for (auto lane : tcvrLanes) {
+      if (startChk) {
+        startChkLaneMask |= (1 << lane);
+      } else {
+        startChkLaneMask &= ~(1 << lane);
+      }
     }
     writeCmisField(cmisRegister, &startChkLaneMask);
 
@@ -2943,7 +2967,8 @@ phy::PrbsStats CmisModule::getPortPrbsStatsSideLocked(
 
   // Step 2.a: Set the Diag Sel register to collect the BER values and wait
   // for some time
-  uint8_t diagSel = 1; // Diag Sel 1 is to obtain BER values
+  uint8_t diagSel =
+      DiagnosticFeatureEncoding::BER; // Diag Sel 1 is to obtain BER values
   writeCmisField(CmisField::DIAG_SEL, &diagSel);
   /* sleep override */
   usleep(kUsecDiagSelectLatchWait);
@@ -2953,6 +2978,24 @@ phy::PrbsStats CmisModule::getPortPrbsStatsSideLocked(
                                            : CmisField::HOST_BER;
   std::array<uint8_t, 16> laneBerList;
   readCmisField(cmisRegister, laneBerList.data());
+
+  // Get the SNR values
+  std::array<uint8_t, 16> laneSnrList;
+  if (isSnrSupported(side)) {
+    // Step 2.c: Set the Diag Sel register to collect the SNR values and wait
+    // for some time
+    diagSel =
+        DiagnosticFeatureEncoding::SNR; // Diag Sel 6 is to obtain SNR values
+    writeCmisField(CmisField::DIAG_SEL, &diagSel);
+    /* sleep override */
+    usleep(kUsecDiagSelectLatchWait);
+
+    // Step 2.d: Read the SNR values for all lanes
+    cmisRegister = (side == phy::Side::LINE) ? CmisField::MEDIA_SNR
+                                             : CmisField::MEDIA_BER_HOST_SNR;
+
+    readCmisField(cmisRegister, laneSnrList.data());
+  }
 
   // Step 3: Put all the lane info in return structure and return
   for (auto laneId = 0; laneId < numLanes; laneId++) {
@@ -2966,6 +3009,14 @@ phy::PrbsStats CmisModule::getPortPrbsStatsSideLocked(
     lsb = laneBerList.at(laneId * 2);
     msb = laneBerList.at((laneId * 2) + 1);
     laneStats.ber() = QsfpModule::getBerFloatValue(lsb, msb);
+
+    // Put the SNR value
+    if (isSnrSupported(side)) {
+      lsb = laneSnrList.at(laneId * 2);
+      msb = laneSnrList.at((laneId * 2) + 1);
+      uint16_t snrRawVal = (msb << 8) | lsb;
+      laneStats.snr() = CmisFieldInfo::getSnr(snrRawVal);
+    }
 
     prbsStats.laneStats()->push_back(laneStats);
   }
@@ -3153,6 +3204,58 @@ bool CmisModule::setTransceiverTxLocked(
 
   writeCmisField(txDisableRegister, &txDisableVal);
   return true;
+}
+
+bool CmisModule::upgradeFirmwareLockedImpl(
+    std::unique_ptr<FbossFirmware> fbossFw) const {
+  QSFP_LOG(INFO, this) << "Upgrading CMIS Module Firmware";
+
+  auto fwUpgradeObj = std::make_unique<CmisFirmwareUpgrader>(
+      getTransceiverManager()->i2cBus(), getID() + 1, std::move(fbossFw));
+
+  bool ret = fwUpgradeObj->cmisModuleFirmwareUpgrade();
+  return ret;
+}
+
+/*
+ * setTransceiverLoopbackLocked
+ *
+ * Sets or resets the loopback on the given lanes for the SW Port on system
+ * or line side of the Transceiver. The System side loopback set should bring
+ * up the NPU port. The Line side loopback set should bring up the peer port.
+ */
+void CmisModule::setTransceiverLoopbackLocked(
+    const std::string& portName,
+    phy::Side side,
+    bool setLoopback) {
+  // Get the list of lanes to disable/enable the loopback
+  auto tcvrLanes = getTcvrLanesForPort(portName, side == phy::Side::LINE);
+  if (tcvrLanes.empty()) {
+    XLOG(ERR) << fmt::format(
+        "No {:s} lanes available for port {:s}",
+        (side == phy::Side::SYSTEM ? "HOST" : "LINE"),
+        portName);
+    return;
+  }
+
+  // Check if the module supports system or line side loopback
+  if (!isTransceiverFeatureSupported(
+          TransceiverFeature::LOOPBACK, side == phy::Side::LINE)) {
+    throw FbossError(fmt::format(
+        "Module {:s} does not support transceiver Loopback on {:s}",
+        portName,
+        ((side == phy::Side::LINE) ? "Line" : "System")));
+  }
+
+  auto regField = (side == phy::Side::SYSTEM) ? CmisField::MEDIA_FAR_LB_EN
+                                              : CmisField::MEDIA_NEAR_LB_EN;
+  uint8_t hostOrMediaInputLbEnable;
+  readCmisField(regField, &hostOrMediaInputLbEnable);
+
+  hostOrMediaInputLbEnable = setTxChannelMask(
+      tcvrLanes, std::nullopt, !setLoopback, hostOrMediaInputLbEnable);
+
+  writeCmisField(regField, &hostOrMediaInputLbEnable);
 }
 
 } // namespace fboss

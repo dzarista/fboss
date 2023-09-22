@@ -1278,7 +1278,7 @@ SaiQueueHandle* SaiPortManager::getQueueHandle(PortID swId, uint8_t queueId)
 bool SaiPortManager::fecStatsSupported(PortID portId) const {
   if (platform_->getAsic()->isSupported(HwAsic::Feature::SAI_FEC_COUNTERS) &&
       utility::isReedSolomonFec(getFECMode(portId))) {
-#if defined(SAI_VERSION_7_2_0_0_ODP) || defined(SAI_VERSION_8_2_0_0_ODP) ||    \
+#if defined(SAI_VERSION_8_2_0_0_ODP) ||                                        \
     defined(SAI_VERSION_8_2_0_0_DNX_ODP) ||                                    \
     defined(SAI_VERSION_8_2_0_0_SIM_ODP) ||                                    \
     defined(SAI_VERSION_9_0_EA_SIM_ODP) || defined(TAJO_SDK_VERSION_1_42_4) || \
@@ -2006,18 +2006,6 @@ std::vector<sai_port_lane_eye_values_t> SaiPortManager::getPortEyeValues(
     return std::vector<sai_port_lane_eye_values_t>();
   }
 
-  bool eyeValuesSupported = true;
-  if (platform_->getAsic()->getDataPlanePhyChipType() ==
-      phy::DataPlanePhyChipType::IPHY) {
-#if !defined(SAI_VERSION_7_2_0_0_ODP)
-    eyeValuesSupported = false;
-#endif
-  }
-
-  if (!eyeValuesSupported) {
-    return std::vector<sai_port_lane_eye_values_t>();
-  }
-
   return SaiApiTable::getInstance()->portApi().getAttribute(
       saiPortId, SaiPortTraits::Attributes::PortEyeValues{});
 }
@@ -2081,10 +2069,6 @@ std::vector<sai_port_err_status_t> SaiPortManager::getPortErrStatus(
           HwAsic::Feature::SAI_PORT_ERR_STATUS)) {
     return std::vector<sai_port_err_status_t>();
   }
-
-#if !defined(SAI_VERSION_7_2_0_0_ODP)
-  return std::vector<sai_port_err_status_t>();
-#endif
 
   return SaiApiTable::getInstance()->portApi().getAttribute(
       saiPortId, SaiPortTraits::Attributes::PortErrStatus{});

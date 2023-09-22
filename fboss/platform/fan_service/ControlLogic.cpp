@@ -41,14 +41,12 @@ ControlLogic::ControlLogic(
       pBsp_(pB),
       lastControlUpdateSec_(pBsp_->getCurrentTime()) {}
 
-std::tuple<bool, int, uint64_t> ControlLogic::getFanUpdate(
-    const Fan& fan,
-    const FanStatus& fanStatus) {
+std::tuple<bool, int, uint64_t> ControlLogic::readFanRpm(const Fan& fan) {
   std::string fanName = *fan.fanName();
   auto rpmAccessType = *fan.rpmAccess()->accessType();
   XLOG(INFO) << "Control :: Fan name " << *fan.fanName()
              << " Access type : " << rpmAccessType;
-  bool fanAccessFail = false;
+  bool fanAccessFailed = false;
   int fanRpm = 0;
   uint64_t rpmTimeStamp = 0;
 
@@ -62,9 +60,9 @@ std::tuple<bool, int, uint64_t> ControlLogic::getFanUpdate(
       fanRpm = pBsp_->readSysfs(*fan.rpmAccess()->path());
       rpmTimeStamp = pBsp_->getCurrentTime();
     } catch (std::exception& e) {
-      XLOG(ERR) << "Fan RPM access fail " << *fan.rpmAccess()->path();
+      XLOG(ERR) << "Fan RPM access failed " << *fan.rpmAccess()->path();
       // Obvious. Sysfs fail means access fail
-      fanAccessFail = true;
+      fanAccessFailed = true;
     }
   } else {
     facebook::fboss::FbossError(
@@ -72,18 +70,10 @@ std::tuple<bool, int, uint64_t> ControlLogic::getFanUpdate(
         fanName);
   }
 
-  auto fanAccessFailDuration = pBsp_->getCurrentTime() - fanStatus.timeStamp;
-  if (fanAccessFail && fanAccessFailDuration >= kFanFailThresholdInSec) {
-    numFanFailed_++;
-  }
-
-  auto fanFailed =
-      fanAccessFail && fanAccessFailDuration >= kFanFailThresholdInSec;
-
   XLOG(INFO) << "Control :: RPM :" << fanRpm
-             << " Failed : " << (fanFailed ? "Yes" : "No");
+             << " Failed : " << (fanAccessFailed ? "Yes" : "No");
 
-  return std::make_tuple(fanFailed, fanRpm, rpmTimeStamp);
+  return std::make_tuple(fanAccessFailed, fanRpm, rpmTimeStamp);
 }
 
 void ControlLogic::updateTargetPwm(const Sensor& sensor) {
@@ -485,9 +475,6 @@ std::pair<bool, float> ControlLogic::programFan(
   }
   if (srcType == constants::ACCESS_TYPE_SYSFS()) {
     writeSuccess = pBsp_->setFanPwmSysfs(*fan.pwmAccess()->path(), pwmInt);
-  } else if (srcType == constants::ACCESS_TYPE_UTIL()) {
-    writeSuccess =
-        pBsp_->setFanPwmShell(*fan.pwmAccess()->path(), *fan.fanName(), pwmInt);
   } else {
     XLOG(ERR) << "Unsupported PWM access type for : ", *fan.fanName();
   }
@@ -593,13 +580,13 @@ void ControlLogic::setTransitionValue() {
         const auto [fanFailed, pwmToProgram] = programFan(
             zone,
             fan,
-            fanStatuses[*fan.fanName()].currentPwm,
+            *fanStatuses[*fan.fanName()].pwmToProgram(),
             *config_.pwmTransitionValue());
-        fanStatuses[*fan.fanName()].currentPwm = pwmToProgram;
+        fanStatuses[*fan.fanName()].pwmToProgram() = pwmToProgram;
         if (fanFailed) {
           programLed(fan, fanFailed);
         }
-        fanStatuses[*fan.fanName()].fanFailed = fanFailed;
+        fanStatuses[*fan.fanName()].fanFailed() = fanFailed;
       }
     }
   });
@@ -651,14 +638,24 @@ void ControlLogic::updateControl(std::shared_ptr<SensorData> pS) {
 
     // Update fan status with new rpm and timestamp.
     for (const auto& fan : *config_.fans()) {
-      auto [fanFailed, fanRpm, fanTimestamp] =
-          getFanUpdate(fan, fanStatuses[*fan.fanName()]);
-      fanStatuses[*fan.fanName()].rpm = fanRpm;
-      fanStatuses[*fan.fanName()].timeStamp = fanTimestamp;
+      auto [fanAccessFailed, fanRpm, fanTimestamp] = readFanRpm(fan);
+      if (fanAccessFailed) {
+        fanStatuses[*fan.fanName()].rpm().reset();
+      } else {
+        fanStatuses[*fan.fanName()].rpm() = fanRpm;
+        fanStatuses[*fan.fanName()].lastSuccessfulAccessTime() = fanTimestamp;
+      }
 
-      // Record whether fan is healthy, missing or inaccessible for long time.
+      // Ignore last access failure if it happened < kFanFailThresholdInSec
+      auto timeSinceLastSuccessfulAccess = pBsp_->getCurrentTime() -
+          *fanStatuses[*fan.fanName()].lastSuccessfulAccessTime();
+      auto fanFailed = fanAccessFailed &&
+          (timeSinceLastSuccessfulAccess >= kFanFailThresholdInSec);
+      if (fanFailed) {
+        numFanFailed_++;
+      }
       programLed(fan, fanFailed);
-      fanStatuses[*fan.fanName()].fanFailed = fanFailed;
+      fanStatuses[*fan.fanName()].fanFailed() = fanFailed;
     }
 
     boostMode =
@@ -685,13 +682,13 @@ void ControlLogic::updateControl(std::shared_ptr<SensorData> pS) {
         }
 
         const auto [fanFailed, pwmToProgram] = programFan(
-            zone, fan, fanStatuses[*fan.fanName()].currentPwm, pwmSoFar);
-        fanStatuses[*fan.fanName()].currentPwm = pwmToProgram;
+            zone, fan, *fanStatuses[*fan.fanName()].pwmToProgram(), pwmSoFar);
+        fanStatuses[*fan.fanName()].pwmToProgram() = pwmToProgram;
 
         if (fanFailed) {
           programLed(fan, fanFailed);
           // Only override the fanFailed if fan programming failed.
-          fanStatuses[*fan.fanName()].fanFailed = fanFailed;
+          fanStatuses[*fan.fanName()].fanFailed() = fanFailed;
         }
       }
     }

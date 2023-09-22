@@ -3,6 +3,7 @@
 #pragma once
 
 #include "fboss/agent/FbossError.h"
+#include "fboss/agent/hw/sai/impl/util.h"
 #include "fboss/agent/hw/switch_asics/TajoAsic.h"
 
 namespace facebook::fboss {
@@ -12,16 +13,28 @@ class EbroAsic : public TajoAsic {
   EbroAsic(
       cfg::SwitchType type,
       std::optional<int64_t> id,
+      int16_t index,
       std::optional<cfg::Range64> systemPortRange,
-      folly::MacAddress& mac)
+      folly::MacAddress& mac,
+      std::optional<cfg::SdkVersion> sdkVersion = std::nullopt)
       : TajoAsic(
             type,
             id,
+            index,
             systemPortRange,
             mac,
+            sdkVersion,
             {cfg::SwitchType::NPU,
              cfg::SwitchType::VOQ,
-             cfg::SwitchType::FABRIC}) {}
+             cfg::SwitchType::FABRIC}) {
+    if (sdkVersion.has_value() && sdkVersion->asicSdk().has_value()) {
+      auto p4WarmbootSdkVersion = getAsicSdkVersion(p4WarmbootBaseSdk);
+      auto currentSdkVersion = getAsicSdkVersion(sdkVersion->asicSdk().value());
+      if (currentSdkVersion >= p4WarmbootSdkVersion) {
+        HwAsic::setDefaultStreamType(cfg::StreamType::UNICAST);
+      }
+    }
+  }
   bool isSupported(Feature feature) const override {
     return getSwitchType() != cfg::SwitchType::FABRIC
         ? isSupportedNonFabric(feature)
@@ -111,6 +124,7 @@ class EbroAsic : public TajoAsic {
  private:
   bool isSupportedFabric(Feature feature) const;
   bool isSupportedNonFabric(Feature feature) const;
+  static constexpr auto p4WarmbootBaseSdk = "1.65.0";
 };
 
 } // namespace facebook::fboss

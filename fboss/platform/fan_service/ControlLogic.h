@@ -4,15 +4,9 @@
 
 #include "fboss/platform/fan_service/Bsp.h"
 #include "fboss/platform/fan_service/SensorData.h"
+#include "fboss/platform/fan_service/if/gen-cpp2/fan_service_types.h"
 
 namespace facebook::fboss::platform::fan_service {
-
-struct FanStatus {
-  int rpm;
-  float currentPwm{0};
-  bool fanFailed{false};
-  uint64_t timeStamp;
-};
 
 struct SensorReadCache {
   float adjustedReadCache{0};
@@ -68,8 +62,8 @@ class ControlLogic {
 
   // Private Methods
   void getSensorUpdate();
-  std::tuple<bool /*fan failed*/, int /*rpm*/, uint64_t /*timestamp*/>
-  getFanUpdate(const Fan& fan, const FanStatus& fanStatus);
+  std::tuple<bool /*fanAccessFailed*/, int /*rpm*/, uint64_t /*timestamp*/>
+  readFanRpm(const Fan& fan);
   void getOpticsUpdate();
   std::pair<bool /* pwm update fail */, float /* pwm */> programFan(
       const Zone& zone,

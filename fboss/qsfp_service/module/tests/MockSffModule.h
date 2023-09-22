@@ -41,6 +41,8 @@ class MockSffModule : public SffModule {
     ON_CALL(*this, ensureTransceiverReadyLocked())
         .WillByDefault(testing::Return(true));
     ON_CALL(*this, numHostLanes()).WillByDefault(testing::Return(4));
+    ON_CALL(*this, getTransceiverInfo())
+        .WillByDefault(testing::Return(TransceiverInfo{}));
   }
   MOCK_METHOD1(setPowerOverrideIfSupportedLocked, void(PowerControlState));
   MOCK_METHOD1(updateQsfpData, void(bool));
@@ -113,7 +115,7 @@ class MockSffModule : public SffModule {
     // shouldRemediate will check the vendor PN to skip doing it on Miniphoton
     // modules. Here we take a PN other than Miniphoton.
     vendor.partNumber() = vendorPN;
-    info.vendor() = vendor;
+    info.tcvrState()->vendor() = vendor;
     fakeInfo_ = info;
   }
 
