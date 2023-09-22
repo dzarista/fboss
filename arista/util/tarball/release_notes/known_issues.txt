@@ -1,3 +1,5 @@
 - BIOS upgrade from FBOSS requires P1 Meru hardware without workaround.
 - BUG854014: scd_smbus driver logs verbose out-of-bounds reads when qsfp_service
              is running.
+- Latest programmables are intended with Viper chassis/systema and may not be compatible
+  with standalone fairywren systems. Contact Arista for further questions
