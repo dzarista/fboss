@@ -11,9 +11,11 @@
 #include <cstdint>
 #include <mutex>
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
+#include "fboss/lib/firmware_storage/FbossFirmware.h"
 #include "fboss/lib/link_snapshots/SnapshotManager-defs.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 #include "fboss/lib/phy/gen-cpp2/prbs_types.h"
+#include "fboss/qsfp_service/if/gen-cpp2/qsfp_service_config_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 #include "fboss/qsfp_service/module/Transceiver.h"
 
@@ -174,6 +176,15 @@ class QsfpModule : public Transceiver {
            *(*diagsCapability).value().prbsSystem());
   }
 
+  bool isSnrSupported(phy::Side side) const {
+    auto diagsCapability = diagsCapability_.rlock();
+    return (side == phy::Side::LINE)
+        ? ((*diagsCapability).has_value() &&
+           *(*diagsCapability).value().snrLine())
+        : ((*diagsCapability).has_value() &&
+           *(*diagsCapability).value().snrSystem());
+  }
+
   std::optional<DiagsCapability> getDiagsCapability() const override {
     // return a copy to avoid needing a lock
     return diagsCapability_.copy();
@@ -238,6 +249,7 @@ class QsfpModule : public Transceiver {
   void updatePrbsStats();
 
   bool setPortPrbs(
+      const std::string& /* portName */,
       phy::Side /* side */,
       const prbs::InterfacePrbsState& /* prbs */) override;
 
@@ -284,6 +296,13 @@ class QsfpModule : public Transceiver {
   bool isTransceiverFeatureSupported(TransceiverFeature feature);
 
   bool isTransceiverFeatureSupported(TransceiverFeature feature, bool lineSide);
+
+  bool requiresFirmwareUpgrade() const override;
+
+  void setTransceiverLoopback(
+      const std::string& portName,
+      phy::Side side,
+      bool setLoopback) override;
 
  protected:
   /* Qsfp Internal Implementation */
@@ -559,6 +578,11 @@ class QsfpModule : public Transceiver {
     return false;
   }
 
+  virtual void setTransceiverLoopbackLocked(
+      const std::string& /* portName */,
+      phy::Side /* side */,
+      bool /* setLoopback */) {}
+
   /*
    * Returns a set of Transceiver lanes for a given SW port for a given side
    */
@@ -583,6 +607,13 @@ class QsfpModule : public Transceiver {
   folly::Synchronized<phy::PrbsStats> linePrbsStats_;
 
   bool shouldRemediateLocked() override;
+
+  virtual bool upgradeFirmwareLockedImpl(
+      std::unique_ptr<FbossFirmware> /* fbossFw */) const {
+    return false;
+  }
+
+  void triggerModuleResetLocked();
 
  private:
   // no copy or assignment
@@ -628,6 +659,12 @@ class QsfpModule : public Transceiver {
       TransceiverIOParameters param,
       uint8_t data) override;
 
+  bool upgradeFirmware(
+      const std::optional<cfg::Firmware>& fw = std::nullopt) override;
+
+  bool upgradeFirmwareLocked(
+      const std::optional<cfg::Firmware>& fw = std::nullopt);
+
   /*
    * Perform logic OR operation to media lane signals in order to cache them
    * for ODS to report.
@@ -647,6 +684,7 @@ class QsfpModule : public Transceiver {
    * level lock. Returns true if setting the prbs was successful
    */
   virtual bool setPortPrbsLocked(
+      const std::string& /* portName */,
       phy::Side /* side */,
       const prbs::InterfacePrbsState& /* prbs */) {
     return false;
@@ -683,6 +721,15 @@ class QsfpModule : public Transceiver {
 
   std::unordered_map<std::string, std::set<uint8_t>> portNameToHostLanes_;
   std::unordered_map<std::string, std::set<uint8_t>> portNameToMediaLanes_;
+
+  // Returns the Firmware object from qsfp config for the given module.
+  // If there is no firmware in config, returns empty optional
+  std::optional<cfg::Firmware> getFirmwareFromCfg() const;
+
+  time_t lastFwUpgradeStartTime_{0};
+  time_t lastFwUpgradeEndTime_{0};
+
+  std::string getFwStorageHandle(const std::string& tcvrPartNumber) const;
 };
 } // namespace fboss
 } // namespace facebook

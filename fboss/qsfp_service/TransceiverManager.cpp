@@ -250,6 +250,29 @@ const std::string TransceiverManager::getPortName(TransceiverID tcvrId) const {
   return portNames.empty() ? "" : *portNames.begin();
 }
 
+bool TransceiverManager::firmwareUpgradeRequired(TransceiverID id) const {
+  auto lockedTransceivers = transceivers_.rlock();
+  auto tcvrIt = lockedTransceivers->find(id);
+
+  return (
+      tcvrIt != lockedTransceivers->end() && tcvrIt->second->isPresent() &&
+      tcvrIt->second->requiresFirmwareUpgrade());
+}
+
+void TransceiverManager::doTransceiverFirmwareUpgrade(TransceiverID tcvrID) {
+  std::vector<folly::Future<bool>> futResponses;
+  auto lockedTransceivers = transceivers_.rlock();
+  auto tcvrIt = lockedTransceivers->find(tcvrID);
+  if (tcvrIt == lockedTransceivers->end() || !tcvrIt->second->isPresent()) {
+    XLOG(INFO) << "Transceiver not found for ID=" << tcvrID
+               << ". Can't do firmware upgrade";
+    return;
+  }
+  XLOG(INFO) << " Triggering Transceiver Firmware Upgrade for Transceiver="
+             << tcvrIt->first;
+  tcvrIt->second->upgradeFirmware();
+}
+
 TransceiverManager::TransceiverToStateMachineHelper
 TransceiverManager::setupTransceiverToStateMachineHelper() {
   TransceiverToStateMachineHelper stateMachineMap;
@@ -701,9 +724,6 @@ TransceiverInfo TransceiverManager::getTransceiverInfo(TransceiverID id) {
     return it->second->getTransceiverInfo();
   } else {
     TransceiverInfo absentTcvr;
-    absentTcvr.present() = false;
-    absentTcvr.port() = id;
-    absentTcvr.timeCollected() = std::time(nullptr);
     absentTcvr.tcvrState()->present() = false;
     absentTcvr.tcvrState()->port() = id;
     absentTcvr.tcvrState()->timeCollected() = std::time(nullptr);
@@ -1639,7 +1659,7 @@ void TransceiverManager::setInterfacePrbs(
       auto lockedTransceivers = transceivers_.rlock();
       if (auto it = lockedTransceivers->find(*tcvrID);
           it != lockedTransceivers->end()) {
-        if (!it->second->setPortPrbs(side, state)) {
+        if (!it->second->setPortPrbs(portName, side, state)) {
           throw FbossError("Failed to set PRBS on transceiver ", *tcvrID);
         }
       } else {
@@ -1941,7 +1961,9 @@ void TransceiverManager::setPortLoopbackState(
         folly::sformat("setPortLoopbackState: Invalid port {}", portName));
   }
   if (component != phy::PortComponent::GB_SYSTEM &&
-      component != phy::PortComponent::GB_LINE) {
+      component != phy::PortComponent::GB_LINE &&
+      component != phy::PortComponent::TRANSCEIVER_SYSTEM &&
+      component != phy::PortComponent::TRANSCEIVER_LINE) {
     XLOG(INFO)
         << " TransceiverManager::setPortLoopbackState - component not supported "
         << apache::thrift::util::enumNameSafe(component);
@@ -1950,8 +1972,32 @@ void TransceiverManager::setPortLoopbackState(
 
   XLOG(INFO) << " TransceiverManager::setPortLoopbackState Port "
              << static_cast<int>(swPort.value());
-  getPhyManager()->setPortLoopbackState(
-      PortID(swPort.value()), component, setLoopback);
+
+  if (component == phy::PortComponent::GB_SYSTEM ||
+      component == phy::PortComponent::GB_LINE) {
+    getPhyManager()->setPortLoopbackState(
+        PortID(swPort.value()), component, setLoopback);
+  } else {
+    // Get the Transceiver ID
+    auto tcvrId = getTransceiverID(swPort.value());
+    if (!tcvrId.has_value()) {
+      throw FbossError(folly::sformat(
+          "setInterfaceTxRx: Transceiver not found for port {}", portName));
+    }
+
+    // Finally call the transceiver object for port loopback
+    auto lockedTransceivers = transceivers_.rlock();
+    if (auto it = lockedTransceivers->find(tcvrId.value());
+        it != lockedTransceivers->end()) {
+      if (component == phy::PortComponent::TRANSCEIVER_LINE) {
+        it->second->setTransceiverLoopback(
+            portName, phy::Side::LINE, setLoopback);
+      } else {
+        it->second->setTransceiverLoopback(
+            portName, phy::Side::SYSTEM, setLoopback);
+      }
+    }
+  }
 }
 
 void TransceiverManager::setPortAdminState(

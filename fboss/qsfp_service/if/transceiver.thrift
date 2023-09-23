@@ -240,6 +240,7 @@ enum TransceiverModuleIdentifier {
 }
 
 enum CmisModuleState {
+  UNKNOWN = 0x0,
   LOW_POWER = 0x1,
   POWERING_UP = 0x2,
   READY = 0x3,
@@ -441,6 +442,7 @@ struct TcvrState {
   21: map<string, list<i32>> portNameToHostLanes;
   22: map<string, list<i32>> portNameToMediaLanes;
   23: i64 timeCollected;
+  24: DiagsCapability diagCapability;
 }
 
 struct TcvrStats {
@@ -453,17 +455,19 @@ struct TcvrStats {
   7: map<string, list<i32>> portNameToHostLanes;
   8: map<string, list<i32>> portNameToMediaLanes;
   9: i64 timeCollected;
+  10: i64 lastFwUpgradeStartTime;
+  11: i64 lastFwUpgradeEndTime;
 }
 
 struct TransceiverInfo {
-  1: bool present (deprecated = "Moved to state/stats");
-  2: TransceiverType transceiver (deprecated = "Moved to state/stats");
-  3: i32 port (deprecated = "Moved to state/stats"); // physical port number
+  1: optional bool present (deprecated = "Moved to state/stats");
+  2: optional TransceiverType transceiver (deprecated = "Moved to state/stats");
+  3: optional i32 port (deprecated = "Moved to state/stats"); // physical port number
   4: optional GlobalSensors sensor (deprecated = "Moved to state/stats");
   5: optional AlarmThreshold thresholds (deprecated = "Moved to state/stats");
   9: optional Vendor vendor (deprecated = "Moved to state/stats");
   10: optional Cable cable (deprecated = "Moved to state/stats");
-  12: list<Channel> channels (deprecated = "Moved to state/stats");
+  12: optional list<Channel> channels (deprecated = "Moved to state/stats");
   13: optional TransceiverSettings settings (
     deprecated = "Moved to state/stats",
   );
@@ -608,6 +612,8 @@ struct DiagsCapability {
   9: list<prbs.PrbsPolynomial> prbsLineCapabilities = [];
   10: bool txOutputControl = false;
   11: bool rxOutputControl = false;
+  12: bool snrLine = false;
+  13: bool snrSystem = false;
 }
 
 enum TransceiverStateMachineState {

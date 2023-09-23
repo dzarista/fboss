@@ -525,8 +525,7 @@ HwPortStats HwSwitchEnsemble::getLatestPortStats(PortID port) {
 std::map<PortID, HwPortStats> HwSwitchEnsemble::getLatestPortStats(
     const std::vector<PortID>& ports) {
   std::map<PortID, HwPortStats> portIdStatsMap;
-  SwitchStats dummy{};
-  getHwSwitch()->updateStats(&dummy);
+  getHwSwitch()->updateStats();
 
   auto swState = getProgrammedState();
   auto stats = getHwSwitch()->getPortStats();
@@ -547,8 +546,7 @@ HwSysPortStats HwSwitchEnsemble::getLatestSysPortStats(SystemPortID port) {
 std::map<SystemPortID, HwSysPortStats> HwSwitchEnsemble::getLatestSysPortStats(
     const std::vector<SystemPortID>& ports) {
   std::map<SystemPortID, HwSysPortStats> portIdStatsMap;
-  SwitchStats dummy{};
-  getHwSwitch()->updateStats(&dummy);
+  getHwSwitch()->updateStats();
 
   auto swState = getProgrammedState();
   auto stats = getHwSwitch()->getSysPortStats();
@@ -596,7 +594,8 @@ void HwSwitchEnsemble::setupEnsemble(
   switchInfo.portIdRange() = portIdRange;
   auto switchIdToSwitchInfo = std::map<int64_t, cfg::SwitchInfo>(
       {{asic->getSwitchId() ? *asic->getSwitchId() : 0, switchInfo}});
-  hwAsicTable_ = std::make_unique<HwAsicTable>(switchIdToSwitchInfo);
+  hwAsicTable_ =
+      std::make_unique<HwAsicTable>(switchIdToSwitchInfo, std::nullopt);
   scopeResolver_ =
       std::make_unique<SwitchIdScopeResolver>(switchIdToSwitchInfo);
   if (haveFeature(MULTISWITCH_THRIFT_SERVER)) {
@@ -705,10 +704,7 @@ void HwSwitchEnsemble::switchRunStateChanged(SwitchRunState switchState) {
       haveFeature(STATS_COLLECTION)) {
     fs_ = std::make_unique<folly::FunctionScheduler>();
     fs_->setThreadName("UpdateStatsThread");
-    auto statsCollect = [this] {
-      SwitchStats dummy;
-      getHwSwitch()->updateStats(&dummy);
-    };
+    auto statsCollect = [this] { getHwSwitch()->updateStats(); };
     auto timeInterval = std::chrono::seconds(1);
     fs_->addFunction(statsCollect, timeInterval, "updateStats");
     fs_->start();

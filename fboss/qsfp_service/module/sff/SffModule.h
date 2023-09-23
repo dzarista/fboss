@@ -15,6 +15,7 @@ enum class SffPages : int {
   PAGE0 = 0,
   PAGE3 = 3,
   PAGE7 = 7,
+  PAGE128 = 128,
 };
 
 enum class SffField;
@@ -276,6 +277,14 @@ class SffModule : public QsfpModule {
       std::optional<uint8_t> userChannelMask,
       bool enable) override;
 
+  /*
+   * Set the Transceiver loopback system/line side
+   */
+  virtual void setTransceiverLoopbackLocked(
+      const std::string& portName,
+      phy::Side side,
+      bool setLoopback) override;
+
  private:
   // no copy or assignment
   SffModule(SffModule const&) = delete;
@@ -424,6 +433,7 @@ class SffModule : public QsfpModule {
    * This function expects the caller to hold the qsfp module level lock
    */
   bool setPortPrbsLocked(
+      const std::string& /* portName */,
       phy::Side /* side */,
       const prbs::InterfacePrbsState& /* prbs */) override;
 

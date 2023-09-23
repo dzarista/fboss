@@ -6,6 +6,7 @@
 #include "fboss/qsfp_service/module/QsfpModule.h"
 
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
+#include "fboss/lib/firmware_storage/FbossFirmware.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 
 #include <optional>
@@ -350,6 +351,14 @@ class CmisModule : public QsfpModule {
       std::optional<uint8_t> userChannelMask,
       bool enable) override;
 
+  /*
+   * Set the Transceiver loopback system side
+   */
+  virtual void setTransceiverLoopbackLocked(
+      const std::string& portName,
+      phy::Side side,
+      bool setLoopback) override;
+
  private:
   // no copy or assignment
   CmisModule(CmisModule const&) = delete;
@@ -434,8 +443,10 @@ class CmisModule : public QsfpModule {
    * Set the PRBS Generator and Checker on a module for the desired side (Line
    * or System side)
    */
-  bool setPortPrbsLocked(phy::Side side, const prbs::InterfacePrbsState& prbs)
-      override;
+  bool setPortPrbsLocked(
+      const std::string& portName,
+      phy::Side side,
+      const prbs::InterfacePrbsState& prbs) override;
 
   /*
    * Get the PRBS stats for a module
@@ -457,6 +468,9 @@ class CmisModule : public QsfpModule {
   CmisLaneState getDatapathLaneStateLocked(
       uint8_t lane,
       bool readFromCache = true);
+
+  bool upgradeFirmwareLockedImpl(
+      std::unique_ptr<FbossFirmware> fbossFw) const override;
 };
 
 } // namespace fboss

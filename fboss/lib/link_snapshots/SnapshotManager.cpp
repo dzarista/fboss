@@ -25,19 +25,8 @@ constexpr auto kMaxLogLineLength = 8000;
 namespace facebook::fboss {
 
 void SnapshotWrapper::publish(const std::set<std::string>& portNames) {
-  // S309875: Log length is too long now due to the tcvrStats and tcvrState
-  // fields containing lots of duplicate data from other fields. For now lets
-  // just clear these fields so that they aren't included in the log.
-  // TODO(ccpowers): At some point we should de-duplicate the data at its source
-  // rather than just wiping the duplicate data prior to logging it.
-  auto patchedSnapshot = snapshot_;
-  if (patchedSnapshot.transceiverInfo_ref()) {
-    patchedSnapshot.transceiverInfo_ref()->tcvrStats_ref() = TcvrStats();
-    patchedSnapshot.transceiverInfo_ref()->tcvrState_ref() = TcvrState();
-  }
   auto serializedSnapshot =
-      apache::thrift::SimpleJSONSerializer::serialize<std::string>(
-          patchedSnapshot);
+      apache::thrift::SimpleJSONSerializer::serialize<std::string>(snapshot_);
   if (!published_) {
     std::stringstream log;
     log << LinkSnapshotAlert() << "Collected snapshot for ports ";

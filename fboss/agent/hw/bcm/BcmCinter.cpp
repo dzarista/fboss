@@ -2208,6 +2208,59 @@ int BcmCinter::bcm_udf_init(int unit) {
   return 0;
 }
 
+int BcmCinter::bcm_field_qset_id_multi_set(
+    int unit,
+    bcm_field_qualify_t qualifier,
+    int num_objects,
+    int* object_list,
+    bcm_field_qset_t* qset) {
+  auto cint = cintForQset(*qset);
+  auto cintForFn = wrapFunc(to<string>(
+      "bcm_field_group_create_id(",
+      makeParamStr(unit, qualifier, num_objects, *object_list, "&qset"),
+      ")"));
+
+  cint.insert(
+      cint.end(),
+      make_move_iterator(cintForFn.begin()),
+      make_move_iterator(cintForFn.end()));
+  writeCintLines(std::move(cint));
+  return 0;
+}
+
+int BcmCinter::bcm_field_qualify_UdfClass(
+    int unit,
+    bcm_field_entry_t entry,
+    uint32 data,
+    uint32 mask) {
+  writeCintLines(wrapFunc(to<string>(
+      "bcm_field_qualify_UdfClass(",
+      makeParamStr(unit, getCintVar(fieldEntryVars, entry), data, mask),
+      ")")));
+  return 0;
+}
+
+int BcmCinter::bcm_field_qualify_udf(
+    int unit,
+    bcm_field_entry_t eid,
+    bcm_udf_id_t udf_id,
+    int length,
+    uint8* data,
+    uint8* mask) {
+  writeCintLines(wrapFunc(to<string>(
+      "bcm_field_qualify_udf(",
+      makeParamStr(
+          unit, getCintVar(fieldEntryVars, eid), udf_id, length, *data, *mask),
+      ")")));
+  return 0;
+}
+
+void BcmCinter::bcm_field_group_config_t_init(
+    bcm_field_group_config_t* /*group_config*/) {
+  writeCintLines(wrapFunc(to<string>(
+      "bcm_field_group_config_t_init(", makeParamStr("group_config"), ")")));
+}
+
 int BcmCinter::bcm_port_phy_modify(
     int unit,
     bcm_port_t port,

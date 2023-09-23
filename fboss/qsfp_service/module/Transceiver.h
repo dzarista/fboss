@@ -14,6 +14,7 @@
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 #include "fboss/lib/phy/gen-cpp2/prbs_types.h"
+#include "fboss/qsfp_service/if/gen-cpp2/qsfp_service_config_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 
 #include <folly/futures/Future.h>
@@ -42,6 +43,7 @@ enum TransceiverStateMachineEvent {
   TCVR_EV_RESET_TO_NOT_PRESENT = 15,
   TCVR_EV_REMEDIATE_TRANSCEIVER = 16,
   TCVR_EV_PREPARE_TRANSCEIVER = 17,
+  TCVR_EV_UPGRADE_FIRMWARE = 18,
 };
 
 struct TransceiverPortState {
@@ -222,6 +224,7 @@ class Transceiver {
       phy::Side side) const = 0;
 
   virtual bool setPortPrbs(
+      const std::string& /* portName */,
       phy::Side /* side */,
       const prbs::InterfacePrbsState& /* prbs */) = 0;
 
@@ -264,12 +267,26 @@ class Transceiver {
       std::optional<uint8_t> /* userChannelMask */,
       bool /* enable */) = 0;
 
+  virtual void setTransceiverLoopback(
+      const std::string& /* portName */,
+      phy::Side /* side */,
+      bool /* setLoopback */) = 0;
+
   time_t modulePauseRemediationUntil_{0};
   virtual void setModulePauseRemediation(int32_t timeout) = 0;
   virtual time_t getModulePauseRemediationUntil() = 0;
   bool getDirty_() const {
     return dirty_;
   }
+
+  virtual bool requiresFirmwareUpgrade() const = 0;
+
+  // Blocking call to upgrade the firmware on the transceiver.
+  // Returns true if successful, false otherwise.
+  // If fw is not specified, then the firmware image to upgrade is picked from
+  // the qsfp config
+  virtual bool upgradeFirmware(
+      const std::optional<cfg::Firmware>& fw = std::nullopt) = 0;
 
  protected:
   virtual void latchAndReadVdmDataLocked() = 0;

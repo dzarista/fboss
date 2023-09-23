@@ -17,7 +17,7 @@
 #include "fboss/agent/FbossError.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 #include "fboss/lib/usb/TransceiverI2CApi.h"
-#include "fboss/qsfp_service/StatsPublisher.h"
+#include "fboss/qsfp_service/TransceiverManager.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 #include "fboss/qsfp_service/module/TransceiverImpl.h"
 
@@ -124,6 +124,186 @@ void QsfpModule::getQsfpValue(
   memcpy(data, ptr, length);
 }
 
+std::optional<cfg::Firmware> QsfpModule::getFirmwareFromCfg() const {
+  auto qsfpCfgRaw = getTransceiverManager()->getQsfpConfig();
+  if (!qsfpCfgRaw) {
+    QSFP_LOG(DBG4, this) << "qsfpConfig is NULL. No Firmware to return";
+    return std::nullopt;
+  }
+
+  const auto& qsfpCfg = qsfpCfgRaw->thrift;
+  auto qsfpCfgFw = qsfpCfg.transceiverFirmwareVersions();
+  if (!qsfpCfgFw.has_value()) {
+    QSFP_LOG(DBG4, this)
+        << "transceiverFirmwareVersions is NULL. No Firmware to return";
+    return std::nullopt;
+  }
+
+  auto cachedTcvrInfo = getTransceiverInfo();
+  auto vendor = cachedTcvrInfo.tcvrState()->vendor();
+  if (!vendor.has_value()) {
+    QSFP_LOG(DBG4, this) << "Vendor not set. No Firmware to return";
+    return std::nullopt;
+  }
+
+  auto fwVersionInCfgIt =
+      qsfpCfgFw->versionsMap()->find(vendor->get_partNumber());
+  if (fwVersionInCfgIt == qsfpCfgFw->versionsMap()->end()) {
+    QSFP_LOG(DBG4, this) << folly::sformat(
+        "transceiverFirmwareVersions doesn't have a firmware version for part number {:s}.  No Firmware to return",
+        vendor->get_partNumber());
+    return std::nullopt;
+  }
+
+  return fwVersionInCfgIt->second;
+}
+
+bool QsfpModule::requiresFirmwareUpgrade() const {
+  // Returns true if the current firmware revision is different than the one in
+  // qsfp config
+  auto cachedTcvrInfo = getTransceiverInfo();
+  auto moduleStatus = cachedTcvrInfo.tcvrState()->status();
+  if (!moduleStatus.has_value()) {
+    QSFP_LOG(DBG4, this)
+        << "moduleStatus not set. Returning false from requiresFirmwareUpgrade";
+    return false;
+  }
+
+  auto fwStatus = moduleStatus->fwStatus();
+  if (!fwStatus.has_value()) {
+    QSFP_LOG(DBG4, this)
+        << "fwStatus not set. Returning false from requiresFirmwareUpgrade";
+    return false;
+  }
+
+  auto fwFromConfig = getFirmwareFromCfg();
+  if (!fwFromConfig.has_value()) {
+    QSFP_LOG(DBG4, this)
+        << "Fw not available in config. Returning false from requiresFirmwareUpgrade";
+    return false;
+  }
+
+  for (auto fwIt : *fwFromConfig->versions()) {
+    if (fwIt.get_fwType() == cfg::FirmwareType::APPLICATION &&
+        fwStatus->version() && fwIt.get_version() != *fwStatus->version()) {
+      QSFP_LOG(INFO, this) << folly::sformat(
+          "Application Version in cfg = {:s}, current operational version = {:s}. Returning true from requiresFirmwareUpgrade",
+          fwIt.get_version(),
+          *fwStatus->version());
+      return true;
+    }
+    if (fwIt.get_fwType() == cfg::FirmwareType::DSP && fwStatus->dspFwVer() &&
+        fwIt.get_version() != *fwStatus->dspFwVer()) {
+      QSFP_LOG(INFO, this) << folly::sformat(
+          "DSP Version in cfg = {:s}, current operational version = {:s}. Returning true from requiresFirmwareUpgrade",
+          fwIt.get_version(),
+          *fwStatus->dspFwVer());
+      return true;
+    }
+  }
+
+  // Versions match. No need to upgrade firmware
+  return false;
+}
+
+bool QsfpModule::upgradeFirmware(const std::optional<cfg::Firmware>& fw) {
+  // Always use i2cEvb to program transceivers if there's an i2cEvb
+  auto i2cEvb = qsfpImpl_->getI2cEventBase();
+  auto upgradeFwFn = [&, fw]() -> bool {
+    lock_guard<std::mutex> g(qsfpModuleMutex_);
+    return upgradeFirmwareLocked(fw);
+  };
+
+  if (!i2cEvb) {
+    try {
+      return upgradeFwFn();
+    } catch (const std::exception& ex) {
+      QSFP_LOG(DBG2, this) << "Error calling upgradeFirmwareLocked(): "
+                           << ex.what();
+    }
+    return false;
+  }
+
+  bool fwUpgradeStatus = false;
+  via(i2cEvb)
+      .thenValue([&, upgradeFwFn](auto&&) mutable {
+        try {
+          fwUpgradeStatus = upgradeFwFn();
+        } catch (const std::exception& ex) {
+          QSFP_LOG(DBG2, this)
+              << "Error calling upgradeFirmwareLocked(): " << ex.what();
+        }
+      })
+      .get();
+  return fwUpgradeStatus;
+}
+
+bool QsfpModule::upgradeFirmwareLocked(const std::optional<cfg::Firmware>& fw) {
+  QSFP_LOG(INFO, this) << "Upgrading firmware";
+
+  // Mark the module dirty so that we can refresh the entire cache later
+  dirty_ = true;
+
+  cfg::Firmware fwToUpgrade;
+  if (fw.has_value()) {
+    fwToUpgrade = fw.value();
+  } else if (auto fwFromConfig = getFirmwareFromCfg()) {
+    QSFP_LOG(INFO, this) << "Upgrading firmware to the one in qsfp config";
+    fwToUpgrade = *fwFromConfig;
+  } else {
+    QSFP_LOG(ERR, this) << "No firmware version found to upgrade";
+    return false;
+  }
+
+  auto cachedTcvrInfo = getTransceiverInfo();
+  auto vendor = cachedTcvrInfo.tcvrState()->vendor();
+  if (!vendor.has_value()) {
+    QSFP_LOG(ERR, this)
+        << "Vendor not set. Can't find the partnumber to upgrade";
+    return false;
+  }
+
+  std::string fwStorageHandleName =
+      getFwStorageHandle(vendor->get_partNumber());
+
+  if (fwStorageHandleName.empty()) {
+    QSFP_LOG(ERR, this)
+        << "Can't find the fwStorage handle for this part number. Skipping fw upgrade";
+    return false;
+  }
+
+  bool fwUpgradeResult = true;
+  lastFwUpgradeStartTime_ = std::time(nullptr);
+  for (const auto& fwVersion : *fwToUpgrade.versions()) {
+    QSFP_LOG(INFO, this) << folly::sformat(
+        "Upgrading module firmware. Type={:s}, Version={:s}",
+        apache::thrift::util::enumNameSafe(*fwVersion.fwType()),
+        *fwVersion.version());
+
+    std::unique_ptr<FbossFirmware> fbossFw =
+        getTransceiverManager()->fwStorage()->getFirmware(
+            fwStorageHandleName, *fwVersion.version());
+    fwUpgradeResult &= upgradeFirmwareLockedImpl(std::move(fbossFw));
+  }
+
+  // Trigger a hard reset of the transceiver to kick start the new firmware
+  triggerModuleResetLocked();
+
+  lastFwUpgradeEndTime_ = std::time(nullptr);
+  auto elapsedSeconds = lastFwUpgradeEndTime_ - lastFwUpgradeStartTime_;
+
+  QSFP_LOG(INFO, this) << "Firmware upgrade completed "
+                       << (fwUpgradeResult ? "successfully" : "unsuccessfully")
+                       << " in " << elapsedSeconds << " seconds. ";
+  return fwUpgradeResult;
+}
+
+void QsfpModule::triggerModuleResetLocked() {
+  getTransceiverManager()->getQsfpPlatformApi()->triggerQsfpHardReset(
+      static_cast<unsigned int>(getID()) + 1);
+  moduleResetCounter_++;
+}
+
 // Note that this needs to be called while holding the
 // qsfpModuleMutex_
 bool QsfpModule::cacheIsValid() const {
@@ -166,14 +346,10 @@ QsfpModule::detectPresenceLocked() {
     // which may not be available.
     TransceiverInfo info;
 
-    info.present() = present_;
-    info.transceiver() = type();
-    info.port() = qsfpImpl_->getNum();
-
     auto& tcvrState = info.tcvrState().ensure();
-    tcvrState.present().copy_from(info.present());
-    tcvrState.transceiver().copy_from(info.transceiver());
-    tcvrState.port().copy_from(info.port());
+    tcvrState.present() = present_;
+    tcvrState.transceiver() = type();
+    tcvrState.port() = qsfpImpl_->getNum();
 
     *info_.wlock() = info;
   }
@@ -240,85 +416,65 @@ void QsfpModule::updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus) {
   // We're currently at step 1.
 
   TransceiverInfo info;
-  info.present() = present_;
-  info.transceiver() = type();
-  info.port() = qsfpImpl_->getNum();
 
   auto& tcvrState = *info.tcvrState();
   auto& tcvrStats = *info.tcvrStats();
-  tcvrState.present().copy_from(info.present());
-  tcvrState.transceiver().copy_from(info.transceiver());
-  tcvrState.port().copy_from(info.port());
+
+  tcvrState.present() = present_;
+  tcvrState.transceiver() = type();
+  tcvrState.port() = qsfpImpl_->getNum();
 
   if (present_) {
     auto nMediaLanes = numMediaLanes();
-    info.mediaLaneSignals() = std::vector<MediaLaneSignals>(nMediaLanes);
-    if (!getSignalsPerMediaLane(*info.mediaLaneSignals())) {
-      info.mediaLaneSignals()->clear();
+    tcvrState.mediaLaneSignals() = std::vector<MediaLaneSignals>(nMediaLanes);
+    if (!getSignalsPerMediaLane(*tcvrState.mediaLaneSignals())) {
+      tcvrState.mediaLaneSignals()->clear();
     } else {
-      cacheMediaLaneSignals(*info.mediaLaneSignals());
+      cacheMediaLaneSignals(*tcvrState.mediaLaneSignals());
     }
 
-    info.sensor() = getSensorInfo();
-    info.vendor() = getVendorInfo();
-    info.cable() = getCableInfo();
+    tcvrStats.sensor() = getSensorInfo();
+    tcvrState.vendor() = getVendorInfo();
+    tcvrState.cable() = getCableInfo();
     if (auto threshold = getThresholdInfo()) {
-      info.thresholds() = *threshold;
+      tcvrState.thresholds() = *threshold;
     }
-    info.settings() = getTransceiverSettingsInfo();
+    tcvrState.settings() = getTransceiverSettingsInfo();
 
     for (int i = 0; i < nMediaLanes; i++) {
       Channel chan;
       chan.channel() = i;
-      info.channels()->push_back(chan);
+      tcvrStats.channels()->push_back(chan);
     }
-    if (!getSensorsPerChanInfo(*info.channels())) {
-      info.channels()->clear();
+    if (!getSensorsPerChanInfo(*tcvrStats.channels())) {
+      tcvrStats.channels()->clear();
     }
 
-    info.hostLaneSignals() = std::vector<HostLaneSignals>(numHostLanes());
-    if (!getSignalsPerHostLane(*info.hostLaneSignals())) {
-      info.hostLaneSignals()->clear();
+    tcvrState.hostLaneSignals() = std::vector<HostLaneSignals>(numHostLanes());
+    if (!getSignalsPerHostLane(*tcvrState.hostLaneSignals())) {
+      tcvrState.hostLaneSignals()->clear();
     }
 
     if (auto transceiverStats = getTransceiverStats()) {
-      info.stats() = *transceiverStats;
+      tcvrStats.stats() = *transceiverStats;
     }
 
-    info.signalFlag() = getSignalFlagInfo();
-    cacheSignalFlags(*info.signalFlag());
+    tcvrState.signalFlag() = getSignalFlagInfo();
+    cacheSignalFlags(*tcvrState.signalFlag());
 
     if (auto extSpecCompliance = getExtendedSpecificationComplianceCode()) {
-      info.extendedSpecificationComplianceCode() = *extSpecCompliance;
+      tcvrState.extendedSpecificationComplianceCode() = *extSpecCompliance;
     }
-    info.transceiverManagementInterface() = managementInterface();
+    tcvrState.transceiverManagementInterface() = managementInterface();
 
-    info.identifier() = getIdentifier();
+    tcvrState.identifier() = getIdentifier();
     auto currentStatus = getModuleStatus();
     // Use the input `moduleStatus` as the reference to update the
     // `cmisStateChanged` for currentStatus, which will be used in the
     // TransceiverInfo
     updateCmisStateChanged(currentStatus, moduleStatus);
-    info.status() = currentStatus;
+    tcvrState.status() = currentStatus;
     cacheStatusFlags(currentStatus);
-
-    // Populate the new state/stats members as well from old fields
-    tcvrState.mediaLaneSignals().copy_from(info.mediaLaneSignals());
-    tcvrStats.sensor().copy_from(info.sensor());
-    tcvrState.vendor().copy_from(info.vendor());
-    tcvrState.cable().copy_from(info.cable());
-    tcvrState.thresholds().copy_from(info.thresholds());
-    tcvrState.settings().copy_from(info.settings());
-    tcvrStats.channels().copy_from(info.channels());
-    tcvrState.hostLaneSignals().copy_from(info.hostLaneSignals());
-    tcvrStats.stats().copy_from(info.stats());
-    tcvrState.signalFlag().copy_from(info.signalFlag());
-    tcvrState.extendedSpecificationComplianceCode().copy_from(
-        info.extendedSpecificationComplianceCode());
-    tcvrState.transceiverManagementInterface().copy_from(
-        info.transceiverManagementInterface());
-    tcvrState.identifier().copy_from(info.identifier());
-    tcvrState.status().copy_from(info.status());
 
     // If the StatsPublisher thread has triggered the VDM data capture then
     // latch, read data (page 24 and 25), release latch
@@ -327,38 +483,29 @@ void QsfpModule::updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus) {
     }
 
     if (auto vdmStats = getVdmDiagsStatsInfo()) {
-      info.vdmDiagsStats() = *vdmStats;
+      tcvrStats.vdmDiagsStats() = *vdmStats;
 
       // If the StatsPublisher thread has triggered the VDM data capture then
       // capure this data into transceiverInfo cache
       if (captureVdmStats_) {
-        info.vdmDiagsStatsForOds() = *vdmStats;
+        tcvrStats.vdmDiagsStatsForOds() = *vdmStats;
       } else {
         // If the VDM is not updated in this cycle then retain older values
         auto cachedTcvrInfo = getTransceiverInfo();
-        if (cachedTcvrInfo.vdmDiagsStatsForOds()) {
-          info.vdmDiagsStatsForOds() =
-              cachedTcvrInfo.vdmDiagsStatsForOds().value();
+        if (cachedTcvrInfo.tcvrStats()->vdmDiagsStatsForOds()) {
+          tcvrStats.vdmDiagsStatsForOds() =
+              cachedTcvrInfo.tcvrStats()->vdmDiagsStatsForOds().value();
         }
       }
       captureVdmStats_ = false;
-
-      tcvrStats.vdmDiagsStats().copy_from(info.vdmDiagsStats());
-      tcvrStats.vdmDiagsStatsForOds().copy_from(info.vdmDiagsStatsForOds());
     }
 
-    info.timeCollected() = lastRefreshTime_;
     tcvrState.timeCollected() = lastRefreshTime_;
     tcvrStats.timeCollected() = lastRefreshTime_;
 
-    info.remediationCounter() = numRemediation_;
-    info.eepromCsumValid() = verifyEepromChecksums();
-
-    info.moduleMediaInterface() = getModuleMediaInterface();
-
-    tcvrStats.remediationCounter().copy_from(info.remediationCounter());
-    tcvrState.eepromCsumValid().copy_from(info.eepromCsumValid());
-    tcvrState.moduleMediaInterface().copy_from(info.moduleMediaInterface());
+    tcvrStats.remediationCounter() = numRemediation_;
+    tcvrState.eepromCsumValid() = verifyEepromChecksums();
+    tcvrState.moduleMediaInterface() = getModuleMediaInterface();
 
     for (auto it : getPortNameToHostLanes()) {
       tcvrState.portNameToHostLanes()[it.first] =
@@ -371,7 +518,15 @@ void QsfpModule::updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus) {
           std::vector<int>(it.second.begin(), it.second.end());
     }
     tcvrStats.portNameToMediaLanes() = *tcvrState.portNameToMediaLanes();
+
+    auto diagCapability = getDiagsCapability();
+    if (diagCapability.has_value()) {
+      tcvrState.diagCapability() = diagCapability.value();
+    }
   }
+
+  tcvrStats.lastFwUpgradeStartTime() = lastFwUpgradeStartTime_;
+  tcvrStats.lastFwUpgradeEndTime() = lastFwUpgradeEndTime_;
 
   phy::LinkSnapshot snapshot;
   snapshot.transceiverInfo_ref() = info;
@@ -429,12 +584,13 @@ void QsfpModule::cacheMediaLaneSignals(
 }
 
 bool QsfpModule::setPortPrbs(
+    const std::string& portName,
     phy::Side side,
     const prbs::InterfacePrbsState& prbs) {
   bool status = false;
-  auto setPrbsLambda = [&status, side, prbs, this]() {
+  auto setPrbsLambda = [&status, portName, side, prbs, this]() {
     lock_guard<std::mutex> g(qsfpModuleMutex_);
-    status = setPortPrbsLocked(side, prbs);
+    status = setPortPrbsLocked(portName, side, prbs);
   };
   auto i2cEvb = qsfpImpl_->getI2cEventBase();
   if (!i2cEvb) {
@@ -469,6 +625,26 @@ bool QsfpModule::setTransceiverTx(
     return via(i2cEvb)
         .thenValue([setTcvrFn](auto&&) mutable { return setTcvrFn(); })
         .get();
+  }
+}
+
+void QsfpModule::setTransceiverLoopback(
+    const std::string& portName,
+    phy::Side side,
+    bool setLoopback) {
+  // Lambda to call Locked function
+  auto setTcvrFn = [&]() {
+    lock_guard<std::mutex> g(qsfpModuleMutex_);
+    setTransceiverLoopbackLocked(portName, side, setLoopback);
+  };
+
+  auto i2cEvb = qsfpImpl_->getI2cEventBase();
+  if (!i2cEvb) {
+    // In non-multithreaded environment, run the function in current thread
+    setTcvrFn();
+  } else {
+    // In mulththreaded environment, run the function in event base thread
+    via(i2cEvb).thenValue([setTcvrFn](auto&&) mutable { setTcvrFn(); }).get();
   }
 }
 
@@ -654,6 +830,8 @@ void QsfpModule::clearTransceiverPrbsStats(phy::Side side) {
     for (auto& laneStat : laneStats) {
       laneStat.ber() = 0;
       laneStat.maxBer() = 0;
+      laneStat.snr().reset();
+      laneStat.maxSnr().reset();
       laneStat.numLossOfLock() = 0;
       laneStat.timeSinceLastClear() = 0;
 
@@ -691,10 +869,24 @@ void QsfpModule::updatePrbsStats() {
             } else {
               newLane.maxBer() = *oldLane.maxBer();
             }
+            // Update maxSnr only if there is a lock
+            if (*newLane.locked()) {
+              if (newLane.snr().has_value() &&
+                  (!oldLane.maxSnr().has_value() ||
+                   *newLane.snr() > *oldLane.maxSnr())) {
+                newLane.maxSnr() = *newLane.snr();
+              }
+            } else if (oldLane.maxSnr().has_value()) {
+              newLane.maxSnr() = *oldLane.maxSnr();
+            }
+
             QSFP_LOG(DBG5, this)
                 << " Lane " << *newLane.laneId()
                 << " Lock=" << (*newLane.locked() ? "Y" : "N")
-                << " ber=" << *newLane.ber() << " maxBer=" << *newLane.maxBer();
+                << " ber=" << *newLane.ber() << " maxBer=" << *newLane.maxBer()
+                << " snr=" << (newLane.snr().has_value() ? *newLane.snr() : 0)
+                << " maxSnr="
+                << (newLane.maxSnr().has_value() ? *newLane.maxSnr() : 0);
 
             // Update timeSinceLastLocked
             // If previously there was no lock and now there is, update

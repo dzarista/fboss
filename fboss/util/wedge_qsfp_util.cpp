@@ -1672,8 +1672,8 @@ void printSff8472DetailService(
 
   printVendorInfo(transceiverInfo);
 
-  if (auto timeCollected = transceiverInfo.timeCollected()) {
-    printf("  Time collected: %s\n", getLocalTime(*timeCollected).c_str());
+  if (auto timeCollected = *transceiverInfo.tcvrState()->timeCollected()) {
+    printf("  Time collected: %s\n", getLocalTime(timeCollected).c_str());
   }
 }
 
@@ -1750,8 +1750,8 @@ void printSffDetailService(
   printf(
       "    Power Control: %s\n",
       apache::thrift::util::enumNameSafe(*(settings.powerControl())).c_str());
-  if (auto timeCollected = transceiverInfo.timeCollected()) {
-    printf("  Time collected: %s\n", getLocalTime(*timeCollected).c_str());
+  if (auto timeCollected = *transceiverInfo.tcvrState()->timeCollected()) {
+    printf("  Time collected: %s\n", getLocalTime(timeCollected).c_str());
   }
 }
 
@@ -2038,13 +2038,13 @@ void printCmisDetailService(
   if (tcvrState.eepromCsumValid().has_value()) {
     printf(
         "  EEPROM Checksum: %s\n",
-        *transceiverInfo.eepromCsumValid() ? "Valid" : "Invalid");
+        *tcvrState.eepromCsumValid() ? "Valid" : "Invalid");
   }
   printSignalsAndSettings(transceiverInfo);
   printDomMonitors(transceiverInfo);
   printVendorInfo(transceiverInfo);
-  if (auto timeCollected = transceiverInfo.timeCollected()) {
-    printf("  Time collected: %s\n", getLocalTime(*timeCollected).c_str());
+  if (auto timeCollected = *transceiverInfo.tcvrState()->timeCollected()) {
+    printf("  Time collected: %s\n", getLocalTime(timeCollected).c_str());
   }
 }
 
@@ -2384,7 +2384,76 @@ int resetQsfp(const std::vector<std::string>& ports, folly::EventBase& evb) {
   return EX_OK;
 }
 
-bool doMiniphotonLoopback(
+bool setTransceiverLoopback(
+    DirectI2cInfo i2cInfo,
+    std::vector<std::string> portList,
+    LoopbackMode mode) {
+  TransceiverManagementInterface managementInterface;
+
+  if (FLAGS_direct_i2c) {
+    bool result = true;
+    TransceiverI2CApi* bus = i2cInfo.bus;
+    TransceiverManager* wedgeManager = i2cInfo.transceiverManager;
+
+    for (auto& portName : portList) {
+      auto port = wedgeManager->getPortNameToModuleMap().at(portName) + 1;
+      managementInterface = getModuleType(bus, port);
+      if (managementInterface != TransceiverManagementInterface::CMIS) {
+        result = result && doMiniphotonLoopbackDirect(bus, port, mode);
+      } else {
+        if (mode == electricalLoopback || mode == noLoopback) {
+          cmisHostInputLoopbackDirect(bus, port, mode);
+        }
+        if (mode == opticalLoopback || mode == noLoopback) {
+          cmisMediaInputLoopbackDirect(bus, port, mode);
+        }
+      }
+      printf(
+          "QSFP port %s loopback mode setting to %s done\n",
+          portName.c_str(),
+          ((mode == electricalLoopback)    ? "electrical"
+               : (mode == opticalLoopback) ? "opticalLoopback"
+                                           : "noLoopback"));
+    }
+    return result;
+  } else {
+    if (!QsfpServiceDetector::getInstance()->isQsfpServiceActive()) {
+      throw FbossError("qsfp_service not found running");
+    }
+
+    folly::EventBase& evb = QsfpUtilContainer::getInstance()->getEventBase();
+    auto client = getQsfpClient(evb);
+
+    for (auto& portName : portList) {
+      try {
+        if (mode == electricalLoopback) {
+          client->sync_setPortLoopbackState(
+              portName, phy::PortComponent::TRANSCEIVER_SYSTEM, true);
+        } else if (mode == opticalLoopback) {
+          client->sync_setPortLoopbackState(
+              portName, phy::PortComponent::TRANSCEIVER_LINE, true);
+        } else {
+          client->sync_setPortLoopbackState(
+              portName, phy::PortComponent::TRANSCEIVER_SYSTEM, false);
+          client->sync_setPortLoopbackState(
+              portName, phy::PortComponent::TRANSCEIVER_LINE, false);
+        }
+
+        printf("QSFP port %s loopback mode setting done\n", portName.c_str());
+      } catch (const std::exception& ex) {
+        fprintf(
+            stderr,
+            "Error setting loopback mode via qsfp_service: %s\n",
+            ex.what());
+        return false;
+      }
+    }
+    return true;
+  }
+  return true;
+}
+
+bool doMiniphotonLoopbackDirect(
     TransceiverI2CApi* bus,
     unsigned int port,
     LoopbackMode mode) {
@@ -2408,7 +2477,7 @@ bool doMiniphotonLoopback(
   return true;
 }
 
-void cmisHostInputLoopback(
+void cmisHostInputLoopbackDirect(
     TransceiverI2CApi* bus,
     unsigned int port,
     LoopbackMode mode) {
@@ -2439,7 +2508,7 @@ void cmisHostInputLoopback(
   }
 }
 
-void cmisMediaInputLoopback(
+void cmisMediaInputLoopbackDirect(
     TransceiverI2CApi* bus,
     unsigned int port,
     LoopbackMode mode) {
@@ -3362,6 +3431,12 @@ void getModulePrbsStats(folly::EventBase& evb, std::vector<PortID> portList) {
       printf("  Locked: %s\n", (laneStats.locked().value() ? "True" : "False"));
       printf("  BER: %e\n", laneStats.ber().value());
       printf("  Max BER: %e\n", laneStats.maxBer().value());
+      printf(
+          "  SNR: %f\n",
+          (laneStats.snr().has_value() ? laneStats.snr().value() : 0));
+      printf(
+          "  Max SNR: %f\n",
+          (laneStats.maxSnr().has_value() ? laneStats.maxSnr().value() : 0));
       printf("  Num Loss of lock: %d\n", laneStats.numLossOfLock().value());
     }
   }
@@ -3381,7 +3456,8 @@ bool verifyDirectI2cCompliance() {
   if (FLAGS_tx_disable || FLAGS_tx_enable || FLAGS_pause_remediation ||
       FLAGS_get_remediation_until_time || FLAGS_read_reg || FLAGS_write_reg ||
       FLAGS_update_module_firmware || FLAGS_update_bulk_module_fw ||
-      FLAGS_set_40g || FLAGS_set_100g) {
+      FLAGS_set_40g || FLAGS_set_100g || FLAGS_electrical_loopback ||
+      FLAGS_optical_loopback || FLAGS_clear_loopback) {
     if (FLAGS_direct_i2c) {
       if (QsfpServiceDetector::getInstance()->isQsfpServiceActive()) {
         XLOG(ERR)
@@ -3424,8 +3500,8 @@ void printModuleTransactionStats(
   printf(
       "Module        ReadsAttempted      ReadFailed(%%)   WritesAttempted    WritesFailed(%%)\n");
   for (auto& moduleInfo : modulesInfo) {
-    if (moduleInfo.second.stats().has_value()) {
-      auto& moduleStat = moduleInfo.second.stats().value();
+    if (moduleInfo.second.tcvrStats()->stats().has_value()) {
+      auto& moduleStat = moduleInfo.second.tcvrStats()->stats().value();
       readFailure = moduleStat.numReadAttempted().value()
           ? (double(moduleStat.numReadFailed().value() * 100) /
              moduleStat.numReadAttempted().value())

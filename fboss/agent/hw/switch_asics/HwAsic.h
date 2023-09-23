@@ -13,8 +13,10 @@ class HwAsic {
   HwAsic(
       cfg::SwitchType switchType,
       std::optional<int64_t> switchId,
+      int16_t switchIndex,
       std::optional<cfg::Range64> systemPortRange,
       folly::MacAddress& mac,
+      std::optional<cfg::SdkVersion> sdkVersion = std::nullopt,
       std::unordered_set<cfg::SwitchType> supportedModes = {
           cfg::SwitchType::NPU});
   enum class Feature {
@@ -175,8 +177,10 @@ class HwAsic {
       cfg::AsicType asicType,
       cfg::SwitchType switchType,
       std::optional<int64_t> switchID,
+      int16_t switchIndex,
       std::optional<cfg::Range64> systemPortRange,
-      folly::MacAddress& mac);
+      folly::MacAddress& mac,
+      std::optional<cfg::SdkVersion> sdkVersion);
   virtual bool isSupported(Feature) const = 0;
   virtual cfg::AsicType getAsicType() const = 0;
   std::string getAsicTypeStr() const;
@@ -287,11 +291,14 @@ class HwAsic {
   std::optional<uint64_t> getSwitchId() const {
     return switchId_;
   }
+  int16_t getSwitchIndex() const {
+    return switchIndex_;
+  }
   std::optional<cfg::Range64> getSystemPortRange() const {
     return systemPortRange_;
   }
 
-  cfg::StreamType getDefaultStreamType() const {
+  virtual cfg::StreamType getDefaultStreamType() const {
     return defaultStreamType_;
   }
 
@@ -309,6 +316,10 @@ class HwAsic {
     uint32_t speedMbps;
   };
 
+  std::optional<cfg::SdkVersion> getSdkVersion() const {
+    return sdkVersion_;
+  }
+
   virtual RecyclePortInfo getRecyclePortInfo() const;
   cfg::PortLoopbackMode getDesiredLoopbackMode(
       cfg::PortType portType = cfg::PortType::INTERFACE_PORT) const;
@@ -319,9 +330,11 @@ class HwAsic {
  private:
   cfg::SwitchType switchType_;
   std::optional<int64_t> switchId_;
+  int16_t switchIndex_;
   std::optional<cfg::Range64> systemPortRange_;
   cfg::StreamType defaultStreamType_{cfg::StreamType::ALL};
   folly::MacAddress asicMac_;
+  std::optional<cfg::SdkVersion> sdkVersion_;
 };
 
 } // namespace facebook::fboss
