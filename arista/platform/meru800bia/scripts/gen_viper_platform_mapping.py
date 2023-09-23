@@ -219,7 +219,10 @@ with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
          asicMapping[ lineSideSerdes ] = {}
       asicMapping[ lineSideSerdes ][ connectionType ] = ( frontPanelSlot,
                systemSideLane, polaritySwap )
+
+
 asicId = 0
+
 # Append nif ports. Since we are only setting up master ports (first port in each
 # serdes core, we can iterate over the number of cores).
 # NOTE : This is currenlty broken since META generates the platform mapping
@@ -369,6 +372,9 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
    # soc property for recycle port base).
    fh.write( "1,1,NPU,55,J3_RCY,0,,,,,,,,,,,,,,\n" )
    for serdesCore in range( numNifSerdesCores+numFabricSerdesCores ):
+      tempProps = {}
+      tempBcmLaneMapProps = {}
+      tempBcmPolSwapProps = {}
       for lane in range( numSerdesPerCore ):
          serdesId = serdesCore * numSerdesPerCore + lane
          frontPanelSlot, rxLane, rxPolSwap = asicSerdesMappings[ asicId ][ serdesId
@@ -376,9 +382,14 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
          _frontPanelSlot, txLane, txPolSwap = asicSerdesMappings[ asicId ][ serdesId
                ][ "tx" ]
          assert frontPanelSlot == _frontPanelSlot
+         frontPanelLane = lane
          if serdesId < 144:
+            logicalLane = lane
             nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ] = (
                   nifSerdesCoreToAsicCore[ serdesCore ], serdesCore )
+         else:
+            logicalLane = rxLane
+
          rxPolSwap = rxPolSwap[ 0 ]
          txPolSwap = txPolSwap[ 0 ]
          if rxPolSwap == "Y":
@@ -404,24 +415,31 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
             asicCoreType = "J3_FE"
             laneMapType = "fabric"
             polaritySwapType = "fabric"
-
-         fh.write(
-               f"1,1,NPU,{serdesCorePrinted},{asicCoreType},{lane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{lane},{lane},{lane},N,N\n"
-               )
-         if serdesCore < 18:
-            rxLane += serdesCore * numSerdesPerCore
-            txLane += serdesCore * numSerdesPerCore
-         else:
-            rxLane += ( serdesCore * numSerdesPerCore - 144 )
-            txLane += ( serdesCore * numSerdesPerCore - 144 )
+         # For fabric ports, the logicalLane need not match lane, so if we write it
+         # here we will be out of order. We will stash them here so that we can write
+         # them to the relevant files in the order of logical lanes.
+         tempProps[ logicalLane ] = \
+               f"1,1,NPU,{serdesCorePrinted},{asicCoreType},{logicalLane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
+         bcmRxLane = rxLane + serdesCore * numSerdesPerCore
+         bcmTxLane = txLane + serdesCore * numSerdesPerCore
+         bcmLogicalLane = logicalLane + serdesCore * numSerdesPerCore
+         if serdesCore >= 18:
+            bcmLogicalLane -= 144
+            bcmRxLane -= 144
+            bcmTxLane -= 144
 
          # BCM soc properties for lane maps and polarity swaps.
-         bcmConfigFh.write(
-               f"\"lane_to_serdes_map_{laneMapType}_lane{serdesId}.BCM8886X\": \"rx{rxLane}:tx{txLane}\",\n" )
-         bcmConfigFh.write(
-               f"\"phy_rx_polarity_flip_{polaritySwapType}{serdesId}.BCM8886X\": \"{rxPolSwapProp}\",\n" )
-         bcmConfigFh.write(
-               f"\"phy_tx_polarity_flip_{polaritySwapType}{serdesId}.BCM8886X\": \"{txPolSwapProp}\",\n" )
+         tempBcmLaneMapProps[ logicalLane ] = f"\"lane_to_serdes_map_{laneMapType}_lane{bcmLogicalLane}.BCM8886X\": \"rx{bcmRxLane}:tx{bcmTxLane}\",\n"
+         tempBcmPolSwapProps[ logicalLane ] = (
+               f"\"phy_rx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8886X\": \"{rxPolSwapProp}\",\n",
+               f"\"phy_tx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8886X\": \"{txPolSwapProp}\",\n" )
+
+      for lane in range( numSerdesPerCore ):
+         fh.write( tempProps[ lane ] )
+         for prop in tempBcmLaneMapProps[ lane ]:
+            bcmConfigFh.write( prop )
+         for prop in tempBcmPolSwapProps[ lane ]:
+            bcmConfigFh.write( prop )
 
 with open( "viper_port_profile_mapping.csv", "w" ) as fh:
    # Description of fields in the order of their appearance:
