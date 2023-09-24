@@ -340,6 +340,7 @@ with open( "viper_platform_mapping.json", "w") as fh:
    fh.write( json_out )
 
 nifFrontPanelSlotToAsicCoreAndSerdesCore = {}
+fabFrontPanelLaneToLogicalLane = {}
 bcmConfigFh = open( "bcm_config", "w" )
 with open( "viper_static_mapping.csv", "w" ) as fh:
    # Description of attributes for front panel serdes in the order of their
@@ -427,6 +428,7 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
             bcmLogicalLane -= 144
             bcmRxLane -= 144
             bcmTxLane -= 144
+            fabFrontPanelLaneToLogicalLane[ frontPanelSlot * 8 + frontPanelLane ] = bcmLogicalLane
 
          # BCM soc properties for lane maps and polarity swaps.
          tempBcmLaneMapProps[ logicalLane ] = f"\"lane_to_serdes_map_{laneMapType}_lane{bcmLogicalLane}.BCM8886X\": \"rx{bcmRxLane}:tx{bcmTxLane}\",\n"
@@ -456,7 +458,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
    # CPU port is 0, RCY port is 1, NIF ports start from logical port Id 2.
    # Fabric ports start from logical port Id 1024.
    nifLogicalPortIdBase = 2
-   fabLogicalPortId = 1024
+   fabLogicalPortIdBase = 1024
    fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ] )
    nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'eth' ] )
    nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'eth' ][ : -1
@@ -468,8 +470,9 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
       if frontPanelPortType == "fab":
          for subPort in range( 1,9 ):
             portStr = f"{portStrPrefix}/{subPort}"
+            fabLogicalPortId = fabLogicalPortIdBase + fabFrontPanelLaneToLogicalLane[
+                  frontPanelSlot * 8 + ( subPort - 1 ) ]
             fh.write( f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,\n" )
-            fabLogicalPortId += 1
       elif frontPanelPortType == "eth":
          for subPort in ( "1", "5" ):
             portStr = f"{portStrPrefix}/{subPort}"
