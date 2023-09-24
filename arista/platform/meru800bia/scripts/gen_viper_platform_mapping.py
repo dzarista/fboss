@@ -484,9 +484,16 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh:
                nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
                nifSupportedProfiles = nifSupportedProfilesMain
             elif subPort == "5":
-               cdgeCore_4 = serdesCoreId * 2 + 1
-               nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
-               nifSupportedProfiles = nifSupportedProfilesSubPort
+               # We are only publishing the /1 port for now and skipping /5, however
+               # to allow for /5 to be added with little changes in the future, lets
+               # skip writing the static mapping entry, but increment the logical
+               # port Id. Uncomment the code below to start adding the /5 to the
+               # static mapping.
+               nifLogicalPortId += 1
+               continue
+               # cdgeCore_4 = serdesCoreId * 2 + 1
+               # nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
+               # nifSupportedProfiles = nifSupportedProfilesSubPort
             attachedCorePortId = nifLogicalPortId
             assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores*2
             bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
