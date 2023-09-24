@@ -204,7 +204,7 @@ with open( "Trace_whistler_1.0_Ramon3ToOSFP-800G.csv" ) as fh:
       assert chipId < numAsics
       asicSerdesToFrontPanelMap[ chipId ][ direction ][ physicalSerdesId ] = ( frontPanelSlot,
             frontPanelLane, polaritySwap )
-      frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane}"
+      frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane+1}"
       if frontPanelPortStrKey not in frontPanelToAsicSerdesMap:
          frontPanelToAsicSerdesMap[ frontPanelPortStrKey ] = {}
       frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ] = chipId
@@ -333,7 +333,7 @@ with open( "whistler_static_mapping.csv", "w" ) as fh:
    for portId in range( numFabricPorts ):
       frontPanelSlot  = ( portId // 8 ) + 1
       frontPanelLane = portId % 8
-      frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane}"
+      frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane+1}"
       chipId = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ]
       rxPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "rx" ]
       txPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "tx" ]
@@ -399,12 +399,10 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh:
       asicGlobalPortId[ asicId ] = ( fabricPortsPerAsic * asicId )
    for portId in range( numFabricPorts ):
       frontPanelSlot  = ( portId // 8 ) + 1
-      frontPanelLane = portId % 8
+      frontPanelLane = portId % 8 + 1
       frontPanelPortStrKey = f"{frontPanelSlot}/{frontPanelLane}"
       chipId = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ]
-      portStrPrefix = f"fab1/{frontPanelSlot}"
-      subPort = frontPanelLane + 1
-      portStr = f"{portStrPrefix}/{subPort}"
+      portStr = f"fab1/{frontPanelPortStrKey}"
       fh.write( f"{asicGlobalPortId[chipId]},{asicLogicalPortId[chipId]},{portStr},{fabSupportedProfiles},,\n" )
       asicLogicalPortId[ chipId ] += 1
       asicGlobalPortId[ chipId ] += 1
