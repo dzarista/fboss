@@ -36,7 +36,23 @@ namespace {
 HwSwitchMatcher scope() {
   return HwSwitchMatcher{std::unordered_set<SwitchID>{SwitchID(0)}};
 }
+
+const std::vector<std::string> kUdfList = {"foo1", "foo2"};
 } // namespace
+
+cfg::UdfConfig makeUdfConfig(const std::vector<std::string>& udfNameList) {
+  cfg::UdfConfig udf;
+  std::map<std::string, cfg::UdfGroup> udfMap;
+
+  for (const auto& udfName : udfNameList) {
+    cfg::UdfGroup udfGroup;
+    udfGroup.name() = udfName;
+    udfMap.insert(std::make_pair(udfName, udfGroup));
+  }
+
+  udf.udfGroups() = udfMap;
+  return udf;
+}
 
 TEST(Acl, applyConfig) {
   FLAGS_enable_acl_table_group = false;
@@ -301,6 +317,54 @@ TEST(Acl, stateDelta) {
   EXPECT_EQ(iter->getNew(), nullptr);
   ++iter;
   EXPECT_EQ(iter, aclDelta45.end());
+}
+
+TEST(Acl, Udf) {
+  FLAGS_enable_acl_table_group = false;
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  std::vector<std::string> udfList = {"foo1", "foo2"};
+
+  cfg::SwitchConfig config;
+  config.acls()->resize(1);
+  *config.acls()[0].name() = "aclUdf";
+  *config.acls()[0].actionType() = cfg::AclActionType::DENY;
+  config.acls()[0].udfGroups() = kUdfList;
+
+  // empty groups section is not valid
+  EXPECT_THROW(
+      publishAndApplyConfig(stateV0, &config, platform.get()), FbossError);
+
+  config.acls()[0].udfGroups() = kUdfList;
+  // still no good, if we don't find the relevant configuration in the udf group
+  // section
+  EXPECT_THROW(
+      publishAndApplyConfig(stateV0, &config, platform.get()), FbossError);
+
+  config.udfConfig() = makeUdfConfig(kUdfList);
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  EXPECT_NE(nullptr, stateV1);
+  auto aclV1 = stateV1->getAcl("aclUdf");
+  ASSERT_NE(nullptr, aclV1);
+  EXPECT_EQ(cfg::AclActionType::DENY, aclV1->getActionType());
+  EXPECT_EQ(aclV1->getUdfGroups().value(), udfList);
+
+  // update udf list, ensure it gets reflected
+  std::vector<std::string> newUdfList = {"foo3"};
+  config.acls()[0].udfGroups() = newUdfList;
+
+  // negative test case, foo3 is not in the cfg.
+  EXPECT_THROW(
+      publishAndApplyConfig(stateV1, &config, platform.get()), FbossError);
+
+  config.udfConfig() = makeUdfConfig({"foo3"});
+
+  auto stateV2 = publishAndApplyConfig(stateV1, &config, platform.get());
+  EXPECT_NE(nullptr, stateV2);
+  auto aclV2 = stateV2->getAcl("aclUdf");
+  ASSERT_NE(nullptr, aclV2);
+  EXPECT_EQ(aclV2->getUdfGroups().value(), newUdfList);
 }
 
 TEST(Acl, Icmp) {
@@ -961,7 +1025,7 @@ TEST(Acl, GetRequiredAclTableQualifiers) {
   config.acls();
   config.acls()->resize(2);
 
-  auto setAclQualifiers = [](std::string ip, std::string name) {
+  auto setAclQualifiers = [&](std::string ip, std::string name) {
     cfg::AclEntry acl;
     acl.name() = name;
     acl.srcIp() = ip;
@@ -985,6 +1049,7 @@ TEST(Acl, GetRequiredAclTableQualifiers) {
         cfg::AclLookupClass::CLASS_QUEUE_PER_HOST_QUEUE_1;
     acl.lookupClassRoute() = cfg::AclLookupClass::CLASS_QUEUE_PER_HOST_QUEUE_2;
     acl.actionType() = cfg::AclActionType::DENY;
+    acl.udfGroups() = kUdfList;
     return acl;
   };
   config.acls()[0] = setAclQualifiers("10.0.0.1/32", "acl0");
@@ -994,6 +1059,8 @@ TEST(Acl, GetRequiredAclTableQualifiers) {
   config.dataPlaneTrafficPolicy()->matchToAction()->resize(2);
   config.dataPlaneTrafficPolicy()->matchToAction()[0].matcher() = "acl0";
   config.dataPlaneTrafficPolicy()->matchToAction()[0].matcher() = "acl1";
+
+  config.udfConfig() = makeUdfConfig(kUdfList);
 
   auto platform = createMockPlatform();
   auto stateV0 = make_shared<SwitchState>();
@@ -1020,7 +1087,8 @@ TEST(Acl, GetRequiredAclTableQualifiers) {
       cfg::AclTableQualifier::OUT_PORT,
       cfg::AclTableQualifier::LOOKUP_CLASS_L2,
       cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
-      cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE};
+      cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE,
+      cfg::AclTableQualifier::UDF};
 
   std::set<cfg::AclTableQualifier> qualifiers1{
       cfg::AclTableQualifier::SRC_IPV6,
@@ -1038,7 +1106,8 @@ TEST(Acl, GetRequiredAclTableQualifiers) {
       cfg::AclTableQualifier::OUT_PORT,
       cfg::AclTableQualifier::LOOKUP_CLASS_L2,
       cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
-      cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE};
+      cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE,
+      cfg::AclTableQualifier::UDF};
 
   EXPECT_EQ(q0, qualifiers0);
   EXPECT_EQ(q1, qualifiers1);

@@ -165,6 +165,8 @@ enum PortProfileID {
   PROFILE_100G_2_PAM4_RS544X2N_OPTICAL = 40,
   PROFILE_100G_1_PAM4_RS544_COPPER = 41,
   PROFILE_100G_1_PAM4_RS544_OPTICAL = 42,
+  PROFILE_50G_1_PAM4_RS544_COPPER = 43,
+  PROFILE_50G_1_PAM4_RS544_OPTICAL = 44,
 }
 
 /**
@@ -528,6 +530,7 @@ enum AclTableQualifier {
   LOOKUP_CLASS_ROUTE = 21,
   ETHER_TYPE = 22,
   OUTER_VLAN = 23,
+  UDF = 24,
 }
 
 struct AclTable {
@@ -1685,6 +1688,11 @@ enum UdfBaseHeaderType {
   UDF_L4_HEADER = 3,
 }
 
+enum UdfGroupType {
+  HASH = 0,
+  ACL = 1,
+}
+
 enum UdfMatchL2Type {
   // match any l2 pkt
   UDF_L2_PKT_TYPE_ANY = 0,
@@ -1742,6 +1750,7 @@ struct UdfGroup {
   // number of bytes to extract (can use for hashing)
   4: i32 fieldSizeInBytes;
   5: list<string> udfPacketMatcherIds;
+  6: optional UdfGroupType type;
 }
 
 struct UdfConfig {

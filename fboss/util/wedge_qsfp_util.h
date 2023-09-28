@@ -67,6 +67,7 @@ DECLARE_bool(prbs_stats);
 DECLARE_bool(generator);
 DECLARE_bool(checker);
 DECLARE_bool(module_io_stats);
+DECLARE_bool(capabilities);
 
 enum LoopbackMode { noLoopback, electricalLoopback, opticalLoopback };
 
@@ -95,7 +96,10 @@ bool rateSelect(unsigned int port, uint8_t value);
 
 bool appSel(TransceiverI2CApi* bus, unsigned int port, uint8_t value);
 
-TransceiverManagementInterface getModuleType(
+std::map<int32_t, TransceiverManagementInterface> getModuleType(
+    const std::vector<unsigned int>& ports);
+
+TransceiverManagementInterface getModuleTypeDirect(
     TransceiverI2CApi* bus,
     unsigned int port);
 
@@ -292,5 +296,7 @@ bool verifyDirectI2cCompliance();
 void printModuleTransactionStats(
     const std::vector<int32_t>& ports,
     folly::EventBase& evb);
+
+bool printDiagsInfo(folly::EventBase& evb);
 
 } // namespace facebook::fboss

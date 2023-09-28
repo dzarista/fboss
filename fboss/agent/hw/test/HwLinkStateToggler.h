@@ -63,10 +63,8 @@ class HwLinkStateToggler {
       std::shared_ptr<SwitchState> switchState,
       const std::vector<PortID>& ports,
       bool up);
-  virtual void invokeLinkScanIfNeeded(PortID port, bool isUp) = 0;
-  virtual void setPortPreemphasis(
-      const std::shared_ptr<Port>& port,
-      int preemphasis) = 0;
+  virtual void invokeLinkScanIfNeeded(PortID port, bool isUp);
+  void waitForPortDown(PortID port);
 
   mutable std::mutex linkEventMutex_;
   std::optional<PortID> portIdToWaitFor_;
@@ -76,8 +74,5 @@ class HwLinkStateToggler {
 
   TestEnsembleIf* hwEnsemble_;
 };
-
-std::unique_ptr<HwLinkStateToggler> createHwLinkStateToggler(
-    TestEnsembleIf* ensemble);
 
 } // namespace facebook::fboss
