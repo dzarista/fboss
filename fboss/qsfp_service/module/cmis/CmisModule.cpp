@@ -2719,7 +2719,7 @@ bool CmisModule::setPortPrbsLocked(
       static_cast<prbs::PrbsPolynomial>(*prbs.polynomial()));
 
   // Get the list of lanes to enable/disable PRBS
-  auto tcvrLanes = getTcvrLanesForPort(portName, side == phy::Side::LINE);
+  auto tcvrLanes = getTcvrLanesForPort(portName, side);
   if (tcvrLanes.empty()) {
     QSFP_LOG(ERR, this) << fmt::format(
         "Empty lane list for port {:s}", portName);
@@ -2869,14 +2869,8 @@ prbs::InterfacePrbsState CmisModule::getPortPrbsStateLocked(Side side) {
     return prbs::InterfacePrbsState();
   }
   {
-    auto lockedDiagsCapability = diagsCapability_.rlock();
-    // Return a default InterfacePrbsState(with PRBS state as disabled) if the
-    // module is not capable of PRBS
-    if (auto diagsCapability = *lockedDiagsCapability) {
-      if ((side == Side::SYSTEM && !*(diagsCapability->prbsSystem())) ||
-          (side == Side::LINE && !*(diagsCapability->prbsLine()))) {
-        return prbs::InterfacePrbsState();
-      }
+    if (!isTransceiverFeatureSupported(TransceiverFeature::PRBS, side)) {
+      return prbs::InterfacePrbsState();
     }
   }
   prbs::InterfacePrbsState state;
@@ -3173,28 +3167,27 @@ bool CmisModule::supportRemediate() {
  */
 bool CmisModule::setTransceiverTxLocked(
     const std::string& portName,
-    bool lineSide,
+    phy::Side side,
     std::optional<uint8_t> userChannelMask,
     bool enable) {
   // Get the list of lanes to disable/enable the Tx output
-  auto tcvrLanes = getTcvrLanesForPort(portName, lineSide);
+  auto tcvrLanes = getTcvrLanesForPort(portName, side);
   if (tcvrLanes.empty()) {
     XLOG(ERR) << fmt::format("Empty lane list for port {:s}", portName);
     return false;
   }
 
   // Check if the module supports Tx control feature first
-  if (!isTransceiverFeatureSupported(
-          TransceiverFeature::TX_DISABLE, lineSide)) {
+  if (!isTransceiverFeatureSupported(TransceiverFeature::TX_DISABLE, side)) {
     throw FbossError(fmt::format(
         "Module {:s} does not support transceiver TX output control on {:s}",
         portName,
-        (lineSide ? "Line" : "System")));
+        ((side == phy::Side::LINE) ? "Line" : "System")));
   }
 
   // Set the Tx output register for these lanes in given direction
   auto txDisableRegister =
-      lineSide ? CmisField::TX_DISABLE : CmisField::RX_DISABLE;
+      (side == phy::Side::LINE) ? CmisField::TX_DISABLE : CmisField::RX_DISABLE;
   uint8_t txDisableVal;
 
   readCmisField(txDisableRegister, &txDisableVal);
@@ -3229,7 +3222,7 @@ void CmisModule::setTransceiverLoopbackLocked(
     phy::Side side,
     bool setLoopback) {
   // Get the list of lanes to disable/enable the loopback
-  auto tcvrLanes = getTcvrLanesForPort(portName, side == phy::Side::LINE);
+  auto tcvrLanes = getTcvrLanesForPort(portName, side);
   if (tcvrLanes.empty()) {
     XLOG(ERR) << fmt::format(
         "No {:s} lanes available for port {:s}",
@@ -3239,8 +3232,7 @@ void CmisModule::setTransceiverLoopbackLocked(
   }
 
   // Check if the module supports system or line side loopback
-  if (!isTransceiverFeatureSupported(
-          TransceiverFeature::LOOPBACK, side == phy::Side::LINE)) {
+  if (!isTransceiverFeatureSupported(TransceiverFeature::LOOPBACK, side)) {
     throw FbossError(fmt::format(
         "Module {:s} does not support transceiver Loopback on {:s}",
         portName,

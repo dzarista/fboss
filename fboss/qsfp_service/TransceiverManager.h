@@ -238,7 +238,7 @@ class TransceiverManager {
       std::string /* portName */,
       bool /* opRead */,
       int /* mdioAddr */,
-      bool /* lineSide */,
+      phy::Side /* side */,
       int /* serdesLane */,
       uint32_t /* regOffset */,
       uint32_t /* data */) {
@@ -451,6 +451,8 @@ class TransceiverManager {
 
   void doTransceiverFirmwareUpgrade(TransceiverID tcvrID);
 
+  void resetUpgradedTransceiversToNotPresent();
+
   FbossFwStorage* fwStorage() const {
     return fwStorage_.get();
   }
@@ -622,6 +624,8 @@ class TransceiverManager {
   std::vector<TransceiverID> triggerProgrammingEvents();
 
   void triggerAgentConfigChangeEvent();
+
+  void triggerFirmwareUpgradeEvents(std::unordered_set<TransceiverID>& tcvrs);
 
   // Update the cached PortStatus of TransceiverToPortInfo using wedge_agent
   // getPortStatus() results

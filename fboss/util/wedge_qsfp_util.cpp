@@ -36,6 +36,7 @@
 
 #include <thrift/lib/cpp/util/EnumUtils.h>
 #include <thread>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -302,6 +303,10 @@ DEFINE_bool(
     module_io_stats,
     false,
     "Get the Module read/write transaction stats");
+DEFINE_bool(
+    capabilities,
+    false,
+    "Show module capabilities for all present modules");
 
 namespace {
 struct ModulePartInfo_s {
@@ -386,10 +391,40 @@ std::unique_ptr<facebook::fboss::QsfpServiceAsyncClient> getQsfpClient(
 }
 
 /*
+ * This function returns the transceiver management interface through either
+ * qsfp_service query or direct_i2c operation. This function takes 1 based
+ * based module Ids and returns the map of 1 based module Ids to the
+ * corresponding management interface types
+ */
+std::map<int32_t, TransceiverManagementInterface> getModuleType(
+    const std::vector<unsigned int>& ports) {
+  std::map<int32_t, TransceiverManagementInterface> moduleTypeMap;
+
+  if (QsfpServiceDetector::getInstance()->isQsfpServiceActive()) {
+    folly::EventBase& evb = QsfpUtilContainer::getInstance()->getEventBase();
+    std::map<int32_t, TransceiverManagementInterface> moduleTypeMapZeroBased;
+    moduleTypeMapZeroBased = getModuleTypeViaService(ports, evb);
+
+    // Service returns 0 based module id in result. Change it to 1 based to
+    // make it compatible with input values
+    for (auto& modType : moduleTypeMapZeroBased) {
+      moduleTypeMap[modType.first + 1] = modType.second;
+    }
+  } else {
+    TransceiverI2CApi* bus =
+        QsfpUtilContainer::getInstance()->getTransceiverBus();
+    for (auto port : ports) {
+      moduleTypeMap[port] = getModuleTypeDirect(bus, port);
+    }
+  }
+  return moduleTypeMap;
+}
+
+/*
  * This function returns the transceiver management interface
  * by reading the register 0 directly from module
  */
-TransceiverManagementInterface getModuleType(
+TransceiverManagementInterface getModuleTypeDirect(
     TransceiverI2CApi* bus,
     unsigned int port) {
   uint8_t moduleId = static_cast<uint8_t>(TransceiverModuleIdentifier::UNKNOWN);
@@ -480,7 +515,7 @@ bool overrideLowPower(unsigned int port, bool lowPower) {
     TransceiverI2CApi* bus =
         QsfpUtilContainer::getInstance()->getTransceiverBus();
 
-    managementInterface = getModuleType(bus, port);
+    managementInterface = getModuleTypeDirect(bus, port);
   }
 
   uint8_t buf;
@@ -2397,7 +2432,7 @@ bool setTransceiverLoopback(
 
     for (auto& portName : portList) {
       auto port = wedgeManager->getPortNameToModuleMap().at(portName) + 1;
-      managementInterface = getModuleType(bus, port);
+      managementInterface = getModuleTypeDirect(bus, port);
       if (managementInterface != TransceiverManagementInterface::CMIS) {
         result = result && doMiniphotonLoopbackDirect(bus, port, mode);
       } else {
@@ -2624,7 +2659,7 @@ bool cliModulefirmwareUpgrade(
   auto dataUpper = cmisData.page0()->data();
 
   // Confirm module type is CMIS
-  auto moduleType = getModuleType(i2cInfo.bus, port);
+  auto moduleType = getModuleTypeDirect(i2cInfo.bus, port);
   if (moduleType != TransceiverManagementInterface::CMIS) {
     // If device can't be determined as cmis then check page 0 register 128
     // also to identify its type as in some case corrupted image wipes out all
@@ -3074,7 +3109,7 @@ void get_module_fw_info(
       continue;
     }
 
-    auto moduleType = getModuleType(i2cInfo.bus, module);
+    auto moduleType = getModuleTypeDirect(i2cInfo.bus, module);
     if (moduleType != TransceiverManagementInterface::CMIS) {
       continue;
     }
@@ -3276,6 +3311,50 @@ bool printVdmInfo(DirectI2cInfo i2cInfo, unsigned int port) {
   // Host side info: control page = 0x20, data page = 0x24
   findAndPrintVdmInfo(page21Buf, page25Buf);
 
+  return true;
+}
+
+/*
+ * printDiagsInfo
+ *
+ * Prints the diagnostic information for all the modules
+ */
+bool printDiagsInfo(folly::EventBase& evb) {
+  DOMDataUnion domDataUnion;
+
+  if (FLAGS_direct_i2c) {
+    printf(
+        "This command reads from qsfp_service so you can't use --direct_i2c option\n");
+    return false;
+  }
+  printf("Displaying Diagnostic info for modules\n");
+
+  auto returnedModulesInfo =
+      fetchInfoFromQsfpService(std::vector<int32_t>{}, evb);
+  printf(
+      "Mod   Diag   VDM   CDB   PRBS_Line PRBS_Sys Lpbk_Line Lpbk_Sys TxDis RxDis SNR_Line SNR_Sys\n");
+
+  for (auto& moduleInfo : returnedModulesInfo) {
+    if (!moduleInfo.second.tcvrState().value().present().value()) {
+      continue;
+    }
+
+    printf("%2d  ", moduleInfo.first);
+    auto& diagCap =
+        moduleInfo.second.tcvrState().value().diagCapability().value();
+    printf("%5s", *diagCap.diagnostics() ? "Y" : "N");
+    printf("%6s", *diagCap.vdm() ? "Y" : "N");
+    printf("%6s", *diagCap.cdb() ? "Y" : "N");
+    printf("%9s", *diagCap.prbsLine() ? "Y" : "N");
+    printf("%10s", *diagCap.prbsSystem() ? "Y" : "N");
+    printf("%9s", *diagCap.loopbackLine() ? "Y" : "N");
+    printf("%10s", *diagCap.loopbackSystem() ? "Y" : "N");
+    printf("%7s", *diagCap.txOutputControl() ? "Y" : "N");
+    printf("%6s", *diagCap.rxOutputControl() ? "Y" : "N");
+    printf("%7s", *diagCap.snrLine() ? "Y" : "N");
+    printf("%9s", *diagCap.snrSystem() ? "Y" : "N");
+    printf("\n");
+  }
   return true;
 }
 

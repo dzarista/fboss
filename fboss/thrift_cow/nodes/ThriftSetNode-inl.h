@@ -104,8 +104,16 @@ struct ThriftSetFields {
     return serialize<TypeClass>(proto, toThrift());
   }
 
+  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const {
+    return serializeBuf<TypeClass>(proto, toThrift());
+  }
+
   void fromEncoded(fsdb::OperProtocol proto, const folly::fbstring& encoded) {
     fromThrift(deserialize<TypeClass, TType>(proto, encoded));
+  }
+
+  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded) {
+    fromThrift(deserializeBuf<TypeClass, TType>(proto, std::move(encoded)));
   }
 
   template <typename... Args>
@@ -195,6 +203,10 @@ struct ThriftSetFields {
     return storage_.find(value_type{value});
   }
 
+  size_t count(const value_type& value) const {
+    return storage_.count(value);
+  }
+
   const_iterator cbegin() const {
     return storage_.cbegin();
   }
@@ -266,8 +278,16 @@ class ThriftSetNode : public NodeBaseT<
     return this->getFields()->encode(proto);
   }
 
+  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const {
+    return this->getFields()->encodeBuf(proto);
+  }
+
   void fromEncoded(fsdb::OperProtocol proto, const folly::fbstring& encoded) {
     return this->writableFields()->fromEncoded(proto, encoded);
+  }
+
+  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded) {
+    return this->writableFields()->fromEncodedBuf(proto, std::move(encoded));
   }
 
   template <typename... Args>
@@ -317,7 +337,7 @@ class ThriftSetNode : public NodeBaseT<
   }
 
   typename Fields::iterator find(const value_type& value) {
-    return this->writableFields->find(value);
+    return this->writableFields()->find(value);
   }
 
   typename Fields::const_iterator find(const value_type& value) const {
@@ -330,6 +350,10 @@ class ThriftSetNode : public NodeBaseT<
 
   typename Fields::const_iterator find(const ValueTType& value) const {
     return this->getFields()->find(value_type{value});
+  }
+
+  size_t count(const value_type& value) const {
+    return this->getFields()->count(value);
   }
 
   std::size_t size() const {

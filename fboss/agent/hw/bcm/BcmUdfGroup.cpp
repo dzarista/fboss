@@ -9,8 +9,10 @@
  */
 #include "fboss/agent/hw/bcm/BcmUdfGroup.h"
 #include "fboss/agent/hw/bcm/BcmError.h"
+#include "fboss/agent/hw/bcm/BcmFieldProcessorUtils.h"
 #include "fboss/agent/hw/bcm/BcmSwitch.h"
 #include "fboss/agent/hw/bcm/BcmWarmBootCache.h"
+#include "fboss/agent/hw/switch_asics/HwAsic.h"
 
 namespace facebook::fboss {
 
@@ -43,6 +45,7 @@ BcmUdfGroup::BcmUdfGroup(
     const std::shared_ptr<UdfGroup>& udfGroup)
     : hw_(hw) {
   udfGroupName_ = udfGroup->getName();
+  udfGroupType_ = udfGroup->getUdfGroupType();
   bcm_udf_t udfInfo;
   bcm_udf_t_init(&udfInfo);
 
@@ -50,6 +53,7 @@ BcmUdfGroup::BcmUdfGroup(
   udfInfo.layer = convertBaseHeaderToBcmLayer(udfGroup->getUdfBaseHeader());
   udfInfo.start = udfGroup->getStartOffsetInBytes() * 8; // in bits
   udfInfo.width = matchFieldWidth_ * 8; // in bits
+  proto_ = udfInfo.layer;
 
   auto warmBootCache = hw_->getWarmBootCache();
   auto name = udfGroup->getID();
@@ -81,15 +85,39 @@ BcmUdfGroup::~BcmUdfGroup() {
   udfDelete(udfId_);
 }
 
+int BcmUdfGroup::udfBcmFieldQsetMultiSet() {
+  bcm_field_qset_t qset;
+  int rv = 0;
+  qset = utility::getGroupQset(
+      hw_->getUnit(), hw_->getPlatform()->getAsic()->getDefaultACLGroupID());
+  rv = bcm_field_qset_id_multi_set(
+      hw_->getUnit(), bcmFieldQualifyUdf, 1, &udfId_, &qset);
+  bcmCheckError(
+      rv, "bcm_field_qset_id_multi_set failed for bcmGroupId", udfId_);
+
+  return rv;
+}
+
 int BcmUdfGroup::udfCreate(bcm_udf_t* udfInfo) {
   bcm_udf_alloc_hints_t hints;
   int rv = 0;
   bcm_udf_alloc_hints_t_init(&hints);
-  hints.flags = BCM_UDF_CREATE_O_UDFHASH;
+  cfg::UdfGroupType udfGroupType =
+      udfGroupType_.value_or(cfg::UdfGroupType::HASH);
+  if (udfGroupType == cfg::UdfGroupType::ACL) {
+    hints.flags |= (BCM_UDF_CREATE_O_FIELD_INGRESS);
+    BCM_FIELD_QSET_INIT(hints.qset);
+    BCM_FIELD_QSET_ADD(hints.qset, bcmFieldQualifyStageIngress);
+  } else {
+    hints.flags |= BCM_UDF_CREATE_O_UDFHASH;
+  }
 
   rv = bcm_udf_create(hw_->getUnit(), &hints, udfInfo, &udfId_);
   bcmCheckError(
       rv, "bcm_udf_create failed for udf group ", udfGroupName_.c_str());
+  if (udfGroupType == cfg::UdfGroupType::ACL) {
+    udfBcmFieldQsetMultiSet();
+  }
   return rv;
 }
 

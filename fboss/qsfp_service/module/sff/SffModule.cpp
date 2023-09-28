@@ -1718,24 +1718,20 @@ bool SffModule::setPortPrbsLocked(
                  prbs.generatorEnabled().value()) ||
       (prbs.checkerEnabled().has_value() && prbs.checkerEnabled().value());
   auto polynomial = *(prbs.polynomial());
-  {
-    auto lockedDiagsCapability = diagsCapability_.rlock();
-    if (auto diagsCapability = *lockedDiagsCapability) {
-      if ((side == Side::SYSTEM && *(diagsCapability->prbsSystem())) ||
-          (side == Side::LINE && *(diagsCapability->prbsLine()))) {
-        // Check if there is an override function available for setting prbs
-        // state
-        if (auto prbsEnable = setPortPrbsOverrideLocked(side, prbs)) {
-          QSFP_LOG(INFO, this) << folly::sformat(
-              "Prbs {:s} {:s} on {:s} side",
-              apache::thrift::util::enumNameSafe(polynomial),
-              enable ? "enabled" : "disabled",
-              apache::thrift::util::enumNameSafe(side));
-          return true;
-        }
-      }
+
+  if (isTransceiverFeatureSupported(TransceiverFeature::PRBS, side)) {
+    // Check if there is an override function available for setting prbs
+    // state
+    if (auto prbsEnable = setPortPrbsOverrideLocked(side, prbs)) {
+      QSFP_LOG(INFO, this) << folly::sformat(
+          "Prbs {:s} {:s} on {:s} side",
+          apache::thrift::util::enumNameSafe(polynomial),
+          enable ? "enabled" : "disabled",
+          apache::thrift::util::enumNameSafe(side));
+      return true;
     }
   }
+
   QSFP_LOG(WARNING, this) << folly::sformat(
       "Does not support PRBS on {:s} side",
       apache::thrift::util::enumNameSafe(side));
@@ -1744,17 +1740,10 @@ bool SffModule::setPortPrbsLocked(
 
 // This function expects caller to hold the qsfp module level lock
 prbs::InterfacePrbsState SffModule::getPortPrbsStateLocked(Side side) {
-  {
-    auto lockedDiagsCapability = diagsCapability_.rlock();
-    // Return a default InterfacePrbsState(with PRBS state as disabled) if the
-    // module is not capable of PRBS
-    if (auto diagsCapability = *lockedDiagsCapability) {
-      if ((side == Side::SYSTEM && !*(diagsCapability->prbsSystem())) ||
-          (side == Side::LINE && !*(diagsCapability->prbsLine()))) {
-        return prbs::InterfacePrbsState();
-      }
-    }
+  if (!isTransceiverFeatureSupported(TransceiverFeature::PRBS, side)) {
+    return prbs::InterfacePrbsState();
   }
+
   // Certain modules have proprietary methods to get prbs state, check if
   // there exists one
   if (auto prbsState = getPortPrbsStateOverrideLocked(side)) {
@@ -1773,11 +1762,11 @@ prbs::InterfacePrbsState SffModule::getPortPrbsStateLocked(Side side) {
  */
 bool SffModule::setTransceiverTxLocked(
     const std::string& portName,
-    bool lineSide,
+    phy::Side side,
     std::optional<uint8_t> userChannelMask,
     bool enable) {
   // Get the list of lanes to disable/enable the Tx output
-  auto tcvrLanes = getTcvrLanesForPort(portName, lineSide);
+  auto tcvrLanes = getTcvrLanesForPort(portName, side);
 
   if (tcvrLanes.empty()) {
     XLOG(ERR) << fmt::format("No lanes available for port {:s}", portName);
@@ -1785,25 +1774,26 @@ bool SffModule::setTransceiverTxLocked(
   }
 
   // Check if the module supports Tx control feature first
-  if (!isTransceiverFeatureSupported(
-          TransceiverFeature::TX_DISABLE, lineSide)) {
+  if (!isTransceiverFeatureSupported(TransceiverFeature::TX_DISABLE, side)) {
     throw FbossError(fmt::format(
         "Module {:s} does not support transceiver TX output control on {:s}",
         portName,
-        (lineSide ? "Line" : "System")));
+        ((side == phy::Side::LINE) ? "Line" : "System")));
   }
 
-  auto txControlReg =
-      lineSide ? SffField::TX_DISABLE : SffField::TXRX_OUTPUT_CONTROL;
+  auto txControlReg = (side == phy::Side::LINE) ? SffField::TX_DISABLE
+                                                : SffField::TXRX_OUTPUT_CONTROL;
   uint8_t txDisableVal, rxTxCtrl;
 
   readSffField(txControlReg, &rxTxCtrl);
-  txDisableVal = lineSide ? rxTxCtrl : ((rxTxCtrl >> 4) & 0xF);
+  txDisableVal = (side == phy::Side::LINE) ? rxTxCtrl : ((rxTxCtrl >> 4) & 0xF);
 
   txDisableVal =
       setTxChannelMask(tcvrLanes, userChannelMask, enable, txDisableVal);
 
-  rxTxCtrl = lineSide ? txDisableVal : ((txDisableVal << 4) | (rxTxCtrl & 0xF));
+  rxTxCtrl = (side == phy::Side::LINE)
+      ? txDisableVal
+      : ((txDisableVal << 4) | (rxTxCtrl & 0xF));
   writeSffField(txControlReg, &rxTxCtrl);
   return true;
 }
@@ -1820,8 +1810,7 @@ void SffModule::setTransceiverLoopbackLocked(
     phy::Side side,
     bool setLoopback) {
   // Check if the module supports Loopback feature first
-  if (!isTransceiverFeatureSupported(
-          TransceiverFeature::LOOPBACK, side == phy::Side::SYSTEM)) {
+  if (!isTransceiverFeatureSupported(TransceiverFeature::LOOPBACK, side)) {
     throw FbossError(fmt::format(
         "Module {:s} does not support transceiver loopback on {:s}",
         portName,
