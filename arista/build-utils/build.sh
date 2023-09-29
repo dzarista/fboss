@@ -20,7 +20,7 @@ usage() {
    echo "Usage: $1 --arch <dnx|xgs> --kernel <4.18|5.12|5.19> "
    echo "          [ --build-dir <build directory> ] "
    echo "          [ --rebuild-all ] [ --rebuild-fboss ] "
-   echo "          [ --fboss-bins-only ]"
+   echo "          [ --fboss-bins-only ] [ --with-debug-symbols ] "
    exit 1
 }
 
@@ -46,6 +46,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --known-good-hash)
       BUILD_KNOWN_GOOD_HASH=TRUE
+      shift
+      ;;
+    --with-debug-symbols)
+      BUILD_WITH_DEBUG_SYMBOLS=TRUE
       shift
       ;;
     --arch)
@@ -229,8 +233,14 @@ else
    if [ -z "$BUILD_KNOWN_GOOD_HASH" ]; then
       export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
    fi
+   BUILD_TYPE=""
+   if [ -z "$BUILD_WITH_DEBUG_SYMBOLS" ]; then
+      BUILD_TYPE="MinSizeRel"
+   else
+      BUILD_TYPE="Debug"
+   fi
    time ./build/fbcode_builder/getdeps.py build --allow-system-packages \
-      --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines='{"CMAKE_BUILD_TYPE": "MinSizeRel"}'
+      --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
    cd $FBOSS_DIR/fboss.git
    ./fboss/oss/scripts/package-fboss.py --scratch-path "$SCRATCH_DIR"
 

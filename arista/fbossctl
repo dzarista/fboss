@@ -39,6 +39,7 @@ usage() {
    echo "      --fboss-bins-only: rebuild only FBOSS OSS binaries (fastest)"
    echo "      --arch: specify the SDK architecture (dnx|xgs)"
    echo "      --known-good-hash: build FBOSS at known good hash rather than local"
+   echo "      --with-debug-symbols: Build with debug symbols."
    echo
    echo "  package: Package FBOSS OSS into RPMs"
    echo "    options:"
