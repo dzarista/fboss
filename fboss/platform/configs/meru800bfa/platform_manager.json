@@ -3,28 +3,24 @@
   "rootPmUnitName": "SCM",
   "slotTypeConfigs": {
     "SCM_SLOT": {
-      "numOutgoingI2cBuses": 0,
+      "numOutgoingI2cBuses": 4,
       "idpromConfig": {
-        "busName": "Intel SMBus Controller #TBD",
-        "address": "0x00",
-        "kernelDeviceName": "at24"
+        "busName": "SCD 0000:07:00.0 SMBus master 0 bus 1",
+        "address": "0x50",
+        "kernelDeviceName": "24c512"
       }
     },
     "SMB_SLOT": {
-      "numOutgoingI2cBuses": 1,
+      "numOutgoingI2cBuses": 3,
       "idpromConfig": {
-        "busName": "INCOMING@0",
-        "address": "0x52",
-        "kernelDeviceName": "at24"
+        "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+        "address": "0x50",
+        "kernelDeviceName": "24c512"
       }
     },
     "PSU_SLOT": {
       "numOutgoingI2cBuses": 1,
-      "idpromConfig": {
-        "busName": "INCOMING@0",
-        "address": "0x50",
-        "kernelDeviceName": "at24"
-      }
+      "pmUnitName": "PSU"
     },
     "FAN_SLOT": {
       "numOutgoingI2cBuses": 0,
@@ -32,84 +28,551 @@
     }
   },
   "i2cAdaptersFromCpu": [
-    "Intel SMBus Controller #TBD1",
-    "Intel SMBus Controller #TBD2"
+      "SMBus I801 adapter at 1000"
   ],
   "pmUnitConfigs": {
     "SCM": {
       "pluggedInSlotType": "SCM_SLOT",
-      "i2cDeviceConfigs": [],
+      "i2cDeviceConfigs": [
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 0",
+            "address": "0x50",
+            "kernelDeviceName": "24c512",
+            "pmUnitScopedName": "MERU_SCM_EEPROM",
+            "isIdprom": true,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 1",
+            "address": "0x40",
+            "kernelDeviceName": "pmbus",
+            "pmUnitScopedName": "CPU_MPS_PMBUS",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 2",
+            "address": "0x30",
+            "kernelDeviceName": "pxm1310",
+            "pmUnitScopedName": "CPU_PXM1310_1",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 2",
+            "address": "0x3e",
+            "kernelDeviceName": "pxe1610",
+            "pmUnitScopedName": "CPU_PXE1211",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 2",
+            "address": "0x40",
+            "kernelDeviceName": "pxm1310",
+            "pmUnitScopedName": "CPU_PXM1310_2",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         }
+      ],
       "outgoingSlotConfigs": {
         "SMB_SLOT@0": {
           "slotType": "SMB_SLOT",
-          "ougoingI2cBusNames": ["SCM CPLD SMBus master 1 bus 0"]
+          "outgoingI2cBusNames": [
+             "SCD 0000:07:00.0 SMBus master 1 bus 0",
+             "SCD 0000:07:00.0 SMBus master 1 bus 1",
+             "SCD 0000:07:00.0 SMBus master 1 bus 2",
+             "SCD 0000:07:00.0 SMBus master 1 bus 3"
+          ]
         }
-      }
+      },
+      "pciDevices": [
+         {
+            "pmUnitScopedName": "MERU_SCM_CPLD",
+            "vendorId": "0x3475",
+            "deviceId": "0x0008",
+            "i2cAdapterConfigs": {
+               "SCD 0000:07:00.0 SMBus master 0 bus 0": {
+                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 0 bus 0",
+                  "offset": "0x8010"
+               },
+               "SCD 0000:07:00.0 SMBus master 0 bus 1": {
+                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 0 bus 1",
+                  "offset": "0x8010"
+               },
+               "SCD 0000:07:00.0 SMBus master 0 bus 2": {
+                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 0 bus 2",
+                  "offset": "0x8010"
+               },
+               "SCD 0000:07:00.0 SMBus master 1 bus 0": {
+                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+                  "offset": "0x8090"
+               },
+               "SCD 0000:07:00.0 SMBus master 1 bus 1": {
+                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+                  "offset": "0x8090"
+               },
+               "SCD 0000:07:00.0 SMBus master 1 bus 2": {
+                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 1 bus 2",
+                  "offset": "0x8090"
+               },
+               "SCD 0000:07:00.0 SMBus master 1 bus 3": {
+                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 1 bus 3",
+                  "offset": "0x8090"
+               }
+            }
+         }
+      ]
     },
     "SMB": {
       "pluggedInSlotType": "SMB_SLOT",
-      "i2cDeviceConfigs": [],
+      "i2cDeviceConfigs": [
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+            "address": "0x52",
+            "kernelDeviceName": "24c512",
+            "pmUnitScopedName": "MERU800BFA_SMB_EEPROM",
+            "isIdprom": true,
+            "isChassisEeprom": true
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+            "address": "0x23",
+            "kernelDeviceName": "decker_cpld",
+            "pmUnitScopedName": "MERU800BFA_SMB_CPLD",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+            "address": "0x4d",
+            "kernelDeviceName": "max6581",
+            "pmUnitScopedName": "SMB_MAX6581",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+            "address": "0x48",
+            "kernelDeviceName": "tmp75",
+            "pmUnitScopedName": "SMB_TMP75",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x60",
+            "kernelDeviceName": "raa228228",
+            "pmUnitScopedName": "SMB_RAA228926_R3R0_CORE",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x50",
+            "kernelDeviceName": "isl68226",
+            "pmUnitScopedName": "SMB_ISL68226_R3R0_ANLG0",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x51",
+            "kernelDeviceName": "isl68226",
+            "pmUnitScopedName": "SMB_ISL68226_R3R0_ANLG1",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x61",
+            "kernelDeviceName": "raa228228",
+            "pmUnitScopedName": "SMB_RAA228926_R3R1_CORE",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x52",
+            "kernelDeviceName": "isl68226",
+            "pmUnitScopedName": "SMB_ISL68226_R3R1_ANLG0",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x53",
+            "kernelDeviceName": "isl68226",
+            "pmUnitScopedName": "SMB_ISL68226_R3R1_ANLG1",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x5a",
+            "kernelDeviceName": "isl68226",
+            "pmUnitScopedName": "SMB_ISL68226_OSFP_TL",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x5b",
+            "kernelDeviceName": "isl68226",
+            "pmUnitScopedName": "SMB_ISL68226_OSFP_TR",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x5c",
+            "kernelDeviceName": "isl68226",
+            "pmUnitScopedName": "SMB_ISL68226_OSFP_BL",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "address": "0x5d",
+            "kernelDeviceName": "isl68226",
+            "pmUnitScopedName": "SMB_ISL68226_OSFP_BR",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 2",
+            "address": "0x11",
+            "kernelDeviceName": "ucd90320",
+            "pmUnitScopedName": "SMB_UCD90320",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 3",
+            "address": "0x48",
+            "kernelDeviceName": "tmp75",
+            "pmUnitScopedName": "FAN0_TMP75",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus ",
+            "address": "0x60",
+            "kernelDeviceName": "oasis_cpld",
+            "pmUnitScopedName": "FAN0_CPLD",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 3",
+            "address": "0x49",
+            "kernelDeviceName": "tmp75",
+            "pmUnitScopedName": "FAN1_TMP75",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus ",
+            "address": "0x61",
+            "kernelDeviceName": "oasis_cpld",
+            "pmUnitScopedName": "FAN1_CPLD",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 3",
+            "address": "0x4a",
+            "kernelDeviceName": "tmp75",
+            "pmUnitScopedName": "FAN2_TMP75",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 1 bus ",
+            "address": "0x62",
+            "kernelDeviceName": "oasis_cpld",
+            "pmUnitScopedName": "FAN2_CPLD",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         }
+      ],
       "outgoingSlotConfigs": {
         "PSU_SLOT@0": {
           "slotType": "PSU_SLOT",
-          "ougoingI2cBusNames": ["SMB FPGA 3 SMBus master 4 bus 0"]
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[MERU800BFA_SMB_FPGA0]",
+             "presenceFileName": "psu1_prsnt",
+             "desiredValue": "1"
+          },
+          "outgoingI2cBusNames": ["SCD 0000:04:00.0 SMBus master 4 bus 0"]
         },
         "PSU_SLOT@1": {
           "slotType": "PSU_SLOT",
-          "ougoingI2cBusNames": ["SMB FPGA 2 SMBus master 4 bus 0"]
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[MERU800BFA_SMB_FPGA0]",
+             "presenceFileName": "psu2_prsnt",
+             "desiredValue": "1"
+          },
+          "outgoingI2cBusNames": ["SCD 0000:03:00.0 SMBus master 4 bus 0"]
         },
         "PSU_SLOT@2": {
           "slotType": "PSU_SLOT",
-          "ougoingI2cBusNames": ["SMB FPGA 3 SMBus master 4 bus 1"]
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[MERU800BFA_SMB_FPGA0]",
+             "presenceFileName": "psu3_present",
+             "desiredValue": "1"
+          },
+          "outgoingI2cBusNames": ["SCD 0000:04:00.0 SMBus master 4 bus 1"]
         },
         "PSU_SLOT@3": {
           "slotType": "PSU_SLOT",
-          "ougoingI2cBusNames": ["SMB FPGA 2 SMBus master 4 bus 1"]
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[MERU800BIA_SMB_FPGA]",
+             "presenceFileName": "psu4_present",
+             "desiredValue": "1"
+          },
+          "outgoingI2cBusNames": ["SCD 0000:03:00.0 SMBus master 4 bus 1"]
         },
         "FAN_SLOT@0": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN0_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan1_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@1": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN0_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan2_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@2": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN0_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan3_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@3": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN0_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan4_present",
+             "desiredValue": "1"
         },
         "FAN_SLOT@4": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN1_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan1_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@5": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN1_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan2_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@6": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN1_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan3_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@7": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN1_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan4_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@8": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN2_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan1_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@9": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN2_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan2_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@10": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN2_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan3_present",
+             "desiredValue": "1"
+          }
         },
         "FAN_SLOT@11": {
-          "slotType": "FAN_SLOT"
+          "slotType": "FAN_SLOT",
+          "presenceDetection": {
+             "devicePath": "/SMB_SLOT@0/[FAN2_CPLD]",
+             "presenceFileName": "hwmon/hwmon*/fan4_present",
+             "desiredValue": "1"
+          }
         }
-      }
+      },
+      "pciDevices": [
+         {
+            "pmUnitScopedName": "MERU800BFA_SMB_FPGA0",
+            "vendorId": "0x3475",
+            "deviceId": "0x0004",
+            "i2cAdapterConfigs": {}
+         },
+         {
+            "pmUnitScopedName": "MERU800BFA_SMB_FPGA1",
+            "vendorId": "0x3475",
+            "deviceId": "0x0005",
+            "i2cAdapterConfigs": {}
+            }
+         },
+         {
+            "pmUnitScopedName": "MERU800BFA_SMB_FPGA2",
+            "vendorId": "0x3475",
+            "deviceId": "0x0006",
+            "i2cAdapterConfigs": {
+               "SCD 0000:03:00.0 SMBus master 4 bus 0": {
+                  "i2cAdapterName": "SCD 0000:03:00.0 SMBus master 4 bus 0",
+                  "offset": "0x8210"
+               },
+               "SCD 0000:03:00.0 SMBus master 4 bus 1": {
+                  "i2cAdapterName": "SCD 0000:03:00.0 SMBus master 4 bus 1",
+                  "offset": "0x8210"
+               }
+            }
+         },
+         {
+            "pmUnitScopedName": "MERU800BFA_SMB_FPGA3",
+            "vendorId": "0x3475",
+            "deviceId": "0x0007",
+            "i2cAdapterConfigs": {
+               "SCD 0000:04:00.0 SMBus master 4 bus 0": {
+                  "i2cAdapterName": "SCD 0000:04:00.0 SMBus master 4 bus 0",
+                  "offset": "0x8210"
+               },
+               "SCD 0000:04:00.0 SMBus master 4 bus 1": {
+                  "i2cAdapterName": "SCD 0000:04:00.0 SMBus master 4 bus 1",
+                  "offset": "0x8210"
+               }
+            }
+         }
+      ]
     },
-    "PSU": {
+    "PSU1": {
       "pluggedInSlotType": "PSU_SLOT",
+      "i2cDeviceConfigs": [
+         {
+            "busName": "SCD 0000:04:00.0 SMBus master 4 bus 0",
+            "address": "0x58",
+            "kernelDeviceName": "pmbus",
+            "pmUnitScopedName": "PSU1_PMBUS",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         }
+      ]
+    },
+    "PSU2": {
+      "pluggedInSlotType": "PSU_SLOT",
+      "i2cDeviceConfigs": [
+         {
+            "busName": "SCD 0000:03:00.0 SMBus master 4 bus 0",
+            "address": "0x58",
+            "kernelDeviceName": "pmbus",
+            "pmUnitScopedName": "PSU2_PMBUS",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         }
+      ]
+    },
+    "PSU3": {
+      "pluggedInSlotType": "PSU_SLOT",
+      "i2cDeviceConfigs": [
+         {
+            "busName": "SCD 0000:04:00.0 SMBus master 4 bus 1",
+            "address": "0x58",
+            "kernelDeviceName": "pmbus",
+            "pmUnitScopedName": "PSU3_PMBUS",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         }
+      ]
+    },
+    "PSU4": {
+      "pluggedInSlotType": "PSU_SLOT",
+      "i2cDeviceConfigs": [
+         {
+            "busName": "SCD 0000:03:00.0 SMBus master 4 bus 1",
+            "address": "0x58",
+            "kernelDeviceName": "pmbus",
+            "pmUnitScopedName": "PSU4_PMBUS",
+            "isIdprom": false,
+            "isChassisEeprom": false
+         }
+      ]
+    },
+    "FAN1": {
+      "pluggedInSlotType": "FAN_SLOT",
       "i2cDeviceConfigs": []
     },
-    "FAN": {
-      "pluggedInSlotType": "SMB_SLOT",
+    "FAN2": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN3": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN4": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN5": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN6": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN7": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN8": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN9": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN10": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN11": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": []
+    },
+    "FAN12": {
+      "pluggedInSlotType": "FAN_SLOT",
       "i2cDeviceConfigs": []
     },
     "CHASSIS": {
