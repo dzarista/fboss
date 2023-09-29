@@ -36,18 +36,18 @@
       "i2cDeviceConfigs": [
          {
             "busName": "SCD 0000:07:00.0 SMBus master 0 bus 0",
-            "address": "0x50",
-            "kernelDeviceName": "24c512",
-            "pmUnitScopedName": "MERU_SCM_EEPROM",
-            "isIdprom": true,
-            "isChassisEeprom": false
-         },
-         {
-            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 1",
             "address": "0x40",
             "kernelDeviceName": "pmbus",
             "pmUnitScopedName": "CPU_MPS_PMBUS",
             "isIdprom": false,
+            "isChassisEeprom": false
+         },
+         {
+            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 1",
+            "address": "0x50",
+            "kernelDeviceName": "24c512",
+            "pmUnitScopedName": "MERU_SCM_EEPROM",
+            "isIdprom": true,
             "isChassisEeprom": false
          },
          {
