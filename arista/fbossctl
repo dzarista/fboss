@@ -108,6 +108,9 @@ maybe_setup_build_env() {
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29
    wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_29_DNX_Kernel_Module_fixes.patch
    patch "dnx-sdk-6.5.29-gpl-modules/make/Make.config" < patch3-SDK-6_5_29_DNX_Kernel_Module_fixes.patch
+   # Patch to fix cpu rx packet parsing
+   wget http://dist/storage/fboss/FBOSS-SAI/patch10-Cpu-Rx.patch
+   patch "hsdk-all-6.5.29/src/soc/access/pkt_rx.c" -p1 < patch10-Cpu-Rx.patch
 
    # If kernel is newer than 4.18, need to patch ksal.c for compatibility with newer kernel.
    if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then

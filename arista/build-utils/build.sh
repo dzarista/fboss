@@ -239,6 +239,7 @@ else
    else
       BUILD_TYPE="Debug"
    fi
+   export BUILD_FBOSS_CLI=1
    time ./build/fbcode_builder/getdeps.py build --allow-system-packages \
       --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
    cd $FBOSS_DIR/fboss.git
