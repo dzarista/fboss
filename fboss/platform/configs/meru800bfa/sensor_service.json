@@ -404,7 +404,7 @@
     },
     "FAN1" : {
       "FAN1_RPM" : {
-        "path" : "/run/devmap/sensors/FAN0_CPLD/fan1_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD0/fan1_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -414,7 +414,7 @@
     },
     "FAN2" : {
       "FAN2_RPM" : {
-        "path" : "/run/devmap/sensors/FAN0_CPLD/fan2_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD0/fan2_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -424,7 +424,7 @@
     },
     "FAN3" : {
       "FAN3_RPM" : {
-        "path" : "/run/devmap/sensors/FAN0_CPLD/fan3_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD0/fan3_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -434,7 +434,7 @@
     },
     "FAN4" : {
       "FAN4_RPM" : {
-        "path" : "/run/devmap/sensors/FAN0_CPLD/fan4_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD0/fan4_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -444,7 +444,7 @@
     },
     "FAN5" : {
       "FAN5_RPM" : {
-        "path" : "/run/devmap/sensors/FAN1_CPLD/fan1_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD1/fan1_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -454,7 +454,7 @@
     },
     "FAN6" : {
       "FAN6_RPM" : {
-        "path" : "/run/devmap/sensors/FAN1_CPLD/fan2_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD1/fan2_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -464,7 +464,7 @@
     },
     "FAN7" : {
       "FAN7_RPM" : {
-        "path" : "/run/devmap/sensors/FAN1_CPLD/fan3_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD1/fan3_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -474,7 +474,7 @@
     },
     "FAN8" : {
       "FAN8_RPM" : {
-        "path" : "/run/devmap/sensors/FAN1_CPLD/fan4_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD1/fan4_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -484,7 +484,7 @@
     },
     "FAN9" : {
       "FAN9_RPM" : {
-        "path" : "/run/devmap/sensors/FAN2_CPLD/fan1_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD2/fan1_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -494,7 +494,7 @@
     },
     "FAN10" : {
       "FAN10_RPM" : {
-        "path" : "/run/devmap/sensors/FAN2_CPLD/fan2_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD2/fan2_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -504,7 +504,7 @@
     },
     "FAN11" : {
       "FAN11_RPM" : {
-        "path" : "/run/devmap/sensors/FAN2_CPLD/fan3_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD2/fan3_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
@@ -514,7 +514,7 @@
     },
     "FAN12" : {
       "FAN12_RPM" : {
-        "path" : "/run/devmap/sensors/FAN2_CPLD/fan4_input",
+        "path" : "/run/devmap/sensors/FAN_CPLD2/fan4_input",
         "thresholds" : {
           "upperCriticalVal" : 12000,
           "lowerCriticalVal" : 2000
