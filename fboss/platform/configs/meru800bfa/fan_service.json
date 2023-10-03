@@ -348,6 +348,7 @@
       "zoneType" : "ZONE_TYPE_MAX",
       "zoneName" : "zone1",
       "sensorNames" : [
+         "SMB_INLET_TEMP"
       ],
       "fanNames" : [
         "fan_1",
