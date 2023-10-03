@@ -22,7 +22,7 @@
         "minorSoakSeconds" : 15
       },
       "pwmCalcType" : "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
-      "scale" : 1000.0,
+      "scale" : 1.0,
       "normalUpTable" : {
         "15" : 30,
         "110" : 100
@@ -79,7 +79,7 @@
       },
       "presenceAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN0_CPLD0/fan2_present"
+        "path" : "/run/devmap/sensors/FAN_CPLD0/fan2_present"
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
