@@ -214,12 +214,12 @@
         "type" : 3
       },
       "SMB_VRM1_VIN" : {
-        "path" : "/run/devmap/sensors/SMB_RAA288926_J3/in1_input",
+        "path" : "/run/devmap/sensors/SMB_RAA228926_J3/in1_input",
         "compute" : "@/1000.0",
         "type" : 1
       },
       "SMB_VRM1_VOUT_J3_0V85_CORE" : {
-        "path" : "/run/devmap/sensors/SMB_RAA288926_J3/in3_input",
+        "path" : "/run/devmap/sensors/SMB_RAA228926_J3/in3_input",
         "compute" : "@/1000.0",
         "type" : 1
       },
