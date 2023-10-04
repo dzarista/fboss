@@ -93,12 +93,12 @@ SUBSYSTEM=="i2c", ATTR{name}=="SCD 0000:01:00.0 SMBus master 5 bus 7", RUN+="/bi
 SUBSYSTEM=="i2c", ATTRS{name}=="SCD 0000:07:00.0 SMBus master 1 bus 0", KERNEL=="*-0050", RUN+="/bin/mkdir -p /run/devmap/eeproms", RUN+="/bin/ln -sf %S%p/eeprom /run/devmap/eeproms/MERU800BIA_SMB_EEPROM"
 
 # SMB GPIO EXPANDER
-SUBSYSTEM=="gpio", DEVPATH=="*/0000:07:00.0/scm-smbus.1/i2c-*/*-0074/gpiochip*", RUN+="/bin/mkdir -p /run/devmap/gpiochips", RUN+="/bin/ln -sf /dev/gpiochip%n /run/devmap/gpiochips/MERU800BIA_PLS"
+SUBSYSTEM=="gpio", DEVPATH=="*/0000:07:00.0/scm-smbus.1/i2c-*/*-0074/gpiochip*", RUN+="/bin/mkdir -p /run/devmap/gpiochips", RUN+="/bin/ln -sf /dev/gpiochip%n /run/devmap/gpiochips/SMB_PCA"
 
 # SMB I2C SENSORS
 SUBSYSTEM=="hwmon", ATTR{name}=="tmp75", DEVPATH=="*/0000:07:00.0/scm-smbus.1/i2c-*/*-0049/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/SMB_TMP75_FRONT"
 SUBSYSTEM=="hwmon", ATTR{name}=="tmp75", DEVPATH=="*/0000:07:00.0/scm-smbus.1/i2c-*/*-004a/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/SMB_TMP75_REAR"
-SUBSYSTEM=="hwmon", ATTR{name}=="raa228228", DEVPATH=="*/0000:01:00.0/smb-smbus.0/i2c-*/*-0045/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/SMB_RAA288926_J3"
+SUBSYSTEM=="hwmon", ATTR{name}=="raa228228", DEVPATH=="*/0000:01:00.0/smb-smbus.0/i2c-*/*-0045/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/SMB_RAA228926_J3"
 SUBSYSTEM=="hwmon", ATTR{name}=="isl68226", DEVPATH=="*/0000:01:00.0/smb-smbus.0/i2c-*/*-0054/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/SMB_ISL68226_J3"
 SUBSYSTEM=="hwmon", ATTR{name}=="isl68226", DEVPATH=="*/0000:01:00.0/smb-smbus.0/i2c-*/*-0055/*", RUN+="/bin/mkdir -p /run/devmap/sensors", RUN+="/bin/ln -sf %S/class/hwmon/hwmon%n /run/devmap/sensors/SMB_ISL68226_OPTICS"
 SUBSYSTEM=="i2c", ATTR{name}=="SCD 0000:07:00.0 SMBus master 1 bus 0", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0050 || echo 24c512 0x50 > /sys/bus/i2c/devices/i2c-%n/new_device'", RUN+="/bin/sh -c 'test -d /sys/bus/i2c/devices/i2c-%n/%n-0074 || echo pca9539 0x74 > /sys/bus/i2c/devices/i2c-%n/new_device'"
