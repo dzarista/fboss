@@ -5,7 +5,7 @@
     "SCM_SLOT": {
       "numOutgoingI2cBuses": 4,
       "idpromConfig": {
-        "busName": "SCD 0000:07:00.0 SMBus master 0 bus 1",
+        "busName": "SMBus I801 adapter at 1000",
         "address": "0x50",
         "kernelDeviceName": "24c512"
       }
@@ -13,8 +13,8 @@
     "SMB_SLOT": {
       "numOutgoingI2cBuses": 3,
       "idpromConfig": {
-        "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
-        "address": "0x50",
+        "busName": "SCM_I2C_MASTER1@0",
+        "address": "0x52",
         "kernelDeviceName": "24c512"
       }
     },
@@ -33,9 +33,31 @@
   "pmUnitConfigs": {
     "SCM": {
       "pluggedInSlotType": "SCM_SLOT",
-      "i2cDeviceConfigs": [
+      "pciDevices": [
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 0",
+            "pmUnitScopedName": "SCM_FPGA",
+            "vendorId": "0x3475",
+            "deviceId": "0x0001",
+            "subSystemVendorId": "0x3475",
+            "subSystemDeviceId": "0x0008",
+            "i2cAdapterConfigs": {
+               "SCM_I2C_MASTER0": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 0,
+                  "offset": "0x8010",
+                  "numChannels": 8
+               },
+               "SCM_I2C_MASTER1": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 1,
+                  "offset": "0x8090",
+                  "numChannels": 8
+               }
+            }
+         }
+      ],
+         {
+            "busName": "SCM_I2C_MASTER0@0",
             "address": "0x40",
             "kernelDeviceName": "pmbus",
             "pmUnitScopedName": "CPU_MPS_PMBUS",
@@ -43,15 +65,15 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 1",
+            "busName": "SCM_I2C_MASTER0@1",
             "address": "0x50",
             "kernelDeviceName": "24c512",
-            "pmUnitScopedName": "MERU_SCM_EEPROM",
+            "pmUnitScopedName": "SCM_IDPROM",
             "isIdprom": true,
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 2",
+            "busName": "SCM_I2C_MASTER0@2",
             "address": "0x30",
             "kernelDeviceName": "pxm1310",
             "pmUnitScopedName": "CPU_PXM1310_1",
@@ -59,7 +81,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 2",
+            "busName": "SCM_I2C_MASTER0@2",
             "address": "0x3e",
             "kernelDeviceName": "pxe1610",
             "pmUnitScopedName": "CPU_PXE1211",
@@ -67,7 +89,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 0 bus 2",
+            "busName": "SCM_I2C_MASTER0@2",
             "address": "0x40",
             "kernelDeviceName": "pxm1310",
             "pmUnitScopedName": "CPU_PXM1310_2",
@@ -79,72 +101,35 @@
         "SMB_SLOT@0": {
           "slotType": "SMB_SLOT",
           "outgoingI2cBusNames": [
-             "SCD 0000:07:00.0 SMBus master 1 bus 0",
-             "SCD 0000:07:00.0 SMBus master 1 bus 1",
-             "SCD 0000:07:00.0 SMBus master 1 bus 2",
-             "SCD 0000:07:00.0 SMBus master 1 bus 3"
+             "SCM_I2C_MASTER1@0",
+             "SCM_I2C_MASTER1@1",
+             "SCM_I2C_MASTER1@2",
+             "SCM_I2C_MASTER1@3"
           ]
         }
-      },
-      "pciDevices": [
-         {
-            "pmUnitScopedName": "MERU_SCM_CPLD",
-            "vendorId": "0x3475",
-            "deviceId": "0x0008",
-            "i2cAdapterConfigs": {
-               "SCD 0000:07:00.0 SMBus master 0 bus 0": {
-                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 0 bus 0",
-                  "offset": "0x8010"
-               },
-               "SCD 0000:07:00.0 SMBus master 0 bus 1": {
-                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 0 bus 1",
-                  "offset": "0x8010"
-               },
-               "SCD 0000:07:00.0 SMBus master 0 bus 2": {
-                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 0 bus 2",
-                  "offset": "0x8010"
-               },
-               "SCD 0000:07:00.0 SMBus master 1 bus 0": {
-                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
-                  "offset": "0x8090"
-               },
-               "SCD 0000:07:00.0 SMBus master 1 bus 1": {
-                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
-                  "offset": "0x8090"
-               },
-               "SCD 0000:07:00.0 SMBus master 1 bus 2": {
-                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 1 bus 2",
-                  "offset": "0x8090"
-               },
-               "SCD 0000:07:00.0 SMBus master 1 bus 3": {
-                  "i2cAdapterName": "SCD 0000:07:00.0 SMBus master 1 bus 3",
-                  "offset": "0x8090"
-               }
-            }
-         }
-      ]
+      }
     },
     "SMB": {
       "pluggedInSlotType": "SMB_SLOT",
       "i2cDeviceConfigs": [
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+            "busName": "SCM_I2C_MASTER1@0",
             "address": "0x52",
             "kernelDeviceName": "24c512",
-            "pmUnitScopedName": "MERU800BFA_SMB_EEPROM",
+            "pmUnitScopedName": "SMB_IDPROM",
             "isIdprom": true,
             "isChassisEeprom": true
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+            "busName": "SCM_I2C_MASTER1@0",
             "address": "0x23",
             "kernelDeviceName": "decker_cpld",
-            "pmUnitScopedName": "MERU800BFA_SMB_CPLD",
+            "pmUnitScopedName": "SMB_CPLD",
             "isIdprom": false,
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+            "busName": "SCM_I2C_MASTER1@0",
             "address": "0x4d",
             "kernelDeviceName": "max6581",
             "pmUnitScopedName": "SMB_MAX6581",
@@ -152,7 +137,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 0",
+            "busName": "SCM_I2C_MASTER1@0",
             "address": "0x48",
             "kernelDeviceName": "tmp75",
             "pmUnitScopedName": "SMB_TMP75",
@@ -160,7 +145,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x60",
             "kernelDeviceName": "raa228228",
             "pmUnitScopedName": "SMB_RAA228926_R3R0_CORE",
@@ -168,7 +153,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x50",
             "kernelDeviceName": "isl68226",
             "pmUnitScopedName": "SMB_ISL68226_R3R0_ANLG0",
@@ -176,7 +161,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x51",
             "kernelDeviceName": "isl68226",
             "pmUnitScopedName": "SMB_ISL68226_R3R0_ANLG1",
@@ -184,7 +169,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x61",
             "kernelDeviceName": "raa228228",
             "pmUnitScopedName": "SMB_RAA228926_R3R1_CORE",
@@ -192,7 +177,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x52",
             "kernelDeviceName": "isl68226",
             "pmUnitScopedName": "SMB_ISL68226_R3R1_ANLG0",
@@ -200,7 +185,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x53",
             "kernelDeviceName": "isl68226",
             "pmUnitScopedName": "SMB_ISL68226_R3R1_ANLG1",
@@ -208,7 +193,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x5a",
             "kernelDeviceName": "isl68226",
             "pmUnitScopedName": "SMB_ISL68226_OSFP_TL",
@@ -216,7 +201,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x5b",
             "kernelDeviceName": "isl68226",
             "pmUnitScopedName": "SMB_ISL68226_OSFP_TR",
@@ -224,7 +209,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x5c",
             "kernelDeviceName": "isl68226",
             "pmUnitScopedName": "SMB_ISL68226_OSFP_BL",
@@ -232,7 +217,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 1",
+            "busName": "SCM_I2C_MASTER1@1",
             "address": "0x5d",
             "kernelDeviceName": "isl68226",
             "pmUnitScopedName": "SMB_ISL68226_OSFP_BR",
@@ -240,7 +225,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 2",
+            "busName": "SCM_I2C_MASTER1@2",
             "address": "0x11",
             "kernelDeviceName": "ucd90320",
             "pmUnitScopedName": "SMB_UCD90320",
@@ -248,7 +233,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 3",
+            "busName": "SCM_I2C_MASTER1@3",
             "address": "0x48",
             "kernelDeviceName": "tmp75",
             "pmUnitScopedName": "FAN0_TMP75",
@@ -256,7 +241,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus ",
+            "busName": "SCM_I2C_MASTER1@3",
             "address": "0x60",
             "kernelDeviceName": "oasis_cpld",
             "pmUnitScopedName": "FAN0_CPLD",
@@ -264,7 +249,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 3",
+            "busName": "SCM_I2C_MASTER1@3",
             "address": "0x49",
             "kernelDeviceName": "tmp75",
             "pmUnitScopedName": "FAN1_TMP75",
@@ -272,7 +257,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus ",
+            "busName": "SCM_I2C_MASTER1@3",
             "address": "0x61",
             "kernelDeviceName": "oasis_cpld",
             "pmUnitScopedName": "FAN1_CPLD",
@@ -280,7 +265,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus 3",
+            "busName": "SCM_I2C_MASTER1@3",
             "address": "0x4a",
             "kernelDeviceName": "tmp75",
             "pmUnitScopedName": "FAN2_TMP75",
@@ -288,7 +273,7 @@
             "isChassisEeprom": false
          },
          {
-            "busName": "SCD 0000:07:00.0 SMBus master 1 bus ",
+            "busName": "SCM_I2C_MASTER1@3",
             "address": "0x62",
             "kernelDeviceName": "oasis_cpld",
             "pmUnitScopedName": "FAN2_CPLD",
