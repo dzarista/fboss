@@ -3,7 +3,7 @@
   "rootPmUnitName": "SCM",
   "slotTypeConfigs": {
     "SCM_SLOT": {
-      "numOutgoingI2cBuses": 4,
+      "numOutgoingI2cBuses": 0,
       "idpromConfig": {
         "busName": "SMBus I801 adapter at 1000",
         "address": "0x50",
@@ -11,9 +11,9 @@
       }
     },
     "SMB_SLOT": {
-      "numOutgoingI2cBuses": 3,
+      "numOutgoingI2cBuses": 4,
       "idpromConfig": {
-        "busName": "SCM_I2C_MASTER1@0",
+        "busName": "INCOMING@0",
         "address": "0x52",
         "kernelDeviceName": "24c512"
       }
@@ -51,50 +51,42 @@
                   "i2cAdapterName": "i2c_master",
                   "instanceId": 1,
                   "offset": "0x8090",
-                  "numChannels": 8
+                  "numChannels": 4
                }
             }
          }
       ],
+      "i2cDeviceConfigs": [
          {
             "busName": "SCM_I2C_MASTER0@0",
             "address": "0x40",
             "kernelDeviceName": "pmbus",
-            "pmUnitScopedName": "CPU_MPS_PMBUS",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SCM_MPS_PMBUS"
          },
          {
             "busName": "SCM_I2C_MASTER0@1",
             "address": "0x50",
             "kernelDeviceName": "24c512",
             "pmUnitScopedName": "SCM_IDPROM",
-            "isIdprom": true,
-            "isChassisEeprom": false
+            "isIdprom": true
          },
          {
             "busName": "SCM_I2C_MASTER0@2",
             "address": "0x30",
             "kernelDeviceName": "pxm1310",
-            "pmUnitScopedName": "CPU_PXM1310_1",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SCM_PXM1310_1"
          },
          {
             "busName": "SCM_I2C_MASTER0@2",
             "address": "0x3e",
             "kernelDeviceName": "pxe1610",
-            "pmUnitScopedName": "CPU_PXE1211",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SCM_PXE1211"
          },
          {
             "busName": "SCM_I2C_MASTER0@2",
             "address": "0x40",
             "kernelDeviceName": "pxm1310",
-            "pmUnitScopedName": "CPU_PXM1310_2",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SCM_PXM1310_2"
          }
       ],
       "outgoingSlotConfigs": {
@@ -111,9 +103,167 @@
     },
     "SMB": {
       "pluggedInSlotType": "SMB_SLOT",
+      "pciDevices": [
+         {
+            "pmUnitScopedName": "SMB_FPGA0",
+            "vendorId": "0x3475",
+            "deviceId": "0x0001",
+            "subSystemVendorId": "0x3475",
+            "subSystemDeviceId": "0x0004",
+            "i2cAdapterConfigs": {
+               "SMB_FPGA0_I2C_MASTER0": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 100,
+                  "offset": "0x8010",
+                  "numChannels": 8
+               },
+               "SMB_FPGA0_I2C_MASTER1": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 101,
+                  "offset": "0x8090",
+                  "numChannels": 8
+               },
+               "SMB_FPGA0_I2C_MASTER2": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 102,
+                  "offset": "0x8110",
+                  "numChannels": 8
+               },
+               "SMB_FPGA0_I2C_MASTER3": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 103,
+                  "offset": "0x8190",
+                  "numChannels": 8
+               },
+               "SMB_FPGA0_I2C_MASTER4": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 104,
+                  "offset": "0x8210",
+                  "numChannels": 8
+               }
+            }
+         },
+         {
+            "pmUnitScopedName": "SMB_FPGA1",
+            "vendorId": "0x3475",
+            "deviceId": "0x0001",
+            "subSystemVendorId": "0x3475",
+            "subSystemDeviceId": "0x0005",
+            "i2cAdapterConfigs": {
+               "SMB_FPGA1_I2C_MASTER0": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 200,
+                  "offset": "0x8010",
+                  "numChannels": 8
+               },
+               "SMB_FPGA1_I2C_MASTER1": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 201,
+                  "offset": "0x8090",
+                  "numChannels": 8
+               },
+               "SMB_FPGA1_I2C_MASTER2": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 202,
+                  "offset": "0x8110",
+                  "numChannels": 8
+               },
+               "SMB_FPGA1_I2C_MASTER3": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 203,
+                  "offset": "0x8190",
+                  "numChannels": 8
+               },
+               "SMB_FPGA1_I2C_MASTER4": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 204,
+                  "offset": "0x8210",
+                  "numChannels": 8
+               }
+            }
+         },
+         {
+            "pmUnitScopedName": "SMB_FPGA2",
+            "vendorId": "0x3475",
+            "deviceId": "0x0001",
+            "subSystemVendorId": "0x3475",
+            "subSystemDeviceId": "0x0006",
+            "i2cAdapterConfigs": {
+               "SMB_FPGA2_I2C_MASTER0": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 300,
+                  "offset": "0x8010",
+                  "numChannels": 8
+               },
+               "SMB_FPGA2_I2C_MASTER1": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 301,
+                  "offset": "0x8090",
+                  "numChannels": 8
+               },
+               "SMB_FPGA2_I2C_MASTER2": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 302,
+                  "offset": "0x8110",
+                  "numChannels": 8
+               },
+               "SMB_FPGA2_I2C_MASTER3": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 303,
+                  "offset": "0x8190",
+                  "numChannels": 8
+               },
+               "SMB_FPGA2_I2C_MASTER4": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 304,
+                  "offset": "0x8210",
+                  "numChannels": 8
+               }
+            }
+         },
+         {
+            "pmUnitScopedName": "SMB_FPGA3",
+            "vendorId": "0x3475",
+            "deviceId": "0x0001",
+            "subSystemVendorId": "0x3475",
+            "subSystemDeviceId": "0x0007",
+            "i2cAdapterConfigs": {
+               "SMB_FPGA3_I2C_MASTER0": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 400,
+                  "offset": "0x8010",
+                  "numChannels": 8
+               },
+               "SMB_FPGA3_I2C_MASTER1": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 401,
+                  "offset": "0x8090",
+                  "numChannels": 8
+               },
+               "SMB_FPGA3_I2C_MASTER2": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 402,
+                  "offset": "0x8110",
+                  "numChannels": 8
+               },
+               "SMB_FPGA3_I2C_MASTER3": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 403,
+                  "offset": "0x8190",
+                  "numChannels": 8
+               },
+               "SMB_FPGA3_I2C_MASTER4": {
+                  "i2cAdapterName": "i2c_master",
+                  "instanceId": 404,
+                  "offset": "0x8210",
+                  "numChannels": 8
+               }
+            }
+         }
+      ],
       "i2cDeviceConfigs": [
          {
-            "busName": "SCM_I2C_MASTER1@0",
+            "busName": "INCOMING@0",
             "address": "0x52",
             "kernelDeviceName": "24c512",
             "pmUnitScopedName": "SMB_IDPROM",
@@ -121,202 +271,163 @@
             "isChassisEeprom": true
          },
          {
-            "busName": "SCM_I2C_MASTER1@0",
+            "busName": "INCOMING@0",
             "address": "0x23",
             "kernelDeviceName": "decker_cpld",
-            "pmUnitScopedName": "SMB_CPLD",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_CPLD"
          },
          {
-            "busName": "SCM_I2C_MASTER1@0",
+            "busName": "INCOMING@0",
             "address": "0x4d",
             "kernelDeviceName": "max6581",
-            "pmUnitScopedName": "SMB_MAX6581",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_MAX6581"
          },
          {
-            "busName": "SCM_I2C_MASTER1@0",
+            "busName": "INCOMING@0",
             "address": "0x48",
             "kernelDeviceName": "tmp75",
-            "pmUnitScopedName": "SMB_TMP75",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_TMP75"
          },
          {
-            "busName": "SCM_I2C_MASTER1@1",
+            "busName": "INCOMING@1",
             "address": "0x60",
             "kernelDeviceName": "raa228228",
-            "pmUnitScopedName": "SMB_RAA228926_R3R0_CORE",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_RAA228926_R3R0_CORE"
          },
          {
-            "busName": "SCM_I2C_MASTER1@1",
+            "busName": "INCOMING@1",
             "address": "0x50",
             "kernelDeviceName": "isl68226",
-            "pmUnitScopedName": "SMB_ISL68226_R3R0_ANLG0",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_ISL68226_R3R0_ANLG0"
          },
          {
-            "busName": "SCM_I2C_MASTER1@1",
+            "busName": "INCOMING@1",
             "address": "0x51",
             "kernelDeviceName": "isl68226",
-            "pmUnitScopedName": "SMB_ISL68226_R3R0_ANLG1",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_ISL68226_R3R0_ANLG1"
          },
          {
-            "busName": "SCM_I2C_MASTER1@1",
+            "busName": "INCOMING@1",
             "address": "0x61",
             "kernelDeviceName": "raa228228",
-            "pmUnitScopedName": "SMB_RAA228926_R3R1_CORE",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_RAA228926_R3R1_CORE"
          },
          {
-            "busName": "SCM_I2C_MASTER1@1",
+            "busName": "INCOMING@1",
             "address": "0x52",
             "kernelDeviceName": "isl68226",
-            "pmUnitScopedName": "SMB_ISL68226_R3R1_ANLG0",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_ISL68226_R3R1_ANLG0"
          },
          {
-            "busName": "SCM_I2C_MASTER1@1",
+            "busName": "INCOMING@1",
             "address": "0x53",
             "kernelDeviceName": "isl68226",
-            "pmUnitScopedName": "SMB_ISL68226_R3R1_ANLG1",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_ISL68226_R3R1_ANLG1"
          },
          {
+            "busName": "INCOMING@1",
             "busName": "SCM_I2C_MASTER1@1",
             "address": "0x5a",
             "kernelDeviceName": "isl68226",
-            "pmUnitScopedName": "SMB_ISL68226_OSFP_TL",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_ISL68226_OSFP_TL"
          },
          {
-            "busName": "SCM_I2C_MASTER1@1",
+            "busName": "INCOMING@1",
             "address": "0x5b",
             "kernelDeviceName": "isl68226",
-            "pmUnitScopedName": "SMB_ISL68226_OSFP_TR",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_ISL68226_OSFP_TR"
          },
          {
-            "busName": "SCM_I2C_MASTER1@1",
+            "busName": "INCOMING@1",
             "address": "0x5c",
             "kernelDeviceName": "isl68226",
-            "pmUnitScopedName": "SMB_ISL68226_OSFP_BL",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_ISL68226_OSFP_BL"
          },
          {
-            "busName": "SCM_I2C_MASTER1@1",
+            "busName": "INCOMING@1",
             "address": "0x5d",
             "kernelDeviceName": "isl68226",
-            "pmUnitScopedName": "SMB_ISL68226_OSFP_BR",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_ISL68226_OSFP_BR"
          },
          {
-            "busName": "SCM_I2C_MASTER1@2",
+            "busName": "INCOMING@2",
             "address": "0x11",
             "kernelDeviceName": "ucd90320",
-            "pmUnitScopedName": "SMB_UCD90320",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "SMB_UCD90320"
          },
          {
-            "busName": "SCM_I2C_MASTER1@3",
+            "busName": "INCOMING@3",
             "address": "0x48",
             "kernelDeviceName": "tmp75",
-            "pmUnitScopedName": "FAN0_TMP75",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "FAN0_TMP75"
          },
          {
-            "busName": "SCM_I2C_MASTER1@3",
+            "busName": "INCOMING@3",
             "address": "0x60",
             "kernelDeviceName": "oasis_cpld",
-            "pmUnitScopedName": "FAN0_CPLD",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "FAN0_CPLD"
          },
          {
-            "busName": "SCM_I2C_MASTER1@3",
+            "busName": "INCOMING@3",
             "address": "0x49",
             "kernelDeviceName": "tmp75",
-            "pmUnitScopedName": "FAN1_TMP75",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "FAN1_TMP75"
          },
          {
-            "busName": "SCM_I2C_MASTER1@3",
+            "busName": "INCOMING@3",
             "address": "0x61",
             "kernelDeviceName": "oasis_cpld",
-            "pmUnitScopedName": "FAN1_CPLD",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "FAN1_CPLD"
          },
          {
-            "busName": "SCM_I2C_MASTER1@3",
+            "busName": "INCOMING@3",
             "address": "0x4a",
             "kernelDeviceName": "tmp75",
-            "pmUnitScopedName": "FAN2_TMP75",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "FAN2_TMP75"
          },
          {
-            "busName": "SCM_I2C_MASTER1@3",
+            "busName": "INCOMING@3",
             "address": "0x62",
             "kernelDeviceName": "oasis_cpld",
-            "pmUnitScopedName": "FAN2_CPLD",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "FAN2_CPLD"
          }
       ],
       "outgoingSlotConfigs": {
         "PSU_SLOT@0": {
           "slotType": "PSU_SLOT",
           "presenceDetection": {
-             "devicePath": "/SMB_SLOT@0/[MERU800BFA_SMB_FPGA0]",
+             "devicePath": "/SMB_SLOT@0/[SMB_FPGA0]",
              "presenceFileName": "psu1_prsnt",
              "desiredValue": "1"
           },
-          "outgoingI2cBusNames": ["SCD 0000:04:00.0 SMBus master 4 bus 0"]
+          "outgoingI2cBusNames": ["SMB_FPGA3_I2C_MASTER4@0"]
         },
         "PSU_SLOT@1": {
           "slotType": "PSU_SLOT",
           "presenceDetection": {
-             "devicePath": "/SMB_SLOT@0/[MERU800BFA_SMB_FPGA0]",
+             "devicePath": "/SMB_SLOT@0/[SMB_FPGA0]",
              "presenceFileName": "psu2_prsnt",
              "desiredValue": "1"
           },
-          "outgoingI2cBusNames": ["SCD 0000:03:00.0 SMBus master 4 bus 0"]
+          "outgoingI2cBusNames": ["SMB_FPGA2_I2C_MASTER4@0"]
         },
         "PSU_SLOT@2": {
           "slotType": "PSU_SLOT",
           "presenceDetection": {
-             "devicePath": "/SMB_SLOT@0/[MERU800BFA_SMB_FPGA0]",
+             "devicePath": "/SMB_SLOT@0/[SMB_FPGA0]",
              "presenceFileName": "psu3_present",
              "desiredValue": "1"
           },
-          "outgoingI2cBusNames": ["SCD 0000:04:00.0 SMBus master 4 bus 1"]
+          "outgoingI2cBusNames": ["SMB_FPGA3_I2C_MASTER4@1"]
         },
         "PSU_SLOT@3": {
           "slotType": "PSU_SLOT",
           "presenceDetection": {
-             "devicePath": "/SMB_SLOT@0/[MERU800BIA_SMB_FPGA]",
+             "devicePath": "/SMB_SLOT@0/[SMB_FPGA0]",
              "presenceFileName": "psu4_present",
              "desiredValue": "1"
           },
-          "outgoingI2cBusNames": ["SCD 0000:03:00.0 SMBus master 4 bus 1"]
+          "outgoingI2cBusNames": ["SMB_FPGA2_I2C_MASTER4@1"]
         },
         "FAN_SLOT@0": {
           "slotType": "FAN_SLOT",
@@ -348,6 +459,7 @@
              "devicePath": "/SMB_SLOT@0/[FAN0_CPLD]",
              "presenceFileName": "hwmon/hwmon*/fan4_present",
              "desiredValue": "1"
+          }
         },
         "FAN_SLOT@4": {
           "slotType": "FAN_SLOT",
@@ -413,156 +525,59 @@
              "desiredValue": "1"
           }
         }
-      },
-      "pciDevices": [
-         {
-            "pmUnitScopedName": "MERU800BFA_SMB_FPGA0",
-            "vendorId": "0x3475",
-            "deviceId": "0x0004",
-            "i2cAdapterConfigs": {}
-         },
-         {
-            "pmUnitScopedName": "MERU800BFA_SMB_FPGA1",
-            "vendorId": "0x3475",
-            "deviceId": "0x0005",
-            "i2cAdapterConfigs": {}
-            }
-         },
-         {
-            "pmUnitScopedName": "MERU800BFA_SMB_FPGA2",
-            "vendorId": "0x3475",
-            "deviceId": "0x0006",
-            "i2cAdapterConfigs": {
-               "SCD 0000:03:00.0 SMBus master 4 bus 0": {
-                  "i2cAdapterName": "SCD 0000:03:00.0 SMBus master 4 bus 0",
-                  "offset": "0x8210"
-               },
-               "SCD 0000:03:00.0 SMBus master 4 bus 1": {
-                  "i2cAdapterName": "SCD 0000:03:00.0 SMBus master 4 bus 1",
-                  "offset": "0x8210"
-               }
-            }
-         },
-         {
-            "pmUnitScopedName": "MERU800BFA_SMB_FPGA3",
-            "vendorId": "0x3475",
-            "deviceId": "0x0007",
-            "i2cAdapterConfigs": {
-               "SCD 0000:04:00.0 SMBus master 4 bus 0": {
-                  "i2cAdapterName": "SCD 0000:04:00.0 SMBus master 4 bus 0",
-                  "offset": "0x8210"
-               },
-               "SCD 0000:04:00.0 SMBus master 4 bus 1": {
-                  "i2cAdapterName": "SCD 0000:04:00.0 SMBus master 4 bus 1",
-                  "offset": "0x8210"
-               }
-            }
-         }
-      ]
+      }
     },
-    "PSU1": {
+    "PSU": {
       "pluggedInSlotType": "PSU_SLOT",
       "i2cDeviceConfigs": [
          {
-            "busName": "SCD 0000:04:00.0 SMBus master 4 bus 0",
+            "busName": "INCOMING@0",
             "address": "0x58",
             "kernelDeviceName": "pmbus",
-            "pmUnitScopedName": "PSU1_PMBUS",
-            "isIdprom": false,
-            "isChassisEeprom": false
+            "pmUnitScopedName": "PSU_PMBUS"
          }
       ]
     },
-    "PSU2": {
-      "pluggedInSlotType": "PSU_SLOT",
-      "i2cDeviceConfigs": [
-         {
-            "busName": "SCD 0000:03:00.0 SMBus master 4 bus 0",
-            "address": "0x58",
-            "kernelDeviceName": "pmbus",
-            "pmUnitScopedName": "PSU2_PMBUS",
-            "isIdprom": false,
-            "isChassisEeprom": false
-         }
-      ]
-    },
-    "PSU3": {
-      "pluggedInSlotType": "PSU_SLOT",
-      "i2cDeviceConfigs": [
-         {
-            "busName": "SCD 0000:04:00.0 SMBus master 4 bus 1",
-            "address": "0x58",
-            "kernelDeviceName": "pmbus",
-            "pmUnitScopedName": "PSU3_PMBUS",
-            "isIdprom": false,
-            "isChassisEeprom": false
-         }
-      ]
-    },
-    "PSU4": {
-      "pluggedInSlotType": "PSU_SLOT",
-      "i2cDeviceConfigs": [
-         {
-            "busName": "SCD 0000:03:00.0 SMBus master 4 bus 1",
-            "address": "0x58",
-            "kernelDeviceName": "pmbus",
-            "pmUnitScopedName": "PSU4_PMBUS",
-            "isIdprom": false,
-            "isChassisEeprom": false
-         }
-      ]
-    },
-    "FAN1": {
+    "FAN": {
       "pluggedInSlotType": "FAN_SLOT",
       "i2cDeviceConfigs": []
-    },
-    "FAN2": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN3": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN4": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN5": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN6": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN7": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN8": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN9": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN10": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN11": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "FAN12": {
-      "pluggedInSlotType": "FAN_SLOT",
-      "i2cDeviceConfigs": []
-    },
-    "CHASSIS": {
-      "pluggedInSlotType": "CHASSIS_SLOT",
-      "outgoingSlotConfigs": {}
     }
+  },
+  "devicePathToHumanFriendlyPath": {
+     "/[SCM_FPGA]": "/run/devmap/fpgas/MERU_SCM_CPLD",
+     "/[SCM_FPGA::SCM_IDPROM]": "/run/devmap/eeproms/MERU_SCM_EEPROM",
+     "/[SCM_FPGA::SCM_MPS_PMBUS]": "/run/devmap/sensors/CPU_MPS_PMBUS",
+     "/[SCM_FPGA::SCM_PXM1310_1]": "/run/devmap/sensors/CPU_PXM1310_1",
+     "/[SCM_FPGA::SCM_PXE1211]": "/run/devmap/sensors/CPU_PXE1211",
+     "/[SCM_FPGA::SCM_PXM1310_2]": "/run/devmap/sensors/CPU_PXM1310_2",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_IDPROM]": "/run/devmap/eeproms/MERU800BFA_SMB_EEPROM",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_CPLD]": "/run/devmap/cplds/MERU800BFA_SMB_CPLD",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_MAX6581]": "/run/devmap/sensors/SMB_MAX6581",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_TMP75]": "/run/devmap/sensors/SMB_TMP75",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_RAA228926_R3R0_CORE]": "/run/devmap/sensors/SMB_RAA228926_R3R0_CORE",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_ISL68226_R3R0_ANLG0]": "/run/devmap/sensors/SMB_ISL68226_R3R0_ANLG0",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_ISL68226_R3R0_ANLG1]": "/run/devmap/sensors/SMB_ISL68226_R3R0_ANLG1",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_RAA228926_R3R1_CORE]": "/run/devmap/sensors/SMB_RAA228926_R3R1_CORE",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_ISL68226_R3R1_ANLG0]": "/run/devmap/sensors/SMB_ISL68226_R3R1_ANLG0",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_ISL68226_R3R1_ANLG1]": "/run/devmap/sensors/SMB_ISL68226_R3R1_ANLG1",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_ISL68226_OSFP_TL]": "/run/devmap/sensors/SMB_ISL68226_OSFP_TL",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_ISL68226_OSFP_TR]": "/run/devmap/sensors/SMB_ISL68226_OSFP_TR",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_ISL68226_OSFP_BL]": "/run/devmap/sensors/SMB_ISL68226_OSFP_BL",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_ISL68226_OSFP_BR]": "/run/devmap/sensors/SMB_ISL68226_OSFP_BR",
+     "/SMB_SLOT@0/[SCM_FPGA::SMB_UCD90320]": "/run/devmap/sensors/SMB_UCD90320",
+     "/SMB_SLOT@0/[SCM_FPGA::FAN0_TMP75]": "/run/devmap/sensors/FAN0_TMP75",
+     "/SMB_SLOT@0/[SCM_FPGA::FAN0_CPLD]": "/run/devmap/sensors/FAN_CPLD0",
+     "/SMB_SLOT@0/[SCM_FPGA::FAN1_TMP75]": "/run/devmap/sensors/FAN1_TMP75",
+     "/SMB_SLOT@0/[SCM_FPGA::FAN1_CPLD]": "/run/devmap/sensors/FAN_CPLD1",
+     "/SMB_SLOT@0/[SCM_FPGA::FAN2_TMP75]": "/run/devmap/sensors/FAN2_TMP75",
+     "/SMB_SLOT@0/[SCM_FPGA::FAN2_CPLD]": "/run/devmap/sensors/FAN_CPLD2",
+     "/SMB_SLOT@0/[SMB_FPGA0]": "/run/devmap/fpgas/MERU800BFA_SMB_FPGA0",
+     "/SMB_SLOT@0/[SMB_FPGA1]": "/run/devmap/fpgas/MERU800BFA_SMB_FPGA1",
+     "/SMB_SLOT@0/[SMB_FPGA2]": "/run/devmap/fpgas/MERU800BFA_SMB_FPGA2",
+     "/SMB_SLOT@0/[SMB_FPGA3]": "/run/devmap/fpgas/MERU800BFA_SMB_FPGA3",
+     "/SMB_SLOT@0/PSU_SLOT@0/[PSU_PMBUS]": "/run/devmap/sensors/PSU1_PMBUS",
+     "/SMB_SLOT@0/PSU_SLOT@1/[PSU_PMBUS]": "/run/devmap/sensors/PSU2_PMBUS",
+     "/SMB_SLOT@0/PSU_SLOT@2/[PSU_PMBUS]": "/run/devmap/sensors/PSU3_PMBUS",
+     "/SMB_SLOT@0/PSU_SLOT@3/[PSU_PMBUS]": "/run/devmap/sensors/PSU4_PMBUS"
   }
 }
