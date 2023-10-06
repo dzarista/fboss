@@ -372,11 +372,11 @@ with open( "whistler_static_mapping.csv", "w" ) as fh:
       # BCM soc properties for lane maps and polarity swaps.
       # NOTE : Currently this only generates
       bcmConfigFh.write(
-            f"\"lane_to_serdes_map_{laneMapType}_lane{logicalLane}.BCM8886X.{chipId}\": \"rx{rxPhysicalLane}:tx{txPhysicalLane}\",\n" )
+            f"\"lane_to_serdes_map_{laneMapType}_lane{logicalLane}.BCM8892X.{chipId}\": \"rx{rxPhysicalLane}:tx{txPhysicalLane}\",\n" )
       bcmConfigFh.write(
-            f"\"phy_rx_polarity_flip_{polaritySwapType}{logicalLane}.BCM8886X.{chipId}\": \"{rxPolSwapProp}\",\n" )
+            f"\"phy_rx_polarity_flip_{polaritySwapType}{logicalLane}.BCM8892X.{chipId}\": \"{rxPolSwapProp}\",\n" )
       bcmConfigFh.write(
-            f"\"phy_tx_polarity_flip_{polaritySwapType}{logicalLane}.BCM8886X.{chipId}\": \"{txPolSwapProp}\",\n" )
+            f"\"phy_tx_polarity_flip_{polaritySwapType}{logicalLane}.BCM8892X.{chipId}\": \"{txPolSwapProp}\",\n" )
 
 with open( "whistler_port_profile_mapping.csv", "w" ) as fh:
    fabricPortBase = 0
