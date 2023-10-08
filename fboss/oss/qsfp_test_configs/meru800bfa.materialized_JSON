@@ -1,0 +1,17 @@
+{
+  "defaultCommandLineArgs": {
+    "mode": "meru800bfa"
+  },
+  "transceiverConfigOverrides": [
+
+  ],
+  "qsfpTestConfig": {
+    "cabledPortPairs": [
+      {
+        "aPortName": "fab1/1/2",
+        "zPortName": "fab1/2/2",
+        "profileID": 41
+      }
+    ]
+  }
+}
