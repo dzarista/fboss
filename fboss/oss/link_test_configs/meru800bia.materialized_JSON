@@ -6452,7 +6452,7 @@
           "custom_feature_statdma_enable": "0",
           "custom_feature_use_new_access.BCM8886X": "1",
           "custom_feature_use_new_access.BCM8886X_ADAPTER": "1",
-          "dpp_db_path": "/root/j3/tools/sand/db",
+          "dpp_db_path": "/opt/fboss/share/db",
           "dram_temperature_monitor_enable.BCM8886X_ADAPTER": "0",
           "dtm_flow_mapping_mode_region_65.BCM8886X": "3",
           "dtm_flow_mapping_mode_region_66.BCM8886X": "3",
