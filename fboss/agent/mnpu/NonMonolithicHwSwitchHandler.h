@@ -41,7 +41,8 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
 
   std::optional<uint32_t> getHwLogicalPortId(PortID portID) const override;
 
-  bool transactionsSupported() const override;
+  bool transactionsSupported(
+      std::optional<cfg::SdkVersion> sdkVersion) const override;
 
   folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
 
@@ -80,8 +81,9 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
       const StateDelta& delta,
       bool transaction) override;
 
-  fsdb::OperDelta stateChanged(const fsdb::OperDelta& delta, bool transaction)
-      override;
+  std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus> stateChanged(
+      const fsdb::OperDelta& delta,
+      bool transaction) override;
 
   CpuPortStats getCpuPortStats() const override;
 
@@ -101,10 +103,12 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
   bool needL2EntryForNeighbor(const cfg::SwitchConfig* config) const override;
 
   multiswitch::StateOperDelta getNextStateOperDelta(
-      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) override;
+      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
+      bool initialSync) override;
 
-  void notifyHwSwitchGracefulExit() override;
+  void notifyHwSwitchDisconnected() override;
   void cancelOperDeltaSync();
+  HwSwitchOperDeltaSyncState getHwSwitchOperDeltaSyncState() override;
 
   bool sendPacketOutViaThriftStream(
       std::unique_ptr<TxPacket> pkt,
@@ -112,15 +116,19 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
       std::optional<uint8_t> queue = std::nullopt);
 
  private:
+  bool isOperSyncState(HwSwitchOperDeltaSyncState state) const;
+  void setOperSyncState(HwSwitchOperDeltaSyncState state) {
+    operDeltaSyncState_ = state;
+  }
+
   SwSwitch* sw_;
   std::condition_variable stateUpdateCV_;
   std::mutex stateUpdateMutex_;
   multiswitch::StateOperDelta* nextOperDelta_{nullptr};
   multiswitch::StateOperDelta* prevOperDeltaResult_{nullptr};
-  bool connected_{false};
+  HwSwitchOperDeltaSyncState operDeltaSyncState_{DISCONNECTED};
   bool deltaReady_{false};
   bool ackReceived_{false};
-  bool deltaReadCancelled_{false};
 };
 
 } // namespace facebook::fboss

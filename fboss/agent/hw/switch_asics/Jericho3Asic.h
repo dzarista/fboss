@@ -44,8 +44,9 @@ class Jericho3Asic : public BroadcomAsic {
   }
   std::set<cfg::StreamType> getQueueStreamTypes(
       cfg::PortType portType) const override;
-  int getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
-      const override;
+  int getDefaultNumPortQueues(
+      cfg::StreamType streamType,
+      cfg::PortType portType) const override;
   uint32_t getMaxLabelStackDepth() const override {
     return 9;
   }
@@ -58,10 +59,9 @@ class Jericho3Asic : public BroadcomAsic {
   uint32_t getMaxMirrors() const override {
     return 4;
   }
-  uint64_t getDefaultReservedBytes(cfg::StreamType /*streamType*/, bool cpu)
-      const override {
-    return cpu ? 1778 : 0;
-  }
+  uint64_t getDefaultReservedBytes(
+      cfg::StreamType streamType,
+      cfg::PortType portType) const override;
   cfg::MMUScalingFactor getDefaultScalingFactor(
       cfg::StreamType /*streamType*/,
       bool /*cpu*/) const override {

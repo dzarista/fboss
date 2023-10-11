@@ -39,8 +39,12 @@ namespace {
 /*
  * This function is executed periodically by the UpdateStats thread.
  */
-void updateStats(facebook::fboss::HwSwitch* hw) {
+void updateStats(
+    facebook::fboss::HwSwitch* hw,
+    facebook::fboss::SplitAgentThriftSyncer* syncer) {
   hw->updateStats();
+  auto hwSwitchStats = hw->getHwSwitchStats();
+  syncer->updateHwSwitchStats(std::move(hwSwitchStats));
 }
 } // namespace
 
@@ -85,7 +89,8 @@ int hwAgentMain(
   auto thriftSyncer = std::make_unique<SplitAgentThriftSyncer>(
       hwAgent->getPlatform()->getHwSwitch(),
       FLAGS_swswitch_port,
-      SwitchID(*hwAgent->getPlatform()->getAsic()->getSwitchId()));
+      SwitchID(*hwAgent->getPlatform()->getAsic()->getSwitchId()),
+      FLAGS_switchIndex);
 
   auto ret =
       hwAgent->initAgent(true /* failHwCallsOnWarmboot */, thriftSyncer.get());
@@ -104,8 +109,10 @@ int hwAgentMain(
     // steady will help even out the interval which will especially make
     // aggregated counters more accurate with less spikes and dips
     fs->setSteady(true);
-    std::function<void()> callback(
-        std::bind(updateStats, hwAgent->getPlatform()->getHwSwitch()));
+    std::function<void()> callback(std::bind(
+        updateStats,
+        hwAgent->getPlatform()->getHwSwitch(),
+        thriftSyncer.get()));
     auto timeInterval = std::chrono::seconds(1);
     fs->addFunction(callback, timeInterval, "updateStats");
     fs->start();

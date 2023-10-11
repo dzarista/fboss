@@ -187,7 +187,6 @@ add_library(core
   fboss/agent/oss/PacketLogger.cpp
   fboss/agent/oss/RouteUpdateLogger.cpp
   fboss/agent/oss/SwSwitch.cpp
-  fboss/agent/oss/DsfSubscriber.cpp
   fboss/agent/oss/FsdbSyncer.cpp
 )
 
@@ -228,6 +227,7 @@ target_link_libraries(core
   normalizer
   bidirectional_packet_stream
   fsdb_common_cpp2
+  fsdb_model
   fsdb_stream_client
   fsdb_pub_sub
   fsdb_flags
@@ -312,6 +312,7 @@ target_link_libraries(hw_switch
   hw_switch_fb303_stats
   hw_write_behavior
   hw_switch_warmboot_helper
+  multiswitch_ctrl_cpp2
 )
 
 add_library(async_logger
@@ -428,6 +429,7 @@ target_link_libraries(route_update_wrapper
 
 add_library(split_agent_thrift_syncer
   fboss/agent/mnpu/FdbEventSyncer.cpp
+  fboss/agent/mnpu/HwSwitchStatsSinkClient.cpp
   fboss/agent/mnpu/LinkEventSyncer.cpp
   fboss/agent/mnpu/OperDeltaSyncer.cpp
   fboss/agent/mnpu/RxPktEventSyncer.cpp

@@ -3,8 +3,9 @@
 #pragma once
 
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
-#include "fboss/agent/test/AgentEnsemble.h"
+#include "fboss/agent/test/SplitAgentEnsemble.h"
 
+#include <gflags/gflags.h>
 #include <gtest/gtest.h>
 
 DECLARE_int32(update_watermark_stats_interval_s);
@@ -83,11 +84,17 @@ class SplitAgentTest : public ::testing::Test {
   void runForever() const;
   std::shared_ptr<SwitchState> applyNewConfig(const cfg::SwitchConfig& config);
 
+  SwSwitch* getSw() const;
   const std::map<SwitchID, const HwAsic*> getAsics() const;
   bool isSupportedOnAllAsics(HwAsic::Feature feature) const;
   AgentEnsemble* getAgentEnsemble() const;
   const std::shared_ptr<SwitchState> getProgrammedState() const;
   std::vector<PortID> masterLogicalPortIds() const;
+  std::vector<PortID> masterLogicalPortIds(
+      const std::set<cfg::PortType>& portTypes) const;
+  void setSwitchDrainState(
+      const cfg::SwitchConfig& curConfig,
+      cfg::SwitchDrainState drainState);
 
  private:
   /*

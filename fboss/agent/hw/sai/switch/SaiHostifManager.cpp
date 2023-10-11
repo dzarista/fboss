@@ -462,7 +462,7 @@ void SaiHostifManager::changeCpuQueue(
         newPortQueue->getReservedBytes()
             ? *newPortQueue->getReservedBytes()
             : asic->getDefaultReservedBytes(
-                  newPortQueue->getStreamType(), true /*cpu port*/));
+                  newPortQueue->getStreamType(), cfg::PortType::CPU_PORT));
     portQueue->setScalingFactor(
         newPortQueue->getScalingFactor()
             ? *newPortQueue->getScalingFactor()
@@ -545,7 +545,8 @@ uint32_t SaiHostifManager::getMaxCpuQueues() const {
   auto asic = platform_->getAsic();
   auto cpuQueueTypes = asic->getQueueStreamTypes(cfg::PortType::CPU_PORT);
   CHECK_EQ(cpuQueueTypes.size(), 1);
-  return asic->getDefaultNumPortQueues(*cpuQueueTypes.begin(), true /*cpu*/);
+  return asic->getDefaultNumPortQueues(
+      *cpuQueueTypes.begin(), cfg::PortType::CPU_PORT);
 }
 
 QueueConfig SaiHostifManager::getQueueSettings() const {

@@ -25,12 +25,12 @@ std::set<cfg::StreamType> CredoPhyAsic::getQueueStreamTypes(
 }
 int CredoPhyAsic::getDefaultNumPortQueues(
     cfg::StreamType /* streamType */,
-    bool /* cpu */) const {
+    cfg::PortType /*portType*/) const {
   throw FbossError("CredoPhyAsic doesn't support queue feature");
 }
 uint64_t CredoPhyAsic::getDefaultReservedBytes(
     cfg::StreamType /* streamType */,
-    bool /* cpu */) const {
+    cfg::PortType /* portType */) const {
   throw FbossError("CredoPhyAsic doesn't support queue feature");
 }
 cfg::MMUScalingFactor CredoPhyAsic::getDefaultScalingFactor(

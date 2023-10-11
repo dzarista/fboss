@@ -9,6 +9,7 @@
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/HwSwitchCallback.h"
 #include "fboss/agent/HwSwitchConnectionStatusTable.h"
+#include "fboss/agent/HwSwitchHandler.h"
 #include "fboss/agent/if/gen-cpp2/MultiSwitchCtrl.h"
 
 namespace facebook::fboss {
@@ -32,7 +33,8 @@ class MultiHwSwitchHandler {
   MultiHwSwitchHandler(
       const std::map<int64_t, cfg::SwitchInfo>& switchInfoMap,
       HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
-      SwSwitch* sw);
+      SwSwitch* sw,
+      std::optional<cfg::SdkVersion> sdkVersion);
 
   ~MultiHwSwitchHandler();
 
@@ -50,6 +52,8 @@ class MultiHwSwitchHandler {
       bool initialSync);
 
   void notifyHwSwitchGracefulExit(int64_t switchId);
+
+  void notifyHwSwitchDisconnected(int64_t switchId);
 
   std::shared_ptr<SwitchState> stateChanged(
       const StateDelta& delta,
@@ -81,6 +85,8 @@ class MultiHwSwitchHandler {
   std::optional<uint32_t> getHwLogicalPortId(PortID portID);
 
   bool transactionsSupported();
+
+  bool transactionsSupported(std::optional<cfg::SdkVersion> sdkVersion);
 
   HwSwitchFb303Stats* getSwitchStats();
 
@@ -141,17 +147,28 @@ class MultiHwSwitchHandler {
  private:
   HwSwitchHandler* getHwSwitchHandler(SwitchID id);
 
-  folly::Future<std::shared_ptr<SwitchState>> stateChanged(
+  folly::Future<HwSwitchStateUpdateResult> stateChanged(
       SwitchID switchId,
       const HwSwitchStateUpdate& update);
 
-  std::shared_ptr<SwitchState> getStateUpdateResult(
-      std::vector<folly::Future<std::shared_ptr<SwitchState>>>& futures);
+  std::map<SwitchID, HwSwitchStateUpdateResult> stateChanged(
+      std::map<SwitchID, const StateDelta&>& deltas,
+      bool transaction);
+
+  std::map<SwitchID, HwSwitchStateUpdateResult> getStateUpdateResult(
+      std::vector<SwitchID>& switchIds,
+      std::vector<folly::Future<HwSwitchStateUpdateResult>>& futures);
+
+  std::shared_ptr<SwitchState> rollbackStateChange(
+      std::map<SwitchID, HwSwitchStateUpdateResult>& updateResults,
+      std::shared_ptr<SwitchState> desiredState,
+      bool transaction);
 
   SwSwitch* sw_;
   std::map<SwitchID, std::unique_ptr<HwSwitchHandler>> hwSwitchSyncers_;
   std::atomic<bool> stopped_{true};
   HwSwitchConnectionStatusTable connectionStatusTable_;
+  bool transactionsSupported_;
 };
 
 } // namespace facebook::fboss

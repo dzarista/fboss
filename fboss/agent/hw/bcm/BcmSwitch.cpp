@@ -1342,6 +1342,24 @@ void BcmSwitch::processDynamicPhysicalQueueExponentChanged(
   }
 }
 
+void BcmSwitch::setEgressEcmpEtherType(
+    uint32_t etherTypeEligiblity,
+    int ecmpRandomSeed) {
+  XLOG(DBG3) << "Flowlet switching setting ether type";
+  int ecmp_dlb_ethtypes[] = {0x0800, 0x86DD};
+  auto rv = bcm_l3_egress_ecmp_ethertype_set(
+      unit_,
+      etherTypeEligiblity,
+      (sizeof(ecmp_dlb_ethtypes) / sizeof(ecmp_dlb_ethtypes[0])),
+      ecmp_dlb_ethtypes);
+  bcmCheckError(rv, "failed to set bcm_l3_egress_ecmp_ethertype_set");
+
+  // seed value is as recommended by BCM
+  rv = bcm_switch_control_set(
+      unit_, bcmSwitchEcmpDynamicRandomSeed, ecmpRandomSeed);
+  bcmCheckError(rv, "failed to set bcmSwitchEcmpDynamicRandomSeed");
+}
+
 void BcmSwitch::processFlowletSwitchingConfigChanges(const StateDelta& delta) {
   const auto flowletSwitchingDelta = delta.getFlowletSwitchingConfigDelta();
   const auto& oldFlowletSwitching = flowletSwitchingDelta.getOld();
@@ -1351,21 +1369,19 @@ void BcmSwitch::processFlowletSwitchingConfigChanges(const StateDelta& delta) {
     XLOG(DBG4) << "Flowlet switching config is null";
     return;
   }
+  if (oldFlowletSwitching && newFlowletSwitching &&
+      *oldFlowletSwitching == *newFlowletSwitching) {
+    XLOG(DBG4) << "Flowlet switching config is same";
+    return;
+  }
+  if (oldFlowletSwitching && !newFlowletSwitching) {
+    XLOG(DBG2) << "Flowlet switching config is removed";
+    setEgressEcmpEtherType(0, 0);
+  }
 
-  XLOG(DBG2) << "Flowlet switching config enabled";
-  if (newFlowletSwitching) {
-    XLOG(DBG3) << "Flowlet switching setting ether type";
-    int ecmp_dlb_ethtypes[] = {0x0800, 0x86DD};
-    auto rv = bcm_l3_egress_ecmp_ethertype_set(
-        unit_,
-        BCM_L3_ECMP_DYNAMIC_ETHERTYPE_ELIGIBLE,
-        (sizeof(ecmp_dlb_ethtypes) / sizeof(ecmp_dlb_ethtypes[0])),
-        ecmp_dlb_ethtypes);
-    bcmCheckError(rv, "failed to set bcm_l3_egress_ecmp_ethertype_set");
-
-    // seed value is as recommended by BCM
-    rv = bcm_switch_control_set(unit_, bcmSwitchEcmpDynamicRandomSeed, 0x5555);
-    bcmCheckError(rv, "failed to set bcmSwitchEcmpDynamicRandomSeed");
+  if (!oldFlowletSwitching && newFlowletSwitching) {
+    XLOG(DBG2) << "Flowlet switching config enabled";
+    setEgressEcmpEtherType(BCM_L3_ECMP_DYNAMIC_ETHERTYPE_ELIGIBLE, 0x5555);
   }
 
   processDynamicEgressLoadExponentChanged(
@@ -1457,8 +1473,6 @@ std::shared_ptr<SwitchState> BcmSwitch::stateChangedImplLocked(
   processMacTableChanges(delta);
 
   processUdfAdd(delta);
-
-  processFlowletSwitchingConfigChanges(delta);
 
   processLoadBalancerChanges(delta);
 
@@ -1567,6 +1581,9 @@ std::shared_ptr<SwitchState> BcmSwitch::stateChangedImplLocked(
 
   processAddedPorts(delta);
   processChangedPorts(delta);
+
+  // Process Flowlet config changes
+  processFlowletSwitchingConfigChanges(delta);
 
   // delete any removed mirrors after processing port and acl changes
   forEachRemoved(
@@ -1817,6 +1834,32 @@ void BcmSwitch::processChangedPortQueues(
   }
 }
 
+bool BcmSwitch::processChangedPortFlowletCfg(
+    const std::shared_ptr<Port>& oldPort,
+    const std::shared_ptr<Port>& newPort) {
+  std::shared_ptr<PortFlowletCfg> oldPortFlowletCfg{nullptr};
+  std::shared_ptr<PortFlowletCfg> newPortFlowletCfg{nullptr};
+  if (oldPort->getPortFlowletConfig().has_value()) {
+    oldPortFlowletCfg = oldPort->getPortFlowletConfig().value();
+  }
+  if (newPort->getPortFlowletConfig().has_value()) {
+    newPortFlowletCfg = newPort->getPortFlowletConfig().value();
+  }
+  // old port flowlet cfg exists and new one doesn't or vice versa
+  if ((newPortFlowletCfg && !oldPortFlowletCfg) ||
+      (!newPortFlowletCfg && oldPortFlowletCfg)) {
+    return true;
+  }
+  // contents changed in the port flowlet cfg
+  if (oldPortFlowletCfg && newPortFlowletCfg) {
+    if (*oldPortFlowletCfg != *newPortFlowletCfg) {
+      return true;
+    }
+  }
+  // no change
+  return false;
+}
+
 void BcmSwitch::processAddedPorts(const StateDelta& delta) {
   // For now, this just enables stats on newly added ports
   forEachAdded(delta.getPortsDelta(), [&](const shared_ptr<Port>& port) {
@@ -1894,10 +1937,15 @@ void BcmSwitch::processChangedPorts(const StateDelta& delta) {
         auto pgCfgChanged = processChangedPgCfg(oldPort, newPort);
         XLOG_IF(DBG1, pgCfgChanged) << "New pg config settings on port " << id;
 
+        // For port flowlet config changes
+        auto flowletCfgChanged = processChangedPortFlowletCfg(oldPort, newPort);
+        XLOG_IF(DBG1, flowletCfgChanged)
+            << "New flowlet config settings on port " << id;
+
         if (speedChanged || profileIDChanged || vlanChanged || pauseChanged ||
             sFlowChanged || loopbackChanged || mirrorChanged ||
             qosPolicyChanged || nameChanged || asicPrbsChanged || pfcChanged ||
-            pgCfgChanged) {
+            pgCfgChanged || flowletCfgChanged) {
           bcmPort->program(newPort);
         }
 
@@ -3006,6 +3054,10 @@ folly::F14FastMap<std::string, HwPortStats> BcmSwitch::getPortStats() const {
   return portStats;
 }
 
+TeFlowStats BcmSwitch::getTeFlowStats() const {
+  return teFlowTable_->getFlowStats();
+}
+
 shared_ptr<BcmSwitchEventCallback> BcmSwitch::registerSwitchEventCallback(
     bcm_switch_event_t eventID,
     shared_ptr<BcmSwitchEventCallback> callback) {
@@ -3118,6 +3170,42 @@ void BcmSwitch::processAddedUdfPacketMatcher(
 void BcmSwitch::processAddedUdfGroup(const shared_ptr<UdfGroup>& udfGroup) {
   XLOG(DBG2) << "Adding udf group: " << udfGroup->getID();
   udfManager_->createUdfGroup(udfGroup);
+
+  // once all udf are finalized i.e. add->remove
+  processDefaultAclgroupForUdf();
+}
+
+void BcmSwitch::processDefaultAclgroupForUdf() {
+  std::set<bcm_udf_id_t> udfAclIds;
+  udfManager_->getUdfAclGroupIds(udfAclIds);
+
+  const auto& udfQsetIdsInHW = getUdfQsetIds(
+      unit_,
+      static_cast<bcm_field_group_t>(
+          platform_->getAsic()->getDefaultACLGroupID()));
+  if (udfAclIds == udfQsetIdsInHW) {
+    // nothing to update here
+    XLOG(DBG2) << "UDF ACL id no change in HW";
+    return;
+  }
+
+  auto aclIdsToString = [](const std::set<bcm_udf_id_t> udfSet) {
+    std::string udfAclsIds;
+    std::for_each(
+        udfSet.begin(), udfSet.end(), [&udfAclsIds](const auto& udfId) {
+          udfAclsIds.append(std::to_string(udfId)).append(",");
+        });
+    return udfAclsIds;
+  };
+
+  XLOG(DBG2) << "Udf id mismatch in default acl qset. Hw acl set is "
+             << aclIdsToString(udfQsetIdsInHW) << ", cfg acl set is "
+             << aclIdsToString(udfAclIds);
+
+  clearFPGroup(unit_, platform_->getAsic()->getDefaultACLGroupID());
+  createAclGroup(
+      udfAclIds.size() ? std::optional<std::set<bcm_udf_id_t>>(udfAclIds)
+                       : std::nullopt);
 }
 
 void BcmSwitch::processUdfRemove(const StateDelta& delta) {
@@ -3139,6 +3227,9 @@ void BcmSwitch::processRemovedUdfPacketMatcher(
 void BcmSwitch::processRemovedUdfGroup(const shared_ptr<UdfGroup>& udfGroup) {
   XLOG(DBG2) << "Removing udf group: " << udfGroup->getID();
   udfManager_->deleteUdfGroup(udfGroup);
+
+  // once all udf are finalized i.e. add->remove
+  processDefaultAclgroupForUdf();
 }
 
 void BcmSwitch::processChangedLoadBalancer(
@@ -3405,14 +3496,22 @@ void BcmSwitch::stopLinkscanThread() {
   }
 }
 
-void BcmSwitch::createAclGroup() {
+void BcmSwitch::createAclGroup(
+    const std::optional<std::set<bcm_udf_id_t>>& udfIds) {
   // Install the master ACL group here, whose content may change overtime
+  bcm_field_qset_t qset = getAclQset(getPlatform()->getAsic()->getAsicType());
+  bool enableQsetCompression = false;
+  if (udfIds) {
+    updateUdfQset(unit_, qset, udfIds.value());
+    enableQsetCompression = true;
+  }
   createFPGroup(
       unit_,
-      getAclQset(getPlatform()->getAsic()->getAsicType()),
+      qset,
       platform_->getAsic()->getDefaultACLGroupID(),
       FLAGS_acl_g_pri,
-      getPlatform()->getAsic()->isSupported(HwAsic::Feature::HSDK));
+      getPlatform()->getAsic()->isSupported(HwAsic::Feature::HSDK),
+      enableQsetCompression);
 }
 
 void BcmSwitch::dropDhcpPackets() {

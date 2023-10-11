@@ -36,6 +36,7 @@ SplitAgentThriftClient::SplitAgentThriftClient(
           streamEvbThread->getEventBase(),
           connRetryEvb,
           counterPrefix,
+          "multi_switch_streams",
           stateChangeCb,
           FLAGS_hwagent_reconnect_ms),
       streamEvbThread_(streamEvbThread),
@@ -85,6 +86,7 @@ void SplitAgentThriftClient::connectToServer(const ServerOptions& options) {
 
 #if FOLLY_HAS_COROUTINES
 folly::coro::Task<void> SplitAgentThriftClient::serviceLoopWrapper() {
+  setState(State::CONNECTED);
   try {
     co_await serveStream();
   } catch (const folly::OperationCancelled&) {
@@ -225,5 +227,6 @@ template class ThriftSinkClient<multiswitch::LinkEvent>;
 template class ThriftSinkClient<multiswitch::FdbEvent>;
 template class ThriftSinkClient<multiswitch::RxPacket>;
 template class ThriftStreamClient<multiswitch::TxPacket>;
+template class ThriftSinkClient<multiswitch::HwSwitchStats>;
 
 } // namespace facebook::fboss

@@ -26,8 +26,8 @@
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwLinkStateToggler.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.h"
+#include "fboss/agent/hw/test/LinkStateToggler.h"
 #include "fboss/agent/hw/test/StaticL2ForNeighborHwSwitchUpdater.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/InterfaceMap.h"
@@ -373,7 +373,6 @@ void HwSwitchEnsemble::applyInitialConfig(const cfg::SwitchConfig& initCfg) {
       << "Link scan feature must be enabled for exercising "
       << "applyInitialConfig";
   linkToggler_->applyInitialConfig(initCfg);
-  switchRunStateChanged(SwitchRunState::CONFIGURED);
 }
 
 void HwSwitchEnsemble::linkStateChanged(
@@ -578,7 +577,7 @@ HwTrunkStats HwSwitchEnsemble::getLatestAggregatePortStats(
 
 void HwSwitchEnsemble::setupEnsemble(
     std::unique_ptr<HwAgent> hwAgent,
-    std::unique_ptr<HwLinkStateToggler> linkToggler,
+    std::unique_ptr<LinkStateToggler> linkToggler,
     std::unique_ptr<std::thread> thriftThread,
     const HwSwitchEnsembleInitInfo& initInfo) {
   hwAgent_ = std::move(hwAgent);
@@ -614,7 +613,8 @@ void HwSwitchEnsemble::setupEnsemble(
     thriftSyncer_ = std::make_unique<SplitAgentThriftSyncer>(
         getPlatform()->getHwSwitch(),
         swSwitchTestServer_->getPort(),
-        asic->getSwitchId() ? SwitchID(*asic->getSwitchId()) : SwitchID(0));
+        asic->getSwitchId() ? SwitchID(*asic->getSwitchId()) : SwitchID(0),
+        0 /*switchIndex*/);
   }
 
   auto bootType = swSwitchWarmBootHelper_->canWarmBoot() ? BootType::WARM_BOOT

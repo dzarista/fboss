@@ -234,6 +234,55 @@ bool isBcmQualFieldStateSame(
   return false;
 }
 
+/**
+ * `bcm_field_qualify_udf` will use this func.
+ */
+template <typename Func, typename Param, size_t size>
+bool isBcmQualFieldStateSame(
+    Func getBcmQualifierFn,
+    int unit,
+    bcm_field_entry_t entry,
+    int id,
+    int maxLength,
+    bool existInSW,
+    const Param (&swData)[size],
+    const Param (&swMask)[size],
+    const std::string& aclMsg,
+    const std::string& qualMsg,
+    bool verifyMask = true,
+    bool verifyLength = true) {
+  Param hwData[size];
+  Param hwMask[size];
+  int hwLength = 0;
+  auto rv =
+      getBcmQualifierFn(unit, entry, id, maxLength, hwData, hwMask, &hwLength);
+  bcmCheckError(rv, aclMsg, " failed to get ", qualMsg, " qualifier");
+
+  bool isNotExistInBoth = !existInSW && !checkArrayHasNonZero(hwData) &&
+      !checkArrayHasNonZero(hwMask);
+  // only check match if exist in both
+  bool isValueSameInBoth = existInSW;
+  if (existInSW) {
+    for (size_t i = 0; i < size; i++) {
+      isValueSameInBoth &= (hwData[i] == swData[i]);
+    }
+    if (verifyMask) {
+      for (size_t i = 0; i < size; i++) {
+        isValueSameInBoth &= (hwMask[i] == swMask[i]);
+      }
+    }
+    if (verifyLength) {
+      isValueSameInBoth &= (hwLength == size);
+    }
+  }
+  if (isNotExistInBoth || isValueSameInBoth) {
+    return true;
+  }
+
+  XLOG(ERR) << aclMsg << " " << qualMsg << " qualify doesn't match.";
+  return false;
+}
+
 template <typename Range>
 std::string getRangeStr(
     const std::optional<Range>& range,
@@ -356,15 +405,32 @@ bool needsExtraFPQsetQualifiers(cfg::AsicType asicType);
 bcm_field_qset_t getGroupQset(int unit, bcm_field_group_t groupId);
 
 void clearFPGroup(int unit, bcm_field_group_t gid);
+std::set<bcm_udf_id_t> getUdfQsetIds(int unit, bcm_field_group_t gid);
 
 void createFPGroup(
     int unit,
     bcm_field_qset_t qset,
     bcm_field_group_t gid,
     int g_pri,
-    bool onHSDK);
+    bool onHSDK,
+    bool enableQsetCompression = false);
+
+bcm_field_hintid_t compressFpQualifier(
+    int unit,
+    bcm_field_qualify_t qualifier,
+    const int start,
+    const int end);
 
 bool qsetsEqual(const bcm_field_qset_t& lhs, const bcm_field_qset_t& rhs);
+
+void updateUdfQset(
+    int unit,
+    bcm_field_qset_t& qset,
+    const std::set<bcm_udf_id_t>& udfIds);
+
+bool qsetsMultiSetEqual(
+    const bcm_field_qset_t& lhs,
+    const bcm_field_qset_t& rhs);
 
 bool fpGroupExists(int unit, bcm_field_group_t gid);
 int fpGroupNumAclEntries(int unit, bcm_field_group_t gid);

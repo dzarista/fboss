@@ -50,8 +50,9 @@ class YubaAsic : public TajoAsic {
   }
   std::set<cfg::StreamType> getQueueStreamTypes(
       cfg::PortType portType) const override;
-  int getDefaultNumPortQueues(cfg::StreamType streamType, bool /*cpu*/)
-      const override;
+  int getDefaultNumPortQueues(
+      cfg::StreamType streamType,
+      cfg::PortType /*portType*/) const override;
   uint32_t getMaxLabelStackDepth() const override {
     return 3;
   }
@@ -62,8 +63,9 @@ class YubaAsic : public TajoAsic {
     // TODO - verify this
     return 4;
   }
-  uint64_t getDefaultReservedBytes(cfg::StreamType /*streamType*/, bool /*cpu*/)
-      const override {
+  uint64_t getDefaultReservedBytes(
+      cfg::StreamType /*streamType*/,
+      cfg::PortType /*portType*/) const override {
     // Concept of reserved bytes does not apply to GB
     return 0;
   }

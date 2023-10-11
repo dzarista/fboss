@@ -16,6 +16,14 @@ add_fbthrift_cpp_library(
     fboss_cpp2
 )
 
+add_fbthrift_cpp_library(
+  led_manager_config_types_cpp2
+  fboss/platform/data_corral_service/if/led_manager_config.thrift
+  OPTIONS
+    json
+    reflection
+)
+
 add_library(data_corral_service_lib
   fboss/platform/data_corral_service/DataCorralServiceImpl.cpp
   fboss/platform/data_corral_service/DataCorralServiceThriftHandler.cpp
@@ -25,6 +33,8 @@ add_library(data_corral_service_lib
   fboss/platform/data_corral_service/darwin/DarwinChassisManager.cpp
   fboss/platform/data_corral_service/darwin/DarwinPlatformConfig.cpp
   fboss/platform/data_corral_service/darwin/DarwinFruModule.cpp
+  fboss/platform/data_corral_service/FruPresenceExplorer.cpp
+  fboss/platform/data_corral_service/LedManager.cpp
   fboss/platform/data_corral_service/meru800bia/Meru800biaChassisManager.cpp
   fboss/platform/data_corral_service/meru800bia/Meru800biaPlatformConfig.cpp
   fboss/platform/data_corral_service/meru800bia/Meru800biaFruModule.cpp
@@ -37,6 +47,7 @@ target_link_libraries(data_corral_service_lib
   weutil_lib
   platform_utils
   data_corral_service_cpp2
+  led_manager_config_types_cpp2
   Folly::folly
   fb303::fb303
   FBThrift::thriftcpp2

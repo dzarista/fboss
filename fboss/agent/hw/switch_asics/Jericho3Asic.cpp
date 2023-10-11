@@ -70,6 +70,7 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
     case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
       return true;
 
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
@@ -154,6 +155,7 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::PORT_EYE_VALUES:
+    case HwAsic::Feature::CREDIT_WATCHDOG:
       return false;
   }
   return false;
@@ -174,18 +176,19 @@ std::set<cfg::StreamType> Jericho3Asic::getQueueStreamTypes(
       "Jericho2 ASIC does not support:",
       apache::thrift::util::enumNameSafe(portType));
 }
-int Jericho3Asic::getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
-    const {
+int Jericho3Asic::getDefaultNumPortQueues(
+    cfg::StreamType streamType,
+    cfg::PortType portType) const {
   if (getAsicMode() == AsicMode::ASIC_MODE_SIM) {
     return 0;
   }
   switch (streamType) {
     case cfg::StreamType::UNICAST:
-      return cpu ? 2 : 8;
+      return portType == cfg::PortType::CPU_PORT ? 2 : 8;
     case cfg::StreamType::MULTICAST:
       break;
     case cfg::StreamType::FABRIC_TX:
-      if (cpu) {
+      if (portType != cfg::PortType::FABRIC_PORT) {
         break;
       }
       return 1;
@@ -193,9 +196,32 @@ int Jericho3Asic::getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
       break;
   }
   throw FbossError(
-      "Unexpected, stream: ", streamType, " cpu: ", cpu, "combination");
+      "Unexpected, stream: ",
+      apache::thrift::util::enumNameSafe(streamType),
+      " portType: ",
+      apache::thrift::util::enumNameSafe(portType),
+      " combination");
 }
 
+uint64_t Jericho3Asic::getDefaultReservedBytes(
+    cfg::StreamType streamType,
+    cfg::PortType portType) const {
+  switch (portType) {
+    case cfg::PortType::CPU_PORT:
+      return 1778;
+    case cfg::PortType::RECYCLE_PORT:
+      return 4096;
+    case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::FABRIC_PORT:
+      return 0;
+  }
+  throw FbossError(
+      "Unexpected, stream: ",
+      apache::thrift::util::enumNameSafe(streamType),
+      " portType: ",
+      apache::thrift::util::enumNameSafe(portType),
+      " combination");
+}
 cfg::Range64 Jericho3Asic::getReservedEncapIndexRange() const {
   // Reserved range worked out with vendor. These ids
   // are reserved in SAI-SDK implementation for use

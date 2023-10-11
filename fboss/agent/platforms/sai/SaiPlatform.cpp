@@ -30,14 +30,12 @@
 #include "fboss/agent/platforms/sai/SaiCloudRipperPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiElbert8DDPhyPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiFakePlatformPort.h"
-#include "fboss/agent/platforms/sai/SaiLassenPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400bfuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800bfaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800biaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMorgan800ccPlatformPort.h"
-#include "fboss/agent/platforms/sai/SaiSandiaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiWedge400CPlatformPort.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -219,9 +217,15 @@ void SaiPlatform::initImpl(uint32_t hwFeaturesDesired) {
 
 void SaiPlatform::initPorts() {
   auto platformMode = getType();
+  auto switchId =
+      SwitchID(getAsic()->getSwitchId() ? *getAsic()->getSwitchId() : 0);
+  HwSwitchMatcher matcher(std::unordered_set<SwitchID>({switchId}));
   for (auto& port : getPlatformPorts()) {
     std::unique_ptr<SaiPlatformPort> saiPort;
     PortID portId(port.first);
+    if (scopeResolver()->scope(portId) != matcher) {
+      continue;
+    }
     if (platformMode == PlatformType::PLATFORM_WEDGE400C ||
         platformMode == PlatformType::PLATFORM_WEDGE400C_VOQ ||
         platformMode == PlatformType::PLATFORM_WEDGE400C_FABRIC) {
@@ -260,10 +264,6 @@ void SaiPlatform::initPorts() {
           getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_TOMAHAWK4) {
         saiPort = std::make_unique<SaiBcmElbertPlatformPort>(portId, this);
       }
-    } else if (platformMode == PlatformType::PLATFORM_LASSEN) {
-      saiPort = std::make_unique<SaiLassenPlatformPort>(portId, this);
-    } else if (platformMode == PlatformType::PLATFORM_SANDIA) {
-      saiPort = std::make_unique<SaiSandiaPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_MERU400BIU) {
       saiPort = std::make_unique<SaiMeru400biuPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_MERU800BIA) {
@@ -302,7 +302,9 @@ sai_service_method_table_t* SaiPlatform::getServiceMethodTable() const {
 HwSwitchWarmBootHelper* SaiPlatform::getWarmBootHelper() {
   if (!wbHelper_) {
     wbHelper_ = std::make_unique<HwSwitchWarmBootHelper>(
-        0, getDirectoryUtil()->getWarmBootDir(), "sai_adaptor_state_");
+        getAsic()->getSwitchIndex(),
+        getDirectoryUtil()->getWarmBootDir(),
+        "sai_adaptor_state_");
   }
   return wbHelper_.get();
 }
@@ -365,6 +367,15 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
   std::optional<SaiSwitchTraits::Attributes::MaxSystemCores> cores;
   std::optional<SaiSwitchTraits::Attributes::MaxCores> maxCores;
   std::optional<SaiSwitchTraits::Attributes::SysPortConfigList> sysPortConfigs;
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+  std::optional<SaiSwitchTraits::Attributes::CreditWd> creditWd;
+  std::optional<SaiSwitchTraits::Attributes::CreditWdTimer> creditWdMs;
+  if (getAsic()->isSupported(HwAsic::Feature::CREDIT_WATCHDOG)) {
+    // Use SAI defaults
+    creditWd = true;
+    creditWdMs = 500;
+  }
+#endif
   if (swType == cfg::SwitchType::VOQ || swType == cfg::SwitchType::FABRIC) {
     switchType = swType == cfg::SwitchType::VOQ ? SAI_SWITCH_TYPE_VOQ
                                                 : SAI_SWITCH_TYPE_FABRIC;
@@ -485,7 +496,10 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
         dllPath,
         std::nullopt, // Restart Issu
         switchIsolate,
-        std::nullopt, // Credit Watchdog
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+        creditWd, // Credit Watchdog
+        creditWdMs, // Credit Watchdog Timer
+#endif
         maxCores, // Max cores
         std::nullopt, // PFC DLR Packet Action
   };

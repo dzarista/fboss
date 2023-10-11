@@ -68,7 +68,7 @@ folly::dynamic NonMonolithicHwSwitchHandler::toFollyDynamic() const {
 
 std::optional<uint32_t> NonMonolithicHwSwitchHandler::getHwLogicalPortId(
     PortID /*portID*/) const {
-  // TODO: implement this
+  // TODO: query hwswitch and return logical port id
   return std::nullopt;
 }
 
@@ -86,8 +86,11 @@ void NonMonolithicHwSwitchHandler::platformStop() {
   // TODO: implement this
 }
 
-bool NonMonolithicHwSwitchHandler::transactionsSupported() const {
-  // TODO: implement this
+bool NonMonolithicHwSwitchHandler::transactionsSupported(
+    std::optional<cfg::SdkVersion> sdkVersion) const {
+  if (sdkVersion.has_value() && sdkVersion.value().saiSdk().has_value()) {
+    return true;
+  }
   return false;
 }
 
@@ -215,22 +218,24 @@ bool NonMonolithicHwSwitchHandler::sendPacketOutViaThriftStream(
   return true;
 }
 
-fsdb::OperDelta NonMonolithicHwSwitchHandler::stateChanged(
+bool NonMonolithicHwSwitchHandler::isOperSyncState(
+    HwSwitchOperDeltaSyncState state) const {
+  return operDeltaSyncState_ == state;
+}
+
+std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>
+NonMonolithicHwSwitchHandler::stateChanged(
     const fsdb::OperDelta& delta,
     bool transaction) {
   multiswitch::StateOperDelta stateDelta;
   stateDelta.operDelta() = delta;
   stateDelta.transaction() = transaction;
-  // if HwSwitch is not connected, wait for connection
   {
     std::unique_lock<std::mutex> lk(stateUpdateMutex_);
-    if (!connected_ && !deltaReadCancelled_) {
-      stateUpdateCV_.wait(
-          lk, [this] { return connected_ || deltaReadCancelled_; });
-    }
-    if (deltaReadCancelled_) {
+    if (isOperSyncState(HwSwitchOperDeltaSyncState::CANCELLED)) {
       // return incoming delta to indicate that none of the changes were applied
-      return delta;
+      return {
+          delta, HwSwitchStateUpdateStatus::HWSWITCH_STATE_UPDATE_CANCELLED};
     }
     nextOperDelta_ = &stateDelta;
     ackReceived_ = false;
@@ -241,28 +246,42 @@ fsdb::OperDelta NonMonolithicHwSwitchHandler::stateChanged(
   {
     std::unique_lock<std::mutex> lk(stateUpdateMutex_);
     // wait for acknowledgement
-    stateUpdateCV_.wait(
-        lk, [this] { return ackReceived_ || deltaReadCancelled_; });
-    if (deltaReadCancelled_) {
+    stateUpdateCV_.wait(lk, [this] {
+      return (
+          ackReceived_ ||
+          isOperSyncState(HwSwitchOperDeltaSyncState::CANCELLED));
+    });
+    if (isOperSyncState(HwSwitchOperDeltaSyncState::CANCELLED)) {
       // return incoming delta to indicate that none of the changes were applied
-      return delta;
+      return {
+          delta, HwSwitchStateUpdateStatus::HWSWITCH_STATE_UPDATE_CANCELLED};
     }
   }
   // received ack. return result from HwSwitch
   // TODO - handle failures and do rollback on succeeded switches
-  return *prevOperDeltaResult_->operDelta();
+  return {
+      *prevOperDeltaResult_->operDelta(),
+      prevOperDeltaResult_->operDelta()->changes()->empty()
+          ? HwSwitchStateUpdateStatus::HWSWITCH_STATE_UPDATE_SUCCEEDED
+          : HwSwitchStateUpdateStatus::HWSWITCH_STATE_UPDATE_FAILED};
 }
 
 multiswitch::StateOperDelta NonMonolithicHwSwitchHandler::getNextStateOperDelta(
-    std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) {
+    std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
+    bool initialSync) {
   // check whether it is a new connection.
   {
     std::unique_lock<std::mutex> lk(stateUpdateMutex_);
-    if (!connected_) {
-      connected_ = true;
+    if ((isOperSyncState(HwSwitchOperDeltaSyncState::DISCONNECTED) ||
+         isOperSyncState(HwSwitchOperDeltaSyncState::CANCELLED)) &&
+        initialSync) {
+      setOperSyncState(HwSwitchOperDeltaSyncState::WAITING_INITIAL_SYNC);
     } else {
       // For existing connections, we treat a new get request
       // as an ack to pending state update.
+      if (isOperSyncState(HwSwitchOperDeltaSyncState::INITIAL_OPER_SENT)) {
+        setOperSyncState(HwSwitchOperDeltaSyncState::OPER_SYNCED);
+      }
       ackReceived_ = true;
       prevOperDeltaResult_ = prevOperResult.get();
     }
@@ -272,18 +291,24 @@ multiswitch::StateOperDelta NonMonolithicHwSwitchHandler::getNextStateOperDelta(
   // wait for new delta to be available or for cancellation.
   {
     std::unique_lock<std::mutex> lk(stateUpdateMutex_);
-    stateUpdateCV_.wait(
-        lk, [this] { return deltaReady_ || deltaReadCancelled_; });
-    if (deltaReadCancelled_) {
+    stateUpdateCV_.wait(lk, [this] {
+      return (
+          deltaReady_ ||
+          isOperSyncState(HwSwitchOperDeltaSyncState::CANCELLED));
+    });
+    if (isOperSyncState(HwSwitchOperDeltaSyncState::CANCELLED)) {
       // return empty delta to HwSwitch incase of cancellation
       return multiswitch::StateOperDelta();
     }
     deltaReady_ = false;
+    if (isOperSyncState(HwSwitchOperDeltaSyncState::WAITING_INITIAL_SYNC)) {
+      setOperSyncState(HwSwitchOperDeltaSyncState::INITIAL_OPER_SENT);
+    }
     return *nextOperDelta_;
   }
 }
 
-void NonMonolithicHwSwitchHandler::notifyHwSwitchGracefulExit() {
+void NonMonolithicHwSwitchHandler::notifyHwSwitchDisconnected() {
   // cancel any pending operations.
   cancelOperDeltaSync();
 }
@@ -291,14 +316,20 @@ void NonMonolithicHwSwitchHandler::notifyHwSwitchGracefulExit() {
 void NonMonolithicHwSwitchHandler::cancelOperDeltaSync() {
   {
     std::unique_lock<std::mutex> lk(stateUpdateMutex_);
-    connected_ = false;
-    deltaReadCancelled_ = true;
+    setOperSyncState(HwSwitchOperDeltaSyncState::CANCELLED);
+    nextOperDelta_ = nullptr;
   }
   stateUpdateCV_.notify_all();
 }
 
 NonMonolithicHwSwitchHandler::~NonMonolithicHwSwitchHandler() {
   cancelOperDeltaSync();
+}
+
+HwSwitchOperDeltaSyncState
+NonMonolithicHwSwitchHandler::getHwSwitchOperDeltaSyncState() {
+  std::unique_lock<std::mutex> lk(stateUpdateMutex_);
+  return operDeltaSyncState_;
 }
 
 } // namespace facebook::fboss

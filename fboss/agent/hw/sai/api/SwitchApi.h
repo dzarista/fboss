@@ -437,17 +437,17 @@ struct SaiSwitchTraits {
     };
     using SwitchIsolate =
         SaiExtensionAttribute<bool, AttributeSwitchIsolateWrapper>;
-    struct AttributeCreditWdWrapper {
-      std::optional<sai_attr_id_t> operator()();
-    };
 #if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
     using CreditWd = SaiAttribute<
         EnumType,
         SAI_SWITCH_ATTR_CREDIT_WD,
         bool,
         SaiBoolDefaultTrue>;
-#else
-    using CreditWd = SaiExtensionAttribute<bool, AttributeCreditWdWrapper>;
+    using CreditWdTimer = SaiAttribute<
+        EnumType,
+        SAI_SWITCH_ATTR_CREDIT_WD_TIMER,
+        sai_uint32_t,
+        SaiIntValueDefault<sai_uint32_t, 500>>;
 #endif
     struct AttributeMaxCoresWrapper {
       std::optional<sai_attr_id_t> operator()();
@@ -509,7 +509,10 @@ struct SaiSwitchTraits {
       std::optional<Attributes::DllPath>,
       std::optional<Attributes::RestartIssu>,
       std::optional<Attributes::SwitchIsolate>,
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
       std::optional<Attributes::CreditWd>,
+      std::optional<Attributes::CreditWdTimer>,
+#endif
       std::optional<Attributes::MaxCores>,
       std::optional<Attributes::PfcDlrPacketAction>>;
 
@@ -616,7 +619,10 @@ SAI_ATTRIBUTE_NAME(Switch, RestartIssu)
 SAI_ATTRIBUTE_NAME(Switch, ForceTrafficOverFabric)
 SAI_ATTRIBUTE_NAME(Switch, WarmBootTargetVersion)
 SAI_ATTRIBUTE_NAME(Switch, SwitchIsolate)
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
 SAI_ATTRIBUTE_NAME(Switch, CreditWd)
+SAI_ATTRIBUTE_NAME(Switch, CreditWdTimer)
+#endif
 SAI_ATTRIBUTE_NAME(Switch, MaxCores)
 SAI_ATTRIBUTE_NAME(Switch, PfcDlrPacketAction)
 

@@ -1829,7 +1829,8 @@ shared_ptr<Port> ThriftConfigApplier::updatePort(
   CHECK(asic != nullptr);
   QueueConfig portQueues;
   for (auto streamType : asic->getQueueStreamTypes(*portConf->portType())) {
-    auto maxQueues = asic->getDefaultNumPortQueues(streamType, false);
+    auto maxQueues =
+        asic->getDefaultNumPortQueues(streamType, *portConf->portType());
     auto tmpPortQueues = updatePortQueues(
         orig->getPortQueues()->impl(),
         cfgPortQueues,
@@ -2604,6 +2605,10 @@ shared_ptr<QosPolicy> ThriftConfigApplier::createQosPolicy(
       qosPolicyNew->setPfcPriorityToPgIdMap(*pfcPriority2PgIdMap);
     }
 
+    if (const auto& trafficClassToVoqIdMap = qosMap->trafficClassToVoqId()) {
+      qosPolicyNew->setTrafficClassToVoqIdMap(*trafficClassToVoqIdMap);
+    }
+
     return qosPolicyNew;
   }
   return make_shared<QosPolicy>(*qosPolicy.name(), ingressDscpMap);
@@ -3168,6 +3173,9 @@ shared_ptr<AclEntry> ThriftConfigApplier::createAcl(
   }
   if (auto udfGroupList = config->udfGroups()) {
     newAcl->setUdfGroups(*udfGroupList);
+  }
+  if (auto roceOpcode = config->roceOpcode()) {
+    newAcl->setRoceOpcode(*roceOpcode);
   }
   newAcl->setEnabled(enable);
   return newAcl;
@@ -4250,7 +4258,7 @@ shared_ptr<MultiControlPlane> ThriftConfigApplier::updateControlPlane() {
     auto tmpPortQueues = updatePortQueues(
         origCPU->getQueuesConfig(),
         *cfg_->cpuQueues(),
-        asic->getDefaultNumPortQueues(streamType, true),
+        asic->getDefaultNumPortQueues(streamType, cfg::PortType::CPU_PORT),
         streamType,
         qosMap);
     newQueues.insert(

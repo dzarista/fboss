@@ -81,6 +81,7 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
     case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
       return true;
     // VOQ vs NPU mode dependent features
     case HwAsic::Feature::BRIDGE_PORT_8021Q:
@@ -155,6 +156,7 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     // needed only for FAUU and DMAG devices.
     case HwAsic::Feature::SAI_EAPOL_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
+    case HwAsic::Feature::CREDIT_WATCHDOG:
       return false;
   }
   return false;
@@ -171,8 +173,9 @@ bool EbroAsic::isSupportedFabric(Feature feature) const {
   return false;
 }
 
-int EbroAsic::getDefaultNumPortQueues(cfg::StreamType streamType, bool /*cpu*/)
-    const {
+int EbroAsic::getDefaultNumPortQueues(
+    cfg::StreamType streamType,
+    cfg::PortType /*portType*/) const {
   switch (streamType) {
     case cfg::StreamType::MULTICAST:
       throw FbossError(

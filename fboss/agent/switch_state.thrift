@@ -187,6 +187,7 @@ struct AclEntryFields {
   26: optional i32 vlanID;
   27: optional bool enabled;
   28: optional list<string> udfGroups;
+  29: optional byte roceOpcode;
 }
 
 enum NeighborState {
@@ -429,6 +430,7 @@ struct QosPolicyFields {
   5: optional map<i16, i16> pfcPriorityToQueueId;
   6: optional map<i16, i16> trafficClassToPgId;
   7: optional map<i16, i16> pfcPriorityToPgId;
+  8: optional map<i16, i16> trafficClassToVoqId;
 }
 
 struct SocketAddress {

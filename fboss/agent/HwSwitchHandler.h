@@ -28,6 +28,26 @@ struct HwSwitchStateUpdate {
   bool isTransaction;
 };
 
+enum HwSwitchStateUpdateStatus {
+  HWSWITCH_STATE_UPDATE_SUCCEEDED,
+  HWSWITCH_STATE_UPDATE_FAILED,
+  HWSWITCH_STATE_UPDATE_CANCELLED,
+};
+
+enum HwSwitchOperDeltaSyncState {
+  DISCONNECTED, /* initial state */
+  WAITING_INITIAL_SYNC, /* Got first getOper request */
+  INITIAL_OPER_SENT, /* waiting for initial sync response */
+  OPER_SYNCED, /* initial sync completed */
+  CANCELLED, /* cancelled */
+};
+
+using HwSwitchStateUpdateResult =
+    std::pair<std::shared_ptr<SwitchState>, HwSwitchStateUpdateStatus>;
+
+using HwSwitchStateOperUpdateResult =
+    std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>;
+
 class HwSwitchHandler {
  public:
   HwSwitchHandler(const SwitchID& switchId, const cfg::SwitchInfo& info);
@@ -36,7 +56,7 @@ class HwSwitchHandler {
 
   virtual ~HwSwitchHandler();
 
-  folly::Future<std::shared_ptr<SwitchState>> stateChanged(
+  folly::Future<HwSwitchStateUpdateResult> stateChanged(
       HwSwitchStateUpdate update);
 
   virtual void exitFatal() const = 0;
@@ -66,7 +86,8 @@ class HwSwitchHandler {
 
   virtual std::optional<uint32_t> getHwLogicalPortId(PortID portID) const = 0;
 
-  virtual bool transactionsSupported() const = 0;
+  virtual bool transactionsSupported(
+      std::optional<cfg::SdkVersion> sdkVersion) const = 0;
 
   virtual HwSwitchFb303Stats* getSwitchStats() const = 0;
 
@@ -101,7 +122,7 @@ class HwSwitchHandler {
       const StateDelta& delta,
       bool transaction) = 0;
 
-  virtual fsdb::OperDelta stateChanged(
+  virtual HwSwitchStateOperUpdateResult stateChanged(
       const fsdb::OperDelta& delta,
       bool transaction) = 0;
 
@@ -131,19 +152,20 @@ class HwSwitchHandler {
       const cfg::SwitchConfig* config) const = 0;
 
   virtual multiswitch::StateOperDelta getNextStateOperDelta(
-      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) = 0;
+      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
+      bool initialSync) = 0;
 
-  virtual void notifyHwSwitchGracefulExit() = 0;
+  virtual void notifyHwSwitchDisconnected() = 0;
 
   SwitchID getSwitchId() const {
     return switchId_;
   }
+  virtual HwSwitchOperDeltaSyncState getHwSwitchOperDeltaSyncState() = 0;
 
  private:
-  std::shared_ptr<SwitchState> stateChangedImpl(
-      const HwSwitchStateUpdate& update);
+  HwSwitchStateUpdateResult stateChangedImpl(const HwSwitchStateUpdate& update);
 
-  fsdb::OperDelta stateChangedImpl(
+  HwSwitchStateOperUpdateResult stateChangedImpl(
       const fsdb::OperDelta& delta,
       bool transaction);
 

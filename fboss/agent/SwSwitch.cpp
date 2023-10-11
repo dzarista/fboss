@@ -241,7 +241,8 @@ SwSwitch::SwSwitch(
     : multiHwSwitchHandler_(new MultiHwSwitchHandler(
           getSwitchInfoFromConfig(config),
           std::move(hwSwitchHandlerInitFn),
-          this)),
+          this,
+          getSdkVersionFromConfig(config))),
       agentDirUtil_(agentDirUtil),
       supportsAddRemovePort_(supportsAddRemovePort),
       platformProductInfo_(
@@ -2653,4 +2654,20 @@ bool SwSwitch::needL2EntryForNeighbor() const {
   const auto& config = getConfig();
   return getHwSwitchHandler()->needL2EntryForNeighbor(&config);
 }
+
+void SwSwitch::updateHwSwitchStats(
+    uint16_t switchIndex,
+    multiswitch::HwSwitchStats hwStats) {
+  (*hwSwitchStats_.wlock())[switchIndex] = std::move(hwStats);
+}
+
+multiswitch::HwSwitchStats SwSwitch::getHwSwitchStatsWithCopy(
+    uint16_t switchIndex) const {
+  auto lockedStats = hwSwitchStats_.rlock();
+  if (lockedStats->find(switchIndex) == lockedStats->end()) {
+    throw FbossError("No stats for switch index ", switchIndex);
+  }
+  return lockedStats->at(switchIndex);
+}
+
 } // namespace facebook::fboss

@@ -85,7 +85,6 @@ class SaiSwitchManager {
 
   void updateStats();
 
-  void configureCreditWatchdog(bool enable);
   void setSwitchIsolate(bool isolate);
 
  private:

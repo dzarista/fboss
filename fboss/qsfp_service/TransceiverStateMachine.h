@@ -135,7 +135,12 @@ void operator()(
   auto tcvrID = fsm.get_attribute(transceiverID);
   XLOG(DBG2) << "[Transceiver:" << tcvrID << "] State changed to "
              << apache::thrift::util::enumNameSafe(stateToStateEnum(currState));
-  fsm.get_attribute(transceiverMgrPtr)->doTransceiverFirmwareUpgrade(tcvrID);
+  try {
+    fsm.get_attribute(transceiverMgrPtr)->doTransceiverFirmwareUpgrade(tcvrID);
+  } catch (const std::exception& ex) {
+    XLOG(ERR) << "[Transceiver:" << tcvrID << "] firmware upgrade failed with: " << ex.what();
+  }
+  fsm.get_attribute(needToResetToNotPresent) = true;
 }
 };
 // clang-format on
@@ -469,6 +474,7 @@ BOOST_MSM_EUML_TRANSITION_TABLE((
     // May need to remediate transciever if some ports are down
     ACTIVE                 + REMEDIATE_TRANSCEIVER  [tryRemediateTransceiver]  / logStateChanged == XPHY_PORTS_PROGRAMMED,
     INACTIVE               + UPGRADE_FIRMWARE [firmwareUpgradeRequired]        / logStateChanged == UPGRADING,
+    DISCOVERED             + UPGRADE_FIRMWARE [firmwareUpgradeRequired]        / logStateChanged == UPGRADING,
     UPGRADING              + RESET_TO_NOT_PRESENT                              / logStateChanged == NOT_PRESENT
 //  +------------------------------------------------------------------------------------------------------------+
     ), TransceiverTransitionTable)

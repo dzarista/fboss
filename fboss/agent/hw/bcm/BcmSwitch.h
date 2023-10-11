@@ -400,6 +400,8 @@ class BcmSwitch : public BcmSwitchIf {
 
   uint64_t getDeviceWatermarkBytes() const override;
 
+  TeFlowStats getTeFlowStats() const override;
+
   /*
    * Wrapper functions to register and unregister a BCM event callbacks.  These
    * just forward the call.
@@ -855,6 +857,8 @@ class BcmSwitch : public BcmSwitchIf {
       const std::shared_ptr<FlowletSwitchingConfig>& oldFlowletSwitching,
       const std::shared_ptr<FlowletSwitchingConfig>& newFlowletSwitching);
 
+  void setEgressEcmpEtherType(uint32_t etherTypeEligiblity, int ecmpRandomSeed);
+
   /*
    * linkStateChangedHwNotLocked is in the call chain started by link scan
    * thread while invoking our link state handler. Link scan thread
@@ -939,7 +943,8 @@ class BcmSwitch : public BcmSwitchIf {
   /*
    * Create ACL group
    */
-  void createAclGroup();
+  void createAclGroup(
+      const std::optional<std::set<bcm_udf_id_t>>& udfIds = std::nullopt);
   /*
    * Create slow protocols MAC group
    */
@@ -1039,6 +1044,13 @@ class BcmSwitch : public BcmSwitchIf {
   void processEnabledPortQueues(const std::shared_ptr<Port>& port);
 
   /*
+   * Process changes in port flowlet config
+   */
+  bool processChangedPortFlowletCfg(
+      const std::shared_ptr<Port>& oldPort,
+      const std::shared_ptr<Port>& newPort);
+
+  /*
    * Returns true if a CPU queue name has changed, false otherwise.
    */
   bool isControlPlaneQueueNameChanged(
@@ -1090,6 +1102,7 @@ class BcmSwitch : public BcmSwitchIf {
   void processControlPlaneEntryRemoved(
       const std::shared_ptr<ControlPlane>& oldCPU);
 
+  void processDefaultAclgroupForUdf();
   void initialStateApplied() override;
 
   /*

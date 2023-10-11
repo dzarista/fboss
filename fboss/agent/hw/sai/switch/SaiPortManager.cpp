@@ -337,7 +337,7 @@ SaiPortManager::SaiPortManager(
           HwAsic::Feature::SAI_PORT_GET_PMD_LANES)) {
     auto pmdLanes = SaiApiTable::getInstance()->portApi().getAttribute(
         portSaiId, SaiPortTraits::Attributes::SerdesLaneList{});
-    auto hwLanes = saiPort->adapterHostKey().value();
+    auto hwLanes = GET_ATTR(Port, HwLaneList, saiPort->adapterHostKey());
     hwLaneListIsPmdLaneList_ = (pmdLanes.size() == hwLanes.size());
     XLOG(DBG2) << "HwLaneList means pmd lane list or not: "
                << hwLaneListIsPmdLaneList_;
@@ -443,7 +443,7 @@ void SaiPortManager::loadPortQueues(const Port& swPort) {
           portQueue->getReservedBytes()
               ? *portQueue->getReservedBytes()
               : asic->getDefaultReservedBytes(
-                    portQueue->getStreamType(), false /* not cpu port*/));
+                    portQueue->getStreamType(), swPort.getPortType()));
       clonedPortQueue->setScalingFactor(
           portQueue->getScalingFactor()
               ? *portQueue->getScalingFactor()
@@ -958,7 +958,7 @@ void SaiPortManager::changeQueue(
           newPortQueue->getReservedBytes()
               ? *newPortQueue->getReservedBytes()
               : asic->getDefaultReservedBytes(
-                    newPortQueue->getStreamType(), false /* not cpu port*/));
+                    newPortQueue->getStreamType(), swPort->getPortType()));
       portQueue->setScalingFactor(
           newPortQueue->getScalingFactor()
               ? *newPortQueue->getScalingFactor()
