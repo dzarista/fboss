@@ -111,6 +111,9 @@ maybe_setup_build_env() {
    # Patch to fix cpu rx packet parsing
    wget http://dist/storage/fboss/FBOSS-SAI/patch10-Cpu-Rx.patch
    patch "hsdk-all-6.5.29/src/soc/access/pkt_rx.c" -p1 < patch10-Cpu-Rx.patch
+   # Patch to skip check for proto R3 ASICs.
+   wget http://dist/storage/fboss/FBOSS-SAI/patch11-SDK-6_5_29-Ramon3-proto-fix.patch
+   patch "hsdk-all-6.5.29/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
 
    # If kernel is newer than 4.18, need to patch ksal.c for compatibility with newer kernel.
    if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then
