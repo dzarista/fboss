@@ -565,6 +565,7 @@ add_fbthrift_cpp_library(
   DEPENDS
     ctrl_cpp2
     fsdb_oper_cpp2
+    hardware_stats_cpp2
     phy_cpp2
 )
 
@@ -620,4 +621,5 @@ add_dependencies(fboss_platform_services
   fw_util
   weutil
   led_service
+  data_corral_service
 )

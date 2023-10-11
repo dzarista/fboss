@@ -339,12 +339,32 @@ CO_TEST_F(ThriftServerTest, transmitPktHandler) {
   auto origPktSize = txPkt->buf()->length();
 
   auto gen =
-      (co_await multiSwitchClient_->co_getTxPackets(100)).toAsyncGenerator();
+      (co_await multiSwitchClient_->co_getTxPackets(0)).toAsyncGenerator();
 
-  sw_->sendPacketOutViaThriftStream(std::move(txPkt), SwitchID(100), PortID(5));
+  sw_->sendPacketOutViaThriftStream(std::move(txPkt), SwitchID(0), PortID(5));
 
   const auto& val = co_await gen.next();
   // got packet
   EXPECT_EQ(5, *val->port());
   EXPECT_EQ(origPktSize, (*val->data())->length());
+}
+
+CO_TEST_F(ThriftServerTest, statsUpdate) {
+  // setup server and clients
+  setupServerAndClients();
+
+  auto getTestStatUpdate = []() {
+    multiswitch::HwSwitchStats stats;
+    stats.timestamp() = 1000;
+    return stats;
+  };
+
+  // Send packets to server using sink
+  auto result = co_await multiSwitchClient_->co_syncHwStats(0);
+  auto ret = co_await result.sink(
+      [&]() -> folly::coro::AsyncGenerator<multiswitch::HwSwitchStats&&> {
+        co_yield getTestStatUpdate();
+      }());
+  EXPECT_TRUE(ret);
+  EXPECT_EQ(sw_->getHwSwitchStatsWithCopy(0), getTestStatUpdate());
 }

@@ -226,6 +226,28 @@ int BcmUdfManager::getBcmUdfPacketMatcherId(
   return iter->second->getUdfPacketMatcherId();
 }
 
+cfg::UdfGroupType BcmUdfManager::getUdfGroupType(
+    const std::string& udfGroupName) const {
+  auto iter = udfGroupsMap_.find(udfGroupName);
+  if (iter == udfGroupsMap_.end()) {
+    throw FbossError("Unable to find : ", udfGroupName, " in the map.");
+  }
+
+  XLOG(DBG3) << " For UDF group " << udfGroupName
+             << "  get udfGroupType: " << (int)iter->second->getUdfGroupType();
+  return iter->second->getUdfGroupType();
+}
+
+void BcmUdfManager::getUdfAclGroupIds(
+    std::set<bcm_udf_id_t>& bcmUdfGroupIds) const {
+  for (const auto& nameToUdfGroup : udfGroupsMap_) {
+    const auto& name = nameToUdfGroup.first;
+    if (getUdfGroupType(name) == cfg::UdfGroupType::ACL) {
+      bcmUdfGroupIds.insert(getBcmUdfGroupId(name));
+    }
+  }
+}
+
 BcmUdfManager::~BcmUdfManager() {
   XLOG(DBG2) << "Destroying BcmUdfManager";
   udfGroupsMap_.clear();

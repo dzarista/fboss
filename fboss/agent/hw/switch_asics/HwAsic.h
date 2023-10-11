@@ -157,6 +157,8 @@ class HwAsic {
     // pending CS00012311423
     L3_MTU_ERROR_TRAP,
     SAI_USER_DEFINED_TRAP,
+    ACL_COUNTER_LABEL,
+    CREDIT_WATCHDOG,
   };
 
   enum class AsicMode {
@@ -193,14 +195,16 @@ class HwAsic {
   virtual cfg::PortSpeed getMaxPortSpeed() const = 0;
   virtual std::set<cfg::StreamType> getQueueStreamTypes(
       cfg::PortType portType) const = 0;
-  virtual int getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
-      const = 0;
+  virtual int getDefaultNumPortQueues(
+      cfg::StreamType streamType,
+      cfg::PortType portType) const = 0;
   virtual uint32_t getMaxLabelStackDepth() const = 0;
   virtual uint64_t getMMUSizeBytes() const = 0;
   virtual uint32_t getMaxMirrors() const = 0;
   virtual uint16_t getMirrorTruncateSize() const = 0;
-  virtual uint64_t getDefaultReservedBytes(cfg::StreamType streamType, bool cpu)
-      const = 0;
+  virtual uint64_t getDefaultReservedBytes(
+      cfg::StreamType streamType,
+      cfg::PortType portType) const = 0;
   virtual cfg::MMUScalingFactor getDefaultScalingFactor(
       cfg::StreamType streamType,
       bool cpu) const = 0;

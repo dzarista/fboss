@@ -69,6 +69,7 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
       return true;
 
     case HwAsic::Feature::ERSPANv6:
@@ -144,16 +145,18 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
     case HwAsic::Feature::SAI_EAPOL_TRAP:
+    case HwAsic::Feature::CREDIT_WATCHDOG:
       return false;
   }
   return false;
 }
 
-int TomahawkAsic::getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
-    const {
+int TomahawkAsic::getDefaultNumPortQueues(
+    cfg::StreamType streamType,
+    cfg::PortType portType) const {
   switch (streamType) {
     case cfg::StreamType::UNICAST:
-      if (cpu) {
+      if (portType == cfg::PortType::CPU_PORT) {
         break;
       }
       return 8;
@@ -165,6 +168,10 @@ int TomahawkAsic::getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
       break;
   }
   throw FbossError(
-      "Unexpected, stream: ", streamType, " cpu: ", cpu, "combination");
+      "Unexpected, stream: ",
+      apache::thrift::util::enumNameSafe(streamType),
+      " portType: ",
+      apache::thrift::util::enumNameSafe(portType),
+      " combination");
 }
 } // namespace facebook::fboss

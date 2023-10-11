@@ -16,11 +16,17 @@ namespace facebook::fboss {
 
 class HwUdfTest : public HwTest {
  protected:
-  std::shared_ptr<SwitchState> setupUdfConfiguration(bool addConfig) {
+  std::shared_ptr<SwitchState> setupUdfConfiguration(
+      bool addConfig,
+      bool udfHash = true) {
     auto udfConfigState = std::make_shared<UdfConfig>();
     cfg::UdfConfig udfConfig;
     if (addConfig) {
-      udfConfig = utility::addUdfConfig();
+      if (udfHash) {
+        udfConfig = utility::addUdfHashConfig();
+      } else {
+        udfConfig = utility::addUdfAclConfig();
+      }
     }
     udfConfigState->fromThrift(udfConfig);
 
@@ -33,11 +39,23 @@ class HwUdfTest : public HwTest {
   }
 };
 
-TEST_F(HwUdfTest, checkUdfConfiguration) {
-  auto setup = [=]() { applyNewState(setupUdfConfiguration(true)); };
+TEST_F(HwUdfTest, checkUdfHashConfiguration) {
+  auto setup = [=]() { applyNewState(setupUdfConfiguration(true, true)); };
   auto verify = [=]() {
     utility::validateUdfConfig(
-        getHwSwitch(), utility::kUdfGroupName, utility::kUdfPktMatcherName);
+        getHwSwitch(), utility::kUdfHashGroupName, utility::kUdfPktMatcherName);
+  };
+
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwUdfTest, checkUdfAclConfiguration) {
+  auto setup = [=]() { applyNewState(setupUdfConfiguration(true, false)); };
+  auto verify = [=]() {
+    utility::validateUdfConfig(
+        getHwSwitch(),
+        utility::kUdfRoceOpcodeAclGroupName,
+        utility::kUdfPktMatcherName);
   };
 
   verifyAcrossWarmBoots(setup, verify);
@@ -49,14 +67,14 @@ TEST_F(HwUdfTest, deleteUdfConfig) {
   auto setup = [&]() {
     applyNewState(setupUdfConfiguration(true));
     udfGroupId =
-        utility::getHwUdfGroupId(getHwSwitch(), utility::kUdfGroupName);
+        utility::getHwUdfGroupId(getHwSwitch(), utility::kUdfHashGroupName);
     udfPacketMatcherId = utility::getHwUdfPacketMatcherId(
         getHwSwitch(), utility::kUdfPktMatcherName);
     applyNewState(setupUdfConfiguration(false));
   };
   auto verify = [=]() {
     utility::validateRemoveUdfGroup(
-        getHwSwitch(), utility::kUdfGroupName, udfGroupId);
+        getHwSwitch(), utility::kUdfHashGroupName, udfGroupId);
     utility::validateRemoveUdfPacketMatcher(
         getHwSwitch(), utility::kUdfPktMatcherName, udfPacketMatcherId);
   };

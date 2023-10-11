@@ -25,18 +25,18 @@ void BcmLinkStateDependentTests::SetUp() {
   }
 }
 
-HwLinkStateToggler* BcmLinkStateDependentTests::getLinkToggler() {
+LinkStateToggler* BcmLinkStateDependentTests::getLinkToggler() {
   return getHwSwitchEnsemble()->getLinkToggler();
 }
 
 void BcmLinkStateDependentTests::bringUpPorts(
     const std::vector<PortID>& ports) {
-  getLinkToggler()->bringUpPorts(getProgrammedState(), ports);
+  getLinkToggler()->bringUpPorts(ports);
 }
 
 void BcmLinkStateDependentTests::bringDownPorts(
     const std::vector<PortID>& ports) {
-  getLinkToggler()->bringDownPorts(getProgrammedState(), ports);
+  getLinkToggler()->bringDownPorts(ports);
 }
 
 } // namespace facebook::fboss

@@ -299,30 +299,24 @@ void BcmAclEntry::createAclQualifiers() {
         rv, "failed to qualify OuterVlanId:", acl_->getVlanID().value());
   }
 
-  if (acl_->getUdfGroups()) {
-    for (auto udfGroupIdItr = acl_->getUdfGroups()->begin();
-         udfGroupIdItr != acl_->getUdfGroups()->end();
-         ++udfGroupIdItr) {
-      const int bcmUdfGroupId =
-          hw_->getUdfMgr()->getBcmUdfGroupId(*udfGroupIdItr);
-      int length = hw_->getUdfMgr()->getBcmUdfGroupFieldSize(
-          *udfGroupIdItr); // number of bytes in data
-      if (length <= 0) {
-        throw FbossError(
-            "Invalid length: ", length, "for UDFGroupId: ", *udfGroupIdItr);
-      }
-      int udfGroupProto = hw_->getUdfMgr()->getBcmUdfGroupProto(*udfGroupIdItr);
-      uint8 data[length];
-      memcpy(data, &udfGroupProto, length);
-      uint8 mask[length];
-      memset(mask, 0xff, length);
+  if (acl_->getUdfGroups() && acl_->getRoceOpcode()) {
+    const auto groups = acl_->getUdfGroups().value();
+    for (const auto& group : groups) {
+      const int bcmUdfGroupId = hw_->getUdfMgr()->getBcmUdfGroupId(group);
+      uint8 data[] = {acl_->getRoceOpcode().value()};
+      uint8 mask[] = {0xff};
 
       rv = bcm_field_qualify_udf(
-          hw_->getUnit(), handle_, bcmUdfGroupId, length, data, mask);
+          hw_->getUnit(),
+          handle_,
+          bcmUdfGroupId,
+          1 /*length*/,
+          &data[0],
+          &mask[0]);
       bcmCheckError(
           rv,
-          "failed to qualify udfGroupId:",
-          *udfGroupIdItr,
+          "failed to qualify udf ",
+          group,
           " bcmUdfGroupId:",
           bcmUdfGroupId);
     }
@@ -853,6 +847,27 @@ bool BcmAclEntry::isStateSame(
         outerVlanId,
         aclMsg,
         "OuterVlanId");
+  }
+
+  if (acl->getUdfGroups() && acl->getRoceOpcode()) {
+    const auto groups = acl->getUdfGroups().value();
+    for (const auto& group : groups) {
+      const int bcmUdfGroupId = hw->getUdfMgr()->getBcmUdfGroupId(group);
+      uint8 swData[] = {acl->getRoceOpcode().value()};
+      uint8 swMask[] = {0xff};
+
+      isSame &= isBcmQualFieldStateSame(
+          bcm_field_qualify_udf_get,
+          hw->getUnit(),
+          handle,
+          bcmUdfGroupId,
+          1 /* max_length */,
+          true,
+          swData,
+          swMask,
+          aclMsg,
+          "BcmUdfGroupId");
+    }
   }
 
   // check acl stat

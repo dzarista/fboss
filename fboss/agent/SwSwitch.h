@@ -905,6 +905,15 @@ class SwSwitch : public HwSwitchCallback {
     return swSwitchWarmbootHelper_.get();
   }
 
+  void updateHwSwitchStats(
+      uint16_t switchIndex,
+      multiswitch::HwSwitchStats hwStats);
+
+  // Returns a copy of hwswitch exported stats.
+  // To be used only in tests as copy is expensive.
+  multiswitch::HwSwitchStats getHwSwitchStatsWithCopy(
+      uint16_t switchIndex) const;
+
  private:
   std::optional<folly::MacAddress> getSourceMac(
       const std::shared_ptr<Interface>& intf) const;
@@ -1171,5 +1180,7 @@ class SwSwitch : public HwSwitchCallback {
   std::atomic<std::chrono::time_point<std::chrono::steady_clock>>
       lastPacketRxTime_{std::chrono::steady_clock::time_point::min()};
   folly::Synchronized<std::unique_ptr<AgentConfig>> agentConfig_;
+  folly::Synchronized<std::map<uint16_t, multiswitch::HwSwitchStats>>
+      hwSwitchStats_;
 };
 } // namespace facebook::fboss

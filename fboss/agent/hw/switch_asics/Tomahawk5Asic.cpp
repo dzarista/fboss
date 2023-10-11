@@ -88,6 +88,7 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_EAPOL_TRAP:
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
       return true;
     // features not working well with bcmsim
     case HwAsic::Feature::MIRROR_PACKET_TRUNCATION:
@@ -146,26 +147,32 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
+    case HwAsic::Feature::CREDIT_WATCHDOG:
       return false;
   }
   return false;
 }
 
-int Tomahawk5Asic::getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
-    const {
+int Tomahawk5Asic::getDefaultNumPortQueues(
+    cfg::StreamType streamType,
+    cfg::PortType portType) const {
   switch (streamType) {
     case cfg::StreamType::UNICAST:
-      if (cpu) {
+      if (portType == cfg::PortType::CPU_PORT) {
         break;
       }
       return 8;
     case cfg::StreamType::MULTICAST:
-      return cpu ? 10 : 4;
+      return portType == cfg::PortType::CPU_PORT ? 10 : 4;
     case cfg::StreamType::ALL:
     case cfg::StreamType::FABRIC_TX:
       break;
   }
   throw FbossError(
-      "Unexpected, stream: ", streamType, " cpu: ", cpu, "combination");
+      "Unexpected, stream: ",
+      apache::thrift::util::enumNameSafe(streamType),
+      " portType: ",
+      apache::thrift::util::enumNameSafe(portType),
+      " combination");
 }
 } // namespace facebook::fboss

@@ -21,8 +21,6 @@ DEFINE_bool(
     "tests doing a full process warmboot and verifying expectations");
 
 namespace {
-int kArgc;
-char** kArgv;
 facebook::fboss::PlatformInitFn kPlatformInitFn;
 static std::string kInputConfigFile;
 
@@ -34,16 +32,9 @@ AgentEnsemble::AgentEnsemble(const std::string& configFileName) {
 }
 
 void AgentEnsemble::setupEnsemble(
-    int argc,
-    char** argv,
     uint32_t hwFeaturesDesired,
-    PlatformInitFn initPlatform,
     AgentEnsembleSwitchConfigFn initialConfigFn,
     AgentEnsemblePlatformConfigFn platformConfigFn) {
-  // to ensure FLAGS_config is set, as this is used in case platform config is
-  // overriden by the application.
-  gflags::ParseCommandLineFlags(&argc, &argv, false);
-
   FLAGS_verify_apply_oper_delta = true;
 
   if (platformConfigFn) {
@@ -55,9 +46,8 @@ void AgentEnsemble::setupEnsemble(
     writeConfig(agentConf, FLAGS_config);
   }
   setVersionInfo();
-  auto config = fbossCommonInit(argc, argv);
-  auto* initializer = agentInitializer();
-  initializer->createSwitch(std::move(config), hwFeaturesDesired, initPlatform);
+  createSwitch(
+      AgentConfig::fromDefaultFile(), hwFeaturesDesired, kPlatformInitFn);
 
   // TODO: Handle multiple Asics
   auto asic = getSw()->getHwAsicTable()->getHwAsics().cbegin()->second;
@@ -81,7 +71,13 @@ void AgentEnsemble::setupEnsemble(
   initialConfig_ = initialConfigFn(getSw(), masterLogicalPortIds_);
   applyInitialConfig(initialConfig_);
   // reload the new config
-  getPlatform()->reloadConfig();
+  reloadPlatformConfig();
+
+  // Setup LinkStateToggler and start agent
+  if (hwFeaturesDesired & HwSwitch::FeaturesDesired::LINKSCAN_DESIRED) {
+    setupLinkStateToggler();
+  }
+  startAgent();
 }
 
 void AgentEnsemble::startAgent() {
@@ -99,7 +95,7 @@ void AgentEnsemble::startAgent() {
   }));
   initializer->initializer()->waitForInitDone();
   // if cold booting, invoke link toggler
-  if (getHw()->getBootType() != BootType::WARM_BOOT &&
+  if (getSw()->getBootType() != BootType::WARM_BOOT &&
       linkToggler_ != nullptr) {
     linkToggler_->applyInitialConfig(initialConfig_);
   }
@@ -139,8 +135,6 @@ void AgentEnsemble::writeConfig(
 }
 
 AgentEnsemble::~AgentEnsemble() {
-  auto* initializer = agentInitializer();
-  initializer->stopAgent(false);
   asyncInitThread_->join();
   asyncInitThread_.reset();
 }
@@ -156,6 +150,10 @@ void AgentEnsemble::applyNewConfig(
 
 std::vector<PortID> AgentEnsemble::masterLogicalPortIds() const {
   return masterLogicalPortIds_;
+}
+
+void AgentEnsemble::switchRunStateChanged(SwitchRunState runState) {
+  getSw()->switchRunStateChanged(runState);
 }
 
 void AgentEnsemble::programRoutes(
@@ -232,7 +230,7 @@ void AgentEnsemble::setupLinkStateToggler() {
   if (linkToggler_) {
     return;
   }
-  linkToggler_ = std::make_unique<HwLinkStateToggler>(this);
+  linkToggler_ = std::make_unique<LinkStateToggler>(this);
 }
 
 std::string AgentEnsemble::getInputConfigFile() {
@@ -243,41 +241,18 @@ std::string AgentEnsemble::getInputConfigFile() {
 }
 
 int ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform) {
-  kArgc = argc;
-  kArgv = argv;
+  fbossCommonInit(argc, argv);
   kPlatformInitFn = std::move(initPlatform);
   return RUN_ALL_TESTS();
-}
-
-std::unique_ptr<AgentEnsemble> createAgentEnsemble(
-    AgentEnsembleSwitchConfigFn initialConfigFn,
-    AgentEnsemblePlatformConfigFn platformConfigFn,
-    uint32_t featuresDesired,
-    bool startAgent) {
-  auto ensemble = std::make_unique<AgentEnsemble>();
-  ensemble->setupEnsemble(
-      kArgc,
-      kArgv,
-      featuresDesired,
-      kPlatformInitFn,
-      initialConfigFn,
-      platformConfigFn);
-  if (featuresDesired & HwSwitch::FeaturesDesired::LINKSCAN_DESIRED) {
-    ensemble->setupLinkStateToggler();
-  }
-  if (startAgent) {
-    ensemble->startAgent();
-  }
-  return ensemble;
 }
 
 std::map<PortID, HwPortStats> AgentEnsemble::getLatestPortStats(
     const std::vector<PortID>& ports) {
   std::map<PortID, HwPortStats> portIdStatsMap;
-  getHw()->updateStats();
+  getSw()->updateStats();
 
   auto swState = getSw()->getState();
-  auto stats = getHw()->getPortStats();
+  auto stats = getSw()->getHwSwitchHandler()->getPortStats();
   for (auto [portName, stats] : stats) {
     auto portId = swState->getPorts()->getPort(portName)->getID();
     if (std::find(ports.begin(), ports.end(), (PortID)portId) == ports.end()) {
@@ -301,4 +276,5 @@ void AgentEnsemble::registerStateObserver(
 void AgentEnsemble::unregisterStateObserver(StateObserver* observer) {
   getSw()->unregisterStateObserver(observer);
 }
+
 } // namespace facebook::fboss

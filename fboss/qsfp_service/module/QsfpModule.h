@@ -233,12 +233,8 @@ class QsfpModule : public Transceiver {
     return lastDownTime_.load();
   }
 
-  phy::PrbsStats getPortPrbsStats(phy::Side side) override {
-    if (side == phy::Side::SYSTEM) {
-      return systemPrbsStats_.copy();
-    }
-    return linePrbsStats_.copy();
-  };
+  phy::PrbsStats getPortPrbsStats(const std::string& portName, phy::Side side)
+      override;
 
   void updatePrbsStats();
 
@@ -247,7 +243,9 @@ class QsfpModule : public Transceiver {
       phy::Side /* side */,
       const prbs::InterfacePrbsState& /* prbs */) override;
 
-  prbs::InterfacePrbsState getPortPrbsState(phy::Side /* side */) override;
+  prbs::InterfacePrbsState getPortPrbsState(
+      std::optional<const std::string> /* portName */,
+      phy::Side /* side */) override;
 
   void setModulePauseRemediation(int32_t timeout) override;
 
@@ -670,6 +668,7 @@ class QsfpModule : public Transceiver {
    * Returns the current state of prbs (enabled/polynomial)
    */
   virtual prbs::InterfacePrbsState getPortPrbsStateLocked(
+      std::optional<const std::string> /* portName */,
       phy::Side /* side */) {
     return prbs::InterfacePrbsState();
   }
@@ -725,6 +724,8 @@ class QsfpModule : public Transceiver {
   time_t lastFwUpgradeEndTime_{0};
 
   std::string getFwStorageHandle(const std::string& tcvrPartNumber) const;
+
+  const folly::EventBase* getEvb() const override;
 };
 } // namespace fboss
 } // namespace facebook

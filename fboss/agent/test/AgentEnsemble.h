@@ -11,8 +11,10 @@
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/Main.h"
 
-#include "fboss/agent/hw/test/HwLinkStateToggler.h"
-#include "fboss/agent/single/MonolithicAgentInitializer.h"
+#include "fboss/agent/FbossInit.h"
+#include "fboss/agent/SwAgentInitializer.h"
+#include "fboss/agent/SwSwitch.h"
+#include "fboss/agent/hw/test/LinkStateToggler.h"
 #include "fboss/agent/test/RouteDistributionGenerator.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
 
@@ -34,10 +36,7 @@ class AgentEnsemble : public TestEnsembleIf {
   using TestEnsembleIf::masterLogicalPortIds;
 
   void setupEnsemble(
-      int argc,
-      char** argv,
       uint32_t hwFeaturesDesired,
-      PlatformInitFn initPlatform,
       AgentEnsembleSwitchConfigFn initConfig,
       AgentEnsemblePlatformConfigFn platformConfig =
           AgentEnsemblePlatformConfigFn());
@@ -46,22 +45,19 @@ class AgentEnsemble : public TestEnsembleIf {
 
   void applyNewConfig(const cfg::SwitchConfig& config, bool activate);
 
-  const MonolithicAgentInitializer* agentInitializer() const {
-    return &agentInitializer_;
-  }
-
   void setupLinkStateToggler();
 
-  MonolithicAgentInitializer* agentInitializer() {
-    return &agentInitializer_;
-  }
-
   SwSwitch* getSw() const {
-    return agentInitializer_.sw();
+    return agentInitializer()->sw();
   }
 
   std::shared_ptr<SwitchState> getProgrammedState() const override {
     return getSw()->getState();
+  }
+
+  const std::map<int32_t, cfg::PlatformPortEntry>& getPlatformPorts()
+      const override {
+    return getSw()->getPlatformMapping()->getPlatformPorts();
   }
 
   void applyInitialConfig(const cfg::SwitchConfig& config) override {
@@ -75,19 +71,21 @@ class AgentEnsemble : public TestEnsembleIf {
     return getProgrammedState();
   }
 
-  Platform* getPlatform() const {
-    return agentInitializer_.platform();
-  }
-
-  HwSwitch* getHw() const {
-    return getPlatform()->getHwSwitch();
-  }
+  virtual const SwAgentInitializer* agentInitializer() const = 0;
+  virtual SwAgentInitializer* agentInitializer() = 0;
+  virtual void createSwitch(
+      std::unique_ptr<AgentConfig> config,
+      uint32_t hwFeaturesDesired,
+      PlatformInitFn initPlatform) = 0;
+  virtual void reloadPlatformConfig() = 0;
 
   std::shared_ptr<SwitchState> applyNewState(
       std::shared_ptr<SwitchState> state,
       bool transaction = false) override;
 
   std::vector<PortID> masterLogicalPortIds() const override;
+
+  void switchRunStateChanged(SwitchRunState runState) override;
 
   void programRoutes(
       const RouterID& rid,
@@ -116,7 +114,7 @@ class AgentEnsemble : public TestEnsembleIf {
       bool up,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override {
-    if (getHwSwitch()->getRunState() >= SwitchRunState::INITIALIZED) {
+    if (getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED) {
       if (linkToggler_) {
         linkToggler_->linkStateChanged(port, up);
       }
@@ -138,14 +136,6 @@ class AgentEnsemble : public TestEnsembleIf {
     getSw()->pfcWatchdogStateChanged(port, deadlock);
   }
 
-  HwSwitch* getHwSwitch() override {
-    return getHw();
-  }
-
-  const HwSwitch* getHwSwitch() const override {
-    return getHw();
-  }
-
   std::map<PortID, HwPortStats> getLatestPortStats(
       const std::vector<PortID>& ports);
 
@@ -164,6 +154,18 @@ class AgentEnsemble : public TestEnsembleIf {
     return getSw()->getHwAsicTable();
   }
 
+  std::map<PortID, FabricEndpoint> getFabricReachability() const override {
+    return getSw()->getHwSwitchHandler()->getFabricReachability();
+  }
+
+  FabricReachabilityStats getFabricReachabilityStats() const override {
+    return getSw()->getHwSwitchHandler()->getFabricReachabilityStats();
+  }
+
+  void updateStats() override {
+    getSw()->updateStats();
+  }
+
   void registerStateObserver(StateObserver* observer, const std::string& name)
       override;
   void unregisterStateObserver(StateObserver* observer) override;
@@ -173,12 +175,11 @@ class AgentEnsemble : public TestEnsembleIf {
   void writeConfig(const cfg::AgentConfig& config);
   void writeConfig(const cfg::AgentConfig& config, const std::string& file);
 
-  MonolithicAgentInitializer agentInitializer_{};
   cfg::SwitchConfig initialConfig_;
   std::unique_ptr<std::thread> asyncInitThread_{nullptr};
   std::vector<PortID> masterLogicalPortIds_;
   std::string configFile_{"agent.conf"};
-  std::unique_ptr<HwLinkStateToggler> linkToggler_;
+  std::unique_ptr<LinkStateToggler> linkToggler_;
   cfg::PortLoopbackMode mode_{cfg::PortLoopbackMode::MAC};
 };
 
@@ -190,7 +191,6 @@ std::unique_ptr<AgentEnsemble> createAgentEnsemble(
         AgentEnsemblePlatformConfigFn(),
     uint32_t featuresDesired =
         (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
-         HwSwitch::FeaturesDesired::LINKSCAN_DESIRED),
-    bool startAgent = true);
+         HwSwitch::FeaturesDesired::LINKSCAN_DESIRED));
 
 } // namespace facebook::fboss

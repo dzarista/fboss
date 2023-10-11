@@ -2,6 +2,7 @@
 
 #include "fboss/agent/test/SplitAgentTest.h"
 #include "fboss/agent/HwAsicTable.h"
+#include "fboss/agent/test/SplitAgentEnsemble.h"
 
 DEFINE_bool(run_forever, false, "run the test forever");
 DEFINE_bool(run_forever_on_failure, false, "run the test forever on failure");
@@ -22,12 +23,7 @@ void SplitAgentTest::SetUp() {
       [this](SwSwitch* swSwitch, const std::vector<PortID>& ports) {
         return initialConfig(swSwitch, ports);
       };
-
-  if (platformConfigFn_) {
-    agentEnsemble_ = createAgentEnsemble(initialConfigFn, platformConfigFn_);
-  } else {
-    agentEnsemble_ = createAgentEnsemble(initialConfigFn);
-  }
+  agentEnsemble_ = createAgentEnsemble(initialConfigFn);
 }
 
 void SplitAgentTest::TearDown() {
@@ -65,6 +61,10 @@ std::shared_ptr<SwitchState> SplitAgentTest::applyNewConfig(
   return agentEnsemble_->applyNewConfig(config);
 }
 
+SwSwitch* SplitAgentTest::getSw() const {
+  return agentEnsemble_->getSw();
+}
+
 const std::map<SwitchID, const HwAsic*> SplitAgentTest::getAsics() const {
   return agentEnsemble_->getSw()->getHwAsicTable()->getHwAsics();
 }
@@ -85,6 +85,19 @@ const std::shared_ptr<SwitchState> SplitAgentTest::getProgrammedState() const {
 
 std::vector<PortID> SplitAgentTest::masterLogicalPortIds() const {
   return getAgentEnsemble()->masterLogicalPortIds();
+}
+
+std::vector<PortID> SplitAgentTest::masterLogicalPortIds(
+    const std::set<cfg::PortType>& portTypes) const {
+  return getAgentEnsemble()->masterLogicalPortIds(portTypes);
+}
+
+void SplitAgentTest::setSwitchDrainState(
+    const cfg::SwitchConfig& curConfig,
+    cfg::SwitchDrainState drainState) {
+  auto newCfg = curConfig;
+  *newCfg.switchSettings()->switchDrainState() = drainState;
+  applyNewConfig(newCfg);
 }
 
 bool SplitAgentTest::hideFabricPorts() const {

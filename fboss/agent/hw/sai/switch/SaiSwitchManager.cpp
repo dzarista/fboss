@@ -647,14 +647,6 @@ void SaiSwitchManager::updateStats() {
   }
 }
 
-void SaiSwitchManager::configureCreditWatchdog(bool enable) {
-  if (platform_->getAsic()->getSwitchType() == cfg::SwitchType::VOQ) {
-    // Supported only for VoQ switches!
-    switch_->setOptionalAttribute(
-        SaiSwitchTraits::Attributes::CreditWd{enable});
-  }
-}
-
 void SaiSwitchManager::setSwitchIsolate(bool isolate) {
   // Supported only for FABRIC switches!
   // It is checked while applying thrift config

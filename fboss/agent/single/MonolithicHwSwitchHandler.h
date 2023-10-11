@@ -84,10 +84,12 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
       const StateDelta& delta,
       bool transaction) override;
 
-  fsdb::OperDelta stateChanged(const fsdb::OperDelta& delta, bool transaction)
-      override;
+  std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus> stateChanged(
+      const fsdb::OperDelta& delta,
+      bool transaction) override;
 
-  bool transactionsSupported() const override;
+  bool transactionsSupported(
+      std::optional<cfg::SdkVersion> sdkVersion) const override;
 
   /* TODO: remove this method */
   HwSwitch* getHwSwitch() const {
@@ -117,9 +119,14 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
   bool needL2EntryForNeighbor(const cfg::SwitchConfig* config) const override;
 
   multiswitch::StateOperDelta getNextStateOperDelta(
-      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult) override;
+      std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
+      bool initialSync) override;
 
-  void notifyHwSwitchGracefulExit() override;
+  void notifyHwSwitchDisconnected() override;
+
+  HwSwitchOperDeltaSyncState getHwSwitchOperDeltaSyncState() override {
+    return HwSwitchOperDeltaSyncState::OPER_SYNCED;
+  }
 
  private:
   Platform* platform_;

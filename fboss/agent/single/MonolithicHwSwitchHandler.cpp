@@ -88,7 +88,10 @@ void MonolithicHwSwitchHandler::platformStop() {
   platform_->stop();
 }
 
-bool MonolithicHwSwitchHandler::transactionsSupported() const {
+bool MonolithicHwSwitchHandler::transactionsSupported(
+    std::optional<cfg::SdkVersion> /*sdkVersion*/) const {
+  // TODO use sdk version to determine if transactions are supported
+  // This can be done after sdk version is populated in all tests
   return hw_->transactionsSupported();
 }
 
@@ -192,19 +195,28 @@ bool MonolithicHwSwitchHandler::needL2EntryForNeighbor(
   return hw_->needL2EntryForNeighbor();
 }
 
-fsdb::OperDelta MonolithicHwSwitchHandler::stateChanged(
+std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>
+MonolithicHwSwitchHandler::stateChanged(
     const fsdb::OperDelta& delta,
     bool transaction) {
-  return transaction ? hw_->stateChangedTransaction(delta)
-                     : hw_->stateChanged(delta);
+  auto operResult = transaction ? hw_->stateChangedTransaction(delta)
+                                : hw_->stateChanged(delta);
+  /*
+   * For monolithic, return success for update since SwSwitch should not
+   * do rollback for partial update failure. In monolithic SwSwitch
+   * transitions the state returned by HwSwitch to applied state.
+   */
+  return {
+      operResult, HwSwitchStateUpdateStatus::HWSWITCH_STATE_UPDATE_SUCCEEDED};
 }
 
 multiswitch::StateOperDelta MonolithicHwSwitchHandler::getNextStateOperDelta(
-    std::unique_ptr<multiswitch::StateOperDelta> /*prevOperResult*/) {
+    std::unique_ptr<multiswitch::StateOperDelta> /*prevOperResult*/,
+    bool /*initialSync*/) {
   throw FbossError("Not supported");
 }
 
-void MonolithicHwSwitchHandler::notifyHwSwitchGracefulExit() {
+void MonolithicHwSwitchHandler::notifyHwSwitchDisconnected() {
   throw FbossError("Not supported");
 }
 

@@ -51,6 +51,7 @@ bool Trident2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
       return true;
 
     case HwAsic::Feature::ERSPANv6:
@@ -144,19 +145,21 @@ bool Trident2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
     case HwAsic::Feature::SAI_EAPOL_TRAP:
+    case HwAsic::Feature::CREDIT_WATCHDOG:
       return false;
   }
   return false;
 }
 
-int Trident2Asic::getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
-    const {
+int Trident2Asic::getDefaultNumPortQueues(
+    cfg::StreamType streamType,
+    cfg::PortType portType) const {
   /*
    * Since we don't support QoS on TD2, set non cpu queues to be 0
    */
   switch (streamType) {
     case cfg::StreamType::UNICAST:
-      if (cpu) {
+      if (portType == cfg::PortType::CPU_PORT) {
         break;
       }
       return 0;
@@ -164,12 +167,16 @@ int Trident2Asic::getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
       /*
        * CPU on TD2 has 44 queues, but we limit ourselves to first 10
        */
-      return cpu ? 10 : 0;
+      return (portType == cfg::PortType::CPU_PORT) ? 10 : 0;
     case cfg::StreamType::ALL:
     case cfg::StreamType::FABRIC_TX:
       break;
   }
   throw FbossError(
-      "Unexpected, stream: ", streamType, " cpu: ", cpu, "combination");
+      "Unexpected, stream: ",
+      apache::thrift::util::enumNameSafe(streamType),
+      " portType: ",
+      apache::thrift::util::enumNameSafe(portType),
+      " combination");
 }
 } // namespace facebook::fboss

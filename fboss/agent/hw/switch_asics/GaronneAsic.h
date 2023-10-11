@@ -22,8 +22,9 @@ class GaronneAsic : public TajoAsic {
   }
   std::set<cfg::StreamType> getQueueStreamTypes(
       cfg::PortType portType) const override;
-  int getDefaultNumPortQueues(cfg::StreamType streamType, bool /*cpu*/)
-      const override {
+  int getDefaultNumPortQueues(
+      cfg::StreamType streamType,
+      cfg::PortType /*portType*/) const override {
     switch (streamType) {
       case cfg::StreamType::ALL:
       case cfg::StreamType::MULTICAST:
@@ -48,8 +49,9 @@ class GaronneAsic : public TajoAsic {
   uint32_t getNumCores() const override {
     return 12;
   }
-  uint64_t getDefaultReservedBytes(cfg::StreamType /*streamType*/, bool /*cpu*/)
-      const override {
+  uint64_t getDefaultReservedBytes(
+      cfg::StreamType /*streamType*/,
+      cfg::PortType /*portType*/) const override {
     // Concept of reserved bytes does not apply to GB
     return 0;
   }

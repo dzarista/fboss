@@ -48,7 +48,8 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
     const auto& cpuStreamTypes =
         getAsic()->getQueueStreamTypes(cfg::PortType::CPU_PORT);
     for (const auto& cpuStreamType : cpuStreamTypes) {
-      if (getAsic()->getDefaultNumPortQueues(cpuStreamType, true)) {
+      if (getAsic()->getDefaultNumPortQueues(
+              cpuStreamType, cfg::PortType::CPU_PORT)) {
         // cpu queues supported
         addCpuTrafficPolicy(cfg);
         utility::addCpuQueueConfig(cfg, getAsic());
@@ -337,7 +338,7 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, collectStats) {
 }
 
 TEST_F(HwVoqSwitchWithFabricPortsTest, checkFabricReachability) {
-  auto verify = [this]() { checkFabricReachability(getHwSwitch()); };
+  auto verify = [this]() { checkFabricReachability(getHwSwitchEnsemble()); };
   verifyAcrossWarmBoots([] {}, verify);
 }
 
@@ -349,14 +350,14 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, fabricIsolate) {
     getHwSwitch()->updateStats();
     auto fabricPortId =
         PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
-    checkPortFabricReachability(getHwSwitch(), fabricPortId);
+    checkPortFabricReachability(getHwSwitchEnsemble(), fabricPortId);
     auto newState = getProgrammedState();
     auto port = newState->getPorts()->getNodeIf(fabricPortId);
     auto newPort = port->modify(&newState);
     newPort->setPortDrainState(cfg::PortDrainState::DRAINED);
     applyNewState(newState);
     getHwSwitch()->updateStats();
-    checkPortFabricReachability(getHwSwitch(), fabricPortId);
+    checkPortFabricReachability(getHwSwitchEnsemble(), fabricPortId);
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -369,7 +370,7 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, switchIsolate) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() { checkFabricReachability(getHwSwitch()); };
+  auto verify = [=]() { checkFabricReachability(getHwSwitchEnsemble()); };
   verifyAcrossWarmBoots(setup, verify);
 }
 

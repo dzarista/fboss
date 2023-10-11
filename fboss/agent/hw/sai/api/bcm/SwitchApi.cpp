@@ -119,7 +119,7 @@ void SwitchApi::registerParityErrorSwitchEventCallback(
 
 std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
     AttributeForceTrafficOverFabricWrapper::operator()() {
-#if defined(SAI_VERSION_10_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX)
   return SAI_SWITCH_ATTR_FORCE_TRAFFIC_OVER_FABRIC;
 #endif
   return std::nullopt;
@@ -129,14 +129,6 @@ std::optional<sai_attr_id_t>
 SaiSwitchTraits::Attributes::AttributeSwitchIsolateWrapper::operator()() {
 #if defined(BRCM_SAI_SDK_DNX)
   return SAI_SWITCH_ATTR_SWITCH_ISOLATE;
-#endif
-  return std::nullopt;
-}
-
-std::optional<sai_attr_id_t>
-SaiSwitchTraits::Attributes::AttributeCreditWdWrapper::operator()() {
-#if defined(SAI_VERSION_10_0_EA_DNX_ODP)
-  return SAI_SWITCH_ATTR_CREDIT_WD;
 #endif
   return std::nullopt;
 }

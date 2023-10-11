@@ -72,6 +72,7 @@ bool YubaAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
     case HwAsic::Feature::L3_QOS:
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
       return true;
     // VOQ vs NPU mode dependent features
     case HwAsic::Feature::BRIDGE_PORT_8021Q:
@@ -152,6 +153,7 @@ bool YubaAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::P4_WARMBOOT:
     case HwAsic::Feature::SAI_EAPOL_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
+    case HwAsic::Feature::CREDIT_WATCHDOG:
       return false;
   }
   return false;
@@ -168,8 +170,9 @@ bool YubaAsic::isSupportedFabric(Feature feature) const {
   return false;
 }
 
-int YubaAsic::getDefaultNumPortQueues(cfg::StreamType streamType, bool /*cpu*/)
-    const {
+int YubaAsic::getDefaultNumPortQueues(
+    cfg::StreamType streamType,
+    cfg::PortType portType) const {
   switch (streamType) {
     case cfg::StreamType::MULTICAST:
       throw FbossError(
@@ -182,8 +185,14 @@ int YubaAsic::getDefaultNumPortQueues(cfg::StreamType streamType, bool /*cpu*/)
       return 8;
   }
 
-  throw FbossError("Unknown streamType", streamType);
+  throw FbossError(
+      "Unexpected, stream: ",
+      apache::thrift::util::enumNameSafe(streamType),
+      " portType: ",
+      apache::thrift::util::enumNameSafe(portType),
+      " combination");
 }
+
 std::set<cfg::StreamType> YubaAsic::getQueueStreamTypes(
     cfg::PortType portType) const {
   switch (portType) {

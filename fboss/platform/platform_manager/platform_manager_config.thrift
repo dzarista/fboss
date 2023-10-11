@@ -39,17 +39,17 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 //            ┌────────────────────┐           Boundary      ┌────────────────────┐
 //            │      PmUnit A ┌────┤            │            │      PmUnit B      │
 //            │  ┌────┬─────┐ │Slot│                         │   ┌────┬─────┐     │
-//  incoming@0│  │ 12 │     │ │    │muxA@0      │  incoming@0│   │ 12 │     │┌────┤
+//  INCOMING@0│  │ 12 │     │ │    │muxA@0      │  INCOMING@0│   │ 12 │     │┌────┤
 // ───────────┼┬▶├────┘     │┌┼────┼─────────────────────────┼┬─▶├────┘     ││Slot│
 //            ││ │ sensor1  │││    │            │            ││  │ sensor1  ││    │
 //            ││ └──────────┘││    │                         ││  └──────────┘│    │
-//            ││             ││    │            │            ││              │    │incoming@0
-//            ││             ││    │incoming@0     incoming@1│└──────────────┼────┼─────────▶
+//            ││             ││    │            │            ││              │    │INCOMING@0
+//            ││             ││    │INCOMING@0     INCOMING@1│└──────────────┼────┼─────────▶
 //            │└─────────────┼┼────┼────────────┼────────────┼──▶            │    │
 //            │              ││    │                         │               │    │muxB@0
 //            │ ┌────────┐   ││    │            │            │ ┌────────┐  ┌─┼────┼─────────▶
-//  incoming@1│ │  muxA  ├───┘│    │                         │ │  muxB  ├──┘ │    │
-// ───────────┼▶├────┐   ├─▶  │    │muxA@2      │  incoming@2│ ├────┐   ├─▶  │    │muxB@2
+//  INCOMING@1│ │  muxA  ├───┘│    │                         │ │  muxB  ├──┘ │    │
+// ───────────┼▶├────┐   ├─▶  │    │muxA@2      │  INCOMING@2│ ├────┐   ├─▶  │    │muxB@2
 //            │ │ 54 │   ├────┼────┼─────────────────────────┼▶│ 54 │   ├────┼────┼─────────▶
 //            │ └────┴───┘    └────┤            │            │ └────┴───┘    │    │
 //            │         ┌────────┐ │                         │               │    │fpga1_I2C_2
@@ -68,27 +68,21 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 
 // ============================================================================
 
-//                         +-+-+-+-+-+-+ +-+-+-+-+
-//                         |P|m|U|n|i|t| |P|A|T|H|
-//                         +-+-+-+-+-+-+ +-+-+-+-+
+//                             +-+-+-+-+-+-+-+-+
+//                             |S|l|o|t|P|a|t|h|
+//                             +-+-+-+-+-+-+-+-+
 //
-// PmUnit paths are constructs used to refer to devices in the platform.  The
-// paths start from the root PmUnit. PmUnit boundary is represented with a
-// forward slash (/).  To represent a device in a PmUnit, the path should
-// contain all the slots which have been used all the way up to the root
-// PmUnit.  The device itself is represented within square brackets (e.g.,
-// [Device]), and it should be the leaf (last token), of the path.  If the
-// device is within a FPGA, then the device is represented as [FPGA::Device]
-//
-// For example the devices in the below example are represented as follows
-// - /[fpga1]
-// - /[fpga1::gpiochip0]
-// - /ABC_SLOT@0/[cpld1]
-// - /ABC_SLOT@1/[cpld1]
-// - /ABC_SLOT@1/[cpld2]
-// - /ABC_SLOT@1/DEF_SLOT@0/[sensor3]
-// - /XYZ_SLOT@0/[sensor1]
-// - /XYZ_SLOT@1/[sensor1]
+// SlotPaths are constructs used to reference slots in the platform. The
+// virtual root slot is a forward slash (/).  The SlotPaths are constructed in
+// the sequence of the slot names in which they are plugged in.  The separator
+// between slot names is a forward slash (/).
+// For example, in the below platform,
+// - Root PmUnit is plugged in SlotPath /
+// - First XZY PmUnit is plugged in SlotPath /XYZ_SLOT@0
+// - Second XZY PmUnit is plugged in SlotPath /XYZ_SLOT@1
+// - ABC1 PmUnit is plugged in SlotPath /ABC_SLOT@0
+// - ABC2 PmUnit is plugged in SlotPath /ABC_SLOT@1
+// - DEF PmUnit is plugged in SlotPath /ABC_SLOT@1/DEF_SLOT@0
 //
 // ┌─────────────────┐   ┌──────────────────────────┐   ┌─────────────────┐
 // │   ABC1 PmUnit   │   │       Root PmUnit        │   │   XYZ PmUnit    │
@@ -112,6 +106,35 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 // │   │sensor3│     │
 // │   └───────┘     │
 // └─────────────────┘
+//
+// ============================================================================
+
+//                            +-+-+-+-+-+-+-+-+-+-+
+//                            |D|e|v|i|c|e|P|a|t|h|
+//                            +-+-+-+-+-+-+-+-+-+-+
+//
+// DevicePaths are constructs used to refer to devices in the platform. To
+// represent a device in a PmUnit, the path should contain the SlotPath where
+// the PmUnit is plugged in, followed by the device name.  The device itself is
+// represented within square brackets (e.g., [DeviceName]). The device should
+// be the leaf (last token), of the path.  If the device is within a FPGA, then
+// the device is represented as [FPGA_Name::DeviceName]. I2C buses are also
+// considered as devices
+//
+// The devices in the above example are represented as follows
+// - /[fpga1]
+// - /[fpga1::gpiochip0]
+// - /XYZ_SLOT@0/[sensor1]
+// - /XYZ_SLOT@0/[INCOMING@0]
+// - /XYZ_SLOT@1/[sensor1]
+// - /XYZ_SLOT@1/[INCOMING@0]
+// - /ABC_SLOT@0/[cpld1]
+// - /ABC_SLOT@0/[INCOMING@0]
+// - /ABC_SLOT@1/[cpld1]
+// - /ABC_SLOT@1/[INCOMING@0]
+// - /ABC_SLOT@1/[cpld2]
+// - /ABC_SLOT@1/DEF_SLOT@0/[sensor3]
+// - /ABC_SLOT@1/DEF_SLOT@0/[INCOMING@0]
 
 // ============================================================================
 
@@ -123,7 +146,7 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 //
 // `kernelDeviceName`: The device name used by kernel to identify the device
 //
-// `pmUnitScopeName`: The name assigned to the device in the config, unique
+// `pmUnitScopedName`: The name assigned to the device in the config, unique
 // within the scope of PmUnit.
 //
 // `numOutgoingChannels`: Number of outgoing channels (applies only for mux)
@@ -131,20 +154,24 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 // `isEeprom`: Indicates whether this device is an EEPROM. If not specified, it
 // defaults to false.
 //
-// `isChassisEeprom`: Indicates whether this device is the Chassis EEPROM. If
-// not specified, it defaults to false.
+// `hasBmcMac`: Indicates whether this EEPROM has BMC MAC address in it.
+//
+// `hasCpuMac`: Indicates whether this EEPROM has CPU MAC address in it.
+//
+// `hasExtendedMac`: Indicates whether this EEPROM has Extended MAC addresses
+// (ASIC MAC addresses) in it.
 //
 // For example, the three i2c devices in the below Sample PmUnit will be modeled
 // as follows
 //
 // sensor1 = I2cDeviceConfig( busName="INCOMING@0", address="0x12",
-// kernelDeviceName="lm75", pmUnitScopeName="sensor1")
+// kernelDeviceName="lm75", pmUnitScopedName="sensor1")
 //
 // sensor2 = I2cDeviceConfig( busName="mux1@0", address="0x13",
-// kernelDeviceName="lm75", pmUnitScopeName="sensor2")
+// kernelDeviceName="lm75", pmUnitScopedName="sensor2")
 //
 // mux1 = I2cDeviceConfig( busName="INCOMING@1", address="0x54",
-// kernelDeviceName="pca9x48", pmUnitScopeName="mux1", numOutgoingChannels=3)
+// kernelDeviceName="pca9x48", pmUnitScopedName="mux1", numOutgoingChannels=3)
 //                    ┌──────────────────────────────────────────┐
 //                    │               Sample PmUnit              │
 //    INCOMING@0      │                       ┌────┬─────┐       │
@@ -166,10 +193,12 @@ struct I2cDeviceConfig {
   4: string pmUnitScopedName;
   5: optional i32 numOutgoingChannels;
   6: bool isEeprom;
-  7: bool isChassisEeprom;
+  7: bool hasBmcMac;
+  8: bool hasCpuMac;
+  9: bool hasExtendedMac;
 }
 
-// The IDPROM which contains information about the PmUnit or Chassis
+// The IDPROM which contains information about the PmUnit
 //
 // `busName`: This bus should be directly from the CPU, or an incoming bus into
 // the PmUnit (i.e., there should not be any mux or fpga in between).  In the
@@ -186,71 +215,111 @@ struct IdpromConfig {
   3: string kernelDeviceName;
 }
 
-// Defines I2C Adapter in FPGAs.
+// Defines a generic IP block in the FPGA
 //
-// `i2cAdapterName`: It is the name used in the ioctl system call to create
-// the i2c adapter. It should one of the compatible strings specified in the
-// kernel driver.
+// `deviceName`: It is the name used in the ioctl system call to create the
+// corresponding device. It should one of the compatible strings specified in
+// the kernel driver.
 //
-// `offset`: It is the memory offset of the I2C Adapter in the FPGA.
-struct I2cAdapterConfig {
-  1: string i2cAdapterName;
-  3: i32 offset;
+// `iobufOffset`: It is the iobuf register offset of the SPI Master in the FPGA.
+//
+// `csrOffset`: It is the csr register offset of the SPI Master in the FPGA.
+struct FpgaIpBlockConfig {
+  1: string deviceName;
+  2: i32 iobufOffset;
+  3: i32 csrOffset;
 }
 
-// Defines the SPI Master in FPGAs.
+// Defines the I2C Adapter config in FPGAs.
 //
-// `spiMasterName`: It is the name used in the ioctl system call to create
-// the spi master. It should one of the compatible strings specified in the
-// kernel driver.
+// `fpgaIpBlockConfig`: See FgpaIpBlockConfig above
 //
-// `offset`: It is the memory offset of the spi master in the FPGA.
+// `numberOfI2cAdapters`: Number of I2C Adapters created by this block.
+struct I2cAdapterConfig {
+  1: FpgaIpBlockConfig fpgaIpBlockConfig;
+  2: i32 numberOfAdapters;
+}
+
+// Defines the SPI Master block in FPGAs.
+//
+// `fpgaIpBlockConfig`: See FgpaIpBlockConfig above
 //
 // `numberOfCsPins`: Number of CS (chip-select) pins.
 struct SpiMasterConfig {
-  1: string spiMasterName;
-  3: i32 offset;
-  4: i32 numberOfCsPins;
+  1: FpgaIpBlockConfig fpgaIpBlockConfig;
+  2: i32 numberOfCsPins;
 }
 
-// Defines the GPIO Chip in FPGAs.
+// Defines the Transceiver Controller block in FPGAs.
 //
-// `gpioChipName`: It is the name used in the ioctl system call to create
-// the gpio chip. It should one of the compatible strings specified in the
-// kernel driver.
+// `fpgaIpBlockConfig`: See FgpaIpBlockConfig above
 //
-// `offset`: It is the memory offset of the gpio chip in the FPGA.
-struct GpioChipConfig {
-  1: string gpioChipName;
-  3: i32 offset;
+// `portNumber`: Port number which is associated with this config.
+struct XcvrCtrlConfig {
+  1: FpgaIpBlockConfig fpgaIpBlockConfig;
+  2: i32 portNumber;
 }
 
+// Defines the LED Controller block in FPGAs.
+//
+// `fpgaIpBlockConfig`: See FgpaIpBlockConfig above
+//
+// `portNumber`: Port number which is associated with this config. Used
+// for port LEDs
+//
+// `ledId`: Led ID for this config.
+struct LedCtrlConfig {
+  1: FpgaIpBlockConfig fpgaIpBlockConfig;
+  2: i32 portNumber;
+  3: i32 ledId;
+}
+
+// Defines PCI Devices in the PmUnits. A new PciDeviceConfig should be created
+// for each unique combination of <vendorId, deviceId, subSystemVendorId,
+// subSystemDeviceId>.
+//
+// In the case of one device (e.g. DOM FPGA) memory mapped to another PCI
+// Device (e.g. IOB FPGA) in a different PmUnit, all of them might show up as a
+// single PCI device in the system.  In this case, the PciDeviceConfig with the
+// same <vendorId, deviceId, subSystemVendorId, subSystemDeviceId> should be
+// present in both PmUnitConfigs.  For example, if a DOM FPGA in SMB PmUnit is
+// memory mapped to an IOB FPGA in MCB PmUnit, there should be a
+// PciDeviceConfig in MCB PmUnitConfig listing all controllers getting created
+// as part of IOB FPGA, and there should be another PciDeviceConfig with the
+// same identifiers in PMUnitConfig of SMB listing all the controllers getting
+// created as part of the DOM FPGA.
+//
 // `pmUnitScopedName`: The name assigned to the device in the config, unique
 // within the scope of PmUnit.
 //
-// `vendorId`: PCIe Vendor ID, and it must be a 4-digit heximal value, such as
-// “1d9b”
+// `vendorId`: PCIe Vendor ID, and it must be a 4-digit hexadecimal value, such
+// as “1d9b”
 //
-// `deviceId`: PCIe Device ID, and it must be a 4-digit heximal value, such as
-// “0011”
+// `deviceId`: PCIe Device ID, and it must be a 4-digit hexadecimal value, such
+// as “0011”
 //
-// `i2cAdapterConfigs`: Lists the I2C Adapters in the PMUnit. The key is the
-// PMUnit scoped name of the I2C Adapter.
+// `subSystemVendorId`: PCIe Sub System Vendor ID, and it must be a 4-digit
+// hexadecimal value, such as “1d9b”
 //
-// `spiMasterConfigs`: Lists the SPI Masters in the PMUnit. The key is the
-// PMUnit scoped name of the SPI Master.
+// `subSystemDeviceId`: PCIe Sub System Device ID, and it must be a 4-digit
+// hexadecimal value, such as “0011”
 //
-// `gpioChipConfigs`: Lists the GPIO Chips in the PMUnit. The key is the
-// PMUnit scoped name of the GPIO Chip.
+// The remaining fields are configs per controller block in the FPGA
 //
 // TODO: Add MDIO support
-struct PciDevice {
+struct PciDeviceConfig {
   1: string pmUnitScopedName;
   2: string vendorId;
   3: string deviceId;
-  4: map<string, I2cAdapterConfig> i2cAdapterConfigs;
-  5: map<string, SpiMasterConfig> spiMasterConfigs;
-  6: map<string, GpioChipConfig> gpioChipConfigs;
+  4: string subSystemVendorId;
+  5: string subSystemDeviceId;
+  6: map<string, I2cAdapterConfig> i2cAdapterConfigs;
+  7: map<string, SpiMasterConfig> spiMasterConfigs;
+  8: map<string, FpgaIpBlockConfig> gpioChipConfigs;
+  9: map<string, FpgaIpBlockConfig> watchdogConfigs;
+  10: map<string, FpgaIpBlockConfig> fanTachoPwmConfigs;
+  11: map<string, LedCtrlConfig> ledCtrlConfigs;
+  12: map<string, XcvrCtrlConfig> xcvrCtrlConfigs;
 }
 
 // These are the PmUnit slot types. Examples: "PIM_SLOT", "PSU_SLOT" and
@@ -280,7 +349,8 @@ struct SlotTypeConfig {
 // "FAN_SLOT".
 //
 // `presenceDetection`: Logic to determine whether a PmUnit has been plugged in
-// this slot.
+// this slot. Need not be described if there is no presence detection for this
+// slot
 //
 // TODO: Enhance device presence logic based on SimpleIoDevice definition in
 // fbdevd.thrift
@@ -289,7 +359,7 @@ struct SlotTypeConfig {
 // which are going out in the slot.  Refer to Bus Naming Convention above.
 struct SlotConfig {
   1: SlotType slotType;
-  2: platform_manager_presence.PresenceDetection presenceDetection;
+  2: optional platform_manager_presence.PresenceDetection presenceDetection;
   3: list<string> outgoingI2cBusNames;
 }
 
@@ -306,12 +376,12 @@ struct PmUnitConfig {
   1: SlotType pluggedInSlotType;
   2: list<I2cDeviceConfig> i2cDeviceConfigs;
   3: map<string, SlotConfig> outgoingSlotConfigs;
-  4: list<PciDevice> pciDevices;
+  4: list<PciDeviceConfig> pciDeviceConfigs;
 }
 
 // Defines the whole Platform. The top level struct.
 struct PlatformConfig {
-  // Name of the platform.  Should match the name set in dmedicode
+  // Name of the platform.  Should match the name set in dmidecode
   1: string platformName;
 
   // This is the PmUnit from which the exploration will begin. The IDPROM of
@@ -324,14 +394,15 @@ struct PlatformConfig {
   // List of PmUnits which the platform can support. Key is the PmUnit name.
   12: map<string, PmUnitConfig> pmUnitConfigs;
 
-  // List of the i2c buses created from the CPU / System Control Module (SCM)
-  // We are assuming the i2c Adapter name (content of
-  // /sys/bus/i2c/devices/i2c-N/name) is unique for buses directly coming of
-  // CPU. We have to revisit this logic if this assumption changes.
+  // List of the i2c buses created from the CPU.  We are assuming the i2c
+  // Adapter name (content of /sys/bus/i2c/devices/i2c-N/name) is unique for
+  // buses directly coming of CPU. We have to revisit this logic if this
+  // assumption changes.
   13: list<string> i2cAdaptersFromCpu;
 
-  // Global mapping from the PmUnit paths to an application friendly path.
-  14: map<string, string> pmUnitPathToHumanFriendlyName;
+  // Global mapping from an application friendly path (symbolic link) to
+  // DevicePath
+  14: map<string, string> symbolicLinkToDevicePath;
 
   // Name and version of the rpm containing the BSP kmods for this platform
   21: string bspKmodsRpmName;

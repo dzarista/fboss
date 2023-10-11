@@ -74,7 +74,6 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::QUEUE_ECN_COUNTER:
     case HwAsic::Feature::SAI_ECN_WRED:
     case HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT:
-    case HwAsic::Feature::QUEUE_PRIORITY_LOWER_VAL_IS_HIGH_PRI:
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
@@ -83,6 +82,8 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::WARMBOOT:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
+    case HwAsic::Feature::CREDIT_WATCHDOG:
       return true;
 
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
@@ -149,6 +150,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::PORT_EYE_VALUES:
+    case HwAsic::Feature::QUEUE_PRIORITY_LOWER_VAL_IS_HIGH_PRI:
       return false;
   }
   return false;
@@ -169,18 +171,19 @@ std::set<cfg::StreamType> Jericho2Asic::getQueueStreamTypes(
       "Jericho2 ASIC does not support:",
       apache::thrift::util::enumNameSafe(portType));
 }
-int Jericho2Asic::getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
-    const {
+int Jericho2Asic::getDefaultNumPortQueues(
+    cfg::StreamType streamType,
+    cfg::PortType portType) const {
   switch (streamType) {
     case cfg::StreamType::UNICAST:
-      if (cpu) {
+      if (portType == cfg::PortType::CPU_PORT) {
         break;
       }
       return 8;
     case cfg::StreamType::MULTICAST:
-      return cpu ? 8 : 4;
+      return (portType == cfg::PortType::CPU_PORT) ? 8 : 4;
     case cfg::StreamType::FABRIC_TX:
-      if (cpu) {
+      if (portType != cfg::PortType::FABRIC_PORT) {
         break;
       }
       return 1;
@@ -188,7 +191,31 @@ int Jericho2Asic::getDefaultNumPortQueues(cfg::StreamType streamType, bool cpu)
       break;
   }
   throw FbossError(
-      "Unexpected, stream: ", streamType, " cpu: ", cpu, "combination");
+      "Unexpected, stream: ",
+      apache::thrift::util::enumNameSafe(streamType),
+      " portType: ",
+      apache::thrift::util::enumNameSafe(portType),
+      " combination");
+}
+
+uint64_t Jericho2Asic::getDefaultReservedBytes(
+    cfg::StreamType streamType,
+    cfg::PortType portType) const {
+  switch (portType) {
+    case cfg::PortType::CPU_PORT:
+      return 1778;
+    case cfg::PortType::RECYCLE_PORT:
+      return 4096;
+    case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::FABRIC_PORT:
+      return 0;
+  }
+  throw FbossError(
+      "Unexpected, stream: ",
+      apache::thrift::util::enumNameSafe(streamType),
+      " portType: ",
+      apache::thrift::util::enumNameSafe(portType),
+      " combination");
 }
 
 cfg::Range64 Jericho2Asic::getReservedEncapIndexRange() const {

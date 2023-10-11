@@ -94,6 +94,8 @@ class Transceiver {
 
   virtual TransceiverID getID() const = 0;
 
+  virtual const folly::EventBase* getEvb() const = 0;
+
   /*
    * Return the spec this transceiver follows.
    */
@@ -228,9 +230,13 @@ class Transceiver {
       phy::Side /* side */,
       const prbs::InterfacePrbsState& /* prbs */) = 0;
 
-  virtual prbs::InterfacePrbsState getPortPrbsState(phy::Side /* side */) = 0;
+  virtual prbs::InterfacePrbsState getPortPrbsState(
+      std::optional<const std::string> /* portName */,
+      phy::Side /* side */) = 0;
 
-  virtual phy::PrbsStats getPortPrbsStats(phy::Side /* side */) = 0;
+  virtual phy::PrbsStats getPortPrbsStats(
+      const std::string& /* portName */,
+      phy::Side /* side */) = 0;
 
   virtual void clearTransceiverPrbsStats(phy::Side side) = 0;
 

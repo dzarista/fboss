@@ -17,6 +17,31 @@ namespace facebook::fboss::thrift_cow {
 
 namespace detail_pb {
 
+PatchNode constructEmptyPatch(ThriftTCType tc) {
+  PatchNode child;
+  switch (tc) {
+    case ThriftTCType::PRIMITIVE:
+      child.set_val();
+      break;
+    case ThriftTCType::STRUCTURE:
+      child.set_struct_node();
+      break;
+    case ThriftTCType::VARIANT:
+      child.set_variant_node();
+      break;
+    case ThriftTCType::MAP:
+      child.set_map_node();
+      break;
+    case ThriftTCType::SET:
+      child.set_set_node();
+      break;
+    case ThriftTCType::LIST:
+      child.set_list_node();
+      break;
+  }
+  return child;
+}
+
 struct PatchBuilderTraverser : public TraverseHelper<PatchBuilderTraverser> {
   using Base = TraverseHelper<PatchBuilderTraverser>;
 
@@ -28,15 +53,13 @@ struct PatchBuilderTraverser : public TraverseHelper<PatchBuilderTraverser> {
     return false;
   }
 
-  template <ThriftSimpleTC SimpleTC>
-  void onPushImpl() {
+  void onPushImpl(ThriftTCType tc) {
     const auto& newTok = path().back();
     PatchNode& curPatch = curPath_.back();
-    insertChild<SimpleTC>(curPatch, newTok);
+    insertChild(curPatch, newTok, tc);
   }
 
-  template <ThriftSimpleTC SimpleTC>
-  void onPopImpl(std::string&& popped) {
+  void onPopImpl(std::string&& popped, ThriftTCType /* tc */) {
     auto shouldPrune = true;
     apache::thrift::visit_union(
         curPath_.back().get(),
@@ -105,13 +128,12 @@ struct PatchBuilderTraverser : public TraverseHelper<PatchBuilderTraverser> {
   }
 
  private:
-  template <ThriftSimpleTC SimpleTC>
-  void insertChild(PatchNode& node, const std::string& key) {
+  void insertChild(PatchNode& node, const std::string& key, ThriftTCType tc) {
     apache::thrift::visit_union(
         node,
         [&](const apache::thrift::metadata::ThriftField& /* meta */,
             auto& patch) {
-          PatchNode childPatch = constructEmptyPatch<SimpleTC>();
+          PatchNode childPatch = constructEmptyPatch(tc);
           auto insert = folly::overload(
               [](Empty&) -> PatchNode& {
                 throw std::runtime_error("empty nodes cannot have children");
@@ -151,34 +173,9 @@ struct PatchBuilderTraverser : public TraverseHelper<PatchBuilderTraverser> {
         });
   }
 
-  template <ThriftSimpleTC SimpleTC>
-  PatchNode constructEmptyPatch() {
-    PatchNode child;
-    switch (SimpleTC) {
-      case ThriftSimpleTC::PRIMITIVE:
-        child.set_val();
-        break;
-      case ThriftSimpleTC::STRUCTURE:
-        child.set_struct_node();
-        break;
-      case ThriftSimpleTC::VARIANT:
-        child.set_variant_node();
-        break;
-      case ThriftSimpleTC::MAP:
-        child.set_map_node();
-        break;
-      case ThriftSimpleTC::SET:
-        child.set_set_node();
-        break;
-      case ThriftSimpleTC::LIST:
-        child.set_list_node();
-        break;
-    }
-    return child;
-  }
-
   std::vector<std::reference_wrapper<PatchNode>> curPath_;
 };
+
 } // namespace detail_pb
 
 struct PatchBuilder {
@@ -187,8 +184,11 @@ struct PatchBuilder {
       const std::shared_ptr<Node>& oldNode,
       const std::shared_ptr<Node>& newNode,
       const std::vector<std::string>& basePath) {
+    using TC = typename Node::TC;
+    // TODO: validate type at path == Node
     thrift_cow::Patch patch;
     patch.basePath() = basePath;
+    patch.patch() = detail_pb::constructEmptyPatch(TCType<TC>);
 
     auto processDelta = [](const detail_pb::PatchBuilderTraverser& traverser,
                            auto oldNode,
@@ -202,10 +202,8 @@ struct PatchBuilder {
       }
     };
 
-    patch.patch()->set_struct_node();
     detail_pb::PatchBuilderTraverser traverser(*patch.patch());
-
-    thrift_cow::RootDeltaVisitor::visit(
+    thrift_cow::DeltaVisitor<TC>::visit(
         traverser,
         oldNode,
         newNode,

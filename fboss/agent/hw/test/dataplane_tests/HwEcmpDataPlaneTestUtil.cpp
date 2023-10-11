@@ -4,10 +4,10 @@
 
 #include "fboss/agent/Platform.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwLinkStateToggler.h"
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
+#include "fboss/agent/hw/test/LinkStateToggler.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 
@@ -52,16 +52,14 @@ template <typename EcmpSetupHelperT>
 void HwEcmpDataPlaneTestUtil<EcmpSetupHelperT>::shrinkECMP(
     unsigned int ecmpWidth) {
   std::vector<PortID> ports = {helper_->nhop(ecmpWidth).portDesc.phyPortID()};
-  ensemble_->getLinkToggler()->bringDownPorts(
-      ensemble_->getProgrammedState(), ports);
+  ensemble_->getLinkToggler()->bringDownPorts(ports);
 }
 
 template <typename EcmpSetupHelperT>
 void HwEcmpDataPlaneTestUtil<EcmpSetupHelperT>::expandECMP(
     unsigned int ecmpWidth) {
   std::vector<PortID> ports = {helper_->nhop(ecmpWidth).portDesc.phyPortID()};
-  ensemble_->getLinkToggler()->bringUpPorts(
-      ensemble_->getProgrammedState(), ports);
+  ensemble_->getLinkToggler()->bringUpPorts(ports);
 }
 
 template <typename EcmpSetupHelperT>

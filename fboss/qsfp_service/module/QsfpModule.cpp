@@ -356,6 +356,10 @@ QsfpModule::detectPresenceLocked() {
   return {currentQsfpStatus, statusChanged};
 }
 
+const folly::EventBase* QsfpModule::getEvb() const {
+  return qsfpImpl_->getI2cEventBase();
+}
+
 unsigned int QsfpModule::numHostLanes() const {
   switch (getModuleMediaInterface()) {
     case MediaInterfaceCode::LR_10G:
@@ -714,11 +718,13 @@ bool QsfpModule::isTransceiverFeatureSupported(
   return false;
 }
 
-prbs::InterfacePrbsState QsfpModule::getPortPrbsState(phy::Side side) {
+prbs::InterfacePrbsState QsfpModule::getPortPrbsState(
+    std::optional<const std::string> portName,
+    phy::Side side) {
   prbs::InterfacePrbsState state;
-  auto getPrbsStateLambda = [&state, side, this]() {
+  auto getPrbsStateLambda = [&state, portName, side, this]() {
     lock_guard<std::mutex> g(qsfpModuleMutex_);
-    state = getPortPrbsStateLocked(side);
+    state = getPortPrbsStateLocked(portName, side);
   };
   auto i2cEvb = qsfpImpl_->getI2cEventBase();
   if (!i2cEvb) {
@@ -913,8 +919,8 @@ void QsfpModule::updatePrbsStats() {
         }
       };
 
-  auto sysPrbsState = getPortPrbsStateLocked(phy::Side::SYSTEM);
-  auto linePrbsState = getPortPrbsStateLocked(phy::Side::LINE);
+  auto sysPrbsState = getPortPrbsStateLocked(std::nullopt, phy::Side::SYSTEM);
+  auto linePrbsState = getPortPrbsStateLocked(std::nullopt, phy::Side::LINE);
   phy::PrbsStats stats;
   stats = getPortPrbsStatsSideLocked(
       phy::Side::SYSTEM,
@@ -931,6 +937,26 @@ void QsfpModule::updatePrbsStats() {
       *linePrbs);
   updatePrbsStatEntry(*linePrbs, stats);
   *linePrbs = stats;
+}
+
+phy::PrbsStats QsfpModule::getPortPrbsStats(
+    const std::string& portName,
+    phy::Side side) {
+  phy::PrbsStats portPrbs;
+  auto tcvrLanes = getTcvrLanesForPort(portName, side);
+
+  auto sidePrbs = (side == phy::Side::LINE) ? linePrbsStats_.rlock()
+                                            : systemPrbsStats_.rlock();
+  portPrbs.portId() = sidePrbs->portId().value();
+  portPrbs.timeCollected() = sidePrbs->timeCollected().value();
+  portPrbs.component() = sidePrbs->component().value();
+  for (auto& laneStat : sidePrbs->laneStats().value()) {
+    if (tcvrLanes.find(*laneStat.laneId()) != tcvrLanes.end()) {
+      portPrbs.laneStats()->push_back(laneStat);
+    }
+  }
+
+  return portPrbs;
 }
 
 bool QsfpModule::shouldRemediate() {
@@ -961,8 +987,8 @@ bool QsfpModule::shouldRemediateLocked() {
     return false;
   }
 
-  auto sysPrbsState = getPortPrbsStateLocked(phy::Side::SYSTEM);
-  auto linePrbsState = getPortPrbsStateLocked(phy::Side::LINE);
+  auto sysPrbsState = getPortPrbsStateLocked(std::nullopt, phy::Side::SYSTEM);
+  auto linePrbsState = getPortPrbsStateLocked(std::nullopt, phy::Side::LINE);
 
   auto linePrbsEnabled =
       ((linePrbsState.generatorEnabled().has_value() &&
