@@ -14,6 +14,13 @@
       "priority" : 2,
       "upgradeCmd" : "cpu_cpld_filename=$(head -n 1 /tmp/meru_scm_cpld_filename.txt);/usr/bin/jam -aprogram -fmeru_cpu_cpld -v $cpu_cpld_filename",
       "postUpgradeCmd" : ""
+    },
+    "meru_smb_scd" : {
+      "preUpgradeCmd" : "echo 1 > /sys/bus/pci/drivers/scd/0000:07:00.0/switch_jtag_enable",
+      "getVersionCmd" : "sc_scd_ver=$((`cat /sys/bus/pci/drivers/scd/0000:01:00.0/fpga_ver`));sc_scd_subver=$((`cat /sys/bus/pci/drivers/scd/0000:01:00.0/fpga_sub_ver`));echo $sc_scd_ver'.'$sc_scd_subver",
+      "priority" : 3,
+      "upgradeCmd" : "sc_scd_filename=$(head -n 1 /tmp/meru_smb_scd_filename.txt);/usr/bin/xapp -f meru_scd $sc_scd_filename",
+      "postUpgradeCmd" : "echo 0 > /sys/bus/pci/drivers/scd/0000:07:00.0/switch_jtag_enable"
     }
   }
 }
