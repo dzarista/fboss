@@ -41,6 +41,7 @@ install -m 755 scripts/platform_init.sh %{_fboss_target_bin}
 mkdir -p %{_fboss_target_udev}
 install config/udev/99-meru800bfa.rules %{_fboss_target_udev}
 mkdir -p %{_fboss_target_share}/platform_configs
+install config/npu*_platform_mapping.json %{_fboss_target_share}
 install sensor_service.json %{_fboss_target_share}/platform_configs/
 install fan_service.json %{_fboss_target_share}/platform_configs/
 
@@ -50,3 +51,4 @@ install fan_service.json %{_fboss_target_share}/platform_configs/
 /opt/fboss/bin/platform_init.sh
 /etc/udev/rules.d/99-meru800bfa.rules
 /opt/fboss/share/platform_configs
+/opt/fboss/share/npu*_platform_mapping.json
