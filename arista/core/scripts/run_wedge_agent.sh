@@ -9,7 +9,7 @@ if [ -f "${CONF}" ]; then
 fi
 
 if BIN=$(find /opt/fboss/bin/* -type f -name wedge_agent*); then
-   nohup "${BIN}" "${ARGS[@]}"
+   "${BIN}" "${ARGS[@]}"
 else
    echo "Failed to find wedge_agent binary in /opt/fboss/bin/"
    exit 1

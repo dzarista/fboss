@@ -1,7 +1,7 @@
 [Unit]
 Description=Start fan_service
-After=data_corral_service.service sensor_service.service
-Wants=data_corral_service.service sensor_service.service
+After=sensor_service.service
+Wants=sensor_service.service
 
 [Service]
 ExecStart=/opt/fboss/bin/run_fan_service.sh
