@@ -6335,10 +6335,6 @@
           "queueId": 0
         },
         {
-          "rxReason": 14,
-          "queueId": 0
-        },
-        {
           "rxReason": 0,
           "queueId": 1
         }
@@ -7514,13 +7510,12 @@
           "port_init_speed_xe16.BCM8886X": "10000",
           "port_init_speed_xl.BCM8886X": "40000",
           "port_priorities": "8",
-          "port_priorities0": "2",
-          "port_priorities1": "8",
-          "port_priorities13": "8",
-          "port_priorities14": "8",
-          "port_priorities15": "8",
-          "port_priorities16": "8",
-          "port_priorities17": "8",
+          "port_priorities_0": "2",
+          "port_priorities_1": "2",
+          "port_priorities_200": "2",
+          "port_priorities_201": "2",
+          "port_priorities_202": "2",
+          "port_priorities_203": "2",
           "programmability_image_name.BCM8886X": "S121",
           "programmability_ucode_relative_path.BCM8886X": "pemla/ucode/S121/jr3native/u_code_db2pem.txt",
           "qos_map_multi_get_mode": "1",
