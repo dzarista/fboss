@@ -98,44 +98,32 @@ maybe_setup_build_env() {
    git clone git@github.com:aristanetworks/Aqua_SAI.git
    cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
-   git checkout Arista-SAI_10.0.0.5_EA
+   git checkout Arista-SAI_11.0.0.1_EA
    # Use patch0-Jupiter-SAI-Makefile.patch w/SAI < 10.0.0
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
-   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.29_SAI_10.0.0_EA"
-   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.29-aae866056.tar.xz
-   tar -xf sai-sdk-all-6.5.29-aae866056.tar.xz
+   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/sdk_6.5.29_dnx.1_SAI_11.0.0_EA"
+   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.29-dnx.1-6c20b345e.tar.xz
+   tar -xf sai-sdk-all-6.5.29-dnx.1-6c20b345e.tar.xz
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29
    wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_29_DNX_Kernel_Module_fixes.patch
-   patch "dnx-sdk-6.5.29-gpl-modules/make/Make.config" < patch3-SDK-6_5_29_DNX_Kernel_Module_fixes.patch
-   # Patch to fix cpu rx packet parsing
-   wget http://dist/storage/fboss/FBOSS-SAI/patch10-Cpu-Rx.patch
-   patch "hsdk-all-6.5.29/src/soc/access/pkt_rx.c" -p1 < patch10-Cpu-Rx.patch
+   patch "sdk-6.5.29-dnx.1-gpl-modules/make/Make.config" < patch3-SDK-6_5_29_DNX_Kernel_Module_fixes.patch
    # Patch to skip check for proto R3 ASICs.
    wget http://dist/storage/fboss/FBOSS-SAI/patch11-SDK-6_5_29-Ramon3-proto-fix.patch
-   patch "hsdk-all-6.5.29/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
+   patch "sdk-6.5.29-dnx.1/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
 
    # If kernel is newer than 4.18, need to patch ksal.c for compatibility with newer kernel.
    if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then
-      wget http://dist/storage/fboss/FBOSS-SAI/patch5-SAI-ksal-SDK-6_5_29.patch
-      patch -p1 < patch5-SAI-ksal-SDK-6_5_29.patch
+      wget http://dist/storage/fboss/FBOSS-SAI/patch5-SAI-ksal-SDK-6_5_29.dnx.1.patch
+      patch -p1 < patch5-SAI-ksal-SDK-6_5_29.dnx.1.patch
    fi
 
    # Kernel 5.19 patches.
    if [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]]; then
-      # Patches from BRCM needed for built kmods to work with 5.19 kernel.
-      wget http://dist/storage/fboss/FBOSS-SAI/patch7-SDK-5.19-pre-SDK-6_5_29.patch
-      patch -p1 < patch7-SDK-5.19-pre-SDK-6_5_29.patch
-      wget http://dist/storage/fboss/FBOSS-SAI/CS00012296362-SDK-6_5_29.tar.gz
-      tar -xvf CS00012296362-SDK-6_5_29.tar.gz
-      while read -r patchfile; do
-         patch -p0 < ${patchfile}
-      done <<< "$(cat patch_order.txt | tail -n 3 | awk '{print $2}')"
-
-      # More patches! Now we need to fix some conflicting build options and fix the
-      # linux-user-bde Makefile to support NO_PRECOMPILED_MODULE=1.
-      wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post-SDK-6_5_29.patch
-      patch -p1 < patch9-SDK-5.19-post-SDK-6_5_29.patch
+      # We need to fix some conflicting build options and fix the linux-user-bde Makefile
+      # to support NO_PRECOMPILED_MODULE=1.
+      wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post-SDK-6_5_29.dnx.1.patch
+      patch -p1 < patch9-SDK-5.19-post-SDK-6_5_29.dnx.1.patch
    fi
 
    # Download FBOSS linux header files.
@@ -168,7 +156,7 @@ run_cmd_container() {
    docker run -l owner="${USER}" --privileged --rm -it \
       -v "${FBOSS_HOST_DIR}":/var/FBOSS/ \
       -v "${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
-      -w /var/FBOSS --name=FBOSS_CENTOS8-1-"${USER}" "${FBOSS_IMG}" $@
+      -w /var/FBOSS --name=FBOSS_CENTOS8-2-"${USER}" "${FBOSS_IMG}" $@
 }
 
 enter_container_shell() {
