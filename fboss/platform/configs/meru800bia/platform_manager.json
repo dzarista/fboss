@@ -912,7 +912,7 @@
                   "portNumber": -1,
                   "ledId": 83
                },
-               "PSU_STATUS_LED": {
+               "SMB_STATUS_LED": {
                   "fpgaIpBlockConfig": {
                      "deviceName": "status_led",
                      "iobufOffset": 24720,
