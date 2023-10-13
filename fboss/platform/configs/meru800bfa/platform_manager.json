@@ -39,7 +39,7 @@
             "vendorId": "0x3475",
             "deviceId": "0x0001",
             "subSystemVendorId": "0x3475",
-            "sybSystemDeviceId": "0x0008",
+            "subSystemDeviceId": "0x0008",
             "i2cAdapterConfigs": {
                "SCM_I2C_MASTER0": {
                   "fpgaIpBlockConfig": {
