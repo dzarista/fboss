@@ -125,7 +125,7 @@ pip3 install GitPython
 SAI_DIR="$FBOSS_DIR/Aqua_SAI/"
 if [ $ARCH == "dnx" ];
 then
-   SAI_BUILD_DIR="$SAI_DIR/output/x86-dnx-deb-static-fboss"
+   SAI_BUILD_DIR="$SAI_DIR/output/x86-dnxai-deb-static-fboss"
 else
    SAI_BUILD_DIR="$SAI_DIR/output/x86-xgsall-deb-static-fboss"
 fi
@@ -134,7 +134,7 @@ fi
 export SDK=""
 cd $SAI_BUILD_DIR
 export KERNDIR="$KERNEL_SRC"
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.29_SAI_10.0.0_EA/$ARCH-sdk-6.5.29-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/sdk_6.5.29_dnx.1_SAI_11.0.0_EA/sdk-6.5.29-$ARCH.1-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
