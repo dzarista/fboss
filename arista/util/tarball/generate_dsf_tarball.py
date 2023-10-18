@@ -286,9 +286,9 @@ class DsfBundleConfig:
          sys.exit(1)
 
 def createTarball(targetDir):
-   print('Creating .tar file...\n')
-   tarFileName = f'{targetDir}.tar'
-   runCmd(['tar', '-cvf', tarFileName, targetDir])
+   print('Creating .tar.gz file...\n')
+   tarFileName = f'{targetDir}.tar.gz'
+   runCmd(['tar', '-zcvf', tarFileName, targetDir])
    runCmd(['sha1sum', tarFileName])
 
 def generateTarball(configFile, targetDir, echoReadme=False, createTarFile=False):

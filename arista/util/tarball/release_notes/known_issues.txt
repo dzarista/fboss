@@ -1,5 +1,6 @@
-- BIOS upgrade from FBOSS requires P1 Meru hardware without workaround.
-- BUG854014: scd_smbus driver logs verbose out-of-bounds reads when qsfp_service
-             is running.
-- Latest programmables are intended with Viper chassis/systema and may not be compatible
-  with standalone fairywren systems. Contact Arista for further questions
+- BUG871326: OpenBMC "wedge_power.sh reset" command does not reset ASIC(s) yet.
+- BUG871327: System must be powercycled after SMB FPGA JTAG upgrades.
+- BUG868799: On Meru800bfa, UCD90320 hwmon isn't functional because the
+  MONITOR_CONFIG command is not yet supported.
+- Latest programmables are intended with chassis/systems and may not be compatible
+  with standalone fairywren systems.

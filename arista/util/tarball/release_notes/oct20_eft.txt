@@ -1,0 +1,34 @@
+- FBOSS BSP:
+  - Meru800bia:
+    - fw_util.json updated to support SMB FPGA JTAG upgrade
+    - fan_service.json updated (untuned based on inlet temp sensor)
+    - initial platform_manager.json added (all devices included)
+  - Meru800bfa:
+    - udev rules updated to fix SMB IDPROM address
+    - initial fan_service.json added (untuned based on inlet temp sensor)
+    - initial fw_util.json added
+    - initial platform_manager.json added (all devices included)
+    - initial sensor_service.json added
+    - initial weutil.json added
+  - Kernel drivers:
+    - scd-smbus driver updated to fix BUG854014 (out-of-bounds memory access)
+- Programmables:
+   - OpenBMC image meru-9fb5556a8dd-dirty
+     - ipmi-lite SEL support added
+     - dhcp-id support added
+  - Aboot-norcal13-13.1.0-lcc-64m-ENG-33784852.rom
+    - Vendor-specific information removed from DHCP request for PXE boot.
+  - Meru SCM CPLD 0x0_0x16
+    - Same image as shared with September 20 tarball.
+  - Meru800bia SMB FPGA 0x1_0x9
+    - Initial FPGA JTAG image
+  - Meru800bfa SMB CPLD 0x1_0x7
+    - Initial CPLD JTAG image
+  - Meru800bfa SMB FPGA0 0x1_0xb
+    - Initial FPGA JTAG image
+  - Meru800bfa SMB FPGA1 0x1_0xc
+    - Initial FPGA JTAG image
+  - Meru800bfa SMB FPGA2 0x1_0xb
+    - Initial FPGA JTAG image
+  - Meru800bfa SMB FPGA3 0x1_0xa
+    - Initial FPGA JTAG image

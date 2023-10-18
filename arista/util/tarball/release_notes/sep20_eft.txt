@@ -20,7 +20,7 @@
         - Arista will post new diffs once we rebase and resolve any conflicts
   - Aboot-norcal13-13.1.0-lcc-64m-ENG-33522315.rom
      - Viper EFT systems have 64MB Aboot
-     - This is not comaptible with Fairywren Bench Setup
+     - This is not compatible with Fairywren Bench Setup
   - Meru SCM CPLD 0x0_0x16
      - Programmed on all Viper EFT units already - No action needed to update Viper units
      - allows wedge_power.sh reset -s to powercycle entire system instead of just SCM
