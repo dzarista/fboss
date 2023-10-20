@@ -59,22 +59,6 @@
       {
          "name" : "Meru800bfa SMB CPLD Image",
          "imageFile" : "programmables/meru800bfa-smb-cpld.stp"
-      },
-      {
-         "name" : "Meru800bfa SMB FPGA0 Image",
-         "imageFile" : "programmables/meru800bfa-smb-fpga0.xsvf"
-      },
-      {
-         "name" : "Meru800bfa SMB FPGA1 Image",
-         "imageFile" : "programmables/meru800bfa-smb-fpga1.xsvf"
-      },
-      {
-         "name" : "Meru800bfa SMB FPGA2 Image",
-         "imageFile" : "programmables/meru800bfa-smb-fpga2.xsvf"
-      },
-      {
-         "name" : "Meru800bfa SMB FPGA3 Image",
-         "imageFile" : "programmables/meru800bfa-smb-fpga3.xsvf"
       }
    ],
    "repos" : [
@@ -82,7 +66,7 @@
          "name" : "APL",
          "url" : "git@github.com:aristanetworks/apl.facebook.git",
          "branch" : "main",
-         "commitHash" : "b748f47e9050f9a428a7b1a2c11abeaf24f145de",
+         "commitHash" : "b02e382480f784029b0b96c7ca405cf0282e3568",
          "note" : "- kernel drivers in src/\n- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/"
       }
    ],
