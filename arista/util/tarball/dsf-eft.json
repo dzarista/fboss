@@ -1,9 +1,13 @@
 {
    "latestReleaseNotes" : {
-         "name" : "September 20 2023 EFT",
-         "notesFile" : "release_notes/sep20_eft.txt"
+         "name" : "October 20 2023 EFT",
+         "notesFile" : "release_notes/oct20_eft.txt"
    },
    "pastReleaseNotes" : [
+      {
+         "name" : "September 20 2023 EFT",
+         "notesFile" : "release_notes/sep20_eft.txt"
+      },
       {
          "name" : "September 8 2023 EFT",
          "notesFile" : "release_notes/sep8_eft.txt"
@@ -28,6 +32,11 @@
          "name" : "flashrom",
          "patchFile" : "patches/flashrom.patch",
          "instructionsFile" : "patches/flashrom_instructions.txt"
+      },
+      {
+         "name" : "xapp",
+         "patchFile" : "patches/xapp.patch",
+         "instructionsFile" : "patches/xapp_instructions.txt"
       }
    ],
    "programmables" : [
@@ -37,11 +46,19 @@
       },
       {
          "name" : "Aboot Image",
-         "imageFile" : "programmables/Aboot-norcal13-13.1.0-lcc-64m-ENG-33522315.rom"
+         "imageFile" : "programmables/Aboot-norcal13-13.1.0-lcc-64m-ENG-33784852.rom"
       },
       {
          "name" : "Meru SCM CPLD Image",
          "imageFile" : "programmables/meru-scm-cpld.astp"
+      },
+      {
+         "name" : "Meru800bia SMB FPGA Image",
+         "imageFile" : "programmables/meru800bia-smb-fpga.xsvf"
+      },
+      {
+         "name" : "Meru800bfa SMB CPLD Image",
+         "imageFile" : "programmables/meru800bfa-smb-cpld.stp"
       }
    ],
    "repos" : [
@@ -49,8 +66,8 @@
          "name" : "APL",
          "url" : "git@github.com:aristanetworks/apl.facebook.git",
          "branch" : "main",
-         "commitHash" : "1ce22ca06edd4f402236a4e11d8b53c9e76b78b9",
-         "note" : "- kernel drivers in src/\n- udev rules in udev/\n- BSP configs in bsp/"
+         "commitHash" : "b02e382480f784029b0b96c7ca405cf0282e3568",
+         "note" : "- kernel drivers in src/\n- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/"
       }
    ],
    "testResults" : []
