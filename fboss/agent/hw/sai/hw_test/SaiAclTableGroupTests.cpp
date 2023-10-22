@@ -79,7 +79,7 @@ class SaiAclTableGroupTest : public HwTest {
         cfg::AclTableQualifier::DSCP};
     std::vector<cfg::AclTableActionType> actions = {
         cfg::AclTableActionType::PACKET_ACTION};
-#if defined(TAJO_SDK_VERSION_1_65_0)
+#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
     qualifiers.push_back(cfg::AclTableQualifier::TTL);
     actions.push_back(cfg::AclTableActionType::COUNTER);
 #endif
@@ -165,7 +165,70 @@ class SaiAclTableGroupTest : public HwTest {
     return "qph_dscp_table";
   }
 
-  void addQphDscpAclTable(cfg::SwitchConfig* newCfg) {
+  std::string kTable1CounterAcl1() const {
+    return "table1_counter_acl1";
+  }
+
+  std::string kTable1CounterAcl2() const {
+    return "table1_counter_acl2";
+  }
+
+  std::string kTable1Counter1Name() const {
+    return "table1_counter1";
+  }
+
+  std::string kTable1Counter2Name() const {
+    return "table1_counter2";
+  }
+
+  std::string kTable2CounterAcl1() const {
+    return "table2_counter_acl1";
+  }
+
+  std::string kTable2CounterAcl2() const {
+    return "table2_counter_acl2";
+  }
+
+  std::string kTable2CounterAcl3() const {
+    return "table2_counter_acl3";
+  }
+
+  std::string kTable2Counter1Name() const {
+    return "table2_counter1";
+  }
+
+  std::string kTable2Counter2Name() const {
+    return "table2_counter2";
+  }
+
+  std::string kTable2Counter3Name() const {
+    return "table2_counter3";
+  }
+
+  void addQphDscpAclTable(
+      cfg::SwitchConfig* newCfg,
+      bool addExtraQualifier = false) {
+    std::vector<cfg::AclTableQualifier> qualifiers = {
+        cfg::AclTableQualifier::L4_SRC_PORT,
+        cfg::AclTableQualifier::L4_DST_PORT,
+        cfg::AclTableQualifier::IP_PROTOCOL,
+        cfg::AclTableQualifier::ICMPV4_TYPE,
+        cfg::AclTableQualifier::ICMPV4_CODE,
+        cfg::AclTableQualifier::ICMPV6_TYPE,
+        cfg::AclTableQualifier::ICMPV6_CODE,
+        cfg::AclTableQualifier::LOOKUP_CLASS_L2,
+        cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
+        cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE,
+        cfg::AclTableQualifier::DSCP};
+
+    if (addExtraQualifier) {
+      /*
+       * This field is used to modify the properties of the ACL table.
+       * This will force a recreate of the acl table during delta processing.
+       */
+      qualifiers.push_back(cfg::AclTableQualifier::OUT_PORT);
+    }
+
     // Table 1: For QPH and Dscp Acl.
     utility::addAclTable(
         newCfg,
@@ -175,17 +238,12 @@ class SaiAclTableGroupTest : public HwTest {
          cfg::AclTableActionType::COUNTER,
          cfg::AclTableActionType::SET_TC,
          cfg::AclTableActionType::SET_DSCP},
-        {cfg::AclTableQualifier::L4_SRC_PORT,
-         cfg::AclTableQualifier::L4_DST_PORT,
-         cfg::AclTableQualifier::IP_PROTOCOL,
-         cfg::AclTableQualifier::ICMPV4_TYPE,
-         cfg::AclTableQualifier::ICMPV4_CODE,
-         cfg::AclTableQualifier::ICMPV6_TYPE,
-         cfg::AclTableQualifier::ICMPV6_CODE,
-         cfg::AclTableQualifier::DSCP,
-         cfg::AclTableQualifier::LOOKUP_CLASS_L2,
-         cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
-         cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE});
+        qualifiers);
+  }
+
+  void addQphDscpAclTableWithEntry(cfg::SwitchConfig* newCfg) {
+    // Table 1: For QPH and Dscp Acl.
+    addQphDscpAclTable(newCfg);
 
     utility::addQueuePerHostAclEntry(newCfg, kQphDscpTable());
     utility::addDscpAclEntryWithCounter(newCfg, kQphDscpTable(), getAsic());
@@ -195,7 +253,7 @@ class SaiAclTableGroupTest : public HwTest {
     utility::addAclTableGroup(newCfg, kAclStage(), "Ingress Table Group");
 
     // Table 1: Create QPH and DSCP ACLs in the same table.
-    addQphDscpAclTable(newCfg);
+    addQphDscpAclTableWithEntry(newCfg);
 
     // Table 2: Create TTL acl Table follwed by entry.
     // This utlity call adds the TTL Acl entry as well.
@@ -231,7 +289,7 @@ class SaiAclTableGroupTest : public HwTest {
       case tableAddType::table1:
         utility::addAclTableGroup(&newCfg, kAclStage(), "Ingress Table Group");
         // Add Table 1: Create QPH and DSCP ACLs in the same table.
-        addQphDscpAclTable(&newCfg);
+        addQphDscpAclTableWithEntry(&newCfg);
         break;
       case tableAddType::table2:
         utility::addAclTableGroup(&newCfg, kAclStage(), "Ingress Table Group");
@@ -246,6 +304,133 @@ class SaiAclTableGroupTest : public HwTest {
         break;
     }
     applyNewConfig(newCfg);
+  }
+
+  void addCounterAclToAclTable(
+      cfg::SwitchConfig* cfg,
+      const std::string& aclTableName,
+      const std::string& aclEntryName,
+      const std::string& counterName,
+      uint8_t dscp) {
+    std::vector<cfg::CounterType> counterTypes{cfg::CounterType::PACKETS};
+    auto* counterAcl = utility::addAcl(
+        cfg, aclEntryName, cfg::AclActionType::PERMIT, aclTableName);
+    utility::addAclStat(cfg, aclEntryName, counterName, counterTypes);
+    counterAcl->dscp() = dscp;
+  }
+
+  void addCounterAclsToQphTable(cfg::SwitchConfig* cfg) {
+    addCounterAclToAclTable(
+        cfg, kQphDscpTable(), kTable1CounterAcl1(), kTable1Counter1Name(), 1);
+    addCounterAclToAclTable(
+        cfg, kQphDscpTable(), kTable1CounterAcl2(), kTable1Counter2Name(), 2);
+  }
+
+  void addCounterAclsToTtlTable(cfg::SwitchConfig* cfg) {
+    addCounterAclToAclTable(
+        cfg,
+        utility::getTtlAclTableName(),
+        kTable2CounterAcl1(),
+        kTable2Counter1Name(),
+        3);
+    addCounterAclToAclTable(
+        cfg,
+        utility::getTtlAclTableName(),
+        kTable2CounterAcl2(),
+        kTable2Counter2Name(),
+        4);
+  }
+
+  /*
+   * Helper API to configure 2 acl tables with the below entries
+   * Table 1: QPH, DSCP table. Table 1 entries: QPH acls
+   * Table 2: TtlTable. Table 2 entries: Ttl acls
+   * If dscpqualifier flag is set, adds dscp qualifier to table 1.
+   */
+  cfg::SwitchConfig getMultiAclConfig(bool addExtraQualifier = false) {
+    auto newCfg = initialConfig();
+
+    utility::addAclTableGroup(&newCfg, kAclStage(), "Ingress Table Group");
+    addQphDscpAclTable(&newCfg, addExtraQualifier);
+    utility::addQueuePerHostAclEntry(&newCfg, kQphDscpTable());
+    utility::addTtlAclTable(&newCfg, 2 /* priority */, addExtraQualifier);
+
+    return newCfg;
+  }
+
+  void verifyAclEntryTestHelper(int table1EntryCount, int table2EntryCount) {
+    ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch(), kQphDscpTable()));
+    ASSERT_TRUE(utility::isAclTableEnabled(
+        getHwSwitch(), utility::getTtlAclTableName()));
+    EXPECT_EQ(
+        utility::getAclTableNumAclEntries(getHwSwitch(), kQphDscpTable()),
+        table1EntryCount);
+    EXPECT_EQ(
+        utility::getAclTableNumAclEntries(
+            getHwSwitch(), utility::getTtlAclTableName()),
+        table2EntryCount);
+  }
+
+  void verifyAclEntryModificationTestHelper(bool addQualifierDuringWarmboot) {
+    ASSERT_TRUE(isSupported());
+
+    auto setup = [this]() {
+      /*
+       * Retrieve the config for 2 acl tables with QPH acls added to table 1
+       * and TTL acls added to table 2.
+       */
+      auto newCfg = getMultiAclConfig(false);
+      // Add 2 counter acls to table 1 (QPH table) to test remove and changed
+      // acl functionality
+      addCounterAclsToQphTable(&newCfg);
+      // Add 2 counter acls to table 2 (TTL table) to test remove and changed
+      // acl functionality
+      addCounterAclsToTtlTable(&newCfg);
+      applyNewConfig(newCfg);
+    };
+
+    auto verify = [=]() {
+      verifyAclEntryTestHelper(
+          17 /* table1EntryCount*/, 3 /*table2EntryCount*/);
+    };
+
+    auto setupPostWarmboot = [=]() {
+      auto newCfg = getMultiAclConfig(addQualifierDuringWarmboot);
+      // Add Dscp acl to table 1 post warmboot
+      utility::addDscpAclEntryWithCounter(&newCfg, kQphDscpTable(), getAsic());
+      // Add a new counter acl to table 2 post warmboot
+      addCounterAclToAclTable(
+          &newCfg,
+          utility::getTtlAclTableName(),
+          kTable2CounterAcl3(),
+          kTable2Counter3Name(),
+          5);
+
+      /*
+       * Add one counter to table 1 and 2 in a new position so the priority is
+       * changed triggering changed acl entries code path
+       */
+      addCounterAclToAclTable(
+          &newCfg,
+          kQphDscpTable(),
+          kTable1CounterAcl2(),
+          kTable1Counter2Name(),
+          2);
+      addCounterAclToAclTable(
+          &newCfg,
+          utility::getTtlAclTableName(),
+          kTable2CounterAcl1(),
+          kTable2Counter1Name(),
+          4);
+      applyNewConfig(newCfg);
+    };
+
+    auto verifyPostWarmboot = [=]() {
+      verifyAclEntryTestHelper(
+          37 /* table1EntryCount*/, 3 /* table1EntryCount*/);
+    };
+
+    verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
   }
 };
 
@@ -410,7 +595,7 @@ TEST_F(SaiAclTableGroupTest, AddTwoTablesDeleteAddFirst) {
     addTwoAclTables(&newCfg);
     // Delete and Readd the first Acl Table
     deleteQphDscpAclTable(&newCfg);
-    addQphDscpAclTable(&newCfg);
+    addQphDscpAclTableWithEntry(&newCfg);
     applyNewConfig(newCfg);
   };
 
@@ -546,5 +731,27 @@ TEST_F(SaiAclTableGroupTest, TestAclTableGroupRoundtrip) {
   };
 
   verifyAcrossWarmBoots(setup, verify);
+}
+
+/*
+ * This tests the ability to change acl table properties and adding acl entries
+ * post warmboot. Add Acl table 1 with all the qualifiers, qph acl entries
+ * and acl table 2 with ttl. On warmboot, add dscp acl entries to table 1.
+ * Verify that all entries are present.
+ */
+TEST_F(SaiAclTableGroupTest, AddAclEntriesToAclTablesPostWarmboot) {
+  verifyAclEntryModificationTestHelper(false);
+}
+
+/*
+ * This tests the ability to change acl table properties and adding acl entries
+ * post warmboot. Add Acl table 1 with qph qualifiers and acl entries and acl
+ * table 2 with ttl on warmboot, add DSCP qualifier and dscp acl entries to
+ * table 1. Verify that all entries are present.
+ */
+TEST_F(
+    SaiAclTableGroupTest,
+    AddAclEntriesAndQualifiersToAclTablesPostWarmboot) {
+  verifyAclEntryModificationTestHelper(true);
 }
 } // namespace facebook::fboss

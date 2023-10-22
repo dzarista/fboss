@@ -1655,6 +1655,13 @@ void ThriftHandler::programInternalPhyPorts(
           portIds.emplace_back(port->getID());
         }
       }
+
+      if (portIds.size() == 0) {
+        XLOG(INFO) << "No ports found for transceiver " << tcvrID
+                   << ". Skip programming internal phy.";
+        return newState;
+      }
+
       if (!newTransceiver) {
         newTransceiverMap->removeNode(tcvrID);
       } else if (newTransceiverMap->getNodeIf(tcvrID)) {
@@ -2940,15 +2947,14 @@ void ThriftHandler::getDsfSubscriptions(
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureVoqOrFabric(__func__);
   // Build a map of <loopbackIp, switchName> from DsfNodes
-  std::unordered_map<IPAddressV6, std::string> loopbackIpToName;
+  std::unordered_map<IPAddress, std::string> loopbackIpToName;
   for (const auto& [_, dsfNodes] :
        std::as_const(*sw_->getState()->getDsfNodes())) {
     for (const auto& [_, node] : std::as_const(*dsfNodes)) {
       if (node->getType() == cfg::DsfNodeType::INTERFACE_NODE) {
-        const auto ipv6Loopback =
-            (*node->getLoopbackIps()->cbegin())->toThrift();
+        const auto loopbackIp = (*node->getLoopbackIps()->cbegin())->toThrift();
         loopbackIpToName.emplace(
-            IPAddressV6(ipv6Loopback.substr(0, ipv6Loopback.find("/"))),
+            IPAddress(loopbackIp.substr(0, loopbackIp.find("/"))),
             node->getName());
       }
     }
@@ -2961,7 +2967,7 @@ void ThriftHandler::getDsfSubscriptions(
     subscriptionThrift.state() =
         fsdb::FsdbPubSubManager::subscriptionStateToString(
             subscriptionInfo.state);
-    auto serverIp = IPAddressV6(subscriptionInfo.server);
+    auto serverIp = IPAddress(subscriptionInfo.server);
     if (loopbackIpToName.find(serverIp) != loopbackIpToName.end()) {
       subscriptionThrift.name() = loopbackIpToName[serverIp];
       subscriptions.push_back(subscriptionThrift);

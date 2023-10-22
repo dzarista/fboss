@@ -56,6 +56,8 @@ constexpr auto kAgentConfigLastColdbootAppliedInMsKey =
 static constexpr auto kStateMachineThreadHeartbeatMissed =
     "state_machine_thread_heartbeat_missed";
 
+static const auto kMaxConcurrentEvbFirmwareUpgrades = 1;
+
 std::map<int, facebook::fboss::NpuPortStatus> getNpuPortStatus(
     const std::map<int32_t, facebook::fboss::PortStatus>& portStatus) {
   std::map<int, facebook::fboss::NpuPortStatus> npuPortStatus;
@@ -255,13 +257,39 @@ const std::string TransceiverManager::getPortName(TransceiverID tcvrId) const {
   return portNames.empty() ? "" : *portNames.begin();
 }
 
-bool TransceiverManager::firmwareUpgradeRequired(TransceiverID id) const {
+bool TransceiverManager::firmwareUpgradeRequired(TransceiverID id) {
   auto lockedTransceivers = transceivers_.rlock();
   auto tcvrIt = lockedTransceivers->find(id);
 
-  return (
-      tcvrIt != lockedTransceivers->end() && tcvrIt->second->isPresent() &&
-      tcvrIt->second->requiresFirmwareUpgrade());
+  if (forceFirmwareUpgradeForTesting_ ||
+      (tcvrIt != lockedTransceivers->end() && tcvrIt->second->isPresent() &&
+       tcvrIt->second->requiresFirmwareUpgrade())) {
+    // If we are here, it means that this transceiver is present and has the
+    // firmware version mismatch and hence requires upgrade
+    // We also need to check that at any time one i2c evb should run firmware
+    // upgrade. If not, the other transceivers will be inoperational for a long
+    // time until the first transceiver is done upgrading
+    bool canUpgrade = false;
+    {
+      auto fwEvbWLock = evbsRunningFirmwareUpgrade_.wlock();
+      auto moduleEvb = tcvrIt->second->getEvb();
+      if (fwEvbWLock->find(moduleEvb) == fwEvbWLock->end()) {
+        fwEvbWLock->emplace(moduleEvb, std::vector<TransceiverID>());
+      }
+      if (fwEvbWLock->at(moduleEvb).size() <
+          kMaxConcurrentEvbFirmwareUpgrades) {
+        fwEvbWLock->at(moduleEvb).push_back(id);
+        canUpgrade = true;
+      } else {
+        XLOG(INFO)
+            << "Transceiver: " << id
+            << ", cannot schedule firmware upgrade since the IO evb is already running upgrades";
+        canUpgrade = false;
+      }
+    } // end of fwEvbWLock lock
+    return canUpgrade;
+  }
+  return false;
 }
 
 void TransceiverManager::doTransceiverFirmwareUpgrade(TransceiverID tcvrID) {
@@ -275,7 +303,18 @@ void TransceiverManager::doTransceiverFirmwareUpgrade(TransceiverID tcvrID) {
   }
   XLOG(INFO) << " Triggering Transceiver Firmware Upgrade for Transceiver="
              << tcvrIt->first;
+
+  auto updateStateInFsdb = [&](bool status) {
+    if (FLAGS_publish_stats_to_fsdb) {
+      auto tcvrInfo =
+          tcvrIt->second->updateFwUpgradeStatusInTcvrInfoLocked(status);
+      updateTcvrStateInFsdb(tcvrIt->first, std::move(*tcvrInfo.tcvrState()));
+    }
+  };
+
+  updateStateInFsdb(true);
   tcvrIt->second->upgradeFirmware();
+  updateStateInFsdb(false);
 }
 
 TransceiverManager::TransceiverToStateMachineHelper
@@ -1158,6 +1197,9 @@ void TransceiverManager::resetUpgradedTransceiversToNotPresent() {
 }
 
 void TransceiverManager::refreshStateMachines() {
+  // Clear the map that tracks the firmware upgrades in progress per evb
+  evbsRunningFirmwareUpgrade_.wlock()->clear();
+
   // Step1: Fetch current port status from wedge_agent.
   // Since the following steps, like refreshTransceivers() might need to use
   // port status to decide whether it's safe to reset a transceiver.
@@ -1357,6 +1399,11 @@ void TransceiverManager::TransceiverStateMachineHelper::stopThread() {
 void TransceiverManager::waitForAllBlockingStateUpdateDone(
     const TransceiverManager::BlockingStateUpdateResultList& results) {
   for (const auto& result : results) {
+    if (isExiting_) {
+      XLOG(INFO)
+          << "Terminating waitForAllBlockingStateUpdateDone for graceful exit";
+      return;
+    }
     result->wait();
   }
 }
@@ -1476,6 +1523,10 @@ std::pair<bool, std::vector<std::string>> TransceiverManager::areAllPortsDown(
 void TransceiverManager::triggerRemediateEvents(
     const std::vector<TransceiverID>& stableTcvrs) {
   if (stableTcvrs.empty()) {
+    return;
+  }
+  if (isExiting_) {
+    XLOG(INFO) << "Skip triggerRemediateEvents during graceful exit";
     return;
   }
   BlockingStateUpdateResultList results;

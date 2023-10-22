@@ -114,6 +114,10 @@ class TransceiverManager {
       ResetType resetType,
       ResetAction resetAction);
 
+  void setForceFirmwareUpgradeForTesting(bool enable) {
+    forceFirmwareUpgradeForTesting_ = enable;
+  }
+
   /*
    * A function take a parameter representing number of seconds,
    * adding it to the time point of now and assign it to
@@ -447,7 +451,7 @@ class TransceiverManager {
   void syncNpuPortStatusUpdate(
       std::map<int, facebook::fboss::NpuPortStatus>& portStatus);
 
-  bool firmwareUpgradeRequired(TransceiverID id) const;
+  bool firmwareUpgradeRequired(TransceiverID id);
 
   void doTransceiverFirmwareUpgrade(TransceiverID tcvrID);
 
@@ -539,6 +543,10 @@ class TransceiverManager {
     std::string name;
   };
   std::unordered_map<PortID, SwPortInfo> portToSwPortInfo_;
+
+  virtual void updateTcvrStateInFsdb(
+      TransceiverID /* tcvrID */,
+      facebook::fboss::TcvrState&& /* newState */) {}
 
  private:
   // Forbidden copy constructor and assignment operator
@@ -751,6 +759,12 @@ class TransceiverManager {
       npuPortStatusCache_;
 
   std::unique_ptr<FbossFwStorage> fwStorage_;
+
+  folly::Synchronized<
+      std::unordered_map<const folly::EventBase*, std::vector<TransceiverID>>>
+      evbsRunningFirmwareUpgrade_;
+
+  bool forceFirmwareUpgradeForTesting_{false};
 
   friend class TransceiverStateMachineTest;
 };

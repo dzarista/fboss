@@ -2,7 +2,16 @@
   "known_bad_tests": {
     "brcm/10.0_ea_dnx_odp/10.0_ea_dnx_odp/jericho2": [
         {
-          "test_name_regex": "warm_boot.*"
+          "test_name_regex": "warm_boot.HwAclStatTest.StatNumberOfCounters"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
+        },
+        {
+          "test_name_regex": "warm_boot.HwVoqSwitchTest.dramEnqueueDequeueBytes"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTest.AddFirstTableAfterWarmboot"
         },
         {
           "test_name_regex": "HwLoadBalancerTestV[46].*Ucmp.*"
@@ -236,6 +245,9 @@
           "test_name_regex": "SaiAclTableGroupTrafficTest.*"
         },
         {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*"
+        },
+        {
           "test_name_regex": "HwEmptyTest.*"
         },
         {
@@ -366,11 +378,23 @@
         },
         {
           "test_name_regex": "HwVoqSwitchTest.voqDelete"
+        },
+        {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
         }
     ],
     "brcm/10.0_ea_dnx_sim_odp/10.0_ea_dnx_sim_odp/jericho3/simulator": [
         {
-          "test_name_regex": "warm_boot.*"
+          "test_name_regex": "warm_boot.HwAclStatTest.StatNumberOfCounters"
+        },
+        {
+          "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRToAllSPDscpToQueue"
+        },
+        {
+          "test_name_regex": "warm_boot.HwVoqSwitchTest.dramEnqueueDequeueBytes"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTest.AddFirstTableAfterWarmboot"
         },
         {
           "test_name_regex": "HwLoadBalancerTestV[46].*Ucmp.*"
@@ -604,6 +628,9 @@
           "test_name_regex": "SaiAclTableGroupTrafficTest.*"
         },
         {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*"
+        },
+        {
           "test_name_regex": "HwEmptyTest.*"
         },
         {
@@ -734,6 +761,9 @@
         },
         {
           "test_name_regex": "HwVoqSwitchTest.voqDelete"
+        },
+        {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
         },
         {
           "test_name_regex": "Hw2QueueToOlympicQoSTest.*"
@@ -1102,6 +1132,9 @@
         },
         {
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
+        },
+        {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
         },
         {
           "test_name_regex": "HwUdfTest.*"
@@ -1475,6 +1508,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwUdfTest.*"
         },
         {
@@ -1640,6 +1676,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -1695,6 +1737,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -2101,6 +2149,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwUdfTest.*"
         },
         {
@@ -2421,6 +2472,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -2476,6 +2533,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -2739,6 +2802,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -2868,7 +2934,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         }
     ],
     "brcm/7.2.0.0_odp/7.2.0.0_odp/tomahawk3": [
@@ -3098,6 +3170,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "warm_boot.HwHashPolarizationTests.fullXHalfHash"
         },
         {
@@ -3155,6 +3230,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -3210,6 +3291,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -3431,7 +3518,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         },
         {
           "test_name_regex": "HwTrafficPfcTest.*"
@@ -3673,6 +3766,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -3698,6 +3794,9 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTrafficTest.*"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*"
         },
         {
           "test_name_regex": "HwEcmpTest.Ucmp.*"
@@ -3752,6 +3851,12 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "HwPortBandwidthTest/HwPortBandwidthParamTest.VerifyPortRateTraffic.*"
@@ -3885,6 +3990,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -3940,6 +4051,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -4203,6 +4320,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -4332,7 +4452,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         },
         {
           "test_name_regex": "HwUdfTest.*"
@@ -4595,6 +4721,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "warm_boot.HwHashPolarizationTests.fullXHalfHash"
         },
         {
@@ -4652,6 +4781,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -4707,6 +4842,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -4928,7 +5069,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         },
         {
           "test_name_regex": "HwUdfTest.*"
@@ -5227,6 +5374,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -5252,6 +5402,9 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTrafficTest.*"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*"
         },
         {
           "test_name_regex": "HwEcmpTest.Ucmp.*"
@@ -5306,6 +5459,12 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "HwPortBandwidthTest/HwPortBandwidthParamTest.VerifyPortRateTraffic.*"
@@ -5448,6 +5607,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -5503,6 +5668,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -5766,6 +5937,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -5895,7 +6069,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         },
         {
           "test_name_regex": "HwUdfTest.*"
@@ -6134,6 +6314,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "warm_boot.HwHashPolarizationTests.fullXHalfHash"
         },
         {
@@ -6191,6 +6374,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -6246,6 +6435,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -6467,7 +6662,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         },
         {
           "test_name_regex": "HwUdfTest.*"
@@ -6742,6 +6943,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwUdfTest.*"
         },
         {
@@ -6907,6 +7111,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -6962,6 +7172,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -7230,6 +7446,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -7255,6 +7474,9 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTrafficTest.*"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*"
         },
         {
           "test_name_regex": "HwEcmpTest.Ucmp.*"
@@ -7309,6 +7531,12 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "HwPortBandwidthTest/HwPortBandwidthParamTest.VerifyPortRateTraffic.*"
@@ -7451,6 +7679,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -7506,6 +7740,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -7769,6 +8009,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -7898,7 +8141,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         },
         {
           "test_name_regex": "HwUdfTest.*"
@@ -8161,6 +8410,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "warm_boot.HwHashPolarizationTests.fullXHalfHash"
         },
         {
@@ -8218,6 +8470,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -8273,6 +8531,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -8494,7 +8758,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         },
         {
           "test_name_regex": "HwUdfTest.*"
@@ -8793,6 +9063,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwUdfTest.*"
         },
         {
@@ -8958,6 +9231,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -9013,6 +9292,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -9305,6 +9590,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -9330,6 +9618,9 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTrafficTest.*"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*"
         },
         {
           "test_name_regex": "HwEcmpTest.Ucmp.*"
@@ -9384,6 +9675,12 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "HwPortBandwidthTest/HwPortBandwidthParamTest.VerifyPortRateTraffic.*"
@@ -9718,6 +10015,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwUdfTest.*"
         },
         {
@@ -9883,6 +10183,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -9938,6 +10244,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -10152,6 +10464,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -10207,6 +10525,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -10470,6 +10794,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -10599,7 +10926,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         },
         {
           "test_name_regex": "HwUdfTest.*"
@@ -10838,6 +11171,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "warm_boot.HwHashPolarizationTests.fullXHalfHash"
         },
         {
@@ -10895,6 +11231,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -10950,6 +11292,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -11171,7 +11519,13 @@
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableCpu"
         },
         {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableCpu"
+        },
+        {
           "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest.VerifyDscpMarkingAndTtlAclTableFrontPanel"
+        },
+        {
+          "test_name_regex": "warm_boot.SaiAclTableGroupTrafficTest/[01].VerifyDscpMarkingAndTtlAclTableFrontPanel"
         },
         {
           "test_name_regex": "HwUdfTest.*"
@@ -11449,6 +11803,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwUdfTest.*"
         },
         {
@@ -11614,6 +11971,12 @@
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
         },
         {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
+        },
+        {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
         },
         {
@@ -11669,6 +12032,12 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.warm_boot_for_warm_boot.0.HwEmptyTest.CheckInit.SaiAclTableGroupTrafficTest/[01].VerifyQueuePerHostAclTableAndTtlAclTableCpu"
@@ -11937,6 +12306,9 @@
           "test_name_regex": "roundtrip..*.HwEmptyTest.CheckInit.HwCoppTest/0.*"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*"
+        },
+        {
           "test_name_regex": "HwTrafficPfcTest.*"
         },
         {
@@ -11962,6 +12334,9 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTrafficTest.*"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*"
         },
         {
           "test_name_regex": "HwEcmpTest.Ucmp.*"
@@ -12016,6 +12391,12 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTest.DeleteSecondTableAfterWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesToAclTablesPostWarmboot"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTest.AddAclEntriesAndQualifiersToAclTablesPostWarmboot"
         },
         {
           "test_name_regex": "HwPortBandwidthTest/HwPortBandwidthParamTest.VerifyPortRateTraffic.*"
@@ -12179,6 +12560,9 @@
           "test_name_regex": "SaiAclTableGroupTrafficTest.*$"
         },
         {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*$"
+        },
+        {
           "test_name_regex": "HwAqmTest.verifyEcn$"
         },
         {
@@ -12459,6 +12843,9 @@
         },
         {
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState$"
+        },
+        {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "HwVoqSwitch*"
@@ -12559,6 +12946,9 @@
           "test_name_regex": "SaiAclTableGroupTrafficTest.*$"
         },
         {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*$"
+        },
+        {
           "test_name_regex": "HwAqmTest.verifyEcn$"
         },
         {
@@ -12841,6 +13231,9 @@
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState$"
         },
         {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "HwVoqSwitch*"
         },
         {
@@ -12854,6 +13247,9 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTrafficTest.*$"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*$"
         },
         {
           "test_name_regex": "HwJumboFramesTest.JumboFramesGetThrough$"
@@ -13157,6 +13553,9 @@
         },
         {
           "test_name_regex": "HwRouteTest/[01].verifyCpuRouteChange$"
+        },
+        {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*$"
         }
     ],
     "leaba/1.65.0/1.65.0/gibraltar": [
@@ -13213,6 +13612,9 @@
         },
         {
           "test_name_regex": "SaiAclTableGroupTrafficTest.*$"
+        },
+        {
+          "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*$"
         },
         {
           "test_name_regex": "HwAqmTest.verifyEcn$"
@@ -13495,6 +13897,9 @@
         },
         {
           "test_name_regex": "HwPortLedTest.TestLedFromSwitchState$"
+        },
+        {
+          "test_name_regex": "HwEcmpFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "HwVoqSwitch*"

@@ -160831,8 +160831,7 @@ constexpr auto kJsonMiln52PlatformMappingStr = R"(
 )";
 } // namespace
 
-namespace facebook {
-namespace fboss {
+namespace facebook::fboss {
 Minipack16QPimPlatformMapping::Minipack16QPimPlatformMapping(
     ExternalPhyVersion xphyVersion)
     : MultiPimPlatformMapping(
@@ -160848,5 +160847,4 @@ Minipack16QPimPlatformMapping::Minipack16QPimPlatformMapping(
     const std::string& platformMappingStr)
     : MultiPimPlatformMapping(platformMappingStr) {}
 
-} // namespace fboss
-} // namespace facebook
+} // namespace facebook::fboss
