@@ -209,10 +209,10 @@ with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
       asic, systemSerdesId, frontPanelSlot, lineSideLane, _, connectionType, polaritySwap = line.rstrip().split(",")
       asic = int( asic )
       systemSerdesId = int( systemSerdesId )
-      systemSideLane = systemSerdesId % numSerdesPerCore
+      systemSideLane = systemSerdesId
       frontPanelSlot = int( frontPanelSlot )
       lineSideLane = int( lineSideLane )
-      lineSideSerdes = ( systemSerdesId - systemSideLane ) + lineSideLane
+      lineSideSerdes = ( ( systemSerdesId // 8 ) * 8 ) + lineSideLane
       assert asic < numAsics
       asicMapping = asicSerdesMappings[ asic ]
       if lineSideSerdes not in asicMapping:
@@ -389,7 +389,7 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
             nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ] = (
                   nifSerdesCoreToAsicCore[ serdesCore ], serdesCore )
          else:
-            logicalLane = rxLane
+            logicalLane = rxLane % 8
 
          rxPolSwap = rxPolSwap[ 0 ]
          txPolSwap = txPolSwap[ 0 ]
@@ -421,8 +421,8 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
          # them to the relevant files in the order of logical lanes.
          tempProps[ logicalLane ] = \
                f"1,1,NPU,{serdesCorePrinted},{asicCoreType},{logicalLane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
-         bcmRxLane = rxLane + serdesCore * numSerdesPerCore
-         bcmTxLane = txLane + serdesCore * numSerdesPerCore
+         bcmRxLane = rxLane
+         bcmTxLane = txLane
          bcmLogicalLane = logicalLane + serdesCore * numSerdesPerCore
          if serdesCore >= 18:
             bcmLogicalLane -= 144
