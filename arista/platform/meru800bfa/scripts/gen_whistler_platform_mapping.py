@@ -367,7 +367,7 @@ with open( "whistler_static_mapping.csv", "w" ) as fh:
       laneMapType = "fabric"
       polaritySwapType = "fabric"
       fh.write(
-            f"1,{chipId+1},NPU,{serdesCore},{asicCoreType},{logicalLane%8},{txPhysicalLane%8},{rxPhysicalLane%8},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
+            f"1,{chipId+1},NPU,{serdesCore},{asicCoreType},{logicalLane%8},{txPhysicalLane},{rxPhysicalLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
             )
       # BCM soc properties for lane maps and polarity swaps.
       # NOTE : Currently this only generates
