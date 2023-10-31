@@ -384,12 +384,14 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
                ][ "tx" ]
          assert frontPanelSlot == _frontPanelSlot
          frontPanelLane = lane
-         if serdesId < 144:
+         if serdesCore < numNifSerdesCores:
             logicalLane = lane
             nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ] = (
                   nifSerdesCoreToAsicCore[ serdesCore ], serdesCore )
          else:
-            logicalLane = rxLane % 8
+            # For fabric ports, logical lane is the same as the serdes pysical Rx
+            # Lane.
+            logicalLane = rxLane % numSerdesPerCore
 
          rxPolSwap = rxPolSwap[ 0 ]
          txPolSwap = txPolSwap[ 0 ]
@@ -405,33 +407,31 @@ with open( "viper_static_mapping.csv", "w" ) as fh:
             txPolSwapProp = "0"
          else:
             assert False
-         if serdesId < 144:
-            serdesCorePrinted = serdesCore
+         if serdesCore < numNifSerdesCores:
+            serdesCoreByType = serdesCore
             asicCoreType = "J3_NIF"
             laneMapType = "nif"
             polaritySwapType = "phy"
          else:
-            serdesId -= 144
-            serdesCorePrinted = serdesCore - 18
+            serdesCoreByType = serdesCore - numNifSerdesCores
             asicCoreType = "J3_FE"
             laneMapType = "fabric"
             polaritySwapType = "fabric"
+            txLane -= ( numNifSerdesCores * numSerdesPerCore )
+            rxLane -= ( numNifSerdesCores * numSerdesPerCore )
          # For fabric ports, the logicalLane need not match lane, so if we write it
          # here we will be out of order. We will stash them here so that we can write
          # them to the relevant files in the order of logical lanes.
          tempProps[ logicalLane ] = \
-               f"1,1,NPU,{serdesCorePrinted},{asicCoreType},{logicalLane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
-         bcmRxLane = rxLane
-         bcmTxLane = txLane
-         bcmLogicalLane = logicalLane + serdesCore * numSerdesPerCore
-         if serdesCore >= 18:
-            bcmLogicalLane -= 144
-            bcmRxLane -= 144
-            bcmTxLane -= 144
+               f"1,1,NPU,{serdesCoreByType},{asicCoreType},{logicalLane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
+         # bcm logicalLane is a global lane number that is in range (0,144) for NIF
+         # and (0,160) for Fabric.
+         bcmLogicalLane = logicalLane + serdesCoreByType * numSerdesPerCore
+         if serdesCore >= numNifSerdesCores:
             fabFrontPanelLaneToLogicalLane[ frontPanelSlot * 8 + frontPanelLane ] = bcmLogicalLane
 
          # BCM soc properties for lane maps and polarity swaps.
-         tempBcmLaneMapProps[ logicalLane ] = f"\"lane_to_serdes_map_{laneMapType}_lane{bcmLogicalLane}.BCM8886X\": \"rx{bcmRxLane}:tx{bcmTxLane}\",\n"
+         tempBcmLaneMapProps[ logicalLane ] = f"\"lane_to_serdes_map_{laneMapType}_lane{bcmLogicalLane}.BCM8886X\": \"rx{rxLane}:tx{txLane}\",\n"
          tempBcmPolSwapProps[ logicalLane ] = (
                f"\"phy_rx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8886X\": \"{rxPolSwapProp}\",\n",
                f"\"phy_tx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8886X\": \"{txPolSwapProp}\",\n" )
