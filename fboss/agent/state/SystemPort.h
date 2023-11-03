@@ -51,7 +51,7 @@ class SystemPort
   void resetPortQueues(const QueueConfig& queues) {
     // TODO: change type to ThriftListNode
     std::vector<PortQueueFields> queuesThrift{};
-    for (auto queue : queues) {
+    for (const auto& queue : queues) {
       queuesThrift.push_back(queue->toThrift());
     }
     set<switch_state_tags::queues>(std::move(queuesThrift));
@@ -80,12 +80,6 @@ class SystemPort
   }
   void setNumVoqs(int64_t numVoqs) {
     set<ctrl_if_tags::numVoqs>(numVoqs);
-  }
-  bool getEnabled() const {
-    return cref<ctrl_if_tags::enabled>()->toThrift();
-  }
-  void setEnabled(bool enabled) {
-    set<ctrl_if_tags::enabled>(enabled);
   }
   std::optional<std::string> getQosPolicy() const {
     if (const auto& policy = cref<ctrl_if_tags::qosPolicy>()) {

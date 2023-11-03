@@ -86,6 +86,9 @@ class SaiSwitchManager {
   void updateStats();
 
   void setSwitchIsolate(bool isolate);
+  HwSwitchDropStats getSwitchDropStats() const {
+    return switchDropStats_;
+  }
 
  private:
   void programEcmpLoadBalancerParams(
@@ -129,6 +132,7 @@ class SaiSwitchManager {
   bool isMplsQosSupported_{false};
   // since this is an optional attribute in SAI
   std::optional<bool> isPtpTcEnabled_{std::nullopt};
+  HwSwitchDropStats switchDropStats_;
 };
 
 void fillHwSwitchDramStats(

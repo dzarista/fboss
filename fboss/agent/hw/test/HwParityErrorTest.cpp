@@ -16,15 +16,11 @@ class HwParityErrorTest : public HwLinkStateDependentTest {
  protected:
   cfg::SwitchConfig initialConfig() const override {
     return utility::onePortPerInterfaceConfig(
-        getHwSwitch(), {masterLogicalPortIds()[0]});
+        getHwSwitch(), masterLogicalPortIds());
   }
 
   HwSwitchEnsemble::Features featuresDesired() const override {
     return {HwSwitchEnsemble::LINKSCAN, HwSwitchEnsemble::TAM_NOTIFY};
-  }
-
-  void generateParityError() {
-    utility::triggerParityError(getHwSwitchEnsemble());
   }
 
   int64_t getCorrectedParityErrorCount() const {
@@ -36,10 +32,10 @@ class HwParityErrorTest : public HwLinkStateDependentTest {
 };
 
 TEST_F(HwParityErrorTest, verifyParityError) {
-  auto setup = [=]() { applyNewConfig(initialConfig()); };
-  auto verify = [=]() {
+  auto setup = [=, this]() { applyNewConfig(initialConfig()); };
+  auto verify = [=, this]() {
     EXPECT_EQ(getCorrectedParityErrorCount(), 0);
-    generateParityError();
+    utility::triggerParityError(getHwSwitchEnsemble());
     WITH_RETRIES({ EXPECT_EVENTUALLY_GT(getCorrectedParityErrorCount(), 0); });
   };
   verifyAcrossWarmBoots(setup, verify);

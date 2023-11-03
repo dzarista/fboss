@@ -44,6 +44,9 @@ std::unique_ptr<WedgeManager> createElbertWedgeManager(
 
 bool isElbert8DD();
 
+std::string getDeviceDatacenter();
+std::string getDeviceHostnameScheme();
+
 std::unique_ptr<WedgeManager> createSandiaWedgeManager(
     const std::string& platformMappingStr);
 
@@ -60,6 +63,12 @@ std::unique_ptr<WedgeManager> createMeru800bfaWedgeManager(
     const std::string& platformMappingStr);
 
 std::unique_ptr<WedgeManager> createMontblancWedgeManager(
+    const std::string& platformMappingStr);
+
+std::unique_ptr<WedgeManager> createMorgan800ccWedgeManager(
+    const std::string& platformMappingStr);
+
+std::unique_ptr<WedgeManager> createJangaWedgeManager(
     const std::string& platformMappingStr);
 
 } // namespace fboss

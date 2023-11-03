@@ -2,13 +2,18 @@
 
 #include "fboss/agent/test/SplitAgentTest.h"
 #include "fboss/agent/HwAsicTable.h"
-#include "fboss/agent/test/SplitAgentEnsemble.h"
 
 DEFINE_bool(run_forever, false, "run the test forever");
 DEFINE_bool(run_forever_on_failure, false, "run the test forever on failure");
 
+namespace {
+int kArgc;
+char** kArgv;
+} // namespace
+
 namespace facebook::fboss {
 void SplitAgentTest::SetUp() {
+  fbossCommonInit(kArgc, kArgv);
   FLAGS_verify_apply_oper_delta = true;
   FLAGS_hide_fabric_ports = hideFabricPorts();
   // Reset any global state being tracked in singletons
@@ -20,9 +25,7 @@ void SplitAgentTest::SetUp() {
   FLAGS_update_watermark_stats_interval_s = 0;
 
   AgentEnsembleSwitchConfigFn initialConfigFn =
-      [this](SwSwitch* swSwitch, const std::vector<PortID>& ports) {
-        return initialConfig(swSwitch, ports);
-      };
+      [this](const AgentEnsemble& ensemble) { return initialConfig(ensemble); };
   agentEnsemble_ = createAgentEnsemble(initialConfigFn);
 }
 
@@ -105,6 +108,12 @@ bool SplitAgentTest::hideFabricPorts() const {
   // we want to skip over fabric ports in a overwhelming
   // majority of test cases. Make this the default HwTest mode
   return true;
+}
+
+void initAgentHwTest(int argc, char* argv[], PlatformInitFn initPlatform) {
+  initEnsemble(initPlatform);
+  kArgc = argc;
+  kArgv = argv;
 }
 
 } // namespace facebook::fboss

@@ -12,6 +12,7 @@
 #include "common/logging/logging.h"
 #include "fboss/agent/AddressUtil.h"
 #include "fboss/agent/ArpHandler.h"
+#include "fboss/agent/DsfStateUpdaterUtil.h"
 #include "fboss/agent/DsfSubscriber.h"
 #include "fboss/agent/FbossHwUpdateError.h"
 #include "fboss/agent/FibHelpers.h"
@@ -105,9 +106,9 @@ using facebook::network::toIPAddress;
 using namespace facebook::fboss;
 
 DEFINE_bool(
-    enable_running_config_mutations,
-    false,
-    "Allow external mutations of running config");
+    allow_running_switch_state_mutations,
+    false, // false => Prevents such mutations in prod
+    "Allow mutations of running switch state by external thrift calls");
 
 DECLARE_bool(intf_nbr_tables);
 
@@ -1271,14 +1272,23 @@ void ThriftHandler::getCurrentStateJSON(
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
 
+  if (path) {
+    ret = getCurrentStateJSONForPath(*path);
+  }
+}
+
+std::string ThriftHandler::getCurrentStateJSONForPath(
+    const std::string& path) const {
+  std::string stateForPath;
+
   // Split path into vector of string
   std::vector<std::string> thriftPath;
   auto start = 0;
-  for (auto end = 0; (end = path->find("/", end)) != std::string::npos; ++end) {
-    thriftPath.push_back(path->substr(start, end - start));
+  for (auto end = 0; (end = path.find("/", end)) != std::string::npos; ++end) {
+    thriftPath.push_back(path.substr(start, end - start));
     start = end + 1;
   }
-  thriftPath.push_back(path->substr(start));
+  thriftPath.push_back(path.substr(start));
 
   auto traverseResult = thrift_cow::RootPathVisitor::visit(
       *std::const_pointer_cast<const SwitchState>(sw_->getState()),
@@ -1286,7 +1296,7 @@ void ThriftHandler::getCurrentStateJSON(
       thriftPath.end(),
       thrift_cow::PathVisitMode::LEAF,
       [&](auto& node, auto /* begin */, auto /* end */) {
-        ret = node.encode(fsdb::OperProtocol::SIMPLE_JSON);
+        stateForPath = node.encode(fsdb::OperProtocol::SIMPLE_JSON);
       });
   switch (traverseResult) {
     case thrift_cow::ThriftTraverseResult::OK:
@@ -1297,14 +1307,118 @@ void ThriftHandler::getCurrentStateJSON(
     default:
       throw FbossError("Invalid thrift path provided.");
   }
+
+  return stateForPath;
 }
 
-void ThriftHandler::patchCurrentStateJSON(
-    std::unique_ptr<std::string> jsonPointerStr,
-    std::unique_ptr<std::string> jsonPatchStr) {
-  auto log = LOG_THRIFT_CALL(DBG1, *jsonPointerStr, *jsonPatchStr);
-  throw FbossError(
-      "patchCurrentStateJSON no longer supported by agent due to thrift migration");
+void ThriftHandler::getCurrentStateJSONForPaths(
+    std::map<std::string, std::string>& pathToState,
+    std::unique_ptr<std::vector<std::string>> paths) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+
+  for (auto& path : *paths) {
+    pathToState[path] = getCurrentStateJSONForPath(path);
+  }
+}
+
+void ThriftHandler::patchCurrentStateJSONForPaths(
+    std::unique_ptr<std::map<std::string, std::string>> pathToJsonPatch) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+
+  if (!FLAGS_allow_running_switch_state_mutations) {
+    throw FbossError("Running switch state mutations are not allowed");
+  }
+
+  /*
+   * The caller (thrift client) must get localSystPorts/localIntfs from every
+   * other RDSW in the DSF cluster, set isLocal = false for every neighbor,
+   * merge localSysPorts/localRifs in one flat list and then call this API by
+   * passing these lists as remoteSysPorts/remoteRifs.
+   *
+   * The implementation works as follows:
+   *  - Break the flat list of remoteSysPorts/remoteRifs into per switchID map.
+   *  - Build a new desired state by iterating over the map and invoking
+   *    DsfStateUpdaterUtil::getUpdatedState
+   *  - This is the same util that is invoked when FSDB is running and we
+   *    receive state update from a peer DSF node.
+   *  - Apply the state.
+   */
+
+  std::map<SwitchID, std::shared_ptr<SystemPortMap>> switchId2SystemPorts;
+  std::map<SwitchID, std::shared_ptr<InterfaceMap>> switchId2Rifs;
+
+  for (const auto& [path, jsonPatch] : *pathToJsonPatch) {
+    if (path == "remoteSystemPortMaps") {
+      MultiSwitchSystemPortMap mswitchSysPorts;
+      mswitchSysPorts.fromThrift(thrift_cow::deserialize<
+                                 MultiSwitchSystemPortMapTypeClass,
+                                 MultiSwitchSystemPortMapThriftType>(
+          fsdb::OperProtocol::SIMPLE_JSON, jsonPatch));
+      for (const auto& systemPortMap : mswitchSysPorts) {
+        // A given port belongs to exactly one switch
+        auto matcher = HwSwitchMatcher(systemPortMap.first);
+        switchId2SystemPorts[matcher.switchId()] = systemPortMap.second;
+      }
+    } else if (path == "remoteInterfaceMaps") {
+      MultiSwitchInterfaceMap mswitchIntfs;
+      mswitchIntfs.fromThrift(thrift_cow::deserialize<
+                              MultiSwitchInterfaceMapTypeClass,
+                              MultiSwitchInterfaceMapThriftType>(
+          fsdb::OperProtocol::SIMPLE_JSON, jsonPatch));
+      for (const auto& remoteIntfMap : mswitchIntfs) {
+        auto matcher = HwSwitchMatcher(remoteIntfMap.first);
+        // Pick first switchId for now, may need to revise when we support
+        // Multi NPU VOQ switches.
+        auto switchId = *matcher.switchIds().cbegin();
+        switchId2Rifs[switchId] = remoteIntfMap.second;
+      }
+    } else {
+      throw FbossError(
+          "Running switch state mutation not supported for: ", path);
+    }
+  }
+
+  if (switchId2SystemPorts.size() != switchId2Rifs.size()) {
+    // This size check + check in updateDsfStateFn guarantee this
+    throw FbossError(
+        "Both remoteSystemPorts and remoteRifs must be provided together for every switchID");
+  }
+
+  auto updateDsfStateFn = [this, switchId2SystemPorts, switchId2Rifs](
+                              const std::shared_ptr<SwitchState>& in) {
+    auto currState = in;
+    for (const auto& [switchId, newSysPorts] : switchId2SystemPorts) {
+      auto it = switchId2Rifs.find(switchId);
+      if (it == switchId2Rifs.end()) {
+        throw FbossError(
+            "Both remoteSystemPorts and remoteRifs must be provided together for every switchID");
+      }
+
+      auto newRifs = it->second;
+      auto dsfNode = currState->getDsfNodes()->getNodeIf(switchId);
+      if (!dsfNode) {
+        throw FbossError("Could not find dsfNode for switchId: ", switchId);
+      }
+
+      auto newState = DsfStateUpdaterUtil::getUpdatedState(
+          currState,
+          sw_->getScopeResolver(),
+          newSysPorts,
+          newRifs,
+          dsfNode->getName(),
+          switchId);
+
+      currState = newState;
+    }
+
+    return currState;
+  };
+
+  sw_->updateState(
+      folly::sformat("Update state by patchCurrentStateJSONForPaths: "),
+      std::move(updateDsfStateFn));
 }
 
 void ThriftHandler::getPortStatusImpl(
@@ -2353,7 +2467,7 @@ void ThriftHandler::addMplsRoutes(
   if (FLAGS_mpls_rib) {
     return addMplsRibRoutes(clientId, std::move(mplsRoutes), false /* sync */);
   }
-  auto updateFn = [=, routes = std::move(*mplsRoutes)](
+  auto updateFn = [=, routes = std::move(*mplsRoutes), this](
                       const std::shared_ptr<SwitchState>& state) {
     auto newState = state->clone();
 
@@ -2493,7 +2607,7 @@ void ThriftHandler::deleteMplsRoutes(
   if (FLAGS_mpls_rib) {
     return deleteMplsRibRoutes(clientId, std::move(topLabels));
   }
-  auto updateFn = [=, topLabels = std::move(*topLabels)](
+  auto updateFn = [=, topLabels = std::move(*topLabels), this](
                       const std::shared_ptr<SwitchState>& state) {
     auto newState = state->clone();
     for (const auto topLabel : topLabels) {
@@ -2535,7 +2649,7 @@ void ThriftHandler::syncMplsFib(
   if (FLAGS_mpls_rib) {
     return addMplsRibRoutes(clientId, std::move(mplsRoutes), true /* sync */);
   }
-  auto updateFn = [=, routes = std::move(*mplsRoutes)](
+  auto updateFn = [=, routes = std::move(*mplsRoutes), this](
                       const std::shared_ptr<SwitchState>& state) {
     auto newState = purgeEntriesForClient(
         *(sw_->getScopeResolver()), state, ClientID(clientId));
@@ -2803,7 +2917,7 @@ void ThriftHandler::addTeFlows(
     std::unique_ptr<std::vector<FlowEntry>> teFlowEntries) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  auto updateFn = [=, teFlows = std::move(*teFlowEntries)](
+  auto updateFn = [=, teFlows = std::move(*teFlowEntries), this](
                       const std::shared_ptr<SwitchState>& state) {
     TeFlowSyncer teFlowSyncer;
     auto newState = teFlowSyncer.programFlowEntries(
@@ -2828,7 +2942,7 @@ void ThriftHandler::deleteTeFlows(
     std::unique_ptr<std::vector<TeFlow>> teFlows) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  auto updateFn = [=, flows = std::move(*teFlows)](
+  auto updateFn = [=, flows = std::move(*teFlows), this](
                       const std::shared_ptr<SwitchState>& state) {
     TeFlowSyncer teFlowSyncer;
     auto newState = teFlowSyncer.programFlowEntries(
@@ -2846,7 +2960,7 @@ void ThriftHandler::syncTeFlows(
     std::unique_ptr<std::vector<FlowEntry>> teFlowEntries) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  auto updateFn = [=, teFlows = std::move(*teFlowEntries)](
+  auto updateFn = [=, teFlows = std::move(*teFlowEntries), this](
                       const std::shared_ptr<SwitchState>& state)
       -> shared_ptr<SwitchState> {
     TeFlowSyncer teFlowSyncer;
@@ -3031,6 +3145,12 @@ void ThriftHandler::getFabricReachabilityStats(
   ensureConfigured(__func__);
   fabricReachabilityStats =
       sw_->getHwSwitchHandler()->getFabricReachabilityStats();
+}
+
+void ThriftHandler::getMultiSwitchRunState(MultiSwitchRunState& runState) {
+  runState.swSwitchRunState() = sw_->getSwitchRunState();
+  runState.hwIndexToRunState() =
+      sw_->getHwSwitchHandler()->getHwSwitchRunStates();
 }
 
 } // namespace facebook::fboss

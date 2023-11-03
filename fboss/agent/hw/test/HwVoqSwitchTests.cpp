@@ -52,7 +52,8 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
               cpuStreamType, cfg::PortType::CPU_PORT)) {
         // cpu queues supported
         addCpuTrafficPolicy(cfg);
-        utility::addCpuQueueConfig(cfg, getAsic());
+        utility::addCpuQueueConfig(
+            cfg, getAsic(), getHwSwitchEnsemble()->isSai());
         break;
       }
     }
@@ -343,9 +344,9 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, checkFabricReachability) {
 }
 
 TEST_F(HwVoqSwitchWithFabricPortsTest, fabricIsolate) {
-  auto setup = [=]() { applyNewConfig(initialConfig()); };
+  auto setup = [=, this]() { applyNewConfig(initialConfig()); };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
     getHwSwitch()->updateStats();
     auto fabricPortId =
@@ -363,14 +364,14 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, fabricIsolate) {
 }
 
 TEST_F(HwVoqSwitchWithFabricPortsTest, switchIsolate) {
-  auto setup = [=]() {
+  auto setup = [=, this]() {
     auto newCfg = initialConfig();
     *newCfg.switchSettings()->switchDrainState() =
         cfg::SwitchDrainState::DRAINED;
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() { checkFabricReachability(getHwSwitchEnsemble()); };
+  auto verify = [=, this]() { checkFabricReachability(getHwSwitchEnsemble()); };
   verifyAcrossWarmBoots(setup, verify);
 }
 
@@ -570,9 +571,12 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
 
             EXPECT_EVENTUALLY_EQ(afterOutPkts - 1, beforeOutPkts);
             int extraByteOffset = 0;
-            if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2) {
+            auto asicType = getAsic()->getAsicType();
+            auto asicMode = getAsic()->getAsicMode();
+            if (asicMode == HwAsic::AsicMode::ASIC_MODE_HW &&
+                (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
+                 asicType == cfg::AsicType::ASIC_TYPE_JERICHO3)) {
               // CS00012267635: debug why we get 4 extra bytes
-              // CS00012299306 why we don't get extra 4 bytes for J3
               extraByteOffset = 4;
             }
             EXPECT_EVENTUALLY_EQ(
@@ -680,12 +684,12 @@ TEST_F(HwVoqSwitchTest, AclQualifiersWithCounter) {
 TEST_F(HwVoqSwitchTest, voqDelete) {
   utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
   auto port = ecmpHelper.ecmpPortDescriptorAt(0);
-  auto setup = [=]() {
+  auto setup = [=, this]() {
     addRemoveNeighbor(port, true /*add*/);
     // Disable port TX
     utility::setPortTx(getHwSwitch(), port.phyPortID(), false);
   };
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto getVoQDeletedPkts = [port, this]() {
       if (!getAsic()->isSupported(HwAsic::Feature::VOQ_DELETE_COUNTER)) {
         return 0L;
@@ -714,20 +718,24 @@ TEST_F(HwVoqSwitchTest, voqDelete) {
 TEST_F(HwVoqSwitchTest, packetIntegrityError) {
   utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
   auto port = ecmpHelper.ecmpPortDescriptorAt(0);
-  auto setup = [=]() { addRemoveNeighbor(port, true /*add*/); };
-  auto verify = [=]() {
+  auto setup = [=, this]() { addRemoveNeighbor(port, true /*add*/); };
+  auto verify = [=, this]() {
     const auto dstIp = ecmpHelper.ip(port);
     std::string out;
     getHwSwitchEnsemble()->runDiagCommand(
         "m SPB_FORCE_CRC_ERROR FORCE_CRC_ERROR_ON_DATA=1 FORCE_CRC_ERROR_ON_CRC=1\n",
         out);
-    sendPacket(dstIp, std::nullopt);
+    getHwSwitchEnsemble()->runDiagCommand("quit\n", out);
+    sendPacket(dstIp, std::nullopt, std::vector<uint8_t>(1024, 0xff));
     WITH_RETRIES({
       getHwSwitch()->updateStats();
+      fb303::ThreadCachedServiceData::get()->publishStats();
       auto pktIntegrityDrops =
-          getHwSwitch()->getSwitchStats()->getPacketIntegrityDropsCount();
+          getHwSwitch()->getSwitchStats()->getPacketIntegrityDrops();
       XLOG(INFO) << " Packet integrity drops: " << pktIntegrityDrops;
       EXPECT_EVENTUALLY_GT(pktIntegrityDrops, 0);
+      EXPECT_EVENTUALLY_GT(
+          getHwSwitch()->getSwitchDropStats().packetIntegrityDrops(), 0);
     });
   };
   verifyAcrossWarmBoots(setup, verify);
@@ -872,7 +880,7 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
   void assertVoqTailDrops(
       const folly::IPAddressV6& nbrIp,
       const SystemPortID& sysPortId) {
-    auto sendPkts = [=]() {
+    auto sendPkts = [=, this]() {
       for (auto i = 0; i < 1000; ++i) {
         sendPacket(nbrIp, std::nullopt);
       }
@@ -1003,7 +1011,7 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, addRemoveRemoteNeighbor) {
 }
 
 TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, stressAddRemoveObjects) {
-  auto setup = [=]() {
+  auto setup = [=, this]() {
     // Disable credit watchdog
     utility::enableCreditWatchdog(getHwSwitch(), false);
   };
@@ -1073,7 +1081,9 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, stressAddRemoveObjects) {
             getProgrammedState(), kRemoteSysPortId));
       }
     }
-    assertVoqTailDrops(kNeighborIp, kRemoteSysPortId);
+    if (isSupported(HwAsic::Feature::L3_QOS)) {
+      assertVoqTailDrops(kNeighborIp, kRemoteSysPortId);
+    }
     auto beforePkts =
         getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_();
     // CPU send
@@ -1093,7 +1103,7 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, voqTailDropCounter) {
   folly::IPAddressV6 kNeighborIp("100::2");
   auto constexpr remotePortId = 401;
   const SystemPortID kRemoteSysPortId(remotePortId);
-  auto setup = [=]() {
+  auto setup = [=, this]() {
     // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
     // keeping remote switch id passed below in sync with it
     int numCores = getAsic()->getNumCores();
@@ -1126,7 +1136,9 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, voqTailDropCounter) {
         dummyEncapIndex));
   };
 
-  auto verify = [=]() { assertVoqTailDrops(kNeighborIp, kRemoteSysPortId); };
+  auto verify = [=, this]() {
+    assertVoqTailDrops(kNeighborIp, kRemoteSysPortId);
+  };
   verifyAcrossWarmBoots(setup, verify);
 };
 
@@ -1147,7 +1159,8 @@ class HwVoqSwitchFullScaleDsfNodesTest
 
  protected:
   int getMaxEcmpWidth(const HwAsic* asic) const {
-    return asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2 ? 128 : 512;
+    // J2 and J3 only supports variable width
+    return asic->getMaxVariableWidthEcmpSize();
   }
 
   int getMaxEcmpGroup() const {

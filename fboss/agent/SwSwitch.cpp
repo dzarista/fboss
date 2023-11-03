@@ -44,6 +44,7 @@
 #include "fboss/agent/MacTableManager.h"
 #include "fboss/agent/MirrorManager.h"
 #include "fboss/agent/MultiHwSwitchHandler.h"
+#include "fboss/agent/MultiSwitchFb303Stats.h"
 #include "fboss/agent/MultiSwitchPacketStreamMap.h"
 #include "fboss/agent/NeighborUpdater.h"
 #include "fboss/agent/PacketLogger.h"
@@ -234,6 +235,57 @@ std::string getDrainStateChangedStr(
             "(UNCHANGED)");
 }
 
+void accumulateHwAsicErrorStats(
+    facebook::fboss::HwAsicErrors& accumulated,
+    const facebook::fboss::HwAsicErrors& toAdd) {
+  *accumulated.parityErrors() += toAdd.parityErrors().value();
+  *accumulated.correctedParityErrors() += toAdd.correctedParityErrors().value();
+  *accumulated.uncorrectedParityErrors() +=
+      toAdd.uncorrectedParityErrors().value();
+  *accumulated.asicErrors() += toAdd.asicErrors().value();
+}
+
+void accumulateFb303GlobalStats(
+    facebook::fboss::HwSwitchFb303GlobalStats& accumulated,
+    const facebook::fboss::HwSwitchFb303GlobalStats& toAdd) {
+  *accumulated.tx_pkt_allocated() += toAdd.tx_pkt_allocated().value();
+  *accumulated.tx_pkt_freed() += toAdd.tx_pkt_freed().value();
+  *accumulated.tx_pkt_sent() += toAdd.tx_pkt_sent().value();
+  *accumulated.tx_pkt_sent_done() += toAdd.tx_pkt_sent_done().value();
+  *accumulated.tx_errors() += toAdd.tx_errors().value();
+  *accumulated.tx_pkt_allocation_errors() +=
+      toAdd.tx_pkt_allocation_errors().value();
+  *accumulated.parity_errors() += toAdd.parity_errors().value();
+  *accumulated.parity_corr() += toAdd.parity_corr().value();
+  *accumulated.parity_uncorr() += toAdd.parity_uncorr().value();
+  *accumulated.asic_error() += toAdd.asic_error().value();
+  *accumulated.global_drops() += toAdd.global_drops().value();
+  *accumulated.global_reachability_drops() +=
+      toAdd.global_reachability_drops().value();
+  *accumulated.packet_integrity_drops() +=
+      toAdd.packet_integrity_drops().value();
+  *accumulated.dram_enqueued_bytes() += toAdd.dram_enqueued_bytes().value();
+  *accumulated.dram_dequeued_bytes() += toAdd.dram_dequeued_bytes().value();
+  *accumulated.fabric_reachability_missing() +=
+      toAdd.fabric_reachability_missing().value();
+  *accumulated.fabric_reachability_mismatch() +=
+      toAdd.fabric_reachability_mismatch().value();
+}
+
+void accumulateGlobalCpuStats(
+    facebook::fboss::CpuPortStats& accumulated,
+    const facebook::fboss::CpuPortStats& toAdd) {
+  for (const auto& [queue, value] : toAdd.queueInPackets_().value()) {
+    (*accumulated.queueInPackets_())[queue] += value;
+  }
+  for (const auto& [queue, value] : toAdd.queueInPackets_().value()) {
+    (*accumulated.queueDiscardPackets_())[queue] += value;
+  }
+  for (const auto& [queue, name] : toAdd.queueToName_().value()) {
+    (*accumulated.queueToName_())[queue] = name;
+  }
+}
+
 } // anonymous namespace
 
 namespace facebook::fboss {
@@ -244,11 +296,12 @@ SwSwitch::SwSwitch(
     bool supportsAddRemovePort,
     const AgentConfig* config,
     const std::shared_ptr<SwitchState>& initialState)
-    : multiHwSwitchHandler_(new MultiHwSwitchHandler(
+    : sdkVersion_(getSdkVersionFromConfig(config)),
+      multiHwSwitchHandler_(new MultiHwSwitchHandler(
           getSwitchInfoFromConfig(config),
           std::move(hwSwitchHandlerInitFn),
           this,
-          getSdkVersionFromConfig(config))),
+          sdkVersion_)),
       agentDirUtil_(agentDirUtil),
       supportsAddRemovePort_(supportsAddRemovePort),
       platformProductInfo_(
@@ -278,15 +331,13 @@ SwSwitch::SwSwitch(
       teFlowNextHopHandler_(new TeFlowNexthopHandler(this)),
       dsfSubscriber_(new DsfSubscriber(this)),
       switchInfoTable_(getSwitchInfoFromConfig(config)),
-      hwAsicTable_(new HwAsicTable(
-          getSwitchInfoFromConfig(config),
-          getSdkVersionFromConfig(config))),
+      hwAsicTable_(
+          new HwAsicTable(getSwitchInfoFromConfig(config), sdkVersion_)),
       scopeResolver_(
           new SwitchIdScopeResolver(getSwitchInfoFromConfig(config))),
       switchStatsObserver_(new SwitchStatsObserver(this)),
       packetStreamMap_(new MultiSwitchPacketStreamMap()),
-      swSwitchWarmbootHelper_(
-          new SwSwitchWarmBootHelper(agentDirUtil_->getWarmBootDir())),
+      swSwitchWarmbootHelper_(new SwSwitchWarmBootHelper(agentDirUtil_)),
       hwSwitchThriftClientTable_(new HwSwitchThriftClientTable(
           FLAGS_hwagent_base_thrift_port,
           getSwitchInfoFromConfig(config))) {
@@ -301,6 +352,10 @@ SwSwitch::SwSwitch(
   } catch (const std::exception& ex) {
     // Expected when fruid file is not of a switch (eg: on devservers)
     XLOG(INFO) << "Couldn't initialize platform mapping " << ex.what();
+  }
+  if (getScopeResolver()->hasMultipleSwitches()) {
+    multiSwitchFb303Stats_ =
+        std::make_unique<MultiSwitchFb303Stats>(getHwAsicTable()->getHwAsics());
   }
   if (initialState) {
     initialState->publish();
@@ -574,18 +629,65 @@ void SwSwitch::updateLldpStats() {
   stats()->LldpNeighborsSize(lldpManager_->getDB()->pruneExpiredNeighbors());
 }
 
-void SwSwitch::publishStatsToFsdb() {
+AgentStats SwSwitch::fillFsdbStats() {
   AgentStats agentStats;
-  agentStats.hwPortStats() = multiHwSwitchHandler_->getPortStats();
-  agentStats.sysPortStats() = multiHwSwitchHandler_->getSysPortStats();
+  auto runMode = (*agentConfig_.rlock())->getRunMode();
+  if (runMode == cfg::AgentRunMode::MONO) {
+    multiswitch::HwSwitchStats hwStats;
+    hwStats.hwPortStats() = multiHwSwitchHandler_->getPortStats();
+    hwStats.sysPortStats() = multiHwSwitchHandler_->getSysPortStats();
+    hwStats.switchDropStats() = multiHwSwitchHandler_->getSwitchDropStats();
 
-  if (auto hwSwitchStats = multiHwSwitchHandler_->getSwitchStats()) {
-    agentStats.hwAsicErrors() = hwSwitchStats->getHwAsicErrors();
+    if (auto hwSwitchStats = multiHwSwitchHandler_->getSwitchStats()) {
+      hwStats.hwAsicErrors() = hwSwitchStats->getHwAsicErrors();
+    }
+    hwStats.teFlowStats() = getTeFlowStats();
+    hwStats.bufferPoolStats() = getBufferPoolStats();
+    updateHwSwitchStats(0 /*switchIndex*/, std::move(hwStats));
   }
-  agentStats.teFlowStats() = getTeFlowStats();
-  stats()->fillAgentStats(agentStats);
-  agentStats.bufferPoolStats() = getBufferPoolStats();
+  {
+    auto lockedStats = hwSwitchStats_.wlock();
+    // fill stats using hwswitch exported data if available
+    if (lockedStats->empty()) {
+      return agentStats;
+    }
+    for (auto& [switchIdx, hwSwitchStats] : *lockedStats) {
+      // accumulate error stats from all switches in global values
+      accumulateHwAsicErrorStats(
+          *agentStats.hwAsicErrors(), *hwSwitchStats.hwAsicErrors());
 
+      for (auto&& statEntry : *hwSwitchStats.hwPortStats()) {
+        agentStats.hwPortStats()->insert(statEntry);
+      }
+      for (auto&& statEntry : *hwSwitchStats.hwTrunkStats()) {
+        agentStats.hwTrunkStats()->insert(statEntry);
+      }
+      agentStats.hwResourceStatsMap()->insert(
+          {switchIdx, std::move(*hwSwitchStats.hwResourceStats())});
+      agentStats.hwAsicErrorsMap()->insert(
+          {switchIdx, std::move(*hwSwitchStats.hwAsicErrors())});
+      agentStats.teFlowStatsMap()->insert(
+          {switchIdx, std::move(*hwSwitchStats.teFlowStats())});
+      agentStats.bufferPoolStatsMap()->insert(
+          {switchIdx, std::move(*hwSwitchStats.bufferPoolStats())});
+      agentStats.sysPortStatsMap()->insert(
+          {switchIdx, std::move(*hwSwitchStats.sysPortStats())});
+    }
+    lockedStats->clear();
+  }
+  stats()->fillAgentStats(agentStats);
+  // fill old fields using first switch values for backward compatibility
+  agentStats.hwResourceStats() =
+      agentStats.hwResourceStatsMap()->begin()->second;
+  agentStats.teFlowStats() = agentStats.teFlowStatsMap()->begin()->second;
+  agentStats.bufferPoolStats() =
+      agentStats.bufferPoolStatsMap()->begin()->second;
+  agentStats.sysPortStats() = agentStats.sysPortStatsMap()->begin()->second;
+  return agentStats;
+}
+
+void SwSwitch::publishStatsToFsdb() {
+  auto agentStats = fillFsdbStats();
   runFsdbSyncFunction([&agentStats](auto& syncer) {
     syncer->statsUpdated(std::move(agentStats));
   });
@@ -614,6 +716,7 @@ void SwSwitch::updateStats() {
     stats()->updateStatsException();
     XLOG(ERR) << "Error running updateStats: " << folly::exceptionStr(ex);
   }
+  updateMultiSwitchGlobalFb303Stats();
   // Determine if collect phy info
   auto now =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -627,6 +730,31 @@ void SwSwitch::updateStats() {
       XLOG(ERR) << "Error running updatePhyInfos: " << folly::exceptionStr(ex);
     }
   }
+}
+
+void SwSwitch::updateMultiSwitchGlobalFb303Stats() {
+  // Stats aggregation done only when multiple switches are present
+  if (!getScopeResolver()->hasMultipleSwitches()) {
+    return;
+  }
+  HwSwitchFb303GlobalStats globalStats;
+  CpuPortStats globalCpuPortStats;
+  {
+    auto lockedStats = hwSwitchStats_.rlock();
+    if (lockedStats->empty()) {
+      return;
+    }
+    for (auto& [switchIdx, hwSwitchStats] : *lockedStats) {
+      // accumulate error stats from all switches in global values
+      accumulateFb303GlobalStats(
+          globalStats, *hwSwitchStats.fb303GlobalStats());
+      accumulateGlobalCpuStats(
+          globalCpuPortStats, *hwSwitchStats.cpuPortStats());
+    }
+  }
+  CHECK(multiSwitchFb303Stats_);
+  multiSwitchFb303Stats_->updateStats(globalStats);
+  multiSwitchFb303Stats_->updateStats(globalCpuPortStats);
 }
 
 TeFlowStats SwSwitch::getTeFlowStats() {
@@ -950,12 +1078,12 @@ void SwSwitch::registerStateObserver(
     const string& name) {
   XLOG(DBG2) << "Registering state observer: " << name;
   updateEventBase_.runImmediatelyOrRunInEventBaseThreadAndWait(
-      [=]() { addStateObserver(observer, name); });
+      [=, this]() { addStateObserver(observer, name); });
 }
 
 void SwSwitch::unregisterStateObserver(StateObserver* observer) {
   updateEventBase_.runImmediatelyOrRunInEventBaseThreadAndWait(
-      [=]() { removeStateObserver(observer); });
+      [=, this]() { removeStateObserver(observer); });
 }
 
 bool SwSwitch::stateObserverRegistered(StateObserver* observer) {
@@ -1581,7 +1709,8 @@ void SwSwitch::linkStateChanged(
   }
 
   // Schedule an update for port's operational status
-  auto updateOperStateFn = [=](const std::shared_ptr<SwitchState>& state) {
+  auto updateOperStateFn = [=,
+                            this](const std::shared_ptr<SwitchState>& state) {
     std::shared_ptr<SwitchState> newState(state);
     auto* port = newState->getPorts()->getNodeIf(portId).get();
 
@@ -1638,21 +1767,21 @@ void SwSwitch::linkStateChanged(
 
 void SwSwitch::startThreads() {
   backgroundThread_.reset(new std::thread(
-      [=] { this->threadLoop("fbossBgThread", &backgroundEventBase_); }));
+      [this] { this->threadLoop("fbossBgThread", &backgroundEventBase_); }));
   updateThread_.reset(new std::thread(
-      [=] { this->threadLoop("fbossUpdateThread", &updateEventBase_); }));
+      [this] { this->threadLoop("fbossUpdateThread", &updateEventBase_); }));
   packetTxThread_.reset(new std::thread(
-      [=] { this->threadLoop("fbossPktTxThread", &packetTxEventBase_); }));
-  pcapDistributionThread_.reset(new std::thread([=] {
+      [this] { this->threadLoop("fbossPktTxThread", &packetTxEventBase_); }));
+  pcapDistributionThread_.reset(new std::thread([this] {
     this->threadLoop(
         "fbossPcapDistributionThread", &pcapDistributionEventBase_);
   }));
-  neighborCacheThread_.reset(new std::thread([=] {
+  neighborCacheThread_.reset(new std::thread([this] {
     this->threadLoop("fbossNeighborCacheThread", &neighborCacheEventBase_);
   }));
   // start LACP thread, start before creating LinkAggregationManager
   lacpThread_.reset(new std::thread(
-      [=] { this->threadLoop("fbossLacpThread", &lacpEventBase_); }));
+      [this] { this->threadLoop("fbossLacpThread", &lacpEventBase_); }));
 }
 
 void SwSwitch::postInit(const HwInitResult* hwInitResult) {
@@ -2160,7 +2289,7 @@ bool SwSwitch::sendPacketToHost(
 }
 
 void SwSwitch::applyConfig(const std::string& reason, bool reload) {
-  auto applyAgentConfig = [=](const AgentConfig* agentConfig) {
+  auto applyAgentConfig = [=, this](const AgentConfig* agentConfig) {
     const auto& newConfig = *agentConfig->thrift.sw();
     applyConfigImpl(reason, newConfig);
     agentConfig->dumpConfig(agentDirUtil_->getRunningConfigDumpFile());

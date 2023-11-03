@@ -28,7 +28,7 @@ void triggerBcmXgsParityError(HwSwitchEnsemble* ensemble) {
   std::ignore = out;
 }
 
-void triggerBcmJerichoParityError(HwSwitchEnsemble* ensemble) {
+void triggerBcmJericho2ParityError(HwSwitchEnsemble* ensemble) {
   std::string out;
   ensemble->runDiagCommand("\n", out);
   ensemble->runDiagCommand("s CGM_INTERRUPT_MASK_REGISTER -1\n", out);
@@ -40,6 +40,43 @@ void triggerBcmJerichoParityError(HwSwitchEnsemble* ensemble) {
   ensemble->runDiagCommand(
       "m ECI_GLOBAL_MEM_OPTIONS CPU_BYPASS_ECC_PAR=0\n", out);
   ensemble->runDiagCommand("d raw disable_cache CGM_QSPM 0 1\n", out);
+  ensemble->runDiagCommand("quit\n", out);
+  std::ignore = out;
+}
+
+void triggerBcmJericho3ParityError(HwSwitchEnsemble* ensemble) {
+  std::string out;
+  ensemble->runDiagCommand("\n", out);
+  ensemble->runDiagCommand("s CGM_INTERRUPT_MASK_REGISTER -1\n", out);
+  ensemble->runDiagCommand("s CGM_ENABLE_DYNAMIC_MEMORY_ACCESS 1\n", out);
+  ensemble->runDiagCommand(
+      "w CGM_QSPM 0 1 system_port_0=0 system_port_1=0 system_port_2=0 system_port_3=0\n",
+      out);
+  ensemble->runDiagCommand(
+      "m ECI_GLOBAL_MEM_OPTIONS CPU_BYPASS_ECC_PAR=1\n", out);
+  ensemble->runDiagCommand(
+      "w CGM_QSPM 0 1 system_port_0=1 system_port_1=1 system_port_2=1 system_port_3=1\n",
+      out);
+  ensemble->runDiagCommand(
+      "m ECI_GLOBAL_MEM_OPTIONS CPU_BYPASS_ECC_PAR=0\n", out);
+  ensemble->runDiagCommand("d raw disable_cache CGM_QSPM 0 1\n", out);
+  ensemble->runDiagCommand("quit\n", out);
+  std::ignore = out;
+}
+
+void triggerBcmRamonParityError(HwSwitchEnsemble* ensemble) {
+  std::string out;
+  ensemble->runDiagCommand("\n", out);
+  ensemble->runDiagCommand("debug bcm intr +\n", out);
+  ensemble->runDiagCommand("s RTP_INTERRUPT_MASK_REGISTER -1\n", out);
+  ensemble->runDiagCommand("s RTP_ENABLE_DYNAMIC_MEMORY_ACCESS 1\n", out);
+  ensemble->runDiagCommand("w RTP_TOTSF 0 1 0\n", out);
+  ensemble->runDiagCommand(
+      "m ECI_GLOBAL_MEM_OPTIONS CPU_BYPASS_ECC_PAR=1\n", out);
+  ensemble->runDiagCommand("w RTP_TOTSF 0 1 1\n", out);
+  ensemble->runDiagCommand(
+      "m ECI_GLOBAL_MEM_OPTIONS CPU_BYPASS_ECC_PAR=0\n", out);
+  ensemble->runDiagCommand("d raw disable_cache RTP_TOTSF 0 1\n", out);
   ensemble->runDiagCommand("quit\n", out);
   std::ignore = out;
 }
@@ -64,10 +101,11 @@ void triggerParityError(HwSwitchEnsemble* ensemble) {
     case cfg::AsicType::ASIC_TYPE_MOCK:
     case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
-    case cfg::AsicType::ASIC_TYPE_RAMON:
-    case cfg::AsicType::ASIC_TYPE_RAMON3:
       XLOG(FATAL) << "Unsupported HwAsic: "
                   << ensemble->getPlatform()->getAsic()->getAsicTypeStr();
+    case cfg::AsicType::ASIC_TYPE_RAMON:
+    case cfg::AsicType::ASIC_TYPE_RAMON3:
+      triggerBcmRamonParityError(ensemble);
       break;
     case cfg::AsicType::ASIC_TYPE_EBRO:
     case cfg::AsicType::ASIC_TYPE_GARONNE:
@@ -82,8 +120,10 @@ void triggerParityError(HwSwitchEnsemble* ensemble) {
       triggerBcmXgsParityError(ensemble);
       break;
     case cfg::AsicType::ASIC_TYPE_JERICHO2:
+      triggerBcmJericho2ParityError(ensemble);
+      break;
     case cfg::AsicType::ASIC_TYPE_JERICHO3:
-      triggerBcmJerichoParityError(ensemble);
+      triggerBcmJericho3ParityError(ensemble);
       break;
   }
 }

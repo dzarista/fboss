@@ -9,19 +9,23 @@
  */
 #include "fboss/qsfp_service/platforms/wedge/WedgeManagerInit.h"
 
+#include "fboss/agent/platforms/common/janga/JangaPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400bfu/Meru400bfuPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400bia/Meru400biaPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400biu/Meru400biuPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru800bfa/Meru800bfaPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru800bia/Meru800biaPlatformMapping.h"
 #include "fboss/agent/platforms/common/montblanc/MontblancPlatformMapping.h"
+#include "fboss/agent/platforms/common/morgan800cc/Morgan800ccPlatformMapping.h"
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
+#include "fboss/lib/bsp/janga/JangaBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bia/Meru400biaBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400biu/Meru400biuBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru800bfa/Meru800bfaBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru800bia/Meru800biaBspPlatformMapping.h"
 #include "fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.h"
+#include "fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 #include "fboss/qsfp_service/platforms/wedge/BspWedgeManager.h"
 #include "fboss/qsfp_service/platforms/wedge/GalaxyManager.h"
@@ -79,8 +83,12 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
     return createMeru800bfaWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_MONTBLANC) {
     return createMontblancWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_MORGAN800CC) {
+    return createMorgan800ccWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_WEDGE400C) {
     return std::make_unique<Wedge400CManager>(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_JANGA) {
+    return createJangaWedgeManager(platformMappingStr);
   } else if (
       mode == PlatformType::PLATFORM_FUJI ||
       mode == PlatformType::PLATFORM_MINIPACK ||
@@ -173,6 +181,32 @@ std::unique_ptr<WedgeManager> createMontblancWedgeManager(
           ? std::make_unique<MontblancPlatformMapping>()
           : std::make_unique<MontblancPlatformMapping>(platformMappingStr),
       PlatformType::PLATFORM_MONTBLANC);
+}
+
+std::unique_ptr<WedgeManager> createMorgan800ccWedgeManager(
+    const std::string& platformMappingStr) {
+  auto systemContainer =
+      BspGenericSystemContainer<Morgan800ccBspPlatformMapping>::getInstance()
+          .get();
+  return std::make_unique<BspWedgeManager>(
+      systemContainer,
+      std::make_unique<BspTransceiverApi>(systemContainer),
+      platformMappingStr.empty()
+          ? std::make_unique<Morgan800ccPlatformMapping>()
+          : std::make_unique<Morgan800ccPlatformMapping>(platformMappingStr),
+      PlatformType::PLATFORM_MORGAN800CC);
+}
+std::unique_ptr<WedgeManager> createJangaWedgeManager(
+    const std::string& platformMappingStr) {
+  auto systemContainer =
+      BspGenericSystemContainer<JangaBspPlatformMapping>::getInstance().get();
+  return std::make_unique<BspWedgeManager>(
+      systemContainer,
+      std::make_unique<BspTransceiverApi>(systemContainer),
+      platformMappingStr.empty()
+          ? std::make_unique<JangaPlatformMapping>()
+          : std::make_unique<JangaPlatformMapping>(platformMappingStr),
+      PlatformType::PLATFORM_JANGA);
 }
 } // namespace fboss
 } // namespace facebook

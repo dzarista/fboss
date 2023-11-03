@@ -117,13 +117,12 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 // represent a device in a PmUnit, the path should contain the SlotPath where
 // the PmUnit is plugged in, followed by the device name.  The device itself is
 // represented within square brackets (e.g., [DeviceName]). The device should
-// be the leaf (last token), of the path.  If the device is within a FPGA, then
-// the device is represented as [FPGA_Name::DeviceName]. I2C buses are also
-// considered as devices
+// be the leaf (last token), of the path. I2C buses are also considered as
+// devices
 //
 // The devices in the above example are represented as follows
 // - /[fpga1]
-// - /[fpga1::gpiochip0]
+// - /[gpiochip0]
 // - /XYZ_SLOT@0/[sensor1]
 // - /XYZ_SLOT@0/[INCOMING@0]
 // - /XYZ_SLOT@1/[sensor1]
@@ -138,6 +137,9 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 
 // ============================================================================
 
+const string DEVICE_TYPE_SENSOR = "SENSOR";
+const string DEVICE_TYPE_EEPROM = "EEPROM";
+
 // `I2cDeviceConfig` defines a i2c device within any PmUnit.
 //
 // `busName`: Refer to Bus Naming Convention above.
@@ -149,17 +151,19 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 // `pmUnitScopedName`: The name assigned to the device in the config, unique
 // within the scope of PmUnit.
 //
+// `deviceType`: Type of the device (e.g eeprom, sensor).
+//
 // `numOutgoingChannels`: Number of outgoing channels (applies only for mux)
 //
-// `isEeprom`: Indicates whether this device is an EEPROM. If not specified, it
-// defaults to false.
+// `hasBmcMac`: Whether this has BMC MAC address (applies only to EEPROM)
 //
-// `hasBmcMac`: Indicates whether this EEPROM has BMC MAC address in it.
+// `hasCpuMac`: Whether this has CPU MAC address (applies only to EEPROM)
 //
-// `hasCpuMac`: Indicates whether this EEPROM has CPU MAC address in it.
+// `hasSwitchAsicMac`: Whether this has Switch ASIC MAC addresses (applies
+// only to EEPROM)
 //
-// `hasExtendedMac`: Indicates whether this EEPROM has Extended MAC addresses
-// (ASIC MAC addresses) in it.
+// `hasReservedMac`: Whether this has Reserved MAC addresses (applies only to
+// EEPROM)
 //
 // For example, the three i2c devices in the below Sample PmUnit will be modeled
 // as follows
@@ -191,14 +195,16 @@ struct I2cDeviceConfig {
   2: string address;
   3: string kernelDeviceName;
   4: string pmUnitScopedName;
-  5: optional i32 numOutgoingChannels;
-  6: bool isEeprom;
+  5: string deviceType;
+  6: optional i32 numOutgoingChannels;
   7: bool hasBmcMac;
   8: bool hasCpuMac;
-  9: bool hasExtendedMac;
+  9: bool hasSwitchAsicMac;
+  10: bool hasReservedMac;
 }
 
-// The IDPROM which contains information about the PmUnit
+// The IDPROM which contains information about the PmUnit.  The PmUnitScopedName
+// of the IDPROM device is always just "IDPROM".
 //
 // `busName`: This bus should be directly from the CPU, or an incoming bus into
 // the PmUnit (i.e., there should not be any mux or fpga in between).  In the
@@ -217,24 +223,29 @@ struct IdpromConfig {
 
 // Defines a generic IP block in the FPGA
 //
+// `pmUnitScopedName`: The name used to refer to this device. It should be
+// be unique within the PmUnit.
+//
 // `deviceName`: It is the name used in the ioctl system call to create the
 // corresponding device. It should one of the compatible strings specified in
 // the kernel driver.
 //
-// `iobufOffset`: It is the iobuf register offset of the SPI Master in the FPGA.
+// `iobufOffset`: It is the iobuf register hex offset of the SPI Master in the
+// FPGA.
 //
-// `csrOffset`: It is the csr register offset of the SPI Master in the FPGA.
+// `csrOffset`: It is the csr register hex offset of the SPI Master in the FPGA.
 struct FpgaIpBlockConfig {
-  1: string deviceName;
-  2: i32 iobufOffset;
-  3: i32 csrOffset;
+  1: string pmUnitScopedName;
+  2: string deviceName;
+  3: string iobufOffset;
+  4: string csrOffset;
 }
 
 // Defines the I2C Adapter config in FPGAs.
 //
 // `fpgaIpBlockConfig`: See FgpaIpBlockConfig above
 //
-// `numberOfI2cAdapters`: Number of I2C Adapters created by this block.
+// `numberOfAdapters`: Number of I2C Adapters created by this block.
 struct I2cAdapterConfig {
   1: FpgaIpBlockConfig fpgaIpBlockConfig;
   2: i32 numberOfAdapters;
@@ -313,13 +324,13 @@ struct PciDeviceConfig {
   3: string deviceId;
   4: string subSystemVendorId;
   5: string subSystemDeviceId;
-  6: map<string, I2cAdapterConfig> i2cAdapterConfigs;
-  7: map<string, SpiMasterConfig> spiMasterConfigs;
-  8: map<string, FpgaIpBlockConfig> gpioChipConfigs;
-  9: map<string, FpgaIpBlockConfig> watchdogConfigs;
-  10: map<string, FpgaIpBlockConfig> fanTachoPwmConfigs;
-  11: map<string, LedCtrlConfig> ledCtrlConfigs;
-  12: map<string, XcvrCtrlConfig> xcvrCtrlConfigs;
+  6: list<I2cAdapterConfig> i2cAdapterConfigs;
+  7: list<SpiMasterConfig> spiMasterConfigs;
+  8: list<FpgaIpBlockConfig> gpioChipConfigs;
+  9: list<FpgaIpBlockConfig> watchdogConfigs;
+  10: list<FpgaIpBlockConfig> fanTachoPwmConfigs;
+  11: list<LedCtrlConfig> ledCtrlConfigs;
+  12: list<XcvrCtrlConfig> xcvrCtrlConfigs;
 }
 
 // These are the PmUnit slot types. Examples: "PIM_SLOT", "PSU_SLOT" and
@@ -401,14 +412,10 @@ struct PlatformConfig {
   13: list<string> i2cAdaptersFromCpu;
 
   // Global mapping from an application friendly path (symbolic link) to
-  // DevicePath
+  // DevicePath. DevicePath documentation can be found earlier in the file
   14: map<string, string> symbolicLinkToDevicePath;
 
   // Name and version of the rpm containing the BSP kmods for this platform
   21: string bspKmodsRpmName;
   22: string bspKmodsRpmVersion;
-
-  // Name and version of the rpm containing the udev rules for this platform
-  23: string udevRpmName;
-  24: string udevRpmVersion;
 }

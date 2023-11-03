@@ -61,7 +61,8 @@ HwSwitchFb303Stats* HwSwitch::getSwitchStats() const {
   if (!hwSwitchStats_) {
     hwSwitchStats_.reset(new HwSwitchFb303Stats(
         fb303::ThreadCachedServiceData::get()->getThreadStats(),
-        getPlatform()->getAsic()->getVendor()));
+        getPlatform()->getAsic()->getVendor(),
+        getPlatform()->getMultiSwitchStatsPrefix()));
   }
   return hwSwitchStats_.get();
 }
@@ -96,8 +97,10 @@ multiswitch::HwSwitchStats HwSwitch::getHwSwitchStats() {
   hwSwitchStats.bufferPoolStats() = std::move(bufferPoolStats);
   hwSwitchStats.teFlowStats() = getTeFlowStats();
   hwSwitchStats.fabricReachabilityStats() = getFabricReachabilityStats();
-  // TODO - fill sysport stats. The format of stats map in systemport
-  // manager needs to be modified to avoid copy before it can be added
+  hwSwitchStats.sysPortStats() = getSysPortStats();
+  hwSwitchStats.fb303GlobalStats() = getSwitchStats()->getAllFb303Stats();
+  hwSwitchStats.cpuPortStats() = getCpuPortStats();
+  hwSwitchStats.switchDropStats() = getSwitchDropStats();
   return hwSwitchStats;
 }
 
@@ -248,7 +251,7 @@ std::shared_ptr<SwitchState> HwSwitch::getMinAlpmState(
 std::shared_ptr<SwitchState> HwSwitch::programMinAlpmState(
     RoutingInformationBase* rib) {
   return programMinAlpmState(
-      rib, [=](const StateDelta& delta) { return stateChanged(delta); });
+      rib, [this](const StateDelta& delta) { return stateChanged(delta); });
 }
 
 std::shared_ptr<SwitchState> HwSwitch::programMinAlpmState(

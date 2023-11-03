@@ -133,6 +133,7 @@ add_library(core
   fboss/agent/DHCPv4Handler.cpp
   fboss/agent/DHCPv6Handler.cpp
   fboss/agent/DsfSession.cpp
+  fboss/agent/DsfStateUpdaterUtil.cpp
   fboss/agent/DsfSubscriber.cpp
   fboss/agent/FabricReachabilityManager.cpp
   fboss/agent/EncapIndexAllocator.cpp
@@ -162,6 +163,7 @@ add_library(core
   fboss/agent/MirrorManagerImpl.cpp
   fboss/agent/MPLSHandler.cpp
   fboss/agent/MultiHwSwitchHandler.cpp
+  fboss/agent/MultiSwitchFb303Stats.cpp
   fboss/agent/MultiSwitchPacketStreamMap.cpp
   fboss/agent/NdpCache.cpp
   fboss/agent/NeighborUpdater.cpp
@@ -201,6 +203,7 @@ target_link_libraries(core
   diag_cmd_filter
   hardware_stats_cpp2
   hw_switch_fb303_stats
+  hw_cpu_fb303_stats
   switch_asics
   switchid_scope_resolver
   ctrl_cpp2
@@ -338,11 +341,11 @@ target_link_libraries(sflow_shim_utils
 
 add_library(fsdb_helper
   fboss/agent/oss/FsdbHelper.cpp
-  fboss/fsdb/common/Utils.cpp
 )
 
 target_link_libraries(fsdb_helper
   fsdb_oper_cpp2
+  fsdb_utils
   state
 )
 

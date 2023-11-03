@@ -8,6 +8,7 @@
  *
  */
 #include "fboss/agent/HwAgentMain.h"
+#include <folly/logging/Init.h>
 #include <folly/logging/xlog.h>
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/CommonInit.h"
@@ -21,7 +22,11 @@
 
 #include <chrono>
 
-DEFINE_int32(switchIndex, 0, "Switch Index for Asic");
+#ifdef IS_OSS
+FOLLY_INIT_LOGGING_CONFIG("DBG2; default:async=true");
+#else
+FOLLY_INIT_LOGGING_CONFIG("fboss=DBG2; default:async=true");
+#endif
 
 DEFINE_int32(
     hwagent_port_base,
@@ -33,6 +38,7 @@ DEFINE_int32(swswitch_port, 5959, "Port for SwSwitch");
 DEFINE_bool(enable_stats_update_thread, true, "Run stats update thread");
 
 using namespace std::chrono;
+using facebook::fboss::SwitchRunState;
 
 namespace {
 
@@ -42,9 +48,11 @@ namespace {
 void updateStats(
     facebook::fboss::HwSwitch* hw,
     facebook::fboss::SplitAgentThriftSyncer* syncer) {
-  hw->updateStats();
-  auto hwSwitchStats = hw->getHwSwitchStats();
-  syncer->updateHwSwitchStats(std::move(hwSwitchStats));
+  if (hw->getRunState() >= SwitchRunState::CONFIGURED) {
+    hw->updateStats();
+    auto hwSwitchStats = hw->getHwSwitchStats();
+    syncer->updateHwSwitchStats(std::move(hwSwitchStats));
+  }
 }
 } // namespace
 
@@ -94,6 +102,9 @@ int hwAgentMain(
 
   auto ret =
       hwAgent->initAgent(true /* failHwCallsOnWarmboot */, thriftSyncer.get());
+
+  hwAgent->getPlatform()->getHwSwitch()->switchRunStateChanged(
+      SwitchRunState::INITIALIZED);
 
   restart_time::init(
       hwAgent->getPlatform()->getDirectoryUtil()->getWarmBootDir(),

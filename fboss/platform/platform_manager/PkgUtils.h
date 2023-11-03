@@ -11,7 +11,9 @@ class PkgUtils {
   void run(const PlatformConfig& config);
 
  private:
-  void runImpl(const std::string& rpmFullName, int maxAttempts);
+  bool isRpmInstalled(const std::string& rpmFullName);
+  void installRpm(const std::string& rpmFullName, int maxAttempts);
+  void reloadKMod(const std::string& moduleName);
 };
 
 } // namespace facebook::fboss::platform::platform_manager

@@ -12,6 +12,7 @@
 
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
+#include "fboss/agent/hw/test/HwTestAclUtils.h"
 #include "fboss/agent/hw/test/HwTestFlowletSwitchingUtils.h"
 #include "fboss/agent/hw/test/ProdConfigFactory.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
@@ -31,6 +32,9 @@ const int kInactivityIntervalUsecs1 = 128;
 const int kInactivityIntervalUsecs2 = 256;
 const int kFlowletTableSize1 = 1024;
 const int kFlowletTableSize2 = 2048;
+static int kUdpProto(17);
+static int kUdpDstPort(4791);
+constexpr auto kAclName = "flowlet";
 } // namespace
 
 namespace facebook::fboss {
@@ -46,6 +50,20 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
 
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = getDefaultConfig();
+    updateFlowletConfigs(cfg);
+    return cfg;
+  }
+
+  void addFlowletAcl(cfg::SwitchConfig& cfg) const {
+    auto* acl = utility::addAcl(&cfg, kAclName);
+    acl->proto() = kUdpProto;
+    acl->l4DstPort() = kUdpDstPort;
+    cfg::MatchAction matchAction = cfg::MatchAction();
+    matchAction.flowletAction() = cfg::FlowletAction::FORWARD;
+    utility::addMatcher(&cfg, kAclName, matchAction);
+  }
+
+  void updateFlowletConfigs(cfg::SwitchConfig& cfg) const {
     auto flowletCfg = getFlowletSwitchingConfig(
         kInactivityIntervalUsecs1, kFlowletTableSize1);
     cfg.flowletSwitchingConfig() = flowletCfg;
@@ -58,8 +76,7 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
       auto portCfg = utility::findCfgPort(cfg, portId);
       portCfg->flowletConfigName() = "default";
     }
-
-    return cfg;
+    addFlowletAcl(cfg);
   }
 
   cfg::SwitchConfig getDefaultConfig() const {
@@ -118,7 +135,7 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
   }
 
   bool skipTest() {
-    return !getPlatform()->getAsic()->isSupported(HwAsic::Feature::DLB);
+    return !getPlatform()->getAsic()->isSupported(HwAsic::Feature::FLOWLET);
   }
 
   std::vector<NextHopWeight> swSwitchWeights_ = {
@@ -171,6 +188,8 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
         utility::validateFlowletSwitchingEnabled(getHwSwitch(), flowletCfg));
     EXPECT_TRUE(utility::verifyEcmpForFlowletSwitching(
         getHwSwitch(), kAddr1Prefix, flowletCfg, true));
+
+    utility::checkSwHwAclMatch(getHwSwitch(), getProgrammedState(), kAclName);
   }
 
   void verifyModifiedConfig() {
@@ -198,6 +217,18 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
   std::unique_ptr<utility::EcmpSetupAnyNPorts<folly::IPAddressV6>> ecmpHelper_;
 };
 
+class HwEcmpFlowletSwitchingTest : public HwFlowletSwitchingTest {
+ protected:
+  void SetUp() override {
+    HwFlowletSwitchingTest::SetUp();
+  }
+
+  cfg::SwitchConfig initialConfig() const override {
+    auto cfg = getDefaultConfig();
+    return cfg;
+  }
+};
+
 TEST_F(HwFlowletSwitchingTest, VerifyFlowletSwitchingEnable) {
   if (this->skipTest()) {
 #if defined(GTEST_SKIP)
@@ -215,6 +246,7 @@ TEST_F(HwFlowletSwitchingTest, VerifyFlowletSwitchingEnable) {
   };
 
   auto verify = [&]() {
+    // verify the flowlet config
     verifyInitialConfig();
 
     // Shrink egress and verify
@@ -324,6 +356,41 @@ TEST_F(HwFlowletSwitchingTest, VerifyFlowletConfigRemoval) {
     verifyRemoveFlowletConfig();
     // Modify to initial config to verify after warmboot
     applyNewConfig(initialConfig());
+  };
+
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwEcmpFlowletSwitchingTest, VerifyEcmpFlowletSwitchingEnable) {
+  if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+    return;
+  }
+
+  // This test setup static ECMP and update the static ECMP to DLB ECMP and
+  // revert the DLB ECMP to static ECMP and verify it.
+  auto setup = [&]() {
+    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[0]));
+    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[1]));
+    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[2]));
+    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[3]));
+    this->addRoute(kAddr1, 64);
+  };
+
+  auto verify = [&]() {
+    auto cfg = initialConfig();
+    // Modify the flowlet config to convert ECMP to DLB
+    updateFlowletConfigs(cfg);
+    applyNewConfig(cfg);
+    // verify the flowlet config
+    verifyInitialConfig();
+    // Remove the flowlet configs
+    cfg = getDefaultConfig();
+    applyNewConfig(cfg);
+    // verify removal of flowlet config
+    verifyRemoveFlowletConfig();
   };
 
   verifyAcrossWarmBoots(setup, verify);

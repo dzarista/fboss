@@ -14,12 +14,10 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::MPLS_ECMP:
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv6:
-    case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
     case HwAsic::Feature::ECN:
     case HwAsic::Feature::SCHEDULER_PPS:
     case HwAsic::Feature::NEXTHOP_TTL_DECREMENT_DISABLE:
     case HwAsic::Feature::OBJECT_KEY_CACHE:
-    case HwAsic::Feature::ACL_COPY_TO_CPU:
     case HwAsic::Feature::PKTIO:
     case HwAsic::Feature::HOSTTABLE:
     case HwAsic::Feature::OBM_COUNTERS:
@@ -34,33 +32,25 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::EGRESS_SFLOW:
     case HwAsic::Feature::DEFAULT_VLAN:
     case HwAsic::Feature::L2_LEARNING:
-    case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
-    case HwAsic::Feature::TRAFFIC_HASHING:
     case HwAsic::Feature::CPU_PORT:
     case HwAsic::Feature::VRF:
     case HwAsic::Feature::SAI_HASH_FIELDS_CLEAR_BEFORE_SET:
-    case HwAsic::Feature::SWITCH_ATTR_INGRESS_ACL:
     case HwAsic::Feature::ROUTE_COUNTERS:
-    case HwAsic::Feature::MULTIPLE_ACL_TABLES:
     case HwAsic::Feature::SAI_WEIGHTED_NEXTHOPGROUP_MEMBER:
     case HwAsic::Feature::PORT_TX_DISABLE:
     case HwAsic::Feature::SAI_PORT_ERR_STATUS:
     case HwAsic::Feature::ROUTE_PROGRAMMING:
-    case HwAsic::Feature::ECMP_HASH_V4:
-    case HwAsic::Feature::ECMP_HASH_V6:
     case HwAsic::Feature::FABRIC_PORTS:
     case HwAsic::Feature::LINK_TRAINING:
     case HwAsic::Feature::FEC:
     case HwAsic::Feature::FEC_CORRECTED_BITS:
     case HwAsic::Feature::RECYCLE_PORTS:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
-    case HwAsic::Feature::ACL_TABLE_GROUP:
     case HwAsic::Feature::SAI_FEC_COUNTERS:
     case HwAsic::Feature::SAI_TTL0_PACKET_FORWARD_ENABLE:
     case HwAsic::Feature::PMD_RX_LOCK_STATUS:
     case HwAsic::Feature::PMD_RX_SIGNAL_DETECT:
     case HwAsic::Feature::MEDIA_TYPE:
-    case HwAsic::Feature::RESOURCE_USAGE_STATS:
     case HwAsic::Feature::PORT_FABRIC_ISOLATE:
     case HwAsic::Feature::QUEUE_ECN_COUNTER:
     case HwAsic::Feature::SAI_ECN_WRED:
@@ -70,14 +60,21 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
     case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
-    case HwAsic::Feature::ACL_COUNTER_LABEL:
       return true;
 
-    case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
-    case HwAsic::Feature::BUFFER_POOL:
-    case HwAsic::Feature::PFC:
-    case HwAsic::Feature::SAI_PORT_SERDES_FIELDS_RESET:
-      return getAsicMode() != AsicMode::ASIC_MODE_SIM;
+    // FIXME - make true when J3-AI supports these features
+    case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
+    case HwAsic::Feature::ECMP_HASH_V4:
+    case HwAsic::Feature::ECMP_HASH_V6:
+    case HwAsic::Feature::TRAFFIC_HASHING:
+    case HwAsic::Feature::SWITCH_ATTR_INGRESS_ACL:
+    case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
+    case HwAsic::Feature::ACL_TABLE_GROUP:
+    case HwAsic::Feature::MULTIPLE_ACL_TABLES:
+    case HwAsic::Feature::ACL_COPY_TO_CPU:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
+    case HwAsic::Feature::RESOURCE_USAGE_STATS:
+      return getAsicMode() != AsicMode::ASIC_MODE_HW_AI;
     case HwAsic::Feature::L3_QOS:
     case HwAsic::Feature::VOQ:
     case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
@@ -86,6 +83,11 @@ bool Jericho3Asic::isSupported(Feature feature) const {
       // TODO fix once queue stats are available on J3
       return false;
 
+    case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
+    case HwAsic::Feature::BUFFER_POOL:
+    case HwAsic::Feature::PFC:
+    case HwAsic::Feature::SAI_PORT_SERDES_FIELDS_RESET:
+      return getAsicMode() != AsicMode::ASIC_MODE_SIM;
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
     case HwAsic::Feature::SLOW_STAT_UPDATE:
       // supported only on the SIM
@@ -139,7 +141,7 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_PORT_VCO_CHANGE:
     case HwAsic::Feature::WARMBOOT:
     case HwAsic::Feature::ROUTE_METADATA:
-    case HwAsic::Feature::DLB:
+    case HwAsic::Feature::FLOWLET:
     case HwAsic::Feature::P4_WARMBOOT:
     case HwAsic::Feature::FEC_AM_LOCK_STATUS:
     case HwAsic::Feature::PCS_RX_LINK_STATUS:
@@ -158,6 +160,9 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::PORT_EYE_VALUES:
     case HwAsic::Feature::CREDIT_WATCHDOG:
+    case HwAsic::Feature::ECMP_DLB_OFFSET:
+    case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
+    case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
       return false;
   }
   return false;
@@ -258,5 +263,16 @@ Jericho3Asic::desiredLoopbackModes() const {
       {cfg::PortType::FABRIC_PORT, cfg::PortLoopbackMode::MAC},
       {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE}};
   return kLoopbackMode;
+}
+
+HwAsic::AsicMode Jericho3Asic::getAsicMode() const {
+  static const char* kSimPath = std::getenv("BCM_SIM_PATH");
+  static const char* kAiMode = std::getenv("J3_AI");
+  if (kSimPath) {
+    return AsicMode::ASIC_MODE_SIM;
+  } else if (kAiMode) {
+    return AsicMode::ASIC_MODE_HW_AI;
+  }
+  return AsicMode::ASIC_MODE_HW;
 }
 } // namespace facebook::fboss

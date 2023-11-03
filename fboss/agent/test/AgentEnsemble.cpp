@@ -23,7 +23,6 @@ DEFINE_bool(
 namespace {
 facebook::fboss::PlatformInitFn kPlatformInitFn;
 static std::string kInputConfigFile;
-
 } // namespace
 
 namespace facebook::fboss {
@@ -45,7 +44,6 @@ void AgentEnsemble::setupEnsemble(
     // creating a switch
     writeConfig(agentConf, FLAGS_config);
   }
-  setVersionInfo();
   createSwitch(
       AgentConfig::fromDefaultFile(), hwFeaturesDesired, kPlatformInitFn);
 
@@ -68,7 +66,7 @@ void AgentEnsemble::setupEnsemble(
       masterLogicalPortIds_.push_back(port.first);
     }
   }
-  initialConfig_ = initialConfigFn(getSw(), masterLogicalPortIds_);
+  initialConfig_ = initialConfigFn(*this);
   applyInitialConfig(initialConfig_);
   // reload the new config
   reloadPlatformConfig();
@@ -240,10 +238,8 @@ std::string AgentEnsemble::getInputConfigFile() {
   return kInputConfigFile;
 }
 
-int ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform) {
-  fbossCommonInit(argc, argv);
+void initEnsemble(PlatformInitFn initPlatform) {
   kPlatformInitFn = std::move(initPlatform);
-  return RUN_ALL_TESTS();
 }
 
 std::map<PortID, HwPortStats> AgentEnsemble::getLatestPortStats(

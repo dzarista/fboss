@@ -11,11 +11,13 @@
 
 #include "fboss/agent/HwSwitchHandler.h"
 #include "fboss/agent/MultiHwSwitchHandler.h"
+#include "fboss/agent/MultiSwitchFb303Stats.h"
 #include "fboss/agent/PacketObserver.h"
 #include "fboss/agent/RestartTimeTracker.h"
 #include "fboss/agent/SwSwitchRouteUpdateWrapper.h"
 #include "fboss/agent/SwitchInfoTable.h"
 #include "fboss/agent/Utils.h"
+#include "fboss/agent/gen-cpp2/agent_stats_types.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
@@ -251,6 +253,8 @@ class SwSwitch : public HwSwitchCallback {
   void updateLldpStats();
 
   void publishStatsToFsdb();
+
+  AgentStats fillFsdbStats();
 
   void updateStats();
 
@@ -827,6 +831,10 @@ class SwSwitch : public HwSwitchCallback {
 
   void setFibSyncTimeForClient(ClientID clientId);
 
+  std::optional<cfg::SdkVersion> getSdkVersion() {
+    return sdkVersion_;
+  }
+
   /*
    * Public use only in tests
    */
@@ -1031,6 +1039,9 @@ class SwSwitch : public HwSwitchCallback {
 
   void postInit(const HwInitResult* HwInitResult = nullptr);
 
+  void updateMultiSwitchGlobalFb303Stats();
+
+  std::optional<cfg::SdkVersion> sdkVersion_;
   std::unique_ptr<MultiHwSwitchHandler> multiHwSwitchHandler_;
   const AgentDirectoryUtil* agentDirUtil_;
   bool supportsAddRemovePort_;
@@ -1183,6 +1194,7 @@ class SwSwitch : public HwSwitchCallback {
   std::unique_ptr<MultiSwitchPacketStreamMap> packetStreamMap_;
   std::unique_ptr<SwSwitchWarmBootHelper> swSwitchWarmbootHelper_;
   std::unique_ptr<HwSwitchThriftClientTable> hwSwitchThriftClientTable_;
+  std::unique_ptr<MultiSwitchFb303Stats> multiSwitchFb303Stats_{nullptr};
   std::atomic<std::chrono::time_point<std::chrono::steady_clock>>
       lastPacketRxTime_{std::chrono::steady_clock::time_point::min()};
   folly::Synchronized<std::unique_ptr<AgentConfig>> agentConfig_;

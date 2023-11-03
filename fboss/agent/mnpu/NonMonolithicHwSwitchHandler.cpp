@@ -106,6 +106,11 @@ NonMonolithicHwSwitchHandler::getSysPortStats() const {
   return {};
 }
 
+HwSwitchDropStats NonMonolithicHwSwitchHandler::getSwitchDropStats() const {
+  // TODO: implement this
+  return HwSwitchDropStats{};
+}
+
 // not used in split
 void NonMonolithicHwSwitchHandler::updateStats() {}
 
@@ -171,7 +176,8 @@ CpuPortStats NonMonolithicHwSwitchHandler::getCpuPortStats() const {
 
 std::map<PortID, FabricEndpoint>
 NonMonolithicHwSwitchHandler::getFabricReachability() const {
-  throw FbossError("getFabricReachability not implemented");
+  // TODO - retire this after clients move to HwAgent thrift api
+  return std::map<PortID, FabricEndpoint>();
 }
 
 std::vector<PortID> NonMonolithicHwSwitchHandler::getSwitchReachability(
@@ -330,6 +336,27 @@ HwSwitchOperDeltaSyncState
 NonMonolithicHwSwitchHandler::getHwSwitchOperDeltaSyncState() {
   std::unique_lock<std::mutex> lk(stateUpdateMutex_);
   return operDeltaSyncState_;
+}
+
+SwitchRunState NonMonolithicHwSwitchHandler::getHwSwitchRunState() {
+  HwSwitchOperDeltaSyncState syncState;
+  {
+    std::unique_lock<std::mutex> lk(stateUpdateMutex_);
+    syncState = getOperSyncState();
+  }
+
+  switch (syncState) {
+    case HwSwitchOperDeltaSyncState::DISCONNECTED:
+      return SwitchRunState::UNINITIALIZED;
+    case HwSwitchOperDeltaSyncState::WAITING_INITIAL_SYNC:
+    case HwSwitchOperDeltaSyncState::INITIAL_OPER_SENT:
+      return SwitchRunState::INITIALIZED;
+    case HwSwitchOperDeltaSyncState::OPER_SYNCED:
+      return SwitchRunState::CONFIGURED;
+    case HwSwitchOperDeltaSyncState::CANCELLED:
+      return SwitchRunState::EXITING;
+  }
+  throw FbossError("Unknown hw switch run state");
 }
 
 } // namespace facebook::fboss

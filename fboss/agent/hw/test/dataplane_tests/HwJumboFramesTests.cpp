@@ -20,6 +20,7 @@
 #include "fboss/agent/packet/IPv6Hdr.h"
 #include "fboss/agent/packet/UDPHeader.h"
 #include "fboss/agent/state/SwitchState.h"
+#include "fboss/lib/CommonUtils.h"
 
 #include <folly/IPAddress.h>
 
@@ -36,7 +37,6 @@ class HwJumboFramesTest : public HwLinkStateDependentTest {
         getHwSwitch(),
         masterLogicalPortIds(),
         getAsic()->desiredLoopbackModes());
-    cfg.interfaces()[0].mtu() = 9000;
     return cfg;
   }
 
@@ -54,18 +54,18 @@ class HwJumboFramesTest : public HwLinkStateDependentTest {
         0,
         255,
         std::vector<uint8_t>(payloadSize, 0xff));
-    getHwSwitchEnsemble()->ensureSendPacketSwitched(std::move(txPacket));
+    getHwSwitch()->sendPacketSwitchedAsync(std::move(txPacket));
   }
 
  protected:
   void runJumboFrameTest(int payloadSize, bool expectPacketDrop) {
-    auto setup = [=]() {
+    auto setup = [=, this]() {
       utility::EcmpSetupAnyNPorts6 ecmpHelper(
           getProgrammedState(), RouterID(0));
       resolveNeigborAndProgramRoutes(ecmpHelper, 1);
     };
 
-    auto verify = [=]() {
+    auto verify = [=, this]() {
       utility::EcmpSetupAnyNPorts6 ecmpHelper(
           getProgrammedState(), RouterID(0));
       auto port = ecmpHelper.ecmpPortDescriptorAt(0).phyPortID();
@@ -73,19 +73,21 @@ class HwJumboFramesTest : public HwLinkStateDependentTest {
       auto pktsBefore = getPortOutPkts(portStatsBefore);
       auto bytesBefore = *portStatsBefore.outBytes_();
       sendPkt(payloadSize);
-      auto portStatsAfter = getLatestPortStats(port);
-      auto pktsAfter = getPortOutPkts(portStatsAfter);
-      auto bytesAfter = *portStatsAfter.outBytes_();
-      if (expectPacketDrop) {
-        EXPECT_EQ(pktsBefore, pktsAfter);
-        EXPECT_EQ(bytesBefore, bytesAfter);
-      } else {
-        EXPECT_EQ(pktsBefore + 1, pktsAfter);
-        EXPECT_EQ(
-            bytesBefore + EthHdr::SIZE + IPv6Hdr::SIZE + UDPHeader::size() +
-                payloadSize,
-            bytesAfter);
-      }
+      WITH_RETRIES({
+        auto portStatsAfter = getLatestPortStats(port);
+        auto pktsAfter = getPortOutPkts(portStatsAfter);
+        auto bytesAfter = *portStatsAfter.outBytes_();
+        if (expectPacketDrop) {
+          EXPECT_EVENTUALLY_EQ(pktsBefore, pktsAfter);
+          EXPECT_EVENTUALLY_EQ(bytesBefore, bytesAfter);
+        } else {
+          EXPECT_EVENTUALLY_EQ(pktsBefore + 1, pktsAfter);
+          EXPECT_EVENTUALLY_EQ(
+              bytesBefore + EthHdr::SIZE + IPv6Hdr::SIZE + UDPHeader::size() +
+                  payloadSize,
+              bytesAfter);
+        }
+      });
     };
     verifyAcrossWarmBoots(setup, verify);
   }
@@ -96,13 +98,13 @@ TEST_F(HwJumboFramesTest, JumboFramesGetThrough) {
 }
 
 TEST_F(HwJumboFramesTest, SuperJumboFramesGetDropped) {
-  // PKTIO has an internal check in src/bcm/esw/pktio/pktio.c
-  // disallowing frame over "#define MAX_FRAME_SIZE_DEF (9472)
-  // The max frame in our system is 9412.
-  // Setting the jumbo packet size to the max of PKTIO max
-  // makes it exceed MTU and get dropped.
-  // This test works in both PKTIO and non-PKTIO cases.
-  runJumboFrameTest(9472, true);
+  if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    // Jericho3 supports larger frame size
+    runJumboFrameTest(10472, true);
+  } else {
+    // 10k frame size leads to pkt buffer allocation failure on TH3/TH4
+    runJumboFrameTest(9472, true);
+  }
 }
 
 } // namespace facebook::fboss

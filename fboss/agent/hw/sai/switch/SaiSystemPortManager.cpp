@@ -70,7 +70,7 @@ SaiSystemPortManager::attributesFromSwSystemPort(
       .num_voq = static_cast<uint32_t>(swSystemPort->getNumVoqs()),
   };
   return SaiSystemPortTraits::CreateAttributes{
-      config, swSystemPort->getEnabled(), std::nullopt};
+      config, true /*enabled*/, std::nullopt};
 }
 
 std::string SaiSystemPortManager::portNameForStats(
@@ -96,11 +96,9 @@ SystemPortSaiId SaiSystemPortManager::addSystemPort(
   SaiSystemPortTraits::CreateAttributes attributes =
       attributesFromSwSystemPort(swSystemPort);
 
-  if (swSystemPort->getEnabled()) {
-    portStats_.emplace(
-        swSystemPort->getID(),
-        std::make_unique<HwSysPortFb303Stats>(portNameForStats(*swSystemPort)));
-  }
+  portStats_.emplace(
+      swSystemPort->getID(),
+      std::make_unique<HwSysPortFb303Stats>(portNameForStats(*swSystemPort)));
   auto handle = std::make_unique<SaiSystemPortHandle>();
 
   auto& systemPortStore = saiStore_->get<SaiSystemPortTraits>();
@@ -199,24 +197,10 @@ void SaiSystemPortManager::changeSystemPort(
     addSystemPort(newSystemPort);
   } else {
     handle->systemPort->setAttributes(newAttributes);
-    if (newSystemPort->getEnabled()) {
-      if (!oldSystemPort->getEnabled()) {
-        // Port transitioned from disabled to enabled, setup port stats
-        portStats_.emplace(
-            newSystemPort->getID(),
-            std::make_unique<HwSysPortFb303Stats>(
-                portNameForStats(*newSystemPort)));
-        setupVoqStats(newSystemPort);
-      } else if (
-          portNameForStats(*oldSystemPort) !=
-          portNameForStats(*newSystemPort)) {
-        // Port was already enabled, but Port name changed - update stats
-        portStats_.find(newSystemPort->getID())
-            ->second->portNameChanged(portNameForStats(*newSystemPort));
-      }
-    } else if (oldSystemPort->getEnabled()) {
-      // Port transitioned from enabled to disabled, remove stats
-      portStats_.erase(newSystemPort->getID());
+    if (portNameForStats(*oldSystemPort) != portNameForStats(*newSystemPort)) {
+      // Port name changed - update stats
+      portStats_.find(newSystemPort->getID())
+          ->second->portNameChanged(portNameForStats(*newSystemPort));
     }
     // TODO:
     // Compare qos queues changing and if so update qosmap
@@ -338,6 +322,7 @@ void SaiSystemPortManager::updateStats(
       configuredQueues, curPortStats, updateWatermarks);
   portStats_[portId]->updateStats(curPortStats, now);
 }
+
 std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
     const std::shared_ptr<MultiSwitchPortMap>& ports,
     int64_t switchId,
@@ -362,7 +347,6 @@ std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
       sysPort->setCorePortIndex(*platformPort->getCorePortIndex());
       sysPort->setSpeedMbps(static_cast<int>(port.second->getSpeed()));
       sysPort->setNumVoqs(8);
-      sysPort->setEnabled(port.second->isEnabled());
       sysPort->setQosPolicy(port.second->getQosPolicy());
       sysPortMap->addSystemPort(std::move(sysPort));
     }

@@ -68,7 +68,7 @@ TEST_F(HwAclPriorityTest, CheckAclPriorityOrder) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     for (auto acl : {"A", "B"}) {
       checkSwHwAclMatch(getHwSwitch(), getProgrammedState(), acl);
     }
@@ -91,7 +91,7 @@ TEST_F(HwAclPriorityTest, CheckAclPriortyOrderInsertMiddle) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     for (auto acl : {"A", "B", "C"}) {
       checkSwHwAclMatch(getHwSwitch(), getProgrammedState(), acl);
     }
@@ -151,7 +151,7 @@ TEST_F(HwAclPriorityTest, AclsChanged) {
 }
 
 TEST_F(HwAclPriorityTest, Reprioritize) {
-  auto setup = [=]() {
+  auto setup = [=, this]() {
     auto config = initialConfig();
     addPermitIpAcl(config, "B", folly::IPAddress("1::2"));
     addPermitIpAcl(config, "A", folly::IPAddress("1::3"));
@@ -159,11 +159,7 @@ TEST_F(HwAclPriorityTest, Reprioritize) {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     cfg::TrafficPolicyConfig trafficConfig;
     trafficConfig.matchToAction()->resize(2);
-    cfg::MatchAction matchAction;
-    cfg::QueueMatchAction queueAction;
-    queueAction.queueId() = 1;
-    matchAction.sendToQueue() = queueAction;
-    matchAction.toCpuAction() = cfg::ToCpuAction::TRAP;
+    cfg::MatchAction matchAction = getToQueueAction(1, cfg::ToCpuAction::TRAP);
     for (int i = 0; i < 2; i++) {
       trafficConfig.matchToAction()[i].matcher() = *config.acls()[i].name();
       trafficConfig.matchToAction()[i].action() = matchAction;
@@ -173,7 +169,7 @@ TEST_F(HwAclPriorityTest, Reprioritize) {
     applyNewConfig(config);
   };
 
-  auto setupPostWb = [=]() {
+  auto setupPostWb = [=, this]() {
     auto config = initialConfig();
     addPermitIpAcl(config, "A", folly::IPAddress("1::3"));
     addPermitIpAcl(config, "B", folly::IPAddress("1::2"));
@@ -181,11 +177,7 @@ TEST_F(HwAclPriorityTest, Reprioritize) {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     cfg::TrafficPolicyConfig trafficConfig;
     trafficConfig.matchToAction()->resize(2);
-    cfg::MatchAction matchAction;
-    cfg::QueueMatchAction queueAction;
-    queueAction.queueId() = 1;
-    matchAction.sendToQueue() = queueAction;
-    matchAction.toCpuAction() = cfg::ToCpuAction::TRAP;
+    cfg::MatchAction matchAction = getToQueueAction(1, cfg::ToCpuAction::TRAP);
     for (int i = 0; i < 2; i++) {
       trafficConfig.matchToAction()[i].matcher() = *config.acls()[i].name();
       trafficConfig.matchToAction()[i].action() = matchAction;

@@ -106,7 +106,7 @@ class HwIpInIpTunnelTest : public HwLinkStateDependentTest {
 };
 
 TEST_F(HwIpInIpTunnelTest, TunnelDecapForwarding) {
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto beforeInBytes =
         getLatestPortStats(masterLogicalPortIds()[1]).get_inBytes_();
     auto beforeOutBytes =
@@ -125,7 +125,7 @@ TEST_F(HwIpInIpTunnelTest, TunnelDecapForwarding) {
 }
 
 TEST_F(HwIpInIpTunnelTest, TunnelTermEntryMiss) {
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto beforeInBytes =
         getLatestPortStats(masterLogicalPortIds()[1]).get_inBytes_();
     auto beforeOutBytes =
@@ -144,13 +144,13 @@ TEST_F(HwIpInIpTunnelTest, TunnelTermEntryMiss) {
 }
 
 TEST_F(HwIpInIpTunnelTest, IpinIpNoTunnelConfigured) {
-  auto setup = [=]() {
+  auto setup = [=, this]() {
     auto cfg{this->initialConfig()};
     //  no tunnel configured
     this->applyNewConfig(cfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto beforeInBytes =
         getLatestPortStats(masterLogicalPortIds()[1]).get_inBytes_();
     auto beforeOutBytes =
@@ -169,7 +169,7 @@ TEST_F(HwIpInIpTunnelTest, IpinIpNoTunnelConfigured) {
 }
 
 TEST_F(HwIpInIpTunnelTest, DecapPacketParsing) {
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto packetCapture = HwTestPacketTrapEntry(
         getHwSwitch(), std::set<PortID>({masterLogicalPortIds()[0]}));
     HwTestPacketSnooper snooper(getHwSwitchEnsemble());

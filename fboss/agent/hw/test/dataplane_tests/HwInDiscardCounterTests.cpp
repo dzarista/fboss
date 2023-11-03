@@ -55,7 +55,7 @@ class HwInDiscardsCounterTest : public HwLinkStateDependentTest {
 
 TEST_F(HwInDiscardsCounterTest, nullRouteHit) {
   auto setup = [=]() {};
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     PortID portId = masterLogicalInterfacePortIds()[0];
     auto portStatsBefore = getLatestPortStats(portId);
     pumpTraffic(true);

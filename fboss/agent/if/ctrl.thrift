@@ -388,7 +388,8 @@ struct SystemPortThrift {
   5: i64 corePortIndex;
   6: i64 speedMbps;
   7: i64 numVoqs;
-  9: bool enabled;
+  // System ports are always enabled
+  9: bool enabled_DEPRECATED = true;
   10: optional string qosPolicy;
   11: list<PortQueueFields> queues;
 }
@@ -698,6 +699,12 @@ struct DsfSessionThrift {
   2: DsfSessionState state;
   3: optional i64 lastEstablishedAt;
   4: optional i64 lastDisconnectedAt;
+}
+
+struct MultiSwitchRunState {
+  1: SwitchRunState swSwitchRunState;
+  // SwitchIndex to SwitchRunState
+  2: map<i32, SwitchRunState> hwIndexToRunState;
 }
 
 service FbossCtrl extends phy.FbossCommonPhyCtrl {
@@ -1146,15 +1153,22 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
   string getCurrentStateJSON(1: string path);
 
   /*
-   * Apply patch at given path within the state tree. jsonPatch must  be
-   * a valid JSON object string
+   * Get live serialized switch state for provided paths
    */
-  void patchCurrentStateJSON(1: string jsonPointer, 2: string jsonPatch);
+  map<string, string> getCurrentStateJSONForPaths(1: list<string> paths);
+
+  /*
+   * Apply every json Patch to specified path.
+   * json Patch must be a valid JSON object string.
+   */
+  void patchCurrentStateJSONForPaths(1: map<string, string> pathToJsonPatch);
 
   /*
   * Switch run state
   */
   SwitchRunState getSwitchRunState();
+
+  MultiSwitchRunState getMultiSwitchRunState();
 
   SSLType getSSLPolicy() throws (1: fboss.FbossBaseError error);
 

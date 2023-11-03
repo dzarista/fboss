@@ -13,6 +13,7 @@
 #include "fboss/qsfp_service/module/cmis/CmisModule.h"
 #include "fboss/qsfp_service/module/sff/Sff8472Module.h"
 #include "fboss/qsfp_service/module/sff/SffModule.h"
+#include "fboss/qsfp_service/platforms/wedge/WedgeManagerInit.h"
 #include "fboss/qsfp_service/platforms/wedge/WedgeQsfp.h"
 #include "folly/futures/Future.h"
 
@@ -39,6 +40,8 @@ constexpr int kSecAfterModuleOutOfReset = 2;
 
 static const std::unordered_set<TransceiverID> kEmptryTransceiverIDs = {};
 
+static const std::string kQsfpToBmcSyncDataVersion{"1.0"};
+
 } // namespace
 
 using LockedTransceiversPtr = folly::Synchronized<
@@ -60,6 +63,8 @@ WedgeManager::WedgeManager(
   if (FLAGS_publish_state_to_fsdb || FLAGS_publish_stats_to_fsdb) {
     fsdbSyncManager_ = std::make_unique<QsfpFsdbSyncManager>();
   }
+  dataCenter_ = getDeviceDatacenter();
+  hostnameScheme_ = getDeviceHostnameScheme();
 }
 
 WedgeManager::~WedgeManager() {
@@ -939,6 +944,78 @@ void WedgeManager::publishPhyStatToFsdb(
   if (FLAGS_publish_stats_to_fsdb) {
     fsdbSyncManager_->updatePhyStat(std::move(portName), std::move(stat));
   }
+}
+
+/*
+ * getQsfpToBmcSyncData
+ *
+ * Returns the transceiver thermal data for all the present transceivers in the
+ * system at any given time. This data can be synced to BMC for fan control
+ */
+QsfpToBmcSyncData WedgeManager::getQsfpToBmcSyncData() const {
+  QsfpToBmcSyncData qsfpToBmcData;
+
+  // Gather system data
+  qsfpToBmcData.syncDataStructVersion() = kQsfpToBmcSyncDataVersion;
+  qsfpToBmcData.switchDeploymentInfo().value().dataCenter() =
+      getSwitchDataCenter();
+  qsfpToBmcData.switchDeploymentInfo().value().hostnameScheme() =
+      getSwitchRole();
+
+  // Gather Transceiver Data
+  std::map<int16_t, TransceiverThermalData> tcvrData;
+  std::vector<int32_t> ids;
+  folly::gen::range(0, getNumQsfpModules()) | folly::gen::appendTo(ids);
+
+  for (auto id : ids) {
+    auto tcvrID = TransceiverID(id);
+    TransceiverInfo tcvrInfo;
+
+    try {
+      tcvrInfo = getTransceiverInfo(tcvrID);
+    } catch (const QsfpModuleError& e) {
+      XLOG(ERR) << "Module thermal data not available for " << tcvrID;
+      continue;
+    }
+
+    // Skip non-optical modules
+    if (tcvrInfo.tcvrState().value().cable().has_value() &&
+        tcvrInfo.tcvrState()
+                .value()
+                .cable()
+                .value()
+                .transmitterTech()
+                .value() != TransmitterTechnology::OPTICAL) {
+      continue;
+    }
+
+    if (tcvrInfo.tcvrStats().value().sensor().has_value() &&
+        tcvrInfo.tcvrState().value().moduleMediaInterface().has_value()) {
+      double temp = tcvrInfo.tcvrStats()
+                        .value()
+                        .sensor()
+                        .value()
+                        .temp()
+                        .value()
+                        .value()
+                        .value();
+      tcvrData[id].temperature() = floor(temp);
+
+      MediaInterfaceCode moduleType =
+          tcvrInfo.tcvrState().value().moduleMediaInterface().value();
+      tcvrData[id].moduleMediaInterface() =
+          apache::thrift::util::enumNameSafe(moduleType);
+    }
+  }
+
+  qsfpToBmcData.transceiverThermalData() = tcvrData;
+  return qsfpToBmcData;
+}
+
+std::string WedgeManager::getQsfpToBmcSyncDataSerialized() const {
+  auto qsfpToBmcData = getQsfpToBmcSyncData();
+  return apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+      qsfpToBmcData);
 }
 
 } // namespace fboss

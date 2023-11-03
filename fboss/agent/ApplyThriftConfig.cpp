@@ -949,7 +949,11 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
     sysPort->setCorePortIndex(recyclePortInfo.corePortIndex);
     sysPort->setSpeedMbps(recyclePortInfo.speedMbps); // 10G
     sysPort->setNumVoqs(8);
-    sysPort->setEnabled(true);
+    if (auto cpuTrafficPolicy = cfg_->cpuTrafficPolicy()) {
+      if (auto trafficPolicy = cpuTrafficPolicy->trafficPolicy()) {
+        sysPort->setQosPolicy(*trafficPolicy->defaultQosPolicy());
+      }
+    }
     auto sysPorts = new_->getRemoteSystemPorts()->modify(&new_);
     sysPorts->addNode(sysPort, scopeResolver_.scope(sysPort));
     CHECK(node->getMac().has_value());
@@ -1309,7 +1313,6 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
           platformPort.mapping()->attachedCorePortIndex().value());
       sysPort->setSpeedMbps(static_cast<int>(port.second->getSpeed()));
       sysPort->setNumVoqs(kNumVoqs);
-      sysPort->setEnabled(port.second->isEnabled());
       sysPort->setQosPolicy(port.second->getQosPolicy());
       sysPort->resetPortQueues(switchSettings->getDefaultVoqConfig());
       sysPorts->addSystemPort(std::move(sysPort));
@@ -2863,6 +2866,9 @@ std::shared_ptr<AclMap> ThriftConfigApplier::updateAclsImpl(
         if (auto setTc = mta.action()->setTc()) {
           matchAction.setSetTc(std::make_pair(*setTc, isCoppAcl));
         }
+        if (auto userDefinedTrap = mta.action()->userDefinedTrap()) {
+          matchAction.setUserDefinedTrap(*userDefinedTrap);
+        }
         if (auto actionCounter = mta.action()->counter()) {
           auto counter = counterByName.find(*actionCounter);
           if (counter == counterByName.end()) {
@@ -2884,6 +2890,9 @@ std::shared_ptr<AclMap> ThriftConfigApplier::updateAclsImpl(
         }
         if (auto toCpuAction = mta.action()->toCpuAction()) {
           matchAction.setToCpuAction(*toCpuAction);
+        }
+        if (auto flowletAction = mta.action()->flowletAction()) {
+          matchAction.setFlowletAction(*flowletAction);
         }
         bool enableAcl = true;
         if (auto redirectToNextHop = mta.action()->redirectToNextHop()) {

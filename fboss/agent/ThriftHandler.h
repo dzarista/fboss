@@ -355,13 +355,20 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getCurrentStateJSON(std::string& ret, std::unique_ptr<std::string> path)
       override;
 
-  /**
-   * Patch live running switch state at path pointed by jsonPointer using the
-   * JSON merge patch supplied in jsonPatch
+  /*
+   * Get live serialized switch state for provided paths
    */
-  void patchCurrentStateJSON(
-      std::unique_ptr<std::string> jsonPointer,
-      std::unique_ptr<std::string> jsonPatch) override;
+  void getCurrentStateJSONForPaths(
+      std::map<std::string, std::string>& pathToState,
+      std::unique_ptr<std::vector<std::string>> paths) override;
+
+  /*
+   * Apply every json Patch to specified path.
+   * json Patch must be a valid JSON object string.
+   */
+  void patchCurrentStateJSONForPaths(
+      std::unique_ptr<std::map<std::string, std::string>> pathToJsonPatch)
+      override;
 
   SwitchRunState getSwitchRunState() override;
 
@@ -401,6 +408,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   bool isSwitchDrained() override;
   void getActualSwitchDrainState(std::map<int64_t, cfg::SwitchDrainState>&
                                      switchId2ActualSwitchDrainState) override;
+  void getMultiSwitchRunState(MultiSwitchRunState& runState) override;
 
  protected:
   void addMplsRoutesImpl(
@@ -457,6 +465,8 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void addRemoteNeighbors(
       const std::shared_ptr<SwitchState> state,
       std::vector<NeighborThriftT>& nbrs) const;
+
+  std::string getCurrentStateJSONForPath(const std::string& path) const;
 
   /*
    * A pointer to the SwSwitch.  We don't own this.

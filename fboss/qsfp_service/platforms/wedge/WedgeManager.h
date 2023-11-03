@@ -52,7 +52,7 @@ class WedgeManager : public TransceiverManager {
     return platformType_;
   }
 
-  int getNumQsfpModules() override {
+  int getNumQsfpModules() const override {
     return 16;
   }
   std::vector<TransceiverID> refreshTransceivers() override;
@@ -150,6 +150,20 @@ class WedgeManager : public TransceiverManager {
       std::string&& portName,
       phy::PhyStats&& stat) const override;
 
+  void loadConfig() override;
+
+  std::string getSwitchDataCenter() const {
+    return dataCenter_;
+  }
+
+  std::string getSwitchRole() const {
+    return hostnameScheme_;
+  }
+
+  QsfpToBmcSyncData getQsfpToBmcSyncData() const;
+
+  std::string getQsfpToBmcSyncDataSerialized() const;
+
  protected:
   void initTransceiverMap() override;
 
@@ -175,11 +189,11 @@ class WedgeManager : public TransceiverManager {
   WedgeManager(WedgeManager const&) = delete;
   WedgeManager& operator=(WedgeManager const&) = delete;
 
-  void loadConfig() override;
-
   using LockedTransceiversPtr = folly::Synchronized<
       std::map<TransceiverID, std::unique_ptr<Transceiver>>>::WLockedPtr;
 
   std::unique_ptr<QsfpFsdbSyncManager> fsdbSyncManager_;
+  std::string dataCenter_{""};
+  std::string hostnameScheme_{""};
 };
 } // namespace facebook::fboss

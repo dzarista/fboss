@@ -109,6 +109,10 @@ void MonolithicHwSwitchHandler::updateStats() {
   return hw_->updateStats();
 }
 
+HwSwitchDropStats MonolithicHwSwitchHandler::getSwitchDropStats() const {
+  return hw_->getSwitchDropStats();
+}
+
 std::map<PortID, phy::PhyInfo> MonolithicHwSwitchHandler::updateAllPhyInfo() {
   return hw_->updateAllPhyInfo();
 }
@@ -218,6 +222,10 @@ multiswitch::StateOperDelta MonolithicHwSwitchHandler::getNextStateOperDelta(
 
 void MonolithicHwSwitchHandler::notifyHwSwitchDisconnected() {
   throw FbossError("Not supported");
+}
+
+SwitchRunState MonolithicHwSwitchHandler::getHwSwitchRunState() {
+  return hw_->getRunState();
 }
 
 } // namespace facebook::fboss

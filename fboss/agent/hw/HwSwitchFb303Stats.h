@@ -21,7 +21,12 @@ class HwSwitchFb303Stats {
   using ThreadLocalStatsMap =
       fb303::ThreadCachedServiceData::ThreadLocalStatsMap;
 
-  HwSwitchFb303Stats(ThreadLocalStatsMap* map, const std::string& vendor);
+  HwSwitchFb303Stats(
+      ThreadLocalStatsMap* map,
+      const std::string& vendor,
+      std::optional<std::string> statsPrefix = std::nullopt);
+
+  std::string getCounterPrefix() const;
 
   void txPktAlloc() {
     txPktAlloc_.addValue(1);
@@ -97,11 +102,15 @@ class HwSwitchFb303Stats {
   int64_t getPacketIntegrityDropsCount() const {
     return packetIntegrityDrops_.count();
   }
+  int64_t getPacketIntegrityDrops() const;
   int64_t getDramEnqueuedBytes() const;
   int64_t getDramDequeuedBytes() const;
 
   HwAsicErrors getHwAsicErrors() const;
   FabricReachabilityStats getFabricReachabilityStats();
+  HwSwitchFb303GlobalStats getAllFb303Stats() const;
+  // Used in SwAgent to update stats based on HwSwitch synced counters
+  void updateStats(HwSwitchFb303GlobalStats& globalStats);
 
  private:
   // Forbidden copy constructor and assignment operator
@@ -111,6 +120,8 @@ class HwSwitchFb303Stats {
   using TLTimeseries = fb303::ThreadCachedServiceData::TLTimeseries;
   using TLHistogram = fb303::ThreadCachedServiceData::TLHistogram;
   using TLCounter = fb303::ThreadCachedServiceData::TLCounter;
+
+  std::optional<std::string> statsPrefix_;
 
   // Total number of Tx packet allocated right now
   TLTimeseries txPktAlloc_;

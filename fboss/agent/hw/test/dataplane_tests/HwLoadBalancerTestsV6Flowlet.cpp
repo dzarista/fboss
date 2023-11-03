@@ -13,12 +13,6 @@
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTests.h"
 
-namespace {
-const int kScalingFactor = 100;
-const int kLoadWeight = 70;
-const int kQueueWeight = 30;
-} // namespace
-
 namespace facebook::fboss {
 
 class HwLoadBalancerTestV6Flowlet
@@ -34,26 +28,7 @@ class HwLoadBalancerTestV6Flowlet
     auto hwSwitch = getHwSwitch();
     auto cfg = utility::onePortPerInterfaceConfig(
         hwSwitch, masterLogicalPortIds(), getAsic()->desiredLoopbackModes());
-    cfg::FlowletSwitchingConfig flowletCfg =
-        utility::getDefaultFlowletSwitchingConfig();
-    cfg.flowletSwitchingConfig() = flowletCfg;
-
-    std::map<std::string, cfg::PortFlowletConfig> portFlowletCfgMap;
-    cfg::PortFlowletConfig portFlowletConfig;
-    portFlowletConfig.scalingFactor() = kScalingFactor;
-    portFlowletConfig.loadWeight() = kLoadWeight;
-    portFlowletConfig.queueWeight() = kQueueWeight;
-    portFlowletCfgMap.insert(std::make_pair("default", portFlowletConfig));
-    cfg.portFlowletConfigs() = portFlowletCfgMap;
-
-    auto allPorts = masterLogicalInterfacePortIds();
-    std::vector<PortID> portIds(
-        allPorts.begin(), allPorts.begin() + allPorts.size());
-    for (auto portId : portIds) {
-      auto portCfg = utility::findCfgPort(cfg, portId);
-      portCfg->flowletConfigName() = "default";
-    }
-
+    utility::addFlowletConfigs(cfg, masterLogicalPortIds());
     return cfg;
   }
 

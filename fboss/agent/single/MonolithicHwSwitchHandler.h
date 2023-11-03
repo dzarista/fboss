@@ -20,7 +20,7 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
       const cfg::SwitchInfo& info,
       SwSwitch* sw);
 
-  virtual ~MonolithicHwSwitchHandler() override {}
+  virtual ~MonolithicHwSwitchHandler() override = default;
 
   void exitFatal() const override;
 
@@ -50,6 +50,7 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
   folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
 
   std::map<std::string, HwSysPortStats> getSysPortStats() const override;
+  HwSwitchDropStats getSwitchDropStats() const override;
 
   void updateStats() override;
 
@@ -127,6 +128,8 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
   HwSwitchOperDeltaSyncState getHwSwitchOperDeltaSyncState() override {
     return HwSwitchOperDeltaSyncState::OPER_SYNCED;
   }
+
+  SwitchRunState getHwSwitchRunState() override;
 
  private:
   Platform* platform_;

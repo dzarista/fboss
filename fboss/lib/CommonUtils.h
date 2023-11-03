@@ -205,4 +205,10 @@ void runWithExceptionTrace(Fn fn) {
 }
 #endif
 
+void runAndRemoveScript(
+    const std::string& script,
+    const std::vector<std::string>& args = {});
+void runShellCommand(const std::string& command, bool throwOnError = true);
+void runCommand(const std::vector<std::string>& argv, bool throwOnError = true);
+
 } // namespace facebook::fboss
