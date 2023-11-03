@@ -28,8 +28,8 @@ set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_meru800bfa_dir}/* .
 find %{SOURCEURL0}/%{_sai_sdk_src_dir} -wholename "*/tools/sand/db" -exec cp -r {} . \;
-cp -af %{SOURCEURL0}/%{_fboss_config_dir}/meru800bfa/sensor_service.json .
-cp -af %{SOURCEURL0}/%{_fboss_config_dir}/meru800bfa/fan_service.json .
+mkdir -p platform_configs
+cp -af %{SOURCEURL0}/%{_fboss_config_dir}/meru800bfa/* platform_configs/
 
 %install
 mkdir -p %{_fboss_target_share}
@@ -42,8 +42,8 @@ mkdir -p %{_fboss_target_udev}
 install config/udev/99-meru800bfa.rules %{_fboss_target_udev}
 mkdir -p %{_fboss_target_share}/platform_configs
 install config/npu*_platform_mapping.json %{_fboss_target_share}
-install sensor_service.json %{_fboss_target_share}/platform_configs/
-install fan_service.json %{_fboss_target_share}/platform_configs/
+mkdir -p %{_fboss_target_share}/platform_configs
+cp -rf platform_configs/* %{_fboss_target_share}/platform_configs/
 
 %files
 /var/facebook/fboss/fruid.json
