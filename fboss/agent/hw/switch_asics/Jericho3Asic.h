@@ -30,12 +30,7 @@ class Jericho3Asic : public BroadcomAsic {
   cfg::AsicType getAsicType() const override {
     return cfg::AsicType::ASIC_TYPE_JERICHO3;
   }
-  AsicMode getAsicMode() const override {
-    static const AsicMode asicMode = std::getenv("BCM_SIM_PATH")
-        ? AsicMode::ASIC_MODE_SIM
-        : AsicMode::ASIC_MODE_HW;
-    return asicMode;
-  }
+  AsicMode getAsicMode() const override;
   phy::DataPlanePhyChipType getDataPlanePhyChipType() const override {
     return phy::DataPlanePhyChipType::IPHY;
   }
@@ -86,7 +81,7 @@ class Jericho3Asic : public BroadcomAsic {
     return 40;
   }
   uint32_t getMaxVariableWidthEcmpSize() const override {
-    return 128;
+    return 512;
   }
   uint32_t getMaxEcmpSize() const override {
     return 4096;

@@ -26,6 +26,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <chrono>
+#include "fboss/agent/EnumUtils.h"
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -296,6 +297,7 @@ DEFINE_bool(
     prbs_stop,
     false,
     "Stop the PRBS on a module line side, use with --generator or --checker");
+DEFINE_string(prbs_pattern, "PRBS31Q", "PRBS polynominal, default is PRBS31Q");
 DEFINE_bool(prbs_stats, false, "Get the PRBS stats from a module line side");
 DEFINE_bool(generator, false, "Start or Stop PRBS Generator side");
 DEFINE_bool(checker, false, "Start or Stop PRBS Checker side");
@@ -357,6 +359,20 @@ constexpr uint8_t kNumModuleInfo =
 
 namespace facebook::fboss {
 
+std::map<prbs::PrbsPolynomial, int> cmisPrbsPolynominalMap = {
+    {prbs::PrbsPolynomial::PRBS31Q, 0},
+    {prbs::PrbsPolynomial::PRBS31, 1},
+    {prbs::PrbsPolynomial::PRBS23Q, 2},
+    {prbs::PrbsPolynomial::PRBS23, 3},
+    {prbs::PrbsPolynomial::PRBS15Q, 4},
+    {prbs::PrbsPolynomial::PRBS15, 5},
+    {prbs::PrbsPolynomial::PRBS13Q, 6},
+    {prbs::PrbsPolynomial::PRBS13, 7},
+    {prbs::PrbsPolynomial::PRBS9Q, 8},
+    {prbs::PrbsPolynomial::PRBS9, 9},
+    {prbs::PrbsPolynomial::PRBS7Q, 10},
+    {prbs::PrbsPolynomial::PRBS7, 11}};
+
 // Forward declaration of utility functions for firmware upgrade
 std::vector<unsigned int> getUpgradeModList(
     TransceiverI2CApi* bus,
@@ -378,12 +394,14 @@ void setModulePrbsDirect(
     DirectI2cInfo i2cInfo,
     std::vector<std::string> portList,
     bool start);
+void setModulePrbsDirectCmis(TransceiverI2CApi* bus, int module, bool start);
 void getModulePrbsStatsViaService(
     folly::EventBase& evb,
     std::vector<PortID> portList);
 void getModulePrbsStatsDirect(
     DirectI2cInfo i2cInfo,
-    std::vector<PortID> portList);
+    const std::vector<PortID>& portList);
+void getModulePrbsStatsDirectCmis(TransceiverI2CApi* bus, int module);
 
 std::ostream& operator<<(std::ostream& os, const FlagCommand& cmd) {
   gflags::CommandLineFlagInfo flagInfo;
@@ -3503,7 +3521,7 @@ void setModulePrbsViaService(
     bool start) {
   prbs::InterfacePrbsState prbsState;
 
-  prbsState.polynomial() = prbs::PrbsPolynomial::PRBS31Q;
+  prbsState.polynomial() = nameToEnum<prbs::PrbsPolynomial>(FLAGS_prbs_pattern);
   if (!FLAGS_generator && !FLAGS_checker) {
     prbsState.generatorEnabled() = start;
     prbsState.checkerEnabled() = start;
@@ -3530,9 +3548,59 @@ void setModulePrbsViaService(
  * module rather than SW port inside the module
  */
 void setModulePrbsDirect(
-    DirectI2cInfo /* i2cInfo */,
-    std::vector<std::string> /* portList */,
-    bool /* start */) {}
+    DirectI2cInfo i2cInfo,
+    std::vector<std::string> portList,
+    bool start) {
+  auto bus = i2cInfo.bus;
+  auto wedgeManager = i2cInfo.transceiverManager;
+
+  for (auto& portName : portList) {
+    auto module = wedgeManager->getPortNameToModuleMap().at(portName) + 1;
+    auto managementInterface = getModuleTypeDirect(bus, module);
+    if (managementInterface == TransceiverManagementInterface::CMIS) {
+      setModulePrbsDirectCmis(bus, module, start);
+    }
+  }
+}
+
+/*
+ * setModulePrbsDirectCmis
+ *
+ * Sets/resets the PRBS generator and/or checker on a CMIS module
+ */
+void setModulePrbsDirectCmis(TransceiverI2CApi* bus, int module, bool start) {
+  // Set the page first
+  uint8_t prbsPage = 0x13;
+  bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 127, 1}, &prbsPage);
+
+  auto patternEnum = nameToEnum<prbs::PrbsPolynomial>(FLAGS_prbs_pattern);
+  auto patternInt = cmisPrbsPolynominalMap[patternEnum];
+
+  // Set the PRBS generator and/or checker pattern type, default - PRBS31Q
+  if (start) {
+    uint8_t pattern[4];
+    for (int i = 0; i < 4; i++) {
+      pattern[i] = ((patternInt & 0xf) << 4) | (patternInt & 0xf);
+    }
+    if (FLAGS_generator) {
+      bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 156, 4}, pattern);
+    }
+    if (FLAGS_checker) {
+      bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 172, 4}, pattern);
+    }
+  }
+
+  // Set/Reset the PRBS generator and/or checker
+  if (FLAGS_generator) {
+    uint8_t generator = start ? 0xff : 0x00;
+    bus->moduleWrite(
+        module, {TransceiverI2CApi::ADDR_QSFP, 152, 1}, &generator);
+  }
+  if (FLAGS_checker) {
+    uint8_t checker = start ? 0xff : 0x00;
+    bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 168, 1}, &checker);
+  }
+}
 
 /*
  * getModulePrbsStatus
@@ -3591,8 +3659,103 @@ void getModulePrbsStatsViaService(
  * rather than SW port inside the module
  */
 void getModulePrbsStatsDirect(
-    DirectI2cInfo /* i2cInfo */,
-    std::vector<PortID> /* portList */) {}
+    DirectI2cInfo i2cInfo,
+    const std::vector<PortID>& portList) {
+  auto bus = i2cInfo.bus;
+  auto wedgeManager = i2cInfo.transceiverManager;
+
+  std::set<int> modules;
+  for (auto portId : portList) {
+    auto module = wedgeManager->getTransceiverID(portId);
+    if (!module.has_value()) {
+      continue;
+    }
+    modules.insert(module.value() + 1);
+  }
+
+  for (auto module : modules) {
+    auto managementInterface = getModuleTypeDirect(bus, module);
+    if (managementInterface == TransceiverManagementInterface::CMIS) {
+      getModulePrbsStatsDirectCmis(bus, module);
+    }
+  }
+}
+
+/*
+ * getModulePrbsStatsDirectCmis
+ *
+ * Reads and prints the module PRBS stats for a CMIS module
+ */
+void getModulePrbsStatsDirectCmis(TransceiverI2CApi* bus, int module) {
+  // Set the page first
+  uint8_t prbsPage = 0x14;
+  bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 127, 1}, &prbsPage);
+
+  // Read the PRBS generator and checker lock status
+  std::array<bool, 8> prbsGeneratorLocked;
+  std::array<bool, 8> prbsCheckerLocked;
+
+  uint8_t generatorLol;
+  bus->moduleRead(
+      module, {TransceiverI2CApi::ADDR_QSFP, 137, 1}, &generatorLol);
+  for (int i = 0; i < 8; i++) {
+    prbsGeneratorLocked[i] = !((generatorLol >> i) & 0x1);
+  }
+
+  uint8_t checkerLol;
+  bus->moduleRead(module, {TransceiverI2CApi::ADDR_QSFP, 139, 1}, &checkerLol);
+  for (int i = 0; i < 8; i++) {
+    prbsCheckerLocked[i] = !((checkerLol >> i) & 0x1);
+  }
+
+  // Read BER values
+  std::array<float, 8> mediaBer;
+
+  uint8_t diagSelect = 1;
+  bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 128, 1}, &diagSelect);
+  // Some modules take 1.8s to populate BER
+  usleep(2 * 1000 * 1000); // @lint-ignore CLANGTIDY
+
+  std::array<uint8_t, 16> berData;
+  bus->moduleRead(
+      module, {TransceiverI2CApi::ADDR_QSFP, 208, 16}, berData.data());
+
+  for (int i = 0; i < 8; i++) {
+    int exponent = berData[i * 2] >> 3;
+    exponent -= 24;
+    int mantissa = ((berData[i * 2] & 0x7) << 8) | berData[(i * 2) + 1];
+    mediaBer[i] = mantissa * exp10(exponent);
+  }
+
+  // Read SNR values
+  std::array<float, 8> mediaSnr;
+
+  diagSelect = 6;
+  bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 128, 1}, &diagSelect);
+  usleep(2 * 1000 * 1000); // @lint-ignore CLANGTIDY
+
+  std::array<uint8_t, 16> snrData;
+  bus->moduleRead(
+      module, {TransceiverI2CApi::ADDR_QSFP, 240, 16}, snrData.data());
+
+  for (int i = 0; i < 8; i++) {
+    mediaSnr[i] = snrData[i * 2] / 256.0 + snrData[(i * 2) + 1];
+  }
+
+  // Print PRBS data
+  printf("Module %d: PRBS stats\n", module);
+  printf(
+      "Lane      GeneratorLock      CheckerLock      MediaBER       MediaSNR\n");
+  for (int i = 0; i < 8; i++) {
+    printf(
+        "%1d               %1s                 %1s           %.2e        %.2f\n",
+        i,
+        (prbsGeneratorLocked[i] ? "Y" : "N"),
+        (prbsCheckerLocked[i] ? "Y" : "N"),
+        mediaBer[i],
+        mediaSnr[i]);
+  }
+}
 
 /*
  * Verify the select command is working properly with regard to the

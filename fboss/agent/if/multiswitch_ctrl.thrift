@@ -43,11 +43,6 @@ struct StateOperDelta {
   2: bool transaction;
 }
 
-struct SystemPortStats {
-  @cpp.Ref{type = cpp.RefType.Unique}
-  1: hardware_stats.HwSysPortStats systemPortStats;
-}
-
 struct HwSwitchStats {
   1: i64 timestamp;
   @cpp.Type{template = "folly::F14FastMap"}
@@ -55,11 +50,13 @@ struct HwSwitchStats {
   3: map<string, hardware_stats.HwTrunkStats> hwTrunkStats;
   4: hardware_stats.HwResourceStats hwResourceStats;
   5: hardware_stats.HwAsicErrors hwAsicErrors;
-  @cpp.Ref{type = cpp.RefType.Shared}
-  6: map<string, SystemPortStats> sysPortStats;
+  6: map<string, hardware_stats.HwSysPortStats> sysPortStats;
   7: hardware_stats.TeFlowStats teFlowStats;
   8: hardware_stats.HwBufferPoolStats bufferPoolStats;
   9: hardware_stats.FabricReachabilityStats fabricReachabilityStats;
+  10: hardware_stats.HwSwitchFb303GlobalStats fb303GlobalStats;
+  11: hardware_stats.CpuPortStats cpuPortStats;
+  12: hardware_stats.HwSwitchDropStats switchDropStats;
 }
 
 service MultiSwitchCtrl {
@@ -81,7 +78,7 @@ service MultiSwitchCtrl {
     2: StateOperDelta prevOperResult,
     /* indicates whether HwSwitch is syncing for first time */
     3: bool initialSync,
-  );
+  ) (priority = 'HIGH');
 
   /* HwAgent graceful shutdown notification */
   void gracefulExit(1: i64 switchId);

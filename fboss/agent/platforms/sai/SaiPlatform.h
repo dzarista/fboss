@@ -56,6 +56,7 @@ class SaiPlatform : public Platform, public StateObserver {
   PlatformPort* getPlatformPort(PortID port) const override;
   void initPorts() override;
   virtual std::string getHwConfig() = 0;
+  std::string getHwConfigDumpFile_deprecated();
   std::string getHwConfigDumpFile();
   void generateHwConfigFile();
   virtual sai_service_method_table_t* getServiceMethodTable() const;
@@ -78,6 +79,10 @@ class SaiPlatform : public Platform, public StateObserver {
       PortSaiId portSaiId) const;
 
   bool supportsAddRemovePort() const override {
+    return true;
+  }
+
+  bool isSai() const override {
     return true;
   }
 
@@ -129,6 +134,8 @@ class SaiPlatform : public Platform, public StateObserver {
    */
   virtual std::vector<sai_system_port_config_t> getInternalSystemPortConfig()
       const;
+
+  std::string getHwAsicConfig();
 
  protected:
   std::unique_ptr<SaiSwitch> saiSwitch_;

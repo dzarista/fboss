@@ -15,6 +15,7 @@
 #include <folly/logging/xlog.h>
 #include "fboss/lib/CommonUtils.h"
 #include "fboss/qsfp_service/module/QsfpModule.h"
+#include "fboss/qsfp_service/module/cmis/CmisFieldInfo.h"
 #include "fboss/qsfp_service/test/hw_test/HwPortUtils.h"
 #include "fboss/qsfp_service/test/hw_test/HwQsfpEnsemble.h"
 #include "fboss/qsfp_service/test/hw_test/HwTransceiverTest.h"
@@ -64,18 +65,20 @@ class HwTransceiverResetTest : public HwTransceiverTest {
         std::make_unique<ReadRequest>(request);
     wedgeManager->readTransceiverRegister(
         currentResponse, std::move(readRequest));
-    EXPECT_TRUE(currentResponse.find(cmisTcvrID) != currentResponse.end());
-    auto curr = currentResponse[cmisTcvrID];
-    EXPECT_TRUE(*curr.valid());
-
-    if (expectInReset &&
-        curr.get_data().data()[0] !=
-            static_cast<uint8_t>(CmisModuleState::UNKNOWN)) {
+    if (currentResponse.find(cmisTcvrID) == currentResponse.end()) {
       return false;
     }
-    if (!expectInReset &&
-        curr.get_data().data()[0] ==
-            static_cast<uint8_t>(CmisModuleState::UNKNOWN)) {
+    auto curr = currentResponse[cmisTcvrID];
+    if (!curr.get_valid()) {
+      return false;
+    }
+    auto moduleState =
+        (CmisModuleState)((curr.get_data().data()[0] & MODULE_STATUS_MASK) >> MODULE_STATUS_BITSHIFT);
+
+    if (expectInReset && moduleState != CmisModuleState::UNKNOWN) {
+      return false;
+    }
+    if (!expectInReset && moduleState == CmisModuleState::UNKNOWN) {
       return false;
     }
 
@@ -328,13 +331,14 @@ TEST_F(HwTransceiverResetTest, verifyResetControl) {
     // 2. Do IO and verify it fails on above transceiver
     // For SFF, failure means IO fails when transceiver is in reset
     // For CMIS, failure means module state is unknown when transceiver is in
-    // reset
+    // reset or the IO fails
     WITH_RETRIES_N_TIMED(
         10 /* retries */,
         std::chrono::milliseconds(1000) /* msBetweenRetry */,
         {
           if (isCmis(tcvrID)) {
             EXPECT_EVENTUALLY_TRUE(
+                readAndVerifyByte0(tcvrID, false /* valid */) ||
                 verifyCmisModuleState(tcvrID, true /* expectInReset */));
           } else {
             EXPECT_EVENTUALLY_TRUE(
@@ -378,6 +382,7 @@ TEST_F(HwTransceiverResetTest, verifyResetControl) {
         {
           if (isCmis(tcvrID)) {
             EXPECT_EVENTUALLY_TRUE(
+                readAndVerifyByte0(tcvrID, true /* valid */) &&
                 verifyCmisModuleState(tcvrID, false /* expectInReset */));
           } else {
             EXPECT_EVENTUALLY_TRUE(

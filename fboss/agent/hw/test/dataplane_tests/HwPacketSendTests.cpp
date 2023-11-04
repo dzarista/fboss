@@ -79,7 +79,7 @@ class HwPacketSendReceiveTest : public HwLinkStateDependentTest {
         masterLogicalPortIds().back(),
         getAsic()->desiredLoopbackModes());
     utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
-    utility::addCpuQueueConfig(cfg, getAsic());
+    utility::addCpuQueueConfig(cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     return cfg;
   }
   HwSwitchEnsemble::Features featuresDesired() const override {
@@ -116,7 +116,7 @@ class HwPacketSendReceiveLagTest : public HwPacketSendReceiveTest {
         masterLogicalPortIds()[1],
         getAsic()->desiredLoopbackModes());
     utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
-    utility::addCpuQueueConfig(cfg, getAsic());
+    utility::addCpuQueueConfig(cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     std::vector<int32_t> ports{
         masterLogicalPortIds()[0], masterLogicalPortIds()[1]};
     utility::addAggPort(kAggId, ports, &cfg, cfg::LacpPortRate::SLOW);
@@ -147,7 +147,7 @@ class HwPacketFloodTest : public HwLinkStateDependentTest {
         getLogicalPortIDs(),
         getAsic()->desiredLoopbackModes());
     utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
-    utility::addCpuQueueConfig(cfg, getAsic());
+    utility::addCpuQueueConfig(cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     return cfg;
   }
   HwSwitchEnsemble::Features featuresDesired() const override {
@@ -184,7 +184,7 @@ class HwPacketFloodTest : public HwLinkStateDependentTest {
 
 TEST_F(HwPacketSendTest, LldpToFrontPanelOutOfPort) {
   auto setup = [=]() {};
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto portStatsBefore =
         getLatestPortStats(masterLogicalInterfacePortIds()[0]);
     auto vlanId = utility::firstVlanID(initialConfig());
@@ -225,7 +225,7 @@ TEST_F(HwPacketSendTest, LldpToFrontPanelOutOfPort) {
 
 TEST_F(HwPacketSendTest, LldpToFrontPanelWithBufClone) {
   auto setup = [=]() {};
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto portStatsBefore =
         getLatestPortStats(masterLogicalInterfacePortIds()[0]);
     auto vlanId = utility::firstVlanID(initialConfig());
@@ -279,7 +279,7 @@ TEST_F(HwPacketSendTest, LldpToFrontPanelWithBufClone) {
 
 TEST_F(HwPacketSendTest, ArpRequestToFrontPanelPortSwitched) {
   auto setup = [=]() {};
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto portStatsBefore =
         getLatestPortStats(masterLogicalInterfacePortIds()[0]);
     auto vlanId = utility::firstVlanID(initialConfig());
@@ -317,13 +317,13 @@ TEST_F(HwPacketSendTest, ArpRequestToFrontPanelPortSwitched) {
 
 TEST_F(HwPacketSendTest, PortTxEnableTest) {
   auto setup = [=]() {};
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     constexpr auto kNumPacketsToSend{100};
     auto vlanId = utility::firstVlanID(initialConfig());
     auto intfMac = utility::getFirstInterfaceMac(initialConfig());
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
 
-    auto sendTcpPkts = [=](int numPacketsToSend) {
+    auto sendTcpPkts = [=, this](int numPacketsToSend) {
       int dscpVal = 0;
       for (int i = 0; i < numPacketsToSend; i++) {
         auto kECT1 = 0x01; // ECN capable transport ECT(1)
@@ -404,7 +404,7 @@ TEST_F(HwPacketSendTest, PortTxEnableTest) {
 
 TEST_F(HwPacketSendReceiveTest, LldpPacketReceiveSrcPort) {
   auto setup = [=]() {};
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     if (!isSupported(HwAsic::Feature::PKTIO)) {
       return;
     }
@@ -432,10 +432,10 @@ TEST_F(HwPacketSendReceiveTest, LldpPacketReceiveSrcPort) {
 }
 
 TEST_F(HwPacketSendReceiveLagTest, LacpPacketReceiveSrcPort) {
-  auto setup = [=]() {
+  auto setup = [=, this]() {
     applyNewState(utility::enableTrunkPorts(getProgrammedState()));
   };
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto vlanId = VlanID(*initialConfig().vlanPorts()[0].vlanID());
     auto intfMac = utility::getInterfaceMac(getProgrammedState(), vlanId);
     auto payLoadSize = 256;
@@ -477,7 +477,7 @@ TEST_F(HwPacketSendReceiveLagTest, LacpPacketReceiveSrcPort) {
 
 TEST_F(HwPacketFloodTest, ArpRequestFloodTest) {
   auto setup = [=]() {};
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto portStatsBefore = getLatestPortStats(masterLogicalPortIds());
     auto vlanId = VlanID(*initialConfig().vlanPorts()[0].vlanID());
     auto intfMac = utility::getInterfaceMac(getProgrammedState(), vlanId);
@@ -501,7 +501,7 @@ TEST_F(HwPacketFloodTest, ArpRequestFloodTest) {
 
 TEST_F(HwPacketFloodTest, NdpFloodTest) {
   auto setup = [=]() {};
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     auto retries = 5;
     auto vlanId = VlanID(*initialConfig().vlanPorts()[0].vlanID());
     auto intfMac = utility::getInterfaceMac(getProgrammedState(), vlanId);

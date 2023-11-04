@@ -121,7 +121,7 @@ project(FBOSS)
 
 include(CMakeParseArguments)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
@@ -275,6 +275,7 @@ add_fbthrift_cpp_library(
   DEPENDS
     bcm_config_cpp2
     asic_config_cpp2
+    asic_config_v2_cpp2
     phy_cpp2
 )
 add_fbthrift_cpp_library(
@@ -450,6 +451,13 @@ add_fbthrift_cpp_library(
 add_fbthrift_cpp_library(
   asic_config_cpp2
   fboss/agent/hw/sai/config/asic_config.thrift
+  OPTIONS
+    json
+    reflection
+)
+add_fbthrift_cpp_library(
+  asic_config_v2_cpp2
+  fboss/agent/hw/config/asic_config_v2.thrift
   OPTIONS
     json
     reflection

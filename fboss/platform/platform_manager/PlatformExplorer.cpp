@@ -1,7 +1,10 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 #include <chrono>
 #include <exception>
+#include <filesystem>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 #include <folly/logging/xlog.h>
 
@@ -9,7 +12,17 @@
 
 namespace {
 constexpr auto kRootSlotPath = "/";
+
+std::string getSlotPath(
+    const std::string& parentSlotPath,
+    const std::string& slotName) {
+  if (parentSlotPath == kRootSlotPath) {
+    return fmt::format("{}{}", kRootSlotPath, slotName);
+  } else {
+    return fmt::format("{}/{}", parentSlotPath, slotName);
+  }
 }
+} // namespace
 
 namespace facebook::fboss::platform::platform_manager {
 
@@ -17,7 +30,18 @@ PlatformExplorer::PlatformExplorer(
     std::chrono::seconds exploreInterval,
     const PlatformConfig& config)
     : platformConfig_(config) {
-  scheduler_.addFunction([this]() { explore(); }, exploreInterval);
+  scheduler_.addFunction(
+      [this, exploreInterval]() {
+        try {
+          explore();
+        } catch (const std::exception& ex) {
+          XLOG(ERR) << fmt::format(
+              "Exception while exploring platform: {}. Will retry after {} seconds.",
+              folly::exceptionStr(ex),
+              exploreInterval.count());
+        }
+      },
+      exploreInterval);
   scheduler_.start();
 }
 
@@ -33,6 +57,10 @@ void PlatformExplorer::explore() {
       *rootPmUnitConfig.pluggedInSlotType(), kRootSlotPath);
   CHECK(pmUnitName == *platformConfig_.rootPmUnitName());
   explorePmUnit(kRootSlotPath, *platformConfig_.rootPmUnitName());
+  for (const auto& [linkPath, pmDevicePath] :
+       *platformConfig_.symbolicLinkToDevicePath()) {
+    createDeviceSymLink(linkPath, pmDevicePath);
+  }
 }
 
 void PlatformExplorer::explorePmUnit(
@@ -40,6 +68,8 @@ void PlatformExplorer::explorePmUnit(
     const std::string& pmUnitName) {
   auto pmUnitConfig = platformConfig_.pmUnitConfigs()->at(pmUnitName);
   XLOG(INFO) << fmt::format("Exploring PmUnit {} at {}", pmUnitName, slotPath);
+
+  slotPathToPmUnitName_[slotPath] = pmUnitName;
 
   XLOG(INFO) << fmt::format(
       "Exploring PCI Devices for PmUnit {} at SlotPath {}. Count {}",
@@ -70,11 +100,11 @@ void PlatformExplorer::exploreSlot(
     const std::string& parentSlotPath,
     const std::string& slotName,
     const SlotConfig& slotConfig) {
-  std::string childSlotPath = fmt::format("{}/{}", parentSlotPath, slotName);
+  std::string childSlotPath = getSlotPath(parentSlotPath, slotName);
   XLOG(INFO) << fmt::format("Exploring SlotPath {}", childSlotPath);
 
   if (slotConfig.presenceDetection() &&
-      presenceDetector_.isPresent(*slotConfig.presenceDetection())) {
+      !presenceDetector_.isPresent(*slotConfig.presenceDetection())) {
     XLOG(INFO) << fmt::format(
         "No device could be detected in SlotPath {}", childSlotPath);
   }
@@ -106,6 +136,7 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
     auto idpromConfig = *slotTypeConfig.idpromConfig_ref();
     auto eepromI2cBusNum = getI2cBusNum(slotPath, *idpromConfig.busName());
     i2cExplorer_.createI2cDevice(
+        "IDPROM",
         *idpromConfig.kernelDeviceName(),
         eepromI2cBusNum,
         I2cAddr(*idpromConfig.address()));
@@ -138,19 +169,21 @@ void PlatformExplorer::exploreI2cDevices(
     const std::vector<I2cDeviceConfig>& i2cDeviceConfigs) {
   for (const auto& i2cDeviceConfig : i2cDeviceConfigs) {
     i2cExplorer_.createI2cDevice(
+        *i2cDeviceConfig.pmUnitScopedName(),
         *i2cDeviceConfig.kernelDeviceName(),
         getI2cBusNum(slotPath, *i2cDeviceConfig.busName()),
         I2cAddr(*i2cDeviceConfig.address()));
     if (i2cDeviceConfig.numOutgoingChannels()) {
-      auto channelBusNums = i2cExplorer_.getMuxChannelI2CBuses(
+      auto channelToBusNums = i2cExplorer_.getMuxChannelI2CBuses(
           getI2cBusNum(slotPath, *i2cDeviceConfig.busName()),
           I2cAddr(*i2cDeviceConfig.address()));
-      assert(channelBusNums.size() == i2cDeviceConfig.numOutgoingChannels());
-      for (int i = 0; i < i2cDeviceConfig.numOutgoingChannels(); ++i) {
+      assert(channelToBusNums.size() == i2cDeviceConfig.numOutgoingChannels());
+      for (const auto& [channelNum, busNum] : channelToBusNums) {
         updateI2cBusNum(
             slotPath,
-            fmt::format("{}@{}", *i2cDeviceConfig.pmUnitScopedName(), i),
-            channelBusNums[i]);
+            fmt::format(
+                "{}@{}", *i2cDeviceConfig.pmUnitScopedName(), channelNum),
+            busNum);
       }
     }
   }
@@ -160,39 +193,43 @@ void PlatformExplorer::explorePciDevices(
     const std::string& slotPath,
     const std::vector<PciDeviceConfig>& pciDeviceConfigs) {
   for (const auto& pciDeviceConfig : pciDeviceConfigs) {
-    PciDevice device{
+    auto pciDevice = PciDevice(
         *pciDeviceConfig.pmUnitScopedName(),
         *pciDeviceConfig.vendorId(),
         *pciDeviceConfig.deviceId(),
         *pciDeviceConfig.subSystemVendorId(),
-        *pciDeviceConfig.subSystemDeviceId()};
-    for (const auto& [i2cAdapterName, i2cAdapterConfig] :
-         *pciDeviceConfig.i2cAdapterConfigs()) {
-      pciExplorer_.createI2cAdapter(device, i2cAdapterConfig);
+        *pciDeviceConfig.subSystemDeviceId());
+    auto charDevPath = pciDevice.charDevPath();
+    auto instId =
+        getFpgaInstanceId(slotPath, *pciDeviceConfig.pmUnitScopedName());
+    for (const auto& i2cAdapterConfig : *pciDeviceConfig.i2cAdapterConfigs()) {
+      auto busNums =
+          pciExplorer_.createI2cAdapter(pciDevice, i2cAdapterConfig, instId++);
+      // Note: Support for multiple buses per adapter is not yet added.
+      CHECK_EQ(busNums.size(), 1);
+      updateI2cBusNum(
+          slotPath,
+          *i2cAdapterConfig.fpgaIpBlockConfig()->pmUnitScopedName(),
+          busNums[0]);
     }
-    for (const auto& [spiMasterName, spiMasterConfig] :
-         *pciDeviceConfig.spiMasterConfigs()) {
-      pciExplorer_.createSpiMaster(device, spiMasterConfig);
+    for (const auto& spiMasterConfig : *pciDeviceConfig.spiMasterConfigs()) {
+      pciExplorer_.createSpiMaster(charDevPath, spiMasterConfig, instId++);
     }
-    for (const auto& [name, fpgaIpBlockConfig] :
-         *pciDeviceConfig.gpioChipConfigs()) {
-      pciExplorer_.create(device, fpgaIpBlockConfig);
+    for (const auto& fpgaIpBlockConfig : *pciDeviceConfig.gpioChipConfigs()) {
+      pciExplorer_.create(charDevPath, fpgaIpBlockConfig, instId++);
     }
-    for (const auto& [name, fpgaIpBlockConfig] :
-         *pciDeviceConfig.watchdogConfigs()) {
-      pciExplorer_.create(device, fpgaIpBlockConfig);
+    for (const auto& fpgaIpBlockConfig : *pciDeviceConfig.watchdogConfigs()) {
+      pciExplorer_.create(charDevPath, fpgaIpBlockConfig, instId++);
     }
-    for (const auto& [name, fpgaIpBlockConfig] :
+    for (const auto& fpgaIpBlockConfig :
          *pciDeviceConfig.fanTachoPwmConfigs()) {
-      pciExplorer_.create(device, fpgaIpBlockConfig);
+      pciExplorer_.create(charDevPath, fpgaIpBlockConfig, instId++);
     }
-    for (const auto& [name, fpgaIpBlockConfig] :
-         *pciDeviceConfig.ledCtrlConfigs()) {
-      pciExplorer_.createLedCtrl(device, fpgaIpBlockConfig);
+    for (const auto& fpgaIpBlockConfig : *pciDeviceConfig.ledCtrlConfigs()) {
+      pciExplorer_.createLedCtrl(charDevPath, fpgaIpBlockConfig, instId++);
     }
-    for (const auto& [name, xcvrCtrlConfig] :
-         *pciDeviceConfig.xcvrCtrlConfigs()) {
-      pciExplorer_.createXcvrCtrl(device, xcvrCtrlConfig);
+    for (const auto& xcvrCtrlConfig : *pciDeviceConfig.xcvrCtrlConfigs()) {
+      pciExplorer_.createXcvrCtrl(charDevPath, xcvrCtrlConfig, instId++);
     }
   }
 }
@@ -219,6 +256,32 @@ void PlatformExplorer::updateI2cBusNum(
       busNum,
       busNum);
   i2cBusNums_[std::make_pair(slotPath, pmUnitScopeBusName)] = busNum;
+}
+
+uint32_t PlatformExplorer::getFpgaInstanceId(
+    const std::string& slotPath,
+    const std::string& fpgaName) {
+  auto key = std::make_pair(slotPath, fpgaName);
+  auto it = fpgaInstanceIds_.find(key);
+  if (it == fpgaInstanceIds_.end()) {
+    fpgaInstanceIds_[key] = 1000 * (fpgaInstanceIds_.size() + 1);
+  }
+  return fpgaInstanceIds_[key];
+}
+
+void PlatformExplorer::createDeviceSymLink(
+    const std::string& linkPath,
+    const std::string& /*pmDevicePath*/) {
+  std::error_code errCode;
+  auto linkParentPath = std::filesystem::path(linkPath).parent_path();
+  std::filesystem::create_directories(linkParentPath, errCode);
+  if (errCode.value() != 0) {
+    XLOG(ERR) << fmt::format(
+        "Failed to create the parent path ({}) with error code {}",
+        linkParentPath.string(),
+        errCode.value());
+    return;
+  }
 }
 
 } // namespace facebook::fboss::platform::platform_manager

@@ -31,6 +31,8 @@ target_link_libraries(qsfp_platforms_wedge
   meru800bia_platform_mapping
   meru800bfa_platform_mapping
   montblanc_platform_mapping
+  morgan_platform_mapping
+  janga_platform_mapping
   platform_base
   qsfp_config
   wedge400_i2c

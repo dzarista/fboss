@@ -25,19 +25,10 @@ add_fbthrift_cpp_library(
 )
 
 add_library(data_corral_service_lib
-  fboss/platform/data_corral_service/DataCorralServiceImpl.cpp
   fboss/platform/data_corral_service/DataCorralServiceThriftHandler.cpp
-  fboss/platform/data_corral_service/Flags.cpp
-  fboss/platform/data_corral_service/ChassisManager.cpp
-  fboss/platform/data_corral_service/oss/ChassisManager.cpp
-  fboss/platform/data_corral_service/darwin/DarwinChassisManager.cpp
-  fboss/platform/data_corral_service/darwin/DarwinPlatformConfig.cpp
-  fboss/platform/data_corral_service/darwin/DarwinFruModule.cpp
   fboss/platform/data_corral_service/FruPresenceExplorer.cpp
   fboss/platform/data_corral_service/LedManager.cpp
-  fboss/platform/data_corral_service/meru800bia/Meru800biaChassisManager.cpp
   fboss/platform/data_corral_service/meru800bia/Meru800biaPlatformConfig.cpp
-  fboss/platform/data_corral_service/meru800bia/Meru800biaFruModule.cpp
 )
 
 target_link_libraries(data_corral_service_lib
@@ -62,7 +53,6 @@ target_link_libraries(data_corral_service
 )
 
 add_executable(data_corral_service_hw_test
-  fboss/platform/data_corral_service/hw_test/Main.cpp
   fboss/platform/data_corral_service/hw_test/DataCorralServiceHwTest.cpp
 )
 

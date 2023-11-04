@@ -401,6 +401,10 @@ class BcmSwitch : public BcmSwitchIf {
   uint64_t getDeviceWatermarkBytes() const override;
 
   TeFlowStats getTeFlowStats() const override;
+  HwSwitchDropStats getSwitchDropStats() const override {
+    // No HwSwitchDropStats collected
+    return HwSwitchDropStats{};
+  }
 
   /*
    * Wrapper functions to register and unregister a BCM event callbacks.  These
@@ -857,7 +861,9 @@ class BcmSwitch : public BcmSwitchIf {
       const std::shared_ptr<FlowletSwitchingConfig>& oldFlowletSwitching,
       const std::shared_ptr<FlowletSwitchingConfig>& newFlowletSwitching);
 
-  void setEgressEcmpEtherType(uint32_t etherTypeEligiblity, int ecmpRandomSeed);
+  void setEgressEcmpEtherType(uint32_t etherTypeEligiblity);
+
+  void setEcmpDynamicRandomSeed(int ecmpRandomSeed);
 
   /*
    * linkStateChangedHwNotLocked is in the call chain started by link scan
@@ -1102,7 +1108,7 @@ class BcmSwitch : public BcmSwitchIf {
   void processControlPlaneEntryRemoved(
       const std::shared_ptr<ControlPlane>& oldCPU);
 
-  void processDefaultAclgroupForUdf();
+  void processDefaultAclgroupForUdf(std::set<bcm_udf_id_t>& udfAclIds);
   void initialStateApplied() override;
 
   /*

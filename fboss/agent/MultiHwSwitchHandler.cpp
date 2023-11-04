@@ -42,10 +42,11 @@ void MultiHwSwitchHandler::stop() {
   }
   // Cancel any pending waits for HwSwitch connect calls
   connectionStatusTable_.cancelWait();
+  // set stop flag so that there are no more accesses to syncers
+  stopped_.store(true);
   for (auto& entry : hwSwitchSyncers_) {
     entry.second.reset();
   }
-  stopped_.store(true);
 }
 
 std::shared_ptr<SwitchState> MultiHwSwitchHandler::stateChanged(
@@ -256,6 +257,12 @@ std::map<std::string, HwSysPortStats> MultiHwSwitchHandler::getSysPortStats() {
   return hwSwitchSyncers_.begin()->second->getSysPortStats();
 }
 
+HwSwitchDropStats MultiHwSwitchHandler::getSwitchDropStats() const {
+  // TODO - support with multiple switches
+  CHECK_EQ(hwSwitchSyncers_.size(), 1);
+  return hwSwitchSyncers_.begin()->second->getSwitchDropStats();
+}
+
 void MultiHwSwitchHandler::updateStats() {
   return hwSwitchSyncers_.begin()->second->updateStats();
 }
@@ -328,8 +335,7 @@ void MultiHwSwitchHandler::platformStop() {
 }
 
 std::map<PortID, FabricEndpoint> MultiHwSwitchHandler::getFabricReachability() {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
+  // TODO - retire this api after migrating clients to HwAgent api
   return hwSwitchSyncers_.begin()->second->getFabricReachability();
 }
 
@@ -461,6 +467,17 @@ void MultiHwSwitchHandler::notifyHwSwitchDisconnected(int64_t switchId) {
 
 bool MultiHwSwitchHandler::waitUntilHwSwitchConnected() {
   return connectionStatusTable_.waitUntilHwSwitchConnected();
+}
+
+std::map<int32_t, SwitchRunState> MultiHwSwitchHandler::getHwSwitchRunStates() {
+  std::map<int32_t, SwitchRunState> runStates;
+  if (!isRunning()) {
+    throw FbossError("multi hw switch handler not started");
+  }
+  for (const auto& [switchId, syncer] : hwSwitchSyncers_) {
+    runStates[static_cast<int32_t>(switchId)] = syncer->getHwSwitchRunState();
+  }
+  return runStates;
 }
 
 } // namespace facebook::fboss

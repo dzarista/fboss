@@ -47,6 +47,7 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
   folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
 
   std::map<std::string, HwSysPortStats> getSysPortStats() const override;
+  HwSwitchDropStats getSwitchDropStats() const override;
 
   void updateStats() override;
 
@@ -115,10 +116,15 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
       std::optional<PortID> portID = std::nullopt,
       std::optional<uint8_t> queue = std::nullopt);
 
+  SwitchRunState getHwSwitchRunState() override;
+
  private:
   bool isOperSyncState(HwSwitchOperDeltaSyncState state) const;
   void setOperSyncState(HwSwitchOperDeltaSyncState state) {
     operDeltaSyncState_ = state;
+  }
+  HwSwitchOperDeltaSyncState getOperSyncState() {
+    return operDeltaSyncState_;
   }
 
   SwSwitch* sw_;

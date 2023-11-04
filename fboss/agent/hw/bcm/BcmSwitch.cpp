@@ -873,6 +873,16 @@ HwInitResult BcmSwitch::initImpl(
     rv = bcm_l3_enable_set(unit_, 1);
     bcmCheckError(rv, "failed to enable l3");
   }
+  // TODO: Remove #if once bcmSwitchEcmpDlbOffset support in all sdk releases
+#if defined(BCM_SDK_VERSION_GTE_6_5_26)
+  if (FLAGS_flowletSwitchingEnable) {
+    if (platform_->getAsic()->isSupported(HwAsic::Feature::ECMP_DLB_OFFSET)) {
+      // set the Ecmp DlbOffset for ECMP to DLB
+      rv = bcm_switch_control_set(unit_, bcmSwitchEcmpDlbOffset, 0x0);
+      bcmCheckError(rv, "failed to set bcmSwitchEcmpDlbOffset");
+    }
+  }
+#endif
 
   // Trap IPv4 Address Resolution Protocol (ARP) packets.
   // TODO: We may want to trap ARP on a per-port or per-VLAN basis.
@@ -1342,9 +1352,7 @@ void BcmSwitch::processDynamicPhysicalQueueExponentChanged(
   }
 }
 
-void BcmSwitch::setEgressEcmpEtherType(
-    uint32_t etherTypeEligiblity,
-    int ecmpRandomSeed) {
+void BcmSwitch::setEgressEcmpEtherType(uint32_t etherTypeEligiblity) {
   XLOG(DBG3) << "Flowlet switching setting ether type";
   int ecmp_dlb_ethtypes[] = {0x0800, 0x86DD};
   auto rv = bcm_l3_egress_ecmp_ethertype_set(
@@ -1353,9 +1361,12 @@ void BcmSwitch::setEgressEcmpEtherType(
       (sizeof(ecmp_dlb_ethtypes) / sizeof(ecmp_dlb_ethtypes[0])),
       ecmp_dlb_ethtypes);
   bcmCheckError(rv, "failed to set bcm_l3_egress_ecmp_ethertype_set");
+}
 
+void BcmSwitch::setEcmpDynamicRandomSeed(int ecmpRandomSeed) {
+  XLOG(DBG3) << "Flowlet switching setting random seed";
   // seed value is as recommended by BCM
-  rv = bcm_switch_control_set(
+  auto rv = bcm_switch_control_set(
       unit_, bcmSwitchEcmpDynamicRandomSeed, ecmpRandomSeed);
   bcmCheckError(rv, "failed to set bcmSwitchEcmpDynamicRandomSeed");
 }
@@ -1369,19 +1380,24 @@ void BcmSwitch::processFlowletSwitchingConfigChanges(const StateDelta& delta) {
     XLOG(DBG4) << "Flowlet switching config is null";
     return;
   }
+  // Set ethertype eligibility to 0 for DLB-DLB and DLB-ECMP
+  // work as expected with flowlet ACL for existing DLB enabled switches.
+  setEgressEcmpEtherType(0);
+
   if (oldFlowletSwitching && newFlowletSwitching &&
       *oldFlowletSwitching == *newFlowletSwitching) {
     XLOG(DBG4) << "Flowlet switching config is same";
     return;
   }
+
   if (oldFlowletSwitching && !newFlowletSwitching) {
     XLOG(DBG2) << "Flowlet switching config is removed";
-    setEgressEcmpEtherType(0, 0);
+    setEcmpDynamicRandomSeed(0);
   }
 
   if (!oldFlowletSwitching && newFlowletSwitching) {
     XLOG(DBG2) << "Flowlet switching config enabled";
-    setEgressEcmpEtherType(BCM_L3_ECMP_DYNAMIC_ETHERTYPE_ELIGIBLE, 0x5555);
+    setEcmpDynamicRandomSeed(0x5555);
   }
 
   processDynamicEgressLoadExponentChanged(
@@ -1476,9 +1492,6 @@ std::shared_ptr<SwitchState> BcmSwitch::stateChangedImplLocked(
 
   processLoadBalancerChanges(delta);
 
-  // remove any udf after we are done processing load balancer
-  processUdfRemove(delta);
-
   // remove all routes to be deleted
   processRemovedRoutes(delta);
 
@@ -1566,6 +1579,9 @@ std::shared_ptr<SwitchState> BcmSwitch::stateChangedImplLocked(
 
   // Any ACL changes
   processAclChanges(delta);
+
+  // remove any udf after we are done processing load balancer and ACL
+  processUdfRemove(delta);
 
   // Any TeFlow changes
   processTeFlowChanges(delta, &appliedState);
@@ -3152,6 +3168,8 @@ void BcmSwitch::processLoadBalancerChanges(const StateDelta& delta) {
 }
 
 void BcmSwitch::processUdfAdd(const StateDelta& delta) {
+  std::set<bcm_udf_id_t> udfAclIds;
+
   forEachAdded(
       delta.getUdfPacketMatcherDelta(),
       &BcmSwitch::processAddedUdfPacketMatcher,
@@ -3159,6 +3177,8 @@ void BcmSwitch::processUdfAdd(const StateDelta& delta) {
 
   forEachAdded(
       delta.getUdfGroupDelta(), &BcmSwitch::processAddedUdfGroup, this);
+  udfManager_->getUdfAclGroupIds(udfAclIds);
+  processDefaultAclgroupForUdf(udfAclIds);
 }
 
 void BcmSwitch::processAddedUdfPacketMatcher(
@@ -3170,24 +3190,14 @@ void BcmSwitch::processAddedUdfPacketMatcher(
 void BcmSwitch::processAddedUdfGroup(const shared_ptr<UdfGroup>& udfGroup) {
   XLOG(DBG2) << "Adding udf group: " << udfGroup->getID();
   udfManager_->createUdfGroup(udfGroup);
-
-  // once all udf are finalized i.e. add->remove
-  processDefaultAclgroupForUdf();
 }
 
-void BcmSwitch::processDefaultAclgroupForUdf() {
-  std::set<bcm_udf_id_t> udfAclIds;
-  udfManager_->getUdfAclGroupIds(udfAclIds);
-
+void BcmSwitch::processDefaultAclgroupForUdf(
+    std::set<bcm_udf_id_t>& udfAclIds) {
   const auto& udfQsetIdsInHW = getUdfQsetIds(
       unit_,
       static_cast<bcm_field_group_t>(
           platform_->getAsic()->getDefaultACLGroupID()));
-  if (udfAclIds == udfQsetIdsInHW) {
-    // nothing to update here
-    XLOG(DBG2) << "UDF ACL id no change in HW";
-    return;
-  }
 
   auto aclIdsToString = [](const std::set<bcm_udf_id_t> udfSet) {
     std::string udfAclsIds;
@@ -3198,17 +3208,41 @@ void BcmSwitch::processDefaultAclgroupForUdf() {
     return udfAclsIds;
   };
 
-  XLOG(DBG2) << "Udf id mismatch in default acl qset. Hw acl set is "
-             << aclIdsToString(udfQsetIdsInHW) << ", cfg acl set is "
-             << aclIdsToString(udfAclIds);
+  if (udfAclIds == udfQsetIdsInHW) {
+    // nothing to update here
+    XLOG(DBG2) << "UDF ACL id no change. HW ids: "
+               << aclIdsToString(udfQsetIdsInHW)
+               << ". Config ids: " << aclIdsToString(udfAclIds);
+    return;
+  }
+
+  XLOG(DBG2) << "Udf id mismatch in qset. Hw ids: "
+             << aclIdsToString(udfQsetIdsInHW)
+             << " .Config ids: " << aclIdsToString(udfAclIds);
 
   clearFPGroup(unit_, platform_->getAsic()->getDefaultACLGroupID());
   createAclGroup(
       udfAclIds.size() ? std::optional<std::set<bcm_udf_id_t>>(udfAclIds)
                        : std::nullopt);
+  writableAclTable()->reprogramAclTable(
+      platform_->getAsic()->getDefaultACLGroupID());
 }
 
 void BcmSwitch::processUdfRemove(const StateDelta& delta) {
+  std::set<bcm_udf_id_t> udfAclIds;
+  udfManager_->getUdfAclGroupIds(udfAclIds);
+  // We would like to collect the latest set of udfGroups with type ACL after
+  // udfRemove so that we can reprogram the default acl group with the correct
+  // set of udfGroups inside  processDefaultAclgroupForUdf.
+  forEachRemoved(
+      delta.getUdfGroupDelta(), [&](const std::shared_ptr<UdfGroup>& udfGroup) {
+        if (udfManager_->getUdfGroupType(udfGroup->getID()) ==
+            cfg::UdfGroupType::ACL) {
+          udfAclIds.erase(udfManager_->getBcmUdfGroupId(udfGroup->getID()));
+        }
+      });
+
+  processDefaultAclgroupForUdf(udfAclIds);
   forEachRemoved(
       delta.getUdfGroupDelta(), &BcmSwitch::processRemovedUdfGroup, this);
 
@@ -3226,10 +3260,8 @@ void BcmSwitch::processRemovedUdfPacketMatcher(
 
 void BcmSwitch::processRemovedUdfGroup(const shared_ptr<UdfGroup>& udfGroup) {
   XLOG(DBG2) << "Removing udf group: " << udfGroup->getID();
-  udfManager_->deleteUdfGroup(udfGroup);
 
-  // once all udf are finalized i.e. add->remove
-  processDefaultAclgroupForUdf();
+  udfManager_->deleteUdfGroup(udfGroup);
 }
 
 void BcmSwitch::processChangedLoadBalancer(
@@ -3505,6 +3537,7 @@ void BcmSwitch::createAclGroup(
     updateUdfQset(unit_, qset, udfIds.value());
     enableQsetCompression = true;
   }
+
   createFPGroup(
       unit_,
       qset,

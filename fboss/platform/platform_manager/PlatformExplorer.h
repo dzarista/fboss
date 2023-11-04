@@ -4,9 +4,10 @@
 #pragma once
 
 #include <folly/experimental/FunctionScheduler.h>
+#include <string>
 
+#include "fboss/platform/platform_manager/I2cExplorer.h"
 #include "fboss/platform/platform_manager/PciExplorer.h"
-#include "fboss/platform/platform_manager/PlatformI2cExplorer.h"
 #include "fboss/platform/platform_manager/PresenceDetector.h"
 #include "fboss/platform/platform_manager/gen-cpp2/platform_manager_config_types.h"
 
@@ -63,10 +64,21 @@ class PlatformExplorer {
       const std::string& pmUnitScopeBusName,
       uint16_t busNum);
 
+  // Get the instance id base for the FPGA at the given slotPath and
+  // PmUnitScopedName. The instance id base is unique for each fpga hardware
+  // discovered in the platform.
+  uint32_t getFpgaInstanceId(
+      const std::string& slotPath,
+      const std::string& pm);
+
  private:
+  void createDeviceSymLink(
+      const std::string& linkPath,
+      const std::string& pmDevicePath);
+
   folly::FunctionScheduler scheduler_;
   PlatformConfig platformConfig_{};
-  PlatformI2cExplorer i2cExplorer_{};
+  I2cExplorer i2cExplorer_{};
   PciExplorer pciExplorer_{};
   PresenceDetector presenceDetector_{};
   // Map from <pmUnitPath, pmUnitScopeBusName> to kernel i2c bus name.
@@ -78,6 +90,11 @@ class PlatformExplorer {
   // entry <"/MCB_SLOT@0/PIM_SLOT@1", "INCOMING@1"> -> i2c-52
   std::map<std::pair<std::optional<std::string>, std::string>, uint16_t>
       i2cBusNums_{};
+
+  // Map from <slotPath, PmUnitScopedName> to instance ids for FPGAs.
+  std::map<std::pair<std::string, std::string>, uint32_t> fpgaInstanceIds_{};
+  // This stores the PmUnit name which has been discovered at each SlotPath.
+  std::map<std::string, std::string> slotPathToPmUnitName_{};
 };
 
 } // namespace facebook::fboss::platform::platform_manager

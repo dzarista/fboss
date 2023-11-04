@@ -23,9 +23,10 @@ DECLARE_bool(setup_for_warmboot);
 
 namespace facebook::fboss {
 class StateObserver;
+class AgentEnsemble;
 
-using AgentEnsembleSwitchConfigFn = std::function<
-    cfg::SwitchConfig(SwSwitch* swSwitch, const std::vector<PortID>&)>;
+using AgentEnsembleSwitchConfigFn =
+    std::function<cfg::SwitchConfig(const AgentEnsemble&)>;
 using AgentEnsemblePlatformConfigFn = std::function<void(cfg::PlatformConfig&)>;
 
 class AgentEnsemble : public TestEnsembleIf {
@@ -78,6 +79,7 @@ class AgentEnsemble : public TestEnsembleIf {
       uint32_t hwFeaturesDesired,
       PlatformInitFn initPlatform) = 0;
   virtual void reloadPlatformConfig() = 0;
+  virtual bool isSai() const = 0;
 
   std::shared_ptr<SwitchState> applyNewState(
       std::shared_ptr<SwitchState> state,
@@ -183,7 +185,7 @@ class AgentEnsemble : public TestEnsembleIf {
   cfg::PortLoopbackMode mode_{cfg::PortLoopbackMode::MAC};
 };
 
-int ensembleMain(int argc, char* argv[], PlatformInitFn initPlatform);
+void initEnsemble(PlatformInitFn initPlatform);
 
 std::unique_ptr<AgentEnsemble> createAgentEnsemble(
     AgentEnsembleSwitchConfigFn initialConfigFn,

@@ -2,6 +2,8 @@
 
 #include "fboss/agent/test/MonoAgentEnsemble.h"
 
+#include "fboss/agent/Main.h"
+
 namespace facebook::fboss {
 
 MonoAgentEnsemble::~MonoAgentEnsemble() {
@@ -20,12 +22,17 @@ void MonoAgentEnsemble::createSwitch(
     std::unique_ptr<AgentConfig> config,
     uint32_t hwFeaturesDesired,
     PlatformInitFn initPlatform) {
+  setVersionInfo();
   agentInitializer_.createSwitch(
       std::move(config), hwFeaturesDesired, initPlatform);
 }
 
 void MonoAgentEnsemble::reloadPlatformConfig() {
   agentInitializer_.platform()->reloadConfig();
+}
+
+bool MonoAgentEnsemble::isSai() const {
+  return agentInitializer_.platform()->isSai();
 }
 
 std::unique_ptr<AgentEnsemble> createAgentEnsemble(

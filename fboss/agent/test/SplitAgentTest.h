@@ -2,8 +2,9 @@
 
 #pragma once
 
+#include "fboss/agent/FbossInit.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
-#include "fboss/agent/test/SplitAgentEnsemble.h"
+#include "fboss/agent/test/AgentEnsemble.h"
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
@@ -108,10 +109,12 @@ class SplitAgentTest : public ::testing::Test {
   virtual bool hideFabricPorts() const;
 
   virtual cfg::SwitchConfig initialConfig(
-      SwSwitch* swSwitch,
-      const std::vector<PortID>& ports) const = 0;
+      const AgentEnsemble& ensemble) const = 0;
 
   AgentEnsemblePlatformConfigFn platformConfigFn_ = nullptr;
   std::unique_ptr<AgentEnsemble> agentEnsemble_;
 };
+
+void initAgentHwTest(int argc, char* argv[], PlatformInitFn initPlatform);
+
 } // namespace facebook::fboss

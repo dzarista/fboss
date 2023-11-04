@@ -95,6 +95,7 @@ class MultiHwSwitchHandler {
   CpuPortStats getCpuPortStats();
 
   std::map<std::string, HwSysPortStats> getSysPortStats();
+  HwSwitchDropStats getSwitchDropStats() const;
 
   void updateStats();
 
@@ -143,6 +144,8 @@ class MultiHwSwitchHandler {
    * returns false if wait is cancelled
    */
   bool waitUntilHwSwitchConnected();
+
+  std::map<int32_t, SwitchRunState> getHwSwitchRunStates();
 
  private:
   HwSwitchHandler* getHwSwitchHandler(SwitchID id);
