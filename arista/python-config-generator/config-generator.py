@@ -85,7 +85,7 @@ def genSwitchIdToSwitchInfo(
       switchIdToSwitchInfo[ f"{switchId}" ] = {
             "switchType": 2,
             "asicType": 14,
-            "switchIndex": switchId,  ##! was 0
+            "switchIndex": switchId,
             "portIdRange": {
               "minimum": 0,
               "maximum": 2047
@@ -102,7 +102,7 @@ def genSwitchIdToSwitchInfo(
       switchIdToSwitchInfo[ f"{switchId}" ] = {
             "switchType": 3,
             "asicType": 16,
-            "switchIndex": switchId,  ##! was 0
+            "switchIndex": switchId,
             "portIdRange": {
               "minimum": 0,
               "maximum": 2047
@@ -146,7 +146,7 @@ def generateWhistlerConfig( baseWhistlerConfig, spineName, spineIndex,
                             leafs, spines ):
    whistlerConfig = copy.deepcopy( baseWhistlerConfig )
 
-   whistlerConfig[ "sw" ][ "switchSettings" ][ "switchId" ] = spineSwitchId( spineIndex )  ##! was 8
+   whistlerConfig[ "sw" ][ "switchSettings" ][ "switchId" ] = spineSwitchId( spineIndex )
 
    whistlerConfig[ "sw" ][ "switchSettings" ][ "switchIdToSwitchInfo" ] = \
          genSwitchIdToSwitchInfo( [], [ ( spineIndex, spines ) ] )
