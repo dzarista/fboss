@@ -8,8 +8,6 @@ import sys
 
 sys.path.append( "gen-py" )
 
-#import thrift
-#from thrift import Thrift
 from thrift.transport import (
       TSocket,
       TTransport,
@@ -67,6 +65,10 @@ def getPortAndHostData( client ):
    return pathToState
 
 def remapMergePortAndHostData( pathToState, resultPathToState ):
+   # Temporarily left in. We have to merge data from multiple neighbors
+   # but the data return from get is not a dictionary but a string reprepresantion
+   # of dictionaries. When we the ability to test against multiple remote leaf
+   # devices, we'll have to revisit this.
    #resultPathToState[ "remoteSystemPortMaps" ].update(
    #      json.loads( pathToState.pop( "systemPortMaps" ) ) )
    #resultPathToState[ "remoteInterfaceMaps" ].update(
@@ -93,9 +95,6 @@ def main( args ):
          content = f.read()
 
       pathToState = eval( content )
-
-      import pdb; pdb.set_trace()
-      pass
 
    else:
       for remote in args.get:
