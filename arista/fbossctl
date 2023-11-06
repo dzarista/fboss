@@ -19,7 +19,7 @@ if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
    FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
 fi
 
-DEFAULT_DOCKER_NAME="FBOSS_CENTOS8-2-${USER}"
+DEFAULT_DOCKER_NAME="FBOSS_CENTOS8-1-${USER}"
 if [[ -z "${DOCKER_NAME}" ]]; then
    echo "No docker container name specified. using ${DEFAULT_DOCKER_NAME}"
    DOCKER_NAME="${DEFAULT_DOCKER_NAME}"
