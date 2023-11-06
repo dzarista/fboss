@@ -19,6 +19,12 @@ if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
    FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
 fi
 
+DEFAULT_DOCKER_NAME="FBOSS_CENTOS8-1-${USER}"
+if [[ -z "${DOCKER_NAME}" ]]; then
+   echo "No docker container name specified. using ${DEFAULT_DOCKER_NAME}"
+   DOCKER_NAME="${DEFAULT_DOCKER_NAME}"
+fi
+
 FBOSS_HOST_DIR="${FBOSS_BUILD_DIR}/FBOSS_DIR"
 FBOSS_CONTAINER_BASE="/var/FBOSS"
 FBOSS_REPO_DIR="$(git rev-parse --show-toplevel)"
@@ -156,7 +162,7 @@ run_cmd_container() {
    docker run -l owner="${USER}" --privileged --rm -it \
       -v "${FBOSS_HOST_DIR}":/var/FBOSS/ \
       -v "${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
-      -w /var/FBOSS --name=FBOSS_CENTOS8-2-"${USER}" "${FBOSS_IMG}" $@
+      -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" $@
 }
 
 enter_container_shell() {
