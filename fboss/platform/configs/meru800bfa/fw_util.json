@@ -21,6 +21,34 @@
       "priority" : 3,
       "upgradeCmd" : "smb_cpld_filename=$(head -n 1 /home/meru_smb_cpld_filename.txt);/usr/bin/jam -aprogram -fmeru_switch_cpld -v $smb_cpld_filename",
       "postUpgradeCmd" : "echo 0 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable"
+    },
+    "meru_smb_fpga0" : {
+      "preUpgradeCmd" : "",
+      "getVersionCmd" : "smb_fpga0_ver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA0/fpga_ver`));smb_fpga0_subver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA0/fpga_sub_ver`));echo $smb_fpga0_ver'.'$smb_fpga0_subver",
+      "priority" : 4,
+      "upgradeCmd" : "smb_fpga0_filename=$(head -n 1 /home/meru_smb_fpga0_filename.txt);fpga0_mtd_dev=$(grep $(ls /run/devmap/fpgas/MERU800BFA_SMB_FPGA0/scd-spi*/spi_master/spi* | grep spi*.*) /proc/mtd |awk '{print$1}' | tr -d : | tr -d mtd);flashrom -p linux_mtd:dev=$fpga0_mtd_dev -w $smb_fpga0_filename",
+      "postUpgradeCmd" : ""
+    },
+    "meru_smb_fpga1" : {
+      "preUpgradeCmd" : "",
+      "getVersionCmd" : "smb_fpga1_ver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA1/fpga_ver`));smb_fpga1_subver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA1/fpga_sub_ver`));echo $smb_fpga1_ver'.'$smb_fpga1_subver",
+      "priority" : 4,
+      "upgradeCmd" : "smb_fpga1_filename=$(head -n 1 /home/meru_smb_fpga1_filename.txt);fpga1_mtd_dev=$(grep $(ls /run/devmap/fpgas/MERU800BFA_SMB_FPGA1/scd-spi*/spi_master/spi* | grep spi*.*) /proc/mtd |awk '{print$1}' | tr -d : | tr -d mtd);flashrom -p linux_mtd:dev=$fpga1_mtd_dev -w $smb_fpga1_filename",
+      "postUpgradeCmd" : ""
+    },
+    "meru_smb_fpga2" : {
+      "preUpgradeCmd" : "",
+      "getVersionCmd" : "smb_fpga2_ver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA2/fpga_ver`));smb_fpga2_subver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA2/fpga_sub_ver`));echo $smb_fpga2_ver'.'$smb_fpga2_subver",
+      "priority" : 4,
+      "upgradeCmd" : "smb_fpga2_filename=$(head -n 1 /home/meru_smb_fpga2_filename.txt);fpga2_mtd_dev=$(grep $(ls /run/devmap/fpgas/MERU800BFA_SMB_FPGA2/scd-spi*/spi_master/spi* | grep spi*.*) /proc/mtd |awk '{print$1}' | tr -d : | tr -d mtd);flashrom -p linux_mtd:dev=$fpga2_mtd_dev -w $smb_fpga2_filename",
+      "postUpgradeCmd" : ""
+    },
+    "meru_smb_fpga3" : {
+      "preUpgradeCmd" : "",
+      "getVersionCmd" : "smb_fpga3_ver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA3/fpga_ver`));smb_fpga3_subver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA3/fpga_sub_ver`));echo $smb_fpga3_ver'.'$smb_fpga3_subver",
+      "priority" : 4,
+      "upgradeCmd" : "smb_fpga3_filename=$(head -n 1 /home/meru_smb_fpga3_filename.txt);fpga3_mtd_dev=$(grep $(ls /run/devmap/fpgas/MERU800BFA_SMB_FPGA3/scd-spi*/spi_master/spi* | grep spi*.*) /proc/mtd |awk '{print$1}' | tr -d : | tr -d mtd);flashrom -p linux_mtd:dev=$fpga3_mtd_dev -w $smb_fpga3_filename",
+      "postUpgradeCmd" : ""
     }
   }
 }
