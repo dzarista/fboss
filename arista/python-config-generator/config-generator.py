@@ -85,7 +85,7 @@ def genSwitchIdToSwitchInfo(
       switchIdToSwitchInfo[ f"{switchId}" ] = {
             "switchType": 2,
             "asicType": 14,
-            "switchIndex": switchId,
+            "switchIndex": 0,
             "portIdRange": {
               "minimum": 0,
               "maximum": 2047
@@ -102,7 +102,7 @@ def genSwitchIdToSwitchInfo(
       switchIdToSwitchInfo[ f"{switchId}" ] = {
             "switchType": 3,
             "asicType": 16,
-            "switchIndex": switchId,
+            "switchIndex": 0,
             "portIdRange": {
               "minimum": 0,
               "maximum": 2047
@@ -123,7 +123,7 @@ def generateViperConfig( baseViperConfig, leafName, leafIndex,
          # Recycle port
          tmplInterface(
             sysport=sysport( leafIndex, 1 ),
-            addressList=[] ),# loopbackAddr( leafIndex ) ] ),
+            addressList=[ loopbackAddr( leafIndex ) ] ),
 
 #         # Front panel port
 #         tmplInterface(
