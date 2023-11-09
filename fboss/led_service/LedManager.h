@@ -72,7 +72,9 @@ class LedManager {
 
   void setExternalLedState(int32_t portNum, PortLedExternalState ledState);
 
-  bool isLedControlledThroughService();
+  led::LedState getLedState(const std::string& swPortName) const;
+
+  bool isLedControlledThroughService() const;
 
   led::LedColor getCurrentLedColor(int32_t portNum) const;
 

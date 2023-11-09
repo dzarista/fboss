@@ -951,7 +951,9 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
     sysPort->setNumVoqs(8);
     if (auto cpuTrafficPolicy = cfg_->cpuTrafficPolicy()) {
       if (auto trafficPolicy = cpuTrafficPolicy->trafficPolicy()) {
-        sysPort->setQosPolicy(*trafficPolicy->defaultQosPolicy());
+        if (auto defaultQosPolicy = trafficPolicy->defaultQosPolicy()) {
+          sysPort->setQosPolicy(*defaultQosPolicy);
+        }
       }
     }
     auto sysPorts = new_->getRemoteSystemPorts()->modify(&new_);
@@ -3615,6 +3617,7 @@ ThriftConfigApplier::createFlowletSwitchingConfig(
       *config.dynamicEgressMaxThresholdBytes());
   newFlowletSwitchingConfig->setDynamicPhysicalQueueExponent(
       *config.dynamicPhysicalQueueExponent());
+  newFlowletSwitchingConfig->setMaxLinks(*config.maxLinks());
   return newFlowletSwitchingConfig;
 }
 

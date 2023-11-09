@@ -149,7 +149,7 @@ target_link_libraries(hw_switch_ensemble
 )
 
 add_library(hw_test_acl_utils
-  fboss/agent/hw/test/HwTestAclUtils.cpp
+    fboss/agent/hw/test/HwTestAclUtils.cpp
 )
 
 target_link_libraries(hw_test_acl_utils
@@ -157,7 +157,6 @@ target_link_libraries(hw_test_acl_utils
   switch_asics
   state
 )
-
 
 add_library(load_balancer_utils
   fboss/agent/hw/test/LoadBalancerUtils.cpp
@@ -231,6 +230,7 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwTrunkTests.cpp
   fboss/agent/hw/test/HwVlanTests.cpp
   fboss/agent/hw/test/HwVoqSwitchTests.cpp
+  fboss/agent/hw/test/HwVoqSwitchInterruptTests.cpp
   fboss/agent/hw/test/HwL2ClassIDTests.cpp
   fboss/agent/hw/test/HwAclMatchActionsTests.cpp
   fboss/agent/hw/test/HwAclPriorityTests.cpp

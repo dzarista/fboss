@@ -22,6 +22,7 @@
 #include "fboss/agent/hw/test/HwTestStatUtils.h"
 #include "fboss/agent/hw/test/HwVoqUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
+#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/InterfaceMap.h"
 #include "fboss/agent/state/SwitchState.h"
@@ -57,9 +58,14 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
         break;
       }
     }
+    utility::addAclTableGroup(
+        &cfg, cfg::AclStage::INGRESS, utility::getAclTableGroupName());
+    utility::addDefaultAclTable(cfg);
     return cfg;
   }
   void SetUp() override {
+    // VOQ switches will run SAI from day 1. so enable Multi acl for VOQ tests
+    FLAGS_enable_acl_table_group = true;
     HwLinkStateDependentTest::SetUp();
     ASSERT_EQ(getHwSwitch()->getSwitchType(), cfg::SwitchType::VOQ);
     ASSERT_TRUE(getHwSwitch()->getSwitchId().has_value());
@@ -481,7 +487,9 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
   const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
 
   auto setup = [this, kPort, ecmpHelper]() {
-    addDscpAclWithCounter();
+    if (isSupported(HwAsic::Feature::ACL_TABLE_GROUP)) {
+      addDscpAclWithCounter();
+    }
     addRemoveNeighbor(kPort, true /* add neighbor*/);
   };
 
@@ -531,7 +539,8 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
       }
 
       auto [beforeOutPkts, beforeOutBytes] = getPortOutPktsBytes();
-      auto beforeAclPkts = getAclPackets();
+      auto beforeAclPkts =
+          isSupported(HwAsic::Feature::ACL_TABLE_GROUP) ? getAclPackets() : 0;
       std::optional<PortID> frontPanelPort;
       if (isFrontPanel) {
         frontPanelPort = ecmpHelper.ecmpPortDescriptorAt(1).phyPortID();
@@ -547,7 +556,9 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
               std::tie(afterQueueOutPkts, afterQueueOutBytes) =
                   getQueueOutPktsBytes();
             }
-            auto afterAclPkts = getAclPackets();
+            auto afterAclPkts = isSupported(HwAsic::Feature::ACL_TABLE_GROUP)
+                ? getAclPackets()
+                : 0;
             auto portOutPktsAndBytes = getPortOutPktsBytes();
             auto afterOutPkts = portOutPktsAndBytes.first;
             auto afterOutBytes = portOutPktsAndBytes.second;
@@ -573,10 +584,12 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
             int extraByteOffset = 0;
             auto asicType = getAsic()->getAsicType();
             auto asicMode = getAsic()->getAsicMode();
-            if (asicMode == HwAsic::AsicMode::ASIC_MODE_HW &&
+            if (asicMode != HwAsic::AsicMode::ASIC_MODE_SIM &&
                 (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
                  asicType == cfg::AsicType::ASIC_TYPE_JERICHO3)) {
               // CS00012267635: debug why we get 4 extra bytes
+              // Most likely this is the Ethernet FCS being counted
+              // in TX out bytes.
               extraByteOffset = 4;
             }
             EXPECT_EVENTUALLY_EQ(
@@ -587,7 +600,9 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
               // txPacketSize is 322
               EXPECT_EVENTUALLY_GE(afterQueueOutBytes, beforeQueueOutBytes);
             }
-            EXPECT_EVENTUALLY_GT(afterAclPkts, beforeAclPkts);
+            if (isSupported(HwAsic::Feature::ACL_TABLE_GROUP)) {
+              EXPECT_EVENTUALLY_GT(afterAclPkts, beforeAclPkts);
+            }
             if (getAsic()->isSupported(HwAsic::Feature::VOQ)) {
               EXPECT_EVENTUALLY_GT(afterVoQOutBytes, beforeVoQOutBytes);
             }

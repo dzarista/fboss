@@ -9,6 +9,7 @@
  */
 
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
+#include <memory>
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 
 #include "fboss/agent/state/SwitchState.h"
@@ -17,10 +18,27 @@ DECLARE_bool(enable_acl_table_group);
 
 namespace facebook::fboss::utility {
 
+std::shared_ptr<AclEntry> getAclEntryByName(
+    const std::shared_ptr<SwitchState> state,
+    const std::string& aclName) {
+  std::shared_ptr<AclEntry> swAcl;
+  if (FLAGS_enable_acl_table_group) {
+    auto aclMap = state->getAclsForTable(
+        cfg::AclStage::INGRESS, utility::kDefaultAclTable());
+    if (aclMap) {
+      swAcl = aclMap->getNodeIf(aclName);
+    }
+  } else {
+    swAcl = state->getAcl(aclName);
+  }
+
+  return swAcl;
+}
+
 std::optional<cfg::TrafficCounter> getAclTrafficCounter(
     const std::shared_ptr<SwitchState> state,
     const std::string& aclName) {
-  auto swAcl = state->getAcl(aclName);
+  auto swAcl = getAclEntryByName(state, aclName);
   if (swAcl && swAcl->getAclAction()) {
     return swAcl->getAclAction()
         ->cref<switch_state_tags::trafficCounter>()
@@ -55,6 +73,22 @@ int getAclTableIndex(
   return tableIndex;
 }
 
+cfg::AclEntry* addAclEntry(
+    cfg::SwitchConfig* cfg,
+    cfg::AclEntry& acl,
+    const std::optional<std::string>& tableName) {
+  if (FLAGS_enable_acl_table_group) {
+    auto aclTableName =
+        tableName.has_value() ? tableName.value() : kDefaultAclTable();
+    int tableNumber = getAclTableIndex(cfg, aclTableName);
+    cfg->aclTableGroup()->aclTables()[tableNumber].aclEntries()->push_back(acl);
+    return &cfg->aclTableGroup()->aclTables()[tableNumber].aclEntries()->back();
+  } else {
+    cfg->acls()->push_back(acl);
+    return &cfg->acls()->back();
+  }
+}
+
 cfg::AclEntry* addAcl(
     cfg::SwitchConfig* cfg,
     const std::string& aclName,
@@ -64,25 +98,28 @@ cfg::AclEntry* addAcl(
   *acl.name() = aclName;
   *acl.actionType() = aclActionType;
 
-  if (FLAGS_enable_acl_table_group) {
-    int tableNumber = getAclTableIndex(cfg, tableName);
-    cfg->aclTableGroup()->aclTables()[tableNumber].aclEntries()->push_back(acl);
-    return &cfg->aclTableGroup()->aclTables()[tableNumber].aclEntries()->back();
-  } else {
-    cfg->acls()->push_back(acl);
-    return &cfg->acls()->back();
-  }
+  return addAclEntry(cfg, acl, tableName);
+}
+
+std::vector<cfg::AclEntry>& getAcls(
+    cfg::SwitchConfig* cfg,
+    const std::optional<std::string>& tableName) {
+  auto aclTableName =
+      tableName.has_value() ? tableName.value() : kDefaultAclTable();
+  auto& acls = FLAGS_enable_acl_table_group
+      ? *cfg->aclTableGroup()
+             ->aclTables()[getAclTableIndex(cfg, aclTableName)]
+             .aclEntries()
+      : *cfg->acls();
+
+  return acls;
 }
 
 void delAcl(
     cfg::SwitchConfig* cfg,
     const std::string& aclName,
     const std::optional<std::string>& tableName) {
-  auto& acls = FLAGS_enable_acl_table_group
-      ? *cfg->aclTableGroup()
-             ->aclTables()[getAclTableIndex(cfg, tableName)]
-             .aclEntries()
-      : *cfg->acls();
+  auto& acls = getAcls(cfg, tableName);
 
   acls.erase(
       std::remove_if(
@@ -90,6 +127,11 @@ void delAcl(
           acls.end(),
           [&](cfg::AclEntry const& acl) { return *acl.name() == aclName; }),
       acls.end());
+}
+
+void delLastAddedAcl(cfg::SwitchConfig* cfg) {
+  auto& acls = getAcls(cfg, std::nullopt);
+  acls.pop_back();
 }
 
 void addAclTableGroup(
@@ -100,6 +142,17 @@ void addAclTableGroup(
   cfg->aclTableGroup() = cfgTableGroup;
   cfg->aclTableGroup()->name() = aclTableGroupName;
   cfg->aclTableGroup()->stage() = aclStage;
+}
+
+std::string kDefaultAclTable() {
+  return "AclTable1";
+}
+
+void addDefaultAclTable(cfg::SwitchConfig& cfg) {
+  /* Create default ACL table similar to whats being done in Agent today */
+  std::vector<cfg::AclTableQualifier> qualifiers = {};
+  std::vector<cfg::AclTableActionType> actions = {};
+  addAclTable(&cfg, kDefaultAclTable(), 0 /* priority */, actions, qualifiers);
 }
 
 cfg::AclTable* addAclTable(

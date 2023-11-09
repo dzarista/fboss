@@ -32,6 +32,10 @@ std::string eventName(uint32_t eventID) {
       return "SAI_SWITCH_EVENT_TYPE_UNCONTROLLED_SHUTDOWN";
     case SAI_SWITCH_EVENT_TYPE_PARITY_ERROR:
       return "SAI_SWITCH_EVENT_TYPE_PARITY_ERROR";
+#if defined BRCM_SAI_SDK_GTE_11_0
+    case SAI_SWITCH_EVENT_TYPE_INTERRUPT:
+      return "SAI_SWITCH_EVENT_TYPE_INTERRUPT";
+#endif
   }
   return folly::to<std::string>("unknown event type: ", eventID);
 }
@@ -55,11 +59,146 @@ std::string correctionType(sai_switch_correction_type_t type) {
   }
   return "correction-type-unknown";
 }
+
+std::string errorType(sai_switch_error_type_t type) {
+  switch (type) {
+    case SAI_SWITCH_ERROR_TYPE_UNKNOWN:
+      return "SAI_SWITCH_ERROR_TYPE_UNKNOWN";
+    case SAI_SWITCH_ERROR_TYPE_PARITY:
+      return "SAI_SWITCH_ERROR_TYPE_PARITY";
+    case SAI_SWITCH_ERROR_TYPE_ECC_SINGLE_BIT:
+      return "SAI_SWITCH_ERROR_TYPE_ECC_SINGLE_BIT";
+    case SAI_SWITCH_ERROR_TYPE_ECC_DOUBLE_BIT:
+      return "SAI_SWITCH_ERROR_TYPE_ECC_DOUBLE_BIT";
+#if defined BRCM_SAI_SDK_GTE_11_0
+    case SAI_SWITCH_ERROR_TYPE_IRE_ECC:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_ECC";
+    case SAI_SWITCH_ERROR_TYPE_IRE_RCY_INTERFACE:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_RCY_INTERFACE";
+    case SAI_SWITCH_ERROR_TYPE_IRE_INTERNAL_INTERFACE:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_INTERNAL_INTERFACE";
+    case SAI_SWITCH_ERROR_TYPE_IRE_NIF:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_NIF";
+    case SAI_SWITCH_ERROR_TYPE_IRE_UNEXPECTED_SOP:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_UNEXPECTED_SOP";
+    case SAI_SWITCH_ERROR_TYPE_IRE_UNEXPECTED_MOP:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_UNEXPECTED_MOP";
+    case SAI_SWITCH_ERROR_TYPE_IRE_NEGATIVE_DELTA:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_NEGATIVE_DELTA";
+    case SAI_SWITCH_ERROR_TYPE_IRE_INCOMPLETE_WORD:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_INCOMPLETE_WORD";
+    case SAI_SWITCH_ERROR_TYPE_IRE_BAD_REASSEMBLY_CONTEXT:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_BAD_REASSEMBLY_CONTEXT";
+    case SAI_SWITCH_ERROR_TYPE_IRE_INVALID_REASSEMBLY_CONTEXT:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_INVALID_REASSEMBLY_CONTEXT";
+    case SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_0:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_0";
+    case SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_1:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_1";
+    case SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_2:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_2";
+    case SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_3:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_3";
+    case SAI_SWITCH_ERROR_TYPE_IRE_REASSEMBLY_CONTEXT:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_REASSEMBLY_CONTEXT";
+    case SAI_SWITCH_ERROR_TYPE_IRE_BYTE_NUM:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_BYTE_NUM";
+    case SAI_SWITCH_ERROR_TYPE_IRE_TIMEOUT:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_TIMEOUT";
+    case SAI_SWITCH_ERROR_TYPE_IRE_REASSEMBLY:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_REASSEMBLY";
+    case SAI_SWITCH_ERROR_TYPE_IRE_FIFO:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_FIFO";
+    case SAI_SWITCH_ERROR_TYPE_IRE_DATA_PATH_CRC:
+      return "SAI_SWITCH_ERROR_TYPE_IRE_DATA_PATH_CRC";
+    case SAI_SWITCH_ERROR_TYPE_ITPP_ECC:
+      return "SAI_SWITCH_ERROR_TYPE_ITPP_ECC";
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_0_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_0_MISMATCH";
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_1_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_1_MISMATCH";
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_2_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_2_MISMATCH";
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_3_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_3_MISMATCH";
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_4_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_4_MISMATCH";
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_ECC:
+      return "SAI_SWITCH_ERROR_TYPE_ITPPD_ECC";
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_0_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_0_MISMATCH";
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_1_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_1_MISMATCH";
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_2_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_2_MISMATCH";
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_3_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_3_MISMATCH";
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_4_MISMATCH:
+      return "SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_4_MISMATCH";
+#endif
+    default:
+      break;
+  }
+  return folly::sformat("Unknown error type: {} ", static_cast<int>(type));
+}
+
+bool isIreErrorType(sai_switch_error_type_t type) {
+  switch (type) {
+#if defined BRCM_SAI_SDK_GTE_11_0
+    case SAI_SWITCH_ERROR_TYPE_IRE_ECC:
+    case SAI_SWITCH_ERROR_TYPE_IRE_RCY_INTERFACE:
+    case SAI_SWITCH_ERROR_TYPE_IRE_INTERNAL_INTERFACE:
+    case SAI_SWITCH_ERROR_TYPE_IRE_NIF:
+    case SAI_SWITCH_ERROR_TYPE_IRE_UNEXPECTED_SOP:
+    case SAI_SWITCH_ERROR_TYPE_IRE_UNEXPECTED_MOP:
+    case SAI_SWITCH_ERROR_TYPE_IRE_NEGATIVE_DELTA:
+    case SAI_SWITCH_ERROR_TYPE_IRE_INCOMPLETE_WORD:
+    case SAI_SWITCH_ERROR_TYPE_IRE_BAD_REASSEMBLY_CONTEXT:
+    case SAI_SWITCH_ERROR_TYPE_IRE_INVALID_REASSEMBLY_CONTEXT:
+    case SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_1:
+    case SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_2:
+    case SAI_SWITCH_ERROR_TYPE_IRE_TDM_DOC_NAME_3:
+    case SAI_SWITCH_ERROR_TYPE_IRE_REASSEMBLY_CONTEXT:
+    case SAI_SWITCH_ERROR_TYPE_IRE_BYTE_NUM:
+    case SAI_SWITCH_ERROR_TYPE_IRE_TIMEOUT:
+    case SAI_SWITCH_ERROR_TYPE_IRE_REASSEMBLY:
+    case SAI_SWITCH_ERROR_TYPE_IRE_FIFO:
+    case SAI_SWITCH_ERROR_TYPE_IRE_DATA_PATH_CRC:
+      return true;
+#endif
+    default:
+      break;
+  }
+  return false;
+}
+bool isItppError(sai_switch_error_type_t type) {
+  switch (type) {
+#if defined BRCM_SAI_SDK_GTE_11_0
+    case SAI_SWITCH_ERROR_TYPE_ITPP_ECC:
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_0_MISMATCH:
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_1_MISMATCH:
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_2_MISMATCH:
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_3_MISMATCH:
+    case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_4_MISMATCH:
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_ECC:
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_0_MISMATCH:
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_1_MISMATCH:
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_2_MISMATCH:
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_3_MISMATCH:
+    case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_4_MISMATCH:
+      return true;
+#endif
+    default:
+      break;
+  }
+  return false;
+}
+
 } // namespace
 
 namespace facebook::fboss {
 
-void SaiSwitch::parityErrorSwitchEventCallback(
+void SaiSwitch::switchEventCallback(
     sai_size_t /*buffer_size*/,
     const void* buffer,
     uint32_t event_type) {
@@ -71,10 +210,11 @@ void SaiSwitch::parityErrorSwitchEventCallback(
   bool correctible = true;
   if (eventInfo) {
     sstream << "correction type=" << correctionType(eventInfo->correction_type)
-            << " , flags=" << std::hex << eventInfo->flags;
+            << ", flags=" << std::hex << eventInfo->flags;
     correctible =
         (eventInfo->correction_type !=
          SAI_SWITCH_CORRECTION_TYPE_FAIL_TO_CORRECT);
+    sstream << ", error type=" << errorType(eventInfo->error_type);
   }
   sstream << ")";
   XLOG(WARNING) << sstream.str();
@@ -92,53 +232,29 @@ void SaiSwitch::parityErrorSwitchEventCallback(
         getSwitchStats()->uncorrParityError();
       }
       break;
+#if defined BRCM_SAI_SDK_GTE_11_0
+    case SAI_SWITCH_EVENT_TYPE_INTERRUPT: {
+      auto ireError = isIreErrorType(eventInfo->error_type);
+      auto itppError = isItppError(eventInfo->error_type);
+      XLOG(ERR) << " Got interrupt event, is IRE: " << ireError
+                << " is ITPP: " << itppError;
+      if (ireError) {
+        getSwitchStats()->ireError();
+      } else if (itppError) {
+        getSwitchStats()->itppError();
+      }
+    } break;
+#endif
   }
 }
 
 void SaiSwitch::tamEventCallback(
     sai_object_id_t /*tam_event_id*/,
     sai_size_t /*buffer_size*/,
-    const void* buffer,
-    uint32_t attr_count,
-    const sai_attribute_t* attr_list) {
-  SaiTamEventTraits::Attributes::SwitchEventId eventID{};
-  const sai_switch_ser_log_info_t* eventInfo =
-      static_cast<const sai_switch_ser_log_info_t*>(buffer);
-  for (auto i = 0; i < attr_count; i++) {
-    if (attr_list[i].id == eventID.id()) {
-      eventID =
-          SaiTamEventTraits::Attributes::SwitchEventId(attr_list[i].value.u32);
-    }
-  }
-
-  std::stringstream sstream;
-  sstream << "received switch event: " << eventName(eventID.value())
-          << ", event info(";
-  bool correctible = true;
-  if (eventInfo) {
-    sstream << "correction type=" << correctionType(eventInfo->correction_type)
-            << " , flags=" << std::hex << eventInfo->correction_type;
-    correctible =
-        (eventInfo->correction_type !=
-         SAI_SWITCH_CORRECTION_TYPE_FAIL_TO_CORRECT);
-  }
-  sstream << ")";
-  XLOG(WARNING) << sstream.str();
-  switch (eventID.value()) {
-    case SAI_SWITCH_EVENT_TYPE_STABLE_FULL:
-    case SAI_SWITCH_EVENT_TYPE_STABLE_ERROR:
-    case SAI_SWITCH_EVENT_TYPE_UNCONTROLLED_SHUTDOWN:
-    case SAI_SWITCH_EVENT_TYPE_WARM_BOOT_DOWNGRADE:
-      getSwitchStats()->asicError();
-      break;
-    case SAI_SWITCH_EVENT_TYPE_PARITY_ERROR:
-      if (correctible) {
-        getSwitchStats()->corrParityError();
-      } else {
-        getSwitchStats()->uncorrParityError();
-      }
-      break;
-  }
+    const void* /*buffer*/,
+    uint32_t /*attr_count*/,
+    const sai_attribute_t* /*attr_list*/) {
+  // no-op
 }
 
 } // namespace facebook::fboss
