@@ -23,13 +23,15 @@ int main( int argc, char* argv[] )
    uint32_t outputSizeRemaining = 0;
    int returnVal = 0;
 
-   if ( ( argc == 2 ) && ( strcmp( argv[1], "--help" ) == 0 ) ) {
-      printf( "usage: strip_arista_header input_file(.abit) output_file_name output_size(in MB)\n" );
-      return 0;
+   for ( int i = 1; i < argc; i++ ) {
+      if ( strcmp( argv[i], "--help" ) == 0 ) {
+         printf( "usage: strip_arista_header input_file(.abit) output_file output_file_size(in MB)\n" );
+         return 0;
+      }
    }
    if ( argc != 4 ) {
       printf( "please pass file names and output file size as arguments\n" );
-      printf( "use '--help' for more information\n" );
+      printf( "usage: strip_arista_header input_file(.abit) output_file output_file_size(in MB)\n" );
       return -1;
    }
    fileExtension = strrchr( argv[1], '.' );
