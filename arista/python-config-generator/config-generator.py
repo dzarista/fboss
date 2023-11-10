@@ -11,6 +11,8 @@ import os
 import re
 import subprocess
 
+DEFAULT_COPY_DST_PATH = "/tmp"
+
 # -----------------------------------------------
 # General utilities
 
@@ -133,7 +135,8 @@ def generateViperConfig( baseViperConfig, leafName, leafIndex,
 #            addressList=ethAddrList( leafIndex, 6 ) ),
          ]
 
-   viperConfig[ "sw" ][ "switchSettings" ][ "switchId" ] = leafSwitchId( leafIndex )
+   viperConfig[ "sw" ][ "switchSettings" ][ "switchId" ] = \
+         leafSwitchId( leafIndex )
 
    viperConfig[ "sw" ][ "switchSettings" ][ "switchIdToSwitchInfo" ] = \
          genSwitchIdToSwitchInfo(
@@ -143,7 +146,9 @@ def generateViperConfig( baseViperConfig, leafName, leafIndex,
          enumerate( leafs ), [] ) #spines )
 
    if artInfo:
-      nonSnakeFabricIntfs = [ intf for intf in artInfo[ "interfaces" ] if not intf[ "snake" ] and intf[ "localIntf" ].startswith( "Fabric" ) ]
+      nonSnakeFabricIntfs = [
+            intf for intf in artInfo[ "interfaces" ]
+            if not intf[ "snake" ] and intf[ "localIntf" ].startswith( "Fabric" ) ]
       nonSnakeFabricIntfFbossNames = {
             "fab1/" + intf[ "localIntf" ].lstrip( "Fabric" )
             for intf in nonSnakeFabricIntfs }
@@ -162,7 +167,8 @@ def generateViperConfig( baseViperConfig, leafName, leafIndex,
                print( f"{leafName} kept {portName}" )
                newPorts.append( port )
             else:
-               print( f"{leafName} skipped {portName}" )
+               #print( f"{leafName} skipped {portName}" ) # left  for debugging
+               pass
             continue
 
          import pdb; pdb.set_trace()
@@ -176,7 +182,8 @@ def generateWhistlerConfig( baseWhistlerConfig, spineName, spineIndex,
                             leafs, spines, artInfo ):
    whistlerConfig = copy.deepcopy( baseWhistlerConfig )
 
-   whistlerConfig[ "sw" ][ "switchSettings" ][ "switchId" ] = spineSwitchId( spineIndex )
+   whistlerConfig[ "sw" ][ "switchSettings" ][ "switchId" ] = \
+         spineSwitchId( spineIndex )
 
    whistlerConfig[ "sw" ][ "switchSettings" ][ "switchIdToSwitchInfo" ] = \
          genSwitchIdToSwitchInfo( [], [ ( spineIndex, spines ) ] )
@@ -185,7 +192,9 @@ def generateWhistlerConfig( baseWhistlerConfig, spineName, spineIndex,
          enumerate( leafs ), spines )
 
    if artInfo:
-      nonSnakeFabricIntfs = [ intf for intf in artInfo[ "interfaces" ] if not intf[ "snake" ] and intf[ "localIntf" ].startswith( "Fabric" ) ]
+      nonSnakeFabricIntfs = [
+            intf for intf in artInfo[ "interfaces" ]
+            if not intf[ "snake" ] and intf[ "localIntf" ].startswith( "Fabric" ) ]
       nonSnakeFabricIntfFbossNames = {
             "fab1/" + intf[ "localIntf" ].lstrip( "Fabric" )
             for intf in nonSnakeFabricIntfs }
@@ -204,7 +213,8 @@ def generateWhistlerConfig( baseWhistlerConfig, spineName, spineIndex,
                print( f"{spineName} kept {portName}" )
                newPorts.append( port )
             else:
-               print( f"{spineName} skipped {portName}" )
+               #print( f"{spineName} skipped {portName}" ) # kept for debugging
+               pass
             continue
 
          import pdb; pdb.set_trace()
@@ -294,14 +304,14 @@ def getArtInfo( devices ):
 # -----------------------------------------------
 # Main program
 
-def copyScripts( clusterName, leafs, spines ):
+def copyScripts( clusterName, leafs, spines, dstPath ):
    for dev in leafs:
       configPath = viperConfigPath( clusterName, dev )
-      os.system( f"scp -4 {configPath} root@{dev}:/tmp/sbirmiwal" )
+      os.system( f"scp -4 {configPath} root@{dev}:{dstPath}" )
 
    for dev in spines:
       configPath = whistlerConfigPath( clusterName, dev )
-      os.system( f"scp -4 {configPath} root@{dev}:/tmp/sbirmiwal" )
+      os.system( f"scp -4 {configPath} root@{dev}:{dstPath}" )
 
 def main( args ):
    # Generate viper config
@@ -318,7 +328,8 @@ def main( args ):
       artInfo = getArtInfo( spines + leafs )
 
    for idx, leaf in enumerate( leafs ):
-      viperConfig = generateViperConfig( baseViperConfig, leaf, idx, leafs, spines, artInfo.get( leaf ) )
+      viperConfig = generateViperConfig( baseViperConfig, leaf, idx,
+            leafs, spines, artInfo.get( leaf ) )
       configPath = viperConfigPath( args.cluster_name, leaf)
       with open( configPath, "w" ) as f:
          json.dump( viperConfig, f, indent=2, separators=( ", ", ": " ) )
@@ -329,13 +340,14 @@ def main( args ):
 
    spines = sorted( args.spine )
    for idx, spine in enumerate( spines ):
-      spineConfig = generateWhistlerConfig( baseWhistlerConfig, spine, idx, leafs, spines, artInfo.get( spine ) )
+      spineConfig = generateWhistlerConfig( baseWhistlerConfig, spine, idx,
+            leafs, spines, artInfo.get( spine ) )
       configPath = whistlerConfigPath( args.cluster_name, spine )
       with open( configPath, "w" ) as f:
          json.dump( spineConfig, f, indent=2, separators=( ", ", ": " ) )
 
    if args.copy:
-      copyScripts( args.cluster_name, leafs, spines )
+      copyScripts( args.cluster_name, leafs, spines, args.copy_dst_path )
 
 def parsedArgs():
    parser = argparse.ArgumentParser()
@@ -349,6 +361,10 @@ def parsedArgs():
          help="Filter fabric ports based on Art info --detail information" )
    parser.add_argument( "--copy", action="store_true",
          help="Copy generated configs to dut" )
+   parser.add_argument( "--copy-dst-path",
+         default=DEFAULT_COPY_DST_PATH,
+         help="Destination to copy the file to. "
+              f"Default {DEFAULT_COPY_DST_PATH}" )
 
    args = parser.parse_args()
    if not args.leaf:
