@@ -1,0 +1,21 @@
+remove mtd device setup from internal programmer init() function
+================================================================
+flashrom’s internal programmer option is used for BIOS flash.
+mtd device setup in the internal programmer init() function prevents detecting the BIOS flash.
+Remove mtd device setup from the init() function to resolve this issue.
+
+diff -Naru ../original/flashrom-v1.2.1/internal.c flashrom-v1.2.1/internal.c
+--- ../original/flashrom-v1.2.1/internal.c	2022-09-29 10:06:21.000000000 -0700
++++ flashrom-v1.2.1/internal.c	2023-11-09 20:27:39.340349553 -0800
+@@ -228,11 +228,6 @@
+ 	 */
+ 	internal_buses_supported = BUS_NONSPI;
+ 
+-	if (try_mtd() == 0) {
+-		ret = 0;
+-		goto internal_init_exit;
+-	}
+-
+ 	/* Initialize PCI access for flash enables */
+ 	if (pci_init_common() != 0) {
+ 		ret = 1;
