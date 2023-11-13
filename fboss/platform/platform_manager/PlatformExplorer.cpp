@@ -35,8 +35,13 @@ using constants = platform_manager_config_constants;
 
 PlatformExplorer::PlatformExplorer(
     std::chrono::seconds exploreInterval,
-    const PlatformConfig& config)
+    const PlatformConfig& config,
+    bool runOnce)
     : platformConfig_(config) {
+  if (runOnce) {
+    explore();
+    return;
+  }
   scheduler_.addFunction(
       [this, exploreInterval]() {
         try {
@@ -64,10 +69,12 @@ void PlatformExplorer::explore() {
       *rootPmUnitConfig.pluggedInSlotType(), kRootSlotPath);
   CHECK(pmUnitName == *platformConfig_.rootPmUnitName());
   explorePmUnit(kRootSlotPath, *platformConfig_.rootPmUnitName());
+  XLOG(INFO) << "Creating symbolic links ...";
   for (const auto& [linkPath, pmDevicePath] :
        *platformConfig_.symbolicLinkToDevicePath()) {
     createDeviceSymLink(linkPath, pmDevicePath);
   }
+  XLOG(INFO) << "SUCCESS. Completed setting up all the devices.";
 }
 
 void PlatformExplorer::explorePmUnit(
@@ -235,7 +242,10 @@ void PlatformExplorer::explorePciDevices(
       pciExplorer_.createSpiMaster(charDevPath, spiMasterConfig, instId++);
     }
     for (const auto& fpgaIpBlockConfig : *pciDeviceConfig.gpioChipConfigs()) {
-      pciExplorer_.createFpgaIpBlock(charDevPath, fpgaIpBlockConfig, instId++);
+      auto gpioNum =
+          pciExplorer_.createGpioChip(pciDevice, fpgaIpBlockConfig, instId++);
+      updateGpioChipNum(
+          slotPath, *fpgaIpBlockConfig.pmUnitScopedName(), gpioNum);
     }
     for (const auto& fpgaIpBlockConfig : *pciDeviceConfig.watchdogConfigs()) {
       pciExplorer_.createFpgaIpBlock(charDevPath, fpgaIpBlockConfig, instId++);
@@ -286,6 +296,25 @@ uint32_t PlatformExplorer::getFpgaInstanceId(
     fpgaInstanceIds_[key] = 1000 * (fpgaInstanceIds_.size() + 1);
   }
   return fpgaInstanceIds_[key];
+}
+
+uint16_t PlatformExplorer::getGpioChipNum(
+    const std::string& slotPath,
+    const std::string& gpioChipDeviceName) {
+  return gpioChipNums_.at(std::make_pair(slotPath, gpioChipDeviceName));
+}
+
+void PlatformExplorer::updateGpioChipNum(
+    const std::string& slotPath,
+    const std::string& gpioChipDeviceName,
+    uint16_t gpioChipNum) {
+  XLOG(INFO) << fmt::format(
+      "Updating gpio chip {} in {} to gpio chip number {} (gpiochip{})",
+      gpioChipDeviceName,
+      slotPath,
+      gpioChipNum,
+      gpioChipNum);
+  gpioChipNums_[std::make_pair(slotPath, gpioChipDeviceName)] = gpioChipNum;
 }
 
 void PlatformExplorer::createDeviceSymLink(
@@ -436,18 +465,25 @@ void PlatformExplorer::createDeviceSymLink(
   } else if (linkParentPath.string() == "/run/devmap/i2c-busses") {
     targetPath = std::filesystem::path(
         fmt::format("/dev/i2c-{}", getI2cBusNum(slotPath, deviceName)));
+  } else if (linkParentPath.string() == "/run/devmap/gpiochips") {
+    targetPath = std::filesystem::path(
+        fmt::format("/dev/gpiochip{}", getGpioChipNum(slotPath, deviceName)));
+  } else {
+    XLOG(ERR) << fmt::format("Symbolic link {} is not supported.", linkPath);
+    return;
   }
 
   XLOG(INFO) << fmt::format(
-      "Creating symlink from {} to {}", linkPath, targetPath->string());
+      "Creating symlink from {} to {}. DevicePath: {}",
+      linkPath,
+      targetPath->string(),
+      pmDevicePath);
   auto cmd = fmt::format("ln -sfnv {} {}", targetPath->string(), linkPath);
   auto [exitStatus, standardOut] = PlatformUtils().execCommand(cmd);
   if (exitStatus != 0) {
     XLOG(ERR) << fmt::format("Failed to run command ({})", cmd);
     return;
   }
-  XLOG(INFO) << fmt::format(
-      "{} resolves to {}", linkPath, targetPath->string());
 }
 
 } // namespace facebook::fboss::platform::platform_manager

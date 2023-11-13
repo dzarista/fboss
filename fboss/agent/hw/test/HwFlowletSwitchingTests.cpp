@@ -35,6 +35,8 @@ const int kFlowletTableSize2 = 2048;
 static int kUdpProto(17);
 static int kUdpDstPort(4791);
 constexpr auto kAclName = "flowlet";
+constexpr auto kAclCounterName = "flowletStat";
+const int kMaxLinks = 4;
 } // namespace
 
 namespace facebook::fboss {
@@ -54,12 +56,26 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
     return cfg;
   }
 
+  void resolveNextHopsAddRoute(const int linkCount) {
+    for (int i = 0; i < linkCount; ++i) {
+      this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[i]));
+    }
+    this->addRoute(kAddr1, 64);
+  }
+
   void addFlowletAcl(cfg::SwitchConfig& cfg) const {
     auto* acl = utility::addAcl(&cfg, kAclName);
     acl->proto() = kUdpProto;
     acl->l4DstPort() = kUdpDstPort;
     cfg::MatchAction matchAction = cfg::MatchAction();
     matchAction.flowletAction() = cfg::FlowletAction::FORWARD;
+    matchAction.counter() = kAclCounterName;
+    std::vector<cfg::CounterType> counterTypes{
+        cfg::CounterType::PACKETS, cfg::CounterType::BYTES};
+    auto counter = cfg::TrafficCounter();
+    *counter.name() = kAclCounterName;
+    *counter.types() = counterTypes;
+    cfg.trafficCounters()->push_back(counter);
     utility::addMatcher(&cfg, kAclName, matchAction);
   }
 
@@ -125,6 +141,7 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
     flowletCfg.dynamicEgressMinThresholdBytes() = 1000;
     flowletCfg.dynamicEgressMaxThresholdBytes() = 10000;
     flowletCfg.dynamicPhysicalQueueExponent() = 3;
+    flowletCfg.maxLinks() = kMaxLinks;
     return flowletCfg;
   }
 
@@ -190,6 +207,14 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
         getHwSwitch(), kAddr1Prefix, flowletCfg, true));
 
     utility::checkSwHwAclMatch(getHwSwitch(), getProgrammedState(), kAclName);
+    std::vector<cfg::CounterType> counterTypes{
+        cfg::CounterType::PACKETS, cfg::CounterType::BYTES};
+    utility::checkAclStat(
+        getHwSwitch(),
+        getProgrammedState(),
+        {kAclName},
+        kAclCounterName,
+        counterTypes);
   }
 
   void verifyModifiedConfig() {
@@ -238,11 +263,10 @@ TEST_F(HwFlowletSwitchingTest, VerifyFlowletSwitchingEnable) {
   }
 
   auto setup = [&]() {
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[0]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[1]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[2]));
-    this->addRoute(kAddr1, 64);
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[3]));
+    resolveNextHopsAddRoute(kMaxLinks - 1);
+    // resolve route on this port later, so we can mimic unresolved nexthop on
+    // ECMP port
+    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[kMaxLinks - 1]));
   };
 
   auto verify = [&]() {
@@ -271,13 +295,7 @@ TEST_F(HwFlowletSwitchingTest, VerifyPortFlowletConfigChange) {
     return;
   }
 
-  auto setup = [&]() {
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[0]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[1]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[2]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[3]));
-    this->addRoute(kAddr1, 64);
-  };
+  auto setup = [&]() { resolveNextHopsAddRoute(kMaxLinks); };
 
   auto verify = [&]() {
     verifyInitialConfig();
@@ -301,13 +319,7 @@ TEST_F(HwFlowletSwitchingTest, VerifyFlowletConfigChange) {
     return;
   }
 
-  auto setup = [&]() {
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[0]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[1]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[2]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[3]));
-    this->addRoute(kAddr1, 64);
-  };
+  auto setup = [&]() { resolveNextHopsAddRoute(kMaxLinks); };
 
   auto verify = [&]() {
     verifyInitialConfig();
@@ -333,13 +345,7 @@ TEST_F(HwFlowletSwitchingTest, VerifyFlowletConfigRemoval) {
     return;
   }
 
-  auto setup = [&]() {
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[0]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[1]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[2]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[3]));
-    this->addRoute(kAddr1, 64);
-  };
+  auto setup = [&]() { resolveNextHopsAddRoute(kMaxLinks); };
 
   auto verify = [&]() {
     verifyInitialConfig();
@@ -371,13 +377,7 @@ TEST_F(HwEcmpFlowletSwitchingTest, VerifyEcmpFlowletSwitchingEnable) {
 
   // This test setup static ECMP and update the static ECMP to DLB ECMP and
   // revert the DLB ECMP to static ECMP and verify it.
-  auto setup = [&]() {
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[0]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[1]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[2]));
-    this->resolveNextHop(PortDescriptor(masterLogicalPortIds()[3]));
-    this->addRoute(kAddr1, 64);
-  };
+  auto setup = [&]() { resolveNextHopsAddRoute(kMaxLinks); };
 
   auto verify = [&]() {
     auto cfg = initialConfig();

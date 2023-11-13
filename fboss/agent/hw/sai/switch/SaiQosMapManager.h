@@ -35,6 +35,7 @@ struct SaiQosMapHandle {
   std::shared_ptr<SaiQosMap> tcToExpMap;
   std::shared_ptr<SaiQosMap> tcToPgMap;
   std::shared_ptr<SaiQosMap> pfcPriorityToQueueMap;
+  std::shared_ptr<SaiQosMap> tcToVoqMap;
 };
 
 class SaiQosMapManager {
@@ -43,19 +44,25 @@ class SaiQosMapManager {
       SaiStore* saiStore,
       SaiManagerTable* managerTable,
       const SaiPlatform* platform);
-  void addQosMap(const std::shared_ptr<QosPolicy>& newQosPolicy);
-  void removeQosMap();
+  void addQosMap(
+      const std::shared_ptr<QosPolicy>& newQosPolicy,
+      bool isDefault = true);
+  void removeQosMap(const std::shared_ptr<QosPolicy>& oldQosPolicy);
   void changeQosMap(
       const std::shared_ptr<QosPolicy>& oldQosPolicy,
       const std::shared_ptr<QosPolicy>& newQosPolicy);
 
-  const SaiQosMapHandle* getQosMap() const;
+  SaiQosMapHandle* FOLLY_NULLABLE
+  getQosMap(const std::optional<std::string>& qosPolicyName = std::nullopt);
+  const SaiQosMapHandle* FOLLY_NULLABLE getQosMap(
+      const std::optional<std::string>& qosPolicyName = std::nullopt) const;
 
  private:
   std::shared_ptr<SaiQosMap> setDscpToTcQosMap(
       const std::shared_ptr<QosPolicy>& qosPolicy);
   std::shared_ptr<SaiQosMap> setTcToQueueQosMap(
-      const std::shared_ptr<QosPolicy>& qosPolicy);
+      const std::shared_ptr<QosPolicy>& qosPolicy,
+      bool voq);
   std::shared_ptr<SaiQosMap> setExpToTcQosMap(
       const std::shared_ptr<QosPolicy>& qosPolicy);
   std::shared_ptr<SaiQosMap> setTcToExpQosMap(
@@ -69,8 +76,10 @@ class SaiQosMapManager {
   SaiStore* saiStore_;
   SaiManagerTable* managerTable_;
   const SaiPlatform* platform_;
-  // Only one QoS Map because we only manage the default, switch-wide, qos map
-  std::unique_ptr<SaiQosMapHandle> handle_;
+  SaiQosMapHandle* FOLLY_NULLABLE
+  getQosMapImpl(const std::optional<std::string>& qosPolicyName) const;
+  std::unordered_map<std::string, std::unique_ptr<SaiQosMapHandle>> handles_;
+  std::string defaultQosPolicyName_;
 };
 
 } // namespace facebook::fboss

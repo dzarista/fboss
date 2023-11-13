@@ -189,11 +189,12 @@ void addNetworkAIQueueConfig(
   }
 }
 
-void addVoqQueueConfig(
+void addVoqAqmConfig(
     cfg::SwitchConfig* config,
     cfg::StreamType streamType,
     const HwAsic* asic,
-    bool addWredConfig) {
+    bool addWredConfig,
+    bool addEcnConfig) {
   std::vector<cfg::PortQueue> voqConfig;
   std::vector<OlympicQueueType> kQueueTypes{
       OlympicQueueType::SILVER,
@@ -216,7 +217,9 @@ void addVoqQueueConfig(
 
     if (queueId == getOlympicQueueId(OlympicQueueType::ECN1)) {
       queue.aqms() = {};
-      queue.aqms()->push_back(kGetOlympicEcnConfig());
+      if (addEcnConfig) {
+        queue.aqms()->push_back(kGetOlympicEcnConfig());
+      }
       if (addWredConfig) {
         queue.aqms()->push_back(kGetWredConfig());
       }
@@ -327,9 +330,9 @@ void addOlympicQueueOptionalEcnWredConfigWithSchedulingHelper(
       port.portQueueConfigName() = "queue_config";
     }
   }
-  // For VoQ switches, add the default VoQ queue config as well!
+  // For VoQ switches, add AQM config to VoQ as well.
   if (asic->getSwitchType() == cfg::SwitchType::VOQ) {
-    addVoqQueueConfig(config, streamType, asic, addWredConfig);
+    addVoqAqmConfig(config, streamType, asic, addWredConfig, addEcnConfig);
   }
 }
 
@@ -403,6 +406,15 @@ void addQueueWredDropConfig(
   config->portQueueConfigs()["queue_config"] = portQueues;
   for (auto& port : *config->ports()) {
     port.portQueueConfigName() = "queue_config";
+  }
+  // For VoQ switches, add AQM config to VoQ as well.
+  if (asic->getSwitchType() == cfg::SwitchType::VOQ) {
+    addVoqAqmConfig(
+        config,
+        streamType,
+        asic,
+        true /*addWredConfig*/,
+        false /*addEcnConfig*/);
   }
 }
 
@@ -672,12 +684,12 @@ void addOlympicQosMapsHelper(
   }
   std::map<int16_t, int16_t> tc2Voq;
   for (int q = 0; q <= kOlympicHighestSPQueueId; q++) {
-    if (hwAsic->isSupported(HwAsic::Feature::VOQ)) {
-      tc2Voq.emplace(q, q);
-    }
+    tc2Voq.emplace(q, q);
     qosMap.trafficClassToQueueId()->emplace(q, q);
   }
-  qosMap.trafficClassToVoqId() = std::move(tc2Voq);
+  if (hwAsic->isSupported(HwAsic::Feature::VOQ)) {
+    qosMap.trafficClassToVoqId() = std::move(tc2Voq);
+  }
   cfg.qosPolicies()->resize(1);
   *cfg.qosPolicies()[0].name() = qosPolicyName;
   cfg.qosPolicies()[0].qosMap() = qosMap;
