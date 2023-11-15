@@ -1,6 +1,6 @@
-diff -Naur ../original/jp_25/Makefile jp_25/Makefile
---- ../original/jp_25/Makefile	1969-12-31 16:00:00.000000000 -0800
-+++ jp_25/Makefile	2023-10-19 21:39:29.710101573 -0700
+diff -Naur original/jp_25/Makefile jp_25/Makefile
+--- original/jp_25/Makefile	1969-12-31 16:00:00.000000000 -0800
++++ jp_25/Makefile	2023-11-13 15:04:55.535622967 -0800
 @@ -0,0 +1,22 @@
 +VERSION := 0.0.1
 +
@@ -24,9 +24,9 @@ diff -Naur ../original/jp_25/Makefile jp_25/Makefile
 +.PHONY: clean
 +clean:
 +	rm -rf $(BUILD_DIR)
-diff -Naur ../original/jp_25/source/jamarray.c jp_25/source/jamarray.c
---- ../original/jp_25/source/jamarray.c	2023-10-19 21:38:45.614033539 -0700
-+++ jp_25/source/jamarray.c	2023-10-19 21:39:29.720225338 -0700
+diff -Naur original/jp_25/source/jamarray.c jp_25/source/jamarray.c
+--- original/jp_25/source/jamarray.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamarray.c	2023-11-13 15:04:55.535622967 -0800
 @@ -22,6 +22,7 @@
  #include "jamutil.h"
  #include "jamcomp.h"
@@ -813,9 +813,9 @@ diff -Naur ../original/jp_25/source/jamarray.c jp_25/source/jamarray.c
  						? 1 : 0;
  				}
  				else
-diff -Naur ../original/jp_25/source/jamarray.h jp_25/source/jamarray.h
---- ../original/jp_25/source/jamarray.h	2023-10-19 21:38:45.631199024 -0700
-+++ jp_25/source/jamarray.h	2023-10-19 21:39:29.734739983 -0700
+diff -Naur original/jp_25/source/jamarray.h jp_25/source/jamarray.h
+--- original/jp_25/source/jamarray.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamarray.h	2023-11-13 15:04:55.531622950 -0800
 @@ -11,6 +11,8 @@
  #ifndef INC_JAMARRAY_H
  #define INC_JAMARRAY_H
@@ -836,9 +836,9 @@ diff -Naur ../original/jp_25/source/jamarray.h jp_25/source/jamarray.h
  );
  
  #endif	/* INC_JAMARRAY_H */
-diff -Naur ../original/jp_25/source/jamcomp.c jp_25/source/jamcomp.c
---- ../original/jp_25/source/jamcomp.c	2023-10-19 21:38:45.741540863 -0700
-+++ jp_25/source/jamcomp.c	2023-10-19 21:39:29.744495419 -0700
+diff -Naur original/jp_25/source/jamcomp.c jp_25/source/jamcomp.c
+--- original/jp_25/source/jamcomp.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamcomp.c	2023-11-13 15:04:55.535622967 -0800
 @@ -17,6 +17,7 @@
  #include "jamexprt.h"
  #include "jamdefs.h"
@@ -908,9 +908,9 @@ diff -Naur ../original/jp_25/source/jamcomp.c jp_25/source/jamcomp.c
  	else
  	{
  		i = 0;
-diff -Naur ../original/jp_25/source/jamcomp.h jp_25/source/jamcomp.h
---- ../original/jp_25/source/jamcomp.h	2023-10-19 21:38:45.752161781 -0700
-+++ jp_25/source/jamcomp.h	2023-10-19 21:39:29.756958622 -0700
+diff -Naur original/jp_25/source/jamcomp.h jp_25/source/jamcomp.h
+--- original/jp_25/source/jamcomp.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamcomp.h	2023-11-13 15:04:55.535622967 -0800
 @@ -12,13 +12,15 @@
  #ifndef INC_JAMCOMP_H
  #define INC_JAMCOMP_H
@@ -931,9 +931,9 @@ diff -Naur ../original/jp_25/source/jamcomp.h jp_25/source/jamcomp.h
  );
  
  #endif /* INC_JAMCOMP_H */
-diff -Naur ../original/jp_25/source/jamcrc.c jp_25/source/jamcrc.c
---- ../original/jp_25/source/jamcrc.c	2023-10-19 21:38:45.761088554 -0700
-+++ jp_25/source/jamcrc.c	2023-10-19 21:39:29.769184019 -0700
+diff -Naur original/jp_25/source/jamcrc.c jp_25/source/jamcrc.c
+--- original/jp_25/source/jamcrc.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamcrc.c	2023-11-13 15:04:55.531622950 -0800
 @@ -12,6 +12,7 @@
  #include "jamdefs.h"
  #include "jamexec.h"
@@ -998,9 +998,9 @@ diff -Naur ../original/jp_25/source/jamcrc.c jp_25/source/jamcrc.c
  	unsigned short tmp_expected_crc = 0;
  	unsigned short tmp_actual_crc = 0;
  	JAM_RETURN_TYPE status = JAMC_SUCCESS;
-diff -Naur ../original/jp_25/source/jamdefs.h jp_25/source/jamdefs.h
---- ../original/jp_25/source/jamdefs.h	2023-10-19 21:38:45.770796156 -0700
-+++ jp_25/source/jamdefs.h	2023-10-19 21:39:29.779502120 -0700
+diff -Naur original/jp_25/source/jamdefs.h jp_25/source/jamdefs.h
+--- original/jp_25/source/jamdefs.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamdefs.h	2023-11-13 15:04:55.531622950 -0800
 @@ -13,6 +13,8 @@
  #ifndef INC_JAMDEFS_H
  #define INC_JAMDEFS_H
@@ -1042,9 +1042,9 @@ diff -Naur ../original/jp_25/source/jamdefs.h jp_25/source/jamdefs.h
  
  extern char **jam_init_list;
  
-diff -Naur ../original/jp_25/source/jamexec.c jp_25/source/jamexec.c
---- ../original/jp_25/source/jamexec.c	2023-10-19 21:38:45.785371720 -0700
-+++ jp_25/source/jamexec.c	2023-10-19 21:39:29.798534190 -0700
+diff -Naur original/jp_25/source/jamexec.c jp_25/source/jamexec.c
+--- original/jp_25/source/jamexec.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamexec.c	2023-11-13 15:04:55.535622967 -0800
 @@ -33,6 +33,9 @@
  #include "jamarray.h"
  #include "jamjtag.h"
@@ -3769,9 +3769,9 @@ diff -Naur ../original/jp_25/source/jamexec.c jp_25/source/jamexec.c
  					jam_current_statement_position
  				);
  			}
-diff -Naur ../original/jp_25/source/jamexec.h jp_25/source/jamexec.h
---- ../original/jp_25/source/jamexec.h	2023-10-19 21:38:45.793393925 -0700
-+++ jp_25/source/jamexec.h	2023-10-19 21:39:29.808275019 -0700
+diff -Naur original/jp_25/source/jamexec.h jp_25/source/jamexec.h
+--- original/jp_25/source/jamexec.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamexec.h	2023-11-13 15:04:55.535622967 -0800
 @@ -11,19 +11,21 @@
  #ifndef INC_JAMEXEC_H
  #define INC_JAMEXEC_H
@@ -3835,9 +3835,9 @@ diff -Naur ../original/jp_25/source/jamexec.h jp_25/source/jamexec.h
  (
  	char *statement_buffer
  );
-diff -Naur ../original/jp_25/source/jamexp.c jp_25/source/jamexp.c
---- ../original/jp_25/source/jamexp.c	2023-10-19 21:38:45.803646086 -0700
-+++ jp_25/source/jamexp.c	2023-10-19 21:39:29.821529479 -0700
+diff -Naur original/jp_25/source/jamexp.c jp_25/source/jamexp.c
+--- original/jp_25/source/jamexp.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamexp.c	2023-11-13 15:04:55.531622950 -0800
 @@ -54,7 +54,7 @@
  #define	MAX_BUFFER_LENGTH	1024
  #define END_OF_STRING		-1
@@ -4210,9 +4210,9 @@ diff -Naur ../original/jp_25/source/jamexp.c jp_25/source/jamexp.c
  
    YYSTYPE *jam_yypv;
  
-diff -Naur ../original/jp_25/source/jamexp.h jp_25/source/jamexp.h
---- ../original/jp_25/source/jamexp.h	2023-10-19 21:38:45.816147825 -0700
-+++ jp_25/source/jamexp.h	2023-10-19 21:39:29.831808984 -0700
+diff -Naur original/jp_25/source/jamexp.h jp_25/source/jamexp.h
+--- original/jp_25/source/jamexp.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamexp.h	2023-11-13 15:04:55.531622950 -0800
 @@ -14,7 +14,7 @@
  JAM_RETURN_TYPE jam_evaluate_expression
  (
@@ -4222,9 +4222,9 @@ diff -Naur ../original/jp_25/source/jamexp.h jp_25/source/jamexp.h
  	JAME_EXPRESSION_TYPE *result_type
  );
  
-diff -Naur ../original/jp_25/source/jamexprt.h jp_25/source/jamexprt.h
---- ../original/jp_25/source/jamexprt.h	2023-10-19 21:38:45.824588659 -0700
-+++ jp_25/source/jamexprt.h	2023-10-19 21:39:29.841636706 -0700
+diff -Naur original/jp_25/source/jamexprt.h jp_25/source/jamexprt.h
+--- original/jp_25/source/jamexprt.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamexprt.h	2023-11-13 15:04:55.535622967 -0800
 @@ -14,13 +14,15 @@
  #ifndef INC_JAMEXPRT_H
  #define INC_JAMEXPRT_H
@@ -4367,9 +4367,9 @@ diff -Naur ../original/jp_25/source/jamexprt.h jp_25/source/jamexprt.h
  );
  
  void jam_free
-diff -Naur ../original/jp_25/source/jamheap.c jp_25/source/jamheap.c
---- ../original/jp_25/source/jamheap.c	2023-10-19 21:38:45.833428406 -0700
-+++ jp_25/source/jamheap.c	2023-10-19 21:39:29.851419339 -0700
+diff -Naur original/jp_25/source/jamheap.c jp_25/source/jamheap.c
+--- original/jp_25/source/jamheap.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamheap.c	2023-11-13 15:04:55.535622967 -0800
 @@ -19,6 +19,7 @@
  #include "jamheap.h"
  #include "jamjtag.h"
@@ -4566,9 +4566,9 @@ diff -Naur ../original/jp_25/source/jamheap.c jp_25/source/jamheap.c
  	}
  
  	return (temp_workspace);
-diff -Naur ../original/jp_25/source/jamheap.h jp_25/source/jamheap.h
---- ../original/jp_25/source/jamheap.h	2023-10-19 21:38:45.883008918 -0700
-+++ jp_25/source/jamheap.h	2023-10-19 21:39:29.862226197 -0700
+diff -Naur original/jp_25/source/jamheap.h jp_25/source/jamheap.h
+--- original/jp_25/source/jamheap.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamheap.h	2023-11-13 15:04:55.531622950 -0800
 @@ -13,6 +13,8 @@
  #ifndef INC_JAMHEAP_H
  #define INC_JAMHEAP_H
@@ -4606,9 +4606,9 @@ diff -Naur ../original/jp_25/source/jamheap.h jp_25/source/jamheap.h
  );
  
  void jam_free_temp_workspace
-diff -Naur ../original/jp_25/source/jamjtag.c jp_25/source/jamjtag.c
---- ../original/jp_25/source/jamjtag.c	2023-10-19 21:38:45.904413884 -0700
-+++ jp_25/source/jamjtag.c	2023-10-19 21:39:29.882017715 -0700
+diff -Naur original/jp_25/source/jamjtag.c jp_25/source/jamjtag.c
+--- original/jp_25/source/jamjtag.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamjtag.c	2023-11-13 15:04:55.535622967 -0800
 @@ -22,6 +22,7 @@
  #include "jamstack.h"
  #include "jamutil.h"
@@ -5289,9 +5289,9 @@ diff -Naur ../original/jp_25/source/jamjtag.c jp_25/source/jamjtag.c
  
  /*																			*/
  /*	Description:	Frees memory allocated for JTAG IR and DR buffers		*/
-diff -Naur ../original/jp_25/source/jamjtag.h jp_25/source/jamjtag.h
---- ../original/jp_25/source/jamjtag.h	2023-10-19 21:38:45.926184444 -0700
-+++ jp_25/source/jamjtag.h	2023-10-19 21:39:29.894910946 -0700
+diff -Naur original/jp_25/source/jamjtag.h jp_25/source/jamjtag.h
+--- original/jp_25/source/jamjtag.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamjtag.h	2023-11-13 15:04:55.531622950 -0800
 @@ -11,6 +11,8 @@
  #ifndef INC_JAMJTAG_H
  #define INC_JAMJTAG_H
@@ -5415,9 +5415,9 @@ diff -Naur ../original/jp_25/source/jamjtag.h jp_25/source/jamjtag.h
  );
  
  #endif /* INC_JAMJTAG_H */
-diff -Naur ../original/jp_25/source/jamnote.c jp_25/source/jamnote.c
---- ../original/jp_25/source/jamnote.c	2023-10-19 21:38:45.936592891 -0700
-+++ jp_25/source/jamnote.c	2023-10-19 21:39:29.911935097 -0700
+diff -Naur original/jp_25/source/jamnote.c jp_25/source/jamnote.c
+--- original/jp_25/source/jamnote.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamnote.c	2023-11-13 15:04:55.535622967 -0800
 @@ -12,6 +12,7 @@
  #include "jamdefs.h"
  #include "jamexec.h"
@@ -5529,9 +5529,9 @@ diff -Naur ../original/jp_25/source/jamnote.c jp_25/source/jamnote.c
  		}
  		else
  		{
-diff -Naur ../original/jp_25/source/jamport.h jp_25/source/jamport.h
---- ../original/jp_25/source/jamport.h	2023-10-19 21:38:45.944506144 -0700
-+++ jp_25/source/jamport.h	2023-10-19 21:39:29.922757973 -0700
+diff -Naur original/jp_25/source/jamport.h jp_25/source/jamport.h
+--- original/jp_25/source/jamport.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamport.h	2023-11-13 15:04:55.531622950 -0800
 @@ -11,6 +11,8 @@
  #ifndef INC_JAMPORT_H
  #define INC_JAMPORT_H
@@ -5549,9 +5549,9 @@ diff -Naur ../original/jp_25/source/jamport.h jp_25/source/jamport.h
 +#define PORT UNIX
  
  #endif /* INC_JAMPORT_H */
-diff -Naur ../original/jp_25/source/jamstack.c jp_25/source/jamstack.c
---- ../original/jp_25/source/jamstack.c	2023-10-19 21:38:45.953485563 -0700
-+++ jp_25/source/jamstack.c	2023-10-19 21:39:29.936878484 -0700
+diff -Naur original/jp_25/source/jamstack.c jp_25/source/jamstack.c
+--- original/jp_25/source/jamstack.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamstack.c	2023-11-13 15:04:55.535622967 -0800
 @@ -15,6 +15,7 @@
  #include "jamutil.h"
  #include "jamsym.h"
@@ -5705,9 +5705,9 @@ diff -Naur ../original/jp_25/source/jamstack.c jp_25/source/jamstack.c
  	stack_record.return_position = return_position;
  
  	return (jam_push_stack_record(&stack_record));
-diff -Naur ../original/jp_25/source/jamstack.h jp_25/source/jamstack.h
---- ../original/jp_25/source/jamstack.h	2023-10-19 21:38:45.961578166 -0700
-+++ jp_25/source/jamstack.h	2023-10-19 21:39:29.969742509 -0700
+diff -Naur original/jp_25/source/jamstack.h jp_25/source/jamstack.h
+--- original/jp_25/source/jamstack.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamstack.h	2023-11-13 15:04:55.535622967 -0800
 @@ -13,6 +13,8 @@
  #ifndef INC_JAMSTACK_H
  #define INC_JAMSTACK_H
@@ -5759,9 +5759,9 @@ diff -Naur ../original/jp_25/source/jamstack.h jp_25/source/jamstack.h
  );
  
  #endif /* INC_JAMSTACK_H */
-diff -Naur ../original/jp_25/source/jamstub.c jp_25/source/jamstub.c
---- ../original/jp_25/source/jamstub.c	2023-10-19 21:38:45.987601382 -0700
-+++ jp_25/source/jamstub.c	2023-10-19 21:39:29.994120724 -0700
+diff -Naur original/jp_25/source/jamstub.c jp_25/source/jamstub.c
+--- original/jp_25/source/jamstub.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamstub.c	2023-11-13 15:04:55.531622950 -0800
 @@ -36,15 +36,17 @@
  #pragma warning(disable:4514)
  #endif
@@ -6762,9 +6762,9 @@ diff -Naur ../original/jp_25/source/jamstub.c jp_25/source/jamstub.c
 -	while (count != 0L) count--;
 +	while (count != 0) count--;
  }
-diff -Naur ../original/jp_25/source/jamsym.c jp_25/source/jamsym.c
---- ../original/jp_25/source/jamsym.c	2023-10-19 21:38:46.042594929 -0700
-+++ jp_25/source/jamsym.c	2023-10-19 21:39:30.009388018 -0700
+diff -Naur original/jp_25/source/jamsym.c jp_25/source/jamsym.c
+--- original/jp_25/source/jamsym.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamsym.c	2023-11-13 15:04:55.531622950 -0800
 @@ -20,6 +20,7 @@
  #include "jamsym.h"
  #include "jamheap.h"
@@ -6924,9 +6924,9 @@ diff -Naur ../original/jp_25/source/jamsym.c jp_25/source/jamsym.c
  )
  
  /*																			*/
-diff -Naur ../original/jp_25/source/jamsym.h jp_25/source/jamsym.h
---- ../original/jp_25/source/jamsym.h	2023-10-19 21:38:46.097460381 -0700
-+++ jp_25/source/jamsym.h	2023-10-19 21:39:30.067098083 -0700
+diff -Naur original/jp_25/source/jamsym.h jp_25/source/jamsym.h
+--- original/jp_25/source/jamsym.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamsym.h	2023-11-13 15:04:55.535622967 -0800
 @@ -13,6 +13,8 @@
  #ifndef INC_JAMSYM_H
  #define INC_JAMSYM_H
@@ -6983,9 +6983,9 @@ diff -Naur ../original/jp_25/source/jamsym.h jp_25/source/jamsym.h
  );
  
  JAM_RETURN_TYPE jam_get_symbol_record
-diff -Naur ../original/jp_25/source/jamutil.c jp_25/source/jamutil.c
---- ../original/jp_25/source/jamutil.c	2023-10-19 21:38:46.104732699 -0700
-+++ jp_25/source/jamutil.c	2023-10-19 21:39:30.089704126 -0700
+diff -Naur original/jp_25/source/jamutil.c jp_25/source/jamutil.c
+--- original/jp_25/source/jamutil.c	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamutil.c	2023-11-13 15:04:55.531622950 -0800
 @@ -12,63 +12,64 @@
  /****************************************************************************/
  
@@ -7138,9 +7138,9 @@ diff -Naur ../original/jp_25/source/jamutil.c jp_25/source/jamutil.c
  {
  	char ch;
  
-diff -Naur ../original/jp_25/source/jamutil.h jp_25/source/jamutil.h
---- ../original/jp_25/source/jamutil.h	2023-10-19 21:38:46.111827079 -0700
-+++ jp_25/source/jamutil.h	2023-10-19 21:39:30.122267259 -0700
+diff -Naur original/jp_25/source/jamutil.h jp_25/source/jamutil.h
+--- original/jp_25/source/jamutil.h	2023-11-13 15:04:37.295544686 -0800
++++ jp_25/source/jamutil.h	2023-11-13 15:04:55.531622950 -0800
 @@ -11,6 +11,8 @@
  #ifndef INC_JAMUTIL_H
  #define INC_JAMUTIL_H
@@ -7202,10 +7202,10 @@ diff -Naur ../original/jp_25/source/jamutil.h jp_25/source/jamutil.h
 +void jam_strncpy(char *dest, char *source, int32_t count);
  
  #endif /* INC_JAMUTIL_H */
-diff -Naur ../original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
---- ../original/jp_25/source/jtag_intf.c	1969-12-31 16:00:00.000000000 -0800
-+++ jp_25/source/jtag_intf.c	2023-10-19 21:42:40.682808836 -0700
-@@ -0,0 +1,440 @@
+diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
+--- original/jp_25/source/jtag_intf.c	1969-12-31 16:00:00.000000000 -0800
++++ jp_25/source/jtag_intf.c	2023-11-13 15:09:39.344841188 -0800
+@@ -0,0 +1,442 @@
 +// Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 +// Arista Networks, Inc. Confidential and Proprietary.
 +
@@ -7467,7 +7467,7 @@ diff -Naur ../original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +}
 +
 +// Set JTAG pins in MERU platform.
-+static void jtag_intf_select_meru(jtag_intf * jif, char * fpga, bool switch_cpld) {
++static void jtag_intf_select_meru(jtag_intf * jif, char * fpga) {
 +   jtag_intf_flock(jif);
 +   jtag_intf_gpio_mmap(jif);
 +
@@ -7478,8 +7478,15 @@ diff -Naur ../original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   jif->sel0_val = false;
 +   jif->sel1_val = false;
 +   jif->sel2_val = false;
-+   if (switch_cpld == true)
-+   {
++
++   if (!strncmp(fpga, MERU_CPU_CPLD, STR_MAX)) {
++      jif->sel0.sel0_u32 = ( WEST_PORT_ID << 16 ) | 0xb90;
++      jif->tms.tms_u32 = ( WEST_PORT_ID << 16 ) | 0xb50;
++      jif->tclk.tclk_u32 = ( WEST_PORT_ID << 16 ) | 0xb40;
++      jif->tdi.tdi_u32 = ( WEST_PORT_ID << 16 ) | 0xb20;
++      jif->tdo.tdo_u32 = ( WEST_PORT_ID << 16 ) | 0xb60;
++      jif->trstl.trstl_u32 = ( WEST_PORT_ID << 16 ) | 0xb80;
++   } else if (!strncmp(fpga, MERU_SWITCH_CPLD, STR_MAX)) {
 +      jif->sel0.sel0_u32 = ( WEST_PORT_ID << 16 ) | 0xb90;
 +      jif->tms.tms_u32 = ( EAST_PORT_ID << 16 ) | 0x920;
 +      jif->tclk.tclk_u32 = ( EAST_PORT_ID << 16 ) | 0x910;
@@ -7487,15 +7494,14 @@ diff -Naur ../original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +      jif->tdo.tdo_u32 = ( EAST_PORT_ID << 16 ) | 0x930;
 +      jif->trstl.trstl_u32 = ( EAST_PORT_ID << 16 ) | 0x940;
 +      jif->sel0_val = true;
-+   }
-+   else
-+   {
++   } else if (!strncmp(fpga, MERU_FAN_CPLD, STR_MAX)) {
 +      jif->sel0.sel0_u32 = ( WEST_PORT_ID << 16 ) | 0xb90;
-+      jif->tms.tms_u32 = ( WEST_PORT_ID << 16 ) | 0xb50;
-+      jif->tclk.tclk_u32 = ( WEST_PORT_ID << 16 ) | 0xb40;
-+      jif->tdi.tdi_u32 = ( WEST_PORT_ID << 16 ) | 0xb20;
-+      jif->tdo.tdo_u32 = ( WEST_PORT_ID << 16 ) | 0xb60;
-+      jif->trstl.trstl_u32 = ( WEST_PORT_ID << 16 ) | 0xb80;
++      jif->tms.tms_u32 = ( EAST_PORT_ID << 16 ) | 0x920;
++      jif->tclk.tclk_u32 = ( EAST_PORT_ID << 16 ) | 0x910;
++      jif->tdi.tdi_u32 = ( WEST_PORT_ID << 16 ) | 0xaf0;
++      jif->tdo.tdo_u32 = ( EAST_PORT_ID << 16 ) | 0x930;
++      jif->trstl.trstl_u32 = ( EAST_PORT_ID << 16 ) | 0x940;
++      jif->sel0_val = false;
 +   }
 +
 +   // Need to set IO privilege level to allow read/write.
@@ -7543,15 +7549,11 @@ diff -Naur ../original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +void jtag_intf_select(jtag_intf * jif, char * fpga) {
 +   int32_t rc;
 +
-+   if (!strncmp(fpga, MERU_CPU_CPLD, STR_MAX)) {
++   if (!strncmp(fpga, MERU_CPU_CPLD, STR_MAX) ||
++         !strncmp(fpga, MERU_SWITCH_CPLD, STR_MAX) ||
++         !strncmp(fpga, MERU_FAN_CPLD, STR_MAX)) {
 +      jif->platform = MERU;
-+      jtag_intf_select_meru(jif, fpga, false);
-+      return;
-+   }
-+
-+   if (!strncmp(fpga, MERU_SWITCH_CPLD, STR_MAX)) {
-+      jif->platform = MERU;
-+      jtag_intf_select_meru(jif, fpga, true);
++      jtag_intf_select_meru(jif, fpga);
 +      return;
 +   }
 +
@@ -7646,10 +7648,10 @@ diff -Naur ../original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +void jtag_intf_tclk_is(jtag_intf * jif, int32_t value) {
 +   return tclk_is(jif, (bool)value);
 +}
-diff -Naur ../original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
---- ../original/jp_25/source/jtag_intf.h	1969-12-31 16:00:00.000000000 -0800
-+++ jp_25/source/jtag_intf.h	2023-10-19 21:42:20.890042098 -0700
-@@ -0,0 +1,145 @@
+diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
+--- original/jp_25/source/jtag_intf.h	1969-12-31 16:00:00.000000000 -0800
++++ jp_25/source/jtag_intf.h	2023-11-13 15:04:55.535622967 -0800
+@@ -0,0 +1,146 @@
 +// Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 +// Arista Networks, Inc. Confidential and Proprietary.
 +
@@ -7671,6 +7673,7 @@ diff -Naur ../original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
 +#define SC_SAT_CPLD "sc_sat_cpld"
 +#define MERU_CPU_CPLD "meru_cpu_cpld"
 +#define MERU_SWITCH_CPLD "meru_switch_cpld"
++#define MERU_FAN_CPLD "meru_fan_cpld"
 +
 +// Hardcoded reference to LPC PCI interface in sysfs.
 +#define LPC_PCI_SYSFS "/sys/bus/pci/devices/0000:00:1f.0/config"
