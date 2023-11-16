@@ -121,7 +121,8 @@ def genSwitchIdToSwitchInfo(
 # Config generator entry point
 
 def generateViperConfig( baseViperConfig, leafName, leafIndex,
-                         leafs, spines, artInfo ):
+                         leafs, spines, artInfo,
+                         j3Ai=False ):
    viperConfig = copy.deepcopy( baseViperConfig )
 
    viperConfig[ "sw" ][ "interfaces" ] = [
@@ -180,6 +181,49 @@ def generateViperConfig( baseViperConfig, leafName, leafIndex,
 
       print( f"{leafName} kept {', '.join(sorted([ intf['name'] for intf in newPorts ]))}" )
       viperConfig[ "sw" ][ "ports" ] = newPorts
+
+   # Adapt config for J3-AI
+   if j3Ai:
+      # Replace all config keys ending with BCM8886X to use BCM8889X instead
+      # Update value side as well
+      bcmConfig = viperConfig[ "platform" ][ "chip" ][ "bcm" ][ "config" ]
+      for key in tuple( bcmConfig.keys() ):
+         newKey = re.sub( "BCM8886", "BCM8889", key )
+         newKey = re.sub( "S121", "S121AI", newKey )
+
+         val = viperConfig[ "platform" ][ "chip" ][ "bcm" ][ "config" ][ key ]
+
+         val = re.sub( "S121", "S121AI", val )
+         val = re.sub( "BCM8886", "BCM8889", val )
+
+         del viperConfig[ "platform" ][ "chip" ][ "bcm" ][ "config" ][ key ]
+         viperConfig[ "platform" ][ "chip" ][ "bcm" ][ "config" ][ newKey ] = val
+
+      bcmConfig[ "custom_feature_programmability_standard_image_name.BCM88890" ] = "S121AI"
+      del bcmConfig[ "custom_feature_programmability_standard_image_name.BCM8889X" ]
+
+      bcmConfig[ "programmability_image_name.BCM88890" ] = "S121AI"
+      del bcmConfig[ "programmability_image_name.BCM8889X" ]
+
+      bcmConfig[ "programmability_ucode_relative_path.BCM88890" ] = "pemla/ucode/S121AI/jr3native/u_code_db2pem.txt"
+      del bcmConfig[ "programmability_ucode_relative_path.BCM8889X" ]
+
+      bcmConfig[ "outlif_logical_to_physical_phase_map_3.BCM8889X" ] = "S2"
+      bcmConfig[ "outlif_logical_to_physical_phase_map_8.BCM8889X" ] = "XL"
+      bcmConfig[ "fabric_connect_mode.BCM8889X" ] = "FE"
+      bcmConfig[ "fabric_distributed_system_enable" ] = "1"
+      bcmConfig[ "pci_override_dev" ] = "0x8890"
+      bcmConfig[ "soc_family.BCM8889X" ] = "BCM88890"
+
+      viperConfig[ "sw" ][ "cpuTrafficPolicy" ][ "rxReasonToQueueOrderedList" ] = [ 
+            { "rxReason": 8, "queueId": 7 },
+            { "rxReason": 1, "queueId": 7 },
+            { "rxReason": 10, "queueId": 7 },
+            { "rxReason": 11, "queueId": 7 },
+            { "rxReason": 7, "queueId": 2 },
+            { "rxReason": 6, "queueId": 0 },
+            { "rxReason": 0, "queueId": 1 },
+      ]
 
    return viperConfig
 
@@ -330,7 +374,8 @@ def main( args ):
 
    for idx, leaf in enumerate( leafs ):
       viperConfig = generateViperConfig( baseViperConfig, leaf, idx,
-            leafs, spines, artInfo.get( leaf ) )
+            leafs, spines, artInfo.get( leaf ),
+            j3Ai=args.j3ai )
       configPath = viperConfigPath( args.cluster_name, leaf)
       with open( configPath, "w" ) as f:
          json.dump( viperConfig, f, indent=2, separators=( ", ", ": " ) )
@@ -357,6 +402,9 @@ def parsedArgs():
          nargs="+", default=[] )
    parser.add_argument( "-l", "--leaf", metavar="LEAF_DUT_NAME",
          nargs="+", required=True )
+   parser.add_argument( "--j3ai", action="store_true",
+         default=False,
+         help="Generate config for J3 AI leaf (spine config remains the same)" )
    parser.add_argument( "--no-filter-ports", action="store_true",
          default=False,
          help="Filter fabric ports based on Art info --detail information" )
