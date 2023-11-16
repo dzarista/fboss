@@ -95,7 +95,10 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
           getCounterPrefix() + "fabric_reachability_missing"),
       fabricReachabilityMismatchCount_(
           map,
-          getCounterPrefix() + "fabric_reachability_mismatch") {}
+          getCounterPrefix() + "fabric_reachability_mismatch"),
+      ireErrors_(map, getCounterPrefix() + vendor + "ire_errors", SUM, RATE),
+      itppErrors_(map, getCounterPrefix() + vendor + "itpp_errors", SUM, RATE) {
+}
 
 void HwSwitchFb303Stats::update(const HwSwitchDropStats& dropStats) {
   if (dropStats.globalDrops().has_value()) {
@@ -130,6 +133,14 @@ int64_t HwSwitchFb303Stats::getPacketIntegrityDrops() const {
   return getCumulativeValue(packetIntegrityDrops_);
 }
 
+int64_t HwSwitchFb303Stats::getIreErrors() const {
+  return getCumulativeValue(ireErrors_);
+}
+
+int64_t HwSwitchFb303Stats::getItppErrors() const {
+  return getCumulativeValue(itppErrors_);
+}
+
 HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   HwAsicErrors asicErrors;
   asicErrors.parityErrors() = getCumulativeValue(parityErrors_);
@@ -137,6 +148,9 @@ HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   asicErrors.uncorrectedParityErrors() =
       getCumulativeValue(uncorrParityErrors_);
   asicErrors.asicErrors() = getCumulativeValue(asicErrors_);
+  asicErrors.ingressReceiveEditorErrors() = getCumulativeValue(ireErrors_);
+  asicErrors.ingressTransmitPipelineErrors() = getCumulativeValue(itppErrors_);
+
   return asicErrors;
 }
 

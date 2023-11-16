@@ -16,7 +16,8 @@ class PlatformExplorer {
  public:
   explicit PlatformExplorer(
       std::chrono::seconds exploreInterval,
-      const PlatformConfig& config);
+      const PlatformConfig& config,
+      bool runOnce = false);
 
   // Explore the platform.
   void explore();
@@ -72,6 +73,15 @@ class PlatformExplorer {
       const std::string& pm);
 
  private:
+  // Get Gpio chip number of the given chip name at the given slot path
+  uint16_t getGpioChipNum(
+      const std::string& slotPath,
+      const std::string& gpioChipDeviceName);
+  // Update Gpio chip number of the given chip name at the given slot path
+  void updateGpioChipNum(
+      const std::string& slotPath,
+      const std::string& gpioChipDeviceName,
+      uint16_t gpioChipNum);
   void createDeviceSymLink(
       const std::string& linkPath,
       const std::string& pmDevicePath);
@@ -93,8 +103,12 @@ class PlatformExplorer {
 
   // Map from <slotPath, PmUnitScopedName> to instance ids for FPGAs.
   std::map<std::pair<std::string, std::string>, uint32_t> fpgaInstanceIds_{};
+
   // This stores the PmUnit name which has been discovered at each SlotPath.
   std::map<std::string, std::string> slotPathToPmUnitName_{};
+
+  // Map from <SlotPath, GpioChipDeviceName> to gpio chip number.
+  std::map<std::pair<std::string, std::string>, uint16_t> gpioChipNums_{};
 };
 
 } // namespace facebook::fboss::platform::platform_manager

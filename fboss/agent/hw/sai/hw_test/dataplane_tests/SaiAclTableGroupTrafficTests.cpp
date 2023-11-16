@@ -374,7 +374,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
     return state3;
   }
 
-  void verifyMultipleAclTablesHelper(bool frontPanel) {
+  void verifyMultipleAclTablesHelper() {
     bool multipleAclTableSupport =
         HwTest::isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
 #if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
@@ -388,14 +388,14 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
        * superset of all the qualifiers/action types of all the tables. If key
        * profile is absent, the first table's attributes will be taken as the
        * key profile. Hence, the first table is always set with the superset of
-       * qualifiers. addTtlQualifier is used in Tajo SDK versions which support
-       * Multi ACL table to add the superset of qualifiers/action types in first
-       * table
+       * qualifiers. addAllQualifiers is used in Tajo SDK versions which
+       * support Multi ACL table to add the superset of qualifiers/action types
+       * in first table
        */
-      bool addTtlQualifier = false;
+      bool addAllQualifiers = false;
       resolveNeigborAndProgramRoutes(*helper_, kEcmpWidth);
 #if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
-      addTtlQualifier = true;
+      addAllQualifiers = true;
 #endif
 
       auto state1 = addResolvedNeighborWithClassID<folly::IPAddressV4>(
@@ -407,15 +407,19 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
         auto newCfg{initialConfig()};
         utility::addQueuePerHostQueueConfig(&newCfg);
         utility::addQueuePerHostAclTables(
-            &newCfg, 1 /*priority*/, addTtlQualifier);
+            &newCfg, 1 /*priority*/, addAllQualifiers);
         utility::addTtlAclTable(&newCfg, 2 /*priority*/);
         applyNewConfig(newCfg);
       }
     };
 
-    auto verify = [this, frontPanel]() {
-      _verifyHelperMultipleAclTables<folly::IPAddressV4>(frontPanel);
-      _verifyHelperMultipleAclTables<folly::IPAddressV6>(frontPanel);
+    auto verify = [this]() {
+      XLOG(DBG2) << "verify send packets switched";
+      _verifyHelperMultipleAclTables<folly::IPAddressV4>(false);
+      _verifyHelperMultipleAclTables<folly::IPAddressV6>(false);
+      XLOG(DBG2) << "verify send packets out of port";
+      _verifyHelperMultipleAclTables<folly::IPAddressV4>(true);
+      _verifyHelperMultipleAclTables<folly::IPAddressV6>(true);
     };
 
     verifyAcrossWarmBoots(setup, verify);
@@ -536,7 +540,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
         afterAclStatsMatch, updateStats));
   }
 
-  void verifyDscpTtlAclTablesHelper(bool frontPanel) {
+  void verifyDscpTtlAclTablesHelper() {
     bool multipleAclTableSupport =
         HwTest::isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
 #if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
@@ -549,10 +553,10 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
        * Refer to the detailed comment in setup of verifyMultipleAclTablesHelper
        * for the reason behind this flag
        */
-      bool addTtlQualifier = false;
+      bool addAllQualifiers = false;
       resolveNeigborAndProgramRoutes(*helper_, kEcmpWidth);
 #if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
-      addTtlQualifier = true;
+      addAllQualifiers = true;
 #endif
 
       auto state1 = addResolvedNeighborWithClassID<folly::IPAddressV4>(
@@ -564,16 +568,17 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
         auto newCfg{initialConfig()};
         utility::addOlympicQosMaps(newCfg, getAsic());
         utility::addDscpAclTable(
-            &newCfg, 1 /*priority*/, addTtlQualifier, getAsic());
+            &newCfg, 1 /*priority*/, addAllQualifiers, getAsic());
         utility::addTtlAclTable(&newCfg, 2);
         applyNewConfig(newCfg);
       }
     };
 
-    auto verify = [this, frontPanel]() {
+    auto verify = [this]() {
       // TODO: IPV4 not working. It needs to be triaged and fixed
       //_verifyHelperDscpTtlAclTables<folly::IPAddressV4>(frontPanel);
-      _verifyHelperDscpTtlAclTables<folly::IPAddressV6>(frontPanel);
+      _verifyHelperDscpTtlAclTables<folly::IPAddressV6>(false);
+      _verifyHelperDscpTtlAclTables<folly::IPAddressV6>(true);
     };
 
     verifyAcrossWarmBoots(setup, verify);
@@ -686,7 +691,7 @@ TYPED_TEST_SUITE(SaiAclTableGroupTrafficTest, NbrTableTypes);
 
 TYPED_TEST(
     SaiAclTableGroupTrafficTest,
-    VerifyQueuePerHostAclTableAndTtlAclTableFrontPanel) {
+    VerifyQueuePerHostAclTableAndTtlAclTable) {
   if (!this->isSupported()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -694,12 +699,10 @@ TYPED_TEST(
     return;
   }
 
-  this->verifyMultipleAclTablesHelper(false /* cpu port */);
+  this->verifyMultipleAclTablesHelper();
 }
 
-TYPED_TEST(
-    SaiAclTableGroupTrafficTest,
-    VerifyQueuePerHostAclTableAndTtlAclTableCpu) {
+TYPED_TEST(SaiAclTableGroupTrafficTest, VerifyDscpMarkingAndTtlAclTable) {
   if (!this->isSupported()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -707,31 +710,7 @@ TYPED_TEST(
     return;
   }
 
-  this->verifyMultipleAclTablesHelper(true /* cpu port */);
-}
-
-TYPED_TEST(SaiAclTableGroupTrafficTest, VerifyDscpMarkingAndTtlAclTableCpu) {
-  if (!this->isSupported()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-    return;
-  }
-
-  this->verifyDscpTtlAclTablesHelper(true /* cpu port */);
-}
-
-TYPED_TEST(
-    SaiAclTableGroupTrafficTest,
-    VerifyDscpMarkingAndTtlAclTableFrontPanel) {
-  if (!this->isSupported()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-    return;
-  }
-
-  this->verifyDscpTtlAclTablesHelper(false /* cpu port */);
+  this->verifyDscpTtlAclTablesHelper();
 }
 
 } // namespace facebook::fboss

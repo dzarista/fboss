@@ -183501,7 +183501,7 @@ constexpr auto kJsonMiln52PlatformMappingStr = R"(
         "iphy": {
           "numLanes": 4,
           "modulation": 2,
-          "fec": 544,
+          "fec": 11,
           "medium": 3,
           "interfaceMode": 3,
           "interfaceType": 3
@@ -183531,7 +183531,7 @@ constexpr auto kJsonMiln52PlatformMappingStr = R"(
         "iphy": {
           "numLanes": 4,
           "modulation": 2,
-          "fec": 544,
+          "fec": 11,
           "medium": 3,
           "interfaceMode": 3,
           "interfaceType": 3

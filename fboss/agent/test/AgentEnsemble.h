@@ -156,8 +156,8 @@ class AgentEnsemble : public TestEnsembleIf {
     return getSw()->getHwAsicTable();
   }
 
-  std::map<PortID, FabricEndpoint> getFabricReachability() const override {
-    return getSw()->getHwSwitchHandler()->getFabricReachability();
+  std::map<PortID, FabricEndpoint> getFabricConnectivity() const override {
+    return getSw()->getHwSwitchHandler()->getFabricConnectivity();
   }
 
   FabricReachabilityStats getFabricReachabilityStats() const override {
@@ -185,7 +185,9 @@ class AgentEnsemble : public TestEnsembleIf {
   cfg::PortLoopbackMode mode_{cfg::PortLoopbackMode::MAC};
 };
 
-void initEnsemble(PlatformInitFn initPlatform);
+void initEnsemble(
+    PlatformInitFn initPlatform,
+    std::optional<cfg::StreamType> streamType = std::nullopt);
 
 std::unique_ptr<AgentEnsemble> createAgentEnsemble(
     AgentEnsembleSwitchConfigFn initialConfigFn,

@@ -56,8 +56,9 @@ class I2cError : public std::exception {
  */
 class TransceiverI2CApi {
  public:
-  TransceiverI2CApi(){};
-  virtual ~TransceiverI2CApi() {}
+  TransceiverI2CApi() = default;
+  ;
+  virtual ~TransceiverI2CApi() = default;
 
   virtual void open() = 0;
   virtual void close() = 0;
@@ -116,6 +117,16 @@ class TransceiverI2CApi {
   virtual std::vector<I2cControllerStats> getI2cControllerStats() {
     std::vector<I2cControllerStats> dummyStat;
     return dummyStat;
+  }
+
+  /*
+   * Functions to do i2c operation time profiling
+   */
+  virtual void i2cTimeProfilingStart(unsigned int /* module */) const {}
+  virtual void i2cTimeProfilingEnd(unsigned int /* module */) const {}
+  virtual std::pair<uint64_t, uint64_t> getI2cTimeProfileMsec(
+      unsigned int /* module */) const {
+    return std::make_pair(0, 0);
   }
 
   // Addresses to be queried by external callers:
