@@ -1,0 +1,4 @@
+1. Copy flashrom 1.2.1 source and flashrom patch files into a directory.
+2. Run "patch -p0 < [filename.patch]" to apply the patches in sequence.
+   Numeric prefixes in the patch file names denote the order of the patches, starting from 0001.
+3. Compile flashrom using the patched source Makefile.

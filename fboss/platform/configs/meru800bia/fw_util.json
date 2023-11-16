@@ -21,6 +21,13 @@
       "priority" : 3,
       "upgradeCmd" : "sc_scd_filename=$(head -n 1 /home/meru_smb_fpga_filename.txt);scd_mtd_dev=$(grep $(ls /run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd-spi*/spi_master/spi* | grep spi*.*) /proc/mtd |awk '{print$1}' | tr -d : | tr -d mtd);flashrom -p linux_mtd:dev=$scd_mtd_dev -w $sc_scd_filename",
       "postUpgradeCmd" : ""
+    },
+    "meru_fan_cpld": {
+      "preUpgradeCmd" : "echo 1 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable",
+      "getVersionCmd" : "fan_cpld_ver=$((`cat /run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/cpld_ver`));fan_cpld_subver=$((`cat /run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/cpld_sub_ver`));echo $fan_cpld_ver'.'$fan_cpld_subver",
+      "priority" : 4,
+      "upgradeCmd" : "fan_cpld_filename=$(head -n 1 /home/meru_fan_cpld_filename.txt);/usr/bin/jam -aprogram -fmeru_fan_cpld -v $fan_cpld_filename",
+      "postUpgradeCmd" : "echo 0 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable && modprobe -r dsf-fan-cpld && modprobe dsf-fan-cpld"
     }
   }
 }
