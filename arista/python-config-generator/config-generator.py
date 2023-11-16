@@ -6,6 +6,7 @@ from typing import List, Tuple
 
 import argparse
 import copy
+import itertools
 import json
 import os
 import re
@@ -71,7 +72,7 @@ def genDsfNodes( leafIdxs, spines ):
       switchId = spineSwitchId( i )
       result[ f"{switchId}" ] = {
             "name": spine,
-            "switchId": switchId,
+            "switchId": 0,
             "type": 1,
             "asicType": 16,
             "platformType": 30
@@ -149,31 +150,35 @@ def generateViperConfig( baseViperConfig, leafName, leafIndex,
       nonSnakeFabricIntfs = [
             intf for intf in artInfo[ "interfaces" ]
             if not intf[ "snake" ] and intf[ "localIntf" ].startswith( "Fabric" ) ]
+
+      # localIntf is like "Fabric29/1". slot name is "29"
+      slots = [ intf[ "localIntf" ].lstrip( "Fabric" ).split( "/" )[ 0 ]
+                for intf in nonSnakeFabricIntfs ]
+
+      # Generate fboss interface names for each lane as
+      # fab1/<slot>/<lane=1..8>
       nonSnakeFabricIntfFbossNames = {
-            "fab1/" + intf[ "localIntf" ].lstrip( "Fabric" )
-            for intf in nonSnakeFabricIntfs }
+            f"fab1/{slot}/{lane}" for slot, lane in
+            itertools.product( slots, list( range( 1, 9 ) ) )
+            }
 
       newPorts = []
       for port in viperConfig[ "sw" ][ "ports" ]:
          portName = port[ "name" ]
 
          if portName.startswith( "rcy" ) or portName.startswith( "eth" ):
-            print( f"{leafName} kept {portName}" )
             newPorts.append( port )
             continue
 
          elif portName.startswith( "fab" ):
             if portName in nonSnakeFabricIntfFbossNames:
-               print( f"{leafName} kept {portName}" )
                newPorts.append( port )
-            else:
-               #print( f"{leafName} skipped {portName}" ) # left  for debugging
-               pass
             continue
 
          import pdb; pdb.set_trace()
          assert False, "Unhandled port type"
 
+      print( f"{leafName} kept {', '.join(sorted([ intf['name'] for intf in newPorts ]))}" )
       viperConfig[ "sw" ][ "ports" ] = newPorts
 
    return viperConfig
@@ -189,7 +194,7 @@ def generateWhistlerConfig( baseWhistlerConfig, spineName, spineIndex,
          genSwitchIdToSwitchInfo( [], [ ( spineIndex, spines ) ] )
 
    whistlerConfig[ "sw" ][ "dsfNodes" ] = genDsfNodes(
-         enumerate( leafs ), spines )
+         [], spines )
 
    if artInfo:
       nonSnakeFabricIntfs = [
@@ -204,22 +209,18 @@ def generateWhistlerConfig( baseWhistlerConfig, spineName, spineIndex,
          portName = port[ "name" ]
 
          if portName.startswith( "rcy" ) or portName.startswith( "eth" ):
-            print( f"{spineName} kept {portName}" )
             newPorts.append( port )
             continue
 
          elif portName.startswith( "fab" ):
             if portName in nonSnakeFabricIntfFbossNames:
-               print( f"{spineName} kept {portName}" )
                newPorts.append( port )
-            else:
-               #print( f"{spineName} skipped {portName}" ) # kept for debugging
-               pass
             continue
 
          import pdb; pdb.set_trace()
          assert False, "Unhandled port type"
 
+      print( f"{spineName} kept {', '.join(sorted([ intf['name'] for intf in newPorts ]))}" )
       whistlerConfig[ "sw" ][ "ports" ] = newPorts
 
    return whistlerConfig
