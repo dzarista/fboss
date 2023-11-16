@@ -86,9 +86,6 @@
       },
       "SCM_ECB_IOUT" : {
         "path" : "/run/devmap/sensors/CPU_MPS_PMBUS/curr1_input",
-        "thresholds" : {
-          "upperCriticalVal" : 24
-        },
         "compute" : "@/1000.0",
         "type" : 2
       },
