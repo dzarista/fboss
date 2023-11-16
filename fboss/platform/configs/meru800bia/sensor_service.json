@@ -86,6 +86,9 @@
       },
       "SCM_ECB_IOUT" : {
         "path" : "/run/devmap/sensors/CPU_MPS_PMBUS/curr1_input",
+        "thresholds" : {
+          "upperCriticalVal" : 24
+        },
         "compute" : "@/1000.0",
         "type" : 2
       },
@@ -258,8 +261,8 @@
       "FAN1_RPM" : {
         "path" : "/run/devmap/sensors/FAN_CPLD/fan1_input",
         "thresholds" : {
-          "upperCriticalVal" : 12000,
-          "lowerCriticalVal" : 2000
+          "upperCriticalVal" : 14900,
+          "lowerCriticalVal" : 1100
         },
         "type" : 4
       }
@@ -268,8 +271,8 @@
       "FAN2_RPM" : {
         "path" : "/run/devmap/sensors/FAN_CPLD/fan2_input",
         "thresholds" : {
-          "upperCriticalVal" : 12000,
-          "lowerCriticalVal" : 2000
+          "upperCriticalVal" : 14900,
+          "lowerCriticalVal" : 1100
         },
         "type" : 4
       }
@@ -278,8 +281,8 @@
       "FAN3_RPM" : {
         "path" : "/run/devmap/sensors/FAN_CPLD/fan3_input",
         "thresholds" : {
-          "upperCriticalVal" : 12000,
-          "lowerCriticalVal" : 2000
+          "upperCriticalVal" : 14900,
+          "lowerCriticalVal" : 1100
         },
         "type" : 4
       }
@@ -288,8 +291,8 @@
       "FAN4_RPM" : {
         "path" : "/run/devmap/sensors/FAN_CPLD/fan4_input",
         "thresholds" : {
-          "upperCriticalVal" : 12000,
-          "lowerCriticalVal" : 2000
+          "upperCriticalVal" : 14900,
+          "lowerCriticalVal" : 1100
         },
         "type" : 4
       }
