@@ -138,7 +138,7 @@ class SaiSwitch : public HwSwitch {
       uint32_t count,
       const sai_fdb_event_notification_data_t* data);
 
-  void parityErrorSwitchEventCallback(
+  void switchEventCallback(
       sai_size_t buffer_size,
       const void* buffer,
       uint32_t event_type);
@@ -208,10 +208,10 @@ class SaiSwitch : public HwSwitch {
       folly::MacAddress mac) const override;
 
   phy::FecMode getPortFECMode(PortID port) const override;
-  std::map<PortID, FabricEndpoint> getFabricReachability() const override;
+  std::map<PortID, FabricEndpoint> getFabricConnectivity() const override;
   std::vector<PortID> getSwitchReachability(SwitchID switchId) const override;
 
-  void rollbackInTest(const std::shared_ptr<SwitchState>& knownGoodState);
+  void rollbackInTest(const StateDelta& delta);
 
  private:
   void gracefulExitImpl() override;
@@ -220,8 +220,7 @@ class SaiSwitch : public HwSwitch {
   std::shared_ptr<SwitchState> stateChangedImplLocked(
       const StateDelta& delta,
       const LockPolicyT& lk);
-  void rollback(
-      const std::shared_ptr<SwitchState>& knownGoodState) noexcept override;
+  void rollback(const StateDelta& delta) noexcept override;
   std::string listObjectsLocked(
       const std::vector<sai_object_type_t>& objects,
       bool cached,
@@ -360,6 +359,11 @@ class SaiSwitch : public HwSwitch {
 
   template <typename LockPolicyT>
   void processDefaultDataPlanePolicyDelta(
+      const StateDelta& delta,
+      const LockPolicyT& lk);
+
+  template <typename LockPolicyT>
+  void processDefaultDataPlanePolicyDeltaForPorts(
       const StateDelta& delta,
       const LockPolicyT& lk);
 

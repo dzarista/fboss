@@ -226,7 +226,9 @@ SwSwitch::StateUpdateFn NeighborCacheImpl<NTable>::getUpdateFnToProgramEntry(
       CHECK(systemPortID.has_value());
       nbrEntry.portId() =
           PortDescriptor(SystemPortID(systemPortID.value())).toThrift();
-      nbrEntry.encapIndex() = fields.encapIndex.value();
+      if (fields.encapIndex.has_value()) {
+        nbrEntry.encapIndex() = fields.encapIndex.value();
+      }
       nbrEntry.isLocal() = fields.isLocal;
     } else {
       nbrEntry.portId() = ncachehelpers::getNeighborPortDescriptor(fields.port);
@@ -369,7 +371,7 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntry(
 
     InterfaceID interfaceID;
     SystemPortID systemPortID;
-    int64_t encapIndex;
+    std::optional<int64_t> encapIndex;
 
     if (switchType == cfg::SwitchType::VOQ) {
       auto systemPortRange =
@@ -381,7 +383,10 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntry(
           sw_->getScopeResolver()->scope(fields.port.phyPortID()).switchIds();
       CHECK_EQ(switchIds.size(), 1);
       auto asic = sw_->getHwAsicTable()->getHwAsicIf(*switchIds.begin());
-      encapIndex = EncapIndexAllocator::getNextAvailableEncapIdx(state, *asic);
+      if (asic->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)) {
+        encapIndex =
+            EncapIndexAllocator::getNextAvailableEncapIdx(state, *asic);
+      }
 
       // interfaceID is same as the systemPortID
       interfaceID = InterfaceID(systemPortID);
@@ -419,7 +424,9 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntry(
       // TODO: Support aggregate ports for VOQ switches
       CHECK(port.isPhysicalPort());
       nbrEntry.portId() = PortDescriptor(SystemPortID(systemPortID)).toThrift();
-      nbrEntry.encapIndex() = encapIndex;
+      if (encapIndex.has_value()) {
+        nbrEntry.encapIndex() = encapIndex.value();
+      }
       nbrEntry.isLocal() = fields.isLocal;
     } else {
       nbrEntry.portId() = ncachehelpers::getNeighborPortDescriptor(fields.port);

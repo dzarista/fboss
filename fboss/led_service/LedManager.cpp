@@ -116,14 +116,19 @@ void LedManager::updateLedStatus(
     auto portName = switchStateUpdate.portName;
     auto portProfile = switchStateUpdate.portProfile;
     auto portProfileEnumVal = nameToEnum<cfg::PortProfileID>(portProfile);
-    auto newLedColor = calculateLedColor(portId, portProfileEnumVal);
-    if (newLedColor != portDisplayMap_[portId].currentLedColor) {
-      setLedColor(portId, portProfileEnumVal, newLedColor);
-      portDisplayMap_[portId].currentLedColor = newLedColor;
-      XLOG(DBG2) << folly::sformat(
-          "Port {:s} LED color changed to {:s}",
-          portName,
-          enumToName<led::LedColor>(newLedColor));
+    try {
+      auto newLedColor = calculateLedColor(portId, portProfileEnumVal);
+      if (newLedColor != portDisplayMap_[portId].currentLedColor) {
+        setLedColor(portId, portProfileEnumVal, newLedColor);
+        portDisplayMap_[portId].currentLedColor = newLedColor;
+        XLOG(DBG2) << folly::sformat(
+            "Port {:s} LED color changed to {:s}",
+            portName,
+            enumToName<led::LedColor>(newLedColor));
+      }
+    } catch (const std::exception& ex) {
+      XLOG(ERR) << "Failed to update LED color for port " << portName << ": "
+                << ex.what();
     }
   }
 }
@@ -175,7 +180,7 @@ void LedManager::setExternalLedState(
  * - If the led.conf file exist then return the value of boolean
  *   ledControlledThroughService from that file
  */
-bool LedManager::isLedControlledThroughService() {
+bool LedManager::isLedControlledThroughService() const {
   if (ledConfig_.get()) {
     return ledConfig_->thriftConfig_.ledControlledThroughService().value();
   }
@@ -200,6 +205,32 @@ led::LedColor LedManager::getCurrentLedColor(int32_t portNum) const {
   }
 
   return ledColor;
+}
+
+/*
+ * getLedState
+ *
+ * Returns the LED state information for a given SW port. It reads from local
+ * LED cache and throws if the cache is not updated yet from FSDB. The function
+ * expects to be called under Led Manager event base.
+ */
+led::LedState LedManager::getLedState(const std::string& swPortName) const {
+  led::LedState ledState;
+
+  auto portId = platformMapping_->getPortID(swPortName);
+  if (portDisplayMap_.find(portId) == portDisplayMap_.end()) {
+    // If the PortInfo has not been updated from FSDB yet
+    throw FbossError(folly::sformat(
+        "getLedState: Port info not available for {:s} yet", swPortName));
+  }
+
+  ledState.swPortId() = portId;
+  ledState.swPortName() = swPortName;
+  ledState.currentLedColor() = portDisplayMap_.at(portId).currentLedColor;
+  ledState.forcedOnState() = portDisplayMap_.at(portId).forcedOn;
+  ledState.forcedOffState() = portDisplayMap_.at(portId).forcedOff;
+
+  return ledState;
 }
 
 } // namespace facebook::fboss

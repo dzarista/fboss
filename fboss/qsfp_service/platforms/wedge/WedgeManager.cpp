@@ -31,6 +31,11 @@ DEFINE_bool(
     false,
     "Override wedge_agent programInternalPhyPorts(). For test only");
 
+DEFINE_bool(
+    optics_thermal_data_post,
+    false,
+    "Enable qsfp_service to post optics thermal data to BMC");
+
 namespace facebook {
 namespace fboss {
 
@@ -41,6 +46,8 @@ constexpr int kSecAfterModuleOutOfReset = 2;
 static const std::unordered_set<TransceiverID> kEmptryTransceiverIDs = {};
 
 static const std::string kQsfpToBmcSyncDataVersion{"1.0"};
+
+static const int kOpticsThermalSyncInterval = 300;
 
 } // namespace
 
@@ -63,8 +70,12 @@ WedgeManager::WedgeManager(
   if (FLAGS_publish_state_to_fsdb || FLAGS_publish_stats_to_fsdb) {
     fsdbSyncManager_ = std::make_unique<QsfpFsdbSyncManager>();
   }
+
   dataCenter_ = getDeviceDatacenter();
   hostnameScheme_ = getDeviceHostnameScheme();
+  if (FLAGS_optics_thermal_data_post) {
+    qsfpRestClient_ = std::make_unique<QsfpRestClient>();
+  }
 }
 
 WedgeManager::~WedgeManager() {
@@ -102,7 +113,13 @@ void WedgeManager::loadConfig() {
   qsfpConfig_ = QsfpConfig::fromDefaultFile();
   if (FLAGS_publish_state_to_fsdb) {
     fsdbSyncManager_->updateConfig(qsfpConfig_->thrift);
-    fsdbSyncManager_->start();
+    // We should only start the fsdbSyncManager_ once. isSystemInitialized is
+    // the flag for us to know whether this is the first time or not. In tests,
+    // we call loadConfig again and adding this check avoids the sync manager to
+    // start again (and subsequently throw an exception).
+    if (!isSystemInitialized()) {
+      fsdbSyncManager_->start();
+    }
   }
 }
 
@@ -374,7 +391,32 @@ std::vector<TransceiverID> WedgeManager::refreshTransceivers() {
   updateTransceiverMap();
 
   // Finally refresh all transceivers without specifying any ids
-  return TransceiverManager::refreshTransceivers(kEmptryTransceiverIDs);
+  auto refreshedTransceivers =
+      TransceiverManager::refreshTransceivers(kEmptryTransceiverIDs);
+
+  // Send the optical thermal data to BMC if needed
+  auto currTime = std::time(nullptr);
+  if (FLAGS_optics_thermal_data_post &&
+      (nextOpticsToBmcSyncTime_ <= currTime)) {
+    // Post the optics thermal data to BMC
+    auto qsfpToBmcSyncData = getQsfpToBmcSyncDataSerialized();
+    // Post data to BMC using usb0 Rest endpoint
+    try {
+      auto ret = qsfpRestClient_->postQsfpThermalData(qsfpToBmcSyncData);
+      if (!ret) {
+        XLOG(ERR)
+            << "Failed to send QsfpThermal data to Rest endpoint, will try in "
+            << kOpticsThermalSyncInterval << " seconds again";
+      }
+    } catch (const FbossError& e) {
+      XLOG(ERR) << "Failed to send QsfpThermal data to Rest endpoint, will try "
+                << "in " << kOpticsThermalSyncInterval << " seconds again"
+                << ", error=" << e.what();
+    }
+    nextOpticsToBmcSyncTime_ = currTime + kOpticsThermalSyncInterval;
+  }
+
+  return refreshedTransceivers;
 }
 
 void WedgeManager::updateTcvrStateInFsdb(
