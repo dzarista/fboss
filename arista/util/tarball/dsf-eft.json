@@ -95,7 +95,7 @@
          "url" : "git@github.com:aristanetworks/apl.facebook.git",
          "branch" : "main",
          "commitHash" : "b02e382480f784029b0b96c7ca405cf0282e3568",
-         "note" : "- non-auxdev kernel drivers in src/\n- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/"
+         "note" : "- non-auxdev kernel drivers in src/"
       },
       {
          "name" : "fboss.bsp.arista",
