@@ -117,13 +117,7 @@ maybe_setup_build_env() {
    # Patch to skip check for proto R3 ASICs.
    wget http://dist/storage/fboss/FBOSS-SAI/patch11-SDK-6_5_29-Ramon3-proto-fix.patch
    patch "sdk-6.5.29-dnx.1/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
-   # J3-AI: Patch for missing IBCH header for CPU-injected packets. This is a workaround till
-   # final fix from broadcom.
-   cd "${FBOSS_HOST_DIR}/Aqua_SAI"
-   wget http://dist/storage/fboss/FBOSS-SAI/patch13_IBCH_workaround.patch
-   patch "src/arch/dnx/brcm_sai_dnx_host_intf.c" -p1 < patch13_IBCH_workaround.patch
 
-   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/sdk_6.5.29_dnx.1_SAI_11.0.0_EA"
    # If kernel is newer than 4.18, need to patch ksal.c for compatibility with newer kernel.
    if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then
       wget http://dist/storage/fboss/FBOSS-SAI/patch5-SAI-ksal-SDK-6_5_29.dnx.1.patch
