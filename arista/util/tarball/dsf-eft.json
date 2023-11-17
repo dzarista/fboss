@@ -62,7 +62,7 @@
       },
       {
          "name" : "Meru800bia Fan CPLD Image",
-         "imageFile" : "programmables/meru800bia-fan-cpld.abit"
+         "imageFile" : "programmables/meru800bia-fan-cpld.astp"
       },
       {
          "name" : "Meru800bfa SMB CPLD Image",
@@ -86,7 +86,7 @@
       },
       {
          "name" : "Meru800bfa Fan CPLD Image",
-         "imageFile" : "programmables/meru800bfa-fan-cpld.abit"
+         "imageFile" : "programmables/meru800bfa-fan-cpld.astp"
       }
    ],
    "repos" : [
@@ -95,7 +95,14 @@
          "url" : "git@github.com:aristanetworks/apl.facebook.git",
          "branch" : "main",
          "commitHash" : "b02e382480f784029b0b96c7ca405cf0282e3568",
-         "note" : "- kernel drivers in src/\n- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/"
+         "note" : "- non-auxdev kernel drivers in src/\n- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/"
+      },
+      {
+         "name" : "fboss.bsp.arista",
+         "url" : "git@github.com:facebookexternal/fboss.bsp.arista.git",
+         "branch" : "main",
+         "commitHash" : "02801a760b50637c052d5a657cc45ce7894a059f",
+         "note" : "- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/\n- auxdev kernel drivers in bsp-kmods/\nUtils/patches in fw-util-common/"
       }
    ],
    "testResults" : []
