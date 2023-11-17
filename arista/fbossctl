@@ -5,8 +5,6 @@
 # This script allows users to build, package, and install FBOSS OSS, as well as
 # enter the containerized build environment.
 
-FBOSS_IMG="docker.corp.arista.io/fboss-centos8:latest"
-
 DEFAULT_BUILD_DIR="//garage/${USER}/fboss-build"
 if [[ -z "${FBOSS_BUILD_DIR}" ]]; then
    echo "No FBOSS_BUILD_DIR defined in environment, using ${DEFAULT_BUILD_DIR}" 
@@ -19,7 +17,15 @@ if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
    FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
 fi
 
-DEFAULT_DOCKER_NAME="FBOSS_CENTOS8-1-${USER}"
+DEFAULT_CENTOS_RELEASE="8"
+if [[ -z "${CENTOS_RELEASE}" ]]; then
+   echo "No Centos release defined in environment, using Centos${DEFAULT_CENTOS_RELEASE}"
+   CENTOS_RELEASE="${DEFAULT_CENTOS_RELEASE}"
+fi
+
+FBOSS_IMG="docker.corp.arista.io/fboss-centos${CENTOS_RELEASE}:latest"
+
+DEFAULT_DOCKER_NAME="FBOSS_CENTOS${CENTOS_RELEASE}-1-${USER}"
 if [[ -z "${DOCKER_NAME}" ]]; then
    echo "No docker container name specified. using ${DEFAULT_DOCKER_NAME}"
    DOCKER_NAME="${DEFAULT_DOCKER_NAME}"
