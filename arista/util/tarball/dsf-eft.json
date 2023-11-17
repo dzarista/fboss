@@ -102,7 +102,7 @@
          "url" : "git@github.com:facebookexternal/fboss.bsp.arista.git",
          "branch" : "main",
          "commitHash" : "02801a760b50637c052d5a657cc45ce7894a059f",
-         "note" : "- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/\n- auxdev kernel drivers in bsp-kmods/\nUtils/patches in fw-util-common/"
+         "note" : "- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/\n- auxdev kernel drivers in bsp-kmods/\n- Utils/patches in fw-util-common/"
       }
    ],
    "testResults" : []
