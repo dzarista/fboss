@@ -167,6 +167,7 @@ enum PortProfileID {
   PROFILE_100G_1_PAM4_RS544_OPTICAL = 42,
   PROFILE_50G_1_PAM4_RS544_COPPER = 43,
   PROFILE_50G_1_PAM4_RS544_OPTICAL = 44,
+  PROFILE_400G_4_PAM4_RS544X2N_COPPER = 45,
 }
 
 /**
@@ -1809,6 +1810,9 @@ struct FlowletSwitchingConfig {
   9: i32 dynamicEgressMaxThresholdBytes;
   // EWMA of historical member bytes in physical queue
   10: i16 dynamicPhysicalQueueExponent;
+  // maximum links used for flowlet switching.
+  // Needed for scaling flowset table
+  11: i16 maxLinks;
 }
 
 /**

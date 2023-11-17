@@ -11,6 +11,7 @@
 
 #include "fboss/agent/Constants.h"
 #include "fboss/agent/Utils.h"
+#include "fboss/agent/hw/bcm/BcmEcmpUtils.h"
 #include "fboss/agent/hw/bcm/BcmEgressManager.h"
 #include "fboss/agent/hw/bcm/BcmError.h"
 #include "fboss/agent/hw/bcm/BcmHost.h"
@@ -341,6 +342,7 @@ bool BcmEcmpEgress::isFlowletConfigUpdateNeeded() {
   bcm_l3_egress_ecmp_t_init(&obj);
   obj.ecmp_intf = id_;
   int pathsInHwCount = -1;
+  bool updateNeeded = false;
   bcm_l3_ecmp_member_t membersInHw[kMaxWeightedEcmpPaths];
   bcm_if_t pathsInHw[kMaxWeightedEcmpPaths];
   int ret = 0;
@@ -363,9 +365,21 @@ bool BcmEcmpEgress::isFlowletConfigUpdateNeeded() {
   }
   bcmCheckError(ret, "Unable to get ECMP:  ", id_);
   auto bcmEcmpFlowletConfig = hw_->getEgressManager()->getBcmFlowletConfig();
-  return obj.dynamic_age != bcmEcmpFlowletConfig.inactivityIntervalUsecs ||
-      obj.dynamic_size != bcmEcmpFlowletConfig.flowletTableSize ||
-      obj.dynamic_mode != BCM_L3_ECMP_DYNAMIC_MODE_NORMAL;
+
+  const auto neededDynamicSize = utility::getFlowletSizeWithScalingFactor(
+      bcmEcmpFlowletConfig.flowletTableSize,
+      pathsInHwCount,
+      bcmEcmpFlowletConfig.maxLinks);
+  if ((obj.dynamic_age != bcmEcmpFlowletConfig.inactivityIntervalUsecs) ||
+      (obj.dynamic_size != neededDynamicSize)) {
+    updateNeeded = true;
+  }
+  if ((neededDynamicSize != 0) &&
+      (obj.dynamic_mode != BCM_L3_ECMP_DYNAMIC_MODE_NORMAL)) {
+    updateNeeded = true;
+  }
+
+  return updateNeeded;
 }
 
 void BcmEcmpEgress::program() {
@@ -422,11 +436,14 @@ void BcmEcmpEgress::program() {
     if (FLAGS_flowletSwitchingEnable) {
       auto bcmFlowletConfig = hw_->getEgressManager()->getBcmFlowletConfig();
       obj.dynamic_age = bcmFlowletConfig.inactivityIntervalUsecs;
-      if (bcmFlowletConfig.flowletTableSize) {
-        obj.dynamic_size = bcmFlowletConfig.flowletTableSize;
+      obj.dynamic_size = utility::getFlowletSizeWithScalingFactor(
+          bcmFlowletConfig.flowletTableSize,
+          numPaths,
+          bcmFlowletConfig.maxLinks);
+      if (obj.dynamic_size > 0) {
         obj.dynamic_mode = BCM_L3_ECMP_DYNAMIC_MODE_NORMAL;
-        addOrUpdateEcmp = true;
       }
+      addOrUpdateEcmp = true;
       XLOG(DBG2) << "Programmed FlowletTableSize=" << obj.dynamic_size
                  << " InactivityIntervalUsecs=" << obj.dynamic_age;
     }

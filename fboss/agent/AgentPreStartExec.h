@@ -2,12 +2,27 @@
 
 #pragma once
 
+#include <memory>
+
 namespace facebook::fboss {
+
+class AgentDirectoryUtil;
+class AgentConfig;
+class AgentCommandExecutor;
+class AgentNetWhoAmI;
+class AgentPreExecDrainer;
 
 class AgentPreStartExec {
  public:
   AgentPreStartExec() {}
   void run();
+  void run(
+      AgentCommandExecutor* commandExecutor,
+      AgentPreExecDrainer* preExecDrainer,
+      std::unique_ptr<AgentNetWhoAmI> whoami,
+      const AgentDirectoryUtil& dirUtil,
+      std::unique_ptr<AgentConfig> config,
+      bool cppWedgeAgentWrapper);
 };
 
 } // namespace facebook::fboss

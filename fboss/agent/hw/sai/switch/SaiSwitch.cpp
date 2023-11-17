@@ -191,11 +191,11 @@ void __glinkStateChangedNotification(
       count, data);
 }
 
-void __gParityErrorSwitchEventCallback(
+void __gSwitchEventCallback(
     sai_size_t buffer_size,
     const void* buffer,
     uint32_t event_type) {
-  __gSaiIdToSwitch.begin()->second->parityErrorSwitchEventCallback(
+  __gSaiIdToSwitch.begin()->second->switchEventCallback(
       buffer_size, buffer, event_type);
 }
 
@@ -302,34 +302,43 @@ template <typename LockPolicyT>
 void SaiSwitch::processDefaultDataPlanePolicyDelta(
     const StateDelta& delta,
     const LockPolicyT& lockPolicy) {
+  // process default qos policy, which is store in
+  // SwitchState::switchSettingsMap::defaultDataPlaneQosPolicy
   auto qosDelta = delta.getDefaultDataPlaneQosPolicyDelta();
   auto& qosMapManager = managerTable_->qosMapManager();
-  auto& portManager = managerTable_->portManager();
-  auto& switchManager = managerTable_->switchManager();
-  auto& systemPortManager = managerTable_->systemPortManager();
   if ((qosDelta.getOld() != qosDelta.getNew())) {
     [[maybe_unused]] const auto& lock = lockPolicy.lock();
     if (qosDelta.getOld() && qosDelta.getNew()) {
       if (*qosDelta.getOld() != *qosDelta.getNew()) {
-        portManager.clearQosPolicy();
-        systemPortManager.clearQosPolicy();
+        qosMapManager.changeQosMap(qosDelta.getOld(), qosDelta.getNew(), true);
+      }
+    } else if (qosDelta.getNew()) {
+      qosMapManager.addQosMap(qosDelta.getNew(), true);
+    } else if (qosDelta.getOld()) {
+      qosMapManager.removeQosMap(qosDelta.getOld(), true);
+    }
+  }
+}
+
+// TODO(daiweix): move these logics into the corresponding
+// process port/systemPort/switch state delta codes
+template <typename LockPolicyT>
+void SaiSwitch::processDefaultDataPlanePolicyDeltaForPorts(
+    const StateDelta& delta,
+    const LockPolicyT& lockPolicy) {
+  auto qosDelta = delta.getDefaultDataPlaneQosPolicyDelta();
+  auto& switchManager = managerTable_->switchManager();
+  if ((qosDelta.getOld() != qosDelta.getNew())) {
+    [[maybe_unused]] const auto& lock = lockPolicy.lock();
+    if (qosDelta.getOld() && qosDelta.getNew()) {
+      if (*qosDelta.getOld() != *qosDelta.getNew()) {
         switchManager.clearQosPolicy();
-        qosMapManager.removeQosMap();
-        qosMapManager.addQosMap(qosDelta.getNew());
-        portManager.setQosPolicy();
-        systemPortManager.setQosPolicy();
         switchManager.setQosPolicy();
       }
     } else if (qosDelta.getNew()) {
-      qosMapManager.addQosMap(qosDelta.getNew());
-      portManager.setQosPolicy();
-      systemPortManager.setQosPolicy();
       switchManager.setQosPolicy();
     } else if (qosDelta.getOld()) {
-      portManager.clearQosPolicy();
-      systemPortManager.clearQosPolicy();
       switchManager.clearQosPolicy();
-      qosMapManager.removeQosMap();
     }
   }
 }
@@ -382,21 +391,52 @@ bool SaiSwitch::transactionsSupported() const {
   return true;
 }
 
-void SaiSwitch::rollback(
-    const std::shared_ptr<SwitchState>& knownGoodState) noexcept {
+void SaiSwitch::rollback(const StateDelta& delta) noexcept {
+  const auto& knownGoodState = delta.oldState();
   auto curBootType = getBootType();
   // Attempt rollback
   // Detailed design is in the sai_switch_transactions wiki, but at a high
-  // level the steps of the rollback are 1) Clear out our internal data
-  // structures (stores, managers) in SW, while throttling writes to HW 2)
-  // Reinit managers and SaiStores. SaiStore* will now have all the HW state
-  // 3) Replay StateDelta(emptySwitchState, delta.oldState()) to get us to
-  // the pre transaction state 4) Clear out any remaining handles in
-  // SaiStore to flush state left in HW due to the failed transaction Steps
-  // 2-4 are exactly the same as what we do for warmboot and piggy back
-  // heavily on it for both code reuse and correctness
+  // level the steps of the rollback are 0) Remove any added entries in the new
+  // state (currently routes) 1) Clear out our internal data structures (stores,
+  // managers) in SW, while throttling writes to HW 2) Reinit managers and
+  // SaiStores. SaiStore* will now have all the HW state 3) Replay
+  // StateDelta(emptySwitchState, delta.oldState()) to get us to the pre
+  // transaction state 4) Clear out any remaining handles in SaiStore to flush
+  // state left in HW due to the failed transaction Steps 2-4 are exactly the
+  // same as what we do for warmboot and piggy back heavily on it for both code
+  // reuse and correctness
   try {
     CoarseGrainedLockPolicy lockPolicy(saiSwitchMutex_);
+
+    // Remove any potentially added routes in the new State.
+    // Imagine the scenario where a device supports 4 route entries in the hw.
+    // Old state has route {A, B}, and new state has route {B, C, D, E, F}.
+    // When new state is being applied, say route A is deleted and route C, D, E
+    // is added, addition of route F would trigger TABLE_FULL error and sai
+    // switch starts rollback.
+    // Note that routes {B, C, D, E} are still in ASIC, and at step 3 we tried
+    // to reapply old state, which leads to the addition of route A and causing
+    // rollback failure. Routes C, D and E are not deleted until step 4 of
+    // removing unclaimed entries.
+    // To avoid such rollback failure, remove added routes in new state as step
+    // 0. This would ensure enough room in the hardware for replaying old state.
+    for (const auto& routeDelta : delta.getFibsDelta()) {
+      auto routerID = routeDelta.getOld() ? routeDelta.getOld()->getID()
+                                          : routeDelta.getNew()->getID();
+      processAddedDelta(
+          routeDelta.getFibDelta<folly::IPAddressV4>(),
+          managerTable_->routeManager(),
+          lockPolicy,
+          &SaiRouteManager::removeRouteForRollback<folly::IPAddressV4>,
+          routerID);
+      processAddedDelta(
+          routeDelta.getFibDelta<folly::IPAddressV6>(),
+          managerTable_->routeManager(),
+          lockPolicy,
+          &SaiRouteManager::removeRouteForRollback<folly::IPAddressV6>,
+          routerID);
+    }
+
     auto hwSwitchJson = toFollyDynamicLocked(lockPolicy.lock());
     {
       HwWriteBehaviorRAII writeBehavior{HwWriteBehavior::SKIP};
@@ -493,6 +533,18 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
       delta.getTeFlowEntriesDelta(), managerTable_->teFlowEntryManager());
   // update switch settings first
   processSwitchSettingsChanged(delta, lockPolicy);
+
+  // process non-default qos policies, which are stored in
+  // SwitchStatae::qosPolicyMaps
+  processDelta(
+      delta.getQosPoliciesDelta(),
+      managerTable_->qosMapManager(),
+      lockPolicy,
+      &SaiQosMapManager::changeQosMap,
+      &SaiQosMapManager::addQosMap,
+      &SaiQosMapManager::removeQosMap,
+      false);
+  processDefaultDataPlanePolicyDelta(delta, lockPolicy);
 
   // Remove system ports (which may depend on local ports
   // before removing ports)
@@ -621,7 +673,7 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
           managerTable_->lagManager().addBridgePort(newAggPort);
         });
   }
-  processDefaultDataPlanePolicyDelta(delta, lockPolicy);
+  processDefaultDataPlanePolicyDeltaForPorts(delta, lockPolicy);
   processDelta(
       delta.getIntfsDelta(),
       managerTable_->routerInterfaceManager(),
@@ -907,18 +959,15 @@ void SaiSwitch::updateResourceUsage(const LockPolicyT& lockPolicy) {
     // TODO - compute used resource stats from internal data structures and
     // populate them here
 
-    // TODO(skhare) Add resource usage support for multiple ACL tables
-    if (!FLAGS_enable_acl_table_group) {
-      auto aclTableHandle =
-          managerTable_->aclTableManager().getAclTableHandle(kAclTable1);
-      auto aclTableId = aclTableHandle->aclTable->adapterKey();
-      auto& aclApi = SaiApiTable::getInstance()->aclApi();
-
-      hwResourceStats_.acl_entries_free() = aclApi.getAttribute(
-          aclTableId, SaiAclTableTraits::Attributes::AvailableEntry{});
-      hwResourceStats_.acl_counters_free() = aclApi.getAttribute(
-          aclTableId, SaiAclTableTraits::Attributes::AvailableCounter{});
-    }
+    /*
+     * Loop through all tables and sum the resource used. This way,
+     * irrespective of however many acl tables there are in the config,
+     * the resource will be calculated properly
+     */
+    auto aclResourceUsage =
+        managerTable_->aclTableManager().getAclResourceUsage();
+    hwResourceStats_.acl_entries_free() = aclResourceUsage.first;
+    hwResourceStats_.acl_counters_free() = aclResourceUsage.second;
 
     auto& switchApi = SaiApiTable::getInstance()->switchApi();
     hwResourceStats_.lpm_ipv4_free() = switchApi.getAttribute(
@@ -1460,7 +1509,7 @@ void SaiSwitch::updateRsInfo(
   }
 }
 
-std::map<PortID, FabricEndpoint> SaiSwitch::getFabricReachability() const {
+std::map<PortID, FabricEndpoint> SaiSwitch::getFabricConnectivity() const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   return getFabricReachabilityLocked();
 }
@@ -2356,7 +2405,7 @@ void SaiSwitch::unregisterCallbacksLocked(
   }
   if (isFeatureSetupLocked(FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED, lock)) {
 #if defined(BRCM_SAI_SDK_XGS_AND_DNX)
-    switchApi.unregisterParityErrorSwitchEventCallback(saiSwitchId_);
+    switchApi.unregisterSwitchEventCallback(saiSwitchId_);
 #else
     switchApi.unregisterTamEventCallback(saiSwitchId_);
 #endif
@@ -2387,6 +2436,9 @@ bool SaiSwitch::isValidStateUpdateLocked(
   }
 
   auto qosDelta = delta.getQosPoliciesDelta();
+  // TODO(daiweix): relax this assumption on J3 after adding per port
+  // qos map support to apply different qos policies to regular port
+  // and cpu/recycle port
   if (qosDelta.getNew()->numNodes() > 0) {
     XLOG(ERR) << "Only default data plane qos policy is supported";
     return false;
@@ -2653,8 +2705,8 @@ void SaiSwitch::switchRunStateChangedImplLocked(
       if (getFeaturesDesired() & FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED) {
         auto& switchApi = SaiApiTable::getInstance()->switchApi();
 #if defined(BRCM_SAI_SDK_XGS_AND_DNX)
-        switchApi.registerParityErrorSwitchEventCallback(
-            saiSwitchId_, (void*)__gParityErrorSwitchEventCallback);
+        switchApi.registerSwitchEventCallback(
+            saiSwitchId_, (void*)__gSwitchEventCallback);
 #else
         switchApi.registerTamEventCallback(saiSwitchId_, __gTamEventCallback);
 #endif
@@ -3127,10 +3179,9 @@ phy::FecMode SaiSwitch::getPortFECMode(PortID portId) const {
   return managerTable_->portManager().getFECMode(portId);
 }
 
-void SaiSwitch::rollbackInTest(
-    const std::shared_ptr<SwitchState>& knownGoodState) {
-  rollback(knownGoodState);
-  setProgrammedState(knownGoodState);
+void SaiSwitch::rollbackInTest(const StateDelta& delta) {
+  rollback(delta);
+  setProgrammedState(delta.oldState());
 }
 
 template <typename LockPolicyT>

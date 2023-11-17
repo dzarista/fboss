@@ -188,6 +188,7 @@ void ProdInvariantTest::verifyAcl() {
   auto isEnabled = utility::verifyAclEnabled(platform()->getHwSwitch());
   EXPECT_TRUE(isEnabled);
   XLOG(DBG2) << "Verify ACL Done";
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 void ProdInvariantTest::verifyCopp() {
@@ -197,13 +198,14 @@ void ProdInvariantTest::verifyCopp() {
       sw()->getState(),
       getDownlinkPort());
   XLOG(DBG2) << "Verify COPP Done";
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 void ProdInvariantTest::verifyLoadBalancing() {
-  auto getPortStatsFn =
-      [&](const std::vector<PortID>& portIds) -> std::map<PortID, HwPortStats> {
-    return getLatestPortStats(portIds);
-  };
+  std::function<std::map<PortID, HwPortStats>(const std::vector<PortID>&)>
+      getPortStatsFn = [&](const std::vector<PortID>& portIds) {
+        return getLatestPortStats(portIds);
+      };
   utility::pumpTrafficAndVerifyLoadBalanced(
       [=]() { sendTraffic(); },
       [=]() {
@@ -222,6 +224,7 @@ void ProdInvariantTest::verifyLoadBalancing() {
             25);
       });
   XLOG(DBG2) << "Verify Load Balancing Done";
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 void ProdInvariantTest::verifyDscpToQueueMapping() {
@@ -255,6 +258,7 @@ void ProdInvariantTest::verifyDscpToQueueMapping() {
       getEcmpPortIds(),
       100 /* sleep in ms */));
   XLOG(DBG2) << "Verify DSCP to Queue Mapping Done";
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 void ProdInvariantTest::verifyQueuePerHostMapping(bool dscpMarkingTest) {
@@ -292,6 +296,7 @@ void ProdInvariantTest::verifyQueuePerHostMapping(bool dscpMarkingTest) {
       std::nullopt, /* l4DstPort */
       dscp);
   XLOG(DBG2) << "Verify Queue per Host Mapping Done";
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 void ProdInvariantTest::verifySafeDiagCommands() {
@@ -335,6 +340,7 @@ void ProdInvariantTest::verifySafeDiagCommands() {
     platform()->getHwSwitch()->printDiagCmd("quit\n");
   }
   XLOG(DBG2) << "Verify Safe Diagnostic Commands Done";
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 void ProdInvariantTest::verifySwSwitchHandler() {
@@ -347,6 +353,8 @@ void ProdInvariantTest::verifySwSwitchHandler() {
 void ProdInvariantTest::verifyThriftHandler() {
   verifySwSwitchHandler();
   verifyHwSwitchHandler();
+  XLOG(DBG2) << "Verify Thrift Handler Done";
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 int ProdInvariantTestMain(
@@ -358,6 +366,8 @@ int ProdInvariantTestMain(
   return RUN_ALL_TESTS();
 }
 
+// Wait 1 second between tests to address flakiness on some platforms caused by
+// invariants running in quick succession.
 TEST_F(ProdInvariantTest, verifyInvariants) {
   auto setup = [&]() {};
   auto verify = [&]() {

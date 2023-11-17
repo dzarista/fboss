@@ -36,6 +36,19 @@ void LedServiceTest::TearDown() {
   ensemble_.reset();
 }
 
+std::vector<TransceiverID> LedServiceTest::getAllTransceivers(
+    const PlatformMapping* platformMapping) const {
+  std::vector<TransceiverID> transceivers;
+  const auto& chips = platformMapping->getChips();
+  for (auto chip : chips) {
+    if (*chip.second.type() == phy::DataPlanePhyChipType::TRANSCEIVER) {
+      auto tcvrID = TransceiverID(*chip.second.physicalID());
+      transceivers.push_back(tcvrID);
+    }
+  }
+  return transceivers;
+}
+
 /*
  * Set the LED state by updating the LED manager and check if the LED color
  * changes accordingly
@@ -43,53 +56,68 @@ void LedServiceTest::TearDown() {
 TEST_F(LedServiceTest, checkLedColorChange) {
   auto ledManager = getLedEnsemble()->getLedManager();
 
-  // Test on the first module port
+  // Test for all the modules
   // Use the ports max speed and profile
   auto platformMap = ledManager->getPlatformMapping();
-  auto swPorts = platformMap->getSwPortListFromTransceiverId(0);
-  CHECK_GT(swPorts.size(), 0);
-  auto swPort = swPorts[0];
+  auto transceivers = getAllTransceivers(platformMap);
 
-  // The setExternalLedState will throw because first update from FSDB has not
-  // happened to the LedManager
-  EXPECT_THROW(
-      ledManager->setExternalLedState(
-          swPort, PortLedExternalState::EXTERNAL_FORCE_OFF),
-      FbossError);
+  for (auto tcvr : transceivers) {
+    auto swPorts = platformMap->getSwPortListFromTransceiverId(tcvr);
+    CHECK_GT(swPorts.size(), 0);
+    auto swPort = swPorts[0];
+    auto swPortName = platformMap->getPortNameByPortId(swPort);
+    CHECK(swPortName.has_value());
 
-  // Do the first update from FSDB to LedService
-  auto maxSpeed = platformMap->getPortMaxSpeed(swPort);
-  auto profile = platformMap->getProfileIDBySpeed(swPort, maxSpeed);
-  LedManager::LedSwitchStateUpdate ledUpdate = {
-      static_cast<short>(swPort),
-      "",
-      enumToName<cfg::PortProfileID>(profile),
-      false};
+    // The setExternalLedState will throw because first update from FSDB has not
+    // happened to the LedManager
+    EXPECT_THROW(
+        ledManager->setExternalLedState(
+            swPort, PortLedExternalState::EXTERNAL_FORCE_OFF),
+        FbossError);
 
-  std::map<short, LedManager::LedSwitchStateUpdate> switchUpdate_0;
-  switchUpdate_0[swPort] = ledUpdate;
-  ledManager->updateLedStatus(switchUpdate_0);
+    // Do the first update from FSDB to LedService
+    auto maxSpeed = platformMap->getPortMaxSpeed(swPort);
+    auto profile = platformMap->getProfileIDBySpeed(swPort, maxSpeed);
+    LedManager::LedSwitchStateUpdate ledUpdate = {
+        static_cast<short>(swPort),
+        "",
+        enumToName<cfg::PortProfileID>(profile),
+        false};
 
-  // Now the setting of external LED state should be successful
-  EXPECT_NO_THROW(ledManager->setExternalLedState(
-      swPort, PortLedExternalState::EXTERNAL_FORCE_OFF));
+    std::map<short, LedManager::LedSwitchStateUpdate> switchUpdate_0;
+    switchUpdate_0[swPort] = ledUpdate;
+    ledManager->updateLedStatus(switchUpdate_0);
 
-  // Verify link Down, the expected LED color is OFF
-  auto offLedColor = ledManager->getCurrentLedColor(swPort);
-  EXPECT_EQ(offLedColor, led::LedColor::OFF);
+    // Now the setting of external LED state should be successful
+    EXPECT_NO_THROW(ledManager->setExternalLedState(
+        swPort, PortLedExternalState::EXTERNAL_FORCE_OFF));
 
-  // Verify link Up, the expected LED color is either Blue or Green
-  ledManager->setExternalLedState(
-      swPort, PortLedExternalState::EXTERNAL_FORCE_ON);
-  auto onLedColorCurrent = ledManager->getCurrentLedColor(swPort);
-  auto onLedColorExpected = ledManager->onColor();
-  EXPECT_EQ(onLedColorCurrent, onLedColorExpected);
+    // Verify link Down, the expected LED color is OFF
+    auto offLedColor = ledManager->getCurrentLedColor(swPort);
+    auto ledState = ledManager->getLedState(swPortName.value());
+    EXPECT_EQ(offLedColor, led::LedColor::OFF);
+    EXPECT_EQ(ledState.currentLedColor().value(), led::LedColor::OFF);
+    EXPECT_TRUE(ledState.forcedOffState().value());
 
-  // Put it back to Off state and check again
-  ledManager->setExternalLedState(
-      swPort, PortLedExternalState::EXTERNAL_FORCE_OFF);
-  offLedColor = ledManager->getCurrentLedColor(swPort);
-  EXPECT_EQ(offLedColor, led::LedColor::OFF);
+    // Verify link Up, the expected LED color is either Blue or Green
+    ledManager->setExternalLedState(
+        swPort, PortLedExternalState::EXTERNAL_FORCE_ON);
+    auto onLedColorCurrent = ledManager->getCurrentLedColor(swPort);
+    auto onLedColorExpected = ledManager->onColor();
+    ledState = ledManager->getLedState(swPortName.value());
+    EXPECT_EQ(onLedColorCurrent, onLedColorExpected);
+    EXPECT_EQ(ledState.currentLedColor().value(), onLedColorExpected);
+    EXPECT_TRUE(ledState.forcedOnState().value());
+
+    // Put it back to Off state and check again
+    ledManager->setExternalLedState(
+        swPort, PortLedExternalState::EXTERNAL_FORCE_OFF);
+    offLedColor = ledManager->getCurrentLedColor(swPort);
+    ledState = ledManager->getLedState(swPortName.value());
+    EXPECT_EQ(offLedColor, led::LedColor::OFF);
+    EXPECT_EQ(ledState.currentLedColor().value(), led::LedColor::OFF);
+    EXPECT_TRUE(ledState.forcedOffState().value());
+  }
 }
 
 } // namespace facebook::fboss

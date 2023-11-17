@@ -3,7 +3,6 @@
   "rootPmUnitName": "SCM",
   "slotTypeConfigs": {
     "SCM_SLOT": {
-      "numOutgoingI2cBuses": 0,
       "idpromConfig": {
         "busName": "SMBus I801 adapter at 1000",
         "address": "0x50",

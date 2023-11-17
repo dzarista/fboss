@@ -78,7 +78,7 @@ const std::vector<sai_stat_id_t>& SaiSwitchTraits::dramStats() {
   return stats;
 }
 
-void SwitchApi::registerParityErrorSwitchEventCallback(
+void SwitchApi::registerSwitchEventCallback(
     SwitchSaiId id,
     void* switch_event_cb) const {
 #if defined(BRCM_SAI_SDK_XGS_AND_DNX)
@@ -94,12 +94,22 @@ void SwitchApi::registerParityErrorSwitchEventCallback(
         rv, ApiType, "Unable to register parity error switch event callback");
 
     // Register switch events
+#if defined BRCM_SAI_SDK_GTE_11_0
+    std::array<uint32_t, 6> events = {
+        SAI_SWITCH_EVENT_TYPE_PARITY_ERROR,
+        SAI_SWITCH_EVENT_TYPE_STABLE_FULL,
+        SAI_SWITCH_EVENT_TYPE_STABLE_ERROR,
+        SAI_SWITCH_EVENT_TYPE_UNCONTROLLED_SHUTDOWN,
+        SAI_SWITCH_EVENT_TYPE_WARM_BOOT_DOWNGRADE,
+        SAI_SWITCH_EVENT_TYPE_INTERRUPT};
+#else
     std::array<uint32_t, 5> events = {
         SAI_SWITCH_EVENT_TYPE_PARITY_ERROR,
         SAI_SWITCH_EVENT_TYPE_STABLE_FULL,
         SAI_SWITCH_EVENT_TYPE_STABLE_ERROR,
         SAI_SWITCH_EVENT_TYPE_UNCONTROLLED_SHUTDOWN,
         SAI_SWITCH_EVENT_TYPE_WARM_BOOT_DOWNGRADE};
+#endif
     eventAttr.value.u32list.count = events.size();
     eventAttr.value.u32list.list = events.data();
     rv = _setAttribute(id, &eventAttr);
