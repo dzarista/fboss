@@ -111,7 +111,7 @@ else
    export KERNEL_SRC="$FBOSS_DIR/5.19.0"
 fi
 
-CENTOS_RELEASE_MAJOR=$(cat /etc/centos-release | grep -o "[^ ]*$" | cut -d '.' -f 1)
+CENTOS_RELEASE_MAJOR=$(grep -o "[^ ]*$" /etc/centos-release | cut -d '.' -f 1)
 
 DEV_TOOLS_REPO="crb"
 if [ "$CENTOS_RELEASE_MAJOR" = "8" ]; then
