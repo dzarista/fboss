@@ -1,25 +1,22 @@
+#!/bin/env python3
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-import json
-from collections import OrderedDict
 import csv
 
 """
 Author : seerpini@arista.com
-Script for generating the Whistler fabric port platform mapping.
+Script for generating the Whistler vendor mappings.
 Assumptions:
     - Each fabric serdes is enumerated as a 100G port. Supported profiles 36, 37 correspond to 100G optical and copper.
 Input:
-    - Whistler_port_mapping_v1_meta.csv - mapping from fabric serdes 
+    - Trace_whistler_1.0_Ramon3ToOSFP-800G.csv - system to line side serdes mappings
+      and trace information.
+    - SocPropertiesP1.csv - diags generated bcm soc properties for fabric port
+      logical lane maps.
 Output:
-    - Generated platform is written to whistler_platform_mapping.json
-Instructions:
-    - Please update the following variables to control how fabric port mappings are generated.
-    - Port speed and breakout are not currently configurable.
-TODO
-    - Accept platform settings from input/config file and generate mapping
-      accordingly.
+    - Vendor mappings (static and port profile mapping) and bcm configuration is
+      gneerated.
 """
 
 # Variables to control the behavior for this script.
@@ -31,7 +28,6 @@ fabricPortBase = 0
 numAsics = 2
 # Print debug information
 debug = False
-numNifPorts = 0
 # Number of fabric serdes cores per ASIC.
 numFabricSerdesCoresPerAsic = 64
 # Number of serdes per serdes core. Peregrine 8x100G serdes core on R3.
@@ -51,98 +47,6 @@ numLanesFromSupportedProfile = {
       "41" : 1,
       "42" : 1,
 }
-
-def getBasePortMapping( portId=0, serdesCore="", frontPanelPort="", numLanes=1,
-      firstSerdesCoreLane=0, firstFrontPanelLane=0, supportedProfiles=None,
-      attachedCoreId=0, attachedCorePortIndex=0,
-      portType=0 ):
-   # Front panel port would be et1/X or fab1/X and based on the first lane, this can
-   # be et1/X/Y (or fab1/X/Y) where Y is firstFrontPanelLane+1.
-   name=f"{frontPanelPort}/{firstFrontPanelLane+1}"
-   portMapping = OrderedDict( {
-      "mapping": OrderedDict( {
-         "id": portId,
-         "name": name,
-         "controllingPort": portId,
-         "pins": [],
-         "portType": portType,
-         "attachedCoreId": attachedCoreId,
-         "attachedCorePortIndex": attachedCorePortIndex
-      } ),
-      "supportedProfiles": OrderedDict()
-   } )
-   for lane in range( numLanes ):
-      pinMapping = OrderedDict( {
-         "a" : OrderedDict( {
-            "chip" : serdesCore,
-            "lane" : firstSerdesCoreLane+lane
-         } ),
-         "z" : OrderedDict( {
-            "end" : OrderedDict( {
-               "chip" : frontPanelPort,
-               "lane" : firstFrontPanelLane+lane
-            } )
-         } )
-      } )
-      portMapping[ "mapping" ][ "pins" ].append( pinMapping )
-
-   templateSuppProfiles = portMapping[ "supportedProfiles" ]
-   # numLanes is the total lanes that this port can use. However, based on the port
-   # profile, we might not need to use all the lanes. For eg, for 400G-4, we will
-   # only need the first 4 lanes. 800G-8 will need all 8 lanes.
-   if supportedProfiles is None:
-      supportedProfiles = []
-   for suppProfile in supportedProfiles:
-      if suppProfile not in templateSuppProfiles:
-         templateSuppProfiles[ suppProfile ] = OrderedDict(
-               { "pins" : OrderedDict(
-                  {
-                     "iphy" : [],
-                     "transceiver" : [],
-                  } )
-               } )
-      reqLanes = numLanesFromSupportedProfile[ suppProfile ]
-      assert reqLanes <= numLanes
-      for lane in range(reqLanes ):
-         pinIPhyMapping = OrderedDict( {
-            "id" : OrderedDict( {
-               "chip" : serdesCore,
-               "lane" : firstSerdesCoreLane+lane
-            } )
-         } )
-         xcvrMapping = OrderedDict( {
-            "id" : OrderedDict( {
-               "chip" : frontPanelPort,
-               "lane" : firstFrontPanelLane+lane
-            } )
-         } )
-         templateSuppProfiles[ suppProfile ][ "pins" ][ "iphy" ].append(
-               pinIPhyMapping )
-         templateSuppProfiles[ suppProfile ][ "pins" ][ "transceiver" ].append(
-               xcvrMapping )
-   return portMapping
-
-def getFabricPortMapping( portId, serdesCore, frontPanelPort, firstSerdesCoreLane,
-                          firstFrontPanelLane, supportedProfiles=None ):
-   portMapping = getBasePortMapping( portId=portId, serdesCore=serdesCore,
-         frontPanelPort=frontPanelPort, numLanes=1,
-         firstSerdesCoreLane=firstSerdesCoreLane,
-         firstFrontPanelLane=firstFrontPanelLane,
-         supportedProfiles=supportedProfiles, portType=1 )
-   del portMapping[ "mapping" ][ "attachedCoreId" ]
-   return portMapping
-
-platMapping = OrderedDict()
-platMapping[ "ports" ] = OrderedDict()
-
-fabricFrontPanelMap = OrderedDict()
-# Build fabric port mappings from CSV file.
-with open( "Whistler_port_mapping_v1_meta.csv" ) as csvFile:
-   reader = csv.reader( csvFile )
-   for row in reader:
-      if not row[ 0 ].isdigit():
-         continue
-      fabricFrontPanelMap[ row[ 0 ] ] = row[ 1: ]
 
 # Map ASIC physical rx and tx serdes/lanes to front panel slot, lane.
 asicSerdesToFrontPanelMap = []
@@ -210,63 +114,6 @@ with open( "Trace_whistler_1.0_Ramon3ToOSFP-800G.csv" ) as fh:
       frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ] = chipId
       frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ direction ] = physicalSerdesId
 
-
-# Append the fabric ports.
-# Each serdes is described as a fabric port, so the enumeration here is somewhat
-# different from the NIF ports.
-for asicId in range( numAsics ):
-   fabricPortBase = ( asicId * numFabricSerdesCoresPerAsic * numSerdesPerCore )
-   for fabSerdesCore in range( numFabricSerdesCoresPerAsic ):
-      port = fabSerdesCore * numSerdesPerCore
-      for serdes in range( numSerdesPerCore ):
-         # Globally unique logical port Id
-         logicalPortId = port + fabricPortBase
-         portStr = str( logicalPortId )
-         if portStr in platMapping[ 'ports' ] and preserveExistingMappings:
-            continue
-         supportedProfiles = [ '36', '37', ]
-         serdesCore = f"BC{fabSerdesCore}"
-         # Since each serdes is a port, "port" is the logical lane on the ASIC side
-         # Map from port, which is the logicalLane to physical rx and tx lanes and
-         # then map those to front panel slot and lane.
-         rxPhysicalLane = asicLogicalLaneToSerdesMap[ asicId ][ port ][ "rx" ]
-         txPhysicalLane = asicLogicalLaneToSerdesMap[ asicId ][ port ][ "tx" ]
-         frontPanelSlot, frontPanelLane, _ = asicSerdesToFrontPanelMap[ asicId ][ "rx" ][
-               rxPhysicalLane ]
-         frontPanelSlotComp, frontPanelLaneComp, _ = asicSerdesToFrontPanelMap[ asicId ][
-               "tx" ][ txPhysicalLane ]
-         assert frontPanelSlot == frontPanelSlotComp
-         assert frontPanelLane == frontPanelLaneComp
-         frontPanelPort = f"fab1/{frontPanelSlot}"
-         portMapping = getFabricPortMapping( portId=logicalPortId, serdesCore=serdesCore,
-               frontPanelPort=frontPanelPort, firstFrontPanelLane=frontPanelLane,
-               firstSerdesCoreLane=serdes, supportedProfiles=supportedProfiles )
-         platMapping[ 'ports' ][ portStr ] = portMapping
-         if debug:
-            print( portMapping )
-         port += 1
-
-# Append the chips enumeration.
-platMapping[ "chips" ] = []
-for core in range( numFabricSerdesCoresPerAsic ):
-   platMapping[ "chips" ].append( OrderedDict(
-      {
-         "name": f"BC{core}",
-         "type" : 1,
-         "physicalID": core
-      } ) )
-for port in range( numFrontPanelPorts ):
-   frontPanelSlot = port + 1
-   platMapping[ "chips" ].append( OrderedDict(
-      {
-         "name": f"fab1/{frontPanelSlot}",
-         "type" : 3,
-         "physicalID": port 
-      } ) )
-
-platMapping[ "platformSettings" ] = OrderedDict()
-platMapping[ "portConfigOverrides" ] = []
-platMapping[ "platformSupportedProfiles" ] = []
 # Port Attributes by profile
 portAttrsByProfile = {
       #profileId : ( speed, numLanes, modulation, fed, medium, interfaceMode )
@@ -278,34 +125,8 @@ portAttrsByProfile = {
       41 : ( 106250, 1, 2, 544, 1, 41 ),
       42 : ( 106250, 1, 2, 544, 3, 41 ),
 }
-# Append the supportedProfiles information.
-for profileID in numLanesFromSupportedProfile.keys():
-   profileID = int( profileID )
-   profilePortAttrs = portAttrsByProfile[ profileID ]
-   platMapping[ "platformSupportedProfiles" ].append(
-         OrderedDict( {
-            "factor" : {
-               "profileID" : profileID
-            },
-            "profile": OrderedDict( {
-               "speed": profilePortAttrs[ 0 ],
-               "iphy" : OrderedDict( {
-                  "numLanes" : profilePortAttrs[ 1 ],
-                  "modulation" : profilePortAttrs[ 2 ],
-                  "fec" : profilePortAttrs[ 3 ],
-                  "medium" : profilePortAttrs[ 4 ],
-                  "interfaceMode" : profilePortAttrs[ 5 ],
-                  "interfaceType" : profilePortAttrs[ 5 ]
-               } )
-            } )
-         } ) )
 
-json_out = json.dumps( platMapping, indent=2, sort_keys=False )
-with open( "whistler_platform_mapping.json", "w") as fh:
-   fh.write( json_out )
-
-bcmConfigFh = open( "bcm_config", "w" )
-with open( "whistler_static_mapping.csv", "w" ) as fh:
+with open( "whistler_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as bcmConfigFh:
    # Description of attributes for front panel serdes in the order of their
    # occurence.
    # A_SLOT_ID : Linecard slot Id, 1 for fixed systems
@@ -378,7 +199,7 @@ with open( "whistler_static_mapping.csv", "w" ) as fh:
       bcmConfigFh.write(
             f"\"phy_tx_polarity_flip_{polaritySwapType}{logicalLane}.BCM8892X.{chipId}\": \"{txPolSwapProp}\",\n" )
 
-with open( "whistler_port_profile_mapping.csv", "w" ) as fh:
+with open( "whistler_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a" ) as bcmConfigFh:
    fabricPortBase = 0
    # Description of fields in the order of their appearance:
    # Global PortID : Global port ID across all ASICs in the system.
@@ -404,5 +225,3 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh:
       assert logicalLane < fabricPortsPerAsic
       globalPortId = ( fabricPortsPerAsic * chipId ) + logicalPortId
       fh.write( f"{globalPortId},{logicalPortId},{portStr},{fabSupportedProfiles},,\n" )
-
-bcmConfigFh.close()
