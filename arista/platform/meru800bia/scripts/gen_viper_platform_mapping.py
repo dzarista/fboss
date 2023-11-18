@@ -6,19 +6,13 @@ from collections import OrderedDict
 
 """
 Author : seerpini@arista.com
-Script for generating the Viper fabric port platform mapping.
+Script for generating the Viper vendor mappings.
 Assumptions:
     - Each fabric serdes is enumerated as a 100G port. Supported profiles 36, 37 correspond to 100G optical and copper.
-    - Each front panel port is enumerated as either 400G-4 (only master port is
-      used), or 800G-8.
+    - Each front panel port is enumerated as 400G-4 or 2x400G-4.
 Output:
-    - Generated platform is written to viper_platform_mapping.json
-Instructions:
-    - Please update the following variables to control how fabric port mappings are generated.
-    - Port speed and breakout are not currently configurable.
-TODO
-    - Accept platform settings from input/config file and generate mapping
-      accordingly.
+    - Vendor mappings (static and port profile mapping) and bcm configuration is
+      gneerated.
 """
 
 # Variables to control the behavior for this script.
