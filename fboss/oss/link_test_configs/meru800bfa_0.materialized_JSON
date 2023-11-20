@@ -18079,7 +18079,6 @@
           "miim_timeout_usec.BCM8892X": "300000",
           "polled_irq_delay.BCM8892X": "1000",
           "polled_irq_mode.BCM8892X": "0",
-          "port_init_cl72.BCM8892X": "1",
           "port_init_speed.BCM8892X": "106250",
           "rate_ext_mdio_divisor.BCM8892X": "14",
           "rate_int_mdio_divisor.BCM8892X": "50",
