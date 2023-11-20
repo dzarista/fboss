@@ -25,12 +25,13 @@ nifPortBase = 2
 # Total number of NIF ports. Since we are operating in either 400G-4 or 800G-8 and we
 # only plan to use the first port in the slot in 400G-4 mode, we have a total of 18
 # front panel NIF ports.
-numNifSerdesCores = 18
+numNifSerdesOctets = 18
+numNifSerdesQuartets = 1
 # Logical port base in the SDK for fabric ports.
 fabricPortBase = 1024
 # Total number of fabric ports assuming that each fabric serdes is enumerated as a
 # separate port.
-numFabricSerdesCores = 20
+numFabricSerdesOctets = 20
 # Print debug information
 debug = False
 
@@ -44,6 +45,15 @@ def frontPanelSlotToPortType( slot ):
       return "nif"
    else:
       return "fab"
+
+# Number of serdes/lanes per front panel slot. All slots except slot 39 (QSFP port)
+# have 8 lanes.
+def numLanesInFrontPanelSlot( slot ):
+   assert 1 <= slot <= 39
+   if slot == 39:
+      return 4
+   else:
+      return 8
 
 nifSerdesCoreToAsicCore = {
       # serdes Octet : J3 core
@@ -101,14 +111,17 @@ with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
       systemSerdesId = int( systemSerdesId )
       systemSideLane = systemSerdesId
       frontPanelSlot = int( frontPanelSlot )
+      portType = frontPanelSlotToPortType( frontPanelSlot )
+      lanesInSlot = numLanesInFrontPanelSlot( frontPanelSlot )
       lineSideLane = int( lineSideLane )
-      lineSideSerdes = ( ( systemSerdesId // 8 ) * 8 ) + lineSideLane
+      lineSideSerdes = ( ( systemSerdesId // lanesInSlot ) * lanesInSlot ) + lineSideLane
       assert asic < numAsics
-      asicMapping = asicSerdesMappings[ asic ]
-      if lineSideSerdes not in asicMapping:
-         asicMapping[ lineSideSerdes ] = {}
-      asicMapping[ lineSideSerdes ][ connectionType ] = ( frontPanelSlot,
+      asicPortMapping = asicSerdesMappings[ asic ][ portType ]
+      if lineSideSerdes not in asicPortMapping:
+         asicPortMapping[ lineSideSerdes ] = {}
+      asicPortMapping[ lineSideSerdes ][ connectionType ] = ( frontPanelSlot,
                systemSideLane, polaritySwap )
+
 
 
 asicId = 0
@@ -126,7 +139,7 @@ portAttrsByProfile = {
       42 : ( 106250, 1, 2, 544, 3, 41 ),
 }
 
-numFrontPanelPorts = numFabricSerdesCores + numNifSerdesCores
+numFrontPanelPorts = numFabricSerdesOctets + numNifSerdesOctets
 nifFrontPanelSlotToAsicCoreAndSerdesCore = {}
 fabFrontPanelLaneToLogicalLane = {}
 with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as bcmConfigFh:
@@ -159,7 +172,7 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
    # core Id 55 (this serdes core Id is derived from a reverse calculation of the bcm
    # soc property for recycle port base).
    fh.write( "1,1,NPU,55,J3_RCY,0,,,,,,,,,,,,,,\n" )
-   for serdesCore in range( numNifSerdesCores+numFabricSerdesCores ):
+   for serdesCore in range( numNifSerdesOctets+numFabricSerdesOctets ):
       tempProps = {}
       tempBcmLaneMapProps = {}
       tempBcmPolSwapProps = {}
@@ -171,7 +184,7 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
                ][ "tx" ]
          assert frontPanelSlot == _frontPanelSlot
          frontPanelLane = lane
-         if serdesCore < numNifSerdesCores:
+         if serdesCore < numNifSerdesOctets:
             logicalLane = lane
             nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ] = (
                   nifSerdesCoreToAsicCore[ serdesCore ], serdesCore )
@@ -194,18 +207,18 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
             txPolSwapProp = "0"
          else:
             assert False
-         if serdesCore < numNifSerdesCores:
+         if serdesCore < numNifSerdesOctets:
             serdesCoreByType = serdesCore
             asicCoreType = "J3_NIF"
             laneMapType = "nif"
             polaritySwapType = "phy"
          else:
-            serdesCoreByType = serdesCore - numNifSerdesCores
+            serdesCoreByType = serdesCore - numNifSerdesOctets
             asicCoreType = "J3_FE"
             laneMapType = "fabric"
             polaritySwapType = "fabric"
-            txLane -= ( numNifSerdesCores * numSerdesPerCore )
-            rxLane -= ( numNifSerdesCores * numSerdesPerCore )
+            txLane -= ( numNifSerdesOctets * numSerdesPerCore )
+            rxLane -= ( numNifSerdesOctets * numSerdesPerCore )
          # For fabric ports, the logicalLane need not match lane, so if we write it
          # here we will be out of order. We will stash them here so that we can write
          # them to the relevant files in the order of logical lanes.
@@ -214,7 +227,7 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
          # bcm logicalLane is a global lane number that is in range (0,144) for NIF
          # and (0,160) for Fabric.
          bcmLogicalLane = logicalLane + serdesCoreByType * numSerdesPerCore
-         if serdesCore >= numNifSerdesCores:
+         if serdesCore >= numNifSerdesOctets:
             fabFrontPanelLaneToLogicalLane[ frontPanelSlot * 8 + frontPanelLane ] = bcmLogicalLane
 
          # BCM soc properties for lane maps and polarity swaps.
@@ -282,7 +295,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                # nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
                # nifSupportedProfiles = nifSupportedProfilesSubPort
             attachedCorePortId = nifLogicalPortId
-            assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores*2
+            assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesOctets*2
             bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
                   f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
