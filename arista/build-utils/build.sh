@@ -103,22 +103,33 @@ echo "================= Running build with $FBOSS_DIR and ARCH=$ARCH and KERNEL=
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-if [ $KERNEL == "4.18" ]; then
+if [ $KERNEL = "4.18" ]; then
    export KERNEL_SRC="$FBOSS_DIR/4.18.0-408.el8.x86_64"
-elif [ $KERNEL == "5.12" ]; then
+elif [ $KERNEL = "5.12" ]; then
    export KERNEL_SRC="$FBOSS_DIR/5.12.0-0_fbk2_3390_g7ecb4ac46d7f"
 else
    export KERNEL_SRC="$FBOSS_DIR/5.19.0"
 fi
 
+CENTOS_RELEASE_MAJOR=$(grep -o "[^ ]*$" /etc/centos-release | cut -d '.' -f 1)
+
+DEV_TOOLS_REPO="crb"
+if [ "$CENTOS_RELEASE_MAJOR" = "8" ]; then
+   DEV_TOOLS_REPO="powertools"
+fi
+
 # install missing dependencies for SDK build.
 dnf install -y sudo
-sudo dnf install --enablerepo powertools -y perl-List-MoreUtils perl-YAML.noarch \
+sudo dnf install --enablerepo "$DEV_TOOLS_REPO" -y perl-List-MoreUtils perl-YAML.noarch \
    perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel
 sudo dnf install -y python3-filelock platform-python-devel
 
-# Setup unversioned-python aliased to python3
-alternatives --set python /usr/bin/python3
+# Python3 is the default in CENTOS RELEASE > 8.
+if [ "$CENTOS_RELEASE_MAJOR" == "8" ]; then
+   # Setup unversioned-python aliased to python3
+   alternatives --set python /usr/bin/python3
+fi
+
 # Install python3 module dependencies
 pip3 install GitPython
 
