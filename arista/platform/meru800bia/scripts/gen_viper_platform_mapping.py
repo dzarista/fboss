@@ -10,7 +10,7 @@ Assumptions:
     - Each front panel port is enumerated as 400G-4 or 2x400G-4.
 Output:
     - Vendor mappings (static and port profile mapping) and bcm configuration is
-      gneerated.
+      generated.
 """
 
 # Variables to control the behavior for this script.
