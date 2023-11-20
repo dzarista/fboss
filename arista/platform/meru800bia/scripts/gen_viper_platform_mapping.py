@@ -35,13 +35,14 @@ numFabricSerdesCores = 20
 debug = False
 
 # Viper has a non-linear front panel slot to port type mapping.
+# First 10 ports and last 10 ports on the front panel are Fabric ports.
+# The 18 ports in between are NIF ports including the special QSFP port at
+# slot 39.
 def frontPanelSlotToPortType( slot ):
-   assert 1 <= slot <= 38
-   if 11 <= slot <= 28:
-      # The 18 ports in between are ethernet ports.
-      return "eth"
+   assert 1 <= slot <= 39
+   if 11 <= slot <= 28 or slot == 39:
+      return "nif"
    else:
-      # First 10 ports and last 10 ports on the front panel are fabric ports.
       return "fab"
 
 nifSerdesCoreToAsicCore = {
@@ -79,13 +80,13 @@ numLanesFromSupportedProfile = {
 }
 
 supportedProfilesByPortType = {
-      'eth' :  [ '24', '38', '39', ],
+      'nif' :  [ '24', '38', '39', ],
       'fab' :  [ '36', '37', '41', '42'],
 }
 
 asicSerdesMappings = []
 for asic in range( numAsics ):
-   asicSerdesMappings.append( {} )
+   asicSerdesMappings.append( { 'fabric' : {}, 'nif': {} } )
 # For Viper, since each serdes core maps to a single OSFP port, we can figure out the
 # lanes from reverse mapping the line side lane to the system side serdes lane.
 # This also means that the logical lanes on the ASIC side always match the OSFP front
@@ -246,8 +247,8 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    nifLogicalPortIdBase = 2
    fabLogicalPortIdBase = 1024
    fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ] )
-   nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'eth' ] )
-   nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'eth' ][ : -1
+   nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'nif' ] )
+   nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'nif' ][ : -1
       ] )
    for port in range( numFrontPanelPorts ):
       frontPanelSlot = port+1
@@ -259,7 +260,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             fabLogicalPortId = fabLogicalPortIdBase + fabFrontPanelLaneToLogicalLane[
                   frontPanelSlot * 8 + ( subPort - 1 ) ]
             fh.write( f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,\n" )
-      elif frontPanelPortType == "eth":
+      elif frontPanelPortType == "nif":
          for subPort in ( "1", "5" ):
             portStr = f"{portStrPrefix}/{subPort}"
             # fapPortId
