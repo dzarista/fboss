@@ -79,7 +79,7 @@ numLanesFromSupportedProfile = {
 }
 
 supportedProfilesByPortType = {
-      'eth' :  [ '24', '38', '39', ],
+      'eth' :  { 1 : [ '24', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
       'fab' :  [ '36', '37', '41', '42'],
 }
 
@@ -250,9 +250,9 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    nifLogicalPortIdBase = 2
    fabLogicalPortIdBase = 1024
    fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ] )
-   nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'eth' ] )
-   nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'eth' ][ : -1
-      ] )
+   nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'eth' ][ 1 ] )
+   nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'eth' ][ 5 ]
+         )
    # Since fabric serdes on J3 don't have a core mapping and the notion of Virtual
    # Devices does not exist on J3, always set this to 0.
    virtualDeviceId = 0
@@ -284,10 +284,9 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                # port Id. Uncomment the code below to start adding the /5 to the
                # static mapping.
                nifLogicalPortId += 1
-               continue
-               # cdgeCore_4 = serdesCoreId * 2 + 1
-               # nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
-               # nifSupportedProfiles = nifSupportedProfilesSubPort
+               cdgeCore_4 = serdesCoreId * 2 + 1
+               nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
+               nifSupportedProfiles = nifSupportedProfilesSubPort
             attachedCorePortId = nifLogicalPortId
             assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores*2
             bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
