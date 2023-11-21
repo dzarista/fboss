@@ -234,11 +234,14 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    # Global PortID : Global port ID across all ASICs in the system.
    # Logical_PortID : Logical port ID used in the bcm soc properties.
    # Port_Name : Port name used in the platform mapping.
+   # Supported_Port_Profiles : FBOSS Port profile (speed and other L1 attributes)
+   #    supported by the port.
    # Attached_CoreId : CoreId on ASIC that the port is attached to.
    # Attached_Core_PortID : Core local portID assigned to this port.
    # NOTE : For Fabric ports, there is no core binding, the corresponding
-   # Attached_CoreId and Attached_Core_PortID can be left empty.
+   #    Attached_CoreId and Attached_Core_PortID can be left empty.
    # Virtual_Device_ID : Virtual device ID for FE ASICs.
+
    # Recycle port is a special port with port id 1, it is given internal serdes core
    # ID 55.
    fh.write("1,1,rcy1/1/55,11,0,1\n")

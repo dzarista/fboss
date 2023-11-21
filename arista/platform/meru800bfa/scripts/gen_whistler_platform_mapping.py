@@ -206,6 +206,8 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config",
    # Global PortID : Global port ID across all ASICs in the system.
    # Logical_PortID : Logical port ID used in the bcm soc properties.
    # Port_Name : Port name used in the platform mapping.
+   # Supported_Port_Profiles : FBOSS Port profile (speed and other L1 attributes)
+   #    supported by the port.
    # Attached_CoreId : CoreId on ASIC that the port is attached to.
    # Attached_Core_PortID : Core local portID assigned to this port.
    # Virtual_Device_ID : Virtual device ID for FE ASICs.
