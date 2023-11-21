@@ -263,7 +263,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             fabLogicalPortId = fabLogicalPortIdBase + fabFrontPanelLaneToLogicalLane[
                   frontPanelSlot * 8 + ( subPort - 1 ) ]
             fh.write(
-                  f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,{virtualDeviceId}\n" )
+                  f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,,{virtualDeviceId}\n" )
       elif frontPanelPortType == "eth":
          for subPort in ( "1", "5" ):
             portStr = f"{portStrPrefix}/{subPort}"
