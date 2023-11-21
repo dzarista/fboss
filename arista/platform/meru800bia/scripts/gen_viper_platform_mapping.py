@@ -269,9 +269,12 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    #    Attached_CoreId and Attached_Core_PortID can be left empty.
    # Virtual_Device_ID : Virtual device ID for FE ASICs.
 
+   # Since fabric serdes on J3 don't have a core mapping and the notion of Virtual
+   # Devices does not exist on J3, always set this to 0.
+   virtualDeviceId = 0
    # Recycle port is a special port with port id 1, it is given internal serdes core
    # ID 55.
-   fh.write("1,1,rcy1/1/55,11,0,1\n")
+   fh.write(f"1,1,rcy1/1/55,11,0,1,,,{virtualDeviceId}\n")
    # CPU port is 0, RCY port is 1, NIF ports start from logical port Id 2.
    # Fabric ports start from logical port Id 1024.
    nifLogicalPortIdBase = 2
@@ -280,9 +283,6 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'nif' ] )
    nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'nif' ][ : -1
       ] )
-   # Since fabric serdes on J3 don't have a core mapping and the notion of Virtual
-   # Devices does not exist on J3, always set this to 0.
-   virtualDeviceId = 0
    for frontPanelSlot in frontPanelSlots():
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
       if frontPanelPortType == "fabric":
