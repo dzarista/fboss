@@ -238,6 +238,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    # Attached_Core_PortID : Core local portID assigned to this port.
    # NOTE : For Fabric ports, there is no core binding, the corresponding
    # Attached_CoreId and Attached_Core_PortID can be left empty.
+   # Virtual_Device_ID : Virtual device ID for FE ASICs.
    # Recycle port is a special port with port id 1, it is given internal serdes core
    # ID 55.
    fh.write("1,1,rcy1/1/55,11,0,1\n")
@@ -249,6 +250,9 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'eth' ] )
    nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'eth' ][ : -1
       ] )
+   # Since fabric serdes on J3 don't have a core mapping and the notion of Virtual
+   # Devices does not exist on J3, always set this to 0.
+   virtualDeviceId = 0
    for port in range( numFrontPanelPorts ):
       frontPanelSlot = port+1
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
@@ -258,7 +262,8 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             portStr = f"{portStrPrefix}/{subPort}"
             fabLogicalPortId = fabLogicalPortIdBase + fabFrontPanelLaneToLogicalLane[
                   frontPanelSlot * 8 + ( subPort - 1 ) ]
-            fh.write( f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,\n" )
+            fh.write(
+                  f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,{virtualDeviceId}\n" )
       elif frontPanelPortType == "eth":
          for subPort in ( "1", "5" ):
             portStr = f"{portStrPrefix}/{subPort}"
@@ -284,7 +289,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores*2
             bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
-                  f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
+                  f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId},{virtualDeviceId}\n" )
             nifLogicalPortId += 1
       else:
          assert False, "Invalid frontPanelPortType"
