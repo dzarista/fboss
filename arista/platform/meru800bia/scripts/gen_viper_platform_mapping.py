@@ -261,10 +261,14 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    # Global PortID : Global port ID across all ASICs in the system.
    # Logical_PortID : Logical port ID used in the bcm soc properties.
    # Port_Name : Port name used in the platform mapping.
+   # Supported_Port_Profiles : FBOSS Port profile (speed and other L1 attributes)
+   #    supported by the port.
    # Attached_CoreId : CoreId on ASIC that the port is attached to.
    # Attached_Core_PortID : Core local portID assigned to this port.
    # NOTE : For Fabric ports, there is no core binding, the corresponding
-   # Attached_CoreId and Attached_Core_PortID can be left empty.
+   #    Attached_CoreId and Attached_Core_PortID can be left empty.
+   # Virtual_Device_ID : Virtual device ID for FE ASICs.
+
    # Recycle port is a special port with port id 1, it is given internal serdes core
    # ID 55.
    fh.write("1,1,rcy1/1/55,11,0,1\n")
@@ -276,6 +280,9 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'nif' ] )
    nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'nif' ][ : -1
       ] )
+   # Since fabric serdes on J3 don't have a core mapping and the notion of Virtual
+   # Devices does not exist on J3, always set this to 0.
+   virtualDeviceId = 0
    for frontPanelSlot in frontPanelSlots():
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
       if frontPanelPortType == "fabric":
@@ -283,7 +290,8 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             portStr = f"fab1/{frontPanelSlot}/{subPort}"
             fabLogicalPortId = fabLogicalPortIdBase + fabFrontPanelLaneToLogicalLane[
                   frontPanelSlot * 8 + ( subPort - 1 ) ]
-            fh.write( f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,\n" )
+            fh.write(
+                  f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,,{virtualDeviceId}\n" )
       elif frontPanelPortType == "nif":
          if frontPanelSlot == 39:
             #100G-4, QSFP
@@ -321,7 +329,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                   numNifSerdesQuartets ) * 2
             bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"{bcmConfigPortPrefix}_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
-                  f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
+                  f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId},{virtualDeviceId}\n" )
             nifLogicalPortId += 1
       else:
          assert False, "Invalid frontPanelPortType"
