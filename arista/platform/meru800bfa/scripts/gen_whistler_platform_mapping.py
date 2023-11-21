@@ -32,6 +32,7 @@ debug = False
 numFabricSerdesCoresPerAsic = 64
 # Number of serdes per serdes core. Peregrine 8x100G serdes core on R3.
 numSerdesPerCore = 8
+numFabricSerdesPerAsic = numFabricSerdesCoresPerAsic * numSerdesPerCore
 # Total serdes in the system
 numSystemSerdes = numFabricSerdesCoresPerAsic * numAsics * numSerdesPerCore
 # Since each front panel slot has 8 lanes, total front panel ports is :
@@ -207,12 +208,15 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config",
    # Port_Name : Port name used in the platform mapping.
    # Attached_CoreId : CoreId on ASIC that the port is attached to.
    # Attached_Core_PortID : Core local portID assigned to this port.
+   # Virtual_Device_ID : Virtual device ID for FE ASICs.
    # NOTE : For Fabric ports, there is no core binding, the corresponding
    # Attached_CoreId and Attached_Core_PortID can be left empty.
    fabSupportedProfiles = '-'.join( numLanesFromSupportedProfile.keys() )
    # FBOSS assigns a range of 2k ports to each NPU, we will only use the first 512
    # IDs from this space.
    fabricPortsPerAsic = 2048
+   virtualDevicesPerAsic = 2
+   numFabricSerdesPerVD = numFabricSerdesPerAsic // virtualDevicesPerAsic
    for portId in range( numFabricPorts ):
       frontPanelSlot  = ( portId // 8 ) + 1
       frontPanelLane = portId % 8 + 1
@@ -224,4 +228,6 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config",
       logicalPortId = logicalLane
       assert logicalLane < fabricPortsPerAsic
       globalPortId = ( fabricPortsPerAsic * chipId ) + logicalPortId
-      fh.write( f"{globalPortId},{logicalPortId},{portStr},{fabSupportedProfiles},,\n" )
+      virtualDeviceId = ( logicalPortId // numFabricSerdesPerVD ) + ( chipId * virtualDevicesPerAsic )
+      fh.write(
+            f"{globalPortId},{logicalPortId},{portStr},{fabSupportedProfiles},,,{virtualDeviceId}\n" )
