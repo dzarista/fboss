@@ -47,6 +47,10 @@ def frontPanelSlotToPortType( slot ):
    else:
       return "fabric"
 
+def frontPanelSlots():
+   numFrontPanelPorts = numFabricSerdesOctets + numNifSerdesOctets + numNifSerdesQuartets
+   return list( range( 1, numFrontPanelPorts + 1 ) )
+
 # Number of serdes/lanes per front panel slot. All slots except slot 39 (QSFP port)
 # have 8 lanes.
 def numLanesInFrontPanelSlot( slot ):
@@ -76,6 +80,8 @@ nifSerdesCoreToAsicCore = {
       15 : 3,
       16 : 3,
       17 : 3,
+      # we treat the 4x25G QSFP port as core 18, and we bind this to core 1 for now.
+      18 : 1,
 }
 
 # Assuming 100G lanes, number of lanes required by each supported port profile.
@@ -144,7 +150,6 @@ portAttrsByProfile = {
       42 : ( 106250, 1, 2, 544, 3, 41 ),
 }
 
-numFrontPanelPorts = numFabricSerdesOctets + numNifSerdesOctets
 nifFrontPanelSlotToAsicCoreAndSerdesCore = {}
 fabFrontPanelLaneToLogicalLane = {}
 with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as bcmConfigFh:
@@ -236,7 +241,7 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
                f"\"phy_rx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8886X\": \"{rxPolSwapProp}\",\n",
                f"\"phy_tx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8886X\": \"{txPolSwapProp}\",\n" )
 
-      for lane in range( numSerdesPerCore ):
+      for lane in range( numSerdes ):
          fh.write( tempProps[ lane ] )
          for prop in tempBcmLaneMapProps[ lane ]:
             bcmConfigFh.write( prop )
@@ -245,7 +250,9 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
 
    for serdesCore in range( numNifSerdesOctets ):
       genMappingsForSerdesCore( serdesCore, serdesCore * 8, 8, "nif" )
-   # TODO Add the QSFP port mappings here
+   # Generate the static mapping and bcm lane map config for QSFP port. We treat this
+   # as NIF core 18 for now.
+   genMappingsForSerdesCore( numNifSerdesOctets, numNifSerdesOctets * 8, 4, "nif" )
    for serdesCore in range( numFabricSerdesOctets ):
       genMappingsForSerdesCore( serdesCore, serdesCore * 8, 8, "fabric" )
 
@@ -269,8 +276,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'nif' ] )
    nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'nif' ][ : -1
       ] )
-   for port in range( numFrontPanelPorts ):
-      frontPanelSlot = port+1
+   for frontPanelSlot in frontPanelSlots():
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
       if frontPanelPortType == "fabric":
          for subPort in range( 1,9 ):
@@ -279,16 +285,27 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                   frontPanelSlot * 8 + ( subPort - 1 ) ]
             fh.write( f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,\n" )
       elif frontPanelPortType == "nif":
-         for subPort in ( "1", "5" ):
+         if frontPanelSlot == 39:
+            #100G-4, QSFP
+            bcmConfigPortPrefix="CGE"
+         else:
+            #400G-4
+            bcmConfigPortPrefix="CDGE4"
+         subPorts = [ 1 ]
+         if frontPanelSlot != 39:
+            subPorts.append( 5 )
+         for subPort in subPorts:
             portStr = f"eth1/{frontPanelSlot}/{subPort}"
             # fapPortId
             attachedCoreId, serdesCoreId = nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ]
             # 400G-4 CDGE core Id
-            if subPort == "1":
+            if subPort == 1:
+               # Though we call it cdgeCore_4 here, this calculation also works for
+               # QSFP port since that is treated as NIF core 18 with serdes 144-147.
                cdgeCore_4 = serdesCoreId * 2
                nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
                nifSupportedProfiles = nifSupportedProfilesMain
-            elif subPort == "5":
+            elif subPort == 5:
                # We are only publishing the /1 port for now and skipping /5, however
                # to allow for /5 to be added with little changes in the future, lets
                # skip writing the static mapping entry, but increment the logical
@@ -300,8 +317,9 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                # nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
                # nifSupportedProfiles = nifSupportedProfilesSubPort
             attachedCorePortId = nifLogicalPortId
-            assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesOctets*2
-            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
+            assert nifLogicalPortId - nifLogicalPortIdBase < ( numNifSerdesOctets +
+                  numNifSerdesQuartets ) * 2
+            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"{bcmConfigPortPrefix}_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
                   f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId}\n" )
             nifLogicalPortId += 1
