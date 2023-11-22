@@ -47,11 +47,12 @@ def frontPanelSlotToPortType( slot ):
 # Returns the first portId on a given asic core (assuming 0 indexed).
 # This helper can also be used to return the total number of ports all the cores
 # before coreId have.
-def firstPortIdOffsetByAsicCore( coreId, portsPerSerdesOctet ):
-   serdesOctetsPerCore = { 0 : 5, 1 : 4, 2 : 4, 3 : 5 }
+def firstPortIdOffsetByAsicCore( coreId ):
+   # in 400g-4x2 breakout, we will have two ports per serdes octet.
+   portsPerCore = { 0 : 10, 1 : 8, 2 : 8, 3 : 10 }
    firstPortId = 0
    for core in range( coreId ):
-      firstPortId += serdesOctetsPerCore[ core ] * portsPerSerdesOctet
+      firstPortId += portsPerCore[ core ]
    return firstPortId
 
 nifSerdesCoreToAsicCore = {
@@ -299,7 +300,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                nifSupportedProfiles = nifSupportedProfilesSubPort
             # Reuse attachedCorePortId since it a core local construct.
             attachedCorePortId = nifLogicalPortId - firstPortIdOffsetByAsicCore(
-                  attachedCoreId, 2 )
+                  attachedCoreId )
             assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores*2
             bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
