@@ -44,6 +44,17 @@ def frontPanelSlotToPortType( slot ):
       # First 10 ports and last 10 ports on the front panel are fabric ports.
       return "fab"
 
+# Returns the first portId on a given asic core (assuming 0 indexed).
+# This helper can also be used to return the total number of ports all the cores
+# before coreId have.
+def firstPortIdOffsetByAsicCore( coreId ):
+   # in 400g-4x2 breakout, we will have two ports per serdes octet.
+   portsPerCore = { 0 : 10, 1 : 8, 2 : 8, 3 : 10 }
+   firstPortId = 0
+   for core in range( coreId ):
+      firstPortId += portsPerCore[ core ]
+   return firstPortId
+
 nifSerdesCoreToAsicCore = {
       # serdes Octet : J3 core
       0 : 0,
@@ -79,7 +90,7 @@ numLanesFromSupportedProfile = {
 }
 
 supportedProfilesByPortType = {
-      'eth' :  [ '24', '38', '39', ],
+      'eth' :  { 1 : [ '24', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
       'fab' :  [ '36', '37', '41', '42'],
 }
 
@@ -250,9 +261,9 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    nifLogicalPortIdBase = 2
    fabLogicalPortIdBase = 1024
    fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ] )
-   nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'eth' ] )
-   nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'eth' ][ : -1
-      ] )
+   nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'eth' ][ 1 ] )
+   nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'eth' ][ 5 ]
+         )
    # Since fabric serdes on J3 don't have a core mapping and the notion of Virtual
    # Devices does not exist on J3, always set this to 0.
    virtualDeviceId = 0
@@ -284,11 +295,12 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                # port Id. Uncomment the code below to start adding the /5 to the
                # static mapping.
                nifLogicalPortId += 1
-               continue
-               # cdgeCore_4 = serdesCoreId * 2 + 1
-               # nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
-               # nifSupportedProfiles = nifSupportedProfilesSubPort
-            attachedCorePortId = nifLogicalPortId
+               cdgeCore_4 = serdesCoreId * 2 + 1
+               nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
+               nifSupportedProfiles = nifSupportedProfilesSubPort
+            # Reuse attachedCorePortId since it a core local construct.
+            attachedCorePortId = nifLogicalPortId - firstPortIdOffsetByAsicCore(
+                  attachedCoreId )
             assert nifLogicalPortId - nifLogicalPortIdBase < numNifSerdesCores*2
             bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"CDGE4_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
