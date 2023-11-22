@@ -18,6 +18,7 @@ Output:
 preserveExistingMappings = True
 # Number of ASICs in the system
 numAsics = 1
+numAsicCores = 4
 # Number of serdes per serdes core. Peregrine 8x100G serdes core on J3.
 numSerdesPerCore = 8
 # Logical port base in the SDK for NIF ports.
@@ -33,6 +34,8 @@ fabricPortBase = 1024
 # Total number of fabric ports assuming that each fabric serdes is enumerated as a
 # separate port.
 numFabricSerdesOctets = 20
+# Slot number for the 4x25G QSFP port.
+qsfpPortFrontPanelSlot = 39
 # Print debug information
 debug = False
 
@@ -41,8 +44,8 @@ debug = False
 # The 18 ports in between are NIF ports including the special QSFP port at
 # slot 39.
 def frontPanelSlotToPortType( slot ):
-   assert 1 <= slot <= 39
-   if 11 <= slot <= 28 or slot == 39:
+   assert 1 <= slot <= qsfpPortFrontPanelSlot
+   if 11 <= slot <= 28 or slot == qsfpPortFrontPanelSlot:
       return "nif"
    else:
       return "fabric"
@@ -54,8 +57,8 @@ def frontPanelSlots():
 # Number of serdes/lanes per front panel slot. All slots except slot 39 (QSFP port)
 # have 8 lanes.
 def numLanesInFrontPanelSlot( slot ):
-   assert 1 <= slot <= 39
-   if slot == 39:
+   assert 1 <= slot <= qsfpPortFrontPanelSlot
+   if slot == qsfpPortFrontPanelSlot:
       return 4
    else:
       return 8
@@ -64,9 +67,10 @@ def numLanesInFrontPanelSlot( slot ):
 # This helper can also be used to return the total number of ports all the cores
 # before coreId have.
 def firstPortIdOffsetByAsicCore( coreId ):
-   # in 400g-4x2 breakout, we will have two ports per serdes octet. We have one extra
-   # port on core 1 since we map the QSFP port to core 1.
-   portsPerCore = { 0 : 10, 1 : 9, 2 : 8, 3 : 10 }
+   # in 400g-4x2 breakout, we will have two ports per serdes octet.
+   # Note, this only accounts for ports that are statically assigned to ASIC cores.
+   # The QSFP port is treated differently in the frontPanelSlot iteration below.
+   portsPerCore = { 0 : 10, 1 : 8, 2 : 8, 3 : 10 }
    firstPortId = 0
    for core in range( coreId ):
       firstPortId += portsPerCore[ core ]
@@ -295,6 +299,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'nif' ][ 1 ] )
    nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'nif' ][ 5 ]
          )
+   attachedCorePortIdsByAsicCore = { core : [] for core in range( numAsicCores ) }
    for frontPanelSlot in frontPanelSlots():
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
       if frontPanelPortType == "fabric":
@@ -305,14 +310,14 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             fh.write(
                   f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,,{virtualDeviceId}\n" )
       elif frontPanelPortType == "nif":
-         if frontPanelSlot == 39:
+         subPorts = [ 1 ]
+         if frontPanelSlot == qsfpPortFrontPanelSlot:
             #100G-4, QSFP
             bcmConfigPortPrefix="CGE"
          else:
             #400G-4
             bcmConfigPortPrefix="CDGE4"
-         subPorts = [ 1 ]
-         if frontPanelSlot != 39:
+            # Breakout only supported on OSFP front panel NIF ports.
             subPorts.append( 5 )
          for subPort in subPorts:
             portStr = f"eth1/{frontPanelSlot}/{subPort}"
@@ -323,21 +328,27 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                # Though we call it cdgeCore_4 here, this calculation also works for
                # QSFP port since that is treated as NIF core 18 with serdes 144-147.
                cdgeCore_4 = serdesCoreId * 2
-               nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
                nifSupportedProfiles = nifSupportedProfilesMain
             elif subPort == 5:
-               # We are only publishing the /1 port for now and skipping /5, however
-               # to allow for /5 to be added with little changes in the future, lets
-               # skip writing the static mapping entry, but increment the logical
-               # port Id. Uncomment the code below to start adding the /5 to the
-               # static mapping.
-               nifLogicalPortId += 1
                cdgeCore_4 = serdesCoreId * 2 + 1
-               nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
                nifSupportedProfiles = nifSupportedProfilesSubPort
+            nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
             # Reuse attachedCorePortId since it a core local construct.
             attachedCorePortId = nifLogicalPortId - firstPortIdOffsetByAsicCore(
                   attachedCoreId )
+            # There is no easy way to derive the attachedCorePortId for QSFP port on
+            # slot 39 as the serdes core is 18, but it is assigned to core 1.
+            # Override the attachedCorePortId for QSFP port to be the max
+            # attachedCorePortId on its core + 1.
+            # We can only do this because the QSFP front panel slot is the last slot
+            # in the frontPanelSlot iteration loop.
+            if frontPanelSlot == qsfpPortFrontPanelSlot:
+               attachedCorePortId = max( attachedCorePortIdsByAsicCore[
+                  attachedCoreId ] ) + 1
+            else:
+               # For all other slots keep track of the assigned attachedCorePortIds
+               # by Asic core.
+               attachedCorePortIdsByAsicCore[ attachedCoreId ].append( attachedCorePortId )
             assert nifLogicalPortId - nifLogicalPortIdBase < ( numNifSerdesOctets +
                   numNifSerdesQuartets ) * 2
             bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"{bcmConfigPortPrefix}_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
