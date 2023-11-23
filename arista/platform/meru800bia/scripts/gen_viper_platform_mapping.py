@@ -290,7 +290,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    virtualDeviceId = 0
    # Recycle port is a special port with port id 1, it is given internal serdes core
    # ID 55.
-   fh.write(f"1,1,rcy1/1/55,11,0,1,,,{virtualDeviceId}\n")
+   fh.write(f"1,1,rcy1/1/55,11,0,1,{virtualDeviceId}\n")
    # CPU port is 0, RCY port is 1, NIF ports start from logical port Id 2.
    # Fabric ports start from logical port Id 1024.
    nifLogicalPortIdBase = 2
