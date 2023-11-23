@@ -319,7 +319,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             speedInGbps = 100
          else:
             #400G-4
-            bcmConfigPortPrefix="CDGE4"
+            bcmConfigPortPrefix="CDGE4_"
             speedInGbps = 400
             # Breakout only supported on OSFP front panel NIF ports.
             subPorts.append( 5 )
@@ -355,7 +355,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                attachedCorePortIdsByAsicCore[ attachedCoreId ].append( attachedCorePortId )
             assert nifLogicalPortId - nifLogicalPortIdBase < ( numNifSerdesOctets +
                   numNifSerdesQuartets ) * 2
-            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"{bcmConfigPortPrefix}_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
+            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"{bcmConfigPortPrefix}{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
                   f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId},{virtualDeviceId}\n" )
             nifLogicalPortId += 1
