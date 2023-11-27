@@ -252,10 +252,10 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
             fabFrontPanelLaneToLogicalLane[ frontPanelSlot * 8 + frontPanelLane ] = bcmLogicalLane
 
          # BCM soc properties for lane maps and polarity swaps.
-         tempBcmLaneMapProps[ logicalLane ] = f"\"lane_to_serdes_map_{portType}_lane{bcmLogicalLane}.BCM8886X\": \"rx{rxLane}:tx{txLane}\",\n"
+         tempBcmLaneMapProps[ logicalLane ] = f"\"lane_to_serdes_map_{portType}_lane{bcmLogicalLane}.BCM8889X\": \"rx{rxLane}:tx{txLane}\",\n"
          tempBcmPolSwapProps[ logicalLane ] = (
-               f"\"phy_rx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8886X\": \"{rxPolSwapProp}\",\n",
-               f"\"phy_tx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8886X\": \"{txPolSwapProp}\",\n" )
+               f"\"phy_rx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8889X\": \"{rxPolSwapProp}\",\n",
+               f"\"phy_tx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8889X\": \"{txPolSwapProp}\",\n" )
 
       for lane in range( numSerdes ):
          fh.write( tempProps[ lane ] )
@@ -351,7 +351,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                attachedCorePortIdsByAsicCore[ attachedCoreId ].append( attachedCorePortId )
             assert nifLogicalPortId - nifLogicalPortIdBase < ( numNifSerdesOctets +
                   numNifSerdesQuartets ) * 2
-            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8886X\": \"{bcmConfigPortPrefix}_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
+            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8889X\": \"{bcmConfigPortPrefix}_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
                   f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId},{virtualDeviceId}\n" )
             nifLogicalPortId += 1
