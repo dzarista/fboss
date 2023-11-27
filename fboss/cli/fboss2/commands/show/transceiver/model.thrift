@@ -1,6 +1,7 @@
 namespace cpp2 facebook.fboss.cli
 
 struct ShowTransceiverModel {
+  /* key: transceiverId, value: TransceiverDetail */
   1: map<i32, TransceiverDetail> transceivers;
 }
 
@@ -17,4 +18,6 @@ struct TransceiverDetail {
   10: list<double> txPower;
   11: list<double> rxPower;
   12: list<double> rxSnr;
+  13: string appFwVer;
+  14: string dspFwVer;
 }
