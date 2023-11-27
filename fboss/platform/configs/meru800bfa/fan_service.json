@@ -58,7 +58,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD0/fan1_led"
+        "path" : "/sys/class/leds/fan1::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -83,7 +83,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD0/fan2_led"
+        "path" : "/sys/class/leds/fan2::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -108,7 +108,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD0/fan3_led"
+        "path" : "/sys/class/leds/fan3::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -133,7 +133,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD0/fan4_led"
+        "path" : "/sys/class/leds/fan4::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -158,7 +158,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD1/fan1_led"
+        "path" : "/sys/class/leds/fan5::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -183,7 +183,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD1/fan2_led"
+        "path" : "/sys/class/leds/fan6::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -208,7 +208,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD1/fan3_led"
+        "path" : "/sys/class/leds/fan7::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -233,7 +233,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD1/fan4_led"
+        "path" : "/sys/class/leds/fan8::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -258,7 +258,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD2/fan1_led"
+        "path" : "/sys/class/leds/fan9::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -283,7 +283,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD2/fan2_led"
+        "path" : "/sys/class/leds/fan10::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -308,7 +308,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD2/fan3_led"
+        "path" : "/sys/class/leds/fan11::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
@@ -334,7 +334,7 @@
       },
       "ledAccess" : {
         "accessType" : "ACCESS_TYPE_SYSFS",
-        "path" : "/run/devmap/sensors/FAN_CPLD2/fan4_led"
+        "path" : "/sys/class/leds/fan12::status/brightness"
       },
       "pwmMin" : 1,
       "pwmMax" : 255,
