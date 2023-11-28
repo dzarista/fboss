@@ -306,39 +306,21 @@ void SaiSwitch::processDefaultDataPlanePolicyDelta(
   // SwitchState::switchSettingsMap::defaultDataPlaneQosPolicy
   auto qosDelta = delta.getDefaultDataPlaneQosPolicyDelta();
   auto& qosMapManager = managerTable_->qosMapManager();
-  if ((qosDelta.getOld() != qosDelta.getNew())) {
-    [[maybe_unused]] const auto& lock = lockPolicy.lock();
-    if (qosDelta.getOld() && qosDelta.getNew()) {
-      if (*qosDelta.getOld() != *qosDelta.getNew()) {
-        qosMapManager.changeQosMap(qosDelta.getOld(), qosDelta.getNew(), true);
-      }
-    } else if (qosDelta.getNew()) {
-      qosMapManager.addQosMap(qosDelta.getNew(), true);
-    } else if (qosDelta.getOld()) {
-      qosMapManager.removeQosMap(qosDelta.getOld(), true);
-    }
-  }
-}
-
-// TODO(daiweix): move these logics into the corresponding
-// process port/systemPort/switch state delta codes
-template <typename LockPolicyT>
-void SaiSwitch::processDefaultDataPlanePolicyDeltaForPorts(
-    const StateDelta& delta,
-    const LockPolicyT& lockPolicy) {
-  auto qosDelta = delta.getDefaultDataPlaneQosPolicyDelta();
   auto& switchManager = managerTable_->switchManager();
   if ((qosDelta.getOld() != qosDelta.getNew())) {
     [[maybe_unused]] const auto& lock = lockPolicy.lock();
     if (qosDelta.getOld() && qosDelta.getNew()) {
       if (*qosDelta.getOld() != *qosDelta.getNew()) {
         switchManager.clearQosPolicy();
+        qosMapManager.changeQosMap(qosDelta.getOld(), qosDelta.getNew(), true);
         switchManager.setQosPolicy();
       }
     } else if (qosDelta.getNew()) {
+      qosMapManager.addQosMap(qosDelta.getNew(), true);
       switchManager.setQosPolicy();
     } else if (qosDelta.getOld()) {
       switchManager.clearQosPolicy();
+      qosMapManager.removeQosMap(qosDelta.getOld(), true);
     }
   }
 }
@@ -673,7 +655,6 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
           managerTable_->lagManager().addBridgePort(newAggPort);
         });
   }
-  processDefaultDataPlanePolicyDeltaForPorts(delta, lockPolicy);
   processDelta(
       delta.getIntfsDelta(),
       managerTable_->routerInterfaceManager(),
@@ -2436,11 +2417,15 @@ bool SaiSwitch::isValidStateUpdateLocked(
   }
 
   auto qosDelta = delta.getQosPoliciesDelta();
-  // TODO(daiweix): relax this assumption on J3 after adding per port
-  // qos map support to apply different qos policies to regular port
-  // and cpu/recycle port
-  if (qosDelta.getNew()->numNodes() > 0) {
-    XLOG(ERR) << "Only default data plane qos policy is supported";
+
+  // Default QoS policy is stored at switchSettings::defaultDataPlaneQosPolicy.
+  // qosDelta.getNew()->numNodes() gives the number of non-default QoS policies
+  // stored at qosPolicyMaps in SwitchState. Only J3 needs non-default Qos
+  // policy for control plane right now.
+  if (getSwitchType() != cfg::SwitchType::VOQ &&
+      qosDelta.getNew()->numNodes() > 0) {
+    XLOG(ERR)
+        << "Only default data plane qos policy is supported on non-VOQ switch type";
     return false;
   }
 

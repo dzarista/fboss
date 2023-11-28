@@ -278,6 +278,8 @@ phy::InterfaceType fromSaiInterfaceType(
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
     case SAI_PORT_INTERFACE_TYPE_SR8:
       return phy::InterfaceType::SR8;
+    case SAI_PORT_INTERFACE_TYPE_CR8:
+      return phy::InterfaceType::CR8;
 #endif
 
     // Don't seem to currently have an equivalent fboss interface type
@@ -1134,8 +1136,28 @@ std::shared_ptr<Port> SaiPortManager::swPortFromAttributes(
     portType = SaiApiTable::getInstance()->portApi().getAttribute(
         portSaiId, SaiPortTraits::Attributes::Type{});
   }
-  auto portID = platform_->findPortID(speed, lanes, portSaiId);
-  auto platformPort = platform_->getPort(portID);
+  auto [portID, allProfiles] =
+      platform_->findPortIDAndProfiles(speed, lanes, portSaiId);
+  if (allProfiles.empty()) {
+    throw FbossError(
+        "No port profiles found for port ",
+        portID,
+        ", speed ",
+        (int)speed,
+        ", lanes ",
+        folly::join(",", lanes));
+  }
+  // We don't have enough information here to match the SDK's state with one of
+  // the supported profiles for this platform. We ideally need medium as well,
+  // but SDK could default to any medium and then the platform may not
+  // necessarily support a profileID that matches SDK's speed + lanes + medium.
+  // Therefore, we'll just pick the first profile in the list and update the SAI
+  // store later with properties (speed, lanes, medium, fec etc) of this
+  // profile. Later at applyThriftConfig time, we'll find out exactly which
+  // profile should be used and then update SAI with the new profile if
+  // different than what we picked here
+  auto profileID = allProfiles[0];
+
   state::PortFields portFields;
   portFields.portId() = portID;
   portFields.portName() = folly::to<std::string>(portID);
@@ -1158,7 +1180,7 @@ std::shared_ptr<Port> SaiPortManager::swPortFromAttributes(
       break;
   }
   // speed, hw lane list, fec mode
-  port->setProfileId(platformPort->getProfileIDBySpeed(speed));
+  port->setProfileId(profileID);
   PlatformPortProfileConfigMatcher matcher{port->getProfileID(), portID};
   if (auto profileConfig = platform_->getPortProfileConfig(matcher)) {
     port->setProfileConfig(*profileConfig->iphy());
@@ -1374,7 +1396,8 @@ void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
   if (handlesItr == handles_.end()) {
     return;
   }
-  if (getPortType(portId) == cfg::PortType::RECYCLE_PORT) {
+  if (getPortType(portId) == cfg::PortType::RECYCLE_PORT &&
+      !platform_->getAsic()->isSupported(HwAsic::Feature::RECYCLE_PORT_STATS)) {
     return;
   }
   auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
@@ -1597,6 +1620,9 @@ SaiPortManager::getSaiIdsForQosMaps(const SaiQosMapHandle* qosMapHandle) {
 void SaiPortManager::setQosPolicy(
     PortID portID,
     const std::optional<std::string>& qosPolicy) {
+  if (getPortType(portID) == cfg::PortType::FABRIC_PORT) {
+    return;
+  }
   XLOG(DBG2) << "set QoS policy " << (qosPolicy ? qosPolicy.value() : "null")
              << " for port " << portID;
   auto qosMapHandle = managerTable_->qosMapManager().getQosMap(qosPolicy);
@@ -1629,9 +1655,13 @@ void SaiPortManager::setQosPolicy(const std::shared_ptr<QosPolicy>& qosPolicy) {
 }
 
 void SaiPortManager::clearQosPolicy(PortID portID) {
-  XLOG(DBG2) << "clear QoS policy "
-             << " for port " << portID;
+  if (getPortType(portID) == cfg::PortType::FABRIC_PORT) {
+    return;
+  }
   auto handle = getPortHandle(portID);
+  XLOG(DBG2) << "clear QoS policy "
+             << (handle->qosPolicy ? handle->qosPolicy.value() : "null")
+             << " for port " << portID;
   if (handle->qosPolicy) {
     auto qosMaps = getNullSaiIdsForQosMaps();
     setQosMapsOnPort(handle, qosMaps);

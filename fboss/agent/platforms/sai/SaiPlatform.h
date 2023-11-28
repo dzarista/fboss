@@ -50,7 +50,7 @@ class SaiPlatform : public Platform, public StateObserver {
   void onInitialConfigApplied(HwSwitchCallback* sw) override;
   std::shared_ptr<apache::thrift::AsyncProcessorFactory> createHandler()
       override;
-  TransceiverIdxThrift getPortMapping(PortID port, cfg::PortSpeed speed)
+  TransceiverIdxThrift getPortMapping(PortID port, cfg::PortProfileID profileID)
       const override;
   virtual SaiPlatformPort* getPort(PortID id) const;
   PlatformPort* getPlatformPort(PortID port) const override;
@@ -73,7 +73,11 @@ class SaiPlatform : public Platform, public StateObserver {
     return masterLogicalPortIds_;
   }
 
-  virtual PortID findPortID(
+  /*
+   * Get the portID and all the profiles matching the given speed and lane list
+   */
+  virtual std::pair<PortID, std::vector<cfg::PortProfileID>>
+  findPortIDAndProfiles(
       cfg::PortSpeed speed,
       std::vector<uint32_t> lanes,
       PortSaiId portSaiId) const;

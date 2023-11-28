@@ -73,11 +73,8 @@ class HwPacketSendTest : public HwLinkStateDependentTest {
 class HwPacketSendReceiveTest : public HwLinkStateDependentTest {
  protected:
   cfg::SwitchConfig initialConfig() const override {
-    auto cfg = utility::oneL3IntfTwoPortConfig(
-        getHwSwitch(),
-        masterLogicalPortIds()[0],
-        masterLogicalPortIds().back(),
-        getAsic()->desiredLoopbackModes());
+    auto cfg = utility::onePortPerInterfaceConfig(
+        getHwSwitch(), masterLogicalPortIds());
     utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
     utility::addCpuQueueConfig(cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     return cfg;
@@ -187,7 +184,7 @@ TEST_F(HwPacketSendTest, LldpToFrontPanelOutOfPort) {
   auto verify = [=, this]() {
     auto portStatsBefore =
         getLatestPortStats(masterLogicalInterfacePortIds()[0]);
-    auto vlanId = utility::firstVlanID(initialConfig());
+    auto vlanId = utility::firstVlanID(getProgrammedState());
     auto intfMac = utility::getFirstInterfaceMac(initialConfig());
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     auto payLoadSize = 256;
@@ -228,7 +225,7 @@ TEST_F(HwPacketSendTest, LldpToFrontPanelWithBufClone) {
   auto verify = [=, this]() {
     auto portStatsBefore =
         getLatestPortStats(masterLogicalInterfacePortIds()[0]);
-    auto vlanId = utility::firstVlanID(initialConfig());
+    auto vlanId = utility::firstVlanID(getProgrammedState());
     auto intfMac = utility::getFirstInterfaceMac(initialConfig());
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     auto payLoadSize = 256;
@@ -282,7 +279,7 @@ TEST_F(HwPacketSendTest, ArpRequestToFrontPanelPortSwitched) {
   auto verify = [=, this]() {
     auto portStatsBefore =
         getLatestPortStats(masterLogicalInterfacePortIds()[0]);
-    auto vlanId = utility::firstVlanID(initialConfig());
+    auto vlanId = utility::firstVlanID(getProgrammedState());
     auto intfMac = utility::getFirstInterfaceMac(initialConfig());
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     auto randomIP = folly::IPAddressV4("1.1.1.5");
@@ -319,7 +316,7 @@ TEST_F(HwPacketSendTest, PortTxEnableTest) {
   auto setup = [=]() {};
   auto verify = [=, this]() {
     constexpr auto kNumPacketsToSend{100};
-    auto vlanId = utility::firstVlanID(initialConfig());
+    auto vlanId = utility::firstVlanID(getProgrammedState());
     auto intfMac = utility::getFirstInterfaceMac(initialConfig());
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
 
@@ -408,8 +405,8 @@ TEST_F(HwPacketSendReceiveTest, LldpPacketReceiveSrcPort) {
     if (!isSupported(HwAsic::Feature::PKTIO)) {
       return;
     }
-    auto vlanId = VlanID(*initialConfig().vlanPorts()[0].vlanID());
-    auto intfMac = utility::getInterfaceMac(getProgrammedState(), vlanId);
+    auto vlanId = utility::firstVlanID(getProgrammedState());
+    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     auto payLoadSize = 256;
     auto expectedNumPktsReceived = 1;
