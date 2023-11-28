@@ -958,4 +958,4 @@
 "ucode_port_29.BCM8889X": "CDGE4_27:core_3.3",
 "ucode_port_30.BCM8889X": "CDGE4_28:core_3.4",
 "ucode_port_31.BCM8889X": "CDGE4_29:core_3.5",
-"ucode_port_38.BCM8889X": "CGE_36:core_1.10",
+"ucode_port_38.BCM8889X": "CGE36:core_1.10",

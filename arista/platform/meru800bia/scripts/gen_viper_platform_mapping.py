@@ -113,8 +113,13 @@ numLanesFromSupportedProfile = {
 }
 
 supportedProfilesByPortType = {
-      'nif' :  { 1 : [ '24', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
-      'fab' :  [ '36', '37', '41', '42'],
+      'nif' :  {
+         100: { 1 : [ '22', '23' ] },
+         400: { 1 : [ '24', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
+      },
+      'fab' :  {
+         100: { 1 : [ '36', '37', '41', '42'] }
+      }
 }
 
 asicSerdesMappings = []
@@ -295,10 +300,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    # Fabric ports start from logical port Id 1024.
    nifLogicalPortIdBase = 2
    fabLogicalPortIdBase = 1024
-   fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ] )
-   nifSupportedProfilesMain = '-'.join( supportedProfilesByPortType[ 'nif' ][ 1 ] )
-   nifSupportedProfilesSubPort = '-'.join( supportedProfilesByPortType[ 'nif' ][ 5 ]
-         )
+   fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ][ 100 ][ 1 ] )
    attachedCorePortIdsByAsicCore = { core : [] for core in range( numAsicCores ) }
    for frontPanelSlot in frontPanelSlots():
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
@@ -314,9 +316,11 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
          if frontPanelSlot == qsfpPortFrontPanelSlot:
             #100G-4, QSFP
             bcmConfigPortPrefix="CGE"
+            speedInGbps = 100
          else:
             #400G-4
-            bcmConfigPortPrefix="CDGE4"
+            bcmConfigPortPrefix="CDGE4_"
+            speedInGbps = 400
             # Breakout only supported on OSFP front panel NIF ports.
             subPorts.append( 5 )
          for subPort in subPorts:
@@ -328,10 +332,10 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                # Though we call it cdgeCore_4 here, this calculation also works for
                # QSFP port since that is treated as NIF core 18 with serdes 144-147.
                cdgeCore_4 = serdesCoreId * 2
-               nifSupportedProfiles = nifSupportedProfilesMain
             elif subPort == 5:
                cdgeCore_4 = serdesCoreId * 2 + 1
-               nifSupportedProfiles = nifSupportedProfilesSubPort
+            nifSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'nif' ][
+               speedInGbps ][ subPort ] )
             nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
             # Reuse attachedCorePortId since it a core local construct.
             attachedCorePortId = nifLogicalPortId - firstPortIdOffsetByAsicCore(
@@ -351,7 +355,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                attachedCorePortIdsByAsicCore[ attachedCoreId ].append( attachedCorePortId )
             assert nifLogicalPortId - nifLogicalPortIdBase < ( numNifSerdesOctets +
                   numNifSerdesQuartets ) * 2
-            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8889X\": \"{bcmConfigPortPrefix}_{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
+            bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8889X\": \"{bcmConfigPortPrefix}{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
             fh.write(
                   f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId},{virtualDeviceId}\n" )
             nifLogicalPortId += 1
