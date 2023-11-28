@@ -36,7 +36,6 @@ mkdir -p %{_fboss_target_share}
 cp -rf db %{_fboss_target_share}/
 mkdir -p %{_fboss_target_var}
 install config/fruid/fruid.json %{_fboss_target_var}
-install config/viper_platform_mapping.json %{_fboss_target_var}/platform_mapping.json
 mkdir -p %{_fboss_target_bin}
 install -m 755 scripts/platform_init.sh %{_fboss_target_bin}
 mkdir -p %{_fboss_target_udev}
@@ -46,7 +45,6 @@ cp -rf platform_configs/* %{_fboss_target_share}/platform_configs/
 
 %files
 /var/facebook/fboss/fruid.json
-/var/facebook/fboss/platform_mapping.json
 /opt/fboss/share/db
 /opt/fboss/bin/platform_init.sh
 /etc/udev/rules.d/99-meru800bia.rules
