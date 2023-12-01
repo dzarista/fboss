@@ -181,7 +181,7 @@ do_build() {
    setup
    run_cmd_container bash build.sh $@ --kernel "${FBOSS_LINUX_KERNEL}"
    # Restore files that have potentially been clobbered by the FBOSS build process.
-   git restore "$FBOSS_REPO_DIR/build"
+   git restore "$FBOSS_REPO_DIR/build/*"
 }
 
 do_package() {
