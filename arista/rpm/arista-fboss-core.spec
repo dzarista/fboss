@@ -10,9 +10,9 @@ Source: %{expand:%%(pwd)}
 %define _fboss_build_dir tmp_build_dir/build/fboss
 %define _fboss_core_dir fboss.git/arista/core
 
-%define _fboss_target_opt %{buildroot}/opt/fboss/
-%define _fboss_target_bin %{buildroot}/opt/fboss/bin/
-%define _fboss_target_systemd %{buildroot}/opt/fboss/share/systemd/
+%define _fboss_target_opt %{root}/%{buildroot}/opt/fboss/
+%define _fboss_target_bin %{root}/%{buildroot}/opt/fboss/bin/
+%define _fboss_target_systemd %{root}/%{buildroot}/opt/fboss/share/systemd/
 
 %description
 This package provides core utilities to run Meta FBOSS OSS on Arista switches.

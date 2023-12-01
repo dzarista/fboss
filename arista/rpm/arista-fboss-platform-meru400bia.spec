@@ -12,10 +12,10 @@ Source: %{expand:%%(pwd)}
 %define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
 %define _sai_sdk_src_dir Aqua_SAI/sdk-src
 
-%define _fboss_target_share %{buildroot}/opt/fboss/share
-%define _fboss_target_var %{buildroot}/var/facebook/fboss/
-%define _fboss_target_bin %{buildroot}/opt/fboss/bin/
-%define _fboss_target_udev %{buildroot}/etc/udev/rules.d/
+%define _fboss_target_share %{root}/%{buildroot}/opt/fboss/share
+%define _fboss_target_var %{root}/%{buildroot}/var/facebook/fboss/
+%define _fboss_target_bin %{root}/%{buildroot}/opt/fboss/bin/
+%define _fboss_target_udev %{root}/%{buildroot}/etc/udev/rules.d/
 
 %description
 This package provides platform-specific utilities to run Meta FBOSS OSS on Arista
