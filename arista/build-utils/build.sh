@@ -243,6 +243,9 @@ else
    echo "****BUILD_KNOWN_GOOD_HASH $BUILD_KNOWN_GOOD_HASH"
    if [ -z "$BUILD_KNOWN_GOOD_HASH" ]; then
       export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
+      # Give everyone write permissions on folders that will be clobbered by the FBOSS
+      # build process. We will then revert these changes outside the container.
+      chmod a+w build/deps build/fbcode_builder -R
    fi
    BUILD_TYPE=""
    if [ -z "$BUILD_WITH_DEBUG_SYMBOLS" ]; then
