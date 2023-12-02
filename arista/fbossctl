@@ -123,6 +123,10 @@ maybe_setup_build_env() {
    # Patch to skip check for proto R3 ASICs.
    wget http://dist/storage/fboss/FBOSS-SAI/patch11-SDK-6_5_29-Ramon3-proto-fix.patch
    patch "sdk-6.5.29-dnx.1/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
+   # Patch to rename get_time for centos9 build (collides with the same symbol in
+   # iproute2)
+   wget http://dist/storage/fboss/FBOSS-SAI/patch12-SDK-6_5_29-get_time-symbol-fix.patch
+   patch "sdk-6.5.29-dnx.1/src/appl/diag/gdpll.c" -p1 < patch12-SDK-6_5_29-get_time-symbol-fix.patch
 
    # If kernel is newer than 4.18, need to patch ksal.c for compatibility with newer kernel.
    if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then
