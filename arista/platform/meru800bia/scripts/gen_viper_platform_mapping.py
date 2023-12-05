@@ -2,6 +2,8 @@
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
+from enum import Enum
+
 """
 Author : seerpini@arista.com
 Script for generating the Viper vendor mappings.
@@ -38,6 +40,10 @@ numFabricSerdesOctets = 20
 qsfpPortFrontPanelSlot = 39
 # Print debug information
 debug = False
+
+PortMedium = Enum( 'PortMedium', 'Copper Optical' )
+PortSpeedGbps = Enum( 'PortSpeedGbps',
+      'TwentyFive Fifty FiftyThree Hundred HundredAndSix FourHundred' )
 
 # Viper has a non-linear front panel slot to port type mapping.
 # First 10 ports and last 10 ports on the front panel are Fabric ports.
@@ -112,14 +118,11 @@ numLanesFromSupportedProfile = {
       "42" : 1,
 }
 
-supportedProfilesByPortType = {
-      'nif' :  {
-         100: { 1 : [ '22', '23' ] },
-         400: { 1 : [ '24', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
-      },
-      'fab' :  {
-         100: { 1 : [ '36', '37', '41', '42'] }
-      }
+supportedProfilesBySpeed = {
+      # PortSpeedGbps : { subport : [], subport : [] ... }
+      PortSpeedGbps.Hundred : { 1 : [ '22', '23' ] },
+      PortSpeedGbps.FourHundred : { 1 : [ '24', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
+      PortSpeedGbps.HundredAndSix : { 1 : [ '36', '37', '41', '42'] }
 }
 
 asicSerdesMappings = []
@@ -300,7 +303,8 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    # Fabric ports start from logical port Id 1024.
    nifLogicalPortIdBase = 2
    fabLogicalPortIdBase = 1024
-   fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ][ 100 ][ 1 ] )
+   fabSupportedProfiles = '-'.join( supportedProfilesBySpeed[
+      PortSpeedGbps.HundredAndSix ][ 1 ] )
    attachedCorePortIdsByAsicCore = { core : [] for core in range( numAsicCores ) }
    for frontPanelSlot in frontPanelSlots():
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
@@ -316,11 +320,11 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
          if frontPanelSlot == qsfpPortFrontPanelSlot:
             #100G-4, QSFP
             bcmConfigPortPrefix="CGE"
-            speedInGbps = 100
+            speedInGbps = PortSpeedGbps.Hundred
          else:
             #400G-4
             bcmConfigPortPrefix="CDGE4_"
-            speedInGbps = 400
+            speedInGbps = PortSpeedGbps.FourHundred
             # Breakout only supported on OSFP front panel NIF ports.
             subPorts.append( 5 )
          for subPort in subPorts:
@@ -334,8 +338,8 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                cdgeCore_4 = serdesCoreId * 2
             elif subPort == 5:
                cdgeCore_4 = serdesCoreId * 2 + 1
-            nifSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'nif' ][
-               speedInGbps ][ subPort ] )
+            nifSupportedProfiles = '-'.join( supportedProfilesBySpeed[ speedInGbps ][
+               subPort ] )
             nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
             # Reuse attachedCorePortId since it a core local construct.
             attachedCorePortId = nifLogicalPortId - firstPortIdOffsetByAsicCore(
