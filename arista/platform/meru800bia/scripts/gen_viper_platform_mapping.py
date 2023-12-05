@@ -42,7 +42,7 @@ qsfpPortFrontPanelSlot = 39
 debug = False
 
 PortMedium = Enum( 'PortMedium', 'Copper Optical' )
-PortSpeedGbps = Enum( 'PortSpeedGbps',
+SpeedGbps = Enum( 'SpeedGbps',
       'TwentyFive Fifty FiftyThree Hundred HundredAndSix FourHundred' )
 
 # Viper has a non-linear front panel slot to port type mapping.
@@ -119,11 +119,29 @@ numLanesFromSupportedProfile = {
 }
 
 supportedProfilesBySpeed = {
-      # PortSpeedGbps : { subport : [], subport : [] ... }
-      PortSpeedGbps.Hundred : { 1 : [ '22', '23' ] },
-      PortSpeedGbps.FourHundred : { 1 : [ '24', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
-      PortSpeedGbps.HundredAndSix : { 1 : [ '36', '37', '41', '42'] }
+      # SpeedGbps : { subport : [], subport : [] ... }
+      SpeedGbps.Hundred : { 1 : [ '22', '23' ] },
+      SpeedGbps.FourHundred : { 1 : [ '24', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
+      SpeedGbps.HundredAndSix : { 1 : [ '36', '37', '41', '42'] }
 }
+
+class TxTapSettings( object ):
+   def __init__( self, pre3, pre2, pre1, main, post1, post2, post3 ):
+      self.pre3 = pre3
+      self.pre2 = pre2
+      self.pre1 = pre1
+      self.main = main
+      self.post1 = post1
+      self.post2 = post2
+      self.post3 = post3
+
+"""
+def txTapSettings( serdesSpeed : SpeedGbps, medium : PortMedium ) -> TxTapSettings:
+   if speed == SpeedGbps.Fifty:
+   elif speed == SpeedGbps.Hundred:
+   elif speed == SpeedGbps.HundredAndSix:
+   elif speed == SpeedGbps.
+"""
 
 asicSerdesMappings = []
 for asic in range( numAsics ):
@@ -304,7 +322,7 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    nifLogicalPortIdBase = 2
    fabLogicalPortIdBase = 1024
    fabSupportedProfiles = '-'.join( supportedProfilesBySpeed[
-      PortSpeedGbps.HundredAndSix ][ 1 ] )
+      SpeedGbps.HundredAndSix ][ 1 ] )
    attachedCorePortIdsByAsicCore = { core : [] for core in range( numAsicCores ) }
    for frontPanelSlot in frontPanelSlots():
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
@@ -320,11 +338,11 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
          if frontPanelSlot == qsfpPortFrontPanelSlot:
             #100G-4, QSFP
             bcmConfigPortPrefix="CGE"
-            speedInGbps = PortSpeedGbps.Hundred
+            speedInGbps = SpeedGbps.Hundred
          else:
             #400G-4
             bcmConfigPortPrefix="CDGE4_"
-            speedInGbps = PortSpeedGbps.FourHundred
+            speedInGbps = SpeedGbps.FourHundred
             # Breakout only supported on OSFP front panel NIF ports.
             subPorts.append( 5 )
          for subPort in subPorts:
