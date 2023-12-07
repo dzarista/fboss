@@ -32,6 +32,7 @@
 #include <folly/IntrusiveList.h>
 #include <folly/SpinLock.h>
 #include <folly/Synchronized.h>
+#include <functional>
 #include <map>
 #include <vector>
 
@@ -364,6 +365,11 @@ class TransceiverManager {
 
   virtual void triggerVdmStatsCapture(std::vector<int32_t>& ids) = 0;
 
+  // This function will trigger a hard reset on the specific transceiver, making
+  // use of the specific implementation from each platform.
+  // It will also remove the transceiver from the transceivers_ map.
+  void triggerQsfpHardReset(int idx);
+
   void publishLinkSnapshots(std::string portName);
 
   void getInterfacePhyInfo(
@@ -455,7 +461,7 @@ class TransceiverManager {
 
   void doTransceiverFirmwareUpgrade(TransceiverID tcvrID);
 
-  void resetUpgradedTransceiversToNotPresent();
+  void resetUpgradedTransceiversToDiscovered();
 
   FbossFwStorage* fwStorage() const {
     return fwStorage_.get();
@@ -766,6 +772,13 @@ class TransceiverManager {
       evbsRunningFirmwareUpgrade_;
 
   bool forceFirmwareUpgradeForTesting_{false};
+
+  std::map<
+      std::pair<ResetType, ResetAction>,
+      std::function<void(TransceiverManager* const, int)>>
+      resetFunctionMap_;
+
+  void initPortToModuleMap();
 
   friend class TransceiverStateMachineTest;
 };

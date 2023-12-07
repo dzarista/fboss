@@ -162,6 +162,15 @@ class AgentDirectoryUtil {
 
   std::string getPreStartShellScript() const;
 
+  // used in wrapper testing to make agent sleep for 5 seconds
+  std::string sleepSwSwitchOnSigTermFile() const;
+
+  std::string sleepHwSwitchOnSigTermFile(int switchIndex) const;
+
+  std::string getMaxPostSignalWaitTimeFile() const;
+
+  std::string getWrapperRefactorFlag() const;
+
  private:
   const std::string volatileStateDir_;
   const std::string persistentStateDir_;

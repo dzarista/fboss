@@ -18,6 +18,7 @@
 #include "fboss/fsdb/server/FsdbConfig.h"
 #include "fboss/fsdb/server/FsdbOperTreeMetadataTracker.h"
 #include "fboss/fsdb/server/RocksDb.h"
+#include "fboss/lib/ThreadHeartbeat.h"
 #include "re2/re2.h"
 
 DECLARE_bool(checkSubscriberConfig);
@@ -243,10 +244,24 @@ class ServiceHandler : public FsdbServiceSvIf,
   TLCounter num_subscriptions_rejected_;
   TLCounter num_publisher_unknown_requests_rejected_;
   TLCounter num_publisher_path_requests_rejected_;
+  TLCounter num_dropped_stats_changes_;
+  TLCounter num_dropped_state_changes_;
   FsdbNaivePeriodicSubscribableStorage operStorage_;
   DbWriter operDbWriter_;
   // TODO - decide on right DB abstraction for stats
   FsdbNaivePeriodicSubscribableStatsStorage operStatsStorage_;
+
+  /*
+   * A thread dedicated to monitor operStorage_ and operStatsStorage_
+   */
+  std::unique_ptr<ThreadHeartbeatWatchdog> heartbeatWatchdog_;
+
+  /*
+   * Tracks how many times a heart beat was missed from monitered threads
+   * This counter is periodically published to ODS
+   */
+  std::atomic<long> watchdogThreadHeartbeatMissedCount_{0};
+
   folly::Synchronized<std::set<OperSubscriberInfo>> activeSubscriptions_;
   folly::Synchronized<std::set<OperPublisherInfo>> activePublishers_;
 };
