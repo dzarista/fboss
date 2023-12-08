@@ -1,15 +1,15 @@
 {
-  "chassisEepromName" : "CHASSIS" ,
+  "chassisEepromName" : "SMB",
   "fruEepromList" : {
     "SCM" : {
       "path" : "/run/devmap/eeproms/MERU_SCM_EEPROM",
       "offset" : 15360,
-      "idEepromFormatVer" : 4
+      "idEepromFormatVer" : 5
     },
-    "CHASSIS" : {
+    "SMB" : {
       "path" : "/run/devmap/eeproms/MERU800BFA_SMB_EEPROM",
       "offset" : 15360,
-      "idEepromFormatVer" : 4
+      "idEepromFormatVer" : 5
     }
   }
 }
