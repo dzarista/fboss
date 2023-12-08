@@ -13,10 +13,8 @@ from collections import OrderedDict
 import json
 import sys
 
-def readSheetToListOfDicts( spreadsheet_id, sheet_name ):
+def sheetToDicts( ss, sheet_name ):
    # Helper function to parse a sheet into a list of dicts
-   service = SsLib.Service()
-   ss = service.getSpreadsheet( spreadsheet_id, sheetType=SsLib.SheetType.keyless )
    sheet = ss.sheet( sheet_name )
    cols = sheet.getColumns()
 
@@ -27,27 +25,28 @@ def readSheetToListOfDicts( spreadsheet_id, sheet_name ):
 
    return dicts
 
-class CsvConfigs:
+class BaseConfigs:
    def __init__( self, spId, platformConfigsSheet, slotTypeConfigsSheet,
                 pmUnitConfigsSheet, pciDeviceConfigsSheet, i2cAdapterConfigsSheet,
                 SpiMasterConfigsSheet, xcvrConfigsSheet, ledConfigsSheet,
                 i2cDeviceConfigsSheet, outgoingSlotConfigsSheet,
                 i2cAdaptersFromCpuSheet, symbolicLinkToDevicePathSheet ):
-      self.platformConfigs = readSheetToListOfDicts( spId, platformConfigsSheet )
-      self.slotTypeConfigs = readSheetToListOfDicts( spId, slotTypeConfigsSheet )
-      self.pmUnitConfigs = readSheetToListOfDicts( spId, pmUnitConfigsSheet )
-      self.pciDeviceConfigs = readSheetToListOfDicts( spId, pciDeviceConfigsSheet )
-      self.i2cAdapterConfigs = readSheetToListOfDicts( spId, i2cAdapterConfigsSheet )
-      self.spiMasterConfigs = readSheetToListOfDicts( spId, SpiMasterConfigsSheet )
-      self.xcvrConfigs = readSheetToListOfDicts( spId, xcvrConfigsSheet )
-      self.ledConfigs = readSheetToListOfDicts( spId, ledConfigsSheet )
-      self.i2cDeviceConfigs = readSheetToListOfDicts( spId, i2cDeviceConfigsSheet )
-      self.outgoingSlotConfigs = \
-         readSheetToListOfDicts( spId, outgoingSlotConfigsSheet )
-      self.i2cAdaptersFromCpu = \
-         readSheetToListOfDicts( spId, i2cAdaptersFromCpuSheet )
-      self.symbolicLinkToDevicePath = \
-         readSheetToListOfDicts( spId, symbolicLinkToDevicePathSheet )
+      service = SsLib.Service()
+      ss = service.getSpreadsheet( spId, sheetType=SsLib.SheetType.keyless )
+
+      self.platformConfigsDict = sheetToDicts( ss, platformConfigsSheet )
+      self.slotTypeConfigsDict = sheetToDicts( ss, slotTypeConfigsSheet )
+      self.pmUnitConfigsDict = sheetToDicts( ss, pmUnitConfigsSheet )
+      self.pciDeviceConfigsDict = sheetToDicts( ss, pciDeviceConfigsSheet )
+      self.i2cAdapterConfigsDict = sheetToDicts( ss, i2cAdapterConfigsSheet )
+      self.spiMasterConfigsDict = sheetToDicts( ss, SpiMasterConfigsSheet )
+      self.xcvrConfigsDict = sheetToDicts( ss, xcvrConfigsSheet )
+      self.ledConfigsDict = sheetToDicts( ss, ledConfigsSheet )
+      self.i2cDeviceConfigsDict = sheetToDicts( ss, i2cDeviceConfigsSheet )
+      self.outgoingSlotConfigsDict = sheetToDicts( ss, outgoingSlotConfigsSheet )
+      self.i2cAdaptersFromCpuDict = sheetToDicts( ss, i2cAdaptersFromCpuSheet )
+      self.symbolicLinkToDevicePathDict = \
+         sheetToDicts( ss, symbolicLinkToDevicePathSheet )
 
    def dumpJson( self, jsonDict ):
       return json.dumps( jsonDict, indent=3 )
@@ -55,26 +54,27 @@ class CsvConfigs:
    def filterEntities( self, name, entities ):
       return [ entity for entity in entities if entity.get("name") == name ]
 
-class PlatformConfigs( CsvConfigs ):
+class PlatformConfigs(BaseConfigs):
    '''Models a PlatformConfig JSON object.'''
 
    def __init__( self, spreadsheetId ):
-      self.csv = CsvConfigs( spreadsheetId, "PlatformConfig", "slotTypeConfigs",
-                            "pmUnitConfigs", "pciDeviceConfigs", "i2cAdapterConfigs",
-                            "SpiMasterConfigs", "XcvrConfigs", "LedConfigs",
-                            "i2cDeviceConfigs", "outgoingSlotConfigs",
-                            "i2cAdaptersFromCpu", "symbolicLinkToDevicePath" )
-      self.entities = self.csv.platformConfigs
+      configs = BaseConfigs( spreadsheetId, "PlatformConfig", "slotTypeConfigs",
+                     "pmUnitConfigs", "pciDeviceConfigs", "i2cAdapterConfigs",
+                     "SpiMasterConfigs", "XcvrConfigs", "LedConfigs",
+                     "i2cDeviceConfigs", "outgoingSlotConfigs",
+                     "i2cAdaptersFromCpu", "symbolicLinkToDevicePath" )
+       
+      self.entities = configs.platformConfigsDict
 
       self.platformName = self.entities[ 0 ].get( "platformName" )
       self.rootPmUnitName = self.entities[ 0 ].get( "rootPmUnitName" )
       assert self.platformName and self.rootPmUnitName,\
          "platformName and rootPmUnitName are required"
 
-      self.slotTypeConfigs = SlotTypeConfigs( self )
-      self.pmUnitConfigs = PmUnitConfigs( self )
-      self.i2cAdaptersFromCpu = I2cAdaptersFromCpu( self )
-      self.symbolicLinkToDevicePath = SymbolicLinkToDevicePath( self )
+      self.slotTypeConfigs = SlotTypeConfigs( configs )
+      self.pmUnitConfigs = PmUnitConfigs( configs )
+      self.i2cAdaptersFromCpu = I2cAdaptersFromCpu( configs )
+      self.symbolicLinkToDevicePath = SymbolicLinkToDevicePath( configs )
 
    def asJson( self ):
       jsonDict = OrderedDict()
@@ -89,9 +89,9 @@ class PlatformConfigs( CsvConfigs ):
       return self.dumpJson( jsonDict )
 
 
-class SlotTypeConfigs( PlatformConfigs ):
-   def __init__( self, config ):
-      self.entities = config.csv.slotTypeConfigs
+class SlotTypeConfigs( BaseConfigs ):
+   def __init__( self, configs ):
+      self.entities = configs.slotTypeConfigsDict
       self.jsonDict = OrderedDict()
       for entity in self.entities:
          name = entity.get( "name" )
@@ -131,26 +131,26 @@ class SlotTypeConfigs( PlatformConfigs ):
       return self.dumpJson( self.jsonDict )
 
 
-class PmUnitConfigs( PlatformConfigs ):
-   def __init__( self, config ):
-      self.entities = config.csv.pmUnitConfigs
+class PmUnitConfigs( BaseConfigs ):
+   def __init__( self, configs ):
+      self.entities = configs.pmUnitConfigsDict
       self.jsonDict = OrderedDict()
       for entity in self.entities:
          name = entity.get( "name" )
-         self.jsonDict[name] = self.parsePmUnitConfig( entity, config )
+         self.jsonDict[name] = self.parsePmUnitConfig( entity, configs )
 
-   def parsePmUnitConfig( self, entity, config):
+   def parsePmUnitConfig( self, entity, configs):
       name = entity.get( "name" )
       pluggedInSlotType = entity.get( "pluggedInSlotType" )
-      outgoingSlotConfigs = OutgoingSlotConfigs( config, name )
+      outgoingSlotConfigs = OutgoingSlotConfigs( configs, name )
 
       assert name and pluggedInSlotType, "name and pluggedInSlotType are required"
 
       return {
          "pluggedInSlotType": pluggedInSlotType,
-         "i2cDeviceConfigs": I2cDeviceConfigs( config, name ).getList(),
+         "i2cDeviceConfigs": I2cDeviceConfigs( configs, name ).getList(),
          "outgoingSlotConfigs": outgoingSlotConfigs.getDict(),
-         "pciDeviceConfigs": PciDeviceConfigs( config, name ).getList()
+         "pciDeviceConfigs": PciDeviceConfigs( configs, name ).getList()
       }
 
    def getDict( self ):
@@ -160,10 +160,10 @@ class PmUnitConfigs( PlatformConfigs ):
       return self.dumpJson( self.jsonDict )
 
 
-class I2cDeviceConfigs( PlatformConfigs ):
-   def __init__( self, config, nameFilter ):
-      self.entities = config.csv.i2cDeviceConfigs
-      self.entities = config.csv.filterEntities( nameFilter, self.entities )
+class I2cDeviceConfigs( BaseConfigs ):
+   def __init__( self, configs, nameFilter ):
+      self.entities = configs.i2cDeviceConfigsDict
+      self.entities = configs.filterEntities( nameFilter, self.entities )
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseI2cDeviceConfigs( entity ) )
@@ -201,10 +201,10 @@ class I2cDeviceConfigs( PlatformConfigs ):
       return self.list
 
 
-class OutgoingSlotConfigs( PlatformConfigs ):
-   def __init__( self, config, nameFilter ):
-      self.entities = config.csv.outgoingSlotConfigs
-      self.entities = config.csv.filterEntities( nameFilter, self.entities )
+class OutgoingSlotConfigs( BaseConfigs ):
+   def __init__( self, configs, nameFilter ):
+      self.entities = configs.outgoingSlotConfigsDict
+      self.entities = configs.filterEntities( nameFilter, self.entities )
       self.jsonDict = OrderedDict()
       for entity in self.entities:
          slotName = entity.get( "slotName" )
@@ -229,15 +229,15 @@ class OutgoingSlotConfigs( PlatformConfigs ):
       return self.jsonDict
 
 
-class PciDeviceConfigs( PlatformConfigs ):
-   def __init__( self, config, nameFilter ):
-      self.entities = config.csv.pciDeviceConfigs
-      self.entities = config.csv.filterEntities( nameFilter, self.entities )
+class PciDeviceConfigs( BaseConfigs ):
+   def __init__( self, configs, nameFilter ):
+      self.entities = configs.pciDeviceConfigsDict
+      self.entities = configs.filterEntities( nameFilter, self.entities )
       self.list = []
       for entity in self.entities:
-         self.list.append( self.parsePciDeviceConfigs( entity, config ) )
+         self.list.append( self.parsePciDeviceConfigs( entity, configs ) )
 
-   def parsePciDeviceConfigs( self, entity, config ):
+   def parsePciDeviceConfigs( self, entity, configs ):
       pmUnitScopedName = entity.get( "pmUnitScopedName" )
       vendorId = entity.get( "vendorId" )
       deviceId = entity.get( "deviceId" )
@@ -254,20 +254,20 @@ class PciDeviceConfigs( PlatformConfigs ):
          "subSystemVendorId": subSystemVendorId,
          "subSystemDeviceId": subSystemDeviceId,
          "i2cAdapterConfigs": \
-            I2cAdapterConfigs( config, pmUnitScopedName ).getList(),
-         "spiMasterConfigs": SpiMasterConfigs( config, pmUnitScopedName ).getList(),
-         "ledCtrlConfigs": LedCtrlConfigs( config, pmUnitScopedName ).getList(),
-         "xcvrCtrlConfigs": XcvrCtrlConfigs( config, pmUnitScopedName ).getList()
+            I2cAdapterConfigs( configs, pmUnitScopedName ).getList(),
+         "spiMasterConfigs": SpiMasterConfigs( configs, pmUnitScopedName ).getList(),
+         "ledCtrlConfigs": LedCtrlConfigs( configs, pmUnitScopedName ).getList(),
+         "xcvrCtrlConfigs": XcvrCtrlConfigs( configs, pmUnitScopedName ).getList()
       }
 
    def getList( self ):
       return self.list
 
 
-class I2cAdapterConfigs( PlatformConfigs ):
-   def __init__( self, config, nameFilter ):
-      self.entities = config.csv.i2cAdapterConfigs
-      self.entities = config.csv.filterEntities( nameFilter, self.entities )
+class I2cAdapterConfigs( BaseConfigs ):
+   def __init__( self, configs, nameFilter ):
+      self.entities = configs.i2cAdapterConfigsDict
+      self.entities = configs.filterEntities( nameFilter, self.entities )
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseI2cAdapterConfigs( entity ) )
@@ -296,10 +296,10 @@ class I2cAdapterConfigs( PlatformConfigs ):
       return self.list
 
 
-class SpiMasterConfigs( PlatformConfigs ):
-   def __init__( self, config, nameFilter ):
-      self.entities = config.csv.spiMasterConfigs
-      self.entities = config.csv.filterEntities( nameFilter, self.entities )
+class SpiMasterConfigs( BaseConfigs ):
+   def __init__( self, configs, nameFilter ):
+      self.entities = configs.spiMasterConfigsDict
+      self.entities = configs.filterEntities( nameFilter, self.entities )
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseSpiMasterConfigs( entity ) )
@@ -328,17 +328,17 @@ class SpiMasterConfigs( PlatformConfigs ):
       return self.list
 
 
-class LedCtrlConfigs( PlatformConfigs ):
-   def __init__( self, config, nameFilter ):
+class LedCtrlConfigs( BaseConfigs ):
+   def __init__( self, configs, nameFilter ):
       self.list = []
       self.ledId = 1
-      self.entities = config.csv.filterEntities( nameFilter, config.csv.xcvrConfigs )
+      self.entities = configs.filterEntities( nameFilter, configs.xcvrConfigsDict )
       for entity in self.entities:
          portLeds = [ *self.parseXcvrLeds( entity ) ]
          for led in portLeds:
             self.list.append( led )
 
-      self.entities = config.csv.filterEntities( nameFilter, config.csv.ledConfigs )
+      self.entities = configs.filterEntities( nameFilter, configs.ledConfigsDict )
       for entity in self.entities :
          self.list.append( self.parseStatusLeds( entity ) )
 
@@ -391,10 +391,10 @@ class LedCtrlConfigs( PlatformConfigs ):
       return self.list
 
 
-class XcvrCtrlConfigs( PlatformConfigs ):
-   def __init__( self, config, nameFilter):
-      self.entities = config.csv.xcvrConfigs
-      self.entities = config.csv.filterEntities( nameFilter, self.entities )
+class XcvrCtrlConfigs( BaseConfigs ):
+   def __init__( self, configs, nameFilter):
+      self.entities = configs.xcvrConfigsDict
+      self.entities = configs.filterEntities( nameFilter, self.entities )
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseXcvrCtrlConfig( entity ) )
@@ -421,9 +421,9 @@ class XcvrCtrlConfigs( PlatformConfigs ):
       return self.list
 
 
-class I2cAdaptersFromCpu( PlatformConfigs ):
-   def __init__( self, config ):
-      self.entities = config.csv.i2cAdaptersFromCpu
+class I2cAdaptersFromCpu( BaseConfigs ):
+   def __init__( self, configs ):
+      self.entities = configs.i2cAdaptersFromCpuDict
       self.list = []
       for entity in self.entities:
          adapter = entity.get( "adapter" )
@@ -433,9 +433,9 @@ class I2cAdaptersFromCpu( PlatformConfigs ):
       return self.list
 
 
-class SymbolicLinkToDevicePath( PlatformConfigs ):
-   def __init__( self, config ):
-      self.entities = config.csv.symbolicLinkToDevicePath
+class SymbolicLinkToDevicePath( BaseConfigs ):
+   def __init__( self, configs ):
+      self.entities = configs.symbolicLinkToDevicePathDict
       self.jsonDict = OrderedDict()
       for entity in self.entities:
          symbolicLink = entity.get( "symbolicLink" )
