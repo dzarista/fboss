@@ -1454,11 +1454,16 @@ void SaiSwitch::updatePcsInfo(
       lastRsFec = *lastPcs->rsFec();
     }
 
+    std::optional<uint64_t> correctedBitsFromHw = std::nullopt;
+    if (managerTable_->portManager().fecCorrectedBitsSupported(swPort)) {
+      correctedBitsFromHw = *(fb303PortStat->portStats().fecCorrectedBits_());
+    }
+
     auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
     utility::updateCorrectedBitsAndPreFECBer(
         rsFec, /* current RsFecInfo to update */
         lastRsFec, /* previous RsFecInfo */
-        std::nullopt, /* counter not available from hardware */
+        correctedBitsFromHw, /* correctedBitsFromHw */
         now.count() -
             *lastPhyInfo.state()->timeCollected(), /* timeDeltaInSeconds */
         fecMode, /* operational FecMode */
@@ -2203,23 +2208,9 @@ void SaiSwitch::packetRxCallbackPort(
         : "None";
   };
 
-  uint32_t bufferOffset = 0;
-  if (platform_->getAsic()->getAsicType() ==
-      cfg::AsicType::ASIC_TYPE_JERICHO3) {
-    /*
-     * This is a temporary workaround for Jericho3 and will be removed
-     * once the issue is fixed. The packet received to CPU on the
-     * recycle port contains an extra 3 bytes before the actual packet data.
-     * This offset needs to be removed before passing the packet to sw.
-     */
-    auto recyclePortSaiId = managerTable_->switchManager().getCpuRecyclePort();
-    if (portSaiId == recyclePortSaiId) {
-      bufferOffset = 3;
-    }
-  }
   auto rxPacket = std::make_unique<SaiRxPacket>(
-      buffer_size - bufferOffset,
-      (void*)((char*)(buffer) + bufferOffset),
+      buffer_size,
+      (void*)((char*)(buffer)),
       PortID(0),
       VlanID(0),
       rxReason,
@@ -2392,6 +2383,9 @@ void SaiSwitch::unregisterCallbacksLocked(
 #endif
   }
   switchApi.unregisterFdbEventCallback(saiSwitchId_);
+  if (pfcDeadlockEnabled_) {
+    switchApi.unregisterQueuePfcDeadlockNotificationCallback(saiSwitchId_);
+  }
 }
 
 bool SaiSwitch::isValidStateUpdateLocked(
@@ -3248,25 +3242,25 @@ void SaiSwitch::initialStateApplied() {
 }
 
 void SaiSwitch::processPfcDeadlockNotificationCallback(
-    std::optional<cfg::PfcWatchdogRecoveryAction> oldRecoveryAction,
+    std::optional<cfg::PfcWatchdogRecoveryAction> /*oldRecoveryAction*/,
     std::optional<cfg::PfcWatchdogRecoveryAction> newRecoveryAction) {
   // Needed if PFC watchdog enabled status changes at device level
-  if (oldRecoveryAction.has_value() == newRecoveryAction.has_value()) {
-    XLOG(DBG4) << "PFC deadlock notification callback unchanged!";
-    return;
-  }
-  auto& switchApi = SaiApiTable::getInstance()->switchApi();
-  if (newRecoveryAction.has_value()) {
-    // Register the PFC deadlock recovery callback function
-    switchApi.registerQueuePfcDeadlockNotificationCallback(
-        saiSwitchId_, _gPfcDeadlockNotificationCallback);
+  if (newRecoveryAction.has_value() != pfcDeadlockEnabled_) {
+    pfcDeadlockEnabled_ = newRecoveryAction.has_value();
+    auto& switchApi = SaiApiTable::getInstance()->switchApi();
+    if (pfcDeadlockEnabled_) {
+      // Register the PFC deadlock recovery callback function
+      switchApi.registerQueuePfcDeadlockNotificationCallback(
+          saiSwitchId_, _gPfcDeadlockNotificationCallback);
+    } else {
+      // Unregister the PFC deadlock recovery callback function
+      switchApi.unregisterQueuePfcDeadlockNotificationCallback(saiSwitchId_);
+    }
+    auto registration = pfcDeadlockEnabled_ ? "registered" : "unregistered";
+    XLOG(DBG4) << "PFC deadlock notification callback " << registration;
   } else {
-    // Unregister the PFC deadlock recovery callback function
-    switchApi.unregisterQueuePfcDeadlockNotificationCallback(saiSwitchId_);
+    XLOG(DBG4) << "PFC deadlock notification callback unchanged!";
   }
-  auto registration =
-      newRecoveryAction.has_value() ? "registered" : "unregistered";
-  XLOG(DBG2) << "PFC deadlock notification callback " << registration;
 }
 
 void SaiSwitch::processPfcDeadlockRecoveryAction(

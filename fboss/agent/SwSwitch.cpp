@@ -88,6 +88,8 @@
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 
+#include "fboss/lib/CommonFileUtils.h"
+
 #include <fb303/ServiceData.h>
 #include <folly/Demangle.h>
 #include <folly/FileUtil.h>
@@ -167,6 +169,11 @@ DEFINE_int32(
     hwagent_base_thrift_port,
     5931,
     "The first thrift server port reserved for HwAgent");
+
+DEFINE_bool(
+    dsf_publisher_GR,
+    false,
+    "Flag to turn on GR behavior for DSF publisher");
 
 namespace {
 
@@ -384,7 +391,7 @@ SwSwitch::~SwSwitch() {
   if (getSwitchRunState() < SwitchRunState::EXITING) {
     // If we didn't already stop (say via gracefulExit call), begin
     // exit
-    stop();
+    stop(false /* gracefulStop */);
     restart_time::stop();
   }
 }
@@ -399,11 +406,11 @@ bool SwSwitch::fsdbStatePublishReady() const {
       [](const auto& syncer) { return syncer->isReadyForStatePublishing(); });
 }
 
-void SwSwitch::stop(bool revertToMinAlpmState) {
+void SwSwitch::stop(bool isGracefulStop, bool revertToMinAlpmState) {
   // Clean up connections to FSDB before stopping
   // packet flow.
-  runFsdbSyncFunction([](auto& syncer) {
-    syncer->stop();
+  runFsdbSyncFunction([isGracefulStop](auto& syncer) {
+    syncer->stop(isGracefulStop);
     syncer.reset();
   });
   setSwitchRunState(SwitchRunState::EXITING);
@@ -567,6 +574,19 @@ state::WarmbootState SwSwitch::gracefulExitState() const {
 }
 
 void SwSwitch::gracefulExit() {
+  auto sleepOnSigTermFile = agentDirUtil_->sleepSwSwitchOnSigTermFile();
+  if (checkFileExists(sleepOnSigTermFile)) {
+    SCOPE_EXIT {
+      removeFile(sleepOnSigTermFile);
+    };
+    std::string timeStr;
+    if (folly::readFile(
+            agentDirUtil_->sleepSwSwitchOnSigTermFile().c_str(), timeStr)) {
+      // @lint-ignore CLANGTIDY
+      std::this_thread::sleep_for(
+          std::chrono::seconds(folly::to<uint32_t>(timeStr)));
+    }
+  }
   if (isFullyInitialized()) {
     steady_clock::time_point begin = steady_clock::now();
     XLOG(DBG2) << "[Exit] Starting SwSwitch graceful exit";
@@ -577,7 +597,8 @@ void SwSwitch::gracefulExit() {
         << "[Exit] Neighbor flood time "
         << duration_cast<duration<float>>(neighborFloodDone - begin).count();
     // Stop handlers and threads before uninitializing h/w
-    stop();
+    bool canWarmBoot{FLAGS_dsf_publisher_GR};
+    stop(canWarmBoot);
     steady_clock::time_point stopThreadsAndHandlersDone = steady_clock::now();
     XLOG(DBG2) << "[Exit] Stop thread and handlers time "
                << duration_cast<duration<float>>(
@@ -1735,6 +1756,16 @@ void SwSwitch::linkStateChanged(
 
     if (port) {
       if (port->isUp() != up) {
+        port = port->modify(&newState);
+        port->setOperState(up);
+        if (iPhyFaultStatus) {
+          port->setIPhyLinkFaultStatus(*iPhyFaultStatus);
+        }
+        // Log event and update counters if there is a change
+        logLinkStateEvent(portId, up);
+        setPortStatusCounter(portId, up);
+        portStats(portId)->linkStateChange(up);
+
         auto matcher = getScopeResolver()->scope(portId);
         auto numUpFabricPorts =
             getNumUpPorts(newState, matcher, cfg::PortType::FABRIC_PORT);
@@ -1759,22 +1790,12 @@ void SwSwitch::linkStateChanged(
         }
 
         XLOG(DBG2) << "SW Link state changed: " << port->getName() << " ["
-                   << (port->isUp() ? "UP" : "DOWN") << "->"
-                   << (up ? "UP" : "DOWN") << "]"
+                   << (!up ? "UP" : "DOWN") << "->" << (up ? "UP" : "DOWN")
+                   << "]"
                    << " SwitchIDs: " << matcher.matcherString()
                    << " numUpFabricPorts: " << numUpFabricPorts
                    << " Switch Drain state: "
                    << getDrainStateChangedStr(getState(), newState, matcher);
-
-        port = port->modify(&newState);
-        port->setOperState(up);
-        if (iPhyFaultStatus) {
-          port->setIPhyLinkFaultStatus(*iPhyFaultStatus);
-        }
-        // Log event and update counters if there is a change
-        logLinkStateEvent(portId, up);
-        setPortStatusCounter(portId, up);
-        portStats(portId)->linkStateChange(up);
       }
     }
 

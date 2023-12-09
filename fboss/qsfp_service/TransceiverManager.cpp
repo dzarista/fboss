@@ -104,6 +104,15 @@ TransceiverManager::TransceiverManager(
     XLOG(ERR) << "Couldn't create FbossFwStorage instance: "
               << folly::exceptionStr(ex);
   }
+
+  initPortToModuleMap();
+
+  // Initialize the resetFunctionMap_ with proper function
+  // per reset type/action. map is better than multiple switch
+  // statements when we support more reset types.
+  resetFunctionMap_[std::make_pair(
+      ResetType::HARD_RESET, ResetAction::RESET_THEN_CLEAR)] =
+      &TransceiverManager::triggerQsfpHardReset;
 }
 
 TransceiverManager::~TransceiverManager() {
@@ -111,6 +120,32 @@ TransceiverManager::~TransceiverManager() {
   if (!isExiting_) {
     isExiting_ = true;
     stopThreads();
+  }
+}
+
+void TransceiverManager::initPortToModuleMap() {
+  const auto& platformPorts = platformMapping_->getPlatformPorts();
+  for (const auto& it : platformPorts) {
+    auto port = it.second;
+    // Get the transceiver id based on the port info from platform mapping.
+    auto portId = *port.mapping()->id();
+    auto transceiverId = getTransceiverID(PortID(portId));
+    if (!transceiverId) {
+      XLOG(ERR) << "Did not find transceiver id for port id " << portId;
+      continue;
+    }
+    // Add the port to the transceiver indexed port group.
+    auto portGroupIt = portGroupMap_.find(transceiverId.value());
+    if (portGroupIt == portGroupMap_.end()) {
+      portGroupMap_[transceiverId.value()] =
+          std::set<cfg::PlatformPortEntry>{port};
+    } else {
+      portGroupIt->second.insert(port);
+    }
+    std::string portName = *port.mapping()->name();
+    portNameToModule_[portName] = transceiverId.value();
+    XLOG(INFO) << "Added port " << portName << " with portId " << portId
+               << " to transceiver " << transceiverId.value();
   }
 }
 
@@ -198,6 +233,33 @@ void TransceiverManager::restoreAgentConfigAppliedInfo() {
     }
 
     configAppliedInfo_ = wbConfigAppliedInfo;
+  }
+}
+
+void TransceiverManager::triggerQsfpHardReset(int idx) {
+  // This api accepts 1 based module id however the module id in
+  // TransceiverManager is 0 based.
+  XLOG(INFO) << "triggerQsfpHardReset called for Transceiver: " << idx;
+  qsfpPlatApi_->triggerQsfpHardReset(idx + 1);
+  bool removeTransceiver = false;
+  {
+    // Read Lock to trigger all state machine changes
+    auto lockedTransceivers = transceivers_.rlock();
+    if (auto it = lockedTransceivers->find(TransceiverID(idx));
+        it != lockedTransceivers->end()) {
+      it->second->removeTransceiver();
+      removeTransceiver = true;
+    }
+  }
+
+  if (removeTransceiver) {
+    // Write lock to remove the transceiver
+    auto lockedTransceivers = transceivers_.wlock();
+    auto it = lockedTransceivers->find(TransceiverID(idx));
+    lockedTransceivers->erase(it);
+    XLOG(INFO)
+        << "triggerQsfpHardReset triggered reset and remove transceiver: "
+        << idx;
   }
 }
 
@@ -1092,7 +1154,7 @@ void TransceiverManager::triggerFirmwareUpgradeEvents(
   heartbeatWatchdog_->pauseMonitoringHeartbeat(updateThreadHeartbeat_);
   waitForAllBlockingStateUpdateDone(results);
 
-  resetUpgradedTransceiversToNotPresent();
+  resetUpgradedTransceiversToDiscovered();
 }
 
 void TransceiverManager::updateTransceiverActiveState(
@@ -1177,24 +1239,24 @@ void TransceiverManager::updateTransceiverActiveState(
       << " transceivers need to update port status.";
 }
 
-void TransceiverManager::resetUpgradedTransceiversToNotPresent() {
+void TransceiverManager::resetUpgradedTransceiversToDiscovered() {
   BlockingStateUpdateResultList results;
   std::vector<TransceiverID> tcvrsToReset;
   for (auto& stateMachine : stateMachines_) {
     const auto& lockedStateMachine =
         stateMachine.second->getStateMachine().rlock();
-    if (lockedStateMachine->get_attribute(needToResetToNotPresent)) {
+    if (lockedStateMachine->get_attribute(needToResetToDiscovered)) {
       tcvrsToReset.push_back(stateMachine.first);
     }
   }
 
   if (!tcvrsToReset.empty()) {
     XLOG(INFO)
-        << "Resetting the following transceivers to NOT_PRESENT since they were recently upgraded: "
+        << "Resetting the following transceivers to DISCOVERED since they were recently upgraded: "
         << folly::join(",", tcvrsToReset);
     for (auto tcvrID : tcvrsToReset) {
       TransceiverStateMachineEvent event =
-          TransceiverStateMachineEvent::TCVR_EV_RESET_TO_NOT_PRESENT;
+          TransceiverStateMachineEvent::TCVR_EV_RESET_TO_DISCOVERED;
       if (auto result = updateStateBlockingWithoutWait(tcvrID, event)) {
         results.push_back(result);
       }
@@ -2059,9 +2121,37 @@ std::vector<TransceiverID> TransceiverManager::refreshTransceivers(
 }
 
 void TransceiverManager::resetTransceiver(
-    std::unique_ptr<std::vector<std::string>> /* portNames */,
-    ResetType /* resetType */,
-    ResetAction /* resetAction */) {}
+    std::unique_ptr<std::vector<std::string>> portNames,
+    ResetType resetType,
+    ResetAction resetAction) {
+  if (!portNames || portNames->empty()) {
+    throw FbossError("Invalid portNames argument");
+  }
+
+  // Check that the ResetType and ResetAction pair have a valid function
+  // call associated with TransceiverPlatformApi.
+  auto itr = resetFunctionMap_.find(std::make_pair(resetType, resetAction));
+  if (itr == resetFunctionMap_.end()) {
+    throw FbossError(
+        "Unsupported reset Type and reset action ", resetType, resetAction);
+  }
+
+  // Validate all transceivers before any reset action.
+  std::vector<int> transceivers;
+  for (auto portName : *portNames) {
+    auto itr2 = portNameToModule_.find(portName);
+    if (itr2 == portNameToModule_.end()) {
+      throw FbossError(
+          "Can't find transceiver module for port name: ", portName);
+    }
+    transceivers.push_back(itr2->second);
+  }
+
+  // Perform the proper reset action/type on each port.
+  for (auto transceiver : transceivers) {
+    itr->second(this, transceiver);
+  }
+}
 
 void TransceiverManager::setPauseRemediation(
     int32_t timeout,

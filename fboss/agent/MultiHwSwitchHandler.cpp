@@ -8,19 +8,30 @@
 
 namespace facebook::fboss {
 
+namespace {
+auto makeHwSwitchSyncers(
+    SwSwitch* sw,
+    const std::map<int64_t, cfg::SwitchInfo>& switchInfoMap,
+    HwSwitchHandlerInitFn hwSwitchHandlerInitFn) {
+  std::map<SwitchID, std::unique_ptr<HwSwitchHandler>> syncers;
+  for (auto entry : switchInfoMap) {
+    syncers.emplace(
+        SwitchID(entry.first),
+        hwSwitchHandlerInitFn(SwitchID(entry.first), entry.second, sw));
+  }
+  return syncers;
+}
+} // namespace
+
 MultiHwSwitchHandler::MultiHwSwitchHandler(
     const std::map<int64_t, cfg::SwitchInfo>& switchInfoMap,
     HwSwitchHandlerInitFn hwSwitchHandlerInitFn,
     SwSwitch* sw,
     std::optional<cfg::SdkVersion> sdkVersion)
-    : sw_(sw) {
-  for (auto entry : switchInfoMap) {
-    hwSwitchSyncers_.emplace(
-        SwitchID(entry.first),
-        hwSwitchHandlerInitFn(SwitchID(entry.first), entry.second, sw_));
-  }
-  transactionsSupported_ = transactionsSupported(sdkVersion);
-}
+    : sw_(sw),
+      hwSwitchSyncers_(
+          makeHwSwitchSyncers(sw, switchInfoMap, hwSwitchHandlerInitFn)),
+      transactionsSupported_(transactionsSupported(sdkVersion)) {}
 
 MultiHwSwitchHandler::~MultiHwSwitchHandler() {
   stop();
@@ -76,6 +87,11 @@ std::shared_ptr<SwitchState> MultiHwSwitchHandler::stateChanged(
     if (transactionsSupported()) {
       return rollbackStateChange(results, delta.oldState(), transaction);
     } else {
+      /*
+       * For deployments where we don't support transactions - e.g. legacy
+       * BCMSwitch implementations. We never expect more than one
+       * HwSwitch/HwSwitchSyncer
+       */
       CHECK_EQ(hwSwitchSyncers_.size(), 1);
       return results[SwitchID(0)].first;
     }
@@ -88,10 +104,10 @@ std::shared_ptr<SwitchState> MultiHwSwitchHandler::stateChanged(
 }
 
 std::shared_ptr<SwitchState> MultiHwSwitchHandler::rollbackStateChange(
-    std::map<SwitchID, HwSwitchStateUpdateResult>& updateResults,
+    const std::map<SwitchID, HwSwitchStateUpdateResult>& updateResults,
     std::shared_ptr<SwitchState> desiredState,
     bool transaction) {
-  std::map<SwitchID, const StateDelta&> switchIdAnddeltas;
+  std::map<SwitchID, const StateDelta&> switchIdAndDeltas;
   std::shared_ptr<SwitchState> newState{nullptr};
   std::set<std::unique_ptr<StateDelta>> deltas;
   int index{0};
@@ -101,12 +117,12 @@ std::shared_ptr<SwitchState> MultiHwSwitchHandler::rollbackStateChange(
     auto currentState = entry.second.first;
     if (status != HwSwitchStateUpdateStatus::HWSWITCH_STATE_UPDATE_CANCELLED) {
       auto delta = std::make_unique<StateDelta>(currentState, desiredState);
-      switchIdAnddeltas.emplace(switchId, *delta);
+      switchIdAndDeltas.emplace(switchId, *delta);
       deltas.insert(std::move(delta));
     }
     index++;
   }
-  auto results = stateChanged(switchIdAnddeltas, transaction);
+  auto results = stateChanged(switchIdAndDeltas, transaction);
   for (const auto& result : results) {
     if (result.second.second ==
         HwSwitchStateUpdateStatus::HWSWITCH_STATE_UPDATE_FAILED) {
@@ -119,7 +135,7 @@ std::shared_ptr<SwitchState> MultiHwSwitchHandler::rollbackStateChange(
 
 std::map<SwitchID, HwSwitchStateUpdateResult>
 MultiHwSwitchHandler::stateChanged(
-    std::map<SwitchID, const StateDelta&>& deltas,
+    const std::map<SwitchID, const StateDelta&>& deltas,
     bool transaction) {
   std::vector<SwitchID> switchIds;
   std::vector<folly::Future<HwSwitchStateUpdateResult>> futures;
@@ -143,8 +159,8 @@ folly::Future<HwSwitchStateUpdateResult> MultiHwSwitchHandler::stateChanged(
 
 std::map<SwitchID, HwSwitchStateUpdateResult>
 MultiHwSwitchHandler::getStateUpdateResult(
-    std::vector<SwitchID>& switchIds,
-    std::vector<folly::Future<HwSwitchStateUpdateResult>>& futures) {
+    const std::vector<SwitchID>& switchIds,
+    std::vector<folly::Future<HwSwitchStateUpdateResult>>& futures) const {
   std::map<SwitchID, HwSwitchStateUpdateResult> hwUpdateResults;
 
   auto results = folly::collectAll(futures).wait();
@@ -218,12 +234,12 @@ folly::dynamic MultiHwSwitchHandler::toFollyDynamic() {
   return hwSwitchSyncers_.begin()->second->toFollyDynamic();
 }
 
-bool MultiHwSwitchHandler::transactionsSupported() {
+bool MultiHwSwitchHandler::transactionsSupported() const {
   return transactionsSupported_;
 }
 
 bool MultiHwSwitchHandler::transactionsSupported(
-    std::optional<cfg::SdkVersion> sdkVersion) {
+    std::optional<cfg::SdkVersion> sdkVersion) const {
   for (auto& entry : hwSwitchSyncers_) {
     if (!entry.second->transactionsSupported(sdkVersion)) {
       return false;
