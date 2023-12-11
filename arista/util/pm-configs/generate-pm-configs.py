@@ -26,27 +26,25 @@ def sheetToDicts( ss, sheet_name ):
    return dicts
 
 class BaseConfigs:
-   def __init__( self, spId, platformConfigsSheet, slotTypeConfigsSheet,
-                pmUnitConfigsSheet, pciDeviceConfigsSheet, i2cAdapterConfigsSheet,
-                SpiMasterConfigsSheet, xcvrConfigsSheet, ledConfigsSheet,
-                i2cDeviceConfigsSheet, outgoingSlotConfigsSheet,
-                i2cAdaptersFromCpuSheet, symbolicLinkToDevicePathSheet ):
+   def __init__( self, spId ):
       service = SsLib.Service()
       ss = service.getSpreadsheet( spId, sheetType=SsLib.SheetType.keyless )
 
-      self.platformConfigsDict = sheetToDicts( ss, platformConfigsSheet )
-      self.slotTypeConfigsDict = sheetToDicts( ss, slotTypeConfigsSheet )
-      self.pmUnitConfigsDict = sheetToDicts( ss, pmUnitConfigsSheet )
-      self.pciDeviceConfigsDict = sheetToDicts( ss, pciDeviceConfigsSheet )
-      self.i2cAdapterConfigsDict = sheetToDicts( ss, i2cAdapterConfigsSheet )
-      self.spiMasterConfigsDict = sheetToDicts( ss, SpiMasterConfigsSheet )
-      self.xcvrConfigsDict = sheetToDicts( ss, xcvrConfigsSheet )
-      self.ledConfigsDict = sheetToDicts( ss, ledConfigsSheet )
-      self.i2cDeviceConfigsDict = sheetToDicts( ss, i2cDeviceConfigsSheet )
-      self.outgoingSlotConfigsDict = sheetToDicts( ss, outgoingSlotConfigsSheet )
-      self.i2cAdaptersFromCpuDict = sheetToDicts( ss, i2cAdaptersFromCpuSheet )
+      self.platformConfigsDict = sheetToDicts( ss, "PlatformConfig" )
+      self.slotTypeConfigsDict = sheetToDicts( ss, "slotTypeConfigs" )
+      self.pmUnitConfigsDict = sheetToDicts( ss, "pmUnitConfigs" )
+      self.pciDeviceConfigsDict = sheetToDicts( ss, "pciDeviceConfigs" )
+      self.i2cAdapterConfigsDict = sheetToDicts( ss, "i2cAdapterConfigs" )
+      self.spiMasterConfigsDict = sheetToDicts( ss, "SpiMasterConfigs" )
+      self.xcvrConfigsDict = sheetToDicts( ss, "XcvrConfigs" )
+      self.ledConfigsDict = sheetToDicts( ss, "LedConfigs" )
+      self.i2cDeviceConfigsDict = sheetToDicts( ss, "i2cDeviceConfigs" )
+      self.outgoingSlotConfigsDict = sheetToDicts( ss, "outgoingSlotConfigs" )
+      self.i2cAdaptersFromCpuDict = sheetToDicts( ss, "i2cAdaptersFromCpu" )
       self.symbolicLinkToDevicePathDict = \
-         sheetToDicts( ss, symbolicLinkToDevicePathSheet )
+         sheetToDicts( ss, "symbolicLinkToDevicePath" )
+      self.kmodsSettingsDict = sheetToDicts( ss, "KmodsSettings" )
+      
 
    def dumpJson( self, jsonDict ):
       return json.dumps( jsonDict, indent=3 )
@@ -58,12 +56,8 @@ class PlatformConfigs(BaseConfigs):
    '''Models a PlatformConfig JSON object.'''
 
    def __init__( self, spreadsheetId ):
-      configs = BaseConfigs( spreadsheetId, "PlatformConfig", "slotTypeConfigs",
-                     "pmUnitConfigs", "pciDeviceConfigs", "i2cAdapterConfigs",
-                     "SpiMasterConfigs", "XcvrConfigs", "LedConfigs",
-                     "i2cDeviceConfigs", "outgoingSlotConfigs",
-                     "i2cAdaptersFromCpu", "symbolicLinkToDevicePath" )
-       
+      configs = BaseConfigs( spreadsheetId )
+      
       self.entities = configs.platformConfigsDict
 
       self.platformName = self.entities[ 0 ].get( "platformName" )
@@ -75,6 +69,7 @@ class PlatformConfigs(BaseConfigs):
       self.pmUnitConfigs = PmUnitConfigs( configs )
       self.i2cAdaptersFromCpu = I2cAdaptersFromCpu( configs )
       self.symbolicLinkToDevicePath = SymbolicLinkToDevicePath( configs )
+      self.kmodsSettings = configs.kmodsSettingsDict[ 0 ]
 
    def asJson( self ):
       jsonDict = OrderedDict()
@@ -85,6 +80,10 @@ class PlatformConfigs(BaseConfigs):
       jsonDict[ "i2cAdaptersFromCpu" ] = self.i2cAdaptersFromCpu.getList()
       jsonDict[ "symbolicLinkToDevicePath" ] = \
          self.symbolicLinkToDevicePath.getDict()
+      jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings["bspKmodsRpmName"]
+      jsonDict[ "bspKmodsRpmVersion" ] = \
+         str( self.kmodsSettings["bspKmodsRpmVersion"] )
+      jsonDict[ "kmodsToReload" ] = self.kmodsSettings["kmodsToReload"].split(", ")
 
       return self.dumpJson( jsonDict )
 
@@ -120,7 +119,7 @@ class SlotTypeConfigs( BaseConfigs ):
 
       return {
          "busName": busName,
-         "address": address,
+         "address": address.lower() if address else '',
          "kernelDeviceName": kernelDeviceName
       }
 
@@ -185,7 +184,7 @@ class I2cDeviceConfigs( BaseConfigs ):
 
       return {
          "busName": busName,
-         "address": address,
+         "address": address.lower(),
          "kernelDeviceName": kernelDeviceName,
          "pmUnitScopedName": pmUnitScopedName,
          **({ "deviceType": deviceType } if deviceType else {}),
@@ -275,8 +274,8 @@ class I2cAdapterConfigs( BaseConfigs ):
    def parseI2cAdapterConfigs( self, entity ):
       pmUnitScopedName = entity.get( "pmUnitScopedName" )
       deviceName = entity.get( "deviceName" )
-      iobufOffset = str( entity.get( "iobufOffset" ) )
-      csrOffset = str( entity.get( "csrOffset" ) )
+      iobufOffset = str( entity.get( "iobufOffset" ) ).lower()
+      csrOffset = str( entity.get( "csrOffset" ) ).lower()
       numberOfAdapters = entity.get( "numberOfAdapters" )
 
       assert pmUnitScopedName and deviceName and iobufOffset and csrOffset\
@@ -286,8 +285,9 @@ class I2cAdapterConfigs( BaseConfigs ):
          "fpgaIpBlockConfig": {
             "pmUnitScopedName": pmUnitScopedName,
             "deviceName": deviceName,
-            "iobufOffset": int( iobufOffset, 16 ),
-            "csrOffset": int( csrOffset, 16 )
+            **({ "iobufOffset": str( int( iobufOffset, 16 ) ) }\
+               if iobufOffset and iobufOffset != "-1" else {}),
+            "csrOffset": csrOffset
          },
          "numberOfAdapters": numberOfAdapters
       }
@@ -307,8 +307,8 @@ class SpiMasterConfigs( BaseConfigs ):
    def parseSpiMasterConfigs( self, entity ):
       pmUnitScopedName = entity.get( "pmUnitScopedName" )
       deviceName = entity.get( "deviceName" )
-      iobufOffset = str( entity.get( "iobufOffset" ) )
-      csrOffset = str( entity.get( "csrOffset" ) )
+      iobufOffset = str( entity.get( "iobufOffset" ) ).lower()
+      csrOffset = str( entity.get( "csrOffset" ) ).lower()
       numberOfCsPins = entity.get( "numberOfCsPins" )
 
       assert pmUnitScopedName and deviceName and iobufOffset and csrOffset\
@@ -318,8 +318,9 @@ class SpiMasterConfigs( BaseConfigs ):
          "fpgaIpBlockConfig": {
             "pmUnitScopedName": pmUnitScopedName,
             "deviceName": deviceName,
-            "iobufOffset": int( iobufOffset, 16 ),
-            "csrOffset": int( csrOffset, 16 )
+            **({ "iobufOffset": str( int( iobufOffset, 16 ) ) }\
+               if iobufOffset and iobufOffset != "-1" else {}),            
+            "csrOffset": csrOffset
          },
          "numberOfCsPins": numberOfCsPins
       }
@@ -357,8 +358,7 @@ class LedCtrlConfigs( BaseConfigs ):
             "fpgaIpBlockConfig": {
                "pmUnitScopedName": f'{portType}_PORT{portNumber}_LED{idx+1}'.upper(),
                "deviceName": f'{portType}_led',
-               "iobufOffset": -1,
-               "csrOffset": int( ledOffset, 16 )
+               "csrOffset": ledOffset.lower()
             },
             "portNumber": portNumber,
             "ledId": self.ledId
@@ -368,17 +368,16 @@ class LedCtrlConfigs( BaseConfigs ):
       return returnList
 
    def parseStatusLeds( self, entity ):
-      name = entity.get( "ledName" )
-      offset = entity.get( "offset" )
+      name = entity.get( "ledName" ).upper()
+      offset = entity.get( "offset" ).lower()
 
       assert name and offset, "missing details in status leds"
       
       led = {
          "fpgaIpBlockConfig": {
-            "pmUnitScopedName": name.upper(),
+            "pmUnitScopedName": name,
             "deviceName": 'status_led',
-            "iobufOffset": -1,
-            "csrOffset": int( offset, 16 )
+            "csrOffset": offset
          },
          "portNumber": -1,
          "ledId": self.ledId
@@ -402,7 +401,7 @@ class XcvrCtrlConfigs( BaseConfigs ):
    def parseXcvrCtrlConfig( self, entity ):
       portNumber = entity.get( "portNumber" )
       portType = entity.get( "portType" )
-      xcvrCtrlOffset = entity.get( "xcvrCtrlOffset" )
+      xcvrCtrlOffset = entity.get( "xcvrCtrlOffset" ).lower()
 
       assert portNumber and portType and xcvrCtrlOffset,\
             "missing details in xcvr file"
@@ -411,8 +410,7 @@ class XcvrCtrlConfigs( BaseConfigs ):
          "fpgaIpBlockConfig": {
             "pmUnitScopedName": f'{portType}_PORT{portNumber}_XCVR'.upper(),
             "deviceName": f'{portType}_xcvr',
-            "iobufOffset": -1,
-            "csrOffset": int( xcvrCtrlOffset, 16 )
+            "csrOffset": xcvrCtrlOffset
          },
          "portNumber": portNumber,
       }
