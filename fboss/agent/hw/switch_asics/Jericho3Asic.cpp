@@ -53,13 +53,12 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::DEBUG_COUNTER:
     case HwAsic::Feature::CREDIT_WATCHDOG:
+    case HwAsic::Feature::RESOURCE_USAGE_STATS:
       return true;
 
     // TODO fix once queue stats are available on J3
     case HwAsic::Feature::L3_QOS:
     case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
-    // TODO: Remove once rcy port stats work on J3
-    case HwAsic::Feature::RECYCLE_PORT_STATS:
       return false;
 
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
@@ -84,7 +83,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::MULTIPLE_ACL_TABLES:
     case HwAsic::Feature::ACL_COPY_TO_CPU:
     case HwAsic::Feature::ACL_COUNTER_LABEL:
-    case HwAsic::Feature::RESOURCE_USAGE_STATS:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
       return getAsicMode() == AsicMode::ASIC_MODE_SIM;
     // SIM specific features.
@@ -203,7 +201,7 @@ int Jericho3Asic::getDefaultNumPortQueues(
         case cfg::PortType::RECYCLE_PORT:
           // TODO - update to 8 once TC object support
           // for channelized support is added.
-          return 0;
+          return 2;
         case cfg::PortType::INTERFACE_PORT:
           return 8;
         case cfg::PortType::FABRIC_PORT:

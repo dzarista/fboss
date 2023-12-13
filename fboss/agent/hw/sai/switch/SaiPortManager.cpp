@@ -96,7 +96,8 @@ void fillHwPortStats(
     const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
     const SaiDebugCounterManager& debugCounterManager,
     HwPortStats& hwPortStats,
-    const SaiPlatform* platform) {
+    const SaiPlatform* platform,
+    const cfg::PortType& portType) {
   // TODO fill these in when we have debug counter support in SAI
   hwPortStats.inDstNullDiscards_() = 0;
   bool isEtherStatsSupported =
@@ -111,7 +112,15 @@ void fillHwPortStats(
         if (!isEtherStatsSupported) {
           // when ether stats is supported, skip updating as ether counterpart
           // will populate these stats
-          hwPortStats.inUnicastPkts_() = value;
+          if (portType == cfg::PortType::RECYCLE_PORT) {
+            // RECYCLE port ucast pkts is clear on read on all
+            // platforms that have rcy ports
+            setUninitializedStatsToZero(*hwPortStats.inUnicastPkts_());
+            hwPortStats.inUnicastPkts_() =
+                *hwPortStats.inUnicastPkts_() + value;
+          } else {
+            hwPortStats.inUnicastPkts_() = value;
+          }
         }
         break;
       case SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS:
@@ -472,7 +481,7 @@ void SaiPortManager::loadPortQueues(const Port& swPort) {
     updatedPortQueue.push_back(clonedPortQueue);
   }
   managerTable_->queueManager().ensurePortQueueConfig(
-      saiPort->adapterKey(), portHandle->queues, updatedPortQueue);
+      saiPort->adapterKey(), portHandle->queues, updatedPortQueue, &swPort);
 }
 
 void SaiPortManager::addNode(const std::shared_ptr<Port>& swPort) {
@@ -608,6 +617,7 @@ void SaiPortManager::programPfcWatchdogTimers(
       preparePfcDeadlockQueueTimers(enabledPfcPriorities, recoveryTimeMsecs);
   portHandle->port->setOptionalAttribute(
       SaiPortTraits::Attributes::PfcTcDlrInterval{pfcDlrTimerMap});
+  XLOG(DBG3) << "PFC WD timer programmed for " << swPort->getName();
 #endif
 }
 
@@ -622,24 +632,12 @@ void SaiPortManager::programPfcWatchdogPerQueueEnable(
     // Assume 1:1 mapping b/w pfcPriority and queueId
     auto queueHandle =
         getQueueHandle(swPort->getID(), static_cast<uint8_t>(pfcPri));
-    SaiApiTable::getInstance()->queueApi().setAttribute(
-        queueHandle->queue->adapterKey(),
-        SaiQueueTraits::Attributes::EnablePfcDldr{portPfcWdEnabled});
+    managerTable_->queueManager().queuePfcDeadlockDetectionRecoveryEnable(
+        queueHandle, portPfcWdEnabled);
   }
-}
-
-void SaiPortManager::programPfcWatchdog(
-    const std::shared_ptr<Port>& swPort,
-    std::vector<PfcPriority>& enabledPfcPriorities,
-    const bool portPfcWdEnabled) {
-  // Program PFC watchdog timers per port/queue
-  programPfcWatchdogTimers(swPort, enabledPfcPriorities, portPfcWdEnabled);
-
-  // Enable/disable PFC watchdog per queue
-  programPfcWatchdogPerQueueEnable(
-      swPort, enabledPfcPriorities, portPfcWdEnabled);
   auto pfcWdEnabledStatus = portPfcWdEnabled ? "enabled" : "disabled";
-  XLOG(DBG3) << "PFC WD " << pfcWdEnabledStatus << " for " << swPort->getName();
+  XLOG(DBG3) << "PFC WD " << pfcWdEnabledStatus << " on queues for "
+             << swPort->getName();
 }
 
 void SaiPortManager::addPfc(const std::shared_ptr<Port>& swPort) {
@@ -684,7 +682,8 @@ void SaiPortManager::removePfc(const std::shared_ptr<Port>& swPort) {
 void SaiPortManager::addPfcWatchdog(const std::shared_ptr<Port>& swPort) {
   if (swPort->getPfc()->watchdog().has_value()) {
     auto pfcEnabledPriorities = swPort->getPfcPriorities();
-    programPfcWatchdog(swPort, pfcEnabledPriorities, true /* wdEnabled */);
+    programPfcWatchdogTimers(
+        swPort, pfcEnabledPriorities, true /* wdEnabled */);
   }
 }
 
@@ -701,7 +700,8 @@ void SaiPortManager::changePfcWatchdog(
   if ((oldPfcWd.has_value() != newPfcWd.has_value()) ||
       (newPfcWd.has_value() && (newPfcWd.value() != oldPfcWd.value()))) {
     auto pfcEnabledPriorities = newPort->getPfcPriorities();
-    programPfcWatchdog(newPort, pfcEnabledPriorities, newPfcWd.has_value());
+    programPfcWatchdogTimers(
+        newPort, pfcEnabledPriorities, newPfcWd.has_value());
   } else {
     XLOG(DBG4) << "PFC watchdog setting unchanged for " << newPort->getName();
   }
@@ -710,7 +710,10 @@ void SaiPortManager::changePfcWatchdog(
 void SaiPortManager::removePfcWatchdog(const std::shared_ptr<Port>& swPort) {
   if (swPort->getPfc()->watchdog()) {
     auto pfcEnabledPriorities = swPort->getPfcPriorities();
-    programPfcWatchdog(swPort, pfcEnabledPriorities, false /* wdEnabled */);
+    programPfcWatchdogTimers(
+        swPort, pfcEnabledPriorities, false /* wdEnabled */);
+    programPfcWatchdogPerQueueEnable(
+        swPort, pfcEnabledPriorities, false /* wdEnabled */);
   }
 }
 
@@ -974,7 +977,8 @@ void SaiPortManager::changeQueue(
         newPortQueue->getReservedBytes() || newPortQueue->getScalingFactor()) {
       throw FbossError("Reserved bytes, scaling factor setting not supported");
     }
-    managerTable_->queueManager().changeQueue(queueHandle, *portQueue);
+    managerTable_->queueManager().changeQueue(
+        queueHandle, *portQueue, swPort.get());
     auto queueName = newPortQueue->getName()
         ? *newPortQueue->getName()
         : folly::to<std::string>("queue", newPortQueue->getID());
@@ -1396,10 +1400,7 @@ void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
   if (handlesItr == handles_.end()) {
     return;
   }
-  if (getPortType(portId) == cfg::PortType::RECYCLE_PORT &&
-      !platform_->getAsic()->isSupported(HwAsic::Feature::RECYCLE_PORT_STATS)) {
-    return;
-  }
+  auto portType = getPortType(portId);
   auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
   auto* handle = handlesItr->second.get();
   auto portStatItr = portStats_.find(portId);
@@ -1437,7 +1438,11 @@ void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
 #endif
   const auto& counters = handle->port->getStats();
   fillHwPortStats(
-      counters, managerTable_->debugCounterManager(), curPortStats, platform_);
+      counters,
+      managerTable_->debugCounterManager(),
+      curPortStats,
+      platform_,
+      portType);
   std::vector<utility::CounterPrevAndCur> toSubtractFromInDiscardsRaw = {
       {*prevPortStats.inDstNullDiscards_(),
        *curPortStats.inDstNullDiscards_()}};

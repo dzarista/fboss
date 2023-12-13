@@ -147,6 +147,44 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
     return SystemPortID(port.intID() + *sysPortRange->minimum());
   }
 
+  // API to send a local service discovery packet which is an IPv6
+  // multicast paket with UDP payload. This packet with a destination
+  // MAC as the unicast NIF port MAC helps recreate CS00012323788.
+  void sendLocalServiceDiscoveryMulticastPacket(
+      const PortID outPort,
+      const int numPackets) {
+    auto vlanId = utility::firstVlanID(initialConfig());
+    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
+    auto srcIp = folly::IPAddressV6("fe80::ff:fe00:f0b");
+    auto dstIp = folly::IPAddressV6("ff15::efc0:988f");
+    auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
+    std::vector<uint8_t> serviceDiscoveryPayload = {
+        0x42, 0x54, 0x2d, 0x53, 0x45, 0x41, 0x52, 0x43, 0x48, 0x20, 0x2a, 0x20,
+        0x48, 0x54, 0x54, 0x50, 0x2f, 0x31, 0x2e, 0x31, 0x0d, 0x0a, 0x48, 0x6f,
+        0x73, 0x74, 0x3a, 0x20, 0x5b, 0x66, 0x66, 0x31, 0x35, 0x3a, 0x3a, 0x65,
+        0x66, 0x63, 0x30, 0x3a, 0x39, 0x38, 0x38, 0x66, 0x5d, 0x3a, 0x36, 0x37,
+        0x37, 0x31, 0x0d, 0x0a, 0x50, 0x6f, 0x72, 0x74, 0x3a, 0x20, 0x36, 0x38,
+        0x38, 0x31, 0x0d, 0x0a, 0x49, 0x6e, 0x66, 0x6f, 0x68, 0x61, 0x73, 0x68,
+        0x3a, 0x20, 0x61, 0x66, 0x31, 0x37, 0x34, 0x36, 0x35, 0x39, 0x64, 0x37,
+        0x31, 0x31, 0x38, 0x64, 0x32, 0x34, 0x34, 0x61, 0x30, 0x36, 0x31, 0x33};
+    for (int i = 0; i < numPackets; i++) {
+      auto txPacket = utility::makeUDPTxPacket(
+          getHwSwitch(),
+          vlanId,
+          srcMac,
+          intfMac,
+          srcIp,
+          dstIp,
+          6771,
+          6771,
+          0,
+          254,
+          serviceDiscoveryPayload);
+      getHwSwitch()->sendPacketOutOfPortSync(std::move(txPacket), outPort);
+      ;
+    }
+  }
+
   int sendPacket(
       const folly::IPAddressV6& dstIp,
       std::optional<PortID> frontPanelPort,
@@ -299,7 +337,10 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
  private:
   folly::Synchronized<pktReceivedCb, std::mutex> pktReceivedCallback_;
   HwSwitchEnsemble::Features featuresDesired() const override {
-    return {HwSwitchEnsemble::LINKSCAN, HwSwitchEnsemble::PACKET_RX};
+    return {
+        HwSwitchEnsemble::LINKSCAN,
+        HwSwitchEnsemble::PACKET_RX,
+        HwSwitchEnsemble::TAM_NOTIFY};
   }
 };
 
@@ -425,6 +466,10 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, checkFabricPortSprayWithIsolate) {
       auto fabricBytes = 0;
       for (const auto& idAndStats : fabricPortStats) {
         fabricBytes += idAndStats.second.get_outBytes_();
+        if (idAndStats.first != fabricPortId) {
+          EXPECT_EVENTUALLY_GT(idAndStats.second.get_outBytes_(), 0);
+          EXPECT_EVENTUALLY_GT(idAndStats.second.get_inBytes_(), 0);
+        }
       }
       XLOG(DBG2) << "NIF bytes: " << nifBytes
                  << " Fabric bytes: " << fabricBytes;
@@ -473,6 +518,38 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, checkFabricPortSpray) {
       EXPECT_EVENTUALLY_GE(fabricBytes, nifBytes);
       EXPECT_TRUE(utility::isLoadBalanced(fabricPortStats, 15));
     });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchWithFabricPortsTest, verifyNifMulticastTrafficDropped) {
+  constexpr static auto kNumPacketsToSend{1000};
+  auto setup = []() {};
+
+  auto verify = [this]() {
+    auto beforePkts = getLatestPortStats(masterLogicalInterfacePortIds()[0])
+                          .get_outUnicastPkts_();
+    sendLocalServiceDiscoveryMulticastPacket(
+        masterLogicalInterfacePortIds()[0], kNumPacketsToSend);
+    WITH_RETRIES({
+      auto afterPkts = getLatestPortStats(masterLogicalInterfacePortIds()[0])
+                           .get_outUnicastPkts_();
+      XLOG(DBG2) << "Before pkts: " << beforePkts
+                 << " After pkts: " << afterPkts;
+      EXPECT_EVENTUALLY_GE(afterPkts, beforePkts + kNumPacketsToSend);
+    });
+
+    // Wait for some time and make sure that fabric stats dont increment.
+    sleep(5);
+    auto fabricPortStats = getLatestPortStats(masterLogicalFabricPortIds());
+    auto fabricBytes = 0;
+    for (const auto& idAndStats : fabricPortStats) {
+      fabricBytes += idAndStats.second.get_outBytes_();
+    }
+    // Even though NIF will see RX/TX bytes, fabric will always be zero
+    // as these packets are expected to be dropped without being sent
+    // out on fabric.
+    EXPECT_EQ(fabricBytes, 0);
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -534,6 +611,9 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
                      << packetsOrBytes << ": " << pktsOrBytes;
         }
       };
+      auto getRecyclePortPkts = [this]() {
+        return *getLatestPortStats(PortID(1)).inUnicastPkts_();
+      };
 
       int64_t beforeQueueOutPkts = 0, beforeQueueOutBytes = 0;
       int64_t afterQueueOutPkts = 0, afterQueueOutBytes = 0;
@@ -562,6 +642,7 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
         std::tie(beforeFrontPanelOutPkts, beforeFrontPanelOutBytes) =
             getPortOutPktsBytes(*frontPanelPort);
       }
+      auto beforeRecyclePkts = getRecyclePortPkts();
       auto txPacketSize = sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
 
       auto [maxRetryCount, sleepTimeMsecs] =
@@ -588,7 +669,7 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
               std::tie(afterFrontPanelOutPkts, afterFrontPanelOutBytes) =
                   getPortOutPktsBytes(*frontPanelPort);
             }
-
+            auto afterRecyclePkts = getRecyclePortPkts();
             XLOG(DBG2) << "Verifying: "
                        << (isFrontPanel ? "Send Packet from Front Panel Port"
                                         : "Send Packet from CPU Port")
@@ -600,6 +681,7 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
                        << " beforeAclPkts: " << beforeAclPkts
                        << " beforeFrontPanelPkts: " << beforeFrontPanelOutPkts
                        << " beforeFrontPanelBytes: " << beforeFrontPanelOutBytes
+                       << " beforeRecyclePkts: " << beforeRecyclePkts
                        << " txPacketSize: " << txPacketSize
                        << " afterOutPkts: " << afterOutPkts
                        << " afterOutBytes: " << afterOutBytes
@@ -608,7 +690,8 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
                        << " afterVoQOutBytes: " << afterVoQOutBytes
                        << " afterAclPkts: " << afterAclPkts
                        << " afterFrontPanelPkts: " << afterFrontPanelOutPkts
-                       << " afterFrontPanelBytes: " << afterFrontPanelOutBytes;
+                       << " afterFrontPanelBytes: " << afterFrontPanelOutBytes
+                       << " afterRecyclePkts: " << afterRecyclePkts;
 
             EXPECT_EVENTUALLY_EQ(afterOutPkts - 1, beforeOutPkts);
             int extraByteOffset = 0;
@@ -620,7 +703,7 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
               // CS00012267635: debug why we get 4 extra bytes
               // Most likely this is the Ethernet FCS being counted
               // in TX out bytes.
-              extraByteOffset = 4;
+              extraByteOffset = utility::EthFrame::FCS_SIZE;
             }
             EXPECT_EVENTUALLY_EQ(
                 afterOutBytes - txPacketSize - extraByteOffset, beforeOutBytes);
@@ -642,6 +725,8 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
 
               EXPECT_EVENTUALLY_GT(
                   afterFrontPanelOutPkts, beforeFrontPanelOutPkts);
+            } else {
+              EXPECT_EVENTUALLY_EQ(beforeRecyclePkts + 1, afterRecyclePkts);
             }
           });
     };
@@ -1244,6 +1329,7 @@ class HwVoqSwitchFullScaleDsfNodesTest
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = HwVoqSwitchTest::initialConfig();
     cfg.dsfNodes() = *overrideDsfNodes(*cfg.dsfNodes());
+    cfg.loadBalancers()->push_back(utility::getEcmpFullHashConfig(*getAsic()));
     return cfg;
   }
 
@@ -1283,6 +1369,26 @@ class HwVoqSwitchFullScaleDsfNodesTest
     applyNewState(currState);
     return sysPortDescs;
   }
+
+  // Resolve and return list of local nhops (excluding recycle port)
+  std::vector<PortDescriptor> resolveLocalNhops(
+      utility::EcmpSetupTargetedPorts6& ecmpHelper) {
+    auto ports = getProgrammedState()->getSystemPorts()->getAllNodes();
+    std::vector<PortDescriptor> portDescs;
+    std::for_each(
+        ports->begin(), ports->end(), [&portDescs](const auto& idAndPort) {
+          if (idAndPort.second->getCorePortIndex() != 1) {
+            portDescs.push_back(
+                PortDescriptor(static_cast<SystemPortID>(idAndPort.first)));
+          }
+        });
+    auto currState = getProgrammedState();
+    for (const auto& portDesc : portDescs) {
+      currState = ecmpHelper.resolveNextHops(currState, {portDesc});
+    }
+    applyNewState(currState);
+    return portDescs;
+  }
 };
 
 TEST_F(HwVoqSwitchFullScaleDsfNodesTest, systemPortScaleTest) {
@@ -1294,8 +1400,10 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, systemPortScaleTest) {
 }
 
 TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
-  auto kEcmpWidth = getMaxEcmpWidth(getAsic());
+  const auto kEcmpWidth = getMaxEcmpWidth(getAsic());
+  const auto kMaxDeviation = 25;
   FLAGS_ecmp_width = kEcmpWidth;
+  std::vector<PortDescriptor> sysPortDescs;
   auto setup = [&]() {
     applyNewState(utility::setupRemoteIntfAndSysPorts(
         getProgrammedState(), scopeResolver(), initialConfig()));
@@ -1305,11 +1413,12 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
     applyNewConfig(initialConfig());
 
     // Resolve remote nhops and get a list of remote sysPort descriptors
-    auto sysPortDescs = resolveRemoteNhops(ecmpHelper);
+    sysPortDescs = resolveRemoteNhops(ecmpHelper);
 
     for (int i = 0; i < getMaxEcmpGroup(); i++) {
       auto prefix = RoutePrefixV6{
-          folly::IPAddressV6(folly::to<std::string>(i + 1, "::", i + 1)), 128};
+          folly::IPAddressV6(folly::to<std::string>(i, "::", i)),
+          static_cast<uint8_t>(i == 0 ? 0 : 128)};
       ecmpHelper.programRoutes(
           getRouteUpdater(),
           flat_set<PortDescriptor>(
@@ -1318,8 +1427,46 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
           {prefix});
     }
   };
-  // TODO: Send and verify packets across voq drops.
-  verifyAcrossWarmBoots(setup, [] {});
+  auto verify = [&]() {
+    // Send and verify packets across voq drops.
+    auto defaultRouteSysPorts = std::vector<PortDescriptor>(
+        sysPortDescs.begin(), sysPortDescs.begin() + kEcmpWidth);
+    std::function<std::map<SystemPortID, HwSysPortStats>(
+        const std::vector<SystemPortID>&)>
+        getSysPortStatsFn = [&](const std::vector<SystemPortID>& portIds) {
+          return getLatestSysPortStats(portIds);
+        };
+    size_t pktSize = 0;
+    utility::pumpTrafficAndVerifyLoadBalanced(
+        [&]() {
+          pktSize = utility::pumpTraffic(
+              true, /* isV6 */
+              getHwSwitch(), /* hw */
+              utility::kLocalCpuMac(), /* dstMac */
+              std::nullopt, /* vlan */
+              std::nullopt, /* frontPanelPortToLoopTraffic */
+              255, /* hopLimit */
+              1000000 /* numPackets */);
+        },
+        [&]() {
+          auto ports = std::make_unique<std::vector<int32_t>>();
+          for (auto sysPortDecs : defaultRouteSysPorts) {
+            ports->push_back(static_cast<int32_t>(sysPortDecs.sysPortID()));
+          }
+          getHwSwitch()->clearPortStats(ports);
+        },
+        [&]() {
+          WITH_RETRIES(EXPECT_EVENTUALLY_TRUE(utility::isLoadBalanced(
+              defaultRouteSysPorts,
+              {},
+              getSysPortStatsFn,
+              kMaxDeviation,
+              false,
+              pktSize)));
+          return true;
+        });
+  };
+  verifyAcrossWarmBoots(setup, verify);
 }
 
 TEST_F(HwVoqSwitchFullScaleDsfNodesTest, stressProgramEcmpRoutes) {

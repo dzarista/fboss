@@ -42,6 +42,8 @@ constexpr int kUsecBetweenLaneInit = 10000;
 constexpr int kUsecVdmLatchHold = 100000;
 constexpr int kUsecDiagSelectLatchWait = 10000;
 constexpr int kUsecAfterAppProgramming = 500000;
+constexpr int kUsecDatapathStateUpdateTime = 5000000; // 5 seconds
+constexpr int kUsecDatapathStatePollTime = 500000; // 500 ms
 
 std::array<std::string, 9> channelConfigErrorMsg = {
     "No status available, config under progress",
@@ -3081,14 +3083,16 @@ void CmisModule::resetDataPathWithFunc(
   uint8_t dataPathDeInit = dataPathDeInitReg | hostLaneMask;
   writeCmisField(CmisField::DATA_PATH_DEINIT, &dataPathDeInit);
 
-  // Lambda to check if lanes datapath are deactivated
-  auto isDatapathDeactivated = [&](uint8_t laneMask) -> bool {
+  // Lambda to check if the datapath for the lanes has been updated to one of
+  // the desired states
+  auto isDatapathUpdated = [&](uint8_t laneMask,
+                               std::vector<CmisLaneState> state) -> bool {
     for (uint8_t lane = 0; lane < numHostLanes(); lane++) {
       if (!((1 << lane) & laneMask)) {
         continue;
       }
-      if (getDatapathLaneStateLocked(lane, false) !=
-          CmisLaneState::DEACTIVATED) {
+      auto dpState = getDatapathLaneStateLocked(lane, false);
+      if (std::find(state.begin(), state.end(), dpState) == state.end()) {
         return false;
       }
     }
@@ -3096,19 +3100,19 @@ void CmisModule::resetDataPathWithFunc(
   };
 
   // Wait for all datapath state machines to get Deactivated
-  auto maxRetries = 10;
+  auto maxRetries = kUsecDatapathStateUpdateTime / kUsecDatapathStatePollTime;
   auto retries = 0;
   while (retries++ < maxRetries) {
     /* sleep override */
-    usleep(kUsecBetweenLaneInit);
-    if (isDatapathDeactivated(hostLaneMask)) {
+    usleep(kUsecDatapathStatePollTime);
+    if (isDatapathUpdated(hostLaneMask, {CmisLaneState::DEACTIVATED})) {
       break;
     }
   }
   if (retries >= maxRetries) {
-    XLOG(ERR) << fmt::format(
+    QSFP_LOG(ERR, this) << fmt::format(
         "Datapath could not deactivate even after waiting {:d} uSec",
-        kUsecBetweenLaneInit * maxRetries);
+        kUsecDatapathStateUpdateTime);
   }
 
   // Call the afterDataPathDeinitFunc() after detactivate all lanes
@@ -3119,8 +3123,24 @@ void CmisModule::resetDataPathWithFunc(
   // Release the lanes from DeInit.
   dataPathDeInit = dataPathDeInitReg & ~(hostLaneMask);
   writeCmisField(CmisField::DATA_PATH_DEINIT, &dataPathDeInit);
-  /* sleep override */
-  usleep(kUsecBetweenLaneInit);
+
+  // Wait for the datapath to come out of deactivated state
+  maxRetries = kUsecDatapathStateUpdateTime / kUsecDatapathStatePollTime;
+  retries = 0;
+  while (retries++ < maxRetries) {
+    /* sleep override */
+    usleep(kUsecDatapathStatePollTime);
+    if (isDatapathUpdated(
+            hostLaneMask,
+            {CmisLaneState::ACTIVATED, CmisLaneState::DATAPATH_INITIALIZED})) {
+      break;
+    }
+  }
+  if (retries >= maxRetries) {
+    QSFP_LOG(ERR, this) << fmt::format(
+        "Datapath didn't come out of deactivated state even after waiting {:d} uSec",
+        kUsecDatapathStateUpdateTime);
+  }
 
   QSFP_LOG(INFO, this) << folly::sformat(
       "DATA_PATH_DEINIT set and reset done for host lane mask 0x{:#x}",
@@ -3219,7 +3239,21 @@ bool CmisModule::setTransceiverTxLocked(
   // Get the list of lanes to disable/enable the Tx output
   auto tcvrLanes = getTcvrLanesForPort(portName, side);
   if (tcvrLanes.empty()) {
-    XLOG(ERR) << fmt::format("Empty lane list for port {:s}", portName);
+    QSFP_LOG(ERR, this) << fmt::format(
+        "Empty lane list for port {:s}", portName);
+    return false;
+  }
+
+  return setTransceiverTxImplLocked(tcvrLanes, side, userChannelMask, enable);
+}
+
+bool CmisModule::setTransceiverTxImplLocked(
+    const std::set<uint8_t>& tcvrLanes,
+    phy::Side side,
+    std::optional<uint8_t> userChannelMask,
+    bool enable) {
+  if (tcvrLanes.empty()) {
+    QSFP_LOG(ERR, this) << "Empty lane list";
     return false;
   }
 
@@ -3227,7 +3261,7 @@ bool CmisModule::setTransceiverTxLocked(
   if (!isTransceiverFeatureSupported(TransceiverFeature::TX_DISABLE, side)) {
     throw FbossError(fmt::format(
         "Module {:s} does not support transceiver TX output control on {:s}",
-        portName,
+        qsfpImpl_->getName(),
         ((side == phy::Side::LINE) ? "Line" : "System")));
   }
 
@@ -3270,7 +3304,7 @@ void CmisModule::setTransceiverLoopbackLocked(
   // Get the list of lanes to disable/enable the loopback
   auto tcvrLanes = getTcvrLanesForPort(portName, side);
   if (tcvrLanes.empty()) {
-    XLOG(ERR) << fmt::format(
+    QSFP_LOG(ERR, this) << fmt::format(
         "No {:s} lanes available for port {:s}",
         (side == phy::Side::SYSTEM ? "HOST" : "LINE"),
         portName);

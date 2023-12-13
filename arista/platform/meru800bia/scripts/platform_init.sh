@@ -14,7 +14,7 @@ load_kernel_modules() {
                         "scd"
                         "scd-leds"
                         "scd-smbus"
-                        "scd-watchdog"
+                        "scd-spi"
                         "scd-xcvr"
                         "dsf-fan-cpld"
                        )

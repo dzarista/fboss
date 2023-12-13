@@ -84,9 +84,7 @@ class MultiHwSwitchHandler {
 
   std::optional<uint32_t> getHwLogicalPortId(PortID portID);
 
-  bool transactionsSupported();
-
-  bool transactionsSupported(std::optional<cfg::SdkVersion> sdkVersion);
+  bool transactionsSupported() const;
 
   HwSwitchFb303Stats* getSwitchStats();
 
@@ -148,6 +146,8 @@ class MultiHwSwitchHandler {
   std::map<int32_t, SwitchRunState> getHwSwitchRunStates();
 
  private:
+  bool transactionsSupported(std::optional<cfg::SdkVersion> sdkVersion) const;
+
   HwSwitchHandler* getHwSwitchHandler(SwitchID id);
 
   folly::Future<HwSwitchStateUpdateResult> stateChanged(
@@ -155,15 +155,15 @@ class MultiHwSwitchHandler {
       const HwSwitchStateUpdate& update);
 
   std::map<SwitchID, HwSwitchStateUpdateResult> stateChanged(
-      std::map<SwitchID, const StateDelta&>& deltas,
+      const std::map<SwitchID, const StateDelta&>& deltas,
       bool transaction);
 
   std::map<SwitchID, HwSwitchStateUpdateResult> getStateUpdateResult(
-      std::vector<SwitchID>& switchIds,
-      std::vector<folly::Future<HwSwitchStateUpdateResult>>& futures);
+      const std::vector<SwitchID>& switchIds,
+      std::vector<folly::Future<HwSwitchStateUpdateResult>>& futures) const;
 
   std::shared_ptr<SwitchState> rollbackStateChange(
-      std::map<SwitchID, HwSwitchStateUpdateResult>& updateResults,
+      const std::map<SwitchID, HwSwitchStateUpdateResult>& updateResults,
       std::shared_ptr<SwitchState> desiredState,
       bool transaction);
 
@@ -171,7 +171,7 @@ class MultiHwSwitchHandler {
   std::map<SwitchID, std::unique_ptr<HwSwitchHandler>> hwSwitchSyncers_;
   std::atomic<bool> stopped_{true};
   HwSwitchConnectionStatusTable connectionStatusTable_;
-  bool transactionsSupported_;
+  const bool transactionsSupported_;
 };
 
 } // namespace facebook::fboss

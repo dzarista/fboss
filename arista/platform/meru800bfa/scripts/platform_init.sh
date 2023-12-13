@@ -14,6 +14,7 @@ load_kernel_modules() {
                         "scd"
                         "scd-leds"
                         "scd-smbus"
+                        "scd-spi"
                         "scd-xcvr"
                         "i2c_dev_sysfs"
                         "decker-cpld"
