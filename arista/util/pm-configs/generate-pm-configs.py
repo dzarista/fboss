@@ -332,7 +332,6 @@ class SpiMasterConfigs( BaseConfigs ):
 class LedCtrlConfigs( BaseConfigs ):
    def __init__( self, configs, nameFilter ):
       self.list = []
-      self.ledId = 1
       self.entities = configs.filterEntities( nameFilter, configs.xcvrConfigsDict )
       for entity in self.entities:
          portLeds = [ *self.parseXcvrLeds( entity ) ]
@@ -349,6 +348,7 @@ class LedCtrlConfigs( BaseConfigs ):
       portType = entity.get( "portType" )
       ledList = [led for i in range( 1, 5 )\
                  if (led := entity.get( f"led{i}Offset" ))]
+      ledIdx = 1
 
       assert portNumber and portType and len( ledList ) >= 2,\
             "missing details in xcvr leds"
@@ -361,10 +361,10 @@ class LedCtrlConfigs( BaseConfigs ):
                "csrOffset": ledOffset.lower()
             },
             "portNumber": portNumber,
-            "ledId": self.ledId
+            "ledId": ledIdx
          } )
-         self.ledId += 1
-   
+         ledIdx += 1
+
       return returnList
 
    def parseStatusLeds( self, entity ):
@@ -380,9 +380,8 @@ class LedCtrlConfigs( BaseConfigs ):
             "csrOffset": offset
          },
          "portNumber": -1,
-         "ledId": self.ledId
+         "ledId": 1
       }
-      self.ledId += 1
    
       return led
 
