@@ -30,21 +30,21 @@
       "postUpgradeCmd" : "smb_fpga0_filename=$(head -n 1 /home/meru_smb_fpga0_filename.txt);smb_fpga0_binary_name=${smb_fpga0_filename/.abit/.bin};rm $smb_fpga0_binary_name"
     },
     "meru_smb_fpga1" : {
-      "preUpgradeCmd" : "smb_fpga1_filename=$(head -n 1 /home/meru_smb_fpga1_filename.txt);smb_fpga1_binary_name=${smb_fpga1_filename/.abit/.bin};strip_arista_header $smb_fpga1_filename $smb_fpga1_binary_name 32;printf '0:3FFFFF image' > /home/meru_smb_fpga0_layout",
+      "preUpgradeCmd" : "smb_fpga1_filename=$(head -n 1 /home/meru_smb_fpga1_filename.txt);smb_fpga1_binary_name=${smb_fpga1_filename/.abit/.bin};strip_arista_header $smb_fpga1_filename $smb_fpga1_binary_name 32;printf '0:3FFFFF image' > /home/meru_smb_fpga1_layout",
       "getVersionCmd" : "smb_fpga1_ver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA1/fpga_ver`));smb_fpga1_subver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA1/fpga_sub_ver`));echo $smb_fpga1_ver'.'$smb_fpga1_subver",
       "priority" : 4,
       "upgradeCmd" : "smb_fpga1_filename=$(head -n 1 /home/meru_smb_fpga1_filename.txt);smb_fpga1_binary_name=${smb_fpga1_filename/.abit/.bin};fpga1_mtd_dev=$(grep $(ls /run/devmap/fpgas/MERU800BFA_SMB_FPGA1/scd-spi*/spi_master/spi* | grep spi*.*) /proc/mtd |awk '{print$1}' | tr -d : | tr -d mtd);flashrom -p linux_mtd:dev=$fpga1_mtd_dev -l /home/meru_smb_fpga1_layout -i image -w $smb_fpga1_binary_name",
       "postUpgradeCmd" : "smb_fpga1_filename=$(head -n 1 /home/meru_smb_fpga1_filename.txt);smb_fpga1_binary_name=${smb_fpga1_filename/.abit/.bin};rm $smb_fpga1_binary_name"
     },
     "meru_smb_fpga2" : {
-      "preUpgradeCmd" : "smb_fpga2_filename=$(head -n 1 /home/meru_smb_fpga2_filename.txt);smb_fpga2_binary_name=${smb_fpga2_filename/.abit/.bin};strip_arista_header $smb_fpga2_filename $smb_fpga2_binary_name 32;printf '0:3FFFFF image' > /home/meru_smb_fpga0_layout",
+      "preUpgradeCmd" : "smb_fpga2_filename=$(head -n 1 /home/meru_smb_fpga2_filename.txt);smb_fpga2_binary_name=${smb_fpga2_filename/.abit/.bin};strip_arista_header $smb_fpga2_filename $smb_fpga2_binary_name 32;printf '0:3FFFFF image' > /home/meru_smb_fpga2_layout",
       "getVersionCmd" : "smb_fpga2_ver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA2/fpga_ver`));smb_fpga2_subver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA2/fpga_sub_ver`));echo $smb_fpga2_ver'.'$smb_fpga2_subver",
       "priority" : 4,
       "upgradeCmd" : "smb_fpga2_filename=$(head -n 1 /home/meru_smb_fpga2_filename.txt);smb_fpga2_binary_name=${smb_fpga2_filename/.abit/.bin};fpga2_mtd_dev=$(grep $(ls /run/devmap/fpgas/MERU800BFA_SMB_FPGA2/scd-spi*/spi_master/spi* | grep spi*.*) /proc/mtd |awk '{print$1}' | tr -d : | tr -d mtd);flashrom -p linux_mtd:dev=$fpga2_mtd_dev -l /home/meru_smb_fpga2_layout -i image -w $smb_fpga2_binary_name",
       "postUpgradeCmd" : "smb_fpga2_filename=$(head -n 1 /home/meru_smb_fpga2_filename.txt);smb_fpga2_binary_name=${smb_fpga2_filename/.abit/.bin};rm $smb_fpga2_binary_name"
     },
     "meru_smb_fpga3" : {
-      "preUpgradeCmd" : "smb_fpga3_filename=$(head -n 1 /home/meru_smb_fpga3_filename.txt);smb_fpga3_binary_name=${smb_fpga3_filename/.abit/.bin};strip_arista_header $smb_fpga3_filename $smb_fpga3_binary_name 32;printf '0:3FFFFF image' > /home/meru_smb_fpga0_layout",
+      "preUpgradeCmd" : "smb_fpga3_filename=$(head -n 1 /home/meru_smb_fpga3_filename.txt);smb_fpga3_binary_name=${smb_fpga3_filename/.abit/.bin};strip_arista_header $smb_fpga3_filename $smb_fpga3_binary_name 32;printf '0:3FFFFF image' > /home/meru_smb_fpga3_layout",
       "getVersionCmd" : "smb_fpga3_ver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA3/fpga_ver`));smb_fpga3_subver=$((`cat /run/devmap/fpgas/MERU800BFA_SMB_FPGA3/fpga_sub_ver`));echo $smb_fpga3_ver'.'$smb_fpga3_subver",
       "priority" : 4,
       "upgradeCmd" : "smb_fpga3_filename=$(head -n 1 /home/meru_smb_fpga3_filename.txt);smb_fpga3_binary_name=${smb_fpga3_filename/.abit/.bin};fpga3_mtd_dev=$(grep $(ls /run/devmap/fpgas/MERU800BFA_SMB_FPGA3/scd-spi*/spi_master/spi* | grep spi*.*) /proc/mtd |awk '{print$1}' | tr -d : | tr -d mtd);flashrom -p linux_mtd:dev=$fpga3_mtd_dev -l /home/meru_smb_fpga3_layout -i image -w $smb_fpga3_binary_name",
