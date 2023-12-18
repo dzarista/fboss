@@ -802,7 +802,9 @@ void SaiPortManager::programPfcBuffers(const std::shared_ptr<Port>& swPort) {
 PortSaiId SaiPortManager::addPort(const std::shared_ptr<Port>& swPort) {
   setPortType(swPort->getID(), swPort->getPortType());
   auto portSaiId = addPortImpl(swPort);
-  concurrentIndices_->portIds.emplace(portSaiId, swPort->getID());
+  concurrentIndices_->portSaiId2PortInfo.emplace(
+      portSaiId,
+      ConcurrentIndices::PortInfo{swPort->getID(), swPort->getPortType()});
   concurrentIndices_->portSaiIds.emplace(swPort->getID(), portSaiId);
   concurrentIndices_->vlanIds.emplace(
       PortDescriptorSaiId(portSaiId), swPort->getIngressVlan());
@@ -919,7 +921,7 @@ void SaiPortManager::removePort(const std::shared_ptr<Port>& swPort) {
   removePfc(swPort);
   clearQosPolicy(swId);
 
-  concurrentIndices_->portIds.erase(itr->second->port->adapterKey());
+  concurrentIndices_->portSaiId2PortInfo.erase(itr->second->port->adapterKey());
   concurrentIndices_->portSaiIds.erase(swId);
   concurrentIndices_->vlanIds.erase(
       PortDescriptorSaiId(itr->second->port->adapterKey()));
@@ -955,6 +957,13 @@ void SaiPortManager::changeQueue(
     SaiQueueConfig saiQueueConfig =
         std::make_pair(newPortQueue->getID(), newPortQueue->getStreamType());
     auto queueHandle = getQueueHandle(swId, saiQueueConfig);
+    if (!queueHandle) {
+      throw FbossError(
+          "unable to change non-existent queue ",
+          newPortQueue->getID(),
+          " of port ",
+          swId);
+    }
     // TODO(zecheng): Modifying switch state in hw switch is generally bad
     // practice. Need to refactor to avoid it.
     auto portQueue = newPortQueue->clone();
@@ -1320,6 +1329,14 @@ bool SaiPortManager::fecCorrectedBitsSupported(PortID portId) const {
 #endif
   }
   return false;
+}
+
+bool SaiPortManager::rxFrequencyRPMSupported() const {
+#if defined(BRCM_SAI_SDK_GTE_10_0)
+  return platform_->getAsic()->isSupported(HwAsic::Feature::RX_FREQUENCY_PPM);
+#else
+  return false;
+#endif
 }
 
 std::vector<PortID> SaiPortManager::getFabricReachabilityForSwitch(
@@ -2083,6 +2100,21 @@ std::vector<sai_port_lane_eye_values_t> SaiPortManager::getPortEyeValues(
   return SaiApiTable::getInstance()->portApi().getAttribute(
       saiPortId, SaiPortTraits::Attributes::PortEyeValues{});
 }
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+std::vector<sai_port_frequency_offset_ppm_values_t> SaiPortManager::getRxPPM(
+    PortSaiId saiPortId,
+    uint8_t numPmdLanes) const {
+  if (!rxFrequencyRPMSupported()) {
+    return std::vector<sai_port_frequency_offset_ppm_values_t>();
+  }
+
+  return SaiApiTable::getInstance()->portApi().getAttribute(
+      saiPortId,
+      SaiPortTraits::Attributes::RxFrequencyPPM{
+          std::vector<sai_port_frequency_offset_ppm_values_t>(numPmdLanes)});
+}
+#endif
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
 std::vector<sai_port_lane_latch_status_t> SaiPortManager::getRxSignalDetect(

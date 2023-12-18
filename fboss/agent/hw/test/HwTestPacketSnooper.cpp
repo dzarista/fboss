@@ -10,8 +10,9 @@ namespace facebook::fboss {
 
 HwTestPacketSnooper::HwTestPacketSnooper(
     HwSwitchEnsemble* ensemble,
-    std::optional<PortID> port)
-    : ensemble_(ensemble), port_(port) {
+    std::optional<PortID> port,
+    std::optional<utility::EthFrame> expectedFrame)
+    : ensemble_(ensemble), port_(port), expectedFrame_(expectedFrame) {
   ensemble_->addHwEventObserver(this);
 }
 
@@ -25,15 +26,24 @@ void HwTestPacketSnooper::packetReceived(RxPacket* pkt) noexcept {
     // packet arrived on port not of interest.
     return;
   }
+  auto data = pkt->buf()->clone();
+  folly::io::Cursor cursor{data.get()};
+  auto frame = std::make_unique<utility::EthFrame>(cursor);
+  if (expectedFrame_.has_value() && *expectedFrame_ != *frame) {
+    XLOG(DBG2) << " Unexpected packet received "
+               << " expected: " << *expectedFrame_ << std::endl
+               << " got: " << *frame;
+    return;
+  }
   std::lock_guard<std::mutex> lock(mtx_);
-  data_ = pkt->buf()->clone();
+  receivedFrame_ = std::move(frame);
   cv_.notify_all();
 }
 
 std::optional<utility::EthFrame> HwTestPacketSnooper::waitForPacket(
     uint32_t timeout_s) {
   std::unique_lock<std::mutex> lock(mtx_);
-  while (!data_) {
+  while (!receivedFrame_) {
     if (timeout_s > 0) {
       if (cv_.wait_for(lock, std::chrono::seconds(timeout_s)) ==
           std::cv_status::timeout) {
@@ -43,8 +53,7 @@ std::optional<utility::EthFrame> HwTestPacketSnooper::waitForPacket(
       cv_.wait(lock);
     }
   }
-  folly::io::Cursor cursor{data_.get()};
-  return utility::EthFrame{cursor};
+  return *receivedFrame_;
 }
 
 } // namespace facebook::fboss

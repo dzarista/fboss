@@ -120,6 +120,7 @@ class HwSwitchFb303Stats {
   int64_t getItppErrors() const;
   int64_t getEpniErrors() const;
   int64_t getAlignerErrors() const;
+  int64_t getFdrCellDrops() const;
 
   HwAsicErrors getHwAsicErrors() const;
   FabricReachabilityStats getFabricReachabilityStats();
@@ -162,6 +163,7 @@ class HwSwitchFb303Stats {
   TLTimeseries globalDrops_;
   TLTimeseries globalReachDrops_;
   TLTimeseries packetIntegrityDrops_;
+  TLTimeseries fdrCellDrops_;
   // Dram enqueue, dequeue bytes
   TLTimeseries dramEnqueuedBytes_;
   TLTimeseries dramDequeuedBytes_;

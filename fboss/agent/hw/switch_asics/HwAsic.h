@@ -160,6 +160,8 @@ class HwAsic {
     ECMP_DLB_OFFSET,
     SAI_FEC_CORRECTED_BITS,
     SAI_FEC_CODEWORDS_STATS,
+    // TODO: Once this support is complete, remove LINK_STATE_BASED_ISOLATE
+    LINK_INACTIVE_BASED_ISOLATE,
   };
 
   enum class AsicMode {
@@ -328,6 +330,9 @@ class HwAsic {
   virtual RecyclePortInfo getRecyclePortInfo() const;
   cfg::PortLoopbackMode getDesiredLoopbackMode(
       cfg::PortType portType = cfg::PortType::INTERFACE_PORT) const;
+
+  virtual uint32_t getMaxPorts() const;
+  virtual uint32_t getVirtualDevices() const;
 
  protected:
   static cfg::Range64 makeRange(int64_t min, int64_t max);

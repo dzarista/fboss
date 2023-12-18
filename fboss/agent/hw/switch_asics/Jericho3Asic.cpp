@@ -7,7 +7,6 @@ namespace facebook::fboss {
 
 bool Jericho3Asic::isSupported(Feature feature) const {
   switch (feature) {
-    case HwAsic::Feature::ECN:
     case HwAsic::Feature::SCHEDULER_PPS:
     case HwAsic::Feature::NEXTHOP_TTL_DECREMENT_DISABLE:
     case HwAsic::Feature::OBJECT_KEY_CACHE:
@@ -43,24 +42,20 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PMD_RX_SIGNAL_DETECT:
     case HwAsic::Feature::MEDIA_TYPE:
     case HwAsic::Feature::PORT_FABRIC_ISOLATE:
-    case HwAsic::Feature::QUEUE_ECN_COUNTER:
-    case HwAsic::Feature::SAI_ECN_WRED:
     case HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT:
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
     case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
-    case HwAsic::Feature::DEBUG_COUNTER:
     case HwAsic::Feature::CREDIT_WATCHDOG:
     case HwAsic::Feature::RESOURCE_USAGE_STATS:
       return true;
-
-    // TODO fix once queue stats are available on J3
-    case HwAsic::Feature::L3_QOS:
-    case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
+    // TODO: enable after ECN is supported
+    case HwAsic::Feature::ECN:
+    case HwAsic::Feature::SAI_ECN_WRED:
+    case HwAsic::Feature::QUEUE_ECN_COUNTER:
       return false;
-
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
     case HwAsic::Feature::BUFFER_POOL:
     case HwAsic::Feature::PFC:
@@ -68,6 +63,8 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::VOQ:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
+    case HwAsic::Feature::L3_QOS:
+    case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
       return getAsicMode() != AsicMode::ASIC_MODE_SIM;
     // FIXME - make true when J3-AI supports these features
     // For now these are only supported on J3 SIM and J3 HW
@@ -84,6 +81,7 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ACL_COPY_TO_CPU:
     case HwAsic::Feature::ACL_COUNTER_LABEL:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
+    case HwAsic::Feature::DEBUG_COUNTER:
       return getAsicMode() == AsicMode::ASIC_MODE_SIM;
     // SIM specific features.
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
@@ -165,6 +163,7 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::MPLS_ECMP:
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv6:
+    case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
       return false;
   }
   return false;
@@ -199,9 +198,6 @@ int Jericho3Asic::getDefaultNumPortQueues(
       switch (portType) {
         case cfg::PortType::CPU_PORT:
         case cfg::PortType::RECYCLE_PORT:
-          // TODO - update to 8 once TC object support
-          // for channelized support is added.
-          return 2;
         case cfg::PortType::INTERFACE_PORT:
           return 8;
         case cfg::PortType::FABRIC_PORT:

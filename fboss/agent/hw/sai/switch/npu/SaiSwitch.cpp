@@ -10,7 +10,7 @@
 
 #include "fboss/agent/hw/sai/switch/SaiSwitch.h"
 
-#include "fboss/agent/FabricReachabilityManager.h"
+#include "fboss/agent/FabricConnectivityManager.h"
 #include "fboss/agent/hw/HwResourceStatsPublisher.h"
 #include "fboss/agent/hw/sai/switch/ConcurrentIndices.h"
 #include "fboss/agent/hw/sai/switch/SaiAclTableManager.h"
@@ -33,24 +33,24 @@ void SaiSwitch::updateStatsImpl() {
   }
 
   int64_t missingCount = 0, mismatchCount = 0;
-  auto portsIter = concurrentIndices_->portIds.begin();
-  while (portsIter != concurrentIndices_->portIds.end()) {
+  auto portsIter = concurrentIndices_->portSaiId2PortInfo.begin();
+  while (portsIter != concurrentIndices_->portSaiId2PortInfo.end()) {
     {
       std::lock_guard<std::mutex> locked(saiSwitchMutex_);
       managerTable_->portManager().updateStats(
-          portsIter->second, updateWatermarks);
+          portsIter->second.portID, updateWatermarks);
       auto endpointOpt =
           managerTable_->portManager().getFabricReachabilityForPort(
-              portsIter->second);
+              portsIter->second.portID);
       if (endpointOpt.has_value()) {
-        fabricReachabilityManager_->processReachabilityInfoForPort(
-            portsIter->second, *endpointOpt);
-        if (fabricReachabilityManager_->isReachabilityInfoMissing(
-                portsIter->second)) {
+        fabricConnectivityManager_->processConnectivityInfoForPort(
+            portsIter->second.portID, *endpointOpt);
+        if (fabricConnectivityManager_->isConnectivityInfoMissing(
+                portsIter->second.portID)) {
           missingCount++;
         }
-        if (fabricReachabilityManager_->isReachabilityInfoMismatch(
-                portsIter->second)) {
+        if (fabricConnectivityManager_->isConnectivityInfoMismatch(
+                portsIter->second.portID)) {
           mismatchCount++;
         }
       }

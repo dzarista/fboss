@@ -171,6 +171,12 @@ class AgentDirectoryUtil {
 
   std::string getWrapperRefactorFlag() const;
 
+  std::string exitTimeFile(const std::string& processName) const;
+
+  std::string restartDurationFile(const std::string& processName) const;
+
+  std::string pidFile(const std::string& name) const;
+
  private:
   const std::string volatileStateDir_;
   const std::string persistentStateDir_;

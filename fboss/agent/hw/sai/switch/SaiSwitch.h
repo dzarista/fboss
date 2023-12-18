@@ -34,7 +34,7 @@ namespace facebook::fboss {
 
 struct ConcurrentIndices;
 class SaiStore;
-class FabricReachabilityManager;
+class FabricConnectivityManager;
 
 /*
  * This is equivalent to sai_fdb_event_notification_data_t. Copy only the
@@ -147,6 +147,8 @@ class SaiSwitch : public HwSwitch {
       uint8_t queueId,
       sai_queue_pfc_deadlock_event_type_t deadlockEvent,
       uint32_t count);
+
+  void txReadyStatusChangeCallbackTopHalf(SwitchSaiId switchId);
 
   /**
    * Runs a diag cmd on the corresponding unit
@@ -309,6 +311,7 @@ class SaiSwitch : public HwSwitch {
 
   void initLinkScanLocked(const std::lock_guard<std::mutex>& lock);
   void initRxLocked(const std::lock_guard<std::mutex>& lock);
+  void initTxReadyStatusChangeLocked(const std::lock_guard<std::mutex>& lock);
 
   bool isFeatureSetupLocked(
       FeaturesDesired feature,
@@ -344,6 +347,7 @@ class SaiSwitch : public HwSwitch {
 
   void linkStateChangedCallbackBottomHalf(
       std::vector<sai_port_oper_status_notification_t> data);
+  void txReadyStatusChangeCallbackBottomHalf();
 
   uint64_t getDeviceWatermarkBytesLocked(
       const std::lock_guard<std::mutex>& lock) const;
@@ -532,6 +536,8 @@ class SaiSwitch : public HwSwitch {
   folly::EventBase linkStateBottomHalfEventBase_;
   std::unique_ptr<std::thread> fdbEventBottomHalfThread_;
   folly::EventBase fdbEventBottomHalfEventBase_;
+  std::unique_ptr<std::thread> txReadyStatusChangeBottomHalfThread_;
+  folly::EventBase txReadyStatusChangeBottomHalfEventBase_;
 
   HwResourceStats hwResourceStats_;
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};
@@ -540,7 +546,7 @@ class SaiSwitch : public HwSwitch {
   cfg::AsicType asicType_;
 
   std::map<PortID, phy::PhyInfo> lastPhyInfos_;
-  std::unique_ptr<FabricReachabilityManager> fabricReachabilityManager_;
+  std::unique_ptr<FabricConnectivityManager> fabricConnectivityManager_;
   bool pfcDeadlockEnabled_{false};
 };
 
