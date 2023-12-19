@@ -7453,6 +7453,7 @@
           "port_init_speed_xe15.BCM8889X": "10000",
           "port_init_speed_xe16.BCM8889X": "10000",
           "port_init_speed_xl.BCM8889X": "40000",
+          "port_priorities_sch": "8",
           "port_priorities": "8",
           "port_priorities_0": "2",
           "port_priorities_1": "2",
