@@ -1,0 +1,24 @@
+images:
+  build_dnx_4.18:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_4.18
+        build: |
+          ./build.sh
+
+  build_dnx_5.12:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_5.12
+        build: |
+          ./build.sh
+
+  build_dnx_5.19:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_5.19
+        build: |
+          ./build.sh
