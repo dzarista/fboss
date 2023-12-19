@@ -24,6 +24,7 @@
 #include <ostream>
 #include "fboss/agent/packet/Ethertype.h"
 #include "fboss/agent/packet/HdrParseError.h"
+#include "fboss/agent/types.h"
 
 namespace facebook::fboss {
 
@@ -224,6 +225,24 @@ class EthHdr {
   }
   uint32_t size() const {
     return getVlanTags().size() == 0 ? EthHdr::UNTAGGED_PKT_SIZE : EthHdr::SIZE;
+  }
+  void setDstMac(const folly::MacAddress& dstMac) {
+    dstAddr = dstMac;
+  }
+  void addVlans(
+      const std::vector<VlanID>& vlans,
+      ETHERTYPE ether = ETHERTYPE::ETHERTYPE_VLAN);
+  void addVlan(VlanID vlan, ETHERTYPE ether = ETHERTYPE::ETHERTYPE_VLAN) {
+    addVlans({vlan}, ether);
+  }
+  void setVlans(
+      const std::vector<VlanID>& vlans,
+      ETHERTYPE ether = ETHERTYPE::ETHERTYPE_VLAN) {
+    vlanTags.clear();
+    addVlans(vlans, ether);
+  }
+  void setVlan(VlanID vlan, ETHERTYPE ether = ETHERTYPE::ETHERTYPE_VLAN) {
+    setVlans({vlan}, ether);
   }
 
  public:

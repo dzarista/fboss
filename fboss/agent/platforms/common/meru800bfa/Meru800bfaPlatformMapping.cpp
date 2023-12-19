@@ -177828,4 +177828,10 @@ Meru800bfaPlatformMapping::Meru800bfaPlatformMapping(
     const std::string& platformMappingStr)
     : PlatformMapping(platformMappingStr) {}
 
+Meru800bfaPlatformMapping::Meru800bfaPlatformMapping(
+    bool multiNpuPlatformMapping)
+    : PlatformMapping(
+          multiNpuPlatformMapping ? kJsonMultiNpuPlatformMappingStr
+                                  : kJsonPlatformMappingStr) {}
+
 } // namespace facebook::fboss

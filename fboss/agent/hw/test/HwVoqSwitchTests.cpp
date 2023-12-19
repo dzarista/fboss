@@ -52,7 +52,7 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
       if (getAsic()->getDefaultNumPortQueues(
               cpuStreamType, cfg::PortType::CPU_PORT)) {
         // cpu queues supported
-        addCpuTrafficPolicy(cfg);
+        utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
         utility::addCpuQueueConfig(
             cfg, getAsic(), getHwSwitchEnsemble()->isSai());
         break;
@@ -69,32 +69,6 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
     HwLinkStateDependentTest::SetUp();
     ASSERT_EQ(getHwSwitch()->getSwitchType(), cfg::SwitchType::VOQ);
     ASSERT_TRUE(getHwSwitch()->getSwitchId().has_value());
-  }
-
- private:
-  void addCpuTrafficPolicy(cfg::SwitchConfig& cfg) const {
-    cfg::CPUTrafficPolicyConfig cpuConfig;
-    std::vector<cfg::PacketRxReasonToQueue> rxReasonToQueues;
-    std::vector<std::pair<cfg::PacketRxReason, uint16_t>>
-        rxReasonToQueueMappings = {
-            std::pair(
-                cfg::PacketRxReason::BGP,
-                utility::getCoppHighPriQueueId(this->getAsic())),
-            std::pair(
-                cfg::PacketRxReason::BGPV6,
-                utility::getCoppHighPriQueueId(this->getAsic())),
-            std::pair(
-                cfg::PacketRxReason::CPU_IS_NHOP, utility::kCoppMidPriQueueId),
-
-        };
-    for (auto rxEntry : rxReasonToQueueMappings) {
-      auto rxReasonToQueue = cfg::PacketRxReasonToQueue();
-      rxReasonToQueue.rxReason() = rxEntry.first;
-      rxReasonToQueue.queueId() = rxEntry.second;
-      rxReasonToQueues.push_back(rxReasonToQueue);
-    }
-    cpuConfig.rxReasonToQueueOrderedList() = rxReasonToQueues;
-    cfg.cpuTrafficPolicy() = cpuConfig;
   }
 
  protected:
@@ -739,9 +713,12 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
 }
 
 TEST_F(HwVoqSwitchTest, trapPktsOnPort) {
-  auto verify = [this]() {
-    utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
-    const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+  auto setup = [this, kPort, &ecmpHelper]() {
+    applyNewState(ecmpHelper.resolveNextHops(getProgrammedState(), {kPort}));
+  };
+  auto verify = [this, kPort, &ecmpHelper]() {
     auto ensemble = getHwSwitchEnsemble();
     auto snooper = std::make_unique<HwTestPacketSnooper>(ensemble);
     auto entry = std::make_unique<HwTestPacketTrapEntry>(
@@ -753,7 +730,7 @@ TEST_F(HwVoqSwitchTest, trapPktsOnPort) {
       EXPECT_EVENTUALLY_TRUE(frameRx.has_value());
     });
   };
-  verifyAcrossWarmBoots([] {}, verify);
+  verifyAcrossWarmBoots(setup, verify);
 }
 
 TEST_F(HwVoqSwitchTest, rxPacketToCpu) {
@@ -970,6 +947,39 @@ TEST_F(HwVoqSwitchTest, dramEnqueueDequeueBytes) {
           getHwSwitch()->getSwitchStats()->getDramDequeuedBytes();
       XLOG(DBG2) << "Dram dequeued bytes : " << dramDequeuedBytes;
       EXPECT_EVENTUALLY_GT(dramDequeuedBytes, 0);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwVoqSwitchTest, fdrCellDrops) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+  auto setup = [this, kPort]() {
+    addRemoveNeighbor(kPort, true /* add neighbor*/);
+    std::string out;
+    getHwSwitchEnsemble()->runDiagCommand(
+        "setreg FDA_OFM_CLASS_DROP_TH_CORE 0x001001001001001001001001\n", out);
+    getHwSwitchEnsemble()->runDiagCommand("quit\n", out);
+  };
+
+  auto verify = [this, kPort, &ecmpHelper]() {
+    auto sendPkts = [this, kPort, &ecmpHelper]() {
+      for (auto i = 0; i < 1000; ++i) {
+        sendPacket(
+            ecmpHelper.ip(kPort),
+            std::nullopt,
+            std::vector<uint8_t>(1024, 0xff));
+      }
+    };
+    int64_t fdrCellDrops = 0;
+    WITH_RETRIES({
+      sendPkts();
+      getHwSwitch()->updateStats();
+      fb303::ThreadCachedServiceData::get()->publishStats();
+      fdrCellDrops = getHwSwitch()->getSwitchStats()->getFdrCellDrops();
+      XLOG(DBG2) << "FDR Cell drops : " << fdrCellDrops;
+      EXPECT_EVENTUALLY_GT(fdrCellDrops, 0);
     });
   };
   verifyAcrossWarmBoots(setup, verify);
@@ -1468,6 +1478,80 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
   };
   verifyAcrossWarmBoots(setup, verify);
 }
+
+TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteAndLocalLoadBalance) {
+  const auto kEcmpWidth = 16;
+  const auto kMaxDeviation = 25;
+  FLAGS_ecmp_width = kEcmpWidth;
+  std::vector<PortDescriptor> sysPortDescs;
+  auto setup = [&]() {
+    applyNewState(utility::setupRemoteIntfAndSysPorts(
+        getProgrammedState(), scopeResolver(), initialConfig()));
+    utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
+    // Trigger config apply to add remote interface routes as directly connected
+    // in RIB. This is to resolve ECMP members pointing to remote nexthops.
+    applyNewConfig(initialConfig());
+
+    // Resolve remote and local nhops and get a list of sysPort descriptors
+    auto remoteSysPortDescs = resolveRemoteNhops(ecmpHelper);
+    auto localSysPortDescs = resolveLocalNhops(ecmpHelper);
+
+    sysPortDescs.insert(
+        sysPortDescs.end(),
+        remoteSysPortDescs.begin(),
+        remoteSysPortDescs.begin() + kEcmpWidth / 2);
+    sysPortDescs.insert(
+        sysPortDescs.end(),
+        localSysPortDescs.begin(),
+        localSysPortDescs.begin() + kEcmpWidth / 2);
+
+    auto prefix = RoutePrefixV6{folly::IPAddressV6("0::0"), 0};
+    ecmpHelper.programRoutes(
+        getRouteUpdater(),
+        flat_set<PortDescriptor>(
+            std::make_move_iterator(sysPortDescs.begin()),
+            std::make_move_iterator(sysPortDescs.end())),
+        {prefix});
+  };
+  auto verify = [&]() {
+    // Send and verify packets across voq drops.
+    std::function<std::map<SystemPortID, HwSysPortStats>(
+        const std::vector<SystemPortID>&)>
+        getSysPortStatsFn = [&](const std::vector<SystemPortID>& portIds) {
+          return getLatestSysPortStats(portIds);
+        };
+    size_t pktSize = 0;
+    utility::pumpTrafficAndVerifyLoadBalanced(
+        [&]() {
+          pktSize = utility::pumpTraffic(
+              true, /* isV6 */
+              getHwSwitch(), /* hw */
+              utility::kLocalCpuMac(), /* dstMac */
+              std::nullopt, /* vlan */
+              std::nullopt, /* frontPanelPortToLoopTraffic */
+              255, /* hopLimit */
+              10000 /* numPackets */);
+        },
+        [&]() {
+          auto ports = std::make_unique<std::vector<int32_t>>();
+          for (auto sysPortDecs : sysPortDescs) {
+            ports->push_back(static_cast<int32_t>(sysPortDecs.sysPortID()));
+          }
+          getHwSwitch()->clearPortStats(ports);
+        },
+        [&]() {
+          WITH_RETRIES(EXPECT_EVENTUALLY_TRUE(utility::isLoadBalanced(
+              sysPortDescs,
+              {},
+              getSysPortStatsFn,
+              kMaxDeviation,
+              false,
+              pktSize)));
+          return true;
+        });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+};
 
 TEST_F(HwVoqSwitchFullScaleDsfNodesTest, stressProgramEcmpRoutes) {
   auto kEcmpWidth = getMaxEcmpWidth(getAsic());

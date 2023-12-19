@@ -16,6 +16,7 @@
 
 DECLARE_string(platform_mapping_override_path);
 DECLARE_bool(multi_npu_platform_mapping);
+DECLARE_int32(platform_mapping_profile);
 
 namespace facebook {
 namespace fboss {
@@ -157,6 +158,8 @@ class PlatformMapping {
   const PortID getPortID(const std::string& portName) const;
 
   std::optional<std::string> getPortNameByPortId(PortID portId) const;
+
+  std::optional<int32_t> getVirtualDeviceID(const std::string& portName) const;
 
   /*
    * Some platforms need customize their raw override factor generated from

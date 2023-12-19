@@ -242,6 +242,8 @@ struct HwSwitchDropStats {
   1: optional i64 globalDrops;
   2: optional i64 globalReachabilityDrops;
   3: optional i64 packetIntegrityDrops;
+  // DNX Specific drop counters
+  4: optional i64 fdrCellDrops;
 }
 
 struct HwSwitchDramStats {
@@ -267,4 +269,10 @@ struct HwSwitchFb303GlobalStats {
   15: i64 dram_dequeued_bytes;
   16: i64 fabric_reachability_missing;
   17: i64 fabric_reachability_mismatch;
+  // DNX Specific counters
+  18: optional i64 fdr_cell_drops;
+  19: optional i64 ingress_receive_editor_errors;
+  20: optional i64 ingress_transmit_pipeline_errors;
+  21: optional i64 egress_packet_network_interface_errors;
+  22: optional i64 aligner_errors;
 }

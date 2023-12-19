@@ -130,6 +130,9 @@ class IPv6Hdr {
   size_t payloadSize() const {
     return payloadLength;
   }
+  void decrementTTL() {
+    hopLimit = hopLimit > 0 ? hopLimit - 1 : hopLimit;
+  }
 
  public:
   /*
@@ -181,6 +184,11 @@ inline bool operator==(const IPv6Hdr& lhs, const IPv6Hdr& rhs) {
 
 inline bool operator!=(const IPv6Hdr& lhs, const IPv6Hdr& rhs) {
   return !operator==(lhs, rhs);
+}
+
+inline std::ostream& operator<<(std::ostream& os, const IPv6Hdr& v6Hdr) {
+  os << v6Hdr.toString();
+  return os;
 }
 
 } // namespace facebook::fboss

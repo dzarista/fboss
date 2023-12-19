@@ -27,6 +27,7 @@
 #include "fboss/agent/packet/ICMPHdr.h"
 #include "fboss/agent/packet/NDP.h"
 #include "fboss/agent/packet/PTPHeader.h"
+#include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/types.h"
 
 namespace facebook::fboss {
@@ -53,6 +54,7 @@ folly::MacAddress getFirstInterfaceMac(const cfg::SwitchConfig& cfg);
 folly::MacAddress getFirstInterfaceMac(std::shared_ptr<SwitchState> state);
 std::optional<VlanID> firstVlanID(const cfg::SwitchConfig& cfg);
 std::optional<VlanID> firstVlanID(const std::shared_ptr<SwitchState>& state);
+VlanID getIngressVlan(const std::shared_ptr<SwitchState>& state, PortID port);
 
 std::unique_ptr<facebook::fboss::TxPacket> makeEthTxPacket(
     const HwSwitch* hw,
@@ -192,6 +194,17 @@ std::unique_ptr<facebook::fboss::TxPacket> makeTCPTxPacket(
     uint16_t dstPort,
     uint8_t trafficClass = 0,
     uint8_t hopLimit = 255,
+    std::optional<std::vector<uint8_t>> payload =
+        std::optional<std::vector<uint8_t>>());
+
+std::unique_ptr<TxPacket> makeTCPTxPacket(
+    facebook::fboss::HwSwitch* hwSwitch,
+    std::optional<VlanID> vlanId,
+    folly::MacAddress dstMac,
+    const folly::IPAddress& dstIpAddress,
+    int l4SrcPort,
+    int l4DstPort,
+    uint8_t trafficClass = 0,
     std::optional<std::vector<uint8_t>> payload =
         std::optional<std::vector<uint8_t>>());
 

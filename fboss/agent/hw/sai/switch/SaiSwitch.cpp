@@ -63,7 +63,7 @@
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/SwitchState.h"
 
-#include "fboss/agent/FabricReachabilityManager.h"
+#include "fboss/agent/FabricConnectivityManager.h"
 #include "fboss/agent/hw/HwSwitchWarmBootHelper.h"
 #include "fboss/agent/hw/UnsupportedFeatureManager.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
@@ -74,6 +74,7 @@
 
 #include <folly/logging/xlog.h>
 
+#include <boost/range/combine.hpp>
 #include <chrono>
 #include <optional>
 
@@ -222,6 +223,26 @@ void _gPfcDeadlockNotificationCallback(
       static_cast<PortSaiId>(portSaiId), queueId, data->event, count);
 }
 
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+void __gTxReadyStatusChangeNotification(
+    sai_object_id_t switch_id,
+    sai_object_id_t port_id,
+    sai_port_host_tx_ready_status_t /*host_tx_ready_status*/) {
+  // Today, SAI implementation always returns NULL portID in this callback.
+  // This is OK, as FBOSS queries which links are active vs. inactive in the
+  // callback processing.
+  if (port_id != SAI_NULL_OBJECT_ID) {
+    XLOG(ERR)
+        << "SaiSwitch " << static_cast<long>(switch_id)
+        << " received TX Ready Status changed callback with non-NULL portID: "
+        << static_cast<long>(port_id);
+  }
+
+  __gSaiIdToSwitch.begin()->second->txReadyStatusChangeCallbackTopHalf(
+      SwitchSaiId{switch_id});
+}
+#endif
+
 PortSaiId SaiSwitch::getCPUPortSaiId() const {
   return managerTable_->switchManager().getCpuPort();
 }
@@ -230,8 +251,8 @@ SaiSwitch::SaiSwitch(SaiPlatform* platform, uint32_t featuresDesired)
     : HwSwitch(featuresDesired),
       platform_(platform),
       saiStore_(std::make_unique<SaiStore>()),
-      fabricReachabilityManager_(
-          std::make_unique<FabricReachabilityManager>()) {
+      fabricConnectivityManager_(
+          std::make_unique<FabricConnectivityManager>()) {
   utilCreateDir(platform_->getDirectoryUtil()->getVolatileStateDir());
   utilCreateDir(platform_->getDirectoryUtil()->getPersistentStateDir());
 }
@@ -289,6 +310,21 @@ void SaiSwitch::unregisterCallbacks() noexcept {
         [this]() { linkStateBottomHalfEventBase_.terminateLoopSoon(); });
     linkStateBottomHalfThread_->join();
     // link scan is completely shut-off
+  }
+
+  // tx ready status change is turned off and the evb loop is set to break
+  // just need to block until the last event is processed
+  if (runState_ >= SwitchRunState::CONFIGURED &&
+      (getFeaturesDesired() &
+       FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED) &&
+      platform_->getAsic()->isSupported(
+          HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+    txReadyStatusChangeBottomHalfEventBase_.runInEventBaseThreadAndWait(
+        [this]() {
+          txReadyStatusChangeBottomHalfEventBase_.terminateLoopSoon();
+        });
+    txReadyStatusChangeBottomHalfThread_->join();
+    // tx ready status change processing is completely shut-off
   }
 
   if (runState_ >= SwitchRunState::INITIALIZED) {
@@ -602,7 +638,7 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
   {
     // this is specific for fabric/voq switches for now
     [[maybe_unused]] const auto& lock = lockPolicy.lock();
-    fabricReachabilityManager_->stateUpdated(delta);
+    fabricConnectivityManager_->stateUpdated(delta);
   }
 
   // LAGs
@@ -1382,6 +1418,21 @@ void SaiSwitch::updatePmdInfo(
   }
 #endif
 
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  auto pmdRxPPM =
+      managerTable_->portManager().getRxPPM(port->adapterKey(), numPmdLanes);
+  for (const auto& pmd : pmdRxPPM) {
+    auto laneId = pmd.lane;
+    phy::LaneState laneState;
+    if (laneStates.find(laneId) != laneStates.end()) {
+      laneState = laneStates[laneId];
+    }
+    laneState.lane() = laneId;
+    laneState.rxFrequencyPPM() = pmd.ppm;
+    laneStates[laneId] = laneState;
+  }
+#endif
+
   for (auto laneStat : laneStats) {
     sideStats.pmd()->lanes()[laneStat.first] = laneStat.second;
   }
@@ -1502,7 +1553,7 @@ std::map<PortID, FabricEndpoint> SaiSwitch::getFabricConnectivity() const {
 
 std::map<PortID, FabricEndpoint> SaiSwitch::getFabricReachabilityLocked()
     const {
-  return fabricReachabilityManager_->getReachabilityInfo();
+  return fabricConnectivityManager_->getConnectivityInfo();
 }
 
 std::vector<PortID> SaiSwitch::getSwitchReachability(SwitchID switchId) const {
@@ -1627,15 +1678,15 @@ void SaiSwitch::linkStateChangedCallbackBottomHalf(
     bool up = operStatus[i].port_state == SAI_PORT_OPER_STATUS_UP;
 
     // Look up SwitchState PortID by port sai id in ConcurrentIndices
-    const auto portItr =
-        concurrentIndices_->portIds.find(PortSaiId(operStatus[i].port_id));
-    if (portItr == concurrentIndices_->portIds.cend()) {
+    const auto portItr = concurrentIndices_->portSaiId2PortInfo.find(
+        PortSaiId(operStatus[i].port_id));
+    if (portItr == concurrentIndices_->portSaiId2PortInfo.cend()) {
       XLOG(WARNING)
           << "received port notification for port with unknown sai id: "
           << operStatus[i].port_id;
       continue;
     }
-    PortID swPortId = portItr->second;
+    PortID swPortId = portItr->second.portID;
 
     std::optional<AggregatePortID> swAggPort{};
     const auto aggrItr = concurrentIndices_->memberPort2AggregatePortIds.find(
@@ -1715,6 +1766,73 @@ void SaiSwitch::linkStateChangedCallbackBottomHalf(
     callback_->linkStateChanged(
         swPortIdAndStatus.first, swPortIdAndStatus.second);
   }
+}
+
+void SaiSwitch::txReadyStatusChangeCallbackTopHalf(SwitchSaiId switchId) {
+  if (switchId != getSaiSwitchId()) {
+    // On Multi-NPU system, each HwSwitch will independelty register TxReady
+    // callback for ports on corresp ASIC. Thus, if the callback provides a
+    // switchID not matching our own, this will point to an SDK bug.
+    // Log error, but don't process.
+    XLOG(ERR) << "SaiSwitch " << static_cast<long>(getSaiSwitchId())
+              << " received TX Ready Status changed callback for SaiSwitch "
+              << static_cast<long>(switchId);
+    return;
+  }
+
+  txReadyStatusChangeBottomHalfEventBase_.runInEventBaseThread(
+      [this]() mutable { txReadyStatusChangeCallbackBottomHalf(); });
+}
+
+void SaiSwitch::txReadyStatusChangeCallbackBottomHalf() {
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  std::vector<SaiPortTraits::AdapterKey> adapterKeys;
+  for (const auto& [portSaiId, portInfo] :
+       concurrentIndices_->portSaiId2PortInfo) {
+    const auto& [portID, portType] = portInfo;
+    if (portType == cfg::PortType::FABRIC_PORT) {
+      adapterKeys.emplace_back(portSaiId);
+    }
+  }
+
+  auto& portApi = SaiApiTable::getInstance()->portApi();
+  std::vector<SaiPortTraits::Attributes::TxReadyStatus> txReadyStatuses(
+      adapterKeys.size());
+  auto txReadyStatusesGot =
+      portApi.bulkGetAttributes(adapterKeys, txReadyStatuses);
+  if (adapterKeys.size() != txReadyStatusesGot.size()) {
+    XLOG(ERR) << "TX Ready status queried for " << adapterKeys.size()
+              << " Fabric ports; query returned status for: "
+              << txReadyStatusesGot.size();
+    return;
+  }
+
+  auto numActiveFabricLinks = 0, numInactiveFabricLinks = 0;
+  for (auto tuple : boost::combine(adapterKeys, txReadyStatusesGot)) {
+    auto portSaiId = tuple.get<0>();
+    auto txReadyStatus = tuple.get<1>();
+
+    XLOG(DBG4) << "Fabric Port ID: " << std::hex << static_cast<long>(portSaiId)
+               << std::dec
+               << (txReadyStatus == SAI_PORT_HOST_TX_READY_STATUS_NOT_READY
+                       ? " Inactive"
+                       : " Active");
+    if (txReadyStatus == SAI_PORT_HOST_TX_READY_STATUS_NOT_READY) {
+      numInactiveFabricLinks++;
+    } else {
+      numActiveFabricLinks++;
+    }
+  }
+
+  XLOG(DBG2)
+      << "TX Ready status changed callback received:: NumActiveFabricLinks: "
+      << numActiveFabricLinks
+      << " NumInactiveFabricLinks: " << numInactiveFabricLinks;
+
+  // TODO
+  // Pass per port Active/Inactive link to SwSwitch, so SwSwitch can decide
+  // to isolate/unisolate.
+#endif
 }
 
 BootType SaiSwitch::getBootType() const {
@@ -2045,6 +2163,36 @@ void SaiSwitch::initLinkScanLocked(
   });
 }
 
+void SaiSwitch::initTxReadyStatusChangeLocked(
+    const std::lock_guard<std::mutex>& /* lock */) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  txReadyStatusChangeBottomHalfThread_ =
+      std::make_unique<std::thread>([this]() {
+        initThread("fbossSaiTxReadyStatusChangeStatusBH");
+        txReadyStatusChangeBottomHalfEventBase_.loopForever();
+      });
+  txReadyStatusChangeBottomHalfEventBase_.runInEventBaseThread([=, this]() {
+    auto& switchApi = SaiApiTable::getInstance()->switchApi();
+    switchApi.registerTxReadyStatusChangeCallback(
+        saiSwitchId_, __gTxReadyStatusChangeNotification);
+
+    /*
+     * If we query/process before registering the callback, then callbacks
+     * after we query/process but before we register the callback could get
+     * lost.
+     *
+     * Thus, query the initial state and process after registering the
+     * callback.
+     *
+     * Moreover, query/process in the same context that registers/processes
+     * callback to guarantee that we don't miss any callbacks and those are
+     * always ordered.
+     */
+    txReadyStatusChangeCallbackBottomHalf();
+  });
+#endif
+}
+
 bool SaiSwitch::isMissingSrcPortAllowed(HostifTrapSaiId hostifTrapSaiId) {
   static std::set<facebook::fboss::cfg::PacketRxReason> kAllowedRxReasons = {
       facebook::fboss::cfg::PacketRxReason::TTL_1};
@@ -2215,7 +2363,7 @@ void SaiSwitch::packetRxCallbackPort(
       VlanID(0),
       rxReason,
       queueId);
-  const auto portItr = concurrentIndices_->portIds.find(portSaiId);
+  const auto portItr = concurrentIndices_->portSaiId2PortInfo.find(portSaiId);
   /*
    * When a packet is received with source port as cpu port, do the following:
    * 1) Check if a packet has a vlan tag and only one tag. If the packet is
@@ -2237,7 +2385,7 @@ void SaiSwitch::packetRxCallbackPort(
         getSwitchType() == cfg::SwitchType::FABRIC)) {
     if (portSaiId == getCPUPortSaiId() ||
         (allowMissingSrcPort &&
-         portItr == concurrentIndices_->portIds.cend())) {
+         portItr == concurrentIndices_->portSaiId2PortInfo.cend())) {
       folly::io::Cursor cursor(rxPacket->buf());
       EthHdr ethHdr{cursor};
       auto vlanTags = ethHdr.getVlanTags();
@@ -2250,13 +2398,13 @@ void SaiSwitch::packetRxCallbackPort(
                   << "or multiple vlan tags: 0x" << std::hex << portSaiId;
         return;
       }
-    } else if (portItr == concurrentIndices_->portIds.cend()) {
+    } else if (portItr == concurrentIndices_->portSaiId2PortInfo.cend()) {
       // TODO: add counter to keep track of spurious rx packet
       XLOG(DBG) << "RX packet had port with unknown sai id: 0x" << std::hex
                 << portSaiId;
       return;
     } else {
-      swPortId = portItr->second;
+      swPortId = portItr->second.portID;
       const auto vlanItr =
           concurrentIndices_->vlanIds.find(PortDescriptorSaiId(portSaiId));
       if (vlanItr == concurrentIndices_->vlanIds.cend()) {
@@ -2268,13 +2416,13 @@ void SaiSwitch::packetRxCallbackPort(
     }
   } else { // VOQ / FABRIC
     if (portSaiId != getCPUPortSaiId()) {
-      if (portItr == concurrentIndices_->portIds.cend()) {
+      if (portItr == concurrentIndices_->portSaiId2PortInfo.cend()) {
         // TODO: add counter to keep track of spurious rx packet
         XLOG(ERR) << "RX packet had port with unknown sai id: 0x" << std::hex
                   << portSaiId;
         return;
       } else {
-        swPortId = portItr->second;
+        swPortId = portItr->second.portID;
         XLOG(DBG6) << "VOQ RX packet with sai id: 0x" << std::hex << portSaiId
                    << " portID: " << swPortId;
       }
@@ -2329,13 +2477,14 @@ void SaiSwitch::packetRxCallbackLag(
   rxPacket->setSrcAggregatePort(swAggPortId);
   rxPacket->setSrcVlan(swVlanId);
 
-  auto swPortItr = concurrentIndices_->portIds.find(portSaiId);
-  if (swPortItr == concurrentIndices_->portIds.cend() && !allowMissingSrcPort) {
+  auto swPortItr = concurrentIndices_->portSaiId2PortInfo.find(portSaiId);
+  if (swPortItr == concurrentIndices_->portSaiId2PortInfo.cend() &&
+      !allowMissingSrcPort) {
     XLOG(ERR) << "RX packet for lag has invalid port : 0x" << std::hex
               << portSaiId;
     return;
   }
-  swPortId = swPortItr->second;
+  swPortId = swPortItr->second.portID;
   rxPacket->setSrcPort(swPortId);
   XLOG(DBG6) << "Rx packet on lag: " << swAggPortId << ", port: " << swPortId
              << " vlan: " << swVlanId
@@ -2386,6 +2535,17 @@ void SaiSwitch::unregisterCallbacksLocked(
   if (pfcDeadlockEnabled_) {
     switchApi.unregisterQueuePfcDeadlockNotificationCallback(saiSwitchId_);
   }
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  if (isFeatureSetupLocked(FeaturesDesired::LINKSCAN_DESIRED, lock)) {
+    if ((getFeaturesDesired() &
+         FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED) &&
+        platform_->getAsic()->isSupported(
+            HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+      switchApi.unregisterTxReadyStatusChangeCallback(saiSwitchId_);
+    }
+  }
+#endif
 }
 
 bool SaiSwitch::isValidStateUpdateLocked(
@@ -2690,6 +2850,13 @@ void SaiSwitch::switchRunStateChangedImplLocked(
         switchApi.registerTamEventCallback(saiSwitchId_, __gTamEventCallback);
 #endif
       }
+
+      if ((getFeaturesDesired() &
+           FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED) &&
+          platform_->getAsic()->isSupported(
+              HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+        initTxReadyStatusChangeLocked(lock);
+      }
     } break;
     default:
       break;
@@ -2852,10 +3019,10 @@ std::optional<L2Entry> SaiSwitch::getL2Entry(
   std::optional<PortDescriptor> portDesc{};
   switch (portDescSaiId.type()) {
     case PortDescriptorSaiId::PortType::PHYSICAL: {
-      auto portItr =
-          concurrentIndices_->portIds.find(portDescSaiId.phyPortID());
-      if (portItr != concurrentIndices_->portIds.end()) {
-        portDesc = PortDescriptor(portItr->second);
+      auto portItr = concurrentIndices_->portSaiId2PortInfo.find(
+          portDescSaiId.phyPortID());
+      if (portItr != concurrentIndices_->portSaiId2PortInfo.end()) {
+        portDesc = PortDescriptor(portItr->second.portID);
       }
     } break;
 
@@ -3316,13 +3483,13 @@ void SaiSwitch::pfcDeadlockNotificationCallback(
     uint8_t queueId,
     sai_queue_pfc_deadlock_event_type_t deadlockEvent,
     uint32_t /* count */) {
-  const auto portItr = concurrentIndices_->portIds.find(portSaiId);
-  if (portItr == concurrentIndices_->portIds.cend()) {
+  const auto portItr = concurrentIndices_->portSaiId2PortInfo.find(portSaiId);
+  if (portItr == concurrentIndices_->portSaiId2PortInfo.cend()) {
     XLOG(ERR) << "Unable to map Sai Port ID " << portSaiId
               << " in PFC deadlock notification processing to a valid port!";
     return;
   }
-  PortID portId = portItr->second;
+  PortID portId = portItr->second.portID;
   XLOG_EVERY_MS(WARNING, 5000)
       << "PFC deadlock notification callback invoked for qid: " << queueId
       << ", on port: " << portId << ", with event: " << deadlockEvent;

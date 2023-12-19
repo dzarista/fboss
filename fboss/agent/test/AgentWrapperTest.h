@@ -4,11 +4,14 @@
 
 #include <gtest/gtest.h>
 
+#include "fboss/agent/if/gen-cpp2/ctrl_types.h"
+
 namespace facebook::fboss {
 
 class AgentNetWhoAmI;
 class AgentConfig;
 
+template <typename T>
 class AgentWrapperTest : public ::testing::Test {
  public:
   void SetUp() override;
@@ -25,6 +28,11 @@ class AgentWrapperTest : public ::testing::Test {
   void waitForStart(const std::string& unit);
   void waitForStop(bool crash = false);
   void waitForStop(const std::string& unit, bool crash = false);
+  pid_t getAgentPid(const std::string& agentName) const;
+  std::string getCoreDirectory() const;
+  std::string getCoreFile() const;
+  std::string getCoreMetaData() const;
+  BootType getBootType();
 
   std::unique_ptr<AgentConfig> config_;
   AgentDirectoryUtil util_;

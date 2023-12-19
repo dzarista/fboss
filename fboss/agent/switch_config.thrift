@@ -542,6 +542,7 @@ struct AclTable {
   3: list<AclEntry> aclEntries = [];
   4: list<AclTableActionType> actionTypes = [];
   5: list<AclTableQualifier> qualifiers = [];
+  6: optional i32 chainGroupId;
 }
 
 enum AclStage {
@@ -550,11 +551,13 @@ enum AclStage {
   EGRESS_MACSEC = 2,
 }
 
+// startdocs_AclTableGroup_struct
 struct AclTableGroup {
   1: string name;
   2: list<AclTable> aclTables = [];
   3: AclStage stage = AclStage.INGRESS;
 }
+// enddocs_AclTableGroup_struct
 
 /*
  * We only support unicast in FBOSS, but for completeness sake
