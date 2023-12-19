@@ -44,7 +44,6 @@ class BaseConfigs:
       self.symbolicLinkToDevicePathDict = \
          sheetToDicts( ss, "symbolicLinkToDevicePath" )
       self.kmodsSettingsDict = sheetToDicts( ss, "KmodsSettings" )
-      
 
    def dumpJson( self, jsonDict ):
       return json.dumps( jsonDict, indent=3 )
@@ -52,7 +51,7 @@ class BaseConfigs:
    def filterEntities( self, name, entities ):
       return [ entity for entity in entities if entity.get("name") == name ]
 
-class PlatformConfigs(BaseConfigs):
+class PlatformConfigs( BaseConfigs ):
    '''Models a PlatformConfig JSON object.'''
 
    def __init__( self, spreadsheetId ):
