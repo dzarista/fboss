@@ -2,6 +2,7 @@
   "fwConfigs" : {
     "bios" : {
       "preUpgradeCmd" : "printf '3000000:3FFFFFF image' > /home/bios_spi_layout",
+      "getVersionCmd" : "cat /sys/devices/virtual/dmi/id/bios_version | cut -d ':' -f 2 | cut -d '-' -f 3",
       "priority" : 1,
       "upgradeCmd" : "bios_filename=$(head -n 1 /home/bios_filename.txt); flashrom -p internal -l /home/bios_spi_layout -i image --noverify-all -w $bios_filename",
       "postUpgradeCmd" : "bios_filename=$(head -n 1 /home/bios_filename.txt); flashrom -p internal -l /home/bios_spi_layout -i image --noverify-all -v $bios_filename",
