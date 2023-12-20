@@ -1,5 +1,4 @@
-//src/DosSand/diags.dev-base-trunk-dmz/DosBoard/ViperLinkData.py#2 - integrate change 33367140 (text)
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 

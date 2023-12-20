@@ -4,6 +4,7 @@
 
 from enum import Enum
 from dataclasses import dataclass
+from ViperLinkData import setFabricLaneTraceLength
 
 """
 Author : seerpini@arista.com
@@ -45,6 +46,12 @@ debug = False
 PortMedium = Enum( 'PortMedium', 'Copper Optical' )
 SpeedGbps = Enum( 'SpeedGbps',
       'TwentyFive Fifty FiftyThree Hundred HundredAndSix FourHundred' )
+
+def validNifSerdesSpeeds():
+   return ( SpeedGbps.Fifty, SpeedGbps.Hundred )
+
+def validFabricSerdesSpeeds():
+   return ( SpeedGbps.FiftyThree, SpeedGbps.HundredAndSix )
 
 # Viper has a non-linear front panel slot to port type mapping.
 # First 10 ports and last 10 ports on the front panel are Fabric ports.
@@ -128,13 +135,13 @@ supportedProfilesBySpeed = {
 
 @dataclass
 class TxTapSettings:
-   pre3 : int
-   pre2 : int
-   pre1 : int
-   main : int
-   post1 : int
-   post2 : int
-   post3 : int
+   pre3: int = 0
+   pre2: int = 0
+   pre1: int = 0
+   main: int = 0
+   post1: int = 0
+   post2: int = 0
+   post3: int = 0
 
 """
 def txTapSettings( serdesSpeed : SpeedGbps, medium : PortMedium ) -> TxTapSettings:
