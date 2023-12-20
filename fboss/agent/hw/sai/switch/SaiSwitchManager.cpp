@@ -64,9 +64,30 @@ sai_hash_algorithm_t toSaiHashAlgo(cfg::HashingAlgorithm algo) {
   }
 }
 
+bool isJerichoAsic(cfg::AsicType asicType) {
+  return asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
+      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3;
+}
+
 void fillHwSwitchDropStats(
     const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
-    HwSwitchDropStats& hwSwitchDropStats) {
+    HwSwitchDropStats& hwSwitchDropStats,
+    cfg::AsicType asicType) {
+  auto fillAsicSpecificCounter = [](auto counterId,
+                                    auto val,
+                                    auto asicType,
+                                    auto& dropStats) {
+    if (!isJerichoAsic(asicType)) {
+      throw FbossError("Configured drop reason stats only supported for J2/J3");
+    }
+    switch (counterId) {
+      case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS:
+        dropStats.fdrCellDrops() = val;
+        break;
+      default:
+        throw FbossError("Unexpected configured counter id: ", counterId);
+    }
+  };
   for (auto counterIdAndValue : counterId2Value) {
     auto [counterId, value] = counterIdAndValue;
     switch (counterId) {
@@ -81,6 +102,9 @@ void fillHwSwitchDropStats(
         hwSwitchDropStats.packetIntegrityDrops() = value;
         break;
 #endif
+      case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS:
+        fillAsicSpecificCounter(counterId, value, asicType, hwSwitchDropStats);
+        break;
       default:
         throw FbossError("Got unexpected switch counter id: ", counterId);
     }
@@ -452,11 +476,15 @@ void SaiSwitchManager::removeLoadBalancer(
     const std::shared_ptr<LoadBalancer>& oldLb) {
   if (oldLb->getID() == cfg::LoadBalancerID::AGGREGATE_PORT) {
     programLagLoadBalancerParams(std::nullopt, std::nullopt);
+    resetLoadBalancer<SaiSwitchTraits::Attributes::LagHashV4>();
+    resetLoadBalancer<SaiSwitchTraits::Attributes::LagHashV6>();
     lagV4Hash_.reset();
     lagV6Hash_.reset();
     return;
   }
   programEcmpLoadBalancerParams(std::nullopt, std::nullopt);
+  resetLoadBalancer<SaiSwitchTraits::Attributes::EcmpHashV4>();
+  resetLoadBalancer<SaiSwitchTraits::Attributes::EcmpHashV6>();
   ecmpV4Hash_.reset();
   ecmpV6Hash_.reset();
 }
@@ -610,6 +638,14 @@ const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedDropStats() const {
           stats.begin(), stats.end(), SAI_SWITCH_STAT_PACKET_INTEGRITY_DROP));
 #endif
     }
+    if (isJerichoAsic(platform_->getAsic()->getAsicType())) {
+      static const std::vector<sai_stat_id_t> kJerichoConfigDropStats{
+          SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS};
+      stats.insert(
+          stats.end(),
+          kJerichoConfigDropStats.begin(),
+          kJerichoConfigDropStats.end());
+    }
   }
   return stats;
 }
@@ -635,7 +671,10 @@ void SaiSwitchManager::updateStats() {
   if (switchDropStats.size()) {
     switch_->updateStats(switchDropStats, SAI_STATS_MODE_READ);
     HwSwitchDropStats dropStats;
-    fillHwSwitchDropStats(switch_->getStats(switchDropStats), dropStats);
+    fillHwSwitchDropStats(
+        switch_->getStats(switchDropStats),
+        dropStats,
+        platform_->getAsic()->getAsicType());
     platform_->getHwSwitch()->getSwitchStats()->update(dropStats);
     // Accumulate switch drop stats
     switchDropStats_.globalDrops() =

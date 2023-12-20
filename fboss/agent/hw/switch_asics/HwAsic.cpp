@@ -194,4 +194,13 @@ cfg::PortLoopbackMode HwAsic::getDesiredLoopbackMode(
   }
   throw FbossError("Unable to find the portType ", portType);
 }
+
+uint32_t HwAsic::getMaxPorts() const {
+  return 2048;
+}
+
+uint32_t HwAsic::getVirtualDevices() const {
+  return 1;
+}
+
 } // namespace facebook::fboss

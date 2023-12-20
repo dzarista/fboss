@@ -1,7 +1,6 @@
 namespace cpp2 facebook.fboss.platform.fan_service
 namespace py3 neteng.fboss.platform.fan_service
 
-const string RANGE_CHECK_ACTION_SHUTDOWN = "shutdown";
 const string ACCESS_TYPE_SYSFS = "ACCESS_TYPE_SYSFS";
 const string ACCESS_TYPE_UTIL = "ACCESS_TYPE_UTIL";
 const string ACCESS_TYPE_THRIFT = "ACCESS_TYPE_THRIFT";
@@ -68,26 +67,10 @@ struct Watchdog {
   2: i32 value;
 }
 
-struct RangeCheck {
-  1: float low;
-  2: float high;
-  3: i32 tolerance;
-  4: string invalidRangeAction;
-}
-
-enum BspType {
-  kBspGeneric = 0,
-  kBspDarwin = 1,
-  kBspLassen = 2,
-  kBspMinipack3 = 3,
-}
-
 struct Sensor {
   1: string sensorName;
   2: AccessMethod access;
-  3: map<i32, i32> adjustmentTable;
   4: Alarm alarm;
-  5: optional RangeCheck rangeCheck;
   6: string pwmCalcType;
   7: float scale;
   8: TempToPwmMap normalUpTable;
@@ -103,7 +86,6 @@ struct Sensor {
 }
 
 struct FanServiceConfig {
-  1: BspType bspType;
   2: string shutdownCmd;
   3: list<Zone> zones;
   4: list<Sensor> sensors;

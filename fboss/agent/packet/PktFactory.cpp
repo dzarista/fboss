@@ -25,35 +25,6 @@ uint8_t nextHeader(const IPv4Hdr& hdr) {
 namespace facebook::fboss {
 
 namespace utility {
-UDPDatagram::UDPDatagram(folly::io::Cursor& cursor) {
-  udpHdr_.parse(&cursor, nullptr);
-  auto payLoadSize = udpHdr_.length - UDPHeader::size(); // payload length
-  payload_.resize(payLoadSize);
-  for (auto i = 0; i < payLoadSize; i++) {
-    payload_[i] = cursor.readBE<uint8_t>(); // payload bytes
-  }
-}
-
-std::unique_ptr<facebook::fboss::TxPacket> UDPDatagram::getTxPacket(
-    const HwSwitch* hw) const {
-  auto txPacket = hw->allocatePacket(length());
-  folly::io::RWPrivateCursor rwCursor(txPacket->buf());
-  udpHdr_.write(&rwCursor);
-  for (auto byte : payload_) {
-    rwCursor.writeBE<uint8_t>(byte);
-  }
-  return txPacket;
-}
-
-void UDPDatagram::serialize(folly::io::RWPrivateCursor& cursor) const {
-  CHECK_GE(cursor.totalLength(), length())
-      << "Insufficient room to serialize packet";
-
-  udpHdr_.write(&cursor);
-  for (auto byte : payload_) {
-    cursor.writeBE<uint8_t>(byte);
-  }
-}
 
 template <typename AddrT>
 IPPacket<AddrT>::IPPacket(folly::io::Cursor& cursor) {
@@ -61,6 +32,8 @@ IPPacket<AddrT>::IPPacket(folly::io::Cursor& cursor) {
   if (nextHeader(hdr_) == static_cast<uint8_t>(IP_PROTO::IP_PROTO_UDP)) {
     // if proto is udp, encapsulate udp
     udpPayLoad_ = UDPDatagram(cursor);
+  } else if (nextHeader(hdr_) == static_cast<uint8_t>(IP_PROTO::IP_PROTO_TCP)) {
+    tcpPayLoad_ = TCPPacket(cursor, hdr_.payloadSize());
   }
 }
 
@@ -107,6 +80,15 @@ void IPPacket<AddrT>::serialize(folly::io::RWPrivateCursor& cursor) const {
   }
 }
 
+template <typename AddrT>
+std::string IPPacket<AddrT>::toString() const {
+  std::stringstream ss;
+  ss << "IP hdr: " << hdr_
+     << " UDP : " << (udpPayLoad_.has_value() ? udpPayLoad_->toString() : "")
+     << " TCP: " << (tcpPayLoad_.has_value() ? tcpPayLoad_->toString() : "");
+  return ss.str();
+}
+
 MPLSPacket::MPLSPacket(folly::io::Cursor& cursor) {
   hdr_ = MPLSHdr(&cursor);
   uint8_t ipver = 0;
@@ -149,6 +131,14 @@ void MPLSPacket::serialize(folly::io::RWPrivateCursor& cursor) const {
   } else if (v6PayLoad_) {
     v6PayLoad_->serialize(cursor);
   }
+}
+
+std::string MPLSPacket::toString() const {
+  std::stringstream ss;
+  ss << "MPLS hdr: " << hdr_.toString()
+     << " v6 : " << (v6PayLoad_.has_value() ? v6PayLoad_->toString() : "")
+     << " v4 : " << (v4PayLoad_.has_value() ? v4PayLoad_->toString() : "");
+  return ss.str();
 }
 
 EthFrame::EthFrame(folly::io::Cursor& cursor) {
@@ -297,6 +287,38 @@ EthFrame getEthFrame(
           mplsHdr,
           utility::IPPacket<AddrT>(
               ipHdr, utility::UDPDatagram(udpHdr, kDefaultPayload))));
+}
+
+std::string utility::EthFrame::toString() const {
+  std::stringstream ss;
+  ss << "Eth hdr: " << hdr_.toString()
+     << " mpls: " << (mplsPayLoad_.has_value() ? mplsPayLoad_->toString() : "")
+     << " v6 : " << (v6PayLoad_.has_value() ? v6PayLoad_->toString() : "")
+     << " v4 : " << (v4PayLoad_.has_value() ? v4PayLoad_->toString() : "");
+  return ss.str();
+}
+
+EthFrame makeEthFrame(const TxPacket& txPkt, bool skipTtlDecrement) {
+  folly::io::Cursor cursor{txPkt.buf()};
+  utility::EthFrame frame(cursor);
+  if (skipTtlDecrement) {
+    return frame;
+  }
+  frame.decrementTTL();
+  return frame;
+}
+
+EthFrame makeEthFrame(const TxPacket& txPkt, folly::MacAddress dstMac) {
+  auto frame = makeEthFrame(txPkt);
+  frame.setDstMac(dstMac);
+  return frame;
+}
+
+EthFrame
+makeEthFrame(const TxPacket& txPkt, folly::MacAddress dstMac, VlanID vlan) {
+  auto frame = makeEthFrame(txPkt, dstMac);
+  frame.setVlan(vlan);
+  return frame;
 }
 
 template class IPPacket<folly::IPAddressV4>;

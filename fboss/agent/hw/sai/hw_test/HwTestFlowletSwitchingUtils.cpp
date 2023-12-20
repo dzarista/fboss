@@ -27,6 +27,7 @@ bool verifyEcmpForFlowletSwitching(
     const HwSwitch* /* unused */,
     const folly::CIDRNetwork& /* unused */,
     const cfg::FlowletSwitchingConfig& /* unused */,
+    const cfg::PortFlowletConfig& /* unused */,
     bool /* unused */) {
   // This function is not implemented yet.
   // If the test is running on SAI Switches,
@@ -57,6 +58,14 @@ void setEcmpMemberStatus(const HwSwitch* /* unused */) {
   // If the test is running on SAI Switches,
   // it should throw an error.
   EXPECT_TRUE(false);
+}
+
+bool validateFlowSetTable(
+    const HwSwitch* /*unit*/,
+    const bool /*expectFlowsetSizeZero*/,
+    const int /*flowletTableSize*/) {
+  EXPECT_TRUE(false);
+  return false;
 }
 
 } // namespace facebook::fboss::utility
