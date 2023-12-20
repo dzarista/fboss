@@ -3,6 +3,7 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from enum import Enum
+from dataclasses import dataclass
 
 """
 Author : seerpini@arista.com
@@ -125,15 +126,15 @@ supportedProfilesBySpeed = {
       SpeedGbps.HundredAndSix : { 1 : [ '36', '37', '41', '42'] }
 }
 
-class TxTapSettings( object ):
-   def __init__( self, pre3, pre2, pre1, main, post1, post2, post3 ):
-      self.pre3 = pre3
-      self.pre2 = pre2
-      self.pre1 = pre1
-      self.main = main
-      self.post1 = post1
-      self.post2 = post2
-      self.post3 = post3
+@dataclass
+class TxTapSettings:
+   pre3 : int
+   pre2 : int
+   pre1 : int
+   main : int
+   post1 : int
+   post2 : int
+   post3 : int
 
 """
 def txTapSettings( serdesSpeed : SpeedGbps, medium : PortMedium ) -> TxTapSettings:
