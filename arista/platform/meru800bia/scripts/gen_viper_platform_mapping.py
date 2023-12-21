@@ -1,7 +1,11 @@
 #!/bin/env python3
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
-
+import sys
+sys.path.append( "../../lib" )
+import csv
+from dataclasses import astuple
+from VendorMappings import StaticMapping, PortProfileMapping
 """
 Author : seerpini@arista.com
 Script for generating the Viper vendor mappings.
@@ -173,36 +177,18 @@ portAttrsByProfile = {
 
 nifFrontPanelSlotToAsicCoreAndSerdesCore = {}
 fabFrontPanelLaneToLogicalLane = {}
-with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as bcmConfigFh:
-   # Description of attributes for front panel serdes in the order of their
-   # occurence.
-   # A_SLOT_ID : Linecard slot Id, 1 for fixed systems
-   # A_CHIP_ID : ASIC id on the system slot, Viper only has one J3, so always 1
-   # A_CHIP_TYPE : NPU
-   # A_CORE_ID : ASIC serdes core ID
-   # A_CORE_TYPE : ASIC serdes core type, FE/NIF
-   # A_CORE_LANE : 0,numLanes - numLanes per core is 8 on J3, so this value
-   # goes from 0,7.
-   # A_PHYSICAL_TX_LANE : Physical tx trace corresponding to serdes core lane.
-   # A_PHYSICAL_RX_LANE : Physical rx trace corresponding to serdes core lane.
-   # A_TX_POLARITY_SWAP : bool, is polarity swapped for tx trace.
-   # A_RX_POLARITY_SWAP : bool, is polarity swapped for rx trace.
-   # Z_SLOT_ID : Transceiver system slot Id, 1 for fixed systems.
-   # Z_CHIP_ID : Transceiver front panel slot Id.
-   # Z_CHIP_TYPE : TRANSCEIVER
-   # Z_CORE_ID : Always 0, since we don't have external PHYs or cores within a
-   # single XCVR slot.
-   # Z_CORE_TYPE : OSFP for Viper/Whistler
-   # Z_CORE_LANE : 0-7, lane within the XCVR slot.
-   # Z_PHYSICAL_TX_LANE : Physical tx trace corresponding to XCVR lane.
-   # Z_PHYSICAL_RX_LANE : Physical rx trace corresponding to XCVR lane.
-   # Z_TX_POLARITY_SWAP : bool, is polarity swapped for tx trace.
-   # Z_RX_POLARITY_SWAP : bool, is polarity swapped for rx trace.
-
+with open( "viper_static_mapping.csv", "w", newline="" ) as fh, open( "bcm_config", "w" ) as bcmConfigFh:
+   fields = [ field.name for field in StaticMapping.getFields()]
+   mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
+   mappingWriter.writerows( ( fields, ) )
+   staticMappings = []
    # Special entry for recycle port, which is attached to J3 with a special serdes
    # core Id 55 (this serdes core Id is derived from a reverse calculation of the bcm
    # soc property for recycle port base).
-   fh.write( "1,1,NPU,55,J3_RCY,0,,,,,,,,,,,,,,\n" )
+   staticMappings.append( StaticMapping(
+                            1,1,"NPU",55,"J3_RCY",0,
+                            None,None,None,None,None,None,None,None,
+                            None,None,None,None,None,None ) )
    def genMappingsForSerdesCore( serdesCore, firstSerdes, numSerdes, portType ): 
       tempProps = {}
       tempBcmLaneMapProps = {}
@@ -248,8 +234,9 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
          # For fabric ports, the logicalLane need not match lane, so if we write it
          # here we will be out of order. We will stash them here so that we can write
          # them to the relevant files in the order of logical lanes.
-         tempProps[ logicalLane ] = \
-               f"1,1,NPU,{serdesCore},{asicCoreType},{logicalLane},{txLane},{rxLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
+         tempProps[ logicalLane ] = StaticMapping(
+               1,1,"NPU",serdesCore,asicCoreType,logicalLane,txLane,rxLane,txPolSwap,rxPolSwap,1,frontPanelSlot,"TRANSCEIVER",0,"OSFP",frontPanelLane,frontPanelLane,frontPanelLane,"N","N"
+         )
          # bcm logicalLane is a global lane number that is in range (0,144) for NIF
          # and (0,160) for Fabric.
          bcmLogicalLane = logicalLane + firstSerdes
@@ -263,7 +250,7 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
                f"\"phy_tx_polarity_flip_{polaritySwapType}{bcmLogicalLane}.BCM8889X\": \"{txPolSwapProp}\",\n" )
 
       for lane in range( numSerdes ):
-         fh.write( tempProps[ lane ] )
+         staticMappings.append( tempProps[ lane ] )
          for prop in tempBcmLaneMapProps[ lane ]:
             bcmConfigFh.write( prop )
          for prop in tempBcmPolSwapProps[ lane ]:
@@ -276,8 +263,13 @@ with open( "viper_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as
    genMappingsForSerdesCore( numNifSerdesOctets, numNifSerdesOctets * 8, 4, "nif" )
    for serdesCore in range( numFabricSerdesOctets ):
       genMappingsForSerdesCore( serdesCore, serdesCore * 8, 8, "fabric" )
+   mappingWriter.writerows( [ astuple(mapping) for mapping in staticMappings ] )
 
 with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a" ) as bcmConfigFh:
+   fields = [ field.name for field in PortProfileMapping.getFields()]
+   mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
+   mappingWriter.writerows( ( fields, ) )
+   portProfileMappings = []
    # Description of fields in the order of their appearance:
    # Global PortID : Global port ID across all ASICs in the system.
    # Logical_PortID : Logical port ID used in the bcm soc properties.
@@ -295,7 +287,8 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    virtualDeviceId = 0
    # Recycle port is a special port with port id 1, it is given internal serdes core
    # ID 55.
-   fh.write(f"1,1,rcy1/1/55,11,0,1,{virtualDeviceId}\n")
+   portProfileMappings.append(
+      PortProfileMapping(1,1,"rcy1/1/55",11,0,1,virtualDeviceId ) )
    # CPU port is 0, RCY port is 1, NIF ports start from logical port Id 2.
    # Fabric ports start from logical port Id 1024.
    nifLogicalPortIdBase = 2
@@ -309,8 +302,9 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             portStr = f"fab1/{frontPanelSlot}/{subPort}"
             fabLogicalPortId = fabLogicalPortIdBase + fabFrontPanelLaneToLogicalLane[
                   frontPanelSlot * 8 + ( subPort - 1 ) ]
-            fh.write(
-                  f"{fabLogicalPortId},{fabLogicalPortId},{portStr},{fabSupportedProfiles},,,{virtualDeviceId}\n" )
+            portProfileMappings.append( PortProfileMapping( fabLogicalPortId,
+                            fabLogicalPortId, portStr, fabSupportedProfiles, None,
+                            None, virtualDeviceId ) )
       elif frontPanelPortType == "nif":
          subPorts = [ 1 ]
          if frontPanelSlot == qsfpPortFrontPanelSlot:
@@ -356,8 +350,10 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             assert nifLogicalPortId - nifLogicalPortIdBase < ( numNifSerdesOctets +
                   numNifSerdesQuartets ) * 2
             bcmConfigFh.write( f"\"ucode_port_{nifLogicalPortId}.BCM8889X\": \"{bcmConfigPortPrefix}{cdgeCore_4}:core_{attachedCoreId}.{attachedCorePortId}\",\n" )
-            fh.write(
-                  f"{nifLogicalPortId},{nifLogicalPortId},{portStr},{nifSupportedProfiles},{attachedCoreId},{attachedCorePortId},{virtualDeviceId}\n" )
+            portProfileMappings.append( PortProfileMapping( nifLogicalPortId,
+                            nifLogicalPortId, portStr, nifSupportedProfiles,
+                            attachedCoreId, attachedCorePortId, virtualDeviceId ) )
             nifLogicalPortId += 1
       else:
          assert False, "Invalid frontPanelPortType"
+   mappingWriter.writerows( [ astuple(mapping) for mapping in portProfileMappings ] )
