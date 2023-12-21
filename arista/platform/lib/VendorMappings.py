@@ -32,9 +32,9 @@ class StaticMapping( DataClassWithFieldGetter ):
    # Physical rx trace corresponding to serdes core lane.
    A_PHYSICAL_RX_LANE : int
    # bool, is polarity swapped for tx trace.
-   A_TX_POLARITY_SWAP : bool
+   A_TX_POLARITY_SWAP : str
    # bool, is polarity swapped for rx trace.
-   A_RX_POLARITY_SWAP : bool
+   A_RX_POLARITY_SWAP : str
    # Transceiver system slot Id, 1 for fixed systems.
    Z_SLOT_ID : int
    # Transceiver front panel slot Id.
@@ -52,9 +52,9 @@ class StaticMapping( DataClassWithFieldGetter ):
    # Physical rx trace corresponding to XCVR lane.
    Z_PHYSICAL_RX_LANE : int
    # bool, is polarity swapped for tx trace.
-   Z_TX_POLARITY_SWAP : bool
+   Z_TX_POLARITY_SWAP : str
    # bool, is polarity swapped for rx trace.
-   Z_RX_POLARITY_SWAP : bool
+   Z_RX_POLARITY_SWAP : str
 
 @dataclass
 class PortProfileMapping( DataClassWithFieldGetter ):
