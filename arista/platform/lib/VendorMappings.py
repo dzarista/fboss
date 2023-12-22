@@ -77,3 +77,41 @@ class PortProfileMapping( DataClassWithFieldGetter ):
    # NOTE: For Fabric ports, there is no core binding, the corresponding Attached_CoreId and Attached_Core_PortID can be left empty.
    # Virtual device ID for FE ASICs.
    Virtual_Device_ID : int
+
+@dataclass
+class SISettings( DataClassWithFieldGetter ):
+   """
+   SI settings for each logical lane.
+   """
+   # Linecard slot Id, 1 for fixed systems
+   SLOT_ID : int
+   # ASIC id on the system slot, Viper only has one J3, so always 1
+   CHIP_ID : int
+   # NPU
+   CHIP_TYPE : str
+   # ASIC serdes core ID
+   CORE_ID : int
+   # ASIC serdes core type, FE/NIF
+   CORE_TYPE : str
+   # 0,numLanes - numLanes per core is 8 on J3, so this value goes from 0,7.
+   CORE_LANE : int
+   # Media type
+   MEDIA_TYPE : str
+   # Optics Vendor
+   OPTICS_VENDOR : str
+   # NIC Vendor
+   NIC_VENDOR : str
+   # Cable length (in meters)
+   CABLE_LENGTH_M : float
+   # TX Tap Settings
+   TX_PRE3 : int
+   TX_PRE2 : int
+   TX_PRE1 : int
+   TX_MAIN : int
+   TX_POST1 : int
+   TX_POST2 : int
+   TX_POST3 : int
+   # RX Settings
+   RX_CTLE_CODE : str
+   RX_DSP_MODE : str
+   RX_AFE_TRIM : str
