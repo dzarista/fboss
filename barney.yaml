@@ -22,3 +22,131 @@ images:
           /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_5.19
         build: |
           ./build.sh
+
+  package_dnx_4.18:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: .%build_dnx_4.18
+        build: |
+          ./package.sh
+
+  package_dnx_5.12:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: .%build_dnx_5.12
+        build: |
+          ./package.sh
+
+  package_dnx_5.19:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: .%build_dnx_5.19
+        build: |
+          ./package.sh
+
+  internal/test_floor:
+    units:
+      - image: code.arista.io/infra/barney/barnzilla%base
+      - image: code.arista.io/infra/barney/barnzilla%rpms/coreutils
+      - image: code.arista.io/infra/barney/barnzilla%rpms/bash
+      - image: code.arista.io/infra/barney/barnzilla%rpms/util-linux
+      - image: code.arista.io/infra/barney/barnzilla%rpms/findutils
+
+  test/package_dnx_4.18:
+    description: |
+      Test that some random build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%package_dnx_4.18
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-core-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-darwin-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-meru400bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-meru800bfa-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-meru800bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
+
+  test/package_dnx_5.12:
+    description: |
+      Test that some random build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%package_dnx_5.12
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-core-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-darwin-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-meru400bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-meru800bfa-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-meru800bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
+
+  test/package_dnx_5.19:
+    description: |
+      Test that some random build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%package_dnx_5.19
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-core-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-darwin-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-meru400bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-meru800bfa-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-meru800bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
