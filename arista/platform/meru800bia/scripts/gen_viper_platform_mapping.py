@@ -8,7 +8,7 @@ import csv
 from dataclasses import dataclass, astuple
 from CommonPlatformTypes import PortMedium, SpeedGbps
 from VendorMappings import StaticMapping, PortProfileMapping
-from ViperLinkData import setFabricLaneTraceLength
+from ViperLinkData import fabricTraceLengthByLogicalLane
 
 """
 Author : seerpini@arista.com
@@ -22,13 +22,13 @@ Output:
 """
 
 # Variables to control the behavior for this script.
-# Existing mappings at a port level are not replaced if preserveExistingMappings=True
-preserveExistingMappings = True
 # Number of ASICs in the system
 numAsics = 1
 numAsicCores = 4
-# Number of serdes per serdes core. Peregrine 8x100G serdes core on J3.
-numSerdesPerCore = 8
+# Number of serdes per serdes quartet. QSFP Mgmt port is on a 4x25G serdes core.
+numSerdesPerQuartet = 4
+# Number of serdes per serdes octet. Peregrine 8x100G serdes core on J3.
+numSerdesPerOctet = 8
 # Logical port base in the SDK for NIF ports.
 nifPortBase = 2
 # Total number of NIF ports. Since we are operating in either 400G-4 or 800G-8 and we
@@ -36,12 +36,14 @@ nifPortBase = 2
 # front panel NIF ports.
 numNifSerdesOctets = 18
 numNifSerdesQuartets = 1
-numNifSerdes = numNifSerdesOctets * 8 + numNifSerdesQuartets * 4
+numNifSerdes = numNifSerdesOctets * numSerdesPerOctet \
+   + numNifSerdesQuartets * numSerdesPerQuartet
 # Logical port base in the SDK for fabric ports.
 fabricPortBase = 1024
 # Total number of fabric ports assuming that each fabric serdes is enumerated as a
 # separate port.
 numFabricSerdesOctets = 20
+numFabricSerdes = numFabricSerdesOctets * numSerdesPerOctet
 # Slot number for the 4x25G QSFP port.
 qsfpPortFrontPanelSlot = 39
 # Print debug information
@@ -145,6 +147,10 @@ def txTapSettings( serdesSpeed : SpeedGbps, medium : PortMedium ) -> TxTapSettin
    elif speed == SpeedGbps.
 """
 
+asicId = 0
+
+fabricLogicalLaneTraceLengths = fabricTraceLengthByLogicalLane( asicId, numFabricSerdes )
+
 asicSerdesMappings = []
 for asic in range( numAsics ):
    asicSerdesMappings.append( { 'fabric' : {}, 'nif': {} } )
@@ -178,8 +184,6 @@ with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
          asicPortMapping[ lineSideSerdes ][ connectionType ] = ( frontPanelSlot,
                   systemSideLane, polaritySwap )
 
-
-asicId = 0
 
 # Port Attributes by profile
 portAttrsByProfile = {

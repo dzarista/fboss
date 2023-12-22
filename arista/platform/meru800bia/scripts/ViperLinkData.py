@@ -2,6 +2,20 @@
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
+class Fap:
+   class PortData:
+      traceLengthToNextEpInInces: float
+   fabricPorts : list[ PortData ]
+   def __init__( self, numFabricPorts ):
+      self.fabricPorts = [ self.PortData() for i in range( numFabricPorts ) ]
+
+def fabricTraceLengthByLogicalLane( asicId: int, numFabricPorts: int) -> list[Fap.PortData]:
+   # Only one asic per Viper
+   assert asicId == 0
+   faps = [ Fap(numFabricPorts), ]
+   setFabricLaneTraceLength(faps)
+   return faps[ asicId ].fabricPorts
+
 def setFabricLaneTraceLength( faps ):
    faps[0].fabricPorts[0].traceLengthToNextEpInInches = 4.98
    faps[0].fabricPorts[1].traceLengthToNextEpInInches = 4.94
