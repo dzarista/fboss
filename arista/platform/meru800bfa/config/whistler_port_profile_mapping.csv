@@ -1,3 +1,4 @@
+Global_PortID,Logical_PortID,Port_Name,Supported_Port_Profiles,Attached_CoreID,Attached_Core_PortID,Virtual_Device_ID
 2554,506,fab1/1/1,36-37-41-42,,,3
 262,262,fab1/1/2,36-37-41-42,,,1
 2296,248,fab1/1/3,36-37-41-42,,,2

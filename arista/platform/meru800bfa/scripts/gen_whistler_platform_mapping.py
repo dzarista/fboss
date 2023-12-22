@@ -2,7 +2,11 @@
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
+import sys
+sys.path.append( "../../lib" )
 import csv
+from dataclasses import astuple
+from VendorMappings import StaticMapping, PortProfileMapping
 
 """
 Author : seerpini@arista.com
@@ -128,30 +132,9 @@ portAttrsByProfile = {
 }
 
 with open( "whistler_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" ) as bcmConfigFh:
-   # Description of attributes for front panel serdes in the order of their
-   # occurence.
-   # A_SLOT_ID : Linecard slot Id, 1 for fixed systems
-   # A_CHIP_ID : ASIC id on the system slot, Whistler has two R3, can be 0,1
-   # A_CHIP_TYPE : NPU
-   # A_CORE_ID : ASIC serdes core ID
-   # A_CORE_TYPE : ASIC serdes core type, FE/NIF
-   # A_CORE_LANE : 0,numLanes - numLanes per core is 8 on J3/R3, so this value
-   # goes from 0,7.
-   # A_PHYSICAL_TX_LANE : Physical tx trace corresponding to serdes core lane.
-   # A_PHYSICAL_RX_LANE : Physical rx trace corresponding to serdes core lane.
-   # A_TX_POLARITY_SWAP : bool, is polarity swapped for tx trace.
-   # A_RX_POLARITY_SWAP : bool, is polarity swapped for rx trace.
-   # Z_SLOT_ID : Transceiver system slot Id, 1 for fixed systems.
-   # Z_CHIP_ID : Transceiver front panel slot Id.
-   # Z_CHIP_TYPE : TRANSCEIVER
-   # Z_CORE_ID : Always 0, since we don't have external PHYs or cores within a
-   # single XCVR slot.
-   # Z_CORE_TYPE : OSFP for Viper/Whistler
-   # Z_CORE_LANE : 0-7, lane within the XCVR slot.
-   # Z_PHYSICAL_TX_LANE : Physical tx trace corresponding to XCVR lane.
-   # Z_PHYSICAL_RX_LANE : Physical rx trace corresponding to XCVR lane.
-   # Z_TX_POLARITY_SWAP : bool, is polarity swapped for tx trace.
-   # Z_RX_POLARITY_SWAP : bool, is polarity swapped for rx trace.
+   fields = [ field.name for field in StaticMapping.getFields()]
+   mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
+   mappingWriter.writerow( fields )
    for portId in range( numFabricPorts ):
       frontPanelSlot  = ( portId // 8 ) + 1
       frontPanelLane = portId % 8
@@ -188,9 +171,12 @@ with open( "whistler_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" )
       asicCoreType = "R3_FE"
       laneMapType = "fabric"
       polaritySwapType = "fabric"
-      fh.write(
-            f"1,{chipId+1},NPU,{serdesCore},{asicCoreType},{logicalLane%8},{txPhysicalLane},{rxPhysicalLane},{txPolSwap},{rxPolSwap},1,{frontPanelSlot},TRANSCEIVER,0,OSFP,{frontPanelLane},{frontPanelLane},{frontPanelLane},N,N\n"
-            )
+      mappingWriter.writerow( astuple(
+         StaticMapping(
+            1,chipId+1,"NPU",serdesCore,asicCoreType,logicalLane%8,
+            txPhysicalLane,rxPhysicalLane,txPolSwap,rxPolSwap,1,frontPanelSlot,
+            "TRANSCEIVER",0,"OSFP",frontPanelLane,frontPanelLane,frontPanelLane,"N","N" )
+      ) )
       # BCM soc properties for lane maps and polarity swaps.
       # NOTE : Currently this only generates
       bcmConfigFh.write(
@@ -201,18 +187,10 @@ with open( "whistler_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" )
             f"\"phy_tx_polarity_flip_{polaritySwapType}{logicalLane}.BCM8892X.{chipId}\": \"{txPolSwapProp}\",\n" )
 
 with open( "whistler_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a" ) as bcmConfigFh:
+   fields = [ field.name for field in PortProfileMapping.getFields()]
+   mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
+   mappingWriter.writerow( fields )
    fabricPortBase = 0
-   # Description of fields in the order of their appearance:
-   # Global PortID : Global port ID across all ASICs in the system.
-   # Logical_PortID : Logical port ID used in the bcm soc properties.
-   # Port_Name : Port name used in the platform mapping.
-   # Supported_Port_Profiles : FBOSS Port profile (speed and other L1 attributes)
-   #    supported by the port.
-   # Attached_CoreId : CoreId on ASIC that the port is attached to.
-   # Attached_Core_PortID : Core local portID assigned to this port.
-   # Virtual_Device_ID : Virtual device ID for FE ASICs.
-   # NOTE : For Fabric ports, there is no core binding, the corresponding
-   # Attached_CoreId and Attached_Core_PortID can be left empty.
    fabSupportedProfiles = '-'.join( numLanesFromSupportedProfile.keys() )
    # FBOSS assigns a range of 2k ports to each NPU, we will only use the first 512
    # IDs from this space.
@@ -231,5 +209,7 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config",
       assert logicalLane < fabricPortsPerAsic
       globalPortId = ( fabricPortsPerAsic * chipId ) + logicalPortId
       virtualDeviceId = ( logicalPortId // numFabricSerdesPerVD ) + ( chipId * virtualDevicesPerAsic )
-      fh.write(
-            f"{globalPortId},{logicalPortId},{portStr},{fabSupportedProfiles},,,{virtualDeviceId}\n" )
+      mappingWriter.writerow( astuple(
+         PortProfileMapping(globalPortId, logicalPortId, portStr,
+                            fabSupportedProfiles, None, None, virtualDeviceId )
+      ) )
