@@ -6,9 +6,10 @@ import sys
 sys.path.append( "../../lib" )
 import csv
 from dataclasses import dataclass, astuple
-from enum import Enum
+from CommonPlatformTypes import PortMedium, SpeedGbps
 from VendorMappings import StaticMapping, PortProfileMapping
 from ViperLinkData import setFabricLaneTraceLength
+
 """
 Author : seerpini@arista.com
 Script for generating the Viper vendor mappings.
@@ -45,16 +46,6 @@ numFabricSerdesOctets = 20
 qsfpPortFrontPanelSlot = 39
 # Print debug information
 debug = False
-
-PortMedium = Enum( 'PortMedium', 'Copper Optical' )
-SpeedGbps = Enum( 'SpeedGbps',
-      'TwentyFive Fifty FiftyThree Hundred HundredAndSix FourHundred' )
-
-def validNifSerdesSpeeds():
-   return ( SpeedGbps.Fifty, SpeedGbps.Hundred )
-
-def validFabricSerdesSpeeds():
-   return ( SpeedGbps.FiftyThree, SpeedGbps.HundredAndSix )
 
 # Viper has a non-linear front panel slot to port type mapping.
 # First 10 ports and last 10 ports on the front panel are Fabric ports.
