@@ -187,7 +187,7 @@ with open( "whistler_static_mapping.csv", "w" ) as fh, open( "bcm_config", "w" )
             f"\"phy_tx_polarity_flip_{polaritySwapType}{logicalLane}.BCM8892X.{chipId}\": \"{txPolSwapProp}\",\n" )
 
 with open( "whistler_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a" ) as bcmConfigFh:
-   fields = [ field.name for field in StaticMapping.getFields()]
+   fields = [ field.name for field in PortProfileMapping.getFields()]
    mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
    mappingWriter.writerow( fields )
    fabricPortBase = 0
