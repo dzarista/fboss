@@ -95,6 +95,8 @@ class SISettings( DataClassWithFieldGetter ):
    CORE_TYPE : str
    # 0,numLanes - numLanes per core is 8 on J3, so this value goes from 0,7.
    CORE_LANE : int
+   # Lane speed in Mbps
+   LANE_SPEED_mbps: int
    # Media type
    MEDIA_TYPE : str
    # Optics Vendor
@@ -102,7 +104,7 @@ class SISettings( DataClassWithFieldGetter ):
    # NIC Vendor
    NIC_VENDOR : str
    # Cable length (in meters)
-   CABLE_LENGTH_M : float
+   CABLE_LENGTH_m : float
    # TX Tap Settings
    TX_PRE3 : int
    TX_PRE2 : int
