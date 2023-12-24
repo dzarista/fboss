@@ -4,7 +4,7 @@
 
 class Fap:
    class PortData:
-      traceLengthToNextEpInInces: float
+      traceLengthToNextEpInInches: float
    fabricPorts : list[ PortData ]
    def __init__( self, numFabricPorts ):
       self.fabricPorts = [ self.PortData() for i in range( numFabricPorts ) ]

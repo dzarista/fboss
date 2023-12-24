@@ -130,6 +130,9 @@ supportedProfilesBySpeed = {
       SpeedGbps.HundredAndSix : { 1 : [ '36', '37', '41', '42'] }
 }
 
+asicId = 0
+fabricLogicalLaneTraceLengths = fabricTraceLengthByLogicalLane( asicId, numFabricSerdes )
+
 @dataclass
 class TxTapSettings:
    pre3: int = 0
@@ -139,6 +142,21 @@ class TxTapSettings:
    post1: int = 0
    post2: int = 0
    post3: int = 0
+
+def txTapSettingsByTraceLength( logicalLane : int ) -> TxTapSettings:
+   # Tx TAP Main setting by trace length (inches), this is interpreted as (x, y, mainTap)
+   # tap = mainTap if x <= traceLength < y
+   # NOTE : the assumption is that 0 < traceLength <= 100
+   lengthBucketsToMainTap = ( ( 0, 4, 100 ),
+                              ( 4, 8, 116 ),
+                              ( 8, 11, 136 ),
+                              ( 11, 16, 152 ),
+                              ( 16, 100, 168 ) )
+   logicalLaneLength = fabricLogicalLaneTraceLengths[ logicalLane ].traceLengthToNextEpInInches
+   for ( min, max, tap ) in lengthBucketsToMainTap:
+      if min <= logicalLaneLength < max:
+         return TxTapSettings(0, 0, 0, tap, 0, 0, 0 )
+   assert False, f"No valid tx TAP settings bucket found for traceLength {logicalLaneLength}"
 
 def txTapSettingsByLane( logicalLane: int, serdesSpeed : SpeedGbps, medium : PortMedium ) -> TxTapSettings:
    if speed == SpeedGbps.Hundred:
@@ -160,15 +178,12 @@ def txTapSettingsByLane( logicalLane: int, serdesSpeed : SpeedGbps, medium : Por
          assert False, f"Invalid medium {medium} for speed {speed}"
    elif speed == SpeedGbps.HundredAndSix:
       if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
-         return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
+         # return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
+         return txTapSettingsByTraceLength( logicalLane )
       else:
          assert False, f"Invalid medium {medium} for speed {speed}"
    else:
       assert False, f"Invalid speed {speed}"
-
-asicId = 0
-
-fabricLogicalLaneTraceLengths = fabricTraceLengthByLogicalLane( asicId, numFabricSerdes )
 
 asicSerdesMappings = []
 for asic in range( numAsics ):
