@@ -2,6 +2,10 @@
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
+# Fake Fap and PortData definitions to be able to import trace lengths in
+# setFabricLaneTraceLength(), which was provided by diags. Diags uses this code to
+# populate their internal Fap object, which we don't have replicate/use in full
+# here.
 class Fap:
    class PortData:
       traceLengthToNextEpInInches: float

@@ -420,15 +420,11 @@ with open( "viper_si_settings.csv", "w" ) as fh:
    fields = [ field.name for field in SISettings.getFields()]
    mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
    mappingWriter.writerow( fields )
-   siSettingsPerCore = {}
-   # NIF serdes cores 0, 17 have 8 serdes each.
-   nifSerdesCoreToNumSerdes = dict( ( core, 8 ) for core in range( numNifSerdesOctets ) )
-   # QSFP MGMT port is on serdes core 18, which has 4 serdes.
-   nifSerdesCoreToNumSerdes[ numNifSerdesOctets ] = 4
 
    for speed in validNifSerdesSpeeds():
       for medium in validMediaForSpeed(speed):
          if speed != SpeedGbps.TwentyFive:
+            # NIF serdes cores 0-17 all have 8 serdes per core.
             for nifSerdes in range( numNifSerdesOctets * numSerdesPerOctet ):
                coreId = nifSerdes // numSerdesPerOctet
                coreLane = nifSerdes % numSerdesPerOctet
@@ -443,7 +439,7 @@ with open( "viper_si_settings.csv", "w" ) as fh:
                                       None, None, None )
                ) )
          else:
-            # Since we only have one quartet with serdes core 18
+            # NIF serdes core 18 has 4 serdes (only NIF serdes quartet on the ASIC).
             coreId = numNifSerdesOctets
             firstSerdes = numNifSerdesOctets * numSerdesPerOctet
             for nifSerdes in range( firstSerdes, firstSerdes + 4 ):
