@@ -1,11 +1,16 @@
 #!/bin/env python3
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
+
 import sys
 sys.path.append( "../../lib" )
 import csv
-from dataclasses import astuple
-from VendorMappings import StaticMapping, PortProfileMapping
+from dataclasses import dataclass, astuple
+from CommonPlatformTypes import PortMedium, SpeedGbps, validMediaForSpeed, \
+   validNifSerdesSpeeds, validFabricSerdesSpeeds, speedInMbps
+from VendorMappings import StaticMapping, PortProfileMapping, SISettings
+from ViperLinkData import fabricTraceLengthByLogicalLane
+
 """
 Author : seerpini@arista.com
 Script for generating the Viper vendor mappings.
@@ -18,13 +23,13 @@ Output:
 """
 
 # Variables to control the behavior for this script.
-# Existing mappings at a port level are not replaced if preserveExistingMappings=True
-preserveExistingMappings = True
 # Number of ASICs in the system
 numAsics = 1
 numAsicCores = 4
-# Number of serdes per serdes core. Peregrine 8x100G serdes core on J3.
-numSerdesPerCore = 8
+# Number of serdes per serdes quartet. QSFP Mgmt port is on a 4x25G serdes core.
+numSerdesPerQuartet = 4
+# Number of serdes per serdes octet. Peregrine 8x100G serdes core on J3.
+numSerdesPerOctet = 8
 # Logical port base in the SDK for NIF ports.
 nifPortBase = 2
 # Total number of NIF ports. Since we are operating in either 400G-4 or 800G-8 and we
@@ -32,12 +37,14 @@ nifPortBase = 2
 # front panel NIF ports.
 numNifSerdesOctets = 18
 numNifSerdesQuartets = 1
-numNifSerdes = numNifSerdesOctets * 8 + numNifSerdesQuartets * 4
+numNifSerdes = numNifSerdesOctets * numSerdesPerOctet \
+   + numNifSerdesQuartets * numSerdesPerQuartet
 # Logical port base in the SDK for fabric ports.
 fabricPortBase = 1024
 # Total number of fabric ports assuming that each fabric serdes is enumerated as a
 # separate port.
 numFabricSerdesOctets = 20
+numFabricSerdes = numFabricSerdesOctets * numSerdesPerOctet
 # Slot number for the 4x25G QSFP port.
 qsfpPortFrontPanelSlot = 39
 # Print debug information
@@ -116,15 +123,67 @@ numLanesFromSupportedProfile = {
       "42" : 1,
 }
 
-supportedProfilesByPortType = {
-      'nif' :  {
-         100: { 1 : [ '22', '23' ] },
-         400: { 1 : [ '24', '35', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
-      },
-      'fab' :  {
-         100: { 1 : [ '36', '37', '41', '42'] }
-      }
+supportedProfilesBySpeed = {
+      # SpeedGbps : { subport : [], subport : [] ... }
+      SpeedGbps.Hundred : { 1 : [ '22', '23' ] },
+      SpeedGbps.FourHundred : { 1 : [ '24', '35', '38', '39', '45' ], 5 : [ '24', '38', '45' ] },
+      SpeedGbps.HundredAndSix : { 1 : [ '36', '37', '41', '42'] }
 }
+
+asicId = 0
+fabricLogicalLaneTraceLengths = fabricTraceLengthByLogicalLane( asicId, numFabricSerdes )
+
+@dataclass
+class TxTapSettings:
+   pre3: int = 0
+   pre2: int = 0
+   pre1: int = 0
+   main: int = 0
+   post1: int = 0
+   post2: int = 0
+   post3: int = 0
+
+def txTapSettingsByTraceLength( logicalLane : int ) -> TxTapSettings:
+   # Tx TAP Main setting by trace length (inches), this is interpreted as (x, y, mainTap)
+   # tap = mainTap if x <= traceLength < y
+   # NOTE : the assumption is that 0 < traceLength <= 100
+   lengthBucketsToMainTap = ( ( 0, 4, 100 ),
+                              ( 4, 8, 116 ),
+                              ( 8, 11, 136 ),
+                              ( 11, 16, 152 ),
+                              ( 16, 100, 168 ) )
+   logicalLaneLength = fabricLogicalLaneTraceLengths[ logicalLane ].traceLengthToNextEpInInches
+   for ( min, max, tap ) in lengthBucketsToMainTap:
+      if min <= logicalLaneLength < max:
+         return TxTapSettings(0, 0, 0, tap, 0, 0, 0 )
+   assert False, f"No valid tx TAP settings bucket found for traceLength {logicalLaneLength}"
+
+def txTapSettingsByLane( logicalLane: int, serdesSpeed : SpeedGbps, medium : PortMedium ) -> TxTapSettings:
+   if speed == SpeedGbps.Hundred:
+      if medium == PortMedium.OPTICAL:
+         return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
+      elif medium == PortMedium.COPPER:
+         return TxTapSettings( -4, 14, -36, 112, 0, 0, 0 )
+      else:
+         assert False, f"Invalid medium {medium} for speed {speed}"
+   elif speed == SpeedGbps.Fifty:
+      if medium == PortMedium.COPPER:
+         return TxTapSettings( 0, 4, -24, 130, -12, 0, 0 )
+      else:
+         assert False, f"Invalid medium {medium} for speed {speed}"
+   elif speed == SpeedGbps.TwentyFive:
+      if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
+         return TxTapSettings( None, None, -8, 89, 0, None, None )
+      else:
+         assert False, f"Invalid medium {medium} for speed {speed}"
+   elif speed == SpeedGbps.HundredAndSix:
+      if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
+         # return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
+         return txTapSettingsByTraceLength( logicalLane )
+      else:
+         assert False, f"Invalid medium {medium} for speed {speed}"
+   else:
+      assert False, f"Invalid speed {speed}"
 
 asicSerdesMappings = []
 for asic in range( numAsics ):
@@ -159,8 +218,6 @@ with open( "AsicToXcvrTraceInfoP1.csv" ) as fh:
          asicPortMapping[ lineSideSerdes ][ connectionType ] = ( frontPanelSlot,
                   systemSideLane, polaritySwap )
 
-
-asicId = 0
 
 # Port Attributes by profile
 portAttrsByProfile = {
@@ -291,7 +348,8 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
    # Fabric ports start from logical port Id 1024.
    nifLogicalPortIdBase = 2
    fabLogicalPortIdBase = 1024
-   fabSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'fab' ][ 100 ][ 1 ] )
+   fabSupportedProfiles = '-'.join( supportedProfilesBySpeed[
+      SpeedGbps.HundredAndSix ][ 1 ] )
    attachedCorePortIdsByAsicCore = { core : [] for core in range( numAsicCores ) }
    for frontPanelSlot in frontPanelSlots():
       frontPanelPortType = frontPanelSlotToPortType( frontPanelSlot )
@@ -309,11 +367,11 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
          if frontPanelSlot == qsfpPortFrontPanelSlot:
             #100G-4, QSFP
             bcmConfigPortPrefix="CGE"
-            speedInGbps = 100
+            speedInGbps = SpeedGbps.Hundred
          else:
             #400G-4
             bcmConfigPortPrefix="CDGE4_"
-            speedInGbps = 400
+            speedInGbps = SpeedGbps.FourHundred
             # Breakout only supported on OSFP front panel NIF ports.
             subPorts.append( 5 )
          for subPort in subPorts:
@@ -327,8 +385,8 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
                cdgeCore_4 = serdesCoreId * 2
             elif subPort == 5:
                cdgeCore_4 = serdesCoreId * 2 + 1
-            nifSupportedProfiles = '-'.join( supportedProfilesByPortType[ 'nif' ][
-               speedInGbps ][ subPort ] )
+            nifSupportedProfiles = '-'.join( supportedProfilesBySpeed[ speedInGbps ][
+               subPort ] )
             nifLogicalPortId = nifLogicalPortIdBase + cdgeCore_4
             # Reuse attachedCorePortId since it a core local construct.
             attachedCorePortId = nifLogicalPortId - firstPortIdOffsetByAsicCore(
@@ -357,3 +415,58 @@ with open( "viper_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config", "a
             nifLogicalPortId += 1
       else:
          assert False, "Invalid frontPanelPortType"
+
+with open( "viper_si_settings.csv", "w" ) as fh:
+   fields = [ field.name for field in SISettings.getFields()]
+   mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
+   mappingWriter.writerow( fields )
+
+   for speed in validNifSerdesSpeeds():
+      for medium in validMediaForSpeed(speed):
+         if speed != SpeedGbps.TwentyFive:
+            # NIF serdes cores 0-17 all have 8 serdes per core.
+            for nifSerdes in range( numNifSerdesOctets * numSerdesPerOctet ):
+               coreId = nifSerdes // numSerdesPerOctet
+               coreLane = nifSerdes % numSerdesPerOctet
+               txTapSettings = txTapSettingsByLane( nifSerdes, speed, medium )
+               mappingWriter.writerow( astuple(
+                                      SISettings(1, 1, "NPU", coreId, "J3_NIF",
+                                      coreLane, speedInMbps( speed ), medium.name,
+                                      None, None, None, txTapSettings.pre3,
+                                      txTapSettings.pre2, txTapSettings.pre1,
+                                      txTapSettings.main, txTapSettings.post1,
+                                      txTapSettings.post2, txTapSettings.post3,
+                                      None, None, None )
+               ) )
+         else:
+            # NIF serdes core 18 has 4 serdes (only NIF serdes quartet on the ASIC).
+            coreId = numNifSerdesOctets
+            firstSerdes = numNifSerdesOctets * numSerdesPerOctet
+            for nifSerdes in range( firstSerdes, firstSerdes + 4 ):
+               coreLane = ( nifSerdes  - firstSerdes ) % 4
+               txTapSettings = txTapSettingsByLane(nifSerdes, speed, medium)
+               mappingWriter.writerow( astuple(
+                                      SISettings(1, 1, "NPU", coreId, "J3_NIF",
+                                      coreLane, speedInMbps( speed ), medium.name,
+                                      None, None, None, txTapSettings.pre3,
+                                      txTapSettings.pre2, txTapSettings.pre1,
+                                      txTapSettings.main, txTapSettings.post1,
+                                      txTapSettings.post2, txTapSettings.post3,
+                                      None, None, None )
+               ) )
+
+   for speed in validFabricSerdesSpeeds():
+      for medium in validMediaForSpeed(speed):
+         for fabSerdes in range( numFabricSerdes ):
+            coreId = fabSerdes // numSerdesPerOctet
+            coreLane = fabSerdes % numSerdesPerOctet
+            txTapSettings = txTapSettingsByLane( fabSerdes, speed, medium )
+            mappingWriter.writerow( astuple(
+                                   SISettings(1, 1, "NPU", coreId, "J3_FE",
+                                   coreLane, speedInMbps( speed ), medium.name,
+                                   None, None, None, txTapSettings.pre3,
+                                   txTapSettings.pre2, txTapSettings.pre1,
+                                   txTapSettings.main, txTapSettings.post1,
+                                   txTapSettings.post2, txTapSettings.post3,
+                                   None, None, None )
+            ) )
