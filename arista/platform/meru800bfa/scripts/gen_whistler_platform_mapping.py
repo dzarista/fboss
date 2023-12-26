@@ -7,6 +7,7 @@ sys.path.append( "../../lib" )
 import csv
 from dataclasses import astuple
 from VendorMappings import StaticMapping, PortProfileMapping
+from WhistlerP1LanesMappingData import feToLaneMapSocProps
 
 """
 Author : seerpini@arista.com
@@ -69,29 +70,26 @@ for asic in range( numAsics ):
 
 # On whistler each serdes is a port, we cannot derive the lane maps just by parsing
 # the system side serdes to line side lane mapping information.
-# For now we will just use the pre-generated lane mapping CSV to map logical lanes to
-# rx, tx physical lanes. We can then look up the system serdes id (which would be the
-# rx, tx physical lane) to map it to a front panel slot and lane.
-# The result of all this is that unlike Viper, on Whistler, the front panel lane will
-# not always match the ASIC logical lane.
-with open( "SocPropertiesP1.csv" ) as fh:
-   for line in fh:
-      if line.startswith( "chipId" ):
-         continue
-      chipId, propKey, propVal = line.rstrip().split( "," )
-      if not propKey.startswith( "lane_to" ):
-         continue
-      chipId = int( chipId )
+# For now we will just use the pre-generated lane map soc properties to map logical
+# lanes to rx, tx physical lanes.
+# We can then look up the system serdes id (which would be the rx, tx physical lane)
+# to map it to a front panel slot and lane.
+# The result of all this is that unlike NIF ports on Viper, on Whistler, the front
+# panel lane will not always match the ASIC logical lane.
+assert len( feToLaneMapSocProps ) == numAsics
+for chipId in range( numAsics ):
+   assert len( feToLaneMapSocProps[ chipId ] ) == numFabricSerdesPerAsic
+   for propKey, propVal in feToLaneMapSocProps[ chipId ].items():
       logicalLane = int( propKey.removeprefix( "lane_to_serdes_map_fabric_lane" ) )
       rxPhysicalSerdes = 0
       txPhysicalSerdes = 0
-      for physicalSerdes in propVal.rstrip().split( ":" ):
+      for physicalSerdes in propVal.split( ":" ):
          if physicalSerdes.startswith( "rx" ):
             rxPhysicalSerdes = int( physicalSerdes.removeprefix( "rx" ) )
          elif physicalSerdes.startswith( "tx" ):
             txPhysicalSerdes = int( physicalSerdes.removeprefix( "tx" ) )
          else:
-            assert False
+            assert False, "physical serdes should be either rx or tx."
       # We should only see one line per logical lane per chip
       assert logicalLane not in asicLogicalLaneToSerdesMap[ chipId ]
       asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ] = {}
