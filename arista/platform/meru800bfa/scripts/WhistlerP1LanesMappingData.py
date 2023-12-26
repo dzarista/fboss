@@ -1,10 +1,6 @@
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-from __future__ import absolute_import, division, print_function
-
-from DosLib import alias
-
 # this data is generated using Dos/utils/parseWhistlerNets.py
 # python -i ./parseWhistlerNets.py --file whistler_p1_pinPairReport.csv
 # generateSocProps()
@@ -1040,8 +1036,7 @@ feToLaneMapSocProps = [
 ]
 
 def wire( lane, peerLane ):
-   lane.peer = alias( peerLane )
-   peerLane.peer = alias( lane )
+   pass
 
 def wireAndApplyPolTraceLen( fes, xcvrSlots ): # apply is built-in function :(
    fes[0].cores[0].lanes[0].doRxPolaritySwapped = True
