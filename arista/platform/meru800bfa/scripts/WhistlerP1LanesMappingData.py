@@ -5,6 +5,30 @@
 # diags.dev-base-trunk-dmz/src/DosSand/DosBoard/WhistlerP1LanesMappingData.py and
 # modified to only retain the logical lane maps and the trace length information.
 
+
+# Fake Fe and CoreData definitions to be able to import trace lengths in
+# wireAndApplyPolTraceLen() below which is imported from diags code.
+# Diags uses this code to populate their internal Fe objects, which we don't have to
+# replicate/use in full here.
+class Fe:
+   class CoreData:
+      class LaneData:
+         traceLengthToNextEpInInches: float
+         doRxPolaritySwapped : bool
+         doTxPolaritySwapped : bool
+      def __init__( self, numLanes ):
+         self.lanes = [ LaneData() for i in range( numLanes )  ]
+   def __init__( self, numCores, numLanesPerCore ):
+         self.cores = [ CoreData( numLanesPerCore ) for i in range( numCores ) ]
+
+def fabricTraceLengthByLogicalLane( numCoresPerAsic: int,
+                                    numLanesPerCore : int ) -> list[ Fe ]:
+   assert numCoresPerAsic < 64
+   assert numLanesPerCore < 8
+   fes = [ Fe( numCoresPerAsic, numLanesPerCore ) for i in range( 2 ) ]
+   wireAndApplyPolTraceLen(fes)
+   return fes
+
 # this data is generated using Dos/utils/parseWhistlerNets.py
 # python -i ./parseWhistlerNets.py --file whistler_p1_pinPairReport.csv
 # generateSocProps()
