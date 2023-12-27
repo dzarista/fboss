@@ -54,7 +54,9 @@ class TxTapSettingsHelper:
    def __init__( self, fabricLogicalLaneTraceLengths: dict ):
       self.fabricLogicalLaneTraceLengths_ = fabricLogicalLaneTraceLengths
 
-   def txTapSettingsByTraceLength( self, logicalLane : int ) -> TxTapSettings:
+   def txTapSettingsByTraceLength( self, chipId: int, logicalLane : int ) -> TxTapSettings:
+      assert chipId < len( self.fabricLogicalLaneTraceLengths_ )
+      assert logicalLane < len( self.fabricLogicalLaneTraceLengths_[ chipId ] )
       # Tx TAP Main setting by trace length (inches), this is interpreted as (x, y, mainTap)
       # tap = mainTap if x <= traceLength < y
       # NOTE : the assumption is that 0 < traceLength <= 100
@@ -63,13 +65,13 @@ class TxTapSettingsHelper:
                                  ( 8, 11, 136 ),
                                  ( 11, 16, 152 ),
                                  ( 16, 100, 168 ) )
-      logicalLaneLength = self.fabricLogicalLaneTraceLengths_[ logicalLane ]
+      logicalLaneLength = self.fabricLogicalLaneTraceLengths_[ chipId][ logicalLane ]
       for ( min, max, tap ) in lengthBucketsToMainTap:
          if min <= logicalLaneLength.traceLengthToNextEpInInches < max:
             return TxTapSettings(0, 0, 0, tap, 0, 0, 0 )
       assert False, f"No valid tx TAP settings bucket found for traceLength {logicalLaneLength}"
 
-   def txTapSettingsByLane( self, logicalLane: int, serdesSpeed : SpeedGbps,
+   def txTapSettingsByLane( self, chipId: int, logicalLane: int, serdesSpeed : SpeedGbps,
                             medium : PortMedium ) -> TxTapSettings:
       if serdesSpeed == SpeedGbps.Hundred:
          if medium == PortMedium.OPTICAL:
@@ -91,7 +93,7 @@ class TxTapSettingsHelper:
       elif serdesSpeed == SpeedGbps.HundredAndSix:
          if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
             # return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
-            return self.txTapSettingsByTraceLength( logicalLane )
+            return self.txTapSettingsByTraceLength( chipId, logicalLane )
          else:
             assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
       else:

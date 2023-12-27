@@ -131,7 +131,9 @@ supportedProfilesBySpeed = {
 }
 
 asicId = 0
-fabricLogicalLaneTraceLengths = fabricTraceLengthByLogicalLane( asicId, numFabricSerdes )
+fabricLogicalLaneTraceLengths = { asicId : fabricTraceLengthByLogicalLane( asicId,
+                                                                          numFabricSerdes
+                                                                          ) }
 
 asicSerdesMappings = []
 for asic in range( numAsics ):
@@ -369,18 +371,20 @@ with open( "viper_si_settings.csv", "w" ) as fh:
    mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
    mappingWriter.writerow( fields )
    txTapSettingsHelper = TxTapSettingsHelper( fabricLogicalLaneTraceLengths )
+   # chipId in the SI settings is 1-indexed.
+   chipId = asicId + 1
 
    for speed in validNifSerdesSpeeds():
       for medium in validMediaForSpeed(speed):
          if speed != SpeedGbps.TwentyFive:
             # NIF serdes cores 0-17 all have 8 serdes per core.
-            for nifSerdes in range( numNifSerdesOctets * numSerdesPerOctet ):
-               coreId = nifSerdes // numSerdesPerOctet
-               coreLane = nifSerdes % numSerdesPerOctet
-               txTapSettings = txTapSettingsHelper.txTapSettingsByLane( nifSerdes,
-                                                                        speed, medium )
+            for logicalNifSerdes in range( numNifSerdesOctets * numSerdesPerOctet ):
+               coreId = logicalNifSerdes // numSerdesPerOctet
+               coreLane = logicalNifSerdes % numSerdesPerOctet
+               txTapSettings = txTapSettingsHelper.txTapSettingsByLane(
+                                 asicId, logicalNifSerdes, speed, medium )
                mappingWriter.writerow( astuple(
-                                      SISettings(1, 1, "NPU", coreId, "J3_NIF",
+                                      SISettings(1, chipId, "NPU", coreId, "J3_NIF",
                                       coreLane, speedInMbps( speed ), medium.name,
                                       None, None, None, txTapSettings.pre3,
                                       txTapSettings.pre2, txTapSettings.pre1,
@@ -392,12 +396,12 @@ with open( "viper_si_settings.csv", "w" ) as fh:
             # NIF serdes core 18 has 4 serdes (only NIF serdes quartet on the ASIC).
             coreId = numNifSerdesOctets
             firstSerdes = numNifSerdesOctets * numSerdesPerOctet
-            for nifSerdes in range( firstSerdes, firstSerdes + 4 ):
-               coreLane = ( nifSerdes  - firstSerdes ) % 4
-               txTapSettings = txTapSettingsHelper.txTapSettingsByLane( nifSerdes,
-                                                                        speed, medium )
+            for logicalNifSerdes in range( firstSerdes, firstSerdes + 4 ):
+               coreLane = ( logicalNifSerdes  - firstSerdes ) % 4
+               txTapSettings = txTapSettingsHelper.txTapSettingsByLane(
+                                 asicId, logicalNifSerdes, speed, medium )
                mappingWriter.writerow( astuple(
-                                      SISettings(1, 1, "NPU", coreId, "J3_NIF",
+                                      SISettings(1, chipId, "NPU", coreId, "J3_NIF",
                                       coreLane, speedInMbps( speed ), medium.name,
                                       None, None, None, txTapSettings.pre3,
                                       txTapSettings.pre2, txTapSettings.pre1,
@@ -408,13 +412,13 @@ with open( "viper_si_settings.csv", "w" ) as fh:
 
    for speed in validFabricSerdesSpeeds():
       for medium in validMediaForSpeed(speed):
-         for fabSerdes in range( numFabricSerdes ):
-            coreId = fabSerdes // numSerdesPerOctet
-            coreLane = fabSerdes % numSerdesPerOctet
-            txTapSettings = txTapSettingsHelper.txTapSettingsByLane( fabSerdes,
-                                                                     speed, medium )
+         for logicalFabSerdes in range( numFabricSerdes ):
+            coreId = logicalFabSerdes // numSerdesPerOctet
+            coreLane = logicalFabSerdes % numSerdesPerOctet
+            txTapSettings = txTapSettingsHelper.txTapSettingsByLane(
+                              asicId, logicalFabSerdes, speed, medium )
             mappingWriter.writerow( astuple(
-                                   SISettings(1, 1, "NPU", coreId, "J3_FE",
+                                   SISettings(1, chipId, "NPU", coreId, "J3_FE",
                                    coreLane, speedInMbps( speed ), medium.name,
                                    None, None, None, txTapSettings.pre3,
                                    txTapSettings.pre2, txTapSettings.pre1,
