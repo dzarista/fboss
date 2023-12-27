@@ -16,15 +16,37 @@ class Fe:
          traceLengthToNextEpInInches: float
          doRxPolaritySwapped : bool
          doTxPolaritySwapped : bool
+      lanes : list[ LaneData ]
       def __init__( self, numLanes ):
-         self.lanes = [ LaneData() for i in range( numLanes )  ]
+         self.lanes = [ self.LaneData() for i in range( numLanes )  ]
+   cores : list[ CoreData ]
    def __init__( self, numCores, numLanesPerCore ):
-         self.cores = [ CoreData( numLanesPerCore ) for i in range( numCores ) ]
+         self.cores = [ self.CoreData( numLanesPerCore ) for i in range( numCores ) ]
+
+# Due to the 2x2 mux on Ramon3, we have a weird mapping between the logical lanes on
+# the ASIC and the per core lanes used in the information below. Each serdes core is
+# mapped to both the VDs and the per core logical lane is swapped when VD0 is
+# connected to the second quartet in a core and VD1 is connected to the first
+# quartet in a core.
+# It translates to the following scheme assuming 256 logical lanes per Virtual
+# Device (VD) and 8 lanes per serdes core.
+def logicalLaneToPhysicalCoreLogicalLane( asicLogicalLane: int,
+                                          physicalSerdes: int ) -> int:
+   assert physicalSerdes < 512 # 2 VDs per ASIC with 256 lanes each
+   perCoreLogicalLane = physicalSerdes % 8
+   vd = 0 if asicLogicalLane < 256 else 1
+   if vd == 0:
+      if perCoreLogicalLane >= 4:
+         perCoreLogicalLane -= 4
+   else:
+      if perCoreLogicalLane < 4:
+         perCoreLogicalLane += 4
+   return perCoreLogicalLane
 
 def fabricTraceLengthByLogicalLane( numCoresPerAsic: int,
                                     numLanesPerCore : int ) -> list[ Fe ]:
-   assert numCoresPerAsic < 64
-   assert numLanesPerCore < 8
+   assert numCoresPerAsic == 64
+   assert numLanesPerCore == 8
    fes = [ Fe( numCoresPerAsic, numLanesPerCore ) for i in range( 2 ) ]
    wireAndApplyPolTraceLen(fes)
    return fes
