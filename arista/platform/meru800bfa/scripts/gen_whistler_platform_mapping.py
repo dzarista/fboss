@@ -129,6 +129,22 @@ with open( "Trace_whistler_1.0_Ramon3ToOSFP-800G.csv" ) as fh:
       frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ] = chipId
       frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ direction ] = physicalSerdesId
 
+# Print some debug information that helps us make sure that the trace length
+# information has been extracted correctly.
+if debug:
+   for portId in range( numFabricPorts ):
+      xcvrSlot = portId // 8 + 1
+      xcvrLane = portId % 8
+      frontPanelPortStrKey = f"{xcvrSlot}/{xcvrLane+1}"
+      chipId = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ]
+      rxPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "rx" ]
+      physicalSerdesCore = rxPhysicalLane // 8
+      logicalLane = asicSerdesToLogicalLaneMap[ chipId ][ "rx" ][ rxPhysicalLane ]
+      serdesCoreLogicalLane = logicalLaneToPhysicalCoreLogicalLane( logicalLane,
+                                                                    rxPhysicalLane )
+      print( f"wire( xcvrSlots[{xcvrSlot}].sysLanes[{xcvrLane}],"
+          f" fes[{chipId}].cores[{physicalSerdesCore}].lanes[{serdesCoreLogicalLane}] )" )
+
 # Port Attributes by profile
 portAttrsByProfile = {
       #profileId : ( speed, numLanes, modulation, fed, medium, interfaceMode )
