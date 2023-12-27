@@ -5,9 +5,9 @@
 import sys
 sys.path.append( "../../lib" )
 import csv
-from dataclasses import dataclass, astuple
+from dataclasses import astuple
 from CommonPlatformTypes import PortMedium, SpeedGbps, validMediaForSpeed, \
-   validNifSerdesSpeeds, validFabricSerdesSpeeds, speedInMbps
+   validNifSerdesSpeeds, validFabricSerdesSpeeds, speedInMbps, TxTapSettingsHelper
 from VendorMappings import StaticMapping, PortProfileMapping, SISettings
 from ViperLinkData import fabricTraceLengthByLogicalLane
 
@@ -132,58 +132,6 @@ supportedProfilesBySpeed = {
 
 asicId = 0
 fabricLogicalLaneTraceLengths = fabricTraceLengthByLogicalLane( asicId, numFabricSerdes )
-
-@dataclass
-class TxTapSettings:
-   pre3: int = 0
-   pre2: int = 0
-   pre1: int = 0
-   main: int = 0
-   post1: int = 0
-   post2: int = 0
-   post3: int = 0
-
-def txTapSettingsByTraceLength( logicalLane : int ) -> TxTapSettings:
-   # Tx TAP Main setting by trace length (inches), this is interpreted as (x, y, mainTap)
-   # tap = mainTap if x <= traceLength < y
-   # NOTE : the assumption is that 0 < traceLength <= 100
-   lengthBucketsToMainTap = ( ( 0, 4, 100 ),
-                              ( 4, 8, 116 ),
-                              ( 8, 11, 136 ),
-                              ( 11, 16, 152 ),
-                              ( 16, 100, 168 ) )
-   logicalLaneLength = fabricLogicalLaneTraceLengths[ logicalLane ].traceLengthToNextEpInInches
-   for ( min, max, tap ) in lengthBucketsToMainTap:
-      if min <= logicalLaneLength < max:
-         return TxTapSettings(0, 0, 0, tap, 0, 0, 0 )
-   assert False, f"No valid tx TAP settings bucket found for traceLength {logicalLaneLength}"
-
-def txTapSettingsByLane( logicalLane: int, serdesSpeed : SpeedGbps, medium : PortMedium ) -> TxTapSettings:
-   if speed == SpeedGbps.Hundred:
-      if medium == PortMedium.OPTICAL:
-         return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
-      elif medium == PortMedium.COPPER:
-         return TxTapSettings( -4, 14, -36, 112, 0, 0, 0 )
-      else:
-         assert False, f"Invalid medium {medium} for speed {speed}"
-   elif speed == SpeedGbps.Fifty:
-      if medium == PortMedium.COPPER:
-         return TxTapSettings( 0, 4, -24, 130, -12, 0, 0 )
-      else:
-         assert False, f"Invalid medium {medium} for speed {speed}"
-   elif speed == SpeedGbps.TwentyFive:
-      if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
-         return TxTapSettings( None, None, -8, 89, 0, None, None )
-      else:
-         assert False, f"Invalid medium {medium} for speed {speed}"
-   elif speed == SpeedGbps.HundredAndSix:
-      if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
-         # return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
-         return txTapSettingsByTraceLength( logicalLane )
-      else:
-         assert False, f"Invalid medium {medium} for speed {speed}"
-   else:
-      assert False, f"Invalid speed {speed}"
 
 asicSerdesMappings = []
 for asic in range( numAsics ):
@@ -420,6 +368,7 @@ with open( "viper_si_settings.csv", "w" ) as fh:
    fields = [ field.name for field in SISettings.getFields()]
    mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
    mappingWriter.writerow( fields )
+   txTapSettingsHelper = TxTapSettingsHelper( fabricLogicalLaneTraceLengths )
 
    for speed in validNifSerdesSpeeds():
       for medium in validMediaForSpeed(speed):
@@ -428,7 +377,8 @@ with open( "viper_si_settings.csv", "w" ) as fh:
             for nifSerdes in range( numNifSerdesOctets * numSerdesPerOctet ):
                coreId = nifSerdes // numSerdesPerOctet
                coreLane = nifSerdes % numSerdesPerOctet
-               txTapSettings = txTapSettingsByLane( nifSerdes, speed, medium )
+               txTapSettings = txTapSettingsHelper.txTapSettingsByLane( nifSerdes,
+                                                                        speed, medium )
                mappingWriter.writerow( astuple(
                                       SISettings(1, 1, "NPU", coreId, "J3_NIF",
                                       coreLane, speedInMbps( speed ), medium.name,
@@ -444,7 +394,8 @@ with open( "viper_si_settings.csv", "w" ) as fh:
             firstSerdes = numNifSerdesOctets * numSerdesPerOctet
             for nifSerdes in range( firstSerdes, firstSerdes + 4 ):
                coreLane = ( nifSerdes  - firstSerdes ) % 4
-               txTapSettings = txTapSettingsByLane(nifSerdes, speed, medium)
+               txTapSettings = txTapSettingsHelper.txTapSettingsByLane( nifSerdes,
+                                                                        speed, medium )
                mappingWriter.writerow( astuple(
                                       SISettings(1, 1, "NPU", coreId, "J3_NIF",
                                       coreLane, speedInMbps( speed ), medium.name,
@@ -460,7 +411,8 @@ with open( "viper_si_settings.csv", "w" ) as fh:
          for fabSerdes in range( numFabricSerdes ):
             coreId = fabSerdes // numSerdesPerOctet
             coreLane = fabSerdes % numSerdesPerOctet
-            txTapSettings = txTapSettingsByLane( fabSerdes, speed, medium )
+            txTapSettings = txTapSettingsHelper.txTapSettingsByLane( fabSerdes,
+                                                                     speed, medium )
             mappingWriter.writerow( astuple(
                                    SISettings(1, 1, "NPU", coreId, "J3_FE",
                                    coreLane, speedInMbps( speed ), medium.name,
