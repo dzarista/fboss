@@ -85,7 +85,8 @@ def txTapSettingsByLaneProps( serdesSpeed : SpeedGbps, medium : PortMedium,
          assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
    elif serdesSpeed == SpeedGbps.HundredAndSix:
       if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
-         assert traceLength is not None, f"valid traceLength required for {medium}@{speed}"
+         assert traceLength is not None, f"valid traceLength required for"\
+         f" {medium}@{serdesSpeed}"
          return __txTapSettingsByTraceLength( traceLength )
       else:
          assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
