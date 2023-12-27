@@ -50,51 +50,44 @@ class TxTapSettings:
    post2: int = 0
    post3: int = 0
 
-class TxTapSettingsHelper:
-   def __init__( self, fabricLogicalLaneTraceLengths: dict ):
-      self.fabricLogicalLaneTraceLengths_ = fabricLogicalLaneTraceLengths
+def __txTapSettingsByTraceLength( traceLength: float ) -> TxTapSettings:
+   # Tx TAP Main setting by trace length (inches), this is interpreted as (x, y, mainTap)
+   # tap = mainTap if x <= traceLength < y
+   # NOTE : the assumption is that 0 < traceLength <= 100
+   lengthBucketsToMainTap = ( ( 0, 4, 100 ),
+                              ( 4, 8, 116 ),
+                              ( 8, 11, 136 ),
+                              ( 11, 16, 152 ),
+                              ( 16, 100, 168 ) )
+   for ( min, max, tap ) in lengthBucketsToMainTap:
+      if min <= traceLength < max:
+         return TxTapSettings(0, 0, 0, tap, 0, 0, 0 )
+   assert False, f"No valid tx TAP settings bucket found for traceLength {traceLength}"
 
-   def txTapSettingsByTraceLength( self, chipId: int, logicalLane : int ) -> TxTapSettings:
-      assert chipId < len( self.fabricLogicalLaneTraceLengths_ )
-      assert logicalLane < len( self.fabricLogicalLaneTraceLengths_[ chipId ] )
-      # Tx TAP Main setting by trace length (inches), this is interpreted as (x, y, mainTap)
-      # tap = mainTap if x <= traceLength < y
-      # NOTE : the assumption is that 0 < traceLength <= 100
-      lengthBucketsToMainTap = ( ( 0, 4, 100 ),
-                                 ( 4, 8, 116 ),
-                                 ( 8, 11, 136 ),
-                                 ( 11, 16, 152 ),
-                                 ( 16, 100, 168 ) )
-      logicalLaneLength = self.fabricLogicalLaneTraceLengths_[ chipId][ logicalLane ]
-      for ( min, max, tap ) in lengthBucketsToMainTap:
-         if min <= logicalLaneLength.traceLengthToNextEpInInches < max:
-            return TxTapSettings(0, 0, 0, tap, 0, 0, 0 )
-      assert False, f"No valid tx TAP settings bucket found for traceLength {logicalLaneLength}"
-
-   def txTapSettingsByLane( self, chipId: int, logicalLane: int, serdesSpeed : SpeedGbps,
-                            medium : PortMedium ) -> TxTapSettings:
-      if serdesSpeed == SpeedGbps.Hundred:
-         if medium == PortMedium.OPTICAL:
-            return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
-         elif medium == PortMedium.COPPER:
-            return TxTapSettings( -4, 14, -36, 112, 0, 0, 0 )
-         else:
-            assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
-      elif serdesSpeed == SpeedGbps.Fifty:
-         if medium == PortMedium.COPPER:
-            return TxTapSettings( 0, 4, -24, 130, -12, 0, 0 )
-         else:
-            assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
-      elif serdesSpeed == SpeedGbps.TwentyFive:
-         if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
-            return TxTapSettings( None, None, -8, 89, 0, None, None )
-         else:
-            assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
-      elif serdesSpeed == SpeedGbps.HundredAndSix:
-         if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
-            # return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
-            return self.txTapSettingsByTraceLength( chipId, logicalLane )
-         else:
-            assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
+def txTapSettingsByLaneProps( serdesSpeed : SpeedGbps, medium : PortMedium,
+                                traceLength : float = None ) -> TxTapSettings:
+   if serdesSpeed == SpeedGbps.Hundred:
+      if medium == PortMedium.OPTICAL:
+         return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
+      elif medium == PortMedium.COPPER:
+         return TxTapSettings( -4, 14, -36, 112, 0, 0, 0 )
       else:
-         assert False, f"Invalid speed {serdesSpeed}"
+         assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
+   elif serdesSpeed == SpeedGbps.Fifty:
+      if medium == PortMedium.COPPER:
+         return TxTapSettings( 0, 4, -24, 130, -12, 0, 0 )
+      else:
+         assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
+   elif serdesSpeed == SpeedGbps.TwentyFive:
+      if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
+         return TxTapSettings( None, None, -8, 89, 0, None, None )
+      else:
+         assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
+   elif serdesSpeed == SpeedGbps.HundredAndSix:
+      if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
+         assert traceLength is not None, f"valid traceLength required for {medium}@{speed}"
+         return __txTapSettingsByTraceLength( traceLength )
+      else:
+         assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
+   else:
+      assert False, f"Invalid speed {serdesSpeed}"
