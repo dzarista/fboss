@@ -6,8 +6,11 @@ import sys
 sys.path.append( "../../lib" )
 import csv
 from dataclasses import astuple
-from VendorMappings import StaticMapping, PortProfileMapping
-from WhistlerP1LanesMappingData import feToLaneMapSocProps
+from CommonPlatformTypes import validMediaForSpeed, validFabricSerdesSpeeds, \
+   txTapSettingsByLaneProps, PortMedium, SpeedGbps, speedInMbps
+from VendorMappings import StaticMapping, PortProfileMapping, SISettings
+from WhistlerP1LanesMappingData import feToLaneMapSocProps, \
+   fabricTraceLengthByLogicalLane, logicalLaneToPhysicalCoreLogicalLane
 
 """
 Author : seerpini@arista.com
@@ -59,14 +62,18 @@ asicSerdesToFrontPanelMap = []
 # Map front panel port to ASIC physical rx and tx serdes.
 # X/Y => {chipId, rxPhysicalLane, txPhysicalLane}
 frontPanelToAsicSerdesMap = {}
-# Map ASIC logical lanes to physical rx and tx serdes/lanes.
-asicLogicalLaneToSerdesMap = []
+# Map ASIC logical lanes to physical core, per core rx logical lane, and average
+# (tx+rx/2) trace length.
+asicLogicalLaneTraceLength = []
 # Map ASIC physical rx and tx serdes/lanes to logical lanes.
 asicSerdesToLogicalLaneMap = []
 for asic in range( numAsics ):
    asicSerdesToFrontPanelMap.append( { "rx" : {}, "tx" : {} } )
    asicSerdesToLogicalLaneMap.append( { "rx" : {}, "tx" : {} } )
-   asicLogicalLaneToSerdesMap.append( {} )
+   asicLogicalLaneTraceLength.append( {} )
+# Returns fabric trace lengths by chipId, physical coreId and physical logical lane
+asicFabricLaneTraceLengths = fabricTraceLengthByLogicalLane( numFabricSerdesCoresPerAsic,
+                                                             numSerdesPerCore )
 
 # On whistler each serdes is a port, we cannot derive the lane maps just by parsing
 # the system side serdes to line side lane mapping information.
@@ -90,13 +97,18 @@ for chipId in range( numAsics ):
             txPhysicalSerdes = int( physicalSerdes.removeprefix( "tx" ) )
          else:
             assert False, "physical serdes should be either rx or tx."
-      # We should only see one line per logical lane per chip
-      assert logicalLane not in asicLogicalLaneToSerdesMap[ chipId ]
-      asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ] = {}
-      asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ][ "rx" ]  = rxPhysicalSerdes
-      asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ][ "tx" ]  = txPhysicalSerdes
       asicSerdesToLogicalLaneMap[ chipId ][ "rx" ][ rxPhysicalSerdes ] = logicalLane
       asicSerdesToLogicalLaneMap[ chipId ][ "tx" ][ txPhysicalSerdes ] = logicalLane
+      # Populate the trace length correctly by logical lane.
+      # We should only see one line per logical lane per chip
+      assert logicalLane not in asicLogicalLaneTraceLength[ chipId ]
+      physicalSerdesCore = rxPhysicalSerdes // numSerdesPerCore
+      serdesCoreLogicalLane = logicalLaneToPhysicalCoreLogicalLane( logicalLane,
+                                                             rxPhysicalSerdes )
+      laneInfo = asicFabricLaneTraceLengths[ chipId ].cores[ physicalSerdesCore
+         ].lanes[ serdesCoreLogicalLane ]
+      asicLogicalLaneTraceLength[ chipId ][ logicalLane ] = \
+         laneInfo.traceLengthToNextEpInInches
 
 # Map system side physical serdes to front panel OSFP slot and lane.
 with open( "Trace_whistler_1.0_Ramon3ToOSFP-800G.csv" ) as fh:
@@ -211,3 +223,30 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config",
          PortProfileMapping(globalPortId, logicalPortId, portStr,
                             fabSupportedProfiles, None, None, virtualDeviceId )
       ) )
+
+with open( "whistler_si_settings.csv", "w" ) as fh:
+   fields = [ field.name for field in SISettings.getFields()]
+   mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
+   mappingWriter.writerow( fields )
+
+   # We only care about 100G fabric serdes with Optical media on Whistler
+   speed = SpeedGbps.HundredAndSix
+   medium = PortMedium.OPTICAL
+   for asicId in range( numAsics ):
+      # chip ID in SI settings is 1-indexed.
+      chipId = asicId + 1
+      for logicalFabSerdes in range( numFabricSerdesPerAsic ):
+         coreId = logicalFabSerdes // numSerdesPerCore
+         coreLane = logicalFabSerdes % numSerdesPerCore
+         txTapSettings = txTapSettingsByLaneProps( speed, medium,
+                                                  asicLogicalLaneTraceLength[ asicId ][
+                                                  logicalFabSerdes ] )
+         mappingWriter.writerow( astuple(
+                                SISettings(1, chipId, "NPU", coreId, "R3_FE",
+                                coreLane, speedInMbps( speed ), medium.name,
+                                None, None, None, txTapSettings.pre3,
+                                txTapSettings.pre2, txTapSettings.pre1,
+                                txTapSettings.main, txTapSettings.post1,
+                                txTapSettings.post2, txTapSettings.post3,
+                                None, None, None )
+         ) )
