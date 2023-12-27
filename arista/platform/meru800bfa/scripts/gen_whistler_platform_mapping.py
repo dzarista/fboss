@@ -131,6 +131,10 @@ with open( "Trace_whistler_1.0_Ramon3ToOSFP-800G.csv" ) as fh:
 
 # Print some debug information that helps us make sure that the trace length
 # information has been extracted correctly.
+# This output can be compared with the wire(...) calls in
+# //src/DosSand/diags.dev-base-trunk-dmz/DosBoard/WhistlerP1LanesMappingData.py
+# to make sure we have extracted the Diags' generated trace length information
+# correctly.
 if debug:
    for portId in range( numFabricPorts ):
       xcvrSlot = portId // 8 + 1
