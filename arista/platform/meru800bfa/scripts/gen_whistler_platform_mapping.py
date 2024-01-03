@@ -6,7 +6,11 @@ import sys
 sys.path.append( "../../lib" )
 import csv
 from dataclasses import astuple
-from VendorMappings import StaticMapping, PortProfileMapping
+from CommonPlatformTypes import validMediaForSpeed, validFabricSerdesSpeeds, \
+   txTapSettingsByLaneProps, PortMedium, SpeedGbps, speedInMbps
+from VendorMappings import StaticMapping, PortProfileMapping, SISettings
+from WhistlerP1LanesMappingData import feToLaneMapSocProps, \
+   fabricTraceLengthByLogicalLane, logicalLaneToPhysicalCoreLogicalLane
 
 """
 Author : seerpini@arista.com
@@ -58,47 +62,53 @@ asicSerdesToFrontPanelMap = []
 # Map front panel port to ASIC physical rx and tx serdes.
 # X/Y => {chipId, rxPhysicalLane, txPhysicalLane}
 frontPanelToAsicSerdesMap = {}
-# Map ASIC logical lanes to physical rx and tx serdes/lanes.
-asicLogicalLaneToSerdesMap = []
+# Map ASIC logical lanes to physical core, per core rx logical lane, and average
+# (tx+rx/2) trace length.
+asicLogicalLaneTraceLength = []
 # Map ASIC physical rx and tx serdes/lanes to logical lanes.
 asicSerdesToLogicalLaneMap = []
 for asic in range( numAsics ):
    asicSerdesToFrontPanelMap.append( { "rx" : {}, "tx" : {} } )
    asicSerdesToLogicalLaneMap.append( { "rx" : {}, "tx" : {} } )
-   asicLogicalLaneToSerdesMap.append( {} )
+   asicLogicalLaneTraceLength.append( {} )
+# Returns fabric trace lengths by chipId, physical coreId and physical logical lane
+asicFabricLaneTraceLengths = fabricTraceLengthByLogicalLane( numFabricSerdesCoresPerAsic,
+                                                             numSerdesPerCore )
 
 # On whistler each serdes is a port, we cannot derive the lane maps just by parsing
 # the system side serdes to line side lane mapping information.
-# For now we will just use the pre-generated lane mapping CSV to map logical lanes to
-# rx, tx physical lanes. We can then look up the system serdes id (which would be the
-# rx, tx physical lane) to map it to a front panel slot and lane.
-# The result of all this is that unlike Viper, on Whistler, the front panel lane will
-# not always match the ASIC logical lane.
-with open( "SocPropertiesP1.csv" ) as fh:
-   for line in fh:
-      if line.startswith( "chipId" ):
-         continue
-      chipId, propKey, propVal = line.rstrip().split( "," )
-      if not propKey.startswith( "lane_to" ):
-         continue
-      chipId = int( chipId )
+# For now we will just use the pre-generated lane map soc properties to map logical
+# lanes to rx, tx physical lanes.
+# We can then look up the system serdes id (which would be the rx, tx physical lane)
+# to map it to a front panel slot and lane.
+# The result of all this is that unlike NIF ports on Viper, on Whistler, the front
+# panel lane will not always match the ASIC logical lane.
+assert len( feToLaneMapSocProps ) == numAsics
+for chipId in range( numAsics ):
+   assert len( feToLaneMapSocProps[ chipId ] ) == numFabricSerdesPerAsic
+   for propKey, propVal in feToLaneMapSocProps[ chipId ].items():
       logicalLane = int( propKey.removeprefix( "lane_to_serdes_map_fabric_lane" ) )
       rxPhysicalSerdes = 0
       txPhysicalSerdes = 0
-      for physicalSerdes in propVal.rstrip().split( ":" ):
+      for physicalSerdes in propVal.split( ":" ):
          if physicalSerdes.startswith( "rx" ):
             rxPhysicalSerdes = int( physicalSerdes.removeprefix( "rx" ) )
          elif physicalSerdes.startswith( "tx" ):
             txPhysicalSerdes = int( physicalSerdes.removeprefix( "tx" ) )
          else:
-            assert False
-      # We should only see one line per logical lane per chip
-      assert logicalLane not in asicLogicalLaneToSerdesMap[ chipId ]
-      asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ] = {}
-      asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ][ "rx" ]  = rxPhysicalSerdes
-      asicLogicalLaneToSerdesMap[ chipId ][ logicalLane ][ "tx" ]  = txPhysicalSerdes
+            assert False, "physical serdes should be either rx or tx."
       asicSerdesToLogicalLaneMap[ chipId ][ "rx" ][ rxPhysicalSerdes ] = logicalLane
       asicSerdesToLogicalLaneMap[ chipId ][ "tx" ][ txPhysicalSerdes ] = logicalLane
+      # Populate the trace length correctly by logical lane.
+      # We should only see one line per logical lane per chip
+      assert logicalLane not in asicLogicalLaneTraceLength[ chipId ]
+      physicalSerdesCore = rxPhysicalSerdes // numSerdesPerCore
+      serdesCoreLogicalLane = logicalLaneToPhysicalCoreLogicalLane( logicalLane,
+                                                             rxPhysicalSerdes )
+      laneInfo = asicFabricLaneTraceLengths[ chipId ].cores[ physicalSerdesCore
+         ].lanes[ serdesCoreLogicalLane ]
+      asicLogicalLaneTraceLength[ chipId ][ logicalLane ] = \
+         laneInfo.traceLengthToNextEpInInches
 
 # Map system side physical serdes to front panel OSFP slot and lane.
 with open( "Trace_whistler_1.0_Ramon3ToOSFP-800G.csv" ) as fh:
@@ -118,6 +128,26 @@ with open( "Trace_whistler_1.0_Ramon3ToOSFP-800G.csv" ) as fh:
          frontPanelToAsicSerdesMap[ frontPanelPortStrKey ] = {}
       frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ] = chipId
       frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ direction ] = physicalSerdesId
+
+# Print some debug information that helps us make sure that the trace length
+# information has been extracted correctly.
+# This output can be compared with the wire(...) calls in
+# //src/DosSand/diags.dev-base-trunk-dmz/DosBoard/WhistlerP1LanesMappingData.py
+# to make sure we have extracted the Diags' generated trace length information
+# correctly.
+if debug:
+   for portId in range( numFabricPorts ):
+      xcvrSlot = portId // 8 + 1
+      xcvrLane = portId % 8
+      frontPanelPortStrKey = f"{xcvrSlot}/{xcvrLane+1}"
+      chipId = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ]
+      rxPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "rx" ]
+      physicalSerdesCore = rxPhysicalLane // 8
+      logicalLane = asicSerdesToLogicalLaneMap[ chipId ][ "rx" ][ rxPhysicalLane ]
+      serdesCoreLogicalLane = logicalLaneToPhysicalCoreLogicalLane( logicalLane,
+                                                                    rxPhysicalLane )
+      print( f"wire( xcvrSlots[{xcvrSlot}].sysLanes[{xcvrLane}],"
+          f" fes[{chipId}].cores[{physicalSerdesCore}].lanes[{serdesCoreLogicalLane}] )" )
 
 # Port Attributes by profile
 portAttrsByProfile = {
@@ -213,3 +243,30 @@ with open( "whistler_port_profile_mapping.csv", "w" ) as fh, open( "bcm_config",
          PortProfileMapping(globalPortId, logicalPortId, portStr,
                             fabSupportedProfiles, None, None, virtualDeviceId )
       ) )
+
+with open( "whistler_si_settings.csv", "w" ) as fh:
+   fields = [ field.name for field in SISettings.getFields()]
+   mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
+   mappingWriter.writerow( fields )
+
+   # We only care about 100G fabric serdes with Optical media on Whistler
+   speed = SpeedGbps.HundredAndSix
+   medium = PortMedium.OPTICAL
+   for asicId in range( numAsics ):
+      # chip ID in SI settings is 1-indexed.
+      chipId = asicId + 1
+      for logicalFabSerdes in range( numFabricSerdesPerAsic ):
+         coreId = logicalFabSerdes // numSerdesPerCore
+         coreLane = logicalFabSerdes % numSerdesPerCore
+         txTapSettings = txTapSettingsByLaneProps( speed, medium,
+                                                  asicLogicalLaneTraceLength[ asicId ][
+                                                  logicalFabSerdes ] )
+         mappingWriter.writerow( astuple(
+                                SISettings(1, chipId, "NPU", coreId, "R3_FE",
+                                coreLane, speedInMbps( speed ), medium.name,
+                                None, None, None, txTapSettings.pre3,
+                                txTapSettings.pre2, txTapSettings.pre1,
+                                txTapSettings.main, txTapSettings.post1,
+                                txTapSettings.post2, txTapSettings.post3,
+                                None, None, None )
+         ) )
