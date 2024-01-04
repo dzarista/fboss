@@ -6,7 +6,7 @@ import sys
 sys.path.append( "../../lib" )
 import csv
 from dataclasses import astuple
-from CommonPlatformTypes import PortMedium, SpeedGbps, validMediaForSpeed, \
+from PlatformUtils import PortMedium, SpeedGbps, validMediaForSpeed, \
    validNifSerdesSpeeds, validFabricSerdesSpeeds, speedInMbps, \
    txTapSettingsByLaneProps
 from VendorMappings import StaticMapping, PortProfileMapping, SISettings
