@@ -25,7 +25,7 @@ class SffModule : public QsfpModule {
  public:
   explicit SffModule(
       TransceiverManager* transceiverManager,
-      std::unique_ptr<TransceiverImpl> qsfpImpl);
+      TransceiverImpl* qsfpImpl);
   virtual ~SffModule() override;
 
   /*
@@ -211,10 +211,6 @@ class SffModule : public QsfpModule {
    * Return what power control capability is currently enabled
    */
   PowerControlState getPowerControlValue() override;
-  /*
-   * Return TransceiverStats
-   */
-  std::optional<TransceiverStats> getTransceiverStats();
   /*
    * Return SignalFlag which contains Tx/Rx LOS/LOL
    */

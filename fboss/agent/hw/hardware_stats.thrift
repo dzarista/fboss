@@ -69,6 +69,11 @@ struct HwPortStats {
   34: map<i16, i64> queueWredDroppedPackets_ = {};
   35: map<i16, i64> queueEcnMarkedPackets_ = {};
   36: i64 fecCorrectedBits_ = STAT_UNINITIALIZED;
+  /* Map of codewords received (value) with different counts of symbol errors (key).
+   * fecCodewords_[0] = number of codewords with 0 symbol errors
+   * fecCodewords_[1] = number of codewords with 1 symbol errors etc..
+   */
+  37: map<i16, i64> fecCodewords_ = {};
 
   // seconds from epoch
   50: i64 timestamp_ = STAT_UNINITIALIZED;
@@ -208,6 +213,7 @@ struct HwAsicErrors {
   6: optional i64 ingressTransmitPipelineErrors;
   7: optional i64 egressPacketNetworkInterfaceErrors;
   8: optional i64 alignerErrors;
+  9: optional i64 forwardingQueueProcessorErrors;
 }
 
 struct HwTeFlowStats {
@@ -275,4 +281,5 @@ struct HwSwitchFb303GlobalStats {
   20: optional i64 ingress_transmit_pipeline_errors;
   21: optional i64 egress_packet_network_interface_errors;
   22: optional i64 aligner_errors;
+  23: optional i64 forwarding_queue_processor_errors;
 }

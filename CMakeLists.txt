@@ -487,8 +487,20 @@ add_fbthrift_cpp_library(
     hardware_stats_cpp2
 )
 add_fbthrift_cpp_library(
+  production_features_cpp2
+  fboss/agent/test/production_features.thrift
+  OPTIONS
+    json
+    reflection
+)
+add_fbthrift_cpp_library(
   i2c_controller_stats_cpp2
   fboss/lib/i2c/i2c_controller_stats.thrift
+)
+
+add_fbthrift_cpp_library(
+  io_stats_cpp2
+  fboss/lib/if/io_stats.thrift
 )
 
 add_fbthrift_cpp_library(

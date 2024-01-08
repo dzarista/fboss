@@ -1,98 +1,153 @@
-// Copyright 2004-present Facebook. All Rights Reserved.
+// (c) Facebook, Inc. and its affiliates. Confidential and proprietary.
 
 #include "fboss/agent/test/AgentHwTest.h"
-#include "fboss/agent/AgentConfig.h"
-#include "fboss/agent/SwitchIdScopeResolver.h"
-#include "fboss/agent/gen-cpp2/agent_config_types.h"
-#include "fboss/agent/hw/switch_asics/HwAsic.h"
+#include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/state/SwitchState.h"
-#include "fboss/lib/config/PlatformConfigUtils.h"
 
-#include <folly/gen/Base.h>
+DEFINE_bool(run_forever, false, "run the test forever");
+DEFINE_bool(run_forever_on_failure, false, "run the test forever on failure");
+DEFINE_bool(
+    list_asic_feature,
+    false,
+    "list asic feature needed for every single test");
+
+namespace {
+int kArgc;
+char** kArgv;
+} // namespace
 
 namespace facebook::fboss {
-
-void AgentHwTest::setupConfigFlag() {
-  utility::setPortToDefaultProfileIDMap(
-      std::make_shared<MultiSwitchPortMap>(),
-      platform()->getPlatformMapping(),
-      platform()->getAsic());
-  auto portsByControllingPort =
-      utility::getSubsidiaryPortIDs(platform()->getPlatformPorts());
-  for (const auto& port : portsByControllingPort) {
-    masterLogicalPortIds_.push_back(port.first);
-  }
-
-  auto newCfgFile = getTestConfigPath();
-  FLAGS_config = newCfgFile;
-  if (sw()->getBootType() != BootType::WARM_BOOT) {
-    cfg::AgentConfig testConfig;
-    auto swConfig = initialConfig();
-    for (auto& port : *swConfig.ports()) {
-      // Keep ports down by disabling them and setting loopback mode to NONE
-      port.state() = cfg::PortState::DISABLED;
-      port.loopbackMode() = cfg::PortLoopbackMode::NONE;
-    }
-    testConfig.sw() = swConfig;
-    const auto& baseConfig = platform()->config();
-    testConfig.platform() = *baseConfig->thrift.platform();
-    auto newcfg = AgentConfig(
-        testConfig,
-        apache::thrift::SimpleJSONSerializer::serialize<std::string>(
-            testConfig));
-    newcfg.dumpConfig(newCfgFile);
-    // reload config so that test config is loaded
-    platform()->reloadConfig();
-  }
-}
-
 void AgentHwTest::SetUp() {
-  AgentTest::SetUp();
-  if (sw()->getBootType() != BootType::WARM_BOOT) {
-    if (platform()->getAsic()->isSupported(
-            HwAsic::Feature::SAI_PORT_SERDES_FIELDS_RESET)) {
-      // Set preempahsis to 0, so ports state can be manipulated by just setting
-      // loopback mode (lopbackMode::NONE == down), loopbackMode::{MAC, PHY} ==
-      // up)
-      sw()->updateStateBlocking(
-          "set port preemphasis 0", [&](const auto& state) {
-            std::shared_ptr<SwitchState> newState{state};
-            for (auto& portMap : std::as_const(*newState->getPorts())) {
-              for (auto& port : std::as_const(*portMap.second)) {
-                auto newPort = port.second->modify(&newState);
-                auto pinConfigs = newPort->getPinConfigs();
-                for (auto& pin : pinConfigs) {
-                  pin.tx() = phy::TxSettings();
-                }
-                newPort->resetPinConfigs(pinConfigs);
-              }
-            }
-            return newState;
-          });
-    }
-
-    auto config = initialConfig();
-    std::vector<PortID> enabledPorts =
-        folly::gen::from(*config.ports()) |
-        folly::gen::filter([](const auto& port) {
-          return *port.state() == cfg::PortState::ENABLED &&
-              *port.loopbackMode() != cfg::PortLoopbackMode::NONE;
-        }) |
-        folly::gen::map(
-            [](const auto& port) { return PortID(*port.logicalID()); }) |
-        folly::gen::as();
-
-    // Make sure ports are down from initial config applied in setupConfigFlag
-    waitForLinkStatus(enabledPorts, false);
-    // Reapply initalConfig to bring loopback ports up
-    sw()->applyConfig("Initial config with ports up", config);
-    waitForLinkStatus(enabledPorts, true);
+  gflags::ParseCommandLineFlags(&kArgc, &kArgv, false);
+  if (FLAGS_list_asic_feature) {
+    printAsicFeatures();
+    return;
   }
+  fbossCommonInit(kArgc, kArgv);
+  FLAGS_verify_apply_oper_delta = true;
+  FLAGS_hide_fabric_ports = hideFabricPorts();
+  // Reset any global state being tracked in singletons
+  // Each test then sets up its own state as needed.
+  folly::SingletonVault::singleton()->destroyInstances();
+  folly::SingletonVault::singleton()->reenableInstances();
+  // Set watermark stats update interval to 0 so we always refresh BST stats
+  // in each updateStats call
+  FLAGS_update_watermark_stats_interval_s = 0;
+
+  AgentEnsembleSwitchConfigFn initialConfigFn =
+      [this](const AgentEnsemble& ensemble) { return initialConfig(ensemble); };
+  agentEnsemble_ = createAgentEnsemble(initialConfigFn);
 }
 
 void AgentHwTest::TearDown() {
-  dumpRunningConfig(getTestConfigPath());
-  AgentTest::TearDown();
+  if (FLAGS_run_forever ||
+      (::testing::Test::HasFailure() && FLAGS_run_forever_on_failure)) {
+    runForever();
+  }
+  tearDownAgentEnsemble();
 }
+
+void AgentHwTest::tearDownAgentEnsemble(bool doWarmboot) {
+  if (!agentEnsemble_) {
+    return;
+  }
+
+  if (::testing::Test::HasFailure()) {
+    // TODO: Collect Info and dump counters
+  }
+  if (doWarmboot) {
+    agentEnsemble_->gracefulExit();
+  }
+  agentEnsemble_.reset();
+}
+
+void AgentHwTest::runForever() const {
+  XLOG(DBG2) << "AgentHwTest run forever...";
+  while (true) {
+    sleep(1);
+    XLOG_EVERY_MS(DBG2, 5000) << "AgentHwTest running forever";
+  }
+}
+
+std::shared_ptr<SwitchState> AgentHwTest::applyNewConfig(
+    const cfg::SwitchConfig& config) {
+  return agentEnsemble_->applyNewConfig(config);
+}
+
+SwSwitch* AgentHwTest::getSw() const {
+  return agentEnsemble_->getSw();
+}
+
+const std::map<SwitchID, const HwAsic*> AgentHwTest::getAsics() const {
+  return agentEnsemble_->getSw()->getHwAsicTable()->getHwAsics();
+}
+
+bool AgentHwTest::isSupportedOnAllAsics(HwAsic::Feature feature) const {
+  // All Asics supporting the feature
+  return agentEnsemble_->getSw()->getHwAsicTable()->isFeatureSupportedOnAllAsic(
+      feature);
+}
+
+AgentEnsemble* AgentHwTest::getAgentEnsemble() const {
+  return agentEnsemble_.get();
+}
+
+const std::shared_ptr<SwitchState> AgentHwTest::getProgrammedState() const {
+  return getAgentEnsemble()->getProgrammedState();
+}
+
+std::vector<PortID> AgentHwTest::masterLogicalPortIds() const {
+  return getAgentEnsemble()->masterLogicalPortIds();
+}
+
+std::vector<PortID> AgentHwTest::masterLogicalPortIds(
+    const std::set<cfg::PortType>& portTypes) const {
+  return getAgentEnsemble()->masterLogicalPortIds(portTypes);
+}
+
+void AgentHwTest::setSwitchDrainState(
+    const cfg::SwitchConfig& curConfig,
+    cfg::SwitchDrainState drainState) {
+  auto newCfg = curConfig;
+  *newCfg.switchSettings()->switchDrainState() = drainState;
+  applyNewConfig(newCfg);
+}
+
+bool AgentHwTest::hideFabricPorts() const {
+  // Due to the speedup in test run time (6m->21s on meru400biu)
+  // we want to skip over fabric ports in a overwhelming
+  // majority of test cases. Make this the default HwTest mode
+  return true;
+}
+
+cfg::SwitchConfig AgentHwTest::initialConfig(
+    const AgentEnsemble& ensemble) const {
+  // Before m-mpu agent test, use first Asic for initialization.
+  auto switchIds = ensemble.getSw()->getHwAsicTable()->getSwitchIDs();
+  CHECK_GE(switchIds.size(), 1);
+  auto asic =
+      ensemble.getSw()->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
+  return utility::onePortPerInterfaceConfig(
+      ensemble.getSw()->getPlatformMapping(),
+      asic,
+      ensemble.masterLogicalPortIds(),
+      asic->desiredLoopbackModes(),
+      true /*interfaceHasSubnet*/);
+}
+
+void AgentHwTest::printAsicFeatures() const {
+  std::vector<std::string> asicFeatures;
+  for (const auto& feature : getProductionFeaturesVerified()) {
+    asicFeatures.push_back(apache::thrift::util::enumNameSafe(feature));
+  }
+  std::cout << "Feature List: " << folly::join(",", asicFeatures) << "\n";
+  GTEST_SKIP();
+}
+
+void initAgentHwTest(int argc, char* argv[], PlatformInitFn initPlatform) {
+  initEnsemble(initPlatform);
+  kArgc = argc;
+  kArgv = argv;
+}
+
 } // namespace facebook::fboss

@@ -92,6 +92,18 @@ uint16_t getPriorityFromPfcPktCounterId(sai_stat_id_t counterId) {
   throw FbossError("Got unexpected port counter id: ", counterId);
 }
 
+uint16_t getFecSymbolCountFromCounterId(sai_stat_id_t counterId) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
+  if (counterId < SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S0 ||
+      counterId > SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S16) {
+    throw FbossError("Got unexpected FEC codeword counter id: ", counterId);
+  }
+  return counterId - SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S0;
+#else
+  throw FbossError("FEC codewords not supported on this SAI version");
+#endif
+}
+
 void fillHwPortStats(
     const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
     const SaiDebugCounterManager& debugCounterManager,
@@ -237,6 +249,29 @@ void fillHwPortStats(
         hwPortStats.inPfcXon_()[priority] = value;
         break;
       }
+#if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S0:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S1:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S2:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S3:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S4:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S5:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S6:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S7:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S8:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S9:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S10:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S11:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S12:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S13:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S14:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S15:
+      case SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S16: {
+        auto symbolCount = getFecSymbolCountFromCounterId(counterId);
+        hwPortStats.fecCodewords_()[symbolCount] = value;
+        break;
+      }
+#endif
       default:
         if (counterId ==
             debugCounterManager.getPortL3BlackHoleCounterStatId()) {
@@ -726,7 +761,7 @@ void SaiPortManager::removeIngressPriorityGroupMappings(
   for (const auto& ipgIndexInfo : portHandle->configuredIngressPriorityGroups) {
     const auto& ipgInfo = ipgIndexInfo.second;
     managerTable_->bufferManager().setIngressPriorityGroupBufferProfile(
-        ipgInfo.pgHandle->ingressPriorityGroup->adapterKey(), std::nullptr_t());
+        ipgInfo.pgHandle->ingressPriorityGroup, std::nullptr_t());
   }
   portHandle->configuredIngressPriorityGroups.clear();
 }
@@ -766,8 +801,7 @@ SaiPortManager::getIngressPriorityGroupSaiIds(
 }
 
 void SaiPortManager::programPfcBuffers(const std::shared_ptr<Port>& swPort) {
-  if (!platform_->getAsic()->isSupported(HwAsic::Feature::BUFFER_POOL) ||
-      !swPort->getPfc().has_value()) {
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::BUFFER_POOL)) {
     return;
   }
   managerTable_->bufferManager().createIngressBufferPool(swPort);
@@ -785,10 +819,9 @@ void SaiPortManager::programPfcBuffers(const std::shared_ptr<Port>& swPort) {
       auto bufferProfile =
           managerTable_->bufferManager().getOrCreateIngressProfile(
               portPgCfgThrift);
-      auto ingressPriorityGroupSaiId =
-          ingressPriorityGroupHandles[pgId]->ingressPriorityGroup->adapterKey();
       managerTable_->bufferManager().setIngressPriorityGroupBufferProfile(
-          ingressPriorityGroupSaiId, bufferProfile);
+          ingressPriorityGroupHandles[pgId]->ingressPriorityGroup,
+          bufferProfile);
       // Keep track of ingressPriorityGroupHandle and bufferProfile per PG ID
       portHandle
           ->configuredIngressPriorityGroups[static_cast<IngressPriorityGroupID>(
@@ -1338,6 +1371,24 @@ bool SaiPortManager::rxFrequencyRPMSupported() const {
 #endif
 }
 
+bool SaiPortManager::rxSNRSupported() const {
+#if defined(BRCM_SAI_SDK_GTE_10_0)
+  return platform_->getAsic()->isSupported(HwAsic::Feature::RX_SNR);
+#else
+  return false;
+#endif
+}
+
+bool SaiPortManager::fecCodewordsStatsSupported(PortID portId) const {
+#if defined(BRCM_SAI_SDK_GTE_10_0)
+  return platform_->getAsic()->isSupported(
+             HwAsic::Feature::SAI_FEC_CODEWORDS_STATS) &&
+      utility::isReedSolomonFec(getFECMode(portId));
+#else
+  return false;
+#endif
+}
+
 std::vector<PortID> SaiPortManager::getFabricReachabilityForSwitch(
     const SwitchID& switchId) const {
   std::vector<PortID> reachablePorts;
@@ -1450,6 +1501,23 @@ void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
   if (fecCorrectedBitsSupported(portId)) {
     handle->port->updateStats(
         {SAI_PORT_STAT_IF_IN_FEC_CORRECTED_BITS}, SAI_STATS_MODE_READ);
+  }
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
+  if (fecCodewordsStatsSupported(portId)) {
+    // maxFecCounterId should ideally be derived from SAI attribute
+    // SAI_PORT_ATTR_MAX_FEC_SYMBOL_ERRORS_DETECTABLE but this attribute isn't
+    // supported yet
+    sai_stat_id_t maxFecCounterId = getFECMode(portId) == phy::FecMode::RS528
+        ? SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S8
+        : SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S15;
+    std::vector<sai_stat_id_t> fecCodewordsToRead;
+    for (int counterId = SAI_PORT_STAT_IF_IN_FEC_CODEWORD_ERRORS_S0;
+         counterId <= (int)maxFecCounterId;
+         counterId++) {
+      fecCodewordsToRead.push_back(static_cast<sai_stat_id_t>(counterId));
+    }
+    handle->port->updateStats(fecCodewordsToRead, SAI_STATS_MODE_READ);
   }
 #endif
   const auto& counters = handle->port->getStats();
@@ -2113,6 +2181,19 @@ std::vector<sai_port_frequency_offset_ppm_values_t> SaiPortManager::getRxPPM(
       SaiPortTraits::Attributes::RxFrequencyPPM{
           std::vector<sai_port_frequency_offset_ppm_values_t>(numPmdLanes)});
 }
+
+std::vector<sai_port_snr_values_t> SaiPortManager::getRxSNR(
+    PortSaiId saiPortId,
+    uint8_t numPmdLanes) const {
+  if (!rxSNRSupported()) {
+    return std::vector<sai_port_snr_values_t>();
+  }
+
+  return SaiApiTable::getInstance()->portApi().getAttribute(
+      saiPortId,
+      SaiPortTraits::Attributes::RxSNR{
+          std::vector<sai_port_snr_values_t>(numPmdLanes)});
+}
 #endif
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
@@ -2266,6 +2347,47 @@ void SaiPortManager::changeRxLaneSquelch(
   }
 }
 
+void SaiPortManager::reloadSixTapAttributes(
+    SaiPortHandle* portHandle,
+    SaiPortSerdesTraits::CreateAttributes& attr) {
+  const auto& portApi = SaiApiTable::getInstance()->portApi();
+  auto setTxRxAttr = [](auto& attrs, auto type, const auto& val) {
+    auto& attr = std::get<std::optional<std::decay_t<decltype(type)>>>(attrs);
+    if (!val.empty()) {
+      attr = val;
+    }
+  };
+  auto txPre1 = portApi.getAttribute(
+      portHandle->serdes->adapterKey(),
+      SaiPortSerdesTraits::Attributes::TxFirPre1{});
+  auto main = portApi.getAttribute(
+      portHandle->serdes->adapterKey(),
+      SaiPortSerdesTraits::Attributes::TxFirMain{});
+  auto txPost1 = portApi.getAttribute(
+      portHandle->serdes->adapterKey(),
+      SaiPortSerdesTraits::Attributes::TxFirPost1{});
+  setTxRxAttr(attr, SaiPortSerdesTraits::Attributes::TxFirPre1{}, txPre1);
+  setTxRxAttr(attr, SaiPortSerdesTraits::Attributes::TxFirMain{}, main);
+  setTxRxAttr(attr, SaiPortSerdesTraits::Attributes::TxFirPost1{}, txPost1);
+
+  if (FLAGS_sai_configure_six_tap &&
+      platform_->getAsic()->isSupported(
+          HwAsic::Feature::SAI_CONFIGURE_SIX_TAP)) {
+    auto txPost2 = portApi.getAttribute(
+        portHandle->serdes->adapterKey(),
+        SaiPortSerdesTraits::Attributes::TxFirPost2{});
+    auto txPost3 = portApi.getAttribute(
+        portHandle->serdes->adapterKey(),
+        SaiPortSerdesTraits::Attributes::TxFirPost3{});
+    auto txPre2 = portApi.getAttribute(
+        portHandle->serdes->adapterKey(),
+        SaiPortSerdesTraits::Attributes::TxFirPre2{});
+    setTxRxAttr(attr, SaiPortSerdesTraits::Attributes::TxFirPost2{}, txPost2);
+    setTxRxAttr(attr, SaiPortSerdesTraits::Attributes::TxFirPost3{}, txPost3);
+    setTxRxAttr(attr, SaiPortSerdesTraits::Attributes::TxFirPre2{}, txPre2);
+  }
+}
+
 void SaiPortManager::changeZeroPreemphasis(
     const std::shared_ptr<Port>& oldPort,
     const std::shared_ptr<Port>& newPort) {
@@ -2305,8 +2427,16 @@ void SaiPortManager::changeZeroPreemphasis(
           SaiPortSerdesTraits::Attributes::Preemphasis{},
           preemphasisVal);
     }
-    if (platform_->isSerdesApiSupported()) {
+    if (platform_->isSerdesApiSupported() &&
+        platform_->getAsic()->isSupported(
+            HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING)) {
       portHandle->serdes->setAttributes(serDesAttributes);
+
+      // Read from HW to see if six-tap attribute changes after setting
+      // preemphasis. Then update sai store only.
+      reloadSixTapAttributes(portHandle, serDesAttributes);
+      portHandle->serdes->setAttributes(
+          serDesAttributes, /* skipHwWrite */ true);
     }
   }
 }

@@ -343,14 +343,13 @@ AdminDistance getAdminDistanceForClientId(
     const cfg::SwitchConfig& config,
     int clientId);
 
-size_t getNumUpPorts(
+size_t getNumActiveFabricPorts(
     const std::shared_ptr<SwitchState>& state,
-    const HwSwitchMatcher& matcher,
-    cfg::PortType portType);
+    const HwSwitchMatcher& matcher);
 
 cfg::SwitchDrainState computeActualSwitchDrainState(
     const std::shared_ptr<SwitchSettings>& switchSettings,
-    int numFabricPortsUp);
+    int numActiveFabricPorts);
 
 uint64_t getMacOui(const folly::MacAddress macAddress);
 

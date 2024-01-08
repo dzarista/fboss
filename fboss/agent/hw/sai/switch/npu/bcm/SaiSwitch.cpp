@@ -71,6 +71,7 @@ std::string errorType(sai_switch_error_type_t type) {
     case SAI_SWITCH_ERROR_TYPE_ECC_DOUBLE_BIT:
       return "SAI_SWITCH_ERROR_TYPE_ECC_DOUBLE_BIT";
 #if defined BRCM_SAI_SDK_GTE_11_0
+      // IRE Errors
     case SAI_SWITCH_ERROR_TYPE_IRE_ECC:
       return "SAI_SWITCH_ERROR_TYPE_IRE_ECC";
     case SAI_SWITCH_ERROR_TYPE_IRE_RCY_INTERFACE:
@@ -111,6 +112,7 @@ std::string errorType(sai_switch_error_type_t type) {
       return "SAI_SWITCH_ERROR_TYPE_IRE_FIFO";
     case SAI_SWITCH_ERROR_TYPE_IRE_DATA_PATH_CRC:
       return "SAI_SWITCH_ERROR_TYPE_IRE_DATA_PATH_CRC";
+      // ITPP Errors
     case SAI_SWITCH_ERROR_TYPE_ITPP_ECC:
       return "SAI_SWITCH_ERROR_TYPE_ITPP_ECC";
     case SAI_SWITCH_ERROR_TYPE_ITPP_PSIZE_TYPE_0_MISMATCH:
@@ -135,6 +137,7 @@ std::string errorType(sai_switch_error_type_t type) {
       return "SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_3_MISMATCH";
     case SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_4_MISMATCH:
       return "SAI_SWITCH_ERROR_TYPE_ITPPD_PSIZE_TYPE_4_MISMATCH";
+      // EPNI errors
     case SAI_SWITCH_ERROR_TYPE_EPNI_ERROR_ECC:
       return "SAI_SWITCH_ERROR_TYPE_EPNI_ERROR_ECC";
     case SAI_SWITCH_ERROR_TYPE_EPNI_POST_MIRR_OVF_INT:
@@ -167,6 +170,7 @@ std::string errorType(sai_switch_error_type_t type) {
       return "SAI_SWITCH_ERROR_TYPE_EPNI_ECC_ECC_1B_ERR_INT";
     case SAI_SWITCH_ERROR_TYPE_EPNI_ECC_ECC_2B_ERR_INT:
       return "SAI_SWITCH_ERROR_TYPE_EPNI_ECC_ECC_2B_ERR_INT";
+      // Aligner errors
     case SAI_SWITCH_ERROR_TYPE_ALIGNER_ERROR_ECC:
       return "SAI_SWITCH_ERROR_TYPE_ALIGNER_ERROR_ECC";
     case SAI_SWITCH_ERROR_TYPE_ALIGNER_ETPP_INC_ABOVE_TH_INT:
@@ -197,6 +201,20 @@ std::string errorType(sai_switch_error_type_t type) {
       return "SAI_SWITCH_ERROR_TYPE_ALIGNER_ECC_ECC_1B_ERR_INT";
     case SAI_SWITCH_ERROR_TYPE_ALIGNER_ECC_ECC_2B_ERR_INT:
       return "SAI_SWITCH_ERROR_TYPE_ALIGNER_ECC_ECC_2B_ERR_INT";
+    // FQP errors
+    case SAI_SWITCH_ERROR_TYPE_FQP_ERROR_ECC:
+      return "SAI_SWITCH_ERROR_TYPE_FQP_ERROR_ECC";
+    case SAI_SWITCH_ERROR_TYPE_FQP_TXQ_OVF_INT:
+      return "SAI_SWITCH_ERROR_TYPE_FQP_TXQ_OVF_INT";
+    case SAI_SWITCH_ERROR_TYPE_FQP_TXQ_READ_CONJESTED_INT:
+      return "SAI_SWITCH_ERROR_TYPE_FQP_TXQ_READ_CONJESTED_INT";
+    case SAI_SWITCH_ERROR_TYPE_FQP_TXQ_WRITE_CONJESTED_INT:
+      return "SAI_SWITCH_ERROR_TYPE_FQP_TXQ_WRITE_CONGESTED_INT";
+    case SAI_SWITCH_ERROR_TYPE_FQP_ECC_ECC_1B_ERR_INT:
+      return "SAI_SWITCH_ERROR_TYPE_FQP_ECC_ECC_1B_ERR_INT";
+    case SAI_SWITCH_ERROR_TYPE_FQP_ECC_ECC_2B_ERR_INT:
+      return "SAI_SWITCH_ERROR_TYPE_FQP_ECC_ECC_2B_ERR_INT";
+
 #endif
     default:
       break;
@@ -302,6 +320,22 @@ bool isAlignerErrorType(sai_switch_error_type_t type) {
   }
   return false;
 }
+
+bool isFqpError(sai_switch_error_type_t type) {
+  switch (type) {
+    case SAI_SWITCH_ERROR_TYPE_FQP_ERROR_ECC:
+    case SAI_SWITCH_ERROR_TYPE_FQP_TXQ_OVF_INT:
+    case SAI_SWITCH_ERROR_TYPE_FQP_TXQ_READ_CONJESTED_INT:
+    case SAI_SWITCH_ERROR_TYPE_FQP_TXQ_WRITE_CONJESTED_INT:
+    case SAI_SWITCH_ERROR_TYPE_FQP_ECC_ECC_1B_ERR_INT:
+    case SAI_SWITCH_ERROR_TYPE_FQP_ECC_ECC_2B_ERR_INT:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
+
 #endif
 
 } // namespace
@@ -348,9 +382,10 @@ void SaiSwitch::switchEventCallback(
       auto itppError = isItppError(eventInfo->error_type);
       auto epniError = isEpniError(eventInfo->error_type);
       auto alignerError = isAlignerErrorType(eventInfo->error_type);
+      auto fqpError = isFqpError(eventInfo->error_type);
       XLOG(ERR) << " Got interrupt event, is IRE: " << ireError
                 << " is ITPP: " << itppError << " is EPNI: " << epniError
-                << " is Aligner: " << alignerError;
+                << " is Aligner: " << alignerError << " is FQP: " << fqpError;
       if (ireError) {
         getSwitchStats()->ireError();
       } else if (itppError) {
@@ -359,6 +394,8 @@ void SaiSwitch::switchEventCallback(
         getSwitchStats()->epniError();
       } else if (alignerError) {
         getSwitchStats()->alignerError();
+      } else if (fqpError) {
+        getSwitchStats()->forwardingQueueProcessorError();
       }
     } break;
 #endif

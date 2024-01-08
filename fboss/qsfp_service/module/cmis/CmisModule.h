@@ -36,7 +36,7 @@ class CmisModule : public QsfpModule {
  public:
   explicit CmisModule(
       TransceiverManager* transceiverManager,
-      std::unique_ptr<TransceiverImpl> qsfpImpl);
+      TransceiverImpl* qsfpImpl);
   virtual ~CmisModule() override;
 
   struct ApplicationAdvertisingField {
@@ -241,10 +241,6 @@ class CmisModule : public QsfpModule {
    * Return what power control capability is currently enabled
    */
   PowerControlState getPowerControlValue() override;
-  /*
-   * Return TransceiverStats
-   */
-  bool getTransceiverStats(TransceiverStats& stats);
   /*
    * Return SignalFlag which contains Tx/Rx LOS/LOL
    */

@@ -1317,6 +1317,8 @@ void SaiSwitch::updatePmdInfo(
     std::shared_ptr<SaiPort> port,
     [[maybe_unused]] phy::PmdState& lastPmdState,
     [[maybe_unused]] phy::PmdStats& lastPmdStats) {
+  // In SAI spec, SNR is encoded in units of 1/256 dB
+  constexpr auto snrScalingFactor = 256.0;
   uint32_t numPmdLanes;
   if (platform_->getAsic()->isSupported(
           HwAsic::Feature::SAI_PORT_GET_PMD_LANES)) {
@@ -1431,6 +1433,19 @@ void SaiSwitch::updatePmdInfo(
     laneState.rxFrequencyPPM() = pmd.ppm;
     laneStates[laneId] = laneState;
   }
+
+  auto pmdRxSNR =
+      managerTable_->portManager().getRxSNR(port->adapterKey(), numPmdLanes);
+  for (const auto& pmd : pmdRxSNR) {
+    auto laneId = pmd.lane;
+    phy::LaneStats laneStat;
+    if (laneStats.find(laneId) != laneStats.end()) {
+      laneStat = laneStats[laneId];
+    }
+    laneStat.lane() = laneId;
+    laneStat.snr() = pmd.snr / snrScalingFactor;
+    laneStats[laneId] = laneStat;
+  }
 #endif
 
   for (auto laneStat : laneStats) {
@@ -1489,6 +1504,7 @@ void SaiSwitch::updatePcsInfo(
         *(fb303PortStat->portStats().fecCorrectableErrors());
     rsFec.uncorrectedCodewords() =
         *(fb303PortStat->portStats().fecUncorrectableErrors());
+    rsFec.codewordStats() = *(fb303PortStat->portStats().fecCodewords_());
 
     phy::RsFecInfo lastRsFec;
     std::optional<phy::PcsStats> lastPcs;
@@ -1808,19 +1824,26 @@ void SaiSwitch::txReadyStatusChangeCallbackBottomHalf() {
   }
 
   auto numActiveFabricLinks = 0, numInactiveFabricLinks = 0;
+  std::map<PortID, bool> port2IsActive;
   for (auto tuple : boost::combine(adapterKeys, txReadyStatusesGot)) {
     auto portSaiId = tuple.get<0>();
     auto txReadyStatus = tuple.get<1>();
 
-    XLOG(DBG4) << "Fabric Port ID: " << std::hex << static_cast<long>(portSaiId)
-               << std::dec
-               << (txReadyStatus == SAI_PORT_HOST_TX_READY_STATUS_NOT_READY
-                       ? " Inactive"
-                       : " Active");
-    if (txReadyStatus == SAI_PORT_HOST_TX_READY_STATUS_NOT_READY) {
-      numInactiveFabricLinks++;
-    } else {
+    const auto portItr = concurrentIndices_->portSaiId2PortInfo.find(portSaiId);
+    CHECK(portItr != concurrentIndices_->portSaiId2PortInfo.cend());
+    auto portID = portItr->second.portID;
+    auto isActive = (txReadyStatus == SAI_PORT_HOST_TX_READY_STATUS_READY);
+
+    XLOG(DBG4) << "Fabric Port SAI ID: " << std::hex
+               << static_cast<long>(portSaiId) << std::dec
+               << " PortID: " << static_cast<int>(portID)
+               << (isActive ? " ACTIVE" : " INACTIVE");
+    port2IsActive[portID] = isActive;
+
+    if (isActive) {
       numActiveFabricLinks++;
+    } else {
+      numInactiveFabricLinks++;
     }
   }
 
@@ -1829,9 +1852,7 @@ void SaiSwitch::txReadyStatusChangeCallbackBottomHalf() {
       << numActiveFabricLinks
       << " NumInactiveFabricLinks: " << numInactiveFabricLinks;
 
-  // TODO
-  // Pass per port Active/Inactive link to SwSwitch, so SwSwitch can decide
-  // to isolate/unisolate.
+  callback_->linkActiveStateChanged(port2IsActive);
 #endif
 }
 
@@ -1914,7 +1935,7 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
   multiSwitchSwitchSettings->addNode(matcher.matcherString(), switchSettings);
 
   if (platform_->getAsic()->isSupported(
-          HwAsic::Feature::LINK_STATE_BASED_ISOLATE)) {
+          HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
     CHECK(getSwitchId().has_value());
     // In practice, this will read and populate the value set during switch
     // create viz. DRAINED
