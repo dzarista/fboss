@@ -86,17 +86,17 @@ int WedgeQsfp::readTransceiver(
     uint8_t* fieldValue) {
   auto offset = param.offset;
   auto len = param.len;
-  wedgeQsfpstats_.recordReadAttempted();
+  ioStatsRecorder_.recordReadAttempted();
   try {
     SCOPE_EXIT {
-      wedgeQsfpstats_.updateReadDownTime();
+      ioStatsRecorder_.updateReadDownTime();
     };
     SCOPE_FAIL {
-      wedgeQsfpstats_.recordReadFailed();
+      ioStatsRecorder_.recordReadFailed();
       StatsPublisher::bumpReadFailure();
     };
     SCOPE_SUCCESS {
-      wedgeQsfpstats_.recordReadSuccess();
+      ioStatsRecorder_.recordReadSuccess();
     };
     generateIOErrorForTest("readTransceiver()");
     threadSafeI2CBus_->moduleRead(module_ + 1, param, fieldValue);
@@ -113,17 +113,17 @@ int WedgeQsfp::writeTransceiver(
     uint8_t* fieldValue) {
   auto offset = param.offset;
   auto len = param.len;
-  wedgeQsfpstats_.recordWriteAttempted();
+  ioStatsRecorder_.recordWriteAttempted();
   try {
     SCOPE_EXIT {
-      wedgeQsfpstats_.updateWriteDownTime();
+      ioStatsRecorder_.updateWriteDownTime();
     };
     SCOPE_FAIL {
-      wedgeQsfpstats_.recordWriteFailed();
+      ioStatsRecorder_.recordWriteFailed();
       StatsPublisher::bumpWriteFailure();
     };
     SCOPE_SUCCESS {
-      wedgeQsfpstats_.recordWriteSuccess();
+      ioStatsRecorder_.recordWriteSuccess();
     };
     generateIOErrorForTest("writeTransceiver()");
     threadSafeI2CBus_->moduleWrite(module_ + 1, param, fieldValue);
@@ -150,8 +150,16 @@ int WedgeQsfp::getNum() const {
 }
 
 std::optional<TransceiverStats> WedgeQsfp::getTransceiverStats() {
-  auto result = std::optional<TransceiverStats>();
-  result = wedgeQsfpstats_.getStats();
+  auto result = TransceiverStats();
+  auto ioStats = ioStatsRecorder_.getStats();
+  // Once TransceiverStats is deprecated in favor of IOStats, remove the below
+  // conversion and directly return ioStats
+  result.numReadAttempted() = ioStats.numReadAttempted().value();
+  result.numReadFailed() = ioStats.numReadFailed().value();
+  result.numWriteAttempted() = ioStats.numWriteAttempted().value();
+  result.numWriteFailed() = ioStats.numWriteFailed().value();
+  result.readDownTime() = ioStats.readDownTime().value();
+  result.writeDownTime() = ioStats.writeDownTime().value();
   return result;
 }
 
@@ -169,8 +177,7 @@ TransceiverManagementInterface WedgeQsfp::getTransceiverManagementInterface() {
 
   for (int i = 0; i < kNumInterfaceDetectionRetries; ++i) {
     try {
-      threadSafeI2CBus_->moduleRead(
-          module_ + 1, {TransceiverI2CApi::ADDR_QSFP, 0, 1}, buf.data());
+      readTransceiver({TransceiverI2CApi::ADDR_QSFP, 0, 1}, buf.data());
       XLOG(DBG3) << folly::sformat(
           "Transceiver {:d}  identifier: {:#x}", module_, buf[0]);
       TransceiverManagementInterface modInterfaceType =
@@ -235,26 +242,18 @@ std::array<uint8_t, 16> WedgeQsfp::getModulePartNo() {
 
   // Read 16 byte part no from page 0 reg 148 for  CMIS and page 0 reg 168 for
   // SFF module. Restore the page in the end
-  threadSafeI2CBus_->moduleRead(
-      module_ + 1,
-      {TransceiverI2CApi::ADDR_QSFP, kCommonModulePageReg, 1},
-      &savedPage);
+  readTransceiver(
+      {TransceiverI2CApi::ADDR_QSFP, kCommonModulePageReg, 1}, &savedPage);
   if (savedPage != page) {
-    threadSafeI2CBus_->moduleWrite(
-        module_ + 1,
-        {TransceiverI2CApi::ADDR_QSFP, kCommonModulePageReg, 1},
-        &page);
+    writeTransceiver(
+        {TransceiverI2CApi::ADDR_QSFP, kCommonModulePageReg, 1}, &page);
   }
 
-  threadSafeI2CBus_->moduleRead(
-      module_ + 1,
-      {TransceiverI2CApi::ADDR_QSFP, partNoRegOffset, 16},
-      partNo.data());
+  readTransceiver(
+      {TransceiverI2CApi::ADDR_QSFP, partNoRegOffset, 16}, partNo.data());
   if (savedPage != page) {
-    threadSafeI2CBus_->moduleWrite(
-        module_ + 1,
-        {TransceiverI2CApi::ADDR_QSFP, kCommonModulePageReg, 1},
-        &savedPage);
+    writeTransceiver(
+        {TransceiverI2CApi::ADDR_QSFP, kCommonModulePageReg, 1}, &savedPage);
   }
 
   return partNo;
@@ -270,10 +269,8 @@ std::array<uint8_t, 2> WedgeQsfp::getFirmwareVer() {
   }
 
   // Read 2 byte firmware version from base page reg 39-40 for CMIS module
-  threadSafeI2CBus_->moduleRead(
-      module_ + 1,
-      {TransceiverI2CApi::ADDR_QSFP, kCommonModuleFwVerReg, 2},
-      fwVer.data());
+  readTransceiver(
+      {TransceiverI2CApi::ADDR_QSFP, kCommonModuleFwVerReg, 2}, fwVer.data());
   return fwVer;
 }
 

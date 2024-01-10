@@ -71,6 +71,7 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::ACL_COUNTER_LABEL:
     case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return true;
 
     case HwAsic::Feature::ERSPANv6:
@@ -140,7 +141,6 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
     case HwAsic::Feature::SLOW_STAT_UPDATE:
-    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
@@ -149,6 +149,7 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::ECMP_DLB_OFFSET:
     case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
     case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+    case HwAsic::Feature::RX_SNR:
       return false;
   }
   return false;

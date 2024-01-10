@@ -21,7 +21,6 @@ using namespace facebook::fboss;
 
 namespace {
 const RouterID kRid(0);
-const int KMaxFlowsetTableSize(32768);
 } // namespace
 
 namespace facebook::fboss::utility {
@@ -95,7 +94,7 @@ bool validateFlowSetTable(
     const int flowletTableSize) {
   bool isVerified = true;
 
-  XLOG(DBG3) << "validateFlowSetTable with flowletTableSize: "
+  XLOG(DBG2) << "validateFlowSetTable with flowletTableSize: "
              << flowletTableSize
              << ", expectFlowsetSizeZero:" << expectFlowsetSizeZero;
   // not ideal but for now TH3 doesn't support this.
@@ -171,7 +170,10 @@ bool verifyEcmpForFlowletSwitching(
   bool isVerified = true;
   bcm_l3_ecmp_get(bcmSwitch->getUnit(), &existing, 0, nullptr, &pathsInHwCount);
   const int flowletTableSize = getFlowletSizeWithScalingFactor(
-      *flowletCfg.flowletTableSize(), pathsInHwCount, *flowletCfg.maxLinks());
+      bcmSwitch,
+      *flowletCfg.flowletTableSize(),
+      pathsInHwCount,
+      *flowletCfg.maxLinks());
 
   isVerified =
       validateFlowSetTable(hw, expectFlowsetSizeZero, flowletTableSize);

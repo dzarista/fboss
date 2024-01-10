@@ -70,7 +70,6 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
-    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::DEBUG_COUNTER:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
@@ -79,6 +78,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::CREDIT_WATCHDOG:
     case HwAsic::Feature::ECMP_MEMBER_WIDTH_INTROSPECTION:
     case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return true;
 
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
@@ -144,6 +144,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::PORT_EYE_VALUES:
+    case HwAsic::Feature::RX_SNR:
 
     case HwAsic::Feature::ECMP_DLB_OFFSET:
     case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:

@@ -5,12 +5,12 @@
 #include "fboss/agent/hw/HwSwitchFb303Stats.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwTestFabricUtils.h"
-#include "fboss/agent/test/SplitAgentTest.h"
+#include "fboss/agent/test/AgentHwTest.h"
 
 DECLARE_bool(enable_stats_update_thread);
 
 namespace facebook::fboss {
-class AgentFabricSwitchTest : public SplitAgentTest {
+class AgentFabricSwitchTest : public AgentHwTest {
  public:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
@@ -35,11 +35,18 @@ class AgentFabricSwitchTest : public SplitAgentTest {
   }
 
   void SetUp() override {
-    SplitAgentTest::SetUp();
-    ASSERT_TRUE(
-        std::any_of(getAsics().begin(), getAsics().end(), [](auto& iter) {
-          return iter.second->getSwitchType() == cfg::SwitchType::FABRIC;
-        }));
+    AgentHwTest::SetUp();
+    if (!IsSkipped()) {
+      ASSERT_TRUE(
+          std::any_of(getAsics().begin(), getAsics().end(), [](auto& iter) {
+            return iter.second->getSwitchType() == cfg::SwitchType::FABRIC;
+          }));
+    }
+  }
+
+  std::vector<production_features::ProductionFeature>
+  getProductionFeaturesVerified() const override {
+    return {production_features::ProductionFeature::FABRIC};
   }
 
  private:

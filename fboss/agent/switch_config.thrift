@@ -168,6 +168,7 @@ enum PortProfileID {
   PROFILE_50G_1_PAM4_RS544_COPPER = 43,
   PROFILE_50G_1_PAM4_RS544_OPTICAL = 44,
   PROFILE_400G_4_PAM4_RS544X2N_COPPER = 45,
+  PROFILE_100G_2_PAM4_RS544X2N_COPPER = 46,
 }
 
 /**
@@ -542,7 +543,6 @@ struct AclTable {
   3: list<AclEntry> aclEntries = [];
   4: list<AclTableActionType> actionTypes = [];
   5: list<AclTableQualifier> qualifiers = [];
-  6: optional i32 chainGroupId;
 }
 
 enum AclStage {

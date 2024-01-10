@@ -46,6 +46,10 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
         masterLogicalPortIds(),
         getAsic()->desiredLoopbackModes(),
         true /*interfaceHasSubnet*/);
+    // Add ACL Table group before adding any ACLs
+    utility::addAclTableGroup(
+        &cfg, cfg::AclStage::INGRESS, utility::getAclTableGroupName());
+    utility::addDefaultAclTable(cfg);
     const auto& cpuStreamTypes =
         getAsic()->getQueueStreamTypes(cfg::PortType::CPU_PORT);
     for (const auto& cpuStreamType : cpuStreamTypes) {
@@ -58,9 +62,6 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
         break;
       }
     }
-    utility::addAclTableGroup(
-        &cfg, cfg::AclStage::INGRESS, utility::getAclTableGroupName());
-    utility::addDefaultAclTable(cfg);
     return cfg;
   }
   void SetUp() override {
@@ -528,6 +529,39 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, verifyNifMulticastTrafficDropped) {
   verifyAcrossWarmBoots(setup, verify);
 }
 
+TEST_F(HwVoqSwitchWithFabricPortsTest, fdrCellDrops) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+  auto setup = [this, kPort]() {
+    addRemoveNeighbor(kPort, true /* add neighbor*/);
+    setForceTrafficOverFabric(getHwSwitch(), true);
+    std::string out;
+    getHwSwitchEnsemble()->runDiagCommand(
+        "setreg FDA_OFM_CLASS_DROP_TH_CORE 0x001001001001001001001001\n", out);
+    getHwSwitchEnsemble()->runDiagCommand("quit\n", out);
+  };
+
+  auto verify = [this, kPort, &ecmpHelper]() {
+    auto sendPkts = [this, kPort, &ecmpHelper]() {
+      for (auto i = 0; i < 1000; ++i) {
+        sendPacket(
+            ecmpHelper.ip(kPort),
+            std::nullopt,
+            std::vector<uint8_t>(1024, 0xff));
+      }
+    };
+    int64_t fdrCellDrops = 0;
+    WITH_RETRIES({
+      sendPkts();
+      getHwSwitch()->updateStats();
+      fb303::ThreadCachedServiceData::get()->publishStats();
+      fdrCellDrops = getHwSwitch()->getSwitchStats()->getFdrCellDrops();
+      XLOG(DBG2) << "FDR Cell drops : " << fdrCellDrops;
+      EXPECT_EVENTUALLY_GT(fdrCellDrops, 0);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
 TEST_F(HwVoqSwitchTest, addRemoveNeighbor) {
   auto setup = [this]() {
     const PortDescriptor kPort(
@@ -779,11 +813,16 @@ TEST_F(HwVoqSwitchTest, AclQualifiersWithCounter) {
 
   auto verify = [kAclName, kAclCounterName, this]() {
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch()));
-    EXPECT_EQ(utility::getAclTableNumAclEntries(getHwSwitch()), 1);
+    EXPECT_EQ(
+        utility::getAclTableNumAclEntries(getHwSwitch()),
+        utility::getNumDefaultCpuAcls(getAsic()) + 1);
     utility::checkSwHwAclMatch(getHwSwitch(), getProgrammedState(), kAclName);
 
     utility::checkAclEntryAndStatCount(
-        getHwSwitch(), /*ACLs*/ 1, /*stats*/ 1, /*counters*/ 2);
+        getHwSwitch(),
+        /*ACLs*/ utility::getNumDefaultCpuAcls(getAsic()) + 1,
+        /*stats*/ 1,
+        /*counters*/ 2);
     utility::checkAclStat(
         getHwSwitch(),
         getProgrammedState(),
@@ -947,39 +986,6 @@ TEST_F(HwVoqSwitchTest, dramEnqueueDequeueBytes) {
           getHwSwitch()->getSwitchStats()->getDramDequeuedBytes();
       XLOG(DBG2) << "Dram dequeued bytes : " << dramDequeuedBytes;
       EXPECT_EVENTUALLY_GT(dramDequeuedBytes, 0);
-    });
-  };
-  verifyAcrossWarmBoots(setup, verify);
-}
-
-TEST_F(HwVoqSwitchTest, fdrCellDrops) {
-  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
-  const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
-  auto setup = [this, kPort]() {
-    addRemoveNeighbor(kPort, true /* add neighbor*/);
-    std::string out;
-    getHwSwitchEnsemble()->runDiagCommand(
-        "setreg FDA_OFM_CLASS_DROP_TH_CORE 0x001001001001001001001001\n", out);
-    getHwSwitchEnsemble()->runDiagCommand("quit\n", out);
-  };
-
-  auto verify = [this, kPort, &ecmpHelper]() {
-    auto sendPkts = [this, kPort, &ecmpHelper]() {
-      for (auto i = 0; i < 1000; ++i) {
-        sendPacket(
-            ecmpHelper.ip(kPort),
-            std::nullopt,
-            std::vector<uint8_t>(1024, 0xff));
-      }
-    };
-    int64_t fdrCellDrops = 0;
-    WITH_RETRIES({
-      sendPkts();
-      getHwSwitch()->updateStats();
-      fb303::ThreadCachedServiceData::get()->publishStats();
-      fdrCellDrops = getHwSwitch()->getSwitchStats()->getFdrCellDrops();
-      XLOG(DBG2) << "FDR Cell drops : " << fdrCellDrops;
-      EXPECT_EVENTUALLY_GT(fdrCellDrops, 0);
     });
   };
   verifyAcrossWarmBoots(setup, verify);
@@ -1446,10 +1452,9 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
         getSysPortStatsFn = [&](const std::vector<SystemPortID>& portIds) {
           return getLatestSysPortStats(portIds);
         };
-    size_t pktSize = 0;
     utility::pumpTrafficAndVerifyLoadBalanced(
         [&]() {
-          pktSize = utility::pumpTraffic(
+          utility::pumpTraffic(
               true, /* isV6 */
               getHwSwitch(), /* hw */
               utility::kLocalCpuMac(), /* dstMac */
@@ -1471,8 +1476,7 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
               {},
               getSysPortStatsFn,
               kMaxDeviation,
-              false,
-              pktSize)));
+              false)));
           return true;
         });
   };
@@ -1520,10 +1524,9 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteAndLocalLoadBalance) {
         getSysPortStatsFn = [&](const std::vector<SystemPortID>& portIds) {
           return getLatestSysPortStats(portIds);
         };
-    size_t pktSize = 0;
     utility::pumpTrafficAndVerifyLoadBalanced(
         [&]() {
-          pktSize = utility::pumpTraffic(
+          utility::pumpTraffic(
               true, /* isV6 */
               getHwSwitch(), /* hw */
               utility::kLocalCpuMac(), /* dstMac */
@@ -1541,12 +1544,7 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteAndLocalLoadBalance) {
         },
         [&]() {
           WITH_RETRIES(EXPECT_EVENTUALLY_TRUE(utility::isLoadBalanced(
-              sysPortDescs,
-              {},
-              getSysPortStatsFn,
-              kMaxDeviation,
-              false,
-              pktSize)));
+              sysPortDescs, {}, getSysPortStatsFn, kMaxDeviation, false)));
           return true;
         });
   };

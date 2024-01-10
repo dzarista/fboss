@@ -630,10 +630,9 @@ AdminDistance getAdminDistanceForClientId(
   return static_cast<AdminDistance>(distance->second);
 }
 
-size_t getNumUpPorts(
+size_t getNumActiveFabricPorts(
     const std::shared_ptr<SwitchState>& state,
-    const HwSwitchMatcher& matcher,
-    cfg::PortType portType) {
+    const HwSwitchMatcher& matcher) {
   auto portMap = state->getPorts()->getMapNodeIf(matcher);
   if (!portMap) {
     return 0;
@@ -642,8 +641,10 @@ size_t getNumUpPorts(
   return std::count_if(
       std::begin(std::as_const(*portMap)),
       std::end(std::as_const(*portMap)),
-      [portType](const auto& port) {
-        return port.second->getPortType() == portType && port.second->isUp();
+      [](const auto& port) {
+        return port.second->getPortType() == cfg::PortType::FABRIC_PORT &&
+            port.second->isActive().has_value() &&
+            port.second->isActive().value() == true;
       });
 }
 
@@ -651,7 +652,7 @@ size_t getNumUpPorts(
  * SwitchDrainState can be modified from configuration.
  * However, some VOQ switch implementations require that the switch must be
  * initialized as DRAINED and can be in UNDRAINED state iff certain
- * number (pre-configured threshold) of fabric links are up.
+ * number (pre-configured threshold) of fabric links are ACTIVE.
  *
  * Thus, if configured switch state is
  *    - DRAINED => return DRAINED.
@@ -660,7 +661,7 @@ size_t getNumUpPorts(
  */
 cfg::SwitchDrainState computeActualSwitchDrainState(
     const std::shared_ptr<SwitchSettings>& switchSettings,
-    int numFabricPortsUp) {
+    int numActiveFabricPorts) {
   CHECK(switchSettings);
 
   // For non-VOQ switches, actual switch drain state is the same as desired
@@ -688,7 +689,7 @@ cfg::SwitchDrainState computeActualSwitchDrainState(
       switch (switchSettings->getActualSwitchDrainState()) {
         case cfg::SwitchDrainState::UNDRAINED:
           if (switchSettings->getMinLinksToRemainInVOQDomain().has_value() &&
-              numFabricPortsUp <
+              numActiveFabricPorts <
                   switchSettings->getMinLinksToRemainInVOQDomain().value()) {
             newSwitchDrainState = cfg::SwitchDrainState::DRAINED;
           } else {
@@ -697,7 +698,7 @@ cfg::SwitchDrainState computeActualSwitchDrainState(
           break;
         case cfg::SwitchDrainState::DRAINED:
           if (switchSettings->getMinLinksToJoinVOQDomain().has_value() &&
-              numFabricPortsUp >=
+              numActiveFabricPorts >=
                   switchSettings->getMinLinksToJoinVOQDomain().value()) {
             newSwitchDrainState = cfg::SwitchDrainState::UNDRAINED;
           } else {

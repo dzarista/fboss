@@ -29,6 +29,7 @@
 #include "fboss/agent/LldpManager.h"
 #include "fboss/agent/LookupClassRouteUpdater.h"
 #include "fboss/agent/LookupClassUpdater.h"
+#include "fboss/agent/ResourceAccountant.h"
 #include "fboss/agent/SwitchInfoUtils.h"
 #include "fboss/agent/hw/HwSwitchWarmBootHelper.h"
 #include "fboss/agent/state/StateUtils.h"
@@ -343,6 +344,7 @@ SwSwitch::SwSwitch(
       scopeResolver_(
           new SwitchIdScopeResolver(getSwitchInfoFromConfig(config))),
       switchStatsObserver_(new SwitchStatsObserver(this)),
+      resourceAccountant_(new ResourceAccountant(hwAsicTable_.get())),
       packetStreamMap_(new MultiSwitchPacketStreamMap()),
       swSwitchWarmbootHelper_(new SwSwitchWarmBootHelper(agentDirUtil_)),
       hwSwitchThriftClientTable_(new HwSwitchThriftClientTable(
@@ -574,19 +576,6 @@ state::WarmbootState SwSwitch::gracefulExitState() const {
 }
 
 void SwSwitch::gracefulExit() {
-  auto sleepOnSigTermFile = agentDirUtil_->sleepSwSwitchOnSigTermFile();
-  if (checkFileExists(sleepOnSigTermFile)) {
-    SCOPE_EXIT {
-      removeFile(sleepOnSigTermFile);
-    };
-    std::string timeStr;
-    if (folly::readFile(
-            agentDirUtil_->sleepSwSwitchOnSigTermFile().c_str(), timeStr)) {
-      // @lint-ignore CLANGTIDY
-      std::this_thread::sleep_for(
-          std::chrono::seconds(folly::to<uint32_t>(timeStr)));
-    }
-  }
   if (isFullyInitialized()) {
     steady_clock::time_point begin = steady_clock::now();
     XLOG(DBG2) << "[Exit] Starting SwSwitch graceful exit";
@@ -613,9 +602,8 @@ void SwSwitch::gracefulExit() {
                       switchStateToFollyDone - stopThreadsAndHandlersDone)
                       .count();
     // Cleanup if we ever initialized
-    multiHwSwitchHandler_->gracefulExit(thriftSwitchState);
+    multiHwSwitchHandler_->gracefulExit();
     multiHwSwitchHandler_->stop();
-    // writing after hwSwitch state for backward compat
     storeWarmBootState(thriftSwitchState);
     XLOG(DBG2)
         << "[Exit] SwSwitch Graceful Exit time "
@@ -958,8 +946,17 @@ void SwSwitch::init(
   initialState->publish();
   auto emptyState = std::make_shared<SwitchState>();
   emptyState->publish();
-  multiHwSwitchHandler_->stateChanged(
-      StateDelta(emptyState, initialState), false);
+  const auto initialStateDelta = StateDelta(emptyState, initialState);
+
+  // Notify resource accountant of the initial state.
+  if (!resourceAccountant_->isValidRouteUpdate(initialStateDelta)) {
+    throw FbossError(
+        "Not enough resource to apply initialState. ",
+        "This should not happen given the state was previously applied, ",
+        "but possible if calculation or threshold changes across warmboot.");
+  }
+
+  multiHwSwitchHandler_->stateChanged(initialStateDelta, false);
   // For cold boot there will be discripancy between applied state and state
   // that exists in hardware. this discrepancy is until config is applied, after
   // that the two states are in sync. tolerating this discrepancy for now
@@ -1018,9 +1015,16 @@ void SwSwitch::init(SwitchFlags flags) {
   if (!getHwSwitchHandler()->waitUntilHwSwitchConnected()) {
     throw FbossError("Waiting for HwSwitch to be connected cancelled");
   }
+  const auto initialStateDelta = StateDelta(emptyState, initialState);
+  // Notify resource accountant of the initial state.
+  if (!resourceAccountant_->isValidRouteUpdate(initialStateDelta)) {
+    throw FbossError(
+        "Not enough resource to apply initialState. ",
+        "This should not happen given the state was previously applied, ",
+        "but possible if calculation or threshold changes across warmboot.");
+  }
   try {
-    getHwSwitchHandler()->stateChanged(
-        StateDelta(emptyState, initialState), false);
+    getHwSwitchHandler()->stateChanged(initialStateDelta, false);
   } catch (const std::exception& ex) {
     throw FbossError("Failed to sync initial state to HwSwitch: ", ex.what());
   }
@@ -1425,6 +1429,12 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
     return oldState;
   }
 
+  if (!resourceAccountant_->isValidRouteUpdate(delta)) {
+    // Notify resource account to revert back to previous state
+    resourceAccountant_->stateChanged(StateDelta(newState, oldState));
+    return oldState;
+  }
+
   std::shared_ptr<SwitchState> newAppliedState;
 
   // Inform the HwSwitch of the change.
@@ -1458,6 +1468,9 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
 
   // Notifies all observers of the current state update.
   notifyStateObservers(StateDelta(oldState, newAppliedState));
+
+  // Notifies resource accountant of new applied state.
+  resourceAccountant_->stateChanged(StateDelta(newState, newAppliedState));
 
   auto end = std::chrono::steady_clock::now();
   auto duration =
@@ -1766,43 +1779,83 @@ void SwSwitch::linkStateChanged(
         setPortStatusCounter(portId, up);
         portStats(portId)->linkStateChange(up);
 
-        auto matcher = getScopeResolver()->scope(portId);
-        auto numUpFabricPorts =
-            getNumUpPorts(newState, matcher, cfg::PortType::FABRIC_PORT);
-        auto switchSettings =
-            state->getSwitchSettings()->getNodeIf(matcher.matcherString());
-
-        // TODO(skhare)
-        // Once SwitchSettingsFields are made unique for HwSwitch,
-        // SwitchSettingsFields will carry switchInfo instead of
-        // switchIdToSwitchInfo. At that time, change the if-check to compare
-        // SwitchType to VOQ.
-        if (switchSettings->getSwitchIdsOfType(cfg::SwitchType::VOQ).size() !=
-            0) {
-          auto newActualSwitchDrainState =
-              computeActualSwitchDrainState(switchSettings, numUpFabricPorts);
-          if (newActualSwitchDrainState !=
-              switchSettings->getActualSwitchDrainState()) {
-            auto newSwitchSettings = switchSettings->modify(&newState);
-            newSwitchSettings->setActualSwitchDrainState(
-                newActualSwitchDrainState);
-          }
-        }
-
         XLOG(DBG2) << "SW Link state changed: " << port->getName() << " ["
                    << (!up ? "UP" : "DOWN") << "->" << (up ? "UP" : "DOWN")
-                   << "]"
-                   << " SwitchIDs: " << matcher.matcherString()
-                   << " numUpFabricPorts: " << numUpFabricPorts
-                   << " Switch Drain state: "
-                   << getDrainStateChangedStr(getState(), newState, matcher);
+                   << "]";
       }
     }
 
     return newState;
   };
   updateStateNoCoalescing(
-      "Port OperState Update", std::move(updateOperStateFn));
+      "Port OperState (UP/DOWN) Update", std::move(updateOperStateFn));
+}
+
+void SwSwitch::linkActiveStateChanged(
+    const std::map<PortID, bool>& port2IsActive) {
+  if (!isFullyInitialized()) {
+    XLOG(ERR)
+        << "Ignore link active state change event before we are fully initialized...";
+    return;
+  }
+
+  auto updateActiveStateFn = [=,
+                              this](const std::shared_ptr<SwitchState>& state) {
+    std::shared_ptr<SwitchState> newState(state);
+    auto numActiveFabricPorts = 0;
+    for (const auto& [portID, isActive] : port2IsActive) {
+      auto* port = newState->getPorts()->getNodeIf(portID).get();
+      if (port) {
+        if (isActive) {
+          numActiveFabricPorts++;
+        }
+
+        if (port->isActive() != isActive) {
+          auto getActiveStr = [](std::optional<bool> isActive) {
+            return isActive.has_value()
+                ? (isActive.value() ? "ACTIVE" : "INACTIVE")
+                : "NONE";
+          };
+          XLOG(DBG2) << "SW Link state changed: " << port->getName() << " ["
+                     << getActiveStr(port->isActive()) << "->"
+                     << getActiveStr(isActive) << "]";
+
+          port = port->modify(&newState);
+          port->setActiveState(isActive);
+        }
+      }
+    }
+
+    if (port2IsActive.size() == 0) {
+      return newState;
+    }
+
+    // Pick matcher for any port.
+    // This is OK because the matcher is used to retrieve switchSettings which
+    // are same for all the ports of a HwSwitch.
+    // And, SwSwitch::linkActiveStateChanged is invoked by a HwSwitch and thus
+    // passed port2IsActive always contains ports from a single HwSwitch.
+    auto matcher = getScopeResolver()->scope(port2IsActive.cbegin()->first);
+    auto switchSettings =
+        state->getSwitchSettings()->getNodeIf(matcher.matcherString());
+    auto newActualSwitchDrainState =
+        computeActualSwitchDrainState(switchSettings, numActiveFabricPorts);
+    if (newActualSwitchDrainState !=
+        switchSettings->getActualSwitchDrainState()) {
+      auto newSwitchSettings = switchSettings->modify(&newState);
+      newSwitchSettings->setActualSwitchDrainState(newActualSwitchDrainState);
+    }
+
+    XLOG(DBG2) << "SwitchIDs: " << matcher.matcherString()
+               << " numActiveFabricPorts: " << numActiveFabricPorts
+               << " Switch Drain state: "
+               << getDrainStateChangedStr(getState(), newState, matcher);
+
+    return newState;
+  };
+  updateStateNoCoalescing(
+      "Port ActiveState (ACTIVE/INACTIVE) Update",
+      std::move(updateActiveStateFn));
 }
 
 void SwSwitch::startThreads() {

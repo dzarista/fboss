@@ -146,7 +146,6 @@ class HwAsic {
     RX_LANE_SQUELCH_ENABLE,
     SAI_PORT_ETHER_STATS,
     SLOW_STAT_UPDATE, // pending CS00012299308
-    LINK_STATE_BASED_ISOLATE,
     VOQ_DELETE_COUNTER,
     DRAM_ENQUEUE_DEQUEUE_STATS,
     SEPARATE_BYTE_AND_PACKET_ACL_COUNTER,
@@ -160,8 +159,9 @@ class HwAsic {
     ECMP_DLB_OFFSET,
     SAI_FEC_CORRECTED_BITS,
     SAI_FEC_CODEWORDS_STATS,
-    // TODO: Once this support is complete, remove LINK_STATE_BASED_ISOLATE
     LINK_INACTIVE_BASED_ISOLATE,
+    SAI_PORT_SERDES_PROGRAMMING,
+    RX_SNR,
   };
 
   enum class AsicMode {
@@ -280,6 +280,14 @@ class HwAsic {
   virtual uint32_t getMaxVariableWidthEcmpSize() const = 0;
 
   virtual uint32_t getMaxEcmpSize() const = 0;
+
+  virtual std::optional<uint32_t> getMaxEcmpGroups() const {
+    return std::nullopt;
+  }
+
+  virtual std::optional<uint32_t> getMaxEcmpMembers() const {
+    return std::nullopt;
+  }
 
   virtual bool scalingFactorBasedDynamicThresholdSupported() const = 0;
 

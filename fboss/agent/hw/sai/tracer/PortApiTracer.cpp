@@ -67,7 +67,7 @@ std::map<int32_t, std::pair<std::string, std::size_t>> _PortMap {
       SAI_ATTR_MAP(Port, InterFrameGap),
 #endif
 #if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
-      SAI_ATTR_MAP(Port, RxFrequencyPPM),
+      SAI_ATTR_MAP(Port, RxFrequencyPPM), SAI_ATTR_MAP(Port, RxSNR),
 #endif
       SAI_ATTR_MAP(Port, LinkTrainingEnable),
       SAI_ATTR_MAP(Port, FabricAttached),
@@ -127,6 +127,11 @@ WRAP_CREATE_FUNC(port, SAI_OBJECT_TYPE_PORT, port);
 WRAP_REMOVE_FUNC(port, SAI_OBJECT_TYPE_PORT, port);
 WRAP_SET_ATTR_FUNC(port, SAI_OBJECT_TYPE_PORT, port);
 WRAP_GET_ATTR_FUNC(port, SAI_OBJECT_TYPE_PORT, port);
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+WRAP_BULK_GET_ATTR_FUNC(port, SAI_OBJECT_TYPE_PORT, port);
+#endif
+
 WRAP_GET_STATS_FUNC(port, SAI_OBJECT_TYPE_PORT, port);
 WRAP_GET_STATS_EXT_FUNC(port, SAI_OBJECT_TYPE_PORT, port);
 WRAP_CLEAR_STATS_FUNC(port, SAI_OBJECT_TYPE_PORT, port);
@@ -222,6 +227,9 @@ sai_port_api_t* wrappedPortApi() {
       &wrap_set_port_connector_attribute;
   portWrappers.get_port_connector_attribute =
       &wrap_get_port_connector_attribute;
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  portWrappers.get_ports_attribute = &wrap_get_ports_attribute;
+#endif
   return &portWrappers;
 }
 

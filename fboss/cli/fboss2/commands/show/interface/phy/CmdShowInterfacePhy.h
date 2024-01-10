@@ -110,7 +110,9 @@ class CmdShowInterfacePhy
       Table pcsTable;
       Table rsFecTable;
       Table rsFecStateTable;
-      bool hasPcsData{false}, hasRsFecData{false}, hasRsFecState{false};
+      Table rsFecCodewordStatsTable;
+      bool hasPcsData{false}, hasRsFecData{false}, hasRsFecState{false},
+          hasRsFecCodewordStats{false};
       if (sideState.pcs().has_value()) {
         if (auto pcsRxStatusLive = sideState.pcs()->pcsRxStatusLive()) {
           pcsTable.setHeader({prefix + "PCS", ""});
@@ -125,12 +127,15 @@ class CmdShowInterfacePhy
           hasPcsData = true;
         }
         if (auto rsFecState = sideState.pcs()->rsFecState()) {
-          rsFecStateTable.setHeader(
-              {prefix + "RS FEC State",
-               "Lane",
-               "Alignment Lock Live",
-               "Alignment Lock Changed"});
           for (auto& fecLaneState : *rsFecState->lanes()) {
+            if (!hasRsFecState) {
+              // Display the header only once
+              rsFecStateTable.setHeader(
+                  {prefix + "RS FEC State",
+                   "Lane",
+                   "Alignment Lock Live",
+                   "Alignment Lock Changed"});
+            }
             std::string fecAmLive = "N/A";
             std::string fecAmChanged = "N/A";
             if (auto fecAmLiveState =
@@ -146,8 +151,8 @@ class CmdShowInterfacePhy
                  std::to_string(*(fecLaneState.second.lane())),
                  makeColorCellForLiveFlag(fecAmLive),
                  fecAmChanged});
+            hasRsFecState = true;
           }
-          hasRsFecState = true;
         }
       }
       if (sideStats.pcs().has_value()) {
@@ -163,12 +168,26 @@ class CmdShowInterfacePhy
           outStringStream << *rsFec->preFECBer();
           rsFecTable.addRow({prefix + "Pre-FEC BER", outStringStream.str()});
           hasRsFecData = true;
+          if (!rsFec->codewordStats()->empty()) {
+            rsFecCodewordStatsTable.setHeader(
+                {prefix + "Codeword stats", "Symbol Errors", "# of codewords"});
+            for (auto& [symbolErrors, numCodewords] : *rsFec->codewordStats()) {
+              rsFecCodewordStatsTable.addRow(
+                  {"",
+                   std::to_string(symbolErrors),
+                   std::to_string(numCodewords)});
+            }
+            hasRsFecCodewordStats = true;
+          }
         }
         if (hasPcsData) {
           out << pcsTable;
         }
         if (hasRsFecData) {
           out << rsFecTable;
+        }
+        if (hasRsFecCodewordStats) {
+          out << rsFecCodewordStatsTable;
         }
         if (hasRsFecState) {
           out << rsFecStateTable;
@@ -205,7 +224,8 @@ class CmdShowInterfacePhy
          "RX CDR Lock Changed",
          "Eye Heights",
          "Eye Widths",
-         "Rx PPM"});
+         "Rx PPM",
+         "RX SNR"});
     for (auto pmdLane : pmdLanes) {
       auto laneState = (*sideState.pmd()->lanes())[pmdLane];
       auto laneStat = (*sideStats.pmd()->lanes())[pmdLane];
@@ -214,6 +234,7 @@ class CmdShowInterfacePhy
       std::string sigDetChanged = "N/A";
       std::string cdrLockChanged = "N/A";
       std::string rxPPM = "N/A";
+      std::string rxSNR = "N/A";
       std::vector<float> eyeHeights = {};
       std::vector<float> eyeWidths = {};
       if (auto rxSigDetLive = laneState.signalDetectLive()) {
@@ -230,6 +251,9 @@ class CmdShowInterfacePhy
       }
       if (auto rxFreqPPM = laneState.rxFrequencyPPM()) {
         rxPPM = std::to_string(*rxFreqPPM);
+      }
+      if (auto rxLaneSNR = laneStat.snr()) {
+        rxSNR = std::to_string(*rxLaneSNR);
       }
       if (auto eyes = laneStat.eyes()) {
         for (const auto& eye : *eyes) {
@@ -250,7 +274,8 @@ class CmdShowInterfacePhy
            cdrLockChanged,
            folly::join(",", eyeHeights),
            folly::join(",", eyeWidths),
-           rxPPM});
+           rxPPM,
+           rxSNR});
     }
     out << pmdRxTable;
   }

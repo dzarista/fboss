@@ -104,6 +104,11 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
           map,
           getCounterPrefix() + vendor + ".aligner.errors",
           SUM,
+          RATE),
+      forwardingQueueProcessorErrors_(
+          map,
+          getCounterPrefix() + vendor + ".forwardingQueueProcessor.errors",
+          SUM,
           RATE) {}
 
 void HwSwitchFb303Stats::update(const HwSwitchDropStats& dropStats) {
@@ -158,8 +163,12 @@ int64_t HwSwitchFb303Stats::getAlignerErrors() const {
   return getCumulativeValue(alignerErrors_);
 }
 
+int64_t HwSwitchFb303Stats::getForwardingQueueProcessorErrors() const {
+  return getCumulativeValue(forwardingQueueProcessorErrors_);
+}
+
 int64_t HwSwitchFb303Stats::getFdrCellDrops() const {
-  return getCumulativeValue(alignerErrors_);
+  return getCumulativeValue(fdrCellDrops_);
 }
 
 HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
@@ -174,6 +183,8 @@ HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   asicErrors.egressPacketNetworkInterfaceErrors() =
       getCumulativeValue(epniErrors_);
   asicErrors.alignerErrors() = getCumulativeValue(alignerErrors_);
+  asicErrors.forwardingQueueProcessorErrors() =
+      getCumulativeValue(forwardingQueueProcessorErrors_);
   return asicErrors;
 }
 
@@ -233,6 +244,8 @@ HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
   hwFb303Stats.ingress_transmit_pipeline_errors() = getItppErrors();
   hwFb303Stats.egress_packet_network_interface_errors() = getEpniErrors();
   hwFb303Stats.aligner_errors() = getAlignerErrors();
+  hwFb303Stats.forwarding_queue_processor_errors() =
+      getForwardingQueueProcessorErrors();
   return hwFb303Stats;
 }
 

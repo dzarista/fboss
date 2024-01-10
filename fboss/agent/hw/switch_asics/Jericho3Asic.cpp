@@ -35,8 +35,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::FABRIC_PORTS:
     case HwAsic::Feature::LINK_TRAINING:
     case HwAsic::Feature::FEC:
-    case HwAsic::Feature::FEC_CORRECTED_BITS:
-    case HwAsic::Feature::SAI_FEC_COUNTERS:
     case HwAsic::Feature::SAI_TTL0_PACKET_FORWARD_ENABLE:
     case HwAsic::Feature::PMD_RX_LOCK_STATUS:
     case HwAsic::Feature::PMD_RX_SIGNAL_DETECT:
@@ -45,11 +43,10 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT:
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
-    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
-    case HwAsic::Feature::CREDIT_WATCHDOG:
     case HwAsic::Feature::RESOURCE_USAGE_STATS:
+    case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
       return true;
     // TODO: enable after ECN is supported
     case HwAsic::Feature::ECN:
@@ -65,6 +62,8 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::L3_QOS:
     case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
+    case HwAsic::Feature::CREDIT_WATCHDOG:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return getAsicMode() != AsicMode::ASIC_MODE_SIM;
     // FIXME - make true when J3-AI supports these features
     // For now these are only supported on J3 SIM and J3 HW
@@ -163,7 +162,9 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::MPLS_ECMP:
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv6:
-    case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+    case HwAsic::Feature::RX_SNR:
+    case HwAsic::Feature::FEC_CORRECTED_BITS:
+    case HwAsic::Feature::SAI_FEC_COUNTERS:
       return false;
   }
   return false;
