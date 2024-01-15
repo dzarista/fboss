@@ -31,11 +31,19 @@ class OutgoingSlotConfigs():
       self.buses = buses
 
    def renderNode(self):
-      height = "10"
-      if self.slotType == "PSU_SLOT" or self.slotType == "FAN_SLOT":
-         height = "2"
+      buses=""
+      for bus in self.buses:
+         buses += f"{bus}|"
+      buses = buses[:-1]
+
+      if buses:
+         label = f" {self.slotId} | {{ {{ {buses} }} }}"
+      else:
+         label = self.slotId
+
+      height = max( str(2*len(self.buses)), "2")
       self.node = Node(self.slotId, fillcolor="transparent", fontcolor="black",
-                       height=height, style="dashed", width="2" ).getNode()
+                       height=height, style="dashed", width="3", label=label ).getNode()
 
 
 class I2cDeviceConfigs():
@@ -145,14 +153,11 @@ class PmUnit():
                   pciDev.node >> Edge(**attrs) >> i2cDev.node
 
             for slot in self.slots:
-               for slotBus in slot.buses:
-                  thisBus = slotBus.split("@")[0]
-                  if thisBus in pciDev.adapters:
-                     attrs = {
-                        "minlen":"3",
-                        "headlabel":slotBus
-                     }
-                     pciDev.node - Edge(**attrs) - slot.node
+               if slot.buses:
+                  attrs = {
+                     "minlen":"3",
+                  }
+                  pciDev.node - Edge(**attrs) - slot.node
 
             if pciDev.containsXcvrs:
                xcvrNode = Node("XCVRs").getNode()
