@@ -11,6 +11,12 @@ SCRATCH_DIR="$FBOSS_DIR/tmp_build_dir"
 # simulated that .git dir exist for copytree.py:containing_repo_type
 touch ".git"
 
+# Optionally, pin the fboss and its dependencies to known
+# stable commit hash
+rm -rf build/deps/github_hashes/facebook
+rm -rf build/deps/github_hashes/facebookincubator
+tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
+
 mkdir -p $FBOSS_DIR/built-sai/experimental
 mkdir -p $FBOSS_DIR/built-bcm-sai
 cp $SAI_DIR/libraries/libsai.a $FBOSS_DIR/built-bcm-sai/libsai_impl.a
