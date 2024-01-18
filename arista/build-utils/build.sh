@@ -299,6 +299,13 @@ else
       echo "Copying $fw from $fw_path to $fboss_output_dir"
       cp $fw_path $fboss_output_dir
    done
+
+   # Generate python thrift libraries
+   $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $FBOSS_DIR/fboss.git -I $SCRATCH_DIR/build/fbthrift/source/ $FBOSS_DIR/fboss.git/fboss/agent/if/ctrl.thrift
+   mkdir -p $fboss_output_dir/lib/fb-py-libs
+   cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
+   cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
+   find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/env python3|' {} +
 fi
 
 set +ex
