@@ -177,6 +177,7 @@ class I2cDeviceConfigs( BaseConfigs ):
       hasCpuMac = entity.get( "hasCpuMac" )
       hasSwitchAsicMac = entity.get( "hasSwitchAsicMac" )
       hasReservedMac = entity.get( "hasReservedMac" )
+      isGpioChip = entity.get( "isGpioChip" )
 
       assert busName and address and kernelDeviceName and pmUnitScopedName\
             , "missing required details in I2cDeviceConfigs"
@@ -192,7 +193,8 @@ class I2cDeviceConfigs( BaseConfigs ):
          **({ "hasBmcMac": bool( hasBmcMac ) } if hasBmcMac else {}),
          **({ "hasCpuMac": bool( hasCpuMac ) } if hasCpuMac else {}),
          **({ "hasSwitchAsicMac": hasSwitchAsicMac } if hasSwitchAsicMac else {}),
-         **({ "hasReservedMac": hasReservedMac } if hasReservedMac else {})
+         **({ "hasReservedMac": hasReservedMac } if hasReservedMac else {}),
+         **({ "isGpioChip": isGpioChip } if isGpioChip else {})
       }
 
    def getList( self ):
@@ -210,14 +212,25 @@ class OutgoingSlotConfigs( BaseConfigs ):
 
    def parseOutgoingSlotConfigs( self, entity ):
       slotType = entity.get( "slotType" )
-      presenceDetection = entity.get( "presenceDetection" )
+      presenceDevicePath = entity.get( "presenceDevicePath" )
+      presenceFileName = entity.get( "presenceFileName" )
       outgoingI2cBusNames = entity.get( "outgoingI2cBusNames" )
 
       assert slotType, "missing slotType in OutgoingSlotConfigs"
 
+      presenceDetection = None
+      if presenceFileName and presenceDevicePath:
+         presenceDetection = {
+            "sysfsFileHandle": {
+               "devicePath": presenceDevicePath,
+               "presenceFileName": presenceFileName,
+               "desiredValue": 1
+            }
+         }
+
       return {
          "slotType": slotType,
-         **({ "presenceDetection": json.loads( presenceDetection ) }\
+         **({ "presenceDetection":  presenceDetection }\
              if presenceDetection else {}),
          "outgoingI2cBusNames": json.loads( outgoingI2cBusNames )\
               if outgoingI2cBusNames else []
