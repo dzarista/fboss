@@ -2,6 +2,7 @@
 Description=Start fan_service
 After=sensor_service.service
 Wants=sensor_service.service
+Wants=platform_manager.service
 
 [Service]
 ExecStart=/opt/fboss/bin/run_fan_service.sh
