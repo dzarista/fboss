@@ -1,9 +1,13 @@
 {
    "latestReleaseNotes" : {
-         "name" : "December 22 2023 EFT",
-         "notesFile" : "release_notes/dec22_eft.txt"
+         "name" : "January 26 2024 EFT",
+         "notesFile" : "release_notes/jan26_eft.txt"
    },
    "pastReleaseNotes" : [
+      {
+         "name" : "December 22 2023 EFT",
+         "notesFile" : "release_notes/dec22_eft.txt"
+      },
       {
          "name" : "November 17 2023 EFT",
          "notesFile" : "release_notes/nov17_eft.txt"
@@ -49,10 +53,6 @@
    ],
    "programmables" : [
       {
-         "name" : "BMC Image",
-         "imageFile" : "programmables/flash-meru-arista-dev.bin"
-      },
-      {
          "name" : "Aboot Image",
          "imageFile" : "programmables/Aboot.rom"
       },
@@ -94,13 +94,6 @@
       }
    ],
    "repos" : [
-      {
-         "name" : "APL",
-         "url" : "git@github.com:aristanetworks/apl.facebook.git",
-         "branch" : "main",
-         "commitHash" : "b02e382480f784029b0b96c7ca405cf0282e3568",
-         "note" : "- non-auxdev kernel drivers in src/"
-      },
       {
          "name" : "fboss.bsp.arista",
          "url" : "git@github.com:facebookexternal/fboss.bsp.arista.git",
