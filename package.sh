@@ -5,7 +5,7 @@ set -e
 FBOSS_REPO=$(pwd)
 
 FBOSS_REPO_RPM_DIR="$FBOSS_REPO/arista/rpm"
-FBOSS_RPM_DIR="$DESTDIR/rpmbuild/RPMS/"
+FBOSS_RPM_DIR="/tmp/artifacts/"
 RPM_DIR="/tmp/rpmbuild/RPMS/x86_64"
 RPMS=()
 
@@ -28,3 +28,14 @@ for rpm in "${RPMS[@]}"; do
     built_rpm=$(find "${RPM_DIR}" -type f -name "$(basename ${rpm%.*})*")
     cp -f "${built_rpm}" "${FBOSS_RPM_DIR}"
 done
+
+# upload created RPMS to artifactory
+ARCH=$1
+KERNEL=$2
+export COMMITID=$(echo $SRC_0 | awk -F '#' '{print substr($2, 1, 7)}')
+find /tmp/artifacts -type f -exec basename {} \; | sort | xargs -I{} curl -T /tmp/artifacts/{} https://artifactory.infra.corp.arista.io/artifactory/arista-fboss/jenkins/builds/$COMMITID/fbossOssRpms/$ARCH/$KERNEL/{}
+
+# create yaml file with commitid which allow find related url to artifactory:
+# http://artifactory.infra.corp.arista.io/ui/native/arista-fboss/jenkins/builds/$COMMITID/fbossOssRpms/$ARCH/$KERNEL
+mkdir -p $DESTDIR/artifacts/
+echo $COMMITID > $DESTDIR/artifacts/fboss.yaml
