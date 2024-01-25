@@ -50,6 +50,7 @@ inline const int kScalingFactor(100);
 inline const int kLoadWeight(70);
 inline const int kQueueWeight(30);
 
+cfg::LoadBalancer getTrunkHalfHashConfig(const HwAsic& asic);
 cfg::LoadBalancer getEcmpHalfHashConfig(const HwAsic& asic);
 cfg::LoadBalancer getEcmpFullHashConfig(const HwAsic& asic);
 cfg::LoadBalancer getEcmpFullUdfHashConfig(const HwAsic& asic);
@@ -72,13 +73,14 @@ std::shared_ptr<SwitchState> addLoadBalancers(
     const std::vector<cfg::LoadBalancer>& loadBalancers,
     const SwitchIdScopeResolver& resolver);
 
-void pumpTraffic(
+size_t pumpTraffic(
     bool isV6,
     HwSwitch* hw,
     folly::MacAddress dstMac,
     std::optional<VlanID> vlan,
     std::optional<PortID> frontPanelPortToLoopTraffic = std::nullopt,
     int hopLimit = 255,
+    int numPackets = 10000,
     std::optional<folly::MacAddress> srcMac = std::nullopt);
 
 size_t pumpRoCETraffic(
@@ -92,7 +94,7 @@ size_t pumpRoCETraffic(
     std::optional<folly::MacAddress> srcMacAddr = std::nullopt,
     int packetCount = 50000);
 
-void pumpTrafficWithSourceFile(
+size_t pumpTrafficWithSourceFile(
     HwSwitch* hw,
     folly::MacAddress dstMac,
     std::optional<VlanID> vlan,
@@ -176,7 +178,8 @@ bool isLoadBalanced(
       }) |
       folly::gen::as<std::vector<PortIdT>>();
   auto portIdToStats = getPortStatsFn(portIDs);
-  return isLoadBalanced(portIdToStats, weights, maxDeviationPct, noTrafficOk);
+  return isLoadBalancedImpl(
+      portIdToStats, weights, maxDeviationPct, noTrafficOk);
 }
 
 template <typename PortIdT, typename PortStatsT>

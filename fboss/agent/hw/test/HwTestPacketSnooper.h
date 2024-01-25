@@ -19,7 +19,8 @@ class HwTestPacketSnooper : public HwSwitchEnsemble::HwSwitchEventObserverIf {
  public:
   explicit HwTestPacketSnooper(
       HwSwitchEnsemble* ensemble,
-      std::optional<PortID> port = std::nullopt);
+      std::optional<PortID> port = std::nullopt,
+      std::optional<utility::EthFrame> expectedFrame = std::nullopt);
   virtual ~HwTestPacketSnooper() override;
   void packetReceived(RxPacket* pkt) noexcept override;
   // Wait until timeout (seconds), If timeout = 0, wait forever.
@@ -30,12 +31,15 @@ class HwTestPacketSnooper : public HwSwitchEnsemble::HwSwitchEventObserverIf {
   void l2LearningUpdateReceived(
       L2Entry /*l2Entry*/,
       L2EntryUpdateType /*l2EntryUpdateType*/) override {}
+  void linkActiveStateChanged(
+      const std::map<PortID, bool>& /*port2IsActive */) override {}
 
   HwSwitchEnsemble* ensemble_;
   std::optional<PortID> port_;
+  std::optional<utility::EthFrame> expectedFrame_;
   std::mutex mtx_;
   std::condition_variable cv_;
-  std::unique_ptr<folly::IOBuf> data_;
+  std::unique_ptr<utility::EthFrame> receivedFrame_;
 };
 
 } // namespace facebook::fboss

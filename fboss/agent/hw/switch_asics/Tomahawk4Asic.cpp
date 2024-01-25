@@ -111,6 +111,7 @@ bool Tomahawk4Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ECMP_DLB_OFFSET:
     case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
     case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return true;
     // features not working well with bcmsim
     case HwAsic::Feature::MIRROR_PACKET_TRUNCATION:
@@ -145,7 +146,6 @@ bool Tomahawk4Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_MPLS_INSEGMENT:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
     case HwAsic::Feature::VOQ:
-    case HwAsic::Feature::RECYCLE_PORT_STATS:
     case HwAsic::Feature::XPHY_PORT_STATE_TOGGLE:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
     case HwAsic::Feature::SAI_TTL0_PACKET_FORWARD_ENABLE:
@@ -164,10 +164,11 @@ bool Tomahawk4Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
     case HwAsic::Feature::SLOW_STAT_UPDATE:
-    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::CREDIT_WATCHDOG:
+    case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+    case HwAsic::Feature::RX_SNR:
       return false;
   }
   return false;

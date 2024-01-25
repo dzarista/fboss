@@ -80,6 +80,7 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
           getCounterPrefix() + "packet_integrity_drops",
           SUM,
           RATE),
+      fdrCellDrops_(map, getCounterPrefix() + "fdr_cell_drops", SUM, RATE),
       dramEnqueuedBytes_(
           map,
           getCounterPrefix() + "dram_enqueued_bytes",
@@ -96,9 +97,19 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
       fabricReachabilityMismatchCount_(
           map,
           getCounterPrefix() + "fabric_reachability_mismatch"),
-      ireErrors_(map, getCounterPrefix() + vendor + "ire_errors", SUM, RATE),
-      itppErrors_(map, getCounterPrefix() + vendor + "itpp_errors", SUM, RATE) {
-}
+      ireErrors_(map, getCounterPrefix() + vendor + ".ire.errors", SUM, RATE),
+      itppErrors_(map, getCounterPrefix() + vendor + ".itpp.errors", SUM, RATE),
+      epniErrors_(map, getCounterPrefix() + vendor + ".epni.errors", SUM, RATE),
+      alignerErrors_(
+          map,
+          getCounterPrefix() + vendor + ".aligner.errors",
+          SUM,
+          RATE),
+      forwardingQueueProcessorErrors_(
+          map,
+          getCounterPrefix() + vendor + ".forwardingQueueProcessor.errors",
+          SUM,
+          RATE) {}
 
 void HwSwitchFb303Stats::update(const HwSwitchDropStats& dropStats) {
   if (dropStats.globalDrops().has_value()) {
@@ -109,6 +120,9 @@ void HwSwitchFb303Stats::update(const HwSwitchDropStats& dropStats) {
   }
   if (dropStats.packetIntegrityDrops().has_value()) {
     packetIntegrityDrops_.addValue(*dropStats.packetIntegrityDrops());
+  }
+  if (dropStats.fdrCellDrops().has_value()) {
+    fdrCellDrops_.addValue(*dropStats.fdrCellDrops());
   }
 }
 
@@ -141,6 +155,22 @@ int64_t HwSwitchFb303Stats::getItppErrors() const {
   return getCumulativeValue(itppErrors_);
 }
 
+int64_t HwSwitchFb303Stats::getEpniErrors() const {
+  return getCumulativeValue(epniErrors_);
+}
+
+int64_t HwSwitchFb303Stats::getAlignerErrors() const {
+  return getCumulativeValue(alignerErrors_);
+}
+
+int64_t HwSwitchFb303Stats::getForwardingQueueProcessorErrors() const {
+  return getCumulativeValue(forwardingQueueProcessorErrors_);
+}
+
+int64_t HwSwitchFb303Stats::getFdrCellDrops() const {
+  return getCumulativeValue(fdrCellDrops_);
+}
+
 HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   HwAsicErrors asicErrors;
   asicErrors.parityErrors() = getCumulativeValue(parityErrors_);
@@ -150,7 +180,11 @@ HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   asicErrors.asicErrors() = getCumulativeValue(asicErrors_);
   asicErrors.ingressReceiveEditorErrors() = getCumulativeValue(ireErrors_);
   asicErrors.ingressTransmitPipelineErrors() = getCumulativeValue(itppErrors_);
-
+  asicErrors.egressPacketNetworkInterfaceErrors() =
+      getCumulativeValue(epniErrors_);
+  asicErrors.alignerErrors() = getCumulativeValue(alignerErrors_);
+  asicErrors.forwardingQueueProcessorErrors() =
+      getCumulativeValue(forwardingQueueProcessorErrors_);
   return asicErrors;
 }
 
@@ -205,6 +239,13 @@ HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
       getFabricReachabilityMismatchCount();
   hwFb303Stats.fabric_reachability_mismatch() =
       getFabricReachabilityMissingCount();
+  hwFb303Stats.fdr_cell_drops() = getFdrCellDrops();
+  hwFb303Stats.ingress_receive_editor_errors() = getIreErrors();
+  hwFb303Stats.ingress_transmit_pipeline_errors() = getItppErrors();
+  hwFb303Stats.egress_packet_network_interface_errors() = getEpniErrors();
+  hwFb303Stats.aligner_errors() = getAlignerErrors();
+  hwFb303Stats.forwarding_queue_processor_errors() =
+      getForwardingQueueProcessorErrors();
   return hwFb303Stats;
 }
 

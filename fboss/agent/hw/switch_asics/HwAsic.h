@@ -118,7 +118,6 @@ class HwAsic {
     SAI_MPLS_INSEGMENT,
     RESERVED_ENCAP_INDEX_RANGE,
     VOQ,
-    RECYCLE_PORT_STATS,
     XPHY_PORT_STATE_TOGGLE,
     SAI_PORT_GET_PMD_LANES,
     FABRIC_TX_QUEUES,
@@ -147,7 +146,6 @@ class HwAsic {
     RX_LANE_SQUELCH_ENABLE,
     SAI_PORT_ETHER_STATS,
     SLOW_STAT_UPDATE, // pending CS00012299308
-    LINK_STATE_BASED_ISOLATE,
     VOQ_DELETE_COUNTER,
     DRAM_ENQUEUE_DEQUEUE_STATS,
     SEPARATE_BYTE_AND_PACKET_ACL_COUNTER,
@@ -161,6 +159,9 @@ class HwAsic {
     ECMP_DLB_OFFSET,
     SAI_FEC_CORRECTED_BITS,
     SAI_FEC_CODEWORDS_STATS,
+    LINK_INACTIVE_BASED_ISOLATE,
+    SAI_PORT_SERDES_PROGRAMMING,
+    RX_SNR,
   };
 
   enum class AsicMode {
@@ -280,6 +281,14 @@ class HwAsic {
 
   virtual uint32_t getMaxEcmpSize() const = 0;
 
+  virtual std::optional<uint32_t> getMaxEcmpGroups() const {
+    return std::nullopt;
+  }
+
+  virtual std::optional<uint32_t> getMaxEcmpMembers() const {
+    return std::nullopt;
+  }
+
   virtual bool scalingFactorBasedDynamicThresholdSupported() const = 0;
 
   virtual int getBufferDynThreshFromScalingFactor(
@@ -329,6 +338,9 @@ class HwAsic {
   virtual RecyclePortInfo getRecyclePortInfo() const;
   cfg::PortLoopbackMode getDesiredLoopbackMode(
       cfg::PortType portType = cfg::PortType::INTERFACE_PORT) const;
+
+  virtual uint32_t getMaxPorts() const;
+  virtual uint32_t getVirtualDevices() const;
 
  protected:
   static cfg::Range64 makeRange(int64_t min, int64_t max);

@@ -24,7 +24,7 @@ else
 fi
 
 for rpm in "${RPMS[@]}"; do
-   rpmbuild -bb "${rpm}"
+   rpmbuild -bb "${rpm}" --define 'root /'
    built_rpm=$(find "${RPM_DIR}" -type f -name "$(basename ${rpm%.*})*")
    cp -f "${built_rpm}" "${FBOSS_RPM_DIR}"
 done

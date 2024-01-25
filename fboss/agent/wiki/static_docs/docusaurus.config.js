@@ -44,10 +44,10 @@ const {
           }),
         },
         experimentalXRepoSnippets: {
-          baseDir: '.',
+          baseDir: '../../../..', // fbcode root
         },
         staticDocsProject: 'fboss_agent',
-        trackingFile: 'xplat/staticdocs/WATCHED_FILES',
+        trackingFile: 'fbcode/staticdocs/WATCHED_FILES',
         enableEditor: true,
         blog: false,
         theme: {

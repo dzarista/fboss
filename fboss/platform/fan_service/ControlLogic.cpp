@@ -12,7 +12,9 @@
 #include "fboss/platform/fan_service/if/gen-cpp2/fan_service_config_types.h"
 
 namespace {
-auto constexpr kFanWriteFailure = "fan_write.{}.{}.failure";
+auto constexpr kFanWriteFailure = "{}.{}.write_pwm_failure";
+auto constexpr kFanAbsent = "{}.absent";
+auto constexpr kFanReadRpmFailure = "{}.read_rpm_failure";
 auto constexpr kFanFailThresholdInSec = 300;
 auto constexpr kSensorFailThresholdInSec = 300;
 
@@ -43,37 +45,33 @@ ControlLogic::ControlLogic(
 
 std::tuple<bool, int, uint64_t> ControlLogic::readFanRpm(const Fan& fan) {
   std::string fanName = *fan.fanName();
-  auto rpmAccessType = *fan.rpmAccess()->accessType();
-  XLOG(INFO) << "Control :: Fan name " << *fan.fanName()
-             << " Access type : " << rpmAccessType;
-  bool fanAccessFailed = false;
+  XLOG(INFO) << fmt::format("Control :: Reading {} rpm", fanName);
+
+  bool fanRpmReadSuccess = false;
   int fanRpm = 0;
   uint64_t rpmTimeStamp = 0;
-
-  if (!isFanPresentInDevice(fan)) {
-    XLOG(INFO) << "Control :: Fan is absent for " << *fan.fanName();
-    return std::make_tuple(true, 0, 0);
-  }
-
-  if (rpmAccessType == constants::ACCESS_TYPE_SYSFS()) {
+  if (isFanPresentInDevice(fan)) {
+    if (*fan.rpmAccess()->accessType() != constants::ACCESS_TYPE_SYSFS()) {
+      facebook::fboss::FbossError("Invalid rpm access type for fan :", fanName);
+    }
     try {
       fanRpm = pBsp_->readSysfs(*fan.rpmAccess()->path());
       rpmTimeStamp = pBsp_->getCurrentTime();
+      fanRpmReadSuccess = true;
     } catch (std::exception& e) {
       XLOG(ERR) << "Fan RPM access failed " << *fan.rpmAccess()->path();
-      // Obvious. Sysfs fail means access fail
-      fanAccessFailed = true;
     }
-  } else {
-    facebook::fboss::FbossError(
-        "Unable to fetch Fan RPM due to invalide RPM sensor entry type :",
-        fanName);
   }
 
-  XLOG(INFO) << "Control :: RPM :" << fanRpm
-             << " Failed : " << (fanAccessFailed ? "Yes" : "No");
-
-  return std::make_tuple(fanAccessFailed, fanRpm, rpmTimeStamp);
+  fb303::fbData->setCounter(
+      fmt::format(kFanReadRpmFailure, fanName), !fanRpmReadSuccess);
+  if (fanRpmReadSuccess) {
+    XLOG(INFO) << fmt::format(
+        "Control :: {}'s latest rpm is {}", fanName, fanRpm);
+  } else {
+    XLOG(INFO) << fmt::format("Control :: Failed to read {}'s rpm", fanName);
+  }
+  return std::make_tuple(!fanRpmReadSuccess, fanRpm, rpmTimeStamp);
 }
 
 void ControlLogic::updateTargetPwm(const Sensor& sensor) {
@@ -245,21 +243,11 @@ void ControlLogic::getSensorUpdate() {
       readCache.sensorFailed = false;
     }
 
-    // 1.b If adjustment table exists, adjust the raw value
-    if (sensor.adjustmentTable()->empty()) {
-      adjustedValue = rawValue;
-    } else {
-      float offset = 0;
-      for (const auto& [k, v] : *sensor.adjustmentTable()) {
-        if (rawValue >= k) {
-          offset = v;
-        }
-        adjustedValue = rawValue + offset;
-      }
-    }
+    adjustedValue = rawValue;
+
     readCache.adjustedReadCache = adjustedValue;
     XLOG(INFO) << "Control :: Adjusted Value : " << adjustedValue;
-    // 1.c Check and trigger alarm
+    // 1.b Check and trigger alarm
     bool prevMajorAlarm = readCache.majorAlarmTriggered;
     readCache.majorAlarmTriggered =
         (adjustedValue >= *sensor.alarm()->highMajor());
@@ -297,34 +285,7 @@ void ControlLogic::getSensorUpdate() {
       XLOG(WARN) << "Minor Alarm Cleared on " << *sensor.sensorName()
                  << " at value " << adjustedValue;
     }
-    // 1.d Check the range (if required), and do emergency
-    // shutdown, if the value is out of range for more than
-    // the "tolerance" times
-
-    if (sensor.rangeCheck()) {
-      if ((adjustedValue > *sensor.rangeCheck()->high()) ||
-          (adjustedValue < *sensor.rangeCheck()->low())) {
-        readCache.invalidRangeCheckCount++;
-        if (readCache.invalidRangeCheckCount >=
-            *sensor.rangeCheck()->tolerance()) {
-          // ERR log only once.
-          if (readCache.invalidRangeCheckCount ==
-              *sensor.rangeCheck()->tolerance()) {
-            XLOG(ERR) << "Sensor " << *sensor.sensorName()
-                      << " out of range for too long!";
-          }
-          // If we are not yet in emergency state, do the emergency shutdown.
-          if ((*sensor.rangeCheck()->invalidRangeAction() ==
-               constants::RANGE_CHECK_ACTION_SHUTDOWN()) &&
-              (pBsp_->getEmergencyState() == false)) {
-            pBsp_->emergencyShutdown(true);
-          }
-        }
-      } else {
-        readCache.invalidRangeCheckCount = 0;
-      }
-    }
-    // 1.e Calculate the target pwm in percent
+    // 1.c Calculate the target pwm in percent
     //     (the table or incremental pid should produce
     //      percent as its output)
     updateTargetPwm(sensor);
@@ -421,20 +382,19 @@ bool ControlLogic::isFanPresentInDevice(const Fan& fan) {
     if (readSuccessful) {
       pSensor_->updateEntryFloat(presenceKey, readVal, nowSec);
     }
-    readSuccessful = true;
   } else {
     throw facebook::fboss::FbossError(
         "Only Thrift and sysfs are supported for fan presence detection!");
   }
-  XLOG(INFO) << "Control :: " << presenceKey << " : " << readVal << " vs good "
-             << *fan.fanPresentVal() << " - bad " << *fan.fanMissingVal();
 
-  if (readSuccessful) {
-    if (readVal == *fan.fanPresentVal()) {
-      return true;
-    }
-  }
-  return false;
+  auto fanPresent = (readSuccessful && readVal == *fan.fanPresentVal());
+  XLOG(INFO) << fmt::format(
+      "Control :: {} is {} in the host",
+      *fan.fanName(),
+      fanPresent ? "present" : "absent");
+  fb303::fbData->setCounter(
+      fmt::format(kFanAbsent, *fan.fanName()), !fanPresent);
+  return fanPresent;
 }
 
 std::pair<bool, float> ControlLogic::programFan(

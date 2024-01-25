@@ -135,7 +135,7 @@ add_library(core
   fboss/agent/DsfSession.cpp
   fboss/agent/DsfStateUpdaterUtil.cpp
   fboss/agent/DsfSubscriber.cpp
-  fboss/agent/FabricReachabilityManager.cpp
+  fboss/agent/FabricConnectivityManager.cpp
   fboss/agent/EncapIndexAllocator.cpp
   fboss/agent/FibHelpers.cpp
   fboss/agent/HwAsicTable.cpp
@@ -173,6 +173,7 @@ add_library(core
   fboss/agent/ResolvedNexthopMonitor.cpp
   fboss/agent/ResolvedNexthopProbe.cpp
   fboss/agent/ResolvedNexthopProbeScheduler.cpp
+  fboss/agent/ResourceAccountant.cpp
   fboss/agent/RouteUpdateLogger.cpp
   fboss/agent/RouteUpdateLoggingPrefixTracker.cpp
   fboss/agent/StaticL2ForNeighborObserver.cpp
@@ -193,7 +194,25 @@ add_library(core
   fboss/agent/oss/FsdbSyncer.cpp
 )
 
-target_link_libraries(core
+if (FBOSS_CENTOS9)
+add_library(
+   agent_fsdb_sync_manager
+   fboss/agent/AgentFsdbSyncManager.cpp
+   fboss/agent/AgentFsdbSyncManager-computeOperDelta.cpp
+)
+
+target_link_libraries(
+  agent_fsdb_sync_manager
+  fsdb_syncer
+  hwswitch_matcher
+  state
+  fsdb_model
+  tuple_utils
+  switch_state_cpp2
+)
+endif()
+
+set(core_libs
   agent_config_cpp2
   switchinfo_utils
   stats
@@ -244,6 +263,12 @@ target_link_libraries(core
   hw_write_behavior
   hw_ctrl_cpp2
 )
+
+if (FBOSS_CENTOS9)
+  list(APPEND core_libs agent_fsdb_sync_manager)
+endif()
+
+target_link_libraries(core ${core_libs})
 
 add_library(error
   fboss/agent/FbossError.h
@@ -566,3 +591,9 @@ add_library(agent_netwhoami
 )
 
 target_link_libraries(agent_netwhoami)
+
+add_library(agent_features
+  fboss/agent/AgentFeatures.cpp
+)
+
+target_link_libraries(agent_features)

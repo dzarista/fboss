@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "fboss/agent/FbossError.h"
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/packet/Ethertype.h"
 #include "fboss/agent/types.h"
@@ -10,7 +11,8 @@
 #include "fboss/agent/packet/IPv4Hdr.h"
 #include "fboss/agent/packet/IPv6Hdr.h"
 #include "fboss/agent/packet/MPLSHdr.h"
-#include "fboss/agent/packet/UDPHeader.h"
+#include "fboss/agent/packet/TCPPacket.h"
+#include "fboss/agent/packet/UDPDatagram.h"
 
 #include <optional>
 
@@ -19,50 +21,6 @@ namespace facebook::fboss {
 class HwSwitch;
 
 namespace utility {
-class UDPDatagram {
- public:
-  // read entire udp datagram, and populate payloads, useful to parse RxPacket
-  explicit UDPDatagram(folly::io::Cursor& cursor);
-
-  // set header fields, useful to construct TxPacket
-  UDPDatagram(const UDPHeader& udpHdr, std::vector<uint8_t> payload)
-      : udpHdr_(udpHdr), payload_(payload) {
-    udpHdr_.length = udpHdr_.size() + payload_.size();
-  }
-
-  size_t length() const {
-    return UDPHeader::size() + payload_.size();
-  }
-
-  UDPHeader header() const {
-    return udpHdr_;
-  }
-
-  std::vector<uint8_t> payload() const {
-    return payload_;
-  }
-
-  // construct TxPacket by encapsulating rabdom byte payload
-  std::unique_ptr<facebook::fboss::TxPacket> getTxPacket(
-      const HwSwitch* hw) const;
-
-  void serialize(folly::io::RWPrivateCursor& cursor) const;
-
-  bool operator==(const UDPDatagram& that) const {
-    /* ignore checksum, */
-    return std::tie(
-               udpHdr_.srcPort, udpHdr_.dstPort, udpHdr_.length, payload_) ==
-        std::tie(
-               that.udpHdr_.srcPort,
-               that.udpHdr_.dstPort,
-               that.udpHdr_.length,
-               that.payload_);
-  }
-
- private:
-  UDPHeader udpHdr_;
-  std::vector<uint8_t> payload_{};
-};
 
 template <typename AddrT>
 class IPPacket {
@@ -77,37 +35,26 @@ class IPPacket {
   // set header fields, useful to construct TxPacket
   explicit IPPacket(const HdrT& hdr) : hdr_{hdr} {}
 
-  IPPacket(const HdrT& hdr, UDPDatagram payload)
+  IPPacket(const HdrT& hdr, const UDPDatagram& payload)
       : hdr_{hdr}, udpPayLoad_(payload) {
-    if constexpr (std::is_same_v<HdrT, IPv4Hdr>) {
-      hdr_.version = 4;
-      hdr_.length = length();
-      if (!hdr_.ttl) {
-        hdr_.ttl = 128;
-      }
-      hdr_.ihl = (5 > hdr_.ihl) ? 5 : hdr_.ihl;
-      hdr_.computeChecksum();
-      hdr_.protocol = 17; /* udp */
-    } else {
-      hdr_.version = 6;
-      hdr_.payloadLength = udpPayLoad_->length();
-      if (!hdr_.hopLimit) {
-        hdr_.hopLimit = 128;
-      }
-      hdr_.nextHeader = 17; /* udp */
-    }
+    fillIPHdr();
   }
-
+  IPPacket(const HdrT& hdr, const TCPPacket& payload)
+      : hdr_{hdr}, tcpPayLoad_(payload) {
+    fillIPHdr();
+  }
   size_t length() const {
-    return hdr_.size() + (udpPayLoad_ ? udpPayLoad_->length() : 0);
+    return hdr_.size() + payloadLength();
   }
-
   HdrT header() const {
     return hdr_;
   }
 
-  std::optional<UDPDatagram> payload() const {
+  const std::optional<UDPDatagram>& udpPayload() const {
     return udpPayLoad_;
+  }
+  const std::optional<TCPPacket>& tcpPayload() const {
+    return tcpPayLoad_;
   }
 
   // construct TxPacket by encapsulating udp payload
@@ -117,15 +64,66 @@ class IPPacket {
   void serialize(folly::io::RWPrivateCursor& cursor) const;
 
   bool operator==(const IPPacket<AddrT>& that) const {
-    return std::tie(hdr_, udpPayLoad_) == std::tie(that.hdr_, that.udpPayLoad_);
+    return std::tie(hdr_, udpPayLoad_, tcpPayLoad_) ==
+        std::tie(that.hdr_, that.udpPayLoad_, that.tcpPayLoad_);
   }
+  void decrementTTL() {
+    hdr_.decrementTTL();
+  }
+  std::string toString() const;
 
  private:
+  size_t payloadLength() const {
+    if (udpPayLoad_) {
+      return udpPayLoad_->length();
+    } else if (tcpPayLoad_) {
+      return tcpPayLoad_->length();
+    }
+    return 0;
+  }
+
+  size_t protocol() const {
+    if (udpPayLoad_) {
+      return 17;
+    } else if (tcpPayLoad_) {
+      return 6;
+    }
+    throw FbossError("No payload set");
+  }
+
+  void fillIPHdr() {
+    if constexpr (std::is_same_v<HdrT, IPv4Hdr>) {
+      hdr_.version = 4;
+      hdr_.length = length();
+      hdr_.ihl = (5 > hdr_.ihl) ? 5 : hdr_.ihl;
+      if (!hdr_.ttl) {
+        hdr_.ttl = 128;
+      }
+      hdr_.computeChecksum();
+      hdr_.protocol = protocol();
+    } else {
+      hdr_.version = 6;
+      hdr_.payloadLength = payloadLength();
+      if (!hdr_.hopLimit) {
+        hdr_.hopLimit = 128;
+      }
+      hdr_.nextHeader = protocol();
+    }
+  }
+
   void setUDPCheckSum(folly::IOBuf* buffer) const;
   HdrT hdr_;
   std::optional<UDPDatagram> udpPayLoad_;
-  // TODO: support TCP segment
+  std::optional<TCPPacket> tcpPayLoad_;
 };
+
+template <typename AddrT>
+inline std::ostream& operator<<(
+    std::ostream& os,
+    const IPPacket<AddrT>& ipPkt) {
+  os << ipPkt.toString();
+  return os;
+}
 
 using IPv4Packet = IPPacket<folly::IPAddressV4>;
 using IPv6Packet = IPPacket<folly::IPAddressV6>;
@@ -171,6 +169,17 @@ class MPLSPacket {
         std::tie(that.hdr_, that.v4PayLoad_, that.v6PayLoad_);
   }
 
+  void decrementTTL() {
+    hdr_.decrementTTL();
+    if (v6PayLoad_.has_value()) {
+      v6PayLoad_->decrementTTL();
+    } else if (v4PayLoad_.has_value()) {
+      v4PayLoad_->decrementTTL();
+    }
+  }
+
+  std::string toString() const;
+
  private:
   void setPayLoad(IPPacket<folly::IPAddressV6> payload) {
     v6PayLoad_ = payload;
@@ -185,8 +194,14 @@ class MPLSPacket {
   std::optional<IPPacket<folly::IPAddressV6>> v6PayLoad_;
 };
 
+inline std::ostream& operator<<(std::ostream& os, const MPLSPacket& mplsPkt) {
+  os << mplsPkt.toString();
+  return os;
+}
+
 class EthFrame {
  public:
+  static constexpr size_t FCS_SIZE = 4;
   // read entire ethernet frame, and populate payloads, useful to parse RxPacket
   explicit EthFrame(folly::io::Cursor& cursor);
 
@@ -247,6 +262,25 @@ class EthFrame {
         std::tie(
                that.hdr_, that.v4PayLoad_, that.v6PayLoad_, that.mplsPayLoad_);
   }
+  bool operator!=(const EthFrame& that) const {
+    return !(*this == that);
+  }
+  void decrementTTL() {
+    if (mplsPayLoad_.has_value()) {
+      mplsPayLoad_->decrementTTL();
+    } else if (v6PayLoad_.has_value()) {
+      v6PayLoad_->decrementTTL();
+    } else if (v4PayLoad_.has_value()) {
+      v4PayLoad_->decrementTTL();
+    }
+  }
+  void setDstMac(const folly::MacAddress& dstMac) {
+    hdr_.setDstMac(dstMac);
+  }
+  void setVlan(VlanID vlan) {
+    hdr_.setVlan(vlan);
+  }
+  std::string toString() const;
 
  private:
   EthHdr hdr_;
@@ -255,6 +289,10 @@ class EthFrame {
   std::optional<MPLSPacket> mplsPayLoad_;
 };
 
+inline std::ostream& operator<<(std::ostream& os, const EthFrame& ethFrame) {
+  os << ethFrame.toString();
+  return os;
+}
 template <typename AddrT>
 EthFrame getEthFrame(
     folly::MacAddress srcMac,
@@ -277,6 +315,12 @@ EthFrame getEthFrame(
     uint16_t dPort,
     VlanID vlanId = VlanID(1));
 
+EthFrame makeEthFrame(const TxPacket& txPkt, bool skipTtlDecrement = false);
+
+EthFrame makeEthFrame(const TxPacket& txPkt, folly::MacAddress dstMac);
+
+EthFrame
+makeEthFrame(const TxPacket& txPkt, folly::MacAddress dstMac, VlanID vlan);
 } // namespace utility
 
 } // namespace facebook::fboss

@@ -93,6 +93,7 @@ class MultiSwitchPacketStreamMap;
 class SwSwitchWarmBootHelper;
 class AgentDirectoryUtil;
 class HwSwitchThriftClientTable;
+class ResourceAccountant;
 
 namespace fsdb {
 enum class FsdbSubscriptionState;
@@ -542,6 +543,8 @@ class SwSwitch : public HwSwitchCallback {
       bool up,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override;
+  void linkActiveStateChanged(
+      const std::map<PortID, bool>& port2IsActive) override;
   void pfcWatchdogStateChanged(
       const PortID& portId,
       const bool deadlockDetected) override;
@@ -838,7 +841,7 @@ class SwSwitch : public HwSwitchCallback {
   /*
    * Public use only in tests
    */
-  void stop(bool revertToMinAlpmState = false);
+  void stop(bool isGracefulStop = true, bool revertToMinAlpmState = false);
 
   void publishPhyInfoSnapshots(PortID portID) const;
 
@@ -1190,6 +1193,7 @@ class SwSwitch : public HwSwitchCallback {
   std::unique_ptr<HwAsicTable> hwAsicTable_;
   std::unique_ptr<SwitchIdScopeResolver> scopeResolver_;
   std::unique_ptr<SwitchStatsObserver> switchStatsObserver_;
+  std::unique_ptr<ResourceAccountant> resourceAccountant_;
 
   folly::Synchronized<ConfigAppliedInfo> configAppliedInfo_;
   std::optional<std::chrono::time_point<std::chrono::steady_clock>>

@@ -865,6 +865,13 @@ class BuildCmd(ProjectCmdBase):
             action="store_true",
             default=False,
         )
+        parser.add_argument(
+            "--build-type",
+            help="Set the build type explicitly.  Cmake and cargo builders act on them. Only Debug and RelWithDebInfo widely supported.",
+            choices=["Debug", "Release", "RelWithDebInfo", "MinSizeRel"],
+            action="store",
+            default=None,
+        )
 
 
 @cmd("fixup-dyn-deps", "Adjusts dynamic dependencies for packaging purposes")
@@ -1089,6 +1096,10 @@ jobs:
 
             out.write("    - uses: actions/checkout@v4\n")
 
+            build_type_arg = ""
+            if args.build_type:
+                build_type_arg = f"--build-type {args.build_type} "
+
             if build_opts.free_up_disk:
                 free_up_disk = "--free-up-disk "
                 if not build_opts.is_windows():
@@ -1169,7 +1180,7 @@ jobs:
                             has_same_repo_dep = True
                         out.write("    - name: Build %s\n" % m.name)
                         out.write(
-                            f"      run: {getdepscmd}{allow_sys_arg} build {src_dir_arg}{free_up_disk}--no-tests {m.name}\n"
+                            f"      run: {getdepscmd}{allow_sys_arg} build {build_type_arg}{src_dir_arg}{free_up_disk}--no-tests {m.name}\n"
                         )
 
             out.write("    - name: Build %s\n" % manifest.name)
@@ -1190,7 +1201,7 @@ jobs:
                 no_tests_arg = "--no-tests "
 
             out.write(
-                f"      run: {getdepscmd}{allow_sys_arg} build {no_tests_arg}{no_deps_arg}--src-dir=. {manifest.name} {project_prefix}\n"
+                f"      run: {getdepscmd}{allow_sys_arg} build {build_type_arg}{no_tests_arg}{no_deps_arg}--src-dir=. {manifest.name} {project_prefix}\n"
             )
 
             out.write("    - name: Copy artifacts\n")
@@ -1275,6 +1286,13 @@ jobs:
             help="Remove unused tools and clean up intermediate files if possible to maximise space for the build",
             action="store_true",
             default=False,
+        )
+        parser.add_argument(
+            "--build-type",
+            help="Set the build type explicitly.  Cmake and cargo builders act on them. Only Debug and RelWithDebInfo widely supported.",
+            choices=["Debug", "Release", "RelWithDebInfo", "MinSizeRel"],
+            action="store",
+            default=None,
         )
 
 

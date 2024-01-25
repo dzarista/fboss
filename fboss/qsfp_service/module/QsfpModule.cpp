@@ -94,9 +94,9 @@ FlagLevels QsfpModule::getQsfpFlags(const uint8_t* data, int offset) {
 
 QsfpModule::QsfpModule(
     TransceiverManager* transceiverManager,
-    std::unique_ptr<TransceiverImpl> qsfpImpl)
+    TransceiverImpl* qsfpImpl)
     : Transceiver(transceiverManager),
-      qsfpImpl_(std::move(qsfpImpl)),
+      qsfpImpl_(qsfpImpl),
       snapshots_(
           TransceiverSnapshotCache(transceiverManager->getPortNames(getID()))) {
   markLastDownTime();
@@ -241,9 +241,6 @@ bool QsfpModule::upgradeFirmware(const std::optional<cfg::Firmware>& fw) {
 bool QsfpModule::upgradeFirmwareLocked(const std::optional<cfg::Firmware>& fw) {
   QSFP_LOG(INFO, this) << "Upgrading firmware";
 
-  // Mark the module dirty so that we can refresh the entire cache later
-  dirty_ = true;
-
   cfg::Firmware fwToUpgrade;
   if (fw.has_value()) {
     fwToUpgrade = fw.value();
@@ -273,21 +270,57 @@ bool QsfpModule::upgradeFirmwareLocked(const std::optional<cfg::Firmware>& fw) {
   }
 
   bool fwUpgradeResult = true;
+
   lastFwUpgradeStartTime_ = std::time(nullptr);
-  for (const auto& fwVersion : *fwToUpgrade.versions()) {
-    QSFP_LOG(INFO, this) << folly::sformat(
-        "Upgrading module firmware. Type={:s}, Version={:s}",
-        apache::thrift::util::enumNameSafe(*fwVersion.fwType()),
-        *fwVersion.version());
+  { // Start of firmware upgrade
 
-    std::unique_ptr<FbossFirmware> fbossFw =
-        getTransceiverManager()->fwStorage()->getFirmware(
-            fwStorageHandleName, *fwVersion.version());
-    fwUpgradeResult &= upgradeFirmwareLockedImpl(std::move(fbossFw));
-  }
+    // Step 1: Disable TX before upgrading the firmware. This helps keeps the
+    // link down during upgrade and avoid noise
+    try {
+      std::set<uint8_t> allTcvrLineLanes;
+      for (uint8_t lane = 0; lane < numMediaLanes(); lane++) {
+        allTcvrLineLanes.insert(lane);
+      }
+      auto txDisableStatus = setTransceiverTxImplLocked(
+          allTcvrLineLanes /* tcvrLanes */,
+          phy::Side::LINE /* side */,
+          std::nullopt /* channelMask */,
+          false /* enable */);
+      if (!txDisableStatus) {
+        QSFP_LOG(ERR, this)
+            << "Failed to disable tx on port. Still continuing with firmware upgrade";
+      } else {
+        QSFP_LOG(INFO, this) << "TX Disabled successfully";
+      }
+    } catch (const FbossError& e) {
+      QSFP_LOG(ERR, this) << "Failed to disable tx on port : " << e.what()
+                          << " : Still continuing with firmware upgrade";
+    }
 
-  // Trigger a hard reset of the transceiver to kick start the new firmware
-  triggerModuleResetLocked();
+    // Step 2: First ensure the module is out of lower mode
+    TransceiverSettings settings = getTransceiverSettingsInfo();
+    setPowerOverrideIfSupportedLocked(*settings.powerControl());
+
+    // Step 3: Mark the module dirty so that we can refresh the entire cache
+    // later
+    dirty_ = true;
+
+    // Step 4: Upgrade Firmware
+    for (const auto& fwVersion : *fwToUpgrade.versions()) {
+      QSFP_LOG(INFO, this) << folly::sformat(
+          "Upgrading module firmware. Type={:s}, Version={:s}",
+          apache::thrift::util::enumNameSafe(*fwVersion.fwType()),
+          *fwVersion.version());
+
+      std::unique_ptr<FbossFirmware> fbossFw =
+          getTransceiverManager()->fwStorage()->getFirmware(
+              fwStorageHandleName, *fwVersion.version());
+      fwUpgradeResult &= upgradeFirmwareLockedImpl(std::move(fbossFw));
+    }
+
+    // Trigger a hard reset of the transceiver to kick start the new firmware
+    triggerModuleResetLocked();
+  } // End of firmware upgrade
 
   lastFwUpgradeEndTime_ = std::time(nullptr);
   auto elapsedSeconds = lastFwUpgradeEndTime_ - lastFwUpgradeStartTime_;

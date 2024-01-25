@@ -109,8 +109,10 @@ class BcmEgressManager {
       const std::shared_ptr<FlowletSwitchingConfig>& newFlowletSwitching);
 
   BcmFlowletConfig getBcmFlowletConfig() const {
-    return bcmFlowletConfig_;
+    return bcmFlowletConfig_.copy();
   }
+
+  void updateAllEgressForFlowletSwitching();
 
  private:
   /*
@@ -137,7 +139,7 @@ class BcmEgressManager {
   void setPort2EgressIdsInternal(std::shared_ptr<PortAndEgressIdsMap> newMap);
 
   // Bcm flowlet config for ecmp egress programming
-  BcmFlowletConfig bcmFlowletConfig_{};
+  folly::Synchronized<BcmFlowletConfig> bcmFlowletConfig_{};
 
   const BcmSwitchIf* hw_;
   /*

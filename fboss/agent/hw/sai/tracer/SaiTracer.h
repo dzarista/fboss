@@ -285,6 +285,7 @@ class SaiTracer {
         {TYPE_INDEX(std::vector<sai_uint32_t>), &u32ListAttr},
         {TYPE_INDEX(std::vector<sai_int32_t>), &s32ListAttr},
         {TYPE_INDEX(std::vector<sai_qos_map_t>), &qosMapListAttr},
+        {TYPE_INDEX(std::vector<sai_map_t>), &mapListAttr},
         {TYPE_INDEX(AclEntryActionSaiObjectIdList),
          &aclEntryActionSaiObjectIdListAttr},
         {TYPE_INDEX(std::vector<sai_system_port_config_t>),
@@ -292,6 +293,11 @@ class SaiTracer {
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
         {TYPE_INDEX(std::vector<sai_port_lane_latch_status_t>),
          &portLaneLatchStatusListAttr},
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+        {TYPE_INDEX(std::vector<sai_port_frequency_offset_ppm_values_t>),
+         &portFrequencyOffsetPpmListAttr},
+        {TYPE_INDEX(std::vector<sai_port_snr_values_t>), &portSnrListAttr},
 #endif
   };
 
@@ -632,6 +638,26 @@ class SaiTracer {
     return SaiTracer::getInstance()                                          \
         ->api_type##Api_->get_##obj_type##_attribute(                        \
             obj_type##_id, attr_count, attr_list);                           \
+  }
+
+#define WRAP_BULK_GET_ATTR_FUNC(obj_type, sai_obj_type, api_type)              \
+  sai_status_t wrap_get_##obj_type##s_attribute(                               \
+      uint32_t object_count,                                                   \
+      const sai_object_id_t* object_id,                                        \
+      const uint32_t* attr_count,                                              \
+      sai_attribute_t** attr_list,                                             \
+      sai_bulk_op_error_mode_t mode,                                           \
+      sai_status_t* object_statuses) {                                         \
+    auto rv =                                                                  \
+        SaiTracer::getInstance()->api_type##Api_->get_##obj_type##s_attribute( \
+            object_count,                                                      \
+            object_id,                                                         \
+            attr_count,                                                        \
+            attr_list,                                                         \
+            mode,                                                              \
+            object_statuses);                                                  \
+    /* TODO add logBulkGetAttrFn */                                            \
+    return rv;                                                                 \
   }
 
 #define WRAP_BULK_SET_ATTR_FUNC(obj_type, sai_obj_type, api_type)              \

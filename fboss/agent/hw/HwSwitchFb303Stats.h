@@ -68,13 +68,21 @@ class HwSwitchFb303Stats {
   void itppError() {
     itppErrors_.addValue(1);
   }
+  void epniError() {
+    epniErrors_.addValue(1);
+  }
+  void alignerError() {
+    alignerErrors_.addValue(1);
+  }
+  void forwardingQueueProcessorError() {
+    forwardingQueueProcessorErrors_.addValue(1);
+  }
 
   void fabricReachabilityMissingCount(int64_t value);
   void fabricReachabilityMismatchCount(int64_t value);
 
   void update(const HwSwitchDramStats& dramStats);
   void update(const HwSwitchDropStats& dropStats);
-  // TODO: FSDB needs to support count() method on stats
 
   int64_t getTxPktAllocCount() const {
     return txPktAlloc_.count();
@@ -113,6 +121,10 @@ class HwSwitchFb303Stats {
   int64_t getDramDequeuedBytes() const;
   int64_t getIreErrors() const;
   int64_t getItppErrors() const;
+  int64_t getEpniErrors() const;
+  int64_t getAlignerErrors() const;
+  int64_t getFdrCellDrops() const;
+  int64_t getForwardingQueueProcessorErrors() const;
 
   HwAsicErrors getHwAsicErrors() const;
   FabricReachabilityStats getFabricReachabilityStats();
@@ -155,6 +167,7 @@ class HwSwitchFb303Stats {
   TLTimeseries globalDrops_;
   TLTimeseries globalReachDrops_;
   TLTimeseries packetIntegrityDrops_;
+  TLTimeseries fdrCellDrops_;
   // Dram enqueue, dequeue bytes
   TLTimeseries dramEnqueuedBytes_;
   TLTimeseries dramDequeuedBytes_;
@@ -163,6 +176,9 @@ class HwSwitchFb303Stats {
   TLCounter fabricReachabilityMismatchCount_;
   TLTimeseries ireErrors_;
   TLTimeseries itppErrors_;
+  TLTimeseries epniErrors_;
+  TLTimeseries alignerErrors_;
+  TLTimeseries forwardingQueueProcessorErrors_;
 };
 
 } // namespace facebook::fboss

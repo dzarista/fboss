@@ -280,6 +280,21 @@ struct SaiPortTraits {
         SAI_PORT_ATTR_PCS_RX_LINK_STATUS,
         sai_latch_status_t>;
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+    /*
+     * PPM = Parts per million
+     * RX_FREQUENCY_OFFSET_PPM => amount that a receiver serdes has to
+     * compensate for clock differences from the remote side
+     */
+    using RxFrequencyPPM = SaiAttribute<
+        EnumType,
+        SAI_PORT_ATTR_RX_FREQUENCY_OFFSET_PPM,
+        std::vector<sai_port_frequency_offset_ppm_values_t>>;
+    using RxSNR = SaiAttribute<
+        EnumType,
+        SAI_PORT_ATTR_RX_SNR,
+        std::vector<sai_port_snr_values_t>>;
+#endif
 #if SAI_API_VERSION >= SAI_VERSION(1, 9, 0)
     using InterFrameGap = SaiAttribute<
         EnumType,
@@ -343,6 +358,10 @@ struct SaiPortTraits {
         SAI_PORT_ATTR_SYSTEM_PORT,
         SaiObjectIdT,
         SaiObjectIdDefault>;
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+    using TxReadyStatus =
+        SaiAttribute<EnumType, SAI_PORT_ATTR_HOST_TX_READY_STATUS, sai_int32_t>;
+#endif
   };
   using AdapterKey = PortSaiId;
 
@@ -541,6 +560,10 @@ SAI_ATTRIBUTE_NAME(Port, PcsRxLinkStatus)
 #if SAI_API_VERSION >= SAI_VERSION(1, 9, 0)
 SAI_ATTRIBUTE_NAME(Port, InterFrameGap)
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+SAI_ATTRIBUTE_NAME(Port, RxFrequencyPPM)
+SAI_ATTRIBUTE_NAME(Port, RxSNR)
+#endif
 SAI_ATTRIBUTE_NAME(Port, LinkTrainingEnable)
 SAI_ATTRIBUTE_NAME(Port, SerdesLaneList)
 SAI_ATTRIBUTE_NAME(Port, DiagModeEnable)
@@ -558,6 +581,9 @@ SAI_ATTRIBUTE_NAME(Port, PfcTcDldIntervalRange);
 SAI_ATTRIBUTE_NAME(Port, PfcTcDlrIntervalRange);
 #endif
 SAI_ATTRIBUTE_NAME(Port, SystemPort);
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+SAI_ATTRIBUTE_NAME(Port, TxReadyStatus)
+#endif
 
 template <>
 struct SaiObjectHasStats<SaiPortTraits> : public std::true_type {};
@@ -742,6 +768,29 @@ class PortApi : public SaiApi<PortApi> {
   sai_status_t _getAttribute(PortSaiId key, sai_attribute_t* attr) const {
     return api_->get_port_attribute(key, 1, attr);
   }
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  sai_status_t _bulkGetAttribute(
+      PortSaiId* keys,
+      uint32_t* attrCount,
+      sai_attribute_t** attr,
+      sai_status_t* retStatus,
+      size_t objectCount) const {
+    sai_object_id_t rawIds[objectCount];
+    for (auto idx = 0; idx < objectCount; idx++) {
+      rawIds[idx] = *rawSaiId(&keys[idx]);
+    }
+
+    return api_->get_ports_attribute(
+        objectCount,
+        rawIds,
+        attrCount,
+        attr,
+        SAI_BULK_OP_ERROR_MODE_STOP_ON_ERROR,
+        retStatus);
+  }
+#endif
+
   sai_status_t _setAttribute(PortSaiId key, const sai_attribute_t* attr) const {
     return api_->set_port_attribute(key, attr);
   }

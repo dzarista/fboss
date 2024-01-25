@@ -2,6 +2,7 @@
 
 #include "fboss/agent/hw/switch_asics/Jericho2Asic.h"
 #include <thrift/lib/cpp/util/EnumUtils.h>
+#include "fboss/agent/AgentFeatures.h"
 
 namespace facebook::fboss {
 
@@ -50,7 +51,6 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::FEC:
     case HwAsic::Feature::FEC_CORRECTED_BITS:
     case HwAsic::Feature::VOQ:
-    case HwAsic::Feature::RECYCLE_PORT_STATS:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
     case HwAsic::Feature::ACL_TABLE_GROUP:
@@ -70,7 +70,6 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
-    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::DEBUG_COUNTER:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
@@ -78,6 +77,8 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ACL_COUNTER_LABEL:
     case HwAsic::Feature::CREDIT_WATCHDOG:
     case HwAsic::Feature::ECMP_MEMBER_WIDTH_INTROSPECTION:
+    case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return true;
 
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
@@ -143,6 +144,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::PORT_EYE_VALUES:
+    case HwAsic::Feature::RX_SNR:
 
     case HwAsic::Feature::ECMP_DLB_OFFSET:
     case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
@@ -179,7 +181,14 @@ int Jericho2Asic::getDefaultNumPortQueues(
     cfg::PortType portType) const {
   switch (streamType) {
     case cfg::StreamType::UNICAST:
-      return 8;
+      /*
+       * 4K setup may have 9 x 8 50G = 72 ports on a single core.
+       * With 8 egress queues, total egress queues = 72 * 8 = 576.
+       * However, the max number of egress queues per core is 512.
+       * Thus, use 4 egress queues  on 4k setup.
+       * 4 queues are adequate for the current qos scheme.
+       */
+      return FLAGS_dsf_4k ? 4 : 8;
     case cfg::StreamType::MULTICAST:
       if (portType == cfg::PortType::CPU_PORT) {
         break;

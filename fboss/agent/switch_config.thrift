@@ -168,6 +168,7 @@ enum PortProfileID {
   PROFILE_50G_1_PAM4_RS544_COPPER = 43,
   PROFILE_50G_1_PAM4_RS544_OPTICAL = 44,
   PROFILE_400G_4_PAM4_RS544X2N_COPPER = 45,
+  PROFILE_100G_2_PAM4_RS544X2N_COPPER = 46,
 }
 
 /**
@@ -550,11 +551,13 @@ enum AclStage {
   EGRESS_MACSEC = 2,
 }
 
+// startdocs_AclTableGroup_struct
 struct AclTableGroup {
   1: string name;
   2: list<AclTable> aclTables = [];
   3: AclStage stage = AclStage.INGRESS;
 }
+// enddocs_AclTableGroup_struct
 
 /*
  * We only support unicast in FBOSS, but for completeness sake

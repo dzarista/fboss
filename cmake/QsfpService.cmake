@@ -30,6 +30,7 @@ target_link_libraries(qsfp_lib
     fsdb_model
     qsfp_bsp_core
     thrift_cow_serializer
+    io_stats_recorder
 )
 
 add_library(qsfp_config
@@ -115,11 +116,20 @@ target_link_libraries(morgan800cc_bsp
   FBThrift::thriftcpp2
 )
 
-add_library(janga_bsp
-  fboss/lib/bsp/janga/JangaBspPlatformMapping.cpp
+add_library(janga800bic_bsp
+  fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.cpp
 )
 
-target_link_libraries(janga_bsp
+target_link_libraries(janga800bic_bsp
+  bsp_platform_mapping_cpp2
+  FBThrift::thriftcpp2
+)
+
+add_library(tahan800bc_bsp
+  fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.cpp
+)
+
+target_link_libraries(tahan800bc_bsp
   bsp_platform_mapping_cpp2
   FBThrift::thriftcpp2
 )
@@ -153,7 +163,8 @@ target_link_libraries(qsfp_bsp_core
   meru800bfa_bsp
   montblanc_bsp
   morgan800cc_bsp
-  janga_bsp
+  janga800bic_bsp
+  tahan800bc_bsp
   device_mdio
   fpga_device
   phy_management_base

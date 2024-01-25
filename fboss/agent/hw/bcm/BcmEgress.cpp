@@ -145,6 +145,12 @@ void BcmEgress::program(
                    sizeof(newEgress.mac_addr)) &&
             existingEgress.intf == newEgress.intf &&
             existingEgress.port == newEgress.port &&
+            existingEgress.dynamic_scaling_factor ==
+            newEgress.dynamic_scaling_factor &&
+            existingEgress.dynamic_load_weight ==
+            newEgress.dynamic_load_weight &&
+            existingEgress.dynamic_queue_size_weight ==
+            newEgress.dynamic_queue_size_weight &&
             facebook::fboss::getLabel(existingEgress) ==
             facebook::fboss::getLabel(newEgress);
       }
@@ -180,28 +186,6 @@ void BcmEgress::program(
     uint32_t flags = 0;
     if (id_ != INVALID) {
       flags |= BCM_L3_REPLACE | BCM_L3_WITH_ID;
-    }
-    // For TH3 Port Flowlet configs are programmed in egress object
-    // For TH4 Port Flowlet configs are programmed in port object
-    if (FLAGS_flowletSwitchingEnable &&
-        !(hw_->getPlatform()->getAsic()->isSupported(
-            HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES))) {
-      auto* bcmPort = hw_->getPortTable()->getBcmPortIf(port);
-      if (bcmPort) {
-        auto bcmFlowletConfig = bcmPort->getPortFlowletConfig();
-        if (*bcmFlowletConfig.scalingFactor()) {
-          eObj.dynamic_scaling_factor = *bcmFlowletConfig.scalingFactor();
-        }
-        if (*bcmFlowletConfig.loadWeight()) {
-          eObj.dynamic_load_weight = *bcmFlowletConfig.loadWeight();
-        }
-        if (*bcmFlowletConfig.queueWeight()) {
-          eObj.dynamic_queue_size_weight = *bcmFlowletConfig.queueWeight();
-        }
-        XLOG(DBG2) << "Programmed ScalingFactor=" << eObj.dynamic_scaling_factor
-                   << " LoadWeight=" << eObj.dynamic_load_weight
-                   << " QueueWeight=" << eObj.dynamic_queue_size_weight;
-      }
     }
     if (!alreadyExists(eObj)) {
       /*
@@ -259,6 +243,27 @@ void BcmEgress::programToCPU() {
              << hw_->getUnit();
 }
 
+void BcmEgress::updateFlowletConfig(bcm_l3_egress_t& eObj, bcm_port_t port)
+    const {
+  auto* bcmPort = hw_->getPortTable()->getBcmPortIf(port);
+  bcm_gport_t gport = BcmPort::asGPort(port);
+  if (bcmPort && (gport != BCM_GPORT_LOCAL_CPU)) {
+    auto bcmFlowletConfig = bcmPort->getPortFlowletConfig();
+    if (*bcmFlowletConfig.scalingFactor()) {
+      eObj.dynamic_scaling_factor = *bcmFlowletConfig.scalingFactor();
+    }
+    if (*bcmFlowletConfig.loadWeight()) {
+      eObj.dynamic_load_weight = *bcmFlowletConfig.loadWeight();
+    }
+    if (*bcmFlowletConfig.queueWeight()) {
+      eObj.dynamic_queue_size_weight = *bcmFlowletConfig.queueWeight();
+    }
+    XLOG(DBG2) << "Programmed ScalingFactor=" << eObj.dynamic_scaling_factor
+               << " LoadWeight=" << eObj.dynamic_load_weight
+               << " QueueWeight=" << eObj.dynamic_queue_size_weight;
+  }
+}
+
 void BcmEgress::prepareEgressObject(
     bcm_if_t intfId,
     bcm_port_t port,
@@ -278,6 +283,15 @@ void BcmEgress::prepareEgressObject(
     eObj->port = port;
   }
   eObj->intf = intfId;
+  // Update Flowlet config on the egress object
+  // For TH3 Port Flowlet configs are programmed in egress object
+  // For TH4 Port Flowlet configs are programmed in port object
+  if (hw_->getPlatform()->getAsic()->isSupported(HwAsic::Feature::FLOWLET) &&
+      !(hw_->getPlatform()->getAsic()->isSupported(
+          HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES))) {
+    XLOG(DBG2) << "Updating Egress object for flowlet:  " << id_;
+    updateFlowletConfig(*eObj, port);
+  }
 }
 
 BcmWarmBootCache::EgressId2EgressCitr BcmEgress::findEgress(
@@ -367,6 +381,7 @@ bool BcmEcmpEgress::isFlowletConfigUpdateNeeded() {
   auto bcmEcmpFlowletConfig = hw_->getEgressManager()->getBcmFlowletConfig();
 
   const auto neededDynamicSize = utility::getFlowletSizeWithScalingFactor(
+      static_cast<const BcmSwitch*>(hw_),
       bcmEcmpFlowletConfig.flowletTableSize,
       pathsInHwCount,
       bcmEcmpFlowletConfig.maxLinks);
@@ -394,7 +409,7 @@ void BcmEcmpEgress::program() {
     }
   }
   obj.max_paths = ((numPaths + 3) >> 2) << 2; // multiple of 4
-  bool addOrUpdateEcmp = false;
+  bool enableFlowletMemberStatus = false;
 
   const auto warmBootCache = hw_->getWarmBootCache();
   auto egressIds2EcmpCItr = warmBootCache->findEcmp(egressId2Weight_);
@@ -437,15 +452,19 @@ void BcmEcmpEgress::program() {
       auto bcmFlowletConfig = hw_->getEgressManager()->getBcmFlowletConfig();
       obj.dynamic_age = bcmFlowletConfig.inactivityIntervalUsecs;
       obj.dynamic_size = utility::getFlowletSizeWithScalingFactor(
+          static_cast<const BcmSwitch*>(hw_),
           bcmFlowletConfig.flowletTableSize,
           numPaths,
           bcmFlowletConfig.maxLinks);
       if (obj.dynamic_size > 0) {
         obj.dynamic_mode = BCM_L3_ECMP_DYNAMIC_MODE_NORMAL;
+        enableFlowletMemberStatus = true;
       }
-      addOrUpdateEcmp = true;
       XLOG(DBG2) << "Programmed FlowletTableSize=" << obj.dynamic_size
-                 << " InactivityIntervalUsecs=" << obj.dynamic_age;
+                 << " InactivityIntervalUsecs=" << obj.dynamic_age
+                 << " for ECMP object "
+                 << ((id_ != INVALID) ? folly::to<std::string>(id_)
+                                      : "(invalid id)");
     }
 
     if (useHsdk_) {
@@ -524,7 +543,7 @@ void BcmEcmpEgress::program() {
   }
   CHECK_NE(id_, INVALID);
   // Enable each ECMP member to be DLB enabled on TH3 and TH4
-  if (FLAGS_flowletSwitchingEnable && addOrUpdateEcmp) {
+  if (FLAGS_flowletSwitchingEnable && enableFlowletMemberStatus) {
     setEgressEcmpMemberStatus(hw_, egressId2Weight_);
   }
 }
@@ -692,8 +711,14 @@ bool operator==(const bcm_l3_egress_t& lhs, const bcm_l3_egress_t& rhs) {
   bool samePhysicalPorts =
       !lhsTrunkPort && !rhsTrunkPort && rhs.port == lhs.port;
   bool samePorts = sameTrunks || samePhysicalPorts;
-  return sameMacs && samePorts && rhs.intf == lhs.intf &&
-      rhs.flags == lhs.flags && lhs.mpls_label == rhs.mpls_label;
+  bool sameScalingFactor =
+      lhs.dynamic_scaling_factor == rhs.dynamic_scaling_factor;
+  bool sameLoadWeight = lhs.dynamic_load_weight == rhs.dynamic_load_weight;
+  bool sameQueueWeight =
+      lhs.dynamic_queue_size_weight == rhs.dynamic_queue_size_weight;
+  return sameMacs && samePorts && sameScalingFactor && sameLoadWeight &&
+      sameQueueWeight && rhs.intf == lhs.intf && rhs.flags == lhs.flags &&
+      lhs.mpls_label == rhs.mpls_label;
 }
 
 bool BcmEcmpEgress::removeEgressIdHwNotLocked(
@@ -1117,6 +1142,97 @@ bcm_mpls_label_t getLabel(const bcm_l3_egress_t& egress) {
 
 bool BcmEcmpEgress::isWideEcmpEnabled(bool wideEcmpSupported) {
   return wideEcmpSupported && FLAGS_ecmp_width > kMaxNonWeightedEcmpPaths;
+}
+
+bool BcmEcmpEgress::updateEcmpDynamicMode() {
+  bcm_l3_egress_ecmp_t obj;
+  bcm_l3_egress_ecmp_t_init(&obj);
+  obj.ecmp_intf = id_;
+  int pathsInHwCount = -1;
+  bcm_l3_ecmp_member_t membersInHw[kMaxWeightedEcmpPaths];
+  bcm_if_t pathsInHw[kMaxWeightedEcmpPaths];
+  int ret = 0;
+  bool updateComplete = true;
+
+  if (!hw_->getPlatform()->getAsic()->isSupported(
+          HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES)) {
+    // TODO: remove this when TH3 also gets support for the SDK API
+    return updateComplete;
+  }
+
+  // Initialize oftherwise SDK may return junk
+  memset(membersInHw, 0, sizeof(membersInHw));
+  if (useHsdk_) {
+    ret = bcm_l3_ecmp_get(
+        hw_->getUnit(),
+        &obj,
+        kMaxWeightedEcmpPaths,
+        membersInHw,
+        &pathsInHwCount);
+  } else {
+    ret = bcm_l3_egress_ecmp_get(
+        hw_->getUnit(),
+        &obj,
+        kMaxWeightedEcmpPaths,
+        pathsInHw,
+        &pathsInHwCount);
+  }
+  bcmCheckError(ret, "Unable to get ECMP:  ", id_);
+
+  if (obj.dynamic_mode == BCM_L3_ECMP_DYNAMIC_MODE_NORMAL) {
+    XLOG(DBG3) << "ECMP: " << id_
+               << " is already in dynamic mode. Skip dynamic mode update.";
+    return updateComplete;
+  }
+
+  // get copy of the ecmpFlowletConfig
+  auto bcmEcmpFlowletConfig = hw_->getEgressManager()->getBcmFlowletConfig();
+
+  // just ensure we are still running in flowlet mode which is reflected
+  // in the cfg cached here.
+  if (!bcmEcmpFlowletConfig.inactivityIntervalUsecs) {
+    // we don't need any change
+    return updateComplete;
+  }
+
+  int flowletTableSize = bcmEcmpFlowletConfig.flowletTableSize;
+  const auto adjustedFlowletTableSize =
+      utility::getFlowletSizeWithScalingFactor(
+          static_cast<const BcmSwitch*>(hw_),
+          flowletTableSize,
+          pathsInHwCount,
+          bcmEcmpFlowletConfig.maxLinks);
+
+  const auto adjustedDynamicMode = (adjustedFlowletTableSize > 0)
+      ? BCM_L3_ECMP_DYNAMIC_MODE_NORMAL
+      : BCM_L3_ECMP_DYNAMIC_MODE_DISABLED;
+  // if the HW state i.e. dynamic_mode doesn't match the expectation after
+  // adjust, lets fix it
+  if (adjustedDynamicMode == BCM_L3_ECMP_DYNAMIC_MODE_NORMAL) {
+    int option = BCM_L3_ECMP_O_REPLACE | BCM_L3_ECMP_O_CREATE_WITH_ID;
+    obj.flags |= BCM_L3_REPLACE | BCM_L3_WITH_ID;
+    obj.dynamic_size = adjustedFlowletTableSize;
+    obj.dynamic_mode = adjustedDynamicMode;
+    obj.dynamic_age = bcmEcmpFlowletConfig.inactivityIntervalUsecs;
+    obj.ecmp_intf = id_;
+    if (useHsdk_) {
+      ret = bcm_l3_ecmp_create(
+          hw_->getUnit(), option, &obj, pathsInHwCount, membersInHw);
+    } else {
+      ret = bcm_l3_egress_ecmp_create(
+          hw_->getUnit(), &obj, pathsInHwCount, pathsInHw);
+    }
+    bcmCheckError(ret, "failed to re-program L3 ECMP egress object ", id_);
+
+    XLOG(DBG2) << "Perform ecmp object adjustment for ECMP: " << id_
+               << " , with dynamic size: " << adjustedFlowletTableSize;
+
+    setEgressEcmpMemberStatus(hw_, egressId2Weight_);
+  } else {
+    // if we didn't adjust for dynamic mode, lets skip
+    updateComplete = false;
+  }
+  return updateComplete;
 }
 
 } // namespace facebook::fboss

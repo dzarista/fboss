@@ -97,6 +97,8 @@ TEST_F(FanServiceHwTest, FanStatusesThrift) {
 }
 
 TEST_F(FanServiceHwTest, ODSCounters) {
+  fanServiceImpl_->controlFan();
+
   for (const auto& zone : *fanServiceConfig_.zones()) {
     for (const auto& fan : *fanServiceConfig_.fans()) {
       if (std::find(
@@ -107,7 +109,14 @@ TEST_F(FanServiceHwTest, ODSCounters) {
       }
       EXPECT_EQ(
           fb303::fbData->getCounter(fmt::format(
-              "fan_write.{}.{}.failure", *zone.zoneName(), *fan.fanName())),
+              "{}.{}.write_pwm_failure", *zone.zoneName(), *fan.fanName())),
+          0);
+      EXPECT_EQ(
+          fb303::fbData->getCounter(
+              fmt::format("{}.read_rpm_failure", *fan.fanName())),
+          0);
+      EXPECT_EQ(
+          fb303::fbData->getCounter(fmt::format("{}.absent", *fan.fanName())),
           0);
     }
   }
@@ -117,6 +126,6 @@ TEST_F(FanServiceHwTest, ODSCounters) {
 
 int main(int argc, char* argv[]) {
   testing::InitGoogleTest(&argc, argv);
-  facebook::fboss::platform::helpers::init(argc, argv);
+  facebook::fboss::platform::helpers::init(&argc, &argv);
   return RUN_ALL_TESTS();
 }

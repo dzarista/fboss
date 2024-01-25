@@ -98,11 +98,11 @@ target_link_libraries(agent_test_lib
   ${LIBGMOCK_LIBRARIES}
 )
 
-add_library(agent_hw_test_lib
-  fboss/agent/test/AgentHwTest.cpp
+add_library(agent_integration_test_base
+  fboss/agent/test/AgentIntegrationTestBase.cpp
 )
 
-target_link_libraries(agent_hw_test_lib
+target_link_libraries(agent_integration_test_base
   agent_test_lib
   main
   config_factory
@@ -111,12 +111,13 @@ target_link_libraries(agent_hw_test_lib
   ${LIBGMOCK_LIBRARIES}
 )
 
-add_library(split_agent_test_lib
-  fboss/agent/test/SplitAgentTest.cpp
+add_library(agent_hw_test
+  fboss/agent/test/AgentHwTest.cpp
 )
 
-target_link_libraries(split_agent_test_lib
+target_link_libraries(agent_hw_test
   mono_agent_ensemble
+  production_features_cpp2
   core
   switch_asics
   ${GTEST}

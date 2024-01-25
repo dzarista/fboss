@@ -50,8 +50,7 @@ void NonMonolithicHwSwitchHandler::unregisterCallbacks() {
   // TODO: implement this
 }
 
-void NonMonolithicHwSwitchHandler::gracefulExit(
-    state::WarmbootState& /*thriftSwitchState*/) {
+void NonMonolithicHwSwitchHandler::gracefulExit() {
   // TODO: implement this
 }
 
@@ -264,7 +263,6 @@ NonMonolithicHwSwitchHandler::stateChanged(
     }
   }
   // received ack. return result from HwSwitch
-  // TODO - handle failures and do rollback on succeeded switches
   return {
       *prevOperDeltaResult_->operDelta(),
       prevOperDeltaResult_->operDelta()->changes()->empty()

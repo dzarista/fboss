@@ -14,6 +14,7 @@
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
+#include "fboss/agent/hw/test/HwTestPacketSnooper.h"
 #include "fboss/agent/hw/test/HwTestPacketTrapEntry.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/HwTestTrunkUtils.h"
@@ -25,6 +26,7 @@
 #include "fboss/agent/test/ResourceLibUtil.h"
 #include "fboss/agent/test/TrunkUtils.h"
 #include "fboss/agent/types.h"
+#include "fboss/lib/CommonUtils.h"
 #include "folly/Utility.h"
 
 #include <folly/IPAddress.h>
@@ -123,10 +125,15 @@ class HwCoppTest : public HwLinkStateDependentTest {
     }
   }
 
-  void sendPkt(std::unique_ptr<TxPacket> pkt, bool outOfPort) {
+  void sendPkt(
+      std::unique_ptr<TxPacket> pkt,
+      bool outOfPort,
+      bool snoopAndVerify = false) {
     XLOG(DBG2) << "Packet Dump::"
                << folly::hexDump(pkt->buf()->data(), pkt->buf()->length());
 
+    auto ethFrame = utility::makeEthFrame(*pkt, true /*skipTtlDecrement*/);
+    HwTestPacketSnooper snooper(getHwSwitchEnsemble(), std::nullopt, ethFrame);
     if (outOfPort) {
       getHwSwitch()->sendPacketOutOfPortSync(
           std::move(pkt),
@@ -134,46 +141,44 @@ class HwCoppTest : public HwLinkStateDependentTest {
     } else {
       getHwSwitch()->sendPacketSwitchedSync(std::move(pkt));
     }
+    if (snoopAndVerify) {
+      WITH_RETRIES({
+        auto frameRx = snooper.waitForPacket(1);
+        EXPECT_EVENTUALLY_TRUE(frameRx.has_value());
+      });
+    }
   }
 
-  void sendUdpPkts(
-      int numPktsToSend,
+  void sendUdpPkt(
       const folly::IPAddress& dstIpAddress,
       int l4SrcPort,
       int l4DstPort,
       uint8_t ttl,
-      bool outOfPort) {
+      bool outOfPort,
+      bool expectPktTrap) {
     auto vlanId = utility::firstVlanID(getProgrammedState());
     auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
     // arbit
     const auto srcIp =
         folly::IPAddress(dstIpAddress.isV4() ? "1.1.1.2" : "1::10");
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
-    for (int i = 0; i < numPktsToSend; i++) {
-      auto txPacket = utility::makeUDPTxPacket(
-          getHwSwitch(),
-          vlanId,
-          srcMac,
-          intfMac,
-          srcIp,
-          dstIpAddress,
-          l4SrcPort,
-          l4DstPort,
-          0 /* dscp */,
-          ttl);
+    auto txPacket = utility::makeUDPTxPacket(
+        getHwSwitch(),
+        vlanId,
+        srcMac,
+        intfMac,
+        srcIp,
+        dstIpAddress,
+        l4SrcPort,
+        l4DstPort,
+        0 /* dscp */,
+        ttl);
 
-      XLOG(DBG2) << "UDP packet Dump::"
-                 << folly::hexDump(
-                        txPacket->buf()->data(), txPacket->buf()->length());
-
-      sendPkt(std::move(txPacket), outOfPort);
-    }
+    XLOG(DBG2) << "UDP packet Dump::"
+               << folly::hexDump(
+                      txPacket->buf()->data(), txPacket->buf()->length());
+    sendPkt(std::move(txPacket), outOfPort, expectPktTrap /*snoopAndVerify*/);
   }
-
-  /*
-  const auto  srcIp = folly::IPAddress("1::10");
-  auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
-  */
 
   void sendEthPkts(
       int numPktsToSend,
@@ -191,7 +196,7 @@ class HwCoppTest : public HwLinkStateDependentTest {
           dstMac ? *dstMac : intfMac,
           etherType,
           payload);
-      sendPkt(std::move(txPacket), true);
+      sendPkt(std::move(txPacket), true /*outOfPort*/, true /*snoopAndVerify*/);
     }
   }
 
@@ -280,7 +285,7 @@ class HwCoppTest : public HwLinkStateDependentTest {
                 DHCPv6Packet::DHCP6_SERVERAGENT_UDPPORT, // DstPort: 547
                 0 /* dscp */,
                 ttl); // sent to me
-      sendPkt(std::move(txPacket), outOfPort);
+      sendPkt(std::move(txPacket), outOfPort, true /* snoopAndVerify*/);
     }
   }
 
@@ -329,14 +334,14 @@ class HwCoppTest : public HwLinkStateDependentTest {
       const folly::IPAddress& dstIpAddress,
       const int l4SrcPort,
       const int l4DstPort,
-      const int numPktsToSend = 1,
-      const int expectedPktDelta = 0,
+      bool expectPktTrap = true,
       const int ttl = 255,
       bool outOfPort = false) {
     auto beforeOutPkts = getQueueOutPacketsWithRetry(
         queueId, 0 /* retryTimes */, 0 /* expectedNumPkts */);
-    sendUdpPkts(
-        numPktsToSend, dstIpAddress, l4SrcPort, l4DstPort, ttl, outOfPort);
+    auto expectedPktDelta = expectPktTrap ? 1 : 0;
+    sendUdpPkt(
+        dstIpAddress, l4SrcPort, l4DstPort, ttl, outOfPort, expectPktTrap);
     auto afterOutPkts = getQueueOutPacketsWithRetry(
         queueId, kGetQueueOutPktsRetryTimes, beforeOutPkts + 1);
     XLOG(DBG0) << "Queue=" << queueId << ", before pkts:" << beforeOutPkts
@@ -367,41 +372,50 @@ class HwCoppTest : public HwLinkStateDependentTest {
         payload);
   }
 
-  void sendPktAndVerifyCpuQueue(
+  void sendTcpPktAndVerifyCpuQueue(
       int queueId,
       const folly::IPAddress& dstIpAddress,
       const int l4SrcPort,
       const int l4DstPort,
       const std::optional<folly::MacAddress>& dstMac = std::nullopt,
       uint8_t trafficClass = 0,
-      const int numPktsToSend = 1,
-      const int expectedPktDelta = 1,
-      std::optional<std::vector<uint8_t>> payload = std::nullopt) {
-    auto sendPkts = [=, this]() {
-      sendTcpPkts(
-          numPktsToSend,
+      std::optional<std::vector<uint8_t>> payload = std::nullopt,
+      bool expectQueueHit = true) {
+    const auto kNumPktsToSend = 1;
+    auto vlanId = utility::firstVlanID(getProgrammedState());
+    auto destinationMac =
+        dstMac.value_or(utility::getFirstInterfaceMac(getProgrammedState()));
+    auto sendAndInspect = [=, this]() {
+      auto pkt = utility::makeTCPTxPacket(
+          getHwSwitch(),
+          vlanId,
+          destinationMac,
           dstIpAddress,
           l4SrcPort,
           l4DstPort,
-          dstMac,
           trafficClass,
           payload);
+      sendPkt(
+          std::move(pkt),
+          true /*outOfPort*/,
+          expectQueueHit /*snoopAndVerify*/);
     };
     utility::sendPktAndVerifyCpuQueue(
-        getHwSwitch(), queueId, sendPkts, expectedPktDelta);
+        getHwSwitch(),
+        queueId,
+        sendAndInspect,
+        expectQueueHit ? kNumPktsToSend : 0);
   }
 
   void sendPktAndVerifyEthPacketsCpuQueue(
       int queueId,
       facebook::fboss::ETHERTYPE etherType,
-      const std::optional<folly::MacAddress>& dstMac = std::nullopt,
-      const int numPktsToSend = 1,
-      const int expectedPktDelta = 1) {
+      const std::optional<folly::MacAddress>& dstMac = std::nullopt) {
     auto beforeOutPkts = getQueueOutPacketsWithRetry(
         queueId, 0 /* retryTimes */, 0 /* expectedNumPkts */);
     static auto payload = std::vector<uint8_t>(256, 0xff);
     payload[0] = 0x1; // sub-version of lacp packet
-    sendEthPkts(numPktsToSend, etherType, dstMac, payload);
+    sendEthPkts(1, etherType, dstMac, payload);
     auto afterOutPkts = getQueueOutPacketsWithRetry(
         queueId, kGetQueueOutPktsRetryTimes, beforeOutPkts + 1);
     XLOG(DBG0) << "Packet of dstMac="
@@ -410,7 +424,7 @@ class HwCoppTest : public HwLinkStateDependentTest {
                << ". Ethertype=" << std::hex << int(etherType)
                << ". Queue=" << queueId << ", before pkts:" << beforeOutPkts
                << ", after pkts:" << afterOutPkts;
-    EXPECT_EQ(expectedPktDelta, afterOutPkts - beforeOutPkts);
+    EXPECT_EQ(1, afterOutPkts - beforeOutPkts);
   }
 
   void sendPktAndVerifyArpPacketsCpuQueue(
@@ -918,7 +932,7 @@ TYPED_TEST(HwCoppTest, LocalDstIpBgpPortToHighPriQ) {
       for (int dir = 0; dir <= DST; dir++) {
         XLOG(DBG2) << "Send Pkt to: " << ipAddress
                    << " dir: " << (dir == DST ? " DST" : " SRC");
-        this->sendPktAndVerifyCpuQueue(
+        this->sendTcpPktAndVerifyCpuQueue(
             utility::getCoppHighPriQueueId(this->getAsic()),
             folly::IPAddress::createNetwork(ipAddress, -1, false).first,
             dir == SRC ? utility::kBgpPort : utility::kNonSpecialPort1,
@@ -935,7 +949,7 @@ TYPED_TEST(HwCoppTest, LocalDstIpNonBgpPortToMidPriQ) {
 
   auto verify = [=, this]() {
     for (const auto& ipAddress : this->getIpAddrsToSendPktsTo()) {
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::kCoppMidPriQueueId,
           folly::IPAddress::createNetwork(ipAddress, -1, false).first,
           utility::kNonSpecialPort1,
@@ -961,7 +975,7 @@ TYPED_TEST(HwCoppTest, Ipv6LinkLocalMcastToMidPriQ) {
     const auto addresses = folly::make_array(
         kIPv6LinkLocalMcastAbsoluteAddress, kIPv6LinkLocalMcastAddress);
     for (const auto& address : addresses) {
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::kCoppMidPriQueueId,
           address,
           utility::kNonSpecialPort1,
@@ -991,8 +1005,7 @@ TYPED_TEST(HwCoppTest, Ipv6LinkLocalMcastTxFromCpu) {
         folly::IPAddressV6("ff02::1"),
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
-        1 /* send pkt count */,
-        0 /* expected rx count */);
+        false /* expectPktTrap */);
   };
   this->verifyAcrossWarmBoots(setup, verify);
 }
@@ -1006,7 +1019,7 @@ TYPED_TEST(HwCoppTest, Ipv6LinkLocalUcastToMidPriQ) {
       const folly::IPAddressV6 linkLocalAddr = folly::IPAddressV6(
           folly::IPAddressV6::LINK_LOCAL, this->getPlatform()->getLocalMac());
 
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::kCoppMidPriQueueId,
           linkLocalAddr,
           utility::kNonSpecialPort1,
@@ -1022,7 +1035,7 @@ TYPED_TEST(HwCoppTest, Ipv6LinkLocalUcastToMidPriQ) {
     }
     // Non device link local unicast address should also use mid-pri queue
     {
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::kCoppMidPriQueueId,
           kIPv6LinkLocalUcastAddress,
           utility::kNonSpecialPort1,
@@ -1071,7 +1084,7 @@ TYPED_TEST(HwCoppTest, DstIpNetworkControlDscpToHighPriQ) {
 
   auto verify = [=, this]() {
     for (const auto& ipAddress : this->getIpAddrsToSendPktsTo()) {
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::getCoppHighPriQueueId(this->getAsic()),
           folly::IPAddress::createNetwork(ipAddress, -1, false).first,
           utility::kNonSpecialPort1,
@@ -1081,15 +1094,15 @@ TYPED_TEST(HwCoppTest, DstIpNetworkControlDscpToHighPriQ) {
     }
     // Non local dst ip with kNetworkControlDscp should not hit high pri queue
     // (since it won't even trap to cpu)
-    this->sendPktAndVerifyCpuQueue(
+    this->sendTcpPktAndVerifyCpuQueue(
         utility::getCoppHighPriQueueId(this->getAsic()),
         folly::IPAddress("2::2"),
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
         std::nullopt,
         kNetworkControlDscp,
-        1, /*num pkts to send*/
-        0 /*expected delta*/);
+        std::nullopt,
+        false /*expectQueueHit*/);
   };
 
   this->verifyAcrossWarmBoots(setup, verify);
@@ -1106,7 +1119,7 @@ TYPED_TEST(HwCoppTest, Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ) {
       const folly::IPAddressV6 linkLocalAddr = folly::IPAddressV6(
           folly::IPAddressV6::LINK_LOCAL, utility::kLocalCpuMac());
 
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::getCoppHighPriQueueId(this->getAsic()),
           linkLocalAddr,
           utility::kNonSpecialPort1,
@@ -1118,7 +1131,7 @@ TYPED_TEST(HwCoppTest, Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ) {
     // also use high-pri queue
     {
       XLOG(DBG2) << "send non-device link local packet";
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::getCoppHighPriQueueId(this->getAsic()),
           kIPv6LinkLocalUcastAddress,
           utility::kNonSpecialPort1,
@@ -1138,7 +1151,7 @@ TYPED_TEST(HwCoppTest, Ipv6LinkLocalMcastNetworkControlDscpToHighPriQ) {
     const auto addresses = folly::make_array(
         kIPv6LinkLocalMcastAbsoluteAddress, kIPv6LinkLocalMcastAddress);
     for (const auto& address : addresses) {
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::getCoppHighPriQueueId(this->getAsic()),
           address,
           utility::kNonSpecialPort1,
@@ -1161,15 +1174,13 @@ TYPED_TEST(HwCoppTest, L3MTUErrorToLowPriQ) {
     // Port Max Frame size is set to 9412 and L3 MTU is set as 9000
     // Thus sending a packet sized between 9000 and 9412 to cause the trap.
     auto randomIP = folly::IPAddressV6("2::2");
-    this->sendPktAndVerifyCpuQueue(
+    this->sendTcpPktAndVerifyCpuQueue(
         utility::kCoppLowPriQueueId,
         randomIP,
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
         std::nullopt,
-        0,
-        1, /* num pkts to send */
-        1, /* num pkts to excepted to be captured */
+        0, /* traffic class*/
         std::vector<uint8_t>(9200, 0xff));
   };
   this->verifyAcrossWarmBoots(setup, verify);
@@ -1259,15 +1270,12 @@ TYPED_TEST(HwCoppTest, UnresolvedRoutesToLowPriQueue) {
   };
   auto randomIP = folly::IPAddressV6("2::2");
   auto verify = [=, this]() {
-    this->sendPktAndVerifyCpuQueue(
+    this->sendTcpPktAndVerifyCpuQueue(
         utility::kCoppLowPriQueueId,
         randomIP,
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
-        std::nullopt,
-        0,
-        1, /* num pkts to send */
-        1 /* num pkts to excepted to be captured */);
+        std::nullopt);
   };
   this->verifyAcrossWarmBoots(setup, verify);
 }
@@ -1279,37 +1287,31 @@ TYPED_TEST(HwCoppTest, JumboFramesToQueues) {
     std::vector<uint8_t> jumboPayload(7000, 0xff);
     for (const auto& ipAddress : this->getIpAddrsToSendPktsTo()) {
       // High pri queue
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::getCoppHighPriQueueId(this->getAsic()),
           folly::IPAddress::createNetwork(ipAddress, -1, false).first,
           utility::kBgpPort,
           utility::kNonSpecialPort2,
           std::nullopt, /*mac*/
           0, /* traffic class*/
-          1, /* pkts to send*/
-          1, /* expected delta*/
           jumboPayload);
       // Mid pri queue
-      this->sendPktAndVerifyCpuQueue(
+      this->sendTcpPktAndVerifyCpuQueue(
           utility::kCoppMidPriQueueId,
           folly::IPAddress::createNetwork(ipAddress, -1, false).first,
           utility::kNonSpecialPort1,
           utility::kNonSpecialPort2,
           std::nullopt, /*mac*/
           0, /* traffic class*/
-          1, /* pkts to send*/
-          1, /* expected delta*/
           jumboPayload);
     }
-    this->sendPktAndVerifyCpuQueue(
+    this->sendTcpPktAndVerifyCpuQueue(
         utility::kCoppLowPriQueueId,
         this->getInSubnetNonSwitchIP(),
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
         std::nullopt, /*mac*/
         0, /* traffic class*/
-        1, /* pkts to send*/
-        1, /* expected delta*/
         jumboPayload);
   };
 
@@ -1512,8 +1514,7 @@ TYPED_TEST(HwCoppTest, Ttl1PacketToLowPriQ) {
         randomIP,
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
-        1 /* send pkt count */,
-        1 /* expected rx count */,
+        true /* expectPktTrap */,
         1 /* TTL */,
         true /* send out of port */);
   };
@@ -1540,8 +1541,7 @@ TYPED_TEST(HwCoppTest, DhcpPacketToMidPriQ) {
             randomSrcIP[i],
             l4SrcPort,
             l4DstPort,
-            1 /* send pkt count */,
-            1 /* expected rx count */,
+            true /* expectPktTrap */,
             255 /* TTL */,
             true /* send out of port */);
         XLOG(DBG0) << "Sending packet with src port " << l4SrcPort

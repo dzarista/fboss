@@ -69,6 +69,9 @@ DEFINE_bool(
     false,
     "whether to enforce PublisherConfig for publish stream requests");
 
+static constexpr auto kWatchdogThreadHeartbeatMissed =
+    "watchdog_thread_heartbeat_missed";
+
 namespace {
 
 using facebook::fboss::fsdb::OperPubRequest;
@@ -132,6 +135,16 @@ ServiceHandler::ServiceHandler(
           folly::to<std::string>(
               fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
               "num_publisher_path_requests_rejected")),
+      num_dropped_stats_changes_(
+          fb303::ThreadCachedServiceData::get()->getThreadStats(),
+          folly::to<std::string>(
+              fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+              "num_dropped_stats_changes")),
+      num_dropped_state_changes_(
+          fb303::ThreadCachedServiceData::get()->getThreadStats(),
+          folly::to<std::string>(
+              fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+              "num_dropped_state_changes")),
       operStorage_(
           {},
           FLAGS_stateSubscriptionServe_ms,
@@ -155,6 +168,25 @@ ServiceHandler::ServiceHandler(
 
   operStorage_.start();
   operStatsStorage_.start();
+  tcData().setCounter(kWatchdogThreadHeartbeatMissed, 0);
+
+  // Create a watchdog that will monitor operStorage_ and operStatsStorage_
+  // increment the missed counter when there is no heartbeat on at least one
+  // thread in the last FLAGS_storage_thread_heartbeat_ms * 10 time
+  XLOG(DBG1) << "Starting fsdb ServiceHandler thread heartbeat watchdog";
+  heartbeatWatchdog_ = std::make_unique<ThreadHeartbeatWatchdog>(
+      std::chrono::milliseconds(FLAGS_storage_thread_heartbeat_ms * 10),
+      [this]() {
+        watchdogThreadHeartbeatMissedCount_ += 1;
+        tcData().setCounter(
+            kWatchdogThreadHeartbeatMissed,
+            watchdogThreadHeartbeatMissedCount_);
+      });
+  heartbeatWatchdog_->startMonitoringHeartbeat(
+      operStorage_.getThreadHeartbeat());
+  heartbeatWatchdog_->startMonitoringHeartbeat(
+      operStatsStorage_.getThreadHeartbeat());
+  heartbeatWatchdog_->start();
 
   if (FLAGS_enableOperDB) {
     rocksDbs_ = options_.useFakeRocksDb_CAUTION_DO_NOT_USE_IN_PRODUCTION
@@ -192,6 +224,11 @@ ServiceHandler::createIfNeededAndOpenRocksDbs(
 }
 
 ServiceHandler::~ServiceHandler() {
+  if (heartbeatWatchdog_) {
+    XLOG(DBG1) << "Stopping fsdb ServiceHandler thread heartbeat watchdog";
+    heartbeatWatchdog_->stop();
+    heartbeatWatchdog_.reset();
+  }
   XLOG(INFO) << "Destroying ServiceHandler";
   num_instances_.incrementValue(-1);
 }
@@ -312,6 +349,7 @@ ServiceHandler::makeSinkConsumer(
               // than fsdb
               auto isPathValid = isStats ? PathValidator::isStatsPathValid
                                          : PathValidator::isStatePathValid;
+              auto numChanges = chunk->changes()->size();
               chunk->changes()->erase(
                   std::remove_if(
                       chunk->changes()->begin(),
@@ -325,6 +363,17 @@ ServiceHandler::makeSinkConsumer(
                 operStatsStorage_.patch(*chunk);
               } else {
                 operStorage_.patch(*chunk);
+              }
+              auto numDropped = numChanges - chunk->changes()->size();
+              if (numDropped) {
+                XLOG(DBG2) << "Dropping " << numDropped << " changes from "
+                           << (isStats ? "stats" : "state")
+                           << " chunk with invalid path";
+                if (isStats) {
+                  num_dropped_stats_changes_.incrementValue(numDropped);
+                } else {
+                  num_dropped_state_changes_.incrementValue(numDropped);
+                }
               }
             }
           }
@@ -985,7 +1034,11 @@ void ServiceHandler::validateOperPublishPermissions(
     // path is configured, so we have permission to publish
     return;
   } catch (const fsdb::FsdbException& ex) {
-    num_publisher_unknown_requests_rejected_.incrementValue(1);
+    if (ex.errorCode() == FsdbErrorCode::PUBLISHER_NOT_PERMITTED) {
+      num_publisher_path_requests_rejected_.incrementValue(1);
+    } else {
+      num_publisher_unknown_requests_rejected_.incrementValue(1);
+    }
     if (FLAGS_enforcePublisherConfig) {
       throw;
     }

@@ -90,8 +90,19 @@ class HwHashPolarizationTests : public HwLinkStateDependentTest {
       const cfg::LoadBalancer& firstHash,
       const cfg::LoadBalancer& secondHash,
       bool expectPolarization) {
-    std::vector<cfg::LoadBalancer> firstHashes = {firstHash};
-    std::vector<cfg::LoadBalancer> secondHashes = {secondHash};
+    std::vector<cfg::LoadBalancer> firstHashes;
+    std::vector<cfg::LoadBalancer> secondHashes;
+    if (getHwSwitchEnsemble()->isSai()) {
+      firstHashes = {
+          firstHash,
+          utility::getTrunkHalfHashConfig(*getPlatform()->getAsic())};
+      secondHashes = {
+          secondHash,
+          utility::getTrunkHalfHashConfig(*getPlatform()->getAsic())};
+    } else {
+      firstHashes = {firstHash};
+      secondHashes = {secondHash};
+    }
     runTest(firstHashes, secondHashes, expectPolarization);
   }
 
@@ -163,8 +174,8 @@ class HwHashPolarizationTests : public HwLinkStateDependentTest {
           mac,
           ipPayload.header().srcAddr,
           ipPayload.header().dstAddr,
-          ipPayload.payload()->header().srcPort,
-          ipPayload.payload()->header().dstPort);
+          ipPayload.udpPayload()->header().srcPort,
+          ipPayload.udpPayload()->header().dstPort);
     };
     for (auto& ethFrame : rxPackets) {
       std::unique_ptr<TxPacket> pkt;
@@ -531,8 +542,8 @@ class HwHashTrunkPolarizationTests : public HwHashPolarizationTests {
           mac,
           ipPayload.header().srcAddr,
           ipPayload.header().dstAddr,
-          ipPayload.payload()->header().srcPort,
-          ipPayload.payload()->header().dstPort);
+          ipPayload.udpPayload()->header().srcPort,
+          ipPayload.udpPayload()->header().dstPort);
     };
 
     auto logicalPorts = masterLogicalPortIds();

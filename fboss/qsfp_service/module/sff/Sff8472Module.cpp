@@ -163,8 +163,8 @@ uint8_t Sff8472Module::getSettingsValue(Sff8472Field field, uint8_t mask)
 
 Sff8472Module::Sff8472Module(
     TransceiverManager* transceiverManager,
-    std::unique_ptr<TransceiverImpl> qsfpImpl)
-    : QsfpModule(transceiverManager, std::move(qsfpImpl)) {}
+    TransceiverImpl* qsfpImpl)
+    : QsfpModule(transceiverManager, qsfpImpl) {}
 
 Sff8472Module::~Sff8472Module() {}
 
@@ -388,9 +388,14 @@ bool Sff8472Module::getSignalsPerMediaLane(
   auto txFault = getSettingsValue(
       Sff8472Field::STATUS_AND_CONTROL_BITS, FieldMasks::TX_FAULT_MASK);
 
-  CHECK_EQ(signals.size(), 1);
-  CHECK_EQ(numMediaLanes(), 1);
+  CHECK_EQ(signals.size(), numMediaLanes());
   auto firstSignal = signals.begin();
+  if (firstSignal == signals.end()) {
+    QSFP_LOG(ERR, this)
+        << "No Media lane signals available due to potentially i2c error";
+    return false;
+  }
+
   firstSignal->lane() = 0;
   firstSignal->rxLos() = rxLos;
   firstSignal->txFault() = txFault;

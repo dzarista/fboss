@@ -110,19 +110,23 @@ maybe_setup_build_env() {
    git clone git@github.com:aristanetworks/Aqua_SAI.git
    cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
-   git checkout Arista-SAI_11.0.0.4_EA
+   git checkout Arista-SAI_11.0.0.6_EA
    # Use patch0-Jupiter-SAI-Makefile.patch w/SAI < 10.0.0
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
    cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/sdk_6.5.29_dnx.1_SAI_11.0.0_EA"
-   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.29-dnx.1-68459b9ee.tar.xz
-   tar -xf sai-sdk-all-6.5.29-dnx.1-68459b9ee.tar.xz
+   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.29-dnx.1-5e922ed4d.tar.xz
+   tar -xf sai-sdk-all-6.5.29-dnx.1-5e922ed4d.tar.xz
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29
    wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_29_DNX_Kernel_Module_fixes.patch
    patch "sdk-6.5.29-dnx.1-gpl-modules/make/Make.config" < patch3-SDK-6_5_29_DNX_Kernel_Module_fixes.patch
    # Patch to skip check for proto R3 ASICs.
    wget http://dist/storage/fboss/FBOSS-SAI/patch11-SDK-6_5_29-Ramon3-proto-fix.patch
    patch "sdk-6.5.29-dnx.1/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
+   # Patch to rename get_time for centos9 build (collides with the same symbol in
+   # iproute2)
+   wget http://dist/storage/fboss/FBOSS-SAI/patch12-SDK-6_5_29-get_time-symbol-fix.patch
+   patch "sdk-6.5.29-dnx.1/src/appl/diag/gdpll.c" -p1 < patch12-SDK-6_5_29-get_time-symbol-fix.patch
 
    # If kernel is newer than 4.18, need to patch ksal.c for compatibility with newer kernel.
    if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then
@@ -180,6 +184,8 @@ enter_container_shell() {
 do_build() {
    setup
    run_cmd_container bash build.sh $@ --kernel "${FBOSS_LINUX_KERNEL}"
+   # Restore files that have potentially been clobbered by the FBOSS build process.
+   git -C "$FBOSS_REPO_DIR" restore "build/*"
 }
 
 do_package() {

@@ -92,6 +92,7 @@ class HwSwitch {
     PACKET_RX_DESIRED = 0x01,
     LINKSCAN_DESIRED = 0x02,
     TAM_EVENT_NOTIFY_DESIRED = 0x04,
+    LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED = 0x08,
   };
 
   explicit HwSwitch(
@@ -255,7 +256,7 @@ class HwSwitch {
    * Allow hardware to perform any warm boot related cleanup
    * before we exit the application.
    */
-  void gracefulExit(const state::WarmbootState& thriftSwitchState);
+  void gracefulExit();
 
   /*
    * Get Hw Switch state in a folly::dynamic

@@ -622,11 +622,14 @@ void SaiHostifManager::setCpuQosPolicy(
     throw FbossError("empty qos map handle for cpu port");
   }
 
-  // TODO(daiweix): has to clear and set tcToQueueMap. Simply set
-  // new tcToQueueMap will cause object in use error when cleaning
-  // old tcToQueueMap. Investigate why.
+  //
+  // XGS:
+  //  - Setting tcToQueueMap to non SAI_NULL_OBJECT_ID fails.
+  //  - Instead, we need to clear (SAI_NULL_OBJECT_ID) and set tcToQueueMap.
+  //  - CS00012322624 to debug.
   setCpuPortQosPolicy(
       QosMapSaiId(SAI_NULL_OBJECT_ID), QosMapSaiId(SAI_NULL_OBJECT_ID));
+
   setCpuPortQosPolicy(
       qosMapHandle->dscpToTcMap->adapterKey(),
       qosMapHandle->tcToQueueMap->adapterKey());

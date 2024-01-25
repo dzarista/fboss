@@ -111,8 +111,10 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
           SAI_PORT_STAT_IF_OUT_DISCARDS,
           SAI_PORT_STAT_IF_OUT_ERRORS,
           SAI_PORT_STAT_PAUSE_TX_PKTS,
-          SAI_PORT_STAT_ECN_MARKED_PACKETS,
       };
+      if (platform_->getAsic()->isSupported(HwAsic::Feature::ECN)) {
+        counterIds.emplace_back(SAI_PORT_STAT_ECN_MARKED_PACKETS);
+      }
       if (platform_->getAsic()->isSupported(
               HwAsic::Feature::SAI_PORT_ETHER_STATS)) {
         counterIds.emplace_back(SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS);
@@ -491,6 +493,12 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   if (platform_->getAsic()->isSupported(HwAsic::Feature::LINK_TRAINING)) {
     linkTrainingEnable = false;
   }
+
+  std::optional<bool> fdrEnable;
+#if defined(BRCM_SAI_SDK_GTE_10_0) && defined(BRCM_SAI_SDK_XGS)
+  fdrEnable = platform_->getAsic()->isSupported(
+      HwAsic::Feature::SAI_FEC_CODEWORDS_STATS);
+#endif
   auto ptpStatusOpt = managerTable_->switchManager().getPtpTcEnabled();
   uint16_t vlanId = swPort->getIngressVlan();
   auto systemPortId = getSystemPortId(platform_, swPort->getID());
@@ -541,7 +549,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         interFrameGap, // Inter Frame Gap
 #endif
         linkTrainingEnable,
-        std::nullopt, // FDR Enable,
+        fdrEnable, // FDR Enable,
         std::nullopt, // Rx Lane Squelch Enable
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
         std::nullopt, // PFC Deadlock Detection Interval
@@ -626,6 +634,8 @@ void SaiPortManager::programSerdes(
     std::shared_ptr<Port> swPort,
     SaiPortHandle* portHandle) {
   if (!platform_->isSerdesApiSupported() ||
+      !platform_->getAsic()->isSupported(
+          HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING) ||
       swPort->getPortType() == cfg::PortType::RECYCLE_PORT) {
     return;
   }

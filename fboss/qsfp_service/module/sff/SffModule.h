@@ -25,7 +25,7 @@ class SffModule : public QsfpModule {
  public:
   explicit SffModule(
       TransceiverManager* transceiverManager,
-      std::unique_ptr<TransceiverImpl> qsfpImpl);
+      TransceiverImpl* qsfpImpl);
   virtual ~SffModule() override;
 
   /*
@@ -212,10 +212,6 @@ class SffModule : public QsfpModule {
    */
   PowerControlState getPowerControlValue() override;
   /*
-   * Return TransceiverStats
-   */
-  std::optional<TransceiverStats> getTransceiverStats();
-  /*
    * Return SignalFlag which contains Tx/Rx LOS/LOL
    */
   virtual SignalFlags getSignalFlagInfo() override;
@@ -273,6 +269,12 @@ class SffModule : public QsfpModule {
    */
   virtual bool setTransceiverTxLocked(
       const std::string& portName,
+      phy::Side side,
+      std::optional<uint8_t> userChannelMask,
+      bool enable) override;
+
+  virtual bool setTransceiverTxImplLocked(
+      const std::set<uint8_t>& tcvrLanes,
       phy::Side side,
       std::optional<uint8_t> userChannelMask,
       bool enable) override;

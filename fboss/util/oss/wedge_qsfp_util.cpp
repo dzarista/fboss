@@ -3,13 +3,14 @@
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
 #include "fboss/lib/bsp/BspIOBus.h"
 #include "fboss/lib/bsp/BspTransceiverApi.h"
-#include "fboss/lib/bsp/janga/JangaBspPlatformMapping.h"
+#include "fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bia/Meru400biaBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400biu/Meru400biuBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru800bfa/Meru800bfaBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru800bia/Meru800biaBspPlatformMapping.h"
 #include "fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.h"
+#include "fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.h"
 #include "fboss/lib/fpga/Wedge400I2CBus.h"
 #include "fboss/lib/fpga/Wedge400TransceiverApi.h"
 #include "fboss/lib/platforms/PlatformMode.h"
@@ -75,9 +76,15 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
                                  .get();
       auto ioBus = std::make_unique<BspIOBus>(systemContainer);
       return std::make_pair(std::move(ioBus), 0);
-    } else if (FLAGS_platform == "janga") {
+    } else if (FLAGS_platform == "janga800bic") {
+      auto systemContainer = BspGenericSystemContainer<
+                                 Janga800bicBspPlatformMapping>::getInstance()
+                                 .get();
+      auto ioBus = std::make_unique<BspIOBus>(systemContainer);
+      return std::make_pair(std::move(ioBus), 0);
+    } else if (FLAGS_platform == "tahan800bc") {
       auto systemContainer =
-          BspGenericSystemContainer<JangaBspPlatformMapping>::getInstance()
+          BspGenericSystemContainer<Tahan800bcBspPlatformMapping>::getInstance()
               .get();
       auto ioBus = std::make_unique<BspIOBus>(systemContainer);
       return std::make_pair(std::move(ioBus), 0);
@@ -164,8 +171,10 @@ getTransceiverPlatformAPI(TransceiverI2CApi* i2cBus) {
       mode = PlatformType::PLATFORM_MORGAN800CC;
     } else if (FLAGS_platform == "wedge400c") {
       mode = PlatformType::PLATFORM_WEDGE400C;
-    } else if (FLAGS_platform == "janga") {
-      mode = PlatformType::PLATFORM_JANGA;
+    } else if (FLAGS_platform == "janga800bic") {
+      mode = PlatformType::PLATFORM_JANGA800BIC;
+    } else if (FLAGS_platform == "tahan800bc") {
+      mode = PlatformType::PLATFORM_TAHAN800BC;
     }
   } else {
     // If the platform is not provided by the user then use current hardware's

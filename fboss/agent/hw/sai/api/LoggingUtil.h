@@ -314,6 +314,48 @@ struct formatter<sai_latch_status_t> {
 };
 #endif
 
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+// Formatting for sai_port_frequency_offset_ppm_list_t
+template <>
+struct formatter<sai_port_frequency_offset_ppm_values_t> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) const {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(
+      const sai_port_frequency_offset_ppm_values_t& ppmValues,
+      FormatContext& ctx) const {
+    return format_to(
+        ctx.out(),
+        "(rx_ppm: rx_ppm.lane: {}, "
+        "rx_ppm.value: {}",
+        ppmValues.lane,
+        ppmValues.ppm);
+  }
+};
+
+template <>
+struct formatter<sai_port_snr_values_t> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext& ctx) const {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const sai_port_snr_values_t& snrValues, FormatContext& ctx)
+      const {
+    return format_to(
+        ctx.out(),
+        "(rx_snr: rx_snr.lane: {}, "
+        "rx_snr.value: {}",
+        snrValues.lane,
+        snrValues.snr);
+  }
+};
+#endif
+
 // Formatting for AclEntryField<T>
 template <typename T>
 struct formatter<facebook::fboss::AclEntryField<T>> {

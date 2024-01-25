@@ -410,6 +410,11 @@ void HwSwitchEnsemble::linkStateChanged(
       [port, up](auto observer) { observer->changeLinkState(port, up); });
 }
 
+void HwSwitchEnsemble::linkActiveStateChanged(
+    const std::map<PortID, bool>& /*port2IsActive */) {
+  // TODO
+}
+
 void HwSwitchEnsemble::packetReceived(std::unique_ptr<RxPacket> pkt) noexcept {
   auto hwEventObservers = hwEventObservers_.rlock();
   std::for_each(
@@ -777,7 +782,7 @@ void HwSwitchEnsemble::gracefulExit() {
   getHwSwitch()->unregisterCallbacks();
   stopObservers();
   auto thriftSwitchState = gracefulExitState();
-  getHwSwitch()->gracefulExit(thriftSwitchState);
+  getHwSwitch()->gracefulExit();
   // store or dump sw switch state
   storeWarmBootState(thriftSwitchState);
 }
@@ -832,7 +837,9 @@ bool HwSwitchEnsemble::waitForRateOnPort(
       return true;
     } else {
       XLOG(WARNING) << ": Current rate " << rate << " bps < expected rate "
-                    << desiredBps << " bps";
+                    << desiredBps << " bps. curPortBytes " << curPortBytes
+                    << " prevPortBytes " << prevPortBytes << " curPortPackets "
+                    << curPortPackets << " prevPortPackets " << prevPortPackets;
     }
   }
   return false;

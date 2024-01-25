@@ -14,6 +14,8 @@
 
 namespace facebook::fboss::utility {
 
+const int KMaxFlowsetTableSize = 32768;
+
 bool validateFlowletSwitchingEnabled(
     const facebook::fboss::HwSwitch* hw,
     const cfg::FlowletSwitchingConfig& flowletCfg);
@@ -22,6 +24,7 @@ bool verifyEcmpForFlowletSwitching(
     const facebook::fboss::HwSwitch* hw,
     const folly::CIDRNetwork& routePrefix,
     const cfg::FlowletSwitchingConfig& flowletCfg,
+    const cfg::PortFlowletConfig& portFlowletCfg,
     const bool flowletEnable,
     const bool expectFlowsetSizeZero = false);
 
@@ -33,5 +36,10 @@ bool validatePortFlowletQuality(
 bool validateFlowletSwitchingDisabled(const facebook::fboss::HwSwitch* hw);
 
 void setEcmpMemberStatus(const facebook::fboss::HwSwitch* hw);
+
+bool validateFlowSetTable(
+    const facebook::fboss::HwSwitch* hw,
+    const bool expectFlowsetSizeZero,
+    const int flowSetTableSize);
 
 } // namespace facebook::fboss::utility

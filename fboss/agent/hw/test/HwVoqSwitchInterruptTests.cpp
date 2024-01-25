@@ -22,6 +22,17 @@ class HwVoqSwitchInterruptTest : public HwLinkStateDependentTest {
         getAsic()->desiredLoopbackModes(),
         true /*interfaceHasSubnet*/);
   }
+
+ protected:
+  void runCint(const std::string cintStr) {
+    folly::test::TemporaryFile file;
+    XLOG(INFO) << " Cint file " << file.path().c_str();
+    folly::writeFull(file.fd(), cintStr.c_str(), cintStr.size());
+    std::string out;
+    getHwSwitchEnsemble()->runDiagCommand(
+        folly::sformat("cint {}\n", file.path().c_str()), out);
+    getHwSwitchEnsemble()->runDiagCommand("quit\n", out);
+  }
 };
 
 TEST_F(HwVoqSwitchInterruptTest, ireError) {
@@ -34,16 +45,7 @@ TEST_F(HwVoqSwitchInterruptTest, ireError) {
   event_ctrl.action = bcmSwitchEventForce;
   print bcm_switch_event_control_set(0, BCM_SWITCH_EVENT_DEVICE_INTERRUPT, event_ctrl, 1);
   )";
-    folly::test::TemporaryFile file;
-    XLOG(INFO) << " Cint file " << file.path().c_str();
-    folly::writeFull(
-        file.fd(),
-        kIreErrorIncjectorCintStr,
-        std::strlen(kIreErrorIncjectorCintStr));
-    std::string out;
-    getHwSwitchEnsemble()->runDiagCommand(
-        folly::sformat("cint {}\n", file.path().c_str()), out);
-    getHwSwitchEnsemble()->runDiagCommand("quit\n", out);
+    runCint(kIreErrorIncjectorCintStr);
     WITH_RETRIES({
       getHwSwitch()->updateStats();
       fb303::ThreadCachedServiceData::get()->publishStats();
@@ -87,4 +89,60 @@ TEST_F(HwVoqSwitchInterruptTest, itppError) {
   };
   verifyAcrossWarmBoots([]() {}, verify);
 }
+
+TEST_F(HwVoqSwitchInterruptTest, epniError) {
+  auto verify = [=, this]() {
+    constexpr auto kEpniErrorIncjectorCintStr = R"(
+  cint_reset();
+  bcm_switch_event_control_t event_ctrl;
+  event_ctrl.event_id = 717;  // JR3_INT_EPNI_FIFO_OVERFLOW_INT
+  event_ctrl.index = 0; /* core ID */
+  event_ctrl.action = bcmSwitchEventForce;
+  print bcm_switch_event_control_set(0, BCM_SWITCH_EVENT_DEVICE_INTERRUPT, event_ctrl, 1);
+  )";
+    runCint(kEpniErrorIncjectorCintStr);
+    WITH_RETRIES({
+      getHwSwitch()->updateStats();
+      fb303::ThreadCachedServiceData::get()->publishStats();
+      auto epniErrors = getHwSwitch()
+                            ->getSwitchStats()
+                            ->getHwAsicErrors()
+                            .egressPacketNetworkInterfaceErrors()
+                            .value_or(0);
+      XLOG(INFO) << " EPNI Errors: " << epniErrors;
+      EXPECT_EVENTUALLY_GT(epniErrors, 0);
+      EXPECT_EVENTUALLY_GT(getHwSwitch()->getSwitchStats()->getEpniErrors(), 0);
+    });
+  };
+  verifyAcrossWarmBoots([]() {}, verify);
+}
+
+TEST_F(HwVoqSwitchInterruptTest, alignerError) {
+  auto verify = [=, this]() {
+    constexpr auto kAlignerErrorIncjectorCintStr = R"(
+  cint_reset();
+  bcm_switch_event_control_t event_ctrl;
+  event_ctrl.event_id = 8;  // JR3_INT_ALIGNER_PKT_SIZE_EOP_MISMATCH_INT
+  event_ctrl.index = 0; /* core ID */
+  event_ctrl.action = bcmSwitchEventForce;
+  print bcm_switch_event_control_set(0, BCM_SWITCH_EVENT_DEVICE_INTERRUPT, event_ctrl, 1);
+  )";
+    runCint(kAlignerErrorIncjectorCintStr);
+    WITH_RETRIES({
+      getHwSwitch()->updateStats();
+      fb303::ThreadCachedServiceData::get()->publishStats();
+      auto alignerErrors = getHwSwitch()
+                               ->getSwitchStats()
+                               ->getHwAsicErrors()
+                               .alignerErrors()
+                               .value_or(0);
+      XLOG(INFO) << " Aligner Errors: " << alignerErrors;
+      EXPECT_EVENTUALLY_GT(alignerErrors, 0);
+      EXPECT_EVENTUALLY_GT(
+          getHwSwitch()->getSwitchStats()->getAlignerErrors(), 0);
+    });
+  };
+  verifyAcrossWarmBoots([]() {}, verify);
+}
+
 } // namespace facebook::fboss

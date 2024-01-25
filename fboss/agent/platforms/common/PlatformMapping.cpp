@@ -28,6 +28,8 @@ DEFINE_bool(
     false,
     "use multi-npu platform mapping for applicable platforms");
 
+DEFINE_int32(platform_mapping_profile, 0, "Platform mapping profile");
+
 namespace {
 constexpr auto kFbossPortNameRegex = "eth(\\d+)/(\\d+)/(\\d+)";
 const re2::RE2 portNameRegex(kFbossPortNameRegex);
@@ -651,6 +653,19 @@ std::optional<std::string> PlatformMapping::getPortNameByPortId(
     return *platformPorts.at(portIdInt).mapping()->name();
   }
   return std::nullopt;
+}
+
+std::optional<int32_t> PlatformMapping::getVirtualDeviceID(
+    const std::string& portName) const {
+  for (const auto& platPortEntry : platformPorts_) {
+    if (*platPortEntry.second.mapping()->name() == portName) {
+      return platPortEntry.second.mapping()->virtualDeviceId()
+          ? *platPortEntry.second.mapping()->virtualDeviceId()
+          : std::optional<int32_t>();
+    }
+  }
+
+  throw FbossError("No PlatformPortEntry found for portName: ", portName);
 }
 
 const cfg::PlatformPortConfig& PlatformMapping::getPlatformPortConfig(

@@ -85,30 +85,6 @@ WedgeManager::~WedgeManager() {
 }
 
 void WedgeManager::loadConfig() {
-  const auto& platformPorts = platformMapping_->getPlatformPorts();
-  for (const auto& it : platformPorts) {
-    auto port = it.second;
-    // Get the transceiver id based on the port info from config.
-    auto portId = *port.mapping()->id();
-    auto transceiverId = getTransceiverID(PortID(portId));
-    if (!transceiverId) {
-      XLOG(ERR) << "Did not find transceiver id for port id " << portId;
-      continue;
-    }
-    // Add the port to the transceiver indexed port group.
-    auto portGroupIt = portGroupMap_.find(transceiverId.value());
-    if (portGroupIt == portGroupMap_.end()) {
-      portGroupMap_[transceiverId.value()] =
-          std::set<cfg::PlatformPortEntry>{port};
-    } else {
-      portGroupIt->second.insert(port);
-    }
-    std::string portName = *port.mapping()->name();
-    portNameToModule_[portName] = transceiverId.value();
-    XLOG(INFO) << "Added port " << portName << " with portId " << portId
-               << " to transceiver " << transceiverId.value();
-  }
-
   // Process QSFP config here
   qsfpConfig_ = QsfpConfig::fromDefaultFile();
   if (FLAGS_publish_state_to_fsdb) {
@@ -158,7 +134,16 @@ void WedgeManager::initTransceiverMap() {
   // FLAGS_override_program_iphy_ports_for_test true.
   setOverrideTcvrToPortAndProfileForTesting();
 
+  initQsfpImplMap();
+
   refreshTransceivers();
+}
+
+void WedgeManager::initQsfpImplMap() {
+  // Create WedgeQsfp for each QSFP module present in the system
+  for (int idx = 0; idx < getNumQsfpModules(); idx++) {
+    qsfpImpls_.push_back(std::make_unique<WedgeQsfp>(idx, wedgeI2cBus_.get()));
+  }
 }
 
 void WedgeManager::getTransceiversInfo(
@@ -487,41 +472,17 @@ void WedgeManager::clearAllTransceiverReset() {
   sleep(kSecAfterModuleOutOfReset);
 }
 
-void WedgeManager::triggerQsfpHardReset(int idx) {
-  // This api accepts 1 based module id however the module id in
-  // WedgeManager is 0 based.
-  XLOG(INFO) << "triggerQsfpHardReset called for " << idx;
-  qsfpPlatApi_->triggerQsfpHardReset(idx + 1);
-  bool removeTransceiver = false;
-  {
-    // Read Lock to trigger all state machine changes
-    auto lockedTransceivers = transceivers_.rlock();
-    if (auto it = lockedTransceivers->find(TransceiverID(idx));
-        it != lockedTransceivers->end()) {
-      it->second->removeTransceiver();
-      removeTransceiver = true;
-    }
-  }
-
-  if (removeTransceiver) {
-    // Write lock to remove the transceiver
-    auto lockedTransceivers = transceivers_.wlock();
-    auto it = lockedTransceivers->find(TransceiverID(idx));
-    lockedTransceivers->erase(it);
-  }
-}
-
 std::unique_ptr<TransceiverI2CApi> WedgeManager::getI2CBus() {
   return std::make_unique<WedgeI2CBusLock>(std::make_unique<WedgeI2CBus>());
 }
 
 void WedgeManager::updateTransceiverMap() {
   std::vector<folly::Future<TransceiverManagementInterface>> futInterfaces;
-  std::vector<std::unique_ptr<WedgeQsfp>> qsfpImpls;
-  for (int idx = 0; idx < getNumQsfpModules(); idx++) {
-    qsfpImpls.push_back(std::make_unique<WedgeQsfp>(idx, wedgeI2cBus_.get()));
+  const auto numTransceivers = getNumQsfpModules();
+  CHECK_EQ(qsfpImpls_.size(), numTransceivers);
+  for (int idx = 0; idx < numTransceivers; idx++) {
     futInterfaces.push_back(
-        qsfpImpls[idx]->futureGetTransceiverManagementInterface());
+        qsfpImpls_[idx]->futureGetTransceiverManagementInterface());
   }
   folly::collectAllUnsafe(futInterfaces.begin(), futInterfaces.end()).wait();
 
@@ -531,7 +492,7 @@ void WedgeManager::updateTransceiverMap() {
 
   {
     auto lockedTransceiversRPtr = transceivers_.rlock();
-    for (int idx = 0; idx < qsfpImpls.size(); idx++) {
+    for (int idx = 0; idx < numTransceivers; idx++) {
       if (!futInterfaces[idx].isReady()) {
         XLOG(ERR)
             << "Failed getting TransceiverManagementInterface for TransceiverID="
@@ -573,27 +534,27 @@ void WedgeManager::updateTransceiverMap() {
         XLOG(INFO) << "Making CMIS QSFP for TransceiverID=" << idx;
         lockedTransceiversWPtr->emplace(
             TransceiverID(idx),
-            std::make_unique<CmisModule>(this, std::move(qsfpImpls[idx])));
+            std::make_unique<CmisModule>(this, qsfpImpls_[idx].get()));
       } else if (
           futInterfaces[idx].value() == TransceiverManagementInterface::SFF) {
         XLOG(INFO) << "Making Sff QSFP for TransceiverID=" << idx;
         lockedTransceiversWPtr->emplace(
             TransceiverID(idx),
-            std::make_unique<SffModule>(this, std::move(qsfpImpls[idx])));
+            std::make_unique<SffModule>(this, qsfpImpls_[idx].get()));
       } else if (
           futInterfaces[idx].value() ==
           TransceiverManagementInterface::SFF8472) {
         XLOG(INFO) << "Making Sff8472 module for TransceiverID=" << idx;
         lockedTransceiversWPtr->emplace(
             TransceiverID(idx),
-            std::make_unique<Sff8472Module>(this, std::move(qsfpImpls[idx])));
+            std::make_unique<Sff8472Module>(this, qsfpImpls_[idx].get()));
       } else {
         XLOG(ERR) << "Unknown Transceiver interface: "
                   << static_cast<int>(futInterfaces[idx].value())
                   << " for TransceiverID=" << idx;
 
         try {
-          if (!qsfpImpls[idx]->detectTransceiver()) {
+          if (!qsfpImpls_[idx]->detectTransceiver()) {
             XLOG(DBG3) << "Transceiver is not present. TransceiverID=" << idx;
             continue;
           }

@@ -36,7 +36,7 @@ class CmisModule : public QsfpModule {
  public:
   explicit CmisModule(
       TransceiverManager* transceiverManager,
-      std::unique_ptr<TransceiverImpl> qsfpImpl);
+      TransceiverImpl* qsfpImpl);
   virtual ~CmisModule() override;
 
   struct ApplicationAdvertisingField {
@@ -242,10 +242,6 @@ class CmisModule : public QsfpModule {
    */
   PowerControlState getPowerControlValue() override;
   /*
-   * Return TransceiverStats
-   */
-  bool getTransceiverStats(TransceiverStats& stats);
-  /*
    * Return SignalFlag which contains Tx/Rx LOS/LOL
    */
   virtual SignalFlags getSignalFlagInfo() override;
@@ -345,10 +341,16 @@ class CmisModule : public QsfpModule {
       uint8_t startHostLane) const override;
 
   /*
-   * Set the Transceiver Tx channel endbale/disable
+   * Set the Transceiver Tx channel enable/disable
    */
   virtual bool setTransceiverTxLocked(
       const std::string& portName,
+      phy::Side side,
+      std::optional<uint8_t> userChannelMask,
+      bool enable) override;
+
+  virtual bool setTransceiverTxImplLocked(
+      const std::set<uint8_t>& tcvrLanes,
       phy::Side side,
       std::optional<uint8_t> userChannelMask,
       bool enable) override;

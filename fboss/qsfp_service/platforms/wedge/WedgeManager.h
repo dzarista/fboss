@@ -13,6 +13,7 @@
 #include "fboss/qsfp_service/fsdb/QsfpFsdbSyncManager.h"
 #include "fboss/qsfp_service/platforms/wedge/QsfpRestClient.h"
 #include "fboss/qsfp_service/platforms/wedge/WedgeI2CBusLock.h"
+#include "fboss/qsfp_service/platforms/wedge/WedgeQsfp.h"
 
 DECLARE_bool(override_program_iphy_ports_for_test);
 
@@ -102,10 +103,6 @@ class WedgeManager : public TransceiverManager {
   // transceiver out of reset by default will stay no op.
   virtual void clearAllTransceiverReset();
 
-  // This function will trigger a hard reset on the specific transceiver, making
-  // use of the specific implementation from each platform.
-  virtual void triggerQsfpHardReset(int idx);
-
   /*
    * This function will call PhyManager to create all the ExternalPhy objects
    */
@@ -185,6 +182,8 @@ class WedgeManager : public TransceiverManager {
       TransceiverID tcvrID,
       facebook::fboss::TcvrState&& newState) override;
 
+  void initQsfpImplMap();
+
  private:
   // Forbidden copy constructor and assignment operator
   WedgeManager(WedgeManager const&) = delete;
@@ -198,5 +197,6 @@ class WedgeManager : public TransceiverManager {
   std::string dataCenter_{""};
   std::string hostnameScheme_{""};
   time_t nextOpticsToBmcSyncTime_{0};
+  std::vector<std::unique_ptr<WedgeQsfp>> qsfpImpls_;
 };
 } // namespace facebook::fboss

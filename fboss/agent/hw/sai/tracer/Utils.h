@@ -159,6 +159,13 @@ void qosMapListAttr(
     std::vector<std::string>& attrLines,
     bool logEntry = true);
 
+void mapListAttr(
+    const sai_attribute_t* attr_list,
+    int i,
+    uint32_t listIndex,
+    std::vector<std::string>& attrLines,
+    bool logEntry = true);
+
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
 void latchStatusAttr(
     const sai_attribute_t* attr_list,
@@ -166,6 +173,22 @@ void latchStatusAttr(
     std::vector<std::string>& attrLines);
 
 void portLaneLatchStatusListAttr(
+    const sai_attribute_t* attr_list,
+    int i,
+    uint32_t listIndex,
+    std::vector<std::string>& attrLines,
+    bool logEntry = true);
+#endif
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+void portFrequencyOffsetPpmListAttr(
+    const sai_attribute_t* attr_list,
+    int i,
+    uint32_t listIndex,
+    std::vector<std::string>& attrLines,
+    bool logEntry = true);
+
+void portSnrListAttr(
     const sai_attribute_t* attr_list,
     int i,
     uint32_t listIndex,
