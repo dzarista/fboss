@@ -27,7 +27,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::CPU_PORT:
     case HwAsic::Feature::VRF:
     case HwAsic::Feature::SAI_HASH_FIELDS_CLEAR_BEFORE_SET:
-    case HwAsic::Feature::ROUTE_COUNTERS:
     case HwAsic::Feature::SAI_WEIGHTED_NEXTHOPGROUP_MEMBER:
     case HwAsic::Feature::PORT_TX_DISABLE:
     case HwAsic::Feature::SAI_PORT_ERR_STATUS:
@@ -47,12 +46,15 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::RESOURCE_USAGE_STATS:
     case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
-      return true;
-    // TODO: enable after ECN is supported
+    case HwAsic::Feature::SAI_FEC_COUNTERS:
+    case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
+    case HwAsic::Feature::DEBUG_COUNTER:
     case HwAsic::Feature::ECN:
     case HwAsic::Feature::SAI_ECN_WRED:
     case HwAsic::Feature::QUEUE_ECN_COUNTER:
-      return false;
+    case HwAsic::Feature::MANAGEMENT_PORT:
+      return true;
+    // Features not expected to work on SIM
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
     case HwAsic::Feature::BUFFER_POOL:
     case HwAsic::Feature::PFC:
@@ -65,14 +67,12 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::CREDIT_WATCHDOG:
     case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return getAsicMode() != AsicMode::ASIC_MODE_SIM;
-    // FIXME - make true when J3-AI supports these features
-    // For now these are only supported on J3 SIM and J3 HW
-    // For HW we only run in J3-AI mode, hence marking these
-    // features as SIM only
-    case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
-    case HwAsic::Feature::ECMP_HASH_V4:
-    case HwAsic::Feature::ECMP_HASH_V6:
-    case HwAsic::Feature::TRAFFIC_HASHING:
+    // SIM specific features.
+    case HwAsic::Feature::SAI_PORT_ETHER_STATS:
+    case HwAsic::Feature::SLOW_STAT_UPDATE:
+      // supported only on the SIM
+      return getAsicMode() == AsicMode::ASIC_MODE_SIM;
+
     case HwAsic::Feature::SWITCH_ATTR_INGRESS_ACL:
     case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
     case HwAsic::Feature::ACL_TABLE_GROUP:
@@ -80,14 +80,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ACL_COPY_TO_CPU:
     case HwAsic::Feature::ACL_COUNTER_LABEL:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
-    case HwAsic::Feature::DEBUG_COUNTER:
-      return getAsicMode() == AsicMode::ASIC_MODE_SIM;
-    // SIM specific features.
-    case HwAsic::Feature::SAI_PORT_ETHER_STATS:
-    case HwAsic::Feature::SLOW_STAT_UPDATE:
-      // supported only on the SIM
-      return getAsicMode() == AsicMode::ASIC_MODE_SIM;
-
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS:
     case HwAsic::Feature::SAI_LAG_HASH:
@@ -125,7 +117,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     // associate RIFs directly with ports. Hence no bridge port
     // is created (or supported for now).
     case HwAsic::Feature::BRIDGE_PORT_8021Q:
-    // TODO - get the features working on Jericho2 ASIC
     case HwAsic::Feature::FABRIC_PORT_MTU:
     case HwAsic::Feature::EXTENDED_FEC:
     case HwAsic::Feature::SAI_RX_REASON_COUNTER:
@@ -153,7 +144,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::PORT_EYE_VALUES:
     case HwAsic::Feature::ECMP_DLB_OFFSET:
-    case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
     case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
     case HwAsic::Feature::SPAN:
     case HwAsic::Feature::ERSPANv4:
@@ -164,7 +154,12 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SFLOWv6:
     case HwAsic::Feature::RX_SNR:
     case HwAsic::Feature::FEC_CORRECTED_BITS:
-    case HwAsic::Feature::SAI_FEC_COUNTERS:
+    case HwAsic::Feature::ROUTE_COUNTERS:
+    // J3-AI natively supports hashing. So hash configuration is not supported.
+    case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
+    case HwAsic::Feature::ECMP_HASH_V4:
+    case HwAsic::Feature::ECMP_HASH_V6:
+    case HwAsic::Feature::TRAFFIC_HASHING:
       return false;
   }
   return false;
@@ -176,6 +171,7 @@ std::set<cfg::StreamType> Jericho3Asic::getQueueStreamTypes(
     case cfg::PortType::CPU_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::RECYCLE_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::FABRIC_PORT:
@@ -189,9 +185,7 @@ int Jericho3Asic::getDefaultNumPortQueues(
     cfg::StreamType streamType,
     cfg::PortType portType) const {
   if (getAsicMode() == AsicMode::ASIC_MODE_SIM) {
-    // TODO skip returning 0 unconditionally here once J3 SDK
-    // supports queue stats on HW. SIM will continue to have
-    // no queues though.
+    // SIM will continue to have no queues though.
     return 0;
   }
   switch (streamType) {
@@ -200,6 +194,7 @@ int Jericho3Asic::getDefaultNumPortQueues(
         case cfg::PortType::CPU_PORT:
         case cfg::PortType::RECYCLE_PORT:
         case cfg::PortType::INTERFACE_PORT:
+        case cfg::PortType::MANAGEMENT_PORT:
           return 8;
         case cfg::PortType::FABRIC_PORT:
           break;
@@ -232,6 +227,7 @@ uint64_t Jericho3Asic::getDefaultReservedBytes(
     case cfg::PortType::RECYCLE_PORT:
       return 4096;
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::FABRIC_PORT:
       return 0;
   }
@@ -261,6 +257,7 @@ const std::map<cfg::PortType, cfg::PortLoopbackMode>&
 Jericho3Asic::desiredLoopbackModes() const {
   static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMode = {
       {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::PHY},
+      {cfg::PortType::MANAGEMENT_PORT, cfg::PortLoopbackMode::PHY},
       {cfg::PortType::FABRIC_PORT, cfg::PortLoopbackMode::MAC},
       {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE}};
   return kLoopbackMode;

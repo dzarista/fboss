@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include <folly/FileUtil.h>
 #include <folly/logging/xlog.h>
 
 #include "fboss/platform/platform_manager/Utils.h"
@@ -18,6 +19,8 @@ namespace {
 constexpr auto kRootSlotPath = "/";
 constexpr auto kIdprom = "IDPROM";
 const re2::RE2 kValidHwmonDirName{"hwmon[0-9]+"};
+const re2::RE2 kGpioChipNameRe{"gpiochip\\d+"};
+const std::string kGpioChip = "gpiochip";
 
 std::string getSlotPath(
     const std::string& parentSlotPath,
@@ -26,6 +29,23 @@ std::string getSlotPath(
     return fmt::format("{}{}", kRootSlotPath, slotName);
   } else {
     return fmt::format("{}/{}", parentSlotPath, slotName);
+  }
+}
+
+std::optional<std::string> getPresenceFileContent(const std::string& path) {
+  std::string value{};
+  if (!folly::readFile(path.c_str(), value)) {
+    return std::nullopt;
+  }
+  return folly::trimWhitespace(value).str();
+}
+
+bool hasEnding(std::string const& input, std::string const& ending) {
+  if (input.length() >= ending.length()) {
+    return input.compare(
+               input.length() - ending.length(), ending.length(), ending) == 0;
+  } else {
+    return false;
   }
 }
 } // namespace
@@ -38,7 +58,8 @@ PlatformExplorer::PlatformExplorer(
     std::chrono::seconds exploreInterval,
     const PlatformConfig& config,
     bool runOnce)
-    : platformConfig_(config) {
+    : platformConfig_(config),
+      devicePathResolver_(platformConfig_, dataStore_, i2cExplorer_) {
   if (runOnce) {
     explore();
     return;
@@ -118,12 +139,60 @@ void PlatformExplorer::exploreSlot(
   std::string childSlotPath = getSlotPath(parentSlotPath, slotName);
   XLOG(INFO) << fmt::format("Exploring SlotPath {}", childSlotPath);
 
-  if (slotConfig.presenceDetection() &&
-      !presenceDetector_.isPresent(*slotConfig.presenceDetection())) {
-    XLOG(INFO) << fmt::format(
-        "No device could be detected in SlotPath {}", childSlotPath);
+  // If PresenceDetection is specified, proceed further only if the presence
+  // condition is satisfied
+  if (const auto presenceDetection = slotConfig.presenceDetection()) {
+    if (const auto sysfsFileHandle = presenceDetection->sysfsFileHandle()) {
+      auto presencePath = devicePathResolver_.resolvePresencePath(
+          *sysfsFileHandle->devicePath(), *sysfsFileHandle->presenceFileName());
+      if (!presencePath) {
+        XLOG(ERR) << fmt::format(
+            "No sysfs file could be found at DevicePath: {} and presenceFileName: {}",
+            *sysfsFileHandle->devicePath(),
+            *sysfsFileHandle->presenceFileName());
+        return;
+      }
+      XLOG(INFO) << fmt::format(
+          "The file {} at DevicePath {} resolves to {}",
+          *sysfsFileHandle->presenceFileName(),
+          *sysfsFileHandle->devicePath(),
+          *presencePath);
+      auto presenceFileContent = getPresenceFileContent(*presencePath);
+      if (!presenceFileContent) {
+        XLOG(ERR) << fmt::format("Could not read file {}", *presencePath);
+        return;
+      }
+      int16_t presenceValue{0};
+      try {
+        presenceValue = std::stoi(*presenceFileContent, nullptr, 0);
+      } catch (const std::exception& ex) {
+        XLOG(ERR) << fmt::format(
+            "Failed to process file content {}: {}",
+            *presenceFileContent,
+            folly::exceptionStr(ex));
+        return;
+      }
+      bool isPresent = (presenceValue == *sysfsFileHandle->desiredValue());
+      XLOG(INFO) << fmt::format(
+          "Value at {} is {}. desiredValue is {}. "
+          "Assuming {} of PmUnit at {}",
+          *presencePath,
+          *presenceFileContent,
+          *sysfsFileHandle->desiredValue(),
+          isPresent ? "presence" : "absence",
+          childSlotPath);
+      if (!isPresent) {
+        return;
+      }
+    } else {
+      XLOG(INFO) << fmt::format(
+          "Invalid PresenceDetection for {}", childSlotPath);
+      return;
+    }
   }
 
+  // Either no PresenceDetection is specified, or the presence conditions in
+  // PresenceDetection are satisfied. Setup the PmUnit in the slot.
   int i = 0;
   for (const auto& busName : *slotConfig.outgoingI2cBusNames()) {
     auto busNum = dataStore_.getI2cBusNum(parentSlotPath, busName);
@@ -159,23 +228,39 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
         I2cAddr(*idpromConfig.address()));
     auto eepromPath = i2cExplorer_.getDeviceI2cPath(
         eepromI2cBusNum, I2cAddr(*idpromConfig.address()));
+    eepromPath = eepromPath + "/eeprom";
     try {
-      // TODO: One eeprom parsing library is implemented, get the
-      // Product Name from eeprom contents of eepromPath and use it here.
-      pmUnitNameInEeprom = std::nullopt;
+      pmUnitNameInEeprom =
+          eepromParser_.getProductName(eepromPath, *idpromConfig.offset());
     } catch (const std::exception& e) {
       XLOG(ERR) << fmt::format(
-          "Could not fetch contents of IDPROM {}. {}", eepromPath, e.what());
+          "Could not fetch contents of IDPROM {} in {}. {}",
+          eepromPath,
+          slotPath,
+          e.what());
+    }
+    if (pmUnitNameInEeprom) {
+      XLOG(INFO) << fmt::format(
+          "Found PmUnit name `{}` in IDPROM {} at {}",
+          *pmUnitNameInEeprom,
+          eepromPath,
+          slotPath);
     }
   }
+
   if (slotTypeConfig.pmUnitName()) {
     if (pmUnitNameInEeprom &&
         *pmUnitNameInEeprom != *slotTypeConfig.pmUnitName()) {
       XLOG(WARNING) << fmt::format(
-          "The PmUnit name in eeprom `{}` is different from the one in config `{}`",
+          "The PmUnit name in IDPROM -`{}` is different from the one "
+          "in config - `{}`. NEEDS FIX.",
           *pmUnitNameInEeprom,
           *slotTypeConfig.pmUnitName());
     }
+    XLOG(INFO) << fmt::format(
+        "Going with PmUnit name `{}` defined in config for {}",
+        *slotTypeConfig.pmUnitName(),
+        slotPath);
     return *slotTypeConfig.pmUnitName();
   }
   return pmUnitNameInEeprom;
@@ -202,6 +287,29 @@ void PlatformExplorer::exploreI2cDevices(
                 "{}@{}", *i2cDeviceConfig.pmUnitScopedName(), channelNum),
             busNum);
       }
+    }
+    if (*i2cDeviceConfig.isGpioChip()) {
+      auto i2cDevicePath = i2cExplorer_.getDeviceI2cPath(
+          dataStore_.getI2cBusNum(slotPath, *i2cDeviceConfig.busName()),
+          I2cAddr(*i2cDeviceConfig.address()));
+      std::optional<uint16_t> gpioNum{std::nullopt};
+      for (const auto& childDirEntry :
+           std::filesystem::directory_iterator(i2cDevicePath)) {
+        if (re2::RE2::FullMatch(
+                childDirEntry.path().filename().string(), kGpioChipNameRe)) {
+          gpioNum = folly::to<uint16_t>(
+              childDirEntry.path().filename().string().substr(
+                  kGpioChip.length()));
+        }
+      }
+      if (!gpioNum) {
+        throw std::runtime_error(fmt::format(
+            "No GPIO chip found in {} for {}",
+            i2cDevicePath,
+            *i2cDeviceConfig.pmUnitScopedName()));
+      }
+      dataStore_.updateGpioChipNum(
+          slotPath, *i2cDeviceConfig.pmUnitScopedName(), *gpioNum);
     }
   }
 }
@@ -261,6 +369,12 @@ void PlatformExplorer::explorePciDevices(
       pciExplorer_.createLedCtrl(charDevPath, fpgaIpBlockConfig, instId++);
     }
     for (const auto& xcvrCtrlConfig : *pciDeviceConfig.xcvrCtrlConfigs()) {
+      auto devicePath = fmt::format(
+          "{}/[{}]",
+          slotPath,
+          *xcvrCtrlConfig.fpgaIpBlockConfig()->pmUnitScopedName());
+      dataStore_.updateSysfsPath(devicePath, pciDevice.sysfsPath());
+      dataStore_.updateInstanceId(devicePath, instId);
       pciExplorer_.createXcvrCtrl(charDevPath, xcvrCtrlConfig, instId++);
     }
     for (const auto& fpgaIpBlockConfig : *pciDeviceConfig.miscCtrlConfigs()) {
@@ -354,6 +468,13 @@ void PlatformExplorer::createDeviceSymLink(
     targetPath =
         std::filesystem::path(i2cExplorer_.getDeviceI2cPath(busNum, i2cAddr)) /
         "hwmon";
+    if (!std::filesystem::exists(*targetPath)) {
+      XLOG(ERR) << fmt::format(
+          "{} doesn't have a valid hwmon directory ({})",
+          devicePath,
+          targetPath->string());
+      return;
+    }
     std::string hwmonSubDir = "";
     for (const auto& dirEntry :
          std::filesystem::directory_iterator(*targetPath)) {
@@ -413,6 +534,23 @@ void PlatformExplorer::createDeviceSymLink(
   } else if (linkParentPath.string() == "/run/devmap/gpiochips") {
     targetPath = std::filesystem::path(fmt::format(
         "/dev/gpiochip{}", dataStore_.getGpioChipNum(slotPath, deviceName)));
+  } else if (linkParentPath.string() == "/run/devmap/xcvrs") {
+    auto pciDevPath = dataStore_.getSysfsPath(devicePath);
+    auto expectedEnding =
+        fmt::format(".xcvr_ctrl.{}", dataStore_.getInstanceId(devicePath));
+    for (const auto& dirEntry :
+         std::filesystem::directory_iterator(pciDevPath)) {
+      if (hasEnding(dirEntry.path().string(), expectedEnding)) {
+        targetPath = dirEntry.path().string();
+      }
+    }
+    if (!targetPath) {
+      XLOG(ERR) << fmt::format(
+          "Couldn't find xcvr_ctrl directory under {}. DevicePath: {}",
+          pciDevPath,
+          devicePath);
+      return;
+    }
   } else {
     XLOG(ERR) << fmt::format("Symbolic link {} is not supported.", linkPath);
     return;

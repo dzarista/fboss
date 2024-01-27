@@ -25,9 +25,9 @@ int main(int argc, char* argv[]) {
   // TODO: Add file lock to prevent multiple instance of fw-util from running
   // simultaneously.
 
-  helpers::init(&argc, &argv);
+  helpers::initCli(&argc, &argv, "fw_util");
 
-  FwUtilImpl fwUtilImpl(FLAGS_config_file);
+  FwUtilImpl fwUtilImpl;
 
   // TODO: To be removed once XFN change the commands in their codes
   if (FLAGS_fw_action.empty()) {

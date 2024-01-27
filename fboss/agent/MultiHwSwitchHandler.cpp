@@ -56,7 +56,7 @@ void MultiHwSwitchHandler::stop() {
   // set stop flag so that there are no more accesses to syncers
   stopped_.store(true);
   for (auto& entry : hwSwitchSyncers_) {
-    entry.second.reset();
+    entry.second->stop();
   }
 }
 
@@ -282,14 +282,24 @@ void MultiHwSwitchHandler::updateStats() {
   return hwSwitchSyncers_.begin()->second->updateStats();
 }
 
-std::map<PortID, phy::PhyInfo> MultiHwSwitchHandler::updateAllPhyInfo() {
-  return hwSwitchSyncers_.begin()->second->updateAllPhyInfo();
+void MultiHwSwitchHandler::updateAllPhyInfo() {
+  hwSwitchSyncers_.begin()->second->updateAllPhyInfo();
+}
+
+std::map<PortID, phy::PhyInfo> MultiHwSwitchHandler::getAllPhyInfo() const {
+  return hwSwitchSyncers_.begin()->second->getAllPhyInfo();
 }
 
 uint64_t MultiHwSwitchHandler::getDeviceWatermarkBytes() {
   // TODO - support with multiple switches
   CHECK_EQ(hwSwitchSyncers_.size(), 1);
   return hwSwitchSyncers_.begin()->second->getDeviceWatermarkBytes();
+}
+
+HwFlowletStats MultiHwSwitchHandler::getHwFlowletStats() {
+  // TODO - support with multiple switches
+  CHECK_EQ(hwSwitchSyncers_.size(), 1);
+  return hwSwitchSyncers_.begin()->second->getHwFlowletStats();
 }
 
 void MultiHwSwitchHandler::clearPortStats(
@@ -362,8 +372,6 @@ FabricReachabilityStats MultiHwSwitchHandler::getFabricReachabilityStats() {
 
 std::vector<PortID> MultiHwSwitchHandler::getSwitchReachability(
     SwitchID switchId) {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
   return hwSwitchSyncers_.begin()->second->getSwitchReachability(switchId);
 }
 
@@ -450,17 +458,14 @@ MultiHwSwitchHandler::getHwSwitchHandlers() {
 multiswitch::StateOperDelta MultiHwSwitchHandler::getNextStateOperDelta(
     int64_t switchId,
     std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
-    bool initialSync) {
+    int64_t lastUpdateSeqNum) {
   if (!isRunning()) {
     throw FbossError("multi hw switch syncer not started");
-  }
-  if (initialSync) {
-    connectionStatusTable_.connected(SwitchID(switchId));
   }
   auto iter = hwSwitchSyncers_.find(SwitchID(switchId));
   CHECK(iter != hwSwitchSyncers_.end());
   return iter->second->getNextStateOperDelta(
-      std::move(prevOperResult), initialSync);
+      std::move(prevOperResult), lastUpdateSeqNum);
 }
 
 void MultiHwSwitchHandler::notifyHwSwitchGracefulExit(int64_t switchId) {

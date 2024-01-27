@@ -111,7 +111,7 @@ class SaiSwitch : public HwSwitch {
   folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
   std::map<std::string, HwSysPortStats> getSysPortStats() const override;
   FabricReachabilityStats getFabricReachabilityStats() const override;
-  CpuPortStats getCpuPortStats() const override;
+  CpuPortStats getCpuPortStats(bool getIncrement) const override;
   HwSwitchDropStats getSwitchDropStats() const override;
 
   uint64_t getDeviceWatermarkBytes() const override;
@@ -203,7 +203,7 @@ class SaiSwitch : public HwSwitch {
   bool transactionsSupported() const override;
   bool l2LearningModeChangeProhibited() const;
 
-  virtual std::map<PortID, phy::PhyInfo> updateAllPhyInfo() override;
+  virtual std::map<PortID, phy::PhyInfo> updateAllPhyInfoImpl() override;
 
   uint32_t generateDeterministicSeed(
       LoadBalancerID loadBalancerID,
@@ -233,6 +233,7 @@ class SaiSwitch : public HwSwitch {
   void switchRunStateChangedImpl(SwitchRunState newState) override;
 
   TeFlowStats getTeFlowStats() const override;
+  HwFlowletStats getHwFlowletStats() const override;
 
   void updateStatsImpl() override;
   template <typename LockPolicyT>

@@ -159,11 +159,6 @@ DEFINE_int32(
     5,
     "Interval at which stats subscriptions are served");
 
-DEFINE_int32(
-    update_phy_info_interval_s,
-    10,
-    "Update phy info interval in seconds");
-
 DECLARE_bool(intf_nbr_tables);
 
 DEFINE_int32(
@@ -291,6 +286,39 @@ void accumulateGlobalCpuStats(
   }
   for (const auto& [queue, name] : toAdd.queueToName_().value()) {
     (*accumulated.queueToName_())[queue] = name;
+  }
+}
+
+void updatePhyFb303Stats(
+    const std::map<facebook::fboss::PortID, facebook::fboss::phy::PhyInfo>&
+        phyInfoMap) {
+  for (auto& [portID, phyInfo] : phyInfoMap) {
+    auto& phyStats = *phyInfo.stats();
+    auto& phyState = *phyInfo.state();
+    if (phyState.get_name().empty()) {
+      continue;
+    }
+    if (auto pcs = phyStats.line()->pcs()) {
+      if (auto fec = pcs->rsFec()) {
+        auto preFECBer = fec->get_preFECBer();
+        // Pre-FEC BER should be >= 0 and <= 1
+        if (preFECBer < 0 || preFECBer > 1) {
+          XLOG(ERR) << "Invalid preFECBer value: " << preFECBer
+                    << " for port: " << phyState.get_name();
+          continue;
+        }
+        // For a BER of 2.2e-10, we will just log the exponent -10 to FB303
+        // It should be safe to set the exponent to -32 when BER is 0. A BER of
+        // lower than e-32 would mean 0 errors at 10^32 MBPS for 1 second. This
+        // speed is infeasible at this point
+        int64_t preFECBerForFb303 = -32;
+        if (preFECBer != 0) {
+          preFECBerForFb303 = std::floor(std::log10(preFECBer));
+        }
+        facebook::fb303::fbData->setCounter(
+            "port." + phyState.get_name() + ".preFecBerLog", preFECBerForFb303);
+      }
+    }
   }
 }
 
@@ -465,14 +493,18 @@ void SwSwitch::stop(bool isGracefulStop, bool revertToMinAlpmState) {
   packetLogger_.reset();
   routeUpdateLogger_.reset();
 
-  heartbeatWatchdog_->stop();
-  heartbeatWatchdog_.reset();
+  if (heartbeatWatchdog_) {
+    heartbeatWatchdog_->stop();
+    heartbeatWatchdog_.reset();
+  }
   bgThreadHeartbeat_.reset();
   updThreadHeartbeat_.reset();
   packetTxThreadHeartbeat_.reset();
   lacpThreadHeartbeat_.reset();
   neighborCacheThreadHeartbeat_.reset();
-  rib_->stop();
+  if (rib_) {
+    rib_->stop();
+  }
 
   lookupClassUpdater_.reset();
   lookupClassRouteUpdater_.reset();
@@ -640,20 +672,6 @@ void SwSwitch::updateLldpStats() {
 
 AgentStats SwSwitch::fillFsdbStats() {
   AgentStats agentStats;
-  auto runMode = (*agentConfig_.rlock())->getRunMode();
-  if (runMode == cfg::AgentRunMode::MONO) {
-    multiswitch::HwSwitchStats hwStats;
-    hwStats.hwPortStats() = multiHwSwitchHandler_->getPortStats();
-    hwStats.sysPortStats() = multiHwSwitchHandler_->getSysPortStats();
-    hwStats.switchDropStats() = multiHwSwitchHandler_->getSwitchDropStats();
-
-    if (auto hwSwitchStats = multiHwSwitchHandler_->getSwitchStats()) {
-      hwStats.hwAsicErrors() = hwSwitchStats->getHwAsicErrors();
-    }
-    hwStats.teFlowStats() = getTeFlowStats();
-    hwStats.bufferPoolStats() = getBufferPoolStats();
-    updateHwSwitchStats(0 /*switchIndex*/, std::move(hwStats));
-  }
   {
     auto lockedStats = hwSwitchStats_.wlock();
     // fill stats using hwswitch exported data if available
@@ -681,6 +699,12 @@ AgentStats SwSwitch::fillFsdbStats() {
           {switchIdx, std::move(*hwSwitchStats.bufferPoolStats())});
       agentStats.sysPortStatsMap()->insert(
           {switchIdx, std::move(*hwSwitchStats.sysPortStats())});
+      for (auto& [_, phyInfo] : *hwSwitchStats.phyInfo()) {
+        auto portName = phyInfo.state()->name().value();
+        agentStats.phyStats()->insert({portName, phyInfo.get_stats()});
+      }
+      agentStats.flowletStatsMap()->insert(
+          {switchIdx, std::move(*hwSwitchStats.flowletStats())});
     }
     lockedStats->clear();
   }
@@ -692,6 +716,7 @@ AgentStats SwSwitch::fillFsdbStats() {
   agentStats.bufferPoolStats() =
       agentStats.bufferPoolStatsMap()->begin()->second;
   agentStats.sysPortStats() = agentStats.sysPortStatsMap()->begin()->second;
+  agentStats.flowletStats() = agentStats.flowletStatsMap()->begin()->second;
   return agentStats;
 }
 
@@ -727,17 +752,93 @@ void SwSwitch::updateStats() {
   }
   updateMultiSwitchGlobalFb303Stats();
   updateFabricReachabilityStats();
-  // Determine if collect phy info
-  auto now =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  if (now - phyInfoUpdateTime_ >= FLAGS_update_phy_info_interval_s) {
-    phyInfoUpdateTime_ = now;
-    try {
-      phySnapshotManager_->updatePhyInfos(
-          multiHwSwitchHandler_->updateAllPhyInfo());
-    } catch (const std::exception& ex) {
-      stats()->updateStatsException();
-      XLOG(ERR) << "Error running updatePhyInfos: " << folly::exceptionStr(ex);
+  stats()->maxNumOfPhysicalHostsPerQueue(
+      getLookupClassUpdater()->getMaxNumHostsPerQueue());
+
+  try {
+    multiHwSwitchHandler_->updateAllPhyInfo();
+  } catch (const std::exception& ex) {
+    XLOG(ERR) << "Error running updateAllPhyInfo: " << folly::exceptionStr(ex);
+  }
+  if ((*agentConfig_.rlock())->getRunMode() == cfg::AgentRunMode::MONO) {
+    multiswitch::HwSwitchStats hwStats;
+    hwStats.hwPortStats() = multiHwSwitchHandler_->getPortStats();
+    hwStats.sysPortStats() = multiHwSwitchHandler_->getSysPortStats();
+    hwStats.switchDropStats() = multiHwSwitchHandler_->getSwitchDropStats();
+
+    if (auto hwSwitchStats = multiHwSwitchHandler_->getSwitchStats()) {
+      hwStats.hwAsicErrors() = hwSwitchStats->getHwAsicErrors();
+    }
+    hwStats.teFlowStats() = getTeFlowStats();
+    hwStats.bufferPoolStats() = getBufferPoolStats();
+    for (auto& [portId, phyInfoPerPort] :
+         multiHwSwitchHandler_->getAllPhyInfo()) {
+      hwStats.phyInfo()->emplace(portId, phyInfoPerPort);
+    }
+    hwStats.flowletStats() = getHwFlowletStats();
+    updateHwSwitchStats(0 /*switchIndex*/, std::move(hwStats));
+  }
+  updateFlowletStats();
+
+  std::map<PortID, phy::PhyInfo> phyInfo;
+  {
+    auto lockedStats = hwSwitchStats_.rlock();
+    for (auto& [_, hwSwitchStats] : *lockedStats) {
+      for (auto& [portID, phyInfoEntry] : *hwSwitchStats.phyInfo()) {
+        phyInfo.insert({PortID(portID), phyInfoEntry});
+      }
+    }
+  }
+
+  phySnapshotManager_->updatePhyInfos(phyInfo);
+  updatePhyFb303Stats(phyInfo);
+}
+
+void SwSwitch::updateRouteStats() {
+  // updateRouteStats() could be called before we are getting the first state
+  auto state = getState();
+  if (!state) {
+    return;
+  }
+  auto [v4Count, v6Count] = getRouteCount(state);
+  fb303::fbData->setCounter(SwitchStats::kCounterPrefix + "routes.v4", v4Count);
+  fb303::fbData->setCounter(SwitchStats::kCounterPrefix + "routes.v6", v6Count);
+}
+
+void SwSwitch::updateTeFlowStats() {
+  // updateTeFlowStats() could be called before we are getting the first state
+  auto state = getState();
+  if (!state) {
+    return;
+  }
+  auto multiTeFlowTable = state->getTeFlowTable();
+  fb303::fbData->setCounter(
+      SwitchStats::kCounterPrefix + "teflows", multiTeFlowTable->numNodes());
+  auto inactiveFlows = 0;
+  for (const auto& [_, teFlowTable] : std::as_const(*multiTeFlowTable)) {
+    for (const auto& [flowStr, flow] : std::as_const(*teFlowTable)) {
+      if (!flow->getEnabled()) {
+        inactiveFlows++;
+      }
+    }
+  }
+  fb303::fbData->setCounter(
+      SwitchStats::kCounterPrefix + "teflows.inactive", inactiveFlows);
+}
+
+void SwSwitch::updatePortInfo() {
+  auto state = getState();
+  if (!state) {
+    return;
+  }
+  for (const auto& portMap : std::as_const(*state->getPorts())) {
+    for (const auto& port : std::as_const(*portMap.second)) {
+      fb303::fbData->setCounter(
+          "port." + port.second->getName() + ".speed",
+          static_cast<int64_t>(port.second->getSpeed()) * 1'000'000ul);
+      std::string idKey =
+          folly::to<std::string>("port.", port.second->getID(), ".name");
+      fb303::fbData->setExportedValue(idKey, port.second->getName());
     }
   }
 }
@@ -785,6 +886,23 @@ void SwSwitch::updateFabricReachabilityStats() {
   *fabricReachabilityStats_.wlock() = fabricReachabilityStats;
 }
 
+void SwSwitch::updateFlowletStats() {
+  uint64_t dlbErrorPackets = 0;
+  auto runMode = (*agentConfig_.rlock())->getRunMode();
+  if (runMode == cfg::AgentRunMode::MULTI_SWITCH) {
+    auto lockedStats = hwSwitchStats_.rlock();
+    for (auto& [switchIdx, hwSwitchStats] : *lockedStats) {
+      dlbErrorPackets +=
+          hwSwitchStats.flowletStats()->l3EcmpDlbFailPackets().value();
+    }
+  } else {
+    auto flowletStats = getHwSwitchHandler()->getHwFlowletStats();
+    dlbErrorPackets = flowletStats.l3EcmpDlbFailPackets().value();
+  }
+  fb303::fbData->setCounter(
+      SwitchStats::kCounterPrefix + "dlb_error_packets", dlbErrorPackets);
+}
+
 TeFlowStats SwSwitch::getTeFlowStats() {
   TeFlowStats teFlowStats;
   std::map<std::string, HwTeFlowStats> hwTeFlowStats;
@@ -817,6 +935,10 @@ HwBufferPoolStats SwSwitch::getBufferPoolStats() const {
   stats.deviceWatermarkBytes() =
       multiHwSwitchHandler_->getDeviceWatermarkBytes();
   return stats;
+}
+
+HwFlowletStats SwSwitch::getHwFlowletStats() const {
+  return multiHwSwitchHandler_->getHwFlowletStats();
 }
 
 void SwSwitch::registerNeighborListener(
@@ -1023,20 +1145,26 @@ void SwSwitch::init(SwitchFlags flags) {
         "This should not happen given the state was previously applied, ",
         "but possible if calculation or threshold changes across warmboot.");
   }
-  try {
-    getHwSwitchHandler()->stateChanged(initialStateDelta, false);
-  } catch (const std::exception& ex) {
-    throw FbossError("Failed to sync initial state to HwSwitch: ", ex.what());
+  // Do not send cold boot state to hwswitch. This is to avoid
+  // deleting any cold boot state entries that hwswitch has learned from sdk
+  if (bootType_ == BootType::WARM_BOOT) {
+    try {
+      getHwSwitchHandler()->stateChanged(initialStateDelta, false);
+    } catch (const std::exception& ex) {
+      throw FbossError("Failed to sync initial state to HwSwitch: ", ex.what());
+    }
   }
   // for cold boot discrepancy may exist between applied state in software
   // switch and state that already exist in hardware. this discrepancy is until
   // config is applied, after that the two states are in sync. tolerating this
   // discrepancy for now.
   setStateInternal(initialState);
-  // Notify the state observers of the initial state
-  updateEventBase_.runInEventBaseThread([emptyState, initialState, this]() {
-    notifyStateObservers(StateDelta(emptyState, initialState));
-  });
+  if (bootType_ == BootType::WARM_BOOT) {
+    // Notify the state observers of the initial state
+    updateEventBase_.runInEventBaseThread([emptyState, initialState, this]() {
+      notifyStateObservers(StateDelta(emptyState, initialState));
+    });
+  }
   if (FLAGS_log_all_fib_updates) {
     constexpr auto kAllFibUpdates = "all_fib_updates";
     logRouteUpdates("::", 0, kAllFibUpdates);
@@ -1085,10 +1213,9 @@ void SwSwitch::initialConfigApplied(const steady_clock::time_point& startTime) {
   }
 
   if (flags_ & SwitchFlags::PUBLISH_STATS) {
-    publishInitTimes(
-        "fboss.agent.switch_configured",
-        duration_cast<duration<float>>(steady_clock::now() - startTime)
-            .count());
+    stats()->switchConfiguredMs(duration_cast<std::chrono::milliseconds>(
+                                    steady_clock::now() - startTime)
+                                    .count());
   }
 #if FOLLY_HAS_COROUTINES
   if (flags_ & SwitchFlags::ENABLE_MACSEC) {
@@ -1378,6 +1505,9 @@ void SwSwitch::handlePendingUpdates() {
             << " Failed to apply update to HW and the update is not marked for "
                "HW failure protection";
       }
+    } else {
+      // Update successful, update hw update counter to zero.
+      fb303::fbData->setCounter(kHwUpdateFailures, 0);
     }
   }
   updatePtpTcCounter();
@@ -1392,8 +1522,8 @@ void SwSwitch::handlePendingUpdates() {
 void SwSwitch::updatePtpTcCounter() {
   // update fb303 counter to reflect current state of PTP
   // should be invoked post update
-  auto switchSettings = util::getFirstNodeIf(getState()->getSwitchSettings())
-      ? util::getFirstNodeIf(getState()->getSwitchSettings())
+  auto switchSettings = utility::getFirstNodeIf(getState()->getSwitchSettings())
+      ? utility::getFirstNodeIf(getState()->getSwitchSettings())
       : std::make_shared<SwitchSettings>();
   fb303::fbData->setCounter(
       SwitchStats::kCounterPrefix + "ptp_tc_enabled",
@@ -1572,6 +1702,16 @@ void SwSwitch::setPortStatusCounter(PortID port, bool up) {
     return;
   }
   portStats(port)->setPortStatus(up);
+}
+
+void SwSwitch::setPortActiveStatusCounter(PortID port, bool isActive) {
+  auto state = getState();
+  if (!state) {
+    // Make sure the state actually exists, this could be an issue if
+    // called during initialization
+    return;
+  }
+  portStats(port)->setPortActiveStatus(isActive);
 }
 
 void SwSwitch::packetReceived(std::unique_ptr<RxPacket> pkt) noexcept {
@@ -1811,6 +1951,9 @@ void SwSwitch::linkActiveStateChanged(
         }
 
         if (port->isActive() != isActive) {
+          setPortActiveStatusCounter(portID, isActive);
+          portStats(portID)->linkActiveStateChange(isActive);
+
           auto getActiveStr = [](std::optional<bool> isActive) {
             return isActive.has_value()
                 ? (isActive.value() ? "ACTIVE" : "INACTIVE")
@@ -1883,7 +2026,16 @@ void SwSwitch::postInit(const HwInitResult* hwInitResult) {
   }
 
   if (flags_ & SwitchFlags::PUBLISH_STATS && hwInitResult) {
-    publishSwitchInfo(*hwInitResult);
+    switch (hwInitResult->bootType) {
+      case BootType::COLD_BOOT:
+        stats()->coldBoot();
+        break;
+      case BootType::WARM_BOOT:
+        stats()->warmBoot();
+        break;
+      case BootType::UNINITIALIZED:
+        CHECK(0);
+    }
   }
 
   auto bgHeartbeatStatsFunc = [this](int delay, int backLog) {
@@ -2023,7 +2175,7 @@ uint32_t SwSwitch::getEthernetHeaderSize() const {
                                                : EthHdr::UNTAGGED_PKT_SIZE;
 }
 
-std::unique_ptr<TxPacket> SwSwitch::allocatePacket(uint32_t size) {
+std::unique_ptr<TxPacket> SwSwitch::allocatePacket(uint32_t size) const {
   return multiHwSwitchHandler_->allocatePacket(size);
 }
 
@@ -2892,13 +3044,18 @@ void SwSwitch::updateHwSwitchStats(
   (*hwSwitchStats_.wlock())[switchIndex] = std::move(hwStats);
 }
 
-multiswitch::HwSwitchStats SwSwitch::getHwSwitchStatsWithCopy(
+multiswitch::HwSwitchStats SwSwitch::getHwSwitchStatsExpensive(
     uint16_t switchIndex) const {
   auto lockedStats = hwSwitchStats_.rlock();
   if (lockedStats->find(switchIndex) == lockedStats->end()) {
     throw FbossError("No stats for switch index ", switchIndex);
   }
   return lockedStats->at(switchIndex);
+}
+
+std::map<uint16_t, multiswitch::HwSwitchStats>
+SwSwitch::getHwSwitchStatsExpensive() const {
+  return *hwSwitchStats_.rlock();
 }
 
 FabricReachabilityStats SwSwitch::getFabricReachabilityStats() {

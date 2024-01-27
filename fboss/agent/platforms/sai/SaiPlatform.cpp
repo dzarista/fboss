@@ -30,12 +30,14 @@
 #include "fboss/agent/platforms/sai/SaiCloudRipperPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiElbert8DDPhyPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiFakePlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiJanga800bicPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400bfuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800bfaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800biaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMorgan800ccPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiTahan800bcPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiWedge400CPlatformPort.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/lib/CommonFileUtils.h"
@@ -347,6 +349,10 @@ void SaiPlatform::initPorts() {
       saiPort = std::make_unique<SaiMeru800bfaPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_MONTBLANC) {
       saiPort = std::make_unique<SaiBcmMontblancPlatformPort>(portId, this);
+    } else if (platformMode == PlatformType::PLATFORM_JANGA800BIC) {
+      saiPort = std::make_unique<SaiJanga800bicPlatformPort>(portId, this);
+    } else if (platformMode == PlatformType::PLATFORM_TAHAN800BC) {
+      saiPort = std::make_unique<SaiTahan800bcPlatformPort>(portId, this);
     } else {
       saiPort = std::make_unique<SaiFakePlatformPort>(portId, this);
     }

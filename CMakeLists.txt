@@ -112,7 +112,6 @@ endif()
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 
 message(STATUS "Building for SAI Spec ${SAI_VER_MAJOR}.${SAI_VER_MINOR}.${SAI_VER_RELEASE}")
-set(SAI_VER_SUFFIX "${SAI_VER_MAJOR}.${SAI_VER_MINOR}.${SAI_VER_RELEASE}")
 
 set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_SOURCE_DIR}/build/fbcode_builder/CMake"
@@ -180,7 +179,10 @@ find_library(NLOHMANN_JSON nlohmann-json)
 find_path(NLOHMANN_JSON_INCLUDE_DIRS NAMES nlohmann/json.hpp)
 include_directories(${NLOHMANN_JSON_INCLUDE_DIRS})
 
-find_package(Python3 COMPONENTS Interpreter Development)
+# (TODO): Pinning python version to 3.8 to compile in lego-linux since
+# python 3.10 is causing link failures for sai test binary. Undo
+# this once lego-linux is compatible with python3.10
+find_package(Python3 3.8 EXACT COMPONENTS Interpreter Development)
 include_directories(${Python3_INCLUDE_DIR})
 
 find_path(SAI_INCLUDE_DIR NAMES sai.h)
@@ -367,6 +369,7 @@ add_fbthrift_cpp_library(
     transceiver_cpp2
     fboss_cpp2
     fb303_cpp2
+    io_stats_cpp2
 )
 add_fbthrift_cpp_library(
   optic_cpp2
@@ -485,6 +488,7 @@ add_fbthrift_cpp_library(
     reflection
   DEPENDS
     hardware_stats_cpp2
+    phy_cpp2
 )
 add_fbthrift_cpp_library(
   production_features_cpp2
@@ -501,6 +505,9 @@ add_fbthrift_cpp_library(
 add_fbthrift_cpp_library(
   io_stats_cpp2
   fboss/lib/if/io_stats.thrift
+  OPTIONS
+    json
+    reflection
 )
 
 add_fbthrift_cpp_library(
@@ -657,4 +664,10 @@ add_dependencies(qsfp_targets
   qsfp_service
   qsfp_hw_test
   wedge_qsfp_util
+)
+
+add_custom_target(fboss_agent_targets)
+add_dependencies(fboss_agent_targets
+  sai_test-fake
+  multi_switch_agent_hw_test
 )

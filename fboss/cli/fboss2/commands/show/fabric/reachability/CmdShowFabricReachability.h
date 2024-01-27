@@ -47,9 +47,25 @@ class CmdShowFabricReachability : public CmdHandler<
       switchNames.push_back(utils::removeFbDomains(queriedSwitchName));
     }
 
-    auto client =
-        utils::createClient<apache::thrift::Client<FbossCtrl>>(hostInfo);
-    client->sync_getSwitchReachability(reachabilityMatrix, switchNames);
+    if (utils::isFbossFeatureEnabled(hostInfo.getName(), "multi_switch")) {
+      auto hwAgentQueryFn =
+          [&reachabilityMatrix, &switchNames](
+              apache::thrift::Client<facebook::fboss::FbossHwCtrl>& client) {
+            std::map<std::string, std::vector<std::string>> reachability;
+            client.sync_getHwSwitchReachability(reachability, switchNames);
+            for (auto& [switchName, reachablePorts] : reachability) {
+              reachabilityMatrix[switchName].insert(
+                  reachabilityMatrix[switchName].end(),
+                  reachablePorts.begin(),
+                  reachablePorts.end());
+            }
+          };
+      utils::runOnAllHwAgents(hostInfo, hwAgentQueryFn);
+    } else {
+      auto client =
+          utils::createClient<apache::thrift::Client<FbossCtrl>>(hostInfo);
+      client->sync_getSwitchReachability(reachabilityMatrix, switchNames);
+    }
     return createModel(reachabilityMatrix);
   }
 

@@ -171,7 +171,7 @@ class HwEnsembleMultiSwitchThriftHandler
       multiswitch::StateOperDelta& operDelta,
       int64_t /*switchId*/,
       std::unique_ptr<multiswitch::StateOperDelta> /*prevOperResult*/,
-      bool /*initialSync*/) override {
+      int64_t /*lastUpdateSeqNum*/) override {
     std::unique_lock<std::mutex> lk(operDeltaMutex_);
     if (!nextOperReady_) {
       operDeltaCV_.wait(
@@ -669,7 +669,8 @@ void HwSwitchEnsemble::setupEnsemble(
   }
   programmedState_ = initState->clone();
   if (bootType == BootType::WARM_BOOT) {
-    auto settings = util::getFirstNodeIf(programmedState_->getSwitchSettings());
+    auto settings =
+        utility::getFirstNodeIf(programmedState_->getSwitchSettings());
     auto newSettings = settings->modify(&programmedState_);
     newSettings->setSwitchIdToSwitchInfo(switchIdToSwitchInfo);
   } else {

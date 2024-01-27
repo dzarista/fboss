@@ -896,7 +896,7 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
 
   bool multipleAclTableSupport =
       platform_->getAsic()->isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
   multipleAclTableSupport = false;
 #endif
   if (FLAGS_enable_acl_table_group && multipleAclTableSupport) {
@@ -928,7 +928,7 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
     }
     bool aclTableUpdateSupport = platform_->getAsic()->isSupported(
         HwAsic::Feature::SAI_ACL_TABLE_UPDATE);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
     aclTableUpdateSupport = false;
 #endif
     if (!oldRequiredQualifiers.empty() &&
@@ -1157,10 +1157,10 @@ folly::F14FastMap<std::string, HwPortStats> SaiSwitch::getPortStats() const {
   return getPortStatsLocked(lock);
 }
 
-CpuPortStats SaiSwitch::getCpuPortStats() const {
+CpuPortStats SaiSwitch::getCpuPortStats(bool getIncrement) const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   auto& cpuStat = managerTable_->hostifManager().getCpuFb303Stats();
-  return cpuStat.getCpuPortStats();
+  return cpuStat.getCpuPortStats(getIncrement);
 }
 
 folly::F14FastMap<std::string, HwPortStats> SaiSwitch::getPortStatsLocked(
@@ -1193,7 +1193,7 @@ std::map<std::string, HwSysPortStats> SaiSwitch::getSysPortStatsLocked(
   return portStatsMap;
 }
 
-std::map<PortID, phy::PhyInfo> SaiSwitch::updateAllPhyInfo() {
+std::map<PortID, phy::PhyInfo> SaiSwitch::updateAllPhyInfoImpl() {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   return updateAllPhyInfoLocked();
 }
@@ -1604,7 +1604,7 @@ void SaiSwitch::gracefulExitLocked(const std::lock_guard<std::mutex>& lock) {
   SaiApiTable::getInstance()->switchApi().setAttribute(
       saiSwitchId_, preShutdown);
   if (platform_->getAsic()->isSupported(HwAsic::Feature::P4_WARMBOOT)) {
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_P4_WB_SDK)
     SaiSwitchTraits::Attributes::RestartIssu restartIssu{true};
     SaiApiTable::getInstance()->switchApi().setAttribute(
         saiSwitchId_, restartIssu);
@@ -1919,8 +1919,8 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
     auto multiSysPorts = std::make_shared<MultiSwitchSystemPortMap>();
     auto sysPorts = managerTable_->systemPortManager().constructSystemPorts(
         state->getPorts(),
-        getSwitchId().value(),
-        platform_->getAsic()->getSystemPortRange());
+        scopeResolver->switchIdToSwitchInfo(),
+        getSwitchId().value());
 
     for (auto iter : std::as_const(*sysPorts)) {
       multiSysPorts->addNode(iter.second, scopeResolver->scope(iter.second));
@@ -2129,9 +2129,6 @@ void SaiSwitch::initStoreAndManagersLocked(
 
     if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::DEBUG_COUNTER)) {
       managerTable_->debugCounterManager().setupDebugCounters();
-    }
-    if (platform_->getAsic()->isSupported(HwAsic::Feature::BUFFER_POOL)) {
-      managerTable_->bufferManager().setupBufferPool();
     }
     if (platform_->getAsic()->isSupported(
             HwAsic::Feature::COUNTER_REFRESH_INTERVAL)) {
@@ -3530,6 +3527,11 @@ void SaiSwitch::pfcDeadlockNotificationCallback(
 TeFlowStats SaiSwitch::getTeFlowStats() const {
   // not implemented in SAI. Return empty stats
   return TeFlowStats();
+}
+
+HwFlowletStats SaiSwitch::getHwFlowletStats() const {
+  // not implemented in SAI. Return empty stats
+  return HwFlowletStats{};
 }
 
 HwSwitchDropStats SaiSwitch::getSwitchDropStats() const {

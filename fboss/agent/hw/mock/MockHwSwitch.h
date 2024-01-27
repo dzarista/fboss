@@ -74,7 +74,7 @@ class MockHwSwitch : public HwSwitch {
   MOCK_CONST_METHOD0(
       getPortStats,
       folly::F14FastMap<std::string, HwPortStats>());
-  MOCK_CONST_METHOD0(getCpuPortStats, CpuPortStats());
+  MOCK_CONST_METHOD1(getCpuPortStats, CpuPortStats(bool getIncrement));
   MOCK_CONST_METHOD0(getSysPortStats, std::map<std::string, HwSysPortStats>());
   MOCK_CONST_METHOD0(getFabricReachabilityStats, FabricReachabilityStats());
   MOCK_CONST_METHOD0(getSwitchDropStats, HwSwitchDropStats());
@@ -91,6 +91,7 @@ class MockHwSwitch : public HwSwitch {
       void(const std::unique_ptr<std::vector<int32_t>>&));
   MOCK_CONST_METHOD0(getBootType, BootType());
   MOCK_CONST_METHOD0(getTeFlowStats, TeFlowStats());
+  MOCK_CONST_METHOD0(getHwFlowletStats, HwFlowletStats());
 
   MockPlatform* getPlatform() const override {
     return platform_;
@@ -129,7 +130,7 @@ class MockHwSwitch : public HwSwitch {
   MOCK_CONST_METHOD2(
       listObjects,
       std::string(const std::vector<HwObjectType>&, bool));
-  MOCK_METHOD0(updateAllPhyInfo, std::map<PortID, phy::PhyInfo>());
+  MOCK_METHOD0(updateAllPhyInfoImpl, std::map<PortID, phy::PhyInfo>());
   MOCK_CONST_METHOD0(getFabricConnectivity, std::map<PortID, FabricEndpoint>());
   MOCK_CONST_METHOD1(
       getSwitchReachability,

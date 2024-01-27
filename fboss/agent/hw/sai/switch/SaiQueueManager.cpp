@@ -295,7 +295,10 @@ void SaiQueueManager::changeQueue(
   }
   if (platform_->getAsic()->isSupported(HwAsic::Feature::BUFFER_POOL) &&
       (queueType != SAI_QUEUE_TYPE_FABRIC_TX)) {
-    changeQueueBufferProfile(queueHandle, newPortQueue);
+    if (!swPort || (swPort->getPortType() != cfg::PortType::MANAGEMENT_PORT)) {
+      // Unsupported for MANAGEMENT_PORT
+      changeQueueBufferProfile(queueHandle, newPortQueue);
+    }
   }
   if (queueType == SAI_QUEUE_TYPE_UNICAST) {
     changeQueueDeadlockEnable(queueHandle, swPort);
@@ -430,13 +433,10 @@ SaiQueueManager::egressQueueNonWatermarkCounterIdsRead(int queueType) const {
         SaiQueueTraits::NonWatermarkWredCounterIdsToRead.end());
 
     if (platform_->getAsic()->isSupported(HwAsic::Feature::QUEUE_ECN_COUNTER)) {
-      // Supported on TAJO only with SDK version 1.42.4 onwards.
-#if !defined(TAJO_SDK_VERSION_1_42_1)
       extendedCounterIds.insert(
           extendedCounterIds.end(),
           SaiQueueTraits::NonWatermarkEcnCounterIdsToRead.begin(),
           SaiQueueTraits::NonWatermarkEcnCounterIdsToRead.end());
-#endif
     }
   }
 

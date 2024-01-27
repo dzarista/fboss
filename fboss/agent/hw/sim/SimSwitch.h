@@ -55,7 +55,7 @@ class SimSwitch : public HwSwitch {
   std::map<std::string, HwSysPortStats> getSysPortStats() const override {
     return {};
   }
-  CpuPortStats getCpuPortStats() const override {
+  CpuPortStats getCpuPortStats(bool /*getIncrement*/) const override {
     return {};
   }
   FabricReachabilityStats getFabricReachabilityStats() const override {
@@ -67,6 +67,9 @@ class SimSwitch : public HwSwitch {
   }
   HwSwitchDropStats getSwitchDropStats() const override {
     return HwSwitchDropStats{};
+  }
+  HwFlowletStats getHwFlowletStats() const override {
+    return HwFlowletStats{};
   }
 
   void fetchL2Table(std::vector<L2EntryThrift>* /*l2Table*/) const override {
@@ -129,7 +132,7 @@ class SimSwitch : public HwSwitch {
     return "";
   }
 
-  std::map<PortID, phy::PhyInfo> updateAllPhyInfo() override {
+  std::map<PortID, phy::PhyInfo> updateAllPhyInfoImpl() override {
     return {};
   }
   std::map<PortID, FabricEndpoint> getFabricConnectivity() const override {

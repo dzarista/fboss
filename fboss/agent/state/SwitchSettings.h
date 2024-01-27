@@ -443,7 +443,7 @@ class SwitchSettings
     ref<switch_state_tags::flowletSwitchingConfig>() = flowletConfig;
   }
 
-  const SwitchIdToSwitchInfo getSwitchIdToSwitchInfo() const {
+  SwitchIdToSwitchInfo getSwitchIdToSwitchInfo() const {
     // THRIFT_COPY
     return get<switch_state_tags::switchIdToSwitchInfo>()->toThrift();
   }
@@ -504,6 +504,10 @@ class MultiSwitchSettings
   using BaseT = ThriftMapNode<MultiSwitchSettings, MultiSwitchSettingsTraits>;
   using BaseT::modify;
 
+  std::shared_ptr<SwitchSettings> getSwitchSettings(
+      const HwSwitchMatcher& matcher) const {
+    return getNodeIf(matcher.matcherString());
+  }
   MultiSwitchSettings() = default;
   virtual ~MultiSwitchSettings() = default;
 

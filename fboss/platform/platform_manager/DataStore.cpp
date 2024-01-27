@@ -73,12 +73,47 @@ std::string DataStore::getPmUnitName(const std::string& slotPath) const {
 void DataStore::updatePmUnitName(
     const std::string& slotPath,
     const std::string& pmUnitName) {
-  XLOG(INFO) << fmt::format("Updating PmUnit {} at {}", pmUnitName, slotPath);
+  XLOG(INFO) << fmt::format(
+      "Updating SlotPath {} to have PmUnit {}", slotPath, pmUnitName);
   slotPathToPmUnitName_[slotPath] = pmUnitName;
 }
 
 bool DataStore::hasPmUnit(const std::string& slotPath) const {
   return slotPathToPmUnitName_.find(slotPath) != slotPathToPmUnitName_.end();
+}
+
+std::string DataStore::getSysfsPath(const std::string& devicePath) {
+  auto itr = pciSubDevicePathToSysfsPath_.find(devicePath);
+  if (itr != pciSubDevicePathToSysfsPath_.end()) {
+    return itr->second;
+  }
+  throw std::runtime_error(
+      fmt::format("Could not find SysfsPath for {}", devicePath));
+}
+
+void DataStore::updateSysfsPath(
+    const std::string& devicePath,
+    const std::string& sysfsPath) {
+  XLOG(INFO) << fmt::format(
+      "Updating SysfsPath for {} to {}", devicePath, sysfsPath);
+  pciSubDevicePathToSysfsPath_[devicePath] = sysfsPath;
+}
+
+uint32_t DataStore::getInstanceId(const std::string& devicePath) {
+  auto itr = pciSubDevicePathToInstanceId_.find(devicePath);
+  if (itr != pciSubDevicePathToInstanceId_.end()) {
+    return itr->second;
+  }
+  throw std::runtime_error(
+      fmt::format("Could not find instanceId for {}", devicePath));
+}
+
+void DataStore::updateInstanceId(
+    const std::string& devicePath,
+    uint32_t instanceId) {
+  XLOG(INFO) << fmt::format(
+      "Updating instanceId for {} to {}", devicePath, instanceId);
+  pciSubDevicePathToInstanceId_[devicePath] = instanceId;
 }
 
 } // namespace facebook::fboss::platform::platform_manager

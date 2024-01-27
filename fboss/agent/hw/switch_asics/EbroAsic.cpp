@@ -161,6 +161,7 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
     case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
     case HwAsic::Feature::RX_SNR:
+    case HwAsic::Feature::MANAGEMENT_PORT:
       return false;
   }
   return false;
@@ -199,6 +200,7 @@ std::set<cfg::StreamType> EbroAsic::getQueueStreamTypes(
   switch (portType) {
     case cfg::PortType::CPU_PORT:
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
       /*
        * For Ebro asic, SDK 1.42.* queue type is ALL whereas SDK 1.56.* queue
        * type is unicast. Once SDK 1.56.* is rolled out after P4 warmboot

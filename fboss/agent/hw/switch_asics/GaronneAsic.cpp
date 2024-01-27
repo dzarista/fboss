@@ -160,6 +160,7 @@ bool GaronneAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
     case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
     case HwAsic::Feature::RX_SNR:
+    case HwAsic::Feature::MANAGEMENT_PORT:
       return false;
   }
   return false;
@@ -170,6 +171,7 @@ std::set<cfg::StreamType> GaronneAsic::getQueueStreamTypes(
   switch (portType) {
     case cfg::PortType::CPU_PORT:
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::FABRIC_PORT:
     case cfg::PortType::RECYCLE_PORT:

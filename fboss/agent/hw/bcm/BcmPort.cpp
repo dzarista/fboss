@@ -43,7 +43,6 @@
 #include "fboss/agent/hw/bcm/BcmPrbs.h"
 #include "fboss/agent/hw/bcm/BcmQosPolicyTable.h"
 #include "fboss/agent/hw/bcm/BcmQosUtils.h"
-#include "fboss/agent/hw/bcm/BcmSdkVer.h"
 #include "fboss/agent/hw/bcm/BcmSwitch.h"
 #include "fboss/agent/hw/bcm/BcmWarmBootCache.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_constants.h"
@@ -80,7 +79,6 @@ using facebook::stats::MonotonicCounter;
 
 namespace {
 constexpr int kPfcDeadlockDetectionTimeMsecMax = 1500;
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_21))
 /**
  * Size of a single page of codeword errors from bcm_port_fdr_stats_get()
  *
@@ -91,7 +89,6 @@ constexpr int kPfcDeadlockDetectionTimeMsecMax = 1500;
  * future.
  */
 static constexpr int kCodewordErrorsPageSize = 8;
-#endif
 
 bool hasPortQueueChanges(
     const shared_ptr<facebook::fboss::Port>& oldPort,
@@ -169,7 +166,6 @@ static void fdrStatConfigure(
     __attribute__((unused)) bcm_port_t port,
     __attribute__((unused)) bool enable,
     __attribute__((unused)) int symbErrSel = 0) {
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_21))
   // See Broadcom case for PDF doc of FDR APIs: 12196665
   //
   // Normally, FEC corrects errors and counts code words it cannot correct.
@@ -224,7 +220,6 @@ static void fdrStatConfigure(
     bcm_port_fdr_stats_t fdr_stats;
     bcm_port_fdr_stats_get(unit, port, &fdr_stats);
   }
-#endif
 }
 
 static const std::string getFdrStatsKey(int errorsPerCodeword) {
@@ -825,7 +820,6 @@ uint8_t BcmPort::determinePipe() const {
   auto rv = bcm_info_get(unit_, &info);
   bcmCheckError(rv, "failed to get unit info");
 
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_20))
   if (info.num_pipes > BCM_PIPES_MAX) {
     // Tomahawk4 has 16 data pipes larger than old BCM_PIPES_MAX(8)
     bcm_pbmp_t pbmp;
@@ -838,7 +832,6 @@ uint8_t BcmPort::determinePipe() const {
     }
     throw FbossError("Port ", port_, " not associated w/ any pipe");
   }
-#endif
 
   bcm_port_config_t portConfig;
   bcm_port_config_t_init(&portConfig);
@@ -1260,7 +1253,6 @@ phy::PhyInfo BcmPort::updateIPhyInfo() {
     }
     pmdState.lanes_ref()[lane] = laneState;
   }
-#if defined(BCM_SDK_VERSION_GTE_6_5_24)
   if (hw_->getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::PMD_RX_LOCK_STATUS)) {
     bcm_port_pmd_rx_lock_status_t lock_status;
@@ -1281,7 +1273,6 @@ phy::PhyInfo BcmPort::updateIPhyInfo() {
                 << bcm_errmsg(rv);
     }
   }
-#endif
 #if defined(BCM_SDK_VERSION_GTE_6_5_26)
   if (hw_->getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::PMD_RX_SIGNAL_DETECT)) {
@@ -1556,7 +1547,6 @@ void BcmPort::updateFecStats(
 }
 
 void BcmPort::updateFdrStats(__attribute__((unused)) std::chrono::seconds now) {
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_21))
   if (!hw_->getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::FEC_DIAG_COUNTERS)) {
     return;
@@ -1608,7 +1598,6 @@ void BcmPort::updateFdrStats(__attribute__((unused)) std::chrono::seconds now) {
     codewordErrorsPage_ = (codewordErrorsPage_ + 1) % pages;
     fdrStatConfigure(unit_, port_, true, codewordErrorsPage_);
   }
-#endif
 }
 
 void BcmPort::BcmPortStats::setQueueWaterMarks(
@@ -2401,7 +2390,6 @@ phy::FecMode BcmPort::getFECMode() const {
 }
 
 bool BcmPort::getFdrEnabled() const {
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_21))
   if (!hw_->getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::FEC_DIAG_COUNTERS)) {
     return false;
@@ -2417,9 +2405,6 @@ bool BcmPort::getFdrEnabled() const {
       port_);
 
   return fdr_config.fdr_enable;
-#else
-  return false;
-#endif
 }
 
 void BcmPort::initCustomStats() const {

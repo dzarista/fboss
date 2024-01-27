@@ -101,6 +101,10 @@ MultiSwitchThriftHandler::co_notifyRxPacket(int64_t switchId) {
           pkt->setSrcPort(PortID(*item->port()));
           if (item->vlan()) {
             pkt->setSrcVlan(VlanID(*item->vlan()));
+          } else {
+            // clear default vlan id(0)
+            // TODO - retire this once the default value for vlan id is removed
+            pkt->setSrcVlan(std::nullopt);
           }
           if (item->aggPort()) {
             pkt->setSrcAggregatePort(AggregatePortID(*item->aggPort()));
@@ -155,9 +159,9 @@ void MultiSwitchThriftHandler::getNextStateOperDelta(
     multiswitch::StateOperDelta& operDelta,
     int64_t switchId,
     std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
-    bool initialSync) {
+    int64_t lastUpdateSeqNum) {
   operDelta = sw_->getHwSwitchHandler()->getNextStateOperDelta(
-      switchId, std::move(prevOperResult), initialSync);
+      switchId, std::move(prevOperResult), lastUpdateSeqNum);
 }
 
 void MultiSwitchThriftHandler::gracefulExit(int64_t switchId) {
