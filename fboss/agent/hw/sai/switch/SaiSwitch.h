@@ -235,6 +235,8 @@ class SaiSwitch : public HwSwitch {
   TeFlowStats getTeFlowStats() const override;
   HwFlowletStats getHwFlowletStats() const override;
 
+  std::vector<EcmpDetails> getAllEcmpDetails() const override;
+
   void updateStatsImpl() override;
   template <typename LockPolicyT>
   void updateResourceUsage(const LockPolicyT& lockPolicy);
@@ -330,7 +332,8 @@ class SaiSwitch : public HwSwitch {
       phy::PhySideStats& sideStats,
       std::shared_ptr<SaiPort> port,
       phy::PmdState& lastPmdState,
-      phy::PmdStats& lastPmdStats);
+      phy::PmdStats& lastPmdStats,
+      PortID portID);
 
   void updatePcsInfo(
       phy::PhySideState& sideState,

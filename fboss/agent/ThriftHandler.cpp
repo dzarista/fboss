@@ -628,9 +628,9 @@ void addRecylePortRifNeighbors(
     auto switchId = SwitchID(switchIdAndInfo.first);
     auto dsfNode = state->getDsfNodes()->getNodeIf(switchId);
     CHECK(dsfNode);
-    constexpr auto kRecylePortId = 1;
+    constexpr auto kRecyclePortId = 1;
     auto localRecycleRifId =
-        InterfaceID(*dsfNode->getSystemPortRange()->minimum() + kRecylePortId);
+        InterfaceID(*dsfNode->getSystemPortRange()->minimum() + kRecyclePortId);
     const auto& localRecycleRif =
         state->getInterfaces()->getNode(localRecycleRifId);
     const auto& nbrTable =
@@ -640,9 +640,9 @@ void addRecylePortRifNeighbors(
       NeighborThriftT nbrThrift;
       nbrThrift.ip() = facebook::network::toBinaryAddress(entry->getIP());
       nbrThrift.mac() = entry->getMac().toString();
-      nbrThrift.port() = kRecylePortId;
+      nbrThrift.port() = kRecyclePortId;
       nbrThrift.vlanName() = "--";
-      nbrThrift.interfaceID() = kRecylePortId;
+      nbrThrift.interfaceID() = kRecyclePortId;
       // Local recycle port for RIF, should always be STATIC
       CHECK(entry->getType() == state::NeighborEntryType::STATIC_ENTRY);
       nbrThrift.state() = "STATIC";
@@ -3077,7 +3077,8 @@ void ThriftHandler::getDsfSubscriptions(
   for (const auto& [_, dsfNodes] :
        std::as_const(*sw_->getState()->getDsfNodes())) {
     for (const auto& [_, node] : std::as_const(*dsfNodes)) {
-      if (node->getType() == cfg::DsfNodeType::INTERFACE_NODE) {
+      if (node->getType() == cfg::DsfNodeType::INTERFACE_NODE &&
+          node->getLoopbackIps()->size()) {
         const auto loopbackIp = (*node->getLoopbackIps()->cbegin())->toThrift();
         loopbackIpToName.emplace(
             IPAddress(loopbackIp.substr(0, loopbackIp.find("/"))),
@@ -3162,6 +3163,12 @@ void ThriftHandler::getMultiSwitchRunState(MultiSwitchRunState& runState) {
   runState.swSwitchRunState() = sw_->getSwitchRunState();
   runState.hwIndexToRunState() =
       sw_->getHwSwitchHandler()->getHwSwitchRunStates();
+}
+
+void ThriftHandler::getAllEcmpDetails(std::vector<EcmpDetails>& ecmpDetails) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  ecmpDetails = sw_->getHwSwitchHandler()->getAllEcmpDetails();
 }
 
 } // namespace facebook::fboss

@@ -350,7 +350,13 @@ void PlatformExplorer::explorePciDevices(
       }
     }
     for (const auto& spiMasterConfig : *pciDeviceConfig.spiMasterConfigs()) {
-      pciExplorer_.createSpiMaster(charDevPath, spiMasterConfig, instId++);
+      auto spiCharDevPaths =
+          pciExplorer_.createSpiMaster(pciDevice, spiMasterConfig, instId++);
+      for (const auto& [pmUnitScopedName, spiCharDevPath] : spiCharDevPaths) {
+        dataStore_.updateCharDevPath(
+            Utils().createDevicePath(slotPath, pmUnitScopedName),
+            spiCharDevPath);
+      }
     }
     for (const auto& fpgaIpBlockConfig : *pciDeviceConfig.gpioChipConfigs()) {
       auto gpioNum =
@@ -551,6 +557,8 @@ void PlatformExplorer::createDeviceSymLink(
           devicePath);
       return;
     }
+  } else if (linkParentPath.string() == "/run/devmap/flashes") {
+    targetPath = dataStore_.getCharDevPath(devicePath);
   } else {
     XLOG(ERR) << fmt::format("Symbolic link {} is not supported.", linkPath);
     return;

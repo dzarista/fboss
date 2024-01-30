@@ -229,7 +229,7 @@ struct NeighborEntryFields {
   8: bool isLocal = true;
   9: NeighborEntryType type = NeighborEntryType.DYNAMIC_ENTRY;
   10: optional i64 resolvedSince;
-  11: bool noHostRoute = false;
+  11: optional bool noHostRoute;
 }
 
 typedef map<string, NeighborEntryFields> NeighborEntries
@@ -367,6 +367,7 @@ struct SwitchSettingsFields {
   // MAC OUIs used by meta for VM purpose.
   // When queue-per-host is enabled, MACs matching any OUI from this list could get any queue.
   36: list<string> metaMacOuis;
+  37: ctrl.SwitchRunState swSwitchRunState;
 }
 
 struct RoutePrefix {

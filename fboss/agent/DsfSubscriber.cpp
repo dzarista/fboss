@@ -81,27 +81,44 @@ bool DsfSubscriber::isLocal(SwitchID nodeSwitchId) const {
 }
 
 void DsfSubscriber::scheduleUpdate(
-    const std::shared_ptr<SystemPortMap>& newSysPorts,
-    const std::shared_ptr<InterfaceMap>& newRifs,
     const std::string& nodeName,
-    SwitchID nodeSwitchId) {
-  auto updateDsfStateFn = [this, newSysPorts, newRifs, nodeName, nodeSwitchId](
+    SwitchID nodeSwitchId,
+    const std::map<SwitchID, std::shared_ptr<SystemPortMap>>&
+        switchId2SystemPorts,
+    const std::map<SwitchID, std::shared_ptr<InterfaceMap>>& switchId2Intfs) {
+  auto updateDsfStateFn = [this,
+                           nodeName,
+                           nodeSwitchId,
+                           switchId2SystemPorts,
+                           switchId2Intfs](
                               const std::shared_ptr<SwitchState>& in) {
-    if (isLocal(nodeSwitchId)) {
-      throw FbossError(
-          " Got updates for a local switch ID, from: ",
-          nodeName,
-          " id: ",
-          nodeSwitchId);
-    }
+    std::shared_ptr<SwitchState> currState = in;
+    std::shared_ptr<SwitchState> out{nullptr};
+    for (const auto& [switchId, newSystemPorts] : switchId2SystemPorts) {
+      if (isLocal(switchId)) {
+        throw FbossError(
+            " Got updates for a local switch ID, from: ",
+            nodeName,
+            " id: ",
+            switchId);
+      }
 
-    auto out = DsfStateUpdaterUtil::getUpdatedState(
-        in,
-        sw_->getScopeResolver(),
-        newSysPorts,
-        newRifs,
-        nodeName,
-        nodeSwitchId);
+      auto it = switchId2Intfs.find(switchId);
+      if (it == switchId2Intfs.end()) {
+        throw FbossError(
+            "Both systemPorts and Interfaces must be provided together for every switchID");
+      }
+
+      auto newIntfs = it->second;
+      out = DsfStateUpdaterUtil::getUpdatedState(
+          currState,
+          sw_->getScopeResolver(),
+          newSystemPorts,
+          newIntfs,
+          nodeName,
+          switchId);
+      currState = out;
+    }
 
     if (FLAGS_dsf_subscriber_cache_updated_state) {
       cachedState_ = out;
@@ -283,8 +300,9 @@ void DsfSubscriber::handleFsdbUpdate(
     SwitchID nodeSwitchId,
     const std::string& nodeName,
     fsdb::OperSubPathUnit&& operStateUnit) {
-  std::shared_ptr<SystemPortMap> newSysPorts;
-  std::shared_ptr<InterfaceMap> newRifs;
+  std::map<SwitchID, std::shared_ptr<SystemPortMap>> switchId2SystemPorts;
+  std::map<SwitchID, std::shared_ptr<InterfaceMap>> switchId2Intfs;
+
   for (const auto& change : *operStateUnit.changes()) {
     if (getSystemPortsPath().matchesPath(*change.path()->path())) {
       XLOG(DBG2) << " Got sys port update from : " << nodeName;
@@ -293,7 +311,10 @@ void DsfSubscriber::handleFsdbUpdate(
                                  MultiSwitchSystemPortMapTypeClass,
                                  MultiSwitchSystemPortMapThriftType>(
           fsdb::OperProtocol::BINARY, *change.state()->contents()));
-      newSysPorts = mswitchSysPorts.getAllNodes();
+      for (const auto& [id, sysPortMap] : mswitchSysPorts) {
+        auto matcher = HwSwitchMatcher(id);
+        switchId2SystemPorts[matcher.switchId()] = sysPortMap;
+      }
     } else if (getInterfacesPath().matchesPath(*change.path()->path())) {
       XLOG(DBG2) << " Got rif update from : " << nodeName;
       MultiSwitchInterfaceMap mswitchIntfs;
@@ -301,7 +322,10 @@ void DsfSubscriber::handleFsdbUpdate(
                               MultiSwitchInterfaceMapTypeClass,
                               MultiSwitchInterfaceMapThriftType>(
           fsdb::OperProtocol::BINARY, *change.state()->contents()));
-      newRifs = mswitchIntfs.getAllNodes();
+      for (const auto& [id, intfMap] : mswitchIntfs) {
+        auto matcher = HwSwitchMatcher(id);
+        switchId2Intfs[matcher.switchId()] = intfMap;
+      }
     } else if (getDsfSubscriptionsPath(localNodeName_)
                    .matchesPath(*change.path()->path())) {
       XLOG(DBG2) << " Got dsf sub update from : " << nodeName;
@@ -326,7 +350,7 @@ void DsfSubscriber::handleFsdbUpdate(
           nodeName);
     }
   }
-  scheduleUpdate(newSysPorts, newRifs, nodeName, nodeSwitchId);
+  scheduleUpdate(nodeName, nodeSwitchId, switchId2SystemPorts, switchId2Intfs);
 }
 
 void DsfSubscriber::stop() {
