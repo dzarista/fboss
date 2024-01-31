@@ -10,21 +10,18 @@
 #include "fboss/platform/platform_manager/gen-cpp2/platform_manager_config_constants.h"
 
 namespace {
-using constants = facebook::fboss::platform::platform_manager::
-    platform_manager_config_constants;
-
-std::unordered_set<std::string> deviceTypes = {
-    constants::DEVICE_TYPE_SENSOR(),
-    constants::DEVICE_TYPE_EEPROM()};
-
-} // namespace
-
-namespace {
 const re2::RE2 kPciDevOffsetRegex{"0x[0-9a-f]+"};
 const re2::RE2 kSymlinkRegex{"^/run/devmap/(?P<SymlinkDirs>[a-z0-9-]+)/.+"};
 const re2::RE2 kDevPathRegex{"/([A-Z]+_SLOT@[0-9]+/)*\\[.+\\]"};
-constexpr auto kSymlinkDirs =
-    {"eeproms", "sensors", "cplds", "fpgas", "i2c-busses", "gpiochips"};
+constexpr auto kSymlinkDirs = {
+    "eeproms",
+    "sensors",
+    "cplds",
+    "fpgas",
+    "i2c-busses",
+    "gpiochips",
+    "xcvrs",
+    "flashes"};
 } // namespace
 
 namespace facebook::fboss::platform::platform_manager {
@@ -42,6 +39,17 @@ bool ConfigValidator::isValidSlotTypeConfig(
       XLOG(ERR) << "IDPROM has invalid address " << e.what();
       return false;
     }
+  }
+  return true;
+}
+
+bool ConfigValidator::isValidSlotConfig(const SlotConfig& slotConfig) {
+  if (slotConfig.slotType()->empty()) {
+    XLOG(ERR) << "SlotType in SlotConfig must be a non-empty string";
+    return false;
+  }
+  if (slotConfig.presenceDetection()) {
+    return isValidPresenceDetection(*slotConfig.presenceDetection());
   }
   return true;
 }
@@ -144,11 +152,6 @@ bool ConfigValidator::isValidI2cDeviceConfig(
     XLOG(ERR) << "IDPROM has invalid address " << e.what();
     return false;
   }
-  if (!i2cDeviceConfig.deviceType()->empty() &&
-      !deviceTypes.count(*i2cDeviceConfig.deviceType())) {
-    XLOG(ERR) << "Invalid device type: " << *i2cDeviceConfig.deviceType();
-    return false;
-  }
   if (i2cDeviceConfig.pmUnitScopedName()->empty()) {
     XLOG(ERR) << "PmUnitScopedName must be a non-empty string";
     return false;
@@ -209,6 +212,13 @@ bool ConfigValidator::isValid(const PlatformConfig& config) {
         return false;
       }
     }
+
+    // Validate SlotConfigs
+    for (const auto& [_, slotConfig] : *pmUnitConfig.outgoingSlotConfigs()) {
+      if (!isValidSlotConfig(slotConfig)) {
+        return false;
+      }
+    }
   }
 
   for (const auto& [symlink, devicePath] : *config.symbolicLinkToDevicePath()) {
@@ -219,4 +229,46 @@ bool ConfigValidator::isValid(const PlatformConfig& config) {
 
   return true;
 }
+
+bool ConfigValidator::isValidPresenceDetection(
+    const PresenceDetection& presenceDetection) {
+  if (presenceDetection.gpioLineHandle() &&
+      presenceDetection.sysfsFileHandle()) {
+    XLOG(ERR)
+        << "Only one of GpioLineHandle or SysfsFileHandle must be set for PresenceDetection";
+    return false;
+  }
+  if (!presenceDetection.gpioLineHandle() &&
+      !presenceDetection.sysfsFileHandle()) {
+    XLOG(ERR)
+        << "GpioLineHandle or SysfsFileHandle must be set for PresenceDetection";
+    return false;
+  }
+  if (presenceDetection.gpioLineHandle()) {
+    if (presenceDetection.gpioLineHandle()->devicePath()->empty()) {
+      XLOG(ERR) << "devicePath for GpioLineHandle cannot be empty";
+      return false;
+    }
+    if (presenceDetection.gpioLineHandle()->desiredValue()->empty()) {
+      XLOG(ERR) << "desiredValue for GpioLineHandle cannot be empty";
+      return false;
+    }
+  }
+  if (presenceDetection.sysfsFileHandle()) {
+    if (presenceDetection.sysfsFileHandle()->devicePath()->empty()) {
+      XLOG(ERR) << "devicePath for SysfsFileHandle cannot be empty";
+      return false;
+    }
+    if (*presenceDetection.sysfsFileHandle()->desiredValue() == 0) {
+      XLOG(ERR) << "desiredValue for SysfsFileHandle cannot be 0. Typically 1";
+      return false;
+    }
+    if (presenceDetection.sysfsFileHandle()->presenceFileName()->empty()) {
+      XLOG(ERR) << "presenceFileName for SysfsFileHandle cannot be empty";
+      return false;
+    }
+  }
+  return true;
+}
+
 } // namespace facebook::fboss::platform::platform_manager

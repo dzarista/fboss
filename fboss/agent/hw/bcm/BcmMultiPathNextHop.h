@@ -79,8 +79,10 @@ class BcmMultiPathNextHopTable : public BcmMultiPathNextHopTableBase {
   }
 
   long getEcmpEgressCount() const;
+  std::vector<EcmpDetails> getAllEcmpDetails() const;
   void updateEcmpsForFlowletSwitching();
   bool updateEcmpsForFlowletTableLocked();
+  HwFlowletStats getHwFlowletStats() const;
 
  private:
   bool ucmpSupported_{false};

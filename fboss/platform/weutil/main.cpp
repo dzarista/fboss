@@ -31,8 +31,14 @@ void printUsage() {
   std::cout << "    weutil --eeprom pem" << std::endl;
   std::cout << "    weutil --path /sys/bus/i2c/devices/6-0051/eeprom"
             << std::endl;
-  std::cout << "The <eeprom-name>s supported on this platform are: "
-            << folly::join(", ", getEepromNames()) << std::endl;
+  try {
+    auto eepromNames = getEepromNames();
+    std::cout << "The <eeprom-name>s supported on this platform are: "
+              << folly::join(", ", eepromNames) << std::endl;
+  } catch (const std::exception& ex) {
+    std::cout << "Failed to get supported eeprom names: " << ex.what()
+              << std::endl;
+  }
 }
 } // namespace
 
@@ -54,7 +60,7 @@ bool validFlags(int argc) {
 
 // This utility program will output Chassis info for Darwin
 int main(int argc, char* argv[]) {
-  helpers::init(&argc, &argv);
+  helpers::initCli(&argc, &argv, "weutil");
   std::unique_ptr<WeutilInterface> weutilInstance;
 
   // Check if the flags/args are valid
@@ -67,8 +73,7 @@ int main(int argc, char* argv[]) {
   }
 
   try {
-    weutilInstance =
-        createWeUtilIntf(FLAGS_eeprom, FLAGS_path, FLAGS_config_file);
+    weutilInstance = createWeUtilIntf(FLAGS_eeprom, FLAGS_path);
   } catch (const std::exception& ex) {
     std::cout << "Failed creation of proper parser. " << ex.what() << std::endl;
     return 1;

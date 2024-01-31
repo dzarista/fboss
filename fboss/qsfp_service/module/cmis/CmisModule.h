@@ -27,8 +27,10 @@ enum class CmisPages : int {
   PAGE14 = 0x14,
   PAGE20 = 0x20,
   PAGE21 = 0x21,
+  PAGE22 = 0x22,
   PAGE24 = 0x24,
   PAGE25 = 0x25,
+  PAGE26 = 0x26,
   PAGE2F = 0x2F
 };
 
@@ -114,8 +116,13 @@ class CmisModule : public QsfpModule {
   uint8_t page14_[MAX_QSFP_PAGE_SIZE];
   uint8_t page20_[MAX_QSFP_PAGE_SIZE];
   uint8_t page21_[MAX_QSFP_PAGE_SIZE];
+  uint8_t page22_[MAX_QSFP_PAGE_SIZE];
   uint8_t page24_[MAX_QSFP_PAGE_SIZE];
   uint8_t page25_[MAX_QSFP_PAGE_SIZE];
+  uint8_t page26_[MAX_QSFP_PAGE_SIZE];
+
+  // Some of the pages are static and they need not be read every refresh cycle
+  bool staticPagesCached_{false};
 
   /*
    * This function returns a pointer to the value in the static cached

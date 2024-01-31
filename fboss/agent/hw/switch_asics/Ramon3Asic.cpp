@@ -20,16 +20,14 @@ bool Ramon3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::TELEMETRY_AND_MONITORING:
     case HwAsic::Feature::WARMBOOT:
     case HwAsic::Feature::SAI_PORT_ERR_STATUS:
+    case HwAsic::Feature::SAI_FEC_COUNTERS:
+    case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
       return true;
     case HwAsic::Feature::SAI_PORT_SERDES_FIELDS_RESET:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return getAsicMode() != AsicMode::ASIC_MODE_SIM;
-    case HwAsic::Feature::SAI_FEC_COUNTERS: // Enable after performance issues
-                                            // reported in CS00012326877 are
-                                            // fixed
-      return false;
     default:
       return false;
   }
@@ -41,6 +39,7 @@ std::set<cfg::StreamType> Ramon3Asic::getQueueStreamTypes(
   switch (portType) {
     case cfg::PortType::CPU_PORT:
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::RECYCLE_PORT:
       break;
     case cfg::PortType::FABRIC_PORT:

@@ -541,6 +541,11 @@ int BcmSwitch::addL2TableCb(
     bcm_l2_addr_t* l2Addr,
     void* userData) {
   auto* bcmSw = static_cast<BcmSwitch*>(userData);
+  if (bcmSw->getRunState() < SwitchRunState::CONFIGURED) {
+    XLOG(WARNING)
+        << "ignoreing learn notifications as switch is not configured.";
+    return 0;
+  }
   bcmSw->callback_->l2LearningUpdateReceived(
       createL2Entry(l2Addr, bcmSw->isL2EntryPending(l2Addr)),
       L2EntryUpdateType::L2_ENTRY_UPDATE_TYPE_ADD);
@@ -553,6 +558,11 @@ int BcmSwitch::addL2TableCbForPendingOnly(
     bcm_l2_addr_t* l2Addr,
     void* userData) {
   auto* bcmSw = static_cast<BcmSwitch*>(userData);
+  if (bcmSw->getRunState() < SwitchRunState::CONFIGURED) {
+    XLOG(WARNING)
+        << "ignoreing learn notifications as switch is not configured.";
+    return 0;
+  }
   if (bcmSw->isL2EntryPending(l2Addr)) {
     bcmSw->callback_->l2LearningUpdateReceived(
         createL2Entry(l2Addr, bcmSw->isL2EntryPending(l2Addr)),
@@ -567,6 +577,11 @@ int BcmSwitch::deleteL2TableCb(
     bcm_l2_addr_t* l2Addr,
     void* userData) {
   auto* bcmSw = static_cast<BcmSwitch*>(userData);
+  if (bcmSw->getRunState() < SwitchRunState::CONFIGURED) {
+    XLOG(WARNING)
+        << "ignoreing learn notifications as switch is not configured.";
+    return 0;
+  }
   bcmSw->callback_->l2LearningUpdateReceived(
       createL2Entry(l2Addr, bcmSw->isL2EntryPending(l2Addr)),
       L2EntryUpdateType::L2_ENTRY_UPDATE_TYPE_DELETE);
@@ -1098,7 +1113,7 @@ void BcmSwitch::processSwitchSettingsEntryChanged(
 
   if (oldSwitchSettings->getL2LearningMode() !=
       newSwitchSettings->getL2LearningMode()) {
-    XLOG(DBG3) << "Configuring L2LearningMode old: "
+    XLOG(DBG2) << "Configuring L2LearningMode old: "
                << static_cast<int>(oldSwitchSettings->getL2LearningMode())
                << " new: "
                << static_cast<int>(newSwitchSettings->getL2LearningMode());
@@ -2626,6 +2641,10 @@ void BcmSwitch::processAddedAndChangedNeighbor(
     const NeighborEntryT* entry) {
   auto* neighbor = neighborTable_->getNeighbor(neighborKey);
   CHECK(neighbor);
+  if (entry->getNoHostRoute()) {
+    throw FbossError(
+        "No host route setting on neighbor entry not supported on BcmSwitch");
+  }
   BcmHostTableIf* hostTable;
   if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::HOSTTABLE)) {
     hostTable = hostTable_.get();
@@ -3118,6 +3137,10 @@ TeFlowStats BcmSwitch::getTeFlowStats() const {
   return teFlowTable_->getFlowStats();
 }
 
+std::vector<EcmpDetails> BcmSwitch::getAllEcmpDetails() const {
+  return multiPathNextHopTable_->getAllEcmpDetails();
+}
+
 shared_ptr<BcmSwitchEventCallback> BcmSwitch::registerSwitchEventCallback(
     bcm_switch_event_t eventID,
     shared_ptr<BcmSwitchEventCallback> callback) {
@@ -3142,12 +3165,16 @@ void BcmSwitch::updateGlobalStats() {
   }
 }
 
-std::map<PortID, phy::PhyInfo> BcmSwitch::updateAllPhyInfo() {
+std::map<PortID, phy::PhyInfo> BcmSwitch::updateAllPhyInfoImpl() {
   return portTable_->updateIPhyInfo();
 }
 
 uint64_t BcmSwitch::getDeviceWatermarkBytes() const {
   return bstStatsMgr_->getDeviceWatermarkBytes();
+}
+
+HwFlowletStats BcmSwitch::getHwFlowletStats() const {
+  return multiPathNextHopTable_->getHwFlowletStats();
 }
 
 bcm_if_t BcmSwitch::getDropEgressId() const {
@@ -3469,6 +3496,11 @@ void BcmSwitch::l2LearningCallback(
     int operation,
     void* userData) {
   auto* bcmSw = static_cast<BcmSwitch*>(userData);
+  if (bcmSw->getRunState() < SwitchRunState::CONFIGURED) {
+    XLOG(WARNING)
+        << "ignoreing learn notifications as switch is not configured.";
+    return;
+  }
   DCHECK_EQ(bcmSw->getUnit(), unit);
   bcmSw->l2LearningUpdateReceived(l2Addr, operation);
 }

@@ -13,6 +13,7 @@
 #include <memory>
 #include <unordered_map>
 #include "fboss/agent/lldp/LinkNeighborDB.h"
+#include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/PortMap.h"
 #include "fboss/agent/state/SwitchState.h"
@@ -84,6 +85,16 @@ class LldpManager : private folly::AsyncTimeout {
   // Create an LLDP packet
   static std::unique_ptr<TxPacket> createLldpPkt(
       SwSwitch* sw,
+      const folly::MacAddress macaddr,
+      const std::optional<VlanID>& vlanID,
+      const std::string& hostname,
+      const std::string& portname,
+      const std::string& portdesc,
+      const uint16_t ttl,
+      const uint16_t capabilities);
+
+  static std::unique_ptr<TxPacket> createLldpPkt(
+      const facebook::fboss::utility::AllocatePktFn& allocate,
       const folly::MacAddress macaddr,
       const std::optional<VlanID>& vlanID,
       const std::string& hostname,

@@ -76,11 +76,9 @@ class BcmSdkInterface {
       bcm_port_phy_control_t type,
       uint32* value) = 0;
 
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_22))
   virtual int bcm_pktio_txpmd_stat_attach(int unit, uint32 counter_id) = 0;
 
   virtual int bcm_pktio_txpmd_stat_detach(int unit) = 0;
-#endif
 
   virtual int bcm_cosq_gport_traverse(
       int unit,
@@ -442,14 +440,10 @@ class BcmSdkInterface {
       bcm_field_hintid_t hint_id,
       bcm_field_hint_t* hint) = 0;
 
-// workaround to make 6.5.17 build work
-// flag will be removed once 6.5.17 is gone
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_19))
   virtual int bcm_l3_alpm_resource_get(
       int unit,
       bcm_l3_route_group_t grp,
       bcm_l3_alpm_resource_t* resource) = 0;
-#endif
 
   virtual int bcm_field_entry_multi_get(
       int unit,

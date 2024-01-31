@@ -162,6 +162,8 @@ class HwAsic {
     LINK_INACTIVE_BASED_ISOLATE,
     SAI_PORT_SERDES_PROGRAMMING,
     RX_SNR,
+    MANAGEMENT_PORT,
+    ANY_ACL_DROP_COUNTER,
   };
 
   enum class AsicMode {

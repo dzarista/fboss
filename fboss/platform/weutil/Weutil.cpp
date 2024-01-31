@@ -1,10 +1,6 @@
 // (c) Facebook, Inc. and its affiliates. Confidential and proprietary.
 #include "fboss/platform/weutil/Weutil.h"
 
-#include <ios>
-#include <string>
-
-#include <folly/FileUtil.h>
 #include <folly/logging/xlog.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 
@@ -18,24 +14,10 @@
 namespace facebook::fboss::platform {
 
 namespace {
-/*
- * Get the WeutilConfig from configFile if specified or from ConfigLib.
- */
-weutil_config::WeutilConfig getWeUtilConfig(const std::string& configFile) {
+
+weutil_config::WeutilConfig getWeUtilConfig() {
   weutil_config::WeutilConfig thriftConfig;
-
-  std::string weutilConfigJson;
-  if (configFile.empty()) {
-    XLOG(INFO) << "No config file was provided. Inferring from config_lib";
-    weutilConfigJson = ConfigLib().getWeutilConfig();
-  } else {
-    XLOG(INFO) << "Using config file: " << configFile;
-    if (!folly::readFile(configFile.c_str(), weutilConfigJson)) {
-      throw std::runtime_error(
-          "Can not find weutil config file: " + configFile);
-    }
-  }
-
+  std::string weutilConfigJson = ConfigLib().getWeutilConfig();
   apache::thrift::SimpleJSONSerializer::deserialize<
       weutil_config::WeutilConfig>(weutilConfigJson, thriftConfig);
   XLOG(INFO) << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
@@ -46,7 +28,7 @@ weutil_config::WeutilConfig getWeUtilConfig(const std::string& configFile) {
 
 std::vector<std::string> getEepromNames(
     const weutil_config::WeutilConfig& thriftConfig,
-    PlatformType platform) {
+    std::optional<PlatformType> platform) {
   std::vector<std::string> eepromNames;
   // Darwin does not have a dedicated chassis EEPROM. Hence it is not
   // listed in the weutil json config. It is added here manually.
@@ -61,9 +43,7 @@ std::vector<std::string> getEepromNames(
   return eepromNames;
 }
 
-/*
- * Gets the FruEepromConfig based on the eeprom name specified.
- */
+// Gets the FruEepromConfig based on the eeprom name specified.
 weutil_config::FruEepromConfig getFruEepromConfig(
     const std::string& eepromName,
     const weutil_config::WeutilConfig& thriftConfig,
@@ -81,18 +61,15 @@ weutil_config::FruEepromConfig getFruEepromConfig(
   return itr->second;
 }
 
-/*
- * Get the path to the eeprom based on its name.
- * The chassis eeprom has special handling:
-      For Darwin, let the path be determined by the WeutilDarwin class since
-      there is no dedicated eeprom device.
-      For other platforms, get the proper name of the chassis eeprom from the
-      config file and use that to determine the path.
-*/
+// Get the path to the eeprom based on its name.
+// The chassis eeprom has special handling:
+// - For Darwin, let the path be determined by the WeutilDarwin class since
+//   there is no dedicated eeprom device.
+// - For other platforms, get the proper name of the chassis eeprom from the
+//   config file and use that to determine the path.
 weutil_config::FruEepromConfig getFruEepromConfig(
     const std::string& eepromName,
     const std::string& eepromPath,
-    const std::string& configFile,
     const PlatformType platform) {
   weutil_config::FruEepromConfig fruEepromConfig;
 
@@ -105,44 +82,62 @@ weutil_config::FruEepromConfig getFruEepromConfig(
         fruEepromConfig.path() = "";
         fruEepromConfig.offset() = 0;
       } else {
-        auto thriftConfig = getWeUtilConfig(configFile);
+        auto thriftConfig = getWeUtilConfig();
         // use chassisEepromName specified in config file.
         fruEepromConfig = getFruEepromConfig(
             thriftConfig.chassisEepromName().value(), thriftConfig, platform);
       }
     } else {
-      auto thriftConfig = getWeUtilConfig(configFile);
+      auto thriftConfig = getWeUtilConfig();
       fruEepromConfig = getFruEepromConfig(eepromName, thriftConfig, platform);
     }
   }
   return fruEepromConfig;
 }
+
+std::optional<PlatformType> getPlatformType() {
+  try {
+    facebook::fboss::PlatformProductInfo prodInfo{FLAGS_fruid_filepath};
+    prodInfo.initialize();
+    return prodInfo.getType();
+  } catch (std::exception& e) {
+    XLOG(ERR) << "Failed to get platform type: " << e.what();
+    return std::nullopt;
+  }
+}
 } // namespace
 
 std::vector<std::string> getEepromNames() {
-  auto config = getWeUtilConfig("");
-  facebook::fboss::PlatformProductInfo prodInfo{FLAGS_fruid_filepath};
-  prodInfo.initialize();
-  return getEepromNames(config, prodInfo.getType());
+  auto config = getWeUtilConfig();
+
+  return getEepromNames(config, getPlatformType());
 }
 
 std::unique_ptr<WeutilInterface> createWeUtilIntf(
     const std::string& eepromName,
-    const std::string& eepromPath,
-    const std::string& configFile) {
-  facebook::fboss::PlatformProductInfo prodInfo{FLAGS_fruid_filepath};
-  prodInfo.initialize();
-  PlatformType platform = prodInfo.getType();
-  weutil_config::FruEepromConfig fruEepromConfig =
-      getFruEepromConfig(eepromName, eepromPath, configFile, platform);
-  switch (platform) {
-    case PlatformType::PLATFORM_DARWIN:
-      return std::make_unique<WeutilDarwin>(fruEepromConfig.get_path());
-      break;
-    default:
-      return std::make_unique<WeutilImpl>(
-          fruEepromConfig.get_path(), fruEepromConfig.get_offset());
-      break;
+    const std::string& eepromPath) {
+  auto platform = getPlatformType();
+  if (platform.has_value()) {
+    weutil_config::FruEepromConfig fruEepromConfig =
+        getFruEepromConfig(eepromName, eepromPath, platform.value());
+    switch (platform.value()) {
+      case PlatformType::PLATFORM_DARWIN:
+        return std::make_unique<WeutilDarwin>(fruEepromConfig.get_path());
+        break;
+      default:
+        return std::make_unique<WeutilImpl>(
+            fruEepromConfig.get_path(), fruEepromConfig.get_offset());
+        break;
+    }
+  } else {
+    // For platform bringup, we can use the --path option without a
+    // valid config.
+    if (!eepromPath.empty()) {
+      return std::make_unique<WeutilImpl>(eepromPath, 0);
+    } else {
+      throw std::runtime_error(
+          "Unable to determine platform type. Use the --path option");
+    }
   }
 }
 

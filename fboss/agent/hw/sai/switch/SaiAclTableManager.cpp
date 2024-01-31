@@ -1042,7 +1042,7 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
   if (fieldSrcPort.has_value()) {
     auto srcPortQualifierSupported = platform_->getAsic()->isSupported(
         HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
     srcPortQualifierSupported = false;
 #endif
     matcherIsValid &= srcPortQualifierSupported;
@@ -1304,7 +1304,7 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
         cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
         cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE};
 
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_SDK_GTE_1_65_0)
     std::vector<cfg::AclTableQualifier> tajoExtraQualifierList = {
         cfg::AclTableQualifier::SRC_PORT,
         cfg::AclTableQualifier::L4_SRC_PORT,
@@ -1325,7 +1325,7 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
   } else if (isJericho2 || isJericho3) {
     // TODO(skhare)
     // Extend this list once the SAI implementation supports more qualifiers
-    std::set<cfg::AclTableQualifier> indusQualifiers = {
+    std::set<cfg::AclTableQualifier> jerichoQualifiers = {
         cfg::AclTableQualifier::SRC_IPV6,
         cfg::AclTableQualifier::DST_IPV6,
         cfg::AclTableQualifier::SRC_PORT,
@@ -1335,7 +1335,7 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
         cfg::AclTableQualifier::TTL,
     };
 
-    return indusQualifiers;
+    return jerichoQualifiers;
   } else {
     std::set<cfg::AclTableQualifier> bcmQualifiers = {
         cfg::AclTableQualifier::SRC_IPV6,
@@ -1554,7 +1554,7 @@ void SaiAclTableManager::recreateAclTable(
     const SaiAclTableTraits::CreateAttributes& newAttributes) {
   bool aclTableUpdateSupport =
       platform_->getAsic()->isSupported(HwAsic::Feature::SAI_ACL_TABLE_UPDATE);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
   aclTableUpdateSupport = false;
 #endif
   if (!aclTableUpdateSupport) {

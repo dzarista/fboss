@@ -184,7 +184,7 @@ class ThriftTestAllSwitchTypes : public ::testing::Test {
     if (isNpu()) {
       return {SwitchID(0), cfg::SwitchType::NPU};
     } else if (isFabric()) {
-      return {SwitchID(2), cfg::SwitchType::FABRIC};
+      return {SwitchID(20), cfg::SwitchType::FABRIC};
     } else if (isVoq()) {
       return {SwitchID(1), cfg::SwitchType::VOQ};
     }
@@ -412,7 +412,8 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getSetSwitchDrainState) {
   auto switchDrainFn =
       [this](const shared_ptr<SwitchState>& state) -> shared_ptr<SwitchState> {
     shared_ptr<SwitchState> newState{state};
-    auto oldSwitchSettings = util::getFirstNodeIf(state->getSwitchSettings());
+    auto oldSwitchSettings =
+        utility::getFirstNodeIf(state->getSwitchSettings());
     auto newSwitchSettings = oldSwitchSettings->modify(&newState);
     newSwitchSettings->setSwitchDrainState(cfg::SwitchDrainState::DRAINED);
     return newState;
@@ -451,7 +452,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
         waitForStateUpdates(handler.getSw());
 
         auto gotBlockedNeighbors =
-            util::getFirstNodeIf(
+            utility::getFirstNodeIf(
                 handler.getSw()->getState()->getSwitchSettings())
                 ->getBlockNeighbors_DEPRECATED();
 
@@ -494,7 +495,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
   setNeighborsToBlock({});
   EXPECT_EQ(
       0,
-      util::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
+      utility::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
           ->getBlockNeighbors_DEPRECATED()
           .size());
   handler.getBlockedNeighbors(blockedNeighbors);
@@ -504,7 +505,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
   setNeighborsToBlock(std::move(neighborsToBlock));
   EXPECT_EQ(
       0,
-      util::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
+      utility::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
           ->getBlockNeighbors_DEPRECATED()
           .size());
   handler.getBlockedNeighbors(blockedNeighbors);
@@ -574,8 +575,15 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getFabricReachabilityStats) {
 TYPED_TEST(ThriftTestAllSwitchTypes, getCpuPortStats) {
   ThriftHandler handler(this->sw_);
   CpuPortStats cpuPortStats;
-  EXPECT_HW_CALL(this->sw_, getCpuPortStats()).Times(1);
+  EXPECT_HW_CALL(this->sw_, getCpuPortStats(true)).Times(1);
   handler.getCpuPortStats(cpuPortStats);
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getAllEcmpDetails) {
+  ThriftHandler handler(this->sw_);
+  std::vector<EcmpDetails> ecmpDetails;
+  EXPECT_HW_CALL(this->sw_, getAllEcmpDetails()).Times(1);
+  handler.getAllEcmpDetails(ecmpDetails);
 }
 
 TYPED_TEST(ThriftTestAllSwitchTypes, getAclTable) {
@@ -983,7 +991,7 @@ TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
         waitForStateUpdates(handler.getSw());
 
         auto gotMacAddrsToBlock =
-            util::getFirstNodeIf(
+            utility::getFirstNodeIf(
                 handler.getSw()->getState()->getSwitchSettings())
                 ->getMacAddrsToBlock_DEPRECATED();
         EXPECT_EQ(macAddrsToBlock, gotMacAddrsToBlock);
@@ -1010,7 +1018,7 @@ TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
   waitForStateUpdates(sw_);
   EXPECT_EQ(
       0,
-      util::getFirstNodeIf(sw_->getState()->getSwitchSettings())
+      utility::getFirstNodeIf(sw_->getState()->getSwitchSettings())
           ->getMacAddrsToBlock_DEPRECATED()
           .size());
   handler.getMacAddrsToBlock(macAddrsToBlock);
@@ -1022,7 +1030,7 @@ TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
   waitForStateUpdates(sw_);
   EXPECT_EQ(
       0,
-      util::getFirstNodeIf(sw_->getState()->getSwitchSettings())
+      utility::getFirstNodeIf(sw_->getState()->getSwitchSettings())
           ->getMacAddrsToBlock_DEPRECATED()
           .size());
   handler.getMacAddrsToBlock(macAddrsToBlock);

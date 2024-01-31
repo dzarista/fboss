@@ -8,15 +8,19 @@
  *
  */
 
-#include "fboss/agent/normalization/Normalizer.h"
+#include "fboss/agent/platforms/sai/SaiJanga800bicPlatformPort.h"
 
 namespace facebook::fboss {
-Normalizer::Normalizer()
-    : deviceName_(FLAGS_default_device_name),
-      transformHandler_(std::make_unique<normalization::TransformHandler>()),
-      statsExporter_(
-          std::make_unique<normalization::GlogStatsExporter>(deviceName_)),
-      counterTagManager_(std::make_unique<normalization::CounterTagManager>()) {
+
+void SaiJanga800bicPlatformPort::linkStatusChanged(
+    bool /* up */,
+    bool /* adminUp */) {}
+
+void SaiJanga800bicPlatformPort::externalState(PortLedExternalState /* lfs */) {
+}
+
+uint32_t SaiJanga800bicPlatformPort::getCurrentLedState() const {
+  return static_cast<uint32_t>(currentLedState_);
 }
 
 } // namespace facebook::fboss
