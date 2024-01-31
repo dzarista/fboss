@@ -65,7 +65,27 @@ images:
       -
         - sh
         - -c
-        - test -e /artifacts/fboss.yaml
+        - test -e /rpmbuild/RPMS/dnx/4.18/arista-fboss-core-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/4.18/arista-fboss-platform-darwin-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/4.18/arista-fboss-platform-meru400bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/4.18/arista-fboss-platform-meru800bfa-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/4.18/arista-fboss-platform-meru800bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/4.18/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
 
   test/package_dnx_5.12:
     description: |
@@ -77,7 +97,27 @@ images:
       -
         - sh
         - -c
-        - test -e /artifacts/fboss.yaml
+        - test -e /rpmbuild/RPMS/dnx/5.12/arista-fboss-core-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.12/arista-fboss-platform-darwin-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.12/arista-fboss-platform-meru400bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.12/arista-fboss-platform-meru800bfa-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.12/arista-fboss-platform-meru800bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.12/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
 
   test/package_dnx_5.19:
     description: |
@@ -89,4 +129,24 @@ images:
       -
         - sh
         - -c
-        - test -e /artifacts/fboss.yaml
+        - test -e /rpmbuild/RPMS/dnx/5.19/arista-fboss-core-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.19/arista-fboss-platform-darwin-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.19/arista-fboss-platform-meru400bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.19/arista-fboss-platform-meru800bfa-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.19/arista-fboss-platform-meru800bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /rpmbuild/RPMS/dnx/5.19/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
