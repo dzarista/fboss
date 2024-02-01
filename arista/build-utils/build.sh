@@ -304,7 +304,7 @@ else
    done
 
    # Generate python thrift libraries
-   $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $FBOSS_DIR/fboss.git -I $SCRATCH_DIR/build/fbthrift/source/ $FBOSS_DIR/fboss.git/fboss/agent/if/ctrl.thrift
+   $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/ctrl.thrift
    mkdir -p $fboss_output_dir/lib/fb-py-libs
    cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
    cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
