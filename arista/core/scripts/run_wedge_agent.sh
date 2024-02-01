@@ -8,6 +8,11 @@ if [ "${MGMT_INTF}" != "eth0" ]; then
    ARGS+=(--mgmt-if="${MGMT_INTF}")
 fi
 
+# Allow for running switch mutations. This is useful for the state sync script
+# which grabs the state from remote leaf devices and executes patch APIs on
+# the local leaf device.
+ARGS+=(--allow_running_switch_state_mutations=true)
+
 if BIN=$(find /opt/fboss/bin/* -type f -name wedge_agent*); then
    cd /opt/fboss && source bin/setup_fboss_env
    cd /opt/fboss && ./bin/setup.py --reload
