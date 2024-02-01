@@ -39,7 +39,8 @@ NeighborEntry<IPADDR, SUBCLASS>::NeighborEntry(
     NeighborState state,
     std::optional<cfg::AclLookupClass> classID,
     std::optional<int64_t> encapIndex,
-    bool isLocal) {
+    bool isLocal,
+    std::optional<bool> noHostRoute) {
   this->setIP(ip);
   this->setMAC(mac);
   this->setPort(port);
@@ -49,6 +50,7 @@ NeighborEntry<IPADDR, SUBCLASS>::NeighborEntry(
   this->setClassID(classID);
   this->setEncapIndex(encapIndex);
   this->setIsLocal(isLocal);
+  this->setNoHostRoute(noHostRoute);
 }
 
 template <typename IPADDR, typename SUBCLASS>
@@ -58,7 +60,8 @@ NeighborEntry<IPADDR, SUBCLASS>::NeighborEntry(
     state::NeighborEntryType type,
     NeighborState pending,
     std::optional<int64_t> encapIndex,
-    bool isLocal) {
+    bool isLocal,
+    std::optional<bool> noHostRoute) {
   CHECK(pending == NeighborState::PENDING);
 
   this->setIP(ip);
@@ -67,6 +70,7 @@ NeighborEntry<IPADDR, SUBCLASS>::NeighborEntry(
   this->setState(pending);
   this->setEncapIndex(encapIndex);
   this->setIsLocal(isLocal);
+  this->setNoHostRoute(noHostRoute);
 
   /* default */
   this->setMAC(MacAddress::BROADCAST);
@@ -86,12 +90,17 @@ std::string NeighborEntry<IPADDR, SUBCLASS>::str() const {
   auto encapStr = getEncapIndex().has_value()
       ? folly::to<std::string>(getEncapIndex().value())
       : "None";
+  auto noHostRouteStr = getNoHostRoute().has_value()
+      ? folly::to<std::string>(*getNoHostRoute())
+      : "--";
+
   os << "NeighborEntry:: MAC: " << getMac().toString()
      << " IP: " << getIP().str() << " classID: " << classIDStr << " "
      << " Encap index: " << encapStr
      << " isLocal: " << (getIsLocal() ? "Y" : "N")
      << " Port: " << getPort().str() << " NeighborState: " << neighborStateStr
-     << " type: " << apache::thrift::util::enumNameSafe(getType());
+     << " type: " << apache::thrift::util::enumNameSafe(getType())
+     << " noHostRoute: " << noHostRouteStr;
 
   return os.str();
 }

@@ -377,6 +377,14 @@ class SwitchSettings
     }
   }
 
+  SwitchRunState getSwSwitchRunState() const {
+    return cref<switch_state_tags::swSwitchRunState>()->toThrift();
+  }
+
+  void setSwSwitchRunState(const SwitchRunState runState) {
+    set<switch_state_tags::swSwitchRunState>(runState);
+  }
+
   std::optional<folly::IPAddressV4> getDhcpV4ReplySrc() const {
     if (auto dhcpV4ReplySrc = cref<switch_state_tags::dhcpV4ReplySrc>()) {
       return network::toIPAddress(dhcpV4ReplySrc->toThrift()).asV4();
@@ -443,7 +451,7 @@ class SwitchSettings
     ref<switch_state_tags::flowletSwitchingConfig>() = flowletConfig;
   }
 
-  const SwitchIdToSwitchInfo getSwitchIdToSwitchInfo() const {
+  SwitchIdToSwitchInfo getSwitchIdToSwitchInfo() const {
     // THRIFT_COPY
     return get<switch_state_tags::switchIdToSwitchInfo>()->toThrift();
   }
@@ -504,6 +512,10 @@ class MultiSwitchSettings
   using BaseT = ThriftMapNode<MultiSwitchSettings, MultiSwitchSettingsTraits>;
   using BaseT::modify;
 
+  std::shared_ptr<SwitchSettings> getSwitchSettings(
+      const HwSwitchMatcher& matcher) const {
+    return getNodeIf(matcher.matcherString());
+  }
   MultiSwitchSettings() = default;
   virtual ~MultiSwitchSettings() = default;
 

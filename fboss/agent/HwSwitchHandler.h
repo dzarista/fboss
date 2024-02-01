@@ -36,10 +36,10 @@ enum HwSwitchStateUpdateStatus {
 
 enum HwSwitchOperDeltaSyncState {
   DISCONNECTED, /* initial state */
-  WAITING_INITIAL_SYNC, /* Got first getOper request */
-  INITIAL_OPER_SENT, /* waiting for initial sync response */
-  OPER_SYNCED, /* initial sync completed */
-  CANCELLED, /* cancelled */
+  INITIAL_SYNC_SENT, /* initial sync sent, waiting for ack */
+  CONNECTED, /* ready for incremental updates */
+  CANCELLED, /* indicates client disconnecting or server graceful
+                shutdown */
 };
 
 using HwSwitchStateUpdateResult =
@@ -53,6 +53,8 @@ class HwSwitchHandler {
   HwSwitchHandler(const SwitchID& switchId, const cfg::SwitchInfo& info);
 
   void start();
+
+  void stop();
 
   virtual ~HwSwitchHandler();
 
@@ -100,9 +102,12 @@ class HwSwitchHandler {
   virtual HwSwitchDropStats getSwitchDropStats() const = 0;
   virtual void updateStats() = 0;
 
-  virtual std::map<PortID, phy::PhyInfo> updateAllPhyInfo() = 0;
+  virtual void updateAllPhyInfo() = 0;
+  virtual std::map<PortID, phy::PhyInfo> getAllPhyInfo() const = 0;
 
   virtual uint64_t getDeviceWatermarkBytes() const = 0;
+
+  virtual HwFlowletStats getHwFlowletStats() const = 0;
 
   virtual void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) = 0;
@@ -125,7 +130,10 @@ class HwSwitchHandler {
 
   virtual HwSwitchStateOperUpdateResult stateChanged(
       const fsdb::OperDelta& delta,
-      bool transaction) = 0;
+      bool transaction,
+      const std::shared_ptr<SwitchState>& initialState) = 0;
+
+  virtual std::vector<EcmpDetails> getAllEcmpDetails() const = 0;
 
   // platform access apis
   virtual void onHwInitialized(HwSwitchCallback* callback) = 0;
@@ -154,7 +162,7 @@ class HwSwitchHandler {
 
   virtual multiswitch::StateOperDelta getNextStateOperDelta(
       std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
-      bool initialSync) = 0;
+      int64_t lastUpdateSeqNum) = 0;
 
   virtual void notifyHwSwitchDisconnected() = 0;
 
@@ -165,16 +173,21 @@ class HwSwitchHandler {
 
   virtual SwitchRunState getHwSwitchRunState() = 0;
 
+  virtual void cancelOperDeltaSync() = 0;
+
+ protected:
+  std::optional<fsdb::OperDelta> getFullSyncOperDelta(
+      const std::shared_ptr<SwitchState>& state) const;
+
  private:
   HwSwitchStateUpdateResult stateChangedImpl(const HwSwitchStateUpdate& update);
 
   HwSwitchStateOperUpdateResult stateChangedImpl(
       const fsdb::OperDelta& delta,
-      bool transaction);
+      bool transaction,
+      const std::shared_ptr<SwitchState>& newState);
 
   void run();
-
-  void stop();
 
   const SwitchID switchId_;
   const cfg::SwitchInfo info_;

@@ -54,9 +54,12 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
 
   void updateStats() override;
 
-  std::map<PortID, phy::PhyInfo> updateAllPhyInfo() override;
+  void updateAllPhyInfo() override;
+  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const override;
 
   uint64_t getDeviceWatermarkBytes() const override;
+
+  HwFlowletStats getHwFlowletStats() const override;
 
   HwSwitchFb303Stats* getSwitchStats() const override;
 
@@ -74,6 +77,8 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
 
   void switchRunStateChanged(SwitchRunState newState) override;
 
+  std::vector<EcmpDetails> getAllEcmpDetails() const override;
+
   // platform access apis
   void onHwInitialized(HwSwitchCallback* callback) override;
 
@@ -87,7 +92,8 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
 
   std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus> stateChanged(
       const fsdb::OperDelta& delta,
-      bool transaction) override;
+      bool transaction,
+      const std::shared_ptr<SwitchState>& newState) override;
 
   bool transactionsSupported(
       std::optional<cfg::SdkVersion> sdkVersion) const override;
@@ -121,15 +127,17 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
 
   multiswitch::StateOperDelta getNextStateOperDelta(
       std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
-      bool initialSync) override;
+      int64_t lastUpdateSeqNum) override;
 
   void notifyHwSwitchDisconnected() override;
 
   HwSwitchOperDeltaSyncState getHwSwitchOperDeltaSyncState() override {
-    return HwSwitchOperDeltaSyncState::OPER_SYNCED;
+    return HwSwitchOperDeltaSyncState::CONNECTED;
   }
 
   SwitchRunState getHwSwitchRunState() override;
+
+  void cancelOperDeltaSync() override {}
 
  private:
   Platform* platform_;

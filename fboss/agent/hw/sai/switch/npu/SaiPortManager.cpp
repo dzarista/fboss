@@ -39,6 +39,7 @@ std::optional<SaiPortTraits::Attributes::SystemPortId> getSystemPortId(
 sai_int32_t getPortTypeFromCfg(const cfg::PortType& cfgPortType) {
   switch (cfgPortType) {
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
       return SAI_PORT_TYPE_LOGICAL;
     case cfg::PortType::FABRIC_PORT:
       return SAI_PORT_TYPE_FABRIC;
@@ -83,9 +84,15 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
       return counterIds;
     }
     if (getPortType(port) == cfg::PortType::RECYCLE_PORT) {
-      return std::vector<sai_stat_id_t>{
-          SAI_PORT_STAT_IF_IN_UCAST_PKTS,
-      };
+      if (platform_->getAsic()->isSupported(
+              HwAsic::Feature::SAI_PORT_ETHER_STATS)) {
+        return std::vector<sai_stat_id_t>{
+            SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS};
+      } else {
+        return std::vector<sai_stat_id_t>{
+            SAI_PORT_STAT_IF_IN_UCAST_PKTS,
+        };
+      }
     }
     if ((platform_->getAsic()->getAsicType() ==
          cfg::AsicType::ASIC_TYPE_JERICHO2) ||
@@ -154,7 +161,7 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
     }
     if (platform_->getAsic()->isSupported(
             HwAsic::Feature::SAI_MPLS_LABEL_LOOKUP_FAIL_COUNTER)) {
-#if !defined(TAJO_SDK_VERSION_1_42_1) && !defined(TAJO_SDK_VERSION_1_42_8)
+#if !defined(TAJO_SDK_VERSION_1_42_8)
       counterIds.emplace_back(managerTable_->debugCounterManager()
                                   .getMPLSLookupFailedCounterStatId());
 #endif
@@ -379,6 +386,14 @@ void SaiPortManager::attributesFromSaiStore(
       port->attributes(),
       attributes,
       SaiPortTraits::Attributes::QosTcToQueueMap{});
+  getAndSetAttribute(
+      port->attributes(),
+      attributes,
+      SaiPortTraits::Attributes::QosTcToPriorityGroupMap{});
+  getAndSetAttribute(
+      port->attributes(),
+      attributes,
+      SaiPortTraits::Attributes::QosPfcPriorityToQueueMap{});
 }
 
 SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
@@ -509,6 +524,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
       platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORT_MTU)) {
     mtu = swPort->getMaxFrameSize();
   }
+  auto portPfcInfo = getPortPfcAttributes(swPort);
   return SaiPortTraits::CreateAttributes {
 #if defined(BRCM_SAI_SDK_DNX)
     getPortTypeFromCfg(swPort->getPortType()),
@@ -537,11 +553,11 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         std::nullopt, // Egress MacSec ACL
         systemPortId, // System Port Id
         ptpStatusOpt, // PTP Mode, can be std::nullopt
-        std::nullopt, // PFC Mode
-        std::nullopt, // PFC Priorities
+        portPfcInfo.pfcMode, // PFC Mode
+        portPfcInfo.pfcTxRx, // PFC Priorities
 #if !defined(TAJO_SDK)
-        std::nullopt, // PFC Rx Priorities
-        std::nullopt, // PFC Tx Priorities
+        portPfcInfo.pfcRx, // PFC Rx Priorities
+        portPfcInfo.pfcTx, // PFC Tx Priorities
 #endif
         std::nullopt, // TC to Priority Group map
         std::nullopt, // PFC Priority to Queue map

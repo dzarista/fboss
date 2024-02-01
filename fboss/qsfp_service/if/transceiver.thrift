@@ -103,13 +103,14 @@ enum ResetType {
 }
 
 /*
- * Currently, only support RESET_THEN_CLEAR
+ * Transceiver Reset action. RESET_THEN_CLEAR resets then clears reset,
+ * RESET holds the reset on the transceiver, CLEAR_RESET clears reset.
  */
 enum ResetAction {
   INVALID = 0,
   RESET_THEN_CLEAR = 1,
-// RESET = 2,
-// CLEAR_RESET = 3,
+  RESET = 2,
+  CLEAR_RESET = 3,
 }
 
 enum TransmitterTechnology {
@@ -210,6 +211,9 @@ enum MediaInterfaceCode {
   CR8_400G = 10,
   FR4_2x400G = 11,
   BASE_T_10G = 12,
+  DR4_2x400G = 13,
+  DR4_400G = 14,
+  FR8_800G = 15,
 }
 
 // The extended specification compliance code of the transceiver module.
@@ -263,8 +267,10 @@ enum SMFMediaInterfaceCode {
   CWDM4_100G = 0x10,
   FR1_100G = 0x15,
   FR4_200G = 0x18,
+  DR4_400G = 0x1C,
   FR4_400G = 0x1D,
   LR4_10_400G = 0x1E,
+  FR8_800G = 0xC1,
 }
 
 enum Ethernet10GComplianceCode {
@@ -573,6 +579,8 @@ struct CmisData {
   12: optional IOBuf page21;
   13: optional IOBuf page24;
   14: optional IOBuf page25;
+  15: optional IOBuf page22;
+  16: optional IOBuf page26;
 }
 
 struct TransceiverIOParameters {

@@ -91,6 +91,14 @@ class TransceiverManager {
 
   virtual PlatformType getPlatformType() const = 0;
 
+  int getSuccessfulOpticsFwUpgradeCount() const {
+    return successfulOpticsFwUpgradeCount_;
+  }
+
+  int getFailedOpticsFwUpgradeCount() const {
+    return failedOpticsFwUpgradeCount_;
+  }
+
   bool isValidTransceiver(int32_t id) {
     return id < getNumQsfpModules() && id >= 0;
   }
@@ -365,10 +373,30 @@ class TransceiverManager {
 
   virtual void triggerVdmStatsCapture(std::vector<int32_t>& ids) = 0;
 
+  // This function will bring all the transceivers out of reset, making use
+  // of the specific implementation from each platform. Platforms that bring
+  // transceiver out of reset by default will stay no op.
+  virtual void clearAllTransceiverReset();
+
   // This function will trigger a hard reset on the specific transceiver, making
   // use of the specific implementation from each platform.
   // It will also remove the transceiver from the transceivers_ map.
   void triggerQsfpHardReset(int idx);
+
+  // Hold the reset on a specific transceiver. It will also remove the
+  // transceiver from the transceivers_ map.
+  void holdTransceiverReset(int idx);
+
+  // Release the reset on a specific transceiver. It will also remove the
+  // transceiver from the transceivers_ map.
+  void releaseTransceiverReset(int idx);
+
+  // Trigger a specific reset action (RESET_THEN_CLEAR, RESET, CLEAR_RESET)
+  void hardResetAction(
+      void (TransceiverPlatformApi::*func)(unsigned int),
+      int idx,
+      bool holdInReset,
+      bool removeTransceiver);
 
   void publishLinkSnapshots(std::string portName);
 
@@ -517,8 +545,16 @@ class TransceiverManager {
 
   OverrideTcvrToPortAndProfile overrideTcvrToPortAndProfileForTest_;
 
+  // NOTE: The locking order of tcvrsHeldInReset_ and transceivers_ should be
+  // tcvrsHeldInReset_ and then transceivers_.
+
+  // Set of ports held in reset.
+  folly::Synchronized<std::unordered_set<int>> tcvrsHeldInReset_;
+
+  // Map of TransceiverID to Transceiver Object
   folly::Synchronized<std::map<TransceiverID, std::unique_ptr<Transceiver>>>
       transceivers_;
+
   /* This variable stores the TransceiverPlatformApi object for controlling
    * the QSFP devies on board. This handle is populated from this class
    * constructor
@@ -779,6 +815,9 @@ class TransceiverManager {
       resetFunctionMap_;
 
   void initPortToModuleMap();
+
+  std::atomic<int> successfulOpticsFwUpgradeCount_{0};
+  std::atomic<int> failedOpticsFwUpgradeCount_{0};
 
   friend class TransceiverStateMachineTest;
 };

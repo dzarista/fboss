@@ -180,6 +180,8 @@ class BcmEcmpEgress : public BcmEgressBase {
   }
   void programForFlowletSwitching();
   bool updateEcmpDynamicMode();
+  uint64_t getL3EcmpDlbFailPackets();
+  EcmpDetails getEcmpDetails();
   /*
    * Update ecmp egress entries in HW
    */

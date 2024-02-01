@@ -88,6 +88,27 @@ class HwEnsembleMultiSwitchThriftHandler
     };
   }
 
+  folly::coro::Task<
+      apache::thrift::SinkConsumer<multiswitch::LinkActiveEvent, bool>>
+  co_notifyLinkActiveEvent(int64_t switchId) override {
+    co_return apache::thrift::SinkConsumer<multiswitch::LinkActiveEvent, bool>{
+        [switchId,
+         this](folly::coro::AsyncGenerator<multiswitch::LinkActiveEvent&&> gen)
+            -> folly::coro::Task<bool> {
+          std::map<PortID, bool> port2IsActive;
+          while (auto item = co_await gen.next()) {
+            XLOG(DBG3) << "Got link active event from switch " << switchId;
+            for (const auto& [portID, isActive] : *item->port2IsActive()) {
+              port2IsActive[PortID(portID)] = isActive;
+            }
+            ensemble_->linkActiveStateChanged(port2IsActive);
+          }
+          co_return true;
+        },
+        1000 /* buffer size */
+    };
+  }
+
   folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::FdbEvent, bool>>
   co_notifyFdbEvent(int64_t switchId) override {
     co_return apache::thrift::SinkConsumer<multiswitch::FdbEvent, bool>{
@@ -171,7 +192,7 @@ class HwEnsembleMultiSwitchThriftHandler
       multiswitch::StateOperDelta& operDelta,
       int64_t /*switchId*/,
       std::unique_ptr<multiswitch::StateOperDelta> /*prevOperResult*/,
-      bool /*initialSync*/) override {
+      int64_t /*lastUpdateSeqNum*/) override {
     std::unique_lock<std::mutex> lk(operDeltaMutex_);
     if (!nextOperReady_) {
       operDeltaCV_.wait(
@@ -669,7 +690,8 @@ void HwSwitchEnsemble::setupEnsemble(
   }
   programmedState_ = initState->clone();
   if (bootType == BootType::WARM_BOOT) {
-    auto settings = util::getFirstNodeIf(programmedState_->getSwitchSettings());
+    auto settings =
+        utility::getFirstNodeIf(programmedState_->getSwitchSettings());
     auto newSettings = settings->modify(&programmedState_);
     newSettings->setSwitchIdToSwitchInfo(switchIdToSwitchInfo);
   } else {

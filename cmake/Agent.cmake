@@ -247,7 +247,6 @@ set(core_libs
   transceiver_cpp2
   alert_logger
   Folly::folly
-  normalizer
   bidirectional_packet_stream
   fsdb_common_cpp2
   fsdb_model
@@ -461,6 +460,7 @@ add_library(split_agent_thrift_syncer
   fboss/agent/mnpu/FdbEventSyncer.cpp
   fboss/agent/mnpu/HwSwitchStatsSinkClient.cpp
   fboss/agent/mnpu/LinkEventSyncer.cpp
+  fboss/agent/mnpu/LinkActiveEventSyncer.cpp
   fboss/agent/mnpu/OperDeltaSyncer.cpp
   fboss/agent/mnpu/RxPktEventSyncer.cpp
   fboss/agent/mnpu/SplitAgentThriftSyncer.cpp

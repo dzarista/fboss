@@ -30,7 +30,6 @@
 #include "fboss/agent/SwitchInfoUtils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/if/gen-cpp2/mpls_types.h"
-#include "fboss/agent/normalization/Normalizer.h"
 #include "fboss/agent/platforms/common/PlatformMapping.h"
 #include "fboss/agent/rib/RoutingInformationBase.h"
 #include "fboss/agent/state/AclEntry.h"
@@ -752,14 +751,6 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
     }
   }
 
-  // normalizer to refresh counter tags
-  if (auto normalizer = Normalizer::getInstance()) {
-    normalizer->reloadCounterTags(*cfg_);
-  } else {
-    XLOG(ERR)
-        << "Normalizer failed to initialize, skipping loading counter tags";
-  }
-
   {
     auto voqSwitchId = getAnyVoqSwitchId();
     std::shared_ptr<SwitchSettings> origSwitchSettings{};
@@ -912,6 +903,13 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
       neighbor.isLocal() = isLocal(node);
       neighbor.type() = state::NeighborEntryType::STATIC_ENTRY;
       neighbor.resolvedSince() = static_cast<int64_t>(std::time(nullptr));
+      // For local loopback IPs we set noHostRoute to true
+      // since we dont want to install the host/neighbor entry
+      // in HW (the same /128, /32 is covered by ip2me routes).
+      // However we still want to program the encap info (MAC,
+      // encap ID) in HW, so we continue to send the entry to
+      // send it to SDK, but with noHostRoute flag set.
+      neighbor.noHostRoute() = isLocal(node);
       if (network.first.isV6()) {
         ndpTable.insert({*neighbor.ipaddress(), neighbor});
       } else {
@@ -1120,23 +1118,27 @@ void ThriftConfigApplier::processInterfaceForPortForVoqSwitches(
   CHECK(dsfNodeItr != cfg_->dsfNodes()->end());
   CHECK(dsfNodeItr->second.systemPortRange().has_value());
   auto systemPortRange = dsfNodeItr->second.systemPortRange();
+  CHECK(systemPortRange);
   for (const auto& portCfg : *cfg_->ports()) {
     auto portType = *portCfg.portType();
     auto portID = PortID(*portCfg.logicalID());
-
-    switch (portType) {
-      case cfg::PortType::INTERFACE_PORT:
-      case cfg::PortType::RECYCLE_PORT: {
-        // system port is 1:1 with every interface and recycle port.
-        // interface is 1:1 with system port.
-        // InterfaceID is chosen to be the same as systemPortID. Thus:
-        auto interfaceID = SystemPortID{*systemPortRange->minimum() + portID};
-        port2InterfaceId_[portID].push_back(interfaceID);
-      } break;
-      case cfg::PortType::FABRIC_PORT:
-      case cfg::PortType::CPU_PORT:
-        // no interface for fabric/cpu port
-        break;
+    // Only process ports belonging to the passed switchId
+    if (scopeResolver_.scope(portCfg).has(SwitchID(switchId))) {
+      switch (portType) {
+        case cfg::PortType::INTERFACE_PORT:
+        case cfg::PortType::RECYCLE_PORT: {
+          // system port is 1:1 with every interface and recycle port.
+          // interface is 1:1 with system port.
+          // InterfaceID is chosen to be the same as systemPortID. Thus:
+          auto interfaceID = SystemPortID{*systemPortRange->minimum() + portID};
+          port2InterfaceId_[portID].push_back(interfaceID);
+        } break;
+        case cfg::PortType::FABRIC_PORT:
+        case cfg::PortType::MANAGEMENT_PORT:
+        case cfg::PortType::CPU_PORT:
+          // no interface for fabric/cpu port
+          break;
+      }
     }
   }
 }
@@ -1173,7 +1175,8 @@ void ThriftConfigApplier::processInterfaceForPortForNonVoqSwitches(
 }
 
 void ThriftConfigApplier::processInterfaceForPort() {
-  const auto& switchSettings = util::getFirstNodeIf(new_->getSwitchSettings());
+  const auto& switchSettings =
+      utility::getFirstNodeIf(new_->getSwitchSettings());
   // Build Port -> interface mappings in port2InterfaceId_
   for (const auto& switchIdAndInfo :
        switchSettings->getSwitchIdToSwitchInfo()) {
@@ -1288,16 +1291,16 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
 
     auto dsfNode = cfg_->dsfNodes()->find(switchId)->second;
     auto nodeName = *dsfNode.name();
-    CHECK(dsfNode.systemPortRange());
-    auto systemPortRange = *dsfNode.systemPortRange();
 
     for (const auto& port : std::as_const(*portMap)) {
       if (kCreateSysPortsFor.find(port.second->getPortType()) ==
           kCreateSysPortsFor.end()) {
         continue;
       }
-      auto sysPort = std::make_shared<SystemPort>(
-          SystemPortID{*systemPortRange.minimum() + port.second->getID()});
+      auto sysPort = std::make_shared<SystemPort>(getSystemPortID(
+          port.second->getID(),
+          switchSettings->getSwitchIdToSwitchInfo(),
+          switchId));
       sysPort->setSwitchId(SwitchID(switchId));
       sysPort->setPortName(
           folly::sformat("{}:{}", nodeName, port.second->getName()));
@@ -1818,7 +1821,8 @@ shared_ptr<Port> ThriftConfigApplier::updatePort(
     }
   }
 
-  const auto& switchSettings = util::getFirstNodeIf(new_->getSwitchSettings());
+  const auto& switchSettings =
+      utility::getFirstNodeIf(new_->getSwitchSettings());
   // For now, we only support update unicast port queues for ports
   auto switchIds =
       SwitchIdScopeResolver(switchSettings->getSwitchIdToSwitchInfo())
@@ -1998,7 +2002,7 @@ shared_ptr<Port> ThriftConfigApplier::updatePort(
 
   // Port drain is applicable to only fabric ports.
   if (*portConf->drainState() == cfg::PortDrainState::DRAINED &&
-      orig->getPortType() != cfg::PortType::FABRIC_PORT) {
+      *portConf->portType() != cfg::PortType::FABRIC_PORT) {
     throw FbossError(
         "Port ",
         orig->getID(),
@@ -2308,7 +2312,8 @@ uint8_t ThriftConfigApplier::computeMinimumLinkCount(
 }
 
 shared_ptr<VlanMap> ThriftConfigApplier::updateVlans() {
-  const auto& switchSettings = util::getFirstNodeIf(new_->getSwitchSettings());
+  const auto& switchSettings =
+      utility::getFirstNodeIf(new_->getSwitchSettings());
   // TODO(skhare)
   // VOQ/Fabric switches require that the packets are not tagged with any
   // VLAN. We are gradually enhancing wedge_agent to handle tagged as well as

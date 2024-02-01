@@ -27,10 +27,18 @@ void PkgUtils::processRpms(const PlatformConfig& config) const {
   }
 }
 
+void PkgUtils::processLocalRpms(const std::string& rpmFullPath) const {
+  installLocalRpm(rpmFullPath, 3 /* maxAttempts */);
+}
+
 void PkgUtils::processKmods(const PlatformConfig& config) const {
-  XLOG(INFO) << "Reloading Kernel Modules";
-  for (auto& kmod : *config.kmodsToReload()) {
-    reloadKmod(kmod);
+  XLOG(INFO) << fmt::format(
+      "Reloading {} Kernel Modules", config.kmodsToReload()->size());
+  for (int i = 0; i < config.kmodsToReload()->size(); ++i) {
+    unloadKmod((*config.kmodsToReload())[i]);
+  }
+  for (int i = config.kmodsToReload()->size() - 1; i >= 0; --i) {
+    loadKmod((*config.kmodsToReload())[i]);
   }
 }
 
@@ -64,11 +72,31 @@ void PkgUtils::installRpm(const std::string& rpmFullName, int maxAttempts)
   }
 }
 
-void PkgUtils::reloadKmod(const std::string& moduleName) const {
+void PkgUtils::installLocalRpm(const std::string& rpmFullPath, int maxAttempts)
+    const {
+  int exitStatus{0}, attempt{1};
+  std::string standardOut{};
+  auto cmd = fmt::format("rpm -i --force {}", rpmFullPath);
+  do {
+    XLOG(INFO) << fmt::format(
+        "Running command ({}); Attempt: {}", cmd, attempt++);
+    std::tie(exitStatus, standardOut) = PlatformUtils().execCommand(cmd);
+    XLOG(INFO) << standardOut;
+  } while (attempt <= maxAttempts && exitStatus != 0);
+  if (exitStatus != 0) {
+    XLOG(ERR) << fmt::format(
+        "Command ({}) failed with exit code {}", cmd, exitStatus);
+    throw std::runtime_error(fmt::format(
+        "Failed to install rpm ({}) with exit code {}",
+        rpmFullPath,
+        exitStatus));
+  }
+}
+
+void PkgUtils::unloadKmod(const std::string& moduleName) const {
   int exitStatus{0};
   std::string standardOut{};
   auto unloadCmd = fmt::format("modprobe --remove {}", moduleName);
-  auto loadCmd = fmt::format("modprobe {}", moduleName);
   XLOG(INFO) << fmt::format("Running command ({})", unloadCmd);
   std::tie(exitStatus, standardOut) = PlatformUtils().execCommand(unloadCmd);
   if (exitStatus != 0) {
@@ -79,6 +107,12 @@ void PkgUtils::reloadKmod(const std::string& moduleName) const {
         moduleName,
         exitStatus));
   }
+}
+
+void PkgUtils::loadKmod(const std::string& moduleName) const {
+  int exitStatus{0};
+  std::string standardOut{};
+  auto loadCmd = fmt::format("modprobe {}", moduleName);
   XLOG(INFO) << fmt::format("Running command ({})", loadCmd);
   std::tie(exitStatus, standardOut) = PlatformUtils().execCommand(loadCmd);
   if (exitStatus != 0) {

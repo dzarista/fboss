@@ -9,6 +9,7 @@
  */
 
 #include "fboss/agent/SwitchStats.h"
+#include "fboss/agent/hw/sai/api/SaiVersion.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
@@ -20,6 +21,7 @@
 #include "fboss/agent/test/ResourceLibUtil.h"
 
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
+#include "fboss/agent/packet/IPProto.h"
 
 DECLARE_bool(enable_acl_table_group);
 
@@ -377,7 +379,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
   void verifyMultipleAclTablesHelper() {
     bool multipleAclTableSupport =
         HwTest::isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
     multipleAclTableSupport = false;
 #endif
     ASSERT_TRUE(multipleAclTableSupport);
@@ -394,7 +396,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
        */
       bool addAllQualifiers = false;
       resolveNeigborAndProgramRoutes(*helper_, kEcmpWidth);
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_SDK_GTE_1_65_0)
       addAllQualifiers = true;
 #endif
 
@@ -543,7 +545,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
   void verifyDscpTtlAclTablesHelper() {
     bool multipleAclTableSupport =
         HwTest::isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
     multipleAclTableSupport = false;
 #endif
     ASSERT_TRUE(multipleAclTableSupport);
@@ -555,7 +557,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
        */
       bool addAllQualifiers = false;
       resolveNeigborAndProgramRoutes(*helper_, kEcmpWidth);
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_SDK_GTE_1_65_0)
       addAllQualifiers = true;
 #endif
 

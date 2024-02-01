@@ -178,9 +178,15 @@ class SwitchStats : public boost::noncopyable {
   void ipv4TtlExceeded() {
     ipv4TtlExceeded_.addValue(1);
   }
+  void ipv4Ttl1Mine() {
+    ipv4Ttl1Mine_.addValue(1);
+  }
 
   void ipv6HopExceeded() {
     ipv6HopExceeded_.addValue(1);
+  }
+  void ipv6HopLimit1Mine() {
+    ipv6HopLimit1Mine_.addValue(1);
   }
 
   void udpTooSmall() {
@@ -314,6 +320,10 @@ class SwitchStats : public boost::noncopyable {
     linkStateChange_.addValue(1);
   }
 
+  void linkActiveStateChange() {
+    linkActiveStateChange_.addValue(1);
+  }
+
   void pcapDistFailure() {
     pcapDistFailure_.incrementValue(1);
   }
@@ -417,6 +427,18 @@ class SwitchStats : public boost::noncopyable {
   void fillFabricReachabilityStats(
       FabricReachabilityStats& fabricReachabilityStats) const;
 
+  void warmBoot() {
+    warmBoot_.addValue(1);
+  }
+
+  void coldBoot() {
+    coldBoot_.addValue(1);
+  }
+
+  void switchConfiguredMs(uint64_t ms) {
+    switchConfiguredMs_.addValue(ms);
+  }
+
  private:
   // Forbidden copy constructor and assignment operator
   SwitchStats(SwitchStats const&) = delete;
@@ -480,9 +502,13 @@ class SwitchStats : public boost::noncopyable {
   TLTimeseries ipv4NoArp_;
   // IPv4 TTL exceeded
   TLTimeseries ipv4TtlExceeded_;
+  TLTimeseries ipv4Ttl1Mine_;
 
   // IPv6 hop count exceeded
   TLTimeseries ipv6HopExceeded_;
+  // Locally destined packets which arrive with
+  // hop limit 1
+  TLTimeseries ipv6HopLimit1Mine_;
 
   // UDP packets dropped due to smaller packet size
   TLTimeseries udpTooSmall_;
@@ -585,6 +611,11 @@ class SwitchStats : public boost::noncopyable {
    */
   TLTimeseries linkStateChange_;
 
+  /**
+   * Link state active/inactive change count
+   */
+  TLTimeseries linkActiveStateChange_;
+
   // Individual port stats objects, indexed by PortID
   PortStatsMap ports_;
 
@@ -655,6 +686,10 @@ class SwitchStats : public boost::noncopyable {
   TLCounter remoteResolvedArp_;
   // Failed Dsf subscriptions
   TLCounter failedDsfSubscription_;
+
+  TLTimeseries coldBoot_;
+  TLTimeseries warmBoot_;
+  TLTimeseries switchConfiguredMs_;
 };
 
 } // namespace facebook::fboss

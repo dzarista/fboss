@@ -11,7 +11,6 @@
 #include <fb303/ThreadCachedServiceData.h>
 #include <folly/String.h>
 #include "fboss/agent/SwitchStats.h"
-#include "fboss/agent/normalization/Normalizer.h"
 
 using facebook::fb303::SUM;
 
@@ -20,6 +19,8 @@ namespace facebook::fboss {
 const std::string kNameKeySeperator = ".";
 const std::string kUp = "up";
 const std::string kLinkStateFlap = "link_state.flap";
+const std::string kActive = "active";
+const std::string kLinkActiveStateFlap = "link_active_state.flap";
 const std::string kPfcDeadlockDetectionCount = "pfc_deadlock_detection";
 const std::string kPfcDeadlockRecoveryCount = "pfc_deadlock_recovery";
 
@@ -30,17 +31,20 @@ PortStats::PortStats(
     : portID_(portID), portName_(portName), switchStats_(switchStats) {
   if (!portName_.empty()) {
     tcData().addStatValue(getCounterKey(kLinkStateFlap), 0, SUM);
+    tcData().addStatValue(getCounterKey(kLinkActiveStateFlap), 0, SUM);
   }
 }
 
 PortStats::~PortStats() {
   // clear counter
   clearPortStatusCounter();
+  clearPortActiveStatusCounter();
 }
 
 void PortStats::setPortName(const std::string& portName) {
   // clear counter
   clearPortStatusCounter();
+  clearPortActiveStatusCounter();
   portName_ = portName;
 }
 
@@ -158,11 +162,15 @@ void PortStats::linkStateChange(bool isUp) {
   // TLTimeseries and leave ThreadLocalStats do it for us.
   if (!portName_.empty()) {
     tcData().addStatValue(getCounterKey(kLinkStateFlap), 1, SUM);
-    if (auto normalizer = Normalizer::getInstance()) {
-      normalizer->processLinkStateChange(portName_, isUp);
-    }
   }
   switchStats_->linkStateChange();
+}
+
+void PortStats::linkActiveStateChange(bool isActive) {
+  if (!portName_.empty()) {
+    tcData().addStatValue(getCounterKey(kLinkActiveStateFlap), 1, SUM);
+  }
+  switchStats_->linkActiveStateChange();
 }
 
 void PortStats::pfcDeadlockDetectionCount() {
@@ -196,6 +204,18 @@ void PortStats::setPortStatus(bool isUp) {
 void PortStats::clearPortStatusCounter() {
   if (!portName_.empty()) {
     tcData().clearCounter(getCounterKey(kUp));
+  }
+}
+
+void PortStats::setPortActiveStatus(bool isActive) {
+  if (!portName_.empty()) {
+    tcData().setCounter(getCounterKey(kActive), isActive);
+  }
+}
+
+void PortStats::clearPortActiveStatusCounter() {
+  if (!portName_.empty()) {
+    tcData().clearCounter(getCounterKey(kActive));
   }
 }
 

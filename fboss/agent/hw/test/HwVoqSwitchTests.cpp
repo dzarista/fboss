@@ -22,6 +22,7 @@
 #include "fboss/agent/hw/test/HwTestStatUtils.h"
 #include "fboss/agent/hw/test/HwVoqUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
+#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/InterfaceMap.h"
@@ -164,7 +165,8 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
       const folly::IPAddressV6& dstIp,
       std::optional<PortID> frontPanelPort,
       std::optional<std::vector<uint8_t>> payload =
-          std::optional<std::vector<uint8_t>>()) {
+          std::optional<std::vector<uint8_t>>(),
+      int dscp = 0x24) {
     folly::IPAddressV6 kSrcIp("1::1");
     const auto srcMac = utility::kLocalCpuMac();
     const auto dstMac = utility::kLocalCpuMac();
@@ -178,7 +180,7 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
         dstIp,
         8000, // l4 src port
         8001, // l4 dst port
-        0x24 << 2, // dscp
+        dscp << 2, // dscp
         255, // hopLimit
         payload);
     size_t txPacketSize = txPacket->buf()->length();
@@ -213,7 +215,8 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
             return ip.isV6();
           });
 
-      auto dstIp = folly::IPAddress::createNetwork(*ipv6Addr, -1, false).first;
+      auto dstIp =
+          folly::IPAddress::createNetwork(*ipv6Addr, -1, false).first.asV6();
       folly::IPAddressV6 kSrcIp("1::1");
       const auto srcMac = folly::MacAddress("00:00:01:02:03:04");
       const auto dstMac = utility::kLocalCpuMac();
@@ -633,11 +636,10 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
         beforeQueueOutBytes = beforeAllQueueOut.second.at(kDefaultQueue);
         printQueueStats("Before Queue Out", "Packets", beforeAllQueueOut.first);
         printQueueStats("Before Queue Out", "Bytes", beforeAllQueueOut.second);
+        auto beforeAllVoQOutBytes = getAllVoQOutBytes();
+        beforeVoQOutBytes = beforeAllVoQOutBytes.at(kDefaultQueue);
+        printQueueStats("Before VoQ Out", "Bytes", beforeAllVoQOutBytes);
       }
-
-      auto beforeAllVoQOutBytes = getAllVoQOutBytes();
-      beforeVoQOutBytes = beforeAllVoQOutBytes.at(kDefaultQueue);
-      printQueueStats("Before VoQ Out", "Bytes", beforeAllVoQOutBytes);
 
       auto [beforeOutPkts, beforeOutBytes] =
           getPortOutPktsBytes(kPort.phyPortID());
@@ -657,14 +659,13 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
           utility::getRetryCountAndDelay(getAsic());
       WITH_RETRIES_N_TIMED(
           maxRetryCount, std::chrono::milliseconds(sleepTimeMsecs), {
-            auto afterAllVoQOutBytes = getAllVoQOutBytes();
-            afterVoQOutBytes = afterAllVoQOutBytes.at(kDefaultQueue);
-            printQueueStats("After VoQ Out", "Bytes", afterAllVoQOutBytes);
-
             if (getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
               auto afterAllQueueOut = getAllQueueOutPktsBytes();
               afterQueueOutPkts = afterAllQueueOut.first.at(kDefaultQueue);
               afterQueueOutBytes = afterAllQueueOut.second.at(kDefaultQueue);
+              auto afterAllVoQOutBytes = getAllVoQOutBytes();
+              afterVoQOutBytes = afterAllVoQOutBytes.at(kDefaultQueue);
+              printQueueStats("After VoQ Out", "Bytes", afterAllVoQOutBytes);
             }
             auto afterAclPkts = isSupported(HwAsic::Feature::ACL_TABLE_GROUP)
                 ? getAclPackets()
@@ -708,9 +709,7 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
             if (asicMode != HwAsic::AsicMode::ASIC_MODE_SIM &&
                 (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
                  asicType == cfg::AsicType::ASIC_TYPE_JERICHO3)) {
-              // CS00012267635: debug why we get 4 extra bytes
-              // Most likely this is the Ethernet FCS being counted
-              // in TX out bytes.
+              // Account for Ethernet FCS being counted in TX out bytes.
               extraByteOffset = utility::EthFrame::FCS_SIZE;
             }
             EXPECT_EVENTUALLY_EQ(
@@ -733,7 +732,7 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
 
               EXPECT_EVENTUALLY_GT(
                   afterFrontPanelOutPkts, beforeFrontPanelOutPkts);
-            } else {
+            } else if (asicMode != HwAsic::AsicMode::ASIC_MODE_SIM) {
               EXPECT_EVENTUALLY_EQ(beforeRecyclePkts + 1, afterRecyclePkts);
             }
           });
@@ -1334,6 +1333,73 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, voqTailDropCounter) {
 
   auto verify = [=, this]() {
     assertVoqTailDrops(kNeighborIp, kRemoteSysPortId);
+  };
+  verifyAcrossWarmBoots(setup, verify);
+};
+
+TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, verifyDscpToVoqMapping) {
+  folly::IPAddressV6 kNeighborIp("100::2");
+  auto constexpr remotePortId = 401;
+  const SystemPortID kRemoteSysPortId(remotePortId);
+  auto setup = [=, this]() {
+    auto newCfg{initialConfig()};
+    utility::addOlympicQosMaps(newCfg, getAsic());
+    applyNewConfig(newCfg);
+
+    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // keeping remote switch id passed below in sync with it
+    int numCores = getAsic()->getNumCores();
+    applyNewState(utility::addRemoteSysPort(
+        getProgrammedState(),
+        scopeResolver(),
+        kRemoteSysPortId,
+        static_cast<SwitchID>(numCores)));
+    const InterfaceID kIntfId(remotePortId);
+    applyNewState(utility::addRemoteInterface(
+        getProgrammedState(),
+        scopeResolver(),
+        kIntfId,
+        {
+            {folly::IPAddress("100::1"), 64},
+            {folly::IPAddress("100.0.0.1"), 24},
+        }));
+    PortDescriptor kPort(kRemoteSysPortId);
+    // Add neighbor
+    applyNewState(utility::addRemoveRemoteNeighbor(
+        getProgrammedState(),
+        scopeResolver(),
+        kNeighborIp,
+        kIntfId,
+        kPort,
+        true,
+        getDummyEncapIndex()));
+  };
+
+  auto verify = [=, this]() {
+    for (const auto& q2dscps : utility::kOlympicQueueToDscp(getAsic())) {
+      auto queueId = q2dscps.first;
+      for (auto dscp : q2dscps.second) {
+        XLOG(DBG2) << "verify packet with dscp " << dscp << " goes to queue "
+                   << queueId;
+        auto statsBefore = getLatestSysPortStats(kRemoteSysPortId);
+        auto queueBytesBefore = statsBefore.queueOutBytes_()->at(queueId) +
+            statsBefore.queueOutDiscardBytes_()->at(queueId);
+        sendPacket(
+            kNeighborIp,
+            std::nullopt,
+            std::optional<std::vector<uint8_t>>(),
+            dscp);
+        WITH_RETRIES_N(10, {
+          auto statsAfter = getLatestSysPortStats(kRemoteSysPortId);
+          auto queueBytesAfter = statsAfter.queueOutBytes_()->at(queueId) +
+              statsAfter.queueOutDiscardBytes_()->at(queueId);
+          XLOG(DBG2) << "queue " << queueId
+                     << " stats before: " << queueBytesBefore
+                     << " stats after: " << queueBytesAfter;
+          EXPECT_EVENTUALLY_GT(queueBytesAfter, queueBytesBefore);
+        });
+      }
+    }
   };
   verifyAcrossWarmBoots(setup, verify);
 };

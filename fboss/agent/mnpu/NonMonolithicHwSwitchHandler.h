@@ -51,9 +51,12 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
 
   void updateStats() override;
 
-  std::map<PortID, phy::PhyInfo> updateAllPhyInfo() override;
+  void updateAllPhyInfo() override;
+  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const override;
 
   uint64_t getDeviceWatermarkBytes() const override;
+
+  HwFlowletStats getHwFlowletStats() const override;
 
   HwSwitchFb303Stats* getSwitchStats() const override;
 
@@ -84,7 +87,8 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
 
   std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus> stateChanged(
       const fsdb::OperDelta& delta,
-      bool transaction) override;
+      bool transaction,
+      const std::shared_ptr<SwitchState>& newState) override;
 
   CpuPortStats getCpuPortStats() const override;
 
@@ -105,10 +109,10 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
 
   multiswitch::StateOperDelta getNextStateOperDelta(
       std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
-      bool initialSync) override;
+      int64_t lastUpdateSeqNum) override;
 
   void notifyHwSwitchDisconnected() override;
-  void cancelOperDeltaSync();
+  void cancelOperDeltaSync() override;
   HwSwitchOperDeltaSyncState getHwSwitchOperDeltaSyncState() override;
 
   bool sendPacketOutViaThriftStream(
@@ -118,23 +122,42 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
 
   SwitchRunState getHwSwitchRunState() override;
 
+  std::vector<EcmpDetails> getAllEcmpDetails() const override;
+
  private:
-  bool isOperSyncState(HwSwitchOperDeltaSyncState state) const;
-  void setOperSyncState(HwSwitchOperDeltaSyncState state) {
+  bool checkOperSyncStateLocked(
+      HwSwitchOperDeltaSyncState state,
+      const std::unique_lock<std::mutex>& /*lock*/) const;
+  void setOperSyncStateLocked(
+      HwSwitchOperDeltaSyncState state,
+      const std::unique_lock<std::mutex>& /*lock*/) {
     operDeltaSyncState_ = state;
   }
   HwSwitchOperDeltaSyncState getOperSyncState() {
     return operDeltaSyncState_;
   }
+  /* wait for ack. returns false if cancelled */
+  bool waitForOperSyncAck(
+      std::unique_lock<std::mutex>& lk,
+      uint64_t timeoutInSec);
+  /*
+   * wait for oper delta to be ready from swswitch.
+   * returns false if cancelled or timedout
+   */
+  bool waitForOperDeltaReady(
+      std::unique_lock<std::mutex>& lk,
+      uint64_t timeoutInSec);
 
   SwSwitch* sw_;
   std::condition_variable stateUpdateCV_;
   std::mutex stateUpdateMutex_;
   multiswitch::StateOperDelta* nextOperDelta_{nullptr};
   multiswitch::StateOperDelta* prevOperDeltaResult_{nullptr};
+  std::shared_ptr<SwitchState> prevUpdateSwitchState_{nullptr};
   HwSwitchOperDeltaSyncState operDeltaSyncState_{DISCONNECTED};
-  bool deltaReady_{false};
-  bool ackReceived_{false};
+  int64_t currOperDeltaSeqNum_{0};
+  int64_t lastAckedOperDeltaSeqNum_{-1};
+  bool operRequestInProgress_{false};
 };
 
 } // namespace facebook::fboss

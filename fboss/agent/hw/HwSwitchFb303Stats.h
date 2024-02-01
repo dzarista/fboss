@@ -77,9 +77,24 @@ class HwSwitchFb303Stats {
   void forwardingQueueProcessorError() {
     forwardingQueueProcessorErrors_.addValue(1);
   }
-
+  void hwInitializedTime(uint64_t ms) {
+    hwInitializedTimeMs_.addValue(ms);
+  }
+  void bootTime(uint64_t ms) {
+    bootTimeMs_.addValue(ms);
+  }
+  void coldBoot() {
+    coldBoot_.addValue(1);
+  }
+  void warmBoot() {
+    warmBoot_.addValue(1);
+  }
   void fabricReachabilityMissingCount(int64_t value);
   void fabricReachabilityMismatchCount(int64_t value);
+
+  void bcmSdkVer(int64_t ver);
+  void bcmSaiSdkVer(int64_t ver);
+  void leabaSdkVer(int64_t ver);
 
   void update(const HwSwitchDramStats& dramStats);
   void update(const HwSwitchDropStats& dropStats);
@@ -179,6 +194,13 @@ class HwSwitchFb303Stats {
   TLTimeseries epniErrors_;
   TLTimeseries alignerErrors_;
   TLTimeseries forwardingQueueProcessorErrors_;
+  TLTimeseries hwInitializedTimeMs_;
+  TLTimeseries bootTimeMs_;
+  TLTimeseries coldBoot_;
+  TLTimeseries warmBoot_;
+  TLCounter bcmSdkVer_;
+  TLCounter bcmSaiSdkVer_;
+  TLCounter leabaSdkVer_;
 };
 
 } // namespace facebook::fboss

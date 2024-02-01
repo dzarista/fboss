@@ -298,6 +298,13 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     {CmisField::VDM_CONF_ERR_FRAME_HOST_IN_MAX, {CmisPages::PAGE21, 170, 2}},
     {CmisField::VDM_CONF_ERR_FRAME_HOST_IN_AVG, {CmisPages::PAGE21, 172, 2}},
     {CmisField::VDM_CONF_ERR_FRAME_HOST_IN_CUR, {CmisPages::PAGE21, 174, 2}},
+    // Page 22h
+    {CmisField::PAGE_UPPER22H, {CmisPages::PAGE22, 128, 128}},
+    {CmisField::VDM_CONF_PAM4_LEVEL0_SD_LINE, {CmisPages::PAGE22, 128, 16}},
+    {CmisField::VDM_CONF_PAM4_LEVEL1_SD_LINE, {CmisPages::PAGE22, 144, 16}},
+    {CmisField::VDM_CONF_PAM4_LEVEL2_SD_LINE, {CmisPages::PAGE22, 160, 16}},
+    {CmisField::VDM_CONF_PAM4_LEVEL3_SD_LINE, {CmisPages::PAGE22, 176, 16}},
+    {CmisField::VDM_CONF_PAM4_MPI_LINE, {CmisPages::PAGE22, 192, 16}},
     // Page 24h
     {CmisField::PAGE_UPPER24H, {CmisPages::PAGE24, 128, 128}},
     {CmisField::VDM_VAL_SNR_MEDIA_IN, {CmisPages::PAGE24, 128, 8}},
@@ -319,8 +326,16 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     {CmisField::VDM_VAL_ERR_FRAME_HOST_IN_MAX, {CmisPages::PAGE25, 170, 2}},
     {CmisField::VDM_VAL_ERR_FRAME_HOST_IN_AVG, {CmisPages::PAGE25, 172, 2}},
     {CmisField::VDM_VAL_ERR_FRAME_HOST_IN_CUR, {CmisPages::PAGE25, 174, 2}},
+    // Page 26h
+    {CmisField::PAGE_UPPER26H, {CmisPages::PAGE26, 128, 128}},
+    {CmisField::VDM_VAL_PAM4_LEVEL0_SD_LINE, {CmisPages::PAGE26, 128, 16}},
+    {CmisField::VDM_VAL_PAM4_LEVEL1_SD_LINE, {CmisPages::PAGE26, 144, 16}},
+    {CmisField::VDM_VAL_PAM4_LEVEL2_SD_LINE, {CmisPages::PAGE26, 160, 16}},
+    {CmisField::VDM_VAL_PAM4_LEVEL3_SD_LINE, {CmisPages::PAGE26, 176, 16}},
+    {CmisField::VDM_VAL_PAM4_MPI_LINE, {CmisPages::PAGE26, 192, 16}},
     // Page 2Fh
     {CmisField::PAGE_UPPER2FH, {CmisPages::PAGE2F, 128, 128}},
+    {CmisField::VDM_GROUPS_SUPPORT, {CmisPages::PAGE2F, 128, 1}},
     {CmisField::VDM_LATCH_REQUEST, {CmisPages::PAGE2F, 144, 1}},
     {CmisField::VDM_LATCH_DONE, {CmisPages::PAGE2F, 145, 1}},
 };
@@ -365,8 +380,13 @@ static SpeedApplicationMapping speedApplicationMapping = {
      {SMFMediaInterfaceCode::FR1_100G}},
     {cfg::PortSpeed::TWOHUNDREDG, {SMFMediaInterfaceCode::FR4_200G}},
     {cfg::PortSpeed::FOURHUNDREDG,
-     {SMFMediaInterfaceCode::FR4_400G, SMFMediaInterfaceCode::LR4_10_400G}},
-};
+     {SMFMediaInterfaceCode::FR4_400G,
+      SMFMediaInterfaceCode::LR4_10_400G,
+      SMFMediaInterfaceCode::DR4_400G}},
+    {
+        cfg::PortSpeed::EIGHTHUNDREDG,
+        {SMFMediaInterfaceCode::FR8_800G},
+    }};
 
 static std::map<SMFMediaInterfaceCode, MediaInterfaceCode>
     mediaInterfaceMapping = {
@@ -375,6 +395,8 @@ static std::map<SMFMediaInterfaceCode, MediaInterfaceCode>
         {SMFMediaInterfaceCode::FR4_200G, MediaInterfaceCode::FR4_200G},
         {SMFMediaInterfaceCode::FR4_400G, MediaInterfaceCode::FR4_400G},
         {SMFMediaInterfaceCode::LR4_10_400G, MediaInterfaceCode::LR4_400G_10KM},
+        {SMFMediaInterfaceCode::DR4_400G, MediaInterfaceCode::DR4_400G},
+        {SMFMediaInterfaceCode::FR8_800G, MediaInterfaceCode::FR8_800G},
 };
 
 constexpr uint8_t kPage0CsumRangeStart = 128;
@@ -1675,12 +1697,18 @@ CmisModule::getQsfpValuePtr(int dataAddress, int offset, int length) const {
       case CmisPages::PAGE21:
         CHECK_LE(offset + length, sizeof(page21_));
         return (page21_ + offset);
+      case CmisPages::PAGE22:
+        CHECK_LE(offset + length, sizeof(page22_));
+        return (page22_ + offset);
       case CmisPages::PAGE24:
         CHECK_LE(offset + length, sizeof(page24_));
         return (page24_ + offset);
       case CmisPages::PAGE25:
         CHECK_LE(offset + length, sizeof(page25_));
         return (page25_ + offset);
+      case CmisPages::PAGE26:
+        CHECK_LE(offset + length, sizeof(page26_));
+        return (page26_ + offset);
       default:
         throw FbossError("Invalid Data Address 0x%d", dataAddress);
     }
@@ -1715,8 +1743,10 @@ DOMDataUnion CmisModule::getDOMDataUnion() {
       cmisData.page14() = IOBuf::wrapBufferAsValue(page14_, MAX_QSFP_PAGE_SIZE);
       cmisData.page20() = IOBuf::wrapBufferAsValue(page20_, MAX_QSFP_PAGE_SIZE);
       cmisData.page21() = IOBuf::wrapBufferAsValue(page21_, MAX_QSFP_PAGE_SIZE);
+      cmisData.page22() = IOBuf::wrapBufferAsValue(page22_, MAX_QSFP_PAGE_SIZE);
       cmisData.page24() = IOBuf::wrapBufferAsValue(page24_, MAX_QSFP_PAGE_SIZE);
       cmisData.page25() = IOBuf::wrapBufferAsValue(page25_, MAX_QSFP_PAGE_SIZE);
+      cmisData.page26() = IOBuf::wrapBufferAsValue(page26_, MAX_QSFP_PAGE_SIZE);
     }
   }
   cmisData.timeCollected() = lastRefreshTime_;
@@ -2358,6 +2388,10 @@ MediaInterfaceCode CmisModule::getModuleMediaInterface() const {
     if (smfCode == SMFMediaInterfaceCode::FR4_400G &&
         firstModuleCapability->hostStartLanes.size() == 2) {
       moduleMediaInterface = MediaInterfaceCode::FR4_2x400G;
+    } else if (
+        smfCode == SMFMediaInterfaceCode::DR4_400G &&
+        firstModuleCapability->hostStartLanes.size() == 2) {
+      moduleMediaInterface = MediaInterfaceCode::DR4_2x400G;
     } else {
       moduleMediaInterface = mediaInterfaceMapping[smfCode];
     }
@@ -2582,6 +2616,11 @@ void CmisModule::setDiagsCapability() {
       readFromCacheOrHw(CmisField::DIAGNOSTIC_CAPABILITY, &data);
       diags.snrLine() = data & FieldMasks::SNR_LINE_SUPPORT_MASK;
       diags.snrSystem() = data & FieldMasks::SNR_SYS_SUPPORT_MASK;
+    }
+
+    if (*diags.vdm()) {
+      readCmisField(CmisField::VDM_GROUPS_SUPPORT, &data);
+      vdmSupportedGroupsMax_ = (data & VDM_GROUPS_SUPPORT_MASK) + 1;
     }
 
     *diagsCapability = diags;
@@ -3188,6 +3227,14 @@ void CmisModule::updateVdmCacheLocked() {
   readCmisField(CmisField::PAGE_UPPER21H, page21_);
   readCmisField(CmisField::PAGE_UPPER24H, page24_);
   readCmisField(CmisField::PAGE_UPPER25H, page25_);
+  if (isVdmSupported(3)) {
+    // Cache VDM group 3 page only if it is supported
+    if (!staticPagesCached_) {
+      readCmisField(CmisField::PAGE_UPPER22H, page22_);
+      staticPagesCached_ = true;
+    }
+    readCmisField(CmisField::PAGE_UPPER26H, page26_);
+  }
 }
 
 void CmisModule::updateCmisStateChanged(

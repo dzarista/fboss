@@ -3,13 +3,15 @@
 #include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
+#include "fboss/lib/CommonUtils.h"
 
 DEFINE_bool(run_forever, false, "run the test forever");
 DEFINE_bool(run_forever_on_failure, false, "run the test forever on failure");
 DEFINE_bool(
-    list_asic_feature,
+    list_production_feature,
     false,
-    "list asic feature needed for every single test");
+    "list production feature needed for every single test");
+DECLARE_bool(disable_neighbor_updates);
 
 namespace {
 int kArgc;
@@ -19,8 +21,8 @@ char** kArgv;
 namespace facebook::fboss {
 void AgentHwTest::SetUp() {
   gflags::ParseCommandLineFlags(&kArgc, &kArgv, false);
-  if (FLAGS_list_asic_feature) {
-    printAsicFeatures();
+  if (FLAGS_list_production_feature) {
+    printProductionFeatures();
     return;
   }
   fbossCommonInit(kArgc, kArgv);
@@ -33,6 +35,14 @@ void AgentHwTest::SetUp() {
   // Set watermark stats update interval to 0 so we always refresh BST stats
   // in each updateStats call
   FLAGS_update_watermark_stats_interval_s = 0;
+  // Don't send/receive periodic lldp packets. They will
+  // interfere with tests.
+  FLAGS_enable_lldp = false;
+  // Disable tun intf, else pkts from host will interfere
+  // with tests
+  FLAGS_tun_intf = false;
+  // disable neighbor updates
+  FLAGS_disable_neighbor_updates = true;
 
   AgentEnsembleSwitchConfigFn initialConfigFn =
       [this](const AgentEnsemble& ensemble) { return initialConfig(ensemble); };
@@ -135,13 +145,39 @@ cfg::SwitchConfig AgentHwTest::initialConfig(
       true /*interfaceHasSubnet*/);
 }
 
-void AgentHwTest::printAsicFeatures() const {
+void AgentHwTest::printProductionFeatures() const {
   std::vector<std::string> asicFeatures;
   for (const auto& feature : getProductionFeaturesVerified()) {
     asicFeatures.push_back(apache::thrift::util::enumNameSafe(feature));
   }
   std::cout << "Feature List: " << folly::join(",", asicFeatures) << "\n";
   GTEST_SKIP();
+}
+
+std::map<PortID, HwPortStats> AgentHwTest::getLatestPortStats(
+    const std::vector<PortID>& ports) {
+  // Stats collection from SwSwitch is async, wait for stats
+  // being available before returning here.
+  std::map<PortID, HwPortStats> portStats;
+  checkWithRetry(
+      [&portStats, this]() {
+        auto switchStats = getSw()->getHwSwitchStatsExpensive();
+        auto portMap = getSw()->getState()->getPorts();
+        for (const auto& [_, hwStats] : switchStats) {
+          for (const auto& [portName, stats] : *hwStats.hwPortStats()) {
+            portStats.insert({portMap->getPort(portName)->getID(), stats});
+          }
+        }
+        return !portStats.empty();
+      },
+      120,
+      std::chrono::milliseconds(1000),
+      " fetch port stats");
+  return portStats;
+}
+
+HwPortStats AgentHwTest::getLatestPortStats(const PortID& port) {
+  return getLatestPortStats(std::vector<PortID>({port})).begin()->second;
 }
 
 void initAgentHwTest(int argc, char* argv[], PlatformInitFn initPlatform) {
