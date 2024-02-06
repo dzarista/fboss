@@ -260,7 +260,7 @@ else
    fi
    export BUILD_FBOSS_CLI=1
    # Set the required build env vars for Centos 9
-   if [ "$CENTOS_RELEASE_MAJOR" == "9" ]; then
+   if [ "$CENTOS_RELEASE_MAJOR" = "9" ]; then
       export IS_OSS=1
       export IS_OSS_FBOSS_CENTOS9=1
       REPO_PREFIX="$SCRATCH_DIR/repos/github.com-facebook"
