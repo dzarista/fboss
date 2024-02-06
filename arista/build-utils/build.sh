@@ -264,7 +264,8 @@ else
       export IS_OSS=1
       export IS_OSS_FBOSS_CENTOS9=1
       REPO_PREFIX="$SCRATCH_DIR/repos/github.com-facebook"
-      # Fetch fbthrift and folly and update the C++ standard to v20.
+      # Fetch fbthrift and folly and update the C++ standard to v20. C++20 is
+      # required for building coroutine support into folly and fbthrift.
       for fboss_dep in folly fbthrift
       do
          ./build/fbcode_builder/getdeps.py --scratch-path "$SCRATCH_DIR" fetch $fboss_dep
