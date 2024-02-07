@@ -142,6 +142,20 @@ maybe_setup_build_env() {
       patch -p1 < patch9-SDK-5.19-post-SDK-6_5_29.dnx.1.patch
    fi
 
+   # Centos 9 build related patches and deps
+   if [[ "${CENTOS_RELEASE}" == "9" ]];
+   then
+      cd sdk-6.5.29-dnx.1
+      wget http://dist/storage/fboss/FBOSS-SAI/el9/CS00012328096_01_replace_sal_strncpy_arista.patch
+      patch -p1 < CS00012328096_01_replace_sal_strncpy_arista.patch
+      wget http://dist/storage/fboss/FBOSS-SAI/el9/Satish_Remaining_SDK_fixes_centos9-round2.patch
+      patch -p1 < Satish_Remaining_SDK_fixes_centos9-round2.patch
+      # Copy some deps required for centos 9 build
+      # libnsl.a needs to be copied over to /usr/lib64 in the container.
+      cd "${FBOSS_HOST_DIR}"
+      wget http://dist/storage/fboss/FBOSS-SAI/el9/libnsl.a
+   fi
+
    # Download FBOSS linux header files.
    cd "${FBOSS_HOST_DIR}"
    wget http://dist/storage/fboss/fbossImageFiles/"${KERNEL_TAR}"
