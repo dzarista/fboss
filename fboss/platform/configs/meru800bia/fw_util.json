@@ -21,14 +21,14 @@
       "getVersionCmd" : "smb_fpga_ver=$((`cat /run/devmap/fpgas/MERU800BIA_SMB_FPGA/fpga_ver`));smb_fpga_subver=$((`cat /run/devmap/fpgas/MERU800BIA_SMB_FPGA/fpga_sub_ver`));echo $smb_fpga_ver'.'$smb_fpga_subver",
       "priority" : 3,
       "upgradeCmd" : "smb_fpga_filename=$(head -n 1 /home/meru_smb_fpga_filename.txt);smb_fpga_binary_name=${smb_fpga_filename/.abit/.bin};fpga_spidev=$(echo $(ls /run/devmap/fpgas/MERU800BIA_SMB_FPGA/*spi*/spi_master/spi* | grep spi*.*) | cut -c 4-);chip=$(head -n 1 /home/flash_chip_name);if [ $chip = 'NONE' ];then cmd_chip_option='' cmd_chip_name='';else cmd_chip_option='-c' cmd_chip_name=$chip;fi;flashrom -p linux_spi:dev=/dev/spidev$fpga_spidev $cmd_chip_option $cmd_chip_name -l /home/meru_smb_fpga_layout -i image -w $smb_fpga_binary_name",
-      "postUpgradeCmd" : "smb_fpga_filename=$(head -n 1 /home/meru_smb_fpga_filename.txt);smb_fpga_binary_name=${smb_fpga_filename/.abit/.bin};rm $smb_fpga_binary_name;fpga_spidev=$(echo $(ls /run/devmap/fpgas/MERU800BIA_SMB_FPGA/*spi*/spi_master/spi* | grep spi*.*) | cut -c 4-);echo spi$fpga_spidev > /sys/bus/spi/drivers/spidev/unbind;pca_bus=$(i2cdetect -l | grep '0000:07:00.0 SMBus master 1 bus 0' | awk -F' ' '{print $1}' | tr -d 'i2c-');i2cset -f -y -m 0x1 $pca_bus 0x74 0x3 0x1;i2cset -f -y -m 0x1 $pca_bus 0x74 0x7 0x0;i2cset -f -y -m 0x1 $pca_bus 0x74 0x3 0x0;sleep 1;i2cset -f -y -m 0x1 $pca_bus 0x74 0x3 0x1;"
+      "postUpgradeCmd" : ""
     },
     "meru_fan_cpld": {
       "preUpgradeCmd" : "weutil_config_file=/opt/fboss/share/platform_configs/weutil.json;if [ -f $weutil_config_file ];then alias weutil_cmd='weutil --eeprom SMB --config_file $weutil_config_file';else alias weutil_cmd='weutil --eeprom SMB';fi;product_ver=$(weutil_cmd | grep 'Product Version' | cut -d ':' -f 2);product_sub_ver=$(weutil_cmd | grep 'Product Sub-Version' | cut -d ':' -f 2);if ( [ $product_ver -ne 1 ] && [ $product_ver -ne 2 ] ) || [ $product_sub_ver -ne 0 ];then echo 'product not supported';exit 1;fi;echo 1 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable",
       "getVersionCmd" : "fan_cpld_ver=$((`cat /run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/cpld_ver`));fan_cpld_subver=$((`cat /run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/cpld_sub_ver`));echo $fan_cpld_ver'.'$fan_cpld_subver",
       "priority" : 4,
       "upgradeCmd" : "fan_cpld_filename=$(head -n 1 /home/meru_fan_cpld_filename.txt);/usr/bin/jam -aprogram -fmeru_fan_cpld -v $fan_cpld_filename",
-      "postUpgradeCmd" : "echo 0 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable && modprobe -r dsf-fan-cpld && modprobe dsf-fan-cpld"
+      "postUpgradeCmd" : ""
     }
   }
 }
