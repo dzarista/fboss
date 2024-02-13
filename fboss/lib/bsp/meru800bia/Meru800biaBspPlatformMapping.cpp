@@ -21,13 +21,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "1",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2090/osfp1_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2091/osfp1_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2090/osfp1_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2091/osfp1_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -56,13 +56,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "2",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2091/osfp2_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2092/osfp2_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2091/osfp2_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2092/osfp2_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -91,13 +91,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "3",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2092/osfp3_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2093/osfp3_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2092/osfp3_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2093/osfp3_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -126,13 +126,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "4",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2093/osfp4_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2094/osfp4_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2093/osfp4_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2094/osfp4_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -161,13 +161,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "5",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2094/osfp5_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2095/osfp5_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2094/osfp5_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2095/osfp5_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -196,13 +196,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "6",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2095/osfp6_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2096/osfp6_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2095/osfp6_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2096/osfp6_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -231,13 +231,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "7",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2096/osfp7_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2097/osfp7_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2096/osfp7_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2097/osfp7_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -266,13 +266,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "8",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2097/osfp8_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2098/osfp8_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2097/osfp8_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2098/osfp8_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -301,13 +301,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "9",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2098/osfp9_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2099/osfp9_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2098/osfp9_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2099/osfp9_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -336,13 +336,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "10",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2099/osfp10_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2100/osfp10_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2099/osfp10_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2100/osfp10_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -371,13 +371,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "11",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2100/osfp11_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2101/osfp11_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2100/osfp11_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2101/osfp11_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -406,13 +406,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "12",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2101/osfp12_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2102/osfp12_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2101/osfp12_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2102/osfp12_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -441,13 +441,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "13",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2102/osfp13_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2103/osfp13_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2102/osfp13_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2103/osfp13_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -476,13 +476,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "14",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2103/osfp14_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2104/osfp14_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2103/osfp14_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2104/osfp14_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -511,13 +511,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "15",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2104/osfp15_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2105/osfp15_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2104/osfp15_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2105/osfp15_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -546,13 +546,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "16",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2105/osfp16_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2106/osfp16_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2105/osfp16_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2106/osfp16_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -581,13 +581,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "17",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2106/osfp17_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2107/osfp17_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2106/osfp17_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2107/osfp17_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -616,13 +616,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "18",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2107/osfp18_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2108/osfp18_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2107/osfp18_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2108/osfp18_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -651,13 +651,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "19",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2108/osfp19_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2109/osfp19_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2108/osfp19_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2109/osfp19_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -686,13 +686,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "20",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2109/osfp20_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2110/osfp20_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2109/osfp20_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2110/osfp20_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -721,13 +721,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "21",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2100/osfp21_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2111/osfp21_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2100/osfp21_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2111/osfp21_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -756,13 +756,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "22",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2111/osfp22_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2112/osfp22_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2111/osfp22_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2112/osfp22_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -791,13 +791,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "23",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2112/osfp23_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2113/osfp23_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2112/osfp23_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2113/osfp23_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -826,13 +826,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "24",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2113/osfp24_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2114/osfp24_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2113/osfp24_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2114/osfp24_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -861,13 +861,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "25",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2114/osfp25_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2115/osfp25_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2114/osfp25_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2115/osfp25_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -896,13 +896,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "26",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2115/osfp26_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2116/osfp26_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2115/osfp26_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2116/osfp26_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -931,13 +931,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "27",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2116/osfp27_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2117/osfp27_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2116/osfp27_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2117/osfp27_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -966,13 +966,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "28",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2117/osfp28_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2118/osfp28_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2117/osfp28_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2118/osfp28_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1001,13 +1001,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "29",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2118/osfp29_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2119/osfp29_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2118/osfp29_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2119/osfp29_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1036,13 +1036,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "30",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2119/osfp30_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2120/osfp30_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2119/osfp30_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2120/osfp30_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1071,13 +1071,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "31",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2120/osfp31_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2121/osfp31_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2120/osfp31_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2121/osfp31_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1106,13 +1106,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "32",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2121/osfp32_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2122/osfp32_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2121/osfp32_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2122/osfp32_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1141,13 +1141,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "33",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2122/osfp33_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2123/osfp33_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2122/osfp33_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2123/osfp33_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1176,13 +1176,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "34",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2123/osfp34_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2124/osfp34_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2123/osfp34_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2124/osfp34_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1211,13 +1211,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "35",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2124/osfp35_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2125/osfp35_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2124/osfp35_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2125/osfp35_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1246,13 +1246,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "36",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2125/osfp36_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2126/osfp36_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2125/osfp36_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2126/osfp36_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1281,13 +1281,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "37",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2126/osfp37_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2127/osfp37_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2126/osfp37_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2127/osfp37_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1316,13 +1316,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "38",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2127/osfp38_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2128/osfp38_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2127/osfp38_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.osfp_xcvr.2128/osfp38_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
@@ -1351,13 +1351,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                 "controllerId": "39",
                 "type": 1,
                 "reset": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.qsfp_xcvr.2128/qsfp39_reset",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.qsfp_xcvr.2129/qsfp39_reset",
                   "mask": 1,
                   "gpioOffset": 0,
                   "resetHoldHi": 0
                 },
                 "presence": {
-                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.qsfp_xcvr.2128/qsfp39_present",
+                  "sysfsPath": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/scd.qsfp_xcvr.2129/qsfp39_present",
                   "mask": 1,
                   "gpioOffset": 0,
                   "presentHoldHi": 0
