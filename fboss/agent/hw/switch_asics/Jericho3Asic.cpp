@@ -48,12 +48,14 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
     case HwAsic::Feature::SAI_FEC_COUNTERS:
     case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
-    case HwAsic::Feature::DEBUG_COUNTER:
+    case HwAsic::Feature::BLACKHOLE_ROUTE_DROP_COUNTER:
     case HwAsic::Feature::ECN:
     case HwAsic::Feature::SAI_ECN_WRED:
     case HwAsic::Feature::QUEUE_ECN_COUNTER:
     case HwAsic::Feature::MANAGEMENT_PORT:
     case HwAsic::Feature::ANY_ACL_DROP_COUNTER:
+    case HwAsic::Feature::EGRESS_FORWARDING_DROP_COUNTER:
+    case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
       return true;
     // Features not expected to work on SIM
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
@@ -160,6 +162,9 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ECMP_HASH_V4:
     case HwAsic::Feature::ECMP_HASH_V6:
     case HwAsic::Feature::TRAFFIC_HASHING:
+    case HwAsic::Feature::PORT_WRED_COUNTER:
+    case HwAsic::Feature::ACL_METADATA_QUALIFER:
+    case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
       return false;
   }
   return false;

@@ -75,7 +75,8 @@ class HwPacketSendReceiveTest : public HwLinkStateDependentTest {
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = utility::onePortPerInterfaceConfig(
         getHwSwitch(), masterLogicalPortIds());
-    utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
+    utility::setDefaultCpuTrafficPolicyConfig(
+        cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     utility::addCpuQueueConfig(cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     return cfg;
   }
@@ -108,11 +109,14 @@ class HwPacketSendReceiveLagTest : public HwPacketSendReceiveTest {
  protected:
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = utility::oneL3IntfTwoPortConfig(
-        getHwSwitch(),
+        getHwSwitch()->getPlatform()->getPlatformMapping(),
+        getHwSwitch()->getPlatform()->getAsic(),
         masterLogicalPortIds()[0],
         masterLogicalPortIds()[1],
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
         getAsic()->desiredLoopbackModes());
-    utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
+    utility::setDefaultCpuTrafficPolicyConfig(
+        cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     utility::addCpuQueueConfig(cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     std::vector<int32_t> ports{
         masterLogicalPortIds()[0], masterLogicalPortIds()[1]};
@@ -142,8 +146,10 @@ class HwPacketFloodTest : public HwLinkStateDependentTest {
         getHwSwitch()->getPlatform()->getPlatformMapping(),
         getHwSwitch()->getPlatform()->getAsic(),
         getLogicalPortIDs(),
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
         getAsic()->desiredLoopbackModes());
-    utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
+    utility::setDefaultCpuTrafficPolicyConfig(
+        cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     utility::addCpuQueueConfig(cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     return cfg;
   }

@@ -31,15 +31,17 @@ class HwQueuePerHostL2Test : public HwLinkStateDependentTest {
  protected:
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = utility::oneL3IntfTwoPortConfig(
-        getHwSwitch(),
+        getHwSwitch()->getPlatform()->getPlatformMapping(),
+        getHwSwitch()->getPlatform()->getAsic(),
         masterLogicalPortIds()[0],
         masterLogicalPortIds()[1],
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
         getAsic()->desiredLoopbackModes());
     cfg.switchSettings()->l2LearningMode() = cfg::L2LearningMode::SOFTWARE;
 
     if (isSupported(HwAsic::Feature::L3_QOS)) {
       utility::addQueuePerHostQueueConfig(&cfg);
-      utility::addQueuePerHostAcls(&cfg);
+      utility::addQueuePerHostAcls(&cfg, getHwSwitchEnsemble()->isSai());
     }
 
     return cfg;

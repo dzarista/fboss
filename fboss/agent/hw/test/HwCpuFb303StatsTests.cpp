@@ -70,7 +70,10 @@ HwPortStats getInitedStats() {
       {}, // macsec stats,
       0, // inLabelMissDiscards_
       {}, // queueWatermarkLevel
-      0 // inCongestionDiscards
+      0, // inCongestionDiscards
+      0, // inAclDiscards
+      0, // inTrapDiscards
+      0, // outForwardingDiscards
   };
 }
 

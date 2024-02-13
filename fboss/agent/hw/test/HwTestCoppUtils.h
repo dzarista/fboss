@@ -75,15 +75,13 @@ folly::CIDRNetwork kIPv6LinkLocalUcastNetwork();
 
 folly::CIDRNetwork kIPv6NdpSolicitNetwork();
 
-cfg::MatchAction createQueueMatchAction(
-    int queueId,
-    cfg::ToCpuAction toCpuAction);
+cfg::MatchAction
+createQueueMatchAction(int queueId, bool isSai, cfg::ToCpuAction toCpuAction);
 
-std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAcls(
-    const HwAsic* hwAsic,
-    cfg::SwitchConfig& config);
+std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>
+defaultCpuAcls(const HwAsic* hwAsic, cfg::SwitchConfig& config, bool isSai);
 
-uint16_t getNumDefaultCpuAcls(const HwAsic* hwAsic);
+uint16_t getNumDefaultCpuAcls(const HwAsic* hwAsic, bool isSai);
 
 std::string getMplsDestNoMatchCounterName(void);
 
@@ -102,9 +100,14 @@ void addMidPriAclForNw(
     cfg::ToCpuAction toCpuAction,
     std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls);
 
+void addLowPriAclForUnresolvedRoutes(
+    cfg::ToCpuAction toCpuAction,
+    std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls);
+
 void setDefaultCpuTrafficPolicyConfig(
     cfg::SwitchConfig& config,
-    const HwAsic* hwAsic);
+    const HwAsic* hwAsic,
+    bool isSai);
 
 cfg::StreamType getCpuDefaultStreamType(const HwAsic* hwAsic);
 
@@ -126,7 +129,8 @@ uint64_t getCpuQueueWatermarkBytes(HwPortStats& stats, int queueId);
 HwPortStats getCpuQueueStats(HwSwitch* hwSwitch);
 HwPortStats getCpuQueueWatermarkStats(HwSwitch* hwSwitch);
 std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueues(
-    const HwAsic* hwAsic);
+    const HwAsic* hwAsic,
+    bool isSai);
 
 void setPortQueueSharedBytes(cfg::PortQueue& queue, bool isSai);
 
@@ -184,6 +188,16 @@ void verifyCoppInvariantHelper(
     PortID srcPort);
 
 void setTTLZeroCpuConfig(const HwAsic* hwAsic, cfg::SwitchConfig& config);
+
+void addTrafficCounter(
+    cfg::SwitchConfig* config,
+    const std::string& counterName,
+    std::optional<std::vector<cfg::CounterType>> counterTypes);
+
+cfg::MatchAction getToQueueAction(
+    const int queueId,
+    bool isSai,
+    const std::optional<cfg::ToCpuAction> toCpuAction = std::nullopt);
 
 } // namespace utility
 } // namespace facebook::fboss

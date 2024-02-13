@@ -141,6 +141,14 @@ inline folly::StringPiece constexpr kInLabelMissDiscards() {
   return "in_label_miss_discards";
 }
 
+inline folly::StringPiece constexpr kInAclDiscards() {
+  return "in_acl_discards";
+}
+
+inline folly::StringPiece constexpr kInTrapDiscards() {
+  return "in_trap_discards";
+}
+
 inline folly::StringPiece constexpr kWredDroppedPackets() {
   return "wred_dropped_packets";
 }
@@ -270,5 +278,9 @@ inline folly::StringPiece constexpr kOutMacsecCurrentXpn() {
 
 inline folly::StringPiece constexpr kInCongestionDiscards() {
   return "in_congestion_discards";
+}
+
+inline folly::StringPiece constexpr kOutForwardingDiscards() {
+  return "out_forwarding_discards";
 }
 } // namespace facebook::fboss

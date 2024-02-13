@@ -90,7 +90,7 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
       bool transaction,
       const std::shared_ptr<SwitchState>& newState) override;
 
-  CpuPortStats getCpuPortStats() const override;
+  CpuPortStats getCpuPortStats(bool getIncrement) const override;
 
   std::map<PortID, FabricEndpoint> getFabricConnectivity() const override;
 
@@ -147,6 +147,12 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
   bool waitForOperDeltaReady(
       std::unique_lock<std::mutex>& lk,
       uint64_t timeoutInSec);
+  void fillMultiswitchOperDelta(
+      multiswitch::StateOperDelta& stateDelta,
+      const std::shared_ptr<SwitchState>& state,
+      const fsdb::OperDelta& delta,
+      bool transaction,
+      int64_t lastSeqNum);
 
   SwSwitch* sw_;
   std::condition_variable stateUpdateCV_;

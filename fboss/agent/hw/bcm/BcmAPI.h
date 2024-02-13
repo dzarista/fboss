@@ -18,7 +18,7 @@
 #include <string>
 
 #include <folly/Range.h>
-#include <folly/experimental/StringKeyedUnorderedMap.h>
+#include <folly/container/F14Map.h>
 #include <yaml-cpp/yaml.h>
 
 // defined in fboss/agent/hw/bcm/BcmUnit.cpp
@@ -166,7 +166,7 @@ class BcmAPI {
   /*
    * SDK6 bcm config map.
    */
-  typedef folly::StringKeyedUnorderedMap<std::string> HwConfigMap;
+  typedef folly::F14NodeMap<std::string, std::string> HwConfigMap;
   static HwConfigMap& getHwConfig();
 
   static bool isHwInSimMode();

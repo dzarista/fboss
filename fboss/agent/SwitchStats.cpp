@@ -339,5 +339,8 @@ InterfaceStats* FOLLY_NULLABLE SwitchStats::intf(InterfaceID intfID) {
 
 void SwitchStats::fillAgentStats(AgentStats& agentStats) const {
   agentStats.linkFlaps() = getCumulativeValue(linkStateChange_);
+  agentStats.trappedPktsDropped() = getCumulativeValue(trapPktDrops_);
+  agentStats.threadHeartBeatMiss() =
+      getCumulativeValue(threadHeartbeatMissCount_);
 }
 } // namespace facebook::fboss

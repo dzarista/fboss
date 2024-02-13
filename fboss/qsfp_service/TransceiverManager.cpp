@@ -443,7 +443,12 @@ void TransceiverManager::doTransceiverFirmwareUpgrade(TransceiverID tcvrID) {
   } else {
     failedOpticsFwUpgradeCount_++;
   }
-  updateStateInFsdb(false);
+  // We will leave the fwUpgradeStatus as true for now because we still have a
+  // lot to do after upgrading the firmware. The optic goes through reset, the
+  // state machine goes back to discovered state. IPHY + XPHY ports get
+  // programmed again, Optic itself gets programmed again. Therefore, we'll set
+  // the fwUpgradeInProgress status to false after we are truly done getting the
+  // optic ready after fw upgrade
 }
 
 TransceiverManager::TransceiverToStateMachineHelper
@@ -509,6 +514,9 @@ void TransceiverManager::startThreads() {
             kStateMachineThreadHeartbeatMissed,
             stateMachineThreadHeartbeatMissedCount_);
       });
+  // Initialize the kStateMachineThreadHeartbeatMissed counter
+  tcData().setCounter(kStateMachineThreadHeartbeatMissed, 0);
+  // Start monitoring the heartbeats of all the threads
   for (auto heartbeat : heartbeats_) {
     heartbeatWatchdog_->startMonitoringHeartbeat(heartbeat);
   }

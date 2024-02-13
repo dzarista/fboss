@@ -138,23 +138,13 @@ struct ThriftSetFields {
   }
 
   bool remove(const std::string& token) {
+    // avoid infinite recursion in case key is string
     if constexpr (std::is_same_v<
                       ValueTypeClass,
-                      apache::thrift::type_class::enumeration>) {
-      // special handling for enum keyed maps
-      ValueTType enumVal;
-      if (fatal::enum_traits<ValueTType>::try_parse(enumVal, token)) {
-        return remove(enumVal);
-      }
-    } else if constexpr (std::is_same_v<
-                             ValueTypeClass,
-                             apache::thrift::type_class::string>) {
+                      apache::thrift::type_class::string>) {
       return erase(token);
-    }
-
-    auto value = folly::tryTo<ValueTType>(token);
-    if (value.hasValue()) {
-      return remove(value.value());
+    } else if (auto key = tryParseKey<ValueTType, ValueTypeClass>(token)) {
+      return remove(key.value());
     }
 
     return false;
@@ -237,7 +227,8 @@ struct ThriftSetFields {
 template <typename TypeClass, typename TType>
 class ThriftSetNode : public NodeBaseT<
                           ThriftSetNode<TypeClass, TType>,
-                          ThriftSetFields<TypeClass, TType>> {
+                          ThriftSetFields<TypeClass, TType>>,
+                      public thrift_cow::Serializable {
  public:
   using TC = TypeClass;
   using Self = ThriftSetNode<TypeClass, TType>;
@@ -275,19 +266,12 @@ class ThriftSetNode : public NodeBaseT<
   }
 #endif
 
-  folly::fbstring encode(fsdb::OperProtocol proto) const {
-    return this->getFields()->encode(proto);
-  }
-
-  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const {
+  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const override {
     return this->getFields()->encodeBuf(proto);
   }
 
-  void fromEncoded(fsdb::OperProtocol proto, const folly::fbstring& encoded) {
-    return this->writableFields()->fromEncoded(proto, encoded);
-  }
-
-  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded) {
+  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded)
+      override {
     return this->writableFields()->fromEncodedBuf(proto, std::move(encoded));
   }
 
@@ -381,27 +365,16 @@ class ThriftSetNode : public NodeBaseT<
   }
 
   void modify(const std::string& token) {
-    if constexpr (std::is_same_v<
-                      typename Fields::ValueTypeClass,
-                      apache::thrift::type_class::enumeration>) {
-      // special handling for enum keyed maps
-      ValueTType enumVal;
-      if (fatal::enum_traits<ValueTType>::try_parse(enumVal, token)) {
-        modifyImpl(enumVal);
-        return;
-      }
-    }
-
-    auto value = folly::tryTo<ValueTType>(token);
-    if (value.hasValue()) {
-      modifyImpl(value.value());
+    if (auto value =
+            tryParseKey<ValueTType, typename Fields::ValueTypeClass>(token)) {
+      modifyTyped(value.value());
       return;
     }
 
     throw std::runtime_error(folly::to<std::string>("Invalid key: ", token));
   }
 
-  void modifyImpl(const ValueTType& value) {
+  virtual void modifyTyped(const ValueTType& value) {
     DCHECK(!this->isPublished());
     if (auto it = this->find(value); it == this->end()) {
       this->emplace(value);
@@ -412,31 +385,6 @@ class ThriftSetNode : public NodeBaseT<
     auto newNode = ((*node)->isPublished()) ? (*node)->clone() : *node;
     newNode->modify(token);
     node->swap(newNode);
-  }
-
-  /*
-   * Visitors by string path
-   */
-
-  template <typename Func>
-  inline ThriftTraverseResult
-  visitPath(PathIter begin, PathIter end, Func&& f) {
-    return PathVisitor<TypeClass>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
-  }
-
-  template <typename Func>
-  inline ThriftTraverseResult visitPath(PathIter begin, PathIter end, Func&& f)
-      const {
-    return PathVisitor<TypeClass>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
-  }
-
-  template <typename Func>
-  inline ThriftTraverseResult cvisitPath(PathIter begin, PathIter end, Func&& f)
-      const {
-    return PathVisitor<TypeClass>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
   }
 
  private:

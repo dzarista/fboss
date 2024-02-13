@@ -34,26 +34,15 @@ namespace facebook::fboss {
 void runBenchmark() {
   AgentEnsembleSwitchConfigFn initialConfigFn =
       [](const AgentEnsemble& ensemble) {
-        // Before m-mpu agent test, use first Asic for initialization.
-        auto switchIds = ensemble.getSw()->getHwAsicTable()->getSwitchIDs();
-        CHECK_GE(switchIds.size(), 1);
-        auto asic =
-            ensemble.getSw()->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
         return utility::onePortPerInterfaceConfig(
-            ensemble.getSw()->getPlatformMapping(),
-            asic,
-            ensemble.masterLogicalPortIds(),
-            asic->desiredLoopbackModes());
+            ensemble.getSw(), ensemble.masterLogicalPortIds());
         ;
       };
   auto ensemble = createAgentEnsemble(initialConfigFn);
 
   utility::RouteDistributionGenerator::ThriftRouteChunks routeChunks;
-  // TODO(zecheng): Deprecate ensemble access to platform
-  auto platform =
-      static_cast<MonolithicAgentInitializer*>(ensemble->agentInitializer())
-          ->platform();
-  if (platform->getType() == PlatformType::PLATFORM_WEDGE) {
+  auto platformType = ensemble->getSw()->getPlatformType();
+  if (platformType == PlatformType::PLATFORM_WEDGE) {
     routeChunks = utility::RouteDistributionGenerator(
                       ensemble->getProgrammedState(),
                       // Distribution taken from a random wedge in fleet

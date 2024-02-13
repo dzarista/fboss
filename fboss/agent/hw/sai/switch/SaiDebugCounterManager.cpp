@@ -27,9 +27,15 @@ namespace facebook::fboss {
 void SaiDebugCounterManager::setupDebugCounters() {
   setupPortL3BlackHoleCounter();
   setupMPLSLookupFailedCounter();
+  setupAclDropCounter();
+  setupEgressForwardingDropCounter();
 }
 
 void SaiDebugCounterManager::setupPortL3BlackHoleCounter() {
+  if (!platform_->getAsic()->isSupported(
+          HwAsic::Feature::BLACKHOLE_ROUTE_DROP_COUNTER)) {
+    return;
+  }
   SaiDebugCounterTraits::CreateAttributes attrs{
       SAI_DEBUG_COUNTER_TYPE_PORT_IN_DROP_REASONS,
       SAI_DEBUG_COUNTER_BIND_METHOD_AUTOMATIC,
@@ -67,5 +73,60 @@ void SaiDebugCounterManager::setupMPLSLookupFailedCounter() {
           mplsLookupFailCounter_->adapterKey(),
           SaiDebugCounterTraits::Attributes::Index{});
 #endif
+}
+
+void SaiDebugCounterManager::setupAclDropCounter() {
+  if (!platform_->getAsic()->isSupported(
+          HwAsic::Feature::ANY_ACL_DROP_COUNTER)) {
+    return;
+  }
+  SaiDebugCounterTraits::CreateAttributes attrs{
+      SAI_DEBUG_COUNTER_TYPE_PORT_IN_DROP_REASONS,
+      SAI_DEBUG_COUNTER_BIND_METHOD_AUTOMATIC,
+      SaiDebugCounterTraits::Attributes::InDropReasons{
+          {SAI_IN_DROP_REASON_ACL_ANY}}};
+  auto& debugCounterStore = saiStore_->get<SaiDebugCounterTraits>();
+  aclDropCounter_ = debugCounterStore.setObject(attrs, attrs);
+  aclDropCounterStatId_ = SAI_SWITCH_STAT_IN_DROP_REASON_RANGE_BASE +
+      SaiApiTable::getInstance()->debugCounterApi().getAttribute(
+          aclDropCounter_->adapterKey(),
+          SaiDebugCounterTraits::Attributes::Index{});
+}
+
+void SaiDebugCounterManager::setupTrapDropCounter() {
+  if (!platform_->getAsic()->isSupported(
+          HwAsic::Feature::ANY_TRAP_DROP_COUNTER)) {
+    return;
+  }
+  // TODO
+}
+
+void SaiDebugCounterManager::setupEgressForwardingDropCounter() {
+  if (!platform_->getAsic()->isSupported(
+          HwAsic::Feature::EGRESS_FORWARDING_DROP_COUNTER)) {
+    return;
+  }
+  // TODO
+}
+
+std::set<sai_stat_id_t> SaiDebugCounterManager::getConfiguredDebugStatIds()
+    const {
+  std::set<sai_stat_id_t> stats;
+  if (portL3BlackHoleCounter_) {
+    stats.insert(portL3BlackHoleCounterStatId_);
+  }
+  if (mplsLookupFailCounter_) {
+    stats.insert(mplsLookupFailCounterStatId_);
+  }
+  if (aclDropCounter_) {
+    stats.insert(aclDropCounterStatId_);
+  }
+  if (trapDropCounter_) {
+    stats.insert(trapDropCounterStatId_);
+  }
+  if (egressForwardingDropCounter_) {
+    stats.insert(egressForwardingDropCounterStatId_);
+  }
+  return stats;
 }
 } // namespace facebook::fboss

@@ -144,6 +144,8 @@ class MockHwSwitch : public HwSwitch {
  private:
   MOCK_METHOD1(switchRunStateChangedImpl, void(SwitchRunState newState));
   MOCK_METHOD0(initialStateApplied, void());
+  MOCK_METHOD0(syncLinkStates, void());
+  MOCK_METHOD0(syncLinkActiveStates, void());
 
   MockPlatform* platform_;
 

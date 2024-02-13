@@ -37,6 +37,10 @@
 
 #include <fmt/ranges.h>
 
+#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#include <experimental/saiportextensions.h>
+#endif
+
 DEFINE_bool(
     sai_configure_six_tap,
     false,
@@ -288,6 +292,12 @@ void fillHwPortStats(
       }
 #endif
       default:
+        auto configuredDebugCounters =
+            debugCounterManager.getConfiguredDebugStatIds();
+        if (configuredDebugCounters.find(counterId) ==
+            configuredDebugCounters.end()) {
+          throw FbossError("Got unexpected port counter id: ", counterId);
+        }
         if (counterId ==
             debugCounterManager.getPortL3BlackHoleCounterStatId()) {
           hwPortStats.inDstNullDiscards_() = value;
@@ -295,8 +305,17 @@ void fillHwPortStats(
             counterId ==
             debugCounterManager.getMPLSLookupFailedCounterStatId()) {
           hwPortStats.inLabelMissDiscards_() = value;
+        } else if (counterId == debugCounterManager.getAclDropCounterStatId()) {
+          hwPortStats.inAclDiscards_() = value;
+        } else if (
+            counterId == debugCounterManager.getTrapDropCounterStatId()) {
+          hwPortStats.inTrapDiscards_() = value;
+        } else if (
+            counterId == debugCounterManager.getEgressForwardingDropStatId()) {
+          hwPortStats.outForwardingDiscards_() = value;
         } else {
-          throw FbossError("Got unexpected port counter id: ", counterId);
+          XLOG(FATAL)
+              << " Should never get here, check configured debugCounterStatIds";
         }
         break;
     }
@@ -674,6 +693,7 @@ void SaiPortManager::programPfcWatchdogTimers(
     const bool portPfcWdEnabled) {
   auto portHandle = getPortHandle(swPort->getID());
   CHECK(portHandle);
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
   uint32_t recoveryTimeMsecs = 0;
   uint32_t detectionTimeMsecs = 0;
   if (portPfcWdEnabled) {
@@ -681,7 +701,6 @@ void SaiPortManager::programPfcWatchdogTimers(
     recoveryTimeMsecs = *swPort->getPfc()->watchdog()->recoveryTimeMsecs();
     detectionTimeMsecs = *swPort->getPfc()->watchdog()->detectionTimeMsecs();
   }
-#if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
   // Set deadlock detection timer interval for PFC queues
   auto pfcDldTimerMap =
       preparePfcDeadlockQueueTimers(enabledPfcPriorities, detectionTimeMsecs);
@@ -1202,11 +1221,12 @@ bool SaiPortManager::createOnlyAttributeChanged(
 
 cfg::PortType SaiPortManager::derivePortTypeOfLogicalPort(
     PortSaiId portSaiId) const {
-  // TODO: As of now, SAI does not have a MANAGEMENT port type, so all NIF
-  // ports, MANAGEMENT+INTERFACE are reported as LOGICAL ports.  Using the
-  // below logic as per suggestion in CS00012332892 to differentiate
-  // MANAGEMENT from INTERFACE ports, needed for J3 / TH5. Eventual goal is
-  // to use a new port type in SAI to identify management ports.
+  // TODO: An extension attribute has been added for MANAGEMENT port type,
+  // however, its available in 11.0 onwards and addresses the needs on J3.
+  // MANAGEMENT+INTERFACE are reported as LOGICAL ports on rest of the SAI
+  // SDK.  Using the below logic as per suggestion in CS00012332892 to
+  // differentiate MANAGEMENT from INTERFACE ports, needed for TH5. Eventual
+  // goal is to use a new port type in SAI to identify management ports.
   if (platform_->getAsic()->isSupported(HwAsic::Feature::MANAGEMENT_PORT) &&
       platform_->getAsic()->isSupported(HwAsic::Feature::PFC)) {
     auto numIngressPriorities =
@@ -1273,6 +1293,11 @@ std::shared_ptr<Port> SaiPortManager::swPortFromAttributes(
     case SAI_PORT_TYPE_LOGICAL:
       port->setPortType(derivePortTypeOfLogicalPort(portSaiId));
       break;
+#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+    case SAI_PORT_TYPE_MGMT:
+      port->setPortType(cfg::PortType::MANAGEMENT_PORT);
+      break;
+#endif
     case SAI_PORT_TYPE_FABRIC:
       port->setPortType(cfg::PortType::FABRIC_PORT);
       break;
@@ -1639,22 +1664,20 @@ void SaiPortManager::clearStats(PortID port) {
     return;
   }
   auto statsToClear = supportedStats(port);
-  if (platform_->getAsic()->isSupported(HwAsic::Feature::DEBUG_COUNTER)) {
-    // Debug counters are implemented differently than regular port counters
-    // and not all implementations support clearing them. For our use case
-    // it doesn't particularly matter if we can't clear them. So prune the
-    // debug counter clear for now.
-    auto debugCounterId =
-        managerTable_->debugCounterManager().getPortL3BlackHoleCounterStatId();
-    statsToClear.erase(
-        std::remove_if(
-            statsToClear.begin(),
-            statsToClear.end(),
-            [debugCounterId](auto counterId) {
-              return counterId == debugCounterId;
-            }),
-        statsToClear.end());
-  }
+  // Debug counters are implemented differently than regular port counters
+  // and not all implementations support clearing them. For our use case
+  // it doesn't particularly matter if we can't clear them. So prune the
+  // debug counter clear for now.
+  auto skipClear =
+      managerTable_->debugCounterManager().getConfiguredDebugStatIds();
+  statsToClear.erase(
+      std::remove_if(
+          statsToClear.begin(),
+          statsToClear.end(),
+          [&skipClear](auto counterId) {
+            return skipClear.find(counterId) != skipClear.end();
+          }),
+      statsToClear.end());
   portHandle->port->clearStats(statsToClear);
   managerTable_->queueManager().clearStats(portHandle->configuredQueues);
 }
@@ -2470,6 +2493,13 @@ void SaiPortManager::changeZeroPreemphasis(
           "Cannot set zero preemphasis on non existent port: ",
           newPort->getID());
     }
+    // TH4 and TH5 not yet supporting setting zero three-tap values
+    if (platform_->getAsic()->getAsicType() ==
+            cfg::AsicType::ASIC_TYPE_TOMAHAWK4 ||
+        platform_->getAsic()->getAsicType() ==
+            cfg::AsicType::ASIC_TYPE_TOMAHAWK5) {
+      return;
+    }
     auto gotAttributes = portHandle->port->attributes();
     auto numLanes =
         std::get<SaiPortTraits::Attributes::HwLaneList>(gotAttributes)
@@ -2487,14 +2517,27 @@ void SaiPortManager::changeZeroPreemphasis(
         attr = val;
       }
     };
-    auto preemphasisVal =
-        std::vector<uint32_t>(numLanes, static_cast<uint32_t>(0));
+    auto zeroVal = std::vector<uint32_t>(numLanes, static_cast<uint32_t>(0));
     if (platform_->getAsic()->isSupported(
-            HwAsic::Feature::SAI_PORT_SERDES_FIELDS_RESET)) {
+            HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS)) {
       setTxRxAttr(
           serDesAttributes,
           SaiPortSerdesTraits::Attributes::Preemphasis{},
-          preemphasisVal);
+          zeroVal);
+    } else {
+      // Set three-tap values to zero
+      setTxRxAttr(
+          serDesAttributes,
+          SaiPortSerdesTraits::Attributes::TxFirPre1{},
+          zeroVal);
+      setTxRxAttr(
+          serDesAttributes,
+          SaiPortSerdesTraits::Attributes::TxFirMain{},
+          zeroVal);
+      setTxRxAttr(
+          serDesAttributes,
+          SaiPortSerdesTraits::Attributes::TxFirPost1{},
+          zeroVal);
     }
     if (platform_->isSerdesApiSupported() &&
         platform_->getAsic()->isSupported(

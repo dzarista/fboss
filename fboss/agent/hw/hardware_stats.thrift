@@ -82,6 +82,9 @@ struct HwPortStats {
   53: i64 inLabelMissDiscards_ = STAT_UNINITIALIZED;
   54: map<i16, i64> queueWatermarkLevel_ = {};
   55: i64 inCongestionDiscards_ = STAT_UNINITIALIZED;
+  56: optional i64 inAclDiscards_;
+  57: optional i64 inTrapDiscards_;
+  58: optional i64 outForwardingDiscards_;
 }
 
 struct HwSysPortStats {
