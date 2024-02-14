@@ -17,7 +17,7 @@
       "postUpgradeCmd" : ""
     },
     "meru_smb_cpld" : {
-      "preUpgradeCmd" : "eeprom_tmp_path=/tmp/meru_scm_meta_eeprom;dd if=/run/devmap/eeproms/MERU_SCM_EEPROM of=$eeprom_tmp_path skip=15 bs=1024 count=1;if [ $? != 0 ]; then echo 'product not supported';exit 1;fi;product_ver=$(weutil --path $eeprom_tmp_path | grep 'Product Version' | cut -d ':' -f 2);product_sub_ver=$(weutil --path $eeprom_tmp_path | grep 'Product Sub-Version' | cut -d ':' -f 2);if [ $product_ver -ne 1 ] || [ $product_sub_ver -ne 0 ];then echo 'product not supported';exit 1;fi;echo 1 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable",
+      "preUpgradeCmd" : "eeprom_tmp_path=/tmp/meru_scm_meta_eeprom;dd if=/run/devmap/eeproms/MERU800BFA_SMB_EEPROM of=$eeprom_tmp_path skip=15 bs=1024 count=1;if [ $? != 0 ]; then echo 'product not supported';exit 1;fi;product_ver=$(weutil --path $eeprom_tmp_path | grep 'Product Version' | cut -d ':' -f 2);product_sub_ver=$(weutil --path $eeprom_tmp_path | grep 'Product Sub-Version' | cut -d ':' -f 2);if [ $product_ver -ne 1 ] || [ $product_sub_ver -ne 0 ];then echo 'product not supported';exit 1;fi;echo 1 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable",
       "getVersionCmd" : "smb_cpld_ver=$((`head -1 /run/devmap/cplds/MERU800BFA_SMB_CPLD/cpld_ver`));smb_cpld_subver=$((`head -1 /run/devmap/cplds/MERU800BFA_SMB_CPLD/cpld_sub_ver`));echo $smb_cpld_ver'.'$smb_cpld_subver",
       "priority" : 3,
       "upgradeCmd" : "smb_cpld_filename=$(head -n 1 /home/meru_smb_cpld_filename.txt);/usr/bin/jam -aprogram -fmeru_switch_cpld -v $smb_cpld_filename",
