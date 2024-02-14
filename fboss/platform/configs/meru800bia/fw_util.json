@@ -24,7 +24,7 @@
       "postUpgradeCmd" : ""
     },
     "meru_fan_cpld": {
-      "preUpgradeCmd" : "eeprom_tmp_path=/home/meru_meta_eeprom;dd if=/run/devmap/eeproms/MERU_SCM_EEPROM of=$eeprom_tmp_path skip=15 bs=1024 count=1;if [ $? != 0 ]; then echo 'product not supported';exit 1;fi;product_ver=$(weutil --path $eeprom_tmp_path | grep 'Product Version' | cut -d ':' -f 2);product_sub_ver=$(weutil --path $eeprom_tmp_path | grep 'Product Sub-Version' | cut -d ':' -f 2);if ( [ $product_ver -ne 1 ] && [ $product_ver -ne 2 ] ) || [ $product_sub_ver -ne 0 ];then echo 'product not supported';exit 1;fi;echo 1 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable",
+      "preUpgradeCmd" : "eeprom_tmp_path=/home/meru_meta_eeprom;dd if=/run/devmap/eeproms/MERU800BIA_SMB_EEPROM of=$eeprom_tmp_path skip=15 bs=1024 count=1;if [ $? != 0 ]; then echo 'product not supported';exit 1;fi;product_ver=$(weutil --path $eeprom_tmp_path | grep 'Product Version' | cut -d ':' -f 2);product_sub_ver=$(weutil --path $eeprom_tmp_path | grep 'Product Sub-Version' | cut -d ':' -f 2);if ( [ $product_ver -ne 1 ] && [ $product_ver -ne 2 ] ) || [ $product_sub_ver -ne 0 ];then echo 'product not supported';exit 1;fi;echo 1 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable",
       "getVersionCmd" : "fan_cpld_ver=$((`cat /run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/cpld_ver`));fan_cpld_subver=$((`cat /run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/cpld_sub_ver`));echo $fan_cpld_ver'.'$fan_cpld_subver",
       "priority" : 4,
       "upgradeCmd" : "fan_cpld_filename=$(head -n 1 /home/meru_fan_cpld_filename.txt);/usr/bin/jam -aprogram -fmeru_fan_cpld -v $fan_cpld_filename",
