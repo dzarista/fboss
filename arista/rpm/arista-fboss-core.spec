@@ -29,6 +29,7 @@ find %{SOURCEURL0}/%{_fboss_build_dir} -maxdepth 1 -type f -executable -exec cp 
 mkdir -p %{_fboss_target_bin}
 cp -rf fboss_bins-*/* %{_fboss_target_opt}
 cp -f scripts/fboss_init.sh %{_fboss_target_bin}
+cp -f scripts/run_platform_manager.sh %{_fboss_target_bin}
 cp -f scripts/run_fan_service.sh %{_fboss_target_bin}
 cp -f scripts/run_sensor_service.sh %{_fboss_target_bin}
 cp -f scripts/run_qsfp_service.sh %{_fboss_target_bin}
@@ -38,6 +39,7 @@ cp -f scripts/fboss-state-sync.py %{_fboss_target_bin}
 
 # Install systemd services.
 mkdir -p %{_fboss_target_systemd}
+install systemd/platform_manager.service %{_fboss_target_systemd}
 install systemd/data_corral_service.service %{_fboss_target_systemd}
 install systemd/sensor_service.service %{_fboss_target_systemd}
 install systemd/fan_service.service %{_fboss_target_systemd}
