@@ -9,6 +9,7 @@ cpp_include "folly/FBString.h"
 
 include "fboss/agent/hw/hardware_stats.thrift"
 include "thrift/annotation/cpp.thrift"
+include "fboss/lib/phy/phy.thrift"
 
 struct AgentStats {
   @cpp.Type{template = "folly::F14FastMap"}
@@ -26,4 +27,7 @@ struct AgentStats {
   13: map<i16, hardware_stats.HwBufferPoolStats> bufferPoolStatsMap;
   14: map<i16, map<string, hardware_stats.HwSysPortStats>> sysPortStatsMap;
   15: map<i16, hardware_stats.HwSwitchDropStats> switchDropStatsMap;
+  16: hardware_stats.HwFlowletStats flowletStats;
+  17: map<string, phy.PhyStats> phyStats;
+  18: map<i16, hardware_stats.HwFlowletStats> flowletStatsMap;
 }

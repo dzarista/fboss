@@ -36,6 +36,8 @@
 #include "fboss/agent/gen-cpp2/switch_config_constants.h"
 #include "fboss/agent/rib/RoutingInformationBase.h"
 
+#include "fboss/agent/Utils.h"
+
 #include <folly/Memory.h>
 #include <folly/container/Enumerate.h>
 #include <folly/json.h>
@@ -87,22 +89,46 @@ void initSwSwitchWithFlags(SwSwitch* sw, SwitchFlags flags) {
   }
 }
 
-std::pair<unique_ptr<SwSwitch>, unique_ptr<MockPlatform>> createMockSw(
+std::pair<unique_ptr<SwSwitch>, std::vector<unique_ptr<MockPlatform>>>
+createMockSw(
     const shared_ptr<SwitchState>& state,
     SwitchFlags flags,
     cfg::SwitchConfig* config) {
-  std::unique_ptr<MockPlatform> platform;
-  if (state) {
-    const auto& switchSettings =
-        util::getFirstNodeIf(state->getSwitchSettings());
-    auto switchId = switchSettings->getSwitchIdToSwitchInfo().begin()->first;
-    platform =
-        createMockPlatform(switchSettings->getSwitchType(switchId), switchId);
-  } else {
-    platform = createMockPlatform();
+  std::vector<unique_ptr<MockPlatform>> platforms;
+
+  cfg::SwitchConfig switchCfg{};
+  if (config) {
+    switchCfg = *config;
   }
-  auto sw = setupMockSwitchWithoutHW(platform.get(), state, flags, config);
-  return std::make_pair(std::move(sw), std::move(platform));
+
+  std::map<int64_t, cfg::SwitchInfo> switchIdToSwitchInfo;
+  if (state) {
+    for (const auto& entry : std::as_const(*(state->getSwitchSettings()))) {
+      auto matcher = HwSwitchMatcher(entry.first);
+      auto setting = entry.second;
+      for (auto switchId : matcher.switchIds()) {
+        switchIdToSwitchInfo[switchId] =
+            createSwitchInfo(setting->getSwitchType(switchId));
+      }
+    }
+  } else {
+    switchIdToSwitchInfo[0] = createSwitchInfo(cfg::SwitchType::NPU);
+  }
+  if (switchCfg.switchSettings()->switchIdToSwitchInfo()->empty()) {
+    switchCfg.switchSettings()->switchIdToSwitchInfo() = switchIdToSwitchInfo;
+    if (config) {
+      *config = switchCfg;
+    }
+  }
+
+  for (auto id2Info : *(switchCfg.switchSettings()->switchIdToSwitchInfo())) {
+    auto switchId = id2Info.first;
+    auto switchType = *(id2Info.second.switchType());
+    platforms.emplace_back(
+        createMockPlatform(switchType, switchId, &switchCfg));
+  }
+  auto swSwitch = setupMockSwitchWithoutHW(platforms, state, flags, &switchCfg);
+  return std::make_pair(std::move(swSwitch), std::move(platforms));
 }
 
 shared_ptr<SwitchState> setAllPortState(
@@ -110,9 +136,9 @@ shared_ptr<SwitchState> setAllPortState(
     bool up) {
   auto newState = in->clone();
   auto newPortMaps = newState->getPorts()->modify(&newState);
-  auto scopeResolver =
-      SwitchIdScopeResolver(util::getFirstNodeIf(newState->getSwitchSettings())
-                                ->getSwitchIdToSwitchInfo());
+  auto scopeResolver = SwitchIdScopeResolver(
+      utility::getFirstNodeIf(newState->getSwitchSettings())
+          ->getSwitchIdToSwitchInfo());
   for (auto portMap : *newPortMaps) {
     for (auto port : *portMap.second) {
       auto newPort = port.second->clone();
@@ -137,13 +163,18 @@ uint16_t recycleSysPortId(const cfg::DsfNode& node) {
   return *node.systemPortRange()->minimum() + 1;
 }
 
-void addRecyclePortRif(const cfg::DsfNode& myNode, cfg::SwitchConfig& cfg) {
+cfg::Interface getRecyclePortRif(const cfg::DsfNode& myNode) {
   cfg::Interface recyclePortRif;
   recyclePortRif.intfID() = recycleSysPortId(myNode);
   recyclePortRif.type() = cfg::InterfaceType::SYSTEM_PORT;
   for (const auto& address : getLoopbackIps(*myNode.switchId())) {
     recyclePortRif.ipAddresses()->push_back(address);
   }
+  return recyclePortRif;
+}
+
+void addRecyclePortRif(const cfg::DsfNode& myNode, cfg::SwitchConfig& cfg) {
+  cfg::Interface recyclePortRif = getRecyclePortRif(myNode);
   cfg.interfaces()->push_back(recyclePortRif);
 }
 
@@ -152,7 +183,7 @@ cfg::SwitchConfig testConfigFabricSwitch() {
   cfg::SwitchConfig cfg;
   cfg.ports()->resize(kPortCount);
   cfg.switchSettings()->switchIdToSwitchInfo() = {std::make_pair(
-      2,
+      20,
       createSwitchInfo(
           cfg::SwitchType::FABRIC,
           cfg::AsicType::ASIC_TYPE_MOCK,
@@ -174,7 +205,7 @@ cfg::SwitchConfig testConfigFabricSwitch() {
         cfg::PortProfileID::PROFILE_25G_1_NRZ_CL74_COPPER;
     cfg.ports()[p].portType() = cfg::PortType::FABRIC_PORT;
   }
-  auto myNode = makeDsfNodeCfg(2, cfg::DsfNodeType::FABRIC_NODE);
+  auto myNode = makeDsfNodeCfg(20, cfg::DsfNodeType::FABRIC_NODE);
   cfg.dsfNodes()->insert({*myNode.switchId(), myNode});
   cfg::DsfNode inNode = makeDsfNodeCfg(1);
   cfg.dsfNodes()->insert({*inNode.switchId(), inNode});
@@ -309,10 +340,118 @@ cfg::SwitchConfig testConfigAImpl(bool isMhnic, cfg::SwitchType switchType) {
       addRecyclePortRif(myNode, cfg);
       // Add a fabric node to DSF node as well. In prod DsfNode map will have
       // both IN and FN nodes
-      auto fnNode = makeDsfNodeCfg(2, cfg::DsfNodeType::FABRIC_NODE);
+      auto fnNode = makeDsfNodeCfg(20, cfg::DsfNodeType::FABRIC_NODE);
       cfg.dsfNodes()->insert({*fnNode.switchId(), fnNode});
     }
   }
+
+  return cfg;
+}
+
+cfg::SwitchConfig testConfigBImpl() {
+  cfg::SwitchConfig cfg;
+  static constexpr auto kPortCount = 16;
+  static constexpr auto kPortCountPerNpu = 8;
+  /*
+   * voq1 recycle rif [ 1(2,3,4)]
+   * voq1 [ 5(6,7,8), 9(10,11,12)]
+   * unused [13, 14, 15, 16]
+   * voq2 recycle rif [ 17(18,19,20)]
+   * voq2 [21(22,23,24), 25(26,27, 28)]
+   */
+
+  for (auto p = 0; p < kPortCount; p++) {
+    auto switchIndex = (p < kPortCountPerNpu) ? 0 : 1;
+    auto startOffset = (switchIndex == 0) ? 5 : 21;
+    auto portID = (p % kPortCountPerNpu) + startOffset;
+    cfg::Port port{};
+    port.logicalID() = portID;
+    bool isControllingPort = (p % 4 == 0);
+    if (isControllingPort) {
+      port.state() = cfg::PortState::ENABLED;
+      port.speed() = cfg::PortSpeed::HUNDREDG;
+      port.profileID() = cfg::PortProfileID::PROFILE_100G_4_NRZ_CL91_COPPER;
+    } else {
+      port.state() = cfg::PortState::DISABLED;
+      port.speed() = cfg::PortSpeed::TWENTYFIVEG;
+      port.profileID() = cfg::PortProfileID::PROFILE_25G_1_NRZ_CL74_COPPER;
+    }
+    cfg.ports()->push_back(port);
+  }
+
+  std::vector<cfg::Port> recyclePorts;
+  std::vector<cfg::Interface> recycleIntfs;
+  for (auto switchIndex = 0; switchIndex < 2; ++switchIndex) {
+    auto switchId = switchIndex + 1;
+    cfg::DsfNode myNode = makeDsfNodeCfg(switchId);
+    cfg.dsfNodes()->insert({*myNode.switchId(), myNode});
+    CHECK(myNode.systemPortRange().has_value());
+    auto minPort = (switchIndex == 0) ? 0 : 16;
+    auto maxPort = (switchIndex == 0) ? 12 : 28;
+    cfg.switchSettings()->switchIdToSwitchInfo()->emplace(std::make_pair(
+        switchId,
+        createSwitchInfo(
+            cfg::SwitchType::VOQ,
+            cfg::AsicType::ASIC_TYPE_MOCK,
+            minPort, /* port id range min */
+            maxPort, /* port id range max */
+            switchIndex, /* switchIndex */
+            *myNode.systemPortRange()->minimum(),
+            *myNode.systemPortRange()->maximum(),
+            "02:00:00:00:0F:0B", /* switchMac */
+            "68:00" /* connection handle */)));
+  }
+
+  auto switchId2SwitchInfo = *cfg.switchSettings()->switchIdToSwitchInfo();
+
+  for (auto switchIndex = 0; switchIndex < 2; ++switchIndex) {
+    auto minPort = (switchIndex == 0) ? 0 : 16;
+    cfg::DsfNode myNode = cfg.dsfNodes()->at(switchIndex + 1);
+    auto beginPortIndex = switchIndex * kPortCountPerNpu;
+    auto endPortIndex = beginPortIndex + kPortCountPerNpu;
+    for (auto index = beginPortIndex; index < endPortIndex; index++) {
+      const auto& port = cfg.ports()->at(index);
+      cfg::Interface intf;
+      auto intfId = getSystemPortID(
+          PortID(*port.logicalID()), switchId2SwitchInfo, switchIndex + 1);
+      XLOG(INFO) << "Port id : " << *port.logicalID()
+                 << ", intf id : " << intfId;
+      intf.intfID() = static_cast<int>(intfId);
+      intf.routerID() = 0;
+      intf.type() = cfg::InterfaceType::SYSTEM_PORT;
+      intf.name() = folly::sformat("fboss{}", static_cast<int>(intfId));
+      intf.mac() = "00:02:00:00:00:55";
+      intf.mtu() = 9000;
+      intf.ipAddresses()->resize(2);
+      intf.ipAddresses()[0] =
+          folly::sformat("2401:db00:2110:30{:02x}::1/64", *port.logicalID());
+      intf.ipAddresses()[1] = folly::sformat("10.0.{}.1/24", *port.logicalID());
+      cfg.interfaces()->push_back(intf);
+    }
+
+    cfg::Port recyclePort;
+    recyclePort.logicalID() = minPort + 1;
+    recyclePort.name() = folly::sformat("rcy{}/1/1", switchIndex + 1);
+    recyclePort.speed() = cfg::PortSpeed::HUNDREDG;
+    recyclePort.profileID() =
+        cfg::PortProfileID::PROFILE_100G_4_NRZ_CL91_COPPER;
+    recyclePort.portType() = cfg::PortType::RECYCLE_PORT;
+
+    recyclePorts.push_back(recyclePort);
+    auto recycleRif = getRecyclePortRif(myNode);
+    recycleIntfs.push_back(recycleRif);
+  }
+  for (auto recyclePort : recyclePorts) {
+    cfg.ports()->push_back(recyclePort);
+  }
+  for (auto recycleIntf : recycleIntfs) {
+    cfg.interfaces()->push_back(recycleIntf);
+  }
+
+  // Add a fabric node to DSF node as well. In prod DsfNode map will have
+  // both IN and FN nodes
+  auto fnNode = makeDsfNodeCfg(20, cfg::DsfNodeType::FABRIC_NODE);
+  cfg.dsfNodes()->insert({*fnNode.switchId(), fnNode});
 
   return cfg;
 }
@@ -383,6 +522,10 @@ cfg::DsfNode makeDsfNodeCfg(int64_t switchId, cfg::DsfNodeType type) {
 
 cfg::SwitchConfig testConfigA(cfg::SwitchType switchType) {
   return testConfigAImpl(false, switchType);
+}
+
+cfg::SwitchConfig testConfigB() {
+  return testConfigBImpl();
 }
 
 cfg::SwitchConfig testConfigAWithLookupClasses() {
@@ -476,7 +619,7 @@ std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
 
   if (config->switchSettings()->switchIdToSwitchInfo()->empty()) {
     if (state &&
-        util::getFirstNodeIf(state->getSwitchSettings())
+        utility::getFirstNodeIf(state->getSwitchSettings())
             ->getSwitchIdToSwitchInfo()
             .size()) {
       switchId = HwSwitchMatcher(state->getSwitchSettings()->cbegin()->first)
@@ -484,7 +627,7 @@ std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
       switchType =
           state->getSwitchSettings()->cbegin()->second->getSwitchType(switchId);
       config->switchSettings()->switchIdToSwitchInfo() =
-          util::getFirstNodeIf(state->getSwitchSettings())
+          utility::getFirstNodeIf(state->getSwitchSettings())
               ->getSwitchIdToSwitchInfo();
     } else {
       switchType = cfg::SwitchType::NPU;
@@ -538,13 +681,49 @@ std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
   return sw;
 }
 
+std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
+    const std::vector<std::unique_ptr<MockPlatform>>& platforms,
+    const std::shared_ptr<SwitchState>& state,
+    SwitchFlags flags,
+    cfg::SwitchConfig* config) {
+  if (platforms.size() == 1) {
+    return setupMockSwitchWithoutHW(platforms[0].get(), state, flags, config);
+  }
+
+  std::set<SwitchID> switchIds;
+  for (const auto& platform : platforms) {
+    switchIds.insert(SwitchID(platform->getAsic()->getSwitchId().value()));
+  }
+  auto swSwitch = createSwSwitchWithMultiSwitch(
+      platforms[0]->getConfig(), platforms[0]->getDirectoryUtil());
+  swSwitch->getHwSwitchHandler()->start();
+  for (auto switchId : switchIds) {
+    swSwitch->getHwSwitchHandler()->connected(switchId);
+  }
+  cfg::AgentConfig thrift;
+  thrift.sw() = *config;
+  auto multiSwitch =
+      std::make_pair<std::string, std::string>("multi_switch", "true");
+  thrift.defaultCommandLineArgs()->emplace(std::move(multiSwitch));
+  swSwitch->setConfig(std::make_unique<AgentConfig>(thrift));
+  swSwitch->init(SwitchFlags::DEFAULT);
+  swSwitch->applyConfig("initial config", *config);
+  swSwitch->initialConfigApplied(std::chrono::steady_clock::now());
+  return swSwitch;
+}
+
 unique_ptr<MockPlatform> createMockPlatform(
     cfg::SwitchType switchType,
-    int64_t switchId) {
+    int64_t switchId,
+    cfg::SwitchConfig* config) {
   auto mock = make_unique<testing::NiceMock<MockPlatform>>();
   cfg::AgentConfig thrift;
-  thrift.sw()->switchSettings()->switchIdToSwitchInfo() = {
-      std::make_pair(switchId, createSwitchInfo(switchType))};
+  if (config) {
+    thrift.sw() = *config;
+  } else {
+    thrift.sw()->switchSettings()->switchIdToSwitchInfo() = {
+        std::make_pair(switchId, createSwitchInfo(switchType))};
+  }
   auto agentCfg = std::make_unique<AgentConfig>(thrift, "");
   mock->init(
       std::move(agentCfg), 0 /* features  desired*/, 0 /* switchIndex */);
@@ -556,9 +735,9 @@ unique_ptr<HwTestHandle> createTestHandle(
     const shared_ptr<SwitchState>& state,
     SwitchFlags flags,
     cfg::SwitchConfig* config) {
-  auto [sw, platform] = createMockSw(state, flags, config);
+  auto [sw, platforms] = createMockSw(state, flags, config);
   auto handle =
-      std::make_unique<MockTestHandle>(std::move(sw), std::move(platform));
+      std::make_unique<MockTestHandle>(std::move(sw), std::move(platforms));
   handle->prepareForTesting();
   return handle;
 }
@@ -762,9 +941,9 @@ shared_ptr<SwitchState> testStateAWithPortsUp() {
 shared_ptr<SwitchState> testStateAWithLookupClasses() {
   auto newState = testStateAWithPortsUp()->clone();
   auto newPortMaps = newState->getPorts()->modify(&newState);
-  auto scopeResolver =
-      SwitchIdScopeResolver(util::getFirstNodeIf(newState->getSwitchSettings())
-                                ->getSwitchIdToSwitchInfo());
+  auto scopeResolver = SwitchIdScopeResolver(
+      utility::getFirstNodeIf(newState->getSwitchSettings())
+          ->getSwitchIdToSwitchInfo());
   for (auto portMap : *newPortMaps) {
     for (auto port : *portMap.second) {
       auto newPort = port.second->clone();
@@ -985,7 +1164,8 @@ void updateBlockedNeighbor(
       [=](const std::shared_ptr<SwitchState>& state) {
         std::shared_ptr<SwitchState> newState{state};
 
-        auto switchSettings = util::getFirstNodeIf(state->getSwitchSettings());
+        auto switchSettings =
+            utility::getFirstNodeIf(state->getSwitchSettings());
         auto newSwitchSettings = switchSettings->modify(&newState);
         newSwitchSettings->setBlockNeighbors(blockNeighbors);
         return newState;
@@ -1005,7 +1185,8 @@ void updateMacAddrsToBlock(
       [=](const std::shared_ptr<SwitchState>& state) {
         std::shared_ptr<SwitchState> newState{state};
 
-        auto switchSettings = util::getFirstNodeIf(state->getSwitchSettings());
+        auto switchSettings =
+            utility::getFirstNodeIf(state->getSwitchSettings());
         auto newSwitchSettings = switchSettings->modify(&newState);
         newSwitchSettings->setMacAddrsToBlock(macAddrsToBlock);
         return newState;
@@ -1102,7 +1283,7 @@ void addSwitchInfo(
       sysPortMax,
       mac,
       connectionHandle);
-  auto switchSettings = util::getFirstNodeIf(state->getSwitchSettings());
+  auto switchSettings = utility::getFirstNodeIf(state->getSwitchSettings());
   if (switchSettings) {
     auto newSwitchSettings = switchSettings->modify(&state);
     newSwitchSettings->setSwitchIdToSwitchInfo(
@@ -1202,6 +1383,41 @@ HwSwitchInitFn mockHwSwitchInitFn(SwSwitch* sw) {
   return [sw](HwSwitchCallback* callback, bool failHwCallsOnWarmboot) {
     return getMockHw(sw)->initLight(callback, failHwCallsOnWarmboot);
   };
+}
+
+std::unique_ptr<SwSwitch> createSwSwitchWithMultiSwitch(
+    const AgentConfig* config,
+    const AgentDirectoryUtil* dirUtil,
+    HwSwitchHandlerInitFn initFunc) {
+  HwSwitchHandlerInitFn hwSwitchHandlerInitFn =
+      [](const SwitchID& switchId, const cfg::SwitchInfo& info, SwSwitch* sw) {
+        auto handler = std::make_unique<MockNonMonolithicHwSwitchHandler>(
+            switchId, info, sw);
+        // success by default
+        ON_CALL(*handler, stateChanged(_, _))
+            .WillByDefault(
+                [=](const auto& delta, bool) { return delta.newState(); });
+        ON_CALL(*handler, stateChanged(_, _, _))
+            .WillByDefault([=](const fsdb::OperDelta&,
+                               bool,
+                               const std::shared_ptr<SwitchState>&) {
+              return std::make_pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>(
+                  fsdb::OperDelta{},
+                  HwSwitchStateUpdateStatus::HWSWITCH_STATE_UPDATE_SUCCEEDED);
+            });
+        return handler;
+      };
+  if (!initFunc) {
+    initFunc = std::move(hwSwitchHandlerInitFn);
+  }
+  auto sw = make_unique<SwSwitch>(
+      std::move(initFunc),
+      std::make_unique<MockPlatformMapping>(),
+      dirUtil,
+      false,
+      config,
+      nullptr);
+  return sw;
 }
 
 } // namespace facebook::fboss

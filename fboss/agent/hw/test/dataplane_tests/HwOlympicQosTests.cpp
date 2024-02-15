@@ -44,20 +44,21 @@ class HwOlympicQosTests : public HwLinkStateDependentTest {
 
     auto verify = [=, this]() {
       auto portId = helper_->ecmpPortDescriptorAt(0).phyPortID();
+      std::optional<SystemPortID> sysPortId;
+      if (getHwSwitch()->getSwitchType() == cfg::SwitchType::VOQ) {
+        auto switchId = *getHwSwitch()->getSwitchId();
+        sysPortId =
+            getSystemPortID(portId, getProgrammedState(), SwitchID(switchId));
+      }
       for (bool frontPanel : {false, true}) {
         XLOG(DBG2) << "verify send packets "
                    << (frontPanel ? "out of port" : "switched");
-        auto portStatsBefore = getLatestPortStats(portId);
-        for (const auto& q2dscps : utility::kOlympicQueueToDscp(getAsic())) {
-          for (auto dscp : q2dscps.second) {
-            sendPacket(dscp, frontPanel);
-          }
-        }
-        EXPECT_TRUE(utility::verifyQueueMappings(
-            portStatsBefore,
+        utility::sendPktAndVerifyQueueHit(
             utility::kOlympicQueueToDscp(getAsic()),
             getHwSwitchEnsemble(),
-            portId));
+            [this, frontPanel](int dscp) { sendPacket(dscp, frontPanel); },
+            portId,
+            sysPortId);
       }
     };
     verifyAcrossWarmBoots(setup, verify);
@@ -85,10 +86,9 @@ class HwOlympicQosTests : public HwLinkStateDependentTest {
     // ingressed on the port, and be properly queued.
     if (frontPanel) {
       auto outPort = helper_->ecmpPortDescriptorAt(kEcmpWidth).phyPortID();
-      getHwSwitchEnsemble()->ensureSendPacketOutOfPort(
-          std::move(txPacket), outPort);
+      getHwSwitch()->sendPacketOutOfPortSync(std::move(txPacket), outPort);
     } else {
-      getHwSwitchEnsemble()->ensureSendPacketSwitched(std::move(txPacket));
+      getHwSwitch()->sendPacketSwitchedSync(std::move(txPacket));
     }
   }
 

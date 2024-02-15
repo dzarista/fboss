@@ -11,6 +11,12 @@ SCRATCH_DIR="$FBOSS_DIR/tmp_build_dir"
 # simulated that .git dir exist for copytree.py:containing_repo_type
 touch ".git"
 
+# Optionally, pin the fboss and its dependencies to known
+# stable commit hash
+rm -rf build/deps/github_hashes/facebook
+rm -rf build/deps/github_hashes/facebookincubator
+tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
+
 mkdir -p $FBOSS_DIR/built-sai/experimental
 mkdir -p $FBOSS_DIR/built-bcm-sai
 cp $SAI_DIR/libraries/libsai.a $FBOSS_DIR/built-bcm-sai/libsai_impl.a
@@ -83,6 +89,13 @@ do
    echo "Copying $fw from $fw_path to $fboss_output_dir"
    cp $fw_path $fboss_output_dir
 done
+
+# Generate python thrift libraries
+$SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/ctrl.thrift
+mkdir -p $fboss_output_dir/lib/fb-py-libs
+cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
+cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
+find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/env python3|' {} +
 
 echo "======= Move result to OUTPUT Dir ========"
 cp -r $SCRATCH_DIR $DESTDIR

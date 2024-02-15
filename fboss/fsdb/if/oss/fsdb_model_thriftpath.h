@@ -16844,7 +16844,8 @@ std::pair<strings::classID, Child<::facebook::fboss::cfg::AclLookupClass, ::apac
 std::pair<strings::encapIndex, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
 std::pair<strings::isLocal, Child<bool, ::apache::thrift::type_class::integral>>,
 std::pair<strings::type, Child<::facebook::fboss::state::NeighborEntryType, ::apache::thrift::type_class::enumeration>>,
-std::pair<strings::resolvedSince, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+std::pair<strings::resolvedSince, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::noHostRoute, Child<bool, ::apache::thrift::type_class::integral>>>;
   using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::string, ::apache::thrift::type_class::string>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::string, ::apache::thrift::type_class::string>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::facebook::fboss::cfg::PortDescriptor, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>,
@@ -16854,7 +16855,8 @@ std::pair<strings::resolvedSince, Child<::std::int64_t, ::apache::thrift::type_c
    std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<bool, ::apache::thrift::type_class::integral>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::facebook::fboss::state::NeighborEntryType, ::apache::thrift::type_class::enumeration>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<bool, ::apache::thrift::type_class::integral>>>;
   template <typename Name>
   using NameToId = fatal::tuple<std::pair<strings::ipaddress, std::integral_constant<apache::thrift::field_id_t, 1>>,
 std::pair<strings::mac, std::integral_constant<apache::thrift::field_id_t, 2>>,
@@ -16865,7 +16867,8 @@ std::pair<strings::classID, std::integral_constant<apache::thrift::field_id_t, 6
 std::pair<strings::encapIndex, std::integral_constant<apache::thrift::field_id_t, 7>>,
 std::pair<strings::isLocal, std::integral_constant<apache::thrift::field_id_t, 8>>,
 std::pair<strings::type, std::integral_constant<apache::thrift::field_id_t, 9>>,
-std::pair<strings::resolvedSince, std::integral_constant<apache::thrift::field_id_t, 10>>>::template type_of<Name>;
+std::pair<strings::resolvedSince, std::integral_constant<apache::thrift::field_id_t, 10>>,
+std::pair<strings::noHostRoute, std::integral_constant<apache::thrift::field_id_t, 11>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -16888,6 +16891,7 @@ std::pair<strings::resolvedSince, std::integral_constant<apache::thrift::field_i
     STRUCT_CHILD_GETTERS(isLocal, 8);
     STRUCT_CHILD_GETTERS(type, 9);
     STRUCT_CHILD_GETTERS(resolvedSince, 10);
+    STRUCT_CHILD_GETTERS(noHostRoute, 11);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
@@ -16901,6 +16905,7 @@ std::pair<strings::resolvedSince, std::integral_constant<apache::thrift::field_i
     else if constexpr (__id == 8) { return isLocal(); }
     else if constexpr (__id == 9) { return type(); }
     else if constexpr (__id == 10) { return resolvedSince(); }
+    else if constexpr (__id == 11) { return noHostRoute(); }
   }
 
   template <typename T, T... Values>
@@ -17234,7 +17239,8 @@ std::pair<strings::actualSwitchDrainState, Child<::facebook::fboss::cfg::SwitchD
 std::pair<strings::defaultVoqConfig, ChildThriftPath<::std::vector<::facebook::fboss::PortQueueFields>, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>,
 std::pair<strings::switchInfo, ChildThriftPath<::facebook::fboss::cfg::SwitchInfo, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>,
 std::pair<strings::vendorMacOuis, ChildThriftPath<::std::vector<::std::string>, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>,
-std::pair<strings::metaMacOuis, ChildThriftPath<::std::vector<::std::string>, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>>;
+std::pair<strings::metaMacOuis, ChildThriftPath<::std::vector<::std::string>, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>,
+std::pair<strings::swSwitchRunState, Child<::facebook::fboss::SwitchRunState, ::apache::thrift::type_class::enumeration>>>;
   using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::facebook::fboss::cfg::L2LearningMode, ::apache::thrift::type_class::enumeration>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<bool, ::apache::thrift::type_class::integral>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<bool, ::apache::thrift::type_class::integral>>,
@@ -17269,7 +17275,8 @@ std::pair<strings::metaMacOuis, ChildThriftPath<::std::vector<::std::string>, ::
    std::pair<std::integral_constant<apache::thrift::field_id_t, 33>, ChildThriftPath<::std::vector<::facebook::fboss::PortQueueFields>, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 34>, ChildThriftPath<::facebook::fboss::cfg::SwitchInfo, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 35>, ChildThriftPath<::std::vector<::std::string>, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 36>, ChildThriftPath<::std::vector<::std::string>, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>>;
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 36>, ChildThriftPath<::std::vector<::std::string>, ::facebook::fboss::fsdb::FsdbOperStateRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 37>, Child<::facebook::fboss::SwitchRunState, ::apache::thrift::type_class::enumeration>>>;
   template <typename Name>
   using NameToId = fatal::tuple<std::pair<strings::l2LearningMode, std::integral_constant<apache::thrift::field_id_t, 1>>,
 std::pair<strings::qcmEnable, std::integral_constant<apache::thrift::field_id_t, 2>>,
@@ -17305,7 +17312,8 @@ std::pair<strings::actualSwitchDrainState, std::integral_constant<apache::thrift
 std::pair<strings::defaultVoqConfig, std::integral_constant<apache::thrift::field_id_t, 33>>,
 std::pair<strings::switchInfo, std::integral_constant<apache::thrift::field_id_t, 34>>,
 std::pair<strings::vendorMacOuis, std::integral_constant<apache::thrift::field_id_t, 35>>,
-std::pair<strings::metaMacOuis, std::integral_constant<apache::thrift::field_id_t, 36>>>::template type_of<Name>;
+std::pair<strings::metaMacOuis, std::integral_constant<apache::thrift::field_id_t, 36>>,
+std::pair<strings::swSwitchRunState, std::integral_constant<apache::thrift::field_id_t, 37>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -17353,6 +17361,7 @@ std::pair<strings::metaMacOuis, std::integral_constant<apache::thrift::field_id_
     STRUCT_CHILD_GETTERS(switchInfo, 34);
     STRUCT_CHILD_GETTERS(vendorMacOuis, 35);
     STRUCT_CHILD_GETTERS(metaMacOuis, 36);
+    STRUCT_CHILD_GETTERS(swSwitchRunState, 37);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
@@ -17391,6 +17400,7 @@ std::pair<strings::metaMacOuis, std::integral_constant<apache::thrift::field_id_
     else if constexpr (__id == 34) { return switchInfo(); }
     else if constexpr (__id == 35) { return vendorMacOuis(); }
     else if constexpr (__id == 36) { return metaMacOuis(); }
+    else if constexpr (__id == 37) { return swSwitchRunState(); }
   }
 
   template <typename T, T... Values>
@@ -18150,525 +18160,25 @@ std::pair<strings::sensor_service, std::integral_constant<apache::thrift::field_
   }
 };
 
-
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::HwTeFlowStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::HwTeFlowStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::HwTeFlowStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::hardware_stats_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::bytes, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::bytes, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::HwTeFlowStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(bytes, 1);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return bytes(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::HwAsicErrors, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::HwAsicErrors,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::HwAsicErrors,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::hardware_stats_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::parityErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::correctedParityErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::uncorrectedParityErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::asicErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::ingressReceiveEditorErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::ingressTransmitPipelineErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::egressPacketNetworkInterfaceErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::alignerErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::forwardingQueueProcessorErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::parityErrors, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::correctedParityErrors, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::uncorrectedParityErrors, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::asicErrors, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::ingressReceiveEditorErrors, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::ingressTransmitPipelineErrors, std::integral_constant<apache::thrift::field_id_t, 6>>,
-std::pair<strings::egressPacketNetworkInterfaceErrors, std::integral_constant<apache::thrift::field_id_t, 7>>,
-std::pair<strings::alignerErrors, std::integral_constant<apache::thrift::field_id_t, 8>>,
-std::pair<strings::forwardingQueueProcessorErrors, std::integral_constant<apache::thrift::field_id_t, 9>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::HwAsicErrors,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(parityErrors, 1);
-    STRUCT_CHILD_GETTERS(correctedParityErrors, 2);
-    STRUCT_CHILD_GETTERS(uncorrectedParityErrors, 3);
-    STRUCT_CHILD_GETTERS(asicErrors, 4);
-    STRUCT_CHILD_GETTERS(ingressReceiveEditorErrors, 5);
-    STRUCT_CHILD_GETTERS(ingressTransmitPipelineErrors, 6);
-    STRUCT_CHILD_GETTERS(egressPacketNetworkInterfaceErrors, 7);
-    STRUCT_CHILD_GETTERS(alignerErrors, 8);
-    STRUCT_CHILD_GETTERS(forwardingQueueProcessorErrors, 9);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return parityErrors(); }
-    else if constexpr (__id == 2) { return correctedParityErrors(); }
-    else if constexpr (__id == 3) { return uncorrectedParityErrors(); }
-    else if constexpr (__id == 4) { return asicErrors(); }
-    else if constexpr (__id == 5) { return ingressReceiveEditorErrors(); }
-    else if constexpr (__id == 6) { return ingressTransmitPipelineErrors(); }
-    else if constexpr (__id == 7) { return egressPacketNetworkInterfaceErrors(); }
-    else if constexpr (__id == 8) { return alignerErrors(); }
-    else if constexpr (__id == 9) { return forwardingQueueProcessorErrors(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::mka::MacsecFlowStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::mka::MacsecFlowStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::mka::MacsecFlowStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::mka::mka_structs_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::directionIngress, Child<bool, ::apache::thrift::type_class::integral>>,
-std::pair<strings::ucastUncontrolledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::ucastControlledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::mcastUncontrolledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::mcastControlledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::bcastUncontrolledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::bcastControlledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::controlPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::untaggedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::otherErrPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::octetsUncontrolled, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::octetsControlled, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outCommonOctets, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outTooLongPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inTaggedControlledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inNoTagPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inBadTagPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::noSciPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::unknownSciPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::overrunPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<bool, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 16>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 17>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 18>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 19>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 20>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::directionIngress, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::ucastUncontrolledPkts, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::ucastControlledPkts, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::mcastUncontrolledPkts, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::mcastControlledPkts, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::bcastUncontrolledPkts, std::integral_constant<apache::thrift::field_id_t, 6>>,
-std::pair<strings::bcastControlledPkts, std::integral_constant<apache::thrift::field_id_t, 7>>,
-std::pair<strings::controlPkts, std::integral_constant<apache::thrift::field_id_t, 8>>,
-std::pair<strings::untaggedPkts, std::integral_constant<apache::thrift::field_id_t, 9>>,
-std::pair<strings::otherErrPkts, std::integral_constant<apache::thrift::field_id_t, 10>>,
-std::pair<strings::octetsUncontrolled, std::integral_constant<apache::thrift::field_id_t, 11>>,
-std::pair<strings::octetsControlled, std::integral_constant<apache::thrift::field_id_t, 12>>,
-std::pair<strings::outCommonOctets, std::integral_constant<apache::thrift::field_id_t, 13>>,
-std::pair<strings::outTooLongPkts, std::integral_constant<apache::thrift::field_id_t, 14>>,
-std::pair<strings::inTaggedControlledPkts, std::integral_constant<apache::thrift::field_id_t, 15>>,
-std::pair<strings::inNoTagPkts, std::integral_constant<apache::thrift::field_id_t, 16>>,
-std::pair<strings::inBadTagPkts, std::integral_constant<apache::thrift::field_id_t, 17>>,
-std::pair<strings::noSciPkts, std::integral_constant<apache::thrift::field_id_t, 18>>,
-std::pair<strings::unknownSciPkts, std::integral_constant<apache::thrift::field_id_t, 19>>,
-std::pair<strings::overrunPkts, std::integral_constant<apache::thrift::field_id_t, 20>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::mka::MacsecFlowStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(directionIngress, 1);
-    STRUCT_CHILD_GETTERS(ucastUncontrolledPkts, 2);
-    STRUCT_CHILD_GETTERS(ucastControlledPkts, 3);
-    STRUCT_CHILD_GETTERS(mcastUncontrolledPkts, 4);
-    STRUCT_CHILD_GETTERS(mcastControlledPkts, 5);
-    STRUCT_CHILD_GETTERS(bcastUncontrolledPkts, 6);
-    STRUCT_CHILD_GETTERS(bcastControlledPkts, 7);
-    STRUCT_CHILD_GETTERS(controlPkts, 8);
-    STRUCT_CHILD_GETTERS(untaggedPkts, 9);
-    STRUCT_CHILD_GETTERS(otherErrPkts, 10);
-    STRUCT_CHILD_GETTERS(octetsUncontrolled, 11);
-    STRUCT_CHILD_GETTERS(octetsControlled, 12);
-    STRUCT_CHILD_GETTERS(outCommonOctets, 13);
-    STRUCT_CHILD_GETTERS(outTooLongPkts, 14);
-    STRUCT_CHILD_GETTERS(inTaggedControlledPkts, 15);
-    STRUCT_CHILD_GETTERS(inNoTagPkts, 16);
-    STRUCT_CHILD_GETTERS(inBadTagPkts, 17);
-    STRUCT_CHILD_GETTERS(noSciPkts, 18);
-    STRUCT_CHILD_GETTERS(unknownSciPkts, 19);
-    STRUCT_CHILD_GETTERS(overrunPkts, 20);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return directionIngress(); }
-    else if constexpr (__id == 2) { return ucastUncontrolledPkts(); }
-    else if constexpr (__id == 3) { return ucastControlledPkts(); }
-    else if constexpr (__id == 4) { return mcastUncontrolledPkts(); }
-    else if constexpr (__id == 5) { return mcastControlledPkts(); }
-    else if constexpr (__id == 6) { return bcastUncontrolledPkts(); }
-    else if constexpr (__id == 7) { return bcastControlledPkts(); }
-    else if constexpr (__id == 8) { return controlPkts(); }
-    else if constexpr (__id == 9) { return untaggedPkts(); }
-    else if constexpr (__id == 10) { return otherErrPkts(); }
-    else if constexpr (__id == 11) { return octetsUncontrolled(); }
-    else if constexpr (__id == 12) { return octetsControlled(); }
-    else if constexpr (__id == 13) { return outCommonOctets(); }
-    else if constexpr (__id == 14) { return outTooLongPkts(); }
-    else if constexpr (__id == 15) { return inTaggedControlledPkts(); }
-    else if constexpr (__id == 16) { return inNoTagPkts(); }
-    else if constexpr (__id == 17) { return inBadTagPkts(); }
-    else if constexpr (__id == 18) { return noSciPkts(); }
-    else if constexpr (__id == 19) { return unknownSciPkts(); }
-    else if constexpr (__id == 20) { return overrunPkts(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::HwTrunkStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::HwTrunkStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::HwTrunkStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::hardware_stats_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::capacity_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inBytes_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inUnicastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inMulticastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inBroadcastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inPause_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inIpv4HdrErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inIpv6HdrErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inDstNullDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inDiscardsRaw_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outBytes_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outUnicastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outMulticastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outBroadcastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outPause_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outCongestionDiscardPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outEcnCounter_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::wredDroppedPackets_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::macsecStats, ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 16>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 17>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 18>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 19>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 20>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 21>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 22>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 23>, ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::capacity_, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::inBytes_, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::inUnicastPkts_, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::inMulticastPkts_, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::inBroadcastPkts_, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::inDiscards_, std::integral_constant<apache::thrift::field_id_t, 6>>,
-std::pair<strings::inErrors_, std::integral_constant<apache::thrift::field_id_t, 7>>,
-std::pair<strings::inPause_, std::integral_constant<apache::thrift::field_id_t, 8>>,
-std::pair<strings::inIpv4HdrErrors_, std::integral_constant<apache::thrift::field_id_t, 9>>,
-std::pair<strings::inIpv6HdrErrors_, std::integral_constant<apache::thrift::field_id_t, 10>>,
-std::pair<strings::inDstNullDiscards_, std::integral_constant<apache::thrift::field_id_t, 11>>,
-std::pair<strings::inDiscardsRaw_, std::integral_constant<apache::thrift::field_id_t, 12>>,
-std::pair<strings::outBytes_, std::integral_constant<apache::thrift::field_id_t, 13>>,
-std::pair<strings::outUnicastPkts_, std::integral_constant<apache::thrift::field_id_t, 14>>,
-std::pair<strings::outMulticastPkts_, std::integral_constant<apache::thrift::field_id_t, 15>>,
-std::pair<strings::outBroadcastPkts_, std::integral_constant<apache::thrift::field_id_t, 16>>,
-std::pair<strings::outDiscards_, std::integral_constant<apache::thrift::field_id_t, 17>>,
-std::pair<strings::outErrors_, std::integral_constant<apache::thrift::field_id_t, 18>>,
-std::pair<strings::outPause_, std::integral_constant<apache::thrift::field_id_t, 19>>,
-std::pair<strings::outCongestionDiscardPkts_, std::integral_constant<apache::thrift::field_id_t, 20>>,
-std::pair<strings::outEcnCounter_, std::integral_constant<apache::thrift::field_id_t, 21>>,
-std::pair<strings::wredDroppedPackets_, std::integral_constant<apache::thrift::field_id_t, 22>>,
-std::pair<strings::macsecStats, std::integral_constant<apache::thrift::field_id_t, 23>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::HwTrunkStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(capacity_, 1);
-    STRUCT_CHILD_GETTERS(inBytes_, 2);
-    STRUCT_CHILD_GETTERS(inUnicastPkts_, 3);
-    STRUCT_CHILD_GETTERS(inMulticastPkts_, 4);
-    STRUCT_CHILD_GETTERS(inBroadcastPkts_, 5);
-    STRUCT_CHILD_GETTERS(inDiscards_, 6);
-    STRUCT_CHILD_GETTERS(inErrors_, 7);
-    STRUCT_CHILD_GETTERS(inPause_, 8);
-    STRUCT_CHILD_GETTERS(inIpv4HdrErrors_, 9);
-    STRUCT_CHILD_GETTERS(inIpv6HdrErrors_, 10);
-    STRUCT_CHILD_GETTERS(inDstNullDiscards_, 11);
-    STRUCT_CHILD_GETTERS(inDiscardsRaw_, 12);
-    STRUCT_CHILD_GETTERS(outBytes_, 13);
-    STRUCT_CHILD_GETTERS(outUnicastPkts_, 14);
-    STRUCT_CHILD_GETTERS(outMulticastPkts_, 15);
-    STRUCT_CHILD_GETTERS(outBroadcastPkts_, 16);
-    STRUCT_CHILD_GETTERS(outDiscards_, 17);
-    STRUCT_CHILD_GETTERS(outErrors_, 18);
-    STRUCT_CHILD_GETTERS(outPause_, 19);
-    STRUCT_CHILD_GETTERS(outCongestionDiscardPkts_, 20);
-    STRUCT_CHILD_GETTERS(outEcnCounter_, 21);
-    STRUCT_CHILD_GETTERS(wredDroppedPackets_, 22);
-    STRUCT_CHILD_GETTERS(macsecStats, 23);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return capacity_(); }
-    else if constexpr (__id == 2) { return inBytes_(); }
-    else if constexpr (__id == 3) { return inUnicastPkts_(); }
-    else if constexpr (__id == 4) { return inMulticastPkts_(); }
-    else if constexpr (__id == 5) { return inBroadcastPkts_(); }
-    else if constexpr (__id == 6) { return inDiscards_(); }
-    else if constexpr (__id == 7) { return inErrors_(); }
-    else if constexpr (__id == 8) { return inPause_(); }
-    else if constexpr (__id == 9) { return inIpv4HdrErrors_(); }
-    else if constexpr (__id == 10) { return inIpv6HdrErrors_(); }
-    else if constexpr (__id == 11) { return inDstNullDiscards_(); }
-    else if constexpr (__id == 12) { return inDiscardsRaw_(); }
-    else if constexpr (__id == 13) { return outBytes_(); }
-    else if constexpr (__id == 14) { return outUnicastPkts_(); }
-    else if constexpr (__id == 15) { return outMulticastPkts_(); }
-    else if constexpr (__id == 16) { return outBroadcastPkts_(); }
-    else if constexpr (__id == 17) { return outDiscards_(); }
-    else if constexpr (__id == 18) { return outErrors_(); }
-    else if constexpr (__id == 19) { return outPause_(); }
-    else if constexpr (__id == 20) { return outCongestionDiscardPkts_(); }
-    else if constexpr (__id == 21) { return outEcnCounter_(); }
-    else if constexpr (__id == 22) { return wredDroppedPackets_(); }
-    else if constexpr (__id == 23) { return macsecStats(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::phy::PcsStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::phy::PcsStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::phy::PcsStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::phy::phy_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::rsFec, ChildThriftPath<::facebook::fboss::phy::RsFecInfo, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::phy::RsFecInfo, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::rsFec, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::phy::PcsStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(rsFec, 1);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return rsFec(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-template<typename Parent>
-class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>,
+   ::std::map<::std::string, ::facebook::fboss::HwPortStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
    Parent> {
  public:
   using Self = Path<
-   ::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>,
+   ::std::map<::std::string, ::facebook::fboss::HwPortStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
    Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::platform::sensor_service::SensorData, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+  using Child = ChildThriftPath<::facebook::fboss::HwPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
 
-  explicit ChildThriftPath<::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+  explicit ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
      std::vector<std::string> tokens = {},
      std::vector<std::string> idTokens = {}) : Path<
-   ::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>,
+   ::std::map<::std::string, ::facebook::fboss::HwPortStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
    Parent>(std::move(tokens), std::move(idTokens)) {}
@@ -18678,19 +18188,19 @@ class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::platform::sen
 
 
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::HwSysPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::facebook::fboss::FlagLevels, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::HwSysPortStats,
+   ::facebook::fboss::FlagLevels,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent> {
  public:
   using Self = Path<
-   ::facebook::fboss::HwSysPortStats,
+   ::facebook::fboss::FlagLevels,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>;
-  using strings = ::facebook::fboss::hardware_stats_tags::strings;
+  using strings = ::facebook::fboss::transceiver_tags::strings;
   template <typename ChildType, typename ChildTC>
   using Child = Path<
     ChildType,
@@ -18698,28 +18208,13 @@ class ChildThriftPath<::facebook::fboss::HwSysPortStats, ::facebook::fboss::fsdb
     ChildTC,
     Self
   >;
-  using Children = fatal::tuple<std::pair<strings::queueOutDiscardBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::queueOutBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::queueWatermarkBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::queueWredDroppedPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::queueCreditWatchdogDeletedPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::timestamp_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::portName_, Child<::std::string, ::apache::thrift::type_class::string>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 100>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 101>, Child<::std::string, ::apache::thrift::type_class::string>>>;
+  using Children = fatal::tuple<std::pair<strings::alarm, ChildThriftPath<::facebook::fboss::Flags, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::warn, ChildThriftPath<::facebook::fboss::Flags, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::Flags, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::Flags, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
   template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::queueOutDiscardBytes_, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::queueOutBytes_, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::queueWatermarkBytes_, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::queueWredDroppedPackets_, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::queueCreditWatchdogDeletedPackets_, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::timestamp_, std::integral_constant<apache::thrift::field_id_t, 100>>,
-std::pair<strings::portName_, std::integral_constant<apache::thrift::field_id_t, 101>>>::template type_of<Name>;
+  using NameToId = fatal::tuple<std::pair<strings::alarm, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::warn, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -18727,202 +18222,24 @@ std::pair<strings::portName_, std::integral_constant<apache::thrift::field_id_t,
   ChildThriftPath(
     std::vector<std::string> tokens = {},
     std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::HwSysPortStats,
+   ::facebook::fboss::FlagLevels,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>(std::move(tokens), std::move(idTokens)) {}
   
-    STRUCT_CHILD_GETTERS(queueOutDiscardBytes_, 1);
-    STRUCT_CHILD_GETTERS(queueOutBytes_, 2);
-    STRUCT_CHILD_GETTERS(queueWatermarkBytes_, 3);
-    STRUCT_CHILD_GETTERS(queueWredDroppedPackets_, 4);
-    STRUCT_CHILD_GETTERS(queueCreditWatchdogDeletedPackets_, 5);
-    STRUCT_CHILD_GETTERS(timestamp_, 100);
-    STRUCT_CHILD_GETTERS(portName_, 101);
+    STRUCT_CHILD_GETTERS(alarm, 1);
+    STRUCT_CHILD_GETTERS(warn, 2);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return queueOutDiscardBytes_(); }
-    else if constexpr (__id == 2) { return queueOutBytes_(); }
-    else if constexpr (__id == 3) { return queueWatermarkBytes_(); }
-    else if constexpr (__id == 4) { return queueWredDroppedPackets_(); }
-    else if constexpr (__id == 5) { return queueCreditWatchdogDeletedPackets_(); }
-    else if constexpr (__id == 100) { return timestamp_(); }
-    else if constexpr (__id == 101) { return portName_(); }
+    if constexpr (__id == 1) { return alarm(); }
+    else if constexpr (__id == 2) { return warn(); }
   }
 
   template <typename T, T... Values>
   auto operator()(const fatal::sequence<T, Values...>&) {
     return operator()(NameToId<fatal::sequence<T, Values...>>());
   }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::AgentStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::AgentStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::AgentStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::agent_stats_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::hwPortStats, ChildThriftPath<folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::hwTrunkStats, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwTrunkStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::hwResourceStats, ChildThriftPath<::facebook::fboss::HwResourceStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::hwAsicErrors, ChildThriftPath<::facebook::fboss::HwAsicErrors, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::linkFlaps, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::sysPortStats, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwSysPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::teFlowStats, ChildThriftPath<::facebook::fboss::TeFlowStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::bufferPoolStats, ChildThriftPath<::facebook::fboss::HwBufferPoolStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::hwResourceStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::hwAsicErrorsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::teFlowStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::TeFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::bufferPoolStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwBufferPoolStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::sysPortStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::switchDropStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwTrunkStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::facebook::fboss::HwResourceStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, ChildThriftPath<::facebook::fboss::HwAsicErrors, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwSysPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, ChildThriftPath<::facebook::fboss::TeFlowStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, ChildThriftPath<::facebook::fboss::HwBufferPoolStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::TeFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwBufferPoolStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, ChildThriftPath<::std::map<::std::int16_t, ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::hwPortStats, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::hwTrunkStats, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::hwResourceStats, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::hwAsicErrors, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::linkFlaps, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::sysPortStats, std::integral_constant<apache::thrift::field_id_t, 7>>,
-std::pair<strings::teFlowStats, std::integral_constant<apache::thrift::field_id_t, 8>>,
-std::pair<strings::bufferPoolStats, std::integral_constant<apache::thrift::field_id_t, 9>>,
-std::pair<strings::hwResourceStatsMap, std::integral_constant<apache::thrift::field_id_t, 10>>,
-std::pair<strings::hwAsicErrorsMap, std::integral_constant<apache::thrift::field_id_t, 11>>,
-std::pair<strings::teFlowStatsMap, std::integral_constant<apache::thrift::field_id_t, 12>>,
-std::pair<strings::bufferPoolStatsMap, std::integral_constant<apache::thrift::field_id_t, 13>>,
-std::pair<strings::sysPortStatsMap, std::integral_constant<apache::thrift::field_id_t, 14>>,
-std::pair<strings::switchDropStatsMap, std::integral_constant<apache::thrift::field_id_t, 15>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::AgentStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(hwPortStats, 1);
-    STRUCT_CHILD_GETTERS(hwTrunkStats, 2);
-    STRUCT_CHILD_GETTERS(hwResourceStats, 3);
-    STRUCT_CHILD_GETTERS(hwAsicErrors, 4);
-    STRUCT_CHILD_GETTERS(linkFlaps, 5);
-    STRUCT_CHILD_GETTERS(sysPortStats, 7);
-    STRUCT_CHILD_GETTERS(teFlowStats, 8);
-    STRUCT_CHILD_GETTERS(bufferPoolStats, 9);
-    STRUCT_CHILD_GETTERS(hwResourceStatsMap, 10);
-    STRUCT_CHILD_GETTERS(hwAsicErrorsMap, 11);
-    STRUCT_CHILD_GETTERS(teFlowStatsMap, 12);
-    STRUCT_CHILD_GETTERS(bufferPoolStatsMap, 13);
-    STRUCT_CHILD_GETTERS(sysPortStatsMap, 14);
-    STRUCT_CHILD_GETTERS(switchDropStatsMap, 15);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return hwPortStats(); }
-    else if constexpr (__id == 2) { return hwTrunkStats(); }
-    else if constexpr (__id == 3) { return hwResourceStats(); }
-    else if constexpr (__id == 4) { return hwAsicErrors(); }
-    else if constexpr (__id == 5) { return linkFlaps(); }
-    else if constexpr (__id == 7) { return sysPortStats(); }
-    else if constexpr (__id == 8) { return teFlowStats(); }
-    else if constexpr (__id == 9) { return bufferPoolStats(); }
-    else if constexpr (__id == 10) { return hwResourceStatsMap(); }
-    else if constexpr (__id == 11) { return hwAsicErrorsMap(); }
-    else if constexpr (__id == 12) { return teFlowStatsMap(); }
-    else if constexpr (__id == 13) { return bufferPoolStatsMap(); }
-    else if constexpr (__id == 14) { return sysPortStatsMap(); }
-    else if constexpr (__id == 15) { return switchDropStatsMap(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-template<typename Parent>
-class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwSysPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
-   Parent> {
- public:
-  using Self = Path<
-   ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
-   Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::HwSysPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
-
-  explicit ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwSysPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
-     std::vector<std::string> tokens = {},
-     std::vector<std::string> idTokens = {}) : Path<
-   ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-
-  CONTAINER_CHILD_GETTERS(::std::string);
-};
-
-template<typename Parent>
-class ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent> {
- public:
-  using Self = Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::HwAsicErrors, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
-
-  explicit ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
-     std::vector<std::string> tokens = {},
-     std::vector<std::string> idTokens = {}) : Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-
-  CONTAINER_CHILD_GETTERS(::std::int16_t);
 };
 
 
@@ -18997,46 +18314,46 @@ std::pair<strings::codewordStats, std::integral_constant<apache::thrift::field_i
 };
 
 template<typename Parent>
-class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::std::map<::std::string, ::facebook::fboss::HwPortStats>,
+   ::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
    Parent> {
  public:
   using Self = Path<
-   ::std::map<::std::string, ::facebook::fboss::HwPortStats>,
+   ::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
    Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::HwPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+  using Child = ChildThriftPath<::facebook::fboss::HwAsicErrors, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
 
-  explicit ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+  explicit ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
      std::vector<std::string> tokens = {},
      std::vector<std::string> idTokens = {}) : Path<
-   ::std::map<::std::string, ::facebook::fboss::HwPortStats>,
+   ::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
    Parent>(std::move(tokens), std::move(idTokens)) {}
 
-  CONTAINER_CHILD_GETTERS(::std::string);
+  CONTAINER_CHILD_GETTERS(::std::int16_t);
 };
 
 
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::HwBufferPoolStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::facebook::fboss::stats::SensorServiceStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::HwBufferPoolStats,
+   ::facebook::fboss::stats::SensorServiceStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent> {
  public:
   using Self = Path<
-   ::facebook::fboss::HwBufferPoolStats,
+   ::facebook::fboss::stats::SensorServiceStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>;
-  using strings = ::facebook::fboss::hardware_stats_tags::strings;
+  using strings = ::facebook::fboss::stats::sensor_service_stats_tags::strings;
   template <typename ChildType, typename ChildTC>
   using Child = Path<
     ChildType,
@@ -19044,10 +18361,10 @@ class ChildThriftPath<::facebook::fboss::HwBufferPoolStats, ::facebook::fboss::f
     ChildTC,
     Self
   >;
-  using Children = fatal::tuple<std::pair<strings::deviceWatermarkBytes, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using Children = fatal::tuple<std::pair<strings::sensorData, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
   template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::deviceWatermarkBytes, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
+  using NameToId = fatal::tuple<std::pair<strings::sensorData, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -19055,16 +18372,16 @@ class ChildThriftPath<::facebook::fboss::HwBufferPoolStats, ::facebook::fboss::f
   ChildThriftPath(
     std::vector<std::string> tokens = {},
     std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::HwBufferPoolStats,
+   ::facebook::fboss::stats::SensorServiceStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>(std::move(tokens), std::move(idTokens)) {}
   
-    STRUCT_CHILD_GETTERS(deviceWatermarkBytes, 1);
+    STRUCT_CHILD_GETTERS(sensorData, 1);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return deviceWatermarkBytes(); }
+    if constexpr (__id == 1) { return sensorData(); }
   }
 
   template <typename T, T... Values>
@@ -19074,290 +18391,29 @@ class ChildThriftPath<::facebook::fboss::HwBufferPoolStats, ::facebook::fboss::f
 };
 
 template<typename Parent>
-class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwTrunkStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::std::map<::std::string, ::facebook::fboss::HwTrunkStats>,
+   ::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
    Parent> {
  public:
   using Self = Path<
-   ::std::map<::std::string, ::facebook::fboss::HwTrunkStats>,
+   ::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
    Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::HwTrunkStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+  using Child = ChildThriftPath<::facebook::fboss::HwResourceStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
 
-  explicit ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwTrunkStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+  explicit ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
      std::vector<std::string> tokens = {},
      std::vector<std::string> idTokens = {}) : Path<
-   ::std::map<::std::string, ::facebook::fboss::HwTrunkStats>,
+   ::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
    Parent>(std::move(tokens), std::move(idTokens)) {}
 
-  CONTAINER_CHILD_GETTERS(::std::string);
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::HwPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::HwPortStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::HwPortStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::hardware_stats_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::inBytes_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inUnicastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inMulticastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inBroadcastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inPause_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inIpv4HdrErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inIpv6HdrErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inDstNullDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inDiscardsRaw_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outBytes_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outUnicastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outMulticastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outBroadcastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outPause_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outCongestionDiscardPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::wredDroppedPackets_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::queueOutDiscardBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::queueOutBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::outEcnCounter_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::queueOutPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::queueOutDiscardPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::queueWatermarkBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::fecCorrectableErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::fecUncorrectableErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inPfcCtrl_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outPfcCtrl_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inPfc_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::inPfcXon_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::outPfc_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::queueWredDroppedPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::queueEcnMarkedPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::fecCorrectedBits_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::fecCodewords_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::timestamp_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::portName_, Child<::std::string, ::apache::thrift::type_class::string>>,
-std::pair<strings::macsecStats, ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::inLabelMissDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::queueWatermarkLevel_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::inCongestionDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 16>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 17>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 18>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 19>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 20>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 21>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 22>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 23>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 24>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 25>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 26>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 27>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 28>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 29>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 30>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 31>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 32>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 33>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 34>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 35>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 36>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 37>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 50>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 51>, Child<::std::string, ::apache::thrift::type_class::string>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 52>, ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 53>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 54>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 55>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::inBytes_, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::inUnicastPkts_, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::inMulticastPkts_, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::inBroadcastPkts_, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::inDiscards_, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::inErrors_, std::integral_constant<apache::thrift::field_id_t, 6>>,
-std::pair<strings::inPause_, std::integral_constant<apache::thrift::field_id_t, 7>>,
-std::pair<strings::inIpv4HdrErrors_, std::integral_constant<apache::thrift::field_id_t, 8>>,
-std::pair<strings::inIpv6HdrErrors_, std::integral_constant<apache::thrift::field_id_t, 9>>,
-std::pair<strings::inDstNullDiscards_, std::integral_constant<apache::thrift::field_id_t, 10>>,
-std::pair<strings::inDiscardsRaw_, std::integral_constant<apache::thrift::field_id_t, 11>>,
-std::pair<strings::outBytes_, std::integral_constant<apache::thrift::field_id_t, 12>>,
-std::pair<strings::outUnicastPkts_, std::integral_constant<apache::thrift::field_id_t, 13>>,
-std::pair<strings::outMulticastPkts_, std::integral_constant<apache::thrift::field_id_t, 14>>,
-std::pair<strings::outBroadcastPkts_, std::integral_constant<apache::thrift::field_id_t, 15>>,
-std::pair<strings::outDiscards_, std::integral_constant<apache::thrift::field_id_t, 16>>,
-std::pair<strings::outErrors_, std::integral_constant<apache::thrift::field_id_t, 17>>,
-std::pair<strings::outPause_, std::integral_constant<apache::thrift::field_id_t, 18>>,
-std::pair<strings::outCongestionDiscardPkts_, std::integral_constant<apache::thrift::field_id_t, 19>>,
-std::pair<strings::wredDroppedPackets_, std::integral_constant<apache::thrift::field_id_t, 20>>,
-std::pair<strings::queueOutDiscardBytes_, std::integral_constant<apache::thrift::field_id_t, 21>>,
-std::pair<strings::queueOutBytes_, std::integral_constant<apache::thrift::field_id_t, 22>>,
-std::pair<strings::outEcnCounter_, std::integral_constant<apache::thrift::field_id_t, 23>>,
-std::pair<strings::queueOutPackets_, std::integral_constant<apache::thrift::field_id_t, 24>>,
-std::pair<strings::queueOutDiscardPackets_, std::integral_constant<apache::thrift::field_id_t, 25>>,
-std::pair<strings::queueWatermarkBytes_, std::integral_constant<apache::thrift::field_id_t, 26>>,
-std::pair<strings::fecCorrectableErrors, std::integral_constant<apache::thrift::field_id_t, 27>>,
-std::pair<strings::fecUncorrectableErrors, std::integral_constant<apache::thrift::field_id_t, 28>>,
-std::pair<strings::inPfcCtrl_, std::integral_constant<apache::thrift::field_id_t, 29>>,
-std::pair<strings::outPfcCtrl_, std::integral_constant<apache::thrift::field_id_t, 30>>,
-std::pair<strings::inPfc_, std::integral_constant<apache::thrift::field_id_t, 31>>,
-std::pair<strings::inPfcXon_, std::integral_constant<apache::thrift::field_id_t, 32>>,
-std::pair<strings::outPfc_, std::integral_constant<apache::thrift::field_id_t, 33>>,
-std::pair<strings::queueWredDroppedPackets_, std::integral_constant<apache::thrift::field_id_t, 34>>,
-std::pair<strings::queueEcnMarkedPackets_, std::integral_constant<apache::thrift::field_id_t, 35>>,
-std::pair<strings::fecCorrectedBits_, std::integral_constant<apache::thrift::field_id_t, 36>>,
-std::pair<strings::fecCodewords_, std::integral_constant<apache::thrift::field_id_t, 37>>,
-std::pair<strings::timestamp_, std::integral_constant<apache::thrift::field_id_t, 50>>,
-std::pair<strings::portName_, std::integral_constant<apache::thrift::field_id_t, 51>>,
-std::pair<strings::macsecStats, std::integral_constant<apache::thrift::field_id_t, 52>>,
-std::pair<strings::inLabelMissDiscards_, std::integral_constant<apache::thrift::field_id_t, 53>>,
-std::pair<strings::queueWatermarkLevel_, std::integral_constant<apache::thrift::field_id_t, 54>>,
-std::pair<strings::inCongestionDiscards_, std::integral_constant<apache::thrift::field_id_t, 55>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::HwPortStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(inBytes_, 1);
-    STRUCT_CHILD_GETTERS(inUnicastPkts_, 2);
-    STRUCT_CHILD_GETTERS(inMulticastPkts_, 3);
-    STRUCT_CHILD_GETTERS(inBroadcastPkts_, 4);
-    STRUCT_CHILD_GETTERS(inDiscards_, 5);
-    STRUCT_CHILD_GETTERS(inErrors_, 6);
-    STRUCT_CHILD_GETTERS(inPause_, 7);
-    STRUCT_CHILD_GETTERS(inIpv4HdrErrors_, 8);
-    STRUCT_CHILD_GETTERS(inIpv6HdrErrors_, 9);
-    STRUCT_CHILD_GETTERS(inDstNullDiscards_, 10);
-    STRUCT_CHILD_GETTERS(inDiscardsRaw_, 11);
-    STRUCT_CHILD_GETTERS(outBytes_, 12);
-    STRUCT_CHILD_GETTERS(outUnicastPkts_, 13);
-    STRUCT_CHILD_GETTERS(outMulticastPkts_, 14);
-    STRUCT_CHILD_GETTERS(outBroadcastPkts_, 15);
-    STRUCT_CHILD_GETTERS(outDiscards_, 16);
-    STRUCT_CHILD_GETTERS(outErrors_, 17);
-    STRUCT_CHILD_GETTERS(outPause_, 18);
-    STRUCT_CHILD_GETTERS(outCongestionDiscardPkts_, 19);
-    STRUCT_CHILD_GETTERS(wredDroppedPackets_, 20);
-    STRUCT_CHILD_GETTERS(queueOutDiscardBytes_, 21);
-    STRUCT_CHILD_GETTERS(queueOutBytes_, 22);
-    STRUCT_CHILD_GETTERS(outEcnCounter_, 23);
-    STRUCT_CHILD_GETTERS(queueOutPackets_, 24);
-    STRUCT_CHILD_GETTERS(queueOutDiscardPackets_, 25);
-    STRUCT_CHILD_GETTERS(queueWatermarkBytes_, 26);
-    STRUCT_CHILD_GETTERS(fecCorrectableErrors, 27);
-    STRUCT_CHILD_GETTERS(fecUncorrectableErrors, 28);
-    STRUCT_CHILD_GETTERS(inPfcCtrl_, 29);
-    STRUCT_CHILD_GETTERS(outPfcCtrl_, 30);
-    STRUCT_CHILD_GETTERS(inPfc_, 31);
-    STRUCT_CHILD_GETTERS(inPfcXon_, 32);
-    STRUCT_CHILD_GETTERS(outPfc_, 33);
-    STRUCT_CHILD_GETTERS(queueWredDroppedPackets_, 34);
-    STRUCT_CHILD_GETTERS(queueEcnMarkedPackets_, 35);
-    STRUCT_CHILD_GETTERS(fecCorrectedBits_, 36);
-    STRUCT_CHILD_GETTERS(fecCodewords_, 37);
-    STRUCT_CHILD_GETTERS(timestamp_, 50);
-    STRUCT_CHILD_GETTERS(portName_, 51);
-    STRUCT_CHILD_GETTERS(macsecStats, 52);
-    STRUCT_CHILD_GETTERS(inLabelMissDiscards_, 53);
-    STRUCT_CHILD_GETTERS(queueWatermarkLevel_, 54);
-    STRUCT_CHILD_GETTERS(inCongestionDiscards_, 55);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return inBytes_(); }
-    else if constexpr (__id == 2) { return inUnicastPkts_(); }
-    else if constexpr (__id == 3) { return inMulticastPkts_(); }
-    else if constexpr (__id == 4) { return inBroadcastPkts_(); }
-    else if constexpr (__id == 5) { return inDiscards_(); }
-    else if constexpr (__id == 6) { return inErrors_(); }
-    else if constexpr (__id == 7) { return inPause_(); }
-    else if constexpr (__id == 8) { return inIpv4HdrErrors_(); }
-    else if constexpr (__id == 9) { return inIpv6HdrErrors_(); }
-    else if constexpr (__id == 10) { return inDstNullDiscards_(); }
-    else if constexpr (__id == 11) { return inDiscardsRaw_(); }
-    else if constexpr (__id == 12) { return outBytes_(); }
-    else if constexpr (__id == 13) { return outUnicastPkts_(); }
-    else if constexpr (__id == 14) { return outMulticastPkts_(); }
-    else if constexpr (__id == 15) { return outBroadcastPkts_(); }
-    else if constexpr (__id == 16) { return outDiscards_(); }
-    else if constexpr (__id == 17) { return outErrors_(); }
-    else if constexpr (__id == 18) { return outPause_(); }
-    else if constexpr (__id == 19) { return outCongestionDiscardPkts_(); }
-    else if constexpr (__id == 20) { return wredDroppedPackets_(); }
-    else if constexpr (__id == 21) { return queueOutDiscardBytes_(); }
-    else if constexpr (__id == 22) { return queueOutBytes_(); }
-    else if constexpr (__id == 23) { return outEcnCounter_(); }
-    else if constexpr (__id == 24) { return queueOutPackets_(); }
-    else if constexpr (__id == 25) { return queueOutDiscardPackets_(); }
-    else if constexpr (__id == 26) { return queueWatermarkBytes_(); }
-    else if constexpr (__id == 27) { return fecCorrectableErrors(); }
-    else if constexpr (__id == 28) { return fecUncorrectableErrors(); }
-    else if constexpr (__id == 29) { return inPfcCtrl_(); }
-    else if constexpr (__id == 30) { return outPfcCtrl_(); }
-    else if constexpr (__id == 31) { return inPfc_(); }
-    else if constexpr (__id == 32) { return inPfcXon_(); }
-    else if constexpr (__id == 33) { return outPfc_(); }
-    else if constexpr (__id == 34) { return queueWredDroppedPackets_(); }
-    else if constexpr (__id == 35) { return queueEcnMarkedPackets_(); }
-    else if constexpr (__id == 36) { return fecCorrectedBits_(); }
-    else if constexpr (__id == 37) { return fecCodewords_(); }
-    else if constexpr (__id == 50) { return timestamp_(); }
-    else if constexpr (__id == 51) { return portName_(); }
-    else if constexpr (__id == 52) { return macsecStats(); }
-    else if constexpr (__id == 53) { return inLabelMissDiscards_(); }
-    else if constexpr (__id == 54) { return queueWatermarkLevel_(); }
-    else if constexpr (__id == 55) { return inCongestionDiscards_(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
+  CONTAINER_CHILD_GETTERS(::std::int16_t);
 };
 
 template<typename Parent>
@@ -19505,6 +18561,548 @@ std::pair<strings::flags, std::integral_constant<apache::thrift::field_id_t, 2>>
 
 
 template<typename Parent>
+class ChildThriftPath<::facebook::fboss::mka::MKASecureAssociationId, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::mka::MKASecureAssociationId,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::mka::MKASecureAssociationId,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::mka::mka_structs_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::sci, ChildThriftPath<::facebook::fboss::mka::MKASci, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::assocNum, Child<::std::int16_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::mka::MKASci, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int16_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::sci, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::assocNum, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::mka::MKASecureAssociationId,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(sci, 1);
+    STRUCT_CHILD_GETTERS(assocNum, 2);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return sci(); }
+    else if constexpr (__id == 2) { return assocNum(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::phy::LaneStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::phy::LaneStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::phy::LaneStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::phy::phy_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::lane, Child<::std::int16_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::eyes, ChildThriftPath<::std::vector<::facebook::fboss::phy::EyeInfo>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::snr, Child<float, ::apache::thrift::type_class::floating_point>>,
+std::pair<strings::signalDetectChangedCount, Child<::std::int32_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::cdrLockChangedCount, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int16_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::std::vector<::facebook::fboss::phy::EyeInfo>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<float, ::apache::thrift::type_class::floating_point>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::lane, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::eyes, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::snr, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::signalDetectChangedCount, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::cdrLockChangedCount, std::integral_constant<apache::thrift::field_id_t, 5>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::phy::LaneStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(lane, 1);
+    STRUCT_CHILD_GETTERS(eyes, 2);
+    STRUCT_CHILD_GETTERS(snr, 3);
+    STRUCT_CHILD_GETTERS(signalDetectChangedCount, 4);
+    STRUCT_CHILD_GETTERS(cdrLockChangedCount, 5);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return lane(); }
+    else if constexpr (__id == 2) { return eyes(); }
+    else if constexpr (__id == 3) { return snr(); }
+    else if constexpr (__id == 4) { return signalDetectChangedCount(); }
+    else if constexpr (__id == 5) { return cdrLockChangedCount(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::mka::MacsecSaStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::mka::MacsecSaStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::mka::MacsecSaStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::mka::mka_structs_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::directionIngress, Child<bool, ::apache::thrift::type_class::integral>>,
+std::pair<strings::octetsEncrypted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::octetsProtected, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outEncryptedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outProtectedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inUncheckedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inDelayedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inLatePkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inInvalidPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inNotValidPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inNoSaPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inUnusedSaPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inOkPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outCurrentXpn, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inCurrentXpn, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<bool, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::directionIngress, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::octetsEncrypted, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::octetsProtected, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::outEncryptedPkts, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::outProtectedPkts, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::inUncheckedPkts, std::integral_constant<apache::thrift::field_id_t, 6>>,
+std::pair<strings::inDelayedPkts, std::integral_constant<apache::thrift::field_id_t, 7>>,
+std::pair<strings::inLatePkts, std::integral_constant<apache::thrift::field_id_t, 8>>,
+std::pair<strings::inInvalidPkts, std::integral_constant<apache::thrift::field_id_t, 9>>,
+std::pair<strings::inNotValidPkts, std::integral_constant<apache::thrift::field_id_t, 10>>,
+std::pair<strings::inNoSaPkts, std::integral_constant<apache::thrift::field_id_t, 11>>,
+std::pair<strings::inUnusedSaPkts, std::integral_constant<apache::thrift::field_id_t, 12>>,
+std::pair<strings::inOkPkts, std::integral_constant<apache::thrift::field_id_t, 13>>,
+std::pair<strings::outCurrentXpn, std::integral_constant<apache::thrift::field_id_t, 14>>,
+std::pair<strings::inCurrentXpn, std::integral_constant<apache::thrift::field_id_t, 15>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::mka::MacsecSaStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(directionIngress, 1);
+    STRUCT_CHILD_GETTERS(octetsEncrypted, 2);
+    STRUCT_CHILD_GETTERS(octetsProtected, 3);
+    STRUCT_CHILD_GETTERS(outEncryptedPkts, 4);
+    STRUCT_CHILD_GETTERS(outProtectedPkts, 5);
+    STRUCT_CHILD_GETTERS(inUncheckedPkts, 6);
+    STRUCT_CHILD_GETTERS(inDelayedPkts, 7);
+    STRUCT_CHILD_GETTERS(inLatePkts, 8);
+    STRUCT_CHILD_GETTERS(inInvalidPkts, 9);
+    STRUCT_CHILD_GETTERS(inNotValidPkts, 10);
+    STRUCT_CHILD_GETTERS(inNoSaPkts, 11);
+    STRUCT_CHILD_GETTERS(inUnusedSaPkts, 12);
+    STRUCT_CHILD_GETTERS(inOkPkts, 13);
+    STRUCT_CHILD_GETTERS(outCurrentXpn, 14);
+    STRUCT_CHILD_GETTERS(inCurrentXpn, 15);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return directionIngress(); }
+    else if constexpr (__id == 2) { return octetsEncrypted(); }
+    else if constexpr (__id == 3) { return octetsProtected(); }
+    else if constexpr (__id == 4) { return outEncryptedPkts(); }
+    else if constexpr (__id == 5) { return outProtectedPkts(); }
+    else if constexpr (__id == 6) { return inUncheckedPkts(); }
+    else if constexpr (__id == 7) { return inDelayedPkts(); }
+    else if constexpr (__id == 8) { return inLatePkts(); }
+    else if constexpr (__id == 9) { return inInvalidPkts(); }
+    else if constexpr (__id == 10) { return inNotValidPkts(); }
+    else if constexpr (__id == 11) { return inNoSaPkts(); }
+    else if constexpr (__id == 12) { return inUnusedSaPkts(); }
+    else if constexpr (__id == 13) { return inOkPkts(); }
+    else if constexpr (__id == 14) { return outCurrentXpn(); }
+    else if constexpr (__id == 15) { return inCurrentXpn(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::mka::MacsecPortStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::mka::MacsecPortStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::mka::mka_structs_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::preMacsecDropPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::controlPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::dataPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::octetsEncrypted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inBadOrNoMacsecTagDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inNoSciDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inUnknownSciPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inOverrunDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inDelayedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inLateDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inNotValidDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inInvalidPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inNoSaDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inUnusedSaPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inCurrentXpn, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outTooLongDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outCurrentXpn, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::noMacsecTagPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 30>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 31>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 45>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::preMacsecDropPkts, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::controlPkts, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::dataPkts, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::octetsEncrypted, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::inBadOrNoMacsecTagDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::inNoSciDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 6>>,
+std::pair<strings::inUnknownSciPkts, std::integral_constant<apache::thrift::field_id_t, 7>>,
+std::pair<strings::inOverrunDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 8>>,
+std::pair<strings::inDelayedPkts, std::integral_constant<apache::thrift::field_id_t, 9>>,
+std::pair<strings::inLateDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 10>>,
+std::pair<strings::inNotValidDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 11>>,
+std::pair<strings::inInvalidPkts, std::integral_constant<apache::thrift::field_id_t, 12>>,
+std::pair<strings::inNoSaDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 13>>,
+std::pair<strings::inUnusedSaPkts, std::integral_constant<apache::thrift::field_id_t, 14>>,
+std::pair<strings::inCurrentXpn, std::integral_constant<apache::thrift::field_id_t, 15>>,
+std::pair<strings::outTooLongDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 30>>,
+std::pair<strings::outCurrentXpn, std::integral_constant<apache::thrift::field_id_t, 31>>,
+std::pair<strings::noMacsecTagPkts, std::integral_constant<apache::thrift::field_id_t, 45>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::mka::MacsecPortStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(preMacsecDropPkts, 1);
+    STRUCT_CHILD_GETTERS(controlPkts, 2);
+    STRUCT_CHILD_GETTERS(dataPkts, 3);
+    STRUCT_CHILD_GETTERS(octetsEncrypted, 4);
+    STRUCT_CHILD_GETTERS(inBadOrNoMacsecTagDroppedPkts, 5);
+    STRUCT_CHILD_GETTERS(inNoSciDroppedPkts, 6);
+    STRUCT_CHILD_GETTERS(inUnknownSciPkts, 7);
+    STRUCT_CHILD_GETTERS(inOverrunDroppedPkts, 8);
+    STRUCT_CHILD_GETTERS(inDelayedPkts, 9);
+    STRUCT_CHILD_GETTERS(inLateDroppedPkts, 10);
+    STRUCT_CHILD_GETTERS(inNotValidDroppedPkts, 11);
+    STRUCT_CHILD_GETTERS(inInvalidPkts, 12);
+    STRUCT_CHILD_GETTERS(inNoSaDroppedPkts, 13);
+    STRUCT_CHILD_GETTERS(inUnusedSaPkts, 14);
+    STRUCT_CHILD_GETTERS(inCurrentXpn, 15);
+    STRUCT_CHILD_GETTERS(outTooLongDroppedPkts, 30);
+    STRUCT_CHILD_GETTERS(outCurrentXpn, 31);
+    STRUCT_CHILD_GETTERS(noMacsecTagPkts, 45);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return preMacsecDropPkts(); }
+    else if constexpr (__id == 2) { return controlPkts(); }
+    else if constexpr (__id == 3) { return dataPkts(); }
+    else if constexpr (__id == 4) { return octetsEncrypted(); }
+    else if constexpr (__id == 5) { return inBadOrNoMacsecTagDroppedPkts(); }
+    else if constexpr (__id == 6) { return inNoSciDroppedPkts(); }
+    else if constexpr (__id == 7) { return inUnknownSciPkts(); }
+    else if constexpr (__id == 8) { return inOverrunDroppedPkts(); }
+    else if constexpr (__id == 9) { return inDelayedPkts(); }
+    else if constexpr (__id == 10) { return inLateDroppedPkts(); }
+    else if constexpr (__id == 11) { return inNotValidDroppedPkts(); }
+    else if constexpr (__id == 12) { return inInvalidPkts(); }
+    else if constexpr (__id == 13) { return inNoSaDroppedPkts(); }
+    else if constexpr (__id == 14) { return inUnusedSaPkts(); }
+    else if constexpr (__id == 15) { return inCurrentXpn(); }
+    else if constexpr (__id == 30) { return outTooLongDroppedPkts(); }
+    else if constexpr (__id == 31) { return outCurrentXpn(); }
+    else if constexpr (__id == 45) { return noMacsecTagPkts(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::MacsecSaIdSaStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::MacsecSaIdSaStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::MacsecSaIdSaStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::hardware_stats_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::saId, ChildThriftPath<::facebook::fboss::mka::MKASecureAssociationId, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::saStats, ChildThriftPath<::facebook::fboss::mka::MacsecSaStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::mka::MKASecureAssociationId, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::mka::MacsecSaStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::saId, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::saStats, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::MacsecSaIdSaStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(saId, 1);
+    STRUCT_CHILD_GETTERS(saStats, 2);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return saId(); }
+    else if constexpr (__id == 2) { return saStats(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+template<typename Parent>
+class ChildThriftPath<::std::vector<::facebook::fboss::Channel>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::std::vector<::facebook::fboss::Channel>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
+   Parent> {
+ public:
+  using Self = Path<
+   ::std::vector<::facebook::fboss::Channel>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
+   Parent>;
+  using Child = ChildThriftPath<::facebook::fboss::Channel, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+
+  explicit ChildThriftPath<::std::vector<::facebook::fboss::Channel>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+     std::vector<std::string> tokens = {},
+     std::vector<std::string> idTokens = {}) : Path<
+   ::std::vector<::facebook::fboss::Channel>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+
+  CONTAINER_CHILD_GETTERS(::std::int32_t);
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::IOStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::IOStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::IOStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::io_stats_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::readDownTime, Child<double, ::apache::thrift::type_class::floating_point>>,
+std::pair<strings::writeDownTime, Child<double, ::apache::thrift::type_class::floating_point>>,
+std::pair<strings::numReadAttempted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::numReadFailed, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::numWriteAttempted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::numWriteFailed, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<double, ::apache::thrift::type_class::floating_point>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<double, ::apache::thrift::type_class::floating_point>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::readDownTime, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::writeDownTime, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::numReadAttempted, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::numReadFailed, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::numWriteAttempted, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::numWriteFailed, std::integral_constant<apache::thrift::field_id_t, 6>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::IOStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(readDownTime, 1);
+    STRUCT_CHILD_GETTERS(writeDownTime, 2);
+    STRUCT_CHILD_GETTERS(numReadAttempted, 3);
+    STRUCT_CHILD_GETTERS(numReadFailed, 4);
+    STRUCT_CHILD_GETTERS(numWriteAttempted, 5);
+    STRUCT_CHILD_GETTERS(numWriteFailed, 6);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return readDownTime(); }
+    else if constexpr (__id == 2) { return writeDownTime(); }
+    else if constexpr (__id == 3) { return numReadAttempted(); }
+    else if constexpr (__id == 4) { return numReadFailed(); }
+    else if constexpr (__id == 5) { return numWriteAttempted(); }
+    else if constexpr (__id == 6) { return numWriteFailed(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
 class ChildThriftPath<::facebook::fboss::MacsecSciFlowStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
    ::facebook::fboss::MacsecSciFlowStats,
@@ -19560,6 +19158,32 @@ std::pair<strings::flowStats, std::integral_constant<apache::thrift::field_id_t,
 };
 
 template<typename Parent>
+class ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwFlowletStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::std::map<::std::int16_t, ::facebook::fboss::HwFlowletStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
+   Parent> {
+ public:
+  using Self = Path<
+   ::std::map<::std::int16_t, ::facebook::fboss::HwFlowletStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
+   Parent>;
+  using Child = ChildThriftPath<::facebook::fboss::HwFlowletStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+
+  explicit ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwFlowletStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+     std::vector<std::string> tokens = {},
+     std::vector<std::string> idTokens = {}) : Path<
+   ::std::map<::std::int16_t, ::facebook::fboss::HwFlowletStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+
+  CONTAINER_CHILD_GETTERS(::std::int16_t);
+};
+
+template<typename Parent>
 class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::phy::PhyStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
    ::std::map<::std::string, ::facebook::fboss::phy::PhyStats>,
@@ -19609,6 +19233,352 @@ class ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fb
    Parent>(std::move(tokens), std::move(idTokens)) {}
 
   CONTAINER_CHILD_GETTERS(::std::int16_t);
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::TransceiverStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::TransceiverStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::TransceiverStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::transceiver_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::readDownTime, Child<double, ::apache::thrift::type_class::floating_point>>,
+std::pair<strings::writeDownTime, Child<double, ::apache::thrift::type_class::floating_point>>,
+std::pair<strings::numReadAttempted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::numReadFailed, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::numWriteAttempted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::numWriteFailed, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<double, ::apache::thrift::type_class::floating_point>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<double, ::apache::thrift::type_class::floating_point>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::readDownTime, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::writeDownTime, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::numReadAttempted, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::numReadFailed, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::numWriteAttempted, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::numWriteFailed, std::integral_constant<apache::thrift::field_id_t, 6>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::TransceiverStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(readDownTime, 1);
+    STRUCT_CHILD_GETTERS(writeDownTime, 2);
+    STRUCT_CHILD_GETTERS(numReadAttempted, 3);
+    STRUCT_CHILD_GETTERS(numReadFailed, 4);
+    STRUCT_CHILD_GETTERS(numWriteAttempted, 5);
+    STRUCT_CHILD_GETTERS(numWriteFailed, 6);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return readDownTime(); }
+    else if constexpr (__id == 2) { return writeDownTime(); }
+    else if constexpr (__id == 3) { return numReadAttempted(); }
+    else if constexpr (__id == 4) { return numReadFailed(); }
+    else if constexpr (__id == 5) { return numWriteAttempted(); }
+    else if constexpr (__id == 6) { return numWriteFailed(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::phy::PmdStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::phy::PmdStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::phy::PmdStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::phy::phy_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::lanes, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::lanes, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::phy::PmdStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(lanes, 1);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return lanes(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::phy::PhyStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::phy::PhyStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::phy::PhyStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::phy::phy_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::system, ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::line, ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::linkFlapCount, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::ioStats, ChildThriftPath<::facebook::fboss::IOStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::timeCollected, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, ChildThriftPath<::facebook::fboss::IOStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::system, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::line, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::linkFlapCount, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::ioStats, std::integral_constant<apache::thrift::field_id_t, 9>>,
+std::pair<strings::timeCollected, std::integral_constant<apache::thrift::field_id_t, 10>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::phy::PhyStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(system, 1);
+    STRUCT_CHILD_GETTERS(line, 2);
+    STRUCT_CHILD_GETTERS(linkFlapCount, 3);
+    STRUCT_CHILD_GETTERS(ioStats, 9);
+    STRUCT_CHILD_GETTERS(timeCollected, 10);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return system(); }
+    else if constexpr (__id == 2) { return line(); }
+    else if constexpr (__id == 3) { return linkFlapCount(); }
+    else if constexpr (__id == 9) { return ioStats(); }
+    else if constexpr (__id == 10) { return timeCollected(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::mka::MKASci, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::mka::MKASci,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::mka::MKASci,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::mka::mka_structs_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::macAddress, Child<::std::string, ::apache::thrift::type_class::string>>,
+std::pair<strings::port, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::string, ::apache::thrift::type_class::string>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::macAddress, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::port, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::mka::MKASci,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(macAddress, 1);
+    STRUCT_CHILD_GETTERS(port, 2);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return macAddress(); }
+    else if constexpr (__id == 2) { return port(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::HwSwitchDropStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::HwSwitchDropStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::HwSwitchDropStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::hardware_stats_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::globalDrops, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::globalReachabilityDrops, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::packetIntegrityDrops, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::fdrCellDrops, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::globalDrops, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::globalReachabilityDrops, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::packetIntegrityDrops, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::fdrCellDrops, std::integral_constant<apache::thrift::field_id_t, 4>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::HwSwitchDropStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(globalDrops, 1);
+    STRUCT_CHILD_GETTERS(globalReachabilityDrops, 2);
+    STRUCT_CHILD_GETTERS(packetIntegrityDrops, 3);
+    STRUCT_CHILD_GETTERS(fdrCellDrops, 4);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return globalDrops(); }
+    else if constexpr (__id == 2) { return globalReachabilityDrops(); }
+    else if constexpr (__id == 3) { return packetIntegrityDrops(); }
+    else if constexpr (__id == 4) { return fdrCellDrops(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+template<typename Parent>
+class ChildThriftPath<::std::vector<::facebook::fboss::phy::EyeInfo>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::std::vector<::facebook::fboss::phy::EyeInfo>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
+   Parent> {
+ public:
+  using Self = Path<
+   ::std::vector<::facebook::fboss::phy::EyeInfo>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
+   Parent>;
+  using Child = ChildThriftPath<::facebook::fboss::phy::EyeInfo, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+
+  explicit ChildThriftPath<::std::vector<::facebook::fboss::phy::EyeInfo>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+     std::vector<std::string> tokens = {},
+     std::vector<std::string> idTokens = {}) : Path<
+   ::std::vector<::facebook::fboss::phy::EyeInfo>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+
+  CONTAINER_CHILD_GETTERS(::std::int32_t);
 };
 
 
@@ -19950,147 +19920,15 @@ class ChildThriftPath<::std::map<::std::string, ::std::vector<::std::int32_t>>, 
 
 
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::TransceiverStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::facebook::fboss::HwFlowletStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::TransceiverStats,
+   ::facebook::fboss::HwFlowletStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent> {
  public:
   using Self = Path<
-   ::facebook::fboss::TransceiverStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::transceiver_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::readDownTime, Child<double, ::apache::thrift::type_class::floating_point>>,
-std::pair<strings::writeDownTime, Child<double, ::apache::thrift::type_class::floating_point>>,
-std::pair<strings::numReadAttempted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::numReadFailed, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::numWriteAttempted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::numWriteFailed, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<double, ::apache::thrift::type_class::floating_point>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<double, ::apache::thrift::type_class::floating_point>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::readDownTime, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::writeDownTime, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::numReadAttempted, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::numReadFailed, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::numWriteAttempted, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::numWriteFailed, std::integral_constant<apache::thrift::field_id_t, 6>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::TransceiverStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(readDownTime, 1);
-    STRUCT_CHILD_GETTERS(writeDownTime, 2);
-    STRUCT_CHILD_GETTERS(numReadAttempted, 3);
-    STRUCT_CHILD_GETTERS(numReadFailed, 4);
-    STRUCT_CHILD_GETTERS(numWriteAttempted, 5);
-    STRUCT_CHILD_GETTERS(numWriteFailed, 6);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return readDownTime(); }
-    else if constexpr (__id == 2) { return writeDownTime(); }
-    else if constexpr (__id == 3) { return numReadAttempted(); }
-    else if constexpr (__id == 4) { return numReadFailed(); }
-    else if constexpr (__id == 5) { return numWriteAttempted(); }
-    else if constexpr (__id == 6) { return numWriteFailed(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::mka::MKASecureAssociationId, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::mka::MKASecureAssociationId,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::mka::MKASecureAssociationId,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::mka::mka_structs_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::sci, ChildThriftPath<::facebook::fboss::mka::MKASci, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::assocNum, Child<::std::int16_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::mka::MKASci, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int16_t, ::apache::thrift::type_class::integral>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::sci, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::assocNum, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::mka::MKASecureAssociationId,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(sci, 1);
-    STRUCT_CHILD_GETTERS(assocNum, 2);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return sci(); }
-    else if constexpr (__id == 2) { return assocNum(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::MacsecSaIdSaStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::MacsecSaIdSaStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::MacsecSaIdSaStats,
+   ::facebook::fboss::HwFlowletStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>;
@@ -20102,13 +19940,10 @@ class ChildThriftPath<::facebook::fboss::MacsecSaIdSaStats, ::facebook::fboss::f
     ChildTC,
     Self
   >;
-  using Children = fatal::tuple<std::pair<strings::saId, ChildThriftPath<::facebook::fboss::mka::MKASecureAssociationId, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::saStats, ChildThriftPath<::facebook::fboss::mka::MacsecSaStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::mka::MKASecureAssociationId, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::mka::MacsecSaStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using Children = fatal::tuple<std::pair<strings::l3EcmpDlbFailPackets, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
   template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::saId, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::saStats, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
+  using NameToId = fatal::tuple<std::pair<strings::l3EcmpDlbFailPackets, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -20116,18 +19951,16 @@ std::pair<strings::saStats, std::integral_constant<apache::thrift::field_id_t, 2
   ChildThriftPath(
     std::vector<std::string> tokens = {},
     std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::MacsecSaIdSaStats,
+   ::facebook::fboss::HwFlowletStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>(std::move(tokens), std::move(idTokens)) {}
   
-    STRUCT_CHILD_GETTERS(saId, 1);
-    STRUCT_CHILD_GETTERS(saStats, 2);
+    STRUCT_CHILD_GETTERS(l3EcmpDlbFailPackets, 1);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return saId(); }
-    else if constexpr (__id == 2) { return saStats(); }
+    if constexpr (__id == 1) { return l3EcmpDlbFailPackets(); }
   }
 
   template <typename T, T... Values>
@@ -20137,46 +19970,46 @@ std::pair<strings::saStats, std::integral_constant<apache::thrift::field_id_t, 2
 };
 
 template<typename Parent>
-class ChildThriftPath<::std::vector<::facebook::fboss::Channel>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::std::vector<::facebook::fboss::Channel>,
+   ::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
    Parent> {
  public:
   using Self = Path<
-   ::std::vector<::facebook::fboss::Channel>,
+   ::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
    Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::Channel, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+  using Child = ChildThriftPath<::facebook::fboss::phy::LaneStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
 
-  explicit ChildThriftPath<::std::vector<::facebook::fboss::Channel>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+  explicit ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
      std::vector<std::string> tokens = {},
      std::vector<std::string> idTokens = {}) : Path<
-   ::std::vector<::facebook::fboss::Channel>,
+   ::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
    Parent>(std::move(tokens), std::move(idTokens)) {}
 
-  CONTAINER_CHILD_GETTERS(::std::int32_t);
+  CONTAINER_CHILD_GETTERS(::std::int16_t);
 };
 
 
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::mka::MacsecSaStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::facebook::fboss::HwBufferPoolStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::mka::MacsecSaStats,
+   ::facebook::fboss::HwBufferPoolStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent> {
  public:
   using Self = Path<
-   ::facebook::fboss::mka::MacsecSaStats,
+   ::facebook::fboss::HwBufferPoolStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>;
-  using strings = ::facebook::fboss::mka::mka_structs_tags::strings;
+  using strings = ::facebook::fboss::hardware_stats_tags::strings;
   template <typename ChildType, typename ChildTC>
   using Child = Path<
     ChildType,
@@ -20184,52 +20017,10 @@ class ChildThriftPath<::facebook::fboss::mka::MacsecSaStats, ::facebook::fboss::
     ChildTC,
     Self
   >;
-  using Children = fatal::tuple<std::pair<strings::directionIngress, Child<bool, ::apache::thrift::type_class::integral>>,
-std::pair<strings::octetsEncrypted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::octetsProtected, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outEncryptedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outProtectedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inUncheckedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inDelayedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inLatePkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inInvalidPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inNotValidPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inNoSaPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inUnusedSaPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inOkPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outCurrentXpn, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inCurrentXpn, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<bool, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using Children = fatal::tuple<std::pair<strings::deviceWatermarkBytes, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
   template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::directionIngress, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::octetsEncrypted, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::octetsProtected, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::outEncryptedPkts, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::outProtectedPkts, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::inUncheckedPkts, std::integral_constant<apache::thrift::field_id_t, 6>>,
-std::pair<strings::inDelayedPkts, std::integral_constant<apache::thrift::field_id_t, 7>>,
-std::pair<strings::inLatePkts, std::integral_constant<apache::thrift::field_id_t, 8>>,
-std::pair<strings::inInvalidPkts, std::integral_constant<apache::thrift::field_id_t, 9>>,
-std::pair<strings::inNotValidPkts, std::integral_constant<apache::thrift::field_id_t, 10>>,
-std::pair<strings::inNoSaPkts, std::integral_constant<apache::thrift::field_id_t, 11>>,
-std::pair<strings::inUnusedSaPkts, std::integral_constant<apache::thrift::field_id_t, 12>>,
-std::pair<strings::inOkPkts, std::integral_constant<apache::thrift::field_id_t, 13>>,
-std::pair<strings::outCurrentXpn, std::integral_constant<apache::thrift::field_id_t, 14>>,
-std::pair<strings::inCurrentXpn, std::integral_constant<apache::thrift::field_id_t, 15>>>::template type_of<Name>;
+  using NameToId = fatal::tuple<std::pair<strings::deviceWatermarkBytes, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -20237,44 +20028,16 @@ std::pair<strings::inCurrentXpn, std::integral_constant<apache::thrift::field_id
   ChildThriftPath(
     std::vector<std::string> tokens = {},
     std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::mka::MacsecSaStats,
+   ::facebook::fboss::HwBufferPoolStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>(std::move(tokens), std::move(idTokens)) {}
   
-    STRUCT_CHILD_GETTERS(directionIngress, 1);
-    STRUCT_CHILD_GETTERS(octetsEncrypted, 2);
-    STRUCT_CHILD_GETTERS(octetsProtected, 3);
-    STRUCT_CHILD_GETTERS(outEncryptedPkts, 4);
-    STRUCT_CHILD_GETTERS(outProtectedPkts, 5);
-    STRUCT_CHILD_GETTERS(inUncheckedPkts, 6);
-    STRUCT_CHILD_GETTERS(inDelayedPkts, 7);
-    STRUCT_CHILD_GETTERS(inLatePkts, 8);
-    STRUCT_CHILD_GETTERS(inInvalidPkts, 9);
-    STRUCT_CHILD_GETTERS(inNotValidPkts, 10);
-    STRUCT_CHILD_GETTERS(inNoSaPkts, 11);
-    STRUCT_CHILD_GETTERS(inUnusedSaPkts, 12);
-    STRUCT_CHILD_GETTERS(inOkPkts, 13);
-    STRUCT_CHILD_GETTERS(outCurrentXpn, 14);
-    STRUCT_CHILD_GETTERS(inCurrentXpn, 15);
+    STRUCT_CHILD_GETTERS(deviceWatermarkBytes, 1);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return directionIngress(); }
-    else if constexpr (__id == 2) { return octetsEncrypted(); }
-    else if constexpr (__id == 3) { return octetsProtected(); }
-    else if constexpr (__id == 4) { return outEncryptedPkts(); }
-    else if constexpr (__id == 5) { return outProtectedPkts(); }
-    else if constexpr (__id == 6) { return inUncheckedPkts(); }
-    else if constexpr (__id == 7) { return inDelayedPkts(); }
-    else if constexpr (__id == 8) { return inLatePkts(); }
-    else if constexpr (__id == 9) { return inInvalidPkts(); }
-    else if constexpr (__id == 10) { return inNotValidPkts(); }
-    else if constexpr (__id == 11) { return inNoSaPkts(); }
-    else if constexpr (__id == 12) { return inUnusedSaPkts(); }
-    else if constexpr (__id == 13) { return inOkPkts(); }
-    else if constexpr (__id == 14) { return outCurrentXpn(); }
-    else if constexpr (__id == 15) { return inCurrentXpn(); }
+    if constexpr (__id == 1) { return deviceWatermarkBytes(); }
   }
 
   template <typename T, T... Values>
@@ -20283,92 +20046,47 @@ std::pair<strings::inCurrentXpn, std::integral_constant<apache::thrift::field_id
   }
 };
 
-
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::phy::LaneStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwTrunkStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::phy::LaneStats,
+   ::std::map<::std::string, ::facebook::fboss::HwTrunkStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
    Parent> {
  public:
   using Self = Path<
-   ::facebook::fboss::phy::LaneStats,
+   ::std::map<::std::string, ::facebook::fboss::HwTrunkStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
    Parent>;
-  using strings = ::facebook::fboss::phy::phy_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::lane, Child<::std::int16_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::eyes, ChildThriftPath<::std::vector<::facebook::fboss::phy::EyeInfo>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::snr, Child<float, ::apache::thrift::type_class::floating_point>>,
-std::pair<strings::signalDetectChangedCount, Child<::std::int32_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::cdrLockChangedCount, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int16_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::std::vector<::facebook::fboss::phy::EyeInfo>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<float, ::apache::thrift::type_class::floating_point>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::lane, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::eyes, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::snr, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::signalDetectChangedCount, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::cdrLockChangedCount, std::integral_constant<apache::thrift::field_id_t, 5>>>::template type_of<Name>;
+  using Child = ChildThriftPath<::facebook::fboss::HwTrunkStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
 
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::phy::LaneStats,
+  explicit ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwTrunkStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+     std::vector<std::string> tokens = {},
+     std::vector<std::string> idTokens = {}) : Path<
+   ::std::map<::std::string, ::facebook::fboss::HwTrunkStats>,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
    Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(lane, 1);
-    STRUCT_CHILD_GETTERS(eyes, 2);
-    STRUCT_CHILD_GETTERS(snr, 3);
-    STRUCT_CHILD_GETTERS(signalDetectChangedCount, 4);
-    STRUCT_CHILD_GETTERS(cdrLockChangedCount, 5);
 
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return lane(); }
-    else if constexpr (__id == 2) { return eyes(); }
-    else if constexpr (__id == 3) { return snr(); }
-    else if constexpr (__id == 4) { return signalDetectChangedCount(); }
-    else if constexpr (__id == 5) { return cdrLockChangedCount(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
+  CONTAINER_CHILD_GETTERS(::std::string);
 };
 
 
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::facebook::fboss::HwPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::mka::MacsecPortStats,
+   ::facebook::fboss::HwPortStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent> {
  public:
   using Self = Path<
-   ::facebook::fboss::mka::MacsecPortStats,
+   ::facebook::fboss::HwPortStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>;
-  using strings = ::facebook::fboss::mka::mka_structs_tags::strings;
+  using strings = ::facebook::fboss::hardware_stats_tags::strings;
   template <typename ChildType, typename ChildTC>
   using Child = Path<
     ChildType,
@@ -20376,24 +20094,49 @@ class ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss
     ChildTC,
     Self
   >;
-  using Children = fatal::tuple<std::pair<strings::preMacsecDropPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::controlPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::dataPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::octetsEncrypted, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inBadOrNoMacsecTagDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inNoSciDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inUnknownSciPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inOverrunDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inDelayedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inLateDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inNotValidDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inInvalidPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inNoSaDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inUnusedSaPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::inCurrentXpn, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outTooLongDroppedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::outCurrentXpn, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::noMacsecTagPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using Children = fatal::tuple<std::pair<strings::inBytes_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inUnicastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inMulticastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inBroadcastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inPause_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inIpv4HdrErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inIpv6HdrErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inDstNullDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inDiscardsRaw_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outBytes_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outUnicastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outMulticastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outBroadcastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outPause_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outCongestionDiscardPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::wredDroppedPackets_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::queueOutDiscardBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::queueOutBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::outEcnCounter_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::queueOutPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::queueOutDiscardPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::queueWatermarkBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::fecCorrectableErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::fecUncorrectableErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inPfcCtrl_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outPfcCtrl_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inPfc_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::inPfcXon_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::outPfc_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::queueWredDroppedPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::queueEcnMarkedPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::fecCorrectedBits_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::fecCodewords_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::timestamp_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::portName_, Child<::std::string, ::apache::thrift::type_class::string>>,
+std::pair<strings::macsecStats, ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::inLabelMissDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::queueWatermarkLevel_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::inCongestionDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
   using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
@@ -20409,28 +20152,78 @@ std::pair<strings::noMacsecTagPkts, Child<::std::int64_t, ::apache::thrift::type
    std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 16>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 17>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 18>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 19>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 20>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 21>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 22>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 23>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 24>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 25>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 26>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 27>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 28>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 29>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 30>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 31>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 45>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 31>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 32>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 33>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 34>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 35>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 36>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 37>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 50>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 51>, Child<::std::string, ::apache::thrift::type_class::string>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 52>, ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 53>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 54>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 55>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
   template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::preMacsecDropPkts, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::controlPkts, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::dataPkts, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::octetsEncrypted, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::inBadOrNoMacsecTagDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::inNoSciDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 6>>,
-std::pair<strings::inUnknownSciPkts, std::integral_constant<apache::thrift::field_id_t, 7>>,
-std::pair<strings::inOverrunDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 8>>,
-std::pair<strings::inDelayedPkts, std::integral_constant<apache::thrift::field_id_t, 9>>,
-std::pair<strings::inLateDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 10>>,
-std::pair<strings::inNotValidDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 11>>,
-std::pair<strings::inInvalidPkts, std::integral_constant<apache::thrift::field_id_t, 12>>,
-std::pair<strings::inNoSaDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 13>>,
-std::pair<strings::inUnusedSaPkts, std::integral_constant<apache::thrift::field_id_t, 14>>,
-std::pair<strings::inCurrentXpn, std::integral_constant<apache::thrift::field_id_t, 15>>,
-std::pair<strings::outTooLongDroppedPkts, std::integral_constant<apache::thrift::field_id_t, 30>>,
-std::pair<strings::outCurrentXpn, std::integral_constant<apache::thrift::field_id_t, 31>>,
-std::pair<strings::noMacsecTagPkts, std::integral_constant<apache::thrift::field_id_t, 45>>>::template type_of<Name>;
+  using NameToId = fatal::tuple<std::pair<strings::inBytes_, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::inUnicastPkts_, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::inMulticastPkts_, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::inBroadcastPkts_, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::inDiscards_, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::inErrors_, std::integral_constant<apache::thrift::field_id_t, 6>>,
+std::pair<strings::inPause_, std::integral_constant<apache::thrift::field_id_t, 7>>,
+std::pair<strings::inIpv4HdrErrors_, std::integral_constant<apache::thrift::field_id_t, 8>>,
+std::pair<strings::inIpv6HdrErrors_, std::integral_constant<apache::thrift::field_id_t, 9>>,
+std::pair<strings::inDstNullDiscards_, std::integral_constant<apache::thrift::field_id_t, 10>>,
+std::pair<strings::inDiscardsRaw_, std::integral_constant<apache::thrift::field_id_t, 11>>,
+std::pair<strings::outBytes_, std::integral_constant<apache::thrift::field_id_t, 12>>,
+std::pair<strings::outUnicastPkts_, std::integral_constant<apache::thrift::field_id_t, 13>>,
+std::pair<strings::outMulticastPkts_, std::integral_constant<apache::thrift::field_id_t, 14>>,
+std::pair<strings::outBroadcastPkts_, std::integral_constant<apache::thrift::field_id_t, 15>>,
+std::pair<strings::outDiscards_, std::integral_constant<apache::thrift::field_id_t, 16>>,
+std::pair<strings::outErrors_, std::integral_constant<apache::thrift::field_id_t, 17>>,
+std::pair<strings::outPause_, std::integral_constant<apache::thrift::field_id_t, 18>>,
+std::pair<strings::outCongestionDiscardPkts_, std::integral_constant<apache::thrift::field_id_t, 19>>,
+std::pair<strings::wredDroppedPackets_, std::integral_constant<apache::thrift::field_id_t, 20>>,
+std::pair<strings::queueOutDiscardBytes_, std::integral_constant<apache::thrift::field_id_t, 21>>,
+std::pair<strings::queueOutBytes_, std::integral_constant<apache::thrift::field_id_t, 22>>,
+std::pair<strings::outEcnCounter_, std::integral_constant<apache::thrift::field_id_t, 23>>,
+std::pair<strings::queueOutPackets_, std::integral_constant<apache::thrift::field_id_t, 24>>,
+std::pair<strings::queueOutDiscardPackets_, std::integral_constant<apache::thrift::field_id_t, 25>>,
+std::pair<strings::queueWatermarkBytes_, std::integral_constant<apache::thrift::field_id_t, 26>>,
+std::pair<strings::fecCorrectableErrors, std::integral_constant<apache::thrift::field_id_t, 27>>,
+std::pair<strings::fecUncorrectableErrors, std::integral_constant<apache::thrift::field_id_t, 28>>,
+std::pair<strings::inPfcCtrl_, std::integral_constant<apache::thrift::field_id_t, 29>>,
+std::pair<strings::outPfcCtrl_, std::integral_constant<apache::thrift::field_id_t, 30>>,
+std::pair<strings::inPfc_, std::integral_constant<apache::thrift::field_id_t, 31>>,
+std::pair<strings::inPfcXon_, std::integral_constant<apache::thrift::field_id_t, 32>>,
+std::pair<strings::outPfc_, std::integral_constant<apache::thrift::field_id_t, 33>>,
+std::pair<strings::queueWredDroppedPackets_, std::integral_constant<apache::thrift::field_id_t, 34>>,
+std::pair<strings::queueEcnMarkedPackets_, std::integral_constant<apache::thrift::field_id_t, 35>>,
+std::pair<strings::fecCorrectedBits_, std::integral_constant<apache::thrift::field_id_t, 36>>,
+std::pair<strings::fecCodewords_, std::integral_constant<apache::thrift::field_id_t, 37>>,
+std::pair<strings::timestamp_, std::integral_constant<apache::thrift::field_id_t, 50>>,
+std::pair<strings::portName_, std::integral_constant<apache::thrift::field_id_t, 51>>,
+std::pair<strings::macsecStats, std::integral_constant<apache::thrift::field_id_t, 52>>,
+std::pair<strings::inLabelMissDiscards_, std::integral_constant<apache::thrift::field_id_t, 53>>,
+std::pair<strings::queueWatermarkLevel_, std::integral_constant<apache::thrift::field_id_t, 54>>,
+std::pair<strings::inCongestionDiscards_, std::integral_constant<apache::thrift::field_id_t, 55>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -20438,50 +20231,247 @@ std::pair<strings::noMacsecTagPkts, std::integral_constant<apache::thrift::field
   ChildThriftPath(
     std::vector<std::string> tokens = {},
     std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::mka::MacsecPortStats,
+   ::facebook::fboss::HwPortStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>(std::move(tokens), std::move(idTokens)) {}
   
-    STRUCT_CHILD_GETTERS(preMacsecDropPkts, 1);
-    STRUCT_CHILD_GETTERS(controlPkts, 2);
-    STRUCT_CHILD_GETTERS(dataPkts, 3);
-    STRUCT_CHILD_GETTERS(octetsEncrypted, 4);
-    STRUCT_CHILD_GETTERS(inBadOrNoMacsecTagDroppedPkts, 5);
-    STRUCT_CHILD_GETTERS(inNoSciDroppedPkts, 6);
-    STRUCT_CHILD_GETTERS(inUnknownSciPkts, 7);
-    STRUCT_CHILD_GETTERS(inOverrunDroppedPkts, 8);
-    STRUCT_CHILD_GETTERS(inDelayedPkts, 9);
-    STRUCT_CHILD_GETTERS(inLateDroppedPkts, 10);
-    STRUCT_CHILD_GETTERS(inNotValidDroppedPkts, 11);
-    STRUCT_CHILD_GETTERS(inInvalidPkts, 12);
-    STRUCT_CHILD_GETTERS(inNoSaDroppedPkts, 13);
-    STRUCT_CHILD_GETTERS(inUnusedSaPkts, 14);
-    STRUCT_CHILD_GETTERS(inCurrentXpn, 15);
-    STRUCT_CHILD_GETTERS(outTooLongDroppedPkts, 30);
-    STRUCT_CHILD_GETTERS(outCurrentXpn, 31);
-    STRUCT_CHILD_GETTERS(noMacsecTagPkts, 45);
+    STRUCT_CHILD_GETTERS(inBytes_, 1);
+    STRUCT_CHILD_GETTERS(inUnicastPkts_, 2);
+    STRUCT_CHILD_GETTERS(inMulticastPkts_, 3);
+    STRUCT_CHILD_GETTERS(inBroadcastPkts_, 4);
+    STRUCT_CHILD_GETTERS(inDiscards_, 5);
+    STRUCT_CHILD_GETTERS(inErrors_, 6);
+    STRUCT_CHILD_GETTERS(inPause_, 7);
+    STRUCT_CHILD_GETTERS(inIpv4HdrErrors_, 8);
+    STRUCT_CHILD_GETTERS(inIpv6HdrErrors_, 9);
+    STRUCT_CHILD_GETTERS(inDstNullDiscards_, 10);
+    STRUCT_CHILD_GETTERS(inDiscardsRaw_, 11);
+    STRUCT_CHILD_GETTERS(outBytes_, 12);
+    STRUCT_CHILD_GETTERS(outUnicastPkts_, 13);
+    STRUCT_CHILD_GETTERS(outMulticastPkts_, 14);
+    STRUCT_CHILD_GETTERS(outBroadcastPkts_, 15);
+    STRUCT_CHILD_GETTERS(outDiscards_, 16);
+    STRUCT_CHILD_GETTERS(outErrors_, 17);
+    STRUCT_CHILD_GETTERS(outPause_, 18);
+    STRUCT_CHILD_GETTERS(outCongestionDiscardPkts_, 19);
+    STRUCT_CHILD_GETTERS(wredDroppedPackets_, 20);
+    STRUCT_CHILD_GETTERS(queueOutDiscardBytes_, 21);
+    STRUCT_CHILD_GETTERS(queueOutBytes_, 22);
+    STRUCT_CHILD_GETTERS(outEcnCounter_, 23);
+    STRUCT_CHILD_GETTERS(queueOutPackets_, 24);
+    STRUCT_CHILD_GETTERS(queueOutDiscardPackets_, 25);
+    STRUCT_CHILD_GETTERS(queueWatermarkBytes_, 26);
+    STRUCT_CHILD_GETTERS(fecCorrectableErrors, 27);
+    STRUCT_CHILD_GETTERS(fecUncorrectableErrors, 28);
+    STRUCT_CHILD_GETTERS(inPfcCtrl_, 29);
+    STRUCT_CHILD_GETTERS(outPfcCtrl_, 30);
+    STRUCT_CHILD_GETTERS(inPfc_, 31);
+    STRUCT_CHILD_GETTERS(inPfcXon_, 32);
+    STRUCT_CHILD_GETTERS(outPfc_, 33);
+    STRUCT_CHILD_GETTERS(queueWredDroppedPackets_, 34);
+    STRUCT_CHILD_GETTERS(queueEcnMarkedPackets_, 35);
+    STRUCT_CHILD_GETTERS(fecCorrectedBits_, 36);
+    STRUCT_CHILD_GETTERS(fecCodewords_, 37);
+    STRUCT_CHILD_GETTERS(timestamp_, 50);
+    STRUCT_CHILD_GETTERS(portName_, 51);
+    STRUCT_CHILD_GETTERS(macsecStats, 52);
+    STRUCT_CHILD_GETTERS(inLabelMissDiscards_, 53);
+    STRUCT_CHILD_GETTERS(queueWatermarkLevel_, 54);
+    STRUCT_CHILD_GETTERS(inCongestionDiscards_, 55);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return preMacsecDropPkts(); }
-    else if constexpr (__id == 2) { return controlPkts(); }
-    else if constexpr (__id == 3) { return dataPkts(); }
-    else if constexpr (__id == 4) { return octetsEncrypted(); }
-    else if constexpr (__id == 5) { return inBadOrNoMacsecTagDroppedPkts(); }
-    else if constexpr (__id == 6) { return inNoSciDroppedPkts(); }
-    else if constexpr (__id == 7) { return inUnknownSciPkts(); }
-    else if constexpr (__id == 8) { return inOverrunDroppedPkts(); }
-    else if constexpr (__id == 9) { return inDelayedPkts(); }
-    else if constexpr (__id == 10) { return inLateDroppedPkts(); }
-    else if constexpr (__id == 11) { return inNotValidDroppedPkts(); }
-    else if constexpr (__id == 12) { return inInvalidPkts(); }
-    else if constexpr (__id == 13) { return inNoSaDroppedPkts(); }
-    else if constexpr (__id == 14) { return inUnusedSaPkts(); }
-    else if constexpr (__id == 15) { return inCurrentXpn(); }
-    else if constexpr (__id == 30) { return outTooLongDroppedPkts(); }
-    else if constexpr (__id == 31) { return outCurrentXpn(); }
-    else if constexpr (__id == 45) { return noMacsecTagPkts(); }
+    if constexpr (__id == 1) { return inBytes_(); }
+    else if constexpr (__id == 2) { return inUnicastPkts_(); }
+    else if constexpr (__id == 3) { return inMulticastPkts_(); }
+    else if constexpr (__id == 4) { return inBroadcastPkts_(); }
+    else if constexpr (__id == 5) { return inDiscards_(); }
+    else if constexpr (__id == 6) { return inErrors_(); }
+    else if constexpr (__id == 7) { return inPause_(); }
+    else if constexpr (__id == 8) { return inIpv4HdrErrors_(); }
+    else if constexpr (__id == 9) { return inIpv6HdrErrors_(); }
+    else if constexpr (__id == 10) { return inDstNullDiscards_(); }
+    else if constexpr (__id == 11) { return inDiscardsRaw_(); }
+    else if constexpr (__id == 12) { return outBytes_(); }
+    else if constexpr (__id == 13) { return outUnicastPkts_(); }
+    else if constexpr (__id == 14) { return outMulticastPkts_(); }
+    else if constexpr (__id == 15) { return outBroadcastPkts_(); }
+    else if constexpr (__id == 16) { return outDiscards_(); }
+    else if constexpr (__id == 17) { return outErrors_(); }
+    else if constexpr (__id == 18) { return outPause_(); }
+    else if constexpr (__id == 19) { return outCongestionDiscardPkts_(); }
+    else if constexpr (__id == 20) { return wredDroppedPackets_(); }
+    else if constexpr (__id == 21) { return queueOutDiscardBytes_(); }
+    else if constexpr (__id == 22) { return queueOutBytes_(); }
+    else if constexpr (__id == 23) { return outEcnCounter_(); }
+    else if constexpr (__id == 24) { return queueOutPackets_(); }
+    else if constexpr (__id == 25) { return queueOutDiscardPackets_(); }
+    else if constexpr (__id == 26) { return queueWatermarkBytes_(); }
+    else if constexpr (__id == 27) { return fecCorrectableErrors(); }
+    else if constexpr (__id == 28) { return fecUncorrectableErrors(); }
+    else if constexpr (__id == 29) { return inPfcCtrl_(); }
+    else if constexpr (__id == 30) { return outPfcCtrl_(); }
+    else if constexpr (__id == 31) { return inPfc_(); }
+    else if constexpr (__id == 32) { return inPfcXon_(); }
+    else if constexpr (__id == 33) { return outPfc_(); }
+    else if constexpr (__id == 34) { return queueWredDroppedPackets_(); }
+    else if constexpr (__id == 35) { return queueEcnMarkedPackets_(); }
+    else if constexpr (__id == 36) { return fecCorrectedBits_(); }
+    else if constexpr (__id == 37) { return fecCodewords_(); }
+    else if constexpr (__id == 50) { return timestamp_(); }
+    else if constexpr (__id == 51) { return portName_(); }
+    else if constexpr (__id == 52) { return macsecStats(); }
+    else if constexpr (__id == 53) { return inLabelMissDiscards_(); }
+    else if constexpr (__id == 54) { return queueWatermarkLevel_(); }
+    else if constexpr (__id == 55) { return inCongestionDiscards_(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::MacsecStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::MacsecStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::hardware_stats_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::ingressPortStats, ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::egressPortStats, ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::ingressFlowStats, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSciFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::egressFlowStats, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSciFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::rxSecureAssociationStats, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSaIdSaStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::txSecureAssociationStats, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSaIdSaStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::ingressAclStats, ChildThriftPath<::facebook::fboss::mka::MacsecAclStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::egressAclStats, ChildThriftPath<::facebook::fboss::mka::MacsecAclStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSciFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSciFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSaIdSaStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSaIdSaStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, ChildThriftPath<::facebook::fboss::mka::MacsecAclStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, ChildThriftPath<::facebook::fboss::mka::MacsecAclStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::ingressPortStats, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::egressPortStats, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::ingressFlowStats, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::egressFlowStats, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::rxSecureAssociationStats, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::txSecureAssociationStats, std::integral_constant<apache::thrift::field_id_t, 6>>,
+std::pair<strings::ingressAclStats, std::integral_constant<apache::thrift::field_id_t, 7>>,
+std::pair<strings::egressAclStats, std::integral_constant<apache::thrift::field_id_t, 8>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::MacsecStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(ingressPortStats, 1);
+    STRUCT_CHILD_GETTERS(egressPortStats, 2);
+    STRUCT_CHILD_GETTERS(ingressFlowStats, 3);
+    STRUCT_CHILD_GETTERS(egressFlowStats, 4);
+    STRUCT_CHILD_GETTERS(rxSecureAssociationStats, 5);
+    STRUCT_CHILD_GETTERS(txSecureAssociationStats, 6);
+    STRUCT_CHILD_GETTERS(ingressAclStats, 7);
+    STRUCT_CHILD_GETTERS(egressAclStats, 8);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return ingressPortStats(); }
+    else if constexpr (__id == 2) { return egressPortStats(); }
+    else if constexpr (__id == 3) { return ingressFlowStats(); }
+    else if constexpr (__id == 4) { return egressFlowStats(); }
+    else if constexpr (__id == 5) { return rxSecureAssociationStats(); }
+    else if constexpr (__id == 6) { return txSecureAssociationStats(); }
+    else if constexpr (__id == 7) { return ingressAclStats(); }
+    else if constexpr (__id == 8) { return egressAclStats(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::phy::PhySideStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::phy::PhySideStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::phy::phy_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::side, Child<::facebook::fboss::phy::Side, ::apache::thrift::type_class::enumeration>>,
+std::pair<strings::pcs, ChildThriftPath<::facebook::fboss::phy::PcsStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::pmd, ChildThriftPath<::facebook::fboss::phy::PmdStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::facebook::fboss::phy::Side, ::apache::thrift::type_class::enumeration>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::phy::PcsStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::facebook::fboss::phy::PmdStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::side, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::pcs, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::pmd, std::integral_constant<apache::thrift::field_id_t, 3>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::phy::PhySideStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(side, 1);
+    STRUCT_CHILD_GETTERS(pcs, 2);
+    STRUCT_CHILD_GETTERS(pmd, 3);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return side(); }
+    else if constexpr (__id == 2) { return pcs(); }
+    else if constexpr (__id == 3) { return pmd(); }
   }
 
   template <typename T, T... Values>
@@ -20518,15 +20508,306 @@ class ChildThriftPath<::std::vector<::facebook::fboss::MacsecSaIdSaStats>, ::fac
 
 
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::HwSwitchDropStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::facebook::fboss::AgentStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::HwSwitchDropStats,
+   ::facebook::fboss::AgentStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent> {
  public:
   using Self = Path<
-   ::facebook::fboss::HwSwitchDropStats,
+   ::facebook::fboss::AgentStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::agent_stats_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::hwPortStats, ChildThriftPath<folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::hwTrunkStats, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwTrunkStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::hwResourceStats, ChildThriftPath<::facebook::fboss::HwResourceStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::hwAsicErrors, ChildThriftPath<::facebook::fboss::HwAsicErrors, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::linkFlaps, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::sysPortStats, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwSysPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::teFlowStats, ChildThriftPath<::facebook::fboss::TeFlowStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::bufferPoolStats, ChildThriftPath<::facebook::fboss::HwBufferPoolStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::hwResourceStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::hwAsicErrorsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::teFlowStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::TeFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::bufferPoolStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwBufferPoolStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::sysPortStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::switchDropStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::flowletStats, ChildThriftPath<::facebook::fboss::HwFlowletStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::phyStats, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::phy::PhyStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::flowletStatsMap, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwFlowletStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwTrunkStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::facebook::fboss::HwResourceStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, ChildThriftPath<::facebook::fboss::HwAsicErrors, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwSysPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, ChildThriftPath<::facebook::fboss::TeFlowStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, ChildThriftPath<::facebook::fboss::HwBufferPoolStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwAsicErrors>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::TeFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwBufferPoolStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, ChildThriftPath<::std::map<::std::int16_t, ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 16>, ChildThriftPath<::facebook::fboss::HwFlowletStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 17>, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::phy::PhyStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 18>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwFlowletStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::hwPortStats, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::hwTrunkStats, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::hwResourceStats, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::hwAsicErrors, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::linkFlaps, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::sysPortStats, std::integral_constant<apache::thrift::field_id_t, 7>>,
+std::pair<strings::teFlowStats, std::integral_constant<apache::thrift::field_id_t, 8>>,
+std::pair<strings::bufferPoolStats, std::integral_constant<apache::thrift::field_id_t, 9>>,
+std::pair<strings::hwResourceStatsMap, std::integral_constant<apache::thrift::field_id_t, 10>>,
+std::pair<strings::hwAsicErrorsMap, std::integral_constant<apache::thrift::field_id_t, 11>>,
+std::pair<strings::teFlowStatsMap, std::integral_constant<apache::thrift::field_id_t, 12>>,
+std::pair<strings::bufferPoolStatsMap, std::integral_constant<apache::thrift::field_id_t, 13>>,
+std::pair<strings::sysPortStatsMap, std::integral_constant<apache::thrift::field_id_t, 14>>,
+std::pair<strings::switchDropStatsMap, std::integral_constant<apache::thrift::field_id_t, 15>>,
+std::pair<strings::flowletStats, std::integral_constant<apache::thrift::field_id_t, 16>>,
+std::pair<strings::phyStats, std::integral_constant<apache::thrift::field_id_t, 17>>,
+std::pair<strings::flowletStatsMap, std::integral_constant<apache::thrift::field_id_t, 18>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::AgentStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(hwPortStats, 1);
+    STRUCT_CHILD_GETTERS(hwTrunkStats, 2);
+    STRUCT_CHILD_GETTERS(hwResourceStats, 3);
+    STRUCT_CHILD_GETTERS(hwAsicErrors, 4);
+    STRUCT_CHILD_GETTERS(linkFlaps, 5);
+    STRUCT_CHILD_GETTERS(sysPortStats, 7);
+    STRUCT_CHILD_GETTERS(teFlowStats, 8);
+    STRUCT_CHILD_GETTERS(bufferPoolStats, 9);
+    STRUCT_CHILD_GETTERS(hwResourceStatsMap, 10);
+    STRUCT_CHILD_GETTERS(hwAsicErrorsMap, 11);
+    STRUCT_CHILD_GETTERS(teFlowStatsMap, 12);
+    STRUCT_CHILD_GETTERS(bufferPoolStatsMap, 13);
+    STRUCT_CHILD_GETTERS(sysPortStatsMap, 14);
+    STRUCT_CHILD_GETTERS(switchDropStatsMap, 15);
+    STRUCT_CHILD_GETTERS(flowletStats, 16);
+    STRUCT_CHILD_GETTERS(phyStats, 17);
+    STRUCT_CHILD_GETTERS(flowletStatsMap, 18);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return hwPortStats(); }
+    else if constexpr (__id == 2) { return hwTrunkStats(); }
+    else if constexpr (__id == 3) { return hwResourceStats(); }
+    else if constexpr (__id == 4) { return hwAsicErrors(); }
+    else if constexpr (__id == 5) { return linkFlaps(); }
+    else if constexpr (__id == 7) { return sysPortStats(); }
+    else if constexpr (__id == 8) { return teFlowStats(); }
+    else if constexpr (__id == 9) { return bufferPoolStats(); }
+    else if constexpr (__id == 10) { return hwResourceStatsMap(); }
+    else if constexpr (__id == 11) { return hwAsicErrorsMap(); }
+    else if constexpr (__id == 12) { return teFlowStatsMap(); }
+    else if constexpr (__id == 13) { return bufferPoolStatsMap(); }
+    else if constexpr (__id == 14) { return sysPortStatsMap(); }
+    else if constexpr (__id == 15) { return switchDropStatsMap(); }
+    else if constexpr (__id == 16) { return flowletStats(); }
+    else if constexpr (__id == 17) { return phyStats(); }
+    else if constexpr (__id == 18) { return flowletStatsMap(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+template<typename Parent>
+class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwSysPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   Parent> {
+ public:
+  using Self = Path<
+   ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   Parent>;
+  using Child = ChildThriftPath<::facebook::fboss::HwSysPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+
+  explicit ChildThriftPath<::std::map<::std::string, ::facebook::fboss::HwSysPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+     std::vector<std::string> tokens = {},
+     std::vector<std::string> idTokens = {}) : Path<
+   ::std::map<::std::string, ::facebook::fboss::HwSysPortStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+
+  CONTAINER_CHILD_GETTERS(::std::string);
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::phy::EyeInfo, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::phy::EyeInfo,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::phy::EyeInfo,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::phy::phy_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::width, Child<::std::int32_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::height, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::width, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::height, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::phy::EyeInfo,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(width, 1);
+    STRUCT_CHILD_GETTERS(height, 2);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return width(); }
+    else if constexpr (__id == 2) { return height(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+template<typename Parent>
+class ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
+   Parent> {
+ public:
+  using Self = Path<
+   ::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
+   Parent>;
+  using Child = ChildThriftPath<::facebook::fboss::HwSwitchDropStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+
+  explicit ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+     std::vector<std::string> tokens = {},
+     std::vector<std::string> idTokens = {}) : Path<
+   ::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+
+  CONTAINER_CHILD_GETTERS(::std::int16_t);
+};
+
+template<typename Parent>
+class ChildThriftPath<folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   Parent> {
+ public:
+  using Self = Path<
+   folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   Parent>;
+  using Child = ChildThriftPath<::facebook::fboss::HwPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+
+  explicit ChildThriftPath<folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+     std::vector<std::string> tokens = {},
+     std::vector<std::string> idTokens = {}) : Path<
+   folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+
+  CONTAINER_CHILD_GETTERS(::std::string);
+};
+
+template<typename Parent>
+class ChildThriftPath<::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   Parent> {
+ public:
+  using Self = Path<
+   ::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   Parent>;
+  using Child = ChildThriftPath<::facebook::fboss::platform::sensor_service::SensorData, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
+
+  explicit ChildThriftPath<::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
+     std::vector<std::string> tokens = {},
+     std::vector<std::string> idTokens = {}) : Path<
+   ::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+
+  CONTAINER_CHILD_GETTERS(::std::string);
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::HwSysPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::HwSysPortStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::HwSysPortStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>;
@@ -20538,19 +20819,28 @@ class ChildThriftPath<::facebook::fboss::HwSwitchDropStats, ::facebook::fboss::f
     ChildTC,
     Self
   >;
-  using Children = fatal::tuple<std::pair<strings::globalDrops, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::globalReachabilityDrops, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::packetIntegrityDrops, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::fdrCellDrops, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using Children = fatal::tuple<std::pair<strings::queueOutDiscardBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::queueOutBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::queueWatermarkBytes_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::queueWredDroppedPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::queueCreditWatchdogDeletedPackets_, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+std::pair<strings::timestamp_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::portName_, Child<::std::string, ::apache::thrift::type_class::string>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 100>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 101>, Child<::std::string, ::apache::thrift::type_class::string>>>;
   template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::globalDrops, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::globalReachabilityDrops, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::packetIntegrityDrops, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::fdrCellDrops, std::integral_constant<apache::thrift::field_id_t, 4>>>::template type_of<Name>;
+  using NameToId = fatal::tuple<std::pair<strings::queueOutDiscardBytes_, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::queueOutBytes_, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::queueWatermarkBytes_, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::queueWredDroppedPackets_, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::queueCreditWatchdogDeletedPackets_, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::timestamp_, std::integral_constant<apache::thrift::field_id_t, 100>>,
+std::pair<strings::portName_, std::integral_constant<apache::thrift::field_id_t, 101>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -20558,22 +20848,28 @@ std::pair<strings::fdrCellDrops, std::integral_constant<apache::thrift::field_id
   ChildThriftPath(
     std::vector<std::string> tokens = {},
     std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::HwSwitchDropStats,
+   ::facebook::fboss::HwSysPortStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>(std::move(tokens), std::move(idTokens)) {}
   
-    STRUCT_CHILD_GETTERS(globalDrops, 1);
-    STRUCT_CHILD_GETTERS(globalReachabilityDrops, 2);
-    STRUCT_CHILD_GETTERS(packetIntegrityDrops, 3);
-    STRUCT_CHILD_GETTERS(fdrCellDrops, 4);
+    STRUCT_CHILD_GETTERS(queueOutDiscardBytes_, 1);
+    STRUCT_CHILD_GETTERS(queueOutBytes_, 2);
+    STRUCT_CHILD_GETTERS(queueWatermarkBytes_, 3);
+    STRUCT_CHILD_GETTERS(queueWredDroppedPackets_, 4);
+    STRUCT_CHILD_GETTERS(queueCreditWatchdogDeletedPackets_, 5);
+    STRUCT_CHILD_GETTERS(timestamp_, 100);
+    STRUCT_CHILD_GETTERS(portName_, 101);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return globalDrops(); }
-    else if constexpr (__id == 2) { return globalReachabilityDrops(); }
-    else if constexpr (__id == 3) { return packetIntegrityDrops(); }
-    else if constexpr (__id == 4) { return fdrCellDrops(); }
+    if constexpr (__id == 1) { return queueOutDiscardBytes_(); }
+    else if constexpr (__id == 2) { return queueOutBytes_(); }
+    else if constexpr (__id == 3) { return queueWatermarkBytes_(); }
+    else if constexpr (__id == 4) { return queueWredDroppedPackets_(); }
+    else if constexpr (__id == 5) { return queueCreditWatchdogDeletedPackets_(); }
+    else if constexpr (__id == 100) { return timestamp_(); }
+    else if constexpr (__id == 101) { return portName_(); }
   }
 
   template <typename T, T... Values>
@@ -20582,43 +20878,229 @@ std::pair<strings::fdrCellDrops, std::integral_constant<apache::thrift::field_id
   }
 };
 
-template<typename Parent>
-class ChildThriftPath<::std::vector<::facebook::fboss::phy::EyeInfo>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::std::vector<::facebook::fboss::phy::EyeInfo>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
-   Parent> {
- public:
-  using Self = Path<
-   ::std::vector<::facebook::fboss::phy::EyeInfo>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
-   Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::phy::EyeInfo, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
-
-  explicit ChildThriftPath<::std::vector<::facebook::fboss::phy::EyeInfo>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
-     std::vector<std::string> tokens = {},
-     std::vector<std::string> idTokens = {}) : Path<
-   ::std::vector<::facebook::fboss::phy::EyeInfo>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-
-  CONTAINER_CHILD_GETTERS(::std::int32_t);
-};
-
 
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::mka::MKASci, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::facebook::fboss::phy::PcsStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::mka::MKASci,
+   ::facebook::fboss::phy::PcsStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent> {
  public:
   using Self = Path<
-   ::facebook::fboss::mka::MKASci,
+   ::facebook::fboss::phy::PcsStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::phy::phy_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::rsFec, ChildThriftPath<::facebook::fboss::phy::RsFecInfo, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::phy::RsFecInfo, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::rsFec, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::phy::PcsStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(rsFec, 1);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return rsFec(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::HwTrunkStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::HwTrunkStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::HwTrunkStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::hardware_stats_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::capacity_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inBytes_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inUnicastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inMulticastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inBroadcastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inPause_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inIpv4HdrErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inIpv6HdrErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inDstNullDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inDiscardsRaw_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outBytes_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outUnicastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outMulticastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outBroadcastPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outDiscards_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outErrors_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outPause_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outCongestionDiscardPkts_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outEcnCounter_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::wredDroppedPackets_, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::macsecStats, ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 16>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 17>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 18>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 19>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 20>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 21>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 22>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 23>, ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::capacity_, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::inBytes_, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::inUnicastPkts_, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::inMulticastPkts_, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::inBroadcastPkts_, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::inDiscards_, std::integral_constant<apache::thrift::field_id_t, 6>>,
+std::pair<strings::inErrors_, std::integral_constant<apache::thrift::field_id_t, 7>>,
+std::pair<strings::inPause_, std::integral_constant<apache::thrift::field_id_t, 8>>,
+std::pair<strings::inIpv4HdrErrors_, std::integral_constant<apache::thrift::field_id_t, 9>>,
+std::pair<strings::inIpv6HdrErrors_, std::integral_constant<apache::thrift::field_id_t, 10>>,
+std::pair<strings::inDstNullDiscards_, std::integral_constant<apache::thrift::field_id_t, 11>>,
+std::pair<strings::inDiscardsRaw_, std::integral_constant<apache::thrift::field_id_t, 12>>,
+std::pair<strings::outBytes_, std::integral_constant<apache::thrift::field_id_t, 13>>,
+std::pair<strings::outUnicastPkts_, std::integral_constant<apache::thrift::field_id_t, 14>>,
+std::pair<strings::outMulticastPkts_, std::integral_constant<apache::thrift::field_id_t, 15>>,
+std::pair<strings::outBroadcastPkts_, std::integral_constant<apache::thrift::field_id_t, 16>>,
+std::pair<strings::outDiscards_, std::integral_constant<apache::thrift::field_id_t, 17>>,
+std::pair<strings::outErrors_, std::integral_constant<apache::thrift::field_id_t, 18>>,
+std::pair<strings::outPause_, std::integral_constant<apache::thrift::field_id_t, 19>>,
+std::pair<strings::outCongestionDiscardPkts_, std::integral_constant<apache::thrift::field_id_t, 20>>,
+std::pair<strings::outEcnCounter_, std::integral_constant<apache::thrift::field_id_t, 21>>,
+std::pair<strings::wredDroppedPackets_, std::integral_constant<apache::thrift::field_id_t, 22>>,
+std::pair<strings::macsecStats, std::integral_constant<apache::thrift::field_id_t, 23>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::HwTrunkStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(capacity_, 1);
+    STRUCT_CHILD_GETTERS(inBytes_, 2);
+    STRUCT_CHILD_GETTERS(inUnicastPkts_, 3);
+    STRUCT_CHILD_GETTERS(inMulticastPkts_, 4);
+    STRUCT_CHILD_GETTERS(inBroadcastPkts_, 5);
+    STRUCT_CHILD_GETTERS(inDiscards_, 6);
+    STRUCT_CHILD_GETTERS(inErrors_, 7);
+    STRUCT_CHILD_GETTERS(inPause_, 8);
+    STRUCT_CHILD_GETTERS(inIpv4HdrErrors_, 9);
+    STRUCT_CHILD_GETTERS(inIpv6HdrErrors_, 10);
+    STRUCT_CHILD_GETTERS(inDstNullDiscards_, 11);
+    STRUCT_CHILD_GETTERS(inDiscardsRaw_, 12);
+    STRUCT_CHILD_GETTERS(outBytes_, 13);
+    STRUCT_CHILD_GETTERS(outUnicastPkts_, 14);
+    STRUCT_CHILD_GETTERS(outMulticastPkts_, 15);
+    STRUCT_CHILD_GETTERS(outBroadcastPkts_, 16);
+    STRUCT_CHILD_GETTERS(outDiscards_, 17);
+    STRUCT_CHILD_GETTERS(outErrors_, 18);
+    STRUCT_CHILD_GETTERS(outPause_, 19);
+    STRUCT_CHILD_GETTERS(outCongestionDiscardPkts_, 20);
+    STRUCT_CHILD_GETTERS(outEcnCounter_, 21);
+    STRUCT_CHILD_GETTERS(wredDroppedPackets_, 22);
+    STRUCT_CHILD_GETTERS(macsecStats, 23);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return capacity_(); }
+    else if constexpr (__id == 2) { return inBytes_(); }
+    else if constexpr (__id == 3) { return inUnicastPkts_(); }
+    else if constexpr (__id == 4) { return inMulticastPkts_(); }
+    else if constexpr (__id == 5) { return inBroadcastPkts_(); }
+    else if constexpr (__id == 6) { return inDiscards_(); }
+    else if constexpr (__id == 7) { return inErrors_(); }
+    else if constexpr (__id == 8) { return inPause_(); }
+    else if constexpr (__id == 9) { return inIpv4HdrErrors_(); }
+    else if constexpr (__id == 10) { return inIpv6HdrErrors_(); }
+    else if constexpr (__id == 11) { return inDstNullDiscards_(); }
+    else if constexpr (__id == 12) { return inDiscardsRaw_(); }
+    else if constexpr (__id == 13) { return outBytes_(); }
+    else if constexpr (__id == 14) { return outUnicastPkts_(); }
+    else if constexpr (__id == 15) { return outMulticastPkts_(); }
+    else if constexpr (__id == 16) { return outBroadcastPkts_(); }
+    else if constexpr (__id == 17) { return outDiscards_(); }
+    else if constexpr (__id == 18) { return outErrors_(); }
+    else if constexpr (__id == 19) { return outPause_(); }
+    else if constexpr (__id == 20) { return outCongestionDiscardPkts_(); }
+    else if constexpr (__id == 21) { return outEcnCounter_(); }
+    else if constexpr (__id == 22) { return wredDroppedPackets_(); }
+    else if constexpr (__id == 23) { return macsecStats(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::mka::MacsecFlowStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::mka::MacsecFlowStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::mka::MacsecFlowStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>;
@@ -20630,13 +21112,67 @@ class ChildThriftPath<::facebook::fboss::mka::MKASci, ::facebook::fboss::fsdb::F
     ChildTC,
     Self
   >;
-  using Children = fatal::tuple<std::pair<strings::macAddress, Child<::std::string, ::apache::thrift::type_class::string>>,
-std::pair<strings::port, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::string, ::apache::thrift::type_class::string>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
+  using Children = fatal::tuple<std::pair<strings::directionIngress, Child<bool, ::apache::thrift::type_class::integral>>,
+std::pair<strings::ucastUncontrolledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::ucastControlledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::mcastUncontrolledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::mcastControlledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::bcastUncontrolledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::bcastControlledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::controlPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::untaggedPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::otherErrPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::octetsUncontrolled, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::octetsControlled, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outCommonOctets, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::outTooLongPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inTaggedControlledPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inNoTagPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::inBadTagPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::noSciPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::unknownSciPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::overrunPkts, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<bool, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 13>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 14>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 15>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 16>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 17>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 18>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 19>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 20>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
   template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::macAddress, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::port, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
+  using NameToId = fatal::tuple<std::pair<strings::directionIngress, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::ucastUncontrolledPkts, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::ucastControlledPkts, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::mcastUncontrolledPkts, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::mcastControlledPkts, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::bcastUncontrolledPkts, std::integral_constant<apache::thrift::field_id_t, 6>>,
+std::pair<strings::bcastControlledPkts, std::integral_constant<apache::thrift::field_id_t, 7>>,
+std::pair<strings::controlPkts, std::integral_constant<apache::thrift::field_id_t, 8>>,
+std::pair<strings::untaggedPkts, std::integral_constant<apache::thrift::field_id_t, 9>>,
+std::pair<strings::otherErrPkts, std::integral_constant<apache::thrift::field_id_t, 10>>,
+std::pair<strings::octetsUncontrolled, std::integral_constant<apache::thrift::field_id_t, 11>>,
+std::pair<strings::octetsControlled, std::integral_constant<apache::thrift::field_id_t, 12>>,
+std::pair<strings::outCommonOctets, std::integral_constant<apache::thrift::field_id_t, 13>>,
+std::pair<strings::outTooLongPkts, std::integral_constant<apache::thrift::field_id_t, 14>>,
+std::pair<strings::inTaggedControlledPkts, std::integral_constant<apache::thrift::field_id_t, 15>>,
+std::pair<strings::inNoTagPkts, std::integral_constant<apache::thrift::field_id_t, 16>>,
+std::pair<strings::inBadTagPkts, std::integral_constant<apache::thrift::field_id_t, 17>>,
+std::pair<strings::noSciPkts, std::integral_constant<apache::thrift::field_id_t, 18>>,
+std::pair<strings::unknownSciPkts, std::integral_constant<apache::thrift::field_id_t, 19>>,
+std::pair<strings::overrunPkts, std::integral_constant<apache::thrift::field_id_t, 20>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -20644,18 +21180,54 @@ std::pair<strings::port, std::integral_constant<apache::thrift::field_id_t, 2>>>
   ChildThriftPath(
     std::vector<std::string> tokens = {},
     std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::mka::MKASci,
+   ::facebook::fboss::mka::MacsecFlowStats,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>(std::move(tokens), std::move(idTokens)) {}
   
-    STRUCT_CHILD_GETTERS(macAddress, 1);
-    STRUCT_CHILD_GETTERS(port, 2);
+    STRUCT_CHILD_GETTERS(directionIngress, 1);
+    STRUCT_CHILD_GETTERS(ucastUncontrolledPkts, 2);
+    STRUCT_CHILD_GETTERS(ucastControlledPkts, 3);
+    STRUCT_CHILD_GETTERS(mcastUncontrolledPkts, 4);
+    STRUCT_CHILD_GETTERS(mcastControlledPkts, 5);
+    STRUCT_CHILD_GETTERS(bcastUncontrolledPkts, 6);
+    STRUCT_CHILD_GETTERS(bcastControlledPkts, 7);
+    STRUCT_CHILD_GETTERS(controlPkts, 8);
+    STRUCT_CHILD_GETTERS(untaggedPkts, 9);
+    STRUCT_CHILD_GETTERS(otherErrPkts, 10);
+    STRUCT_CHILD_GETTERS(octetsUncontrolled, 11);
+    STRUCT_CHILD_GETTERS(octetsControlled, 12);
+    STRUCT_CHILD_GETTERS(outCommonOctets, 13);
+    STRUCT_CHILD_GETTERS(outTooLongPkts, 14);
+    STRUCT_CHILD_GETTERS(inTaggedControlledPkts, 15);
+    STRUCT_CHILD_GETTERS(inNoTagPkts, 16);
+    STRUCT_CHILD_GETTERS(inBadTagPkts, 17);
+    STRUCT_CHILD_GETTERS(noSciPkts, 18);
+    STRUCT_CHILD_GETTERS(unknownSciPkts, 19);
+    STRUCT_CHILD_GETTERS(overrunPkts, 20);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return macAddress(); }
-    else if constexpr (__id == 2) { return port(); }
+    if constexpr (__id == 1) { return directionIngress(); }
+    else if constexpr (__id == 2) { return ucastUncontrolledPkts(); }
+    else if constexpr (__id == 3) { return ucastControlledPkts(); }
+    else if constexpr (__id == 4) { return mcastUncontrolledPkts(); }
+    else if constexpr (__id == 5) { return mcastControlledPkts(); }
+    else if constexpr (__id == 6) { return bcastUncontrolledPkts(); }
+    else if constexpr (__id == 7) { return bcastControlledPkts(); }
+    else if constexpr (__id == 8) { return controlPkts(); }
+    else if constexpr (__id == 9) { return untaggedPkts(); }
+    else if constexpr (__id == 10) { return otherErrPkts(); }
+    else if constexpr (__id == 11) { return octetsUncontrolled(); }
+    else if constexpr (__id == 12) { return octetsControlled(); }
+    else if constexpr (__id == 13) { return outCommonOctets(); }
+    else if constexpr (__id == 14) { return outTooLongPkts(); }
+    else if constexpr (__id == 15) { return inTaggedControlledPkts(); }
+    else if constexpr (__id == 16) { return inNoTagPkts(); }
+    else if constexpr (__id == 17) { return inBadTagPkts(); }
+    else if constexpr (__id == 18) { return noSciPkts(); }
+    else if constexpr (__id == 19) { return unknownSciPkts(); }
+    else if constexpr (__id == 20) { return overrunPkts(); }
   }
 
   template <typename T, T... Values>
@@ -20666,19 +21238,19 @@ std::pair<strings::port, std::integral_constant<apache::thrift::field_id_t, 2>>>
 
 
 template<typename Parent>
-class ChildThriftPath<::facebook::fboss::FlagLevels, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+class ChildThriftPath<::facebook::fboss::HwAsicErrors, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
   public Path<
-   ::facebook::fboss::FlagLevels,
+   ::facebook::fboss::HwAsicErrors,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent> {
  public:
   using Self = Path<
-   ::facebook::fboss::FlagLevels,
+   ::facebook::fboss::HwAsicErrors,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>;
-  using strings = ::facebook::fboss::transceiver_tags::strings;
+  using strings = ::facebook::fboss::hardware_stats_tags::strings;
   template <typename ChildType, typename ChildTC>
   using Child = Path<
     ChildType,
@@ -20686,13 +21258,34 @@ class ChildThriftPath<::facebook::fboss::FlagLevels, ::facebook::fboss::fsdb::Fs
     ChildTC,
     Self
   >;
-  using Children = fatal::tuple<std::pair<strings::alarm, ChildThriftPath<::facebook::fboss::Flags, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::warn, ChildThriftPath<::facebook::fboss::Flags, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::Flags, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::Flags, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
+  using Children = fatal::tuple<std::pair<strings::parityErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::correctedParityErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::uncorrectedParityErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::asicErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::ingressReceiveEditorErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::ingressTransmitPipelineErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::egressPacketNetworkInterfaceErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::alignerErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+std::pair<strings::forwardingQueueProcessorErrors, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
   template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::alarm, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::warn, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
+  using NameToId = fatal::tuple<std::pair<strings::parityErrors, std::integral_constant<apache::thrift::field_id_t, 1>>,
+std::pair<strings::correctedParityErrors, std::integral_constant<apache::thrift::field_id_t, 2>>,
+std::pair<strings::uncorrectedParityErrors, std::integral_constant<apache::thrift::field_id_t, 3>>,
+std::pair<strings::asicErrors, std::integral_constant<apache::thrift::field_id_t, 4>>,
+std::pair<strings::ingressReceiveEditorErrors, std::integral_constant<apache::thrift::field_id_t, 5>>,
+std::pair<strings::ingressTransmitPipelineErrors, std::integral_constant<apache::thrift::field_id_t, 6>>,
+std::pair<strings::egressPacketNetworkInterfaceErrors, std::integral_constant<apache::thrift::field_id_t, 7>>,
+std::pair<strings::alignerErrors, std::integral_constant<apache::thrift::field_id_t, 8>>,
+std::pair<strings::forwardingQueueProcessorErrors, std::integral_constant<apache::thrift::field_id_t, 9>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -20700,18 +21293,83 @@ std::pair<strings::warn, std::integral_constant<apache::thrift::field_id_t, 2>>>
   ChildThriftPath(
     std::vector<std::string> tokens = {},
     std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::FlagLevels,
+   ::facebook::fboss::HwAsicErrors,
    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
    ::apache::thrift::type_class::structure,
    Parent>(std::move(tokens), std::move(idTokens)) {}
   
-    STRUCT_CHILD_GETTERS(alarm, 1);
-    STRUCT_CHILD_GETTERS(warn, 2);
+    STRUCT_CHILD_GETTERS(parityErrors, 1);
+    STRUCT_CHILD_GETTERS(correctedParityErrors, 2);
+    STRUCT_CHILD_GETTERS(uncorrectedParityErrors, 3);
+    STRUCT_CHILD_GETTERS(asicErrors, 4);
+    STRUCT_CHILD_GETTERS(ingressReceiveEditorErrors, 5);
+    STRUCT_CHILD_GETTERS(ingressTransmitPipelineErrors, 6);
+    STRUCT_CHILD_GETTERS(egressPacketNetworkInterfaceErrors, 7);
+    STRUCT_CHILD_GETTERS(alignerErrors, 8);
+    STRUCT_CHILD_GETTERS(forwardingQueueProcessorErrors, 9);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return alarm(); }
-    else if constexpr (__id == 2) { return warn(); }
+    if constexpr (__id == 1) { return parityErrors(); }
+    else if constexpr (__id == 2) { return correctedParityErrors(); }
+    else if constexpr (__id == 3) { return uncorrectedParityErrors(); }
+    else if constexpr (__id == 4) { return asicErrors(); }
+    else if constexpr (__id == 5) { return ingressReceiveEditorErrors(); }
+    else if constexpr (__id == 6) { return ingressTransmitPipelineErrors(); }
+    else if constexpr (__id == 7) { return egressPacketNetworkInterfaceErrors(); }
+    else if constexpr (__id == 8) { return alignerErrors(); }
+    else if constexpr (__id == 9) { return forwardingQueueProcessorErrors(); }
+  }
+
+  template <typename T, T... Values>
+  auto operator()(const fatal::sequence<T, Values...>&) {
+    return operator()(NameToId<fatal::sequence<T, Values...>>());
+  }
+};
+
+
+template<typename Parent>
+class ChildThriftPath<::facebook::fboss::HwTeFlowStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
+  public Path<
+   ::facebook::fboss::HwTeFlowStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent> {
+ public:
+  using Self = Path<
+   ::facebook::fboss::HwTeFlowStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>;
+  using strings = ::facebook::fboss::hardware_stats_tags::strings;
+  template <typename ChildType, typename ChildTC>
+  using Child = Path<
+    ChildType,
+    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+    ChildTC,
+    Self
+  >;
+  using Children = fatal::tuple<std::pair<strings::bytes, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>>;
+  template <typename Name>
+  using NameToId = fatal::tuple<std::pair<strings::bytes, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
+
+  template <typename Name>
+  using TypeFor = typename Children::template type_of<Name>;
+
+  ChildThriftPath(
+    std::vector<std::string> tokens = {},
+    std::vector<std::string> idTokens = {}) : Path<
+   ::facebook::fboss::HwTeFlowStats,
+   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
+   ::apache::thrift::type_class::structure,
+   Parent>(std::move(tokens), std::move(idTokens)) {}
+  
+    STRUCT_CHILD_GETTERS(bytes, 1);
+
+  template <apache::thrift::field_id_t __id>
+  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
+    if constexpr (__id == 1) { return bytes(); }
   }
 
   template <typename T, T... Values>
@@ -21002,231 +21660,6 @@ std::pair<strings::portStats, std::integral_constant<apache::thrift::field_id_t,
   }
 };
 
-template<typename Parent>
-class ChildThriftPath<folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
-   Parent> {
- public:
-  using Self = Path<
-   folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
-   Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::HwPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
-
-  explicit ChildThriftPath<folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
-     std::vector<std::string> tokens = {},
-     std::vector<std::string> idTokens = {}) : Path<
-   folly::F14FastMap<::std::string, ::facebook::fboss::HwPortStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::string, ::apache::thrift::type_class::structure>,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-
-  CONTAINER_CHILD_GETTERS(::std::string);
-};
-
-template<typename Parent>
-class ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent> {
- public:
-  using Self = Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::HwSwitchDropStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
-
-  explicit ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
-     std::vector<std::string> tokens = {},
-     std::vector<std::string> idTokens = {}) : Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::HwSwitchDropStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-
-  CONTAINER_CHILD_GETTERS(::std::int16_t);
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::phy::EyeInfo, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::phy::EyeInfo,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::phy::EyeInfo,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::phy::phy_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::width, Child<::std::int32_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::height, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::width, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::height, std::integral_constant<apache::thrift::field_id_t, 2>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::phy::EyeInfo,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(width, 1);
-    STRUCT_CHILD_GETTERS(height, 2);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return width(); }
-    else if constexpr (__id == 2) { return height(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::phy::PmdStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::phy::PmdStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::phy::PmdStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::phy::phy_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::lanes, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::lanes, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::phy::PmdStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(lanes, 1);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return lanes(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::phy::PhyStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::phy::PhyStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::phy::PhyStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::phy::phy_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::system, ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::line, ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::linkFlapCount, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-std::pair<strings::timeCollected, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int32_t, ::apache::thrift::type_class::integral>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::system, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::line, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::linkFlapCount, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::timeCollected, std::integral_constant<apache::thrift::field_id_t, 10>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::phy::PhyStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(system, 1);
-    STRUCT_CHILD_GETTERS(line, 2);
-    STRUCT_CHILD_GETTERS(linkFlapCount, 3);
-    STRUCT_CHILD_GETTERS(timeCollected, 10);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return system(); }
-    else if constexpr (__id == 2) { return line(); }
-    else if constexpr (__id == 3) { return linkFlapCount(); }
-    else if constexpr (__id == 10) { return timeCollected(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
 
 template<typename Parent>
 class ChildThriftPath<::facebook::fboss::GlobalSensors, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
@@ -21275,179 +21708,6 @@ std::pair<strings::vcc, std::integral_constant<apache::thrift::field_id_t, 2>>>:
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
     if constexpr (__id == 1) { return temp(); }
     else if constexpr (__id == 2) { return vcc(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-template<typename Parent>
-class ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent> {
- public:
-  using Self = Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::phy::LaneStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
-
-  explicit ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
-     std::vector<std::string> tokens = {},
-     std::vector<std::string> idTokens = {}) : Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::phy::LaneStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-
-  CONTAINER_CHILD_GETTERS(::std::int16_t);
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::MacsecStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::MacsecStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::MacsecStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::hardware_stats_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::ingressPortStats, ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::egressPortStats, ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::ingressFlowStats, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSciFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::egressFlowStats, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSciFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::rxSecureAssociationStats, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSaIdSaStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::txSecureAssociationStats, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSaIdSaStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::ingressAclStats, ChildThriftPath<::facebook::fboss::mka::MacsecAclStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::egressAclStats, ChildThriftPath<::facebook::fboss::mka::MacsecAclStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::mka::MacsecPortStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSciFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSciFlowStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSaIdSaStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, ChildThriftPath<::std::vector<::facebook::fboss::MacsecSaIdSaStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, ChildThriftPath<::facebook::fboss::mka::MacsecAclStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, ChildThriftPath<::facebook::fboss::mka::MacsecAclStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::ingressPortStats, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::egressPortStats, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::ingressFlowStats, std::integral_constant<apache::thrift::field_id_t, 3>>,
-std::pair<strings::egressFlowStats, std::integral_constant<apache::thrift::field_id_t, 4>>,
-std::pair<strings::rxSecureAssociationStats, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::txSecureAssociationStats, std::integral_constant<apache::thrift::field_id_t, 6>>,
-std::pair<strings::ingressAclStats, std::integral_constant<apache::thrift::field_id_t, 7>>,
-std::pair<strings::egressAclStats, std::integral_constant<apache::thrift::field_id_t, 8>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::MacsecStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(ingressPortStats, 1);
-    STRUCT_CHILD_GETTERS(egressPortStats, 2);
-    STRUCT_CHILD_GETTERS(ingressFlowStats, 3);
-    STRUCT_CHILD_GETTERS(egressFlowStats, 4);
-    STRUCT_CHILD_GETTERS(rxSecureAssociationStats, 5);
-    STRUCT_CHILD_GETTERS(txSecureAssociationStats, 6);
-    STRUCT_CHILD_GETTERS(ingressAclStats, 7);
-    STRUCT_CHILD_GETTERS(egressAclStats, 8);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return ingressPortStats(); }
-    else if constexpr (__id == 2) { return egressPortStats(); }
-    else if constexpr (__id == 3) { return ingressFlowStats(); }
-    else if constexpr (__id == 4) { return egressFlowStats(); }
-    else if constexpr (__id == 5) { return rxSecureAssociationStats(); }
-    else if constexpr (__id == 6) { return txSecureAssociationStats(); }
-    else if constexpr (__id == 7) { return ingressAclStats(); }
-    else if constexpr (__id == 8) { return egressAclStats(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::phy::PhySideStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::phy::PhySideStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::phy::PhySideStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::phy::phy_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::side, Child<::facebook::fboss::phy::Side, ::apache::thrift::type_class::enumeration>>,
-std::pair<strings::pcs, ChildThriftPath<::facebook::fboss::phy::PcsStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::pmd, ChildThriftPath<::facebook::fboss::phy::PmdStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::facebook::fboss::phy::Side, ::apache::thrift::type_class::enumeration>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::phy::PcsStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::facebook::fboss::phy::PmdStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::side, std::integral_constant<apache::thrift::field_id_t, 1>>,
-std::pair<strings::pcs, std::integral_constant<apache::thrift::field_id_t, 2>>,
-std::pair<strings::pmd, std::integral_constant<apache::thrift::field_id_t, 3>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::phy::PhySideStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(side, 1);
-    STRUCT_CHILD_GETTERS(pcs, 2);
-    STRUCT_CHILD_GETTERS(pmd, 3);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return side(); }
-    else if constexpr (__id == 2) { return pcs(); }
-    else if constexpr (__id == 3) { return pmd(); }
   }
 
   template <typename T, T... Values>
@@ -21956,83 +22216,6 @@ std::pair<strings::low, std::integral_constant<apache::thrift::field_id_t, 2>>>:
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
     if constexpr (__id == 1) { return high(); }
     else if constexpr (__id == 2) { return low(); }
-  }
-
-  template <typename T, T... Values>
-  auto operator()(const fatal::sequence<T, Values...>&) {
-    return operator()(NameToId<fatal::sequence<T, Values...>>());
-  }
-};
-
-template<typename Parent>
-class ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent> {
- public:
-  using Self = Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent>;
-  using Child = ChildThriftPath<::facebook::fboss::HwResourceStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>;
-
-  explicit ChildThriftPath<::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent>(
-     std::vector<std::string> tokens = {},
-     std::vector<std::string> idTokens = {}) : Path<
-   ::std::map<::std::int16_t, ::facebook::fboss::HwResourceStats>,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::structure>,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-
-  CONTAINER_CHILD_GETTERS(::std::int16_t);
-};
-
-
-template<typename Parent>
-class ChildThriftPath<::facebook::fboss::stats::SensorServiceStats, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Parent> :
-  public Path<
-   ::facebook::fboss::stats::SensorServiceStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent> {
- public:
-  using Self = Path<
-   ::facebook::fboss::stats::SensorServiceStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>;
-  using strings = ::facebook::fboss::stats::sensor_service_stats_tags::strings;
-  template <typename ChildType, typename ChildTC>
-  using Child = Path<
-    ChildType,
-    ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-    ChildTC,
-    Self
-  >;
-  using Children = fatal::tuple<std::pair<strings::sensorData, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::std::map<::std::string, ::facebook::fboss::platform::sensor_service::SensorData>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>>;
-  template <typename Name>
-  using NameToId = fatal::tuple<std::pair<strings::sensorData, std::integral_constant<apache::thrift::field_id_t, 1>>>::template type_of<Name>;
-
-  template <typename Name>
-  using TypeFor = typename Children::template type_of<Name>;
-
-  ChildThriftPath(
-    std::vector<std::string> tokens = {},
-    std::vector<std::string> idTokens = {}) : Path<
-   ::facebook::fboss::stats::SensorServiceStats,
-   ::facebook::fboss::fsdb::FsdbOperStatsRoot,
-   ::apache::thrift::type_class::structure,
-   Parent>(std::move(tokens), std::move(idTokens)) {}
-  
-    STRUCT_CHILD_GETTERS(sensorData, 1);
-
-  template <apache::thrift::field_id_t __id>
-  auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
-    if constexpr (__id == 1) { return sensorData(); }
   }
 
   template <typename T, T... Values>

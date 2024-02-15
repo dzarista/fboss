@@ -49,7 +49,7 @@ class MultiHwSwitchHandler {
   multiswitch::StateOperDelta getNextStateOperDelta(
       int64_t switchId,
       std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
-      bool initialSync);
+      int64_t lastUpdateSeqNum);
 
   void notifyHwSwitchGracefulExit(int64_t switchId);
 
@@ -97,9 +97,12 @@ class MultiHwSwitchHandler {
 
   void updateStats();
 
-  std::map<PortID, phy::PhyInfo> updateAllPhyInfo();
+  void updateAllPhyInfo();
+  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const;
 
   uint64_t getDeviceWatermarkBytes();
+
+  HwFlowletStats getHwFlowletStats();
 
   void clearPortStats(const std::unique_ptr<std::vector<int32_t>>& ports);
 
@@ -144,6 +147,16 @@ class MultiHwSwitchHandler {
   bool waitUntilHwSwitchConnected();
 
   std::map<int32_t, SwitchRunState> getHwSwitchRunStates();
+
+  void connected(SwitchID switchId) {
+    connectionStatusTable_.connected(switchId);
+  }
+
+  void disconnected(SwitchID switchId) {
+    connectionStatusTable_.disconnected(switchId);
+  }
+
+  std::vector<EcmpDetails> getAllEcmpDetails();
 
  private:
   bool transactionsSupported(std::optional<cfg::SdkVersion> sdkVersion) const;

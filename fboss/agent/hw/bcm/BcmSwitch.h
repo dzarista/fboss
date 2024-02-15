@@ -394,7 +394,7 @@ class BcmSwitch : public BcmSwitchIf {
     return {};
   }
 
-  CpuPortStats getCpuPortStats() const override {
+  CpuPortStats getCpuPortStats(bool /*getIncrement*/) const override {
     throw FbossError("Unsupported platform for retrieving cpuPort stats");
   }
 
@@ -405,6 +405,10 @@ class BcmSwitch : public BcmSwitchIf {
     // No HwSwitchDropStats collected
     return HwSwitchDropStats{};
   }
+
+  HwFlowletStats getHwFlowletStats() const override;
+
+  std::vector<EcmpDetails> getAllEcmpDetails() const override;
 
   /*
    * Wrapper functions to register and unregister a BCM event callbacks.  These
@@ -612,7 +616,7 @@ class BcmSwitch : public BcmSwitchIf {
 
   bool usePKTIO() const;
 
-  std::map<PortID, phy::PhyInfo> updateAllPhyInfo() override;
+  std::map<PortID, phy::PhyInfo> updateAllPhyInfoImpl() override;
   std::map<PortID, FabricEndpoint> getFabricConnectivity() const override {
     return {};
   }

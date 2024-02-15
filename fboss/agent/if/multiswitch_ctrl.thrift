@@ -21,6 +21,10 @@ struct LinkEvent {
   3: optional phy.LinkFaultStatus iPhyLinkFaultStatus;
 }
 
+struct LinkActiveEvent {
+  1: map<i32, bool> port2IsActive;
+}
+
 struct FdbEvent {
   1: ctrl.L2EntryThrift entry;
   2: ctrl.L2EntryUpdateType updateType;
@@ -42,6 +46,7 @@ struct RxPacket {
 struct StateOperDelta {
   1: fsdb_oper.OperDelta operDelta;
   2: bool transaction;
+  3: i64 seqNum;
 }
 
 struct HwSwitchStats {
@@ -58,11 +63,16 @@ struct HwSwitchStats {
   10: hardware_stats.HwSwitchFb303GlobalStats fb303GlobalStats;
   11: hardware_stats.CpuPortStats cpuPortStats;
   12: hardware_stats.HwSwitchDropStats switchDropStats;
+  13: hardware_stats.HwFlowletStats flowletStats;
+  14: map<i32, phy.PhyInfo> phyInfo;
 }
 
 service MultiSwitchCtrl {
   /* notify link event through sink */
   sink<LinkEvent, bool> notifyLinkEvent(1: i64 switchId);
+
+  /* notify link active event through sink */
+  sink<LinkActiveEvent, bool> notifyLinkActiveEvent(1: i64 switchId);
 
   /* notify fdb event through sink */
   sink<FdbEvent, bool> notifyFdbEvent(1: i64 switchId);
@@ -78,8 +88,8 @@ service MultiSwitchCtrl {
   StateOperDelta getNextStateOperDelta(
     1: i64 switchId,
     2: StateOperDelta prevOperResult,
-    /* indicates whether HwSwitch is syncing for first time */
-    3: bool initialSync,
+    /* sequence number of last oper delta received. 0 indicates initial sync */
+    3: i64 lastUpdateSeqNum,
   );
 
   /* HwAgent graceful shutdown notification */

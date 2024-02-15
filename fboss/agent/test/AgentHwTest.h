@@ -88,15 +88,29 @@ class AgentHwTest : public ::testing::Test {
 
   SwSwitch* getSw() const;
   const std::map<SwitchID, const HwAsic*> getAsics() const;
+  const HwAsic& getAsic(SwitchID swId) const {
+    return *getAsics().find(swId)->second;
+  }
+  const SwitchIdScopeResolver& scopeResolver() const {
+    return getAgentEnsemble()->scopeResolver();
+  }
   bool isSupportedOnAllAsics(HwAsic::Feature feature) const;
   AgentEnsemble* getAgentEnsemble() const;
   const std::shared_ptr<SwitchState> getProgrammedState() const;
   std::vector<PortID> masterLogicalPortIds() const;
   std::vector<PortID> masterLogicalPortIds(
       const std::set<cfg::PortType>& portTypes) const;
+  std::vector<PortID> masterLogicalInterfacePortIds() const {
+    return masterLogicalPortIds({cfg::PortType::INTERFACE_PORT});
+  }
   void setSwitchDrainState(
       const cfg::SwitchConfig& curConfig,
       cfg::SwitchDrainState drainState);
+
+  std::map<PortID, HwPortStats> getLatestPortStats(
+      const std::vector<PortID>& ports);
+
+  HwPortStats getLatestPortStats(const PortID& port);
 
  private:
   /*
@@ -113,7 +127,7 @@ class AgentHwTest : public ::testing::Test {
 
   virtual std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const = 0;
-  void printAsicFeatures() const;
+  void printProductionFeatures() const;
 
   AgentEnsemblePlatformConfigFn platformConfigFn_ = nullptr;
   std::unique_ptr<AgentEnsemble> agentEnsemble_;

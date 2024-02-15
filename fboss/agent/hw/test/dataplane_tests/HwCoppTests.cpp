@@ -20,7 +20,10 @@
 #include "fboss/agent/hw/test/HwTestTrunkUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
+#include "fboss/agent/packet/DHCPv4Packet.h"
 #include "fboss/agent/packet/DHCPv6Packet.h"
+#include "fboss/agent/packet/EthFrame.h"
+#include "fboss/agent/packet/NDP.h"
 #include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
@@ -250,7 +253,7 @@ class HwCoppTest : public HwLinkStateDependentTest {
                 intfMac, // my mac
                 neighborIp, // sender ip
                 folly::IPAddressV6("1::1")); // sent to me
-      sendPkt(std::move(txPacket), outOfPort);
+      sendPkt(std::move(txPacket), outOfPort, true /*snoopAndVerify*/);
     }
   }
 
@@ -478,7 +481,6 @@ class HwCoppTest : public HwLinkStateDependentTest {
           getHwSwitch(),
           neighborMac,
           vlanId,
-          "FBOSS",
           "rsw1dx.21.frc3",
           "eth1/1/1",
           "fsw001.p023.f01.frc3:eth4/9/1",
@@ -527,30 +529,45 @@ class HwCoppTest : public HwLinkStateDependentTest {
   // really long (5+ mins) to complete), and does not really offer additional
   // coverage. Thus, pick one IPv4 and IPv6 address and test.
   std::vector<std::string> getIpAddrsToSendPktsTo() const {
-    auto ipAddrs = *(this->initialConfig().interfaces()[0].ipAddresses());
-    auto ipv4Addr =
-        std::find_if(ipAddrs.begin(), ipAddrs.end(), [](const auto& ipAddr) {
-          auto ip = folly::IPAddress::createNetwork(ipAddr, -1, false).first;
-          return ip.isV4();
-        });
-    auto ipv6Addr =
-        std::find_if(ipAddrs.begin(), ipAddrs.end(), [](const auto& ipAddr) {
-          auto ip = folly::IPAddress::createNetwork(ipAddr, -1, false).first;
-          return ip.isV6();
-        });
+    std::set<std::string> ips;
+    auto addV4AndV6 = [&](const auto& ipAddrs) {
+      auto ipv4Addr =
+          std::find_if(ipAddrs.begin(), ipAddrs.end(), [](const auto& ipAddr) {
+            auto ip = folly::IPAddress::createNetwork(ipAddr, -1, false).first;
+            return ip.isV4();
+          });
+      auto ipv6Addr =
+          std::find_if(ipAddrs.begin(), ipAddrs.end(), [](const auto& ipAddr) {
+            auto ip = folly::IPAddress::createNetwork(ipAddr, -1, false).first;
+            return ip.isV6();
+          });
+      ips.insert(*ipv4Addr);
+      ips.insert(*ipv6Addr);
+    };
+    addV4AndV6(*(this->initialConfig().interfaces()[0].ipAddresses()));
 
-    return std::vector<std::string>{*ipv4Addr, *ipv6Addr};
+    auto switchId = getHwSwitch()->getSwitchId();
+    if (switchId.has_value()) {
+      auto dsfNode = getProgrammedState()->getDsfNodes()->getNodeIf(*switchId);
+      if (dsfNode) {
+        auto loopbackIps = dsfNode->getLoopbackIps();
+        std::vector<std::string> subnets;
+        std::for_each(
+            loopbackIps->begin(), loopbackIps->end(), [&](const auto& ip) {
+              subnets.push_back(**ip);
+            });
+        addV4AndV6(subnets);
+      }
+    }
+
+    return std::vector<std::string>{ips.begin(), ips.end()};
   }
 
  private:
   HwSwitchEnsemble::Features featuresDesired() const override {
     return {
         HwSwitchEnsemble::LINKSCAN,
-        HwSwitchEnsemble::PACKET_RX
-#ifndef IS_OSS
-        ,
-        HwSwitchEnsemble::MULTISWITCH_THRIFT_SERVER
-#endif
+        HwSwitchEnsemble::PACKET_RX,
     };
   }
 };
@@ -1276,6 +1293,30 @@ TYPED_TEST(HwCoppTest, UnresolvedRoutesToLowPriQueue) {
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
         std::nullopt);
+  };
+  this->verifyAcrossWarmBoots(setup, verify);
+}
+
+TYPED_TEST(HwCoppTest, UnresolvedRouteNextHopToLowPriQueue) {
+  auto setup = [=, this]() {
+    this->setup();
+    utility::EcmpSetupAnyNPorts6 ecmp6(this->getProgrammedState());
+    ecmp6.programRoutes(this->getRouteUpdater(), 1);
+  };
+  // Different from UnresolvedRoutesToLowPriQueue as traffic is
+  // destined to a remote route for which next hop is unresolved.
+  const auto randomNonsubnetUnicastIpAddress =
+      folly::IPAddressV6("2620:0:1cfe:face:b00c::4");
+  auto verify = [=, this]() {
+    this->sendTcpPktAndVerifyCpuQueue(
+        utility::kCoppLowPriQueueId,
+        randomNonsubnetUnicastIpAddress,
+        utility::kNonSpecialPort1,
+        utility::kNonSpecialPort2,
+        std::nullopt,
+        0 /* trafficClass */,
+        std::nullopt,
+        true /* expectQueueHit */);
   };
   this->verifyAcrossWarmBoots(setup, verify);
 }

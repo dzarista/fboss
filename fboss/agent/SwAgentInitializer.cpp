@@ -90,8 +90,6 @@ SwitchFlags SwSwitchInitializer::setupFlags() {
 }
 
 void SwSwitchInitializer::stopFunctionScheduler() {
-  std::unique_lock<std::mutex> lk(initLock_);
-  initCondition_.wait(lk, [&] { return sw_->isFullyConfigured(); });
   if (fs_) {
     fs_->shutdown();
   }
@@ -175,6 +173,8 @@ void SwAgentInitializer::handleExitSignal() {
           std::chrono::seconds(folly::to<uint32_t>(timeStr)));
     }
   }
+  XLOG(DBG2) << "[Exit] Wait until initialization done ";
+  initializer_->waitForInitDone();
   stopServices();
   steady_clock::time_point servicesStopped = steady_clock::now();
   XLOG(DBG2) << "[Exit] Services stop time "
@@ -257,6 +257,7 @@ int SwAgentInitializer::initAgent(HwSwitchCallback* callback) {
              << FLAGS_migrated_port;
   // @lint-ignore CLANGTIDY
   server_->serve();
+  server_.reset();
   return 0;
 }
 } // namespace facebook::fboss

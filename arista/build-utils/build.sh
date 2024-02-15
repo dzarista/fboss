@@ -133,6 +133,11 @@ fi
 # Install python3 module dependencies
 pip3 install GitPython
 
+# Copy library that is missing in CENTOS 9 container.
+if [ "$CENTOS_RELEASE_MAJOR" = "9" ]; then
+   cp /var/FBOSS/libnsl.a /usr/lib64
+fi
+
 SAI_DIR="$FBOSS_DIR/Aqua_SAI/"
 if [ $ARCH == "dnx" ];
 then
@@ -254,6 +259,19 @@ else
       BUILD_TYPE="Debug"
    fi
    export BUILD_FBOSS_CLI=1
+   # Set the required build env vars for Centos 9
+   if [ "$CENTOS_RELEASE_MAJOR" = "9" ]; then
+      export IS_OSS=1
+      export IS_OSS_FBOSS_CENTOS9=1
+      REPO_PREFIX="$SCRATCH_DIR/repos/github.com-facebook"
+      # Fetch fbthrift and folly and update the C++ standard to v20. C++20 is
+      # required for building coroutine support into folly and fbthrift.
+      for fboss_dep in folly fbthrift
+      do
+         ./build/fbcode_builder/getdeps.py --scratch-path "$SCRATCH_DIR" fetch $fboss_dep
+         sed -i 's/STANDARD 17/STANDARD 20/g' "$REPO_PREFIX-$fboss_dep.git/CMakeLists.txt"
+      done
+   fi
    time ./build/fbcode_builder/getdeps.py build --allow-system-packages \
       --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
    cd $FBOSS_DIR/fboss.git
@@ -302,6 +320,13 @@ else
       echo "Copying $fw from $fw_path to $fboss_output_dir"
       cp $fw_path $fboss_output_dir
    done
+
+   # Generate python thrift libraries
+   $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/ctrl.thrift
+   mkdir -p $fboss_output_dir/lib/fb-py-libs
+   cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
+   cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
+   find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/env python3|' {} +
 fi
 
 set +ex

@@ -56,7 +56,13 @@ SwitchStats::SwitchStats(ThreadLocalStatsMap* map)
       ipv4Mine_(map, kCounterPrefix + "ipv4.mine", SUM, RATE),
       ipv4NoArp_(map, kCounterPrefix + "ipv4.no_arp", SUM, RATE),
       ipv4TtlExceeded_(map, kCounterPrefix + "ipv4.ttl_exceeded", SUM, RATE),
+      ipv4Ttl1Mine_(map, kCounterPrefix + "ipv4.ttl1_mine", SUM, RATE),
       ipv6HopExceeded_(map, kCounterPrefix + "ipv6.hop_exceeded", SUM, RATE),
+      ipv6HopLimit1Mine_(
+          map,
+          kCounterPrefix + "ipv6.hop_limit1_mine",
+          SUM,
+          RATE),
       udpTooSmall_(map, kCounterPrefix + "udp.too_small", SUM, RATE),
       dhcpV4Pkt_(map, kCounterPrefix + "dhcpV4.pkt", SUM, RATE),
       dhcpV4BadPkt_(map, kCounterPrefix + "dhcpV4.bad_pkt", SUM, RATE),
@@ -192,6 +198,10 @@ SwitchStats::SwitchStats(ThreadLocalStatsMap* map)
           200,
           AVG),
       linkStateChange_(map, kCounterPrefix + "link_state.flap", SUM),
+      linkActiveStateChange_(
+          map,
+          kCounterPrefix + "link_active_state.flap",
+          SUM),
       pcapDistFailure_(map, kCounterPrefix + "pcap_dist_failure.error"),
       updateStatsExceptions_(
           map,
@@ -263,7 +273,14 @@ SwitchStats::SwitchStats(ThreadLocalStatsMap* map)
       remoteResolvedNdp_(map, kCounterPrefix + "remoteResolvedNdp"),
       localResolvedArp_(map, kCounterPrefix + "localResolvedArp"),
       remoteResolvedArp_(map, kCounterPrefix + "remoteResolvedArp"),
-      failedDsfSubscription_(map, kCounterPrefix + "failedDsfSubscription") {}
+      failedDsfSubscription_(map, kCounterPrefix + "failedDsfSubscription"),
+      coldBoot_(map, kCounterPrefix + "cold_boot", SUM, RATE),
+      warmBoot_(map, kCounterPrefix + "warm_boot", SUM, RATE),
+      switchConfiguredMs_(
+          map,
+          kCounterPrefix + "switch_configured_ms",
+          SUM,
+          RATE) {}
 
 PortStats* FOLLY_NULLABLE SwitchStats::port(PortID portID) {
   auto it = ports_.find(portID);

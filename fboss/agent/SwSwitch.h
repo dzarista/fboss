@@ -558,7 +558,7 @@ class SwSwitch : public HwSwitchCallback {
   /*
    * Allocate a new TxPacket.
    */
-  std::unique_ptr<TxPacket> allocatePacket(uint32_t size);
+  std::unique_ptr<TxPacket> allocatePacket(uint32_t size) const;
 
   /**
    * Allocate a TxPacket, which is used to send out through HW
@@ -860,6 +860,8 @@ class SwSwitch : public HwSwitchCallback {
 
   HwBufferPoolStats getBufferPoolStats() const;
 
+  HwFlowletStats getHwFlowletStats() const;
+
   VlanID getVlanIDHelper(std::optional<VlanID> vlanID) const;
   std::optional<VlanID> getVlanIDForPkt(VlanID vlanID) const;
 
@@ -927,8 +929,10 @@ class SwSwitch : public HwSwitchCallback {
 
   // Returns a copy of hwswitch exported stats.
   // To be used only in tests as copy is expensive.
-  multiswitch::HwSwitchStats getHwSwitchStatsWithCopy(
+  multiswitch::HwSwitchStats getHwSwitchStatsExpensive(
       uint16_t switchIndex) const;
+  std::map<uint16_t, multiswitch::HwSwitchStats> getHwSwitchStatsExpensive()
+      const;
 
   FabricReachabilityStats getFabricReachabilityStats();
 
@@ -961,11 +965,10 @@ class SwSwitch : public HwSwitchCallback {
    */
   void setStateInternal(std::shared_ptr<SwitchState> newAppliedState);
 
-  void publishInitTimes(std::string name, const float& time);
   void updatePortInfo();
   void updateRouteStats();
   void updateTeFlowStats();
-  void publishSwitchInfo(const HwInitResult& hwInitRet);
+  void updateFlowletStats();
   void setSwitchRunState(SwitchRunState desiredState);
   SwitchStats* createSwitchStats();
 
@@ -1019,6 +1022,7 @@ class SwSwitch : public HwSwitchCallback {
 
   // Sets the counter that tracks port status
   void setPortStatusCounter(PortID port, bool up);
+  void setPortActiveStatusCounter(PortID port, bool isActive);
 
   void updateConfigAppliedInfo();
 
@@ -1177,10 +1181,6 @@ class SwSwitch : public HwSwitchCallback {
 #endif
 
   static constexpr auto kIphySnapshotIntervalSeconds = 1;
-  // Collecting phy Info is currently inefficient on some platforms. Instead of
-  // collecting them every second, tune down the frequency to only collect once
-  // every update_phy_info_interval_s seconds (default to be 10).
-  int phyInfoUpdateTime_{0};
 
   std::unique_ptr<PhySnapshotManager<kIphySnapshotIntervalSeconds>>
       phySnapshotManager_;

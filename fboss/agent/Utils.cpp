@@ -326,12 +326,54 @@ PortID getPortID(
 
 SystemPortID getSystemPortID(
     const PortID& portId,
-    const std::shared_ptr<SwitchState>& state) {
-  auto sysPortRange = state->getAssociatedSystemPortRangeIf(portId);
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo,
+    int64_t switchId) {
+  auto switchInfo = switchToSwitchInfo.find(switchId);
+  if (switchInfo == switchToSwitchInfo.end()) {
+    throw FbossError(
+        "switchId: ", switchId, " not found in switchToSwitchInfo");
+  }
+  auto sysPortRange = switchInfo->second.systemPortRange();
   CHECK(sysPortRange.has_value());
-  auto systemPortId = static_cast<int64_t>(portId) + *sysPortRange->minimum();
+  auto portIdRange = *switchInfo->second.portIdRange();
+  auto systemPortId = static_cast<int64_t>(portId) + *sysPortRange->minimum() -
+      *portIdRange.minimum();
   CHECK_LE(systemPortId, *sysPortRange->maximum());
   return SystemPortID(systemPortId);
+}
+
+SystemPortID getSystemPortID(
+    const PortID& portId,
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo,
+    SwitchID switchId) {
+  return getSystemPortID(
+      portId, switchToSwitchInfo, static_cast<int64_t>(switchId));
+}
+
+SystemPortID getSystemPortID(
+    const PortID& portId,
+    const std::shared_ptr<SwitchState>& state,
+    SwitchID switchId) {
+  return getSystemPortID(
+      portId,
+      state->getSwitchSettings()
+          ->getSwitchSettings(
+              HwSwitchMatcher(std::unordered_set<SwitchID>({switchId})))
+          ->getSwitchIdToSwitchInfo(),
+      switchId);
+}
+
+cfg::Range64 getFirstSwitchSystemPortIdRange(
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo) {
+  for (const auto& [switchId, switchInfo] : switchToSwitchInfo) {
+    // Only VOQ switches have system ports
+    if (switchInfo.switchType() == cfg::SwitchType::VOQ &&
+        switchInfo.switchIndex() == 0) {
+      CHECK(switchInfo.systemPortRange().has_value());
+      return *switchInfo.systemPortRange();
+    }
+  }
+  throw FbossError("No VOQ switch with switchIndex 0 found");
 }
 
 std::vector<PortID> getPortsForInterface(

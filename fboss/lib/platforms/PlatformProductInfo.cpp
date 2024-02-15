@@ -148,7 +148,8 @@ void PlatformProductInfo::initMode() {
     } else if (
         modelName.find("Meru800bia") == 0 ||
         modelName.find("MERU800BIA") == 0 ||
-        modelName.find("ASY-92458-101") == 0) {
+        modelName.find("ASY-92458-101") == 0 ||
+        modelName.find("ASY-92493-104") == 0) {
       type_ = PlatformType::PLATFORM_MERU800BIA;
     } else if (
         modelName.find("Meru800bfa") == 0 ||
@@ -161,7 +162,9 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_FAKE_SAI;
     } else if (modelName.find("JANGA800BIC") == 0) {
       type_ = PlatformType::PLATFORM_JANGA800BIC;
-    } else if (modelName.find("TAHAN800BC") == 0) {
+    } else if (
+        modelName.find("TAHAN800BC") == 0 ||
+        modelName.find("R4063-F9001-01") == 0) {
       type_ = PlatformType::PLATFORM_TAHAN800BC;
     } else {
       throw std::runtime_error("invalid model name " + modelName);

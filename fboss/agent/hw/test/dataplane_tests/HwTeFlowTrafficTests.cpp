@@ -19,7 +19,7 @@
 #include "fboss/agent/hw/test/HwTestUdfUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
-#include "fboss/agent/packet/PktFactory.h"
+#include "fboss/agent/packet/EthFrame.h"
 #include "fboss/agent/packet/PktUtil.h"
 #include "fboss/agent/state/RouteNextHop.h"
 #include "fboss/agent/state/SwitchState.h"
@@ -523,7 +523,7 @@ class HwUdfAclTeFlowTrafficTest : public HwTeFlowTrafficTest {
     // run exact match with UDF acls
     cfg.udfConfig() = utility::addUdfAclConfig();
     auto acl = utility::addAcl(&cfg, kUdfAclName);
-    acl->udfGroups() = {utility::kUdfRoceOpcodeAclGroupName};
+    acl->udfGroups() = {utility::kUdfAclRoceOpcodeGroupName};
     acl->roceOpcode() = utility::kUdfRoceOpcode;
     utility::addAclStat(&cfg, kUdfAclName, kUdfAclStatName);
     return cfg;

@@ -5,8 +5,10 @@ set -e
 FBOSS_REPO=$(pwd)
 
 FBOSS_REPO_RPM_DIR="$FBOSS_REPO/arista/rpm"
-FBOSS_RPM_DIR="$DESTDIR/rpmbuild/RPMS/"
 RPM_DIR="/tmp/rpmbuild/RPMS/x86_64"
+ARCH=$1
+KERNEL=$2
+FBOSS_RPM_DIR="$DESTDIR/rpmbuild/RPMS/x86_64/$ARCH/$KERNEL"
 RPMS=()
 
 mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}

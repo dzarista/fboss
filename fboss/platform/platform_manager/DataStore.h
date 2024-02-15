@@ -49,6 +49,28 @@ class DataStore {
   // Checks if a PmUnit exists at the given SlotPath
   bool hasPmUnit(const std::string& slotPath) const;
 
+  // Get SysfsPath for a given PciSubDevicePath
+  std::string getSysfsPath(const std::string& devicePath);
+
+  // Update SysfsPath for a given PciSubDevicePath
+  void updateSysfsPath(
+      const std::string& devicePath,
+      const std::string& sysfsPath);
+
+  // Get InstanceId for a given PciSubDevicePath
+  uint32_t getInstanceId(const std::string& devicePath);
+
+  // Update InstanceId for a given PciSubDevicePath
+  void updateInstanceId(const std::string& devicePath, uint32_t instanceId);
+
+  // Get CharDevPath for a given PciSubDevicePath
+  std::string getCharDevPath(const std::string& devicePath) const;
+
+  // Update CharDevPath for a given PciSubDevicePath
+  void updateCharDevPath(
+      const std::string& devicePath,
+      const std::string& charDevPath);
+
  private:
   // Map from <pmUnitPath, pmUnitScopeBusName> to kernel i2c bus name.
   // - The pmUnitPath to the rootPmUnit is /. So a bus at root PmUnit will
@@ -65,5 +87,14 @@ class DataStore {
 
   // Stores the PmUnitName which has been discovered at each SlotPath.
   std::map<std::string, std::string> slotPathToPmUnitName_{};
+
+  // Map from PciSubDevicePath to SysfsPath.
+  std::map<std::string, std::string> pciSubDevicePathToSysfsPath_{};
+
+  // Map from PciSubDevicePath to instanceId.
+  std::map<std::string, uint32_t> pciSubDevicePathToInstanceId_{};
+
+  // Map from PciSubDevicePath to CharDevPath
+  std::map<std::string, std::string> pciSubDevicePathToCharDevPath_{};
 };
 } // namespace facebook::fboss::platform::platform_manager

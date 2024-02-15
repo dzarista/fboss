@@ -235,11 +235,14 @@ class HwSwitch {
   multiswitch::HwSwitchStats getHwSwitchStats();
 
   virtual folly::F14FastMap<std::string, HwPortStats> getPortStats() const = 0;
-  virtual CpuPortStats getCpuPortStats() const = 0;
+  virtual CpuPortStats getCpuPortStats(bool getIncrement = true) const = 0;
 
   virtual void fetchL2Table(std::vector<L2EntryThrift>* l2Table) const = 0;
 
-  virtual std::map<PortID, phy::PhyInfo> updateAllPhyInfo() = 0;
+  void updateAllPhyInfo();
+  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const {
+    return lastPhyInfo_.copy();
+  }
   virtual std::map<PortID, FabricEndpoint> getFabricConnectivity() const = 0;
   virtual std::vector<PortID> getSwitchReachability(
       SwitchID switchId) const = 0;
@@ -247,6 +250,8 @@ class HwSwitch {
   virtual FabricReachabilityStats getFabricReachabilityStats() const = 0;
   virtual TeFlowStats getTeFlowStats() const = 0;
   virtual HwSwitchDropStats getSwitchDropStats() const = 0;
+  virtual HwFlowletStats getHwFlowletStats() const = 0;
+  virtual std::vector<EcmpDetails> getAllEcmpDetails() const = 0;
 
   /*
    * Get latest device watermark bytes
@@ -391,6 +396,8 @@ class HwSwitch {
 
   virtual void gracefulExitImpl() = 0;
 
+  virtual std::map<PortID, phy::PhyInfo> updateAllPhyInfoImpl() = 0;
+
   std::shared_ptr<SwitchState> getMinAlpmState(
       RoutingInformationBase* rib,
       const std::shared_ptr<SwitchState>& state);
@@ -416,6 +423,12 @@ class HwSwitch {
   std::optional<int64_t> switchId_;
 
   folly::Synchronized<std::shared_ptr<SwitchState>> programmedState_;
+
+  // Collecting phy Info is currently inefficient on some platforms. Instead of
+  // collecting them every second, tune down the frequency to only collect once
+  // every update_phy_info_interval_s seconds (default to be 10).
+  int phyInfoUpdateTime_{0};
+  folly::Synchronized<std::map<PortID, phy::PhyInfo>> lastPhyInfo_;
 };
 
 } // namespace facebook::fboss

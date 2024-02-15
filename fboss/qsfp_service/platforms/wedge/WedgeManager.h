@@ -98,11 +98,6 @@ class WedgeManager : public TransceiverManager {
       std::map<int32_t, ModuleStatus>& moduleStatusMap,
       std::unique_ptr<std::vector<int32_t>> ids) override;
 
-  // This function will bring all the transceivers out of reset, making use
-  // of the specific implementation from each platform. Platforms that bring
-  // transceiver out of reset by default will stay no op.
-  virtual void clearAllTransceiverReset();
-
   /*
    * This function will call PhyManager to create all the ExternalPhy objects
    */
@@ -149,6 +144,8 @@ class WedgeManager : public TransceiverManager {
       phy::PhyStats&& stat) const override;
 
   void loadConfig() override;
+
+  void createQsfpToBmcSyncInterface();
 
   std::string getSwitchDataCenter() const {
     return dataCenter_;

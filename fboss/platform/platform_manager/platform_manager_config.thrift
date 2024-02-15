@@ -137,9 +137,6 @@ include "fboss/platform/platform_manager/platform_manager_presence.thrift"
 
 // ============================================================================
 
-const string DEVICE_TYPE_SENSOR = "SENSOR";
-const string DEVICE_TYPE_EEPROM = "EEPROM";
-
 // `I2cDeviceConfig` defines a i2c device within any PmUnit.
 //
 // `busName`: Refer to Bus Naming Convention above.
@@ -151,7 +148,7 @@ const string DEVICE_TYPE_EEPROM = "EEPROM";
 // `pmUnitScopedName`: The name assigned to the device in the config, unique
 // within the scope of PmUnit.
 //
-// `deviceType`: Type of the device (e.g eeprom, sensor).
+// `isGpioChip`: Whether this I2C Device is a GpioChip
 //
 // `numOutgoingChannels`: Number of outgoing channels (applies only for mux)
 //
@@ -195,7 +192,7 @@ struct I2cDeviceConfig {
   2: string address;
   3: string kernelDeviceName;
   4: string pmUnitScopedName;
-  5: string deviceType;
+  5: bool isGpioChip;
   6: optional i32 numOutgoingChannels;
   7: bool hasBmcMac;
   8: bool hasCpuMac;
@@ -215,10 +212,13 @@ struct I2cDeviceConfig {
 // `address`: I2C address of the IDPROM in hex notation
 //
 // `kernelDeviceName`: The device name used by kernel to identify the device
+//
+// `offset`: The offset at which Meta V5 IDPROM format resides.
 struct IdpromConfig {
   1: string busName;
   2: string address;
   3: string kernelDeviceName;
+  4: i16 offset;
 }
 
 // Defines a generic IP block in the FPGA
@@ -251,14 +251,34 @@ struct I2cAdapterConfig {
   2: i32 numberOfAdapters;
 }
 
+// Defines a Spi Device in FPGAs.
+//
+// `pmUnitScopedName`: The name used to refer to this device. It should be
+// be unique among other SpiSlaves and in associated pmUnit. SpiDeviceConfig.pmUnitScopedName
+// is the name of the SpiSlave device, whereas SpiMasterConfig.fpgaIpBlockConfig.pmUnitScopedName
+// is the name of the SpiMaster device.
+//
+// `modalias`: Type of SpiSlave Device. spi_dev or any id in
+// https://github.com/torvalds/linux/blob/master/drivers/spi/spidev.c#L702
+//
+// `chipSelect`: Value of chip select on the board.
+//
+// `maxSpeedHz`: Maximum clock rate to be used with this chip on the board.
+struct SpiDeviceConfig {
+  1: string pmUnitScopedName;
+  2: string modalias;
+  3: i32 chipSelect;
+  4: i32 maxSpeedHz;
+}
+
 // Defines the SPI Master block in FPGAs.
 //
 // `fpgaIpBlockConfig`: See FgpaIpBlockConfig above
 //
-// `numberOfCsPins`: Number of CS (chip-select) pins.
+// `spiDeviceConfigs`: See SpiDeviceConfig above.
 struct SpiMasterConfig {
   1: FpgaIpBlockConfig fpgaIpBlockConfig;
-  2: i32 numberOfCsPins;
+  2: list<SpiDeviceConfig> spiDeviceConfigs;
 }
 
 // Defines the Transceiver Controller block in FPGAs.
@@ -421,5 +441,7 @@ struct PlatformConfig {
   22: string bspKmodsRpmVersion;
 
   // Specify the list of names of kmods to be reloaded on new rpm installation.
+  // On every invocation of the program, they will be unloaded in the specified
+  // order, and loaded in the reverse order
   23: list<string> kmodsToReload;
 }

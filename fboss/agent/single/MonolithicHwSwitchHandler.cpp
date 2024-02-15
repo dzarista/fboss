@@ -112,12 +112,21 @@ HwSwitchDropStats MonolithicHwSwitchHandler::getSwitchDropStats() const {
   return hw_->getSwitchDropStats();
 }
 
-std::map<PortID, phy::PhyInfo> MonolithicHwSwitchHandler::updateAllPhyInfo() {
-  return hw_->updateAllPhyInfo();
+void MonolithicHwSwitchHandler::updateAllPhyInfo() {
+  hw_->updateAllPhyInfo();
+}
+
+std::map<PortID, phy::PhyInfo> MonolithicHwSwitchHandler::getAllPhyInfo()
+    const {
+  return hw_->getAllPhyInfo();
 }
 
 uint64_t MonolithicHwSwitchHandler::getDeviceWatermarkBytes() const {
   return hw_->getDeviceWatermarkBytes();
+}
+
+HwFlowletStats MonolithicHwSwitchHandler::getHwFlowletStats() const {
+  return hw_->getHwFlowletStats();
 }
 
 HwSwitchFb303Stats* MonolithicHwSwitchHandler::getSwitchStats() const {
@@ -150,6 +159,10 @@ prbs::InterfacePrbsState MonolithicHwSwitchHandler::getPortPrbsState(
 
 void MonolithicHwSwitchHandler::switchRunStateChanged(SwitchRunState newState) {
   hw_->switchRunStateChanged(newState);
+}
+
+std::vector<EcmpDetails> MonolithicHwSwitchHandler::getAllEcmpDetails() const {
+  return hw_->getAllEcmpDetails();
 }
 
 std::shared_ptr<SwitchState> MonolithicHwSwitchHandler::stateChanged(
@@ -201,7 +214,8 @@ bool MonolithicHwSwitchHandler::needL2EntryForNeighbor(
 std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>
 MonolithicHwSwitchHandler::stateChanged(
     const fsdb::OperDelta& delta,
-    bool transaction) {
+    bool transaction,
+    const std::shared_ptr<SwitchState>& /*newState*/) {
   auto operResult = transaction ? hw_->stateChangedTransaction(delta)
                                 : hw_->stateChanged(delta);
   /*
@@ -215,7 +229,7 @@ MonolithicHwSwitchHandler::stateChanged(
 
 multiswitch::StateOperDelta MonolithicHwSwitchHandler::getNextStateOperDelta(
     std::unique_ptr<multiswitch::StateOperDelta> /*prevOperResult*/,
-    bool /*initialSync*/) {
+    int64_t /*lastUpdateSeqNum*/) {
   throw FbossError("Not supported");
 }
 
