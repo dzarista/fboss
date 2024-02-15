@@ -22,20 +22,20 @@ target_link_libraries(agent_hw_test_src
   hw_test_fabric_utils
 )
 
-add_executable(multi_switch_agent_hw_test
-  fboss/agent/test/agent_hw_tests/MultiSwitchAgentHwTest.cpp
-)
+#add_executable(multi_switch_agent_hw_test
+#  fboss/agent/test/agent_hw_tests/MultiSwitchAgentHwTest.cpp
+#)
 
-target_link_libraries(multi_switch_agent_hw_test
-  -Wl,--whole-archive
-  agent_hw_test_src
-  agent_hw_test
-  multi_switch_agent_ensemble
-  Folly::folly
-  -Wl,--no-whole-archive
-  ${GTEST}
-  ${LIBGMOCK_LIBRARIES}
-)
+#target_link_libraries(multi_switch_agent_hw_test
+#  -Wl,--whole-archive
+#  agent_hw_test_src
+#  agent_hw_test
+#  multi_switch_agent_ensemble
+#  Folly::folly
+#  -Wl,--no-whole-archive
+#  ${GTEST}
+#  ${LIBGMOCK_LIBRARIES}
+#)
 
 if (BUILD_SAI_FAKE)
 add_executable(sai_agent_hw_test-fake

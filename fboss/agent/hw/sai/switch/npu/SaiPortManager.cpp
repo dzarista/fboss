@@ -16,7 +16,7 @@
 #include "fboss/agent/platforms/sai/SaiPlatform.h"
 
 #if defined(SAI_VERSION_11_0_EA_DNX_ODP)
-#include <experimental/saiportextensions.h>
+#include <saiportextensions.h>
 #endif
 
 DEFINE_bool(

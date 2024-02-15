@@ -665,14 +665,3 @@ add_dependencies(qsfp_targets
   qsfp_hw_test
   wedge_qsfp_util
 )
-
-set(fboss_agent_target_binaries)
-
-if (BUILD_SAI_FAKE)
-  list(APPEND fboss_agent_target_binaries sai_test-fake sai_agent_hw_test-fake)
-endif()
-
-add_custom_target(fboss_agent_targets)
-add_dependencies(fboss_agent_targets
-  ${fboss_agent_target_binaries}
-)

@@ -26,6 +26,8 @@ struct OpticsPerformanceMonitoringThresholds {
   OpticsSidePerformanceMonitoringThresholds hostThresholds;
 };
 
+/* ARISTA Change begin, uncomment code when kCmisOpticsThresholds is being used by
+ * code. For now it causes a compilation error.
 // CMIS optics thresholds
 struct OpticsPerformanceMonitoringThresholds kCmisOpticsThresholds = {
     .mediaThresholds =
@@ -41,6 +43,8 @@ struct OpticsPerformanceMonitoringThresholds kCmisOpticsThresholds = {
             .preFecBer = {0, 2.4e-5},
         },
 };
+* ARISTA Change end.
+*/
 
 } // namespace
 
