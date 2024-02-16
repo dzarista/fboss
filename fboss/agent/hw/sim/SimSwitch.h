@@ -161,6 +161,9 @@ class SimSwitch : public HwSwitch {
 
   void initialStateApplied() override {}
 
+  void syncLinkStates() override {}
+  void syncLinkActiveStates() override {}
+
   // Forbidden copy constructor and assignment operator
   SimSwitch(SimSwitch const&) = delete;
   SimSwitch& operator=(SimSwitch const&) = delete;

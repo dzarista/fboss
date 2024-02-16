@@ -8,9 +8,9 @@
  *
  */
 #include "fboss/agent/hw/test/TrafficPolicyUtils.h"
-#include "fboss/agent/hw/test/HwTestAclUtils.h"
-
 #include "fboss/agent/hw/test/ConfigFactory.h"
+#include "fboss/agent/hw/test/HwTestAclUtils.h"
+#include "fboss/agent/hw/test/HwTestCoppUtils.h"
 
 DECLARE_bool(enable_acl_table_group);
 
@@ -54,8 +54,9 @@ void addSetDscpAndEgressQueueActionToCfg(
     cfg::SwitchConfig* config,
     const std::string& aclName,
     uint8_t dscp,
-    int queueId) {
-  cfg::MatchAction matchAction = utility::getToQueueAction(queueId);
+    int queueId,
+    bool isSai) {
+  cfg::MatchAction matchAction = utility::getToQueueAction(queueId, isSai);
 
   // set specific dscp value action
   cfg::SetDscpMatchAction setDscpMatchAction;
@@ -147,28 +148,15 @@ void addQueueMatcher(
     cfg::SwitchConfig* config,
     const std::string& matcherName,
     int queueId,
+    bool isSai,
     const std::optional<std::string>& counterName) {
-  cfg::MatchAction matchAction = utility::getToQueueAction(queueId);
+  cfg::MatchAction matchAction = utility::getToQueueAction(queueId, isSai);
 
   if (counterName.has_value()) {
     matchAction.counter() = counterName.value();
   }
 
   utility::addMatcher(config, matcherName, matchAction);
-}
-
-void addTrafficCounter(
-    cfg::SwitchConfig* config,
-    const std::string& counterName,
-    std::optional<std::vector<cfg::CounterType>> counterTypes) {
-  auto counter = cfg::TrafficCounter();
-  *counter.name() = counterName;
-  if (counterTypes.has_value()) {
-    *counter.types() = counterTypes.value();
-  } else {
-    *counter.types() = {cfg::CounterType::PACKETS};
-  }
-  config->trafficCounters()->push_back(counter);
 }
 
 /*

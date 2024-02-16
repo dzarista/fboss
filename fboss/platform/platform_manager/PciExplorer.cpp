@@ -277,7 +277,14 @@ std::map<std::string, std::string> PciExplorer::createSpiMaster(
           [chipSelect](auto spiDeviceConfig) {
             return *spiDeviceConfig.chipSelect() == chipSelect;
           });
-      CHECK(itr != spiMasterConfig.spiDeviceConfigs()->end());
+      if (itr == spiMasterConfig.spiDeviceConfigs()->end()) {
+        throw std::runtime_error(fmt::format(
+            "Unexpected SpiDevice created at {}. \
+             No matching SpiDeviceConfig defined with ChipSelect {} for SpiController {}",
+            childDirEntry.path().string(),
+            chipSelect,
+            *spiMasterConfig.fpgaIpBlockConfig()->pmUnitScopedName()));
+      }
       spiCharDevPaths[*itr->pmUnitScopedName()] = spiCharDevPath;
     }
   }
@@ -340,6 +347,36 @@ void PciExplorer::createXcvrCtrl(
       *xcvrCtrlConfig.fpgaIpBlockConfig()->deviceName(),
       pciDevPath,
       auxData);
+}
+
+std::string PciExplorer::createInfoRom(
+    const std::string& pciDevPath,
+    const FpgaIpBlockConfig& infoRomConfig,
+    uint32_t instanceId) {
+  auto auxData = getAuxData(infoRomConfig, instanceId);
+  create(
+      *infoRomConfig.pmUnitScopedName(),
+      *infoRomConfig.deviceName(),
+      pciDevPath,
+      auxData);
+  const auto auxDevSysfsPath = "/sys/bus/auxiliary/devices";
+  if (!fs::exists(auxDevSysfsPath)) {
+    throw std::runtime_error(fmt::format(
+        "Unable to find InfoRom sysfs path for {} - '{}' path doesn't exist.",
+        *infoRomConfig.pmUnitScopedName(),
+        auxDevSysfsPath));
+  }
+  std::string expectedEnding =
+      fmt::format(".{}.{}", *infoRomConfig.deviceName(), instanceId);
+  for (const auto& dirEntry : fs::directory_iterator(auxDevSysfsPath)) {
+    if (hasEnding(dirEntry.path().filename().string(), expectedEnding)) {
+      return dirEntry.path().string();
+    }
+  }
+  throw std::runtime_error(fmt::format(
+      "Couldn't find InfoRom {} sysfs path under {}",
+      *infoRomConfig.pmUnitScopedName(),
+      auxDevSysfsPath));
 }
 
 void PciExplorer::createFpgaIpBlock(

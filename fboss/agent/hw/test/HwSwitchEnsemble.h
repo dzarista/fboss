@@ -106,9 +106,14 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   ~HwSwitchEnsemble() override;
   std::shared_ptr<SwitchState> applyNewState(
       std::shared_ptr<SwitchState> newState,
-      bool rollbackOnHwOverflow = false) override {
+      bool rollbackOnHwOverflow = false) {
     return applyNewStateImpl(newState, false, rollbackOnHwOverflow);
   }
+  void applyNewState(
+      StateUpdateFn fn,
+      const std::string& name = "test-update",
+      bool rollbackOnHwOverflow = false) override;
+
   std::shared_ptr<SwitchState> applyNewStateTransaction(
       std::shared_ptr<SwitchState> newState) {
     return applyNewStateImpl(newState, true);

@@ -33,6 +33,7 @@ bool isAclTableEnabled(
 
 bool verifyAclEnabled(const HwSwitch* hwSwitch);
 
+std::string getAclTableGroupName();
 template <typename T>
 bool isQualifierPresent(
     const HwSwitch* hwSwitch,
@@ -143,10 +144,6 @@ uint64_t getAclInOutBytes(
     const std::optional<std::string>& aclTableName = std::nullopt);
 
 std::vector<cfg::CounterType> getAclCounterTypes(const HwSwitch* hwSwitch);
-
-cfg::MatchAction getToQueueAction(
-    const int queueId,
-    const std::optional<cfg::ToCpuAction> toCpuAction = std::nullopt);
 
 void checkSwAclSendToQueue(
     std::shared_ptr<SwitchState> state,

@@ -69,6 +69,7 @@ void AgentEnsemble::setupEnsemble(
       std::make_shared<MultiSwitchPortMap>(),
       getSw()->getPlatformMapping(),
       asic,
+      getSw()->getPlatformSupportsAddRemovePort(),
       masterLogicalPortIds_);
 
   initialConfig_ = initialConfigFn(*this);
@@ -154,9 +155,7 @@ std::vector<PortID> AgentEnsemble::masterLogicalPortIds() const {
   return masterLogicalPortIds_;
 }
 
-void AgentEnsemble::switchRunStateChanged(SwitchRunState runState) {
-  getSw()->switchRunStateChanged(runState);
-}
+void AgentEnsemble::switchRunStateChanged(SwitchRunState runState) {}
 
 void AgentEnsemble::programRoutes(
     const RouterID& rid,
@@ -196,26 +195,23 @@ void AgentEnsemble::gracefulExit() {
   initializer->stopAgent(true);
 }
 
-std::shared_ptr<SwitchState> AgentEnsemble::applyNewState(
-    std::shared_ptr<SwitchState> state,
+void AgentEnsemble::applyNewState(
+    StateUpdateFn fn,
+    const std::string& name,
     bool transaction) {
-  if (!state) {
-    return getSw()->getState();
-  }
-
   // TODO: Handle multiple Asics
   auto asic = getSw()->getHwAsicTable()->getHwAsics().cbegin()->second;
-
-  state = EncapIndexAllocator::updateEncapIndices(
-      StateDelta(getProgrammedState(), state), *asic);
-  transaction
-      ? getSw()->updateStateWithHwFailureProtection(
-            "apply new state with failure protection",
-            [state](const std::shared_ptr<SwitchState>&) { return state; })
-      : getSw()->updateStateBlocking(
-            "apply new state",
-            [state](const std::shared_ptr<SwitchState>&) { return state; });
-  return getSw()->getState();
+  CHECK(asic);
+  auto applyUpdate = [&](const std::shared_ptr<SwitchState>& in) {
+    auto newState = fn(in);
+    if (!newState) {
+      return newState;
+    }
+    return EncapIndexAllocator::updateEncapIndices(
+        StateDelta(in, newState), *asic);
+  };
+  transaction ? getSw()->updateStateWithHwFailureProtection(name, applyUpdate)
+              : getSw()->updateStateBlocking(name, applyUpdate);
 }
 
 void AgentEnsemble::enableExactMatch(bcm::BcmConfig& config) {

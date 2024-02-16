@@ -70,6 +70,7 @@ cfg::SwitchConfig oneL3IntfConfig(
     const PlatformMapping* platformMapping,
     const HwAsic* asic,
     PortID port,
+    bool supportsAddRemovePort,
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap(),
     int baseVlanId = kBaseVlanId);
@@ -79,15 +80,18 @@ cfg::SwitchConfig oneL3IntfNoIPAddrConfig(
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap());
 cfg::SwitchConfig oneL3IntfTwoPortConfig(
-    const HwSwitch* hwSwitch,
+    const PlatformMapping* platformMapping,
+    const HwAsic* asic,
     PortID port1,
     PortID port2,
+    bool supportsAddRemovePort,
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap());
 cfg::SwitchConfig oneL3IntfNPortConfig(
     const PlatformMapping* platformMapping,
     const HwAsic* asic,
     const std::vector<PortID>& ports,
+    bool supportsAddRemovePort,
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap(),
     bool interfaceHasSubnet = true,
@@ -104,11 +108,8 @@ cfg::SwitchConfig onePortPerInterfaceConfig(
     int baseVlanId = kBaseVlanId,
     bool enableFabricPorts = false);
 cfg::SwitchConfig onePortPerInterfaceConfig(
-    const PlatformMapping* platformMapping,
-    const HwAsic* asic,
+    const SwSwitch* swSwitch,
     const std::vector<PortID>& ports,
-    const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
-        kDefaultLoopbackMap(),
     bool interfaceHasSubnet = true,
     bool setInterfaceMac = true,
     int baseIntfId = kBaseVlanId,
@@ -117,6 +118,7 @@ cfg::SwitchConfig multiplePortsPerIntfConfig(
     const PlatformMapping* platformMapping,
     const HwAsic* asic,
     const std::vector<PortID>& ports,
+    bool supportsAddRemovePort,
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
         kDefaultLoopbackMap(),
     bool interfaceHasSubnet = true,
@@ -214,6 +216,7 @@ void setPortToDefaultProfileIDMap(
     const std::shared_ptr<MultiSwitchPortMap>& ports,
     const PlatformMapping* platformMapping,
     const HwAsic* asic,
+    bool supportsAddRemove,
     std::optional<std::vector<PortID>> masterLogicalPortIds = std::nullopt);
 
 std::map<int, std::vector<uint8_t>> getOlympicQosMaps(

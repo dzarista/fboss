@@ -31,9 +31,11 @@ class HwQueuePerHostRouteTest : public HwLinkStateDependentTest {
  protected:
   cfg::SwitchConfig initialConfig() const override {
     return utility::oneL3IntfTwoPortConfig(
-        getHwSwitch(),
+        getHwSwitch()->getPlatform()->getPlatformMapping(),
+        getHwSwitch()->getPlatform()->getAsic(),
         masterLogicalPortIds()[0],
         masterLogicalPortIds()[1],
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
         getAsic()->desiredLoopbackModes());
   }
 
@@ -101,7 +103,8 @@ class HwQueuePerHostRouteTest : public HwLinkStateDependentTest {
   void setupHelper(bool blockNeighbor) {
     auto newCfg{initialConfig()};
     utility::addQueuePerHostQueueConfig(&newCfg);
-    utility::addQueuePerHostAcls(&newCfg);
+    utility::addQueuePerHostAcls(
+        &newCfg, getHwSwitch()->getPlatform()->isSai());
 
     this->applyNewConfig(newCfg);
     this->addRoutes({this->kGetRoutePrefix()});

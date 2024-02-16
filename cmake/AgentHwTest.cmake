@@ -72,6 +72,8 @@ target_link_libraries(hw_copp_utils
   switch_config_cpp2
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
+  hw_packet_utils
+  sai_copp_utils
 )
 
 add_library(hw_qos_utils
@@ -458,4 +460,16 @@ target_link_libraries(multiswitch_test_server
   handler
   multiswitch_service
   Folly::folly
+)
+
+add_library(hw_test_fabric_utils
+  fboss/agent/hw/test/HwTestFabricUtils.cpp
+)
+
+target_link_libraries(hw_test_fabric_utils
+  hw_switch
+  config_factory
+  fboss_types
+  switch_config_cpp2
+  ${GTEST}
 )

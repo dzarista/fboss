@@ -196,7 +196,10 @@ TYPED_TEST(HwAclPriorityTest, AclsChanged) {
     auto config = this->initialConfig();
     addDenyPortAcl(config, "acl0");
     // Get Acls from COPP policy
-    setDefaultCpuTrafficPolicyConfig(config, this->getPlatform()->getAsic());
+    setDefaultCpuTrafficPolicyConfig(
+        config,
+        this->getPlatform()->getAsic(),
+        this->getHwSwitchEnsemble()->isSai());
     addPermitIpAcl(config, "acl1", kIp);
     this->applyNewConfig(config);
   };
@@ -222,7 +225,8 @@ TYPED_TEST(HwAclPriorityTest, Reprioritize) {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     cfg::TrafficPolicyConfig trafficConfig;
     trafficConfig.matchToAction()->resize(2);
-    cfg::MatchAction matchAction = getToQueueAction(1, cfg::ToCpuAction::TRAP);
+    cfg::MatchAction matchAction = getToQueueAction(
+        1, this->getHwSwitchEnsemble()->isSai(), cfg::ToCpuAction::TRAP);
     for (int i = 0; i < 2; i++) {
       auto& acls = utility::getAcls(&config, std::nullopt);
       trafficConfig.matchToAction()[i].matcher() = *acls[i].name();
@@ -241,7 +245,8 @@ TYPED_TEST(HwAclPriorityTest, Reprioritize) {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     cfg::TrafficPolicyConfig trafficConfig;
     trafficConfig.matchToAction()->resize(2);
-    cfg::MatchAction matchAction = getToQueueAction(1, cfg::ToCpuAction::TRAP);
+    cfg::MatchAction matchAction = getToQueueAction(
+        1, this->getHwSwitchEnsemble()->isSai(), cfg::ToCpuAction::TRAP);
     for (int i = 0; i < 2; i++) {
       auto& acls = utility::getAcls(&config, std::nullopt);
       trafficConfig.matchToAction()[i].matcher() = *acls[i].name();

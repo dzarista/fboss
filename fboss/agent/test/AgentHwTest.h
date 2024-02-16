@@ -11,6 +11,8 @@
 #include <gtest/gtest.h>
 
 DECLARE_int32(update_watermark_stats_interval_s);
+DECLARE_bool(publish_state_to_fsdb);
+DECLARE_bool(publish_stats_to_fsdb);
 
 namespace facebook::fboss {
 
@@ -28,6 +30,7 @@ class AgentHwTest : public ::testing::Test {
   void SetUp() override;
   void TearDown() override;
   void tearDownAgentEnsemble(bool doWarmboot = false);
+  using StateUpdateFn = SwSwitch::StateUpdateFn;
 
  protected:
   template <
@@ -85,6 +88,14 @@ class AgentHwTest : public ::testing::Test {
 
   void runForever() const;
   std::shared_ptr<SwitchState> applyNewConfig(const cfg::SwitchConfig& config);
+  void applyNewState(StateUpdateFn fn, const std::string& name = "agent-test") {
+    return applyNewStateImpl(fn, name, false);
+  }
+  void applyNewStateTransaction(
+      StateUpdateFn fn,
+      const std::string& name = "agent-test-transaction") {
+    return applyNewStateImpl(fn, name, true);
+  }
 
   SwSwitch* getSw() const;
   const std::map<SwitchID, const HwAsic*> getAsics() const;
@@ -111,8 +122,19 @@ class AgentHwTest : public ::testing::Test {
       const std::vector<PortID>& ports);
 
   HwPortStats getLatestPortStats(const PortID& port);
+  virtual cfg::SwitchConfig initialConfig(const AgentEnsemble& ensemble) const;
+
+  cfg::SwitchConfig addCoppConfig(
+      const AgentEnsemble& ensemble,
+      const cfg::SwitchConfig& in) const;
+
+  uint64_t getCpuQueueInPackets(SwitchID switchId, int queueId);
 
  private:
+  void applyNewStateImpl(
+      StateUpdateFn fn,
+      const std::string& name,
+      bool transaction);
   /*
    * Derived classes have the option to not run verify on
    * certain DUTs. E.g. non controlling nodes in Multinode setups
@@ -123,11 +145,11 @@ class AgentHwTest : public ::testing::Test {
 
   virtual bool hideFabricPorts() const;
 
-  virtual cfg::SwitchConfig initialConfig(const AgentEnsemble& ensemble) const;
-
   virtual std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const = 0;
   void printProductionFeatures() const;
+
+  CpuPortStats getLatestCpuStats(SwitchID switchId);
 
   AgentEnsemblePlatformConfigFn platformConfigFn_ = nullptr;
   std::unique_ptr<AgentEnsemble> agentEnsemble_;

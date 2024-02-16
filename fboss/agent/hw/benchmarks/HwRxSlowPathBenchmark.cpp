@@ -49,7 +49,10 @@ BENCHMARK(RxSlowPathBenchmark) {
         auto asic =
             ensemble.getSw()->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
         auto config = utility::oneL3IntfConfig(
-            ensemble.getSw()->getPlatformMapping(), asic, portUsed);
+            ensemble.getSw()->getPlatformMapping(),
+            asic,
+            portUsed,
+            ensemble.getSw()->getPlatformSupportsAddRemovePort());
         // We don't want to set queue rate that limits the number of rx pkts
         utility::addCpuQueueConfig(
             config,
@@ -63,10 +66,7 @@ BENCHMARK(RxSlowPathBenchmark) {
   auto ensemble = createAgentEnsemble(initialConfigFn);
 
   // TODO(zecheng): Deprecate agent access to HwSwitch
-  auto hwSwitch =
-      static_cast<MonolithicAgentInitializer*>(ensemble->agentInitializer())
-          ->platform()
-          ->getHwSwitch();
+  auto hwSwitch = ensemble->getHwSwitch();
   auto config = initialConfigFn(*ensemble);
   // capture packet exiting port 0 (entering due to loopback)
   auto trapDstIp = folly::CIDRNetwork{kDstIp, 128};
@@ -74,8 +74,9 @@ BENCHMARK(RxSlowPathBenchmark) {
   auto dstMac = utility::getFirstInterfaceMac(ensemble->getProgrammedState());
   auto ecmpHelper =
       utility::EcmpSetupAnyNPorts6(ensemble->getProgrammedState(), dstMac);
-  ensemble->applyNewState(
-      ecmpHelper.resolveNextHops(ensemble->getProgrammedState(), kEcmpWidth));
+  ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+    return ecmpHelper.resolveNextHops(in, kEcmpWidth);
+  });
   ecmpHelper.programRoutes(
       std::make_unique<SwSwitchRouteUpdateWrapper>(
           ensemble->getSw(), ensemble->getSw()->getRib()),

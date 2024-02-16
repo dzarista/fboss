@@ -44,17 +44,8 @@ void teFlowAddDelEntriesBenchmarkHelper(bool measureAdd) {
       [](const AgentEnsemble& ensemble) {
         auto ports = ensemble.masterLogicalPortIds();
         CHECK_GT(ports.size(), 0);
-
-        // Before m-mpu agent test, use first Asic for initialization.
-        auto switchIds = ensemble.getSw()->getHwAsicTable()->getSwitchIDs();
-        CHECK_GE(switchIds.size(), 1);
-        auto asic =
-            ensemble.getSw()->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
         return utility::onePortPerInterfaceConfig(
-            ensemble.getSw()->getPlatformMapping(),
-            asic,
-            {ports[0], ports[1]},
-            asic->desiredLoopbackModes());
+            ensemble.getSw(), {ports[0], ports[1]});
       };
   AgentEnsemblePlatformConfigFn platformConfigFn =
       [](cfg::PlatformConfig& config) {
@@ -68,38 +59,55 @@ void teFlowAddDelEntriesBenchmarkHelper(bool measureAdd) {
   auto ensemble = createAgentEnsemble(initialConfigFn, platformConfigFn);
   auto ports = ensemble->masterLogicalPortIds();
   // TODO(zecheng): Deprecate agent access to HwSwitch
-  auto hwSwitch =
-      static_cast<MonolithicAgentInitializer*>(ensemble->agentInitializer())
-          ->platform()
-          ->getHwSwitch();
-  auto state = ensemble->getSw()->getState();
-  auto ecmpHelper = utility::EcmpSetupAnyNPorts6(state, RouterID(0));
-  // Setup EM Config
-  utility::setExactMatchCfg(&state, prefixLength);
-  ensemble->applyNewState(state);
+  auto hwSwitch = ensemble->getHwSwitch();
+  ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+    // Setup EM Config
+    auto state = in->clone();
+    utility::setExactMatchCfg(&state, prefixLength);
+    return state;
+  });
   // Resolve nextHops
   CHECK_GE(ports.size(), 2);
-  ensemble->applyNewState(ecmpHelper.resolveNextHops(
-      ensemble->getSw()->getState(), {PortDescriptor(ports[0])}));
-  ensemble->applyNewState(ecmpHelper.resolveNextHops(
-      ensemble->getSw()->getState(), {PortDescriptor(ports[1])}));
+  ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+    auto ecmpHelper = utility::EcmpSetupAnyNPorts6(in, RouterID(0));
+    return ecmpHelper.resolveNextHops(
+        in, {PortDescriptor(ports[0]), PortDescriptor(ports[1])});
+  });
   // Add Entries
   auto flowEntries =
       makeFlowEntries(dstIpStart, nextHopAddr, ifName, ports[0], numEntries);
   if (measureAdd) {
-    state = ensemble->getSw()->getState();
-    utility::addFlowEntries(&state, flowEntries, ensemble->scopeResolver());
     suspender.dismiss();
-    state = ensemble->applyNewState(state, true /* rollback on fail */);
+    ensemble->applyNewState(
+        [&](const std::shared_ptr<SwitchState>& in) {
+          auto state = in->clone();
+          utility::addFlowEntries(
+              &state, flowEntries, ensemble->scopeResolver());
+          return state;
+        },
+        "add-te-flows",
+        true /* rollback on fail */);
     suspender.rehire();
   } else {
-    state = ensemble->getSw()->getState();
-    utility::addFlowEntries(&state, flowEntries, ensemble->scopeResolver());
-    state = ensemble->applyNewState(state, true /* rollback on fail */);
+    ensemble->applyNewState(
+        [&](const std::shared_ptr<SwitchState>& in) {
+          auto state = in->clone();
+          utility::addFlowEntries(
+              &state, flowEntries, ensemble->scopeResolver());
+          return state;
+        },
+        "add-te-flows",
+        true /* rollback on fail */);
     CHECK_EQ(utility::getNumTeFlowEntries(hwSwitch), numEntries);
-    utility::deleteFlowEntries(&state, flowEntries);
     suspender.dismiss();
-    state = ensemble->applyNewState(state, true /* rollback on fail */);
+    ensemble->applyNewState(
+        [&](const std::shared_ptr<SwitchState>& in) {
+          auto state = in->clone();
+          utility::deleteFlowEntries(&state, flowEntries);
+          return state;
+        },
+        "del-te-flows",
+        true /* rollback on fail */);
     suspender.rehire();
   }
 }

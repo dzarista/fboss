@@ -24,6 +24,7 @@ DECLARE_bool(setup_for_warmboot);
 namespace facebook::fboss {
 class StateObserver;
 class AgentEnsemble;
+class HwSwitch;
 
 using AgentEnsembleSwitchConfigFn =
     std::function<cfg::SwitchConfig(const AgentEnsemble&)>;
@@ -35,6 +36,7 @@ class AgentEnsemble : public TestEnsembleIf {
   explicit AgentEnsemble(const std::string& configFileName);
   virtual ~AgentEnsemble() override;
   using TestEnsembleIf::masterLogicalPortIds;
+  using StateUpdateFn = SwSwitch::StateUpdateFn;
 
   void setupEnsemble(
       uint32_t hwFeaturesDesired,
@@ -81,8 +83,9 @@ class AgentEnsemble : public TestEnsembleIf {
   virtual void reloadPlatformConfig() = 0;
   virtual bool isSai() const = 0;
 
-  std::shared_ptr<SwitchState> applyNewState(
-      std::shared_ptr<SwitchState> state,
+  void applyNewState(
+      StateUpdateFn fn,
+      const std::string& name = "test-update",
       bool transaction = false) override;
 
   std::vector<PortID> masterLogicalPortIds() const override;
@@ -116,10 +119,9 @@ class AgentEnsemble : public TestEnsembleIf {
       bool up,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override {
-    if (getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED) {
-      if (linkToggler_) {
-        linkToggler_->linkStateChanged(port, up);
-      }
+    if (getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED &&
+        linkToggler_) {
+      linkToggler_->linkStateChanged(port, up);
     }
   }
 
@@ -176,6 +178,8 @@ class AgentEnsemble : public TestEnsembleIf {
   void registerStateObserver(StateObserver* observer, const std::string& name)
       override;
   void unregisterStateObserver(StateObserver* observer) override;
+
+  virtual HwSwitch* getHwSwitch() const = 0;
 
  protected:
   void joinAsyncInitThread() {

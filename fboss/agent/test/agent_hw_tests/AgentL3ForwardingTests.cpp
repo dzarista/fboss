@@ -1,7 +1,11 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
+#include "fboss/agent/TxPacket.h"
+#include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/state/StateUtils.h"
 #include "fboss/agent/test/AgentHwTest.h"
+#include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/lib/CommonUtils.h"
 
 #include "fboss/agent/test/gen-cpp2/production_features_types.h"
 
@@ -16,6 +20,11 @@ class AgentL3ForwardingTest : public AgentHwTest {
   }
 
  protected:
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto config = AgentHwTest::initialConfig(ensemble);
+    return addCoppConfig(ensemble, config);
+  }
   std::optional<VlanID> kVlanID() const {
     return utility::firstVlanID(getProgrammedState());
   }
@@ -78,15 +87,16 @@ TEST_F(AgentL3ForwardingTest, linkLocalNeighborAndNextHop) {
     // linkLocalNbr  - used as both LL nbr and
     folly::IPAddress linkLocalNhop("fe80::e42:a1ff:fe66:1d9e");
     folly::IPAddress linkLocalNbr("fe80::e43:a1ff:fe66:1d9e");
-    getSw()->updateStateBlocking(
-        "add link local nbr, nhop",
+    applyNewState(
         [&](const std::shared_ptr<SwitchState>& in) {
           return addResolvedNeighbor(in, linkLocalNhop.asV6());
-        });
-    getSw()->updateStateBlocking(
-        "add link local nbr", [&](const std::shared_ptr<SwitchState>& in) {
+        },
+        "add link local nbr, nhop");
+    applyNewState(
+        [&](const std::shared_ptr<SwitchState>& in) {
           return addResolvedNeighbor(in, linkLocalNbr.asV6());
-        });
+        },
+        "add link local nbr, nhop");
     RouteNextHopSet nhops;
     nhops.emplace(ResolvedNextHop(linkLocalNhop, kIntfID(), ECMP_WEIGHT));
     auto routeUpdater = getSw()->getRouteUpdater();
@@ -101,5 +111,63 @@ TEST_F(AgentL3ForwardingTest, linkLocalNeighborAndNextHop) {
   // No verify here. We are just testing safe warm boots
   // with LL neighbors and next hops
   verifyAcrossWarmBoots(setup, []() {});
+}
+
+TEST_F(AgentL3ForwardingTest, ttl255) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper6(getSw()->getState());
+  utility::EcmpSetupAnyNPorts4 ecmpHelper4(getSw()->getState());
+  auto setup = [=]() {
+    auto programDefaultRoutes = [this](auto& ecmpHelper) {
+      auto wrapper = getSw()->getRouteUpdater();
+      ecmpHelper.programRoutes(&wrapper, 1);
+    };
+    programDefaultRoutes(ecmpHelper6);
+    programDefaultRoutes(ecmpHelper4);
+
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return ecmpHelper6.resolveNextHops(in, {ecmpHelper6.nhop(0).portDesc});
+    });
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return ecmpHelper4.resolveNextHops(in, {ecmpHelper4.nhop(0).portDesc});
+    });
+    CHECK_EQ(ecmpHelper4.nhop(0).portDesc, ecmpHelper6.nhop(0).portDesc);
+  };
+  auto verify = [=, this]() {
+    auto pumpTraffic = [=]() {
+      for (auto isV6 : {true, false}) {
+        auto vlanId = utility::firstVlanID(getProgrammedState());
+        auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
+        auto srcIp = folly::IPAddress(isV6 ? "1001::1" : "10.0.0.1");
+        auto dstIp =
+            folly::IPAddress(isV6 ? "100:100:100::1" : "100.100.100.1");
+        constexpr uint8_t kTtl = 255;
+        auto pkt = utility::makeUDPTxPacket(
+            getSw(),
+            vlanId,
+            intfMac,
+            intfMac,
+            srcIp,
+            dstIp,
+            10000,
+            10001,
+            0,
+            kTtl);
+        getSw()->sendPacketOutOfPortAsync(
+            std::move(pkt), ecmpHelper6.nhop(1).portDesc.phyPortID());
+      }
+    };
+    auto port = ecmpHelper6.nhop(0).portDesc.phyPortID();
+    auto portStatsBefore = getLatestPortStats(port);
+    pumpTraffic();
+    WITH_RETRIES({
+      auto portStatsAfter = getLatestPortStats(port);
+      XLOG(INFO) << " Out pkts, before:" << *portStatsBefore.outUnicastPkts_()
+                 << " after:" << *portStatsAfter.outUnicastPkts_() << std::endl;
+      EXPECT_EVENTUALLY_EQ(
+          *portStatsAfter.outUnicastPkts_(),
+          *portStatsBefore.outUnicastPkts_() + 2);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
 }
 } // namespace facebook::fboss

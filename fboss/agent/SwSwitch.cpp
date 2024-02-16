@@ -587,7 +587,8 @@ void SwSwitch::onSwitchRunStateChange(SwitchRunState newState) {
     return newSwitchState;
   };
   updateState("update switch runstate", updateFn);
-  switchRunStateChanged(newState);
+  // TODO (m-NPU): handle m-NPU support
+  multiHwSwitchHandler_->switchRunStateChanged(newState);
 }
 
 SwitchRunState SwSwitch::getSwitchRunState() const {
@@ -715,6 +716,8 @@ AgentStats SwSwitch::fillFsdbStats() {
       }
       agentStats.flowletStatsMap()->insert(
           {switchIdx, std::move(*hwSwitchStats.flowletStats())});
+      agentStats.cpuPortStatsMap()->insert(
+          {switchIdx, std::move(*hwSwitchStats.cpuPortStats())});
     }
     lockedStats->clear();
   }
@@ -786,6 +789,8 @@ void SwSwitch::updateStats() {
       hwStats.phyInfo()->emplace(portId, phyInfoPerPort);
     }
     hwStats.flowletStats() = getHwFlowletStats();
+    hwStats.cpuPortStats() =
+        multiHwSwitchHandler_->getCpuPortStats(false /*getIncrement*/);
     updateHwSwitchStats(0 /*switchIndex*/, std::move(hwStats));
   }
   updateFlowletStats();
@@ -917,11 +922,16 @@ TeFlowStats SwSwitch::getTeFlowStats() {
   TeFlowStats teFlowStats;
   std::map<std::string, HwTeFlowStats> hwTeFlowStats;
   auto statMap = facebook::fb303::fbData->getStatMap();
-  for (const auto& [_, teFlowTable] :
-       std::as_const(*getState()->getTeFlowTable())) {
+  auto state = getState();
+  if (!state) {
+    return teFlowStats;
+  }
+  auto multiTeFlowTable = state->getTeFlowTable();
+  for (const auto& [_, teFlowTable] : std::as_const(*multiTeFlowTable)) {
     for (const auto& [flowStr, flowEntry] : std::as_const(*teFlowTable)) {
       std::ignore = flowStr;
-      if (const auto& counter = flowEntry->getCounterID()) {
+      if (flowEntry->getCounterID().has_value()) {
+        const auto& counter = flowEntry->getCounterID();
         auto statName = folly::to<std::string>(counter->toThrift(), ".bytes");
         // returns default stat if statName does not exists
         auto statPtr = statMap->getStatPtrNoExport(statName);
@@ -2979,11 +2989,6 @@ std::optional<uint32_t> SwSwitch::getHwLogicalPortId(PortID portID) const {
 
 const AgentDirectoryUtil* SwSwitch::getDirUtil() const {
   return agentDirUtil_;
-}
-
-void SwSwitch::switchRunStateChanged(SwitchRunState newState) {
-  // TODO (m-NPU): handle m-NPU support
-  multiHwSwitchHandler_->switchRunStateChanged(newState);
 }
 
 void SwSwitch::storeWarmBootState(const state::WarmbootState& state) {
