@@ -166,7 +166,6 @@ then
 
    # 5.19 kernel has additional requirements.
    if [ $KERNEL == "5.19" ]; then
-      #export NO_PRECOMPILED_MODULE=1
       mkdir -p /tools/
       ln -s /usr/bin/ /tools/bin
    fi
