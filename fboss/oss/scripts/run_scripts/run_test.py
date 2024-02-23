@@ -766,7 +766,7 @@ class SaiTestRunner(TestRunner):
         return ""
 
     def _get_test_binary_name(self):
-        return args.sai_bin if args.sai_bin else "sai_test-sai_impl-1.13.0"
+        return args.sai_bin if args.sai_bin else "sai_test-sai_impl"
 
     def _get_sai_replayer_logging_flags(
         self, sai_replayer_logging_dir, test_prefix, test_to_run
@@ -853,7 +853,7 @@ class LinkTestRunner(TestRunner):
         return ""
 
     def _get_test_binary_name(self):
-        return "sai_link_test-sai_impl-1.13.0"
+        return "sai_link_test-sai_impl"
 
     def _get_sai_replayer_logging_flags(
         self, sai_replayer_logging_dir, test_prefix, test_to_run
