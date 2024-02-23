@@ -2,12 +2,13 @@
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
+import os
 import sys
 sys.path.append( "../../lib" )
 import csv
 from dataclasses import astuple
 from PlatformUtils import validMediaForSpeed, validFabricSerdesSpeeds, \
-   txTapSettingsByLaneProps, PortMedium, SpeedGbps, speedInMbps
+   txTapSettingsByLaneProps, PortMedium, SpeedGbps, speedInMbps, TxTapSettings
 from VendorMappings import StaticMapping, PortProfileMapping, SISettings
 from WhistlerP1LanesMappingData import feToLaneMapSocProps, \
    fabricTraceLengthByLogicalLane, logicalLaneToPhysicalCoreLogicalLane
@@ -249,6 +250,29 @@ with open( "whistler_si_settings.csv", "w" ) as fh:
    mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
    mappingWriter.writerow( fields )
 
+   # Populate SI settings if they are available in a file.
+   siSettingsFilePath = "./Whistler_SI_Settings.csv"
+   asicLogicalLaneToSISettings = {}
+   if os.path.isfile( siSettingsFilePath ):
+      for asicId in range( numAsics ):
+         asicLogicalLaneToSISettings[ asicId ] = {}
+      with open( siSettingsFilePath ) as siFh:
+         siReader = csv.reader( siFh )
+         for row in siReader:
+            # Skip the field names
+            if not row[0].isdigit():
+               continue
+            frontPanelPortStrKey = f"{row[0]}/{row[1]}"
+            asicId = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "chipId" ]
+            rxPhysicalLane = frontPanelToAsicSerdesMap[ frontPanelPortStrKey ][ "rx" ]
+            logicalLane = asicSerdesToLogicalLaneMap[ asicId ][ "rx" ][ rxPhysicalLane ]
+            # HW port mapping does not have post3 values, so assuming 0.
+            asicLogicalLaneToSISettings[ asicId ][ logicalLane ] = TxTapSettings(
+               row[ 2 ], row[ 3 ], row[ 4 ], row[ 5 ], row[ 6 ], row[ 7 ], 0 )
+      # Make sure that we were able to read SI settings for all ports on both asics.
+      for asicId in range( numAsics ):
+         assert len( asicLogicalLaneToSISettings[ asicId ] ) == numFabricSerdesPerAsic
+
    # We only care about 100G fabric serdes with Optical media on Whistler
    speed = SpeedGbps.HundredAndSix
    medium = PortMedium.OPTICAL
@@ -258,9 +282,12 @@ with open( "whistler_si_settings.csv", "w" ) as fh:
       for logicalFabSerdes in range( numFabricSerdesPerAsic ):
          coreId = logicalFabSerdes // numSerdesPerCore
          coreLane = logicalFabSerdes % numSerdesPerCore
-         txTapSettings = txTapSettingsByLaneProps( speed, medium,
-                                                  asicLogicalLaneTraceLength[ asicId ][
-                                                  logicalFabSerdes ] )
+         if asicId in asicLogicalLaneToSISettings:
+            txTapSettings = asicLogicalLaneToSISettings[ asicId ][ logicalFabSerdes ]
+         else:
+            txTapSettings = txTapSettingsByLaneProps( speed, medium,
+                                                     asicLogicalLaneTraceLength[ asicId ][
+                                                     logicalFabSerdes ] )
          mappingWriter.writerow( astuple(
                                 SISettings(1, chipId, "NPU", coreId, "R3_FE",
                                 coreLane, speedInMbps( speed ), medium.name,
