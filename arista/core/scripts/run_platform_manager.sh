@@ -18,4 +18,13 @@ $PROCESS 2>&1 | while IFS= read -r line; do
     if [[ "$line" == *"$PM_SUCCESS_LOG"* ]]; then
         touch "$READY_FLAG"
     fi
-done
+done &
+
+# Wait for ready flag
+while [[ ! -f "$READY_FLAG" ]]; do sleep 1; done
+
+# Set service status to active
+systemd-notify --ready
+
+# Keep the script running
+wait
