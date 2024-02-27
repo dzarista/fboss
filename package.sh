@@ -8,7 +8,7 @@ FBOSS_REPO_RPM_DIR="$FBOSS_REPO/arista/rpm"
 RPM_DIR="/tmp/rpmbuild/RPMS/x86_64"
 ARCH=$1
 KERNEL=$2
-FBOSS_RPM_DIR="$DESTDIR/rpmbuild/RPMS/x86_64/$ARCH/$KERNEL"
+FBOSS_RPM_DIR="$DESTDIR/usr/share/ptest-data/Fboss/RPMS/$ARCH/$KERNEL"
 RPMS=()
 
 mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
