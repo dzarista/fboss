@@ -25,7 +25,7 @@ fi
 
 FBOSS_IMG="docker.corp.arista.io/fboss-centos${CENTOS_RELEASE}:latest"
 
-DEFAULT_DOCKER_NAME="FBOSS_CENTOS${CENTOS_RELEASE}-2-${USER}"
+DEFAULT_DOCKER_NAME="FBOSS_CENTOS${CENTOS_RELEASE}-1-${USER}"
 if [[ -z "${DOCKER_NAME}" ]]; then
    echo "No docker container name specified. using ${DEFAULT_DOCKER_NAME}"
    DOCKER_NAME="${DEFAULT_DOCKER_NAME}"
@@ -111,7 +111,7 @@ maybe_setup_build_env() {
    cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
    git checkout Arista-SAI_11.0.0.7_EA
-   # Use patch0-Jupiter-SAI-Makefile.patch w/SAI < 11.0.0
+   # Use patch0-Jupiter-SAI-Makefile.patch w/SAI < 10.0.0
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
    cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA"
