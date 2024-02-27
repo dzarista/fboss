@@ -150,7 +150,7 @@ fi
 export SDK=""
 cd $SAI_BUILD_DIR
 export KERNDIR="$KERNEL_SRC"
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/sdk_6.5.29_dnx.1_SAI_11.0.0_EA/sdk-6.5.29-$ARCH.1-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA/$ARCH-sdk-6.5.30-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
@@ -166,7 +166,6 @@ then
 
    # 5.19 kernel has additional requirements.
    if [ $KERNEL == "5.19" ]; then
-      export NO_PRECOMPILED_MODULE=1
       mkdir -p /tools/
       ln -s /usr/bin/ /tools/bin
    fi
@@ -176,6 +175,7 @@ then
       kernel_version=2_6 LINUX_UAPI_SPLIT=1 clean
 
    echo "======= Starting Broadcom SDK build ========"
+   export NO_PRECOMPILED_MODULE=1
    cd $SAI_BUILD_DIR
    # BRCM SAI 10.0.0.3 EA does not compile without setting SAI_TUNNEL_SUPPORT=1, this
    # should ideally be set in one of the Make flags file.
