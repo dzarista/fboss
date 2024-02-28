@@ -38,7 +38,7 @@ export BUILD_FBOSS_CLI=1
 # DESTDIR is used also in scripts, so we need 'clean' it before run those scripts
 DESTDIR_COPY=$DESTDIR
 DESTDIR=""
-time ./build/fbcode_builder/getdeps.py build --allow-system-packages \
+time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 20 \
    --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
 
 cd $FBOSS_REPO

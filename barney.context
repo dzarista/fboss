@@ -8,7 +8,7 @@
                "commit": "375689eea0c838a43d37611aa9997b17d1d1365d"
             },
             "github.com/aristanetworks/Aqua_SAI": {
-               "commit": "05eb882f7de7dac5b498c4223143db186ebada6a"
+               "commit": "e71624b43cd94e9d7d2d77bc09c7e0b9c203fb2b"
             },
             "code.arista.io/infra/barney/barnzilla": {
                "commit": "35780283d4e0ef2c59bc76425553d08a19e2d6e1"
