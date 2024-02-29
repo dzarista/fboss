@@ -3,7 +3,7 @@ description: |
   Untangle FBOSS EOS SWI building
 users:
   maintainers:
-    - marek@arista.com
+    - FbossTest-dev@arista.com
 x-bar:
   version: production
   target-branch-re: "^(.+-trunk|main|engprod-parent|master|eft|.+-(?:maint|rel|bringup))$"
@@ -11,8 +11,8 @@ epoch: 1
 x-rits:
   instance: production
   # Create RITS MUTs with these member packages:
-  bip-packages: ["Fboss", "FbossTest"]
+  bip-packages: ["Fboss"]
   branch-project-mapping:
     - git-branch: "main"
-      p4-project: "fboss-main"
+      p4-project: "eos-trunk"
   required-for-merge: {}
