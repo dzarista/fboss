@@ -17,7 +17,6 @@
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwEcmpDataPlaneTestUtil.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestDscpMarkingUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/state/Interface.h"
@@ -213,8 +212,7 @@ void HwProdInvariantHelper::disableTtl() {
   for (const auto& nhop : ecmpHelper_->getNextHops()) {
     if (std::find(ecmpPorts_.begin(), ecmpPorts_.end(), nhop.portDesc) !=
         ecmpPorts_.end()) {
-      utility::disableTTLDecrements(
-          ensemble_->getHwSwitch(), RouterID(0), nhop);
+      utility::disableTTLDecrements(ensemble_, RouterID(0), nhop);
     }
   }
 }

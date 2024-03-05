@@ -56,6 +56,15 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ANY_ACL_DROP_COUNTER:
     case HwAsic::Feature::EGRESS_FORWARDING_DROP_COUNTER:
     case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
+    case HwAsic::Feature::ACL_COPY_TO_CPU:
+    case HwAsic::Feature::SWITCH_ATTR_INGRESS_ACL:
+    case HwAsic::Feature::MULTIPLE_ACL_TABLES:
+    case HwAsic::Feature::ACL_TABLE_GROUP:
+    case HwAsic::Feature::ERSPANv4:
+    case HwAsic::Feature::ERSPANv6:
+    case HwAsic::Feature::RCI_WATERMARK_COUNTER:
+    case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
       return true;
     // Features not expected to work on SIM
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
@@ -75,12 +84,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SLOW_STAT_UPDATE:
       // supported only on the SIM
       return getAsicMode() == AsicMode::ASIC_MODE_SIM;
-    case HwAsic::Feature::SWITCH_ATTR_INGRESS_ACL:
-    case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
-    case HwAsic::Feature::ACL_TABLE_GROUP:
-    case HwAsic::Feature::MULTIPLE_ACL_TABLES:
-    case HwAsic::Feature::ACL_COPY_TO_CPU:
-    case HwAsic::Feature::ACL_COUNTER_LABEL:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS:
@@ -148,11 +151,9 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ECMP_DLB_OFFSET:
     case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
     case HwAsic::Feature::SPAN:
-    case HwAsic::Feature::ERSPANv4:
     case HwAsic::Feature::SFLOWv4:
     case HwAsic::Feature::MPLS:
     case HwAsic::Feature::MPLS_ECMP:
-    case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv6:
     case HwAsic::Feature::RX_SNR:
     case HwAsic::Feature::FEC_CORRECTED_BITS:
@@ -165,6 +166,8 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PORT_WRED_COUNTER:
     case HwAsic::Feature::ACL_METADATA_QUALIFER:
     case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
+    case HwAsic::Feature::SAI_PRBS:
+    case HwAsic::Feature::DTL_WATERMARK_COUNTER:
       return false;
   }
   return false;

@@ -318,6 +318,23 @@ class NeighborEntry
 
   std::string str() const;
 
+  std::optional<bool> getDisableTTLDecrement() const {
+    if (auto value =
+            this->template cref<switch_state_tags::disableTTLDecrement>()) {
+      return value->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setDisableTTLDecrement(std::optional<bool> disableTTLDecrement) {
+    if (disableTTLDecrement.has_value()) {
+      this->template set<switch_state_tags::disableTTLDecrement>(
+          *disableTTLDecrement);
+    } else {
+      this->template ref<switch_state_tags::disableTTLDecrement>().reset();
+    }
+  }
+
  private:
   using Parent = ThriftStructNode<SUBCLASS, state::NeighborEntryFields>;
   // Inherit the constructors required for clone()

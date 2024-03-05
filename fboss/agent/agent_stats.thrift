@@ -11,6 +11,21 @@ include "fboss/agent/hw/hardware_stats.thrift"
 include "thrift/annotation/cpp.thrift"
 include "fboss/lib/phy/phy.thrift"
 
+struct HwAgentEventSyncStatus {
+  1: i32 statsEventSyncActive;
+  2: i32 fdbEventSyncActive;
+  3: i32 linkEventSyncActive;
+  4: i32 linkActiveEventSyncActive;
+  5: i32 rxPktEventSyncActive;
+  6: i32 txPktEventSyncActive;
+  7: i64 statsEventSyncDisconnects;
+  8: i64 fdbEventSyncDisconnects;
+  9: i64 linkEventSyncDisconnects;
+  10: i64 linkActiveEventSyncDisconnects;
+  11: i64 rxPktEventSyncDisconnects;
+  12: i64 txPktEventSyncDisconnects;
+}
+
 struct AgentStats {
   @cpp.Type{template = "folly::F14FastMap"}
   1: map<string, hardware_stats.HwPortStats> hwPortStats;
@@ -33,4 +48,7 @@ struct AgentStats {
   19: i64 trappedPktsDropped;
   20: i64 threadHeartBeatMiss;
   21: map<i16, hardware_stats.CpuPortStats> cpuPortStatsMap;
+  22: map<i16, i64> hwagentConnectionStatus;
+  23: map<i16, i64> hwagentOperSyncTimeoutCount;
+  24: map<i16, HwAgentEventSyncStatus> hwAgentEventSyncStatusMap;
 }

@@ -114,6 +114,9 @@ class AgentHwTest : public ::testing::Test {
   std::vector<PortID> masterLogicalInterfacePortIds() const {
     return masterLogicalPortIds({cfg::PortType::INTERFACE_PORT});
   }
+  std::vector<PortID> masterLogicalFabricPortIds() const {
+    return masterLogicalPortIds({cfg::PortType::FABRIC_PORT});
+  }
   void setSwitchDrainState(
       const cfg::SwitchConfig& curConfig,
       cfg::SwitchDrainState drainState);
@@ -128,7 +131,14 @@ class AgentHwTest : public ::testing::Test {
       const AgentEnsemble& ensemble,
       const cfg::SwitchConfig& in) const;
 
-  uint64_t getCpuQueueInPackets(SwitchID switchId, int queueId);
+  template <typename EcmpHelperT>
+  void resolveNeigborAndProgramRoutes(const EcmpHelperT& ecmp, int width) {
+    applyNewState([this, &ecmp, &width](std::shared_ptr<SwitchState> /*in*/) {
+      return ecmp.resolveNextHops(getProgrammedState(), width);
+    });
+    auto wrapper = getSw()->getRouteUpdater();
+    ecmp.programRoutes(&wrapper, width);
+  }
 
  private:
   void applyNewStateImpl(
@@ -148,8 +158,6 @@ class AgentHwTest : public ::testing::Test {
   virtual std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const = 0;
   void printProductionFeatures() const;
-
-  CpuPortStats getLatestCpuStats(SwitchID switchId);
 
   AgentEnsemblePlatformConfigFn platformConfigFn_ = nullptr;
   std::unique_ptr<AgentEnsemble> agentEnsemble_;

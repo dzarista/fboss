@@ -11,6 +11,7 @@
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/SwitchState.h"
+#include "fboss/agent/test/utils/QosTestUtils.h"
 #include "fboss/qsfp_service/lib/QsfpClient.h"
 
 namespace {
@@ -57,7 +58,9 @@ void AgentTest::TearDown() {
       (::testing::Test::HasFailure() && FLAGS_run_forever_on_failure)) {
     runForever();
   }
-  MonolithicAgentInitializer::stopAgent(FLAGS_setup_for_warmboot);
+  bool gracefulExit = !::testing::Test::HasFailure();
+  MonolithicAgentInitializer::stopAgent(
+      FLAGS_setup_for_warmboot, gracefulExit /* gracefulExit */);
   asyncInitThread_->join();
   asyncInitThread_.reset();
 }
@@ -289,6 +292,20 @@ PortID AgentTest::getPortID(const std::string& portName) const {
     }
   }
   throw FbossError("No port named: ", portName);
+}
+
+void AgentTest::disableTTLDecrementOnPorts(
+    const boost::container::flat_set<PortDescriptor>& ecmpPorts) {
+  auto asicTable = sw()->getHwAsicTable();
+  sw()->updateStateBlocking(
+      "Disable TTL Decrement On Ports",
+      [ecmpPorts, asicTable](const std::shared_ptr<SwitchState>& state) {
+        auto newState = state->clone();
+        for (auto port : ecmpPorts) {
+          newState = utility::disableTTLDecrement(asicTable, newState, port);
+        }
+        return newState;
+      });
 }
 
 void initAgentTest(

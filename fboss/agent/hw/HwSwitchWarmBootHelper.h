@@ -9,7 +9,7 @@
  */
 #pragma once
 
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 #include <string>
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 
@@ -74,6 +74,7 @@ class HwSwitchWarmBootHelper {
 
   std::string warmBootFlag() const;
   std::string forceColdBootOnceFlag() const;
+  std::string warmBootHwSwitchStateFile_DEPRECATED() const;
   std::string warmBootHwSwitchStateFile() const;
   std::string warmBootThriftSwitchStateFile() const;
 

@@ -3,6 +3,8 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+# pyre-unsafe
+
 import errno
 import glob
 import ntpath
@@ -367,6 +369,11 @@ class BuildOptions(object):
                 add_flag(env, "CPPFLAGS", f"-I{ncursesincludedir}", append=append)
             elif "/bz2-" in d:
                 add_flag(env, "CPPFLAGS", f"-I{includedir}", append=append)
+
+            # The thrift compiler's built-in includes are installed directly to the include dir
+            includethriftdir = os.path.join(d, "include", "thrift")
+            if os.path.exists(includethriftdir):
+                add_path_entry(env, "THRIFT_INCLUDE_PATH", includedir, append=append)
 
         # Map from FB python manifests to PYTHONPATH
         pydir = os.path.join(d, "lib", "fb-py-libs")

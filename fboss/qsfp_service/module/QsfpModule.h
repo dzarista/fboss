@@ -33,6 +33,7 @@
 namespace facebook {
 namespace fboss {
 
+struct QsfpConfig;
 class TransceiverImpl;
 class TransceiverManager;
 
@@ -50,6 +51,14 @@ class QsfpModuleError : public std::exception {
 
  private:
   std::string what_;
+};
+
+using TransceiverOverrides = std::vector<cfg::TransceiverConfigOverride>;
+
+struct TransceiverConfig {
+  explicit TransceiverConfig(const TransceiverOverrides& overrides)
+      : overridesConfig_(overrides) {}
+  TransceiverOverrides overridesConfig_;
 };
 
 /*
@@ -220,16 +229,20 @@ class QsfpModule : public Transceiver {
    * When allPortsDown is true, we trigger a full remediation otherwise we just
    * remediate specific datapaths
    */
-  bool tryRemediate(bool allPortsDown, const std::vector<std::string>& ports)
-      override;
+  bool tryRemediate(
+      bool allPortsDown,
+      time_t pauseRemediation,
+      const std::vector<std::string>& ports) override;
 
-  bool shouldRemediate() override;
+  bool shouldRemediate(time_t pauseRemediation) override;
 
   void markLastDownTime() override;
 
   time_t getLastDownTime() const override {
     return lastDownTime_.load();
   }
+
+  std::string getFwStorageHandle() const override;
 
   phy::PrbsStats getPortPrbsStats(const std::string& portName, phy::Side side)
       override;
@@ -287,8 +300,6 @@ class QsfpModule : public Transceiver {
 
   bool isTransceiverFeatureSupported(TransceiverFeature feature, phy::Side side)
       const;
-
-  bool requiresFirmwareUpgrade() const override;
 
   void setTransceiverLoopback(
       const std::string& portName,
@@ -492,13 +503,10 @@ class QsfpModule : public Transceiver {
    * Put logic here that should only be run on ports that have been
    * down for a long time. These are actions that are potentially more
    * disruptive, but have worked in the past to recover a transceiver.
-   * Only return true if there's an actual remediation happened
    */
-  virtual bool remediateFlakyTransceiver(
-      bool /* allPortsDown */,
-      const std::vector<std::string>& /* ports */) {
-    return false;
-  }
+  virtual void remediateFlakyTransceiver(
+      bool allPortsDown,
+      const std::vector<std::string>& ports) = 0;
 
   // make sure that tx_disable bits are clear
   virtual void ensureTxEnabled() {}
@@ -592,8 +600,6 @@ class QsfpModule : public Transceiver {
       const std::string& portName,
       phy::Side side) const;
 
-  unsigned int moduleResetCounter_{0};
-
   // Due to the mismatch of ODS reporting frequency and the interval of us
   // reading transceiver data, some of the clear on read information may
   // be lost in this process and not being captured in the ODS time series.
@@ -608,7 +614,7 @@ class QsfpModule : public Transceiver {
   folly::Synchronized<phy::PrbsStats> systemPrbsStats_;
   folly::Synchronized<phy::PrbsStats> linePrbsStats_;
 
-  bool shouldRemediateLocked() override;
+  bool shouldRemediateLocked(time_t pauseRemidiation) override;
 
   virtual bool upgradeFirmwareLockedImpl(
       std::unique_ptr<FbossFirmware> /* fbossFw */) const {
@@ -637,6 +643,7 @@ class QsfpModule : public Transceiver {
    */
   bool tryRemediateLocked(
       bool allPortsDown,
+      time_t pauseRemdiation,
       const std::vector<std::string>& ports);
   /*
    * Perform a raw register read on the transceiver
@@ -662,10 +669,10 @@ class QsfpModule : public Transceiver {
       uint8_t data) override;
 
   bool upgradeFirmware(
-      const std::optional<cfg::Firmware>& fw = std::nullopt) override;
+      std::vector<std::unique_ptr<FbossFirmware>>& fwList) override;
 
   bool upgradeFirmwareLocked(
-      const std::optional<cfg::Firmware>& fw = std::nullopt);
+      std::vector<std::unique_ptr<FbossFirmware>>& fwList);
 
   /*
    * Perform logic OR operation to media lane signals in order to cache them
@@ -724,10 +731,6 @@ class QsfpModule : public Transceiver {
 
   std::unordered_map<std::string, std::set<uint8_t>> portNameToHostLanes_;
   std::unordered_map<std::string, std::set<uint8_t>> portNameToMediaLanes_;
-
-  // Returns the Firmware object from qsfp config for the given module.
-  // If there is no firmware in config, returns empty optional
-  std::optional<cfg::Firmware> getFirmwareFromCfg() const;
 
   time_t lastFwUpgradeStartTime_{0};
   time_t lastFwUpgradeEndTime_{0};

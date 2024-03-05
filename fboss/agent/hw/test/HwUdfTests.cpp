@@ -29,11 +29,14 @@ class HwUdfTest : public HwTest {
 
   std::shared_ptr<SwitchState> setupUdfConfiguration(
       bool addConfig,
-      bool udfHash = true) {
+      bool udfHashEnabled = true,
+      bool udfAclEnabled = false) {
     auto udfConfigState = std::make_shared<UdfConfig>();
     cfg::UdfConfig udfConfig;
     if (addConfig) {
-      if (udfHash) {
+      if (udfHashEnabled && udfAclEnabled) {
+        udfConfig = utility::addUdfHashAclConfig();
+      } else if (udfHashEnabled) {
         udfConfig = utility::addUdfHashConfig();
       } else {
         udfConfig = utility::addUdfAclConfig();
@@ -51,8 +54,10 @@ class HwUdfTest : public HwTest {
 };
 
 TEST_F(HwUdfTest, checkUdfHashConfiguration) {
-  auto setup = [=]() { applyNewState(setupUdfConfiguration(true, true)); };
-  auto verify = [=]() {
+  auto setup = [=, this]() {
+    applyNewState(setupUdfConfiguration(true, true));
+  };
+  auto verify = [=, this]() {
     utility::validateUdfConfig(
         getHwSwitch(),
         utility::kUdfHashDstQueuePairGroupName,
@@ -63,8 +68,10 @@ TEST_F(HwUdfTest, checkUdfHashConfiguration) {
 }
 
 TEST_F(HwUdfTest, checkUdfAclConfiguration) {
-  auto setup = [=]() { applyNewState(setupUdfConfiguration(true, false)); };
-  auto verify = [=]() {
+  auto setup = [=, this]() {
+    applyNewState(setupUdfConfiguration(true, false));
+  };
+  auto verify = [=, this]() {
     utility::validateUdfConfig(
         getHwSwitch(),
         utility::kUdfAclRoceOpcodeGroupName,
@@ -75,17 +82,20 @@ TEST_F(HwUdfTest, checkUdfAclConfiguration) {
 }
 
 TEST_F(HwUdfTest, deleteUdfHashConfig) {
-  int udfGroupId;
-  int udfPacketMatcherId;
-  auto setup = [&]() {
-    applyNewState(setupUdfConfiguration(true));
-    udfGroupId = utility::getHwUdfGroupId(
-        getHwSwitch(), utility::kUdfHashDstQueuePairGroupName);
-    udfPacketMatcherId = utility::getHwUdfPacketMatcherId(
-        getHwSwitch(), utility::kUdfL4UdpRocePktMatcherName);
-    applyNewState(setupUdfConfiguration(false));
-  };
-  auto verify = [=]() {
+  // Add UdfGroup and PacketMatcher configuration for UDF Hash
+  applyNewState(setupUdfConfiguration(true));
+
+  // Get UdfGroup and PacketMatcher Ids for verify
+  int udfGroupId = utility::getHwUdfGroupId(
+      getHwSwitch(), utility::kUdfHashDstQueuePairGroupName);
+  int udfPacketMatcherId = utility::getHwUdfPacketMatcherId(
+      getHwSwitch(), utility::kUdfL4UdpRocePktMatcherName);
+
+  // Remove UdfGroup and PacketMatcher configuration for UDF Hash
+  applyNewState(setupUdfConfiguration(false));
+
+  auto verify = [=, this]() {
+    // Verify that UdfGroup and PacketMatcher are deleted
     utility::validateRemoveUdfGroup(
         getHwSwitch(), utility::kUdfHashDstQueuePairGroupName, udfGroupId);
     utility::validateRemoveUdfPacketMatcher(
@@ -93,36 +103,33 @@ TEST_F(HwUdfTest, deleteUdfHashConfig) {
         utility::kUdfL4UdpRocePktMatcherName,
         udfPacketMatcherId);
   };
-  verifyAcrossWarmBoots(setup, verify);
+  verifyAcrossWarmBoots([] {}, verify);
 }
 
 // This test is to verify that UdfGroup(roceOpcode) for UdfAcl and associated
 // PacketMatcher can be successfully deleted.
 TEST_F(HwUdfTest, deleteUdfAclConfig) {
-  int udfGroupId;
-  int udfPacketMatcherId;
-  auto setup = [&]() {
-    auto newCfg{initialConfig()};
-    // Add UdfGroup and PacketMatcher configuration for UDF ACL
-    newCfg.udfConfig() = utility::addUdfAclConfig();
+  auto newCfg{initialConfig()};
+  // Add UdfGroup and PacketMatcher configuration for UDF ACL
+  newCfg.udfConfig() = utility::addUdfAclConfig();
 
-    // Add ACL configuration
-    auto acl = utility::addAcl(&newCfg, "test-udf-acl");
-    acl->udfGroups() = {utility::kUdfAclRoceOpcodeGroupName};
-    acl->roceOpcode() = utility::kUdfRoceOpcode;
-    applyNewConfig(newCfg);
+  // Add ACL configuration
+  auto acl = utility::addAcl(&newCfg, "test-udf-acl");
+  acl->udfGroups() = {utility::kUdfAclRoceOpcodeGroupName};
+  acl->roceOpcode() = utility::kUdfRoceOpcode;
+  applyNewConfig(newCfg);
 
-    // Get UdfGroup and PacketMatcher Ids for verify
-    udfGroupId = utility::getHwUdfGroupId(
-        getHwSwitch(), utility::kUdfAclRoceOpcodeGroupName);
-    udfPacketMatcherId = utility::getHwUdfPacketMatcherId(
-        getHwSwitch(), utility::kUdfL4UdpRocePktMatcherName);
+  // Get UdfGroup and PacketMatcher Ids for verify
+  int udfGroupId = utility::getHwUdfGroupId(
+      getHwSwitch(), utility::kUdfAclRoceOpcodeGroupName);
+  int udfPacketMatcherId = utility::getHwUdfPacketMatcherId(
+      getHwSwitch(), utility::kUdfL4UdpRocePktMatcherName);
 
-    // Delete UdfGroup and PacketMatcher configuration for UDF ACL
-    applyNewState(setupUdfConfiguration(false, false));
-  };
+  // Delete UdfGroup and PacketMatcher configuration for UDF ACL
+  auto resetCfg{initialConfig()};
+  applyNewConfig(resetCfg);
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     // Verify that UdfGroup and PacketMatcher are deleted
     utility::validateRemoveUdfGroup(
         getHwSwitch(), utility::kUdfAclRoceOpcodeGroupName, udfGroupId);
@@ -136,7 +143,7 @@ TEST_F(HwUdfTest, deleteUdfAclConfig) {
         getHwSwitch()->getPlatform()->getAsic()->getDefaultACLGroupID(),
         false);
   };
-  verifyAcrossWarmBoots(setup, verify);
+  verifyAcrossWarmBoots([] {}, verify);
 }
 
 TEST_F(HwUdfTest, addAclConfig) {
@@ -151,9 +158,32 @@ TEST_F(HwUdfTest, addAclConfig) {
     applyNewConfig(cfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     utility::validateUdfAclRoceOpcodeConfig(
         getHwSwitch(), getProgrammedState());
+  };
+
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwUdfTest, checkUdfHashAclConfiguration) {
+  auto setup = [=, this]() {
+    // Add Udf configuration for both hash and acl, first parameter is
+    // addConfig and second udfHashEnabaled and third is udfAclEnabled
+    applyNewState(setupUdfConfiguration(true, true, true));
+  };
+  auto verify = [=, this]() {
+    // Verify that UdfHash configuration is added
+    utility::validateUdfConfig(
+        getHwSwitch(),
+        utility::kUdfHashDstQueuePairGroupName,
+        utility::kUdfL4UdpRocePktMatcherName);
+
+    // Verify that UdfAcl configuration is added
+    utility::validateUdfConfig(
+        getHwSwitch(),
+        utility::kUdfAclRoceOpcodeGroupName,
+        utility::kUdfL4UdpRocePktMatcherName);
   };
 
   verifyAcrossWarmBoots(setup, verify);

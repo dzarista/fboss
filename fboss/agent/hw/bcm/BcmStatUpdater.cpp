@@ -255,12 +255,16 @@ void BcmStatUpdater::updatePrbsStats() {
       bcm_gport_t gport = lanePrbsStatsEntry.getGportId();
       bcm_port_phy_control_get(
           hw_->getUnit(), gport, BCM_PORT_PHY_CONTROL_PRBS_RX_STATUS, &status);
-      if ((int32_t)status == -1) {
-        lanePrbsStatsEntry.lossOfLock();
-      } else if ((int32_t)status == -2) {
-        lanePrbsStatsEntry.locked();
+      if ((int32_t)status == -2) {
+        lanePrbsStatsEntry.handleLossOfLock();
+      } else if ((int32_t)status == -1) {
+        lanePrbsStatsEntry.handleNotLocked();
+      } else if (status == 0) {
+        lanePrbsStatsEntry.handleOk();
+      } else if (status > 0) {
+        lanePrbsStatsEntry.handleLockWithErrors(status);
       } else {
-        lanePrbsStatsEntry.updateLaneStats(status);
+        continue;
       }
     }
   }
@@ -360,7 +364,7 @@ void BcmStatUpdater::clearPortStats(
 }
 
 std::vector<phy::PrbsLaneStats> BcmStatUpdater::getPortAsicPrbsStats(
-    int32_t portId) {
+    PortID portId) {
   std::vector<phy::PrbsLaneStats> prbsStats;
   auto lockedPortAsicPrbsStats = portAsicPrbsStats_.rlock();
   auto portAsicPrbsStatIter = lockedPortAsicPrbsStats->find(portId);

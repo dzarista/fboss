@@ -17,6 +17,7 @@
 #include "fboss/agent/FbossHwUpdateError.h"
 #include "fboss/agent/FibHelpers.h"
 #include "fboss/agent/HwAsicTable.h"
+#include "fboss/agent/HwSwitchThriftClientTable.h"
 #include "fboss/agent/IPv6Handler.h"
 #include "fboss/agent/LabelFibUtils.h"
 #include "fboss/agent/LinkAggregationManager.h"
@@ -27,6 +28,7 @@
 #include "fboss/agent/SwSwitchRouteUpdateWrapper.h"
 #include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/SwitchStats.h"
+#include "fboss/agent/ThriftHandlerUtils.h"
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/Utils.h"
 #include "fboss/agent/capture/PktCapture.h"
@@ -139,39 +141,45 @@ std::vector<network::thrift::BinaryAddress> fromFwdNextHops(
 
 namespace {
 
-void fillPortStats(PortInfoThrift& portInfo, int numPortQs) {
+void fillPortStats(
+    const SwSwitch& sw,
+    PortInfoThrift& portInfo,
+    int numPortQs) {
   auto portId = *portInfo.portId();
-  auto statMap = facebook::fb303::fbData->getStatMap();
+  auto hwPortsStats = sw.getHwPortStats({PortID(portId)});
+  if (hwPortsStats.empty()) {
+    return;
+  }
+  const auto& hwPortStats = hwPortsStats.at(PortID(portId));
+  portInfo.input()->bytes() = *hwPortStats.inBytes_();
+  portInfo.input()->ucastPkts() = *hwPortStats.inUnicastPkts_();
+  portInfo.input()->multicastPkts() = *hwPortStats.inMulticastPkts_();
+  portInfo.input()->broadcastPkts() = *hwPortStats.inBroadcastPkts_();
+  portInfo.input()->errors()->errors() = *hwPortStats.inErrors_();
+  portInfo.input()->errors()->discards() = *hwPortStats.inDiscards_();
 
-  auto getSumStat = [&](StringPiece prefix, StringPiece name) {
-    auto portName = portInfo.name()->empty()
-        ? folly::to<std::string>("port", portId)
-        : *portInfo.name();
-    auto statName = folly::to<std::string>(portName, ".", prefix, name);
-    auto statPtr = statMap->getStatPtrNoExport(statName);
-    auto lockedStatPtr = statPtr->lock();
-    auto numLevels = lockedStatPtr->numLevels();
-    // Cumulative (ALLTIME) counters are at (numLevels - 1)
-    return lockedStatPtr->sum(numLevels - 1);
-  };
+  portInfo.output()->bytes() = *hwPortStats.outBytes_();
+  portInfo.output()->ucastPkts() = *hwPortStats.outUnicastPkts_();
+  portInfo.output()->multicastPkts() = *hwPortStats.outMulticastPkts_();
+  portInfo.output()->broadcastPkts() = *hwPortStats.outBroadcastPkts_();
+  portInfo.output()->errors()->errors() = *hwPortStats.outErrors_();
+  portInfo.output()->errors()->discards() = *hwPortStats.outDiscards_();
 
-  auto fillPortCounters = [&](PortCounters& ctr, StringPiece prefix) {
-    *ctr.bytes() = getSumStat(prefix, "bytes");
-    *ctr.ucastPkts() = getSumStat(prefix, "unicast_pkts");
-    *ctr.multicastPkts() = getSumStat(prefix, "multicast_pkts");
-    *ctr.broadcastPkts() = getSumStat(prefix, "broadcast_pkts");
-    *ctr.errors()->errors() = getSumStat(prefix, "errors");
-    *ctr.errors()->discards() = getSumStat(prefix, "discards");
-  };
-
-  fillPortCounters(*portInfo.output(), "out_");
-  fillPortCounters(*portInfo.input(), "in_");
-  for (int i = 0; i < numPortQs; i++) {
-    auto queue = folly::to<std::string>("queue", i, ".");
+  for (int16_t i = 0; i < numPortQs; i++) {
     QueueStats stats;
-    *stats.congestionDiscards() =
-        getSumStat(queue, "out_congestion_discards_bytes");
-    *stats.outBytes() = getSumStat(queue, "out_bytes");
+    if (hwPortStats.queueOutDiscardBytes_()->find(i) !=
+        hwPortStats.queueOutDiscardBytes_()->end()) {
+      *stats.congestionDiscards() = hwPortStats.queueOutDiscardBytes_()->at(i);
+    } else {
+      *stats.congestionDiscards() = 0;
+    }
+
+    if (hwPortStats.queueOutBytes_()->find(i) !=
+        hwPortStats.queueOutBytes_()->end()) {
+      *stats.outBytes() = hwPortStats.queueOutBytes_()->at(i);
+    } else {
+      *stats.outBytes() = 0;
+    }
     portInfo.output()->unicast()->push_back(stats);
   }
 }
@@ -378,11 +386,11 @@ void getPortInfoHelper(
   }
   try {
     portInfo.transceiverIdx() = sw.getTransceiverIdxThrift(port->getID());
-  } catch (const facebook::fboss::FbossError& err) {
+  } catch (const facebook::fboss::FbossError&) {
     // No problem, we just don't set the other info
   }
 
-  fillPortStats(portInfo, portInfo.portQueues()->size());
+  fillPortStats(sw, portInfo, portInfo.portQueues()->size());
   *portInfo.isDrained() =
       (port->getPortDrainState() ==
        facebook::fboss::cfg::PortDrainState::DRAINED);
@@ -1048,10 +1056,19 @@ void ThriftHandler::getArpTable(std::vector<ArpEntryThrift>& arpTable) {
 void ThriftHandler::getL2Table(std::vector<L2EntryThrift>& l2Table) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  if (sw_->getSwitchInfoTable().l3SwitchType() == cfg::SwitchType::NPU) {
+  ensureNPU(__func__);
+  if (sw_->isRunModeMultiSwitch()) {
+    std::vector<L2EntryThrift> l2TableForSwitch;
+    for (const auto& switchId : sw_->getSwitchInfoTable().getSwitchIDs()) {
+      sw_->getHwSwitchThriftClientTable()->getHwL2Table(
+          switchId, l2TableForSwitch);
+      l2Table.insert(
+          l2Table.end(), l2TableForSwitch.begin(), l2TableForSwitch.end());
+    }
+  } else {
     sw_->getHwSwitchHandler()->fetchL2Table(&l2Table);
-    XLOG(DBG6) << "L2 Table size:" << l2Table.size();
   }
+  XLOG(DBG6) << "L2 Table size:" << l2Table.size();
 }
 
 void ThriftHandler::getAclTable(std::vector<AclEntryThrift>& aclTable) {
@@ -1173,117 +1190,41 @@ void ThriftHandler::getAllPortInfo(map<int32_t, PortInfoThrift>& portInfoMap) {
 void ThriftHandler::clearPortStats(unique_ptr<vector<int32_t>> ports) {
   auto log = LOG_THRIFT_CALL(DBG1, *ports);
   ensureConfigured(__func__);
-  sw_->clearPortStats(ports);
-
-  auto getPortCounterKeys = [&](std::vector<std::string>& portKeys,
-                                const StringPiece prefix,
-                                const std::shared_ptr<Port> port) {
-    auto portId = port->getID();
-    auto portName = port->getName().empty()
-        ? folly::to<std::string>("port", portId)
-        : port->getName();
-    auto portNameWithPrefix = folly::to<std::string>(portName, ".", prefix);
-    portKeys.emplace_back(
-        folly::to<std::string>(portNameWithPrefix, "unicast_pkts"));
-    portKeys.emplace_back(folly::to<std::string>(portNameWithPrefix, "bytes"));
-    portKeys.emplace_back(
-        folly::to<std::string>(portNameWithPrefix, "multicast_pkts"));
-    portKeys.emplace_back(
-        folly::to<std::string>(portNameWithPrefix, "broadcast_pkts"));
-    portKeys.emplace_back(folly::to<std::string>(portNameWithPrefix, "errors"));
-    portKeys.emplace_back(
-        folly::to<std::string>(portNameWithPrefix, "discards"));
-  };
-
-  auto getQueueCounterKeys = [&](std::vector<std::string>& portKeys,
-                                 const std::shared_ptr<Port> port) {
-    auto portId = port->getID();
-    auto portName = port->getName().empty()
-        ? folly::to<std::string>("port", portId)
-        : port->getName();
-    for (int i = 0; i < port->getPortQueues()->size(); ++i) {
-      auto portQueue = folly::to<std::string>(portName, ".", "queue", i, ".");
-      portKeys.emplace_back(
-          folly::to<std::string>(portQueue, "out_congestion_discards_bytes"));
-      portKeys.emplace_back(folly::to<std::string>(portQueue, "out_bytes"));
+  if (sw_->isRunModeMultiSwitch()) {
+    for (const auto& switchId : sw_->getSwitchInfoTable().getSwitchIDs()) {
+      std::vector<int32_t> portList;
+      for (const auto& port : *ports) {
+        if (sw_->getScopeResolver()->scope(PortID(port)).has(switchId)) {
+          portList.push_back(port);
+        }
+      }
+      if (!portList.empty()) {
+        sw_->getHwSwitchThriftClientTable()->clearHwPortStats(
+            switchId, portList);
+      }
     }
-  };
-
-  auto getPortPfcCounterKeys = [&](std::vector<std::string>& portKeys,
-                                   const std::shared_ptr<Port> port) {
-    auto portId = port->getID();
-    auto portName = port->getName().empty()
-        ? folly::to<std::string>("port", portId)
-        : port->getName();
-    auto portNameExt = folly::to<std::string>(portName, ".");
-    std::array<int, 2> enabledPfcPriorities_{0, 7};
-    for (auto pri : enabledPfcPriorities_) {
-      portKeys.emplace_back(
-          folly::to<std::string>(portNameExt, "in_pfc_frames.priority", pri));
-      portKeys.emplace_back(folly::to<std::string>(
-          portNameExt, "in_pfc_xon_frames.priority", pri));
-      portKeys.emplace_back(
-          folly::to<std::string>(portNameExt, "out_pfc_frames.priority", pri));
-    }
-    portKeys.emplace_back(folly::to<std::string>(portNameExt, "in_pfc_frames"));
-    portKeys.emplace_back(
-        folly::to<std::string>(portNameExt, "out_pfc_frames"));
-  };
-
-  auto getPortLinkStateCounterKey = [&](std::vector<std::string>& portKeys,
-                                        const std::shared_ptr<Port> port) {
-    auto portId = port->getID();
-    auto portName = port->getName().empty()
-        ? folly::to<std::string>("port", portId)
-        : port->getName();
-    portKeys.emplace_back(
-        folly::to<std::string>(portName, ".", "link_state.flap"));
-  };
-
-  auto getLinkStateCounterKey = [&](std::vector<std::string>& globalKeys) {
-    globalKeys.emplace_back("link_state.flap");
-  };
-
-  auto statsMap = facebook::fb303::fbData->getStatMap();
-  for (const auto& portId : *ports) {
-    const auto port = sw_->getState()->getPorts()->getNodeIf(PortID(portId));
-    std::vector<std::string> portKeys;
-    getPortCounterKeys(portKeys, "out_", port);
-    getPortCounterKeys(portKeys, "in_", port);
-    getQueueCounterKeys(portKeys, port);
-    getPortLinkStateCounterKey(portKeys, port);
-    if (port->getPfc().has_value()) {
-      getPortPfcCounterKeys(portKeys, port);
-    }
-    for (const auto& key : portKeys) {
-      // this API locks statistics for the key
-      // ensuring no race condition with update/delete
-      // in different thread
-      statsMap->clearValue(key);
-    }
-  }
-
-  std::vector<std::string> globalKeys;
-  getLinkStateCounterKey(globalKeys);
-  for (const auto& key : globalKeys) {
-    // this API locks statistics for the key
-    // ensuring no race condition with update/delete
-    // in different thread
-    statsMap->clearValue(key);
+  } else {
+    utility::clearPortStats(sw_, std::move(ports), sw_->getState());
   }
 }
 
 void ThriftHandler::clearAllPortStats() {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  auto allPorts = std::make_unique<std::vector<int32_t>>();
-  std::shared_ptr<SwitchState> swState = sw_->getState();
-  for (const auto& portMap : std::as_const(*(swState->getPorts()))) {
-    for (const auto& port : std::as_const(*portMap.second)) {
-      allPorts->push_back(port.second->getID());
+  if (sw_->isRunModeMultiSwitch()) {
+    for (const auto& switchId : sw_->getSwitchInfoTable().getSwitchIDs()) {
+      sw_->getHwSwitchThriftClientTable()->clearAllHwPortStats(switchId);
     }
+  } else {
+    auto allPorts = std::make_unique<std::vector<int32_t>>();
+    std::shared_ptr<SwitchState> swState = sw_->getState();
+    for (const auto& portMap : std::as_const(*(swState->getPorts()))) {
+      for (const auto& port : std::as_const(*portMap.second)) {
+        allPorts->push_back(port.second->getID());
+      }
+    }
+    clearPortStats(std::move(allPorts));
   }
-  clearPortStats(std::move(allPorts));
 }
 
 void ThriftHandler::getPortStats(PortInfoThrift& portInfo, int32_t portId) {
@@ -1543,7 +1484,7 @@ void ThriftHandler::getPortPrbsStats(
   ensureConfigured(__func__);
 
   if (component == phy::PortComponent::ASIC) {
-    auto asicPrbsStats = sw_->getPortAsicPrbsStats(portId);
+    auto asicPrbsStats = sw_->getPortAsicPrbsStats(PortID(portId));
     prbsStats.portId() = portId;
     prbsStats.component() = phy::PortComponent::ASIC;
     for (const auto& lane : asicPrbsStats) {
@@ -1985,6 +1926,13 @@ void ThriftHandler::getIpRouteDetails(
       route = match->toRouteDetails(true);
     }
   }
+}
+
+void ThriftHandler::getHwAgentConnectionStatus(
+    std::map<int16_t, HwAgentEventSyncStatus>& hwAgentSyncStatusMap) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  sw_->stats()->getHwAgentStatus(hwAgentSyncStatusMap);
 }
 
 void ThriftHandler::getRouteCounterBytes(
@@ -2890,6 +2838,19 @@ void ThriftHandler::publishLinkSnapshots(
   }
 }
 
+void ThriftHandler::getAllInterfacePhyInfo(
+    std::map<std::string, phy::PhyInfo>& phyInfos) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  auto portNames = std::make_unique<std::vector<std::string>>();
+  std::shared_ptr<SwitchState> swState = sw_->getState();
+  for (const auto& portMap : std::as_const(*swState->getPorts())) {
+    for (const auto& port : std::as_const(*portMap.second)) {
+      portNames->push_back(port.second->getName());
+    }
+  }
+  getInterfacePhyInfo(phyInfos, std::move(portNames));
+}
+
 void ThriftHandler::getInterfacePhyInfo(
     std::map<std::string, phy::PhyInfo>& phyInfos,
     std::unique_ptr<std::vector<std::string>> portNames) {
@@ -3140,7 +3101,7 @@ void ThriftHandler::getSysPortStats(
     std::map<std::string, HwSysPortStats>& hwSysPortStats) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  hwSysPortStats = sw_->getHwSwitchHandler()->getSysPortStats();
+  sw_->getAllHwSysPortStats(hwSysPortStats);
 }
 
 void ThriftHandler::getCpuPortStats(CpuPortStats& cpuPortStats) {
@@ -3149,12 +3110,18 @@ void ThriftHandler::getCpuPortStats(CpuPortStats& cpuPortStats) {
   cpuPortStats = sw_->getHwSwitchHandler()->getCpuPortStats(true);
 }
 
+void ThriftHandler::getAllCpuPortStats(
+    std::map<int, CpuPortStats>& hwCpuPortStats) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  sw_->getAllCpuPortStats(hwCpuPortStats);
+}
+
 void ThriftHandler::getHwPortStats(
     std::map<std::string, HwPortStats>& hwPortStats) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  const auto& portStats = sw_->getHwSwitchHandler()->getPortStats();
-  hwPortStats.insert(portStats.begin(), portStats.end());
+  sw_->getAllHwPortStats(hwPortStats);
 }
 
 void ThriftHandler::getFabricReachabilityStats(

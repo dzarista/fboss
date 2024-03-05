@@ -3,7 +3,7 @@
 #include "fboss/agent/mnpu/SplitSwAgentInitializer.h"
 #include "fboss/agent/MultiSwitchThriftHandler.h"
 #include "fboss/agent/TunManager.h"
-#include "fboss/agent/mnpu/NonMonolithicHwSwitchHandler.h"
+#include "fboss/agent/mnpu/MultiSwitchHwSwitchHandler.h"
 #include "fboss/lib/CommonFileUtils.h"
 
 #include <thread>
@@ -18,8 +18,7 @@ void SplitSwSwitchInitializer::initImpl(HwSwitchCallback* callback) {
 SplitSwAgentInitializer::SplitSwAgentInitializer() {
   sw_ = std::make_unique<SwSwitch>(
       [](const SwitchID& switchId, const cfg::SwitchInfo& info, SwSwitch* sw) {
-        return std::make_unique<NonMonolithicHwSwitchHandler>(
-            switchId, info, sw);
+        return std::make_unique<MultiSwitchHwSwitchHandler>(switchId, info, sw);
       },
       &agentDirectoryUtil_,
       true /* supportsAddRemovePort */,
@@ -35,7 +34,7 @@ SplitSwAgentInitializer::getThrifthandlers() {
   return handlers;
 }
 
-void SplitSwAgentInitializer::handleExitSignal() {
+void SplitSwAgentInitializer::handleExitSignal(bool gracefulExit) {
   if (!sw_->isInitialized()) {
     XLOG(WARNING)
         << "[Exit] Signal received before initializing sw switch, waiting for initialization to finish.";
@@ -48,23 +47,36 @@ void SplitSwAgentInitializer::handleExitSignal() {
       removeFile(exitForColdBootFile);
     };
     if (checkFileExists(exitForColdBootFile)) {
-      stopAgent(false);
+      stopAgent(false, gracefulExit);
     } else {
-      SwAgentInitializer::handleExitSignal();
+      SwAgentInitializer::handleExitSignal(gracefulExit);
     }
   }
-  exit(0);
-}
-
-void SplitSwAgentInitializer::stopAgent(bool setupWarmboot) {
-  if (setupWarmboot) {
-    handleExitSignal();
+  if (gracefulExit) {
+    exit(0);
   } else {
-    sw_->stop(false /* gracefulStop */, true /* revertToMinAlpmState */);
-    sw_->getHwSwitchHandler()->stop();
-    stopServices();
-    initializer_.reset();
+    exit(1);
   }
 }
 
+void SplitSwAgentInitializer::stopAgent(
+    bool setupWarmboot,
+    bool /*gracefulExit*/) {
+  if (setupWarmboot) {
+    exitForWarmBoot();
+  } else {
+    exitForColdBoot();
+  }
+}
+
+void SplitSwAgentInitializer::exitForColdBoot() {
+  sw_->stop(false /* gracefulStop */, true /* revertToMinAlpmState */);
+  sw_->getHwSwitchHandler()->stop();
+  stopServices();
+  initializer_.reset();
+}
+
+void SplitSwAgentInitializer::exitForWarmBoot() {
+  handleExitSignal(true);
+}
 } // namespace facebook::fboss

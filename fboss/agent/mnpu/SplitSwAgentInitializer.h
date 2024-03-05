@@ -27,11 +27,13 @@ class SplitSwAgentInitializer : public SwAgentInitializer {
   std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
   getThrifthandlers() override;
 
-  void handleExitSignal() override;
+  void handleExitSignal(bool gracefulExit) override;
 
-  void stopAgent(bool setupWarmboot) override;
+  void stopAgent(bool setupWarmboot, bool gracefulExit) override;
 
  private:
+  void exitForColdBoot();
+  void exitForWarmBoot();
   AgentDirectoryUtil agentDirectoryUtil_;
 };
 

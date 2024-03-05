@@ -183,8 +183,9 @@ void getQsfpFieldAddress(
 
 SffModule::SffModule(
     TransceiverManager* transceiverManager,
-    TransceiverImpl* qsfpImpl)
-    : QsfpModule(transceiverManager, qsfpImpl) {}
+    TransceiverImpl* qsfpImpl,
+    std::shared_ptr<const TransceiverConfig> cfg)
+    : QsfpModule(transceiverManager, qsfpImpl), tcvrConfig_(std::move(cfg)) {}
 
 SffModule::~SffModule() {}
 
@@ -1247,9 +1248,8 @@ void SffModule::setPowerOverrideIfSupportedLocked(
  * Put logic here that should only be run on ports that have been
  * down for a long time. These are actions that are potentially more
  * disruptive, but have worked in the past to recover a transceiver.
- * Only return true if there's an actual remediation happened
  */
-bool SffModule::remediateFlakyTransceiver(
+void SffModule::remediateFlakyTransceiver(
     bool /* allPortsDown */,
     const std::vector<std::string>& /* ports */) {
   QSFP_LOG(INFO, this) << "Performing potentially disruptive remediations";
@@ -1257,7 +1257,6 @@ bool SffModule::remediateFlakyTransceiver(
   resetLowPowerMode();
   ensureTxEnabled();
   lastRemediateTime_ = std::time(nullptr);
-  return true;
 }
 void SffModule::resetLowPowerMode() {
   // Newer transceivers will have a auto-clearing reset bit that is
@@ -1381,8 +1380,7 @@ void SffModule::overwriteChannelControlSettings() {
   // Set the Equalizer setting based on QSFP config.
   // TODO: Skip configuring settings if the current values are same as what we
   // want to configure
-  const auto& qsfpCfg = getTransceiverManager()->getQsfpConfig()->thrift;
-  for (const auto& override : *qsfpCfg.transceiverConfigOverrides()) {
+  for (const auto& override : tcvrConfig_->overridesConfig_) {
     // Check if this override factor requires overriding TxEqualization
     if (auto txEqualization = sffTxEqualizationOverride(*override.config())) {
       auto settingValue = getSettingForAllLanes(*txEqualization);

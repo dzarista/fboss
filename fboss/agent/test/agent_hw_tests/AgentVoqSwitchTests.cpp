@@ -1,10 +1,13 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
+#include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
-#include "fboss/agent/hw/test/HwTestFabricUtils.h"
+#include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/agent/test/utils/FabricTestUtils.h"
+#include "fboss/lib/CommonUtils.h"
 
 DECLARE_bool(enable_stats_update_thread);
 
@@ -13,8 +16,6 @@ class AgentVoqSwitchTest : public AgentHwTest {
  public:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    // Disable sw stats update thread
-    FLAGS_enable_stats_update_thread = false;
     // Before m-mpu agent test, use first Asic for initialization.
     auto switchIds = ensemble.getSw()->getHwAsicTable()->getSwitchIDs();
     CHECK_GE(switchIds.size(), 1);
@@ -51,6 +52,44 @@ class AgentVoqSwitchTest : public AgentHwTest {
   std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const override {
     return {production_features::ProductionFeature::VOQ};
+  }
+
+  // API to send a local service discovery packet which is an IPv6
+  // multicast paket with UDP payload. This packet with a destination
+  // MAC as the unicast NIF port MAC helps recreate CS00012323788.
+  void sendLocalServiceDiscoveryMulticastPacket(
+      const PortID outPort,
+      const int numPackets) {
+    auto vlanId = utility::firstVlanID(getProgrammedState());
+    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
+    auto srcIp = folly::IPAddressV6("fe80::ff:fe00:f0b");
+    auto dstIp = folly::IPAddressV6("ff15::efc0:988f");
+    auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
+    std::vector<uint8_t> serviceDiscoveryPayload = {
+        0x42, 0x54, 0x2d, 0x53, 0x45, 0x41, 0x52, 0x43, 0x48, 0x20, 0x2a, 0x20,
+        0x48, 0x54, 0x54, 0x50, 0x2f, 0x31, 0x2e, 0x31, 0x0d, 0x0a, 0x48, 0x6f,
+        0x73, 0x74, 0x3a, 0x20, 0x5b, 0x66, 0x66, 0x31, 0x35, 0x3a, 0x3a, 0x65,
+        0x66, 0x63, 0x30, 0x3a, 0x39, 0x38, 0x38, 0x66, 0x5d, 0x3a, 0x36, 0x37,
+        0x37, 0x31, 0x0d, 0x0a, 0x50, 0x6f, 0x72, 0x74, 0x3a, 0x20, 0x36, 0x38,
+        0x38, 0x31, 0x0d, 0x0a, 0x49, 0x6e, 0x66, 0x6f, 0x68, 0x61, 0x73, 0x68,
+        0x3a, 0x20, 0x61, 0x66, 0x31, 0x37, 0x34, 0x36, 0x35, 0x39, 0x64, 0x37,
+        0x31, 0x31, 0x38, 0x64, 0x32, 0x34, 0x34, 0x61, 0x30, 0x36, 0x31, 0x33};
+    for (int i = 0; i < numPackets; i++) {
+      auto txPacket = utility::makeUDPTxPacket(
+          getSw(),
+          vlanId,
+          srcMac,
+          intfMac,
+          srcIp,
+          dstIp,
+          6771,
+          6771,
+          0,
+          254,
+          serviceDiscoveryPayload);
+      getSw()->sendPacketOutOfPortAsync(std::move(txPacket), outPort);
+      ;
+    }
   }
 
  private:
@@ -99,8 +138,6 @@ class AgentVoqSwitchWithFabricPortsTest : public AgentVoqSwitchTest {
  public:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    // Disable sw stats update thread
-    FLAGS_enable_stats_update_thread = false;
     auto config = utility::onePortPerInterfaceConfig(
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
@@ -108,7 +145,8 @@ class AgentVoqSwitchWithFabricPortsTest : public AgentVoqSwitchTest {
         true, /*setInterfaceMac*/
         utility::kBaseVlanId,
         true /*enable fabric ports*/);
-    populatePortExpectedNeighbors(ensemble.masterLogicalPortIds(), config);
+    utility::populatePortExpectedNeighbors(
+        ensemble.masterLogicalPortIds(), config);
     return config;
   }
 
@@ -149,4 +187,90 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, init) {
   };
   verifyAcrossWarmBoots(setup, verify);
 }
+
+TEST_F(AgentVoqSwitchWithFabricPortsTest, collectStats) {
+  auto verify = [this]() {
+    EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
+    getSw()->updateStats();
+  };
+  verifyAcrossWarmBoots([] {}, verify);
+}
+
+TEST_F(AgentVoqSwitchWithFabricPortsTest, checkFabricReachability) {
+  auto verify = [this]() {
+    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+      utility::checkFabricReachability(getAgentEnsemble(), switchId);
+    }
+  };
+  verifyAcrossWarmBoots([] {}, verify);
+}
+
+TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricIsolate) {
+  auto verify = [=, this]() {
+    EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
+    auto fabricPortId =
+        PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
+    utility::checkPortFabricReachability(
+        getAgentEnsemble(), SwitchID(0), fabricPortId);
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      auto out = in->clone();
+      auto port = out->getPorts()->getNodeIf(fabricPortId);
+      auto newPort = port->modify(&out);
+      newPort->setPortDrainState(cfg::PortDrainState::DRAINED);
+      return out;
+    });
+    utility::checkPortFabricReachability(
+        getAgentEnsemble(), SwitchID(0), fabricPortId);
+  };
+  verifyAcrossWarmBoots([] {}, verify);
+}
+
+TEST_F(AgentVoqSwitchWithFabricPortsTest, switchIsolate) {
+  auto setup = [=, this]() {
+    auto newCfg = initialConfig(*getAgentEnsemble());
+    *newCfg.switchSettings()->switchDrainState() =
+        cfg::SwitchDrainState::DRAINED;
+    applyNewConfig(newCfg);
+  };
+
+  auto verify = [this]() {
+    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+      utility::checkFabricReachability(getAgentEnsemble(), switchId);
+    }
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(AgentVoqSwitchWithFabricPortsTest, verifyNifMulticastTrafficDropped) {
+  constexpr static auto kNumPacketsToSend{1000};
+  auto setup = []() {};
+
+  auto verify = [=, this]() {
+    auto beforePkts = getLatestPortStats(masterLogicalInterfacePortIds()[0])
+                          .get_outUnicastPkts_();
+    sendLocalServiceDiscoveryMulticastPacket(
+        masterLogicalInterfacePortIds()[0], kNumPacketsToSend);
+    WITH_RETRIES({
+      auto afterPkts = getLatestPortStats(masterLogicalInterfacePortIds()[0])
+                           .get_outUnicastPkts_();
+      XLOG(DBG2) << "Before pkts: " << beforePkts
+                 << " After pkts: " << afterPkts;
+      EXPECT_EVENTUALLY_GE(afterPkts, beforePkts + kNumPacketsToSend);
+    });
+
+    // Wait for some time and make sure that fabric stats dont increment.
+    sleep(5);
+    auto fabricPortStats = getLatestPortStats(masterLogicalFabricPortIds());
+    auto fabricBytes = 0;
+    for (const auto& idAndStats : fabricPortStats) {
+      fabricBytes += idAndStats.second.get_outBytes_();
+    }
+    // Even though NIF will see RX/TX bytes, fabric will always be zero
+    // as these packets are expected to be dropped without being sent
+    // out on fabric.
+    EXPECT_EQ(fabricBytes, 0);
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
 } // namespace facebook::fboss

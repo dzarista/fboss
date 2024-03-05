@@ -5,7 +5,8 @@
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 #include "fboss/agent/hw/test/HwTest.h"
-#include "fboss/agent/hw/test/HwTestFabricUtils.h"
+#include "fboss/agent/test/utils/FabricTestUtils.h"
+#include "fboss/lib/CommonUtils.h"
 
 namespace facebook::fboss {
 
@@ -21,7 +22,7 @@ class HwFabricSwitchTest : public HwLinkStateDependentTest {
         utility::kBaseVlanId,
         true /*enable fabric ports*/
     );
-    populatePortExpectedNeighbors(masterLogicalPortIds(), cfg);
+    utility::populatePortExpectedNeighbors(masterLogicalPortIds(), cfg);
     return cfg;
   }
   void SetUp() override {
@@ -65,7 +66,7 @@ TEST_F(HwFabricSwitchTest, checkFabricReachabilityStats) {
   };
   auto verify = [this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    checkFabricReachabilityStats(getHwSwitchEnsemble());
+    utility::checkFabricReachabilityStats(getHwSwitchEnsemble(), SwitchID(0));
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -81,7 +82,7 @@ TEST_F(HwFabricSwitchTest, collectStats) {
 TEST_F(HwFabricSwitchTest, checkFabricReachability) {
   auto verify = [this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    checkFabricReachability(getHwSwitchEnsemble());
+    utility::checkFabricReachability(getHwSwitchEnsemble(), SwitchID(0));
   };
   verifyAcrossWarmBoots([] {}, verify);
 }
@@ -104,7 +105,8 @@ TEST_F(HwFabricSwitchTest, fabricIsolate) {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
     auto fabricPortId =
         PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
-    checkPortFabricReachability(getHwSwitchEnsemble(), fabricPortId);
+    utility::checkPortFabricReachability(
+        getHwSwitchEnsemble(), SwitchID(0), fabricPortId);
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -116,9 +118,39 @@ TEST_F(HwFabricSwitchTest, fabricSwitchIsolate) {
 
   auto verify = [=, this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    checkFabricReachability(getHwSwitchEnsemble());
+    utility::checkFabricReachability(getHwSwitchEnsemble(), SwitchID(0));
   };
   verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwFabricSwitchTest, reachDiscard) {
+  auto verify = [this]() {
+    getHwSwitch()->updateStats();
+    auto beforeSwitchDrops = getHwSwitch()->getSwitchDropStats();
+    std::string out;
+    getHwSwitchEnsemble()->runDiagCommand(
+        "TX 1 destination=-1 destinationModid=-1 flags=0x8000\n", out);
+    getHwSwitchEnsemble()->runDiagCommand("quit\n", out);
+    WITH_RETRIES({
+      getHwSwitch()->updateStats();
+      auto afterSwitchDrops = getHwSwitch()->getSwitchDropStats();
+      XLOG(INFO) << " Before reach drops: "
+                 << *beforeSwitchDrops.globalReachabilityDrops()
+                 << " After reach drops: "
+                 << *afterSwitchDrops.globalReachabilityDrops()
+                 << " Before global drops: " << *beforeSwitchDrops.globalDrops()
+                 << " After global drops: : "
+                 << *afterSwitchDrops.globalDrops();
+      EXPECT_EVENTUALLY_EQ(
+          *afterSwitchDrops.globalReachabilityDrops(),
+          *beforeSwitchDrops.globalReachabilityDrops() + 1);
+      // Global drops are in bytes
+      EXPECT_EVENTUALLY_GT(
+          *afterSwitchDrops.globalDrops(), *beforeSwitchDrops.globalDrops());
+    });
+    checkNoStatsChange();
+  };
+  verifyAcrossWarmBoots([]() {}, verify);
 }
 
 } // namespace facebook::fboss

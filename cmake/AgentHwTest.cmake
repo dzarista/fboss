@@ -9,12 +9,14 @@ add_library(config_factory
 )
 
 target_link_libraries(config_factory
+  config_utils
   fboss_types
   hw_switch
   hwagent
   switch_config_cpp2
   Folly::folly
   fboss_config_utils
+  port_test_utils
 )
 
 add_library(hw_test_main
@@ -65,6 +67,7 @@ add_library(hw_copp_utils
 )
 
 target_link_libraries(hw_copp_utils
+  hw_test_acl_utils
   switch_asics
   packet_factory
   Folly::folly
@@ -84,6 +87,7 @@ target_link_libraries(hw_qos_utils
   hw_packet_utils
   packet_factory
   Folly::folly
+  qos_test_utils
   resourcelibutil
   switch_config_cpp2
   ${GTEST}
@@ -112,18 +116,6 @@ target_link_libraries(hw_teflow_utils
   config_factory
   hw_switch_ensemble
   state
-  Folly::folly
-  switch_config_cpp2
-)
-
-add_library(hw_olympic_qos_utils
-  fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.cpp
-)
-
-target_link_libraries(hw_olympic_qos_utils
-  fboss_types
-  hw_switch_ensemble
-  packet_factory
   Folly::folly
   switch_config_cpp2
 )
@@ -183,6 +175,7 @@ add_library(hw_test_acl_utils
 )
 
 target_link_libraries(hw_test_acl_utils
+  acl_test_utils
   hw_switch
   switch_asics
   state
@@ -213,20 +206,9 @@ add_library(prod_config_utils
 target_link_libraries(prod_config_utils
   load_balancer_utils
   switch_config_cpp2
-  hw_olympic_qos_utils
+  olympic_qos_utils
   hw_copp_utils
   hw_switch_test
-)
-
-add_library(traffic_policy_utils
-  fboss/agent/hw/test/TrafficPolicyUtils.cpp
-)
-
-target_link_libraries(traffic_policy_utils
-  switch_config_cpp2
-  config_factory
-  state
-  Folly::folly
 )
 
 add_fbthrift_cpp_library(
@@ -279,6 +261,7 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwPtpTcTests.cpp
   fboss/agent/hw/test/HwTeFlowTestUtils.cpp
   fboss/agent/hw/test/HwTeFlowTests.cpp
+  fboss/agent/hw/test/HwUdfTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwAclCounterTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwConfigSetupTest.cpp
   fboss/agent/hw/test/dataplane_tests/HwConfigVerifyQosTests.cpp
@@ -330,7 +313,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/HwTestDscpMarkingUtils.cpp
   fboss/agent/hw/test/dataplane_tests/Hw2QueueToOlympicQoSTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestAqmUtils.cpp
-  fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestPfcUtils.cpp
@@ -338,6 +320,7 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/HwTrunkLoadBalancerTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwWatermarkTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwRouteStatTests.cpp
+  fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV6Roce.cpp
 )
 
 if (NOT BUILD_SAI_FAKE)
@@ -366,12 +349,17 @@ add_library(hw_switch_test
 target_link_libraries(hw_switch_test
   config_factory
   agent_test_utils
+  acl_test_utils
+  copp_test_utils
+  fabric_test_utils
   hw_packet_utils
   hw_switch_ensemble
   hw_voq_utils
   load_balancer_utils
+  olympic_qos_utils
   prod_config_factory
   prod_config_utils
+  qos_test_utils
   traffic_policy_utils
   core
   sflow_shim_utils
@@ -383,6 +371,7 @@ target_link_libraries(hw_switch_test
   validated_shell_commands_cpp2
   hwswitch_matcher
   switchid_scope_resolver
+  hw_stat_printers
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
 )
@@ -405,7 +394,7 @@ target_link_libraries(prod_config_factory
   config_factory
   hw_copp_utils
   hw_dscp_marking_utils
-  hw_olympic_qos_utils
+  olympic_qos_utils
   hw_queue_per_host_utils
   load_balancer_utils
   hw_pfc_utils

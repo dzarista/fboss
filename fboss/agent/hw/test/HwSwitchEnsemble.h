@@ -150,7 +150,8 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       const override {
     return getPlatform()->getPlatformPorts();
   }
-  std::map<PortID, FabricEndpoint> getFabricConnectivity() const override {
+  std::map<PortID, FabricEndpoint> getFabricConnectivity(
+      SwitchID /* switchId */) const override {
     return getHwSwitch()->getFabricConnectivity();
   }
   FabricReachabilityStats getFabricReachabilityStats() const override {
@@ -254,9 +255,6 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       int secondsToWaitPerIteration = 1);
   void ensureThrift();
 
-  virtual void runDiagCommand(
-      const std::string& input,
-      std::string& output) = 0;
   HwSwitchEnsembleRouteUpdateWrapper getRouteUpdater() {
     return HwSwitchEnsembleRouteUpdateWrapper(
         this, routingInformationBase_.get());

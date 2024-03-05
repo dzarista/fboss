@@ -813,7 +813,7 @@ class SwSwitch : public HwSwitchCallback {
    */
   void clearPortStats(const std::unique_ptr<std::vector<int32_t>>& ports);
 
-  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(int32_t portId);
+  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId);
   void clearPortAsicPrbsStats(int32_t portId);
 
   SwitchRunState getSwitchRunState() const;
@@ -933,6 +933,15 @@ class SwSwitch : public HwSwitchCallback {
       const;
 
   FabricReachabilityStats getFabricReachabilityStats();
+  void setPortsDownForSwitch(SwitchID switchId);
+
+  std::map<PortID, HwPortStats> getHwPortStats(
+      std::vector<PortID> portId) const;
+  void getAllHwSysPortStats(
+      std::map<std::string, HwSysPortStats>& hwSysPortStats) const;
+  void getAllHwPortStats(std::map<std::string, HwPortStats>& hwPortStats) const;
+  void getAllCpuPortStats(std::map<int, CpuPortStats>& hwCpuPortStats) const;
+  bool isRunModeMultiSwitch();
 
  private:
   std::optional<folly::MacAddress> getSourceMac(

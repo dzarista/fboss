@@ -17,6 +17,7 @@
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/link_tests/LinkTest.h"
+#include "fboss/agent/test/utils/QosTestUtils.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/CommonUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -261,15 +262,17 @@ void LinkTest::programDefaultRoute(
 }
 
 void LinkTest::disableTTLDecrements(
-    const boost::container::flat_set<PortDescriptor>& ecmpPorts) const {
-  utility::EcmpSetupTargetedPorts6 ecmp6(sw()->getState());
-  for (const auto& nextHop : ecmp6.getNextHops()) {
-    if (ecmpPorts.find(nextHop.portDesc) != ecmpPorts.end()) {
-      utility::disableTTLDecrements(
-          platform()->getHwSwitch(), ecmp6.getRouterId(), nextHop);
-    }
+    const boost::container::flat_set<PortDescriptor>& ecmpPorts) {
+  if (sw()->getHwAsicTable()->isFeatureSupportedOnAnyAsic(
+          HwAsic::Feature::PORT_TTL_DECREMENT_DISABLE)) {
+    disableTTLDecrementOnPorts(ecmpPorts);
+  } else {
+    utility::EcmpSetupTargetedPorts6 ecmp6(sw()->getState());
+    utility::disableTTLDecrements(
+        sw(), ecmp6.getRouterId(), ecmp6.getNextHops());
   }
 }
+
 void LinkTest::createL3DataplaneFlood(
     const boost::container::flat_set<PortDescriptor>& ecmpPorts) {
   auto switchId = scope(ecmpPorts);

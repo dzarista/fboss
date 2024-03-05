@@ -13,6 +13,7 @@ namespace {
 const re2::RE2 kPciDevOffsetRegex{"0x[0-9a-f]+"};
 const re2::RE2 kSymlinkRegex{"^/run/devmap/(?P<SymlinkDirs>[a-z0-9-]+)/.+"};
 const re2::RE2 kDevPathRegex{"/([A-Z]+_SLOT@[0-9]+/)*\\[.+\\]"};
+const re2::RE2 kInfoRomDevicePrefixRegex{"^fpga_info_(dom|iob|scm|mcb)$"};
 constexpr auto kSymlinkDirs = {
     "eeproms",
     "sensors",
@@ -21,7 +22,22 @@ constexpr auto kSymlinkDirs = {
     "i2c-busses",
     "gpiochips",
     "xcvrs",
-    "flashes"};
+    "flashes",
+    "watchdogs"};
+// Supported modalias - spidev +
+// https://github.com/torvalds/linux/blob/master/drivers/spi/spidev.c#L702
+constexpr auto kSpiDevModaliases = {
+    "spidev",
+    "dh2228fv",
+    "ltc2488",
+    "sx1301",
+    "bk4",
+    "dhcom-board",
+    "m53cpld",
+    "spi-petra",
+    "spi-authenta",
+    "em3581",
+    "si3210"};
 constexpr auto kXcvrDeviceName = "xcvr_ctrl";
 } // namespace
 
@@ -112,6 +128,9 @@ bool ConfigValidator::isValidPciDeviceConfig(
     fpgaIpBlockConfigs.push_back(*config.fpgaIpBlockConfig());
   }
   for (const auto& config : *pciDeviceConfig.spiMasterConfigs()) {
+    if (!isValidSpiDeviceConfigs(*config.spiDeviceConfigs())) {
+      return false;
+    }
     fpgaIpBlockConfigs.push_back(*config.fpgaIpBlockConfig());
   }
   for (const auto& config : *pciDeviceConfig.gpioChipConfigs()) {
@@ -121,7 +140,7 @@ bool ConfigValidator::isValidPciDeviceConfig(
     fpgaIpBlockConfigs.push_back(config);
   }
   for (const auto& config : *pciDeviceConfig.fanTachoPwmConfigs()) {
-    fpgaIpBlockConfigs.push_back(config);
+    fpgaIpBlockConfigs.push_back(*config.fpgaIpBlockConfig());
   }
   for (const auto& config : *pciDeviceConfig.ledCtrlConfigs()) {
     fpgaIpBlockConfigs.push_back(*config.fpgaIpBlockConfig());
@@ -135,6 +154,18 @@ bool ConfigValidator::isValidPciDeviceConfig(
       return false;
     }
     fpgaIpBlockConfigs.push_back(*config.fpgaIpBlockConfig());
+  }
+  for (const auto& config : *pciDeviceConfig.infoRomConfigs()) {
+    if (!re2::RE2::FullMatch(*config.deviceName(), kInfoRomDevicePrefixRegex)) {
+      XLOG(ERR) << fmt::format(
+          "Invalid DeviceName : {} in InfoRomConfig. It must follow naming style : fpga_info_[dom|iob]",
+          *config.deviceName());
+      return false;
+    }
+    fpgaIpBlockConfigs.push_back(config);
+  }
+  for (const auto& config : *pciDeviceConfig.miscCtrlConfigs()) {
+    fpgaIpBlockConfigs.push_back(config);
   }
 
   std::set<std::string> uniqueNames{};
@@ -273,6 +304,64 @@ bool ConfigValidator::isValidPresenceDetection(
     }
     if (presenceDetection.sysfsFileHandle()->presenceFileName()->empty()) {
       XLOG(ERR) << "presenceFileName for SysfsFileHandle cannot be empty";
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ConfigValidator::isValidSpiDeviceConfigs(
+    const std::vector<SpiDeviceConfig>& spiDeviceConfigs) {
+  if (spiDeviceConfigs.empty()) {
+    XLOG(ERR) << "Invalid empty SpiDeviceConfigs";
+    return false;
+  }
+  std::vector<bool> seenChipSelects(spiDeviceConfigs.size(), false);
+  for (const auto& spiDeviceConfig : spiDeviceConfigs) {
+    if (spiDeviceConfig.pmUnitScopedName()->empty()) {
+      XLOG(ERR) << fmt::format(
+          "PmUnitScopedName must be non-empty in SpiDeviceConfig");
+      return false;
+    }
+    if (spiDeviceConfig.modalias()->length() >= NAME_MAX) {
+      XLOG(ERR) << fmt::format(
+          "Modalias exceeded the {} characters limit for SpiDevice {}",
+          NAME_MAX,
+          *spiDeviceConfig.pmUnitScopedName());
+      return false;
+    }
+    if (std::find(
+            kSpiDevModaliases.begin(),
+            kSpiDevModaliases.end(),
+            *spiDeviceConfig.modalias()) == kSpiDevModaliases.end()) {
+      XLOG(ERR) << fmt::format(
+          "Unsupported modalias {} for SpiDevice {}",
+          *spiDeviceConfig.modalias(),
+          *spiDeviceConfig.pmUnitScopedName());
+      return false;
+    }
+    if (*spiDeviceConfig.chipSelect() < 0 ||
+        *spiDeviceConfig.chipSelect() >= spiDeviceConfigs.size()) {
+      XLOG(ERR) << fmt::format(
+          "Out of range chipselect value {} for SpiDevice {}",
+          *spiDeviceConfig.chipSelect(),
+          *spiDeviceConfig.pmUnitScopedName());
+      return false;
+    }
+    CHECK_EQ(seenChipSelects.size(), spiDeviceConfigs.size());
+    if (seenChipSelects[*spiDeviceConfig.chipSelect()]) {
+      XLOG(ERR) << fmt::format(
+          "Duplicate chipselect value {} for SpiDevice {}",
+          *spiDeviceConfig.chipSelect(),
+          *spiDeviceConfig.pmUnitScopedName());
+      return false;
+    }
+    seenChipSelects[*spiDeviceConfig.chipSelect()] = true;
+    if (*spiDeviceConfig.maxSpeedHz() <= 0) {
+      XLOG(ERR) << fmt::format(
+          "Invalid maxSpeedHz {} for SpiDevice {}",
+          *spiDeviceConfig.maxSpeedHz(),
+          *spiDeviceConfig.pmUnitScopedName());
       return false;
     }
   }

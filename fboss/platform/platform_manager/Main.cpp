@@ -25,8 +25,14 @@ DEFINE_bool(
     "Enable download and installation of the BSP rpm");
 
 DEFINE_bool(
-    run_once,
+    reload_kmods,
     false,
+    "The kmods are usually reloaded only when the BSP RPM changes. "
+    "But if this flag is set, the kmods will be reloaded everytime.");
+
+DEFINE_bool(
+    run_once,
+    true,
     "Setup platform once and exit. If set to false, the program will explore "
     "the platform every explore_interval_s.");
 
@@ -43,12 +49,15 @@ int main(int argc, char** argv) {
 
   if (FLAGS_enable_pkg_mgmnt) {
     if (FLAGS_local_rpm_path != "") {
-      PkgUtils().processLocalRpms(FLAGS_local_rpm_path);
+      PkgUtils().processLocalRpms(FLAGS_local_rpm_path, config);
     } else {
       PkgUtils().processRpms(config);
     }
   }
-  PkgUtils().processKmods(config);
+
+  if (FLAGS_reload_kmods) {
+    PkgUtils().processKmods(config);
+  }
 
   PlatformExplorer platformExplorer(
       std::chrono::seconds(FLAGS_explore_interval_s), config, FLAGS_run_once);

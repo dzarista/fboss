@@ -40,6 +40,9 @@ DECLARE_string(qsfp_service_volatile_dir);
 DECLARE_bool(can_qsfp_service_warm_boot);
 
 namespace facebook::fboss {
+
+struct TransceiverConfig;
+
 struct NpuPortStatus {
   int portId;
   bool operState; // true for link up, false for link down
@@ -221,6 +224,14 @@ class TransceiverManager {
   const QsfpConfig* getQsfpConfig() const {
     return qsfpConfig_.get();
   };
+
+  // Return a shared pointer to the transceiver config.
+  // This is initialized during config loading in WedgeManager.
+  // All transceivers will share the same transceiver config.
+  std::shared_ptr<const TransceiverConfig> getTransceiverConfig() const {
+    return tcvrConfig_;
+  }
+
   virtual std::vector<PortID> getMacsecCapablePorts() const = 0;
 
   virtual std::string listHwObjects(
@@ -411,6 +422,8 @@ class TransceiverManager {
       std::map<std::string, phy::PhyInfo>& phyInfos,
       const std::string& portName);
 
+  void getAllInterfacePhyInfo(std::map<std::string, phy::PhyInfo>& phyInfos);
+
   time_t getLastDownTime(TransceiverID id) const;
 
   static std::string forceColdBootFileName();
@@ -506,6 +519,11 @@ class TransceiverManager {
 
   virtual TransceiverI2CApi* i2cBus() = 0;
 
+  // Determine if transceiver FW requires upgrade.
+  // Transceiver has to be present, and the version in the QsfpConfig
+  // has to be different from whats already running in HW.
+  bool requiresFirmwareUpgrade(Transceiver& tcvr) const;
+
  protected:
   /*
    * Check to see if we can attempt a warm boot.
@@ -580,6 +598,8 @@ class TransceiverManager {
   mutable PortNameMap portNameToModule_;
   PortGroups portGroupMap_;
   std::unique_ptr<QsfpConfig> qsfpConfig_;
+  std::shared_ptr<const TransceiverConfig> tcvrConfig_;
+
   // For platforms that needs to program xphy
   std::unique_ptr<PhyManager> phyManager_;
 
@@ -706,6 +726,12 @@ class TransceiverManager {
 
   void readWarmBootStateFile();
   void restoreAgentConfigAppliedInfo();
+
+  bool upgradeFirmware(Transceiver& tcvr);
+
+  // Returns the Firmware object from qsfp config for the given module.
+  // If there is no firmware in config, returns empty optional
+  std::optional<cfg::Firmware> getFirmwareFromCfg(Transceiver& tcvr) const;
 
   // TEST ONLY
   // This private map is an override of agent getPortStatus()

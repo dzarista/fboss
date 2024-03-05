@@ -22,12 +22,13 @@
 #include "fboss/agent/hw/test/HwTestStatUtils.h"
 #include "fboss/agent/hw/test/HwVoqUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/InterfaceMap.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/agent/test/utils/FabricTestUtils.h"
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/lib/CommonUtils.h"
 
 namespace {
@@ -97,7 +98,7 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
         &newCfg,
         kDscpAclName(),
         kDscpAclCounterName(),
-        utility::getAclCounterTypes(getHwSwitch()));
+        utility::getAclCounterTypes(getHwSwitch()->getPlatform()->getAsic()));
     applyNewConfig(newCfg);
   }
   void addRemoveNeighbor(
@@ -335,8 +336,31 @@ class HwVoqSwitchWithFabricPortsTest : public HwVoqSwitchTest {
         utility::kBaseVlanId,
         true /*enable fabric ports*/
     );
-    populatePortExpectedNeighbors(masterLogicalPortIds(), cfg);
+    utility::populatePortExpectedNeighbors(masterLogicalPortIds(), cfg);
     return cfg;
+  }
+
+  void addDropAclForMcastIp() {
+    auto newCfg = initialConfig();
+    // Add ACL Table group before adding any ACLs
+    utility::addAclTableGroup(
+        &newCfg, cfg::AclStage::INGRESS, utility::getAclTableGroupName());
+    utility::addDefaultAclTable(newCfg);
+    auto aclName = "drop-v6-multicast";
+    auto aclCounterName = "drop-v6-multicast-stat";
+    // The expectation is that MC traffic received on NIF ports gets dropped
+    // and not get forwarded to fabric, as that will lead to fabric drops
+    // incrementing and would be a red flag. Dropping of MC traffic does not
+    // happen natively and hence need a drop ACL entry to match on IPv6 MC
+    // and drop the same.
+    auto* acl = utility::addAcl(&newCfg, aclName, cfg::AclActionType::DENY);
+    acl->dstIp() = "ff00::/8";
+    utility::addAclStat(
+        &newCfg,
+        aclName,
+        aclCounterName,
+        utility::getAclCounterTypes(getHwSwitch()->getPlatform()->getAsic()));
+    applyNewConfig(newCfg);
   }
 
  private:
@@ -372,7 +396,9 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, collectStats) {
 }
 
 TEST_F(HwVoqSwitchWithFabricPortsTest, checkFabricReachability) {
-  auto verify = [this]() { checkFabricReachability(getHwSwitchEnsemble()); };
+  auto verify = [this]() {
+    utility::checkFabricReachability(getHwSwitchEnsemble(), SwitchID(0));
+  };
   verifyAcrossWarmBoots([] {}, verify);
 }
 
@@ -384,14 +410,16 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, fabricIsolate) {
     getHwSwitch()->updateStats();
     auto fabricPortId =
         PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
-    checkPortFabricReachability(getHwSwitchEnsemble(), fabricPortId);
+    utility::checkPortFabricReachability(
+        getHwSwitchEnsemble(), SwitchID(0), fabricPortId);
     auto newState = getProgrammedState();
     auto port = newState->getPorts()->getNodeIf(fabricPortId);
     auto newPort = port->modify(&newState);
     newPort->setPortDrainState(cfg::PortDrainState::DRAINED);
     applyNewState(newState);
     getHwSwitch()->updateStats();
-    checkPortFabricReachability(getHwSwitchEnsemble(), fabricPortId);
+    utility::checkPortFabricReachability(
+        getHwSwitchEnsemble(), SwitchID(0), fabricPortId);
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -404,7 +432,9 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, switchIsolate) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=, this]() { checkFabricReachability(getHwSwitchEnsemble()); };
+  auto verify = [=, this]() {
+    utility::checkFabricReachability(getHwSwitchEnsemble(), SwitchID(0));
+  };
   verifyAcrossWarmBoots(setup, verify);
 }
 
@@ -503,7 +533,7 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, checkFabricPortSpray) {
 
 TEST_F(HwVoqSwitchWithFabricPortsTest, verifyNifMulticastTrafficDropped) {
   constexpr static auto kNumPacketsToSend{1000};
-  auto setup = []() {};
+  auto setup = [this]() { addDropAclForMcastIp(); };
 
   auto verify = [this]() {
     auto beforePkts = getLatestPortStats(masterLogicalInterfacePortIds()[0])
@@ -560,9 +590,18 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, fdrCellDrops) {
       getHwSwitch()->updateStats();
       fb303::ThreadCachedServiceData::get()->publishStats();
       fdrCellDrops = getHwSwitch()->getSwitchStats()->getFdrCellDrops();
-      XLOG(DBG2) << "FDR Cell drops : " << fdrCellDrops;
+      // TLTimeseries value > 0
       EXPECT_EVENTUALLY_GT(fdrCellDrops, 0);
+      // Raw stats value > 0
+      EXPECT_GT(*getHwSwitch()->getSwitchDropStats().fdrCellDrops(), 0);
+      XLOG(DBG2) << "FDR Cell drops time series value: " << fdrCellDrops
+                 << " raw stat value: "
+                 << *getHwSwitch()->getSwitchDropStats().fdrCellDrops();
     });
+    // Assert that we don't spuriously increment fdrCellDrops on every drop
+    // stats. This would happen if we treated a stat as clear on read, while
+    // in HW it was cumulative
+    checkNoStatsChange(30 /*retries*/);
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -654,6 +693,7 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
             getPortOutPktsBytes(*frontPanelPort);
       }
       auto beforeRecyclePkts = getRecyclePortPkts();
+      auto beforeSwitchDropStats = getHwSwitch()->getSwitchDropStats();
       auto txPacketSize = sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
 
       auto [maxRetryCount, sleepTimeMsecs] =
@@ -736,6 +776,17 @@ TEST_F(HwVoqSwitchTest, sendPacketCpuAndFrontPanel) {
             } else if (asicMode != HwAsic::AsicMode::ASIC_MODE_SIM) {
               EXPECT_EVENTUALLY_EQ(beforeRecyclePkts + 1, afterRecyclePkts);
             }
+            auto afterSwitchDropStats = getHwSwitch()->getSwitchDropStats();
+            if (asicMode != HwAsic::AsicMode::ASIC_MODE_SIM &&
+                asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+              XLOG(DBG2) << " Queue resolution drops, before: "
+                         << *beforeSwitchDropStats.queueResolutionDrops()
+                         << " after: "
+                         << *afterSwitchDropStats.queueResolutionDrops();
+              EXPECT_EVENTUALLY_EQ(
+                  *afterSwitchDropStats.queueResolutionDrops(),
+                  *beforeSwitchDropStats.queueResolutionDrops() + 1);
+            }
           });
     };
 
@@ -806,7 +857,7 @@ TEST_F(HwVoqSwitchTest, AclQualifiersWithCounter) {
         &newCfg,
         kAclName,
         kAclCounterName,
-        utility::getAclCounterTypes(getHwSwitch()));
+        utility::getAclCounterTypes(getHwSwitch()->getPlatform()->getAsic()));
 
     applyNewConfig(newCfg);
   };
@@ -828,7 +879,7 @@ TEST_F(HwVoqSwitchTest, AclQualifiersWithCounter) {
         getProgrammedState(),
         {kAclName},
         kAclCounterName,
-        utility::getAclCounterTypes(getHwSwitch()));
+        utility::getAclCounterTypes(getHwSwitch()->getPlatform()->getAsic()));
   };
 
   verifyAcrossWarmBoots(setup, verify);
@@ -865,6 +916,12 @@ TEST_F(HwVoqSwitchTest, packetIntegrityError) {
       EXPECT_EVENTUALLY_GT(
           getHwSwitch()->getSwitchDropStats().packetIntegrityDrops(), 0);
     });
+    // Assert that packet Integrity drops don't continuously increment.
+    // Packet integrity drop counter is clear on read from HW. So we
+    // accumulate its value in memory. If HW/SDK ever changed this to
+    // not be clear on read, but cumulative, then our approach would
+    // yeild constantly increasing values. Assert against that.
+    checkNoStatsChange();
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -987,6 +1044,23 @@ TEST_F(HwVoqSwitchTest, dramEnqueueDequeueBytes) {
       XLOG(DBG2) << "Dram dequeued bytes : " << dramDequeuedBytes;
       EXPECT_EVENTUALLY_GT(dramDequeuedBytes, 0);
     });
+    // Assert that Dram enqueue/dequeue bytes don't continuously increment
+    // Eventually all pkts should be dequeued and we should stop getting
+    // increments
+    WITH_RETRIES({
+      auto prevDramEnqueuedBytes =
+          getHwSwitch()->getSwitchStats()->getDramEnqueuedBytes();
+      auto prevDramDequeuedBytes =
+          getHwSwitch()->getSwitchStats()->getDramDequeuedBytes();
+      getHwSwitch()->updateStats();
+      fb303::ThreadCachedServiceData::get()->publishStats();
+      EXPECT_EVENTUALLY_EQ(
+          getHwSwitch()->getSwitchStats()->getDramEnqueuedBytes(),
+          prevDramEnqueuedBytes);
+      EXPECT_EVENTUALLY_EQ(
+          getHwSwitch()->getSwitchStats()->getDramDequeuedBytes(),
+          prevDramDequeuedBytes);
+    });
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -1023,6 +1097,14 @@ class HwVoqSwitchWithMultipleDsfNodesTest : public HwVoqSwitchTest {
       XLOG(INFO) << " VOQ discard bytes: " << voqDiscardBytes;
       EXPECT_EVENTUALLY_GT(voqDiscardBytes, 0);
     });
+    if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      auto switchDropStats = getHwSwitch()->getSwitchDropStats();
+      CHECK(switchDropStats.voqResourceExhaustionDrops().has_value());
+      XLOG(INFO) << " Voq resource exhaustion drops: "
+                 << *switchDropStats.voqResourceExhaustionDrops();
+      EXPECT_GT(*switchDropStats.voqResourceExhaustionDrops(), 0);
+    }
+    checkNoStatsChange();
   }
 };
 
@@ -1621,9 +1703,10 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteAndLocalLoadBalance) {
 TEST_F(HwVoqSwitchFullScaleDsfNodesTest, stressProgramEcmpRoutes) {
   auto kEcmpWidth = getMaxEcmpWidth(getAsic());
   FLAGS_ecmp_width = kEcmpWidth;
-  // Stress add/delete 100 iterations of 5 routes with ECMP width.
+  // Stress add/delete 40 iterations of 5 routes with ECMP width.
+  // 40 iterations take ~17 mins on j3.
   const auto routeScale = 5;
-  const auto numIterations = 100;
+  const auto numIterations = 40;
   auto setup = [&]() {
     applyNewState(utility::setupRemoteIntfAndSysPorts(
         getProgrammedState(), scopeResolver(), initialConfig()));

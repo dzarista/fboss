@@ -10,6 +10,7 @@
 #include "fboss/agent/SwitchStats.h"
 
 #include <folly/Memory.h>
+#include <folly/Range.h>
 #include "fboss/agent/PortStats.h"
 #include "fboss/lib/CommonUtils.h"
 
@@ -25,10 +26,12 @@ std::string SwitchStats::kCounterPrefix = "";
 // Temporary until we get this into fb303 with D40324952
 static constexpr const std::array<double, 1> kP100{{1.0}};
 
-SwitchStats::SwitchStats()
-    : SwitchStats(fb303::ThreadCachedServiceData::get()->getThreadStats()) {}
+SwitchStats::SwitchStats(int numSwitches)
+    : SwitchStats(
+          fb303::ThreadCachedServiceData::get()->getThreadStats(),
+          numSwitches) {}
 
-SwitchStats::SwitchStats(ThreadLocalStatsMap* map)
+SwitchStats::SwitchStats(ThreadLocalStatsMap* map, int numSwitches)
     : trapPkts_(map, kCounterPrefix + "trapped.pkts", SUM, RATE),
       trapPktDrops_(map, kCounterPrefix + "trapped.drops", SUM, RATE),
       trapPktBogus_(map, kCounterPrefix + "trapped.bogus", SUM, RATE),
@@ -280,7 +283,21 @@ SwitchStats::SwitchStats(ThreadLocalStatsMap* map)
           map,
           kCounterPrefix + "switch_configured_ms",
           SUM,
-          RATE) {}
+          RATE) {
+  for (auto switchIndex = 0; switchIndex < numSwitches; switchIndex++) {
+    hwAgentConnectionStatus_.emplace_back(TLCounter(
+        map,
+        folly::to<std::string>(
+            kCounterPrefix, "switch.", switchIndex, ".", "connection_status")));
+    hwAgentUpdateTimeouts_.emplace_back(TLTimeseries(
+        map,
+        folly::to<std::string>(
+            kCounterPrefix, "switch.", switchIndex, ".", "hwupdate_timeouts"),
+        SUM,
+        RATE));
+    thriftStreamConnectionStatus_.emplace_back(map, switchIndex);
+  }
+}
 
 PortStats* FOLLY_NULLABLE SwitchStats::port(PortID portID) {
   auto it = ports_.find(portID);
@@ -342,5 +359,153 @@ void SwitchStats::fillAgentStats(AgentStats& agentStats) const {
   agentStats.trappedPktsDropped() = getCumulativeValue(trapPktDrops_);
   agentStats.threadHeartBeatMiss() =
       getCumulativeValue(threadHeartbeatMissCount_);
+  int16_t switchIndex = 0;
+  for (const auto& stats : hwAgentUpdateTimeouts_) {
+    agentStats.hwagentOperSyncTimeoutCount()->insert(
+        {switchIndex, getCumulativeValue(stats)});
+    switchIndex++;
+  }
+  getHwAgentStatus(*agentStats.hwAgentEventSyncStatusMap());
 }
+
+void SwitchStats::getHwAgentStatus(
+    std::map<int16_t, HwAgentEventSyncStatus>& statusMap) const {
+  int16_t switchIndex = 0;
+  for (const auto& stats : thriftStreamConnectionStatus_) {
+    HwAgentEventSyncStatus syncStatus;
+    syncStatus.statsEventSyncActive() = stats.getStatsEventSinkStatus();
+    syncStatus.linkEventSyncActive() = stats.getLinkEventSinkStatus();
+    syncStatus.linkActiveEventSyncActive() =
+        stats.getLinkActiveEventSinkStatus();
+    syncStatus.fdbEventSyncActive() = stats.getFdbEventSinkStatus();
+    syncStatus.rxPktEventSyncActive() = stats.getRxPktEventSinkStatus();
+    syncStatus.txPktEventSyncActive() = stats.getTxPktEventStreamStatus();
+    syncStatus.statsEventSyncDisconnects() =
+        stats.getStatsEventSinkDisconnectCount();
+    syncStatus.fdbEventSyncDisconnects() =
+        stats.getFdbEventSinkDisconnectCount();
+    syncStatus.linkEventSyncDisconnects() =
+        stats.getLinkEventSinkDisconnectCount();
+    syncStatus.linkActiveEventSyncDisconnects() =
+        stats.getLinkActiveEventSinkDisconnectCount();
+    syncStatus.rxPktEventSyncDisconnects() =
+        stats.getRxPktEventSinkDisconnectCount();
+    syncStatus.txPktEventSyncDisconnects() =
+        stats.getTxPktEventStreamDisconnectCount();
+    statusMap.insert({switchIndex, std::move(syncStatus)});
+    switchIndex++;
+  }
+}
+
+SwitchStats::HwAgentStreamConnectionStatus::HwAgentStreamConnectionStatus(
+    fb303::ThreadCachedServiceData::ThreadLocalStatsMap* map,
+    int16_t switchIndex)
+    : statsEventSinkStatus_(TLCounter(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "stats_event_sync_active"))),
+      linkEventSinkStatus_(TLCounter(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "link_event_sync_active"))),
+      linkActiveEventSinkStatus_(TLCounter(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "link_active_event_sync_active"))),
+      fdbEventSinkStatus_(TLCounter(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "fdb_event_sync_active"))),
+      rxPktEventSinkStatus_(TLCounter(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "rx_pkt_event_sync_active"))),
+      txPktEventStreamStatus_(TLCounter(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "tx_pkt_event_sync_active"))),
+      statsEventSinkDisconnects_(TLTimeseries(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "stats_event_sync_disconnects"),
+          SUM,
+          RATE)),
+      linkEventSinkDisconnects_(TLTimeseries(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "link_event_sync_disconnects"),
+          SUM,
+          RATE)),
+      linkActiveEventSinkDisconnects_(TLTimeseries(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "link_active_event_sync_disconnects"),
+          SUM,
+          RATE)),
+      fdbEventSinkDisconnects_(TLTimeseries(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "fdb_event_sync_disconnects"),
+          SUM,
+          RATE)),
+      rxPktEventSinkDisconnects_(TLTimeseries(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "rx_pkt_event_sync_disconnects"),
+          SUM,
+          RATE)),
+      txPktEventStreamDisconnects_(TLTimeseries(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "tx_pkt_event_sync_disconnects"),
+          SUM,
+          RATE)) {}
 } // namespace facebook::fboss

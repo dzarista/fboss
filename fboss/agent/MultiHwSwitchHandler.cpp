@@ -4,6 +4,7 @@
 #include "fboss/agent/HwSwitchHandler.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/TxPacket.h"
+#include "fboss/agent/gen-cpp2/agent_stats_types.h"
 #include "fboss/agent/state/StateDelta.h"
 
 namespace facebook::fboss {
@@ -31,6 +32,7 @@ MultiHwSwitchHandler::MultiHwSwitchHandler(
     : sw_(sw),
       hwSwitchSyncers_(
           makeHwSwitchSyncers(sw, switchInfoMap, hwSwitchHandlerInitFn)),
+      connectionStatusTable_{sw_},
       transactionsSupported_(transactionsSupported(sdkVersion)) {}
 
 MultiHwSwitchHandler::~MultiHwSwitchHandler() {
@@ -261,8 +263,6 @@ MultiHwSwitchHandler::getPortStats() {
 }
 
 CpuPortStats MultiHwSwitchHandler::getCpuPortStats(bool getIncrement) {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
   return hwSwitchSyncers_.begin()->second->getCpuPortStats(getIncrement);
 }
 
@@ -310,7 +310,7 @@ void MultiHwSwitchHandler::clearPortStats(
 }
 
 std::vector<phy::PrbsLaneStats> MultiHwSwitchHandler::getPortAsicPrbsStats(
-    int32_t portId) {
+    PortID portId) {
   // TODO - support with multiple switches
   CHECK_EQ(hwSwitchSyncers_.size(), 1);
   return hwSwitchSyncers_.begin()->second->getPortAsicPrbsStats(portId);
@@ -475,20 +475,25 @@ multiswitch::StateOperDelta MultiHwSwitchHandler::getNextStateOperDelta(
 }
 
 void MultiHwSwitchHandler::notifyHwSwitchGracefulExit(int64_t switchId) {
-  notifyHwSwitchDisconnected(switchId);
+  notifyHwSwitchDisconnected(switchId, true);
 }
 
-void MultiHwSwitchHandler::notifyHwSwitchDisconnected(int64_t switchId) {
+void MultiHwSwitchHandler::notifyHwSwitchDisconnected(
+    int64_t switchId,
+    bool gracefulExit) {
   if (!isRunning()) {
     throw FbossError("multi hw switch syncer not started");
   }
   auto iter = hwSwitchSyncers_.find(SwitchID(switchId));
   CHECK(iter != hwSwitchSyncers_.end());
 
-  connectionStatusTable_.disconnected(SwitchID(switchId));
-
-  // cancel any pending long poll request
-  iter->second->notifyHwSwitchDisconnected();
+  if (connectionStatusTable_.disconnected(SwitchID(switchId))) {
+    // cancel any pending long poll request
+    iter->second->notifyHwSwitchDisconnected();
+    if (!gracefulExit) {
+      sw_->setPortsDownForSwitch(SwitchID(switchId));
+    }
+  }
 }
 
 bool MultiHwSwitchHandler::waitUntilHwSwitchConnected() {
@@ -504,6 +509,15 @@ std::map<int32_t, SwitchRunState> MultiHwSwitchHandler::getHwSwitchRunStates() {
     runStates[static_cast<int32_t>(switchId)] = syncer->getHwSwitchRunState();
   }
   return runStates;
+}
+
+void MultiHwSwitchHandler::fillHwAgentConnectionStatus(AgentStats& agentStats) {
+  for (const auto& [switchId, _] : hwSwitchSyncers_) {
+    auto switchIndex =
+        sw_->getSwitchInfoTable().getSwitchIndexFromSwitchId(switchId);
+    agentStats.hwagentConnectionStatus()[switchIndex] =
+        connectionStatusTable_.getConnectionStatus(switchId);
+  }
 }
 
 } // namespace facebook::fboss

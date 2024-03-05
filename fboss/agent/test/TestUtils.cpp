@@ -40,7 +40,7 @@
 
 #include <folly/Memory.h>
 #include <folly/container/Enumerate.h>
-#include <folly/json.h>
+#include <folly/json/json.h>
 #include <folly/logging/Init.h>
 #include <chrono>
 #include <memory>
@@ -1391,7 +1391,7 @@ std::unique_ptr<SwSwitch> createSwSwitchWithMultiSwitch(
     HwSwitchHandlerInitFn initFunc) {
   HwSwitchHandlerInitFn hwSwitchHandlerInitFn =
       [](const SwitchID& switchId, const cfg::SwitchInfo& info, SwSwitch* sw) {
-        auto handler = std::make_unique<MockNonMonolithicHwSwitchHandler>(
+        auto handler = std::make_unique<MockMultiSwitchHwSwitchHandler>(
             switchId, info, sw);
         // success by default
         ON_CALL(*handler, stateChanged(_, _))

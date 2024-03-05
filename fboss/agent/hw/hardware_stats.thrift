@@ -85,6 +85,7 @@ struct HwPortStats {
   56: optional i64 inAclDiscards_;
   57: optional i64 inTrapDiscards_;
   58: optional i64 outForwardingDiscards_;
+  59: optional i64 fabricConnectivityMismatch;
 }
 
 struct HwSysPortStats {
@@ -253,6 +254,13 @@ struct HwSwitchDropStats {
   3: optional i64 packetIntegrityDrops;
   // DNX Specific drop counters
   4: optional i64 fdrCellDrops;
+  5: optional i64 voqResourceExhaustionDrops;
+  6: optional i64 globalResourceExhaustionDrops;
+  7: optional i64 sramResourceExhaustionDrops;
+  8: optional i64 vsqResourceExhaustionDrops;
+  9: optional i64 dropPrecedenceDrops;
+  10: optional i64 queueResolutionDrops;
+  11: optional i64 ingressPacketPipelineRejectDrops;
 }
 
 struct HwSwitchDramStats {

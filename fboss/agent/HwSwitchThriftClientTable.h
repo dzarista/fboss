@@ -27,11 +27,20 @@ class HwSwitchThriftClientTable {
   std::optional<std::map<::std::int64_t, FabricEndpoint>> getFabricConnectivity(
       SwitchID switchId);
 
- private:
-  apache::thrift::Client<FbossHwCtrl> createClient(int16_t port);
+  void clearHwPortStats(SwitchID switchId, std::vector<int32_t>& ports);
+  void clearAllHwPortStats(SwitchID switchId);
+  void getHwL2Table(SwitchID switchId, std::vector<L2EntryThrift>& l2Table);
 
-  std::map<SwitchID, std::unique_ptr<apache::thrift::Client<FbossHwCtrl>>>
-      clients_;
-  std::shared_ptr<folly::ScopedEventBaseThread> evbThread_;
+ private:
+  apache::thrift::Client<FbossHwCtrl> createClient(
+      int16_t port,
+      std::shared_ptr<folly::ScopedEventBaseThread> evbThread);
+
+  std::map<
+      SwitchID,
+      std::pair<
+          std::unique_ptr<apache::thrift::Client<FbossHwCtrl>>,
+          std::shared_ptr<folly::ScopedEventBaseThread>>>
+      clientInfos_;
 };
 } // namespace facebook::fboss

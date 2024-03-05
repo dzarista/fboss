@@ -13,10 +13,6 @@
 
 #include <stdint.h>
 
-extern "C" {
-#include <bcm/types.h>
-}
-
 namespace facebook::fboss {
 
 using std::chrono::milliseconds;
@@ -42,44 +38,49 @@ class LanePrbsStatsEntry {
     return laneRate_;
   }
 
-  void lossOfLock() {
-    if (locked_) {
-      locked_ = false;
-      accuErrorCount_ = 0;
-      numLossOfLock_++;
-    }
-    timeLastCollect_ = steady_clock::now();
+  void setLaneRate(double laneRate) {
+    laneRate_ = laneRate;
   }
 
-  void locked() {
+  void handleOk() {
     steady_clock::time_point now = steady_clock::now();
     locked_ = true;
     accuErrorCount_ = 0;
-    timeLastLocked_ = now;
+    if (!locked_) {
+      timeLastLocked_ = now;
+    }
     timeLastCollect_ = now;
   }
 
-  void updateLaneStats(uint32 status) {
-    if (!locked_) {
-      locked();
-      return;
-    }
+  void handleLockWithErrors(uint32_t num_errors) {
     steady_clock::time_point now = steady_clock::now();
-    accuErrorCount_ += status;
-
+    locked_ = true;
+    accuErrorCount_ += num_errors;
     milliseconds duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(
             now - timeLastCollect_);
-    // There shouldn't be a case where duration would be 0.
-    // But just add a check here to be safe.
     if (duration.count() == 0) {
       return;
     }
-    double ber = (status * 1000) / (laneRate_ * duration.count());
+    double ber = (num_errors * 1000) / (laneRate_ * duration.count());
     if (ber > maxBer_) {
       maxBer_ = ber;
     }
     timeLastCollect_ = now;
+  }
+
+  void handleNotLocked() {
+    locked_ = false;
+    if (locked_) {
+      numLossOfLock_++;
+    }
+  }
+
+  void handleLossOfLock() {
+    steady_clock::time_point now = steady_clock::now();
+    locked_ = true;
+    numLossOfLock_++;
+    timeLastLocked_ = now;
   }
 
   phy::PrbsLaneStats getPrbsLaneStats() const {
@@ -125,7 +126,7 @@ class LanePrbsStatsEntry {
  private:
   const int32_t laneId_ = -1;
   const int32_t gportId_ = -1;
-  const double laneRate_ = 0.;
+  double laneRate_ = 0.;
   bool locked_ = false;
   int64_t accuErrorCount_ = 0;
   double maxBer_ = -1.;
