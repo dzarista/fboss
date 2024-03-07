@@ -11,12 +11,20 @@
 
 #include <folly/Memory.h>
 #include <folly/Range.h>
+#include <folly/Utility.h>
 #include "fboss/agent/PortStats.h"
 #include "fboss/lib/CommonUtils.h"
 
 using facebook::fb303::AVG;
 using facebook::fb303::RATE;
 using facebook::fb303::SUM;
+
+namespace {
+std::string fabricOverdrainCounter(int16_t switchIndex) {
+  return folly::to<std::string>(
+      "switch.", switchIndex, ".fabric_overdrain_pct");
+}
+} // namespace
 
 namespace facebook::fboss {
 
@@ -32,7 +40,8 @@ SwitchStats::SwitchStats(int numSwitches)
           numSwitches) {}
 
 SwitchStats::SwitchStats(ThreadLocalStatsMap* map, int numSwitches)
-    : trapPkts_(map, kCounterPrefix + "trapped.pkts", SUM, RATE),
+    : numSwitches_(numSwitches),
+      trapPkts_(map, kCounterPrefix + "trapped.pkts", SUM, RATE),
       trapPktDrops_(map, kCounterPrefix + "trapped.drops", SUM, RATE),
       trapPktBogus_(map, kCounterPrefix + "trapped.bogus", SUM, RATE),
       trapPktErrors_(map, kCounterPrefix + "trapped.error", SUM, RATE),
@@ -366,6 +375,13 @@ void SwitchStats::fillAgentStats(AgentStats& agentStats) const {
     switchIndex++;
   }
   getHwAgentStatus(*agentStats.hwAgentEventSyncStatusMap());
+  for (auto swIndex = 0; swIndex < numSwitches_; swIndex++) {
+    auto overdrainPct = fb303::fbData->getCounterIfExists(
+        fabricOverdrainCounter(folly::to_narrow(swIndex)));
+    if (overdrainPct.has_value()) {
+      agentStats.fabricOverdrainPct()->insert({swIndex, *overdrainPct});
+    }
+  }
 }
 
 void SwitchStats::getHwAgentStatus(
@@ -508,4 +524,19 @@ SwitchStats::HwAgentStreamConnectionStatus::HwAgentStreamConnectionStatus(
               "tx_pkt_event_sync_disconnects"),
           SUM,
           RATE)) {}
+
+void SwitchStats::setFabricOverdrainPct(
+    int16_t switchIndex,
+    int16_t overdrainPct) {
+  // We directly set the overdrain pct counter here as its a single
+  // value that needs to set globally and not a thread local value
+  // that needs to accumulated over multiple threads.
+  // Alternatively using a TLCounter would have required us to do something
+  // like
+  // counter.addValue(overdrainPct - getCumuativeValue(counter));
+  // i.e. collect global value from all threads and then compute delta
+  // against the current value. Instead set the global value directly
+  fb303::fbData->setCounter(fabricOverdrainCounter(switchIndex), overdrainPct);
+  updateFabricOverdrainWatermark(switchIndex, overdrainPct);
+}
 } // namespace facebook::fboss

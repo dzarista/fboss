@@ -433,6 +433,7 @@ class SwitchStats : public boost::noncopyable {
   void switchConfiguredMs(uint64_t ms) {
     switchConfiguredMs_.addValue(ms);
   }
+  void setFabricOverdrainPct(int16_t switchIndex, int16_t overdrainPct);
 
   void hwAgentConnectionStatus(int switchIndex, bool connected) {
     CHECK_LT(switchIndex, hwAgentConnectionStatus_.size());
@@ -518,6 +519,9 @@ class SwitchStats : public boost::noncopyable {
 
   explicit SwitchStats(ThreadLocalStatsMap* map, int numSwitches);
 
+  void updateFabricOverdrainWatermark(
+      int16_t switchIndex,
+      int16_t overdrainPct);
   class HwAgentStreamConnectionStatus {
    public:
     explicit HwAgentStreamConnectionStatus(
@@ -614,6 +618,7 @@ class SwitchStats : public boost::noncopyable {
     TLTimeseries txPktEventStreamDisconnects_;
   };
 
+  const int numSwitches_;
   // Total number of trapped packets
   TLTimeseries trapPkts_;
   // Number of trapped packets that were intentionally dropped.

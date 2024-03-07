@@ -212,15 +212,29 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricIsolate) {
         PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
     utility::checkPortFabricReachability(
         getAgentEnsemble(), SwitchID(0), fabricPortId);
-    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
-      auto out = in->clone();
-      auto port = out->getPorts()->getNodeIf(fabricPortId);
-      auto newPort = port->modify(&out);
-      newPort->setPortDrainState(cfg::PortDrainState::DRAINED);
-      return out;
-    });
-    utility::checkPortFabricReachability(
-        getAgentEnsemble(), SwitchID(0), fabricPortId);
+    auto drainPort = [&](bool drain) {
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        auto out = in->clone();
+        auto port = out->getPorts()->getNodeIf(fabricPortId);
+        auto newPort = port->modify(&out);
+        newPort->setPortDrainState(
+            drain ? cfg::PortDrainState::DRAINED
+                  : cfg::PortDrainState::UNDRAINED);
+        return out;
+      });
+      // Drained port == inactive, undrained port == active
+      auto expectActive = !drain;
+      WITH_RETRIES({
+        auto port = getProgrammedState()->getPorts()->getNodeIf(fabricPortId);
+        EXPECT_EVENTUALLY_TRUE(port->isActive().has_value());
+        EXPECT_EVENTUALLY_EQ(*port->isActive(), expectActive);
+      });
+      // Fabric reachability should be unchanged regardless of drain
+      utility::checkPortFabricReachability(
+          getAgentEnsemble(), SwitchID(0), fabricPortId);
+    };
+    drainPort(true);
+    drainPort(false);
   };
   verifyAcrossWarmBoots([] {}, verify);
 }
@@ -273,4 +287,36 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, verifyNifMulticastTrafficDropped) {
   verifyAcrossWarmBoots(setup, verify);
 }
 
+TEST_F(AgentVoqSwitchWithFabricPortsTest, overdrainPct) {
+  auto setup = []() {};
+  auto verify = [this]() {
+    WITH_RETRIES({
+      EXPECT_EVENTUALLY_EQ(
+          0, fb303::fbData->getCounter("switch.0.fabric_overdrain_pct"));
+    });
+    auto enableFabPorts = [this](bool enable) {
+      auto cfg = initialConfig(*getAgentEnsemble());
+      for (auto& port : *cfg.ports()) {
+        if (*port.portType() == cfg::PortType::FABRIC_PORT) {
+          port.state() =
+              enable ? cfg::PortState::ENABLED : cfg::PortState::DISABLED;
+        }
+      }
+      applyNewConfig(cfg);
+    };
+    // Disable all fabric port
+    enableFabPorts(false);
+    WITH_RETRIES({
+      EXPECT_EVENTUALLY_EQ(
+          100, fb303::fbData->getCounter("switch.0.fabric_overdrain_pct"));
+    });
+    // Enable all fabric port
+    enableFabPorts(true);
+    WITH_RETRIES({
+      EXPECT_EVENTUALLY_EQ(
+          0, fb303::fbData->getCounter("switch.0.fabric_overdrain_pct"));
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
 } // namespace facebook::fboss
