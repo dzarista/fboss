@@ -62,6 +62,7 @@ elseif (SAI_BRCM_IMPL)
     fboss/agent/hw/sai/switch/npu/bcm/SaiPortManager.cpp
     fboss/agent/hw/sai/switch/npu/bcm/SaiSwitchManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiAclTableManager.cpp
+    fboss/agent/hw/sai/api/bcm/DebugCounterApi.cpp
   )
 else()
   list(APPEND SAI_SWITCH_SRC
