@@ -1,7 +1,7 @@
 #!/bin/bash
 
 READY_FLAG="/tmp/platform_manager_ready.flag"
-PM_SUCCESS_LOG="SUCCESS. Completed setting up all the devices."
+PM_SUCCESS_LOG="Completed setting up"
 
 BIN=/opt/fboss/bin/platform_manager
 CONF=/opt/fboss/share/platform_configs/platform_manager.json
