@@ -208,6 +208,7 @@ then
    rm -rf $SCRATCH_DIR/extracted
    rm -rf $SCRATCH_DIR/repos
    rm -rf "$SCRATCH_DIR"/fboss_bins*
+   make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
 fi
 cd $FBOSS_DIR/fboss.git
 
@@ -303,6 +304,10 @@ else
    lib_path=$(find "$SCRATCH_DIR/installed" -name $lib)
    echo "Copying $lib from $lib_path to $fboss_output_dir/lib64"
    cp -L $lib_path $fboss_output_dir/lib64
+
+   # build bsp-kmods
+   echo "****BUILDING BSP-KMODS"
+   make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods modules
 
    # Copy over kernel modules
    mkdir -p "$fboss_output_dir/lib/modules"
