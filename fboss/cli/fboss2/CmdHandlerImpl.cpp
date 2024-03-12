@@ -44,9 +44,13 @@
 #include "fboss/cli/fboss2/commands/show/fabric/reachability/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/flowlet/CmdShowFlowlet.h"
 #include "fboss/cli/fboss2/commands/show/host/CmdShowHost.h"
+#include "fboss/cli/fboss2/commands/show/hwagent/CmdShowHwAgentStatus.h"
 #include "fboss/cli/fboss2/commands/show/hwobject/CmdShowHwObject.h"
 #include "fboss/cli/fboss2/commands/show/interface/CmdShowInterface.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/CmdShowInterfaceCounters.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/CmdShowInterfaceCountersFec.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/ber/CmdShowInterfaceCountersFecBer.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/ber/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/mka/CmdShowInterfaceCountersMKA.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/mka/gen-cpp2/model_visitation.h"
@@ -54,6 +58,7 @@
 #include "fboss/cli/fboss2/commands/show/interface/errors/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/interface/flaps/CmdShowInterfaceFlaps.h"
 #include "fboss/cli/fboss2/commands/show/interface/flaps/gen-cpp2/model_visitation.h"
+#include "fboss/cli/fboss2/commands/show/interface/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/interface/phy/CmdShowInterfacePhy.h"
 #include "fboss/cli/fboss2/commands/show/interface/phy/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/interface/phymap/CmdShowInterfacePhymap.h"
@@ -138,9 +143,17 @@ template void
 CmdHandler<CmdShowProductDetails, CmdShowProductDetailsTraits>::run();
 template void CmdHandler<CmdShowHost, CmdShowHostTraits>::run();
 template void CmdHandler<CmdShowHwObject, CmdShowHwObjectTraits>::run();
+template void
+CmdHandler<CmdShowHwAgentStatus, CmdShowHwAgentStatusTraits>::run();
 template void CmdHandler<CmdShowInterface, CmdShowInterfaceTraits>::run();
 template void
 CmdHandler<CmdShowInterfaceCounters, CmdShowInterfaceCountersTraits>::run();
+template void CmdHandler<
+    CmdShowInterfaceCountersFec,
+    CmdShowInterfaceCountersFecTraits>::run();
+template void CmdHandler<
+    CmdShowInterfaceCountersFecBer,
+    CmdShowInterfaceCountersFecBerTraits>::run();
 template void CmdHandler<
     CmdShowInterfaceCountersMKA,
     CmdShowInterfaceCountersMKATraits>::run();
@@ -227,6 +240,12 @@ template const ValidFilterMapType CmdHandler<
     CmdShowInterfaceCountersMKA,
     CmdShowInterfaceCountersMKATraits>::getValidFilters();
 template const ValidFilterMapType CmdHandler<
+    CmdShowInterfaceCountersFec,
+    CmdShowInterfaceCountersFecTraits>::getValidFilters();
+template const ValidFilterMapType CmdHandler<
+    CmdShowInterfaceCountersFecBer,
+    CmdShowInterfaceCountersFecBerTraits>::getValidFilters();
+template const ValidFilterMapType CmdHandler<
     CmdShowInterfaceErrors,
     CmdShowInterfaceErrorsTraits>::getValidFilters();
 template const ValidFilterMapType CmdHandler<
@@ -259,6 +278,8 @@ template const ValidFilterMapType
 CmdHandler<CmdShowTransceiver, CmdShowTransceiverTraits>::getValidFilters();
 template const ValidFilterMapType
 CmdHandler<CmdShowCpuPort, CmdShowCpuPortTraits>::getValidFilters();
+template const ValidFilterMapType
+CmdHandler<CmdShowHwAgentStatus, CmdShowHwAgentStatusTraits>::getValidFilters();
 
 template const ValidFilterMapType
 CmdHandler<CmdClearInterface, CmdClearInterfaceTraits>::getValidFilters();
@@ -297,5 +318,7 @@ CmdHandler<CmdSetInterfacePrbs, CmdSetInterfacePrbsTraits>::getValidFilters();
 template const ValidFilterMapType CmdHandler<
     CmdSetInterfacePrbsState,
     CmdSetInterfacePrbsStateTraits>::getValidFilters();
+template const ValidFilterMapType
+CmdHandler<CmdShowAcl, CmdShowAclTraits>::getValidFilters();
 
 } // namespace facebook::fboss

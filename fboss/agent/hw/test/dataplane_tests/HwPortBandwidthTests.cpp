@@ -12,10 +12,10 @@
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
 
 #include <boost/range/combine.hpp>
 #include <folly/IPAddress.h>
@@ -62,7 +62,7 @@ class HwPortBandwidthTest : public HwLinkStateDependentTest {
   void disableTTLDecrements(
       const utility::EcmpSetupTargetedPorts6& ecmpHelper) {
     utility::ttlDecrementHandlingForLoopbackTraffic(
-        getHwSwitch(),
+        getHwSwitchEnsemble(),
         ecmpHelper.getRouterId(),
         ecmpHelper.nhop(PortDescriptor(masterLogicalInterfacePortIds()[0])));
   }

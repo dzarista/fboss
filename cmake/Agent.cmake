@@ -105,6 +105,7 @@ add_library(stats
   fboss/agent/InterfaceStats.cpp
   fboss/agent/PortStats.cpp
   fboss/agent/SwitchStats.cpp
+  fboss/agent/oss/SwitchStats.cpp
   fboss/agent/oss/AggregatePortStats.cpp
 )
 
@@ -517,11 +518,11 @@ target_link_libraries(monolithic_agent_initializer
   Folly::folly
 )
 
-add_library(non_monolithic_hw_switch_handler
-  fboss/agent/mnpu/NonMonolithicHwSwitchHandler.cpp
+add_library(multi_switch_hw_switch_handler
+  fboss/agent/mnpu/MultiSwitchHwSwitchHandler.cpp
 )
 
-target_link_libraries(non_monolithic_hw_switch_handler
+target_link_libraries(multi_switch_hw_switch_handler
   core
   packet
   stats
@@ -537,7 +538,7 @@ target_link_libraries(split_agent_initializer
   Folly::folly
   sw_agent_initializer
   multiswitch_service
-  non_monolithic_hw_switch_handler
+  multi_switch_hw_switch_handler
 )
 
 add_library(agent_dir_util

@@ -307,12 +307,20 @@ add_fbthrift_cpp_library(
     reflection
 )
 add_fbthrift_cpp_library(
+  link_cpp2
+  fboss/lib/phy/link.thrift
+  OPTIONS
+    json
+    reflection
+)
+add_fbthrift_cpp_library(
   transceiver_cpp2
   fboss/qsfp_service/if/transceiver.thrift
   OPTIONS
     json
     reflection
   DEPENDS
+    link_cpp2
     prbs_cpp2
 )
 add_fbthrift_cpp_library(
@@ -430,6 +438,7 @@ add_fbthrift_cpp_library(
     json
     reflection
   DEPENDS
+    agent_stats_cpp2
     fboss_cpp2
     fb303_cpp2
     mpls_cpp2
@@ -665,3 +674,12 @@ add_dependencies(qsfp_targets
   qsfp_hw_test
   wedge_qsfp_util
 )
+
+if (BUILD_SAI_FAKE)
+add_custom_target(fboss_fake_agent_targets)
+add_dependencies(fboss_fake_agent_targets
+  sai_test-fake
+  sai_agent_hw_test-fake
+  multi_switch_agent_hw_test
+)
+endif()

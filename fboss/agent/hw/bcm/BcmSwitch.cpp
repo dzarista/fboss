@@ -124,6 +124,8 @@
 #include "fboss/agent/state/VlanMapDelta.h"
 #include "fboss/agent/types.h"
 
+#include "fboss/agent/hw/bcm/BcmHostUtils.h"
+
 extern "C" {
 #include <bcm/link.h>
 #include <bcm/port.h>
@@ -2682,6 +2684,10 @@ void BcmSwitch::processAddedAndChangedNeighbor(
         getPortTable()->getBcmPortId(port),
         entry->getClassID());
   }
+
+  if (auto disableTTLDecrement = entry->getDisableTTLDecrement()) {
+    setTTLDecrement(this, neighborKey, disableTTLDecrement.value());
+  }
   std::for_each(
       writableMplsNextHopTable()->getNextHops().begin(),
       writableMplsNextHopTable()->getNextHops().end(),
@@ -3449,8 +3455,7 @@ prbs::InterfacePrbsState BcmSwitch::getPortPrbsState(PortID portId) {
   return getBcmPortPrbsState(unit_, portTable_->getBcmPortId(portId));
 }
 
-std::vector<phy::PrbsLaneStats> BcmSwitch::getPortAsicPrbsStats(
-    int32_t portId) {
+std::vector<phy::PrbsLaneStats> BcmSwitch::getPortAsicPrbsStats(PortID portId) {
   return bcmStatUpdater_->getPortAsicPrbsStats(portId);
 }
 
@@ -4220,6 +4225,16 @@ void BcmSwitch::syncLinkStates() {
       callback_->linkStateChanged(port.first, port.second->isUp());
     }
   });
+}
+
+CpuPortStats BcmSwitch::getCpuPortStats(bool getIncrement) const {
+  CpuPortStats cpuPortStats;
+  auto queueManager = getControlPlane()->getQueueManager();
+  cpuPortStats.queueInPackets_() = queueManager->getQueueStats(
+      BcmCosQueueStatType::OUT_PACKETS, getIncrement);
+  cpuPortStats.queueDiscardPackets_() = queueManager->getQueueStats(
+      BcmCosQueueStatType::DROPPED_PACKETS, getIncrement);
+  return cpuPortStats;
 }
 
 } // namespace facebook::fboss

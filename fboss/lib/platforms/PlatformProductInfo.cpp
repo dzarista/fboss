@@ -13,9 +13,9 @@
 #include <boost/algorithm/string.hpp>
 #include <folly/FileUtil.h>
 #include <folly/MacAddress.h>
-#include <folly/dynamic.h>
 #include <folly/experimental/TestUtil.h>
-#include <folly/json.h>
+#include <folly/json/dynamic.h>
+#include <folly/json/json.h>
 #include <folly/logging/xlog.h>
 
 namespace {
@@ -149,7 +149,8 @@ void PlatformProductInfo::initMode() {
         modelName.find("Meru800bia") == 0 ||
         modelName.find("MERU800BIA") == 0 ||
         modelName.find("ASY-92458-101") == 0 ||
-        modelName.find("ASY-92493-104") == 0) {
+        modelName.find("ASY-92493-104") == 0 ||
+        modelName.find("ASY-92458-104") == 0) {
       type_ = PlatformType::PLATFORM_MERU800BIA;
     } else if (
         modelName.find("Meru800bfa") == 0 ||
@@ -226,6 +227,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_JANGA800BIC;
     } else if (FLAGS_mode == "tahan800bc") {
       type_ = PlatformType::PLATFORM_TAHAN800BC;
+    } else if (FLAGS_mode == "morgan800cc") {
+      type_ = PlatformType::PLATFORM_MORGAN800CC;
     } else {
       throw std::runtime_error("invalid mode " + FLAGS_mode);
     }

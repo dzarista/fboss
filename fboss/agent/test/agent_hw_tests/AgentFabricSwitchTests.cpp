@@ -4,8 +4,8 @@
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/hw/HwSwitchFb303Stats.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwTestFabricUtils.h"
 #include "fboss/agent/test/AgentHwTest.h"
+#include "fboss/agent/test/utils/FabricTestUtils.h"
 
 DECLARE_bool(enable_stats_update_thread);
 
@@ -14,9 +14,6 @@ class AgentFabricSwitchTest : public AgentHwTest {
  public:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    // Disable sw stats update thread
-    FLAGS_enable_stats_update_thread = false;
-
     auto config = utility::onePortPerInterfaceConfig(
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
@@ -24,7 +21,8 @@ class AgentFabricSwitchTest : public AgentHwTest {
         false /*setInterfaceMac*/,
         utility::kBaseVlanId,
         true /*enable fabric ports*/);
-    populatePortExpectedNeighbors(ensemble.masterLogicalPortIds(), config);
+    utility::populatePortExpectedNeighbors(
+        ensemble.masterLogicalPortIds(), config);
     return config;
   }
 
@@ -81,7 +79,9 @@ TEST_F(AgentFabricSwitchTest, checkFabricReachabilityStats) {
   };
   auto verify = [this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    checkFabricReachabilityStats(getAgentEnsemble());
+    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+      utility::checkFabricReachabilityStats(getAgentEnsemble(), switchId);
+    }
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -97,7 +97,9 @@ TEST_F(AgentFabricSwitchTest, collectStats) {
 TEST_F(AgentFabricSwitchTest, checkFabricReachability) {
   auto verify = [this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    checkFabricReachability(getAgentEnsemble());
+    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+      utility::checkFabricReachability(getAgentEnsemble(), switchId);
+    }
   };
   verifyAcrossWarmBoots([] {}, verify);
 }
@@ -120,7 +122,10 @@ TEST_F(AgentFabricSwitchTest, fabricIsolate) {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
     auto fabricPortId =
         PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
-    checkPortFabricReachability(getAgentEnsemble(), fabricPortId);
+    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+      utility::checkPortFabricReachability(
+          getAgentEnsemble(), switchId, fabricPortId);
+    }
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -132,7 +137,9 @@ TEST_F(AgentFabricSwitchTest, fabricSwitchIsolate) {
 
   auto verify = [=, this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    checkFabricReachability(getAgentEnsemble());
+    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+      utility::checkFabricReachability(getAgentEnsemble(), switchId);
+    }
   };
   verifyAcrossWarmBoots(setup, verify);
 }

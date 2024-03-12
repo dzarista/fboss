@@ -9,8 +9,8 @@
  */
 #pragma once
 
-#include <folly/dynamic.h>
 #include <folly/io/async/EventBase.h>
+#include <folly/json/dynamic.h>
 #include <gtest/gtest_prod.h>
 #include <optional>
 #include "fboss/agent/HwSwitch.h"
@@ -394,9 +394,7 @@ class BcmSwitch : public BcmSwitchIf {
     return {};
   }
 
-  CpuPortStats getCpuPortStats(bool /*getIncrement*/) const override {
-    throw FbossError("Unsupported platform for retrieving cpuPort stats");
-  }
+  CpuPortStats getCpuPortStats(bool getIncrement) const override;
 
   uint64_t getDeviceWatermarkBytes() const override;
 
@@ -570,7 +568,7 @@ class BcmSwitch : public BcmSwitchIf {
   void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
-  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(int32_t portId) override;
+  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId) override;
   void clearPortAsicPrbsStats(int32_t portId) override;
 
   std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(

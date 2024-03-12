@@ -37,8 +37,12 @@
 
 #include <fmt/ranges.h>
 
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX)
+#ifndef IS_OSS_BRCM_SAI
+#include <experimental/saiportextensions.h>
+#else
 #include <saiportextensions.h>
+#endif
 #endif
 
 DEFINE_bool(
@@ -891,8 +895,61 @@ void SaiPortManager::programPfcBuffers(const std::shared_ptr<Port>& swPort) {
   }
 }
 
+sai_port_prbs_config_t SaiPortManager::getSaiPortPrbsConfig(
+    bool enabled) const {
+  if (enabled) {
+    return SAI_PORT_PRBS_CONFIG_ENABLE_TX_RX;
+  } else {
+    return SAI_PORT_PRBS_CONFIG_DISABLE;
+  }
+}
+
+double SaiPortManager::calculateLaneRate(const std::shared_ptr<Port>& swPort) {
+  auto portID = swPort->getID();
+  auto platformPort = platform_->getPort(portID);
+  auto speed = static_cast<int>(swPort->getSpeed());
+  auto hwLaneList = platformPort->getHwPortLanes(swPort->getProfileID());
+  double laneRateGb = speed / kSpeedConversionFactor / hwLaneList.size();
+  return laneRateGb * kLaneRateConversionFactor;
+}
+
+void SaiPortManager::updateLaneRate(const std::shared_ptr<Port>& swPort) {
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::SAI_PRBS)) {
+    return;
+  }
+  auto portID = swPort->getID();
+  auto laneRate = calculateLaneRate(swPort);
+  auto portAsicPrbsStatsItr = portAsicPrbsStats_.find(portID);
+  if (portAsicPrbsStatsItr == portAsicPrbsStats_.end()) {
+    throw FbossError(
+        "Asic prbs lane error map not initialized for port ", portID);
+  }
+  auto& lanePrbsStatsTable = portAsicPrbsStatsItr->second;
+  for (auto& lanePrbsStatsEntry : lanePrbsStatsTable) {
+    lanePrbsStatsEntry.setLaneRate(laneRate);
+  }
+}
+
+void SaiPortManager::initAsicPrbsStats(const std::shared_ptr<Port>& swPort) {
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::SAI_PRBS)) {
+    return;
+  }
+  auto portID = swPort->getID();
+  auto platformPort = platform_->getPort(portID);
+  auto hwLaneList = platformPort->getHwPortLanes(swPort->getProfileID());
+  auto laneRate = calculateLaneRate(swPort);
+  auto lanePrbsStatsTable = LanePrbsStatsTable();
+  // Each lane on port should have its own PRBS stats.
+  for (auto& hwLane : hwLaneList) {
+    lanePrbsStatsTable.push_back(
+        LanePrbsStatsEntry(hwLane, swPort->getID(), laneRate));
+  }
+  portAsicPrbsStats_[swPort->getID()] = std::move(lanePrbsStatsTable);
+}
+
 PortSaiId SaiPortManager::addPort(const std::shared_ptr<Port>& swPort) {
   setPortType(swPort->getID(), swPort->getPortType());
+  initAsicPrbsStats(swPort);
   auto portSaiId = addPortImpl(swPort);
   concurrentIndices_->portSaiId2PortInfo.emplace(
       portSaiId,
@@ -1022,6 +1079,7 @@ void SaiPortManager::removePort(const std::shared_ptr<Port>& swPort) {
   portStats_.erase(swId);
   port2SupportedStats_.erase(swId);
   port2PortType_.erase(swId);
+  portAsicPrbsStats_.erase(swId);
   // TODO: do FDB entries associated with this port need to be removed
   // now?
   XLOG(DBG2) << "removed port " << swPort->getID() << " with vlan "
@@ -1211,6 +1269,15 @@ void SaiPortManager::changeMirror(
 bool SaiPortManager::createOnlyAttributeChanged(
     const SaiPortTraits::CreateAttributes& oldAttributes,
     const SaiPortTraits::CreateAttributes& newAttributes) {
+  // The SAI_PORT_SPEED_CHANGE is the feature which allows port speed change
+  // with a delete and recreate. This feature however is not support for
+  // TAJO SDK 1.42.8 and hence would need to fall back to the SAI port speed
+  // change API to achieve the same. However, the SAI api based speed change
+  // is possible only when the number of lanes are not changing, so the current
+  // use case of 100G <-> 200G would work, but not potential future use cases
+  // like 200G <-> 400G and 400G <-> 100G.  The SAI_PORT_SPEED_CHANGE will be
+  // supported in future releases like TAJO SDK 1.65.0 and should be enabled
+  // once validated.
   return (std::get<SaiPortTraits::Attributes::HwLaneList>(oldAttributes) !=
           std::get<SaiPortTraits::Attributes::HwLaneList>(newAttributes)) ||
       (platform_->getAsic()->isSupported(
@@ -1541,7 +1608,50 @@ std::optional<FabricEndpoint> SaiPortManager::getFabricReachabilityForPort(
   return endpoint;
 }
 
-void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
+std::vector<phy::PrbsLaneStats> SaiPortManager::getPortAsicPrbsStats(
+    PortID portId) {
+  std::vector<phy::PrbsLaneStats> prbsStats;
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::SAI_PRBS)) {
+    return prbsStats;
+  }
+#if SAI_API_VERSION >= SAI_VERSION(1, 8, 1)
+  auto* handle = getPortHandleImpl(PortID(portId));
+  auto prbsRxState = SaiApiTable::getInstance()->portApi().getAttribute(
+      handle->port->adapterKey(), SaiPortTraits::Attributes::PrbsRxState{});
+  auto portAsicPrbsStatsItr = portAsicPrbsStats_.find(portId);
+  if (portAsicPrbsStatsItr == portAsicPrbsStats_.end()) {
+    throw FbossError(
+        "Asic prbs lane error map not initialized for port ", portId);
+  }
+  auto& lanePrbsStatsTable = portAsicPrbsStatsItr->second;
+  // Dump cumulative PRBS stats on first LanePrbsStatsEntry because there is no
+  // per-lane PRBS counter available in SAI.
+  auto& firstLanePrbsStatsEntry = lanePrbsStatsTable.front();
+  switch (prbsRxState.rx_status) {
+    case SAI_PORT_PRBS_RX_STATUS_OK:
+      firstLanePrbsStatsEntry.handleOk();
+      break;
+    case SAI_PORT_PRBS_RX_STATUS_LOCK_WITH_ERRORS:
+      firstLanePrbsStatsEntry.handleLockWithErrors(prbsRxState.error_count);
+      break;
+    case SAI_PORT_PRBS_RX_STATUS_NOT_LOCKED:
+      firstLanePrbsStatsEntry.handleNotLocked();
+      break;
+    case SAI_PORT_PRBS_RX_STATUS_LOST_LOCK:
+      firstLanePrbsStatsEntry.handleLossOfLock();
+      break;
+  }
+  for (const auto& lanePrbsStatsEntry : lanePrbsStatsTable) {
+    prbsStats.push_back(lanePrbsStatsEntry.getPrbsLaneStats());
+  }
+#endif
+  return prbsStats;
+}
+
+void SaiPortManager::updateStats(
+    PortID portId,
+    bool updateWatermarks,
+    int isConnectivityInfoMismatch) {
   auto handlesItr = handles_.find(portId);
   if (handlesItr == handles_.end()) {
     return;
@@ -1568,6 +1678,7 @@ void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
   setUninitializedStatsToZero(*curPortStats.inDiscardsRaw_());
   setUninitializedStatsToZero(*curPortStats.inPause_());
 
+  curPortStats.fabricConnectivityMismatch() = isConnectivityInfoMismatch;
   curPortStats.timestamp_() = now.count();
   handle->port->updateStats(supportedStats(portId), SAI_STATS_MODE_READ);
 
@@ -2291,8 +2402,7 @@ std::vector<sai_port_lane_latch_status_t> SaiPortManager::getRxSignalDetect(
     uint8_t numPmdLanes,
     PortID portID) const {
   if (!platform_->getAsic()->isSupported(
-          HwAsic::Feature::PMD_RX_SIGNAL_DETECT) ||
-      getPortType(portID) == cfg::PortType::MANAGEMENT_PORT) {
+          HwAsic::Feature::PMD_RX_SIGNAL_DETECT)) {
     return std::vector<sai_port_lane_latch_status_t>();
   }
 

@@ -44,6 +44,8 @@ constexpr int kUsecDiagSelectLatchWait = 10000;
 constexpr int kUsecAfterAppProgramming = 500000;
 constexpr int kUsecDatapathStateUpdateTime = 5000000; // 5 seconds
 constexpr int kUsecDatapathStatePollTime = 500000; // 500 ms
+constexpr double kU16TypeLsbDivisor = 256.0;
+constexpr int kVdmDescriptorLength = 2;
 
 std::array<std::string, 9> channelConfigErrorMsg = {
     "No status available, config under progress",
@@ -68,33 +70,6 @@ enum DiagnosticFeatureEncoding {
   BER = 0x1,
   SNR = 0x6,
   LATCHED_BER = 0x11,
-};
-
-enum VdmConfigType {
-  UNSUPPORTED = 0,
-  SNR_MEDIA_IN = 5,
-  SNR_HOST_IN = 6,
-  PRE_FEC_BER_MEDIA_IN_MIN = 9,
-  PRE_FEC_BER_HOST_IN_MIN = 10,
-  PRE_FEC_BER_MEDIA_IN_MAX = 11,
-  PRE_FEC_BER_HOST_IN_MAX = 12,
-  PRE_FEC_BER_MEDIA_IN_AVG = 13,
-  PRE_FEC_BER_HOST_IN_AVG = 14,
-  PRE_FEC_BER_MEDIA_IN_CUR = 15,
-  PRE_FEC_BER_HOST_IN_CUR = 16,
-  ERR_FRAME_MEDIA_IN_MIN = 17,
-  ERR_FRAME_HOST_IN_MIN = 18,
-  ERR_FRAME_MEDIA_IN_MAX = 19,
-  ERR_FRAME_HOST_IN_MAX = 20,
-  ERR_FRAME_MEDIA_IN_AVG = 21,
-  ERR_FRAME_HOST_IN_AVG = 22,
-  ERR_FRAME_MEDIA_IN_CUR = 23,
-  ERR_FRAME_HOST_IN_CUR = 24,
-  PAM4_LEVEL0_STANDARD_DEVIATION_LINE = 100,
-  PAM4_LEVEL1_STANDARD_DEVIATION_LINE = 101,
-  PAM4_LEVEL2_STANDARD_DEVIATION_LINE = 102,
-  PAM4_LEVEL3_STANDARD_DEVIATION_LINE = 103,
-  PAM4_MPI_LINE = 104,
 };
 
 // As per CMIS4.0
@@ -285,6 +260,7 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     // Page 20h
     {CmisField::PAGE_UPPER20H, {CmisPages::PAGE20, 128, 128}},
     {CmisField::VDM_CONF_SNR_MEDIA_IN, {CmisPages::PAGE20, 128, 8}},
+    {CmisField::VDM_CONF_PAM4_LTP_MEDIA_IN, {CmisPages::PAGE20, 136, 8}},
     {CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_MIN, {CmisPages::PAGE20, 144, 2}},
     {CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_MAX, {CmisPages::PAGE20, 146, 2}},
     {CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_AVG, {CmisPages::PAGE20, 148, 2}},
@@ -313,6 +289,7 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     // Page 24h
     {CmisField::PAGE_UPPER24H, {CmisPages::PAGE24, 128, 128}},
     {CmisField::VDM_VAL_SNR_MEDIA_IN, {CmisPages::PAGE24, 128, 8}},
+    {CmisField::VDM_VAL_PAM4_LTP_MEDIA_IN, {CmisPages::PAGE24, 136, 8}},
     {CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_MIN, {CmisPages::PAGE24, 144, 2}},
     {CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_MAX, {CmisPages::PAGE24, 146, 2}},
     {CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_AVG, {CmisPages::PAGE24, 148, 2}},
@@ -486,6 +463,36 @@ uint8_t laneMask(uint8_t startLane, uint8_t numLanes) {
   return ((1 << numLanes) - 1) << startLane;
 }
 
+bool isValidVdmConfigType(int vdmConf) {
+  if (vdmConf == static_cast<int>(SNR_MEDIA_IN) ||
+      vdmConf == static_cast<int>(SNR_HOST_IN) ||
+      vdmConf == static_cast<int>(PAM4_LTP_MEDIA_IN) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_MEDIA_IN_MIN) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_HOST_IN_MIN) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_MEDIA_IN_MAX) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_HOST_IN_MAX) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_MEDIA_IN_AVG) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_HOST_IN_AVG) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_MEDIA_IN_CUR) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_HOST_IN_CUR) ||
+      vdmConf == static_cast<int>(ERR_FRAME_MEDIA_IN_MIN) ||
+      vdmConf == static_cast<int>(ERR_FRAME_HOST_IN_MIN) ||
+      vdmConf == static_cast<int>(ERR_FRAME_MEDIA_IN_MAX) ||
+      vdmConf == static_cast<int>(ERR_FRAME_HOST_IN_MAX) ||
+      vdmConf == static_cast<int>(ERR_FRAME_MEDIA_IN_AVG) ||
+      vdmConf == static_cast<int>(ERR_FRAME_HOST_IN_AVG) ||
+      vdmConf == static_cast<int>(ERR_FRAME_MEDIA_IN_CUR) ||
+      vdmConf == static_cast<int>(ERR_FRAME_HOST_IN_CUR) ||
+      vdmConf == static_cast<int>(PAM4_LEVEL0_STANDARD_DEVIATION_LINE) ||
+      vdmConf == static_cast<int>(PAM4_LEVEL1_STANDARD_DEVIATION_LINE) ||
+      vdmConf == static_cast<int>(PAM4_LEVEL2_STANDARD_DEVIATION_LINE) ||
+      vdmConf == static_cast<int>(PAM4_LEVEL3_STANDARD_DEVIATION_LINE) ||
+      vdmConf == static_cast<int>(PAM4_MPI_LINE)) {
+    return true;
+  }
+  return false;
+}
+
 std::optional<CmisModule::ApplicationAdvertisingField>
 CmisModule::getApplicationField(uint8_t application, uint8_t startHostLane)
     const {
@@ -503,8 +510,9 @@ CmisModule::getApplicationField(uint8_t application, uint8_t startHostLane)
 
 CmisModule::CmisModule(
     TransceiverManager* transceiverManager,
-    TransceiverImpl* qsfpImpl)
-    : QsfpModule(transceiverManager, qsfpImpl) {}
+    TransceiverImpl* qsfpImpl,
+    std::shared_ptr<const TransceiverConfig> cfg)
+    : QsfpModule(transceiverManager, qsfpImpl), tcvrConfig_(std::move(cfg)) {}
 
 CmisModule::~CmisModule() {}
 
@@ -1371,6 +1379,87 @@ SignalFlags CmisModule::getSignalFlagInfo() {
   return signalFlags;
 }
 
+/*
+ * updateVdmDiagsValLocation
+ *
+ * This function scans the VDM config pages by looking into each 2 byte
+ * descriptors. It builds up the mapping from VDM config type to the VDM value
+ * location (page, offset and length). These config could be module based config
+ * or lane/datapath based config. The function updates the lowest offset of the
+ * corresponding VDM data value. For config present in VDM page 0x20-23, the
+ * coresponding data is present in VDM pages 0x24-27
+ */
+void CmisModule::updateVdmDiagsValLocation() {
+  if (!cacheIsValid() || !isVdmSupported()) {
+    QSFP_LOG(DBG2, this) << "Module does not support VDM diagnostics";
+    return;
+  }
+
+  // The VdmConf can be present at any offset from page 0x20 to 0x22. Check all
+  // the descriptors (2 bytes) on these pages
+  std::vector<CmisField> cmisVdmConfPages = {
+      CmisField::PAGE_UPPER20H, CmisField::PAGE_UPPER21H};
+  if (isVdmSupported(3)) {
+    cmisVdmConfPages.push_back(CmisField::PAGE_UPPER22H);
+  }
+
+  for (auto field : cmisVdmConfPages) {
+    int page;
+    int startOffset;
+    int endOffset;
+    int length;
+    uint8_t data[128];
+    const uint8_t* dataPtr = data;
+    getQsfpFieldAddress(field, page, startOffset, length);
+    endOffset = startOffset + length - 1;
+    readFromCacheOrHw(field, data, true);
+
+    // Each 2 byte descriptor:
+    //    byte_1[7..0] -> VDM config type
+    enum VdmConfigType lastConfig = UNSUPPORTED;
+    for (auto offset = startOffset; offset <= endOffset;
+         offset += kVdmDescriptorLength, dataPtr += kVdmDescriptorLength) {
+      if (isValidVdmConfigType(dataPtr[1])) {
+        if (static_cast<VdmConfigType>(dataPtr[1]) == lastConfig) {
+          vdmConfigDataLocations_[lastConfig].vdmValLength += 2;
+        } else {
+          VdmDiagsLocationStatus vdmConfStatus;
+          vdmConfStatus.vdmConfImplementedByModule = true;
+          vdmConfStatus.vdmValPage = static_cast<CmisPages>(page + 4);
+          vdmConfStatus.vdmValOffset = offset;
+          vdmConfStatus.vdmValLength = 2;
+          lastConfig = static_cast<VdmConfigType>(dataPtr[1]);
+          vdmConfigDataLocations_[lastConfig] = vdmConfStatus;
+        }
+      }
+    }
+  }
+
+  QSFP_LOG(DBG2, this) << "Module's VDM Config Locations found:";
+  for (auto& it : vdmConfigDataLocations_) {
+    QSFP_LOG(DBG2, this) << "VDM Config Type: " << static_cast<int>(it.first)
+                         << ", Page: " << static_cast<int>(it.second.vdmValPage)
+                         << ", Offset: " << it.second.vdmValOffset
+                         << ", Length: " << it.second.vdmValLength;
+  }
+}
+
+/*
+ * getVdmDiagsValLocation
+ *
+ * For a given VDM config type, this function returns the VDM data location
+ * values.
+ */
+CmisModule::VdmDiagsLocationStatus CmisModule::getVdmDiagsValLocation(
+    VdmConfigType vdmConf) const {
+  // Try to return VDM data location info now. If still no info available then
+  // return empty values
+  if (vdmConfigDataLocations_.find(vdmConf) == vdmConfigDataLocations_.end()) {
+    return CmisModule::VdmDiagsLocationStatus{};
+  }
+  return vdmConfigDataLocations_.at(vdmConf);
+}
+
 std::optional<VdmDiagsStats> CmisModule::getVdmDiagsStatsInfo() {
   VdmDiagsStats vdmStats;
   const uint8_t* data;
@@ -1385,22 +1474,20 @@ std::optional<VdmDiagsStats> CmisModule::getVdmDiagsStatsInfo() {
   vdmStats.statsCollectionTme() = WallClockUtil::NowInSecFast();
 
   // Fill in channel SNR Media In
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_SNR_MEDIA_IN, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  uint8_t vdmConfType = data[1];
-  if (vdmConfType == SNR_MEDIA_IN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_SNR_MEDIA_IN, dataAddress, offset, length);
+  auto vdmDiagsValLocation = getVdmDiagsValLocation(SNR_MEDIA_IN);
+  if (vdmDiagsValLocation.vdmConfImplementedByModule) {
+    dataAddress = static_cast<int>(vdmDiagsValLocation.vdmValPage);
+    offset = vdmDiagsValLocation.vdmValOffset;
+    length = vdmDiagsValLocation.vdmValLength;
     data = getQsfpValuePtr(dataAddress, offset, length);
     for (auto lanes = 0; lanes < length / 2; lanes++) {
       double snr;
-      snr = data[lanes * 2] + (data[lanes * 2 + 1] / 256.0);
+      snr = data[lanes * 2] + (data[lanes * 2 + 1] / kU16TypeLsbDivisor);
       vdmStats.eSnrMediaChannel()[lanes] = snr;
     }
   }
 
-  // Helper function to convert U16 format to double
+  // Lambda to convert U16 format to double
   auto f16ToDouble = [](uint8_t byte0, uint8_t byte1) -> double {
     double ber;
     int expon = byte0 >> 3;
@@ -1410,235 +1497,99 @@ std::optional<VdmDiagsStats> CmisModule::getVdmDiagsStatsInfo() {
     return ber;
   };
 
+  // Lambda to extract BER or Frame Error values for a given VDM config type
+  auto captureVdmBerFrameErrorValues =
+      [&](VdmConfigType vdmConfType) -> std::optional<double> {
+    vdmDiagsValLocation = getVdmDiagsValLocation(vdmConfType);
+    if (vdmDiagsValLocation.vdmConfImplementedByModule) {
+      dataAddress = static_cast<int>(vdmDiagsValLocation.vdmValPage);
+      offset = vdmDiagsValLocation.vdmValOffset;
+      length = vdmDiagsValLocation.vdmValLength;
+      data = getQsfpValuePtr(dataAddress, offset, length);
+      return f16ToDouble(data[0], data[1]);
+    }
+    return std::nullopt;
+  };
+
   // Fill in Media Pre FEC BER values
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_MIN,
-      dataAddress,
-      offset,
-      length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_MEDIA_IN_MIN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_MIN,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerMediaMin() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_MEDIA_IN_MIN)) {
+    vdmStats.preFecBerMediaMin() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_MAX,
-      dataAddress,
-      offset,
-      length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_MEDIA_IN_MAX) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_MAX,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerMediaMax() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_MEDIA_IN_MAX)) {
+    vdmStats.preFecBerMediaMax() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_AVG,
-      dataAddress,
-      offset,
-      length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_MEDIA_IN_AVG) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_AVG,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerMediaAvg() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_MEDIA_IN_AVG)) {
+    vdmStats.preFecBerMediaAvg() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_CUR,
-      dataAddress,
-      offset,
-      length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_MEDIA_IN_CUR) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_CUR,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerMediaCur() = f16ToDouble(data[0], data[1]);
-  }
-
-  // Fill in Media Post FEC Errored Frames values
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_MEDIA_IN_MIN, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_MEDIA_IN_MIN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_MEDIA_IN_MIN, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameMediaMin() = f16ToDouble(data[0], data[1]);
-  }
-
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_MEDIA_IN_MAX, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_MEDIA_IN_MAX) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_MEDIA_IN_MAX, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameMediaMax() = f16ToDouble(data[0], data[1]);
-  }
-
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_MEDIA_IN_AVG, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_MEDIA_IN_AVG) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_MEDIA_IN_AVG, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameMediaAvg() = f16ToDouble(data[0], data[1]);
-  }
-
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_MEDIA_IN_CUR, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_MEDIA_IN_CUR) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_MEDIA_IN_CUR, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameMediaCur() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_MEDIA_IN_CUR)) {
+    vdmStats.preFecBerMediaCur() = berVal.value();
   }
 
   // Fill in Host Pre FEC BER values
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_HOST_IN_MIN, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_HOST_IN_MIN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_HOST_IN_MIN,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerHostMin() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_MIN)) {
+    vdmStats.preFecBerHostMin() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_HOST_IN_MAX, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_HOST_IN_MAX) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_HOST_IN_MAX,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerHostMax() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_MAX)) {
+    vdmStats.preFecBerHostMax() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_HOST_IN_AVG, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_HOST_IN_AVG) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_HOST_IN_AVG,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerHostAvg() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_AVG)) {
+    vdmStats.preFecBerHostAvg() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_HOST_IN_CUR, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_HOST_IN_CUR) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_HOST_IN_CUR,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerHostCur() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_CUR)) {
+    vdmStats.preFecBerHostCur() = berVal.value();
+  }
+
+  // Fill in Media Post FEC Errored Frames values
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_MIN)) {
+    vdmStats.errFrameMediaMin() = errFrames.value();
+  }
+
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_MAX)) {
+    vdmStats.errFrameMediaMax() = errFrames.value();
+  }
+
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_AVG)) {
+    vdmStats.errFrameMediaAvg() = errFrames.value();
+  }
+
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_CUR)) {
+    vdmStats.errFrameMediaCur() = errFrames.value();
   }
 
   // Fill in Host Post FEC Errored Frame values
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_HOST_IN_MIN, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_HOST_IN_MIN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_HOST_IN_MIN, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameHostMin() = f16ToDouble(data[0], data[1]);
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_MIN)) {
+    vdmStats.errFrameHostMin() = errFrames.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_HOST_IN_MAX, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_HOST_IN_MAX) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_HOST_IN_MAX, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameHostMax() = f16ToDouble(data[0], data[1]);
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_MAX)) {
+    vdmStats.errFrameHostMax() = errFrames.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_HOST_IN_AVG, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_HOST_IN_AVG) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_HOST_IN_AVG, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameHostAvg() = f16ToDouble(data[0], data[1]);
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_AVG)) {
+    vdmStats.errFrameHostAvg() = errFrames.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_HOST_IN_CUR, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_HOST_IN_CUR) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_HOST_IN_CUR, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameHostCur() = f16ToDouble(data[0], data[1]);
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_CUR)) {
+    vdmStats.errFrameHostCur() = errFrames.value();
   }
 
   // Fill in VDM Advance group3 performance monitoring info
   if (isVdmSupported(3)) {
     // Lambda to read the VDM PM value for the given VDM Config
     auto getVdmPmLaneValues =
-        [&](CmisField cmisConfField,
-            CmisField cmisValField,
-            VdmConfigType vdmConf) -> std::map<int, double> {
-      getQsfpFieldAddress(cmisConfField, dataAddress, offset, length);
-      data = getQsfpValuePtr(dataAddress, offset, length);
+        [&](VdmConfigType vdmConf) -> std::map<int, double> {
       std::map<int, double> pmMap;
-      uint8_t vdmConfType = data[1];
-      if (vdmConfType == vdmConf) {
-        getQsfpFieldAddress(cmisValField, dataAddress, offset, length);
+      vdmDiagsValLocation = getVdmDiagsValLocation(vdmConf);
+      if (vdmDiagsValLocation.vdmConfImplementedByModule) {
+        dataAddress = static_cast<int>(vdmDiagsValLocation.vdmValPage);
+        offset = vdmDiagsValLocation.vdmValOffset;
+        length = vdmDiagsValLocation.vdmValLength;
         data = getQsfpValuePtr(dataAddress, offset, length);
         for (auto lanes = 0; lanes < length / 2; lanes++) {
           double pmVal;
@@ -1650,48 +1601,47 @@ std::optional<VdmDiagsStats> CmisModule::getVdmDiagsStatsInfo() {
     };
 
     // PAM4 Level0
-    auto sdL0Map = getVdmPmLaneValues(
-        CmisField::VDM_CONF_PAM4_LEVEL0_SD_LINE,
-        CmisField::VDM_VAL_PAM4_LEVEL0_SD_LINE,
-        PAM4_LEVEL0_STANDARD_DEVIATION_LINE);
+    auto sdL0Map = getVdmPmLaneValues(PAM4_LEVEL0_STANDARD_DEVIATION_LINE);
     for (auto [lane, sdL0] : sdL0Map) {
       vdmStats.pam4Level0SDLine()[lane] = sdL0;
     }
 
     // PAM4 Level1
-    auto sdL1Map = getVdmPmLaneValues(
-        CmisField::VDM_CONF_PAM4_LEVEL1_SD_LINE,
-        CmisField::VDM_VAL_PAM4_LEVEL1_SD_LINE,
-        PAM4_LEVEL1_STANDARD_DEVIATION_LINE);
+    auto sdL1Map = getVdmPmLaneValues(PAM4_LEVEL1_STANDARD_DEVIATION_LINE);
     for (auto [lane, sdL1] : sdL1Map) {
       vdmStats.pam4Level1SDLine()[lane] = sdL1;
     }
 
     // PAM4 Level2
-    auto sdL2Map = getVdmPmLaneValues(
-        CmisField::VDM_CONF_PAM4_LEVEL2_SD_LINE,
-        CmisField::VDM_VAL_PAM4_LEVEL2_SD_LINE,
-        PAM4_LEVEL2_STANDARD_DEVIATION_LINE);
+    auto sdL2Map = getVdmPmLaneValues(PAM4_LEVEL2_STANDARD_DEVIATION_LINE);
     for (auto [lane, sdL2] : sdL2Map) {
       vdmStats.pam4Level2SDLine()[lane] = sdL2;
     }
 
     // PAM4 Level3
-    auto sdL3Map = getVdmPmLaneValues(
-        CmisField::VDM_CONF_PAM4_LEVEL3_SD_LINE,
-        CmisField::VDM_VAL_PAM4_LEVEL3_SD_LINE,
-        PAM4_LEVEL3_STANDARD_DEVIATION_LINE);
+    auto sdL3Map = getVdmPmLaneValues(PAM4_LEVEL3_STANDARD_DEVIATION_LINE);
     for (auto [lane, sdL3] : sdL3Map) {
       vdmStats.pam4Level3SDLine()[lane] = sdL3;
     }
 
     // PAM4 MPI
-    auto mpiMap = getVdmPmLaneValues(
-        CmisField::VDM_CONF_PAM4_MPI_LINE,
-        CmisField::VDM_VAL_PAM4_MPI_LINE,
-        PAM4_MPI_LINE);
+    auto mpiMap = getVdmPmLaneValues(PAM4_MPI_LINE);
     for (auto [lane, mpi] : mpiMap) {
       vdmStats.pam4MPILine()[lane] = mpi;
+    }
+  }
+
+  // Fill in channel LTP Media In
+  vdmDiagsValLocation = getVdmDiagsValLocation(PAM4_LTP_MEDIA_IN);
+  if (vdmDiagsValLocation.vdmConfImplementedByModule) {
+    dataAddress = static_cast<int>(vdmDiagsValLocation.vdmValPage);
+    offset = vdmDiagsValLocation.vdmValOffset;
+    length = vdmDiagsValLocation.vdmValLength;
+    data = getQsfpValuePtr(dataAddress, offset, length);
+    for (auto lanes = 0; lanes < length / 2; lanes++) {
+      double ltp;
+      ltp = data[lanes * 2] + (data[lanes * 2 + 1] / kU16TypeLsbDivisor);
+      vdmStats.pam4LtpMediaChannel()[lanes] = ltp;
     }
   }
 
@@ -1786,6 +1736,28 @@ CmisModule::getQsfpValuePtr(int dataAddress, int offset, int length) const {
       default:
         throw FbossError("Invalid Data Address 0x%d", dataAddress);
     }
+  }
+}
+
+/*
+ * readFromCacheOrHw
+ *
+ * This function reads the register field from either register cache or from
+ * hardware (if the cache is not available). This function assumes the input
+ * data pointer has the space allocated for the entire given CMIS register space
+ */
+void CmisModule::readFromCacheOrHw(
+    CmisField field,
+    uint8_t* data,
+    bool forcedReadFromHw) {
+  int offset;
+  int length;
+  int dataAddress;
+  getQsfpFieldAddress(field, dataAddress, offset, length);
+  if (cacheIsValid() && !forcedReadFromHw) {
+    getQsfpValue(dataAddress, offset, length, data);
+  } else {
+    readCmisField(field, data);
   }
 }
 
@@ -2180,9 +2152,8 @@ bool CmisModule::checkLaneConfigError(
  * Put logic here that should only be run on ports that have been
  * down for a long time. These are actions that are potentially more
  * disruptive, but have worked in the past to recover a transceiver.
- * Always return true
  */
-bool CmisModule::remediateFlakyTransceiver(
+void CmisModule::remediateFlakyTransceiver(
     bool allPortsDown,
     const std::vector<std::string>& ports) {
   QSFP_LOG(INFO, this) << "allPortsDown = " << allPortsDown
@@ -2217,7 +2188,6 @@ bool CmisModule::remediateFlakyTransceiver(
 
   // Reset lastRemediateTime_ so we can use cool down before next remediation
   lastRemediateTime_ = std::time(nullptr);
-  return true;
 }
 
 void CmisModule::setPowerOverrideIfSupportedLocked(
@@ -2413,19 +2383,13 @@ void CmisModule::configureModule(uint8_t startHostLane) {
                        << apache::thrift::util::enumNameSafe(appCode)
                        << " starting on host lane " << startHostLane;
 
-  if (!getTransceiverManager()->getQsfpConfig()) {
-    QSFP_LOG(ERR, this) << "qsfpConfig is NULL, skipping module configuration";
-    return;
-  }
-
   auto moduleFactor = getModuleConfigOverrideFactor(
       std::nullopt, // Part Number : TODO: Read and cache tcvrPartNumber
       appCode // Application code
   );
 
   // Set the Rx equalizer setting based on QSFP config
-  const auto& qsfpCfg = getTransceiverManager()->getQsfpConfig()->thrift;
-  for (const auto& override : *qsfpCfg.transceiverConfigOverrides()) {
+  for (const auto& override : tcvrConfig_->overridesConfig_) {
     // Check if there is an override for all kinds of transceivers or
     // an override for the current application code(speed)
     if (overrideFactorMatchFound(
@@ -2599,106 +2563,99 @@ void CmisModule::setDiagsCapability() {
     // diagsCapability isn't valid either
     return;
   }
-  auto diagsCapability = diagsCapability_.wlock();
-  if (!diagsCapability->has_value()) {
-    QSFP_LOG(INFO, this) << "Setting diag capability";
-    DiagsCapability diags;
+  // Limiting the scope of diagsCapability_ write lock
+  {
+    auto diagsCapability = diagsCapability_.wlock();
+    if (!diagsCapability->has_value()) {
+      QSFP_LOG(INFO, this) << "Setting diag capability";
+      DiagsCapability diags;
 
-    auto readFromCacheOrHw = [&](CmisField field, uint8_t* data) {
-      int offset;
-      int length;
-      int dataAddress;
-      getQsfpFieldAddress(field, dataAddress, offset, length);
-      if (cacheIsValid()) {
-        getQsfpValue(dataAddress, offset, length, data);
-      } else {
-        readCmisField(field, data);
-      }
-    };
+      auto getPrbsCapabilities =
+          [&](CmisField generatorField,
+              CmisField checkerField) -> std::vector<prbs::PrbsPolynomial> {
+        int offset;
+        int length;
+        int dataAddress;
+        getQsfpFieldAddress(generatorField, dataAddress, offset, length);
+        CHECK_EQ(length, 2);
+        getQsfpFieldAddress(checkerField, dataAddress, offset, length);
+        CHECK_EQ(length, 2);
 
-    auto getPrbsCapabilities =
-        [&](CmisField generatorField,
-            CmisField checkerField) -> std::vector<prbs::PrbsPolynomial> {
-      int offset;
-      int length;
-      int dataAddress;
-      getQsfpFieldAddress(generatorField, dataAddress, offset, length);
-      CHECK_EQ(length, 2);
-      getQsfpFieldAddress(checkerField, dataAddress, offset, length);
-      CHECK_EQ(length, 2);
+        uint8_t generatorCapsData[2];
+        readFromCacheOrHw(generatorField, generatorCapsData);
+        uint16_t generatorCaps =
+            (generatorCapsData[1] << 8) | generatorCapsData[0];
 
-      uint8_t generatorCapsData[2];
-      readFromCacheOrHw(generatorField, generatorCapsData);
-      uint16_t generatorCaps =
-          (generatorCapsData[1] << 8) | generatorCapsData[0];
+        uint8_t checkerCapsData[2];
+        readFromCacheOrHw(checkerField, checkerCapsData);
+        uint16_t checkerCaps = (checkerCapsData[1] << 8) | checkerCapsData[0];
 
-      uint8_t checkerCapsData[2];
-      readFromCacheOrHw(checkerField, checkerCapsData);
-      uint16_t checkerCaps = (checkerCapsData[1] << 8) | checkerCapsData[0];
-
-      std::vector<prbs::PrbsPolynomial> caps;
-      for (auto patternIDPolynomialPair : prbsPatternMap.right) {
-        // We claim PRBS polynomial is supported when both generator and
-        // checker support the polynomial
-        if (generatorCaps & (1 << patternIDPolynomialPair.first) &&
-            checkerCaps & (1 << patternIDPolynomialPair.first)) {
-          caps.push_back(patternIDPolynomialPair.second);
+        std::vector<prbs::PrbsPolynomial> caps;
+        for (auto patternIDPolynomialPair : prbsPatternMap.right) {
+          // We claim PRBS polynomial is supported when both generator and
+          // checker support the polynomial
+          if (generatorCaps & (1 << patternIDPolynomialPair.first) &&
+              checkerCaps & (1 << patternIDPolynomialPair.first)) {
+            caps.push_back(patternIDPolynomialPair.second);
+          }
         }
+        return caps;
+      };
+
+      uint8_t data;
+      readFromCacheOrHw(CmisField::VDM_DIAG_SUPPORT, &data);
+      diags.vdm() = (data & FieldMasks::VDM_SUPPORT_MASK) ? true : false;
+      diags.diagnostics() =
+          (data & FieldMasks::DIAGS_SUPPORT_MASK) ? true : false;
+
+      readFromCacheOrHw(CmisField::CDB_SUPPORT, &data);
+      diags.cdb() = (data & FieldMasks::CDB_SUPPORT_MASK) ? true : false;
+
+      readFromCacheOrHw(CmisField::TX_CONTROL_SUPPORT, &data);
+      diags.txOutputControl() =
+          (data & FieldMasks::TX_DISABLE_SUPPORT_MASK) ? true : false;
+      readFromCacheOrHw(CmisField::RX_CONTROL_SUPPORT, &data);
+      diags.rxOutputControl() =
+          (data & FieldMasks::RX_DISABLE_SUPPORT_MASK) ? true : false;
+
+      if (*diags.diagnostics()) {
+        readFromCacheOrHw(CmisField::LOOPBACK_CAPABILITY, &data);
+        diags.loopbackSystem() =
+            (data & FieldMasks::LOOPBACK_SYS_SUPPOR_MASK) ? true : false;
+        diags.loopbackLine() =
+            (data & FieldMasks::LOOPBACK_LINE_SUPPORT_MASK) ? true : false;
+
+        readFromCacheOrHw(CmisField::PATTERN_CHECKER_CAPABILITY, &data);
+        diags.prbsLine() =
+            (data & FieldMasks::PRBS_LINE_SUPPRT_MASK) ? true : false;
+        diags.prbsSystem() =
+            (data & FieldMasks::PRBS_SYS_SUPPRT_MASK) ? true : false;
+        if (*diags.prbsLine()) {
+          diags.prbsLineCapabilities() = getPrbsCapabilities(
+              CmisField::MEDIA_SUPPORTED_GENERATOR_PATTERNS,
+              CmisField::MEDIA_SUPPORTED_CHECKER_PATTERNS);
+        }
+        if (*diags.prbsSystem()) {
+          diags.prbsSystemCapabilities() = getPrbsCapabilities(
+              CmisField::HOST_SUPPORTED_GENERATOR_PATTERNS,
+              CmisField::HOST_SUPPORTED_CHECKER_PATTERNS);
+        }
+
+        readFromCacheOrHw(CmisField::DIAGNOSTIC_CAPABILITY, &data);
+        diags.snrLine() = data & FieldMasks::SNR_LINE_SUPPORT_MASK;
+        diags.snrSystem() = data & FieldMasks::SNR_SYS_SUPPORT_MASK;
       }
-      return caps;
-    };
 
-    uint8_t data;
-    readFromCacheOrHw(CmisField::VDM_DIAG_SUPPORT, &data);
-    diags.vdm() = (data & FieldMasks::VDM_SUPPORT_MASK) ? true : false;
-    diags.diagnostics() =
-        (data & FieldMasks::DIAGS_SUPPORT_MASK) ? true : false;
-
-    readFromCacheOrHw(CmisField::CDB_SUPPORT, &data);
-    diags.cdb() = (data & FieldMasks::CDB_SUPPORT_MASK) ? true : false;
-
-    readFromCacheOrHw(CmisField::TX_CONTROL_SUPPORT, &data);
-    diags.txOutputControl() =
-        (data & FieldMasks::TX_DISABLE_SUPPORT_MASK) ? true : false;
-    readFromCacheOrHw(CmisField::RX_CONTROL_SUPPORT, &data);
-    diags.rxOutputControl() =
-        (data & FieldMasks::RX_DISABLE_SUPPORT_MASK) ? true : false;
-
-    if (*diags.diagnostics()) {
-      readFromCacheOrHw(CmisField::LOOPBACK_CAPABILITY, &data);
-      diags.loopbackSystem() =
-          (data & FieldMasks::LOOPBACK_SYS_SUPPOR_MASK) ? true : false;
-      diags.loopbackLine() =
-          (data & FieldMasks::LOOPBACK_LINE_SUPPORT_MASK) ? true : false;
-
-      readFromCacheOrHw(CmisField::PATTERN_CHECKER_CAPABILITY, &data);
-      diags.prbsLine() =
-          (data & FieldMasks::PRBS_LINE_SUPPRT_MASK) ? true : false;
-      diags.prbsSystem() =
-          (data & FieldMasks::PRBS_SYS_SUPPRT_MASK) ? true : false;
-      if (*diags.prbsLine()) {
-        diags.prbsLineCapabilities() = getPrbsCapabilities(
-            CmisField::MEDIA_SUPPORTED_GENERATOR_PATTERNS,
-            CmisField::MEDIA_SUPPORTED_CHECKER_PATTERNS);
-      }
-      if (*diags.prbsSystem()) {
-        diags.prbsSystemCapabilities() = getPrbsCapabilities(
-            CmisField::HOST_SUPPORTED_GENERATOR_PATTERNS,
-            CmisField::HOST_SUPPORTED_CHECKER_PATTERNS);
+      if (*diags.vdm()) {
+        readCmisField(CmisField::VDM_GROUPS_SUPPORT, &data);
+        vdmSupportedGroupsMax_ = (data & VDM_GROUPS_SUPPORT_MASK) + 1;
       }
 
-      readFromCacheOrHw(CmisField::DIAGNOSTIC_CAPABILITY, &data);
-      diags.snrLine() = data & FieldMasks::SNR_LINE_SUPPORT_MASK;
-      diags.snrSystem() = data & FieldMasks::SNR_SYS_SUPPORT_MASK;
+      *diagsCapability = diags;
     }
-
-    if (*diags.vdm()) {
-      readCmisField(CmisField::VDM_GROUPS_SUPPORT, &data);
-      vdmSupportedGroupsMax_ = (data & VDM_GROUPS_SUPPORT_MASK) + 1;
-    }
-
-    *diagsCapability = diags;
   }
+  // Scan and update the VDM diags locations
+  updateVdmDiagsValLocation();
 }
 
 /*
@@ -2812,6 +2769,10 @@ void CmisModule::latchAndReadVdmDataLocked() {
   // Read data for publishing to ODS
   readCmisField(CmisField::PAGE_UPPER24H, page24_);
   readCmisField(CmisField::PAGE_UPPER25H, page25_);
+  if (isVdmSupported(3)) {
+    // Cache VDM group 3 page only if it is supported
+    readCmisField(CmisField::PAGE_UPPER26H, page26_);
+  }
 
   // Write Byte 2F.144, bit 7 to 0 (clear latch)
   latchRequest &= ~FieldMasks::VDM_LATCH_REQUEST_MASK;

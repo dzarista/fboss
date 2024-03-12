@@ -23,6 +23,9 @@ class TestEnsembleIf : public HwSwitchCallback {
   virtual std::vector<PortID> masterLogicalPortIds() const = 0;
   std::vector<PortID> masterLogicalPortIds(
       const std::set<cfg::PortType>& portTypes) const;
+  std::vector<PortID> masterLogicalInterfacePortIds() const {
+    return masterLogicalPortIds({cfg::PortType::INTERFACE_PORT});
+  }
 
   virtual void applyNewState(
       StateUpdateFn fn,
@@ -37,9 +40,14 @@ class TestEnsembleIf : public HwSwitchCallback {
   virtual void switchRunStateChanged(SwitchRunState runState) = 0;
   virtual const SwitchIdScopeResolver& scopeResolver() const = 0;
   virtual HwAsicTable* getHwAsicTable() = 0;
-  virtual std::map<PortID, FabricEndpoint> getFabricConnectivity() const = 0;
+  virtual std::map<PortID, FabricEndpoint> getFabricConnectivity(
+      SwitchID switchId) const = 0;
   virtual FabricReachabilityStats getFabricReachabilityStats() const = 0;
   virtual void updateStats() = 0;
+  virtual void runDiagCommand(
+      const std::string& input,
+      std::string& output,
+      std::optional<SwitchID> switchId = std::nullopt) = 0;
 };
 
 } // namespace facebook::fboss

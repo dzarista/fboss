@@ -259,10 +259,10 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getL2Table) {
       .Times(this->isNpu() ? 1 : 0);
 
   std::vector<L2EntryThrift> l2Entries;
-  if (this->isFabric()) {
-    EXPECT_THROW(handler.getL2Table(l2Entries), FbossError);
-  } else {
+  if (this->isNpu()) {
     handler.getL2Table(l2Entries);
+  } else {
+    EXPECT_THROW(handler.getL2Table(l2Entries), FbossError);
   }
 }
 
@@ -555,6 +555,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getSysPortStats) {
   ThriftHandler handler(this->sw_);
   std::map<std::string, HwSysPortStats> sysPortStats;
   EXPECT_HW_CALL(this->sw_, getSysPortStats()).Times(1);
+  this->sw_->updateStats();
   handler.getSysPortStats(sysPortStats);
 }
 
@@ -562,6 +563,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getHwPortStats) {
   ThriftHandler handler(this->sw_);
   std::map<std::string, HwPortStats> hwPortStats;
   EXPECT_HW_CALL(this->sw_, getPortStats()).Times(1);
+  this->sw_->updateStats();
   handler.getHwPortStats(hwPortStats);
 }
 

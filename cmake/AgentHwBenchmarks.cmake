@@ -268,6 +268,7 @@ target_link_libraries(hw_rx_slow_path_rate
   hw_packet_utils
   hw_qos_utils
   hw_copp_utils
+  hw_test_acl_utils
   ecmp_helper
   mono_agent_ensemble
   mono_agent_benchmarks
@@ -281,6 +282,8 @@ add_library(hw_init_and_exit_benchmark_helper
 
 target_link_libraries(hw_init_and_exit_benchmark_helper
   config_factory
+  fabric_test_utils
+  hw_voq_utils
   mono_agent_ensemble
   mono_agent_benchmarks
   route_scale_gen
@@ -331,6 +334,24 @@ add_library(hw_init_and_exit_100Gx100G
 )
 
 target_link_libraries(hw_init_and_exit_100Gx100G
+  config_factory
+  hw_init_and_exit_benchmark_helper
+)
+
+add_library(hw_init_and_exit_voq
+  fboss/agent/hw/benchmarks/HwInitAndExitVoqBenchmark.cpp
+)
+
+target_link_libraries(hw_init_and_exit_voq
+  config_factory
+  hw_init_and_exit_benchmark_helper
+)
+
+add_library(hw_init_and_exit_fabric
+  fboss/agent/hw/benchmarks/HwInitAndExitFabricBenchmark.cpp
+)
+
+target_link_libraries(hw_init_and_exit_fabric
   config_factory
   hw_init_and_exit_benchmark_helper
 )

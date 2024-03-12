@@ -294,10 +294,13 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getSysPortStats(
       std::map<std::string, HwSysPortStats>& hwSysPortStats) override;
   void getCpuPortStats(CpuPortStats& hwCpuPortStats) override;
+  void getAllCpuPortStats(std::map<int, CpuPortStats>& hwCpuPortStats) override;
   void getHwPortStats(std::map<std::string, HwPortStats>& hwPortStats) override;
   void getFabricReachabilityStats(
       FabricReachabilityStats& fabricReachabilityStats) override;
   void getAllEcmpDetails(std::vector<EcmpDetails>& ecmpDetails) override;
+  void getHwAgentConnectionStatus(
+      std::map<int16_t, HwAgentEventSyncStatus>& hwAgentSyncStatusMap) override;
 
   /*
    * Thrift handler for keepalive messages.  It's a no-op, but prevents the
@@ -409,6 +412,8 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getInterfacePhyInfo(
       std::map<std::string, phy::PhyInfo>& phyInfos,
       std::unique_ptr<std::vector<std::string>> portNames) override;
+  void getAllInterfacePhyInfo(
+      std::map<std::string, phy::PhyInfo>& phyInfos) override;
   bool isSwitchDrained() override;
   void getActualSwitchDrainState(std::map<int64_t, cfg::SwitchDrainState>&
                                      switchId2ActualSwitchDrainState) override;

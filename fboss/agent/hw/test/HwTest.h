@@ -14,7 +14,7 @@
 #include <utility>
 
 #include <folly/Range.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 
 #include "fboss/agent/Constants.h"
 #include "fboss/agent/GtestDefs.h"
@@ -101,6 +101,7 @@ class HwTest : public ::testing::Test,
   std::vector<PortID> getAllPortsInGroup(PortID portID) const;
 
   const SwitchIdScopeResolver& scopeResolver() const;
+  void checkNoStatsChange(int trys = 1);
 
  protected:
   /*

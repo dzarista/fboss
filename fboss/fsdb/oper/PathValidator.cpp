@@ -9,15 +9,14 @@
  */
 
 #include "fboss/fsdb/oper/PathValidator.h"
-#include <folly/DynamicConverter.h>
-#include <folly/json.h>
+#include <folly/json/DynamicConverter.h>
+#include <folly/json/json.h>
 #include <re2/re2.h>
 #include "fboss/fsdb/common/Utils.h"
 #include "fboss/fsdb/if/FsdbModel.h"
 #include "fboss/thrift_visitors/NameToPathVisitor.h"
 #include "magic_enum/magic_enum.hpp" // @manual=fbsource//third-party/magic_enum:magic_enum
 
-#include "fboss/fsdb/if/gen-cpp2/fsdb_oper_fatal_types.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
 
 namespace facebook::fboss::fsdb {
@@ -27,16 +26,18 @@ namespace {
 template <typename ThriftTreeT>
 bool isPathValid(const std::vector<std::string>& path) {
   thriftpath::RootThriftPath<ThriftTreeT> root;
-  auto result = RootNameToPathVisitor::visit(
-      root, path.begin(), path.begin(), path.end(), [](auto&&) {});
+  auto result =
+      RootNameToPathVisitor<thriftpath::RootThriftPath<ThriftTreeT>>::visit(
+          root, path.begin(), path.begin(), path.end(), [](auto&&) {});
   return result == NameToPathResult::OK;
 }
 
 template <typename ThriftTreeT>
 void validateRawPath(const std::vector<std::string>& path) {
   thriftpath::RootThriftPath<ThriftTreeT> root;
-  auto result = RootNameToPathVisitor::visit(
-      root, path.begin(), path.begin(), path.end(), [](auto&&) {});
+  auto result =
+      RootNameToPathVisitor<thriftpath::RootThriftPath<ThriftTreeT>>::visit(
+          root, path.begin(), path.begin(), path.end(), [](auto&&) {});
   if (result != NameToPathResult::OK) {
     auto errorName = magic_enum::enum_name(result);
     auto pathStr = folly::toJson(folly::toDynamic(path));
@@ -71,8 +72,8 @@ void validateExtendedPath(const ExtendedOperPath& path) {
   const auto& elems = *path.path();
   validateRegexesInExtendedPath(elems);
 
-  auto result = RootNameToPathVisitor::visitExtended(
-      root, elems.begin(), elems.end(), [](auto&&) {});
+  auto result = RootNameToPathVisitor<thriftpath::RootThriftPath<ThriftTreeT>>::
+      visitExtended(root, elems.begin(), elems.end(), [](auto&&) {});
   if (result != NameToPathResult::OK) {
     auto errorName = magic_enum::enum_name(result);
     throw Utils::createFsdbException(

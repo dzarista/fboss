@@ -12,7 +12,7 @@
 #include <folly/IPAddress.h>
 #include <folly/MacAddress.h>
 #include <folly/Range.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 #include "fboss/agent/AddressUtil.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
@@ -312,6 +312,15 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
   bool hasAddress(folly::IPAddress ip) const {
     auto& addresses = std::as_const(*getAddresses());
     return (addresses.find(ip.str()) != addresses.end());
+  }
+
+  template <typename NTable>
+  void setNeighborTable(std::shared_ptr<NTable> table) {
+    if constexpr (std::is_same_v<NTable, ArpTable>) {
+      ref<switch_state_tags::arpTable>() = std::move(table);
+    } else {
+      ref<switch_state_tags::ndpTable>() = std::move(table);
+    }
   }
 
   template <typename NTable>

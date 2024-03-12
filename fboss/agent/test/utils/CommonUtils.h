@@ -12,22 +12,12 @@
 
 #include "fboss/agent/types.h"
 
-#include <folly/MacAddress.h>
-
 namespace facebook::fboss {
+class HwAsic;
 class SwSwitch;
-class TxPacket;
 
 namespace utility {
-
-std::unique_ptr<TxPacket> makeLLDPPacket(
-    const SwSwitch* hw,
-    const folly::MacAddress srcMac,
-    std::optional<VlanID> vlanid,
-    const std::string& hostname,
-    const std::string& portname,
-    const std::string& portdesc,
-    const uint16_t ttl,
-    const uint16_t capabilities);
+SwitchID getFirstSwitchId(SwSwitch* sw);
+const HwAsic* getFirstAsic(SwSwitch* sw);
 } // namespace utility
 } // namespace facebook::fboss

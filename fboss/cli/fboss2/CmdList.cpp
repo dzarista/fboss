@@ -38,9 +38,12 @@
 #include "fboss/cli/fboss2/commands/show/fabric/reachability/CmdShowFabricReachability.h"
 #include "fboss/cli/fboss2/commands/show/flowlet/CmdShowFlowlet.h"
 #include "fboss/cli/fboss2/commands/show/host/CmdShowHost.h"
+#include "fboss/cli/fboss2/commands/show/hwagent/CmdShowHwAgentStatus.h"
 #include "fboss/cli/fboss2/commands/show/hwobject/CmdShowHwObject.h"
 #include "fboss/cli/fboss2/commands/show/interface/CmdShowInterface.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/CmdShowInterfaceCounters.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/CmdShowInterfaceCountersFec.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/ber/CmdShowInterfaceCountersFecBer.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/mka/CmdShowInterfaceCountersMKA.h"
 #include "fboss/cli/fboss2/commands/show/interface/errors/CmdShowInterfaceErrors.h"
 #include "fboss/cli/fboss2/commands/show/interface/flaps/CmdShowInterfaceFlaps.h"
@@ -183,6 +186,16 @@ const CommandTree& kCommandTree() {
                  "Show Interface MKA counters",
                  commandHandler<CmdShowInterfaceCountersMKA>,
                  argTypeHandler<CmdShowInterfaceCountersMKATraits>},
+                {"fec",
+                 "Show Interface counters fec",
+                 commandHandler<CmdShowInterfaceCountersFec>,
+                 argTypeHandler<CmdShowInterfaceCountersFecTraits>,
+                 {
+                     {"ber",
+                      "Show Interface counters fec ber",
+                      commandHandler<CmdShowInterfaceCountersFecBer>,
+                      argTypeHandler<CmdShowInterfaceCountersFecBerTraits>},
+                 }},
             }},
 
            {"errors",
@@ -320,6 +333,12 @@ const CommandTree& kCommandTree() {
        "Show HW Objects",
        commandHandler<CmdShowHwObject>,
        argTypeHandler<CmdShowHwObjectTraits>},
+
+      {"show",
+       "hw-agent",
+       "Show HwAgent Status",
+       commandHandler<CmdShowHwAgentStatus>,
+       argTypeHandler<CmdShowHwAgentStatusTraits>},
 
       {"show",
        "l2",

@@ -286,7 +286,6 @@ function(BUILD_SAI_BENCHMARKS SAI_IMPL_NAME SAI_IMPL_ARG)
     sai_copp_utils
     sai_acl_utils
     sai_packet_trap_helper
-    sai_qos_utils
     ${SAI_IMPL_ARG}
     -Wl,--no-whole-archive
   )
@@ -377,6 +376,40 @@ function(BUILD_SAI_BENCHMARKS SAI_IMPL_NAME SAI_IMPL_ARG)
   )
 
   set_target_properties(sai_init_and_exit_100Gx100G-${SAI_IMPL_NAME}
+    PROPERTIES COMPILE_FLAGS
+    "-DSAI_VER_MAJOR=${SAI_VER_MAJOR} \
+    -DSAI_VER_MINOR=${SAI_VER_MINOR}  \
+    -DSAI_VER_RELEASE=${SAI_VER_RELEASE}"
+  )
+
+  add_executable(sai_init_and_exit_voq-${SAI_IMPL_NAME} /dev/null)
+
+  target_link_libraries(sai_init_and_exit_voq-${SAI_IMPL_NAME}
+    -Wl,--whole-archive
+    sai_copp_utils
+    hw_init_and_exit_voq
+    ${SAI_IMPL_ARG}
+    -Wl,--no-whole-archive
+  )
+
+  set_target_properties(sai_init_and_exit_voq-${SAI_IMPL_NAME}
+    PROPERTIES COMPILE_FLAGS
+    "-DSAI_VER_MAJOR=${SAI_VER_MAJOR} \
+    -DSAI_VER_MINOR=${SAI_VER_MINOR}  \
+    -DSAI_VER_RELEASE=${SAI_VER_RELEASE}"
+  )
+
+  add_executable(sai_init_and_exit_fabric-${SAI_IMPL_NAME} /dev/null)
+
+  target_link_libraries(sai_init_and_exit_fabric-${SAI_IMPL_NAME}
+    -Wl,--whole-archive
+    sai_copp_utils
+    hw_init_and_exit_fabric
+    ${SAI_IMPL_ARG}
+    -Wl,--no-whole-archive
+  )
+
+  set_target_properties(sai_init_and_exit_fabric-${SAI_IMPL_NAME}
     PROPERTIES COMPILE_FLAGS
     "-DSAI_VER_MAJOR=${SAI_VER_MAJOR} \
     -DSAI_VER_MINOR=${SAI_VER_MINOR}  \

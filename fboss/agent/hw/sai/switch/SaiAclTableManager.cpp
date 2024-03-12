@@ -477,7 +477,13 @@ SaiAclTableManager::addAclCounter(
     auto statName =
         folly::to<std::string>(*trafficCount.name(), ".", statSuffix);
     aclCounterTypeAndName.push_back(std::make_pair(counterType, statName));
-    aclStats_.reinitStat(statName, std::nullopt);
+    if (aclCounterRefMap.find(statName) == aclCounterRefMap.end()) {
+      // Create fb303 counter since stat is being added/readded again
+      aclStats_.reinitStat(statName, std::nullopt);
+      aclCounterRefMap[statName] = 1;
+    } else {
+      aclCounterRefMap[statName]++;
+    }
   }
 
   SaiAclCounterTraits::AdapterHostKey adapterHostKey {
@@ -1144,7 +1150,17 @@ void SaiAclTableManager::removeAclCounter(
   for (const auto& counterType : *trafficCount.types()) {
     auto statName =
         utility::statNameFromCounterType(*trafficCount.name(), counterType);
-    aclStats_.removeStat(statName);
+    auto entry = aclCounterRefMap.find(statName);
+    if (entry != aclCounterRefMap.end()) {
+      entry->second--;
+      if (entry->second == 0) {
+        // Counter no longer used. Remove from fb303 counters
+        aclStats_.removeStat(statName);
+        aclCounterRefMap.erase(entry);
+      }
+    } else {
+      throw FbossError("Acl counter ", statName, " not found om counter map");
+    }
   }
 }
 
@@ -1339,8 +1355,10 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
     std::set<cfg::AclTableQualifier> jericho3Qualifiers = {
         cfg::AclTableQualifier::SRC_IPV6,
         cfg::AclTableQualifier::DST_IPV6,
+        cfg::AclTableQualifier::SRC_PORT,
         cfg::AclTableQualifier::DSCP,
         cfg::AclTableQualifier::TTL,
+        cfg::AclTableQualifier::IP_PROTOCOL,
         cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
         cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE};
     return jericho3Qualifiers;

@@ -12,6 +12,7 @@
 #include "fboss/agent/Main.h"
 
 #include "fboss/agent/FbossInit.h"
+#include "fboss/agent/HwSwitchThriftClientTable.h"
 #include "fboss/agent/SwAgentInitializer.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/hw/test/LinkStateToggler.h"
@@ -122,12 +123,13 @@ class AgentEnsemble : public TestEnsembleIf {
     if (getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED &&
         linkToggler_) {
       linkToggler_->linkStateChanged(port, up);
+      getSw()->linkStateChanged(port, up);
     }
   }
 
   void linkActiveStateChanged(
-      const std::map<PortID, bool>& /*port2IsActive */) override {
-    // TODO
+      const std::map<PortID, bool>& port2IsActive) override {
+    getSw()->linkActiveStateChanged(port2IsActive);
   }
 
   void l2LearningUpdateReceived(
@@ -163,12 +165,11 @@ class AgentEnsemble : public TestEnsembleIf {
     return getSw()->getHwAsicTable();
   }
 
-  std::map<PortID, FabricEndpoint> getFabricConnectivity() const override {
-    return getSw()->getHwSwitchHandler()->getFabricConnectivity();
-  }
+  std::map<PortID, FabricEndpoint> getFabricConnectivity(
+      SwitchID switchId) const override;
 
   FabricReachabilityStats getFabricReachabilityStats() const override {
-    return getSw()->getHwSwitchHandler()->getFabricReachabilityStats();
+    return getSw()->getFabricReachabilityStats();
   }
 
   void updateStats() override {
@@ -180,6 +181,12 @@ class AgentEnsemble : public TestEnsembleIf {
   void unregisterStateObserver(StateObserver* observer) override;
 
   virtual HwSwitch* getHwSwitch() const = 0;
+  void runDiagCommand(
+      const std::string& /*input*/,
+      std::string& /*output*/,
+      std::optional<SwitchID> switchId = std::nullopt) override {
+    // TODO
+  }
 
  protected:
   void joinAsyncInitThread() {
@@ -212,6 +219,7 @@ std::unique_ptr<AgentEnsemble> createAgentEnsemble(
         AgentEnsemblePlatformConfigFn(),
     uint32_t featuresDesired =
         (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
-         HwSwitch::FeaturesDesired::LINKSCAN_DESIRED));
+         HwSwitch::FeaturesDesired::LINKSCAN_DESIRED |
+         HwSwitch::FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED));
 
 } // namespace facebook::fboss

@@ -228,7 +228,7 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
     for (const auto& nextHop :
          {ecmpHelper.nhop(portDesc1()), ecmpHelper.nhop(portDesc2())}) {
       utility::ttlDecrementHandlingForLoopbackTraffic(
-          getHwSwitch(), ecmpHelper.getRouterId(), nextHop);
+          getHwSwitchEnsemble(), ecmpHelper.getRouterId(), nextHop);
     }
   }
 
@@ -410,13 +410,32 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
   }
 
   void validateIngressDropCounters(const std::vector<PortID>& portIds) {
-    for (const auto& portId : portIds) {
-      auto portStats = getHwSwitchEnsemble()->getLatestPortStats(portId);
-      auto ingressDropRaw = *portStats.inDiscardsRaw_();
-      XLOG(DBG0) << " validateIngressDropCounters: Port: " << portId
-                 << " IngressDropRaw: " << ingressDropRaw;
-      EXPECT_GT(ingressDropRaw, 0);
-    }
+    WITH_RETRIES({
+      for (const auto& portId : portIds) {
+        auto portStats = getHwSwitchEnsemble()->getLatestPortStats(portId);
+        auto ingressDropRaw = *portStats.inDiscardsRaw_();
+        XLOG(DBG0) << " validateIngressDropCounters: Port: " << portId
+                   << " IngressDropRaw: " << ingressDropRaw;
+        EXPECT_EVENTUALLY_GT(ingressDropRaw, 0);
+      }
+      if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+        // Jericho3 has additional VSQ drops counters which accounts for
+        // ingress buffer drops.
+        // TODO: Check if 'vsqResourceExhaustionDrops' is incrementing for
+        // now, eventually move to a new per port/PG based ingress congestion
+        // discard counter when supported via CS00012336173.
+        getHwSwitchEnsemble()->getHwSwitch()->updateStats();
+        fb303::ThreadCachedServiceData::get()->publishStats();
+        auto ingressCongestionDiscards = getHwSwitchEnsemble()
+                                             ->getHwSwitch()
+                                             ->getSwitchStats()
+                                             ->getVsqResourcesExhautionDrops();
+        XLOG(DBG0)
+            << " validateIngressDropCounters: vsqResourceExhaustionDrops: "
+            << ingressCongestionDiscards;
+        EXPECT_EVENTUALLY_GT(ingressCongestionDiscards, 0);
+      }
+    });
   }
 
  protected:
@@ -438,14 +457,14 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
       }
       setupBuffers(testParams.buffer, testParams.scale);
       setupEcmpTraffic();
+      // ensure counter is 0 before we start traffic
       validateInitPfcCounters(
           {masterLogicalInterfacePortIds()[0],
            masterLogicalInterfacePortIds()[1]},
           pfcPriority);
-    };
-    auto verify = [&]() {
-      // ensure counter is 0 before we start traffic
       pumpTraffic(trafficClass);
+    };
+    auto verifyCommon = [&](bool postWb) {
       // check counters are as expected
       validateCounterFn(
           getHwSwitchEnsemble(),
@@ -457,14 +476,17 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
             {masterLogicalInterfacePortIds()[0],
              masterLogicalInterfacePortIds()[1]});
       }
-      if (!FLAGS_skip_stop_pfc_test_traffic) {
+      if (!FLAGS_skip_stop_pfc_test_traffic && postWb) {
         // stop traffic so that unconfiguration can happen without issues
         stopTraffic(
             {masterLogicalInterfacePortIds()[0],
              masterLogicalInterfacePortIds()[1]});
       }
     };
-    verifyAcrossWarmBoots(setup, verify);
+    auto verify = [&]() { verifyCommon(false /* postWb */); };
+    auto verifyPostWb = [&]() { verifyCommon(true /* postWb */); };
+    verifyAcrossWarmBoots(
+        setup, verify, []() {}, verifyPostWb);
   }
 
   void setupEcmpTraffic() {

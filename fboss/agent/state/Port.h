@@ -677,6 +677,21 @@ class Port : public ThriftStructNode<Port, state::PortFields> {
     set<switch_state_tags::zeroPreemphasis>(zeroPreemphasis);
   }
 
+  std::optional<bool> getTTLDisableDecrement() const {
+    if (auto value = cref<switch_state_tags::disableTTLDecrement>()) {
+      return value->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setTTLDisableDecrement(std::optional<bool> disableTTLDecrement) {
+    if (disableTTLDecrement.has_value()) {
+      set<switch_state_tags::disableTTLDecrement>(*disableTTLDecrement);
+    } else {
+      ref<switch_state_tags::disableTTLDecrement>().reset();
+    }
+  }
+
   Port* modify(std::shared_ptr<SwitchState>* state);
 
  private:

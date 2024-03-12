@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "fboss/agent/hw/common/LanePrbsStatsEntry.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 #include "fboss/agent/hw/sai/api/PortApi.h"
 #include "fboss/agent/hw/sai/store/SaiObjectWithCounters.h"
@@ -27,6 +28,8 @@
 #include "folly/container/F14Map.h"
 #include "folly/container/F14Set.h"
 
+#include <gtest/gtest.h>
+
 DECLARE_bool(sai_configure_six_tap);
 
 namespace facebook::fboss {
@@ -42,6 +45,7 @@ class SaiStore;
 using SaiPort = SaiObjectWithCounters<SaiPortTraits>;
 using SaiPortSerdes = SaiObject<SaiPortSerdesTraits>;
 using SaiPortConnector = SaiObject<SaiPortConnectorTraits>;
+using LanePrbsStatsTable = std::vector<LanePrbsStatsEntry>;
 
 /*
  * Cache port mirror data from sw switch
@@ -119,6 +123,9 @@ struct SaiPortHandle {
 class SaiPortManager {
   using Handles = folly::F14FastMap<PortID, std::unique_ptr<SaiPortHandle>>;
   using Stats = folly::F14FastMap<PortID, std::unique_ptr<HwPortFb303Stats>>;
+
+  static constexpr double kSpeedConversionFactor = 1000.;
+  static constexpr double kLaneRateConversionFactor = 1024. * 1024. * 1024.;
 
  public:
   SaiPortManager(
@@ -199,7 +206,13 @@ class SaiPortManager {
       PortSaiId portSaiId,
       cfg::SwitchType switchType) const;
 
-  void updateStats(PortID portID, bool updateWatermarks = false);
+  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId);
+  void updateStats(
+      PortID portID,
+      bool updateWatermarks = false,
+      int isConnectivityInfoMismatch = 0);
+
+  void updateConnectivityStats(PortID portID);
 
   void clearStats(PortID portID);
 
@@ -365,6 +378,8 @@ class SaiPortManager {
   void setPortType(PortID portId, cfg::PortType portType);
   void programPfcBuffers(const std::shared_ptr<Port>& swPort);
   void removePfcBuffers(const std::shared_ptr<Port>& swPort);
+  sai_port_prbs_config_t getSaiPortPrbsConfig(bool enabled) const;
+  void initAsicPrbsStats(const std::shared_ptr<Port>& swPort);
   void removeIngressPriorityGroupMappings(SaiPortHandle* portHandle);
   void applyPriorityGroupBufferProfile(
       const std::shared_ptr<Port>& swPort,
@@ -392,6 +407,8 @@ class SaiPortManager {
       SaiPortSerdesTraits::CreateAttributes& attr);
   std::shared_ptr<SaiPort> createPortWithBasicAttributes(
       const std::shared_ptr<Port>& swPort);
+  double calculateLaneRate(const std::shared_ptr<Port>& swPort);
+  void updateLaneRate(const std::shared_ptr<Port>& swPort);
 
   SaiStore* saiStore_;
   SaiManagerTable* managerTable_;
@@ -404,6 +421,7 @@ class SaiPortManager {
   // retain removed port handle so it does not invoke remove port api.
   Handles removedHandles_;
   Stats portStats_;
+  std::map<PortID, LanePrbsStatsTable> portAsicPrbsStats_;
 
   std::optional<SaiPortTraits::Attributes::PtpMode> getPtpMode() const;
   std::unordered_map<PortID, cfg::PortType> port2PortType_;
@@ -413,6 +431,8 @@ class SaiPortManager {
   bool tcToQueueMapAllowedOnPort_;
   bool globalQosMapSupported_;
   std::unordered_map<PortID, time_t> lastFecCounterReadTime_;
+  FRIEND_TEST(PortManagerTest, calculateLaneRate);
+  FRIEND_TEST(PortManagerTest, updateLaneRate);
 };
 
 } // namespace facebook::fboss

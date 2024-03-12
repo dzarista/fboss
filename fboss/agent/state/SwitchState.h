@@ -14,7 +14,7 @@
 
 #include <folly/FBString.h>
 #include <folly/Memory.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 
 #include "fboss/agent/HwSwitchMatcher.h"
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
@@ -487,6 +487,8 @@ class SwitchState : public ThriftStructNode<SwitchState, state::SwitchState> {
   void resetPortFlowletCfgs(std::shared_ptr<MultiSwitchPortFlowletCfgMap> cfgs);
   void resetSystemPorts(
       const std::shared_ptr<MultiSwitchSystemPortMap>& systemPorts);
+  void resetRemoteSystemPorts(
+      const std::shared_ptr<MultiSwitchSystemPortMap>& systemPorts);
 
   void resetTunnels(std::shared_ptr<MultiSwitchIpTunnelMap> tunnels);
 
@@ -494,6 +496,8 @@ class SwitchState : public ThriftStructNode<SwitchState, state::SwitchState> {
   void resetDsfNodes(const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodes);
   std::shared_ptr<AclTableGroupMap>& getAclTablesForStage(
       const folly::dynamic& swJson);
+
+  void resetRemoteIntfs(const std::shared_ptr<MultiSwitchInterfaceMap>& intfs);
 
   static std::shared_ptr<SwitchState> fromThrift(
       const state::SwitchState& data);
@@ -508,8 +512,6 @@ class SwitchState : public ThriftStructNode<SwitchState, state::SwitchState> {
   static Type* modify(std::shared_ptr<SwitchState>* state);
 
  private:
-  void resetRemoteIntfs(const std::shared_ptr<MultiSwitchInterfaceMap>& intfs);
-
   template <
       typename MultiMapType,
       typename ThriftType = typename MultiMapType::Node::ThriftType>

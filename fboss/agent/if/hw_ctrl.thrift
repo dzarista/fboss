@@ -33,4 +33,14 @@ service FbossHwCtrl {
   map<string, list<string>> getHwSwitchReachability(
     1: list<string> switchNames,
   ) throws (1: fboss.FbossBaseError error);
+
+  /* clear stats for specified port(s) */
+  void clearHwPortStats(1: list<i32> ports);
+
+  /* clears stats for all ports */
+  void clearAllHwPortStats();
+
+  list<ctrl.L2EntryThrift> getHwL2Table() throws (
+    1: fboss.FbossBaseError error,
+  );
 }

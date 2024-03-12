@@ -42,7 +42,9 @@ class QsfpModuleTest : public TransceiverManagerTestHelper {
         transceiverManager_->overrideTransceiverForTesting(
             kTcvrID,
             std::make_unique<MockSffModule>(
-                transceiverManager_.get(), qsfpImpls_.back().get())));
+                transceiverManager_.get(),
+                qsfpImpls_.back().get(),
+                tcvrConfig_)));
     qsfp_->setVendorPN();
 
     gflags::SetCommandLineOptionWithMode(
@@ -483,34 +485,35 @@ TEST_F(QsfpModuleTest, verifyLaneToPortMapping) {
 TEST_F(QsfpModuleTest, requiresFirmwareUpgrade) {
   qsfp_->overrideVendorPN(getFakePartNumber());
 
+  const QsfpConfig* qsfp_config = transceiverManager_->getQsfpConfig();
   // Test empty fw status
   transceiverManager_->refreshStateMachines();
   qsfp_->useActualGetTransceiverInfo();
-  EXPECT_FALSE(qsfp_->requiresFirmwareUpgrade());
+  EXPECT_FALSE(transceiverManager_->requiresFirmwareUpgrade(*qsfp_));
 
   // Test app fw status mismatch
   qsfp_->setAppFwVersion(getFakeAppFwVersion());
   transceiverManager_->refreshStateMachines();
   qsfp_->useActualGetTransceiverInfo();
-  EXPECT_FALSE(qsfp_->requiresFirmwareUpgrade());
+  EXPECT_FALSE(transceiverManager_->requiresFirmwareUpgrade(*qsfp_));
 
   // Test app fw status mismatch
   qsfp_->setAppFwVersion("foo");
   transceiverManager_->refreshStateMachines();
   qsfp_->useActualGetTransceiverInfo();
-  EXPECT_TRUE(qsfp_->requiresFirmwareUpgrade());
+  EXPECT_TRUE(transceiverManager_->requiresFirmwareUpgrade(*qsfp_));
 
   // Test dsp fw status match
   qsfp_->setDspFwVersion(getFakeDspFwVersion());
   transceiverManager_->refreshStateMachines();
   qsfp_->useActualGetTransceiverInfo();
-  EXPECT_FALSE(qsfp_->requiresFirmwareUpgrade());
+  EXPECT_FALSE(transceiverManager_->requiresFirmwareUpgrade(*qsfp_));
 
   // Test dsp fw status mismatch
   qsfp_->setDspFwVersion("bar");
   transceiverManager_->refreshStateMachines();
   qsfp_->useActualGetTransceiverInfo();
-  EXPECT_TRUE(qsfp_->requiresFirmwareUpgrade());
+  EXPECT_TRUE(transceiverManager_->requiresFirmwareUpgrade(*qsfp_));
 }
 
 } // namespace facebook::fboss

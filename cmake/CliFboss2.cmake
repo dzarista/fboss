@@ -132,6 +132,13 @@ add_fbthrift_cpp_library(
 )
 
 add_fbthrift_cpp_library(
+  show_hwagent_status_model
+  fboss/cli/fboss2/commands/show/hwagent/model.thrift
+  OPTIONS
+    json
+)
+
+add_fbthrift_cpp_library(
   show_transceiver_model
   fboss/cli/fboss2/commands/show/transceiver/model.thrift
   OPTIONS
@@ -145,6 +152,13 @@ add_fbthrift_cpp_library(
     json
   DEPENDS
     show_route_model
+)
+
+add_fbthrift_cpp_library(
+  show_interface_model
+  fboss/cli/fboss2/commands/show/interface/model.thrift
+  OPTIONS
+    json
 )
 
 add_fbthrift_cpp_library(
@@ -261,6 +275,15 @@ add_fbthrift_cpp_library(
     prbs_cpp2
 )
 
+add_fbthrift_cpp_library(
+  show_interface_counters_fec_ber
+  fboss/cli/fboss2/commands/show/interface/counters/fec/ber/model.thrift
+  OPTIONS
+    json
+  DEPENDS
+    phy_cpp2
+)
+
 find_package(CLI11 CONFIG REQUIRED)
 
 add_executable(fboss2
@@ -293,6 +316,7 @@ add_executable(fboss2
   fboss/cli/fboss2/commands/show/fabric/reachability/CmdShowFabricReachability.h
   fboss/cli/fboss2/commands/show/flowlet/CmdShowFlowlet.h
   fboss/cli/fboss2/commands/show/host/CmdShowHost.h
+  fboss/cli/fboss2/commands/show/hwagent/CmdShowHwAgentStatus.h
   fboss/cli/fboss2/commands/show/hwobject/CmdShowHwObject.h
   fboss/cli/fboss2/commands/show/l2/CmdShowL2.h
   fboss/cli/fboss2/commands/show/lldp/CmdShowLldp.h
@@ -312,6 +336,8 @@ add_executable(fboss2
   fboss/cli/fboss2/commands/show/interface/errors/CmdShowInterfaceErrors.h
   fboss/cli/fboss2/commands/show/interface/counters/CmdShowInterfaceCounters.h
   fboss/cli/fboss2/commands/show/interface/traffic/CmdShowInterfaceTraffic.h
+  fboss/cli/fboss2/commands/show/interface/counters/fec/CmdShowInterfaceCountersFec.h
+  fboss/cli/fboss2/commands/show/interface/counters/fec/ber/CmdShowInterfaceCountersFecBer.h
   fboss/cli/fboss2/commands/show/interface/counters/mka/CmdShowInterfaceCountersMKA.h
   fboss/cli/fboss2/commands/show/interface/phy/CmdShowInterfacePhy.h
   fboss/cli/fboss2/commands/show/interface/phymap/CmdShowInterfacePhymap.h
@@ -381,6 +407,7 @@ target_link_libraries(fboss2
   show_port_model
   show_product_model
   show_transceiver_model
+  show_interface_model
   show_interface_flaps
   show_interface_errors
   show_interface_counters
@@ -398,6 +425,8 @@ target_link_libraries(fboss2
   show_systemport_model
   show_cpuport_model
   show_teflow_model
+  show_hwagent_status_model
+  show_interface_counters_fec_ber
   ${RE2}
 )
 

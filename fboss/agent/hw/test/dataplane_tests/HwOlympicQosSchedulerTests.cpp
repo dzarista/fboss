@@ -11,10 +11,9 @@
 #include "fboss/agent/hw/test/HwPortUtils.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/TrafficPolicyUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
 
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/state/Port.h"
@@ -153,7 +152,7 @@ class HwOlympicQosSchedulerTest : public HwLinkStateDependentTest {
       const std::vector<int>& queueIds) {
     resolveNeigborAndProgramRoutes(ecmpHelper6, kEcmpWidthForTest);
     utility::ttlDecrementHandlingForLoopbackTraffic(
-        getHwSwitch(), ecmpHelper6.getRouterId(), ecmpHelper6.nhop(0));
+        getHwSwitchEnsemble(), ecmpHelper6.getRouterId(), ecmpHelper6.nhop(0));
   }
 
   void _setupOlympicV2Queues() {

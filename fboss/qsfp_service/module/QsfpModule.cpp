@@ -17,6 +17,7 @@
 #include "fboss/agent/FbossError.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 #include "fboss/lib/usb/TransceiverI2CApi.h"
+#include "fboss/qsfp_service/QsfpConfig.h"
 #include "fboss/qsfp_service/TransceiverManager.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 #include "fboss/qsfp_service/module/TransceiverImpl.h"
@@ -128,94 +129,13 @@ void QsfpModule::getQsfpValue(
   memcpy(data, ptr, length);
 }
 
-std::optional<cfg::Firmware> QsfpModule::getFirmwareFromCfg() const {
-  auto qsfpCfgRaw = getTransceiverManager()->getQsfpConfig();
-  if (!qsfpCfgRaw) {
-    QSFP_LOG(DBG4, this) << "qsfpConfig is NULL. No Firmware to return";
-    return std::nullopt;
-  }
-
-  const auto& qsfpCfg = qsfpCfgRaw->thrift;
-  auto qsfpCfgFw = qsfpCfg.transceiverFirmwareVersions();
-  if (!qsfpCfgFw.has_value()) {
-    QSFP_LOG(DBG4, this)
-        << "transceiverFirmwareVersions is NULL. No Firmware to return";
-    return std::nullopt;
-  }
-
-  auto cachedTcvrInfo = getTransceiverInfo();
-  auto vendor = cachedTcvrInfo.tcvrState()->vendor();
-  if (!vendor.has_value()) {
-    QSFP_LOG(DBG4, this) << "Vendor not set. No Firmware to return";
-    return std::nullopt;
-  }
-
-  auto fwVersionInCfgIt =
-      qsfpCfgFw->versionsMap()->find(vendor->get_partNumber());
-  if (fwVersionInCfgIt == qsfpCfgFw->versionsMap()->end()) {
-    QSFP_LOG(DBG4, this) << folly::sformat(
-        "transceiverFirmwareVersions doesn't have a firmware version for part number {:s}.  No Firmware to return",
-        vendor->get_partNumber());
-    return std::nullopt;
-  }
-
-  return fwVersionInCfgIt->second;
-}
-
-bool QsfpModule::requiresFirmwareUpgrade() const {
-  // Returns true if the current firmware revision is different than the one in
-  // qsfp config
-  auto cachedTcvrInfo = getTransceiverInfo();
-  auto moduleStatus = cachedTcvrInfo.tcvrState()->status();
-  if (!moduleStatus.has_value()) {
-    QSFP_LOG(DBG4, this)
-        << "moduleStatus not set. Returning false from requiresFirmwareUpgrade";
-    return false;
-  }
-
-  auto fwStatus = moduleStatus->fwStatus();
-  if (!fwStatus.has_value()) {
-    QSFP_LOG(DBG4, this)
-        << "fwStatus not set. Returning false from requiresFirmwareUpgrade";
-    return false;
-  }
-
-  auto fwFromConfig = getFirmwareFromCfg();
-  if (!fwFromConfig.has_value()) {
-    QSFP_LOG(DBG4, this)
-        << "Fw not available in config. Returning false from requiresFirmwareUpgrade";
-    return false;
-  }
-
-  for (auto fwIt : *fwFromConfig->versions()) {
-    if (fwIt.get_fwType() == cfg::FirmwareType::APPLICATION &&
-        fwStatus->version() && fwIt.get_version() != *fwStatus->version()) {
-      QSFP_LOG(INFO, this) << folly::sformat(
-          "Application Version in cfg = {:s}, current operational version = {:s}. Returning true from requiresFirmwareUpgrade",
-          fwIt.get_version(),
-          *fwStatus->version());
-      return true;
-    }
-    if (fwIt.get_fwType() == cfg::FirmwareType::DSP && fwStatus->dspFwVer() &&
-        fwIt.get_version() != *fwStatus->dspFwVer()) {
-      QSFP_LOG(INFO, this) << folly::sformat(
-          "DSP Version in cfg = {:s}, current operational version = {:s}. Returning true from requiresFirmwareUpgrade",
-          fwIt.get_version(),
-          *fwStatus->dspFwVer());
-      return true;
-    }
-  }
-
-  // Versions match. No need to upgrade firmware
-  return false;
-}
-
-bool QsfpModule::upgradeFirmware(const std::optional<cfg::Firmware>& fw) {
+bool QsfpModule::upgradeFirmware(
+    std::vector<std::unique_ptr<FbossFirmware>>& fwList) {
   // Always use i2cEvb to program transceivers if there's an i2cEvb
   auto i2cEvb = qsfpImpl_->getI2cEventBase();
-  auto upgradeFwFn = [&, fw]() -> bool {
+  auto upgradeFwFn = [&]() -> bool {
     lock_guard<std::mutex> g(qsfpModuleMutex_);
-    return upgradeFirmwareLocked(fw);
+    return upgradeFirmwareLocked(fwList);
   };
 
   if (!i2cEvb) {
@@ -242,36 +162,21 @@ bool QsfpModule::upgradeFirmware(const std::optional<cfg::Firmware>& fw) {
   return fwUpgradeStatus;
 }
 
-bool QsfpModule::upgradeFirmwareLocked(const std::optional<cfg::Firmware>& fw) {
-  QSFP_LOG(INFO, this) << "Upgrading firmware";
-
-  cfg::Firmware fwToUpgrade;
-  if (fw.has_value()) {
-    fwToUpgrade = fw.value();
-  } else if (auto fwFromConfig = getFirmwareFromCfg()) {
-    QSFP_LOG(INFO, this) << "Upgrading firmware to the one in qsfp config";
-    fwToUpgrade = *fwFromConfig;
-  } else {
-    QSFP_LOG(ERR, this) << "No firmware version found to upgrade";
-    return false;
-  }
-
+std::string QsfpModule::getFwStorageHandle() const {
   auto cachedTcvrInfo = getTransceiverInfo();
   auto vendor = cachedTcvrInfo.tcvrState()->vendor();
   if (!vendor.has_value()) {
     QSFP_LOG(ERR, this)
         << "Vendor not set. Can't find the partnumber to upgrade";
-    return false;
+    return std::string();
   }
 
-  std::string fwStorageHandleName =
-      getFwStorageHandle(vendor->get_partNumber());
+  return getFwStorageHandle(vendor->get_partNumber());
+}
 
-  if (fwStorageHandleName.empty()) {
-    QSFP_LOG(ERR, this)
-        << "Can't find the fwStorage handle for this part number. Skipping fw upgrade";
-    return false;
-  }
+bool QsfpModule::upgradeFirmwareLocked(
+    std::vector<std::unique_ptr<FbossFirmware>>& fwList) {
+  QSFP_LOG(INFO, this) << "Upgrading firmware";
 
   bool fwUpgradeResult = true;
 
@@ -310,16 +215,8 @@ bool QsfpModule::upgradeFirmwareLocked(const std::optional<cfg::Firmware>& fw) {
     dirty_ = true;
 
     // Step 4: Upgrade Firmware
-    for (const auto& fwVersion : *fwToUpgrade.versions()) {
-      QSFP_LOG(INFO, this) << folly::sformat(
-          "Upgrading module firmware. Type={:s}, Version={:s}",
-          apache::thrift::util::enumNameSafe(*fwVersion.fwType()),
-          *fwVersion.version());
-
-      std::unique_ptr<FbossFirmware> fbossFw =
-          getTransceiverManager()->fwStorage()->getFirmware(
-              fwStorageHandleName, *fwVersion.version());
-      fwUpgradeResult &= upgradeFirmwareLockedImpl(std::move(fbossFw));
+    for (auto& fw : fwList) {
+      fwUpgradeResult &= upgradeFirmwareLockedImpl(std::move(fw));
     }
 
     // Trigger a hard reset of the transceiver to kick start the new firmware
@@ -338,7 +235,6 @@ bool QsfpModule::upgradeFirmwareLocked(const std::optional<cfg::Firmware>& fw) {
 void QsfpModule::triggerModuleResetLocked() {
   getTransceiverManager()->getQsfpPlatformApi()->triggerQsfpHardReset(
       static_cast<unsigned int>(getID()) + 1);
-  moduleResetCounter_++;
 }
 
 // Note that this needs to be called while holding the
@@ -371,7 +267,6 @@ QsfpModule::detectPresenceLocked() {
     dirty_ = true;
     present_ = currentQsfpStatus;
     statusChanged = true;
-    moduleResetCounter_ = 0;
 
     // If a transceiver went from present to missing, clear the cached data.
     if (!present_) {
@@ -413,6 +308,7 @@ unsigned int QsfpModule::numHostLanes() const {
     case MediaInterfaceCode::LR4_400G_10KM:
     case MediaInterfaceCode::CR8_400G:
     case MediaInterfaceCode::FR4_2x400G:
+    case MediaInterfaceCode::DR4_400G:
     case MediaInterfaceCode::DR4_2x400G:
     case MediaInterfaceCode::FR8_800G:
       return 8;
@@ -436,6 +332,7 @@ unsigned int QsfpModule::numMediaLanes() const {
     case MediaInterfaceCode::CR4_200G:
     case MediaInterfaceCode::FR4_400G:
     case MediaInterfaceCode::LR4_400G_10KM:
+    case MediaInterfaceCode::DR4_400G:
       return 4;
     case MediaInterfaceCode::CR8_400G:
     case MediaInterfaceCode::FR4_2x400G:
@@ -1019,11 +916,11 @@ phy::PrbsStats QsfpModule::getPortPrbsStats(
   return portPrbs;
 }
 
-bool QsfpModule::shouldRemediate() {
+bool QsfpModule::shouldRemediate(time_t pauseRemidiation) {
   // Always use i2cEvb to program transceivers if there's an i2cEvb
-  auto shouldRemediateFunc = [this]() {
+  auto shouldRemediateFunc = [&, this]() {
     lock_guard<std::mutex> g(qsfpModuleMutex_);
-    return shouldRemediateLocked();
+    return shouldRemediateLocked(pauseRemidiation);
   };
   auto i2cEvb = qsfpImpl_->getI2cEventBase();
   if (!i2cEvb) {
@@ -1042,7 +939,7 @@ bool QsfpModule::shouldRemediate() {
   }
 }
 
-bool QsfpModule::shouldRemediateLocked() {
+bool QsfpModule::shouldRemediateLocked(time_t pauseRemidiation) {
   if (!supportRemediate()) {
     return false;
   }
@@ -1069,11 +966,8 @@ bool QsfpModule::shouldRemediateLocked() {
   }
 
   auto now = std::time(nullptr);
-  std::map<std::string, int32_t> remediatePausedInfo;
-  getTransceiverManager()->getPauseRemediationUntil(
-      remediatePausedInfo, nullptr);
-  bool remediationEnabled = (now > remediatePausedInfo["all"]) &&
-      (now > getModulePauseRemediationUntil());
+  bool remediationEnabled =
+      (now > pauseRemidiation) && (now > getModulePauseRemediationUntil());
   // Rather than immediately attempting to remediate a module,
   // we would like to introduce a bit delay to de-couple the consequences
   // of a remediation with the root cause that brought down the link.
@@ -1475,11 +1369,12 @@ void QsfpModule::publishSnapshots() {
 
 bool QsfpModule::tryRemediate(
     bool allPortsDown,
+    time_t pauseRemdiation,
     const std::vector<std::string>& ports) {
   // Always use i2cEvb to program transceivers if there's an i2cEvb
-  auto remediateTcvrFunc = [this, allPortsDown, &ports]() {
+  auto remediateTcvrFunc = [this, allPortsDown, &ports, pauseRemdiation]() {
     lock_guard<std::mutex> g(qsfpModuleMutex_);
-    return tryRemediateLocked(allPortsDown, ports);
+    return tryRemediateLocked(allPortsDown, pauseRemdiation, ports);
   };
   auto i2cEvb = qsfpImpl_->getI2cEventBase();
   if (!i2cEvb) {
@@ -1499,11 +1394,12 @@ bool QsfpModule::tryRemediate(
 
 bool QsfpModule::tryRemediateLocked(
     bool allPortsDown,
+    time_t pauseRemidiation,
     const std::vector<std::string>& ports) {
   // Only update numRemediation_ iff this transceiver should remediate and
   // remediation actually happens
-  if (shouldRemediateLocked() &&
-      remediateFlakyTransceiver(allPortsDown, ports)) {
+  if (shouldRemediateLocked(pauseRemidiation)) {
+    remediateFlakyTransceiver(allPortsDown, ports);
     ++numRemediation_;
     // Remediation touches the hardware, hard resetting the optics in Cmis case,
     // so set dirty so that we always do a refresh in the next cycle and update

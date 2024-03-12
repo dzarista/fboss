@@ -136,10 +136,19 @@ maybe_setup_build_env() {
       patch -p1 < patch9-SDK-5.19-post-SDK-6_5_30.patch
    fi
 
+   # SAI 11.0.0.7 specific fixes (can be removed in next release).
+   cd hsdk-all-6.5.30
+   # Fix RxSignalDetect not supported on ports issue, which also currently breaks
+   # fetching any kind of phy stats.
+   wget http://dist/storage/fboss/FBOSS-SAI/patch13-SDK-6_5_30_RxSignalDetect_fix.patch
+   patch -p1 < patch13-SDK-6_5_30_RxSignalDetect_fix.patch
+   # Fix to avoid drops caused by NDP/ICMP packets hitting default route.
+   wget http://dist/storage/fboss/FBOSS-SAI/patch14-SDK-6_5_30_default_route_drop_fix.patch
+   patch -p1 < patch14-SDK-6_5_30_default_route_drop_fix.patch
+
    # Centos 9 build related patches and deps
    if [[ "${CENTOS_RELEASE}" == "9" ]];
    then
-      cd sdk-6.5.29-dnx.1
       wget http://dist/storage/fboss/FBOSS-SAI/el9/CS00012328096_01_replace_sal_strncpy_arista.patch
       patch -p1 < CS00012328096_01_replace_sal_strncpy_arista.patch
       wget http://dist/storage/fboss/FBOSS-SAI/el9/Satish_Remaining_SDK_fixes_centos9-round2.patch

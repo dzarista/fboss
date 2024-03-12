@@ -17,6 +17,7 @@
 #include "folly/container/F14Map.h"
 
 #include <optional>
+#include <ostream>
 #include <string>
 
 namespace facebook::fboss {

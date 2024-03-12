@@ -7,9 +7,9 @@
  *  of patent rights can be found in the PATENTS file in the same directory.
  *
  */
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/agent/FbossError.h"
-#include "fboss/agent/hw/test/TrafficPolicyUtils.h"
+#include "fboss/agent/test/utils/TrafficPolicyTestUtils.h"
 
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 

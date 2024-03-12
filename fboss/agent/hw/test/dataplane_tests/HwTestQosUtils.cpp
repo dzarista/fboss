@@ -182,4 +182,5 @@ bool verifyQueueMappings(
   return verifyQueueMappings(
       portStatsBefore, q2dscps, getPortStats, egressPort);
 }
+
 } // namespace facebook::fboss::utility

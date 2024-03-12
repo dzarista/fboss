@@ -22,6 +22,7 @@ class SwitchStats;
 class HwSwitchFb303Stats;
 struct HwSwitchStateUpdate;
 class SwSwitch;
+class AgentStats;
 
 using HwSwitchHandlerInitFn = std::function<std::unique_ptr<HwSwitchHandler>(
     const SwitchID& switchId,
@@ -53,7 +54,7 @@ class MultiHwSwitchHandler {
 
   void notifyHwSwitchGracefulExit(int64_t switchId);
 
-  void notifyHwSwitchDisconnected(int64_t switchId);
+  void notifyHwSwitchDisconnected(int64_t switchId, bool gracefulExit);
 
   std::shared_ptr<SwitchState> stateChanged(
       const StateDelta& delta,
@@ -106,7 +107,7 @@ class MultiHwSwitchHandler {
 
   void clearPortStats(const std::unique_ptr<std::vector<int32_t>>& ports);
 
-  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(int32_t portId);
+  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId);
 
   void clearPortAsicPrbsStats(int32_t portId);
 
@@ -157,6 +158,8 @@ class MultiHwSwitchHandler {
   }
 
   std::vector<EcmpDetails> getAllEcmpDetails();
+
+  void fillHwAgentConnectionStatus(AgentStats& agentStats);
 
  private:
   bool transactionsSupported(std::optional<cfg::SdkVersion> sdkVersion) const;

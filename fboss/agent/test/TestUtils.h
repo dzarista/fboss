@@ -24,7 +24,7 @@
 #include "fboss/agent/StateObserver.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/hw/mock/MockHwSwitch.h"
-#include "fboss/agent/mnpu/NonMonolithicHwSwitchHandler.h"
+#include "fboss/agent/mnpu/MultiSwitchHwSwitchHandler.h"
 #include "fboss/agent/state/RouteNextHopEntry.h"
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/test/RouteDistributionGenerator.h"
@@ -46,9 +46,9 @@ namespace cfg {
 class SwitchConfig;
 }
 
-class MockNonMonolithicHwSwitchHandler : public NonMonolithicHwSwitchHandler {
+class MockMultiSwitchHwSwitchHandler : public MultiSwitchHwSwitchHandler {
  public:
-  using NonMonolithicHwSwitchHandler::NonMonolithicHwSwitchHandler;
+  using MultiSwitchHwSwitchHandler::MultiSwitchHwSwitchHandler;
   MOCK_METHOD2(
       stateChanged,
       std::shared_ptr<SwitchState>(const StateDelta&, bool));

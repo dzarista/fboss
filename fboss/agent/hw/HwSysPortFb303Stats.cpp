@@ -13,6 +13,7 @@
 #include "fboss/agent/hw/StatsConstants.h"
 
 #include <folly/logging/xlog.h>
+#include <thrift/lib/cpp2/protocol/Serializer.h>
 
 namespace facebook::fboss {
 

@@ -13,7 +13,9 @@
 #include "fboss/agent/MultiHwSwitchHandler.h"
 #include "fboss/agent/MultiSwitchThriftHandler.h"
 #include "fboss/agent/SwSwitch.h"
-#include "fboss/agent/mnpu/NonMonolithicHwSwitchHandler.h"
+#include "fboss/agent/SwitchStats.h"
+#include "fboss/agent/mnpu/MultiSwitchHwSwitchHandler.h"
+#include "fboss/agent/test/CounterCache.h"
 #include "fboss/agent/test/HwTestHandle.h"
 #include "fboss/agent/test/TestUtils.h"
 #include "fboss/lib/CommonUtils.h"
@@ -45,7 +47,7 @@ class SwSwitchHandlerTest : public ::testing::Test {
         [](const SwitchID& switchId,
            const cfg::SwitchInfo& info,
            SwSwitch* sw) {
-          return std::make_unique<NonMonolithicHwSwitchHandler>(
+          return std::make_unique<MultiSwitchHwSwitchHandler>(
               switchId, info, sw);
         });
     sw_->getHwSwitchHandler()->start();
@@ -406,8 +408,7 @@ TEST_F(SwSwitchHandlerTest, reconnectingHwSwitch) {
       &agentConfig,
       &agentDirUtil,
       [](const SwitchID& switchId, const cfg::SwitchInfo& info, SwSwitch* sw) {
-        return std::make_unique<NonMonolithicHwSwitchHandler>(
-            switchId, info, sw);
+        return std::make_unique<MultiSwitchHwSwitchHandler>(switchId, info, sw);
       });
   auto newHwSwitchHandler = newSwSwitch->getHwSwitchHandler();
   newHwSwitchHandler->start();
@@ -742,7 +743,83 @@ TEST_F(SwSwitchHandlerTest, initialSyncSwSwitchNotConfigured) {
   sw_->initialConfigApplied(std::chrono::steady_clock::now());
   client1Baton.wait();
   client2Baton.wait();
+  waitForStateUpdates(sw);
   sw->getHwSwitchHandler()->stop();
+  clientRequestThread1.join();
+  clientRequestThread2.join();
+}
+
+TEST_F(SwSwitchHandlerTest, connectionStatusCount) {
+  CounterCache counters(sw_.get());
+  auto checkConnectionStatus = [&](const auto& status) {
+    AgentStats agentStats;
+    getHwSwitchHandler()->fillHwAgentConnectionStatus(agentStats);
+    EXPECT_EQ(agentStats.hwagentConnectionStatus()[0], status);
+  };
+  checkConnectionStatus(0);
+  getHwSwitchHandler()->connected(SwitchID(1));
+  getHwSwitchHandler()->connected(SwitchID(2));
+  counters.update();
+  // Ideally the absolute value of connection status can be checked here.
+  // However it would fail if all tests are run in a single shot as the
+  // counter updates from previous tests can be carried over to this test.
+  counters.checkDelta(
+      SwitchStats::kCounterPrefix + "switch.0.connection_status", 1);
+  checkConnectionStatus(1);
+  getHwSwitchHandler()->disconnected(SwitchID(1));
+  counters.update();
+  counters.checkDelta(
+      SwitchStats::kCounterPrefix + "switch.0.connection_status", -1);
+  checkConnectionStatus(0);
+}
+
+TEST_F(SwSwitchHandlerTest, operAckTimeoutCount) {
+  FLAGS_oper_delta_ack_timeout = 5;
+  auto stateV0 = std::make_shared<SwitchState>();
+  auto stateV1 = getInitialTestState();
+
+  auto delta = StateDelta(stateV0, stateV1);
+  std::thread stateUpdateThread([this, &delta]() {
+    getHwSwitchHandler()->waitUntilHwSwitchConnected();
+    CounterCache counters(sw_.get());
+    counters.update();
+    auto prevCounter = counters.value(
+        SwitchStats::kCounterPrefix + "switch." + folly::to<std::string>(0) +
+        ".hwupdate_timeouts.sum.60");
+    auto stateReturned = getHwSwitchHandler()->stateChanged(delta, false);
+    WITH_RETRIES({
+      counters.update();
+      EXPECT_EVENTUALLY_EQ(
+          counters.value(
+              SwitchStats::kCounterPrefix + "switch." +
+              folly::to<std::string>(0) + ".hwupdate_timeouts.sum.60"),
+          prevCounter + 1);
+    });
+    getHwSwitchHandler()->stop();
+  });
+
+  auto clientThreadBody = [this](int64_t switchId) {
+    int64_t ackNum{0};
+    OperDeltaFilter filter((SwitchID(switchId)));
+    // connect and get next state delta
+    auto getEmptyOper = []() {
+      auto operDelta = std::make_unique<multiswitch::StateOperDelta>();
+      operDelta->operDelta() = fsdb::OperDelta();
+      return operDelta;
+    };
+    auto operDelta = getHwSwitchHandler()->getNextStateOperDelta(
+        switchId, getEmptyOper(), ackNum++);
+    // only second switch sends ack
+    if (switchId == 2) {
+      operDelta = getHwSwitchHandler()->getNextStateOperDelta(
+          switchId, getEmptyOper(), ackNum++);
+    }
+  };
+
+  std::thread clientRequestThread1([&]() { clientThreadBody(1); });
+  std::thread clientRequestThread2([&]() { clientThreadBody(2); });
+
+  stateUpdateThread.join();
   clientRequestThread1.join();
   clientRequestThread2.join();
 }

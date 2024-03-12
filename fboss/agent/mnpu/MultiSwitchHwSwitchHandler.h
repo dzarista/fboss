@@ -3,18 +3,20 @@
 #include "fboss/agent/HwSwitchHandler.h"
 #include "fboss/agent/if/gen-cpp2/MultiSwitchCtrl.h"
 
+DECLARE_int32(oper_delta_ack_timeout);
+
 namespace facebook::fboss {
 
 class SwSwitch;
 
-class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
+class MultiSwitchHwSwitchHandler : public HwSwitchHandler {
  public:
-  NonMonolithicHwSwitchHandler(
+  MultiSwitchHwSwitchHandler(
       const SwitchID& switchId,
       const cfg::SwitchInfo& info,
       SwSwitch* sw);
 
-  virtual ~NonMonolithicHwSwitchHandler() override;
+  virtual ~MultiSwitchHwSwitchHandler() override;
 
   void exitFatal() const override;
 
@@ -63,7 +65,7 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
   void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
-  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(int32_t portId) override;
+  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId) override;
 
   void clearPortAsicPrbsStats(int32_t portId) override;
 
@@ -153,6 +155,7 @@ class NonMonolithicHwSwitchHandler : public HwSwitchHandler {
       const fsdb::OperDelta& delta,
       bool transaction,
       int64_t lastSeqNum);
+  void operDeltaAckTimeout();
 
   SwSwitch* sw_;
   std::condition_variable stateUpdateCV_;

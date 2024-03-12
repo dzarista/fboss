@@ -8,6 +8,7 @@
  *
  */
 #include "fboss/agent/SwSwitch.h"
+#include <optional>
 
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/AgentDirectoryUtil.h"
@@ -701,27 +702,27 @@ AgentStats SwSwitch::fillFsdbStats() {
         agentStats.hwTrunkStats()->insert(statEntry);
       }
       agentStats.hwResourceStatsMap()->insert(
-          {switchIdx, std::move(*hwSwitchStats.hwResourceStats())});
+          {switchIdx, *hwSwitchStats.hwResourceStats()});
       agentStats.hwAsicErrorsMap()->insert(
-          {switchIdx, std::move(*hwSwitchStats.hwAsicErrors())});
+          {switchIdx, *hwSwitchStats.hwAsicErrors()});
       agentStats.teFlowStatsMap()->insert(
-          {switchIdx, std::move(*hwSwitchStats.teFlowStats())});
+          {switchIdx, *hwSwitchStats.teFlowStats()});
       agentStats.bufferPoolStatsMap()->insert(
-          {switchIdx, std::move(*hwSwitchStats.bufferPoolStats())});
+          {switchIdx, *hwSwitchStats.bufferPoolStats()});
       agentStats.sysPortStatsMap()->insert(
-          {switchIdx, std::move(*hwSwitchStats.sysPortStats())});
+          {switchIdx, *hwSwitchStats.sysPortStats()});
       for (auto& [_, phyInfo] : *hwSwitchStats.phyInfo()) {
         auto portName = phyInfo.state()->name().value();
         agentStats.phyStats()->insert({portName, phyInfo.get_stats()});
       }
       agentStats.flowletStatsMap()->insert(
-          {switchIdx, std::move(*hwSwitchStats.flowletStats())});
+          {switchIdx, *hwSwitchStats.flowletStats()});
       agentStats.cpuPortStatsMap()->insert(
-          {switchIdx, std::move(*hwSwitchStats.cpuPortStats())});
+          {switchIdx, *hwSwitchStats.cpuPortStats()});
     }
-    lockedStats->clear();
   }
   stats()->fillAgentStats(agentStats);
+  getHwSwitchHandler()->fillHwAgentConnectionStatus(agentStats);
   // fill old fields using first switch values for backward compatibility
   agentStats.hwResourceStats() =
       agentStats.hwResourceStatsMap()->begin()->second;
@@ -899,6 +900,41 @@ void SwSwitch::updateFabricReachabilityStats() {
         getHwSwitchHandler()->getFabricReachabilityStats();
   }
   *fabricReachabilityStats_.wlock() = fabricReachabilityStats;
+}
+
+bool SwSwitch::isRunModeMultiSwitch() {
+  return FLAGS_multi_switch ||
+      (*agentConfig_.rlock())->getRunMode() == cfg::AgentRunMode::MULTI_SWITCH;
+}
+
+void SwSwitch::getAllHwSysPortStats(
+    std::map<std::string, HwSysPortStats>& hwSysPortStats) const {
+  auto hwswitchStatsMap = hwSwitchStats_.rlock();
+  for (const auto& [switchIdx, hwSwitchStats] : *hwswitchStatsMap) {
+    for (const auto& [portName, hwSysPortStatsEntry] :
+         *hwSwitchStats.sysPortStats()) {
+      hwSysPortStats.emplace(portName, hwSysPortStatsEntry);
+    }
+  }
+}
+
+void SwSwitch::getAllHwPortStats(
+    std::map<std::string, HwPortStats>& hwPortStats) const {
+  auto hwswitchStatsMap = hwSwitchStats_.rlock();
+  for (const auto& [switchIdx, hwSwitchStats] : *hwswitchStatsMap) {
+    for (const auto& [portName, hwPortStatsEntry] :
+         *hwSwitchStats.hwPortStats()) {
+      hwPortStats.emplace(portName, hwPortStatsEntry);
+    }
+  }
+}
+
+void SwSwitch::getAllCpuPortStats(
+    std::map<int, CpuPortStats>& hwCpuPortStats) const {
+  auto hwswitchStatsMap = hwSwitchStats_.rlock();
+  for (const auto& [switchIdx, hwSwitchStats] : *hwswitchStatsMap) {
+    hwCpuPortStats.emplace(switchIdx, *hwSwitchStats.cpuPortStats());
+  }
 }
 
 void SwSwitch::updateFlowletStats() {
@@ -1440,9 +1476,9 @@ void SwSwitch::handlePendingUpdates() {
         << " Hw Failure protected updates should be non coalescing";
   }
 
-  // This function should never be called with valid updates while we are
-  // not initialized yet
-  DCHECK(isInitialized());
+  // This function should never be called with valid updates while we don't have
+  // a valid switch state
+  DCHECK(getState());
 
   // Call all of the update functions to prepare the new SwitchState
   auto oldAppliedState = getState();
@@ -1709,7 +1745,9 @@ PortStatus SwSwitch::getPortStatus(PortID portID) {
 }
 
 SwitchStats* SwSwitch::createSwitchStats() {
-  SwitchStats* s = new SwitchStats();
+  CHECK(switchInfoTable_.getSwitchIdToSwitchInfo().size());
+  SwitchStats* s =
+      new SwitchStats(switchInfoTable_.getSwitchIdToSwitchInfo().size());
   stats_.reset(s);
   return s;
 }
@@ -2727,7 +2765,7 @@ void SwSwitch::clearPortStats(
   multiHwSwitchHandler_->clearPortStats(ports);
 }
 
-std::vector<phy::PrbsLaneStats> SwSwitch::getPortAsicPrbsStats(int32_t portId) {
+std::vector<phy::PrbsLaneStats> SwSwitch::getPortAsicPrbsStats(PortID portId) {
   return multiHwSwitchHandler_->getPortAsicPrbsStats(portId);
 }
 
@@ -3080,6 +3118,43 @@ FabricReachabilityStats SwSwitch::getFabricReachabilityStats() {
   } else {
     return getHwSwitchHandler()->getFabricReachabilityStats();
   }
+}
+
+void SwSwitch::setPortsDownForSwitch(SwitchID switchId) {
+  for (const auto& [matcher, portMap] :
+       std::as_const(*getState()->getPorts())) {
+    // walk through all ports on the switch and set them down
+    if (HwSwitchMatcher(matcher).has(switchId)) {
+      for (const auto& port : std::as_const(*portMap)) {
+        if (port.second->isUp()) {
+          linkStateChanged(port.second->getID(), false);
+        }
+      }
+    }
+  }
+}
+
+std::map<PortID, HwPortStats> SwSwitch::getHwPortStats(
+    std::vector<PortID> ports) const {
+  std::map<PortID, HwPortStats> hwPortsStats;
+  for (const auto& portId : ports) {
+    auto switchIds = getScopeResolver()->scope(portId).switchIds();
+    CHECK_EQ(switchIds.size(), 1);
+    auto switchIndex =
+        getSwitchInfoTable().getSwitchIndexFromSwitchId(*switchIds.cbegin());
+    auto hwswitchStatsMap = hwSwitchStats_.rlock();
+    auto hwswitchStats = hwswitchStatsMap->find(switchIndex);
+    if (hwswitchStats != hwswitchStatsMap->end()) {
+      auto portName = getState()->getPorts()->getNodeIf(portId)->getName();
+      auto statsMap = hwswitchStats->second.hwPortStats();
+      auto entry = statsMap->find(portName);
+      if (entry != statsMap->end()) {
+        hwPortsStats.insert(
+            {portId, hwswitchStats->second.hwPortStats()->at(portName)});
+      }
+    }
+  }
+  return hwPortsStats;
 }
 
 } // namespace facebook::fboss
