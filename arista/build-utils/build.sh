@@ -209,6 +209,7 @@ then
    rm -rf $SCRATCH_DIR/repos
    rm -rf "$SCRATCH_DIR"/fboss_bins*
    make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
+   make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 fi
 cd $FBOSS_DIR/fboss.git
 
@@ -305,9 +306,11 @@ else
    echo "Copying $lib from $lib_path to $fboss_output_dir/lib64"
    cp -L $lib_path $fboss_output_dir/lib64
 
-   # build bsp-kmods
    echo "****BUILDING BSP-KMODS"
    make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods modules
+
+   echo "****BUILDING SHOWTECH DEPENDENCIES"
+   make -C $FBOSS_DIR/fboss.git/arista/showtech
 
    # Copy over kernel modules
    mkdir -p "$fboss_output_dir/lib/modules"
