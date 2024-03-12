@@ -218,6 +218,7 @@ struct HwAsicErrors {
   7: optional i64 egressPacketNetworkInterfaceErrors;
   8: optional i64 alignerErrors;
   9: optional i64 forwardingQueueProcessorErrors;
+  10: optional i64 allReassemblyContextsTaken;
 }
 
 struct HwTeFlowStats {
@@ -261,6 +262,7 @@ struct HwSwitchDropStats {
   9: optional i64 dropPrecedenceDrops;
   10: optional i64 queueResolutionDrops;
   11: optional i64 ingressPacketPipelineRejectDrops;
+  12: optional i64 corruptedCellPacketIntegrityDrops;
 }
 
 struct HwSwitchDramStats {
@@ -297,4 +299,8 @@ struct HwSwitchFb303GlobalStats {
 
 struct HwFlowletStats {
   1: i64 l3EcmpDlbFailPackets;
+}
+
+struct AclStats {
+  1: map<string, i64> statNameToCounterMap;
 }

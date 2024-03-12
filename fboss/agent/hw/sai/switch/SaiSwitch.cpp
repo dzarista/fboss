@@ -1193,10 +1193,21 @@ void SaiSwitch::processSwitchSettingsChangedEntryLocked(
         newSwitchSettings->getMaxRouteCounterIDs());
   }
 
-  const auto oldVal = oldSwitchSettings->isSwitchDrained();
-  const auto newVal = newSwitchSettings->isSwitchDrained();
-  if (oldVal != newVal) {
-    managerTable_->switchManager().setSwitchIsolate(newVal);
+  {
+    const auto oldVal = oldSwitchSettings->isSwitchDrained();
+    const auto newVal = newSwitchSettings->isSwitchDrained();
+    if (oldVal != newVal) {
+      managerTable_->switchManager().setSwitchIsolate(newVal);
+    }
+  }
+
+  {
+    const auto oldVal = oldSwitchSettings->getForceTrafficOverFabric();
+    const auto newVal = newSwitchSettings->getForceTrafficOverFabric();
+    if (oldVal != newVal) {
+      managerTable_->switchManager().setForceTrafficOverFabric(
+          newVal.has_value() ? newVal.value() : false);
+    }
   }
 }
 
@@ -1925,6 +1936,11 @@ void SaiSwitch::txReadyStatusChangeCallbackBottomHalf() {
     if (portType == cfg::PortType::FABRIC_PORT) {
       adapterKeys.emplace_back(portSaiId);
     }
+  }
+
+  // Return early if no fabric port is initialized
+  if (adapterKeys.empty()) {
+    return;
   }
 
   auto& portApi = SaiApiTable::getInstance()->portApi();
@@ -3681,5 +3697,10 @@ std::vector<EcmpDetails> SaiSwitch::getAllEcmpDetails() const {
 HwSwitchDropStats SaiSwitch::getSwitchDropStats() const {
   std::lock_guard<std::mutex> lk(saiSwitchMutex_);
   return managerTable_->switchManager().getSwitchDropStats();
+}
+
+AclStats SaiSwitch::getAclStats() const {
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  return managerTable_->aclTableManager().getAclStats();
 }
 } // namespace facebook::fboss

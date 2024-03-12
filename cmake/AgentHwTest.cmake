@@ -120,18 +120,6 @@ target_link_libraries(hw_teflow_utils
   switch_config_cpp2
 )
 
-add_library(hw_dscp_marking_utils
-  fboss/agent/hw/test/dataplane_tests/HwDscpMarkingTests.cpp
-)
-
-target_link_libraries(hw_dscp_marking_utils
-  fboss_types
-  hw_switch_ensemble
-  packet_factory
-  Folly::folly
-  switch_config_cpp2
-)
-
 add_library(hw_link_state_toggler
   fboss/agent/hw/test/LinkStateToggler.cpp
 )
@@ -191,6 +179,7 @@ target_link_libraries(load_balancer_utils
   fboss_types
   switch_config_cpp2
   hw_switch_ensemble
+  load_balancer_test_utils
   resourcelibutil
   packet_factory
   state
@@ -310,7 +299,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/HwSflowMirrorTest.cpp
   fboss/agent/hw/test/dataplane_tests/HwSwitchStatsTxCounterTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwTest2QueueUtils.cpp
-  fboss/agent/hw/test/dataplane_tests/HwTestDscpMarkingUtils.cpp
   fboss/agent/hw/test/dataplane_tests/Hw2QueueToOlympicQoSTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestAqmUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.cpp
@@ -351,6 +339,7 @@ target_link_libraries(hw_switch_test
   agent_test_utils
   acl_test_utils
   copp_test_utils
+  dscp_marking_utils
   fabric_test_utils
   hw_packet_utils
   hw_switch_ensemble
@@ -393,7 +382,7 @@ add_library(prod_config_factory
 target_link_libraries(prod_config_factory
   config_factory
   hw_copp_utils
-  hw_dscp_marking_utils
+  dscp_marking_utils
   olympic_qos_utils
   hw_queue_per_host_utils
   load_balancer_utils

@@ -9,7 +9,6 @@
 #include <string>
 #include "common/time/Time.h"
 #include "fboss/agent/FbossError.h"
-#include "fboss/lib/i2c/FirmwareUpgrader.h"
 #include "fboss/lib/phy/gen-cpp2/prbs_types.h"
 #include "fboss/lib/platforms/PlatformMode.h"
 #include "fboss/lib/usb/TransceiverI2CApi.h"
@@ -18,6 +17,7 @@
 #include "fboss/qsfp_service/if/gen-cpp2/qsfp_service_config_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 #include "fboss/qsfp_service/lib/QsfpConfigParserHelper.h"
+#include "fboss/qsfp_service/module/FirmwareUpgrader.h"
 #include "fboss/qsfp_service/module/QsfpFieldInfo.h"
 #include "fboss/qsfp_service/module/QsfpHelper.h"
 #include "fboss/qsfp_service/module/TransceiverImpl.h"
@@ -1486,16 +1486,6 @@ std::optional<VdmDiagsStats> CmisModule::getVdmDiagsStatsInfo() {
       vdmStats.eSnrMediaChannel()[lanes] = snr;
     }
   }
-
-  // Lambda to convert U16 format to double
-  auto f16ToDouble = [](uint8_t byte0, uint8_t byte1) -> double {
-    double ber;
-    int expon = byte0 >> 3;
-    expon -= 24;
-    int mant = ((byte0 & 0x7) << 8) | byte1;
-    ber = mant * exp10(expon);
-    return ber;
-  };
 
   // Lambda to extract BER or Frame Error values for a given VDM config type
   auto captureVdmBerFrameErrorValues =
@@ -3366,7 +3356,7 @@ bool CmisModule::upgradeFirmwareLockedImpl(
   QSFP_LOG(INFO, this) << "Upgrading CMIS Module Firmware";
 
   auto fwUpgradeObj = std::make_unique<CmisFirmwareUpgrader>(
-      getTransceiverManager()->i2cBus(), getID() + 1, std::move(fbossFw));
+      qsfpImpl_, getID(), std::move(fbossFw));
 
   bool ret = fwUpgradeObj->cmisModuleFirmwareUpgrade();
   return ret;
@@ -3410,6 +3400,20 @@ void CmisModule::setTransceiverLoopbackLocked(
       tcvrLanes, std::nullopt, !setLoopback, hostOrMediaInputLbEnable);
 
   writeCmisField(regField, &hostOrMediaInputLbEnable);
+}
+
+/*
+ * f16ToDouble
+ *
+ * Convert CMIS VDM F16 type (16 bit) to a floating point number
+ */
+double CmisModule::f16ToDouble(uint8_t byte0, uint8_t byte1) {
+  double ber;
+  int expon = byte0 >> 3;
+  expon -= 24;
+  int mant = ((byte0 & 0x7) << 8) | byte1;
+  ber = mant * exp10(expon);
+  return ber;
 }
 
 } // namespace fboss

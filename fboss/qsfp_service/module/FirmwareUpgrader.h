@@ -4,11 +4,13 @@
 
 #include <memory>
 #include <utility>
+
 #include "fboss/lib/firmware_storage/FbossFirmware.h"
-#include "fboss/lib/i2c/CdbCommandBlock.h"
-#include "fboss/lib/usb/TransceiverI2CApi.h"
+#include "fboss/qsfp_service/module/CdbCommandBlock.h"
 
 namespace facebook::fboss {
+
+class TransceiverImpl;
 
 /*
  * This class provides the data and function to perform firmware upgrade on a
@@ -42,7 +44,7 @@ class CmisFirmwareUpgrader {
   // Constructor. The caller is responsible for interfacing with Firmware
   // Store and provide the FbossFirmware object
   CmisFirmwareUpgrader(
-      TransceiverI2CApi* bus,
+      TransceiverImpl* bus,
       unsigned int modId,
       std::unique_ptr<FbossFirmware> fbossFirmware);
 
@@ -50,8 +52,9 @@ class CmisFirmwareUpgrader {
   bool cmisModuleFirmwareUpgrade();
 
  private:
+  // Get Rid of this: Convert it to TransceiverImpl* interface....
   // Bus class for moduleRead/Write() functions
-  TransceiverI2CApi* bus_;
+  TransceiverImpl* bus_;
   // module Id for upgrade
   unsigned int moduleId_;
   // FbossFirmware object

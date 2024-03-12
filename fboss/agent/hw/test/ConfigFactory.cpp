@@ -21,6 +21,7 @@
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/PortMap.h"
+#include "fboss/agent/test/utils/CommonUtils.h"
 #include "fboss/agent/test/utils/PortTestUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 #include "fboss/lib/platforms/PlatformMode.h"
@@ -199,104 +200,13 @@ cfg::SwitchConfig twoL3IntfConfig(
     PortID port1,
     PortID port2,
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap) {
-  std::map<PortID, VlanID> port2vlan;
-  std::vector<PortID> ports{port1, port2};
-  std::vector<VlanID> vlans;
-  auto vlan = kBaseVlanId;
-  auto switchType = hwSwitch->getPlatform()->getAsic()->getSwitchType();
-  CHECK(
-      switchType == cfg::SwitchType::NPU || switchType == cfg::SwitchType::VOQ)
-      << "twoL3IntfConfig is only supported for VOQ or NPU switch types";
-  PortID kRecyclePort(1);
-  if (switchType == cfg::SwitchType::VOQ && port1 != kRecyclePort &&
-      port2 != kRecyclePort) {
-    ports.push_back(kRecyclePort);
-  }
-  for (auto port : ports) {
-    auto portType =
-        hwSwitch->getPlatform()->getPlatformPort(port)->getPortType();
-    CHECK(portType != cfg::PortType::FABRIC_PORT);
-    // For non NPU switch type vendor SAI impls don't support
-    // tagging packet at port ingress.
-    if (switchType == cfg::SwitchType::NPU) {
-      port2vlan[port] = VlanID(kBaseVlanId);
-      vlans.push_back(VlanID(vlan++));
-    } else {
-      port2vlan[port] = VlanID(0);
-    }
-  }
-  auto config = genPortVlanCfg(
+  return twoL3IntfConfig(
       hwSwitch->getPlatform()->getPlatformMapping(),
       hwSwitch->getPlatform()->getAsic(),
-      ports,
-      port2vlan,
-      vlans,
-      lbModeMap,
-      hwSwitch->getPlatform()->supportsAddRemovePort());
-
-  auto computeIntfId = [&config, &ports, &switchType, &vlans](auto idx) {
-    if (switchType == cfg::SwitchType::NPU) {
-      return static_cast<int64_t>(vlans[idx]);
-    }
-    auto mySwitchId =
-        apache::thrift::can_throw(*config.switchSettings()->switchId());
-    auto sysportRangeBegin =
-        *config.dsfNodes()[mySwitchId].systemPortRange()->minimum();
-    return sysportRangeBegin + static_cast<int>(ports[idx]);
-  };
-  for (auto i = 0; i < ports.size(); ++i) {
-    cfg::Interface intf;
-    *intf.intfID() = computeIntfId(i);
-    *intf.vlanID() = switchType == cfg::SwitchType::NPU ? vlans[i] : 0;
-    *intf.routerID() = 0;
-    intf.ipAddresses()->resize(2);
-    auto ipOctet = i + 1;
-    intf.ipAddresses()[0] =
-        folly::sformat("{}.{}.{}.{}/24", ipOctet, ipOctet, ipOctet, ipOctet);
-    intf.ipAddresses()[1] = folly::sformat("{}::{}/64", ipOctet, ipOctet);
-    intf.mac() = getLocalCpuMacStr();
-    intf.mtu() = 9000;
-    intf.routerID() = 0;
-    intf.type() = switchType == cfg::SwitchType::NPU
-        ? cfg::InterfaceType::VLAN
-        : cfg::InterfaceType::SYSTEM_PORT;
-    config.interfaces()->push_back(intf);
-  }
-  return config;
-}
-
-void addMatcher(
-    cfg::SwitchConfig* config,
-    const std::string& matcherName,
-    const cfg::MatchAction& matchAction) {
-  cfg::MatchToAction action = cfg::MatchToAction();
-  *action.matcher() = matcherName;
-  *action.action() = matchAction;
-  cfg::TrafficPolicyConfig egressTrafficPolicy;
-  if (auto dataPlaneTrafficPolicy = config->dataPlaneTrafficPolicy()) {
-    egressTrafficPolicy = *dataPlaneTrafficPolicy;
-  }
-  auto curNumMatchActions = egressTrafficPolicy.matchToAction()->size();
-  egressTrafficPolicy.matchToAction()->resize(curNumMatchActions + 1);
-  egressTrafficPolicy.matchToAction()[curNumMatchActions] = action;
-  config->dataPlaneTrafficPolicy() = egressTrafficPolicy;
-}
-
-void delMatcher(cfg::SwitchConfig* config, const std::string& matcherName) {
-  if (auto dataPlaneTrafficPolicy = config->dataPlaneTrafficPolicy()) {
-    auto& matchActions = *dataPlaneTrafficPolicy->matchToAction();
-    matchActions.erase(
-        std::remove_if(
-            matchActions.begin(),
-            matchActions.end(),
-            [&](cfg::MatchToAction const& matchAction) {
-              if (*matchAction.matcher() == matcherName) {
-                return true;
-              }
-              return false;
-            }),
-        matchActions.end());
-  }
+      hwSwitch->getPlatform()->supportsAddRemovePort(),
+      port1,
+      port2,
+      lbModeMap);
 }
 
 void updatePortSpeed(

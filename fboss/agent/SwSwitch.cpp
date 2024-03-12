@@ -792,6 +792,7 @@ void SwSwitch::updateStats() {
     hwStats.flowletStats() = getHwFlowletStats();
     hwStats.cpuPortStats() =
         multiHwSwitchHandler_->getCpuPortStats(false /*getIncrement*/);
+    hwStats.aclStats() = multiHwSwitchHandler_->getAclStats();
     updateHwSwitchStats(0 /*switchIndex*/, std::move(hwStats));
   }
   updateFlowletStats();
@@ -3094,6 +3095,13 @@ bool SwSwitch::needL2EntryForNeighbor() const {
 void SwSwitch::updateHwSwitchStats(
     uint16_t switchIndex,
     multiswitch::HwSwitchStats hwStats) {
+  // Ignore empty stats updates. These are seen along with
+  // regular updates probably due to large size of messages.
+  // TODO - investigate and remove this
+  if (hwStats.timestamp().value() == 0) {
+    XLOG(DBG3) << "Ignoring HwSwitchStats with empty contents";
+    return;
+  }
   (*hwSwitchStats_.wlock())[switchIndex] = std::move(hwStats);
 }
 
@@ -3155,6 +3163,19 @@ std::map<PortID, HwPortStats> SwSwitch::getHwPortStats(
     }
   }
   return hwPortsStats;
+}
+
+int64_t SwSwitch::getAclStats(const std::string& statName) const {
+  int64_t statValue = 0;
+  auto hwswitchStatsMap = hwSwitchStats_.rlock();
+  for (const auto& [switchIndex, hwswitchStats] : *hwswitchStatsMap) {
+    auto aclStats = hwswitchStats.aclStats();
+    auto entry = aclStats->statNameToCounterMap()->find(statName);
+    if (entry != aclStats->statNameToCounterMap()->end()) {
+      statValue += entry->second;
+    }
+  }
+  return statValue;
 }
 
 } // namespace facebook::fboss
