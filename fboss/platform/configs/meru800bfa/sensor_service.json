@@ -509,6 +509,7 @@
           "upperCriticalVal": 120.0,
           "maxAlarmVal": 115.0
         },
+        "compute": "@/1000.0",
         "type": 3
       },
       "SMB_VRM_R3R1_ANLG1_TEMP0V75": {
@@ -517,6 +518,7 @@
           "upperCriticalVal": 120.0,
           "maxAlarmVal": 115.0
         },
+        "compute": "@/1000.0",
         "type": 3
       },
       "SMB_VRM_R3R1_ANLG1_TEMP_1V8": {
@@ -525,6 +527,7 @@
           "upperCriticalVal": 120.0,
           "maxAlarmVal": 115.0
         },
+        "compute": "@/1000.0",
         "type": 3
       },
       "SMB_VRM_OSFP_TL_VIN": {
@@ -551,6 +554,7 @@
           "upperCriticalVal": 120.0,
           "maxAlarmVal": 115.0
         },
+        "compute": "@/1000.0",
         "type": 3
       },
       "SMB_VRM_OSFP_TR_VIN": {
@@ -573,6 +577,7 @@
           "upperCriticalVal": 120.0,
           "maxAlarmVal": 115.0
         },
+        "compute": "@/1000.0",
         "type": 3
       },
       "SMB_VRM_OSFP_BL_VIN": {
@@ -599,6 +604,7 @@
           "upperCriticalVal": 120.0,
           "maxAlarmVal": 115.0
         },
+        "compute": "@/1000.0",
         "type": 3
       },
       "SMB_VRM_OSFP_BR_VIN": {
