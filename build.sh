@@ -97,6 +97,12 @@ cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
 cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
 find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/env python3|' {} +
 
+# Cache the fboss commit that we built, this will be packaged and available on the
+# box at /opt/fboss/ when arista-fboss-core RPM is installed.
+# Since we are always doing a local build in barney, we can just use the commit hash
+# the source repo is checked out at, barney maps this to $SRC_0
+echo "$SRC_0" > $fboss_output_dir/arista-fboss-version
+
 echo "======= Move result to OUTPUT Dir ========"
 cp -r $SCRATCH_DIR $DESTDIR
 cp -r $SAI_DIR/db $DESTDIR
