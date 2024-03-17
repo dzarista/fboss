@@ -27,4 +27,4 @@ while [[ ! -f "$READY_FLAG" ]]; do sleep 1; done
 systemd-notify --ready
 
 # Keep the script running
-wait
+sleep infinity
