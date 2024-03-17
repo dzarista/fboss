@@ -101,7 +101,7 @@ find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/
 # box at /opt/fboss/ when arista-fboss-core RPM is installed.
 # Since we are always doing a local build in barney, we can just use the commit hash
 # the source repo is checked out at, barney maps this to $SRC_0
-echo "arista-fboss@$SRC_0" > $fboss_output_dir/arista-fboss-version
+echo "$SRC_0" > $fboss_output_dir/arista-fboss-version
 
 echo "======= Move result to OUTPUT Dir ========"
 cp -r $SCRATCH_DIR $DESTDIR
