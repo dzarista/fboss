@@ -285,7 +285,10 @@ class HwTrunkLoadBalancerTest : public HwLinkStateDependentTest {
       applyConfigAndEnableTrunks(config);
       setupIPECMP(aggInfo);
       applyNewState(utility::addLoadBalancers(
-          getPlatform(), getProgrammedState(), loadBalancers, scopeResolver()));
+          getHwSwitchEnsemble(),
+          getProgrammedState(),
+          loadBalancers,
+          scopeResolver()));
       if (getProgrammedState()->getLoadBalancers()->getNodeIf(
               LoadBalancerID::AGGREGATE_PORT)) {
         EXPECT_TRUE(utility::isHwDeterministicSeed(
@@ -323,7 +326,10 @@ class HwTrunkLoadBalancerTest : public HwLinkStateDependentTest {
       applyConfigAndEnableTrunks(config);
       setupIP2MPLSECMP(aggInfo);
       applyNewState(utility::addLoadBalancers(
-          getPlatform(), getProgrammedState(), loadBalancers, scopeResolver()));
+          getHwSwitchEnsemble(),
+          getProgrammedState(),
+          loadBalancers,
+          scopeResolver()));
     };
     auto verify = [=, this]() {
       pumpIPTrafficAndVerifyLoadBalanced(
@@ -357,7 +363,10 @@ class HwTrunkLoadBalancerTest : public HwLinkStateDependentTest {
       applyConfigAndEnableTrunks(config);
       setupMPLSECMP(aggInfo);
       applyNewState(utility::addLoadBalancers(
-          getPlatform(), getProgrammedState(), loadBalancers, scopeResolver()));
+          getHwSwitchEnsemble(),
+          getProgrammedState(),
+          loadBalancers,
+          scopeResolver()));
     };
     auto verify = [=, this]() {
       pumpMPLSTrafficAndVerifyLoadBalanced(
@@ -383,7 +392,10 @@ class HwTrunkLoadBalancerTest : public HwLinkStateDependentTest {
       applyNewConfig(config);
       setupMPLSECMP(aggInfo);
       applyNewState(utility::addLoadBalancers(
-          getPlatform(), getProgrammedState(), loadBalancers, scopeResolver()));
+          getHwSwitchEnsemble(),
+          getProgrammedState(),
+          loadBalancers,
+          scopeResolver()));
     };
     auto verify = [=, this]() {
       pumpMPLSTrafficAndVerifyLoadBalanced(

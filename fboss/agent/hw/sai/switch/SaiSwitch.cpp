@@ -69,6 +69,8 @@
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "folly/MacAddress.h"
 
+#include "fboss/agent/LoadBalancerUtils.h"
+
 #include "fboss/lib/phy/PhyUtils.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 
@@ -1110,7 +1112,11 @@ void SaiSwitch::updateResourceUsage(const LockPolicyT& lockPolicy) {
     if (getSwitchType() == cfg::SwitchType::VOQ) {
       uint64_t sysPortsFree, voqsFree;
       saiCheckError(sai_object_type_get_availability(
-          saiSwitchId_, SAI_OBJECT_TYPE_SYSTEM_PORT, 0, NULL, &sysPortsFree));
+          saiSwitchId_,
+          SAI_OBJECT_TYPE_SYSTEM_PORT,
+          0,
+          nullptr,
+          &sysPortsFree));
       hwResourceStats_.system_ports_free() = sysPortsFree;
       std::array<sai_attribute_t, 1> attr;
       attr[0].id = SAI_QUEUE_ATTR_TYPE;
@@ -1685,12 +1691,13 @@ void SaiSwitch::updateRsInfo(
   }
 }
 
-std::map<PortID, FabricEndpoint> SaiSwitch::getFabricConnectivity() const {
+const std::map<PortID, FabricEndpoint>& SaiSwitch::getFabricConnectivity()
+    const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
-  return getFabricReachabilityLocked();
+  return getFabricConnectivityLocked();
 }
 
-std::map<PortID, FabricEndpoint> SaiSwitch::getFabricReachabilityLocked()
+const std::map<PortID, FabricEndpoint>& SaiSwitch::getFabricConnectivityLocked()
     const {
   return fabricConnectivityManager_->getConnectivityInfo();
 }
@@ -3480,18 +3487,7 @@ void SaiSwitch::listManagedObjectsLocked(
 uint32_t SaiSwitch::generateDeterministicSeed(
     LoadBalancerID loadBalancerID,
     folly::MacAddress platformMac) const {
-  auto mac64 = platformMac.u64HBO();
-  uint32_t mac32 = static_cast<uint32_t>(mac64 & 0xFFFFFFFF);
-  uint32_t seed = 0;
-  switch (loadBalancerID) {
-    case LoadBalancerID::ECMP:
-      seed = folly::hash::twang_32from64(mac64);
-      break;
-    case LoadBalancerID::AGGREGATE_PORT:
-      seed = folly::hash::jenkins_rev_mix32(mac32);
-      break;
-  }
-  return seed;
+  return utility::generateDeterministicSeed(loadBalancerID, platformMac, true);
 }
 
 phy::FecMode SaiSwitch::getPortFECMode(PortID portId) const {

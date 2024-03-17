@@ -131,6 +131,13 @@ add_library(load_balancer_test_utils
 target_link_libraries(load_balancer_test_utils
   state
   Folly::folly
+  test_ensemble_if
+  core
+  utils
+  switch_asics
+  loadbalancer_utils
+  acl_test_utils
+  config_utils
 )
 
 add_library(dscp_marking_utils
@@ -146,4 +153,18 @@ target_link_libraries(dscp_marking_utils
   packet_factory
   Folly::folly
   switch_config_cpp2
+)
+
+add_library(trap_packet_utils
+  fboss/agent/test/utils/TrapPacketUtils.cpp
+)
+
+target_link_libraries(trap_packet_utils
+  fboss_types
+  Folly::folly
+  switch_config_cpp2
+)
+
+add_library(stats_test_utils
+  fboss/agent/test/utils/StatsTestUtils.cpp
 )

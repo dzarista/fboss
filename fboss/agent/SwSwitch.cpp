@@ -711,6 +711,8 @@ AgentStats SwSwitch::fillFsdbStats() {
           {switchIdx, *hwSwitchStats.bufferPoolStats()});
       agentStats.sysPortStatsMap()->insert(
           {switchIdx, *hwSwitchStats.sysPortStats()});
+      agentStats.switchDropStatsMap()->insert(
+          {switchIdx, *hwSwitchStats.switchDropStats()});
       for (auto& [_, phyInfo] : *hwSwitchStats.phyInfo()) {
         auto portName = phyInfo.state()->name().value();
         agentStats.phyStats()->insert({portName, phyInfo.get_stats()});
@@ -774,7 +776,7 @@ void SwSwitch::updateStats() {
   } catch (const std::exception& ex) {
     XLOG(ERR) << "Error running updateAllPhyInfo: " << folly::exceptionStr(ex);
   }
-  if ((*agentConfig_.rlock())->getRunMode() == cfg::AgentRunMode::MONO) {
+  if (!isRunModeMultiSwitch()) {
     multiswitch::HwSwitchStats hwStats;
     hwStats.hwPortStats() = multiHwSwitchHandler_->getPortStats();
     hwStats.sysPortStats() = multiHwSwitchHandler_->getSysPortStats();
@@ -795,6 +797,7 @@ void SwSwitch::updateStats() {
     hwStats.aclStats() = multiHwSwitchHandler_->getAclStats();
     updateHwSwitchStats(0 /*switchIndex*/, std::move(hwStats));
   }
+  updateFabricConnectivityInfo();
   updateFlowletStats();
 
   std::map<PortID, phy::PhyInfo> phyInfo;
@@ -858,6 +861,60 @@ void SwSwitch::updatePortInfo() {
       fb303::fbData->setExportedValue(idKey, port.second->getName());
     }
   }
+}
+
+void SwSwitch::updateFabricConnectivityInfo() {
+  auto state = getState();
+  if (!state) {
+    return;
+  }
+  if (!getSwitchInfoTable().haveVoqSwitches() &&
+      !getSwitchInfoTable().haveFabricSwitches()) {
+    return;
+  }
+  std::map<std::string, HwPortStats> hwPortStats;
+  getAllHwPortStats(hwPortStats);
+  auto updateFn = [allHwPortStats = std::move(hwPortStats)](
+                      const shared_ptr<SwitchState>& state) {
+    auto newState = state->clone();
+    bool connectivityChanged{false};
+    for (const auto& portMap : std::as_const(*state->getPorts())) {
+      for (const auto& port : std::as_const(*portMap.second)) {
+        if (port.second->getPortType() == cfg::PortType::FABRIC_PORT) {
+          auto hwPortStatsItr = allHwPortStats.find(port.second->getName());
+          if (hwPortStatsItr != allHwPortStats.end()) {
+            if (hwPortStatsItr->second.fabricConnectivityMismatch()
+                    .has_value() &&
+                hwPortStatsItr->second.fabricConnectivityMismatch().value() ==
+                    1) {
+              if (!port.second->getLedPortExternalState().has_value() ||
+                  port.second->getLedPortExternalState().value() !=
+                      PortLedExternalState::CABLING_ERROR) {
+                connectivityChanged = true;
+                auto newPort = newState->getPorts()
+                                   ->getNodeIf(port.first)
+                                   ->modify(&newState);
+                newPort->setLedPortExternalState(
+                    PortLedExternalState::CABLING_ERROR);
+              }
+            } else if (
+                port.second->getLedPortExternalState().has_value() &&
+                port.second->getLedPortExternalState().value() ==
+                    PortLedExternalState::CABLING_ERROR) {
+              // clear the led state = cabling error if needed
+              connectivityChanged = true;
+              auto newPort = newState->getPorts()
+                                 ->getNodeIf(port.first)
+                                 ->modify(&newState);
+              newPort->setLedPortExternalState(PortLedExternalState::NONE);
+            }
+          }
+        }
+      }
+    }
+    return connectivityChanged ? newState : nullptr;
+  };
+  updateState("update fabric connectivity info", updateFn);
 }
 
 void SwSwitch::updateMultiSwitchGlobalFb303Stats() {
@@ -1108,9 +1165,9 @@ void SwSwitch::init(
   auto hwInitRet = hwSwitchInitFn(callback, false /*failHwCallsOnWarmboot*/);
   auto initialState = preInit(flags);
   if (hwInitRet.bootType != bootType_) {
-    // this is being done for preprod2trunk migration. further until tooling is
-    // updated to affect both warm boot flags, HwSwitch will override SwSwitch
-    // boot flag (for monolithic agent).
+    // this is being done for preprod2trunk migration. further until tooling
+    // is updated to affect both warm boot flags, HwSwitch will override
+    // SwSwitch boot flag (for monolithic agent).
     auto bootStr = [](BootType type) {
       return type == BootType::WARM_BOOT ? "WARM_BOOT" : "COLD_BOOT";
     };
@@ -1212,9 +1269,9 @@ void SwSwitch::init(SwitchFlags flags) {
     }
   }
   // for cold boot discrepancy may exist between applied state in software
-  // switch and state that already exist in hardware. this discrepancy is until
-  // config is applied, after that the two states are in sync. tolerating this
-  // discrepancy for now.
+  // switch and state that already exist in hardware. this discrepancy is
+  // until config is applied, after that the two states are in sync.
+  // tolerating this discrepancy for now.
   setStateInternal(initialState);
   if (bootType_ == BootType::WARM_BOOT) {
     // Notify the state observers of the initial state
@@ -1250,14 +1307,14 @@ void SwSwitch::initialConfigApplied(const steady_clock::time_point& startTime) {
     // initial configuration is applied. This is really a hack to get around
     // 2 issues
     // a) On warm boot the initial state constructed from warm boot cache
-    // does not know of interface addresses. This means if we sync tun interface
-    // on applying initial boot up state we would blow away tunnel interferace
-    // addresses, causing connectivity disruption. Once t4155406 is fixed we
-    // should be able to remove this check.
-    // b) Even if we were willing to live with the above, the TunManager code
-    // does not properly track deleting of interface addresses, viz. when we
-    // delete a interface's primary address, secondary addresses get blown away
-    // as well. TunManager does not track this and tries to delete the
+    // does not know of interface addresses. This means if we sync tun
+    // interface on applying initial boot up state we would blow away tunnel
+    // interferace addresses, causing connectivity disruption. Once t4155406
+    // is fixed we should be able to remove this check. b) Even if we were
+    // willing to live with the above, the TunManager code does not properly
+    // track deleting of interface addresses, viz. when we delete a
+    // interface's primary address, secondary addresses get blown away as
+    // well. TunManager does not track this and tries to delete the
     // secondaries as well leading to errors, t4746261 is tracking this.
     tunMgr_->startObservingUpdates();
 
@@ -1496,8 +1553,8 @@ void SwSwitch::handlePendingUpdates() {
       intermediateState = update->applyUpdate(newDesiredState);
     } catch (const std::exception& ex) {
       // Call the update's onError() function, and then immediately delete
-      // it (therefore removing it from the intrusive list).  This way we won't
-      // call it's onSuccess() function later.
+      // it (therefore removing it from the intrusive list).  This way we
+      // won't call it's onSuccess() function later.
       update->onError(ex);
       delete update;
     }
@@ -1640,7 +1697,8 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
     newAppliedState = stateChanged(delta, isTransaction);
   } catch (const std::exception& ex) {
     // Notify the hw_ of the crash so it can execute any device specific
-    // tasks before we fatal. An example would be to dump the current hw state.
+    // tasks before we fatal. An example would be to dump the current hw
+    // state.
     //
     // Another thing we could try here is rolling back to the old state.
     XLOG(ERR) << "error applying state change to hardware: "
@@ -2160,8 +2218,8 @@ void SwSwitch::postInit(const HwInitResult* hwInitResult) {
 }
 
 void SwSwitch::stopThreads() {
-  // We use runInEventBaseThread() to terminateLoopSoon() rather than calling it
-  // directly here.  This ensures that any events already scheduled via
+  // We use runInEventBaseThread() to terminateLoopSoon() rather than calling
+  // it directly here.  This ensures that any events already scheduled via
   // runInEventBaseThread() will have a chance to run.
   //
   // Alternatively, it would be nicer to update EventBase so it can notify
@@ -2511,8 +2569,9 @@ void SwSwitch::sendL3Packet(
       }
     } else if (dstAddr.isLinkLocal()) {
       // LinkLocal Case:
-      // Resolve neighbor mac address for given destination address. If address
-      // doesn't exists in NDP table then request neighbor solicitation for it.
+      // Resolve neighbor mac address for given destination address. If
+      // address doesn't exists in NDP table then request neighbor
+      // solicitation for it.
       CHECK(dstAddr.isLinkLocal());
       if (dstAddr.isV4()) {
         // We do not consult ARP table to forward v4 link local addresses.
@@ -2534,11 +2593,11 @@ void SwSwitch::sendL3Packet(
           } else {
             // TODO (skhare)
             // The current logic relies on this block throwing an error when
-            // neighbor entry is absent so that multicast neighbor solicitation
-            // would be issued. There are unit tests (and may be some other
-            // assumptions in the code) around it. Thus, retain that behavior
-            // for now. However, consider simplifying this to an if-else block
-            // instead of try-catch.
+            // neighbor entry is absent so that multicast neighbor
+            // solicitation would be issued. There are unit tests (and may be
+            // some other assumptions in the code) around it. Thus, retain
+            // that behavior for now. However, consider simplifying this to an
+            // if-else block instead of try-catch.
             throw FbossError("No neighbor entry for: ", dstAddrV6.str());
           }
         } catch (...) {
@@ -2551,8 +2610,8 @@ void SwSwitch::sendL3Packet(
       }
     } else {
       // Unicast Packet:
-      // Ideally we can do routing in SW but it can consume some good ammount of
-      // CPU. To avoid this we prefer to perform routing in hardware. Using
+      // Ideally we can do routing in SW but it can consume some good ammount
+      // of CPU. To avoid this we prefer to perform routing in hardware. Using
       // our CPU MacAddr as DestAddr we will trigger L3 lookup in hardware :)
       dstMac = srcMac;
 
@@ -2626,7 +2685,8 @@ void SwSwitch::applyConfig(
   agentConfigThrift.sw_ref() = newConfig;
   auto newAgentConfig = std::make_unique<AgentConfig>(agentConfigThrift);
   applyConfigImpl(reason, newConfig);
-  /* apply and reset software switch config in the already applied agent config
+  /* apply and reset software switch config in the already applied agent
+   * config
    */
   setConfigImpl(std::move(newAgentConfig));
 }
@@ -2634,7 +2694,8 @@ void SwSwitch::applyConfig(
 void SwSwitch::applyConfigImpl(
     const std::string& reason,
     const cfg::SwitchConfig& newConfig) {
-  // We don't need to hold a lock here. updateStateBlocking() does that for us.
+  // We don't need to hold a lock here. updateStateBlocking() does that for
+  // us.
   auto routeUpdater = getRouteUpdater();
   auto oldConfig = getConfig();
   updateStateBlocking(
@@ -2662,8 +2723,8 @@ void SwSwitch::applyConfigImpl(
         }
         return newState;
       });
-  // Since we're using blocking state update, once we reach here, the new config
-  // should be already applied and programmed into hardware.
+  // Since we're using blocking state update, once we reach here, the new
+  // config should be already applied and programmed into hardware.
   updateConfigAppliedInfo();
 
   /*
@@ -2678,9 +2739,9 @@ void SwSwitch::applyConfigImpl(
    *   - schedule work on RIB thread.
    *
    * This is classic lock/blocking work inversion, and creates a deadlock
-   * scenario b/w route programming (route add, del or route classID update) and
-   * applyConfig. So ensure programming allways goes through the route update
-   * wrapper abstraction
+   * scenario b/w route programming (route add, del or route classID update)
+   * and applyConfig. So ensure programming allways goes through the route
+   * update wrapper abstraction
    */
 
   routeUpdater.program();
@@ -2874,9 +2935,9 @@ std::optional<VlanID> SwSwitch::getVlanIDForPkt(VlanID vlanID) const {
   // VLAN. We are gradually enhancing wedge_agent to handle tagged as well as
   // untagged packets. During this transition, we will use VlanID 0 to
   // populate SwitchState/Neighbor cache etc. data structures.
-  // However, the packets on wire must not carry VLANs for VOQ/Fabric switches.
-  // Once the wedge_agent changes are complete, we will no longer need this
-  // function.
+  // However, the packets on wire must not carry VLANs for VOQ/Fabric
+  // switches. Once the wedge_agent changes are complete, we will no longer
+  // need this function.
 
   if (!getSwitchInfoTable().vlansSupported()) {
     CHECK_EQ(vlanID, VlanID(0));
@@ -3095,13 +3156,6 @@ bool SwSwitch::needL2EntryForNeighbor() const {
 void SwSwitch::updateHwSwitchStats(
     uint16_t switchIndex,
     multiswitch::HwSwitchStats hwStats) {
-  // Ignore empty stats updates. These are seen along with
-  // regular updates probably due to large size of messages.
-  // TODO - investigate and remove this
-  if (hwStats.timestamp().value() == 0) {
-    XLOG(DBG3) << "Ignoring HwSwitchStats with empty contents";
-    return;
-  }
   (*hwSwitchStats_.wlock())[switchIndex] = std::move(hwStats);
 }
 
@@ -3165,17 +3219,28 @@ std::map<PortID, HwPortStats> SwSwitch::getHwPortStats(
   return hwPortsStats;
 }
 
-int64_t SwSwitch::getAclStats(const std::string& statName) const {
-  int64_t statValue = 0;
-  auto hwswitchStatsMap = hwSwitchStats_.rlock();
-  for (const auto& [switchIndex, hwswitchStats] : *hwswitchStatsMap) {
-    auto aclStats = hwswitchStats.aclStats();
-    auto entry = aclStats->statNameToCounterMap()->find(statName);
-    if (entry != aclStats->statNameToCounterMap()->end()) {
-      statValue += entry->second;
+std::map<SystemPortID, HwSysPortStats> SwSwitch::getHwSysPortStats(
+    const std::vector<SystemPortID>& ports) const {
+  std::map<SystemPortID, HwSysPortStats> hwPortsStats;
+  for (const auto& portId : ports) {
+    auto switchIds = getScopeResolver()->scope(portId).switchIds();
+    CHECK_EQ(switchIds.size(), 1);
+    auto switchIndex =
+        getSwitchInfoTable().getSwitchIndexFromSwitchId(*switchIds.cbegin());
+    auto hwswitchStatsMap = hwSwitchStats_.rlock();
+    auto hwswitchStats = hwswitchStatsMap->find(switchIndex);
+    if (hwswitchStats != hwswitchStatsMap->end()) {
+      auto portName =
+          getState()->getSystemPorts()->getNodeIf(portId)->getPortName();
+      auto statsMap = hwswitchStats->second.sysPortStats();
+      auto entry = statsMap->find(portName);
+      if (entry != statsMap->end()) {
+        hwPortsStats.insert(
+            {portId, hwswitchStats->second.sysPortStats()->at(portName)});
+      }
     }
   }
-  return statValue;
+  return hwPortsStats;
 }
 
 } // namespace facebook::fboss

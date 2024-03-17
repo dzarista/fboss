@@ -165,6 +165,34 @@ class AgentVoqSwitchTest : public AgentHwTest {
     applyNewConfig(newCfg);
   }
 
+  void addRemoveNeighbor(
+      PortDescriptor port,
+      bool add,
+      std::optional<int64_t> encapIdx = std::nullopt) {
+    utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+    if (add) {
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        return ecmpHelper.resolveNextHops(in, {port});
+      });
+    } else {
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        return ecmpHelper.unresolveNextHops(in, {port});
+      });
+    }
+  }
+
+  void setForceTrafficOverFabric(bool force) {
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      auto out = in->clone();
+      for (const auto& [_, switchSetting] :
+           std::as_const(*out->getSwitchSettings())) {
+        auto newSwitchSettings = switchSetting->modify(&out);
+        newSwitchSettings->setForceTrafficOverFabric(force);
+      }
+      return out;
+    });
+  }
+
  private:
   void addCpuTrafficPolicy(cfg::SwitchConfig& cfg, const HwAsic* asic) const {
     cfg::CPUTrafficPolicyConfig cpuConfig;
@@ -187,23 +215,6 @@ class AgentVoqSwitchTest : public AgentHwTest {
     }
     cpuConfig.rxReasonToQueueOrderedList() = rxReasonToQueues;
     cfg.cpuTrafficPolicy() = cpuConfig;
-  }
-
- protected:
-  void addRemoveNeighbor(
-      PortDescriptor port,
-      bool add,
-      std::optional<int64_t> encapIdx = std::nullopt) {
-    utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
-    if (add) {
-      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
-        return ecmpHelper.resolveNextHops(in, {port});
-      });
-    } else {
-      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
-        return ecmpHelper.unresolveNextHops(in, {port});
-      });
-    }
   }
 };
 
@@ -366,6 +377,38 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricIsolate) {
   verifyAcrossWarmBoots([] {}, verify);
 }
 
+TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricConnectivityMismatch) {
+  auto fabricPortId = masterLogicalFabricPortIds()[0];
+  auto setup = [=, this]() {
+    applyNewConfig(initialConfig(*getAgentEnsemble()));
+    auto portStats = getLatestPortStats(fabricPortId);
+    EXPECT_EQ(*portStats.get_fabricConnectivityMismatch(), 0);
+  };
+  auto verify = [=, this]() {
+    auto cfg = initialConfig(*getAgentEnsemble());
+    cfg::PortNeighbor nbr;
+    nbr.remoteSystem() = "RemoteA";
+    nbr.remotePort() = "portA";
+    auto portCfg = utility::findCfgPort(cfg, fabricPortId);
+    portCfg->expectedNeighborReachability() = {nbr};
+    applyNewConfig(cfg);
+
+    WITH_RETRIES({
+      auto portStats = getLatestPortStats(fabricPortId);
+      EXPECT_EVENTUALLY_EQ(*portStats.get_fabricConnectivityMismatch(), 1);
+    });
+
+    WITH_RETRIES({
+      auto port = getProgrammedState()->getPorts()->getNodeIf(fabricPortId);
+      EXPECT_EVENTUALLY_EQ(port->getLedPortExternalState().has_value(), true);
+      EXPECT_EVENTUALLY_EQ(
+          port->getLedPortExternalState().value(),
+          PortLedExternalState::CABLING_ERROR);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
 TEST_F(AgentVoqSwitchWithFabricPortsTest, switchIsolate) {
   auto setup = [=, this]() {
     // Before drain all fabric ports should be active
@@ -508,15 +551,7 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, checkFabricPortSprayWithIsolate) {
   utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
   const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
   auto setup = [this, kPort, ecmpHelper]() {
-    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
-      auto out = in->clone();
-      for (const auto& [_, switchSetting] :
-           std::as_const(*out->getSwitchSettings())) {
-        auto newSwitchSettings = switchSetting->modify(&out);
-        newSwitchSettings->setForceTrafficOverFabric(true);
-      }
-      return out;
-    });
+    setForceTrafficOverFabric(true);
     addRemoveNeighbor(kPort, true /* add neighbor*/);
   };
 
@@ -575,15 +610,7 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, checkFabricPortSpray) {
   utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
   const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
   auto setup = [this, kPort, ecmpHelper]() {
-    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
-      auto out = in->clone();
-      for (const auto& [_, switchSetting] :
-           std::as_const(*out->getSwitchSettings())) {
-        auto newSwitchSettings = switchSetting->modify(&out);
-        newSwitchSettings->setForceTrafficOverFabric(true);
-      }
-      return out;
-    });
+    setForceTrafficOverFabric(true);
     addRemoveNeighbor(kPort, true /* add neighbor*/);
   };
 
@@ -611,6 +638,48 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, checkFabricPortSpray) {
       EXPECT_EVENTUALLY_GE(fabricBytes, nifBytes);
       EXPECT_EVENTUALLY_TRUE(utility::isLoadBalanced(fabricPortStats, 15));
     });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(AgentVoqSwitchWithFabricPortsTest, fdrCellDrops) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+  auto setup = [this, kPort]() {
+    addRemoveNeighbor(kPort, true /* add neighbor*/);
+    setForceTrafficOverFabric(true);
+    std::string out;
+    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+      getAgentEnsemble()->runDiagCommand(
+          "setreg FDA_OFM_CLASS_DROP_TH_CORE 0x001001001001001001001001\n",
+          out,
+          switchId);
+      getAgentEnsemble()->runDiagCommand("quit\n", out, switchId);
+    }
+  };
+
+  auto verify = [this, kPort, &ecmpHelper]() {
+    auto sendPkts = [this, kPort, &ecmpHelper]() {
+      for (auto i = 0; i < 1000; ++i) {
+        sendPacket(
+            ecmpHelper.ip(kPort),
+            std::nullopt,
+            std::vector<uint8_t>(1024, 0xff));
+      }
+    };
+    int64_t fdrCellDrops = 0;
+    WITH_RETRIES({
+      sendPkts();
+      fdrCellDrops = *getAggregatedSwitchDropStats().fdrCellDrops();
+      // TLTimeseries value > 0
+      EXPECT_EVENTUALLY_GT(fdrCellDrops, 0);
+    });
+    // Assert that we don't spuriously increment fdrCellDrops on every drop
+    // stats. This would happen if we treated a stat as clear on read, while
+    // in HW it was cumulative
+
+    // TODO: Implement no stats change in AgentHwTest
+    // checkNoStatsChange(30 /*retries*/);
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -689,6 +758,7 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
             getPortOutPktsBytes(*frontPanelPort);
       }
       auto beforeRecyclePkts = getRecyclePortPkts();
+      auto beforeSwitchDropStats = getAggregatedSwitchDropStats();
       auto txPacketSize = sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
 
       auto [maxRetryCount, sleepTimeMsecs] =
@@ -770,6 +840,17 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
                   afterFrontPanelOutPkts, beforeFrontPanelOutPkts);
             } else if (asicMode != HwAsic::AsicMode::ASIC_MODE_SIM) {
               EXPECT_EVENTUALLY_EQ(beforeRecyclePkts + 1, afterRecyclePkts);
+            }
+            auto afterSwitchDropStats = getAggregatedSwitchDropStats();
+            if (asicMode != HwAsic::AsicMode::ASIC_MODE_SIM &&
+                asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+              XLOG(DBG2) << " Queue resolution drops, before: "
+                         << *beforeSwitchDropStats.queueResolutionDrops()
+                         << " after: "
+                         << *afterSwitchDropStats.queueResolutionDrops();
+              EXPECT_EVENTUALLY_EQ(
+                  *afterSwitchDropStats.queueResolutionDrops(),
+                  *beforeSwitchDropStats.queueResolutionDrops() + 1);
             }
           });
     };

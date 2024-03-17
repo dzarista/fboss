@@ -9,6 +9,7 @@
 #include "fboss/agent/CommonInit.h"
 #include "fboss/agent/EncapIndexAllocator.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
+#include "fboss/lib/CommonUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 
 #include <gtest/gtest.h>
@@ -250,18 +251,7 @@ void initEnsemble(
 std::map<PortID, HwPortStats> AgentEnsemble::getLatestPortStats(
     const std::vector<PortID>& ports) {
   std::map<PortID, HwPortStats> portIdStatsMap;
-  getSw()->updateStats();
-
-  auto swState = getSw()->getState();
-  auto stats = getSw()->getHwSwitchHandler()->getPortStats();
-  for (auto [portName, stats] : stats) {
-    auto portId = swState->getPorts()->getPort(portName)->getID();
-    if (std::find(ports.begin(), ports.end(), (PortID)portId) == ports.end()) {
-      continue;
-    }
-    portIdStatsMap.emplace((PortID)portId, stats);
-  }
-  return portIdStatsMap;
+  return getSw()->getHwPortStats(ports);
 }
 
 HwPortStats AgentEnsemble::getLatestPortStats(const PortID& port) {
@@ -293,5 +283,104 @@ std::map<PortID, FabricEndpoint> AgentEnsemble::getFabricConnectivity(
   } else {
     return getSw()->getHwSwitchHandler()->getFabricConnectivity();
   }
+}
+
+void AgentEnsemble::runDiagCommand(
+    const std::string& input,
+    std::string& output,
+    std::optional<SwitchID> switchId) {
+  if (FLAGS_multi_switch) {
+    CHECK(switchId.has_value());
+    ClientInformation clientInfo;
+    clientInfo.username() = "agent_ensemble";
+    clientInfo.hostname() = "agent_ensemble";
+    output = getSw()->getHwSwitchThriftClientTable()->diagCmd(
+        switchId.value(), input, clientInfo);
+  }
+  // TODO: Mono
+}
+
+LinkStateToggler* AgentEnsemble::getLinkToggler() {
+  return linkToggler_.get();
+}
+
+/*
+ * Wait for traffic on port to reach specified rate. If the
+ * specified rate is reached, return true, else false.
+ */
+bool AgentEnsemble::waitForRateOnPort(
+    PortID port,
+    const uint64_t desiredBps,
+    int secondsToWaitPerIteration) {
+  // Need to wait for atleast one second
+  if (secondsToWaitPerIteration < 1) {
+    secondsToWaitPerIteration = 1;
+    XLOG(WARNING) << "Setting wait time to 1 second for tests!";
+  }
+
+  const auto portSpeedBps =
+      static_cast<uint64_t>(
+          getProgrammedState()->getPorts()->getNodeIf(port)->getSpeed()) *
+      1000 * 1000;
+  if (desiredBps > portSpeedBps) {
+    // Cannot achieve higher than line rate
+    XLOG(ERR) << "Desired rate " << desiredBps << " bps is > port rate "
+              << portSpeedBps << " bps!!";
+    return false;
+  }
+
+  WITH_RETRIES_N_TIMED(
+      10, std::chrono::milliseconds(1000 * secondsToWaitPerIteration), {
+        const auto prevPortStats = getLatestPortStats(port);
+        auto prevPortBytes = *prevPortStats.outBytes_();
+        auto prevPortPackets =
+            (*prevPortStats.outUnicastPkts_() +
+             *prevPortStats.outMulticastPkts_() +
+             *prevPortStats.outBroadcastPkts_());
+
+        const auto curPortStats = getLatestPortStats(port);
+        auto curPortPackets =
+            (*curPortStats.outUnicastPkts_() +
+             *curPortStats.outMulticastPkts_() +
+             *curPortStats.outBroadcastPkts_());
+
+        // 20 bytes are consumed by ethernet preamble, start of frame and
+        // interpacket gap. Account for that in linerate.
+        auto packetPaddingBytes = (curPortPackets - prevPortPackets) * 20;
+        auto curPortBytes = *curPortStats.outBytes_() + packetPaddingBytes;
+        auto rate = static_cast<uint64_t>((curPortBytes - prevPortBytes) * 8) /
+            secondsToWaitPerIteration;
+        XLOG(DBG2) << ": Current rate " << rate << " bps < expected rate "
+                   << desiredBps << " bps. curPortBytes " << curPortBytes
+                   << " prevPortBytes " << prevPortBytes << " curPortPackets "
+                   << curPortPackets << " prevPortPackets " << prevPortPackets;
+        EXPECT_EVENTUALLY_TRUE(rate >= desiredBps);
+        return true;
+      });
+  return false;
+}
+
+void AgentEnsemble::waitForLineRateOnPort(PortID port) {
+  const auto portSpeedBps =
+      static_cast<uint64_t>(
+          getProgrammedState()->getPorts()->getNodeIf(port)->getSpeed()) *
+      1000 * 1000;
+  if (waitForRateOnPort(port, portSpeedBps)) {
+    // Traffic on port reached line rate!
+    return;
+  }
+  throw FbossError("Line rate was never reached");
+}
+
+void AgentEnsemble::waitForSpecificRateOnPort(
+    PortID port,
+    const uint64_t desiredBps,
+    int secondsToWaitPerIteration) {
+  if (waitForRateOnPort(port, desiredBps, secondsToWaitPerIteration)) {
+    // Traffic on port reached desired rate!
+    return;
+  }
+
+  throw FbossError("Desired rate ", desiredBps, " bps was never reached");
 }
 } // namespace facebook::fboss

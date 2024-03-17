@@ -24,6 +24,7 @@
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/LacpTypes.h"
 #include "fboss/agent/LoadBalancerConfigApplier.h"
+#include "fboss/agent/LoadBalancerUtils.h"
 #include "fboss/agent/RouteUpdateWrapper.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/SwitchIdScopeResolver.h"
@@ -395,9 +396,6 @@ class ThriftConfigApplier {
       VlanOrIntfT* vlanOrIntf,
       const CfgVlanOrIntfT* config);
   std::shared_ptr<InterfaceMap> updateInterfaces();
-  std::shared_ptr<MultiSwitchInterfaceMap> updateRemoteInterfaces(
-      const std::shared_ptr<MultiSwitchInterfaceMap>& interfaces);
-
   shared_ptr<Interface> createInterface(
       const cfg::Interface* config,
       const Interface::Addresses& addrs);
@@ -480,8 +478,6 @@ class ThriftConfigApplier {
       const cfg::PortFlowletConfig& config);
 
   uint32_t generateDeterministicSeed(cfg::LoadBalancerID id);
-  uint32_t generateDeterministicSeedSai(cfg::LoadBalancerID id);
-  uint32_t generateDeterministicSeedNonSai(cfg::LoadBalancerID id);
 
   folly::MacAddress getLocalMac(SwitchID switchId) const;
   SwitchID getSwitchId(const cfg::Interface& intfConfig) const;
@@ -628,7 +624,6 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
     if (newIntfs) {
       new_->resetIntfs(toMultiSwitchMap<MultiSwitchInterfaceMap>(
           std::move(newIntfs), *cfg_, scopeResolver_));
-      new_->resetRemoteIntfs(updateRemoteInterfaces(new_->getInterfaces()));
       changed = true;
     }
   }
@@ -1135,7 +1130,8 @@ void ThriftConfigApplier::processInterfaceForPortForVoqSwitches(
     if (scopeResolver_.scope(portCfg).has(SwitchID(switchId))) {
       switch (portType) {
         case cfg::PortType::INTERFACE_PORT:
-        case cfg::PortType::RECYCLE_PORT: {
+        case cfg::PortType::RECYCLE_PORT:
+        case cfg::PortType::MANAGEMENT_PORT: {
           // system port is 1:1 with every interface and recycle port.
           // interface is 1:1 with system port.
           // InterfaceID is chosen to be the same as systemPortID. Thus:
@@ -1143,7 +1139,6 @@ void ThriftConfigApplier::processInterfaceForPortForVoqSwitches(
           port2InterfaceId_[portID].push_back(interfaceID);
         } break;
         case cfg::PortType::FABRIC_PORT:
-        case cfg::PortType::MANAGEMENT_PORT:
         case cfg::PortType::CPU_PORT:
           // no interface for fabric/cpu port
           break;
@@ -1290,7 +1285,9 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
   const auto kNumVoqs = 8;
 
   static const std::set<cfg::PortType> kCreateSysPortsFor = {
-      cfg::PortType::INTERFACE_PORT, cfg::PortType::RECYCLE_PORT};
+      cfg::PortType::INTERFACE_PORT,
+      cfg::PortType::RECYCLE_PORT,
+      cfg::PortType::MANAGEMENT_PORT};
   auto sysPorts = std::make_shared<SystemPortMap>();
 
   for (const auto& [matcherString, portMap] : std::as_const(*ports)) {
@@ -3385,35 +3382,6 @@ std::shared_ptr<InterfaceMap> ThriftConfigApplier::updateInterfaces() {
   return std::make_shared<InterfaceMap>(std::move(newIntfs));
 }
 
-std::shared_ptr<MultiSwitchInterfaceMap>
-ThriftConfigApplier::updateRemoteInterfaces(
-    const std::shared_ptr<MultiSwitchInterfaceMap>& interfaces) {
-  if (scopeResolver_.hasVoq() &&
-      scopeResolver_.scope(cfg::SwitchType::VOQ).size() <= 1) {
-    // remote system ports are applicable only for voq switches
-    // remote system ports are updated on config only when more than voq
-    // switches are configured on a given SwSwitch
-    return orig_->getRemoteInterfaces();
-  }
-  auto remoteInterfaces = orig_->getRemoteInterfaces()->clone();
-
-  for (const auto& [matcher, interfaceMap] : std::as_const(*interfaces)) {
-    for (const auto& [intfID, intf] : std::as_const(*interfaceMap)) {
-      if (intf->getType() != cfg::InterfaceType::SYSTEM_PORT) {
-        continue;
-      }
-      auto remoteIntfScope = scopeResolver_.scope(cfg::SwitchType::VOQ);
-      remoteIntfScope.exclude(scopeResolver_.scope(intf, *cfg_).switchIds());
-      if (remoteInterfaces->getNodeIf(intfID)) {
-        remoteInterfaces->updateNode(intf, remoteIntfScope);
-      } else {
-        remoteInterfaces->addNode(intf, remoteIntfScope);
-      }
-    }
-  }
-  return remoteInterfaces;
-}
-
 shared_ptr<Interface> ThriftConfigApplier::createInterface(
     const cfg::Interface* config,
     const Interface::Addresses& addrs) {
@@ -4922,45 +4890,10 @@ uint32_t ThriftConfigApplier::generateDeterministicSeed(
     cfg::LoadBalancerID id) {
   if (auto sdkVersion = cfg_->sdkVersion()) {
     if (sdkVersion->saiSdk()) {
-      return generateDeterministicSeedSai(id);
+      return utility::generateDeterministicSeed(id, getLocalMacAddress(), true);
     }
   }
-  return generateDeterministicSeedNonSai(id);
-}
-
-uint32_t ThriftConfigApplier::generateDeterministicSeedSai(
-    cfg::LoadBalancerID loadBalancerID) {
-  auto platformMac = getLocalMacAddress();
-  auto mac64 = platformMac.u64HBO();
-  uint32_t mac32 = static_cast<uint32_t>(mac64 & 0xFFFFFFFF);
-  uint32_t seed = 0;
-  switch (loadBalancerID) {
-    case cfg::LoadBalancerID::ECMP:
-      seed = folly::hash::twang_32from64(mac64);
-      break;
-    case cfg::LoadBalancerID::AGGREGATE_PORT:
-      seed = folly::hash::jenkins_rev_mix32(mac32);
-      break;
-  }
-  return seed;
-}
-
-uint32_t ThriftConfigApplier::generateDeterministicSeedNonSai(
-    cfg::LoadBalancerID loadBalancerID) {
-  auto platformMac = getLocalMacAddress();
-  auto mac64 = platformMac.u64HBO();
-  uint32_t mac32 = static_cast<uint32_t>(mac64 & 0xFFFFFFFF);
-
-  uint32_t seed = 0;
-  switch (loadBalancerID) {
-    case cfg::LoadBalancerID::ECMP:
-      seed = folly::hash::jenkins_rev_mix32(mac32);
-      break;
-    case cfg::LoadBalancerID::AGGREGATE_PORT:
-      seed = folly::hash::twang_32from64(mac64);
-      break;
-  }
-  return seed;
+  return utility::generateDeterministicSeed(id, getLocalMacAddress(), false);
 }
 
 SwitchID ThriftConfigApplier::getSwitchId(

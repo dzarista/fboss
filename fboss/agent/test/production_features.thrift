@@ -18,71 +18,16 @@ enum ProductionFeature {
   NULL_ROUTE_IN_DISCARDS_COUNTER = 5,
   EGRESS_FORWARDING_DISCARDS_COUNTER = 6,
   PRBS = 7,
+  COPP = 8,
+  LAG = 9,
+  DSCP_REMARKING = 10,
+  L3_QOS = 11,
+  ACL_COUNTER = 12,
+  ECMP_LOAD_BALANCER = 13,
+  LAG_LOAD_BALANCER = 14,
 }
 
-const list<ProductionFeature> tomahawkFeature = [
-  ProductionFeature.CPU_RX_TX,
-  ProductionFeature.L3_FORWARDING,
-  ProductionFeature.NULL_ROUTE_IN_DISCARDS_COUNTER,
-  ProductionFeature.PRBS,
-];
-const list<ProductionFeature> tomahawk3Feature = [
-  ProductionFeature.CPU_RX_TX,
-  ProductionFeature.L3_FORWARDING,
-  ProductionFeature.NULL_ROUTE_IN_DISCARDS_COUNTER,
-  ProductionFeature.PRBS,
-];
-const list<ProductionFeature> tomahawk4Feature = [
-  ProductionFeature.CPU_RX_TX,
-  ProductionFeature.L3_FORWARDING,
-  ProductionFeature.NULL_ROUTE_IN_DISCARDS_COUNTER,
-  ProductionFeature.PRBS,
-];
-const list<ProductionFeature> tomahawk5Feature = [
-  ProductionFeature.CPU_RX_TX,
-  ProductionFeature.L3_FORWARDING,
-  ProductionFeature.NULL_ROUTE_IN_DISCARDS_COUNTER,
-];
-const list<ProductionFeature> jericho2Feature = [
-  ProductionFeature.CPU_RX_TX,
-  ProductionFeature.L3_FORWARDING,
-  ProductionFeature.NULL_ROUTE_IN_DISCARDS_COUNTER,
-  ProductionFeature.VOQ,
-  ProductionFeature.ACL_PORT_IN_DISCARDS_COUNTER,
-  ProductionFeature.EGRESS_FORWARDING_DISCARDS_COUNTER,
-];
-const list<ProductionFeature> jericho3Feature = [
-  ProductionFeature.CPU_RX_TX,
-  ProductionFeature.L3_FORWARDING,
-  ProductionFeature.NULL_ROUTE_IN_DISCARDS_COUNTER,
-  ProductionFeature.VOQ,
-  ProductionFeature.ACL_PORT_IN_DISCARDS_COUNTER,
-  ProductionFeature.EGRESS_FORWARDING_DISCARDS_COUNTER,
-];
-const list<ProductionFeature> ramonFeature = [ProductionFeature.FABRIC];
-const list<ProductionFeature> ramon3Feature = [ProductionFeature.FABRIC];
-const list<ProductionFeature> ebroFeature = [
-  ProductionFeature.CPU_RX_TX,
-  ProductionFeature.L3_FORWARDING,
-  ProductionFeature.NULL_ROUTE_IN_DISCARDS_COUNTER,
-];
-const list<ProductionFeature> yubaFeature = [
-  ProductionFeature.CPU_RX_TX,
-  ProductionFeature.L3_FORWARDING,
-  ProductionFeature.NULL_ROUTE_IN_DISCARDS_COUNTER,
-];
-
 struct AsicToProductionFeatures {
-  1: map<string, list<ProductionFeature>> asicToFeatures = {
-    "tomahawk": tomahawkFeature,
-    "tomahawk3": tomahawk3Feature,
-    "tomahawk4": tomahawk4Feature,
-    "tomahawk5": tomahawk5Feature,
-    "jericho2": jericho2Feature,
-    "jericho3": jericho3Feature,
-    "ramon": ramonFeature,
-    "ramon3": ramon3Feature,
-    "ebro": ebroFeature,
-    "yuba": yubaFeature,
-  };
+  1: map<string, list<ProductionFeature>> asicToFeatures;
+  2: map<string, list<string>> asicToFeatureNames;
 }

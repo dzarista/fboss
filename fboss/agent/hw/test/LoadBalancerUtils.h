@@ -16,6 +16,7 @@
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/state/PortDescriptor.h"
 #include "fboss/agent/state/RouteNextHop.h"
+#include "fboss/agent/test/TestEnsembleIf.h"
 #include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
 #include "fboss/agent/types.h"
 #include "folly/MacAddress.h"
@@ -37,33 +38,6 @@ class SwitchIdScopeResolver;
 } // namespace facebook::fboss
 
 namespace facebook::fboss::utility {
-
-inline const int kScalingFactor(100);
-inline const int kLoadWeight(70);
-inline const int kQueueWeight(30);
-
-cfg::LoadBalancer getTrunkHalfHashConfig(const HwAsic& asic);
-cfg::LoadBalancer getEcmpHalfHashConfig(const HwAsic& asic);
-cfg::LoadBalancer getEcmpFullHashConfig(const HwAsic& asic);
-cfg::LoadBalancer getEcmpFullUdfHashConfig(const HwAsic& asic);
-std::vector<cfg::LoadBalancer> getEcmpFullTrunkHalfHashConfig(
-    const HwAsic& asic);
-std::vector<cfg::LoadBalancer> getEcmpHalfTrunkFullHashConfig(
-    const HwAsic& asic);
-std::vector<cfg::LoadBalancer> getEcmpFullTrunkFullHashConfig(
-    const HwAsic& asic);
-
-std::shared_ptr<SwitchState> setLoadBalancer(
-    const Platform* platform,
-    const std::shared_ptr<SwitchState>& inputState,
-    const cfg::LoadBalancer& loadBalancer,
-    const SwitchIdScopeResolver& resolver);
-
-std::shared_ptr<SwitchState> addLoadBalancers(
-    const Platform* platform,
-    const std::shared_ptr<SwitchState>& inputState,
-    const std::vector<cfg::LoadBalancer>& loadBalancers,
-    const SwitchIdScopeResolver& resolver);
 
 size_t pumpTraffic(
     bool isV6,
@@ -126,7 +100,7 @@ void pumpMplsTraffic(
 
 template <typename PortIdT, typename PortStatsT>
 bool isLoadBalanced(
-    HwSwitchEnsemble* hwSwitchEnsemble,
+    TestEnsembleIf* ensemble,
     const std::vector<PortDescriptor>& ecmpPorts,
     const std::vector<NextHopWeight>& weights,
     int maxDeviationPct,
@@ -134,7 +108,7 @@ bool isLoadBalanced(
     bool noTrafficOk = false) {
   auto getPortStatsFn = [&](const std::vector<PortIdT>& portIds)
       -> std::map<PortIdT, PortStatsT> {
-    return hwSwitchEnsemble->getLatestPortStats(portIds);
+    return ensemble->getLatestPortStats(portIds);
   };
   return isLoadBalanced<PortIdT, PortStatsT>(
       ecmpPorts, weights, getPortStatsFn, maxDeviationPct, noTrafficOk);
@@ -158,19 +132,9 @@ void pumpTrafficAndVerifyLoadBalanced(
     std::function<bool()> isLoadBalanced,
     bool loadBalanceExpected = true);
 
-cfg::UdfConfig addUdfHashConfig();
-cfg::UdfConfig addUdfAclConfig();
-cfg::UdfConfig addUdfHashAclConfig();
-
 bool isHwDeterministicSeed(
     HwSwitch* hwSwitch,
     const std::shared_ptr<SwitchState>& state,
     LoadBalancerID id);
-
-cfg::FlowletSwitchingConfig getDefaultFlowletSwitchingConfig();
-void addFlowletAcl(cfg::SwitchConfig& cfg);
-void addFlowletConfigs(
-    cfg::SwitchConfig& cfg,
-    const std::vector<PortID>& ports);
 
 } // namespace facebook::fboss::utility

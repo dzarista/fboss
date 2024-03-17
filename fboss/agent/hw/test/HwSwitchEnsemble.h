@@ -123,9 +123,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       const cfg::SwitchConfig& config) override;
 
   std::shared_ptr<SwitchState> getProgrammedState() const override;
-  LinkStateToggler* getLinkToggler() {
-    return linkToggler_.get();
-  }
+  LinkStateToggler* getLinkToggler() override;
   RoutingInformationBase* getRib() {
     return routingInformationBase_.get();
   }
@@ -228,7 +226,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
    * Get latest port stats for given ports
    */
   virtual std::map<PortID, HwPortStats> getLatestPortStats(
-      const std::vector<PortID>& ports);
+      const std::vector<PortID>& ports) override;
   HwPortStats getLatestPortStats(PortID port);
   /*
    * Get latest sys port stats for given sys ports
@@ -259,6 +257,10 @@ class HwSwitchEnsemble : public TestEnsembleIf {
     return HwSwitchEnsembleRouteUpdateWrapper(
         this, routingInformationBase_.get());
   }
+  std::unique_ptr<RouteUpdateWrapper> getRouteUpdaterWrapper() override {
+    return std::make_unique<HwSwitchEnsembleRouteUpdateWrapper>(
+        this, routingInformationBase_.get());
+  }
   size_t getMinPktsForLineRate(const PortID& portId);
   int readPfcDeadlockDetectionCounter(const PortID& port);
   int readPfcDeadlockRecoveryCounter(const PortID& port);
@@ -271,8 +273,6 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       std::vector<PortID>& downlinks,
       std::vector<PortID>& disabled,
       const int totalLinkCount);
-
-  virtual bool isSai() const = 0;
 
   const SwitchIdScopeResolver& scopeResolver() const override;
 
@@ -288,6 +288,15 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   void enqueueTxPacket(multiswitch::TxPacket);
 
   void enqueueOperDelta(multiswitch::StateOperDelta operDelta);
+
+  void clearPortStats(
+      const std::unique_ptr<std::vector<int32_t>>& ports) override {
+    getHwSwitch()->clearPortStats(ports);
+  }
+
+  folly::MacAddress getLocalMac(SwitchID /*id*/) const override {
+    return getHwSwitch()->getPlatform()->getLocalMac();
+  }
 
  protected:
   /*

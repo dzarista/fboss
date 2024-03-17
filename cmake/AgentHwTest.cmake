@@ -17,6 +17,7 @@ target_link_libraries(config_factory
   Folly::folly
   fboss_config_utils
   port_test_utils
+  linkstate_toggler
 )
 
 add_library(hw_test_main
@@ -121,7 +122,7 @@ target_link_libraries(hw_teflow_utils
 )
 
 add_library(hw_link_state_toggler
-  fboss/agent/hw/test/LinkStateToggler.cpp
+  fboss/agent/test/LinkStateToggler.cpp
 )
 
 target_link_libraries(hw_link_state_toggler
@@ -186,6 +187,8 @@ target_link_libraries(load_balancer_utils
   Folly::folly
   config_factory
   hw_test_acl_utils
+  test_ensemble_if
+  loadbalancer_utils
 )
 
 add_library(prod_config_utils
@@ -344,18 +347,22 @@ target_link_libraries(hw_switch_test
   hw_packet_utils
   hw_switch_ensemble
   hw_voq_utils
+  linkstate_toggler
   load_balancer_utils
   olympic_qos_utils
   prod_config_factory
   prod_config_utils
   qos_test_utils
+  test_ensemble_if
   traffic_policy_utils
+  stats_test_utils
   core
   sflow_shim_utils
   hardware_stats_cpp2
   route_distribution_gen
   route_scale_gen
   trunk_utils
+  trap_packet_utils
   Folly::folly
   validated_shell_commands_cpp2
   hwswitch_matcher
@@ -403,16 +410,6 @@ target_link_libraries(hw_queue_per_host_utils
   switch_config_cpp2
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
-)
-
-add_library(linkstate_toggler
-  fboss/agent/hw/test/LinkStateToggler.cpp
-)
-
-target_link_libraries(linkstate_toggler
-  hw_switch
-  state
-  core
 )
 
 add_library(hw_voq_utils

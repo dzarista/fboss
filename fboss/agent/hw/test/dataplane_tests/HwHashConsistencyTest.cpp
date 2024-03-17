@@ -211,7 +211,7 @@ class HwHashConsistencyTest : public HwLinkStateDependentTest {
       setLoadBalancerSeed(hash);
     }
     applyNewState(utility::addLoadBalancers(
-        getPlatform(), getProgrammedState(), hashes, scopeResolver()));
+        getHwSwitchEnsemble(), getProgrammedState(), hashes, scopeResolver()));
     programRoute();
   }
 

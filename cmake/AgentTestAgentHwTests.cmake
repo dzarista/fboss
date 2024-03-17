@@ -5,10 +5,15 @@
 
 add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentCoppTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentDscpMarkingTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentDscpQueueMappingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentEmptyTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentEgressForwardingDiscardCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentAclInDiscardCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentInNullRouteDiscardsTest.cpp
   fboss/agent/test/agent_hw_tests/AgentPacketSendTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentOlympicQosTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentOlympicQosSchedulerTests.cpp
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchTests.cpp
   fboss/agent/test/agent_hw_tests/AgentFabricSwitchTests.cpp
   fboss/agent/test/agent_hw_tests/AgentPrbsTests.cpp
@@ -17,6 +22,7 @@ add_library(agent_hw_test_src
 target_link_libraries(agent_hw_test_src
   acl_test_utils
   copp_test_utils
+  dscp_marking_utils
   pkt_test_utils
   packet
   core
@@ -28,6 +34,8 @@ target_link_libraries(agent_hw_test_src
   trunk_utils
   traffic_policy_utils
   olympic_qos_utils
+  qos_test_utils
+  resourcelibutil
   load_balancer_test_utils
 )
 
