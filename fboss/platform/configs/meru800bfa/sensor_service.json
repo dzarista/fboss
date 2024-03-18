@@ -1178,7 +1178,7 @@
         "type": 0
       },
       "PSU4_POUT": {
-        "path": "/run/devmap/sensors/PSU2_PMBUS/power2_input",
+        "path": "/run/devmap/sensors/PSU4_PMBUS/power2_input",
         "compute": "@/1000000.0",
         "type": 0
       }
