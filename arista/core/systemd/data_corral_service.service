@@ -1,7 +1,5 @@
 [Unit]
 Description=Start data_corral_service
-After=platform_manager.service
-Wants=platform_manager.service
 
 [Service]
 ExecStart=/opt/fboss/bin/run_data_corral_service.sh
