@@ -9,13 +9,13 @@
 namespace facebook::fboss::fsdb::test {
 
 FsdbTestServer::FsdbTestServer(
-    std::unique_ptr<FsdbConfig> config,
+    std::shared_ptr<FsdbConfig> config,
     uint16_t port) {
   // Run tests faster
   gflags::SetCommandLineOptionWithMode(
       "snapshotInterval", "1s", gflags::SET_FLAG_IF_DEFAULT);
   gflags::SetCommandLineOptionWithMode(
-      "statsSubscriptionServe", "1s", gflags::SET_FLAG_IF_DEFAULT);
+      "statsSubscriptionServe_s", "1", gflags::SET_FLAG_IF_DEFAULT);
   gflags::SetCommandLineOptionWithMode(
       "checkOperOwnership", "false", gflags::SET_FLAG_IF_DEFAULT);
 

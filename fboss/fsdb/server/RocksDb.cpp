@@ -2,7 +2,6 @@
 
 #include "fboss/fsdb/server/RocksDb.h"
 #include "fboss/fsdb/common/Utils.h"
-#include "fboss/fsdb/utils/Utils.h"
 
 // TODO: use a better default dir
 DEFINE_string(
@@ -130,34 +129,6 @@ bool RocksDb::put(const std::string& key, const std::string& value) {
     return false;
   }
   return true;
-}
-
-std::vector<StatsSnapshotPtr> RocksDb::getSnapshots(
-    const Metric& metric,
-    int64_t fromTimestampSec) {
-  XLOG(INFO) << "get historical snapshots for metric = " << metric
-             << ", fromTimestampSec = " << fromTimestampSec;
-  auto it = dbWithTTL_->NewIterator(rocksdb::ReadOptions());
-  it->Seek(folly::to<std::string>(
-      metric, ".", Utils::stringifyTimestampSec(fromTimestampSec)));
-
-  std::vector<StatsSnapshotPtr> ret;
-  for (; it->Valid(); it->Next()) {
-    const auto [readMetric, readTimestampSec] =
-        Utils::decomposeKey(it->key().ToString());
-    if (metric != readMetric) {
-      break;
-    }
-
-    ret.push_back(std::make_shared<StatsSnapshot>(
-        Utils::getFqMetric(publisherId_, readMetric),
-        readTimestampSec,
-        it->value().ToString()));
-  }
-
-  it->Reset();
-  delete it;
-  return ret;
 }
 
 // TODO: is there a better way to count than seek and iterate till end ?

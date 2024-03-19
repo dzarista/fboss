@@ -115,12 +115,12 @@ TEST(Acl, applyConfig) {
   EXPECT_NE(nullptr, aclV2);
   EXPECT_FALSE(aclV2->getDstIp().first);
 
-  // Nothing references this permit acl, so it shouldn't be added yet
+  // Ensure ACL is created with no traffic policy for PERMIT
   config.acls()->resize(2);
   *config.acls()[1].name() = "acl22";
   *config.acls()[1].actionType() = cfg::AclActionType::PERMIT;
   auto stateV22 = publishAndApplyConfig(stateV2, &config, platform.get());
-  EXPECT_EQ(nullptr, stateV22);
+  EXPECT_NE(nullptr, stateV22);
 
   // Non-existent entry
   auto acl2V2 = stateV2->getAcl("something");
@@ -553,13 +553,13 @@ TEST(Acl, AclGeneration) {
       acls->getNodeIf("acl1")->getPriority(),
       AclTable::kDataplaneAclMaxPriority);
   EXPECT_EQ(
-      acls->getNodeIf("acl4")->getPriority(),
+      acls->getNodeIf("acl2")->getPriority(),
       AclTable::kDataplaneAclMaxPriority + 1);
   EXPECT_EQ(
-      acls->getNodeIf("acl2")->getPriority(),
+      acls->getNodeIf("acl3")->getPriority(),
       AclTable::kDataplaneAclMaxPriority + 2);
   EXPECT_EQ(
-      acls->getNodeIf("acl3")->getPriority(),
+      acls->getNodeIf("acl4")->getPriority(),
       AclTable::kDataplaneAclMaxPriority + 3);
   EXPECT_EQ(
       acls->getNodeIf("acl5")->getPriority(),
@@ -1074,6 +1074,76 @@ TEST(Acl, InvalidTrafficCounter) {
 
   EXPECT_THROW(
       publishAndApplyConfig(stateV0, &config, platform.get()), FbossError);
+}
+
+TEST(Acl, VerifyTrafficCounter) {
+  FLAGS_enable_acl_table_group = false;
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+
+  cfg::SwitchConfig config;
+  config.acls()->resize(4);
+  *config.acls()[0].name() = "acl0";
+  *config.acls()[0].actionType() = cfg::AclActionType::PERMIT;
+  *config.acls()[1].name() = "acl1";
+  *config.acls()[1].actionType() = cfg::AclActionType::DENY;
+  config.dataPlaneTrafficPolicy() = cfg::TrafficPolicyConfig();
+  config.dataPlaneTrafficPolicy()->matchToAction()->resize(2);
+  *config.dataPlaneTrafficPolicy()->matchToAction()[0].matcher() = "acl0";
+  config.dataPlaneTrafficPolicy()->matchToAction()[0].action()->counter() =
+      "stat0";
+  *config.dataPlaneTrafficPolicy()->matchToAction()[1].matcher() = "acl1";
+  config.dataPlaneTrafficPolicy()->matchToAction()[1].action()->counter() =
+      "stat1";
+  config.trafficCounters()->resize(2);
+  *config.trafficCounters()[0].name() = "stat0";
+  *config.trafficCounters()[1].name() = "stat1";
+  *config.acls()[2].name() = "acl2";
+  *config.acls()[2].actionType() = cfg::AclActionType::PERMIT;
+  *config.acls()[3].name() = "acl3";
+  *config.acls()[3].actionType() = cfg::AclActionType::DENY;
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  EXPECT_NE(nullptr, stateV1);
+
+  auto verify = [](shared_ptr<SwitchState> state,
+                   std::string aclName,
+                   std::string counterName,
+                   cfg::AclActionType aclActionType,
+                   bool verifyTrafficCounter) {
+    auto acl = state->getAcl(aclName);
+    ASSERT_NE(nullptr, acl);
+    ASSERT_EQ(acl->getActionType(), aclActionType);
+    auto aclAction = acl->getAclAction();
+    if (verifyTrafficCounter) {
+      ASSERT_NE(nullptr, aclAction);
+      EXPECT_TRUE(
+          aclAction->cref<switch_state_tags::trafficCounter>() != nullptr);
+      EXPECT_EQ(
+          aclAction->cref<switch_state_tags::trafficCounter>()
+              ->cref<switch_config_tags::name>()
+              ->cref(),
+          counterName);
+      EXPECT_EQ(
+          aclAction->cref<switch_state_tags::trafficCounter>()
+              ->cref<switch_config_tags::types>()
+              ->size(),
+          1);
+      EXPECT_EQ(
+          aclAction->cref<switch_state_tags::trafficCounter>()
+              ->cref<switch_config_tags::types>()
+              ->cref(0)
+              ->toThrift(),
+          cfg::CounterType::PACKETS);
+    } else {
+      ASSERT_EQ(nullptr, aclAction);
+    }
+  };
+
+  verify(stateV1, "acl0", "stat0", cfg::AclActionType::PERMIT, true);
+  verify(stateV1, "acl1", "stat1", cfg::AclActionType::DENY, true);
+  verify(stateV1, "acl2", "", cfg::AclActionType::PERMIT, false);
+  verify(stateV1, "acl3", "", cfg::AclActionType::DENY, false);
 }
 
 TEST(Acl, GetRequiredAclTableQualifiers) {

@@ -8,10 +8,9 @@
  *
  */
 
-#include "fboss/agent/hw/test/LinkStateToggler.h"
+#include "fboss/agent/test/LinkStateToggler.h"
 
 #include "fboss/agent/ApplyThriftConfig.h"
-#include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
@@ -111,22 +110,24 @@ void LinkStateToggler::portStateChangeImpl(
     for (const auto& port : portsToWaitFor) {
       invokeLinkScanIfNeeded(port, up);
     }
-    waitForPortEvents(portsToWaitFor);
+    waitForPortEvents(portsToWaitFor, up);
   }
 }
 
-bool LinkStateToggler::waitForPortEvents(const std::set<PortID>& ports) {
+bool LinkStateToggler::waitForPortEvents(
+    const std::set<PortID>& ports,
+    bool up) {
   if (!FLAGS_multi_switch) {
     std::unique_lock<std::mutex> lock{linkEventMutex_};
     linkEventCV_.wait(lock, [this] { return desiredPortEventsOccurred_; });
     CHECK(portIdToWaitFor_.empty());
-    auto updateOperState = [this,
-                            ports](const std::shared_ptr<SwitchState>& in) {
+    auto updateOperState = [this, ports, up](
+                               const std::shared_ptr<SwitchState>& in) {
       /* toggle the oper state */
       auto newState = in->clone();
       for (const auto& port : ports) {
         auto newPort = newState->getPorts()->getNodeIf(port)->modify(&newState);
-        newPort->setOperState(waitForPortUp_);
+        newPort->setOperState(up);
       }
       return newState;
     };
@@ -139,8 +140,7 @@ bool LinkStateToggler::waitForPortEvents(const std::set<PortID>& ports) {
               ->getPorts()
               ->getNodeIf(portId)
               ->getOperState(),
-          (waitForPortUp_ ? PortFields::OperState::UP
-                          : PortFields::OperState::DOWN));
+          (up ? PortFields::OperState::UP : PortFields::OperState::DOWN));
     });
   }
   return true;

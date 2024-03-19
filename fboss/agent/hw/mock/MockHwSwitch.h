@@ -93,6 +93,7 @@ class MockHwSwitch : public HwSwitch {
   MOCK_CONST_METHOD0(getTeFlowStats, TeFlowStats());
   MOCK_CONST_METHOD0(getHwFlowletStats, HwFlowletStats());
   MOCK_CONST_METHOD0(getAllEcmpDetails, std::vector<EcmpDetails>());
+  MOCK_CONST_METHOD0(getAclStats, AclStats());
 
   MockPlatform* getPlatform() const override {
     return platform_;
@@ -132,7 +133,9 @@ class MockHwSwitch : public HwSwitch {
       listObjects,
       std::string(const std::vector<HwObjectType>&, bool));
   MOCK_METHOD0(updateAllPhyInfoImpl, std::map<PortID, phy::PhyInfo>());
-  MOCK_CONST_METHOD0(getFabricConnectivity, std::map<PortID, FabricEndpoint>());
+  MOCK_CONST_METHOD0(
+      getFabricConnectivity,
+      const std::map<PortID, FabricEndpoint>&());
   MOCK_CONST_METHOD1(
       getSwitchReachability,
       std::vector<PortID>(SwitchID switchId));

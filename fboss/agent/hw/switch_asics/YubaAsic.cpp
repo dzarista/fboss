@@ -53,7 +53,6 @@ bool YubaAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::FEC:
     case HwAsic::Feature::ECMP_MEMBER_WIDTH_INTROSPECTION:
     case HwAsic::Feature::FABRIC_PORT_MTU:
-    case HwAsic::Feature::SAI_MPLS_INSEGMENT:
     case HwAsic::Feature::FABRIC_PORTS:
     case HwAsic::Feature::SAI_PORT_SPEED_CHANGE:
     case HwAsic::Feature::ROUTE_METADATA:
@@ -61,8 +60,6 @@ bool YubaAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::PMD_RX_SIGNAL_DETECT:
     case HwAsic::Feature::FEC_AM_LOCK_STATUS:
     case HwAsic::Feature::PCS_RX_LINK_STATUS:
-    case HwAsic::Feature::SAI_MPLS_TTL_1_TRAP:
-    case HwAsic::Feature::SAI_MPLS_LABEL_LOOKUP_FAIL_COUNTER:
     case HwAsic::Feature::ROUTE_COUNTERS:
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::SAI_SAMPLEPACKET_TRAP:
@@ -80,10 +77,13 @@ bool YubaAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::ACL_METADATA_QUALIFER:
     case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
     case HwAsic::Feature::SAI_UDF_HASH:
+    case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
       return true;
+    case HwAsic::Feature::SAI_MPLS_LABEL_LOOKUP_FAIL_COUNTER:
+    case HwAsic::Feature::SAI_MPLS_TTL_1_TRAP:
+    case HwAsic::Feature::SAI_MPLS_INSEGMENT:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
     case HwAsic::Feature::HOSTTABLE:
-    case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
     case HwAsic::Feature::QCM:
     case HwAsic::Feature::SCHEDULER_PPS:
     case HwAsic::Feature::NEXTHOP_TTL_DECREMENT_DISABLE:

@@ -21,8 +21,8 @@ class MultiSwitchAgentEnsemble : public AgentEnsemble {
       PlatformInitFn initPlatform) override;
   void reloadPlatformConfig() override;
   bool isSai() const override;
-
-  HwSwitch* getHwSwitch() const override;
+  const HwSwitch* getHwSwitch() const override;
+  HwSwitch* getHwSwitch() override;
 
  private:
   std::unique_ptr<SplitSwAgentInitializer> agentInitializer_;

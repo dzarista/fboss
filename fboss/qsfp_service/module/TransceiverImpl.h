@@ -15,11 +15,13 @@
 #include <optional>
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/types.h"
-#include "fboss/lib/usb/TransceiverI2CApi.h"
+#include "fboss/lib/usb/TransceiverI2CApi.h" // TODO: Remove this. why do you need this here????
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 
 namespace facebook {
 namespace fboss {
+
+constexpr uint64_t post_write_delay_us = 20000;
 
 /*
  * This is class is the SFP implementation class
@@ -35,9 +37,18 @@ class TransceiverImpl {
   virtual int readTransceiver(
       const TransceiverAccessParameter& param,
       uint8_t* fieldValue) = 0;
+
+  /*
+   * Write to a tranceiver with a specific delay post write.
+   * Implementer should add the specified delay (e.g. usleep) after
+   * the write.
+   * If delay is not specified then the default delay should be
+   * used.
+   */
   virtual int writeTransceiver(
       const TransceiverAccessParameter& param,
-      uint8_t* fieldValue) = 0;
+      const uint8_t* fieldValue,
+      uint64_t delay = post_write_delay_us) = 0;
 
   /*
    * This function will check if the transceiver is present or not
@@ -54,6 +65,14 @@ class TransceiverImpl {
    * called when port flap is seen on the port remains down
    */
   virtual void triggerQsfpHardReset() {}
+
+  /* Functions relevant to I2C Profiling
+   */
+  virtual void i2cTimeProfilingStart() const {}
+  virtual void i2cTimeProfilingEnd() const {}
+  virtual std::pair<uint64_t, uint64_t> getI2cTimeProfileMsec() const {
+    return std::make_pair(0, 0);
+  }
 
   /*
    * Returns the name of the port
@@ -76,6 +95,12 @@ class TransceiverImpl {
   virtual folly::EventBase* getI2cEventBase() {
     return nullptr;
   }
+  // TEMPORARY:
+  // Addresses to be queried by external callers:
+  enum : uint8_t {
+    ADDR_QSFP = 0x50,
+    ADDR_QSFP_A2 = 0x51,
+  };
 
  private:
   // Forbidden copy contructor and assignment operator

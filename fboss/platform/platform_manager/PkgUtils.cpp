@@ -37,12 +37,34 @@ void PkgUtils::processLocalRpms(
 
 void PkgUtils::processKmods(const PlatformConfig& config) const {
   XLOG(INFO) << fmt::format(
-      "Reloading {} Kernel Modules", config.kmodsToReload()->size());
-  for (int i = 0; i < config.kmodsToReload()->size(); ++i) {
-    unloadKmod((*config.kmodsToReload())[i]);
+      "Unloading {} kernel modules", config.bspKmodsToReload()->size());
+  for (int i = 0; i < config.bspKmodsToReload()->size(); ++i) {
+    unloadKmod((*config.bspKmodsToReload())[i]);
   }
-  for (int i = config.kmodsToReload()->size() - 1; i >= 0; --i) {
-    loadKmod((*config.kmodsToReload())[i]);
+  XLOG(INFO) << fmt::format(
+      "Unloading {} shared kernel modules",
+      config.sharedKmodsToReload()->size());
+  for (int i = 0; i < config.sharedKmodsToReload()->size(); ++i) {
+    unloadKmod((*config.sharedKmodsToReload())[i]);
+  }
+  XLOG(INFO) << fmt::format(
+      "Loading {} shared kernel modules", config.sharedKmodsToReload()->size());
+  for (int i = 0; i < config.sharedKmodsToReload()->size(); ++i) {
+    loadKmod((*config.sharedKmodsToReload())[i]);
+  }
+  XLOG(INFO) << fmt::format(
+      "Loading {} kernel modules", config.bspKmodsToReload()->size());
+  for (int i = 0; i < config.bspKmodsToReload()->size(); ++i) {
+    loadKmod((*config.bspKmodsToReload())[i]);
+  }
+}
+
+void PkgUtils::loadUpstreamKmods(const PlatformConfig& config) const {
+  XLOG(INFO) << fmt::format(
+      "Loading {} upstream kernel modules",
+      config.upstreamKmodsToLoad()->size());
+  for (int i = 0; i < config.upstreamKmodsToLoad()->size(); ++i) {
+    loadKmod((*config.upstreamKmodsToLoad())[i]);
   }
 }
 

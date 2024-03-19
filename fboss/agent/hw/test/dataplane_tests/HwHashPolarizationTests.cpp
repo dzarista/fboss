@@ -134,7 +134,10 @@ class HwHashPolarizationTests : public HwLinkStateDependentTest {
               ecmpPorts.begin(), ecmpPorts.begin() + kEcmpWidth / 2});
       // Set first hash
       applyNewState(utility::addLoadBalancers(
-          getPlatform(), getProgrammedState(), firstHashes, scopeResolver()));
+          getHwSwitchEnsemble(),
+          getProgrammedState(),
+          firstHashes,
+          scopeResolver()));
 
       for (auto isV6 : {true, false}) {
         utility::pumpTraffic(
@@ -164,7 +167,10 @@ class HwHashPolarizationTests : public HwLinkStateDependentTest {
 
     // Set second hash
     applyNewState(utility::addLoadBalancers(
-        getPlatform(), getProgrammedState(), secondHashes, scopeResolver()));
+        getHwSwitchEnsemble(),
+        getProgrammedState(),
+        secondHashes,
+        scopeResolver()));
     auto makeTxPacket = [=, this](
                             folly::MacAddress srcMac, const auto& ipPayload) {
       return utility::makeUDPTxPacket(
@@ -504,7 +510,10 @@ class HwHashTrunkPolarizationTests : public HwHashPolarizationTests {
           getHwSwitch(), std::set<PortID>{ports.begin(), ports.end()});
       // Set first hash
       applyNewState(utility::addLoadBalancers(
-          getPlatform(), getProgrammedState(), hashes, scopeResolver()));
+          getHwSwitchEnsemble(),
+          getProgrammedState(),
+          hashes,
+          scopeResolver()));
 
       auto logicalPorts = masterLogicalPortIds();
       auto portIter = logicalPorts.end() - 1;
@@ -532,7 +541,10 @@ class HwHashTrunkPolarizationTests : public HwHashPolarizationTests {
 
     // Set second hash
     applyNewState(utility::addLoadBalancers(
-        getPlatform(), getProgrammedState(), secondHashes, scopeResolver()));
+        getHwSwitchEnsemble(),
+        getProgrammedState(),
+        secondHashes,
+        scopeResolver()));
     auto makeTxPacket = [=, this](
                             folly::MacAddress srcMac, const auto& ipPayload) {
       return utility::makeUDPTxPacket(

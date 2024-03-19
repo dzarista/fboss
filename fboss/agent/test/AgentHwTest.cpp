@@ -13,6 +13,7 @@ DEFINE_bool(
     false,
     "list production feature needed for every single test");
 DECLARE_bool(disable_neighbor_updates);
+DECLARE_bool(disable_icmp_error_response);
 
 namespace {
 int kArgc;
@@ -44,6 +45,8 @@ void AgentHwTest::SetUp() {
   FLAGS_tun_intf = false;
   // disable neighbor updates
   FLAGS_disable_neighbor_updates = true;
+  // disable icmp error response
+  FLAGS_disable_icmp_error_response = true;
   // Disable FSDB publishing on single-box test
   FLAGS_publish_stats_to_fsdb = false;
   FLAGS_publish_state_to_fsdb = false;
@@ -169,6 +172,87 @@ std::map<PortID, HwPortStats> AgentHwTest::getLatestPortStats(
 
 HwPortStats AgentHwTest::getLatestPortStats(const PortID& port) {
   return getLatestPortStats(std::vector<PortID>({port})).begin()->second;
+}
+
+std::map<SystemPortID, HwSysPortStats> AgentHwTest::getLatestSysPortStats(
+    const std::vector<SystemPortID>& ports) {
+  std::map<std::string, HwSysPortStats> systemPortStats;
+  std::map<SystemPortID, HwSysPortStats> portIdStatsMap;
+  checkWithRetry(
+      [&systemPortStats, &portIdStatsMap, &ports, this]() {
+        portIdStatsMap.clear();
+        getSw()->getAllHwSysPortStats(systemPortStats);
+        for (auto [portStatName, stats] : systemPortStats) {
+          SystemPortID portId;
+          // Sysport stats names are suffixed with _switchIndex. Remove that
+          // to get at sys port name
+          auto portName =
+              portStatName.substr(0, portStatName.find_last_of("_"));
+          try {
+            portId = getProgrammedState()
+                         ->getSystemPorts()
+                         ->getSystemPort(portName)
+                         ->getID();
+          } catch (const FbossError&) {
+            // Look in remote sys ports if we couldn't find in local sys ports
+            portId = getProgrammedState()
+                         ->getRemoteSystemPorts()
+                         ->getSystemPort(portName)
+                         ->getID();
+          }
+          if (std::find(ports.begin(), ports.end(), portId) != ports.end()) {
+            portIdStatsMap.emplace(portId, stats);
+          }
+        }
+        return ports.size() == portIdStatsMap.size();
+      },
+      120,
+      std::chrono::milliseconds(1000),
+      " fetch system port stats");
+
+  return portIdStatsMap;
+}
+
+HwSysPortStats AgentHwTest::getLatestSysPortStats(const SystemPortID& port) {
+  return getLatestSysPortStats(std::vector<SystemPortID>({port}))
+      .begin()
+      ->second;
+}
+
+HwSwitchDropStats AgentHwTest::getAggregatedSwitchDropStats() {
+  HwSwitchDropStats hwSwitchDropStats;
+  checkWithRetry([&hwSwitchDropStats, this]() {
+    HwSwitchDropStats aggHwSwitchDropStats;
+
+    auto switchStats = getSw()->getHwSwitchStatsExpensive();
+    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+      if (switchStats.find(switchId) == switchStats.end()) {
+        return false;
+      }
+      const auto& dropStats = *switchStats.at(switchId).switchDropStats();
+
+#define FILL_DROP_COUNTERS(stat)                       \
+  aggHwSwitchDropStats.stat##Drops() =                 \
+      aggHwSwitchDropStats.stat##Drops().value_or(0) + \
+      dropStats.stat##Drops().value_or(0);
+
+      FILL_DROP_COUNTERS(global);
+      FILL_DROP_COUNTERS(globalReachability);
+      FILL_DROP_COUNTERS(packetIntegrity);
+      FILL_DROP_COUNTERS(fdrCell);
+      FILL_DROP_COUNTERS(voqResourceExhaustion);
+      FILL_DROP_COUNTERS(globalResourceExhaustion);
+      FILL_DROP_COUNTERS(sramResourceExhaustion);
+      FILL_DROP_COUNTERS(vsqResourceExhaustion);
+      FILL_DROP_COUNTERS(dropPrecedence);
+      FILL_DROP_COUNTERS(queueResolution);
+      FILL_DROP_COUNTERS(ingressPacketPipelineReject);
+      FILL_DROP_COUNTERS(corruptedCellPacketIntegrity);
+    }
+    hwSwitchDropStats = aggHwSwitchDropStats;
+    return true;
+  });
+  return hwSwitchDropStats;
 }
 
 void AgentHwTest::applyNewStateImpl(

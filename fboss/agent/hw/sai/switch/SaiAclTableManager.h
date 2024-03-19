@@ -97,6 +97,7 @@ class SaiAclTableManager {
   static auto constexpr kIcmpCodeMask = 0xFF;
   static auto constexpr kEtherTypeMask = 0xFFFF;
   static auto constexpr kOuterVlanIdMask = 0xFFFF;
+  static auto constexpr kBthOpcodeMask = 0xFF;
 
   static const folly::MacAddress& kMacMask() {
     static const folly::MacAddress macMask{"FF:FF:FF:FF:FF:FF"};
@@ -214,6 +215,8 @@ class SaiAclTableManager {
   }
 
   void removeUnclaimedAclCounter();
+
+  AclStats getAclStats() const;
 
  private:
   SaiAclTableHandle* FOLLY_NULLABLE
