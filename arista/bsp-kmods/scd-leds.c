@@ -211,7 +211,9 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	if (led_data.port_num > 0)
 		sprintf(led_name, "%s_port%d_led%d", pdata->id.name, led_data.port_num,
 			 led_data.led_idx);
-	else strcpy(led_name, pdata->id.name);
+	else sprintf(led_name, "%s%d", pdata->id.name, led_data.led_idx);
+	
+	strcpy(led_name, pdata->id.name);
 
 	ret = scd_leds_init(priv, led_name);
 
