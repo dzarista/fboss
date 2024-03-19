@@ -1,7 +1,5 @@
 [Unit]
 Description=Start wedge_agent
-After=qsfp_service.service
-Wants=qsfp_service.service
 
 [Service]
 ExecStart=/opt/fboss/bin/run_wedge_agent.sh
