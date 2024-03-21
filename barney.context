@@ -5,10 +5,10 @@
                "commit": "c982ff290580161cf773c422eb4088e150582727"
             },
             "github.com/aristanetworks/fboss-centos": {
-               "commit": "375689eea0c838a43d37611aa9997b17d1d1365d"
+               "commit": "d8ac18a95ef11ce829fe026875e05043702079e3"
             },
             "github.com/aristanetworks/Aqua_SAI": {
-               "commit": "e71624b43cd94e9d7d2d77bc09c7e0b9c203fb2b"
+               "commit": "9c57f5f3873f4d508c65737b6f04b71c615e3869"
             },
             "code.arista.io/infra/barney/barnzilla": {
                "commit": "0e9952f274b158fb9c7a71a610c89e50f2b48483"
