@@ -28,7 +28,7 @@
       "getVersionCmd": "fan_cpld_ver=$((`cat /run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/cpld_ver`));fan_cpld_subver=$((`cat /run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/cpld_sub_ver`));echo $fan_cpld_ver'.'$fan_cpld_subver",
       "priority": 4,
       "upgradeCmd": "fan_cpld_filename=$(head -n 1 /home/fan_cpld_filename.txt);/usr/bin/jam -aprogram -fmeru_fan_cpld -v $fan_cpld_filename",
-      "postUpgradeCmd": "rm /home/meru_meta_eeprom;echo 0 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable"
+      "postUpgradeCmd": "rm /home/meru_meta_eeprom"
     }
   }
 }
