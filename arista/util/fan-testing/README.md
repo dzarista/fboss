@@ -1,0 +1,11 @@
+# These utilities are meant to help collect some raw fan data for analysis and use for FBOSS tuning
+
+# Usage
+# Set up a unit (e.g) Viper with the right port configuration and optics modules
+# Make sure PSU count matches the customer configuration
+# Put as many snakes as possible, and a few MPC ports
+# Sanitize the dut first. Make sure the fdl mix/max RPM is accurate
+# CollectFanSweepData.py can be modified with a new class added to support running the data collection
+
+e.g: Viper
+AROSTEST_SKIP=all ./GenerateTraffic.py -d vpr123; python3 CollectFanSweepData.py -d vpr123 --stride 10 --start-rpm 20 --end-rpm 100 --soak-time 60
