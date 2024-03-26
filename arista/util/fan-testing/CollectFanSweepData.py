@@ -247,9 +247,10 @@ class Viper( FbossFanTestEdut ):
       return 'FAN-7021H-RED'
 
    def getFanMfr( self, id ):
-      if id == 0:
+      idBits = id & 0b111 # filter to fan id according to Mauna key table
+      if idBits == 0:
          return 'SANYO DENKI'
-      elif id == 1:
+      elif idBits == 1:
          return 'DELTA'
       else:
          raise ValueError( 'Fan mfr not detected' )
@@ -453,7 +454,8 @@ def main( argv ):
       # Fans info
       fans_log = [ 'Fans Info\n' ]
       for fanIdx, fanId in enumerate( fanIds ):
-          fanLog = f'Fan {fanIdx + 1} ID: {fanId}. \n\
+          binaryId = format(fanId, '08b')
+          fanLog = f'Fan {fanIdx + 1} ID: {binaryId}. \n\
             Fan SKU: {fanSku} ({obj.getFanMfr(fanId)})'
           fans_log.append( fanLog )
       fig, ax = plt.subplots()
@@ -481,7 +483,7 @@ def main( argv ):
       pdf.savefig( fig )
       plt.close( fig )
 
-      # Create a figure for sysIntfsRates log
+      # sysIntfsRates log
       fig = plt.figure( figsize = ( 8, 11 ) )
       ax = fig.add_subplot()
       ax.text( 0, 1, "\n".join(sysIntfsRates), fontsize = 6, va = 'top', ha = 'left',
@@ -514,7 +516,7 @@ def main( argv ):
       renderPlot( pdf, x_axis, y_axis, 'System Power' )
 
    # write collected data to a csv 
-   df.to_csv( f'{filename}csv', index = False )
+   df.to_csv( f'{filename}.csv', index = False )
 
 if __name__ == '__main__':
    sys.exit( main( sys.argv[ 1 : ] ) )
