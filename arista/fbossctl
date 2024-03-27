@@ -207,7 +207,7 @@ do_build() {
 
 do_package() {
    setup
-   run_cmd_container bash package.sh $@ --kernel "${FBOSS_LINUX_KERNEL}"
+   run_cmd_container bash package.sh $@
 }
 
 do_update_dut() {
