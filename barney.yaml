@@ -3,7 +3,7 @@ images:
     units:
       - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
         mappings:
-          /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_4.18
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_4.18
         build: |
           ./build.sh
 
@@ -11,7 +11,7 @@ images:
     units:
       - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
         mappings:
-          /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_5.12
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.12
         build: |
           ./build.sh
 
@@ -19,7 +19,7 @@ images:
     units:
       - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
         mappings:
-          /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_5.19
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.19
         build: |
           ./build.sh
 

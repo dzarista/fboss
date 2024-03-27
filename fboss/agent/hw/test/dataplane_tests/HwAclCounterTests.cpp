@@ -24,6 +24,8 @@ enum AclType {
   TCP_TTLD,
   UDP_TTLD,
   SRC_PORT,
+  SRC_PORT_DENY,
+  L4_DST_PORT,
   UDF,
   FLOWLET,
 };
@@ -43,6 +45,9 @@ template <typename EnableMultiAclTableT>
 class HwAclCounterTest : public HwLinkStateDependentTest {
   static auto constexpr isMultiAclEnabled =
       EnableMultiAclTableT::multiAclTableEnabled;
+
+ public:
+  cfg::AclActionType aclActionType_ = cfg::AclActionType::PERMIT;
 
  protected:
   void SetUp() override {
@@ -70,6 +75,9 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
       case AclType::SRC_PORT:
         aclName = "test-acl";
         break;
+      case AclType::SRC_PORT_DENY:
+        aclName = "test-deny-acl";
+        break;
       case AclType::TCP_TTLD:
         aclName = "test-tcp-acl";
         break;
@@ -82,6 +90,9 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
       case AclType::FLOWLET:
         aclName = "test-flowlet-acl";
         break;
+      case AclType::L4_DST_PORT:
+        aclName = "test-l4-port-acl";
+        break;
     }
     return aclName;
   }
@@ -91,6 +102,9 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
     switch (aclType) {
       case AclType::SRC_PORT:
         counterName = "test-acl-stats";
+        break;
+      case AclType::SRC_PORT_DENY:
+        counterName = "test-deny-acl-stats";
         break;
       case AclType::TCP_TTLD:
         counterName = "test-tcp-acl-stats";
@@ -103,6 +117,9 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
         break;
       case AclType::FLOWLET:
         counterName = "test-flowlet-acl-stats";
+        break;
+      case AclType::L4_DST_PORT:
+        counterName = "test-l4-port-acl-stats";
         break;
     }
     return counterName;
@@ -126,91 +143,14 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
       applyNewConfig(newCfg);
     };
 
-    auto verifyAclType = [this, bumpOnHit, frontPanel](AclType aclType) {
-      auto egressPort = helper_->ecmpPortDescriptorAt(0).phyPortID();
-      auto pktsBefore = *getLatestPortStats(egressPort).outUnicastPkts__ref();
-      auto aclPktCountBefore = utility::getAclInOutPackets(
-          getHwSwitch(),
-          getProgrammedState(),
-          getAclName(aclType),
-          getCounterName(aclType));
-
-      auto aclBytesCountBefore = utility::getAclInOutBytes(
-          getHwSwitch(),
-          getProgrammedState(),
-          getAclName(aclType),
-          getCounterName(aclType));
-      size_t sizeOfPacketSent = 0;
-      auto sendRoce = false;
-      if (aclType == AclType::FLOWLET && FLAGS_flowletSwitchingEnable) {
-        XLOG(DBG3) << "setting ECMP Member Status: ";
-        utility::setEcmpMemberStatus(getHwSwitch());
-        sendRoce = true;
-      }
-      if (aclType == AclType::UDF) {
-        sendRoce = true;
-      }
-      // for udf or flowlet testing, send roce packets
-      if (sendRoce) {
-        auto outPort = helper_->ecmpPortDescriptorAt(kEcmpWidth).phyPortID();
-        sizeOfPacketSent = sendRoceTraffic(outPort);
-      } else {
-        sizeOfPacketSent = sendPacket(frontPanel, bumpOnHit, aclType);
-      }
-      WITH_RETRIES({
-        auto aclPktCountAfter = utility::getAclInOutPackets(
-            getHwSwitch(),
-            getProgrammedState(),
-            getAclName(aclType),
-            getCounterName(aclType));
-
-        auto aclBytesCountAfter = utility::getAclInOutBytes(
-            getHwSwitch(),
-            getProgrammedState(),
-            getAclName(aclType),
-            getCounterName(aclType));
-
-        auto pktsAfter = *getLatestPortStats(egressPort).outUnicastPkts__ref();
-        XLOG(DBG2) << "\n"
-                   << "PacketCounter: " << pktsBefore << " -> " << pktsAfter
-                   << "\n"
-                   << "aclPacketCounter(" << getCounterName(aclType)
-                   << "): " << aclPktCountBefore << " -> " << (aclPktCountAfter)
-                   << "\n"
-                   << "aclBytesCounter(" << getCounterName(aclType)
-                   << "): " << aclBytesCountBefore << " -> "
-                   << aclBytesCountAfter;
-
-        if (bumpOnHit) {
-          EXPECT_EVENTUALLY_GT(pktsAfter, pktsBefore);
-          // On some ASICs looped back pkt hits the ACL before being
-          // dropped in the ingress pipeline, hence GE
-          EXPECT_EVENTUALLY_GE(aclPktCountAfter, aclPktCountBefore + 1);
-          // At most we should get a pkt bump of 2
-          EXPECT_EVENTUALLY_LE(aclPktCountAfter, aclPktCountBefore + 2);
-          EXPECT_EVENTUALLY_GE(
-              aclBytesCountAfter, aclBytesCountBefore + sizeOfPacketSent);
-          // On native BCM we see 4 extra bytes in the acl counter. This is
-          // likely due to ingress vlan getting imposed and getting counted
-          // when packet hits acl in ingress pipeline
-          EXPECT_EVENTUALLY_LE(
-              aclBytesCountAfter,
-              aclBytesCountBefore + (2 * sizeOfPacketSent) + 4);
-        } else {
-          EXPECT_EVENTUALLY_EQ(aclPktCountBefore, aclPktCountAfter);
-          EXPECT_EVENTUALLY_EQ(aclBytesCountBefore, aclBytesCountAfter);
-        }
-      });
-    };
-
-    auto verify = [aclTypes, verifyAclType]() {
+    auto verify = [this, bumpOnHit, frontPanel, aclTypes]() {
       for (auto aclType : aclTypes) {
         // since FLOWLET Acl presents ahead of UDF Acl in TCAM
         // the packet always hit the FLOWLET Acl. Hence verify the FLOWLET Acl
         if (aclTypes[0] == AclType::FLOWLET) {
           aclType = AclType::FLOWLET;
         }
-        verifyAclType(aclType);
+        verifyAclType(bumpOnHit, frontPanel, aclType);
       }
     };
 
@@ -241,6 +181,10 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
     auto vlanId = utility::firstVlanID(initialConfig());
     auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
+    int l4DstPort = kL4DstPort();
+    if (aclType == AclType::L4_DST_PORT) {
+      l4DstPort = kL4DstPort2();
+    }
 
     auto txPacket = aclType == AclType::UDP_TTLD ? utility::makeUDPTxPacket(
                                                        getHwSwitch(),
@@ -249,8 +193,8 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
                                                        intfMac, // dst mac
                                                        kSrcIP(),
                                                        kDstIP(),
-                                                       8000, // l4 src port
-                                                       8001, // l4 dst port
+                                                       kL4SrcPort(),
+                                                       l4DstPort,
                                                        0,
                                                        ttl)
                                                  : utility::makeTCPTxPacket(
@@ -260,8 +204,8 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
                                                        intfMac, // dst mac
                                                        kSrcIP(),
                                                        kDstIP(),
-                                                       8000, // l4 src port
-                                                       8001, // l4 dst port
+                                                       kL4SrcPort(),
+                                                       l4DstPort,
                                                        0,
                                                        ttl);
 
@@ -288,10 +232,155 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
     return folly::IPAddressV6("2620:0:1cfe:face:b00c::10");
   }
 
+  int kL4SrcPort() const {
+    return 8000;
+  }
+
+  int kL4DstPort() const {
+    return 8001;
+  }
+
+  int kL4DstPort2() const {
+    return 8002;
+  }
+
+  // This test verifies if the ACL priorities are taking effect as expected.
+  // ACLs are processed in the priority in which they are listed in the config
+  // 1. Install PERMIT ACL matching on SRC_PORT
+  // 2. Install DENY ACL matching on SRC_PORT
+  //
+  // The expectation here is both ACLs are hit and PERMIT ACL gets priority.
+  void aclPriorityTestHelper() {
+    auto setup = [this]() {
+      applyNewState(helper_->resolveNextHops(getProgrammedState(), 2));
+      helper_->programRoutes(getRouteUpdater(), kEcmpWidth);
+      auto newCfg{initialConfig()};
+      this->aclActionType_ = cfg::AclActionType::PERMIT;
+      addAclAndStat(&newCfg, AclType::SRC_PORT);
+      this->aclActionType_ = cfg::AclActionType::DENY;
+      addAclAndStat(&newCfg, AclType::SRC_PORT_DENY);
+      applyNewConfig(newCfg);
+    };
+
+    auto verify = [this]() {
+      // The first parameter in both invocations is bumpOnHit.
+      // True means the verifier checks if counter increment for the PERMIT ACL
+      // False means the DENY ACL counter did not change.
+      //
+      // Higher priority PERMIT ACL counter went up
+      verifyAclType(true, true, AclType::SRC_PORT);
+      // Lower priority DENY ACL counter remains same
+      verifyAclType(false, true, AclType::SRC_PORT_DENY);
+    };
+
+    verifyAcrossWarmBoots(setup, verify);
+  }
+
+  void aclPriorityTestHelper2() {
+    auto setup = [this]() {
+      applyNewState(helper_->resolveNextHops(getProgrammedState(), 2));
+      helper_->programRoutes(getRouteUpdater(), kEcmpWidth);
+      auto newCfg{initialConfig()};
+      // match on SRC_PORT=1 + L4_DST_PORT=8002
+      this->aclActionType_ = cfg::AclActionType::PERMIT;
+      addAclAndStat(&newCfg, AclType::L4_DST_PORT);
+      // match on SRC_PORT=1
+      this->aclActionType_ = cfg::AclActionType::DENY;
+      addAclAndStat(&newCfg, AclType::SRC_PORT);
+      applyNewConfig(newCfg);
+    };
+
+    auto verify = [this]() {
+      // Sends a packet with dst port 8002
+      verifyAclType(true, true, AclType::L4_DST_PORT);
+      // Sends a packet with dst port 8001
+      verifyAclType(true, true, AclType::SRC_PORT);
+    };
+
+    verifyAcrossWarmBoots(setup, verify);
+  }
+
+  auto verifyAclType(bool bumpOnHit, bool frontPanel, AclType aclType) {
+    auto egressPort = helper_->ecmpPortDescriptorAt(0).phyPortID();
+    auto pktsBefore = *getLatestPortStats(egressPort).outUnicastPkts__ref();
+    auto aclPktCountBefore = utility::getAclInOutPackets(
+        getHwSwitch(),
+        getProgrammedState(),
+        getAclName(aclType),
+        getCounterName(aclType));
+
+    auto aclBytesCountBefore = utility::getAclInOutBytes(
+        getHwSwitch(),
+        getProgrammedState(),
+        getAclName(aclType),
+        getCounterName(aclType));
+    size_t sizeOfPacketSent = 0;
+    auto sendRoce = false;
+    if (aclType == AclType::FLOWLET && FLAGS_flowletSwitchingEnable) {
+      XLOG(DBG3) << "setting ECMP Member Status: ";
+      utility::setEcmpMemberStatus(getHwSwitch());
+      sendRoce = true;
+    }
+    if (aclType == AclType::UDF) {
+      sendRoce = true;
+    }
+    // for udf or flowlet testing, send roce packets
+    if (sendRoce) {
+      auto outPort = helper_->ecmpPortDescriptorAt(kEcmpWidth).phyPortID();
+      sizeOfPacketSent = sendRoceTraffic(outPort);
+    } else {
+      sizeOfPacketSent = sendPacket(frontPanel, bumpOnHit, aclType);
+    }
+    WITH_RETRIES({
+      auto aclPktCountAfter = utility::getAclInOutPackets(
+          getHwSwitch(),
+          getProgrammedState(),
+          getAclName(aclType),
+          getCounterName(aclType));
+
+      auto aclBytesCountAfter = utility::getAclInOutBytes(
+          getHwSwitch(),
+          getProgrammedState(),
+          getAclName(aclType),
+          getCounterName(aclType));
+
+      auto pktsAfter = *getLatestPortStats(egressPort).outUnicastPkts__ref();
+      XLOG(DBG2) << "\n"
+                 << "PacketCounter: " << pktsBefore << " -> " << pktsAfter
+                 << "\n"
+                 << "aclPacketCounter(" << getCounterName(aclType)
+                 << "): " << aclPktCountBefore << " -> " << (aclPktCountAfter)
+                 << "\n"
+                 << "aclBytesCounter(" << getCounterName(aclType)
+                 << "): " << aclBytesCountBefore << " -> "
+                 << aclBytesCountAfter;
+
+      if (bumpOnHit) {
+        EXPECT_EVENTUALLY_GT(pktsAfter, pktsBefore);
+        // On some ASICs looped back pkt hits the ACL before being
+        // dropped in the ingress pipeline, hence GE
+        EXPECT_EVENTUALLY_GE(aclPktCountAfter, aclPktCountBefore + 1);
+        // At most we should get a pkt bump of 2
+        EXPECT_EVENTUALLY_LE(aclPktCountAfter, aclPktCountBefore + 2);
+        EXPECT_EVENTUALLY_GE(
+            aclBytesCountAfter, aclBytesCountBefore + sizeOfPacketSent);
+        // On native BCM we see 4 extra bytes in the acl counter. This is
+        // likely due to ingress vlan getting imposed and getting counted
+        // when packet hits acl in ingress pipeline
+        EXPECT_EVENTUALLY_LE(
+            aclBytesCountAfter,
+            aclBytesCountBefore + (2 * sizeOfPacketSent) + 4);
+      } else {
+        EXPECT_EVENTUALLY_EQ(aclPktCountBefore, aclPktCountAfter);
+        EXPECT_EVENTUALLY_EQ(aclBytesCountBefore, aclBytesCountAfter);
+      }
+    });
+  }
+
   void addAclAndStat(cfg::SwitchConfig* config, AclType aclType) const {
     auto aclName = getAclName(aclType);
     auto counterName = getCounterName(aclType);
-    auto acl = utility::addAcl(config, aclName);
+    auto acl = utility::addAcl(config, aclName, aclActionType_);
     switch (aclType) {
       case AclType::TCP_TTLD:
       case AclType::UDP_TTLD:
@@ -303,6 +392,7 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
         *acl->ttl()->mask() = 128;
         break;
       case AclType::SRC_PORT:
+      case AclType::SRC_PORT_DENY:
         acl->srcPort() = helper_->ecmpPortDescriptorAt(0).phyPortID();
         break;
       case AclType::UDF:
@@ -310,6 +400,10 @@ class HwAclCounterTest : public HwLinkStateDependentTest {
         acl->roceOpcode() = utility::kUdfRoceOpcode;
         break;
       case AclType::FLOWLET:
+        break;
+      case AclType::L4_DST_PORT:
+        acl->srcPort() = helper_->ecmpPortDescriptorAt(0).phyPortID();
+        acl->l4DstPort() = kL4DstPort2();
         break;
     }
     std::vector<cfg::CounterType> setCounterTypes{
@@ -332,6 +426,17 @@ TYPED_TEST(HwAclCounterTest, VerifyCounterBumpOnTtlHitFrontPanel) {
 }
 
 TYPED_TEST(HwAclCounterTest, VerifyCounterBumpOnSportHitFrontPanel) {
+  this->counterBumpOnHitHelper(
+      true /* bump on hit */, true /* front panel port */, {AclType::SRC_PORT});
+}
+TYPED_TEST(HwAclCounterTest, VerifyCounterBumpOnL4DstportHitFrontPanel) {
+  this->counterBumpOnHitHelper(
+      true /* bump on hit */,
+      true /* front panel port */,
+      {AclType::L4_DST_PORT});
+}
+TYPED_TEST(HwAclCounterTest, VerifyCounterBumpOnSportHitFrontPanelWithDrop) {
+  this->aclActionType_ = cfg::AclActionType::DENY;
   this->counterBumpOnHitHelper(
       true /* bump on hit */, true /* front panel port */, {AclType::SRC_PORT});
 }
@@ -362,6 +467,14 @@ TYPED_TEST(HwAclCounterTest, VerifyCounterNoHitNoBumpCpu) {
       false /* no hit, no bump */,
       false /* cpu port */,
       {AclType::TCP_TTLD, AclType::UDP_TTLD});
+}
+
+TYPED_TEST(HwAclCounterTest, VerifyAclPrioritySportHitFrontPanel) {
+  this->aclPriorityTestHelper();
+}
+
+TYPED_TEST(HwAclCounterTest, VerifyAclPriorityL4DstportHitFrontPanel) {
+  this->aclPriorityTestHelper2();
 }
 
 /*

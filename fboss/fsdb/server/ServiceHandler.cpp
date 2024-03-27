@@ -7,20 +7,17 @@
 #include <folly/experimental/coro/BlockingWait.h>
 #include <folly/experimental/coro/Timeout.h>
 #include <folly/logging/xlog.h>
-#include <range/v3/view.hpp>
-#include "common/time/ChronoFlags.h"
-#include "common/time/Time.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_common_constants.h"
 #include "fboss/fsdb/oper/PathValidator.h"
 #include "folly/CancellationToken.h"
 
 #include <algorithm>
+#include <chrono>
 #include <iterator>
 
 using namespace std::chrono_literals; // @donotremove
-using namespace ranges;
 
-DEFINE_time_s(metricsTtl, 1s * 12 * 3600 /* twelve hours */, "TTL for metrics");
+DEFINE_int32(metricsTtl_s, 1 * 12 * 3600 /* twelve hours */, "TTL for metrics");
 
 DEFINE_bool(
     checkOperOwnership,
@@ -29,24 +26,24 @@ DEFINE_bool(
 
 DEFINE_bool(trackMetadata, true, "Enable metadata tracking");
 
-DEFINE_time_s(
-    statsSubscriptionServe,
-    10s,
+DEFINE_int32(
+    statsSubscriptionServe_s,
+    10,
     "Interval at which stats subscriptions are served");
 
-DEFINE_time_s(
-    statsSubscriptionHeartbeat,
-    30s,
+DEFINE_int32(
+    statsSubscriptionHeartbeat_s,
+    30,
     "Interval at which heartbeats are sent for stats subscribers");
 
-DEFINE_time_ms(
-    stateSubscriptionServe,
-    50ms,
+DEFINE_int32(
+    stateSubscriptionServe_ms,
+    50,
     "Interval at which state subscriptions are served");
 
-DEFINE_time_s(
-    stateSubscriptionHeartbeat,
-    5s,
+DEFINE_int32(
+    stateSubscriptionHeartbeat_s,
+    5,
     "Interval at which heartbeats are sent for state subscribers");
 
 DEFINE_bool(
@@ -99,7 +96,7 @@ std::string getPubSubRequestDetails(const OperRequest& request) {
 namespace facebook::fboss::fsdb {
 
 ServiceHandler::ServiceHandler(
-    std::unique_ptr<FsdbConfig> fsdbConfig,
+    std::shared_ptr<FsdbConfig> fsdbConfig,
     const std::string& publisherIdsToOpenRocksDbAtStartFor,
     Options options)
     : FacebookBase2("FsdbService"),
@@ -167,16 +164,18 @@ ServiceHandler::ServiceHandler(
           fb303::RATE),
       operStorage_(
           {},
-          FLAGS_stateSubscriptionServe_ms,
-          FLAGS_stateSubscriptionHeartbeat_s,
+          std::chrono::milliseconds(FLAGS_stateSubscriptionServe_ms),
+          std::chrono::seconds(FLAGS_stateSubscriptionHeartbeat_s),
           FLAGS_trackMetadata,
           "fsdb",
           options.serveIdPathSubs),
+#ifndef IS_OSS
       operDbWriter_(operStorage_),
+#endif
       operStatsStorage_(
           {},
-          FLAGS_statsSubscriptionServe_s,
-          FLAGS_statsSubscriptionHeartbeat_s,
+          std::chrono::seconds(FLAGS_statsSubscriptionServe_s),
+          std::chrono::seconds(FLAGS_statsSubscriptionHeartbeat_s),
           FLAGS_trackMetadata,
           "fsdb",
           options.serveIdPathSubs) {
@@ -210,6 +209,7 @@ ServiceHandler::ServiceHandler(
       operStatsStorage_.getThreadHeartbeat());
   heartbeatWatchdog_->start();
 
+#ifndef IS_OSS
   if (FLAGS_enableOperDB) {
     rocksDbs_ = options_.useFakeRocksDb_CAUTION_DO_NOT_USE_IN_PRODUCTION
         ? createIfNeededAndOpenRocksDbs<RocksDbFake>(
@@ -218,8 +218,10 @@ ServiceHandler::ServiceHandler(
               {publisherIds.begin(), publisherIds.end()});
     operDbWriter_.start();
   }
+#endif
 }
 
+#ifndef IS_OSS
 template <typename T>
 folly::F14FastMap<PublisherId, std::shared_ptr<RocksDbIf>>
 ServiceHandler::createIfNeededAndOpenRocksDbs(
@@ -229,7 +231,7 @@ ServiceHandler::createIfNeededAndOpenRocksDbs(
     auto rocksDb = std::make_shared<T>(
         "stats",
         publisherId,
-        FLAGS_metricsTtl_s,
+        std::chrono::seconds(FLAGS_metricsTtl_s),
         options_.eraseRocksDbsInCtorAndDtor_CAUTION_DO_NOT_USE_IN_PRODUCTION);
     const auto logPrefix = fmt::format("[P:{}]", publisherId);
     if (!rocksDb->open()) {
@@ -244,6 +246,7 @@ ServiceHandler::createIfNeededAndOpenRocksDbs(
 
   return ret;
 }
+#endif
 
 ServiceHandler::~ServiceHandler() {
   if (heartbeatWatchdog_) {
@@ -381,8 +384,11 @@ ServiceHandler::makeSinkConsumer(
             // Timestamp at server if chunk was not timestamped
             // by publisher
             if (!chunk->metadata()->lastConfirmedAt()) {
+              auto now = std::chrono::system_clock::now();
               chunk->metadata()->lastConfirmedAt() =
-                  WallClockUtil::NowInSecFast();
+                  std::chrono::duration_cast<std::chrono::seconds>(
+                      now.time_since_epoch())
+                      .count();
             }
             if constexpr (std::is_same_v<PubUnit, OperState>) {
               if (isStats) {
@@ -754,17 +760,17 @@ ServiceHandler::co_subscribeOperStatePathExtended(
               auto&& deltas = *item;
 
               OperSubPathUnit unit;
-
-              unit.changes() = deltas | view::move |
-                  view::transform([](auto&& delta) {
-                                 // we expect newVal to always be set, even in
-                                 // the case of a deleted path. For deleted
-                                 // paths, lower layers will create a
-                                 // TaggedOperState with empty contents.
-                                 return *std::move(delta.newVal);
-                               }) |
-                  to<std::vector>;
-
+              std::transform(
+                  std::make_move_iterator(deltas.begin()),
+                  std::make_move_iterator(deltas.end()),
+                  std::back_inserter(*unit.changes()),
+                  [](auto&& delta) {
+                    // we expect newVal to always be set, even in
+                    // the case of a deleted path. For deleted
+                    // paths, lower layers will create a
+                    // TaggedOperState with empty contents.
+                    return *std::move(delta.newVal);
+                  });
               co_yield std::move(unit);
             }
           })};
@@ -867,17 +873,17 @@ ServiceHandler::co_subscribeOperStatsPathExtended(
               auto&& deltas = *item;
 
               OperSubPathUnit unit;
-
-              unit.changes() = deltas | view::move |
-                  view::transform([](auto&& delta) {
-                                 // we expect newVal to always be set, even in
-                                 // the case of a deleted path. For deleted
-                                 // paths, lower layers will create a
-                                 // TaggedOperState with empty contents.
-                                 return *std::move(delta.newVal);
-                               }) |
-                  to<std::vector>;
-
+              std::transform(
+                  std::make_move_iterator(deltas.begin()),
+                  std::make_move_iterator(deltas.end()),
+                  std::back_inserter(*unit.changes()),
+                  [](auto&& delta) {
+                    // we expect newVal to always be set, even in
+                    // the case of a deleted path. For deleted
+                    // paths, lower layers will create a
+                    // TaggedOperState with empty contents.
+                    return *std::move(delta.newVal);
+                  });
               co_yield std::move(unit);
             }
           })};
@@ -988,24 +994,6 @@ ServiceHandler::co_getOperStatsExtended(
 
   co_return std::move(ret);
 }
-
-// --------------------------------------------
-
-std::shared_ptr<RocksDbIf> ServiceHandler::getRocksDb(
-    const PublisherId& publisherId) const {
-  const auto logPrefix = fmt::format("[P:{}]", publisherId);
-  XLOG(INFO) << logPrefix << " find opened rocksdb";
-  auto it = rocksDbs_.find(publisherId);
-  if (it == rocksDbs_.end()) {
-    throw Utils::createFsdbException(
-        FsdbErrorCode::UNKNOWN_PUBLISHER,
-        logPrefix,
-        " FSDB does not have rocksdb instance opened - include publisher in gflags to fix.");
-  }
-  return it->second;
-}
-
-// --------------------------------------------
 
 folly::coro::Task<std::unique_ptr<PublisherIdToOperPublisherInfo>>
 ServiceHandler::co_getAllOperPublisherInfos() {

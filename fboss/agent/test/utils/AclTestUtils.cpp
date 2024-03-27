@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "fboss/agent/FbossError.h"
+#include "fboss/agent/SwSwitch.h"
 
 DECLARE_bool(enable_acl_table_group);
 
@@ -289,4 +290,20 @@ std::vector<cfg::CounterType> getAclCounterTypes(const HwAsic* asic) {
   }
 }
 
+uint64_t getAclInOutPackets(
+    const SwSwitch* sw,
+    const std::string& statName,
+    bool bytes) {
+  auto statStr = bytes ? statName + ".bytes" : statName + ".packets";
+  auto hwSwitchStatsMap = sw->getHwSwitchStatsExpensive();
+  int64_t statValue = 0;
+  for (const auto& [switchIndex, hwswitchStats] : hwSwitchStatsMap) {
+    auto aclStats = hwswitchStats.aclStats();
+    auto entry = aclStats->statNameToCounterMap()->find(statStr);
+    if (entry != aclStats->statNameToCounterMap()->end()) {
+      statValue += entry->second;
+    }
+  }
+  return statValue;
+}
 } // namespace facebook::fboss::utility

@@ -13,13 +13,16 @@
 #include "fboss/fsdb/if/gen-cpp2/FsdbService.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_common_types.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
-#include "fboss/fsdb/oper/DbWriter.h"
 #include "fboss/fsdb/oper/instantiations/FsdbNaivePeriodicSubscribableStorage.h"
 #include "fboss/fsdb/server/FsdbConfig.h"
 #include "fboss/fsdb/server/FsdbOperTreeMetadataTracker.h"
-#include "fboss/fsdb/server/RocksDb.h"
 #include "fboss/lib/ThreadHeartbeat.h"
 #include "re2/re2.h"
+
+#ifndef IS_OSS
+#include "fboss/fsdb/oper/DbWriter.h"
+#include "fboss/fsdb/server/RocksDb.h"
+#endif
 
 DECLARE_bool(checkSubscriberConfig);
 DECLARE_bool(enforceSubscriberConfig);
@@ -47,7 +50,7 @@ class ServiceHandler : public FsdbServiceSvIf,
   };
 
   ServiceHandler(
-      std::unique_ptr<FsdbConfig> fsdbConfig,
+      std::shared_ptr<FsdbConfig> fsdbConfig,
       const std::string& publisherIdsToOpenRocksDbAtStartFor,
       Options options = Options());
   ~ServiceHandler() override;
@@ -217,11 +220,12 @@ class ServiceHandler : public FsdbServiceSvIf,
 
   void initPerStreamCounters();
 
+#ifndef IS_OSS
   using RocksDbPtr = std::shared_ptr<RocksDbIf>;
   template <typename T>
   folly::F14FastMap<PublisherId, RocksDbPtr> createIfNeededAndOpenRocksDbs(
       folly::F14FastSet<PublisherId> publisherIds) const;
-  RocksDbPtr getRocksDb(const PublisherId& publisherId) const;
+#endif
 
   void validateSubscriptionPermissions(
       SubscriberId id,
@@ -234,8 +238,7 @@ class ServiceHandler : public FsdbServiceSvIf,
       PublisherId id,
       const std::vector<std::string>& path);
 
-  std::unique_ptr<FsdbConfig> fsdbConfig_;
-  folly::F14FastMap<PublisherId, RocksDbPtr> rocksDbs_; // const after ctor
+  std::shared_ptr<FsdbConfig> fsdbConfig_;
 
   const Options options_;
 
@@ -255,7 +258,10 @@ class ServiceHandler : public FsdbServiceSvIf,
   TLTimeseries num_dropped_stats_changes_;
   TLTimeseries num_dropped_state_changes_;
   FsdbNaivePeriodicSubscribableStorage operStorage_;
+#ifndef IS_OSS
+  folly::F14FastMap<PublisherId, RocksDbPtr> rocksDbs_; // const after ctor
   DbWriter operDbWriter_;
+#endif
   // TODO - decide on right DB abstraction for stats
   FsdbNaivePeriodicSubscribableStatsStorage operStatsStorage_;
 

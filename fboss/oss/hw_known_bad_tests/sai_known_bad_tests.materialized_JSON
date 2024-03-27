@@ -3804,9 +3804,6 @@
         },
         {
           "test_name_regex": "HwVoqSwitchTest.localSystemPortEcmp"
-        },
-        {
-          "test_name_regex": "HwVoqSwitchTest.sendPacketCpuAndFrontPanel"
         }
     ],
     "brcm/7.2.0.0_odp/7.2.0.0_odp/tomahawk": [
@@ -11648,12 +11645,6 @@
           "test_name_regex": "HwLoadBalancerTestV6RoCE.*$"
         },
         {
-          "test_name_regex": "HwAclCounterTest/[01].*Sport.*$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].*L4Dstport.*$"
-        },
-        {
           "test_name_regex": "HwVoqSwitchWithFabricPortsTest.fabricIsolate$"
         },
         {
@@ -11703,9 +11694,6 @@
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueWredDropStats$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnTtlHitCpu$"
         },
         {
           "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
@@ -11998,12 +11986,6 @@
           "test_name_regex": "HwLoadBalancerTestV6RoCE.*$"
         },
         {
-          "test_name_regex": "HwAclCounterTest/[01].*Sport.*$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].*L4Dstport.*$"
-        },
-        {
           "test_name_regex": "HwVoqSwitchWithFabricPortsTest.fabricIsolate$"
         },
         {
@@ -12107,9 +12089,6 @@
         },
         {
           "test_name_regex": "HwDataPlaneMirrorTest/[01].*$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBump.*$"
         },
         {
           "test_name_regex": "HwMacLearningAndNeighborResolutionTest.*$"
@@ -12329,9 +12308,6 @@
         },
         {
           "test_name_regex": "HwRouteTest/[01].verifyCpuRouteChange$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/1.*$"
         },
         {
           "test_name_regex": "HwAclMatchActionsTest/1.*$"
@@ -12636,12 +12612,6 @@
           "test_name_regex": "HwLoadBalancerTestV6RoCE.*$"
         },
         {
-          "test_name_regex": "HwAclCounterTest/[01].*Sport.*$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].*L4Dstport.*$"
-        },
-        {
           "test_name_regex": "HwVoqSwitchWithFabricPortsTest.fabricIsolate$"
         },
         {
@@ -12691,9 +12661,6 @@
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueWredDropStats$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnTtlHitCpu$"
         },
         {
           "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
@@ -12998,12 +12965,6 @@
           "test_name_regex": "HwLoadBalancerTestV6RoCE.*$"
         },
         {
-          "test_name_regex": "HwAclCounterTest/[01].*Sport.*$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].*L4Dstport.*$"
-        },
-        {
           "test_name_regex": "HwVoqSwitchWithFabricPortsTest.fabricIsolate$"
         },
         {
@@ -13107,9 +13068,6 @@
         },
         {
           "test_name_regex": "HwDataPlaneMirrorTest/[01].*$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBump.*$"
         },
         {
           "test_name_regex": "HwMacLearningAndNeighborResolutionTest.*$"
@@ -13329,9 +13287,6 @@
         },
         {
           "test_name_regex": "HwRouteTest/[01].verifyCpuRouteChange$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/1.*$"
         },
         {
           "test_name_regex": "HwAclMatchActionsTest/1.*$"
@@ -13639,12 +13594,6 @@
           "test_name_regex": "HwLoadBalancerTestV6RoCE.*$"
         },
         {
-          "test_name_regex": "HwAclCounterTest/[01].*Sport.*$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].*L4Dstport.*$"
-        },
-        {
           "test_name_regex": "HwVoqSwitchWithFabricPortsTest.fabricIsolate$"
         },
         {
@@ -13694,9 +13643,6 @@
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueWredDropStats$"
-        },
-        {
-          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnTtlHitCpu$"
         },
         {
           "test_name_regex": "warm_boot.HwOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"

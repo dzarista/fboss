@@ -1,7 +1,7 @@
 // Copyright 2004-present Facebook. All Rights Reserved.
 
 #include "fboss/agent/DsfSubscriber.h"
-#include <fb303/ServiceData.h>
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/DsfStateUpdaterUtil.h"
 #include "fboss/agent/HwSwitchMatcher.h"
 #include "fboss/agent/SwSwitch.h"
@@ -124,6 +124,10 @@ void DsfSubscriber::scheduleUpdate(
 }
 
 void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
+  if (!FLAGS_dsf_subscribe) {
+    return;
+  }
+
   // Setup Fsdb subscriber if we have switch ids of type VOQ
   auto voqSwitchIds =
       sw_->getSwitchInfoTable().getSwitchIdsOfType(cfg::SwitchType::VOQ);
@@ -251,13 +255,11 @@ void DsfSubscriber::handleFsdbSubscriptionStateUpdate(
     const std::string& nodeName,
     fsdb::FsdbExtStateSubscriber::SubscriptionState oldState,
     fsdb::FsdbExtStateSubscriber::SubscriptionState newState) {
-  if (XLOG_IS_ON(DBG2)) {
-    XLOG(DBG2)
-        << "DsfSubscriber: " << nodeName << ": subscription state changed "
-        << fsdb::FsdbExtStateSubscriber::subscriptionStateToString(oldState)
-        << " -> "
-        << fsdb::FsdbExtStateSubscriber::subscriptionStateToString(newState);
-  }
+  XLOG(DBG2)
+      << "DsfSubscriber: " << nodeName << ": subscription state changed "
+      << fsdb::FsdbExtStateSubscriber::subscriptionStateToString(oldState)
+      << " -> "
+      << fsdb::FsdbExtStateSubscriber::subscriptionStateToString(newState);
 
   auto oldThriftState = fsdb::FsdbExtStateSubscriber::isConnected(oldState)
       ? fsdb::FsdbSubscriptionState::CONNECTED

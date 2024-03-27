@@ -6,13 +6,15 @@
 #include <folly/String.h>
 #include <folly/logging/xlog.h>
 #include <filesystem>
+#include <stdexcept>
 
 namespace fs = std::filesystem;
 
 namespace {
 
 const re2::RE2 kI2cMuxChannelRegex{"channel-\\d+"};
-constexpr auto kI2cDevCreationWaitSecs = 1;
+constexpr auto kI2cDevCreationWaitSecs = 5;
+constexpr auto kCpuI2cBusNumsWaitSecs = 1;
 
 std::string getI2cAdapterName(const fs::path& busPath) {
   auto nameFile = busPath / "name";
@@ -44,20 +46,31 @@ uint16_t I2cExplorer::extractBusNumFromPath(const fs::path& busPath) {
 std::map<std::string, uint16_t> I2cExplorer::getBusNums(
     const std::vector<std::string>& i2cAdaptersFromCpu) {
   std::map<std::string, uint16_t> busNums;
-  auto deviceRoot = fs::path("/sys/bus/i2c/devices");
-  for (const auto& dirEntry : fs::directory_iterator(deviceRoot)) {
-    if (re2::RE2::FullMatch(
-            dirEntry.path().filename().string(), kI2cBusNameRegex)) {
-      auto i2cAdapterName = getI2cAdapterName(dirEntry.path());
-      if (std::find(
-              i2cAdaptersFromCpu.begin(),
-              i2cAdaptersFromCpu.end(),
-              i2cAdapterName) != i2cAdaptersFromCpu.end()) {
-        busNums[i2cAdapterName] = extractBusNumFromPath(dirEntry.path());
+  const auto deviceRoot = fs::path("/sys/bus/i2c/devices");
+  const int maxRetries = 10;
+  for (int attempt = 1; attempt <= maxRetries; attempt++) {
+    XLOG(INFO) << "Probing CPU I2C BusNums -- Attempt #" << attempt;
+    for (const auto& dirEntry : fs::directory_iterator(deviceRoot)) {
+      if (re2::RE2::FullMatch(
+              dirEntry.path().filename().string(), kI2cBusNameRegex)) {
+        auto i2cAdapterName = getI2cAdapterName(dirEntry.path());
+        if (std::find(
+                i2cAdaptersFromCpu.begin(),
+                i2cAdaptersFromCpu.end(),
+                i2cAdapterName) != i2cAdaptersFromCpu.end()) {
+          busNums[i2cAdapterName] = extractBusNumFromPath(dirEntry.path());
+        }
       }
     }
+    if (busNums.size() == i2cAdaptersFromCpu.size()) {
+      XLOG(INFO) << "Probed all CPU I2C BusNums";
+      return busNums;
+    }
+    sleep(kCpuI2cBusNumsWaitSecs);
   }
-  return busNums;
+  throw std::runtime_error(fmt::format(
+      "Failed to get all CPU I2C BusNums over {}s",
+      kCpuI2cBusNumsWaitSecs * maxRetries));
 }
 
 bool I2cExplorer::isI2cDevicePresent(uint16_t busNum, const I2cAddr& addr)
@@ -87,6 +100,11 @@ void I2cExplorer::createI2cDevice(
     const std::string& deviceName,
     uint16_t busNum,
     const I2cAddr& addr) {
+  XLOG(INFO) << fmt::format(
+      "Creating i2c device {} ({}) at i2c-{}",
+      pmUnitScopedName,
+      deviceName,
+      busNum);
   if (isI2cDevicePresent(busNum, addr)) {
     auto existingDeviceName = getI2cDeviceName(busNum, addr);
     if (existingDeviceName && existingDeviceName.value() == deviceName) {
@@ -117,7 +135,7 @@ void I2cExplorer::createI2cDevice(
   XLOG_IF(INFO, !standardOut.empty()) << standardOut;
   if (exitStatus != 0 || !isI2cDeviceCreated(busNum, addr)) {
     throw std::runtime_error(fmt::format(
-        "Failed to create i2c device for {} ({}) at bus: {}, addr: {} with ioctl exit status {}",
+        "Failed to create i2c device for {} ({}) at bus: {}, addr: {} with exit status {}",
         pmUnitScopedName,
         deviceName,
         busNum,

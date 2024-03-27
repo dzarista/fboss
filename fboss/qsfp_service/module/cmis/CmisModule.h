@@ -352,6 +352,11 @@ class CmisModule : public QsfpModule {
 
   virtual std::optional<VdmDiagsStats> getVdmDiagsStatsInfo() override;
 
+  virtual std::optional<VdmPerfMonitorStats> getVdmPerfMonitorStats() override;
+
+  virtual VdmPerfMonitorStatsForOds getVdmPerfMonitorStatsForOds(
+      VdmPerfMonitorStats& vdmPerfMonStats) override;
+
   /*
    * Trigger next VDM stats capture
    */
@@ -529,6 +534,17 @@ class CmisModule : public QsfpModule {
       bool forcedReadFromHw = false);
 
   void updateVdmDiagsValLocation();
+
+  double f16ToDouble(uint8_t byte0, uint8_t byte1);
+  std::pair<std::optional<const uint8_t*>, int> getVdmDataValPtr(
+      VdmConfigType vdmConf);
+
+  // Private functions to extract and fill in VDM performance monitoring stats
+  bool fillVdmPerfMonitorSnr(VdmPerfMonitorStats& vdmStats);
+  bool fillVdmPerfMonitorBer(VdmPerfMonitorStats& vdmStats);
+  bool fillVdmPerfMonitorFecErr(VdmPerfMonitorStats& vdmStats);
+  bool fillVdmPerfMonitorLtp(VdmPerfMonitorStats& vdmStats);
+  bool fillVdmPerfMonitorPam4Data(VdmPerfMonitorStats& vdmStats);
 
   const std::shared_ptr<const TransceiverConfig> tcvrConfig_;
 };

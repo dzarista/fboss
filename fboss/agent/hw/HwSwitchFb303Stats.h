@@ -77,6 +77,9 @@ class HwSwitchFb303Stats {
   void forwardingQueueProcessorError() {
     forwardingQueueProcessorErrors_.addValue(1);
   }
+  void allReassemblyContextsTaken() {
+    allReassemblyContextsTaken_.addValue(1);
+  }
   void hwInitializedTime(uint64_t ms) {
     hwInitializedTimeMs_.addValue(ms);
   }
@@ -131,15 +134,18 @@ class HwSwitchFb303Stats {
   int64_t getPacketIntegrityDropsCount() const {
     return packetIntegrityDrops_.count();
   }
-  int64_t getPacketIntegrityDrops() const;
   int64_t getDramEnqueuedBytes() const;
   int64_t getDramDequeuedBytes() const;
+  // Asic errors
   int64_t getIreErrors() const;
   int64_t getItppErrors() const;
   int64_t getEpniErrors() const;
   int64_t getAlignerErrors() const;
   int64_t getForwardingQueueProcessorErrors() const;
+  int64_t getAllReassemblyContextsTakenError() const;
 
+  // Switch drops
+  int64_t getPacketIntegrityDrops() const;
   int64_t getFdrCellDrops() const;
   int64_t getVoqResourcesExhautionDrops() const;
   int64_t getGlobalResourcesExhautionDrops() const;
@@ -148,6 +154,7 @@ class HwSwitchFb303Stats {
   int64_t getDropPrecedenceDrops() const;
   int64_t getQueueResolutionDrops() const;
   int64_t getIngresPacketPipelineRejectDrops() const;
+  int64_t getCorruptedCellPacketIntegrityDrops() const;
 
   HwAsicErrors getHwAsicErrors() const;
   FabricReachabilityStats getFabricReachabilityStats();
@@ -198,6 +205,7 @@ class HwSwitchFb303Stats {
   TLTimeseries dropPrecedenceDrops_;
   TLTimeseries queueResolutionDrops_;
   TLTimeseries ingressPacketPipelineRejectDrops_;
+  TLTimeseries corruptedCellPacketIntegrityDrops_;
   HwSwitchDropStats currentDropStats_;
   // Dram enqueue, dequeue bytes
   TLTimeseries dramEnqueuedBytes_;
@@ -210,6 +218,7 @@ class HwSwitchFb303Stats {
   TLTimeseries epniErrors_;
   TLTimeseries alignerErrors_;
   TLTimeseries forwardingQueueProcessorErrors_;
+  TLTimeseries allReassemblyContextsTaken_;
   TLTimeseries hwInitializedTimeMs_;
   TLTimeseries bootTimeMs_;
   TLTimeseries coldBoot_;

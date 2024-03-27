@@ -123,6 +123,11 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
           getCounterPrefix() + "ingress_packet_pipeline_reject_drops",
           SUM,
           RATE),
+      corruptedCellPacketIntegrityDrops_(
+          map,
+          getCounterPrefix() + "corrupted_cell_packet_integrity_drops",
+          SUM,
+          RATE),
       dramEnqueuedBytes_(
           map,
           getCounterPrefix() + "dram_enqueued_bytes",
@@ -150,6 +155,11 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
       forwardingQueueProcessorErrors_(
           map,
           getCounterPrefix() + vendor + ".forwardingQueueProcessor.errors",
+          SUM,
+          RATE),
+      allReassemblyContextsTaken_(
+          map,
+          getCounterPrefix() + vendor + ".allReassemblyContextsTaken.errors",
           SUM,
           RATE),
       hwInitializedTimeMs_(
@@ -223,6 +233,11 @@ void HwSwitchFb303Stats::update(const HwSwitchDropStats& dropStats) {
         *dropStats.ingressPacketPipelineRejectDrops() -
         currentDropStats_.ingressPacketPipelineRejectDrops().value_or(0));
   }
+  if (dropStats.corruptedCellPacketIntegrityDrops().has_value()) {
+    corruptedCellPacketIntegrityDrops_.addValue(
+        *dropStats.corruptedCellPacketIntegrityDrops() -
+        currentDropStats_.corruptedCellPacketIntegrityDrops().value_or(0));
+  }
   currentDropStats_ = dropStats;
 }
 
@@ -263,6 +278,9 @@ int64_t HwSwitchFb303Stats::getForwardingQueueProcessorErrors() const {
   return getCumulativeValue(forwardingQueueProcessorErrors_);
 }
 
+int64_t HwSwitchFb303Stats::getAllReassemblyContextsTakenError() const {
+  return getCumulativeValue(allReassemblyContextsTaken_);
+}
 int64_t HwSwitchFb303Stats::getPacketIntegrityDrops() const {
   return currentDropStats_.packetIntegrityDrops().value_or(0);
 }
@@ -293,6 +311,10 @@ int64_t HwSwitchFb303Stats::getIngresPacketPipelineRejectDrops() const {
   return currentDropStats_.ingressPacketPipelineRejectDrops().value_or(0);
 }
 
+int64_t HwSwitchFb303Stats::getCorruptedCellPacketIntegrityDrops() const {
+  return currentDropStats_.corruptedCellPacketIntegrityDrops().value_or(0);
+}
+
 HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   HwAsicErrors asicErrors;
   asicErrors.parityErrors() = getCumulativeValue(parityErrors_);
@@ -300,13 +322,14 @@ HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   asicErrors.uncorrectedParityErrors() =
       getCumulativeValue(uncorrParityErrors_);
   asicErrors.asicErrors() = getCumulativeValue(asicErrors_);
-  asicErrors.ingressReceiveEditorErrors() = getCumulativeValue(ireErrors_);
-  asicErrors.ingressTransmitPipelineErrors() = getCumulativeValue(itppErrors_);
-  asicErrors.egressPacketNetworkInterfaceErrors() =
-      getCumulativeValue(epniErrors_);
-  asicErrors.alignerErrors() = getCumulativeValue(alignerErrors_);
+  asicErrors.ingressReceiveEditorErrors() = getIreErrors();
+  asicErrors.ingressTransmitPipelineErrors() = getItppErrors();
+  asicErrors.egressPacketNetworkInterfaceErrors() = getEpniErrors();
+  asicErrors.alignerErrors() = getAlignerErrors();
   asicErrors.forwardingQueueProcessorErrors() =
-      getCumulativeValue(forwardingQueueProcessorErrors_);
+      getForwardingQueueProcessorErrors();
+  asicErrors.allReassemblyContextsTaken() =
+      getAllReassemblyContextsTakenError();
   return asicErrors;
 }
 

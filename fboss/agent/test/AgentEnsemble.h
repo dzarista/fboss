@@ -15,7 +15,7 @@
 #include "fboss/agent/HwSwitchThriftClientTable.h"
 #include "fboss/agent/SwAgentInitializer.h"
 #include "fboss/agent/SwSwitch.h"
-#include "fboss/agent/hw/test/LinkStateToggler.h"
+#include "fboss/agent/test/LinkStateToggler.h"
 #include "fboss/agent/test/RouteDistributionGenerator.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
 
@@ -55,6 +55,12 @@ class AgentEnsemble : public TestEnsembleIf {
     return agentInitializer()->sw();
   }
 
+  size_t getMinPktsForLineRate(const PortID& port) {
+    auto portSpeed =
+        getProgrammedState()->getPorts()->getNodeIf(port)->getSpeed();
+    return (portSpeed > cfg::PortSpeed::HUNDREDG ? 1000 : 100);
+  }
+
   std::shared_ptr<SwitchState> getProgrammedState() const override {
     return getSw()->getState();
   }
@@ -75,6 +81,11 @@ class AgentEnsemble : public TestEnsembleIf {
     return getProgrammedState();
   }
 
+  std::unique_ptr<RouteUpdateWrapper> getRouteUpdaterWrapper() override {
+    return std::make_unique<SwSwitchRouteUpdateWrapper>(
+        getSw()->getRouteUpdater());
+  }
+
   virtual const SwAgentInitializer* agentInitializer() const = 0;
   virtual SwAgentInitializer* agentInitializer() = 0;
   virtual void createSwitch(
@@ -82,7 +93,6 @@ class AgentEnsemble : public TestEnsembleIf {
       uint32_t hwFeaturesDesired,
       PlatformInitFn initPlatform) = 0;
   virtual void reloadPlatformConfig() = 0;
-  virtual bool isSai() const = 0;
 
   void applyNewState(
       StateUpdateFn fn,
@@ -148,7 +158,7 @@ class AgentEnsemble : public TestEnsembleIf {
   }
 
   std::map<PortID, HwPortStats> getLatestPortStats(
-      const std::vector<PortID>& ports);
+      const std::vector<PortID>& ports) override;
 
   HwPortStats getLatestPortStats(const PortID& port);
 
@@ -180,13 +190,28 @@ class AgentEnsemble : public TestEnsembleIf {
       override;
   void unregisterStateObserver(StateObserver* observer) override;
 
-  virtual HwSwitch* getHwSwitch() const = 0;
+  virtual HwSwitch* getHwSwitch() = 0;
+  virtual const HwSwitch* getHwSwitch() const = 0;
   void runDiagCommand(
-      const std::string& /*input*/,
-      std::string& /*output*/,
-      std::optional<SwitchID> switchId = std::nullopt) override {
-    // TODO
+      const std::string& input,
+      std::string& output,
+      std::optional<SwitchID> switchId = std::nullopt) override;
+
+  void clearPortStats(
+      const std::unique_ptr<std::vector<int32_t>>& ports) override {
+    getSw()->clearPortStats(ports);
   }
+
+  LinkStateToggler* getLinkToggler() override;
+
+  folly::MacAddress getLocalMac(SwitchID id) const override {
+    return getSw()->getLocalMac(id);
+  }
+  void waitForLineRateOnPort(PortID port);
+  void waitForSpecificRateOnPort(
+      PortID port,
+      const uint64_t desiredBps,
+      int secondsToWaitPerIteration = 1);
 
  protected:
   void joinAsyncInitThread() {
@@ -200,6 +225,10 @@ class AgentEnsemble : public TestEnsembleIf {
   void writeConfig(const cfg::SwitchConfig& config);
   void writeConfig(const cfg::AgentConfig& config);
   void writeConfig(const cfg::AgentConfig& config, const std::string& file);
+  bool waitForRateOnPort(
+      PortID port,
+      uint64_t desiredBps,
+      int secondsToWaitPerIteration = 2);
 
   cfg::SwitchConfig initialConfig_;
   std::unique_ptr<std::thread> asyncInitThread_{nullptr};

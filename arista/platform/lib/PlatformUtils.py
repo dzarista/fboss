@@ -68,7 +68,7 @@ def txTapSettingsByLaneProps( serdesSpeed : SpeedGbps, medium : PortMedium,
                                 traceLength : float = None ) -> TxTapSettings:
    if serdesSpeed == SpeedGbps.Hundred:
       if medium == PortMedium.OPTICAL:
-         return TxTapSettings( None, 4, -24, 128, 0, 0, 0 )
+         return TxTapSettings( None, 4, -16, 96, 0, 0, 0 )
       elif medium == PortMedium.COPPER:
          return TxTapSettings( -4, 14, -36, 112, 0, 0, 0 )
       else:
@@ -80,14 +80,17 @@ def txTapSettingsByLaneProps( serdesSpeed : SpeedGbps, medium : PortMedium,
          assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
    elif serdesSpeed == SpeedGbps.TwentyFive:
       if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
-         return TxTapSettings( None, None, -8, 89, 0, None, None )
+         return TxTapSettings( None, None, 3, 31, 13, None, None )
       else:
          assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
    elif serdesSpeed == SpeedGbps.HundredAndSix:
-      if medium in ( PortMedium.OPTICAL, PortMedium.COPPER ):
+      if medium == PortMedium.COPPER:
          assert traceLength is not None, f"valid traceLength required for"\
          f" {medium}@{serdesSpeed}"
          return __txTapSettingsByTraceLength( traceLength )
+      elif medium == PortMedium.OPTICAL:
+         # Only valid for Viper, Whistler uses settings from a file.
+         return TxTapSettings( None, 4, -16, 96, 0, 0, 0 )
       else:
          assert False, f"Invalid medium {medium} for speed {serdesSpeed}"
    else:

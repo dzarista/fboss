@@ -24,6 +24,7 @@
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/LacpTypes.h"
 #include "fboss/agent/LoadBalancerConfigApplier.h"
+#include "fboss/agent/LoadBalancerUtils.h"
 #include "fboss/agent/RouteUpdateWrapper.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/SwitchIdScopeResolver.h"
@@ -395,9 +396,6 @@ class ThriftConfigApplier {
       VlanOrIntfT* vlanOrIntf,
       const CfgVlanOrIntfT* config);
   std::shared_ptr<InterfaceMap> updateInterfaces();
-  std::shared_ptr<MultiSwitchInterfaceMap> updateRemoteInterfaces(
-      const std::shared_ptr<MultiSwitchInterfaceMap>& interfaces);
-
   shared_ptr<Interface> createInterface(
       const cfg::Interface* config,
       const Interface::Addresses& addrs);
@@ -480,8 +478,6 @@ class ThriftConfigApplier {
       const cfg::PortFlowletConfig& config);
 
   uint32_t generateDeterministicSeed(cfg::LoadBalancerID id);
-  uint32_t generateDeterministicSeedSai(cfg::LoadBalancerID id);
-  uint32_t generateDeterministicSeedNonSai(cfg::LoadBalancerID id);
 
   folly::MacAddress getLocalMac(SwitchID switchId) const;
   SwitchID getSwitchId(const cfg::Interface& intfConfig) const;
@@ -628,7 +624,6 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
     if (newIntfs) {
       new_->resetIntfs(toMultiSwitchMap<MultiSwitchInterfaceMap>(
           std::move(newIntfs), *cfg_, scopeResolver_));
-      new_->resetRemoteIntfs(updateRemoteInterfaces(new_->getInterfaces()));
       changed = true;
     }
   }
@@ -1135,7 +1130,8 @@ void ThriftConfigApplier::processInterfaceForPortForVoqSwitches(
     if (scopeResolver_.scope(portCfg).has(SwitchID(switchId))) {
       switch (portType) {
         case cfg::PortType::INTERFACE_PORT:
-        case cfg::PortType::RECYCLE_PORT: {
+        case cfg::PortType::RECYCLE_PORT:
+        case cfg::PortType::MANAGEMENT_PORT: {
           // system port is 1:1 with every interface and recycle port.
           // interface is 1:1 with system port.
           // InterfaceID is chosen to be the same as systemPortID. Thus:
@@ -1143,7 +1139,6 @@ void ThriftConfigApplier::processInterfaceForPortForVoqSwitches(
           port2InterfaceId_[portID].push_back(interfaceID);
         } break;
         case cfg::PortType::FABRIC_PORT:
-        case cfg::PortType::MANAGEMENT_PORT:
         case cfg::PortType::CPU_PORT:
           // no interface for fabric/cpu port
           break;
@@ -1290,7 +1285,9 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
   const auto kNumVoqs = 8;
 
   static const std::set<cfg::PortType> kCreateSysPortsFor = {
-      cfg::PortType::INTERFACE_PORT, cfg::PortType::RECYCLE_PORT};
+      cfg::PortType::INTERFACE_PORT,
+      cfg::PortType::RECYCLE_PORT,
+      cfg::PortType::MANAGEMENT_PORT};
   auto sysPorts = std::make_shared<SystemPortMap>();
 
   for (const auto& [matcherString, portMap] : std::as_const(*ports)) {
@@ -2842,34 +2839,8 @@ std::shared_ptr<AclMap> ThriftConfigApplier::updateAclsImpl(
   AclMap::NodeContainer newAcls;
   bool changed = false;
   int numExistingProcessed = 0;
-  int priority = AclTable::kDataplaneAclMaxPriority;
+  int dataPriority = AclTable::kDataplaneAclMaxPriority;
   int cpuPriority = 1;
-
-  // Start with the DROP acls, these should have highest priority
-  auto acls = folly::gen::from(configEntries) |
-      folly::gen::filter([](const cfg::AclEntry& entry) {
-                return *entry.actionType() == cfg::AclActionType::DENY;
-              }) |
-      folly::gen::map([&](const cfg::AclEntry& entry) {
-                auto acl = updateAcl(
-                    aclStage,
-                    entry,
-                    priority++,
-                    &numExistingProcessed,
-                    &changed,
-                    tableName);
-                return std::make_pair(acl->getID(), acl);
-              }) |
-      folly::gen::appendTo(newAcls);
-
-  // Let's get a map of acls to name so we don't have to search the acl list
-  // for every new use
-  flat_map<std::string, const cfg::AclEntry*> aclByName;
-  folly::gen::from(configEntries) |
-      folly::gen::map([](const cfg::AclEntry& acl) {
-        return std::make_pair(*acl.name(), &acl);
-      }) |
-      folly::gen::appendTo(aclByName);
 
   flat_map<std::string, const cfg::TrafficCounter*> counterByName;
   folly::gen::from(*cfg_->trafficCounters()) |
@@ -2878,34 +2849,65 @@ std::shared_ptr<AclMap> ThriftConfigApplier::updateAclsImpl(
       }) |
       folly::gen::appendTo(counterByName);
 
+  // Let's get a map of traffic policies to name
+  flat_map<std::string, const cfg::MatchToAction*> cpuPolicyByName;
+  if (cfg_->cpuTrafficPolicy() && cfg_->cpuTrafficPolicy()->trafficPolicy()) {
+    folly::gen::from(
+        *cfg_->cpuTrafficPolicy()->trafficPolicy()->matchToAction()) |
+        folly::gen::map([](const cfg::MatchToAction& mta) {
+          return std::make_pair(*mta.matcher(), &mta);
+        }) |
+        folly::gen::appendTo(cpuPolicyByName);
+  }
+
+  flat_map<std::string, const cfg::MatchToAction*> dataPolicyByName;
+  if (cfg_->dataPlaneTrafficPolicy()) {
+    folly::gen::from(*cfg_->dataPlaneTrafficPolicy()->matchToAction()) |
+        folly::gen::map([](const cfg::MatchToAction& mta) {
+          return std::make_pair(*mta.matcher(), &mta);
+        }) |
+        folly::gen::appendTo(dataPolicyByName);
+  }
+
   // Generates new acls from template
-  auto addToAcls = [&](const cfg::TrafficPolicyConfig& policy,
-                       bool isCoppAcl = false)
+  auto addToAcls = [&]()
       -> const std::vector<std::pair<std::string, std::shared_ptr<AclEntry>>> {
     std::vector<std::pair<std::string, std::shared_ptr<AclEntry>>> entries;
-    for (const auto& mta : *policy.matchToAction()) {
-      auto a = aclByName.find(*mta.matcher());
-      if (a != aclByName.end()) {
-        auto aclCfg = *(a->second);
+    for (const auto& aclCfg : configEntries) {
+      bool enableAcl = true;
 
-        // We've already added any DENY acls
-        if (*aclCfg.actionType() == cfg::AclActionType::DENY) {
-          continue;
-        }
+      // The ACLs have to be processed in the order in which they are listed in
+      // the config. The traffic policy for each ACL may either be in the data
+      // or the cpu policy configuration or absent altogether.
+      // The ACL has to be created always.
+      // Find and use the traffic policy from one of the paths if present.
+      const cfg::MatchToAction* matchToAction = nullptr;
+      auto cpu = cpuPolicyByName.find(*aclCfg.name());
+      auto data = dataPolicyByName.find(*aclCfg.name());
+      bool isCoppAcl = false;
+      if (cpu != cpuPolicyByName.end()) {
+        matchToAction = (cpu->second);
+        isCoppAcl = true;
+      } else if (data != dataPolicyByName.end()) {
+        matchToAction = (data->second);
+      }
 
-        // Here is sending to regular port queue action
-        MatchAction matchAction = MatchAction();
+      // Here is sending to regular port queue action
+      MatchAction* ma = nullptr;
+      MatchAction matchAction = MatchAction();
+      if (matchToAction) {
+        const cfg::MatchToAction& mta = *matchToAction;
         if (auto sendToQueue = mta.action()->sendToQueue()) {
           matchAction.setSendToQueue(std::make_pair(*sendToQueue, isCoppAcl));
         }
         // TODO(daiweix): set setTc and userDefinedTrap actions only when
         // disruptive feature sai_user_defined_trap is enabled. Otherwise,
-        // although these actions will not take effect and programmed ACL won't
-        // change. Switch switch change will still trigger
+        // although these actions will not take effect and programmed ACL
+        // won't change. Switch switch change will still trigger
         // SaiAclTableManager::changedAclEntry() to remove and re-program the
-        // same ACL during warmboot. This is unnecessary and caused programming
-        // issue on platforms like TH4. Avoiding this issue by skip setting
-        // setTc and userDefinedTrap for now.
+        // same ACL during warmboot. This is unnecessary and caused
+        // programming issue on platforms like TH4. Avoiding this issue by
+        // skip setting setTc and userDefinedTrap for now.
         if (FLAGS_sai_user_defined_trap) {
           if (auto setTc = mta.action()->setTc()) {
             matchAction.setSetTc(std::make_pair(*setTc, isCoppAcl));
@@ -2939,7 +2941,6 @@ std::shared_ptr<AclMap> ThriftConfigApplier::updateAclsImpl(
         if (auto flowletAction = mta.action()->flowletAction()) {
           matchAction.setFlowletAction(*flowletAction);
         }
-        bool enableAcl = true;
         if (auto redirectToNextHop = mta.action()->redirectToNextHop()) {
           matchAction.setRedirectToNextHop(
               std::make_pair(*redirectToNextHop, MatchAction::NextHopSet()));
@@ -2952,47 +2953,37 @@ std::shared_ptr<AclMap> ThriftConfigApplier::updateAclsImpl(
             enableAcl = false;
           }
         }
-
-        auto acl = updateAcl(
-            aclStage,
-            aclCfg,
-            isCoppAcl ? cpuPriority++ : priority++,
-            &numExistingProcessed,
-            &changed,
-            tableName,
-            &matchAction,
-            enableAcl);
-
-        if (const auto& aclAction = acl->getAclAction()) {
-          const auto& inMirror =
-              aclAction->cref<switch_state_tags::ingressMirror>();
-          const auto& egMirror =
-              aclAction->cref<switch_state_tags::egressMirror>();
-          if (inMirror && !new_->getMirrors()->getNodeIf(inMirror->cref())) {
-            throw FbossError("Mirror ", inMirror->cref(), " is undefined");
-          }
-          if (egMirror && !new_->getMirrors()->getNodeIf(egMirror->cref())) {
-            throw FbossError("Mirror ", egMirror->cref(), " is undefined");
-          }
-        }
-        entries.push_back(std::make_pair(acl->getID(), acl));
+        ma = &matchAction;
       }
+
+      auto acl = updateAcl(
+          aclStage,
+          aclCfg,
+          isCoppAcl ? cpuPriority++ : dataPriority++,
+          &numExistingProcessed,
+          &changed,
+          tableName,
+          ma,
+          enableAcl);
+
+      if (const auto& aclAction = acl->getAclAction()) {
+        const auto& inMirror =
+            aclAction->cref<switch_state_tags::ingressMirror>();
+        const auto& egMirror =
+            aclAction->cref<switch_state_tags::egressMirror>();
+        if (inMirror && !new_->getMirrors()->getNodeIf(inMirror->cref())) {
+          throw FbossError("Mirror ", inMirror->cref(), " is undefined");
+        }
+        if (egMirror && !new_->getMirrors()->getNodeIf(egMirror->cref())) {
+          throw FbossError("Mirror ", egMirror->cref(), " is undefined");
+        }
+      }
+      entries.push_back(std::make_pair(acl->getID(), acl));
     }
     return entries;
   };
 
-  // Add controlPlane traffic acls
-  if (cfg_->cpuTrafficPolicy() && cfg_->cpuTrafficPolicy()->trafficPolicy()) {
-    folly::gen::from(
-        addToAcls(*cfg_->cpuTrafficPolicy()->trafficPolicy(), true)) |
-        folly::gen::appendTo(newAcls);
-  }
-
-  // Add dataPlane traffic acls
-  if (auto dataPlaneTrafficPolicy = cfg_->dataPlaneTrafficPolicy()) {
-    folly::gen::from(addToAcls(*dataPlaneTrafficPolicy)) |
-        folly::gen::appendTo(newAcls);
-  }
+  folly::gen::from(addToAcls()) | folly::gen::appendTo(newAcls);
 
   if (FLAGS_enable_acl_table_group) {
     if (orig_->getAclsForTable(aclStage, tableName.value()) &&
@@ -3389,35 +3380,6 @@ std::shared_ptr<InterfaceMap> ThriftConfigApplier::updateInterfaces() {
   }
 
   return std::make_shared<InterfaceMap>(std::move(newIntfs));
-}
-
-std::shared_ptr<MultiSwitchInterfaceMap>
-ThriftConfigApplier::updateRemoteInterfaces(
-    const std::shared_ptr<MultiSwitchInterfaceMap>& interfaces) {
-  if (scopeResolver_.hasVoq() &&
-      scopeResolver_.scope(cfg::SwitchType::VOQ).size() <= 1) {
-    // remote system ports are applicable only for voq switches
-    // remote system ports are updated on config only when more than voq
-    // switches are configured on a given SwSwitch
-    return orig_->getRemoteInterfaces();
-  }
-  auto remoteInterfaces = orig_->getRemoteInterfaces()->clone();
-
-  for (const auto& [matcher, interfaceMap] : std::as_const(*interfaces)) {
-    for (const auto& [intfID, intf] : std::as_const(*interfaceMap)) {
-      if (intf->getType() != cfg::InterfaceType::SYSTEM_PORT) {
-        continue;
-      }
-      auto remoteIntfScope = scopeResolver_.scope(cfg::SwitchType::VOQ);
-      remoteIntfScope.exclude(scopeResolver_.scope(intf, *cfg_).switchIds());
-      if (remoteInterfaces->getNodeIf(intfID)) {
-        remoteInterfaces->updateNode(intf, remoteIntfScope);
-      } else {
-        remoteInterfaces->addNode(intf, remoteIntfScope);
-      }
-    }
-  }
-  return remoteInterfaces;
 }
 
 shared_ptr<Interface> ThriftConfigApplier::createInterface(
@@ -4928,45 +4890,10 @@ uint32_t ThriftConfigApplier::generateDeterministicSeed(
     cfg::LoadBalancerID id) {
   if (auto sdkVersion = cfg_->sdkVersion()) {
     if (sdkVersion->saiSdk()) {
-      return generateDeterministicSeedSai(id);
+      return utility::generateDeterministicSeed(id, getLocalMacAddress(), true);
     }
   }
-  return generateDeterministicSeedNonSai(id);
-}
-
-uint32_t ThriftConfigApplier::generateDeterministicSeedSai(
-    cfg::LoadBalancerID loadBalancerID) {
-  auto platformMac = getLocalMacAddress();
-  auto mac64 = platformMac.u64HBO();
-  uint32_t mac32 = static_cast<uint32_t>(mac64 & 0xFFFFFFFF);
-  uint32_t seed = 0;
-  switch (loadBalancerID) {
-    case cfg::LoadBalancerID::ECMP:
-      seed = folly::hash::twang_32from64(mac64);
-      break;
-    case cfg::LoadBalancerID::AGGREGATE_PORT:
-      seed = folly::hash::jenkins_rev_mix32(mac32);
-      break;
-  }
-  return seed;
-}
-
-uint32_t ThriftConfigApplier::generateDeterministicSeedNonSai(
-    cfg::LoadBalancerID loadBalancerID) {
-  auto platformMac = getLocalMacAddress();
-  auto mac64 = platformMac.u64HBO();
-  uint32_t mac32 = static_cast<uint32_t>(mac64 & 0xFFFFFFFF);
-
-  uint32_t seed = 0;
-  switch (loadBalancerID) {
-    case cfg::LoadBalancerID::ECMP:
-      seed = folly::hash::jenkins_rev_mix32(mac32);
-      break;
-    case cfg::LoadBalancerID::AGGREGATE_PORT:
-      seed = folly::hash::twang_32from64(mac64);
-      break;
-  }
-  return seed;
+  return utility::generateDeterministicSeed(id, getLocalMacAddress(), false);
 }
 
 SwitchID ThriftConfigApplier::getSwitchId(

@@ -16,7 +16,6 @@
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestFabricUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketSnooper.h"
-#include "fboss/agent/hw/test/HwTestPacketTrapEntry.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/HwTestPortUtils.h"
 #include "fboss/agent/hw/test/HwTestStatUtils.h"
@@ -29,6 +28,7 @@
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/utils/FabricTestUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
+#include "fboss/agent/test/utils/TrapPacketUtils.h"
 #include "fboss/lib/CommonUtils.h"
 
 namespace {
@@ -88,6 +88,14 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
   }
   std::string kDscpAclCounterName() const {
     return "dscp_acl_counter";
+  }
+
+  std::string kIpV6MulticastDropAclName() const {
+    return "drop_v6_multicast";
+  }
+
+  std::string kIpV6MulticastDropAclCounterName() const {
+    return "drop_v6_multicast_stat";
   }
 
   void addDscpAclWithCounter() {
@@ -345,23 +353,18 @@ class HwVoqSwitchWithFabricPortsTest : public HwVoqSwitchTest {
 
   void addDropAclForMcastIp() {
     auto newCfg = initialConfig();
-    // Add ACL Table group before adding any ACLs
-    utility::addAclTableGroup(
-        &newCfg, cfg::AclStage::INGRESS, utility::getAclTableGroupName());
-    utility::addDefaultAclTable(newCfg);
-    auto aclName = "drop-v6-multicast";
-    auto aclCounterName = "drop-v6-multicast-stat";
     // The expectation is that MC traffic received on NIF ports gets dropped
     // and not get forwarded to fabric, as that will lead to fabric drops
     // incrementing and would be a red flag. Dropping of MC traffic does not
     // happen natively and hence need a drop ACL entry to match on IPv6 MC
     // and drop the same.
-    auto* acl = utility::addAcl(&newCfg, aclName, cfg::AclActionType::DENY);
+    auto* acl = utility::addAcl(
+        &newCfg, kIpV6MulticastDropAclName(), cfg::AclActionType::DENY);
     acl->dstIp() = "ff00::/8";
     utility::addAclStat(
         &newCfg,
-        aclName,
-        aclCounterName,
+        kIpV6MulticastDropAclName(),
+        kIpV6MulticastDropAclCounterName(),
         utility::getAclCounterTypes(getHwSwitch()->getPlatform()->getAsic()));
     applyNewConfig(newCfg);
   }
@@ -536,19 +539,33 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, checkFabricPortSpray) {
 
 TEST_F(HwVoqSwitchWithFabricPortsTest, verifyNifMulticastTrafficDropped) {
   constexpr static auto kNumPacketsToSend{1000};
+
+  auto getAclPackets = [this]() {
+    return utility::getAclInOutPackets(
+        getHwSwitch(),
+        getProgrammedState(),
+        kIpV6MulticastDropAclName(),
+        kIpV6MulticastDropAclCounterName());
+  };
+
   auto setup = [this]() { addDropAclForMcastIp(); };
 
-  auto verify = [this]() {
+  auto verify = [this, getAclPackets]() {
     auto beforePkts = getLatestPortStats(masterLogicalInterfacePortIds()[0])
                           .get_outUnicastPkts_();
+    auto beforeAclPkts = getAclPackets();
     sendLocalServiceDiscoveryMulticastPacket(
         masterLogicalInterfacePortIds()[0], kNumPacketsToSend);
     WITH_RETRIES({
       auto afterPkts = getLatestPortStats(masterLogicalInterfacePortIds()[0])
                            .get_outUnicastPkts_();
+      auto afterAclPkts = getAclPackets();
       XLOG(DBG2) << "Before pkts: " << beforePkts
                  << " After pkts: " << afterPkts;
+      XLOG(DBG2) << "Before ACL pkts: " << beforeAclPkts
+                 << " After ACL pkts: " << afterAclPkts;
       EXPECT_EVENTUALLY_GE(afterPkts, beforePkts + kNumPacketsToSend);
+      EXPECT_EVENTUALLY_GE(afterAclPkts, beforeAclPkts + kNumPacketsToSend);
     });
 
     // Wait for some time and make sure that fabric stats dont increment.
@@ -608,6 +625,7 @@ TEST_F(HwVoqSwitchWithFabricPortsTest, fdrCellDrops) {
   };
   verifyAcrossWarmBoots(setup, verify);
 }
+
 TEST_F(HwVoqSwitchTest, addRemoveNeighbor) {
   auto setup = [this]() {
     const PortDescriptor kPort(
@@ -804,13 +822,13 @@ TEST_F(HwVoqSwitchTest, trapPktsOnPort) {
   utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
   const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
   auto setup = [this, kPort, &ecmpHelper]() {
+    auto cfg = initialConfig();
+    utility::addTrapPacketAcl(&cfg, kPort.phyPortID());
     applyNewState(ecmpHelper.resolveNextHops(getProgrammedState(), {kPort}));
   };
   auto verify = [this, kPort, &ecmpHelper]() {
     auto ensemble = getHwSwitchEnsemble();
     auto snooper = std::make_unique<HwTestPacketSnooper>(ensemble);
-    auto entry = std::make_unique<HwTestPacketTrapEntry>(
-        ensemble->getHwSwitch(), kPort.phyPortID());
     auto frontPanelPort = ecmpHelper.ecmpPortDescriptorAt(1).phyPortID();
     sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
     WITH_RETRIES({

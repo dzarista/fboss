@@ -70,17 +70,6 @@ WedgeQsfp::WedgeQsfp(int module, TransceiverI2CApi* wedgeI2CBus)
 
 WedgeQsfp::~WedgeQsfp() {}
 
-// Note that the module_ starts at 0, but the I2C bus module
-// assumes that QSFP module numbers extend from 1 to 16.
-//
-bool WedgeQsfp::detectTransceiver() {
-  return threadSafeI2CBus_->isPresent(module_ + 1);
-}
-
-void WedgeQsfp::ensureOutOfReset() {
-  threadSafeI2CBus_->ensureOutOfReset(module_ + 1);
-}
-
 int WedgeQsfp::readTransceiver(
     const TransceiverAccessParameter& param,
     uint8_t* fieldValue) {
@@ -110,7 +99,8 @@ int WedgeQsfp::readTransceiver(
 
 int WedgeQsfp::writeTransceiver(
     const TransceiverAccessParameter& param,
-    uint8_t* fieldValue) {
+    const uint8_t* fieldValue,
+    uint64_t delay) {
   auto offset = param.offset;
   auto len = param.len;
   ioStatsRecorder_.recordWriteAttempted();
@@ -131,7 +121,7 @@ int WedgeQsfp::writeTransceiver(
     // Intel transceiver require some delay for every write.
     // So in the case of writing succeeded, we wait for 20ms.
     // Also this works because we do not write more than 1 byte for now.
-    usleep(20000);
+    usleep(delay);
   } catch (const std::exception& ex) {
     XLOG(ERR) << "Write to transceiver " << module_ << " at offset " << offset
               << " with length " << len
