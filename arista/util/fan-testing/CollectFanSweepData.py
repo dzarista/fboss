@@ -70,6 +70,22 @@ class FbossFanTestEdut():
    def getSsdTemp( self ):
       '''Return the SSD temperature'''
       return NotImplementedError
+   
+   def calculateCFM( self, cfmTable, pwm, fanVendor ):
+      if pwm < 0 or pwm > 100:
+         raise ValueError("PWM must be between 0 and 100.")
+   
+      lowerBoundPwm = ( pwm // 10 ) * 10
+      upperBoundPwm = min( ( ( pwm + 9 ) // 10 ) * 10, 100 )
+
+      lowerBoundCfm = cfmTable[ lowerBoundPwm ][ fanVendor ]
+      upperBoundCfm = cfmTable[ upperBoundPwm ][ fanVendor ]
+
+      return int( ( upperBoundCfm + lowerBoundCfm )/2 )
+
+   def getCFM( self, pwm ):
+      '''Return the CFM value for a given PWM'''
+      return NotImplementedError
 
    def getTotalSystemPower( self ):
       '''Return the total system power in Watts'''
@@ -131,14 +147,22 @@ class FbossFanTestEdut():
    def getSystemIntfsCountRates( self ):
       return self.edut.showCmdIs( 'show int count rates' )
 
+   def getSystemEnvTemp( self ):
+      return self.edut.showCmdIs( 'show sys env temp' )
+
+   def getSystemIntfsTemp( self ):
+      return self.edut.showCmdIs( 'show sys env temp transceiver' )
+
    def collectData( self ):
       '''Return an object with all collected data'''
+      avgFanPwm = self.getAvgFanPwm()
       return {
             'AvgRpm': self.getAvgFanRpm(),
             'HottestOptic': self.getHottestOpticTemp(),
             'HottestAsic': self.getHottestAsicTemp(),
             'HottestCpuTemp': self.getHottestCpuTemp(),
-            'AvgFanPwm': self.getAvgFanPwm(),
+            'AvgFanPwm': avgFanPwm,
+            'Airflow(CFM)': self.getCFM( avgFanPwm ),
             'SystemPower': self.getTotalSystemPower(),
             'Inlet': self.getInletTemp(),
             'Outlet': self.getOutletTemp(),
@@ -243,6 +267,20 @@ class Viper( FbossFanTestEdut ):
    '''Class that defines some Viper helpers to collect
    FSCD qualification data'''
 
+   CFM_DATA = {
+      100: { 'SANYO DENKI': 392, 'DELTA': 417 },
+      90: { 'SANYO DENKI': 367, 'DELTA': 393 },
+      80: { 'SANYO DENKI': 337, 'DELTA': 356 },
+      70: { 'SANYO DENKI': 300, 'DELTA': 319 },
+      60: { 'SANYO DENKI': 267, 'DELTA': 280 },
+      50: { 'SANYO DENKI': 231, 'DELTA': 241 },
+      40: { 'SANYO DENKI': 193, 'DELTA': 204 },
+      30: { 'SANYO DENKI': 159, 'DELTA': 163 },
+      20: { 'SANYO DENKI': 127, 'DELTA': 127 },
+      10: { 'SANYO DENKI': 84, 'DELTA': 94 },
+      0: { 'SANYO DENKI': 62, 'DELTA': 47 }
+   }
+
    def getFanSku( self ):
       return 'FAN-7021H-RED'
 
@@ -262,6 +300,11 @@ class Viper( FbossFanTestEdut ):
          fanIds.append( int( self.edut.bashSuCmdIs(
             f'smbus read8 /scd/1/3/0x60 {addr}'.format(
             addr=addr ) )[ 0 ].split( ' ' )[ 0 ], 16 ) )
+      
+      if not all( x == fanIds[ 0 ] for x in fanIds ):
+         print( "WARN: Not all inserted fans are identical. For CFM calculations, \
+               test data from the fan in the first slot will be used" )
+
       return fanIds
 
    def getOpticTemps( self ):
@@ -271,6 +314,8 @@ class Viper( FbossFanTestEdut ):
       for intf in shXcvr:
          if 'temperature' in shXcvr[ intf ]:
             opticsTemps.append( shXcvr[ intf ][ 'temperature' ] )
+      if len( opticsTemps ) == 0:
+         raise ValueError( "System does NOT have any optics" )
       return opticsTemps
 
    def getAsicTemps( self ):
@@ -363,6 +408,12 @@ class Viper( FbossFanTestEdut ):
             addr=addr ) )[ 0 ].split( ' ' )[ 0 ], 16 ) / 2.55 )
       return pwms
 
+   def getCFM( self, pwm ):
+      '''Return the CFM value for a given PWM'''
+      fanId = self.getFanIds()[ 0 ] # Using cfm data of fan in the first slot
+      fanVendor = self.getFanMfr( fanId )
+      return self.calculateCFM( self.CFM_DATA, pwm, fanVendor )
+
 def renderPlot( pdf, dfX, dfY, title ):
    fig, ax = plt.subplots(figsize=( 8, 6 ))
    for column in dfY:
@@ -415,12 +466,14 @@ def main( argv ):
    sysInfo = obj.getSystemInfo()
    sysIntfs = obj.getSystemIntfs()
    sysIntfsRates = obj.getSystemIntfsCountRates()
+   sysEnvTemp = obj.getSystemEnvTemp()
+   sysIntfsTemp = obj.getSystemIntfsTemp()
    fanIds = obj.getFanIds()
    fanSku = obj.getFanSku()
 
    df = pd.DataFrame( columns=[
       'TargetRpm', 'AvgRpm', 'HottestOptic',
-      'HottestAsic', 'AvgFanPwm', 'SystemPower',
+      'HottestAsic', 'AvgFanPwm', 'Airflow(CFM)', 'SystemPower',
       'Inlet', 'Outlet' ] )
 
    for targetRpm in range( args.start_rpm, args.end_rpm + 1, args.stride ):
@@ -492,6 +545,24 @@ def main( argv ):
       pdf.savefig( fig )
       plt.close( fig )
 
+      # sysEnvTemp log
+      fig = plt.figure( figsize = ( 8, 11 ) )
+      ax = fig.add_subplot()
+      ax.text( 0, 1, "\n".join( sysEnvTemp ), fontsize = 6, va = 'top', ha = 'left',
+              transform = fig.transFigure )
+      ax.axis( 'off' )
+      pdf.savefig( fig )
+      plt.close( fig )
+
+      # sysIntfsTemp log
+      fig = plt.figure( figsize = ( 8, 11 ) )
+      ax = fig.add_subplot()
+      ax.text( 0, 1, "\n".join( sysIntfsTemp ), fontsize = 6, va = 'top', ha = 'left',
+              transform = fig.transFigure )
+      ax.axis( 'off' )
+      pdf.savefig( fig )
+      plt.close( fig )
+
       # Create a table of the data
       fig, ax = plt.subplots( figsize = ( 8, 3 ) )
       ax.axis( 'off' )
@@ -503,17 +574,18 @@ def main( argv ):
       plt.close( fig )
 
       # Adding graphs of the data
-      x_axis = df.iloc[:, 0]
-
       y_axis = df[ [ 'HottestOptic', 'HottestAsic', 'HottestCpuTemp',
                     'ssdTemp', 'Inlet', 'Outlet' ] ]
-      renderPlot( pdf, x_axis, y_axis, 'Temperatures' )
+      renderPlot( pdf, df[ 'AvgFanPwm' ], y_axis, 'Temperatures' )
 
       y_axis = df[ [ 'AvgFanPwm' ] ]
-      renderPlot( pdf, x_axis, y_axis, 'Average Fan PWM' )
+      renderPlot( pdf, df[ 'Airflow(CFM)' ], y_axis, 'Airflow(CFM)' )
 
       y_axis = df[ [ 'SystemPower' ] ]
-      renderPlot( pdf, x_axis, y_axis, 'System Power' )
+      renderPlot( pdf, df[ 'AvgFanPwm' ], y_axis, 'System Power' )
+
+      y_axis = df[ [ 'Airflow(CFM)' ] ]
+      renderPlot( pdf, df[ 'SystemPower' ], y_axis, 'CFM/W' )
 
    # write collected data to a csv 
    df.to_csv( f'{filename}.csv', index = False )
