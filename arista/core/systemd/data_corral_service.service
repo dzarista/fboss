@@ -1,8 +1,10 @@
 [Unit]
 Description=Start data_corral_service
+Wants=platform_manager.service
+After=platform_manager.service
 
 [Service]
-ExecStart=/opt/fboss/bin/data_corral_service
+ExecStart=/opt/fboss/bin/run_data_corral_service.sh
 
 [Install]
 WantedBy=multi-user.target

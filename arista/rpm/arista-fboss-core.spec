@@ -30,6 +30,7 @@ mkdir -p %{_fboss_target_bin}
 cp -rf fboss_bins-*/* %{_fboss_target_opt}
 cp -f scripts/fboss_init.sh %{_fboss_target_bin}
 cp -f scripts/run_platform_manager.sh %{_fboss_target_bin}
+cp -f scripts/run_data_corral_service.sh %{_fboss_target_bin}
 cp -f scripts/run_fan_service.sh %{_fboss_target_bin}
 cp -f scripts/run_sensor_service.sh %{_fboss_target_bin}
 cp -f scripts/run_qsfp_service.sh %{_fboss_target_bin}
