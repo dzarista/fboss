@@ -41,7 +41,15 @@ class FbossFanTestEdut():
       raise NotImplementedError
 
    def getFanMfr( self, id ):
-      raise NotImplementedError
+      idBits = id & 0b111 # filter to fan id according to Mauna key table
+      if idBits == 0:
+         return 'SANYO DENKI'
+      elif idBits == 1:
+         return 'DELTA'
+      elif idBits == 3: #TODO: remove
+         return 'DELTA'
+      else:
+         raise ValueError( 'Fan mfr not detected' )
 
    def getFanIds( self ):
       '''Returns a list of fan Ids where indexes map to fan slots'''
@@ -78,10 +86,14 @@ class FbossFanTestEdut():
       lowerBoundPwm = ( pwm // 10 ) * 10
       upperBoundPwm = min( ( ( pwm + 9 ) // 10 ) * 10, 100 )
 
+      if upperBoundPwm == lowerBoundPwm:
+         return cfmTable[ upperBoundPwm ][ fanVendor ]
+
       lowerBoundCfm = cfmTable[ lowerBoundPwm ][ fanVendor ]
       upperBoundCfm = cfmTable[ upperBoundPwm ][ fanVendor ]
 
-      return int( ( upperBoundCfm + lowerBoundCfm )/2 )
+      slope = ( upperBoundCfm - lowerBoundCfm ) / ( upperBoundPwm - lowerBoundPwm )
+      return ( pwm - lowerBoundPwm ) * slope + lowerBoundCfm
 
    def getCFM( self, pwm ):
       '''Return the CFM value for a given PWM'''
@@ -112,6 +124,13 @@ class FbossFanTestEdut():
    def getFanRpms( self ):
       '''Return a list of all system fan RPMs'''
       raise NotImplementedError
+
+   def setFanRpm( self, pct ):
+      '''Set fan speed as a % of max fan RPM'''
+      self.shutEosFanControl()
+      self.edut.aconsPathCmdIs(
+            '/ar/Sysdb/environment/thermostat/config',
+            f'_.fanSpeed={pct}'.format( pct=pct ) )
 
    def getFanPwms( self ):
       '''Return a list of all system fan PWM (%)'''
@@ -236,13 +255,6 @@ class Monterey( FbossFanTestEdut ):
          rpmList.append( maxSpeed * float( pct ) / 100.0 )
       return rpmList
 
-   def setFanRpm( self, pct ):
-      'Set fan speed as a % of max fan RPM'
-      self.shutEosFanControl()
-      self.edut.aconsPathCmdIs(
-            '/ar/Sysdb/environment/thermostat/config',
-            f'_.fanSpeed={pct}'.format( pct=pct ) )
-
    def setPwm( self, pwm ):
       # pwm comes in as a %, set it as an integer range 0->255
       # requires agents to not set pwm
@@ -284,27 +296,12 @@ class Viper( FbossFanTestEdut ):
    def getFanSku( self ):
       return 'FAN-7021H-RED'
 
-   def getFanMfr( self, id ):
-      idBits = id & 0b111 # filter to fan id according to Mauna key table
-      if idBits == 0:
-         return 'SANYO DENKI'
-      elif idBits == 1:
-         return 'DELTA'
-      else:
-         raise ValueError( 'Fan mfr not detected' )
-
    def getFanIds( self ):
       '''Returns a list of fan Ids where indexes map to fan slots'''
       fanIds = []
-      for addr in [ 0x61, 0x62, 0x63, 0x64 ]:
+      for addr in ( 0x61, 0x62, 0x63, 0x64 ):
          fanIds.append( int( self.edut.bashSuCmdIs(
-            f'smbus read8 /scd/1/3/0x60 {addr}'.format(
-            addr=addr ) )[ 0 ].split( ' ' )[ 0 ], 16 ) )
-      
-      if not all( x == fanIds[ 0 ] for x in fanIds ):
-         print( "WARN: Not all inserted fans are identical. For CFM calculations, \
-               test data from the fan in the first slot will be used" )
-
+            f'smbus read8 /scd/1/3/0x60 {addr}' )[ 0 ].split( ' ' )[ 0 ], 16 ) )
       return fanIds
 
    def getOpticTemps( self ):
@@ -381,13 +378,6 @@ class Viper( FbossFanTestEdut ):
          rpmList.append( maxSpeed * float( pct ) / 100.0 )
       return rpmList
 
-   def setFanRpm( self, pct ):
-      'Set fan speed as a % of max fan RPM'
-      self.shutEosFanControl()
-      self.edut.aconsPathCmdIs(
-            '/ar/Sysdb/environment/thermostat/config',
-            f'_.fanSpeed={pct}'.format( pct=pct ) )
-
    def setPwm( self, pwm ):
       # pwm comes in as a %, set it as an integer range 0->255
       # requires agents to not set pwm
@@ -406,6 +396,145 @@ class Viper( FbossFanTestEdut ):
          pwms.append( int( self.edut.bashSuCmdIs(
             f'smbus read8 /scd/1/3/0x60 {addr}'.format(
             addr=addr ) )[ 0 ].split( ' ' )[ 0 ], 16 ) / 2.55 )
+      return pwms
+
+   def getCFM( self, pwm ):
+      '''Return the CFM value for a given PWM'''
+      fanId = self.getFanIds()[ 0 ] # Using cfm data of fan in the first slot
+      fanVendor = self.getFanMfr( fanId )
+      return self.calculateCFM( self.CFM_DATA, pwm, fanVendor )
+
+class Whistler( FbossFanTestEdut ):
+   '''Class that defines some Whistler helpers to collect
+   FSCD qualification data'''
+
+   CFM_DATA = {
+      100: { 'SANYO DENKI': 898, 'DELTA': 946 },
+      90: { 'SANYO DENKI': 846, 'DELTA': 907 },
+      80: { 'SANYO DENKI': 778, 'DELTA': 823 },
+      70: { 'SANYO DENKI': 699, 'DELTA': 735 },
+      60: { 'SANYO DENKI': 615, 'DELTA': 649 },
+      50: { 'SANYO DENKI': 538, 'DELTA': 566 },
+      40: { 'SANYO DENKI': 450, 'DELTA': 478 },
+      30: { 'SANYO DENKI': 370, 'DELTA': 389 },
+      20: { 'SANYO DENKI': 285, 'DELTA': 301 },
+      10: { 'SANYO DENKI': 203, 'DELTA': 214 },
+      0: { 'SANYO DENKI': 203, 'DELTA': 214 }
+   }
+
+   def getFanSku( self ):
+      return 'FAN-7021H-RED'
+
+   def getFanIds( self ):
+      '''Returns a list of fan Ids where indexes map to fan slots'''
+      fanIds = []
+      for cpldAddr in ( 0x60, 0x61, 0x62 ):
+         for fanReg in ( 0x61, 0x62, 0x63, 0x64 ):
+            fanIds.append( int( self.edut.bashSuCmdIs(
+               f'smbus read8 /scd/1/3/{cpldAddr} {fanReg}' 
+               )[ 0 ].split( ' ' )[ 0 ], 16 ) )
+
+      if not all( x == fanIds[ 0 ] for x in fanIds ):
+         print( "WARN: Not all inserted fans are identical. For CFM calculations, \
+               test data from the fan in the first slot will be used" )
+
+      return fanIds
+
+   def getOpticTemps( self ):
+      opticsTemps = []
+      shXcvr = self.edut.showCmdIs( 'show int transc', dataFormat='json' )[
+                                    'interfaces' ]
+      for intf in shXcvr:
+         if 'temperature' in shXcvr[ intf ]:
+            opticsTemps.append( shXcvr[ intf ][ 'temperature' ] )
+      if len( opticsTemps ) == 0:
+         raise ValueError( "System does NOT have any optics" )
+      return opticsTemps
+
+   def getAsicTemps( self ):
+      asicTemps = []
+      shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
+      for sensor in shTemp[ 'tempSensors' ]:
+         # match 'Jericho3' or 'J3'
+         if re.search( 'Fe0|Fe1', sensor[ 'description' ] ):
+            asicTemps.append( sensor[ 'currentTemperature' ] )
+      return asicTemps
+
+   def getInletTemp( self ):
+      '''Return the inlet temperature'''
+      shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
+      for sensor in shTemp[ 'tempSensors' ]:
+         # Exact Match
+         if re.search( 'Inlet', sensor[ 'description' ] ):
+            return sensor[ 'currentTemperature' ]
+      return 0
+
+   def getOutletTemp( self ):
+      '''Return the outlet temperature'''
+      temps = []
+      shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
+      for sensor in shTemp[ 'tempSensors' ]:
+         # Exact Match
+         if re.search( 'Board', sensor[ 'description' ] ):
+            temps.append( sensor[ 'currentTemperature' ] )
+      return max( temps )
+
+   def getCpuTemps( self ):
+      '''Return the CPU temperature'''
+      cpuTemps = []
+      shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
+      for sensor in shTemp[ 'tempSensors' ]:
+         if re.search( 'CPU', sensor[ 'description' ] ):
+            cpuTemps.append( sensor[ 'currentTemperature' ] )
+      return cpuTemps
+   
+   def getSsdTemp( self ):
+      '''Return the SSD temperature'''
+      shTemp = self.edut.showCmdIs( 'sh sys stor health smart', dataFormat='json' )
+      attributes = shTemp[ 'devices' ][ 'flash' ][ 'attributes' ]
+      for attr in attributes:
+         # Exact Match
+         if attr[ 'name' ] == 'Temperature':
+            return attr[ 'value' ]
+      return 0
+
+   def getFanRpms( self ):
+      rpmList = []
+      maxSpeed = 0
+      # Hacky, will only respect the last maxSpeed, but they should all be the
+      # same. Can probably use Acons instead
+      shCool = self.edut.showCmdIs( 'show sys env cool det',
+                                     dataFormat='json' )
+      for fanInfo in shCool[ 'fanTraySlots' ]:
+         maxSpeed = fanInfo[ 'fans' ][ 0 ][ 'maxSpeed' ]
+
+      for i in range( 1, 12 + 1 ):
+         pct = self.edut.aconsPathCmdIs(
+            r'/ar/Sysdb/environment/thermostat/status/fanConfig/Fan{}\/1/speed'.
+            format( i ), 'ls -l' )[ 0 ].split( ' ' )[ -1 ]
+         rpmList.append( maxSpeed * float( pct ) / 100.0 )
+      return rpmList
+
+   def setPwm( self, pwm ):
+      # pwm comes in as a %, set it as an integer range 0->255
+      # requires agents to not set pwm
+      pwm = int( 255.0 * pwm / 100.0 )
+
+      for cpldAddr in ( 0x60, 0x61, 0x62 ):
+         for fanReg in ( 0x10, 0x20, 0x30, 0x40 ):
+            self.edut.bashCmdIs( f'smbus write8 /scd/1/3/{cpldAddr} {fanReg} {pwm}' )
+
+   def getFanPwms( self ):
+      '''Return Fan PWMs as a list, reported as a percentage'''
+      pwms = []
+      # read PWM registers and return them as a pct PWM
+      # The registers store it as an unsigned integer 0->255
+
+      for cpldAddr in ( 0x60, 0x61, 0x62 ):
+         for fanReg in ( 0x10, 0x20, 0x30, 0x40 ):
+            pwms.append( int( self.edut.bashSuCmdIs(
+               f'smbus read8 /scd/1/3/{cpldAddr} {fanReg}' )
+               [ 0 ].split( ' ' )[ 0 ], 16 ) / 2.55 )
       return pwms
 
    def getCFM( self, pwm ):
@@ -454,8 +583,7 @@ def main( argv ):
    elif edut.product() in ( 'Viper', 'ViperJ3', 'ViperJ3' ):
       obj = Viper( edut )
    elif edut.product() in ( 'Whistler' ):
-      # TODO: add Whistler support
-      pass
+      obj = Whistler( edut )
    else:
       assert( 'Product Class not defined for {}'.format( edut.product() ) )
 
@@ -508,11 +636,11 @@ def main( argv ):
       fans_log = [ 'Fans Info\n' ]
       for fanIdx, fanId in enumerate( fanIds ):
           binaryId = format(fanId, '08b')
-          fanLog = f'Fan {fanIdx + 1} ID: {binaryId}. \n\
+          fanLog = f'Fan {fanIdx + 1} ID: {binaryId}. \
             Fan SKU: {fanSku} ({obj.getFanMfr(fanId)})'
           fans_log.append( fanLog )
       fig, ax = plt.subplots()
-      ax.text( 0, 1, "\n\n".join( fans_log ), fontsize = 12,
+      ax.text( 0, 1, "\n".join( fans_log ), fontsize = 9,
               va = 'top', ha = 'left' )
       ax.axis( 'off' )
       pdf.savefig( fig )
@@ -524,25 +652,25 @@ def main( argv ):
       ax.text( 0, 1, "\n".join(sysInfo), fontsize = 6, va = 'top', ha = 'left',
               transform = fig.transFigure )
       ax.axis( 'off' )
-      pdf.savefig( fig )
+      pdf.savefig( fig,bbox_inches='tight' )
       plt.close( fig )
 
       # sysIntfs log
-      fig = plt.figure( figsize = ( 8, 20 ) )
+      fig = plt.figure()
       ax = fig.add_subplot()
       ax.text( 0, 1, "\n".join(sysIntfs), fontsize = 6, va = 'top', ha = 'left',
                transform = fig.transFigure )
       ax.axis( 'off' )
-      pdf.savefig( fig )
+      pdf.savefig( fig, bbox_inches='tight' )
       plt.close( fig )
 
       # sysIntfsRates log
-      fig = plt.figure( figsize = ( 8, 11 ) )
+      fig = plt.figure()
       ax = fig.add_subplot()
       ax.text( 0, 1, "\n".join(sysIntfsRates), fontsize = 6, va = 'top', ha = 'left',
               transform = fig.transFigure )
       ax.axis( 'off' )
-      pdf.savefig( fig )
+      pdf.savefig( fig, bbox_inches='tight' )
       plt.close( fig )
 
       # sysEnvTemp log
@@ -551,7 +679,7 @@ def main( argv ):
       ax.text( 0, 1, "\n".join( sysEnvTemp ), fontsize = 6, va = 'top', ha = 'left',
               transform = fig.transFigure )
       ax.axis( 'off' )
-      pdf.savefig( fig )
+      pdf.savefig( fig, bbox_inches='tight' )
       plt.close( fig )
 
       # sysIntfsTemp log
@@ -560,7 +688,7 @@ def main( argv ):
       ax.text( 0, 1, "\n".join( sysIntfsTemp ), fontsize = 6, va = 'top', ha = 'left',
               transform = fig.transFigure )
       ax.axis( 'off' )
-      pdf.savefig( fig )
+      pdf.savefig( fig, bbox_inches='tight' )
       plt.close( fig )
 
       # Create a table of the data
