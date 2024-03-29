@@ -61,6 +61,11 @@ class TestEnsembleIf : public HwSwitchCallback {
   virtual LinkStateToggler* getLinkToggler() = 0;
   virtual bool isSai() const = 0;
   virtual folly::MacAddress getLocalMac(SwitchID id) const = 0;
+  virtual void sendPacketAsync(
+      std::unique_ptr<TxPacket> pkt,
+      std::optional<PortDescriptor> portDescriptor = std::nullopt,
+      std::optional<uint8_t> queueId = std::nullopt) = 0;
+  virtual std::unique_ptr<TxPacket> allocatePacket(uint32_t size) = 0;
 };
 
 } // namespace facebook::fboss

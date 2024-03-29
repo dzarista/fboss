@@ -1,15 +1,12 @@
 // Copyright 2004-present Facebook. All Rights Reserved.
 
-#include "fboss/agent/hw/test/dataplane_tests/HwEcmpDataPlaneTestUtil.h"
+#include "fboss/agent/test/utils/EcmpDataPlaneTestUtil.h"
 
-#include "fboss/agent/Platform.h"
-#include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwSwitchEnsemble.h"
-#include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/LoadBalancerUtils.h"
+#include "fboss/agent/RouteUpdateWrapper.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/LinkStateToggler.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
+#include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
 
 namespace facebook::fboss::utility {
 
@@ -73,9 +70,8 @@ bool HwEcmpDataPlaneTestUtil<EcmpSetupHelperT>::isLoadBalanced(
     int ecmpWidth,
     const std::vector<NextHopWeight>& weights,
     uint8_t deviation) {
-  auto ecmpPorts = helper_->ecmpPortDescs(ecmpWidth);
-  return utility::isLoadBalanced<PortID, HwPortStats>(
-      ensemble_, ecmpPorts, weights, deviation);
+  std::vector<PortDescriptor> ecmpPorts = helper_->ecmpPortDescs(ecmpWidth);
+  return isLoadBalanced(ecmpPorts, weights, deviation);
 }
 
 template <typename EcmpSetupHelperT>
@@ -83,13 +79,20 @@ bool HwEcmpDataPlaneTestUtil<EcmpSetupHelperT>::isLoadBalanced(
     const std::vector<PortDescriptor>& portDescs,
     const std::vector<NextHopWeight>& weights,
     uint8_t deviation) {
-  return utility::isLoadBalanced<PortID, HwPortStats>(
-      ensemble_, portDescs, weights, deviation);
+  auto rc = utility::isLoadBalanced<PortID, HwPortStats>(
+      portDescs,
+      weights,
+      [ensemble = ensemble_](
+          const std::vector<PortID>& portIds) -> std::map<PortID, HwPortStats> {
+        return ensemble->getLatestPortStats(portIds);
+      },
+      deviation);
+  return rc;
 }
 
 template <typename AddrT>
 HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     RouterID vrf,
     std::vector<LabelForwardingAction::LabelStack> stacks)
     : BaseT(
@@ -101,7 +104,7 @@ HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
 
 template <typename AddrT>
 HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     const std::optional<folly::MacAddress>& nextHopMac,
     RouterID vrf)
     : BaseT(
@@ -113,7 +116,7 @@ HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
 
 template <typename AddrT>
 HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     RouterID vrf)
     : HwIpEcmpDataPlaneTestUtil(ensemble, vrf, {}) {}
 
@@ -189,7 +192,8 @@ void HwIpEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
   utility::pumpTraffic(
       std::is_same_v<AddrT, folly::IPAddressV6>,
-      ensemble->getHwSwitch(),
+      utility::getAllocatePktFn(ensemble),
+      utility::getSendPktFunc(ensemble),
       intfMac,
       vlanId,
       port);
@@ -197,7 +201,7 @@ void HwIpEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
 template <typename AddrT>
 HwIpRoCEEcmpDataPlaneTestUtil<AddrT>::HwIpRoCEEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     RouterID vrf)
     : BaseT(ensemble, vrf) {}
 
@@ -211,7 +215,8 @@ void HwIpRoCEEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
   utility::pumpRoCETraffic(
       std::is_same_v<AddrT, folly::IPAddressV6>,
-      ensemble->getHwSwitch(),
+      utility::getAllocatePktFn(ensemble),
+      utility::getSendPktFunc(ensemble),
       intfMac,
       vlanId,
       port);
@@ -220,7 +225,7 @@ void HwIpRoCEEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 template <typename AddrT>
 HwIpRoCEEcmpDestPortDataPlaneTestUtil<AddrT>::
     HwIpRoCEEcmpDestPortDataPlaneTestUtil(
-        HwSwitchEnsemble* ensemble,
+        TestEnsembleIf* ensemble,
         RouterID vrf)
     : BaseT(ensemble, vrf) {}
 
@@ -234,7 +239,8 @@ void HwIpRoCEEcmpDestPortDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
   utility::pumpRoCETraffic(
       std::is_same_v<AddrT, folly::IPAddressV6>,
-      ensemble->getHwSwitch(),
+      utility::getAllocatePktFn(ensemble),
+      utility::getSendPktFunc(ensemble),
       intfMac,
       vlanId,
       port,
@@ -243,7 +249,7 @@ void HwIpRoCEEcmpDestPortDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
 template <typename AddrT>
 HwMplsEcmpDataPlaneTestUtil<AddrT>::HwMplsEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     MPLSHdr::Label topLabel,
     LabelForwardingAction::LabelForwardingType actionType)
     : BaseT(
@@ -283,7 +289,8 @@ void HwMplsEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
   pumpMplsTraffic(
       std::is_same_v<AddrT, folly::IPAddressV6>,
-      ensemble->getHwSwitch(),
+      utility::getAllocatePktFn(ensemble),
+      utility::getSendPktFunc(ensemble),
       label_.getLabelValue(),
       mac,
       firstVlanID,

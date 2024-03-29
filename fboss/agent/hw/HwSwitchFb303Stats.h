@@ -94,6 +94,7 @@ class HwSwitchFb303Stats {
   }
   void fabricReachabilityMissingCount(int64_t value);
   void fabricReachabilityMismatchCount(int64_t value);
+  void virtualDevicesWithAsymmetricConnectivity(int64_t value);
 
   void bcmSdkVer(int64_t ver);
   void bcmSaiSdkVer(int64_t ver);
@@ -131,6 +132,7 @@ class HwSwitchFb303Stats {
   }
   int64_t getFabricReachabilityMismatchCount() const;
   int64_t getFabricReachabilityMissingCount() const;
+  int64_t getVirtualDevicesWithAsymmetricConnectivityCount() const;
   int64_t getPacketIntegrityDropsCount() const {
     return packetIntegrityDrops_.count();
   }
@@ -213,6 +215,7 @@ class HwSwitchFb303Stats {
   // fabric reachability errors
   TLCounter fabricReachabilityMissingCount_;
   TLCounter fabricReachabilityMismatchCount_;
+  TLCounter virtualDevicesWithAsymmetricConnectivity_;
   TLTimeseries ireErrors_;
   TLTimeseries itppErrors_;
   TLTimeseries epniErrors_;

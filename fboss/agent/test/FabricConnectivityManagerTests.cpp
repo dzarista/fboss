@@ -82,7 +82,35 @@ class FabricConnectivityManagerTest : public ::testing::Test {
     return {nbr};
   }
 
+ private:
+  std::optional<FabricEndpoint> getCurrentConnectivity(PortID port) const {
+    std::optional<FabricEndpoint> portConnectivity;
+    auto curConnectivity = fabricConnectivityManager_->getConnectivityInfo();
+    auto itr = curConnectivity.find(port);
+    if (itr != curConnectivity.end()) {
+      portConnectivity = itr->second;
+    }
+    return portConnectivity;
+  }
+
  protected:
+  std::map<PortID, FabricEndpoint> processConnectivityInfo(
+      const std::map<PortID, FabricEndpoint>& hwConnectivity) {
+    for (const auto& [port, endpoint] : hwConnectivity) {
+      auto beforeConnectivity = getCurrentConnectivity(port);
+      auto delta = fabricConnectivityManager_->processConnectivityInfoForPort(
+          port, endpoint);
+      auto afterConectivity = getCurrentConnectivity(port);
+      if (beforeConnectivity == afterConectivity) {
+        EXPECT_EQ(delta, std::nullopt);
+      } else {
+        FabricConnectivityDelta expected{beforeConnectivity, afterConectivity};
+
+        EXPECT_EQ(*delta, expected);
+      }
+    }
+    return fabricConnectivityManager_->getConnectivityInfo();
+  }
   std::unique_ptr<HwTestHandle> handle_;
   std::unique_ptr<FabricConnectivityManager> fabricConnectivityManager_;
 };
@@ -118,7 +146,7 @@ TEST_F(FabricConnectivityManagerTest, validateRemoteOffset) {
   fabricConnectivityManager_->stateUpdated(delta);
 
   const auto expectedConnectivityMap =
-      fabricConnectivityManager_->processConnectivityInfo(hwConnectivityMap);
+      processConnectivityInfo(hwConnectivityMap);
   EXPECT_EQ(expectedConnectivityMap.size(), 1);
 
   for (const auto& expectedConnectivity : expectedConnectivityMap) {
@@ -160,7 +188,7 @@ TEST_F(FabricConnectivityManagerTest, validateProcessConnectivityInfo) {
   fabricConnectivityManager_->stateUpdated(delta);
 
   const auto expectedConnectivityMap =
-      fabricConnectivityManager_->processConnectivityInfo(hwConnectivityMap);
+      processConnectivityInfo(hwConnectivityMap);
   EXPECT_EQ(expectedConnectivityMap.size(), 1);
 
   for (const auto& expectedConnectivity : expectedConnectivityMap) {
@@ -207,7 +235,7 @@ TEST_F(FabricConnectivityManagerTest, validateUnattachedEndpoint) {
   fabricConnectivityManager_->stateUpdated(delta);
 
   const auto expectedConnectivityMap =
-      fabricConnectivityManager_->processConnectivityInfo(hwConnectivityMap);
+      processConnectivityInfo(hwConnectivityMap);
   EXPECT_EQ(expectedConnectivityMap.size(), 1);
 
   // when unattached, we can't get get expectedPortId
@@ -278,7 +306,7 @@ TEST_F(FabricConnectivityManagerTest, validateUnexpectedNeighbors) {
   fabricConnectivityManager_->stateUpdated(delta);
 
   const auto expectedConnectivityMap =
-      fabricConnectivityManager_->processConnectivityInfo(hwConnectivityMap);
+      processConnectivityInfo(hwConnectivityMap);
 
   for (const auto& expectedConnectivity : expectedConnectivityMap) {
     const auto& neighbor = expectedConnectivity.second;
@@ -348,7 +376,7 @@ TEST_F(FabricConnectivityManagerTest, validateMissingNeighborInfo) {
   fabricConnectivityManager_->stateUpdated(delta);
 
   const auto expectedConnectivityMap =
-      fabricConnectivityManager_->processConnectivityInfo(hwConnectivityMap);
+      processConnectivityInfo(hwConnectivityMap);
 
   for (const auto& expectedConnectivity : expectedConnectivityMap) {
     const auto& neighbor = expectedConnectivity.second;

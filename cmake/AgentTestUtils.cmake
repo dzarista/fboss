@@ -124,11 +124,28 @@ target_link_libraries(qos_test_utils
   Folly::folly
 )
 
+add_library(queue_per_host_test_utils
+  fboss/agent/test/utils/QueuePerHostTestUtils.cpp
+)
+
+target_link_libraries(queue_per_host_test_utils
+  common_test_utils
+  acl_test_utils
+  config_utils
+  copp_test_utils
+  traffic_policy_utils
+  ecmp_helper
+  fboss_types
+  switch_asics
+  state
+  Folly::folly
+)
 add_library(load_balancer_test_utils
   fboss/agent/test/utils/LoadBalancerTestUtils.cpp
 )
 
 target_link_libraries(load_balancer_test_utils
+  ${GTEST}
   state
   Folly::folly
   test_ensemble_if
@@ -138,6 +155,10 @@ target_link_libraries(load_balancer_test_utils
   loadbalancer_utils
   acl_test_utils
   config_utils
+  packet
+  packet_factory
+  resourcelibutil
+  common_utils
 )
 
 add_library(dscp_marking_utils
@@ -167,4 +188,21 @@ target_link_libraries(trap_packet_utils
 
 add_library(stats_test_utils
   fboss/agent/test/utils/StatsTestUtils.cpp
+)
+
+add_library(
+  ecmp_dataplane_test_util
+  fboss/agent/test/utils/EcmpDataPlaneTestUtil.cpp
+)
+
+target_link_libraries(ecmp_dataplane_test_util
+  route_update_wrapper
+  packet
+  state
+  ecmp_helper
+  linkstate_toggler
+  test_ensemble_if
+  load_balancer_test_utils
+  fboss_types
+  route_update_wrapper
 )

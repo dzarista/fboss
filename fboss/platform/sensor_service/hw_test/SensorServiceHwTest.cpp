@@ -28,7 +28,6 @@ void SensorServiceHwTest::SetUp() {
   sensorServiceImpl_ = std::make_shared<SensorServiceImpl>();
   sensorServiceHandler_ =
       std::make_shared<SensorServiceThriftHandler>(sensorServiceImpl_);
-
   auto sensorServiceConfigJson = ConfigLib().getSensorServiceConfig();
   apache::thrift::SimpleJSONSerializer::deserialize<SensorConfig>(
       sensorServiceConfigJson, sensorConfig_);
@@ -37,7 +36,6 @@ void SensorServiceHwTest::SetUp() {
 SensorReadResponse SensorServiceHwTest::getSensors(
     const std::vector<std::string>& sensors) {
   sensorServiceImpl_->fetchSensorData();
-
   SensorReadResponse response;
   sensorServiceHandler_->getSensorValuesByNames(
       response, std::make_unique<std::vector<std::string>>(sensors));
@@ -67,7 +65,9 @@ TEST_F(SensorServiceHwTest, GetBogusSensor) {
 TEST_F(SensorServiceHwTest, GetSomeSensors) {
   std::vector<std::string> sensorNames;
   for (const auto& [fruName, sensorMap] : *sensorConfig_.sensorMapList()) {
-    sensorNames.push_back(sensorMap.begin()->first);
+    if (sensorMap.size() > 0) {
+      sensorNames.push_back(sensorMap.begin()->first);
+    }
   }
 
   auto response1 = getSensors(sensorNames);
@@ -106,48 +106,46 @@ TEST_F(SensorServiceHwTest, GetSomeSensors) {
   EXPECT_GT((float)valid / total, 0.9);
 }
 
-TEST_F(SensorServiceHwTest, GetSensorsByFruTypes) {
-  std::vector<FruType> fruTypes{FruType::ALL};
-  SensorReadResponse response;
-  sensorServiceHandler_->getSensorValuesByFruTypes(
-      response, std::make_unique<std::vector<FruType>>(fruTypes));
-  // TODO assert for non empty response once this thrift API is implemented
-  EXPECT_EQ(response.sensorData()->size(), 0);
-}
-
 TEST_F(SensorServiceHwTest, GetSomeSensorsViaThrift) {
+  std::vector<std::string> sensorNames;
+  for (const auto& [fruName, sensorMap] : *sensorConfig_.sensorMapList()) {
+    if (sensorMap.size() > 0) {
+      sensorNames.push_back(sensorMap.begin()->first);
+    }
+  }
+  // Trigger a fetch before the thrift request hits the server.
+  sensorServiceImpl_->fetchSensorData();
   apache::thrift::ScopedServerInterfaceThread server(sensorServiceHandler_);
   auto client = server.newClient<apache::thrift::Client<SensorServiceThrift>>();
   SensorReadResponse response;
-  client->sync_getSensorValuesByNames(response, {"PCH_TEMP"});
-  EXPECT_EQ(response.sensorData()->size(), 1);
+  client->sync_getSensorValuesByNames(response, sensorNames);
+  EXPECT_EQ(response.sensorData()->size(), sensorNames.size());
+  for (const auto& sensorData : *response.sensorData()) {
+    EXPECT_TRUE(sensorData.value().has_value());
+  }
 }
 
 TEST_F(SensorServiceHwTest, SensorFetchODSCheck) {
   sensorServiceImpl_->fetchSensorData();
-  EXPECT_EQ(fb303::fbData->getCounter("sensor_read.total.failures"), 0);
-  EXPECT_EQ(fb303::fbData->getCounter("sensor_read.has.failures"), 0);
-}
-
-TEST_F(SensorServiceHwTest, PublishStats) {
-  sensorServiceImpl_->fetchSensorData();
-
-  SensorStatsPub publisher(sensorServiceImpl_.get());
-  publisher.publishStats();
-
+  EXPECT_EQ(fb303::fbData->getCounter(SensorServiceImpl::kHasReadFailure), 0);
+  EXPECT_EQ(fb303::fbData->getCounter(SensorServiceImpl::kTotalReadFailure), 0);
   auto sensorMap = sensorServiceImpl_->getAllSensorData();
+  EXPECT_GT(fb303::fbData->getCounter(SensorServiceImpl::kReadTotal), 0);
   for (const auto& [sensorName, sensorData] : sensorMap) {
     EXPECT_EQ(
-        fb303::fbData->getCounter(sensorName), (int64_t)*sensorData.value());
+        fb303::fbData->getCounter(
+            fmt::format(SensorServiceImpl::kReadValue, sensorName)),
+        (int64_t)*sensorData.value());
+    EXPECT_EQ(
+        fb303::fbData->getCounter(
+            fmt::format(SensorServiceImpl::kReadFailure, sensorName)),
+        0);
   }
 }
 } // namespace facebook::fboss::platform::sensor_service
 
 int main(int argc, char* argv[]) {
-  // Parse command line flags
   testing::InitGoogleTest(&argc, argv);
   facebook::fboss::platform::helpers::init(&argc, &argv);
-
-  // Run the tests
   return RUN_ALL_TESTS();
 }

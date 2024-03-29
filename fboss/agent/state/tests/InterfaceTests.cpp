@@ -859,3 +859,38 @@ TEST(Interface, getAllNodes) {
       *stateV1->getInterfaces()->getAllNodes(),
       *utility::getFirstMap(stateV1->getInterfaces()));
 }
+
+TEST(Interface, getRemoteInterfaceType) {
+  auto platform = createMockPlatform();
+  auto stateV0 = std::make_shared<SwitchState>();
+  addSwitchInfo(stateV0, cfg::SwitchType::VOQ, 1 /* switchId*/);
+  auto config = testConfigA(cfg::SwitchType::VOQ);
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  config.dsfNodes()->insert({5, makeDsfNodeCfg(5)});
+  auto stateV2 = publishAndApplyConfig(stateV1, &config, platform.get());
+  ASSERT_NE(nullptr, stateV2);
+
+  auto verifyRemoteInterfaceTypeHelper =
+      [](const std::shared_ptr<MultiSwitchInterfaceMap>& intfs,
+         const std::optional<RemoteInterfaceType>& expectedType) {
+        EXPECT_GT(intfs->size(), 0);
+        for (const auto& [_, intfMap] : std::as_const(*intfs)) {
+          for (const auto& [_, intf] : std::as_const(*intfMap)) {
+            EXPECT_EQ(intf->getRemoteInterfaceType(), expectedType);
+          }
+        }
+      };
+
+  // Local interfaces don't have remoteInterfaceType
+  verifyRemoteInterfaceTypeHelper(
+      stateV1->getInterfaces(),
+      std::optional<RemoteInterfaceType>(std::nullopt));
+
+  // Only statically programmed remote interfaces should be present given the
+  // config applied.
+  verifyRemoteInterfaceTypeHelper(
+      stateV2->getRemoteInterfaces(),
+      std::optional<RemoteInterfaceType>(RemoteInterfaceType::STATIC_ENTRY));
+}

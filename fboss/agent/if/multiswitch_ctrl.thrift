@@ -60,7 +60,7 @@ struct HwSwitchStats {
   5: hardware_stats.HwAsicErrors hwAsicErrors;
   6: map<string, hardware_stats.HwSysPortStats> sysPortStats;
   7: hardware_stats.TeFlowStats teFlowStats;
-  8: hardware_stats.HwBufferPoolStats bufferPoolStats;
+  8: hardware_stats.HwBufferPoolStats bufferPoolStats_DEPRECATED;
   9: hardware_stats.FabricReachabilityStats fabricReachabilityStats;
   10: hardware_stats.HwSwitchFb303GlobalStats fb303GlobalStats;
   11: hardware_stats.CpuPortStats cpuPortStats;
@@ -68,6 +68,7 @@ struct HwSwitchStats {
   13: hardware_stats.HwFlowletStats flowletStats;
   14: map<i32, phy.PhyInfo> phyInfo;
   15: hardware_stats.AclStats aclStats;
+  16: hardware_stats.HwSwitchWatermarkStats switchWatermarkStats;
 }
 
 service MultiSwitchCtrl {

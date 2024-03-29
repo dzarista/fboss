@@ -518,7 +518,7 @@ bool HwSwitchEnsemble::ensureSendPacketSwitched(std::unique_ptr<TxPacket> pkt) {
   };
 
   return utility::ensureSendPacketSwitched(
-      getHwSwitch(),
+      this,
       std::move(pkt),
       masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
       getPortStats,
@@ -536,7 +536,7 @@ bool HwSwitchEnsemble::ensureSendPacketOutOfPort(
     return getLatestPortStats(portIds);
   };
   return utility::ensureSendPacketOutOfPort(
-      getHwSwitch(),
+      this,
       std::move(pkt),
       portID,
       masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
@@ -862,7 +862,10 @@ bool HwSwitchEnsemble::waitForRateOnPort(
     auto curPortBytes = *curPortStats.outBytes_() + packetPaddingBytes;
     auto rate = static_cast<uint64_t>((curPortBytes - prevPortBytes) * 8) /
         secondsToWaitPerIteration;
-    if (rate >= desiredBps) {
+    if (desiredBps == 0 && rate == desiredBps) {
+      XLOG(DBG0) << "Expect no traffic: Current rate " << rate << " bps!";
+      return true;
+    } else if (desiredBps > 0 && rate >= desiredBps) {
       XLOG(DBG0) << ": Current rate " << rate << " bps!";
       return true;
     } else {
@@ -985,5 +988,26 @@ void HwSwitchEnsemble::storeWarmBootState(const state::WarmbootState& state) {
 }
 LinkStateToggler* HwSwitchEnsemble::getLinkToggler() {
   return linkToggler_.get();
+}
+
+void HwSwitchEnsemble::sendPacketAsync(
+    std::unique_ptr<TxPacket> pkt,
+    std::optional<PortDescriptor> portDescriptor,
+    std::optional<uint8_t> queueId) {
+  if (!portDescriptor.has_value()) {
+    getHwSwitch()->sendPacketSwitchedSync(std::move(pkt));
+    return;
+  }
+  if (!portDescriptor->isPhysicalPort()) {
+    throw FbossError(
+        "sendPacketAsync only supports physical ports, but got ",
+        portDescriptor->str());
+  }
+  getHwSwitch()->sendPacketOutOfPortAsync(
+      std::move(pkt), portDescriptor->phyPortID(), queueId);
+}
+
+std::unique_ptr<TxPacket> HwSwitchEnsemble::allocatePacket(uint32_t size) {
+  return getHwSwitch()->allocatePacket(size);
 }
 } // namespace facebook::fboss

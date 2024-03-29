@@ -101,6 +101,16 @@ class HwEcmpTest : public HwLinkStateDependentTest {
   void verifyResolvedUcmp(
       const folly::CIDRNetwork& routePrefix,
       const std::vector<NextHopWeight>& hwWs);
+  uint32_t getMaxEcmpGroups(const HwAsic* asic) const {
+    auto maxEcmpGroups = asic->getMaxEcmpGroups();
+    CHECK(maxEcmpGroups.has_value());
+    return maxEcmpGroups.value();
+  }
+  uint32_t getMaxEcmpMembers(const HwAsic* asic) const {
+    auto maxEcmpMembers = asic->getMaxEcmpMembers();
+    CHECK(maxEcmpMembers.has_value());
+    return maxEcmpMembers.value();
+  }
 };
 
 void HwEcmpTest::programResolvedUcmp(
@@ -480,6 +490,29 @@ TEST_F(HwEcmpTest, UcmpL2ResolveBothNhopsInThenLinkFlap) {
   auto totalWeightInHw2 =
       utility::getTotalEcmpMemberWeight(getHwSwitch(), pathsInHw2);
   EXPECT_EQ(10, totalWeightInHw2);
+}
+
+// Generate all possible combinations of k selections of the input
+// vector.
+// taken from fbcode/axon/common/coro_util.h
+std::vector<std::vector<PortDescriptor>> genCombinations(
+    const std::vector<PortDescriptor>& inputs,
+    size_t k) {
+  size_t n = inputs.size();
+  std::vector<std::vector<PortDescriptor>> output;
+  std::vector<bool> picked(n);
+  std::fill(picked.begin(), picked.begin() + k, true);
+  do {
+    std::vector<PortDescriptor> currentCombination;
+    for (size_t idx = 0; idx < n; idx++) {
+      if (picked[idx]) {
+        currentCombination.push_back(inputs[idx]);
+      }
+    }
+    output.push_back(currentCombination);
+  } while (std::prev_permutation(picked.begin(), picked.end()));
+
+  return output;
 }
 
 template <bool enableIntfNbrTable>

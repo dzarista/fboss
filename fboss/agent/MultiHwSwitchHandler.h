@@ -87,29 +87,11 @@ class MultiHwSwitchHandler {
 
   bool transactionsSupported() const;
 
-  HwSwitchFb303Stats* getSwitchStats();
-
-  folly::F14FastMap<std::string, HwPortStats> getPortStats();
-
-  CpuPortStats getCpuPortStats(bool getIncrement);
-
-  std::map<std::string, HwSysPortStats> getSysPortStats();
-  HwSwitchDropStats getSwitchDropStats() const;
-
-  void updateStats();
-
-  void updateAllPhyInfo();
-  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const;
-
-  uint64_t getDeviceWatermarkBytes();
-
-  HwFlowletStats getHwFlowletStats();
-
   void clearPortStats(const std::unique_ptr<std::vector<int32_t>>& ports);
 
   std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId);
 
-  void clearPortAsicPrbsStats(int32_t portId);
+  void clearPortAsicPrbsStats(PortID portId);
 
   std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(int32_t portId);
 
