@@ -7,7 +7,7 @@
             "github.com/aristanetworks/fboss-centos": {
                "commit": "d8ac18a95ef11ce829fe026875e05043702079e3"
             },
-            "github.com/aristanetworks/Aqua_SAI": {
+            "code.arista.io/aqua-sai/in-eos": {
                "commit": "ff15bb8327b4e8436e135b626cd356b713860c05"
             },
             "code.arista.io/infra/barney/barnzilla": {
