@@ -110,13 +110,13 @@ maybe_setup_build_env() {
    git clone git@github.com:aristanetworks/Aqua_SAI.git
    cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
-   git checkout Arista-SAI_11.0.0.7_EA
+   git checkout eos-trunk
    # Use patch0-Jupiter-SAI-Makefile.patch w/SAI < 10.0.0
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
    cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA"
-   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.30-fe1e1b00b.tar.xz
-   tar -xf sai-sdk-all-6.5.30-fe1e1b00b.tar.xz
+   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.30-3b0da5a59.tar.xz
+   tar -xf sai-sdk-all-6.5.30-3b0da5a59.tar.xz
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29
    wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
    patch "dnx-sdk-6.5.30-gpl-modules/make/Make.config" < patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
@@ -128,6 +128,12 @@ maybe_setup_build_env() {
    wget http://dist/storage/fboss/FBOSS-SAI/patch12-SDK-6_5_29-get_time-symbol-fix.patch
    patch "hsdk-all-6.5.30/src/appl/diag/gdpll.c" -p1 < patch12-SDK-6_5_29-get_time-symbol-fix.patch
 
+   # Patch bcm-knet.c kernel module to workaround some missing netdev_* API calls in
+   # the kernel we are building. Should be available in the 6.x kernels.
+   # TODO : get rid of this patch when we switch to 6.x kernel.
+   wget http://dist/storage/fboss/FBOSS-SAI/patch15-SDK-6_5_30_SP1_bcm-knet-build-fixes.patch
+   patch "dnx-sdk-6.5.30-gpl-modules/systems/linux/kernel/modules/bcm-knet/bcm-knet.c" < patch15-SDK-6_5_30_SP1_bcm-knet-build-fixes.patch
+
    # Kernel 5.19 patches.
    if [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]]; then
       # We need to fix some conflicting build options and fix the linux-user-bde Makefile
@@ -135,16 +141,6 @@ maybe_setup_build_env() {
       wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post-SDK-6_5_30.patch
       patch -p1 < patch9-SDK-5.19-post-SDK-6_5_30.patch
    fi
-
-   # SAI 11.0.0.7 specific fixes (can be removed in next release).
-   cd hsdk-all-6.5.30
-   # Fix RxSignalDetect not supported on ports issue, which also currently breaks
-   # fetching any kind of phy stats.
-   wget http://dist/storage/fboss/FBOSS-SAI/patch13-SDK-6_5_30_RxSignalDetect_fix.patch
-   patch -p1 < patch13-SDK-6_5_30_RxSignalDetect_fix.patch
-   # Fix to avoid drops caused by NDP/ICMP packets hitting default route.
-   wget http://dist/storage/fboss/FBOSS-SAI/patch14-SDK-6_5_30_default_route_drop_fix.patch
-   patch -p1 < patch14-SDK-6_5_30_default_route_drop_fix.patch
 
    # Centos 9 build related patches and deps
    if [[ "${CENTOS_RELEASE}" == "9" ]];
