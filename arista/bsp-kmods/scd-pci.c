@@ -35,6 +35,8 @@
 #include "fbiob-cdev.h"
 
 #define SCD_MODULE_NAME			"scd"
+#define GLOBAL_REG_SIZE			0x6000
+#define REG_BLK_SIZE			4
 
 #define SCD_PCI_VENDOR_ID		0x3475
 #define SCD_PCI_DEVICE_ID		0x0001
@@ -81,6 +83,7 @@ struct regbit_sysfs_entry {
 	u32 reg_offset;
 	u32 bit_offset;
 	u32 bit_len;
+	void __iomem *mem;
 };
 
 struct scd_dev_priv {
@@ -129,7 +132,7 @@ static int lpc_irq = 7;
 module_param(lpc_irq, int, 0);
 MODULE_PARM_DESC(lpc_irq, "interrupt of LPC SCD");
 
-u32 scd_read_register(struct pci_dev *pdev, u32 offset)
+u32 scd_read_register(struct pci_dev *pdev, u32 offset, void __iomem *mem)
 {
 	void __iomem *reg;
 	u32 res = 0;
@@ -138,7 +141,11 @@ u32 scd_read_register(struct pci_dev *pdev, u32 offset)
 	ASSERT(priv);
 	ASSERT(offset < priv->mem_len);
 	if (priv) {
-		reg = priv->mem + offset;
+		if (offset > GLOBAL_REG_SIZE && mem != NULL) {
+			reg = mem;
+		} else {
+			reg = priv->mem + offset;
+		}
 		res = ioread32(reg);
 	}
 	dev_dbg(&pdev->dev, "io:read 0x%04x => 0x%08x", offset, res);
@@ -146,7 +153,7 @@ u32 scd_read_register(struct pci_dev *pdev, u32 offset)
 }
 EXPORT_SYMBOL(scd_read_register);
 
-void scd_write_register(struct pci_dev *pdev, u32 offset, u32 val)
+void scd_write_register(struct pci_dev *pdev, u32 offset, u32 val, void __iomem *mem)
 {
 	void __iomem *reg;
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
@@ -155,19 +162,28 @@ void scd_write_register(struct pci_dev *pdev, u32 offset, u32 val)
 	ASSERT(offset < priv->mem_len);
 	dev_dbg(&pdev->dev, "io:write 0x%04x <= 0x%08x", offset, val);
 	if (priv) {
-		reg = priv->mem + offset;
+		if (offset > GLOBAL_REG_SIZE && mem != NULL) {
+			reg = mem;
+		} else {
+			reg = priv->mem + offset;
+		}
 		iowrite32(val, reg);
 	}
 }
 EXPORT_SYMBOL(scd_write_register);
 
 static ssize_t chassis_power_cycle(struct device *dev,
-				   struct device_attribute *attr,
+				   struct device_attribute *dattr,
 				   const char *buf,
 				   size_t count)
 {
 	struct scd_dev_priv *priv = dev_get_drvdata(dev);
 	unsigned long cmd = simple_strtoul(buf, NULL, 0);
+	struct regbit_sysfs_entry *entry = priv->regbit_sysfs_table;
+	struct attribute *attr = &dattr->attr;
+
+	if (entry == NULL)
+		return -ENOENT;
 
 	/*
 	 * Users must write "0xdead" to trigger power cycle, and this is
@@ -176,19 +192,31 @@ static ssize_t chassis_power_cycle(struct device *dev,
 	if (cmd != 0xdead)
 		return -EINVAL;
 
-	iowrite32(cmd, priv->mem + 0x7000);
-	return count; /* Never reach here as chassis is power cycled */
+	for (; entry->name != NULL; entry++) {
+		if (strcmp(entry->name, attr->name))
+			continue;
+		ASSERT(entry->mem);
+		iowrite32(cmd, entry->mem);
+		return count; /* Never reach here as chassis is power cycled */
+	}
+
+	return -ENOENT;
 }
 static DEVICE_ATTR(chassis_power_cycle, S_IWUSR | S_IWGRP, NULL,
 		   chassis_power_cycle);
 
 static ssize_t cpu_reset(struct device *dev,
-			 struct device_attribute *attr,
+			 struct device_attribute *dattr,
 			 const char *buf,
 			 size_t count)
 {
 	struct scd_dev_priv *priv = dev_get_drvdata(dev);
 	unsigned long cmd = simple_strtoul(buf, NULL, 0);
+	struct regbit_sysfs_entry *entry = priv->regbit_sysfs_table;
+	struct attribute *attr = &dattr->attr;
+
+	if (entry == NULL)
+		return -ENOENT;
 
 	/*
 	 * Users must write "0x824" to trigger cpu reset or "0x0" to clear a
@@ -197,8 +225,15 @@ static ssize_t cpu_reset(struct device *dev,
 	if (cmd != 0x824 && cmd != 0x0)
 		return -EINVAL;
 
-	iowrite32(cmd, priv->mem + 0x7300);
-	return count; /* Could reach here in the event of a dud reset */
+	for (; entry->name != NULL; entry++) {
+		if (strcmp(entry->name, attr->name))
+			continue;
+		ASSERT(entry->mem);
+		iowrite32(cmd, entry->mem);
+		return count; /* Could reach here in the event of a dud reset */
+	}
+
+	return -ENOENT;
 }
 static DEVICE_ATTR(cpu_reset, S_IWUSR | S_IWGRP, NULL, cpu_reset);
 
@@ -215,7 +250,8 @@ static ssize_t regbit_sysfs_show(struct device *dev,
 
 	for (; entry->name != NULL; entry++) {
 		if (strcmp(entry->name, attr->name) == 0) {
-			data = scd_read_register(priv->pdev, entry->reg_offset);
+			data = scd_read_register(priv->pdev, entry->reg_offset,
+						 entry->mem);
 			mask = GENMASK(entry->bit_len - 1, 0);
 			data = (data >> entry->bit_offset) & mask;
 
@@ -248,10 +284,10 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 		if (input & ~mask)
 			return -EINVAL;
 
-		data = scd_read_register(priv->pdev, entry->reg_offset);
+		data = scd_read_register(priv->pdev, entry->reg_offset, entry->mem);
 		data &= ~(mask << entry->bit_offset);
 		data |= (input << entry->bit_offset);
-		scd_write_register(priv->pdev, entry->reg_offset, data);
+		scd_write_register(priv->pdev, entry->reg_offset, data, entry->mem);
 		return count;
 	}
 
@@ -268,6 +304,13 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 #define REGBIT_COMMON_FILES								\
 	REGBIT_FILE(fpga_sub_ver, 0x100, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(fpga_ver, 0x100, 16, 16, FMODE_RO, regbit_sysfs_show, NULL)
+
+#define REGBIT_CHASSIS_POWER_CYCLE_FILE							\
+	REGBIT_FILE(chassis_power_cycle, 0x7000, 0, 32, S_IWUSR | S_IWGRP,		\
+		    NULL, chassis_power_cycle)
+
+#define REGBIT_CPU_RESET_FILE								\
+	REGBIT_FILE(cpu_reset, 0x7300, 0, 32, S_IWUSR | S_IWGRP, NULL, cpu_reset)	\
 
 #define DARWIN_REGBIT_FPGA_FILES							\
 	REGBIT_FILE(sat0_cpld_sub_ver, 0x400, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
@@ -376,6 +419,7 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 		.reg_offset = _reg,						\
 		.bit_offset = _bitops,						\
 		.bit_len = _bitlen,						\
+		.mem = NULL,							\
 	},
 
 struct regbit_sysfs_entry scd_regbit_sysfs[] = {
@@ -399,6 +443,8 @@ struct regbit_sysfs_entry darwin_scd_regbit_sysfs[] = {
 
 struct regbit_sysfs_entry rook_cpu_cpld_regbit_sysfs[] = {
 	REGBIT_COMMON_FILES
+	REGBIT_CHASSIS_POWER_CYCLE_FILE
+	REGBIT_CPU_RESET_FILE
 
 	/* Always the last entry */
 	{
@@ -409,6 +455,7 @@ struct regbit_sysfs_entry rook_cpu_cpld_regbit_sysfs[] = {
 struct regbit_sysfs_entry fairywren_scd_regbit_sysfs[] = {
 	REGBIT_COMMON_FILES
 	FAIRYWREN_REGBIT_FPGA_FILES
+	REGBIT_CHASSIS_POWER_CYCLE_FILE
 
 	/* Always the last entry */
 	{
@@ -542,6 +589,7 @@ BLACKCOMB_SCD_ATTRS(3)
 static void scd_pci_disable(struct pci_dev *pdev)
 {
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
+	struct regbit_sysfs_entry *sysfs_entry;
 
 	if (priv->localbus) {
 		pci_iounmap(pdev, priv->localbus);
@@ -553,6 +601,13 @@ static void scd_pci_disable(struct pci_dev *pdev)
 		priv->mem = NULL;
 	}
 
+	sysfs_entry = priv->regbit_sysfs_table;
+	for(; sysfs_entry != NULL && sysfs_entry->name != NULL; sysfs_entry++) {
+		if (sysfs_entry->reg_offset > GLOBAL_REG_SIZE) {
+			sysfs_entry->mem = NULL;
+		}
+	}
+
 	pci_disable_device(pdev);
 }
 
@@ -562,8 +617,8 @@ static int scd_pci_enable(struct pci_dev *pdev)
 	int err;
 	u16 ssid;
 	struct resource *res;
-	u32 global_reg_size = 0x6000;
 	struct device *dev = &pdev->dev;
+	struct regbit_sysfs_entry *sysfs_entry;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -575,18 +630,45 @@ static int scd_pci_enable(struct pci_dev *pdev)
 	priv->mem_len = pci_resource_len(pdev, SCD_BAR_REGS);
 
 	res = devm_request_mem_region(dev, priv->csr_bus_addr,
-					global_reg_size, SCD_MODULE_NAME);
+					GLOBAL_REG_SIZE, SCD_MODULE_NAME);
         if (!res) {
                 err = -EBUSY;
 		dev_err(dev, "cannot request PCI memory region\n");
 		goto err_exit;
 	}
 
-	priv->mem = devm_ioremap(dev, priv->csr_bus_addr, global_reg_size);
+	priv->mem = devm_ioremap(dev, priv->csr_bus_addr, GLOBAL_REG_SIZE);
 	if (!priv->mem) {
 		dev_err(dev, "cannot remap PCI memory region\n");
 		err = -ENXIO;
 		goto err_exit;
+	}
+
+	/*
+	 * Check if any of the sysfs attrs managed by this device appear outside
+	 * of the contiguous global address space. If so, request the memory
+	 * region.
+	 */
+	sysfs_entry = priv->regbit_sysfs_table;
+	for(; sysfs_entry != NULL && sysfs_entry->name != NULL; sysfs_entry++) {
+		if (sysfs_entry->reg_offset > GLOBAL_REG_SIZE) {
+			res = devm_request_mem_region(
+				dev, priv->csr_bus_addr + sysfs_entry->reg_offset,
+				REG_BLK_SIZE, SCD_MODULE_NAME);
+			if (!res) {
+				err = -EBUSY;
+				dev_err(dev, "cannot request PCI memory region\n");
+				goto err_exit;
+			}
+			sysfs_entry->mem = devm_ioremap(
+				dev, priv->csr_bus_addr + sysfs_entry->reg_offset,
+				REG_BLK_SIZE);
+			if (!sysfs_entry->mem) {
+				dev_err(dev, "cannot remap PCI memory region\n");
+				err = -ENXIO;
+				goto err_exit;
+			}
+		}
 	}
 
 	/*
