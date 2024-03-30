@@ -208,6 +208,10 @@ then
    rm -rf $SCRATCH_DIR/extracted
    rm -rf $SCRATCH_DIR/repos
    rm -rf "$SCRATCH_DIR"/fboss_bins*
+   rm -rf $SCRATCH_DIR/bsp-kmods
+   rm -rf $SCRATCH_DIR/showtech
+   make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
+   make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 fi
 cd $FBOSS_DIR/fboss.git
 
@@ -303,6 +307,16 @@ else
    lib_path=$(find "$SCRATCH_DIR/installed" -name $lib)
    echo "Copying $lib from $lib_path to $fboss_output_dir/lib64"
    cp -L $lib_path $fboss_output_dir/lib64
+
+   echo "****BUILDING BSP-KMODS"
+   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods modules
+   mkdir -p $SCRATCH_DIR/bsp-kmods
+   cp -f $FBOSS_DIR/fboss.git/arista/bsp-kmods/*.ko $SCRATCH_DIR/bsp-kmods/
+
+   echo "****BUILDING SHOWTECH DEPENDENCIES"
+   make -C $FBOSS_DIR/fboss.git/arista/showtech
+   mkdir -p $SCRATCH_DIR/showtech
+   cp -f $FBOSS_DIR/fboss.git/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
 
    # Copy over kernel modules
    mkdir -p "$fboss_output_dir/lib/modules"
