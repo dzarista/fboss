@@ -7,6 +7,7 @@ import ArosTest
 from ArosTest.DutMgmt import defaultEdut
 
 import argparse
+import CliTest
 import datetime
 import pandas as pd
 import re
@@ -45,8 +46,6 @@ class FbossFanTestEdut():
       if idBits == 0:
          return 'SANYO DENKI'
       elif idBits == 1:
-         return 'DELTA'
-      elif idBits == 3: #TODO: remove
          return 'DELTA'
       else:
          raise ValueError( 'Fan mfr not detected' )
@@ -136,10 +135,6 @@ class FbossFanTestEdut():
       '''Return a list of all system fan PWM (%)'''
       raise NotImplementedError
 
-   def setPwm( self, pwm ):
-      '''Set pwm (0-100%) on all fans'''
-      raise NotImplementedError
-
    def getHottestOpticTemp( self ):
       return max( self.getOpticTemps() )
 
@@ -171,6 +166,14 @@ class FbossFanTestEdut():
 
    def getSystemIntfsTemp( self ):
       return self.edut.showCmdIs( 'show sys env temp transceiver' )
+
+   def overridePidAlgo( self ):
+      '''Override fan speed to EOS minimum (30) to allow for fan speed to be
+      set without interference'''
+      cli = self.edut.consoleCli()
+      cli.gotoMode( CliTest.enableMode )
+      with CliTest.MaybeRunInConfigSession( cli ):
+         cli.runCmd( "environment fan-speed override 30" )
 
    def collectData( self ):
       '''Return an object with all collected data'''
@@ -254,15 +257,6 @@ class Monterey( FbossFanTestEdut ):
             format( i ), 'ls -l' )[ 0 ].split( ' ' )[ -1 ]
          rpmList.append( maxSpeed * float( pct ) / 100.0 )
       return rpmList
-
-   def setPwm( self, pwm ):
-      # pwm comes in as a %, set it as an integer range 0->255
-      # requires agents to not set pwm
-      pwm = int( 255.0 * pwm / 100.0 )
-      for addr in [ 0x10, 0x20, 0x30, 0x40, 0x50 ]:
-         self.edut.bashCmdIs(
-               f'smbus write8 /scd/04/00/0x60 {addr} {pwm}'.format(
-               addr=addr, pwm=pwm ) )
 
    def getFanPwms( self ):
       '''Return Fan PWMs as a list, reported as a percentage'''
@@ -377,15 +371,6 @@ class Viper( FbossFanTestEdut ):
             format( i ), 'ls -l' )[ 0 ].split( ' ' )[ -1 ]
          rpmList.append( maxSpeed * float( pct ) / 100.0 )
       return rpmList
-
-   def setPwm( self, pwm ):
-      # pwm comes in as a %, set it as an integer range 0->255
-      # requires agents to not set pwm
-      pwm = int( 255.0 * pwm / 100.0 )
-      for addr in [ 0x10, 0x20, 0x30, 0x40 ]:
-         self.edut.bashCmdIs(
-               f'smbus write8 /scd/1/3/0x60 {addr} {pwm}'.format(
-               addr=addr, pwm=pwm ) )
 
    def getFanPwms( self ):
       '''Return Fan PWMs as a list, reported as a percentage'''
@@ -515,15 +500,6 @@ class Whistler( FbossFanTestEdut ):
          rpmList.append( maxSpeed * float( pct ) / 100.0 )
       return rpmList
 
-   def setPwm( self, pwm ):
-      # pwm comes in as a %, set it as an integer range 0->255
-      # requires agents to not set pwm
-      pwm = int( 255.0 * pwm / 100.0 )
-
-      for cpldAddr in ( 0x60, 0x61, 0x62 ):
-         for fanReg in ( 0x10, 0x20, 0x30, 0x40 ):
-            self.edut.bashCmdIs( f'smbus write8 /scd/1/3/{cpldAddr} {fanReg} {pwm}' )
-
    def getFanPwms( self ):
       '''Return Fan PWMs as a list, reported as a percentage'''
       pwms = []
@@ -604,7 +580,10 @@ def main( argv ):
       'HottestAsic', 'AvgFanPwm', 'Airflow(CFM)', 'SystemPower',
       'Inlet', 'Outlet' ] )
 
+   obj.overridePidAlgo()
+
    for targetRpm in range( args.start_rpm, args.end_rpm + 1, args.stride ):
+      print( f'Setting fan speed to {targetRpm}' )
       obj.setFanRpm( targetRpm )
       time.sleep( args.soak_time * 60 )
 
