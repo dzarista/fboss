@@ -31,15 +31,6 @@ target_link_libraries(hw_test_main
   ${LIBGMOCK_LIBRARIES}
 )
 
-add_library(hw_agent_packet_utils
-  fboss/agent/hw/test/HwAgentTestPacketSnooper.cpp
-)
-
-target_link_libraries(hw_agent_packet_utils
-  Folly::folly
-  packet_factory
-)
-
 add_library(hw_packet_utils
   fboss/agent/hw/test/HwTestLearningUpdateObserver.cpp
   fboss/agent/hw/test/HwTestLinkScanUpdateObserver.cpp
@@ -50,6 +41,7 @@ add_library(hw_packet_utils
 target_link_libraries(hw_packet_utils
   hw_switch_ensemble
   packet_factory
+  packet_snooper
   Folly::folly
   resourcelibutil
 )
@@ -251,7 +243,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/HwCoppTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwDeepPacketInspectionTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwAqmTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwJumboFramesTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwInPauseDiscardsTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwIpInIpTunnelTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwL4PortBlackholingTests.cpp
@@ -325,6 +316,7 @@ target_link_libraries(hw_switch_test
   config_factory
   agent_test_utils
   acl_test_utils
+  config_utils
   copp_test_utils
   dscp_marking_utils
   ecmp_dataplane_test_util
@@ -380,6 +372,7 @@ target_link_libraries(prod_config_factory
   olympic_qos_utils
   queue_per_host_test_utils
   load_balancer_utils
+  load_balancer_test_utils
   hw_pfc_utils
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}

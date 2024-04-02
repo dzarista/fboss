@@ -103,6 +103,7 @@ target_link_libraries(config_utils
   Folly::folly
   platform_mapping
   switch_config_cpp2
+  test_ensemble_if
 )
 
 add_library(common_test_utils
@@ -228,4 +229,17 @@ target_link_libraries(port_stats_test_utils
   Folly::folly
   switch_config_cpp2
   FBThrift::thriftcpp2
+)
+
+add_library(packet_snooper
+  fboss/agent/test/utils/PacketSnooper.cpp
+)
+
+target_link_libraries(packet_snooper
+  core
+  fboss_types
+  packet
+  packet_observer
+  packet_factory
+  Folly::folly
 )

@@ -15,10 +15,6 @@ class MultiSwitchThriftHandler
 
 #if FOLLY_HAS_COROUTINES
   folly::coro::Task<
-      apache::thrift::SinkConsumer<multiswitch::LinkActiveEvent, bool>>
-  co_notifyLinkActiveEvent(int64_t switchId) override;
-
-  folly::coro::Task<
       apache::thrift::SinkConsumer<multiswitch::LinkChangeEvent, bool>>
   co_notifyLinkChangeEvent(int64_t switchId) override;
   folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::FdbEvent, bool>>
@@ -50,6 +46,9 @@ class MultiSwitchThriftHandler
       SwitchID switchId,
       const multiswitch::LinkChangeEvent& linkChangeEvent);
   void processLinkActiveState(
+      SwitchID switchId,
+      const multiswitch::LinkChangeEvent& linkChangeEvent);
+  void processLinkConnectivity(
       SwitchID switchId,
       const multiswitch::LinkChangeEvent& linkChangeEvent);
   void ensureConfigured(folly::StringPiece function) const;
