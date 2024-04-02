@@ -301,7 +301,7 @@ class Viper( FbossFanTestEdut ):
       return fanIds
 
    def getOpticTemps( self ):
-      opticsTemps = [40] #TODO: remove 40
+      opticsTemps = []
       shXcvr = self.edut.showCmdIs( 'show int transc', dataFormat='json' )[
                                     'interfaces' ]
       for intf in shXcvr:
@@ -315,26 +315,26 @@ class Viper( FbossFanTestEdut ):
       asicTemps = []
       shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
       for sensor in shTemp[ 'tempSensors' ]:
-         # match 'Jericho3' or 'J3'
-         if re.search( 'Jericho3|J3', sensor[ 'description' ] ):
+         # match all J3 sensors (exclude VRMs)
+         if re.search( r'^(?=.*J3 )(?!.*VRM)', sensor[ 'description' ] ):
             asicTemps.append( sensor[ 'currentTemperature' ] )
       return asicTemps
 
    def getInletTemp( self ):
       '''Return the inlet temperature'''
+      temps = []
       shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
       for sensor in shTemp[ 'tempSensors' ]:
-         # Exact Match
-         if re.search( 'Board front', sensor[ 'description' ] ):
-            return sensor[ 'currentTemperature' ]
-      return 0
+         if sensor[ 'description' ] in ( "Board front", "Board Rear", "Management Card" ):
+            temps.append( sensor[ 'currentTemperature' ] )
+      return max( temps )
 
    def getOutletTemp( self ):
       '''Return the outlet temperature'''
       shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
       for sensor in shTemp[ 'tempSensors' ]:
          # Exact Match
-         if re.search( 'Board Rear', sensor[ 'description' ] ):
+         if re.search( 'Fan Card', sensor[ 'description' ] ):
             return sensor[ 'currentTemperature' ]
       return 0
 
@@ -343,7 +343,7 @@ class Viper( FbossFanTestEdut ):
       cpuTemps = []
       shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
       for sensor in shTemp[ 'tempSensors' ]:
-         if re.search( 'CPU', sensor[ 'description' ] ):
+         if re.search( r'^(?=.*CPU)(?!.*VRM)', sensor[ 'description' ] ):
             cpuTemps.append( sensor[ 'currentTemperature' ] )
       return cpuTemps
    
@@ -462,7 +462,7 @@ class Whistler( FbossFanTestEdut ):
       shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
       for sensor in shTemp[ 'tempSensors' ]:
          # Exact Match
-         if re.search( 'Board', sensor[ 'description' ] ):
+         if re.search( 'Fan Card', sensor[ 'description' ] ):
             temps.append( sensor[ 'currentTemperature' ] )
       return max( temps )
 
@@ -471,7 +471,7 @@ class Whistler( FbossFanTestEdut ):
       cpuTemps = []
       shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
       for sensor in shTemp[ 'tempSensors' ]:
-         if re.search( 'CPU', sensor[ 'description' ] ):
+         if re.search( r'^(?=.*CPU)(?!.*VRM)', sensor[ 'description' ] ):
             cpuTemps.append( sensor[ 'currentTemperature' ] )
       return cpuTemps
    
