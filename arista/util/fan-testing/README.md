@@ -9,7 +9,7 @@ CollectFanSweepData.py can be modified with a new class added to support running
 
 
 e.g: Viper
-AROSTEST_SKIP=all python3 CollectFanSweepData.py -d vpr123 --stride 10 --start-rpm 20 --end-rpm 100 --soak-time 60
+python3 CollectFanSweepData.py -d vpr114 --soak-time 60 --rpms 100 90 80 70 60 50 40 30 20
 
 
 # NOTE

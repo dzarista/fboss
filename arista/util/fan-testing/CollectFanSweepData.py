@@ -16,6 +16,8 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
+DEFAULT_RPMS = [ 100, 90, 80, 70, 60, 50, 40, 30, 25, 20 ]
+
 tool_description = '''This script is intended to collect some thermal data on
 a system for intention of generating some Thermal fan control tables
 for FBOSS/OpenBMC.
@@ -25,8 +27,8 @@ can generate a csv, which can be maually inspected and processed to generate
 a table for certain temperature sensors to PWM.
 
 For Example:
-python3 CollectFanSweepData.py -d vpr114 --start-rpm 30 --end-rpm 100
---stride 10 --soak-time 60'''
+python3 CollectFanSweepData.py -d vpr114 --soak-time 60 --rpms 100 90 80 70 60 50 40
+30 20'''
 
 def getAverage( data ):
    '''Return an average of a data formatted as a list'''
@@ -299,7 +301,7 @@ class Viper( FbossFanTestEdut ):
       return fanIds
 
    def getOpticTemps( self ):
-      opticsTemps = []
+      opticsTemps = [40] #TODO: remove 40
       shXcvr = self.edut.showCmdIs( 'show int transc', dataFormat='json' )[
                                     'interfaces' ]
       for intf in shXcvr:
@@ -534,16 +536,10 @@ def parseArgs( argv ):
    parser = argparse.ArgumentParser(
          prog='CollectFanSweepData', description=tool_description )
    parser.add_argument( '-d', '--dut', help='Dut to setup fan data collection' )
-   parser.add_argument( '--stride', type=int, default=10,
-         help='RPM percent step size between start/end' )
    parser.add_argument( '--soak-time', type=int, default=30,
          help='Number minutes to soak at each step' )
-   parser.add_argument( '--start-rpm', type=int, default=0,
-         help='Minimum percent of maxRPM to start collecting data' )
-   parser.add_argument( '--end-rpm', type=int, default=100,
-         help='Maximum percent of maxRPM to start collecting data' )
-
-   parser.add_argument( '--csv', action='store_true' )
+   parser.add_argument( '--rpms', metavar='N', type=int, nargs='*',
+         default=DEFAULT_RPMS, help='List of RPMs to iterate through')
    return parser.parse_args( argv )
 
 def main( argv ):
@@ -582,7 +578,7 @@ def main( argv ):
 
    obj.overridePidAlgo()
 
-   for targetRpm in range( args.start_rpm, args.end_rpm + 1, args.stride ):
+   for targetRpm in args.rpms:
       print( f'Setting fan speed to {targetRpm}' )
       obj.setFanRpm( targetRpm )
       time.sleep( args.soak_time * 60 )
@@ -604,7 +600,7 @@ def main( argv ):
          System: {args.dut}\n
          Timestamp: {timestamp}\n
          Soak Time: {args.soak_time} Minutes\n
-         Stride Size: {args.stride}%
+         RPMs List: {args.rpms}
       '''
       ax.text( 0, 1, coverLog, fontsize = 12, va = 'top', ha = 'left' )
       ax.axis( 'off' )
