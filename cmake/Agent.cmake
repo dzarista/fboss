@@ -168,6 +168,7 @@ add_library(core
   fboss/agent/LoadBalancerConfigApplier.cpp
   fboss/agent/LookupClassUpdater.cpp
   fboss/agent/LookupClassRouteUpdater.cpp
+  fboss/agent/LinkConnectivityProcessor.cpp
   fboss/agent/MKAServicePorts.cpp
   fboss/agent/MKAServiceManager.cpp
   fboss/agent/MacTableManager.cpp
@@ -474,8 +475,7 @@ target_link_libraries(route_update_wrapper
 add_library(split_agent_thrift_syncer
   fboss/agent/mnpu/FdbEventSyncer.cpp
   fboss/agent/mnpu/HwSwitchStatsSinkClient.cpp
-  fboss/agent/mnpu/LinkEventSyncer.cpp
-  fboss/agent/mnpu/LinkActiveEventSyncer.cpp
+  fboss/agent/mnpu/LinkChangeEventSyncer.cpp
   fboss/agent/mnpu/OperDeltaSyncer.cpp
   fboss/agent/mnpu/RxPktEventSyncer.cpp
   fboss/agent/mnpu/SplitAgentThriftSyncer.cpp

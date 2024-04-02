@@ -70,24 +70,6 @@ class HwEnsembleMultiSwitchThriftHandler
       : ensemble_(ensemble) {}
 
 #if FOLLY_HAS_COROUTINES
-  folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>>
-  co_notifyLinkEvent(int64_t switchId) override {
-    co_return apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>{
-        [switchId,
-         this](folly::coro::AsyncGenerator<multiswitch::LinkEvent&&> gen)
-            -> folly::coro::Task<bool> {
-          while (auto item = co_await gen.next()) {
-            XLOG(DBG3) << "Got link event from switch " << switchId
-                       << " for port " << *item->port()
-                       << " up :" << *item->up();
-            ensemble_->linkStateChanged(PortID(*item->port()), *item->up());
-          }
-          co_return true;
-        },
-        1000 /* buffer size */
-    };
-  }
-
   folly::coro::Task<
       apache::thrift::SinkConsumer<multiswitch::LinkActiveEvent, bool>>
   co_notifyLinkActiveEvent(int64_t switchId) override {
@@ -97,11 +79,34 @@ class HwEnsembleMultiSwitchThriftHandler
             -> folly::coro::Task<bool> {
           std::map<PortID, bool> port2IsActive;
           while (auto item = co_await gen.next()) {
-            XLOG(DBG3) << "Got link active event from switch " << switchId;
+            XLOG(DBG2) << "Got link active event from switch " << switchId;
             for (const auto& [portID, isActive] : *item->port2IsActive()) {
               port2IsActive[PortID(portID)] = isActive;
             }
             ensemble_->linkActiveStateChanged(port2IsActive);
+          }
+          co_return true;
+        },
+        1000 /* buffer size */
+    };
+  }
+
+  folly::coro::Task<
+      apache::thrift::SinkConsumer<multiswitch::LinkChangeEvent, bool>>
+  co_notifyLinkChangeEvent(int64_t switchId) override {
+    co_return apache::thrift::SinkConsumer<multiswitch::LinkChangeEvent, bool>{
+        [switchId,
+         this](folly::coro::AsyncGenerator<multiswitch::LinkChangeEvent&&> gen)
+            -> folly::coro::Task<bool> {
+          while (auto item = co_await gen.next()) {
+            if (item->linkStateEvent().has_value()) {
+              const auto& linkEvent = *item->linkStateEvent();
+              XLOG(DBG2) << "Got link state change event from switch "
+                         << switchId << " for port " << *linkEvent.port()
+                         << " up :" << *linkEvent.up();
+              ensemble_->linkStateChanged(
+                  PortID(*linkEvent.port()), *linkEvent.up());
+            }
           }
           co_return true;
         },

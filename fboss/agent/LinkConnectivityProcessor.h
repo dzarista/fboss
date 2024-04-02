@@ -9,20 +9,18 @@
  */
 #pragma once
 
-#include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
-
+#include <memory>
+#include "fboss/agent/HwSwitchCallback.h"
 #include "fboss/agent/types.h"
 
-#include <map>
-
 namespace facebook::fboss {
+class SwitchState;
 
-class HwSwitch;
-
-void updateHwSwitchStats(HwSwitch* hw);
-uint64_t getPortOutPkts(const HwPortStats& portStats);
-uint64_t getPortOutPkts(const std::map<PortID, HwPortStats>& port2Stats);
-uint64_t getPortInPkts(const HwPortStats& portStats);
-uint64_t getPortInPkts(const std::map<PortID, HwPortStats>& port2Stats);
-
+class LinkConnectivityProcessor {
+ public:
+  static std::shared_ptr<SwitchState> process(
+      const std::shared_ptr<SwitchState>& in,
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+          connectivityDelta);
+};
 } // namespace facebook::fboss

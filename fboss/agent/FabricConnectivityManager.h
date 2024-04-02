@@ -30,11 +30,13 @@ class FabricConnectivityManager {
 
   void stateUpdated(const StateDelta& stateDelta);
   const std::map<PortID, FabricEndpoint>& getConnectivityInfo() const;
-  std::optional<FabricConnectivityDelta> processConnectivityInfoForPort(
+  std::optional<multiswitch::FabricConnectivityDelta>
+  processConnectivityInfoForPort(
       const PortID& portId,
       const FabricEndpoint& hwConnectivity);
   bool isConnectivityInfoMissing(const PortID& portId);
   bool isConnectivityInfoMismatch(const PortID& portId);
+  static bool isConnectivityInfoMismatch(const FabricEndpoint& endpoint);
 
   using RemoteEndpoints = std::set<RemoteEndpoint, CompareRemoteEndpoint>;
   using RemoteConnectionGroups = std::map<int, RemoteEndpoints>;

@@ -9,6 +9,7 @@ add_library(acl_test_utils
 
 target_link_libraries(acl_test_utils
   fboss_error
+  hw_switch
   switch_config_cpp2
   switch_state_cpp2
 )
@@ -19,11 +20,15 @@ add_library(copp_test_utils
 
 target_link_libraries(copp_test_utils
   common_test_utils
-  switch_asics
-  packet_factory
   Folly::folly
+  hw_switch
+  load_balancer_test_utils
+  packet
+  packet_factory
   resourcelibutil
+  switch_asics
   switch_config_cpp2
+  test_ensemble_if
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
 )
@@ -131,9 +136,15 @@ add_library(queue_per_host_test_utils
 target_link_libraries(queue_per_host_test_utils
   common_test_utils
   acl_test_utils
+  common_utils
   config_utils
+  config_factory
   copp_test_utils
   traffic_policy_utils
+  load_balancer_test_utils
+  hw_switch
+  packet
+  packet_factory
   ecmp_helper
   fboss_types
   switch_asics
@@ -205,4 +216,16 @@ target_link_libraries(ecmp_dataplane_test_util
   load_balancer_test_utils
   fboss_types
   route_update_wrapper
+)
+
+add_library(port_stats_test_utils
+  fboss/agent/test/utils/PortStatsTestUtils.cpp
+)
+
+target_link_libraries(port_stats_test_utils
+  fboss_types
+  stats
+  Folly::folly
+  switch_config_cpp2
+  FBThrift::thriftcpp2
 )

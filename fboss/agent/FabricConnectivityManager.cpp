@@ -355,11 +355,11 @@ void FabricConnectivityManager::stateUpdated(const StateDelta& delta) {
   updateDsfNodes(delta);
 }
 
-std::optional<FabricConnectivityDelta>
+std::optional<multiswitch::FabricConnectivityDelta>
 FabricConnectivityManager::processConnectivityInfoForPort(
     const PortID& portId,
     const FabricEndpoint& hwEndpoint) {
-  std::optional<FabricConnectivityDelta> delta;
+  std::optional<multiswitch::FabricConnectivityDelta> delta;
   std::optional<FabricEndpoint> old;
   auto iter = currentNeighborConnectivity_.find(portId);
   if (iter != currentNeighborConnectivity_.end()) {
@@ -391,47 +391,52 @@ FabricConnectivityManager::processConnectivityInfoForPort(
     iter = currentNeighborConnectivity_.insert({portId, hwEndpoint}).first;
   }
   if (!old || (old != iter->second)) {
-    delta = FabricConnectivityDelta{old, iter->second};
+    delta = multiswitch::FabricConnectivityDelta();
+    if (old.has_value()) {
+      delta->oldConnectivity() = *old;
+    }
+    delta->newConnectivity() = iter->second;
   }
   return delta;
 }
 
 // Detect mismatch in expected vs. actual connectivity.
 // Points to cabling issues: no or wrong connection.
+
+bool FabricConnectivityManager::isConnectivityInfoMismatch(
+    const FabricEndpoint& endpoint) {
+  if (!*endpoint.isAttached()) {
+    // No connectivity seen - typically implies a DOWN port.
+    // Cannot conclude its a mismatch
+    return false;
+  }
+  if (endpoint.expectedSwitchId().has_value() &&
+      (endpoint.switchId() != endpoint.expectedSwitchId().value())) {
+    return true;
+  }
+  if (endpoint.expectedPortId().has_value() &&
+      (endpoint.portId() != endpoint.expectedPortId().value())) {
+    return true;
+  }
+
+  if (endpoint.switchName() != endpoint.expectedSwitchName()) {
+    // mismatch
+    return true;
+  }
+
+  if (endpoint.portName() != endpoint.expectedPortName()) {
+    // mismatch
+    return true;
+  }
+  return false;
+}
+
 bool FabricConnectivityManager::isConnectivityInfoMismatch(
     const PortID& portId) {
   const auto& iter = currentNeighborConnectivity_.find(portId);
   if (iter != currentNeighborConnectivity_.end()) {
     const auto& endpoint = iter->second;
-    if (!*endpoint.isAttached()) {
-      // endpoint not attached, points to cabling connectivity issues
-      // unless in cfg also we don't expect it to be present
-      if (!endpoint.expectedSwitchId().has_value() &&
-          !endpoint.expectedPortId().has_value()) {
-        // not attached, not expected to be attached ..thse are fabric ports
-        // which are down and only contribute to the noise.
-        return false;
-      }
-      return true;
-    }
-    if (endpoint.expectedSwitchId().has_value() &&
-        (endpoint.switchId() != endpoint.expectedSwitchId().value())) {
-      return true;
-    }
-    if (endpoint.expectedPortId().has_value() &&
-        (endpoint.portId() != endpoint.expectedPortId().value())) {
-      return true;
-    }
-
-    if (endpoint.switchName() != endpoint.expectedSwitchName()) {
-      // mismatch
-      return true;
-    }
-
-    if (endpoint.portName() != endpoint.expectedPortName()) {
-      // mismatch
-      return true;
-    }
+    return isConnectivityInfoMismatch(endpoint);
   }
 
   // no mismatch
@@ -444,16 +449,23 @@ bool FabricConnectivityManager::isConnectivityInfoMissing(
     const PortID& portId) {
   const auto& iter = currentNeighborConnectivity_.find(portId);
   if (iter == currentNeighborConnectivity_.end()) {
-    // specific port is missing from the reachability DB
-    // treat it like mimssing info
-    return true;
+    // specific port is missing from the reachability DB and
+    // also switch state (else we would have added it during addPort).
+    // So no connectivity is expected here
+    return false;
   }
 
   const auto& endpoint = iter->second;
   if (!*endpoint.isAttached()) {
-    // absence of attached point implies issue with connectivity/cabling
-    // but can be tracked by mismatch check above
-    return false;
+    // endpoint not attached, points to cabling connectivity issues
+    // unless in cfg also we don't expect it to be present
+    if (!endpoint.expectedSwitchId().has_value() &&
+        !endpoint.expectedPortId().has_value()) {
+      // not attached, not expected to be attached ..thse are fabric ports
+      // which are down and only contribute to the noise.
+      return false;
+    }
+    return true;
   }
 
   // if any of these parameters are not populated, we have missing

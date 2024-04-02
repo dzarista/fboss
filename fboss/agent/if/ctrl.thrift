@@ -232,7 +232,7 @@ struct InterfaceDetail {
   6: list<IpPrefix> address;
   7: i32 mtu;
   8: optional common.RemoteInterfaceType remoteIntfType;
-  9: optional common.RemoteLivenessStatus remoteIntfLivenessStatus;
+  9: optional common.LivenessStatus remoteIntfLivenessStatus;
 }
 
 /*
@@ -409,7 +409,7 @@ struct SystemPortThrift {
   /*
    * Set only on Remote System Ports of VOQ switches.
    */
-  13: optional common.RemoteLivenessStatus remoteSystemPortLivenessStatus;
+  13: optional common.LivenessStatus remoteSystemPortLivenessStatus;
 }
 
 struct PortHardwareDetails {
@@ -693,7 +693,7 @@ struct FabricEndpoint {
   // Is the port attached to anything on the
   // other side. All other fields are relevant
   // only when isAttached == true
-  5: bool isAttached;
+  5: bool isAttached = false;
   6: switch_config.SwitchType switchType;
   7: optional i64 expectedSwitchId;
   8: optional i32 expectedPortId;

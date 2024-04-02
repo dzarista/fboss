@@ -25,6 +25,21 @@ struct LinkActiveEvent {
   1: map<i32, bool> port2IsActive;
 }
 
+struct FabricConnectivityDelta {
+  1: optional ctrl.FabricEndpoint oldConnectivity;
+  2: optional ctrl.FabricEndpoint newConnectivity;
+}
+
+struct LinkConnectivityEvent {
+  1: map<i32, FabricConnectivityDelta> port2ConnectivityDelta;
+}
+
+struct LinkChangeEvent {
+  1: optional LinkEvent linkStateEvent;
+  2: LinkActiveEvent linkActiveEvents;
+  3: LinkConnectivityEvent linkConnectivityEvents;
+}
+
 struct FdbEvent {
   1: ctrl.L2EntryThrift entry;
   2: ctrl.L2EntryUpdateType updateType;
@@ -72,9 +87,6 @@ struct HwSwitchStats {
 }
 
 service MultiSwitchCtrl {
-  /* notify link event through sink */
-  sink<LinkEvent, bool> notifyLinkEvent(1: i64 switchId);
-
   /* notify link active event through sink */
   sink<LinkActiveEvent, bool> notifyLinkActiveEvent(1: i64 switchId);
 
@@ -86,6 +98,9 @@ service MultiSwitchCtrl {
 
   /* keep getting tx packet from SwSwitch, through stream */
   stream<TxPacket> getTxPackets(1: i64 switchId);
+
+  /* notify link change event*/
+  sink<LinkChangeEvent, bool> notifyLinkChangeEvent(1: i64 switchId);
 
   /* get next oper delta from SwSwitch */
   @thrift.Priority{level = thrift.RpcPriority.HIGH}

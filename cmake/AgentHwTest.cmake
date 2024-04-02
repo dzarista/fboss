@@ -220,7 +220,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwTestConstants.cpp
   fboss/agent/hw/test/HwTestMacUtils.cpp
   fboss/agent/hw/test/HwTestPortUtils.cpp
-  fboss/agent/hw/test/HwTestStatUtils.cpp
   fboss/agent/hw/test/HwTestCoppUtils.cpp
   fboss/agent/hw/test/HwRouteScaleTest.cpp
   fboss/agent/hw/test/HwRouteTests.cpp
@@ -272,7 +271,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/HwMacLearningAndNeighborResolutionTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMirroringTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMmuTuningTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwOlympicQosSchedulerTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwOverflowTest.cpp
   fboss/agent/hw/test/dataplane_tests/HwTeFlowTrafficTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwTrafficPfcTests.cpp
@@ -292,7 +290,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/Hw2QueueToOlympicQoSTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestAqmUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.cpp
-  fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestPfcUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTrunkLoadBalancerTests.cpp
@@ -357,6 +354,7 @@ target_link_libraries(hw_switch_test
   hwswitch_matcher
   switchid_scope_resolver
   hw_stat_printers
+  port_stats_test_utils
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
 )
@@ -380,24 +378,9 @@ target_link_libraries(prod_config_factory
   hw_copp_utils
   dscp_marking_utils
   olympic_qos_utils
-  hw_queue_per_host_utils
+  queue_per_host_test_utils
   load_balancer_utils
   hw_pfc_utils
-  ${GTEST}
-  ${LIBGMOCK_LIBRARIES}
-)
-
-add_library(hw_queue_per_host_utils
-  fboss/agent/hw/test/HwTestAclUtils.cpp
-  fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.cpp
-)
-
-target_link_libraries(hw_queue_per_host_utils
-  queue_per_host_test_utils
-  traffic_policy_utils
-  fboss_types
-  hw_switch
-  switch_config_cpp2
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
 )

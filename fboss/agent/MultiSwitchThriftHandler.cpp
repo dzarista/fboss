@@ -44,32 +44,63 @@ L2Entry MultiSwitchThriftHandler::getL2Entry(L2EntryThrift thriftEntry) {
       classID);
 }
 
+void MultiSwitchThriftHandler::processLinkState(
+    SwitchID switchId,
+    const multiswitch::LinkChangeEvent& linkChangeEvent) {
+  if (!linkChangeEvent.linkStateEvent().has_value()) {
+    return;
+  }
+  const auto& linkStateEvent = *linkChangeEvent.linkStateEvent();
+  XLOG(DBG2) << "Got link event from switch " << switchId << " for port "
+             << *linkStateEvent.port()
+             << " up :" << (*linkStateEvent.up() ? "UP" : "DOWN");
+  PortID portId = PortID(*linkStateEvent.port());
+  std::optional<phy::LinkFaultStatus> faultStatus;
+  if (linkStateEvent.iPhyLinkFaultStatus()) {
+    faultStatus = *linkStateEvent.iPhyLinkFaultStatus();
+  }
+  sw_->linkStateChanged(portId, *linkStateEvent.up(), faultStatus);
+}
+
+void MultiSwitchThriftHandler::processLinkActiveState(
+    SwitchID switchId,
+    const multiswitch::LinkChangeEvent& linkChangeEvent) {
+  if (linkChangeEvent.linkActiveEvents()->port2IsActive()->size() == 0) {
+    return;
+  }
+  XLOG(DBG3) << "Got link active event from switch " << switchId << " for : "
+             << linkChangeEvent.linkActiveEvents()->port2IsActive()->size()
+             << " ports";
+
+  std::map<PortID, bool> port2IsActive;
+  for (const auto& [portID, isActive] :
+       *linkChangeEvent.linkActiveEvents()->port2IsActive()) {
+    port2IsActive[PortID(portID)] = isActive;
+  }
+  sw_->linkActiveStateChanged(port2IsActive);
+}
+
 #if FOLLY_HAS_COROUTINES
-folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>>
-MultiSwitchThriftHandler::co_notifyLinkEvent(int64_t switchId) {
+folly::coro::Task<
+    apache::thrift::SinkConsumer<multiswitch::LinkChangeEvent, bool>>
+MultiSwitchThriftHandler::co_notifyLinkChangeEvent(int64_t switchId) {
   ensureConfigured(__func__);
-  co_return apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>{
-      [this,
-       switchId](folly::coro::AsyncGenerator<multiswitch::LinkEvent&&> gen)
+  co_return apache::thrift::SinkConsumer<multiswitch::LinkChangeEvent, bool>{
+      [this, switchId](
+          folly::coro::AsyncGenerator<multiswitch::LinkChangeEvent&&> gen)
           -> folly::coro::Task<bool> {
         auto switchIndex = sw_->getSwitchInfoTable().getSwitchIndexFromSwitchId(
             SwitchID(switchId));
         sw_->stats()->hwAgentLinkEventSinkConnectionStatus(switchIndex, true);
         try {
           while (auto item = co_await gen.next()) {
-            XLOG(DBG3) << "Got link event from switch " << switchId
-                       << " for port " << *item->port()
-                       << " up :" << *item->up();
-            PortID portId = PortID(*item->port());
-            std::optional<phy::LinkFaultStatus> faultStatus;
-            if (item->iPhyLinkFaultStatus()) {
-              faultStatus = *item->iPhyLinkFaultStatus();
-            }
-            sw_->linkStateChanged(portId, *item->up(), faultStatus);
+            XLOG(DBG3) << "Got link change event from switch " << switchId;
+            processLinkState(SwitchID(switchId), *item);
+            processLinkActiveState(SwitchID(switchId), *item);
           }
         } catch (const std::exception& e) {
-          XLOG(DBG2) << "link event sink cancelled for switch " << switchId
-                     << " with exception " << e.what();
+          XLOG(DBG2) << "link change event sink cancelled for switch "
+                     << switchId << " with exception " << e.what();
           sw_->stats()->hwAgentLinkEventSinkConnectionStatus(
               switchIndex, false);
           co_return false;
@@ -97,10 +128,9 @@ MultiSwitchThriftHandler::co_notifyLinkActiveEvent(int64_t switchId) {
         try {
           while (auto item = co_await gen.next()) {
             XLOG(DBG3) << "Got link active event from switch " << switchId;
-            for (const auto& [portID, isActive] : *item->port2IsActive()) {
-              port2IsActive[PortID(portID)] = isActive;
-            }
-            sw_->linkActiveStateChanged(port2IsActive);
+            multiswitch::LinkChangeEvent changeEvent;
+            changeEvent.linkActiveEvents() = *item;
+            processLinkActiveState(SwitchID(switchId), changeEvent);
           }
         } catch (const std::exception& e) {
           XLOG(DBG2) << "link event sink cancelled for switch " << switchId

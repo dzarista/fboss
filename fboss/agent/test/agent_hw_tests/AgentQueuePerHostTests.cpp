@@ -9,15 +9,16 @@
  */
 
 #include "fboss/agent/SwitchStats.h"
-#include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
-#include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
+#include "fboss/agent/TxPacket.h"
+#include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
-#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
+#include "fboss/agent/test/utils/AclTestUtils.h"
 
-#include "fboss/agent/hw/test/HwTestAclUtils.h"
+#include "fboss/agent/test/utils/ConfigUtils.h"
+#include "fboss/agent/test/utils/PacketTestUtils.h"
+#include "fboss/agent/test/utils/QosTestUtils.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 DECLARE_bool(intf_nbr_tables);
 
@@ -36,7 +37,7 @@ using TestTypes = ::testing::Types<
     IpAddrAndEnableIntfNbrTableT<folly::IPAddressV6, true>>;
 
 template <typename IpAddrAndEnableIntfNbrTableT>
-class HwQueuePerHostTest : public HwLinkStateDependentTest {
+class AgentQueuePerHostTest : public AgentHwTest {
   using AddrT = typename IpAddrAndEnableIntfNbrTableT::AddrT;
   static auto constexpr isIntfNbrTable =
       IpAddrAndEnableIntfNbrTableT::intfNbrTable;
@@ -47,17 +48,23 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
 
  protected:
   void SetUp() override {
-    FLAGS_intf_nbr_tables = isIntfNbrTable;
-    HwLinkStateDependentTest::SetUp();
-    helper_ = std::make_unique<utility::EcmpSetupAnyNPorts6>(
-        getProgrammedState(), RouterID(0));
+    AgentHwTest::SetUp();
   }
-  cfg::SwitchConfig initialConfig() const override {
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    FLAGS_intf_nbr_tables = isIntfNbrTable;
     auto cfg = utility::onePortPerInterfaceConfig(
-        getHwSwitch(),
-        {masterLogicalPortIds()[0], masterLogicalPortIds()[1]},
-        getAsic()->desiredLoopbackModes());
+        ensemble.getSw(),
+        ensemble.masterLogicalPortIds(),
+        true /*interfaceHasSubnet*/);
+    utility::addQueuePerHostQueueConfig(&cfg);
+    utility::addQueuePerHostAcls(&cfg, ensemble.isSai());
     return cfg;
+  }
+
+  std::vector<production_features::ProductionFeature>
+  getProductionFeaturesVerified() const override {
+    return {production_features::ProductionFeature::QUEUE_PER_HOST};
   }
 
   const std::map<AddrT, std::pair<folly::MacAddress, cfg::AclLookupClass>>&
@@ -209,22 +216,13 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
     return updateNeighbors(inState, true /* setClassIDs */, blockNeighbor);
   }
 
-  void _setupHelper() {
-    resolveNeigborAndProgramRoutes(*helper_, kEcmpWidth);
-    auto newCfg{initialConfig()};
-    utility::addQueuePerHostQueueConfig(&newCfg);
-    utility::addQueuePerHostAcls(&newCfg, getHwSwitchEnsemble()->isSai());
-    applyNewConfig(newCfg);
-  }
-
   void _verifyHelper(bool frontPanel, bool blockNeighbor) {
     XLOG(DBG2) << "verify send packets "
                << (frontPanel ? "out of port" : "switched");
     auto ttlAclName = utility::getQueuePerHostTtlAclName();
     auto ttlCounterName = utility::getQueuePerHostTtlCounterName();
 
-    auto statBefore = utility::getAclInOutPackets(
-        getHwSwitch(), this->getProgrammedState(), ttlAclName, ttlCounterName);
+    auto statBefore = utility::getAclInOutPackets(getSw(), ttlCounterName);
 
     std::map<int, int64_t> beforeQueueOutPkts;
     for (const auto& queueId : utility::kQueuePerhostQueueIds()) {
@@ -240,56 +238,54 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
       sendPacket(dstIP, frontPanel, 128 /* ttl >= 128 */);
     }
 
-    std::map<int, int64_t> afterQueueOutPkts;
-    for (const auto& queueId : utility::kQueuePerhostQueueIds()) {
-      afterQueueOutPkts[queueId] =
-          this->getLatestPortStats(this->masterLogicalPortIds()[0])
-              .get_queueOutPackets_()
-              .at(queueId);
-    }
+    WITH_RETRIES({
+      std::map<int, int64_t> afterQueueOutPkts;
+      for (const auto& queueId : utility::kQueuePerhostQueueIds()) {
+        afterQueueOutPkts[queueId] =
+            this->getLatestPortStats(this->masterLogicalPortIds()[0])
+                .get_queueOutPackets_()
+                .at(queueId);
+      }
 
-    /*
-     *  Consider ACL with action to egress pkts through queue 2.
-     *
-     *  CPU originated packets:
-     *     - Hits ACL (queue2Cnt = 1), egress through queue 2 of port0.
-     *     - port0 is in loopback mode, so the packet gets looped back.
-     *     - When packet is routed, its dstMAC gets overwritten. Thus, the
-     *       looped back packet is not routed, and thus does not hit the ACL.
-     *     - On some platforms, looped back packets for unknown MACs are
-     *       flooded and counted on queue *before* the split horizon check
-     *       (drop when srcPort == dstPort). This flooding always happens on
-     *       queue 0, so expect one or more packets on queue 0.
-     *
-     *  Front panel packets (injected with pipeline bypass):
-     *     - Egress out of port1 queue0 (pipeline bypass).
-     *     - port1 is in loopback mode, so the packet gets looped back.
-     *     - Rest of the workflow is same as above when CPU originated packet
-     *       gets injected for switching.
-     */
-    for (auto [qid, beforePkts] : beforeQueueOutPkts) {
-      auto pktsOnQueue = afterQueueOutPkts[qid] - beforePkts;
-      XLOG(DBG2) << " Pkts on queue : " << qid << " pkts: " << pktsOnQueue;
+      /*
+       *  Consider ACL with action to egress pkts through queue 2.
+       *
+       *  CPU originated packets:
+       *     - Hits ACL (queue2Cnt = 1), egress through queue 2 of port0.
+       *     - port0 is in loopback mode, so the packet gets looped back.
+       *     - When packet is routed, its dstMAC gets overwritten. Thus, the
+       *       looped back packet is not routed, and thus does not hit the ACL.
+       *     - On some platforms, looped back packets for unknown MACs are
+       *       flooded and counted on queue *before* the split horizon check
+       *       (drop when srcPort == dstPort). This flooding always happens on
+       *       queue 0, so expect one or more packets on queue 0.
+       *
+       *  Front panel packets (injected with pipeline bypass):
+       *     - Egress out of port1 queue0 (pipeline bypass).
+       *     - port1 is in loopback mode, so the packet gets looped back.
+       *     - Rest of the workflow is same as above when CPU originated packet
+       *       gets injected for switching.
+       */
+      for (auto [qid, beforePkts] : beforeQueueOutPkts) {
+        auto pktsOnQueue = afterQueueOutPkts[qid] - beforePkts;
+        XLOG(DBG2) << " Pkts on queue : " << qid << " pkts: " << pktsOnQueue;
 
-      if (blockNeighbor) {
-        // if the neighbor is blocked, all pkts are dropped
-        EXPECT_EQ(pktsOnQueue, 0);
-      } else {
-        if (qid == 0) {
-          EXPECT_GE(pktsOnQueue, 1);
+        if (blockNeighbor) {
+          // if the neighbor is blocked, all pkts are dropped
+          EXPECT_EVENTUALLY_EQ(pktsOnQueue, 0);
         } else {
-          EXPECT_EQ(
-              pktsOnQueue, 2 /* 1 pkt each for ttl < 128 and ttl >= 128 */);
+          if (qid == 0) {
+            EXPECT_EVENTUALLY_GE(pktsOnQueue, 1);
+          } else {
+            EXPECT_EVENTUALLY_EQ(
+                pktsOnQueue, 2 /* 1 pkt each for ttl < 128 and ttl >= 128 */);
+          }
         }
       }
-    }
+    });
 
     auto aclStatsMatch = [&]() {
-      auto statAfter = utility::getAclInOutPackets(
-          getHwSwitch(),
-          this->getProgrammedState(),
-          ttlAclName,
-          ttlCounterName);
+      auto statAfter = utility::getAclInOutPackets(getSw(), ttlCounterName);
       XLOG(DBG2) << " Acl stats : " << statAfter;
       if (blockNeighbor) {
         // if the neighbor is blocked, all pkts are dropped
@@ -299,37 +295,36 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
         return statAfter - statBefore == getIpToMacAndClassID().size();
       }
     };
-    auto updateStats = [&]() { getHwSwitch()->updateStats(); };
-    EXPECT_TRUE(
-        getHwSwitchEnsemble()->waitStatsCondition(aclStatsMatch, updateStats));
+    WITH_RETRIES({ EXPECT_EVENTUALLY_TRUE(aclStatsMatch()); });
   }
 
   void classIDAfterNeighborResolveHelper(bool blockNeighbor) {
-    this->_setupHelper();
-
     /*
      * Resolve neighbors, then apply classID
      * Prod will typically follow this sequence as LookupClassUpdater is
      * implemented as a state observer which would update resolved neighbors
      * with classIDs.
      */
-    auto state1 = this->addNeighbors(this->getProgrammedState());
-    auto state2 = this->resolveNeighbors(state1);
-    this->applyNewState(state2);
+    applyNewState([this](std::shared_ptr<SwitchState> /*in*/) {
+      auto state1 = this->addNeighbors(this->getProgrammedState());
+      auto state2 = this->resolveNeighbors(state1);
+      return state2;
+    });
 
-    auto state3 =
-        this->updateClassID(this->getProgrammedState(), blockNeighbor);
-    this->applyNewState(state3);
+    applyNewState([this, blockNeighbor](std::shared_ptr<SwitchState> /*in*/) {
+      auto state =
+          this->updateClassID(this->getProgrammedState(), blockNeighbor);
+      return state;
+    });
   }
 
   void classIDWithResolveHelper(bool blockNeighbor) {
-    this->_setupHelper();
-
-    auto state1 = this->addNeighbors(this->getProgrammedState());
-    auto state2 = this->resolveNeighbors(state1);
-    auto state3 = this->updateClassID(state2, blockNeighbor);
-
-    this->applyNewState(state3);
+    applyNewState([this, blockNeighbor](std::shared_ptr<SwitchState> /*in*/) {
+      auto state1 = this->addNeighbors(this->getProgrammedState());
+      auto state2 = this->resolveNeighbors(state1);
+      auto state3 = this->updateClassID(state2, blockNeighbor);
+      return state3;
+    });
   }
 
   void verifyHostToQueueMappingClassIDsAfterResolveHelper(bool blockNeighbor) {
@@ -358,12 +353,11 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
 
   void verifyTtldCounter() {
     auto setup = [this]() {
-      this->_setupHelper();
-
-      auto state1 = this->addNeighbors(this->getProgrammedState());
-      auto state2 = this->resolveNeighbors(state1);
-
-      this->applyNewState(state2);
+      applyNewState([this](std::shared_ptr<SwitchState> /*in*/) {
+        auto state1 = this->addNeighbors(this->getProgrammedState());
+        auto state2 = this->resolveNeighbors(state1);
+        return state2;
+      });
     };
 
     auto verify = [this]() {
@@ -371,34 +365,22 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
       auto ttlCounterName = utility::getQueuePerHostTtlCounterName();
 
       for (bool frontPanel : {false, true}) {
-        auto packetsBefore = utility::getAclInOutPackets(
-            getHwSwitch(),
-            this->getProgrammedState(),
-            ttlAclName,
-            ttlCounterName);
+        auto packetsBefore =
+            utility::getAclInOutPackets(getSw(), ttlCounterName);
 
-        auto bytesBefore = utility::getAclInOutBytes(
-            getHwSwitch(),
-            this->getProgrammedState(),
-            ttlAclName,
-            ttlCounterName);
+        auto bytesBefore =
+            utility::getAclInOutPackets(getSw(), ttlCounterName, true);
 
         auto dstIP = getIpToMacAndClassID().begin()->first;
         sendPacket(dstIP, frontPanel, 64 /* ttl < 128 */);
         size_t packetSize = sendPacket(dstIP, frontPanel, 128 /* ttl >= 128 */);
 
-        auto aclStatsMatch = [&]() {
-          auto packetsAfter = utility::getAclInOutPackets(
-              getHwSwitch(),
-              this->getProgrammedState(),
-              ttlAclName,
-              ttlCounterName);
+        WITH_RETRIES({
+          auto packetsAfter =
+              utility::getAclInOutPackets(getSw(), ttlCounterName);
 
-          auto bytesAfter = utility::getAclInOutBytes(
-              getHwSwitch(),
-              this->getProgrammedState(),
-              ttlAclName,
-              ttlCounterName);
+          auto bytesAfter =
+              utility::getAclInOutPackets(getSw(), ttlCounterName, true);
 
           XLOG(DBG2) << "verify send packets "
                      << (frontPanel ? "out of port" : "switched") << "\n"
@@ -408,18 +390,13 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
                      << " -> " << std::to_string(bytesAfter);
 
           // counts ttl >= 128 packet only
-          if (packetsAfter - packetsBefore != 1) {
-            return false;
-          }
+          EXPECT_EVENTUALLY_EQ(packetsAfter - packetsBefore, 1);
           if (frontPanel) {
-            return bytesAfter - bytesBefore == packetSize;
+            EXPECT_EVENTUALLY_EQ(bytesAfter - bytesBefore, packetSize);
           }
           // TODO: Still need to debug why we get extra 4 bytes for CPU port
-          return bytesAfter - bytesBefore >= packetSize;
-        };
-        auto updateStats = [&]() { getHwSwitch()->updateStats(); };
-        EXPECT_TRUE(getHwSwitchEnsemble()->waitStatsCondition(
-            aclStatsMatch, updateStats));
+          EXPECT_EVENTUALLY_TRUE(bytesAfter - bytesBefore >= packetSize);
+        });
       }
     };
 
@@ -436,11 +413,12 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
 
  private:
   size_t sendPacket(AddrT dstIP, bool frontPanel, uint8_t ttl) {
-    auto vlanId = VlanID(*initialConfig().vlanPorts()[0].vlanID());
+    auto vlanId =
+        VlanID(*initialConfig(*getAgentEnsemble()).vlanPorts()[0].vlanID());
     auto intfMac = utility::getInterfaceMac(getProgrammedState(), vlanId);
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     auto txPacket = utility::makeUDPTxPacket(
-        getHwSwitch(),
+        getSw(),
         vlanId,
         srcMac, // src mac
         intfMac, // dst mac
@@ -456,11 +434,11 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
     // Since it is not re-written, it should hit the pipeline as if it
     // ingressed on the port, and be properly queued.
     if (frontPanel) {
-      auto outPort = helper_->ecmpPortDescriptorAt(kEcmpWidth).phyPortID();
-      getHwSwitchEnsemble()->ensureSendPacketOutOfPort(
-          std::move(txPacket), outPort);
+      utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+      auto outPort = ecmpHelper.ecmpPortDescriptorAt(kEcmpWidth).phyPortID();
+      getSw()->sendPacketOutOfPortAsync(std::move(txPacket), outPort);
     } else {
-      getHwSwitchEnsemble()->ensureSendPacketSwitched(std::move(txPacket));
+      getSw()->sendPacketSwitchedAsync(std::move(txPacket));
     }
 
     return txPacketSize;
@@ -469,46 +447,29 @@ class HwQueuePerHostTest : public HwLinkStateDependentTest {
   static inline constexpr auto kEcmpWidth = 1;
   const VlanID kVlanID{utility::kBaseVlanId};
   const InterfaceID kIntfID{utility::kBaseVlanId};
-  std::unique_ptr<utility::EcmpSetupAnyNPorts6> helper_;
 };
 
-TYPED_TEST_SUITE(HwQueuePerHostTest, TestTypes);
+TYPED_TEST_SUITE(AgentQueuePerHostTest, TestTypes);
 
 // Verify that traffic arriving on a front panel port gets right queue-per-host
 // queue.
-TYPED_TEST(HwQueuePerHostTest, VerifyHostToQueueMappingClassIDsAfterResolve) {
+TYPED_TEST(
+    AgentQueuePerHostTest,
+    VerifyHostToQueueMappingClassIDsAfterResolve) {
   this->verifyHostToQueueMappingClassIDsAfterResolveHelper(
       false /* block neighbor */);
 }
 
-// Verify that traffic arriving on a front panel port to a blocked neighbor gets
-// dropped.
-TYPED_TEST(
-    HwQueuePerHostTest,
-    VerifyHostToQueueMappingClassIDsAfterResolveBlock) {
-  this->verifyHostToQueueMappingClassIDsAfterResolveHelper(
-      true /* block neighbor */);
-}
-
 // Verify that traffic arriving on a front panel port gets right queue-per-host
 // queue.
-TYPED_TEST(HwQueuePerHostTest, VerifyHostToQueueMappingClassIDsWithResolve) {
+TYPED_TEST(AgentQueuePerHostTest, VerifyHostToQueueMappingClassIDsWithResolve) {
   this->verifyHostToQueueMappingClassIDsWithResolveHelper(
       false /* block neighbor */);
-}
-
-// Verify that traffic arriving on a front panel port to a blocked neighbor gets
-// dropped.
-TYPED_TEST(
-    HwQueuePerHostTest,
-    VerifyHostToQueueMappingClassIDsWithResolveBlock) {
-  this->verifyHostToQueueMappingClassIDsWithResolveHelper(
-      true /* block neighbor */);
 }
 
 // Verify that TTLd traffic not going to queue-per-host has TTLd counter
 // incremented.
-TYPED_TEST(HwQueuePerHostTest, VerifyTtldCounter) {
+TYPED_TEST(AgentQueuePerHostTest, VerifyTtldCounter) {
   this->verifyTtldCounter();
 }
 

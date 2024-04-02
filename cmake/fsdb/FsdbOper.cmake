@@ -4,15 +4,6 @@
 # cmake/FooBar.cmake
 
 if (FBOSS_CENTOS9)
-add_library(db_writer
-  fboss/fsdb/oper/DbWriter.cpp
-)
-
-target_link_libraries(db_writer
-  Folly::folly
-  fsdb_common_cpp2
-  fsdb_oper_cpp2
-)
 
 add_library(subscription_manager
   fboss/fsdb/oper/DeltaValue.h

@@ -21,16 +21,6 @@
 
 #include <memory>
 
-DEFINE_bool(dsf_subscriber_skip_hw_writes, false, "Skip writing to HW");
-DEFINE_bool(
-    dsf_subscriber_cache_updated_state,
-    false,
-    "Cache switch state after update by dsf subsriber");
-DEFINE_uint32(
-    dsf_gr_hold_time,
-    0,
-    "GR hold time for FSDB DsfSubscription in sec");
-
 namespace {
 const thriftpath::RootThriftPath<facebook::fboss::fsdb::FsdbOperStateRoot>
     stateRoot;
@@ -274,7 +264,7 @@ void DsfSubscriber::processGRHoldTimerExpired(
           auto clonedNode = remoteSystemPort->isPublished()
               ? remoteSystemPort->clone()
               : remoteSystemPort;
-          clonedNode->setRemoteLivenessStatus(RemoteLivenessStatus::STALE);
+          clonedNode->setRemoteLivenessStatus(LivenessStatus::STALE);
           remoteSystemPorts->updateNode(
               clonedNode, sw_->getScopeResolver()->scope(clonedNode));
           changed = true;
@@ -301,7 +291,7 @@ void DsfSubscriber::processGRHoldTimerExpired(
             auto clonedNode = remoteInterface->isPublished()
                 ? remoteInterface->clone()
                 : remoteInterface;
-            clonedNode->setRemoteLivenessStatus(RemoteLivenessStatus::STALE);
+            clonedNode->setRemoteLivenessStatus(LivenessStatus::STALE);
             clonedNode->setArpTable(state::NeighborEntries{});
             clonedNode->setNdpTable(state::NeighborEntries{});
 
