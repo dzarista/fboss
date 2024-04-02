@@ -740,7 +740,7 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	fpga_rev = (priv->scd_revision & 0xffff0000) >> 16;
 	board_rev = priv->scd_revision & 0x00000fff;
 
-        if (priv->is_reconfig &&
+	if (priv->is_reconfig &&
 	    (priv->scd_revision == RECONFIG_STATE_BAR_VALUE))
 		dev_info(&pdev->dev,
 			 "scd detected: FPGA in reconfig state\n");
