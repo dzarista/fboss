@@ -434,12 +434,12 @@ class HwLoadBalancerTest
     Test::verifyAcrossWarmBoots(
         setup,
         [&] {
-          verify;
+          verify();
           EXPECT_TRUE(utility::isHwDeterministicSeed(
               getHwSwitch(), getProgrammedState(), LoadBalancerID::ECMP));
         },
         setupPostWarmboot,
-        [&] { verifyPostWarmboot; });
+        [&] { verifyPostWarmboot(); });
   }
 
   TestEnsembleIf* getEnsemble() override {
