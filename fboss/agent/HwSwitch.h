@@ -237,7 +237,7 @@ class HwSwitch {
   multiswitch::HwSwitchStats getHwSwitchStats();
 
   virtual folly::F14FastMap<std::string, HwPortStats> getPortStats() const = 0;
-  virtual CpuPortStats getCpuPortStats(bool getIncrement = true) const = 0;
+  virtual CpuPortStats getCpuPortStats() const = 0;
 
   virtual void fetchL2Table(std::vector<L2EntryThrift>* l2Table) const = 0;
 
@@ -255,6 +255,7 @@ class HwSwitch {
   virtual HwSwitchDropStats getSwitchDropStats() const = 0;
   virtual HwFlowletStats getHwFlowletStats() const = 0;
   virtual std::vector<EcmpDetails> getAllEcmpDetails() const = 0;
+  virtual HwSwitchWatermarkStats getSwitchWatermarkStats() const = 0;
 
   /*
    * Get latest device watermark bytes
@@ -334,7 +335,7 @@ class HwSwitch {
       PortID /*portId*/) {
     return std::vector<phy::PrbsLaneStats>();
   }
-  virtual void clearPortAsicPrbsStats(int32_t /*portId*/) {}
+  virtual void clearPortAsicPrbsStats(PortID /*portId*/) {}
 
   virtual std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
       int32_t /* portId */) {

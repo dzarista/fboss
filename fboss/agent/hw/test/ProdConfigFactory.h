@@ -14,6 +14,8 @@
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 
+#include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
+
 namespace facebook::fboss::utility {
 
 void addOlympicQosToConfig(
@@ -24,16 +26,11 @@ void addNetworkAIQosToConfig(
     cfg::SwitchConfig& config,
     const HwSwitch* hwSwitch);
 
-/*
- * Used to determine whether full-hash or half-hash config should be used when
- * enabling load balancing via addLoadBalancerToConfig().
- *
- * (LBHash = Load Balancer Hash)
- */
-enum class LBHash : uint8_t {
-  FULL_HASH = 0,
-  HALF_HASH = 1,
-};
+void addOlympicQosToConfig(
+    cfg::SwitchConfig& config,
+    const HwAsic* asic,
+    bool enableStrictPriority);
+void addNetworkAIQosToConfig(cfg::SwitchConfig& config, const HwAsic* hwSwitch);
 
 void addLoadBalancerToConfig(
     cfg::SwitchConfig& config,
@@ -43,9 +40,18 @@ void addLoadBalancerToConfig(
 void addMplsConfig(cfg::SwitchConfig& config);
 
 uint16_t uplinksCountFromSwitch(const HwSwitch* hwSwitch);
+uint16_t uplinksCountFromSwitch(PlatformType mode);
 
 cfg::SwitchConfig createProdRswConfig(
     const HwSwitch* hwSwitch,
+    const std::vector<PortID>& masterLogicalPortIds,
+    bool isSai = false,
+    bool enableStrictPriority = false);
+
+cfg::SwitchConfig createProdRswConfig(
+    const HwAsic* hwAsic,
+    PlatformType platformType,
+    const PlatformMapping* platformMapping,
     const std::vector<PortID>& masterLogicalPortIds,
     bool isSai = false,
     bool enableStrictPriority = false);
@@ -56,10 +62,27 @@ cfg::SwitchConfig createProdFswConfig(
     bool isSai = false,
     bool enableStrictPriority = false);
 
+cfg::SwitchConfig createProdFswConfig(
+    const HwAsic* hwAsic,
+    PlatformType platformType,
+    const PlatformMapping* platformMapping,
+    bool supportsAddRemovePort,
+    const std::vector<PortID>& masterLogicalPortIds,
+    bool isSai = false,
+    bool enableStrictPriority = false);
+
 cfg::PortSpeed getPortSpeed(const HwSwitch* hwSwitch);
+cfg::PortSpeed getPortSpeed(
+    cfg::AsicType hwAsicType,
+    PlatformType platformType);
 
 cfg::SwitchConfig createProdRswMhnicConfig(
     const HwSwitch* hwSwitch,
+    const std::vector<PortID>& masterLogicalPortIds,
+    bool isSai);
+
+cfg::SwitchConfig createProdRswMhnicConfig(
+    const HwAsicTable& table,
     const std::vector<PortID>& masterLogicalPortIds,
     bool isSai);
 

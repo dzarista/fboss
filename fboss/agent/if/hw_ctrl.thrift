@@ -9,6 +9,12 @@ include "fboss/agent/if/common.thrift"
 include "fboss/agent/if/fboss.thrift"
 include "fboss/agent/if/ctrl.thrift"
 
+struct RemoteEndpoint {
+  1: i64 switchId;
+  2: string switchName;
+  3: list<string> connectingPorts;
+}
+
 service FbossHwCtrl {
   /*
    * Enables submitting diag cmds to the switch
@@ -43,4 +49,8 @@ service FbossHwCtrl {
   list<ctrl.L2EntryThrift> getHwL2Table() throws (
     1: fboss.FbossBaseError error,
   );
+  map<
+    i64,
+    map<i64, list<RemoteEndpoint>>
+  > getVirtualDeviceToConnectionGroups() throws (1: fboss.FbossBaseError error);
 }

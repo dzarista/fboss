@@ -5,6 +5,7 @@
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/RxPacket.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
+#include "fboss/agent/if/gen-cpp2/multiswitch_ctrl_types.h"
 #include "fboss/agent/rib/RoutingInformationBase.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/types.h"
@@ -46,6 +47,10 @@ class HwSwitchCallback {
    */
   virtual void linkActiveStateChanged(
       const std::map<PortID, bool>& port2IsActive) = 0;
+
+  virtual void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+          port2OldAndNewConnectivity) = 0;
 
   /*
    * l2LearningUpdateReceived() is invoked by the HwSwitch when there is

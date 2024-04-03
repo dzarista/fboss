@@ -14,10 +14,10 @@
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/HwTestRouteUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/state/NodeBase-defs.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 #include <string>
 
@@ -123,7 +123,6 @@ class HwQueuePerHostRouteTest : public HwLinkStateDependentTest {
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
 
     utility::verifyQueuePerHostMapping(
-        getHwSwitch(),
         getHwSwitchEnsemble(),
         vlanId,
         srcMac,

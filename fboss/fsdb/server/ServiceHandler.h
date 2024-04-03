@@ -175,16 +175,24 @@ class ServiceHandler : public FsdbServiceSvIf,
     return operStorage_.getMetadata();
   }
 
-  std::set<OperSubscriberInfo> getActiveSubscriptions() const {
+  // Client key (clientId, Path, PubSubType, isStats)
+  using ClientKey = std::tuple<std::string, Path, PubSubType, bool>;
+  using ActiveSubscriptions = std::map<ClientKey, OperSubscriberInfo>;
+  using ActivePublishers = std::map<ClientKey, OperPublisherInfo>;
+
+  ActiveSubscriptions getActiveSubscriptions() const {
     return activeSubscriptions_.copy();
   }
-  std::set<OperPublisherInfo> getActivePublishers() const {
+  ActivePublishers getActivePublishers() const {
     return activePublishers_.copy();
   }
 
  private:
   void registerSubscription(const OperSubscriberInfo& info);
   void unregisterSubscription(const OperSubscriberInfo& info);
+  void updateSubscriptionCounters(
+      const OperSubscriberInfo& info,
+      bool isConnected);
   void registerPublisher(const OperPublisherInfo& info);
   void unregisterPublisher(
       const OperPublisherInfo& info,
@@ -248,9 +256,13 @@ class ServiceHandler : public FsdbServiceSvIf,
   TLCounter num_instances_;
   TLCounter num_publishers_;
   TLCounter num_subscribers_;
+  TLCounter num_subscriptions_;
   TLCounter num_disconnected_subscribers_;
+  TLCounter num_disconnected_subscriptions_;
   TLCounter num_disconnected_publishers_;
   std::map<SubscriberId, TLCounter> disconnectedSubscribers_;
+  std::map<SubscriberId, TLCounter> connectedSubscriptions_;
+  std::map<SubscriberId, TLCounter> disconnectedSubscriptions_;
   std::map<PublisherKey, TLCounter> disconnectedPublishers_;
   TLTimeseries num_subscriptions_rejected_;
   TLTimeseries num_publisher_unknown_requests_rejected_;
@@ -276,8 +288,8 @@ class ServiceHandler : public FsdbServiceSvIf,
    */
   std::atomic<long> watchdogThreadHeartbeatMissedCount_{0};
 
-  folly::Synchronized<std::set<OperSubscriberInfo>> activeSubscriptions_;
-  folly::Synchronized<std::set<OperPublisherInfo>> activePublishers_;
+  folly::Synchronized<ActiveSubscriptions> activeSubscriptions_;
+  folly::Synchronized<ActivePublishers> activePublishers_;
 };
 
 } // namespace facebook::fboss::fsdb

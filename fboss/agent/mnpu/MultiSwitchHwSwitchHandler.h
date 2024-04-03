@@ -46,28 +46,12 @@ class MultiSwitchHwSwitchHandler : public HwSwitchHandler {
   bool transactionsSupported(
       std::optional<cfg::SdkVersion> sdkVersion) const override;
 
-  folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
-
-  std::map<std::string, HwSysPortStats> getSysPortStats() const override;
-  HwSwitchDropStats getSwitchDropStats() const override;
-
-  void updateStats() override;
-
-  void updateAllPhyInfo() override;
-  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const override;
-
-  uint64_t getDeviceWatermarkBytes() const override;
-
-  HwFlowletStats getHwFlowletStats() const override;
-
-  HwSwitchFb303Stats* getSwitchStats() const override;
-
   void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
   std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId) override;
 
-  void clearPortAsicPrbsStats(int32_t portId) override;
+  void clearPortAsicPrbsStats(PortID portId) override;
 
   std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
       int32_t portId) override;
@@ -91,8 +75,6 @@ class MultiSwitchHwSwitchHandler : public HwSwitchHandler {
       const fsdb::OperDelta& delta,
       bool transaction,
       const std::shared_ptr<SwitchState>& newState) override;
-
-  CpuPortStats getCpuPortStats(bool getIncrement) const override;
 
   std::map<PortID, FabricEndpoint> getFabricConnectivity() const override;
 

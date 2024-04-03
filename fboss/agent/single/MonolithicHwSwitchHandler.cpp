@@ -112,6 +112,11 @@ HwSwitchDropStats MonolithicHwSwitchHandler::getSwitchDropStats() const {
   return hw_->getSwitchDropStats();
 }
 
+HwSwitchWatermarkStats MonolithicHwSwitchHandler::getSwitchWatermarkStats()
+    const {
+  return hw_->getSwitchWatermarkStats();
+}
+
 void MonolithicHwSwitchHandler::updateAllPhyInfo() {
   hw_->updateAllPhyInfo();
 }
@@ -143,7 +148,7 @@ std::vector<phy::PrbsLaneStats> MonolithicHwSwitchHandler::getPortAsicPrbsStats(
   return hw_->getPortAsicPrbsStats(portId);
 }
 
-void MonolithicHwSwitchHandler::clearPortAsicPrbsStats(int32_t portId) {
+void MonolithicHwSwitchHandler::clearPortAsicPrbsStats(PortID portId) {
   hw_->clearPortAsicPrbsStats(portId);
 }
 
@@ -172,9 +177,8 @@ std::shared_ptr<SwitchState> MonolithicHwSwitchHandler::stateChanged(
                      : hw_->stateChanged(delta);
 }
 
-CpuPortStats MonolithicHwSwitchHandler::getCpuPortStats(
-    bool getIncrement) const {
-  return hw_->getCpuPortStats(getIncrement);
+CpuPortStats MonolithicHwSwitchHandler::getCpuPortStats() const {
+  return hw_->getCpuPortStats();
 }
 
 std::map<PortID, FabricEndpoint>

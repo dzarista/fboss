@@ -801,6 +801,7 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
             addedAclEntry->getVlanID().value(), kOuterVlanIdMask))};
   }
 
+#if !defined(TAJO_SDK)
   std::optional<SaiAclEntryTraits::Attributes::FieldBthOpcode> fieldBthOpcode{
       std::nullopt};
   if (addedAclEntry->getRoceOpcode()) {
@@ -808,6 +809,7 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
         AclEntryFieldU8(std::make_pair(
             addedAclEntry->getRoceOpcode().value(), kBthOpcodeMask))};
   }
+#endif
 
   std::optional<SaiAclEntryTraits::Attributes::FieldFdbDstUserMeta>
       fieldFdbDstUserMeta{std::nullopt};
@@ -1051,7 +1053,10 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
        fieldDstMac.has_value() || fieldIpType.has_value() ||
        fieldTtl.has_value() || fieldFdbDstUserMeta.has_value() ||
        fieldRouteDstUserMeta.has_value() || fieldEtherType.has_value() ||
-       fieldNeighborDstUserMeta.has_value() ||
+       fieldNeighborDstUserMeta.has_value() || fieldOuterVlanId.has_value() ||
+#if !defined(TAJO_SDK)
+       fieldBthOpcode.has_value() ||
+#endif
        platform_->getAsic()->isSupported(HwAsic::Feature::EMPTY_ACL_MATCHER));
   if (fieldSrcPort.has_value()) {
     auto srcPortQualifierSupported = platform_->getAsic()->isSupported(
@@ -1086,9 +1091,13 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
         fieldIcmpV4Type, fieldIcmpV4Code, fieldIcmpV6Type, fieldIcmpV6Code,
         fieldDscp, fieldDstMac, fieldIpType, fieldTtl, fieldFdbDstUserMeta,
         fieldRouteDstUserMeta, fieldNeighborDstUserMeta, fieldEtherType,
-        fieldOuterVlanId, fieldBthOpcode, aclActionPacketAction,
-        aclActionCounter, aclActionSetTC, aclActionSetDSCP,
-        aclActionMirrorIngress, aclActionMirrorEgress, aclActionMacsecFlow,
+        fieldOuterVlanId,
+#if !defined(TAJO_SDK)
+        fieldBthOpcode,
+#endif
+        aclActionPacketAction, aclActionCounter, aclActionSetTC,
+        aclActionSetDSCP, aclActionMirrorIngress, aclActionMirrorEgress,
+        aclActionMacsecFlow,
 // action not supported by tajo. Besides, user defined trap
 // is used to make ACL take precedence over Hostif trap.
 // Tajo already supports this behavior
@@ -1313,6 +1322,8 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
       platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2;
   bool isJericho3 =
       platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3;
+  bool isTomahawk5 =
+      platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_TOMAHAWK5;
 
   if (isTajo) {
     std::set<cfg::AclTableQualifier> tajoQualifiers = {
@@ -1368,7 +1379,8 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
         cfg::AclTableQualifier::TTL,
         cfg::AclTableQualifier::IP_PROTOCOL,
         cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
-        cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE};
+        cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE,
+        cfg::AclTableQualifier::BTH_OPCODE};
     return jericho3Qualifiers;
   } else {
     std::set<cfg::AclTableQualifier> bcmQualifiers = {
@@ -1405,6 +1417,11 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
      */
     if (isTrident2) {
       bcmQualifiers.erase(cfg::AclTableQualifier::LOOKUP_CLASS_L2);
+    }
+    // TH5 fails creating ACL table after adding vlan as qualifier with 10.0
+    // CS00012342272
+    if (isTomahawk5) {
+      bcmQualifiers.erase(cfg::AclTableQualifier::OUTER_VLAN);
     }
 
     return bcmQualifiers;
@@ -1561,10 +1578,14 @@ bool SaiAclTableManager::isQualifierSupported(
               std::optional<SaiAclTableTraits::Attributes::FieldOuterVlanId>>(
               attributes));
     case cfg::AclTableQualifier::BTH_OPCODE:
+#if !defined(TAJO_SDK)
       return hasField(
           std::get<
               std::optional<SaiAclTableTraits::Attributes::FieldBthOpcode>>(
               attributes));
+#else
+      return false;
+#endif
     case cfg::AclTableQualifier::UDF:
       /* not supported */
       return false;

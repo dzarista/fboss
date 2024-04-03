@@ -904,20 +904,34 @@ static void populateInterfaceDetail(
     *temp.prefixLength() = addrAndMask.second;
     interfaceDetail.address()->push_back(temp);
   }
+
+  if (intf->getRemoteInterfaceType().has_value()) {
+    interfaceDetail.remoteIntfType() = intf->getRemoteInterfaceType().value();
+  }
+
+  if (intf->getRemoteLivenessStatus().has_value()) {
+    interfaceDetail.remoteIntfLivenessStatus() =
+        intf->getRemoteLivenessStatus().value();
+  }
 }
 
 void ThriftHandler::getAllInterfaces(
     std::map<int32_t, InterfaceDetail>& interfaces) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  const auto interfaceMap = sw_->getState()->getInterfaces();
-  for (const auto& [_, intfs] : std::as_const(*interfaceMap)) {
-    for (auto iter : std::as_const(*intfs)) {
-      const auto& intf = iter.second;
-      auto& interfaceDetail = interfaces[intf->getID()];
-      populateInterfaceDetail(interfaceDetail, intf);
+
+  auto getAllInterfacesHelper = [&interfaces](const auto& interfaceMap) {
+    for (const auto& [_, intfs] : std::as_const(*interfaceMap)) {
+      for (auto iter : std::as_const(*intfs)) {
+        const auto& intf = iter.second;
+        auto& interfaceDetail = interfaces[intf->getID()];
+        populateInterfaceDetail(interfaceDetail, intf);
+      }
     }
-  }
+  };
+
+  getAllInterfacesHelper(sw_->getState()->getInterfaces());
+  getAllInterfacesHelper(sw_->getState()->getRemoteInterfaces());
 }
 
 void ThriftHandler::getInterfaceList(std::vector<std::string>& interfaceList) {
@@ -1401,7 +1415,7 @@ void ThriftHandler::getSupportedPrbsPolynomials(
     throw FbossError("Unsupported component");
   }
   auto portID = sw_->getPlatformMapping()->getPortID(*portName);
-  prbsCapabilities = sw_->getPortPrbsPolynomials(portID);
+  prbsCapabilities = sw_->getPortPrbsPolynomials(PortID(portID));
 }
 
 void ThriftHandler::getInterfacePrbsState(
@@ -1465,7 +1479,7 @@ void ThriftHandler::clearPortPrbsStats(
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
   if (component == phy::PortComponent::ASIC) {
-    sw_->clearPortAsicPrbsStats(portId);
+    sw_->clearPortAsicPrbsStats(PortID(portId));
   } else if (
       component == phy::PortComponent::GB_SYSTEM ||
       component == phy::PortComponent::GB_LINE) {
@@ -1514,7 +1528,7 @@ void ThriftHandler::setPortPrbs(
   if (!port) {
     throw FbossError("no such port ", portNum);
   }
-  auto capabilities = sw_->getPortPrbsPolynomials(portNum);
+  auto capabilities = sw_->getPortPrbsPolynomials(PortID(portNum));
   if (enable &&
       std::find(
           capabilities.begin(),
@@ -3104,10 +3118,15 @@ void ThriftHandler::getSysPortStats(
   sw_->getAllHwSysPortStats(hwSysPortStats);
 }
 
+// TODO - delete this api after callers migrate to getAllCpuPortStats
 void ThriftHandler::getCpuPortStats(CpuPortStats& cpuPortStats) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  cpuPortStats = sw_->getHwSwitchHandler()->getCpuPortStats(true);
+  std::map<int, CpuPortStats> hwCpuPortStats;
+  sw_->getAllCpuPortStats(hwCpuPortStats);
+  if (hwCpuPortStats.size() > 0) {
+    cpuPortStats = hwCpuPortStats.begin()->second;
+  }
 }
 
 void ThriftHandler::getAllCpuPortStats(

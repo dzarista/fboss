@@ -21,37 +21,7 @@
 using apache::thrift::TEnumTraits;
 using folly::IPAddress;
 
-namespace {
-constexpr auto kPriority = "priority";
-constexpr auto kName = "name";
-constexpr auto kActionType = "actionType";
-constexpr auto kSrcIp = "srcIp";
-constexpr auto kDstIp = "dstIp";
-constexpr auto kL4SrcPort = "l4SrcPort";
-constexpr auto kL4DstPort = "l4DstPort";
-constexpr auto kProto = "proto";
-constexpr auto kTcpFlagsBitMap = "tcpFlagsBitMap";
-constexpr auto kSrcPort = "srcPort";
-constexpr auto kDstPort = "dstPort";
-constexpr auto kIpFrag = "ipFrag";
-constexpr auto kIcmpCode = "icmpCode";
-constexpr auto kIcmpType = "icmpType";
-constexpr auto kDscp = "dscp";
-constexpr auto kPortName = "portName";
-constexpr auto kDstMac = "dstMac";
-constexpr auto kIpType = "IpType";
-constexpr auto kTtl = "ttl";
-constexpr auto kTtlValue = "value";
-constexpr auto kTtlMask = "mask";
-constexpr auto kLookupClassL2 = "lookupClassL2";
-constexpr auto kLookupClass = "lookupClass";
-constexpr auto kLookupClassNeighbor = "lookupClassNeighbor";
-constexpr auto kLookupClassRoute = "lookupClassRoute";
-constexpr auto kPacketLookupResult = "packetLookupResult";
-constexpr auto kVlanID = "vlanID";
-constexpr auto kAclAction = "aclAction";
-constexpr auto kEnabled = "enabled";
-} // namespace
+namespace {} // namespace
 
 namespace facebook::fboss {
 

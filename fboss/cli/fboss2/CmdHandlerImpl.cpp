@@ -42,6 +42,8 @@
 #include "fboss/cli/fboss2/commands/show/fabric/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/fabric/reachability/CmdShowFabricReachability.h"
 #include "fboss/cli/fboss2/commands/show/fabric/reachability/gen-cpp2/model_visitation.h"
+#include "fboss/cli/fboss2/commands/show/fabric/topology/CmdShowFabricTopology.h"
+#include "fboss/cli/fboss2/commands/show/fabric/topology/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/flowlet/CmdShowFlowlet.h"
 #include "fboss/cli/fboss2/commands/show/host/CmdShowHost.h"
 #include "fboss/cli/fboss2/commands/show/hwagent/CmdShowHwAgentStatus.h"
@@ -89,6 +91,8 @@
 #include "fboss/cli/fboss2/commands/show/port/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/product/CmdShowProduct.h"
 #include "fboss/cli/fboss2/commands/show/product/CmdShowProductDetails.h"
+#include "fboss/cli/fboss2/commands/show/rif/CmdShowRif.h"
+#include "fboss/cli/fboss2/commands/show/rif/gen-cpp2/model_visitation.h"
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRoute.h"
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRouteDetails.h"
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRouteSummary.h"
@@ -126,6 +130,8 @@ template void CmdHandler<CmdShowFlowlet, CmdShowFlowletTraits>::run();
 template void CmdHandler<CmdShowDsf, CmdShowDsfTraits>::run();
 template void
 CmdHandler<CmdShowFabricReachability, CmdShowFabricReachabilityTraits>::run();
+template void
+CmdHandler<CmdShowFabricTopology, CmdShowFabricTopologyTraits>::run();
 template void CmdHandler<CmdShowDsfNodes, CmdShowDsfNodesTraits>::run();
 template void
 CmdHandler<CmdShowDsfSubscription, CmdShowDsfSubscriptionTraits>::run();
@@ -205,6 +211,7 @@ CmdHandler<CmdSetInterfacePrbsState, CmdSetInterfacePrbsStateTraits>::run();
 template void CmdHandler<CmdShowTeFlow, CmdShowTeFlowTraits>::run();
 template void CmdHandler<CmdStartPcap, CmdStartPcapTraits>::run();
 template void CmdHandler<CmdStopPcap, CmdStopPcapTraits>::run();
+template void CmdHandler<CmdShowRif, CmdShowRifTraits>::run();
 
 template const ValidFilterMapType
 CmdHandler<CmdShowArp, CmdShowArpTraits>::getValidFilters();
@@ -213,6 +220,9 @@ CmdHandler<CmdShowFabric, CmdShowFabricTraits>::getValidFilters();
 template const ValidFilterMapType CmdHandler<
     CmdShowFabricReachability,
     CmdShowFabricReachabilityTraits>::getValidFilters();
+template const ValidFilterMapType CmdHandler<
+    CmdShowFabricTopology,
+    CmdShowFabricTopologyTraits>::getValidFilters();
 template const ValidFilterMapType
 CmdHandler<CmdShowDsfNodes, CmdShowDsfNodesTraits>::getValidFilters();
 template const ValidFilterMapType
@@ -320,5 +330,7 @@ template const ValidFilterMapType CmdHandler<
     CmdSetInterfacePrbsStateTraits>::getValidFilters();
 template const ValidFilterMapType
 CmdHandler<CmdShowAcl, CmdShowAclTraits>::getValidFilters();
+template const ValidFilterMapType
+CmdHandler<CmdShowRif, CmdShowRifTraits>::getValidFilters();
 
 } // namespace facebook::fboss

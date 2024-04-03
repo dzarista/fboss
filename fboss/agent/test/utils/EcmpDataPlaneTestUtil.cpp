@@ -1,15 +1,12 @@
 // Copyright 2004-present Facebook. All Rights Reserved.
 
-#include "fboss/agent/hw/test/dataplane_tests/HwEcmpDataPlaneTestUtil.h"
+#include "fboss/agent/test/utils/EcmpDataPlaneTestUtil.h"
 
-#include "fboss/agent/Platform.h"
-#include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwSwitchEnsemble.h"
-#include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/LoadBalancerUtils.h"
+#include "fboss/agent/RouteUpdateWrapper.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/LinkStateToggler.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
+#include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
 
 namespace facebook::fboss::utility {
 
@@ -56,16 +53,24 @@ void HwEcmpDataPlaneTestUtil<EcmpSetupHelperT>::resolveNextHopsandClearStats(
 
 template <typename EcmpSetupHelperT>
 void HwEcmpDataPlaneTestUtil<EcmpSetupHelperT>::shrinkECMP(
-    unsigned int ecmpWidth) {
+    unsigned int ecmpWidth,
+    bool clearStats) {
   std::vector<PortID> ports = {helper_->nhop(ecmpWidth).portDesc.phyPortID()};
   ensemble_->getLinkToggler()->bringDownPorts(ports);
+  if (clearStats) {
+    resolveNextHopsandClearStats(ecmpWidth);
+  }
 }
 
 template <typename EcmpSetupHelperT>
 void HwEcmpDataPlaneTestUtil<EcmpSetupHelperT>::expandECMP(
-    unsigned int ecmpWidth) {
+    unsigned int ecmpWidth,
+    bool clearStats) {
   std::vector<PortID> ports = {helper_->nhop(ecmpWidth).portDesc.phyPortID()};
   ensemble_->getLinkToggler()->bringUpPorts(ports);
+  if (clearStats) {
+    resolveNextHopsandClearStats(ecmpWidth);
+  }
 }
 
 template <typename EcmpSetupHelperT>
@@ -73,9 +78,8 @@ bool HwEcmpDataPlaneTestUtil<EcmpSetupHelperT>::isLoadBalanced(
     int ecmpWidth,
     const std::vector<NextHopWeight>& weights,
     uint8_t deviation) {
-  auto ecmpPorts = helper_->ecmpPortDescs(ecmpWidth);
-  return utility::isLoadBalanced<PortID, HwPortStats>(
-      ensemble_, ecmpPorts, weights, deviation);
+  std::vector<PortDescriptor> ecmpPorts = helper_->ecmpPortDescs(ecmpWidth);
+  return isLoadBalanced(ecmpPorts, weights, deviation);
 }
 
 template <typename EcmpSetupHelperT>
@@ -83,13 +87,72 @@ bool HwEcmpDataPlaneTestUtil<EcmpSetupHelperT>::isLoadBalanced(
     const std::vector<PortDescriptor>& portDescs,
     const std::vector<NextHopWeight>& weights,
     uint8_t deviation) {
-  return utility::isLoadBalanced<PortID, HwPortStats>(
-      ensemble_, portDescs, weights, deviation);
+  auto rc = utility::isLoadBalanced<PortID, HwPortStats>(
+      portDescs,
+      weights,
+      [ensemble = ensemble_](
+          const std::vector<PortID>& portIds) -> std::map<PortID, HwPortStats> {
+        return ensemble->getLatestPortStats(portIds);
+      },
+      deviation);
+  return rc;
+}
+
+template <typename AddrT>
+void HwEcmpDataPlaneTestUtil<AddrT>::programLoadBalancer(
+    const cfg::LoadBalancer& lb) {
+  if (ensemble_->isSai()) {
+    // always program half lag hash for sai switches, see CS00012317640
+    ensemble_->applyNewState(
+        [this, lb](const std::shared_ptr<SwitchState>& state) {
+          return utility::addLoadBalancers(
+              ensemble_,
+              state,
+              {lb,
+               utility::getTrunkHalfHashConfig(
+                   *ensemble_->getHwAsicTable()->getHwAsic(SwitchID(0)))},
+              ensemble_->scopeResolver());
+        },
+        "program lb");
+  } else {
+    ensemble_->applyNewState(
+        [this, lb](const std::shared_ptr<SwitchState>& state) {
+          return utility::setLoadBalancer(
+              ensemble_, state, lb, ensemble_->scopeResolver());
+        },
+        "program lb");
+  }
+}
+
+template <typename AddrT>
+void HwEcmpDataPlaneTestUtil<AddrT>::pumpTrafficPortAndVerifyLoadBalanced(
+    unsigned int ecmpWidth,
+    bool loopThroughFrontPanel,
+    const std::vector<NextHopWeight>& weights,
+    int deviation,
+    bool loadBalanceExpected) {
+  utility::pumpTrafficAndVerifyLoadBalanced(
+      [=, this]() { this->pumpTraffic(ecmpWidth, loopThroughFrontPanel); },
+      [=, this]() {
+        auto helper = this->ecmpSetupHelper();
+        auto portDescs = helper->getPortDescs(ecmpWidth);
+        auto ports = std::make_unique<std::vector<int32_t>>();
+        for (const auto& portDesc : portDescs) {
+          if (portDesc.isPhysicalPort()) {
+            ports->push_back(portDesc.phyPortID());
+          }
+        }
+        ensemble_->clearPortStats(ports);
+      },
+      [=, this]() {
+        return this->isLoadBalanced(ecmpWidth, weights, deviation);
+      },
+      loadBalanceExpected);
 }
 
 template <typename AddrT>
 HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     RouterID vrf,
     std::vector<LabelForwardingAction::LabelStack> stacks)
     : BaseT(
@@ -101,7 +164,7 @@ HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
 
 template <typename AddrT>
 HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     const std::optional<folly::MacAddress>& nextHopMac,
     RouterID vrf)
     : BaseT(
@@ -113,7 +176,7 @@ HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
 
 template <typename AddrT>
 HwIpEcmpDataPlaneTestUtil<AddrT>::HwIpEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     RouterID vrf)
     : HwIpEcmpDataPlaneTestUtil(ensemble, vrf, {}) {}
 
@@ -189,7 +252,8 @@ void HwIpEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
   utility::pumpTraffic(
       std::is_same_v<AddrT, folly::IPAddressV6>,
-      ensemble->getHwSwitch(),
+      utility::getAllocatePktFn(ensemble),
+      utility::getSendPktFunc(ensemble),
       intfMac,
       vlanId,
       port);
@@ -197,7 +261,7 @@ void HwIpEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
 template <typename AddrT>
 HwIpRoCEEcmpDataPlaneTestUtil<AddrT>::HwIpRoCEEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     RouterID vrf)
     : BaseT(ensemble, vrf) {}
 
@@ -211,7 +275,8 @@ void HwIpRoCEEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
   utility::pumpRoCETraffic(
       std::is_same_v<AddrT, folly::IPAddressV6>,
-      ensemble->getHwSwitch(),
+      utility::getAllocatePktFn(ensemble),
+      utility::getSendPktFunc(ensemble),
       intfMac,
       vlanId,
       port);
@@ -220,7 +285,7 @@ void HwIpRoCEEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 template <typename AddrT>
 HwIpRoCEEcmpDestPortDataPlaneTestUtil<AddrT>::
     HwIpRoCEEcmpDestPortDataPlaneTestUtil(
-        HwSwitchEnsemble* ensemble,
+        TestEnsembleIf* ensemble,
         RouterID vrf)
     : BaseT(ensemble, vrf) {}
 
@@ -234,7 +299,8 @@ void HwIpRoCEEcmpDestPortDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
   utility::pumpRoCETraffic(
       std::is_same_v<AddrT, folly::IPAddressV6>,
-      ensemble->getHwSwitch(),
+      utility::getAllocatePktFn(ensemble),
+      utility::getSendPktFunc(ensemble),
       intfMac,
       vlanId,
       port,
@@ -243,7 +309,7 @@ void HwIpRoCEEcmpDestPortDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
 template <typename AddrT>
 HwMplsEcmpDataPlaneTestUtil<AddrT>::HwMplsEcmpDataPlaneTestUtil(
-    HwSwitchEnsemble* ensemble,
+    TestEnsembleIf* ensemble,
     MPLSHdr::Label topLabel,
     LabelForwardingAction::LabelForwardingType actionType)
     : BaseT(
@@ -283,7 +349,8 @@ void HwMplsEcmpDataPlaneTestUtil<AddrT>::pumpTrafficThroughPort(
 
   pumpMplsTraffic(
       std::is_same_v<AddrT, folly::IPAddressV6>,
-      ensemble->getHwSwitch(),
+      utility::getAllocatePktFn(ensemble),
+      utility::getSendPktFunc(ensemble),
       label_.getLabelValue(),
       mac,
       firstVlanID,

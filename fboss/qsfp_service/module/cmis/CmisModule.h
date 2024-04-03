@@ -65,9 +65,10 @@ enum VdmConfigType {
 class CmisModule : public QsfpModule {
  public:
   explicit CmisModule(
-      TransceiverManager* transceiverManager,
+      std::set<std::string> portNames,
       TransceiverImpl* qsfpImpl,
-      std::shared_ptr<const TransceiverConfig> cfg);
+      std::shared_ptr<const TransceiverConfig> cfg,
+      bool supportRemediate);
   virtual ~CmisModule() override;
 
   struct ApplicationAdvertisingField {
@@ -285,7 +286,7 @@ class CmisModule : public QsfpModule {
   /*
    * Return what power control capability is currently enabled
    */
-  PowerControlState getPowerControlValue() override;
+  PowerControlState getPowerControlValue(bool readFromCache) override;
   /*
    * Return SignalFlag which contains Tx/Rx LOS/LOL
    */
@@ -547,6 +548,8 @@ class CmisModule : public QsfpModule {
   bool fillVdmPerfMonitorPam4Data(VdmPerfMonitorStats& vdmStats);
 
   const std::shared_ptr<const TransceiverConfig> tcvrConfig_;
+
+  bool supportRemediate_;
 };
 
 } // namespace fboss

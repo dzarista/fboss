@@ -7,7 +7,7 @@
  *  of patent rights can be found in the PATENTS file in the same directory.
  *
  */
-#include "fboss/agent/mnpu/LinkEventSyncer.h"
+#include "fboss/agent/mnpu/LinkChangeEventSyncer.h"
 #include "fboss/agent/HwSwitch.h"
 #if FOLLY_HAS_COROUTINES
 #include <folly/experimental/coro/BlockingWait.h>
@@ -15,33 +15,34 @@
 
 namespace facebook::fboss {
 
-LinkEventSyncer::LinkEventSyncer(
+LinkChangeEventSyncer::LinkChangeEventSyncer(
     uint16_t serverPort,
     SwitchID switchId,
     folly::EventBase* connRetryEvb,
     HwSwitch* hw)
-    : ThriftSinkClient<multiswitch::LinkEvent>::ThriftSinkClient(
-          "LinkEventThriftSyncer",
+    : ThriftSinkClient<multiswitch::LinkChangeEvent>::ThriftSinkClient(
+          "LinkChangeEventThriftSyncer",
           serverPort,
           switchId,
-          LinkEventSyncer::initLinkEventSink,
+          LinkChangeEventSyncer::initLinkChangeEventSink,
           std::make_shared<folly::ScopedEventBaseThread>(
-              "LinkEventSyncerThread"),
+              "LinkChangeEventSyncerThread"),
           connRetryEvb),
       hw_(hw) {}
 
-LinkEventSyncer::EventSink LinkEventSyncer::initLinkEventSink(
+LinkChangeEventSyncer::EventSink LinkChangeEventSyncer::initLinkChangeEventSink(
     SwitchID switchId,
     apache::thrift::Client<multiswitch::MultiSwitchCtrl>* client) {
 #if FOLLY_HAS_COROUTINES
-  return folly::coro::blockingWait(client->co_notifyLinkEvent(switchId));
+  return folly::coro::blockingWait(client->co_notifyLinkChangeEvent(switchId));
 #else
-  return apache::thrift::ClientSink<multiswitch::LinkEvent, bool>();
+  return apache::thrift::ClientSink<multiswitch::LinkChangeEvent, bool>();
 #endif
 }
 
-void LinkEventSyncer::connected() {
+void LinkChangeEventSyncer::connected() {
   hw_->syncLinkStates();
+  hw_->syncLinkActiveStates();
 }
 
 } // namespace facebook::fboss

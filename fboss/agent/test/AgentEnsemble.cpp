@@ -6,8 +6,10 @@
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/Utils.h"
 
+#include <folly/io/async/ScopedEventBaseThread.h>
 #include "fboss/agent/CommonInit.h"
 #include "fboss/agent/EncapIndexAllocator.h"
+#include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/lib/CommonUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -116,8 +118,7 @@ void AgentEnsemble::writeConfig(const cfg::SwitchConfig& config) {
 void AgentEnsemble::writeConfig(const cfg::AgentConfig& agentConfig) {
   auto* initializer = agentInitializer();
   auto testConfigDir =
-      initializer->sw()->getDirUtil()->getPersistentStateDir() +
-      "/agent_ensemble/";
+      initializer->sw()->getDirUtil()->agentEnsembleConfigDir();
   utilCreateDir(testConfigDir);
   auto fileName = testConfigDir + configFile_;
   writeConfig(agentConfig, fileName);
@@ -289,15 +290,25 @@ void AgentEnsemble::runDiagCommand(
     const std::string& input,
     std::string& output,
     std::optional<SwitchID> switchId) {
+  ClientInformation clientInfo;
+  clientInfo.username() = "agent_ensemble";
+  clientInfo.hostname() = "agent_ensemble";
   if (FLAGS_multi_switch) {
     CHECK(switchId.has_value());
-    ClientInformation clientInfo;
-    clientInfo.username() = "agent_ensemble";
-    clientInfo.hostname() = "agent_ensemble";
     output = getSw()->getHwSwitchThriftClientTable()->diagCmd(
         switchId.value(), input, clientInfo);
+  } else {
+    auto client = createFbossHwClient(
+        5909, std::make_shared<folly::ScopedEventBaseThread>());
+    fbstring out;
+    client->sync_diagCmd(
+        out,
+        input,
+        clientInfo,
+        0 /* serverTimeoutMsecs */,
+        false /* bypassFilter */);
+    output = out;
   }
-  // TODO: Mono
 }
 
 LinkStateToggler* AgentEnsemble::getLinkToggler() {
@@ -382,5 +393,21 @@ void AgentEnsemble::waitForSpecificRateOnPort(
   }
 
   throw FbossError("Desired rate ", desiredBps, " bps was never reached");
+}
+
+void AgentEnsemble::sendPacketAsync(
+    std::unique_ptr<TxPacket> pkt,
+    std::optional<PortDescriptor> portDescriptor,
+    std::optional<uint8_t> queueId) {
+  if (!portDescriptor.has_value()) {
+    getSw()->sendPacketSwitchedAsync(std::move(pkt));
+    return;
+  }
+  getSw()->sendPacketOutOfPortAsync(
+      std::move(pkt), portDescriptor->phyPortID(), queueId);
+}
+
+std::unique_ptr<TxPacket> AgentEnsemble::allocatePacket(uint32_t size) {
+  return getSw()->allocatePacket(size);
 }
 } // namespace facebook::fboss
