@@ -7,7 +7,7 @@
       "upgradeCmd": "bios_filename=$(head -n 1 /home/bios_filename.txt); flashrom -p internal -l /home/bios_spi_layout -i image --noverify-all -w $bios_filename",
       "postUpgradeCmd": "bios_filename=$(head -n 1 /home/bios_filename.txt); flashrom -p internal -l /home/bios_spi_layout -i image --noverify-all -v $bios_filename;rm /home/bios_spi_layout;rm /home/meru_meta_eeprom;",
       "verifyFwCmd": "bios_filename=$(head -n 1 /home/bios_filename.txt); flashrom -p internal -l /home/bios_spi_layout -i image --noverify-all -v $bios_filename;rm /home/bios_spi_layout",
-      "readFwCmd": "bios_filename=$(head -n 1 /home/bios_filename.txt); flashrom -p internal -l /home/bios_spi_layout -i image --noverify-all -r $bios_filename;rm /home/bios_spi_layout",
+      "readFwCmd": "bios_filename=$(head -n 1 /home/bios_filename.txt); flashrom -p internal -l /home/bios_spi_layout -i image --noverify-all -r $bios_filename;rm /home/bios_spi_layout"
     },
     "scm_cpld": {
       "preUpgradeCmd": "",
