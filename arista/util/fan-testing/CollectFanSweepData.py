@@ -44,13 +44,7 @@ class FbossFanTestEdut():
       raise NotImplementedError
 
    def getFanMfr( self, id ):
-      idBits = id & 0b111 # filter to fan id according to Mauna key table
-      if idBits == 0:
-         return 'SANYO DENKI'
-      elif idBits == 1:
-         return 'DELTA'
-      else:
-         raise ValueError( 'Fan mfr not detected' )
+      raise NotImplementedError
 
    def getFanIds( self ):
       '''Returns a list of fan Ids where indexes map to fan slots'''
@@ -66,7 +60,8 @@ class FbossFanTestEdut():
 
    def getInletTemp( self ):
       '''Return the inlet temperature'''
-      raise NotImplementedError
+      shTemp = self.edut.showCmdIs( 'show sys env cool', dataFormat='json' )
+      return shTemp[ 'ambientTemperature' ]
 
    def getOutletTemp( self ):
       '''Return the outlet temperature'''
@@ -81,6 +76,8 @@ class FbossFanTestEdut():
       return NotImplementedError
    
    def calculateCFM( self, cfmTable, pwm, fanVendor ):
+      '''Estimate CFM based on a lookup table. Uses linear interpolation
+      between data points'''
       if pwm < 0 or pwm > 100:
          raise ValueError("PWM must be between 0 and 100.")
    
@@ -200,8 +197,19 @@ class FbossFanTestEdut():
          if value <= 0:
             raise ValueError(f'{key} reading invalid value ({value})')
 
+class Maunakea( FbossFanTestEdut ):
+   '''Class that implements methods specifically for Mauna Kea platforms'''
+   def getFanMfr( self, id ):
+      idBits = id & 0b111 # filter to fan id according to Mauna key table
+      if idBits == 0:
+         return 'SANYO DENKI'
+      elif idBits == 1:
+         return 'DELTA'
+      else:
+         raise ValueError( 'Fan mfr not detected' )
+
 # FIXME: Monterey class is outdated
-class Monterey( FbossFanTestEdut ):
+class Monterey( Maunakea ):
    '''Class that defines some Monterey helpers to collect
    FSCD qualification data'''
    def getOpticTemps( self ):
@@ -222,16 +230,6 @@ class Monterey( FbossFanTestEdut ):
             if re.search( 'Tomahawk|TH4', sensor[ 'description' ] ):
                asicTemps.append( sensor[ 'currentTemperature' ] )
       return asicTemps
-
-   def getInletTemp( self ):
-      '''Return the inlet temperature'''
-      shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
-      for entry in [ c[ 'tempSensors' ] for c in shTemp[ 'cardSlots' ] ]:
-         for sensor in entry:
-            # Exact Match
-            if re.search( 'Front-panel temp sensor', sensor[ 'description' ] ):
-               return sensor[ 'currentTemperature' ]
-      return 0
 
    def getOutletTemp( self ):
       '''Return the inlet temperature'''
@@ -271,7 +269,7 @@ class Monterey( FbossFanTestEdut ):
             addr=addr ) )[ 0 ].split( ' ' )[ 0 ], 16 ) / 2.55 )
       return pwms
 
-class Viper( FbossFanTestEdut ):
+class Viper( Maunakea ):
    '''Class that defines some Viper helpers to collect
    FSCD qualification data'''
 
@@ -301,7 +299,7 @@ class Viper( FbossFanTestEdut ):
       return fanIds
 
    def getOpticTemps( self ):
-      opticsTemps = []
+      opticsTemps = [40] #TODO: remove 40
       shXcvr = self.edut.showCmdIs( 'show int transc', dataFormat='json' )[
                                     'interfaces' ]
       for intf in shXcvr:
@@ -320,21 +318,12 @@ class Viper( FbossFanTestEdut ):
             asicTemps.append( sensor[ 'currentTemperature' ] )
       return asicTemps
 
-   def getInletTemp( self ):
-      '''Return the inlet temperature'''
-      temps = []
-      shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
-      for sensor in shTemp[ 'tempSensors' ]:
-         if sensor[ 'description' ] in ( "Board front", "Board Rear", "Management Card" ):
-            temps.append( sensor[ 'currentTemperature' ] )
-      return max( temps )
-
    def getOutletTemp( self ):
       '''Return the outlet temperature'''
       shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
       for sensor in shTemp[ 'tempSensors' ]:
          # Exact Match
-         if re.search( 'Fan Card', sensor[ 'description' ] ):
+         if re.search( 'Board Rear', sensor[ 'description' ] ):
             return sensor[ 'currentTemperature' ]
       return 0
 
@@ -391,7 +380,7 @@ class Viper( FbossFanTestEdut ):
       fanVendor = self.getFanMfr( fanId )
       return self.calculateCFM( self.CFM_DATA, pwm, fanVendor )
 
-class Whistler( FbossFanTestEdut ):
+class Whistler( Maunakea ):
    '''Class that defines some Whistler helpers to collect
    FSCD qualification data'''
 
@@ -446,15 +435,6 @@ class Whistler( FbossFanTestEdut ):
          if re.search( 'Fe0|Fe1', sensor[ 'description' ] ):
             asicTemps.append( sensor[ 'currentTemperature' ] )
       return asicTemps
-
-   def getInletTemp( self ):
-      '''Return the inlet temperature'''
-      shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
-      for sensor in shTemp[ 'tempSensors' ]:
-         # Exact Match
-         if re.search( 'Inlet', sensor[ 'description' ] ):
-            return sensor[ 'currentTemperature' ]
-      return 0
 
    def getOutletTemp( self ):
       '''Return the outlet temperature'''
@@ -552,7 +532,7 @@ def main( argv ):
 
    if edut.product() == 'Monterey':
       obj = Monterey( edut )
-   elif edut.product() in ( 'Viper', 'ViperJ3', 'ViperJ3' ):
+   elif edut.product() in ( 'Viper', 'ViperJ3' ):
       obj = Viper( edut )
    elif edut.product() in ( 'Whistler' ):
       obj = Whistler( edut )
