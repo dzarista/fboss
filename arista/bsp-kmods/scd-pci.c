@@ -110,32 +110,32 @@ struct scd_dev_priv {
 	struct fbiob_cdev_desc cdev_desc;
 };
 
-u32 scd_read_register(struct pci_dev *pdev, u32 offset, void __iomem *mem)
+u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
 {
 	u32 res = 0;
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
 
 	ASSERT(priv);
-	ASSERT(mem);
-	ASSERT(offset < priv->mem_len);
+	ASSERT(reg->mem);
+	ASSERT(reg->offset < priv->mem_len);
 	if (priv) {
-		res = ioread32(mem);
+		res = ioread32(reg->mem);
 	}
-	dev_dbg(&pdev->dev, "io:read 0x%04x => 0x%08x", offset, res);
+	dev_dbg(&pdev->dev, "io:read 0x%04x => 0x%08x", reg->offset, res);
 	return res;
 }
 EXPORT_SYMBOL(scd_read_register);
 
-void scd_write_register(struct pci_dev *pdev, u32 offset, u32 val, void __iomem *mem)
+void scd_write_register(struct pci_dev *pdev, struct scd_reg *reg, u32 val)
 {
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
 
 	ASSERT(priv);
-	ASSERT(mem);
-	ASSERT(offset < priv->mem_len);
-	dev_dbg(&pdev->dev, "io:write 0x%04x <= 0x%08x", offset, val);
+	ASSERT(reg->mem);
+	ASSERT(reg->offset < priv->mem_len);
+	dev_dbg(&pdev->dev, "io:write 0x%04x <= 0x%08x", reg->offset, val);
 	if (priv) {
-		iowrite32(val, mem);
+		iowrite32(val, reg->mem);
 	}
 }
 EXPORT_SYMBOL(scd_write_register);
@@ -199,7 +199,7 @@ static ssize_t chassis_power_cycle(struct device *dev,
 				   size_t count)
 {
 	struct scd_dev_priv *priv = dev_get_drvdata(dev);
-	unsigned long cmd = simple_strtoul(buf, NULL, 0);
+	u32 cmd = (u32)simple_strtoul(buf, NULL, 0);
 	struct regbit_sysfs_entry *entry = priv->regbit_sysfs_table;
 	struct attribute *attr = &dattr->attr;
 	struct scd_reg *reg;
@@ -220,8 +220,7 @@ static ssize_t chassis_power_cycle(struct device *dev,
 		reg = scd_reg_at_offset(priv, entry->reg_offset);
 		if (!reg)
 			continue;
-		ASSERT(reg->mem);
-		iowrite32(cmd, reg->mem);
+		scd_write_register(priv->pdev, reg, cmd);
 		return count; /* Never reach here as chassis is power cycled */
 	}
 
@@ -246,7 +245,7 @@ static ssize_t regbit_sysfs_show(struct device *dev,
 			if (!reg)
 				continue;
 
-			data = scd_read_register(priv->pdev, reg->offset, reg->mem);
+			data = scd_read_register(priv->pdev, reg);
 			mask = GENMASK(entry->bit_len - 1, 0);
 			data = (data >> entry->bit_offset) & mask;
 
@@ -288,13 +287,13 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 		 * current register value first.
 		 */
 		if (entry->bit_len != REG_MAX_BITSIZE) {
-			data = scd_read_register(priv->pdev, reg->offset, reg->mem);
+			data = scd_read_register(priv->pdev, reg);
 			data &= ~(mask << entry->bit_offset);
 			data |= (input << entry->bit_offset);
 		} else {
 			data = input;
 		}
-		scd_write_register(priv->pdev, reg->offset, data, reg->mem);
+		scd_write_register(priv->pdev, reg, data);
 		return count;
 	}
 
@@ -644,7 +643,7 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct scd_driver_cb *scd_cb;
 	struct attribute_group *sysfs_attr_group = NULL;
 	struct regbit_sysfs_entry *regbit_sysfs_table = NULL;
-	struct scd_reg *reg;
+	struct scd_reg *rev_reg;
 
 	scd_cb = &scd_pci_cb;
 	switch(ent->subdevice) {
@@ -731,12 +730,12 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	priv->cdev_initialized = 1;
 
-        reg = scd_reg_at_offset(priv, SCD_REVISION_OFFSET);
-	if (!reg) {
+	rev_reg = scd_reg_at_offset(priv, SCD_REVISION_OFFSET);
+	if (!rev_reg) {
 		dev_err(&pdev->dev, "failed to map revision register\n");
 		goto fail;
 	}
-        priv->scd_revision = ioread32(reg->mem);
+	priv->scd_revision = scd_read_register(priv->pdev, rev_reg);
 	fpga_rev = (priv->scd_revision & 0xffff0000) >> 16;
 	board_rev = priv->scd_revision & 0x00000fff;
 
