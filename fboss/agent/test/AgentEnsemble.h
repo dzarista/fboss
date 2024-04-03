@@ -141,6 +141,11 @@ class AgentEnsemble : public TestEnsembleIf {
       const std::map<PortID, bool>& port2IsActive) override {
     getSw()->linkActiveStateChanged(port2IsActive);
   }
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+          port2OldAndNewConnectivity) override {
+    getSw()->linkConnectivityChanged(port2OldAndNewConnectivity);
+  }
 
   void l2LearningUpdateReceived(
       L2Entry l2Entry,
@@ -172,6 +177,10 @@ class AgentEnsemble : public TestEnsembleIf {
   }
 
   HwAsicTable* getHwAsicTable() override {
+    return getSw()->getHwAsicTable();
+  }
+
+  const HwAsicTable* getHwAsicTable() const override {
     return getSw()->getHwAsicTable();
   }
 
@@ -213,6 +222,21 @@ class AgentEnsemble : public TestEnsembleIf {
       const uint64_t desiredBps,
       int secondsToWaitPerIteration = 1);
 
+  void sendPacketAsync(
+      std::unique_ptr<TxPacket> pkt,
+      std::optional<PortDescriptor> portDescriptor,
+      std::optional<uint8_t> queueId) override;
+
+  std::unique_ptr<TxPacket> allocatePacket(uint32_t size) override;
+
+  bool supportsAddRemovePort() const override {
+    return getSw()->getPlatformSupportsAddRemovePort();
+  }
+
+  const PlatformMapping* getPlatformMapping() const override {
+    return getSw()->getPlatformMapping();
+  }
+
  protected:
   void joinAsyncInitThread() {
     if (asyncInitThread_) {
@@ -249,6 +273,7 @@ std::unique_ptr<AgentEnsemble> createAgentEnsemble(
     uint32_t featuresDesired =
         (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
          HwSwitch::FeaturesDesired::LINKSCAN_DESIRED |
+         HwSwitch::FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED |
          HwSwitch::FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED));
 
 } // namespace facebook::fboss

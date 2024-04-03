@@ -9,7 +9,7 @@
 #include "fboss/agent/test/EcmpSetupHelper.h"
 
 namespace facebook::fboss {
-class HwSwitchEnsemble;
+class TestEnsembleIf;
 }
 
 namespace facebook::fboss::utility {
@@ -18,7 +18,7 @@ template <typename EcmpSetupHelperT>
 class HwEcmpDataPlaneTestUtil {
  public:
   HwEcmpDataPlaneTestUtil(
-      HwSwitchEnsemble* hwSwitchEnsemble,
+      TestEnsembleIf* hwSwitchEnsemble,
       std::unique_ptr<EcmpSetupHelperT> helper)
       : ensemble_(hwSwitchEnsemble), helper_(std::move(helper)) {}
   virtual ~HwEcmpDataPlaneTestUtil() {}
@@ -30,12 +30,12 @@ class HwEcmpDataPlaneTestUtil {
   void pumpTraffic(int ecmpWidth, bool loopThroughFrontPanel);
   void unresolveNextHop(unsigned int id);
   void resolveNextHopsandClearStats(unsigned int ecmpWidth);
-  void shrinkECMP(unsigned int ecmpWidth);
-  void expandECMP(unsigned int ecmpWidth);
+  void shrinkECMP(unsigned int ecmpWidth, bool clearStats = true);
+  void expandECMP(unsigned int ecmpWidth, bool clearStats = true);
   EcmpSetupHelperT* ecmpSetupHelper() const {
     return helper_.get();
   }
-  HwSwitchEnsemble* getEnsemble() {
+  TestEnsembleIf* getEnsemble() {
     return ensemble_;
   }
   bool isLoadBalanced(
@@ -47,10 +47,27 @@ class HwEcmpDataPlaneTestUtil {
       const std::vector<NextHopWeight>& weights,
       uint8_t deviation);
 
+  void programLoadBalancer(const cfg::LoadBalancer& lb);
+
+  void programRoutesAndLoadBalancer(
+      int ecmpWidth,
+      const std::vector<NextHopWeight>& weights,
+      const cfg::LoadBalancer& lb) {
+    programRoutes(ecmpWidth, weights);
+    programLoadBalancer(lb);
+  }
+
+  void pumpTrafficPortAndVerifyLoadBalanced(
+      unsigned int ecmpWidth,
+      bool loopThroughFrontPanel,
+      const std::vector<NextHopWeight>& weights,
+      int deviation,
+      bool loadBalanceExpected);
+
  private:
   virtual void pumpTrafficThroughPort(std::optional<PortID> port) = 0;
 
-  HwSwitchEnsemble* ensemble_;
+  TestEnsembleIf* ensemble_;
   std::unique_ptr<EcmpSetupHelperT> helper_;
 };
 
@@ -61,14 +78,14 @@ class HwIpEcmpDataPlaneTestUtil
   using EcmpSetupAnyNPortsT = EcmpSetupAnyNPorts<AddrT>;
   using BaseT = HwEcmpDataPlaneTestUtil<EcmpSetupAnyNPortsT>;
 
-  HwIpEcmpDataPlaneTestUtil(HwSwitchEnsemble* ensemble, RouterID vrf);
+  HwIpEcmpDataPlaneTestUtil(TestEnsembleIf* ensemble, RouterID vrf);
 
   HwIpEcmpDataPlaneTestUtil(
-      HwSwitchEnsemble* ensemble,
+      TestEnsembleIf* ensemble,
       RouterID vrf,
       std::vector<LabelForwardingAction::LabelStack> stacks);
   HwIpEcmpDataPlaneTestUtil(
-      HwSwitchEnsemble* ensemble,
+      TestEnsembleIf* ensemble,
       const std::optional<folly::MacAddress>& nextHopMac,
       RouterID vrf);
 
@@ -94,7 +111,7 @@ class HwIpRoCEEcmpDataPlaneTestUtil : public HwIpEcmpDataPlaneTestUtil<AddrT> {
  public:
   using BaseT = HwIpEcmpDataPlaneTestUtil<AddrT>;
 
-  HwIpRoCEEcmpDataPlaneTestUtil(HwSwitchEnsemble* ensemble, RouterID vrf);
+  HwIpRoCEEcmpDataPlaneTestUtil(TestEnsembleIf* ensemble, RouterID vrf);
 
   /* pump IP traffic */
   void pumpTrafficThroughPort(std::optional<PortID> port) override;
@@ -106,9 +123,7 @@ class HwIpRoCEEcmpDestPortDataPlaneTestUtil
  public:
   using BaseT = HwIpEcmpDataPlaneTestUtil<AddrT>;
 
-  HwIpRoCEEcmpDestPortDataPlaneTestUtil(
-      HwSwitchEnsemble* ensemble,
-      RouterID vrf);
+  HwIpRoCEEcmpDestPortDataPlaneTestUtil(TestEnsembleIf* ensemble, RouterID vrf);
 
   /* pump IP traffic */
   void pumpTrafficThroughPort(std::optional<PortID> port) override;
@@ -122,7 +137,7 @@ class HwMplsEcmpDataPlaneTestUtil
   using BaseT = HwEcmpDataPlaneTestUtil<MplsEcmpSetupAnyNPorts<AddrT>>;
 
   HwMplsEcmpDataPlaneTestUtil(
-      HwSwitchEnsemble* ensemble,
+      TestEnsembleIf* ensemble,
       MPLSHdr::Label topLabel,
       LabelForwardingAction::LabelForwardingType actionType);
 

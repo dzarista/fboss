@@ -74,7 +74,7 @@ class MockHwSwitch : public HwSwitch {
   MOCK_CONST_METHOD0(
       getPortStats,
       folly::F14FastMap<std::string, HwPortStats>());
-  MOCK_CONST_METHOD1(getCpuPortStats, CpuPortStats(bool getIncrement));
+  MOCK_CONST_METHOD0(getCpuPortStats, CpuPortStats());
   MOCK_CONST_METHOD0(getSysPortStats, std::map<std::string, HwSysPortStats>());
   MOCK_CONST_METHOD0(getFabricReachabilityStats, FabricReachabilityStats());
   MOCK_CONST_METHOD0(getSwitchDropStats, HwSwitchDropStats());
@@ -94,6 +94,7 @@ class MockHwSwitch : public HwSwitch {
   MOCK_CONST_METHOD0(getHwFlowletStats, HwFlowletStats());
   MOCK_CONST_METHOD0(getAllEcmpDetails, std::vector<EcmpDetails>());
   MOCK_CONST_METHOD0(getAclStats, AclStats());
+  MOCK_CONST_METHOD0(getSwitchWatermarkStats, HwSwitchWatermarkStats());
 
   MockPlatform* getPlatform() const override {
     return platform_;

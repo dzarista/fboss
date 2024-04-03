@@ -35,11 +35,13 @@ struct AgentStats {
   5: i64 linkFlaps;
   7: map<string, hardware_stats.HwSysPortStats> sysPortStats;
   8: hardware_stats.TeFlowStats teFlowStats;
+  // Deprecate this once newly added switchWatermarkStatsMap is
+  // available in prod!
   9: hardware_stats.HwBufferPoolStats bufferPoolStats;
   10: map<i16, hardware_stats.HwResourceStats> hwResourceStatsMap;
   11: map<i16, hardware_stats.HwAsicErrors> hwAsicErrorsMap;
   12: map<i16, hardware_stats.TeFlowStats> teFlowStatsMap;
-  13: map<i16, hardware_stats.HwBufferPoolStats> bufferPoolStatsMap;
+  13: map<i16, hardware_stats.HwBufferPoolStats> bufferPoolStatsMap_DEPRECATED;
   14: map<i16, map<string, hardware_stats.HwSysPortStats>> sysPortStatsMap;
   15: map<i16, hardware_stats.HwSwitchDropStats> switchDropStatsMap;
   16: hardware_stats.HwFlowletStats flowletStats;
@@ -52,4 +54,9 @@ struct AgentStats {
   23: map<i16, i64> hwagentOperSyncTimeoutCount;
   24: map<i16, HwAgentEventSyncStatus> hwAgentEventSyncStatusMap;
   25: map<i16, i16> fabricOverdrainPct;
+  26: map<i16, hardware_stats.HwSwitchWatermarkStats> switchWatermarkStatsMap;
+  27: map<
+    i16,
+    hardware_stats.FabricReachabilityStats
+  > fabricReachabilityStatsMap;
 }

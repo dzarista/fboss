@@ -23,7 +23,13 @@
 #include "fboss/agent/hw/sai/switch/SaiSystemPortManager.h"
 
 namespace facebook::fboss {
+
 void SaiSwitch::updateStatsImpl() {
+  if (FLAGS_skip_stats_update_for_debug) {
+    // Skip collecting any ASIC stats while debugs are in progress
+    return;
+  }
+
   auto now =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   bool updateWatermarks = now - watermarkStatsUpdateTime_ >=
@@ -34,6 +40,7 @@ void SaiSwitch::updateStatsImpl() {
 
   int64_t missingCount = 0, mismatchCount = 0;
   auto portsIter = concurrentIndices_->portSaiId2PortInfo.begin();
+  std::map<PortID, multiswitch::FabricConnectivityDelta> connectivityDelta;
   while (portsIter != concurrentIndices_->portSaiId2PortInfo.end()) {
     {
       std::lock_guard<std::mutex> locked(saiSwitchMutex_);
@@ -41,8 +48,11 @@ void SaiSwitch::updateStatsImpl() {
       auto endpointOpt = managerTable_->portManager().getFabricConnectivity(
           portsIter->second.portID);
       if (endpointOpt.has_value()) {
-        fabricConnectivityManager_->processConnectivityInfoForPort(
+        auto delta = fabricConnectivityManager_->processConnectivityInfoForPort(
             portsIter->second.portID, *endpointOpt);
+        if (delta) {
+          connectivityDelta.insert({portsIter->second.portID, *delta});
+        }
         if (fabricConnectivityManager_->isConnectivityInfoMissing(
                 portsIter->second.portID)) {
           missingCount++;
@@ -105,7 +115,12 @@ void SaiSwitch::updateStatsImpl() {
   }
   {
     std::lock_guard<std::mutex> locked(saiSwitchMutex_);
-    managerTable_->switchManager().updateStats();
+    managerTable_->switchManager().updateStats(updateWatermarks);
+  }
+  reportAsymmetricTopology();
+  if (connectivityDelta.size()) {
+    linkConnectivityChanged(connectivityDelta);
   }
 }
+
 } // namespace facebook::fboss

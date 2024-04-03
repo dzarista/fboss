@@ -8,17 +8,16 @@
  *
  */
 
-#include "fboss/agent/hw/test/HwTestStatUtils.h"
+#include "fboss/agent/test/utils/PortStatsTestUtils.h"
 
-#include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/SwitchStats.h"
 
 #include <folly/logging/xlog.h>
 
 #include <thrift/lib/cpp2/protocol/Serializer.h>
-#include <algorithm>
+#include <numeric>
 
-namespace facebook::fboss {
+namespace facebook::fboss::utility {
 
 namespace {
 template <typename Fn>
@@ -27,12 +26,7 @@ uint64_t accumalatePortStats(
     const Fn& fn) {
   return std::accumulate(port2Stats.begin(), port2Stats.end(), 0UL, fn);
 }
-
 } // namespace
-
-void updateHwSwitchStats(HwSwitch* hw) {
-  hw->updateStats();
-}
 
 uint64_t getPortOutPkts(const HwPortStats& portStats) {
   return *portStats.outUnicastPkts_() + *portStats.outMulticastPkts_() +
@@ -66,4 +60,4 @@ void printPortStats(const std::map<PortID, HwPortStats>& port2Stats) {
   }
 }
 
-} // namespace facebook::fboss
+} // namespace facebook::fboss::utility

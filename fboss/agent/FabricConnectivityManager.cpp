@@ -20,6 +20,7 @@
 #include "fboss/agent/hw/switch_asics/Ramon3Asic.h"
 #include "fboss/agent/hw/switch_asics/RamonAsic.h"
 
+#include <sstream>
 using facebook::fboss::DeltaFunctions::forEachAdded;
 using facebook::fboss::DeltaFunctions::forEachChanged;
 using facebook::fboss::DeltaFunctions::forEachRemoved;
@@ -189,9 +190,23 @@ uint32_t getFabricPortsPerVirtualDevice(const cfg::AsicType asicType) {
       "Invalid Asic Type: ", apache::thrift::util::enumNameSafe(asicType));
 }
 
+std::string toStr(const RemoteEndpoint& r) {
+  std::stringstream ss;
+  ss << " switchId : " << *r.switchId() << " switch name: " << *r.switchName()
+     << " connecting ports: " << folly::join(", ", *r.connectingPorts());
+  return ss.str();
+}
+
 } // namespace
 
 namespace facebook::fboss {
+
+void toAppend(const RemoteEndpoint& endpoint, folly::fbstring* result) {
+  result->append(toStr(endpoint));
+}
+void toAppend(const RemoteEndpoint& endpoint, std::string* result) {
+  *result += toStr(endpoint);
+}
 
 void FabricConnectivityManager::updateExpectedSwitchIdAndPortIdForPort(
     PortID portID) {
@@ -263,6 +278,7 @@ void FabricConnectivityManager::addPort(const std::shared_ptr<Port>& swPort) {
     return;
   }
 
+  fabricPortId2Name_[swPort->getID()] = swPort->getName();
   FabricEndpoint expectedEndpoint;
   const auto& expectedNeighbors =
       swPort->getExpectedNeighborValues()->toThrift();
@@ -280,6 +296,7 @@ void FabricConnectivityManager::addPort(const std::shared_ptr<Port>& swPort) {
 void FabricConnectivityManager::removePort(
     const std::shared_ptr<Port>& swPort) {
   currentNeighborConnectivity_.erase(swPort->getID());
+  fabricPortId2Name_.erase(swPort->getID());
 }
 
 void FabricConnectivityManager::addDsfNode(
@@ -338,11 +355,15 @@ void FabricConnectivityManager::stateUpdated(const StateDelta& delta) {
   updateDsfNodes(delta);
 }
 
-FabricEndpoint FabricConnectivityManager::processConnectivityInfoForPort(
+std::optional<multiswitch::FabricConnectivityDelta>
+FabricConnectivityManager::processConnectivityInfoForPort(
     const PortID& portId,
     const FabricEndpoint& hwEndpoint) {
-  const auto& iter = currentNeighborConnectivity_.find(portId);
+  std::optional<multiswitch::FabricConnectivityDelta> delta;
+  std::optional<FabricEndpoint> old;
+  auto iter = currentNeighborConnectivity_.find(portId);
   if (iter != currentNeighborConnectivity_.end()) {
+    old = iter->second;
     // Populate actual isAttached, switchId, switchName, portId, portName
     iter->second.isAttached() = *hwEndpoint.isAttached();
     iter->second.switchId() = *hwEndpoint.switchId();
@@ -366,59 +387,56 @@ FabricEndpoint FabricConnectivityManager::processConnectivityInfoForPort(
         iter->second.expectedPortName().has_value()) {
       iter->second.portName() = iter->second.expectedPortName().value();
     }
+  } else {
+    iter = currentNeighborConnectivity_.insert({portId, hwEndpoint}).first;
   }
-
-  return iter->second;
-}
-
-std::map<PortID, FabricEndpoint>
-FabricConnectivityManager::processConnectivityInfo(
-    const std::map<PortID, FabricEndpoint>& hwConnectivity) {
-  // use the hw connectivity + expected connectivity info to derive if there is
-  // a match or not
-  for (const auto& hwConnectivityEntry : hwConnectivity) {
-    processConnectivityInfoForPort(
-        hwConnectivityEntry.first, hwConnectivityEntry.second);
+  if (!old || (old != iter->second)) {
+    delta = multiswitch::FabricConnectivityDelta();
+    if (old.has_value()) {
+      delta->oldConnectivity() = *old;
+    }
+    delta->newConnectivity() = iter->second;
   }
-  return currentNeighborConnectivity_;
+  return delta;
 }
 
 // Detect mismatch in expected vs. actual connectivity.
 // Points to cabling issues: no or wrong connection.
+
+bool FabricConnectivityManager::isConnectivityInfoMismatch(
+    const FabricEndpoint& endpoint) {
+  if (!*endpoint.isAttached()) {
+    // No connectivity seen - typically implies a DOWN port.
+    // Cannot conclude its a mismatch
+    return false;
+  }
+  if (endpoint.expectedSwitchId().has_value() &&
+      (endpoint.switchId() != endpoint.expectedSwitchId().value())) {
+    return true;
+  }
+  if (endpoint.expectedPortId().has_value() &&
+      (endpoint.portId() != endpoint.expectedPortId().value())) {
+    return true;
+  }
+
+  if (endpoint.switchName() != endpoint.expectedSwitchName()) {
+    // mismatch
+    return true;
+  }
+
+  if (endpoint.portName() != endpoint.expectedPortName()) {
+    // mismatch
+    return true;
+  }
+  return false;
+}
+
 bool FabricConnectivityManager::isConnectivityInfoMismatch(
     const PortID& portId) {
   const auto& iter = currentNeighborConnectivity_.find(portId);
   if (iter != currentNeighborConnectivity_.end()) {
     const auto& endpoint = iter->second;
-    if (!*endpoint.isAttached()) {
-      // endpoint not attached, points to cabling connectivity issues
-      // unless in cfg also we don't expect it to be present
-      if (!endpoint.expectedSwitchId().has_value() &&
-          !endpoint.expectedPortId().has_value()) {
-        // not attached, not expected to be attached ..thse are fabric ports
-        // which are down and only contribute to the noise.
-        return false;
-      }
-      return true;
-    }
-    if (endpoint.expectedSwitchId().has_value() &&
-        (endpoint.switchId() != endpoint.expectedSwitchId().value())) {
-      return true;
-    }
-    if (endpoint.expectedPortId().has_value() &&
-        (endpoint.portId() != endpoint.expectedPortId().value())) {
-      return true;
-    }
-
-    if (endpoint.switchName() != endpoint.expectedSwitchName()) {
-      // mismatch
-      return true;
-    }
-
-    if (endpoint.portName() != endpoint.expectedPortName()) {
-      // mismatch
-      return true;
-    }
+    return isConnectivityInfoMismatch(endpoint);
   }
 
   // no mismatch
@@ -431,16 +449,23 @@ bool FabricConnectivityManager::isConnectivityInfoMissing(
     const PortID& portId) {
   const auto& iter = currentNeighborConnectivity_.find(portId);
   if (iter == currentNeighborConnectivity_.end()) {
-    // specific port is missing from the reachability DB
-    // treat it like mimssing info
-    return true;
+    // specific port is missing from the reachability DB and
+    // also switch state (else we would have added it during addPort).
+    // So no connectivity is expected here
+    return false;
   }
 
   const auto& endpoint = iter->second;
   if (!*endpoint.isAttached()) {
-    // absence of attached point implies issue with connectivity/cabling
-    // but can be tracked by mismatch check above
-    return false;
+    // endpoint not attached, points to cabling connectivity issues
+    // unless in cfg also we don't expect it to be present
+    if (!endpoint.expectedSwitchId().has_value() &&
+        !endpoint.expectedPortId().has_value()) {
+      // not attached, not expected to be attached ..thse are fabric ports
+      // which are down and only contribute to the noise.
+      return false;
+    }
+    return true;
   }
 
   // if any of these parameters are not populated, we have missing
@@ -463,4 +488,58 @@ FabricConnectivityManager::getConnectivityInfo() const {
   return currentNeighborConnectivity_;
 }
 
+std::map<int64_t, FabricConnectivityManager::RemoteConnectionGroups>
+FabricConnectivityManager::getVirtualDeviceToRemoteConnectionGroups(
+    const std::function<int(PortID)>& portToVirtualDevice) const {
+  // Virtual device Id ->  map<numConnections, list<RemoteEndpoint>>
+  std::map<int64_t, RemoteConnectionGroups>
+      virtualDevice2RemoteConnectionGroups;
+
+  // Local cache to maintain current state of remote endpoints for
+  // a virtual device.
+  std::map<int64_t, RemoteEndpoints> virtualDevice2RemoteEndpoints;
+  for (const auto& [portId, fabricEndpoint] : currentNeighborConnectivity_) {
+    if (!*fabricEndpoint.isAttached()) {
+      continue;
+    }
+    auto portName = fabricPortId2Name_.find(portId)->second;
+    auto virtualDeviceId = portToVirtualDevice(portId);
+    //      platform_->getPlatformPort(portId)->getVirtualDeviceId();
+    // CHECK(virtualDeviceId.has_value());
+    // get connections for virtual device
+    auto& virtualDeviceRemoteEndpoints =
+        virtualDevice2RemoteEndpoints[virtualDeviceId];
+    auto& remoteConnectionGroups =
+        virtualDevice2RemoteConnectionGroups[virtualDeviceId];
+    // Append to list of ports connecting to this virtual device
+    RemoteEndpoint remoteEndpoint;
+    remoteEndpoint.switchId() = *fabricEndpoint.switchId();
+    remoteEndpoint.switchName() = fabricEndpoint.switchName().value_or("");
+    remoteEndpoint.connectingPorts()->push_back(portName);
+    auto ritr = virtualDeviceRemoteEndpoints.find(remoteEndpoint);
+    if (ritr != virtualDeviceRemoteEndpoints.end()) {
+      // Remote endpoint is already connected to this virtual device
+      auto numExistingConnections = ritr->connectingPorts()->size();
+      CHECK_NE(numExistingConnections, 0);
+      // Remove this from remoteConnectionGroups as the numConnections will
+      // change after we add portId. We will re add the entry after adding
+      // portId
+      remoteConnectionGroups[numExistingConnections].erase(remoteEndpoint);
+      if (remoteConnectionGroups[numExistingConnections].size() == 0) {
+        remoteConnectionGroups.erase(numExistingConnections);
+      }
+      // Add portId to this remote endpoint
+      remoteEndpoint = *ritr;
+      remoteEndpoint.connectingPorts()->push_back(portName);
+      // Erase and add back new endpoint (can't update value in set)
+      virtualDeviceRemoteEndpoints.erase(ritr);
+    }
+    // Add back updated(or newly discovered) remoteEndpoint
+    virtualDeviceRemoteEndpoints.insert(remoteEndpoint);
+    // Insert updated remote endpoint
+    remoteConnectionGroups[remoteEndpoint.connectingPorts()->size()].insert(
+        remoteEndpoint);
+  }
+  return virtualDevice2RemoteConnectionGroups;
+}
 } // namespace facebook::fboss

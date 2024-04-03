@@ -4,12 +4,10 @@
 #include "fboss/agent/hw/sai/api/SaiVersion.h"
 
 extern "C" {
-#if defined(BRCM_SAI_SDK_DNX)
-#ifndef IS_OSS_BRCM_SAI
+#if defined(BRCM_SAI_SDK_GTE_11_0) && !defined(IS_OSS_BRCM_SAI)
 #include <experimental/saidebugcounterextensions.h>
 #else
 #include <saidebugcounterextensions.h>
-#endif
 #endif
 #include <sai.h>
 }

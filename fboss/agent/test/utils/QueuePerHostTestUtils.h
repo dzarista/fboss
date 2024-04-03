@@ -19,7 +19,7 @@
 #include "folly/MacAddress.h"
 
 /*
- * This utility is to provide utils for bcm queue-per host tests.
+ * This utility is to provide utils for queue-per host tests.
  */
 
 // Forward declarations
@@ -58,49 +58,6 @@ std::string getTtlAclTableName();
 std::string getQueuePerHostTtlAclName();
 std::string getQueuePerHostTtlCounterName();
 
-void verifyQueuePerHostMapping(
-    HwSwitch* hwSwitch,
-    std::shared_ptr<SwitchState> swState,
-    const std::vector<PortID>& portIds,
-    std::optional<VlanID> vlanId,
-    folly::MacAddress srcMac,
-    folly::MacAddress dstMac,
-    const folly::IPAddress& srcIp,
-    const folly::IPAddress& dstIp,
-    bool useFrontPanel,
-    bool blockNeighbor);
-
-void verifyQueuePerHostMapping(
-    const HwSwitch* hwSwitch,
-    HwSwitchEnsemble* ensemble,
-    std::optional<VlanID> vlanId,
-    folly::MacAddress srcMac,
-    folly::MacAddress dstMac,
-    const folly::IPAddress& srcIp,
-    const folly::IPAddress& dstIp,
-    bool useFrontPanel,
-    bool blockNeighbor,
-    std::optional<uint16_t> l4SrcPort = std::nullopt,
-    std::optional<uint16_t> l4DstPort = std::nullopt,
-    std::optional<uint8_t> dscp = std::nullopt);
-
-void verifyQueuePerHostMapping(
-    HwSwitch* hwSwitch,
-    std::shared_ptr<SwitchState> swState,
-    const std::vector<PortID>& portIds,
-    std::optional<VlanID> vlanId,
-    folly::MacAddress srcMac,
-    folly::MacAddress dstMac,
-    const folly::IPAddress& srcIp,
-    const folly::IPAddress& dstIp,
-    bool useFrontPanel,
-    bool blockNeighbor,
-    std::function<std::map<PortID, HwPortStats>(const std::vector<PortID>&)>
-        getHwPortStatsFn,
-    std::optional<uint16_t> l4SrcPort,
-    std::optional<uint16_t> l4DstPort,
-    std::optional<uint8_t> dscp);
-
 void updateRoutesClassID(
     const std::map<
         RoutePrefix<folly::IPAddressV4>,
@@ -124,4 +81,50 @@ void addQueuePerHostAclTables(
     bool isSai);
 void deleteQueuePerHostMatchers(cfg::SwitchConfig* config);
 
+void verifyQueuePerHostMapping(
+    HwSwitchEnsemble* ensemble,
+    std::shared_ptr<SwitchState> swState,
+    const std::vector<PortID>& portIds,
+    std::optional<VlanID> vlanId,
+    folly::MacAddress srcMac,
+    folly::MacAddress dstMac,
+    const folly::IPAddress& srcIp,
+    const folly::IPAddress& dstIp,
+    bool useFrontPanel,
+    bool blockNeighbor,
+    std::function<std::map<PortID, HwPortStats>(const std::vector<PortID>&)>
+        getHwPortStatsFn,
+    std::optional<uint16_t> l4SrcPort,
+    std::optional<uint16_t> l4DstPort,
+    std::optional<uint8_t> dscp);
+
+void verifyQueuePerHostMapping(
+    HwSwitch* ensemble,
+    std::shared_ptr<SwitchState> swState,
+    const std::vector<PortID>& portIds,
+    std::optional<VlanID> vlanId,
+    folly::MacAddress srcMac,
+    folly::MacAddress dstMac,
+    const folly::IPAddress& srcIp,
+    const folly::IPAddress& dstIp,
+    bool useFrontPanel,
+    bool blockNeighbor,
+    std::function<std::map<PortID, HwPortStats>(const std::vector<PortID>&)>
+        getHwPortStatsFn,
+    std::optional<uint16_t> l4SrcPort,
+    std::optional<uint16_t> l4DstPort,
+    std::optional<uint8_t> dscp);
+
+void verifyQueuePerHostMapping(
+    HwSwitchEnsemble* ensemble,
+    std::optional<VlanID> vlanId,
+    folly::MacAddress srcMac,
+    folly::MacAddress dstMac,
+    const folly::IPAddress& srcIp,
+    const folly::IPAddress& dstIp,
+    bool useFrontPanel,
+    bool blockNeighbor,
+    std::optional<uint16_t> l4SrcPort = std::nullopt,
+    std::optional<uint16_t> l4DstPort = std::nullopt,
+    std::optional<uint8_t> dscp = std::nullopt);
 } // namespace facebook::fboss::utility
