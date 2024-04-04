@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2023 Arista Networks, Inc.  All rights reserved.
+ * Copyright (c) 2006-2024 Arista Networks, Inc.  All rights reserved.
  * Arista Networks, Inc. Confidential and Proprietary.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -35,10 +35,12 @@
 #include "fbiob-cdev.h"
 
 #define SCD_MODULE_NAME			"scd"
+#define REG_BLK_SIZE			4
+#define REG_MAX_BITSIZE			32
+#define MAX_NUM_REGS			10
 
 #define SCD_PCI_VENDOR_ID		0x3475
 #define SCD_PCI_DEVICE_ID		0x0001
-#define DARWIN_SCD_PCI_SUBDEVICE_ID	0x0002
 #define FAIRYWREN_SCD_PCI_SUBDEVICE_ID	0x0008
 #define VIPER_SCD_PCI_SUBDEVICE_ID	0x0003
 #define BLACKCOMB_SCD0_PCI_SUBDEVICE_ID	0x0004
@@ -51,13 +53,6 @@
 #define SCD_MAGIC			0xdeadbeef
 #define SCD_FPGA_REV_MASK		0xffff0000
 #define SCD_BOARD_REV_MASK		0xfff
-
-/*
- * Below Intel vid:pid is assigned to the ROOK CPU CPLD on the Arista
- * Darwin platform.
- */
-#define INTEL_PCI_VENDOR_ID		0x8086
-#define INTEL_PCI_BROADWELL_DEVICE_ID	0x6f76
 
 #define RECONFIG_PCI_SUBSYSTEM_ID	0x14
 #define RECONFIG_STATE_BAR_VALUE	0xdeadface
@@ -76,6 +71,12 @@ struct scd_driver_cb {
 	void (*disable)(struct pci_dev *dev);
 };
 
+struct scd_reg {
+	u32 offset;
+	bool valid;
+	void __iomem *mem;
+};
+
 struct regbit_sysfs_entry {
 	const char *name;
 	u32 reg_offset;
@@ -85,20 +86,18 @@ struct regbit_sysfs_entry {
 
 struct scd_dev_priv {
 	struct pci_dev *pdev;
-	void __iomem *mem;
 	resource_size_t csr_bus_addr;
 	size_t mem_len;
 	void __iomem *localbus;
 	unsigned int magic;
+	struct scd_reg reg_table[MAX_NUM_REGS];
+	struct scd_reg *end_reg;
 	struct attribute_group *sysfs_attr_group;
 	struct regbit_sysfs_entry *regbit_sysfs_table;
 	u32 scd_revision;
 	bool is_reconfig;
 
 	const struct scd_driver_cb *driver_cb;
-
-	int lpc_device;
-	int lpc_vendor;
 
 	u32 auxbus_initialized:1;
 	u32 cdev_initialized:1;
@@ -111,63 +110,102 @@ struct scd_dev_priv {
 	struct fbiob_cdev_desc cdev_desc;
 };
 
-/*
- * The ROOK CPU CPLD (LPC) driver takes three parameters:
- *    scd.lpc_res_addr - beginning of the LPC physical memory
- *    scd.lpc_res_size - size of the LPC block, in 4K increments
- *    scd.lpc_irq - assigned interrupt number
- * This driver uses the LPC-ISA bridge available in the AMD-Kabini chip
- * as the PCI device.
- */
-static unsigned long lpc_res_addr = 0xb0000000;
-module_param(lpc_res_addr, long, 0);
-MODULE_PARM_DESC(lpc_res_addr, "physical address of LPC resource");
-static int lpc_res_size = 0x10000;
-module_param(lpc_res_size, int, 0);
-MODULE_PARM_DESC(lpc_res_size, "size of LPC resource");
-static int lpc_irq = 7;
-module_param(lpc_irq, int, 0);
-MODULE_PARM_DESC(lpc_irq, "interrupt of LPC SCD");
-
-u32 scd_read_register(struct pci_dev *pdev, u32 offset)
+u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
 {
-	void __iomem *reg;
 	u32 res = 0;
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
 
 	ASSERT(priv);
-	ASSERT(offset < priv->mem_len);
+	ASSERT(reg->mem);
+	ASSERT(reg->offset < priv->mem_len);
 	if (priv) {
-		reg = priv->mem + offset;
-		res = ioread32(reg);
+		res = ioread32(reg->mem);
 	}
-	dev_dbg(&pdev->dev, "io:read 0x%04x => 0x%08x", offset, res);
+	dev_dbg(&pdev->dev, "io:read 0x%04x => 0x%08x", reg->offset, res);
 	return res;
 }
 EXPORT_SYMBOL(scd_read_register);
 
-void scd_write_register(struct pci_dev *pdev, u32 offset, u32 val)
+void scd_write_register(struct pci_dev *pdev, struct scd_reg *reg, u32 val)
 {
-	void __iomem *reg;
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
 
 	ASSERT(priv);
-	ASSERT(offset < priv->mem_len);
-	dev_dbg(&pdev->dev, "io:write 0x%04x <= 0x%08x", offset, val);
+	ASSERT(reg->mem);
+	ASSERT(reg->offset < priv->mem_len);
+	dev_dbg(&pdev->dev, "io:write 0x%04x <= 0x%08x", reg->offset, val);
 	if (priv) {
-		reg = priv->mem + offset;
-		iowrite32(val, reg);
+		iowrite32(val, reg->mem);
 	}
 }
 EXPORT_SYMBOL(scd_write_register);
 
+static int scd_regs_init(struct scd_dev_priv *priv) {
+	struct regbit_sysfs_entry *sysfs;
+	struct scd_reg *reg;
+	bool reg_exists;
+
+	priv->end_reg = priv->reg_table + MAX_NUM_REGS;
+
+	// Populate register information based on defined sysfs attrs.
+	for (sysfs = priv->regbit_sysfs_table; sysfs->name != NULL; sysfs++) {
+		reg_exists = false;
+		for(reg = priv->reg_table; reg < priv->end_reg && reg->valid; reg++) {
+			if (reg->offset == sysfs->reg_offset) {
+				reg_exists = true;
+				break;
+			}
+		}
+		if (reg == priv->end_reg) {
+			dev_err(&priv->pdev->dev, "defined registers exceed max\n");
+			return -ENXIO;
+		}
+		if (!reg_exists) {
+			reg->offset = sysfs->reg_offset;
+			reg->valid = true;
+		}
+	}
+
+	return 0;
+}
+
+static void scd_regs_remove(struct scd_dev_priv *priv) {
+	struct scd_reg *reg;
+
+	for(reg = priv->reg_table; reg < priv->end_reg; reg++) {
+		reg->offset = 0;
+		reg->valid = 0;
+		reg->mem = NULL;
+	}
+
+	priv->end_reg = NULL;
+}
+
+static struct scd_reg *scd_reg_at_offset(struct scd_dev_priv *priv, u32 offset) {
+	struct scd_reg *reg;
+
+	for(reg = priv->reg_table; reg < priv->end_reg && reg->valid; reg++) {
+		if (reg->offset == offset) {
+			return reg;
+		}
+	}
+
+	return NULL;
+}
+
 static ssize_t chassis_power_cycle(struct device *dev,
-				   struct device_attribute *attr,
+				   struct device_attribute *dattr,
 				   const char *buf,
 				   size_t count)
 {
 	struct scd_dev_priv *priv = dev_get_drvdata(dev);
-	unsigned long cmd = simple_strtoul(buf, NULL, 0);
+	u32 cmd = (u32)simple_strtoul(buf, NULL, 0);
+	struct regbit_sysfs_entry *entry = priv->regbit_sysfs_table;
+	struct attribute *attr = &dattr->attr;
+	struct scd_reg *reg;
+
+	if (entry == NULL)
+		return -ENOENT;
 
 	/*
 	 * Users must write "0xdead" to trigger power cycle, and this is
@@ -176,31 +214,18 @@ static ssize_t chassis_power_cycle(struct device *dev,
 	if (cmd != 0xdead)
 		return -EINVAL;
 
-	iowrite32(cmd, priv->mem + 0x7000);
-	return count; /* Never reach here as chassis is power cycled */
+	for (; entry->name != NULL; entry++) {
+		if (strcmp(entry->name, attr->name))
+			continue;
+		reg = scd_reg_at_offset(priv, entry->reg_offset);
+		if (!reg)
+			continue;
+		scd_write_register(priv->pdev, reg, cmd);
+		return count; /* Never reach here as chassis is power cycled */
+	}
+
+	return -ENOENT;
 }
-static DEVICE_ATTR(chassis_power_cycle, S_IWUSR | S_IWGRP, NULL,
-		   chassis_power_cycle);
-
-static ssize_t cpu_reset(struct device *dev,
-			 struct device_attribute *attr,
-			 const char *buf,
-			 size_t count)
-{
-	struct scd_dev_priv *priv = dev_get_drvdata(dev);
-	unsigned long cmd = simple_strtoul(buf, NULL, 0);
-
-	/*
-	 * Users must write "0x824" to trigger cpu reset or "0x0" to clear a
-	 * previous dud reset.
-	 */
-	if (cmd != 0x824 && cmd != 0x0)
-		return -EINVAL;
-
-	iowrite32(cmd, priv->mem + 0x7300);
-	return count; /* Could reach here in the event of a dud reset */
-}
-static DEVICE_ATTR(cpu_reset, S_IWUSR | S_IWGRP, NULL, cpu_reset);
 
 static ssize_t regbit_sysfs_show(struct device *dev,
 				 struct device_attribute *dattr, char *buf)
@@ -209,13 +234,18 @@ static ssize_t regbit_sysfs_show(struct device *dev,
 	struct attribute *attr = &dattr->attr;
 	struct scd_dev_priv *priv = dev_get_drvdata(dev);
 	struct regbit_sysfs_entry *entry = priv->regbit_sysfs_table;
+	struct scd_reg *reg;
 
 	if (entry == NULL)
 		return -ENOENT;
 
 	for (; entry->name != NULL; entry++) {
 		if (strcmp(entry->name, attr->name) == 0) {
-			data = scd_read_register(priv->pdev, entry->reg_offset);
+			reg = scd_reg_at_offset(priv, entry->reg_offset);
+			if (!reg)
+				continue;
+
+			data = scd_read_register(priv->pdev, reg);
 			mask = GENMASK(entry->bit_len - 1, 0);
 			data = (data >> entry->bit_offset) & mask;
 
@@ -235,6 +265,7 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	struct attribute *attr = &dattr->attr;
 	struct scd_dev_priv *priv = dev_get_drvdata(dev);
 	struct regbit_sysfs_entry *entry = priv->regbit_sysfs_table;
+	struct scd_reg *reg;
 
 	if (entry == NULL)
 		return -ENOENT;
@@ -243,15 +274,26 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 		if (strcmp(entry->name, attr->name))
 			continue;
 
+		reg = scd_reg_at_offset(priv, entry->reg_offset);
+		if (!reg)
+			continue;
+
 		input = (u32)simple_strtoul(buf, NULL, 0);
 		mask = GENMASK(entry->bit_len - 1, 0);
 		if (input & ~mask)
 			return -EINVAL;
 
-		data = scd_read_register(priv->pdev, entry->reg_offset);
-		data &= ~(mask << entry->bit_offset);
-		data |= (input << entry->bit_offset);
-		scd_write_register(priv->pdev, entry->reg_offset, data);
+		/* If we're writing all register bits then there's no need to read the
+		 * current register value first.
+		 */
+		if (entry->bit_len != REG_MAX_BITSIZE) {
+			data = scd_read_register(priv->pdev, reg);
+			data &= ~(mask << entry->bit_offset);
+			data |= (input << entry->bit_offset);
+		} else {
+			data = input;
+		}
+		scd_write_register(priv->pdev, reg, data);
 		return count;
 	}
 
@@ -269,36 +311,6 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	REGBIT_FILE(fpga_sub_ver, 0x100, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(fpga_ver, 0x100, 16, 16, FMODE_RO, regbit_sysfs_show, NULL)
 
-#define DARWIN_REGBIT_FPGA_FILES							\
-	REGBIT_FILE(sat0_cpld_sub_ver, 0x400, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(sat0_cpld_ver, 0x400, 8, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(sat1_cpld_sub_ver, 0x400, 16, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(sat1_cpld_ver, 0x400, 24, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(pem_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(rackmon_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(pem_status, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(pem_input_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(sec_chip_reset_enter, 0x4000, 0, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(th3_pci_reset_enter, 0x4000, 1, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(th3_sys_reset_enter, 0x4000, 2, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sat0_cpld_reset_enter, 0x4000, 3, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sat1_cpld_reset_enter, 0x4000, 4, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sec_chip_reset_clear, 0x4010, 0, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(th3_pci_reset_clear, 0x4010, 1, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(th3_sys_reset_clear, 0x4010, 2, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sat0_cpld_reset_clear, 0x4010, 3, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sat1_cpld_reset_clear, 0x4010, 4, 1, FMODE_RW,			\
-		    regbit_sysfs_show, regbit_sysfs_store)
-
 #define FAIRYWREN_REGBIT_FPGA_FILES							\
 	REGBIT_FILE(bmc_mode, 0x8, 30, 1, FMODE_RO, regbit_sysfs_show, NULL)		\
 	REGBIT_FILE(bmc_aboot_grab, 0x2e00, 2, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
@@ -315,6 +327,8 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 		    regbit_sysfs_show, regbit_sysfs_store)                              \
 	REGBIT_FILE(switch_jtag_enable, 0x2f40, 0, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(chassis_power_cycle, 0x7000, 0, 32, S_IWUSR | S_IWGRP,		\
+		    NULL, chassis_power_cycle)						\
 	REGBIT_FILE(oob_eeprom_cmd, 0x7f00, 0, 32, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
 	REGBIT_FILE(oob_eeprom_resp, 0x7f10, 0, 32, FMODE_RW,				\
@@ -387,25 +401,6 @@ struct regbit_sysfs_entry scd_regbit_sysfs[] = {
 	},
 };
 
-struct regbit_sysfs_entry darwin_scd_regbit_sysfs[] = {
-	REGBIT_COMMON_FILES
-	DARWIN_REGBIT_FPGA_FILES
-
-	/* Always the last entry */
-	{
-		.name = NULL,
-	},
-};
-
-struct regbit_sysfs_entry rook_cpu_cpld_regbit_sysfs[] = {
-	REGBIT_COMMON_FILES
-
-	/* Always the last entry */
-	{
-		.name = NULL,
-	},
-};
-
 struct regbit_sysfs_entry fairywren_scd_regbit_sysfs[] = {
 	REGBIT_COMMON_FILES
 	FAIRYWREN_REGBIT_FPGA_FILES
@@ -454,7 +449,6 @@ BLACKCOMB_REGBIT_SYSFS(3)
 #define REGBIT_FILE(_name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
 static DEVICE_ATTR(_name, _mode, _show, _store);
 REGBIT_COMMON_FILES
-DARWIN_REGBIT_FPGA_FILES
 FAIRYWREN_REGBIT_FPGA_FILES
 VIPER_REGBIT_FPGA_FILES
 BLACKCOMB0_REGBIT_FPGA_FILES
@@ -472,29 +466,7 @@ static struct attribute_group scd_attr_group = {
 	.attrs = scd_attrs,
 };
 
-static struct attribute *darwin_scd_attrs[] = {
-	REGBIT_COMMON_FILES
-	DARWIN_REGBIT_FPGA_FILES
-	NULL,
-};
-
-static struct attribute_group darwin_scd_attr_group = {
-	.attrs = darwin_scd_attrs,
-};
-
-static struct attribute *rook_cpu_cpld_attrs[] = {
-	&dev_attr_chassis_power_cycle.attr,
-	&dev_attr_cpu_reset.attr,
-	REGBIT_COMMON_FILES
-	NULL,
-};
-
-static struct attribute_group rook_cpu_cpld_attr_group = {
-	.attrs = rook_cpu_cpld_attrs,
-};
-
 static struct attribute *fairywren_scd_attrs[] = {
-	&dev_attr_chassis_power_cycle.attr,
 	REGBIT_COMMON_FILES
 	FAIRYWREN_REGBIT_FPGA_FILES
 	NULL,
@@ -549,9 +521,7 @@ static void scd_pci_disable(struct pci_dev *pdev)
 		priv->localbus = NULL;
 	}
 
-	if (priv->mem) {
-		priv->mem = NULL;
-	}
+	scd_regs_remove(priv);
 
 	pci_disable_device(pdev);
 }
@@ -562,8 +532,8 @@ static int scd_pci_enable(struct pci_dev *pdev)
 	int err;
 	u16 ssid;
 	struct resource *res;
-	u32 global_reg_size = 0x6000;
 	struct device *dev = &pdev->dev;
+	struct scd_reg *reg;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -574,19 +544,24 @@ static int scd_pci_enable(struct pci_dev *pdev)
 	priv->csr_bus_addr = pci_resource_start(pdev, SCD_BAR_REGS);
 	priv->mem_len = pci_resource_len(pdev, SCD_BAR_REGS);
 
-	res = devm_request_mem_region(dev, priv->csr_bus_addr,
-					global_reg_size, SCD_MODULE_NAME);
-        if (!res) {
-                err = -EBUSY;
-		dev_err(dev, "cannot request PCI memory region\n");
-		goto err_exit;
-	}
-
-	priv->mem = devm_ioremap(dev, priv->csr_bus_addr, global_reg_size);
-	if (!priv->mem) {
-		dev_err(dev, "cannot remap PCI memory region\n");
-		err = -ENXIO;
-		goto err_exit;
+	// Map memory for all registers managed by this device.
+	for(reg = priv->reg_table; reg < priv->end_reg && reg->valid; reg++) {
+		res = devm_request_mem_region(
+			dev, priv->csr_bus_addr + reg->offset,
+			REG_BLK_SIZE, SCD_MODULE_NAME);
+		if (!res) {
+			err = -EBUSY;
+			dev_err(dev, "cannot request PCI memory region\n");
+			goto err_exit;
+		}
+		reg->mem = devm_ioremap(
+			dev, priv->csr_bus_addr + reg->offset,
+			REG_BLK_SIZE);
+		if (!reg->mem) {
+			dev_err(dev, "cannot remap PCI memory region\n");
+			err = -ENXIO;
+			goto err_exit;
+		}
 	}
 
 	/*
@@ -631,50 +606,6 @@ static const struct scd_driver_cb scd_pci_cb = {
 	.disable = scd_pci_disable,
 };
 
-static int scd_lpc_enable(struct pci_dev *pdev)
-{
-	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
-
-	// map address specified into kernel
-	priv->mem = (void __iomem *)ioremap((unsigned int)lpc_res_addr,
-					    lpc_res_size);
-	if (!priv->mem) {
-		return -ENOMEM;
-	}
-
-	priv->csr_bus_addr = lpc_res_addr;
-	priv->mem_len = lpc_res_size;
-	priv->lpc_vendor = pdev->vendor;
-	priv->lpc_device = pdev->device;
-	pdev->vendor = SCD_PCI_VENDOR_ID;
-	pdev->device = SCD_PCI_DEVICE_ID;
-
-	return 0;
-}
-
-static void scd_lpc_disable(struct pci_dev *pdev)
-{
-	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
-
-	if (priv->mem) {
-		iounmap(priv->mem);
-		priv->mem = NULL;
-	}
-
-	pdev->vendor = priv->lpc_vendor;
-	pdev->device = priv->lpc_device;
-}
-
-static const struct scd_driver_cb scd_lpc_cb = {
-	.enable = scd_lpc_enable,
-	.disable = scd_lpc_disable,
-};
-
-static struct pci_device_id scd_lpc_table[] = {
-	{ PCI_DEVICE(INTEL_PCI_VENDOR_ID, INTEL_PCI_BROADWELL_DEVICE_ID) },
-	{ 0 },
-};
-
 static void scd_remove(struct pci_dev *pdev)
 {
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
@@ -697,7 +628,6 @@ static void scd_remove(struct pci_dev *pdev)
 		sysfs_remove_group(&pdev->dev.kobj, priv->sysfs_attr_group);
 
 	ASSERT(!priv->localbus);
-	ASSERT(!priv->mem);
 
 	pci_set_drvdata(pdev, NULL);
 	memset(priv, 0, sizeof(*priv));
@@ -713,68 +643,38 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct scd_driver_cb *scd_cb;
 	struct attribute_group *sysfs_attr_group = NULL;
 	struct regbit_sysfs_entry *regbit_sysfs_table = NULL;
+	struct scd_reg *rev_reg;
 
-	if (pci_match_id(scd_lpc_table, pdev)) {
-		// matched LPC device
-		if (!((lpc_irq >= 0) || lpc_res_addr || lpc_res_size)) {
-			// nothing is enabled, we are not running in LPC mode, return
-			return -ENODEV;
-		}
-
-		if (lpc_irq < 0) {
-			dev_err(&pdev->dev, "Invalid LPC interrupt %d",
-				lpc_irq);
-			return -EINVAL;
-		}
-
-		if (!lpc_res_addr) {
-			dev_err(&pdev->dev, "No LPC scd address specified");
-			return -EINVAL;
-		}
-
-		if (!lpc_res_size) {
-			dev_err(&pdev->dev, "No LPC scd size specified");
-			return -EINVAL;
-		}
-		scd_cb = &scd_lpc_cb;
-		sysfs_attr_group = &rook_cpu_cpld_attr_group;
-		regbit_sysfs_table = rook_cpu_cpld_regbit_sysfs;
-	} else {
-		scd_cb = &scd_pci_cb;
-		switch(ent->subdevice) {
-			case DARWIN_SCD_PCI_SUBDEVICE_ID:
-				sysfs_attr_group = &darwin_scd_attr_group;
-				regbit_sysfs_table = darwin_scd_regbit_sysfs;
-				break;
-			case FAIRYWREN_SCD_PCI_SUBDEVICE_ID:
-				sysfs_attr_group = &fairywren_scd_attr_group;
-				regbit_sysfs_table = fairywren_scd_regbit_sysfs;
-				break;
-			case VIPER_SCD_PCI_SUBDEVICE_ID:
-				sysfs_attr_group = &viper_scd_attr_group;
-				regbit_sysfs_table = viper_scd_regbit_sysfs;
-				break;
-			case BLACKCOMB_SCD0_PCI_SUBDEVICE_ID:
-				sysfs_attr_group = &blackcomb_scd0_attr_group;
-				regbit_sysfs_table = blackcomb_scd0_regbit_sysfs;
-				break;
-			case BLACKCOMB_SCD1_PCI_SUBDEVICE_ID:
-				sysfs_attr_group = &blackcomb_scd1_attr_group;
-				regbit_sysfs_table = blackcomb_scd1_regbit_sysfs;
-				break;
-			case BLACKCOMB_SCD2_PCI_SUBDEVICE_ID:
-				sysfs_attr_group = &blackcomb_scd2_attr_group;
-				regbit_sysfs_table = blackcomb_scd2_regbit_sysfs;
-				break;
-			case BLACKCOMB_SCD3_PCI_SUBDEVICE_ID:
-				sysfs_attr_group = &blackcomb_scd3_attr_group;
-				regbit_sysfs_table = blackcomb_scd3_regbit_sysfs;
-				break;
-			default:
-				sysfs_attr_group = &scd_attr_group;
-				regbit_sysfs_table = scd_regbit_sysfs;
-		}
-	}
+	scd_cb = &scd_pci_cb;
+	switch(ent->subdevice) {
+		case FAIRYWREN_SCD_PCI_SUBDEVICE_ID:
+			sysfs_attr_group = &fairywren_scd_attr_group;
+			regbit_sysfs_table = fairywren_scd_regbit_sysfs;
+			break;
+		case VIPER_SCD_PCI_SUBDEVICE_ID:
+			sysfs_attr_group = &viper_scd_attr_group;
+			regbit_sysfs_table = viper_scd_regbit_sysfs;
+			break;
+		case BLACKCOMB_SCD0_PCI_SUBDEVICE_ID:
+			sysfs_attr_group = &blackcomb_scd0_attr_group;
+			regbit_sysfs_table = blackcomb_scd0_regbit_sysfs;
+			break;
+		case BLACKCOMB_SCD1_PCI_SUBDEVICE_ID:
+			sysfs_attr_group = &blackcomb_scd1_attr_group;
+			regbit_sysfs_table = blackcomb_scd1_regbit_sysfs;
+			break;
+		case BLACKCOMB_SCD2_PCI_SUBDEVICE_ID:
+			sysfs_attr_group = &blackcomb_scd2_attr_group;
+			regbit_sysfs_table = blackcomb_scd2_regbit_sysfs;
+			break;
+		case BLACKCOMB_SCD3_PCI_SUBDEVICE_ID:
+			sysfs_attr_group = &blackcomb_scd3_attr_group;
+			regbit_sysfs_table = blackcomb_scd3_regbit_sysfs;
+			break;
+		default:
+			sysfs_attr_group = &scd_attr_group;
+			regbit_sysfs_table = scd_regbit_sysfs;
+       }
 
 	if (pci_get_drvdata(pdev)) {
 		dev_warn(&pdev->dev, "private data already attached %p",
@@ -795,6 +695,11 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->driver_cb = scd_cb;
 	priv->regbit_sysfs_table = regbit_sysfs_table;
 	priv->sysfs_attr_group = sysfs_attr_group;
+
+	err = scd_regs_init(priv);
+	if (err) {
+		goto fail;
+	}
 
 	pci_set_drvdata(pdev, priv);
 
@@ -825,7 +730,12 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	priv->cdev_initialized = 1;
 
-	priv->scd_revision = ioread32(priv->mem + SCD_REVISION_OFFSET);
+	rev_reg = scd_reg_at_offset(priv, SCD_REVISION_OFFSET);
+	if (!rev_reg) {
+		dev_err(&pdev->dev, "failed to map revision register\n");
+		goto fail;
+	}
+	priv->scd_revision = scd_read_register(priv->pdev, rev_reg);
 	fpga_rev = (priv->scd_revision & 0xffff0000) >> 16;
 	board_rev = priv->scd_revision & 0x00000fff;
 
@@ -854,8 +764,6 @@ static void scd_shutdown(struct pci_dev *pdev)
 }
 
 static struct pci_device_id scd_pci_table[] = {
-	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
-			 SCD_PCI_VENDOR_ID, DARWIN_SCD_PCI_SUBDEVICE_ID) },
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
 			 SCD_PCI_VENDOR_ID, FAIRYWREN_SCD_PCI_SUBDEVICE_ID) },
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
