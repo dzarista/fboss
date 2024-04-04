@@ -4,8 +4,17 @@ set -e
 
 FBOSS_DIR=/tmp
 FBOSS_REPO=$SRCDIR_0
+KERNEL=$1
 SAI_DIR=/src/dest/result
 SCRATCH_DIR="$FBOSS_DIR/tmp_build_dir"
+
+if [ $KERNEL = "4.18" ]; then
+   export KERNEL_SRC="4.18.0-408.el8.x86_64"
+elif [ $KERNEL = "5.12" ]; then
+   export KERNEL_SRC="5.12.0-0_fbk2_3390_g7ecb4ac46d7f"
+else
+   export KERNEL_SRC="5.19.0"
+fi
 
 # workaround: barney doesn't process git files, so we need
 # simulated that .git dir exist for copytree.py:containing_repo_type
@@ -89,6 +98,23 @@ do
    echo "Copying $fw from $fw_path to $fboss_output_dir"
    cp $fw_path $fboss_output_dir
 done
+
+if [ "$KERNEL" == "5.19" ]; then
+   # Download fboss kernel src
+   KERNEL_SRC_TAR=FBOSS_KERNEL_SRC_"${KERNEL_SRC}".tar.gz
+   wget -P $SCRATCH_DIR/downloads http://dist/storage/fboss/fbossImageFiles/"${KERNEL_SRC_TAR}"
+   tar -xf $SCRATCH_DIR/downloads/"${KERNEL_SRC_TAR}" -C $SCRATCH_DIR/installed
+
+   # Building bsp-kmods
+   make -C $SCRATCH_DIR/installed/$KERNEL_SRC M=$FBOSS_REPO/arista/bsp-kmods modules
+   mkdir -p $SCRATCH_DIR/bsp-kmods
+   cp -f $FBOSS_REPO/arista/bsp-kmods/*.ko $SCRATCH_DIR/bsp-kmods/
+fi
+
+# Building showtech dependencies
+make -C $FBOSS_REPO/arista/showtech
+mkdir -p $SCRATCH_DIR/showtech
+cp -f $FBOSS_REPO/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
 
 # Generate python thrift libraries
 $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/ctrl.thrift
