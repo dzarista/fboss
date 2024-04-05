@@ -16,7 +16,7 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-DEFAULT_RPMS = [ 100, 90, 80, 70, 60, 50, 40, 30, 25, 20 ]
+DEFAULT_RPMS = [ 100, 90, 80, 70, 60, 50, 40, 30, 28, 26, 24, 22, 20 ]
 
 tool_description = '''This script is intended to collect some thermal data on
 a system for intention of generating some Thermal fan control tables
@@ -122,6 +122,10 @@ class FbossFanTestEdut():
    def getFanRpms( self ):
       '''Return a list of all system fan RPMs'''
       raise NotImplementedError
+   
+   def getPsuRpms( self ):
+      '''Return a list of all system PSU fan RPMs'''
+      raise NotImplementedError
 
    def setFanRpm( self, pct ):
       '''Set fan speed as a % of max fan RPM'''
@@ -146,6 +150,10 @@ class FbossFanTestEdut():
    def getAvgFanRpm( self ):
       '''Return average system fan RPMs'''
       return getAverage( self.getFanRpms() )
+   
+   def getAvgPsuFanRpm( self ):
+      '''Return average system PSU fan RPMs'''
+      return getAverage( self.getPsuRpms() )
 
    def getAvgFanPwm( self ):
       '''Return average system fan Pwms'''
@@ -159,6 +167,18 @@ class FbossFanTestEdut():
 
    def getSystemIntfsCountRates( self ):
       return self.edut.showCmdIs( 'show int count rates' )
+   
+   def getAvgTrafficRate( self ):
+      '''Get the average traffic rate (percentage)'''
+      rates = []
+      shRates = self.edut.showCmdIs( 'show int count rates', dataFormat='json' )
+      interfaces = shRates[ 'interfaces' ]
+
+      for intf in interfaces:
+         if "Ethernet" in intf:
+            rates.append( interfaces[ intf ][ 'outPktsRate' ] )
+
+      return int( getAverage( rates ) )
 
    def getSystemEnvTemp( self ):
       return self.edut.showCmdIs( 'show sys env temp' )
@@ -176,25 +196,41 @@ class FbossFanTestEdut():
 
    def collectData( self ):
       '''Return an object with all collected data'''
+      hottestOptic = self.getHottestOpticTemp()
       avgFanPwm = self.getAvgFanPwm()
+      cfm = self.getCFM( avgFanPwm )
+      power = self.getTotalSystemPower()
+      inletTemp = self.getInletTemp()
+      outletTemp = self.getOutletTemp()
+      maxOpticTemp = 78 #TODO: make maxOpticTemp dynamic
+      opticsMargin = maxOpticTemp - hottestOptic 
+      opticsMargin30C = opticsMargin - ( 30 - inletTemp )
+
       return {
             'AvgRpm': self.getAvgFanRpm(),
-            'HottestOptic': self.getHottestOpticTemp(),
+            'HottestOptic': hottestOptic,
             'HottestAsic': self.getHottestAsicTemp(),
             'HottestCpuTemp': self.getHottestCpuTemp(),
             'AvgFanPwm': avgFanPwm,
-            'Airflow(CFM)': self.getCFM( avgFanPwm ),
-            'SystemPower': self.getTotalSystemPower(),
-            'Inlet': self.getInletTemp(),
-            'Outlet': self.getOutletTemp(),
-            'ssdTemp': self.getSsdTemp()
+            'Airflow(CFM)': cfm,
+            'SystemPower': power,
+            'Inlet': inletTemp,
+            'Outlet': outletTemp,
+            'SsdTemp': self.getSsdTemp(),
+            'CFM/W': round(cfm / power, 4),
+            'DeltaT': outletTemp - inletTemp,
+            'OpticsMargin': opticsMargin,
+            'OpticsMargin30C': opticsMargin30C,
+            'AvgPsusRpm': self.getAvgPsuFanRpm(),
+            'AvgTrafficRate': self.getAvgTrafficRate()
       }
    
    def checkSetup( self ):
       '''Confirms that the data collected is valid'''
       data = self.collectData()
       for key, value in data.items():
-         if value <= 0:
+         # Ignore deltaT and opticsMargin30C as they are calculated and maybe <= 0
+         if value <= 0 and key not in ( 'deltaT', 'opticsMargin30C' ):
             raise ValueError(f'{key} reading invalid value ({value})')
 
 class Maunakea( FbossFanTestEdut ):
@@ -299,7 +335,7 @@ class Viper( Maunakea ):
       return fanIds
 
    def getOpticTemps( self ):
-      opticsTemps = [40] #TODO: remove 40
+      opticsTemps = []
       shXcvr = self.edut.showCmdIs( 'show int transc', dataFormat='json' )[
                                     'interfaces' ]
       for intf in shXcvr:
@@ -359,6 +395,24 @@ class Viper( Maunakea ):
       for i in range( 1, 4 + 1 ):
          pct = self.edut.aconsPathCmdIs(
             r'/ar/Sysdb/environment/thermostat/status/fanConfig/Fan{}\/1/speed'.
+            format( i ), 'ls -l' )[ 0 ].split( ' ' )[ -1 ]
+         rpmList.append( maxSpeed * float( pct ) / 100.0 )
+      return rpmList
+
+   def getPsuRpms( self ):
+      '''Return a list of all system PSU fan RPMs'''
+      rpmList = []
+      maxSpeed = 0
+      # Hacky, will only respect the last maxSpeed, but they should all be the
+      # same. Can probably use Acons instead
+      shCool = self.edut.showCmdIs( 'show sys env cool det',
+                                     dataFormat='json' )
+      for fanInfo in shCool[ 'powerSupplySlots' ]:
+         maxSpeed = fanInfo[ 'fans' ][ 0 ][ 'maxSpeed' ]
+
+      for i in range( 1, 2 + 1 ):
+         pct = self.edut.aconsPathCmdIs(
+            r'/ar/Sysdb/environment/thermostat/status/fanConfig/FanP{}\/1/speed'.
             format( i ), 'ls -l' )[ 0 ].split( ' ' )[ -1 ]
          rpmList.append( maxSpeed * float( pct ) / 100.0 )
       return rpmList
@@ -552,9 +606,9 @@ def main( argv ):
    fanSku = obj.getFanSku()
 
    df = pd.DataFrame( columns=[
-      'TargetRpm', 'AvgRpm', 'HottestOptic',
-      'HottestAsic', 'AvgFanPwm', 'Airflow(CFM)', 'SystemPower',
-      'Inlet', 'Outlet' ] )
+      'TargetRpm', 'AvgRpm', 'HottestOptic', 'HottestAsic', 'HottestCpuTemp', 'AvgFanPwm',
+      'Airflow(CFM)', 'SystemPower', 'Inlet', 'Outlet', 'SsdTemp', 'CFM/W', 'DeltaT',
+      'OpticsMargin', 'OpticsMargin30C', 'AvgPsusRpm', 'AvgTrafficRate' ] )
 
    obj.overridePidAlgo()
 
@@ -582,7 +636,7 @@ def main( argv ):
          Soak Time: {args.soak_time} Minutes\n
          RPMs List: {args.rpms}
       '''
-      ax.text( 0, 1, coverLog, fontsize = 12, va = 'top', ha = 'left' )
+      ax.text( 0, 1, coverLog, fontsize = 9, va = 'top', ha = 'left', wrap = True )
       ax.axis( 'off' )
       pdf.savefig( fig )
       plt.close( fig )
@@ -647,18 +701,18 @@ def main( argv ):
       plt.close( fig )
 
       # Create a table of the data
-      fig, ax = plt.subplots( figsize = ( 8, 3 ) )
+      fig, ax = plt.subplots( figsize = ( 11, 8 ) )
       ax.axis( 'off' )
       tbl = ax.table( cellText = df.values, colLabels = df.columns,
-                     cellLoc = 'center', loc = 'center' )
-      tbl.auto_set_font_size( True )
-      tbl.scale( 1.2, 1.2 )
+                     cellLoc = 'center', loc = 'center', transform = fig.transFigure  )
+      tbl.auto_set_font_size(False)
+      tbl.set_fontsize(6)
       pdf.savefig( fig )
       plt.close( fig )
 
       # Adding graphs of the data
       y_axis = df[ [ 'HottestOptic', 'HottestAsic', 'HottestCpuTemp',
-                    'ssdTemp', 'Inlet', 'Outlet' ] ]
+                    'SsdTemp', 'Inlet', 'Outlet' ] ]
       renderPlot( pdf, df[ 'AvgFanPwm' ], y_axis, 'Temperatures' )
 
       y_axis = df[ [ 'AvgFanPwm' ] ]
