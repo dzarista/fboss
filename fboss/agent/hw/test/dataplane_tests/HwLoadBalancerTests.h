@@ -38,8 +38,7 @@
     TEST_FIXTURE, MULTIPATH_TYPE, HASH_TYPE, TRAFFIC_TYPE)                   \
   TEST_F(TEST_FIXTURE, TEST_NAME(MULTIPATH_TYPE, HASH_TYPE, TRAFFIC_TYPE)) { \
     if (BOOST_PP_STRINGIZE(MULTIPATH_TYPE) == std::string{"WideUcmp"} &&                    \
-            !getPlatform()->getAsic()->isSupported(                          \
-                HwAsic::Feature::WIDE_ECMP)) {                               \
+            !isFeatureSupported(HwAsic::Feature::WIDE_ECMP)) {               \
       return;                                                                \
     }                                                                        \
     static bool kLoopThroughFrontPanelPort =                                 \
@@ -47,7 +46,7 @@
     runLoadBalanceTest(                                                      \
         8,                                                                   \
         facebook::fboss::utility::getEcmp##HASH_TYPE##HashConfig(            \
-            *getPlatform()->getAsic()),                                      \
+            *getHwAsic()),                                                   \
         facebook::fboss::utility::kHwTest##MULTIPATH_TYPE##Weights(),        \
         kLoopThroughFrontPanelPort,                                          \
         true);                                                               \
@@ -57,8 +56,7 @@
     TEST_FIXTURE, MULTIPATH_TYPE, HASH_TYPE, TRAFFIC_TYPE)                   \
   TEST_F(TEST_FIXTURE, TEST_NAME(MULTIPATH_TYPE, HASH_TYPE, TRAFFIC_TYPE)) { \
     if (BOOST_PP_STRINGIZE(MULTIPATH_TYPE) == std::string{"WideUcmp"} &&                    \
-            !getPlatform()->getAsic()->isSupported(                          \
-                HwAsic::Feature::WIDE_ECMP)) {                               \
+            !isFeatureSupported(HwAsic::Feature::WIDE_ECMP)) {               \
       return;                                                                \
     }                                                                        \
     static bool kLoopThroughFrontPanelPort =                                 \
@@ -66,7 +64,7 @@
     runLoadBalanceTest(                                                      \
         8,                                                                   \
         facebook::fboss::utility::getEcmp##HASH_TYPE##HashConfig(            \
-            *getPlatform()->getAsic()),                                      \
+            *getHwAsic()),                                                   \
         facebook::fboss::utility::kHwTest##MULTIPATH_TYPE##Weights(),        \
         kLoopThroughFrontPanelPort,                                          \
         false);                                                              \
@@ -82,7 +80,7 @@
     runDynamicLoadBalanceTest(                                               \
         8,                                                                   \
         facebook::fboss::utility::getEcmp##HASH_TYPE##HashConfig(            \
-            *getPlatform()->getAsic()),                                      \
+            *getHwAsic()),                                                   \
         facebook::fboss::utility::kHwTest##MULTIPATH_TYPE##Weights(),        \
         kLoopThroughFrontPanelPort,                                          \
         true,                                                                \
@@ -97,7 +95,7 @@
     runLoadBalanceTest(                                                      \
         8,                                                                   \
         facebook::fboss::utility::getEcmp##HASH_TYPE##HashConfig(            \
-            *getPlatform()->getAsic()),                                      \
+            *getHwAsic()),                                                   \
         facebook::fboss::utility::kHwTest##MULTIPATH_TYPE##Weights(),        \
         kLoopThroughFrontPanelPort,                                          \
         false, /* since ECMP expected to send traffic on single link */      \
@@ -109,7 +107,7 @@
     runEcmpShrinkExpandLoadBalanceTest(                                  \
         8,                                                               \
         facebook::fboss::utility::getEcmp##HASH_TYPE##HashConfig(        \
-            *getPlatform()->getAsic()));                                 \
+            *getHwAsic()));                                              \
   }
 
 #define RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, MULTIPATH_TYPE, HASH_TYPE) \
@@ -151,25 +149,48 @@
 
 namespace facebook::fboss {
 
-template <typename EcmpTestHelperT>
-class HwLoadBalancerTest : public HwLinkStateDependentTest {
- private:
-  cfg::SwitchConfig initialConfig() const override {
-    auto cfg = utility::onePortPerInterfaceConfig(
-        getHwSwitchEnsemble(), masterLogicalPortIds());
-    return cfg;
-  }
+template <typename EcmpTestHelperT, bool kFlowLetSwitching = false>
+class HwLoadBalancerTestRunner {
+ public:
+  using SETUP_FN = std::function<void()>;
+  using VERIFY_FN = std::function<void()>;
+  using SETUP_POSTWB_FN = std::function<void()>;
+  using VERIFY_POSTWB_FN = std::function<void()>;
+
+  virtual ~HwLoadBalancerTestRunner() = default;
+
+ protected:
+  virtual void runTestAcrossWarmBoots(
+      SETUP_FN setup,
+      VERIFY_FN verify,
+      SETUP_POSTWB_FN setupPostWarmboot,
+      VERIFY_POSTWB_FN verifyPostWarmboot) = 0;
 
   virtual std::unique_ptr<EcmpTestHelperT> getECMPHelper() = 0;
 
- protected:
+  virtual TestEnsembleIf* getEnsemble() = 0;
+  virtual const TestEnsembleIf* getEnsemble() const = 0;
+  std::vector<PortID> getMasterLogicalPortIds() const {
+    return getEnsemble()->masterLogicalPortIds();
+  }
+
+  void setEcmpHelper() {
+    helper_ = getECMPHelper();
+  }
+
   virtual bool skipTest() const {
     return false;
   }
 
-  void SetUp() override {
-    HwLinkStateDependentTest::SetUp();
-    helper_ = getECMPHelper();
+  bool isFeatureSupported(HwAsic::Feature feature) const {
+    return getEnsemble()->getHwAsicTable()->isFeatureSupportedOnAnyAsic(
+        feature);
+  }
+
+  const HwAsic* getHwAsic() const {
+    auto switchIds = getEnsemble()->getHwAsicTable()->getSwitchIDs();
+    CHECK_EQ(switchIds.size(), 1);
+    return getEnsemble()->getHwAsicTable()->getHwAsic(*switchIds.begin());
   }
 
   void runLoadBalanceTest(
@@ -198,18 +219,19 @@ class HwLoadBalancerTest : public HwLinkStateDependentTest {
     };
 
     auto setupPostWB = [&]() {
-      if (FLAGS_flowletSwitchingEnable) {
-        auto cfg = initialConfig();
+      if constexpr (kFlowLetSwitching) {
+        auto cfg = utility::onePortPerInterfaceConfig(
+            getEnsemble(), getMasterLogicalPortIds());
         // Add flowlet config to convert ECMP to DLB
-        utility::addFlowletConfigs(cfg, masterLogicalPortIds());
-        applyNewConfig(cfg);
+        utility::addFlowletConfigs(cfg, getMasterLogicalPortIds());
+        getEnsemble()->applyNewConfig(cfg);
       }
     };
 
     auto verifyPostWB = [&]() {
-      if (FLAGS_flowletSwitchingEnable) {
+      if constexpr (kFlowLetSwitching) {
         XLOG(DBG3) << "setting ECMP Member Status: ";
-        utility::setEcmpMemberStatus(getHwSwitch());
+        utility::setEcmpMemberStatus(getEnsemble());
         loadBalanceExpected = true;
         helper_->pumpTrafficPortAndVerifyLoadBalanced(
             ecmpWidth,
@@ -218,14 +240,14 @@ class HwLoadBalancerTest : public HwLinkStateDependentTest {
             deviation,
             loadBalanceExpected);
         auto l3EcmpDlbFailPackets =
-            getHwSwitch()->getHwFlowletStats().l3EcmpDlbFailPackets().value();
+            utility::getL3EcmpDlbFailPackets(getEnsemble());
         XLOG(INFO) << " L3 ECMP Dlb fail packets: " << l3EcmpDlbFailPackets;
         // verfiy the Dlb fail packets is zero
         EXPECT_EQ(l3EcmpDlbFailPackets, 0);
       }
     };
 
-    verifyAcrossWarmBoots(setup, verify, setupPostWB, verifyPostWB);
+    runTestAcrossWarmBoots(setup, verify, setupPostWB, verifyPostWB);
   }
 
   void runEcmpShrinkExpandLoadBalanceTest(
@@ -270,10 +292,6 @@ class HwLoadBalancerTest : public HwLinkStateDependentTest {
             true);
         width++;
       }
-
-      // TODO: move this out to different class of tests
-      EXPECT_TRUE(utility::isHwDeterministicSeed(
-          getHwSwitch(), getProgrammedState(), LoadBalancerID::ECMP));
     };
     setup();
     verify();
@@ -299,9 +317,9 @@ class HwLoadBalancerTest : public HwLinkStateDependentTest {
       // DLB engine can not detect port member hardware status
       // when in "phy" loopback mode.
       // Hence we are setting it forcibly here again for all the ecmp members.
-      if (FLAGS_flowletSwitchingEnable) {
+      if constexpr (kFlowLetSwitching) {
         XLOG(DBG3) << "setting ECMP Member Status: ";
-        utility::setEcmpMemberStatus(getHwSwitch());
+        utility::setEcmpMemberStatus(getEnsemble());
       }
       helper_->pumpTrafficPortAndVerifyLoadBalanced(
           ecmpWidth,
@@ -313,10 +331,10 @@ class HwLoadBalancerTest : public HwLinkStateDependentTest {
 
     auto setupPostWB = [&]() {
       auto cfg = utility::onePortPerInterfaceConfig(
-          getHwSwitchEnsemble(), masterLogicalPortIds());
-      addLoadBalancerToConfig(cfg, getAsic(), utility::LBHash::FULL_HASH);
+          getEnsemble(), getMasterLogicalPortIds());
+      addLoadBalancerToConfig(cfg, getHwAsic(), utility::LBHash::FULL_HASH);
       // Remove the flowlet configs
-      applyNewConfig(cfg);
+      getEnsemble()->applyNewConfig(cfg);
     };
 
     auto verifyPostWB = [&]() {
@@ -332,7 +350,7 @@ class HwLoadBalancerTest : public HwLinkStateDependentTest {
           loadBalanceExpected);
     };
 
-    verifyAcrossWarmBoots(setup, verify, setupPostWB, verifyPostWB);
+    runTestAcrossWarmBoots(setup, verify, setupPostWB, verifyPostWB);
   }
 
   EcmpTestHelperT* getEcmpSetupHelper() const {
@@ -343,4 +361,93 @@ class HwLoadBalancerTest : public HwLinkStateDependentTest {
   std::unique_ptr<EcmpTestHelperT> helper_;
 };
 
+template <typename EcmpTestHelperT, bool kFlowLetSwitching = false>
+class HwLoadBalancerTest
+    : public HwLinkStateDependentTest,
+      public HwLoadBalancerTestRunner<EcmpTestHelperT, kFlowLetSwitching> {
+ public:
+  using Runner = HwLoadBalancerTestRunner<EcmpTestHelperT, kFlowLetSwitching>;
+  using Test = HwLinkStateDependentTest;
+
+  using SETUP_FN = typename Runner::SETUP_FN;
+  using VERIFY_FN = typename Runner::VERIFY_FN;
+  using SETUP_POSTWB_FN = typename Runner::SETUP_POSTWB_FN;
+  using VERIFY_POSTWB_FN = typename Runner::VERIFY_POSTWB_FN;
+
+  cfg::SwitchConfig initialConfig() const override {
+    auto cfg = utility::onePortPerInterfaceConfig(
+        getHwSwitchEnsemble(), masterLogicalPortIds());
+    return cfg;
+  }
+
+  void SetUp() override {
+    Test::SetUp();
+    Runner::setEcmpHelper();
+  }
+
+  void runLoadBalanceTest(
+      unsigned int ecmpWidth,
+      const cfg::LoadBalancer& loadBalancer,
+      const std::vector<NextHopWeight>& weights,
+      bool loopThroughFrontPanel = false,
+      bool loadBalanceExpected = true,
+      uint8_t deviation = 25) {
+    Runner::runLoadBalanceTest(
+        ecmpWidth,
+        loadBalancer,
+        weights,
+        loopThroughFrontPanel,
+        loadBalanceExpected,
+        deviation);
+  }
+
+  void runDynamicLoadBalanceTest(
+      unsigned int ecmpWidth,
+      const cfg::LoadBalancer& loadBalancer,
+      const std::vector<NextHopWeight>& weights,
+      bool loopThroughFrontPanel = false,
+      bool loadBalanceExpected = true,
+      uint8_t deviation = 25) {
+    Runner::runDynamicLoadBalanceTest(
+        ecmpWidth,
+        loadBalancer,
+        weights,
+        loopThroughFrontPanel,
+        loadBalanceExpected,
+        deviation);
+  }
+
+  void runEcmpShrinkExpandLoadBalanceTest(
+      unsigned int ecmpWidth,
+      const cfg::LoadBalancer& loadBalancer,
+      uint8_t deviation = 25) {
+    Runner::runEcmpShrinkExpandLoadBalanceTest(
+        ecmpWidth, loadBalancer, deviation);
+  }
+
+ private:
+  void runTestAcrossWarmBoots(
+      SETUP_FN setup,
+      VERIFY_FN verify,
+      SETUP_POSTWB_FN setupPostWarmboot,
+      VERIFY_POSTWB_FN verifyPostWarmboot) override {
+    Test::verifyAcrossWarmBoots(
+        setup,
+        [&] {
+          verify();
+          EXPECT_TRUE(utility::isHwDeterministicSeed(
+              getHwSwitch(), getProgrammedState(), LoadBalancerID::ECMP));
+        },
+        setupPostWarmboot,
+        [&] { verifyPostWarmboot(); });
+  }
+
+  TestEnsembleIf* getEnsemble() override {
+    return getHwSwitchEnsemble();
+  }
+
+  const TestEnsembleIf* getEnsemble() const override {
+    return getHwSwitchEnsemble();
+  }
+};
 } // namespace facebook::fboss
