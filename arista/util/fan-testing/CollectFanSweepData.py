@@ -207,31 +207,31 @@ class FbossFanTestEdut():
       opticsMargin30C = opticsMargin - ( 30 - inletTemp )
 
       return {
-            'AvgRpm': self.getAvgFanRpm(),
-            'HottestOptic': hottestOptic,
-            'HottestAsic': self.getHottestAsicTemp(),
-            'HottestCpuTemp': self.getHottestCpuTemp(),
-            'AvgFanPwm': avgFanPwm,
-            'Airflow(CFM)': cfm,
-            'SystemPower': power,
-            'Inlet': inletTemp,
-            'Outlet': outletTemp,
-            'SsdTemp': self.getSsdTemp(),
+            'AvgRpm': round( self.getAvgFanRpm(), 4 ),
+            'HottestOptic': round( hottestOptic, 4 ),
+            'HottestAsic': round( self.getHottestAsicTemp(), 4),
+            'HottestCpuTemp': round( self.getHottestCpuTemp(), 4),
+            'AvgFanPwm': round( avgFanPwm, 4 ),
+            'Airflow(CFM)': round( cfm, 4 ),
+            'SystemPower': round( power, 4 ),
+            'Inlet': round( inletTemp, 4 ),
+            'Outlet': round( outletTemp, 4 ),
+            'SsdTemp': round( self.getSsdTemp(), 4 ),
             'CFM/W': round(cfm / power, 4),
-            'DeltaT': outletTemp - inletTemp,
-            'OpticsMargin': opticsMargin,
-            'OpticsMargin30C': opticsMargin30C,
-            'AvgPsusRpm': self.getAvgPsuFanRpm(),
-            'AvgTrafficRate': self.getAvgTrafficRate()
+            'DeltaT': round( outletTemp - inletTemp, 4 ),
+            'OpticsMargin': round( opticsMargin, 4 ),
+            'OpticsMargin30C': round( opticsMargin30C, 4 ),
+            'AvgPsusRpm': round( self.getAvgPsuFanRpm(), 4 ),
+            'AvgTrafficRate': round( self.getAvgTrafficRate(), 4 )
       }
    
    def checkSetup( self ):
       '''Confirms that the data collected is valid'''
       data = self.collectData()
-      for key, value in data.items():
+      for key, val in data.items():
          # Ignore deltaT and opticsMargin30C as they are calculated and maybe <= 0
-         if value <= 0 and key not in ( 'deltaT', 'opticsMargin30C' ):
-            raise ValueError(f'{key} reading invalid value ({value})')
+         if val <= 0 and key not in ( 'deltaT', 'opticsMargin', 'opticsMargin30C' ):
+            raise ValueError(f'{key} reading invalid value ({val})')
 
 class Maunakea( FbossFanTestEdut ):
    '''Class that implements methods specifically for Mauna Kea platforms'''
@@ -485,7 +485,6 @@ class Whistler( Maunakea ):
       asicTemps = []
       shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
       for sensor in shTemp[ 'tempSensors' ]:
-         # match 'Jericho3' or 'J3'
          if re.search( 'Fe0|Fe1', sensor[ 'description' ] ):
             asicTemps.append( sensor[ 'currentTemperature' ] )
       return asicTemps
@@ -495,7 +494,7 @@ class Whistler( Maunakea ):
       temps = []
       shTemp = self.edut.showCmdIs( 'show sys env temp', dataFormat='json' )
       for sensor in shTemp[ 'tempSensors' ]:
-         # Exact Match
+         # Max temp of one of the 3 Fan Cards
          if re.search( 'Fan Card', sensor[ 'description' ] ):
             temps.append( sensor[ 'currentTemperature' ] )
       return max( temps )
@@ -532,6 +531,24 @@ class Whistler( Maunakea ):
       for i in range( 1, 12 + 1 ):
          pct = self.edut.aconsPathCmdIs(
             r'/ar/Sysdb/environment/thermostat/status/fanConfig/Fan{}\/1/speed'.
+            format( i ), 'ls -l' )[ 0 ].split( ' ' )[ -1 ]
+         rpmList.append( maxSpeed * float( pct ) / 100.0 )
+      return rpmList
+
+   def getPsuRpms( self ):
+      '''Return a list of all system PSU fan RPMs'''
+      rpmList = []
+      maxSpeed = 0
+      # Hacky, will only respect the last maxSpeed, but they should all be the
+      # same. Can probably use Acons instead
+      shCool = self.edut.showCmdIs( 'show sys env cool det',
+                                     dataFormat='json' )
+      for fanInfo in shCool[ 'powerSupplySlots' ]:
+         maxSpeed = fanInfo[ 'fans' ][ 0 ][ 'maxSpeed' ]
+
+      for i in range( 1, 4 + 1 ):
+         pct = self.edut.aconsPathCmdIs(
+            r'/ar/Sysdb/environment/thermostat/status/fanConfig/FanP{}\/1/speed'.
             format( i ), 'ls -l' )[ 0 ].split( ' ' )[ -1 ]
          rpmList.append( maxSpeed * float( pct ) / 100.0 )
       return rpmList
@@ -574,6 +591,8 @@ def parseArgs( argv ):
          help='Number minutes to soak at each step' )
    parser.add_argument( '--rpms', metavar='N', type=int, nargs='*',
          default=DEFAULT_RPMS, help='List of RPMs to iterate through')
+   parser.add_argument( '--ignore-checks',action='store_true', default=False,
+         help='Ignore pre-test checks' )
    return parser.parse_args( argv )
 
 def main( argv ):
@@ -594,7 +613,8 @@ def main( argv ):
       assert( 'Product Class not defined for {}'.format( edut.product() ) )
 
    # Confirm readings are valid
-   obj.checkSetup()
+   if not args.ignore_checks:
+      obj.checkSetup()
 
    # Get system info
    sysInfo = obj.getSystemInfo()
