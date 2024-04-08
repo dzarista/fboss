@@ -12,6 +12,7 @@
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
+#include "fboss/agent/test/TestEnsembleIf.h"
 
 #include <folly/logging/xlog.h>
 
@@ -72,7 +73,72 @@ bool anyQueueBytesIncremented(
         return newQueueStats->find(qid)->second > oldQbytes;
       });
 }
+
+bool featureSupported(TestEnsembleIf* ensemble, HwAsic::Feature feature) {
+  return ensemble->getHwAsicTable()->isFeatureSupportedOnAnyAsic(feature);
+}
+
+bool featureSupported(const HwSwitch* hwSwitch, HwAsic::Feature feature) {
+  return hwSwitch->getPlatform()->getAsic()->isSupported(feature);
+}
+
+template <typename Hw>
+bool waitForAnyPorAndQueutOutBytesIncrement(
+    Hw* hwOrEnsemble,
+    const std::map<PortID, HwPortStats>& originalPortStats,
+    const std::vector<PortID>& portIds,
+    const HwPortStatsFunc& getHwPortStats) {
+  bool queueStatsSupported =
+      featureSupported(hwOrEnsemble, HwAsic::Feature::L3_QOS);
+  auto conditionFn = [&originalPortStats,
+                      queueStatsSupported](const auto& newPortStats) {
+    for (const auto& [portId, portStat] : originalPortStats) {
+      auto newPortStatItr = newPortStats.find(portId);
+      if (newPortStatItr != newPortStats.end()) {
+        if (*newPortStatItr->second.outBytes_() > portStat.outBytes_()) {
+          // Wait for queue stat increment if queues are supported
+          // on this platform
+          if (!queueStatsSupported ||
+              anyQueueBytesIncremented(portStat, newPortStatItr->second)) {
+            return true;
+          }
+        }
+      }
+    }
+    // Arista HACK to workaround compiler errors.
+    // XLOG(DBG3) << "No port stats increased yet";
+    return false;
+  };
+  return waitPortStatsCondition(
+      conditionFn, portIds, 20, std::chrono::milliseconds(20), getHwPortStats);
+}
+
+template <typename Hw>
+bool waitForAnyVoQOutBytesIncrement(
+    Hw* hwOrEnsemble,
+    const std::map<SystemPortID, HwSysPortStats>& originalPortStats,
+    const std::vector<SystemPortID>& portIds,
+    const HwSysPortStatsFunc& getHwPortStats) {
+  if (!featureSupported(hwOrEnsemble, HwAsic::Feature::VOQ)) {
+    throw FbossError("VOQs are unsupported on platform");
+  }
+  auto conditionFn = [&originalPortStats](const auto& newPortStats) {
+    for (const auto& [portId, portStat] : originalPortStats) {
+      auto newPortStatItr = newPortStats.find(portId);
+      if (newPortStatItr != newPortStats.end() &&
+          anyQueueBytesIncremented(portStat, newPortStatItr->second)) {
+        return true;
+      }
+    }
+    // Arista HACK to workaround compiler errors.
+    // XLOG(DBG3) << "No port stats increased yet";
+    return false;
+  };
+  return waitSysPortStatsCondition(
+      conditionFn, portIds, 20, std::chrono::milliseconds(20), getHwPortStats);
+}
 } // namespace
+
 bool waitPortStatsCondition(
     std::function<bool(const std::map<PortID, HwPortStats>&)> conditionFn,
     const std::vector<PortID>& portIds,
@@ -103,60 +169,8 @@ bool waitStatsCondition(
       conditionFn, updateStatsFn, retries, msBetweenRetry);
 }
 
-bool waitForAnyPorAndQueutOutBytesIncrement(
-    HwSwitch* hwSwitch,
-    const std::map<PortID, HwPortStats>& originalPortStats,
-    const std::vector<PortID>& portIds,
-    const HwPortStatsFunc& getHwPortStats) {
-  auto queueStatsSupported =
-      hwSwitch->getPlatform()->getAsic()->isSupported(HwAsic::Feature::L3_QOS);
-  auto conditionFn = [&originalPortStats,
-                      queueStatsSupported](const auto& newPortStats) {
-    for (const auto& [portId, portStat] : originalPortStats) {
-      auto newPortStatItr = newPortStats.find(portId);
-      if (newPortStatItr != newPortStats.end()) {
-        if (*newPortStatItr->second.outBytes_() > portStat.outBytes_()) {
-          // Wait for queue stat increment if queues are supported
-          // on this platform
-          if (!queueStatsSupported ||
-              anyQueueBytesIncremented(portStat, newPortStatItr->second)) {
-            return true;
-          }
-        }
-      }
-    }
-    XLOG(DBG3) << "No port stats increased yet";
-    return false;
-  };
-  return waitPortStatsCondition(
-      conditionFn, portIds, 20, std::chrono::milliseconds(20), getHwPortStats);
-}
-
-bool waitForAnyVoQOutBytesIncrement(
-    HwSwitch* hwSwitch,
-    const std::map<SystemPortID, HwSysPortStats>& originalPortStats,
-    const std::vector<SystemPortID>& portIds,
-    const HwSysPortStatsFunc& getHwPortStats) {
-  if (!hwSwitch->getPlatform()->getAsic()->isSupported(HwAsic::Feature::VOQ)) {
-    throw FbossError("VOQs are unsupported on platform");
-  }
-  auto conditionFn = [&originalPortStats](const auto& newPortStats) {
-    for (const auto& [portId, portStat] : originalPortStats) {
-      auto newPortStatItr = newPortStats.find(portId);
-      if (newPortStatItr != newPortStats.end() &&
-          anyQueueBytesIncremented(portStat, newPortStatItr->second)) {
-        return true;
-      }
-    }
-    XLOG(DBG3) << "No port stats increased yet";
-    return false;
-  };
-  return waitSysPortStatsCondition(
-      conditionFn, portIds, 20, std::chrono::milliseconds(20), getHwPortStats);
-}
-
 bool ensureSendPacketSwitched(
-    HwSwitch* hwSwitch,
+    TestEnsembleIf* ensemble,
     std::unique_ptr<TxPacket> pkt,
     const std::vector<PortID>& portIds,
     const HwPortStatsFunc& getHwPortStats,
@@ -164,15 +178,14 @@ bool ensureSendPacketSwitched(
     const HwSysPortStatsFunc& getHwSysPortStats) {
   auto originalPortStats = getHwPortStats(portIds);
   auto originalSysPortStats = getHwSysPortStats(sysPortIds);
-  bool result = hwSwitch->sendPacketSwitchedSync(std::move(pkt));
-  bool waitForVoqs = sysPortIds.size() &&
-      hwSwitch->getPlatform()->getAsic()->isSupported(HwAsic::Feature::VOQ);
-  return result &&
-      waitForAnyPorAndQueutOutBytesIncrement(
-             hwSwitch, originalPortStats, portIds, getHwPortStats) &&
+  ensemble->sendPacketAsync(std::move(pkt));
+  bool waitForVoqs =
+      sysPortIds.size() && featureSupported(ensemble, HwAsic::Feature::VOQ);
+  return waitForAnyPorAndQueutOutBytesIncrement(
+             ensemble, originalPortStats, portIds, getHwPortStats) &&
       (!waitForVoqs ||
        waitForAnyVoQOutBytesIncrement(
-           hwSwitch, originalSysPortStats, sysPortIds, getHwSysPortStats));
+           ensemble, originalSysPortStats, sysPortIds, getHwSysPortStats));
 }
 
 bool ensureSendPacketSwitched(
@@ -191,6 +204,54 @@ bool ensureSendPacketSwitched(
       noopGetSysPortStats);
 }
 
+bool ensureSendPacketSwitched(
+    HwSwitch* hwSwitch,
+    std::unique_ptr<TxPacket> pkt,
+    const std::vector<PortID>& portIds,
+    const HwPortStatsFunc& getHwPortStats,
+    const std::vector<SystemPortID>& sysPortIds,
+    const HwSysPortStatsFunc& getHwSysPortStats) {
+  auto originalPortStats = getHwPortStats(portIds);
+  auto originalSysPortStats = getHwSysPortStats(sysPortIds);
+  hwSwitch->sendPacketSwitchedSync(std::move(pkt));
+  bool waitForVoqs =
+      sysPortIds.size() && featureSupported(hwSwitch, HwAsic::Feature::VOQ);
+  return waitForAnyPorAndQueutOutBytesIncrement(
+             hwSwitch, originalPortStats, portIds, getHwPortStats) &&
+      (!waitForVoqs ||
+       waitForAnyVoQOutBytesIncrement(
+           hwSwitch, originalSysPortStats, sysPortIds, getHwSysPortStats));
+}
+
+bool ensureSendPacketSwitched(
+    TestEnsembleIf* ensemble,
+    std::unique_ptr<TxPacket> pkt,
+    const std::vector<PortID>& portIds,
+    const HwPortStatsFunc& getHwPortStats) {
+  auto noopGetSysPortStats = [](const std::vector<SystemPortID>&)
+      -> std::map<SystemPortID, HwSysPortStats> { return {}; };
+  return ensureSendPacketSwitched(
+      ensemble,
+      std::move(pkt),
+      portIds,
+      getHwPortStats,
+      {},
+      noopGetSysPortStats);
+}
+
+bool ensureSendPacketOutOfPort(
+    TestEnsembleIf* ensemble,
+    std::unique_ptr<TxPacket> pkt,
+    PortID portID,
+    const std::vector<PortID>& ports,
+    const HwPortStatsFunc& getHwPortStats,
+    std::optional<uint8_t> queue) {
+  auto originalPortStats = getHwPortStats(ports);
+  ensemble->sendPacketAsync(std::move(pkt), PortDescriptor(portID), queue);
+  return waitForAnyPorAndQueutOutBytesIncrement(
+      ensemble, originalPortStats, ports, getHwPortStats);
+}
+
 bool ensureSendPacketOutOfPort(
     HwSwitch* hwSwitch,
     std::unique_ptr<TxPacket> pkt,
@@ -205,5 +266,4 @@ bool ensureSendPacketOutOfPort(
       waitForAnyPorAndQueutOutBytesIncrement(
              hwSwitch, originalPortStats, ports, getHwPortStats);
 }
-
 } // namespace facebook::fboss::utility

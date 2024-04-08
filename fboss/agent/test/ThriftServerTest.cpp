@@ -259,7 +259,7 @@ CO_TEST_F(ThriftServerTest, setPortStateSink) {
   setupServerAndClients();
 
   const PortID port5{5};
-  auto result = co_await multiSwitchClient_->co_notifyLinkEvent(0);
+  auto result = co_await multiSwitchClient_->co_notifyLinkChangeEvent(0);
   auto verifyOperState = [this](const PortID& portId, bool up) {
     WITH_RETRIES({
       auto port = this->sw_->getState()->getPorts()->getNodeIf(portId);
@@ -273,29 +273,83 @@ CO_TEST_F(ThriftServerTest, setPortStateSink) {
 
   CounterCache counters(sw_);
   auto ret = co_await result.sink(
-      [&]() -> folly::coro::AsyncGenerator<multiswitch::LinkEvent&&> {
+      [&]() -> folly::coro::AsyncGenerator<multiswitch::LinkChangeEvent&&> {
         // verify link event sync is active
         WITH_RETRIES({
           counters.update();
           EXPECT_EVENTUALLY_EQ(
               counters.value("switch.0.link_event_sync_active"), 1);
         });
-        multiswitch::LinkEvent upEvent;
-        upEvent.port() = port5;
-        upEvent.up() = true;
-        co_yield std::move(upEvent);
-        verifyOperState(port5, true);
-
-        // set port oper state down
-        multiswitch::LinkEvent downEvent;
-        downEvent.port() = port5;
-        downEvent.up() = false;
-        co_yield std::move(downEvent);
-        verifyOperState(port5, false);
+        {
+          multiswitch::LinkEvent upEvent;
+          upEvent.port() = port5;
+          upEvent.up() = true;
+          multiswitch::LinkChangeEvent changeEvent;
+          changeEvent.linkStateEvent() = upEvent;
+          co_yield std::move(changeEvent);
+          verifyOperState(port5, true);
+        }
+        {
+          // set port oper state down
+          multiswitch::LinkEvent downEvent;
+          downEvent.port() = port5;
+          downEvent.up() = false;
+          multiswitch::LinkChangeEvent changeEvent;
+          changeEvent.linkStateEvent() = downEvent;
+          co_yield std::move(changeEvent);
+          verifyOperState(port5, false);
+        }
       }());
   EXPECT_TRUE(ret);
 }
 
+CO_TEST_F(ThriftServerTest, setPortActiveStateSink) {
+  // setup server and clients
+  setupServerAndClients();
+
+  const PortID port5{5};
+  auto result = co_await multiSwitchClient_->co_notifyLinkChangeEvent(0);
+  auto verifyActiveState = [this](const PortID& portId, bool active) {
+    WITH_RETRIES({
+      auto port = this->sw_->getState()->getPorts()->getNodeIf(portId);
+      if (active) {
+        EXPECT_EVENTUALLY_TRUE(
+            port->getActiveState() == Port::ActiveState::ACTIVE);
+      } else {
+        EXPECT_EVENTUALLY_TRUE(
+            port->getActiveState() == Port::ActiveState::INACTIVE);
+      }
+    });
+  };
+
+  CounterCache counters(sw_);
+  auto ret = co_await result.sink(
+      [&]() -> folly::coro::AsyncGenerator<multiswitch::LinkChangeEvent&&> {
+        // verify link event sync is active
+        WITH_RETRIES({
+          counters.update();
+          EXPECT_EVENTUALLY_EQ(
+              counters.value("switch.0.link_event_sync_active"), 1);
+        });
+        {
+          multiswitch::LinkActiveEvent activeEvent;
+          activeEvent.port2IsActive()->insert({port5, true});
+          multiswitch::LinkChangeEvent changeEvent;
+          changeEvent.linkActiveEvents() = activeEvent;
+          co_yield std::move(changeEvent);
+          verifyActiveState(port5, true);
+        }
+        {
+          multiswitch::LinkActiveEvent inactiveEvent;
+          inactiveEvent.port2IsActive()->insert({port5, false});
+          multiswitch::LinkChangeEvent changeEvent;
+          changeEvent.linkActiveEvents() = inactiveEvent;
+          co_yield std::move(changeEvent);
+          verifyActiveState(port5, false);
+        }
+      }());
+  EXPECT_TRUE(ret);
+}
 CO_TEST_F(ThriftServerTest, fdbEventTest) {
   // setup server and clients
   setupServerAndClients();

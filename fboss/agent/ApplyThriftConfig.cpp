@@ -851,10 +851,56 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
   }
 
   auto delta = StateDelta(orig_, new_).getDsfNodesDelta();
+  auto switchIdToSwitchIndex =
+      computeSwitchIdToSwitchIndex(new_->getDsfNodes());
+
   auto getRecyclePortId = [](const std::shared_ptr<DsfNode>& node) {
     CHECK(node->getSystemPortRange().has_value());
     return *node->getSystemPortRange()->minimum() + 1;
   };
+
+  auto getRecyclePortName =
+      [&switchIdToSwitchIndex](const std::shared_ptr<DsfNode>& node) {
+        int asicCore;
+        switch (node->getAsicType()) {
+          case cfg::AsicType::ASIC_TYPE_MOCK:
+          case cfg::AsicType::ASIC_TYPE_FAKE:
+          case cfg::AsicType::ASIC_TYPE_JERICHO2:
+            asicCore = 1;
+            break;
+          case cfg::AsicType::ASIC_TYPE_JERICHO3:
+            asicCore = 55;
+            break;
+          case cfg::AsicType::ASIC_TYPE_TRIDENT2:
+          case cfg::AsicType::ASIC_TYPE_TOMAHAWK:
+          case cfg::AsicType::ASIC_TYPE_TOMAHAWK3:
+          case cfg::AsicType::ASIC_TYPE_TOMAHAWK4:
+          case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
+          case cfg::AsicType::ASIC_TYPE_EBRO:
+          case cfg::AsicType::ASIC_TYPE_GARONNE:
+          case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
+          case cfg::AsicType::ASIC_TYPE_RAMON:
+          case cfg::AsicType::ASIC_TYPE_TOMAHAWK5:
+          case cfg::AsicType::ASIC_TYPE_YUBA:
+          case cfg::AsicType::ASIC_TYPE_RAMON3:
+            throw FbossError(
+                "Recycle ports are not applicable for AsicType: ",
+                apache::thrift::util::enumNameSafe(node->getAsicType()));
+        }
+
+        auto iter = switchIdToSwitchIndex.find(node->getSwitchId());
+        // switchIdToSwitchIndex is computed from DsfNode map. Thus, we should
+        // always find the switchId
+        CHECK(iter != switchIdToSwitchIndex.end());
+        auto switchIndex = iter->second;
+
+        // Recycle port name format:
+        //    rcy<pim_id>/<npu_id>/<npu_core>
+        // pmi_id is always 1 for Recycle port.
+        // npu_id = switchIndex + 1 (switchIndex strarts at 0)
+        return folly::sformat(
+            "{}:rcy1/{}/{}", node->getName(), switchIndex + 1, asicCore);
+      };
   auto isLocal = [localSwitchIds](const std::shared_ptr<DsfNode>& node) {
     return localSwitchIds.find(node->getSwitchId()) != localSwitchIds.end();
   };
@@ -938,9 +984,11 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
       return;
     }
     auto recyclePortId = getRecyclePortId(node);
-    auto sysPort = std::make_shared<SystemPort>(SystemPortID(recyclePortId));
+    auto sysPort = std::make_shared<SystemPort>(
+        SystemPortID(recyclePortId),
+        std::make_optional(RemoteSystemPortType::STATIC_ENTRY));
     sysPort->setSwitchId(node->getSwitchId());
-    sysPort->setPortName(folly::sformat("{}:rcy1/1/1", node->getName()));
+    sysPort->setPortName(getRecyclePortName(node));
     const auto& recyclePortInfo = dsfNodeAsic->getRecyclePortInfo();
     sysPort->setCoreIndex(recyclePortInfo.coreId);
     sysPort->setCorePortIndex(recyclePortInfo.corePortIndex);
@@ -965,7 +1013,9 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
         9000,
         true,
         true,
-        cfg::InterfaceType::SYSTEM_PORT);
+        cfg::InterfaceType::SYSTEM_PORT,
+        isLocal(node) ? std::optional<RemoteInterfaceType>(std::nullopt)
+                      : std::make_optional(RemoteInterfaceType::STATIC_ENTRY));
     auto intfs = new_->getRemoteInterfaces()->modify(&new_);
     intfs->addNode(intf, scopeResolver_.scope(intf, new_));
     processLoopbacks(node, dsfNodeAsic.get());
@@ -1120,8 +1170,13 @@ void ThriftConfigApplier::processInterfaceForPortForVoqSwitches(
   // TODO - only look at ports corresponding to the passed in switchId
   auto dsfNodeItr = cfg_->dsfNodes()->find(switchId);
   CHECK(dsfNodeItr != cfg_->dsfNodes()->end());
+  auto switchInfoItr =
+      cfg_->switchSettings()->switchIdToSwitchInfo()->find(switchId);
+  CHECK(switchInfoItr != cfg_->switchSettings()->switchIdToSwitchInfo()->end());
   CHECK(dsfNodeItr->second.systemPortRange().has_value());
+  CHECK(switchInfoItr->second.portIdRange().has_value());
   auto systemPortRange = dsfNodeItr->second.systemPortRange();
+  auto portIdRange = switchInfoItr->second.portIdRange();
   CHECK(systemPortRange);
   for (const auto& portCfg : *cfg_->ports()) {
     auto portType = *portCfg.portType();
@@ -1132,10 +1187,29 @@ void ThriftConfigApplier::processInterfaceForPortForVoqSwitches(
         case cfg::PortType::INTERFACE_PORT:
         case cfg::PortType::RECYCLE_PORT:
         case cfg::PortType::MANAGEMENT_PORT: {
-          // system port is 1:1 with every interface and recycle port.
-          // interface is 1:1 with system port.
-          // InterfaceID is chosen to be the same as systemPortID. Thus:
-          auto interfaceID = SystemPortID{*systemPortRange->minimum() + portID};
+          /*
+           * System port is 1:1 with every interface and recycle port.
+           * Interface is 1:1 with system port.
+           * InterfaceID is chosen to be the same as systemPortID. Thus:
+           * For multi ASIC switches, the the port ID range minimum must
+           * taken into account while computing the interface ID.
+           *
+           * For eg:
+           *
+           * ----------------------------------------------
+           * |   config        |   asic 0   |   asic 1    |
+           * ----------------------------------------------
+           * | sys port range  |   100-199  |  200-299    |
+           * ----------------------------------------------
+           * | port range      |   0-2047   | 2048-4096   |
+           * ----------------------------------------------
+           *
+           * Interface of recycle port on asic 1 is 201.
+           * Port ID of a recycle port in platform mapping will be 2049
+           * Interface ID of recycle port = 200 + 2049 - 2048 = 201
+           */
+          auto interfaceID = SystemPortID{
+              *systemPortRange->minimum() + portID - *portIdRange->minimum()};
           port2InterfaceId_[portID].push_back(interfaceID);
         } break;
         case cfg::PortType::FABRIC_PORT:

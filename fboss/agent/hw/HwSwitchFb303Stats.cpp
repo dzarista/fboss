@@ -144,6 +144,9 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
       fabricReachabilityMismatchCount_(
           map,
           getCounterPrefix() + "fabric_reachability_mismatch"),
+      virtualDevicesWithAsymmetricConnectivity_(
+          map,
+          getCounterPrefix() + "virtual_devices_with_asymmetric_connectivity"),
       ireErrors_(map, getCounterPrefix() + vendor + ".ire.errors", SUM, RATE),
       itppErrors_(map, getCounterPrefix() + vendor + ".itpp.errors", SUM, RATE),
       epniErrors_(map, getCounterPrefix() + vendor + ".epni.errors", SUM, RATE),
@@ -337,6 +340,8 @@ FabricReachabilityStats HwSwitchFb303Stats::getFabricReachabilityStats() {
   FabricReachabilityStats stats;
   stats.mismatchCount() = getFabricReachabilityMismatchCount();
   stats.missingCount() = getFabricReachabilityMissingCount();
+  stats.virtualDevicesWithAsymmetricConnectivity() =
+      getVirtualDevicesWithAsymmetricConnectivityCount();
   return stats;
 }
 
@@ -346,6 +351,12 @@ void HwSwitchFb303Stats::fabricReachabilityMissingCount(int64_t value) {
 
 void HwSwitchFb303Stats::fabricReachabilityMismatchCount(int64_t value) {
   fb303::fbData->setCounter(fabricReachabilityMismatchCount_.name(), value);
+}
+
+void HwSwitchFb303Stats::virtualDevicesWithAsymmetricConnectivity(
+    int64_t value) {
+  fb303::fbData->setCounter(
+      virtualDevicesWithAsymmetricConnectivity_.name(), value);
 }
 
 void HwSwitchFb303Stats::bcmSdkVer(int64_t ver) {
@@ -371,6 +382,13 @@ int64_t HwSwitchFb303Stats::getFabricReachabilityMissingCount() const {
   return counterVal ? *counterVal : 0;
 }
 
+int64_t HwSwitchFb303Stats::getVirtualDevicesWithAsymmetricConnectivityCount()
+    const {
+  auto counterVal = fb303::fbData->getCounterIfExists(
+      virtualDevicesWithAsymmetricConnectivity_.name());
+  return counterVal ? *counterVal : 0;
+}
+
 HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
   HwSwitchFb303GlobalStats hwFb303Stats;
   hwFb303Stats.tx_pkt_allocated() = getCumulativeValue(txPktAlloc_);
@@ -390,6 +408,8 @@ HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
       getFabricReachabilityMismatchCount();
   hwFb303Stats.fabric_reachability_mismatch() =
       getFabricReachabilityMissingCount();
+  hwFb303Stats.virtual_devices_with_asymmetric_connectivity() =
+      getVirtualDevicesWithAsymmetricConnectivityCount();
   hwFb303Stats.ingress_receive_editor_errors() = getIreErrors();
   hwFb303Stats.ingress_transmit_pipeline_errors() = getItppErrors();
   hwFb303Stats.egress_packet_network_interface_errors() = getEpniErrors();

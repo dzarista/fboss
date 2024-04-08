@@ -207,11 +207,15 @@ void printCmisDetailService(
     unsigned int port,
     bool verbose);
 
-void printPortDetail(const DOMDataUnion& domDataUnion, unsigned int port);
+void printPortDetail(
+    const DOMDataUnion& domDataUnion,
+    unsigned int port,
+    const std::string& portNames);
 void printPortDetailService(
     const TransceiverInfo& transceiverInfo,
     unsigned int port,
-    bool verbose);
+    bool verbose,
+    const std::string& portNames);
 
 void tryOpenBus(TransceiverI2CApi* bus);
 
@@ -252,7 +256,7 @@ void get_module_fw_info(
     unsigned int moduleA,
     unsigned int moduleB);
 
-void doCdbCommand(TransceiverI2CApi* bus, unsigned int module);
+void doCdbCommand(DirectI2cInfo i2cInfo, unsigned int module);
 
 bool printVdmInfo(DirectI2cInfo i2cInfo, unsigned int port);
 

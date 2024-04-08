@@ -2,6 +2,7 @@
 
 #include "fboss/qsfp_service/module/tests/FakeTransceiverImpl.h"
 #include "fboss/lib/usb/TransceiverI2CApi.h"
+#include "fboss/qsfp_service/TransceiverManager.h"
 #include "fboss/qsfp_service/module/QsfpModule.h"
 
 #include <gtest/gtest.h>
@@ -95,6 +96,15 @@ int FakeTransceiverImpl::getNum() const {
   return module_;
 }
 
+void FakeTransceiverImpl::triggerQsfpHardReset() {
+  // do nothing
+}
+
+void FakeTransceiverImpl::updateTransceiverState(
+    TransceiverStateMachineEvent event) {
+  tcvrManager_->updateStateBlocking(TransceiverID(module_), event);
+};
+
 // Below are randomly generated eeprom maps for testing purpose and doesn't
 // accurately reflect an actual module
 
@@ -112,7 +122,7 @@ std::array<uint8_t, 128> kSffDacPageLowerA0 = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 std::map<uint8_t, std::array<uint8_t, 128>> kSffDacPageLower = {
-    {TransceiverI2CApi::ADDR_QSFP, kSffDacPageLowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kSffDacPageLowerA0},
 };
 
 std::array<uint8_t, 128> kSffDacPage0 = {
@@ -143,14 +153,14 @@ std::array<uint8_t, 128> kSffCwdm4PageLowerA0 = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
 };
 std::map<uint8_t, std::array<uint8_t, 128>> kSffCwdm4PageLower{
-    {TransceiverI2CApi::ADDR_QSFP, kSffCwdm4PageLowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kSffCwdm4PageLowerA0},
 };
 
 // Miniphoton OBO are SFF CWDM4 optics w/ a module identifier of 0x91
 std::array<uint8_t, 128> kMiniphotonOBOPageLowerA0 =
     customizeModuleIdentifier(kSffCwdm4PageLowerA0, 0x91);
 std::map<uint8_t, std::array<uint8_t, 128>> kMiniphotonOBOPageLower = {
-    {TransceiverI2CApi::ADDR_QSFP, kMiniphotonOBOPageLowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kMiniphotonOBOPageLowerA0},
 };
 
 // use an invalid module ID (not defined in TransceiverModuleIdentifier)
@@ -158,7 +168,8 @@ std::array<uint8_t, 128> kUnknownSffModuleIdentifierPageLowerA0 =
     customizeModuleIdentifier(kSffCwdm4PageLowerA0, 0xFF);
 std::map<uint8_t, std::array<uint8_t, 128>>
     kUnknownSffModuleIdentifierPageLower = {
-        {TransceiverI2CApi::ADDR_QSFP, kUnknownSffModuleIdentifierPageLowerA0},
+        {TransceiverAccessParameter::ADDR_QSFP,
+         kUnknownSffModuleIdentifierPageLowerA0},
 };
 
 std::array<uint8_t, 128> kSffCwdm4BadPageLowerA0 = {
@@ -175,7 +186,7 @@ std::array<uint8_t, 128> kSffCwdm4BadPageLowerA0 = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
 };
 std::map<uint8_t, std::array<uint8_t, 128>> kSffCwdm4BadPageLower = {
-    {TransceiverI2CApi::ADDR_QSFP, kSffCwdm4BadPageLowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kSffCwdm4BadPageLowerA0},
 };
 
 std::array<uint8_t, 128> kSffCwdm4Page0 = {
@@ -224,7 +235,7 @@ std::array<uint8_t, 128> kSffCwdm4Page3 = {
 // extended specification compliance change in byte 192 in upper page 0
 std::array<uint8_t, 128> kSffFr1PageLowerA0 = kSffCwdm4PageLowerA0;
 std::map<uint8_t, std::array<uint8_t, 128>> kSffFr1PageLower = {
-    {TransceiverI2CApi::ADDR_QSFP, kSffFr1PageLowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kSffFr1PageLowerA0},
 };
 std::array<uint8_t, 128> kSffFr1Page0 = {
     0x0d, 0x10, 0x0c, 0x04, 0x00, 0x00, 0x00, 0x40, 0x40, 0x02, 0x00, 0x05,
@@ -269,7 +280,7 @@ std::array<uint8_t, 128> kSff200GCr4PageLowerA0 = {
 
 };
 std::map<uint8_t, std::array<uint8_t, 128>> kSff200GCr4PageLower = {
-    {TransceiverI2CApi::ADDR_QSFP, kSff200GCr4PageLowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kSff200GCr4PageLowerA0},
 };
 std::array<uint8_t, 128> kSff200GCr4Page0 = {
     0x11, 0x00, 0x23, 0x80, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08,
@@ -297,7 +308,7 @@ std::array<uint8_t, 128> kCmis200GFr4LowerA0 = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x14};
 std::map<uint8_t, std::array<uint8_t, 128>> kCmis200GFr4Lower = {
-    {TransceiverI2CApi::ADDR_QSFP, kCmis200GFr4LowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kCmis200GFr4LowerA0},
 };
 
 std::array<uint8_t, 128> kCmis200GFr4Page0 = {
@@ -405,7 +416,7 @@ std::array<uint8_t, 128> kCmis400GFr4MultiPortLowerA0 = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13,
 };
 std::map<uint8_t, std::array<uint8_t, 128>> kCmis400GFr4MultiPortLower = {
-    {TransceiverI2CApi::ADDR_QSFP, kCmis400GFr4MultiPortLowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kCmis400GFr4MultiPortLowerA0},
 };
 
 std::array<uint8_t, 128> kCmis400GLr4LowerA0 = {
@@ -421,7 +432,7 @@ std::array<uint8_t, 128> kCmis400GLr4LowerA0 = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x10, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x25};
 std::map<uint8_t, std::array<uint8_t, 128>> kCmis400GLr4Lower = {
-    {TransceiverI2CApi::ADDR_QSFP, kCmis400GLr4LowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kCmis400GLr4LowerA0},
 };
 
 std::array<uint8_t, 128> kCmis400GLr4Page0 = {
@@ -591,7 +602,7 @@ std::array<uint8_t, 128> kCmisFlatMemLowerA0 = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 std::map<uint8_t, std::array<uint8_t, 128>> kCmisFlatMemLower = {
-    {TransceiverI2CApi::ADDR_QSFP, kCmisFlatMemLowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kCmisFlatMemLowerA0},
 };
 
 std::array<uint8_t, 128> kCmisFlatMemPage0 = {
@@ -621,7 +632,7 @@ std::array<uint8_t, 128> kCmis400GCr8Lower = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 std::map<uint8_t, std::array<uint8_t, 128>> kCmis400GCr8LowerPages = {
-    {TransceiverI2CApi::ADDR_QSFP, kCmis400GCr8Lower},
+    {TransceiverAccessParameter::ADDR_QSFP, kCmis400GCr8Lower},
 };
 
 std::array<uint8_t, 128> kCmis400GCr8Page0 = {
@@ -642,39 +653,39 @@ std::map<int, std::array<uint8_t, 128>> kCmis400GCr8UpperPagesA0 = {
 };
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kCmis400GCr8UpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kCmis400GCr8UpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kCmis400GCr8UpperPagesA0}};
 
 std::map<int, std::array<uint8_t, 128>> kSffCwdm4UpperPagesA0 = {
     {0, kSffCwdm4Page0},
     {3, kSffCwdm4Page3}};
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>> kSffCwdm4UpperPages =
-    {{TransceiverI2CApi::ADDR_QSFP, kSffCwdm4UpperPagesA0}};
+    {{TransceiverAccessParameter::ADDR_QSFP, kSffCwdm4UpperPagesA0}};
 
 std::map<int, std::array<uint8_t, 128>> kSffCwdm4BadUpperPagesA0 = {
     {0, kSffCwdm4BadPage0},
     {3, kSffCwdm4Page3}};
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kSffCwdm4BadUpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kSffCwdm4BadUpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kSffCwdm4BadUpperPagesA0}};
 
 std::map<int, std::array<uint8_t, 128>> kSffFr1UpperPagesA0 = {
     {0, kSffFr1Page0},
     {3, kSffFr1Page3},
     {7, kSffFr1Page3}}; // Picking random data for page 7
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>> kSffFr1UpperPages = {
-    {TransceiverI2CApi::ADDR_QSFP, kSffFr1UpperPagesA0}};
+    {TransceiverAccessParameter::ADDR_QSFP, kSffFr1UpperPagesA0}};
 
 // only one upper page -- these modules use flat memory
 std::map<int, std::array<uint8_t, 128>> kSff200GCr4UpperPagesA0 = {
     {0, kSff200GCr4Page0}};
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kSff200GCr4UpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kSff200GCr4UpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kSff200GCr4UpperPagesA0}};
 
 std::map<int, std::array<uint8_t, 128>> kSffDacUpperPagesA0 = {
     {0, kSffDacPage0}};
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>> kSffDacUpperPages = {
-    {TransceiverI2CApi::ADDR_QSFP, kSffDacUpperPagesA0}};
+    {TransceiverAccessParameter::ADDR_QSFP, kSffDacUpperPagesA0}};
 
 std::map<int, std::array<uint8_t, 128>> kCmis200GFr4UpperPagesA0 = {
     {0, kCmis200GFr4Page0},
@@ -685,7 +696,7 @@ std::map<int, std::array<uint8_t, 128>> kCmis200GFr4UpperPagesA0 = {
     {0x13, kCmis200GFr4Page13}};
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kCmis200GFr4UpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kCmis200GFr4UpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kCmis200GFr4UpperPagesA0}};
 
 std::map<int, std::array<uint8_t, 128>> kCmis200GFr4UpperBadPagesA0 = {
     {0, kCmis200GFr4BadPage0},
@@ -696,7 +707,7 @@ std::map<int, std::array<uint8_t, 128>> kCmis200GFr4UpperBadPagesA0 = {
     {0x13, kCmis200GFr4Page13}};
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kCmis200GFr4UpperBadPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kCmis200GFr4UpperBadPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kCmis200GFr4UpperBadPagesA0}};
 
 std::map<int, std::array<uint8_t, 128>> kCmis400GLr4UpperPagesA0 = {
     {0, kCmis400GLr4Page0},
@@ -714,7 +725,7 @@ std::map<int, std::array<uint8_t, 128>> kCmis400GLr4UpperPagesA0 = {
 };
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kCmis400GLr4UpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kCmis400GLr4UpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kCmis400GLr4UpperPagesA0}};
 
 std::array<uint8_t, 128> kCmis400GMultiPortFr4Page1 = {
     0x00, 0x00, 0x04, 0x0a, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x65, 0xa4,
@@ -758,14 +769,15 @@ std::map<int, std::array<uint8_t, 128>> kCmis400GFr4MultiPortUpperPagesA0 = {
 };
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kCmis400GFr4MultiPortUpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kCmis400GFr4MultiPortUpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP,
+         kCmis400GFr4MultiPortUpperPagesA0}};
 
 std::map<int, std::array<uint8_t, 128>> kCmisFlatMemUpperPagesA0 = {
     {0, kCmisFlatMemPage0},
 };
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kCmisFlatMemUpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kCmisFlatMemUpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kCmisFlatMemUpperPagesA0}};
 
 std::array<uint8_t, 128> kSfpLowerPageA0 = {
     0x03, 0x04, 0x07, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06,
@@ -794,8 +806,8 @@ std::array<uint8_t, 128> kSfpLowerPageA2 = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 std::map<uint8_t, std::array<uint8_t, 128>> kSfpLowerPages = {
-    {TransceiverI2CApi::ADDR_QSFP, kSfpLowerPageA0},
-    {TransceiverI2CApi::ADDR_QSFP_A2, kSfpLowerPageA2},
+    {TransceiverAccessParameter::ADDR_QSFP, kSfpLowerPageA0},
+    {TransceiverAccessParameter::ADDR_QSFP_A2, kSfpLowerPageA2},
 };
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>> kSfpUpperPages = {};
 
@@ -813,8 +825,8 @@ std::array<uint8_t, 128> kSfp10GBaseTLowerPageA0 = {
     0x00, 0x00, 0x00, 0x00, 0x80, 0xee, 0x76, 0xdd};
 
 std::map<uint8_t, std::array<uint8_t, 128>> kSfp10GBaseTLowerPages = {
-    {TransceiverI2CApi::ADDR_QSFP, kSfp10GBaseTLowerPageA0},
-    {TransceiverI2CApi::ADDR_QSFP_A2, kSfp10GBaseTLowerPageA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kSfp10GBaseTLowerPageA0},
+    {TransceiverAccessParameter::ADDR_QSFP_A2, kSfp10GBaseTLowerPageA0},
 };
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kSfp10GBaseTUpperPages = {};
@@ -832,7 +844,7 @@ std::array<uint8_t, 128> kCmis400G2xFr4LowerA0 = {
     0x88, 0x1,  0x4f, 0x1d, 0x44, 0x11, 0x4b, 0x15, 0x11, 0xff, 0x0,  0x0,
     0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0};
 std::map<uint8_t, std::array<uint8_t, 128>> kCmis2x400GFr4Lower = {
-    {TransceiverI2CApi::ADDR_QSFP, kCmis400G2xFr4LowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kCmis400G2xFr4LowerA0},
 };
 
 std::array<uint8_t, 128> kCmis2x400GFr4Page0 = {
@@ -974,15 +986,17 @@ std::array<uint8_t, 128> kCmis2x400GFr4Page22 = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
 std::array<uint8_t, 128> kCmis2x400GFr4Page24 = {
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+    0x15, 0x10, 0x15, 0x11, 0x15, 0x12, 0x15, 0x0a, 0x15, 0x08, 0x15, 0x0a,
+    0x15, 0x0b, 0x15, 0x03, 0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,
+    0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,
+    0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,
+    0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,
+    0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,
+    0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,
+    0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,
+    0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,
+    0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,
+    0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0,  0x0};
 
 std::array<uint8_t, 128> kCmis2x400GFr4Page25 = {
     0x17, 0xde, 0x17, 0xde, 0x16, 0xc0, 0x17, 0x80, 0x18, 0xc0, 0x17, 0x9e,
@@ -1040,7 +1054,7 @@ std::map<int, std::array<uint8_t, 128>> kCmis2x400GFr4UpperPagesA0 = {
 
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kCmis2x400GFr4UpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kCmis2x400GFr4UpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kCmis2x400GFr4UpperPagesA0}};
 
 std::array<uint8_t, 128> kCmis400G2xDr4LowerA0 = {
     0x19, 0x40, 0x04, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1056,7 +1070,7 @@ std::array<uint8_t, 128> kCmis400G2xDr4LowerA0 = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11,
 };
 std::map<uint8_t, std::array<uint8_t, 128>> kCmis2x400GDr4Lower = {
-    {TransceiverI2CApi::ADDR_QSFP, kCmis400G2xDr4LowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kCmis400G2xDr4LowerA0},
 };
 
 std::array<uint8_t, 128> kCmis2x400GDr4Page0 = {
@@ -1261,7 +1275,7 @@ std::array<uint8_t, 128> kCmis400GDr4LowerA0 = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13,
 };
 std::map<uint8_t, std::array<uint8_t, 128>> kCmis400GDr4Lower = {
-    {TransceiverI2CApi::ADDR_QSFP, kCmis400GDr4LowerA0},
+    {TransceiverAccessParameter::ADDR_QSFP, kCmis400GDr4LowerA0},
 };
 
 std::array<uint8_t, 128> kCmis400GDr4Page0 = {
@@ -1448,93 +1462,159 @@ std::map<int, std::array<uint8_t, 128>> kCmis400GDr4UpperPagesA0 = {
 };
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kCmis400GDr4UpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kCmis400GDr4UpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kCmis400GDr4UpperPagesA0}};
 
 std::map<uint8_t, std::map<int, std::array<uint8_t, 128>>>
     kCmis2x400GDr4UpperPages = {
-        {TransceiverI2CApi::ADDR_QSFP, kCmis2x400GDr4UpperPagesA0}};
+        {TransceiverAccessParameter::ADDR_QSFP, kCmis2x400GDr4UpperPagesA0}};
 
-SffDacTransceiver::SffDacTransceiver(int module)
-    : FakeTransceiverImpl(module, kSffDacPageLower, kSffDacUpperPages) {}
+SffDacTransceiver::SffDacTransceiver(int module, TransceiverManager* mgr)
+    : FakeTransceiverImpl(module, kSffDacPageLower, kSffDacUpperPages, mgr) {}
 
-SffCwdm4Transceiver::SffCwdm4Transceiver(int module)
-    : FakeTransceiverImpl(module, kSffCwdm4PageLower, kSffCwdm4UpperPages) {}
+SffCwdm4Transceiver::SffCwdm4Transceiver(int module, TransceiverManager* mgr)
+    : FakeTransceiverImpl(
+          module,
+          kSffCwdm4PageLower,
+          kSffCwdm4UpperPages,
+          mgr) {}
 
-SffFr1Transceiver::SffFr1Transceiver(int module)
-    : FakeTransceiverImpl(module, kSffFr1PageLower, kSffFr1UpperPages) {}
+SffFr1Transceiver::SffFr1Transceiver(int module, TransceiverManager* mgr)
+    : FakeTransceiverImpl(module, kSffFr1PageLower, kSffFr1UpperPages, mgr) {}
 
-Sff200GCr4Transceiver::Sff200GCr4Transceiver(int module)
-    : FakeTransceiverImpl(module, kSff200GCr4PageLower, kSff200GCr4UpperPages) {
-}
+Sff200GCr4Transceiver::Sff200GCr4Transceiver(
+    int module,
+    TransceiverManager* mgr)
+    : FakeTransceiverImpl(
+          module,
+          kSff200GCr4PageLower,
+          kSff200GCr4UpperPages,
+          mgr) {}
 
-BadSffCwdm4Transceiver::BadSffCwdm4Transceiver(int module)
-    : FakeTransceiverImpl(module, kSffCwdm4BadPageLower, kSffCwdm4UpperPages) {}
+BadSffCwdm4Transceiver::BadSffCwdm4Transceiver(
+    int module,
+    TransceiverManager* mgr)
+    : FakeTransceiverImpl(
+          module,
+          kSffCwdm4BadPageLower,
+          kSffCwdm4UpperPages,
+          mgr) {}
 
-BadEepromSffCwdm4Transceiver::BadEepromSffCwdm4Transceiver(int module)
-    : FakeTransceiverImpl(module, kSffCwdm4PageLower, kSffCwdm4BadUpperPages) {}
+BadEepromSffCwdm4Transceiver::BadEepromSffCwdm4Transceiver(
+    int module,
+    TransceiverManager* mgr)
+    : FakeTransceiverImpl(
+          module,
+          kSffCwdm4PageLower,
+          kSffCwdm4BadUpperPages,
+          mgr) {}
 
-MiniphotonOBOTransceiver::MiniphotonOBOTransceiver(int module)
+MiniphotonOBOTransceiver::MiniphotonOBOTransceiver(
+    int module,
+    TransceiverManager* mgr)
     : FakeTransceiverImpl(
           module,
           kMiniphotonOBOPageLower,
-          kSffCwdm4UpperPages) {}
+          kSffCwdm4UpperPages,
+          mgr) {}
 
 UnknownModuleIdentifierTransceiver::UnknownModuleIdentifierTransceiver(
-    int module)
+    int module,
+    TransceiverManager* mgr)
     : FakeTransceiverImpl(
           module,
           kUnknownSffModuleIdentifierPageLower,
-          kSffCwdm4UpperPages) {}
+          kSffCwdm4UpperPages,
+          mgr) {}
 
-Cmis200GTransceiver::Cmis200GTransceiver(int module)
-    : FakeTransceiverImpl(module, kCmis200GFr4Lower, kCmis200GFr4UpperPages) {}
-
-BadCmis200GTransceiver::BadCmis200GTransceiver(int module)
+Cmis200GTransceiver::Cmis200GTransceiver(int module, TransceiverManager* mgr)
     : FakeTransceiverImpl(
           module,
           kCmis200GFr4Lower,
-          kCmis200GFr4UpperBadPages) {}
+          kCmis200GFr4UpperPages,
+          mgr) {}
 
-Cmis400GLr4Transceiver::Cmis400GLr4Transceiver(int module)
-    : FakeTransceiverImpl(module, kCmis400GLr4Lower, kCmis400GLr4UpperPages) {}
+BadCmis200GTransceiver::BadCmis200GTransceiver(
+    int module,
+    TransceiverManager* mgr)
+    : FakeTransceiverImpl(
+          module,
+          kCmis200GFr4Lower,
+          kCmis200GFr4UpperBadPages,
+          mgr) {}
 
-Cmis400GDr4Transceiver::Cmis400GDr4Transceiver(int module)
-    : FakeTransceiverImpl(module, kCmis400GDr4Lower, kCmis400GDr4UpperPages) {}
+Cmis400GLr4Transceiver::Cmis400GLr4Transceiver(
+    int module,
+    TransceiverManager* mgr)
+    : FakeTransceiverImpl(
+          module,
+          kCmis400GLr4Lower,
+          kCmis400GLr4UpperPages,
+          mgr) {}
 
-Cmis400GFr4MultiPortTransceiver::Cmis400GFr4MultiPortTransceiver(int module)
+Cmis400GDr4Transceiver::Cmis400GDr4Transceiver(
+    int module,
+    TransceiverManager* mgr)
+    : FakeTransceiverImpl(
+          module,
+          kCmis400GDr4Lower,
+          kCmis400GDr4UpperPages,
+          mgr) {}
+
+Cmis400GFr4MultiPortTransceiver::Cmis400GFr4MultiPortTransceiver(
+    int module,
+    TransceiverManager* mgr)
     : FakeTransceiverImpl(
           module,
           kCmis400GFr4MultiPortLower,
-          kCmis400GFr4MultiPortUpperPages) {}
+          kCmis400GFr4MultiPortUpperPages,
+          mgr) {}
 
-CmisFlatMemTransceiver::CmisFlatMemTransceiver(int module)
-    : FakeTransceiverImpl(module, kCmisFlatMemLower, kCmisFlatMemUpperPages) {}
+CmisFlatMemTransceiver::CmisFlatMemTransceiver(
+    int module,
+    TransceiverManager* mgr)
+    : FakeTransceiverImpl(
+          module,
+          kCmisFlatMemLower,
+          kCmisFlatMemUpperPages,
+          mgr) {}
 
-Sfp10GTransceiver::Sfp10GTransceiver(int module)
-    : FakeTransceiverImpl(module, kSfpLowerPages, kSfpUpperPages) {}
+Sfp10GTransceiver::Sfp10GTransceiver(int module, TransceiverManager* mgr)
+    : FakeTransceiverImpl(module, kSfpLowerPages, kSfpUpperPages, mgr) {}
 
-Sfp10GBaseTTransceiver::Sfp10GBaseTTransceiver(int module)
+Sfp10GBaseTTransceiver::Sfp10GBaseTTransceiver(
+    int module,
+    TransceiverManager* mgr)
     : FakeTransceiverImpl(
           module,
           kSfp10GBaseTLowerPages,
-          kSfp10GBaseTUpperPages) {}
+          kSfp10GBaseTUpperPages,
+          mgr) {}
 
-Cmis400GCr8Transceiver::Cmis400GCr8Transceiver(int module)
+Cmis400GCr8Transceiver::Cmis400GCr8Transceiver(
+    int module,
+    TransceiverManager* mgr)
     : FakeTransceiverImpl(
           module,
           kCmis400GCr8LowerPages,
-          kCmis400GCr8UpperPages) {}
+          kCmis400GCr8UpperPages,
+          mgr) {}
 
-Cmis2x400GFr4Transceiver::Cmis2x400GFr4Transceiver(int module)
+Cmis2x400GFr4Transceiver::Cmis2x400GFr4Transceiver(
+    int module,
+    TransceiverManager* mgr)
     : FakeTransceiverImpl(
           module,
           kCmis2x400GFr4Lower,
-          kCmis2x400GFr4UpperPages) {}
+          kCmis2x400GFr4UpperPages,
+          mgr) {}
 
-Cmis2x400GDr4Transceiver::Cmis2x400GDr4Transceiver(int module)
+Cmis2x400GDr4Transceiver::Cmis2x400GDr4Transceiver(
+    int module,
+    TransceiverManager* mgr)
     : FakeTransceiverImpl(
           module,
           kCmis2x400GDr4Lower,
-          kCmis2x400GDr4UpperPages) {}
+          kCmis2x400GDr4UpperPages,
+          mgr) {}
 } // namespace fboss
 } // namespace facebook

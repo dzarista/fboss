@@ -144,7 +144,8 @@ void WedgeManager::initTransceiverMap() {
 void WedgeManager::initQsfpImplMap() {
   // Create WedgeQsfp for each QSFP module present in the system
   for (int idx = 0; idx < getNumQsfpModules(); idx++) {
-    qsfpImpls_.push_back(std::make_unique<WedgeQsfp>(idx, wedgeI2cBus_.get()));
+    qsfpImpls_.push_back(
+        std::make_unique<WedgeQsfp>(idx, wedgeI2cBus_.get(), this));
   }
 }
 
@@ -325,26 +326,6 @@ void WedgeManager::writeTransceiverRegister(
             }
           })
       .wait();
-}
-
-void WedgeManager::customizeTransceiver(int32_t idx, cfg::PortSpeed speed) {
-  if (!isValidTransceiver(idx)) {
-    return;
-  }
-  auto lockedTransceivers = transceivers_.rlock();
-  if (auto it = lockedTransceivers->find(TransceiverID(idx));
-      it != lockedTransceivers->end()) {
-    try {
-      auto portName = getPortName(TransceiverID(idx));
-      // This API uses transceiverID so we don't know which port to program.
-      // Just program the first port
-      TransceiverPortState state{portName, 0, speed};
-      it->second->customizeTransceiver(state);
-    } catch (const std::exception& ex) {
-      XLOG(ERR) << "Transceiver " << idx
-                << ": Error calling customizeTransceiver(): " << ex.what();
-    }
-  }
 }
 
 void WedgeManager::syncPorts(
@@ -547,27 +528,42 @@ void WedgeManager::updateTransceiverMap() {
     }
 
     auto tcvrConfig = getTransceiverConfig();
+
+    // On these platforms, we are configuring the 200G optics in 2x50G
+    // experimental mode. Thus 2 of the 4 lanes remain disabled which kicks in
+    // the remediation logic and flaps the other 2 ports. Disabling remediation
+    // for just these 2 platforms as this is an experimental mode only
+    bool cmisSupportRemediate = true;
+    if (getPlatformType() == PlatformType::PLATFORM_MERU400BIU ||
+        getPlatformType() == PlatformType::PLATFORM_MERU400BFU) {
+      cmisSupportRemediate = false;
+    }
     for (auto idx : tcvrsToCreate) {
+      TransceiverID tcvrID(idx);
       if (futInterfaces[idx].value() == TransceiverManagementInterface::CMIS) {
         XLOG(INFO) << "Making CMIS QSFP for TransceiverID=" << idx;
         lockedTransceiversWPtr->emplace(
-            TransceiverID(idx),
+            tcvrID,
             std::make_unique<CmisModule>(
-                this, qsfpImpls_[idx].get(), tcvrConfig));
+                getPortNames(tcvrID),
+                qsfpImpls_[idx].get(),
+                tcvrConfig,
+                cmisSupportRemediate));
       } else if (
           futInterfaces[idx].value() == TransceiverManagementInterface::SFF) {
         XLOG(INFO) << "Making Sff QSFP for TransceiverID=" << idx;
         lockedTransceiversWPtr->emplace(
-            TransceiverID(idx),
+            tcvrID,
             std::make_unique<SffModule>(
-                this, qsfpImpls_[idx].get(), tcvrConfig));
+                getPortNames(tcvrID), qsfpImpls_[idx].get(), tcvrConfig));
       } else if (
           futInterfaces[idx].value() ==
           TransceiverManagementInterface::SFF8472) {
         XLOG(INFO) << "Making Sff8472 module for TransceiverID=" << idx;
         lockedTransceiversWPtr->emplace(
-            TransceiverID(idx),
-            std::make_unique<Sff8472Module>(this, qsfpImpls_[idx].get()));
+            tcvrID,
+            std::make_unique<Sff8472Module>(
+                getPortNames(tcvrID), qsfpImpls_[idx].get()));
       } else {
         XLOG(ERR) << "Unknown Transceiver interface: "
                   << static_cast<int>(futInterfaces[idx].value())
@@ -589,7 +585,7 @@ void WedgeManager::updateTransceiverMap() {
         // Check if we have expected ports info synced over and if all of
         // the ports are down. If any of them is not down then we will not
         // perform the reset.
-        bool safeToReset = areAllPortsDown(TransceiverID(idx)).first;
+        bool safeToReset = areAllPortsDown(tcvrID).first;
         if (std::time(nullptr) <= pauseRemediationUntil_) {
           XLOG(WARN) << "Remediation is paused, won't hard reset a present "
                      << "transceiver with unknown interface. TransceiverID="

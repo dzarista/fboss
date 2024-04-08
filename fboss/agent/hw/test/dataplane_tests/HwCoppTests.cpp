@@ -81,7 +81,7 @@ class HwCoppTest : public HwLinkStateDependentTest {
  protected:
   static constexpr auto isTrunk = std::is_same_v<TestType, AggregatePortID>;
 
-  void addTrapAclEntry(cfg::SwitchConfig* cfg) {
+  void addTrapAclEntry(cfg::SwitchConfig* cfg) const {
     // Create trap entry to punt data traffic to CPU low pri queue
     utility::addTrapPacketAcl(
         cfg, folly::CIDRNetwork{kIpForLowPriorityQueue, 128});
@@ -89,7 +89,9 @@ class HwCoppTest : public HwLinkStateDependentTest {
 
   cfg::SwitchConfig initialConfig() const override {
     if (isTrunk) {
-      return getTrunkInitialConfig();
+      auto trunkCfg = getTrunkInitialConfig();
+      addTrapAclEntry(&trunkCfg);
+      return trunkCfg;
     }
     auto cfg = utility::onePortPerInterfaceConfig(
         getHwSwitch(),
@@ -100,6 +102,7 @@ class HwCoppTest : public HwLinkStateDependentTest {
     utility::setDefaultCpuTrafficPolicyConfig(
         cfg, getAsic(), getHwSwitchEnsemble()->isSai());
     utility::addCpuQueueConfig(cfg, getAsic(), getHwSwitchEnsemble()->isSai());
+    addTrapAclEntry(&cfg);
     return cfg;
   }
 
@@ -265,7 +268,7 @@ class HwCoppTest : public HwLinkStateDependentTest {
                 neighborMac, // sender mac
                 intfMac, // my mac
                 neighborIp, // sender ip
-                folly::IPAddressV6("1::1")); // sent to me
+                folly::IPAddressV6("1::")); // sent to me
       sendPkt(std::move(txPacket), outOfPort, true /*snoopAndVerify*/);
     }
   }

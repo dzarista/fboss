@@ -52,30 +52,9 @@ namespace facebook::fboss::platform::platform_manager {
 
 using constants = platform_manager_config_constants;
 
-PlatformExplorer::PlatformExplorer(
-    std::chrono::seconds exploreInterval,
-    const PlatformConfig& config,
-    bool runOnce)
+PlatformExplorer::PlatformExplorer(const PlatformConfig& config)
     : platformConfig_(config),
-      devicePathResolver_(platformConfig_, dataStore_, i2cExplorer_) {
-  if (runOnce) {
-    explore();
-    return;
-  }
-  scheduler_.addFunction(
-      [this, exploreInterval]() {
-        try {
-          explore();
-        } catch (const std::exception& ex) {
-          XLOG(ERR) << fmt::format(
-              "Exception while exploring platform: {}. Will retry after {} seconds.",
-              folly::exceptionStr(ex),
-              exploreInterval.count());
-        }
-      },
-      exploreInterval);
-  scheduler_.start();
-}
+      devicePathResolver_(platformConfig_, dataStore_, i2cExplorer_) {}
 
 void PlatformExplorer::explore() {
   XLOG(INFO) << "Exploring the platform";
@@ -119,12 +98,19 @@ void PlatformExplorer::explorePmUnit(
       pmUnitConfig.i2cDeviceConfigs()->size());
   exploreI2cDevices(slotPath, *pmUnitConfig.i2cDeviceConfigs());
 
-  for (const auto& embeddedSensorConfig :
-       *pmUnitConfig.embeddedSensorConfigs()) {
-    dataStore_.updateSysfsPath(
-        Utils().createDevicePath(
-            slotPath, *embeddedSensorConfig.pmUnitScopedName()),
-        *embeddedSensorConfig.sysfsPath());
+  if (!pmUnitConfig.embeddedSensorConfigs()->empty()) {
+    XLOG(INFO) << fmt::format(
+        "Processing Embedded Sensors for PmUnit {} at SlotPath {}. Count {}",
+        pmUnitName,
+        slotPath,
+        pmUnitConfig.embeddedSensorConfigs()->size());
+    for (const auto& embeddedSensorConfig :
+         *pmUnitConfig.embeddedSensorConfigs()) {
+      dataStore_.updateSysfsPath(
+          Utils().createDevicePath(
+              slotPath, *embeddedSensorConfig.pmUnitScopedName()),
+          *embeddedSensorConfig.sysfsPath());
+    }
   }
 
   XLOG(INFO) << fmt::format(

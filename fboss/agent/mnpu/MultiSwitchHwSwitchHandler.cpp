@@ -96,49 +96,6 @@ bool MultiSwitchHwSwitchHandler::transactionsSupported(
   return false;
 }
 
-folly::F14FastMap<std::string, HwPortStats>
-MultiSwitchHwSwitchHandler::getPortStats() const {
-  // TODO: implement this
-  return {};
-}
-
-std::map<std::string, HwSysPortStats>
-MultiSwitchHwSwitchHandler::getSysPortStats() const {
-  // TODO: implement this
-  return {};
-}
-
-HwSwitchDropStats MultiSwitchHwSwitchHandler::getSwitchDropStats() const {
-  // TODO: implement this
-  return HwSwitchDropStats{};
-}
-
-// not used in split
-void MultiSwitchHwSwitchHandler::updateStats() {}
-
-// not used in split
-void MultiSwitchHwSwitchHandler::updateAllPhyInfo() {}
-std::map<PortID, phy::PhyInfo> MultiSwitchHwSwitchHandler::getAllPhyInfo()
-    const {
-  return {};
-}
-
-uint64_t MultiSwitchHwSwitchHandler::getDeviceWatermarkBytes() const {
-  // TODO: implement this
-  return 0;
-}
-
-HwFlowletStats MultiSwitchHwSwitchHandler::getHwFlowletStats() const {
-  // TODO: implement this
-  return {};
-}
-
-HwSwitchFb303Stats* MultiSwitchHwSwitchHandler::getSwitchStats() const {
-  // TODO: implement this
-  // @lint-ignore CLANGTIDY
-  return nullptr;
-}
-
 void MultiSwitchHwSwitchHandler::clearPortStats(
     const std::unique_ptr<std::vector<int32_t>>& /*ports*/) {
   // TODO: implement this
@@ -150,7 +107,7 @@ MultiSwitchHwSwitchHandler::getPortAsicPrbsStats(PortID /*portId*/) {
   return {};
 }
 
-void MultiSwitchHwSwitchHandler::clearPortAsicPrbsStats(int32_t /*portId*/) {
+void MultiSwitchHwSwitchHandler::clearPortAsicPrbsStats(PortID /*portId*/) {
   // TODO: implement this
 }
 
@@ -176,12 +133,6 @@ std::shared_ptr<SwitchState> MultiSwitchHwSwitchHandler::stateChanged(
     bool /*transaction*/) {
   // TODO: implement this
   return nullptr;
-}
-
-CpuPortStats MultiSwitchHwSwitchHandler::getCpuPortStats(
-    bool /*getIncrement*/) const {
-  // TODO: implement this
-  return CpuPortStats{};
 }
 
 std::map<PortID, FabricEndpoint>

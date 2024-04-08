@@ -126,6 +126,8 @@ class AgentDirectoryUtil {
 
   std::string getRoutingProtocolColdBootDrainTimeFile() const;
 
+  std::string getRoutingProtocolColdBootDrainTimeFile(int switchIndex) const;
+
   std::string getSwSwitchCanWarmBootFile() const;
 
   std::string getHwSwitchCanWarmBootFile(int switchIndex) const;
@@ -182,6 +184,8 @@ class AgentDirectoryUtil {
   std::string exitSwSwitchForColdBootFile() const;
 
   std::string exitHwSwitchForColdBootFile(int switchIndex) const;
+
+  std::string agentEnsembleConfigDir() const;
 
  private:
   const std::string volatileStateDir_;

@@ -68,7 +68,8 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
       int mtu,
       bool isVirtual,
       bool isStateSyncDisabled,
-      cfg::InterfaceType type = cfg::InterfaceType::VLAN) {
+      cfg::InterfaceType type = cfg::InterfaceType::VLAN,
+      std::optional<RemoteInterfaceType> remoteIntfType = std::nullopt) {
     set<switch_state_tags::interfaceId>(id);
     setRouterID(router);
     if (vlan) {
@@ -80,6 +81,7 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
     setIsVirtual(isVirtual);
     setIsStateSyncDisabled(isStateSyncDisabled);
     setType(type);
+    setRemoteInterfaceType(remoteIntfType);
   }
 
   InterfaceID getID() const {
@@ -417,6 +419,41 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
       return addr->cref();
     }
     return std::nullopt;
+  }
+
+  std::optional<RemoteInterfaceType> getRemoteInterfaceType() const {
+    if (auto remoteIntfType = cref<switch_state_tags::remoteIntfType>()) {
+      return remoteIntfType->cref();
+    }
+    return std::nullopt;
+  }
+
+  void setRemoteInterfaceType(
+      const std::optional<RemoteInterfaceType>& remoteIntfType = std::nullopt) {
+    if (remoteIntfType) {
+      set<switch_state_tags::remoteIntfType>(remoteIntfType.value());
+    } else {
+      ref<switch_state_tags::remoteIntfType>().reset();
+    }
+  }
+
+  std::optional<LivenessStatus> getRemoteLivenessStatus() const {
+    if (auto remoteIntfLivenessStatus =
+            cref<switch_state_tags::remoteIntfLivenessStatus>()) {
+      return remoteIntfLivenessStatus->cref();
+    }
+    return std::nullopt;
+  }
+
+  void setRemoteLivenessStatus(
+      const std::optional<LivenessStatus>& remoteIntfLivenessStatus =
+          std::nullopt) {
+    if (remoteIntfLivenessStatus) {
+      set<switch_state_tags::remoteIntfLivenessStatus>(
+          remoteIntfLivenessStatus.value());
+    } else {
+      ref<switch_state_tags::remoteIntfLivenessStatus>().reset();
+    }
   }
 
   /*

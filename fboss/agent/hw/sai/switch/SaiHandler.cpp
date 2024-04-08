@@ -61,11 +61,13 @@ void SaiHandler::diagCmd(
 }
 
 SwitchRunState SaiHandler::getHwSwitchRunState() {
+  auto log = LOG_THRIFT_CALL(DBG1);
   return hw_->getRunState();
 }
 
 void SaiHandler::getHwFabricReachability(
     std::map<::std::int64_t, ::facebook::fboss::FabricEndpoint>& reachability) {
+  auto log = LOG_THRIFT_CALL(DBG1);
   hw_->ensureVoqOrFabric(__func__);
   auto reachabilityInfo = hw_->getFabricConnectivity();
   for (auto&& entry : reachabilityInfo) {
@@ -75,6 +77,7 @@ void SaiHandler::getHwFabricReachability(
 
 void SaiHandler::getHwFabricConnectivity(
     std::map<::std::string, ::facebook::fboss::FabricEndpoint>& connectivity) {
+  auto log = LOG_THRIFT_CALL(DBG1);
   hw_->ensureVoqOrFabric(__func__);
   auto connectivityInfo = hw_->getFabricConnectivity();
   for (auto& entry : connectivityInfo) {
@@ -88,6 +91,7 @@ void SaiHandler::getHwFabricConnectivity(
 void SaiHandler::getHwSwitchReachability(
     std::map<::std::string, std::vector<::std::string>>& reachability,
     std::unique_ptr<::std::vector<::std::string>> switchNames) {
+  auto log = LOG_THRIFT_CALL(DBG1, *switchNames);
   hw_->ensureVoqOrFabric(__func__);
   if (switchNames->empty()) {
     throw FbossError("Empty switch name list input for getSwitchReachability.");
@@ -142,6 +146,38 @@ void SaiHandler::getHwL2Table(std::vector<L2EntryThrift>& l2Table) {
   auto log = LOG_THRIFT_CALL(DBG1);
   hw_->ensureConfigured(__func__);
   hw_->fetchL2Table(&l2Table);
+}
+
+void SaiHandler::getVirtualDeviceToConnectionGroups(
+    std::map<
+        int64_t,
+        std::map<int64_t, std::vector<facebook::fboss::RemoteEndpoint>>>&
+        virtualDevice2ConnectionGroups) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  auto deviceToConnectionGroups =
+      hw_->getVirtualDeviceToRemoteConnectionGroups();
+  // Convert to format required by thrift handler
+  for (const auto& [vid, connGroups] : deviceToConnectionGroups) {
+    auto& outVidConnGroups = virtualDevice2ConnectionGroups[vid];
+    for (const auto& [groupSize, group] : connGroups) {
+      auto& outVidGroup = outVidConnGroups[groupSize];
+      std::for_each(
+          group.begin(),
+          group.end(),
+          [&outVidGroup](const auto& remoteEndpoint) {
+            outVidGroup.push_back(remoteEndpoint);
+          });
+    }
+  }
+}
+
+void SaiHandler::listHwObjects(
+    std::string& out,
+    std::unique_ptr<std::vector<HwObjectType>> hwObjects,
+    bool cached) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  hw_->ensureConfigured(__func__);
+  out = hw_->listObjects(*hwObjects, cached);
 }
 
 } // namespace facebook::fboss

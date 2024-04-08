@@ -10,11 +10,16 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentEmptyTests.cpp
   fboss/agent/test/agent_hw_tests/AgentEgressForwardingDiscardCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentAclInDiscardCounterTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentJumboFramesTests.cpp
   fboss/agent/test/agent_hw_tests/AgentInNullRouteDiscardsTest.cpp
   fboss/agent/test/agent_hw_tests/AgentPacketSendTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentL3ForwardingTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentL4PortBlackholingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosSchedulerTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentQueuePerHostTests.cpp
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentVoqSwitchInterruptsTests.cpp
   fboss/agent/test/agent_hw_tests/AgentFabricSwitchTests.cpp
   fboss/agent/test/agent_hw_tests/AgentPrbsTests.cpp
 )
@@ -25,6 +30,7 @@ target_link_libraries(agent_hw_test_src
   dscp_marking_utils
   pkt_test_utils
   packet
+  queue_per_host_test_utils
   core
   hw_switch_fb303_stats
   config_factory
@@ -35,6 +41,7 @@ target_link_libraries(agent_hw_test_src
   traffic_policy_utils
   olympic_qos_utils
   qos_test_utils
+  stats
   resourcelibutil
   load_balancer_test_utils
 )

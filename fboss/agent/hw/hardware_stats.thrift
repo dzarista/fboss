@@ -233,14 +233,28 @@ struct TeFlowStats {
 struct FabricReachabilityStats {
   1: i64 mismatchCount;
   2: i64 missingCount;
+  3: i64 virtualDevicesWithAsymmetricConnectivity;
 }
 
 struct HwRxReasonStats {
   1: map<i64, i64> rxReasonStats;
 }
 
+// The deviceWatermarkBytes has been moved from HwBufferPoolStats to
+// HwSwitchWatermarkStats, but retaining the HwBufferPoolStats but
+// will be marked as deprecated everywhere until it has some other
+// stats in it.
 struct HwBufferPoolStats {
+  // Deprecate deviceWatermarkBytes once HwSwitchWatermarkStats is
+  // available in prod!
   1: i64 deviceWatermarkBytes;
+}
+
+struct HwSwitchWatermarkStats {
+  1: optional i64 fdrRciWatermarkBytes;
+  2: optional i64 coreRciWatermarkBytes;
+  3: optional i64 dtlQueueWatermarkBytes;
+  4: i64 deviceWatermarkBytes;
 }
 
 struct CpuPortStats {
@@ -295,6 +309,7 @@ struct HwSwitchFb303GlobalStats {
   21: optional i64 egress_packet_network_interface_errors;
   22: optional i64 aligner_errors;
   23: optional i64 forwarding_queue_processor_errors;
+  24: i64 virtual_devices_with_asymmetric_connectivity;
 }
 
 struct HwFlowletStats {

@@ -128,7 +128,9 @@ class CmdShowSystemPort
            "NumVoqs",
            "QosPolicy",
            "CoreIndex",
-           "CorePortIndex"});
+           "CorePortIndex",
+           "RemoteSystemPortType",
+           "RemoteSystemPortLivenessStatus"});
 
       for (auto const& systemportInfo : model.get_sysPortEntries()) {
         table.addRow(
@@ -138,7 +140,10 @@ class CmdShowSystemPort
              folly::to<std::string>(systemportInfo.get_numVoqs()),
              systemportInfo.get_qosPolicy(),
              folly::to<std::string>(systemportInfo.get_coreIndex()),
-             folly::to<std::string>(systemportInfo.get_corePortIndex())});
+             folly::to<std::string>(systemportInfo.get_corePortIndex()),
+             folly::to<std::string>(systemportInfo.get_remoteSystemPortType()),
+             folly::to<std::string>(
+                 systemportInfo.get_remoteSystemPortLivenessStatus())});
       }
       out << table << std::endl;
     }
@@ -169,6 +174,36 @@ class CmdShowSystemPort
                                             : " -- ");
         systemPortDetails.coreIndex() = systemPortInfo.get_coreIndex();
         systemPortDetails.corePortIndex() = systemPortInfo.get_corePortIndex();
+
+        auto getRemoteSystemPortTypeStr = [](const auto& remoteSystemPortType) {
+          if (remoteSystemPortType.has_value()) {
+            switch (remoteSystemPortType.value()) {
+              case RemoteSystemPortType::DYNAMIC_ENTRY:
+                return "DYNAMIC";
+              case RemoteSystemPortType::STATIC_ENTRY:
+                return "STATIC";
+            }
+          }
+          return "--";
+        };
+        systemPortDetails.remoteSystemPortType() =
+            getRemoteSystemPortTypeStr(systemPortInfo.remoteSystemPortType());
+
+        auto getRemoteSystemPortLivenessStatusStr =
+            [](const auto& remoteSystemPortLivenessStatus) {
+              if (remoteSystemPortLivenessStatus.has_value()) {
+                switch (remoteSystemPortLivenessStatus.value()) {
+                  case LivenessStatus::LIVE:
+                    return "LIVE";
+                  case LivenessStatus::STALE:
+                    return "STALE";
+                }
+              }
+              return "--";
+            };
+        systemPortDetails.remoteSystemPortLivenessStatus() =
+            getRemoteSystemPortLivenessStatusStr(
+                systemPortInfo.remoteSystemPortLivenessStatus());
 
         const auto& iter = systemportHwStats.find(systemPortName);
         // see if we have any detailed hw stats

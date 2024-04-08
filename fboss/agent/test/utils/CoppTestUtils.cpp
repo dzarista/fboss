@@ -10,14 +10,19 @@
 #include <vector>
 
 #include "fboss/agent/FbossError.h"
+#include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/SwSwitch.h"
+#include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
+#include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/SwitchState.h"
+#include "fboss/agent/test/TestEnsembleIf.h"
 #include "fboss/lib/CommonUtils.h"
 
 #include "fboss/agent/test/utils/AclTestUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
+#include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
 
 DECLARE_bool(enable_acl_table_group);
 
@@ -32,6 +37,34 @@ const std::string kMplsDestNoMatchCounterName = "mpls-dest-nomatch-counter";
 } // unnamed namespace
 
 namespace facebook::fboss::utility {
+
+namespace {
+std::unique_ptr<facebook::fboss::TxPacket> createUdpPktImpl(
+    const AllocatePktFunc& allocatePkt,
+    std::optional<VlanID> vlanId,
+    folly::MacAddress srcMac,
+    folly::MacAddress dstMac,
+    const folly::IPAddress& srcIpAddress,
+    const folly::IPAddress& dstIpAddress,
+    int l4SrcPort,
+    int l4DstPort,
+    uint8_t ttl,
+    std::optional<uint8_t> dscp) {
+  auto txPacket = utility::makeUDPTxPacket(
+      allocatePkt,
+      vlanId,
+      srcMac,
+      dstMac,
+      srcIpAddress,
+      dstIpAddress,
+      l4SrcPort,
+      l4DstPort,
+      (dscp.has_value() ? dscp.value() : 48) << 2,
+      ttl);
+
+  return txPacket;
+}
+} // namespace
 
 std::string getMplsDestNoMatchCounterName() {
   return kMplsDestNoMatchCounterName;
@@ -320,6 +353,18 @@ void addMidPriAclForNw(
       createQueueMatchAction(utility::kCoppMidPriQueueId, isSai, toCpuAction)));
 }
 
+void addLowPriAclForConnectedSubnetRoutes(
+    cfg::ToCpuAction toCpuAction,
+    std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls,
+    bool isSai) {
+  cfg::AclEntry acl;
+  acl.name() = folly::to<std::string>("cpu-connected-subnet-route-acl");
+  acl.lookupClassRoute() = cfg::AclLookupClass::CLASS_CONNECTED_ROUTE_TO_INTF;
+  acls.push_back(std::make_pair(
+      acl,
+      createQueueMatchAction(utility::kCoppLowPriQueueId, isSai, toCpuAction)));
+}
+
 void addLowPriAclForUnresolvedRoutes(
     cfg::ToCpuAction toCpuAction,
     std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls,
@@ -441,6 +486,9 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForSai(
   if (hwAsic->isSupported(HwAsic::Feature::ACL_METADATA_QUALIFER)) {
     // Unresolved route class ID to low pri queue
     addLowPriAclForUnresolvedRoutes(
+        getCpuActionType(hwAsic), acls, true /*isSai*/);
+    // Connected subnet route class ID to low pri queue
+    addLowPriAclForConnectedSubnetRoutes(
         getCpuActionType(hwAsic), acls, true /*isSai*/);
   }
 
@@ -824,6 +872,54 @@ uint64_t getQueueOutPacketsWithRetry(
   }
 
   return outPkts;
+}
+
+std::unique_ptr<facebook::fboss::TxPacket> createUdpPkt(
+    const HwSwitch* hwSwitch,
+    std::optional<VlanID> vlanId,
+    folly::MacAddress srcMac,
+    folly::MacAddress dstMac,
+    const folly::IPAddress& srcIpAddress,
+    const folly::IPAddress& dstIpAddress,
+    int l4SrcPort,
+    int l4DstPort,
+    uint8_t ttl,
+    std::optional<uint8_t> dscp) {
+  return createUdpPktImpl(
+      [hwSwitch](uint32_t size) { return hwSwitch->allocatePacket(size); },
+      vlanId,
+      srcMac,
+      dstMac,
+      srcIpAddress,
+      dstIpAddress,
+      l4SrcPort,
+      l4DstPort,
+      ttl,
+      dscp);
+}
+
+std::unique_ptr<facebook::fboss::TxPacket> createUdpPkt(
+    TestEnsembleIf* ensemble,
+    std::optional<VlanID> vlanId,
+    folly::MacAddress srcMac,
+    folly::MacAddress dstMac,
+    const folly::IPAddress& srcIpAddress,
+    const folly::IPAddress& dstIpAddress,
+    int l4SrcPort,
+    int l4DstPort,
+    uint8_t ttl,
+    std::optional<uint8_t> dscp) {
+  return createUdpPktImpl(
+      [ensemble](uint32_t size) { return ensemble->allocatePacket(size); },
+      vlanId,
+      srcMac,
+      dstMac,
+      srcIpAddress,
+      dstIpAddress,
+      l4SrcPort,
+      l4DstPort,
+      ttl,
+      dscp);
 }
 
 } // namespace facebook::fboss::utility

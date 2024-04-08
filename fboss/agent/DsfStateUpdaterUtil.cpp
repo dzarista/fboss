@@ -74,11 +74,62 @@ std::shared_ptr<SwitchState> DsfStateUpdaterUtil::getUpdatedState(
     }
   };
 
-  auto makeRemoteSysPort = [&](const auto& /*oldNode*/, const auto& newNode) {
-    return newNode;
+  auto makeRemoteSysPort = [&](const auto& oldNode, const auto& newNode) {
+    /*
+     * RemoteSystemPorts synced from a remote peer R contain:
+     *  o RemoteSystemPorts corresponding to remote recycle ports.
+     *    - These are already programmed statically based on DSF node config
+     *      and are used to bring up the control plane. Thus, don't overwrite
+     *      statically programmed entries.
+     *  o RemoteSystemPorts corresponding to remote NIF ports.
+     *    - remoteSystemPortType and remoteLivenessStatus is applicable only for
+     *      remoteSystemPorts.
+     *    - However, these ports are localSystemPorts for peer R, and thus
+     *      remoteSystemPortType and remoteLivenessStatus is not set. Set those.
+     *    - remoteSystemPortType = DYNAMIC as these are synced dynamically.
+     *    - remoteLivenessStatus = LIVE as these are synced from control plane.
+     *      The remoteLivenessStatus will be changed to STALE on GR timeout.
+     */
+    CHECK(!oldNode || oldNode->getID() == newNode->getID());
+    if (oldNode && oldNode->getRemoteSystemPortType().has_value() &&
+        oldNode->getRemoteSystemPortType().value() ==
+            RemoteSystemPortType::STATIC_ENTRY) {
+      XLOG(DBG2)
+          << "Skip overwriting STATIC remoteSystemPorts: "
+          << " STATIC: "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 oldNode->toThrift())
+          << " non-STATIC: "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 newNode->toThrift());
+      return oldNode;
+    }
+
+    auto clonedNode = newNode->isPublished() ? newNode->clone() : newNode;
+    clonedNode->setRemoteSystemPortType(RemoteSystemPortType::DYNAMIC_ENTRY);
+    clonedNode->setRemoteLivenessStatus(LivenessStatus::LIVE);
+
+    return clonedNode;
   };
   auto makeRemoteRif = [&](const auto& oldNode, const auto& newNode) {
+    CHECK(!oldNode || oldNode->getID() == newNode->getID());
+    if (oldNode && oldNode->getRemoteInterfaceType().has_value() &&
+        oldNode->getRemoteInterfaceType().value() ==
+            RemoteInterfaceType::STATIC_ENTRY) {
+      XLOG(DBG2)
+          << "Skip overwriting STATIC remoteInterface: "
+          << " STATIC: "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 oldNode->toThrift())
+          << " non-STATIC: "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 newNode->toThrift());
+      return oldNode;
+    }
+
     auto clonedNode = newNode->clone();
+    clonedNode->setRemoteInterfaceType(RemoteInterfaceType::DYNAMIC_ENTRY);
+    clonedNode->setRemoteLivenessStatus(LivenessStatus::LIVE);
 
     if (newNode->isPublished()) {
       clonedNode->setArpTable(newNode->getArpTable()->toThrift());

@@ -93,7 +93,6 @@ class AgentL3ForwardingTest : public AgentHwTest {
       EXPECT_EVENTUALLY_EQ(statusMap[0].statsEventSyncActive().value(), 1);
       EXPECT_EVENTUALLY_EQ(statusMap[0].fdbEventSyncActive().value(), 1);
       EXPECT_EVENTUALLY_EQ(statusMap[0].linkEventSyncActive().value(), 1);
-      EXPECT_EVENTUALLY_EQ(statusMap[0].linkActiveEventSyncActive().value(), 1);
       EXPECT_EVENTUALLY_EQ(statusMap[0].rxPktEventSyncActive().value(), 1);
       EXPECT_EVENTUALLY_EQ(statusMap[0].txPktEventSyncActive().value(), 1);
     });
@@ -101,7 +100,7 @@ class AgentL3ForwardingTest : public AgentHwTest {
 };
 
 TEST_F(AgentL3ForwardingTest, linkLocalNeighborAndNextHop) {
-  auto setup = [=]() {
+  auto setup = [=, this]() {
     // Random LL IPs
     // linkLocalNhop - used as both LL nbr and nhop
     // linkLocalNbr  - used as both LL nbr and
@@ -136,7 +135,7 @@ TEST_F(AgentL3ForwardingTest, linkLocalNeighborAndNextHop) {
 TEST_F(AgentL3ForwardingTest, ttl255) {
   utility::EcmpSetupAnyNPorts6 ecmpHelper6(getSw()->getState());
   utility::EcmpSetupAnyNPorts4 ecmpHelper4(getSw()->getState());
-  auto setup = [=]() {
+  auto setup = [=, this]() {
     auto programDefaultRoutes = [this](auto& ecmpHelper) {
       auto wrapper = getSw()->getRouteUpdater();
       ecmpHelper.programRoutes(&wrapper, 1);
@@ -155,7 +154,7 @@ TEST_F(AgentL3ForwardingTest, ttl255) {
   auto verify = [=, this]() {
     ThriftHandler handler(getSw());
     verifyHwAgentConnectionState(handler);
-    auto pumpTraffic = [=]() {
+    auto pumpTraffic = [=, this]() {
       for (auto isV6 : {true, false}) {
         auto vlanId = utility::firstVlanID(getProgrammedState());
         auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());

@@ -24,7 +24,7 @@ enum class SffFr1Field;
 class SffModule : public QsfpModule {
  public:
   explicit SffModule(
-      TransceiverManager* transceiverManager,
+      std::set<std::string> portNames,
       TransceiverImpl* qsfpImpl,
       std::shared_ptr<const TransceiverConfig> cfg);
   virtual ~SffModule() override;
@@ -211,7 +211,7 @@ class SffModule : public QsfpModule {
   /*
    * Return what power control capability is currently enabled
    */
-  PowerControlState getPowerControlValue() override;
+  PowerControlState getPowerControlValue(bool readFromCache) override;
   /*
    * Return SignalFlag which contains Tx/Rx LOS/LOL
    */

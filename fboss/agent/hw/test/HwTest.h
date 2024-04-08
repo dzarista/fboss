@@ -26,9 +26,9 @@
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.h"
 #include "fboss/agent/hw/test/HwTestConstants.h"
-#include "fboss/agent/hw/test/HwTestStatUtils.h"
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/SwitchState.h"
+#include "fboss/agent/test/utils/PortStatsTestUtils.h"
 #include "fboss/agent/types.h"
 
 DECLARE_bool(setup_for_warmboot);
@@ -70,6 +70,9 @@ class HwTest : public ::testing::Test,
   void l2LearningUpdateReceived(
       L2Entry /*l2Entry*/,
       L2EntryUpdateType /*l2EntryUpdateType*/) override {}
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+      /*port2OldAndNewConnectivity*/) override {}
 
   HwSwitchEnsemble* getHwSwitchEnsemble() {
     return hwSwitchEnsemble_.get();

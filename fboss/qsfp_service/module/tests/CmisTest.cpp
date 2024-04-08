@@ -21,10 +21,14 @@ class MockCmisModule : public CmisModule {
  public:
   template <typename XcvrImplT>
   explicit MockCmisModule(
-      TransceiverManager* transceiverManager,
+      std::set<std::string> portNames,
       XcvrImplT* qsfpImpl,
       std::shared_ptr<const TransceiverConfig> cfgPtr)
-      : CmisModule(transceiverManager, qsfpImpl, cfgPtr) {
+      : CmisModule(
+            std::move(portNames),
+            qsfpImpl,
+            cfgPtr,
+            true /*supportRemediate*/) {
     ON_CALL(*this, getModuleStateChanged).WillByDefault([this]() {
       // Only return true for the first read so that we can mimic the clear
       // on read register
@@ -50,7 +54,8 @@ class CmisTest : public TransceiverManagerTestHelper {
       TransceiverID id,
       TransceiverModuleIdentifier identifier =
           TransceiverModuleIdentifier::QSFP_PLUS_CMIS) {
-    qsfpImpls_.push_back(std::make_unique<XcvrImplT>(id));
+    qsfpImpls_.push_back(
+        std::make_unique<XcvrImplT>(id, transceiverManager_.get()));
     // This override function use ids starting from 1
     transceiverManager_->overrideMgmtInterface(
         static_cast<int>(id) + 1, uint8_t(identifier));
@@ -58,7 +63,7 @@ class CmisTest : public TransceiverManagerTestHelper {
         transceiverManager_->overrideTransceiverForTesting(
             id,
             std::make_unique<MockCmisModule>(
-                transceiverManager_.get(),
+                transceiverManager_->getPortNames(id),
                 qsfpImpls_.back().get(),
                 tcvrConfig_)));
 
@@ -641,6 +646,36 @@ TEST_F(CmisTest, cmis2x400GFr4TransceiverInfoTest) {
   EXPECT_TRUE(xcvr->isPrbsSupported(phy::Side::SYSTEM));
   EXPECT_TRUE(xcvr->isSnrSupported(phy::Side::LINE));
   EXPECT_TRUE(xcvr->isSnrSupported(phy::Side::SYSTEM));
+}
+
+TEST_F(CmisTest, cmis2x400GFr4TransceiverVdmTest) {
+  auto xcvrID = TransceiverID(1);
+  auto xcvr = overrideCmisModule<Cmis2x400GFr4Transceiver>(
+      xcvrID, TransceiverModuleIdentifier::OSFP);
+  const auto& info = xcvr->getTransceiverInfo();
+  EXPECT_TRUE(info.tcvrState()->transceiverManagementInterface());
+  EXPECT_EQ(
+      info.tcvrState()->transceiverManagementInterface(),
+      TransceiverManagementInterface::CMIS);
+  EXPECT_EQ(xcvr->numHostLanes(), 8);
+  EXPECT_EQ(xcvr->numMediaLanes(), 8);
+  EXPECT_EQ(
+      info.tcvrState()->moduleMediaInterface(), MediaInterfaceCode::FR4_2x400G);
+
+  utility::HwTransceiverUtils::verifyDiagsCapability(
+      *info.tcvrState(),
+      transceiverManager_->getDiagsCapability(xcvrID),
+      false /* skipCheckingIndividualCapability */);
+
+  TransceiverTestsHelper tests(info);
+  tests.verifyVendorName("FACETEST");
+
+  auto diagsCap = transceiverManager_->getDiagsCapability(xcvrID);
+  EXPECT_TRUE(diagsCap.has_value());
+
+  EXPECT_TRUE(diagsCap.value().vdm().value());
+  EXPECT_TRUE(xcvr->isVdmSupported());
+  EXPECT_TRUE(xcvr->isVdmSupported(3));
 
   auto vdmLocationInfo = xcvr->getVdmDiagsValLocation(SNR_MEDIA_IN);
   EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
@@ -726,6 +761,125 @@ TEST_F(CmisTest, cmis2x400GFr4TransceiverInfoTest) {
   EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x26));
   EXPECT_EQ(vdmLocationInfo.vdmValOffset, 192);
   EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+
+  // Check the VDM stats values now
+  ProgramTransceiverState programTcvrState;
+  TransceiverPortState portState;
+  portState.portName = "eth1/1/1";
+  portState.startHostLane = 0;
+  portState.speed = cfg::PortSpeed::FOURHUNDREDG;
+  portState.numHostLanes = 4;
+  programTcvrState.ports.emplace(portState.portName, portState);
+  portState.portName = "eth1/1/5";
+  portState.startHostLane = 4;
+  portState.speed = cfg::PortSpeed::FOURHUNDREDG;
+  portState.numHostLanes = 4;
+  programTcvrState.ports.emplace(portState.portName, portState);
+
+  xcvr->programTransceiver(programTcvrState, false);
+
+  std::vector<int32_t> xcvrIds = {xcvrID};
+  transceiverManager_->triggerVdmStatsCapture(xcvrIds);
+
+  transceiverManager_->refreshStateMachines();
+  const auto& newInfo = xcvr->getTransceiverInfo();
+  EXPECT_TRUE(newInfo.tcvrStats()->vdmPerfMonitorStats().has_value());
+  EXPECT_EQ(
+      newInfo.tcvrStats()
+          ->vdmPerfMonitorStats()
+          ->mediaPortVdmStats()
+          .value()
+          .size(),
+      2);
+  EXPECT_EQ(
+      newInfo.tcvrStats()
+          ->vdmPerfMonitorStats()
+          ->hostPortVdmStats()
+          .value()
+          .size(),
+      2);
+  for (auto& [pName, stats] : newInfo.tcvrStats()
+                                  ->vdmPerfMonitorStats()
+                                  ->mediaPortVdmStats()
+                                  .value()) {
+    EXPECT_EQ(stats.laneSNR().value().size(), 4);
+  }
+  EXPECT_TRUE(newInfo.tcvrStats()->vdmPerfMonitorStatsForOds().has_value());
+  EXPECT_EQ(
+      newInfo.tcvrStats()
+          ->vdmPerfMonitorStatsForOds()
+          ->mediaPortVdmStats()
+          .value()
+          .size(),
+      2);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.laneSNRMin()
+              .value() *
+          100),
+      2103);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4Level0SDMax()
+              .value() *
+          100),
+      178);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4Level1SDMax()
+              .value() *
+          100),
+      184);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4Level2SDMax()
+              .value() *
+          100),
+      217);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4Level3SDMax()
+              .value() *
+          100),
+      213);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4MPIMax()
+              .value() *
+          100),
+      132);
+
+  EXPECT_EQ(
+      newInfo.tcvrStats()
+          ->vdmPerfMonitorStatsForOds()
+          ->hostPortVdmStats()
+          .value()
+          .size(),
+      2);
 }
 
 TEST_F(CmisTest, cmis2x400GDr4TransceiverInfoTest) {

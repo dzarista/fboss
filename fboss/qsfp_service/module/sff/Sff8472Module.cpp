@@ -35,48 +35,48 @@ static std::map<ExtendedSpecComplianceCode, MediaInterfaceCode>
 static QsfpFieldInfo<Sff8472Field, Sff8472Pages>::QsfpFieldMap sfpFields = {
     // Fields for reading an entire page
     {Sff8472Field::PAGE_LOWER_A0,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 0, 128}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 0, 128}},
     {Sff8472Field::PAGE_LOWER_A2,
-     {TransceiverI2CApi::ADDR_QSFP_A2, Sff8472Pages::LOWER, 0, 128}},
+     {TransceiverAccessParameter::ADDR_QSFP_A2, Sff8472Pages::LOWER, 0, 128}},
     // Address A0h fields
     {Sff8472Field::IDENTIFIER,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 0, 1}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 0, 1}},
     {Sff8472Field::ETHERNET_10G_COMPLIANCE_CODE,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 3, 1}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 3, 1}},
     {Sff8472Field::VENDOR_NAME,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 20, 16}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 20, 16}},
     {Sff8472Field::EXTENDED_SPEC_COMPLIANCE_CODE,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 36, 1}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 36, 1}},
     {Sff8472Field::VENDOR_OUI,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 37, 3}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 37, 3}},
     {Sff8472Field::VENDOR_PART_NUMBER,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 40, 16}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 40, 16}},
     {Sff8472Field::VENDOR_REVISION_NUMBER,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 56, 4}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 56, 4}},
     {Sff8472Field::VENDOR_SERIAL_NUMBER,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 68, 16}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 68, 16}},
     {Sff8472Field::VENDOR_MFG_DATE,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 84, 8}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 84, 8}},
     {Sff8472Field::DOM_TYPE,
-     {TransceiverI2CApi::ADDR_QSFP, Sff8472Pages::LOWER, 92, 1}},
+     {TransceiverAccessParameter::ADDR_QSFP, Sff8472Pages::LOWER, 92, 1}},
 
     // Address A2h fields
     {Sff8472Field::ALARM_WARNING_THRESHOLDS,
-     {TransceiverI2CApi::ADDR_QSFP_A2, Sff8472Pages::LOWER, 0, 40}},
+     {TransceiverAccessParameter::ADDR_QSFP_A2, Sff8472Pages::LOWER, 0, 40}},
     {Sff8472Field::TEMPERATURE,
-     {TransceiverI2CApi::ADDR_QSFP_A2, Sff8472Pages::LOWER, 96, 2}},
+     {TransceiverAccessParameter::ADDR_QSFP_A2, Sff8472Pages::LOWER, 96, 2}},
     {Sff8472Field::VCC,
-     {TransceiverI2CApi::ADDR_QSFP_A2, Sff8472Pages::LOWER, 98, 2}},
+     {TransceiverAccessParameter::ADDR_QSFP_A2, Sff8472Pages::LOWER, 98, 2}},
     {Sff8472Field::CHANNEL_TX_BIAS,
-     {TransceiverI2CApi::ADDR_QSFP_A2, Sff8472Pages::LOWER, 100, 2}},
+     {TransceiverAccessParameter::ADDR_QSFP_A2, Sff8472Pages::LOWER, 100, 2}},
     {Sff8472Field::CHANNEL_TX_PWR,
-     {TransceiverI2CApi::ADDR_QSFP_A2, Sff8472Pages::LOWER, 102, 2}},
+     {TransceiverAccessParameter::ADDR_QSFP_A2, Sff8472Pages::LOWER, 102, 2}},
     {Sff8472Field::CHANNEL_RX_PWR,
-     {TransceiverI2CApi::ADDR_QSFP_A2, Sff8472Pages::LOWER, 104, 2}},
+     {TransceiverAccessParameter::ADDR_QSFP_A2, Sff8472Pages::LOWER, 104, 2}},
     {Sff8472Field::STATUS_AND_CONTROL_BITS,
-     {TransceiverI2CApi::ADDR_QSFP_A2, Sff8472Pages::LOWER, 110, 1}},
+     {TransceiverAccessParameter::ADDR_QSFP_A2, Sff8472Pages::LOWER, 110, 1}},
     {Sff8472Field::ALARM_WARNING_FLAGS,
-     {TransceiverI2CApi::ADDR_QSFP_A2, Sff8472Pages::LOWER, 112, 6}},
+     {TransceiverAccessParameter::ADDR_QSFP_A2, Sff8472Pages::LOWER, 112, 6}},
 };
 
 void getSfpFieldAddress(
@@ -103,10 +103,11 @@ const uint8_t* Sff8472Module::getSfpValuePtr(
     throw FbossError("Sfp is either not present or the data is not read");
   }
   if (dataAddress == static_cast<int>(Sff8472Pages::LOWER)) {
-    if (transceiverI2CAddress == TransceiverI2CApi::ADDR_QSFP) {
+    if (transceiverI2CAddress == TransceiverAccessParameter::ADDR_QSFP) {
       CHECK_LE(offset + length, sizeof(a0LowerPage_));
       return (a0LowerPage_ + offset);
-    } else if (transceiverI2CAddress == TransceiverI2CApi::ADDR_QSFP_A2) {
+    } else if (
+        transceiverI2CAddress == TransceiverAccessParameter::ADDR_QSFP_A2) {
       CHECK_LE(offset + length, sizeof(a2LowerPage_));
       return (a2LowerPage_ + offset);
     }
@@ -162,9 +163,9 @@ uint8_t Sff8472Module::getSettingsValue(Sff8472Field field, uint8_t mask)
 }
 
 Sff8472Module::Sff8472Module(
-    TransceiverManager* transceiverManager,
+    std::set<std::string> portNames,
     TransceiverImpl* qsfpImpl)
-    : QsfpModule(transceiverManager, qsfpImpl) {}
+    : QsfpModule(std::move(portNames), qsfpImpl) {}
 
 Sff8472Module::~Sff8472Module() {}
 
@@ -198,7 +199,7 @@ void Sff8472Module::updateQsfpData(bool allPages) {
 
 TransceiverSettings Sff8472Module::getTransceiverSettingsInfo() {
   TransceiverSettings settings = TransceiverSettings();
-  settings.powerControl() = getPowerControlValue();
+  settings.powerControl() = getPowerControlValue(true /* readFromCache */);
   settings.mediaInterface() = std::vector<MediaInterfaceId>(numMediaLanes());
   if (!getMediaInterfaceId(*(settings.mediaInterface()))) {
     settings.mediaInterface().reset();
@@ -457,12 +458,9 @@ void Sff8472Module::remediateFlakyTransceiver(
     const std::vector<std::string>& /* ports */) {
   QSFP_LOG(INFO, this) << "Performing potentially disruptive remediations";
 
-  // This api accept 1 based module id however the module id in WedgeManager
-  // is 0 based.
   // Note that triggering a hard reset on a SFP module used with a QSFP-to-SFP
   // adapter actually toggles the txDisable line
-  getTransceiverManager()->getQsfpPlatformApi()->triggerQsfpHardReset(
-      static_cast<unsigned int>(getID()) + 1);
+  triggerModuleReset();
 
   // Even though remediation might not trigger, we still need to update the
   // lastRemediateTime_ so that we can use cool down before next remediation

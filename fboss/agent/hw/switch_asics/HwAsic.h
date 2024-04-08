@@ -61,6 +61,7 @@ class HwAsic {
     PENDING_L2_ENTRY,
     EGRESS_QUEUE_FLEX_COUNTER,
     PFC,
+    PFC_XON_TO_XOFF_COUNTER, // not supported on MORGAN800CC/KODIAK3
     INGRESS_L3_INTERFACE,
     NON_UNICAST_HASH,
     DETAILED_L2_UPDATE,
@@ -351,6 +352,10 @@ class HwAsic {
 
   virtual uint32_t getMaxPorts() const;
   virtual uint32_t getVirtualDevices() const;
+  virtual std::vector<prbs::PrbsPolynomial> getSupportedPrbsPolynomials()
+      const {
+    return {};
+  }
 
  protected:
   static cfg::Range64 makeRange(int64_t min, int64_t max);

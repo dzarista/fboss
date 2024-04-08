@@ -23,26 +23,13 @@
 
 namespace {
 auto constexpr kRetries = 10;
+auto constexpr kRateSamplingInterval = 25;
 auto constexpr kEcmpWidthForTest = 1;
 } // namespace
 namespace facebook::fboss {
 
 class AgentOlympicQosSchedulerTest : public AgentHwTest {
  private:
-  cfg::SwitchConfig initialConfig(
-      const AgentEnsemble& ensemble) const override {
-    auto asic = utility::getFirstAsic(ensemble.getSw());
-    auto cfg = utility::onePortPerInterfaceConfig(
-        ensemble.getSw(),
-        ensemble.masterLogicalPortIds(),
-        true /*interfaceHasSubnet*/);
-    auto streamType =
-        *(asic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicQueueConfig(&cfg, streamType, asic);
-    utility::addOlympicQosMaps(cfg, asic);
-    utility::setTTLZeroCpuConfig(asic, cfg);
-    return cfg;
-  }
   MacAddress dstMac() const {
     return utility::getFirstInterfaceMac(getProgrammedState());
   }
@@ -139,10 +126,32 @@ class AgentOlympicQosSchedulerTest : public AgentHwTest {
       const std::vector<int>& queueIds,
       const std::map<int, std::vector<uint8_t>>& queueToDscp,
       bool frontPanel = true) {
-    // Higher speed ports need more packets to reach line rate
+    auto port = getProgrammedState()->getPort(outPort());
+    auto queues = port->getPortQueues()->impl();
+    std::set<int> wrrQueues;
+    std::set<int> spQueues;
+    for (auto queue : std::as_const(queues)) {
+      if (std::find(queueIds.begin(), queueIds.end(), queue->getID()) !=
+          queueIds.end()) {
+        if (queue->getScheduling() ==
+            cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN) {
+          wrrQueues.insert(queue->getID());
+        } else if (
+            queue->getScheduling() == cfg::QueueScheduling::STRICT_PRIORITY) {
+          spQueues.insert(queue->getID());
+        }
+      }
+    }
     auto pktsToSend = getAgentEnsemble()->getMinPktsForLineRate(outPort());
-    for (const auto& queueId : queueIds) {
-      sendUdpPkts(queueToDscp.at(queueId).front(), pktsToSend, frontPanel);
+    // send traffic to wrr queues first
+    for (auto queue : wrrQueues) {
+      XLOG(DBG2) << "send traffic to wrr queue " << queue;
+      sendUdpPkts(queueToDscp.at(queue).front(), pktsToSend, frontPanel);
+    }
+    // send traffic to sp queues from low priority to high priority
+    for (auto queue : spQueues) {
+      XLOG(DBG2) << "send traffic to sp queue " << queue;
+      sendUdpPkts(queueToDscp.at(queue).front(), pktsToSend, frontPanel);
     }
   }
 
@@ -163,13 +172,43 @@ class AgentOlympicQosSchedulerTest : public AgentHwTest {
   }
 
   void verifyWRRAndSP(const std::vector<int>& queueIds, int trafficQueueId) {
+    auto verify = [=, this]() {
+      EXPECT_TRUE(verifySPHelper(
+          trafficQueueId, queueIds, utility::kOlympicQueueToDscp(getAsic())));
+    };
+
+    verifyAcrossWarmBoots([]() {}, verify);
+  }
+
+  void verifySingleWRRAndSP(
+      const std::vector<int>& queueIds,
+      int trafficQueueId) {
     utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
     auto setup = [=, this]() { _setup(ecmpHelper6); };
 
     auto verify = [=, this]() {
-      sendUdpPktsForAllQueues(
-          queueIds, utility::kOlympicQueueToDscp(getAsic()));
-      EXPECT_TRUE(verifySPHelper(trafficQueueId));
+      for (auto queue : queueIds) {
+        if (queue != trafficQueueId) {
+          XLOG(DBG2) << "send traffic to WRR queue " << queue
+                     << " and SP queue " << trafficQueueId;
+          sendUdpPktsForAllQueues(
+              {queue, trafficQueueId}, utility::kOlympicQueueToDscp(getAsic()));
+          EXPECT_TRUE(verifySPHelper(
+              trafficQueueId,
+              queueIds,
+              utility::kOlympicQueueToDscp(getAsic())));
+          // toggle route to stop traffic, and then send traffic to each WRR
+          // queue and SP queue
+          XLOG(DBG2) << "unprogram routes";
+          unprogramRoutes(ecmpHelper6);
+          // wait for no traffic going out of port
+          getAgentEnsemble()->waitForSpecificRateOnPort(outPort(), 0);
+
+          XLOG(DBG2) << "program routes";
+          auto wrapper = getSw()->getRouteUpdater();
+          ecmpHelper6.programRoutes(&wrapper, kEcmpWidthForTest);
+        }
+      }
     };
 
     verifyAcrossWarmBoots(setup, verify);
@@ -191,6 +230,20 @@ class AgentOlympicQosSchedulerTest : public AgentHwTest {
   }
 
  protected:
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto asic = utility::getFirstAsic(ensemble.getSw());
+    auto cfg = utility::onePortPerInterfaceConfig(
+        ensemble.getSw(),
+        ensemble.masterLogicalPortIds(),
+        true /*interfaceHasSubnet*/);
+    auto streamType =
+        *(asic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
+    utility::addOlympicQueueConfig(&cfg, streamType, asic);
+    utility::addOlympicQosMaps(cfg, asic);
+    utility::setTTLZeroCpuConfig(asic, cfg);
+    return cfg;
+  }
   std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const override {
     return {production_features::ProductionFeature::L3_QOS};
@@ -202,6 +255,7 @@ class AgentOlympicQosSchedulerTest : public AgentHwTest {
   void verifySP(bool frontPanelTraffic = true);
   void verifyWRRAndICP();
   void verifyWRRAndNC();
+  void verifySingleWRRAndNC();
 
   void verifyWRRToAllSPDscpToQueue();
   void verifyWRRToAllSPTraffic();
@@ -214,123 +268,152 @@ class AgentOlympicQosSchedulerTest : public AgentHwTest {
  private:
   bool verifyWRRHelper(
       int maxWeightQueueId,
-      const std::map<int, uint8_t>& wrrQueueToWeight);
-  bool verifySPHelper(int trafficQueueId);
+      const std::map<int, uint8_t>& wrrQueueToWeight,
+      const std::vector<int>& queueIds,
+      const std::map<int, std::vector<uint8_t>>& queueToDscp);
+  bool verifySPHelper(
+      int trafficQueueId,
+      const std::vector<int>& queueIds,
+      const std::map<int, std::vector<uint8_t>>& queueToDscp,
+      bool fromFrontPanel = true);
 };
 
 // Packets processed by WRR queues should be in proportion to their weights
 bool AgentOlympicQosSchedulerTest::verifyWRRHelper(
     int maxWeightQueueId,
-    const std::map<int, uint8_t>& wrrQueueToWeight) {
-  /*
-   * The normalized stats (stats/weight) for every queue should be identical
-   * (within certain percentage variance).
-   *
-   * We compare normalized stats for every queue against normalized stats for
-   * queue with max weight (or better precesion).
-   */
-  const double kVariance = 0.10; // i.e. + or -10%
-  auto portId = outPort();
-  getAgentEnsemble()->waitForLineRateOnPort(portId);
-  auto retries = kRetries;
-  while (retries--) {
-    auto queueStatsBefore = *getLatestPortStats(portId).queueOutPackets_();
-    sleep(1);
-    auto queueStatsAfter = *getLatestPortStats(portId).queueOutPackets_();
-    auto maxWeightQueueBytes = queueStatsAfter.find(maxWeightQueueId)->second -
-        queueStatsBefore.find(maxWeightQueueId)->second;
-    auto maxWeightQueueWeight = wrrQueueToWeight.at(maxWeightQueueId);
-    auto maxWeightQueueNormalizedBytes =
-        maxWeightQueueBytes / maxWeightQueueWeight;
-    auto lowMaxWeightQueueNormalizedBytes =
-        maxWeightQueueNormalizedBytes * (1 - kVariance);
-    auto highMaxWeightQueueNormalizedBytes =
-        maxWeightQueueNormalizedBytes * (1 + kVariance);
+    const std::map<int, uint8_t>& wrrQueueToWeight,
+    const std::vector<int>& queueIds,
+    const std::map<int, std::vector<uint8_t>>& queueToDscp) {
+  {
+    /*
+     * The normalized stats (stats/weight) for every queue should be identical
+     * (within certain percentage variance).
+     *
+     * We compare normalized stats for every queue against normalized stats
+     * for queue with max weight (or better precesion).
+     */
+    const double kVariance = 0.10; // i.e. + or -10%
+    auto portId = outPort();
+    auto startTrafficFun = [this, portId, queueIds, queueToDscp]() {
+      utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
+      _setup(ecmpHelper6);
+      sendUdpPktsForAllQueues(queueIds, queueToDscp);
+      getAgentEnsemble()->waitForLineRateOnPort(portId);
+    };
+    auto stopTrafficFun = [this]() {
+      utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
+      unprogramRoutes(ecmpHelper6);
+    };
+    WITH_RETRIES_N(
+        10, ({
+          auto [portStatsBefore, portStatsAfter] = sendTrafficAndCollectStats(
+                                                       {portId},
+                                                       kRateSamplingInterval,
+                                                       startTrafficFun,
+                                                       stopTrafficFun)
+                                                       .cbegin()
+                                                       ->second;
+          auto queueStatsBefore = portStatsBefore.queueOutPackets_();
+          auto queueStatsAfter = portStatsAfter.queueOutPackets_();
+          auto maxWeightQueueBytes =
+              (queueStatsAfter->find(maxWeightQueueId)->second -
+               queueStatsBefore->find(maxWeightQueueId)->second) /
+              (*portStatsAfter.timestamp_() - *portStatsBefore.timestamp_());
+          auto maxWeightQueueWeight = wrrQueueToWeight.at(maxWeightQueueId);
+          auto maxWeightQueueNormalizedBytes =
+              maxWeightQueueBytes / maxWeightQueueWeight;
+          auto lowMaxWeightQueueNormalizedBytes =
+              maxWeightQueueNormalizedBytes * (1 - kVariance);
+          auto highMaxWeightQueueNormalizedBytes =
+              maxWeightQueueNormalizedBytes * (1 + kVariance);
 
-    XLOG(DBG0) << "Max weight:: QueueId: " << maxWeightQueueId
-               << " stat: " << maxWeightQueueBytes
-               << " weight: " << static_cast<int>(maxWeightQueueWeight)
-               << " normalized (stat/weight): " << maxWeightQueueNormalizedBytes
-               << " low normalized: " << lowMaxWeightQueueNormalizedBytes
-               << " high normalized: " << highMaxWeightQueueNormalizedBytes;
-    auto distributionOk = true;
-    for (const auto& queueStat : queueStatsAfter) {
-      auto currQueueId = queueStat.first;
-      auto currQueueBytes = queueStat.second - queueStatsBefore[currQueueId];
-      if (wrrQueueToWeight.find(currQueueId) == wrrQueueToWeight.end()) {
-        if (currQueueBytes) {
-          distributionOk = false;
-          break;
-        }
-        continue;
-      }
-      auto currQueueWeight = wrrQueueToWeight.at(currQueueId);
-      auto currQueueNormalizedBytes = currQueueBytes / currQueueWeight;
+          XLOG(DBG0) << "Max weight:: QueueId: " << maxWeightQueueId
+                     << " stat: " << maxWeightQueueBytes
+                     << " weight: " << static_cast<int>(maxWeightQueueWeight)
+                     << " normalized (stat/weight): "
+                     << maxWeightQueueNormalizedBytes
+                     << " low normalized: " << lowMaxWeightQueueNormalizedBytes
+                     << " high normalized: "
+                     << highMaxWeightQueueNormalizedBytes;
+          for (const auto& queueStat : *queueStatsAfter) {
+            auto currQueueId = queueStat.first;
+            auto currQueueBytes =
+                (queueStat.second - queueStatsBefore[currQueueId]) /
+                (*portStatsAfter.timestamp_() - *portStatsBefore.timestamp_());
+            if (wrrQueueToWeight.find(currQueueId) == wrrQueueToWeight.end()) {
+              EXPECT_FALSE(currQueueBytes);
+              continue;
+            }
+            auto currQueueWeight = wrrQueueToWeight.at(currQueueId);
+            auto currQueueNormalizedBytes = currQueueBytes / currQueueWeight;
 
-      XLOG(DBG0) << "Curr queue :: QueueId: " << currQueueId
-                 << " stat: " << currQueueBytes
-                 << " weight: " << static_cast<int>(currQueueWeight)
-                 << " normalized (stat/weight): " << currQueueNormalizedBytes;
+            XLOG(DBG0) << "Curr queue :: QueueId: " << currQueueId
+                       << " stat: " << currQueueBytes
+                       << " weight: " << static_cast<int>(currQueueWeight)
+                       << " normalized (stat/weight): "
+                       << currQueueNormalizedBytes;
 
-      if (!(lowMaxWeightQueueNormalizedBytes < currQueueNormalizedBytes &&
-            currQueueNormalizedBytes < highMaxWeightQueueNormalizedBytes)) {
-        distributionOk = false;
-        break;
-      }
-    }
-    if (distributionOk) {
-      return true;
-    }
-    XLOG(DBG2) << " Retrying ...";
+            EXPECT_EVENTUALLY_TRUE(
+                lowMaxWeightQueueNormalizedBytes < currQueueNormalizedBytes &&
+                currQueueNormalizedBytes < highMaxWeightQueueNormalizedBytes);
+          }
+        }));
   }
-  return false;
+  return true;
 }
 
 // Only trafficQueueId should have traffic
-bool AgentOlympicQosSchedulerTest::verifySPHelper(int trafficQueueId) {
+bool AgentOlympicQosSchedulerTest::verifySPHelper(
+    int trafficQueueId,
+    const std::vector<int>& queueIds,
+    const std::map<int, std::vector<uint8_t>>& queueToDscp,
+    bool fromFrontPanel) {
   XLOG(DBG0) << "trafficQueueId: " << trafficQueueId;
   auto portId = outPort();
-  getAgentEnsemble()->waitForLineRateOnPort(portId);
-  auto retries = kRetries;
-  while (retries--) {
-    auto distributionOk = true;
-    auto queueStatsBefore = *getLatestPortStats(portId).queueOutPackets_();
-    sleep(1);
-    auto queueStatsAfter = *getLatestPortStats(portId).queueOutPackets_();
-    for (const auto& queueStat : queueStatsAfter) {
+  auto startTrafficFun = [this,
+                          portId,
+                          queueIds,
+                          queueToDscp,
+                          fromFrontPanel]() {
+    utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
+    _setup(ecmpHelper6);
+    sendUdpPktsForAllQueues(queueIds, queueToDscp, fromFrontPanel);
+    getAgentEnsemble()->waitForLineRateOnPort(portId);
+  };
+  WITH_RETRIES_N(10, {
+    auto [portStatsBefore, portStatsAfter] = sendTrafficAndCollectStats(
+                                                 {portId},
+                                                 kRateSamplingInterval,
+                                                 startTrafficFun,
+                                                 []() {},
+                                                 true /*keepTrafficRunning*/)
+                                                 .cbegin()
+                                                 ->second;
+    auto queueStatsBefore = portStatsBefore.queueOutPackets_();
+    auto queueStatsAfter = portStatsAfter.queueOutPackets_();
+    for (const auto& queueStat : *queueStatsAfter) {
       auto queueId = queueStat.first;
-      auto statVal = queueStat.second - queueStatsBefore[queueId];
+      auto statVal = (queueStat.second - queueStatsBefore[queueId]) /
+          (*portStatsAfter.timestamp_() - *portStatsBefore.timestamp_());
       XLOG(DBG0) << "QueueId: " << queueId << " stats: " << statVal;
-      distributionOk =
-          (queueId != trafficQueueId ? statVal == 0 : statVal != 0);
-      if (!distributionOk) {
-        break;
-      }
+      EXPECT_EVENTUALLY_TRUE(
+          queueId != trafficQueueId ? statVal == 0 : statVal != 0);
     }
-    if (distributionOk) {
-      return true;
-    }
-    XLOG(DBG2) << " Retrying ...";
-  }
-  return false;
+  });
+  return true;
 }
 
 void AgentOlympicQosSchedulerTest::verifyWRR() {
-  utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
-
-  auto setup = [=, this]() { _setup(ecmpHelper6); };
-
   auto verify = [=, this]() {
-    sendUdpPktsForAllQueues(
-        utility::kOlympicWRRQueueIds(getAsic()),
-        utility::kOlympicQueueToDscp(getAsic()));
     EXPECT_TRUE(verifyWRRHelper(
         utility::getMaxWeightWRRQueue(
             utility::kOlympicWRRQueueToWeight(getAsic())),
-        utility::kOlympicWRRQueueToWeight(getAsic())));
+        utility::kOlympicWRRQueueToWeight(getAsic()),
+        utility::kOlympicWRRQueueIds(getAsic()),
+        utility::kOlympicQueueToDscp(getAsic())));
   };
 
-  verifyAcrossWarmBoots(setup, verify);
+  verifyAcrossWarmBoots([]() {}, verify);
 }
 
 void AgentOlympicQosSchedulerTest::verifySP(bool frontPanelTraffic) {
@@ -339,15 +422,14 @@ void AgentOlympicQosSchedulerTest::verifySP(bool frontPanelTraffic) {
   auto setup = [=, this]() { _setup(ecmpHelper6); };
 
   auto verify = [=, this]() {
-    sendUdpPktsForAllQueues(
-        utility::kOlympicSPQueueIds(getAsic()),
-        utility::kOlympicQueueToDscp(getAsic()),
-        frontPanelTraffic);
     EXPECT_TRUE(verifySPHelper(
         // SP queue with highest queueId
         // should starve other SP queues
         // altogether
-        utility::getOlympicQueueId(utility::OlympicQueueType::NC)));
+        utility::getOlympicQueueId(utility::OlympicQueueType::NC),
+        utility::kOlympicSPQueueIds(getAsic()),
+        utility::kOlympicQueueToDscp(getAsic()),
+        frontPanelTraffic));
   };
 
   verifyAcrossWarmBoots(setup, verify);
@@ -363,6 +445,14 @@ void AgentOlympicQosSchedulerTest::verifyWRRAndICP() {
 
 void AgentOlympicQosSchedulerTest::verifyWRRAndNC() {
   verifyWRRAndSP(
+      utility::kOlympicWRRAndNCQueueIds(getAsic()),
+      utility::getOlympicQueueId(
+          utility::OlympicQueueType::NC)); // SP should starve WRR
+                                           // queues altogether
+}
+
+void AgentOlympicQosSchedulerTest::verifySingleWRRAndNC() {
+  verifySingleWRRAndSP(
       utility::kOlympicWRRAndNCQueueIds(getAsic()),
       utility::getOlympicQueueId(
           utility::OlympicQueueType::NC)); // SP should starve WRR
@@ -425,14 +515,13 @@ void AgentOlympicQosSchedulerTest::verifyWRRToAllSPTraffic() {
   };
 
   auto verifyPostWarmboot = [=, this]() {
-    sendUdpPktsForAllQueues(
-        utility::kOlympicAllSPQueueIds(getAsic()),
-        utility::kOlympicV2QueueToDscp(getAsic()));
     EXPECT_TRUE(verifySPHelper(
         // SP queue with highest queueId
         // should starve other SP queues
         // altogether
-        utility::getOlympicV2QueueId(utility::OlympicV2QueueType::NC)));
+        utility::getOlympicV2QueueId(utility::OlympicV2QueueType::NC),
+        utility::kOlympicAllSPQueueIds(getAsic()),
+        utility::kOlympicV2QueueToDscp(getAsic())));
   };
 
   verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
@@ -470,28 +559,22 @@ void AgentOlympicQosSchedulerTest::verifyDscpToQueueOlympicToOlympicV2() {
  * queue ids with WRR+SP over warmboot.
  */
 void AgentOlympicQosSchedulerTest::verifyWRRForOlympicToOlympicV2() {
-  utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
-
-  auto setup = [=, this]() { _setup(ecmpHelper6); };
-
-  auto verify = [=]() {};
-
   auto setupPostWarmboot = [=, this]() { _setupOlympicV2Queues(); };
 
   auto verifyPostWarmboot = [=, this]() {
     /*
      * Verify whether the WRR weights are being honored
      */
-    sendUdpPktsForAllQueues(
-        utility::kOlympicV2WRRQueueIds(getAsic()),
-        utility::kOlympicV2QueueToDscp(getAsic()));
     EXPECT_TRUE(verifyWRRHelper(
         utility::getMaxWeightWRRQueue(
             utility::kOlympicV2WRRQueueToWeight(getAsic())),
-        utility::kOlympicV2WRRQueueToWeight(getAsic())));
+        utility::kOlympicV2WRRQueueToWeight(getAsic()),
+        utility::kOlympicV2WRRQueueIds(getAsic()),
+        utility::kOlympicV2QueueToDscp(getAsic())));
   };
 
-  verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
+  verifyAcrossWarmBoots(
+      []() {}, []() {}, setupPostWarmboot, verifyPostWarmboot);
 }
 
 /*
@@ -504,7 +587,6 @@ void AgentOlympicQosSchedulerTest::verifyDscpToQueueOlympicV2ToOlympic() {
 
   auto setup = [=, this]() {
     resolveNeigborAndProgramRoutes(ecmpHelper6, kEcmpWidthForTest);
-    _setupOlympicV2Queues();
   };
 
   auto verify = [=, this]() {
@@ -554,14 +636,13 @@ void AgentOlympicQosSchedulerTest::verifyOlympicV2WRRToAllSPTraffic() {
   };
 
   auto verifyPostWarmboot = [=, this]() {
-    sendUdpPktsForAllQueues(
-        utility::kOlympicAllSPQueueIds(getAsic()),
-        utility::kOlympicV2QueueToDscp(getAsic()));
     EXPECT_TRUE(verifySPHelper(
         // SP queue with highest queueId
         // should starve other SP queues
         // altogether
-        utility::getOlympicV2QueueId(utility::OlympicV2QueueType::NC)));
+        utility::getOlympicV2QueueId(utility::OlympicV2QueueType::NC),
+        utility::kOlympicAllSPQueueIds(getAsic()),
+        utility::kOlympicV2QueueToDscp(getAsic())));
   };
 
   verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
@@ -592,13 +673,12 @@ void AgentOlympicQosSchedulerTest::verifyOlympicV2AllSPTrafficToWRR() {
 
   auto verifyPostWarmboot = [=, this]() {
     // Verify whether the WRR weights are being honored
-    sendUdpPktsForAllQueues(
-        utility::kOlympicV2WRRQueueIds(getAsic()),
-        utility::kOlympicV2QueueToDscp(getAsic()));
     EXPECT_TRUE(verifyWRRHelper(
         utility::getMaxWeightWRRQueue(
             utility::kOlympicV2WRRQueueToWeight(getAsic())),
-        utility::kOlympicV2WRRQueueToWeight(getAsic())));
+        utility::kOlympicV2WRRQueueToWeight(getAsic()),
+        utility::kOlympicV2WRRQueueIds(getAsic()),
+        utility::kOlympicV2QueueToDscp(getAsic())));
   };
 
   verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
@@ -612,12 +692,43 @@ TEST_F(AgentOlympicQosSchedulerTest, VerifySP) {
   verifySP();
 }
 
+/*
+ * This test asserts that CPU injected traffic from a higher priority
+ * queue will preempt traffic from a lower priority queue. We only
+ * test for CPU traffic explicitly as VerifySP above already
+ * tests front panel traffic.
+ */
+TEST_F(AgentOlympicQosSchedulerTest, VerifySPPreemptionCPUTraffic) {
+  auto spQueueIds = utility::kOlympicSPQueueIds(getAsic());
+  auto getQueueIndex = [&](int queueId) {
+    for (auto i = 0; i < spQueueIds.size(); ++i) {
+      if (spQueueIds[i] == queueId) {
+        return i;
+      }
+    }
+    throw FbossError("Could not find queueId: ", queueId);
+  };
+  // Assert that ICP comes before NC in the queueIds array.
+  // We will send traffic to all queues in order. So for
+  // preemption we want lower pri (ICP) queue to go before
+  // higher pri queue (NC).
+  ASSERT_LT(
+      getQueueIndex(getOlympicQueueId(utility::OlympicQueueType::ICP)),
+      getQueueIndex(getOlympicQueueId(utility::OlympicQueueType::NC)));
+
+  verifySP(false /*frontPanelTraffic*/);
+}
+
 TEST_F(AgentOlympicQosSchedulerTest, VerifyWRRAndICP) {
   verifyWRRAndICP();
 }
 
 TEST_F(AgentOlympicQosSchedulerTest, VerifyWRRAndNC) {
   verifyWRRAndNC();
+}
+
+TEST_F(AgentOlympicQosSchedulerTest, VerifySingleWRRAndNC) {
+  verifySingleWRRAndNC();
 }
 
 TEST_F(AgentOlympicQosSchedulerTest, VerifyWRRToAllSPDscpToQueue) {
@@ -636,7 +747,49 @@ TEST_F(AgentOlympicQosSchedulerTest, VerifyWRRForOlympicToOlympicV2) {
   verifyWRRForOlympicToOlympicV2();
 }
 
+class AgentOlympicV2MigrationQosSchedulerTest
+    : public AgentOlympicQosSchedulerTest {
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto asic = utility::getFirstAsic(ensemble.getSw());
+    auto cfg = AgentOlympicQosSchedulerTest::initialConfig(ensemble);
+    auto streamType =
+        *(asic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
+    utility::addOlympicV2WRRQueueConfig(&cfg, streamType, asic);
+    utility::addOlympicV2QosMaps(cfg, asic);
+    utility::setTTLZeroCpuConfig(asic, cfg);
+    return cfg;
+  }
+};
+
+TEST_F(
+    AgentOlympicV2MigrationQosSchedulerTest,
+    VerifyDscpToQueueOlympicV2ToOlympic) {
+  verifyDscpToQueueOlympicV2ToOlympic();
+}
+
 TEST_F(AgentOlympicQosSchedulerTest, VerifyOlympicV2WRRToAllSPTraffic) {
   verifyOlympicV2WRRToAllSPTraffic();
+}
+
+class AgentOlympicV2SPToWRRQosSchedulerTest
+    : public AgentOlympicQosSchedulerTest {
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto cfg = AgentOlympicQosSchedulerTest::initialConfig(ensemble);
+    auto asic = utility::getFirstAsic(ensemble.getSw());
+    auto streamType =
+        *(asic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
+    utility::addOlympicAllSPQueueConfig(&cfg, streamType, asic);
+    utility::addOlympicV2QosMaps(cfg, asic);
+    utility::setTTLZeroCpuConfig(asic, cfg);
+    return cfg;
+  }
+};
+
+TEST_F(
+    AgentOlympicV2SPToWRRQosSchedulerTest,
+    VerifyOlympicV2AllSPTrafficToWRR) {
+  verifyOlympicV2AllSPTrafficToWRR();
 }
 } // namespace facebook::fboss

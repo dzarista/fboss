@@ -11,8 +11,7 @@
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/mnpu/FdbEventSyncer.h"
 #include "fboss/agent/mnpu/HwSwitchStatsSinkClient.h"
-#include "fboss/agent/mnpu/LinkActiveEventSyncer.h"
-#include "fboss/agent/mnpu/LinkEventSyncer.h"
+#include "fboss/agent/mnpu/LinkChangeEventSyncer.h"
 #include "fboss/agent/mnpu/OperDeltaSyncer.h"
 #include "fboss/agent/mnpu/RxPktEventSyncer.h"
 #include "fboss/agent/mnpu/TxPktEventSyncer.h"
@@ -27,12 +26,7 @@ SplitAgentThriftSyncer::SplitAgentThriftSyncer(
     : retryThread_(std::make_shared<folly::ScopedEventBaseThread>(
           "SplitAgentThriftRetryThread")),
       switchId_(switchId),
-      linkEventSinkClient_(std::make_unique<LinkEventSyncer>(
-          serverPort,
-          switchId_,
-          retryThread_->getEventBase(),
-          hw)),
-      linkActiveEventSinkClient_(std::make_unique<LinkActiveEventSyncer>(
+      linkChangeEventSinkClient_(std::make_unique<LinkChangeEventSyncer>(
           serverPort,
           switchId_,
           retryThread_->getEventBase(),
@@ -82,7 +76,9 @@ void SplitAgentThriftSyncer::linkStateChanged(
   if (iPhyFaultStatus) {
     event.iPhyLinkFaultStatus() = *iPhyFaultStatus;
   }
-  linkEventSinkClient_->enqueue(std::move(event));
+  multiswitch::LinkChangeEvent changeEvent;
+  changeEvent.linkStateEvent() = event;
+  linkChangeEventSinkClient_->enqueue(std::move(changeEvent));
 }
 
 void SplitAgentThriftSyncer::linkActiveStateChanged(
@@ -93,7 +89,23 @@ void SplitAgentThriftSyncer::linkActiveStateChanged(
     event.port2IsActive()[portID] = isActive;
   }
 
-  linkActiveEventSinkClient_->enqueue(std::move(event));
+  multiswitch::LinkChangeEvent changeEvent;
+  changeEvent.linkActiveEvents() = event;
+  linkChangeEventSinkClient_->enqueue(std::move(changeEvent));
+}
+
+void SplitAgentThriftSyncer::linkConnectivityChanged(
+    const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+        port2ConnectivityDelta) {
+  multiswitch::LinkConnectivityEvent event;
+
+  for (const auto& [portID, connectivityDelta] : port2ConnectivityDelta) {
+    event.port2ConnectivityDelta()[portID] = connectivityDelta;
+  }
+
+  multiswitch::LinkChangeEvent changeEvent;
+  changeEvent.linkConnectivityEvents() = event;
+  linkChangeEventSinkClient_->enqueue(std::move(changeEvent));
 }
 
 void SplitAgentThriftSyncer::l2LearningUpdateReceived(
@@ -157,8 +169,7 @@ void SplitAgentThriftSyncer::start() {
 
 void SplitAgentThriftSyncer::stop() {
   // Stop any started services
-  linkEventSinkClient_->cancel();
-  linkActiveEventSinkClient_->cancel();
+  linkChangeEventSinkClient_->cancel();
   txPktEventStreamClient_->cancel();
   operDeltaClient_->stopOperSync();
   fdbEventSinkClient_->cancel();

@@ -11,6 +11,8 @@
 #include <condition_variable>
 #include <optional>
 
+#include "fboss/agent/test/utils/PacketSnooper.h"
+
 namespace facebook::fboss {
 
 class RxPacket;
@@ -33,13 +35,12 @@ class HwTestPacketSnooper : public HwSwitchEnsemble::HwSwitchEventObserverIf {
       L2EntryUpdateType /*l2EntryUpdateType*/) override {}
   void linkActiveStateChanged(
       const std::map<PortID, bool>& /*port2IsActive */) override {}
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+      /*port2OldAndNewConnectivity*/) override {}
 
   HwSwitchEnsemble* ensemble_;
-  std::optional<PortID> port_;
-  std::optional<utility::EthFrame> expectedFrame_;
-  std::mutex mtx_;
-  std::condition_variable cv_;
-  std::unique_ptr<utility::EthFrame> receivedFrame_;
+  utility::PacketSnooper snooper_;
 };
 
 } // namespace facebook::fboss

@@ -52,6 +52,11 @@ DEFINE_bool(
     false,
     "Flag to turn on flowlet stats collection for DLB");
 
+DEFINE_bool(
+    skip_stats_update_for_debug,
+    false,
+    "Skip reading stats from ASIC to allow diag shell debugging!");
+
 namespace {
 constexpr auto kBuildSdkVersion = "SDK Version";
 
@@ -159,17 +164,15 @@ multiswitch::HwSwitchStats HwSwitch::getHwSwitchStats() {
   hwSwitchStats.timestamp() = now.count();
   hwSwitchStats.hwPortStats() = getPortStats();
   hwSwitchStats.hwAsicErrors() = getSwitchStats()->getHwAsicErrors();
-  HwBufferPoolStats bufferPoolStats;
-  bufferPoolStats.deviceWatermarkBytes() = getDeviceWatermarkBytes();
-  hwSwitchStats.bufferPoolStats() = std::move(bufferPoolStats);
   hwSwitchStats.teFlowStats() = getTeFlowStats();
   hwSwitchStats.fabricReachabilityStats() = getFabricReachabilityStats();
   hwSwitchStats.sysPortStats() = getSysPortStats();
   hwSwitchStats.fb303GlobalStats() = getSwitchStats()->getAllFb303Stats();
-  hwSwitchStats.cpuPortStats() = getCpuPortStats(false /*getIncrement*/);
+  hwSwitchStats.cpuPortStats() = getCpuPortStats();
   hwSwitchStats.switchDropStats() = getSwitchDropStats();
   hwSwitchStats.flowletStats() = getHwFlowletStats();
   hwSwitchStats.aclStats() = getAclStats();
+  hwSwitchStats.switchWatermarkStats() = getSwitchWatermarkStats();
   return hwSwitchStats;
 }
 

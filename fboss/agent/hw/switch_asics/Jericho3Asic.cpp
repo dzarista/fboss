@@ -59,17 +59,18 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ACL_COUNTER_LABEL:
     case HwAsic::Feature::ACL_COPY_TO_CPU:
     case HwAsic::Feature::SWITCH_ATTR_INGRESS_ACL:
-    case HwAsic::Feature::MULTIPLE_ACL_TABLES:
     case HwAsic::Feature::ACL_TABLE_GROUP:
     case HwAsic::Feature::ERSPANv4:
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::RCI_WATERMARK_COUNTER:
     case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
+    case HwAsic::Feature::SAI_PRBS:
       return true;
     // Features not expected to work on SIM
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
     case HwAsic::Feature::BUFFER_POOL:
     case HwAsic::Feature::PFC:
+    case HwAsic::Feature::PFC_XON_TO_XOFF_COUNTER:
     case HwAsic::Feature::SAI_PORT_SERDES_FIELDS_RESET:
     case HwAsic::Feature::VOQ:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
@@ -166,8 +167,8 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PORT_WRED_COUNTER:
     case HwAsic::Feature::ACL_METADATA_QUALIFER:
     case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
-    case HwAsic::Feature::SAI_PRBS:
     case HwAsic::Feature::DTL_WATERMARK_COUNTER:
+    case HwAsic::Feature::MULTIPLE_ACL_TABLES:
       return false;
   }
   return false;

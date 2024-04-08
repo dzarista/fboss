@@ -70,38 +70,22 @@ class HwEnsembleMultiSwitchThriftHandler
       : ensemble_(ensemble) {}
 
 #if FOLLY_HAS_COROUTINES
-  folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>>
-  co_notifyLinkEvent(int64_t switchId) override {
-    co_return apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>{
-        [switchId,
-         this](folly::coro::AsyncGenerator<multiswitch::LinkEvent&&> gen)
-            -> folly::coro::Task<bool> {
-          while (auto item = co_await gen.next()) {
-            XLOG(DBG3) << "Got link event from switch " << switchId
-                       << " for port " << *item->port()
-                       << " up :" << *item->up();
-            ensemble_->linkStateChanged(PortID(*item->port()), *item->up());
-          }
-          co_return true;
-        },
-        1000 /* buffer size */
-    };
-  }
-
   folly::coro::Task<
-      apache::thrift::SinkConsumer<multiswitch::LinkActiveEvent, bool>>
-  co_notifyLinkActiveEvent(int64_t switchId) override {
-    co_return apache::thrift::SinkConsumer<multiswitch::LinkActiveEvent, bool>{
+      apache::thrift::SinkConsumer<multiswitch::LinkChangeEvent, bool>>
+  co_notifyLinkChangeEvent(int64_t switchId) override {
+    co_return apache::thrift::SinkConsumer<multiswitch::LinkChangeEvent, bool>{
         [switchId,
-         this](folly::coro::AsyncGenerator<multiswitch::LinkActiveEvent&&> gen)
+         this](folly::coro::AsyncGenerator<multiswitch::LinkChangeEvent&&> gen)
             -> folly::coro::Task<bool> {
-          std::map<PortID, bool> port2IsActive;
           while (auto item = co_await gen.next()) {
-            XLOG(DBG3) << "Got link active event from switch " << switchId;
-            for (const auto& [portID, isActive] : *item->port2IsActive()) {
-              port2IsActive[PortID(portID)] = isActive;
+            if (item->linkStateEvent().has_value()) {
+              const auto& linkEvent = *item->linkStateEvent();
+              XLOG(DBG2) << "Got link state change event from switch "
+                         << switchId << " for port " << *linkEvent.port()
+                         << " up :" << *linkEvent.up();
+              ensemble_->linkStateChanged(
+                  PortID(*linkEvent.port()), *linkEvent.up());
             }
-            ensemble_->linkActiveStateChanged(port2IsActive);
           }
           co_return true;
         },
@@ -518,7 +502,7 @@ bool HwSwitchEnsemble::ensureSendPacketSwitched(std::unique_ptr<TxPacket> pkt) {
   };
 
   return utility::ensureSendPacketSwitched(
-      getHwSwitch(),
+      this,
       std::move(pkt),
       masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
       getPortStats,
@@ -536,7 +520,7 @@ bool HwSwitchEnsemble::ensureSendPacketOutOfPort(
     return getLatestPortStats(portIds);
   };
   return utility::ensureSendPacketOutOfPort(
-      getHwSwitch(),
+      this,
       std::move(pkt),
       portID,
       masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
@@ -862,7 +846,10 @@ bool HwSwitchEnsemble::waitForRateOnPort(
     auto curPortBytes = *curPortStats.outBytes_() + packetPaddingBytes;
     auto rate = static_cast<uint64_t>((curPortBytes - prevPortBytes) * 8) /
         secondsToWaitPerIteration;
-    if (rate >= desiredBps) {
+    if (desiredBps == 0 && rate == desiredBps) {
+      XLOG(DBG0) << "Expect no traffic: Current rate " << rate << " bps!";
+      return true;
+    } else if (desiredBps > 0 && rate >= desiredBps) {
       XLOG(DBG0) << ": Current rate " << rate << " bps!";
       return true;
     } else {
@@ -985,5 +972,26 @@ void HwSwitchEnsemble::storeWarmBootState(const state::WarmbootState& state) {
 }
 LinkStateToggler* HwSwitchEnsemble::getLinkToggler() {
   return linkToggler_.get();
+}
+
+void HwSwitchEnsemble::sendPacketAsync(
+    std::unique_ptr<TxPacket> pkt,
+    std::optional<PortDescriptor> portDescriptor,
+    std::optional<uint8_t> queueId) {
+  if (!portDescriptor.has_value()) {
+    getHwSwitch()->sendPacketSwitchedSync(std::move(pkt));
+    return;
+  }
+  if (!portDescriptor->isPhysicalPort()) {
+    throw FbossError(
+        "sendPacketAsync only supports physical ports, but got ",
+        portDescriptor->str());
+  }
+  getHwSwitch()->sendPacketOutOfPortAsync(
+      std::move(pkt), portDescriptor->phyPortID(), queueId);
+}
+
+std::unique_ptr<TxPacket> HwSwitchEnsemble::allocatePacket(uint32_t size) {
+  return getHwSwitch()->allocatePacket(size);
 }
 } // namespace facebook::fboss

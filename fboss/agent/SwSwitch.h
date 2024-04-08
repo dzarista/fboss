@@ -22,6 +22,7 @@
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
 #include "fboss/agent/rib/RoutingInformationBase.h"
+#include "fboss/agent/single/MonolithicHwSwitchHandler.h"
 #include "fboss/agent/state/StateUpdate.h"
 #include "fboss/agent/types.h"
 #include "fboss/lib/ThreadHeartbeat.h"
@@ -88,6 +89,7 @@ class TeFlowNexthopHandler;
 class DsfSubscriber;
 class HwAsicTable;
 class MultiHwSwitchHandler;
+class MonolithicHwSwitchHandler;
 class SwitchStatsObserver;
 class MultiSwitchPacketStreamMap;
 class SwSwitchWarmBootHelper;
@@ -545,6 +547,9 @@ class SwSwitch : public HwSwitchCallback {
           std::nullopt) override;
   void linkActiveStateChanged(
       const std::map<PortID, bool>& port2IsActive) override;
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+          port2OldAndNewConnectivity) override;
   void pfcWatchdogStateChanged(
       const PortID& portId,
       const bool deadlockDetected) override;
@@ -814,12 +819,11 @@ class SwSwitch : public HwSwitchCallback {
   void clearPortStats(const std::unique_ptr<std::vector<int32_t>>& ports);
 
   std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId);
-  void clearPortAsicPrbsStats(int32_t portId);
+  void clearPortAsicPrbsStats(PortID portId);
 
   SwitchRunState getSwitchRunState() const;
 
-  std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
-      int32_t /* portId */);
+  std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(PortID /* portId */);
   prbs::InterfacePrbsState getPortPrbsState(PortID /* portId */);
 
   template <typename AddressT>
@@ -857,10 +861,6 @@ class SwSwitch : public HwSwitchCallback {
       const folly::IPAddressV6& target);
 
   TeFlowStats getTeFlowStats();
-
-  HwBufferPoolStats getBufferPoolStats() const;
-
-  HwFlowletStats getHwFlowletStats() const;
 
   VlanID getVlanIDHelper(std::optional<VlanID> vlanID) const;
   std::optional<VlanID> getVlanIDForPkt(VlanID vlanID) const;
@@ -944,6 +944,7 @@ class SwSwitch : public HwSwitchCallback {
   void getAllHwPortStats(std::map<std::string, HwPortStats>& hwPortStats) const;
   void getAllCpuPortStats(std::map<int, CpuPortStats>& hwCpuPortStats) const;
   bool isRunModeMultiSwitch();
+  MonolithicHwSwitchHandler* getMonolithicHwSwitchHandler();
 
  private:
   std::optional<folly::MacAddress> getSourceMac(
@@ -978,7 +979,6 @@ class SwSwitch : public HwSwitchCallback {
   void updateRouteStats();
   void updateTeFlowStats();
   void updateFlowletStats();
-  void updateFabricConnectivityInfo();
   void setSwitchRunState(SwitchRunState desiredState);
   SwitchStats* createSwitchStats();
 
@@ -1056,10 +1056,12 @@ class SwSwitch : public HwSwitchCallback {
   std::shared_ptr<SwitchState> preInit(
       SwitchFlags flags = SwitchFlags::DEFAULT);
 
-  void postInit(const HwInitResult* HwInitResult = nullptr);
+  void postInit();
 
   void updateMultiSwitchGlobalFb303Stats();
   void updateFabricReachabilityStats();
+  // TODO: To be removed once switchWatermarkStats is available in prod
+  HwBufferPoolStats getBufferPoolStatsFromSwitchWatermarkStats();
 
   std::optional<cfg::SdkVersion> sdkVersion_;
   std::unique_ptr<MultiHwSwitchHandler> multiHwSwitchHandler_;

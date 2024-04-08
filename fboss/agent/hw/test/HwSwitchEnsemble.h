@@ -83,6 +83,9 @@ class HwSwitchEnsemble : public TestEnsembleIf {
     virtual void linkStateChanged(PortID port, bool up) = 0;
     virtual void linkActiveStateChanged(
         const std::map<PortID, bool>& port2IsActive) = 0;
+    virtual void linkConnectivityChanged(
+        const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+            port2OldAndNewConnectivity) = 0;
     virtual void l2LearningUpdateReceived(
         L2Entry l2Entry,
         L2EntryUpdateType l2EntryUpdateType) = 0;
@@ -144,6 +147,10 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   HwAsicTable* getHwAsicTable() override {
     return hwAsicTable_.get();
   }
+  const HwAsicTable* getHwAsicTable() const override {
+    return hwAsicTable_.get();
+  }
+
   const std::map<int32_t, cfg::PlatformPortEntry>& getPlatformPorts()
       const override {
     return getPlatform()->getPlatformPorts();
@@ -172,6 +179,11 @@ class HwSwitchEnsemble : public TestEnsembleIf {
           std::nullopt) override;
   void linkActiveStateChanged(
       const std::map<PortID, bool>& /*port2IsActive */) override;
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+      /*port2OldAndNewConnectivity*/) override {
+    // TODO
+  }
   void l2LearningUpdateReceived(
       L2Entry l2Entry,
       L2EntryUpdateType l2EntryUpdateType) override;
@@ -183,6 +195,12 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   void switchRunStateChanged(SwitchRunState switchState) override;
 
   static Features getAllFeatures();
+
+  // use ensure send packet for synchronous send
+  void sendPacketAsync(
+      std::unique_ptr<TxPacket> pkt,
+      std::optional<PortDescriptor> portDescriptor = std::nullopt,
+      std::optional<uint8_t> queueId = std::nullopt) override;
 
   /*
    * Depending on the implementation of the underlying forwarding plane, it is
@@ -296,6 +314,16 @@ class HwSwitchEnsemble : public TestEnsembleIf {
 
   folly::MacAddress getLocalMac(SwitchID /*id*/) const override {
     return getHwSwitch()->getPlatform()->getLocalMac();
+  }
+
+  std::unique_ptr<TxPacket> allocatePacket(uint32_t size) override;
+
+  bool supportsAddRemovePort() const override {
+    return getHwSwitch()->getPlatform()->supportsAddRemovePort();
+  }
+
+  const PlatformMapping* getPlatformMapping() const override {
+    return getHwSwitch()->getPlatform()->getPlatformMapping();
   }
 
  protected:

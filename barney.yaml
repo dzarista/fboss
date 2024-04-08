@@ -3,25 +3,25 @@ images:
     units:
       - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
         mappings:
-          /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_4.18
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_4.18
         build: |
-          ./build.sh
+          ./build.sh 4.18
 
   build_dnx_5.12:
     units:
       - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
         mappings:
-          /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_5.12
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.12
         build: |
-          ./build.sh
+          ./build.sh 5.12
 
   build_dnx_5.19:
     units:
       - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
         mappings:
-          /src/dest: github.com/aristanetworks/Aqua_SAI%dnx_5.19
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.19
         build: |
-          ./build.sh
+          ./build.sh 5.19
 
   package_dnx_4.18:
     units:
@@ -86,6 +86,10 @@ images:
         - sh
         - -c
         - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/4.18/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/4.18/showtech-arista-1-1.el8.x86_64.rpm
 
   test/package_dnx_5.12:
     description: |
@@ -118,6 +122,10 @@ images:
         - sh
         - -c
         - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/showtech-arista-1-1.el8.x86_64.rpm
 
   test/package_dnx_5.19:
     description: |
@@ -150,3 +158,11 @@ images:
         - sh
         - -c
         - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista_bsp_kmods-0.5.0-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/showtech-arista-1-1.el8.x86_64.rpm

@@ -51,6 +51,7 @@ struct TransceiverPortState {
   std::string portName;
   uint8_t startHostLane;
   cfg::PortSpeed speed = cfg::PortSpeed::DEFAULT;
+  uint8_t numHostLanes;
 
   bool operator==(const TransceiverPortState& other) const {
     return speed == other.speed && portName == other.portName &&
@@ -76,13 +77,7 @@ class FbossFirmware;
 
 class Transceiver {
  public:
-  explicit Transceiver(TransceiverManager* transceiverManager)
-      : transceiverManager_(transceiverManager) {
-    // As Transceiver needs to use state machine while TransceiverManager is
-    // the main class to maintain state machine update, we need to make sure
-    // transceiverManager_ can't be nullptr
-    CHECK(transceiverManager_ != nullptr);
-  }
+  explicit Transceiver() {}
   virtual ~Transceiver() {}
 
   /*

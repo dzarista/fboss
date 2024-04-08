@@ -250,13 +250,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "brcm/10.0_ea_sim_odp/10.0_ea_sim_odp/tomahawk4/simulator": [
@@ -285,13 +285,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         },
         {
           "test_name_regex": "warm_boot.*"
@@ -404,13 +404,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         },
         {
           "test_name_regex": "warm_boot.*"
@@ -523,13 +523,28 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
+        },
+        {
+          "test_name_regex": "HwRouteScaleTest.anticipatedRouteScaleGenerator$"
+        },
+        {
+          "test_name_regex": "HwRouteScaleTest.hgrid*$"
+        },
+        {
+          "test_name_regex": "HwRouteStatTest*$"
+        },
+        {
+          "test_name_regex": "HwWideEcmpTest*$"
+        },
+        {
+          "test_name_regex": "HwRouteCounterOverflowTest.overflowRouteCounters$"
         }
     ],
     "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk3": [
@@ -558,13 +573,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk4": [
@@ -593,13 +608,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "brcm/11.0_ea_dnx_odp/11.0_ea_dnx_odp/jericho2": [
@@ -1085,146 +1100,6 @@
           "test_name_regex": "HwInPauseFloodTest.*$"
         }
     ],
-    "brcm/7.2.0.0_odp/7.2.0.0_odp/tomahawk": [
-        {
-          "test_name_regex": "HwFlowletAclCounterTest.*$"
-        },
-        {
-          "test_name_regex": "HwFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwEcmpFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6Flowlet.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6EcmpToFlowlet.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTest.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTrafficTest.*$"
-        },
-        {
-          "test_name_regex": "HwUdfAcl.*$"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
-        }
-    ],
-    "brcm/7.2.0.0_odp/7.2.0.0_odp/tomahawk3": [
-        {
-          "test_name_regex": "HwFlowletAclCounterTest.*$"
-        },
-        {
-          "test_name_regex": "HwFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwEcmpFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6Flowlet.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6EcmpToFlowlet.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTest.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTrafficTest.*$"
-        },
-        {
-          "test_name_regex": "HwUdfAcl.*$"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
-        }
-    ],
-    "brcm/7.2.0.0_odp/8.2.0.0_odp/tomahawk": [
-        {
-          "test_name_regex": "HwFlowletAclCounterTest.*$"
-        },
-        {
-          "test_name_regex": "HwFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwEcmpFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6Flowlet.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6EcmpToFlowlet.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTest.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTrafficTest.*$"
-        },
-        {
-          "test_name_regex": "HwUdfAcl.*$"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
-        }
-    ],
-    "brcm/7.2.0.0_odp/8.2.0.0_odp/tomahawk3": [
-        {
-          "test_name_regex": "HwFlowletAclCounterTest.*$"
-        },
-        {
-          "test_name_regex": "HwFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwEcmpFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6Flowlet.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6EcmpToFlowlet.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTest.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTrafficTest.*$"
-        },
-        {
-          "test_name_regex": "HwUdfAcl.*$"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
-        },
-        {
-          "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
-        }
-    ],
     "brcm/8.2.0.0_odp/8.2.0.0_odp/tomahawk": [
         {
           "test_name_regex": "HwFlowletAclCounterTest.*$"
@@ -1251,13 +1126,28 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
+        },
+        {
+          "test_name_regex": "HwRouteScaleTest.anticipatedRouteScaleGenerator$"
+        },
+        {
+          "test_name_regex": "HwRouteScaleTest.hgrid*$"
+        },
+        {
+          "test_name_regex": "HwRouteStatTest*$"
+        },
+        {
+          "test_name_regex": "HwWideEcmpTest*$"
+        },
+        {
+          "test_name_regex": "HwRouteCounterOverflowTest.overflowRouteCounters$"
         }
     ],
     "brcm/8.2.0.0_odp/8.2.0.0_odp/tomahawk3": [
@@ -1286,13 +1176,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "brcm/8.2.0.0_odp/8.2.0.0_odp/tomahawk4": [
@@ -1321,13 +1211,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "brcm/8.2.0.0_odp/9.2.0.0_odp/tomahawk": [
@@ -1356,13 +1246,28 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
+        },
+        {
+          "test_name_regex": "HwRouteScaleTest.anticipatedRouteScaleGenerator$"
+        },
+        {
+          "test_name_regex": "HwRouteScaleTest.hgrid*$"
+        },
+        {
+          "test_name_regex": "HwRouteStatTest*$"
+        },
+        {
+          "test_name_regex": "HwWideEcmpTest*$"
+        },
+        {
+          "test_name_regex": "HwRouteCounterOverflowTest.overflowRouteCounters$"
         }
     ],
     "brcm/8.2.0.0_odp/9.2.0.0_odp/tomahawk3": [
@@ -1391,13 +1296,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "brcm/8.2.0.0_odp/9.2.0.0_odp/tomahawk4": [
@@ -1426,13 +1331,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "brcm/8.2.0.0_sim_odp/8.2.0.0_sim_odp/tomahawk4/simulator": [
@@ -1461,13 +1366,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         },
         {
           "test_name_regex": "warm_boot.*"
@@ -1580,13 +1485,28 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
+        },
+        {
+          "test_name_regex": "HwRouteScaleTest.anticipatedRouteScaleGenerator$"
+        },
+        {
+          "test_name_regex": "HwRouteScaleTest.hgrid*$"
+        },
+        {
+          "test_name_regex": "HwRouteStatTest*$"
+        },
+        {
+          "test_name_regex": "HwWideEcmpTest*$"
+        },
+        {
+          "test_name_regex": "HwRouteCounterOverflowTest.overflowRouteCounters$"
         }
     ],
     "brcm/9.2.0.0_odp/9.2.0.0_odp/tomahawk3": [
@@ -1615,13 +1535,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "brcm/9.2.0.0_odp/9.2.0.0_odp/tomahawk4": [
@@ -1650,13 +1570,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAqmTest.verifyPerQueueEcnMarkedStats$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "leaba/1.42.8/1.42.8/gibraltar": [
@@ -1718,6 +1638,9 @@
           "test_name_regex": "HwCoppTest/[01].Ipv6LinkLocalMcastNetworkControlDscpToHighPriQ$"
         },
         {
+          "test_name_regex": "HwCoppTest/[01].Ipv6LinkLocalMcastToMidPriQ$"
+        },
+        {
           "test_name_regex": "HwCoppTest/[01].CpuPortIpv6LinkLocalUcastIp$"
         },
         {
@@ -1750,13 +1673,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "leaba/1.65.1/1.65.1/gibraltar": [
@@ -1785,13 +1708,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "leaba/1.68.0/1.68.0/graphene200/simulator": [
@@ -1820,13 +1743,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ],
     "leaba/24.1.0/24.1.0/graphene200": [
@@ -1855,13 +1778,13 @@
           "test_name_regex": "HwUdfAcl.*$"
         },
         {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*PROFILE_100G_2_PAM4_RS544X2N_COPPER.TestProfile"
-        },
-        {
-          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*SaiAclTableGroupTest.RepositionAclEntriesPostWarmboot"
+          "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
         {
           "test_name_regex": "HwAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].VerifyCounterBumpOnBthOpcodeHitFrontPanel$"
         }
     ]
   }

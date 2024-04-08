@@ -45,6 +45,18 @@ target_link_libraries(main
   Folly::folly
 )
 
+add_library(hw_switch_handler
+  fboss/agent/HwSwitchHandler.cpp
+)
+
+target_link_libraries(hw_switch_handler
+  load_agent_config
+  switch_config_cpp2
+  utils
+  multiswitch_ctrl_cpp2
+  state
+)
+
 add_library(monolithic_switch_handler
   fboss/agent/single/MonolithicHwSwitchHandler.cpp
 )
@@ -55,6 +67,7 @@ target_link_libraries(monolithic_switch_handler
   platform_base
   hw_switch_fb303_stats
   switch_asics
+  hw_switch_handler
 )
 add_library(async_packet_transport
   fboss/agent/AsyncPacketTransport.h
@@ -143,7 +156,6 @@ add_library(core
   fboss/agent/HwSwitch.cpp
   fboss/agent/HwSwitchConnectionStatusTable.cpp
   fboss/agent/HwSwitchThriftClientTable.cpp
-  fboss/agent/HwSwitchHandler.cpp
   fboss/agent/IPHeaderV4.cpp
   fboss/agent/IPv4Handler.cpp
   fboss/agent/IPv6Handler.cpp
@@ -156,6 +168,7 @@ add_library(core
   fboss/agent/LoadBalancerConfigApplier.cpp
   fboss/agent/LookupClassUpdater.cpp
   fboss/agent/LookupClassRouteUpdater.cpp
+  fboss/agent/LinkConnectivityProcessor.cpp
   fboss/agent/MKAServicePorts.cpp
   fboss/agent/MKAServiceManager.cpp
   fboss/agent/MacTableManager.cpp
@@ -263,6 +276,7 @@ set(core_libs
   hw_write_behavior
   hw_ctrl_cpp2
   loadbalancer_utils
+  monolithic_switch_handler
 )
 
 if (FBOSS_CENTOS9)
@@ -461,8 +475,7 @@ target_link_libraries(route_update_wrapper
 add_library(split_agent_thrift_syncer
   fboss/agent/mnpu/FdbEventSyncer.cpp
   fboss/agent/mnpu/HwSwitchStatsSinkClient.cpp
-  fboss/agent/mnpu/LinkEventSyncer.cpp
-  fboss/agent/mnpu/LinkActiveEventSyncer.cpp
+  fboss/agent/mnpu/LinkChangeEventSyncer.cpp
   fboss/agent/mnpu/OperDeltaSyncer.cpp
   fboss/agent/mnpu/RxPktEventSyncer.cpp
   fboss/agent/mnpu/SplitAgentThriftSyncer.cpp
@@ -529,6 +542,7 @@ target_link_libraries(multi_switch_hw_switch_handler
   stats
   agent_config_cpp2
   multiswitch_ctrl_cpp2
+  hw_switch_handler
 )
 
 add_library(split_agent_initializer
