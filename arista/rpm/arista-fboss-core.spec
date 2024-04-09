@@ -37,6 +37,7 @@ cp -f scripts/run_qsfp_service.sh %{_fboss_target_bin}
 cp -f scripts/run_wedge_agent.sh %{_fboss_target_bin}
 cp -f scripts/run_hw_tests_dnx.sh %{_fboss_target_bin}
 cp -f scripts/fboss-state-sync.py %{_fboss_target_bin}
+cp -f scripts/cpu-oob-eeprom-util.sh %{_fboss_target_bin}
 
 # Install systemd services.
 mkdir -p %{_fboss_target_systemd}
