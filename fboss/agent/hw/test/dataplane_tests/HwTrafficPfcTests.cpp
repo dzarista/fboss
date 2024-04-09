@@ -81,12 +81,16 @@ struct TrafficTestParams {
 };
 
 std::tuple<int, int, int> getPfcTxRxXonHwPortStats(
+    facebook::fboss::HwSwitchEnsemble* ensemble,
     const facebook::fboss::HwPortStats& portStats,
     const int pfcPriority) {
   return {
       portStats.get_outPfc_().at(pfcPriority),
       portStats.get_inPfc_().at(pfcPriority),
-      portStats.get_inPfcXon_().at(pfcPriority)};
+      ensemble->getAsic()->isSupported(
+          facebook::fboss::HwAsic::Feature::PFC_XON_TO_XOFF_COUNTER)
+          ? portStats.get_inPfcXon_().at(pfcPriority)
+          : 0};
 }
 
 bool getPfcCountersRetry(
@@ -98,7 +102,7 @@ bool getPfcCountersRetry(
   auto pfcCountersIncrementing = [&](const auto& newStats) {
     auto portStatsIter = newStats.find(portId);
     std::tie(txPfcCtr, rxPfcCtr, rxPfcXonCtr) =
-        getPfcTxRxXonHwPortStats(portStatsIter->second, pfcPriority);
+        getPfcTxRxXonHwPortStats(ensemble, portStatsIter->second, pfcPriority);
     XLOG(DBG0) << " Port: " << portId << " PFC TX/RX PFC/RX_PFC_XON "
                << txPfcCtr << "/" << rxPfcCtr << "/" << rxPfcXonCtr
                << ", priority: " << pfcPriority;
@@ -344,21 +348,28 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
     }
 
     // create lossy pgs
-    for (auto pgId : kLossyPgIds) {
-      cfg::PortPgConfig pgConfig;
-      pgConfig.id() = pgId;
-      pgConfig.bufferPoolName() = "bufferNew";
-      // provide atleast 1 cell worth of minLimit
-      pgConfig.minLimitBytes() = pgLimit;
-      // headroom set 0 identifies lossy pgs
-      pgConfig.headroomLimitBytes() = 0;
-      // resume offset
-      pgConfig.resumeOffsetBytes() = resumeOffset;
-      // set scaling factor
-      if (scalingFactor) {
-        pgConfig.scalingFactor() = *scalingFactor;
+    if (!FLAGS_allow_zero_headroom_for_lossless_pg) {
+      // If the flag is set, we already have lossless PGs being created
+      // with headroom as 0 and there is no way to differentiate lossy
+      // and lossless PGs now that headroom is set to zero for lossless.
+      // So, avoid creating lossy PGs as this will result in PFC being
+      // enabled for 3 priorities, which is not supported for TAJO.
+      for (auto pgId : kLossyPgIds) {
+        cfg::PortPgConfig pgConfig;
+        pgConfig.id() = pgId;
+        pgConfig.bufferPoolName() = "bufferNew";
+        // provide atleast 1 cell worth of minLimit
+        pgConfig.minLimitBytes() = pgLimit;
+        // headroom set 0 identifies lossy pgs
+        pgConfig.headroomLimitBytes() = 0;
+        // resume offset
+        pgConfig.resumeOffsetBytes() = resumeOffset;
+        // set scaling factor
+        if (scalingFactor) {
+          pgConfig.scalingFactor() = *scalingFactor;
+        }
+        portPgConfigs.emplace_back(pgConfig);
       }
-      portPgConfigs.emplace_back(pgConfig);
     }
 
     portPgConfigMap["foo"] = portPgConfigs;
@@ -401,7 +412,8 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
       const facebook::fboss::PortID& portId,
       const int pfcPriority) {
     auto portStats = getLatestPortStats(portId);
-    return getPfcTxRxXonHwPortStats(portStats, pfcPriority);
+    return getPfcTxRxXonHwPortStats(
+        getHwSwitchEnsemble(), portStats, pfcPriority);
   }
 
   void validateInitPfcCounters(

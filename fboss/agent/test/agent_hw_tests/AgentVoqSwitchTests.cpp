@@ -13,6 +13,7 @@
 #include "fboss/lib/CommonUtils.h"
 
 DECLARE_int32(hwswitch_query_timeout);
+DECLARE_bool(disable_looped_fabric_ports);
 
 namespace {
 constexpr uint8_t kDefaultQueue = 0;
@@ -296,8 +297,12 @@ class AgentVoqSwitchWithFabricPortsTest : public AgentVoqSwitchTest {
   }
 
  private:
-  bool hideFabricPorts() const override {
-    return false;
+  void setCmdLineFlagOverrides() const override {
+    AgentHwTest::setCmdLineFlagOverrides();
+    FLAGS_hide_fabric_ports = false;
+    // Allow disabling of looped ports. This should
+    // be a noop for VOQ switches
+    FLAGS_disable_looped_fabric_ports = true;
   }
 };
 
@@ -370,13 +375,8 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricIsolate) {
 }
 
 TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricConnectivityMismatch) {
-  auto fabricPortId = masterLogicalFabricPortIds()[0];
-  auto setup = [=, this]() {
-    applyNewConfig(initialConfig(*getAgentEnsemble()));
-    auto portStats = getLatestPortStats(fabricPortId);
-    EXPECT_EQ(*portStats.get_fabricConnectivityMismatch(), 0);
-  };
-  auto verify = [=, this]() {
+  auto verify = [this]() {
+    auto fabricPortId = masterLogicalFabricPortIds()[0];
     auto cfg = initialConfig(*getAgentEnsemble());
     cfg::PortNeighbor nbr;
     nbr.remoteSystem() = "RemoteA";
@@ -390,14 +390,10 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricConnectivityMismatch) {
       EXPECT_EVENTUALLY_TRUE(port->getLedPortExternalState().has_value());
       EXPECT_EVENTUALLY_EQ(
           port->getLedPortExternalState().value(),
-          PortLedExternalState::CABLING_ERROR);
-      auto portStats = getLatestPortStats(fabricPortId);
-      EXPECT_EVENTUALLY_TRUE(
-          portStats.fabricConnectivityMismatch().has_value());
-      EXPECT_EVENTUALLY_EQ(*portStats.fabricConnectivityMismatch(), 1);
+          PortLedExternalState::CABLING_ERROR_LOOP_DETECTED);
     });
   };
-  verifyAcrossWarmBoots(setup, verify);
+  verifyAcrossWarmBoots([]() {}, verify);
 }
 
 TEST_F(AgentVoqSwitchWithFabricPortsTest, switchIsolate) {

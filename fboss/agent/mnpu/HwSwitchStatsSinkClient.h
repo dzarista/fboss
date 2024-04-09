@@ -21,21 +21,26 @@ namespace facebook::fboss {
 class HwSwitch;
 
 class HwSwitchStatsSinkClient
-    : public ThriftSinkClient<multiswitch::HwSwitchStats> {
+    : public ThriftSinkClient<multiswitch::HwSwitchStats, StatsEventQueueType> {
  public:
   HwSwitchStatsSinkClient(
       uint16_t serverPort,
       SwitchID switchId,
       uint16_t switchIndex,
-      folly::EventBase* connRetryEvb);
+      folly::EventBase* connRetryEvb,
+      std::optional<std::string> multiSwitchStatsPrefix);
 
-  ThriftSinkClient<multiswitch::HwSwitchStats>::EventNotifierSinkClient
-  initHwSwitchStatsSinkClient(
-      SwitchID switchId,
-      uint16_t switchIndex,
-      apache::thrift::Client<multiswitch::MultiSwitchCtrl>* client);
+  ThriftSinkClient<multiswitch::HwSwitchStats, StatsEventQueueType>::
+      EventNotifierSinkClient
+      initHwSwitchStatsSinkClient(
+          SwitchID switchId,
+          uint16_t switchIndex,
+          apache::thrift::Client<multiswitch::MultiSwitchCtrl>* client);
 
  private:
   void connected() override {}
+#if FOLLY_HAS_COROUTINES
+  StatsEventQueueType eventQueue_;
+#endif
 };
 } // namespace facebook::fboss

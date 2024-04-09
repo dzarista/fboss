@@ -2031,6 +2031,10 @@ void BcmSwitch::processChangedPorts(const StateDelta& delta) {
         if (oldPort->getZeroPreemphasis() != newPort->getZeroPreemphasis()) {
           bcmPort->processChangedZeroPreemphasis(oldPort, newPort);
         }
+
+        if (oldPort->getTxEnable() != newPort->getTxEnable()) {
+          bcmPort->processChangedTxEnable(oldPort, newPort);
+        }
       });
 }
 
@@ -4232,6 +4236,9 @@ CpuPortStats BcmSwitch::getCpuPortStats() const {
       queueManager->getQueueStats(BcmCosQueueStatType::OUT_PACKETS);
   cpuPortStats.queueDiscardPackets_() =
       queueManager->getQueueStats(BcmCosQueueStatType::DROPPED_PACKETS);
+  HwPortStats portStats;
+  getControlPlane()->updateQueueCounters(&portStats);
+  cpuPortStats.portStats_() = portStats;
   return cpuPortStats;
 }
 

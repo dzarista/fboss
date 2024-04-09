@@ -51,6 +51,7 @@ enum PortLedExternalState {
   CABLING_ERROR = 1,
   EXTERNAL_FORCE_ON = 2,
   EXTERNAL_FORCE_OFF = 3,
+  CABLING_ERROR_LOOP_DETECTED = 4,
 }
 
 struct IpPrefix {
@@ -565,6 +566,12 @@ enum ClientID {
    * bounded by link scope. Routes here are exclusive to INTERFACE_ROUTE.
    */
   LINKLOCAL_ROUTE = 3,
+
+  /*
+   * Interface routes that are derived from remote interface nodes in the DSF cluster.
+   * These routes are propagated by DSF subscriptions.
+   */
+  REMOTE_INTERFACE_ROUTE = 4,
 
   /*
    * Auto generated routes by Agent. Agent by default programs default (v4 & v6)

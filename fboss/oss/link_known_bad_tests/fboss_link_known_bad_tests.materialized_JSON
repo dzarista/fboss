@@ -6355,6 +6355,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -6424,6 +6427,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -6497,6 +6503,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -6566,6 +6575,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -6639,6 +6651,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -6708,6 +6723,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -6781,6 +6799,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -6850,6 +6871,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -6923,6 +6947,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -6992,6 +7019,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -7065,6 +7095,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -7131,6 +7164,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -7201,6 +7237,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -7267,6 +7306,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -7337,6 +7379,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -7403,6 +7448,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -7473,6 +7521,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -7539,6 +7590,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -7609,6 +7663,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
@@ -7675,6 +7732,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
@@ -10027,7 +10087,22 @@
           "test_name_regex": "PortStatsTest.xphySanity"
         },
         {
-          "test_name_regex": "Prbs.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -10067,6 +10142,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
@@ -10107,7 +10185,22 @@
           "test_name_regex": "PortStatsTest.xphySanity"
         },
         {
-          "test_name_regex": "Prbs.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -10149,6 +10242,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
         },
         {
@@ -10187,7 +10283,22 @@
           "test_name_regex": "PortStatsTest.xphySanity"
         },
         {
-          "test_name_regex": "Prbs.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -10224,6 +10335,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
@@ -10264,7 +10378,22 @@
           "test_name_regex": "PortStatsTest.xphySanity"
         },
         {
-          "test_name_regex": "Prbs.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -10301,6 +10430,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
@@ -10341,7 +10473,22 @@
           "test_name_regex": "PortStatsTest.xphySanity"
         },
         {
-          "test_name_regex": "Prbs.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -10421,7 +10568,22 @@
           "test_name_regex": "PortStatsTest.xphySanity"
         },
         {
-          "test_name_regex": "Prbs.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -10501,7 +10663,22 @@
           "test_name_regex": "PortStatsTest.xphySanity"
         },
         {
-          "test_name_regex": "Prbs.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -10578,7 +10755,22 @@
           "test_name_regex": "PortStatsTest.xphySanity"
         },
         {
-          "test_name_regex": "Prbs.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR1_100G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_200G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -13490,6 +13682,1306 @@
           "test_name_regex": "LinkTest.verifyIphyFecCounters$"
         }
     ],
+    "tahan800bc/bcm/asicsdk-6.5.26/6.5.26": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/bcm/asicsdk-6.5.26/6.5.26/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/bcm/asicsdk-6.5.26/6.5.28": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/bcm/asicsdk-6.5.26/6.5.28/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/bcm/asicsdk-6.5.28/6.5.28": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/bcm/asicsdk-6.5.28/6.5.28/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/bcm/asicsdk-6.5.29/6.5.29": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/bcm/asicsdk-6.5.29/6.5.29/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/bcm/asicsdk-6.5.30/6.5.30": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/bcm/asicsdk-6.5.30/6.5.30/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "PtpTests.enablePtpPortDown.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTcAfterLinkFlap.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-10.0_ea_odp/10.0_ea_odp": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-10.0_ea_odp/10.0_ea_odp/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-10.2.0.0_odp/10.2.0.0_odp": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-10.2.0.0_odp/10.2.0.0_odp/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-8.2.0.0_odp/8.2.0.0_odp": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-8.2.0.0_odp/8.2.0.0_odp/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-8.2.0.0_odp/9.2.0.0_odp": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-8.2.0.0_odp/9.2.0.0_odp/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-9.2.0.0_odp/9.2.0.0_odp": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
+    "tahan800bc/sai/asicsdk-9.2.0.0_odp/9.2.0.0_odp/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "MacsecTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecFsdbTest.*$"
+        },
+        {
+          "test_name_regex": "MacsecStatTest.*$"
+        },
+        {
+          "test_name_regex": "PortStatsTest.xphySanity"
+        },
+        {
+          "test_name_regex": "LinkTest.xPhyInfoTest"
+        },
+        {
+          "test_name_regex": "LinkTest.ptpEnableIsHitless$"
+        },
+        {
+          "test_name_regex": "LinkTest.fabricLinkHealth$"
+        },
+        {
+          "test_name_regex": "SpeedChangeTest.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*$"
+        },
+        {
+          "test_name_regex": "PtpTests.verifyPtpTc.*$"
+        },
+        {
+          "test_name_regex": "roundtrip.*.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
+        },
+        {
+          "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.opticsVdmPerformanceMonitoring$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecBerCounters$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "CheckInit.MacLearningTest.l2EntryFlap"
+        },
+        {
+          "test_name_regex": "LacpTest.lacpFlap$"
+        },
+        {
+          "test_name_regex": "LinkTest.verifyIphyFecCounters$"
+        }
+    ],
     "wedge100s/bcm/asicsdk-6.5.26/6.5.26": [
         {
           "test_name_regex": "MacsecTest.*$"
@@ -14945,6 +16437,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -15020,6 +16515,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -15099,6 +16597,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -15174,6 +16675,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -15253,6 +16757,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -15328,6 +16835,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -15407,6 +16917,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -15482,6 +16995,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -15561,6 +17077,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -15636,6 +17155,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -15715,6 +17237,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -15790,6 +17315,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -15869,6 +17397,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -15944,6 +17475,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -16023,6 +17557,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -16098,6 +17635,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -16177,6 +17717,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -16252,6 +17795,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -16331,6 +17877,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "LinkTest.xPhyInfoTest"
         },
         {
@@ -16406,6 +17955,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "LinkTest.xPhyInfoTest"
@@ -16914,6 +18466,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -16983,6 +18538,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -17056,6 +18614,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -17125,6 +18686,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -17198,6 +18762,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -17267,6 +18834,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -17340,6 +18910,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -17409,6 +18982,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -17482,6 +19058,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -17551,6 +19130,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -17624,6 +19206,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -17693,6 +19278,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -17766,6 +19354,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -17835,6 +19426,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -17908,6 +19502,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -17977,6 +19574,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -18050,6 +19650,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -18119,6 +19722,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"
@@ -18192,6 +19798,9 @@
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
         },
         {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
+        },
+        {
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
@@ -18261,6 +19870,9 @@
         },
         {
           "test_name_regex": "Prbs.*ASIC.*TRANSCEIVER_SYS.*FR4_400G.*$"
+        },
+        {
+          "test_name_regex": "Prbs.*ASIC.*ASIC.*$"
         },
         {
           "test_name_regex": "SpeedChangeTest.*$"

@@ -85,7 +85,8 @@ struct HwPortStats {
   56: optional i64 inAclDiscards_;
   57: optional i64 inTrapDiscards_;
   58: optional i64 outForwardingDiscards_;
-  59: optional i64 fabricConnectivityMismatch;
+  // This mismatch is communicated directly via callback
+  59: optional i64 fabricConnectivityMismatch_DEPRECATED;
 }
 
 struct HwSysPortStats {
@@ -255,12 +256,15 @@ struct HwSwitchWatermarkStats {
   2: optional i64 coreRciWatermarkBytes;
   3: optional i64 dtlQueueWatermarkBytes;
   4: i64 deviceWatermarkBytes;
+  5: map<string, i64> globalHeadroomWatermarkBytes;
+  6: map<string, i64> globalSharedWatermarkBytes;
 }
 
 struct CpuPortStats {
-  1: map<i32, i64> queueInPackets_;
-  2: map<i32, i64> queueDiscardPackets_;
-  3: map<i32, string> queueToName_;
+  1: map<i32, i64> queueInPackets_; // TODO: Deprecate this
+  2: map<i32, i64> queueDiscardPackets_; // TODO: Deprecate this
+  3: map<i32, string> queueToName_; // TODO: Deprecate this
+  4: HwPortStats portStats_;
 }
 
 struct HwSwitchDropStats {

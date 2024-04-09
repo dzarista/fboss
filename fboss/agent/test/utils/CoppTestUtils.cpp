@@ -484,9 +484,15 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForSai(
       true /*isSai*/);
 
   if (hwAsic->isSupported(HwAsic::Feature::ACL_METADATA_QUALIFER)) {
-    // Unresolved route class ID to low pri queue
+    /*
+     * Unresolved route class ID to low pri queue.
+     * For unresolved route ACL, both the hostif trap and the ACL will
+     * be hit on TAJO and 2 packets will be punted to CPU.
+     * Do not rely on getCpuActionType but explicitly configure
+     * the cpu action to TRAP.
+     */
     addLowPriAclForUnresolvedRoutes(
-        getCpuActionType(hwAsic), acls, true /*isSai*/);
+        cfg::ToCpuAction::TRAP, acls, true /*isSai*/);
     // Connected subnet route class ID to low pri queue
     addLowPriAclForConnectedSubnetRoutes(
         getCpuActionType(hwAsic), acls, true /*isSai*/);
@@ -922,4 +928,15 @@ std::unique_ptr<facebook::fboss::TxPacket> createUdpPkt(
       dscp);
 }
 
+std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
+    HwPortStats& stats,
+    int queueId) {
+  auto queueIter = stats.queueOutPackets_()->find(queueId);
+  auto outPackets =
+      (queueIter != stats.queueOutPackets_()->end()) ? queueIter->second : 0;
+  queueIter = stats.queueOutBytes_()->find(queueId);
+  auto outBytes =
+      (queueIter != stats.queueOutBytes_()->end()) ? queueIter->second : 0;
+  return std::pair(outPackets, outBytes);
+}
 } // namespace facebook::fboss::utility

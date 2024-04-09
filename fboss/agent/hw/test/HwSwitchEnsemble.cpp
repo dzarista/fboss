@@ -326,15 +326,18 @@ std::shared_ptr<SwitchState> HwSwitchEnsemble::applyNewConfig(
         getPlatform()->getPlatformMapping(),
         hwAsicTable_.get(),
         &routeUpdater));
+    currentConfig_ = config;
     routeUpdater.program();
     return getProgrammedState();
   }
-  return applyNewState(applyThriftConfig(
+  auto newState = applyNewState(applyThriftConfig(
       originalState,
       &config,
       getPlatform()->supportsAddRemovePort(),
       getPlatform()->getPlatformMapping(),
       hwAsicTable_.get()));
+  currentConfig_ = config;
+  return newState;
 }
 
 std::shared_ptr<SwitchState> HwSwitchEnsemble::updateEncapIndices(
@@ -651,7 +654,8 @@ void HwSwitchEnsemble::setupEnsemble(
         getPlatform()->getHwSwitch(),
         swSwitchTestServer_->getPort(),
         asic->getSwitchId() ? SwitchID(*asic->getSwitchId()) : SwitchID(0),
-        0 /*switchIndex*/);
+        0 /*switchIndex*/,
+        std::nullopt /*multiSwitchStatsPrefix*/);
   }
 
   auto bootType = swSwitchWarmBootHelper_->canWarmBoot() ? BootType::WARM_BOOT

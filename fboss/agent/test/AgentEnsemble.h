@@ -33,7 +33,7 @@ using AgentEnsemblePlatformConfigFn = std::function<void(cfg::PlatformConfig&)>;
 
 class AgentEnsemble : public TestEnsembleIf {
  public:
-  AgentEnsemble() {}
+  AgentEnsemble() : AgentEnsemble("agent.conf") {}
   explicit AgentEnsemble(const std::string& configFileName);
   virtual ~AgentEnsemble() override;
   using TestEnsembleIf::masterLogicalPortIds;
@@ -119,7 +119,7 @@ class AgentEnsemble : public TestEnsembleIf {
 
   static void enableExactMatch(bcm::BcmConfig& config);
 
-  static std::string getInputConfigFile();
+  std::string getInputConfigFile();
 
   void packetReceived(std::unique_ptr<RxPacket> pkt) noexcept override {
     getSw()->packetReceived(std::move(pkt));
@@ -237,6 +237,19 @@ class AgentEnsemble : public TestEnsembleIf {
     return getSw()->getPlatformMapping();
   }
 
+  void bringUpPort(PortID port) {
+    bringUpPorts({port});
+  }
+  void bringDownPort(PortID port) {
+    bringDownPorts({port});
+  }
+  void bringUpPorts(const std::vector<PortID>& ports);
+  void bringDownPorts(const std::vector<PortID>& ports);
+
+  cfg::SwitchConfig getCurrentConfig() const override {
+    return getSw()->getConfig();
+  }
+
  protected:
   void joinAsyncInitThread() {
     if (asyncInitThread_) {
@@ -246,6 +259,10 @@ class AgentEnsemble : public TestEnsembleIf {
   }
 
  private:
+  void setConfigFiles(const std::string& fileName);
+  void setBootType();
+  void overrideConfigFlag(const std::string& fileName);
+
   void writeConfig(const cfg::SwitchConfig& config);
   void writeConfig(const cfg::AgentConfig& config);
   void writeConfig(const cfg::AgentConfig& config, const std::string& file);
@@ -257,9 +274,10 @@ class AgentEnsemble : public TestEnsembleIf {
   cfg::SwitchConfig initialConfig_;
   std::unique_ptr<std::thread> asyncInitThread_{nullptr};
   std::vector<PortID> masterLogicalPortIds_;
-  std::string configFile_{"agent.conf"};
+  std::string configFile_{};
   std::unique_ptr<LinkStateToggler> linkToggler_;
   cfg::PortLoopbackMode mode_{cfg::PortLoopbackMode::MAC};
+  BootType bootType_{BootType::COLD_BOOT};
 };
 
 void initEnsemble(
