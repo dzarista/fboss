@@ -80,22 +80,6 @@ void Showtech::printLogs() {
 }
 
 void Showtech::printL1Info() {
-  // Get a list of ports in order to run commands that require interface to included. If the
-  // command fails then ports vector remains empty.
-  auto ports = std::vector<std::string>{};
-  std::string portListStr;
-  auto portsOk = run_cmd(
-    "LANG=en_US.UTF-8 fboss2 show interface counters | awk '{print $1}' | tail -n +3",
-    portListStr);
-  if (portsOk == 0) {
-    auto ss = std::stringstream{portListStr};
-    for (std::string port; std::getline(ss, port, '\n');) {
-      if (port.find("eth") != std::string::npos || port.find("fab") != std::string::npos){
-        ports.push_back(port);
-      }
-    }
-  }
-
   std::cout << "################################\n";
   std::cout << "########### L1 LOGS ############\n";
   std::cout << "################################\n\n";
@@ -114,13 +98,8 @@ void Showtech::printL1Info() {
   std::cout << "#### fboss2 show interface flaps ####\n";
   std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show interface flaps") << std::endl;
 
-  if (verbose_) {
-    std::cout << "#### fboss2 show interface phy ####\n";
-    for (std::string port: ports) {
-      std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show interface " + port + " phy")
-                << std::endl;
-    }
-  }
+  std::cout << "#### fboss2 show interface phy ####\n";
+  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show interface phy") << std::endl;
   std::cout << "#### fboss2 show transceiver ####\n";
   std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show transceiver") << std::endl;
   if (verbose_) {
