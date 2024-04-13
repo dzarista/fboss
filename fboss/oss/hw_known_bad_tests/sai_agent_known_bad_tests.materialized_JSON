@@ -1003,6 +1003,9 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnWithoutWredConfig$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentQueuePerHostTest/3.*$"
         }
     ],
     "leaba/1.42.8/1.42.8/gibraltar/mono": [
@@ -1038,6 +1041,18 @@
         },
         {
           "test_name_regex": "AgentAclConflictAndDscpQueueMappingTest.VerifyAclAndQosMapConflict$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostTest.*$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostL2Test.VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostRouteTest/[01].VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentDeepPacketInspectionTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -1100,6 +1115,18 @@
         },
         {
           "test_name_regex": "AgentAclConflictAndDscpQueueMappingTest.VerifyAclAndQosMapConflict$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostTest.*$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostL2Test.VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostRouteTest/[01].VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentDeepPacketInspectionTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -1167,6 +1194,15 @@
           "test_name_regex": "AgentAclConflictAndDscpQueueMappingTest.VerifyAclAndQosMapConflict$"
         },
         {
+          "test_name_regex": "AgentQueuePerHostTest.*$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostL2Test.VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostRouteTest/[01].VerifyHostToQueueMappingClassID$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -1227,6 +1263,15 @@
         },
         {
           "test_name_regex": "AgentAclConflictAndDscpQueueMappingTest.VerifyAclAndQosMapConflict$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostTest.*$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostL2Test.VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentQueuePerHostRouteTest/[01].VerifyHostToQueueMappingClassID$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"

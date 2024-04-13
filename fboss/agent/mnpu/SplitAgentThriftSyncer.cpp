@@ -22,7 +22,8 @@ SplitAgentThriftSyncer::SplitAgentThriftSyncer(
     HwSwitch* hw,
     uint16_t serverPort,
     SwitchID switchId,
-    uint16_t switchIndex)
+    uint16_t switchIndex,
+    std::optional<std::string> multiSwitchStatsPrefix)
     : retryThread_(std::make_shared<folly::ScopedEventBaseThread>(
           "SplitAgentThriftRetryThread")),
       switchId_(switchId),
@@ -30,7 +31,8 @@ SplitAgentThriftSyncer::SplitAgentThriftSyncer(
           serverPort,
           switchId_,
           retryThread_->getEventBase(),
-          hw)),
+          hw,
+          multiSwitchStatsPrefix)),
       txPktEventStreamClient_(std::make_unique<TxPktEventSyncer>(
           serverPort,
           switchId_,
@@ -41,16 +43,19 @@ SplitAgentThriftSyncer::SplitAgentThriftSyncer(
       fdbEventSinkClient_(std::make_unique<FdbEventSyncer>(
           serverPort,
           switchId_,
-          retryThread_->getEventBase())),
+          retryThread_->getEventBase(),
+          multiSwitchStatsPrefix)),
       rxPktEventSinkClient_(std::make_unique<RxPktEventSyncer>(
           serverPort,
           switchId_,
-          retryThread_->getEventBase())),
+          retryThread_->getEventBase(),
+          multiSwitchStatsPrefix)),
       hwSwitchStatsSinkClient_(std::make_unique<HwSwitchStatsSinkClient>(
           serverPort,
           switchId_,
           switchIndex,
-          retryThread_->getEventBase())) {}
+          retryThread_->getEventBase(),
+          multiSwitchStatsPrefix)) {}
 
 void SplitAgentThriftSyncer::packetReceived(
     std::unique_ptr<RxPacket> pkt) noexcept {
@@ -62,7 +67,7 @@ void SplitAgentThriftSyncer::packetReceived(
   if (pkt->getSrcAggregatePort()) {
     rxPkt.aggPort() = pkt->getSrcAggregatePort();
   }
-  rxPkt.data() = Packet::extractIOBuf(std::move(pkt));
+  rxPkt.data() = IOBuf::copyBuffer(pkt->buf()->data(), pkt->buf()->length());
   rxPktEventSinkClient_->enqueue(std::move(rxPkt));
 }
 

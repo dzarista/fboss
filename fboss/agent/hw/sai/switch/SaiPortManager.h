@@ -111,6 +111,7 @@ struct SaiPortHandle {
   std::shared_ptr<SaiQosMap> tcToQueueQosMap;
   std::optional<std::string> qosPolicy;
   SaiQueueHandles queues;
+  bool prbsEnabled;
 
   void resetQueues();
   SaiPortMirrorInfo mirrorInfo;
@@ -211,10 +212,8 @@ class SaiPortManager {
   std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId);
   void clearPortAsicPrbsStats(PortID portId);
   prbs::InterfacePrbsState getPortPrbsState(PortID portId);
-  void updateStats(
-      PortID portID,
-      bool updateWatermarks = false,
-      int isConnectivityInfoMismatch = 0);
+  void updatePrbsStats(PortID portId);
+  void updateStats(PortID portID, bool updateWatermarks = false);
 
   void updateConnectivityStats(PortID portID);
 
@@ -433,6 +432,7 @@ class SaiPortManager {
   bool tcToQueueMapAllowedOnPort_;
   bool globalQosMapSupported_;
   std::unordered_map<PortID, time_t> lastFecCounterReadTime_;
+  std::unordered_map<PortID, time_t> lastPrbsRxStateReadTime_;
   FRIEND_TEST(PortManagerTest, calculateRate);
   FRIEND_TEST(PortManagerTest, updateRate);
 };

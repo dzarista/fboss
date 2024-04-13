@@ -1,14 +1,13 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
-#include "fboss/agent/hw/test/HwSwitchEnsemble.h"
-#include "fboss/agent/hw/test/HwTest.h"
-#include "fboss/agent/hw/test/HwTestPacketSnooper.h"
-#include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/state/SwitchState.h"
+#include "fboss/agent/TxPacket.h"
+#include "fboss/agent/packet/PktFactory.h"
+#include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/agent/test/utils/CommonUtils.h"
+#include "fboss/agent/test/utils/ConfigUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
+#include "fboss/agent/test/utils/PacketSnooper.h"
 #include "fboss/agent/test/utils/TrapPacketUtils.h"
 #include "fboss/lib/CommonUtils.h"
 
@@ -18,31 +17,25 @@ static folly::IPAddressV6 kSrcIp() {
 }
 } // namespace
 namespace facebook::fboss {
-class HwDeepPacketInspectionTest : public HwLinkStateDependentTest {
+
+class AgentDeepPacketInspectionTest : public AgentHwTest {
  public:
-  cfg::SwitchConfig initialConfig() const override {
-    auto config = utility::onePortPerInterfaceConfig(
-        getHwSwitch(),
-        masterLogicalPortIds(),
-        getAsic()->desiredLoopbackModes(),
-        true /*interfaceHasSubnet*/);
-    utility::addOlympicQosMaps(config, getAsic());
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto config = AgentHwTest::initialConfig(ensemble);
+    auto port = ensemble.masterLogicalInterfacePortIds()[0];
+    utility::addOlympicQosMaps(
+        config, utility::getAsic(*ensemble.getSw(), port));
+    utility::addTrapPacketAcl(&config, port);
     return config;
   }
 
-  void SetUp() override {
-    HwLinkStateDependentTest::SetUp();
-    auto config = initialConfig();
-    utility::addTrapPacketAcl(&config, kPort().phyPortID());
-    applyNewConfig(config);
-  }
-
  protected:
-  utility::EcmpSetupAnyNPorts6 ecmpHelper() const {
-    return utility::EcmpSetupAnyNPorts6(getProgrammedState());
+  utility::EcmpSetupTargetedPorts6 ecmpHelper() const {
+    return utility::EcmpSetupTargetedPorts6(getProgrammedState());
   }
   PortDescriptor kPort() const {
-    return ecmpHelper().ecmpPortDescriptorAt(0);
+    return PortDescriptor(masterLogicalInterfacePortIds()[0]);
   }
   std::unique_ptr<TxPacket> makePacket(
       bool tcp,
@@ -50,7 +43,7 @@ class HwDeepPacketInspectionTest : public HwLinkStateDependentTest {
       std::optional<std::vector<uint8_t>> payload =
           std::optional<std::vector<uint8_t>>()) {
     return tcp ? utility::makeTCPTxPacket(
-                     getHwSwitch(),
+                     getSw(),
                      utility::firstVlanID(getProgrammedState()),
                      utility::kLocalCpuMac(),
                      utility::kLocalCpuMac(),
@@ -62,7 +55,7 @@ class HwDeepPacketInspectionTest : public HwLinkStateDependentTest {
                      255, // hopLimit
                      payload)
                : utility::makeUDPTxPacket(
-                     getHwSwitch(),
+                     getSw(),
                      utility::firstVlanID(getProgrammedState()),
                      utility::kLocalCpuMac(),
                      utility::kLocalCpuMac(),
@@ -81,8 +74,8 @@ class HwDeepPacketInspectionTest : public HwLinkStateDependentTest {
     XLOG(DBG5) << "\n"
                << folly::hexDump(
                       txPacket->buf()->data(), txPacket->buf()->length());
-    auto nhopMac = ecmpHelper().nhop(0).mac;
-    auto switchType = getHwSwitch()->getSwitchType();
+    auto nhopMac = ecmpHelper().nhop(kPort()).mac;
+    auto switchType = getSw()->getSwitchInfoTable().l3SwitchType();
 
     auto ethFrame = switchType == cfg::SwitchType::VOQ
         ? utility::makeEthFrame(*txPacket, nhopMac)
@@ -92,12 +85,12 @@ class HwDeepPacketInspectionTest : public HwLinkStateDependentTest {
               utility::getIngressVlan(
                   getProgrammedState(), kPort().phyPortID()));
 
-    HwTestPacketSnooper snooper(getHwSwitchEnsemble(), std::nullopt, ethFrame);
+    utility::SwSwitchPacketSnooper snooper(
+        getSw(), "snoop", std::nullopt, ethFrame);
     if (frontPanelPort.has_value()) {
-      getHwSwitch()->sendPacketOutOfPortAsync(
-          std::move(txPacket), *frontPanelPort);
+      getSw()->sendPacketOutOfPortAsync(std::move(txPacket), *frontPanelPort);
     } else {
-      getHwSwitch()->sendPacketSwitchedAsync(std::move(txPacket));
+      getSw()->sendPacketSwitchedAsync(std::move(txPacket));
     }
     WITH_RETRIES({
       auto frameRx = snooper.waitForPacket(1);
@@ -106,19 +99,22 @@ class HwDeepPacketInspectionTest : public HwLinkStateDependentTest {
   }
 
  private:
-  HwSwitchEnsemble::Features featuresDesired() const override {
-    return {HwSwitchEnsemble::LINKSCAN, HwSwitchEnsemble::PACKET_RX};
+  std::vector<production_features::ProductionFeature>
+  getProductionFeaturesVerified() const override {
+    return {production_features::ProductionFeature::L3_FORWARDING};
   }
 };
-
-TEST_F(HwDeepPacketInspectionTest, l3ForwardedPkt) {
+TEST_F(AgentDeepPacketInspectionTest, l3ForwardedPkt) {
   auto setup = [this]() {
-    applyNewState(
-        ecmpHelper().resolveNextHops(getProgrammedState(), {kPort()}));
+    applyNewState([this](const std::shared_ptr<SwitchState>& in) {
+      return ecmpHelper().resolveNextHops(in, {kPort()});
+    });
   };
   auto verify = [this]() {
     std::optional<PortID> frontPanelPort =
-        ecmpHelper().ecmpPortDescriptorAt(1).phyPortID();
+        ecmpHelper()
+            .ecmpPortDescriptorAt(masterLogicalInterfacePortIds()[1])
+            .phyPortID();
     for (bool isTcp : {true, false}) {
       for (bool isFrontPanel : {true, false}) {
         std::optional<PortID> outOfPort =

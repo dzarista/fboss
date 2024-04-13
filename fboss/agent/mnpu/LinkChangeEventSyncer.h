@@ -20,17 +20,20 @@ namespace facebook::fboss {
 
 class HwSwitch;
 
-class LinkChangeEventSyncer
-    : public ThriftSinkClient<multiswitch::LinkChangeEvent> {
+class LinkChangeEventSyncer : public ThriftSinkClient<
+                                  multiswitch::LinkChangeEvent,
+                                  LinkChangeEventQueueType> {
  public:
   using EventSink =
-      ThriftSinkClient<multiswitch::LinkChangeEvent>::EventNotifierSinkClient;
+      ThriftSinkClient<multiswitch::LinkChangeEvent, LinkChangeEventQueueType>::
+          EventNotifierSinkClient;
 
   LinkChangeEventSyncer(
       uint16_t serverPort,
       SwitchID switchId,
       folly::EventBase* connRetryEvb,
-      HwSwitch* hw);
+      HwSwitch* hw,
+      std::optional<std::string> multiSwitchStatsPrefix);
 
   static EventSink initLinkChangeEventSink(
       SwitchID switchId,
@@ -39,5 +42,8 @@ class LinkChangeEventSyncer
  private:
   void connected() override;
   HwSwitch* hw_;
+#if FOLLY_HAS_COROUTINES
+  LinkChangeEventQueueType eventQueue_;
+#endif
 };
 } // namespace facebook::fboss

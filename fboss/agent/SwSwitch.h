@@ -1059,7 +1059,6 @@ class SwSwitch : public HwSwitchCallback {
   void postInit();
 
   void updateMultiSwitchGlobalFb303Stats();
-  void updateFabricReachabilityStats();
   // TODO: To be removed once switchWatermarkStats is available in prod
   HwBufferPoolStats getBufferPoolStatsFromSwitchWatermarkStats();
 
@@ -1219,6 +1218,5 @@ class SwSwitch : public HwSwitchCallback {
   folly::Synchronized<std::unique_ptr<AgentConfig>> agentConfig_;
   folly::Synchronized<std::map<uint16_t, multiswitch::HwSwitchStats>>
       hwSwitchStats_;
-  folly::Synchronized<FabricReachabilityStats> fabricReachabilityStats_;
 };
 } // namespace facebook::fboss
