@@ -13,6 +13,7 @@ const string OPTIC_TYPE_200_GENERIC = "OPTIC_TYPE_200_GENERIC";
 const string OPTIC_TYPE_400_GENERIC = "OPTIC_TYPE_400_GENERIC";
 const string OPTIC_TYPE_800_GENERIC = "OPTIC_TYPE_800_GENERIC";
 const string OPTIC_AGGREGATION_TYPE_MAX = "OPTIC_AGGREGATION_TYPE_MAX";
+const string OPTIC_AGGREGATION_TYPE_PID = "OPTIC_AGGREGATION_TYPE_PID";
 const string SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE = "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE";
 const string SENSOR_PWM_CALC_TYPE_INCREMENT_PID = "SENSOR_PWM_CALC_TYPE_INCREMENT_PID";
 const string SENSOR_PWM_CALC_TYPE_PID = "SENSOR_PWM_CALC_TYPE_PID";
@@ -34,12 +35,29 @@ struct Zone {
 # set the PWM to the specified value.
 typedef map<i32, float> TempToPwmMap
 
+# PID specific settings
+# setPoint : Target set point, affecting ki based calculation
+# kp : Proportional gain in PID method
+# ki : Integral gain in PID method
+# kd : Derivative gain in PID method
+# negHysteresis : the maximum downward PID value change per control
+# posHysteresis : the maximum upward PID value change per control
+struct PidSetting {
+  1: float kp;
+  2: float ki;
+  3: float kd;
+  4: float setPoint;
+  5: float negHysteresis;
+  6: float posHysteresis;
+}
+
 struct Optic {
   1: string opticName;
   2: AccessMethod access;
   3: list<i32> portList;
   4: string aggregationType;
   5: map<string/* optic_type */ , TempToPwmMap> tempToPwmMaps;
+  6: map<string/* optic_type */ , PidSetting> pidSettings;
 }
 
 struct Alarm {
@@ -50,10 +68,10 @@ struct Alarm {
 
 struct Fan {
   1: string fanName;
-  2: AccessMethod rpmAccess;
-  3: AccessMethod pwmAccess;
-  4: AccessMethod presenceAccess;
-  5: AccessMethod ledAccess;
+  2: string rpmSysfsPath;
+  3: string pwmSysfsPath;
+  4: string presenceSysfsPath;
+  5: string ledSysfsPath;
   6: i32 pwmMin;
   7: i32 pwmMax;
   8: i32 fanPresentVal;

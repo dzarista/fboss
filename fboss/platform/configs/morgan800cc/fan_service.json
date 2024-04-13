@@ -8,141 +8,95 @@
   "pwmUpperThreshold": 100,
   "sensors": [
     {
-      "sensorName": "FCB0_P3_3V",
+      "sensorName": "INLET",
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
       },
       "alarm": {
-        "upperCriticalVal": 3.45,
-        "lowerCriticalVal": 3.36,
+        "highMajor": 55,
+        "highMinor": -10,
         "minorSoakSeconds": 15
       },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
-      "scale": 1000,
+      "scale": 1,
       "normalUpTable": {
-        "15": 24,
-        "110": 100
+        "10": 38,
+        "27": 38,
+        "28": 40,
+        "30": 40
       },
       "normalDownTable": {
-        "15": 24,
-        "110": 100
+        "10": 38,
+        "24": 38
       },
       "failUpTable": {
-        "15": 24,
-        "110": 100
+        "10": 38,
+        "27": 38,
+        "28": 40,
+        "30": 40
       },
       "failDownTable": {
-        "15": 24,
-        "110": 100
+        "10": 38,
+        "24": 38
       }
-    },
+    }
+  ],
+  "optics": [
     {
-      "sensorName": "FCB0_P12V",
+      "opticName": "QSFP_GROUP_1",
       "access": {
-        "accessType": "ACCESS_TYPE_THRIFT"
+        "accessType": "ACCESS_TYPE_QSFP"
       },
-      "alarm": {
-        "upperCriticalVal": 3.8,
-        "lowerCriticalVal": 3.2,
-        "minorSoakSeconds": 15
-      },
-      "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
-      "scale": 1000,
-      "normalUpTable": {
-        "15": 24,
-        "110": 100
-      },
-      "normalDownTable": {
-        "15": 24,
-        "110": 100
-      },
-      "failUpTable": {
-        "15": 24,
-        "110": 100
-      },
-      "failDownTable": {
-        "15": 24,
-        "110": 100
-      }
-    },
-    {
-      "sensorName": "FCB1_P3_3V",
-      "access": {
-        "accessType": "ACCESS_TYPE_THRIFT"
-      },
-      "alarm": {
-        "upperCriticalVal": 3.45,
-        "lowerCriticalVal": 3.36,
-        "minorSoakSeconds": 15
-      },
-      "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
-      "scale": 1000,
-      "normalUpTable": {
-        "15": 24,
-        "110": 100
-      },
-      "normalDownTable": {
-        "15": 24,
-        "110": 100
-      },
-      "failUpTable": {
-        "15": 24,
-        "110": 100
-      },
-      "failDownTable": {
-        "15": 24,
-        "110": 100
-      }
-    },
-    {
-      "sensorName": "FCB1_P12V",
-      "access": {
-        "accessType": "ACCESS_TYPE_THRIFT"
-      },
-      "alarm": {
-        "upperCriticalVal": 13.8,
-        "lowerCriticalVal": 13.2,
-        "minorSoakSeconds": 15
-      },
-      "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
-      "scale": 1000,
-      "normalUpTable": {
-        "15": 24,
-        "110": 100
-      },
-      "normalDownTable": {
-        "15": 24,
-        "110": 100
-      },
-      "failUpTable": {
-        "15": 24,
-        "110": 100
-      },
-      "failDownTable": {
-        "15": 24,
-        "110": 100
+      "portList": [],
+      "aggregationType": "OPTIC_AGGREGATION_TYPE_MAX",
+      "tempToPwmMaps": {
+        "OPTIC_TYPE_100_GENERIC": {
+          "5": 24,
+          "38": 26,
+          "40": 28,
+          "41": 30,
+          "42": 32,
+          "44": 34,
+          "45": 36,
+          "48": 38,
+          "49": 40,
+          "52": 44,
+          "53": 46,
+          "54": 50
+        },
+        "OPTIC_TYPE_200_GENERIC": {
+          "5": 26,
+          "43": 28,
+          "45": 30,
+          "47": 32,
+          "49": 34,
+          "50": 36,
+          "54": 40,
+          "56": 44,
+          "58": 46,
+          "61": 50
+        },
+        "OPTIC_TYPE_400_GENERIC": {
+          "5": 36,
+          "59": 40,
+          "62": 42,
+          "66": 46,
+          "67": 48,
+          "68": 50,
+          "71": 52,
+          "73": 55,
+          "74": 60
+        }
       }
     }
   ],
   "fans": [
     {
       "fanName": "fan_1",
-      "rpmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan1_input"
-      },
-      "pwmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/pwm1"
-      },
-      "presenceAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan1_presence"
-      },
-      "ledAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/sys/class/leds/fan1_led:blue:status/brightness"
-      },
+      "rpmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan1_input",
+      "pwmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/pwm1",
+      "presenceSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan1_presence",
+      "ledSysfsPath": "/sys/class/leds/fan1_led:blue:status/brightness",
       "pwmMin": 1,
       "pwmMax": 100,
       "fanPresentVal": 1,
@@ -152,22 +106,10 @@
     },
     {
       "fanName": "fan_2",
-      "rpmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan2_input"
-      },
-      "pwmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/pwm2"
-      },
-      "presenceAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan2_presence"
-      },
-      "ledAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/sys/class/leds/fan2_led:blue:status/brightness"
-      },
+      "rpmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan2_input",
+      "pwmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/pwm2",
+      "presenceSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan2_presence",
+      "ledSysfsPath": "/sys/class/leds/fan2_led:blue:status/brightness",
       "pwmMin": 1,
       "pwmMax": 100,
       "fanPresentVal": 1,
@@ -177,22 +119,10 @@
     },
     {
       "fanName": "fan_3",
-      "rpmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan3_input"
-      },
-      "pwmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/pwm3"
-      },
-      "presenceAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan3_presence"
-      },
-      "ledAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/sys/class/leds/fan3_led:blue:status/brightness"
-      },
+      "rpmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan3_input",
+      "pwmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/pwm3",
+      "presenceSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan3_presence",
+      "ledSysfsPath": "/sys/class/leds/fan3_led:blue:status/brightness",
       "pwmMin": 1,
       "pwmMax": 100,
       "fanPresentVal": 1,
@@ -202,22 +132,10 @@
     },
     {
       "fanName": "fan_4",
-      "rpmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan4_input"
-      },
-      "pwmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/pwm4"
-      },
-      "presenceAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan4_presence"
-      },
-      "ledAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/sys/class/leds/fan4_led:blue:status/brightness"
-      },
+      "rpmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan4_input",
+      "pwmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/pwm4",
+      "presenceSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan4_presence",
+      "ledSysfsPath": "/sys/class/leds/fan4_led:blue:status/brightness",
       "pwmMin": 1,
       "pwmMax": 100,
       "fanPresentVal": 1,
@@ -227,22 +145,10 @@
     },
     {
       "fanName": "fan_5",
-      "rpmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan5_input"
-      },
-      "pwmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/pwm5"
-      },
-      "presenceAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan5_presence"
-      },
-      "ledAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/sys/class/leds/fan5_led:blue:status/brightness"
-      },
+      "rpmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan5_input",
+      "pwmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/pwm5",
+      "presenceSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan5_presence",
+      "ledSysfsPath": "/sys/class/leds/fan5_led:blue:status/brightness",
       "pwmMin": 1,
       "pwmMax": 100,
       "fanPresentVal": 1,
@@ -252,23 +158,10 @@
     },
     {
       "fanName": "fan_6",
-      "rpmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan6_input"
-      },
-      "pwmMin": 1,
-      "pwmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/pwm6"
-      },
-      "presenceAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan6_presence"
-      },
-      "ledAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/sys/class/leds/fan6_led:blue:status/brightness"
-      },
+      "rpmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan6_input",
+      "pwmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/pwm6",
+      "presenceSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan6_presence",
+      "ledSysfsPath": "/sys/class/leds/fan6_led:blue:status/brightness",
       "pwmMax": 100,
       "fanPresentVal": 1,
       "fanMissingVal": 0,
@@ -277,22 +170,10 @@
     },
     {
       "fanName": "fan_7",
-      "rpmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan7_input"
-      },
-      "pwmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/pwm7"
-      },
-      "presenceAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan7_presence"
-      },
-      "ledAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/sys/class/leds/fan7_led:blue:status/brightness"
-      },
+      "rpmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan7_input",
+      "pwmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/pwm7",
+      "presenceSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan7_presence",
+      "ledSysfsPath": "/sys/class/leds/fan7_led:blue:status/brightness",
       "pwmMin": 1,
       "pwmMax": 100,
       "fanPresentVal": 1,
@@ -302,22 +183,10 @@
     },
     {
       "fanName": "fan_8",
-      "rpmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan8_input"
-      },
-      "pwmAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/pwm8"
-      },
-      "presenceAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/run/devmap/sensors/MCB_FAN_PWM/fan8_presence"
-      },
-      "ledAccess": {
-        "accessType": "ACCESS_TYPE_SYSFS",
-        "path": "/sys/class/leds/fan8_led:blue:status/brightness"
-      },
+      "rpmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan8_input",
+      "pwmSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/pwm8",
+      "presenceSysfsPath": "/run/devmap/sensors/MCB_FAN_PWM/fan8_presence",
+      "ledSysfsPath": "/sys/class/leds/fan8_led:blue:status/brightness",
       "pwmMin": 1,
       "pwmMax": 100,
       "fanPresentVal": 1,
@@ -331,10 +200,8 @@
       "zoneType": "ZONE_TYPE_MAX",
       "zoneName": "zone1",
       "sensorNames": [
-        "FCB0_P3_3V",
-        "FCB0_P12V",
-        "FCB1_P3_3V",
-        "FCB1_P12V"
+        "INLET",
+        "QSFP_GROUP_1"
       ],
       "fanNames": [
         "fan_1",

@@ -3296,6 +3296,12 @@ shared_ptr<AclEntry> ThriftConfigApplier::createAcl(
   if (auto roceOpcode = config->roceOpcode()) {
     newAcl->setRoceOpcode(*roceOpcode);
   }
+  if (auto roceBytes = config->roceBytes()) {
+    newAcl->setRoceBytes(*roceBytes);
+  }
+  if (auto roceMask = config->roceMask()) {
+    newAcl->setRoceMask(*roceMask);
+  }
   newAcl->setEnabled(enable);
   return newAcl;
 }
@@ -3726,6 +3732,7 @@ ThriftConfigApplier::createFlowletSwitchingConfig(
   newFlowletSwitchingConfig->setDynamicPhysicalQueueExponent(
       *config.dynamicPhysicalQueueExponent());
   newFlowletSwitchingConfig->setMaxLinks(*config.maxLinks());
+  newFlowletSwitchingConfig->setSwitchingMode(*config.switchingMode());
   return newFlowletSwitchingConfig;
 }
 

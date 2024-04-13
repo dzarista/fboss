@@ -508,6 +508,10 @@ struct AclEntry {
   31: optional list<string> udfGroups;
 
   32: optional byte roceOpcode;
+
+  33: optional list<byte> roceBytes;
+
+  34: optional list<byte> roceMask;
 }
 
 enum AclTableActionType {
@@ -1803,6 +1807,15 @@ struct PortFlowletConfig {
   3: i16 queueWeight;
 }
 
+enum SwitchingMode {
+  // flowlet regular quality based reassignments
+  FLOWLET_QUALITY = 0,
+  // per packet assignments
+  PER_PACKET_QUALITY = 1,
+  // flowlet is disabled
+  FIXED_ASSIGNMENT = 2,
+}
+
 struct FlowletSwitchingConfig {
   // wait for lack of activitiy interval on the flow before load balancing
   1: i16 inactivityIntervalUsecs;
@@ -1829,6 +1842,8 @@ struct FlowletSwitchingConfig {
   // maximum links used for flowlet switching.
   // Needed for scaling flowset table
   11: i16 maxLinks;
+  // switching mode
+  12: SwitchingMode switchingMode = FLOWLET_QUALITY;
 }
 
 /**

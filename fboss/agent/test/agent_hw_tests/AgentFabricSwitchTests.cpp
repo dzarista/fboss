@@ -239,4 +239,69 @@ TEST_F(AgentFabricSwitchSelfLoopTest, portDrained) {
   };
   verifyAcrossWarmBoots(setup, verify);
 }
+
+TEST_F(AgentFabricSwitchTest, reachDiscard) {
+  auto verify = [this]() {
+    for (auto switchId : getSw()->getSwitchInfoTable().getSwitchIdsOfType(
+             cfg::SwitchType::FABRIC)) {
+      auto beforeSwitchDrops =
+          *getSw()->getHwSwitchStatsExpensive(switchId).switchDropStats();
+      std::string out;
+      getAgentEnsemble()->runDiagCommand(
+          "TX 1 destination=-1 destinationModid=-1 flags=0x8000\n",
+          out,
+          switchId);
+      WITH_RETRIES({
+        auto afterSwitchDrops =
+            *getSw()->getHwSwitchStatsExpensive(switchId).switchDropStats();
+        XLOG(INFO) << " Before reach drops: "
+                   << *beforeSwitchDrops.globalReachabilityDrops()
+                   << " After reach drops: "
+                   << *afterSwitchDrops.globalReachabilityDrops()
+                   << " Before global drops: "
+                   << *beforeSwitchDrops.globalDrops()
+                   << " After global drops: : "
+                   << *afterSwitchDrops.globalDrops();
+        EXPECT_EVENTUALLY_EQ(
+            *afterSwitchDrops.globalReachabilityDrops(),
+            *beforeSwitchDrops.globalReachabilityDrops() + 1);
+        // Global drops are in bytes
+        EXPECT_EVENTUALLY_GT(
+            *afterSwitchDrops.globalDrops(), *beforeSwitchDrops.globalDrops());
+      });
+    }
+    checkNoStatsChange();
+  };
+  verifyAcrossWarmBoots([]() {}, verify);
+}
+
+TEST_F(AgentFabricSwitchTest, dtlQueueWatermarks) {
+  auto verify = [this]() {
+    std::string out;
+    for (auto switchId : getSw()->getSwitchInfoTable().getSwitchIdsOfType(
+             cfg::SwitchType::FABRIC)) {
+      WITH_RETRIES({
+        auto beforeWatermarks = getAllSwitchWatermarkStats()[switchId];
+        EXPECT_EVENTUALLY_TRUE(
+            beforeWatermarks.dtlQueueWatermarkBytes().has_value());
+        EXPECT_EVENTUALLY_EQ(*beforeWatermarks.dtlQueueWatermarkBytes(), 0);
+      });
+      getAgentEnsemble()->runDiagCommand(
+          "modify RTP_RMHMT 5 1 LINK_BIT_MAP=1\ntx 100 DeSTination=13 DeSTinationModid=5 flags=0x8000\n",
+          out,
+          switchId);
+      WITH_RETRIES({
+        auto afterWatermarks = getAllSwitchWatermarkStats()[switchId];
+        EXPECT_EVENTUALLY_TRUE(
+            afterWatermarks.dtlQueueWatermarkBytes().has_value());
+        EXPECT_EVENTUALLY_GT(*afterWatermarks.dtlQueueWatermarkBytes(), 0);
+        XLOG(INFO) << "SwitchId: " << switchId
+                   << " After DTL queue watermarks: "
+                   << *afterWatermarks.dtlQueueWatermarkBytes();
+      });
+    }
+  };
+
+  verifyAcrossWarmBoots([]() {}, verify);
+}
 } // namespace facebook::fboss

@@ -9,12 +9,13 @@
  */
 
 #include "fboss/agent/TxPacket.h"
-#include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
 #include "fboss/agent/test/utils/AclTestUtils.h"
+#include "fboss/agent/test/utils/ConfigUtils.h"
+#include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
 #include "fboss/lib/CommonUtils.h"
 
 namespace {
@@ -24,6 +25,8 @@ enum AclType {
   SRC_PORT,
   SRC_PORT_DENY,
   L4_DST_PORT,
+  UDF,
+  BTH_OPCODE,
 };
 }
 
@@ -102,6 +105,12 @@ class AgentAclCounterTest : public AgentHwTest {
       case AclType::L4_DST_PORT:
         aclName = "test-l4-port-acl";
         break;
+      case AclType::UDF:
+        aclName = "test-udf-acl";
+        break;
+      case AclType::BTH_OPCODE:
+        aclName = "test-bth-opcode-acl";
+        break;
     }
     return aclName;
   }
@@ -123,6 +132,12 @@ class AgentAclCounterTest : public AgentHwTest {
         break;
       case AclType::L4_DST_PORT:
         counterName = "test-l4-port-acl-stats";
+        break;
+      case AclType::UDF:
+        counterName = "test-udf-acl-stats";
+        break;
+      case AclType::BTH_OPCODE:
+        counterName = "test-bth-opcode-acl-stats";
         break;
     }
     return counterName;
@@ -152,6 +167,22 @@ class AgentAclCounterTest : public AgentHwTest {
     };
 
     verifyAcrossWarmBoots(setup, verify);
+  }
+
+  size_t sendRoceTraffic(const PortID frontPanelEgrPort) {
+    auto vlanId = utility::firstVlanID(getProgrammedState());
+    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
+    return utility::pumpRoCETraffic(
+        true,
+        utility::getAllocatePktFn(getAgentEnsemble()),
+        utility::getSendPktFunc(getAgentEnsemble()),
+        intfMac,
+        vlanId,
+        frontPanelEgrPort,
+        utility::kUdfL4DstPort,
+        255,
+        std::nullopt,
+        1 /* one packet */);
   }
 
   size_t sendPacket(bool frontPanel, bool bumpOnHit, AclType aclType) {
@@ -295,7 +326,12 @@ class AgentAclCounterTest : public AgentHwTest {
     auto aclBytesCountBefore = utility::getAclInOutPackets(
         getSw(), getCounterName(aclType), true /* bytes */);
     size_t sizeOfPacketSent = 0;
-    sizeOfPacketSent = sendPacket(frontPanel, bumpOnHit, aclType);
+    // for udf or bth_opcode testing, send roce packets
+    if (aclType == AclType::UDF || aclType == AclType::BTH_OPCODE) {
+      sizeOfPacketSent = sendRoceTraffic(egressPort);
+    } else {
+      sizeOfPacketSent = sendPacket(frontPanel, bumpOnHit, aclType);
+    }
     WITH_RETRIES({
       auto aclPktCountAfter =
           utility::getAclInOutPackets(getSw(), getCounterName(aclType));
@@ -357,6 +393,13 @@ class AgentAclCounterTest : public AgentHwTest {
       case AclType::L4_DST_PORT:
         acl->srcPort() = helper_->ecmpPortDescriptorAt(0).phyPortID();
         acl->l4DstPort() = kL4DstPort2();
+        break;
+      case AclType::UDF:
+        acl->udfGroups() = {utility::kUdfAclRoceOpcodeGroupName};
+        acl->roceOpcode() = utility::kUdfRoceOpcode;
+        break;
+      case AclType::BTH_OPCODE:
+        acl->roceOpcode() = utility::kUdfRoceOpcode;
         break;
     }
     std::vector<cfg::CounterType> setCounterTypes{
@@ -428,5 +471,55 @@ TYPED_TEST(AgentAclCounterTest, VerifyAclPrioritySportHitFrontPanel) {
 
 TYPED_TEST(AgentAclCounterTest, VerifyAclPriorityL4DstportHitFrontPanel) {
   this->aclPriorityTestHelper2();
+}
+
+/*
+ * UDF Acls are not supported on SAI and multi ACL. So we only test with
+ * multi acl disabled for now.
+ */
+class AgentUdfAclCounterTest
+    : public AgentAclCounterTest<EnableMultiAclTable<false>> {
+ protected:
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto cfg = utility::onePortPerInterfaceConfig(
+        ensemble.getSw(),
+        ensemble.masterLogicalPortIds(),
+        true /*interfaceHasSubnet*/);
+    cfg.udfConfig() = utility::addUdfAclConfig();
+    return cfg;
+  }
+};
+
+TEST_F(AgentUdfAclCounterTest, VerifyUdf) {
+  counterBumpOnHitHelper(
+      true /* bump on hit */, true /* front panel port */, {AclType::UDF});
+}
+
+TEST_F(AgentUdfAclCounterTest, VerifyUdfWithOtherAcls) {
+  counterBumpOnHitHelper(
+      true /* bump on hit */,
+      true /* front panel port */,
+      {AclType::UDF, AclType::SRC_PORT});
+}
+
+class AgentBthOpcodeAclCounterTest
+    : public AgentAclCounterTest<EnableMultiAclTable<false>> {
+ public:
+  std::vector<production_features::ProductionFeature>
+  getProductionFeaturesVerified() const override {
+    return {
+        production_features::ProductionFeature::BTH_OPCODE_ACL,
+        production_features::ProductionFeature::SINGLE_ACL_TABLE};
+  }
+};
+
+TEST_F(
+    AgentBthOpcodeAclCounterTest,
+    VerifyCounterBumpOnBthOpcodeHitFrontPanel) {
+  this->counterBumpOnHitHelper(
+      true /* bump on hit */,
+      true /* front panel port */,
+      {AclType::BTH_OPCODE});
 }
 } // namespace facebook::fboss

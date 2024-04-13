@@ -1,6 +1,7 @@
 // (c) Facebook, Inc. and its affiliates. Confidential and proprietary.
 
 #include <any>
+#include <optional>
 
 #include <boost/core/noncopyable.hpp>
 
@@ -119,9 +120,8 @@ FullyResolvedExtendedPathSubscription::operProtocol() const {
   return subscription_.operProtocol();
 }
 
-void FullyResolvedExtendedPathSubscription::offer(std::any newVal) {
-  auto source = std::any_cast<DeltaValue<OperState>>(newVal);
-
+void FullyResolvedExtendedPathSubscription::offer(
+    DeltaValue<OperState> source) {
   // Convert to DeltaValue<TaggedOperState>. Could do this in the
   // SubscriberImpl, but this should do.
 
@@ -315,6 +315,28 @@ void ExtendedDeltaSubscription::allPublishersGone(
     FsdbErrorCode disconnectReason,
     const std::string& msg) {
   pipe_.write(Utils::createFsdbException(disconnectReason, msg));
+}
+
+void PatchSubscription::allPublishersGone(
+    FsdbErrorCode disconnectReason,
+    const std::string& msg) {
+  pipe_.write(Utils::createFsdbException(disconnectReason, msg));
+}
+
+std::optional<thrift_cow::Patch> PatchSubscription::moveFromCurrPatch(
+    const SubscriptionMetadataServer& /* metadataServer */) {
+  std::optional<thrift_cow::Patch> patch = std::move(currPatch_);
+  currPatch_.reset();
+  return patch;
+}
+
+void PatchSubscription::serveHeartbeat() {
+  // TODO: heartbeat
+}
+
+void PatchSubscription::flush(
+    const SubscriptionMetadataServer& /*metadataServer*/) {
+  // TODO: write into pipe
 }
 
 } // namespace facebook::fboss::fsdb
