@@ -149,6 +149,12 @@ std::string AgentDirectoryUtil::getRoutingProtocolColdBootDrainTimeFile()
   return getVolatileStateDir() + "/routing_protocol_cold_boot_drain_time";
 }
 
+std::string AgentDirectoryUtil::getRoutingProtocolColdBootDrainTimeFile(
+    int switchIndex) const {
+  return getVolatileStateDir() + "/routing_protocol_cold_boot_drain_time_" +
+      folly::to<std::string>(switchIndex);
+}
+
 std::string AgentDirectoryUtil::getSwSwitchCanWarmBootFile() const {
   return getWarmBootDir() + "/can_warm_boot";
 }
@@ -270,5 +276,9 @@ std::string AgentDirectoryUtil::getHwSwitchCanWarmBootFile(
     int switchIndex) const {
   return folly::to<std::string>(
       getWarmBootDir(), "/can_warm_boot_", switchIndex);
+}
+
+std::string AgentDirectoryUtil::agentEnsembleConfigDir() const {
+  return folly::to<std::string>(getPersistentStateDir(), "/agent_ensemble/");
 }
 } // namespace facebook::fboss

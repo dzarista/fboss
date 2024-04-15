@@ -68,6 +68,7 @@
 #include "fboss/agent/hw/UnsupportedFeatureManager.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "folly/MacAddress.h"
+#include "folly/String.h"
 
 #include "fboss/agent/LoadBalancerUtils.h"
 
@@ -146,6 +147,7 @@ std::string fdbEventToString(sai_fdb_event_t event) {
 
 static std::set<facebook::fboss::cfg::PacketRxReason> kAllowedRxReasons = {
     facebook::fboss::cfg::PacketRxReason::TTL_1};
+
 } // namespace
 
 namespace facebook::fboss {
@@ -327,6 +329,15 @@ void SaiSwitch::unregisterCallbacks() noexcept {
         });
     txReadyStatusChangeBottomHalfThread_->join();
     // tx ready status change processing is completely shut-off
+  }
+  if (runState_ >= SwitchRunState::CONFIGURED &&
+      platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
+    linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThreadAndWait(
+        [this]() {
+          linkConnectivityChangeBottomHalfEventBase_.terminateLoopSoon();
+        });
+    linkConnectivityChangeBottomHalfThread_->join();
+    // link connectivity change processing is completely shut-off
   }
 
   if (runState_ >= SwitchRunState::INITIALIZED) {
@@ -996,12 +1007,10 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
       &SaiTunnelManager::addTunnel,
       &SaiTunnelManager::removeTunnel);
 
-  bool multipleAclTableSupport =
-      platform_->getAsic()->isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
 #if defined(TAJO_SDK_VERSION_1_42_8)
-  multipleAclTableSupport = false;
+  FLAGS_enable_acl_table_group = false;
 #endif
-  if (FLAGS_enable_acl_table_group && multipleAclTableSupport) {
+  if (FLAGS_enable_acl_table_group) {
     processDelta(
         delta.getAclTableGroupsDelta(),
         managerTable_->aclTableGroupManager(),
@@ -1274,10 +1283,15 @@ folly::F14FastMap<std::string, HwPortStats> SaiSwitch::getPortStats() const {
   return getPortStatsLocked(lock);
 }
 
-CpuPortStats SaiSwitch::getCpuPortStats(bool getIncrement) const {
+CpuPortStats SaiSwitch::getCpuPortStats() const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::CPU_PORT)) {
+    return CpuPortStats{};
+  }
   auto& cpuStat = managerTable_->hostifManager().getCpuFb303Stats();
-  return cpuStat.getCpuPortStats(getIncrement);
+  auto cpuPortStats = cpuStat.getCpuPortStats();
+  cpuPortStats.portStats_() = managerTable_->hostifManager().getCpuPortStats();
+  return cpuPortStats;
 }
 
 folly::F14FastMap<std::string, HwPortStats> SaiSwitch::getPortStatsLocked(
@@ -1712,6 +1726,28 @@ std::vector<PortID> SaiSwitch::getSwitchReachabilityLocked(
   return managerTable_->portManager().getFabricReachabilityForSwitch(switchId);
 }
 
+std::map<int64_t, FabricConnectivityManager::RemoteConnectionGroups>
+SaiSwitch::getVirtualDeviceToRemoteConnectionGroups() const {
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  return getVirtualDeviceToRemoteConnectionGroupsLocked(lock);
+}
+
+std::map<int64_t, FabricConnectivityManager::RemoteConnectionGroups>
+SaiSwitch::getVirtualDeviceToRemoteConnectionGroupsLocked(
+    const std::lock_guard<std::mutex>& lock) const {
+  if (getSwitchType() != cfg::SwitchType::FABRIC) {
+    return {};
+  }
+  auto lookupVirtualDeviceId = [this](PortID portId) {
+    auto virtualDeviceId =
+        platform_->getPlatformPort(portId)->getVirtualDeviceId();
+    CHECK(virtualDeviceId.has_value());
+    return *virtualDeviceId;
+  };
+  return fabricConnectivityManager_->getVirtualDeviceToRemoteConnectionGroups(
+      lookupVirtualDeviceId);
+}
+
 void SaiSwitch::fetchL2Table(std::vector<L2EntryThrift>* l2Table) const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   fetchL2TableLocked(lock, l2Table);
@@ -1800,8 +1836,17 @@ void SaiSwitch::clearPortStats(
   }
 }
 
+prbs::InterfacePrbsState SaiSwitch::getPortPrbsState(PortID portId) {
+  return managerTable_->portManager().getPortPrbsState(portId);
+}
+
 std::vector<phy::PrbsLaneStats> SaiSwitch::getPortAsicPrbsStats(PortID portId) {
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   return managerTable_->portManager().getPortAsicPrbsStats(portId);
+}
+
+void SaiSwitch::clearPortAsicPrbsStats(PortID portId) {
+  managerTable_->portManager().clearPortAsicPrbsStats(portId);
 }
 
 cfg::PortSpeed SaiSwitch::getPortMaxSpeed(PortID port) const {
@@ -1993,6 +2038,12 @@ void SaiSwitch::txReadyStatusChangeCallbackBottomHalf() {
 
   callback_->linkActiveStateChanged(port2IsActive);
 #endif
+}
+
+void SaiSwitch::linkConnectivityChanged(
+    const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+        connectivityDelta) {
+  callback_->linkConnectivityChanged(connectivityDelta);
 }
 
 BootType SaiSwitch::getBootType() const {
@@ -2329,6 +2380,38 @@ void SaiSwitch::syncLinkStates() {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   linkStateBottomHalfEventBase_.runInEventBaseThread(
       [=, this, &lock]() { syncLinkStatesLocked(lock); });
+}
+
+void SaiSwitch::initLinkConnectivityChangeLocked(
+    const std::lock_guard<std::mutex>& lock) {
+  linkConnectivityChangeBottomHalfThread_ =
+      std::make_unique<std::thread>([this]() {
+        initThread("fbossLnkCnctBH");
+        linkConnectivityChangeBottomHalfEventBase_.loopForever();
+      });
+  linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThread(
+      [this, &lock] { syncLinkConnectivityLocked(lock); });
+}
+
+void SaiSwitch::syncLinkConnectivity() {
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  if (linkConnectivityChangeBottomHalfThread_) {
+    linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThread(
+        [this, &lock] { syncLinkConnectivityLocked(lock); });
+  }
+}
+void SaiSwitch::syncLinkConnectivityLocked(
+    const std::lock_guard<std::mutex>& lock) {
+  auto connectivity = fabricConnectivityManager_->getConnectivityInfo();
+  std::map<PortID, multiswitch::FabricConnectivityDelta> connectivityDelta;
+  for (const auto& [port, connectivityInfo] : connectivity) {
+    multiswitch::FabricConnectivityDelta delta;
+    delta.newConnectivity() = connectivityInfo;
+    connectivityDelta.insert({port, delta});
+  }
+  if (connectivityDelta.size()) {
+    callback_->linkConnectivityChanged(connectivityDelta);
+  }
 }
 
 void SaiSwitch::syncLinkActiveStates() {
@@ -3037,6 +3120,10 @@ void SaiSwitch::switchRunStateChangedImplLocked(
               HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
         initTxReadyStatusChangeLocked(lock);
       }
+
+      if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
+        initLinkConnectivityChangeLocked(lock);
+      }
     } break;
     default:
       break;
@@ -3504,9 +3591,15 @@ void SaiSwitch::processAclTableGroupDelta(
     const StateDelta& delta,
     const AclTableGroupMap& aclTableGroupMap,
     const LockPolicyT& lockPolicy) {
+  bool multipleAclTableSupport =
+      platform_->getAsic()->isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
   for (const auto& [_, tableGroup] : aclTableGroupMap) {
     auto aclStage = tableGroup->getID();
-
+    if (delta.getAclTablesDelta(aclStage).getNew()->size() > 1 &&
+        !multipleAclTableSupport) {
+      throw FbossError(
+          "multiple ACL tables configured, but platform only support one ACL table");
+    }
     processDelta(
         delta.getAclTablesDelta(aclStage),
         managerTable_->aclTableManager(),
@@ -3698,5 +3791,50 @@ HwSwitchDropStats SaiSwitch::getSwitchDropStats() const {
 AclStats SaiSwitch::getAclStats() const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   return managerTable_->aclTableManager().getAclStats();
+}
+
+HwSwitchWatermarkStats SaiSwitch::getSwitchWatermarkStats() const {
+  std::lock_guard<std::mutex> lk(saiSwitchMutex_);
+  return managerTable_->switchManager().getSwitchWatermarkStats();
+}
+
+/*
+ * On a FABRIC switch, from each virtual device, we want equal
+ * number of connections to the peer devices. In absence of this
+ * we get a asymmetry b/w sender and receiver, which can lead
+ * to credit stalls/loss and generally poorer performance.
+ * For illustration consider if the sender A has 4X100G
+ * connecting to this virtual device, while the receiver B
+ * has only 2X100G, in the trivial case this can lead to
+ * sender overwhelming the receiver. Situation gets worse
+ * if multiple senders have this asymmetry.
+ *
+ * To detect this, we prepare the following data structure
+ * virtualDeviceId-> RemoteConnectionGroups
+ * Where RemoteConnectionGroups is simply
+ * map<numConnections, list<RemoteEndpoint (with num connections)>>
+ * For symmetric topologies (prod use case), each virtual device should
+ * have only a single RemoteConnectionGroup.
+ */
+void SaiSwitch::reportAsymmetricTopology() const {
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  auto virtualDevice2RemoteConnectionGroups =
+      getVirtualDeviceToRemoteConnectionGroupsLocked(lock);
+  int virtualDevicesWithAsymmetricConnectivity{0};
+  for (const auto& [virtualDeviceId, remoteConnectionGroups] :
+       virtualDevice2RemoteConnectionGroups) {
+    if (remoteConnectionGroups.size() > 1) {
+      ++virtualDevicesWithAsymmetricConnectivity;
+      XLOG(DBG4) << " Asymmetric topology detected on virtual device: "
+                 << virtualDeviceId;
+      for (const auto& [numConnections, remoteConnections] :
+           remoteConnectionGroups) {
+        XLOG(DBG4) << " Remote endpoints with : " << numConnections
+                   << " connections : " << folly::join(",", remoteConnections);
+      }
+    }
+  }
+  getSwitchStats()->virtualDevicesWithAsymmetricConnectivity(
+      virtualDevicesWithAsymmetricConnectivity);
 }
 } // namespace facebook::fboss

@@ -19,7 +19,7 @@ enum class Sff8472Pages : int {
 class Sff8472Module : public QsfpModule {
  public:
   explicit Sff8472Module(
-      TransceiverManager* transceiverManager,
+      std::set<std::string> portNames,
       TransceiverImpl* qsfpImpl);
   virtual ~Sff8472Module() override;
 
@@ -99,7 +99,7 @@ class Sff8472Module : public QsfpModule {
 
   TransceiverSettings getTransceiverSettingsInfo() override;
 
-  PowerControlState getPowerControlValue() override {
+  PowerControlState getPowerControlValue(bool /* readFromCache */) override {
     return PowerControlState::HIGH_POWER_OVERRIDE;
   }
 

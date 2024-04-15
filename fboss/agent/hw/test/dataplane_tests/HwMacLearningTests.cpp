@@ -20,6 +20,7 @@
 #include "fboss/agent/test/ResourceLibUtil.h"
 #include "fboss/agent/test/TestUtils.h"
 #include "fboss/agent/test/TrunkUtils.h"
+#include "fboss/agent/test/utils/MacTestUtils.h"
 
 #include "fboss/agent/MacTableUtils.h"
 #include "fboss/agent/Platform.h"
@@ -28,7 +29,6 @@
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.h"
 #include "fboss/agent/hw/test/HwTestLearningUpdateObserver.h"
-#include "fboss/agent/hw/test/HwTestMacUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 
 #include "fboss/agent/hw/test/ConfigFactory.h"
@@ -1014,8 +1014,8 @@ class HwMacLearningBatchEntriesTest : public HwMacLearningTest {
         getHwSwitchEnsemble()->getLatestPortStats(masterLogicalPortIds());
     int totalPackets = srcMacs.size() * dstMacs.size();
     auto allSent = [&originalStats, totalPackets](const auto& newStats) {
-      auto originalPkts = getPortInPkts(originalStats);
-      auto newPkts = getPortInPkts(newStats);
+      auto originalPkts = utility::getPortInPkts(originalStats);
+      auto newPkts = utility::getPortInPkts(newStats);
       auto expectedPkts = originalPkts + totalPackets;
       XLOGF(
           INFO,

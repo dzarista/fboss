@@ -2894,7 +2894,7 @@
                 "csrOffset": "0x6060"
               },
               "portNumber": -1,
-              "ledId": 1
+              "ledId": 2
             },
             {
               "fpgaIpBlockConfig": {
@@ -2903,7 +2903,7 @@
                 "csrOffset": "0x6070"
               },
               "portNumber": -1,
-              "ledId": 1
+              "ledId": 3
             },
             {
               "fpgaIpBlockConfig": {
@@ -2912,7 +2912,7 @@
                 "csrOffset": "0x60a0"
               },
               "portNumber": -1,
-              "ledId": 1
+              "ledId": 4
             }
           ],
           "xcvrCtrlConfigs": [
@@ -4304,6 +4304,7 @@
     "/run/devmap/sensors/SMB_ISL68226_OSFP_TR": "/SMB_SLOT@0/[SMB_ISL68226_OSFP_TR]",
     "/run/devmap/sensors/SMB_ISL68226_OSFP_BL": "/SMB_SLOT@0/[SMB_ISL68226_OSFP_BL]",
     "/run/devmap/sensors/SMB_ISL68226_OSFP_BR": "/SMB_SLOT@0/[SMB_ISL68226_OSFP_BR]",
+    "/run/devmap/sensors/SMB_UCD90320": "/SMB_SLOT@0/[SMB_UCD90320]",
     "/run/devmap/sensors/FAN0_TMP75": "/SMB_SLOT@0/[FAN0_TMP75]",
     "/run/devmap/cplds/FAN0_CPLD": "/SMB_SLOT@0/[FAN0_CPLD]",
     "/run/devmap/sensors/FAN_CPLD0": "/SMB_SLOT@0/[FAN0_CPLD]",

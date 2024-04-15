@@ -358,6 +358,7 @@ BcmSwitch::BcmSwitch(BcmPlatform* platform, uint32_t featuresDesired)
       l3NextHopTable_(new BcmL3NextHopTable(this)),
       mplsNextHopTable_(new BcmMplsNextHopTable(this)),
       multiPathNextHopTable_(new BcmMultiPathNextHopTable(this)),
+      multiPathNextHopStatsManager_(new BcmMultiPathNextHopStatsManager()),
       labelMap_(new BcmLabelMap(this)),
       routeCounterTable_(
           getPlatform()->getAsic()->isSupported(
@@ -430,6 +431,7 @@ void BcmSwitch::resetTables() {
   // host references now.
   intfTable_.reset();
   egressManager_.reset();
+  multiPathNextHopStatsManager_.reset();
   multiPathNextHopTable_.reset();
   hostTable_.reset();
   toCPUEgress_.reset();
@@ -2029,6 +2031,10 @@ void BcmSwitch::processChangedPorts(const StateDelta& delta) {
         if (oldPort->getZeroPreemphasis() != newPort->getZeroPreemphasis()) {
           bcmPort->processChangedZeroPreemphasis(oldPort, newPort);
         }
+
+        if (oldPort->getTxEnable() != newPort->getTxEnable()) {
+          bcmPort->processChangedTxEnable(oldPort, newPort);
+        }
       });
 }
 
@@ -3155,7 +3161,7 @@ TeFlowStats BcmSwitch::getTeFlowStats() const {
 }
 
 std::vector<EcmpDetails> BcmSwitch::getAllEcmpDetails() const {
-  return multiPathNextHopTable_->getAllEcmpDetails();
+  return multiPathNextHopStatsManager_->getAllEcmpDetails();
 }
 
 shared_ptr<BcmSwitchEventCallback> BcmSwitch::registerSwitchEventCallback(
@@ -3191,7 +3197,13 @@ uint64_t BcmSwitch::getDeviceWatermarkBytes() const {
 }
 
 HwFlowletStats BcmSwitch::getHwFlowletStats() const {
-  return multiPathNextHopTable_->getHwFlowletStats();
+  return multiPathNextHopStatsManager_->getHwFlowletStats();
+}
+
+HwSwitchWatermarkStats BcmSwitch::getSwitchWatermarkStats() const {
+  HwSwitchWatermarkStats stats{};
+  stats.deviceWatermarkBytes() = bstStatsMgr_->getDeviceWatermarkBytes();
+  return stats;
 }
 
 bcm_if_t BcmSwitch::getDropEgressId() const {
@@ -3461,7 +3473,7 @@ std::vector<phy::PrbsLaneStats> BcmSwitch::getPortAsicPrbsStats(PortID portId) {
   return bcmStatUpdater_->getPortAsicPrbsStats(portId);
 }
 
-void BcmSwitch::clearPortAsicPrbsStats(int32_t portId) {
+void BcmSwitch::clearPortAsicPrbsStats(PortID portId) {
   bcmStatUpdater_->clearPortAsicPrbsStats(portId);
 }
 
@@ -4217,13 +4229,16 @@ void BcmSwitch::syncLinkStates() {
   });
 }
 
-CpuPortStats BcmSwitch::getCpuPortStats(bool getIncrement) const {
+CpuPortStats BcmSwitch::getCpuPortStats() const {
   CpuPortStats cpuPortStats;
   auto queueManager = getControlPlane()->getQueueManager();
-  cpuPortStats.queueInPackets_() = queueManager->getQueueStats(
-      BcmCosQueueStatType::OUT_PACKETS, getIncrement);
-  cpuPortStats.queueDiscardPackets_() = queueManager->getQueueStats(
-      BcmCosQueueStatType::DROPPED_PACKETS, getIncrement);
+  cpuPortStats.queueInPackets_() =
+      queueManager->getQueueStats(BcmCosQueueStatType::OUT_PACKETS);
+  cpuPortStats.queueDiscardPackets_() =
+      queueManager->getQueueStats(BcmCosQueueStatType::DROPPED_PACKETS);
+  HwPortStats portStats;
+  getControlPlane()->updateQueueCounters(&portStats);
+  cpuPortStats.portStats_() = portStats;
   return cpuPortStats;
 }
 

@@ -49,6 +49,7 @@ std::ostream& operator<<(std::ostream& os, PortLedExternalState lfs) {
       os << "None";
       break;
     case PortLedExternalState::CABLING_ERROR:
+    case PortLedExternalState::CABLING_ERROR_LOOP_DETECTED:
       os << "Cabling Error";
       break;
     case PortLedExternalState::EXTERNAL_FORCE_ON:
@@ -77,6 +78,15 @@ std::optional<int> PlatformPort::getCorePortIndex() const {
     corePortIndex = *mapping->attachedCorePortIndex();
   }
   return corePortIndex;
+}
+
+std::optional<int> PlatformPort::getVirtualDeviceId() const {
+  const auto& mapping = getPlatformPortEntry().mapping();
+  std::optional<int> virtualDeviceId;
+  if (mapping->virtualDeviceId()) {
+    virtualDeviceId = *mapping->virtualDeviceId();
+  }
+  return virtualDeviceId;
 }
 
 const cfg::PlatformPortEntry& PlatformPort::getPlatformPortEntry() const {

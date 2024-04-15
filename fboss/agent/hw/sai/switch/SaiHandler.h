@@ -51,6 +51,16 @@ class SaiHandler : public apache::thrift::ServiceHandler<SaiCtrl> {
   void clearHwPortStats(std::unique_ptr<std::vector<int32_t>> ports) override;
   void clearAllHwPortStats() override;
   void getHwL2Table(std::vector<L2EntryThrift>& l2Table) override;
+  void getVirtualDeviceToConnectionGroups(
+      std::map<
+          int64_t,
+          std::map<int64_t, std::vector<facebook::fboss::RemoteEndpoint>>>&
+          virtualDevice2ConnectionGroups) override;
+
+  void listHwObjects(
+      std::string& out,
+      std::unique_ptr<std::vector<HwObjectType>> hwObjects,
+      bool cached) override;
 
  private:
   SaiSwitch* hw_;

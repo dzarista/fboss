@@ -19,6 +19,8 @@
 
 namespace facebook::fboss {
 
+DEFINE_int32(visual_delay_sec, 0, "Add a delay to enable seeing LED change");
+
 void LedServiceTest::SetUp() {
   // Create ensemble and initialize it
   ensemble_ = std::make_unique<LedEnsemble>();
@@ -60,6 +62,7 @@ TEST_F(LedServiceTest, checkLedColorChange) {
   // Use the ports max speed and profile
   auto platformMap = ledManager->getPlatformMapping();
   auto transceivers = getAllTransceivers(platformMap);
+  std::sort(transceivers.begin(), transceivers.end());
 
   for (auto tcvr : transceivers) {
     auto swPorts = platformMap->getSwPortListFromTransceiverId(tcvr);
@@ -103,11 +106,15 @@ TEST_F(LedServiceTest, checkLedColorChange) {
     ledManager->setExternalLedState(
         swPort, PortLedExternalState::EXTERNAL_FORCE_ON);
     auto onLedColorCurrent = ledManager->getCurrentLedColor(swPort);
-    auto onLedColorExpected = ledManager->onColor();
+    auto onLedColorExpected = ledManager->forcedOnColor();
     ledState = ledManager->getLedState(swPortName.value());
     EXPECT_EQ(onLedColorCurrent, onLedColorExpected);
     EXPECT_EQ(ledState.currentLedColor().value(), onLedColorExpected);
     EXPECT_TRUE(ledState.forcedOnState().value());
+
+    // If the flags is specified, add a delay before forcing LED off
+    // to enable seeing the LED change
+    sleep(FLAGS_visual_delay_sec);
 
     // Put it back to Off state and check again
     ledManager->setExternalLedState(

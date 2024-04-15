@@ -14,6 +14,7 @@
 #include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/SwSwitch.h"
+#include "fboss/agent/test/TestEnsembleIf.h"
 #include "fboss/agent/test/utils/CommonUtils.h"
 #include "fboss/agent/test/utils/PortTestUtils.h"
 
@@ -433,6 +434,31 @@ cfg::SwitchConfig onePortPerInterfaceConfig(
       enableFabricPorts);
 }
 
+cfg::SwitchConfig onePortPerInterfaceConfig(
+    const TestEnsembleIf* ensemble,
+    const std::vector<PortID>& ports,
+    bool interfaceHasSubnet,
+    bool setInterfaceMac,
+    int baseIntfId,
+    bool enableFabricPorts) {
+  auto platformMapping = ensemble->getPlatformMapping();
+  auto switchIds = ensemble->getHwAsicTable()->getSwitchIDs();
+  CHECK_GE(switchIds.size(), 1);
+  auto asic = ensemble->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
+  auto supportsAddRemovePort = ensemble->supportsAddRemovePort();
+
+  return onePortPerInterfaceConfig(
+      platformMapping,
+      asic,
+      ports,
+      supportsAddRemovePort,
+      asic->desiredLoopbackModes(),
+      interfaceHasSubnet,
+      setInterfaceMac,
+      baseIntfId,
+      enableFabricPorts);
+}
+
 cfg::SwitchConfig multiplePortsPerIntfConfig(
     const PlatformMapping* platformMapping,
     const HwAsic* asic,
@@ -592,6 +618,12 @@ cfg::SwitchConfig genPortVlanCfg(
   switchInfo.asicType() = asicType;
   if (asicType == cfg::AsicType::ASIC_TYPE_RAMON) {
     switchInfo.connectionHandle() = "0c:00";
+  } else if (asicType == cfg::AsicType::ASIC_TYPE_RAMON3) {
+    switchInfo.connectionHandle() = "15:00";
+  } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2) {
+    switchInfo.connectionHandle() = "68:00";
+  } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    switchInfo.connectionHandle() = "15:00";
   } else if (
       asicType == cfg::AsicType::ASIC_TYPE_EBRO ||
       asicType == cfg::AsicType::ASIC_TYPE_YUBA) {

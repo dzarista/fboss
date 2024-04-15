@@ -55,7 +55,7 @@ class SimSwitch : public HwSwitch {
   std::map<std::string, HwSysPortStats> getSysPortStats() const override {
     return {};
   }
-  CpuPortStats getCpuPortStats(bool /*getIncrement*/) const override {
+  CpuPortStats getCpuPortStats() const override {
     return {};
   }
   FabricReachabilityStats getFabricReachabilityStats() const override {
@@ -73,6 +73,10 @@ class SimSwitch : public HwSwitch {
   }
   AclStats getAclStats() const override {
     return AclStats{};
+  }
+
+  HwSwitchWatermarkStats getSwitchWatermarkStats() const override {
+    return HwSwitchWatermarkStats{};
   }
 
   std::vector<EcmpDetails> getAllEcmpDetails() const override {
@@ -168,6 +172,7 @@ class SimSwitch : public HwSwitch {
 
   void syncLinkStates() override {}
   void syncLinkActiveStates() override {}
+  void syncLinkConnectivity() override {}
 
   // Forbidden copy constructor and assignment operator
   SimSwitch(SimSwitch const&) = delete;

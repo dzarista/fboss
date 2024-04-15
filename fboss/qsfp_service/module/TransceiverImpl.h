@@ -9,14 +9,17 @@
  */
 #pragma once
 
-#include <folly/String.h>
-#include <folly/io/async/EventBase.h>
 #include <cstdint>
 #include <optional>
+
+#include <folly/String.h>
+#include <folly/io/async/EventBase.h>
+
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/types.h"
-#include "fboss/lib/usb/TransceiverI2CApi.h" // TODO: Remove this. why do you need this here????
+#include "fboss/lib/usb/TransceiverAccessParameter.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
+#include "fboss/qsfp_service/module/Transceiver.h"
 
 namespace facebook {
 namespace fboss {
@@ -55,16 +58,26 @@ class TransceiverImpl {
    */
   virtual bool detectTransceiver() = 0;
 
+  /* This function does a hard reset of the QSFP and this will be
+   * called when port flap is seen on the port remains down
+   */
+  virtual void triggerQsfpHardReset() = 0;
+
+  /*
+   * Returns the name of the port
+   */
+  virtual folly::StringPiece getName() = 0;
+
+  /*
+   * Returns the index of the transceiver (0 based)
+   */
+  virtual int getNum() const = 0;
+
   /*
    * In an implementation where newly inserted transceivers needs to be cleared
    * out of reset. This is the function to do it.
    */
   virtual void ensureOutOfReset() {}
-
-  /* This function does a hard reset of the QSFP and this will be
-   * called when port flap is seen on the port remains down
-   */
-  virtual void triggerQsfpHardReset() {}
 
   /* Functions relevant to I2C Profiling
    */
@@ -73,13 +86,6 @@ class TransceiverImpl {
   virtual std::pair<uint64_t, uint64_t> getI2cTimeProfileMsec() const {
     return std::make_pair(0, 0);
   }
-
-  /*
-   * Returns the name of the port
-   */
-  virtual folly::StringPiece getName() = 0;
-
-  virtual int getNum() const = 0;
 
   virtual std::optional<TransceiverStats> getTransceiverStats() {
     return std::optional<TransceiverStats>();
@@ -95,12 +101,8 @@ class TransceiverImpl {
   virtual folly::EventBase* getI2cEventBase() {
     return nullptr;
   }
-  // TEMPORARY:
-  // Addresses to be queried by external callers:
-  enum : uint8_t {
-    ADDR_QSFP = 0x50,
-    ADDR_QSFP_A2 = 0x51,
-  };
+
+  virtual void updateTransceiverState(TransceiverStateMachineEvent /*event*/) {}
 
  private:
   // Forbidden copy contructor and assignment operator

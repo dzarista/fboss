@@ -63,6 +63,7 @@ class BcmL3NextHop;
 class BcmLabeledHostKey;
 class BcmMplsNextHop;
 class BcmMultiPathNextHopTable;
+class BcmMultiPathNextHopStatsManager;
 class BcmNeighborTable;
 template <class K, class V>
 class BcmNextHopTable;
@@ -156,6 +157,12 @@ class BcmSwitchIf : public HwSwitch {
   virtual const BcmMultiPathNextHopTable* getMultiPathNextHopTable() const = 0;
 
   virtual BcmMultiPathNextHopTable* writableMultiPathNextHopTable() const = 0;
+
+  virtual const BcmMultiPathNextHopStatsManager*
+  getMultiPathNextHopStatsManager() const = 0;
+
+  virtual BcmMultiPathNextHopStatsManager*
+  writableMultiPathNextHopStatsManager() const = 0;
 
   virtual const BcmAclTable* getAclTable() const = 0;
 
@@ -349,6 +356,15 @@ class BcmSwitch : public BcmSwitchIf {
     return multiPathNextHopTable_.get();
   }
 
+  const BcmMultiPathNextHopStatsManager* getMultiPathNextHopStatsManager()
+      const override {
+    return multiPathNextHopStatsManager_.get();
+  }
+  BcmMultiPathNextHopStatsManager* writableMultiPathNextHopStatsManager()
+      const override {
+    return multiPathNextHopStatsManager_.get();
+  }
+
   const BcmQosPolicyTable* getQosPolicyTable() const override {
     return qosPolicyTable_.get();
   }
@@ -394,7 +410,7 @@ class BcmSwitch : public BcmSwitchIf {
     return {};
   }
 
-  CpuPortStats getCpuPortStats(bool getIncrement) const override;
+  CpuPortStats getCpuPortStats() const override;
 
   uint64_t getDeviceWatermarkBytes() const override;
 
@@ -404,6 +420,7 @@ class BcmSwitch : public BcmSwitchIf {
     return HwSwitchDropStats{};
   }
 
+  HwSwitchWatermarkStats getSwitchWatermarkStats() const override;
   HwFlowletStats getHwFlowletStats() const override;
 
   std::vector<EcmpDetails> getAllEcmpDetails() const override;
@@ -569,7 +586,7 @@ class BcmSwitch : public BcmSwitchIf {
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
   std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId) override;
-  void clearPortAsicPrbsStats(int32_t portId) override;
+  void clearPortAsicPrbsStats(PortID portId) override;
 
   std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
       int32_t /* portId */) override;
@@ -628,6 +645,8 @@ class BcmSwitch : public BcmSwitchIf {
 
   // no concept of link active states in BcmSwitch
   void syncLinkActiveStates() override {}
+  // no (fabric) link connectivity concept in BcmSwitch
+  void syncLinkConnectivity() override {}
 
   AclStats getAclStats() const override;
 
@@ -1145,6 +1164,8 @@ class BcmSwitch : public BcmSwitchIf {
   std::unique_ptr<BcmNextHopTable<BcmLabeledHostKey, BcmMplsNextHop>>
       mplsNextHopTable_;
   std::unique_ptr<BcmMultiPathNextHopTable> multiPathNextHopTable_;
+  std::unique_ptr<BcmMultiPathNextHopStatsManager>
+      multiPathNextHopStatsManager_;
   std::unique_ptr<BcmLabelMap> labelMap_;
   std::unique_ptr<BcmRouteCounterTableBase> routeCounterTable_;
   std::unique_ptr<BcmRouteTable> routeTable_;

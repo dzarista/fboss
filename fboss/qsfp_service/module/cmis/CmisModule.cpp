@@ -509,10 +509,13 @@ CmisModule::getApplicationField(uint8_t application, uint8_t startHostLane)
 }
 
 CmisModule::CmisModule(
-    TransceiverManager* transceiverManager,
+    std::set<std::string> portNames,
     TransceiverImpl* qsfpImpl,
-    std::shared_ptr<const TransceiverConfig> cfg)
-    : QsfpModule(transceiverManager, qsfpImpl), tcvrConfig_(std::move(cfg)) {}
+    std::shared_ptr<const TransceiverConfig> cfg,
+    bool supportRemediate)
+    : QsfpModule(std::move(portNames), qsfpImpl),
+      tcvrConfig_(std::move(cfg)),
+      supportRemediate_(supportRemediate) {}
 
 CmisModule::~CmisModule() {}
 
@@ -528,14 +531,15 @@ void CmisModule::readCmisField(
     // changing page) and when the skipPageChange argument is not true
     uint8_t page = static_cast<uint8_t>(dataPage);
     qsfpImpl_->writeTransceiver(
-        {TransceiverI2CApi::ADDR_QSFP,
+        {TransceiverAccessParameter::ADDR_QSFP,
          127,
          sizeof(page),
          static_cast<int>(CmisPages::LOWER)},
         &page);
   }
   qsfpImpl_->readTransceiver(
-      {TransceiverI2CApi::ADDR_QSFP, dataOffset, dataLength, dataPage}, data);
+      {TransceiverAccessParameter::ADDR_QSFP, dataOffset, dataLength, dataPage},
+      data);
 }
 
 void CmisModule::writeCmisField(
@@ -550,14 +554,15 @@ void CmisModule::writeCmisField(
     // changing page) and when the skipPageChange argument is not true
     uint8_t page = static_cast<uint8_t>(dataPage);
     qsfpImpl_->writeTransceiver(
-        {TransceiverI2CApi::ADDR_QSFP,
+        {TransceiverAccessParameter::ADDR_QSFP,
          127,
          sizeof(page),
          static_cast<int>(CmisPages::LOWER)},
         &page);
   }
   qsfpImpl_->writeTransceiver(
-      {TransceiverI2CApi::ADDR_QSFP, dataOffset, dataLength, dataPage}, data);
+      {TransceiverAccessParameter::ADDR_QSFP, dataOffset, dataLength, dataPage},
+      data);
 }
 
 FlagLevels CmisModule::getQsfpSensorFlags(CmisField fieldName, int offset) {
@@ -789,7 +794,7 @@ TransceiverSettings CmisModule::getTransceiverSettingsInfo() {
   settings.powerMeasurement() =
       flatMem_ ? FeatureState::UNSUPPORTED : FeatureState::ENABLED;
 
-  settings.powerControl() = getPowerControlValue();
+  settings.powerControl() = getPowerControlValue(true /* readFromCache */);
   settings.rateSelect() = flatMem_ ? RateSelectState::UNSUPPORTED
                                    : RateSelectState::APPLICATION_RATE_SELECT;
   settings.rateSelectSetting() = RateSelectSetting::UNSUPPORTED;
@@ -1125,9 +1130,16 @@ void CmisModule::getApplicationCapabilities() {
   }
 }
 
-PowerControlState CmisModule::getPowerControlValue() {
-  if (getSettingsValue(
-          CmisField::MODULE_CONTROL, uint8_t(POWER_CONTROL_MASK))) {
+PowerControlState CmisModule::getPowerControlValue(bool readFromCache) {
+  uint8_t moduleControl;
+  if (readFromCache) {
+    moduleControl = getSettingsValue(
+        CmisField::MODULE_CONTROL, uint8_t(POWER_CONTROL_MASK));
+  } else {
+    readCmisField(CmisField::MODULE_CONTROL, &moduleControl);
+    moduleControl &= POWER_CONTROL_MASK;
+  }
+  if (moduleControl) {
     return PowerControlState::POWER_LPMODE;
   } else {
     return PowerControlState::HIGH_POWER_OVERRIDE;
@@ -1991,7 +2003,8 @@ void CmisModule::updateQsfpData(bool allPages) {
 
 void CmisModule::setApplicationCodeLocked(
     cfg::PortSpeed speed,
-    uint8_t startHostLane) {
+    uint8_t startHostLane,
+    uint8_t numHostLanesForPort) {
   QSFP_LOG(INFO, this) << folly::sformat(
       "Trying to set application code for speed {} on startHostLane {}",
       apache::thrift::util::enumNameSafe(speed),
@@ -2069,6 +2082,11 @@ void CmisModule::setApplicationCodeLocked(
     }
 
     auto numHostLanes = capability->hostLaneCount;
+    if (speed == cfg::PortSpeed::HUNDREDG &&
+        numHostLanesForPort != numHostLanes) {
+      continue;
+    }
+
     uint8_t hostLaneMask = laneMask(startHostLane, numHostLanes);
 
     auto setApplicationSelectCode = [this,
@@ -2272,7 +2290,7 @@ void CmisModule::remediateFlakyTransceiver(
   if (allPortsDown) {
     // This api accept 1 based module id however the module id in WedgeManager
     // is 0 based.
-    triggerModuleResetLocked();
+    triggerModuleReset();
   } else {
     auto portNameToHostLanesMap = getPortNameToHostLanes();
     for (const auto& port : ports) {
@@ -2367,6 +2385,7 @@ void CmisModule::customizeTransceiverLocked(TransceiverPortState& portState) {
   auto& portName = portState.portName;
   auto speed = portState.speed;
   auto startHostLane = portState.startHostLane;
+  auto numHostLanes = portState.numHostLanes;
   QSFP_LOG(INFO, this) << folly::sformat(
       "customizeTransceiverLocked: PortName {}, Speed {}, StartHostLane {}",
       portName,
@@ -2376,13 +2395,12 @@ void CmisModule::customizeTransceiverLocked(TransceiverPortState& portState) {
    * This must be called with a lock held on qsfpModuleMutex_
    */
   if (customizationSupported()) {
-    TransceiverSettings settings = getTransceiverSettingsInfo();
-
     // We want this on regardless of speed
-    setPowerOverrideIfSupportedLocked(*settings.powerControl());
+    setPowerOverrideIfSupportedLocked(
+        getPowerControlValue(false /* readFromCache */));
 
     if (speed != cfg::PortSpeed::DEFAULT) {
-      setApplicationCodeLocked(speed, startHostLane);
+      setApplicationCodeLocked(speed, startHostLane, numHostLanes);
     }
 
     // For 200G-FR4 module operating in 2x50G mode, disable squelch on all lanes
@@ -3405,13 +3423,7 @@ void CmisModule::updateCmisStateChanged(
 }
 
 bool CmisModule::supportRemediate() {
-  if (getTransceiverManager()->getPlatformType() ==
-          PlatformType::PLATFORM_MERU400BIU ||
-      getTransceiverManager()->getPlatformType() ==
-          PlatformType::PLATFORM_MERU400BFU) {
-    return false;
-  }
-  return true;
+  return supportRemediate_;
 }
 
 /*

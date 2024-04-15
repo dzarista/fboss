@@ -11,7 +11,6 @@
 #include <glog/logging.h>
 
 #include "fboss/platform/helpers/Init.h"
-#include "fboss/platform/weutil/Flags.h"
 #include "fboss/platform/weutil/Weutil.h"
 #include "fboss/platform/weutil/WeutilDarwin.h"
 
@@ -21,26 +20,17 @@ using namespace facebook;
 
 FOLLY_INIT_LOGGING_CONFIG(".=FATAL; default:async=true");
 
-namespace {
-void printUsage() {
-  std::cout
-      << "weutil [--h] [--json] [--eeprom <eeprom-name>] [--path absolute_path_to_eeprom]"
-      << std::endl;
-  std::cout << "usage examples:" << std::endl;
-  std::cout << "    weutil" << std::endl;
-  std::cout << "    weutil --eeprom pem" << std::endl;
-  std::cout << "    weutil --path /sys/bus/i2c/devices/6-0051/eeprom"
-            << std::endl;
-  try {
-    auto eepromNames = getEepromNames();
-    std::cout << "The <eeprom-name>s supported on this platform are: "
-              << folly::join(", ", eepromNames) << std::endl;
-  } catch (const std::exception& ex) {
-    std::cout << "Failed to get supported eeprom names: " << ex.what()
-              << std::endl;
-  }
-}
-} // namespace
+DEFINE_bool(json, false, "Output in JSON format");
+DEFINE_bool(list, false, "List all eeproms in config");
+DEFINE_int32(offset, 0, "Offset for eeprom specified by --path");
+DEFINE_string(
+    eeprom,
+    "",
+    "EEPROM name or device type, default is chassis eeprom");
+DEFINE_string(
+    path,
+    "",
+    "When set, ignore config and read the eeprom specified by the path");
 
 // If config file is not specified, we detect the platform type and load
 // the proper platform config. If no flags/args are specified, weutil will
@@ -58,22 +48,26 @@ bool validFlags(int argc) {
   return true;
 }
 
-// This utility program will output Chassis info for Darwin
 int main(int argc, char* argv[]) {
   helpers::initCli(&argc, &argv, "weutil");
   std::unique_ptr<WeutilInterface> weutilInstance;
 
-  // Check if the flags/args are valid
   if (!validFlags(argc)) {
     return 1;
   }
-  if (FLAGS_h) {
-    printUsage();
+
+  if (FLAGS_list) {
+    try {
+      auto eeproms = getEepromPaths();
+      std::cout << folly::join("\n", eeproms) << std::endl;
+    } catch (const std::exception& ex) {
+      std::cout << "Failed to get list of eeproms: " << ex.what() << std::endl;
+    }
     return 0;
   }
 
   try {
-    weutilInstance = createWeUtilIntf(FLAGS_eeprom, FLAGS_path);
+    weutilInstance = createWeUtilIntf(FLAGS_eeprom, FLAGS_path, FLAGS_offset);
   } catch (const std::exception& ex) {
     std::cout << "Failed creation of proper parser. " << ex.what() << std::endl;
     return 1;

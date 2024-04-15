@@ -20,7 +20,39 @@
           "versions": [
             {
               "fwType": 1,
-              "version": "3.5"
+              "version": "3.6"
+            }
+          ]
+      },
+      "FTCE4717E1PCB-FB": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "1.10"
+            }
+          ]
+      },
+      "T-DQ4CNT-NF2": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "234.147"
+            }
+          ]
+      },
+      "T-DQ4CNT-NFB": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "234.146"
+            }
+          ]
+      },
+      "T-DQ4CNT-NFM": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "234.147"
             }
           ]
       },

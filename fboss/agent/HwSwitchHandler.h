@@ -91,31 +91,13 @@ class HwSwitchHandler {
   virtual bool transactionsSupported(
       std::optional<cfg::SdkVersion> sdkVersion) const = 0;
 
-  virtual HwSwitchFb303Stats* getSwitchStats() const = 0;
-
-  virtual folly::F14FastMap<std::string, HwPortStats> getPortStats() const = 0;
-
-  virtual CpuPortStats getCpuPortStats(bool getIncrement) const = 0;
-
-  virtual std::map<std::string, HwSysPortStats> getSysPortStats() const = 0;
-
-  virtual HwSwitchDropStats getSwitchDropStats() const = 0;
-  virtual void updateStats() = 0;
-
-  virtual void updateAllPhyInfo() = 0;
-  virtual std::map<PortID, phy::PhyInfo> getAllPhyInfo() const = 0;
-
-  virtual uint64_t getDeviceWatermarkBytes() const = 0;
-
-  virtual HwFlowletStats getHwFlowletStats() const = 0;
-
   virtual void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) = 0;
 
   virtual std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(
       PortID portId) = 0;
 
-  virtual void clearPortAsicPrbsStats(int32_t portId) = 0;
+  virtual void clearPortAsicPrbsStats(PortID portId) = 0;
 
   virtual std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
       int32_t portId) = 0;

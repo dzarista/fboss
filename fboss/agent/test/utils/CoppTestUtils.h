@@ -30,6 +30,8 @@
 namespace facebook::fboss {
 class HwPortStats;
 class SwitchState;
+class HwSwitch;
+class TestEnsembleIf;
 
 namespace utility {
 
@@ -105,6 +107,10 @@ void addLowPriAclForUnresolvedRoutes(
     cfg::ToCpuAction toCpuAction,
     std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls);
 
+void addLowPriAclForConnectedSubnetRoutes(
+    cfg::ToCpuAction toCpuAction,
+    std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls);
+
 void setDefaultCpuTrafficPolicyConfig(
     cfg::SwitchConfig& config,
     const HwAsic* hwAsic,
@@ -127,6 +133,10 @@ uint64_t getCpuQueueWatermarkBytes(HwPortStats& stats, int queueId);
 std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueues(
     const HwAsic* hwAsic,
     bool isSai);
+
+std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
+    HwPortStats& stats,
+    int queueId);
 
 void setPortQueueSharedBytes(cfg::PortQueue& queue, bool isSai);
 
@@ -179,6 +189,30 @@ void sendPktAndVerifyCpuQueue(
 
 uint64_t getCpuQueueInPackets(SwSwitch* sw, SwitchID switchId, int queueId);
 CpuPortStats getLatestCpuStats(SwSwitch* sw, SwitchID switchId);
+
+std::unique_ptr<facebook::fboss::TxPacket> createUdpPkt(
+    const HwSwitch* hwSwitch,
+    std::optional<VlanID> vlanId,
+    folly::MacAddress srcMac,
+    folly::MacAddress dstMac,
+    const folly::IPAddress& srcIpAddress,
+    const folly::IPAddress& dstIpAddress,
+    int l4SrcPort,
+    int l4DstPort,
+    uint8_t ttl,
+    std::optional<uint8_t> dscp);
+
+std::unique_ptr<facebook::fboss::TxPacket> createUdpPkt(
+    TestEnsembleIf* ensemble,
+    std::optional<VlanID> vlanId,
+    folly::MacAddress srcMac,
+    folly::MacAddress dstMac,
+    const folly::IPAddress& srcIpAddress,
+    const folly::IPAddress& dstIpAddress,
+    int l4SrcPort,
+    int l4DstPort,
+    uint8_t ttl,
+    std::optional<uint8_t> dscp);
 
 } // namespace utility
 } // namespace facebook::fboss

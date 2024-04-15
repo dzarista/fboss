@@ -570,14 +570,14 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getHwPortStats) {
 TYPED_TEST(ThriftTestAllSwitchTypes, getFabricReachabilityStats) {
   ThriftHandler handler(this->sw_);
   FabricReachabilityStats stats;
-  EXPECT_HW_CALL(this->sw_, getFabricReachabilityStats()).Times(1);
   handler.getFabricReachabilityStats(stats);
 }
 
 TYPED_TEST(ThriftTestAllSwitchTypes, getCpuPortStats) {
   ThriftHandler handler(this->sw_);
   CpuPortStats cpuPortStats;
-  EXPECT_HW_CALL(this->sw_, getCpuPortStats(true)).Times(1);
+  EXPECT_HW_CALL(this->sw_, getCpuPortStats()).Times(1);
+  this->sw_->updateStats();
   handler.getCpuPortStats(cpuPortStats);
 }
 
@@ -589,6 +589,9 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAllEcmpDetails) {
 }
 
 TYPED_TEST(ThriftTestAllSwitchTypes, getAclTableGroup) {
+  SCOPE_EXIT {
+    FLAGS_enable_acl_table_group = false;
+  };
   FLAGS_enable_acl_table_group = true;
   ThriftHandler handler(this->sw_);
 

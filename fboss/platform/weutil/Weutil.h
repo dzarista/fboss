@@ -3,19 +3,19 @@
 
 #include <memory>
 
-#include "fboss/platform/weutil/WeutilDarwin.h"
+#include "fboss/platform/weutil/WeutilInterface.h"
 
 namespace facebook::fboss::platform {
-/*
- * Creates an instance of WeutilInterface based on the eeprom name or
- * eepromPath. If eepromPath is specified, we ignore the eepromName.
- */
+
+// Creates an instance of WeutilInterface based on the eeprom name or
+// eepromPath. If eepromPath is specified, we ignore the eepromName.
 std::unique_ptr<WeutilInterface> createWeUtilIntf(
     const std::string& eepromName,
-    const std::string& eepromPath);
+    const std::string& eepromPath,
+    const int eepromOffset);
 
-/*
- * Get the EEPROM Names based on the default config of the platform.
- */
-std::vector<std::string> getEepromNames();
+// Get EEPROM info (name, path, offset) based on the default config of the
+// platform.
+std::vector<std::string> getEepromPaths();
+
 } // namespace facebook::fboss::platform

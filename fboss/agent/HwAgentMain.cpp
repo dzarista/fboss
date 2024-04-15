@@ -145,7 +145,8 @@ int hwAgentMain(
       hwAgent->getPlatform()->getHwSwitch(),
       FLAGS_swswitch_port,
       SwitchID(*hwAgent->getPlatform()->getAsic()->getSwitchId()),
-      FLAGS_switchIndex);
+      FLAGS_switchIndex,
+      hwAgent->getPlatform()->getMultiSwitchStatsPrefix());
 
   auto ret =
       hwAgent->initAgent(true /* failHwCallsOnWarmboot */, thriftSyncer.get());

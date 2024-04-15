@@ -30,7 +30,8 @@ class CmdShowInterfaceCountersFecBer
 
   RetType queryClient(
       const HostInfo& hostInfo,
-      const utils::PortList& queriedIfs) {
+      const utils::PortList& queriedIfs,
+      const utils::LinkDirection& direction) {
     std::map<std::string, phy::PhyInfo> iPhyInfo;
     std::map<std::string, phy::PhyInfo> xPhyInfo;
     std::map<int, TransceiverInfo> transceiverInfo;
@@ -60,14 +61,17 @@ class CmdShowInterfaceCountersFecBer
     } catch (apache::thrift::transport::TTransportException& e) {
       std::cerr << "Cannot connect to qsfp_service\n";
     }
-    return createModel(iPhyInfo, xPhyInfo, transceiverInfo);
+    return createModel(
+        iPhyInfo, xPhyInfo, transceiverInfo, direction.direction);
   }
 
   RetType createModel(
       const std::map<std::string, phy::PhyInfo>& iPhyInfo,
       const std::map<std::string, phy::PhyInfo>& xPhyInfo,
-      const std::map<int, TransceiverInfo>& transceiverInfo) {
+      const std::map<int, TransceiverInfo>& transceiverInfo,
+      const phy::Direction direction) {
     RetType model;
+    model.direction() = direction;
     // Use interfaces in iPhyInfo as the SOT for the ports in the system
     for (auto& [interfaceName, phyInfo] : iPhyInfo) {
       if (auto ber = getPreFecBerFromPhyInfo(phyInfo, phy::Side::LINE)) {
@@ -84,6 +88,8 @@ class CmdShowInterfaceCountersFecBer
         }
       }
     }
+    // Get Transceiver BER
+    getPreFecBerFromTransceiverInfo(transceiverInfo, model);
 
     return model;
   }
@@ -107,16 +113,35 @@ class CmdShowInterfaceCountersFecBer
     return std::nullopt;
   }
 
+  void getPreFecBerFromTransceiverInfo(
+      const std::map<int, TransceiverInfo>& transceiverInfo,
+      RetType& model) {
+    for (auto& [tcvrId, tcvrInfo] : transceiverInfo) {
+      if (tcvrInfo.tcvrStats()->vdmPerfMonitorStats().has_value()) {
+        auto& vdmStats = tcvrInfo.tcvrStats()->vdmPerfMonitorStats().value();
+        for (auto& [portName, portSideStats] :
+             vdmStats.mediaPortVdmStats().value()) {
+          model.fecBer()[portName][phy::PortComponent::TRANSCEIVER_LINE] =
+              portSideStats.datapathBER().value().max().value();
+        }
+        for (auto& [portName, portSideStats] :
+             vdmStats.hostPortVdmStats().value()) {
+          model.fecBer()[portName][phy::PortComponent::TRANSCEIVER_SYSTEM] =
+              portSideStats.datapathBER().value().max().value();
+        }
+      }
+    }
+  }
+
   void printOutput(const RetType& model, std::ostream& out = std::cout) {
     Table table;
 
-    table.setHeader(
-        {"Interface Name",
-         "ASIC",
-         "XPHY_SYSTEM",
-         "XPHY_LINE",
-         "TRANSCEIVER_SYSTEM",
-         "TRANSCEIVER_LINE"});
+    if (model.direction() == phy::Direction::RECEIVE) {
+      table.setHeader(
+          {"Interface Name", "ASIC", "XPHY_LINE", "TRANSCEIVER_LINE"});
+    } else {
+      table.setHeader({"Interface Name", "XPHY_SYSTEM", "TRANSCEIVER_SYSTEM"});
+    }
 
     for (const auto& [interfaceName, fecBer] : *model.fecBer()) {
       std::optional<double> iphyBer, xphySystemBer, xphyLineBer, tcvrSystemBer,
@@ -136,21 +161,29 @@ class CmdShowInterfaceCountersFecBer
       if (fecBer.find(phy::PortComponent::TRANSCEIVER_LINE) != fecBer.end()) {
         tcvrLineBer = fecBer.at(phy::PortComponent::TRANSCEIVER_LINE);
       }
-      table.addRow({
-          interfaceName,
-          iphyBer.has_value() ? styledBer(*iphyBer)
-                              : Table::StyledCell("-", Table::Style::NONE),
-          xphySystemBer.has_value()
-              ? styledBer(*xphySystemBer)
-              : Table::StyledCell("-", Table::Style::NONE),
-          xphyLineBer.has_value() ? styledBer(*xphyLineBer)
-                                  : Table::StyledCell("-", Table::Style::NONE),
-          tcvrSystemBer.has_value()
-              ? styledBer(*tcvrSystemBer)
-              : Table::StyledCell("-", Table::Style::NONE),
-          tcvrLineBer.has_value() ? styledBer(*tcvrLineBer)
-                                  : Table::StyledCell("-", Table::Style::NONE),
-      });
+      if (model.direction() == phy::Direction::RECEIVE) {
+        table.addRow({
+            interfaceName,
+            iphyBer.has_value() ? styledBer(*iphyBer)
+                                : Table::StyledCell("-", Table::Style::NONE),
+            xphyLineBer.has_value()
+                ? styledBer(*xphyLineBer)
+                : Table::StyledCell("-", Table::Style::NONE),
+            tcvrLineBer.has_value()
+                ? styledBer(*tcvrLineBer)
+                : Table::StyledCell("-", Table::Style::NONE),
+        });
+      } else {
+        table.addRow({
+            interfaceName,
+            xphySystemBer.has_value()
+                ? styledBer(*xphySystemBer)
+                : Table::StyledCell("-", Table::Style::NONE),
+            tcvrSystemBer.has_value()
+                ? styledBer(*tcvrSystemBer)
+                : Table::StyledCell("-", Table::Style::NONE),
+        });
+      }
     }
     out << table << std::endl;
   }

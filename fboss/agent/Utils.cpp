@@ -316,12 +316,23 @@ PortID getPortID(
     SystemPortID sysPortId,
     const std::shared_ptr<SwitchState>& state) {
   auto sysPort = state->getSystemPorts()->getNode(sysPortId);
-  auto voqSwitchId = sysPort->getSwitchId();
-  auto sysPortRange = state->getDsfNodes()
-                          ->getNodeIf(SwitchID(voqSwitchId))
-                          ->getSystemPortRange();
+  auto switchId = sysPort->getSwitchId();
+  auto switchIdToSwitchInfo = state->getSwitchSettings()
+                                  ->getSwitchSettings(HwSwitchMatcher(
+                                      std::unordered_set<SwitchID>({switchId})))
+                                  ->getSwitchIdToSwitchInfo();
+  auto switchInfo = switchIdToSwitchInfo.find(switchId);
+  if (switchInfo == switchIdToSwitchInfo.end()) {
+    throw FbossError(
+        "switchId: ", switchId, " not found in switchToSwitchInfo");
+  }
+  auto sysPortRange = switchInfo->second.systemPortRange();
   CHECK(sysPortRange.has_value());
-  return PortID(static_cast<int64_t>(sysPortId) - *sysPortRange->minimum());
+  auto portIdRange = switchInfo->second.portIdRange();
+  CHECK(portIdRange.has_value());
+  return PortID(
+      static_cast<int64_t>(sysPortId) - *sysPortRange->minimum() +
+      *portIdRange->minimum());
 }
 
 SystemPortID getSystemPortID(
@@ -755,6 +766,54 @@ cfg::SwitchDrainState computeActualSwitchDrainState(
 
 uint64_t getMacOui(const folly::MacAddress macAddress) {
   return macAddress.u64HBO() & 0x0000FFFFFF000000;
+}
+
+/*
+ * For Multi-NPU devices, each NPU appears once in the DsfNodeMap with
+ * identical name but different switchID.
+ * Build a switchName to (sorted switchIDs) map.
+ * e.g. rdsw002 => [4, 8]
+ * assign switchIndex to switchID starting 0 i.e.
+ * [4 => 0], [8 => 1]...
+ */
+std::unordered_map<SwitchID, SwitchIndex> computeSwitchIdToSwitchIndex(
+    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap) {
+  std::unordered_map<std::string, std::set<SwitchID>> switchNameToSwitchIDs;
+  for (const auto& [_, dsfNodes] : std::as_const(*dsfNodeMap)) {
+    for (const auto& [_, node] : std::as_const(*dsfNodes)) {
+      switchNameToSwitchIDs[node->getName()].insert(node->getSwitchId());
+    }
+  }
+
+  std::unordered_map<SwitchID, SwitchIndex> switchIdToSwitchIndex;
+  for (const auto& [switchName, switchIDs] : switchNameToSwitchIDs) {
+    auto switchIndex = 0;
+    for (const auto& switchID : switchIDs) {
+      switchIdToSwitchIndex[switchID] = switchIndex++;
+    }
+  }
+
+  return switchIdToSwitchIndex;
+}
+
+uint32_t getRemotePortOffset(const PlatformType platformType) {
+  switch (platformType) {
+    case PlatformType::PLATFORM_MERU400BIU:
+      return 256;
+    case PlatformType::PLATFORM_MERU400BIA:
+      return 256;
+    case PlatformType::PLATFORM_MERU400BFU:
+      return 0;
+    case PlatformType::PLATFORM_MERU800BFA:
+      return 0;
+    case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_JANGA800BIC:
+      return 1024;
+
+    default:
+      return 0;
+  }
+  return 0;
 }
 
 } // namespace facebook::fboss

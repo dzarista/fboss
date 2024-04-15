@@ -25,6 +25,21 @@ struct LinkActiveEvent {
   1: map<i32, bool> port2IsActive;
 }
 
+struct FabricConnectivityDelta {
+  1: optional ctrl.FabricEndpoint oldConnectivity;
+  2: optional ctrl.FabricEndpoint newConnectivity;
+}
+
+struct LinkConnectivityEvent {
+  1: map<i32, FabricConnectivityDelta> port2ConnectivityDelta;
+}
+
+struct LinkChangeEvent {
+  1: optional LinkEvent linkStateEvent;
+  2: LinkActiveEvent linkActiveEvents;
+  3: LinkConnectivityEvent linkConnectivityEvents;
+}
+
 struct FdbEvent {
   1: ctrl.L2EntryThrift entry;
   2: ctrl.L2EntryUpdateType updateType;
@@ -60,7 +75,7 @@ struct HwSwitchStats {
   5: hardware_stats.HwAsicErrors hwAsicErrors;
   6: map<string, hardware_stats.HwSysPortStats> sysPortStats;
   7: hardware_stats.TeFlowStats teFlowStats;
-  8: hardware_stats.HwBufferPoolStats bufferPoolStats;
+  8: hardware_stats.HwBufferPoolStats bufferPoolStats_DEPRECATED;
   9: hardware_stats.FabricReachabilityStats fabricReachabilityStats;
   10: hardware_stats.HwSwitchFb303GlobalStats fb303GlobalStats;
   11: hardware_stats.CpuPortStats cpuPortStats;
@@ -68,15 +83,10 @@ struct HwSwitchStats {
   13: hardware_stats.HwFlowletStats flowletStats;
   14: map<i32, phy.PhyInfo> phyInfo;
   15: hardware_stats.AclStats aclStats;
+  16: hardware_stats.HwSwitchWatermarkStats switchWatermarkStats;
 }
 
 service MultiSwitchCtrl {
-  /* notify link event through sink */
-  sink<LinkEvent, bool> notifyLinkEvent(1: i64 switchId);
-
-  /* notify link active event through sink */
-  sink<LinkActiveEvent, bool> notifyLinkActiveEvent(1: i64 switchId);
-
   /* notify fdb event through sink */
   sink<FdbEvent, bool> notifyFdbEvent(1: i64 switchId);
 
@@ -85,6 +95,9 @@ service MultiSwitchCtrl {
 
   /* keep getting tx packet from SwSwitch, through stream */
   stream<TxPacket> getTxPackets(1: i64 switchId);
+
+  /* notify link change event*/
+  sink<LinkChangeEvent, bool> notifyLinkChangeEvent(1: i64 switchId);
 
   /* get next oper delta from SwSwitch */
   @thrift.Priority{level = thrift.RpcPriority.HIGH}

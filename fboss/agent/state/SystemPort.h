@@ -27,8 +27,11 @@ class SystemPort
     : public ThriftStructNode<SystemPort, state::SystemPortFields> {
  public:
   using Base = ThriftStructNode<SystemPort, state::SystemPortFields>;
-  explicit SystemPort(SystemPortID id) {
+  explicit SystemPort(
+      SystemPortID id,
+      std::optional<RemoteSystemPortType> remoteSystemPortType = std::nullopt) {
     set<ctrl_if_tags::portId>(static_cast<int64_t>(id));
+    setRemoteSystemPortType(remoteSystemPortType);
   }
   SystemPortID getID() const {
     return static_cast<SystemPortID>(cref<ctrl_if_tags::portId>()->toThrift());
@@ -92,6 +95,43 @@ class SystemPort
       set<ctrl_if_tags::qosPolicy>(qosPolicy.value());
     } else {
       ref<ctrl_if_tags::qosPolicy>().reset();
+    }
+  }
+
+  std::optional<RemoteSystemPortType> getRemoteSystemPortType() const {
+    if (auto remoteSystemPortType =
+            cref<ctrl_if_tags::remoteSystemPortType>()) {
+      return remoteSystemPortType->cref();
+    }
+    return std::nullopt;
+  }
+
+  void setRemoteSystemPortType(
+      const std::optional<RemoteSystemPortType>& remoteSystemPortType =
+          std::nullopt) {
+    if (remoteSystemPortType) {
+      set<ctrl_if_tags::remoteSystemPortType>(remoteSystemPortType.value());
+    } else {
+      ref<ctrl_if_tags::remoteSystemPortType>().reset();
+    }
+  }
+
+  std::optional<LivenessStatus> getRemoteLivenessStatus() const {
+    if (auto remoteSystemPortLivenessStatus =
+            cref<ctrl_if_tags::remoteSystemPortLivenessStatus>()) {
+      return remoteSystemPortLivenessStatus->cref();
+    }
+    return std::nullopt;
+  }
+
+  void setRemoteLivenessStatus(
+      const std::optional<LivenessStatus>& remoteSystemPortLivenessStatus =
+          std::nullopt) {
+    if (remoteSystemPortLivenessStatus) {
+      set<ctrl_if_tags::remoteSystemPortLivenessStatus>(
+          remoteSystemPortLivenessStatus.value());
+    } else {
+      ref<ctrl_if_tags::remoteSystemPortLivenessStatus>().reset();
     }
   }
 

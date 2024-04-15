@@ -33,7 +33,7 @@ using AgentEnsemblePlatformConfigFn = std::function<void(cfg::PlatformConfig&)>;
 
 class AgentEnsemble : public TestEnsembleIf {
  public:
-  AgentEnsemble() {}
+  AgentEnsemble() : AgentEnsemble("agent.conf") {}
   explicit AgentEnsemble(const std::string& configFileName);
   virtual ~AgentEnsemble() override;
   using TestEnsembleIf::masterLogicalPortIds;
@@ -119,7 +119,7 @@ class AgentEnsemble : public TestEnsembleIf {
 
   static void enableExactMatch(bcm::BcmConfig& config);
 
-  static std::string getInputConfigFile();
+  std::string getInputConfigFile();
 
   void packetReceived(std::unique_ptr<RxPacket> pkt) noexcept override {
     getSw()->packetReceived(std::move(pkt));
@@ -140,6 +140,11 @@ class AgentEnsemble : public TestEnsembleIf {
   void linkActiveStateChanged(
       const std::map<PortID, bool>& port2IsActive) override {
     getSw()->linkActiveStateChanged(port2IsActive);
+  }
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+          port2OldAndNewConnectivity) override {
+    getSw()->linkConnectivityChanged(port2OldAndNewConnectivity);
   }
 
   void l2LearningUpdateReceived(
@@ -172,6 +177,10 @@ class AgentEnsemble : public TestEnsembleIf {
   }
 
   HwAsicTable* getHwAsicTable() override {
+    return getSw()->getHwAsicTable();
+  }
+
+  const HwAsicTable* getHwAsicTable() const override {
     return getSw()->getHwAsicTable();
   }
 
@@ -213,6 +222,34 @@ class AgentEnsemble : public TestEnsembleIf {
       const uint64_t desiredBps,
       int secondsToWaitPerIteration = 1);
 
+  void sendPacketAsync(
+      std::unique_ptr<TxPacket> pkt,
+      std::optional<PortDescriptor> portDescriptor,
+      std::optional<uint8_t> queueId) override;
+
+  std::unique_ptr<TxPacket> allocatePacket(uint32_t size) override;
+
+  bool supportsAddRemovePort() const override {
+    return getSw()->getPlatformSupportsAddRemovePort();
+  }
+
+  const PlatformMapping* getPlatformMapping() const override {
+    return getSw()->getPlatformMapping();
+  }
+
+  void bringUpPort(PortID port) {
+    bringUpPorts({port});
+  }
+  void bringDownPort(PortID port) {
+    bringDownPorts({port});
+  }
+  void bringUpPorts(const std::vector<PortID>& ports);
+  void bringDownPorts(const std::vector<PortID>& ports);
+
+  cfg::SwitchConfig getCurrentConfig() const override {
+    return getSw()->getConfig();
+  }
+
  protected:
   void joinAsyncInitThread() {
     if (asyncInitThread_) {
@@ -222,6 +259,10 @@ class AgentEnsemble : public TestEnsembleIf {
   }
 
  private:
+  void setConfigFiles(const std::string& fileName);
+  void setBootType();
+  void overrideConfigFlag(const std::string& fileName);
+
   void writeConfig(const cfg::SwitchConfig& config);
   void writeConfig(const cfg::AgentConfig& config);
   void writeConfig(const cfg::AgentConfig& config, const std::string& file);
@@ -233,9 +274,10 @@ class AgentEnsemble : public TestEnsembleIf {
   cfg::SwitchConfig initialConfig_;
   std::unique_ptr<std::thread> asyncInitThread_{nullptr};
   std::vector<PortID> masterLogicalPortIds_;
-  std::string configFile_{"agent.conf"};
+  std::string configFile_{};
   std::unique_ptr<LinkStateToggler> linkToggler_;
   cfg::PortLoopbackMode mode_{cfg::PortLoopbackMode::MAC};
+  BootType bootType_{BootType::COLD_BOOT};
 };
 
 void initEnsemble(
@@ -249,6 +291,7 @@ std::unique_ptr<AgentEnsemble> createAgentEnsemble(
     uint32_t featuresDesired =
         (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
          HwSwitch::FeaturesDesired::LINKSCAN_DESIRED |
+         HwSwitch::FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED |
          HwSwitch::FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED));
 
 } // namespace facebook::fboss

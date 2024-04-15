@@ -4,6 +4,7 @@
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
+#include "fboss/agent/test/utils/StatsTestUtils.h"
 #include "fboss/lib/CommonUtils.h"
 
 DEFINE_bool(run_forever, false, "run the test forever");
@@ -14,6 +15,8 @@ DEFINE_bool(
     "list production feature needed for every single test");
 DECLARE_bool(disable_neighbor_updates);
 DECLARE_bool(disable_icmp_error_response);
+DECLARE_bool(enable_snapshot_debugs);
+DECLARE_bool(disable_looped_fabric_ports);
 
 namespace {
 int kArgc;
@@ -28,21 +31,36 @@ void AgentHwTest::SetUp() {
     return;
   }
   fbossCommonInit(kArgc, kArgv);
-  FLAGS_verify_apply_oper_delta = true;
-  FLAGS_hide_fabric_ports = hideFabricPorts();
   // Reset any global state being tracked in singletons
   // Each test then sets up its own state as needed.
   folly::SingletonVault::singleton()->destroyInstances();
   folly::SingletonVault::singleton()->reenableInstances();
-  // Set watermark stats update interval to 0 so we always refresh BST stats
-  // in each updateStats call
-  FLAGS_update_watermark_stats_interval_s = 0;
+
+  setCmdLineFlagOverrides();
+
+  AgentEnsembleSwitchConfigFn initialConfigFn =
+      [this](const AgentEnsemble& ensemble) { return initialConfig(ensemble); };
+  agentEnsemble_ = createAgentEnsemble(initialConfigFn);
+
+  if (isSupportedOnAllAsics(HwAsic::Feature::ROUTE_METADATA)) {
+    FLAGS_classid_for_connected_subnet_routes = true;
+  }
+}
+
+void AgentHwTest::setCmdLineFlagOverrides() const {
+  // Default values for flags which maybe overridden by derived class tests
+  FLAGS_enable_snapshot_debugs = false;
+  FLAGS_verify_apply_oper_delta = true;
+  FLAGS_hide_fabric_ports = true;
   // Don't send/receive periodic lldp packets. They will
   // interfere with tests.
   FLAGS_enable_lldp = false;
   // Disable tun intf, else pkts from host will interfere
   // with tests
   FLAGS_tun_intf = false;
+  // Set watermark stats update interval to 0 so we always refresh BST stats
+  // in each updateStats call
+  FLAGS_update_watermark_stats_interval_s = 0;
   // disable neighbor updates
   FLAGS_disable_neighbor_updates = true;
   // disable icmp error response
@@ -50,12 +68,9 @@ void AgentHwTest::SetUp() {
   // Disable FSDB publishing on single-box test
   FLAGS_publish_stats_to_fsdb = false;
   FLAGS_publish_state_to_fsdb = false;
-
-  AgentEnsembleSwitchConfigFn initialConfigFn =
-      [this](const AgentEnsemble& ensemble) { return initialConfig(ensemble); };
-  agentEnsemble_ = createAgentEnsemble(initialConfigFn);
+  // Looped ports are the common case in tests
+  FLAGS_disable_looped_fabric_ports = false;
 }
-
 void AgentHwTest::TearDown() {
   if (FLAGS_run_forever ||
       (::testing::Test::HasFailure() && FLAGS_run_forever_on_failure)) {
@@ -130,11 +145,16 @@ void AgentHwTest::setSwitchDrainState(
   applyNewConfig(newCfg);
 }
 
-bool AgentHwTest::hideFabricPorts() const {
-  // Due to the speedup in test run time (6m->21s on meru400biu)
-  // we want to skip over fabric ports in a overwhelming
-  // majority of test cases. Make this the default HwTest mode
-  return true;
+void AgentHwTest::applySwitchDrainState(cfg::SwitchDrainState drainState) {
+  applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+    auto out = in->clone();
+    for (const auto& [_, switchSetting] :
+         std::as_const(*out->getSwitchSettings())) {
+      auto newSwitchSettings = switchSetting->modify(&out);
+      newSwitchSettings->setActualSwitchDrainState(drainState);
+    }
+    return out;
+  });
 }
 
 cfg::SwitchConfig AgentHwTest::initialConfig(
@@ -172,6 +192,61 @@ std::map<PortID, HwPortStats> AgentHwTest::getLatestPortStats(
 
 HwPortStats AgentHwTest::getLatestPortStats(const PortID& port) {
   return getLatestPortStats(std::vector<PortID>({port})).begin()->second;
+}
+
+// return last incremented port stats. the port stats contains a timer
+// which callers can use to determine when traffic stopped by checking the out
+// bytes
+HwPortStats AgentHwTest::getLastIncrementedPortStats(const PortID& port) {
+  HwPortStats lastPortStats = getLatestPortStats(port);
+  // wait till port stats starts incrementing
+  WITH_RETRIES({
+    auto currentPortStats = getLatestPortStats(port);
+    EXPECT_EVENTUALLY_TRUE(
+        *currentPortStats.outBytes_() > *lastPortStats.outBytes_());
+    lastPortStats = currentPortStats;
+  });
+  // wait till port stats stops incrementing
+  WITH_RETRIES({
+    auto currentPortStats = getLatestPortStats(port);
+    if ((*currentPortStats.timestamp_() != *lastPortStats.timestamp_()) &&
+        (*currentPortStats.outBytes_() == *lastPortStats.outBytes_())) {
+      return lastPortStats;
+    }
+    lastPortStats = currentPortStats;
+    EXPECT_EVENTUALLY_TRUE(false);
+  });
+  return lastPortStats;
+}
+
+// returns a pair of ports stats corresponding to
+// start and end of traffic measurement duration
+std::map<PortID, std::pair<HwPortStats, HwPortStats>>
+AgentHwTest::sendTrafficAndCollectStats(
+    const std::vector<PortID>& ports,
+    int timeIntervalInSec,
+    const std::function<void()>& startSendFn,
+    const std::function<void()>& stopSendFn,
+    bool keepTrafficRunning) {
+  std::map<PortID, std::pair<HwPortStats, HwPortStats>> portStats;
+  std::vector<HwPortStats> portStatsBefore;
+  startSendFn();
+  for (const auto& port : ports) {
+    portStatsBefore.push_back(getLatestPortStats(port));
+  }
+  sleep(timeIntervalInSec);
+  if (!keepTrafficRunning) {
+    stopSendFn();
+  }
+  auto index = 0;
+  for (const auto& port : ports) {
+    portStats.insert(
+        {port,
+         {portStatsBefore[index++],
+          keepTrafficRunning ? getLatestPortStats(port)
+                             : getLastIncrementedPortStats(port)}});
+  }
+  return portStats;
 }
 
 std::map<SystemPortID, HwSysPortStats> AgentHwTest::getLatestSysPortStats(
@@ -255,6 +330,16 @@ HwSwitchDropStats AgentHwTest::getAggregatedSwitchDropStats() {
   return hwSwitchDropStats;
 }
 
+std::map<uint16_t, HwSwitchWatermarkStats>
+AgentHwTest::getAllSwitchWatermarkStats() {
+  std::map<uint16_t, HwSwitchWatermarkStats> watermarkStats;
+  const auto& hwSwitchStatsMap = getSw()->getHwSwitchStatsExpensive();
+  for (const auto& [switchIdx, hwSwitchStats] : hwSwitchStatsMap) {
+    watermarkStats.emplace(switchIdx, *hwSwitchStats.switchWatermarkStats());
+  }
+  return watermarkStats;
+}
+
 void AgentHwTest::applyNewStateImpl(
     StateUpdateFn fn,
     const std::string& name,
@@ -276,6 +361,48 @@ cfg::SwitchConfig AgentHwTest::addCoppConfig(
   utility::setDefaultCpuTrafficPolicyConfig(config, asic, ensemble.isSai());
   utility::addCpuQueueConfig(config, asic, ensemble.isSai());
   return config;
+}
+
+void AgentHwTest::checkNoStatsChange(int trys) {
+  auto resetTimestamp = [this](auto& statsMap) {
+    for (auto& [_, stats] : statsMap) {
+      stats.timestamp() = 0;
+      for (auto& [_, portStats] : *stats.hwPortStats()) {
+        portStats.timestamp_() = 0;
+      }
+      for (auto& [_, sysPortStats] : *stats.sysPortStats()) {
+        sysPortStats.timestamp_() = 0;
+      }
+      stats.teFlowStats()->timestamp() = 0;
+    }
+  };
+  auto timestampChanged = [](const auto& before, const auto& after) {
+    for (auto& [switchId, stats] : before) {
+      if (stats.timestamp() == after.at(switchId).timestamp()) {
+        return false;
+      }
+    }
+    return true;
+  };
+  WITH_RETRIES_N(trys, ({
+                   auto before = getSw()->getHwSwitchStatsExpensive();
+                   std::map<uint16_t, multiswitch::HwSwitchStats> after;
+                   checkWithRetry(
+                       [&before, &after, this, &timestampChanged]() {
+                         after = getSw()->getHwSwitchStatsExpensive();
+                         return timestampChanged(before, after);
+                       },
+                       20,
+                       std::chrono::milliseconds(100),
+                       " fetch port stats");
+                   EXPECT_EVENTUALLY_TRUE(timestampChanged(before, after));
+                   resetTimestamp(before);
+                   resetTimestamp(after);
+
+                   // TODO: Utilize statsMapDelta to compare stats map
+                   // differences
+                   EXPECT_EVENTUALLY_EQ(before, after);
+                 }));
 }
 
 void initAgentHwTest(

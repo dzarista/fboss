@@ -20,13 +20,17 @@ namespace facebook::fboss::platform {
 WeutilTest::~WeutilTest() {}
 
 void WeutilTest::SetUp() {
-  weutilInstance = createWeUtilIntf("chassis", "");
+  weutilInstance = createWeUtilIntf("chassis", "", 0);
 }
 
 void WeutilTest::TearDown() {}
 
 TEST_F(WeutilTest, getWedgeInfo) {
   EXPECT_GT(weutilInstance->getContents().size(), 0);
+}
+
+TEST_F(WeutilTest, getEepromPaths) {
+  EXPECT_GT(getEepromPaths().size(), 0);
 }
 
 } // namespace facebook::fboss::platform

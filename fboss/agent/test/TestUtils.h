@@ -81,6 +81,19 @@ using SwitchTypeAndEnableIntfNbrTable = ::testing::Types<
     SwitchTypeAndEnableIntfNbrTableT<cfg::SwitchType::VOQ, true, 2>,
     SwitchTypeAndEnableIntfNbrTableT<cfg::SwitchType::FABRIC, true>>;
 
+template <cfg::SwitchType type>
+struct SwitchTypeT {
+  static constexpr auto switchType = type;
+};
+
+using SwitchTypeTestTypes = ::testing::Types<
+    SwitchTypeT<cfg::SwitchType::NPU>,
+    SwitchTypeT<cfg::SwitchType::VOQ>,
+    SwitchTypeT<cfg::SwitchType::FABRIC>>;
+
+using DsfSwitchTypeTestTypes = ::testing::Types<
+    SwitchTypeT<cfg::SwitchType::VOQ>,
+    SwitchTypeT<cfg::SwitchType::FABRIC>>;
 /*
  * In the non unit test code state passed to apply*Config is the state
  * returned from SwSwitch init, which is always published. However this
@@ -244,7 +257,8 @@ std::shared_ptr<SwitchState> testStateA(
  * Same as testStateA but with all ports
  * enabled and up
  */
-std::shared_ptr<SwitchState> testStateAWithPortsUp();
+std::shared_ptr<SwitchState> testStateAWithPortsUp(
+    cfg::SwitchType switchType = cfg::SwitchType::NPU);
 
 /*
  * Same as testStateA but with AclLookupClass associated with every port.

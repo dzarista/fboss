@@ -19,6 +19,7 @@
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/FbossHwUpdateError.h"
 #include "fboss/agent/FibHelpers.h"
+#include "fboss/agent/LinkConnectivityProcessor.h"
 #include "fboss/agent/Utils.h"
 
 #include "fboss/agent/HwAsicTable.h"
@@ -682,6 +683,19 @@ void SwSwitch::updateLldpStats() {
   stats()->LldpNeighborsSize(lldpManager_->getDB()->pruneExpiredNeighbors());
 }
 
+HwBufferPoolStats SwSwitch::getBufferPoolStatsFromSwitchWatermarkStats() {
+  uint64_t deviceWatermarkBytes{0};
+  auto lockedStats = hwSwitchStats_.wlock();
+  for (auto& [switchIdx, hwSwitchStats] : *lockedStats) {
+    deviceWatermarkBytes = std::max<uint64_t>(
+        deviceWatermarkBytes,
+        *hwSwitchStats.switchWatermarkStats()->deviceWatermarkBytes());
+  }
+  HwBufferPoolStats stats{};
+  stats.deviceWatermarkBytes() = deviceWatermarkBytes;
+  return stats;
+}
+
 AgentStats SwSwitch::fillFsdbStats() {
   AgentStats agentStats;
   {
@@ -707,8 +721,6 @@ AgentStats SwSwitch::fillFsdbStats() {
           {switchIdx, *hwSwitchStats.hwAsicErrors()});
       agentStats.teFlowStatsMap()->insert(
           {switchIdx, *hwSwitchStats.teFlowStats()});
-      agentStats.bufferPoolStatsMap()->insert(
-          {switchIdx, *hwSwitchStats.bufferPoolStats()});
       agentStats.sysPortStatsMap()->insert(
           {switchIdx, *hwSwitchStats.sysPortStats()});
       agentStats.switchDropStatsMap()->insert(
@@ -721,6 +733,10 @@ AgentStats SwSwitch::fillFsdbStats() {
           {switchIdx, *hwSwitchStats.flowletStats()});
       agentStats.cpuPortStatsMap()->insert(
           {switchIdx, *hwSwitchStats.cpuPortStats()});
+      agentStats.switchWatermarkStatsMap()->insert(
+          {switchIdx, *hwSwitchStats.switchWatermarkStats()});
+      agentStats.fabricReachabilityStatsMap()->insert(
+          {switchIdx, *hwSwitchStats.fabricReachabilityStats()});
     }
   }
   stats()->fillAgentStats(agentStats);
@@ -729,10 +745,10 @@ AgentStats SwSwitch::fillFsdbStats() {
   agentStats.hwResourceStats() =
       agentStats.hwResourceStatsMap()->begin()->second;
   agentStats.teFlowStats() = agentStats.teFlowStatsMap()->begin()->second;
-  agentStats.bufferPoolStats() =
-      agentStats.bufferPoolStatsMap()->begin()->second;
   agentStats.sysPortStats() = agentStats.sysPortStatsMap()->begin()->second;
   agentStats.flowletStats() = agentStats.flowletStatsMap()->begin()->second;
+  // TODO: Remove this once switchWatermarkStats is rolled out to fleet!
+  agentStats.bufferPoolStats() = getBufferPoolStatsFromSwitchWatermarkStats();
   return agentStats;
 }
 
@@ -741,6 +757,14 @@ void SwSwitch::publishStatsToFsdb() {
   runFsdbSyncFunction([&agentStats](auto& syncer) {
     syncer->statsUpdated(std::move(agentStats));
   });
+}
+
+MonolithicHwSwitchHandler* SwSwitch::getMonolithicHwSwitchHandler() {
+  CHECK(!isRunModeMultiSwitch())
+      << "Monolithic switch handler access should not be attempted in multi switch mode!";
+  auto hwSwitchHandlers = getHwSwitchHandler()->getHwSwitchHandlers();
+  return static_cast<MonolithicHwSwitchHandler*>(
+      hwSwitchHandlers.begin()->second);
 }
 
 void SwSwitch::updateStats() {
@@ -760,44 +784,47 @@ void SwSwitch::updateStats() {
   updatePortInfo();
   updateLldpStats();
   updateTeFlowStats();
-  try {
-    multiHwSwitchHandler_->updateStats();
-  } catch (const std::exception& ex) {
-    stats()->updateStatsException();
-    XLOG(ERR) << "Error running updateStats: " << folly::exceptionStr(ex);
-  }
   updateMultiSwitchGlobalFb303Stats();
-  updateFabricReachabilityStats();
   stats()->maxNumOfPhysicalHostsPerQueue(
       getLookupClassUpdater()->getMaxNumHostsPerQueue());
 
-  try {
-    multiHwSwitchHandler_->updateAllPhyInfo();
-  } catch (const std::exception& ex) {
-    XLOG(ERR) << "Error running updateAllPhyInfo: " << folly::exceptionStr(ex);
-  }
   if (!isRunModeMultiSwitch()) {
     multiswitch::HwSwitchStats hwStats;
-    hwStats.hwPortStats() = multiHwSwitchHandler_->getPortStats();
-    hwStats.sysPortStats() = multiHwSwitchHandler_->getSysPortStats();
-    hwStats.switchDropStats() = multiHwSwitchHandler_->getSwitchDropStats();
-
-    if (auto hwSwitchStats = multiHwSwitchHandler_->getSwitchStats()) {
+    auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
+    hwStats.timestamp() = now.count();
+    auto monoHwSwitchHandler = getMonolithicHwSwitchHandler();
+    try {
+      monoHwSwitchHandler->updateStats();
+    } catch (const std::exception& ex) {
+      stats()->updateStatsException();
+      XLOG(ERR) << "Error running updateStats: " << folly::exceptionStr(ex);
+    }
+    try {
+      monoHwSwitchHandler->updateAllPhyInfo();
+    } catch (const std::exception& ex) {
+      XLOG(ERR) << "Error running updateAllPhyInfo: "
+                << folly::exceptionStr(ex);
+    }
+    hwStats.hwPortStats() = monoHwSwitchHandler->getPortStats();
+    hwStats.sysPortStats() = monoHwSwitchHandler->getSysPortStats();
+    hwStats.switchDropStats() = monoHwSwitchHandler->getSwitchDropStats();
+    hwStats.fabricReachabilityStats() =
+        monoHwSwitchHandler->getFabricReachabilityStats();
+    hwStats.switchWatermarkStats() =
+        monoHwSwitchHandler->getSwitchWatermarkStats();
+    if (auto hwSwitchStats = monoHwSwitchHandler->getSwitchStats()) {
       hwStats.hwAsicErrors() = hwSwitchStats->getHwAsicErrors();
     }
     hwStats.teFlowStats() = getTeFlowStats();
-    hwStats.bufferPoolStats() = getBufferPoolStats();
     for (auto& [portId, phyInfoPerPort] :
-         multiHwSwitchHandler_->getAllPhyInfo()) {
+         monoHwSwitchHandler->getAllPhyInfo()) {
       hwStats.phyInfo()->emplace(portId, phyInfoPerPort);
     }
-    hwStats.flowletStats() = getHwFlowletStats();
-    hwStats.cpuPortStats() =
-        multiHwSwitchHandler_->getCpuPortStats(false /*getIncrement*/);
-    hwStats.aclStats() = multiHwSwitchHandler_->getAclStats();
+    hwStats.flowletStats() = monoHwSwitchHandler->getHwFlowletStats();
+    hwStats.cpuPortStats() = monoHwSwitchHandler->getCpuPortStats();
+    hwStats.aclStats() = monoHwSwitchHandler->getAclStats();
     updateHwSwitchStats(0 /*switchIndex*/, std::move(hwStats));
   }
-  updateFabricConnectivityInfo();
   updateFlowletStats();
 
   std::map<PortID, phy::PhyInfo> phyInfo;
@@ -863,56 +890,12 @@ void SwSwitch::updatePortInfo() {
   }
 }
 
-void SwSwitch::updateFabricConnectivityInfo() {
-  auto state = getState();
-  if (!state) {
-    return;
-  }
-  if (!getSwitchInfoTable().haveVoqSwitches() &&
-      !getSwitchInfoTable().haveFabricSwitches()) {
-    return;
-  }
-  std::map<std::string, HwPortStats> hwPortStats;
-  getAllHwPortStats(hwPortStats);
-  auto updateFn = [allHwPortStats = std::move(hwPortStats)](
-                      const shared_ptr<SwitchState>& state) {
-    auto newState = state->clone();
-    bool connectivityChanged{false};
-    for (const auto& portMap : std::as_const(*state->getPorts())) {
-      for (const auto& port : std::as_const(*portMap.second)) {
-        if (port.second->getPortType() == cfg::PortType::FABRIC_PORT) {
-          auto hwPortStatsItr = allHwPortStats.find(port.second->getName());
-          if (hwPortStatsItr != allHwPortStats.end()) {
-            if (hwPortStatsItr->second.fabricConnectivityMismatch()
-                    .has_value() &&
-                hwPortStatsItr->second.fabricConnectivityMismatch().value() ==
-                    1) {
-              if (!port.second->getLedPortExternalState().has_value() ||
-                  port.second->getLedPortExternalState().value() !=
-                      PortLedExternalState::CABLING_ERROR) {
-                connectivityChanged = true;
-                auto newPort = newState->getPorts()
-                                   ->getNodeIf(port.first)
-                                   ->modify(&newState);
-                newPort->setLedPortExternalState(
-                    PortLedExternalState::CABLING_ERROR);
-              }
-            } else if (
-                port.second->getLedPortExternalState().has_value() &&
-                port.second->getLedPortExternalState().value() ==
-                    PortLedExternalState::CABLING_ERROR) {
-              // clear the led state = cabling error if needed
-              connectivityChanged = true;
-              auto newPort = newState->getPorts()
-                                 ->getNodeIf(port.first)
-                                 ->modify(&newState);
-              newPort->setLedPortExternalState(PortLedExternalState::NONE);
-            }
-          }
-        }
-      }
-    }
-    return connectivityChanged ? newState : nullptr;
+void SwSwitch::linkConnectivityChanged(
+    const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+        connectivityDelta) {
+  auto updateFn = [=, this](const shared_ptr<SwitchState>& state) {
+    return LinkConnectivityProcessor::process(
+        *getScopeResolver(), state, connectivityDelta);
   };
   updateState("update fabric connectivity info", updateFn);
 }
@@ -940,24 +923,6 @@ void SwSwitch::updateMultiSwitchGlobalFb303Stats() {
   CHECK(multiSwitchFb303Stats_);
   multiSwitchFb303Stats_->updateStats(globalStats);
   multiSwitchFb303Stats_->updateStats(globalCpuPortStats);
-}
-
-void SwSwitch::updateFabricReachabilityStats() {
-  FabricReachabilityStats fabricReachabilityStats;
-  auto runMode = (*agentConfig_.rlock())->getRunMode();
-  if (runMode == cfg::AgentRunMode::MULTI_SWITCH) {
-    auto lockedStats = hwSwitchStats_.rlock();
-    for (auto& [switchIdx, hwSwitchStats] : *lockedStats) {
-      fabricReachabilityStats.mismatchCount() =
-          hwSwitchStats.fabricReachabilityStats()->mismatchCount().value();
-      fabricReachabilityStats.missingCount() =
-          hwSwitchStats.fabricReachabilityStats()->missingCount().value();
-    }
-  } else {
-    fabricReachabilityStats =
-        getHwSwitchHandler()->getFabricReachabilityStats();
-  }
-  *fabricReachabilityStats_.wlock() = fabricReachabilityStats;
 }
 
 bool SwSwitch::isRunModeMultiSwitch() {
@@ -997,16 +962,12 @@ void SwSwitch::getAllCpuPortStats(
 
 void SwSwitch::updateFlowletStats() {
   uint64_t dlbErrorPackets = 0;
-  auto runMode = (*agentConfig_.rlock())->getRunMode();
-  if (runMode == cfg::AgentRunMode::MULTI_SWITCH) {
+  {
     auto lockedStats = hwSwitchStats_.rlock();
     for (auto& [switchIdx, hwSwitchStats] : *lockedStats) {
       dlbErrorPackets +=
           hwSwitchStats.flowletStats()->l3EcmpDlbFailPackets().value();
     }
-  } else {
-    auto flowletStats = getHwSwitchHandler()->getHwFlowletStats();
-    dlbErrorPackets = flowletStats.l3EcmpDlbFailPackets().value();
   }
   fb303::fbData->setCounter(
       SwitchStats::kCounterPrefix + "dlb_error_packets", dlbErrorPackets);
@@ -1042,17 +1003,6 @@ TeFlowStats SwSwitch::getTeFlowStats() {
   teFlowStats.timestamp() = now.count();
   teFlowStats.hwTeFlowStats() = std::move(hwTeFlowStats);
   return teFlowStats;
-}
-
-HwBufferPoolStats SwSwitch::getBufferPoolStats() const {
-  HwBufferPoolStats stats;
-  stats.deviceWatermarkBytes() =
-      multiHwSwitchHandler_->getDeviceWatermarkBytes();
-  return stats;
-}
-
-HwFlowletStats SwSwitch::getHwFlowletStats() const {
-  return multiHwSwitchHandler_->getHwFlowletStats();
 }
 
 void SwSwitch::registerNeighborListener(
@@ -1222,7 +1172,7 @@ void SwSwitch::init(
       << "Time to init switch and start all threads and apply the state"
       << duration_cast<duration<float>>(steady_clock::now() - begin).count();
 
-  postInit(&hwInitRet);
+  postInit();
 
   if (scopeResolver_->hasL3()) {
     SwSwitchRouteUpdateWrapper(this, rib_.get()).programMinAlpmState();
@@ -2137,13 +2087,13 @@ void SwSwitch::startThreads() {
       [this] { this->threadLoop("fbossLacpThread", &lacpEventBase_); }));
 }
 
-void SwSwitch::postInit(const HwInitResult* hwInitResult) {
+void SwSwitch::postInit() {
   if (flags_ & SwitchFlags::ENABLE_LLDP) {
     lldpManager_ = std::make_unique<LldpManager>(this);
   }
 
-  if (flags_ & SwitchFlags::PUBLISH_STATS && hwInitResult) {
-    switch (hwInitResult->bootType) {
+  if (flags_ & SwitchFlags::PUBLISH_STATS) {
+    switch (bootType_) {
       case BootType::COLD_BOOT:
         stats()->coldBoot();
         break;
@@ -2831,13 +2781,15 @@ std::vector<phy::PrbsLaneStats> SwSwitch::getPortAsicPrbsStats(PortID portId) {
   return multiHwSwitchHandler_->getPortAsicPrbsStats(portId);
 }
 
-void SwSwitch::clearPortAsicPrbsStats(int32_t portId) {
+void SwSwitch::clearPortAsicPrbsStats(PortID portId) {
   multiHwSwitchHandler_->clearPortAsicPrbsStats(portId);
 }
 
 std::vector<prbs::PrbsPolynomial> SwSwitch::getPortPrbsPolynomials(
-    int32_t portId) {
-  return multiHwSwitchHandler_->getPortPrbsPolynomials(portId);
+    PortID portId) {
+  auto switchId = getScopeResolver()->scope(portId).switchId();
+  auto hwAsic = getHwAsicTable()->getHwAsicIf(switchId);
+  return hwAsic->getSupportedPrbsPolynomials();
 }
 
 prbs::InterfacePrbsState SwSwitch::getPortPrbsState(PortID portId) {
@@ -3174,12 +3126,19 @@ SwSwitch::getHwSwitchStatsExpensive() const {
 }
 
 FabricReachabilityStats SwSwitch::getFabricReachabilityStats() {
-  auto runMode = (*agentConfig_.rlock())->getRunMode();
-  if (runMode == cfg::AgentRunMode::MULTI_SWITCH) {
-    return *fabricReachabilityStats_.rlock();
-  } else {
-    return getHwSwitchHandler()->getFabricReachabilityStats();
+  auto lockedStats = hwSwitchStats_.rlock();
+  std::map<uint16_t, FabricReachabilityStats> fabricReachStats;
+  FabricReachabilityStats reachStats;
+  for (const auto& [_, stats] : *lockedStats) {
+    *reachStats.missingCount() +=
+        *stats.fabricReachabilityStats()->missingCount();
+    *reachStats.mismatchCount() +=
+        *stats.fabricReachabilityStats()->mismatchCount();
+    *reachStats.virtualDevicesWithAsymmetricConnectivity() +=
+        *stats.fabricReachabilityStats()
+             ->virtualDevicesWithAsymmetricConnectivity();
   }
+  return reachStats;
 }
 
 void SwSwitch::setPortsDownForSwitch(SwitchID switchId) {

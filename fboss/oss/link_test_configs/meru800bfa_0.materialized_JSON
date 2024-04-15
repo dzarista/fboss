@@ -18061,6 +18061,7 @@
     "chip": {
       "bcm": {
         "config": {
+          "fabric_distributed_system_enable": "1",
           "dpp_db_path": "/opt/fboss/share/db/",
           "custom_feature_lane_swap_disable.BCM8892X": "0",
           "appl_enable_intr_init.BCM8892X": "1",

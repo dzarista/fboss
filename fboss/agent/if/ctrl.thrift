@@ -51,6 +51,7 @@ enum PortLedExternalState {
   CABLING_ERROR = 1,
   EXTERNAL_FORCE_ON = 2,
   EXTERNAL_FORCE_OFF = 3,
+  CABLING_ERROR_LOOP_DETECTED = 4,
 }
 
 struct IpPrefix {
@@ -231,6 +232,8 @@ struct InterfaceDetail {
   5: string mac;
   6: list<IpPrefix> address;
   7: i32 mtu;
+  8: optional common.RemoteInterfaceType remoteIntfType;
+  9: optional common.LivenessStatus remoteIntfLivenessStatus;
 }
 
 /*
@@ -400,6 +403,14 @@ struct SystemPortThrift {
   9: bool enabled_DEPRECATED = true;
   10: optional string qosPolicy;
   11: list<PortQueueFields> queues;
+  /*
+   * Set only on Remote System Ports of VOQ switches.
+   */
+  12: optional common.RemoteSystemPortType remoteSystemPortType;
+  /*
+   * Set only on Remote System Ports of VOQ switches.
+   */
+  13: optional common.LivenessStatus remoteSystemPortLivenessStatus;
 }
 
 struct PortHardwareDetails {
@@ -557,6 +568,12 @@ enum ClientID {
   LINKLOCAL_ROUTE = 3,
 
   /*
+   * Interface routes that are derived from remote interface nodes in the DSF cluster.
+   * These routes are propagated by DSF subscriptions.
+   */
+  REMOTE_INTERFACE_ROUTE = 4,
+
+  /*
    * Auto generated routes by Agent. Agent by default programs default (v4 & v6)
    * route pointing to NULL if they're not specified by any other clients. These
    * routes should be least preferred and act as last resort.
@@ -683,7 +700,7 @@ struct FabricEndpoint {
   // Is the port attached to anything on the
   // other side. All other fields are relevant
   // only when isAttached == true
-  5: bool isAttached;
+  5: bool isAttached = false;
   6: switch_config.SwitchType switchType;
   7: optional i64 expectedSwitchId;
   8: optional i32 expectedPortId;

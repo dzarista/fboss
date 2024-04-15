@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include "fboss/agent/FabricConnectivityManager.h"
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/hw/HwSwitchFb303Stats.h"
@@ -29,12 +30,12 @@
 
 DECLARE_int32(update_watermark_stats_interval_s);
 DECLARE_bool(force_recreate_acl_tables);
+DECLARE_bool(skip_stats_update_for_debug);
 
 namespace facebook::fboss {
 
 struct ConcurrentIndices;
 class SaiStore;
-class FabricConnectivityManager;
 
 /*
  * This is equivalent to sai_fdb_event_notification_data_t. Copy only the
@@ -111,8 +112,9 @@ class SaiSwitch : public HwSwitch {
   folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
   std::map<std::string, HwSysPortStats> getSysPortStats() const override;
   FabricReachabilityStats getFabricReachabilityStats() const override;
-  CpuPortStats getCpuPortStats(bool getIncrement) const override;
+  CpuPortStats getCpuPortStats() const override;
   HwSwitchDropStats getSwitchDropStats() const override;
+  HwSwitchWatermarkStats getSwitchWatermarkStats() const override;
 
   uint64_t getDeviceWatermarkBytes() const override;
 
@@ -130,6 +132,8 @@ class SaiSwitch : public HwSwitch {
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
   std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId) override;
+  void clearPortAsicPrbsStats(PortID portId) override;
+  prbs::InterfacePrbsState getPortPrbsState(PortID portId) override;
 
   cfg::PortSpeed getPortMaxSpeed(PortID port) const override;
 
@@ -151,6 +155,9 @@ class SaiSwitch : public HwSwitch {
       uint32_t count);
 
   void txReadyStatusChangeCallbackTopHalf(SwitchSaiId switchId);
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+          connectivityDelta);
 
   /**
    * Runs a diag cmd on the corresponding unit
@@ -215,11 +222,14 @@ class SaiSwitch : public HwSwitch {
   const std::map<PortID, FabricEndpoint>& getFabricConnectivity()
       const override;
   std::vector<PortID> getSwitchReachability(SwitchID switchId) const override;
+  std::map<int64_t, FabricConnectivityManager::RemoteConnectionGroups>
+  getVirtualDeviceToRemoteConnectionGroups() const;
 
   void rollbackInTest(const StateDelta& delta);
 
   void syncLinkStates() override;
   void syncLinkActiveStates() override;
+  void syncLinkConnectivity() override;
 
   AclStats getAclStats() const override;
 
@@ -246,6 +256,7 @@ class SaiSwitch : public HwSwitch {
   std::vector<EcmpDetails> getAllEcmpDetails() const override;
 
   void updateStatsImpl() override;
+  void reportAsymmetricTopology() const;
   template <typename LockPolicyT>
   void updateResourceUsage(const LockPolicyT& lockPolicy);
   /*
@@ -293,6 +304,9 @@ class SaiSwitch : public HwSwitch {
   const std::map<PortID, FabricEndpoint>& getFabricConnectivityLocked() const;
 
   std::vector<PortID> getSwitchReachabilityLocked(SwitchID switchId) const;
+  std::map<int64_t, FabricConnectivityManager::RemoteConnectionGroups>
+  getVirtualDeviceToRemoteConnectionGroupsLocked(
+      const std::lock_guard<std::mutex>& lock) const;
 
   void gracefulExitLocked(const std::lock_guard<std::mutex>& lock);
 
@@ -323,6 +337,8 @@ class SaiSwitch : public HwSwitch {
   void initLinkScanLocked(const std::lock_guard<std::mutex>& lock);
   void initRxLocked(const std::lock_guard<std::mutex>& lock);
   void initTxReadyStatusChangeLocked(const std::lock_guard<std::mutex>& lock);
+  void initLinkConnectivityChangeLocked(
+      const std::lock_guard<std::mutex>& lock);
 
   bool isFeatureSetupLocked(
       FeaturesDesired feature,
@@ -374,6 +390,7 @@ class SaiSwitch : public HwSwitch {
       const std::shared_ptr<SwitchSettings>& newSwitchSettings);
 
   void syncLinkStatesLocked(const std::lock_guard<std::mutex>& lock);
+  void syncLinkConnectivityLocked(const std::lock_guard<std::mutex>& lock);
 
   template <typename LockPolicyT>
   void processDefaultDataPlanePolicyDelta(
@@ -552,6 +569,8 @@ class SaiSwitch : public HwSwitch {
   folly::EventBase fdbEventBottomHalfEventBase_;
   std::unique_ptr<std::thread> txReadyStatusChangeBottomHalfThread_;
   folly::EventBase txReadyStatusChangeBottomHalfEventBase_;
+  std::unique_ptr<std::thread> linkConnectivityChangeBottomHalfThread_;
+  folly::EventBase linkConnectivityChangeBottomHalfEventBase_;
 
   HwResourceStats hwResourceStats_;
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};

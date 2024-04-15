@@ -13,6 +13,7 @@
 DECLARE_int32(update_watermark_stats_interval_s);
 DECLARE_bool(publish_state_to_fsdb);
 DECLARE_bool(publish_stats_to_fsdb);
+DECLARE_bool(intf_nbr_tables);
 
 namespace facebook::fboss {
 
@@ -120,11 +121,20 @@ class AgentHwTest : public ::testing::Test {
   void setSwitchDrainState(
       const cfg::SwitchConfig& curConfig,
       cfg::SwitchDrainState drainState);
+  void applySwitchDrainState(cfg::SwitchDrainState drainState);
 
   std::map<PortID, HwPortStats> getLatestPortStats(
       const std::vector<PortID>& ports);
 
   HwPortStats getLatestPortStats(const PortID& port);
+  HwPortStats getLastIncrementedPortStats(const PortID& port);
+  std::map<PortID, std::pair<HwPortStats, HwPortStats>>
+  sendTrafficAndCollectStats(
+      const std::vector<PortID>& ports,
+      int timeIntervalInSec,
+      const std::function<void()>& startSendFn,
+      const std::function<void()>& stopSendFn = []() {},
+      bool keepTrafficRunning = false);
 
   std::map<SystemPortID, HwSysPortStats> getLatestSysPortStats(
       const std::vector<SystemPortID>& ports);
@@ -132,6 +142,8 @@ class AgentHwTest : public ::testing::Test {
   HwSysPortStats getLatestSysPortStats(const SystemPortID& port);
 
   HwSwitchDropStats getAggregatedSwitchDropStats();
+
+  std::map<uint16_t, HwSwitchWatermarkStats> getAllSwitchWatermarkStats();
 
   virtual cfg::SwitchConfig initialConfig(const AgentEnsemble& ensemble) const;
 
@@ -148,6 +160,21 @@ class AgentHwTest : public ::testing::Test {
     ecmp.programRoutes(&wrapper, width);
   }
 
+  template <typename EcmpHelperT>
+  void unprogramRoutes(const EcmpHelperT& ecmp) {
+    auto wrapper = getSw()->getRouteUpdater();
+    ecmp.unprogramRoutes(&wrapper);
+  }
+
+  void checkNoStatsChange(int trys = 1);
+  /*
+   * API to all flag overrides for individual tests. Primarily
+   * used for features which we don't want to enable for
+   * all tests, but still want to tweak/test this behavior in
+   * our test.
+   */
+  virtual void setCmdLineFlagOverrides() const;
+
  private:
   void applyNewStateImpl(
       StateUpdateFn fn,
@@ -160,8 +187,6 @@ class AgentHwTest : public ::testing::Test {
   virtual bool runVerification() const {
     return true;
   }
-
-  virtual bool hideFabricPorts() const;
 
   virtual std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const = 0;

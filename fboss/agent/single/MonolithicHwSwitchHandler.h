@@ -47,28 +47,28 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
 
   std::optional<uint32_t> getHwLogicalPortId(PortID portID) const override;
 
-  folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
+  folly::F14FastMap<std::string, HwPortStats> getPortStats() const;
 
-  std::map<std::string, HwSysPortStats> getSysPortStats() const override;
-  HwSwitchDropStats getSwitchDropStats() const override;
+  std::map<std::string, HwSysPortStats> getSysPortStats() const;
+  HwSwitchDropStats getSwitchDropStats() const;
 
-  void updateStats() override;
+  void updateStats();
 
-  void updateAllPhyInfo() override;
-  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const override;
+  void updateAllPhyInfo();
+  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const;
 
-  uint64_t getDeviceWatermarkBytes() const override;
+  uint64_t getDeviceWatermarkBytes() const;
 
-  HwFlowletStats getHwFlowletStats() const override;
+  HwFlowletStats getHwFlowletStats() const;
 
-  HwSwitchFb303Stats* getSwitchStats() const override;
+  HwSwitchFb303Stats* getSwitchStats() const;
 
   void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
   std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId) override;
 
-  void clearPortAsicPrbsStats(int32_t portId) override;
+  void clearPortAsicPrbsStats(PortID portId) override;
 
   std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
       int32_t portId) override;
@@ -108,7 +108,7 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
     return platform_;
   }
 
-  CpuPortStats getCpuPortStats(bool getIncrement) const override;
+  CpuPortStats getCpuPortStats() const;
 
   std::map<PortID, FabricEndpoint> getFabricConnectivity() const override;
 
@@ -140,6 +140,8 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
   void cancelOperDeltaSync() override {}
 
   AclStats getAclStats() const override;
+
+  HwSwitchWatermarkStats getSwitchWatermarkStats() const;
 
  private:
   Platform* platform_;

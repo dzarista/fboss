@@ -85,7 +85,8 @@ struct HwPortStats {
   56: optional i64 inAclDiscards_;
   57: optional i64 inTrapDiscards_;
   58: optional i64 outForwardingDiscards_;
-  59: optional i64 fabricConnectivityMismatch;
+  // This mismatch is communicated directly via callback
+  59: optional i64 fabricConnectivityMismatch_DEPRECATED;
 }
 
 struct HwSysPortStats {
@@ -233,20 +234,37 @@ struct TeFlowStats {
 struct FabricReachabilityStats {
   1: i64 mismatchCount;
   2: i64 missingCount;
+  3: i64 virtualDevicesWithAsymmetricConnectivity;
 }
 
 struct HwRxReasonStats {
   1: map<i64, i64> rxReasonStats;
 }
 
+// The deviceWatermarkBytes has been moved from HwBufferPoolStats to
+// HwSwitchWatermarkStats, but retaining the HwBufferPoolStats but
+// will be marked as deprecated everywhere until it has some other
+// stats in it.
 struct HwBufferPoolStats {
+  // Deprecate deviceWatermarkBytes once HwSwitchWatermarkStats is
+  // available in prod!
   1: i64 deviceWatermarkBytes;
 }
 
+struct HwSwitchWatermarkStats {
+  1: optional i64 fdrRciWatermarkBytes;
+  2: optional i64 coreRciWatermarkBytes;
+  3: optional i64 dtlQueueWatermarkBytes;
+  4: i64 deviceWatermarkBytes;
+  5: map<string, i64> globalHeadroomWatermarkBytes;
+  6: map<string, i64> globalSharedWatermarkBytes;
+}
+
 struct CpuPortStats {
-  1: map<i32, i64> queueInPackets_;
-  2: map<i32, i64> queueDiscardPackets_;
-  3: map<i32, string> queueToName_;
+  1: map<i32, i64> queueInPackets_; // TODO: Deprecate this
+  2: map<i32, i64> queueDiscardPackets_; // TODO: Deprecate this
+  3: map<i32, string> queueToName_; // TODO: Deprecate this
+  4: HwPortStats portStats_;
 }
 
 struct HwSwitchDropStats {
@@ -295,6 +313,7 @@ struct HwSwitchFb303GlobalStats {
   21: optional i64 egress_packet_network_interface_errors;
   22: optional i64 aligner_errors;
   23: optional i64 forwarding_queue_processor_errors;
+  24: i64 virtual_devices_with_asymmetric_connectivity;
 }
 
 struct HwFlowletStats {

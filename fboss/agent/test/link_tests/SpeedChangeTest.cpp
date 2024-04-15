@@ -26,7 +26,36 @@ class SpeedChangeTest : public LinkTest {
   std::optional<SpeedAndProfile> getSecondarySpeedAndProfile(
       cfg::PortProfileID profileID) const;
 
- private:
+  void createSecondarySpeedConfig(std::string pathOfNewConfig) {
+    cfg::AgentConfig testConfig = platform()->config()->thrift;
+    auto swConfig = *testConfig.sw();
+    bool speedChanged = false;
+    for (auto& port : *swConfig.ports()) {
+      if (auto speedAndProfile =
+              getSecondarySpeedAndProfile(*port.profileID())) {
+        XLOG(INFO) << folly::sformat(
+            "Changing speed and profile on port {:s} from speed={:s},profile={:s} to speed={:s},profile={:s}",
+            port.name().ensure(),
+            apache::thrift::util::enumName(*port.speed()),
+            apache::thrift::util::enumName(*port.profileID()),
+            apache::thrift::util::enumName(speedAndProfile->speed),
+            apache::thrift::util::enumName(speedAndProfile->profileID));
+        port.speed() = speedAndProfile->speed;
+        port.profileID() = speedAndProfile->profileID;
+        speedChanged = true;
+      }
+    }
+    CHECK(speedChanged);
+    *testConfig.sw() = swConfig;
+
+    // Dump the new config to the config file
+    auto newCfg = AgentConfig(
+        testConfig,
+        apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+            testConfig));
+    newCfg.dumpConfig(pathOfNewConfig);
+  }
+
   std::string originalConfigCopy;
 };
 
@@ -90,33 +119,7 @@ std::optional<SpeedAndProfile> SpeedChangeTest::getSecondarySpeedAndProfile(
 TEST_F(SpeedChangeTest, secondarySpeed) {
   auto speedChangeSetup = [this]() {
     // Create a new config with secondary speed
-    cfg::AgentConfig testConfig = platform()->config()->thrift;
-    auto swConfig = *testConfig.sw();
-    bool speedChanged = false;
-    for (auto& port : *swConfig.ports()) {
-      if (auto speedAndProfile =
-              getSecondarySpeedAndProfile(*port.profileID())) {
-        XLOG(INFO) << folly::sformat(
-            "Changing speed and profile on port {:s} from speed={:s},profile={:s} to speed={:s},profile={:s}",
-            *port.name(),
-            apache::thrift::util::enumName(*port.speed()),
-            apache::thrift::util::enumName(*port.profileID()),
-            apache::thrift::util::enumName(speedAndProfile->speed),
-            apache::thrift::util::enumName(speedAndProfile->profileID));
-        port.speed() = speedAndProfile->speed;
-        port.profileID() = speedAndProfile->profileID;
-        speedChanged = true;
-      }
-    }
-    CHECK(speedChanged);
-    *testConfig.sw() = swConfig;
-
-    // Dump the new config to the config file
-    auto newcfg = AgentConfig(
-        testConfig,
-        apache::thrift::SimpleJSONSerializer::serialize<std::string>(
-            testConfig));
-    newcfg.dumpConfig(FLAGS_config);
+    createSecondarySpeedConfig(FLAGS_config);
 
     // Apply the new config
     sw()->applyConfig("set secondary speeds", true);
@@ -145,6 +148,44 @@ TEST_F(SpeedChangeTest, secondarySpeed) {
             RouterID(0),
             ecmpSizeInSw),
         ecmpSizeInSw);
+  };
+
+  verifyAcrossWarmBoots(speedChangeSetup, speedChangeVerify);
+}
+
+/*
+ * Coldboot Iteration
+ *   - create a new config with changed speeds. Replace the original config
+ * 1st Warmboot Iteration
+ *   - Warm boot with the new config
+ *   - Verify link health
+ *   - Restore the original coldboot config
+ * 2nd Warmboot Iteration
+ *   - Warm boot with the original cold boot config
+ *   - Verify link health
+ */
+TEST_F(SpeedChangeTest, speedChangeActivatedByWb) {
+  auto speedChangeSetup = [this]() {
+    // Create a new config with changed speeds
+    createSecondarySpeedConfig(FLAGS_config);
+    createL3DataplaneFlood();
+  };
+  auto speedChangeVerify = [this]() {
+    /*
+     * Verify the following on all cabled ports
+     * 1. Link comes up at secondary speeds
+     * 2. LLDP neighbor is discovered
+     */
+    EXPECT_NO_THROW(waitForAllCabledPorts(true));
+    checkWithRetry(
+        [this]() { return sendAndCheckReachabilityOnAllCabledPorts(); });
+
+    if (platform()->getHwSwitch()->getBootType() == BootType::WARM_BOOT) {
+      boost::filesystem::copy_file(
+          originalConfigCopy,
+          FLAGS_config,
+          boost::filesystem::copy_option::overwrite_if_exists);
+    }
   };
 
   verifyAcrossWarmBoots(speedChangeSetup, speedChangeVerify);

@@ -43,6 +43,7 @@ constexpr auto kAclName = "flowlet";
 constexpr auto kAclCounterName = "flowletStat";
 constexpr auto kDstIp = "2001::/16";
 const int kMaxLinks = 4;
+const int kEcmpStartId = 200000;
 } // namespace
 
 namespace facebook::fboss {
@@ -51,6 +52,7 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
  protected:
   void SetUp() override {
     FLAGS_flowletSwitchingEnable = true;
+    FLAGS_flowletStatsEnable = true;
     HwLinkStateDependentTest::SetUp();
     ecmpHelper_ = std::make_unique<utility::EcmpSetupAnyNPorts6>(
         getProgrammedState(), RouterID(0));
@@ -59,6 +61,7 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = getDefaultConfig();
     updateFlowletConfigs(cfg);
+    updatePortFlowletConfigName(cfg);
     return cfg;
   }
 
@@ -97,14 +100,7 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
     utility::addMatcher(&cfg, kAclName, matchAction);
   }
 
-  void updateFlowletConfigs(
-      cfg::SwitchConfig& cfg,
-      const int flowletTableSize = kFlowletTableSize1) const {
-    auto flowletCfg =
-        getFlowletSwitchingConfig(kInactivityIntervalUsecs1, flowletTableSize);
-    cfg.flowletSwitchingConfig() = flowletCfg;
-    updatePortFlowletConfigs(cfg, kScalingFactor1, kLoadWeight1, kQueueWeight1);
-
+  void updatePortFlowletConfigName(cfg::SwitchConfig& cfg) const {
     auto allPorts = masterLogicalInterfacePortIds();
     std::vector<PortID> ports(
         allPorts.begin(), allPorts.begin() + allPorts.size());
@@ -112,6 +108,15 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
       auto portCfg = utility::findCfgPort(cfg, portId);
       portCfg->flowletConfigName() = "default";
     }
+  }
+
+  void updateFlowletConfigs(
+      cfg::SwitchConfig& cfg,
+      const int flowletTableSize = kFlowletTableSize1) const {
+    auto flowletCfg =
+        getFlowletSwitchingConfig(kInactivityIntervalUsecs1, flowletTableSize);
+    cfg.flowletSwitchingConfig() = flowletCfg;
+    updatePortFlowletConfigs(cfg, kScalingFactor1, kLoadWeight1, kQueueWeight1);
     addFlowletAcl(cfg);
   }
 
@@ -291,6 +296,62 @@ class HwFlowletSwitchingTest : public HwLinkStateDependentTest {
         true));
   }
 
+  void validateEcmpDetails(const cfg::FlowletSwitchingConfig& flowletCfg) {
+    auto ecmpDetails = getHwSwitch()->getAllEcmpDetails();
+    CHECK_EQ(ecmpDetails.size(), 1);
+    for (const auto& entry : ecmpDetails) {
+      CHECK_GE(*(entry.ecmpId()), kEcmpStartId);
+      if (*flowletCfg.flowletTableSize() > 0) {
+        EXPECT_TRUE(*(entry.flowletEnabled()));
+      }
+    }
+  }
+
+  void verifySkipEcmpConfig(
+      const cfg::SwitchConfig& cfg,
+      bool expectFlowsetSizeZero = false) {
+    // Port flowlet config is not present in the config
+    // verify that ports are not programmed with port flowlet config in TH4
+    auto portFlowletConfig = getPortFlowletConfig(
+        kDefaultScalingFactor, kDefaultLoadWeight, kDefaultQueueWeight);
+    verifyPortFlowletConfig(portFlowletConfig);
+
+    EXPECT_TRUE(utility::validateFlowletSwitchingEnabled(
+        getHwSwitch(), *cfg.flowletSwitchingConfig()));
+
+    if (getHwSwitch()->getPlatform()->getAsic()->isSupported(
+            HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES)) {
+      // verify the flowlet config is programmed in ECMP for TH4
+      EXPECT_TRUE(utility::verifyEcmpForFlowletSwitching(
+          getHwSwitch(),
+          kAddr1Prefix,
+          *cfg.flowletSwitchingConfig(),
+          portFlowletConfig,
+          true,
+          expectFlowsetSizeZero));
+    } else {
+      // verify the flowlet config is not programmed in ECMP for TH3
+      auto flowletCfg = getFlowletSwitchingConfig(0, 0);
+      EXPECT_TRUE(utility::verifyEcmpForFlowletSwitching(
+          getHwSwitch(),
+          kAddr1Prefix,
+          flowletCfg,
+          portFlowletConfig,
+          false,
+          true));
+    }
+
+    utility::checkSwHwAclMatch(getHwSwitch(), getProgrammedState(), kAclName);
+    std::vector<cfg::CounterType> counterTypes{
+        cfg::CounterType::PACKETS, cfg::CounterType::BYTES};
+    utility::checkAclStat(
+        getHwSwitch(),
+        getProgrammedState(),
+        {kAclName},
+        kAclCounterName,
+        counterTypes);
+  }
+
   std::unique_ptr<utility::EcmpSetupAnyNPorts<folly::IPAddressV6>> ecmpHelper_;
 };
 
@@ -316,6 +377,7 @@ class HwFlowletSwitchingFlowsetTests : public HwFlowletSwitchingTest {
     auto cfg = getDefaultConfig();
     // go one higher than max allowed
     updateFlowletConfigs(cfg, utility::KMaxFlowsetTableSize + 1);
+    updatePortFlowletConfigName(cfg);
     return cfg;
   }
 };
@@ -378,6 +440,7 @@ class HwFlowletSwitchingFlowsetMultipleEcmpTests
     // just enough on flowset to succeed for first ECMP group, but fail for
     // others
     updateFlowletConfigs(cfg, utility::KMaxFlowsetTableSize);
+    updatePortFlowletConfigName(cfg);
     return cfg;
   }
 };
@@ -554,6 +617,46 @@ TEST_F(HwFlowletSwitchingTest, VerifyFlowletConfigRemoval) {
   verifyAcrossWarmBoots(setup, verify);
 }
 
+TEST_F(HwFlowletSwitchingTest, VerifyGetEcmpDetails) {
+  if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+    return;
+  }
+
+  auto setup = [&]() { resolveNextHopsAddRoute(kMaxLinks); };
+
+  auto verify = [&]() {
+    auto cfg = initialConfig();
+    verifyConfig(cfg);
+
+    // start a new thread to verify the ecmp details
+    std::atomic<bool> done{false};
+    auto flowletCfg = *cfg.flowletSwitchingConfig();
+    std::thread ecmpDetails([&flowletCfg, &done, this]() {
+      while (!done) {
+        validateEcmpDetails(flowletCfg);
+      }
+    });
+
+    // Modify the flowlet config
+    modifyFlowletSwitchingConfig(cfg);
+    // Modify the port flowlet config
+    updatePortFlowletConfigs(cfg, kScalingFactor2, kLoadWeight2, kQueueWeight2);
+    applyNewConfig(cfg);
+    verifyModifiedConfig();
+
+    done = true;
+    ecmpDetails.join();
+
+    // Modify to initial config to verify after warmboot
+    applyNewConfig(initialConfig());
+  };
+
+  verifyAcrossWarmBoots(setup, verify);
+}
+
 TEST_F(HwEcmpFlowletSwitchingTest, VerifyEcmpFlowletSwitchingEnable) {
   if (this->skipTest()) {
 #if defined(GTEST_SKIP)
@@ -570,6 +673,7 @@ TEST_F(HwEcmpFlowletSwitchingTest, VerifyEcmpFlowletSwitchingEnable) {
     auto cfg = initialConfig();
     // Modify the flowlet config to convert ECMP to DLB
     updateFlowletConfigs(cfg);
+    updatePortFlowletConfigName(cfg);
     applyNewConfig(cfg);
     // verify the flowlet config
     verifyConfig(cfg);
@@ -578,6 +682,149 @@ TEST_F(HwEcmpFlowletSwitchingTest, VerifyEcmpFlowletSwitchingEnable) {
     applyNewConfig(cfg);
     // verify removal of flowlet config
     verifyRemoveFlowletConfig();
+  };
+
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwFlowletSwitchingFlowsetMultipleEcmpTests, ValidateEcmpDetailsThread) {
+  if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+    return;
+  }
+
+  auto setup = [&]() {
+    // create 2 different ECMP objects
+    resolveNextHopsAddRoute(
+        {masterLogicalPortIds()[0], masterLogicalPortIds()[1]}, kAddr1);
+    resolveNextHopsAddRoute(
+        {masterLogicalPortIds()[2], masterLogicalPortIds()[3]}, kAddr2);
+  };
+
+  auto verify = [&]() {
+    auto cfg = initialConfig();
+    auto portFlowletConfig =
+        getPortFlowletConfig(kScalingFactor1, kLoadWeight1, kQueueWeight1);
+
+    utility::verifyEcmpForFlowletSwitching(
+        getHwSwitch(),
+        kAddr2Prefix, // second route
+        *cfg.flowletSwitchingConfig(),
+        portFlowletConfig,
+        true /* flowletEnable */,
+        true /* expectFlowsetSizeZero */);
+
+    // start a new thread to poll the ecmp details
+    std::atomic<bool> done{false};
+    auto hwSwitch = getHwSwitch();
+    std::thread readEcmpDetails([&hwSwitch, &done]() {
+      while (!done) {
+        auto ecmpDetails = hwSwitch->getAllEcmpDetails();
+      }
+    });
+
+    // remove ECMP object for the first route
+    ecmpHelper_->unprogramRoutes(
+        getRouteUpdater(), {RoutePrefixV6{kAddr1, 64}});
+
+    utility::verifyEcmpForFlowletSwitching(
+        getHwSwitch(),
+        kAddr2Prefix,
+        *cfg.flowletSwitchingConfig(),
+        portFlowletConfig,
+        true /* flowletEnable */,
+        false /* expectFlowsetSizeZero */);
+
+    done = true;
+    readEcmpDetails.join();
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwFlowletSwitchingFlowsetMultipleEcmpTests, ValidateFlowletStatsThread) {
+  if (this->skipTest() ||
+      (getPlatform()->getAsic()->getAsicType() ==
+       cfg::AsicType::ASIC_TYPE_FAKE)) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+    return;
+  }
+
+  auto setup = [&]() {
+    // create 2 different ECMP objects
+    resolveNextHopsAddRoute(
+        {masterLogicalPortIds()[0], masterLogicalPortIds()[1]}, kAddr1);
+    resolveNextHopsAddRoute(
+        {masterLogicalPortIds()[2], masterLogicalPortIds()[3]}, kAddr2);
+  };
+
+  auto verify = [&]() {
+    auto cfg = initialConfig();
+    auto portFlowletConfig =
+        getPortFlowletConfig(kScalingFactor1, kLoadWeight1, kQueueWeight1);
+
+    utility::verifyEcmpForFlowletSwitching(
+        getHwSwitch(),
+        kAddr2Prefix, // second route
+        *cfg.flowletSwitchingConfig(),
+        portFlowletConfig,
+        true /* flowletEnable */,
+        true /* expectFlowsetSizeZero */);
+
+    // start a new thread to poll the flowlet stats
+    std::atomic<bool> done{false};
+    auto hwSwitch = getHwSwitch();
+    std::thread readFlowletStats([&hwSwitch, &done]() {
+      while (!done) {
+        auto l3EcmpDlbFailPackets =
+            hwSwitch->getHwFlowletStats().l3EcmpDlbFailPackets().value();
+        EXPECT_EQ(l3EcmpDlbFailPackets, 0);
+      }
+    });
+
+    // remove ECMP object for the first route
+    ecmpHelper_->unprogramRoutes(
+        getRouteUpdater(), {RoutePrefixV6{kAddr1, 64}});
+
+    utility::verifyEcmpForFlowletSwitching(
+        getHwSwitch(),
+        kAddr2Prefix,
+        *cfg.flowletSwitchingConfig(),
+        portFlowletConfig,
+        true /* flowletEnable */,
+        false /* expectFlowsetSizeZero */);
+
+    done = true;
+    readFlowletStats.join();
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(HwEcmpFlowletSwitchingTest, VerifySkipEcmpFlowletSwitchingEnable) {
+  if (this->skipTest()) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+    return;
+  }
+
+  // This test setup static ECMP and update the static ECMP to DLB
+  // without port flowlet config and verify it
+  auto setup = [&]() { resolveNextHopsAddRoute(kMaxLinks); };
+
+  auto verify = [&]() {
+    auto cfg = initialConfig();
+    // Modify the flowlet config to convert ECMP to DLB
+    // without the flowlet port config
+    updateFlowletConfigs(cfg);
+    applyNewConfig(cfg);
+    // verify the flowlet config is not programmed in ECMP for TH3
+    // since egress is not updated with port flowlet config
+    // and the flowlet config is programmed in ECMP for TH4
+    verifySkipEcmpConfig(cfg);
   };
 
   verifyAcrossWarmBoots(setup, verify);
