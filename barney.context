@@ -2,7 +2,7 @@
 	"version": 1,
         "repomap": {
             "barney.ci/barneyfile": {
-               "commit": "dd176b8fa16eccfa8fa53443c5df5fd5f2e61354"
+               "commit": "2e4eff29e739077a2518d827d7b1cdcc5d27b967"
             },
             "github.com/aristanetworks/fboss-centos": {
                "commit": "d8ac18a95ef11ce829fe026875e05043702079e3"
@@ -11,10 +11,10 @@
                "commit": "ff15bb8327b4e8436e135b626cd356b713860c05"
             },
             "code.arista.io/infra/barney/barnzilla": {
-               "commit": "9024a31a41549817e41d8132191aeaa86b516498"
+               "commit": "b71b51707e0289a57167d82912725f8223fe9de0"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "f75520969bacd3cf1b75c8c7405a9f2dab796149"
+               "commit": "77d18d9aa40764a44b701d29789056634e2565ef"
             },
             "barney.ci/alpine": {
                "commit": "fb1ae6f324425a5f9260d60d7cc113146bb97913"
