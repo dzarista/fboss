@@ -19,7 +19,7 @@ add_library(copp_test_utils
 )
 
 target_link_libraries(copp_test_utils
-  common_test_utils
+  asic_test_utils
   Folly::folly
   hw_switch
   load_balancer_test_utils
@@ -98,7 +98,7 @@ add_library(config_utils
 
 target_link_libraries(config_utils
   agent_features
-  common_test_utils
+  asic_test_utils
   fboss_types
   Folly::folly
   platform_mapping
@@ -106,11 +106,11 @@ target_link_libraries(config_utils
   test_ensemble_if
 )
 
-add_library(common_test_utils
-  fboss/agent/test/utils/CommonUtils.cpp
+add_library(asic_test_utils
+  fboss/agent/test/utils/AsicUtils.cpp
 )
 
-target_link_libraries(common_test_utils
+target_link_libraries(asic_test_utils
   core
   switch_asics
 )
@@ -121,7 +121,7 @@ add_library(qos_test_utils
 )
 
 target_link_libraries(qos_test_utils
-  common_test_utils
+  asic_test_utils
   ecmp_helper
   fboss_types
   switch_asics
@@ -135,7 +135,7 @@ add_library(queue_per_host_test_utils
 )
 
 target_link_libraries(queue_per_host_test_utils
-  common_test_utils
+  asic_test_utils
   acl_test_utils
   common_utils
   config_utils
@@ -195,7 +195,9 @@ add_library(trap_packet_utils
 target_link_libraries(trap_packet_utils
   fboss_types
   Folly::folly
+  platform_config_cpp2
   switch_config_cpp2
+  switch_state_cpp2
 )
 
 add_library(stats_test_utils
@@ -289,4 +291,13 @@ add_library(agent_hw_test_constants
 
 target_link_libraries(agent_hw_test_constants
   mpls_cpp2
+)
+
+add_library(scale_test_utils
+  fboss/agent/test/utils/ScaleTestUtils.cpp
+)
+
+target_link_libraries(scale_test_utils
+  core
+  switch_asics
 )

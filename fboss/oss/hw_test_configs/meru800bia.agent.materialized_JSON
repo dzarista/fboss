@@ -3,6 +3,7 @@
     "check_wb_handles": "true",
     "counter_refresh_interval": "0",
     "intf_nbr_tables": "true",
+    "log_variable_name": "true",
     "skip_transceiver_programming": "true"
   },
   "sw": {
@@ -140,7 +141,7 @@
             },
             "systemPortRange": {
               "minimum": 100,
-              "maximum": 140
+              "maximum": 160
             },
             "switchMac": "02:00:00:00:00:01",
             "connectionHandle": "15:00"
@@ -164,7 +165,7 @@
           ],
           "systemPortRange": {
             "minimum": 100,
-            "maximum": 140
+            "maximum": 160
           },
           "nodeMac": "02:00:00:00:0F:0B",
           "asicType": 14,

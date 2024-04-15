@@ -30,10 +30,17 @@ using namespace facebook::fboss::fsdb;
 
 // TODO: templatize test cases
 using TestSubscribableStorage = NaivePeriodicSubscribableCowStorage<TestStruct>;
+using TestStructMembers = apache::thrift::reflect_struct<TestStruct>::member;
 
 dynamic createTestDynamic() {
-  return dynamic::object("tx", true)(
-      "rx", false)("name", "testname")("optionalString", "bla")("enumeration", 1)("enumMap", dynamic::object)("member", dynamic::object("min", 10)("max", 20))("variantMember", dynamic::object("integral", 99))("structMap", dynamic::object(3, dynamic::object("min", 100)("max", 200)))("structList", dynamic::array())("enumSet", dynamic::array())("integralSet", dynamic::array())("mapOfStringToI32", dynamic::object())("listOfPrimitives", dynamic::array())("setOfI32", dynamic::array());
+  return dynamic::object("tx", true)("rx", false)("name", "testname")(
+      "optionalString", "bla")("enumeration", 1)("enumMap", dynamic::object)(
+      "member", dynamic::object("min", 10)("max", 20))(
+      "variantMember", dynamic::object("integral", 99))(
+      "structMap", dynamic::object(3, dynamic::object("min", 100)("max", 200)))(
+      "structList", dynamic::array())("enumSet", dynamic::array())(
+      "integralSet", dynamic::array())("mapOfStringToI32", dynamic::object())(
+      "listOfPrimitives", dynamic::array())("setOfI32", dynamic::array());
 }
 
 TestStruct createTestStructForExtendedTests() {
@@ -59,16 +66,27 @@ folly::coro::Task<typename Gen::value_type> consumeOne(Gen& generator) {
 
 } // namespace
 
-TEST(SubscribableStorageTests, GetThrift) {
-  using namespace facebook::fboss::fsdb;
+class SubscribableStorageTests : public Test, public WithParamInterface<bool> {
+ public:
+  void SetUp() override {
+    FLAGS_lazyPathStoreCreation = GetParam();
+    auto testDyn = createTestDynamic();
+    testStruct = facebook::thrift::from_dynamic<TestStruct>(
+        testDyn, facebook::thrift::dynamic_format::JSON_1);
+  }
 
+ protected:
   thriftpath::RootThriftPath<TestStruct> root;
+  TestStruct testStruct;
+};
 
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
+INSTANTIATE_TEST_SUITE_P(
+    SubscribableStorageTest,
+    SubscribableStorageTests,
+    Bool());
+
+TEST_P(SubscribableStorageTests, GetThrift) {
   auto storage = TestSubscribableStorage(testStruct);
-
   EXPECT_EQ(storage.get(root.tx()).value(), true);
   EXPECT_EQ(storage.get(root.rx()).value(), false);
   EXPECT_EQ(storage.get(root.member()).value(), testStruct.member().value());
@@ -77,16 +95,8 @@ TEST(SubscribableStorageTests, GetThrift) {
   EXPECT_EQ(storage.get(root).value(), testStruct);
 }
 
-TEST(SubscribableStorageTests, SubscribeUnsubscribe) {
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
+TEST_P(SubscribableStorageTests, SubscribeUnsubscribe) {
   auto storage = TestSubscribableStorage(testStruct);
-
   auto txPath = root.tx();
   storage.start();
   {
@@ -96,14 +106,7 @@ TEST(SubscribableStorageTests, SubscribeUnsubscribe) {
   WITH_RETRIES(EXPECT_EVENTUALLY_EQ(storage.numSubscriptions(), 0));
 }
 
-TEST(SubscribableStorageTests, SubscribeOne) {
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
+TEST_P(SubscribableStorageTests, SubscribeOne) {
   auto storage = TestSubscribableStorage(testStruct);
   storage.setConvertToIDPaths(true);
 
@@ -122,17 +125,9 @@ TEST(SubscribableStorageTests, SubscribeOne) {
   EXPECT_EQ(deltaVal.newVal, false);
 }
 
-TEST(SubscribableStorageTests, SubscribePathAddRemoveParent) {
+TEST_P(SubscribableStorageTests, SubscribePathAddRemoveParent) {
   // add subscription for a path that doesn't exist yet, then add parent
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
-
   auto path = root.structMap()[99].min();
   auto generator = storage.subscribe(kSubscriber, std::move(path));
   storage.start();
@@ -156,15 +151,8 @@ TEST(SubscribableStorageTests, SubscribePathAddRemoveParent) {
   EXPECT_EQ(deltaVal.newVal, std::nullopt);
 }
 
-TEST(SubscribableStorageTests, SubscribeDelta) {
-  using namespace facebook::fboss::fsdb;
-
+TEST_P(SubscribableStorageTests, SubscribeDelta) {
   FLAGS_serveHeartbeats = true;
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
 
   auto generator =
@@ -198,14 +186,7 @@ TEST(SubscribableStorageTests, SubscribeDelta) {
   EXPECT_EQ(deltaVal.changes()->size(), 0);
 }
 
-TEST(SubscribableStorageTests, SubscribeDeltaUpdate) {
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
+TEST_P(SubscribableStorageTests, SubscribeDeltaUpdate) {
   auto storage = TestSubscribableStorage(testStruct);
   storage.start();
 
@@ -238,17 +219,9 @@ TEST(SubscribableStorageTests, SubscribeDeltaUpdate) {
   EXPECT_TRUE(second.newState());
 }
 
-TEST(SubscribableStorageTests, SubscribeDeltaAddRemoveParent) {
+TEST_P(SubscribableStorageTests, SubscribeDeltaAddRemoveParent) {
   // add subscription for a path that doesn't exist yet, then add parent
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
-
   auto path = root.structMap()[99].min();
   auto generator = storage.subscribe_delta(
       kSubscriber, std::move(path), OperProtocol::SIMPLE_JSON);
@@ -288,14 +261,8 @@ TEST(SubscribableStorageTests, SubscribeDeltaAddRemoveParent) {
   EXPECT_EQ(folly::to<int>(*first.oldState()), 999);
 }
 
-TEST(SubscribableStorageTests, SubscribeEncodedPathSimple) {
-  using namespace facebook::fboss::fsdb;
+TEST_P(SubscribableStorageTests, SubscribeEncodedPathSimple) {
   FLAGS_serveHeartbeats = true;
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
 
   const auto& path = root.stringToStruct()["test"].max();
@@ -325,19 +292,17 @@ TEST(SubscribableStorageTests, SubscribeEncodedPathSimple) {
   EXPECT_EQ(deltaState.newVal->isHeartbeat(), true);
 }
 
-TEST(SubscribableStorageTests, SubscribeExtendedPathSimple) {
+TEST_P(SubscribableStorageTests, SubscribeExtendedPathSimple) {
   // add subscription for a path that doesn't exist yet, then add parent
-  using namespace facebook::fboss::fsdb;
-
   FLAGS_serveHeartbeats = true;
-  thriftpath::RootThriftPath<TestStruct> root;
 
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
+  storage.setConvertToIDPaths(true);
 
-  auto path = ext_path_builder::raw("mapOfStringToI32").regex("test1.*").get();
+  auto path =
+      ext_path_builder::raw(TestStructMembers::mapOfStringToI32::id::value)
+          .regex("test1.*")
+          .get();
   auto generator = storage.subscribe_encoded_extended(
       kSubscriber, {path}, OperProtocol::SIMPLE_JSON);
   storage.start();
@@ -358,7 +323,10 @@ TEST(SubscribableStorageTests, SubscribeExtendedPathSimple) {
 
   EXPECT_THAT(
       *newVal->path()->path(),
-      ::testing::ElementsAre("mapOfStringToI32", "test1"));
+      ::testing::ElementsAre(
+          folly::to<std::string>(
+              TestStructMembers::mapOfStringToI32::id::value),
+          "test1"));
 
   auto deserialized = facebook::fboss::thrift_cow::
       deserialize<apache::thrift::type_class::integral, int>(
@@ -372,17 +340,9 @@ TEST(SubscribableStorageTests, SubscribeExtendedPathSimple) {
   EXPECT_EQ(taggedVal.size(), 0);
 }
 
-TEST(SubscribableStorageTests, SubscribeExtendedPathMultipleChanges) {
+TEST_P(SubscribableStorageTests, SubscribeExtendedPathMultipleChanges) {
   // add subscription for a path that doesn't exist yet, then add parent
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
-
   auto path = ext_path_builder::raw("mapOfStringToI32").regex("test1.*").get();
   auto generator = storage.subscribe_encoded_extended(
       kSubscriber, {path}, OperProtocol::SIMPLE_JSON);
@@ -428,17 +388,9 @@ TEST(SubscribableStorageTests, SubscribeExtendedPathMultipleChanges) {
   }
 }
 
-TEST(SubscribableStorageTests, SubscribeExtendedDeltaSimple) {
+TEST_P(SubscribableStorageTests, SubscribeExtendedDeltaSimple) {
   // add subscription for a path that doesn't exist yet, then add parent
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
-
   auto path = ext_path_builder::raw("mapOfStringToI32").regex("test1.*").get();
   auto generator = storage.subscribe_delta_extended(
       kSubscriber, {path}, OperProtocol::SIMPLE_JSON);
@@ -470,24 +422,31 @@ TEST(SubscribableStorageTests, SubscribeExtendedDeltaSimple) {
   EXPECT_EQ(deserialized, 998);
 }
 
-class SubscribableStorageTestsPathDelta : public Test,
-                                          public WithParamInterface<bool> {};
+class SubscribableStorageTestsPathDelta
+    : public Test,
+      public WithParamInterface<std::tuple<bool, bool>> {
+ public:
+  void SetUp() override {
+    const std::tuple<bool, bool> params = GetParam();
+    isPath = get<0>(params);
+    FLAGS_lazyPathStoreCreation = get<1>(params);
+    auto testDyn = createTestDynamic();
+    testStruct = facebook::thrift::from_dynamic<TestStruct>(
+        testDyn, facebook::thrift::dynamic_format::JSON_1);
+  }
+
+ protected:
+  thriftpath::RootThriftPath<TestStruct> root;
+  TestStruct testStruct;
+  bool isPath;
+};
 
 INSTANTIATE_TEST_SUITE_P(
     SubscribableStorageTests,
     SubscribableStorageTestsPathDelta,
-    Bool());
+    Combine(Bool(), Bool()));
 
 CO_TEST_P(SubscribableStorageTestsPathDelta, UnregisterSubscriber) {
-  using namespace facebook::fboss::fsdb;
-
-  const bool isPath = GetParam();
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
   storage.start();
 
@@ -524,15 +483,6 @@ CO_TEST_P(SubscribableStorageTestsPathDelta, UnregisterSubscriber) {
 }
 
 CO_TEST_P(SubscribableStorageTestsPathDelta, UnregisterSubscriberMulti) {
-  using namespace facebook::fboss::fsdb;
-
-  const bool isPath = GetParam();
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
   storage.start();
 
@@ -581,14 +531,7 @@ CO_TEST_P(SubscribableStorageTestsPathDelta, UnregisterSubscriberMulti) {
   co_return;
 }
 
-CO_TEST(SubscribableStorageTests, SubscribeExtendedDeltaUpdate) {
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
+CO_TEST_P(SubscribableStorageTests, SubscribeExtendedDeltaUpdate) {
   auto storage = TestSubscribableStorage(testStruct);
   storage.start();
 
@@ -610,17 +553,9 @@ CO_TEST(SubscribableStorageTests, SubscribeExtendedDeltaUpdate) {
   EXPECT_FALSE(ret.hasException());
 }
 
-TEST(SubscribableStorageTests, SubscribeExtendedDeltaMultipleChanges) {
+TEST_P(SubscribableStorageTests, SubscribeExtendedDeltaMultipleChanges) {
   // add subscription for a path that doesn't exist yet, then add parent
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
-
   auto path = ext_path_builder::raw("mapOfStringToI32").regex("test1.*").get();
   auto generator = storage.subscribe_delta_extended(
       kSubscriber, {path}, OperProtocol::SIMPLE_JSON);
@@ -668,17 +603,9 @@ TEST(SubscribableStorageTests, SubscribeExtendedDeltaMultipleChanges) {
   }
 }
 
-TEST(SubscribableStorageTests, SetPatchWithPathSpec) {
+TEST_P(SubscribableStorageTests, SetPatchWithPathSpec) {
   // test set/patch on different path spec
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
-
   TestStructSimple newStruct;
   newStruct.min() = 999;
   newStruct.max() = 1001;
@@ -760,17 +687,9 @@ TEST(SubscribableStorageTests, SetPatchWithPathSpec) {
 
 // Similar test to SetPatchWithPathSpec except we are testing patching
 // TaggedOperState
-TEST(SubscribableStorageTests, SetPatchWithPathSpecOnTaggedState) {
+TEST_P(SubscribableStorageTests, SetPatchWithPathSpecOnTaggedState) {
   // test set/patch on different path spec
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
-
   TestStructSimple newStruct;
   newStruct.min() = 999;
   newStruct.max() = 1001;
@@ -839,17 +758,9 @@ TEST(SubscribableStorageTests, SetPatchWithPathSpecOnTaggedState) {
   }
 }
 
-TEST(SubscribableStorageTests, PruneSubscriptionPathStores) {
+TEST_P(SubscribableStorageTests, PruneSubscriptionPathStores) {
   // add and remove paths, and verify PathStores are pruned
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
-
   TestStructSimple newStruct;
   newStruct.min() = 999;
   newStruct.max() = 1001;
@@ -879,7 +790,13 @@ TEST(SubscribableStorageTests, PruneSubscriptionPathStores) {
 
   auto maxNumPathStores = storage.numPathStores();
   XLOG(DBG2) << "maxNumPathStores: " << maxNumPathStores;
-  EXPECT_GT(maxNumPathStores, initialNumPathStores);
+  if (FLAGS_lazyPathStoreCreation) {
+    // with lazy PathStore creation, numPathStores should not change
+    // for exact subscriptions when adding/deleting paths.
+    EXPECT_EQ(maxNumPathStores, initialNumPathStores);
+  } else {
+    EXPECT_GT(maxNumPathStores, initialNumPathStores);
+  }
 
   // now delete the added path
   storage.remove(root.structMap()[99]);
@@ -891,17 +808,16 @@ TEST(SubscribableStorageTests, PruneSubscriptionPathStores) {
   // after path deletion, numPathStores should drop
   auto finalNumPathStores = storage.numPathStores();
   XLOG(DBG2) << "finalNumPathStores : " << finalNumPathStores;
-  EXPECT_LT(finalNumPathStores, maxNumPathStores);
+  if (FLAGS_lazyPathStoreCreation) {
+    EXPECT_EQ(finalNumPathStores, maxNumPathStores);
+  } else {
+    EXPECT_LT(finalNumPathStores, maxNumPathStores);
+  }
   EXPECT_EQ(finalNumPathStores, initialNumPathStores);
 }
 
-TEST(SubscribableStorageTests, ApplyPatch) {
-  using namespace facebook::fboss::fsdb;
+TEST_P(SubscribableStorageTests, ApplyPatch) {
   using namespace facebook::fboss::thrift_cow;
-  thriftpath::RootThriftPath<TestStruct> root;
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
   auto storage = TestSubscribableStorage(testStruct);
 
   TestStructSimple curStruct = *testStruct.member();
@@ -930,14 +846,7 @@ TEST(SubscribableStorageTests, ApplyPatch) {
   EXPECT_EQ(*memberStruct->max(), 1001);
 }
 
-TEST(SubscribableStorageTests, PatchInvalidDeltaPath) {
-  using namespace facebook::fboss::fsdb;
-
-  thriftpath::RootThriftPath<TestStruct> root;
-
-  auto testDyn = createTestDynamic();
-  auto testStruct = facebook::thrift::from_dynamic<TestStruct>(
-      testDyn, facebook::thrift::dynamic_format::JSON_1);
+TEST_P(SubscribableStorageTests, PatchInvalidDeltaPath) {
   auto storage = TestSubscribableStorage(testStruct);
   TestStructSimple newStruct;
 

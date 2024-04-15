@@ -3180,34 +3180,28 @@
           "test_name_regex": "HwInDiscardsCounterTest.*"
         },
         {
-          "test_name_regex": "HwAclStatTest/[01].*"
+          "test_name_regex": "HwAclStatTest/[01].AclStatChangeCounterType"
         },
         {
           "test_name_regex": "SaiAclTableGroupTest.*"
         },
         {
-          "test_name_regex": "HwAclQualifierTest/[01].*"
-        },
-        {
           "test_name_regex": "SaiAclTableGroupTrafficTest/[01].*"
         },
         {
-          "test_name_regex": "HwAclCounterTest/[01].*"
-        },
-        {
-          "test_name_regex": "HwAclMatchActionsTest/[01].*"
-        },
-        {
-          "test_name_regex": "HwAclPriorityTest/[01].*"
-        },
-        {
-          "test_name_regex": "HwVoqSwitchTest.AclQualifiersWithCounter"
-        },
-        {
-          "test_name_regex": "SaiAclTableRecreateTests.*"
-        },
-        {
           "test_name_regex": "HwResourceStatsTest/[01].aclStats"
+        },
+        {
+          "test_name_regex": "HwAclQualifierTest/[01].*Tcp*"
+        },
+        {
+          "test_name_regex": "HwAclQualifierTest/[01].*Icmp*"
+        },
+        {
+          "test_name_regex": "HwAclQualifierTest/[01].*AclModifyQualifier"
+        },
+        {
+          "test_name_regex": "HwAclCounterTest/[01].*"
         },
         {
           "test_name_regex": "HwSflowMirrorTest.*"
@@ -3255,12 +3249,6 @@
           "test_name_regex": "HwCoppTest/1.*"
         },
         {
-          "test_name_regex": "HwCoppTest/0.DHCPv6SolicitToMidPriQ"
-        },
-        {
-          "test_name_regex": "HwCoppTest/0.DhcpPacketToMidPriQ"
-        },
-        {
           "test_name_regex": "HwCoppTest/0.VerifyCoppPpsLowPri"
         },
         {
@@ -3270,22 +3258,10 @@
           "test_name_regex": "HwCoppTest/0.DstIpNetworkControlDscpToHighPriQ"
         },
         {
-          "test_name_regex": "HwCoppTest/0.Ipv6LinkLocal.*"
-        },
-        {
           "test_name_regex": "HwCoppTest/0.L3MTUErrorToLowPriQ"
         },
         {
           "test_name_regex": "HwWatermarkTest.VerifyQueueWatermarkAccuracy"
-        },
-        {
-          "test_name_regex": "HwVoqSwitchTest.rxPacketToCpu.*"
-        },
-        {
-          "test_name_regex": "HwVoqSwitchTest.trapPktsOnPort"
-        },
-        {
-          "test_name_regex": "HwDscpQueueMappingTest.VerifyAclAndQosMap"
         },
         {
           "test_name_regex": "HwWideEcmpTest.*"
@@ -10436,6 +10412,12 @@
         },
         {
           "test_name_regex": "HwCoppTest/[01].CpuPortIpv6LinkLocalUcastIp"
+        },
+        {
+          "test_name_regex": "HwMacLearningTest.VerifyHwLearningForPort"
+        },
+        {
+          "test_name_regex": "HwMacLearningTest.VerifyHwLearningForTrunk"
         }
     ],
     "leaba/1.68.0/1.68.0/graphene200/simulator": [
@@ -11418,6 +11400,12 @@
         },
         {
           "test_name_regex": "HwCoppTest/[01].CpuPortIpv6LinkLocalUcastIp"
+        },
+        {
+          "test_name_regex": "HwMacLearningTest.VerifyHwLearningForPort"
+        },
+        {
+          "test_name_regex": "HwMacLearningTest.VerifyHwLearningForTrunk"
         },
         {
           "test_name_regex": "HwLabelEdgeRouteTest.*$"
