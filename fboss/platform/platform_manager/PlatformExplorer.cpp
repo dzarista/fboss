@@ -224,8 +224,8 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
     */
     if ((platformConfig_.platformName().value() == "meru800bfa" ||
          platformConfig_.platformName().value() == "meru800bia") &&
-        (!(idpromConfig.busName()->starts_with("INCOMING")) &&
-         *idpromConfig.address() == "0x50")) {
+        (idpromConfig.busName()->rfind("INCOMING", 0) != 0) &&
+         *idpromConfig.address() == "0x50") {
       try {
         std::string eepromDir = "/run/devmap/eeproms/";
         std::string eepromName = "MERU_SCM_EEPROM";
