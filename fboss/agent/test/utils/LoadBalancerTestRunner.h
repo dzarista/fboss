@@ -243,6 +243,20 @@ class HwLoadBalancerTestRunner {
         XLOG(INFO) << " L3 ECMP Dlb fail packets: " << l3EcmpDlbFailPackets;
         // verfiy the Dlb fail packets is zero
         EXPECT_EQ(l3EcmpDlbFailPackets, 0);
+
+        auto cfg = getEnsemble()->getCurrentConfig();
+        utility::addFlowletConfigs(
+            cfg,
+            getMasterLogicalPortIds(),
+            cfg::SwitchingMode::PER_PACKET_QUALITY);
+        getEnsemble()->applyNewConfig(cfg);
+        setEcmpMemberStatus(getEnsemble());
+        helper_->pumpTrafficPortAndVerifyLoadBalanced(
+            ecmpWidth,
+            loopThroughFrontPanel,
+            weights,
+            deviation,
+            loadBalanceExpected);
       }
     };
 

@@ -459,4 +459,151 @@ TEST_F(FabricConnectivityManagerTest, validateConnectivityDelta) {
       PortID(kLocalPortId), endpoint);
   EXPECT_FALSE(delta4.has_value());
 }
+
+TEST_F(FabricConnectivityManagerTest, virtualDeviceToRemoteConnectionGroups) {
+  auto oldState = std::make_shared<SwitchState>();
+  auto newState = std::make_shared<SwitchState>();
+  constexpr auto kRemotePortIdBase = 79;
+  constexpr auto kLocalPortIdBase = 1;
+  constexpr auto kRemoteSwitchIdBase = 10;
+
+  // create port with neighbor connectivity
+  for (auto i = 1; i <= 3; ++i) {
+    std::shared_ptr<Port> swPort = makePort(i);
+    newState->getPorts()->addNode(swPort, getScope(swPort));
+  }
+
+  auto dsfNode10 =
+      makeDsfNode(kRemoteSwitchIdBase, "fdswA", cfg::AsicType::ASIC_TYPE_RAMON);
+  auto dsfNode11 = makeDsfNode(
+      kRemoteSwitchIdBase + 1, "fdswB", cfg::AsicType::ASIC_TYPE_RAMON);
+  auto dsfNodeMap = std::make_shared<MultiSwitchDsfNodeMap>();
+  dsfNodeMap->addNode(dsfNode10, getScope(dsfNode10));
+  dsfNodeMap->addNode(dsfNode11, getScope(dsfNode11));
+  newState->resetDsfNodes(dsfNodeMap);
+  fabricConnectivityManager_->stateUpdated(StateDelta(oldState, newState));
+
+  // 1 port each from each virtual device 2 a remote endpoint
+  for (auto i = 0; i < 2; ++i) {
+    FabricEndpoint endpoint;
+    endpoint.portId() = kRemotePortIdBase + i;
+    endpoint.switchId() = kRemoteSwitchIdBase + i;
+    endpoint.isAttached() = true;
+    fabricConnectivityManager_->processConnectivityInfoForPort(
+        PortID(kLocalPortIdBase + i), endpoint);
+  }
+  auto getVirtualDevice = [](PortID port) { return port == PortID(1) ? 0 : 1; };
+  {
+    /*
+     * VD 0 -> {Port1, switchID 10}
+     * VD 1 -> {Port2, switchID 11}
+     */
+    auto remoteConnectionGroups =
+        fabricConnectivityManager_->getVirtualDeviceToRemoteConnectionGroups(
+            getVirtualDevice);
+    // Symmetric connectivity
+    EXPECT_EQ(
+        FabricConnectivityManager::virtualDevicesWithAsymmetricConnectivity(
+            remoteConnectionGroups),
+        0);
+    EXPECT_EQ(remoteConnectionGroups.size(), 2);
+    const auto& connectionGroupDevice0 = remoteConnectionGroups.find(0)->second;
+    EXPECT_EQ(connectionGroupDevice0.size(), 1);
+    auto numConnectionsDevice0 = connectionGroupDevice0.begin()->first;
+    EXPECT_EQ(numConnectionsDevice0, 1);
+    auto remoteEndpointDevice0 =
+        *connectionGroupDevice0.begin()->second.begin();
+    EXPECT_EQ(
+        remoteEndpointDevice0.connectingPorts(),
+        std::vector<std::string>({"port1"}));
+    const auto& connectionGroupDevice1 = remoteConnectionGroups.find(1)->second;
+    auto remoteEndpointDevice1 =
+        *connectionGroupDevice1.begin()->second.begin();
+    EXPECT_EQ(
+        remoteEndpointDevice1.connectingPorts(),
+        std::vector<std::string>({"port2"}));
+  }
+  // Add endpoint reachability of port 3
+  FabricEndpoint endpoint;
+  endpoint.portId() = kRemotePortIdBase + 1;
+  endpoint.switchId() = kRemoteSwitchIdBase + 1;
+  endpoint.isAttached() = true;
+  fabricConnectivityManager_->processConnectivityInfoForPort(
+      PortID(3), endpoint);
+  {
+    /*
+     * VD 0 -> {(Port 1, switchID 10)}
+     * VD 1 -> {(Port2, switchID 11), (Port 3, switchID 11)}
+     */
+    auto remoteConnectionGroups =
+        fabricConnectivityManager_->getVirtualDeviceToRemoteConnectionGroups(
+            getVirtualDevice);
+    // Symmetric connectivity, VD0 has connectivity group of size 1 and
+    // VD1 has connectivity group of size 2. But each VD is still symmetric
+    EXPECT_EQ(
+        FabricConnectivityManager::virtualDevicesWithAsymmetricConnectivity(
+            remoteConnectionGroups),
+        0);
+    EXPECT_EQ(remoteConnectionGroups.size(), 2);
+    const auto& connectionGroupDevice0 = remoteConnectionGroups.find(0)->second;
+    EXPECT_EQ(connectionGroupDevice0.size(), 1);
+    const auto& connectionGroupDevice1 = remoteConnectionGroups.find(1)->second;
+    EXPECT_EQ(connectionGroupDevice1.size(), 1);
+    // 1 connection from virtual device 0 to remote switchId10
+    auto numConnectionsDevice0 = connectionGroupDevice0.begin()->first;
+    EXPECT_EQ(numConnectionsDevice0, 1);
+    auto remoteEndpointDevice0 =
+        *connectionGroupDevice0.begin()->second.begin();
+    EXPECT_EQ(
+        remoteEndpointDevice0.connectingPorts(),
+        std::vector<std::string>({"port1"}));
+    // 2 connection from virtual device 1 to remote switchId11
+    auto numConnectionsDevice1 = connectionGroupDevice1.begin()->first;
+    EXPECT_EQ(numConnectionsDevice1, 2);
+    auto remoteEndpointDevice1 =
+        *connectionGroupDevice1.begin()->second.begin();
+    EXPECT_EQ(
+        remoteEndpointDevice1.connectingPorts(),
+        std::vector<std::string>({"port2", "port3"}));
+  }
+  // Now make all connections map to virtual device 0
+  {
+    /*
+     * VD 0 -> {
+     * 3->(Port 1, switchID 10), (Port2, switchID 11), (Port 3, switchID 11)}
+     */
+    auto getVirtualDevice0 = [](PortID /*port*/) { return 0; };
+    auto remoteConnectionGroups =
+        fabricConnectivityManager_->getVirtualDeviceToRemoteConnectionGroups(
+            getVirtualDevice0);
+    // Asymmetric connectivity, VD0 has connectivity groups of size 1 (to switch
+    // 10) and 2 (to switch11)
+    EXPECT_EQ(
+        FabricConnectivityManager::virtualDevicesWithAsymmetricConnectivity(
+            remoteConnectionGroups),
+        1);
+    EXPECT_EQ(remoteConnectionGroups.size(), 1);
+    // No connectivity from VD 1
+    EXPECT_EQ(remoteConnectionGroups.find(1), remoteConnectionGroups.end());
+    const auto& connectionGroupDevice0 = remoteConnectionGroups.find(0)->second;
+    // Asymmetric connectivity
+    EXPECT_EQ(connectionGroupDevice0.size(), 2);
+    auto connectivityGroupSize1 = connectionGroupDevice0.find(1)->second;
+    // Num remote endpoint == 1
+    EXPECT_EQ(connectivityGroupSize1.size(), 1);
+    auto remoteEndpointGroup1 = *connectivityGroupSize1.begin();
+    EXPECT_EQ(*remoteEndpointGroup1.switchId(), kRemoteSwitchIdBase);
+    EXPECT_EQ(
+        remoteEndpointGroup1.connectingPorts(),
+        std::vector<std::string>({"port1"}));
+    // Num remote endpoint == 2
+    auto connectivityGroupSize2 = connectionGroupDevice0.find(2)->second;
+    EXPECT_EQ(connectivityGroupSize2.size(), 1);
+    auto remoteEndpointGroup2 = *connectivityGroupSize2.begin();
+    EXPECT_EQ(*remoteEndpointGroup2.switchId(), kRemoteSwitchIdBase + 1);
+    EXPECT_EQ(
+        remoteEndpointGroup2.connectingPorts(),
+        std::vector<std::string>({"port2", "port3"}));
+  }
+}
 } // namespace facebook::fboss

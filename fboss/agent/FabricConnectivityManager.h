@@ -3,6 +3,7 @@
 #pragma once
 
 #include <memory>
+#include <ostream>
 #include "fboss/agent/HwSwitchCallback.h"
 #include "fboss/agent/if/gen-cpp2/FbossCtrl.h"
 #include "fboss/agent/if/gen-cpp2/FbossHwCtrl.h"
@@ -17,6 +18,20 @@ class PlatformMapping;
 
 void toAppend(const RemoteEndpoint& endpoint, folly::fbstring* result);
 void toAppend(const RemoteEndpoint& endpoint, std::string* result);
+void toAppend(const FabricEndpoint& endpoint, folly::fbstring* result);
+void toAppend(const FabricEndpoint& endpoint, std::string* result);
+void toAppend(
+    const multiswitch::FabricConnectivityDelta& delta,
+    folly::fbstring* result);
+void toAppend(
+    const multiswitch::FabricConnectivityDelta& delta,
+    std::string* result);
+
+std::ostream& operator<<(std::ostream& os, const RemoteEndpoint& endpoint);
+std::ostream& operator<<(std::ostream& os, const FabricEndpoint& endpoint);
+std::ostream& operator<<(
+    std::ostream& os,
+    const multiswitch::FabricConnectivityDelta& delta);
 
 class FabricConnectivityManager {
   struct CompareRemoteEndpoint {
@@ -43,11 +58,14 @@ class FabricConnectivityManager {
   std::map<int64_t, RemoteConnectionGroups>
   getVirtualDeviceToRemoteConnectionGroups(
       const std::function<int(PortID)>& portToVirtualDevice) const;
+  static int virtualDevicesWithAsymmetricConnectivity(
+      const std::map<int64_t, RemoteConnectionGroups>&
+          virtualDevice2RemoteConnectionGroups);
 
  private:
   void updateExpectedSwitchIdAndPortIdForPort(PortID portID);
 
-  void addPort(const std::shared_ptr<Port>& swPort);
+  void addOrUpdatePort(const std::shared_ptr<Port>& swPort);
   void removePort(const std::shared_ptr<Port>& swPort);
   void updatePorts(const StateDelta& delta);
 
