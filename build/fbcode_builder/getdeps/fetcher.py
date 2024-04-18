@@ -694,7 +694,7 @@ def download_url_to_file_with_progress(url: str, file_name) -> None:
                     url,
                 ]
             )
-            subprocess.run(procargs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.run(procargs, capture_output=True)
             headers = None
 
         elif os.environ.get("GETDEPS_USE_LIBCURL") is not None:
