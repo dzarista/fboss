@@ -6,7 +6,30 @@
   "pwmTransitionValue": 50,
   "pwmLowerThreshold": 24,
   "pwmUpperThreshold": 100,
-  "optics": [],
+  "optics" : [
+    {
+      "opticName" : "qsfp_group_1",
+      "access" : {
+        "accessType" : "ACCESS_TYPE_QSFP"
+      },
+      "portList" : [],
+      "aggregationType" : "OPTIC_AGGREGATION_TYPE_MAX",
+      "tempToPwmMaps" : {
+        "OPTIC_TYPE_800_GENERIC" : {
+          "68" : 31,
+          "69" : 33,
+          "70" : 35,
+          "71" : 36,
+          "72" : 37,
+          "73" : 42,
+          "74" : XX,
+          "75" : XX,
+          "76" : XX,
+          "77" : XX
+        }
+      }
+    }
+  ],
   "sensors": [
     {
       "sensorName": "SMB_BOARD_FRONT_TEMP",

@@ -7,7 +7,30 @@
   "pwmLowerThreshold" : 24,
   "pwmUpperThreshold" : 100,
   "shutdownCmd" : "echo 0xdead > /run/devmap/fpgas/MERU_SCM_CPLD/chassis_power_cycle",
-  "optics" : [],
+  "optics" : [
+    {
+      "opticName" : "qsfp_group_1",
+      "access" : {
+        "accessType" : "ACCESS_TYPE_QSFP"
+      },
+      "portList" : [],
+      "aggregationType" : "OPTIC_AGGREGATION_TYPE_MAX",
+      "tempToPwmMaps" : {
+        "OPTIC_TYPE_800_GENERIC" : {
+          "68" : 27,
+          "69" : 28,
+          "70" : 29,
+          "71" : 30,
+          "72" : 31,
+          "73" : 37,
+          "74" : 43,
+          "75" : 49,
+          "76" : 55,
+          "77" : 61
+        }
+      }
+    }
+  ],
   "sensors" : [
     {
       "sensorName": "SMB_INLET_TEMP",
