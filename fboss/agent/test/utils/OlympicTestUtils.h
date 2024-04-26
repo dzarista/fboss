@@ -115,74 +115,59 @@ constexpr int kNetworkAIHighestQueueId = kNetworkAINCQueueId;
 
 void addNetworkAIQueueConfig(
     cfg::SwitchConfig* config,
-    cfg::StreamType streamType,
-    const HwAsic* hwAsic);
+    cfg::StreamType streamType);
 
-void addOlympicQueueOptionalEcnWredConfigWithSchedulingHelper(
-    cfg::SwitchConfig* config,
-    cfg::StreamType streamType,
-    const HwAsic* asic,
-    bool addWredConfig,
-    bool addEcnConfig,
-    cfg::QueueScheduling schedType);
-void addOlympicQueueConfigWithSchedulingHelper(
-    cfg::SwitchConfig* config,
-    cfg::StreamType streamType,
-    const HwAsic* asic,
-    bool addWredConfig,
-    cfg::QueueScheduling schedType);
 void addOlympicQueueConfig(
     cfg::SwitchConfig* config,
-    cfg::StreamType streamType,
-    const HwAsic* asic,
+    const std::vector<const HwAsic*>& asics,
     bool addWredConfig = false,
     bool addEcnConfig = true);
+
 void addOlympicV2WRRQueueConfig(
     cfg::SwitchConfig* config,
     cfg::StreamType streamType,
-    const HwAsic* asic,
+    const std::vector<const HwAsic*>& asics,
     bool addWredConfig = false);
 void addFswRswAllSPOlympicQueueConfig(
     cfg::SwitchConfig* config,
-    cfg::StreamType streamType,
-    const HwAsic* asic,
+    const std::vector<const HwAsic*>& asics,
     bool addWredConfig = false);
 void addQueueWredDropConfig(
     cfg::SwitchConfig* config,
     cfg::StreamType streamType,
-    const HwAsic* asic);
+    const std::vector<const HwAsic*>& asics);
 
 void addQosMapsHelper(
     cfg::SwitchConfig& cfg,
     const std::map<int, std::vector<uint8_t>>& queueToDscpMap,
     const std::string& qosPolicyName,
-    const HwAsic* hwAsic);
-void addOlympicQosMaps(cfg::SwitchConfig& cfg, const HwAsic* hwAsic);
+    const std::vector<const HwAsic*>& asics);
+void addOlympicQosMaps(
+    cfg::SwitchConfig& cfg,
+    const std::vector<const HwAsic*>& asics);
+void addOlympicAllSPQueueConfig(
+    cfg::SwitchConfig* config,
+    cfg::StreamType streamType);
+void addOlympicV2QosMaps(
+    cfg::SwitchConfig& cfg,
+    const std::vector<const HwAsic*>& asics);
 
 std::string getOlympicCounterNameForDscp(uint8_t dscp);
 
-const std::map<int, std::vector<uint8_t>> kOlympicQueueToDscp(
-    const HwAsic* hwAsic);
-const std::map<int, uint8_t> kOlympicWRRQueueToWeight(const HwAsic* hwAsic);
-const std::map<int, uint8_t> kOlympicV2WRRQueueToWeight(const HwAsic* hwAsic);
+const std::map<int, std::vector<uint8_t>> kOlympicQueueToDscp();
+const std::map<int, uint8_t> kOlympicWRRQueueToWeight();
+const std::map<int, uint8_t> kOlympicV2WRRQueueToWeight();
 
-const std::vector<int> kOlympicWRRQueueIds(const HwAsic* hwAsic);
-const std::vector<int> kOlympicV2WRRQueueIds(const HwAsic* hwAsic);
-const std::vector<int> kOlympicSPQueueIds(const HwAsic* hwAsic);
-const std::vector<int> kOlympicWRRAndICPQueueIds(const HwAsic* hwAsic);
-const std::vector<int> kOlympicWRRAndNCQueueIds(const HwAsic* hwAsic);
+const std::vector<int> kOlympicWRRQueueIds();
+const std::vector<int> kOlympicV2WRRQueueIds();
+const std::vector<int> kOlympicSPQueueIds();
+const std::vector<int> kOlympicWRRAndICPQueueIds();
+const std::vector<int> kOlympicWRRAndNCQueueIds();
+const std::vector<int> kOlympicAllSPQueueIds();
+const std::map<int, std::vector<uint8_t>> kOlympicV2QueueToDscp();
 
 int getMaxWeightWRRQueue(const std::map<int, uint8_t>& queueToWeight);
 
-void addOlympicAllSPQueueConfig(
-    cfg::SwitchConfig* config,
-    cfg::StreamType streamType,
-    const HwAsic* asic);
-void addOlympicV2QosMaps(cfg::SwitchConfig& cfg, const HwAsic* asic);
-
-const std::map<int, std::vector<uint8_t>> kOlympicV2QueueToDscp(
-    const HwAsic* hwAsic);
-const std::vector<int> kOlympicAllSPQueueIds(const HwAsic* hwAsic);
 cfg::ActiveQueueManagement kGetOlympicEcnConfig(
     int minLength = 41600,
     int maxLength = 41600);

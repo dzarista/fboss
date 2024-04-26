@@ -789,4 +789,70 @@ std::optional<cfg::PortProfileID> PlatformMapping::getProfileIDBySpeedIf(
              << ", speed=" << apache::thrift::util::enumNameSafe(speed);
   return std::nullopt;
 }
+
+/*
+ * getAllPortProfiles
+ *
+ * Returns a map of all port names in the system to the list of supported port
+ * profile ids for that port.
+ */
+std::map<std::string, std::vector<cfg::PortProfileID>>
+PlatformMapping::getAllPortProfiles() const {
+  std::map<std::string, std::vector<cfg::PortProfileID>> portProfileIds;
+
+  for (auto& platformPort : platformPorts_) {
+    auto& portName = *platformPort.second.mapping()->name();
+    auto& portProfiles = *platformPort.second.supportedProfiles();
+    std::vector<cfg::PortProfileID> profiles;
+    for (auto& profile : portProfiles) {
+      profiles.push_back(profile.first);
+    }
+    portProfileIds[portName] = profiles;
+  }
+  return portProfileIds;
+}
+
+/*
+ * getPortProfileFromLinkProperties
+ *
+ * Returns the Port Profile ID based on the link properties. The following 5
+ * link properties can uniquely identify a Port Profile:
+ *   - Speed (100G/200G/...)
+ *   - Number of Host Lanes
+ *   - IP Modulation (NRZ/PAM4)
+ *   - FEC (RS528/RS544/RS544_2N/...)
+ *   - Transmitter Media (OPTICAL/COPPER/...)
+ */
+std::vector<cfg::PortProfileID>
+PlatformMapping::getPortProfileFromLinkProperties(
+    cfg::PortSpeed speed,
+    uint16_t numLanes,
+    phy::IpModulation modulation,
+    phy::FecMode fec,
+    std::optional<TransmitterTechnology> medium) const {
+  std::vector<cfg::PortProfileID> profiles;
+
+  for (auto& supportedProfile : platformSupportedProfiles_) {
+    auto& profile = supportedProfile.profile().value();
+    if (profile.speed().value() == speed &&
+        profile.iphy().value().numLanes().value() == numLanes &&
+        profile.iphy().value().modulation().value() == modulation &&
+        profile.iphy().value().fec().value() == fec) {
+      if (medium.has_value() && profile.iphy().value().medium().has_value()) {
+        if (medium.value() != profile.iphy().value().medium().value()) {
+          if (medium.value() == TransmitterTechnology::OPTICAL &&
+              profile.iphy().value().medium().value() ==
+                  TransmitterTechnology::BACKPLANE) {
+            profiles.push_back(
+                supportedProfile.factor().value().profileID().value());
+          }
+          continue;
+        }
+      }
+      profiles.push_back(supportedProfile.factor().value().profileID().value());
+    }
+  }
+  return profiles;
+}
+
 } // namespace facebook::fboss

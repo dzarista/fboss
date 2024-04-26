@@ -219,8 +219,18 @@ class PortUpdateHandlerLoopDetectionTest : public ::testing::Test {
       for (const auto& [id, port] : *ports) {
         if (PortID(id) == kPortId()) {
           EXPECT_EVENTUALLY_EQ(port->getAdminState(), expectedState);
+          if (expectedState == cfg::PortState::DISABLED) {
+            EXPECT_EVENTUALLY_EQ(
+                port->getActiveErrors(),
+                std::vector<PortError>(
+                    {PortError::ERROR_DISABLE_LOOP_DETECTED}));
+          } else {
+            EXPECT_EVENTUALLY_TRUE(port->getActiveErrors().empty());
+          }
+
         } else {
           EXPECT_EVENTUALLY_EQ(port->getAdminState(), cfg::PortState::ENABLED);
+          EXPECT_EVENTUALLY_TRUE(port->getActiveErrors().empty());
         }
       }
     });
@@ -270,12 +280,40 @@ TYPED_TEST(PortUpdateHandlerLoopDetectionTest, createLoop) {
   this->checkPortState(this->getLoopedPortExpectedState());
   // Reset connectivity to mark port as unattached - this is what will
   // happen once link goes down due to port being admin disabled.
-  // Both port admin state and loop error state should be retained
-  // though.
+  // Port admin state should be retained but Led state should go
+  // back to none, since the port is no longer looped
   endpoint.isAttached() = false;
+  this->sw->linkConnectivityChanged(this->makeConnectivity(endpoint));
+  this->checkPortLedState(PortLedExternalState::NONE);
+  this->checkPortState(this->getLoopedPortExpectedState());
+}
+
+TYPED_TEST(PortUpdateHandlerLoopDetectionTest, createLoopReenablePort) {
+  FabricEndpoint endpoint;
+  endpoint.isAttached() = true;
+  endpoint.switchId() = this->switchId();
+  endpoint.portId() = this->kPortId();
   this->sw->linkConnectivityChanged(this->makeConnectivity(endpoint));
   this->checkPortLedState(PortLedExternalState::CABLING_ERROR_LOOP_DETECTED);
   this->checkPortState(this->getLoopedPortExpectedState());
+  // Reset connectivity to mark port as unattached - this is what will
+  // happen once link goes down due to port being admin disabled.
+  // Port admin state should be retained but Led state should go
+  // back to none, since the port is no longer looped
+  endpoint.isAttached() = false;
+  this->sw->linkConnectivityChanged(this->makeConnectivity(endpoint));
+  this->checkPortLedState(PortLedExternalState::NONE);
+  this->checkPortState(this->getLoopedPortExpectedState());
+  this->sw->updateStateBlocking(
+      "Re-enable port", [this](const std::shared_ptr<SwitchState>& in) {
+        auto out = in->clone();
+        auto port = out->getPorts()->getNodeIf(this->kPortId());
+        auto newPort = port->modify(&out);
+        newPort->setAdminState(cfg::PortState::ENABLED);
+        return out;
+      });
+  this->checkPortLedState(PortLedExternalState::NONE);
+  this->checkPortState(cfg::PortState::ENABLED);
 }
 
 TYPED_TEST(PortUpdateHandlerLoopDetectionTest, createLoopPortDrained) {

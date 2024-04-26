@@ -41,8 +41,22 @@ class AgentFabricSwitchTest : public AgentHwTest {
   getProductionFeaturesVerified() const override {
     return {production_features::ProductionFeature::FABRIC};
   }
+  std::unordered_set<SwitchID> getFabricSwitchIds() const {
+    auto fabSwitchIds = getSw()->getSwitchInfoTable().getSwitchIdsOfType(
+        cfg::SwitchType::FABRIC);
+    CHECK_GT(fabSwitchIds.size(), 0) << " No fab switch ids found";
+    return fabSwitchIds;
+  }
 
  protected:
+  std::map<SwitchID, std::vector<PortID>> switch2PortIds() const {
+    std::map<SwitchID, std::vector<PortID>> switch2PortIds;
+    for (auto switchId : getFabricSwitchIds()) {
+      switch2PortIds[switchId] =
+          getAgentEnsemble()->masterLogicalFabricPortIds(switchId);
+    }
+    return switch2PortIds;
+  }
   void setCmdLineFlagOverrides() const override {
     AgentHwTest::setCmdLineFlagOverrides();
     FLAGS_hide_fabric_ports = false;
@@ -56,11 +70,12 @@ TEST_F(AgentFabricSwitchTest, init) {
     for (auto& portMap : std::as_const(*state->getPorts())) {
       for (auto& port : std::as_const(*portMap.second)) {
         EXPECT_EQ(port.second->getAdminState(), cfg::PortState::ENABLED);
+        auto portSwitchId =
+            getSw()->getScopeResolver()->scope(port.second->getID()).switchId();
+        auto portAsic = getSw()->getHwAsicTable()->getHwAsic(portSwitchId);
         EXPECT_EQ(
             port.second->getLoopbackMode(),
-            // TODO: Handle multiple Asics
-            getAsics().cbegin()->second->getDesiredLoopbackMode(
-                port.second->getPortType()));
+            portAsic->getDesiredLoopbackMode(port.second->getPortType()));
       }
     }
   };
@@ -81,7 +96,7 @@ TEST_F(AgentFabricSwitchTest, checkFabricReachabilityStats) {
   };
   auto verify = [this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+    for (const auto& switchId : getFabricSwitchIds()) {
       utility::checkFabricReachabilityStats(getAgentEnsemble(), switchId);
     }
   };
@@ -99,22 +114,28 @@ TEST_F(AgentFabricSwitchTest, collectStats) {
 TEST_F(AgentFabricSwitchTest, checkFabricReachability) {
   auto verify = [this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+    for (const auto& switchId : getFabricSwitchIds()) {
       utility::checkFabricReachability(getAgentEnsemble(), switchId);
     }
   };
   verifyAcrossWarmBoots([] {}, verify);
 }
 
-TEST_F(AgentFabricSwitchTest, fabricIsolate) {
+TEST_F(AgentFabricSwitchTest, fabricPortIsolate) {
+  std::map<SwitchID, PortID> switchId2FabricPortId;
+  std::set<PortID> fabricPortIds;
+  for (const auto& [switchId, portIds] : switch2PortIds()) {
+    fabricPortIds.insert(portIds[0]);
+    switchId2FabricPortId.insert({switchId, portIds[0]});
+  }
+  ASSERT_GT(fabricPortIds.size(), 0);
+  ASSERT_GT(switchId2FabricPortId.size(), 0);
   auto setup = [=, this]() {
     auto newCfg = getSw()->getConfig();
-    auto fabricPortId =
-        PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
     for (auto& portCfg : *newCfg.ports()) {
-      if (PortID(*portCfg.logicalID()) == fabricPortId) {
+      if (fabricPortIds.find(PortID(*portCfg.logicalID())) !=
+          fabricPortIds.end()) {
         *portCfg.drainState() = cfg::PortDrainState::DRAINED;
-        break;
       }
     }
     applyNewConfig(newCfg);
@@ -122,9 +143,7 @@ TEST_F(AgentFabricSwitchTest, fabricIsolate) {
 
   auto verify = [=, this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    auto fabricPortId =
-        PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
-    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+    for (auto [switchId, fabricPortId] : switchId2FabricPortId) {
       utility::checkPortFabricReachability(
           getAgentEnsemble(), switchId, fabricPortId);
     }
@@ -139,7 +158,7 @@ TEST_F(AgentFabricSwitchTest, fabricSwitchIsolate) {
 
   auto verify = [=, this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
-    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+    for (const auto& switchId : getFabricSwitchIds()) {
       utility::checkFabricReachability(getAgentEnsemble(), switchId);
     }
   };
@@ -179,16 +198,26 @@ class AgentFabricSwitchSelfLoopTest : public AgentFabricSwitchTest {
         // When disabled all ports should lose connectivity info
         EXPECT_EVENTUALLY_EQ(missingConnectivity, numPorts);
       }
+      std::vector<PortError> expectedErrors;
+      if (desiredState == cfg::PortState::DISABLED) {
+        expectedErrors.push_back(PortError::ERROR_DISABLE_LOOP_DETECTED);
+      }
       for (const auto& portId : ports) {
         auto port = getProgrammedState()->getPorts()->getNode(portId);
         EXPECT_EVENTUALLY_EQ(port->getAdminState(), desiredState);
+        EXPECT_EVENTUALLY_EQ(port->getActiveErrors(), expectedErrors);
+
         auto ledExternalState = port->getLedPortExternalState();
         EXPECT_EVENTUALLY_TRUE(ledExternalState.has_value());
-        // Even post disable, we retain cabling error info
-        // until we learn of new connectivity info
-        EXPECT_EVENTUALLY_EQ(
-            *ledExternalState,
-            PortLedExternalState::CABLING_ERROR_LOOP_DETECTED);
+
+        // If port is disabled, connectivity info would disappear
+        // so cabling error should clear out.
+        auto desiredLedState =
+            (desiredState == cfg::PortState::DISABLED
+                 ? PortLedExternalState::NONE
+                 : PortLedExternalState::CABLING_ERROR_LOOP_DETECTED);
+        EXPECT_EVENTUALLY_EQ(*ledExternalState, desiredLedState)
+            << " LED State mismatch for port: " << port->getName();
       }
     });
   }
@@ -215,26 +244,32 @@ TEST_F(AgentFabricSwitchSelfLoopTest, selfLoopDetection) {
 }
 
 TEST_F(AgentFabricSwitchSelfLoopTest, portDrained) {
-  const auto kPortId =
-      getProgrammedState()->getPorts()->getAllNodes()->begin()->first;
-  auto setup = [this, kPortId]() {
+  std::vector<PortID> drainedPorts;
+  for (const auto& [_, ports] : switch2PortIds()) {
+    drainedPorts.push_back(ports[0]);
+  }
+  auto setup = [this, drainedPorts]() {
     // Drain port
-    applyNewState([&, kPortId](const std::shared_ptr<SwitchState>& in) {
+    applyNewState([&, drainedPorts](const std::shared_ptr<SwitchState>& in) {
       auto out = in->clone();
-      auto port = out->getPorts()->getNodeIf(kPortId);
-      auto newPort = port->modify(&out);
-      newPort->setPortDrainState(cfg::PortDrainState::DRAINED);
+      for (auto portId : drainedPorts) {
+        auto port = out->getPorts()->getNodeIf(portId);
+        auto newPort = port->modify(&out);
+        newPort->setPortDrainState(cfg::PortDrainState::DRAINED);
+      }
       return out;
     });
   };
-  auto verify = [this, kPortId]() {
+  auto verify = [this, drainedPorts]() {
     auto portsToCheck = getProgrammedState()->getPorts()->getAllNodes();
     // Since switch is drained, ports should stay enabled
     verifyState(cfg::PortState::ENABLED, *portsToCheck);
     // Undrain
     applySwitchDrainState(cfg::SwitchDrainState::UNDRAINED);
     // All but the drained ports should now get disabled
-    portsToCheck->removeNode(kPortId);
+    for (auto port : drainedPorts) {
+      portsToCheck->removeNode(port);
+    }
     verifyState(cfg::PortState::DISABLED, *portsToCheck);
   };
   verifyAcrossWarmBoots(setup, verify);
@@ -242,8 +277,7 @@ TEST_F(AgentFabricSwitchSelfLoopTest, portDrained) {
 
 TEST_F(AgentFabricSwitchTest, reachDiscard) {
   auto verify = [this]() {
-    for (auto switchId : getSw()->getSwitchInfoTable().getSwitchIdsOfType(
-             cfg::SwitchType::FABRIC)) {
+    for (auto switchId : getFabricSwitchIds()) {
       auto beforeSwitchDrops =
           *getSw()->getHwSwitchStatsExpensive(switchId).switchDropStats();
       std::string out;
@@ -278,8 +312,7 @@ TEST_F(AgentFabricSwitchTest, reachDiscard) {
 TEST_F(AgentFabricSwitchTest, dtlQueueWatermarks) {
   auto verify = [this]() {
     std::string out;
-    for (auto switchId : getSw()->getSwitchInfoTable().getSwitchIdsOfType(
-             cfg::SwitchType::FABRIC)) {
+    for (auto switchId : getFabricSwitchIds()) {
       WITH_RETRIES({
         auto beforeWatermarks = getAllSwitchWatermarkStats()[switchId];
         EXPECT_EVENTUALLY_TRUE(

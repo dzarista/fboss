@@ -11,34 +11,6 @@
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/state/Thrifty.h"
 
-namespace {
-constexpr auto kQueueMatchAction = "queueMatchAction";
-constexpr auto kQueueId = "queueId";
-constexpr auto kSendToCPU = "sendToCPU";
-constexpr auto kSetDscpMatchAction = "setDscpMatchAction";
-constexpr auto kDscpValue = "dscpValue";
-constexpr auto kIngressMirror = "ingressMirror";
-constexpr auto kEgressMirror = "engressMirror";
-constexpr auto kCounter = "counter";
-constexpr auto kCounterName = "name";
-constexpr auto kCounterTypes = "types";
-constexpr auto kToCpuAction = "cpuAction";
-constexpr auto kNexthops = "nexthops";
-constexpr auto kNexthopIp = "ip";
-constexpr auto kNexthopIntfID = "intfID";
-constexpr auto kRedirectNextHops = "redirectNextHops";
-constexpr auto kResolvedNexthops = "resolvedNexthops";
-constexpr auto kRedirectToNextHop = "redirectToNextHop";
-
-// These names match the thrift definition in switch_config.thrift
-constexpr auto kThriftSendToQueue = "sendToQueue";
-constexpr auto kThriftSendToCPU = "sendToCPU";
-constexpr auto kThriftAction = "action";
-constexpr auto kThriftTrafficCounter = "trafficCounter";
-constexpr auto kThriftSetDscp = "setDscp";
-constexpr auto kThriftToCpuAction = "toCpuAction";
-} // namespace
-
 namespace facebook::fboss {
 
 state::MatchAction MatchAction::toThrift() const {

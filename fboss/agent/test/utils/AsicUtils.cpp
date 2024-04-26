@@ -16,18 +16,28 @@
 
 namespace facebook::fboss::utility {
 
-SwitchID getFirstSwitchId(SwSwitch* sw) {
+const HwAsic* getFirstAsic(SwSwitch* sw) {
   auto switchIds = sw->getHwAsicTable()->getSwitchIDs();
   CHECK_GE(switchIds.size(), 1);
-  return *switchIds.cbegin();
-}
-
-const HwAsic* getFirstAsic(SwSwitch* sw) {
-  return sw->getHwAsicTable()->getHwAsic(getFirstSwitchId(sw));
+  return sw->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
 }
 
 const HwAsic* getAsic(const SwSwitch& sw, PortID port) {
   auto switchId = sw.getScopeResolver()->scope(port).switchId();
   return sw.getHwAsicTable()->getHwAsic(switchId);
+}
+
+void checkSameAsicType(const std::vector<const HwAsic*>& asics) {
+  std::set<cfg::AsicType> types;
+  std::for_each(asics.begin(), asics.end(), [&types](const auto asic) {
+    types.insert(asic->getAsicType());
+  });
+  CHECK_EQ(types.size(), 1) << "Expect 1 asic type, got: " << types.size();
+}
+
+const HwAsic* checkSameAndGetAsic(const std::vector<const HwAsic*>& asics) {
+  CHECK(!asics.empty()) << " Expect at least one asic to be passed in ";
+  checkSameAsicType(asics);
+  return *asics.begin();
 }
 } // namespace facebook::fboss::utility

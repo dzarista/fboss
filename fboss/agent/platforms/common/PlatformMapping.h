@@ -126,6 +126,9 @@ class PlatformMapping {
       PortID portID,
       cfg::PortSpeed speed) const;
 
+  std::map<std::string, std::vector<cfg::PortProfileID>> getAllPortProfiles()
+      const;
+
   const phy::DataPlanePhyChip& getPortIphyChip(PortID port) const;
 
   void setPlatformPort(int32_t portID, cfg::PlatformPortEntry port) {
@@ -174,6 +177,13 @@ class PlatformMapping {
   virtual bool supportsInterPacketGapBits() const {
     return false;
   }
+
+  std::vector<cfg::PortProfileID> getPortProfileFromLinkProperties(
+      cfg::PortSpeed speed,
+      uint16_t numLanes,
+      phy::IpModulation modulation,
+      phy::FecMode fec,
+      std::optional<TransmitterTechnology> medium) const;
 
  protected:
   std::map<int32_t, cfg::PlatformPortEntry> platformPorts_;

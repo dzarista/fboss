@@ -12,6 +12,7 @@ target_link_libraries(acl_test_utils
   hw_switch
   switch_config_cpp2
   switch_state_cpp2
+  asic_test_utils
 )
 
 add_library(copp_test_utils
@@ -24,6 +25,7 @@ target_link_libraries(copp_test_utils
   hw_switch
   load_balancer_test_utils
   packet
+  pkt_test_utils
   packet_factory
   resourcelibutil
   switch_asics
@@ -75,6 +77,7 @@ add_library(olympic_qos_utils
 
 target_link_libraries(olympic_qos_utils
   fboss_types
+  asic_test_utils
   packet_factory
   Folly::folly
   switch_config_cpp2
@@ -89,6 +92,7 @@ target_link_libraries(port_test_utils
   Folly::folly
   switch_config_cpp2
   transceiver_cpp2
+  test_ensemble_if
   state
 )
 
@@ -300,4 +304,29 @@ add_library(scale_test_utils
 target_link_libraries(scale_test_utils
   core
   switch_asics
+)
+
+add_library(invariant_test_utils
+  fboss/agent/test/utils/InvariantTestUtils.cpp
+)
+
+target_link_libraries(invariant_test_utils
+  config_utils
+  copp_test_utils
+  load_balancer_test_utils
+  qos_test_utils
+  packet
+  packet_factory
+  test_ensemble_if
+  validated_shell_commands_cpp2
+)
+
+add_library(route_test_utils
+  fboss/agent/test/utils/RouteTestUtils.cpp
+)
+
+target_link_libraries(route_test_utils
+  route_update_wrapper
+  ctrl_cpp2
+  route_distribution_gen
 )

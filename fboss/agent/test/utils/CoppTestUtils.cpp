@@ -21,8 +21,10 @@
 #include "fboss/lib/CommonUtils.h"
 
 #include "fboss/agent/test/utils/AclTestUtils.h"
+#include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
 #include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
+#include "fboss/agent/test/utils/PacketTestUtils.h"
 
 DECLARE_bool(enable_acl_table_group);
 
@@ -64,6 +66,10 @@ std::unique_ptr<facebook::fboss::TxPacket> createUdpPktImpl(
 
   return txPacket;
 }
+
+const auto kIPv6LinkLocalUcastAddress = folly::IPAddressV6("fe80::2");
+const auto kNetworkControlDscp = 48;
+
 } // namespace
 
 std::string getMplsDestNoMatchCounterName() {
@@ -407,7 +413,10 @@ std::shared_ptr<facebook::fboss::Interface> getEligibleInterface(
   return nullptr;
 }
 
-void setTTLZeroCpuConfig(const HwAsic* hwAsic, cfg::SwitchConfig& config) {
+void setTTLZeroCpuConfig(
+    const std::vector<const HwAsic*>& asics,
+    cfg::SwitchConfig& config) {
+  auto hwAsic = checkSameAndGetAsic(asics);
   if (!hwAsic->isSupported(HwAsic::Feature::SAI_TTL0_PACKET_FORWARD_ENABLE)) {
     // don't configure if not supported
     return;
@@ -845,22 +854,31 @@ uint64_t getCpuQueueInPackets(SwSwitch* sw, SwitchID switchId, int queueId) {
       : cpuPortStats.queueInPackets_()->at(queueId);
 }
 
+template <typename SwitchT>
 uint64_t getQueueOutPacketsWithRetry(
-    SwSwitch* sw,
+    SwitchT* switchPtr,
+    SwitchID switchId,
     int queueId,
     int retryTimes,
     uint64_t expectedNumPkts,
     int postMatchRetryTimes) {
   uint64_t outPkts = 0;
-  auto asic = getFirstAsic(sw);
+  const HwAsic* asic;
+  if constexpr (std::is_same_v<SwitchT, SwSwitch>) {
+    asic = static_cast<SwSwitch*>(switchPtr)->getHwAsicTable()->getHwAsicIf(
+        switchId);
+  } else {
+    asic = static_cast<HwSwitch*>(switchPtr)->getPlatform()->getAsic();
+  }
+
   do {
     for (auto i = 0; i <= utility::getCoppHighPriQueueId(asic); i++) {
       auto qOutPkts =
-          utility::getCpuQueueInPackets(sw, getFirstSwitchId(sw), i);
+          getCpuQueueOutPacketsAndBytes(switchPtr, queueId, switchId).first;
       XLOG(DBG2) << "QueueID: " << i << " qOutPkts: " << qOutPkts;
     }
 
-    outPkts = utility::getCpuQueueInPackets(sw, getFirstSwitchId(sw), queueId);
+    outPkts = getCpuQueueOutPacketsAndBytes(switchPtr, queueId, switchId).first;
     if (retryTimes == 0 || (outPkts >= expectedNumPkts)) {
       break;
     }
@@ -876,7 +894,7 @@ uint64_t getQueueOutPacketsWithRetry(
   } while (retryTimes-- > 0);
 
   while ((outPkts == expectedNumPkts) && postMatchRetryTimes--) {
-    outPkts = utility::getCpuQueueInPackets(sw, getFirstSwitchId(sw), queueId);
+    outPkts = getCpuQueueOutPacketsAndBytes(switchPtr, queueId, switchId).first;
   }
 
   return outPkts;
@@ -930,6 +948,21 @@ std::unique_ptr<facebook::fboss::TxPacket> createUdpPkt(
       dscp);
 }
 
+std::pair<uint64_t, uint64_t>
+getCpuQueueOutPacketsAndBytes(SwSwitch* sw, int queueId, SwitchID switchId) {
+  HwPortStats stats = *getLatestCpuStats(sw, switchId).portStats_();
+  return getCpuQueueOutPacketsAndBytes(stats, queueId);
+}
+
+std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
+    HwSwitch* hw,
+    int queueId,
+    SwitchID /* switchId */) {
+  hw->updateStats();
+  HwPortStats stats = *hw->getCpuPortStats().portStats_();
+  return getCpuQueueOutPacketsAndBytes(stats, queueId);
+}
+
 std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
     HwPortStats& stats,
     int queueId) {
@@ -941,4 +974,190 @@ std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
       (queueIter != stats.queueOutBytes_()->end()) ? queueIter->second : 0;
   return std::pair(outPackets, outBytes);
 }
+
+template uint64_t getQueueOutPacketsWithRetry<SwSwitch>(
+    SwSwitch* switchPtr,
+    SwitchID switchId,
+    int queueId,
+    int retryTimes,
+    uint64_t expectedNumPkts,
+    int postMatchRetryTimes);
+
+template uint64_t getQueueOutPacketsWithRetry<HwSwitch>(
+    HwSwitch* switchPtr,
+    SwitchID switchId,
+    int queueId,
+    int retryTimes,
+    uint64_t expectedNumPkts,
+    int postMatchRetryTimes);
+
+template <typename SwitchT>
+void sendAndVerifyPkts(
+    SwitchT* switchPtr,
+    SwitchID switchId,
+    std::shared_ptr<SwitchState> swState,
+    const folly::IPAddress& destIp,
+    uint16_t destPort,
+    uint8_t queueId,
+    PortID srcPort,
+    uint8_t trafficClass) {
+  auto sendPkts = [&] {
+    auto vlanId = utility::firstVlanID(swState);
+    auto intfMac = utility::getFirstInterfaceMac(swState);
+    utility::sendTcpPkts(
+        switchPtr,
+        1 /*numPktsToSend*/,
+        vlanId,
+        intfMac,
+        destIp,
+        utility::kNonSpecialPort1,
+        destPort,
+        srcPort,
+        trafficClass);
+  };
+
+  sendPktAndVerifyCpuQueue(switchPtr, switchId, queueId, sendPkts, 1);
+}
+
+/*
+ * Pick a common copp Acl (link local + NC) and run dataplane test
+ * to verify whether a common COPP acl is being hit.
+ * TODO: Enhance this to cover every copp invariant acls.
+ * Implement a similar function to cover all rxreasons invariant as well
+ */
+template <typename SwitchT>
+void verifyCoppAcl(
+    SwitchT* switchPtr,
+    SwitchID switchId,
+    const HwAsic* hwAsic,
+    std::shared_ptr<SwitchState> swState,
+    PortID srcPort) {
+  XLOG(DBG2) << "Verifying Copp ACL";
+  sendAndVerifyPkts(
+      switchPtr,
+      switchId,
+      swState,
+      kIPv6LinkLocalUcastAddress,
+      utility::kNonSpecialPort2,
+      utility::getCoppHighPriQueueId(hwAsic),
+      srcPort,
+      kNetworkControlDscp);
+}
+
+template <typename SwitchT>
+void verifyCoppInvariantHelper(
+    SwitchT* switchPtr,
+    SwitchID switchId,
+    const HwAsic* hwAsic,
+    std::shared_ptr<SwitchState> swState,
+    PortID srcPort) {
+  auto intf = getEligibleInterface(swState);
+  if (!intf) {
+    throw FbossError(
+        "No eligible uplink/downlink interfaces in config to verify COPP invariant");
+  }
+  for (auto iter : std::as_const(*intf->getAddresses())) {
+    auto destIp = folly::IPAddress(iter.first);
+    if (destIp.isLinkLocal()) {
+      // three elements in the address vector: ipv4, ipv6 and a link local one
+      // if the address qualifies as link local, it will loop back to the queue
+      // again, adding an extra packet to the queue and failing the verification
+      // thus, we skip the last one and only send BGP packets to v4 and v6 addr
+      continue;
+    }
+    sendAndVerifyPkts(
+        switchPtr,
+        switchId,
+        swState,
+        destIp,
+        utility::kBgpPort,
+        utility::getCoppHighPriQueueId(hwAsic),
+        srcPort);
+  }
+  auto addrs = intf->getAddressesCopy();
+  sendAndVerifyPkts(
+      switchPtr,
+      switchId,
+      swState,
+      addrs.begin()->first,
+      utility::kNonSpecialPort2,
+      utility::kCoppMidPriQueueId,
+      srcPort);
+
+  verifyCoppAcl(switchPtr, switchId, hwAsic, swState, srcPort);
+}
+
+/*
+ * Takes a SwitchConfig and returns a map of queue IDs to DSCPs.
+ * Particularly useful in verifyQueueMappings, where we don't have a guarantee
+ * of what the QoS policies look like and we can't rely on something like
+ * kOlympicQueueToDscp().
+ */
+std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
+    const cfg::SwitchConfig& config) {
+  std::map<int, std::vector<uint8_t>> queueToDscp;
+
+  for (const auto& qosPolicy : *config.qosPolicies()) {
+    const auto& qosName = qosPolicy.get_name();
+    XLOG(DBG2) << "Iterating over QoS policies: found qosPolicy " << qosName;
+
+    // Optional thrift field access
+    if (const auto& qosMap = qosPolicy.qosMap()) {
+      const auto& dscpMaps = *qosMap->dscpMaps();
+
+      for (const auto& dscpMap : dscpMaps) {
+        auto queueId = dscpMap.get_internalTrafficClass();
+        // Internally (i.e. in thrift), the mapping is implemented as a
+        // map<int16_t, vector<int8_t>>; however, in functions like
+        // verifyQueueMapping in HwTestQosUtils, the argument used is of the
+        // form map<int, uint8_t>.
+        // Trying to assign vector<uint8_t> to a vector<int8_t> makes the STL
+        // unhappy, so we can just loop through and construct one on our own.
+        std::vector<uint8_t> dscps;
+        for (auto val : *dscpMap.fromDscpToTrafficClass()) {
+          dscps.push_back((uint8_t)val);
+        }
+        queueToDscp[(int)queueId] = std::move(dscps);
+      }
+    } else {
+      XLOG(ERR) << "qosMap not found in qosPolicy: " << qosName;
+    }
+  }
+
+  return queueToDscp;
+}
+
+template void sendAndVerifyPkts<SwSwitch>(
+    SwSwitch* switchPtr,
+    SwitchID switchId,
+    std::shared_ptr<SwitchState> swState,
+    const folly::IPAddress& destIp,
+    uint16_t destPort,
+    uint8_t queueId,
+    PortID srcPort,
+    uint8_t trafficClass);
+
+template void sendAndVerifyPkts<HwSwitch>(
+    HwSwitch* switchPtr,
+    SwitchID switchId,
+    std::shared_ptr<SwitchState> swState,
+    const folly::IPAddress& destIp,
+    uint16_t destPort,
+    uint8_t queueId,
+    PortID srcPort,
+    uint8_t trafficClass);
+
+template void verifyCoppInvariantHelper<SwSwitch>(
+    SwSwitch* switchPtr,
+    SwitchID switchId,
+    const HwAsic* hwAsic,
+    std::shared_ptr<SwitchState> swState,
+    PortID srcPort);
+
+template void verifyCoppInvariantHelper<HwSwitch>(
+    HwSwitch* switchPtr,
+    SwitchID switchId,
+    const HwAsic* hwAsic,
+    std::shared_ptr<SwitchState> swState,
+    PortID srcPort);
 } // namespace facebook::fboss::utility

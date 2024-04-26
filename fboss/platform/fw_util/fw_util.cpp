@@ -5,13 +5,11 @@
 #include <iostream>
 #include <memory>
 
-#include <folly/init/Init.h>
 #include <folly/logging/xlog.h>
-#include <glog/logging.h>
 
 #include "fboss/platform/fw_util/Flags.h"
 #include "fboss/platform/fw_util/FwUtilImpl.h"
-#include "fboss/platform/helpers/Init.h"
+#include "fboss/platform/helpers/InitCli.h"
 
 using namespace facebook::fboss::platform::fw_util;
 using namespace facebook::fboss::platform;
@@ -76,6 +74,8 @@ int main(int argc, char* argv[]) {
     fwUtilImpl.removeFilePath(fwUtilImpl.toLower(FLAGS_fw_target_name));
   } else if (FLAGS_fw_action == "list") {
     XLOG(INFO) << "supported Binary names are: " << fwUtilImpl.printFpdList();
+  } else if (FLAGS_fw_action == "audit") {
+    fwUtilImpl.doVersionAudit();
   } else {
     XLOG(ERR)
         << "Wrong usage. please run ./fw-util --helpon=Flags for the flags needed for proper usage";

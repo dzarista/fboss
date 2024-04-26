@@ -120,6 +120,18 @@
   RUN_HW_LOAD_BALANCER_NEGATIVE_TEST(                   \
       TEST_FIXTURE, MULTIPATH_TYPE, HASH_TYPE, FrontPanel)
 
+#define RUN_ALL_HW_LOAD_BALANCER_ECMP_TEST_CPU(TEST_FIXTURE) \
+  RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, Ecmp, Full)    \
+  RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, Ecmp, Half)
+
+#define RUN_ALL_HW_LOAD_BALANCER_UCMP_TEST_CPU(TEST_FIXTURE) \
+  RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, Ucmp, Full)    \
+  RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, Ucmp, Half)
+
+#define RUN_ALL_HW_LOAD_BALANCER_WIDE_UCMP_TEST_CPU(TEST_FIXTURE) \
+  RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, WideUcmp, Full)     \
+  RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, WideUcmp, Half)
+
 #define RUN_ALL_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE)       \
   RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, Ecmp, Full)     \
   RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, Ecmp, Half)     \
@@ -127,6 +139,18 @@
   RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, Ucmp, Half)     \
   RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, WideUcmp, Full) \
   RUN_HW_LOAD_BALANCER_TEST_CPU(TEST_FIXTURE, WideUcmp, Half)
+
+#define RUN_ALL_HW_LOAD_BALANCER_ECMP_TEST_FRONT_PANEL(TEST_FIXTURE) \
+  RUN_HW_LOAD_BALANCER_TEST_FRONT_PANEL(TEST_FIXTURE, Ecmp, Full)    \
+  RUN_HW_LOAD_BALANCER_TEST_FRONT_PANEL(TEST_FIXTURE, Ecmp, Half)
+
+#define RUN_ALL_HW_LOAD_BALANCER_UCMP_TEST_FRONT_PANEL(TEST_FIXTURE) \
+  RUN_HW_LOAD_BALANCER_TEST_FRONT_PANEL(TEST_FIXTURE, Ucmp, Full)    \
+  RUN_HW_LOAD_BALANCER_TEST_FRONT_PANEL(TEST_FIXTURE, Ucmp, Half)
+
+#define RUN_ALL_HW_LOAD_BALANCER_WIDE_UCMP_TEST_FRONT_PANEL(TEST_FIXTURE) \
+  RUN_HW_LOAD_BALANCER_TEST_FRONT_PANEL(TEST_FIXTURE, WideUcmp, Full)     \
+  RUN_HW_LOAD_BALANCER_TEST_FRONT_PANEL(TEST_FIXTURE, WideUcmp, Half)
 
 #define RUN_ALL_HW_LOAD_BALANCER_TEST_FRONT_PANEL(TEST_FIXTURE)       \
   RUN_HW_LOAD_BALANCER_TEST_FRONT_PANEL(TEST_FIXTURE, Ecmp, Full)     \
@@ -223,6 +247,7 @@ class HwLoadBalancerTestRunner {
         // Add flowlet config to convert ECMP to DLB
         cfg.udfConfig() = utility::addUdfFlowletAclConfig();
         utility::addFlowletConfigs(cfg, getMasterLogicalPortIds());
+        utility::addFlowletAcl(cfg);
         getEnsemble()->applyNewConfig(cfg);
       }
     };
@@ -249,6 +274,7 @@ class HwLoadBalancerTestRunner {
             cfg,
             getMasterLogicalPortIds(),
             cfg::SwitchingMode::PER_PACKET_QUALITY);
+        utility::addFlowletAcl(cfg);
         getEnsemble()->applyNewConfig(cfg);
         setEcmpMemberStatus(getEnsemble());
         helper_->pumpTrafficPortAndVerifyLoadBalanced(
