@@ -13,6 +13,8 @@ typedef boost::container::flat_map<folly::CIDRNetwork, IntfAddress> IntfRoute;
 typedef boost::container::flat_map<facebook::fboss::RouterID, IntfRoute>
     IntfRouteTable;
 
+// ARISTA commenting out unused function
+/*
 std::shared_ptr<facebook::fboss::SwitchState> updateFibForRemoteConnectedRoutes(
     const facebook::fboss::SwitchIdScopeResolver* resolver,
     facebook::fboss::RouterID vrf,
@@ -65,6 +67,7 @@ void updateRemoteConnectedRoutes(
       &updateFibForRemoteConnectedRoutes,
       static_cast<void*>(&state));
 };
+*/
 
 } // namespace
 
