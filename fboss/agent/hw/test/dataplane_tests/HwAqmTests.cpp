@@ -85,16 +85,10 @@ class HwAqmTest : public HwLinkStateDependentTest {
         masterLogicalPortIds(),
         getAsic()->desiredLoopbackModes());
     if (isSupported(HwAsic::Feature::L3_QOS)) {
-      auto streamType =
-          *(getPlatform()
-                ->getAsic()
-                ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
-                .begin());
-      utility::addOlympicQueueConfig(
-          &cfg, streamType, getPlatform()->getAsic());
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
+      utility::addOlympicQueueConfig(&cfg, getHwSwitchEnsemble()->getL3Asics());
+      utility::addOlympicQosMaps(cfg, getHwSwitchEnsemble()->getL3Asics());
     }
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     return cfg;
   }
 
@@ -110,10 +104,10 @@ class HwAqmTest : public HwLinkStateDependentTest {
                 ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
                 .begin());
       utility::addQueueWredDropConfig(
-          &cfg, streamType, getPlatform()->getAsic());
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
+          &cfg, streamType, getHwSwitchEnsemble()->getL3Asics());
+      utility::addOlympicQosMaps(cfg, getHwSwitchEnsemble()->getL3Asics());
     }
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     return cfg;
   }
 
@@ -125,16 +119,11 @@ class HwAqmTest : public HwLinkStateDependentTest {
         masterLogicalPortIds(),
         getAsic()->desiredLoopbackModes());
     if (isSupported(HwAsic::Feature::L3_QOS)) {
-      auto streamType =
-          *(getPlatform()
-                ->getAsic()
-                ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
-                .begin());
       utility::addOlympicQueueConfig(
-          &cfg, streamType, getPlatform()->getAsic(), enableWred, enableEcn);
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
+          &cfg, getHwSwitchEnsemble()->getL3Asics(), enableWred, enableEcn);
+      utility::addOlympicQosMaps(cfg, getHwSwitchEnsemble()->getL3Asics());
     }
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     return cfg;
   }
 
@@ -146,14 +135,8 @@ class HwAqmTest : public HwLinkStateDependentTest {
         getPlatform()->supportsAddRemovePort(),
         getAsic()->desiredLoopbackModes());
     if (isSupported(HwAsic::Feature::L3_QOS)) {
-      auto streamType =
-          *(getPlatform()
-                ->getAsic()
-                ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
-                .begin());
-      utility::addOlympicQueueConfig(
-          &cfg, streamType, getPlatform()->getAsic());
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
+      utility::addOlympicQueueConfig(&cfg, getHwSwitchEnsemble()->getL3Asics());
+      utility::addOlympicQosMaps(cfg, getHwSwitchEnsemble()->getL3Asics());
     }
     return cfg;
   }
@@ -576,7 +559,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       auto sendPackets = [=, this](PortID /* port */, int numPacketsToSend) {
         // Single port config, traffic gets forwarded out of the same!
         sendPkts(
-            utility::kOlympicQueueToDscp(getAsic()).at(kQueueId).front(),
+            utility::kOlympicQueueToDscp().at(kQueueId).front(),
             ecnVal,
             numPacketsToSend,
             kPayloadLength);
@@ -694,7 +677,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       const int kNumPacketsToSend =
           getHwSwitchEnsemble()->getMinPktsForLineRate(portId);
       sendPkts(
-          utility::kOlympicQueueToDscp(getAsic()).at(queueId).front(),
+          utility::kOlympicQueueToDscp().at(queueId).front(),
           kECT1,
           kNumPacketsToSend);
     };
@@ -770,7 +753,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       constexpr auto kNumPacketsToSend{1000};
       for (auto queueId : wredQueueIds) {
         sendPkts(
-            utility::kOlympicQueueToDscp(getAsic()).at(queueId).front(),
+            utility::kOlympicQueueToDscp().at(queueId).front(),
             false,
             kNumPacketsToSend);
       }
@@ -871,7 +854,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
           utility::getOlympicQueueId(utility::OlympicQueueType::SILVER);
       for (auto const& port : ports) {
         sendPkts(
-            utility::kOlympicQueueToDscp(getAsic()).at(queueId).front(),
+            utility::kOlympicQueueToDscp().at(queueId).front(),
             ecnVal,
             numPacketsToSend,
             kPayloadLength,

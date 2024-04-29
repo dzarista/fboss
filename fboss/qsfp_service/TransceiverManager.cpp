@@ -1033,6 +1033,52 @@ TransceiverInfo TransceiverManager::getTransceiverInfo(TransceiverID id) const {
   }
 }
 
+/*
+ * getAllPortSupportedProfiles
+ *
+ * This function returns the list of all supported port profiles on every port
+ * configured by agent config at that moment. If the checkOptics is False then
+ * it returns all possible port profiles for every configured port as mentioned
+ * in the platform mapping. If the checkOptics is True then it will exclude the
+ * port profiles which current optics does not support.
+ */
+void TransceiverManager::getAllPortSupportedProfiles(
+    std::map<std::string, std::vector<cfg::PortProfileID>>&
+        supportedPortProfiles,
+    bool checkOptics) {
+  // Find the list of all available ports from agent config
+  std::vector<std::string> availablePorts;
+
+  for (auto& [tcvrId, tcvrPortInfoMap] : tcvrToPortInfo_) {
+    auto tcvrPortInfoMapLocked = tcvrPortInfoMap->rlock();
+    for (auto& [portId, tcvrPortInfo] : *tcvrPortInfoMapLocked) {
+      if (auto portName = getPortNameByPortId(portId)) {
+        availablePorts.push_back(portName.value());
+      }
+    }
+  }
+
+  // Get all possible port profiles for all the ports from platform mapping.
+  // Exclude the ports which are not configured by agent config
+  auto allPossiblePortProfiles = platformMapping_->getAllPortProfiles();
+  std::map<std::string, std::vector<cfg::PortProfileID>>
+      allConfiguredPortProfiles;
+  for (auto& portName : availablePorts) {
+    if (allPossiblePortProfiles.find(portName) !=
+        allPossiblePortProfiles.end()) {
+      allConfiguredPortProfiles[portName] = allPossiblePortProfiles[portName];
+    }
+  }
+
+  // If we don't need to check the optics support of the profile then return all
+  // supported port profiles from the platform mapping which are configured by
+  // agent config
+  if (!checkOptics) {
+    supportedPortProfiles = allConfiguredPortProfiles;
+    return;
+  }
+}
+
 void TransceiverManager::programTransceiver(
     TransceiverID id,
     bool needResetDataPath) {
@@ -2534,6 +2580,51 @@ std::vector<phy::TxRxEnableResponse> TransceiverManager::setInterfaceTxRx(
     }
   }
   return txRxEnableResponses;
+}
+
+/*
+ * getSymbolErrorHistogram
+ *
+ * This function returns the Symbol error histogram for a givem port. The
+ * return value is a map of datapath id to CDB symbol error histogram values
+ */
+void TransceiverManager::getSymbolErrorHistogram(
+    CdbDatapathSymErrHistogram& symErr,
+    const std::string& portName) {
+  std::map<std::string, CdbDatapathSymErrHistogram> symbolErrors;
+
+  auto swPort = getPortIDByPortName(portName);
+  if (!swPort.has_value()) {
+    throw FbossError(
+        folly::sformat("getSymbolErrorHistogram: Invalid port {}", portName));
+  }
+
+  // Get Transceiver ID for this SW Port
+  auto tcvrId = getTransceiverID(swPort.value());
+  if (!tcvrId.has_value()) {
+    throw FbossError(folly::sformat(
+        "getSymbolErrorHistogram: Transceiver not found for port {}",
+        portName));
+  }
+
+  // Finally call the transceiver object with for symbol error get function
+  auto lockedTransceivers = transceivers_.rlock();
+  if (auto it = lockedTransceivers->find(tcvrId.value());
+      it != lockedTransceivers->end()) {
+    symbolErrors = it->second->getSymbolErrorHistogram();
+  }
+
+  for (auto& [pName, datapathSymErr] : symbolErrors) {
+    if (pName != portName) {
+      continue;
+    }
+    for (auto& [bin, datapathBinSymErr] : datapathSymErr.media().value()) {
+      symErr.media()[bin] = datapathBinSymErr;
+    }
+    for (auto& [bin, datapathBinSymErr] : datapathSymErr.host().value()) {
+      symErr.host()[bin] = datapathBinSymErr;
+    }
+  }
 }
 
 /*

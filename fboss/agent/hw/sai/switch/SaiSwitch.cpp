@@ -319,10 +319,8 @@ void SaiSwitch::unregisterCallbacks() noexcept {
   // tx ready status change is turned off and the evb loop is set to break
   // just need to block until the last event is processed
   if (runState_ >= SwitchRunState::CONFIGURED &&
-      (getFeaturesDesired() &
-       FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED) &&
       platform_->getAsic()->isSupported(
-          HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+          HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY)) {
     txReadyStatusChangeBottomHalfEventBase_.runInEventBaseThreadAndWait(
         [this]() {
           txReadyStatusChangeBottomHalfEventBase_.terminateLoopSoon();
@@ -1221,6 +1219,15 @@ void SaiSwitch::processSwitchSettingsChangedEntryLocked(
     const auto newVal = newSwitchSettings->getForceTrafficOverFabric();
     if (oldVal != newVal) {
       managerTable_->switchManager().setForceTrafficOverFabric(
+          newVal.has_value() ? newVal.value() : false);
+    }
+  }
+
+  {
+    const auto oldVal = oldSwitchSettings->getCreditWatchdog();
+    const auto newVal = newSwitchSettings->getCreditWatchdog();
+    if (oldVal != newVal) {
+      managerTable_->switchManager().setCreditWatchdog(
           newVal.has_value() ? newVal.value() : false);
     }
   }
@@ -2804,10 +2811,8 @@ void SaiSwitch::unregisterCallbacksLocked(
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
   if (isFeatureSetupLocked(FeaturesDesired::LINKSCAN_DESIRED, lock)) {
-    if ((getFeaturesDesired() &
-         FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED) &&
-        platform_->getAsic()->isSupported(
-            HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+    if (platform_->getAsic()->isSupported(
+            HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY)) {
       switchApi.unregisterTxReadyStatusChangeCallback(saiSwitchId_);
     }
   }
@@ -3126,10 +3131,8 @@ void SaiSwitch::switchRunStateChangedImplLocked(
 #endif
       }
 
-      if ((getFeaturesDesired() &
-           FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED) &&
-          platform_->getAsic()->isSupported(
-              HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+      if (platform_->getAsic()->isSupported(
+              HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY)) {
         initTxReadyStatusChangeLocked(lock);
       }
 
@@ -3832,21 +3835,8 @@ void SaiSwitch::reportAsymmetricTopology() const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   auto virtualDevice2RemoteConnectionGroups =
       getVirtualDeviceToRemoteConnectionGroupsLocked(lock);
-  int virtualDevicesWithAsymmetricConnectivity{0};
-  for (const auto& [virtualDeviceId, remoteConnectionGroups] :
-       virtualDevice2RemoteConnectionGroups) {
-    if (remoteConnectionGroups.size() > 1) {
-      ++virtualDevicesWithAsymmetricConnectivity;
-      XLOG(DBG4) << " Asymmetric topology detected on virtual device: "
-                 << virtualDeviceId;
-      for (const auto& [numConnections, remoteConnections] :
-           remoteConnectionGroups) {
-        XLOG(DBG4) << " Remote endpoints with : " << numConnections
-                   << " connections : " << folly::join(",", remoteConnections);
-      }
-    }
-  }
   getSwitchStats()->virtualDevicesWithAsymmetricConnectivity(
-      virtualDevicesWithAsymmetricConnectivity);
+      FabricConnectivityManager::virtualDevicesWithAsymmetricConnectivity(
+          virtualDevice2RemoteConnectionGroups));
 }
 } // namespace facebook::fboss

@@ -24,7 +24,9 @@ class TestEnsembleIf : public HwSwitchCallback {
   ~TestEnsembleIf() override {}
   virtual std::vector<PortID> masterLogicalPortIds() const = 0;
   std::vector<PortID> masterLogicalPortIds(
-      const std::set<cfg::PortType>& portTypes) const;
+      const std::set<cfg::PortType>& portTypes) const {
+    return masterLogicalPortIdsImpl(portTypes, {});
+  }
   std::vector<PortID> masterLogicalInterfacePortIds() const {
     return masterLogicalPortIds({cfg::PortType::INTERFACE_PORT});
   }
@@ -32,6 +34,30 @@ class TestEnsembleIf : public HwSwitchCallback {
     return masterLogicalPortIds({cfg::PortType::FABRIC_PORT});
   }
 
+  std::vector<PortID> masterLogicalPortIds(
+      const std::set<cfg::PortType>& portTypes,
+      const std::set<SwitchID>& switchIds) const {
+    return masterLogicalPortIdsImpl(portTypes, switchIds);
+  }
+  std::vector<PortID> masterLogicalInterfacePortIds(
+      const std::set<SwitchID>& switchIds) const {
+    return masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}, switchIds);
+  }
+  std::vector<PortID> masterLogicalFabricPortIds(
+      const std::set<SwitchID>& switchIds) const {
+    return masterLogicalPortIds({cfg::PortType::FABRIC_PORT}, switchIds);
+  }
+  std::vector<PortID> masterLogicalPortIds(
+      const std::set<cfg::PortType>& portTypes,
+      SwitchID switchId) const {
+    return masterLogicalPortIdsImpl(portTypes, {switchId});
+  }
+  std::vector<PortID> masterLogicalInterfacePortIds(SwitchID switchId) const {
+    return masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}, {switchId});
+  }
+  std::vector<PortID> masterLogicalFabricPortIds(SwitchID switchId) const {
+    return masterLogicalPortIds({cfg::PortType::FABRIC_PORT}, {switchId});
+  }
   virtual void applyNewState(
       StateUpdateFn fn,
       const std::string& name = "test-update",
@@ -70,6 +96,12 @@ class TestEnsembleIf : public HwSwitchCallback {
   virtual bool supportsAddRemovePort() const = 0;
   virtual const PlatformMapping* getPlatformMapping() const = 0;
   virtual cfg::SwitchConfig getCurrentConfig() const = 0;
+  std::vector<const HwAsic*> getL3Asics() const;
+
+ private:
+  std::vector<PortID> masterLogicalPortIdsImpl(
+      const std::set<cfg::PortType>& portTypes,
+      const std::set<SwitchID>& switches) const;
 };
 
 } // namespace facebook::fboss

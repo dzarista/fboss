@@ -17,26 +17,27 @@ namespace facebook::fboss {
 LassenLedManager::LassenLedManager() : LedManager() {}
 
 /*
- * calculateLedColor
+ * calculateLedState
  *
  * This function will return the LED color for a given port.
  */
-led::LedColor LassenLedManager::calculateLedColor(
+led::LedState LassenLedManager::calculateLedState(
     uint32_t portId,
     cfg::PortProfileID /* portProfile */) const {
-  return led::LedColor::UNKNOWN;
+  return utility::constructLedState(
+      led::LedColor::UNKNOWN, led::Blink::UNKNOWN);
 }
 
 /*
- * setLedColor
+ * setLedState
  *
  * Set the LED color in HW for the LED on a given port. This function should
  * not depend on FSDB provided values from portDisplayMap_
  */
-void LassenLedManager::setLedColor(
+void LassenLedManager::setLedState(
     uint32_t portId,
     cfg::PortProfileID /* portProfile */,
-    led::LedColor ledColor) {
+    led::LedState ledState) {
   return;
 }
 

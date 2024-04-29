@@ -240,7 +240,8 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
            "Speed",
            "ProfileID",
            "HwLogicalPortId",
-           "Drained"});
+           "Drained",
+           "Errors"});
 
       for (auto const& portInfo : model.get_portEntries()) {
         std::string hwLogicalPortId;
@@ -258,7 +259,8 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
              portInfo.get_speed(),
              portInfo.get_profileId(),
              hwLogicalPortId,
-             portInfo.get_isDrained()});
+             portInfo.get_isDrained(),
+             getStyledErrors(portInfo.get_activeErrors())});
       }
       out << table << std::endl;
     }
@@ -340,6 +342,13 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
       return "Present";
     return "Absent";
   }
+  Table::StyledCell getStyledErrors(std::string errors) {
+    if (errors == "--") {
+      return Table::StyledCell(errors, Table::Style::NONE);
+    } else {
+      return Table::StyledCell(errors, Table::Style::ERROR);
+    }
+  }
 
   RetType createModel(
       std::map<int32_t, facebook::fboss::PortInfoThrift> portEntries,
@@ -366,6 +375,18 @@ class CmdShowPort : public CmdHandler<CmdShowPort, CmdShowPortTraits> {
         portDetails.activeState() = activeState;
         portDetails.speed() = utils::getSpeedGbps(portInfo.get_speedMbps());
         portDetails.profileId() = portInfo.get_profileID();
+        if (portInfo.activeErrors()->size()) {
+          std::vector<std::string> errorStrs;
+          std::for_each(
+              portInfo.activeErrors()->begin(),
+              portInfo.activeErrors()->end(),
+              [&errorStrs](auto error) {
+                errorStrs.push_back(apache::thrift::util::enumNameSafe(error));
+              });
+          portDetails.activeErrors() = folly::join(",", errorStrs);
+        } else {
+          portDetails.activeErrors() = "--";
+        }
         if (auto hwLogicalPortId = portInfo.hwLogicalPortId()) {
           portDetails.hwLogicalPortId() = *hwLogicalPortId;
         }

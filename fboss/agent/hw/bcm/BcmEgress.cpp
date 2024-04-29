@@ -392,32 +392,40 @@ bool BcmEcmpEgress::isFlowletEnabledOnAllEgress(
   return true;
 }
 
-EcmpDetails BcmEcmpEgress::getEcmpDetails() {
-  bcm_l3_egress_ecmp_t obj;
-  bcm_l3_egress_ecmp_t_init(&obj);
-  EcmpDetails ecmpDetails;
-  obj.ecmp_intf = id_;
-  int pathsInHwCount = -1;
-  bcm_l3_ecmp_member_t membersInHw[kMaxWeightedEcmpPaths];
-  bcm_if_t pathsInHw[kMaxWeightedEcmpPaths];
+int BcmEcmpEgress::getEcmpObject(
+    bcm_l3_egress_ecmp_t* obj,
+    int* pathsInHwCount,
+    bcm_l3_ecmp_member_t* membersInHw,
+    bcm_if_t* pathsInHw) {
+  bcm_l3_egress_ecmp_t_init(obj);
+  obj->ecmp_intf = id_;
   int ret = 0;
+
   // Initialize oftherwise SDK may return junk
-  memset(membersInHw, 0, sizeof(membersInHw));
+  memset(membersInHw, 0, sizeof(bcm_l3_ecmp_member_t) * kMaxWeightedEcmpPaths);
   if (useHsdk_) {
     ret = bcm_l3_ecmp_get(
         hw_->getUnit(),
-        &obj,
+        obj,
         kMaxWeightedEcmpPaths,
         membersInHw,
-        &pathsInHwCount);
+        pathsInHwCount);
   } else {
     ret = bcm_l3_egress_ecmp_get(
-        hw_->getUnit(),
-        &obj,
-        kMaxWeightedEcmpPaths,
-        pathsInHw,
-        &pathsInHwCount);
+        hw_->getUnit(), obj, kMaxWeightedEcmpPaths, pathsInHw, pathsInHwCount);
   }
+
+  return ret;
+}
+
+EcmpDetails BcmEcmpEgress::getEcmpDetails() {
+  bcm_l3_egress_ecmp_t obj;
+  int pathsInHwCount = -1;
+  bcm_l3_ecmp_member_t membersInHw[kMaxWeightedEcmpPaths];
+  bcm_if_t pathsInHw[kMaxWeightedEcmpPaths];
+  EcmpDetails ecmpDetails;
+
+  int ret = getEcmpObject(&obj, &pathsInHwCount, membersInHw, pathsInHw);
   bcmCheckError(ret, "Unable to get ECMP:  ", id_);
   ecmpDetails.ecmpId() = id_;
   ecmpDetails.flowletEnabled() =
@@ -430,45 +438,14 @@ EcmpDetails BcmEcmpEgress::getEcmpDetails() {
   return ecmpDetails;
 }
 
-uint32 BcmEcmpEgress::getFlowletDynamicMode(
-    const cfg::SwitchingMode& switchingMode) {
-  switch (switchingMode) {
-    case cfg::SwitchingMode::FLOWLET_QUALITY:
-      return BCM_L3_ECMP_DYNAMIC_MODE_NORMAL;
-    case cfg::SwitchingMode::PER_PACKET_QUALITY:
-      return BCM_L3_ECMP_DYNAMIC_MODE_OPTIMAL;
-    case cfg::SwitchingMode::FIXED_ASSIGNMENT:
-      return BCM_L3_ECMP_DYNAMIC_MODE_DISABLED;
-  }
-  throw FbossError("Invalid switching mode: ", switchingMode);
-}
-
 bool BcmEcmpEgress::isFlowletConfigUpdateNeeded() {
   bcm_l3_egress_ecmp_t obj;
-  bcm_l3_egress_ecmp_t_init(&obj);
-  obj.ecmp_intf = id_;
   int pathsInHwCount = -1;
-  bool updateNeeded = false;
   bcm_l3_ecmp_member_t membersInHw[kMaxWeightedEcmpPaths];
   bcm_if_t pathsInHw[kMaxWeightedEcmpPaths];
-  int ret = 0;
-  // Initialize oftherwise SDK may return junk
-  memset(membersInHw, 0, sizeof(membersInHw));
-  if (useHsdk_) {
-    ret = bcm_l3_ecmp_get(
-        hw_->getUnit(),
-        &obj,
-        kMaxWeightedEcmpPaths,
-        membersInHw,
-        &pathsInHwCount);
-  } else {
-    ret = bcm_l3_egress_ecmp_get(
-        hw_->getUnit(),
-        &obj,
-        kMaxWeightedEcmpPaths,
-        pathsInHw,
-        &pathsInHwCount);
-  }
+  bool updateNeeded = false;
+
+  int ret = getEcmpObject(&obj, &pathsInHwCount, membersInHw, pathsInHw);
   bcmCheckError(ret, "Unable to get ECMP:  ", id_);
   auto bcmEcmpFlowletConfig = hw_->getEgressManager()->getBcmFlowletConfig();
 
@@ -483,7 +460,7 @@ bool BcmEcmpEgress::isFlowletConfigUpdateNeeded() {
   }
 
   const auto configDynamicMode =
-      getFlowletDynamicMode(bcmEcmpFlowletConfig.switchingMode);
+      utility::getFlowletDynamicMode(bcmEcmpFlowletConfig.switchingMode);
   if ((neededDynamicSize != 0) && (obj.dynamic_mode != configDynamicMode)) {
     updateNeeded = true;
   }
@@ -521,7 +498,7 @@ bool BcmEcmpEgress::updateFlowletConfig(
       }
       if (obj.dynamic_size > 0) {
         obj.dynamic_mode =
-            getFlowletDynamicMode(bcmFlowletConfig.switchingMode);
+            utility::getFlowletDynamicMode(bcmFlowletConfig.switchingMode);
         flowletConfigUpdated = true;
       }
     }
@@ -1298,8 +1275,6 @@ bool BcmEcmpEgress::isWideEcmpEnabled(bool wideEcmpSupported) {
 
 bool BcmEcmpEgress::updateEcmpDynamicMode() {
   bcm_l3_egress_ecmp_t obj;
-  bcm_l3_egress_ecmp_t_init(&obj);
-  obj.ecmp_intf = id_;
   int pathsInHwCount = -1;
   bcm_l3_ecmp_member_t membersInHw[kMaxWeightedEcmpPaths];
   bcm_if_t pathsInHw[kMaxWeightedEcmpPaths];
@@ -1323,29 +1298,13 @@ bool BcmEcmpEgress::updateEcmpDynamicMode() {
     return updateComplete;
   }
 
-  // Initialize oftherwise SDK may return junk
-  memset(membersInHw, 0, sizeof(membersInHw));
-  if (useHsdk_) {
-    ret = bcm_l3_ecmp_get(
-        hw_->getUnit(),
-        &obj,
-        kMaxWeightedEcmpPaths,
-        membersInHw,
-        &pathsInHwCount);
-  } else {
-    ret = bcm_l3_egress_ecmp_get(
-        hw_->getUnit(),
-        &obj,
-        kMaxWeightedEcmpPaths,
-        pathsInHw,
-        &pathsInHwCount);
-  }
+  ret = getEcmpObject(&obj, &pathsInHwCount, membersInHw, pathsInHw);
   bcmCheckError(ret, "Unable to get ECMP:  ", id_);
 
   // get copy of the ecmpFlowletConfig
   auto bcmEcmpFlowletConfig = hw_->getEgressManager()->getBcmFlowletConfig();
   const auto configDynamicMode =
-      getFlowletDynamicMode(bcmEcmpFlowletConfig.switchingMode);
+      utility::getFlowletDynamicMode(bcmEcmpFlowletConfig.switchingMode);
   // check if the current dynamic mode is same as configured dynamic mode
   // if it is same nothing to do
   if (obj.dynamic_mode == configDynamicMode) {

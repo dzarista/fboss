@@ -29,7 +29,22 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -59,7 +74,724 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4.ECMPShrinkExpandLoadBalanceFullHashCpuTraffic$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4.ECMPShrinkExpandLoadBalanceHalfHashCpuTraffic$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.ECMPShrinkExpandLoadBalanceFullHashCpuTraffic$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.ECMPShrinkExpandLoadBalanceHalfHashCpuTraffic$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6.ECMPShrinkExpandLoadBalanceFullHashCpuTraffic$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6.ECMPShrinkExpandLoadBalanceHalfHashCpuTraffic$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.ECMPShrinkExpandLoadBalanceFullHashCpuTraffic$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.ECMPShrinkExpandLoadBalanceHalfHashCpuTraffic$"
+        }
+    ],
+    "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk/mono": [
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
+        }
+    ],
+    "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk/multi_switch": [
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
+        }
+    ],
+    "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk3/mono": [
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
+        }
+    ],
+    "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk3/multi_switch": [
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
+        }
+    ],
+    "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk4/mono": [
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyEcnWithoutWredConfig$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
+        }
+    ],
+    "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk4/multi_switch": [
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyEcnWithoutWredConfig$"
         }
     ],
     "brcm/11.0_ea_dnx_odp/11.0_ea_dnx_odp/jericho2/mono": [
@@ -91,6 +823,18 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -118,7 +862,43 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
         },
         {
           "test_name_regex": "AgentAqmTest.verifyWred$"
@@ -137,6 +917,9 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnThreshold$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest.*$"
         }
     ],
     "brcm/11.0_ea_dnx_odp/11.0_ea_dnx_odp/jericho2/multi_switch": [
@@ -168,7 +951,22 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -198,7 +996,43 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
         },
         {
           "test_name_regex": "AgentAqmTest.verifyWred$"
@@ -217,6 +1051,9 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnThreshold$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest.*$"
         }
     ],
     "brcm/11.0_ea_dnx_odp/11.0_ea_dnx_odp/jericho3/mono": [
@@ -248,6 +1085,18 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -275,7 +1124,43 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
         },
         {
           "test_name_regex": "AgentAqmTest.verifyWred$"
@@ -294,6 +1179,15 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnThreshold$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest.*$"
+        },
+        {
+          "test_name_regex": "AgentAclCounterTest/0.VerifyCounterBumpOnL4DstportHitFrontPanel$"
+        },
+        {
+          "test_name_regex": "AgentAclCounterTest/0.VerifyAclPriorityL4DstportHitFrontPanel$"
         }
     ],
     "brcm/11.0_ea_dnx_odp/11.0_ea_dnx_odp/jericho3/multi_switch": [
@@ -325,7 +1219,22 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -355,7 +1264,43 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
         },
         {
           "test_name_regex": "AgentAqmTest.verifyWred$"
@@ -374,6 +1319,15 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnThreshold$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest.*$"
+        },
+        {
+          "test_name_regex": "AgentAclCounterTest/0.VerifyCounterBumpOnL4DstportHitFrontPanel$"
+        },
+        {
+          "test_name_regex": "AgentAclCounterTest/0.VerifyAclPriorityL4DstportHitFrontPanel$"
         }
     ],
     "brcm/11.0_ea_dnx_odp/11.0_ea_dnx_odp/ramon/mono": [
@@ -405,6 +1359,18 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -432,7 +1398,25 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
         },
         {
           "test_name_regex": "AgentPrbsTest.*$"
@@ -467,7 +1451,22 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -497,7 +1496,25 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
         },
         {
           "test_name_regex": "AgentPrbsTest.*$"
@@ -532,6 +1549,18 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -559,7 +1588,25 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
         },
         {
           "test_name_regex": "AgentPrbsTest.*$"
@@ -594,7 +1641,22 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -624,7 +1686,25 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
         },
         {
           "test_name_regex": "AgentPrbsTest.*$"
@@ -632,31 +1712,22 @@
     ],
     "brcm/8.2.0.0_odp/8.2.0.0_odp/tomahawk/mono": [
         {
-          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
         },
         {
-          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
         },
         {
-          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
         },
         {
-          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
         },
         {
-          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
         },
         {
-          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
-        },
-        {
-          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
-        },
-        {
-          "test_name_regex": "AgentUdfAclCounterTest.*$"
-        },
-        {
-          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -684,9 +1755,66 @@
         },
         {
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
@@ -694,6 +1822,24 @@
     ],
     "brcm/8.2.0.0_odp/8.2.0.0_odp/tomahawk/multi_switch": [
         {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -719,11 +1865,26 @@
         },
         {
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
         },
         {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -751,7 +1912,25 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
@@ -786,6 +1965,18 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -813,7 +2004,43 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
         }
     ],
     "brcm/8.2.0.0_odp/8.2.0.0_odp/tomahawk3/multi_switch": [
@@ -845,7 +2072,22 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -875,36 +2117,63 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
         }
     ],
     "brcm/8.2.0.0_odp/8.2.0.0_odp/tomahawk4/mono": [
         {
-          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
         },
         {
-          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
         },
         {
-          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
         },
         {
-          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
         },
         {
-          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
         },
         {
-          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
-        },
-        {
-          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
-        },
-        {
-          "test_name_regex": "AgentUdfAclCounterTest.*$"
-        },
-        {
-          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -932,15 +2201,93 @@
         },
         {
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].L3MTUErrorToLowPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DhcpPacketToMidPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/0.VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentOlympicQosSchedulerTest.VerifyWRRForOlympicToOlympicV2$"
+        },
+        {
+          "test_name_regex": "AgentOlympicV2SPToWRRQosSchedulerTest.VerifyOlympicV2AllSPTrafficToWRR$"
+        },
+        {
+          "test_name_regex": "AgentUdfAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
         },
         {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
           "test_name_regex": "AgentAqmTest.verifyEcnWithoutWredConfig$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
         }
     ],
     "brcm/8.2.0.0_odp/8.2.0.0_odp/tomahawk4/multi_switch": [
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV4ToMpls.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsPhp.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6InMplsSwap.*$"
+        },
+        {
+          "test_name_regex": "AgentLoadBalancerTestV6ToMpls.*$"
+        },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
@@ -967,11 +2314,26 @@
         },
         {
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
         },
         {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -999,7 +2361,25 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnWithoutWredConfig$"
@@ -1034,6 +2414,12 @@
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRoutesToLowPriQueue$"
         },
         {
+          "test_name_regex": "AgentCoppTest/[01].CpuPortIpv6LinkLocalUcastIp$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalMcastNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentDscpMarkingTest.VerifyDscpMarking$"
         },
         {
@@ -1047,6 +2433,9 @@
         },
         {
           "test_name_regex": "AgentQueuePerHostRouteTest/[01].VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
         },
         {
           "test_name_regex": "AgentDeepPacketInspectionTest.*$"
@@ -1077,6 +2466,18 @@
         },
         {
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         }
     ],
     "leaba/1.42.8/1.42.8/gibraltar/multi_switch": [
@@ -1108,6 +2509,12 @@
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRoutesToLowPriQueue$"
         },
         {
+          "test_name_regex": "AgentCoppTest/[01].CpuPortIpv6LinkLocalUcastIp$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalMcastNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentDscpMarkingTest.VerifyDscpMarking$"
         },
         {
@@ -1121,6 +2528,9 @@
         },
         {
           "test_name_regex": "AgentQueuePerHostRouteTest/[01].VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
         },
         {
           "test_name_regex": "AgentDeepPacketInspectionTest.*$"
@@ -1153,7 +2563,22 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         }
     ],
     "leaba/1.65.1/1.65.1/gibraltar/mono": [
@@ -1185,6 +2610,12 @@
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRoutesToLowPriQueue$"
         },
         {
+          "test_name_regex": "AgentCoppTest/[01].CpuPortIpv6LinkLocalUcastIp$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalMcastNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentDscpMarkingTest.VerifyDscpMarking$"
         },
         {
@@ -1198,6 +2629,12 @@
         },
         {
           "test_name_regex": "AgentQueuePerHostRouteTest/[01].VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest.VerifyQueueShaper$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -1225,6 +2662,18 @@
         },
         {
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         }
     ],
     "leaba/1.65.1/1.65.1/gibraltar/multi_switch": [
@@ -1256,6 +2705,12 @@
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRoutesToLowPriQueue$"
         },
         {
+          "test_name_regex": "AgentCoppTest/[01].CpuPortIpv6LinkLocalUcastIp$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalMcastNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentDscpMarkingTest.VerifyDscpMarking$"
         },
         {
@@ -1269,6 +2724,12 @@
         },
         {
           "test_name_regex": "AgentQueuePerHostRouteTest/[01].VerifyHostToQueueMappingClassID$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
+        },
+        {
+          "test_name_regex": "AgentPortBandwidthTest.VerifyQueueShaper$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -1298,7 +2759,22 @@
           "test_name_regex": "AgentFlowletAclCounterTest.*$"
         },
         {
+          "test_name_regex": "AgentCoppQosTest.HighVsLowerPriorityCpuQueueTrafficPrioritization$"
+        },
+        {
+          "test_name_regex": "AgentCoppQueueStuckTest.CpuQueueHighRateTraffic$"
+        },
+        {
+          "test_name_regex": "AgentPacketFloodTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
           "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         }
     ]
   }

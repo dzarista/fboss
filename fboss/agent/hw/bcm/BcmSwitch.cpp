@@ -193,8 +193,6 @@ enum : uint8_t {
 };
 
 namespace {
-constexpr auto kHostTable = "hostTable";
-constexpr int kLogBcmErrorFreqMs = 3000;
 // On new platforms we found sflow samplig rate to be inconsistent
 // BRCM found this seed provides better results (see CS00011944544)
 constexpr auto kHSDKSflowSamplingSeed = 0x2f64c448;
@@ -3338,6 +3336,8 @@ void BcmSwitch::processDefaultAclgroupForUdf(
              << aclIdsToString(udfQsetIdsInHW)
              << " .Config ids: " << aclIdsToString(udfAclIds);
 
+  writableAclTable()->clearAclTable(
+      platform_->getAsic()->getDefaultACLGroupID());
   clearFPGroup(unit_, platform_->getAsic()->getDefaultACLGroupID());
   createAclGroup(
       udfAclIds.size() ? std::optional<std::set<bcm_udf_id_t>>(udfAclIds)

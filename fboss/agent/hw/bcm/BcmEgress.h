@@ -184,6 +184,11 @@ class BcmEcmpEgress : public BcmEgressBase {
   bool updateEcmpDynamicMode();
   uint64_t getL3EcmpDlbFailPackets();
   EcmpDetails getEcmpDetails();
+  int getEcmpObject(
+      bcm_l3_egress_ecmp_t* obj,
+      int* pathsInHwCount,
+      bcm_l3_ecmp_member_t* membersInHw,
+      bcm_if_t* pathsInHw);
   /*
    * Update ecmp egress entries in HW
    */
@@ -238,7 +243,6 @@ class BcmEcmpEgress : public BcmEgressBase {
   bool isFlowletConfigUpdateNeeded();
   bool updateFlowletConfig(bcm_l3_egress_ecmp_t& obj, int numPaths);
   bool isFlowletEnabledOnAllEgress(const EgressId2Weight& egressId2Weight);
-  static uint32 getFlowletDynamicMode(const cfg::SwitchingMode& switchingMode);
   static bool isWideEcmpEnabled(bool wideEcmpSupported);
   const EgressId2Weight egressId2Weight_;
   bool ucmpEnabled_{false};

@@ -151,6 +151,14 @@ std::unordered_set<SwitchID> HwAsicTable::getL3SwitchIds() const {
   return switchIds;
 }
 
+std::vector<const HwAsic*> HwAsicTable::getL3Asics() const {
+  std::vector<const HwAsic*> l3Asics;
+  for (auto switchId : getL3SwitchIds()) {
+    l3Asics.push_back(getHwAsic(switchId));
+  }
+  return l3Asics;
+}
+
 std::set<cfg::StreamType> HwAsicTable::getQueueStreamTypes(
     SwitchID switchId,
     cfg::PortType portType) const {
@@ -159,6 +167,17 @@ std::set<cfg::StreamType> HwAsicTable::getQueueStreamTypes(
     throw FbossError("Invalid switch ID for getQueueStreamTypes ", switchId);
   }
   return asic->getQueueStreamTypes(portType);
+}
+
+std::unordered_set<SwitchID> HwAsicTable::getSwitchIDs(
+    HwAsic::Feature feature) const {
+  std::unordered_set<SwitchID> result{};
+  for (const auto& entry : hwAsics_) {
+    if (isFeatureSupported(entry.first, feature)) {
+      result.insert(entry.first);
+    }
+  }
+  return result;
 }
 
 } // namespace facebook::fboss

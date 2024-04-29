@@ -24,12 +24,13 @@ class AgentOlympicQosTests : public AgentHwTest {
  protected:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    auto asic = utility::getFirstAsic(ensemble.getSw());
+    // ARISTA fix to make build pass.
+    // auto asic = utility::getFirstAsic(ensemble.getSw());
     auto cfg = utility::onePortPerInterfaceConfig(
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
-    utility::addOlympicQosMaps(cfg, asic);
+    utility::addOlympicQosMaps(cfg, ensemble.getL3Asics());
     return cfg;
   }
 
@@ -47,17 +48,16 @@ class AgentOlympicQosTests : public AgentHwTest {
     auto verify = [=, this]() {
       utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
       auto portId = ecmpHelper.ecmpPortDescriptorAt(0).phyPortID();
-      auto asic = utility::getFirstAsic(getAgentEnsemble()->getSw());
       std::optional<SystemPortID> sysPortId;
       if (getSw()->getSwitchInfoTable().haveVoqSwitches()) {
-        auto switchId = utility::getFirstSwitchId(getSw());
+        auto switchId = switchIdForPort(portId);
         sysPortId = getSystemPortID(portId, getProgrammedState(), switchId);
       }
       for (bool frontPanel : {false, true}) {
         XLOG(DBG2) << "verify send packets "
                    << (frontPanel ? "out of port" : "switched");
         utility::sendPktAndVerifyQueueHit(
-            utility::kOlympicQueueToDscp(asic),
+            utility::kOlympicQueueToDscp(),
             getSw(),
             [this, frontPanel](int dscp) { sendPacket(dscp, frontPanel); },
             portId,

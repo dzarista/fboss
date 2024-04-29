@@ -218,4 +218,23 @@ UplinkDownlinkPair getAllUplinkDownlinkPorts(
     const int ecmpWidth = 4,
     const bool mmu_lossless = false);
 
+void configurePortGroup(
+    const PlatformMapping* platformMapping,
+    bool supportsAddRemovePort,
+    cfg::SwitchConfig& config,
+    cfg::PortSpeed speed,
+    std::vector<PortID> allPortsInGroup);
+
+std::vector<PortID> getAllPortsInGroup(
+    const PlatformMapping* platformMapping,
+    PortID portID);
+
+void removeSubsumedPorts(
+    cfg::SwitchConfig& config,
+    const cfg::PlatformPortConfig& profile,
+    bool supportsAddRemovePort);
+
+std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
+    const cfg::SwitchConfig& config);
+
 } // namespace facebook::fboss::utility

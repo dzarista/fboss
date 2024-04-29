@@ -15,6 +15,7 @@
 #include "fboss/agent/test/utils/AclTestUtils.h"
 #include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/ConfigUtils.h"
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/agent/test/utils/PacketTestUtils.h"
 #include "fboss/agent/test/utils/TrafficPolicyTestUtils.h"
 #include "fboss/lib/CommonUtils.h"
@@ -103,7 +104,6 @@ class AgentDscpQueueMappingTest : public AgentDscpQueueMappingTestBase {
  protected:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    auto asic = utility::getFirstAsic(ensemble.getSw());
     auto cfg = utility::onePortPerInterfaceConfig(
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
@@ -111,7 +111,9 @@ class AgentDscpQueueMappingTest : public AgentDscpQueueMappingTestBase {
     auto kAclName = "acl1";
     utility::addDscpAclToCfg(&cfg, kAclName, kDscp());
     utility::addTrafficCounter(
-        &cfg, kCounterName(), utility::getAclCounterTypes(asic));
+        &cfg,
+        kCounterName(),
+        utility::getAclCounterTypes(ensemble.getL3Asics()));
     utility::addQueueMatcher(
         &cfg, kAclName, kQueueId(), ensemble.isSai(), kCounterName());
     return cfg;
@@ -161,15 +163,12 @@ class AgentAclAndDscpQueueMappingTest : public AgentDscpQueueMappingTestBase {
  protected:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    auto asic = utility::getFirstAsic(ensemble.getSw());
     auto cfg = utility::onePortPerInterfaceConfig(
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
     // QosMap
-    utility::addDscpQosPolicy(&cfg, "qp1", {{kQueueId(), {kDscp()}}});
-    utility::setCPUQosPolicy(&cfg, "qp1");
-    utility::setDefaultQosPolicy(&cfg, "qp1");
+    utility::addOlympicQosMaps(cfg, ensemble.getL3Asics());
 
     // ACL
     auto* acl = utility::addAcl(&cfg, "acl0");
@@ -177,7 +176,10 @@ class AgentAclAndDscpQueueMappingTest : public AgentDscpQueueMappingTestBase {
     std::tie(*ttl.value(), *ttl.mask()) = std::make_tuple(0x80, 0x80);
     acl->ttl() = ttl;
     utility::addAclStat(
-        &cfg, "acl0", kCounterName(), utility::getAclCounterTypes(asic));
+        &cfg,
+        "acl0",
+        kCounterName(),
+        utility::getAclCounterTypes(ensemble.getL3Asics()));
     return cfg;
   }
 
@@ -226,7 +228,6 @@ class AgentAclConflictAndDscpQueueMappingTest
  protected:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    auto asic = utility::getFirstAsic(ensemble.getSw());
     auto cfg = utility::onePortPerInterfaceConfig(
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
@@ -235,14 +236,14 @@ class AgentAclConflictAndDscpQueueMappingTest
     // The QoS map sends packets to queue kQueueIdQosMap() i.e. 7,
     // The ACL sends them to queue kQueueIdAcl() i.e. 2.
     // QosMap
-    utility::addDscpQosPolicy(&cfg, "qp1", {{kQueueIdQosMap(), {kDscp()}}});
-    utility::setCPUQosPolicy(&cfg, "qp1");
-    utility::setDefaultQosPolicy(&cfg, "qp1");
+    utility::addOlympicQosMaps(cfg, ensemble.getL3Asics());
 
     // ACL
     utility::addDscpAclToCfg(&cfg, "acl0", kDscp());
     utility::addTrafficCounter(
-        &cfg, kCounterName(), utility::getAclCounterTypes(asic));
+        &cfg,
+        kCounterName(),
+        utility::getAclCounterTypes(ensemble.getL3Asics()));
     utility::addQueueMatcher(
         &cfg, "acl0", kQueueIdAcl(), ensemble.isSai(), kCounterName());
     return cfg;

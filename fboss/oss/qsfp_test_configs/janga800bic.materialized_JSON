@@ -1,6 +1,7 @@
 {
   "defaultCommandLineArgs": {
-    "mode": "janga800bic"
+    "mode": "janga800bic",
+    "multi_npu_platform_mapping": "true"
   },
   "transceiverConfigOverrides": [
     
@@ -68,7 +69,15 @@
           "versions": [
             {
               "fwType": 1,
-              "version": "1.10"
+              "version": "1.12"
+            }
+          ]
+      },
+      "SPTSHP3CLCKS": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "2.6"
             }
           ]
       },
@@ -157,6 +166,14 @@
             {
               "fwType": 1,
               "version": "106.1"
+            }
+          ]
+      },
+      "T-OL8CNT-NF2": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "103.130"
             }
           ]
       }

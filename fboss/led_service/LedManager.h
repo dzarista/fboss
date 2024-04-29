@@ -20,6 +20,7 @@
 #include "fboss/fsdb/client/FsdbPubSubManager.h"
 #include "fboss/led_service/FsdbSwitchStateSubscriber.h"
 #include "fboss/led_service/LedConfig.h"
+#include "fboss/led_service/LedUtils.h"
 #include "fboss/lib/led/LedIO.h"
 #include "fboss/lib/led/gen-cpp2/led_mapping_types.h"
 
@@ -41,7 +42,9 @@ class LedManager {
     bool cablingError{false};
     bool forcedOn{false};
     bool forcedOff{false};
-    led::LedColor currentLedColor{led::LedColor::UNKNOWN};
+    led::LedState currentLedState{utility::constructLedState(
+        led::LedColor::UNKNOWN,
+        led::Blink::UNKNOWN)};
   };
 
  public:
@@ -72,7 +75,7 @@ class LedManager {
 
   void setExternalLedState(int32_t portNum, PortLedExternalState ledState);
 
-  led::LedState getLedState(const std::string& swPortName) const;
+  led::PortLedState getPortLedState(const std::string& swPortName) const;
 
   bool isLedControlledThroughService() const;
 
@@ -103,16 +106,14 @@ class LedManager {
 
   std::unique_ptr<LedConfig> ledConfig_;
 
-  virtual led::LedColor calculateLedColor(
+  virtual led::LedState calculateLedState(
       uint32_t /* portId */,
-      cfg::PortProfileID /* portProfiled */) const {
-    return led::LedColor::UNKNOWN;
-  }
+      cfg::PortProfileID /* portProfiled */) const = 0;
 
-  virtual void setLedColor(
-      uint32_t /* portIdd */,
-      cfg::PortProfileID /* portProfiled */,
-      led::LedColor /* ledColord */) {}
+  virtual void setLedState(
+      uint32_t /* portId */,
+      cfg::PortProfileID /* portProfile */,
+      led::LedState /* ledState */) = 0;
 
  private:
   std::unique_ptr<std::thread> ledManagerThread_{nullptr};

@@ -18,6 +18,8 @@
 namespace facebook::fboss::utility {
 
 void checkFabricReachability(TestEnsembleIf* ensemble, SwitchID switchId) {
+  auto expectedSwitchType =
+      ensemble->getHwAsicTable()->getHwAsic(switchId)->getSwitchType();
   WITH_RETRIES({
     ensemble->updateStats();
     auto reachability = ensemble->getFabricConnectivity(switchId);
@@ -45,18 +47,11 @@ void checkFabricReachability(TestEnsembleIf* ensemble, SwitchID switchId) {
                  << " got switch type: "
                  << apache::thrift::util::enumNameSafe(*endpoint.switchType())
                  << " expected switch type: "
-                 << apache::thrift::util::enumNameSafe(
-                        ensemble->getHwAsicTable()
-                            ->getHwAsic(SwitchID(expectedSwitchId))
-                            ->getSwitchType());
+                 << apache::thrift::util::enumNameSafe(expectedSwitchType);
 
       EXPECT_EVENTUALLY_EQ(*endpoint.switchId(), expectedSwitchId);
-      EXPECT_EVENTUALLY_EQ(
-          *endpoint.switchType(),
-          ensemble->getHwAsicTable()
-              ->getHwAsic(SwitchID(expectedSwitchId))
-              ->getSwitchType());
       EXPECT_EVENTUALLY_EQ(*endpoint.portId(), expectedPortId);
+      EXPECT_EVENTUALLY_EQ(*endpoint.switchType(), expectedSwitchType);
     }
 
     EXPECT_EVENTUALLY_EQ(
@@ -131,4 +126,17 @@ void checkPortFabricReachability(
   });
 }
 
+void checkFabricPortsActiveState(
+    TestEnsembleIf* ensemble,
+    const std::vector<PortID>& fabricPortIds,
+    bool expectActive) {
+  WITH_RETRIES({
+    for (const auto& portId : fabricPortIds) {
+      auto fabricPort =
+          ensemble->getProgrammedState()->getPorts()->getNodeIf(portId);
+      EXPECT_EVENTUALLY_TRUE(fabricPort->isActive().has_value());
+      EXPECT_EVENTUALLY_EQ(*fabricPort->isActive(), expectActive);
+    }
+  });
+}
 } // namespace facebook::fboss::utility

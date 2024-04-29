@@ -54,6 +54,10 @@ enum PortLedExternalState {
   CABLING_ERROR_LOOP_DETECTED = 4,
 }
 
+enum PortError {
+  ERROR_DISABLE_LOOP_DETECTED = 1,
+}
+
 struct IpPrefix {
   1: required Address.BinaryAddress ip;
   2: required i16 prefixLength;
@@ -63,6 +67,11 @@ enum RouteForwardAction {
   DROP = 0,
   TO_CPU = 1,
   NEXTHOPS = 2,
+}
+
+enum Scope {
+  LOCAL = 0,
+  GLOBAL = 1,
 }
 
 typedef string RouteCounterID
@@ -362,6 +371,7 @@ struct PortInfoThrift {
   23: optional i32 hwLogicalPortId;
   24: bool isDrained;
   25: optional PortActiveState activeState;
+  26: list<PortError> activeErrors;
 }
 
 // Port queueing configuration
@@ -411,6 +421,7 @@ struct SystemPortThrift {
    * Set only on Remote System Ports of VOQ switches.
    */
   13: optional common.LivenessStatus remoteSystemPortLivenessStatus;
+  14: Scope scope = Scope.GLOBAL;
 }
 
 struct PortHardwareDetails {

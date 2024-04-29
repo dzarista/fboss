@@ -6,6 +6,7 @@
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/test/AgentEnsemble.h"
 #include "fboss/agent/test/gen-cpp2/production_features_types.h"
+#include "fboss/agent/test/utils/AgentHwTestConstants.h"
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
@@ -14,6 +15,7 @@ DECLARE_int32(update_watermark_stats_interval_s);
 DECLARE_bool(publish_state_to_fsdb);
 DECLARE_bool(publish_stats_to_fsdb);
 DECLARE_bool(intf_nbr_tables);
+DECLARE_bool(classid_for_unresolved_routes);
 
 namespace facebook::fboss {
 
@@ -173,6 +175,9 @@ class AgentHwTest : public ::testing::Test {
    * our test.
    */
   virtual void setCmdLineFlagOverrides() const;
+
+  SwitchID switchIdForPort(PortID port) const;
+  const HwAsic* hwAsicForPort(PortID port) const;
 
  private:
   void applyNewStateImpl(
