@@ -100,7 +100,7 @@ endif()
 
 set(SAI_VER_MAJOR "1")
 set(SAI_VER_MINOR "13")
-set(SAI_VER_RELEASE "0")
+set(SAI_VER_RELEASE "2")
 
 if (NOT "$ENV{SAI_SDK_VERSION}" STREQUAL "")
   message(STATUS "ENV SAI_SDK_VERSION is set to $ENV{SAI_SDK_VERSION}")
