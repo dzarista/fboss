@@ -164,6 +164,9 @@ class FbossFanTestEdut():
 
    def getSystemIntfs( self ):
       return self.edut.showCmdIs( 'show int st' )
+   
+   def getSystemIntfsConnectedCount( self ):
+      return self.edut.showCmdIs( 'sh int st | grep connected | wc -l' )
 
    def getSystemIntfsCountRates( self ):
       return self.edut.showCmdIs( 'show int count rates' )
@@ -202,7 +205,7 @@ class FbossFanTestEdut():
       power = self.getTotalSystemPower()
       inletTemp = self.getInletTemp()
       outletTemp = self.getOutletTemp()
-      maxOpticTemp = 78 #TODO: make maxOpticTemp dynamic
+      maxOpticTemp = 75 #TODO: make maxOpticTemp dynamic
       opticsMargin = maxOpticTemp - hottestOptic 
       opticsMargin30C = opticsMargin - ( 30 - inletTemp )
 
@@ -222,7 +225,8 @@ class FbossFanTestEdut():
             'OpticsMargin': round( opticsMargin, 4 ),
             'OpticsMargin30C': round( opticsMargin30C, 4 ),
             'AvgPsusRpm': round( self.getAvgPsuFanRpm(), 4 ),
-            'AvgTrafficRate': round( self.getAvgTrafficRate(), 4 )
+            'AvgTrafficRate': round( self.getAvgTrafficRate(), 4 ),
+            'Connected': self.getSystemIntfsConnectedCount()
       }
    
    def checkSetup( self ):
@@ -628,7 +632,7 @@ def main( argv ):
    df = pd.DataFrame( columns=[
       'TargetRpm', 'AvgRpm', 'HottestOptic', 'HottestAsic', 'HottestCpuTemp', 'AvgFanPwm',
       'Airflow(CFM)', 'SystemPower', 'Inlet', 'Outlet', 'SsdTemp', 'CFM/W', 'DeltaT',
-      'OpticsMargin', 'OpticsMargin30C', 'AvgPsusRpm', 'AvgTrafficRate' ] )
+      'OpticsMargin', 'OpticsMargin30C', 'AvgPsusRpm', 'AvgTrafficRate', 'Connected' ] )
 
    obj.overridePidAlgo()
 
@@ -727,7 +731,7 @@ def main( argv ):
                      cellLoc = 'center', loc = 'center', transform = fig.transFigure  )
       tbl.auto_set_font_size(False)
       tbl.set_fontsize(6)
-      pdf.savefig( fig )
+      pdf.savefig( fig, bbox_inches='tight' )
       plt.close( fig )
 
       # Adding graphs of the data
