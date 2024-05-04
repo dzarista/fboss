@@ -193,7 +193,6 @@ void SaiSystemPortManager::changeSystemPort(
     removeSystemPort(oldSystemPort);
     addSystemPort(newSystemPort);
   } else {
-    handle->systemPort->setAttributes(newAttributes);
     if (oldSystemPort->getPortName() != newSystemPort->getPortName()) {
       // Port name changed - update stats
       portStats_.find(newSystemPort->getID())
@@ -345,6 +344,11 @@ std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
       sysPort->setCorePortIndex(*platformPort->getCorePortIndex());
       sysPort->setSpeedMbps(static_cast<int>(port.second->getSpeed()));
       sysPort->setNumVoqs(8);
+      if (platformPort->getLocalScope()) {
+        sysPort->setScope(Scope::LOCAL);
+      } else {
+        sysPort->setScope(Scope::GLOBAL);
+      }
       sysPort->setQosPolicy(port.second->getQosPolicy());
       sysPortMap->addSystemPort(std::move(sysPort));
     }

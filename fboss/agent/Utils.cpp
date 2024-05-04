@@ -224,6 +224,7 @@ std::vector<ClientID> AllClientIDs() {
       ClientID::BGPD,
       ClientID::STATIC_ROUTE,
       ClientID::INTERFACE_ROUTE,
+      ClientID::REMOTE_INTERFACE_ROUTE,
       ClientID::LINKLOCAL_ROUTE,
       ClientID::STATIC_INTERNAL,
       ClientID::OPENR,
@@ -805,6 +806,7 @@ uint32_t getRemotePortOffset(const PlatformType platformType) {
     case PlatformType::PLATFORM_MERU400BFU:
       return 0;
     case PlatformType::PLATFORM_MERU800BFA:
+    case PlatformType::PLATFORM_MERU800BFA_P1:
       return 0;
     case PlatformType::PLATFORM_MERU800BIA:
     case PlatformType::PLATFORM_JANGA800BIC:

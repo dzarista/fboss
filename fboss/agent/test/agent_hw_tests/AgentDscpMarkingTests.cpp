@@ -15,7 +15,7 @@
 #include "fboss/agent/test/EcmpSetupHelper.h"
 
 #include "fboss/agent/test/utils/AclTestUtils.h"
-#include "fboss/agent/test/utils/CommonUtils.h"
+#include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/ConfigUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
 #include "fboss/agent/test/utils/DscpMarkingUtils.h"
@@ -44,7 +44,7 @@ class AgentDscpMarkingTest : public AgentHwTest {
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
     auto asic = utility::getFirstAsic(ensemble.getSw());
-    utility::addOlympicQosMaps(cfg, asic);
+    utility::addOlympicQosMaps(cfg, ensemble.getL3Asics());
     utility::addDscpCounterAcl(&cfg, asic);
     utility::addDscpMarkingAcls(&cfg, asic, ensemble.isSai());
     return cfg;

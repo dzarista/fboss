@@ -113,6 +113,8 @@ class CmisModule : public QsfpModule {
     MAX_QSFP_PAGE_SIZE = 128,
   };
 
+  static constexpr int kMaxOsfpNumLanes = 8;
+
   using LengthAndGauge = std::pair<double, uint8_t>;
 
   using VdmDiagsLocationStatus = struct VdmDiagsLocationStatus_t {
@@ -312,10 +314,18 @@ class CmisModule : public QsfpModule {
    * Gets the Media Type encoding (byte 85 in CMIS)
    */
   MediaTypeEncodings getMediaTypeEncoding() const;
+
   /*
    * Gets the Single Mode Fiber Interface codes from SFF-8024
    */
   SMFMediaInterfaceCode getSmfMediaInterface(uint8_t lane = 0) const;
+
+  /*
+   * Returns the list of media interfaces supported by the module
+   */
+  std::vector<MediaInterfaceCode> getSupportedMediaInterfacesLocked()
+      const override;
+
   /*
    * Returns the firmware version
    * <Module firmware version, DSP version, Build revision>
@@ -361,6 +371,9 @@ class CmisModule : public QsfpModule {
   virtual VdmPerfMonitorStatsForOds getVdmPerfMonitorStatsForOds(
       VdmPerfMonitorStats& vdmPerfMonStats) override;
 
+  virtual std::map<std::string, CdbDatapathSymErrHistogram>
+  getCdbSymbolErrorHistogramLocked() override;
+
   /*
    * Trigger next VDM stats capture
    */
@@ -382,6 +395,8 @@ class CmisModule : public QsfpModule {
   std::optional<ApplicationAdvertisingField> getApplicationField(
       uint8_t application,
       uint8_t startHostLane) const;
+
+  SMFMediaInterfaceCode getApplicationFromApSelCode(uint8_t apSelCode) const;
 
   // Returns the list of host lanes configured in the same datapath as the
   // provided startHostLane
@@ -543,6 +558,10 @@ class CmisModule : public QsfpModule {
   std::pair<std::optional<const uint8_t*>, int> getVdmDataValPtr(
       VdmConfigType vdmConf);
 
+  SMFMediaInterfaceCode getMediaIntfCodeFromSpeed(
+      cfg::PortSpeed speed,
+      uint8_t numLanes);
+
   // Private functions to extract and fill in VDM performance monitoring stats
   bool fillVdmPerfMonitorSnr(VdmPerfMonitorStats& vdmStats);
   bool fillVdmPerfMonitorBer(VdmPerfMonitorStats& vdmStats);
@@ -553,6 +572,9 @@ class CmisModule : public QsfpModule {
   const std::shared_ptr<const TransceiverConfig> tcvrConfig_;
 
   bool supportRemediate_;
+  std::map<int32_t, SymErrHistogramBin> getCdbSymbolErrorHistogramLocked(
+      uint8_t datapathId,
+      bool mediaSide);
 };
 
 } // namespace fboss

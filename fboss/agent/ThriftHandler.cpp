@@ -348,6 +348,7 @@ void getPortInfoHelper(
     portInfo.activeState() = PortActiveState(
         port->getActiveState().value() == Port::ActiveState::ACTIVE);
   }
+  portInfo.activeErrors() = port->getActiveErrors();
 
   *portInfo.profileID() = apache::thrift::util::enumName(port->getProfileID());
 
@@ -1377,7 +1378,11 @@ void ThriftHandler::patchCurrentStateJSONForPaths(
   auto updateDsfStateFn = [this, switchId2SystemPorts, switchId2Rifs](
                               const std::shared_ptr<SwitchState>& in) {
     auto newState = DsfStateUpdaterUtil::getUpdatedState(
-        in, sw_->getScopeResolver(), switchId2SystemPorts, switchId2Rifs);
+        in,
+        sw_->getScopeResolver(),
+        sw_->getRib(),
+        switchId2SystemPorts,
+        switchId2Rifs);
     return newState;
   };
 
@@ -3154,6 +3159,7 @@ void ThriftHandler::getMultiSwitchRunState(MultiSwitchRunState& runState) {
   runState.swSwitchRunState() = sw_->getSwitchRunState();
   runState.hwIndexToRunState() =
       sw_->getHwSwitchHandler()->getHwSwitchRunStates();
+  runState.multiSwitchEnabled() = sw_->isRunModeMultiSwitch();
 }
 
 void ThriftHandler::getAllEcmpDetails(std::vector<EcmpDetails>& ecmpDetails) {

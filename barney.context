@@ -2,22 +2,22 @@
 	"version": 1,
         "repomap": {
             "barney.ci/barneyfile": {
-               "commit": "dd176b8fa16eccfa8fa53443c5df5fd5f2e61354"
+               "commit": "6cfa46bb863536ff547a254b501565845c2fab13"
             },
             "github.com/aristanetworks/fboss-centos": {
-               "commit": "d8ac18a95ef11ce829fe026875e05043702079e3"
+               "commit": "6e6fdbbf58fdc1f9dd87a351becc490b5edb66bc"
             },
             "code.arista.io/aqua-sai/in-eos": {
                "commit": "ff15bb8327b4e8436e135b626cd356b713860c05"
             },
             "code.arista.io/infra/barney/barnzilla": {
-               "commit": "9024a31a41549817e41d8132191aeaa86b516498"
+               "commit": "484848cefc74800e165426d51c22c57217284797"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "f75520969bacd3cf1b75c8c7405a9f2dab796149"
+               "commit": "39b698b6f664ed858ab38b446307a71df8247a9b"
             },
             "barney.ci/alpine": {
-               "commit": "fb1ae6f324425a5f9260d60d7cc113146bb97913"
+               "commit": "c115a921effbb9f7360a244cefee16be95facf9e"
             },
             "barney.ci/golang": {
                "commit": "711b3944183c0938ea918e0a123dc2009ce7dae4"
@@ -26,7 +26,7 @@
                "commit": "dddf0ae40fa0c1223aba191d73a44425a08e1035"
             },
             "barney.ci/byob": {
-               "commit": "69e13b5780c61b3911421d6bf595bd35bb6824fc"
+               "commit": "987493ed5237c2220e1a4b8b83e35f4a1158b508"
             },
             "github.com/goreleaser/nfpm": {
                "commit": "9af00e6421bae54bdb7a36f60055d0d66c07909d"

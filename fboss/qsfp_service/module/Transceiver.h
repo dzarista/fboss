@@ -289,6 +289,12 @@ class Transceiver {
 
   virtual std::string getFwStorageHandle() const = 0;
 
+  virtual std::map<std::string, CdbDatapathSymErrHistogram>
+  getSymbolErrorHistogram() = 0;
+
+  virtual std::vector<MediaInterfaceCode> getSupportedMediaInterfaces()
+      const = 0;
+
  protected:
   virtual void latchAndReadVdmDataLocked() = 0;
   virtual bool shouldRemediateLocked(time_t pauseRemidiation) = 0;

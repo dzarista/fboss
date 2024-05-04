@@ -212,19 +212,31 @@ class PortUpdateHandlerLoopDetectionTest : public ::testing::Test {
     }
     throw FbossError("No fabric port found");
   }
-  void checkPortState(cfg::PortState expectedState) const {
+  void checkPortState(cfg::PortState expectedState) {
+    ensureAllQueuedUpdatesDone();
     WITH_RETRIES({
       auto ports = sw->getState()->getPorts()->getAllNodes();
       for (const auto& [id, port] : *ports) {
         if (PortID(id) == kPortId()) {
           EXPECT_EVENTUALLY_EQ(port->getAdminState(), expectedState);
+          if (expectedState == cfg::PortState::DISABLED) {
+            EXPECT_EVENTUALLY_EQ(
+                port->getActiveErrors(),
+                std::vector<PortError>(
+                    {PortError::ERROR_DISABLE_LOOP_DETECTED}));
+          } else {
+            EXPECT_EVENTUALLY_TRUE(port->getActiveErrors().empty());
+          }
+
         } else {
           EXPECT_EVENTUALLY_EQ(port->getAdminState(), cfg::PortState::ENABLED);
+          EXPECT_EVENTUALLY_TRUE(port->getActiveErrors().empty());
         }
       }
     });
   }
-  void checkPortLedState(PortLedExternalState expectedState) const {
+  void checkPortLedState(PortLedExternalState expectedState) {
+    ensureAllQueuedUpdatesDone();
     WITH_RETRIES({
       auto ports = sw->getState()->getPorts()->getAllNodes();
       for (const auto& [id, port] : *ports) {
@@ -236,6 +248,11 @@ class PortUpdateHandlerLoopDetectionTest : public ::testing::Test {
         }
       }
     });
+  }
+  void ensureAllQueuedUpdatesDone() {
+    sw->updateStateBlocking(
+        "empty update",
+        [](const std::shared_ptr<SwitchState>) { return nullptr; });
   }
   std::map<PortID, multiswitch::FabricConnectivityDelta> makeConnectivity(
       std::optional<FabricEndpoint> endpoint) const {
@@ -261,12 +278,42 @@ TYPED_TEST(PortUpdateHandlerLoopDetectionTest, createLoop) {
   this->sw->linkConnectivityChanged(this->makeConnectivity(endpoint));
   this->checkPortLedState(PortLedExternalState::CABLING_ERROR_LOOP_DETECTED);
   this->checkPortState(this->getLoopedPortExpectedState());
-  // Reset connectivity old admin state should be retained, i.e.
-  // we don't re-enable on missing connectivity but led state should
-  // get reset
-  this->sw->linkConnectivityChanged(this->makeConnectivity(std::nullopt));
+  // Reset connectivity to mark port as unattached - this is what will
+  // happen once link goes down due to port being admin disabled.
+  // Port admin state should be retained but Led state should go
+  // back to none, since the port is no longer looped
+  endpoint.isAttached() = false;
+  this->sw->linkConnectivityChanged(this->makeConnectivity(endpoint));
   this->checkPortLedState(PortLedExternalState::NONE);
   this->checkPortState(this->getLoopedPortExpectedState());
+}
+
+TYPED_TEST(PortUpdateHandlerLoopDetectionTest, createLoopReenablePort) {
+  FabricEndpoint endpoint;
+  endpoint.isAttached() = true;
+  endpoint.switchId() = this->switchId();
+  endpoint.portId() = this->kPortId();
+  this->sw->linkConnectivityChanged(this->makeConnectivity(endpoint));
+  this->checkPortLedState(PortLedExternalState::CABLING_ERROR_LOOP_DETECTED);
+  this->checkPortState(this->getLoopedPortExpectedState());
+  // Reset connectivity to mark port as unattached - this is what will
+  // happen once link goes down due to port being admin disabled.
+  // Port admin state should be retained but Led state should go
+  // back to none, since the port is no longer looped
+  endpoint.isAttached() = false;
+  this->sw->linkConnectivityChanged(this->makeConnectivity(endpoint));
+  this->checkPortLedState(PortLedExternalState::NONE);
+  this->checkPortState(this->getLoopedPortExpectedState());
+  this->sw->updateStateBlocking(
+      "Re-enable port", [this](const std::shared_ptr<SwitchState>& in) {
+        auto out = in->clone();
+        auto port = out->getPorts()->getNodeIf(this->kPortId());
+        auto newPort = port->modify(&out);
+        newPort->setAdminState(cfg::PortState::ENABLED);
+        return out;
+      });
+  this->checkPortLedState(PortLedExternalState::NONE);
+  this->checkPortState(cfg::PortState::ENABLED);
 }
 
 TYPED_TEST(PortUpdateHandlerLoopDetectionTest, createLoopPortDrained) {

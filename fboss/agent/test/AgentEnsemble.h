@@ -101,6 +101,8 @@ class AgentEnsemble : public TestEnsembleIf {
 
   std::vector<PortID> masterLogicalPortIds() const override;
 
+  std::vector<PortID> masterLogicalPortIds(SwitchID switchID) const;
+
   void switchRunStateChanged(SwitchRunState runState) override;
 
   void programRoutes(
@@ -207,9 +209,7 @@ class AgentEnsemble : public TestEnsembleIf {
       std::optional<SwitchID> switchId = std::nullopt) override;
 
   void clearPortStats(
-      const std::unique_ptr<std::vector<int32_t>>& ports) override {
-    getSw()->clearPortStats(ports);
-  }
+      const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
   LinkStateToggler* getLinkToggler() override;
 
@@ -273,7 +273,9 @@ class AgentEnsemble : public TestEnsembleIf {
 
   cfg::SwitchConfig initialConfig_;
   std::unique_ptr<std::thread> asyncInitThread_{nullptr};
-  std::vector<PortID> masterLogicalPortIds_;
+  std::vector<PortID> masterLogicalPortIds_; /* all ports */
+  std::map<SwitchID, std::vector<PortID>>
+      switchId2PortIds_; /* per switch ports */
   std::string configFile_{};
   std::unique_ptr<LinkStateToggler> linkToggler_;
   cfg::PortLoopbackMode mode_{cfg::PortLoopbackMode::MAC};
@@ -291,7 +293,6 @@ std::unique_ptr<AgentEnsemble> createAgentEnsemble(
     uint32_t featuresDesired =
         (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
          HwSwitch::FeaturesDesired::LINKSCAN_DESIRED |
-         HwSwitch::FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED |
-         HwSwitch::FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED));
+         HwSwitch::FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED));
 
 } // namespace facebook::fboss

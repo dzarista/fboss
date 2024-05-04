@@ -131,6 +131,8 @@ struct PortFields {
   49: optional bool portActiveState;
   50: optional bool disableTTLDecrement;
   51: optional bool txEnable;
+  // Current active errors seen on port
+  52: list<ctrl.PortError> activeErrors;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields
@@ -207,6 +209,8 @@ struct AclEntryFields {
   27: optional bool enabled;
   28: optional list<string> udfGroups;
   29: optional byte roceOpcode;
+  30: optional list<byte> roceBytes;
+  31: optional list<byte> roceMask;
 }
 
 enum NeighborState {
@@ -373,6 +377,7 @@ struct SwitchSettingsFields {
   37: ctrl.SwitchRunState swSwitchRunState;
   38: optional bool forceTrafficOverFabric;
   39: optional bool creditWatchdog;
+  40: optional bool forceEcmpDynamicMemberUp;
 }
 
 struct RoutePrefix {

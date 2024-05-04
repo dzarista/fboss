@@ -198,7 +198,6 @@ add_fbthrift_cpp_library(
 set(hw_switch_test_srcs
   fboss/agent/hw/test/HwEcmpTests.cpp
   fboss/agent/hw/test/HwTestFabricUtils.cpp
-  fboss/agent/hw/test/HwFabricSwitchTests.cpp
   fboss/agent/hw/test/HwFlexPortTests.cpp
   fboss/agent/hw/test/HwIngressBufferTests.cpp
   fboss/agent/hw/test/HwEcmpTrunkTests.cpp
@@ -235,10 +234,8 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwTeFlowTestUtils.cpp
   fboss/agent/hw/test/HwTeFlowTests.cpp
   fboss/agent/hw/test/HwUdfTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwAclCounterTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwConfigSetupTest.cpp
   fboss/agent/hw/test/dataplane_tests/HwConfigVerifyQosTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwCoppTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwAqmTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwInPauseDiscardsTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwIpInIpTunnelTests.cpp
@@ -253,7 +250,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV6InMplsPhp.cpp
   fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV4InMplsSwap.cpp
   fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV6InMplsSwap.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoopBackTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwRouteOverDifferentAddressFamilyNhopTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMacLearningAndNeighborResolutionTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMirroringTests.cpp

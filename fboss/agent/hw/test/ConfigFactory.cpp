@@ -21,7 +21,6 @@
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/PortMap.h"
-#include "fboss/agent/test/utils/CommonUtils.h"
 #include "fboss/agent/test/utils/PortTestUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 #include "fboss/lib/platforms/PlatformMode.h"
@@ -32,53 +31,6 @@
 
 using namespace facebook::fboss;
 using namespace facebook::fboss::utility;
-
-namespace {
-
-void removePort(
-    cfg::SwitchConfig& config,
-    PortID port,
-    bool supportsAddRemovePort) {
-  auto cfgPort = findCfgPortIf(config, port);
-  if (cfgPort == config.ports()->end()) {
-    return;
-  }
-  if (supportsAddRemovePort) {
-    config.ports()->erase(cfgPort);
-    auto removed = std::remove_if(
-        config.vlanPorts()->begin(),
-        config.vlanPorts()->end(),
-        [port](auto vlanPort) {
-          return PortID(*vlanPort.logicalPort()) == port;
-        });
-    config.vlanPorts()->erase(removed, config.vlanPorts()->end());
-  } else {
-    cfgPort->state() = cfg::PortState::DISABLED;
-  }
-}
-
-void removeSubsumedPorts(
-    cfg::SwitchConfig& config,
-    const cfg::PlatformPortConfig& profile,
-    bool supportsAddRemovePort) {
-  if (auto subsumedPorts = profile.subsumedPorts()) {
-    for (auto& subsumedPortID : subsumedPorts.value()) {
-      removePort(config, PortID(subsumedPortID), supportsAddRemovePort);
-    }
-  }
-}
-
-bool isRswPlatform(PlatformType type) {
-  std::set rswPlatforms = {
-      PlatformType::PLATFORM_WEDGE,
-      PlatformType::PLATFORM_WEDGE100,
-      PlatformType::PLATFORM_WEDGE400,
-      PlatformType::PLATFORM_WEDGE400_GRANDTETON,
-      PlatformType::PLATFORM_WEDGE400C};
-  return rswPlatforms.find(type) != rswPlatforms.end();
-}
-
-} // unnamed namespace
 
 namespace facebook::fboss::utility {
 
@@ -228,47 +180,6 @@ void updatePortSpeed(
   removeSubsumedPorts(cfg, profile->second, supportsAddRemovePort);
 }
 
-// Set any ports in this port group to use the specified speed,
-// and disables any ports that don't support this speed.
-void configurePortGroup(
-    const PlatformMapping* platformMapping,
-    bool supportsAddRemovePort,
-    cfg::SwitchConfig& config,
-    cfg::PortSpeed speed,
-    std::vector<PortID> allPortsInGroup) {
-  for (auto portID : allPortsInGroup) {
-    // We might have removed a subsumed port already in a previous
-    // iteration of the loop.
-    auto cfgPort = findCfgPortIf(config, portID);
-    if (cfgPort == config.ports()->end()) {
-      continue;
-    }
-
-    const auto& platPortEntry = platformMapping->getPlatformPort(portID);
-    auto profileID = platformMapping->getProfileIDBySpeedIf(portID, speed);
-    if (!profileID.has_value()) {
-      XLOG(WARNING) << "Port " << static_cast<int>(portID)
-                    << "Doesn't support speed " << static_cast<int>(speed)
-                    << ", disabling it instead";
-      // Port doesn't support this speed, just disable it.
-      cfgPort->state() = cfg::PortState::DISABLED;
-      continue;
-    }
-
-    auto supportedProfiles = *platPortEntry.supportedProfiles();
-    auto profile = supportedProfiles.find(profileID.value());
-    if (profile == supportedProfiles.end()) {
-      throw std::runtime_error(folly::to<std::string>(
-          "No profile ", profileID.value(), " found for port ", portID));
-    }
-
-    cfgPort->profileID() = profileID.value();
-    cfgPort->speed() = speed;
-    cfgPort->state() = cfg::PortState::ENABLED;
-    removeSubsumedPorts(config, profile->second, supportsAddRemovePort);
-  }
-}
-
 void configurePortProfile(
     const HwSwitch& hwSwitch,
     cfg::SwitchConfig& config,
@@ -305,21 +216,6 @@ void configurePortProfile(
     cfgPort->state() = cfg::PortState::ENABLED;
     removeSubsumedPorts(config, profile->second, supportsAddRemovePort);
   }
-}
-
-std::vector<PortID> getAllPortsInGroup(
-    const PlatformMapping* platformMapping,
-    PortID portID) {
-  std::vector<PortID> allPortsinGroup;
-  if (const auto& platformPorts = platformMapping->getPlatformPorts();
-      !platformPorts.empty()) {
-    const auto& portList =
-        utility::getPlatformPortsByControllingPort(platformPorts, portID);
-    for (const auto& port : portList) {
-      allPortsinGroup.push_back(PortID(*port.mapping()->id()));
-    }
-  }
-  return allPortsinGroup;
 }
 
 cfg::SwitchConfig createRtswUplinkDownlinkConfig(
@@ -508,80 +404,6 @@ cfg::SwitchConfig createUplinkDownlinkConfig(
   return config;
 }
 
-/*
- * Returns a pair of vectors of the form (uplinks, downlinks). Pertains
- * specifically to default RSW platforms, where all downlink ports are
- * configured to be on ingressVlan 2000.
- *
- * Created to verify load balancing based on the switch's config, but can be
- * used anywhere it's useful. Likely will also be used in verifying
- * queue-per-host QoS for MHNIC platforms.
- */
-UplinkDownlinkPair getRswUplinkDownlinkPorts(
-    const cfg::SwitchConfig& config,
-    const int ecmpWidth) {
-  std::vector<PortID> uplinks, downlinks;
-
-  auto confPorts = *config.ports();
-  XLOG_IF(WARN, confPorts.empty()) << "no ports found in config.ports_ref()";
-
-  for (const auto& port : confPorts) {
-    auto logId = port.get_logicalID();
-    if (port.get_state() != cfg::PortState::ENABLED) {
-      continue;
-    }
-
-    auto portId = PortID(logId);
-    auto vlanId = port.get_ingressVlan();
-    if (vlanId == kDownlinkBaseVlanId) {
-      downlinks.push_back(portId);
-    } else if (uplinks.size() < ecmpWidth) {
-      uplinks.push_back(portId);
-    }
-  }
-
-  XLOG(DBG2) << "Uplinks : " << uplinks.size()
-             << " downlinks: " << downlinks.size();
-  return std::pair(uplinks, downlinks);
-}
-
-UplinkDownlinkPair getRtswUplinkDownlinkPorts(
-    const cfg::SwitchConfig& config,
-    const int ecmpWidth) {
-  std::vector<PortID> uplinks, downlinks;
-
-  auto confPorts = *config.ports();
-  XLOG_IF(WARN, confPorts.empty()) << "no ports found in config.ports_ref()";
-
-  for (const auto& port : confPorts) {
-    auto logId = port.get_logicalID();
-    if (port.get_state() != cfg::PortState::ENABLED) {
-      continue;
-    }
-
-    // for RTSW we can select uplinks/downlinks based on multiple conditions
-    // we could use the vlanId as we used for Rsw, but that requires
-    // substantial changes to the setup for RTSW. Avoiding that
-    // used
-    auto portId = PortID(logId);
-    if (port.pfc().has_value()) {
-      auto pfc = port.pfc().value();
-      auto pgName = pfc.portPgConfigName().value();
-      if (pgName.find("downlinks") != std::string::npos) {
-        downlinks.push_back(portId);
-      } else if (
-          (pgName.find("uplinks") != std::string::npos) &&
-          uplinks.size() < ecmpWidth) {
-        uplinks.push_back(portId);
-      }
-    }
-  }
-
-  XLOG(DBG2) << "Uplinks : " << uplinks.size()
-             << " downlinks: " << downlinks.size();
-  return std::pair(uplinks, downlinks);
-}
-
 std::vector<PortDescriptor> getUplinksForEcmp(
     const HwSwitch* hwSwitch,
     const cfg::SwitchConfig& config,
@@ -610,71 +432,7 @@ UplinkDownlinkPair getAllUplinkDownlinkPorts(
     const int ecmpWidth,
     const bool mmu_lossless) {
   auto platMode = hwSwitch->getPlatform()->getType();
-  if (mmu_lossless) {
-    return getRtswUplinkDownlinkPorts(config, ecmpWidth);
-  } else if (isRswPlatform(platMode)) {
-    return getRswUplinkDownlinkPorts(config, ecmpWidth);
-  }
-
-  // If the platform is not an RSW, consider the first ecmpWidth-many ports to
-  // be uplinks and the rest to be downlinks.
-  // First populate masterPorts with all ports, analogous to
-  // masterLogicalPortIds, then slice uplinks/downlinks according to ecmpWidth.
-
-  // just for brevity, mostly in return statement
-  using PortList = std::vector<PortID>;
-  PortList masterPorts;
-
-  for (const auto& port : *config.ports()) {
-    if (isEnabledPortWithSubnet(port, config)) {
-      masterPorts.push_back(PortID(port.get_logicalID()));
-    }
-  }
-
-  auto begin = masterPorts.begin();
-  auto mid = masterPorts.begin() + ecmpWidth;
-  auto end = masterPorts.end();
-  return std::pair(PortList(begin, mid), PortList(mid, end));
-}
-
-/*
- * Takes a SwitchConfig and returns a map of queue IDs to DSCPs.
- * Particularly useful in verifyQueueMappings, where we don't have a guarantee
- * of what the QoS policies look like and we can't rely on something like
- * kOlympicQueueToDscp().
- */
-std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
-    const cfg::SwitchConfig& config) {
-  std::map<int, std::vector<uint8_t>> queueToDscp;
-
-  for (const auto& qosPolicy : *config.qosPolicies()) {
-    auto qosName = qosPolicy.get_name();
-    XLOG(DBG2) << "Iterating over QoS policies: found qosPolicy " << qosName;
-
-    // Optional thrift field access
-    if (auto qosMap = qosPolicy.qosMap()) {
-      auto dscpMaps = *qosMap->dscpMaps();
-
-      for (const auto& dscpMap : dscpMaps) {
-        auto queueId = dscpMap.get_internalTrafficClass();
-        // Internally (i.e. in thrift), the mapping is implemented as a
-        // map<int16_t, vector<int8_t>>; however, in functions like
-        // verifyQueueMapping in HwTestQosUtils, the argument used is of the
-        // form map<int, uint8_t>.
-        // Trying to assign vector<uint8_t> to a vector<int8_t> makes the STL
-        // unhappy, so we can just loop through and construct one on our own.
-        std::vector<uint8_t> dscps;
-        for (auto val : *dscpMap.fromDscpToTrafficClass()) {
-          dscps.push_back((uint8_t)val);
-        }
-        queueToDscp[(int)queueId] = std::move(dscps);
-      }
-    } else {
-      XLOG(ERR) << "qosMap not found in qosPolicy: " << qosName;
-    }
-  }
-
-  return queueToDscp;
+  return getAllUplinkDownlinkPorts(platMode, config, ecmpWidth, mmu_lossless);
 }
 
 } // namespace facebook::fboss::utility

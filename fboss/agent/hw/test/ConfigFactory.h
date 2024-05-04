@@ -70,12 +70,7 @@ void updatePortSpeed(
     cfg::SwitchConfig& cfg,
     PortID port,
     cfg::PortSpeed speed);
-void configurePortGroup(
-    const PlatformMapping* platformMapping,
-    bool supportsAddRemovePort,
-    cfg::SwitchConfig& config,
-    cfg::PortSpeed speed,
-    std::vector<PortID> allPortsInGroup);
+
 void configurePortProfile(
     const HwSwitch& hwSwitch,
     cfg::SwitchConfig& config,
@@ -83,10 +78,6 @@ void configurePortProfile(
     std::vector<PortID> allPortsInGroup,
     PortID controllingPortID);
 std::string getAsicChipFromPortID(const HwSwitch* hwSwitch, PortID id);
-
-std::vector<PortID> getAllPortsInGroup(
-    const PlatformMapping* platformMapping,
-    PortID portID);
 
 std::vector<PortDescriptor> getUplinksForEcmp(
     const HwSwitch* hwSwitch,
@@ -124,23 +115,6 @@ void setPortToDefaultProfileIDMap(
     const HwAsic* asic,
     bool supportsAddRemove,
     std::optional<std::vector<PortID>> masterLogicalPortIds = std::nullopt);
-
-std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
-    const cfg::SwitchConfig& config);
-
-/*
- * Functions to get uplinks and downlinks return a pair of vectors, which is a
- * lot to write out, so we define a simple type that's descriptive and saves a
- * few keystrokes.
- */
-typedef std::pair<std::vector<PortID>, std::vector<PortID>> UplinkDownlinkPair;
-
-UplinkDownlinkPair getRswUplinkDownlinkPorts(
-    const cfg::SwitchConfig& config,
-    const int ecmpWidth);
-UplinkDownlinkPair getRtswUplinkDownlinkPorts(
-    const cfg::SwitchConfig& config,
-    const int ecmpWidth);
 
 UplinkDownlinkPair getAllUplinkDownlinkPorts(
     const HwSwitch* hwSwitch,

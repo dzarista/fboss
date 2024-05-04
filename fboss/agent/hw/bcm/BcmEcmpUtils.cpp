@@ -187,4 +187,25 @@ bool isNativeUcmpEnabled(const BcmSwitch* hw, bcm_if_t ecmp) {
   return false;
 }
 
+void setEcmpDynamicMemberUp(const BcmSwitch* hw) {
+  const auto bcmSwitch = static_cast<const BcmSwitch*>(hw);
+  auto ecmpMembers = utility::getEcmpMembersInHw(bcmSwitch);
+  for (const auto ecmpMember : ecmpMembers) {
+    bcm_l3_egress_ecmp_member_status_set(
+        bcmSwitch->getUnit(), ecmpMember, BCM_L3_ECMP_DYNAMIC_MEMBER_FORCE_UP);
+  }
+}
+
+uint32 getFlowletDynamicMode(const cfg::SwitchingMode& switchingMode) {
+  switch (switchingMode) {
+    case cfg::SwitchingMode::FLOWLET_QUALITY:
+      return BCM_L3_ECMP_DYNAMIC_MODE_NORMAL;
+    case cfg::SwitchingMode::PER_PACKET_QUALITY:
+      return BCM_L3_ECMP_DYNAMIC_MODE_OPTIMAL;
+    case cfg::SwitchingMode::FIXED_ASSIGNMENT:
+      return BCM_L3_ECMP_DYNAMIC_MODE_DISABLED;
+  }
+  throw FbossError("Invalid switching mode: ", switchingMode);
+}
+
 } // namespace facebook::fboss::utility

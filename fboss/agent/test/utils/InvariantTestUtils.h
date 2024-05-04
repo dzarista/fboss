@@ -10,15 +10,24 @@
 
 #pragma once
 
-#include "fboss/agent/types.h"
+#include <vector>
 
 namespace facebook::fboss {
-class HwAsic;
 class SwSwitch;
+class TestEnsembleIf;
+class PortID;
+class HwAsic;
+class SwitchID;
+class PortDescriptor;
 
 namespace utility {
-SwitchID getFirstSwitchId(SwSwitch* sw);
-const HwAsic* getFirstAsic(SwSwitch* sw);
-const HwAsic* getAsic(const SwSwitch& sw, PortID port);
+
+void verifyCopp(SwSwitch* sw, SwitchID switchId, PortID port);
+void verifySafeDiagCmds(TestEnsembleIf* ensemble);
+void verifyLoadBalance(
+    SwSwitch* sw,
+    int ecmpWidth,
+    const std::vector<PortDescriptor>& ecmpPorts);
+void verifyDscpToQueueMapping(SwSwitch* sw, const std::vector<PortID>& ports);
 } // namespace utility
 } // namespace facebook::fboss

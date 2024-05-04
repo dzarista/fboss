@@ -3,6 +3,7 @@
     "check_wb_handles": "true",
     "counter_refresh_interval": "0",
     "intf_nbr_tables": "true",
+    "log_variable_name": "true",
     "sai_configure_six_tap": "true"
   },
   "sw": {
@@ -12517,7 +12518,7 @@
         "name": "cpuQueue-high"
       },
       {
-        "id": 2,
+        "id": 3,
         "streamType": 0,
         "weight": 2,
         "scheduling": 0,

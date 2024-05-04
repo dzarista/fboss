@@ -1542,7 +1542,7 @@ bool SaiPortManager::rxSNRSupported() const {
 }
 
 bool SaiPortManager::fecCodewordsStatsSupported(PortID portId) const {
-#if defined(BRCM_SAI_SDK_GTE_10_0)
+#if defined(BRCM_SAI_SDK_GTE_10_0) || defined(TAJO_SDK_MORGAN)
   return platform_->getAsic()->isSupported(
              HwAsic::Feature::SAI_FEC_CODEWORDS_STATS) &&
       utility::isReedSolomonFec(getFECMode(portId));
@@ -2708,6 +2708,22 @@ void SaiPortManager::changeZeroPreemphasis(
       portHandle->serdes->setAttributes(
           serDesAttributes, /* skipHwWrite */ true);
     }
+  }
+}
+
+void SaiPortManager::changeTxEnable(
+    const std::shared_ptr<Port>& oldPort,
+    const std::shared_ptr<Port>& newPort) {
+  if (oldPort->getTxEnable() != newPort->getTxEnable()) {
+    auto portHandle = getPortHandle(newPort->getID());
+    if (!portHandle) {
+      throw FbossError(
+          "Cannot change tx enable on non existent port: ", newPort->getID());
+    }
+    portHandle->port->setOptionalAttribute(
+        SaiPortTraits::Attributes::PktTxEnable{
+            newPort->getTxEnable().has_value() ? newPort->getTxEnable().value()
+                                               : false});
   }
 }
 } // namespace facebook::fboss

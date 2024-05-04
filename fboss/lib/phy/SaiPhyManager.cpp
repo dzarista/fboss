@@ -130,8 +130,7 @@ void SaiPhyManager::updateAllXphyPortsStats() {
                   updateXphyInfo(portId, std::move(phyInfo));
                 }
               } catch (const std::exception& e) {
-                XLOG(INFO) << "Stats collection failed on : "
-                           << "switch: "
+                XLOG(INFO) << "Stats collection failed on : " << "switch: "
                            << platformInfo->getHwSwitch()->getSaiSwitchId()
                            << " xphy: " << xphy << " error: " << e.what();
               }
@@ -864,6 +863,17 @@ mka::MacsecSaStats SaiPhyManager::getMacsecSecureAssocStats(
   } else {
     return sumSaStats(macsecStats.txSecureAssociationStats().value());
   }
+}
+
+std::optional<HwPortStats> SaiPhyManager::getHwPortStats(
+    const std::string& portName) const {
+  auto portId = getPortId(portName);
+  auto saiSwitch = getSaiSwitch(portId);
+  auto hwPortStats = saiSwitch->getPortStats();
+  if (hwPortStats.find(portName) != hwPortStats.end()) {
+    return hwPortStats.at(portName);
+  }
+  return std::nullopt;
 }
 
 std::string SaiPhyManager::listHwObjects(
