@@ -17,7 +17,7 @@ if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
    FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
 fi
 
-DEFAULT_CENTOS_RELEASE="8"
+DEFAULT_CENTOS_RELEASE="9"
 if [[ -z "${CENTOS_RELEASE}" ]]; then
    echo "No Centos release defined in environment, using Centos${DEFAULT_CENTOS_RELEASE}"
    CENTOS_RELEASE="${DEFAULT_CENTOS_RELEASE}"
@@ -146,10 +146,8 @@ maybe_setup_build_env() {
    # Centos 9 build related patches and deps
    if [[ "${CENTOS_RELEASE}" == "9" ]];
    then
-      wget http://dist/storage/fboss/FBOSS-SAI/el9/CS00012328096_01_replace_sal_strncpy_arista.patch
-      patch -p1 < CS00012328096_01_replace_sal_strncpy_arista.patch
-      wget http://dist/storage/fboss/FBOSS-SAI/el9/Satish_Remaining_SDK_fixes_centos9-round2.patch
-      patch -p1 < Satish_Remaining_SDK_fixes_centos9-round2.patch
+      wget http://dist/storage/fboss/FBOSS-SAI/el9/CS00012328096_01_fixes_to_compile_on_Centos9_SDK_6_5_30_SP3.patch
+      patch -p1 < CS00012328096_01_fixes_to_compile_on_Centos9_SDK_6_5_30_SP3.patch
       # Copy some deps required for centos 9 build
       # libnsl.a needs to be copied over to /usr/lib64 in the container.
       cd "${FBOSS_HOST_DIR}"
