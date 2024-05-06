@@ -16,6 +16,9 @@ else
    export KERNEL_SRC="5.19.0"
 fi
 
+CENTOS_RELEASE_MAJOR=$(grep -o "[^ ]*$" /etc/centos-release | cut -d '.' -f 1)
+echo "Build iamge base centos version : el$CENTOS_RELEASE_MAJOR"
+
 # workaround: barney doesn't process git files, so we need
 # simulated that .git dir exist for copytree.py:containing_repo_type
 touch ".git"
@@ -47,6 +50,20 @@ export BUILD_FBOSS_CLI=1
 # DESTDIR is used also in scripts, so we need 'clean' it before run those scripts
 DESTDIR_COPY=$DESTDIR
 DESTDIR=""
+# Set the required build env vars for Centos 9
+if [ "$CENTOS_RELEASE_MAJOR" = "9" ]; then
+   export IS_OSS=1
+   export IS_OSS_FBOSS_CENTOS9=1
+   REPO_PREFIX="$SCRATCH_DIR/repos/github.com-facebook"
+   # Fetch fbthrift and folly and update the C++ standard to v20. C++20 is
+   # required for building coroutine support into folly and fbthrift.
+   for fboss_dep in folly fbthrift
+   do
+      ./build/fbcode_builder/getdeps.py --scratch-path "$SCRATCH_DIR" fetch $fboss_dep
+      sed -i 's/STANDARD 17/STANDARD 20/g' "$REPO_PREFIX-$fboss_dep.git/CMakeLists.txt"
+   done
+fi
+
 time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 20 \
    --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
 

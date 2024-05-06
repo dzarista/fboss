@@ -121,7 +121,7 @@ fi
 # install missing dependencies for SDK build.
 dnf install -y sudo
 sudo dnf install --enablerepo "$DEV_TOOLS_REPO" -y perl-List-MoreUtils perl-YAML.noarch \
-   perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel
+   perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel doxygen
 sudo dnf install -y python3-filelock platform-python-devel double-conversion-devel
 
 # Python3 is the default in CENTOS RELEASE > 8.
