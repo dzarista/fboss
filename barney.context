@@ -8,13 +8,13 @@
                "commit": "ef49e7dd537da663af1a4e7700458617111afa6e"
             },
             "code.arista.io/aqua-sai/in-eos": {
-               "commit": "c1826ae6390ab3dced496c177345537090e32073"
+               "commit": "0a124e5f0f14b4a0e970d0565b4482c20f34f55a"
             },
             "code.arista.io/infra/barney/barnzilla": {
-               "commit": "e859db746840cf7a70f0e7b147011a8d2ee9b72f"
+               "commit": "cfcfbcaf97048ba5ac8548ab85887a6e434940e2"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "4d25de7d79b39d077c59590daf8c3657825b73ee"
+               "commit": "fe45f89f2a6b63c465c4c6cd8afe9f7c662e5eed"
             },
             "barney.ci/alpine": {
                "commit": "1fc7fba9ef99c08ca89b629908f26a5a159f8ad0"
