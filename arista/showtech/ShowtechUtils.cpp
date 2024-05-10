@@ -34,6 +34,11 @@ std::string run_cmd_no_check(std::string cmd) {
   return output;
 }
 
+void print_fboss2_show_cmd(std::string cmd) {
+  std::cout << "#### fboss2 show " << cmd << " ####\n";
+  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show " + cmd) << std::endl;
+}
+
 void strip(std::string &str) {
   str.erase(remove_if(str.begin(), str.end(), ::isspace), str.end());
 }

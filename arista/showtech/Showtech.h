@@ -18,6 +18,7 @@ protected:
   // These should be common between platforms.
   void printVersion();
   void printCpuDetails();
+  void printFbossDetails();
   void printWeutil(std::string target);
   void printI2cDetect();
   void printL1Info();
