@@ -148,7 +148,7 @@ void DarwinShowtech::printFanInfo() {
     rawPwm = fanspinner->readSysfsAttr("pwm");
     rpm = fanspinner->readSysfsAttr("fan1_input");
     if (rawPwm != "" && rpm != "") {
-      pwm_pcnt = 100 * (255 - std::stoi(rawPwm)) / 255;
+      pwm_pcnt = 100 * std::stoi(rawPwm) / 255;
       strip(rpm);
       std::cout << "FANSPINNER FAN RPM: " << rpm << " (" << pwm_pcnt << "%)\n";
     } else {
