@@ -4,7 +4,8 @@
     "counter_refresh_interval": "0",
     "intf_nbr_tables": "true",
     "log_variable_name": "true",
-    "sai_configure_six_tap": "true"
+    "sai_configure_six_tap": "true",
+    "dsf_subscribe": "false"
   },
   "sw": {
     "version": 0,
