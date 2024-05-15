@@ -37,39 +37,8 @@ class MultiSwitchHwSwitchHandler : public HwSwitchHandler {
 
   void gracefulExit() override;
 
-  bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) override;
-
-  folly::dynamic toFollyDynamic() const override;
-
-  std::optional<uint32_t> getHwLogicalPortId(PortID portID) const override;
-
   bool transactionsSupported(
       std::optional<cfg::SdkVersion> sdkVersion) const override;
-
-  void clearPortStats(
-      const std::unique_ptr<std::vector<int32_t>>& ports) override;
-
-  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId) override;
-
-  void clearPortAsicPrbsStats(PortID portId) override;
-
-  std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
-      int32_t portId) override;
-
-  prbs::InterfacePrbsState getPortPrbsState(PortID portId) override;
-
-  void switchRunStateChanged(SwitchRunState newState) override;
-
-  // platform access apis
-  void onHwInitialized(HwSwitchCallback* callback) override;
-
-  void onInitialConfigApplied(HwSwitchCallback* sw) override;
-
-  void platformStop() override;
-
-  std::shared_ptr<SwitchState> stateChanged(
-      const StateDelta& delta,
-      bool transaction) override;
 
   std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus> stateChanged(
       const fsdb::OperDelta& delta,
@@ -81,13 +50,6 @@ class MultiSwitchHwSwitchHandler : public HwSwitchHandler {
   FabricReachabilityStats getFabricReachabilityStats() const override;
 
   std::vector<PortID> getSwitchReachability(SwitchID switchId) const override;
-
-  std::string getDebugDump() const override;
-
-  void fetchL2Table(std::vector<L2EntryThrift>* l2Table) const override;
-
-  std::string listObjects(const std::vector<HwObjectType>& types, bool cached)
-      const override;
 
   bool needL2EntryForNeighbor(const cfg::SwitchConfig* config) const override;
 
@@ -105,12 +67,6 @@ class MultiSwitchHwSwitchHandler : public HwSwitchHandler {
       std::optional<uint8_t> queue = std::nullopt);
 
   SwitchRunState getHwSwitchRunState() override;
-
-  std::vector<EcmpDetails> getAllEcmpDetails() const override;
-
-  AclStats getAclStats() const override {
-    return AclStats();
-  }
 
  private:
   bool checkOperSyncStateLocked(

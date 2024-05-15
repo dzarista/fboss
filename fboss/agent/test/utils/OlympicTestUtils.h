@@ -125,7 +125,6 @@ void addOlympicQueueConfig(
 
 void addOlympicV2WRRQueueConfig(
     cfg::SwitchConfig* config,
-    cfg::StreamType streamType,
     const std::vector<const HwAsic*>& asics,
     bool addWredConfig = false);
 void addFswRswAllSPOlympicQueueConfig(
@@ -168,21 +167,27 @@ const std::map<int, std::vector<uint8_t>> kOlympicV2QueueToDscp();
 
 int getMaxWeightWRRQueue(const std::map<int, uint8_t>& queueToWeight);
 
+int getAqmGranularThreshold(const HwAsic* asic, int value);
+
 cfg::ActiveQueueManagement kGetOlympicEcnConfig(
+    const HwAsic* asic,
     int minLength = 41600,
     int maxLength = 41600);
 cfg::ActiveQueueManagement kGetWredConfig(
+    const HwAsic* asic,
     int minLength = 41600,
     int maxLength = 41600,
     int probability = 100);
 void addQueueEcnConfig(
     cfg::SwitchConfig* config,
+    const std::vector<const HwAsic*>& asics,
     const int queueId,
     const uint32_t minLen,
     const uint32_t maxLen,
     bool isVoq);
 void addQueueWredConfig(
     cfg::SwitchConfig* config,
+    const std::vector<const HwAsic*>& asics,
     const int queueId,
     const uint32_t minLen,
     const uint32_t maxLen,
@@ -204,5 +209,9 @@ int getOlympicQueueId(OlympicQueueType queueType);
 int getOlympicV2QueueId(OlympicV2QueueType queueType);
 
 int getNetworkAIQueueId(NetworkAIQueueType queueType);
+
+std::set<cfg::StreamType> getStreamType(
+    cfg::PortType portType,
+    const std::vector<const HwAsic*>& asics);
 
 } // namespace facebook::fboss::utility

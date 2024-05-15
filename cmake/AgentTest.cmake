@@ -50,6 +50,7 @@ target_link_libraries(agent_test_utils
   label_forwarding_utils
   hw_mock
   monolithic_switch_handler
+  multi_switch_hw_switch_handler
 )
 
 add_library(ecmp_helper
@@ -124,6 +125,7 @@ target_link_libraries(agent_hw_test
   switch_asics
   hw_copp_utils
   stats_test_utils
+  hardware_stats_cpp2
   ${GTEST}
 )
 
@@ -149,6 +151,7 @@ add_library(test_ensemble_if
 
 target_link_libraries(test_ensemble_if
   state
+  hw_switch
 )
 
 add_library(agent_ensemble

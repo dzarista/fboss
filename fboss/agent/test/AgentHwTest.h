@@ -128,6 +128,9 @@ class AgentHwTest : public ::testing::Test {
       const std::vector<PortID>& ports);
 
   HwPortStats getLatestPortStats(const PortID& port);
+  std::map<PortID, HwPortStats> getNextUpdatedPortStats(
+      const std::vector<PortID>& ports);
+  HwPortStats getNextUpdatedPortStats(const PortID& port);
   HwPortStats getLastIncrementedPortStats(const PortID& port);
   std::map<PortID, std::pair<HwPortStats, HwPortStats>>
   sendTrafficAndCollectStats(
@@ -165,6 +168,19 @@ class AgentHwTest : public ::testing::Test {
   void unprogramRoutes(const EcmpHelperT& ecmp) {
     auto wrapper = getSw()->getRouteUpdater();
     ecmp.unprogramRoutes(&wrapper);
+  }
+
+  void bringUpPort(PortID port) {
+    agentEnsemble_->bringUpPort(port);
+  }
+  void bringDownPort(PortID port) {
+    agentEnsemble_->bringDownPort(port);
+  }
+  void bringUpPorts(const std::vector<PortID>& ports) {
+    agentEnsemble_->bringUpPorts(ports);
+  }
+  void bringDownPorts(const std::vector<PortID>& ports) {
+    agentEnsemble_->bringDownPorts(ports);
   }
 
   void checkNoStatsChange(int trys = 1);

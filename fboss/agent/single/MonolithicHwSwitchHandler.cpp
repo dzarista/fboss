@@ -58,33 +58,12 @@ void MonolithicHwSwitchHandler::gracefulExit() {
   hw_->gracefulExit();
 }
 
-bool MonolithicHwSwitchHandler::getAndClearNeighborHit(
-    RouterID vrf,
-    folly::IPAddress& ip) {
-  return hw_->getAndClearNeighborHit(vrf, ip);
-}
-
 folly::dynamic MonolithicHwSwitchHandler::toFollyDynamic() const {
   return hw_->toFollyDynamic();
 }
 
-std::optional<uint32_t> MonolithicHwSwitchHandler::getHwLogicalPortId(
-    PortID portID) const {
-  auto platformPort = platform_->getPlatformPort(portID);
-  return platformPort->getHwLogicalPortId();
-}
-
 void MonolithicHwSwitchHandler::onHwInitialized(HwSwitchCallback* callback) {
   platform_->onHwInitialized(callback);
-}
-
-void MonolithicHwSwitchHandler::onInitialConfigApplied(
-    HwSwitchCallback* callback) {
-  platform_->onInitialConfigApplied(callback);
-}
-
-void MonolithicHwSwitchHandler::platformStop() {
-  platform_->stop();
 }
 
 bool MonolithicHwSwitchHandler::transactionsSupported(
@@ -170,13 +149,6 @@ std::vector<EcmpDetails> MonolithicHwSwitchHandler::getAllEcmpDetails() const {
   return hw_->getAllEcmpDetails();
 }
 
-std::shared_ptr<SwitchState> MonolithicHwSwitchHandler::stateChanged(
-    const StateDelta& delta,
-    bool transaction) {
-  return transaction ? hw_->stateChangedTransaction(delta)
-                     : hw_->stateChanged(delta);
-}
-
 CpuPortStats MonolithicHwSwitchHandler::getCpuPortStats() const {
   return hw_->getCpuPortStats();
 }
@@ -247,6 +219,30 @@ SwitchRunState MonolithicHwSwitchHandler::getHwSwitchRunState() {
 
 AclStats MonolithicHwSwitchHandler::getAclStats() const {
   return hw_->getAclStats();
+}
+
+void MonolithicHwSwitchHandler::getHwStats(
+    multiswitch::HwSwitchStats& hwStats) const {
+  auto now = duration_cast<std::chrono::seconds>(
+      std::chrono::system_clock::now().time_since_epoch());
+  hwStats.timestamp() = now.count();
+
+  hwStats.hwPortStats() = getPortStats();
+  hwStats.sysPortStats() = getSysPortStats();
+  hwStats.switchDropStats() = getSwitchDropStats();
+  hwStats.fabricReachabilityStats() = getFabricReachabilityStats();
+  hwStats.switchWatermarkStats() = getSwitchWatermarkStats();
+  if (auto hwSwitchStats = getSwitchStats()) {
+    hwStats.hwAsicErrors() = hwSwitchStats->getHwAsicErrors();
+  }
+  for (auto& [portId, phyInfoPerPort] : getAllPhyInfo()) {
+    hwStats.phyInfo()->emplace(portId, phyInfoPerPort);
+  }
+  hwStats.flowletStats() = getHwFlowletStats();
+  hwStats.cpuPortStats() = getCpuPortStats();
+  hwStats.aclStats() = getAclStats();
+  // update global stats
+  hwStats.fb303GlobalStats() = hw_->getSwitchStats()->getAllFb303Stats();
 }
 
 } // namespace facebook::fboss

@@ -21,6 +21,7 @@
 #include "fboss/agent/packet/TCPHeader.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
+#include "fboss/agent/test/utils/AqmTestUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
 
 #include "fboss/lib/CommonUtils.h"
@@ -242,6 +243,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       if (isEcn) {
         utility::addQueueEcnConfig(
             &cfg,
+            {getPlatform()->getAsic()},
             queueId,
             utility::kQueueConfigAqmsEcnThresholdMinMax,
             utility::kQueueConfigAqmsEcnThresholdMinMax,
@@ -249,6 +251,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       } else {
         utility::addQueueWredConfig(
             &cfg,
+            {getPlatform()->getAsic()},
             queueId,
             utility::kQueueConfigAqmsWredThresholdMinMax,
             utility::kQueueConfigAqmsWredThresholdMinMax,

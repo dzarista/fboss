@@ -12,63 +12,6 @@ typedef std::pair<facebook::fboss::InterfaceID, folly::IPAddress> IntfAddress;
 typedef boost::container::flat_map<folly::CIDRNetwork, IntfAddress> IntfRoute;
 typedef boost::container::flat_map<facebook::fboss::RouterID, IntfRoute>
     IntfRouteTable;
-
-// ARISTA commenting out unused function
-/*
-std::shared_ptr<facebook::fboss::SwitchState> updateFibForRemoteConnectedRoutes(
-    const facebook::fboss::SwitchIdScopeResolver* resolver,
-    facebook::fboss::RouterID vrf,
-    const facebook::fboss::IPv4NetworkToRouteMap& v4NetworkToRoute,
-    const facebook::fboss::IPv6NetworkToRouteMap& v6NetworkToRoute,
-    const facebook::fboss::LabelToRouteMap& labelToRoute,
-    void* cookie) {
-  facebook::fboss::ForwardingInformationBaseUpdater fibUpdater(
-      resolver, vrf, v4NetworkToRoute, v6NetworkToRoute, labelToRoute);
-
-  auto nextStatePtr =
-      static_cast<std::shared_ptr<facebook::fboss::SwitchState>*>(cookie);
-
-  fibUpdater(*nextStatePtr);
-  return *nextStatePtr;
-}
-
-void updateRemoteConnectedRoutes(
-    std::shared_ptr<facebook::fboss::SwitchState>& state,
-    const facebook::fboss::SwitchIdScopeResolver* scopeResolver,
-    facebook::fboss::RoutingInformationBase* rib) {
-  IntfRouteTable remoteIntfRouteTables;
-  auto addInterfaceRoute = [&](const auto interfaces) {
-    for (const auto& [intfId, intf] : *interfaces) {
-      // On the same box, local interface of mpu0 will be added
-      // as remote interface of mpu1 (and vice versa). Therefore
-      // skipping those when processing remote interfaces.
-      if (state->getInterfaces()->getNodeIf(intfId)) {
-        continue;
-      }
-      for (const auto& [addr, mask] : std::as_const(*intf->getAddresses())) {
-        const auto ipAddr = folly::IPAddress(addr);
-        // Skip link-local addresses in directly-connected routes
-        if (ipAddr.isV6() && ipAddr.isLinkLocal()) {
-          continue;
-        }
-        remoteIntfRouteTables[intf->getRouterID()].emplace(
-            folly::IPAddress::createNetwork(folly::to<std::string>(
-                addr, "/", static_cast<int>(mask->cref()))),
-            std::make_pair(intf->getID(), ipAddr));
-      }
-    }
-  };
-
-  addInterfaceRoute(std::as_const(*state->getRemoteInterfaces()).getAllNodes());
-
-  rib->reconfigureRemoteInterfaceRoutes(
-      scopeResolver,
-      remoteIntfRouteTables,
-      &updateFibForRemoteConnectedRoutes,
-      static_cast<void*>(&state));
-};
-*/
-
 } // namespace
 
 namespace facebook::fboss {
@@ -171,6 +114,13 @@ std::shared_ptr<SwitchState> DsfStateUpdaterUtil::getUpdatedState(
                  newNode->toThrift());
       return oldNode;
     }
+    if (newNode && newNode->getScope() == cfg::Scope::LOCAL) {
+      XLOG(DBG3)
+          << "Ignore remote system port of local type "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 newNode->toThrift());
+      return oldNode;
+    }
 
     auto clonedNode = newNode->isPublished() ? newNode->clone() : newNode;
     clonedNode->setRemoteSystemPortType(RemoteSystemPortType::DYNAMIC_ENTRY);
@@ -188,6 +138,13 @@ std::shared_ptr<SwitchState> DsfStateUpdaterUtil::getUpdatedState(
           << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
                  oldNode->toThrift())
           << " non-STATIC: "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 newNode->toThrift());
+      return oldNode;
+    }
+    if (newNode && newNode->getScope() == cfg::Scope::LOCAL) {
+      XLOG(DBG3)
+          << "Ignore remote rif of local type "
           << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
                  newNode->toThrift());
       return oldNode;
@@ -234,6 +191,9 @@ std::shared_ptr<SwitchState> DsfStateUpdaterUtil::getUpdatedState(
         [&](const auto& newNode) {
           auto clonedNode =
               makeRemote(std::decay_t<decltype(newNode)>{nullptr}, newNode);
+          if (!clonedNode) {
+            return;
+          }
           if constexpr (std::is_same_v<MapT, MultiSwitchSystemPortMap>) {
             mapToUpdate->addNode(clonedNode, scopeResolver->scope(clonedNode));
           } else {

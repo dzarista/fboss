@@ -22,6 +22,7 @@ namespace facebook::fboss {
 class PortMap;
 class MultiSwitchPortMap;
 class HwSwitchEnsemble;
+class HwAsicTable;
 } // namespace facebook::fboss
 
 /*
@@ -37,11 +38,9 @@ cfg::SwitchConfig oneL3IntfConfig(
     int baseVlanId = kBaseVlanId);
 cfg::SwitchConfig oneL3IntfConfig(
     const PlatformMapping* platformMapping,
-    const HwAsic* asic,
+    const std::vector<const HwAsic*>& asics,
     PortID port,
     bool supportsAddRemovePort,
-    const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
-        kDefaultLoopbackMap(),
     int baseVlanId = kBaseVlanId);
 cfg::SwitchConfig oneL3IntfNoIPAddrConfig(
     const HwSwitch* hwSwitch,
@@ -107,7 +106,7 @@ cfg::SwitchConfig createRtswUplinkDownlinkConfig(
     std::vector<PortID>& uplinks,
     std::vector<PortID>& downlinks);
 
-std::pair<int, int> getRetryCountAndDelay(const HwAsic* asic);
+std::pair<int, int> getRetryCountAndDelay(const HwAsicTable* hwAsicTable);
 
 void setPortToDefaultProfileIDMap(
     const std::shared_ptr<MultiSwitchPortMap>& ports,

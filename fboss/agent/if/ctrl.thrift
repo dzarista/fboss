@@ -69,11 +69,6 @@ enum RouteForwardAction {
   NEXTHOPS = 2,
 }
 
-enum Scope {
-  LOCAL = 0,
-  GLOBAL = 1,
-}
-
 typedef string RouteCounterID
 
 struct UnicastRoute {
@@ -154,6 +149,7 @@ struct ArpEntryThrift {
   10: optional i64 switchId;
   11: optional i64 resolvedSince;
   12: i32 interfaceID;
+  13: switch_config.PortDescriptor portDescriptor;
 }
 
 enum L2EntryType {
@@ -421,7 +417,7 @@ struct SystemPortThrift {
    * Set only on Remote System Ports of VOQ switches.
    */
   13: optional common.LivenessStatus remoteSystemPortLivenessStatus;
-  14: Scope scope = Scope.GLOBAL;
+  14: switch_config.Scope scope = switch_config.Scope.LOCAL;
 }
 
 struct PortHardwareDetails {
@@ -445,6 +441,7 @@ struct NdpEntryThrift {
   10: optional i64 switchId;
   11: optional i64 resolvedSince;
   12: i32 interfaceID;
+  13: switch_config.PortDescriptor portDescriptor;
 }
 
 enum BootType {
@@ -723,6 +720,9 @@ struct FsdbSubscriptionThrift {
   1: string name;
   2: list<string> paths;
   3: string state;
+  4: string ip;
+  // Unique ID for subscription to name, ip
+  5: string subscriptionId;
 }
 
 enum DsfSessionState {
@@ -1438,6 +1438,13 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
    * Get all the ecmp object details in the HW
    */
   list<EcmpDetails> getAllEcmpDetails() throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Get switch indices for interfaces
+   */
+  map<i16, list<string>> getSwitchIndicesForInterfaces(
+    1: list<string> interfaces,
+  ) throws (1: fboss.FbossBaseError error);
 }
 
 service NeighborListenerClient extends fb303.FacebookService {

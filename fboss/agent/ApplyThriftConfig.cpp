@@ -994,7 +994,7 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
     sysPort->setCorePortIndex(recyclePortInfo.corePortIndex);
     sysPort->setSpeedMbps(recyclePortInfo.speedMbps); // 10G
     sysPort->setNumVoqs(8);
-    sysPort->setScope(Scope::GLOBAL);
+    sysPort->setScope(cfg::Scope::GLOBAL);
     if (auto cpuTrafficPolicy = cfg_->cpuTrafficPolicy()) {
       if (auto trafficPolicy = cpuTrafficPolicy->trafficPolicy()) {
         if (auto defaultQosPolicy = trafficPolicy->defaultQosPolicy()) {
@@ -1016,7 +1016,9 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
         true,
         cfg::InterfaceType::SYSTEM_PORT,
         isLocal(node) ? std::optional<RemoteInterfaceType>(std::nullopt)
-                      : std::make_optional(RemoteInterfaceType::STATIC_ENTRY));
+                      : std::make_optional(RemoteInterfaceType::STATIC_ENTRY),
+        std::optional<LivenessStatus>(std::nullopt),
+        cfg::Scope::GLOBAL);
     auto intfs = new_->getRemoteInterfaces()->modify(&new_);
     intfs->addNode(intf, scopeResolver_.scope(intf, new_));
     processLoopbacks(node, dsfNodeAsic.get());
@@ -1187,6 +1189,7 @@ void ThriftConfigApplier::processInterfaceForPortForVoqSwitches(
       switch (portType) {
         case cfg::PortType::INTERFACE_PORT:
         case cfg::PortType::RECYCLE_PORT:
+        case cfg::PortType::EVENTOR_PORT:
         case cfg::PortType::MANAGEMENT_PORT: {
           /*
            * System port is 1:1 with every interface and recycle port.
@@ -1362,7 +1365,8 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
   static const std::set<cfg::PortType> kCreateSysPortsFor = {
       cfg::PortType::INTERFACE_PORT,
       cfg::PortType::RECYCLE_PORT,
-      cfg::PortType::MANAGEMENT_PORT};
+      cfg::PortType::MANAGEMENT_PORT,
+      cfg::PortType::EVENTOR_PORT};
   auto sysPorts = std::make_shared<SystemPortMap>();
 
   for (const auto& [matcherString, portMap] : std::as_const(*ports)) {
@@ -1398,11 +1402,12 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
       sysPort->setNumVoqs(kNumVoqs);
       sysPort->setQosPolicy(port.second->getQosPolicy());
       sysPort->resetPortQueues(switchSettings->getDefaultVoqConfig());
-      if (platformPort.mapping()->localScope().value()) {
-        sysPort->setScope(Scope::LOCAL);
-      } else {
-        sysPort->setScope(Scope::GLOBAL);
-      }
+      // TODO(daiweix): remove this CHECK_EQ after verifying scope config is
+      // always correct
+      CHECK_EQ(
+          (int)platformPort.mapping()->scope().value(),
+          (int)port.second->getScope());
+      sysPort->setScope(port.second->getScope());
       sysPorts->addSystemPort(std::move(sysPort));
     }
   }
@@ -2219,6 +2224,7 @@ shared_ptr<Port> ThriftConfigApplier::updatePort(
   newPort->setPortDrainState(*portConf->drainState());
   newPort->setFlowletConfigName(newFlowletConfigName);
   newPort->setPortFlowletConfig(portFlowletCfg);
+  newPort->setScope(*portConf->scope());
   return newPort;
 }
 
@@ -3444,6 +3450,7 @@ std::shared_ptr<InterfaceMap> ThriftConfigApplier::updateInterfaces() {
             "->max: ",
             *sysPortRange->maximum());
       }
+      CHECK_EQ((int)sysPort->getScope(), (int)(*interfaceCfg.scope()));
     }
     if (origIntf) {
       newIntf = updateInterface(origIntf, &interfaceCfg, newAddrs);
@@ -3483,7 +3490,10 @@ shared_ptr<Interface> ThriftConfigApplier::createInterface(
       mtu,
       *config->isVirtual(),
       *config->isStateSyncDisabled(),
-      *config->type());
+      *config->type(),
+      std::optional<RemoteInterfaceType>(std::nullopt),
+      std::optional<LivenessStatus>(std::nullopt),
+      *config->scope());
   updateNeighborResponseTablesForIntfs(intf.get(), addrs);
   updateDhcpOverrides(intf.get(), config);
   intf->setAddresses(addrs);
@@ -3566,6 +3576,7 @@ shared_ptr<Interface> ThriftConfigApplier::updateInterface(
   newIntf->setIsStateSyncDisabled(*config->isStateSyncDisabled());
   newIntf->setDhcpV4Relay(newDhcpV4Relay);
   newIntf->setDhcpV6Relay(newDhcpV6Relay);
+  newIntf->setScope(*config->scope());
   return newIntf;
 }
 

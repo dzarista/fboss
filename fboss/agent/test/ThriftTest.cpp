@@ -111,7 +111,7 @@ TEST_F(ThriftTest, getInterfaceDetail) {
   // Query the two interfaces configured by testStateA()
   InterfaceDetail info;
   handler.getInterfaceDetail(info, 1);
-  EXPECT_EQ("fboss1", *info.interfaceName());
+  EXPECT_EQ("eth1/5/1", *info.interfaceName());
   EXPECT_EQ(1, *info.interfaceId());
   EXPECT_EQ(1, *info.vlanId());
   EXPECT_EQ(0, *info.routerId());
@@ -126,7 +126,7 @@ TEST_F(ThriftTest, getInterfaceDetail) {
   EXPECT_THAT(*info.address(), UnorderedElementsAreArray(expectedAddrs));
 
   handler.getInterfaceDetail(info, 55);
-  EXPECT_EQ("fboss55", *info.interfaceName());
+  EXPECT_EQ("eth1/6/1", *info.interfaceName());
   EXPECT_EQ(55, *info.interfaceId());
   EXPECT_EQ(55, *info.vlanId());
   EXPECT_EQ(0, *info.routerId());
@@ -155,6 +155,8 @@ class ThriftTestAllSwitchTypes : public ::testing::Test {
   ;
   void SetUp() override {
     FLAGS_intf_nbr_tables = intfNbrTable;
+    FLAGS_dsf_num_parallel_sessions_per_remote_interface_node =
+        std::numeric_limits<uint32_t>::max();
     auto config = testConfigA(switchType);
     handle_ = createTestHandle(&config);
     sw_ = handle_->getSw();
@@ -728,10 +730,12 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getDsfSubscriptions) {
     this->sw_->applyConfig("Config with 1 more IN node", config);
 
     handler.getDsfSubscriptions(subscriptions);
-    EXPECT_EQ(subscriptions.size(), 1);
-    EXPECT_EQ(*subscriptions[0].name(), *dsfNodeCfg.name());
-    EXPECT_EQ((*subscriptions[0].paths()).size(), 3);
-    EXPECT_EQ(*subscriptions[0].state(), "DISCONNECTED");
+    EXPECT_EQ(subscriptions.size(), 2);
+    for (const auto& subscription : subscriptions) {
+      EXPECT_EQ(*subscription.name(), *dsfNodeCfg.name());
+      EXPECT_EQ((*subscription.paths()).size(), 3);
+      EXPECT_EQ(*subscription.state(), "DISCONNECTED");
+    }
   }
 }
 
@@ -1036,6 +1040,30 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAggregatePorts) {
   EXPECT_EQ(
       getAggregatePortMemberIDs(*aggPorts[1].memberPorts()),
       getAggregatePortMemberIDs(*config.aggregatePorts()[1].memberPorts()));
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getSwitchIndicesForInterfaces) {
+  ThriftHandler handler(this->sw_);
+  std::map<int16_t, std::vector<std::string>> switchIndicesForInterfaces;
+  std::vector<std::string> interfaces;
+  handler.getInterfaceList(interfaces);
+  if (this->isFabric()) {
+    EXPECT_TRUE(interfaces.empty());
+    return;
+  }
+  // Remove dummy recycle port interface if switch type is VOQ
+  if (this->isVoq()) {
+    interfaces.erase(interfaces.begin());
+  }
+  handler.getSwitchIndicesForInterfaces(
+      switchIndicesForInterfaces,
+      std::make_unique<std::vector<std::string>>(interfaces));
+  EXPECT_EQ(switchIndicesForInterfaces.size(), 1);
+  EXPECT_EQ(switchIndicesForInterfaces.begin()->first, 0);
+  auto fetchedInterfaces = switchIndicesForInterfaces.begin()->second;
+  for (auto i = 0; i < interfaces.size(); i++) {
+    EXPECT_EQ(interfaces[i], fetchedInterfaces[i]);
+  }
 }
 
 TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {

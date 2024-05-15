@@ -37,8 +37,26 @@ DEFINE_uint32(
     dsf_gr_hold_time,
     0,
     "GR hold time for FSDB DsfSubscription in sec");
+DEFINE_uint32(
+    dsf_num_parallel_sessions_per_remote_interface_node,
+    1,
+    "Number of parallel DSF sessions per remote Interface Node. "
+    "1 for Prod. > 1 for scale tests");
 
 DEFINE_bool(
     classid_for_connected_subnet_routes,
     false,
     "Flag to set the class ID for connected subnet routes that point to RIF");
+
+DEFINE_int32(
+    stat_publish_interval_ms,
+    1000,
+    "How frequently to publish thread-local stats back to the "
+    "global store.  This should generally be less than 1 second.");
+
+DEFINE_int32(
+    hwagent_port_base,
+    5931,
+    "The first thrift server port reserved for HwAgent");
+
+DEFINE_bool(force_init_fp, true, "Force full field processor initialization");

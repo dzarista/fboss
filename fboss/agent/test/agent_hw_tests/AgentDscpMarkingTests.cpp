@@ -43,10 +43,9 @@ class AgentDscpMarkingTest : public AgentHwTest {
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
-    auto asic = utility::getFirstAsic(ensemble.getSw());
     utility::addOlympicQosMaps(cfg, ensemble.getL3Asics());
-    utility::addDscpCounterAcl(&cfg, asic);
-    utility::addDscpMarkingAcls(&cfg, asic, ensemble.isSai());
+    utility::addDscpCounterAcl(&cfg);
+    utility::addDscpMarkingAcls(&cfg, ensemble.isSai());
     return cfg;
   }
 
@@ -116,12 +115,12 @@ class AgentDscpMarkingTest : public AgentHwTest {
             portStatsBefore, utility::kOlympicICPQueueId, getSw(), portId);
 
         sendAllPackets(
-            utility::kIcpDscp(utility::getFirstAsic(getSw())),
+            utility::kIcpDscp(),
             frontPanel,
             IP_PROTO::IP_PROTO_UDP,
             utility::kUdpPorts());
         sendAllPackets(
-            utility::kIcpDscp(utility::getFirstAsic(getSw())),
+            utility::kIcpDscp(),
             frontPanel,
             IP_PROTO::IP_PROTO_TCP,
             utility::kTcpPorts());

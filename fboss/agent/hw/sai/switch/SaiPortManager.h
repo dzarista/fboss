@@ -260,6 +260,12 @@ class SaiPortManager {
       PortSaiId saiPortId) const;
 #endif
 
+#if defined(BRCM_SAI_SDK_GTE_11_0)
+  std::optional<sai_latch_status_t> getHighCrcErrorRate(
+      PortSaiId saiPortId,
+      PortID swPort) const;
+#endif
+
   void enableAfeAdaptiveMode(PortID portId);
 
   phy::FecMode getFECMode(PortID portId) const;
@@ -380,7 +386,7 @@ class SaiPortManager {
   void programPfcBuffers(const std::shared_ptr<Port>& swPort);
   void removePfcBuffers(const std::shared_ptr<Port>& swPort);
   sai_port_prbs_config_t getSaiPortPrbsConfig(bool enabled) const;
-  void initAsicPrbsStats(const std::shared_ptr<Port>& swPort);
+  void initAsicPrbsStats(PortID portId, uint32_t speed);
   void removeIngressPriorityGroupMappings(SaiPortHandle* portHandle);
   void applyPriorityGroupBufferProfile(
       const std::shared_ptr<Port>& swPort,
@@ -411,8 +417,8 @@ class SaiPortManager {
       SaiPortSerdesTraits::CreateAttributes& attr);
   std::shared_ptr<SaiPort> createPortWithBasicAttributes(
       const std::shared_ptr<Port>& swPort);
-  double calculateRate(const std::shared_ptr<Port>& swPort);
-  void updateRate(const std::shared_ptr<Port>& swPort);
+  double calculateRate(uint32_t speed);
+  void updatePrbsStatsEntryRate(const std::shared_ptr<Port>& swPort);
 
   SaiStore* saiStore_;
   SaiManagerTable* managerTable_;
@@ -437,7 +443,7 @@ class SaiPortManager {
   std::unordered_map<PortID, time_t> lastFecCounterReadTime_;
   std::unordered_map<PortID, time_t> lastPrbsRxStateReadTime_;
   FRIEND_TEST(PortManagerTest, calculateRate);
-  FRIEND_TEST(PortManagerTest, updateRate);
+  FRIEND_TEST(PortManagerTest, updatePrbsStatsEntryRate);
 };
 
 } // namespace facebook::fboss

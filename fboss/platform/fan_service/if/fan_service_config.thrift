@@ -33,7 +33,7 @@ struct Zone {
 
 # If the read temperature exceeds the specified temperature,
 # set the PWM to the specified value.
-typedef map<i32, float> TempToPwmMap
+typedef map<i32, i16> TempToPwmMap
 
 # PID specific settings
 # setPoint : Target set point, affecting ki based calculation
@@ -60,12 +60,6 @@ struct Optic {
   6: map<string/* optic_type */ , PidSetting> pidSettings;
 }
 
-struct Alarm {
-  1: float highMajor;
-  2: float highMinor;
-  3: i32 minorSoakSeconds;
-}
-
 struct Fan {
   1: string fanName;
   2: string rpmSysfsPath;
@@ -88,7 +82,6 @@ struct Watchdog {
 struct Sensor {
   1: string sensorName;
   2: AccessMethod access;
-  4: Alarm alarm;
   6: string pwmCalcType;
   7: float scale;
   8: TempToPwmMap normalUpTable;
@@ -119,8 +112,8 @@ struct FanServiceConfig {
   11: i16 pwmBoostOnNumDeadFan;
   12: i16 pwmBoostOnNumDeadSensor;
   13: i16 pwmBoostOnNoQsfpAfterInSec;
-  14: i32 pwmBoostValue;
-  15: i32 pwmTransitionValue;
-  16: i32 pwmUpperThreshold;
-  17: i32 pwmLowerThreshold;
+  14: i16 pwmBoostValue;
+  15: i16 pwmTransitionValue;
+  16: i16 pwmUpperThreshold;
+  17: i16 pwmLowerThreshold;
 }

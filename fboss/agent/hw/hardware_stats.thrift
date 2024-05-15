@@ -74,6 +74,8 @@ struct HwPortStats {
    * fecCodewords_[1] = number of codewords with 1 symbol errors etc..
    */
   37: map<i16, i64> fecCodewords_ = {};
+  38: optional i64 pqpErrorEgressDroppedPackets_;
+  39: optional i64 fabricLinkDownDroppedCells_;
 
   // seconds from epoch
   50: i64 timestamp_ = STAT_UNINITIALIZED;
@@ -87,9 +89,12 @@ struct HwPortStats {
   58: optional i64 outForwardingDiscards_;
   // This mismatch is communicated directly via callback
   59: optional i64 fabricConnectivityMismatch_DEPRECATED;
+  60: optional i32 logicalPortId;
+  61: optional i64 leakyBucketFlapCount_;
 }
 
 struct HwSysPortStats {
+  // These map keys are the queue and the value is the counter value
   1: map<i16, i64> queueOutDiscardBytes_ = {};
   2: map<i16, i64> queueOutBytes_ = {};
   3: map<i16, i64> queueWatermarkBytes_ = {};

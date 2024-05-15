@@ -6,7 +6,6 @@
   "pwmTransitionValue": 50,
   "pwmLowerThreshold": 24,
   "pwmUpperThreshold": 100,
-  "shutdownCmd": "wedge_power reset -s",
   "optics": [
     {
       "opticName": "qsfp_group_1",
@@ -62,11 +61,6 @@
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
       },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
-      },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1,
       "normalUpTable": {
@@ -91,14 +85,8 @@
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
       },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
-      },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1,
-      "type": "linear_four_curves",
       "normalUpTable": {
         "15": 24,
         "110": 100

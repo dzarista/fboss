@@ -198,7 +198,7 @@ cfg::SwitchConfig createProdRtswConfig(
       uplinks,
       downlinks);
 
-  addCpuQueueConfig(config, hwAsic, ensemble->isSai());
+  addCpuQueueConfig(config, ensemble->getL3Asics(), ensemble->isSai());
 
   if (hwAsic->isSupported(HwAsic::Feature::L3_QOS)) {
     addNetworkAIQosToConfig(config, hwSwitch);
@@ -207,7 +207,8 @@ cfg::SwitchConfig createProdRtswConfig(
     addLoadBalancerToConfig(config, hwSwitch, LBHash::FULL_HASH);
   }
 
-  setDefaultCpuTrafficPolicyConfig(config, hwAsic, ensemble->isSai());
+  setDefaultCpuTrafficPolicyConfig(
+      config, std::vector<const HwAsic*>({hwAsic}), ensemble->isSai());
   if (hwSwitch->getPlatform()->getAsic()->isSupported(HwAsic::Feature::PFC)) {
     // pfc works reliably only in mmu lossless mode
     utility::addUplinkDownlinkPfcConfig(config, hwSwitch, uplinks, downlinks);
@@ -224,13 +225,14 @@ cfg::SwitchConfig createProdRtswConfig(
  * used anywhere else it might be useful to have a prod RSW config.
  */
 cfg::SwitchConfig createProdRswConfig(
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& asics,
     PlatformType platformType,
     const PlatformMapping* platformMapping,
     bool supportsAddRemovePort,
     const std::vector<PortID>& masterLogicalPortIds,
     bool isSai,
     bool enableStrictPriority) {
+  auto hwAsic = checkSameAndGetAsic(asics);
   auto numUplinks = uplinksCountFromSwitch(platformType);
 
   // its the same speed used for the uplink and downlink for now
@@ -249,12 +251,13 @@ cfg::SwitchConfig createProdRswConfig(
       downlinkSpeed,
       hwAsic->desiredLoopbackModes());
 
-  addCpuQueueConfig(config, hwAsic, isSai);
+  addCpuQueueConfig(config, asics, isSai);
 
   if (hwAsic->isSupported(HwAsic::Feature::L3_QOS)) {
     addOlympicQosToConfig(config, hwAsic, enableStrictPriority);
   }
-  setDefaultCpuTrafficPolicyConfig(config, hwAsic, isSai);
+  setDefaultCpuTrafficPolicyConfig(
+      config, std::vector<const HwAsic*>({hwAsic}), isSai);
   if (hwAsic->isSupported(HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION)) {
     addLoadBalancerToConfig(config, hwAsic, LBHash::FULL_HASH);
   }
@@ -271,7 +274,7 @@ cfg::SwitchConfig createProdRswConfig(
     bool isSai,
     bool enableStrictPriority) {
   return createProdRswConfig(
-      hwSwitch->getPlatform()->getAsic(),
+      std::vector<const HwAsic*>({hwSwitch->getPlatform()->getAsic()}),
       hwSwitch->getPlatform()->getType(),
       hwSwitch->getPlatform()->getPlatformMapping(),
       hwSwitch->getPlatform()->supportsAddRemovePort(),
@@ -308,11 +311,12 @@ cfg::SwitchConfig createProdFswConfig(
       downlinkSpeed,
       hwAsic->desiredLoopbackModes());
 
-  addCpuQueueConfig(config, hwAsic, isSai);
+  addCpuQueueConfig(config, {hwAsic}, isSai);
   if (hwAsic->isSupported(HwAsic::Feature::L3_QOS)) {
     addOlympicQosToConfig(config, hwAsic, enableStrictPriority);
   }
-  setDefaultCpuTrafficPolicyConfig(config, hwAsic, isSai);
+  setDefaultCpuTrafficPolicyConfig(
+      config, std::vector<const HwAsic*>({hwAsic}), isSai);
   if (hwAsic->isSupported(HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION)) {
     addLoadBalancerToConfig(config, hwAsic, LBHash::HALF_HASH);
   }
@@ -359,8 +363,9 @@ cfg::SwitchConfig createProdRswMhnicConfig(
       downlinkSpeed,
       hwAsic->desiredLoopbackModes());
 
-  addCpuQueueConfig(config, hwAsic, isSai);
-  setDefaultCpuTrafficPolicyConfig(config, hwAsic, isSai);
+  addCpuQueueConfig(config, {hwAsic}, isSai);
+  setDefaultCpuTrafficPolicyConfig(
+      config, std::vector<const HwAsic*>({hwAsic}), isSai);
   if (hwAsic->isSupported(HwAsic::Feature::L3_QOS)) {
     addQueuePerHostToConfig(config, isSai);
     // DSCP Marking ACLs must be programmed AFTER queue-per-host ACLs or else
@@ -370,7 +375,7 @@ cfg::SwitchConfig createProdRswMhnicConfig(
     // Thus, putting DSCP Marking ACLs before queue-per-host ACLs would cause
     // noisy neighbor problem for traffic between ports connected to the same
     // switch.
-    utility::addDscpMarkingAcls(&config, hwAsic, isSai);
+    utility::addDscpMarkingAcls(&config, isSai);
   }
   if (hwAsic->isSupported(HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION)) {
     addLoadBalancerToConfig(config, hwAsic, LBHash::FULL_HASH);
