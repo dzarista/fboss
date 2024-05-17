@@ -224,7 +224,8 @@
       "zoneType": "ZONE_TYPE_MAX",
       "zoneName": "zone1",
       "sensorNames": [
-        "SMB_INLET_TEMP"
+        "SMB_INLET_TEMP",
+        "qsfp_group_1"
       ],
       "fanNames": [
         "fan_1",

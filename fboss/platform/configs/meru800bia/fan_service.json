@@ -116,7 +116,8 @@
       "zoneType": "ZONE_TYPE_MAX",
       "zoneName": "zone1",
       "sensorNames": [
-        "SMB_BOARD_FRONT_TEMP"
+        "SMB_BOARD_FRONT_TEMP",
+        "qsfp_group_1"
       ],
       "fanNames": [
         "fan_1",
