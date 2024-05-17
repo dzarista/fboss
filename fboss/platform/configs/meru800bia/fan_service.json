@@ -8,7 +8,7 @@
   "pwmUpperThreshold": 100,
   "optics" : [
     {
-      "opticName" : "qsfp_group_1",
+      "opticName" : "osfp_group_1",
       "access" : {
         "accessType" : "ACCESS_TYPE_QSFP"
       },
@@ -117,7 +117,7 @@
       "zoneName": "zone1",
       "sensorNames": [
         "SMB_BOARD_FRONT_TEMP",
-        "qsfp_group_1"
+        "osfp_group_1"
       ],
       "fanNames": [
         "fan_1",
