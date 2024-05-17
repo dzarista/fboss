@@ -251,7 +251,7 @@ with open( "whistler_si_settings.csv", "w" ) as fh:
    mappingWriter.writerow( fields )
 
    # Populate SI settings if they are available in a file.
-   siSettingsFilePath = "./Whistler_Hw_SI_Settings_v9.csv"
+   siSettingsFilePath = "./Whistler_Hw_SI_Settings_v16.csv"
    asicLogicalLaneToSISettings = {}
    if os.path.isfile( siSettingsFilePath ):
       for asicId in range( numAsics ):
