@@ -162,6 +162,10 @@
           "pmUnitScopedName": "SMB_MAX6581",
           "initRegSettings": [
             {
+              "regOffset": 32,
+              "ioBuf": [110]
+            },
+            {
               "regOffset": 33,
               "ioBuf": [-121]
             },
