@@ -7502,7 +7502,7 @@
         "common": {
           "config": {
             "appl_enable_oam.BCM8889X": "0",
-            "appl_param_rcy_mirror_ports_range.BCM8889X": "100-139",
+            "appl_param_rcy_mirror_ports_range.BCM8889X": "100-143",
             "bcm_stat_interval": "1000000",
             "custom_feature_adapter_do_collect_enable.BCM8889X_ADAPTER": "1",
             "custom_feature_cmicx_gen2_pdma_interface_optimization": "1",
@@ -8560,6 +8560,7 @@
             "rcy_mirror_to_forward_port_map_133.BCM8889X": "33",
             "rcy_mirror_to_forward_port_map_134.BCM8889X": "34",
             "rcy_mirror_to_forward_port_map_136.BCM8889X": "36",
+            "rcy_mirror_to_forward_port_map_137.BCM8889X": "37",
             "rcy_mirror_to_forward_port_map_138.BCM8889X": "38",
             "rcy_mirror_to_forward_port_map_139.BCM8889X": "39",
             "rcy_mirror_to_forward_port_map_140.BCM8889X": "40",
