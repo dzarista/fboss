@@ -40,7 +40,7 @@ class AgentVoqSwitchTest : public AgentHwTest {
       if (asic->getDefaultNumPortQueues(
               cpuStreamType, cfg::PortType::CPU_PORT)) {
         // cpu queues supported
-        addCpuTrafficPolicy(config, asic);
+        addCpuTrafficPolicy(config, ensemble.getL3Asics(), asic);
         utility::addCpuQueueConfig(
             config, ensemble.getL3Asics(), ensemble.isSai());
         break;
@@ -197,7 +197,8 @@ class AgentVoqSwitchTest : public AgentHwTest {
   }
 
  private:
-  void addCpuTrafficPolicy(cfg::SwitchConfig& cfg, const HwAsic* asic) const {
+  void addCpuTrafficPolicy(cfg::SwitchConfig& cfg, std::vector<const HwAsic*> l3Asics,
+        const HwAsic* asic) const {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     std::vector<cfg::PacketRxReasonToQueue> rxReasonToQueues;
     std::vector<std::pair<cfg::PacketRxReason, uint16_t>>
@@ -209,8 +210,7 @@ class AgentVoqSwitchTest : public AgentHwTest {
                 utility::getCoppHighPriQueueId(asic)),
             std::pair(
                 cfg::PacketRxReason::CPU_IS_NHOP,
-                utility::getCoppMidPriQueueId(
-                    getAgentEnsemble()->getL3Asics())),
+                utility::getCoppMidPriQueueId(l3Asics)),
         };
     for (auto rxEntry : rxReasonToQueueMappings) {
       auto rxReasonToQueue = cfg::PacketRxReasonToQueue();
