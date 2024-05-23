@@ -36,7 +36,6 @@ struct SaiSystemPortHandle {
   std::shared_ptr<SaiQosMap> tcToQueueQosMap;
   std::optional<std::string> qosPolicy;
   SaiQueueHandles queues;
-  std::vector<SaiQueueHandle*> configuredQueues;
 
   void resetQueues();
 };
@@ -101,6 +100,7 @@ class SaiSystemPortManager {
   void loadQueues(
       SaiSystemPortHandle& sysPortHandle,
       const std::shared_ptr<SystemPort>& swSystemPort);
+  void setupVoqStats(const std::shared_ptr<SystemPort>& swSystemPort);
   SaiSystemPortTraits::CreateAttributes attributesFromSwSystemPort(
       const std::shared_ptr<SystemPort>& swSystemPort) const;
   SaiQueueHandle* FOLLY_NULLABLE
@@ -111,7 +111,6 @@ class SaiSystemPortManager {
       const QueueConfig& newQueueConfig);
   void configureQueues(
       const std::shared_ptr<SystemPort>& systemPort,
-      SaiSystemPortHandle* sysPortHandle,
       const QueueConfig& newQueueConfig);
 
   SaiSystemPortHandle* getSystemPortHandleImpl(SystemPortID swId) const;

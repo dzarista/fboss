@@ -82,13 +82,16 @@ class QueueManagerTest : public ManagerTestBase {
   std::shared_ptr<SystemPort> firstSysPort() const {
     return programmedState->getSystemPorts()->getNode(firstSysPortId());
   }
+  // TODO - look at only the configured VOQs once
+  // QOS is supported on system ports
   std::vector<int> voqIds(SystemPortID sysPortId) const {
     std::vector<int> voqs;
     auto sysPort = programmedState->getSystemPorts()->getNode(sysPortId);
     if (sysPort->getQosPolicy()) {
-      for (const auto& queue : std::as_const(*sysPort->getPortQueues())) {
-        voqs.push_back(queue->getID());
-      }
+      // TODO - look at configured queues from qos policy
+    }
+    for (auto i = 0; i < sysPort->getNumVoqs(); ++i) {
+      voqs.push_back(i);
     }
     return voqs;
   }
@@ -339,16 +342,9 @@ TEST_F(QueueManagerTest, changeSysPortVoQsAndCheckVoqStats) {
   auto sysPort = firstSysPort();
   auto oldVoqs = voqIds(firstSysPortId());
   auto newSysPort = sysPort->clone();
-  newSysPort->setNumVoqs(sysPort->getNumVoqs() - 1);
+  newSysPort->setNumVoqs(oldVoqs.size() - 1);
   auto newVoqs = oldVoqs;
   newVoqs.pop_back();
-  std::vector<uint8_t> queueIds;
-  std::transform(
-      newVoqs.begin(),
-      newVoqs.end(),
-      std::back_inserter(queueIds),
-      [](const int queueId) { return static_cast<uint8_t>(queueId); });
-  newSysPort->resetPortQueues(makeQueueConfig(queueIds));
   saiManagerTable->systemPortManager().changeSystemPort(sysPort, newSysPort);
   saiManagerTable->systemPortManager().updateStats(newSysPort->getID(), true);
   auto portStat = saiManagerTable->systemPortManager().getLastPortStats(
