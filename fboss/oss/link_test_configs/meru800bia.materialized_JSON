@@ -8559,6 +8559,7 @@
             "rcy_mirror_to_forward_port_map_132.BCM8889X": "32",
             "rcy_mirror_to_forward_port_map_133.BCM8889X": "33",
             "rcy_mirror_to_forward_port_map_134.BCM8889X": "34",
+            "rcy_mirror_to_forward_port_map_135.BCM8889X": "35",
             "rcy_mirror_to_forward_port_map_136.BCM8889X": "36",
             "rcy_mirror_to_forward_port_map_137.BCM8889X": "37",
             "rcy_mirror_to_forward_port_map_138.BCM8889X": "38",
