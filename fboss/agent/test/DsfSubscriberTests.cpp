@@ -64,6 +64,8 @@ class DsfSubscriberTest : public ::testing::Test {
     // Create a separate instance of DsfSubscriber (vs
     // using one from SwSwitch) for ease of testing.
     dsfSubscriber_ = std::make_unique<DsfSubscriber>(sw_);
+    FLAGS_dsf_num_parallel_sessions_per_remote_interface_node =
+        std::numeric_limits<uint32_t>::max();
   }
 
   HwSwitchMatcher matcher(uint32_t switchID = 0) const {
@@ -264,8 +266,20 @@ TEST_F(DsfSubscriberTest, addSubscription) {
 
   auto verifyDsfSessionState = [&](cfg::DsfNode& nodeConfig,
                                    const auto dsfSessionsThrift) {
+    std::set<std::string> remoteEndpoints;
+    std::for_each(
+        nodeConfig.loopbackIps()->begin(),
+        nodeConfig.loopbackIps()->end(),
+        [&](const auto loopbackSubnet) {
+          auto loopbackIp = folly::IPAddress::createNetwork(
+                                loopbackSubnet, -1 /*defaultCidr*/, false)
+                                .first;
+          remoteEndpoints.insert(DsfSubscriber::makeRemoteEndpoint(
+              *nodeConfig.name(), loopbackIp));
+        });
     for (const auto& dsfSession : dsfSessionsThrift) {
-      if (dsfSession.remoteName() == nodeConfig.name()) {
+      if (remoteEndpoints.find(*dsfSession.remoteName()) !=
+          remoteEndpoints.end()) {
         EXPECT_EQ(*dsfSession.state(), DsfSessionState::CONNECT);
         return true;
       }
@@ -416,9 +430,15 @@ TEST_F(DsfSubscriberTest, handleFsdbUpdate) {
     fsdb::OperSubPathUnit operState;
     operState.changes() = {sysPortState, intfState};
 
+    folly::IPAddress localIP("1::1");
+
     this->dsfSubscriber_->handleFsdbUpdate(
+        localIP,
         SwitchID(*dsfNode.switchId()),
         *dsfNode.name(),
+        folly::IPAddress::createNetwork(
+            *dsfNode.loopbackIps()->cbegin(), -1 /*defaultCidr*/, false)
+            .first,
         fsdb::OperSubPathUnit(operState));
     waitForStateUpdates(sw_);
   };
@@ -432,6 +452,7 @@ TEST_F(DsfSubscriberTest, handleFsdbUpdate) {
   auto sysPort1 =
       std::make_shared<SystemPort>(SystemPortID(kSysPortRangeMin + 1));
   sysPort1->setPortName("eth1/1/1");
+  sysPort1->setScope(cfg::Scope::GLOBAL);
 
   auto intf1 = std::make_shared<Interface>(
       InterfaceID(1001),
@@ -460,6 +481,7 @@ TEST_F(DsfSubscriberTest, handleFsdbUpdate) {
   auto sysPort2 =
       std::make_shared<SystemPort>(SystemPortID(kSysPortRangeMin + 2));
   sysPort2->setPortName("eth1/1/2");
+  sysPort2->setScope(cfg::Scope::GLOBAL);
 
   auto intf2 = std::make_shared<Interface>(
       InterfaceID(1002),

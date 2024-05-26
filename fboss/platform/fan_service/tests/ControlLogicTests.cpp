@@ -20,9 +20,9 @@ namespace {
 
 float kDefaultRpm = 31;
 
-// ControlLogicTests is added after fan service was deployed in production.
-// So kExpectedPwms is production outputs of the given test inputs.
-std::array<int, 5> kExpectedPwms = std::array<int, 5>{51, 51, 52, 52, 53};
+std::array<int, 5> kExpectedPwms = std::array<int, 5>{49, 49, 48, 48, 47};
+std::array<int, 5> kExpectedBoostModePwms =
+    std::array<int, 5>{51, 51, 52, 52, 53};
 
 }; // namespace
 
@@ -56,7 +56,7 @@ class ControlLogicTests : public testing::Test {
 
     float value = 30.0;
     for (const auto& sensor : *fanServiceConfig_.sensors()) {
-      sensorData_->updateEntryFloat(
+      sensorData_->updateSensorEntry(
           *sensor.sensorName(), value, mockBsp_->getCurrentTime());
       value += 10.5;
     }
@@ -68,7 +68,7 @@ class ControlLogicTests : public testing::Test {
         opticData.emplace_back(opticType, value);
         value += 12.0;
       }
-      sensorData_->setOpticEntry(
+      sensorData_->updateOpticEntry(
           *optic.opticName(), std::move(opticData), mockBsp_->getCurrentTime());
     }
 
@@ -147,6 +147,14 @@ TEST_F(ControlLogicTests, UpdateControlSuccess) {
         fb303::fbData->getCounter(fmt::format("{}.rpm_read.failure", fanName)),
         0);
   }
+  const auto& sensorCaches = controlLogic_->getSensorCaches();
+  for (const auto& [sensorName, sensorCache] : sensorCaches) {
+    EXPECT_EQ(sensorCache.sensorFailed, false);
+    EXPECT_EQ(
+        fb303::fbData->getCounter(
+            fmt::format("{}.sensor_read.failure", sensorName)),
+        0);
+  }
 }
 
 TEST_F(ControlLogicTests, UpdateControlFailureDueToMissingFans) {
@@ -172,7 +180,7 @@ TEST_F(ControlLogicTests, UpdateControlFailureDueToMissingFans) {
     EXPECT_EQ(*fanStatus.fanFailed(), true);
     EXPECT_EQ(fanStatus.rpm().has_value(), false);
     EXPECT_EQ(*fanStatus.lastSuccessfulAccessTime(), 0);
-    EXPECT_EQ(*fanStatus.pwmToProgram(), kExpectedPwms[i++]);
+    EXPECT_EQ(*fanStatus.pwmToProgram(), kExpectedBoostModePwms[i++]);
     EXPECT_EQ(fb303::fbData->getCounter(fmt::format("{}.absent", fanName)), 1);
     EXPECT_EQ(
         fb303::fbData->getCounter(fmt::format("{}.rpm_read.failure", fanName)),
@@ -205,7 +213,7 @@ TEST_F(ControlLogicTests, UpdateControlFailureDueToFanInaccessible) {
     EXPECT_EQ(*fanStatus.fanFailed(), true);
     EXPECT_EQ(fanStatus.rpm().has_value(), false);
     EXPECT_EQ(*fanStatus.lastSuccessfulAccessTime(), 0);
-    EXPECT_EQ(*fanStatus.pwmToProgram(), kExpectedPwms[i++]);
+    EXPECT_EQ(*fanStatus.pwmToProgram(), kExpectedBoostModePwms[i++]);
     EXPECT_EQ(fb303::fbData->getCounter(fmt::format("{}.absent", fanName)), 0);
     EXPECT_EQ(
         fb303::fbData->getCounter(fmt::format("{}.rpm_read.failure", fanName)),
@@ -250,6 +258,50 @@ TEST_F(
     EXPECT_EQ(fb303::fbData->getCounter(fmt::format("{}.absent", fanName)), 0);
     EXPECT_EQ(
         fb303::fbData->getCounter(fmt::format("{}.rpm_read.failure", fanName)),
+        1);
+  }
+}
+TEST_F(ControlLogicTests, UpdateControlSensorReadFailure) {
+  EXPECT_CALL(*mockBsp_, checkIfInitialSensorDataRead()).WillOnce(Return(true));
+  for (const auto& fan : *fanServiceConfig_.fans()) {
+    EXPECT_CALL(*mockBsp_, setFanPwmSysfs(*fan.pwmSysfsPath(), _))
+        .Times(2)
+        .WillRepeatedly(Return(true));
+    EXPECT_CALL(*mockBsp_, setFanLedSysfs(*fan.ledSysfsPath(), _))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*mockBsp_, readSysfs(*fan.rpmSysfsPath()))
+        .WillOnce(Return(kDefaultRpm));
+    EXPECT_CALL(*mockBsp_, readSysfs(*fan.presenceSysfsPath()))
+        .WillOnce(Return(1 /* fan exists */));
+  }
+
+  auto startTime = mockBsp_->getCurrentTime();
+
+  controlLogic_->setTransitionValue();
+
+  for (const auto& sensor : *fanServiceConfig_.sensors()) {
+    sensorData_->delSensorEntry(*sensor.sensorName());
+  }
+  controlLogic_->updateControl(sensorData_);
+  const auto fanStatuses = controlLogic_->getFanStatuses();
+  EXPECT_EQ(fanStatuses.size(), fanServiceConfig_.fans()->size());
+  int i = 0;
+  for (const auto& [fanName, fanStatus] : fanStatuses) {
+    EXPECT_EQ(*fanStatus.fanFailed(), false);
+    EXPECT_EQ(*fanStatus.rpm(), kDefaultRpm);
+    EXPECT_GE(*fanStatus.lastSuccessfulAccessTime(), startTime);
+    EXPECT_EQ(*fanStatus.pwmToProgram(), kExpectedPwms[i++]);
+    EXPECT_EQ(fb303::fbData->getCounter(fmt::format("{}.absent", fanName)), 0);
+    EXPECT_EQ(
+        fb303::fbData->getCounter(fmt::format("{}.rpm_read.failure", fanName)),
+        0);
+  }
+  const auto& sensorCaches = controlLogic_->getSensorCaches();
+  for (const auto& [sensorName, sensorCache] : sensorCaches) {
+    EXPECT_EQ(sensorCache.sensorFailed, true);
+    EXPECT_EQ(
+        fb303::fbData->getCounter(
+            fmt::format("{}.sensor_read.failure", sensorName)),
         1);
   }
 }

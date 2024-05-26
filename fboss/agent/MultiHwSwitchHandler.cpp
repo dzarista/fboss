@@ -112,7 +112,6 @@ std::shared_ptr<SwitchState> MultiHwSwitchHandler::rollbackStateChange(
   std::map<SwitchID, const StateDelta&> switchIdAndDeltas;
   std::shared_ptr<SwitchState> newState{nullptr};
   std::set<std::unique_ptr<StateDelta>> deltas;
-  int index{0};
   for (const auto& entry : updateResults) {
     auto switchId = entry.first;
     auto status = entry.second.second;
@@ -122,7 +121,6 @@ std::shared_ptr<SwitchState> MultiHwSwitchHandler::rollbackStateChange(
       switchIdAndDeltas.emplace(switchId, *delta);
       deltas.insert(std::move(delta));
     }
-    index++;
   }
   auto results = stateChanged(switchIdAndDeltas, transaction);
   for (const auto& result : results) {
@@ -218,23 +216,6 @@ void MultiHwSwitchHandler::gracefulExit() {
   }
 }
 
-bool MultiHwSwitchHandler::getAndClearNeighborHit(
-    RouterID vrf,
-    folly::IPAddress& ip) {
-  for (auto& entry : hwSwitchSyncers_) {
-    if (entry.second->getAndClearNeighborHit(vrf, ip)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-folly::dynamic MultiHwSwitchHandler::toFollyDynamic() {
-  // Not supported with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->toFollyDynamic();
-}
-
 bool MultiHwSwitchHandler::transactionsSupported() const {
   return transactionsSupported_;
 }
@@ -247,69 +228,6 @@ bool MultiHwSwitchHandler::transactionsSupported(
     }
   }
   return true;
-}
-
-void MultiHwSwitchHandler::clearPortStats(
-    const std::unique_ptr<std::vector<int32_t>>& ports) {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->clearPortStats(ports);
-}
-
-std::vector<phy::PrbsLaneStats> MultiHwSwitchHandler::getPortAsicPrbsStats(
-    PortID portId) {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->getPortAsicPrbsStats(portId);
-}
-
-void MultiHwSwitchHandler::clearPortAsicPrbsStats(PortID portId) {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->clearPortAsicPrbsStats(portId);
-}
-
-std::vector<prbs::PrbsPolynomial> MultiHwSwitchHandler::getPortPrbsPolynomials(
-    int32_t portId) {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->getPortPrbsPolynomials(portId);
-}
-
-prbs::InterfacePrbsState MultiHwSwitchHandler::getPortPrbsState(PortID portId) {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->getPortPrbsState(portId);
-}
-
-std::vector<EcmpDetails> MultiHwSwitchHandler::getAllEcmpDetails() {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->getAllEcmpDetails();
-}
-
-void MultiHwSwitchHandler::switchRunStateChanged(SwitchRunState newState) {
-  for (auto& entry : hwSwitchSyncers_) {
-    entry.second->switchRunStateChanged(newState);
-  }
-}
-
-void MultiHwSwitchHandler::onHwInitialized(HwSwitchCallback* callback) {
-  for (auto& entry : hwSwitchSyncers_) {
-    entry.second->onHwInitialized(callback);
-  }
-}
-
-void MultiHwSwitchHandler::onInitialConfigApplied(HwSwitchCallback* sw) {
-  for (auto& entry : hwSwitchSyncers_) {
-    entry.second->onInitialConfigApplied(sw);
-  }
-}
-
-void MultiHwSwitchHandler::platformStop() {
-  for (auto& entry : hwSwitchSyncers_) {
-    entry.second->platformStop();
-  }
 }
 
 std::map<PortID, FabricEndpoint> MultiHwSwitchHandler::getFabricConnectivity() {
@@ -326,26 +244,6 @@ FabricReachabilityStats MultiHwSwitchHandler::getFabricReachabilityStats() {
 std::vector<PortID> MultiHwSwitchHandler::getSwitchReachability(
     SwitchID switchId) {
   return hwSwitchSyncers_.begin()->second->getSwitchReachability(switchId);
-}
-
-std::string MultiHwSwitchHandler::getDebugDump() {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->getDebugDump();
-}
-
-void MultiHwSwitchHandler::fetchL2Table(std::vector<L2EntryThrift>* l2Table) {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->fetchL2Table(l2Table);
-}
-
-std::string MultiHwSwitchHandler::listObjects(
-    const std::vector<HwObjectType>& types,
-    bool cached) {
-  // TODO - support with multiple switches
-  CHECK_EQ(hwSwitchSyncers_.size(), 1);
-  return hwSwitchSyncers_.begin()->second->listObjects(types, cached);
 }
 
 bool MultiHwSwitchHandler::needL2EntryForNeighbor(
@@ -393,13 +291,8 @@ bool MultiHwSwitchHandler::sendPacketSwitchedAsync(
       std::move(pkt));
 }
 
-std::optional<uint32_t> MultiHwSwitchHandler::getHwLogicalPortId(
-    PortID portID) {
-  return hwSwitchSyncers_.begin()->second->getHwLogicalPortId(portID);
-}
-
-std::map<SwitchID, HwSwitchHandler*>
-MultiHwSwitchHandler::getHwSwitchHandlers() {
+std::map<SwitchID, HwSwitchHandler*> MultiHwSwitchHandler::getHwSwitchHandlers()
+    const {
   std::map<SwitchID, HwSwitchHandler*> handlers;
   for (const auto& [switchId, syncer] : hwSwitchSyncers_) {
     auto handler = static_cast<HwSwitchHandler*>(syncer.get());
@@ -465,14 +358,6 @@ void MultiHwSwitchHandler::fillHwAgentConnectionStatus(AgentStats& agentStats) {
     agentStats.hwagentConnectionStatus()[switchIndex] =
         connectionStatusTable_.getConnectionStatus(switchId);
   }
-}
-
-AclStats MultiHwSwitchHandler::getAclStats() {
-  if (hwSwitchSyncers_.size() > 1) {
-    XLOG(ERR) << "getAclStats() is not supported for multi switch";
-    return AclStats();
-  }
-  return hwSwitchSyncers_.begin()->second->getAclStats();
 }
 
 } // namespace facebook::fboss

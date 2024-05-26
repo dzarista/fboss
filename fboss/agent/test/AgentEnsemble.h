@@ -38,6 +38,8 @@ class AgentEnsemble : public TestEnsembleIf {
   virtual ~AgentEnsemble() override;
   using TestEnsembleIf::masterLogicalPortIds;
   using StateUpdateFn = SwSwitch::StateUpdateFn;
+  using TestEnsembleIf::getLatestPortStats;
+  using TestEnsembleIf::getLatestSysPortStats;
 
   void setupEnsemble(
       uint32_t hwFeaturesDesired,
@@ -53,12 +55,6 @@ class AgentEnsemble : public TestEnsembleIf {
 
   SwSwitch* getSw() const {
     return agentInitializer()->sw();
-  }
-
-  size_t getMinPktsForLineRate(const PortID& port) {
-    auto portSpeed =
-        getProgrammedState()->getPorts()->getNodeIf(port)->getSpeed();
-    return (portSpeed > cfg::PortSpeed::HUNDREDG ? 1000 : 100);
   }
 
   std::shared_ptr<SwitchState> getProgrammedState() const override {
@@ -167,7 +163,8 @@ class AgentEnsemble : public TestEnsembleIf {
   std::map<PortID, HwPortStats> getLatestPortStats(
       const std::vector<PortID>& ports) override;
 
-  HwPortStats getLatestPortStats(const PortID& port);
+  std::map<SystemPortID, HwSysPortStats> getLatestSysPortStats(
+      const std::vector<SystemPortID>& ports) override;
 
   void setLoopbackMode(cfg::PortLoopbackMode mode) {
     mode_ = mode;
@@ -211,6 +208,8 @@ class AgentEnsemble : public TestEnsembleIf {
   void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
+  void clearPortStats();
+
   LinkStateToggler* getLinkToggler() override;
 
   folly::MacAddress getLocalMac(SwitchID id) const override {
@@ -249,6 +248,13 @@ class AgentEnsemble : public TestEnsembleIf {
   cfg::SwitchConfig getCurrentConfig() const override {
     return getSw()->getConfig();
   }
+  bool ensureSendPacketSwitched(std::unique_ptr<TxPacket> pkt);
+  bool ensureSendPacketOutOfPort(
+      std::unique_ptr<TxPacket> pkt,
+      PortID portID,
+      std::optional<uint8_t> queue = std::nullopt);
+
+  virtual void ensureHwSwitchConnected(SwitchID switchId) = 0;
 
  protected:
   void joinAsyncInitThread() {

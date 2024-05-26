@@ -444,6 +444,18 @@ bool isAnyInterfacePortInLoopbackMode(
   return false;
 }
 
+bool isAnyInterfacePortRecyclePort(
+    std::shared_ptr<SwitchState> swState,
+    const std::shared_ptr<Interface> interface) {
+  for (auto portId : getPortsForInterface(interface->getID(), swState)) {
+    auto port = swState->getPorts()->getNodeIf(portId);
+    if (port && port->getPortType() == cfg::PortType::RECYCLE_PORT) {
+      return true;
+    }
+  }
+  return false;
+}
+
 StopWatch::StopWatch(std::optional<std::string> name, bool json)
     : name_(name), json_(json), startTime_(std::chrono::steady_clock::now()) {}
 
@@ -795,6 +807,25 @@ std::unordered_map<SwitchID, SwitchIndex> computeSwitchIdToSwitchIndex(
   }
 
   return switchIdToSwitchIndex;
+}
+
+std::set<SwitchID> getAllSwitchIDsForSwitch(
+    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap,
+    const SwitchID& switchID) {
+  auto dsfNode = dsfNodeMap->getNodeIf(switchID);
+  CHECK(dsfNode);
+
+  auto switchName = dsfNode->getName();
+  std::set<SwitchID> allSwitchIDs;
+  for (const auto& [_, dsfNodes] : std::as_const(*dsfNodeMap)) {
+    for (const auto& [_, node] : std::as_const(*dsfNodes)) {
+      if (node->getName() == switchName) {
+        allSwitchIDs.insert(node->getSwitchId());
+      }
+    }
+  }
+
+  return allSwitchIDs;
 }
 
 uint32_t getRemotePortOffset(const PlatformType platformType) {

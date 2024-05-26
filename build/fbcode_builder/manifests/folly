@@ -43,6 +43,10 @@ openssl
 openssl
 zlib
 
+[dependencies.os=linux]
+libiberty
+libunwind
+
 # xz depends on autoconf which does not build on
 # Windows
 [dependencies.not(os=windows)]

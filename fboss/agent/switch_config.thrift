@@ -171,6 +171,11 @@ enum PortProfileID {
   PROFILE_100G_2_PAM4_RS544X2N_COPPER = 46,
 }
 
+enum Scope {
+  LOCAL = 0,
+  GLOBAL = 1,
+}
+
 /**
  * The pause setting for a port
  */
@@ -938,6 +943,7 @@ enum PortType {
   CPU_PORT = 2,
   RECYCLE_PORT = 3,
   MANAGEMENT_PORT = 4,
+  EVENTOR_PORT = 5,
 }
 
 struct PortNeighbor {
@@ -1112,6 +1118,8 @@ struct Port {
    * PortFlowletConfigName to covey the flowlet config profile used for DLB
    */
   30: optional PortFlowletConfigName flowletConfigName;
+
+  31: Scope scope = Scope.LOCAL;
 }
 
 enum LacpPortRate {
@@ -1362,6 +1370,7 @@ struct Interface {
   /* Override DHCPv4/6 relayer on a per host basis */
   14: optional map<string, string> dhcpRelayOverridesV4;
   15: optional map<string, string> dhcpRelayOverridesV6;
+  16: Scope scope = Scope.LOCAL;
 }
 
 struct StaticRouteWithNextHops {

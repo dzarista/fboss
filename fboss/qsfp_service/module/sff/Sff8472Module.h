@@ -48,6 +48,8 @@ class Sff8472Module : public QsfpModule {
   void customizeTransceiverLocked(
       TransceiverPortState& /* portState */) override {}
 
+  bool tcvrPortStateSupported(TransceiverPortState& portState) const override;
+
   virtual bool ensureTransceiverReadyLocked() override {
     return true;
   }
@@ -60,9 +62,7 @@ class Sff8472Module : public QsfpModule {
 
   void setPowerOverrideIfSupportedLocked(PowerControlState) override {}
 
-  TransmitterTechnology getQsfpTransmitterTechnology() const override {
-    return TransmitterTechnology::OPTICAL;
-  }
+  TransmitterTechnology getQsfpTransmitterTechnology() const override;
 
   std::optional<AlarmThreshold> getThresholdInfo() override {
     return std::nullopt;

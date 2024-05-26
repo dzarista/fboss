@@ -167,7 +167,6 @@ using namespace std::chrono;
 using namespace facebook::fboss::utility;
 
 DEFINE_int32(linkscan_interval_us, 250000, "The Broadcom linkscan interval");
-DEFINE_bool(force_init_fp, true, "Force full field processor initialization");
 DEFINE_string(
     script_pre_asic_init,
     "script_pre_asic_init",
@@ -3232,18 +3231,6 @@ bcm_if_t BcmSwitch::getToCPUEgressId() const {
   } else {
     return BcmEgressBase::INVALID;
   }
-}
-
-bool BcmSwitch::getAndClearNeighborHit(
-    RouterID /*vrf*/,
-    folly::IPAddress& /*ip*/) {
-  // TODO(aeckert): t20059623 This should look in the host table and
-  // check the hit bit, but that currently requires grabbing the main
-  // lock and opens up the possibility of bg thread getting stuck
-  // behind update thread.  For now, stub this out to return true and
-  // work on adding a better way to communicate hit bit + stale entry
-  // garbage collection.
-  return true;
 }
 
 void BcmSwitch::exitFatal() const {
