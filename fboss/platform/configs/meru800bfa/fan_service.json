@@ -222,7 +222,7 @@
   "zones": [
     {
       "zoneType": "ZONE_TYPE_MAX",
-      "zoneName": "zone1",
+      "zoneName": "system_zone",
       "sensorNames": [
         "SMB_INLET_TEMP",
         "osfp_group_1"
@@ -241,7 +241,7 @@
         "fan_11",
         "fan_12"
       ],
-      "slope": 1
+      "slope": 3
     }
   ]
 }
