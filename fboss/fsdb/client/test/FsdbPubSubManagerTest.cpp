@@ -33,25 +33,37 @@ class PubSubManagerTest : public ::testing::Test {
       const std::vector<std::string>& path,
       const std::string& host = "::1") {
     pubSubManager_.addStateDeltaSubscription(
-        path, subscriptionStateChangeCb, operDeltaCb, host);
+        path,
+        subscriptionStateChangeCb,
+        operDeltaCb,
+        FsdbStreamClient::ServerOptions(host, FLAGS_fsdbPort));
   }
   void addStatDeltaSubscription(
       const std::vector<std::string>& path,
       const std::string& host = "::1") {
     pubSubManager_.addStatDeltaSubscription(
-        path, subscriptionStateChangeCb, operDeltaCb, host);
+        path,
+        subscriptionStateChangeCb,
+        operDeltaCb,
+        FsdbStreamClient::ServerOptions(host, FLAGS_fsdbPort));
   }
   void addStatePathSubscription(
       const std::vector<std::string>& path,
       const std::string& host = "::1") {
     pubSubManager_.addStatePathSubscription(
-        path, subscriptionStateChangeCb, operStateCb, host);
+        path,
+        subscriptionStateChangeCb,
+        operStateCb,
+        FsdbStreamClient::ServerOptions(host, FLAGS_fsdbPort));
   }
   void addStatPathSubscription(
       const std::vector<std::string>& path,
       const std::string& host = "::1") {
     pubSubManager_.addStatPathSubscription(
-        path, subscriptionStateChangeCb, operStateCb, host);
+        path,
+        subscriptionStateChangeCb,
+        operStateCb,
+        FsdbStreamClient::ServerOptions(host, FLAGS_fsdbPort));
   }
   FsdbPubSubManager pubSubManager_{"testMgr"};
 };
@@ -178,6 +190,22 @@ TEST_F(PubSubManagerTest, passEvbOrNot) {
   EXPECT_NE(localThreadManager.subscriberEvbThread_, nullptr);
   EXPECT_NE(localThreadManager.statsPublisherStreamEvbThread_, nullptr);
   EXPECT_NE(localThreadManager.statePublisherStreamEvbThread_, nullptr);
+}
+
+TEST_F(PubSubManagerTest, removeAllSubscriptions) {
+  addStateDeltaSubscription({"foo"});
+  addStatDeltaSubscription({"foo"});
+  EXPECT_THROW(addStateDeltaSubscription({"foo"}), std::runtime_error);
+  EXPECT_THROW(addStatDeltaSubscription({"foo"}), std::runtime_error);
+
+  pubSubManager_.clearStateSubscriptions();
+  // resub should succeed
+  addStateDeltaSubscription({"foo"});
+  // still have stat sub registered
+  EXPECT_THROW(addStatDeltaSubscription({"foo"}), std::runtime_error);
+
+  pubSubManager_.clearStatSubscriptions();
+  addStatDeltaSubscription({"foo"});
 }
 
 } // namespace facebook::fboss::fsdb

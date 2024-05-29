@@ -260,11 +260,12 @@ class SaiPortManager {
       PortSaiId saiPortId) const;
 #endif
 
-#if defined(BRCM_SAI_SDK_GTE_11_0)
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
   std::optional<sai_latch_status_t> getHighCrcErrorRate(
       PortSaiId saiPortId,
       PortID swPort) const;
 #endif
+  void updateLeakyBucketFb303Counter(PortID portId, int value);
 
   void enableAfeAdaptiveMode(PortID portId);
 

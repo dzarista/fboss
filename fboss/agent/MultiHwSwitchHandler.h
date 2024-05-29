@@ -58,9 +58,8 @@ class MultiHwSwitchHandler {
 
   std::shared_ptr<SwitchState> stateChanged(
       const StateDelta& delta,
-      bool transaction);
-
-  void exitFatal();
+      bool transaction,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   std::unique_ptr<TxPacket> allocatePacket(uint32_t size);
 
@@ -72,12 +71,6 @@ class MultiHwSwitchHandler {
   bool sendPacketSwitchedSync(std::unique_ptr<TxPacket> pkt) noexcept;
 
   bool sendPacketSwitchedAsync(std::unique_ptr<TxPacket> pkt) noexcept;
-
-  bool isValidStateUpdate(const StateDelta& delta);
-
-  void unregisterCallbacks();
-
-  void gracefulExit();
 
   bool transactionsSupported() const;
 
@@ -117,11 +110,13 @@ class MultiHwSwitchHandler {
 
   folly::Future<HwSwitchStateUpdateResult> stateChanged(
       SwitchID switchId,
-      const HwSwitchStateUpdate& update);
+      const HwSwitchStateUpdate& update,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   std::map<SwitchID, HwSwitchStateUpdateResult> stateChanged(
       const std::map<SwitchID, const StateDelta&>& deltas,
-      bool transaction);
+      bool transaction,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   std::map<SwitchID, HwSwitchStateUpdateResult> getStateUpdateResult(
       const std::vector<SwitchID>& switchIds,

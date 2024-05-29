@@ -15,6 +15,7 @@
 #include "fboss/agent/HwSwitchThriftClientTable.h"
 #include "fboss/agent/SwAgentInitializer.h"
 #include "fboss/agent/SwSwitch.h"
+#include "fboss/agent/SwSwitchWarmBootHelper.h"
 #include "fboss/agent/test/LinkStateToggler.h"
 #include "fboss/agent/test/RouteDistributionGenerator.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
@@ -255,6 +256,10 @@ class AgentEnsemble : public TestEnsembleIf {
       std::optional<uint8_t> queue = std::nullopt);
 
   virtual void ensureHwSwitchConnected(SwitchID switchId) = 0;
+  uint64_t getTrafficRate(
+      const HwPortStats& prevPortStats,
+      const HwPortStats& curPortStats,
+      const int secondsBetweenStatsCollection);
 
  protected:
   void joinAsyncInitThread() {

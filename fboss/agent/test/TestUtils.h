@@ -52,12 +52,13 @@ class MockMultiSwitchHwSwitchHandler : public MultiSwitchHwSwitchHandler {
   MOCK_METHOD2(
       stateChanged,
       std::shared_ptr<SwitchState>(const StateDelta&, bool));
-  MOCK_METHOD3(
+  MOCK_METHOD4(
       stateChanged,
       std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>(
           const fsdb::OperDelta&,
           bool,
-          const std::shared_ptr<SwitchState>&));
+          const std::shared_ptr<SwitchState>&,
+          const HwWriteBehavior&));
 };
 
 template <cfg::SwitchType type, bool enableIntfNbrTable, int count = 1>
@@ -267,6 +268,8 @@ std::shared_ptr<SwitchState> testStateAWithPortsUp(
 std::shared_ptr<SwitchState> testStateAWithLookupClasses();
 
 std::shared_ptr<SwitchState> testStateAWithoutIpv4VlanIntf(VlanID vlanId);
+
+std::shared_ptr<SwitchState> testStateAWithoutIpv4();
 
 /*
  * Bring all ports up for a given input state
