@@ -1,0 +1,8 @@
+[Unit]
+Description=Start FBOSS sw agent
+
+[Service]
+ExecStart=/opt/fboss/bin/run_sw_agent.sh
+
+[Install]
+WantedBy=multi-user.target

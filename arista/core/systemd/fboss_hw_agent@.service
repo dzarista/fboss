@@ -1,0 +1,8 @@
+[Unit]
+Description=Start FBOSS hw agent for ASIC %i
+
+[Service]
+ExecStart=/opt/fboss/bin/run_hw_agent.sh %i
+
+[Install]
+WantedBy=multi-user.target
