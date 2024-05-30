@@ -12,7 +12,7 @@
 #include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
 #include "fboss/lib/CommonUtils.h"
 
-DECLARE_int32(hwswitch_query_timeout);
+DECLARE_bool(disable_looped_fabric_ports);
 
 namespace {
 constexpr uint8_t kDefaultQueue = 0;
@@ -40,8 +40,9 @@ class AgentVoqSwitchTest : public AgentHwTest {
       if (asic->getDefaultNumPortQueues(
               cpuStreamType, cfg::PortType::CPU_PORT)) {
         // cpu queues supported
-        addCpuTrafficPolicy(config, asic);
-        utility::addCpuQueueConfig(config, asic, ensemble.isSai());
+        addCpuTrafficPolicy(config, ensemble.getL3Asics(), asic);
+        utility::addCpuQueueConfig(
+            config, ensemble.getL3Asics(), ensemble.isSai());
         break;
       }
     }
@@ -163,7 +164,7 @@ class AgentVoqSwitchTest : public AgentHwTest {
         &newCfg,
         kDscpAclName(),
         kDscpAclCounterName(),
-        utility::getAclCounterTypes(utility::getFirstAsic(this->getSw())));
+        utility::getAclCounterTypes(getAgentEnsemble()->getL3Asics()));
     applyNewConfig(newCfg);
   }
 
@@ -196,7 +197,8 @@ class AgentVoqSwitchTest : public AgentHwTest {
   }
 
  private:
-  void addCpuTrafficPolicy(cfg::SwitchConfig& cfg, const HwAsic* asic) const {
+  void addCpuTrafficPolicy(cfg::SwitchConfig& cfg, std::vector<const HwAsic*> l3Asics,
+        const HwAsic* asic) const {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     std::vector<cfg::PacketRxReasonToQueue> rxReasonToQueues;
     std::vector<std::pair<cfg::PacketRxReason, uint16_t>>
@@ -207,7 +209,8 @@ class AgentVoqSwitchTest : public AgentHwTest {
                 cfg::PacketRxReason::BGPV6,
                 utility::getCoppHighPriQueueId(asic)),
             std::pair(
-                cfg::PacketRxReason::CPU_IS_NHOP, utility::kCoppMidPriQueueId),
+                cfg::PacketRxReason::CPU_IS_NHOP,
+                utility::getCoppMidPriQueueId(l3Asics)),
         };
     for (auto rxEntry : rxReasonToQueueMappings) {
       auto rxReasonToQueue = cfg::PacketRxReasonToQueue();
@@ -239,22 +242,6 @@ class AgentVoqSwitchWithFabricPortsTest : public AgentVoqSwitchTest {
   }
 
  protected:
-  void assertPortActiveState(PortID fabricPortId, bool expectActive) const {
-    WITH_RETRIES({
-      auto port = getProgrammedState()->getPorts()->getNodeIf(fabricPortId);
-      EXPECT_EVENTUALLY_TRUE(port->isActive().has_value());
-      EXPECT_EVENTUALLY_EQ(*port->isActive(), expectActive);
-    });
-  }
-  void assertPortsActiveState(bool expectActive) const {
-    WITH_RETRIES({
-      for (const auto& fabricPortId : masterLogicalFabricPortIds()) {
-        auto port = getProgrammedState()->getPorts()->getNodeIf(fabricPortId);
-        EXPECT_EVENTUALLY_TRUE(port->isActive().has_value());
-        EXPECT_EVENTUALLY_EQ(*port->isActive(), expectActive);
-      }
-    });
-  }
   void assertPortAndDrainState(cfg::SwitchDrainState expectDrainState) const {
     bool expectDrained =
         expectDrainState == cfg::SwitchDrainState::DRAINED ? true : false;
@@ -268,7 +255,8 @@ class AgentVoqSwitchWithFabricPortsTest : public AgentVoqSwitchTest {
     }
     // Drained - expect inactive
     // Undrained - expect active
-    assertPortsActiveState(!expectDrained);
+    utility::checkFabricPortsActiveState(
+        getAgentEnsemble(), masterLogicalFabricPortIds(), !expectDrained);
   }
   void verifyLocalForwarding() {
     // Setup neighbor entry
@@ -296,8 +284,12 @@ class AgentVoqSwitchWithFabricPortsTest : public AgentVoqSwitchTest {
   }
 
  private:
-  bool hideFabricPorts() const override {
-    return false;
+  void setCmdLineFlagOverrides() const override {
+    AgentHwTest::setCmdLineFlagOverrides();
+    FLAGS_hide_fabric_ports = false;
+    // Allow disabling of looped ports. This should
+    // be a noop for VOQ switches
+    FLAGS_disable_looped_fabric_ports = true;
   }
 };
 
@@ -358,7 +350,9 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricIsolate) {
       });
       // Drained port == inactive, undrained port == active
       auto expectActive = !drain;
-      assertPortActiveState(fabricPortId, expectActive);
+      std::vector<PortID> fabricPortIds({static_cast<PortID>(fabricPortId)});
+      utility::checkFabricPortsActiveState(
+          getAgentEnsemble(), fabricPortIds, expectActive);
       // Fabric reachability should be unchanged regardless of drain
       utility::checkPortFabricReachability(
           getAgentEnsemble(), SwitchID(0), fabricPortId);
@@ -370,13 +364,8 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricIsolate) {
 }
 
 TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricConnectivityMismatch) {
-  auto fabricPortId = masterLogicalFabricPortIds()[0];
-  auto setup = [=, this]() {
-    applyNewConfig(initialConfig(*getAgentEnsemble()));
-    auto portStats = getLatestPortStats(fabricPortId);
-    EXPECT_EQ(*portStats.get_fabricConnectivityMismatch(), 0);
-  };
-  auto verify = [=, this]() {
+  auto verify = [this]() {
+    auto fabricPortId = masterLogicalFabricPortIds()[0];
     auto cfg = initialConfig(*getAgentEnsemble());
     cfg::PortNeighbor nbr;
     nbr.remoteSystem() = "RemoteA";
@@ -390,20 +379,19 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, fabricConnectivityMismatch) {
       EXPECT_EVENTUALLY_TRUE(port->getLedPortExternalState().has_value());
       EXPECT_EVENTUALLY_EQ(
           port->getLedPortExternalState().value(),
-          PortLedExternalState::CABLING_ERROR);
-      auto portStats = getLatestPortStats(fabricPortId);
-      EXPECT_EVENTUALLY_TRUE(
-          portStats.fabricConnectivityMismatch().has_value());
-      EXPECT_EVENTUALLY_EQ(*portStats.fabricConnectivityMismatch(), 1);
+          PortLedExternalState::CABLING_ERROR_LOOP_DETECTED);
     });
   };
-  verifyAcrossWarmBoots(setup, verify);
+  verifyAcrossWarmBoots([]() {}, verify);
 }
 
 TEST_F(AgentVoqSwitchWithFabricPortsTest, switchIsolate) {
   auto setup = [=, this]() {
     // Before drain all fabric ports should be active
-    assertPortsActiveState(true);
+    utility::checkFabricPortsActiveState(
+        getAgentEnsemble(),
+        masterLogicalFabricPortIds(),
+        true /*expectActive*/);
     // Local forwarding works
     verifyLocalForwarding();
     auto newCfg = initialConfig(*getAgentEnsemble());
@@ -801,7 +789,7 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
       auto txPacketSize = sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
 
       auto [maxRetryCount, sleepTimeMsecs] =
-          utility::getRetryCountAndDelay(utility::getFirstAsic(this->getSw()));
+          utility::getRetryCountAndDelay(getSw()->getHwAsicTable());
       WITH_RETRIES_N_TIMED(
           maxRetryCount, std::chrono::milliseconds(sleepTimeMsecs), {
             if (isSupportedOnAllAsics(HwAsic::Feature::L3_QOS)) {
@@ -849,11 +837,11 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
 
             EXPECT_EVENTUALLY_EQ(afterOutPkts - 1, beforeOutPkts);
             int extraByteOffset = 0;
-            auto asicType = utility::getFirstAsic(this->getSw())->getAsicType();
-            auto asicMode = utility::getFirstAsic(this->getSw())->getAsicMode();
-            if (asicMode != HwAsic::AsicMode::ASIC_MODE_SIM &&
-                (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
-                 asicType == cfg::AsicType::ASIC_TYPE_JERICHO3)) {
+            auto asic =
+                utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics());
+            const auto asicMode = asic->getAsicMode();
+            const auto asicType = asic->getAsicType();
+            if (asic->getAsicMode() != HwAsic::AsicMode::ASIC_MODE_SIM) {
               // Account for Ethernet FCS being counted in TX out bytes.
               extraByteOffset = utility::EthFrame::FCS_SIZE;
             }

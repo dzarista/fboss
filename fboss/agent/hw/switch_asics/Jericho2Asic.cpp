@@ -32,7 +32,6 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::EGRESS_MIRRORING:
     case HwAsic::Feature::EGRESS_SFLOW:
     case HwAsic::Feature::DEFAULT_VLAN:
-    case HwAsic::Feature::L2_LEARNING:
     case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
     case HwAsic::Feature::TRAFFIC_HASHING:
     case HwAsic::Feature::CPU_PORT:
@@ -83,6 +82,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ANY_ACL_DROP_COUNTER:
     case HwAsic::Feature::EGRESS_FORWARDING_DROP_COUNTER:
     case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
+    case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
       return true;
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS:
@@ -165,6 +165,8 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_PRBS:
     case HwAsic::Feature::RCI_WATERMARK_COUNTER:
     case HwAsic::Feature::DTL_WATERMARK_COUNTER:
+    case HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER:
+    case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
       return false;
   }
   return false;
@@ -178,6 +180,7 @@ std::set<cfg::StreamType> Jericho2Asic::getQueueStreamTypes(
     case cfg::PortType::INTERFACE_PORT:
     case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::FABRIC_PORT:
       return {cfg::StreamType::FABRIC_TX};
@@ -231,6 +234,7 @@ uint64_t Jericho2Asic::getDefaultReservedBytes(
     case cfg::PortType::INTERFACE_PORT:
     case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::FABRIC_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       return 0;
   }
   throw FbossError(

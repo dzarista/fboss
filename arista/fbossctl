@@ -17,7 +17,7 @@ if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
    FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
 fi
 
-DEFAULT_CENTOS_RELEASE="8"
+DEFAULT_CENTOS_RELEASE="9"
 if [[ -z "${CENTOS_RELEASE}" ]]; then
    echo "No Centos release defined in environment, using Centos${DEFAULT_CENTOS_RELEASE}"
    CENTOS_RELEASE="${DEFAULT_CENTOS_RELEASE}"
@@ -115,8 +115,9 @@ maybe_setup_build_env() {
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
    cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA"
-   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.30-3b0da5a59.tar.xz
-   tar -xf sai-sdk-all-6.5.30-3b0da5a59.tar.xz
+   sdk_file="sai-sdk-all-6.5.30-84b4f2be3.tar.xz"
+   wget http://dist/storage/fboss/FBOSS-SAI/$sdk_file
+   tar -xf "$sdk_file"
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29
    wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
    patch "dnx-sdk-6.5.30-gpl-modules/make/Make.config" < patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
@@ -145,10 +146,8 @@ maybe_setup_build_env() {
    # Centos 9 build related patches and deps
    if [[ "${CENTOS_RELEASE}" == "9" ]];
    then
-      wget http://dist/storage/fboss/FBOSS-SAI/el9/CS00012328096_01_replace_sal_strncpy_arista.patch
-      patch -p1 < CS00012328096_01_replace_sal_strncpy_arista.patch
-      wget http://dist/storage/fboss/FBOSS-SAI/el9/Satish_Remaining_SDK_fixes_centos9-round2.patch
-      patch -p1 < Satish_Remaining_SDK_fixes_centos9-round2.patch
+      wget http://dist/storage/fboss/FBOSS-SAI/el9/CS00012328096_01_fixes_to_compile_on_Centos9_SDK_6_5_30_SP3.patch
+      patch -p1 < CS00012328096_01_fixes_to_compile_on_Centos9_SDK_6_5_30_SP3.patch
       # Copy some deps required for centos 9 build
       # libnsl.a needs to be copied over to /usr/lib64 in the container.
       cd "${FBOSS_HOST_DIR}"

@@ -101,12 +101,6 @@ class SimSwitch : public HwSwitch {
     // TODO
   }
 
-  bool getAndClearNeighborHit(RouterID /*vrf*/, folly::IPAddress& /*ip*/)
-      override {
-    // TODO
-    return false;
-  }
-
   bool isPortUp(PortID /*port*/) const override {
     // Should be called only from SwSwitch which knows whether
     // the port is enabled or not
@@ -172,6 +166,7 @@ class SimSwitch : public HwSwitch {
 
   void syncLinkStates() override {}
   void syncLinkActiveStates() override {}
+  void syncLinkConnectivity() override {}
 
   // Forbidden copy constructor and assignment operator
   SimSwitch(SimSwitch const&) = delete;

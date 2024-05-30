@@ -62,6 +62,20 @@ class SaiHandler : public apache::thrift::ServiceHandler<SaiCtrl> {
       std::unique_ptr<std::vector<HwObjectType>> hwObjects,
       bool cached) override;
 
+  BootType getBootType() override;
+
+  void getAllInterfacePrbsStates(
+      std::map<std::string, prbs::InterfacePrbsState>& prbsStates,
+      phy::PortComponent component) override;
+
+  void getAllInterfacePrbsStats(
+      std::map<std::string, phy::PrbsStats>& prbsStats,
+      phy::PortComponent component) override;
+
+  void bulkClearInterfacePrbsStats(
+      std::unique_ptr<std::vector<std::string>> interfaces,
+      phy::PortComponent component) override;
+
  private:
   SaiSwitch* hw_;
   StreamingDiagShellServer diagShell_;

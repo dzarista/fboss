@@ -74,6 +74,8 @@ struct HwPortStats {
    * fecCodewords_[1] = number of codewords with 1 symbol errors etc..
    */
   37: map<i16, i64> fecCodewords_ = {};
+  38: optional i64 pqpErrorEgressDroppedPackets_;
+  39: optional i64 fabricLinkDownDroppedCells_;
 
   // seconds from epoch
   50: i64 timestamp_ = STAT_UNINITIALIZED;
@@ -85,10 +87,14 @@ struct HwPortStats {
   56: optional i64 inAclDiscards_;
   57: optional i64 inTrapDiscards_;
   58: optional i64 outForwardingDiscards_;
-  59: optional i64 fabricConnectivityMismatch;
+  // This mismatch is communicated directly via callback
+  59: optional i64 fabricConnectivityMismatch_DEPRECATED;
+  60: optional i32 logicalPortId;
+  61: optional i64 leakyBucketFlapCount_;
 }
 
 struct HwSysPortStats {
+  // These map keys are the queue and the value is the counter value
   1: map<i16, i64> queueOutDiscardBytes_ = {};
   2: map<i16, i64> queueOutBytes_ = {};
   3: map<i16, i64> queueWatermarkBytes_ = {};
@@ -255,12 +261,15 @@ struct HwSwitchWatermarkStats {
   2: optional i64 coreRciWatermarkBytes;
   3: optional i64 dtlQueueWatermarkBytes;
   4: i64 deviceWatermarkBytes;
+  5: map<string, i64> globalHeadroomWatermarkBytes;
+  6: map<string, i64> globalSharedWatermarkBytes;
 }
 
 struct CpuPortStats {
-  1: map<i32, i64> queueInPackets_;
-  2: map<i32, i64> queueDiscardPackets_;
-  3: map<i32, string> queueToName_;
+  1: map<i32, i64> queueInPackets_; // TODO: Deprecate this
+  2: map<i32, i64> queueDiscardPackets_; // TODO: Deprecate this
+  3: map<i32, string> queueToName_; // TODO: Deprecate this
+  4: HwPortStats portStats_;
 }
 
 struct HwSwitchDropStats {
@@ -314,6 +323,7 @@ struct HwSwitchFb303GlobalStats {
 
 struct HwFlowletStats {
   1: i64 l3EcmpDlbFailPackets;
+  2: i64 l3EcmpDlbPortReassignmentCount;
 }
 
 struct AclStats {

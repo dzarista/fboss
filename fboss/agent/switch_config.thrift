@@ -171,6 +171,11 @@ enum PortProfileID {
   PROFILE_100G_2_PAM4_RS544X2N_COPPER = 46,
 }
 
+enum Scope {
+  LOCAL = 0,
+  GLOBAL = 1,
+}
+
 /**
  * The pause setting for a port
  */
@@ -362,8 +367,23 @@ enum AclActionType {
  * The look up class for an acl
  */
 enum AclLookupClass {
-  DST_CLASS_L3_LOCAL_IP4 = 1,
-  DST_CLASS_L3_LOCAL_IP6 = 2,
+  /*
+   * Use cases:
+   * 1. on sai switches: class ID for my ip /32 /128 routes pointing to cpu
+   * 2. on native bcm switches: ipv4 routes point to cpu
+   */
+  DST_CLASS_L3_LOCAL_1 = 1,
+
+  /*
+   * Use cases:
+   * 1. on sai switches: routes that uses single nexthop and are unresolved points to
+   * cpu port as the nexthop to trigger neighbor resolution. Associate
+   * a class ID for those routes which will be matched against an ACL
+   * to send the packet to default queue. Refer to S390808 for more details.
+   * 2. on sai switches: class ID for connected subnet routes pointing to router interface.
+   * 3. on native bcm switches: ipv6 routes point to cpu
+   */
+  DST_CLASS_L3_LOCAL_2 = 2,
 
   // Class for DROP ACL
   CLASS_DROP = 9,
@@ -386,16 +406,9 @@ enum AclLookupClass {
   // set by BGP for deterministic path routes
   DST_CLASS_L3_DPR = 20,
 
-  /*
-   * Routes that uses single nexthop and are unresolved points to
-   * cpu port as the nexthop to trigger neighbor resolution. Associate
-   * a class ID for those routes which will be matched against an ACL
-   * to send the packet to default queue. Refer to S390808 for more details.
-   */
-  CLASS_UNRESOLVED_ROUTE_TO_CPU = 21,
-
-  // class ID for connected subnet routes pointing to router interface
-  CLASS_CONNECTED_ROUTE_TO_INTF = 22,
+  // will be replaced by DST_CLASS_L3_LOCAL_1 and DST_CLASS_L3_LOCAL_2
+  DEPRECATED_CLASS_UNRESOLVED_ROUTE_TO_CPU = 21,
+  DEPRECATED_CLASS_CONNECTED_ROUTE_TO_INTF = 22,
 }
 
 enum PacketLookupResultType {
@@ -508,6 +521,10 @@ struct AclEntry {
   31: optional list<string> udfGroups;
 
   32: optional byte roceOpcode;
+
+  33: optional list<byte> roceBytes;
+
+  34: optional list<byte> roceMask;
 }
 
 enum AclTableActionType {
@@ -926,6 +943,7 @@ enum PortType {
   CPU_PORT = 2,
   RECYCLE_PORT = 3,
   MANAGEMENT_PORT = 4,
+  EVENTOR_PORT = 5,
 }
 
 struct PortNeighbor {
@@ -1100,6 +1118,8 @@ struct Port {
    * PortFlowletConfigName to covey the flowlet config profile used for DLB
    */
   30: optional PortFlowletConfigName flowletConfigName;
+
+  31: Scope scope = Scope.LOCAL;
 }
 
 enum LacpPortRate {
@@ -1350,6 +1370,7 @@ struct Interface {
   /* Override DHCPv4/6 relayer on a per host basis */
   14: optional map<string, string> dhcpRelayOverridesV4;
   15: optional map<string, string> dhcpRelayOverridesV6;
+  16: Scope scope = Scope.LOCAL;
 }
 
 struct StaticRouteWithNextHops {
@@ -1803,6 +1824,15 @@ struct PortFlowletConfig {
   3: i16 queueWeight;
 }
 
+enum SwitchingMode {
+  // flowlet regular quality based reassignments
+  FLOWLET_QUALITY = 0,
+  // per packet assignments
+  PER_PACKET_QUALITY = 1,
+  // flowlet is disabled
+  FIXED_ASSIGNMENT = 2,
+}
+
 struct FlowletSwitchingConfig {
   // wait for lack of activitiy interval on the flow before load balancing
   1: i16 inactivityIntervalUsecs;
@@ -1829,6 +1859,8 @@ struct FlowletSwitchingConfig {
   // maximum links used for flowlet switching.
   // Needed for scaling flowset table
   11: i16 maxLinks;
+  // switching mode
+  12: SwitchingMode switchingMode = FLOWLET_QUALITY;
 }
 
 /**
@@ -1901,6 +1933,7 @@ struct SwitchConfig {
   19: map<i32, i32> clientIdToAdminDistance = {
     2: 0, // INTERFACE_ROUTE
     3: 0, // LINKLOCAL_ROUTE
+    4: 0, // REMOTE_INTERFACE_ROUTE
     1: 1, // STATIC_ROUTE
     786: 10, // OPENR
     0: 20, // BGPD

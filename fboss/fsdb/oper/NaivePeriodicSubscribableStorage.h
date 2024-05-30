@@ -2,43 +2,19 @@
 
 #pragma once
 
-#include <fb303/ThreadCachedServiceData.h>
 #include <fboss/fsdb/oper/CowSubscriptionManager.h>
 #include <fboss/fsdb/oper/DeltaValue.h>
+#include <fboss/fsdb/oper/NaivePeriodicSubscribableStorageBase.h>
+#include <fboss/fsdb/oper/PathConverter.h>
 #include <fboss/fsdb/oper/SubscribableStorage.h>
 #include <fboss/thrift_cow/storage/CowStorage.h>
 #include <fboss/thrift_cow/storage/Storage.h>
+
 #include <folly/Expected.h>
-#include <folly/experimental/coro/AsyncScope.h>
-#include <folly/experimental/coro/BlockingWait.h>
 #include <folly/experimental/coro/Sleep.h>
-#include <folly/io/async/EventBase.h>
-#include <folly/json/dynamic.h>
-#include <folly/system/ThreadName.h>
-#include <thrift/lib/cpp2/folly_dynamic/folly_dynamic.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 #include <chrono>
 #include <utility>
-
-#include "fboss/fsdb/oper/SubscriptionMetadataServer.h"
-#include "fboss/fsdb/server/FsdbOperTreeMetadataTracker.h"
-#include "fboss/fsdb/server/OperPathToPublisherRoot.h"
-#include "fboss/lib/ThreadHeartbeat.h"
-
-#ifndef IS_OSS
-#include "common/base/Proc.h"
-namespace {
-inline int64_t getMemoryUsage() {
-  return facebook::Proc::getMemoryUsage();
-}
-} // namespace
-#else
-namespace {
-inline int64_t getMemoryUsage() {
-  return 0;
-}
-} // namespace
-#endif
 
 /*
   Patch apis require the need for a couple new visitor types which end up
@@ -51,16 +27,12 @@ inline int64_t getMemoryUsage() {
 
 namespace facebook::fboss::fsdb {
 
-inline constexpr std::string_view kServeSubMs{"storage.serve_sub_ms"};
-inline constexpr std::string_view kServeSubNum{"storage.serve_sub_num"};
-inline constexpr std::string_view kRss{"rss"};
-
 DECLARE_bool(serveHeartbeats);
-DECLARE_int32(storage_thread_heartbeat_ms);
 
 template <typename Storage, typename SubscribeManager>
 class NaivePeriodicSubscribableStorage
-    : public SubscribableStorage<
+    : public NaivePeriodicSubscribableStorageBase,
+      public SubscribableStorage<
           typename Storage::RootT,
           NaivePeriodicSubscribableStorage<Storage, SubscribeManager>> {
  public:
@@ -73,7 +45,6 @@ class NaivePeriodicSubscribableStorage
 
   template <typename T>
   using Result = typename Storage::template Result<T>;
-  using DynamicResult = Result<folly::dynamic>;
 
   using Self = NaivePeriodicSubscribableStorage<Storage, SubscribeManager>;
   using Base = SubscribableStorage<RootT, Self>;
@@ -88,15 +59,14 @@ class NaivePeriodicSubscribableStorage
       const std::string& metricPrefix = "fsdb",
       bool convertToIDPaths = false,
       bool requireResponseOnInitialSync = false)
-      : currentState_(std::in_place_t{}, initialState),
-        lastPublishedState_(*currentState_.rlock()),
-        subscriptionServeInterval_(subscriptionServeInterval),
-        subscriptionHeartbeatInterval_(subscriptionHeartbeatInterval),
-        trackMetadata_(trackMetadata),
-        rss_(fmt::format("{}.{}", metricPrefix, kRss)),
-        serveSubMs_(fmt::format("{}.{}", metricPrefix, kServeSubMs)),
-        serveSubNum_(fmt::format("{}.{}", metricPrefix, kServeSubNum)),
-        convertSubsToIDPaths_(convertToIDPaths) {
+      : NaivePeriodicSubscribableStorageBase(
+            subscriptionServeInterval,
+            subscriptionHeartbeatInterval,
+            trackMetadata,
+            metricPrefix,
+            convertToIDPaths),
+        currentState_(std::in_place_t{}, initialState),
+        lastPublishedState_(*currentState_.rlock()) {
     subscriptions_.wlock()->setRequireResponseOnInitialSync(
         requireResponseOnInitialSync);
 #ifdef ENABLE_PATCH_APIS
@@ -104,125 +74,14 @@ class NaivePeriodicSubscribableStorage
 #endif
     auto currentState = currentState_.wlock();
     currentState->publish();
-    if (trackMetadata) {
-      metadataTracker_ = std::make_unique<FsdbOperTreeMetadataTracker>();
-    }
-
-    // init metrics
-
-    fb303::ThreadCachedServiceData::get()->addStatExportType(rss_, fb303::AVG);
-
-    // elapsed time to serve each subscription
-    // histogram range [0, 1s], 10ms width (100 bins)
-    fb303::ThreadCachedServiceData::get()->addHistogram(
-        serveSubMs_, 10, 0, 1000);
-    fb303::ThreadCachedServiceData::get()->exportHistogram(
-        serveSubMs_, 50, 95, 99);
-
-    fb303::ThreadCachedServiceData::get()->addStatExportType(
-        serveSubNum_, fb303::SUM);
   }
 
   ~NaivePeriodicSubscribableStorage() {
     stop();
   }
 
-  void start_impl() {
-    auto runningLocked = running_.wlock();
-
-    if (*runningLocked) {
-      return;
-    }
-
-    subscriptionServingThread_ = std::make_unique<std::thread>([=, this] {
-      folly::setThreadName("ServeSubscriptions");
-      evb_.loopForever();
-    });
-
-    XLOG(DBG1) << "Starting subscribable storage thread heartbeat";
-    auto heartbeatStatsFunc = [](int /* delay */, int /* backLog */) {};
-    thread_heartbeat_ = std::make_shared<ThreadHeartbeat>(
-        &evb_,
-        "ServeSubscriptions",
-        FLAGS_storage_thread_heartbeat_ms,
-        heartbeatStatsFunc);
-
-    // serve first heartbeat 1 interval away
-    lastHeartbeatTime = std::chrono::steady_clock::now();
-
-    backgroundScope_.add(serveSubscriptions().scheduleOn(&evb_));
-
-    *runningLocked = true;
-  }
-
-  void registerPublisher(PathIter begin, PathIter end) {
-    if (!trackMetadata_) {
-      return;
-    }
-    metadataTracker_.withWLock([&](auto& tracker) {
-      CHECK(tracker);
-      tracker->registerPublisherRoot(*getPublisherRoot(begin, end));
-    });
-  }
-  void unregisterPublisher(
-      PathIter begin,
-      PathIter end,
-      FsdbErrorCode disconnectReason = FsdbErrorCode::ALL_PUBLISHERS_GONE) {
-    if (!trackMetadata_) {
-      return;
-    }
-    // Acquire subscriptions lock since we may need to
-    // trim subscriptions is corresponding publishers goes
-    // away. Acquiring locks in the same order subscriptionMgr,
-    // metadataTracker to keep TSAN happy
-    auto subscriptions = subscriptions_.wlock();
-    metadataTracker_.withWLock([&](auto& tracker) {
-      CHECK(tracker);
-      auto publisherRoot = getPublisherRoot(begin, end);
-      CHECK(publisherRoot);
-      tracker->unregisterPublisherRoot(*publisherRoot);
-      if (!tracker->getPublisherRootMetadata(*publisherRoot)) {
-        subscriptions->closeNoPublisherActiveSubscriptions(
-            SubscriptionMetadataServer(tracker->getAllMetadata()),
-            disconnectReason);
-      }
-    });
-  }
-
-  FsdbOperTreeMetadataTracker getMetadata() const {
-    return metadataTracker_.withRLock([&](auto& tracker) {
-      CHECK(tracker);
-      return *tracker;
-    });
-  }
-
-  void stop_impl() {
-    XLOG(DBG1) << "Stopping subscribable storage";
-    bool wasRunning{false};
-    {
-      auto runningLocked = running_.wlock();
-      wasRunning = *runningLocked;
-      // Set running_ to false and give up lock. Else serveSubscriptions
-      // thread could block waiting on acquiring running_.rlock() forever.
-      // That causes subscriptionServingThread_->join to later deadlock
-      *runningLocked = false;
-    }
-
-    if (wasRunning) {
-      XLOG(DBG1) << "Cancelling background scope";
-      folly::coro::blockingWait(backgroundScope_.cancelAndJoinAsync());
-      XLOG(DBG1) << "Stopping eventbase";
-      evb_.runImmediatelyOrRunInEventBaseThreadAndWait(
-          [this] { evb_.terminateLoopSoon(); });
-      subscriptionServingThread_->join();
-    }
-
-    if (thread_heartbeat_) {
-      XLOG(DBG1) << "Stopping subscribable storage thread heartbeat";
-      thread_heartbeat_.reset();
-    }
-    XLOG(INFO) << "Stopped subscribable storage";
-  }
+  using NaivePeriodicSubscribableStorageBase::start_impl;
+  using NaivePeriodicSubscribableStorageBase::stop_impl;
 
   using Base::add;
   using Base::get;
@@ -330,6 +189,7 @@ class NaivePeriodicSubscribableStorage
     updateMetadata(path.begin(), path.end(), metadata);
     return state->patch(std::move(patch));
   }
+  using NaivePeriodicSubscribableStorageBase::subscribe_patch_impl;
 #endif
 
   std::optional<StorageError> patch_impl(const fsdb::OperDelta& delta) {
@@ -357,94 +217,13 @@ class NaivePeriodicSubscribableStorage
     return state->patch(operState);
   }
 
-  template <typename T, typename TC>
-  folly::coro::AsyncGenerator<DeltaValue<T>&&>
-  subscribe_impl(SubscriberId subscriber, PathIter begin, PathIter end) {
-    auto sourceGen = subscribe_internal<OperState>(
-        subscriber, begin, end, OperProtocol::BINARY);
-    return folly::coro::co_invoke(
-        [&, gen = std::move(sourceGen)]() mutable
-        -> folly::coro::AsyncGenerator<DeltaValue<T>&&> {
-          while (auto item = co_await gen.next()) {
-            auto&& encodedValue = *item;
-            DeltaValue<T> typedValue;
-            if (encodedValue.oldVal) {
-              if (auto contents = encodedValue.oldVal->contents()) {
-                typedValue.oldVal = thrift_cow::deserialize<TC, T>(
-                    OperProtocol::BINARY, *contents);
-              }
-            }
-            if (encodedValue.newVal) {
-              if (auto contents = encodedValue.newVal->contents()) {
-                typedValue.newVal = thrift_cow::deserialize<TC, T>(
-                    OperProtocol::BINARY, *contents);
-              }
-            }
-            co_yield std::move(typedValue);
-          }
-        });
-  }
+  using NaivePeriodicSubscribableStorageBase::subscribe_delta_extended_impl;
+  using NaivePeriodicSubscribableStorageBase::subscribe_delta_impl;
+  using NaivePeriodicSubscribableStorageBase::subscribe_encoded_extended_impl;
+  using NaivePeriodicSubscribableStorageBase::subscribe_encoded_impl;
+  using NaivePeriodicSubscribableStorageBase::subscribe_impl;
 
-  folly::coro::AsyncGenerator<DeltaValue<OperState>&&> subscribe_encoded_impl(
-      SubscriberId subscriber,
-      PathIter begin,
-      PathIter end,
-      OperProtocol protocol) {
-    return subscribe_internal<OperState>(subscriber, begin, end, protocol);
-  }
-
-  folly::coro::AsyncGenerator<OperDelta&&> subscribe_delta_impl(
-      SubscriberId subscriber,
-      PathIter begin,
-      PathIter end,
-      OperProtocol protocol) {
-    auto path = convertPath(ConcretePath(begin, end));
-    auto [gen, subscription] = DeltaSubscription::create(
-        std::move(subscriber),
-        path.begin(),
-        path.end(),
-        protocol,
-        getPublisherRoot(path.begin(), path.end()));
-    auto subscriptions = subscriptions_.wlock();
-    subscriptions->registerSubscription(std::move(subscription));
-    return std::move(gen);
-  }
-
-  folly::coro::AsyncGenerator<std::vector<DeltaValue<TaggedOperState>>&&>
-  subscribe_encoded_extended_impl(
-      SubscriberId subscriber,
-      std::vector<ExtendedOperPath> paths,
-      OperProtocol protocol) {
-    paths = convertExtPaths(paths);
-    auto publisherRoot = getPublisherRoot(paths);
-    auto [gen, subscription] = ExtendedPathSubscription::create(
-        std::move(subscriber),
-        std::move(paths),
-        std::move(publisherRoot),
-        protocol);
-    auto subscriptions = subscriptions_.wlock();
-    subscriptions->registerExtendedSubscription(std::move(subscription));
-    return std::move(gen);
-  }
-
-  folly::coro::AsyncGenerator<std::vector<TaggedOperDelta>&&>
-  subscribe_delta_extended_impl(
-      SubscriberId subscriber,
-      std::vector<ExtendedOperPath> paths,
-      OperProtocol protocol) {
-    paths = convertExtPaths(paths);
-    auto publisherRoot = getPublisherRoot(paths);
-    auto [gen, subscription] = ExtendedDeltaSubscription::create(
-        std::move(subscriber),
-        std::move(paths),
-        std::move(publisherRoot),
-        protocol);
-    auto subscriptions = subscriptions_.wlock();
-    subscriptions->registerExtendedSubscription(std::move(subscription));
-    return std::move(gen);
-  }
-
-  folly::coro::Task<void> serveSubscriptions() {
+  folly::coro::Task<void> serveSubscriptions() override {
     while (true) {
       auto start = std::chrono::steady_clock::now();
 
@@ -462,14 +241,7 @@ class NaivePeriodicSubscribableStorage
          * lock. This way we are guaranteed to get metadata
          * corresponding to currentState
          */
-        std::optional<FsdbOperTreeMetadataTracker::PublisherRoot2Metadata>
-            metadata;
-        metadataTracker_.withRLock([&metadata](auto& tracker) {
-          if (tracker) {
-            metadata = tracker->getAllMetadata();
-          }
-        });
-        SubscriptionMetadataServer metadataServer(metadata);
+        SubscriptionMetadataServer metadataServer = getCurrentMetadataServer();
 
         subscriptions->pruneCancelledSubscriptions();
 
@@ -493,37 +265,22 @@ class NaivePeriodicSubscribableStorage
       }
 
       if (FLAGS_serveHeartbeats &&
-          start - lastHeartbeatTime >= subscriptionHeartbeatInterval_) {
+          start - lastHeartbeatTime_ >= subscriptionHeartbeatInterval_) {
         subscriptions_.wlock()->serveHeartbeat();
-        lastHeartbeatTime = start;
+        lastHeartbeatTime_ = start;
       }
 
-      // export metrics
-      int64_t memUsage = getMemoryUsage(); // RSS
-      fb303::ThreadCachedServiceData::get()->addStatValue(
-          rss_, memUsage, fb303::AVG);
-      auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::steady_clock::now() - start);
-      if (elapsed.count() > 0) {
-        // ignore idle cycles, only count busy ones
-        fb303::ThreadCachedServiceData::get()->addHistogramValue(
-            serveSubMs_, elapsed.count());
-      }
-      fb303::ThreadCachedServiceData::get()->addStatValue(
-          serveSubNum_, 1, fb303::SUM);
+      exportServeMetrics(start);
+
       co_await folly::coro::sleep(subscriptionServeInterval_);
     }
   }
 
-  size_t numSubscriptions() const {
-    return subscriptions_.rlock()->numSubscriptions();
-  }
-  std::vector<OperSubscriberInfo> getSubscriptions() const {
-    return subscriptions_.rlock()->getSubscriptions();
-  }
-  size_t numPathStores() const {
-    return subscriptions_.rlock()->numPathStores();
-  }
+  using NaivePeriodicSubscribableStorageBase::getSubscriptions;
+  using NaivePeriodicSubscribableStorageBase::numPathStores;
+  using NaivePeriodicSubscribableStorageBase::numSubscriptions;
+  using NaivePeriodicSubscribableStorageBase::setConvertToIDPaths;
+
   /*
    * Expensive API to copy current root. To be used only
    * in tests
@@ -538,146 +295,58 @@ class NaivePeriodicSubscribableStorage
     return *lastState->get_encoded(rootPath.begin(), rootPath.end(), protocol);
   }
 
-  void setConvertToIDPaths(bool convertToIDPaths) {
-    convertSubsToIDPaths_ = convertToIDPaths;
-    subscriptions_.wlock()->useIdPaths(convertToIDPaths);
+ protected:
+  void withSubMgrRLockedImpl(
+      folly::FunctionRef<void(const SubscriptionManagerBase&)> f)
+      const override {
+    f(*subscriptions_.rlock());
   }
 
-  std::shared_ptr<ThreadHeartbeat> getThreadHeartbeat() {
-    return thread_heartbeat_;
+  void withSubMgrWLockedImpl(
+      folly::FunctionRef<void(SubscriptionManagerBase&)> f) override {
+    f(*subscriptions_.wlock());
   }
 
- private:
-  // delete copy constructors
-  NaivePeriodicSubscribableStorage(NaivePeriodicSubscribableStorage const&) =
-      delete;
-  NaivePeriodicSubscribableStorage& operator=(
-      NaivePeriodicSubscribableStorage const&) = delete;
+  ConcretePath convertPath(ConcretePath&& path) const override;
 
-  std::optional<std::string> getPublisherRoot(PathIter begin, PathIter end)
-      const {
-    auto path = convertPath(ConcretePath(begin, end));
-    return trackMetadata_
-        ? std::make_optional(
-              OperPathToPublisherRoot().publisherRoot(path.begin(), path.end()))
-        : std::nullopt;
-  }
-
-  std::optional<std::string> getPublisherRoot(
-      const std::vector<ExtendedOperPath>& paths) const {
-    auto convertedPaths = convertExtPaths(paths);
-    return trackMetadata_
-        ? std::make_optional(
-              OperPathToPublisherRoot().publisherRoot(convertedPaths))
-        : std::nullopt;
-  }
-
-  std::optional<std::string> getPublisherRoot(
-      ExtPathIter begin,
-      ExtPathIter end) const {
-    auto path = convertPath(ExtPath(begin, end));
-    return trackMetadata_
-        ? std::make_optional(
-              OperPathToPublisherRoot().publisherRoot(path.begin(), path.end()))
-        : std::nullopt;
-  }
-
-  template <typename TargetType, typename... Args>
-  folly::coro::AsyncGenerator<DeltaValue<TargetType>&&> subscribe_internal(
-      SubscriberId subscriber,
-      PathIter begin,
-      PathIter end,
-      Args&&... args) {
-    auto path = convertPath(ConcretePath(begin, end));
-    auto [gen, subscription] = PathSubscription<DeltaValue<TargetType>>::create(
-        std::move(subscriber),
-        path.begin(),
-        path.end(),
-        getPublisherRoot(path.begin(), path.end()),
-        std::forward<Args>(args)...);
-    auto subscriptions = subscriptions_.wlock();
-    subscriptions->registerSubscription(std::move(subscription));
-    return std::move(gen);
-  }
-  void updateMetadata(
-      PathIter begin,
-      PathIter end,
-      const OperMetadata& metadata = {}) {
-    metadataTracker_.withWLock([&](auto& tracker) {
-      if (tracker) {
-        auto publisherRoot = getPublisherRoot(begin, end);
-        CHECK(publisherRoot)
-            << "Publisher root must be available before metadata can "
-            << "be tracked ";
-        tracker->updateMetadata(*publisherRoot, metadata);
-      }
-    });
-  }
-
-  ConcretePath convertPath(ConcretePath&& path) const {
-#ifdef ENABLE_PATCH_APIS
-    return convertSubsToIDPaths_
-        ? PathConverter<RootT>::pathToIdTokens(std::move(path))
-        : path;
-#else
-    return path;
-#endif
-  }
-
-  ExtPath convertPath(const ExtPath& path) const {
-#ifdef ENABLE_PATCH_APIS
-    return convertSubsToIDPaths_ ? PathConverter<RootT>::extPathToIdTokens(path)
-                                 : path;
-#else
-    return path;
-#endif
-  }
-
-  std::vector<ExtendedOperPath> convertExtPaths(
-      const std::vector<ExtendedOperPath>& paths) const {
-    if (!convertSubsToIDPaths_) {
-      return paths;
-    }
-    std::vector<ExtendedOperPath> convertedPaths;
-    convertedPaths.reserve(paths.size());
-    for (const auto& path : paths) {
-      ExtendedOperPath p = path;
-      p.path() = convertPath(*path.path());
-      convertedPaths.emplace_back(std::move(p));
-    }
-    return convertedPaths;
-  }
-
-  folly::Synchronized<bool> running_{false};
+  ExtPath convertPath(const ExtPath& path) const override;
 
   folly::Synchronized<Storage> currentState_;
   folly::Synchronized<Storage> lastPublishedState_;
 
   folly::Synchronized<SubscribeManager> subscriptions_;
-
-  folly::coro::CancellableAsyncScope backgroundScope_;
-  std::unique_ptr<std::thread> subscriptionServingThread_;
-  folly::EventBase evb_;
-  std::shared_ptr<ThreadHeartbeat> thread_heartbeat_;
-  const std::chrono::milliseconds subscriptionServeInterval_;
-  const std::chrono::milliseconds subscriptionHeartbeatInterval_;
-  folly::Synchronized<std::unique_ptr<FsdbOperTreeMetadataTracker>>
-      metadataTracker_;
-  const bool trackMetadata_{false};
-
-  // metric names
-  const std::string rss_{""};
-  const std::string serveSubMs_{""};
-  const std::string serveSubNum_{""};
-
-  bool convertSubsToIDPaths_{false};
-
-  std::chrono::steady_clock::time_point lastHeartbeatTime;
 };
+
+// To avoid compiler inlining these heavy functions and allow for caching
+// template instantiations, these need to be implemented outside the class body
+
+template <typename Storage, typename SubscribeManager>
+typename Storage::ConcretePath
+NaivePeriodicSubscribableStorage<Storage, SubscribeManager>::convertPath(
+    ConcretePath&& path) const {
+#ifdef ENABLE_PATCH_APIS
+  return convertSubsToIDPaths_
+      ? PathConverter<RootT>::pathToIdTokens(std::move(path))
+      : path;
+#else
+  return path;
+#endif
+}
+
+template <typename Storage, typename SubscribeManager>
+typename Storage::ExtPath
+NaivePeriodicSubscribableStorage<Storage, SubscribeManager>::convertPath(
+    const ExtPath& path) const {
+#ifdef ENABLE_PATCH_APIS
+  return convertSubsToIDPaths_ ? PathConverter<RootT>::extPathToIdTokens(path)
+                               : path;
+#else
+  return path;
+#endif
+}
 
 template <typename Root>
 using NaivePeriodicSubscribableCowStorage = NaivePeriodicSubscribableStorage<
     CowStorage<Root>,
     CowSubscriptionManager<CowStorage<Root>>>;
-
 } // namespace facebook::fboss::fsdb

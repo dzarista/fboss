@@ -19,16 +19,23 @@ LinkChangeEventSyncer::LinkChangeEventSyncer(
     uint16_t serverPort,
     SwitchID switchId,
     folly::EventBase* connRetryEvb,
-    HwSwitch* hw)
-    : ThriftSinkClient<multiswitch::LinkChangeEvent>::ThriftSinkClient(
-          "LinkChangeEventThriftSyncer",
-          serverPort,
-          switchId,
-          LinkChangeEventSyncer::initLinkChangeEventSink,
-          std::make_shared<folly::ScopedEventBaseThread>(
-              "LinkChangeEventSyncerThread"),
-          connRetryEvb),
-      hw_(hw) {}
+    HwSwitch* hw,
+    std::optional<std::string> multiSwitchStatsPrefix)
+    : ThriftSinkClient<multiswitch::LinkChangeEvent, LinkChangeEventQueueType>::
+          ThriftSinkClient(
+              "LinkChangeEventThriftSyncer",
+              serverPort,
+              switchId,
+              LinkChangeEventSyncer::initLinkChangeEventSink,
+              std::make_shared<folly::ScopedEventBaseThread>(
+                  "LinkChangeEventSyncerThread"),
+#if FOLLY_HAS_COROUTINES
+              eventQueue_,
+#endif
+              connRetryEvb,
+              multiSwitchStatsPrefix),
+      hw_(hw) {
+}
 
 LinkChangeEventSyncer::EventSink LinkChangeEventSyncer::initLinkChangeEventSink(
     SwitchID switchId,
@@ -43,6 +50,7 @@ LinkChangeEventSyncer::EventSink LinkChangeEventSyncer::initLinkChangeEventSink(
 void LinkChangeEventSyncer::connected() {
   hw_->syncLinkStates();
   hw_->syncLinkActiveStates();
+  hw_->syncLinkConnectivity();
 }
 
 } // namespace facebook::fboss

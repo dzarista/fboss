@@ -27,6 +27,14 @@ add_library(weutil_lib
   fboss/platform/weutil/Weutil.cpp
 )
 
+add_library(ioctl_smbus_eeprom_reader
+  fboss/platform/weutil/IoctlSmbusEepromReader.cpp
+)
+
+target_link_libraries(ioctl_smbus_eeprom_reader
+  fmt::fmt
+)
+
 target_link_libraries(weutil_lib
   product_info
   platform_utils
@@ -34,6 +42,7 @@ target_link_libraries(weutil_lib
   weutil_config_cpp2
   weutil_fboss_eeprom_parser
   platform_config_lib
+  ioctl_smbus_eeprom_reader
 )
 
 add_executable(weutil

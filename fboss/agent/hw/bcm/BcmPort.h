@@ -234,6 +234,7 @@ class BcmPort {
 
   const PortPgConfig& getDefaultPgSettings() const;
   const BufferPoolCfg& getDefaultIngressPoolSettings() const;
+  const std::string& getIngressBufferPoolName() const;
   uint8_t determinePipe() const;
   int getPgMinLimitBytes(const int pgId) const;
   int getIngressSharedBytes(const int pgId) const;
@@ -241,6 +242,9 @@ class BcmPort {
 
   uint32_t getInterPacketGapBits() const;
   void processChangedZeroPreemphasis(
+      const std::shared_ptr<Port>& oldPort,
+      const std::shared_ptr<Port>& newPort);
+  void processChangedTxEnable(
       const std::shared_ptr<Port>& oldPort,
       const std::shared_ptr<Port>& newPort);
 

@@ -25,6 +25,14 @@ add_fbthrift_cpp_library(
     led_structs_types_cpp2
 )
 
+add_library(led_utils
+  fboss/led_service/LedUtils.cpp
+)
+
+target_link_libraries(led_utils
+  led_structs_types_cpp2
+)
+
 add_library(led_config
   fboss/led_service/LedConfig.cpp
 )
@@ -51,6 +59,7 @@ add_library(led_manager_lib
   fboss/led_service/oss/YampLedManager.cpp
   fboss/led_service/LedManager.cpp
   fboss/led_service/LedManagerInit.cpp
+  fboss/led_service/LedUtils.cpp
   fboss/led_service/MinipackBaseLedManager.cpp
   fboss/led_service/MontblancLedManager.cpp
   fboss/led_service/Meru800biaLedManager.cpp
@@ -65,6 +74,7 @@ target_link_libraries(led_manager_lib
   led_config
   led_structs_types_cpp2
   log_thrift_call
+  led_utils
   montblanc_bsp
   meru800bia_bsp
   meru800bfa_bsp

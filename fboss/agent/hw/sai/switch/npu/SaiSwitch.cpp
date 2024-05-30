@@ -44,7 +44,6 @@ void SaiSwitch::updateStatsImpl() {
   while (portsIter != concurrentIndices_->portSaiId2PortInfo.end()) {
     {
       std::lock_guard<std::mutex> locked(saiSwitchMutex_);
-      int isConnectivityInfoMismatch = 0;
       auto endpointOpt = managerTable_->portManager().getFabricConnectivity(
           portsIter->second.portID);
       if (endpointOpt.has_value()) {
@@ -59,14 +58,11 @@ void SaiSwitch::updateStatsImpl() {
         }
         if (fabricConnectivityManager_->isConnectivityInfoMismatch(
                 portsIter->second.portID)) {
-          isConnectivityInfoMismatch = 1;
           mismatchCount++;
         }
       }
       managerTable_->portManager().updateStats(
-          portsIter->second.portID,
-          updateWatermarks,
-          isConnectivityInfoMismatch);
+          portsIter->second.portID, updateWatermarks);
     }
     ++portsIter;
   }
@@ -118,9 +114,12 @@ void SaiSwitch::updateStatsImpl() {
     managerTable_->switchManager().updateStats(updateWatermarks);
   }
   reportAsymmetricTopology();
-  if (connectivityDelta.size()) {
-    linkConnectivityChanged(connectivityDelta);
-  }
+  linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThread(
+      [this, connectivityDelta = std::move(connectivityDelta)] {
+        if (connectivityDelta.size()) {
+          linkConnectivityChanged(connectivityDelta);
+        }
+      });
 }
 
 } // namespace facebook::fboss

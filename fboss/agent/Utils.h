@@ -63,6 +63,12 @@ inline const int kUdfAclRoceOpcodeFieldSizeInBytes(1);
 inline const int kUdfL4DstPort(4791);
 inline const int kRandomUdfL4SrcPort(62946);
 inline const int kUdfRoceOpcode(17);
+inline const std::string kRoceUdfFlowletGroupName("roceUdfFlowlet");
+inline const int kRoceUdfFlowletStartOffsetInBytes(16);
+inline const int kRoceUdfFlowletFieldSizeInBytes(1);
+inline const int kRoceReserved(0x40); // offset 16
+inline const std::string kFlowletAclName("test-udf-flowlet_acl");
+inline const std::string kFlowletAclCounterName("test-udf-flowlet-acl-stats");
 } // namespace utility
 
 class SwitchState;
@@ -215,6 +221,10 @@ UnicastRoute makeUnicastRoute(
     AdminDistance admin = AdminDistance::EBGP);
 
 bool isAnyInterfacePortInLoopbackMode(
+    std::shared_ptr<SwitchState> swState,
+    const std::shared_ptr<Interface> interface);
+
+bool isAnyInterfacePortRecyclePort(
     std::shared_ptr<SwitchState> swState,
     const std::shared_ptr<Interface> interface);
 
@@ -386,5 +396,11 @@ uint64_t getMacOui(const folly::MacAddress macAddress);
 
 std::unordered_map<SwitchID, SwitchIndex> computeSwitchIdToSwitchIndex(
     const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap);
+
+std::set<SwitchID> getAllSwitchIDsForSwitch(
+    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap,
+    const SwitchID& switchID);
+
+uint32_t getRemotePortOffset(const PlatformType platformType);
 
 } // namespace facebook::fboss

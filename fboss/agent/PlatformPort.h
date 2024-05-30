@@ -48,6 +48,7 @@ class PlatformPort {
   virtual std::optional<int> getAttachedCoreId() const;
   virtual std::optional<int> getCorePortIndex() const;
   virtual std::optional<int> getVirtualDeviceId() const;
+  cfg::Scope getScope() const;
 
   const cfg::PlatformPortEntry& getPlatformPortEntry() const;
   cfg::PortType getPortType() const;

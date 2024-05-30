@@ -319,16 +319,23 @@ void SaiSwitch::unregisterCallbacks() noexcept {
   // tx ready status change is turned off and the evb loop is set to break
   // just need to block until the last event is processed
   if (runState_ >= SwitchRunState::CONFIGURED &&
-      (getFeaturesDesired() &
-       FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED) &&
       platform_->getAsic()->isSupported(
-          HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+          HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY)) {
     txReadyStatusChangeBottomHalfEventBase_.runInEventBaseThreadAndWait(
         [this]() {
           txReadyStatusChangeBottomHalfEventBase_.terminateLoopSoon();
         });
     txReadyStatusChangeBottomHalfThread_->join();
     // tx ready status change processing is completely shut-off
+  }
+  if (runState_ >= SwitchRunState::CONFIGURED &&
+      platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
+    linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThreadAndWait(
+        [this]() {
+          linkConnectivityChangeBottomHalfEventBase_.terminateLoopSoon();
+        });
+    linkConnectivityChangeBottomHalfThread_->join();
+    // link connectivity change processing is completely shut-off
   }
 
   if (runState_ >= SwitchRunState::INITIALIZED) {
@@ -1215,6 +1222,15 @@ void SaiSwitch::processSwitchSettingsChangedEntryLocked(
           newVal.has_value() ? newVal.value() : false);
     }
   }
+
+  {
+    const auto oldVal = oldSwitchSettings->getCreditWatchdog();
+    const auto newVal = newSwitchSettings->getCreditWatchdog();
+    if (oldVal != newVal) {
+      managerTable_->switchManager().setCreditWatchdog(
+          newVal.has_value() ? newVal.value() : false);
+    }
+  }
 }
 
 template <typename LockPolicyT>
@@ -1276,8 +1292,13 @@ folly::F14FastMap<std::string, HwPortStats> SaiSwitch::getPortStats() const {
 
 CpuPortStats SaiSwitch::getCpuPortStats() const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::CPU_PORT)) {
+    return CpuPortStats{};
+  }
   auto& cpuStat = managerTable_->hostifManager().getCpuFb303Stats();
-  return cpuStat.getCpuPortStats();
+  auto cpuPortStats = cpuStat.getCpuPortStats();
+  cpuPortStats.portStats_() = managerTable_->hostifManager().getCpuPortStats();
+  return cpuPortStats;
 }
 
 folly::F14FastMap<std::string, HwPortStats> SaiSwitch::getPortStatsLocked(
@@ -1805,12 +1826,6 @@ void SaiSwitch::exitFatal() const {
 bool SaiSwitch::isPortUp(PortID port) const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   return isPortUpLocked(lock, port);
-}
-
-bool SaiSwitch::getAndClearNeighborHit(
-    RouterID /*vrf*/,
-    folly::IPAddress& /*ip*/) {
-  return true;
 }
 
 void SaiSwitch::clearPortStats(
@@ -2368,6 +2383,38 @@ void SaiSwitch::syncLinkStates() {
       [=, this, &lock]() { syncLinkStatesLocked(lock); });
 }
 
+void SaiSwitch::initLinkConnectivityChangeLocked(
+    const std::lock_guard<std::mutex>& lock) {
+  linkConnectivityChangeBottomHalfThread_ =
+      std::make_unique<std::thread>([this]() {
+        initThread("fbossLnkCnctBH");
+        linkConnectivityChangeBottomHalfEventBase_.loopForever();
+      });
+  linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThread(
+      [this, &lock] { syncLinkConnectivityLocked(lock); });
+}
+
+void SaiSwitch::syncLinkConnectivity() {
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  if (linkConnectivityChangeBottomHalfThread_) {
+    linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThread(
+        [this, &lock] { syncLinkConnectivityLocked(lock); });
+  }
+}
+void SaiSwitch::syncLinkConnectivityLocked(
+    const std::lock_guard<std::mutex>& lock) {
+  auto connectivity = fabricConnectivityManager_->getConnectivityInfo();
+  std::map<PortID, multiswitch::FabricConnectivityDelta> connectivityDelta;
+  for (const auto& [port, connectivityInfo] : connectivity) {
+    multiswitch::FabricConnectivityDelta delta;
+    delta.newConnectivity() = connectivityInfo;
+    connectivityDelta.insert({port, delta});
+  }
+  if (connectivityDelta.size()) {
+    callback_->linkConnectivityChanged(connectivityDelta);
+  }
+}
+
 void SaiSwitch::syncLinkActiveStates() {
   // Link active state is valid only for fabric ports
   if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
@@ -2747,17 +2794,19 @@ void SaiSwitch::unregisterCallbacksLocked(
     switchApi.unregisterTamEventCallback(saiSwitchId_);
 #endif
   }
-  switchApi.unregisterFdbEventCallback(saiSwitchId_);
+
+  if (platform_->getAsic()->isSupported(HwAsic::Feature::BRIDGE_PORT_8021Q)) {
+    switchApi.unregisterFdbEventCallback(saiSwitchId_);
+  }
+
   if (pfcDeadlockEnabled_) {
     switchApi.unregisterQueuePfcDeadlockNotificationCallback(saiSwitchId_);
   }
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
   if (isFeatureSetupLocked(FeaturesDesired::LINKSCAN_DESIRED, lock)) {
-    if ((getFeaturesDesired() &
-         FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED) &&
-        platform_->getAsic()->isSupported(
-            HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+    if (platform_->getAsic()->isSupported(
+            HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY)) {
       switchApi.unregisterTxReadyStatusChangeCallback(saiSwitchId_);
     }
   }
@@ -3031,7 +3080,15 @@ void SaiSwitch::switchRunStateChangedImplLocked(
         fdbEventBottomHalfEventBase_.loopForever();
       });
       auto& switchApi = SaiApiTable::getInstance()->switchApi();
-      switchApi.registerFdbEventCallback(saiSwitchId_, __gFdbEventCallback);
+
+      // FDB callback is only applicable if l2Learning mode is set.
+      // L2 learning mode is set on Bridge port. Thus, enable the callback only
+      // if Bridge prots are supported.
+      if (platform_->getAsic()->isSupported(
+              HwAsic::Feature::BRIDGE_PORT_8021Q)) {
+        switchApi.registerFdbEventCallback(saiSwitchId_, __gFdbEventCallback);
+      }
+
     } break;
     case SwitchRunState::CONFIGURED: {
       if (getFeaturesDesired() & FeaturesDesired::LINKSCAN_DESIRED) {
@@ -3068,11 +3125,13 @@ void SaiSwitch::switchRunStateChangedImplLocked(
 #endif
       }
 
-      if ((getFeaturesDesired() &
-           FeaturesDesired::LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED) &&
-          platform_->getAsic()->isSupported(
-              HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+      if (platform_->getAsic()->isSupported(
+              HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY)) {
         initTxReadyStatusChangeLocked(lock);
+      }
+
+      if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
+        initLinkConnectivityChangeLocked(lock);
       }
     } break;
     default:
@@ -3770,21 +3829,8 @@ void SaiSwitch::reportAsymmetricTopology() const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   auto virtualDevice2RemoteConnectionGroups =
       getVirtualDeviceToRemoteConnectionGroupsLocked(lock);
-  int virtualDevicesWithAsymmetricConnectivity{0};
-  for (const auto& [virtualDeviceId, remoteConnectionGroups] :
-       virtualDevice2RemoteConnectionGroups) {
-    if (remoteConnectionGroups.size() > 1) {
-      ++virtualDevicesWithAsymmetricConnectivity;
-      XLOG(DBG4) << " Asymmetric topology detected on virtual device: "
-                 << virtualDeviceId;
-      for (const auto& [numConnections, remoteConnections] :
-           remoteConnectionGroups) {
-        XLOG(DBG4) << " Remote endpoints with : " << numConnections
-                   << " connections : " << folly::join(",", remoteConnections);
-      }
-    }
-  }
   getSwitchStats()->virtualDevicesWithAsymmetricConnectivity(
-      virtualDevicesWithAsymmetricConnectivity);
+      FabricConnectivityManager::virtualDevicesWithAsymmetricConnectivity(
+          virtualDevice2RemoteConnectionGroups));
 }
 } // namespace facebook::fboss

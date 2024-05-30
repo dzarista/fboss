@@ -63,6 +63,8 @@ target_link_libraries(platform_manager
   platform_manager_service_cpp2
   platform_manager_snapshot_cpp2
   weutil_fboss_eeprom_parser
+  ioctl_smbus_eeprom_reader
+  i2c_ctrl
 )
 
 install(TARGETS platform_manager)

@@ -32,7 +32,6 @@
 
 namespace {
 constexpr uint8_t kDefaultQueue = 0;
-constexpr auto kSystemPortCountPerNode = 15;
 } // namespace
 
 using namespace facebook::fb303;
@@ -58,9 +57,13 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
               cpuStreamType, cfg::PortType::CPU_PORT)) {
         // cpu queues supported
         utility::setDefaultCpuTrafficPolicyConfig(
-            cfg, getAsic(), getHwSwitchEnsemble()->isSai());
+            cfg,
+            getHwSwitchEnsemble()->getL3Asics(),
+            getHwSwitchEnsemble()->isSai());
         utility::addCpuQueueConfig(
-            cfg, getAsic(), getHwSwitchEnsemble()->isSai());
+            cfg,
+            getHwSwitchEnsemble()->getL3Asics(),
+            getHwSwitchEnsemble()->isSai());
         break;
       }
     }
@@ -105,7 +108,7 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
         &newCfg,
         kDscpAclName(),
         kDscpAclCounterName(),
-        utility::getAclCounterTypes(getHwSwitch()->getPlatform()->getAsic()));
+        utility::getAclCounterTypes(getHwSwitchEnsemble()->getL3Asics()));
     applyNewConfig(newCfg);
   }
   void addRemoveNeighbor(
@@ -337,6 +340,7 @@ TEST_F(HwVoqSwitchTest, trapPktsOnPort) {
   auto setup = [this, kPort, &ecmpHelper]() {
     auto cfg = initialConfig();
     utility::addTrapPacketAcl(&cfg, kPort.phyPortID());
+    applyNewConfig(cfg);
     applyNewState(ecmpHelper.resolveNextHops(getProgrammedState(), {kPort}));
   };
   auto verify = [this, kPort, &ecmpHelper]() {
@@ -356,7 +360,7 @@ TEST_F(HwVoqSwitchTest, rxPacketToCpu) {
   rxPacketToCpuHelper(
       utility::kNonSpecialPort1,
       utility::kNonSpecialPort2,
-      utility::kCoppMidPriQueueId);
+      utility::getCoppMidPriQueueId({this->getAsic()}));
 }
 
 TEST_F(HwVoqSwitchTest, rxPacketToCpuBgpDstPort) {
@@ -391,7 +395,7 @@ TEST_F(HwVoqSwitchTest, AclQualifiersWithCounter) {
         &newCfg,
         kAclName,
         kAclCounterName,
-        utility::getAclCounterTypes(getHwSwitch()->getPlatform()->getAsic()));
+        utility::getAclCounterTypes(getHwSwitchEnsemble()->getL3Asics()));
 
     applyNewConfig(newCfg);
   };
@@ -413,7 +417,7 @@ TEST_F(HwVoqSwitchTest, AclQualifiersWithCounter) {
         getProgrammedState(),
         {kAclName},
         kAclCounterName,
-        utility::getAclCounterTypes(getHwSwitch()->getPlatform()->getAsic()));
+        utility::getAclCounterTypes(getHwSwitchEnsemble()->getL3Asics()));
   };
 
   verifyAcrossWarmBoots(setup, verify);
@@ -960,7 +964,7 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, verifyDscpToVoqMapping) {
   const SystemPortID kRemoteSysPortId(remotePortId);
   auto setup = [=, this]() {
     auto newCfg{initialConfig()};
-    utility::addOlympicQosMaps(newCfg, getAsic());
+    utility::addOlympicQosMaps(newCfg, getHwSwitchEnsemble()->getL3Asics());
     applyNewConfig(newCfg);
 
     // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
@@ -993,7 +997,7 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, verifyDscpToVoqMapping) {
   };
 
   auto verify = [=, this]() {
-    for (const auto& q2dscps : utility::kOlympicQueueToDscp(getAsic())) {
+    for (const auto& q2dscps : utility::kOlympicQueueToDscp()) {
       auto queueId = q2dscps.first;
       for (auto dscp : q2dscps.second) {
         XLOG(DBG2) << "verify packet with dscp " << dscp << " goes to queue "
@@ -1021,7 +1025,7 @@ TEST_F(HwVoqSwitchWithMultipleDsfNodesTest, verifyDscpToVoqMapping) {
   verifyAcrossWarmBoots(setup, verify);
 };
 
-// FullScaleDsfNode Test sets up 128 remote DSF nodes for J2 and 256 for J3.
+// FullScaleDsfNode Test sets up 128 remote DSF nodes for J2 and 512 for J3.
 class HwVoqSwitchFullScaleDsfNodesTest
     : public HwVoqSwitchWithMultipleDsfNodesTest {
  public:
@@ -1093,7 +1097,10 @@ class HwVoqSwitchFullScaleDsfNodesTest
 TEST_F(HwVoqSwitchFullScaleDsfNodesTest, systemPortScaleTest) {
   auto setup = [this]() {
     applyNewState(utility::setupRemoteIntfAndSysPorts(
-        getProgrammedState(), scopeResolver(), initialConfig()));
+        getProgrammedState(),
+        scopeResolver(),
+        initialConfig(),
+        getAsic()->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)));
   };
   verifyAcrossWarmBoots(setup, [] {});
 }
@@ -1105,7 +1112,10 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
   std::vector<PortDescriptor> sysPortDescs;
   auto setup = [&]() {
     applyNewState(utility::setupRemoteIntfAndSysPorts(
-        getProgrammedState(), scopeResolver(), initialConfig()));
+        getProgrammedState(),
+        scopeResolver(),
+        initialConfig(),
+        getAsic()->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)));
     utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
     // Trigger config apply to add remote interface routes as directly connected
     // in RIB. This is to resolve ECMP members pointing to remote nexthops.
@@ -1174,7 +1184,10 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, remoteAndLocalLoadBalance) {
   std::vector<PortDescriptor> sysPortDescs;
   auto setup = [&]() {
     applyNewState(utility::setupRemoteIntfAndSysPorts(
-        getProgrammedState(), scopeResolver(), initialConfig()));
+        getProgrammedState(),
+        scopeResolver(),
+        initialConfig(),
+        getAsic()->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)));
     utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
     // Trigger config apply to add remote interface routes as directly connected
     // in RIB. This is to resolve ECMP members pointing to remote nexthops.
@@ -1245,7 +1258,10 @@ TEST_F(HwVoqSwitchFullScaleDsfNodesTest, stressProgramEcmpRoutes) {
   const auto numIterations = 40;
   auto setup = [&]() {
     applyNewState(utility::setupRemoteIntfAndSysPorts(
-        getProgrammedState(), scopeResolver(), initialConfig()));
+        getProgrammedState(),
+        scopeResolver(),
+        initialConfig(),
+        getAsic()->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)));
     utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
     // Trigger config apply to add remote interface routes as directly connected
     // in RIB. This is to resolve ECMP members pointing to remote nexthops.

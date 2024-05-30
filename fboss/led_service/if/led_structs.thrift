@@ -18,10 +18,22 @@ enum LedColor {
   YELLOW = 0xA,
 }
 
+enum Blink {
+  UNKNOWN = 0x0,
+  OFF = 0x1,
+  SLOW = 0x2,
+  FAST = 0x3,
+}
+
 struct LedState {
+  1: LedColor ledColor;
+  2: Blink blink;
+}
+
+struct PortLedState {
   1: i16 swPortId;
   2: string swPortName;
-  3: LedColor currentLedColor;
+  3: LedState currentLedState;
   4: bool forcedOnState;
   5: bool forcedOffState;
 }

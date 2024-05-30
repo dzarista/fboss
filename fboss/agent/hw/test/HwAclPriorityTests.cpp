@@ -218,7 +218,7 @@ TYPED_TEST(HwAclPriorityTest, AclsChanged) {
     // Get Acls from COPP policy
     setDefaultCpuTrafficPolicyConfig(
         config,
-        this->getPlatform()->getAsic(),
+        this->getHwSwitchEnsemble()->getL3Asics(),
         this->getHwSwitchEnsemble()->isSai());
     addPermitIpAcl(config, "acl1", kIp);
     this->applyNewConfig(config);
@@ -232,8 +232,7 @@ TYPED_TEST(HwAclPriorityTest, AclsChanged) {
     this->applyNewConfig(config);
   };
 
-  this->verifyAcrossWarmBoots(
-      setup, []() {}, setupPostWb, []() {});
+  this->verifyAcrossWarmBoots(setup, []() {}, setupPostWb, []() {});
 }
 
 TYPED_TEST(HwAclPriorityTest, Reprioritize) {
@@ -277,7 +276,6 @@ TYPED_TEST(HwAclPriorityTest, Reprioritize) {
     this->applyNewConfig(config);
   };
 
-  this->verifyAcrossWarmBoots(
-      setup, []() {}, setupPostWb, []() {});
+  this->verifyAcrossWarmBoots(setup, []() {}, setupPostWb, []() {});
 }
 } // namespace facebook::fboss

@@ -6,6 +6,7 @@
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/test/AgentEnsemble.h"
 #include "fboss/agent/test/gen-cpp2/production_features_types.h"
+#include "fboss/agent/test/utils/AgentHwTestConstants.h"
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
@@ -13,6 +14,8 @@
 DECLARE_int32(update_watermark_stats_interval_s);
 DECLARE_bool(publish_state_to_fsdb);
 DECLARE_bool(publish_stats_to_fsdb);
+DECLARE_bool(intf_nbr_tables);
+DECLARE_bool(classid_for_unresolved_routes);
 
 namespace facebook::fboss {
 
@@ -74,8 +77,7 @@ class AgentHwTest : public ::testing::Test {
 
   template <typename SETUP_FN, typename VERIFY_FN>
   void verifyAcrossWarmBoots(SETUP_FN setup, VERIFY_FN verify) {
-    verifyAcrossWarmBoots(
-        setup, verify, []() {}, []() {});
+    verifyAcrossWarmBoots(setup, verify, []() {}, []() {});
   }
   template <typename VERIFY_FN>
   void verifyAcrossWarmBoots(VERIFY_FN verify) {
@@ -120,11 +122,15 @@ class AgentHwTest : public ::testing::Test {
   void setSwitchDrainState(
       const cfg::SwitchConfig& curConfig,
       cfg::SwitchDrainState drainState);
+  void applySwitchDrainState(cfg::SwitchDrainState drainState);
 
   std::map<PortID, HwPortStats> getLatestPortStats(
       const std::vector<PortID>& ports);
 
   HwPortStats getLatestPortStats(const PortID& port);
+  std::map<PortID, HwPortStats> getNextUpdatedPortStats(
+      const std::vector<PortID>& ports);
+  HwPortStats getNextUpdatedPortStats(const PortID& port);
   HwPortStats getLastIncrementedPortStats(const PortID& port);
   std::map<PortID, std::pair<HwPortStats, HwPortStats>>
   sendTrafficAndCollectStats(
@@ -164,7 +170,30 @@ class AgentHwTest : public ::testing::Test {
     ecmp.unprogramRoutes(&wrapper);
   }
 
+  void bringUpPort(PortID port) {
+    agentEnsemble_->bringUpPort(port);
+  }
+  void bringDownPort(PortID port) {
+    agentEnsemble_->bringDownPort(port);
+  }
+  void bringUpPorts(const std::vector<PortID>& ports) {
+    agentEnsemble_->bringUpPorts(ports);
+  }
+  void bringDownPorts(const std::vector<PortID>& ports) {
+    agentEnsemble_->bringDownPorts(ports);
+  }
+
   void checkNoStatsChange(int trys = 1);
+  /*
+   * API to all flag overrides for individual tests. Primarily
+   * used for features which we don't want to enable for
+   * all tests, but still want to tweak/test this behavior in
+   * our test.
+   */
+  virtual void setCmdLineFlagOverrides() const;
+
+  SwitchID switchIdForPort(PortID port) const;
+  const HwAsic* hwAsicForPort(PortID port) const;
 
  private:
   void applyNewStateImpl(
@@ -178,8 +207,6 @@ class AgentHwTest : public ::testing::Test {
   virtual bool runVerification() const {
     return true;
   }
-
-  virtual bool hideFabricPorts() const;
 
   virtual std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const = 0;

@@ -89,7 +89,6 @@ using namespace facebook::fboss::utility;
 namespace {
 auto constexpr kEcmpObjects = "ecmpObjects";
 auto constexpr kTrunks = "trunks";
-auto constexpr kVlanForCPUEgressEntries = 0;
 
 struct AddrTables {
   AddrTables()
@@ -1469,8 +1468,7 @@ void BcmWarmBootCache::programmedMirror(MirrorEgressPath2HandleCitr itr) {
   const auto& tunnel = key.second;
   if (tunnel) {
     XLOG(DBG1) << "Programmed ERSPAN mirror egressing through: " << port
-               << " with "
-               << "proto=" << tunnel->greProtocol
+               << " with " << "proto=" << tunnel->greProtocol
                << "source ip=" << tunnel->srcIp.str()
                << "source mac=" << tunnel->srcMac.toString()
                << "destination ip=" << tunnel->dstIp.str()

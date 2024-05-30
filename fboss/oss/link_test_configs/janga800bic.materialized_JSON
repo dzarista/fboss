@@ -3,6 +3,7 @@
     "check_wb_handles": "true",
     "counter_refresh_interval": "0",
     "intf_nbr_tables": "true",
+    "log_variable_name": "true",
     "sai_configure_six_tap": "true"
   },
   "sw": {
@@ -40,7 +41,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2,
@@ -74,7 +76,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 3,
@@ -108,7 +111,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 4,
@@ -142,7 +146,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 5,
@@ -176,7 +181,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 6,
@@ -210,7 +216,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 7,
@@ -244,7 +251,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 8,
@@ -278,7 +286,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 9,
@@ -312,7 +321,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 10,
@@ -346,7 +356,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 11,
@@ -380,7 +391,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 12,
@@ -414,7 +426,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 13,
@@ -448,7 +461,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 14,
@@ -482,7 +496,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 15,
@@ -516,7 +531,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 16,
@@ -550,7 +566,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 17,
@@ -584,7 +601,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 18,
@@ -618,7 +636,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 19,
@@ -652,7 +671,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 20,
@@ -686,7 +706,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 21,
@@ -720,7 +741,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 22,
@@ -754,7 +776,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 1112,
@@ -788,7 +811,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1113,
@@ -822,7 +846,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1114,
@@ -856,7 +881,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1115,
@@ -890,7 +916,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1116,
@@ -924,7 +951,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1117,
@@ -958,7 +986,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1118,
@@ -992,7 +1021,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1119,
@@ -1026,7 +1056,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1104,
@@ -1060,7 +1091,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1105,
@@ -1094,7 +1126,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1106,
@@ -1128,7 +1161,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1107,
@@ -1162,7 +1196,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1108,
@@ -1196,7 +1231,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1109,
@@ -1230,7 +1266,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1110,
@@ -1264,7 +1301,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1111,
@@ -1298,7 +1336,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1136,
@@ -1332,7 +1371,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1137,
@@ -1366,7 +1406,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1138,
@@ -1400,7 +1441,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1139,
@@ -1434,7 +1476,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1140,
@@ -1468,7 +1511,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1141,
@@ -1502,7 +1546,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1142,
@@ -1536,7 +1581,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1143,
@@ -1570,7 +1616,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1128,
@@ -1604,7 +1651,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1129,
@@ -1638,7 +1686,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1130,
@@ -1672,7 +1721,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1131,
@@ -1706,7 +1756,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1132,
@@ -1740,7 +1791,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1133,
@@ -1774,7 +1826,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1134,
@@ -1808,7 +1861,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1135,
@@ -1842,7 +1896,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1120,
@@ -1876,7 +1931,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1121,
@@ -1910,7 +1966,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1122,
@@ -1944,7 +2001,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1123,
@@ -1978,7 +2036,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1124,
@@ -2012,7 +2071,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1125,
@@ -2046,7 +2106,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1126,
@@ -2080,7 +2141,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1127,
@@ -2114,7 +2176,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1160,
@@ -2148,7 +2211,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1161,
@@ -2182,7 +2246,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1162,
@@ -2216,7 +2281,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1163,
@@ -2250,7 +2316,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1164,
@@ -2284,7 +2351,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1165,
@@ -2318,7 +2386,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1166,
@@ -2352,7 +2421,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1167,
@@ -2386,7 +2456,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1152,
@@ -2420,7 +2491,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1153,
@@ -2454,7 +2526,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1154,
@@ -2488,7 +2561,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1155,
@@ -2522,7 +2596,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1156,
@@ -2556,7 +2631,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1157,
@@ -2590,7 +2666,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1158,
@@ -2624,7 +2701,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1159,
@@ -2658,7 +2736,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1144,
@@ -2692,7 +2771,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1145,
@@ -2726,7 +2806,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1146,
@@ -2760,7 +2841,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1147,
@@ -2794,7 +2876,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1148,
@@ -2828,7 +2911,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1149,
@@ -2862,7 +2946,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1150,
@@ -2896,7 +2981,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1151,
@@ -2930,7 +3016,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1168,
@@ -2964,7 +3051,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1169,
@@ -2998,7 +3086,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1170,
@@ -3032,7 +3121,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1171,
@@ -3066,7 +3156,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1172,
@@ -3100,7 +3191,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1173,
@@ -3134,7 +3226,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1174,
@@ -3168,7 +3261,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1175,
@@ -3202,7 +3296,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1176,
@@ -3236,7 +3331,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1177,
@@ -3270,7 +3366,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1178,
@@ -3304,7 +3401,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1179,
@@ -3338,7 +3436,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1180,
@@ -3372,7 +3471,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1181,
@@ -3406,7 +3506,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1182,
@@ -3440,7 +3541,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1183,
@@ -3474,7 +3576,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1096,
@@ -3508,7 +3611,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1097,
@@ -3542,7 +3646,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1098,
@@ -3576,7 +3681,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1099,
@@ -3610,7 +3716,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1100,
@@ -3644,7 +3751,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1101,
@@ -3678,7 +3786,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1102,
@@ -3712,7 +3821,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1103,
@@ -3746,7 +3856,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1072,
@@ -3780,7 +3891,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1073,
@@ -3814,7 +3926,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1074,
@@ -3848,7 +3961,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1075,
@@ -3882,7 +3996,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1076,
@@ -3916,7 +4031,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1077,
@@ -3950,7 +4066,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1078,
@@ -3984,7 +4101,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1079,
@@ -4018,7 +4136,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1080,
@@ -4052,7 +4171,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1081,
@@ -4086,7 +4206,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1082,
@@ -4120,7 +4241,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1083,
@@ -4154,7 +4276,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1084,
@@ -4188,7 +4311,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1085,
@@ -4222,7 +4346,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1086,
@@ -4256,7 +4381,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1087,
@@ -4290,7 +4416,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1088,
@@ -4324,7 +4451,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1089,
@@ -4358,7 +4486,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1090,
@@ -4392,7 +4521,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1091,
@@ -4426,7 +4556,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1092,
@@ -4460,7 +4591,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1093,
@@ -4494,7 +4626,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1094,
@@ -4528,7 +4661,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1095,
@@ -4562,7 +4696,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1064,
@@ -4596,7 +4731,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1065,
@@ -4630,7 +4766,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1066,
@@ -4664,7 +4801,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1067,
@@ -4698,7 +4836,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1068,
@@ -4732,7 +4871,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1069,
@@ -4766,7 +4906,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1070,
@@ -4800,7 +4941,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1071,
@@ -4834,7 +4976,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1056,
@@ -4868,7 +5011,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1057,
@@ -4902,7 +5046,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1058,
@@ -4936,7 +5081,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1059,
@@ -4970,7 +5116,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1060,
@@ -5004,7 +5151,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1061,
@@ -5038,7 +5186,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1062,
@@ -5072,7 +5221,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1063,
@@ -5106,7 +5256,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1048,
@@ -5140,7 +5291,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1049,
@@ -5174,7 +5326,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1050,
@@ -5208,7 +5361,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1051,
@@ -5242,7 +5396,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1052,
@@ -5276,7 +5431,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1053,
@@ -5310,7 +5466,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1054,
@@ -5344,7 +5501,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1055,
@@ -5378,7 +5536,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1040,
@@ -5412,7 +5571,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1041,
@@ -5446,7 +5606,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1042,
@@ -5480,7 +5641,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1043,
@@ -5514,7 +5676,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1044,
@@ -5548,7 +5711,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1045,
@@ -5582,7 +5746,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1046,
@@ -5616,7 +5781,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1047,
@@ -5650,7 +5816,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1032,
@@ -5684,7 +5851,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1033,
@@ -5718,7 +5886,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1034,
@@ -5752,7 +5921,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1035,
@@ -5786,7 +5956,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1036,
@@ -5820,7 +5991,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1037,
@@ -5854,7 +6026,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1038,
@@ -5888,7 +6061,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1039,
@@ -5922,7 +6096,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1024,
@@ -5956,7 +6131,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1025,
@@ -5990,7 +6166,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1026,
@@ -6024,7 +6201,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1027,
@@ -6058,7 +6236,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1028,
@@ -6092,7 +6271,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1029,
@@ -6126,7 +6306,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1030,
@@ -6160,7 +6341,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1031,
@@ -6194,7 +6376,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 2049,
@@ -6228,7 +6411,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2051,
@@ -6262,7 +6446,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2052,
@@ -6296,7 +6481,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2053,
@@ -6330,7 +6516,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2054,
@@ -6364,7 +6551,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2050,
@@ -6398,7 +6586,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2055,
@@ -6432,7 +6621,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2056,
@@ -6466,7 +6656,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2057,
@@ -6500,7 +6691,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2058,
@@ -6534,7 +6726,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2059,
@@ -6568,7 +6761,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2060,
@@ -6602,7 +6796,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2061,
@@ -6636,7 +6831,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2062,
@@ -6670,7 +6866,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2063,
@@ -6704,7 +6901,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2064,
@@ -6738,7 +6936,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2065,
@@ -6772,7 +6971,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2066,
@@ -6806,7 +7006,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2067,
@@ -6840,7 +7041,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2068,
@@ -6874,7 +7076,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2069,
@@ -6908,7 +7111,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 2070,
@@ -6942,7 +7146,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 3160,
@@ -6976,7 +7181,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3161,
@@ -7010,7 +7216,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3162,
@@ -7044,7 +7251,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3163,
@@ -7078,7 +7286,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3164,
@@ -7112,7 +7321,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3165,
@@ -7146,7 +7356,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3166,
@@ -7180,7 +7391,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3167,
@@ -7214,7 +7426,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3152,
@@ -7248,7 +7461,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3153,
@@ -7282,7 +7496,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3154,
@@ -7316,7 +7531,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3155,
@@ -7350,7 +7566,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3156,
@@ -7384,7 +7601,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3157,
@@ -7418,7 +7636,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3158,
@@ -7452,7 +7671,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3159,
@@ -7486,7 +7706,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3184,
@@ -7520,7 +7741,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3185,
@@ -7554,7 +7776,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3186,
@@ -7588,7 +7811,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3187,
@@ -7622,7 +7846,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3188,
@@ -7656,7 +7881,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3189,
@@ -7690,7 +7916,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3190,
@@ -7724,7 +7951,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3191,
@@ -7758,7 +7986,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3176,
@@ -7792,7 +8021,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3177,
@@ -7826,7 +8056,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3178,
@@ -7860,7 +8091,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3179,
@@ -7894,7 +8126,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3180,
@@ -7928,7 +8161,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3181,
@@ -7962,7 +8196,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3182,
@@ -7996,7 +8231,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3183,
@@ -8030,7 +8266,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3168,
@@ -8064,7 +8301,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3169,
@@ -8098,7 +8336,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3170,
@@ -8132,7 +8371,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3171,
@@ -8166,7 +8406,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3172,
@@ -8200,7 +8441,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3173,
@@ -8234,7 +8476,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3174,
@@ -8268,7 +8511,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3175,
@@ -8302,7 +8546,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3208,
@@ -8336,7 +8581,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3209,
@@ -8370,7 +8616,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3210,
@@ -8404,7 +8651,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3211,
@@ -8438,7 +8686,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3212,
@@ -8472,7 +8721,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3213,
@@ -8506,7 +8756,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3214,
@@ -8540,7 +8791,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3215,
@@ -8574,7 +8826,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3200,
@@ -8608,7 +8861,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3201,
@@ -8642,7 +8896,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3202,
@@ -8676,7 +8931,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3203,
@@ -8710,7 +8966,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3204,
@@ -8744,7 +9001,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3205,
@@ -8778,7 +9036,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3206,
@@ -8812,7 +9071,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3207,
@@ -8846,7 +9106,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3192,
@@ -8880,7 +9141,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3193,
@@ -8914,7 +9176,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3194,
@@ -8948,7 +9211,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3195,
@@ -8982,7 +9246,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3196,
@@ -9016,7 +9281,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3197,
@@ -9050,7 +9316,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3198,
@@ -9084,7 +9351,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3199,
@@ -9118,7 +9386,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3216,
@@ -9152,7 +9421,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3217,
@@ -9186,7 +9456,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3218,
@@ -9220,7 +9491,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3219,
@@ -9254,7 +9526,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3220,
@@ -9288,7 +9561,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3221,
@@ -9322,7 +9596,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3222,
@@ -9356,7 +9631,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3223,
@@ -9390,7 +9666,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3224,
@@ -9424,7 +9701,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3225,
@@ -9458,7 +9736,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3226,
@@ -9492,7 +9771,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3227,
@@ -9526,7 +9806,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3228,
@@ -9560,7 +9841,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3229,
@@ -9594,7 +9876,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3230,
@@ -9628,7 +9911,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3231,
@@ -9662,7 +9946,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3144,
@@ -9696,7 +9981,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3145,
@@ -9730,7 +10016,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3146,
@@ -9764,7 +10051,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3147,
@@ -9798,7 +10086,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3148,
@@ -9832,7 +10121,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3149,
@@ -9866,7 +10156,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3150,
@@ -9900,7 +10191,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3151,
@@ -9934,7 +10226,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3120,
@@ -9968,7 +10261,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3121,
@@ -10002,7 +10296,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3122,
@@ -10036,7 +10331,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3123,
@@ -10070,7 +10366,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3124,
@@ -10104,7 +10401,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3125,
@@ -10138,7 +10436,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3126,
@@ -10172,7 +10471,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3127,
@@ -10206,7 +10506,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3128,
@@ -10240,7 +10541,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3129,
@@ -10274,7 +10576,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3130,
@@ -10308,7 +10611,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3131,
@@ -10342,7 +10646,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3132,
@@ -10376,7 +10681,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3133,
@@ -10410,7 +10716,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3134,
@@ -10444,7 +10751,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3135,
@@ -10478,7 +10786,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3136,
@@ -10512,7 +10821,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3137,
@@ -10546,7 +10856,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3138,
@@ -10580,7 +10891,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3139,
@@ -10614,7 +10926,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3140,
@@ -10648,7 +10961,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3141,
@@ -10682,7 +10996,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3142,
@@ -10716,7 +11031,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3143,
@@ -10750,7 +11066,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3112,
@@ -10784,7 +11101,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3113,
@@ -10818,7 +11136,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3114,
@@ -10852,7 +11171,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3115,
@@ -10886,7 +11206,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3116,
@@ -10920,7 +11241,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3117,
@@ -10954,7 +11276,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3118,
@@ -10988,7 +11311,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3119,
@@ -11022,7 +11346,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3104,
@@ -11056,7 +11381,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3105,
@@ -11090,7 +11416,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3106,
@@ -11124,7 +11451,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3107,
@@ -11158,7 +11486,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3108,
@@ -11192,7 +11521,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3109,
@@ -11226,7 +11556,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3110,
@@ -11260,7 +11591,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3111,
@@ -11294,7 +11626,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3096,
@@ -11328,7 +11661,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3097,
@@ -11362,7 +11696,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3098,
@@ -11396,7 +11731,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3099,
@@ -11430,7 +11766,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3100,
@@ -11464,7 +11801,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3101,
@@ -11498,7 +11836,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3102,
@@ -11532,7 +11871,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3103,
@@ -11566,7 +11906,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3088,
@@ -11600,7 +11941,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3089,
@@ -11634,7 +11976,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3090,
@@ -11668,7 +12011,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3091,
@@ -11702,7 +12046,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3092,
@@ -11736,7 +12081,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3093,
@@ -11770,7 +12116,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3094,
@@ -11804,7 +12151,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3095,
@@ -11838,7 +12186,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3080,
@@ -11872,7 +12221,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3081,
@@ -11906,7 +12256,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3082,
@@ -11940,7 +12291,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3083,
@@ -11974,7 +12326,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3084,
@@ -12008,7 +12361,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3085,
@@ -12042,7 +12396,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3086,
@@ -12076,7 +12431,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3087,
@@ -12110,7 +12466,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3072,
@@ -12144,7 +12501,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3073,
@@ -12178,7 +12536,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3074,
@@ -12212,7 +12571,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3075,
@@ -12246,7 +12606,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3076,
@@ -12280,7 +12641,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3077,
@@ -12314,7 +12676,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3078,
@@ -12348,7 +12711,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 3079,
@@ -12382,7 +12746,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       }
     ],
     "vlans": [
@@ -12403,10 +12768,11 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 0
       },
       {
-        "intfID": 261,
+        "intfID": 277,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -12415,7 +12781,8 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 0
       },
       {
         "intfID": 2151,
@@ -12428,7 +12795,8 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 0
       },
       {
         "intfID": 2153,
@@ -12441,7 +12809,8 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 0
       }
     ],
     "arpTimeoutSeconds": 60,
@@ -12517,7 +12886,7 @@
         "name": "cpuQueue-high"
       },
       {
-        "id": 2,
+        "id": 3,
         "streamType": 0,
         "weight": 2,
         "scheduling": 0,
@@ -12737,7 +13106,7 @@
             },
             "systemPortRange": {
               "minimum": 100,
-              "maximum": 140
+              "maximum": 144
             },
             "switchMac": "02:00:00:00:00:01",
             "connectionHandle": "15:00"
@@ -12751,8 +13120,8 @@
               "maximum": 4095
             },
             "systemPortRange": {
-              "minimum": 260,
-              "maximum": 300
+              "minimum": 276,
+              "maximum": 320
             },
             "switchMac": "02:00:00:00:00:01",
             "connectionHandle": "18:00"
@@ -12775,7 +13144,7 @@
           ],
           "systemPortRange": {
             "minimum": 100,
-            "maximum": 140
+            "maximum": 144
           },
           "nodeMac": "02:00:00:00:0F:0B",
           "asicType": 14,
@@ -12789,8 +13158,8 @@
             
           ],
           "systemPortRange": {
-            "minimum": 260,
-            "maximum": 300
+            "minimum": 276,
+            "maximum": 320
           },
           "nodeMac": "02:00:00:00:0F:0B",
           "asicType": 14,

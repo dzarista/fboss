@@ -36,6 +36,11 @@ DEFINE_bool(
     false,
     "Enable qsfp_service to post optics thermal data to BMC");
 
+DEFINE_bool(
+    enable_tcvr_i2c_logging,
+    false,
+    "Enable transceiver I2C logging feature in qsfp_service");
+
 namespace facebook {
 namespace fboss {
 
@@ -45,7 +50,7 @@ static const std::unordered_set<TransceiverID> kEmptryTransceiverIDs = {};
 
 static const std::string kQsfpToBmcSyncDataVersion{"1.0"};
 
-static const int kOpticsThermalSyncInterval = 300;
+static const int kOpticsThermalSyncInterval = 10;
 
 } // namespace
 
@@ -964,6 +969,14 @@ void WedgeManager::publishPhyStatToFsdb(
     phy::PhyStats&& stat) const {
   if (FLAGS_publish_stats_to_fsdb) {
     fsdbSyncManager_->updatePhyStat(std::move(portName), std::move(stat));
+  }
+}
+
+void WedgeManager::publishPortStatToFsdb(
+    std::string&& portName,
+    HwPortStats&& stat) const {
+  if (FLAGS_publish_stats_to_fsdb) {
+    fsdbSyncManager_->updatePortStat(std::move(portName), std::move(stat));
   }
 }
 

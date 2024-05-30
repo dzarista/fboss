@@ -14,7 +14,7 @@
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/state/Interface.h"
-#include "fboss/agent/test/utils/CommonUtils.h"
+#include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/types.h"
 
 #include <folly/IPAddress.h>
@@ -40,6 +40,11 @@ constexpr int kCPUPort = 0;
 constexpr int kCoppLowPriQueueId = 0;
 constexpr int kCoppDefaultPriQueueId = 1;
 constexpr int kCoppMidPriQueueId = 2;
+// avoid using cpu queue 2 on J3 platforms, because this queue 2 is
+// currently set lossless across all port including cpu port.
+// Since cpu port is slow, sending traffic to this queue 2 could cause
+// head of line block issue like T182789218.
+constexpr int kJ3CoppMidPriQueueId = 3;
 
 constexpr uint32_t kCoppLowPriWeight = 1;
 constexpr uint32_t kCoppDefaultPriWeight = 1;
@@ -68,7 +73,7 @@ constexpr uint16_t kNonSpecialPort2 = 60001;
 // For benchmark tests, we don't want to set queue rate for low priority queues.
 void addCpuQueueConfig(
     cfg::SwitchConfig& config,
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& asics,
     bool isSai,
     bool setQueueRate = true);
 
@@ -113,7 +118,7 @@ void addLowPriAclForConnectedSubnetRoutes(
 
 void setDefaultCpuTrafficPolicyConfig(
     cfg::SwitchConfig& config,
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& asics,
     bool isSai);
 
 cfg::StreamType getCpuDefaultStreamType(const HwAsic* hwAsic);
@@ -121,6 +126,8 @@ cfg::StreamType getCpuDefaultStreamType(const HwAsic* hwAsic);
 cfg::Range getRange(uint32_t minimum, uint32_t maximum);
 
 uint16_t getCoppHighPriQueueId(const HwAsic* hwAsic);
+
+uint16_t getCoppMidPriQueueId(const std::vector<const HwAsic*>& hwAsics);
 
 std::shared_ptr<facebook::fboss::Interface> getEligibleInterface(
     std::shared_ptr<SwitchState> swState);
@@ -134,9 +141,23 @@ std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueues(
     const HwAsic* hwAsic,
     bool isSai);
 
+std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
+    HwPortStats& stats,
+    int queueId);
+
+std::pair<uint64_t, uint64_t>
+getCpuQueueOutPacketsAndBytes(SwSwitch* sw, int queueId, SwitchID switchId);
+
+std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
+    HwSwitch* hw,
+    int queueId,
+    SwitchID switchId = SwitchID(0));
+
 void setPortQueueSharedBytes(cfg::PortQueue& queue, bool isSai);
 
-void setTTLZeroCpuConfig(const HwAsic* hwAsic, cfg::SwitchConfig& config);
+void setTTLZeroCpuConfig(
+    const std::vector<const HwAsic*>& asics,
+    cfg::SwitchConfig& config);
 
 void addTrafficCounter(
     cfg::SwitchConfig* config,
@@ -152,30 +173,35 @@ void addNoActionAclForUnicastLinkLocal(
     const folly::CIDRNetwork& nw,
     std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls);
 
+template <typename SwitchT>
 uint64_t getQueueOutPacketsWithRetry(
+    SwitchT* switchPtr,
+    SwitchID switchId,
     int queueId,
-    SwSwitch* swSwitch,
     int retryTimes,
     uint64_t expectedNumPkts,
     int postMatchRetryTimes = 2);
 
-template <typename SendFn>
+template <typename SendFn, typename SwitchT>
 void sendPktAndVerifyCpuQueue(
-    SwSwitch* swSwitch,
+    SwitchT* switchPtr,
+    SwitchID switchId,
     int queueId,
     SendFn sendPkts,
     const int expectedPktDelta) {
   auto beforeOutPkts = getQueueOutPacketsWithRetry(
+      switchPtr,
+      switchId,
       queueId,
-      swSwitch,
       0 /* retryTimes */,
       0 /* expectedNumPkts */,
       2 /* postMatchRetryTimes */);
   sendPkts();
   constexpr auto kGetQueueOutPktsRetryTimes = 5;
   auto afterOutPkts = getQueueOutPacketsWithRetry(
+      switchPtr,
+      switchId,
       queueId,
-      swSwitch,
       kGetQueueOutPktsRetryTimes,
       beforeOutPkts + expectedPktDelta);
   XLOG(DBG0) << "Queue=" << queueId << ", before pkts:" << beforeOutPkts
@@ -209,6 +235,25 @@ std::unique_ptr<facebook::fboss::TxPacket> createUdpPkt(
     int l4DstPort,
     uint8_t ttl,
     std::optional<uint8_t> dscp);
+
+template <typename SwitchT>
+void sendAndVerifyPkts(
+    SwitchT* switchPtr,
+    SwitchID switchId,
+    std::shared_ptr<SwitchState> swState,
+    const folly::IPAddress& destIp,
+    uint16_t destPort,
+    uint8_t queueId,
+    PortID srcPort,
+    uint8_t trafficClass = 0);
+
+template <typename SwitchT>
+void verifyCoppInvariantHelper(
+    SwitchT* switchPtr,
+    SwitchID switchId,
+    const HwAsic* hwAsic,
+    std::shared_ptr<SwitchState> swState,
+    PortID srcPort);
 
 } // namespace utility
 } // namespace facebook::fboss

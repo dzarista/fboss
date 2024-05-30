@@ -33,7 +33,7 @@ SaiPortTraits::Attributes::AttributeDiagModeEnable::operator()() {
 
 std::optional<sai_attr_id_t>
 SaiPortTraits::Attributes::AttributeFdrEnable::operator()() {
-#if defined(BRCM_SAI_SDK_XGS) && defined(BRCM_SAI_SDK_GTE_10_0)
+#if defined(BRCM_SAI_SDK_GTE_10_0) || defined(SAI_VERSION_11_0_EA_DNX_ODP)
   return SAI_PORT_ATTR_FDR_ENABLE;
 #else
   return std::nullopt;
@@ -77,5 +77,12 @@ std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
     AttributeRxAfeAdaptiveEnableWrapper::operator()() {
   return std::nullopt;
 }
-
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeCrcErrorDetect::operator()() {
+#if defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_PORT_ATTR_CRC_ERROR_TOKEN_DETECT;
+#else
+  return std::nullopt;
+#endif
+}
 } // namespace facebook::fboss

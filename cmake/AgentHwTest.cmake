@@ -55,6 +55,15 @@ target_link_libraries(packet_observer
   Folly::folly
 )
 
+add_library(l2learn_event_observer
+  fboss/agent/L2LearnEventObserver.cpp
+)
+
+target_link_libraries(l2learn_event_observer
+  fboss_error
+  Folly::folly
+)
+
 add_library(hw_copp_utils
   fboss/agent/hw/test/HwTestCoppUtils.cpp
 )
@@ -124,16 +133,6 @@ target_link_libraries(hw_link_state_toggler
   Folly::folly
 )
 
-add_library(hw_test_utils
-  fboss/agent/hw/test/dataplane_tests/HwTestUtils.cpp
-)
-
-target_link_libraries(hw_test_utils
-  fboss_types
-  hardware_stats_cpp2
-  agent_test_utils
-)
-
 add_library(hw_switch_ensemble
   fboss/agent/hw/test/HwSwitchEnsemble.cpp
   fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.cpp
@@ -144,7 +143,7 @@ target_link_libraries(hw_switch_ensemble
   hw_link_state_toggler
   switchid_scope_resolver
   core
-  hw_test_utils
+  pkt_test_utils
   test_ensemble_if
   sw_switch_warmboot_helper
   multiswitch_test_server
@@ -198,7 +197,6 @@ add_fbthrift_cpp_library(
 set(hw_switch_test_srcs
   fboss/agent/hw/test/HwEcmpTests.cpp
   fboss/agent/hw/test/HwTestFabricUtils.cpp
-  fboss/agent/hw/test/HwFabricSwitchTests.cpp
   fboss/agent/hw/test/HwFlexPortTests.cpp
   fboss/agent/hw/test/HwIngressBufferTests.cpp
   fboss/agent/hw/test/HwEcmpTrunkTests.cpp
@@ -209,8 +207,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwNeighborTests.cpp
   fboss/agent/hw/test/HwTest.cpp
   fboss/agent/hw/test/HwTestAclUtils.cpp
-  fboss/agent/hw/test/HwTestConstants.cpp
-  fboss/agent/hw/test/HwTestMacUtils.cpp
   fboss/agent/hw/test/HwTestPortUtils.cpp
   fboss/agent/hw/test/HwTestCoppUtils.cpp
   fboss/agent/hw/test/HwRouteScaleTest.cpp
@@ -222,7 +218,7 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwAclMatchActionsTests.cpp
   fboss/agent/hw/test/HwAclPriorityTests.cpp
   fboss/agent/hw/test/HwAclQualifierTests.cpp
-  fboss/agent/hw/test/HwPfcTests.cpp
+  fboss/agent/hw/test/HwVerifyPfcConfigInHwTest.cpp
   fboss/agent/hw/test/HwAclStatTests.cpp
   fboss/agent/hw/test/HwPortTests.cpp
   fboss/agent/hw/test/HwDiagShellStressTest.cpp
@@ -237,53 +233,29 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwTeFlowTestUtils.cpp
   fboss/agent/hw/test/HwTeFlowTests.cpp
   fboss/agent/hw/test/HwUdfTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwAclCounterTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwConfigSetupTest.cpp
-  fboss/agent/hw/test/dataplane_tests/HwConfigVerifyQosTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwCoppTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwDeepPacketInspectionTests.cpp
+  fboss/agent/hw/test/HwTestPfcUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwAqmTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwInPauseDiscardsTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwIpInIpTunnelTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMPLSTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwMacLearningTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV4.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV6.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV4ToMpls.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV6ToMpls.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV4InMplsPhp.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV6InMplsPhp.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV4InMplsSwap.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV6InMplsSwap.cpp
-  fboss/agent/hw/test/dataplane_tests/HwLoopBackTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwRouteOverDifferentAddressFamilyNhopTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMacLearningAndNeighborResolutionTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMirroringTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwMmuTuningTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwOverflowTest.cpp
   fboss/agent/hw/test/dataplane_tests/HwTeFlowTrafficTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwTrafficPfcTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwProdInvariantHelper.cpp
   fboss/agent/hw/test/dataplane_tests/HwProdInvariantTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwPacketSendTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwPortBandwidthTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwQueuePerHostL2Tests.cpp
   fboss/agent/hw/test/dataplane_tests/HwQueuePerHostTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwQueuePerHostRouteTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwRouteOverflowTest.cpp
-  fboss/agent/hw/test/dataplane_tests/HwSendPacketToQueueTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwSflowTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwSflowMirrorTest.cpp
-  fboss/agent/hw/test/dataplane_tests/HwSwitchStatsTxCounterTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwTest2QueueUtils.cpp
-  fboss/agent/hw/test/dataplane_tests/Hw2QueueToOlympicQoSTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestAqmUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestPfcUtils.cpp
-  fboss/agent/hw/test/dataplane_tests/HwTestUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTrunkLoadBalancerTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwWatermarkTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwRouteStatTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTestsV6Roce.cpp
 )
@@ -315,7 +287,9 @@ target_link_libraries(hw_switch_test
   config_factory
   agent_test_utils
   acl_test_utils
+  aqm_test_utils
   config_utils
+  aqm_test_utils
   copp_test_utils
   dscp_marking_utils
   ecmp_dataplane_test_util
@@ -325,6 +299,8 @@ target_link_libraries(hw_switch_test
   hw_voq_utils
   linkstate_toggler
   load_balancer_utils
+  mac_test_utils
+  mirror_test_utils
   olympic_qos_utils
   prod_config_factory
   prod_config_utils
@@ -346,6 +322,7 @@ target_link_libraries(hw_switch_test
   switchid_scope_resolver
   hw_stat_printers
   port_stats_test_utils
+  agent_hw_test_constants
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
 )

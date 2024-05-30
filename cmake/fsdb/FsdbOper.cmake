@@ -3,17 +3,17 @@
 # In general, libraries and binaries in fboss/foo/bar are built by
 # cmake/FooBar.cmake
 
-if (FBOSS_CENTOS9)
-
 add_library(subscription_manager
   fboss/fsdb/oper/DeltaValue.h
   fboss/fsdb/oper/CowDeletePathTraverseHelper.h
   fboss/fsdb/oper/CowPublishAndAddTraverseHelper.h
+  fboss/fsdb/oper/CowPublishAndAddTraverseHelper.cpp
   fboss/fsdb/oper/CowSubscriptionManager.h
   fboss/fsdb/oper/CowSubscriptionTraverseHelper.h
   fboss/fsdb/oper/Subscription.cpp
   fboss/fsdb/oper/Subscription.h
   fboss/fsdb/oper/SubscriptionManager.h
+  fboss/fsdb/oper/SubscriptionManager.cpp
   fboss/fsdb/oper/SubscriptionMetadataServer.cpp
   fboss/fsdb/oper/SubscriptionMetadataServer.h
   fboss/fsdb/oper/SubscriptionPathStore.cpp
@@ -27,9 +27,10 @@ target_link_libraries(subscription_manager
   fsdb_cpp2
   fsdb_oper_cpp2
   fsdb_model
-  thrift_cow_visitors
   fsdb_utils
   fsdb_oper_metadata_tracker
+  patch_cpp2
+  thrift_cow_visitors
 )
 
 add_library(path_helpers
@@ -49,6 +50,8 @@ target_link_libraries(path_helpers
 )
 
 add_library(subscribable_storage
+  fboss/fsdb/oper/NaivePeriodicSubscribableStorageBase.h
+  fboss/fsdb/oper/NaivePeriodicSubscribableStorageBase.cpp
   fboss/fsdb/oper/NaivePeriodicSubscribableStorage.h
   fboss/fsdb/oper/NaivePeriodicSubscribableStorage.cpp
   fboss/fsdb/oper/SubscribableStorage.h
@@ -61,10 +64,10 @@ target_link_libraries(subscribable_storage
   fsdb_common_cpp2
   fsdb_oper_cpp2
   fsdb_model
+  patch_cpp2
   subscription_manager
   thread_heartbeat
   thrift_visitors
   Folly::folly
   fb303::fb303
 )
-endif()

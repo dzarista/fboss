@@ -22,6 +22,7 @@ namespace facebook::fboss {
 class PortMap;
 class MultiSwitchPortMap;
 class HwSwitchEnsemble;
+class HwAsicTable;
 } // namespace facebook::fboss
 
 /*
@@ -37,11 +38,9 @@ cfg::SwitchConfig oneL3IntfConfig(
     int baseVlanId = kBaseVlanId);
 cfg::SwitchConfig oneL3IntfConfig(
     const PlatformMapping* platformMapping,
-    const HwAsic* asic,
+    const std::vector<const HwAsic*>& asics,
     PortID port,
     bool supportsAddRemovePort,
-    const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap =
-        kDefaultLoopbackMap(),
     int baseVlanId = kBaseVlanId);
 cfg::SwitchConfig oneL3IntfNoIPAddrConfig(
     const HwSwitch* hwSwitch,
@@ -70,12 +69,7 @@ void updatePortSpeed(
     cfg::SwitchConfig& cfg,
     PortID port,
     cfg::PortSpeed speed);
-void configurePortGroup(
-    const PlatformMapping* platformMapping,
-    bool supportsAddRemovePort,
-    cfg::SwitchConfig& config,
-    cfg::PortSpeed speed,
-    std::vector<PortID> allPortsInGroup);
+
 void configurePortProfile(
     const HwSwitch& hwSwitch,
     cfg::SwitchConfig& config,
@@ -83,10 +77,6 @@ void configurePortProfile(
     std::vector<PortID> allPortsInGroup,
     PortID controllingPortID);
 std::string getAsicChipFromPortID(const HwSwitch* hwSwitch, PortID id);
-
-std::vector<PortID> getAllPortsInGroup(
-    const PlatformMapping* platformMapping,
-    PortID portID);
 
 std::vector<PortDescriptor> getUplinksForEcmp(
     const HwSwitch* hwSwitch,
@@ -116,7 +106,7 @@ cfg::SwitchConfig createRtswUplinkDownlinkConfig(
     std::vector<PortID>& uplinks,
     std::vector<PortID>& downlinks);
 
-std::pair<int, int> getRetryCountAndDelay(const HwAsic* asic);
+std::pair<int, int> getRetryCountAndDelay(const HwAsicTable* hwAsicTable);
 
 void setPortToDefaultProfileIDMap(
     const std::shared_ptr<MultiSwitchPortMap>& ports,
@@ -124,23 +114,6 @@ void setPortToDefaultProfileIDMap(
     const HwAsic* asic,
     bool supportsAddRemove,
     std::optional<std::vector<PortID>> masterLogicalPortIds = std::nullopt);
-
-std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
-    const cfg::SwitchConfig& config);
-
-/*
- * Functions to get uplinks and downlinks return a pair of vectors, which is a
- * lot to write out, so we define a simple type that's descriptive and saves a
- * few keystrokes.
- */
-typedef std::pair<std::vector<PortID>, std::vector<PortID>> UplinkDownlinkPair;
-
-UplinkDownlinkPair getRswUplinkDownlinkPorts(
-    const cfg::SwitchConfig& config,
-    const int ecmpWidth);
-UplinkDownlinkPair getRtswUplinkDownlinkPorts(
-    const cfg::SwitchConfig& config,
-    const int ecmpWidth);
 
 UplinkDownlinkPair getAllUplinkDownlinkPorts(
     const HwSwitch* hwSwitch,

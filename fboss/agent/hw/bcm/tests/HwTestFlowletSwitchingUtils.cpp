@@ -171,7 +171,8 @@ bool verifyEcmpForFlowletSwitching(
       validateFlowSetTable(hw, expectFlowsetSizeZero, flowletTableSize);
 
   if (flowletEnable && flowletTableSize > 0) {
-    if ((existing.dynamic_mode != BCM_L3_ECMP_DYNAMIC_MODE_NORMAL) ||
+    auto dynamicMode = getFlowletDynamicMode(*flowletCfg.switchingMode());
+    if ((existing.dynamic_mode != dynamicMode) ||
         (existing.dynamic_age != *flowletCfg.inactivityIntervalUsecs()) ||
         (existing.dynamic_size != flowletTableSize) ||
         (expectFlowsetSizeZero != 0)) {
@@ -220,6 +221,37 @@ bool verifyEcmpForFlowletSwitching(
   return isVerified;
 }
 
+bool verifyEcmpForNonFlowlet(
+    const facebook::fboss::HwSwitch* hw,
+    const folly::CIDRNetwork& prefix,
+    const bool expectFlowsetFree) {
+  const auto bcmSwitch = static_cast<const BcmSwitch*>(hw);
+  auto ecmp = getEgressIdForRoute(bcmSwitch, prefix.first, prefix.second, kRid);
+  bcm_l3_egress_ecmp_t existing;
+  bcm_l3_egress_ecmp_t_init(&existing);
+  existing.ecmp_intf = ecmp;
+  existing.flags |= BCM_L3_WITH_ID;
+  int pathsInHwCount;
+  bcm_l3_ecmp_get(bcmSwitch->getUnit(), &existing, 0, nullptr, &pathsInHwCount);
+  // Ecmp Id should be greater than or equal to max dlb Ecmp Id
+  CHECK_GE(ecmp, kDlbEcmpMaxId);
+  // Check all the flowlet configs are disabled
+  CHECK_EQ(existing.dynamic_mode, BCM_L3_ECMP_DYNAMIC_MODE_DISABLED);
+  CHECK_EQ(existing.dynamic_age, 0);
+  CHECK_EQ(existing.dynamic_size, 0);
+  int freeEntries = 0;
+  bcm_switch_object_count_get(
+      bcmSwitch->getUnit(),
+      bcmSwitchObjectEcmpDynamicFlowSetFree,
+      &freeEntries);
+  if (expectFlowsetFree) {
+    CHECK_GE(freeEntries, 2048);
+  } else {
+    CHECK_EQ(freeEntries, 0);
+  }
+  return true;
+}
+
 bool validatePortFlowletQuality(
     const facebook::fboss::HwSwitch* hw,
     const PortID& portId,
@@ -261,11 +293,7 @@ bool validateFlowletSwitchingDisabled(const facebook::fboss::HwSwitch* hw) {
 void setEcmpMemberStatus(const TestEnsembleIf* ensemble) {
   const auto bcmEnsemble = dynamic_cast<const BcmSwitchEnsemble*>(ensemble);
   auto bcmSwitch = bcmEnsemble->getHwSwitch();
-  auto ecmpMembers = utility::getEcmpMembersInHw(bcmSwitch);
-  for (const auto ecmpMember : ecmpMembers) {
-    bcm_l3_egress_ecmp_member_status_set(
-        bcmSwitch->getUnit(), ecmpMember, BCM_L3_ECMP_DYNAMIC_MEMBER_FORCE_UP);
-  }
+  setEcmpDynamicMemberUp(bcmSwitch);
 }
 
 int getL3EcmpDlbFailPackets(const TestEnsembleIf* ensemble) {

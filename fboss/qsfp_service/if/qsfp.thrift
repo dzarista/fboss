@@ -11,6 +11,7 @@ include "fboss/agent/switch_config.thrift"
 include "fboss/mka_service/if/mka_structs.thrift"
 include "fboss/agent/hw/hardware_stats.thrift"
 include "fboss/lib/phy/phy.thrift"
+include "fboss/lib/phy/prbs.thrift"
 
 service QsfpService extends phy.FbossCommonPhyCtrl {
   transceiver.QsfpServiceRunState getQsfpServiceRunState();
@@ -66,6 +67,14 @@ service QsfpService extends phy.FbossCommonPhyCtrl {
    * qsfp-service to pause auto remediation for the specified amount of seconds.
    */
   void pauseRemediation(1: i32 timeout, 2: list<string> portList);
+
+  /*
+  * Qsfp service has an internal remediation loop and may potentially perform
+  * interruptive operation to modules that carry no active(up) link. However
+  * it may cause some confusion for debugging. This function is to tell
+  * qsfp-service to unpause remediation.
+  */
+  void unpauseRemediation(1: list<string> portList);
 
   /*
    * Qsfp service has an internal remediation loop and may potentially perform
@@ -162,6 +171,19 @@ service QsfpService extends phy.FbossCommonPhyCtrl {
     3: bool setAdminUp = true,
   ) throws (1: fboss.FbossBaseError error);
 
+  transceiver.CdbDatapathSymErrHistogram getSymbolErrorHistogram(
+    1: string portName,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Returns a map of all platform software port names to the list of port
+   * profile Id supported by that port. If checkOptics is set True then it will
+   * exclude the port profiles which optics does not support
+   */
+  map<string, list<switch_config.PortProfileID>> getAllPortSupportedProfiles(
+    1: bool checkOptics = true,
+  ) throws (1: fboss.FbossBaseError error);
+
   string saiPhyRegisterAccess(
     1: string portName,
     2: bool opRead = true,
@@ -234,5 +256,27 @@ service QsfpService extends phy.FbossCommonPhyCtrl {
   map<string, hardware_stats.MacsecStats> getMacsecPortStats(
     1: list<string> portNames,
     2: bool readFromHw = false,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Get the PRBS settings on all interfaces.
+   */
+  map<string, prbs.InterfacePrbsState> getAllInterfacePrbsStates(
+    1: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Get the PRBS stats on all interfaces.
+   */
+  map<string, phy.PrbsStats> getAllInterfacePrbsStats(
+    1: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Bulk clear the PRBS stats counters on interfaces.
+   */
+  void bulkClearInterfacePrbsStats(
+    1: list<string> interfaces,
+    2: phy.PortComponent component,
   ) throws (1: fboss.FbossBaseError error);
 }

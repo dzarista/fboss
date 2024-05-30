@@ -178,7 +178,8 @@ std::shared_ptr<SwitchState> LinkStateToggler::applyInitialConfigWithPortsDown(
   auto cfg = initCfg;
   boost::container::flat_map<int, cfg::PortState> portId2DesiredState;
   for (auto& port : *cfg.ports()) {
-    if (port.portType() == cfg::PortType::RECYCLE_PORT) {
+    if (port.portType() == cfg::PortType::RECYCLE_PORT ||
+        port.portType() == cfg::PortType::EVENTOR_PORT) {
       continue;
     }
     portId2DesiredState[*port.logicalID()] = *port.state();
@@ -197,7 +198,8 @@ std::shared_ptr<SwitchState> LinkStateToggler::applyInitialConfigWithPortsDown(
 
   // Wait for port state to be disabled in switch state
   for (auto& port : *cfg.ports()) {
-    if (port.portType() == cfg::PortType::RECYCLE_PORT) {
+    if (port.portType() == cfg::PortType::RECYCLE_PORT ||
+        port.portType() == cfg::PortType::EVENTOR_PORT) {
       continue;
     }
     waitForPortDown(PortID(*port.logicalID()));
@@ -215,9 +217,7 @@ std::shared_ptr<SwitchState> LinkStateToggler::applyInitialConfigWithPortsDown(
       auto port = switchState->getPorts()
                       ->getNodeIf(PortID(*cfgPort.logicalID()))
                       ->modify(&switchState);
-      if (cfgPort.portType() != cfg::PortType::FABRIC_PORT) {
-        port->setZeroPreemphasis(true);
-      }
+      port->setZeroPreemphasis(true);
       *cfgPort.state() = portId2DesiredState[*cfgPort.logicalID()];
     }
     return switchState;
@@ -252,7 +252,8 @@ void LinkStateToggler::bringUpPorts(const cfg::SwitchConfig& initCfg) {
   std::vector<PortID> portsToBringUp;
   folly::gen::from(*initCfg.ports()) | folly::gen::filter([](const auto& port) {
     return *port.state() == cfg::PortState::ENABLED &&
-        *port.portType() != cfg::PortType::RECYCLE_PORT;
+        (*port.portType() != cfg::PortType::RECYCLE_PORT &&
+         *port.portType() != cfg::PortType::EVENTOR_PORT);
   }) | folly::gen::map([](const auto& port) {
     return PortID(*port.logicalID());
   }) | folly::gen::appendTo(portsToBringUp);

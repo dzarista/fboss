@@ -231,7 +231,7 @@ TYPED_TEST(HwRouteTest, VerifyClassIDForConnectedRoute) {
         HwAsic::AsicVendor::ASIC_VENDOR_TAJO) {
       if (FLAGS_classid_for_connected_subnet_routes) {
         this->verifyClassIDHelper(
-            ipAddr, cfg::AclLookupClass::CLASS_CONNECTED_ROUTE_TO_INTF);
+            ipAddr, cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
       }
     }
   };

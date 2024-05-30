@@ -345,6 +345,7 @@ SwSwitch::SwSwitch(
       platformProductInfo_(
           std::make_unique<PlatformProductInfo>(FLAGS_fruid_filepath)),
       pktObservers_(new PacketObservers()),
+      l2LearnEventObservers_(new L2LearnEventObservers()),
       arp_(new ArpHandler(this)),
       ipv4_(new IPv4Handler(this)),
       ipv6_(new IPv6Handler(this)),
@@ -376,7 +377,8 @@ SwSwitch::SwSwitch(
       switchStatsObserver_(new SwitchStatsObserver(this)),
       resourceAccountant_(new ResourceAccountant(hwAsicTable_.get())),
       packetStreamMap_(new MultiSwitchPacketStreamMap()),
-      swSwitchWarmbootHelper_(new SwSwitchWarmBootHelper(agentDirUtil_)),
+      swSwitchWarmbootHelper_(
+          new SwSwitchWarmBootHelper(agentDirUtil_, hwAsicTable_.get())),
       hwSwitchThriftClientTable_(new HwSwitchThriftClientTable(
           FLAGS_hwagent_base_thrift_port,
           getSwitchInfoFromConfig(config))) {
@@ -396,6 +398,8 @@ SwSwitch::SwSwitch(
     multiSwitchFb303Stats_ =
         std::make_unique<MultiSwitchFb303Stats>(getHwAsicTable()->getHwAsics());
   }
+  fsdbSyncer_.withWLock(
+      [this](auto& syncer) { syncer = std::make_unique<FsdbSyncer>(this); });
   if (initialState) {
     initialState->publish();
     setStateInternal(initialState);
@@ -524,6 +528,7 @@ void SwSwitch::stop(bool isGracefulStop, bool revertToMinAlpmState) {
   // advertisements
   pcapMgr_.reset();
   pktObservers_.reset();
+  l2LearnEventObservers_.reset();
 
   // reset tunnel manager only after pkt thread is stopped
   // as there could be state updates in progress which will
@@ -589,8 +594,10 @@ void SwSwitch::onSwitchRunStateChange(SwitchRunState newState) {
     return newSwitchState;
   };
   updateState("update switch runstate", updateFn);
-  // TODO (m-NPU): handle m-NPU support
-  multiHwSwitchHandler_->switchRunStateChanged(newState);
+  // For multiswitch, run state is part of switch state
+  if (isRunModeMonolithic()) {
+    getMonolithicHwSwitchHandler()->switchRunStateChanged(newState);
+  }
 }
 
 SwitchRunState SwSwitch::getSwitchRunState() const {
@@ -759,12 +766,19 @@ void SwSwitch::publishStatsToFsdb() {
   });
 }
 
-MonolithicHwSwitchHandler* SwSwitch::getMonolithicHwSwitchHandler() {
+MonolithicHwSwitchHandler* SwSwitch::getMonolithicHwSwitchHandler() const {
   CHECK(!isRunModeMultiSwitch())
       << "Monolithic switch handler access should not be attempted in multi switch mode!";
   auto hwSwitchHandlers = getHwSwitchHandler()->getHwSwitchHandlers();
   return static_cast<MonolithicHwSwitchHandler*>(
       hwSwitchHandlers.begin()->second);
+}
+
+int16_t SwSwitch::getSwitchIndexForInterface(
+    const std::string& interface) const {
+  auto portId = getPlatformMapping()->getPortID(interface);
+  auto switchId = getScopeResolver()->scope(portId).switchId();
+  return getSwitchInfoTable().getSwitchIndexFromSwitchId(switchId);
 }
 
 void SwSwitch::updateStats() {
@@ -785,14 +799,11 @@ void SwSwitch::updateStats() {
   updateLldpStats();
   updateTeFlowStats();
   updateMultiSwitchGlobalFb303Stats();
-  updateFabricReachabilityStats();
   stats()->maxNumOfPhysicalHostsPerQueue(
       getLookupClassUpdater()->getMaxNumHostsPerQueue());
 
   if (!isRunModeMultiSwitch()) {
     multiswitch::HwSwitchStats hwStats;
-    auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
-    hwStats.timestamp() = now.count();
     auto monoHwSwitchHandler = getMonolithicHwSwitchHandler();
     try {
       monoHwSwitchHandler->updateStats();
@@ -806,22 +817,8 @@ void SwSwitch::updateStats() {
       XLOG(ERR) << "Error running updateAllPhyInfo: "
                 << folly::exceptionStr(ex);
     }
-    hwStats.hwPortStats() = monoHwSwitchHandler->getPortStats();
-    hwStats.sysPortStats() = monoHwSwitchHandler->getSysPortStats();
-    hwStats.switchDropStats() = monoHwSwitchHandler->getSwitchDropStats();
-    hwStats.switchWatermarkStats() =
-        monoHwSwitchHandler->getSwitchWatermarkStats();
-    if (auto hwSwitchStats = monoHwSwitchHandler->getSwitchStats()) {
-      hwStats.hwAsicErrors() = hwSwitchStats->getHwAsicErrors();
-    }
+    monoHwSwitchHandler->getHwStats(hwStats);
     hwStats.teFlowStats() = getTeFlowStats();
-    for (auto& [portId, phyInfoPerPort] :
-         monoHwSwitchHandler->getAllPhyInfo()) {
-      hwStats.phyInfo()->emplace(portId, phyInfoPerPort);
-    }
-    hwStats.flowletStats() = monoHwSwitchHandler->getHwFlowletStats();
-    hwStats.cpuPortStats() = monoHwSwitchHandler->getCpuPortStats();
-    hwStats.aclStats() = multiHwSwitchHandler_->getAclStats();
     updateHwSwitchStats(0 /*switchIndex*/, std::move(hwStats));
   }
   updateFlowletStats();
@@ -892,8 +889,9 @@ void SwSwitch::updatePortInfo() {
 void SwSwitch::linkConnectivityChanged(
     const std::map<PortID, multiswitch::FabricConnectivityDelta>&
         connectivityDelta) {
-  auto updateFn = [=](const shared_ptr<SwitchState>& state) {
-    return LinkConnectivityProcessor::process(state, connectivityDelta);
+  auto updateFn = [=, this](const shared_ptr<SwitchState>& state) {
+    return LinkConnectivityProcessor::process(
+        *getScopeResolver(), *getHwAsicTable(), state, connectivityDelta);
   };
   updateState("update fabric connectivity info", updateFn);
 }
@@ -923,25 +921,7 @@ void SwSwitch::updateMultiSwitchGlobalFb303Stats() {
   multiSwitchFb303Stats_->updateStats(globalCpuPortStats);
 }
 
-void SwSwitch::updateFabricReachabilityStats() {
-  FabricReachabilityStats fabricReachabilityStats;
-  auto runMode = (*agentConfig_.rlock())->getRunMode();
-  if (runMode == cfg::AgentRunMode::MULTI_SWITCH) {
-    auto lockedStats = hwSwitchStats_.rlock();
-    for (auto& [switchIdx, hwSwitchStats] : *lockedStats) {
-      fabricReachabilityStats.mismatchCount() =
-          hwSwitchStats.fabricReachabilityStats()->mismatchCount().value();
-      fabricReachabilityStats.missingCount() =
-          hwSwitchStats.fabricReachabilityStats()->missingCount().value();
-    }
-  } else {
-    fabricReachabilityStats =
-        getHwSwitchHandler()->getFabricReachabilityStats();
-  }
-  *fabricReachabilityStats_.wlock() = fabricReachabilityStats;
-}
-
-bool SwSwitch::isRunModeMultiSwitch() {
+bool SwSwitch::isRunModeMultiSwitch() const {
   return FLAGS_multi_switch ||
       (*agentConfig_.rlock())->getRunMode() == cfg::AgentRunMode::MULTI_SWITCH;
 }
@@ -1039,13 +1019,12 @@ void SwSwitch::invokeNeighborListener(
   }
 }
 
-bool SwSwitch::getAndClearNeighborHit(RouterID vrf, folly::IPAddress ip) {
-  return multiHwSwitchHandler_->getAndClearNeighborHit(vrf, ip);
-}
-
 void SwSwitch::exitFatal() const noexcept {
   folly::dynamic switchState = folly::dynamic::object;
-  switchState[kHwSwitch] = multiHwSwitchHandler_->toFollyDynamic();
+  // No hwswitch dump for multi swagent exit
+  if (isRunModeMonolithic()) {
+    switchState[kHwSwitch] = getMonolithicHwSwitchHandler()->toFollyDynamic();
+  }
   state::WarmbootState thriftSwitchState;
   *thriftSwitchState.swSwitchState() = getAppliedState()->toThrift();
   if (!dumpStateToFile(agentDirUtil_->getCrashSwitchStateFile(), switchState) ||
@@ -1084,6 +1063,8 @@ std::shared_ptr<SwitchState> SwSwitch::preInit(SwitchFlags flags) {
   flags_ = flags;
   bootType_ = swSwitchWarmbootHelper_->canWarmBoot() ? BootType::WARM_BOOT
                                                      : BootType::COLD_BOOT;
+  XLOG(INFO) << "Boot Type: " << apache::thrift::util::enumNameSafe(bootType_);
+
   multiHwSwitchHandler_->start();
   std::optional<state::WarmbootState> wbState{};
   if (bootType_ == BootType::WARM_BOOT) {
@@ -1134,11 +1115,10 @@ void SwSwitch::init(
     // this is being done for preprod2trunk migration. further until tooling
     // is updated to affect both warm boot flags, HwSwitch will override
     // SwSwitch boot flag (for monolithic agent).
-    auto bootStr = [](BootType type) {
-      return type == BootType::WARM_BOOT ? "WARM_BOOT" : "COLD_BOOT";
-    };
-    XLOG(INFO) << "Overriding boot type from " << bootStr(bootType_) << " to "
-               << bootStr(hwInitRet.bootType);
+    XLOG(INFO) << "Overriding boot type from: "
+               << apache::thrift::util::enumNameSafe(bootType_) << " to "
+               << apache::thrift::util::enumNameSafe(hwInitRet.bootType);
+
     bootType_ = hwInitRet.bootType;
   }
   if (getAppliedState()) {
@@ -1176,7 +1156,10 @@ void SwSwitch::init(
     }
     tunMgr_->probe();
   }
-  multiHwSwitchHandler_->onHwInitialized(this);
+
+  if (isRunModeMonolithic()) {
+    getMonolithicHwSwitchHandler()->onHwInitialized(this);
+  }
 
   // Notify the state observers of the initial state
   updateEventBase_.runInEventBaseThread([initialState, this]() {
@@ -1254,8 +1237,6 @@ void SwSwitch::init(SwitchFlags flags) {
 }
 
 void SwSwitch::initialConfigApplied(const steady_clock::time_point& startTime) {
-  // notify the hw
-  multiHwSwitchHandler_->onInitialConfigApplied(this);
   setSwitchRunState(SwitchRunState::CONFIGURED);
 
   if (flags_ & SwitchFlags::ENABLE_TUN) {
@@ -1302,11 +1283,9 @@ void SwSwitch::initialConfigApplied(const steady_clock::time_point& startTime) {
     mkaServiceManager_ = std::make_unique<MKAServiceManager>(this);
   }
 #endif
-  fsdbSyncer_.withWLock([this](auto& syncer) {
-    // Start FSDB state syncer post initial config applied. FSDB state
-    // syncer will do a full sync upon connection establishment to FSDB
-    syncer = std::make_unique<FsdbSyncer>(this);
-  });
+  // Start FSDB state syncer post initial config applied. FSDB state
+  // syncer will do a full sync upon connection establishment to FSDB
+  runFsdbSyncFunction([](auto& syncer) { syncer->start(); });
 }
 
 void SwSwitch::logRouteUpdates(
@@ -2243,8 +2222,6 @@ void SwSwitch::stopThreads() {
       updatesDrained = pendingUpdates_.empty();
     }
   } while (!updatesDrained);
-
-  multiHwSwitchHandler_->platformStop();
 }
 
 void SwSwitch::threadLoop(StringPiece name, EventBase* eventBase) {
@@ -2790,15 +2767,28 @@ AdminDistance SwSwitch::clientIdToAdminDistance(int clientId) const {
 
 void SwSwitch::clearPortStats(
     const std::unique_ptr<std::vector<int32_t>>& ports) {
-  multiHwSwitchHandler_->clearPortStats(ports);
+  // For multi switch mode, hwswitch clear api gets called instead
+  if (isRunModeMonolithic()) {
+    getMonolithicHwSwitchHandler()->clearPortStats(ports);
+  }
 }
 
 std::vector<phy::PrbsLaneStats> SwSwitch::getPortAsicPrbsStats(PortID portId) {
-  return multiHwSwitchHandler_->getPortAsicPrbsStats(portId);
+  if (isRunModeMonolithic()) {
+    return getMonolithicHwSwitchHandler()->getPortAsicPrbsStats(portId);
+  } else {
+    throw fboss::FbossError(
+        "getPortAsicPrbsStats() not supported for multi switch");
+  }
 }
 
 void SwSwitch::clearPortAsicPrbsStats(PortID portId) {
-  multiHwSwitchHandler_->clearPortAsicPrbsStats(portId);
+  if (isRunModeMonolithic()) {
+    return getMonolithicHwSwitchHandler()->clearPortAsicPrbsStats(portId);
+  } else {
+    throw fboss::FbossError(
+        "clearPortAsicPrbsStats() not supported for multi switch");
+  }
 }
 
 std::vector<prbs::PrbsPolynomial> SwSwitch::getPortPrbsPolynomials(
@@ -2809,7 +2799,12 @@ std::vector<prbs::PrbsPolynomial> SwSwitch::getPortPrbsPolynomials(
 }
 
 prbs::InterfacePrbsState SwSwitch::getPortPrbsState(PortID portId) {
-  return multiHwSwitchHandler_->getPortPrbsState(portId);
+  if (isRunModeMonolithic()) {
+    return getMonolithicHwSwitchHandler()->getPortPrbsState(portId);
+  } else {
+    throw fboss::FbossError(
+        "getPortPrbsState() not supported for multi switch");
+  }
 }
 
 template <typename AddressT>
@@ -2832,6 +2827,7 @@ template std::shared_ptr<Route<folly::IPAddressV6>> SwSwitch::longestMatch(
 void SwSwitch::l2LearningUpdateReceived(
     L2Entry l2Entry,
     L2EntryUpdateType l2EntryUpdateType) {
+  l2LearnEventObservers_->l2LearnEventReceived(l2Entry, l2EntryUpdateType);
   macTableManager_->handleL2LearningUpdate(l2Entry, l2EntryUpdateType);
 }
 
@@ -3052,7 +3048,12 @@ TransceiverIdxThrift SwSwitch::getTransceiverIdxThrift(PortID portID) const {
 }
 
 std::optional<uint32_t> SwSwitch::getHwLogicalPortId(PortID portID) const {
-  return multiHwSwitchHandler_->getHwLogicalPortId(portID);
+  auto portStats = getHwPortStats({portID});
+  if (!portStats.empty() &&
+      portStats.begin()->second.logicalPortId().has_value()) {
+    return portStats.begin()->second.logicalPortId().value();
+  }
+  return std::nullopt;
 }
 
 const AgentDirectoryUtil* SwSwitch::getDirUtil() const {
@@ -3064,13 +3065,13 @@ void SwSwitch::storeWarmBootState(const state::WarmbootState& state) {
 }
 
 void SwSwitch::updateDsfSubscriberState(
-    const std::string& nodeName,
+    const std::string& remoteEndpoint,
     fsdb::FsdbSubscriptionState oldState,
     fsdb::FsdbSubscriptionState newState) {
-  runFsdbSyncFunction(
-      [nodeName = nodeName, oldState, newState](auto& syncer) mutable {
-        syncer->updateDsfSubscriberState(nodeName, oldState, newState);
-      });
+  runFsdbSyncFunction([remoteEndpoint = remoteEndpoint, oldState, newState](
+                          auto& syncer) mutable {
+    syncer->updateDsfSubscriberState(remoteEndpoint, oldState, newState);
+  });
 }
 
 std::string SwSwitch::getConfigStr() const {
@@ -3142,12 +3143,19 @@ SwSwitch::getHwSwitchStatsExpensive() const {
 }
 
 FabricReachabilityStats SwSwitch::getFabricReachabilityStats() {
-  auto runMode = (*agentConfig_.rlock())->getRunMode();
-  if (runMode == cfg::AgentRunMode::MULTI_SWITCH) {
-    return *fabricReachabilityStats_.rlock();
-  } else {
-    return getHwSwitchHandler()->getFabricReachabilityStats();
+  auto lockedStats = hwSwitchStats_.rlock();
+  std::map<uint16_t, FabricReachabilityStats> fabricReachStats;
+  FabricReachabilityStats reachStats;
+  for (const auto& [_, stats] : *lockedStats) {
+    *reachStats.missingCount() +=
+        *stats.fabricReachabilityStats()->missingCount();
+    *reachStats.mismatchCount() +=
+        *stats.fabricReachabilityStats()->mismatchCount();
+    *reachStats.virtualDevicesWithAsymmetricConnectivity() +=
+        *stats.fabricReachabilityStats()
+             ->virtualDevicesWithAsymmetricConnectivity();
   }
+  return reachStats;
 }
 
 void SwSwitch::setPortsDownForSwitch(SwitchID switchId) {

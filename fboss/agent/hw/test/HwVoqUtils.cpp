@@ -89,6 +89,7 @@ std::shared_ptr<SwitchState> addRemoteSysPort(
   remoteSysPort->setCoreIndex(coreIndex);
   remoteSysPort->setCorePortIndex(corePortIndex);
   remoteSysPort->setSpeedMbps(localPort->getSpeedMbps());
+  remoteSysPort->resetPortQueues(getDefaultVoqConfig());
   remoteSystemPorts->addNode(remoteSysPort, scopeResolver.scope(remoteSysPort));
   return newState;
 }
@@ -170,7 +171,8 @@ std::shared_ptr<SwitchState> addRemoveRemoteNeighbor(
 std::shared_ptr<SwitchState> setupRemoteIntfAndSysPorts(
     std::shared_ptr<SwitchState> currState,
     const SwitchIdScopeResolver& scopeResolver,
-    const cfg::SwitchConfig& config) {
+    const cfg::SwitchConfig& config,
+    bool useEncapIndex) {
   auto newState = currState->clone();
   for (const auto& [remoteSwitchId, dsfNode] : *config.dsfNodes()) {
     if (remoteSwitchId == 0) {
@@ -185,7 +187,8 @@ std::shared_ptr<SwitchState> setupRemoteIntfAndSysPorts(
       const SystemPortID remoteSysPortId(newSysPortId);
       const InterfaceID remoteIntfId(newSysPortId);
       const PortDescriptor portDesc(remoteSysPortId);
-      const uint64_t encapEndx = 0x200001 + i;
+      const std::optional<uint64_t> encapEndx =
+          useEncapIndex ? std::optional<uint64_t>(0x200001 + i) : std::nullopt;
 
       // Use subnet 100+(dsfNodeId/256):(dsfNodeId%256):(localIntfId)::1/64
       // and 100+(dsfNodeId/256).(dsfNodeId%256).(localIntfId).1/24
@@ -224,6 +227,36 @@ std::shared_ptr<SwitchState> setupRemoteIntfAndSysPorts(
     }
   }
   return newState;
+}
+
+QueueConfig getDefaultVoqConfig() {
+  QueueConfig queueCfg;
+
+  auto defaultQueue = std::make_shared<PortQueue>(static_cast<uint8_t>(0));
+  defaultQueue->setStreamType(cfg::StreamType::UNICAST);
+  defaultQueue->setScheduling(cfg::QueueScheduling::INTERNAL);
+  defaultQueue->setName("default");
+  queueCfg.push_back(defaultQueue);
+
+  auto rdmaQueue = std::make_shared<PortQueue>(static_cast<uint8_t>(2));
+  rdmaQueue->setStreamType(cfg::StreamType::UNICAST);
+  rdmaQueue->setScheduling(cfg::QueueScheduling::INTERNAL);
+  rdmaQueue->setName("rdma");
+  queueCfg.push_back(rdmaQueue);
+
+  auto monitoringQueue = std::make_shared<PortQueue>(static_cast<uint8_t>(6));
+  monitoringQueue->setStreamType(cfg::StreamType::UNICAST);
+  monitoringQueue->setScheduling(cfg::QueueScheduling::INTERNAL);
+  monitoringQueue->setName("monitoring");
+  queueCfg.push_back(monitoringQueue);
+
+  auto ncQueue = std::make_shared<PortQueue>(static_cast<uint8_t>(7));
+  ncQueue->setStreamType(cfg::StreamType::UNICAST);
+  ncQueue->setScheduling(cfg::QueueScheduling::INTERNAL);
+  ncQueue->setName("nc");
+  queueCfg.push_back(ncQueue);
+
+  return queueCfg;
 }
 
 } // namespace facebook::fboss::utility

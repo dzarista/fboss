@@ -11,7 +11,6 @@
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/gen-cpp2/switch_config_constants.h"
 #include "fboss/agent/hw/mock/MockPlatform.h"
-#include "fboss/agent/state/AggregatePort.h"
 #include "fboss/agent/state/DeltaFunctions.h"
 #include "fboss/agent/state/NodeMapDelta.h"
 #include "fboss/agent/state/Port.h"
@@ -1079,4 +1078,34 @@ TEST(Port, portModifyPublished) {
   state->getPorts()->addNode(port, scope());
   state->publish();
   EXPECT_NE(port.get(), port->modify(&state));
+}
+
+TEST(Port, portErrors) {
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  auto config = testConfigA();
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  for (auto portMap : *stateV1->getPorts()) {
+    for (auto [_, port] : *portMap.second) {
+      EXPECT_TRUE(port->getActiveErrors().empty());
+      auto newPort = port->clone();
+      std::vector<PortError> expectedErrors{
+          PortError::ERROR_DISABLE_LOOP_DETECTED};
+      newPort->addError(PortError::ERROR_DISABLE_LOOP_DETECTED);
+      EXPECT_EQ(newPort->getActiveErrors(), expectedErrors);
+      {
+        auto newerPort = std::make_shared<Port>(newPort->toThrift());
+        EXPECT_EQ(newerPort->getActiveErrors(), expectedErrors);
+      }
+      newPort->removeError(PortError::ERROR_DISABLE_LOOP_DETECTED);
+      EXPECT_TRUE(newPort->getActiveErrors().empty());
+      {
+        auto newerPort = std::make_shared<Port>(newPort->toThrift());
+        EXPECT_TRUE(newerPort->getActiveErrors().empty());
+      }
+    }
+  }
 }

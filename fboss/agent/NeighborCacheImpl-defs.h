@@ -368,7 +368,7 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntry(
     }
 
     InterfaceID interfaceID;
-    SystemPortID systemPortID;
+    std::optional<SystemPortID> systemPortID;
     std::optional<int64_t> encapIndex;
 
     if (switchType == cfg::SwitchType::VOQ) {
@@ -382,6 +382,8 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntry(
       }
 
       interfaceID = sw_->getState()->getInterfaceIDForPort(port.phyPortID());
+      // SystemPortID is always same as the InterfaceID
+      systemPortID = SystemPortID(interfaceID);
     } else {
       interfaceID = intfID_;
     }
@@ -415,7 +417,9 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntry(
     if (switchType == cfg::SwitchType::VOQ) {
       // TODO: Support aggregate ports for VOQ switches
       CHECK(port.isPhysicalPort());
-      nbrEntry.portId() = PortDescriptor(SystemPortID(systemPortID)).toThrift();
+      CHECK(systemPortID.has_value());
+      nbrEntry.portId() =
+          PortDescriptor(SystemPortID(systemPortID.value())).toThrift();
       if (encapIndex.has_value()) {
         nbrEntry.encapIndex() = encapIndex.value();
       }
@@ -453,7 +457,21 @@ void NeighborCacheImpl<NTable>::repopulate(std::shared_ptr<NTable> table) {
     auto entry = it->second;
     auto state = entry->isPending() ? NeighborEntryState::INCOMPLETE
                                     : NeighborEntryState::STALE;
-    setEntryInternal(EntryFields::fromThrift(entry->toThrift()), state);
+
+    switch (entry->getType()) {
+      case state::NeighborEntryType::DYNAMIC_ENTRY:
+        setEntryInternal(
+            EntryFields::fromThrift(entry->toThrift()),
+            state,
+            state::NeighborEntryType::DYNAMIC_ENTRY);
+        break;
+      case state::NeighborEntryType::STATIC_ENTRY:
+        // We don't need to run Neighbor entry state machine for static
+        // entries. Thus, skip adding to the neighbor cache
+        XLOG(DBG2) << "Skip adding static entry to neighbor cache: "
+                   << entry->getIP().str();
+        break;
+    }
   }
 }
 
@@ -463,7 +481,10 @@ void NeighborCacheImpl<NTable>::setEntry(
     folly::MacAddress mac,
     PortDescriptor port,
     NeighborEntryState state) {
-  auto entry = setEntryInternal(EntryFields(ip, mac, port, intfID_), state);
+  auto entry = setEntryInternal(
+      EntryFields(ip, mac, port, intfID_),
+      state,
+      state::NeighborEntryType::DYNAMIC_ENTRY);
   if (entry) {
     programEntry(entry);
   }
@@ -475,8 +496,11 @@ void NeighborCacheImpl<NTable>::setExistingEntry(
     folly::MacAddress mac,
     PortDescriptor port,
     NeighborEntryState state) {
-  auto entry =
-      setEntryInternal(EntryFields(ip, mac, port, intfID_), state, false);
+  auto entry = setEntryInternal(
+      EntryFields(ip, mac, port, intfID_),
+      state,
+      state::NeighborEntryType::DYNAMIC_ENTRY,
+      false);
   if (entry) {
     // only program an entry if one exists
     programEntry(entry);
@@ -557,6 +581,7 @@ template <typename NTable>
 NeighborCacheEntry<NTable>* NeighborCacheImpl<NTable>::setEntryInternal(
     const EntryFields& fields,
     NeighborEntryState state,
+    state::NeighborEntryType type,
     bool add) {
   auto entry = getCacheEntry(fields.ip);
   if (entry) {
@@ -567,7 +592,7 @@ NeighborCacheEntry<NTable>* NeighborCacheImpl<NTable>::setEntryInternal(
     entry->updateState(state);
     return changed ? entry : nullptr;
   } else if (add) {
-    auto to_store = std::make_shared<Entry>(fields, evb_, cache_, state);
+    auto to_store = std::make_shared<Entry>(fields, evb_, cache_, state, type);
     entry = to_store.get();
     setCacheEntry(std::move(to_store));
   }
@@ -588,6 +613,7 @@ void NeighborCacheImpl<NTable>::setPendingEntry(
   auto entry = setEntryInternal(
       EntryFields(ip, intfID_, NeighborState::PENDING),
       NeighborEntryState::INCOMPLETE,
+      state::NeighborEntryType::DYNAMIC_ENTRY,
       true);
   if (entry) {
     programPendingEntry(entry, port, force);

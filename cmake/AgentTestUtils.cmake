@@ -12,6 +12,7 @@ target_link_libraries(acl_test_utils
   hw_switch
   switch_config_cpp2
   switch_state_cpp2
+  asic_test_utils
 )
 
 add_library(copp_test_utils
@@ -19,11 +20,12 @@ add_library(copp_test_utils
 )
 
 target_link_libraries(copp_test_utils
-  common_test_utils
+  asic_test_utils
   Folly::folly
   hw_switch
   load_balancer_test_utils
   packet
+  pkt_test_utils
   packet_factory
   resourcelibutil
   switch_asics
@@ -34,6 +36,7 @@ target_link_libraries(copp_test_utils
 )
 
 add_library(pkt_test_utils
+  fboss/agent/test/utils/PacketSendUtils.cpp
   fboss/agent/test/utils/PacketTestUtils.cpp
 )
 
@@ -75,6 +78,7 @@ add_library(olympic_qos_utils
 
 target_link_libraries(olympic_qos_utils
   fboss_types
+  asic_test_utils
   packet_factory
   Folly::folly
   switch_config_cpp2
@@ -89,6 +93,7 @@ target_link_libraries(port_test_utils
   Folly::folly
   switch_config_cpp2
   transceiver_cpp2
+  test_ensemble_if
   state
 )
 
@@ -98,19 +103,20 @@ add_library(config_utils
 
 target_link_libraries(config_utils
   agent_features
-  common_test_utils
+  asic_test_utils
   fboss_types
   Folly::folly
   platform_mapping
   switch_config_cpp2
   test_ensemble_if
+  port_test_utils
 )
 
-add_library(common_test_utils
-  fboss/agent/test/utils/CommonUtils.cpp
+add_library(asic_test_utils
+  fboss/agent/test/utils/AsicUtils.cpp
 )
 
-target_link_libraries(common_test_utils
+target_link_libraries(asic_test_utils
   core
   switch_asics
 )
@@ -121,7 +127,7 @@ add_library(qos_test_utils
 )
 
 target_link_libraries(qos_test_utils
-  common_test_utils
+  asic_test_utils
   ecmp_helper
   fboss_types
   switch_asics
@@ -130,12 +136,23 @@ target_link_libraries(qos_test_utils
   Folly::folly
 )
 
+add_library(l2learn_observer_util
+  fboss/agent/test/utils/L2LearningUpdateObserverUtil.cpp
+)
+
+target_link_libraries(l2learn_observer_util
+  core
+  l2learn_event_observer
+  Folly::folly
+)
+
 add_library(queue_per_host_test_utils
   fboss/agent/test/utils/QueuePerHostTestUtils.cpp
 )
 
+
 target_link_libraries(queue_per_host_test_utils
-  common_test_utils
+  asic_test_utils
   acl_test_utils
   common_utils
   config_utils
@@ -195,7 +212,9 @@ add_library(trap_packet_utils
 target_link_libraries(trap_packet_utils
   fboss_types
   Folly::folly
+  platform_config_cpp2
   switch_config_cpp2
+  switch_state_cpp2
 )
 
 add_library(stats_test_utils
@@ -239,7 +258,116 @@ target_link_libraries(packet_snooper
   core
   fboss_types
   packet
-  packet_observer
   packet_factory
+  Folly::folly
+)
+
+add_library(mac_test_utils
+  fboss/agent/test/utils/MacTestUtils.cpp
+)
+
+target_link_libraries(mac_test_utils
+  state
+  test_ensemble_if
+  network_address_cpp2
+)
+
+add_library(
+  load_balancer_test_runner_h
+  fboss/agent/test/utils/LoadBalancerTestRunner.h
+)
+
+
+target_link_libraries(load_balancer_test_runner_h
+  config_utils
+  ecmp_dataplane_test_util
+  load_balancer_test_utils
+  ${GTEST}
+
+  ecmp_helper
+  linkstate_toggler
+  test_ensemble_if
+  load_balancer_test_utils
+  fboss_types
+  route_update_wrapper
+)
+
+add_library(aqm_test_utils
+  fboss/agent/test/utils/AqmTestUtils.cpp
+)
+
+target_link_libraries(aqm_test_utils
+  switch_asics
+  switch_config_cpp2
+  fboss_error
+  port_test_utils
+  test_ensemble_if
+  common_utils
+  ${GTEST}
+)
+
+add_library(agent_hw_test_constants
+  fboss/agent/test/utils/AgentHwTestConstants.cpp
+)
+
+target_link_libraries(agent_hw_test_constants
+  mpls_cpp2
+)
+
+add_library(scale_test_utils
+  fboss/agent/test/utils/ScaleTestUtils.cpp
+)
+
+target_link_libraries(scale_test_utils
+  asic_test_utils
+  core
+  switch_asics
+)
+
+add_library(invariant_test_utils
+  fboss/agent/test/utils/InvariantTestUtils.cpp
+)
+
+target_link_libraries(invariant_test_utils
+  config_utils
+  copp_test_utils
+  load_balancer_test_utils
+  qos_test_utils
+  packet
+  packet_factory
+  test_ensemble_if
+  validated_shell_commands_cpp2
+)
+
+add_library(route_test_utils
+  fboss/agent/test/utils/RouteTestUtils.cpp
+)
+
+target_link_libraries(route_test_utils
+  route_update_wrapper
+  ctrl_cpp2
+  route_distribution_gen
+)
+
+add_library(queue_test_utils
+  fboss/agent/test/utils/QueueTestUtils.cpp
+)
+
+target_link_libraries(queue_test_utils
+  config_utils
+  olympic_qos_utils
+  switch_asics
+  switch_config_cpp2
+)
+
+add_library(mirror_test_utils
+  fboss/agent/test/utils/MirrorTestUtils.cpp
+)
+
+target_link_libraries(mirror_test_utils
+  config_utils
+  fboss_types
+  trap_packet_utils
+  switch_config_cpp2
   Folly::folly
 )

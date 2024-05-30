@@ -72,8 +72,18 @@ SaiSystemPortManager::attributesFromSwSystemPort(
       .speed = static_cast<uint32_t>(swSystemPort->getSpeedMbps()),
       .num_voq = static_cast<uint32_t>(swSystemPort->getNumVoqs()),
   };
+  std::optional<SaiSystemPortTraits::Attributes::QosTcToQueueMap>
+      qosTcToQueueMap = std::nullopt;
+  auto qosMapHandle =
+      managerTable_->qosMapManager().getQosMap(swSystemPort->getQosPolicy());
+  if (qosMapHandle && qosMapHandle->tcToVoqMap) {
+    auto qosMap = qosMapHandle->tcToVoqMap;
+    auto qosMapId = qosMap->adapterKey();
+    qosTcToQueueMap =
+        SaiSystemPortTraits::Attributes::QosTcToQueueMap{qosMapId};
+  }
   return SaiSystemPortTraits::CreateAttributes{
-      config, true /*enabled*/, std::nullopt};
+      config, true /*enabled*/, qosTcToQueueMap};
 }
 
 SystemPortSaiId SaiSystemPortManager::addSystemPort(
@@ -110,7 +120,6 @@ SystemPortSaiId SaiSystemPortManager::addSystemPort(
   concurrentIndices_->sysPortSaiIds.insert(
       {swSystemPort->getID(), saiSystemPort->adapterKey()});
   configureQueues(swSystemPort, swSystemPort->getPortQueues()->impl());
-  setQosPolicy(swSystemPort->getID(), swSystemPort->getQosPolicy());
   return saiSystemPort->adapterKey();
 }
 
@@ -193,7 +202,6 @@ void SaiSystemPortManager::changeSystemPort(
     removeSystemPort(oldSystemPort);
     addSystemPort(newSystemPort);
   } else {
-    handle->systemPort->setAttributes(newAttributes);
     if (oldSystemPort->getPortName() != newSystemPort->getPortName()) {
       // Port name changed - update stats
       portStats_.find(newSystemPort->getID())
@@ -328,7 +336,9 @@ std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
     int64_t switchId) {
   auto sysPortMap = std::make_shared<SystemPortMap>();
   const std::set<cfg::PortType> kCreateSysPortsFor = {
-      cfg::PortType::INTERFACE_PORT, cfg::PortType::RECYCLE_PORT};
+      cfg::PortType::INTERFACE_PORT,
+      cfg::PortType::RECYCLE_PORT,
+      cfg::PortType::EVENTOR_PORT};
   for (const auto& portMap : std::as_const(*ports)) {
     for (const auto& port : std::as_const(*portMap.second)) {
       if (kCreateSysPortsFor.find(port.second->getPortType()) ==
@@ -345,6 +355,7 @@ std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
       sysPort->setCorePortIndex(*platformPort->getCorePortIndex());
       sysPort->setSpeedMbps(static_cast<int>(port.second->getSpeed()));
       sysPort->setNumVoqs(8);
+      sysPort->setScope(platformPort->getScope());
       sysPort->setQosPolicy(port.second->getQosPolicy());
       sysPortMap->addSystemPort(std::move(sysPort));
     }

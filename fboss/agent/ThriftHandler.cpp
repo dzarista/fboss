@@ -348,6 +348,7 @@ void getPortInfoHelper(
     portInfo.activeState() = PortActiveState(
         port->getActiveState().value() == Port::ActiveState::ACTIVE);
   }
+  portInfo.activeErrors() = port->getActiveErrors();
 
   *portInfo.profileID() = apache::thrift::util::enumName(port->getProfileID());
 
@@ -651,6 +652,10 @@ void addRecylePortRifNeighbors(
       nbrThrift.ip() = facebook::network::toBinaryAddress(entry->getIP());
       nbrThrift.mac() = entry->getMac().toString();
       nbrThrift.port() = kRecyclePortId;
+      nbrThrift.portDescriptor()->portId() = kRecyclePortId;
+      nbrThrift.portDescriptor()->portType() =
+          cfg::PortDescriptorType::Physical;
+
       nbrThrift.vlanName() = "--";
       nbrThrift.interfaceID() = kRecyclePortId;
       // Local recycle port for RIF, should always be STATIC
@@ -971,8 +976,23 @@ void ThriftHandler::addRemoteNeighbors(
     return;
   }
   for (auto& nbr : nbrs) {
-    if (*nbr.port()) {
-      nbr.switchId() = state->getAssociatedSwitchID(PortID(*nbr.port()));
+    if (nbr.portDescriptor().has_value()) {
+      PortID portID;
+      switch (*nbr.portDescriptor().value().portType()) {
+        case cfg::PortDescriptorType::Physical:
+          portID = *nbr.portDescriptor().value().portId();
+          break;
+        case cfg::PortDescriptorType::SystemPort:
+          portID = getPortID(
+              SystemPortID(*nbr.portDescriptor().value().portId()), state);
+          break;
+        case cfg::PortDescriptorType::Aggregate:
+          throw FbossError(
+              "Aggregate ports are not yet supported for VOQ switches");
+          break;
+      }
+
+      nbr.switchId() = state->getAssociatedSwitchID(portID);
     }
   }
   const auto& remoteRifs = state->getRemoteInterfaces();
@@ -989,6 +1009,9 @@ void ThriftHandler::addRemoteNeighbors(
         nbrThrift.mac() = entry->getMac().toString();
         CHECK(rif->getSystemPortID().has_value());
         nbrThrift.port() = static_cast<int32_t>(*rif->getSystemPortID());
+        nbrThrift.portDescriptor()->portId() = *rif->getSystemPortID();
+        nbrThrift.portDescriptor()->portType() =
+            cfg::PortDescriptorType::SystemPort;
         nbrThrift.vlanName() = "--";
         nbrThrift.interfaceID() = static_cast<int32_t>(*rif->getSystemPortID());
 
@@ -1080,7 +1103,7 @@ void ThriftHandler::getL2Table(std::vector<L2EntryThrift>& l2Table) {
           l2Table.end(), l2TableForSwitch.begin(), l2TableForSwitch.end());
     }
   } else {
-    sw_->getHwSwitchHandler()->fetchL2Table(&l2Table);
+    sw_->getMonolithicHwSwitchHandler()->fetchL2Table(&l2Table);
   }
   XLOG(DBG6) << "L2 Table size:" << l2Table.size();
 }
@@ -1377,7 +1400,11 @@ void ThriftHandler::patchCurrentStateJSONForPaths(
   auto updateDsfStateFn = [this, switchId2SystemPorts, switchId2Rifs](
                               const std::shared_ptr<SwitchState>& in) {
     auto newState = DsfStateUpdaterUtil::getUpdatedState(
-        in, sw_->getScopeResolver(), switchId2SystemPorts, switchId2Rifs);
+        in,
+        sw_->getScopeResolver(),
+        sw_->getRib(),
+        switchId2SystemPorts,
+        switchId2Rifs);
     return newState;
   };
 
@@ -1503,9 +1530,12 @@ void ThriftHandler::getPortPrbsStats(
     prbsStats.component() = phy::PortComponent::ASIC;
     for (const auto& lane : asicPrbsStats) {
       prbsStats.laneStats()->push_back(lane);
+      auto timeCollected = lane.timeCollected().value();
+      // Store most recent timeCollected across all lane stats
+      if (timeCollected > prbsStats.timeCollected()) {
+        prbsStats.timeCollected() = timeCollected;
+      }
     }
-    auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
-    prbsStats.timeCollected() = now.count();
   } else if (
       component == phy::PortComponent::GB_SYSTEM ||
       component == phy::PortComponent::GB_LINE) {
@@ -2694,7 +2724,11 @@ void ThriftHandler::getMplsRouteDetails(
 void ThriftHandler::getHwDebugDump(std::string& out) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  out = sw_->getHwSwitchHandler()->getDebugDump();
+  if (sw_->isRunModeMonolithic()) {
+    out = sw_->getMonolithicHwSwitchHandler()->getDebugDump();
+  } else {
+    throw FbossError("getHwDebugDump is not supported onmulti switch");
+  }
 }
 
 void ThriftHandler::getPlatformMapping(cfg::PlatformMapping& ret) {
@@ -2707,7 +2741,12 @@ void ThriftHandler::listHwObjects(
     bool cached) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  out = sw_->getHwSwitchHandler()->listObjects(*hwObjects, cached);
+  if (sw_->isRunModeMonolithic()) {
+    out = sw_->getMonolithicHwSwitchHandler()->listObjects(*hwObjects, cached);
+  } else {
+    throw FbossError(
+        "listHwObjects() is not supported for fboss_sw_agent. Clients should query hw agent insted");
+  }
 }
 
 void ThriftHandler::getBlockedNeighbors(
@@ -3059,10 +3098,15 @@ void ThriftHandler::getDsfSubscriptions(
     for (const auto& [_, node] : std::as_const(*dsfNodes)) {
       if (node->getType() == cfg::DsfNodeType::INTERFACE_NODE &&
           node->getLoopbackIps()->size()) {
-        const auto loopbackIp = (*node->getLoopbackIps()->cbegin())->toThrift();
-        loopbackIpToName.emplace(
-            IPAddress(loopbackIp.substr(0, loopbackIp.find("/"))),
-            node->getName());
+        auto loopbackIps = node->getLoopbackIps()->toThrift();
+        std::for_each(
+            loopbackIps.begin(),
+            loopbackIps.end(),
+            [&loopbackIpToName, node = node](const auto& loopbackSubnet) {
+              loopbackIpToName.emplace(
+                  IPAddress(loopbackSubnet.substr(0, loopbackSubnet.find("/"))),
+                  node->getName());
+            });
       }
     }
   }
@@ -3077,6 +3121,9 @@ void ThriftHandler::getDsfSubscriptions(
     auto serverIp = IPAddress(subscriptionInfo.server);
     if (loopbackIpToName.find(serverIp) != loopbackIpToName.end()) {
       subscriptionThrift.name() = loopbackIpToName[serverIp];
+      subscriptionThrift.ip() = serverIp.str();
+      subscriptionThrift.subscriptionId() = DsfSubscriber::makeRemoteEndpoint(
+          *subscriptionThrift.name(), serverIp);
       subscriptions.push_back(subscriptionThrift);
     } else {
       XLOG(ERR) << "Unable to find loopback ip " << subscriptionInfo.server
@@ -3154,12 +3201,35 @@ void ThriftHandler::getMultiSwitchRunState(MultiSwitchRunState& runState) {
   runState.swSwitchRunState() = sw_->getSwitchRunState();
   runState.hwIndexToRunState() =
       sw_->getHwSwitchHandler()->getHwSwitchRunStates();
+  runState.multiSwitchEnabled() = sw_->isRunModeMultiSwitch();
 }
 
 void ThriftHandler::getAllEcmpDetails(std::vector<EcmpDetails>& ecmpDetails) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  ecmpDetails = sw_->getHwSwitchHandler()->getAllEcmpDetails();
+  if (sw_->isRunModeMonolithic()) {
+    ecmpDetails = sw_->getMonolithicHwSwitchHandler()->getAllEcmpDetails();
+  } else {
+    throw FbossError("getAllEcmpDetails is not supported in multi-switch mode");
+  }
+}
+
+void ThriftHandler::getSwitchIndicesForInterfaces(
+    std::map<int16_t, std::vector<std::string>>& switchIndicesForInterfaces,
+    std::unique_ptr<std::vector<std::string>> interfaces) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  for (const auto& interface : *interfaces) {
+    auto switchIndex = sw_->getSwitchIndexForInterface(interface);
+    auto switchIndicesForInterfacesItr =
+        switchIndicesForInterfaces.find(switchIndex);
+    if (switchIndicesForInterfacesItr == switchIndicesForInterfaces.end()) {
+      std::vector<std::string> switchIndexInterfaces{interface};
+      switchIndicesForInterfaces[switchIndex] = switchIndexInterfaces;
+    } else {
+      switchIndicesForInterfaces[switchIndex].push_back(interface);
+    }
+  }
 }
 
 } // namespace facebook::fboss

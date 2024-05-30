@@ -14,12 +14,19 @@
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/PortStats.h"
 #include "fboss/agent/SwSwitch.h"
+#include "fboss/agent/SwitchIdScopeResolver.h"
+#include "fboss/agent/SwitchInfoTable.h"
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/state/DeltaFunctions.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/StateDelta.h"
+#include "fboss/agent/state/SwitchSettings.h"
 
+DEFINE_bool(
+    disable_looped_fabric_ports,
+    true,
+    "Disable fabric ports where loop is detected to stop traffic blackholing");
 namespace facebook::fboss {
 namespace {
 struct BwInfo {
@@ -36,7 +43,117 @@ PortUpdateHandler::~PortUpdateHandler() {
   sw_->unregisterStateObserver(this);
 }
 
+void PortUpdateHandler::disableIfLooped(
+    const std::shared_ptr<Port>& newPort,
+    const std::shared_ptr<SwitchState>& newState) {
+  if (!FLAGS_disable_looped_fabric_ports) {
+    return;
+  }
+  if (newPort->getPortType() != cfg::PortType::FABRIC_PORT) {
+    // Not a fabric port, nothing to do
+    return;
+  }
+  if (!newPort->getLedPortExternalState() ||
+      newPort->getLedPortExternalState() !=
+          PortLedExternalState::CABLING_ERROR_LOOP_DETECTED) {
+    // No loop detected, nothing to do
+    return;
+  }
+
+  if (newPort->isDrained() ||
+      (newPort->getActiveState().has_value() && !newPort->isActive().value())) {
+    // Port is drained or inactive, nothing to do
+    return;
+  }
+
+  auto portScope = sw_->getScopeResolver()->scope(newPort);
+  if (newState->getSwitchSettings()
+          ->getSwitchSettings(portScope)
+          ->isSwitchDrained()) {
+    // Switch is drained, nothing to do
+    return;
+  }
+  if (sw_->getSwitchInfoTable()
+          .getSwitchInfo(portScope.switchId())
+          .switchType() != cfg::SwitchType::FABRIC) {
+    // Not a fabric switch, nothing to do
+    return;
+  }
+  if (newPort->getAdminState() == cfg::PortState::DISABLED) {
+    // Port already disabled, nothing to do
+    return;
+  }
+  XLOG(DBG2) << " Loop detected on : " << newPort->getName()
+             << ", disabling port ";
+
+  auto portId = newPort->getID();
+  sw_->updateState(
+      folly::sformat("Disable undrained, looped port: {}", newPort->getName()),
+      [portId](const std::shared_ptr<SwitchState>& in) {
+        auto out = in->clone();
+        auto curPort = out->getPorts()->getNode(portId);
+        auto port = curPort->modify(&out);
+        port->setAdminState(cfg::PortState::DISABLED);
+        port->addError(PortError::ERROR_DISABLE_LOOP_DETECTED);
+        return out;
+      });
+}
+
+void PortUpdateHandler::checkNewlyUndrained(const StateDelta& delta) {
+  bool newlyUndrained{false};
+  DeltaFunctions::forEachChanged(
+      delta.getSwitchSettingsDelta(),
+      [&](const std::shared_ptr<SwitchSettings>& oldSwitchSettings,
+          const std::shared_ptr<SwitchSettings>& newSwitchSettings) {
+        newlyUndrained |=
+            (!newSwitchSettings->isSwitchDrained() &&
+             newSwitchSettings->isSwitchDrained() !=
+                 oldSwitchSettings->isSwitchDrained());
+      },
+      [&](const std::shared_ptr<SwitchSettings>& newSwitchSettings) {
+        newlyUndrained |= !newSwitchSettings->isSwitchDrained();
+      },
+      [](const std::shared_ptr<SwitchSettings>& oldSwitchSettings) {});
+  if (newlyUndrained) {
+    auto state = delta.newState();
+    for (auto& portMap : std::as_const(*state->getPorts())) {
+      for (auto& [_, port] : std::as_const(*portMap.second)) {
+        disableIfLooped(port, state);
+      }
+    }
+  }
+}
+void PortUpdateHandler::clearErrorDisableLoopDetected(
+    const std::shared_ptr<Port>& newPort,
+    const std::shared_ptr<SwitchState>& newState) {
+  const auto& errors = newPort->getActiveErrors();
+  if (std::find(
+          errors.begin(),
+          errors.end(),
+          PortError::ERROR_DISABLE_LOOP_DETECTED) == errors.end()) {
+    return;
+  }
+  XLOG(DBG2) << " Clearing error disable loop detected on : "
+             << newPort->getName();
+
+  auto portId = newPort->getID();
+  sw_->updateState(
+      folly::sformat(
+          "Clear error disable loop detected on: {}", newPort->getName()),
+      [portId](const std::shared_ptr<SwitchState>& in) {
+        auto out = in->clone();
+        auto curPort = out->getPorts()->getNode(portId);
+        if (!curPort->isEnabled()) {
+          return std::shared_ptr<SwitchState>();
+        }
+        auto port = curPort->modify(&out);
+        port->removeError(PortError::ERROR_DISABLE_LOOP_DETECTED);
+        return out;
+      });
+}
+
 void PortUpdateHandler::stateUpdated(const StateDelta& delta) {
+  checkNewlyUndrained(delta);
   DeltaFunctions::forEachChanged(
       delta.getPortsDelta(),
       [&](const std::shared_ptr<Port>& oldPort,
@@ -66,9 +183,19 @@ void PortUpdateHandler::stateUpdated(const StateDelta& delta) {
           }
           sw_->publishPhyInfoSnapshots(oldPort->getID());
         }
+        disableIfLooped(newPort, delta.newState());
+        // Clear error
+        if (newPort->isEnabled() && !oldPort->isEnabled()) {
+          clearErrorDisableLoopDetected(newPort, delta.newState());
+        }
       },
       [&](const std::shared_ptr<Port>& newPort) {
         sw_->portStats(newPort->getID())->setPortStatus(newPort->isUp());
+        disableIfLooped(newPort, delta.newState());
+        if (newPort->isEnabled()) {
+          // For WB case where all ports will show up as newly added
+          clearErrorDisableLoopDetected(newPort, delta.newState());
+        }
       },
       [&](const std::shared_ptr<Port>& oldPort) {
         for (SwitchStats& switchStats : sw_->getAllThreadsSwitchStats()) {

@@ -15,6 +15,9 @@
 #include <folly/logging/xlog.h>
 #include "fboss/lib/LogThriftCall.h"
 
+using std::chrono::seconds;
+using std::chrono::system_clock;
+
 namespace facebook::fboss {
 
 SaiHandler::SaiHandler(SaiSwitch* hw)
@@ -180,4 +183,101 @@ void SaiHandler::listHwObjects(
   out = hw_->listObjects(*hwObjects, cached);
 }
 
+BootType SaiHandler::getBootType() {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  hw_->ensureConfigured(__func__);
+  return hw_->getBootType();
+}
+
+void SaiHandler::getAllInterfacePrbsStates(
+    std::map<std::string, prbs::InterfacePrbsState>& prbsStates,
+    phy::PortComponent component) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  if (component != phy::PortComponent::ASIC) {
+    throw FbossError("Unsupported component");
+  }
+  hw_->ensureConfigured(__func__);
+  std::shared_ptr<SwitchState> swState = hw_->getProgrammedState();
+  for (const auto& portMap : std::as_const(*(swState->getPorts()))) {
+    for (const auto& port : std::as_const(*portMap.second)) {
+      if (port.second->getPortType() == cfg::PortType::INTERFACE_PORT ||
+          port.second->getPortType() == cfg::PortType::FABRIC_PORT ||
+          port.second->getPortType() == cfg::PortType::MANAGEMENT_PORT) {
+        prbsStates[port.second->getName()] =
+            hw_->getPortPrbsState(port.second->getID());
+      }
+    }
+  }
+}
+
+void SaiHandler::getAllInterfacePrbsStats(
+    std::map<std::string, phy::PrbsStats>& prbsStats,
+    phy::PortComponent component) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  if (component != phy::PortComponent::ASIC) {
+    throw FbossError("Unsupported component");
+  }
+  hw_->ensureConfigured(__func__);
+  std::shared_ptr<SwitchState> swState = hw_->getProgrammedState();
+  for (const auto& portMap : std::as_const(*(swState->getPorts()))) {
+    for (const auto& port : std::as_const(*portMap.second)) {
+      if (port.second->getPortType() == cfg::PortType::INTERFACE_PORT ||
+          port.second->getPortType() == cfg::PortType::FABRIC_PORT ||
+          port.second->getPortType() == cfg::PortType::MANAGEMENT_PORT) {
+        auto prbsState = hw_->getPortPrbsState(port.second->getID());
+        auto generatorEnabled = prbsState.generatorEnabled();
+        auto checkerEnabled = prbsState.checkerEnabled();
+        if (generatorEnabled && checkerEnabled) {
+          auto prbsEnabled =
+              (generatorEnabled.value() && checkerEnabled.value());
+          if (prbsEnabled) {
+            phy::PrbsStats prbsStatsEntry;
+            auto asicPrbsStats =
+                hw_->getPortAsicPrbsStats(port.second->getID());
+            prbsStatsEntry.portId() = port.second->getID();
+            prbsStatsEntry.component() = phy::PortComponent::ASIC;
+            for (const auto& lane : asicPrbsStats) {
+              prbsStatsEntry.laneStats()->push_back(lane);
+              auto timeCollected = lane.timeCollected().value();
+              // Store most recent timeCollected across all lane stats
+              if (timeCollected > prbsStatsEntry.timeCollected()) {
+                prbsStatsEntry.timeCollected() = timeCollected;
+              }
+            }
+            prbsStats[port.second->getName()] = prbsStatsEntry;
+          }
+        }
+      }
+    }
+  }
+}
+
+void SaiHandler::bulkClearInterfacePrbsStats(
+    std::unique_ptr<std::vector<std::string>> interfaces,
+    phy::PortComponent component) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  if (component != phy::PortComponent::ASIC) {
+    throw FbossError("Unsupported component");
+  }
+  hw_->ensureConfigured(__func__);
+  std::shared_ptr<SwitchState> swState = hw_->getProgrammedState();
+  for (const auto& interface : *interfaces) {
+    auto port = swState->getPorts()->getPort(interface);
+    auto prbsState = hw_->getPortPrbsState(port->getID());
+    auto generatorEnabled = prbsState.generatorEnabled();
+    auto checkerEnabled = prbsState.checkerEnabled();
+    if (generatorEnabled && checkerEnabled) {
+      auto prbsEnabled = (generatorEnabled.value() && checkerEnabled.value());
+      if (!prbsEnabled) {
+        throw FbossError(
+            "Cannot clear PRBS stats for interface: " + interface +
+            " with PRBS disabled");
+      }
+    }
+  }
+  for (const auto& interface : *interfaces) {
+    auto port = swState->getPorts()->getPort(interface);
+    hw_->clearPortAsicPrbsStats(port->getID());
+  }
+}
 } // namespace facebook::fboss

@@ -25,24 +25,23 @@ void addProdFeaturesToConfig(
   /*
    * Configures port queue for cpu port
    */
-  utility::addCpuQueueConfig(config, hwAsic, isSai);
+  utility::addCpuQueueConfig(config, {hwAsic}, isSai);
   if (hwAsic->isSupported(HwAsic::Feature::L3_QOS)) {
     /*
      * Enable Olympic QOS
      */
-    utility::addOlympicQosMaps(config, hwAsic);
+    utility::addOlympicQosMaps(config, {hwAsic});
 
     /*
      * Enable Olympic Queue Config
      */
-    auto streamType =
-        *(hwAsic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicQueueConfig(&config, streamType, hwAsic, true);
+    utility::addOlympicQueueConfig(&config, {hwAsic}, true);
   }
   /*
    * Configure COPP, CPU traffic policy and ACLs
    */
-  utility::setDefaultCpuTrafficPolicyConfig(config, hwAsic, isSai);
+  utility::setDefaultCpuTrafficPolicyConfig(
+      config, std::vector<const HwAsic*>({hwAsic}), isSai);
 
   /*
    * Enable Load balancer

@@ -18,6 +18,7 @@
 #include <fboss/thrift_cow/storage/CowStorage.h>
 #include <fboss/thrift_cow/visitors/DeltaVisitor.h>
 #include <fboss/thrift_cow/visitors/ExtendedPathVisitor.h>
+#include <fboss/thrift_cow/visitors/PatchBuilder.h>
 #include <fboss/thrift_cow/visitors/PathVisitor.h>
 #include <fboss/thrift_cow/visitors/RecurseVisitor.h>
 #include <folly/Traits.h>
@@ -68,6 +69,7 @@ class OperDeltaUnitCache {
       case fsdb::OperProtocol::SIMPLE_JSON:
         return jsonUnit();
     }
+    throw std::runtime_error("Unsupported protocol");
   }
 
  private:
@@ -117,7 +119,7 @@ class CowSubscriptionManager
       newState->metadata() = subscription->getMetadata(metadataServer);
     }
     auto value = DeltaValue<OperState>(oldState, newState);
-    subscription->offer(std::any(std::move(value)));
+    subscription->offer(std::move(value));
   }
 
   void doInitialSyncSimple(
@@ -150,9 +152,9 @@ class CowSubscriptionManager
             state->protocol() = *proto;
             state->metadata() = subscription->getMetadata(metadataServer);
             auto value = DeltaValue<OperState>(std::nullopt, std::move(state));
-            pathSubscription->offer(std::any(std::move(value)));
+            pathSubscription->offer(std::move(value));
           }
-        } else {
+        } else if (subscription->type() == PubSubType::DELTA) {
           // Delta subscription
           CHECK(subscription->operProtocol());
           OperDeltaUnit deltaUnit;
@@ -162,6 +164,16 @@ class CowSubscriptionManager
               static_cast<BaseDeltaSubscription*>(subscription);
           deltaSubscription->appendRootDeltaUnit(std::move(deltaUnit));
           deltaSubscription->flush(metadataServer);
+        } else if (subscription->type() == PubSubType::PATCH) {
+          auto patchSubscription =
+              static_cast<PatchSubscription*>(subscription);
+          thrift_cow::PatchNode patchNode;
+          // TODO: try to change to a shared holding a IOBuf instead of copying
+          // from an fbstring
+          auto buf = folly::IOBuf::copyBuffer(op.val->data(), op.val->length());
+          patchNode.set_val(*buf);
+          patchSubscription->setPatchRoot(std::move(patchNode));
+          patchSubscription->flush(metadataServer);
         }
       } else if (this->requireResponseOnInitialSync_) {
         // on initialSync, offer even an empty value
@@ -198,8 +210,9 @@ class CowSubscriptionManager
             *this, subscription, pathNum, emptyPathSoFar);
 
         const auto& path = paths.at(pathNum);
+        thrift_cow::ExtPathVisitorOptions options(this->useIdPaths_);
         thrift_cow::RootExtendedPathVisitor::visit(
-            root, path.path()->begin(), path.path()->end(), process);
+            root, path.path()->begin(), path.path()->end(), options, process);
       }
       it = this->initialSyncNeededExtended_.erase(it);
     }
@@ -284,41 +297,65 @@ class CowSubscriptionManager
                              auto& oldNode,
                              auto& newNode,
                              thrift_cow::DeltaElemTag visitTag) {
-      auto path = traverser.path();
+      // build out patch before trying to send to subscribers.
+      // Patches are only supported if we're using id paths
+      if (visitTag == thrift_cow::DeltaElemTag::MINIMAL &&
+          traverser.patchBuilder()) {
+        traverser.patchBuilder()->setLeafPatch(newNode);
+      }
 
-      // lookup can't be none or we wouldn't be serving this subscription
       const auto* lookup = traverser.currentStore();
-      DCHECK(lookup);
+      if (!FLAGS_lazyPathStoreCreation) {
+        // lookup can't be none or we wouldn't be serving this subscription
+        DCHECK(lookup);
+      } else {
+        // with lazy path store creation, we may not have created the PathStore
+        // yet. But there can still be subscriptions at parent nodes to serve.
+        // So proceed with processing the change.
+      }
 
-      const auto& exactSubscriptions = lookup->subscriptions();
+      auto& path = traverser.path();
+
       csm_detail::OperDeltaUnitCache deltaUnitCache(path, oldNode, newNode);
 
-      for (auto& relevant : exactSubscriptions) {
-        if (relevant->type() == PubSubType::PATH) {
-          auto* pathSubscription = static_cast<BasePathSubscription*>(relevant);
+      if (lookup) {
+        const auto& exactSubscriptions = lookup->subscriptions();
+        for (auto& relevant : exactSubscriptions) {
+          if (relevant->type() == PubSubType::PATH) {
+            auto* pathSubscription =
+                static_cast<BasePathSubscription*>(relevant);
 
-          if (auto proto = pathSubscription->operProtocol(); proto) {
-            servePathEncoded(
-                pathSubscription,
-                oldNode,
-                newNode,
-                *proto,
-                newStorage,
-                metadataServer);
-          }
-        } else {
-          // serve delta subscriptions if it's a MINIMAL change
-          // OR
-          // if this is a fully added/removed node and there are exact
-          // delta subscriptions, we serve them. This handles the case
-          // where a change won't be "MINIMAL" relative to the root,
-          // but is relative to the subscription point. This is mainly
-          // for children of a fully added/removed node higher in the tree.
-          if (visitTag == thrift_cow::DeltaElemTag::MINIMAL || !oldNode ||
-              !newNode) {
-            auto* deltaSubscription = static_cast<DeltaSubscription*>(relevant);
-            deltaSubscription->appendRootDeltaUnit(
-                deltaUnitCache.getEncoded(*relevant->operProtocol()));
+            if (auto proto = pathSubscription->operProtocol(); proto) {
+              servePathEncoded(
+                  pathSubscription,
+                  oldNode,
+                  newNode,
+                  *proto,
+                  newStorage,
+                  metadataServer);
+            }
+          } else if (relevant->type() == PubSubType::DELTA) {
+            // serve delta subscriptions if it's a MINIMAL change
+            // OR
+            // if this is a fully added/removed node and there are exact
+            // delta subscriptions, we serve them. This handles the case
+            // where a change won't be "MINIMAL" relative to the root,
+            // but is relative to the subscription point. This is mainly
+            // for children of a fully added/removed node higher in the tree.
+            if (visitTag == thrift_cow::DeltaElemTag::MINIMAL || !oldNode ||
+                !newNode) {
+              auto* deltaSubscription =
+                  static_cast<DeltaSubscription*>(relevant);
+              deltaSubscription->appendRootDeltaUnit(
+                  deltaUnitCache.getEncoded(*relevant->operProtocol()));
+            }
+          } else if (
+              relevant->type() == PubSubType::PATCH &&
+              traverser.patchBuilder()) {
+            // patches only supported when using id paths
+            auto* patchSubscription = static_cast<PatchSubscription*>(relevant);
+            patchSubscription->setPatchRoot(
+                traverser.patchBuilder()->curPatch());
           }
         }
       }
@@ -333,6 +370,10 @@ class CowSubscriptionManager
       const auto& traverseElements = traverser.elementsAlongPath();
       for (auto it = traverseElements.begin(); it != traverseElements.end() - 1;
            ++it) {
+        if (!it->lookup) {
+          // no path store for this path, so subscriptions to serve
+          continue;
+        }
         const auto& parentSubscriptions = it->lookup->subscriptions();
         for (auto& relevant : parentSubscriptions) {
           if (relevant->type() != PubSubType::DELTA) {
@@ -348,7 +389,12 @@ class CowSubscriptionManager
     const auto& [oldRoot, newRoot] =
         std::tie(oldStorage.root(), newStorage.root());
 
-    CowSubscriptionTraverseHelper traverser(&this->lookup_);
+    // can only build patches with id paths
+    std::optional<thrift_cow::PatchNodeBuilder> patchBuilder;
+    if (this->useIdPaths_) {
+      patchBuilder.emplace();
+    }
+    CowSubscriptionTraverseHelper traverser(&this->lookup_, patchBuilder);
     if (oldRoot && newRoot) {
       thrift_cow::RootDeltaVisitor::visit(
           traverser,
