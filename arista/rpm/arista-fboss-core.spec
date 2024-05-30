@@ -35,6 +35,8 @@ cp -f scripts/run_fan_service.sh %{_fboss_target_bin}
 cp -f scripts/run_sensor_service.sh %{_fboss_target_bin}
 cp -f scripts/run_qsfp_service.sh %{_fboss_target_bin}
 cp -f scripts/run_wedge_agent.sh %{_fboss_target_bin}
+cp -f scripts/run_sw_agent.sh %{_fboss_target_bin}
+cp -f scripts/run_hw_agent.sh %{_fboss_target_bin}
 cp -f scripts/run_hw_tests_dnx.sh %{_fboss_target_bin}
 cp -f scripts/fboss-state-sync.py %{_fboss_target_bin}
 cp -f scripts/cpu-oob-eeprom-util.sh %{_fboss_target_bin}
@@ -48,6 +50,8 @@ install systemd/sensor_service.service %{_fboss_target_systemd}
 install systemd/fan_service.service %{_fboss_target_systemd}
 install systemd/qsfp_service.service %{_fboss_target_systemd}
 install systemd/wedge_agent.service %{_fboss_target_systemd}
+install systemd/fboss_sw_agent.service %{_fboss_target_systemd}
+install systemd/fboss_hw_agent@.service %{_fboss_target_systemd}
 install systemd/rackmon.service %{_fboss_target_systemd}
 
 %files

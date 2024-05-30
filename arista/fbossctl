@@ -146,8 +146,10 @@ maybe_setup_build_env() {
    # Centos 9 build related patches and deps
    if [[ "${CENTOS_RELEASE}" == "9" ]];
    then
-      wget http://dist/storage/fboss/FBOSS-SAI/el9/CS00012328096_01_fixes_to_compile_on_Centos9_SDK_6_5_30_SP3.patch
-      patch -p1 < CS00012328096_01_fixes_to_compile_on_Centos9_SDK_6_5_30_SP3.patch
+      el9_sdk_patch_file="CS00012328096_makefile_no_err_gcc_options.patch"
+      cd hsdk-all-6.5.30
+      wget http://dist/storage/fboss/FBOSS-SAI/el9/$el9_sdk_patch_file
+      patch -p1 < "$el9_sdk_patch_file"
       # Copy some deps required for centos 9 build
       # libnsl.a needs to be copied over to /usr/lib64 in the container.
       cd "${FBOSS_HOST_DIR}"
