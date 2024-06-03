@@ -8,6 +8,7 @@ from ArosTest.DutMgmt import defaultEdut
 
 import argparse
 import CliTest
+import csv
 import datetime
 import pandas as pd
 import re
@@ -100,11 +101,11 @@ class FbossFanTestEdut():
    def getTotalSystemPower( self ):
       '''Return the total system power in Watts'''
       totalPower = 0.0
-      shPower = self.edut.showCmdIs( 'show sys env pow',
+      shPower = self.edut.showCmdIs( 'show sys env pow detail',
                                      dataFormat='json' )
       for slot in shPower[ 'powerSupplies' ]:
          totalPower += shPower[ 'powerSupplies' ][
-                                slot ][ 'outputPower' ]
+                                slot ][ 'inputPower' ]
       return totalPower
 
    def shutEosFanControl( self ):
@@ -139,7 +140,7 @@ class FbossFanTestEdut():
       raise NotImplementedError
 
    def getHottestOpticTemp( self ):
-      return max( self.getOpticTemps() )
+      return max( self.getOpticTemps().values() )
 
    def getHottestAsicTemp( self ):
       return max( self.getAsicTemps() )
@@ -166,7 +167,7 @@ class FbossFanTestEdut():
       return self.edut.showCmdIs( 'show int st' )
    
    def getSystemIntfsConnectedCount( self ):
-      return self.edut.showCmdIs( 'sh int st | grep connected | wc -l' )
+      return int ( self.edut.showCmdIs( 'sh int st | grep connected | wc -l' )[ 0 ] )
 
    def getSystemIntfsCountRates( self ):
       return self.edut.showCmdIs( 'show int count rates' )
@@ -196,6 +197,50 @@ class FbossFanTestEdut():
       cli.gotoMode( CliTest.enableMode )
       with CliTest.MaybeRunInConfigSession( cli ):
          cli.runCmd( "environment fan-speed override 30" )
+
+   def collectDataRaw( self ):
+      '''Return an object with all RAW data collected'''
+      hottestOptic = self.getHottestOpticTemp()
+      opticTemps = self.getOpticTemps()
+      fanPwms = self.getFanPwms()
+      fanRpms = self.getFanRpms()
+      psuRpms = self.getPsuRpms()
+      avgFanPwm = self.getAvgFanPwm()
+      cfm = self.getCFM( avgFanPwm )
+      power = self.getTotalSystemPower()
+      inletTemp = self.getInletTemp()
+      outletTemp = self.getOutletTemp()
+
+      rawData =  {
+            'AvgRpm': round( self.getAvgFanRpm(), 4 ),
+            'HottestOptic': round( hottestOptic, 4 ),
+            'HottestAsic': round( self.getHottestAsicTemp(), 4),
+            'HottestCpuTemp': round( self.getHottestCpuTemp(), 4),
+            'AvgFanPwm': round( avgFanPwm, 4 ),
+            'Airflow(CFM)': round( cfm, 4 ),
+            'SystemPower': round( power, 4 ),
+            'Inlet': round( inletTemp, 4 ),
+            'Outlet': round( outletTemp, 4 ),
+            'SsdTemp': round( self.getSsdTemp(), 4 ),
+            'CFM/W': round(cfm / power, 4),
+            'AvgPsusRpm': round( self.getAvgPsuFanRpm(), 4 ),
+            'AvgTrafficRate': round( self.getAvgTrafficRate(), 4 ),
+            'Connected': self.getSystemIntfsConnectedCount()
+      }
+
+      for opticName, opticTemp in opticTemps.items():
+         rawData[opticName] = opticTemp
+
+      for fanIdx, fanPwm in enumerate(fanPwms):
+         rawData[f'fan{fanIdx}'] = fanPwm
+
+      for fanIdx, fanRpm in enumerate(fanRpms):
+         rawData[f'fan{fanIdx}'] = fanRpm
+
+      for psuIdx, psuRpm in enumerate(psuRpms):
+         rawData[f'psu{psuIdx}'] = psuRpm
+      
+      return rawData
 
    def collectData( self ):
       '''Return an object with all collected data'''
@@ -234,7 +279,7 @@ class FbossFanTestEdut():
       data = self.collectData()
       for key, val in data.items():
          # Ignore deltaT and opticsMargin30C as they are calculated and maybe <= 0
-         if val <= 0 and key not in ( 'deltaT', 'opticsMargin', 'opticsMargin30C' ):
+         if val <= 0 and key not in ( 'deltaT', 'opticsMargin', 'opticsMargin30C',  ):
             raise ValueError(f'{key} reading invalid value ({val})')
 
 class Maunakea( FbossFanTestEdut ):
@@ -253,12 +298,12 @@ class Monterey( Maunakea ):
    '''Class that defines some Monterey helpers to collect
    FSCD qualification data'''
    def getOpticTemps( self ):
-      opticsTemps = []
+      opticsTemps = {}
       shXcvr = self.edut.showCmdIs( 'show int transc', dataFormat='json' )[
                                     'interfaces' ]
       for intf in shXcvr:
          if 'temperature' in intf:
-            opticsTemps.append( shXcvr[ intf ][ 'temperature' ] )
+            opticsTemps[intf] = shXcvr[ intf ][ 'temperature' ]
       return opticsTemps
 
    def getAsicTemps( self ):
@@ -339,12 +384,12 @@ class Viper( Maunakea ):
       return fanIds
 
    def getOpticTemps( self ):
-      opticsTemps = []
+      opticsTemps = {}
       shXcvr = self.edut.showCmdIs( 'show int transc', dataFormat='json' )[
                                     'interfaces' ]
       for intf in shXcvr:
          if 'temperature' in shXcvr[ intf ]:
-            opticsTemps.append( shXcvr[ intf ][ 'temperature' ] )
+            opticsTemps[intf] = shXcvr[ intf ][ 'temperature' ]
       if len( opticsTemps ) == 0:
          raise ValueError( "System does NOT have any optics" )
       return opticsTemps
@@ -475,12 +520,12 @@ class Whistler( Maunakea ):
       return fanIds
 
    def getOpticTemps( self ):
-      opticsTemps = []
+      opticsTemps = {}
       shXcvr = self.edut.showCmdIs( 'show int transc', dataFormat='json' )[
                                     'interfaces' ]
       for intf in shXcvr:
          if 'temperature' in shXcvr[ intf ]:
-            opticsTemps.append( shXcvr[ intf ][ 'temperature' ] )
+            opticsTemps[intf] = shXcvr[ intf ][ 'temperature' ]
       if len( opticsTemps ) == 0:
          raise ValueError( "System does NOT have any optics" )
       return opticsTemps
@@ -636,20 +681,32 @@ def main( argv ):
 
    obj.overridePidAlgo()
 
-   for targetRpm in args.rpms:
-      print( f'Setting fan speed to {targetRpm}' )
-      obj.setFanRpm( targetRpm )
-      time.sleep( args.soak_time * 60 )
-
-      Data = obj.collectData()
-      Data['TargetRpm'] = targetRpm
-
-      print( Data )
-      df = df.append( Data, ignore_index=True )
-
    current_time = datetime.datetime.now()
    timestamp = current_time.strftime( '%Y%m%d_%H%M%S' )
    filename = f'{args.dut}_{timestamp}'
+
+   with open( f'{filename}_RAW.csv', 'w', newline='' ) as csvfile:
+      fieldnames = ['Timestamp'] + list(obj.collectDataRaw().keys())
+      csvwriter = csv.DictWriter(csvfile, fieldnames=fieldnames)
+      csvwriter.writeheader()
+
+      for targetRpm in args.rpms:
+         print( f'Setting fan speed to {targetRpm}' )
+         obj.setFanRpm( targetRpm )
+
+         for _ in range( args.soak_time * 6 ):
+            dataRaw = obj.collectDataRaw()
+            timestamp = datetime.datetime.now().strftime( '%Y-%m-%d %H:%M:%S' )
+            row = {'Timestamp': timestamp}
+            row.update(dataRaw)
+            csvwriter.writerow(dataRaw)
+            time.sleep( 10 )
+
+         data = obj.collectData()
+         data[ 'TargetRpm' ] = targetRpm
+
+         print( data )
+         df = df.append( data, ignore_index=True )
 
    with PdfPages( f'{filename}.pdf' ) as pdf:
       # Cover page
