@@ -18,8 +18,6 @@ class MultiSwitchHwSwitchHandler : public HwSwitchHandler {
 
   virtual ~MultiSwitchHwSwitchHandler() override;
 
-  void exitFatal() const override;
-
   std::unique_ptr<TxPacket> allocatePacket(uint32_t size) const override;
 
   bool sendPacketOutOfPortAsync(
@@ -31,19 +29,14 @@ class MultiSwitchHwSwitchHandler : public HwSwitchHandler {
 
   bool sendPacketSwitchedAsync(std::unique_ptr<TxPacket> pkt) noexcept override;
 
-  bool isValidStateUpdate(const StateDelta& delta) const override;
-
-  void unregisterCallbacks() override;
-
-  void gracefulExit() override;
-
   bool transactionsSupported(
       std::optional<cfg::SdkVersion> sdkVersion) const override;
 
   std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus> stateChanged(
       const fsdb::OperDelta& delta,
       bool transaction,
-      const std::shared_ptr<SwitchState>& newState) override;
+      const std::shared_ptr<SwitchState>& newState,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) override;
 
   std::map<PortID, FabricEndpoint> getFabricConnectivity() const override;
 

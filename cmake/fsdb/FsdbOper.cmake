@@ -36,6 +36,7 @@ target_link_libraries(subscription_manager
 add_library(path_helpers
   fboss/fsdb/oper/PathValidator.cpp
   fboss/fsdb/oper/PathConverter.h
+  fboss/fsdb/oper/PathConverter.cpp
   fboss/fsdb/oper/PathValidator.h
 )
 

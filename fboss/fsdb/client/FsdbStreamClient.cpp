@@ -54,7 +54,8 @@ FsdbStreamClient::FsdbStreamClient(
     folly::EventBase* connRetryEvb,
     const std::string& counterPrefix,
     bool isStats,
-    StreamStateChangeCb stateChangeCb)
+    StreamStateChangeCb stateChangeCb,
+    int fsdbReconnectMs)
     : ReconnectingThriftClient(
           clientId,
           streamEvb,
@@ -62,7 +63,7 @@ FsdbStreamClient::FsdbStreamClient(
           counterPrefix,
           "fsdb_streams",
           stateChangeCb,
-          getReconnectIntervalInMs(FLAGS_fsdb_reconnect_ms)),
+          getReconnectIntervalInMs(fsdbReconnectMs)),
       streamEvb_(streamEvb),
       isStats_(isStats) {
   if (isStats && FLAGS_fsdb_stat_chunk_timeout) {
@@ -132,7 +133,9 @@ folly::coro::Task<void> FsdbStreamClient::serviceLoopWrapper() {
 }
 #endif
 
-const uint8_t kDscpForClassOfServiceNC = 48;
+// Set DSCP to 48 (Network Control)
+// 8-bit TOS = 6-bit DSCP followed by 2-bit ECN
+const uint8_t kTosForClassOfServiceNC = 48 << 2;
 
 void FsdbStreamClient::resetClient() {
   CHECK(streamEvb_->getEventBase()->isInEventBaseThread());
@@ -144,7 +147,7 @@ std::optional<uint8_t> getTosForClientPriority(
   if (priority.has_value()) {
     switch (*priority) {
       case FsdbStreamClient::Priority::CRITICAL:
-        return kDscpForClassOfServiceNC;
+        return kTosForClassOfServiceNC;
       case FsdbStreamClient::Priority::NORMAL:
         // no TC marking by default
         return std::nullopt;

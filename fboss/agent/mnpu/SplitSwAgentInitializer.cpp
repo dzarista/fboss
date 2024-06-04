@@ -16,7 +16,9 @@
 
 namespace facebook::fboss {
 
-void SplitSwSwitchInitializer::initImpl(HwSwitchCallback* callback) {
+void SplitSwSwitchInitializer::initImpl(
+    HwSwitchCallback* /* callback */,
+    const HwWriteBehavior& /* hwWriteBehavior */) {
   // this blocks until at least one hardware switch is up
   sw_->init(setupFlags());
 }
@@ -96,11 +98,9 @@ void SplitSwAgentInitializer::handleExitSignal(bool gracefulExit) {
   }
 }
 
-void SplitSwAgentInitializer::stopAgent(
-    bool setupWarmboot,
-    bool /*gracefulExit*/) {
+void SplitSwAgentInitializer::stopAgent(bool setupWarmboot, bool gracefulExit) {
   if (setupWarmboot) {
-    exitForWarmBoot();
+    exitForWarmBoot(gracefulExit);
   } else {
     exitForColdBoot();
   }
@@ -114,7 +114,7 @@ void SplitSwAgentInitializer::exitForColdBoot() {
   initializer_.reset();
 }
 
-void SplitSwAgentInitializer::exitForWarmBoot() {
-  handleExitSignal(true);
+void SplitSwAgentInitializer::exitForWarmBoot(bool gracefulExit) {
+  handleExitSignal(gracefulExit);
 }
 } // namespace facebook::fboss

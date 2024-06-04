@@ -8,18 +8,23 @@
  *
  */
 
-#include "fboss/agent/hw/test/HwVoqUtils.h"
+#include "fboss/agent/test/utils/VoqTestUtils.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
+#include "fboss/agent/test/TestEnsembleIf.h"
 
 namespace facebook::fboss::utility {
 
 namespace {
 
 constexpr auto kNumPortPerCore = 10;
-constexpr auto kNifPortOffset = 2;
+// 0: CPU port, 1: gloabl rcy port, 2-5: local recycle port, 6: eventor port,
+// 7: mgm port, 8-43 front panel nif
+constexpr auto kRemoteSysPortOffset = 7;
+constexpr auto kNumRdsw = 128;
+constexpr auto kNumEdsw = 16;
 
 int getPerNodeSysPorts(cfg::AsicType asicType) {
-  return asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ? 20 : 40;
+  return asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ? 20 : 44;
 }
 int getPerNodeSysPorts(const HwAsic* asic) {
   return getPerNodeSysPorts(asic->getAsicType());
@@ -27,9 +32,9 @@ int getPerNodeSysPorts(const HwAsic* asic) {
 } // namespace
 
 int getDsfNodeCount(const HwAsic* asic) {
-  // J3 supports up to 6k system port. For each node with 40 system ports,
-  // 148 remote nodes gives (148 + 1) * 40 = 5960 system ports.
-  return asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2 ? 128 : 148;
+  return asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2
+      ? kNumRdsw
+      : kNumRdsw + kNumEdsw;
 }
 
 std::optional<std::map<int64_t, cfg::DsfNode>> addRemoteDsfNodeCfg(
@@ -181,7 +186,8 @@ std::shared_ptr<SwitchState> setupRemoteIntfAndSysPorts(
     CHECK(dsfNode.systemPortRange().has_value());
     const auto minPortID = *dsfNode.systemPortRange()->minimum();
     // 0th port for CPU and 1st port for recycle port
-    for (int i = kNifPortOffset; i < getPerNodeSysPorts(*dsfNode.asicType());
+    for (int i = kRemoteSysPortOffset;
+         i < getPerNodeSysPorts(*dsfNode.asicType());
          i++) {
       const auto newSysPortId = minPortID + i;
       const SystemPortID remoteSysPortId(newSysPortId);
@@ -202,8 +208,8 @@ std::shared_ptr<SwitchState> setupRemoteIntfAndSysPorts(
           scopeResolver,
           remoteSysPortId,
           SwitchID(remoteSwitchId),
-          (i - kNifPortOffset) / kNumPortPerCore,
-          (i - kNifPortOffset) % kNumPortPerCore + kNifPortOffset);
+          (i - kRemoteSysPortOffset) / kNumPortPerCore,
+          (i - kRemoteSysPortOffset) % kNumPortPerCore + kRemoteSysPortOffset);
       newState = addRemoteInterface(
           newState,
           scopeResolver,
@@ -257,6 +263,36 @@ QueueConfig getDefaultVoqConfig() {
   queueCfg.push_back(ncQueue);
 
   return queueCfg;
+}
+
+std::optional<uint64_t> getDummyEncapIndex(TestEnsembleIf* ensemble) {
+  std::optional<uint64_t> dummyEncapIndex;
+  if (ensemble->getHwAsicTable()->isFeatureSupportedOnAllAsic(
+          HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)) {
+    dummyEncapIndex = 0x200001;
+  }
+  return dummyEncapIndex;
+}
+
+// Resolve and return list of remote nhops
+boost::container::flat_set<PortDescriptor> resolveRemoteNhops(
+    TestEnsembleIf* ensemble,
+    utility::EcmpSetupTargetedPorts6& ecmpHelper) {
+  auto remoteSysPorts =
+      ensemble->getProgrammedState()->getRemoteSystemPorts()->getAllNodes();
+  boost::container::flat_set<PortDescriptor> sysPortDescs;
+  std::for_each(
+      remoteSysPorts->begin(),
+      remoteSysPorts->end(),
+      [&sysPortDescs](const auto& idAndPort) {
+        sysPortDescs.insert(
+            PortDescriptor(static_cast<SystemPortID>(idAndPort.first)));
+      });
+  ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+    return ecmpHelper.resolveNextHops(
+        in, sysPortDescs, false, getDummyEncapIndex(ensemble));
+  });
+  return sysPortDescs;
 }
 
 } // namespace facebook::fboss::utility

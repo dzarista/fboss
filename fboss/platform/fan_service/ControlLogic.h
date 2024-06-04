@@ -44,6 +44,9 @@ class ControlLogic {
     return sensorReadCaches_;
   }
 
+  void setFanHold(std::optional<int> pwm);
+  std::optional<int> getFanHold();
+
  private:
   // Private Attributess :
   // Pointer to other classes used by Control Logic
@@ -70,20 +73,13 @@ class ControlLogic {
       const std::string& name,
       float value,
       PwmCalcCache& pwmCalcCache,
-      float kp,
-      float ki,
-      float kd,
-      uint64_t dt,
-      float minVal,
-      float maxVal);
+      const PidSetting& pidSetting,
+      uint64_t dt);
   float calculateIncrementalPid(
       const std::string& name,
       float value,
       PwmCalcCache& pwmCalcCache,
-      float kp,
-      float ki,
-      float kd,
-      float setPoint);
+      const PidSetting& pidSetting);
   int16_t calculateZonePwm(const Zone& zone, bool boostMode);
   void updateTargetPwm(const Sensor& sensorItem);
   void programLed(const Fan& fan, bool fanFailed);
@@ -92,6 +88,7 @@ class ControlLogic {
 
   folly::Synchronized<std::map<std::string /* fanName */, FanStatus>>
       fanStatuses_;
+  std::atomic<std::optional<int>> fanHoldPwm_;
   std::map<std::string /* sensorName */, SensorReadCache> sensorReadCaches_;
   std::map<std::string /* sensorName */, int16_t /* pwm */> opticReadCaches_;
   std::map<std::string /* sensorName */, PwmCalcCache> pwmCalcCaches_;

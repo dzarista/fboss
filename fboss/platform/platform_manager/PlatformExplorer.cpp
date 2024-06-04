@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include <fb303/ServiceData.h>
 #include <folly/FileUtil.h>
 #include <folly/logging/xlog.h>
 
@@ -17,6 +18,7 @@
 #include "fboss/platform/platform_manager/gen-cpp2/platform_manager_config_constants.h"
 
 namespace {
+auto constexpr kTotalFailures = "total_failures";
 constexpr auto kRootSlotPath = "/";
 const re2::RE2 kGpioChipNameRe{"gpiochip\\d+"};
 const std::string kGpioChip = "gpiochip";
@@ -224,8 +226,8 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
     */
     if ((platformConfig_.platformName().value() == "meru800bfa" ||
          platformConfig_.platformName().value() == "meru800bia") &&
-        (idpromConfig.busName()->rfind("INCOMING", 0) != 0) &&
-         *idpromConfig.address() == "0x50") {
+        (!(idpromConfig.busName()->starts_with("INCOMING")) &&
+         *idpromConfig.address() == "0x50")) {
       try {
         std::string eepromDir = "/run/devmap/eeproms/";
         std::string eepromName = "MERU_SCM_EEPROM";
@@ -242,7 +244,8 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
             *idpromConfig.address(),
             e.what());
         XLOG(ERR) << errMsg;
-        errorMessages_[Utils().createDevicePath(slotPath, "IDPROM")].push_back(errMsg);
+        errorMessages_[Utils().createDevicePath(slotPath, "IDPROM")].push_back(
+            errMsg);
       }
     } else {
       createI2cDevice(
@@ -300,15 +303,14 @@ void PlatformExplorer::exploreI2cDevices(
   for (const auto& i2cDeviceConfig : i2cDeviceConfigs) {
     auto busNum = dataStore_.getI2cBusNum(slotPath, *i2cDeviceConfig.busName());
     auto devAddr = I2cAddr(*i2cDeviceConfig.address());
+    auto devicePath =
+        Utils().createDevicePath(slotPath, *i2cDeviceConfig.pmUnitScopedName());
     if (i2cDeviceConfig.initRegSettings()) {
       setupI2cDevice(
-          slotPath, busNum, devAddr, *i2cDeviceConfig.initRegSettings());
+          devicePath, busNum, devAddr, *i2cDeviceConfig.initRegSettings());
     }
     createI2cDevice(
-        Utils().createDevicePath(slotPath, *i2cDeviceConfig.pmUnitScopedName()),
-        *i2cDeviceConfig.kernelDeviceName(),
-        busNum,
-        devAddr);
+        devicePath, *i2cDeviceConfig.kernelDeviceName(), busNum, devAddr);
     if (i2cDeviceConfig.numOutgoingChannels()) {
       auto channelToBusNums =
           i2cExplorer_.getMuxChannelI2CBuses(busNum, devAddr);
@@ -562,10 +564,11 @@ void PlatformExplorer::reportExplorationSummary() {
       XLOG(INFO) << fmt::format("{}. {}", i++, errMsg);
     }
   }
+  fb303::fbData->setCounter(kTotalFailures, errorMessages_.size());
 }
 
 void PlatformExplorer::setupI2cDevice(
-    const std::string& slotPath,
+    const std::string& devicePath,
     uint16_t busNum,
     const I2cAddr& addr,
     const std::vector<I2cRegData>& initRegSettings) {
@@ -573,7 +576,7 @@ void PlatformExplorer::setupI2cDevice(
     i2cExplorer_.setupI2cDevice(busNum, addr, initRegSettings);
   } catch (const std::exception& ex) {
     XLOG(ERR) << ex.what();
-    errorMessages_[slotPath].push_back(ex.what());
+    errorMessages_[devicePath].push_back(ex.what());
   }
 }
 

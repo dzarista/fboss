@@ -1,23 +1,41 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#include <gtest/gtest.h>
+#include <algorithm>
+#include <cstdlib>
+#include <fstream>
 #include <vector>
+
+#include <gtest/gtest.h>
+
+#include <folly/Random.h>
+#include <folly/experimental/TestUtil.h>
 
 #include "fboss/lib/usb/TransceiverAccessParameter.h"
 #include "fboss/qsfp_service/module/I2cLogBuffer.h"
 
 namespace facebook::fboss {
 
+namespace {
 constexpr size_t kFullBuffer = 10;
+} // namespace
 
 class I2cLogBufferTest : public ::testing::Test {
  public:
-  I2cLogBufferTest() : data_(kMaxI2clogDataSize), param_(0, 0, data_.size()) {
-    std::fill(data_.begin(), data_.end(), 0);
+  I2cLogBufferTest() : data_(kMaxI2clogDataSize), param_(10, 15, data_.size()) {
+    folly::Random::DefaultGenerator seed(0xdeadbeef);
+    folly::Random::seed(seed);
+    for (auto& byte : data_) {
+      byte = folly::Random::rand32() % 0xFF;
+    }
+    tmpDir_ = folly::test::TemporaryDirectory();
+    kLogFile_ = tmpDir_.path().string() + "/logBufferTest.txt";
   }
   ~I2cLogBufferTest() override = default;
   void SetUp() override {}
   void TearDown() override {}
+
+  std::string kLogFile_;
+  folly::test::TemporaryDirectory tmpDir_;
 
   I2cLogBuffer createBuffer(
       const size_t size,
@@ -29,7 +47,7 @@ class I2cLogBufferTest : public ::testing::Test {
     config.writeLog() = write;
     config.disableOnFail() = disableOnFail;
     config.bufferSlots() = size;
-    return I2cLogBuffer(config);
+    return I2cLogBuffer(config, kLogFile_);
   }
 
   std::vector<uint8_t> data_;
@@ -278,4 +296,148 @@ TEST_F(I2cLogBufferTest, testNoDisableOnFail) {
   size_t count = logBuffer.dump(entries);
   EXPECT_EQ(count, 4);
 }
+
+TEST_F(I2cLogBufferTest, testEmptyLogFile) {
+  I2cLogBuffer logBuffer = createBuffer(kFullBuffer);
+
+  auto ret = logBuffer.dumpToFile();
+
+  int numberOfLines = 0;
+  std::string line;
+  std::ifstream myfile(kLogFile_);
+
+  while (std::getline(myfile, line)) {
+    ++numberOfLines;
+  }
+  EXPECT_EQ(ret.first, numberOfLines);
+  EXPECT_EQ(ret.second, 0);
+}
+
+TEST_F(I2cLogBufferTest, testLogFile) {
+  I2cLogBuffer logBuffer = createBuffer(kFullBuffer);
+
+  // insert kFullBuffer elements
+  for (int i = 0; i < kFullBuffer; i++) {
+    data_[0] = i;
+    param_.i2cAddress = i;
+    logBuffer.log(param_, data_.data(), I2cLogBuffer::Operation::Read);
+  }
+
+  auto ret = logBuffer.dumpToFile();
+
+  int numberOfLines = 0;
+  std::string line;
+  std::ifstream myfile(kLogFile_);
+
+  while (std::getline(myfile, line)) {
+    ++numberOfLines;
+  }
+
+  EXPECT_EQ(ret.first + ret.second, numberOfLines);
+}
+
+TEST_F(I2cLogBufferTest, testReplayEmpty) {
+  I2cLogBuffer logBuffer = createBuffer(kFullBuffer);
+  std::vector<I2cLogBuffer::I2cLogEntry> entries;
+  logBuffer.dumpToFile();
+  auto replayEntries = I2cLogBuffer::loadFromLog(kLogFile_);
+  EXPECT_EQ(replayEntries.size(), 0);
+}
+
+TEST_F(I2cLogBufferTest, testReplayBasic) {
+  I2cLogBuffer logBuffer = createBuffer(kFullBuffer);
+
+  // insert kFullBuffer elements
+  std::vector<std::array<uint8_t, kMaxI2clogDataSize>> allData(kFullBuffer);
+  for (int i = 0; i < kFullBuffer; i++) {
+    for (int j = 0; j < param_.len; j++) {
+      // fill data
+      allData[i][j] = i;
+    }
+    param_.i2cAddress = i;
+    logBuffer.log(param_, allData[i].data(), I2cLogBuffer::Operation::Write);
+  }
+
+  logBuffer.dumpToFile();
+
+  auto replayEntries = I2cLogBuffer::loadFromLog(kLogFile_);
+
+  EXPECT_EQ(replayEntries.size(), kFullBuffer);
+
+  for (int i = 0; i < kFullBuffer; i++) {
+    EXPECT_EQ(replayEntries[i].param.i2cAddress, i);
+    EXPECT_EQ(replayEntries[i].param.offset, param_.offset);
+    EXPECT_EQ(replayEntries[i].param.len, param_.len);
+    EXPECT_EQ(replayEntries[i].param.page, param_.page);
+    EXPECT_EQ(replayEntries[i].param.bank, param_.bank);
+    EXPECT_EQ(replayEntries[i].op, I2cLogBuffer::Operation::Write);
+    for (int j = 0; j < replayEntries[i].param.len; j++) {
+      EXPECT_EQ(replayEntries[i].data[j], allData[i][j]);
+    }
+  }
+}
+
+TEST_F(I2cLogBufferTest, testReplayScenarios) {
+  I2cLogBuffer logBuffer = createBuffer(kFullBuffer);
+
+  // insert kFullBuffer Logs
+  std::vector<std::array<uint8_t, kMaxI2clogDataSize>> allData(kFullBuffer);
+  std::array<TransceiverAccessParameter, kFullBuffer> allParam = {
+      TransceiverAccessParameter(0, 0, 1),
+      TransceiverAccessParameter(0, 0, 10),
+      TransceiverAccessParameter(0, 10, 20),
+      TransceiverAccessParameter(0, 10, 32),
+      TransceiverAccessParameter(10, 0, 20),
+      TransceiverAccessParameter(10, 0, 10),
+      TransceiverAccessParameter(10, 10, 10),
+      TransceiverAccessParameter(10, 10, 10),
+      TransceiverAccessParameter(0, 0, 10, 10),
+      TransceiverAccessParameter(10, 10, 10, 10),
+  };
+  std::array<I2cLogBuffer::Operation, kFullBuffer> allOps = {
+      I2cLogBuffer::Operation::Read,
+      I2cLogBuffer::Operation::Write,
+      I2cLogBuffer::Operation::Write,
+      I2cLogBuffer::Operation::Read,
+      I2cLogBuffer::Operation::Read,
+      I2cLogBuffer::Operation::Write,
+      I2cLogBuffer::Operation::Read,
+      I2cLogBuffer::Operation::Read,
+      I2cLogBuffer::Operation::Write,
+      I2cLogBuffer::Operation::Read,
+  };
+
+  auto lambda = [&]() {
+    for (int i = 0; i < kFullBuffer; i++) {
+      for (int j = 0; j < allParam[i].len; j++) {
+        // fill data
+        allData[i][j] = i;
+      }
+      logBuffer.log(allParam[i], allData[i].data(), allOps[i]);
+    }
+
+    logBuffer.dumpToFile();
+
+    auto replayEntries = I2cLogBuffer::loadFromLog(kLogFile_);
+
+    EXPECT_EQ(replayEntries.size(), kFullBuffer);
+
+    for (int i = 0; i < kFullBuffer; i++) {
+      EXPECT_EQ(replayEntries[i].param.i2cAddress, allParam[i].i2cAddress);
+      EXPECT_EQ(replayEntries[i].param.offset, allParam[i].offset);
+      EXPECT_EQ(replayEntries[i].param.len, allParam[i].len);
+      EXPECT_EQ(replayEntries[i].param.page, allParam[i].page);
+      EXPECT_EQ(replayEntries[i].param.bank, allParam[i].bank);
+      EXPECT_EQ(replayEntries[i].op, allOps[i]);
+      for (int j = 0; j < replayEntries[i].param.len; j++) {
+        EXPECT_EQ(replayEntries[i].data[j], allData[i][j]);
+      }
+    }
+  };
+
+  // Run test lambda twice.
+  lambda();
+  lambda();
+}
+
 } // namespace facebook::fboss

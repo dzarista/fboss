@@ -72,6 +72,14 @@ service FbossHwCtrl {
   ctrl.BootType getBootType();
 
   /*
+   * Get the PRBS state on an interface.
+   */
+  prbs.InterfacePrbsState getInterfacePrbsState(
+    1: string interface,
+    2: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
    * Get the PRBS settings on all interfaces.
    */
   map<string, prbs.InterfacePrbsState> getAllInterfacePrbsStates(
@@ -79,10 +87,26 @@ service FbossHwCtrl {
   ) throws (1: fboss.FbossBaseError error);
 
   /*
+   * Get the PRBS stats on an interface.
+   */
+  phy.PrbsStats getInterfacePrbsStats(
+    1: string interface,
+    2: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
    * Get the PRBS stats on all interfaces.
    */
   map<string, phy.PrbsStats> getAllInterfacePrbsStats(
     1: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Clear the PRBS stats counters on an interface.
+   */
+  void clearInterfacePrbsStats(
+    1: string interface,
+    2: phy.PortComponent component,
   ) throws (1: fboss.FbossBaseError error);
 
   /*
