@@ -24,6 +24,7 @@
 #include <linux/workqueue.h>
 #include <linux/leds.h>
 #include <linux/watchdog.h>
+#include <linux/version.h>
 
 #define DRIVER_NAME "dsf-fan-cpld"
 
@@ -884,7 +885,6 @@ static int cpld_init(struct cpld_data *cpld)
 	struct cpld_fan_led_data *led;
 	int err;
 	int i;
-	int j;
 
 	err = cpld_read_byte(cpld, MINOR_VERSION_REG, &cpld->minor);
 	if (err)
@@ -953,6 +953,19 @@ static const struct watchdog_info fan_wdt_info = {
 	.identity = KBUILD_MODNAME,
 };
 
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+static void cpld_remove(struct i2c_client *client)
+{
+	struct cpld_data *cpld = i2c_get_clientdata(client);
+
+	mutex_lock(&cpld->lock);
+	cancel_delayed_work_sync(&cpld->dwork);
+	mutex_unlock(&cpld->lock);
+
+	return;
+}
+#else
 static int cpld_remove(struct i2c_client *client)
 {
 	struct cpld_data *cpld = i2c_get_clientdata(client);
@@ -963,14 +976,33 @@ static int cpld_remove(struct i2c_client *client)
 
 	return 0;
 }
+#endif
 
+static const struct i2c_device_id cpld_id[] = { { "oasis_cpld0", OASIS_CPLD0 },
+						{ "oasis_cpld1", OASIS_CPLD1 },
+						{ "oasis_cpld2", OASIS_CPLD2 },
+						{ "pali2_cpld", PALI2_CPLD },
+						{} };
+MODULE_DEVICE_TABLE(i2c, cpld_id);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+static int cpld_probe(struct i2c_client *client)
+{
+	const struct i2c_device_id *id;
+#else
 static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
+#endif
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct cpld_data *cpld;
 	int err;
 	int i;
+
+	id = i2c_match_id(cpld_id, client);
+	if (!id) {
+		return -ENODEV;
+	}
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
@@ -1024,22 +1056,16 @@ static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return err;
 }
 
-static const struct i2c_device_id cpld_id[] = { { "oasis_cpld0", OASIS_CPLD0 },
-						{ "oasis_cpld1", OASIS_CPLD1 },
-						{ "oasis_cpld2", OASIS_CPLD2 },
-						{ "pali2_cpld", PALI2_CPLD },
-						{} };
 
-MODULE_DEVICE_TABLE(i2c, cpld_id);
 
 static struct i2c_driver cpld_driver = {
-	.class = I2C_CLASS_HWMON,
-	.driver = {
-		.name = DRIVER_NAME,
-	},
-	.id_table = cpld_id,
-	.probe = cpld_probe,
-	.remove = cpld_remove,
+   .class = I2C_CLASS_HWMON,
+   .driver = {
+      .name = DRIVER_NAME,
+   },
+   .id_table = cpld_id,
+   .probe = cpld_probe,
+   .remove = cpld_remove,
 };
 
 static int __init dsf_fan_cpld_init(void)
