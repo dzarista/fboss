@@ -25,7 +25,7 @@ void addProdFeaturesToConfig(
   /*
    * Configures port queue for cpu port
    */
-  utility::addCpuQueueConfig(config, hwAsic, isSai);
+  utility::addCpuQueueConfig(config, {hwAsic}, isSai);
   if (hwAsic->isSupported(HwAsic::Feature::L3_QOS)) {
     /*
      * Enable Olympic QOS
@@ -40,7 +40,8 @@ void addProdFeaturesToConfig(
   /*
    * Configure COPP, CPU traffic policy and ACLs
    */
-  utility::setDefaultCpuTrafficPolicyConfig(config, hwAsic, isSai);
+  utility::setDefaultCpuTrafficPolicyConfig(
+      config, std::vector<const HwAsic*>({hwAsic}), isSai);
 
   /*
    * Enable Load balancer

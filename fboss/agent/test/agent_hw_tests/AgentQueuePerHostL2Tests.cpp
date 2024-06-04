@@ -26,14 +26,10 @@ class AgentQueuePerHostL2Test : public AgentHwTest {
  protected:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    auto asic = utility::getFirstAsic(ensemble.getSw());
     auto cfg = utility::oneL3IntfTwoPortConfig(
-        ensemble.getSw()->getPlatformMapping(),
-        asic,
-        ensemble.masterLogicalPortIds()[0],
-        ensemble.masterLogicalPortIds()[1],
-        ensemble.getSw()->getPlatformSupportsAddRemovePort(),
-        asic->desiredLoopbackModes());
+        ensemble.getSw(),
+        ensemble.masterLogicalInterfacePortIds()[0],
+        ensemble.masterLogicalInterfacePortIds()[1]);
     cfg.switchSettings()->l2LearningMode() = cfg::L2LearningMode::SOFTWARE;
     utility::addQueuePerHostQueueConfig(&cfg);
     utility::addQueuePerHostAcls(&cfg, ensemble.isSai());
@@ -43,10 +39,6 @@ class AgentQueuePerHostL2Test : public AgentHwTest {
   std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const override {
     return {production_features::ProductionFeature::QUEUE_PER_HOST};
-  }
-
-  const HwAsic* getAsic() const {
-    return utility::getFirstAsic(getAgentEnsemble()->getSw());
   }
 
   void verifyHelper(bool useFrontPanel) {
@@ -117,7 +109,8 @@ class AgentQueuePerHostL2Test : public AgentHwTest {
            * Thus, the counter get increment one additional time for the looped
            * back packet.
            */
-          if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_EBRO) {
+          if (utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+                  ->getAsicType() == cfg::AsicType::ASIC_TYPE_EBRO) {
             /* 1 pkt each for ttl < 128 and ttl >= 128 */
             EXPECT_EVENTUALLY_EQ(pktsOnQueue, 4);
           } else {

@@ -57,9 +57,13 @@ class HwVoqSwitchTest : public HwLinkStateDependentTest {
               cpuStreamType, cfg::PortType::CPU_PORT)) {
         // cpu queues supported
         utility::setDefaultCpuTrafficPolicyConfig(
-            cfg, getAsic(), getHwSwitchEnsemble()->isSai());
+            cfg,
+            getHwSwitchEnsemble()->getL3Asics(),
+            getHwSwitchEnsemble()->isSai());
         utility::addCpuQueueConfig(
-            cfg, getAsic(), getHwSwitchEnsemble()->isSai());
+            cfg,
+            getHwSwitchEnsemble()->getL3Asics(),
+            getHwSwitchEnsemble()->isSai());
         break;
       }
     }
@@ -356,7 +360,7 @@ TEST_F(HwVoqSwitchTest, rxPacketToCpu) {
   rxPacketToCpuHelper(
       utility::kNonSpecialPort1,
       utility::kNonSpecialPort2,
-      utility::kCoppMidPriQueueId);
+      utility::getCoppMidPriQueueId({this->getAsic()}));
 }
 
 TEST_F(HwVoqSwitchTest, rxPacketToCpuBgpDstPort) {

@@ -20,6 +20,13 @@ namespace {
 constexpr auto kLedOn = "1";
 constexpr auto kLedOff = "0";
 constexpr auto kLedBrightnessPath = "/brightness";
+constexpr auto kLedTriggerPath = "/trigger";
+constexpr auto kLedDelayOnPath = "/delay_on";
+constexpr auto kLedDelayOffPath = "/delay_off";
+constexpr auto kLedTimerTrigger = "timer";
+constexpr auto kLedBlinkOff = "0";
+constexpr auto kLedBlinkSlow = "1000";
+constexpr auto kLedBlinkFast = "500";
 } // namespace
 
 namespace facebook::fboss {
@@ -44,23 +51,18 @@ void LedIO::setLedState(led::LedState ledState) {
     return;
   }
   auto toSetColor = ledState.ledColor().value();
-  auto currentColor = currState_.ledColor().value();
 
+  // Turn off all LEDs first
+  turnOffAllLeds();
   switch (toSetColor) {
     case led::LedColor::BLUE:
-      blueOn();
+      blueOn(ledState.blink().value());
       break;
     case led::LedColor::YELLOW:
-      yellowOn();
+      yellowOn(ledState.blink().value());
       break;
     case led::LedColor::OFF:
-      if (led::LedColor::BLUE == currentColor) {
-        blueOff();
-      } else if (led::LedColor::YELLOW == currentColor) {
-        yellowOff();
-      }
-
-      XLOG(INFO) << fmt::format("Trace: set LED {:d} (0 base) to OFF", id_);
+      // Leds already turned off earlier before switch
       break;
     default:
       throw LedIOError(
@@ -86,25 +88,35 @@ void LedIO::init() {
   }
 }
 
-void LedIO::blueOn() {
+void LedIO::blueOn(led::Blink blink) {
   CHECK(bluePath_.has_value());
+  setBlink(*bluePath_, blink);
   setLed(*bluePath_, kLedOn);
-  XLOG(INFO) << fmt::format("Trace: set LED {:d} (0 base) to Blue", id_);
+  XLOG(INFO) << fmt::format(
+      "Trace: set LED {:d} (0 base) to Blue and blink {:s}",
+      id_,
+      apache::thrift::util::enumNameSafe(blink));
 }
 
 void LedIO::blueOff() {
   CHECK(bluePath_.has_value());
+  setBlink(*bluePath_, led::Blink::OFF);
   setLed(*bluePath_, kLedOff);
 }
 
-void LedIO::yellowOn() {
+void LedIO::yellowOn(led::Blink blink) {
   CHECK(yellowPath_.has_value());
+  setBlink(*yellowPath_, blink);
   setLed(*yellowPath_, kLedOn);
-  XLOG(INFO) << fmt::format("Trace: set LED {:d} (0 base) to Yellow", id_);
+  XLOG(INFO) << fmt::format(
+      "Trace: set LED {:d} (0 base) to Yellow and blink {:s}",
+      id_,
+      apache::thrift::util::enumNameSafe(blink));
 }
 
 void LedIO::yellowOff() {
   CHECK(yellowPath_.has_value());
+  setBlink(*yellowPath_, led::Blink::OFF);
   setLed(*yellowPath_, kLedOff);
 }
 
@@ -120,6 +132,70 @@ void LedIO::setLed(const std::string& ledBasePath, const std::string& ledOp) {
     throw LedIOError(fmt::format(
         "setLed() failed to open {} for ID {:d} (0 base)", ledPath, id_));
   }
+}
+
+void LedIO::setBlink(const std::string& ledBasePath, led::Blink blink) {
+  // Set blink rate
+  {
+    std::string ledPathOn = ledBasePath + kLedDelayOnPath;
+    std::string ledPathOff = ledBasePath + kLedDelayOffPath;
+    std::fstream fsOn, fsOff;
+    fsOn.open(ledPathOn, std::fstream::out);
+    fsOff.open(ledPathOff, std::fstream::out);
+
+    if (fsOn.is_open() && fsOff.is_open()) {
+      switch (blink) {
+        case led::Blink::OFF:
+        case led::Blink::UNKNOWN:
+          fsOn << kLedBlinkOff;
+          fsOff << kLedBlinkOff;
+          break;
+        case led::Blink::SLOW:
+          fsOn << kLedBlinkSlow;
+          fsOff << kLedBlinkSlow;
+          break;
+        case led::Blink::FAST:
+          fsOn << kLedBlinkFast;
+          fsOff << kLedBlinkFast;
+          break;
+      }
+      fsOn.close();
+      fsOff.close();
+    } else {
+      // Not throwing an exception here until all existing BSPs support blinking
+      XLOG(ERR) << fmt::format(
+          "setBlink() failed to open {} or {} for ID {:d} (0 base)",
+          ledPathOn,
+          ledPathOff,
+          id_);
+      return;
+    }
+  }
+  // Set trigger
+  {
+    std::string ledPath = ledBasePath + kLedTriggerPath;
+    std::fstream fs;
+    fs.open(ledPath, std::fstream::out);
+
+    if (fs.is_open()) {
+      if (blink == led::Blink::SLOW || blink == led::Blink::FAST) {
+        fs << kLedTimerTrigger;
+      } else {
+        fs << "";
+      }
+      fs.close();
+    } else {
+      // Not throwing an exception here until all existing BSPs support blinking
+      XLOG(ERR) << fmt::format(
+          "setBlink() failed to open {} for ID {:d} (0 base)", ledPath, id_);
+      return;
+    }
+  }
+}
+
+void LedIO::turnOffAllLeds() {
+  blueOff();
+  yellowOff();
 }
 
 } // namespace facebook::fboss

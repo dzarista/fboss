@@ -447,7 +447,8 @@ class TransceiverManager {
       phy::PortComponent component,
       const phy::PortPrbsState& state);
 
-  phy::PrbsStats getPortPrbsStats(PortID portId, phy::PortComponent component);
+  phy::PrbsStats getPortPrbsStats(PortID portId, phy::PortComponent component)
+      const;
 
   void clearPortPrbsStats(PortID portId, phy::PortComponent component);
 
@@ -467,15 +468,27 @@ class TransceiverManager {
 
   void getInterfacePrbsState(
       prbs::InterfacePrbsState& prbsState,
-      std::string portName,
-      phy::PortComponent component);
+      const std::string& portName,
+      phy::PortComponent component) const;
+
+  void getAllInterfacePrbsStates(
+      std::map<std::string, prbs::InterfacePrbsState>& prbsStates,
+      phy::PortComponent component) const;
 
   phy::PrbsStats getInterfacePrbsStats(
-      std::string portName,
-      phy::PortComponent component);
+      const std::string& portName,
+      phy::PortComponent component) const;
+
+  void getAllInterfacePrbsStats(
+      std::map<std::string, phy::PrbsStats>& prbsStats,
+      phy::PortComponent component) const;
 
   void clearInterfacePrbsStats(
       std::string portName,
+      phy::PortComponent component);
+
+  void bulkClearInterfacePrbsStats(
+      std::unique_ptr<std::vector<std::string>> interfaces,
       phy::PortComponent component);
 
   std::optional<DiagsCapability> getDiagsCapability(TransceiverID id) const;
@@ -495,7 +508,7 @@ class TransceiverManager {
       std::string&& /* portName */,
       HwPortStats&& /* stat */) const {}
 
-  std::optional<TransceiverID> getTransceiverID(PortID id);
+  std::optional<TransceiverID> getTransceiverID(PortID id) const;
 
   QsfpServiceRunState getRunState() const;
 
@@ -738,7 +751,16 @@ class TransceiverManager {
    */
   void removeWarmBootFlag();
 
+  // Store the warmboot state for qsfp_service. This will be updated
+  // periodically after Transceiver State machine updates to maintain
+  // the state if graceful shutdown did not happen.
+  // Will also be called during graceful exit for qsfp_service once the state
+  // machine stops.
   void setWarmBootState();
+
+  // Set the can_warm_boot flag for qsfp service. Done after successful
+  // initialization to avoid cold booting non-XPhy systems in case of a
+  // non-graceful exit and also set during graceful exit.
   void setCanWarmBoot();
 
   void readWarmBootStateFile();
@@ -749,6 +771,11 @@ class TransceiverManager {
   // Returns the Firmware object from qsfp config for the given module.
   // If there is no firmware in config, returns empty optional
   std::optional<cfg::Firmware> getFirmwareFromCfg(Transceiver& tcvr) const;
+
+  // Store the QSFP service state for warm boots.
+  // Updated on every refresh of the state machine as well as during graceful
+  // exit.
+  std::string qsfpServiceWarmbootState_ = {};
 
   // TEST ONLY
   // This private map is an override of agent getPortStatus()

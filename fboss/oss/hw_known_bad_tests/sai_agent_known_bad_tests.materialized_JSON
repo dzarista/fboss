@@ -41,10 +41,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -86,13 +104,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentLoadBalancerTestV4.ECMPShrinkExpandLoadBalanceFullHashCpuTraffic$"
@@ -178,6 +211,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -217,13 +256,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
@@ -288,10 +342,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -333,13 +405,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
@@ -386,6 +473,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -425,13 +518,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
@@ -493,10 +601,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -538,13 +664,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
@@ -624,6 +765,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -663,13 +810,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnWithoutWredConfig$"
@@ -737,10 +899,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -782,13 +962,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnWithoutWredConfig$"
@@ -835,6 +1030,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -874,13 +1075,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
@@ -963,10 +1179,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -1008,13 +1242,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
@@ -1097,6 +1346,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -1136,13 +1391,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
@@ -1188,6 +1458,12 @@
         },
         {
           "test_name_regex": "AgentAclCounterTest/0.VerifyAclPriorityL4DstportHitFrontPanel$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         }
     ],
     "brcm/11.0_ea_dnx_odp/11.0_ea_dnx_odp/jericho3/multi_switch": [
@@ -1231,10 +1507,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -1276,13 +1570,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
@@ -1328,6 +1637,12 @@
         },
         {
           "test_name_regex": "AgentAclCounterTest/0.VerifyAclPriorityL4DstportHitFrontPanel$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         }
     ],
     "brcm/11.0_ea_dnx_odp/11.0_ea_dnx_odp/ramon/mono": [
@@ -1371,6 +1686,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -1410,13 +1731,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentPrbsTest.*$"
@@ -1463,10 +1799,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -1508,13 +1862,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentPrbsTest.*$"
@@ -1561,6 +1930,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -1600,13 +1975,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentPrbsTest.*$"
@@ -1653,10 +2043,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -1698,13 +2106,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentPrbsTest.*$"
@@ -1769,6 +2192,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -1808,13 +2237,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
@@ -1879,10 +2323,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -1924,13 +2386,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].EapolToHighPriQ$"
@@ -1977,6 +2454,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -2016,13 +2499,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
@@ -2084,10 +2582,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -2129,13 +2645,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentLoadBalancerTestV4InMplsPhp.*$"
@@ -2215,6 +2746,12 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -2254,13 +2791,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnWithoutWredConfig$"
@@ -2328,10 +2880,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -2373,13 +2943,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].VerifyCoppPpsLowPri$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
           "test_name_regex": "AgentLoopBackTest.VerifyLoopBackSrcEqualDstMac$"
         },
         {
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/2$"
+        },
+        {
+          "test_name_regex": "AgentMacSwLearningModeTest.VerifyNbrMacInL2Table$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningStaticEntriesTest.VerifyStaticDynamicTransformations$"
         },
         {
           "test_name_regex": "AgentAqmTest.verifyEcnWithoutWredConfig$"
@@ -2438,7 +3023,31 @@
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
         },
         {
+          "test_name_regex": "warm_boot.AgentMacLearningTest.VerifyHwAgingForTrunk$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifySwToHw.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifyHwToSw.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifyMacLearningScale$"
+        },
+        {
+          "test_name_regex": "AgentPacketSendTest.PortTxEnableTest$"
+        },
+        {
           "test_name_regex": "AgentDeepPacketInspectionTest.*$"
+        },
+        {
+          "test_name_regex": "AgentRouteCounterOverflowTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalMcastToMidPriQ$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -2478,6 +3087,12 @@
         },
         {
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         }
     ],
     "leaba/1.42.8/1.42.8/gibraltar/multi_switch": [
@@ -2533,7 +3148,31 @@
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
         },
         {
+          "test_name_regex": "warm_boot.AgentMacLearningTest.VerifyHwAgingForTrunk$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifySwToHw.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifyHwToSw.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifyMacLearningScale$"
+        },
+        {
+          "test_name_regex": "AgentPacketSendTest.PortTxEnableTest$"
+        },
+        {
           "test_name_regex": "AgentDeepPacketInspectionTest.*$"
+        },
+        {
+          "test_name_regex": "AgentRouteCounterOverflowTest.*$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalMcastToMidPriQ$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -2575,10 +3214,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         }
     ],
     "leaba/1.65.1/1.65.1/gibraltar/mono": [
@@ -2634,6 +3291,24 @@
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
         },
         {
+          "test_name_regex": "warm_boot.AgentMacLearningTest.VerifyHwAgingForTrunk$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifySwToHw.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifyHwToSw.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifyMacLearningScale$"
+        },
+        {
+          "test_name_regex": "AgentPacketSendTest.PortTxEnableTest$"
+        },
+        {
           "test_name_regex": "AgentPortBandwidthTest.VerifyQueueShaper$"
         },
         {
@@ -2674,6 +3349,12 @@
         },
         {
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         }
     ],
     "leaba/1.65.1/1.65.1/gibraltar/multi_switch": [
@@ -2729,6 +3410,24 @@
           "test_name_regex": "AgentPortBandwidthTest/AgentPortBandwidthParamTest.VerifyPortRateTraffic/0$"
         },
         {
+          "test_name_regex": "warm_boot.AgentMacLearningTest.VerifyHwAgingForTrunk$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifySwToHw.*$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifyHwToSw.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentMacSwLearningModeTest.VerifyCallbacksOnMacEntryChange$"
+        },
+        {
+          "test_name_regex": "AgentMacLearningTest.VerifyMacLearningScale$"
+        },
+        {
+          "test_name_regex": "AgentPacketSendTest.PortTxEnableTest$"
+        },
+        {
           "test_name_regex": "AgentPortBandwidthTest.VerifyQueueShaper$"
         },
         {
@@ -2771,10 +3470,28 @@
           "test_name_regex": "AgentMacLearningMacMoveTest.*$"
         },
         {
-          "test_name_regex": "warm_boot.AgentDeepPacketInspectionTest.l3ForwardedPkt$"
+          "test_name_regex": "AgentMacLearningBatchEntriesTest.*$"
+        },
+        {
+          "test_name_regex": "AgentFlowletSwitchingTest.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentAclCounterTest/[01].*$"
+        },
+        {
+          "test_name_regex": "AgentRouteOverflowTest.overflowRoutes$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentInNullRouteDiscardsCounterTest.nullRouteHit$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentRouteCounterOverflowTest.overflowRouteCounters$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentSwitchStatsTxCounterTest.VerifyTxCounter$"
         }
     ]
   }

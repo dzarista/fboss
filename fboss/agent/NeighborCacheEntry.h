@@ -225,6 +225,7 @@ class NeighborCacheEntry : private folly::AsyncTimeout {
     *entry.classID() =
         getClassID().has_value() ? static_cast<int>(getClassID().value()) : 0;
     *entry.interfaceID() = getIntfID();
+    *entry.portDescriptor() = getPort().toThrift();
   }
 
  private:
@@ -343,10 +344,8 @@ class NeighborCacheEntry : private folly::AsyncTimeout {
 
   void probeStaleEntryIfHit() {
     DCHECK(state_ == NeighborEntryState::STALE);
-    if (cache_->isHit(getIP())) {
-      state_ = NeighborEntryState::PROBE;
-      probeIfProbesLeft();
-    }
+    state_ = NeighborEntryState::PROBE;
+    probeIfProbesLeft();
   }
 
   void runStateMachine() {

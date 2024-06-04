@@ -12,6 +12,7 @@
 #include "fboss/agent/ThriftHandler.h"
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
+#include "fboss/agent/test/utils/PacketSendUtils.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/CommonUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -103,6 +104,10 @@ void AgentEnsemble::setupEnsemble(
     setupLinkStateToggler();
   }
   startAgent();
+
+  for (const auto& switchId : getSw()->getSwitchInfoTable().getSwitchIDs()) {
+    ensureHwSwitchConnected(switchId);
+  }
 }
 
 void AgentEnsemble::startAgent() {
@@ -298,8 +303,9 @@ std::map<PortID, HwPortStats> AgentEnsemble::getLatestPortStats(
   return getSw()->getHwPortStats(ports);
 }
 
-HwPortStats AgentEnsemble::getLatestPortStats(const PortID& port) {
-  return getLatestPortStats(std::vector<PortID>{port})[port];
+std::map<SystemPortID, HwSysPortStats> AgentEnsemble::getLatestSysPortStats(
+    const std::vector<SystemPortID>& ports) {
+  return getSw()->getHwSysPortStats(ports);
 }
 
 void AgentEnsemble::registerStateObserver(
@@ -469,9 +475,59 @@ std::vector<PortID> AgentEnsemble::masterLogicalPortIds(
   return switchId2PortIds_.at(switchId);
 }
 
+void AgentEnsemble::clearPortStats() {
+  auto portsVec = std::make_unique<std::vector<int32_t>>();
+  for (const auto& [key, ports] :
+       std::as_const(*getProgrammedState()->getPorts())) {
+    for (const auto& [id, port] : std::as_const(*ports)) {
+      portsVec->push_back(id);
+    }
+  }
+  clearPortStats(std::move(portsVec));
+}
+
 void AgentEnsemble::clearPortStats(
     const std::unique_ptr<std::vector<int32_t>>& ports) {
   ThriftHandler(getSw()).clearPortStats(
       std::make_unique<std::vector<int32_t>>(std::move(*ports)));
 }
+
+bool AgentEnsemble::ensureSendPacketSwitched(std::unique_ptr<TxPacket> pkt) {
+  // lambda that returns HwPortStats for the given port(s)
+  auto getPortStats =
+      [&](const std::vector<PortID>& portIds) -> std::map<PortID, HwPortStats> {
+    return getLatestPortStats(portIds);
+  };
+  auto getSysPortStats = [&](const std::vector<SystemPortID>& portIds)
+      -> std::map<SystemPortID, HwSysPortStats> {
+    return getLatestSysPortStats(portIds);
+  };
+
+  return utility::ensureSendPacketSwitched(
+      this,
+      std::move(pkt),
+      masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
+      getPortStats,
+      masterLogicalSysPortIds(),
+      getSysPortStats);
+}
+
+bool AgentEnsemble::ensureSendPacketOutOfPort(
+    std::unique_ptr<TxPacket> pkt,
+    PortID portID,
+    std::optional<uint8_t> queue) {
+  // lambda that returns HwPortStats for the given port(s)
+  auto getPortStats =
+      [&](const std::vector<PortID>& portIds) -> std::map<PortID, HwPortStats> {
+    return getLatestPortStats(portIds);
+  };
+  return utility::ensureSendPacketOutOfPort(
+      this,
+      std::move(pkt),
+      portID,
+      masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
+      getPortStats,
+      queue);
+}
+
 } // namespace facebook::fboss

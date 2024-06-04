@@ -15,7 +15,7 @@ cd "${FBOSS_DIR}"
 
 # Install dependencies.
 echo -ne "\nInstalling dependencies\n"
-declare -a deps=("python36-devel"
+declare -a deps=("python3-devel"
                  "epel-release"
                  "flashrom"
                  "lm_sensors"

@@ -58,6 +58,13 @@ class TestEnsembleIf : public HwSwitchCallback {
   std::vector<PortID> masterLogicalFabricPortIds(SwitchID switchId) const {
     return masterLogicalPortIds({cfg::PortType::FABRIC_PORT}, {switchId});
   }
+
+  size_t getMinPktsForLineRate(const PortID& port) {
+    auto portSpeed =
+        getProgrammedState()->getPorts()->getNodeIf(port)->getSpeed();
+    return (portSpeed > cfg::PortSpeed::HUNDREDG ? 1000 : 100);
+  }
+
   virtual void applyNewState(
       StateUpdateFn fn,
       const std::string& name = "test-update",
@@ -85,6 +92,14 @@ class TestEnsembleIf : public HwSwitchCallback {
       const std::unique_ptr<std::vector<int32_t>>& ports) = 0;
   virtual std::map<PortID, HwPortStats> getLatestPortStats(
       const std::vector<PortID>& ports) = 0;
+  HwPortStats getLatestPortStats(PortID port) {
+    return getLatestPortStats(std::vector<PortID>({port}))[port];
+  }
+  virtual std::map<SystemPortID, HwSysPortStats> getLatestSysPortStats(
+      const std::vector<SystemPortID>& ports) = 0;
+  HwSysPortStats getLatestSysPortStats(SystemPortID port) {
+    return getLatestSysPortStats(std::vector<SystemPortID>({port}))[port];
+  }
   virtual LinkStateToggler* getLinkToggler() = 0;
   virtual bool isSai() const = 0;
   virtual folly::MacAddress getLocalMac(SwitchID id) const = 0;
@@ -97,6 +112,7 @@ class TestEnsembleIf : public HwSwitchCallback {
   virtual const PlatformMapping* getPlatformMapping() const = 0;
   virtual cfg::SwitchConfig getCurrentConfig() const = 0;
   std::vector<const HwAsic*> getL3Asics() const;
+  std::vector<SystemPortID> masterLogicalSysPortIds() const;
 
  private:
   std::vector<PortID> masterLogicalPortIdsImpl(

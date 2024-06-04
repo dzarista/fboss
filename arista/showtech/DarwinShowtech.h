@@ -13,7 +13,7 @@ namespace showtech {
 class DarwinShowtech : public Showtech {
 public:
   DarwinShowtech(bool verbose) : Showtech(verbose) {}
-  std::string getVersion() override { return "1.0"; }
+  std::string getVersion() override { return "1.1"; }
   void printPlatformInfo() override;
   std::set<int> i2cBusIgnore() override { return {}; }
 

@@ -11,6 +11,8 @@
 #include <folly/logging/Init.h>
 #include <folly/logging/xlog.h>
 #include "fboss/agent/AgentConfig.h"
+#include "fboss/agent/AgentFeatures.h"
+#include "fboss/agent/AlpmUtils.h"
 #include "fboss/agent/CommonInit.h"
 #include "fboss/agent/FbossInit.h"
 #include "fboss/agent/HwSwitch.h"
@@ -18,8 +20,6 @@
 #include "fboss/agent/SetupThrift.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/mnpu/SplitAgentThriftSyncer.h"
-
-#include "fboss/agent/AlpmUtils.h"
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/lib/CommonFileUtils.h"
 
@@ -30,11 +30,6 @@ FOLLY_INIT_LOGGING_CONFIG("DBG2; default:async=true");
 #else
 FOLLY_INIT_LOGGING_CONFIG("fboss=DBG2; default:async=true");
 #endif
-
-DEFINE_int32(
-    hwagent_port_base,
-    5931,
-    "The first thrift server port reserved for HwAgent");
 
 DEFINE_int32(swswitch_port, 5959, "Port for SwSwitch");
 
@@ -151,6 +146,8 @@ int hwAgentMain(
   auto ret =
       hwAgent->initAgent(true /* failHwCallsOnWarmboot */, thriftSyncer.get());
 
+  hwAgent->getPlatform()->onHwInitialized(nullptr /*sw*/);
+
   hwAgent->getPlatform()->getHwSwitch()->switchRunStateChanged(
       SwitchRunState::INITIALIZED);
 
@@ -198,6 +195,14 @@ int hwAgentMain(
         }
       },
       std::move(hwAgent));
+
+  /*
+   * Updating stats could be expensive as each update must acquire lock. To
+   * avoid this overhead, we use ThreadLocal version for updating stats, and
+   * start a publish thread to aggregate the counters periodically.
+   */
+  facebook::fb303::ThreadCachedServiceData::get()->startPublishThread(
+      std::chrono::milliseconds(FLAGS_stat_publish_interval_ms));
 
   restart_time::mark(RestartEvent::INITIALIZED);
 

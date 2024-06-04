@@ -193,6 +193,7 @@ std::unordered_map<PortID, cfg::PortProfileID> getSafeProfileIDs(
           bestSpeed = getDefaultFabricSpeed(asicType);
           break;
         case cfg::PortType::RECYCLE_PORT:
+        case cfg::PortType::EVENTOR_PORT:
           bestSpeed = cfg::PortSpeed::XG;
           break;
         case cfg::PortType::CPU_PORT:
@@ -269,6 +270,7 @@ cfg::Port createDefaultPortConfig(
   } else {
     defaultConfig.ingressVlan() = kDefaultVlanId;
   }
+  defaultConfig.scope() = *entry.mapping()->scope();
   return defaultConfig;
 }
 
@@ -536,13 +538,15 @@ cfg::SwitchConfig multiplePortsPerIntfConfig(
                           cfg::InterfaceType type,
                           bool setMac,
                           bool hasSubnet,
-                          std::optional<std::vector<std::string>> subnets) {
+                          std::optional<std::vector<std::string>> subnets,
+                          cfg::Scope scope) {
     auto i = config.interfaces()->size();
     config.interfaces()->push_back(cfg::Interface{});
     *config.interfaces()[i].intfID() = intfId;
     *config.interfaces()[i].vlanID() = vlanId;
     *config.interfaces()[i].routerID() = 0;
     *config.interfaces()[i].type() = type;
+    *config.interfaces()[i].scope() = scope;
     if (setMac) {
       config.interfaces()[i].mac() = getLocalCpuMacStr();
     }
@@ -569,7 +573,8 @@ cfg::SwitchConfig multiplePortsPerIntfConfig(
         cfg::InterfaceType::VLAN,
         setInterfaceMac,
         interfaceHasSubnet,
-        std::nullopt);
+        std::nullopt,
+        cfg::Scope::LOCAL);
   }
   // Create interfaces for local sys ports on VOQ switches
   if (switchType == cfg::SwitchType::VOQ) {
@@ -591,7 +596,12 @@ cfg::SwitchConfig multiplePortsPerIntfConfig(
           *config.dsfNodes()[mySwitchId].systemPortRange()->minimum();
       auto intfId = sysportRangeBegin + *port.logicalID();
       std::optional<std::vector<std::string>> subnets;
-      if (*port.portType() == cfg::PortType::RECYCLE_PORT) {
+      auto portScope = *platformMapping->getPlatformPort(*port.logicalID())
+                            .mapping()
+                            ->scope();
+      if (*port.portType() == cfg::PortType::RECYCLE_PORT &&
+          portScope == cfg::Scope::GLOBAL) {
+        // only set IP for global recycle ports
         subnets = getLoopbackIps(SwitchID(mySwitchId));
       }
       addInterface(
@@ -600,7 +610,8 @@ cfg::SwitchConfig multiplePortsPerIntfConfig(
           cfg::InterfaceType::SYSTEM_PORT,
           setInterfaceMac,
           interfaceHasSubnet,
-          subnets);
+          subnets,
+          portScope);
     }
   }
   return config;
@@ -638,13 +649,17 @@ cfg::SwitchConfig genPortVlanCfg(
   switchInfo.switchIndex() = 0;
   switchInfo.switchType() = switchType;
   switchInfo.asicType() = asicType;
+  // TODO: Instead of using hard codings for connection handle and
+  // src mac, get the configs from AgentConfig
   if (asicType == cfg::AsicType::ASIC_TYPE_RAMON) {
     switchInfo.connectionHandle() = "0c:00";
   } else if (asicType == cfg::AsicType::ASIC_TYPE_RAMON3) {
     switchInfo.connectionHandle() = "15:00";
   } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2) {
+    switchInfo.switchMac() = "02:00:00:00:00:01";
     switchInfo.connectionHandle() = "68:00";
   } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    switchInfo.switchMac() = "02:00:00:00:00:01";
     switchInfo.connectionHandle() = "15:00";
   } else if (
       asicType == cfg::AsicType::ASIC_TYPE_EBRO ||
@@ -745,6 +760,19 @@ cfg::SwitchConfig genPortVlanCfg(
   return config;
 }
 
+cfg::SwitchConfig
+oneL3IntfTwoPortConfig(const SwSwitch* sw, PortID port1, PortID port2) {
+  std::vector<PortID> ports{port1, port2};
+  auto asic = checkSameAndGetAsic(sw->getHwAsicTable()->getL3Asics());
+  return oneL3IntfTwoPortConfig(
+      sw->getPlatformMapping(),
+      asic,
+      port1,
+      port2,
+      sw->getPlatformSupportsAddRemovePort(),
+      asic->desiredLoopbackModes());
+}
+
 cfg::SwitchConfig oneL3IntfTwoPortConfig(
     const PlatformMapping* platformMapping,
     const HwAsic* asic,
@@ -810,7 +838,7 @@ cfg::SwitchConfig twoL3IntfConfig(
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap) {
   return twoL3IntfConfig(
       swSwitch->getPlatformMapping(),
-      utility::getFirstAsic(swSwitch),
+      swSwitch->getHwAsicTable()->getL3Asics(),
       swSwitch->getPlatformSupportsAddRemovePort(),
       port1,
       port2,
@@ -819,11 +847,12 @@ cfg::SwitchConfig twoL3IntfConfig(
 
 cfg::SwitchConfig twoL3IntfConfig(
     const PlatformMapping* platformMapping,
-    const HwAsic* asic,
+    const std::vector<const HwAsic*>& asics,
     bool supportsAddRemovePort,
     PortID port1,
     PortID port2,
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap) {
+  auto asic = checkSameAndGetAsic(asics);
   std::map<PortID, VlanID> port2vlan;
   std::vector<PortID> ports{port1, port2};
   std::vector<VlanID> vlans;

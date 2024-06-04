@@ -24,8 +24,6 @@ class AgentOlympicQosTests : public AgentHwTest {
  protected:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    // ARISTA fix to make build pass.
-    // auto asic = utility::getFirstAsic(ensemble.getSw());
     auto cfg = utility::onePortPerInterfaceConfig(
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),

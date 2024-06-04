@@ -122,6 +122,14 @@ uint16_t getCoppHighPriQueueId(const HwAsic* hwAsic) {
   throw FbossError("Unexpected AsicType ", hwAsic->getAsicType());
 }
 
+uint16_t getCoppMidPriQueueId(const std::vector<const HwAsic*>& hwAsics) {
+  auto hwAsic = checkSameAndGetAsic(hwAsics);
+  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    return kJ3CoppMidPriQueueId;
+  }
+  return kCoppMidPriQueueId;
+}
+
 cfg::ToCpuAction getCpuActionType(const HwAsic* hwAsic) {
   switch (hwAsic->getAsicType()) {
     case cfg::AsicType::ASIC_TYPE_FAKE:
@@ -214,9 +222,10 @@ cfg::PortQueueRate setPortQueueRate(const HwAsic* hwAsic, uint16_t queueId) {
 
 void addCpuQueueConfig(
     cfg::SwitchConfig& config,
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& asics,
     bool isSai,
     bool setQueueRate) {
+  auto hwAsic = checkSameAndGetAsic(asics);
   std::vector<cfg::PortQueue> cpuQueues;
 
   cfg::PortQueue queue0;
@@ -250,7 +259,7 @@ void addCpuQueueConfig(
   cpuQueues.push_back(queue1);
 
   cfg::PortQueue queue2;
-  queue2.id() = kCoppMidPriQueueId;
+  queue2.id() = getCoppMidPriQueueId({hwAsic});
   queue2.name() = "cpuQueue-mid";
   queue2.streamType() = getCpuDefaultStreamType(hwAsic);
   queue2.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
@@ -270,8 +279,9 @@ void addCpuQueueConfig(
 
 void setDefaultCpuTrafficPolicyConfig(
     cfg::SwitchConfig& config,
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& asics,
     bool isSai) {
+  auto hwAsic = checkSameAndGetAsic(asics);
   auto cpuAcls = utility::defaultCpuAcls(hwAsic, config, isSai);
 
   for (int i = 0; i < cpuAcls.size(); i++) {
@@ -348,15 +358,15 @@ void addMidPriAclForNw(
     const folly::CIDRNetwork& dstNetwork,
     cfg::ToCpuAction toCpuAction,
     std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls,
-    bool isSai) {
+    bool isSai,
+    int midPriQueueId) {
   cfg::AclEntry acl;
   auto dstIp = folly::to<std::string>(dstNetwork.first, "/", dstNetwork.second);
   acl.name() = folly::to<std::string>("cpuPolicing-mid-", dstIp);
   acl.dstIp() = dstIp;
 
   acls.push_back(std::make_pair(
-      acl,
-      createQueueMatchAction(utility::kCoppMidPriQueueId, isSai, toCpuAction)));
+      acl, createQueueMatchAction(midPriQueueId, isSai, toCpuAction)));
 }
 
 void addLowPriAclForConnectedSubnetRoutes(
@@ -365,8 +375,7 @@ void addLowPriAclForConnectedSubnetRoutes(
     bool isSai) {
   cfg::AclEntry acl;
   acl.name() = folly::to<std::string>("cpu-connected-subnet-route-acl");
-  acl.lookupClassRoute() =
-      cfg::AclLookupClass::DEPRECATED_CLASS_CONNECTED_ROUTE_TO_INTF;
+  acl.lookupClassRoute() = cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2;
   acls.push_back(std::make_pair(
       acl,
       createQueueMatchAction(utility::kCoppLowPriQueueId, isSai, toCpuAction)));
@@ -378,8 +387,7 @@ void addLowPriAclForUnresolvedRoutes(
     bool isSai) {
   cfg::AclEntry acl;
   acl.name() = folly::to<std::string>("cpu-unresolved-route-acl");
-  acl.lookupClassRoute() =
-      cfg::AclLookupClass::DEPRECATED_CLASS_UNRESOLVED_ROUTE_TO_CPU;
+  acl.lookupClassRoute() = cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2;
   acls.push_back(std::make_pair(
       acl,
       createQueueMatchAction(utility::kCoppLowPriQueueId, isSai, toCpuAction)));
@@ -486,13 +494,15 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForSai(
       kIPv6LinkLocalMcastNetwork(),
       getCpuActionType(hwAsic),
       acls,
-      true /*isSai*/);
+      true /*isSai*/,
+      getCoppMidPriQueueId({hwAsic}));
   // All fe80::/10 to mid pri queue
   addMidPriAclForNw(
       kIPv6LinkLocalUcastNetwork(),
       getCpuActionType(hwAsic),
       acls,
-      true /*isSai*/);
+      true /*isSai*/,
+      getCoppMidPriQueueId({hwAsic}));
 
   if (hwAsic->isSupported(HwAsic::Feature::ACL_METADATA_QUALIFER)) {
     /*
@@ -648,17 +658,27 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForBcm(
     acls.emplace_back(
         acl,
         createQueueMatchAction(
-            utility::kCoppMidPriQueueId, isSai, getCpuActionType(hwAsic)));
+            utility::getCoppMidPriQueueId({hwAsic}),
+            isSai,
+            getCpuActionType(hwAsic)));
   };
   addMidPriDstClassL3Acl(true);
   addMidPriDstClassL3Acl(false);
 
   // unicast and multicast link local dst ip
   addMidPriAclForNw(
-      kIPv6LinkLocalMcastNetwork(), getCpuActionType(hwAsic), acls, isSai);
+      kIPv6LinkLocalMcastNetwork(),
+      getCpuActionType(hwAsic),
+      acls,
+      isSai,
+      getCoppMidPriQueueId({hwAsic}));
   // All fe80::/10 to mid pri queue
   addMidPriAclForNw(
-      kIPv6LinkLocalUcastNetwork(), getCpuActionType(hwAsic), acls, isSai);
+      kIPv6LinkLocalUcastNetwork(),
+      getCpuActionType(hwAsic),
+      acls,
+      isSai,
+      getCoppMidPriQueueId({hwAsic}));
 
   // mpls no match
   {
@@ -703,6 +723,7 @@ void addTrafficCounter(
 std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueuesForSai(
     const HwAsic* hwAsic) {
   auto coppHighPriQueueId = utility::getCoppHighPriQueueId(hwAsic);
+  auto coppMidPriQueueId = utility::getCoppMidPriQueueId({hwAsic});
   ControlPlane::RxReasonToQueue rxReasonToQueues = {
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::ARP, coppHighPriQueueId),
@@ -715,17 +736,17 @@ std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueuesForSai(
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::BGPV6, coppHighPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
-          cfg::PacketRxReason::CPU_IS_NHOP, kCoppMidPriQueueId),
+          cfg::PacketRxReason::CPU_IS_NHOP, coppMidPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::LACP, coppHighPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::TTL_1, kCoppLowPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
-          cfg::PacketRxReason::LLDP, kCoppMidPriQueueId),
+          cfg::PacketRxReason::LLDP, coppMidPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
-          cfg::PacketRxReason::DHCP, kCoppMidPriQueueId),
+          cfg::PacketRxReason::DHCP, coppMidPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
-          cfg::PacketRxReason::DHCPV6, kCoppMidPriQueueId),
+          cfg::PacketRxReason::DHCPV6, coppMidPriQueueId),
   };
 
   if (hwAsic->isSupported(HwAsic::Feature::SAI_EAPOL_TRAP)) {
@@ -757,11 +778,12 @@ std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueuesForBcm(
     const HwAsic* hwAsic) {
   std::vector<cfg::PacketRxReasonToQueue> rxReasonToQueues;
   auto coppHighPriQueueId = utility::getCoppHighPriQueueId(hwAsic);
+  auto coppMidPriQueueId = utility::getCoppMidPriQueueId({hwAsic});
   std::vector<std::pair<cfg::PacketRxReason, uint16_t>>
       rxReasonToQueueMappings = {
           std::pair(cfg::PacketRxReason::ARP, coppHighPriQueueId),
-          std::pair(cfg::PacketRxReason::DHCP, kCoppMidPriQueueId),
-          std::pair(cfg::PacketRxReason::BPDU, kCoppMidPriQueueId),
+          std::pair(cfg::PacketRxReason::DHCP, coppMidPriQueueId),
+          std::pair(cfg::PacketRxReason::BPDU, coppMidPriQueueId),
           std::pair(cfg::PacketRxReason::L3_MTU_ERROR, kCoppLowPriQueueId),
           std::pair(cfg::PacketRxReason::L3_SLOW_PATH, kCoppLowPriQueueId),
           std::pair(cfg::PacketRxReason::L3_DEST_MISS, kCoppLowPriQueueId),
@@ -874,7 +896,7 @@ uint64_t getQueueOutPacketsWithRetry(
   do {
     for (auto i = 0; i <= utility::getCoppHighPriQueueId(asic); i++) {
       auto qOutPkts =
-          getCpuQueueOutPacketsAndBytes(switchPtr, queueId, switchId).first;
+          getCpuQueueOutPacketsAndBytes(switchPtr, i, switchId).first;
       XLOG(DBG2) << "QueueID: " << i << " qOutPkts: " << qOutPkts;
     }
 
@@ -1081,7 +1103,7 @@ void verifyCoppInvariantHelper(
       swState,
       addrs.begin()->first,
       utility::kNonSpecialPort2,
-      utility::kCoppMidPriQueueId,
+      utility::getCoppMidPriQueueId({hwAsic}),
       srcPort);
 
   verifyCoppAcl(switchPtr, switchId, hwAsic, swState, srcPort);

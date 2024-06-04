@@ -42,9 +42,11 @@
 #include "fboss/cli/fboss2/commands/show/hwagent/CmdShowHwAgentStatus.h"
 #include "fboss/cli/fboss2/commands/show/hwobject/CmdShowHwObject.h"
 #include "fboss/cli/fboss2/commands/show/interface/CmdShowInterface.h"
+#include "fboss/cli/fboss2/commands/show/interface/capabilities/CmdShowInterfaceCapabilities.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/CmdShowInterfaceCounters.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/fec/CmdShowInterfaceCountersFec.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/fec/ber/CmdShowInterfaceCountersFecBer.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/histogram/CmdShowInterfaceCountersFecHistogram.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/fec/uncorrectable/CmdShowInterfaceCountersFecUncorrectable.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/mka/CmdShowInterfaceCountersMKA.h"
 #include "fboss/cli/fboss2/commands/show/interface/errors/CmdShowInterfaceErrors.h"
@@ -214,6 +216,11 @@ const CommandTree& kCommandTree() {
                       commandHandler<CmdShowInterfaceCountersFecUncorrectable>,
                       argTypeHandler<
                           CmdShowInterfaceCountersFecUncorrectableTraits>},
+                     {"histogram",
+                      "Show Interface counters fec histogram",
+                      commandHandler<CmdShowInterfaceCountersFecHistogram>,
+                      argTypeHandler<
+                          CmdShowInterfaceCountersFecHistogramTraits>},
                  }},
             }},
 
@@ -244,6 +251,10 @@ const CommandTree& kCommandTree() {
             "Show External Phy Port Map",
             commandHandler<CmdShowInterfacePhymap>,
             argTypeHandler<CmdShowInterfacePhymapTraits>},
+           {"capabilities",
+            "Show Supported Port capabilities on the ports",
+            commandHandler<CmdShowInterfaceCapabilities>,
+            argTypeHandler<CmdShowInterfaceCapabilitiesTraits>},
            {"prbs",
             "Show PRBS information",
             commandHandler<CmdShowInterfacePrbs>,
