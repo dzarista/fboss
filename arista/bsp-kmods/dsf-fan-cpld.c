@@ -1045,9 +1045,9 @@ static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	cpld->wdd.parent = hwmon_dev;
 	cpld->wdd.timeout = WDT_TIMEOUT;
 	cpld->wdd.max_timeout = WDT_MAX_TIMEOUT;
-	watchdog_init_timeout(&cpld->wdd, 0, hwmon_dev);
+	watchdog_init_timeout(&cpld->wdd, 0, dev);
 
-	err = devm_watchdog_register_device(hwmon_dev, &cpld->wdd);
+	err = devm_watchdog_register_device(dev, &cpld->wdd);
 	if (err) {
 		dev_err(hwmon_dev, "watchdog_register_device failed, ret=%d\n", err);
 		return err;
@@ -1055,8 +1055,6 @@ static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	return err;
 }
-
-
 
 static struct i2c_driver cpld_driver = {
    .class = I2C_CLASS_HWMON,
