@@ -115,6 +115,9 @@ cfg::SwitchConfig onePortPerInterfaceConfig(
     int baseIntfId = kBaseVlanId,
     bool enableFabricPorts = false);
 
+cfg::SwitchConfig
+oneL3IntfTwoPortConfig(const SwSwitch* sw, PortID port1, PortID port2);
+
 cfg::SwitchConfig oneL3IntfTwoPortConfig(
     const PlatformMapping* platformMapping,
     const HwAsic* asic,
@@ -168,7 +171,7 @@ cfg::SwitchConfig twoL3IntfConfig(
         kDefaultLoopbackMap());
 cfg::SwitchConfig twoL3IntfConfig(
     const PlatformMapping* platformMapping,
-    const HwAsic* asic,
+    const std::vector<const HwAsic*>& asics,
     bool supportsAddRemovePort,
     PortID port1,
     PortID port2,

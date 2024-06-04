@@ -4,7 +4,7 @@ ARGS=()
 
 # Find management interface.
 MGMT_INTF=$(ip route get 8.8.8.8 | sed -n 's/.*dev \([^\ ]*\).*/\1/p')
-if [ "${MGMT_INTF}" != "eth0" ]; then
+if [ -n "${MGMT_INTF}" -a "${MGMT_INTF}" != "eth0" ]; then
    ARGS+=(--mgmt-if="${MGMT_INTF}")
 fi
 

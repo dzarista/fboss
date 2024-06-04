@@ -37,6 +37,7 @@ class HwAsic;
 class HwSwitchWarmBootHelper;
 class PlatformProductInfo;
 class HwSwitchCallback;
+class StateDelta;
 
 /*
  * Platform represents a specific switch/router platform.
@@ -76,12 +77,6 @@ class Platform {
       std::unique_ptr<AgentConfig> config,
       uint32_t hwFeaturesDesired,
       int16_t switchIndex);
-
-  /*
-   * Allows the platorm to run any necessary cleanup steps like
-   * stopping threads.
-   */
-  virtual void stop() = 0;
 
   /*
    * Two ways to get the configuration of the switch. config() will
@@ -157,13 +152,6 @@ class Platform {
    * HwSwitch can be performed here.
    */
   virtual void onHwInitialized(HwSwitchCallback* sw) = 0;
-
-  /*
-   * onInitialConfigApplied() will be called after the initial
-   * configuration has been applied.  Platform-specific initialization
-   * that needs to happen after this can be performed here.
-   */
-  virtual void onInitialConfigApplied(HwSwitchCallback* sw) = 0;
 
   /*
    * Create the handler for HwSwitch service
@@ -267,6 +255,8 @@ class Platform {
               folly::to<std::string>("switch.", FLAGS_switchIndex, "."))
         : std::optional<std::string>();
   }
+
+  virtual void stateChanged(const StateDelta& delta) = 0;
 
  private:
   /*

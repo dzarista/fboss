@@ -278,6 +278,17 @@ ExtendedSpecComplianceCode Sff8472Module::getExtendedSpecComplianceCode()
       getSettingsValue(Sff8472Field::EXTENDED_SPEC_COMPLIANCE_CODE));
 }
 
+TransmitterTechnology Sff8472Module::getQsfpTransmitterTechnology() const {
+  switch (getModuleMediaInterface()) {
+    case MediaInterfaceCode::LR_10G:
+      return TransmitterTechnology::OPTICAL;
+    case MediaInterfaceCode::BASE_T_10G:
+      return TransmitterTechnology::COPPER;
+    default:
+      return TransmitterTechnology::UNKNOWN;
+  }
+}
+
 double Sff8472Module::getSfpSensor(
     Sff8472Field field,
     double (*conversion)(uint16_t value)) {
@@ -467,5 +478,14 @@ void Sff8472Module::remediateFlakyTransceiver(
   lastRemediateTime_ = std::time(nullptr);
 }
 
+bool Sff8472Module::tcvrPortStateSupported(
+    TransceiverPortState& portState) const {
+  if (portState.transmitterTech != getQsfpTransmitterTechnology()) {
+    return false;
+  }
+  // Only 10G is supported
+  return (portState.speed == cfg::PortSpeed::XG) &&
+      (portState.startHostLane == 0) && portState.numHostLanes == 1;
+}
 } // namespace fboss
 } // namespace facebook

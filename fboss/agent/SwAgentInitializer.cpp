@@ -2,6 +2,7 @@
 
 #include "fboss/agent/SwAgentInitializer.h"
 #include "fboss/agent/AgentDirectoryUtil.h"
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/SetupThrift.h"
 #include "fboss/agent/ThriftHandler.h"
@@ -31,11 +32,6 @@ DEFINE_int32(port, 5909, "The thrift server port");
 // current default 5909 is in conflict with VNC ports, need to
 // eventually migrate to 5959
 DEFINE_int32(migrated_port, 5959, "New thrift server port migrate to");
-DEFINE_int32(
-    stat_publish_interval_ms,
-    1000,
-    "How frequently to publish thread-local stats back to the "
-    "global store.  This should generally be less than 1 second.");
 // @lint-ignore CLANGTIDY
 DECLARE_int32(thrift_idle_timeout);
 
@@ -186,13 +182,15 @@ int SwAgentInitializer::initAgent(HwSwitchCallback* callback) {
   auto handlers = getThrifthandlers();
   handlers.push_back(swHandler);
   eventBase_ = new folly::EventBase();
+  std::vector<int> ports = {FLAGS_port, FLAGS_migrated_port};
+  // serve on hw agent port in mono so that clients can access
+  // hw agent apis on mono as well
+  if (!sw_->isRunModeMultiSwitch()) {
+    ports.push_back(FLAGS_hwagent_port_base);
+  }
 
   // Start the thrift server
-  server_ = setupThriftServer(
-      *eventBase_,
-      handlers,
-      {FLAGS_port, FLAGS_migrated_port},
-      true /*setupSSL*/);
+  server_ = setupThriftServer(*eventBase_, handlers, ports, true /*setupSSL*/);
 
   server_->setStreamExpireTime(std::chrono::milliseconds(0));
   server_->setIdleTimeout(std::chrono::milliseconds(0));

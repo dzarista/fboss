@@ -9,7 +9,7 @@
  */
 
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestUtils.h"
+#include "fboss/agent/test/utils/PacketSendUtils.h"
 
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/AlpmUtils.h"
@@ -478,25 +478,6 @@ void HwSwitchEnsemble::createEqualDistributedUplinkDownlinks(
   throw FbossError("Needs to be implemented by the derived class");
 }
 
-std::vector<SystemPortID> HwSwitchEnsemble::masterLogicalSysPortIds() const {
-  std::vector<SystemPortID> sysPorts;
-  if (getAsic()->getSwitchType() != cfg::SwitchType::VOQ) {
-    return sysPorts;
-  }
-  auto switchId = getHwSwitch()->getSwitchId();
-  CHECK(switchId.has_value());
-  auto sysPortRange = getProgrammedState()
-                          ->getDsfNodes()
-                          ->getNodeIf(SwitchID(*switchId))
-                          ->getSystemPortRange();
-  CHECK(sysPortRange.has_value());
-  for (auto port : masterLogicalPortIds({cfg::PortType::INTERFACE_PORT})) {
-    sysPorts.push_back(
-        SystemPortID(*sysPortRange->minimum() + static_cast<int>(port)));
-  }
-  return sysPorts;
-}
-
 bool HwSwitchEnsemble::ensureSendPacketSwitched(std::unique_ptr<TxPacket> pkt) {
   // lambda that returns HwPortStats for the given port(s)
   auto getPortStats =
@@ -561,10 +542,6 @@ bool HwSwitchEnsemble::waitStatsCondition(
       conditionFn, updateStatsFn, retries, msBetweenRetry);
 }
 
-HwPortStats HwSwitchEnsemble::getLatestPortStats(PortID port) {
-  return getLatestPortStats(std::vector<PortID>{port})[port];
-}
-
 std::map<PortID, HwPortStats> HwSwitchEnsemble::getLatestPortStats(
     const std::vector<PortID>& ports) {
   std::map<PortID, HwPortStats> portIdStatsMap;
@@ -580,10 +557,6 @@ std::map<PortID, HwPortStats> HwSwitchEnsemble::getLatestPortStats(
     portIdStatsMap.emplace((PortID)portId, stats);
   }
   return portIdStatsMap;
-}
-
-HwSysPortStats HwSwitchEnsemble::getLatestSysPortStats(SystemPortID port) {
-  return getLatestSysPortStats(std::vector<SystemPortID>{port})[port];
 }
 
 std::map<SystemPortID, HwSysPortStats> HwSwitchEnsemble::getLatestSysPortStats(
@@ -626,8 +599,6 @@ void HwSwitchEnsemble::setupEnsemble(
     const HwSwitchEnsembleInitInfo& initInfo) {
   hwAgent_ = std::move(hwAgent);
   linkToggler_ = std::move(linkToggler);
-  swSwitchWarmBootHelper_ = std::make_unique<SwSwitchWarmBootHelper>(
-      getPlatform()->getDirectoryUtil());
   auto asic = getPlatform()->getAsic();
   cfg::SwitchInfo switchInfo;
   switchInfo.switchType() = asic->getSwitchType();
@@ -642,6 +613,8 @@ void HwSwitchEnsemble::setupEnsemble(
       {{asic->getSwitchId() ? *asic->getSwitchId() : 0, switchInfo}});
   hwAsicTable_ =
       std::make_unique<HwAsicTable>(switchIdToSwitchInfo, std::nullopt);
+  swSwitchWarmBootHelper_ = std::make_unique<SwSwitchWarmBootHelper>(
+      getPlatform()->getDirectoryUtil(), hwAsicTable_.get());
   scopeResolver_ =
       std::make_unique<SwitchIdScopeResolver>(switchIdToSwitchInfo);
   if (haveFeature(MULTISWITCH_THRIFT_SERVER)) {
@@ -905,11 +878,6 @@ void HwSwitchEnsemble::ensureThrift() {
   if (!thriftThread_) {
     thriftThread_ = setupThrift();
   }
-}
-
-size_t HwSwitchEnsemble::getMinPktsForLineRate(const PortID& port) {
-  auto portSpeed = programmedState_->getPorts()->getNodeIf(port)->getSpeed();
-  return (portSpeed > cfg::PortSpeed::HUNDREDG ? 1000 : 100);
 }
 
 void HwSwitchEnsemble::addOrUpdateCounter(

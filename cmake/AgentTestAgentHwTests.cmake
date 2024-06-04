@@ -4,6 +4,7 @@
 # cmake/FooBar.cmake
 
 add_library(agent_hw_test_src
+  fboss/agent/test/agent_hw_tests/Agent2QueueToOlympicQoSTests.cpp
   fboss/agent/test/agent_hw_tests/AgentCoppTests.cpp
   fboss/agent/test/agent_hw_tests/AgentDscpMarkingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentDscpQueueMappingTests.cpp
@@ -14,9 +15,11 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentAclInDiscardCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentJumboFramesTests.cpp
   fboss/agent/test/agent_hw_tests/AgentInNullRouteDiscardsTest.cpp
+  fboss/agent/test/agent_hw_tests/AgentInTrapDiscardsTest.cpp
   fboss/agent/test/agent_hw_tests/AgentPacketSendTests.cpp
   fboss/agent/test/agent_hw_tests/AgentL3ForwardingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentL4PortBlackholingTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentMacLearningTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosSchedulerTests.cpp
   fboss/agent/test/agent_hw_tests/AgentQueuePerHostL2Tests.cpp
@@ -24,15 +27,22 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchTests.cpp
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchInterruptsTests.cpp
   fboss/agent/test/agent_hw_tests/AgentFabricSwitchTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentPortBandWidthTests.cpp
   fboss/agent/test/agent_hw_tests/AgentPrbsTests.cpp
   fboss/agent/test/agent_hw_tests/AgentAclCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentAqmTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOverflowTestBase.cpp
   fboss/agent/test/agent_hw_tests/AgentLoopBackTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentSendPacketToQueueTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentWatermarkTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentSwitchStatsTxCounterTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentMmuTuningTests.cpp
 )
 
 target_link_libraries(agent_hw_test_src
   acl_test_utils
+  agent_test_utils
+  aqm_test_utils
   copp_test_utils
   dscp_marking_utils
   pkt_test_utils
@@ -42,6 +52,7 @@ target_link_libraries(agent_hw_test_src
   queue_per_host_test_utils
   trap_packet_utils
   core
+  hw_asic_table
   hw_switch_fb303_stats
   config_factory
   agent_hw_test
@@ -52,36 +63,45 @@ target_link_libraries(agent_hw_test_src
   traffic_policy_utils
   olympic_qos_utils
   qos_test_utils
+  queue_test_utils
   invariant_test_utils
   prod_config_factory
+  port_test_utils
   state
   stats
+  route_scale_gen
+  route_test_utils
+  switch_asics
   resourcelibutil
   load_balancer_test_utils
+  l2learn_observer_util
+  mac_test_utils
   port_stats_test_utils
+  utils
 )
 
-#add_executable(multi_switch_agent_hw_test
-#  fboss/agent/test/agent_hw_tests/MultiSwitchAgentHwTest.cpp
-#)
+add_executable(multi_switch_agent_hw_test
+  fboss/agent/test/agent_hw_tests/MultiSwitchAgentHwTest.cpp
+)
 
-#target_link_libraries(multi_switch_agent_hw_test
-#  -Wl,--whole-archive
-#  acl_test_utils
-#  copp_test_utils
-#  pkt_test_utils
-#  agent_hw_test_src
-#  agent_hw_test
-#  multi_switch_agent_ensemble
-#  olympic_qos_utils
-#  trunk_utils
-#  traffic_policy_utils
-#  Folly::folly
-#  hw_packet_utils
-#  -Wl,--no-whole-archive
-#  ${GTEST}
-#  ${LIBGMOCK_LIBRARIES}
-#)
+target_link_libraries(multi_switch_agent_hw_test
+  -Wl,--whole-archive
+  acl_test_utils
+  agent_test_utils
+  copp_test_utils
+  pkt_test_utils
+  agent_hw_test_src
+  agent_hw_test
+  multi_switch_agent_ensemble
+  olympic_qos_utils
+  trunk_utils
+  traffic_policy_utils
+  Folly::folly
+  hw_packet_utils
+  -Wl,--no-whole-archive
+  ${GTEST}
+  ${LIBGMOCK_LIBRARIES}
+)
 
 function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
 

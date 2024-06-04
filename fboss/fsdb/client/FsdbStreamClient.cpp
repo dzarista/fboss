@@ -1,14 +1,14 @@
 // Copyright 2004-present Facebook. All Rights Reserved.
 
-#include <chrono>
-
 #include "fboss/fsdb/client/FsdbStreamClient.h"
+#include "common/time/Time.h"
+#include "fboss/fsdb/client/Client.h"
 
 #include <folly/logging/xlog.h>
-#include "common/time/Time.h"
-#if (!defined(IS_OSS)) || (defined(IS_OSS) && defined(IS_OSS_FBOSS_CENTOS9))
-#include "fboss/fsdb/client/Client.h"
-#endif
+#include <chrono>
+#include <cstdint>
+#include <optional>
+#include <random>
 
 DEFINE_int32(
     fsdb_reconnect_ms,
@@ -23,6 +23,29 @@ DEFINE_int32(
     fsdb_stat_chunk_timeout,
     0, // disabled by default for now
     "Chunk timeout in seconds for FSDB Stat streams");
+
+namespace {
+/*
+ * When Agent Coldboots/warmboots, it will attempt to establish subscriptions
+ * to all remote interface nodes. If several remote interface nodes are
+ * unreacuable, we will periodically attempt to reconnect to all those remote
+ * nodes. This will cause periodic spikes and may cause drops. Avoid it by
+ * spacing out reconnect requests to remote nodes.
+ *
+ * This is done by adding jitter to reconnect interval.
+ */
+
+int getReconnectIntervalInMs(int value) {
+  static std::mt19937 engine{std::random_device{}()};
+  // Create a uniform distribution between 0 and value / 2
+  std::uniform_int_distribution<int> distribution(0, value * 0.5);
+  int jitter = distribution(engine);
+  bool isEven = (jitter % 2 == 0);
+  // evenly distribute jitter: add if even, subtract if odd
+  return isEven ? value + jitter : value - jitter;
+}
+
+} // namespace
 
 namespace facebook::fboss::fsdb {
 FsdbStreamClient::FsdbStreamClient(
@@ -39,7 +62,7 @@ FsdbStreamClient::FsdbStreamClient(
           counterPrefix,
           "fsdb_streams",
           stateChangeCb,
-          FLAGS_fsdb_reconnect_ms),
+          getReconnectIntervalInMs(FLAGS_fsdb_reconnect_ms)),
       streamEvb_(streamEvb),
       isStats_(isStats) {
   if (isStats && FLAGS_fsdb_stat_chunk_timeout) {
@@ -108,5 +131,46 @@ folly::coro::Task<void> FsdbStreamClient::serviceLoopWrapper() {
   co_return;
 }
 #endif
+
+const uint8_t kDscpForClassOfServiceNC = 48;
+
+void FsdbStreamClient::resetClient() {
+  CHECK(streamEvb_->getEventBase()->isInEventBaseThread());
+  client_.reset();
+}
+
+std::optional<uint8_t> getTosForClientPriority(
+    const std::optional<FsdbStreamClient::Priority> priority) {
+  if (priority.has_value()) {
+    switch (*priority) {
+      case FsdbStreamClient::Priority::CRITICAL:
+        return kDscpForClassOfServiceNC;
+      case FsdbStreamClient::Priority::NORMAL:
+        // no TC marking by default
+        return std::nullopt;
+    }
+  }
+  return std::nullopt;
+}
+
+bool shouldUseEncryptedClient(const FsdbStreamClient::ServerOptions& options) {
+  // use encrypted connection for all clients except CRITICAL ones.
+  return (options.priority != FsdbStreamClient::Priority::CRITICAL);
+}
+
+void FsdbStreamClient::createClient(const ServerOptions& options) {
+  CHECK(streamEvb_->getEventBase()->isInEventBaseThread());
+  resetClient();
+
+  auto tos = getTosForClientPriority(options.priority);
+  bool encryptedClient = shouldUseEncryptedClient(options);
+
+  client_ = Client::getClient(
+      options.dstAddr /* dstAddr */,
+      options.srcAddr /* srcAddr */,
+      tos,
+      !encryptedClient,
+      streamEvb_->getEventBase());
+}
 
 } // namespace facebook::fboss::fsdb

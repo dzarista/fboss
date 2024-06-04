@@ -40,6 +40,11 @@ constexpr int kCPUPort = 0;
 constexpr int kCoppLowPriQueueId = 0;
 constexpr int kCoppDefaultPriQueueId = 1;
 constexpr int kCoppMidPriQueueId = 2;
+// avoid using cpu queue 2 on J3 platforms, because this queue 2 is
+// currently set lossless across all port including cpu port.
+// Since cpu port is slow, sending traffic to this queue 2 could cause
+// head of line block issue like T182789218.
+constexpr int kJ3CoppMidPriQueueId = 3;
 
 constexpr uint32_t kCoppLowPriWeight = 1;
 constexpr uint32_t kCoppDefaultPriWeight = 1;
@@ -68,7 +73,7 @@ constexpr uint16_t kNonSpecialPort2 = 60001;
 // For benchmark tests, we don't want to set queue rate for low priority queues.
 void addCpuQueueConfig(
     cfg::SwitchConfig& config,
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& asics,
     bool isSai,
     bool setQueueRate = true);
 
@@ -113,7 +118,7 @@ void addLowPriAclForConnectedSubnetRoutes(
 
 void setDefaultCpuTrafficPolicyConfig(
     cfg::SwitchConfig& config,
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& asics,
     bool isSai);
 
 cfg::StreamType getCpuDefaultStreamType(const HwAsic* hwAsic);
@@ -121,6 +126,8 @@ cfg::StreamType getCpuDefaultStreamType(const HwAsic* hwAsic);
 cfg::Range getRange(uint32_t minimum, uint32_t maximum);
 
 uint16_t getCoppHighPriQueueId(const HwAsic* hwAsic);
+
+uint16_t getCoppMidPriQueueId(const std::vector<const HwAsic*>& hwAsics);
 
 std::shared_ptr<facebook::fboss::Interface> getEligibleInterface(
     std::shared_ptr<SwitchState> swState);

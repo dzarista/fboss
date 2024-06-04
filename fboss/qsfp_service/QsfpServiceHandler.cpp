@@ -117,6 +117,12 @@ void QsfpServiceHandler::pauseRemediation(
   manager_->setPauseRemediation(timeout, std::move(portList));
 }
 
+void QsfpServiceHandler::unpauseRemediation(
+    std::unique_ptr<std::vector<std::string>> portList) {
+  auto log = LOG_THRIFT_CALL(INFO);
+  manager_->setPauseRemediation(0, std::move(portList));
+}
+
 void QsfpServiceHandler::getRemediationUntilTime(
     std::map<std::string, int32_t>& info,
     std::unique_ptr<std::vector<std::string>> portList) {
@@ -129,6 +135,14 @@ void QsfpServiceHandler::getSymbolErrorHistogram(
     std::unique_ptr<std::string> portName) {
   auto log = LOG_THRIFT_CALL(INFO);
   manager_->getSymbolErrorHistogram(symErr, *portName);
+}
+
+void QsfpServiceHandler::getAllPortSupportedProfiles(
+    std::map<std::string, std::vector<cfg::PortProfileID>>&
+        supportedPortProfiles,
+    bool checkOptics) {
+  auto log = LOG_THRIFT_CALL(INFO);
+  manager_->getAllPortSupportedProfiles(supportedPortProfiles, checkOptics);
 }
 
 void QsfpServiceHandler::readTransceiverRegister(
@@ -212,6 +226,13 @@ void QsfpServiceHandler::getInterfacePrbsState(
   manager_->getInterfacePrbsState(prbsState, *portName, component);
 }
 
+void QsfpServiceHandler::getAllInterfacePrbsStates(
+    std::map<std::string, prbs::InterfacePrbsState>& prbsStates,
+    phy::PortComponent component) {
+  auto log = LOG_THRIFT_CALL(INFO);
+  manager_->getAllInterfacePrbsStates(prbsStates, component);
+}
+
 void QsfpServiceHandler::getInterfacePrbsStats(
     phy::PrbsStats& response,
     std::unique_ptr<std::string> portName,
@@ -220,11 +241,25 @@ void QsfpServiceHandler::getInterfacePrbsStats(
   response = manager_->getInterfacePrbsStats(*portName, component);
 }
 
+void QsfpServiceHandler::getAllInterfacePrbsStats(
+    std::map<std::string, phy::PrbsStats>& prbsStats,
+    phy::PortComponent component) {
+  auto log = LOG_THRIFT_CALL(INFO);
+  manager_->getAllInterfacePrbsStats(prbsStats, component);
+}
+
 void QsfpServiceHandler::clearInterfacePrbsStats(
     std::unique_ptr<std::string> portName,
     phy::PortComponent component) {
   auto log = LOG_THRIFT_CALL(INFO);
   manager_->clearInterfacePrbsStats(*portName, component);
+}
+
+void QsfpServiceHandler::bulkClearInterfacePrbsStats(
+    std::unique_ptr<std::vector<std::string>> interfaces,
+    phy::PortComponent component) {
+  auto log = LOG_THRIFT_CALL(INFO);
+  manager_->bulkClearInterfacePrbsStats(std::move(interfaces), component);
 }
 
 void QsfpServiceHandler::setPortPrbs(

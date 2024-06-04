@@ -26,6 +26,8 @@ bool Ramon3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT:
     case HwAsic::Feature::SAI_PRBS:
     case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
+    case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
+    case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
       return true;
     case HwAsic::Feature::SAI_PORT_SERDES_FIELDS_RESET:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
@@ -45,6 +47,7 @@ std::set<cfg::StreamType> Ramon3Asic::getQueueStreamTypes(
     case cfg::PortType::INTERFACE_PORT:
     case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       break;
     case cfg::PortType::FABRIC_PORT:
       return {cfg::StreamType::FABRIC_TX};

@@ -26,6 +26,15 @@ void Showtech::printCpuDetails() {
             << run_cmd_no_check("uptime") << std::endl;
 }
 
+void Showtech::printFbossDetails() {
+  print_fboss2_show_cmd("product");
+  print_fboss2_show_cmd("version agent");
+  print_fboss2_show_cmd("environment sensor");
+  print_fboss2_show_cmd("environment temperature");
+  print_fboss2_show_cmd("environment fan");
+  print_fboss2_show_cmd("environment power");
+}
+
 void Showtech::printWeutil(std::string target) {
   std::string cmd = "weutil --eeprom " + target;
   std::filesystem::path ossConfigPath{"/opt/fboss/share/platform_configs/weutil.json"};
@@ -84,24 +93,15 @@ void Showtech::printL1Info() {
   std::cout << "########### L1 LOGS ############\n";
   std::cout << "################################\n\n";
 
-  std::cout << "#### fboss2 show port ####\n";
-  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show port") << std::endl;
-  std::cout << "#### fboss2 show fabric ####\n";
-  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show fabric") << std::endl;
-  std::cout << "#### fboss2 show lldp ####\n";
-  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show lldp") << std::endl;
+  print_fboss2_show_cmd("port");
+  print_fboss2_show_cmd("fabric");
+  print_fboss2_show_cmd("lldp");
+  print_fboss2_show_cmd("interface counters");
+  print_fboss2_show_cmd("interface errors");
+  print_fboss2_show_cmd("interface flaps");
+  print_fboss2_show_cmd("interface phy");
+  print_fboss2_show_cmd("transceiver");
 
-  std::cout << "#### fboss2 show interface counters ####\n";
-  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show interface counters") << std::endl;
-  std::cout << "#### fboss2 show interface errors ####\n";
-  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show interface errors") << std::endl;
-  std::cout << "#### fboss2 show interface flaps ####\n";
-  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show interface flaps") << std::endl;
-
-  std::cout << "#### fboss2 show interface phy ####\n";
-  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show interface phy") << std::endl;
-  std::cout << "#### fboss2 show transceiver ####\n";
-  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show transceiver") << std::endl;
   if (verbose_) {
     std::cout << "#### wedge_qsfp_util ####\n";
     std::cout << run_cmd_no_check("wedge_qsfp_util") << std::endl;
@@ -111,6 +111,7 @@ void Showtech::printL1Info() {
 void Showtech::printShowtech() {
   printVersion();
   printCpuDetails();
+  printFbossDetails();
   printPlatformInfo();
   printL1Info();
   if (verbose_) {

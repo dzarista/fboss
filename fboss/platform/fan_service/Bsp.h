@@ -70,7 +70,6 @@ class Bsp {
   virtual bool checkIfInitialSensorDataRead() const;
   bool getEmergencyState() const;
   virtual float readSysfs(std::string path) const;
-  virtual bool initializeQsfpService();
   static apache::thrift::RpcOptions getRpcOptions();
 
   FsdbSensorSubscriber* fsdbSensorSubscriber() {
@@ -118,12 +117,11 @@ class Bsp {
       int pwm);
 
   float getSensorDataSysfs(std::string path);
-  void processOpticEntries(
+  std::vector<std::pair<std::string, float>> processOpticEntries(
       const Optic& opticsGroup,
       std::shared_ptr<SensorData> pSensorData,
       uint64_t& currentQsfpSvcTimestamp,
-      const std::map<int32_t, TransceiverData>& cacheTable,
-      OpticEntry* opticData);
+      const std::map<int32_t, TransceiverData>& cacheTable);
 
   std::unique_ptr<FsdbSensorSubscriber> fsdbSensorSubscriber_;
   std::unique_ptr<fsdb::FsdbPubSubManager> fsdbPubSubMgr_;

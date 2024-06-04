@@ -267,9 +267,8 @@ bool SaiPhyManager::setupMacsecState(
     // If macsecDesired is False and we are trying to remove Macsec from a list
     // of ports then from the portList, remove the ports which are not
     // programmed in HW for Macsec
-    PlatformInfo* platInfo;
     try {
-      platInfo = getPlatformInfo(portId);
+      getPlatformInfo(portId);
     } catch (FbossError& e) {
       if (macsecDesired) {
         throw;
@@ -1026,6 +1025,8 @@ std::vector<phy::PrbsLaneStats> SaiPhyManager::getPortPrbsStats(
 
   std::vector<phy::PrbsLaneStats> lanePrbs;
   phy::PrbsLaneStats oneLanePrbs;
+  oneLanePrbs.timeCollected() =
+      duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
   oneLanePrbs.laneId() = 0;
 
   bool prbsEnabled =
