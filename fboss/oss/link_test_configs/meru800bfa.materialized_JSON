@@ -37009,7 +37009,7 @@
     },
     "dsfNodes": {
        "512": {
-        "name": "wlr101", 
+        "name": "",
         "switchId": 0, 
         "type": 1, 
         "asicType": 16, 
