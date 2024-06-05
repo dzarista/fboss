@@ -124,7 +124,7 @@ TransceiverManager::TransceiverManager(
 TransceiverManager::~TransceiverManager() {
   // Make sure if gracefulExit() is not called, we will still stop the threads
   if (!isExiting_) {
-    isExiting_ = true;
+    setGracefulExitingFlag();
     stopThreads();
   }
 }
@@ -320,7 +320,7 @@ void TransceiverManager::gracefulExit() {
   steady_clock::time_point begin = steady_clock::now();
   XLOG(INFO) << "[Exit] Starting TransceiverManager graceful exit";
   // Stop all the threads before shutdown
-  isExiting_ = true;
+  setGracefulExitingFlag();
   stopThreads();
   steady_clock::time_point stopThreadsDone = steady_clock::now();
   XLOG(INFO) << "[Exit] Stopped all state machine threads. Stop time: "
@@ -456,30 +456,35 @@ bool TransceiverManager::requiresFirmwareUpgrade(Transceiver& tcvr) const {
   // qsfp config
   auto cachedTcvrInfo = tcvr.getTransceiverInfo();
   auto moduleStatus = cachedTcvrInfo.tcvrState()->status();
+  int tcvrID = tcvr.getID();
   if (!moduleStatus.has_value()) {
     XLOG(DBG4)
-        << "moduleStatus not set. Returning false from requiresFirmwareUpgrade";
+        << "Transceiver: " << tcvrID
+        << " moduleStatus not set. Returning false from requiresFirmwareUpgrade";
     return false;
   }
 
   auto fwStatus = moduleStatus->fwStatus();
   if (!fwStatus.has_value()) {
     XLOG(DBG4)
-        << "fwStatus not set. Returning false from requiresFirmwareUpgrade";
+        << "Transceiver: " << tcvrID
+        << " fwStatus not set. Returning false from requiresFirmwareUpgrade";
     return false;
   }
 
   auto fwFromConfig = getFirmwareFromCfg(tcvr);
   if (!fwFromConfig.has_value()) {
     XLOG(DBG4)
-        << "Fw not available in config. Returning false from requiresFirmwareUpgrade";
+        << "Transceiver: " << tcvrID
+        << " Fw not available in config. Returning false from requiresFirmwareUpgrade";
     return false;
   }
 
   for (auto fwIt : *fwFromConfig->versions()) {
     if (fwIt.get_fwType() == cfg::FirmwareType::APPLICATION &&
         fwStatus->version() && fwIt.get_version() != *fwStatus->version()) {
-      XLOG(INFO) << "Application Version in cfg=" << fwIt.get_version()
+      XLOG(INFO) << "Transceiver: " << tcvrID
+                 << " Application Version in cfg=" << fwIt.get_version()
                  << " current operational version= " << *fwStatus->version()
                  << ". Returning true from requiresFirmwareUpgrade for tcvr="
                  << tcvr.getID();
@@ -487,7 +492,8 @@ bool TransceiverManager::requiresFirmwareUpgrade(Transceiver& tcvr) const {
     }
     if (fwIt.get_fwType() == cfg::FirmwareType::DSP && fwStatus->dspFwVer() &&
         fwIt.get_version() != *fwStatus->dspFwVer()) {
-      XLOG(INFO) << "DSP Version in cfg=" << fwIt.get_version()
+      XLOG(INFO) << "Transceiver: " << tcvrID
+                 << " DSP Version in cfg=" << fwIt.get_version()
                  << " current operational version= " << *fwStatus->dspFwVer()
                  << ". Returning true from requiresFirmwareUpgrade for tcvr="
                  << tcvr.getID();
@@ -1420,7 +1426,7 @@ void TransceiverManager::updateTransceiverPortStatus() noexcept {
 
 void TransceiverManager::triggerFirmwareUpgradeEvents(
     std::unordered_set<TransceiverID>& tcvrs) {
-  if (!FLAGS_firmware_upgrade_supported) {
+  if (!FLAGS_firmware_upgrade_supported || tcvrs.empty()) {
     return;
   }
   BlockingStateUpdateResultList results;
@@ -1561,26 +1567,43 @@ void TransceiverManager::refreshStateMachines() {
   // TransceiverInfo
   const auto& presentXcvrIds = refreshTransceivers();
 
+  bool firstRefreshAfterColdboot = !canWarmBoot_ && !isFullyInitialized();
   // Find transceivers that were just discovered or that are still inactive
   std::unordered_set<TransceiverID> potentialTcvrsForFwUpgrade;
   for (auto tcvrID : presentXcvrIds) {
     auto curState = getCurrentState(tcvrID);
-    if (curState == TransceiverStateMachineState::DISCOVERED ||
-        curState == TransceiverStateMachineState::INACTIVE) {
+    if (curState == TransceiverStateMachineState::INACTIVE) {
+      // Anytime a module is in inactive state (link down), it's a candidate for
+      // fw upgrade
+      XLOG(INFO)
+          << "Transceiver " << static_cast<int>(tcvrID)
+          << " is in INACTIVE state, adding it to list of potentialTcvrsForFwUpgrade";
       potentialTcvrsForFwUpgrade.insert(tcvrID);
+    } else if (curState == TransceiverStateMachineState::DISCOVERED) {
+      if (firstRefreshAfterColdboot) {
+        // First refresh after cold boot and module is still in
+        // discovered state
+        XLOG(INFO)
+            << "Transceiver " << static_cast<int>(tcvrID)
+            << " just did a cold boot and is still in discovered state, adding it to list of potentialTcvrsForFwUpgrade";
+        potentialTcvrsForFwUpgrade.insert(tcvrID);
+      } else {
+        auto stateMachine = stateMachines_.find(tcvrID);
+        if (stateMachine != stateMachines_.end() &&
+            stateMachine->second->getStateMachine().rlock()->get_attribute(
+                newTransceiverInsertedAfterInit)) {
+          // Not the first refresh but the module is in discovered state and was
+          // just inserted
+          XLOG(INFO)
+              << "Transceiver " << static_cast<int>(tcvrID)
+              << " is in DISCOVERED state and was recently inserted, adding it to list of potentialTcvrsForFwUpgrade";
+          potentialTcvrsForFwUpgrade.insert(tcvrID);
+        }
+      }
     }
   }
 
-  // We only want to trigger firmware upgrade in these two cases -
-  // 1. This is the first iteration of refreshStateMachines (i.e
-  // isFullyInitialized() is false) and it's a cold boot (i.e. canWarmBoot_ ==
-  // false)
-  // 2. This is not the first iteration of refreshStateMachines (i.e
-  // isFullyInitialized() is true). This case handles new transceiver detections
-  // Therefore the condition to trigger firmware upgrade should be -
-  // (!canWarmBoot_ && !isFullyInitialized()) || (isFullyInitialized())
-  // = !canWarmBoot_ || isFullyInitialized()
-  if (!canWarmBoot_ || isFullyInitialized()) {
+  if (!potentialTcvrsForFwUpgrade.empty()) {
     triggerFirmwareUpgradeEvents(potentialTcvrsForFwUpgrade);
   }
 
@@ -1884,6 +1907,20 @@ std::pair<bool, std::vector<std::string>> TransceiverManager::areAllPortsDown(
   return {!anyPortUp, downPorts};
 }
 
+bool TransceiverManager::isRunningAsicPrbs(TransceiverID tcvr) const {
+  auto ports = getAllPlatformPorts(tcvr);
+  for (const auto& port : ports) {
+    auto npuPortStatusCacheItr = npuPortStatusCache_.rlock()->find(port);
+    if (npuPortStatusCacheItr == npuPortStatusCache_.rlock()->end()) {
+      continue;
+    }
+    if (npuPortStatusCacheItr->second.asicPrbsEnabled) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void TransceiverManager::triggerRemediateEvents(
     const std::vector<TransceiverID>& stableTcvrs) {
   if (stableTcvrs.empty()) {
@@ -1895,6 +1932,14 @@ void TransceiverManager::triggerRemediateEvents(
   }
   BlockingStateUpdateResultList results;
   for (auto tcvrID : stableTcvrs) {
+    // Check if any of the ports are running ASIC PRBS. If yes, skip triggering
+    // remediation on transceiver.
+    if (isRunningAsicPrbs(tcvrID)) {
+      XLOG(DBG2) << "Skip remediating Transceiver=" << tcvrID
+                 << ". Transceiver is running ASIC PRBS";
+      continue;
+    }
+
     const auto& programmedPortToPortInfo =
         getProgrammedIphyPortToPortInfo(tcvrID);
     if (programmedPortToPortInfo.empty()) {

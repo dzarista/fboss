@@ -433,18 +433,22 @@ SaiPortManager::SaiPortManager(
       globalQosMapSupported_(
           managerTable_->switchManager().isGlobalQoSMapSupported()) {
 #if defined(BRCM_SAI_SDK_XGS)
-  auto& portStore = saiStore_->get<SaiPortTraits>();
-  auto saiPort = portStore.objects().begin()->second.lock();
-  auto portSaiId = saiPort->adapterKey();
   if (platform_->getAsic()->isSupported(
           HwAsic::Feature::SAI_PORT_GET_PMD_LANES)) {
-    auto pmdLanes = SaiApiTable::getInstance()->portApi().getAttribute(
-        portSaiId, SaiPortTraits::Attributes::SerdesLaneList{});
-    auto hwLanes = GET_ATTR(Port, HwLaneList, saiPort->adapterHostKey());
-    hwLaneListIsPmdLaneList_ = (pmdLanes.size() == hwLanes.size());
-    XLOG(DBG2) << "HwLaneList means pmd lane list or not: "
-               << hwLaneListIsPmdLaneList_;
+    auto& portStore = saiStore_->get<SaiPortTraits>();
+    for (auto& iter : portStore.objects()) {
+      auto saiPort = iter.second.lock();
+      auto portSaiId = saiPort->adapterKey();
+      auto pmdLanes = SaiApiTable::getInstance()->portApi().getAttribute(
+          portSaiId, SaiPortTraits::Attributes::SerdesLaneList{});
+      auto hwLanes = GET_ATTR(Port, HwLaneList, saiPort->adapterHostKey());
+      if (pmdLanes.size() != hwLanes.size()) {
+        hwLaneListIsPmdLaneList_ = false;
+      }
+    }
   }
+  XLOG(DBG2) << "HwLaneList means pmd lane list or not: "
+             << hwLaneListIsPmdLaneList_;
 #endif
 }
 
@@ -2534,17 +2538,31 @@ std::optional<sai_latch_status_t> SaiPortManager::getPcsRxLinkStatus(
 }
 #endif
 
-#if defined(BRCM_SAI_SDK_GTE_11_0)
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
 std::optional<sai_latch_status_t> SaiPortManager::getHighCrcErrorRate(
     PortSaiId saiPortId,
     PortID swPort) const {
-  if (getPortType(swPort) != cfg::PortType::FABRIC_PORT) {
+#if defined(BRCM_SAI_SDK_GTE_11_0)
+  if (!platform_->getAsic()->isSupported(HwAsic::Feature::CRC_ERROR_DETECT) ||
+      getPortType(swPort) != cfg::PortType::FABRIC_PORT) {
+    // Feature is only applicable for fabric ports
     return std::nullopt;
   }
   return SaiApiTable::getInstance()->portApi().getAttribute(
       saiPortId, SaiPortTraits::Attributes::CrcErrorDetect{});
+#else
+  return std::nullopt;
+#endif
 }
 #endif
+
+void SaiPortManager::updateLeakyBucketFb303Counter(PortID portId, int value) {
+  auto portStatItr = portStats_.find(portId);
+  if (portStatItr == portStats_.end()) {
+    throw FbossError("PortStats_ not available for : ", portId);
+  }
+  portStatItr->second->updateLeakyBucketFlapCnt(value);
+}
 
 std::vector<sai_port_err_status_t> SaiPortManager::getPortErrStatus(
     PortSaiId saiPortId) const {

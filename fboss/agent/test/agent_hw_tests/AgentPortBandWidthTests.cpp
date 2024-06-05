@@ -23,9 +23,7 @@ class AgentPortBandwidthTest : public AgentHwTest {
  public:
   std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const override {
-    return {
-        production_features::ProductionFeature::L3_QOS,
-        production_features::ProductionFeature::SCHEDULER_PPS};
+    return {production_features::ProductionFeature::L3_QOS};
   }
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
@@ -56,7 +54,7 @@ class AgentPortBandwidthTest : public AgentHwTest {
       cfg::SwitchConfig* config,
       uint32_t maxPps,
       uint32_t maxKbps) const {
-    if (isSupportedOnAllAsics(HwAsic::Feature::L3_QOS)) {
+    if (isSupportedOnAllAsics(HwAsic::Feature::SCHEDULER_PPS)) {
       auto& queue0 = config->portQueueConfigs()["queue_config"][kQueueId0()];
       queue0.portQueueRate() = cfg::PortQueueRate();
       queue0.portQueueRate()->pktsPerSec_ref() =
@@ -247,6 +245,16 @@ class AgentPortBandwidthTest : public AgentHwTest {
   void verifyPortRateTraffic(cfg::PortSpeed portSpeed);
 };
 
+class AgentPortBandwidthPpsTest : public AgentPortBandwidthTest {
+ public:
+  std::vector<production_features::ProductionFeature>
+  getProductionFeaturesVerified() const override {
+    return {
+        production_features::ProductionFeature::L3_QOS,
+        production_features::ProductionFeature::SCHEDULER_PPS};
+  }
+};
+
 class AgentPortBandwidthParamTest
     : public AgentPortBandwidthTest,
       public testing::WithParamInterface<cfg::PortSpeed> {};
@@ -376,6 +384,25 @@ void AgentPortBandwidthTest::verifyQueueShaper() {
         getPort0(),
         kMhnicPerHostBandwidthKbps * 1000, // BW in bps
         kWaitTimeForSpecificRate));
+    // This means the queue rate is >= kMhnicPerHostBandwidthKbps, now
+    // confirm that we are not exceeding an upper limit. This is hard to
+    // generalize, so lets keep this at 4% greater than the desired rate.
+    const int kTrafficRateCheckDurationSec{5};
+    const double kAcceptableTrafficRateDeltaPct{4};
+    auto stats1 = getLatestPortStats(getPort0());
+    sleep(kTrafficRateCheckDurationSec);
+    auto stats2 = getLatestPortStats(getPort0());
+    auto trafficRate = getAgentEnsemble()->getTrafficRate(
+        stats1, stats2, kTrafficRateCheckDurationSec);
+    // Make sure that the port rate is not exceeding expected rate by 4%
+    uint64_t allowedMaxTrafficRate =
+        (1 + kAcceptableTrafficRateDeltaPct / 100) *
+        kMhnicPerHostBandwidthKbps * 1000;
+    XLOG(DBG0) << "Shaper rate : " << kMhnicPerHostBandwidthKbps * 1000
+               << " bps. Rate seen on port: " << trafficRate
+               << " bps. Max acceptable rate: " << allowedMaxTrafficRate
+               << " bps!";
+    EXPECT_LT(trafficRate, allowedMaxTrafficRate);
   };
 
   verifyAcrossWarmBoots(setup, verify);
@@ -407,14 +434,6 @@ void AgentPortBandwidthTest::verifyPortRateTraffic(cfg::PortSpeed portSpeed) {
   verifyAcrossWarmBoots(setup, verify);
 }
 
-TEST_F(AgentPortBandwidthTest, VerifyPps) {
-  auto getPackets = [this](const HwPortStats& stats) {
-    return stats.get_queueOutPackets_().at(kQueueId0());
-  };
-
-  verifyRate("pps", kQueueId0Dscp(), kMaxPpsValues().front(), getPackets);
-}
-
 TEST_F(AgentPortBandwidthTest, VerifyKbps) {
   auto getKbits = [this](const HwPortStats& stats) {
     auto outBytes = stats.get_queueOutBytes_().at(kQueueId1());
@@ -422,14 +441,6 @@ TEST_F(AgentPortBandwidthTest, VerifyKbps) {
   };
 
   verifyRate("kbps", kQueueId1Dscp(), kMaxKbpsValues().front(), getKbits);
-}
-
-TEST_F(AgentPortBandwidthTest, VerifyPpsDynamicChanges) {
-  auto getPackets = [this](const HwPortStats& stats) {
-    return stats.get_queueOutPackets_().at(kQueueId0());
-  };
-
-  verifyRateDynamicChanges("pps", kQueueId0Dscp(), getPackets);
 }
 
 TEST_F(AgentPortBandwidthTest, VerifyKbpsDynamicChanges) {
@@ -457,6 +468,22 @@ TEST_P(AgentPortBandwidthParamTest, VerifyPortRateTraffic) {
     GTEST_SKIP();
   }
   verifyPortRateTraffic(portSpeed);
+}
+
+TEST_F(AgentPortBandwidthPpsTest, VerifyPps) {
+  auto getPackets = [this](const HwPortStats& stats) {
+    return stats.get_queueOutPackets_().at(kQueueId0());
+  };
+
+  verifyRate("pps", kQueueId0Dscp(), kMaxPpsValues().front(), getPackets);
+}
+
+TEST_F(AgentPortBandwidthPpsTest, VerifyPpsDynamicChanges) {
+  auto getPackets = [this](const HwPortStats& stats) {
+    return stats.get_queueOutPackets_().at(kQueueId0());
+  };
+
+  verifyRateDynamicChanges("pps", kQueueId0Dscp(), getPackets);
 }
 
 INSTANTIATE_TEST_CASE_P(

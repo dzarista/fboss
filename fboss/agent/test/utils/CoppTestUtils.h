@@ -127,6 +127,7 @@ cfg::Range getRange(uint32_t minimum, uint32_t maximum);
 
 uint16_t getCoppHighPriQueueId(const HwAsic* hwAsic);
 
+uint16_t getCoppHighPriQueueId(const std::vector<const HwAsic*>& hwAsics);
 uint16_t getCoppMidPriQueueId(const std::vector<const HwAsic*>& hwAsics);
 
 std::shared_ptr<facebook::fboss::Interface> getEligibleInterface(
@@ -254,6 +255,10 @@ void verifyCoppInvariantHelper(
     const HwAsic* hwAsic,
     std::shared_ptr<SwitchState> swState,
     PortID srcPort);
+
+void excludeTTL1TrapConfig(cfg::SwitchConfig& config);
+
+CpuPortStats getCpuPortStats(SwSwitch* sw, SwitchID switchId);
 
 } // namespace utility
 } // namespace facebook::fboss
