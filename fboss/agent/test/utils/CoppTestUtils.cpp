@@ -130,6 +130,11 @@ uint16_t getCoppMidPriQueueId(const std::vector<const HwAsic*>& hwAsics) {
   return kCoppMidPriQueueId;
 }
 
+uint16_t getCoppHighPriQueueId(const std::vector<const HwAsic*>& hwAsics) {
+  auto hwAsic = checkSameAndGetAsic(hwAsics);
+  return getCoppHighPriQueueId(hwAsic);
+}
+
 cfg::ToCpuAction getCpuActionType(const HwAsic* hwAsic) {
   switch (hwAsic->getAsicType()) {
     case cfg::AsicType::ASIC_TYPE_FAKE:
@@ -369,16 +374,18 @@ void addMidPriAclForNw(
       acl, createQueueMatchAction(midPriQueueId, isSai, toCpuAction)));
 }
 
-void addLowPriAclForConnectedSubnetRoutes(
+void addHighPriAclForMyIPNetworkControl(
     cfg::ToCpuAction toCpuAction,
+    int highPriQueueId,
     std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls,
     bool isSai) {
   cfg::AclEntry acl;
-  acl.name() = folly::to<std::string>("cpu-connected-subnet-route-acl");
-  acl.lookupClassRoute() = cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2;
+  acl.name() =
+      folly::to<std::string>("cpuPolicing-high-myip-network-control-acl");
+  acl.lookupClassRoute() = cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1;
+  acl.dscp() = 48;
   acls.push_back(std::make_pair(
-      acl,
-      createQueueMatchAction(utility::kCoppLowPriQueueId, isSai, toCpuAction)));
+      acl, createQueueMatchAction(highPriQueueId, isSai, toCpuAction)));
 }
 
 void addLowPriAclForUnresolvedRoutes(
@@ -437,6 +444,23 @@ void setTTLZeroCpuConfig(
   cfg::CPUTrafficPolicyConfig cpuConfig;
   cpuConfig.rxReasonToQueueOrderedList() = {std::move(ttlRxReasonToQueue)};
   config.cpuTrafficPolicy() = cpuConfig;
+}
+
+void excludeTTL1TrapConfig(cfg::SwitchConfig& config) {
+  std::vector<cfg::PacketRxReasonToQueue> rxReasons;
+  // Exclude TTL_1 trap since on some devices we disable it
+  // to set up data plane loops
+  CHECK(config.cpuTrafficPolicy().has_value());
+  CHECK(config.cpuTrafficPolicy()->rxReasonToQueueOrderedList().has_value());
+  if (config.cpuTrafficPolicy()->rxReasonToQueueOrderedList()->size()) {
+    for (auto rxReasonAndQueue :
+         *config.cpuTrafficPolicy()->rxReasonToQueueOrderedList()) {
+      if (*rxReasonAndQueue.rxReason() != cfg::PacketRxReason::TTL_1) {
+        rxReasons.push_back(rxReasonAndQueue);
+      }
+    }
+  }
+  config.cpuTrafficPolicy()->rxReasonToQueueOrderedList() = rxReasons;
 }
 
 void setPortQueueSharedBytes(cfg::PortQueue& queue, bool isSai) {
@@ -505,18 +529,21 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForSai(
       getCoppMidPriQueueId({hwAsic}));
 
   if (hwAsic->isSupported(HwAsic::Feature::ACL_METADATA_QUALIFER)) {
+    addHighPriAclForMyIPNetworkControl(
+        cfg::ToCpuAction::TRAP,
+        getCoppHighPriQueueId(hwAsic),
+        acls,
+        true /*isSai*/);
     /*
      * Unresolved route class ID to low pri queue.
      * For unresolved route ACL, both the hostif trap and the ACL will
      * be hit on TAJO and 2 packets will be punted to CPU.
      * Do not rely on getCpuActionType but explicitly configure
-     * the cpu action to TRAP.
+     * the cpu action to TRAP. Connected subnet route has the same class ID
+     * and also goes to low pri queue
      */
     addLowPriAclForUnresolvedRoutes(
         cfg::ToCpuAction::TRAP, acls, true /*isSai*/);
-    // Connected subnet route class ID to low pri queue
-    addLowPriAclForConnectedSubnetRoutes(
-        getCpuActionType(hwAsic), acls, true /*isSai*/);
   }
 
   return acls;
@@ -1107,6 +1134,15 @@ void verifyCoppInvariantHelper(
       srcPort);
 
   verifyCoppAcl(switchPtr, switchId, hwAsic, swState, srcPort);
+}
+
+CpuPortStats getCpuPortStats(SwSwitch* sw, SwitchID switchId) {
+  std::map<int, CpuPortStats> cpuStats;
+  sw->getAllCpuPortStats(cpuStats);
+  if (cpuStats.find(switchId) == cpuStats.end()) {
+    throw FbossError("No cpu port stats found for switchId: ", switchId);
+  }
+  return cpuStats.at(switchId);
 }
 
 /*

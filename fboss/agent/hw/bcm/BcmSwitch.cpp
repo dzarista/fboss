@@ -952,17 +952,14 @@ HwInitResult BcmSwitch::initImpl(
   setupCos();
 
   folly::dynamic switchStateJson;
-  std::optional<state::WarmbootState> switchStateThrift;
   if (warmBoot) {
     // This needs to be done after we have set
     // bcmSwitchL3EgressMode else the egress ids
     // in the host table don't show up correctly.
     // TODO: Use thrift representation for sw switch state.
-    auto warmbootStates =
+    auto switchStateJson =
         getPlatform()->getWarmBootHelper()->getWarmBootState();
-    switchStateJson = std::get<0>(warmbootStates);
-    switchStateThrift = std::get<1>(warmbootStates);
-    warmBootCache_->populate(switchStateJson, switchStateThrift);
+    warmBootCache_->populate(switchStateJson);
   }
   setupToCpuEgress();
   portTable_->initPorts(&pcfg, warmBoot);
@@ -986,15 +983,8 @@ HwInitResult BcmSwitch::initImpl(
   ret.bootType = bootType_;
 
   if (warmBoot) {
-    ret.switchState = warmBootCache_->getDumpedSwSwitchState().clone();
+    ret.switchState = std::make_shared<SwitchState>();
     getPlatform()->preWarmbootStateApplied();
-    const auto& routeTables = *(switchStateThrift->routeTables());
-    if (!routeTables.empty()) {
-      ret.rib = RoutingInformationBase::fromThrift(
-          routeTables,
-          ret.switchState->getFibs(),
-          ret.switchState->getLabelForwardingInformationBase());
-    }
   } else {
     auto bootState = std::make_shared<SwitchState>();
     bootState->publish();

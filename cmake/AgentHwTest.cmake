@@ -221,7 +221,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwVerifyPfcConfigInHwTest.cpp
   fboss/agent/hw/test/HwAclStatTests.cpp
   fboss/agent/hw/test/HwPortTests.cpp
-  fboss/agent/hw/test/HwDiagShellStressTest.cpp
   fboss/agent/hw/test/HwPortLedTests.cpp
   fboss/agent/hw/test/HwPortProfileTests.cpp
   fboss/agent/hw/test/HwPortStressTests.cpp
@@ -296,7 +295,7 @@ target_link_libraries(hw_switch_test
   fabric_test_utils
   hw_packet_utils
   hw_switch_ensemble
-  hw_voq_utils
+  voq_test_utils
   linkstate_toggler
   load_balancer_utils
   mac_test_utils
@@ -352,20 +351,6 @@ target_link_libraries(prod_config_factory
   hw_pfc_utils
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
-)
-
-add_library(hw_voq_utils
-  fboss/agent/hw/test/HwVoqUtils.cpp
-)
-
-target_link_libraries(hw_voq_utils
-  config_factory
-  fboss_types
-  switchid_scope_resolver
-  switch_asics
-  switch_config_cpp2
-  state
-  Folly::folly
 )
 
 add_library(multiswitch_test_server
