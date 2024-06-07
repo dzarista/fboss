@@ -121,8 +121,8 @@ fi
 # install missing dependencies for SDK build.
 dnf install -y sudo
 sudo dnf install --enablerepo "$DEV_TOOLS_REPO" -y perl-List-MoreUtils perl-YAML.noarch \
-   perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel
-sudo dnf install -y python3-filelock platform-python-devel
+   perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel doxygen
+sudo dnf install -y python3-filelock platform-python-devel double-conversion-devel
 
 # Python3 is the default in CENTOS RELEASE > 8.
 if [ "$CENTOS_RELEASE_MAJOR" == "8" ]; then
@@ -132,6 +132,11 @@ fi
 
 # Install python3 module dependencies
 pip3 install GitPython
+
+# Copy library that is missing in CENTOS 9 container.
+if [ "$CENTOS_RELEASE_MAJOR" = "9" ]; then
+   cp /var/FBOSS/libnsl.a /usr/lib64
+fi
 
 SAI_DIR="$FBOSS_DIR/Aqua_SAI/"
 if [ $ARCH == "dnx" ];
@@ -145,7 +150,7 @@ fi
 export SDK=""
 cd $SAI_BUILD_DIR
 export KERNDIR="$KERNEL_SRC"
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/sdk_6.5.29_dnx.1_SAI_11.0.0_EA/sdk-6.5.29-$ARCH.1-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA/$ARCH-sdk-6.5.30-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
@@ -161,7 +166,6 @@ then
 
    # 5.19 kernel has additional requirements.
    if [ $KERNEL == "5.19" ]; then
-      export NO_PRECOMPILED_MODULE=1
       mkdir -p /tools/
       ln -s /usr/bin/ /tools/bin
    fi
@@ -171,6 +175,7 @@ then
       kernel_version=2_6 LINUX_UAPI_SPLIT=1 clean
 
    echo "======= Starting Broadcom SDK build ========"
+   export NO_PRECOMPILED_MODULE=1
    cd $SAI_BUILD_DIR
    # BRCM SAI 10.0.0.3 EA does not compile without setting SAI_TUNNEL_SUPPORT=1, this
    # should ideally be set in one of the Make flags file.
@@ -203,6 +208,10 @@ then
    rm -rf $SCRATCH_DIR/extracted
    rm -rf $SCRATCH_DIR/repos
    rm -rf "$SCRATCH_DIR"/fboss_bins*
+   rm -rf $SCRATCH_DIR/bsp-kmods
+   rm -rf $SCRATCH_DIR/showtech
+   make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
+   make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 fi
 cd $FBOSS_DIR/fboss.git
 
@@ -243,6 +252,9 @@ else
    echo "****BUILD_KNOWN_GOOD_HASH $BUILD_KNOWN_GOOD_HASH"
    if [ -z "$BUILD_KNOWN_GOOD_HASH" ]; then
       export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
+      # Give everyone write permissions on folders that will be clobbered by the FBOSS
+      # build process. We will then revert these changes outside the container.
+      chmod a+w build/deps build/fbcode_builder -R
    fi
    BUILD_TYPE=""
    if [ -z "$BUILD_WITH_DEBUG_SYMBOLS" ]; then
@@ -251,6 +263,19 @@ else
       BUILD_TYPE="Debug"
    fi
    export BUILD_FBOSS_CLI=1
+   # Set the required build env vars for Centos 9
+   if [ "$CENTOS_RELEASE_MAJOR" = "9" ]; then
+      export IS_OSS=1
+      export IS_OSS_FBOSS_CENTOS9=1
+      REPO_PREFIX="$SCRATCH_DIR/repos/github.com-facebook"
+      # Fetch fbthrift and folly and update the C++ standard to v20. C++20 is
+      # required for building coroutine support into folly and fbthrift.
+      for fboss_dep in folly fbthrift
+      do
+         ./build/fbcode_builder/getdeps.py --scratch-path "$SCRATCH_DIR" fetch $fboss_dep
+         sed -i 's/STANDARD 17/STANDARD 20/g' "$REPO_PREFIX-$fboss_dep.git/CMakeLists.txt"
+      done
+   fi
    time ./build/fbcode_builder/getdeps.py build --allow-system-packages \
       --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
    cd $FBOSS_DIR/fboss.git
@@ -283,6 +308,16 @@ else
    echo "Copying $lib from $lib_path to $fboss_output_dir/lib64"
    cp -L $lib_path $fboss_output_dir/lib64
 
+   echo "****BUILDING BSP-KMODS"
+   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods modules
+   mkdir -p $SCRATCH_DIR/bsp-kmods
+   cp -f $FBOSS_DIR/fboss.git/arista/bsp-kmods/*.ko $SCRATCH_DIR/bsp-kmods/
+
+   echo "****BUILDING SHOWTECH DEPENDENCIES"
+   make -C $FBOSS_DIR/fboss.git/arista/showtech
+   mkdir -p $SCRATCH_DIR/showtech
+   cp -f $FBOSS_DIR/fboss.git/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
+
    # Copy over kernel modules
    mkdir -p "$fboss_output_dir/lib/modules"
    for kernel_module in linux-kernel-bde.ko linux-user-bde.ko linux-bcm-knet.ko
@@ -299,6 +334,18 @@ else
       echo "Copying $fw from $fw_path to $fboss_output_dir"
       cp $fw_path $fboss_output_dir
    done
+
+   # Generate python thrift libraries
+   $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/ctrl.thrift
+   mkdir -p $fboss_output_dir/lib/fb-py-libs
+   cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
+   cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
+   find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/env python3|' {} +
+
+   # Cache the fboss commit that we built, this will be packaged and available on the
+   # box at /opt/fboss when arista-fboss-core RPM is installed.
+   fboss_commit=$(cd $SCRATCH_DIR/repos/github.com-facebook-fboss.git && git rev-parse HEAD)
+   echo "arista-fboss@$fboss_commit" > $fboss_output_dir/arista-fboss-version
 fi
 
 set +ex

@@ -14,19 +14,10 @@
 
 #include "fboss/agent/state/NodeBase-defs.h"
 #include "fboss/agent/state/Thrifty.h"
-#include "folly/dynamic.h"
-#include "folly/json.h"
+#include "folly/json/dynamic.h"
+#include "folly/json/json.h"
 
 #include <thrift/lib/cpp/util/EnumUtils.h>
-
-namespace {
-constexpr auto kQueues = "queues";
-constexpr auto kRxReasonToQueue = "rxReasonToQueue";
-constexpr auto kRxReasonToQueueOrderedList = "rxReasonToQueueOrderedList";
-constexpr auto kRxReason = "rxReason";
-constexpr auto kQueueId = "queueId";
-constexpr auto kQosPolicy = "defaultQosPolicy";
-} // namespace
 
 namespace facebook::fboss {
 

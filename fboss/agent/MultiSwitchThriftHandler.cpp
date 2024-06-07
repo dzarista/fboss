@@ -5,9 +5,15 @@
 #include "fboss/agent/MultiSwitchPacketStreamMap.h"
 #include "fboss/agent/MultiSwitchThriftHandler.h"
 #include "fboss/agent/SwRxPacket.h"
+#include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/state/SwitchState.h"
 
 namespace facebook::fboss {
+
+DEFINE_uint64(link_event_buffer_size, 1000, "Link eßvent buffer size");
+DEFINE_uint64(stats_event_buffer_size, 10, "Stats event buffer size");
+DEFINE_uint64(fdb_event_buffer_size, 100, "Fdb event buffer size");
+DEFINE_uint64(rx_pkt_buffer_size, 1000, "Rx pkt buffer size");
 
 void MultiSwitchThriftHandler::ensureConfigured(
     folly::StringPiece function) const {
@@ -43,28 +49,93 @@ L2Entry MultiSwitchThriftHandler::getL2Entry(L2EntryThrift thriftEntry) {
       classID);
 }
 
+void MultiSwitchThriftHandler::processLinkState(
+    SwitchID switchId,
+    const multiswitch::LinkChangeEvent& linkChangeEvent) {
+  if (!linkChangeEvent.linkStateEvent().has_value()) {
+    return;
+  }
+  const auto& linkStateEvent = *linkChangeEvent.linkStateEvent();
+  XLOG(DBG2) << "Got link event from switch " << switchId << " for port "
+             << *linkStateEvent.port()
+             << " up :" << (*linkStateEvent.up() ? "UP" : "DOWN");
+  PortID portId = PortID(*linkStateEvent.port());
+  std::optional<phy::LinkFaultStatus> faultStatus;
+  if (linkStateEvent.iPhyLinkFaultStatus()) {
+    faultStatus = *linkStateEvent.iPhyLinkFaultStatus();
+  }
+  sw_->linkStateChanged(portId, *linkStateEvent.up(), faultStatus);
+}
+
+void MultiSwitchThriftHandler::processLinkActiveState(
+    SwitchID switchId,
+    const multiswitch::LinkChangeEvent& linkChangeEvent) {
+  if (linkChangeEvent.linkActiveEvents()->port2IsActive()->size() == 0) {
+    return;
+  }
+  XLOG(DBG3) << "Got link active event from switch " << switchId << " for : "
+             << linkChangeEvent.linkActiveEvents()->port2IsActive()->size()
+             << " ports";
+
+  std::map<PortID, bool> port2IsActive;
+  for (const auto& [portID, isActive] :
+       *linkChangeEvent.linkActiveEvents()->port2IsActive()) {
+    port2IsActive[PortID(portID)] = isActive;
+  }
+  sw_->linkActiveStateChanged(port2IsActive);
+}
+
+void MultiSwitchThriftHandler::processLinkConnectivity(
+    SwitchID switchId,
+    const multiswitch::LinkChangeEvent& linkChangeEvent) {
+  if (linkChangeEvent.linkConnectivityEvents()
+          ->port2ConnectivityDelta()
+          ->size() == 0) {
+    return;
+  }
+  XLOG(DBG3) << "Got link connectivity change event from switch " << switchId
+             << " for : "
+             << linkChangeEvent.linkConnectivityEvents()
+                    ->port2ConnectivityDelta()
+                    ->size()
+             << " ports";
+
+  std::map<PortID, multiswitch::FabricConnectivityDelta> port2ConnectivityDelta;
+  for (const auto& [portID, connectivityDelta] :
+       *linkChangeEvent.linkConnectivityEvents()->port2ConnectivityDelta()) {
+    port2ConnectivityDelta[PortID(portID)] = connectivityDelta;
+  }
+  sw_->linkConnectivityChanged(port2ConnectivityDelta);
+}
 #if FOLLY_HAS_COROUTINES
-folly::coro::Task<apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>>
-MultiSwitchThriftHandler::co_notifyLinkEvent(int64_t switchId) {
+folly::coro::Task<
+    apache::thrift::SinkConsumer<multiswitch::LinkChangeEvent, bool>>
+MultiSwitchThriftHandler::co_notifyLinkChangeEvent(int64_t switchId) {
   ensureConfigured(__func__);
-  co_return apache::thrift::SinkConsumer<multiswitch::LinkEvent, bool>{
-      [this,
-       switchId](folly::coro::AsyncGenerator<multiswitch::LinkEvent&&> gen)
+  co_return apache::thrift::SinkConsumer<multiswitch::LinkChangeEvent, bool>{
+      [this, switchId](
+          folly::coro::AsyncGenerator<multiswitch::LinkChangeEvent&&> gen)
           -> folly::coro::Task<bool> {
-        while (auto item = co_await gen.next()) {
-          XLOG(DBG3) << "Got link event from switch " << switchId
-                     << " for port " << *item->port() << " up :" << *item->up();
-          PortID portId = PortID(*item->port());
-          std::optional<phy::LinkFaultStatus> faultStatus;
-          if (item->iPhyLinkFaultStatus()) {
-            faultStatus = *item->iPhyLinkFaultStatus();
+        auto switchIndex = sw_->getSwitchInfoTable().getSwitchIndexFromSwitchId(
+            SwitchID(switchId));
+        sw_->stats()->hwAgentLinkEventSinkConnectionStatus(switchIndex, true);
+        try {
+          while (auto item = co_await gen.next()) {
+            XLOG(DBG2) << "Got link change event from switch " << switchId;
+            processLinkState(SwitchID(switchId), *item);
+            processLinkActiveState(SwitchID(switchId), *item);
+            processLinkConnectivity(SwitchID(switchId), *item);
           }
-          sw_->linkStateChanged(portId, *item->up(), faultStatus);
+        } catch (const std::exception& e) {
+          XLOG(DBG2) << "link change event sink cancelled for switch "
+                     << switchId << " with exception " << e.what();
+          sw_->stats()->hwAgentLinkEventSinkConnectionStatus(
+              switchIndex, false);
+          co_return false;
         }
         co_return true;
       },
-      10 /* buffer size */
-  }
+      FLAGS_link_event_buffer_size}
       .setChunkTimeout(std::chrono::milliseconds(0));
 }
 
@@ -74,17 +145,26 @@ MultiSwitchThriftHandler::co_notifyFdbEvent(int64_t switchId) {
   co_return apache::thrift::SinkConsumer<multiswitch::FdbEvent, bool>{
       [this, switchId](folly::coro::AsyncGenerator<multiswitch::FdbEvent&&> gen)
           -> folly::coro::Task<bool> {
-        while (auto item = co_await gen.next()) {
-          XLOG(DBG3) << "Got fdb event from switch " << switchId << " for port "
-                     << *item->entry()->port()
-                     << " mac :" << *item->entry()->mac();
-          auto l2Entry = getL2Entry(*item->entry());
-          sw_->l2LearningUpdateReceived(l2Entry, *item->updateType());
+        auto switchIndex = sw_->getSwitchInfoTable().getSwitchIndexFromSwitchId(
+            SwitchID(switchId));
+        sw_->stats()->hwAgentFdbEventSinkConnectionStatus(switchIndex, true);
+        try {
+          while (auto item = co_await gen.next()) {
+            XLOG(DBG3) << "Got fdb event from switch " << switchId
+                       << " for port " << *item->entry()->port()
+                       << " mac :" << *item->entry()->mac();
+            auto l2Entry = getL2Entry(*item->entry());
+            sw_->l2LearningUpdateReceived(l2Entry, *item->updateType());
+          }
+        } catch (const std::exception& e) {
+          XLOG(DBG2) << "Fdb event sink cancelled for switch " << switchId
+                     << " with exception " << e.what();
+          sw_->stats()->hwAgentFdbEventSinkConnectionStatus(switchIndex, false);
+          co_return false;
         }
         co_return true;
       },
-      10 /* buffer size */
-  }
+      FLAGS_fdb_event_buffer_size}
       .setChunkTimeout(std::chrono::milliseconds(0));
 }
 
@@ -94,40 +174,61 @@ MultiSwitchThriftHandler::co_notifyRxPacket(int64_t switchId) {
   co_return apache::thrift::SinkConsumer<multiswitch::RxPacket, bool>{
       [this, switchId](folly::coro::AsyncGenerator<multiswitch::RxPacket&&> gen)
           -> folly::coro::Task<bool> {
-        while (auto item = co_await gen.next()) {
-          XLOG(DBG4) << "Got rx packet from switch " << switchId << " for port "
-                     << *item->port();
-          auto pkt = make_unique<SwRxPacket>(std::move(*item->data()));
-          pkt->setSrcPort(PortID(*item->port()));
-          if (item->vlan()) {
-            pkt->setSrcVlan(VlanID(*item->vlan()));
+        auto switchIndex = sw_->getSwitchInfoTable().getSwitchIndexFromSwitchId(
+            SwitchID(switchId));
+        sw_->stats()->hwAgentRxPktEventSinkConnectionStatus(switchIndex, true);
+        try {
+          while (auto item = co_await gen.next()) {
+            XLOG(DBG4) << "Got rx packet from switch " << switchId
+                       << " for port " << *item->port();
+            auto pkt = make_unique<SwRxPacket>(std::move(*item->data()));
+            pkt->setSrcPort(PortID(*item->port()));
+            if (item->vlan()) {
+              pkt->setSrcVlan(VlanID(*item->vlan()));
+            } else {
+              // clear default vlan id(0)
+              // TODO - retire this once the default value for vlan id is
+              // removed
+              pkt->setSrcVlan(std::nullopt);
+            }
+            if (item->aggPort()) {
+              pkt->setSrcAggregatePort(AggregatePortID(*item->aggPort()));
+            }
+            sw_->packetReceived(std::move(pkt));
           }
-          if (item->aggPort()) {
-            pkt->setSrcAggregatePort(AggregatePortID(*item->aggPort()));
-          }
-          sw_->packetReceived(std::move(pkt));
+        } catch (const std::exception& e) {
+          XLOG(DBG2) << "Rx packet event sink cancelled for switch " << switchId
+                     << " with exception " << e.what();
+          sw_->stats()->hwAgentRxPktEventSinkConnectionStatus(
+              switchIndex, false);
+          co_return (false);
         }
         co_return true;
       },
-      1000 /* buffer size */
-  }
+      FLAGS_rx_pkt_buffer_size}
       .setChunkTimeout(std::chrono::milliseconds(0));
 }
 
 folly::coro::Task<apache::thrift::ServerStream<multiswitch::TxPacket>>
 MultiSwitchThriftHandler::co_getTxPackets(int64_t switchId) {
+  auto switchIndex =
+      sw_->getSwitchInfoTable().getSwitchIndexFromSwitchId(SwitchID(switchId));
   auto streamAndPublisher =
       apache::thrift::ServerStream<multiswitch::TxPacket>::createPublisher(
-          [this, switchId] {
+          [this, switchId, switchIndex] {
             sw_->getPacketStreamMap()->removePacketStream(SwitchID(switchId));
             XLOG(DBG2) << "Removed stream for switch " << switchId;
-            sw_->getHwSwitchHandler()->notifyHwSwitchDisconnected(switchId);
+            sw_->stats()->hwAgentTxPktEventStreamConnectionStatus(
+                switchIndex, false);
+            sw_->getHwSwitchHandler()->notifyHwSwitchDisconnected(
+                switchId, false);
           });
   auto streamPublisher = std::make_unique<
       apache::thrift::ServerStreamPublisher<multiswitch::TxPacket>>(
       std::move(streamAndPublisher.second));
   sw_->getPacketStreamMap()->addPacketStream(
       SwitchID(switchId), std::move(streamPublisher));
+  sw_->stats()->hwAgentTxPktEventStreamConnectionStatus(switchIndex, true);
   co_return std::move(streamAndPublisher.first);
 }
 
@@ -139,14 +240,22 @@ MultiSwitchThriftHandler::co_syncHwStats(int16_t switchIndex) {
       [this, switchIndex](
           folly::coro::AsyncGenerator<multiswitch::HwSwitchStats&&> gen)
           -> folly::coro::Task<bool> {
-        while (auto item = co_await gen.next()) {
-          XLOG(DBG3) << "Got stats event from switchIndex " << switchIndex;
-          sw_->updateHwSwitchStats(switchIndex, std::move(*item));
+        sw_->stats()->hwAgentStatsEventSinkConnectionStatus(switchIndex, true);
+        try {
+          while (auto item = co_await gen.next()) {
+            XLOG(DBG3) << "Got stats event from switchIndex " << switchIndex;
+            sw_->updateHwSwitchStats(switchIndex, std::move(*item));
+          }
+        } catch (const std::exception& e) {
+          XLOG(DBG2) << "Stats event sink cancelled for switchIndex "
+                     << switchIndex << " with exception " << e.what();
+          sw_->stats()->hwAgentStatsEventSinkConnectionStatus(
+              switchIndex, false);
+          co_return false;
         }
         co_return true;
       },
-      100 /* buffer size */
-  };
+      FLAGS_stats_event_buffer_size};
 }
 
 #endif
@@ -155,9 +264,9 @@ void MultiSwitchThriftHandler::getNextStateOperDelta(
     multiswitch::StateOperDelta& operDelta,
     int64_t switchId,
     std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
-    bool initialSync) {
+    int64_t lastUpdateSeqNum) {
   operDelta = sw_->getHwSwitchHandler()->getNextStateOperDelta(
-      switchId, std::move(prevOperResult), initialSync);
+      switchId, std::move(prevOperResult), lastUpdateSeqNum);
 }
 
 void MultiSwitchThriftHandler::gracefulExit(int64_t switchId) {

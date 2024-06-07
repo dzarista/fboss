@@ -14,12 +14,10 @@
 #include "fboss/agent/hw/mock/MockPlatform.h"
 #include "fboss/agent/state/AclEntry.h"
 #include "fboss/agent/state/AclMap.h"
-#include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/TestUtils.h"
 #include "folly/IPAddress.h"
 
-#include <folly/IPAddress.h>
 #include <folly/MacAddress.h>
 #include <gtest/gtest.h>
 
@@ -38,6 +36,8 @@ HwSwitchMatcher scope() {
 }
 
 const std::vector<std::string> kUdfList = {"foo1", "foo2"};
+const std::vector<signed char> kRoceBytes = {0x40, 0x40};
+const std::vector<signed char> kRoceMask = {0x40, 0x40};
 static int kUdpProto(17);
 static int kUdpDstPort(4791);
 } // namespace
@@ -49,6 +49,9 @@ cfg::UdfConfig makeUdfConfig(const std::vector<std::string>& udfNameList) {
   for (const auto& udfName : udfNameList) {
     cfg::UdfGroup udfGroup;
     udfGroup.name() = udfName;
+    udfGroup.startOffsetInBytes() =
+        utility::kUdfAclRoceOpcodeStartOffsetInBytes;
+    udfGroup.fieldSizeInBytes() = utility::kUdfAclRoceOpcodeFieldSizeInBytes;
     udfMap.insert(std::make_pair(udfName, udfGroup));
   }
 
@@ -112,12 +115,12 @@ TEST(Acl, applyConfig) {
   EXPECT_NE(nullptr, aclV2);
   EXPECT_FALSE(aclV2->getDstIp().first);
 
-  // Nothing references this permit acl, so it shouldn't be added yet
+  // Ensure ACL is created with no traffic policy for PERMIT
   config.acls()->resize(2);
   *config.acls()[1].name() = "acl22";
   *config.acls()[1].actionType() = cfg::AclActionType::PERMIT;
   auto stateV22 = publishAndApplyConfig(stateV2, &config, platform.get());
-  EXPECT_EQ(nullptr, stateV22);
+  EXPECT_NE(nullptr, stateV22);
 
   // Non-existent entry
   auto acl2V2 = stateV2->getAcl("something");
@@ -332,7 +335,7 @@ TEST(Acl, Udf) {
   *config.acls()[0].name() = "aclUdf";
   *config.acls()[0].actionType() = cfg::AclActionType::DENY;
   config.acls()[0].udfGroups() = {};
-  config.acls()[0].roceOpcode() = 11;
+  config.acls()[0].roceOpcode() = utility::kUdfRoceOpcode;
 
   // empty groups section is not valid
   EXPECT_THROW(
@@ -352,7 +355,7 @@ TEST(Acl, Udf) {
   ASSERT_NE(nullptr, aclV1);
   EXPECT_EQ(cfg::AclActionType::DENY, aclV1->getActionType());
   EXPECT_EQ(aclV1->getUdfGroups().value(), kUdfList);
-  EXPECT_EQ(aclV1->getRoceOpcode().value(), 11);
+  EXPECT_EQ(aclV1->getRoceOpcode().value(), utility::kUdfRoceOpcode);
 
   // update udf list, ensure it gets reflected
   std::vector<std::string> newUdfList = {"foo3"};
@@ -369,6 +372,68 @@ TEST(Acl, Udf) {
   auto aclV2 = stateV2->getAcl("aclUdf");
   ASSERT_NE(nullptr, aclV2);
   EXPECT_EQ(aclV2->getUdfGroups().value(), newUdfList);
+}
+
+TEST(Acl, UdfRoceBytesMask) {
+  FLAGS_enable_acl_table_group = false;
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+
+  cfg::SwitchConfig config;
+  config.acls()->resize(1);
+  *config.acls()[0].name() = "aclUdf";
+  *config.acls()[0].actionType() = cfg::AclActionType::DENY;
+  config.acls()[0].udfGroups() = kUdfList;
+  config.udfConfig() = makeUdfConfig(kUdfList);
+  config.acls()[0].roceBytes() = kRoceBytes;
+  config.acls()[0].roceMask() = kRoceMask;
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  EXPECT_NE(nullptr, stateV1);
+  auto aclV1 = stateV1->getAcl("aclUdf");
+  ASSERT_NE(nullptr, aclV1);
+  EXPECT_EQ(cfg::AclActionType::DENY, aclV1->getActionType());
+  EXPECT_EQ(aclV1->getUdfGroups().value(), kUdfList);
+  EXPECT_EQ(aclV1->getRoceBytes().value(), kRoceBytes);
+  EXPECT_EQ(aclV1->getRoceMask().value(), kRoceMask);
+
+  const std::vector<signed char> roceBytes = {0x40};
+  const std::vector<signed char> roceMask = {0x40};
+  config.acls()[0].roceBytes() = roceBytes;
+  config.acls()[0].roceMask() = roceMask;
+
+  auto stateV2 = publishAndApplyConfig(stateV1, &config, platform.get());
+  EXPECT_NE(nullptr, stateV2);
+  auto aclV2 = stateV2->getAcl("aclUdf");
+  ASSERT_NE(nullptr, aclV2);
+  EXPECT_EQ(aclV2->getRoceBytes().value(), roceBytes);
+  EXPECT_EQ(aclV2->getRoceMask().value(), roceMask);
+}
+
+TEST(Acl, validateUdfAclGroupFields) {
+  FLAGS_enable_acl_table_group = false;
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+  std::vector<std::string> udfList = {utility::kUdfAclRoceOpcodeGroupName};
+
+  cfg::SwitchConfig config;
+  config.acls()->resize(1);
+  config.acls()[0].udfGroups() = udfList;
+  config.udfConfig() = makeUdfConfig(udfList);
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  EXPECT_EQ(
+      stateV1->getUdfConfig()
+          ->getUdfGroupMap()
+          ->getUdfGroupIf(utility::kUdfAclRoceOpcodeGroupName)
+          ->getStartOffsetInBytes(),
+      utility::kUdfAclRoceOpcodeStartOffsetInBytes);
+  EXPECT_EQ(
+      stateV1->getUdfConfig()
+          ->getUdfGroupMap()
+          ->getUdfGroupIf(utility::kUdfAclRoceOpcodeGroupName)
+          ->getFieldSizeInBytes(),
+      utility::kUdfAclRoceOpcodeFieldSizeInBytes);
 }
 
 TEST(Acl, Icmp) {
@@ -524,13 +589,13 @@ TEST(Acl, AclGeneration) {
       acls->getNodeIf("acl1")->getPriority(),
       AclTable::kDataplaneAclMaxPriority);
   EXPECT_EQ(
-      acls->getNodeIf("acl4")->getPriority(),
+      acls->getNodeIf("acl2")->getPriority(),
       AclTable::kDataplaneAclMaxPriority + 1);
   EXPECT_EQ(
-      acls->getNodeIf("acl2")->getPriority(),
+      acls->getNodeIf("acl3")->getPriority(),
       AclTable::kDataplaneAclMaxPriority + 2);
   EXPECT_EQ(
-      acls->getNodeIf("acl3")->getPriority(),
+      acls->getNodeIf("acl4")->getPriority(),
       AclTable::kDataplaneAclMaxPriority + 3);
   EXPECT_EQ(
       acls->getNodeIf("acl5")->getPriority(),
@@ -648,7 +713,7 @@ TEST(Acl, SerializeRedirectToNextHop) {
     int outIntfID = 0;
     int weight = 100;
     for (auto nhAddr : nhAddrs) {
-      if (nhAddr.isV6() and nhAddr.isLinkLocal()) {
+      if (nhAddr.isV6() && nhAddr.isLinkLocal()) {
         nhset.insert(ResolvedNextHop(nhAddr, InterfaceID(outIntfID), weight));
         ++outIntfID;
       } else {
@@ -942,7 +1007,7 @@ TEST(Acl, LookupClass) {
   *config.acls()[0].actionType() = cfg::AclActionType::DENY;
 
   // set lookupClassL2
-  auto lookupClassL2 = cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP4;
+  auto lookupClassL2 = cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1;
   config.acls()[0].lookupClassL2() = lookupClassL2;
 
   // apply lookupClassL2 config and validate
@@ -1047,6 +1112,76 @@ TEST(Acl, InvalidTrafficCounter) {
       publishAndApplyConfig(stateV0, &config, platform.get()), FbossError);
 }
 
+TEST(Acl, VerifyTrafficCounter) {
+  FLAGS_enable_acl_table_group = false;
+  auto platform = createMockPlatform();
+  auto stateV0 = make_shared<SwitchState>();
+
+  cfg::SwitchConfig config;
+  config.acls()->resize(4);
+  *config.acls()[0].name() = "acl0";
+  *config.acls()[0].actionType() = cfg::AclActionType::PERMIT;
+  *config.acls()[1].name() = "acl1";
+  *config.acls()[1].actionType() = cfg::AclActionType::DENY;
+  config.dataPlaneTrafficPolicy() = cfg::TrafficPolicyConfig();
+  config.dataPlaneTrafficPolicy()->matchToAction()->resize(2);
+  *config.dataPlaneTrafficPolicy()->matchToAction()[0].matcher() = "acl0";
+  config.dataPlaneTrafficPolicy()->matchToAction()[0].action()->counter() =
+      "stat0";
+  *config.dataPlaneTrafficPolicy()->matchToAction()[1].matcher() = "acl1";
+  config.dataPlaneTrafficPolicy()->matchToAction()[1].action()->counter() =
+      "stat1";
+  config.trafficCounters()->resize(2);
+  *config.trafficCounters()[0].name() = "stat0";
+  *config.trafficCounters()[1].name() = "stat1";
+  *config.acls()[2].name() = "acl2";
+  *config.acls()[2].actionType() = cfg::AclActionType::PERMIT;
+  *config.acls()[3].name() = "acl3";
+  *config.acls()[3].actionType() = cfg::AclActionType::DENY;
+
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  EXPECT_NE(nullptr, stateV1);
+
+  auto verify = [](shared_ptr<SwitchState> state,
+                   std::string aclName,
+                   std::string counterName,
+                   cfg::AclActionType aclActionType,
+                   bool verifyTrafficCounter) {
+    auto acl = state->getAcl(aclName);
+    ASSERT_NE(nullptr, acl);
+    ASSERT_EQ(acl->getActionType(), aclActionType);
+    auto aclAction = acl->getAclAction();
+    if (verifyTrafficCounter) {
+      ASSERT_NE(nullptr, aclAction);
+      EXPECT_TRUE(
+          aclAction->cref<switch_state_tags::trafficCounter>() != nullptr);
+      EXPECT_EQ(
+          aclAction->cref<switch_state_tags::trafficCounter>()
+              ->cref<switch_config_tags::name>()
+              ->cref(),
+          counterName);
+      EXPECT_EQ(
+          aclAction->cref<switch_state_tags::trafficCounter>()
+              ->cref<switch_config_tags::types>()
+              ->size(),
+          1);
+      EXPECT_EQ(
+          aclAction->cref<switch_state_tags::trafficCounter>()
+              ->cref<switch_config_tags::types>()
+              ->cref(0)
+              ->toThrift(),
+          cfg::CounterType::PACKETS);
+    } else {
+      ASSERT_EQ(nullptr, aclAction);
+    }
+  };
+
+  verify(stateV1, "acl0", "stat0", cfg::AclActionType::PERMIT, true);
+  verify(stateV1, "acl1", "stat1", cfg::AclActionType::DENY, true);
+  verify(stateV1, "acl2", "", cfg::AclActionType::PERMIT, false);
+  verify(stateV1, "acl3", "", cfg::AclActionType::DENY, false);
+}
+
 TEST(Acl, GetRequiredAclTableQualifiers) {
   cfg::SwitchConfig config;
   config.acls();
@@ -1077,6 +1212,8 @@ TEST(Acl, GetRequiredAclTableQualifiers) {
     acl.lookupClassRoute() = cfg::AclLookupClass::CLASS_QUEUE_PER_HOST_QUEUE_2;
     acl.actionType() = cfg::AclActionType::DENY;
     acl.udfGroups() = kUdfList;
+    acl.roceBytes() = kRoceBytes;
+    acl.roceMask() = kRoceMask;
     return acl;
   };
   config.acls()[0] = setAclQualifiers("10.0.0.1/32", "acl0");

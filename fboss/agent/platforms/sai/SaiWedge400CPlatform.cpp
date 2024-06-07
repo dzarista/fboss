@@ -9,6 +9,7 @@
  */
 
 #include "fboss/agent/platforms/sai/SaiWedge400CPlatform.h"
+#include "fboss/agent/hw/sai/api/UdfApi.h"
 #include "fboss/agent/hw/switch_asics/EbroAsic.h"
 #include "fboss/agent/platforms/common/wedge400c/Wedge400CGrandTetonPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400c/Wedge400CPlatformMapping.h"
@@ -35,7 +36,7 @@ void SaiWedge400CPlatform::setupAsic(
     std::optional<cfg::Range64> systemPortRange,
     folly::MacAddress& mac) {
   std::optional<cfg::SdkVersion> sdkVersion;
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_SDK_GTE_1_65_0)
   /*
    * HwAsic table instance in the sw switch reads the SDK version
    * from the agent config for prod and from sai switch ensemble
@@ -47,7 +48,7 @@ void SaiWedge400CPlatform::setupAsic(
     sdkVersion = agentConfig->thrift.sw()->sdkVersion().value();
   } else {
     sdkVersion = cfg::SdkVersion{};
-    sdkVersion->asicSdk() = "1.65.0";
+    sdkVersion->asicSdk() = "1.65.1";
   }
 #endif
   asic_ = std::make_unique<EbroAsic>(
@@ -87,7 +88,7 @@ SaiWedge400CPlatform::~SaiWedge400CPlatform() {}
 std::unique_ptr<PlatformMapping>
 SaiWedge400CPlatform::createWedge400CPlatformMapping(
     const std::string& platformMappingStr) {
-  if (utility::isWedge400CPlatformRackTypeGrandTeton()) {
+  if (utility::isWedge400CPlatformRackTypeInference()) {
     return platformMappingStr.empty()
         ? std::make_unique<Wedge400CGrandTetonPlatformMapping>()
         : std::make_unique<Wedge400CGrandTetonPlatformMapping>(
@@ -96,6 +97,12 @@ SaiWedge400CPlatform::createWedge400CPlatformMapping(
   return platformMappingStr.empty()
       ? std::make_unique<Wedge400CPlatformMapping>()
       : std::make_unique<Wedge400CPlatformMapping>(platformMappingStr);
+}
+
+const std::set<sai_api_t>& SaiWedge400CPlatform::getSupportedApiList() const {
+  static auto apis = getDefaultSwitchAsicSupportedApis();
+  apis.erase(facebook::fboss::UdfApi::ApiType);
+  return apis;
 }
 
 } // namespace facebook::fboss

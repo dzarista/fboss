@@ -12,8 +12,8 @@
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwTest.h"
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/state/SwitchState.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 #include <string>
 
@@ -43,11 +43,14 @@ void configureAllIpQualifiers(
     cfg::AclEntry* acl,
     bool enable,
     cfg::IpType ipType,
-    cfg::AsicType /*asicType*/) {
+    cfg::AsicType asicType) {
   cfg::Ttl ttl;
   std::tie(*ttl.value(), *ttl.mask()) = std::make_tuple(0x80, 0x80);
 
-  configureQualifier(acl->ipType(), enable, ipType);
+  if (asicType != cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    // TODO(daiweix): remove after J3 ACL supports IP_TYPE
+    configureQualifier(acl->ipType(), enable, ipType);
+  }
   if (ipType == cfg::IpType::IP6) {
     configureQualifier(acl->srcIp(), enable, "::ffff:c0a8:1");
     configureQualifier(
@@ -56,11 +59,11 @@ void configureAllIpQualifiers(
     configureQualifier(
         acl->lookupClassNeighbor(),
         enable,
-        cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP6);
+        cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
     configureQualifier(
         acl->lookupClassRoute(),
         enable,
-        cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP6);
+        cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
 
   } else {
     configureQualifier(acl->srcIp(), enable, "192.168.0.1");
@@ -69,11 +72,11 @@ void configureAllIpQualifiers(
     configureQualifier(
         acl->lookupClassNeighbor(),
         enable,
-        cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP4);
+        cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1);
     configureQualifier(
         acl->lookupClassRoute(),
         enable,
-        cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP4);
+        cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1);
   }
   configureQualifier(
       acl->ipFrag(), enable, cfg::IpFragMatch::MATCH_FIRST_FRAGMENT);
@@ -156,11 +159,16 @@ class HwAclQualifierTest : public HwTest {
     }
   }
 
-  void configureIp4QualifiersHelper(cfg::AclEntry* acl) {
+  void configureIp4QualifiersHelper(
+      cfg::AclEntry* acl,
+      cfg::AsicType asicType) {
     cfg::Ttl ttl;
     std::tie(*ttl.value(), *ttl.mask()) = std::make_tuple(0x80, 0x80);
 
-    configureQualifier(acl->ipType(), true, cfg::IpType::IP4);
+    if (asicType != cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      // TODO(daiweix): remove after J3 ACL supports IP_TYPE
+      configureQualifier(acl->ipType(), true, cfg::IpType::IP4);
+    }
     configureQualifier(acl->srcIp(), true, "192.168.0.1");
     configureQualifier(acl->dstIp(), true, "192.168.0.0/24");
     configureQualifier(acl->dscp(), true, 0x24);
@@ -168,11 +176,16 @@ class HwAclQualifierTest : public HwTest {
     configureQualifier(acl->proto(), true, 6);
   }
 
-  void configureIp6QualifiersHelper(cfg::AclEntry* acl) {
+  void configureIp6QualifiersHelper(
+      cfg::AclEntry* acl,
+      cfg::AsicType asicType) {
     cfg::Ttl ttl;
     std::tie(*ttl.value(), *ttl.mask()) = std::make_tuple(0x80, 0x80);
 
-    configureQualifier(acl->ipType(), true, cfg::IpType::IP6);
+    if (asicType != cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      // TODO(daiweix): remove after J3 ACL supports IP_TYPE
+      configureQualifier(acl->ipType(), true, cfg::IpType::IP6);
+    }
     configureQualifier(acl->srcIp(), true, "::ffff:c0a8:1");
     configureQualifier(
         acl->dstIp(), true, "2401:db00:3020:70e2:face:0:63:0/64");
@@ -190,9 +203,9 @@ class HwAclQualifierTest : public HwTest {
     auto* acl = utility::addAcl(&newCfg, kAclName(), cfg::AclActionType::DENY);
 
     if (isIpV4) {
-      this->configureIp4QualifiersHelper(acl);
+      this->configureIp4QualifiersHelper(acl, this->getAsicType());
     } else {
-      this->configureIp6QualifiersHelper(acl);
+      this->configureIp6QualifiersHelper(acl, this->getAsicType());
     }
 
     switch (lookupClassType) {
@@ -209,15 +222,15 @@ class HwAclQualifierTest : public HwTest {
         configureQualifier(
             acl->lookupClassNeighbor(),
             true,
-            isIpV4 ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP4
-                   : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP6);
+            isIpV4 ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1
+                   : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
         break;
       case QualifierType::LOOKUPCLASS_ROUTE:
         configureQualifier(
             acl->lookupClassRoute(),
             true,
-            isIpV4 ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP4
-                   : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP6);
+            isIpV4 ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1
+                   : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
         break;
       default:
         CHECK(false);
@@ -460,7 +473,7 @@ TYPED_TEST(HwAclQualifierTest, AclIp4Qualifiers) {
   auto setup = [=, this]() {
     auto newCfg = this->initialConfig();
     auto* acl = utility::addAcl(&newCfg, "ip4", cfg::AclActionType::DENY);
-    this->configureIp4QualifiersHelper(acl);
+    this->configureIp4QualifiersHelper(acl, this->getAsicType());
     this->applyNewConfig(newCfg);
   };
 
@@ -478,7 +491,7 @@ TYPED_TEST(HwAclQualifierTest, AclIp6Qualifiers) {
   auto setup = [=, this]() {
     auto newCfg = this->initialConfig();
     auto* acl = utility::addAcl(&newCfg, "ip6", cfg::AclActionType::DENY);
-    this->configureIp6QualifiersHelper(acl);
+    this->configureIp6QualifiersHelper(acl, this->getAsicType());
     this->applyNewConfig(newCfg);
   };
 

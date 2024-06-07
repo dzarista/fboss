@@ -21,31 +21,19 @@
 #include "fboss/platform/sensor_service/if/gen-cpp2/sensor_service_types.h"
 
 DECLARE_int32(fsdb_statsStream_interval_seconds);
-DECLARE_string(mock_lmsensor_json_data);
 
 namespace facebook::fboss::platform::sensor_service {
-
 using namespace facebook::fboss::platform::sensor_config;
-
-enum class SensorSource {
-  LMSENSOR,
-  SYSFS,
-  MOCK,
-  UNKNOWN,
-};
-
-struct SensorLiveData {
-  std::string fru;
-  std::string path;
-  std::optional<float> value;
-  std::optional<int64_t> timeStamp;
-  std::string compute;
-  Thresholds thresholds;
-};
 
 class SensorServiceImpl {
  public:
-  explicit SensorServiceImpl(std::string confFileName);
+  auto static constexpr kReadFailure = "sensor_read.{}.failure";
+  auto static constexpr kReadValue = "sensor_read.{}.value";
+  auto static constexpr kReadTotal = "sensor_read.total";
+  auto static constexpr kTotalReadFailure = "sensor_read.total.failures";
+  auto static constexpr kHasReadFailure = "sensor_read.has.failures";
+
+  explicit SensorServiceImpl();
   ~SensorServiceImpl();
 
   std::vector<SensorData> getSensorsData(
@@ -58,27 +46,11 @@ class SensorServiceImpl {
   }
 
  private:
-  // Sensor config file full path
-  std::string confFileName_{};
-
-  SensorSource sensorSource_{SensorSource::LMSENSOR};
-
-  SensorConfig sensorTable_{};
-
-  // Sensor Name map, sensor path -> sensor name
-  std::unordered_map<std::string, std::string> sensorNameMap_{};
-
-  // Live sensor data table, sensor name -> sensor live data
-  folly::Synchronized<std::unordered_map<SensorName, struct SensorLiveData>>
-      liveDataTable_{};
-
+  folly::Synchronized<std::map<std::string, SensorData>> polledData_{};
   std::unique_ptr<FsdbSyncer> fsdbSyncer_;
-
   std::optional<std::chrono::time_point<std::chrono::steady_clock>>
       publishedStatsToFsdbAt_;
-
-  void parseSensorJsonData(const std::string&);
-  void getSensorDataFromPath();
+  SensorConfig sensorConfig_{};
 };
 
 } // namespace facebook::fboss::platform::sensor_service

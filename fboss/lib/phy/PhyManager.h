@@ -33,8 +33,10 @@ class PhySnapshotManager;
 
 class PhyManager {
  public:
-  using PublishPhyCb =
-      std::function<void(std::string&&, std::optional<phy::PhyInfo>&&)>;
+  using PublishPhyCb = std::function<void(
+      std::string&&,
+      std::optional<phy::PhyInfo>&&,
+      std::optional<HwPortStats>&&)>;
 
   explicit PhyManager(const PlatformMapping* platformMapping);
   virtual ~PhyManager();
@@ -80,6 +82,9 @@ class PhyManager {
   phy::ExternalPhy* getExternalPhy(PortID portID) {
     return getExternalPhy(getGlobalXphyIDbyPortID(portID));
   }
+
+  // Key is the xphy identifier, value is the stats
+  void publishPhyIOStatsToFb303() const;
 
   phy::PhyPortConfig getDesiredPhyPortConfig(
       PortID portId,
@@ -155,6 +160,11 @@ class PhyManager {
       bool /* readFromHw */) {
     throw FbossError(
         "Attempted to call getMacsecPortStats from non-SaiPhyManager");
+  }
+
+  virtual std::optional<HwPortStats> getHwPortStats(
+      const std::string& /* portName */) const {
+    return std::nullopt;
   }
 
   virtual std::string listHwObjects(

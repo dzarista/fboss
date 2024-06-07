@@ -11,6 +11,7 @@ include "fboss/agent/switch_config.thrift"
 include "fboss/mka_service/if/mka_structs.thrift"
 include "fboss/agent/hw/hardware_stats.thrift"
 include "fboss/lib/phy/phy.thrift"
+include "fboss/lib/phy/prbs.thrift"
 
 service QsfpService extends phy.FbossCommonPhyCtrl {
   transceiver.QsfpServiceRunState getQsfpServiceRunState();
@@ -22,13 +23,6 @@ service QsfpService extends phy.FbossCommonPhyCtrl {
    */
   map<i32, transceiver.TransceiverInfo> getTransceiverInfo(
     1: list<i32> idx,
-  ) throws (1: fboss.FbossBaseError error);
-  /*
-   * Customise the transceiver based on the speed at which it should run
-   */
-  void customizeTransceiver(
-    1: i32 idx,
-    2: switch_config.PortSpeed speed,
   ) throws (1: fboss.FbossBaseError error);
 
   /*
@@ -73,6 +67,14 @@ service QsfpService extends phy.FbossCommonPhyCtrl {
    * qsfp-service to pause auto remediation for the specified amount of seconds.
    */
   void pauseRemediation(1: i32 timeout, 2: list<string> portList);
+
+  /*
+  * Qsfp service has an internal remediation loop and may potentially perform
+  * interruptive operation to modules that carry no active(up) link. However
+  * it may cause some confusion for debugging. This function is to tell
+  * qsfp-service to unpause remediation.
+  */
+  void unpauseRemediation(1: list<string> portList);
 
   /*
    * Qsfp service has an internal remediation loop and may potentially perform
@@ -169,6 +171,19 @@ service QsfpService extends phy.FbossCommonPhyCtrl {
     3: bool setAdminUp = true,
   ) throws (1: fboss.FbossBaseError error);
 
+  transceiver.CdbDatapathSymErrHistogram getSymbolErrorHistogram(
+    1: string portName,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Returns a map of all platform software port names to the list of port
+   * profile Id supported by that port. If checkOptics is set True then it will
+   * exclude the port profiles which optics does not support
+   */
+  map<string, list<switch_config.PortProfileID>> getAllPortSupportedProfiles(
+    1: bool checkOptics = true,
+  ) throws (1: fboss.FbossBaseError error);
+
   string saiPhyRegisterAccess(
     1: string portName,
     2: bool opRead = true,
@@ -195,53 +210,73 @@ service QsfpService extends phy.FbossCommonPhyCtrl {
   bool sakInstallRx(
     1: mka_structs.MKASak sak,
     2: mka_structs.MKASci sciToAdd,
-  ) throws (1: mka_structs.MKAServiceException ex) (cpp.coroutine);
+  ) throws (1: mka_structs.MKAServiceException ex);
 
   bool sakInstallTx(1: mka_structs.MKASak sak) throws (
     1: mka_structs.MKAServiceException ex,
-  ) (cpp.coroutine);
+  );
 
   bool sakDeleteRx(
     1: mka_structs.MKASak sak,
     2: mka_structs.MKASci sciToRemove,
-  ) throws (1: mka_structs.MKAServiceException ex) (cpp.coroutine);
+  ) throws (1: mka_structs.MKAServiceException ex);
 
   bool sakDelete(1: mka_structs.MKASak sak) throws (
     1: mka_structs.MKAServiceException ex,
-  ) (cpp.coroutine);
+  );
 
   mka_structs.MKASakHealthResponse sakHealthCheck(
     1: mka_structs.MKASak sak,
-  ) throws (1: mka_structs.MKAServiceException ex) (cpp.coroutine);
+  ) throws (1: mka_structs.MKAServiceException ex);
 
   mka_structs.MacsecPortPhyMap macsecGetPhyPortInfo(
     1: list<string> portNames = [],
-  ) throws (1: fboss.FbossBaseError error) (cpp.coroutine);
+  ) throws (1: fboss.FbossBaseError error);
 
   ctrl.PortOperState macsecGetPhyLinkInfo(1: string portName) throws (
     1: fboss.FbossBaseError error,
-  ) (cpp.coroutine);
+  );
 
   phy.PhyInfo getPhyInfo(1: string portName) throws (
     1: fboss.FbossBaseError error,
-  ) (cpp.coroutine);
-
-  bool deleteAllSc(1: string portName) throws (1: fboss.FbossBaseError error) (
-    cpp.coroutine,
   );
+
+  bool deleteAllSc(1: string portName) throws (1: fboss.FbossBaseError error);
 
   bool setupMacsecState(
     1: list<string> portList,
     2: bool macsecDesired = false,
     3: bool dropUnencrypted = false,
-  ) throws (1: fboss.FbossBaseError error) (cpp.coroutine);
+  ) throws (1: fboss.FbossBaseError error);
 
   map<string, hardware_stats.MacsecStats> getAllMacsecPortStats(
     1: bool readFromHw = false,
-  ) throws (1: fboss.FbossBaseError error) (cpp.coroutine);
+  ) throws (1: fboss.FbossBaseError error);
 
   map<string, hardware_stats.MacsecStats> getMacsecPortStats(
     1: list<string> portNames,
     2: bool readFromHw = false,
-  ) throws (1: fboss.FbossBaseError error) (cpp.coroutine);
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Get the PRBS settings on all interfaces.
+   */
+  map<string, prbs.InterfacePrbsState> getAllInterfacePrbsStates(
+    1: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Get the PRBS stats on all interfaces.
+   */
+  map<string, phy.PrbsStats> getAllInterfacePrbsStats(
+    1: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Bulk clear the PRBS stats counters on interfaces.
+   */
+  void bulkClearInterfacePrbsStats(
+    1: list<string> interfaces,
+    2: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
 }

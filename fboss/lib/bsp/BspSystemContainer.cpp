@@ -14,8 +14,9 @@ BspSystemContainer::BspSystemContainer(std::unique_ptr<FpgaDevice> fpgaDevice)
   fpgaDevice_->mmap();
 }
 
-BspSystemContainer::BspSystemContainer(BspPlatformMapping* bspMapping)
-    : bspMapping_(bspMapping) {
+BspSystemContainer::BspSystemContainer(
+    std::unique_ptr<BspPlatformMapping> bspMapping)
+    : bspMapping_(std::move(bspMapping)) {
   initializePimContainers();
 }
 
@@ -23,6 +24,12 @@ void BspSystemContainer::initializePimContainers() {
   for (auto pimMapping : bspMapping_->getPimMappings()) {
     pimContainers_.emplace(
         pimMapping.first, std::make_unique<BspPimContainer>(pimMapping.second));
+  }
+}
+
+void BspSystemContainer::createBspLedContainers() {
+  for (auto& [pimID, pimContainer] : pimContainers_) {
+    pimContainer->createBspLedContainers();
   }
 }
 

@@ -55,6 +55,11 @@ struct PortFields {
     UP = 1,
   };
 
+  enum class ActiveState {
+    INACTIVE = 0,
+    ACTIVE = 1,
+  };
+
   struct MKASakKey {
     bool operator<(const MKASakKey& r) const {
       return std::tie(*sci.macAddress(), *sci.port(), associationNum) <
@@ -89,6 +94,7 @@ class Port : public ThriftStructNode<Port, state::PortFields> {
   using VlanInfo = PortFields::VlanInfo;
   using VlanMembership = PortFields::VlanMembership;
   using OperState = PortFields::OperState;
+  using ActiveState = PortFields::ActiveState;
   using LLDPValidations = PortFields::LLDPValidations;
   using NeighborReachability = PortFields::NeighborReachability;
   using MKASakKey = PortFields::MKASakKey;
@@ -197,6 +203,23 @@ class Port : public ThriftStructNode<Port, state::PortFields> {
     set<switch_state_tags::portOperState>(isUp);
   }
 
+  std::optional<ActiveState> getActiveState() const {
+    if (auto portActiveState = cref<switch_state_tags::portActiveState>()) {
+      return portActiveState->cref() ? ActiveState::ACTIVE
+                                     : ActiveState::INACTIVE;
+    }
+
+    return std::nullopt;
+  }
+
+  void setActiveState(std::optional<bool> isActive) {
+    if (!isActive) {
+      ref<switch_state_tags::portActiveState>().reset();
+      return;
+    }
+    set<switch_state_tags::portActiveState>(isActive.value());
+  }
+
   bool isEnabled() const {
     return getAdminState() == cfg::PortState::ENABLED;
   }
@@ -207,6 +230,13 @@ class Port : public ThriftStructNode<Port, state::PortFields> {
 
   bool isUp() const {
     return cref<switch_state_tags::portOperState>()->cref();
+  }
+
+  std::optional<bool> isActive() const {
+    if (auto portActiveState = cref<switch_state_tags::portActiveState>()) {
+      return portActiveState->cref();
+    }
+    return std::nullopt;
   }
 
   std::optional<mka::MKASak> getTxSak() const {
@@ -647,7 +677,50 @@ class Port : public ThriftStructNode<Port, state::PortFields> {
     set<switch_state_tags::zeroPreemphasis>(zeroPreemphasis);
   }
 
+  std::optional<bool> getTTLDisableDecrement() const {
+    if (auto value = cref<switch_state_tags::disableTTLDecrement>()) {
+      return value->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setTTLDisableDecrement(std::optional<bool> disableTTLDecrement) {
+    if (disableTTLDecrement.has_value()) {
+      set<switch_state_tags::disableTTLDecrement>(*disableTTLDecrement);
+    } else {
+      ref<switch_state_tags::disableTTLDecrement>().reset();
+    }
+  }
+
+  std::optional<bool> getTxEnable() const {
+    if (auto value = cref<switch_state_tags::txEnable>()) {
+      return value->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setTxEnable(std::optional<bool> txEnable) {
+    if (txEnable.has_value()) {
+      set<switch_state_tags::txEnable>(*txEnable);
+    } else {
+      ref<switch_state_tags::txEnable>().reset();
+    }
+  }
+
+  std::vector<PortError> getActiveErrors() const {
+    return safe_cref<switch_state_tags::activeErrors>()->toThrift();
+  }
+  void addError(PortError error);
+  void removeError(PortError error);
   Port* modify(std::shared_ptr<SwitchState>* state);
+
+  void setScope(const cfg::Scope& scope) {
+    set<ctrl_if_tags::scope>(scope);
+  }
+
+  cfg::Scope getScope() const {
+    return cref<ctrl_if_tags::scope>()->cref();
+  }
 
  private:
   auto getRxSaks() const {

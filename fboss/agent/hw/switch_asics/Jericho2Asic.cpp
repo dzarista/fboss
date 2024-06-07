@@ -2,6 +2,7 @@
 
 #include "fboss/agent/hw/switch_asics/Jericho2Asic.h"
 #include <thrift/lib/cpp/util/EnumUtils.h>
+#include "fboss/agent/AgentFeatures.h"
 
 namespace facebook::fboss {
 
@@ -22,6 +23,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PTP_TC:
     case HwAsic::Feature::PTP_TC_PCS:
     case HwAsic::Feature::PFC:
+    case HwAsic::Feature::PFC_XON_TO_XOFF_COUNTER:
     case HwAsic::Feature::TELEMETRY_AND_MONITORING:
     case HwAsic::Feature::WIDE_ECMP:
     case HwAsic::Feature::ALPM_ROUTE_PROJECTION:
@@ -30,7 +32,6 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::EGRESS_MIRRORING:
     case HwAsic::Feature::EGRESS_SFLOW:
     case HwAsic::Feature::DEFAULT_VLAN:
-    case HwAsic::Feature::L2_LEARNING:
     case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
     case HwAsic::Feature::TRAFFIC_HASHING:
     case HwAsic::Feature::CPU_PORT:
@@ -50,7 +51,6 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::FEC:
     case HwAsic::Feature::FEC_CORRECTED_BITS:
     case HwAsic::Feature::VOQ:
-    case HwAsic::Feature::RECYCLE_PORT_STATS:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
     case HwAsic::Feature::ACL_TABLE_GROUP:
@@ -70,16 +70,20 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
-    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
-    case HwAsic::Feature::DEBUG_COUNTER:
+    case HwAsic::Feature::BLACKHOLE_ROUTE_DROP_COUNTER:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::WARMBOOT:
     case HwAsic::Feature::ACL_COUNTER_LABEL:
     case HwAsic::Feature::CREDIT_WATCHDOG:
     case HwAsic::Feature::ECMP_MEMBER_WIDTH_INTROSPECTION:
+    case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
+    case HwAsic::Feature::ANY_ACL_DROP_COUNTER:
+    case HwAsic::Feature::EGRESS_FORWARDING_DROP_COUNTER:
+    case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
+    case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
       return true;
-
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS:
     case HwAsic::Feature::SAI_LAG_HASH:
@@ -143,7 +147,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::PORT_EYE_VALUES:
-
+    case HwAsic::Feature::RX_SNR:
     case HwAsic::Feature::ECMP_DLB_OFFSET:
     case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
     case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
@@ -154,6 +158,16 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::MPLS_ECMP:
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv6:
+    case HwAsic::Feature::MANAGEMENT_PORT:
+    case HwAsic::Feature::PORT_WRED_COUNTER:
+    case HwAsic::Feature::ACL_METADATA_QUALIFER:
+    case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
+    case HwAsic::Feature::SAI_PRBS:
+    case HwAsic::Feature::RCI_WATERMARK_COUNTER:
+    case HwAsic::Feature::DTL_WATERMARK_COUNTER:
+    case HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER:
+    case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
+    case HwAsic::Feature::CRC_ERROR_DETECT:
       return false;
   }
   return false;
@@ -165,7 +179,9 @@ std::set<cfg::StreamType> Jericho2Asic::getQueueStreamTypes(
     case cfg::PortType::CPU_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::FABRIC_PORT:
       return {cfg::StreamType::FABRIC_TX};
@@ -179,7 +195,14 @@ int Jericho2Asic::getDefaultNumPortQueues(
     cfg::PortType portType) const {
   switch (streamType) {
     case cfg::StreamType::UNICAST:
-      return 8;
+      /*
+       * 4K setup may have 9 x 8 50G = 72 ports on a single core.
+       * With 8 egress queues, total egress queues = 72 * 8 = 576.
+       * However, the max number of egress queues per core is 512.
+       * Thus, use 4 egress queues  on 4k setup.
+       * 4 queues are adequate for the current qos scheme.
+       */
+      return FLAGS_dsf_4k ? 4 : 8;
     case cfg::StreamType::MULTICAST:
       if (portType == cfg::PortType::CPU_PORT) {
         break;
@@ -210,7 +233,9 @@ uint64_t Jericho2Asic::getDefaultReservedBytes(
     case cfg::PortType::RECYCLE_PORT:
       return 4096;
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::FABRIC_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       return 0;
   }
   throw FbossError(

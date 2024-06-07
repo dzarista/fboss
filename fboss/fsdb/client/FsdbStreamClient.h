@@ -14,10 +14,8 @@
 #include <thrift/lib/cpp2/async/Sink.h>
 #include <optional>
 #include <string>
-#ifndef IS_OSS
-#include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
-#endif
 #include "fboss/fsdb/common/Utils.h"
+#include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
 #include "fboss/lib/CommonThriftUtils.h"
 
 #include <atomic>
@@ -35,6 +33,7 @@ class Client;
 
 DECLARE_int32(fsdb_state_chunk_timeout);
 DECLARE_int32(fsdb_stat_chunk_timeout);
+DECLARE_int32(fsdb_reconnect_ms);
 
 using State = facebook::fboss::ReconnectingThriftClient::State;
 
@@ -60,7 +59,8 @@ class FsdbStreamClient : public ReconnectingThriftClient {
       const std::string& counterPrefix,
       bool isStats = false,
       StreamStateChangeCb stateChangeCb = [](State /*old*/,
-                                             State /*newState*/) {});
+                                             State /*newState*/) {},
+      int fsdbReconnectMs = FLAGS_fsdb_reconnect_ms);
   virtual ~FsdbStreamClient();
 
   bool serviceLoopRunning() const {
@@ -72,14 +72,15 @@ class FsdbStreamClient : public ReconnectingThriftClient {
   fsdb::FsdbErrorCode getDisconnectReason() const {
     return *disconnectReason_.rlock();
   }
+  void onCancellation() override {}
 
-#ifndef IS_OSS
   template <typename PubUnit>
   using PubStreamT = apache::thrift::ClientSink<PubUnit, OperPubFinalResponse>;
   template <typename SubUnit>
   using SubStreamT = apache::thrift::ClientBufferedStream<SubUnit>;
   using StatePubStreamT = PubStreamT<OperState>;
   using DeltaPubStreamT = PubStreamT<OperDelta>;
+  using PatchPubStreamT = PubStreamT<PublisherMessage>;
   using StateSubStreamT = SubStreamT<OperState>;
   using DeltaSubStreamT = SubStreamT<OperDelta>;
   using StateExtSubStreamT = SubStreamT<OperSubPathUnit>;
@@ -88,11 +89,11 @@ class FsdbStreamClient : public ReconnectingThriftClient {
   using StreamT = std::variant<
       StatePubStreamT,
       DeltaPubStreamT,
+      PatchPubStreamT,
       StateSubStreamT,
       DeltaSubStreamT,
       StateExtSubStreamT,
       DeltaExtSubStreamT>;
-#endif
 
  private:
   void createClient(const ServerOptions& options);
@@ -100,13 +101,16 @@ class FsdbStreamClient : public ReconnectingThriftClient {
   void connectToServer(const ServerOptions& options) override;
   void timeoutExpired() noexcept;
 
-#if FOLLY_HAS_COROUTINES && !defined(IS_OSS)
+#if FOLLY_HAS_COROUTINES
   folly::coro::Task<void> serviceLoopWrapper() override;
   virtual folly::coro::Task<StreamT> setupStream() = 0;
   virtual folly::coro::Task<void> serveStream(StreamT&& stream) = 0;
 #endif
 
  protected:
+  folly::EventBase* getStreamEventBase() const {
+    return streamEvb_;
+  }
   void setDisconnectReason(FsdbErrorCode reason) {
     auto disconnectReason = disconnectReason_.wlock();
     *disconnectReason = reason;
@@ -121,9 +125,7 @@ class FsdbStreamClient : public ReconnectingThriftClient {
     setDisconnectReason(reason);
     setState(State::DISCONNECTED);
   }
-#ifndef IS_OSS
   std::unique_ptr<apache::thrift::Client<FsdbService>> client_;
-#endif
 
   apache::thrift::RpcOptions& getRpcOptions() {
     return rpcOptions_;

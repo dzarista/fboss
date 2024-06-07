@@ -2,9 +2,9 @@
 #include "fboss/qsfp_service/TransceiverManager.h"
 
 #include <fb303/ThreadCachedServiceData.h>
-#include <folly/DynamicConverter.h>
 #include <folly/FileUtil.h>
-#include <folly/json.h>
+#include <folly/json/DynamicConverter.h>
+#include <folly/json/json.h>
 
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/FbossError.h"
@@ -60,6 +60,7 @@ constexpr auto kAgentConfigLastColdbootAppliedInMsKey =
     "agentConfigLastColdbootAppliedInMs";
 static constexpr auto kStateMachineThreadHeartbeatMissed =
     "state_machine_thread_heartbeat_missed";
+constexpr int kSecAfterModuleOutOfReset = 2;
 
 std::map<int, facebook::fboss::NpuPortStatus> getNpuPortStatus(
     const std::map<int32_t, facebook::fboss::PortStatus>& portStatus) {
@@ -104,13 +105,53 @@ TransceiverManager::TransceiverManager(
     XLOG(ERR) << "Couldn't create FbossFwStorage instance: "
               << folly::exceptionStr(ex);
   }
+
+  initPortToModuleMap();
+
+  // Initialize the resetFunctionMap_ with proper function
+  // per reset type/action. map is better than multiple switch
+  // statements when we support more reset types.
+  resetFunctionMap_[std::make_pair(
+      ResetType::HARD_RESET, ResetAction::RESET_THEN_CLEAR)] =
+      &TransceiverManager::triggerQsfpHardReset;
+  resetFunctionMap_[std::make_pair(ResetType::HARD_RESET, ResetAction::RESET)] =
+      &TransceiverManager::holdTransceiverReset;
+  resetFunctionMap_[std::make_pair(
+      ResetType::HARD_RESET, ResetAction::CLEAR_RESET)] =
+      &TransceiverManager::releaseTransceiverReset;
 }
 
 TransceiverManager::~TransceiverManager() {
   // Make sure if gracefulExit() is not called, we will still stop the threads
   if (!isExiting_) {
-    isExiting_ = true;
+    setGracefulExitingFlag();
     stopThreads();
+  }
+}
+
+void TransceiverManager::initPortToModuleMap() {
+  const auto& platformPorts = platformMapping_->getPlatformPorts();
+  for (const auto& it : platformPorts) {
+    auto port = it.second;
+    // Get the transceiver id based on the port info from platform mapping.
+    auto portId = *port.mapping()->id();
+    auto transceiverId = getTransceiverID(PortID(portId));
+    if (!transceiverId) {
+      XLOG(ERR) << "Did not find transceiver id for port id " << portId;
+      continue;
+    }
+    // Add the port to the transceiver indexed port group.
+    auto portGroupIt = portGroupMap_.find(transceiverId.value());
+    if (portGroupIt == portGroupMap_.end()) {
+      portGroupMap_[transceiverId.value()] =
+          std::set<cfg::PlatformPortEntry>{port};
+    } else {
+      portGroupIt->second.insert(port);
+    }
+    std::string portName = *port.mapping()->name();
+    portNameToModule_[portName] = transceiverId.value();
+    XLOG(DBG2) << "Added port " << portName << " with portId " << portId
+               << " to transceiver " << transceiverId.value();
   }
 }
 
@@ -131,15 +172,8 @@ void TransceiverManager::readWarmBootStateFile() {
 void TransceiverManager::init() {
   // Check whether we can warm boot
   canWarmBoot_ = checkWarmBootFlags();
-  if (!FLAGS_can_qsfp_service_warm_boot) {
-    canWarmBoot_ = false;
-  }
   XLOG(INFO) << "Will attempt " << (canWarmBoot_ ? "WARM" : "COLD") << " boot";
-  if (!canWarmBoot_) {
-    // Since this is going to be cold boot, we need to remove the can_warm_boot
-    // file
-    removeWarmBootFlag();
-  } else {
+  if (canWarmBoot_) {
     // Read the warm boot state file for a warm boot
     readWarmBootStateFile();
     restoreAgentConfigAppliedInfo();
@@ -201,11 +235,92 @@ void TransceiverManager::restoreAgentConfigAppliedInfo() {
   }
 }
 
+void TransceiverManager::clearAllTransceiverReset() {
+  {
+    auto tscvrsInReset = tcvrsHeldInReset_.rlock();
+    if (tscvrsInReset->empty()) {
+      qsfpPlatApi_->clearAllTransceiverReset();
+    } else {
+      const auto numModules = getNumQsfpModules();
+      for (auto idx = 0; idx < numModules; idx++) {
+        if (tscvrsInReset->count(idx) == 0) {
+          // This api accepts 1 based module id however the module id in
+          // TransceiverManager is 0 based.
+          qsfpPlatApi_->releaseTransceiverReset(idx + 1);
+        }
+      }
+    }
+  }
+  // Required delay time between a transceiver getting out of reset and fully
+  // functional.
+  // @lint-ignore CLANGTIDY facebook-hte-BadCall-sleep
+  sleep(kSecAfterModuleOutOfReset);
+}
+
+void TransceiverManager::hardResetAction(
+    void (TransceiverPlatformApi::*func)(unsigned int),
+    int idx,
+    bool holdInReset,
+    bool removeTransceiver) {
+  // Order of locking is important.
+  auto trscvrsInreset = tcvrsHeldInReset_.wlock();
+  if (holdInReset) {
+    trscvrsInreset->insert(idx);
+  } else {
+    trscvrsInreset->erase(idx);
+  }
+  // This api accepts 1 based module id however the module id in
+  // TransceiverManager is 0 based.
+  (qsfpPlatApi_.get()->*func)(idx + 1);
+  if (removeTransceiver) {
+    {
+      // Read Lock to trigger all state machine changes
+      auto lockedTransceivers = transceivers_.rlock();
+      if (auto it = lockedTransceivers->find(TransceiverID(idx));
+          it != lockedTransceivers->end()) {
+        it->second->removeTransceiver();
+        removeTransceiver = true;
+      }
+    }
+
+    // Write lock to remove the transceiver
+    auto lockedTransceivers = transceivers_.wlock();
+    lockedTransceivers->erase(TransceiverID(idx));
+  }
+}
+
+void TransceiverManager::triggerQsfpHardReset(int idx) {
+  hardResetAction(
+      &TransceiverPlatformApi::triggerQsfpHardReset,
+      idx,
+      false /*holdInReset*/,
+      true /*RemoveTransceiver*/);
+  XLOG(INFO) << "triggerQsfpHardReset called for Transceiver: " << idx;
+}
+
+void TransceiverManager::holdTransceiverReset(int idx) {
+  hardResetAction(
+      &TransceiverPlatformApi::holdTransceiverReset,
+      idx,
+      true /*holdInReset*/,
+      true /*RemoveTransceiver*/);
+  XLOG(INFO) << "holdTransceiverReset called for Transceiver: " << idx;
+}
+
+void TransceiverManager::releaseTransceiverReset(int idx) {
+  hardResetAction(
+      &TransceiverPlatformApi::releaseTransceiverReset,
+      idx,
+      false /*holdInReset*/,
+      false /*RemoveTransceiver*/);
+  XLOG(INFO) << "releaseTransceiverReset called for Transceiver: " << idx;
+}
+
 void TransceiverManager::gracefulExit() {
   steady_clock::time_point begin = steady_clock::now();
   XLOG(INFO) << "[Exit] Starting TransceiverManager graceful exit";
   // Stop all the threads before shutdown
-  isExiting_ = true;
+  setGracefulExitingFlag();
   stopThreads();
   steady_clock::time_point stopThreadsDone = steady_clock::now();
   XLOG(INFO) << "[Exit] Stopped all state machine threads. Stop time: "
@@ -214,6 +329,12 @@ void TransceiverManager::gracefulExit() {
   // Set all warm boot related files before gracefully shut down
   setWarmBootState();
   setCanWarmBoot();
+
+  // Do a graceful shutdown of the phy.
+  if (phyManager_) {
+    phyManager_->gracefulExit();
+  }
+
   steady_clock::time_point setWBFilesDone = steady_clock::now();
   XLOG(INFO) << "[Exit] Done creating Warm Boot related files. Stop time: "
              << duration_cast<duration<float>>(setWBFilesDone - stopThreadsDone)
@@ -221,6 +342,8 @@ void TransceiverManager::gracefulExit() {
              << std::endl
              << "[Exit] Total TransceiverManager graceful Exit time: "
              << duration_cast<duration<float>>(setWBFilesDone - begin).count();
+  XLOG(INFO) << "[Exit] QSFP Service Warm boot state: " << std::endl
+             << qsfpServiceWarmbootState_;
 }
 
 const TransceiverManager::PortNameMap&
@@ -266,7 +389,7 @@ bool TransceiverManager::firmwareUpgradeRequired(TransceiverID id) {
 
   if (forceFirmwareUpgradeForTesting_ ||
       (tcvrIt != lockedTransceivers->end() && tcvrIt->second->isPresent() &&
-       tcvrIt->second->requiresFirmwareUpgrade())) {
+       requiresFirmwareUpgrade(*tcvrIt->second))) {
     // If we are here, it means that this transceiver is present and has the
     // firmware version mismatch and hence requires upgrade
     // We also need to check that at any time one i2c evb should run firmware
@@ -295,6 +418,131 @@ bool TransceiverManager::firmwareUpgradeRequired(TransceiverID id) {
   return false;
 }
 
+std::optional<cfg::Firmware> TransceiverManager::getFirmwareFromCfg(
+    Transceiver& tcvr) const {
+  if (!qsfpConfig_) {
+    XLOG(DBG4) << "qsfpConfig is NULL. No Firmware to return";
+    return std::nullopt;
+  }
+
+  const auto& qsfpCfg = qsfpConfig_->thrift;
+  auto qsfpCfgFw = qsfpCfg.transceiverFirmwareVersions();
+  if (!qsfpCfgFw.has_value()) {
+    XLOG(DBG4) << "transceiverFirmwareVersions is NULL. No Firmware to return";
+    return std::nullopt;
+  }
+
+  auto cachedTcvrInfo = tcvr.getTransceiverInfo();
+  auto vendor = cachedTcvrInfo.tcvrState()->vendor();
+  if (!vendor.has_value()) {
+    XLOG(DBG4) << "Vendor not set. No Firmware to return";
+    return std::nullopt;
+  }
+
+  auto fwVersionInCfgIt =
+      qsfpCfgFw->versionsMap()->find(vendor->get_partNumber());
+  if (fwVersionInCfgIt == qsfpCfgFw->versionsMap()->end()) {
+    XLOG(DBG4) << folly::sformat(
+        "transceiverFirmwareVersions doesn't have a firmware version for part number {:s}.  No Firmware to return",
+        vendor->get_partNumber());
+    return std::nullopt;
+  }
+
+  return fwVersionInCfgIt->second;
+}
+
+bool TransceiverManager::requiresFirmwareUpgrade(Transceiver& tcvr) const {
+  // Returns true if the current firmware revision is different than the one in
+  // qsfp config
+  auto cachedTcvrInfo = tcvr.getTransceiverInfo();
+  auto moduleStatus = cachedTcvrInfo.tcvrState()->status();
+  int tcvrID = tcvr.getID();
+  if (!moduleStatus.has_value()) {
+    XLOG(DBG4)
+        << "Transceiver: " << tcvrID
+        << " moduleStatus not set. Returning false from requiresFirmwareUpgrade";
+    return false;
+  }
+
+  auto fwStatus = moduleStatus->fwStatus();
+  if (!fwStatus.has_value()) {
+    XLOG(DBG4)
+        << "Transceiver: " << tcvrID
+        << " fwStatus not set. Returning false from requiresFirmwareUpgrade";
+    return false;
+  }
+
+  auto fwFromConfig = getFirmwareFromCfg(tcvr);
+  if (!fwFromConfig.has_value()) {
+    XLOG(DBG4)
+        << "Transceiver: " << tcvrID
+        << " Fw not available in config. Returning false from requiresFirmwareUpgrade";
+    return false;
+  }
+
+  for (auto fwIt : *fwFromConfig->versions()) {
+    if (fwIt.get_fwType() == cfg::FirmwareType::APPLICATION &&
+        fwStatus->version() && fwIt.get_version() != *fwStatus->version()) {
+      XLOG(INFO) << "Transceiver: " << tcvrID
+                 << " Application Version in cfg=" << fwIt.get_version()
+                 << " current operational version= " << *fwStatus->version()
+                 << ". Returning true from requiresFirmwareUpgrade for tcvr="
+                 << tcvr.getID();
+      return true;
+    }
+    if (fwIt.get_fwType() == cfg::FirmwareType::DSP && fwStatus->dspFwVer() &&
+        fwIt.get_version() != *fwStatus->dspFwVer()) {
+      XLOG(INFO) << "Transceiver: " << tcvrID
+                 << " DSP Version in cfg=" << fwIt.get_version()
+                 << " current operational version= " << *fwStatus->dspFwVer()
+                 << ". Returning true from requiresFirmwareUpgrade for tcvr="
+                 << tcvr.getID();
+      return true;
+    }
+  }
+
+  // Versions match. No need to upgrade firmware
+  return false;
+}
+
+bool TransceiverManager::upgradeFirmware(Transceiver& tcvr) {
+  std::optional<cfg::Firmware> fwFromConfig = getFirmwareFromCfg(tcvr);
+  if (fwFromConfig.has_value()) {
+    XLOG(INFO) << "Upgrading firmware to the one in qsfp config";
+  } else {
+    XLOG(ERR) << "No firmware version found to upgrade";
+    failedOpticsFwUpgradeCount_++;
+    return false;
+  }
+
+  std::string fwStorageHandleName = tcvr.getFwStorageHandle();
+  if (fwStorageHandleName.empty()) {
+    XLOG(ERR)
+        << "Can't find the fwStorage handle for this part number. Skipping fw upgrade";
+    failedOpticsFwUpgradeCount_++;
+    return false;
+  }
+
+  std::vector<std::unique_ptr<FbossFirmware>> fwList;
+
+  auto& fwVersions = *(fwFromConfig->versions());
+  for (const auto& fw : fwVersions) {
+    fwList.emplace_back(
+        fwStorage()->getFirmware(fwStorageHandleName, *fw.version()));
+
+    XLOG(INFO) << "Adding FW for upgrade: tcvr=" << tcvr.getID()
+               << " firmware. Type="
+               << apache::thrift::util::enumNameSafe(*fw.fwType())
+               << " Version=" << *fw.version();
+  }
+
+  if (tcvr.upgradeFirmware(fwList)) {
+    return true;
+  }
+
+  return false;
+}
+
 void TransceiverManager::doTransceiverFirmwareUpgrade(TransceiverID tcvrID) {
   std::vector<folly::Future<bool>> futResponses;
   auto lockedTransceivers = transceivers_.rlock();
@@ -316,8 +564,17 @@ void TransceiverManager::doTransceiverFirmwareUpgrade(TransceiverID tcvrID) {
   };
 
   updateStateInFsdb(true);
-  tcvrIt->second->upgradeFirmware();
-  updateStateInFsdb(false);
+  if (upgradeFirmware(*tcvrIt->second)) {
+    successfulOpticsFwUpgradeCount_++;
+  } else {
+    failedOpticsFwUpgradeCount_++;
+  }
+  // We will leave the fwUpgradeStatus as true for now because we still have a
+  // lot to do after upgrading the firmware. The optic goes through reset, the
+  // state machine goes back to discovered state. IPHY + XPHY ports get
+  // programmed again, Optic itself gets programmed again. Therefore, we'll set
+  // the fwUpgradeInProgress status to false after we are truly done getting the
+  // optic ready after fw upgrade
 }
 
 TransceiverManager::TransceiverToStateMachineHelper
@@ -383,6 +640,9 @@ void TransceiverManager::startThreads() {
             kStateMachineThreadHeartbeatMissed,
             stateMachineThreadHeartbeatMissedCount_);
       });
+  // Initialize the kStateMachineThreadHeartbeatMissed counter
+  tcData().setCounter(kStateMachineThreadHeartbeatMissed, 0);
+  // Start monitoring the heartbeats of all the threads
   for (auto heartbeat : heartbeats_) {
     heartbeatWatchdog_->startMonitoringHeartbeat(heartbeat);
   }
@@ -780,6 +1040,95 @@ TransceiverInfo TransceiverManager::getTransceiverInfo(TransceiverID id) const {
   }
 }
 
+/*
+ * getAllPortSupportedProfiles
+ *
+ * This function returns the list of all supported port profiles on every port
+ * configured by agent config at that moment. If the checkOptics is False then
+ * it returns all possible port profiles for every configured port as mentioned
+ * in the platform mapping. If the checkOptics is True then it will exclude the
+ * port profiles which current optics does not support.
+ */
+void TransceiverManager::getAllPortSupportedProfiles(
+    std::map<std::string, std::vector<cfg::PortProfileID>>&
+        supportedPortProfiles,
+    bool checkOptics) {
+  // Find the list of all available ports from agent config
+  std::vector<std::string> availablePorts;
+
+  for (auto& [tcvrId, tcvrPortInfoMap] : tcvrToPortInfo_) {
+    auto tcvrPortInfoMapLocked = tcvrPortInfoMap->rlock();
+    for (auto& [portId, tcvrPortInfo] : *tcvrPortInfoMapLocked) {
+      if (auto portName = getPortNameByPortId(portId)) {
+        availablePorts.push_back(portName.value());
+      }
+    }
+  }
+
+  // Get all possible port profiles for all the ports from platform mapping.
+  // Exclude the ports which are not configured by agent config
+  auto allPossiblePortProfiles = platformMapping_->getAllPortProfiles();
+  std::map<std::string, std::vector<cfg::PortProfileID>>
+      allConfiguredPortProfiles;
+  for (auto& portName : availablePorts) {
+    if (allPossiblePortProfiles.find(portName) !=
+        allPossiblePortProfiles.end()) {
+      allConfiguredPortProfiles[portName] = allPossiblePortProfiles[portName];
+    }
+  }
+
+  // If we don't need to check the optics support of the profile then return all
+  // supported port profiles from the platform mapping which are configured by
+  // agent config
+  if (!checkOptics) {
+    supportedPortProfiles = allConfiguredPortProfiles;
+    return;
+  }
+
+  for (auto& [portName, portProfiles] : allConfiguredPortProfiles) {
+    auto portID = getPortIDByPortName(portName);
+    if (!portID.has_value()) {
+      continue;
+    }
+    // Check if the transceiver supports the port profile
+    for (auto& profileID : portProfiles) {
+      auto tcvrHostLanes = platformMapping_->getTransceiverHostLanes(
+          PlatformPortProfileConfigMatcher(
+              profileID /* profileID */,
+              *portID /* portID */,
+              std::nullopt /* portConfigOverrideFactor */));
+      if (tcvrHostLanes.empty()) {
+        continue;
+      }
+      auto tcvrStartLane = *tcvrHostLanes.begin();
+      auto profileCfgOpt = platformMapping_->getPortProfileConfig(
+          PlatformPortProfileConfigMatcher(profileID));
+      if (!profileCfgOpt) {
+        continue;
+      }
+      const auto speed = *profileCfgOpt->speed();
+      TransceiverPortState portState;
+      portState.portName = portName;
+      portState.startHostLane = tcvrStartLane;
+      portState.speed = speed;
+      portState.numHostLanes = tcvrHostLanes.size();
+      portState.transmitterTech = profileCfgOpt->iphy()->medium().value_or({});
+
+      auto tcvrIDOpt = getTransceiverID(*portID);
+      if (!tcvrIDOpt.has_value()) {
+        continue;
+      }
+
+      auto lockedTransceivers = transceivers_.rlock();
+      auto tcvrIt = lockedTransceivers->find(*tcvrIDOpt);
+      if (tcvrIt != lockedTransceivers->end() &&
+          tcvrIt->second->tcvrPortStateSupported(portState)) {
+        supportedPortProfiles[portName].push_back(profileID);
+      }
+    }
+  }
+}
+
 void TransceiverManager::programTransceiver(
     TransceiverID id,
     bool needResetDataPath) {
@@ -833,6 +1182,7 @@ void TransceiverManager::programTransceiver(
     portState.portName = *portName;
     portState.startHostLane = tcvrStartLane;
     portState.speed = speed;
+    portState.numHostLanes = tcvrHostLanes.size();
     programTcvrState.ports.emplace(*portName, portState);
   }
 
@@ -880,8 +1230,8 @@ bool TransceiverManager::tryRemediateTransceiver(TransceiverID id) {
   bool allPortsDown;
   std::vector<std::string> portsToRemediate;
   std::tie(allPortsDown, portsToRemediate) = areAllPortsDown(id);
-  bool didRemediate =
-      tcvrIt->second->tryRemediate(allPortsDown, portsToRemediate);
+  bool didRemediate = tcvrIt->second->tryRemediate(
+      allPortsDown, pauseRemediationUntil_, portsToRemediate);
   XLOG_IF(INFO, didRemediate)
       << "Remediated Transceiver for Transceiver=" << id
       << " and ports=" << folly::join(",", portsToRemediate);
@@ -1076,7 +1426,7 @@ void TransceiverManager::updateTransceiverPortStatus() noexcept {
 
 void TransceiverManager::triggerFirmwareUpgradeEvents(
     std::unordered_set<TransceiverID>& tcvrs) {
-  if (!FLAGS_firmware_upgrade_supported) {
+  if (!FLAGS_firmware_upgrade_supported || tcvrs.empty()) {
     return;
   }
   BlockingStateUpdateResultList results;
@@ -1092,7 +1442,7 @@ void TransceiverManager::triggerFirmwareUpgradeEvents(
   heartbeatWatchdog_->pauseMonitoringHeartbeat(updateThreadHeartbeat_);
   waitForAllBlockingStateUpdateDone(results);
 
-  resetUpgradedTransceiversToNotPresent();
+  resetUpgradedTransceiversToDiscovered();
 }
 
 void TransceiverManager::updateTransceiverActiveState(
@@ -1177,24 +1527,24 @@ void TransceiverManager::updateTransceiverActiveState(
       << " transceivers need to update port status.";
 }
 
-void TransceiverManager::resetUpgradedTransceiversToNotPresent() {
+void TransceiverManager::resetUpgradedTransceiversToDiscovered() {
   BlockingStateUpdateResultList results;
   std::vector<TransceiverID> tcvrsToReset;
   for (auto& stateMachine : stateMachines_) {
     const auto& lockedStateMachine =
         stateMachine.second->getStateMachine().rlock();
-    if (lockedStateMachine->get_attribute(needToResetToNotPresent)) {
+    if (lockedStateMachine->get_attribute(needToResetToDiscovered)) {
       tcvrsToReset.push_back(stateMachine.first);
     }
   }
 
   if (!tcvrsToReset.empty()) {
     XLOG(INFO)
-        << "Resetting the following transceivers to NOT_PRESENT since they were recently upgraded: "
+        << "Resetting the following transceivers to DISCOVERED since they were recently upgraded: "
         << folly::join(",", tcvrsToReset);
     for (auto tcvrID : tcvrsToReset) {
       TransceiverStateMachineEvent event =
-          TransceiverStateMachineEvent::TCVR_EV_RESET_TO_NOT_PRESENT;
+          TransceiverStateMachineEvent::TCVR_EV_RESET_TO_DISCOVERED;
       if (auto result = updateStateBlockingWithoutWait(tcvrID, event)) {
         results.push_back(result);
       }
@@ -1217,26 +1567,43 @@ void TransceiverManager::refreshStateMachines() {
   // TransceiverInfo
   const auto& presentXcvrIds = refreshTransceivers();
 
+  bool firstRefreshAfterColdboot = !canWarmBoot_ && !isFullyInitialized();
   // Find transceivers that were just discovered or that are still inactive
   std::unordered_set<TransceiverID> potentialTcvrsForFwUpgrade;
   for (auto tcvrID : presentXcvrIds) {
     auto curState = getCurrentState(tcvrID);
-    if (curState == TransceiverStateMachineState::DISCOVERED ||
-        curState == TransceiverStateMachineState::INACTIVE) {
+    if (curState == TransceiverStateMachineState::INACTIVE) {
+      // Anytime a module is in inactive state (link down), it's a candidate for
+      // fw upgrade
+      XLOG(INFO)
+          << "Transceiver " << static_cast<int>(tcvrID)
+          << " is in INACTIVE state, adding it to list of potentialTcvrsForFwUpgrade";
       potentialTcvrsForFwUpgrade.insert(tcvrID);
+    } else if (curState == TransceiverStateMachineState::DISCOVERED) {
+      if (firstRefreshAfterColdboot) {
+        // First refresh after cold boot and module is still in
+        // discovered state
+        XLOG(INFO)
+            << "Transceiver " << static_cast<int>(tcvrID)
+            << " just did a cold boot and is still in discovered state, adding it to list of potentialTcvrsForFwUpgrade";
+        potentialTcvrsForFwUpgrade.insert(tcvrID);
+      } else {
+        auto stateMachine = stateMachines_.find(tcvrID);
+        if (stateMachine != stateMachines_.end() &&
+            stateMachine->second->getStateMachine().rlock()->get_attribute(
+                newTransceiverInsertedAfterInit)) {
+          // Not the first refresh but the module is in discovered state and was
+          // just inserted
+          XLOG(INFO)
+              << "Transceiver " << static_cast<int>(tcvrID)
+              << " is in DISCOVERED state and was recently inserted, adding it to list of potentialTcvrsForFwUpgrade";
+          potentialTcvrsForFwUpgrade.insert(tcvrID);
+        }
+      }
     }
   }
 
-  // We only want to trigger firmware upgrade in these two cases -
-  // 1. This is the first iteration of refreshStateMachines (i.e
-  // isFullyInitialized() is false) and it's a cold boot (i.e. canWarmBoot_ ==
-  // false)
-  // 2. This is not the first iteration of refreshStateMachines (i.e
-  // isFullyInitialized() is true). This case handles new transceiver detections
-  // Therefore the condition to trigger firmware upgrade should be -
-  // (!canWarmBoot_ && !isFullyInitialized()) || (isFullyInitialized())
-  // = !canWarmBoot_ || isFullyInitialized()
-  if (!canWarmBoot_ || isFullyInitialized()) {
+  if (!potentialTcvrsForFwUpgrade.empty()) {
     triggerFirmwareUpgradeEvents(potentialTcvrsForFwUpgrade);
   }
 
@@ -1270,7 +1637,12 @@ void TransceiverManager::refreshStateMachines() {
 
   if (!isFullyInitialized_) {
     isFullyInitialized_ = true;
+    // On successful initialization, set warm boot flag in case of a
+    // qsfp_service crash (no gracefulExit).
+    setCanWarmBoot();
   }
+  // Update the warmboot state if there is a change.
+  setWarmBootState();
 }
 
 void TransceiverManager::triggerAgentConfigChangeEvent() {
@@ -1535,6 +1907,20 @@ std::pair<bool, std::vector<std::string>> TransceiverManager::areAllPortsDown(
   return {!anyPortUp, downPorts};
 }
 
+bool TransceiverManager::isRunningAsicPrbs(TransceiverID tcvr) const {
+  auto ports = getAllPlatformPorts(tcvr);
+  for (const auto& port : ports) {
+    auto npuPortStatusCacheItr = npuPortStatusCache_.rlock()->find(port);
+    if (npuPortStatusCacheItr == npuPortStatusCache_.rlock()->end()) {
+      continue;
+    }
+    if (npuPortStatusCacheItr->second.asicPrbsEnabled) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void TransceiverManager::triggerRemediateEvents(
     const std::vector<TransceiverID>& stableTcvrs) {
   if (stableTcvrs.empty()) {
@@ -1546,6 +1932,14 @@ void TransceiverManager::triggerRemediateEvents(
   }
   BlockingStateUpdateResultList results;
   for (auto tcvrID : stableTcvrs) {
+    // Check if any of the ports are running ASIC PRBS. If yes, skip triggering
+    // remediation on transceiver.
+    if (isRunningAsicPrbs(tcvrID)) {
+      XLOG(DBG2) << "Skip remediating Transceiver=" << tcvrID
+                 << ". Transceiver is running ASIC PRBS";
+      continue;
+    }
+
     const auto& programmedPortToPortInfo =
         getProgrammedIphyPortToPortInfo(tcvrID);
     if (programmedPortToPortInfo.empty()) {
@@ -1578,7 +1972,7 @@ void TransceiverManager::triggerRemediateEvents(
                  << ". Transceiver is not present";
       continue;
     }
-    if (!tcvrIt->second->shouldRemediate()) {
+    if (!tcvrIt->second->shouldRemediate(pauseRemediationUntil_)) {
       continue;
     }
     if (auto result = updateStateBlockingWithoutWait(
@@ -1612,6 +2006,13 @@ time_t TransceiverManager::getLastDownTime(TransceiverID id) const {
         "Can't find Transceiver=", id, ". Transceiver is not present");
   }
   return tcvrIt->second->getLastDownTime();
+}
+
+void TransceiverManager::getAllInterfacePhyInfo(
+    std::map<std::string, phy::PhyInfo>& phyInfos) {
+  for (auto [portName, _] : getPortNameToModuleMap()) {
+    getInterfacePhyInfo(phyInfos, portName);
+  }
 }
 
 void TransceiverManager::getInterfacePhyInfo(
@@ -1655,7 +2056,7 @@ void TransceiverManager::publishLinkSnapshots(PortID portID) {
 }
 
 std::optional<TransceiverID> TransceiverManager::getTransceiverID(
-    PortID portID) {
+    PortID portID) const {
   auto swPortInfo = portToSwPortInfo_.find(portID);
   if (swPortInfo == portToSwPortInfo_.end()) {
     throw FbossError("Failed to find SwPortInfo for port ID ", portID);
@@ -1678,13 +2079,16 @@ bool TransceiverManager::checkWarmBootFlags() {
   // Return true if coldBootOnceFile does not exist and canWarmBoot file
   // exists
   const auto& forceColdBootFile = forceColdBootFileName();
+  const auto& warmBootFile = warmBootFlagFileName();
+
   bool forceColdBoot = removeFile(forceColdBootFile);
-  if (forceColdBoot) {
-    XLOG(INFO) << "Force Cold Boot file: " << forceColdBootFile << " is set";
+  if (forceColdBoot || !FLAGS_can_qsfp_service_warm_boot) {
+    XLOG(INFO) << "Force Cold Boot file: " << forceColdBootFile
+               << " is set. Removing Warm Boot file " << warmBootFile;
+    removeWarmBootFlag();
     return false;
   }
 
-  const auto& warmBootFile = warmBootFlagFileName();
   // Instead of removing the can_warm_boot file, we keep it unless it's a
   // coldboot, so that qsfp_service crash can still use warm boot.
   bool canWarmBoot = checkFileExists(warmBootFile);
@@ -1720,7 +2124,6 @@ void TransceiverManager::setWarmBootState() {
   steady_clock::time_point begin = steady_clock::now();
   if (phyManager_) {
     qsfpServiceState[kPhyStateKey] = phyManager_->getWarmbootState();
-    phyManager_->gracefulExit();
   }
 
   folly::dynamic agentConfigAppliedWbState = folly::dynamic::object;
@@ -1733,17 +2136,24 @@ void TransceiverManager::setWarmBootState() {
   }
   qsfpServiceState[kAgentConfigAppliedInfoStateKey] = agentConfigAppliedWbState;
 
-  steady_clock::time_point getWarmbootState = steady_clock::now();
-  XLOG(INFO)
-      << "[Exit] Finish getting warm boot state. Time: "
-      << duration_cast<duration<float>>(getWarmbootState - begin).count();
-  folly::writeFile(
-      folly::toPrettyJson(qsfpServiceState), warmBootStateFileName().c_str());
-  steady_clock::time_point serializeState = steady_clock::now();
-  XLOG(INFO) << "[Exit] Finish writing warm boot state to file. Time: "
-             << duration_cast<duration<float>>(
-                    serializeState - getWarmbootState)
-                    .count();
+  std::string currentState = folly::toPrettyJson(qsfpServiceState);
+  // If there is a state change, write it to the warm boot state file.
+  if (qsfpServiceWarmbootState_ != currentState) {
+    // Update the warmboot state
+    qsfpServiceWarmbootState_ = currentState;
+
+    steady_clock::time_point getWarmbootState = steady_clock::now();
+    XLOG(INFO)
+        << "Finish updating warm boot state. Time: "
+        << duration_cast<duration<float>>(getWarmbootState - begin).count();
+    folly::writeFile(
+        qsfpServiceWarmbootState_, warmBootStateFileName().c_str());
+    steady_clock::time_point serializeState = steady_clock::now();
+    XLOG(INFO) << "Finish writing warm boot state to file. Time: "
+               << duration_cast<duration<float>>(
+                      serializeState - getWarmbootState)
+                      .count();
+  }
 }
 
 void TransceiverManager::setCanWarmBoot() {
@@ -1833,7 +2243,7 @@ void TransceiverManager::setInterfacePrbs(
 
 phy::PrbsStats TransceiverManager::getPortPrbsStats(
     PortID portId,
-    phy::PortComponent component) {
+    phy::PortComponent component) const {
   phy::Side side = prbsComponentToPhySide(component);
   if (component == phy::PortComponent::TRANSCEIVER_SYSTEM ||
       component == phy::PortComponent::TRANSCEIVER_LINE) {
@@ -1858,7 +2268,15 @@ phy::PrbsStats TransceiverManager::getPortPrbsStats(
       throw FbossError("Current platform doesn't support xphy");
     }
     phy::PrbsStats stats;
-    stats.laneStats() = phyManager_->getPortPrbsStats(portId, side);
+    auto lanePrbsStats = phyManager_->getPortPrbsStats(portId, side);
+    for (const auto& lane : lanePrbsStats) {
+      stats.laneStats()->push_back(lane);
+      auto timeCollected = lane.timeCollected().value();
+      // Store most recent timeCollected across all lane stats
+      if (timeCollected > stats.timeCollected()) {
+        stats.timeCollected() = timeCollected;
+      }
+    }
     stats.portId() = portId;
     stats.component() = component;
     return stats;
@@ -1939,8 +2357,8 @@ void TransceiverManager::setPortPrbs(
 
 void TransceiverManager::getInterfacePrbsState(
     prbs::InterfacePrbsState& prbsState,
-    std::string portName,
-    phy::PortComponent component) {
+    const std::string& portName,
+    phy::PortComponent component) const {
   if (auto portID = getPortIDByPortName(portName)) {
     if (component == phy::PortComponent::TRANSCEIVER_SYSTEM ||
         component == phy::PortComponent::TRANSCEIVER_LINE) {
@@ -1967,13 +2385,36 @@ void TransceiverManager::getInterfacePrbsState(
   }
 }
 
+void TransceiverManager::getAllInterfacePrbsStates(
+    std::map<std::string, prbs::InterfacePrbsState>& prbsStates,
+    phy::PortComponent component) const {
+  const auto& platformPorts = platformMapping_->getPlatformPorts();
+  for (const auto& platformPort : platformPorts) {
+    auto portName = platformPort.second.mapping()->name_ref();
+    prbs::InterfacePrbsState prbsState;
+    getInterfacePrbsState(prbsState, *portName, component);
+    prbsStates[*portName] = prbsState;
+  }
+}
+
 phy::PrbsStats TransceiverManager::getInterfacePrbsStats(
-    std::string portName,
-    phy::PortComponent component) {
+    const std::string& portName,
+    phy::PortComponent component) const {
   if (auto portID = getPortIDByPortName(portName)) {
     return getPortPrbsStats(*portID, component);
   }
   throw FbossError("Can't find a portID for portName ", portName);
+}
+
+void TransceiverManager::getAllInterfacePrbsStats(
+    std::map<std::string, phy::PrbsStats>& prbsStats,
+    phy::PortComponent component) const {
+  const auto& platformPorts = platformMapping_->getPlatformPorts();
+  for (const auto& platformPort : platformPorts) {
+    auto portName = platformPort.second.mapping()->name_ref();
+    auto prbsStatsEntry = getInterfacePrbsStats(*portName, component);
+    prbsStats[*portName] = prbsStatsEntry;
+  }
 }
 
 void TransceiverManager::clearInterfacePrbsStats(
@@ -1983,6 +2424,14 @@ void TransceiverManager::clearInterfacePrbsStats(
     clearPortPrbsStats(*portID, component);
   } else {
     throw FbossError("Can't find a portID for portName ", portName);
+  }
+}
+
+void TransceiverManager::bulkClearInterfacePrbsStats(
+    std::unique_ptr<std::vector<std::string>> interfaces,
+    phy::PortComponent component) {
+  for (const auto& interface : *interfaces) {
+    clearInterfacePrbsStats(interface, component);
   }
 }
 
@@ -2059,9 +2508,37 @@ std::vector<TransceiverID> TransceiverManager::refreshTransceivers(
 }
 
 void TransceiverManager::resetTransceiver(
-    std::unique_ptr<std::vector<std::string>> /* portNames */,
-    ResetType /* resetType */,
-    ResetAction /* resetAction */) {}
+    std::unique_ptr<std::vector<std::string>> portNames,
+    ResetType resetType,
+    ResetAction resetAction) {
+  if (!portNames || portNames->empty()) {
+    throw FbossError("Invalid portNames argument");
+  }
+
+  // Check that the ResetType and ResetAction pair have a valid function
+  // call associated with TransceiverPlatformApi.
+  auto itr = resetFunctionMap_.find(std::make_pair(resetType, resetAction));
+  if (itr == resetFunctionMap_.end()) {
+    throw FbossError(
+        "Unsupported reset Type and reset action ", resetType, resetAction);
+  }
+
+  // Validate all transceivers before any reset action.
+  std::vector<int> transceivers;
+  for (auto portName : *portNames) {
+    auto itr2 = portNameToModule_.find(portName);
+    if (itr2 == portNameToModule_.end()) {
+      throw FbossError(
+          "Can't find transceiver module for port name: ", portName);
+    }
+    transceivers.push_back(itr2->second);
+  }
+
+  // Perform the proper reset action/type on each port.
+  for (auto transceiver : transceivers) {
+    itr->second(this, transceiver);
+  }
+}
 
 void TransceiverManager::setPauseRemediation(
     int32_t timeout,
@@ -2245,6 +2722,51 @@ std::vector<phy::TxRxEnableResponse> TransceiverManager::setInterfaceTxRx(
     }
   }
   return txRxEnableResponses;
+}
+
+/*
+ * getSymbolErrorHistogram
+ *
+ * This function returns the Symbol error histogram for a givem port. The
+ * return value is a map of datapath id to CDB symbol error histogram values
+ */
+void TransceiverManager::getSymbolErrorHistogram(
+    CdbDatapathSymErrHistogram& symErr,
+    const std::string& portName) {
+  std::map<std::string, CdbDatapathSymErrHistogram> symbolErrors;
+
+  auto swPort = getPortIDByPortName(portName);
+  if (!swPort.has_value()) {
+    throw FbossError(
+        folly::sformat("getSymbolErrorHistogram: Invalid port {}", portName));
+  }
+
+  // Get Transceiver ID for this SW Port
+  auto tcvrId = getTransceiverID(swPort.value());
+  if (!tcvrId.has_value()) {
+    throw FbossError(folly::sformat(
+        "getSymbolErrorHistogram: Transceiver not found for port {}",
+        portName));
+  }
+
+  // Finally call the transceiver object with for symbol error get function
+  auto lockedTransceivers = transceivers_.rlock();
+  if (auto it = lockedTransceivers->find(tcvrId.value());
+      it != lockedTransceivers->end()) {
+    symbolErrors = it->second->getSymbolErrorHistogram();
+  }
+
+  for (auto& [pName, datapathSymErr] : symbolErrors) {
+    if (pName != portName) {
+      continue;
+    }
+    for (auto& [bin, datapathBinSymErr] : datapathSymErr.media().value()) {
+      symErr.media()[bin] = datapathBinSymErr;
+    }
+    for (auto& [bin, datapathBinSymErr] : datapathSymErr.host().value()) {
+      symErr.host()[bin] = datapathBinSymErr;
+    }
+  }
 }
 
 /*

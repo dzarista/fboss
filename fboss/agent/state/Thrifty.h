@@ -1,8 +1,8 @@
 #pragma once
 
 #include <folly/IPAddress.h>
-#include <folly/dynamic.h>
-#include <folly/json.h>
+#include <folly/json/dynamic.h>
+#include <folly/json/json.h>
 #include <folly/logging/xlog.h>
 #include <thrift/lib/cpp/util/EnumUtils.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
@@ -434,7 +434,7 @@ struct ThriftMultiSwitchMapNode : public ThriftMapNode<MAP, Traits, Resolver> {
         return;
       }
     }
-    throw FbossError("node not found: ", key);
+    throw FbossError("Node to remove not found: ", key);
   }
 
   void removeNode(std::shared_ptr<InnerNode> node) {
@@ -456,7 +456,7 @@ struct ThriftMultiSwitchMapNode : public ThriftMapNode<MAP, Traits, Resolver> {
       const typename InnerMap::Traits::KeyType& key) const {
     auto node = getNodeIf(key);
     if (!node) {
-      throw FbossError("node not found: ", key);
+      throw FbossError("Node to get not found: ", key);
     }
     return node;
   }
@@ -469,7 +469,7 @@ struct ThriftMultiSwitchMapNode : public ThriftMapNode<MAP, Traits, Resolver> {
         return std::make_pair(nitr->second, HwSwitchMatcher(mnitr->first));
       }
     }
-    throw FbossError("node not found: ", key);
+    throw FbossError("Node and scope to get not found: ", key);
   }
 
   size_t numNodes() const {
@@ -511,7 +511,7 @@ struct ThriftMultiSwitchMapNode : public ThriftMapNode<MAP, Traits, Resolver> {
   std::shared_ptr<InnerMap> getAllNodes() const {
     auto nodes = std::make_shared<InnerMap>();
     for (const auto& [_, innerMap] : std::as_const(*this)) {
-      for (const auto& [_, node] : std::as_const(*innerMap)) {
+      for (const auto& [_2, node] : std::as_const(*innerMap)) {
         nodes->addNode(node);
       }
     }

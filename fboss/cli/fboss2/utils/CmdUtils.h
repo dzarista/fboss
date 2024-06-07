@@ -22,6 +22,7 @@
 #include "fboss/agent/if/gen-cpp2/FbossCtrlAsyncClient.h"
 #include "fboss/cli/fboss2/CmdGlobalOptions.h"
 #include "fboss/cli/fboss2/gen-cpp2/cli_types.h"
+#include "fboss/cli/fboss2/utils/CmdClientUtils.h"
 #include "fboss/cli/fboss2/utils/CmdUtilsCommon.h"
 #include "fboss/cli/fboss2/utils/HostInfo.h"
 #include "fboss/cli/fboss2/utils/PrbsUtils.h"
@@ -276,6 +277,71 @@ class PortState : public BaseObjectArgType<std::string> {
   }
 };
 
+class FanPwm : public BaseObjectArgType<std::string> {
+ public:
+  /* implicit */ FanPwm(std::vector<std::string> v) : BaseObjectArgType(v) {
+    if (v.empty()) {
+      throw std::runtime_error(
+          "Incomplete command, expecting 'fanhold <disable>|0|1|..|100'");
+    }
+    if (v.size() != 1) {
+      throw std::runtime_error(folly::to<std::string>(
+          "Unexpected fanhold '",
+          folly::join<std::string, std::vector<std::string>>(" ", v),
+          "', expecting 'disable|0|1|...|100'"));
+    }
+
+    pwm = getPwm(v[0]);
+  }
+  std::optional<int> pwm;
+  const static ObjectArgTypeId id = ObjectArgTypeId::OBJECT_ARG_TYPE_FAN_PWM;
+
+ private:
+  std::optional<int> getPwm(std::string& v) {
+    auto state = boost::to_upper_copy(v);
+    if (state == "DISABLE") {
+      return std::nullopt;
+    }
+    auto asint = folly::tryTo<int>(state);
+    if (asint.hasValue()) {
+      int value = asint.value();
+      if (value >= 0 && value <= 100) {
+        return value;
+      }
+    }
+
+    throw std::runtime_error(folly::to<std::string>(
+        "Unexpected fanhold '", v, "', expecting 'disable|0|1|...|100'"));
+  }
+};
+
+class LinkDirection : public BaseObjectArgType<std::string> {
+ public:
+  /* implicit */ LinkDirection(std::vector<std::string> v) {
+    if (v.empty()) {
+      throw std::runtime_error(
+          "Incomplete command, expecting '<ingress|egress>'");
+    }
+
+    direction = getLinkDirection(v);
+  }
+  phy::Direction direction;
+  const static ObjectArgTypeId id =
+      ObjectArgTypeId::OBJECT_ARG_TYPE_LINK_DIRECTION;
+
+ private:
+  phy::Direction getLinkDirection(std::vector<std::string>& v) {
+    if (std::find(v.begin(), v.end(), "ingress") != v.end()) {
+      return phy::Direction::RECEIVE;
+    } else if (std::find(v.begin(), v.end(), "egress") != v.end()) {
+      return phy::Direction::TRANSMIT;
+    } else {
+      throw std::runtime_error(folly::to<std::string>(
+          "Unexpected direction '", v[0], "', expecting 'ingress|egress'"));
+    }
+  }
+};
+
 class FsdbPath : public BaseObjectArgType<std::string> {
  public:
   /* implicit */ FsdbPath(std::vector<std::string> fsdbPath) {
@@ -396,5 +462,8 @@ std::string getSubscriptionPathStr(const fsdb::OperSubscriberInfo& subscriber);
 bool isFbossFeatureEnabled(
     const std::string& hostname,
     const std::string& feature);
+std::map<int16_t, std::vector<std::string>> getSwitchIndicesForInterfaces(
+    const HostInfo& hostInfo,
+    const std::vector<std::string>& interfaces);
 
 } // namespace facebook::fboss::utils

@@ -52,28 +52,33 @@ class DsfSubscriber : public StateObserver {
   }
 
   std::vector<DsfSessionThrift> getDsfSessionsThrift() const;
+  static std::string makeRemoteEndpoint(
+      const std::string& remoteNode,
+      const folly::IPAddress& remoteIP);
 
  private:
   void scheduleUpdate(
-      const std::shared_ptr<SystemPortMap>& newSysPorts,
-      const std::shared_ptr<InterfaceMap>& newRifs,
       const std::string& nodeName,
-      SwitchID nodeSwitchId);
-  void handleFsdbConnectionStateUpdate(
-      const std::string& nodeName,
-      fsdb::FsdbStreamClient::State oldState,
-      fsdb::FsdbStreamClient::State newState);
+      const SwitchID& nodeSwitchId,
+      const std::map<SwitchID, std::shared_ptr<SystemPortMap>>&
+          switchId2SystemPorts,
+      const std::map<SwitchID, std::shared_ptr<InterfaceMap>>& switchId2Intfs);
+  void handleFsdbSubscriptionStateUpdate(
+      const std::string& remoteNodeName,
+      const folly::IPAddress& remoteIP,
+      const SwitchID& remoteSwitchId,
+      fsdb::SubscriptionState oldState,
+      fsdb::SubscriptionState newState);
   void handleFsdbUpdate(
-      SwitchID nodeSwitchId,
-      const std::string& nodeName,
+      const folly::IPAddress& localIP,
+      SwitchID remoteSwitchId,
+      const std::string& remoteNodeName,
+      const folly::IPAddress& remoteIP,
       fsdb::OperSubPathUnit&& operStateUnit);
   bool isLocal(SwitchID nodeSwitchId) const;
-  // Paths
-  static const auto& getSystemPortsPath();
-  static const auto& getInterfacesPath();
-  static auto getDsfSubscriptionsPath(const std::string& localNodeName);
-  static std::vector<std::vector<std::string>> getAllSubscribePaths(
-      const std::string& localNodeName);
+  void processGRHoldTimerExpired(
+      const std::string& nodeName,
+      const std::set<SwitchID>& allNodeSwitchIDs);
 
   SwSwitch* sw_;
   std::unique_ptr<fsdb::FsdbPubSubManager> fsdbPubSubMgr_;

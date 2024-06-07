@@ -1253,11 +1253,9 @@ int __real_bcm_tx(int unit, bcm_pkt_t* tx_pkt, void* cookie);
 
 int __real_bcm_pktio_tx(int unit, bcm_pktio_pkt_t* tx_pkt);
 
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_22))
 int __real_bcm_pktio_txpmd_stat_attach(int unit, uint32 counter_id);
 
 int __real_bcm_pktio_txpmd_stat_detach(int unit);
-#endif
 
 int __real_bcm_l3_egress_destroy(int unit, bcm_if_t intf);
 
@@ -2118,6 +2116,12 @@ int __real_bcm_port_ifg_set(
     int speed,
     bcm_port_duplex_t duplex,
     int bit_times);
+
+int __real_bcm_port_control_phy_timesync_set(
+    int unit,
+    bcm_port_t port,
+    bcm_port_control_phy_timesync_t type,
+    uint64 value);
 
 } // extern "C"
 
@@ -3899,7 +3903,6 @@ int __wrap_bcm_pktio_tx(int unit, bcm_pktio_pkt_t* tx_pkt) {
 #endif
 }
 
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_22))
 int __wrap_bcm_pktio_txpmd_stat_attach(int unit, uint32 counter_id) {
 #ifndef BCM_SDK_TYPE_DNX_ONLY
   CALL_WRAPPERS_RV(bcm_pktio_txpmd_stat_attach(unit, counter_id));
@@ -3915,7 +3918,6 @@ int __wrap_bcm_pktio_txpmd_stat_detach(int unit) {
   return 0;
 #endif
 }
-#endif
 
 int __wrap_bcm_rx_stop(int unit, bcm_rx_cfg_t* cfg) {
   CALL_WRAPPERS_RV(bcm_rx_stop(unit, cfg));
@@ -4108,33 +4110,21 @@ int __wrap_bcm_port_fdr_config_set(
     int unit,
     bcm_port_t port,
     bcm_port_fdr_config_t* fdr_config) {
-#ifndef BCM_SDK_TYPE_DNX_ONLY
   CALL_WRAPPERS_RV(bcm_port_fdr_config_set(unit, port, fdr_config));
-#else
-  return 0;
-#endif
 }
 
 int __wrap_bcm_port_fdr_config_get(
     int unit,
     bcm_port_t port,
     bcm_port_fdr_config_t* fdr_config) {
-#ifndef BCM_SDK_TYPE_DNX_ONLY
   CALL_WRAPPERS_RV(bcm_port_fdr_config_get(unit, port, fdr_config));
-#else
-  return 0;
-#endif
 }
 
 int __wrap_bcm_port_fdr_stats_get(
     int unit,
     bcm_port_t port,
     bcm_port_fdr_stats_t* fdr_stats) {
-#ifndef BCM_SDK_TYPE_DNX_ONLY
   CALL_WRAPPERS_RV(bcm_port_fdr_stats_get(unit, port, fdr_stats));
-#else
-  return 0;
-#endif
 }
 #endif
 
@@ -5661,7 +5651,6 @@ int __wrap_bcm_l3_route_stat_attach(
 #endif
 }
 
-#if defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_20)
 int __wrap_bcm_l3_route_flexctr_object_set(
     int unit,
     bcm_l3_route_t* info,
@@ -5672,14 +5661,6 @@ int __wrap_bcm_l3_route_flexctr_object_set(
   return 0;
 #endif
 }
-#else
-int __wrap_bcm_l3_route_flexctr_object_set(
-    int /* unit*/,
-    bcm_l3_route_t* /*info*/,
-    uint32 /*value*/) {
-  return 0;
-}
-#endif
 
 int __wrap_bcm_l3_route_stat_detach(int unit, bcm_l3_route_t* info) {
 #ifndef BCM_SDK_TYPE_DNX_ONLY
@@ -5843,6 +5824,14 @@ int __wrap_bcm_port_ifg_set(
     bcm_port_duplex_t duplex,
     int bit_times) {
   CALL_WRAPPERS_RV(bcm_port_ifg_set(unit, port, speed, duplex, bit_times));
+}
+
+int __wrap_bcm_port_control_phy_timesync_set(
+    int unit,
+    bcm_port_t port,
+    bcm_port_control_phy_timesync_t type,
+    uint64 value) {
+  CALL_WRAPPERS_RV(bcm_port_control_phy_timesync_set(unit, port, type, value));
 }
 
 } // extern "C"

@@ -38,7 +38,8 @@ struct NeighborEntryFields {
       NeighborState state = NeighborState::REACHABLE,
       std::optional<cfg::AclLookupClass> classID = std::nullopt,
       std::optional<int64_t> encapIndex = std::nullopt,
-      bool isLocal = true)
+      bool isLocal = true,
+      std::optional<bool> noHostRoute = std::nullopt)
       : ip(ip),
         mac(mac),
         port(port),
@@ -46,14 +47,16 @@ struct NeighborEntryFields {
         state(state),
         classID(classID),
         encapIndex(encapIndex),
-        isLocal(isLocal) {}
+        isLocal(isLocal),
+        noHostRoute(noHostRoute) {}
 
   NeighborEntryFields(
       AddressType ip,
       InterfaceID interfaceID,
       NeighborState pending,
       std::optional<int64_t> encapIndex = std::nullopt,
-      bool isLocal = true)
+      bool isLocal = true,
+      std::optional<bool> noHostRoute = std::nullopt)
       : NeighborEntryFields(
             ip,
             MacAddress::BROADCAST,
@@ -62,7 +65,8 @@ struct NeighborEntryFields {
             pending,
             std::nullopt,
             encapIndex,
-            isLocal) {
+            isLocal,
+            noHostRoute) {
     // This constructor should only be used for PENDING entries
     CHECK(pending == NeighborState::PENDING);
   }
@@ -81,6 +85,9 @@ struct NeighborEntryFields {
       entryTh.encapIndex() = encapIndex.value();
     }
     entryTh.isLocal() = isLocal;
+    if (noHostRoute.has_value()) {
+      entryTh.noHostRoute() = noHostRoute.value();
+    }
     return entryTh;
   }
 
@@ -97,12 +104,33 @@ struct NeighborEntryFields {
     }
     bool isLocal = *entryTh.isLocal();
 
+    std::optional<bool> noHostRoute;
+    if (entryTh.noHostRoute().has_value()) {
+      noHostRoute = *entryTh.noHostRoute();
+    }
+
     if (entryTh.classID().has_value() && !ip.isLinkLocal()) {
       return NeighborEntryFields(
-          ip, mac, port, intf, state, *entryTh.classID(), encapIndex, isLocal);
+          ip,
+          mac,
+          port,
+          intf,
+          state,
+          *entryTh.classID(),
+          encapIndex,
+          isLocal,
+          noHostRoute);
     } else {
       return NeighborEntryFields(
-          ip, mac, port, intf, state, std::nullopt, encapIndex, isLocal);
+          ip,
+          mac,
+          port,
+          intf,
+          state,
+          std::nullopt,
+          encapIndex,
+          isLocal,
+          noHostRoute);
     }
   }
 
@@ -114,6 +142,7 @@ struct NeighborEntryFields {
   std::optional<cfg::AclLookupClass> classID{std::nullopt};
   std::optional<int64_t> encapIndex{std::nullopt};
   bool isLocal{true};
+  std::optional<bool> noHostRoute{std::nullopt};
 };
 
 template <typename IPADDR, typename SUBCLASS>
@@ -131,7 +160,8 @@ class NeighborEntry
       NeighborState state = NeighborState::REACHABLE,
       std::optional<cfg::AclLookupClass> classID = std::nullopt,
       std::optional<int64_t> encapIndex = std::nullopt,
-      bool isLocal = true);
+      bool isLocal = true,
+      std::optional<bool> noHostRoute = std::nullopt);
 
   NeighborEntry(
       AddressType ip,
@@ -139,7 +169,8 @@ class NeighborEntry
       state::NeighborEntryType type,
       NeighborState pending,
       std::optional<int64_t> encapIndex = std::nullopt,
-      bool isLocal = true);
+      bool isLocal = true,
+      std::optional<bool> noHostRoute = std::nullopt);
 
   void setIP(AddressType ip) {
     this->template set<switch_state_tags::ipaddress>(ip.str());
@@ -245,6 +276,21 @@ class NeighborEntry
     this->template set<switch_state_tags::isLocal>(isLocal);
   }
 
+  std::optional<bool> getNoHostRoute() const {
+    if (auto noHostRoute =
+            this->template get<switch_state_tags::noHostRoute>()) {
+      return noHostRoute->cref();
+    }
+    return std::nullopt;
+  }
+  void setNoHostRoute(std::optional<bool> noHostRoute) {
+    if (noHostRoute.has_value()) {
+      this->template set<switch_state_tags::noHostRoute>(*noHostRoute);
+    } else {
+      this->template ref<switch_state_tags::noHostRoute>().reset();
+    }
+  }
+
   state::NeighborEntryType getType() const {
     return static_cast<state::NeighborEntryType>(
         this->template get<switch_state_tags::type>()->cref());
@@ -271,6 +317,23 @@ class NeighborEntry
   }
 
   std::string str() const;
+
+  std::optional<bool> getDisableTTLDecrement() const {
+    if (auto value =
+            this->template cref<switch_state_tags::disableTTLDecrement>()) {
+      return value->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setDisableTTLDecrement(std::optional<bool> disableTTLDecrement) {
+    if (disableTTLDecrement.has_value()) {
+      this->template set<switch_state_tags::disableTTLDecrement>(
+          *disableTTLDecrement);
+    } else {
+      this->template ref<switch_state_tags::disableTTLDecrement>().reset();
+    }
+  }
 
  private:
   using Parent = ThriftStructNode<SUBCLASS, state::NeighborEntryFields>;

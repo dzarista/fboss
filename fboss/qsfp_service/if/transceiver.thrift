@@ -5,6 +5,7 @@ namespace py neteng.fboss.transceiver
 namespace py3 neteng.fboss
 namespace py.asyncio neteng.fboss.asyncio.transceiver
 
+include "fboss/lib/phy/link.thrift"
 include "fboss/lib/phy/prbs.thrift"
 include "thrift/annotation/cpp.thrift"
 
@@ -103,13 +104,14 @@ enum ResetType {
 }
 
 /*
- * Currently, only support RESET_THEN_CLEAR
+ * Transceiver Reset action. RESET_THEN_CLEAR resets then clears reset,
+ * RESET holds the reset on the transceiver, CLEAR_RESET clears reset.
  */
 enum ResetAction {
   INVALID = 0,
   RESET_THEN_CLEAR = 1,
-// RESET = 2,
-// CLEAR_RESET = 3,
+  RESET = 2,
+  CLEAR_RESET = 3,
 }
 
 enum TransmitterTechnology {
@@ -210,6 +212,9 @@ enum MediaInterfaceCode {
   CR8_400G = 10,
   FR4_2x400G = 11,
   BASE_T_10G = 12,
+  DR4_2x400G = 13,
+  DR4_400G = 14,
+  FR8_800G = 15,
 }
 
 // The extended specification compliance code of the transceiver module.
@@ -263,8 +268,10 @@ enum SMFMediaInterfaceCode {
   CWDM4_100G = 0x10,
   FR1_100G = 0x15,
   FR4_200G = 0x18,
+  DR4_400G = 0x1C,
   FR4_400G = 0x1D,
   LR4_10_400G = 0x1E,
+  FR8_800G = 0xC1,
 }
 
 enum Ethernet10GComplianceCode {
@@ -364,6 +371,46 @@ struct RxEqualizerSettings {
   3: i32 mainAmplitude;
 }
 
+struct VdmPerfMonitorPortSideStats {
+  1: link.LinkPerfMonitorParamEachSideVal datapathBER;
+  2: link.LinkPerfMonitorParamEachSideVal datapathErroredFrames;
+  3: map<i32, double> laneSNR;
+  4: map<i32, double> lanePam4Level0SD;
+  5: map<i32, double> lanePam4Level1SD;
+  6: map<i32, double> lanePam4Level2SD;
+  7: map<i32, double> lanePam4Level3SD;
+  8: map<i32, double> lanePam4MPI;
+  9: map<i32, double> lanePam4LTP;
+}
+
+struct VdmPerfMonitorStats {
+  // Map of SW Port to Media side VDM Performance Monitor diags stats
+  1: map<string, VdmPerfMonitorPortSideStats> mediaPortVdmStats;
+  // Map of SW Port to Host side VDM Performance Monitor diags stats
+  2: map<string, VdmPerfMonitorPortSideStats> hostPortVdmStats;
+  3: i64 statsCollectionTme;
+}
+
+struct VdmPerfMonitorPortSideStatsForOds {
+  1: double datapathBERMax;
+  2: double datapathErroredFramesMax;
+  3: double laneSNRMin;
+  4: double lanePam4Level0SDMax;
+  5: double lanePam4Level1SDMax;
+  6: double lanePam4Level2SDMax;
+  7: double lanePam4Level3SDMax;
+  8: double lanePam4MPIMax;
+  9: double lanePam4LTPMax;
+}
+
+struct VdmPerfMonitorStatsForOds {
+  // Map of SW Port to Media side VDM Performance Monitor diags stats
+  1: map<string, VdmPerfMonitorPortSideStatsForOds> mediaPortVdmStats;
+  // Map of SW Port to Host side VDM Performance Monitor diags stats
+  2: map<string, VdmPerfMonitorPortSideStatsForOds> hostPortVdmStats;
+  3: i64 statsCollectionTme;
+}
+
 struct VdmDiagsStats {
   1: double preFecBerMediaMin;
   2: double preFecBerMediaMax;
@@ -383,6 +430,23 @@ struct VdmDiagsStats {
   16: double errFrameHostMax;
   17: double errFrameHostAvg;
   18: double errFrameHostCur;
+  19: map<i32, double> pam4Level0SDLine;
+  20: map<i32, double> pam4Level1SDLine;
+  21: map<i32, double> pam4Level2SDLine;
+  22: map<i32, double> pam4Level3SDLine;
+  23: map<i32, double> pam4MPILine;
+  24: map<i32, double> pam4LtpMediaChannel;
+}
+
+struct SymErrHistogramBin {
+  1: double nbitSymbolErrorMax;
+  2: double nbitSymbolErrorAvg;
+  3: double nbitSymbolErrorCur;
+}
+
+struct CdbDatapathSymErrHistogram {
+  1: map<i32, SymErrHistogramBin> media;
+  2: map<i32, SymErrHistogramBin> host;
 }
 
 struct TransceiverSettings {
@@ -458,6 +522,9 @@ struct TcvrStats {
   9: i64 timeCollected;
   10: i64 lastFwUpgradeStartTime;
   11: i64 lastFwUpgradeEndTime;
+  12: optional VdmPerfMonitorStats vdmPerfMonitorStats;
+  13: optional VdmPerfMonitorStatsForOds vdmPerfMonitorStatsForOds;
+  14: map<string, CdbDatapathSymErrHistogram> cdbDatapathSymErrHistogram;
 }
 
 struct TransceiverInfo {
@@ -573,6 +640,8 @@ struct CmisData {
   12: optional IOBuf page21;
   13: optional IOBuf page24;
   14: optional IOBuf page25;
+  15: optional IOBuf page22;
+  16: optional IOBuf page26;
 }
 
 struct TransceiverIOParameters {
@@ -615,6 +684,13 @@ struct DiagsCapability {
   11: bool rxOutputControl = false;
   12: bool snrLine = false;
   13: bool snrSystem = false;
+  14: bool cdbFirmwareUpgrade = false;
+  15: bool cdbFirmwareReadback = false;
+  16: bool cdbEplMemorySupported = false;
+  17: bool cdbSymbolErrorHistogramLine = false;
+  18: bool cdbSymbolErrorHistogramSystem = false;
+  19: bool cdbRxErrorHistogramLine = false;
+  20: bool cdbRxErrorHistogramSystem = false;
 }
 
 enum TransceiverStateMachineState {
@@ -641,6 +717,7 @@ struct TransceiverThermalData {
 
 struct QsfpToBmcSyncData {
   1: string syncDataStructVersion;
-  2: SwitchDeploymentInfo switchDeploymentInfo;
-  3: map<i16, TransceiverThermalData> transceiverThermalData;
+  2: i64 timestamp;
+  3: SwitchDeploymentInfo switchDeploymentInfo;
+  4: map<string, TransceiverThermalData> transceiverThermalData;
 }

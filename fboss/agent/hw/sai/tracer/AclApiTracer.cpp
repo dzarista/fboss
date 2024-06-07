@@ -50,16 +50,19 @@ std::map<int32_t, std::pair<std::string, std::size_t>> _AclTableMap{
     SAI_ATTR_MAP(AclTable, AvailableCounter),
     SAI_ATTR_MAP(AclTable, FieldEthertype),
     SAI_ATTR_MAP(AclTable, FieldOuterVlanId),
+#if !defined(TAJO_SDK)
+    SAI_ATTR_MAP(AclTable, FieldBthOpcode),
+#endif
 };
 
-std::map<int32_t, std::pair<std::string, std::size_t>> _AclCounterMap {
-  SAI_ATTR_MAP(AclCounter, TableId),
-      SAI_ATTR_MAP(AclCounter, EnablePacketCount),
-      SAI_ATTR_MAP(AclCounter, EnableByteCount),
-      SAI_ATTR_MAP(AclCounter, CounterPackets),
-      SAI_ATTR_MAP(AclCounter, CounterBytes),
+std::map<int32_t, std::pair<std::string, std::size_t>> _AclCounterMap{
+    SAI_ATTR_MAP(AclCounter, TableId),
+    SAI_ATTR_MAP(AclCounter, EnablePacketCount),
+    SAI_ATTR_MAP(AclCounter, EnableByteCount),
+    SAI_ATTR_MAP(AclCounter, CounterPackets),
+    SAI_ATTR_MAP(AclCounter, CounterBytes),
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
-      SAI_ATTR_MAP(AclCounter, Label),
+    SAI_ATTR_MAP(AclCounter, Label),
 #endif
 };
 
@@ -76,39 +79,46 @@ std::map<int32_t, std::pair<std::string, std::size_t>> _AclTableGroupMemberMap{
     SAI_ATTR_MAP(AclTableGroupMember, Priority),
 };
 
-std::map<int32_t, std::pair<std::string, std::size_t>> _AclEntryMap {
-  SAI_ATTR_MAP(AclEntry, TableId), SAI_ATTR_MAP(AclEntry, Priority),
-      SAI_ATTR_MAP(AclEntry, Enabled), SAI_ATTR_MAP(AclEntry, FieldSrcIpV6),
-      SAI_ATTR_MAP(AclEntry, FieldDstIpV6),
-      SAI_ATTR_MAP(AclEntry, FieldSrcIpV4),
-      SAI_ATTR_MAP(AclEntry, FieldDstIpV4),
-      SAI_ATTR_MAP(AclEntry, FieldSrcPort),
-      SAI_ATTR_MAP(AclEntry, FieldOutPort),
-      SAI_ATTR_MAP(AclEntry, FieldL4SrcPort),
-      SAI_ATTR_MAP(AclEntry, FieldL4DstPort),
-      SAI_ATTR_MAP(AclEntry, FieldIpProtocol),
-      SAI_ATTR_MAP(AclEntry, FieldTcpFlags),
-      SAI_ATTR_MAP(AclEntry, FieldIpFrag),
-      SAI_ATTR_MAP(AclEntry, FieldIcmpV4Type),
-      SAI_ATTR_MAP(AclEntry, FieldIcmpV4Code),
-      SAI_ATTR_MAP(AclEntry, FieldIcmpV6Type),
-      SAI_ATTR_MAP(AclEntry, FieldIcmpV6Code),
-      SAI_ATTR_MAP(AclEntry, FieldDscp), SAI_ATTR_MAP(AclEntry, FieldDstMac),
-      SAI_ATTR_MAP(AclEntry, FieldIpType), SAI_ATTR_MAP(AclEntry, FieldTtl),
-      SAI_ATTR_MAP(AclEntry, FieldFdbDstUserMeta),
-      SAI_ATTR_MAP(AclEntry, FieldRouteDstUserMeta),
-      SAI_ATTR_MAP(AclEntry, FieldNeighborDstUserMeta),
-      SAI_ATTR_MAP(AclEntry, FieldEthertype),
-      SAI_ATTR_MAP(AclEntry, FieldOuterVlanId),
-      SAI_ATTR_MAP(AclEntry, ActionPacketAction),
-      SAI_ATTR_MAP(AclEntry, ActionCounter),
-      SAI_ATTR_MAP(AclEntry, ActionSetTC),
-      SAI_ATTR_MAP(AclEntry, ActionSetDSCP),
-      SAI_ATTR_MAP(AclEntry, ActionMirrorIngress),
-      SAI_ATTR_MAP(AclEntry, ActionMirrorEgress),
-      SAI_ATTR_MAP(AclEntry, ActionMacsecFlow),
+std::map<int32_t, std::pair<std::string, std::size_t>> _AclEntryMap{
+    SAI_ATTR_MAP(AclEntry, TableId),
+    SAI_ATTR_MAP(AclEntry, Priority),
+    SAI_ATTR_MAP(AclEntry, Enabled),
+    SAI_ATTR_MAP(AclEntry, FieldSrcIpV6),
+    SAI_ATTR_MAP(AclEntry, FieldDstIpV6),
+    SAI_ATTR_MAP(AclEntry, FieldSrcIpV4),
+    SAI_ATTR_MAP(AclEntry, FieldDstIpV4),
+    SAI_ATTR_MAP(AclEntry, FieldSrcPort),
+    SAI_ATTR_MAP(AclEntry, FieldOutPort),
+    SAI_ATTR_MAP(AclEntry, FieldL4SrcPort),
+    SAI_ATTR_MAP(AclEntry, FieldL4DstPort),
+    SAI_ATTR_MAP(AclEntry, FieldIpProtocol),
+    SAI_ATTR_MAP(AclEntry, FieldTcpFlags),
+    SAI_ATTR_MAP(AclEntry, FieldIpFrag),
+    SAI_ATTR_MAP(AclEntry, FieldIcmpV4Type),
+    SAI_ATTR_MAP(AclEntry, FieldIcmpV4Code),
+    SAI_ATTR_MAP(AclEntry, FieldIcmpV6Type),
+    SAI_ATTR_MAP(AclEntry, FieldIcmpV6Code),
+    SAI_ATTR_MAP(AclEntry, FieldDscp),
+    SAI_ATTR_MAP(AclEntry, FieldDstMac),
+    SAI_ATTR_MAP(AclEntry, FieldIpType),
+    SAI_ATTR_MAP(AclEntry, FieldTtl),
+    SAI_ATTR_MAP(AclEntry, FieldFdbDstUserMeta),
+    SAI_ATTR_MAP(AclEntry, FieldRouteDstUserMeta),
+    SAI_ATTR_MAP(AclEntry, FieldNeighborDstUserMeta),
+    SAI_ATTR_MAP(AclEntry, FieldEthertype),
+    SAI_ATTR_MAP(AclEntry, FieldOuterVlanId),
 #if !defined(TAJO_SDK)
-      SAI_ATTR_MAP(AclEntry, ActionSetUserTrap),
+    SAI_ATTR_MAP(AclEntry, FieldBthOpcode),
+#endif
+    SAI_ATTR_MAP(AclEntry, ActionPacketAction),
+    SAI_ATTR_MAP(AclEntry, ActionCounter),
+    SAI_ATTR_MAP(AclEntry, ActionSetTC),
+    SAI_ATTR_MAP(AclEntry, ActionSetDSCP),
+    SAI_ATTR_MAP(AclEntry, ActionMirrorIngress),
+    SAI_ATTR_MAP(AclEntry, ActionMirrorEgress),
+    SAI_ATTR_MAP(AclEntry, ActionMacsecFlow),
+#if !defined(TAJO_SDK)
+    SAI_ATTR_MAP(AclEntry, ActionSetUserTrap),
 #endif
 };
 

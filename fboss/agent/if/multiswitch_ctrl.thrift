@@ -10,6 +10,7 @@ include "fboss/agent/if/ctrl.thrift"
 include "thrift/annotation/cpp.thrift"
 include "fboss/lib/phy/phy.thrift"
 include "fboss/agent/hw/hardware_stats.thrift"
+include "thrift/annotation/thrift.thrift"
 
 @cpp.Type{name = "std::unique_ptr<folly::IOBuf>"}
 typedef binary fbbinary
@@ -18,6 +19,25 @@ struct LinkEvent {
   1: i32 port;
   2: bool up;
   3: optional phy.LinkFaultStatus iPhyLinkFaultStatus;
+}
+
+struct LinkActiveEvent {
+  1: map<i32, bool> port2IsActive;
+}
+
+struct FabricConnectivityDelta {
+  1: optional ctrl.FabricEndpoint oldConnectivity;
+  2: optional ctrl.FabricEndpoint newConnectivity;
+}
+
+struct LinkConnectivityEvent {
+  1: map<i32, FabricConnectivityDelta> port2ConnectivityDelta;
+}
+
+struct LinkChangeEvent {
+  1: optional LinkEvent linkStateEvent;
+  2: LinkActiveEvent linkActiveEvents;
+  3: LinkConnectivityEvent linkConnectivityEvents;
 }
 
 struct FdbEvent {
@@ -41,6 +61,9 @@ struct RxPacket {
 struct StateOperDelta {
   1: fsdb_oper.OperDelta operDelta;
   2: bool transaction;
+  3: i64 seqNum;
+  # OperDelta can be applied to empty state to create full switchstate
+  4: bool isFullState;
 }
 
 struct HwSwitchStats {
@@ -52,17 +75,18 @@ struct HwSwitchStats {
   5: hardware_stats.HwAsicErrors hwAsicErrors;
   6: map<string, hardware_stats.HwSysPortStats> sysPortStats;
   7: hardware_stats.TeFlowStats teFlowStats;
-  8: hardware_stats.HwBufferPoolStats bufferPoolStats;
+  8: hardware_stats.HwBufferPoolStats bufferPoolStats_DEPRECATED;
   9: hardware_stats.FabricReachabilityStats fabricReachabilityStats;
   10: hardware_stats.HwSwitchFb303GlobalStats fb303GlobalStats;
   11: hardware_stats.CpuPortStats cpuPortStats;
   12: hardware_stats.HwSwitchDropStats switchDropStats;
+  13: hardware_stats.HwFlowletStats flowletStats;
+  14: map<i32, phy.PhyInfo> phyInfo;
+  15: hardware_stats.AclStats aclStats;
+  16: hardware_stats.HwSwitchWatermarkStats switchWatermarkStats;
 }
 
 service MultiSwitchCtrl {
-  /* notify link event through sink */
-  sink<LinkEvent, bool> notifyLinkEvent(1: i64 switchId);
-
   /* notify fdb event through sink */
   sink<FdbEvent, bool> notifyFdbEvent(1: i64 switchId);
 
@@ -72,19 +96,23 @@ service MultiSwitchCtrl {
   /* keep getting tx packet from SwSwitch, through stream */
   stream<TxPacket> getTxPackets(1: i64 switchId);
 
+  /* notify link change event*/
+  @thrift.Priority{level = thrift.RpcPriority.IMPORTANT}
+  sink<LinkChangeEvent, bool> notifyLinkChangeEvent(1: i64 switchId);
+
   /* get next oper delta from SwSwitch */
+  @thrift.Priority{level = thrift.RpcPriority.HIGH}
   StateOperDelta getNextStateOperDelta(
     1: i64 switchId,
     2: StateOperDelta prevOperResult,
-    /* indicates whether HwSwitch is syncing for first time */
-    3: bool initialSync,
-  ) (priority = 'HIGH');
+    /* sequence number of last oper delta received. 0 indicates initial sync */
+    3: i64 lastUpdateSeqNum,
+  );
 
   /* HwAgent graceful shutdown notification */
   void gracefulExit(1: i64 switchId);
 
   /* send hardware stats through sink */
-  sink<HwSwitchStats, bool> syncHwStats(1: i16 switchIndex) (
-    priority = 'BEST_EFFORT',
-  );
+  @thrift.Priority{level = thrift.RpcPriority.BEST_EFFORT}
+  sink<HwSwitchStats, bool> syncHwStats(1: i16 switchIndex);
 }

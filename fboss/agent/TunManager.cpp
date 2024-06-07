@@ -102,7 +102,7 @@ bool TunManager::sendPacketToHost(
 }
 
 void TunManager::addExistingIntf(const std::string& ifName, int ifIndex) {
-  InterfaceID ifID = util::getIDFromTunIntfName(ifName);
+  InterfaceID ifID = utility::getIDFromTunIntfName(ifName);
   auto ret = intfs_.emplace(ifID, nullptr);
   if (!ret.second) {
     throw FbossError("Duplicate interface ", ifName);
@@ -283,16 +283,15 @@ int TunManager::getTableIdForVoq(InterfaceID ifID) const {
   // use range 1-253 for our usecase.
   //
   // VOQ systems use port based RIFs.
-  // Port based RIF IDs are assigned starting minimum system port range.
-  // Thus, map ifID to 1-253 with ifID - sysPortMin + 1
-  // In practice, [sysPortMin, sysPortMax] range is << 253, so no risk of
-  // overflow. Moreover, getTableID asserts that the computed ID is <= 253
-  auto sysPortRange = sw_->getState()->getAssociatedSystemPortRangeIf(ifID);
-  if (!sysPortRange.has_value()) {
-    throw FbossError(
-        "No system port range for interface ID: ", ifID, " switch");
-  }
-  return ifID - *sysPortRange->minimum();
+  // Port based RIF IDs are assigned starting minimum system port range of the
+  // first switch. Thus, map ifID to 1-253 with ifID - firstSwitchSysPortMin
+  // In practice, [firstSwitchSysPortMin, lastSwitchSysPortUsed] range is <<
+  // 253. Moreover, getTableID asserts that the computed ID is <= 253
+
+  auto firstSwitchSysPortRange = getFirstSwitchSystemPortIdRange(
+      utility::getFirstNodeIf(sw_->getState()->getSwitchSettings())
+          ->getSwitchIdToSwitchInfo());
+  return ifID - *firstSwitchSysPortRange.minimum();
 }
 
 int TunManager::getInterfaceMtu(InterfaceID ifID) const {
@@ -550,7 +549,7 @@ void TunManager::linkProcessor(struct nl_object* obj, void* data) {
   }
 
   // Only add interface if it is a Tun interface
-  if (!util::isTunIntfName(name)) {
+  if (!utility::isTunIntfName(name)) {
     XLOG(DBG3) << "Ignore interface " << name
                << " because it is not a tun interface";
     return;
@@ -700,9 +699,9 @@ void TunManager::sync(std::shared_ptr<SwitchState> state) {
       auto addrs = intf->getAddressesCopy();
 
       // Ideally all interfaces should be present in intfStatusMap as either
-      // interface will be virtual or will have atleast one port. Keeping
-      // default status of interface to be DOWN incase if interface is not
-      // virtual and is not assocaited with any physical port
+      // interface will be virtual or will have at least one port. Keeping
+      // default status of interface to be DOWN in case if interface is not
+      // virtual and is not associated with any physical port
       const auto status =
           folly::get_default(intfStatusMap, intf->getID(), false);
 

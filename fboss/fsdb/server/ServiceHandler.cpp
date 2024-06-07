@@ -7,20 +7,17 @@
 #include <folly/experimental/coro/BlockingWait.h>
 #include <folly/experimental/coro/Timeout.h>
 #include <folly/logging/xlog.h>
-#include <range/v3/view.hpp>
-#include "common/time/ChronoFlags.h"
-#include "common/time/Time.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_common_constants.h"
 #include "fboss/fsdb/oper/PathValidator.h"
 #include "folly/CancellationToken.h"
 
 #include <algorithm>
+#include <chrono>
 #include <iterator>
 
 using namespace std::chrono_literals; // @donotremove
-using namespace ranges;
 
-DEFINE_time_s(metricsTtl, 1s * 12 * 3600 /* twelve hours */, "TTL for metrics");
+DEFINE_int32(metricsTtl_s, 1 * 12 * 3600 /* twelve hours */, "TTL for metrics");
 
 DEFINE_bool(
     checkOperOwnership,
@@ -29,30 +26,25 @@ DEFINE_bool(
 
 DEFINE_bool(trackMetadata, true, "Enable metadata tracking");
 
-DEFINE_time_s(
-    statsSubscriptionServe,
-    10s,
+DEFINE_int32(
+    statsSubscriptionServe_s,
+    10,
     "Interval at which stats subscriptions are served");
 
-DEFINE_time_s(
-    statsSubscriptionHeartbeat,
-    30s,
+DEFINE_int32(
+    statsSubscriptionHeartbeat_s,
+    30,
     "Interval at which heartbeats are sent for stats subscribers");
 
-DEFINE_time_ms(
-    stateSubscriptionServe,
-    50ms,
+DEFINE_int32(
+    stateSubscriptionServe_ms,
+    50,
     "Interval at which state subscriptions are served");
 
-DEFINE_time_s(
-    stateSubscriptionHeartbeat,
-    5s,
+DEFINE_int32(
+    stateSubscriptionHeartbeat_s,
+    5,
     "Interval at which heartbeats are sent for state subscribers");
-
-DEFINE_bool(
-    enableOperDB,
-    false,
-    "Enable writing oper state changes to rocksdb");
 
 DEFINE_bool(
     checkSubscriberConfig,
@@ -69,26 +61,96 @@ DEFINE_bool(
     false,
     "whether to enforce PublisherConfig for publish stream requests");
 
+static constexpr auto kWatchdogThreadHeartbeatMissed =
+    "watchdog_thread_heartbeat_missed";
+
 namespace {
 
+using facebook::fboss::fsdb::ExtendedOperPath;
+using facebook::fboss::fsdb::OperGetRequest;
+using facebook::fboss::fsdb::OperPath;
 using facebook::fboss::fsdb::OperPubRequest;
 using facebook::fboss::fsdb::OperSubRequest;
+using facebook::fboss::fsdb::OperSubRequestExtended;
+using facebook::fboss::fsdb::Path;
+using facebook::fboss::fsdb::PubRequest;
+using facebook::fboss::fsdb::SubRequest;
 
 template <typename OperRequest>
-std::string getPubSubRequestDetails(const OperRequest& request) {
+std::string getRequestDetails(const OperRequest& request) {
   static_assert(
       std::is_same_v<OperRequest, OperPubRequest> ||
-      std::is_same_v<OperRequest, OperSubRequest>);
+      std::is_same_v<OperRequest, OperSubRequest> ||
+      std::is_same_v<OperRequest, OperSubRequestExtended> ||
+      std::is_same_v<OperRequest, OperGetRequest> ||
+      std::is_same_v<OperRequest, SubRequest> ||
+      std::is_same_v<OperRequest, PubRequest>);
   std::string clientID = "";
-  if constexpr (std::is_same_v<OperRequest, OperPubRequest>) {
+  if constexpr (
+      std::is_same_v<OperRequest, PubRequest> ||
+      std::is_same_v<OperRequest, SubRequest>) {
+    clientID = *request.clientId()->instanceId();
+  } else if constexpr (std::is_same_v<OperRequest, OperPubRequest>) {
     clientID = request.get_publisherId();
   } else if constexpr (std::is_same_v<OperRequest, OperSubRequest>) {
     clientID = request.get_subscriberId();
+  } else if constexpr (std::is_same_v<OperRequest, OperSubRequestExtended>) {
+    clientID = request.get_subscriberId();
+  } else if constexpr (std::is_same_v<OperRequest, OperGetRequest>) {
+    // TODO: enforce clientId on polling apis
+    clientID = "adhoc";
   }
-  return fmt::format(
-      "Client ID: {}, Path: {}",
-      clientID,
-      folly::join("/", request.path()->get_raw()));
+  std::string pathStr = "";
+  if constexpr (
+      std::is_same_v<OperRequest, OperPubRequest> ||
+      std::is_same_v<OperRequest, OperSubRequest>) {
+    pathStr = folly::join("/", request.path()->get_raw());
+  } else if constexpr (std::is_same_v<OperRequest, PubRequest>) {
+    pathStr = folly::join("/", request.path()->get_path());
+  } else if constexpr (std::is_same_v<OperRequest, SubRequest>) {
+    std::vector<std::string> pathStrings;
+    pathStrings.reserve(request.paths()->size());
+    for (const auto& path : *request.paths()) {
+      pathStrings.push_back(fmt::format(
+          "{}:{}", path.first, folly::join("/", *path.second.path())));
+    }
+    pathStr = folly::join(", ", std::move(pathStrings));
+  } else if constexpr (std::is_same_v<OperRequest, OperSubRequestExtended>) {
+    // TODO: set path str for extended subs
+  }
+  return fmt::format("Client ID: {}, Path: {}", std::move(clientID), pathStr);
+}
+
+Path buildPathUnion(facebook::fboss::fsdb::OperSubscriberInfo info) {
+  Path pathUnion;
+  if (info.path() && info.path()->raw()->size() > 0) {
+    OperPath operPath;
+    operPath.raw() = *info.path()->raw();
+    pathUnion.set_operPath(operPath);
+  } else if (info.extendedPaths() && info.extendedPaths()->size() > 0) {
+    std::vector<ExtendedOperPath> extendedPaths;
+    pathUnion.set_extendedPaths(*info.extendedPaths());
+  }
+  return pathUnion;
+}
+
+Path buildPathUnion(facebook::fboss::fsdb::OperPublisherInfo info) {
+  Path pathUnion;
+  OperPath operPath;
+  operPath.raw() = *info.path()->raw();
+  pathUnion.set_operPath(operPath);
+  return pathUnion;
+}
+
+void updateMetadata(facebook::fboss::fsdb::OperMetadata& metadata) {
+  // Timestamp at server if chunk was not timestamped
+  // by publisher
+  if (!metadata.lastConfirmedAt()) {
+    auto now = std::chrono::system_clock::now();
+    metadata.lastConfirmedAt() =
+        std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch())
+            .count();
+  }
 }
 
 } // namespace
@@ -96,8 +158,7 @@ std::string getPubSubRequestDetails(const OperRequest& request) {
 namespace facebook::fboss::fsdb {
 
 ServiceHandler::ServiceHandler(
-    std::unique_ptr<FsdbConfig> fsdbConfig,
-    const std::string& publisherIdsToOpenRocksDbAtStartFor,
+    std::shared_ptr<FsdbConfig> fsdbConfig,
     Options options)
     : FacebookBase2("FsdbService"),
       fsdbConfig_(std::move(fsdbConfig)),
@@ -117,97 +178,125 @@ ServiceHandler::ServiceHandler(
           folly::to<std::string>(
               fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
               "num_subscribers")),
+      num_subscriptions_(
+          fb303::ThreadCachedServiceData::get()->getThreadStats(),
+          folly::to<std::string>(
+              fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+              "num_subscriptions")),
+      num_disconnected_subscribers_(
+          fb303::ThreadCachedServiceData::get()->getThreadStats(),
+          folly::to<std::string>(
+              fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+              "num_disconnected_subscribers")),
+      num_disconnected_subscriptions_(
+          fb303::ThreadCachedServiceData::get()->getThreadStats(),
+          folly::to<std::string>(
+              fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+              "num_disconnected_subscriptions")),
+      num_disconnected_publishers_(
+          fb303::ThreadCachedServiceData::get()->getThreadStats(),
+          folly::to<std::string>(
+              fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+              "num_disconnected_publishers")),
       num_subscriptions_rejected_(
           fb303::ThreadCachedServiceData::get()->getThreadStats(),
           folly::to<std::string>(
               fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
-              "num_subscriptions_disallowed")),
+              "num_subscriptions_disallowed"),
+          fb303::SUM,
+          fb303::RATE),
       num_publisher_unknown_requests_rejected_(
           fb303::ThreadCachedServiceData::get()->getThreadStats(),
           folly::to<std::string>(
               fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
-              "num_publisher_unknown_requests_rejected")),
+              "num_publisher_unknown_requests_rejected"),
+          fb303::SUM,
+          fb303::RATE),
       num_publisher_path_requests_rejected_(
           fb303::ThreadCachedServiceData::get()->getThreadStats(),
           folly::to<std::string>(
               fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
-              "num_publisher_path_requests_rejected")),
+              "num_publisher_path_requests_rejected"),
+          fb303::SUM,
+          fb303::RATE),
+      num_dropped_stats_changes_(
+          fb303::ThreadCachedServiceData::get()->getThreadStats(),
+          folly::to<std::string>(
+              fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+              "num_dropped_stats_changes"),
+          fb303::SUM,
+          fb303::RATE),
+      num_dropped_state_changes_(
+          fb303::ThreadCachedServiceData::get()->getThreadStats(),
+          folly::to<std::string>(
+              fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+              "num_dropped_state_changes"),
+          fb303::SUM,
+          fb303::RATE),
       operStorage_(
           {},
-          FLAGS_stateSubscriptionServe_ms,
-          FLAGS_stateSubscriptionHeartbeat_s,
+          std::chrono::milliseconds(FLAGS_stateSubscriptionServe_ms),
+          std::chrono::seconds(FLAGS_stateSubscriptionHeartbeat_s),
           FLAGS_trackMetadata,
           "fsdb",
-          options.serveIdPathSubs),
-      operDbWriter_(operStorage_),
+          options.serveIdPathSubs,
+          true),
       operStatsStorage_(
           {},
-          FLAGS_statsSubscriptionServe_s,
-          FLAGS_statsSubscriptionHeartbeat_s,
+          std::chrono::seconds(FLAGS_statsSubscriptionServe_s),
+          std::chrono::seconds(FLAGS_statsSubscriptionHeartbeat_s),
           FLAGS_trackMetadata,
           "fsdb",
           options.serveIdPathSubs) {
-  std::vector<PublisherId> publisherIds;
-  // find publisherIds specified
-  folly::split(',', publisherIdsToOpenRocksDbAtStartFor, publisherIds);
-
   num_instances_.incrementValue(1);
+
+  initPerStreamCounters();
 
   operStorage_.start();
   operStatsStorage_.start();
+  tcData().setCounter(kWatchdogThreadHeartbeatMissed, 0);
 
-  if (FLAGS_enableOperDB) {
-    rocksDbs_ = options_.useFakeRocksDb_CAUTION_DO_NOT_USE_IN_PRODUCTION
-        ? createIfNeededAndOpenRocksDbs<RocksDbFake>(
-              {publisherIds.begin(), publisherIds.end()})
-        : createIfNeededAndOpenRocksDbs<RocksDb>(
-              {publisherIds.begin(), publisherIds.end()});
-    operDbWriter_.start();
-  }
-}
-
-template <typename T>
-folly::F14FastMap<PublisherId, std::shared_ptr<RocksDbIf>>
-ServiceHandler::createIfNeededAndOpenRocksDbs(
-    folly::F14FastSet<PublisherId> publisherIds) const {
-  folly::F14FastMap<PublisherId, RocksDbPtr> ret;
-  for (const auto& publisherId : publisherIds) {
-    auto rocksDb = std::make_shared<T>(
-        "stats",
-        publisherId,
-        FLAGS_metricsTtl_s,
-        options_.eraseRocksDbsInCtorAndDtor_CAUTION_DO_NOT_USE_IN_PRODUCTION);
-    const auto logPrefix = fmt::format("[P:{}]", publisherId);
-    if (!rocksDb->open()) {
-      throw Utils::createFsdbException(
-          FsdbErrorCode::ROCKSDB_OPEN_OR_CREATE_FAILED,
-          logPrefix,
-          " could not open or create rocksdb");
-    }
-    XLOG(INFO) << logPrefix << " pre-created rocksdb";
-    ret.insert({publisherId, rocksDb});
-  }
-
-  return ret;
+  // Create a watchdog that will monitor operStorage_ and operStatsStorage_
+  // increment the missed counter when there is no heartbeat on at least one
+  // thread in the last FLAGS_storage_thread_heartbeat_ms * 10 time
+  XLOG(DBG1) << "Starting fsdb ServiceHandler thread heartbeat watchdog";
+  heartbeatWatchdog_ = std::make_unique<ThreadHeartbeatWatchdog>(
+      std::chrono::milliseconds(FLAGS_storage_thread_heartbeat_ms * 10),
+      [this]() {
+        watchdogThreadHeartbeatMissedCount_ += 1;
+        tcData().setCounter(
+            kWatchdogThreadHeartbeatMissed,
+            watchdogThreadHeartbeatMissedCount_);
+      });
+  heartbeatWatchdog_->startMonitoringHeartbeat(
+      operStorage_.getThreadHeartbeat());
+  heartbeatWatchdog_->startMonitoringHeartbeat(
+      operStatsStorage_.getThreadHeartbeat());
+  heartbeatWatchdog_->start();
 }
 
 ServiceHandler::~ServiceHandler() {
+  if (heartbeatWatchdog_) {
+    XLOG(DBG1) << "Stopping fsdb ServiceHandler thread heartbeat watchdog";
+    heartbeatWatchdog_->stop();
+    heartbeatWatchdog_.reset();
+  }
   XLOG(INFO) << "Destroying ServiceHandler";
   num_instances_.incrementValue(-1);
 }
 
 OperPublisherInfo ServiceHandler::makePublisherInfo(
-    const OperPubRequest& req,
+    const RawPathT& path,
+    const PublisherId& publisherId,
     PubSubType type,
     bool isStats) {
   OperPublisherInfo info;
-  info.publisherId() = *req.publisherId();
+  info.publisherId() = publisherId;
   info.type() = type;
-  info.path() = *req.path();
+  info.path()->raw() = path;
   info.isStats() = isStats;
   try {
-    auto pathConfig =
-        fsdbConfig_->getPathConfig(*req.publisherId(), *req.path()->raw());
+    auto pathConfig = fsdbConfig_->getPathConfig(publisherId, path);
     info.isExpectedPath() = *pathConfig.get().isExpected();
   } catch (const std::exception& e) {
     // ignore exception if PathConfig is not available
@@ -220,7 +309,9 @@ void ServiceHandler::registerPublisher(const OperPublisherInfo& info) {
     throw Utils::createFsdbException(
         FsdbErrorCode::EMPTY_PUBLISHER_ID, "Publisher Id must not be empty");
   }
-  auto resp = activePublishers_.wlock()->insert(info);
+  auto key = ClientKey(
+      *info.publisherId(), buildPathUnion(info), *info.type(), *info.isStats());
+  auto resp = activePublishers_.wlock()->insert({std::move(key), info});
   if (!resp.second) {
     throw Utils::createFsdbException(
         FsdbErrorCode::ID_ALREADY_EXISTS, "Dup publisher id");
@@ -232,6 +323,21 @@ void ServiceHandler::registerPublisher(const OperPublisherInfo& info) {
     operStorage_.registerPublisher(
         info.path()->raw()->begin(), info.path()->raw()->end());
   }
+  num_publishers_.incrementValue(1);
+  try {
+    auto config =
+        fsdbConfig_->getPathConfig(*info.publisherId(), *info.path()->raw());
+    if (*config.get().isExpected()) {
+      num_disconnected_publishers_.incrementValue(-1);
+      auto counter = disconnectedPublishers_.find(
+          PublisherKey(*info.publisherId(), *info.isStats()));
+      if (counter != disconnectedPublishers_.end()) {
+        counter->second.incrementValue(-1);
+      }
+    }
+  } catch (const std::exception& e) {
+    // ignore exception if PathConfig is not available
+  };
 }
 
 void ServiceHandler::unregisterPublisher(
@@ -240,7 +346,9 @@ void ServiceHandler::unregisterPublisher(
   XLOG(DBG2) << " Publisher complete " << *info.publisherId() << " : "
              << folly::join("/", *info.path()->raw()) << " disconnectReason: "
              << apache::thrift::util::enumNameSafe(disconnectReason);
-  activePublishers_.wlock()->erase(info);
+  auto key = ClientKey(
+      *info.publisherId(), buildPathUnion(info), *info.type(), *info.isStats());
+  activePublishers_.wlock()->erase(std::move(key));
   if (*info.isStats()) {
     operStatsStorage_.unregisterPublisher(
         info.path()->raw()->begin(),
@@ -252,21 +360,38 @@ void ServiceHandler::unregisterPublisher(
         info.path()->raw()->end(),
         disconnectReason);
   }
+  num_publishers_.incrementValue(-1);
+  try {
+    auto config =
+        fsdbConfig_->getPathConfig(*info.publisherId(), *info.path()->raw());
+    if (*config.get().isExpected()) {
+      num_disconnected_publishers_.incrementValue(1);
+      auto counter = disconnectedPublishers_.find(
+          PublisherKey(*info.publisherId(), *info.isStats()));
+      if (counter != disconnectedPublishers_.end()) {
+        counter->second.incrementValue(1);
+      }
+    }
+  } catch (const std::exception& e) {
+    // ignore exception if PathConfig is not available
+  };
 }
 
 template <typename PubUnit>
 apache::thrift::SinkConsumer<PubUnit, OperPubFinalResponse>
 ServiceHandler::makeSinkConsumer(
-    std::unique_ptr<OperPubRequest> request,
+    RawPathT&& path,
+    const PublisherId& publisherId,
     bool isStats) {
-  validateOperPublishPermissions(
-      *request->publisherId(), *request->path()->raw());
+  validateOperPublishPermissions(publisherId, path);
   PubSubType pubSubType{PubSubType::PATH};
   if constexpr (std::is_same_v<PubUnit, OperDelta>) {
     pubSubType = PubSubType::DELTA;
+  } else if constexpr (std::is_same_v<PubUnit, PublisherMessage>) {
+    pubSubType = PubSubType::PATCH;
   }
 
-  auto info = makePublisherInfo(*request, pubSubType, isStats);
+  auto info = makePublisherInfo(path, publisherId, pubSubType, isStats);
   registerPublisher(info);
   std::shared_ptr<FsdbErrorCode> disconnectReason =
       std::make_shared<FsdbErrorCode>(FsdbErrorCode::ALL_PUBLISHERS_GONE);
@@ -279,39 +404,27 @@ ServiceHandler::makeSinkConsumer(
       [this,
        disconnectReason = std::move(disconnectReason),
        cleanupPublisher = std::move(cleanupPublisher),
-       request = std::move(request),
+       path = std::move(path),
        isStats](folly::coro::AsyncGenerator<PubUnit&&> gen)
           -> folly::coro::Task<OperPubFinalResponse> {
         OperPubFinalResponse finalResponse;
         try {
           while (auto chunk = co_await gen.next()) {
             XLOG(DBG3) << " chunk received";
-            if (!chunk->metadata()) {
-              chunk->metadata() = OperMetadata();
-            }
-            // Timestamp at server if chunk was not timestamped
-            // by publisher
-            if (!chunk->metadata()->lastConfirmedAt()) {
-              chunk->metadata()->lastConfirmedAt() =
-                  WallClockUtil::NowInSecFast();
-            }
             if constexpr (std::is_same_v<PubUnit, OperState>) {
+              updateMetadata(chunk->metadata().ensure());
               if (isStats) {
-                operStatsStorage_.set_encoded(
-                    request->path()->raw()->begin(),
-                    request->path()->raw()->end(),
-                    *chunk);
+                operStatsStorage_.set_encoded(path.begin(), path.end(), *chunk);
               } else {
-                operStorage_.set_encoded(
-                    request->path()->raw()->begin(),
-                    request->path()->raw()->end(),
-                    *chunk);
+                operStorage_.set_encoded(path.begin(), path.end(), *chunk);
               }
-            } else {
+            } else if constexpr (std::is_same_v<PubUnit, OperDelta>) {
+              updateMetadata(chunk->metadata().ensure());
               // filter out invalid paths for cases where publisher is newer
               // than fsdb
               auto isPathValid = isStats ? PathValidator::isStatsPathValid
                                          : PathValidator::isStatePathValid;
+              auto numChanges = chunk->changes()->size();
               chunk->changes()->erase(
                   std::remove_if(
                       chunk->changes()->begin(),
@@ -325,6 +438,26 @@ ServiceHandler::makeSinkConsumer(
                 operStatsStorage_.patch(*chunk);
               } else {
                 operStorage_.patch(*chunk);
+              }
+              auto numDropped = numChanges - chunk->changes()->size();
+              if (numDropped) {
+                XLOG(DBG2) << "Dropping " << numDropped << " changes from "
+                           << (isStats ? "stats" : "state")
+                           << " chunk with invalid path";
+                if (isStats) {
+                  num_dropped_stats_changes_.addValue(numDropped);
+                } else {
+                  num_dropped_state_changes_.addValue(numDropped);
+                }
+              }
+            } else if constexpr (std::is_same_v<PubUnit, PublisherMessage>) {
+              // TODO: need to use the publish path
+              auto patchChunk = chunk->move_patch();
+              updateMetadata(*patchChunk.metadata());
+              if (isStats) {
+                operStatsStorage_.patch(std::move(patchChunk));
+              } else {
+                operStorage_.patch(std::move(patchChunk));
               }
             }
           }
@@ -350,9 +483,12 @@ folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
     OperPubFinalResponse>>
 ServiceHandler::co_publishOperStatePath(
     std::unique_ptr<OperPubRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO, getPubSubRequestDetails(*request));
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatePath(*request->path()->raw());
-  co_return {{}, makeSinkConsumer<OperState>(std::move(request), false)};
+  co_return {
+      {},
+      makeSinkConsumer<OperState>(
+          std::move(*request->path()->raw()), *request->publisherId(), false)};
 }
 
 folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
@@ -361,9 +497,12 @@ folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
     OperPubFinalResponse>>
 ServiceHandler::co_publishOperStatsPath(
     std::unique_ptr<OperPubRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO, getPubSubRequestDetails(*request));
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatsPath(*request->path()->raw());
-  co_return {{}, makeSinkConsumer<OperState>(std::move(request), true)};
+  co_return {
+      {},
+      makeSinkConsumer<OperState>(
+          std::move(*request->path()->raw()), *request->publisherId(), true)};
 }
 
 folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
@@ -372,9 +511,12 @@ folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
     OperPubFinalResponse>>
 ServiceHandler::co_publishOperStateDelta(
     std::unique_ptr<OperPubRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO, getPubSubRequestDetails(*request));
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatePath(*request->path()->raw());
-  co_return {{}, makeSinkConsumer<OperDelta>(std::move(request), false)};
+  co_return {
+      {},
+      makeSinkConsumer<OperDelta>(
+          std::move(*request->path()->raw()), *request->publisherId(), false)};
 }
 
 folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
@@ -383,9 +525,42 @@ folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
     OperPubFinalResponse>>
 ServiceHandler::co_publishOperStatsDelta(
     std::unique_ptr<OperPubRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO, getPubSubRequestDetails(*request));
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatsPath(*request->path()->raw());
-  co_return {{}, makeSinkConsumer<OperDelta>(std::move(request), true)};
+  co_return {
+      {},
+      makeSinkConsumer<OperDelta>(
+          std::move(*request->path()->raw()), *request->publisherId(), true)};
+}
+
+folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
+    OperPubInitResponse,
+    PublisherMessage,
+    OperPubFinalResponse>>
+ServiceHandler::co_publishState(std::unique_ptr<PubRequest> request) {
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
+  PathValidator::validateStatePath(*request->path()->path());
+  co_return {
+      {},
+      makeSinkConsumer<PublisherMessage>(
+          std::move(*request->path()->path()),
+          *request->clientId()->instanceId(),
+          false)};
+}
+
+folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
+    OperPubInitResponse,
+    PublisherMessage,
+    OperPubFinalResponse>>
+ServiceHandler::co_publishStats(std::unique_ptr<PubRequest> request) {
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
+  PathValidator::validateStatePath(*request->path()->path());
+  co_return {
+      {},
+      makeSinkConsumer<PublisherMessage>(
+          std::move(*request->path()->path()),
+          *request->clientId()->instanceId(),
+          true)};
 }
 
 namespace {
@@ -414,13 +589,100 @@ OperSubscriberInfo makeSubscriberInfo(
   return info;
 }
 
+OperSubscriberInfo
+makeSubscriberInfo(const SubRequest& req, PubSubType type, bool isStats) {
+  OperSubscriberInfo info;
+  info.subscriberId() = *req.clientId()->instanceId();
+  info.type() = type;
+  info.paths() = *req.paths();
+  info.isStats() = isStats;
+  return info;
+}
+
+template <typename Storage>
+folly::coro::AsyncGenerator<SubscriberMessage&&> makeSubStreamGenerator(
+    Storage& storage,
+    std::unique_ptr<SubRequest> request) {
+  // TODO: for the sake of incremental diffs just looking at first path for
+  // now, later will support multi path
+  auto path = *request->paths()->begin()->second.path();
+  auto gen = storage.subscribe_patch(
+      *request->clientId()->instanceId(),
+      path.begin(),
+      path.end(),
+      *request->protocol());
+  while (auto chunk = co_await gen.next()) {
+    SubscriberMessage message;
+    // TODO: handle heartbeat
+    SubscriberChunk subChunk;
+    subChunk.patch() = std::move(*chunk);
+    message.set_chunk(std::move(subChunk));
+    co_yield std::move(message);
+  }
+}
+
+void validatePaths(
+    const std::map<SubscriptionKey, RawOperPath>& paths,
+    bool isStats) {
+  auto validatePath = isStats ? PathValidator::validateStatsPath
+                              : PathValidator::validateStatePath;
+  for (const auto& path : paths) {
+    validatePath(*path.second.path());
+  }
+}
+
 } // namespace
+
+void ServiceHandler::updateSubscriptionCounters(
+    const OperSubscriberInfo& info,
+    bool isConnected) {
+  auto connectedCountIncrement = isConnected ? 1 : -1;
+  auto disconnectCountIncrement = isConnected ? -1 : 1;
+
+  num_subscriptions_.incrementValue(connectedCountIncrement);
+
+  auto config = fsdbConfig_->getSubscriberConfig(*info.subscriberId());
+  if (config.has_value() && *config.value().second.get().trackReconnect()) {
+    auto& clientId = config.value().first;
+    num_disconnected_subscriptions_.incrementValue(disconnectCountIncrement);
+    if (auto counter = disconnectedSubscriptions_.find(clientId);
+        counter != disconnectedSubscriptions_.end()) {
+      counter->second.incrementValue(disconnectCountIncrement);
+    }
+    if (auto counter = connectedSubscriptions_.find(clientId);
+        counter != connectedSubscriptions_.end()) {
+      counter->second.incrementValue(connectedCountIncrement);
+      // per-subscriber counters: checks global subscription count
+      int nSubscriptions{0};
+      activeSubscriptions_.withRLock(
+          [&clientId, &nSubscriptions](const auto& activeSubscriptions) {
+            for (const auto& it : activeSubscriptions) {
+              auto& subscription = it.second;
+              if (clientId == *subscription.subscriberId()) {
+                nSubscriptions++;
+              }
+            }
+          });
+      bool isFirstSubscriptionConnected = isConnected && nSubscriptions == 1;
+      bool isLastSubscriptionDisconnected = !isConnected && nSubscriptions == 0;
+      if (isFirstSubscriptionConnected || isLastSubscriptionDisconnected) {
+        num_subscribers_.incrementValue(connectedCountIncrement);
+        num_disconnected_subscribers_.incrementValue(disconnectCountIncrement);
+        if (auto counter1 = disconnectedSubscribers_.find(clientId);
+            counter1 != disconnectedSubscribers_.end()) {
+          counter1->second.incrementValue(disconnectCountIncrement);
+        }
+      }
+    }
+  }
+}
 
 void ServiceHandler::registerSubscription(const OperSubscriberInfo& info) {
   if (info.subscriberId()->empty()) {
     throw Utils::createFsdbException(
         FsdbErrorCode::EMPTY_SUBSCRIBER_ID, "Subscriber Id must not be empty");
   }
+  XLOG(INFO) << "Registering subscription " << *info.subscriberId();
   bool hasRawPath = info.path() && !info.path()->raw()->empty();
   bool hasExtendedPath = info.extendedPaths() && !info.extendedPaths()->empty();
   validateSubscriptionPermissions(
@@ -429,18 +691,35 @@ void ServiceHandler::registerSubscription(const OperSubscriberInfo& info) {
       *info.isStats(),
       hasRawPath,
       hasExtendedPath);
-  auto resp = activeSubscriptions_.wlock()->insert(info);
+  auto key = ClientKey(
+      *info.subscriberId(),
+      buildPathUnion(info),
+      *info.type(),
+      *info.isStats());
+  auto resp = activeSubscriptions_.wlock()->insert({std::move(key), info});
   if (!resp.second) {
     throw Utils::createFsdbException(
         FsdbErrorCode::ID_ALREADY_EXISTS,
         "Dup subscriber id: ",
         *info.subscriberId());
   }
+  updateSubscriptionCounters(info, true);
 }
 void ServiceHandler::unregisterSubscription(const OperSubscriberInfo& info) {
-  XLOG(DBG2) << " Subscription complete " << *info.subscriberId() << " : "
-             << folly::join("/", *info.path()->raw());
-  activeSubscriptions_.wlock()->erase(info);
+  std::string pathStr;
+  // TODO: handle extended path to string
+  if (info.path()) {
+    pathStr = folly::join("/", *info.path()->raw());
+  }
+  XLOG(INFO) << "Subscription complete " << *info.subscriberId() << " : "
+             << pathStr;
+  auto key = ClientKey(
+      *info.subscriberId(),
+      buildPathUnion(info),
+      *info.type(),
+      *info.isStats());
+  activeSubscriptions_.wlock()->erase(std::move(key));
+  updateSubscriptionCounters(info, false);
 }
 
 folly::coro::AsyncGenerator<DeltaValue<OperState>&&>
@@ -477,7 +756,7 @@ folly::coro::Task<
     apache::thrift::ResponseAndServerStream<OperSubInitResponse, OperState>>
 ServiceHandler::co_subscribeOperStatePath(
     std::unique_ptr<OperSubRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO, getPubSubRequestDetails(*request));
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatePath(*request->path()->raw());
 
   auto subscriberInfo = makeSubscriberInfo(*request, PubSubType::PATH, false);
@@ -515,7 +794,7 @@ folly::coro::Task<
     apache::thrift::ResponseAndServerStream<OperSubInitResponse, OperState>>
 ServiceHandler::co_subscribeOperStatsPath(
     std::unique_ptr<OperSubRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO, getPubSubRequestDetails(*request));
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatsPath(*request->path()->raw());
 
   auto subscriberInfo = makeSubscriberInfo(*request, PubSubType::PATH, true);
@@ -579,7 +858,7 @@ folly::coro::Task<
     apache::thrift::ResponseAndServerStream<OperSubInitResponse, OperDelta>>
 ServiceHandler::co_subscribeOperStateDelta(
     std::unique_ptr<OperSubRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO, getPubSubRequestDetails(*request));
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatePath(*request->path()->raw());
 
   auto subscriberInfo = makeSubscriberInfo(*request, PubSubType::DELTA, false);
@@ -610,7 +889,7 @@ folly::coro::Task<apache::thrift::ResponseAndServerStream<
     OperSubPathUnit>>
 ServiceHandler::co_subscribeOperStatePathExtended(
     std::unique_ptr<OperSubRequestExtended> request) {
-  auto log = LOG_THRIFT_CALL(INFO);
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
 
   PathValidator::validateExtendedStatePaths(*request->paths());
 
@@ -635,17 +914,17 @@ ServiceHandler::co_subscribeOperStatePathExtended(
               auto&& deltas = *item;
 
               OperSubPathUnit unit;
-
-              unit.changes() = deltas | view::move |
-                  view::transform([](auto&& delta) {
-                                 // we expect newVal to always be set, even in
-                                 // the case of a deleted path. For deleted
-                                 // paths, lower layers will create a
-                                 // TaggedOperState with empty contents.
-                                 return *std::move(delta.newVal);
-                               }) |
-                  to<std::vector>;
-
+              std::transform(
+                  std::make_move_iterator(deltas.begin()),
+                  std::make_move_iterator(deltas.end()),
+                  std::back_inserter(*unit.changes()),
+                  [](auto&& delta) {
+                    // we expect newVal to always be set, even in
+                    // the case of a deleted path. For deleted
+                    // paths, lower layers will create a
+                    // TaggedOperState with empty contents.
+                    return *std::move(delta.newVal);
+                  });
               co_yield std::move(unit);
             }
           })};
@@ -656,7 +935,7 @@ folly::coro::Task<apache::thrift::ResponseAndServerStream<
     OperSubDeltaUnit>>
 ServiceHandler::co_subscribeOperStateDeltaExtended(
     std::unique_ptr<OperSubRequestExtended> request) {
-  auto log = LOG_THRIFT_CALL(INFO);
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
 
   PathValidator::validateExtendedStatePaths(*request->paths());
 
@@ -693,7 +972,7 @@ folly::coro::Task<
     apache::thrift::ResponseAndServerStream<OperSubInitResponse, OperDelta>>
 ServiceHandler::co_subscribeOperStatsDelta(
     std::unique_ptr<OperSubRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO, getPubSubRequestDetails(*request));
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatsPath(*request->path()->raw());
 
   auto subscriberInfo = makeSubscriberInfo(*request, PubSubType::DELTA, true);
@@ -723,7 +1002,7 @@ folly::coro::Task<apache::thrift::ResponseAndServerStream<
     OperSubPathUnit>>
 ServiceHandler::co_subscribeOperStatsPathExtended(
     std::unique_ptr<OperSubRequestExtended> request) {
-  auto log = LOG_THRIFT_CALL(INFO);
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
 
   PathValidator::validateExtendedStatsPaths(*request->paths());
 
@@ -748,17 +1027,17 @@ ServiceHandler::co_subscribeOperStatsPathExtended(
               auto&& deltas = *item;
 
               OperSubPathUnit unit;
-
-              unit.changes() = deltas | view::move |
-                  view::transform([](auto&& delta) {
-                                 // we expect newVal to always be set, even in
-                                 // the case of a deleted path. For deleted
-                                 // paths, lower layers will create a
-                                 // TaggedOperState with empty contents.
-                                 return *std::move(delta.newVal);
-                               }) |
-                  to<std::vector>;
-
+              std::transform(
+                  std::make_move_iterator(deltas.begin()),
+                  std::make_move_iterator(deltas.end()),
+                  std::back_inserter(*unit.changes()),
+                  [](auto&& delta) {
+                    // we expect newVal to always be set, even in
+                    // the case of a deleted path. For deleted
+                    // paths, lower layers will create a
+                    // TaggedOperState with empty contents.
+                    return *std::move(delta.newVal);
+                  });
               co_yield std::move(unit);
             }
           })};
@@ -769,7 +1048,7 @@ folly::coro::Task<apache::thrift::ResponseAndServerStream<
     OperSubDeltaUnit>>
 ServiceHandler::co_subscribeOperStatsDeltaExtended(
     std::unique_ptr<OperSubRequestExtended> request) {
-  auto log = LOG_THRIFT_CALL(INFO);
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
 
   PathValidator::validateExtendedStatsPaths(*request->paths());
 
@@ -802,9 +1081,60 @@ ServiceHandler::co_subscribeOperStatsDeltaExtended(
           })};
 }
 
+folly::coro::Task<apache::thrift::ResponseAndServerStream<
+    OperSubInitResponse,
+    SubscriberMessage>>
+ServiceHandler::co_subscribeState(std::unique_ptr<SubRequest> request) {
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
+  validatePaths(*request->paths(), false);
+  auto subscriberInfo = makeSubscriberInfo(*request, PubSubType::PATCH, false);
+  registerSubscription(subscriberInfo);
+  auto cleanupSubscriber =
+      folly::makeGuard([this, subscriberInfo = std::move(subscriberInfo)]() {
+        unregisterSubscription(subscriberInfo);
+      });
+  auto stream = folly::coro::co_invoke(
+      [this,
+       request = std::move(request),
+       cleanupSubscriber = std::move(cleanupSubscriber)]() mutable
+      -> folly::coro::AsyncGenerator<SubscriberMessage&&> {
+        auto gen = makeSubStreamGenerator(operStorage_, std::move(request));
+        while (auto val = co_await gen.next()) {
+          co_yield std::move(*val);
+        }
+      });
+  co_return {{}, std::move(stream)};
+}
+
+folly::coro::Task<apache::thrift::ResponseAndServerStream<
+    OperSubInitResponse,
+    SubscriberMessage>>
+ServiceHandler::co_subscribeStats(std::unique_ptr<SubRequest> request) {
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
+  validatePaths(*request->paths(), true);
+  auto subscriberInfo = makeSubscriberInfo(*request, PubSubType::PATCH, true);
+  registerSubscription(subscriberInfo);
+  auto cleanupSubscriber =
+      folly::makeGuard([this, subscriberInfo = std::move(subscriberInfo)]() {
+        unregisterSubscription(subscriberInfo);
+      });
+  auto stream = folly::coro::co_invoke(
+      [this,
+       request = std::move(request),
+       cleanupSubscriber = std::move(cleanupSubscriber)]() mutable
+      -> folly::coro::AsyncGenerator<SubscriberMessage&&> {
+        auto gen =
+            makeSubStreamGenerator(operStatsStorage_, std::move(request));
+        while (auto val = co_await gen.next()) {
+          co_yield std::move(*val);
+        }
+      });
+  co_return {{}, std::move(stream)};
+}
+
 folly::coro::Task<std::unique_ptr<OperState>> ServiceHandler::co_getOperState(
     std::unique_ptr<OperGetRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO);
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatePath(*request->path()->raw());
   auto ret =
       std::make_unique<OperState>(operStorage_
@@ -818,7 +1148,7 @@ folly::coro::Task<std::unique_ptr<OperState>> ServiceHandler::co_getOperState(
 
 folly::coro::Task<std::unique_ptr<OperState>> ServiceHandler::co_getOperStats(
     std::unique_ptr<OperGetRequest> request) {
-  auto log = LOG_THRIFT_CALL(INFO);
+  auto log = LOG_THRIFT_CALL(INFO, getRequestDetails(*request));
   PathValidator::validateStatsPath(*request->path()->raw());
   auto ret =
       std::make_unique<OperState>(operStatsStorage_
@@ -870,29 +1200,12 @@ ServiceHandler::co_getOperStatsExtended(
   co_return std::move(ret);
 }
 
-// --------------------------------------------
-
-std::shared_ptr<RocksDbIf> ServiceHandler::getRocksDb(
-    const PublisherId& publisherId) const {
-  const auto logPrefix = fmt::format("[P:{}]", publisherId);
-  XLOG(INFO) << logPrefix << " find opened rocksdb";
-  auto it = rocksDbs_.find(publisherId);
-  if (it == rocksDbs_.end()) {
-    throw Utils::createFsdbException(
-        FsdbErrorCode::UNKNOWN_PUBLISHER,
-        logPrefix,
-        " FSDB does not have rocksdb instance opened - include publisher in gflags to fix.");
-  }
-  return it->second;
-}
-
-// --------------------------------------------
-
 folly::coro::Task<std::unique_ptr<PublisherIdToOperPublisherInfo>>
 ServiceHandler::co_getAllOperPublisherInfos() {
   auto publishers = std::make_unique<PublisherIdToOperPublisherInfo>();
   activePublishers_.withRLock([&](const auto& activePublishers) {
-    for (const auto& publisher : activePublishers) {
+    for (const auto& it : activePublishers) {
+      auto& publisher = it.second;
       (*publishers)[*publisher.publisherId()].push_back(publisher);
     }
   });
@@ -905,7 +1218,8 @@ ServiceHandler::co_getOperPublisherInfos(
   auto log = LOG_THRIFT_CALL(INFO);
   auto publishers = std::make_unique<PublisherIdToOperPublisherInfo>();
   activePublishers_.withRLock([&](const auto& activePublishers) {
-    for (auto& publisher : activePublishers) {
+    for (const auto& it : activePublishers) {
+      auto& publisher = it.second;
       if (publisherIds->find(*publisher.publisherId()) == publisherIds->end()) {
         continue;
       }
@@ -917,9 +1231,11 @@ ServiceHandler::co_getOperPublisherInfos(
 
 folly::coro::Task<std::unique_ptr<SubscriberIdToOperSubscriberInfos>>
 ServiceHandler::co_getAllOperSubscriberInfos() {
+  auto log = LOG_THRIFT_CALL(INFO);
   auto subscriptions = std::make_unique<SubscriberIdToOperSubscriberInfos>();
   activeSubscriptions_.withRLock([&](const auto& activeSubscriptions) {
-    for (const auto& subscription : activeSubscriptions) {
+    for (const auto& it : activeSubscriptions) {
+      auto& subscription = it.second;
       (*subscriptions)[*subscription.subscriberId()].push_back(subscription);
     }
   });
@@ -932,7 +1248,8 @@ ServiceHandler::co_getOperSubscriberInfos(
   auto log = LOG_THRIFT_CALL(INFO);
   auto subscriptions = std::make_unique<SubscriberIdToOperSubscriberInfos>();
   activeSubscriptions_.withRLock([&](const auto& activeSubscriptions) {
-    for (auto& subscription : activeSubscriptions) {
+    for (const auto& it : activeSubscriptions) {
+      auto& subscription = it.second;
       if (subscriberIds->find(*subscription.subscriberId()) ==
           subscriberIds->end()) {
         continue;
@@ -941,6 +1258,68 @@ ServiceHandler::co_getOperSubscriberInfos(
     }
   });
   co_return subscriptions;
+}
+
+void ServiceHandler::initPerStreamCounters(void) {
+  for (const auto& [key, value] : *fsdbConfig_->getThrift().subscribers()) {
+    if (value.trackReconnect().value()) {
+      disconnectedSubscribers_.emplace(
+          key,
+          TLCounter(
+              fb303::ThreadCachedServiceData::get()->getThreadStats(),
+              folly::to<std::string>(
+                  fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+                  "disconnected_subscriber.",
+                  key)));
+      if (auto counter = disconnectedSubscribers_.find(key);
+          counter != disconnectedSubscribers_.end()) {
+        counter->second.incrementValue(1);
+      }
+      auto count = value.numExpectedSubscriptions().value();
+      disconnectedSubscriptions_.emplace(
+          key,
+          TLCounter(
+              fb303::ThreadCachedServiceData::get()->getThreadStats(),
+              folly::to<std::string>(
+                  fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+                  "disconnected_subscriptions.",
+                  key)));
+      if (auto counter = disconnectedSubscriptions_.find(key);
+          counter != disconnectedSubscriptions_.end()) {
+        counter->second.incrementValue(count);
+      }
+      num_disconnected_subscriptions_.incrementValue(count);
+      connectedSubscriptions_.emplace(
+          key,
+          TLCounter(
+              fb303::ThreadCachedServiceData::get()->getThreadStats(),
+              folly::to<std::string>(
+                  fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
+                  "connected_subscriptions.",
+                  key)));
+    }
+  }
+
+  for (const auto& [key, value] : *fsdbConfig_->getThrift().publishers()) {
+    for (const auto& pathConfig : *value.paths()) {
+      if (*pathConfig.isExpected()) {
+        PublisherKey publisherKey(key, *pathConfig.isStats());
+        disconnectedPublishers_.emplace(
+            publisherKey,
+            TLCounter(
+                fb303::ThreadCachedServiceData::get()->getThreadStats(),
+                folly::to<std::string>(
+                    fsdb_common_constants::
+                        kFsdbServiceHandlerNativeStatsPrefix(),
+                    "disconnected_publisher.",
+                    key,
+                    (*pathConfig.isStats() ? "-stats" : ""))));
+        auto counter = disconnectedPublishers_.find(publisherKey);
+        counter->second.incrementValue(1);
+        num_disconnected_publishers_.incrementValue(1);
+      }
+    }
+  }
 }
 
 void ServiceHandler::validateSubscriptionPermissions(
@@ -961,9 +1340,9 @@ void ServiceHandler::validateSubscriptionPermissions(
   }
   auto config = fsdbConfig_->getSubscriberConfig(id);
   if (hasExtendedPath && config.has_value() &&
-      !*config.value().get().allowExtendedSubscriptions()) {
+      !*config.value().second.get().allowExtendedSubscriptions()) {
     XLOG(WARNING) << "[S:" << id << "]: extended subscriptions not permitted";
-    num_subscriptions_rejected_.incrementValue(1);
+    num_subscriptions_rejected_.addValue(1);
     if (FLAGS_enforceSubscriberConfig) {
       throw Utils::createFsdbException(
           FsdbErrorCode::SUBSCRIPTION_NOT_PERMITTED,
@@ -975,7 +1354,7 @@ void ServiceHandler::validateSubscriptionPermissions(
 
 void ServiceHandler::validateOperPublishPermissions(
     PublisherId id,
-    const std::vector<std::string>& path) {
+    const RawPathT& path) {
   if (!FLAGS_checkOperOwnership) {
     return;
   }
@@ -985,7 +1364,11 @@ void ServiceHandler::validateOperPublishPermissions(
     // path is configured, so we have permission to publish
     return;
   } catch (const fsdb::FsdbException& ex) {
-    num_publisher_unknown_requests_rejected_.incrementValue(1);
+    if (ex.errorCode() == FsdbErrorCode::PUBLISHER_NOT_PERMITTED) {
+      num_publisher_path_requests_rejected_.addValue(1);
+    } else {
+      num_publisher_unknown_requests_rejected_.addValue(1);
+    }
     if (FLAGS_enforcePublisherConfig) {
       throw;
     }

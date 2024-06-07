@@ -8,5 +8,4 @@ DEFINE_bool(
     serveHeartbeats,
     false,
     "Whether or not to serve hearbeats in subscription streams");
-
 } // namespace facebook::fboss::fsdb

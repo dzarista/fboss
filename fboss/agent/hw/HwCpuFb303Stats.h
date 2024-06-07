@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "fboss/agent/hw/CounterUtils.h"
 #include "fboss/agent/hw/HwFb303Stats.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 
@@ -50,7 +51,9 @@ class HwCpuFb303Stats {
 
   static std::array<folly::StringPiece, 2> kQueueStatKeys();
   int64_t getCounterLastIncrement(folly::StringPiece statKey) const;
+  int64_t getCounter(const folly::StringPiece statKey) const;
   CpuPortStats getCpuPortStats() const;
+  int64_t getCumulativeValueIf(const folly::StringPiece statKey) const;
 
  private:
   void setupStats();

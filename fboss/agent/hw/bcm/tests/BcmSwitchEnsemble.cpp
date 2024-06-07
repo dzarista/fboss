@@ -23,8 +23,8 @@
 #include "fboss/agent/hw/bcm/BcmTrunkTable.h"
 #include "fboss/agent/hw/bcm/tests/BcmLinkStateToggler.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
-#include "fboss/agent/hw/test/LinkStateToggler.h"
 #include "fboss/agent/platforms/tests/utils/CreateTestPlatform.h"
+#include "fboss/agent/test/LinkStateToggler.h"
 
 DECLARE_bool(setup_thrift);
 
@@ -202,7 +202,8 @@ uint64_t BcmSwitchEnsemble::getSdkSwitchId() const {
 
 void BcmSwitchEnsemble::runDiagCommand(
     const std::string& input,
-    std::string& /*output*/) {
+    std::string& /*output*/,
+    std::optional<SwitchID> /*switchId*/) {
   getHwSwitch()->printDiagCmd(input);
 }
 

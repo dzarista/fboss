@@ -8,10 +8,12 @@
  *
  */
 
+#include <utility>
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
 #include "fboss/agent/state/PortDescriptor.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/AgentTest.h"
+#include "fboss/agent/test/utils/QosTestUtils.h"
 #include "fboss/agent/types.h"
 
 DECLARE_string(config);
@@ -55,11 +57,14 @@ class MultiNodeTest : public AgentTest {
   }
 
   template <typename AddrT>
-  void disableTTLDecrementsForRoute(RoutePrefix<AddrT> prefix) const {
+  void disableTTLDecrementsForRoute(RoutePrefix<AddrT> prefix) {
     auto fibContainer = sw()->getState()->getFibs()->getNode(RouterID(0));
     auto fib = fibContainer->template getFib<AddrT>();
     auto defaultRoute = fib->getRouteIf(prefix);
     auto nhSet = defaultRoute->getForwardInfo().getNextHopSet();
+
+    std::vector<utility::EcmpNextHop<AddrT>> ecmpNhops{};
+    boost::container::flat_set<PortDescriptor> ports{};
 
     for (const auto& nhop : nhSet) {
       if constexpr (std::is_same_v<AddrT, folly::IPAddressV6>) {
@@ -68,18 +73,19 @@ class MultiNodeTest : public AgentTest {
             getNeighborEntry(nhop.addr().asV6(), nhop.intf()).second,
             getNeighborEntry(nhop.addr().asV6(), nhop.intf()).first,
             *nhop.intfID());
-        utility::disableTTLDecrements(
-            platform()->getHwSwitch(), RouterID(0), ecmpNh);
+        ports.emplace(ecmpNh.portDesc);
+        ecmpNhops.emplace_back(std::move(ecmpNh));
       } else {
         auto ecmpNh = utility::EcmpNextHop<AddrT>(
             nhop.addr().asV4(),
             getNeighborEntry(nhop.addr().asV4(), nhop.intf()).second,
             getNeighborEntry(nhop.addr().asV4(), nhop.intf()).first,
             *nhop.intfID());
-        utility::disableTTLDecrements(
-            platform()->getHwSwitch(), RouterID(0), ecmpNh);
+        ports.emplace(ecmpNh.portDesc);
+        ecmpNhops.emplace_back(std::move(ecmpNh));
       }
     }
+    utility::disableTTLDecrements(sw(), RouterID(0), ecmpNhops);
   }
   std::vector<PortID> testPorts() const;
   std::vector<std::string> testPortNames() const;

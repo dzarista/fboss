@@ -45,7 +45,7 @@ SaiSwitchTraits::Attributes::AttributeDllPathWrapper::operator()() {
 
 std::optional<sai_attr_id_t>
 SaiSwitchTraits::Attributes::AttributeRestartIssuWrapper::operator()() {
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_P4_WB_SDK)
   return SAI_SWITCH_ATTR_EXT_RESTART_ISSU;
 #else
   return std::nullopt;
@@ -76,7 +76,22 @@ SaiSwitchTraits::Attributes::AttributeMaxCoresWrapper::operator()() {
   return std::nullopt;
 }
 
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeSdkBootTimeWrapper::operator()() {
+  return std::nullopt;
+}
+
 const std::vector<sai_stat_id_t>& SaiSwitchTraits::dramStats() {
+  static const std::vector<sai_stat_id_t> stats;
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::rciWatermarkStats() {
+  static const std::vector<sai_stat_id_t> stats;
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::dtlWatermarkStats() {
   static const std::vector<sai_stat_id_t> stats;
   return stats;
 }

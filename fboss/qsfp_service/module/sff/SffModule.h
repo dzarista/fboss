@@ -24,8 +24,9 @@ enum class SffFr1Field;
 class SffModule : public QsfpModule {
  public:
   explicit SffModule(
-      TransceiverManager* transceiverManager,
-      std::unique_ptr<TransceiverImpl> qsfpImpl);
+      std::set<std::string> portNames,
+      TransceiverImpl* qsfpImpl,
+      std::shared_ptr<const TransceiverConfig> cfg);
   virtual ~SffModule() override;
 
   /*
@@ -72,6 +73,8 @@ class SffModule : public QsfpModule {
   bool verifyEepromChecksums() override;
 
   bool supportRemediate() override;
+
+  bool tcvrPortStateSupported(TransceiverPortState& portState) const override;
 
  protected:
   // QSFP+ requires a bottom 128 byte page describing important monitoring
@@ -210,11 +213,7 @@ class SffModule : public QsfpModule {
   /*
    * Return what power control capability is currently enabled
    */
-  PowerControlState getPowerControlValue() override;
-  /*
-   * Return TransceiverStats
-   */
-  std::optional<TransceiverStats> getTransceiverStats();
+  PowerControlState getPowerControlValue(bool readFromCache) override;
   /*
    * Return SignalFlag which contains Tx/Rx LOS/LOL
    */
@@ -273,6 +272,12 @@ class SffModule : public QsfpModule {
    */
   virtual bool setTransceiverTxLocked(
       const std::string& portName,
+      phy::Side side,
+      std::optional<uint8_t> userChannelMask,
+      bool enable) override;
+
+  virtual bool setTransceiverTxImplLocked(
+      const std::set<uint8_t>& tcvrLanes,
       phy::Side side,
       std::optional<uint8_t> userChannelMask,
       bool enable) override;
@@ -399,9 +404,8 @@ class SffModule : public QsfpModule {
    * Put logic here that should only be run on ports that have been
    * down for a long time. These are actions that are potentially more
    * disruptive, but have worked in the past to recover a transceiver.
-   * Only return true if there's an actual remediation happened
    */
-  bool remediateFlakyTransceiver(
+  void remediateFlakyTransceiver(
       bool allPortsDown,
       const std::vector<std::string>& ports) override;
 
@@ -502,6 +506,8 @@ class SffModule : public QsfpModule {
    */
   folly::Synchronized<PrbsBitCount> systemPrbsSnapshot_;
   folly::Synchronized<PrbsBitCount> linePrbsSnapshot_;
+
+  const std::shared_ptr<const TransceiverConfig> tcvrConfig_;
 };
 
 } // namespace fboss

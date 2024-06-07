@@ -34,7 +34,6 @@ add_library(sai_fake_extensions
 set_target_properties(sai_fake_extensions PROPERTIES LINKER_LANGUAGE C)
 
 set(SAI_API_SRC
-  fboss/agent/hw/sai/api/DebugCounterApi.cpp
   fboss/agent/hw/sai/api/FdbApi.cpp
   fboss/agent/hw/sai/api/HashApi.cpp
   fboss/agent/hw/sai/api/MplsApi.cpp
@@ -46,6 +45,7 @@ set(SAI_API_SRC
   fboss/agent/hw/sai/api/SaiApiLock.cpp
   fboss/agent/hw/sai/api/SaiApiTable.cpp
   fboss/agent/hw/sai/api/SwitchApi.cpp
+  fboss/agent/hw/sai/api/DebugCounterApi.cpp
   fboss/agent/hw/sai/api/Types.cpp
   fboss/agent/hw/sai/api/AclApi.h
   fboss/agent/hw/sai/api/BridgeApi.h
@@ -80,6 +80,7 @@ set(SAI_API_SRC
   fboss/agent/hw/sai/api/VirtualRouterApi.h
   fboss/agent/hw/sai/api/VlanApi.h
   fboss/agent/hw/sai/api/WredApi.h
+  fboss/agent/hw/sai/api/DebugCounterApi.h
 )
 
 if (SAI_TAJO_IMPL)
@@ -87,6 +88,7 @@ if (SAI_TAJO_IMPL)
     fboss/agent/hw/sai/api/tajo/PortApi.cpp
     fboss/agent/hw/sai/api/tajo/TamApi.cpp
     fboss/agent/hw/sai/api/tajo/SwitchApi.cpp
+    fboss/agent/hw/sai/api/tajo/DebugCounterApi.cpp
   )
 
   find_path(SAI_IMPL_DIR NAMES lib/libsai_impl.a)
@@ -97,6 +99,7 @@ elseif (SAI_BRCM_IMPL)
     fboss/agent/hw/sai/api/bcm/PortApi.cpp
     fboss/agent/hw/sai/api/bcm/TamApi.cpp
     fboss/agent/hw/sai/api/bcm/SwitchApi.cpp
+    fboss/agent/hw/sai/api/bcm/DebugCounterApi.cpp
   )
 
   find_path(SAI_IMPL_DIR NAMES lib/libsai_impl.a)

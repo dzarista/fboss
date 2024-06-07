@@ -8,27 +8,32 @@
  *
  */
 #include "fboss/qsfp_service/platforms/wedge/QsfpRestClient.h"
-#include <folly/IPAddress.h>
+#include <folly/logging/xlog.h>
 
 using folly::IPAddress;
 
 namespace facebook::fboss {
 QsfpRestClient::QsfpRestClient(void)
-    : RestClient(IPAddress("fe80::1%usb0"), 8080) {}
+    : RestClient("https://[fe80::1%eth0.4088]", 443) {
+  setClientCertAndKey(
+      "/var/facebook/x509_identities/server.pem",
+      "/var/facebook/x509_identities/server.pem");
+  setVerifyHostname(false);
+}
 
 /*
  * postQsfpThermalData
  *
- * Post the QSFP Thermal data (serialized JSON format) to the USB0 interface on
- * the given Rest endpoint path.
+ * Post the QSFP Thermal data (serialized JSON format) to the eth0.4088
+ * interface on the given Rest endpoint path.
  */
 bool QsfpRestClient::postQsfpThermalData(const std::string& thermalData) {
   auto ret =
-      RestClient::requestWithOutput("/api/sys/opticsThermal", thermalData);
-  auto status = ret.find("done");
-  if (status != std::string::npos) {
+      RestClient::requestWithOutput("/api/sys/optics_thermal", thermalData);
+  if (ret.find(R"({"status": "OK"})") != std::string::npos) {
     return true;
   }
+  XLOG(ERR) << "Bad reply from BMC's /api/sys/optics_thermal: " << ret;
   return false;
 }
 

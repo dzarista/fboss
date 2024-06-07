@@ -91,7 +91,7 @@ class LinkTest : public AgentTest {
    * Disable TTL decrement on a set of ports
    */
   void disableTTLDecrements(
-      const boost::container::flat_set<PortDescriptor>& ecmpPorts) const;
+      const boost::container::flat_set<PortDescriptor>& ecmpPorts);
   /*
    * Create a L3 data plane loop and seed it with traffic
    */
@@ -128,6 +128,8 @@ class LinkTest : public AgentTest {
   void TearDown() override;
 
   void setLinkState(bool enable, std::vector<PortID>& portIds);
+
+  std::vector<std::pair<PortID, PortID>> getPortPairsForFecErrInj() const;
 
  private:
   void programDefaultRoute(

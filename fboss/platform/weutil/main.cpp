@@ -2,16 +2,14 @@
 
 #include <string.h>
 #include <sysexits.h>
+#include <iostream>
 #include <memory>
 
-#include <folly/init/Init.h>
+#include <folly/String.h>
 #include <folly/logging/Init.h>
 #include <folly/logging/xlog.h>
-#include <gflags/gflags.h>
-#include <glog/logging.h>
 
-#include "fboss/platform/helpers/Init.h"
-#include "fboss/platform/weutil/Flags.h"
+#include "fboss/platform/helpers/InitCli.h"
 #include "fboss/platform/weutil/Weutil.h"
 #include "fboss/platform/weutil/WeutilDarwin.h"
 
@@ -21,43 +19,70 @@ using namespace facebook;
 
 FOLLY_INIT_LOGGING_CONFIG(".=FATAL; default:async=true");
 
-// This utility program will output Chassis info for Darwin
+DEFINE_bool(json, false, "Output in JSON format");
+DEFINE_bool(list, false, "List all eeproms in config");
+DEFINE_int32(offset, 0, "Offset for eeprom specified by --path");
+DEFINE_string(
+    eeprom,
+    "",
+    "EEPROM name or device type, default is chassis eeprom");
+DEFINE_string(
+    path,
+    "",
+    "When set, ignore config and read the eeprom specified by the path");
+
+// If config file is not specified, we detect the platform type and load
+// the proper platform config. If no flags/args are specified, weutil will
+// output the chassis eeprom. If flags/args are used, check that either
+// --eeprom, --path or --h flags are used.
+bool validFlags(int argc) {
+  if (!FLAGS_path.empty() && !FLAGS_eeprom.empty()) {
+    std::cout << "Please use either --path or --eeprom, not both!" << std::endl;
+    return false;
+  }
+  if (argc > 1) {
+    std::cout << "Only valid commandline flags are allowed." << std::endl;
+    return false;
+  }
+  return true;
+}
+
 int main(int argc, char* argv[]) {
-  helpers::init(argc, argv);
+  helpers::initCli(&argc, &argv, "weutil");
   std::unique_ptr<WeutilInterface> weutilInstance;
 
-  // Usually, we auto-detect the platform type and load
-  // the proper config file. But when path flag is set,
-  // we skip this, and just load and parse the eeprom specified
-  // in the path flag.
-  if (!FLAGS_path.empty() && !FLAGS_eeprom.empty()) {
-    throw std::runtime_error("Please use either --path or --eeprom, not both!");
+  if (!validFlags(argc)) {
+    return 1;
   }
-  if (!FLAGS_path.empty()) {
-    // Path flag is set. We read the eeprom in the absolute path.
-    // Neither platform type detection nor config file load is needed.
-    weutilInstance = get_meta_eeprom_handler(FLAGS_path);
-  } else {
-    // Path flag is NOT set. Auto-detect the platform type and
-    // load the proper config file
-    weutilInstance = get_plat_weutil(FLAGS_eeprom, FLAGS_config_file);
+
+  if (FLAGS_list) {
+    try {
+      auto eeproms = getEepromPaths();
+      std::cout << folly::join("\n", eeproms) << std::endl;
+    } catch (const std::exception& ex) {
+      std::cout << "Failed to get list of eeproms: " << ex.what() << std::endl;
+    }
+    return 0;
+  }
+
+  try {
+    weutilInstance = createWeUtilIntf(FLAGS_eeprom, FLAGS_path, FLAGS_offset);
+  } catch (const std::exception& ex) {
+    std::cout << "Failed creation of proper parser. " << ex.what() << std::endl;
+    return 1;
   }
 
   if (weutilInstance) {
-    if (FLAGS_h) {
-      weutilInstance->printUsage();
-    } else {
-      try {
-        if (FLAGS_json) {
-          weutilInstance->printInfoJson();
-        } else {
-          weutilInstance->printInfo();
-        }
-      } catch (const std::exception& ex) {
-        std::cout << ex.what() << std::endl;
-        std::cout << "ERROR: weutil finished with an exception." << std::endl;
-        return 1;
+    try {
+      if (FLAGS_json) {
+        weutilInstance->printInfoJson();
+      } else {
+        weutilInstance->printInfo();
       }
+    } catch (const std::exception& ex) {
+      std::cout << ex.what() << std::endl;
+      std::cout << "ERROR: weutil finished with an exception." << std::endl;
+      return 1;
     }
   } else {
     XLOG(INFO) << "Exiting with error code";

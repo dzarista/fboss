@@ -1,0 +1,11 @@
+[Unit]
+Description=Start platform manager (if supported)
+
+[Service]
+Type=notify
+ExecStartPre=/bin/bash -c '[[ -f /opt/fboss/share/platform_configs/platform_manager.json ]]'
+ExecStart=/opt/fboss/bin/run_platform_manager.sh
+TimeoutSec=300
+
+[Install]
+WantedBy=multi-user.target

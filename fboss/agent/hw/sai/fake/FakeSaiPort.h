@@ -11,6 +11,7 @@
 
 #include "fboss/agent/hw/sai/fake/FakeManager.h"
 
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -73,6 +74,11 @@ struct FakePort {
   sai_port_lane_latch_status_list_t portRxLockStatus;
   sai_port_lane_latch_status_list_t portFecAlignmentLockStatus;
   sai_latch_status_t portPcsLinkStatus;
+  sai_latch_status_t portCrcErrDetect;
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  sai_port_frequency_offset_ppm_list_t portRxPPM;
+  sai_port_snr_list_t portRxSNR;
 #endif
   sai_port_priority_flow_control_mode_t priorityFlowControlMode{
       SAI_PORT_PRIORITY_FLOW_CONTROL_MODE_COMBINED};

@@ -63,12 +63,6 @@ class QsfpServiceHandler
       std::unique_ptr<std::map<int32_t, PortStatus>> ports) override;
 
   /*
-   * Customise the transceiver based on the speed at which it has
-   * been configured to operate at
-   */
-  void customizeTransceiver(int32_t idx, cfg::PortSpeed speed) override;
-
-  /*
    * Return a pointer to the transceiver manager.
    */
   TransceiverManager* getTransceiverManager() const {
@@ -82,6 +76,9 @@ class QsfpServiceHandler
 
   void pauseRemediation(
       int32_t timeout,
+      std::unique_ptr<std::vector<std::string>> portList) override;
+
+  void unpauseRemediation(
       std::unique_ptr<std::vector<std::string>> portList) override;
 
   void getRemediationUntilTime(
@@ -133,12 +130,26 @@ class QsfpServiceHandler
       phy::PortComponent component) override;
 
   /*
+   * Get the PRBS settings on all interfaces.
+   */
+  void getAllInterfacePrbsStates(
+      std::map<std::string, prbs::InterfacePrbsState>& prbsStates,
+      phy::PortComponent component) override;
+
+  /*
    * Get the PRBS stats on an interface. Useful when debugging a link
    * down or flapping issue.
    */
   void getInterfacePrbsStats(
       phy::PrbsStats& response,
       std::unique_ptr<std::string> portName,
+      phy::PortComponent component) override;
+
+  /*
+   * Get the PRBS stats on all interfaces.
+   */
+  void getAllInterfacePrbsStats(
+      std::map<std::string, phy::PrbsStats>& prbsStats,
       phy::PortComponent component) override;
 
   /*
@@ -152,6 +163,10 @@ class QsfpServiceHandler
 
   void clearInterfacePrbsStats(
       std::unique_ptr<std::string> portName,
+      phy::PortComponent component) override;
+
+  void bulkClearInterfacePrbsStats(
+      std::unique_ptr<std::vector<std::string>> interfaces,
       phy::PortComponent component) override;
 
   /*
@@ -233,6 +248,18 @@ class QsfpServiceHandler
   void getInterfacePhyInfo(
       std::map<std::string, phy::PhyInfo>& phyInfos,
       std::unique_ptr<std::vector<std::string>> portNames) override;
+
+  void getAllInterfacePhyInfo(
+      std::map<std::string, phy::PhyInfo>& phyInfos) override;
+
+  void getSymbolErrorHistogram(
+      CdbDatapathSymErrHistogram& symErr,
+      std::unique_ptr<std::string> portName) override;
+
+  void getAllPortSupportedProfiles(
+      std::map<std::string, std::vector<cfg::PortProfileID>>&
+          supportedPortProfiles,
+      bool checkOptics) override;
 
 #if FOLLY_HAS_COROUTINES
   folly::coro::Task<bool> co_sakInstallRx(

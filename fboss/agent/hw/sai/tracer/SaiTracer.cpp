@@ -106,6 +106,11 @@ DEFINE_int32(
     "Log timeout value in milliseconds. Logger will periodically"
     "flush logs even if the buffer is not full");
 
+DEFINE_bool(
+    log_variable_name,
+    false,
+    "Flag to indicate whether to log variable names or simply object ID");
+
 using facebook::fboss::SaiTracer;
 using folly::to;
 using std::string;
@@ -873,7 +878,9 @@ void SaiTracer::logRemoveFn(
   writeToFile(lines, /*linefeed*/ false);
 
   // Remove object from variables_
-  variables_.erase(remove_object_id);
+  if (FLAGS_log_variable_name) {
+    variables_.erase(remove_object_id);
+  }
 }
 
 void SaiTracer::logRouteEntrySetAttrFn(
@@ -1273,7 +1280,9 @@ string SaiTracer::getVariable(sai_object_id_t object_id) {
   if (object_id == SAI_NULL_OBJECT_ID) {
     return "SAI_NULL_OBJECT_ID";
   }
-
+  if (!FLAGS_log_variable_name) {
+    return to<string>(object_id, "U");
+  }
   auto& varName = variables_[object_id];
   return varName.empty() ? to<string>(object_id, "U") : varName;
 }
@@ -1530,6 +1539,10 @@ void SaiTracer::setNeighborEntry(
   lines.push_back(
       to<string>("n_e.rif_id=", getVariable(neighbor_entry->rif_id)));
 
+  folly::IPAddress ipAddress =
+      facebook::fboss::fromSaiIpAddress(neighbor_entry->ip_address);
+  lines.push_back(to<string>("// ", ipAddress.str()));
+
   if (neighbor_entry->ip_address.addr_family == SAI_IP_ADDR_FAMILY_IPV4) {
     lines.push_back("n_e.ip_address.addr_family=SAI_IP_ADDR_FAMILY_IPV4");
     lines.push_back(to<string>(
@@ -1560,6 +1573,10 @@ void SaiTracer::setRouteEntry(
   lines.push_back(
       to<string>("r_e.switch_id=", getVariable(route_entry->switch_id)));
   lines.push_back(to<string>("r_e.vr_id=", getVariable(route_entry->vr_id)));
+
+  auto [ipAddr, mask] =
+      facebook::fboss::fromSaiIpPrefix(route_entry->destination);
+  lines.push_back(to<string>("// ", ipAddr.str(), "/", mask));
 
   if (route_entry->destination.addr_family == SAI_IP_ADDR_FAMILY_IPV4) {
     lines.push_back("r_e.destination.addr_family=SAI_IP_ADDR_FAMILY_IPV4");
@@ -1684,7 +1701,7 @@ void SaiTracer::logPostInvocation(
     std::optional<std::string> varName) {
   // In the case of create fn, objectID is known after invocation.
   // Therefore, add it to the variable mapping here.
-  if (varName) {
+  if (varName && FLAGS_log_variable_name) {
     variables_.emplace(object_id, *varName);
   }
 

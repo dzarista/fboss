@@ -111,7 +111,7 @@ TEST_F(ThriftTest, getInterfaceDetail) {
   // Query the two interfaces configured by testStateA()
   InterfaceDetail info;
   handler.getInterfaceDetail(info, 1);
-  EXPECT_EQ("fboss1", *info.interfaceName());
+  EXPECT_EQ("eth1/5/1", *info.interfaceName());
   EXPECT_EQ(1, *info.interfaceId());
   EXPECT_EQ(1, *info.vlanId());
   EXPECT_EQ(0, *info.routerId());
@@ -126,7 +126,7 @@ TEST_F(ThriftTest, getInterfaceDetail) {
   EXPECT_THAT(*info.address(), UnorderedElementsAreArray(expectedAddrs));
 
   handler.getInterfaceDetail(info, 55);
-  EXPECT_EQ("fboss55", *info.interfaceName());
+  EXPECT_EQ("eth1/6/1", *info.interfaceName());
   EXPECT_EQ(55, *info.interfaceId());
   EXPECT_EQ(55, *info.vlanId());
   EXPECT_EQ(0, *info.routerId());
@@ -155,6 +155,8 @@ class ThriftTestAllSwitchTypes : public ::testing::Test {
   ;
   void SetUp() override {
     FLAGS_intf_nbr_tables = intfNbrTable;
+    FLAGS_dsf_num_parallel_sessions_per_remote_interface_node =
+        std::numeric_limits<uint32_t>::max();
     auto config = testConfigA(switchType);
     handle_ = createTestHandle(&config);
     sw_ = handle_->getSw();
@@ -184,7 +186,7 @@ class ThriftTestAllSwitchTypes : public ::testing::Test {
     if (isNpu()) {
       return {SwitchID(0), cfg::SwitchType::NPU};
     } else if (isFabric()) {
-      return {SwitchID(2), cfg::SwitchType::FABRIC};
+      return {SwitchID(20), cfg::SwitchType::FABRIC};
     } else if (isVoq()) {
       return {SwitchID(1), cfg::SwitchType::VOQ};
     }
@@ -259,10 +261,10 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getL2Table) {
       .Times(this->isNpu() ? 1 : 0);
 
   std::vector<L2EntryThrift> l2Entries;
-  if (this->isFabric()) {
-    EXPECT_THROW(handler.getL2Table(l2Entries), FbossError);
-  } else {
+  if (this->isNpu()) {
     handler.getL2Table(l2Entries);
+  } else {
+    EXPECT_THROW(handler.getL2Table(l2Entries), FbossError);
   }
 }
 
@@ -412,7 +414,8 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getSetSwitchDrainState) {
   auto switchDrainFn =
       [this](const shared_ptr<SwitchState>& state) -> shared_ptr<SwitchState> {
     shared_ptr<SwitchState> newState{state};
-    auto oldSwitchSettings = util::getFirstNodeIf(state->getSwitchSettings());
+    auto oldSwitchSettings =
+        utility::getFirstNodeIf(state->getSwitchSettings());
     auto newSwitchSettings = oldSwitchSettings->modify(&newState);
     newSwitchSettings->setSwitchDrainState(cfg::SwitchDrainState::DRAINED);
     return newState;
@@ -451,7 +454,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
         waitForStateUpdates(handler.getSw());
 
         auto gotBlockedNeighbors =
-            util::getFirstNodeIf(
+            utility::getFirstNodeIf(
                 handler.getSw()->getState()->getSwitchSettings())
                 ->getBlockNeighbors_DEPRECATED();
 
@@ -494,7 +497,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
   setNeighborsToBlock({});
   EXPECT_EQ(
       0,
-      util::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
+      utility::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
           ->getBlockNeighbors_DEPRECATED()
           .size());
   handler.getBlockedNeighbors(blockedNeighbors);
@@ -504,7 +507,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAndSetNeighborsToBlock) {
   setNeighborsToBlock(std::move(neighborsToBlock));
   EXPECT_EQ(
       0,
-      util::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
+      utility::getFirstNodeIf(this->sw_->getState()->getSwitchSettings())
           ->getBlockNeighbors_DEPRECATED()
           .size());
   handler.getBlockedNeighbors(blockedNeighbors);
@@ -554,6 +557,7 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getSysPortStats) {
   ThriftHandler handler(this->sw_);
   std::map<std::string, HwSysPortStats> sysPortStats;
   EXPECT_HW_CALL(this->sw_, getSysPortStats()).Times(1);
+  this->sw_->updateStats();
   handler.getSysPortStats(sysPortStats);
 }
 
@@ -561,13 +565,13 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getHwPortStats) {
   ThriftHandler handler(this->sw_);
   std::map<std::string, HwPortStats> hwPortStats;
   EXPECT_HW_CALL(this->sw_, getPortStats()).Times(1);
+  this->sw_->updateStats();
   handler.getHwPortStats(hwPortStats);
 }
 
 TYPED_TEST(ThriftTestAllSwitchTypes, getFabricReachabilityStats) {
   ThriftHandler handler(this->sw_);
   FabricReachabilityStats stats;
-  EXPECT_HW_CALL(this->sw_, getFabricReachabilityStats()).Times(1);
   handler.getFabricReachabilityStats(stats);
 }
 
@@ -575,7 +579,80 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getCpuPortStats) {
   ThriftHandler handler(this->sw_);
   CpuPortStats cpuPortStats;
   EXPECT_HW_CALL(this->sw_, getCpuPortStats()).Times(1);
+  this->sw_->updateStats();
   handler.getCpuPortStats(cpuPortStats);
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getAllEcmpDetails) {
+  ThriftHandler handler(this->sw_);
+  std::vector<EcmpDetails> ecmpDetails;
+  EXPECT_HW_CALL(this->sw_, getAllEcmpDetails()).Times(1);
+  handler.getAllEcmpDetails(ecmpDetails);
+}
+
+TYPED_TEST(ThriftTestAllSwitchTypes, getAclTableGroup) {
+  SCOPE_EXIT {
+    FLAGS_enable_acl_table_group = false;
+  };
+  FLAGS_enable_acl_table_group = true;
+  ThriftHandler handler(this->sw_);
+
+  auto switchIdAndType = this->getSwitchIdAndType();
+
+  AclTableThrift aclTables;
+  handler.getAclTableGroup(aclTables);
+  EXPECT_EQ(aclTables.aclTableEntries()->size(), 0);
+  // No ACLs on fabric switches
+  if (!this->isFabric()) {
+    cfg::SwitchConfig config = testConfigA(switchIdAndType.second);
+    cfg::AclTableGroup tableGroup;
+    tableGroup.name() = "test-table-group";
+    tableGroup.stage() = cfg::AclStage::INGRESS;
+
+    auto createAclTable = [](auto tableNum) {
+      cfg::AclTable cfgTable;
+
+      cfgTable.name() = folly::to<std::string>("test-table-", tableNum);
+      cfgTable.priority() = tableNum;
+      cfgTable.aclEntries()->resize(2);
+      cfgTable.aclEntries()[0].name() =
+          folly::to<std::string>("table", tableNum, "_acl1");
+      cfgTable.aclEntries()[0].actionType() = cfg::AclActionType::DENY;
+      cfgTable.aclEntries()[0].srcIp() = "192.168.0.1";
+      cfgTable.aclEntries()[0].dstIp() = "192.168.0.0/24";
+      cfgTable.aclEntries()[0].srcPort() = 5;
+      cfgTable.aclEntries()[0].dstPort() = 8;
+      cfgTable.aclEntries()[1].name() =
+          folly::to<std::string>("table", tableNum, "_acl2");
+      cfgTable.aclEntries()[1].actionType() = cfg::AclActionType::DENY;
+      cfgTable.aclEntries()[1].srcIp() = "192.168.1.1";
+      cfgTable.aclEntries()[1].dstIp() = "192.168.1.0/24";
+      cfgTable.aclEntries()[1].srcPort() = 5;
+      cfgTable.aclEntries()[1].dstPort() = 8;
+
+      return cfgTable;
+    };
+
+    tableGroup.aclTables()->push_back(createAclTable(1));
+    tableGroup.aclTables()->push_back(createAclTable(2));
+
+    config.aclTableGroup() = tableGroup;
+    this->sw_->applyConfig("New config with acl table group", config);
+    auto state = this->sw_->getState();
+    handler.getAclTableGroup(aclTables);
+    EXPECT_EQ(aclTables.aclTableEntries()->size(), 2);
+    int tableNum = 1;
+    for (auto& [aclTableName, aclEntries] : *aclTables.aclTableEntries()) {
+      EXPECT_EQ(aclTableName, folly::to<std::string>("test-table-", tableNum));
+      EXPECT_EQ(aclEntries.size(), 2);
+      for (int i = 0; i < 2; i++) {
+        EXPECT_EQ(
+            *aclEntries[i].name(),
+            folly::to<std::string>("table", tableNum, "_acl", i + 1));
+      }
+      tableNum++;
+    }
+  }
 }
 
 TYPED_TEST(ThriftTestAllSwitchTypes, getAclTable) {
@@ -653,10 +730,12 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getDsfSubscriptions) {
     this->sw_->applyConfig("Config with 1 more IN node", config);
 
     handler.getDsfSubscriptions(subscriptions);
-    EXPECT_EQ(subscriptions.size(), 1);
-    EXPECT_EQ(*subscriptions[0].name(), *dsfNodeCfg.name());
-    EXPECT_EQ((*subscriptions[0].paths()).size(), 3);
-    EXPECT_EQ(*subscriptions[0].state(), "DISCONNECTED");
+    EXPECT_EQ(subscriptions.size(), 2);
+    for (const auto& subscription : subscriptions) {
+      EXPECT_EQ(*subscription.name(), *dsfNodeCfg.name());
+      EXPECT_EQ((*subscription.paths()).size(), 3);
+      EXPECT_EQ(*subscription.state(), "DISCONNECTED");
+    }
   }
 }
 
@@ -963,6 +1042,30 @@ TYPED_TEST(ThriftTestAllSwitchTypes, getAggregatePorts) {
       getAggregatePortMemberIDs(*config.aggregatePorts()[1].memberPorts()));
 }
 
+TYPED_TEST(ThriftTestAllSwitchTypes, getSwitchIndicesForInterfaces) {
+  ThriftHandler handler(this->sw_);
+  std::map<int16_t, std::vector<std::string>> switchIndicesForInterfaces;
+  std::vector<std::string> interfaces;
+  handler.getInterfaceList(interfaces);
+  if (this->isFabric()) {
+    EXPECT_TRUE(interfaces.empty());
+    return;
+  }
+  // Remove dummy recycle port interface if switch type is VOQ
+  if (this->isVoq()) {
+    interfaces.erase(interfaces.begin());
+  }
+  handler.getSwitchIndicesForInterfaces(
+      switchIndicesForInterfaces,
+      std::make_unique<std::vector<std::string>>(interfaces));
+  EXPECT_EQ(switchIndicesForInterfaces.size(), 1);
+  EXPECT_EQ(switchIndicesForInterfaces.begin()->first, 0);
+  auto fetchedInterfaces = switchIndicesForInterfaces.begin()->second;
+  for (auto i = 0; i < interfaces.size(); i++) {
+    EXPECT_EQ(interfaces[i], fetchedInterfaces[i]);
+  }
+}
+
 TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
   ThriftHandler handler(sw_);
 
@@ -983,7 +1086,7 @@ TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
         waitForStateUpdates(handler.getSw());
 
         auto gotMacAddrsToBlock =
-            util::getFirstNodeIf(
+            utility::getFirstNodeIf(
                 handler.getSw()->getState()->getSwitchSettings())
                 ->getMacAddrsToBlock_DEPRECATED();
         EXPECT_EQ(macAddrsToBlock, gotMacAddrsToBlock);
@@ -1010,7 +1113,7 @@ TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
   waitForStateUpdates(sw_);
   EXPECT_EQ(
       0,
-      util::getFirstNodeIf(sw_->getState()->getSwitchSettings())
+      utility::getFirstNodeIf(sw_->getState()->getSwitchSettings())
           ->getMacAddrsToBlock_DEPRECATED()
           .size());
   handler.getMacAddrsToBlock(macAddrsToBlock);
@@ -1022,7 +1125,7 @@ TEST_F(ThriftTest, getAndSetMacAddrsToBlock) {
   waitForStateUpdates(sw_);
   EXPECT_EQ(
       0,
-      util::getFirstNodeIf(sw_->getState()->getSwitchSettings())
+      utility::getFirstNodeIf(sw_->getState()->getSwitchSettings())
           ->getMacAddrsToBlock_DEPRECATED()
           .size());
   handler.getMacAddrsToBlock(macAddrsToBlock);
@@ -1848,7 +1951,7 @@ TEST_F(ThriftTest, UnicastRoutesWithClassID) {
   std::optional<cfg::AclLookupClass> classID1(
       cfg::AclLookupClass::DST_CLASS_L3_DPR);
   std::optional<cfg::AclLookupClass> classID2(
-      cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP6);
+      cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
 
   // Add BGP routes with class ID
   handler.addUnicastRoute(

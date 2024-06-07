@@ -5,18 +5,11 @@
 #include <glog/logging.h>
 
 #include <folly/init/Init.h>
-#include "fboss/agent/FbossInit.h"
 
-#include <common/services/cpp/ServiceFrameworkLight.h>
-#include <common/services/cpp/ThriftAclCheckerModuleConfig.h>
 #include <folly/io/async/AsyncSignalHandler.h>
-#include "common/base/BuildInfo.h"
-#include "common/services/cpp/AclCheckerModule.h"
-#include "common/time/ChronoFlags.h"
-#include "fboss/facebook/bitsflow/BitsflowHelper.h"
 #include "fboss/fsdb/common/Flags.h"
-#include "fboss/fsdb/common/Types.h"
 #include "fboss/fsdb/server/FsdbConfig.h"
+#include "fboss/fsdb/server/Server.h"
 #include "fboss/fsdb/server/ServiceHandler.h"
 #include "fboss/fsdb/server/ThriftAcceptor.h"
 
@@ -26,27 +19,11 @@ using namespace std::chrono_literals; // @donotremove
 
 DEFINE_bool(readConfigFile, true, "Whether config file should be read");
 
-DEFINE_bool(memoryProfiling, false, "Whether to enable memory profiling");
-
-DEFINE_time_ms(
-    streamExpire,
-    1ms * 15 * 60 * 1000 /* quarter hour */,
+DEFINE_int32(
+    streamExpire_ms,
+    1 * 15 * 60 * 1000 /* quarter hour */,
     "Delay after which connection to a publisher that has not "
     "published to any metric is closed");
-
-// NOTE: we create/open rocksdb instances per publisher before accepting
-// connections from publishers (or subscribers). The delay incurred
-// by rocksdb::DB::Open() is significant and may cause publisher
-// connection to time out if invoked in the Thrift handler thread.
-// We avoid that by creating/opening the rocksdb instance at startup.
-// This has the downside of requiring the list of publishers to be available
-// when FSDB starts. We use gflag (joined by comma) for this purpose
-// (FSDB config can override).
-DEFINE_string(
-    publisherIdsToOpenRocksDbAtStartFor,
-    "wedge_agent,qsfp_service,bgp,openr",
-    "PublisherIds for which RocksDB instances will be created/opened"
-    " when FSDB starts and before accepting any incoming connections");
 
 DEFINE_int32(
     stat_publish_interval_ms,
@@ -81,44 +58,6 @@ DEFINE_bool(
 
 namespace facebook::fboss::fsdb {
 
-std::unique_ptr<FsdbConfig> parseConfig(int argc, char** argv) {
-  // one pass over flags, but don't clear argc/argv. We only do this
-  // to extract the 'fsdb_config' arg.
-  gflags::ParseCommandLineFlags(&argc, &argv, false);
-  return FLAGS_readConfigFile ? FsdbConfig::fromDefaultFile()
-                              : std::make_unique<FsdbConfig>();
-}
-
-void initFlagDefaults(
-    const std::unordered_map<std::string, std::string>& defaults) {
-  for (auto item : defaults) {
-    // logging not initialized yet, need to use std::cerr
-    std::cerr << "Overriding default flag from config: " << item.first.c_str()
-              << "=" << item.second.c_str() << std::endl;
-    gflags::SetCommandLineOptionWithMode(
-        item.first.c_str(), item.second.c_str(), gflags::SET_FLAGS_DEFAULT);
-  }
-}
-
-namespace {
-class SignalHandler : public folly::AsyncSignalHandler {
- public:
-  SignalHandler(folly::EventBase* evb, Callback&& cleanup)
-      : AsyncSignalHandler(evb), cleanup_(cleanup) {
-    registerSignalHandler(SIGINT);
-    registerSignalHandler(SIGTERM);
-  }
-
-  void signalReceived(int signum) noexcept override {
-    XLOG(INFO) << "Got signal to stop " << signum;
-    cleanup_();
-  }
-
- private:
-  Callback cleanup_;
-};
-} // namespace
-
 static apache::thrift::SSLPolicy getThriftServerSSLPolicy() {
   if (FLAGS_ssl_policy == "disabled") {
     return apache::thrift::SSLPolicy::DISABLED;
@@ -150,63 +89,35 @@ static std::vector<folly::CIDRNetwork> getTrustedSubnets(
   return trustedSubnets;
 }
 
-static void enableAclChecker(
-    std::shared_ptr<services::ServiceFrameworkLight> instance) {
-  if (FLAGS_acl_checker_module_enable) {
-    // use Bitsflow to render ACL
-    auto bitsflowClientName = ::configerator::structs::neteng::fboss::bitsflow::
-        BitsflowClient::FBOSS_FSDB;
-    bitsflow::BitsflowHelper().initBitsflow(bitsflowClientName);
+std::shared_ptr<FsdbConfig> parseConfig(int argc, char** argv) {
+  // one pass over flags, but don't clear argc/argv. We only do this
+  // to extract the 'fsdb_config' arg.
+  gflags::ParseCommandLineFlags(&argc, &argv, false);
+  return FLAGS_readConfigFile ? FsdbConfig::fromDefaultFile()
+                              : std::make_shared<FsdbConfig>();
+}
 
-    auto aclCheckerModuleConfig =
-        std::make_shared<services::ThriftAclCheckerModuleConfig>();
-
-    // Skip ACL checks/enforcements for localhost communication.
-    aclCheckerModuleConfig->setAclCheckerModuleSkipOnLoopback(true);
-
-    instance->addOrReplaceModule(
-        services::AclCheckerModule::kModuleName,
-        new services::AclCheckerModule(instance.get(), aclCheckerModuleConfig));
-
-    XLOG(INFO) << "Thrift ACL enabled using static ACL file: "
-               << aclCheckerModuleConfig->getStaticFileAcl();
-    XLOG(DBG2) << "Thrift ACL enforced: "
-               << aclCheckerModuleConfig->getAclCheckerModuleEnforce();
+void initFlagDefaults(
+    const std::unordered_map<std::string, std::string>& defaults) {
+  for (const auto& item : defaults) {
+    // logging not initialized yet, need to use std::cerr
+    std::cerr << "Overriding default flag from config: " << item.first.c_str()
+              << "=" << item.second.c_str() << std::endl;
+    gflags::SetCommandLineOptionWithMode(
+        item.first.c_str(), item.second.c_str(), gflags::SET_FLAGS_DEFAULT);
   }
 }
 
-int fsdbMain(int argc, char** argv) {
-  auto fsdbConfig = parseConfig(argc, argv);
-  initFlagDefaults(fsdbConfig->getThrift().get_defaultCommandLineArgs());
-
-  if (FLAGS_memoryProfiling) {
-    setenv("MALLOC_CONF", "prof:true", 1); // Enable heap profile
-  }
-
-  auto trustedSubnets =
-      getTrustedSubnets(fsdbConfig->getThrift().get_trustedSubnets());
-
-  facebook::fboss::fbossInit(argc, argv);
-  auto handler = std::make_shared<ServiceHandler>(
-      std::move(fsdbConfig),
-      FLAGS_publisherIdsToOpenRocksDbAtStartFor,
+std::shared_ptr<ServiceHandler> createThriftHandler(
+    std::shared_ptr<FsdbConfig> fsdbConfig) {
+  return std::make_shared<ServiceHandler>(
+      fsdbConfig,
       ServiceHandler::Options().setServeIdPathSubs(FLAGS_useIdPathsForSubs));
+}
 
-  auto instance = std::make_shared<services::ServiceFrameworkLight>(
-      "FsdbService",
-      true /* threadsafe */,
-      services::ServiceFrameworkLight::Options()
-          .setDisableScubaLogging(true)
-          .setDisableRequestIdLogging(true));
-
-  auto evbThread =
-      std::make_shared<folly::ScopedEventBaseThread>("fsdbSigHandlerThread");
-  SignalHandler signalHandler(
-      evbThread->getEventBase(), [instance]() { instance->stop(); });
-
-  facebook::fb303::ThreadCachedServiceData::get()->startPublishThread(
-      std::chrono::milliseconds(FLAGS_stat_publish_interval_ms));
-
+std::shared_ptr<apache::thrift::ThriftServer> createThriftServer(
+    std::shared_ptr<FsdbConfig> fsdbConfig,
+    std::shared_ptr<ServiceHandler> handler) {
   auto server = std::make_shared<apache::thrift::ThriftServer>();
   server->setInterface(handler);
   std::vector<folly::SocketAddress> addresses;
@@ -216,29 +127,21 @@ int fsdbMain(int argc, char** argv) {
     addresses.push_back(address);
   }
   server->setAddresses(addresses);
-  server->setStreamExpireTime(FLAGS_streamExpire_ms);
+  server->setStreamExpireTime(
+      std::chrono::milliseconds((FLAGS_streamExpire_ms)));
   server->setAllowPlaintextOnLoopback(true);
   server->setWorkersJoinTimeout(std::chrono::seconds(2));
   server->setQuickExitOnShutdownTimeout(true);
   server->setTosReflect(FLAGS_enable_tos_reflect);
   server->setSSLPolicy(getThriftServerSSLPolicy());
-  enableAclChecker(instance);
-
-  instance->addPrimaryThriftService(
-      server,
-      handler.get(),
-      services::ServiceFrameworkLight::ServerOptions()
-          .setExportUnprefixedCounters(false));
-
   if (FLAGS_enable_thrift_acceptor) {
+    auto trustedSubnets =
+        getTrustedSubnets(fsdbConfig->getThrift().get_trustedSubnets());
     server->setAcceptorFactory(
         std::make_shared<FsdbThriftAcceptorFactory<void>>(
             server.get(), std::nullopt, trustedSubnets));
   }
-
-  instance->go();
-
-  return 0;
+  return server;
 }
 
 } // namespace facebook::fboss::fsdb

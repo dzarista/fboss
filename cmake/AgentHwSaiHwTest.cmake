@@ -127,6 +127,21 @@ set_target_properties(sai_copp_utils PROPERTIES COMPILE_FLAGS
   -DSAI_VER_RELEASE=${SAI_VER_RELEASE}"
 )
 
+add_library(sai_acl_utils
+  fboss/agent/hw/sai/hw_test/HwTestAclUtils.cpp
+)
+
+target_link_libraries(sai_acl_utils
+  sai_switch # //fboss/agent/hw/sai/switch:sai_switch
+  hw_acl_utils
+)
+
+set_target_properties(sai_acl_utils PROPERTIES COMPILE_FLAGS
+  "-DSAI_VER_MAJOR=${SAI_VER_MAJOR} \
+  -DSAI_VER_MINOR=${SAI_VER_MINOR}  \
+  -DSAI_VER_RELEASE=${SAI_VER_RELEASE}"
+)
+
 add_library(sai_packet_trap_helper
   fboss/agent/hw/sai/hw_test/HwTestPacketTrapEntry.cpp
 )
@@ -141,25 +156,12 @@ set_target_properties(sai_packet_trap_helper PROPERTIES COMPILE_FLAGS
   -DSAI_VER_RELEASE=${SAI_VER_RELEASE}"
 )
 
-add_library(sai_qos_utils
-  fboss/agent/hw/sai/hw_test/HwTestQosUtils.cpp
-)
-
-target_link_libraries(sai_qos_utils
-  sai_switch # //fboss/agent/hw/sai/switch:sai_switch
-)
-
-set_target_properties(sai_qos_utils PROPERTIES COMPILE_FLAGS
-  "-DSAI_VER_MAJOR=${SAI_VER_MAJOR} \
-  -DSAI_VER_MINOR=${SAI_VER_MINOR}  \
-  -DSAI_VER_RELEASE=${SAI_VER_RELEASE}"
-)
 
 function(BUILD_SAI_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
 
   message(STATUS "Building SAI_IMPL_NAME: ${SAI_IMPL_NAME} SAI_IMPL_ARG: ${SAI_IMPL_ARG}")
 
-  add_executable(sai_test-${SAI_IMPL_NAME}-${SAI_VER_SUFFIX}
+  add_executable(sai_test-${SAI_IMPL_NAME}
     fboss/agent/hw/sai/hw_test/dataplane_tests/SaiAclTableGroupTrafficTests.cpp
     fboss/agent/hw/sai/hw_test/HwTestTamUtils.cpp
     fboss/agent/hw/sai/hw_test/HwTestAclUtils.cpp
@@ -177,13 +179,13 @@ function(BUILD_SAI_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
     fboss/agent/hw/sai/hw_test/HwTestTeFlowUtils.cpp
     fboss/agent/hw/sai/hw_test/HwTestTrunkUtils.cpp
     fboss/agent/hw/sai/hw_test/HwTestPortUtils.cpp
-    fboss/agent/hw/sai/hw_test/HwTestQosUtils.cpp
     fboss/agent/hw/sai/hw_test/HwTestRouteUtils.cpp
     fboss/agent/hw/sai/hw_test/HwTestUdfUtils.cpp
     fboss/agent/hw/sai/hw_test/HwVlanUtils.cpp
     fboss/agent/hw/sai/hw_test/SaiAclTableGroupTests.cpp
     fboss/agent/hw/sai/hw_test/SaiNextHopGroupTest.cpp
     fboss/agent/hw/sai/hw_test/SaiPortUtils.cpp
+    fboss/agent/hw/sai/hw_test/SaiPortAdminStateTests.cpp
     fboss/agent/hw/sai/hw_test/SaiLinkStateRollbackTests.cpp
     fboss/agent/hw/sai/hw_test/SaiNeighborRollbackTests.cpp
     fboss/agent/hw/sai/hw_test/SaiRollbackTest.cpp
@@ -191,7 +193,7 @@ function(BUILD_SAI_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
     fboss/agent/hw/sai/hw_test/SaiQPHRollbackTests.cpp
   )
 
-  target_link_libraries(sai_test-${SAI_IMPL_NAME}-${SAI_VER_SUFFIX}
+  target_link_libraries(sai_test-${SAI_IMPL_NAME}
     # --whole-archive is needed for gtest to find these tests
     -Wl,--whole-archive
     ${SAI_IMPL_ARG}
@@ -206,12 +208,12 @@ function(BUILD_SAI_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
   )
 
   if (SAI_BRCM_IMPL)
-    target_link_libraries(sai_test-${SAI_IMPL_NAME}-${SAI_VER_SUFFIX}
+    target_link_libraries(sai_test-${SAI_IMPL_NAME}
       ${YAML}
     )
   endif()
 
-  set_target_properties(sai_test-${SAI_IMPL_NAME}-${SAI_VER_SUFFIX}
+  set_target_properties(sai_test-${SAI_IMPL_NAME}
       PROPERTIES COMPILE_FLAGS
       "-DSAI_VER_MAJOR=${SAI_VER_MAJOR} \
       -DSAI_VER_MINOR=${SAI_VER_MINOR}  \
@@ -224,7 +226,7 @@ if(BUILD_SAI_FAKE)
 BUILD_SAI_TEST("fake" fake_sai)
 install(
   TARGETS
-  sai_test-fake-${SAI_VER_SUFFIX})
+  sai_test-fake)
 endif()
 
 # If libsai_impl is provided, build sai tests linking with it
@@ -235,5 +237,5 @@ if(SAI_IMPL)
   BUILD_SAI_TEST("sai_impl" ${SAI_IMPL})
   install(
     TARGETS
-    sai_test-sai_impl-${SAI_VER_SUFFIX})
+    sai_test-sai_impl)
 endif()

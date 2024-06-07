@@ -9,6 +9,7 @@
  */
 
 #include "fboss/lib/thrift_service_client/ThriftServiceClient.h"
+#include "fboss/fsdb/if/gen-cpp2/FsdbService.h"
 
 namespace facebook::fboss::utils {
 
@@ -29,6 +30,13 @@ tryCreateEncryptedClient(
     folly::EventBase* eb,
     std::optional<uint8_t> tos);
 template std::unique_ptr<apache::thrift::Client<facebook::fboss::QsfpService>>
+tryCreateEncryptedClient(
+    const folly::SocketAddress& dstAddr,
+    const std::optional<folly::SocketAddress>& srcAddr,
+    folly::EventBase* eb,
+    std::optional<uint8_t> tos);
+template std::unique_ptr<
+    apache::thrift::Client<facebook::fboss::fsdb::FsdbService>>
 tryCreateEncryptedClient(
     const folly::SocketAddress& dstAddr,
     const std::optional<folly::SocketAddress>& srcAddr,

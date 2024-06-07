@@ -35,6 +35,8 @@ namespace folly {
 struct dynamic;
 }
 
+DECLARE_bool(flowletStatsEnable);
+
 namespace facebook::fboss {
 
 class SwitchState;
@@ -238,14 +240,21 @@ class HwSwitch {
 
   virtual void fetchL2Table(std::vector<L2EntryThrift>* l2Table) const = 0;
 
-  virtual std::map<PortID, phy::PhyInfo> updateAllPhyInfo() = 0;
-  virtual std::map<PortID, FabricEndpoint> getFabricConnectivity() const = 0;
+  void updateAllPhyInfo();
+  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const {
+    return lastPhyInfo_.copy();
+  }
+  virtual const std::map<PortID, FabricEndpoint>& getFabricConnectivity()
+      const = 0;
   virtual std::vector<PortID> getSwitchReachability(
       SwitchID switchId) const = 0;
   virtual std::map<std::string, HwSysPortStats> getSysPortStats() const = 0;
   virtual FabricReachabilityStats getFabricReachabilityStats() const = 0;
   virtual TeFlowStats getTeFlowStats() const = 0;
   virtual HwSwitchDropStats getSwitchDropStats() const = 0;
+  virtual HwFlowletStats getHwFlowletStats() const = 0;
+  virtual std::vector<EcmpDetails> getAllEcmpDetails() const = 0;
+  virtual HwSwitchWatermarkStats getSwitchWatermarkStats() const = 0;
 
   /*
    * Get latest device watermark bytes
@@ -255,7 +264,7 @@ class HwSwitch {
    * Allow hardware to perform any warm boot related cleanup
    * before we exit the application.
    */
-  void gracefulExit(const state::WarmbootState& thriftSwitchState);
+  void gracefulExit();
 
   /*
    * Get Hw Switch state in a folly::dynamic
@@ -310,22 +319,16 @@ class HwSwitch {
   }
 
   /*
-   * Returns true if the arp/ndp entry for the passed in ip/intf has been hit
-   * since the last call to getAndClearNeighborHit.
-   */
-  virtual bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) = 0;
-
-  /*
    * Clear port stats for specified port
    */
   virtual void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) = 0;
 
   virtual std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(
-      int32_t /*portId*/) {
+      PortID /*portId*/) {
     return std::vector<phy::PrbsLaneStats>();
   }
-  virtual void clearPortAsicPrbsStats(int32_t /*portId*/) {}
+  virtual void clearPortAsicPrbsStats(PortID /*portId*/) {}
 
   virtual std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
       int32_t /* portId */) {
@@ -373,6 +376,12 @@ class HwSwitch {
 
   bool isFullyConfigured() const;
 
+  virtual void syncLinkStates() = 0;
+  virtual void syncLinkActiveStates() = 0;
+  virtual void syncLinkConnectivity() = 0;
+
+  virtual AclStats getAclStats() const = 0;
+
  protected:
   void setProgrammedState(const std::shared_ptr<SwitchState>& state);
 
@@ -389,6 +398,8 @@ class HwSwitch {
   virtual void updateStatsImpl() = 0;
 
   virtual void gracefulExitImpl() = 0;
+
+  virtual std::map<PortID, phy::PhyInfo> updateAllPhyInfoImpl() = 0;
 
   std::shared_ptr<SwitchState> getMinAlpmState(
       RoutingInformationBase* rib,
@@ -415,6 +426,12 @@ class HwSwitch {
   std::optional<int64_t> switchId_;
 
   folly::Synchronized<std::shared_ptr<SwitchState>> programmedState_;
+
+  // Collecting phy Info is currently inefficient on some platforms. Instead of
+  // collecting them every second, tune down the frequency to only collect once
+  // every update_phy_info_interval_s seconds (default to be 10).
+  int phyInfoUpdateTime_{0};
+  folly::Synchronized<std::map<PortID, phy::PhyInfo>> lastPhyInfo_;
 };
 
 } // namespace facebook::fboss

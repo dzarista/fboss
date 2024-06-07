@@ -20,19 +20,14 @@
 
 using namespace apache::thrift;
 
-namespace {
-constexpr auto kValidSensorReadsThreshold = 0.5;
-}
-
 namespace facebook::fboss::platform::sensor_service {
 
 SensorServiceHwTest::~SensorServiceHwTest() = default;
 
 void SensorServiceHwTest::SetUp() {
-  sensorServiceImpl_ = std::make_shared<SensorServiceImpl>("");
+  sensorServiceImpl_ = std::make_shared<SensorServiceImpl>();
   sensorServiceHandler_ =
       std::make_shared<SensorServiceThriftHandler>(sensorServiceImpl_);
-
   auto sensorServiceConfigJson = ConfigLib().getSensorServiceConfig();
   apache::thrift::SimpleJSONSerializer::deserialize<SensorConfig>(
       sensorServiceConfigJson, sensorConfig_);
@@ -41,7 +36,6 @@ void SensorServiceHwTest::SetUp() {
 SensorReadResponse SensorServiceHwTest::getSensors(
     const std::vector<std::string>& sensors) {
   sensorServiceImpl_->fetchSensorData();
-
   SensorReadResponse response;
   sensorServiceHandler_->getSensorValuesByNames(
       response, std::make_unique<std::vector<std::string>>(sensors));
@@ -50,8 +44,6 @@ SensorReadResponse SensorServiceHwTest::getSensors(
 
 TEST_F(SensorServiceHwTest, GetAllSensors) {
   auto res = getSensors(std::vector<std::string>{});
-  int total = 0;
-  int valid = 0;
   for (const auto& [fruName, sensorMap] : *sensorConfig_.sensorMapList()) {
     for (const auto& [sensorName, sensor] : sensorMap) {
       auto it = std::find_if(
@@ -61,13 +53,9 @@ TEST_F(SensorServiceHwTest, GetAllSensors) {
             return *sensorData.name() == sensorNameCopy;
           });
       EXPECT_NE(it, std::end(*res.sensorData()));
-      if (it->value().has_value()) {
-        valid++;
-      }
-      total++;
+      EXPECT_TRUE(it->value().has_value());
     }
   }
-  EXPECT_GT((float)valid / total, kValidSensorReadsThreshold);
 }
 
 TEST_F(SensorServiceHwTest, GetBogusSensor) {
@@ -77,37 +65,32 @@ TEST_F(SensorServiceHwTest, GetBogusSensor) {
 TEST_F(SensorServiceHwTest, GetSomeSensors) {
   std::vector<std::string> sensorNames;
   for (const auto& [fruName, sensorMap] : *sensorConfig_.sensorMapList()) {
-    sensorNames.push_back(sensorMap.begin()->first);
+    if (sensorMap.size() > 0) {
+      sensorNames.push_back(sensorMap.begin()->first);
+    }
   }
 
-  int valid = 0;
   auto response1 = getSensors(sensorNames);
   EXPECT_EQ(response1.sensorData()->size(), sensorNames.size());
   for (const auto& sensorData : *response1.sensorData()) {
-    if (sensorData.value().has_value()) {
-      valid++;
-    }
+    EXPECT_TRUE(sensorData.value().has_value());
   }
-  EXPECT_GT((float)valid / sensorNames.size(), kValidSensorReadsThreshold);
 
   // Burn a second
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  valid = 0;
   auto response2 = getSensors(sensorNames);
   EXPECT_EQ(response2.sensorData()->size(), sensorNames.size());
   for (const auto& sensorData : *response2.sensorData()) {
-    if (sensorData.value().has_value()) {
-      valid++;
-    }
+    EXPECT_TRUE(sensorData.value().has_value());
   }
-  EXPECT_GT((float)valid / sensorNames.size(), kValidSensorReadsThreshold);
 
   // Response2 sensor collection time stamp should be later
   EXPECT_GT(*response2.timeStamp(), *response1.timeStamp());
 
   // Check individual sensor reads happen after the previous reads.
-  valid = 0;
+  int total = 0;
+  int valid = 0;
   for (const auto& sensorData : *response2.sensorData()) {
     auto it = std::find_if(
         response1.sensorData()->begin(),
@@ -115,66 +98,54 @@ TEST_F(SensorServiceHwTest, GetSomeSensors) {
         [sensorName = *sensorData.name()](auto sensorData) {
           return *sensorData.name() == sensorName;
         });
-    if (sensorData.timeStamp().value_or(0) > it->timeStamp().value_or(0)) {
+    if (*sensorData.timeStamp() > *it->timeStamp()) {
       valid++;
     }
+    total++;
   }
-  EXPECT_GT((float)valid / sensorNames.size(), kValidSensorReadsThreshold);
-}
-
-TEST_F(SensorServiceHwTest, GetSensorsByFruTypes) {
-  std::vector<FruType> fruTypes{FruType::ALL};
-  SensorReadResponse response;
-  sensorServiceHandler_->getSensorValuesByFruTypes(
-      response, std::make_unique<std::vector<FruType>>(fruTypes));
-  // TODO assert for non empty response once this thrift API is implemented
-  EXPECT_EQ(response.sensorData()->size(), 0);
+  EXPECT_GT((float)valid / total, 0.9);
 }
 
 TEST_F(SensorServiceHwTest, GetSomeSensorsViaThrift) {
+  std::vector<std::string> sensorNames;
+  for (const auto& [fruName, sensorMap] : *sensorConfig_.sensorMapList()) {
+    if (sensorMap.size() > 0) {
+      sensorNames.push_back(sensorMap.begin()->first);
+    }
+  }
+  // Trigger a fetch before the thrift request hits the server.
+  sensorServiceImpl_->fetchSensorData();
   apache::thrift::ScopedServerInterfaceThread server(sensorServiceHandler_);
   auto client = server.newClient<apache::thrift::Client<SensorServiceThrift>>();
   SensorReadResponse response;
-  client->sync_getSensorValuesByNames(response, {"PCH_TEMP"});
-  EXPECT_EQ(response.sensorData()->size(), 1);
+  client->sync_getSensorValuesByNames(response, sensorNames);
+  EXPECT_EQ(response.sensorData()->size(), sensorNames.size());
+  for (const auto& sensorData : *response.sensorData()) {
+    EXPECT_TRUE(sensorData.value().has_value());
+  }
 }
 
 TEST_F(SensorServiceHwTest, SensorFetchODSCheck) {
   sensorServiceImpl_->fetchSensorData();
+  EXPECT_EQ(fb303::fbData->getCounter(SensorServiceImpl::kHasReadFailure), 0);
+  EXPECT_EQ(fb303::fbData->getCounter(SensorServiceImpl::kTotalReadFailure), 0);
   auto sensorMap = sensorServiceImpl_->getAllSensorData();
-
-  auto failures = fb303::fbData->getCounter("sensor_read.total.failures");
-  EXPECT_GT(1 - (float)failures / sensorMap.size(), kValidSensorReadsThreshold);
-  // Don't check these until Darwin switches in SNC are fixed.
-  // EXPECT_EQ(fb303::fbData->getCounter("sensor_read.has.failures"), 0);
-}
-
-TEST_F(SensorServiceHwTest, PublishStats) {
-  sensorServiceImpl_->fetchSensorData();
-
-  SensorStatsPub publisher(sensorServiceImpl_.get());
-  publisher.publishStats();
-
-  int valid = 0;
-  auto sensorMap = sensorServiceImpl_->getAllSensorData();
+  EXPECT_GT(fb303::fbData->getCounter(SensorServiceImpl::kReadTotal), 0);
   for (const auto& [sensorName, sensorData] : sensorMap) {
-    try {
-      auto value = fb303::fbData->getCounter(sensorName);
-      if (value == (int64_t)*sensorData.value()) {
-        valid++;
-      }
-    } catch (const std::exception& ex) {
-    }
+    EXPECT_EQ(
+        fb303::fbData->getCounter(
+            fmt::format(SensorServiceImpl::kReadValue, sensorName)),
+        (int64_t)*sensorData.value());
+    EXPECT_EQ(
+        fb303::fbData->getCounter(
+            fmt::format(SensorServiceImpl::kReadFailure, sensorName)),
+        0);
   }
-  EXPECT_GT((float)valid / sensorMap.size(), kValidSensorReadsThreshold);
 }
 } // namespace facebook::fboss::platform::sensor_service
 
 int main(int argc, char* argv[]) {
-  // Parse command line flags
   testing::InitGoogleTest(&argc, argv);
-  facebook::fboss::platform::helpers::init(argc, argv);
-
-  // Run the tests
+  facebook::fboss::platform::helpers::init(&argc, &argv);
   return RUN_ALL_TESTS();
 }

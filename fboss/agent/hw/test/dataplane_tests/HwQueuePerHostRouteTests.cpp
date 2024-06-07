@@ -14,10 +14,10 @@
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/HwTestRouteUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/state/NodeBase-defs.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 #include <string>
 
@@ -31,9 +31,11 @@ class HwQueuePerHostRouteTest : public HwLinkStateDependentTest {
  protected:
   cfg::SwitchConfig initialConfig() const override {
     return utility::oneL3IntfTwoPortConfig(
-        getHwSwitch(),
+        getHwSwitch()->getPlatform()->getPlatformMapping(),
+        getHwSwitch()->getPlatform()->getAsic(),
         masterLogicalPortIds()[0],
         masterLogicalPortIds()[1],
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
         getAsic()->desiredLoopbackModes());
   }
 
@@ -101,7 +103,8 @@ class HwQueuePerHostRouteTest : public HwLinkStateDependentTest {
   void setupHelper(bool blockNeighbor) {
     auto newCfg{initialConfig()};
     utility::addQueuePerHostQueueConfig(&newCfg);
-    utility::addQueuePerHostAcls(&newCfg);
+    utility::addQueuePerHostAcls(
+        &newCfg, getHwSwitch()->getPlatform()->isSai());
 
     this->applyNewConfig(newCfg);
     this->addRoutes({this->kGetRoutePrefix()});
@@ -113,12 +116,13 @@ class HwQueuePerHostRouteTest : public HwLinkStateDependentTest {
   }
 
   void verifyHelper(bool useFrontPanel, bool blockNeighbor) {
+    XLOG(DBG2) << "verify send packets "
+               << (useFrontPanel ? "out of port" : "switched");
     auto vlanId = VlanID(*this->initialConfig().vlanPorts()[0].vlanID());
     auto intfMac = utility::getInterfaceMac(this->getProgrammedState(), vlanId);
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
 
     utility::verifyQueuePerHostMapping(
-        getHwSwitch(),
         getHwSwitchEnsemble(),
         vlanId,
         srcMac,
@@ -137,7 +141,7 @@ using IpTypes = ::testing::Types<folly::IPAddressV4, folly::IPAddressV6>;
 
 TYPED_TEST_SUITE(HwQueuePerHostRouteTest, IpTypes);
 
-TYPED_TEST(HwQueuePerHostRouteTest, VerifyHostToQueueMappingClassIDCpu) {
+TYPED_TEST(HwQueuePerHostRouteTest, VerifyHostToQueueMappingClassID) {
   if (!this->isSupported(HwAsic::Feature::L3_QOS)) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -145,18 +149,18 @@ TYPED_TEST(HwQueuePerHostRouteTest, VerifyHostToQueueMappingClassIDCpu) {
     return;
   }
 
-  auto setup = [=, this]() {
-    this->setupHelper(false /* blockNeighbor */);
-    this->bringDownPort(this->masterLogicalPortIds()[1]);
-  };
+  auto setup = [=, this]() { this->setupHelper(false /* blockNeighbor */); };
   auto verify = [=, this]() {
+    this->bringUpPort(this->masterLogicalPortIds()[1]);
+    this->verifyHelper(true /* front panel port */, false /* block neighbor */);
+    this->bringDownPort(this->masterLogicalPortIds()[1]);
     this->verifyHelper(false /* cpu port */, false /* block neighbor */);
   };
 
   this->verifyAcrossWarmBoots(setup, verify);
 }
 
-TYPED_TEST(HwQueuePerHostRouteTest, VerifyHostToQueueMappingClassIDFrontPanel) {
+TYPED_TEST(HwQueuePerHostRouteTest, VerifyHostToQueueMappingClassIDBlock) {
   if (!this->isSupported(HwAsic::Feature::L3_QOS)) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -164,46 +168,12 @@ TYPED_TEST(HwQueuePerHostRouteTest, VerifyHostToQueueMappingClassIDFrontPanel) {
     return;
   }
 
-  auto setup = [=, this]() { this->setupHelper(false /*blockNeighbor */); };
+  auto setup = [=, this]() { this->setupHelper(true /* blockNeighbor */); };
   auto verify = [=, this]() {
-    this->verifyHelper(true /* front panel port */, false /* block neighbor */);
-  };
-
-  this->verifyAcrossWarmBoots(setup, verify);
-}
-
-TYPED_TEST(HwQueuePerHostRouteTest, VerifyHostToQueueMappingClassIDCpuBlock) {
-  if (!this->isSupported(HwAsic::Feature::L3_QOS)) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-    return;
-  }
-
-  auto setup = [=, this]() {
-    this->setupHelper(true /* blockNeighbor */);
+    this->bringUpPort(this->masterLogicalPortIds()[1]);
+    this->verifyHelper(true /* front panel port */, true /* block neighbor */);
     this->bringDownPort(this->masterLogicalPortIds()[1]);
-  };
-  auto verify = [=, this]() {
     this->verifyHelper(false /* cpu port */, true /* block neighbor */);
-  };
-
-  this->verifyAcrossWarmBoots(setup, verify);
-}
-
-TYPED_TEST(
-    HwQueuePerHostRouteTest,
-    VerifyHostToQueueMappingClassIDFrontPanelBlock) {
-  if (!this->isSupported(HwAsic::Feature::L3_QOS)) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-    return;
-  }
-
-  auto setup = [=, this]() { this->setupHelper(true /*blockNeighbor */); };
-  auto verify = [=, this]() {
-    this->verifyHelper(true /* front panel port */, true /*block neighbor */);
   };
 
   this->verifyAcrossWarmBoots(setup, verify);

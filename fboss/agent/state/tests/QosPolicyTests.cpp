@@ -15,7 +15,6 @@
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/TestUtils.h"
 
-#include <boost/container/flat_map.hpp>
 #include <gtest/gtest.h>
 
 using namespace facebook::fboss;
@@ -509,7 +508,7 @@ TEST(QosPolicy, DefaultQosPolicy) {
   // default policy is not set
   EXPECT_EQ(state->getDefaultDataPlaneQosPolicy(), nullptr);
   EXPECT_EQ(
-      util::getFirstNodeIf(state->getSwitchSettings())
+      utility::getFirstNodeIf(state->getSwitchSettings())
           ->getDefaultDataPlaneQosPolicy(),
       nullptr);
 
@@ -521,13 +520,13 @@ TEST(QosPolicy, DefaultQosPolicy) {
 
   EXPECT_NE(state->getDefaultDataPlaneQosPolicy(), nullptr);
   EXPECT_NE(
-      util::getFirstNodeIf(state->getSwitchSettings())
+      utility::getFirstNodeIf(state->getSwitchSettings())
           ->getDefaultDataPlaneQosPolicy(),
       nullptr);
   checkQosPolicy(policy, state->getDefaultDataPlaneQosPolicy());
   EXPECT_EQ(
       state->getDefaultDataPlaneQosPolicy(),
-      util::getFirstNodeIf(state->getSwitchSettings())
+      utility::getFirstNodeIf(state->getSwitchSettings())
           ->getDefaultDataPlaneQosPolicy());
   EXPECT_EQ(state->getQosPolicies()->getNodeIf("qosPolicy"), nullptr);
 }

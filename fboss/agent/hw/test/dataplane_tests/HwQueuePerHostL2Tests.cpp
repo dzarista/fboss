@@ -15,13 +15,13 @@
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
-#include "fboss/agent/hw/test/HwTestMacUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/packet/Ethertype.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/PortDescriptor.h"
-#include "fboss/agent/test/ResourceLibUtil.h"
+
+#include "fboss/agent/test/utils/MacTestUtils.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 #include "fboss/agent/hw/test/ConfigFactory.h"
 
@@ -31,15 +31,17 @@ class HwQueuePerHostL2Test : public HwLinkStateDependentTest {
  protected:
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = utility::oneL3IntfTwoPortConfig(
-        getHwSwitch(),
+        getHwSwitch()->getPlatform()->getPlatformMapping(),
+        getHwSwitch()->getPlatform()->getAsic(),
         masterLogicalPortIds()[0],
         masterLogicalPortIds()[1],
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
         getAsic()->desiredLoopbackModes());
     cfg.switchSettings()->l2LearningMode() = cfg::L2LearningMode::SOFTWARE;
 
     if (isSupported(HwAsic::Feature::L3_QOS)) {
       utility::addQueuePerHostQueueConfig(&cfg);
-      utility::addQueuePerHostAcls(&cfg);
+      utility::addQueuePerHostAcls(&cfg, getHwSwitchEnsemble()->isSai());
     }
 
     return cfg;
@@ -217,7 +219,7 @@ class HwQueuePerHostL2Test : public HwLinkStateDependentTest {
   }
 };
 
-TEST_F(HwQueuePerHostL2Test, VerifyHostToQueueMappingClassIDCpu) {
+TEST_F(HwQueuePerHostL2Test, VerifyHostToQueueMappingClassID) {
   if (!isSupported(HwAsic::Feature::L3_QOS)) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();

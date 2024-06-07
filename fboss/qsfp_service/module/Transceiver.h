@@ -9,6 +9,9 @@
  */
 #pragma once
 #include <cstdint>
+#include <vector>
+
+#include <folly/futures/Future.h>
 
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
@@ -16,8 +19,6 @@
 #include "fboss/lib/phy/gen-cpp2/prbs_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/qsfp_service_config_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
-
-#include <folly/futures/Future.h>
 
 namespace facebook {
 namespace fboss {
@@ -50,10 +51,13 @@ struct TransceiverPortState {
   std::string portName;
   uint8_t startHostLane;
   cfg::PortSpeed speed = cfg::PortSpeed::DEFAULT;
+  uint8_t numHostLanes;
+  TransmitterTechnology transmitterTech = TransmitterTechnology::UNKNOWN;
 
   bool operator==(const TransceiverPortState& other) const {
     return speed == other.speed && portName == other.portName &&
-        startHostLane == other.startHostLane;
+        startHostLane == other.startHostLane &&
+        transmitterTech == other.transmitterTech;
   }
 };
 
@@ -71,21 +75,12 @@ struct ProgramTransceiverState {
 
 struct TransceiverID;
 class TransceiverManager;
+class FbossFirmware;
 
 class Transceiver {
  public:
-  explicit Transceiver(TransceiverManager* transceiverManager)
-      : transceiverManager_(transceiverManager) {
-    // As Transceiver needs to use state machine while TransceiverManager is
-    // the main class to maintain state machine update, we need to make sure
-    // transceiverManager_ can't be nullptr
-    CHECK(transceiverManager_ != nullptr);
-  }
+  explicit Transceiver() {}
   virtual ~Transceiver() {}
-
-  TransceiverManager* getTransceiverManager() const {
-    return transceiverManager_;
-  }
 
   /*
    * Transceiver type (SFP, QSFP)
@@ -215,9 +210,10 @@ class Transceiver {
    */
   virtual bool tryRemediate(
       bool allPortsDown,
+      time_t pauseRemediation,
       const std::vector<std::string>& ports) = 0;
 
-  virtual bool shouldRemediate() = 0;
+  virtual bool shouldRemediate(time_t pauseRemediation) = 0;
 
   /*
    * Returns the list of prbs polynomials supported on the given side
@@ -285,21 +281,32 @@ class Transceiver {
     return dirty_;
   }
 
-  virtual bool requiresFirmwareUpgrade() const = 0;
-
   // Blocking call to upgrade the firmware on the transceiver.
   // Returns true if successful, false otherwise.
-  // If fw is not specified, then the firmware image to upgrade is picked from
-  // the qsfp config
   virtual bool upgradeFirmware(
-      const std::optional<cfg::Firmware>& fw = std::nullopt) = 0;
+      std::vector<std::unique_ptr<FbossFirmware>>& fwList) = 0;
 
   virtual TransceiverInfo updateFwUpgradeStatusInTcvrInfoLocked(
       bool upgradeInProgress) = 0;
 
+  virtual std::string getFwStorageHandle() const = 0;
+
+  virtual std::map<std::string, CdbDatapathSymErrHistogram>
+  getSymbolErrorHistogram() = 0;
+
+  virtual std::vector<MediaInterfaceCode> getSupportedMediaInterfaces()
+      const = 0;
+
+  virtual bool tcvrPortStateSupported(
+      TransceiverPortState& portState) const = 0;
+
  protected:
   virtual void latchAndReadVdmDataLocked() = 0;
-  virtual bool shouldRemediateLocked() = 0;
+  virtual bool shouldRemediateLocked(time_t pauseRemidiation) = 0;
+
+  TransceiverManager* getTransceiverManager() const {
+    return transceiverManager_;
+  }
 
   // QSFP Presence status
   bool present_{false};

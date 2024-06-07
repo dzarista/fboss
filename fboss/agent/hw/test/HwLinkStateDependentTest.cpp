@@ -10,7 +10,7 @@
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
-#include "fboss/agent/hw/test/LinkStateToggler.h"
+#include "fboss/agent/test/LinkStateToggler.h"
 #include "fboss/agent/types.h"
 
 namespace facebook::fboss {
@@ -24,8 +24,8 @@ void HwLinkStateDependentTest::SetUp() {
     getHwSwitchEnsemble()->applyInitialConfig(initialConfig());
   }
 
-  if (isSupported(HwAsic::Feature::LINK_STATE_BASED_ISOLATE)) {
-    // For switches that support LINK_STATE_BASED_ISOLATE, force
+  if (isSupported(HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+    // For switches that support LINK_INACTIVE_BASED_ISOLATE, force
     // switch to come out of isolate post setup. This is required
     // for data plane to work.
     //

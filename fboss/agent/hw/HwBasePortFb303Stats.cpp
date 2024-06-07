@@ -39,8 +39,9 @@ std::string HwBasePortFb303Stats::statName(
 }
 
 int64_t HwBasePortFb303Stats::getCounterLastIncrement(
-    folly::StringPiece statKey) const {
-  return portCounters_.getCounterLastIncrement(statKey.str());
+    folly::StringPiece statKey,
+    std::optional<int64_t> defaultVal) const {
+  return portCounters_.getCounterLastIncrement(statKey.str(), defaultVal);
 }
 
 void HwBasePortFb303Stats::reinitStats(std::optional<std::string> oldPortName) {
@@ -186,6 +187,12 @@ void HwBasePortFb303Stats::pfcPriorityChanged(
       portCounters_.removeStat(statName(statKey, portName_));
     }
   }
+}
+
+void HwBasePortFb303Stats::updateLeakyBucketFlapCnt(int cnt) {
+  auto now = duration_cast<std::chrono::seconds>(
+      std::chrono::system_clock::now().time_since_epoch());
+  updateStat(now, kLeakyBucketFlapCnt(), cnt);
 }
 
 void HwBasePortFb303Stats::updateStat(

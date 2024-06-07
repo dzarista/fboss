@@ -18,7 +18,7 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::SCHEDULER_PPS:
     case HwAsic::Feature::NEXTHOP_TTL_DECREMENT_DISABLE:
     case HwAsic::Feature::PORT_INTERFACE_TYPE:
-    case HwAsic::Feature::DEBUG_COUNTER:
+    case HwAsic::Feature::BLACKHOLE_ROUTE_DROP_COUNTER:
     case HwAsic::Feature::RESOURCE_USAGE_STATS:
     case HwAsic::Feature::OBJECT_KEY_CACHE:
     case HwAsic::Feature::ACL_COPY_TO_CPU:
@@ -36,7 +36,6 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::EGRESS_MIRRORING:
     case HwAsic::Feature::EGRESS_SFLOW:
     case HwAsic::Feature::DEFAULT_VLAN:
-    case HwAsic::Feature::L2_LEARNING:
     case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
     case HwAsic::Feature::TRAFFIC_HASHING:
     case HwAsic::Feature::ACL_TABLE_GROUP:
@@ -71,8 +70,12 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::ACL_COUNTER_LABEL:
     case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
+    case HwAsic::Feature::PORT_WRED_COUNTER:
+    case HwAsic::Feature::ACL_METADATA_QUALIFER:
+    case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
+    case HwAsic::Feature::SAI_PRBS:
       return true;
-
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv6:
     case HwAsic::Feature::SMAC_EQUALS_DMAC_CHECK_ENABLED:
@@ -87,6 +90,7 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::PTP_TC_PCS:
     case HwAsic::Feature::EGRESS_QUEUE_FLEX_COUNTER:
     case HwAsic::Feature::PFC:
+    case HwAsic::Feature::PFC_XON_TO_XOFF_COUNTER:
     case HwAsic::Feature::INGRESS_L3_INTERFACE:
     case HwAsic::Feature::NON_UNICAST_HASH:
     case HwAsic::Feature::DETAILED_L2_UPDATE:
@@ -116,7 +120,6 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::SAI_MPLS_INSEGMENT:
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
     case HwAsic::Feature::VOQ:
-    case HwAsic::Feature::RECYCLE_PORT_STATS:
     case HwAsic::Feature::XPHY_PORT_STATE_TOGGLE:
     case HwAsic::Feature::SAI_PORT_GET_PMD_LANES:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
@@ -133,7 +136,6 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::PORT_FABRIC_ISOLATE:
     case HwAsic::Feature::QUEUE_ECN_COUNTER:
     case HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT:
-
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
     case HwAsic::Feature::SAI_UDF_HASH:
@@ -141,7 +143,6 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
     case HwAsic::Feature::SLOW_STAT_UPDATE:
-    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
@@ -149,6 +150,18 @@ bool TomahawkAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::CREDIT_WATCHDOG:
     case HwAsic::Feature::ECMP_DLB_OFFSET:
     case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
+    case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+    case HwAsic::Feature::RX_SNR:
+    case HwAsic::Feature::MANAGEMENT_PORT:
+    case HwAsic::Feature::ANY_ACL_DROP_COUNTER:
+    case HwAsic::Feature::EGRESS_FORWARDING_DROP_COUNTER:
+    case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
+    case HwAsic::Feature::RCI_WATERMARK_COUNTER:
+    case HwAsic::Feature::DTL_WATERMARK_COUNTER:
+    case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
+    case HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER:
+    case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
+    case HwAsic::Feature::CRC_ERROR_DETECT:
       return false;
   }
   return false;

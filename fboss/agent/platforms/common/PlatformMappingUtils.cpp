@@ -21,17 +21,19 @@
 #include "fboss/agent/platforms/common/fuji/FujiPlatformMapping.h"
 #include "fboss/agent/platforms/common/galaxy/GalaxyFCPlatformMapping.h"
 #include "fboss/agent/platforms/common/galaxy/GalaxyLCPlatformMapping.h"
-#include "fboss/agent/platforms/common/janga/JangaPlatformMapping.h"
+#include "fboss/agent/platforms/common/janga800bic/Janga800bicPlatformMapping.h"
 #include "fboss/agent/platforms/common/lassen/LassenPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400bfu/Meru400bfuPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400bia/Meru400biaPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400biu/Meru400biuPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru800bfa/Meru800bfaP1PlatformMapping.h"
 #include "fboss/agent/platforms/common/meru800bfa/Meru800bfaPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru800bia/Meru800biaPlatformMapping.h"
 #include "fboss/agent/platforms/common/minipack/MinipackPlatformMapping.h"
 #include "fboss/agent/platforms/common/montblanc/MontblancPlatformMapping.h"
 #include "fboss/agent/platforms/common/morgan800cc/Morgan800ccPlatformMapping.h"
 #include "fboss/agent/platforms/common/sandia/SandiaPlatformMapping.h"
+#include "fboss/agent/platforms/common/tahan800bc/Tahan800bcPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge100/Wedge100PlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge40/Wedge40PlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400/Wedge400GrandTetonPlatformMapping.h"
@@ -81,7 +83,7 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
     case PlatformType::PLATFORM_WEDGE400:
     case PlatformType::PLATFORM_WEDGE400_GRANDTETON:
       if (type == PlatformType::PLATFORM_WEDGE400_GRANDTETON ||
-          utility::isWedge400PlatformRackTypeGrandTeton()) {
+          utility::isWedge400PlatformRackTypeInference()) {
         return platformMappingStr.empty()
             ? std::make_unique<Wedge400GrandTetonPlatformMapping>()
             : std::make_unique<Wedge400GrandTetonPlatformMapping>(
@@ -94,7 +96,7 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
     case PlatformType::PLATFORM_WEDGE400C:
     case PlatformType::PLATFORM_WEDGE400C_GRANDTETON:
       if (type == PlatformType::PLATFORM_WEDGE400C_GRANDTETON ||
-          utility::isWedge400CPlatformRackTypeGrandTeton()) {
+          utility::isWedge400CPlatformRackTypeInference()) {
         return platformMappingStr.empty()
             ? std::make_unique<Wedge400CGrandTetonPlatformMapping>()
             : std::make_unique<Wedge400CGrandTetonPlatformMapping>(
@@ -122,10 +124,14 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
       return platformMappingStr.empty()
           ? std::make_unique<MontblancPlatformMapping>()
           : std::make_unique<MontblancPlatformMapping>(platformMappingStr);
-    case PlatformType::PLATFORM_JANGA:
+    case PlatformType::PLATFORM_JANGA800BIC:
       return platformMappingStr.empty()
-          ? std::make_unique<JangaPlatformMapping>()
-          : std::make_unique<JangaPlatformMapping>(platformMappingStr);
+          ? std::make_unique<Janga800bicPlatformMapping>()
+          : std::make_unique<Janga800bicPlatformMapping>(platformMappingStr);
+    case PlatformType::PLATFORM_TAHAN800BC:
+      return platformMappingStr.empty()
+          ? std::make_unique<Tahan800bcPlatformMapping>()
+          : std::make_unique<Tahan800bcPlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_FAKE_WEDGE:
     case PlatformType::PLATFORM_FAKE_WEDGE40:
       return platformMappingStr.empty()
@@ -147,6 +153,10 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
       return platformMappingStr.empty()
           ? std::make_unique<Meru800bfaPlatformMapping>()
           : std::make_unique<Meru800bfaPlatformMapping>(platformMappingStr);
+    case PlatformType::PLATFORM_MERU800BFA_P1:
+      return platformMappingStr.empty()
+          ? std::make_unique<Meru800bfaP1PlatformMapping>()
+          : std::make_unique<Meru800bfaP1PlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_MERU400BFU:
       return platformMappingStr.empty()
           ? std::make_unique<Meru400bfuPlatformMapping>()

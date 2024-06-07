@@ -13,6 +13,7 @@
 #include "fboss/agent/hw/StatsConstants.h"
 
 #include <folly/logging/xlog.h>
+#include <thrift/lib/cpp2/protocol/Serializer.h>
 
 namespace facebook::fboss {
 
@@ -41,7 +42,13 @@ const std::vector<folly::StringPiece>& HwPortFb303Stats::kPortStatKeys() const {
       kOutEcnCounter(),
       kFecCorrectable(),
       kFecUncorrectable(),
+      kLeakyBucketFlapCnt(),
       kInLabelMissDiscards(),
+      kInAclDiscards(),
+      kInTrapDiscards(),
+      kOutForwardingDiscards(),
+      kPqpErrorEgressDroppedPackets(),
+      kFabricLinkDownDroppedCells(),
   };
   return kPortKeys;
 }
@@ -151,10 +158,42 @@ void HwPortFb303Stats::updateStats(
       timeRetrieved_,
       kFecUncorrectable(),
       *curPortStats.fecUncorrectableErrors());
+  if (curPortStats.leakyBucketFlapCount_().has_value()) {
+    updateStat(
+        timeRetrieved_,
+        kLeakyBucketFlapCnt(),
+        *curPortStats.leakyBucketFlapCount_());
+  }
   updateStat(
       timeRetrieved_,
       kInLabelMissDiscards(),
       *curPortStats.inLabelMissDiscards_());
+  if (curPortStats.inAclDiscards_().has_value()) {
+    updateStat(
+        timeRetrieved_, kInAclDiscards(), *curPortStats.inAclDiscards_());
+  }
+  if (curPortStats.inTrapDiscards_().has_value()) {
+    updateStat(
+        timeRetrieved_, kInTrapDiscards(), *curPortStats.inTrapDiscards_());
+  }
+  if (curPortStats.outForwardingDiscards_().has_value()) {
+    updateStat(
+        timeRetrieved_,
+        kOutForwardingDiscards(),
+        *curPortStats.outForwardingDiscards_());
+  }
+  if (curPortStats.pqpErrorEgressDroppedPackets_().has_value()) {
+    updateStat(
+        timeRetrieved_,
+        kPqpErrorEgressDroppedPackets(),
+        *curPortStats.pqpErrorEgressDroppedPackets_());
+  }
+  if (curPortStats.fabricLinkDownDroppedCells_().has_value()) {
+    updateStat(
+        timeRetrieved_,
+        kFabricLinkDownDroppedCells(),
+        *curPortStats.fabricLinkDownDroppedCells_());
+  }
 
   // Update queue stats
   auto updateQueueStat = [this](

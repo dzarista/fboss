@@ -69,6 +69,13 @@ struct HwPortStats {
   34: map<i16, i64> queueWredDroppedPackets_ = {};
   35: map<i16, i64> queueEcnMarkedPackets_ = {};
   36: i64 fecCorrectedBits_ = STAT_UNINITIALIZED;
+  /* Map of codewords received (value) with different counts of symbol errors (key).
+   * fecCodewords_[0] = number of codewords with 0 symbol errors
+   * fecCodewords_[1] = number of codewords with 1 symbol errors etc..
+   */
+  37: map<i16, i64> fecCodewords_ = {};
+  38: optional i64 pqpErrorEgressDroppedPackets_;
+  39: optional i64 fabricLinkDownDroppedCells_;
 
   // seconds from epoch
   50: i64 timestamp_ = STAT_UNINITIALIZED;
@@ -77,9 +84,17 @@ struct HwPortStats {
   53: i64 inLabelMissDiscards_ = STAT_UNINITIALIZED;
   54: map<i16, i64> queueWatermarkLevel_ = {};
   55: i64 inCongestionDiscards_ = STAT_UNINITIALIZED;
+  56: optional i64 inAclDiscards_;
+  57: optional i64 inTrapDiscards_;
+  58: optional i64 outForwardingDiscards_;
+  // This mismatch is communicated directly via callback
+  59: optional i64 fabricConnectivityMismatch_DEPRECATED;
+  60: optional i32 logicalPortId;
+  61: optional i64 leakyBucketFlapCount_;
 }
 
 struct HwSysPortStats {
+  // These map keys are the queue and the value is the counter value
   1: map<i16, i64> queueOutDiscardBytes_ = {};
   2: map<i16, i64> queueOutBytes_ = {};
   3: map<i16, i64> queueWatermarkBytes_ = {};
@@ -206,6 +221,10 @@ struct HwAsicErrors {
   // DNX specific errors
   5: optional i64 ingressReceiveEditorErrors;
   6: optional i64 ingressTransmitPipelineErrors;
+  7: optional i64 egressPacketNetworkInterfaceErrors;
+  8: optional i64 alignerErrors;
+  9: optional i64 forwardingQueueProcessorErrors;
+  10: optional i64 allReassemblyContextsTaken;
 }
 
 struct HwTeFlowStats {
@@ -220,26 +239,53 @@ struct TeFlowStats {
 struct FabricReachabilityStats {
   1: i64 mismatchCount;
   2: i64 missingCount;
+  3: i64 virtualDevicesWithAsymmetricConnectivity;
 }
 
 struct HwRxReasonStats {
   1: map<i64, i64> rxReasonStats;
 }
 
+// The deviceWatermarkBytes has been moved from HwBufferPoolStats to
+// HwSwitchWatermarkStats, but retaining the HwBufferPoolStats but
+// will be marked as deprecated everywhere until it has some other
+// stats in it.
 struct HwBufferPoolStats {
+  // Deprecate deviceWatermarkBytes once HwSwitchWatermarkStats is
+  // available in prod!
   1: i64 deviceWatermarkBytes;
 }
 
+struct HwSwitchWatermarkStats {
+  1: optional i64 fdrRciWatermarkBytes;
+  2: optional i64 coreRciWatermarkBytes;
+  3: optional i64 dtlQueueWatermarkBytes;
+  4: i64 deviceWatermarkBytes;
+  5: map<string, i64> globalHeadroomWatermarkBytes;
+  6: map<string, i64> globalSharedWatermarkBytes;
+}
+
 struct CpuPortStats {
-  1: map<i32, i64> queueInPackets_;
-  2: map<i32, i64> queueDiscardPackets_;
-  3: map<i32, string> queueToName_;
+  1: map<i32, i64> queueInPackets_; // TODO: Deprecate this
+  2: map<i32, i64> queueDiscardPackets_; // TODO: Deprecate this
+  3: map<i32, string> queueToName_; // TODO: Deprecate this
+  4: HwPortStats portStats_;
 }
 
 struct HwSwitchDropStats {
   1: optional i64 globalDrops;
   2: optional i64 globalReachabilityDrops;
   3: optional i64 packetIntegrityDrops;
+  // DNX Specific drop counters
+  4: optional i64 fdrCellDrops;
+  5: optional i64 voqResourceExhaustionDrops;
+  6: optional i64 globalResourceExhaustionDrops;
+  7: optional i64 sramResourceExhaustionDrops;
+  8: optional i64 vsqResourceExhaustionDrops;
+  9: optional i64 dropPrecedenceDrops;
+  10: optional i64 queueResolutionDrops;
+  11: optional i64 ingressPacketPipelineRejectDrops;
+  12: optional i64 corruptedCellPacketIntegrityDrops;
 }
 
 struct HwSwitchDramStats {
@@ -265,4 +311,21 @@ struct HwSwitchFb303GlobalStats {
   15: i64 dram_dequeued_bytes;
   16: i64 fabric_reachability_missing;
   17: i64 fabric_reachability_mismatch;
+  // DNX Specific counters
+  18: optional i64 fdr_cell_drops;
+  19: optional i64 ingress_receive_editor_errors;
+  20: optional i64 ingress_transmit_pipeline_errors;
+  21: optional i64 egress_packet_network_interface_errors;
+  22: optional i64 aligner_errors;
+  23: optional i64 forwarding_queue_processor_errors;
+  24: i64 virtual_devices_with_asymmetric_connectivity;
+}
+
+struct HwFlowletStats {
+  1: i64 l3EcmpDlbFailPackets;
+  2: i64 l3EcmpDlbPortReassignmentCount;
+}
+
+struct AclStats {
+  1: map<string, i64> statNameToCounterMap;
 }

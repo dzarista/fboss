@@ -22,13 +22,15 @@ class SffTest : public TransceiverManagerTestHelper {
  public:
   template <typename XcvrImplT>
   SffModule* overrideSffModule(TransceiverID id, bool willRefresh = true) {
-    auto xcvrImpl = std::make_unique<XcvrImplT>(id);
-
+    qsfpImpls_.push_back(
+        std::make_unique<XcvrImplT>(id, transceiverManager_.get()));
     auto xcvr = static_cast<SffModule*>(
         transceiverManager_->overrideTransceiverForTesting(
             id,
             std::make_unique<SffModule>(
-                transceiverManager_.get(), std::move(xcvrImpl))));
+                transceiverManager_->getPortNames(id),
+                qsfpImpls_.back().get(),
+                tcvrConfig_)));
 
     if (willRefresh) {
       // Refresh once to make sure the override transceiver finishes refresh
@@ -138,6 +140,36 @@ TEST_F(SffTest, cwdm4TransceiverInfoTest) {
 
   // This test will write registers, save it to the last
   testCachedMediaSignals(xcvr);
+
+  TransceiverPortState goodPortState1{
+      "", 0, cfg::PortSpeed::HUNDREDG, 4, TransmitterTechnology::OPTICAL};
+  TransceiverPortState goodPortState2{
+      "", 0, cfg::PortSpeed::FORTYG, 4, TransmitterTechnology::OPTICAL};
+  for (auto portState : {goodPortState1, goodPortState2}) {
+    EXPECT_TRUE(xcvr->tcvrPortStateSupported(portState));
+  }
+
+  TransceiverPortState badPortState1{
+      "",
+      0,
+      cfg::PortSpeed::HUNDREDG,
+      1,
+      TransmitterTechnology::COPPER}; // Copper not supported
+  TransceiverPortState badPortState2{
+      "",
+      1,
+      cfg::PortSpeed::XG,
+      2,
+      TransmitterTechnology::OPTICAL}; // Invalid speed
+  TransceiverPortState badPortState3{
+      "",
+      0,
+      cfg::PortSpeed::FORTYG,
+      3,
+      TransmitterTechnology::OPTICAL}; // Invalid num lanes
+  for (auto portState : {badPortState1, badPortState2, badPortState3}) {
+    EXPECT_FALSE(xcvr->tcvrPortStateSupported(portState));
+  }
 }
 
 // Tests that a SFF DAC module can properly refresh
@@ -314,17 +346,18 @@ class SfpTest : public TransceiverManagerTestHelper {
  public:
   template <typename XcvrImplT>
   Sff8472Module* overrideSfpModule(TransceiverID id) {
-    auto xcvrImpl = std::make_unique<XcvrImplT>(id);
+    qsfpImpls_.push_back(
+        std::make_unique<XcvrImplT>(id, transceiverManager_.get()));
     // This override function use ids starting from 1
     transceiverManager_->overrideMgmtInterface(
         static_cast<int>(id) + 1,
         uint8_t(TransceiverModuleIdentifier::SFP_PLUS));
-
+    auto portNames = transceiverManager_->getPortNames(id);
     auto xcvr = static_cast<Sff8472Module*>(
         transceiverManager_->overrideTransceiverForTesting(
             id,
             std::make_unique<Sff8472Module>(
-                transceiverManager_.get(), std::move(xcvrImpl))));
+                portNames, qsfpImpls_.back().get())));
     // Refresh once to make sure the override transceiver finishes refresh
     transceiverManager_->refreshStateMachines();
 
@@ -418,6 +451,20 @@ TEST_F(SfpTest, sfp10GBaseTTransceiverInfoTest) {
   tests.verifyVendorName("FACETEST");
   // Verify DOM is not read
   EXPECT_TRUE(info.tcvrStats()->channels()->empty());
+
+  TransceiverPortState goodPortState{
+      "", 0, cfg::PortSpeed::XG, 1, TransmitterTechnology::COPPER};
+  EXPECT_TRUE(xcvr->tcvrPortStateSupported(goodPortState));
+
+  TransceiverPortState badPortState1{
+      "", 0, cfg::PortSpeed::HUNDREDG, 1, TransmitterTechnology::COPPER};
+  TransceiverPortState badPortState2{
+      "", 1, cfg::PortSpeed::XG, 1, TransmitterTechnology::COPPER};
+  TransceiverPortState badPortState3{
+      "", 0, cfg::PortSpeed::XG, 1, TransmitterTechnology::OPTICAL};
+  for (auto portState : {badPortState1, badPortState2, badPortState3}) {
+    EXPECT_FALSE(xcvr->tcvrPortStateSupported(portState));
+  }
 }
 
 TEST_F(SffTest, 200GCr4TransceiverInfoTest) {
@@ -450,6 +497,32 @@ TEST_F(SffTest, 200GCr4TransceiverInfoTest) {
   // Using TransceiverTestsHelper to verify TransceiverInfo
   TransceiverTestsHelper tests(info);
   tests.verifyVendorName("FACETEST");
+
+  TransceiverPortState goodPortState1{
+      "", 0, cfg::PortSpeed::TWOHUNDREDG, 4, TransmitterTechnology::COPPER};
+  TransceiverPortState goodPortState2{
+      "", 2, cfg::PortSpeed::FIFTYG, 2, TransmitterTechnology::COPPER};
+  TransceiverPortState goodPortState3{
+      "", 1, cfg::PortSpeed::TWENTYFIVEG, 1, TransmitterTechnology::COPPER};
+  for (auto portState : {goodPortState1, goodPortState2, goodPortState3}) {
+    EXPECT_TRUE(xcvr->tcvrPortStateSupported(portState));
+  }
+
+  TransceiverPortState badPortState1{
+      "",
+      0,
+      cfg::PortSpeed::HUNDREDG,
+      4,
+      TransmitterTechnology::OPTICAL}; // Optical not supported
+  TransceiverPortState badPortState2{
+      "",
+      0,
+      cfg::PortSpeed::FORTYG,
+      3,
+      TransmitterTechnology::OPTICAL}; // Optical not supported
+  for (auto portState : {badPortState1, badPortState2}) {
+    EXPECT_FALSE(xcvr->tcvrPortStateSupported(portState));
+  }
 }
 
 } // namespace facebook::fboss

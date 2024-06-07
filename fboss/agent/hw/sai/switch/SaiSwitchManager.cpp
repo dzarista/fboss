@@ -17,6 +17,7 @@
 #include "fboss/agent/hw/sai/api/SwitchApi.h"
 #include "fboss/agent/hw/sai/api/Types.h"
 #include "fboss/agent/hw/sai/switch/SaiAclTableGroupManager.h"
+#include "fboss/agent/hw/sai/switch/SaiBufferManager.h"
 #include "fboss/agent/hw/sai/switch/SaiManagerTable.h"
 #include "fboss/agent/hw/sai/switch/SaiUdfManager.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
@@ -64,9 +65,77 @@ sai_hash_algorithm_t toSaiHashAlgo(cfg::HashingAlgorithm algo) {
   }
 }
 
+bool isJerichoAsic(cfg::AsicType asicType) {
+  return asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
+      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3;
+}
+
 void fillHwSwitchDropStats(
     const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
-    HwSwitchDropStats& hwSwitchDropStats) {
+    HwSwitchDropStats& hwSwitchDropStats,
+    cfg::AsicType asicType) {
+  auto fillAsicSpecificCounter = [](auto counterId,
+                                    auto val,
+                                    auto asicType,
+                                    auto& dropStats) {
+    if (!isJerichoAsic(asicType)) {
+      throw FbossError("Configured drop reason stats only supported for J2/J3");
+    }
+    switch (counterId) {
+      /*
+       * SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS -
+       * FDR cell drops
+       * SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS -
+       * Reassembly drops due to corrupted cells
+       */
+      case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS:
+        dropStats.fdrCellDrops() = val;
+        break;
+      case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS:
+        dropStats.corruptedCellPacketIntegrityDrops() = val;
+        break;
+      /*
+       * From CS00012306170
+       * SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS - VOQ
+       * resource exhaustion drops
+       * SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS - Global
+       * resource exhaustion drops
+       * SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS - SRAM
+       * resource exhaustion drops
+       * SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_3_DROPPED_PKTS - VSQ
+       * resource exhaustion drops
+       * SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_4_DROPPED_PKTS - Drop
+       * precedence drops
+       * SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_5_DROPPED_PKTS - Queue
+       * resolution drops
+       * SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_6_DROPPED_PKTS - Ingress PP
+       * VOQ drops due to PP reject bit
+       */
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS:
+        dropStats.voqResourceExhaustionDrops() = val;
+        break;
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS:
+        dropStats.globalResourceExhaustionDrops() = val;
+        break;
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS:
+        dropStats.sramResourceExhaustionDrops() = val;
+        break;
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_3_DROPPED_PKTS:
+        dropStats.vsqResourceExhaustionDrops() = val;
+        break;
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_4_DROPPED_PKTS:
+        dropStats.dropPrecedenceDrops() = val;
+        break;
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_5_DROPPED_PKTS:
+        dropStats.queueResolutionDrops() = val;
+        break;
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_6_DROPPED_PKTS:
+        dropStats.ingressPacketPipelineRejectDrops() = val;
+        break;
+      default:
+        throw FbossError("Unexpected configured counter id: ", counterId);
+    }
+  };
   for (auto counterIdAndValue : counterId2Value) {
     auto [counterId, value] = counterIdAndValue;
     switch (counterId) {
@@ -81,6 +150,17 @@ void fillHwSwitchDropStats(
         hwSwitchDropStats.packetIntegrityDrops() = value;
         break;
 #endif
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS:
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS:
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS:
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_3_DROPPED_PKTS:
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_4_DROPPED_PKTS:
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_5_DROPPED_PKTS:
+      case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_6_DROPPED_PKTS:
+      case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS:
+      case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS:
+        fillAsicSpecificCounter(counterId, value, asicType, hwSwitchDropStats);
+        break;
       default:
         throw FbossError("Got unexpected switch counter id: ", counterId);
     }
@@ -452,11 +532,15 @@ void SaiSwitchManager::removeLoadBalancer(
     const std::shared_ptr<LoadBalancer>& oldLb) {
   if (oldLb->getID() == cfg::LoadBalancerID::AGGREGATE_PORT) {
     programLagLoadBalancerParams(std::nullopt, std::nullopt);
+    resetLoadBalancer<SaiSwitchTraits::Attributes::LagHashV4>();
+    resetLoadBalancer<SaiSwitchTraits::Attributes::LagHashV6>();
     lagV4Hash_.reset();
     lagV6Hash_.reset();
     return;
   }
   programEcmpLoadBalancerParams(std::nullopt, std::nullopt);
+  resetLoadBalancer<SaiSwitchTraits::Attributes::EcmpHashV4>();
+  resetLoadBalancer<SaiSwitchTraits::Attributes::EcmpHashV6>();
   ecmpV4Hash_.reset();
   ecmpV6Hash_.reset();
 }
@@ -586,7 +670,7 @@ bool SaiSwitchManager::isGlobalQoSMapSupported() const {
 }
 
 bool SaiSwitchManager::isMplsQoSMapSupported() const {
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
   return false;
 #endif
   return platform_->getAsic()->isSupported(HwAsic::Feature::SAI_MPLS_QOS);
@@ -610,6 +694,33 @@ const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedDropStats() const {
           stats.begin(), stats.end(), SAI_SWITCH_STAT_PACKET_INTEGRITY_DROP));
 #endif
     }
+    if (isJerichoAsic(platform_->getAsic()->getAsicType())) {
+      static const std::vector<sai_stat_id_t> kJerichoConfigDropStats{
+          SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS,
+          SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS,
+      };
+      stats.insert(
+          stats.end(),
+          kJerichoConfigDropStats.begin(),
+          kJerichoConfigDropStats.end());
+    }
+    if (platform_->getAsic()->getAsicType() ==
+        cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      static const std::vector<sai_stat_id_t> kJericho3ConfigDropStats{
+          // IN configured drop reasons
+          SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS,
+          SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS,
+          SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS,
+          SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_3_DROPPED_PKTS,
+          SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_4_DROPPED_PKTS,
+          SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_5_DROPPED_PKTS,
+          SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_6_DROPPED_PKTS,
+      };
+      stats.insert(
+          stats.end(),
+          kJericho3ConfigDropStats.begin(),
+          kJericho3ConfigDropStats.end());
+    }
   }
   return stats;
 }
@@ -630,13 +741,64 @@ const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedDramStats() const {
   return stats;
 }
 
-void SaiSwitchManager::updateStats() {
+const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedWatermarkStats()
+    const {
+  static std::vector<sai_stat_id_t> stats;
+  if (stats.size()) {
+    // initialized
+    return stats;
+  }
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::RCI_WATERMARK_COUNTER)) {
+    stats.insert(
+        stats.end(),
+        SaiSwitchTraits::rciWatermarkStats().begin(),
+        SaiSwitchTraits::rciWatermarkStats().end());
+  }
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::DTL_WATERMARK_COUNTER)) {
+    stats.insert(
+        stats.end(),
+        SaiSwitchTraits::dtlWatermarkStats().begin(),
+        SaiSwitchTraits::dtlWatermarkStats().end());
+  }
+  return stats;
+}
+
+const HwSwitchWatermarkStats SaiSwitchManager::getHwSwitchWatermarkStats()
+    const {
+  HwSwitchWatermarkStats switchWatermarkStats;
+  // Get NPU specific watermark stats!
+  auto supportedStats = supportedWatermarkStats();
+  if (supportedStats.size()) {
+    switch_->updateStats(supportedStats, SAI_STATS_MODE_READ_AND_CLEAR);
+  }
+  fillHwSwitchWatermarkStats(
+      switch_->getStats(supportedStats), switchWatermarkStats);
+  // SAI_SWITCH_STAT_DEVICE_WATERMARK_BYTES is always needed, however,
+  // this stats as such is not supported as of now. Instead, the needed
+  // watermarks at device level is fetched via the buffer pool watermark
+  // SAI_BUFFER_POOL_STAT_WATERMARK_BYTES and available in SaiSwitch.
+  switchWatermarkStats.deviceWatermarkBytes() =
+      managerTable_->bufferManager().getDeviceWatermarkBytes();
+  switchWatermarkStats.globalHeadroomWatermarkBytes()->insert(
+      managerTable_->bufferManager().getGlobalHeadroomWatermarkBytes().begin(),
+      managerTable_->bufferManager().getGlobalHeadroomWatermarkBytes().end());
+  switchWatermarkStats.globalSharedWatermarkBytes()->insert(
+      managerTable_->bufferManager().getGlobalSharedWatermarkBytes().begin(),
+      managerTable_->bufferManager().getGlobalSharedWatermarkBytes().end());
+  return switchWatermarkStats;
+}
+
+void SaiSwitchManager::updateStats(bool updateWatermarks) {
   auto switchDropStats = supportedDropStats();
   if (switchDropStats.size()) {
     switch_->updateStats(switchDropStats, SAI_STATS_MODE_READ);
     HwSwitchDropStats dropStats;
-    fillHwSwitchDropStats(switch_->getStats(switchDropStats), dropStats);
-    platform_->getHwSwitch()->getSwitchStats()->update(dropStats);
+    fillHwSwitchDropStats(
+        switch_->getStats(switchDropStats),
+        dropStats,
+        platform_->getAsic()->getAsicType());
     // Accumulate switch drop stats
     switchDropStats_.globalDrops() =
         switchDropStats_.globalDrops().value_or(0) +
@@ -647,6 +809,31 @@ void SaiSwitchManager::updateStats() {
     switchDropStats_.packetIntegrityDrops() =
         switchDropStats_.packetIntegrityDrops().value_or(0) +
         dropStats.packetIntegrityDrops().value_or(0);
+    switchDropStats_.fdrCellDrops() =
+        switchDropStats_.fdrCellDrops().value_or(0) +
+        dropStats.fdrCellDrops().value_or(0);
+    switchDropStats_.voqResourceExhaustionDrops() =
+        switchDropStats_.voqResourceExhaustionDrops().value_or(0) +
+        dropStats.voqResourceExhaustionDrops().value_or(0);
+    switchDropStats_.globalResourceExhaustionDrops() =
+        switchDropStats_.globalResourceExhaustionDrops().value_or(0) +
+        dropStats.globalResourceExhaustionDrops().value_or(0);
+    switchDropStats_.sramResourceExhaustionDrops() =
+        switchDropStats_.sramResourceExhaustionDrops().value_or(0) +
+        dropStats.sramResourceExhaustionDrops().value_or(0);
+    switchDropStats_.vsqResourceExhaustionDrops() =
+        switchDropStats_.vsqResourceExhaustionDrops().value_or(0) +
+        dropStats.vsqResourceExhaustionDrops().value_or(0);
+    switchDropStats_.dropPrecedenceDrops() =
+        switchDropStats_.dropPrecedenceDrops().value_or(0) +
+        dropStats.dropPrecedenceDrops().value_or(0);
+    switchDropStats_.queueResolutionDrops() =
+        switchDropStats_.queueResolutionDrops().value_or(0) +
+        dropStats.queueResolutionDrops().value_or(0);
+    switchDropStats_.ingressPacketPipelineRejectDrops() =
+        switchDropStats_.ingressPacketPipelineRejectDrops().value_or(0) +
+        dropStats.ingressPacketPipelineRejectDrops().value_or(0);
+    platform_->getHwSwitch()->getSwitchStats()->update(switchDropStats_);
   }
   auto switchDramStats = supportedDramStats();
   if (switchDramStats.size()) {
@@ -655,11 +842,18 @@ void SaiSwitchManager::updateStats() {
     fillHwSwitchDramStats(switch_->getStats(switchDramStats), dramStats);
     platform_->getHwSwitch()->getSwitchStats()->update(dramStats);
   }
+  if (updateWatermarks) {
+    switchWatermarkStats_ = getHwSwitchWatermarkStats();
+    publishSwitchWatermarks(switchWatermarkStats_);
+  }
 }
 
 void SaiSwitchManager::setSwitchIsolate(bool isolate) {
   // Supported only for FABRIC switches!
   // It is checked while applying thrift config
+  CHECK(
+      platform_->getAsic()->getSwitchType() == cfg::SwitchType::FABRIC ||
+      platform_->getAsic()->getSwitchType() == cfg::SwitchType::VOQ);
   switch_->setOptionalAttribute(
       SaiSwitchTraits::Attributes::SwitchIsolate{isolate});
 }
@@ -674,4 +868,23 @@ std::vector<sai_object_id_t> SaiSwitchManager::getUdfGroupIds(
   return {};
 }
 
+void SaiSwitchManager::setForceTrafficOverFabric(bool forceTrafficOverFabric) {
+  auto& switchApi = SaiApiTable::getInstance()->switchApi();
+  auto oldSetForceTrafficOverFabric = switchApi.getAttribute(
+      switch_->adapterKey(),
+      SaiSwitchTraits::Attributes::ForceTrafficOverFabric{});
+  if (oldSetForceTrafficOverFabric != forceTrafficOverFabric) {
+    SaiApiTable::getInstance()->switchApi().setAttribute(
+        switch_->adapterKey(),
+        SaiSwitchTraits::Attributes::ForceTrafficOverFabric{
+            forceTrafficOverFabric});
+  }
+}
+
+void SaiSwitchManager::setCreditWatchdog(bool creditWatchdog) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::CreditWd{creditWatchdog});
+#endif
+}
 } // namespace facebook::fboss

@@ -30,6 +30,7 @@
 
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
+#include "fboss/agent/state/DsfNodeMap.h"
 #include "fboss/agent/types.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
 
@@ -47,6 +48,28 @@ namespace facebook::fboss {
 namespace cfg {
 class SwitchConfig;
 }
+
+namespace utility {
+
+inline const std::string kUdfHashDstQueuePairGroupName("dstQueuePair");
+inline const std::string kUdfAclRoceOpcodeGroupName("roceOpcode");
+inline const std::string kUdfL4UdpRocePktMatcherName("l4UdpRoce");
+inline const std::string kUdfAclRoceOpcodeName("udf-roce-ack");
+inline const std::string kUdfAclRoceOpcodeStats("udf-roce-ack-stats");
+inline const int kUdfHashDstQueuePairStartOffsetInBytes(13);
+inline const int kUdfAclRoceOpcodeStartOffsetInBytes(8);
+inline const int kUdfHashDstQueuePairFieldSizeInBytes(3);
+inline const int kUdfAclRoceOpcodeFieldSizeInBytes(1);
+inline const int kUdfL4DstPort(4791);
+inline const int kRandomUdfL4SrcPort(62946);
+inline const int kUdfRoceOpcode(17);
+inline const std::string kRoceUdfFlowletGroupName("roceUdfFlowlet");
+inline const int kRoceUdfFlowletStartOffsetInBytes(16);
+inline const int kRoceUdfFlowletFieldSizeInBytes(1);
+inline const int kRoceReserved(0x40); // offset 16
+inline const std::string kFlowletAclName("test-udf-flowlet_acl");
+inline const std::string kFlowletAclCounterName("test-udf-flowlet-acl-stats");
+} // namespace utility
 
 class SwitchState;
 class Interface;
@@ -201,13 +224,31 @@ bool isAnyInterfacePortInLoopbackMode(
     std::shared_ptr<SwitchState> swState,
     const std::shared_ptr<Interface> interface);
 
+bool isAnyInterfacePortRecyclePort(
+    std::shared_ptr<SwitchState> swState,
+    const std::shared_ptr<Interface> interface);
+
 PortID getPortID(
     SystemPortID sysPortId,
     const std::shared_ptr<SwitchState>& state);
 
 SystemPortID getSystemPortID(
     const PortID& portId,
-    const std::shared_ptr<SwitchState>& state);
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo,
+    int64_t switchId);
+
+SystemPortID getSystemPortID(
+    const PortID& portId,
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo,
+    SwitchID switchId);
+
+SystemPortID getSystemPortID(
+    const PortID& portId,
+    const std::shared_ptr<SwitchState>& state,
+    SwitchID switchId);
+
+cfg::Range64 getFirstSwitchSystemPortIdRange(
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo);
 
 std::vector<PortID> getPortsForInterface(
     InterfaceID intf,
@@ -343,15 +384,23 @@ AdminDistance getAdminDistanceForClientId(
     const cfg::SwitchConfig& config,
     int clientId);
 
-size_t getNumUpPorts(
+size_t getNumActiveFabricPorts(
     const std::shared_ptr<SwitchState>& state,
-    const HwSwitchMatcher& matcher,
-    cfg::PortType portType);
+    const HwSwitchMatcher& matcher);
 
 cfg::SwitchDrainState computeActualSwitchDrainState(
     const std::shared_ptr<SwitchSettings>& switchSettings,
-    int numFabricPortsUp);
+    int numActiveFabricPorts);
 
 uint64_t getMacOui(const folly::MacAddress macAddress);
+
+std::unordered_map<SwitchID, SwitchIndex> computeSwitchIdToSwitchIndex(
+    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap);
+
+std::set<SwitchID> getAllSwitchIDsForSwitch(
+    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap,
+    const SwitchID& switchID);
+
+uint32_t getRemotePortOffset(const PlatformType platformType);
 
 } // namespace facebook::fboss

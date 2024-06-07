@@ -13,9 +13,9 @@
 #include <boost/algorithm/string.hpp>
 #include <folly/FileUtil.h>
 #include <folly/MacAddress.h>
-#include <folly/dynamic.h>
 #include <folly/experimental/TestUtil.h>
-#include <folly/json.h>
+#include <folly/json/dynamic.h>
+#include <folly/json/json.h>
 #include <folly/logging/xlog.h>
 
 namespace {
@@ -113,6 +113,10 @@ void PlatformProductInfo::initMode() {
       // TODO remove FAB once fruid.json is fixed on Galaxy fabric cards
       type_ = PlatformType::PLATFORM_GALAXY_FC;
     } else if (
+        modelName.find("Montblanc") == 0 || modelName.find("MONTBLANC") == 0 ||
+        modelName.find("MINIPACK3_CHASSIS_BUNDLE") == 0) {
+      type_ = PlatformType::PLATFORM_MONTBLANC;
+    } else if (
         modelName.find("MINIPACK") == 0 || modelName.find("MINIPHOTON") == 0) {
       type_ = PlatformType::PLATFORM_MINIPACK;
     } else if (modelName.find("DCS-7368") == 0 || modelName.find("YAMP") == 0) {
@@ -143,24 +147,32 @@ void PlatformProductInfo::initMode() {
         modelName.find("S9705-48D-4B4") == 0) {
       type_ = PlatformType::PLATFORM_MERU400BFU;
     } else if (
-        modelName.find("Montblanc") == 0 || modelName.find("MONTBLANC") == 0) {
-      type_ = PlatformType::PLATFORM_MONTBLANC;
-    } else if (
         modelName.find("Meru800bia") == 0 ||
         modelName.find("MERU800BIA") == 0 ||
-        modelName.find("ASY-92458-101") == 0) {
+        modelName.find("ASY-92458-101") == 0 ||
+        modelName.find("ASY-92493-104") == 0 ||
+        modelName.find("ASY-92458-104") == 0 ||
+        modelName.find("DCS-DL-7700R4C-38PE-AC-F") == 0 ||
+        modelName.find("DCS-DL-7700R4C-38PE-DC-F") == 0) {
       type_ = PlatformType::PLATFORM_MERU800BIA;
     } else if (
         modelName.find("Meru800bfa") == 0 ||
         modelName.find("MERU800BFA") == 0 ||
-        modelName.find("ASY-57651-102") == 0) {
+        modelName.find("ASY-57651-102") == 0 ||
+        modelName.find("DCS-DS-7720R4-128PE-AC-F") == 0) {
       type_ = PlatformType::PLATFORM_MERU800BFA;
-    } else if (modelName.find("MORGAN800CC") == 0) {
+    } else if (
+        modelName.find("MORGAN800CC") == 0 ||
+        modelName.find("8501-SYS-MT") == 0) {
       type_ = PlatformType::PLATFORM_MORGAN800CC;
     } else if (modelName.find("FAKE_SAI") == 0) {
       type_ = PlatformType::PLATFORM_FAKE_SAI;
-    } else if (modelName.find("JANGA") == 0) {
-      type_ = PlatformType::PLATFORM_JANGA;
+    } else if (modelName.find("JANGA800BIC") == 0) {
+      type_ = PlatformType::PLATFORM_JANGA800BIC;
+    } else if (
+        modelName.find("TAHAN800BC") == 0 ||
+        modelName.find("R4063-F9001-01") == 0) {
+      type_ = PlatformType::PLATFORM_TAHAN800BC;
     } else {
       throw std::runtime_error("invalid model name " + modelName);
     }
@@ -199,6 +211,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_MERU800BIA;
     } else if (FLAGS_mode == "meru800bfa") {
       type_ = PlatformType::PLATFORM_MERU800BFA;
+    } else if (FLAGS_mode == "meru800bfa_p1") {
+      type_ = PlatformType::PLATFORM_MERU800BFA_P1;
     } else if (FLAGS_mode == "meru400bia") {
       type_ = PlatformType::PLATFORM_MERU400BIA;
     } else if (FLAGS_mode == "meru400bfu") {
@@ -217,8 +231,12 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_MONTBLANC;
     } else if (FLAGS_mode == "fake_sai") {
       type_ = PlatformType::PLATFORM_FAKE_SAI;
-    } else if (FLAGS_mode == "janga") {
-      type_ = PlatformType::PLATFORM_JANGA;
+    } else if (FLAGS_mode == "janga800bic") {
+      type_ = PlatformType::PLATFORM_JANGA800BIC;
+    } else if (FLAGS_mode == "tahan800bc") {
+      type_ = PlatformType::PLATFORM_TAHAN800BC;
+    } else if (FLAGS_mode == "morgan800cc") {
+      type_ = PlatformType::PLATFORM_MORGAN800CC;
     } else {
       throw std::runtime_error("invalid mode " + FLAGS_mode);
     }

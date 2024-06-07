@@ -15,15 +15,24 @@ bool Ramon3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::FEC:
     case HwAsic::Feature::FEC_CORRECTED_BITS:
     case HwAsic::Feature::PORT_FABRIC_ISOLATE:
-    case HwAsic::Feature::SAI_FEC_COUNTERS:
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
     case HwAsic::Feature::TELEMETRY_AND_MONITORING:
     case HwAsic::Feature::WARMBOOT:
+    case HwAsic::Feature::SAI_PORT_ERR_STATUS:
+    case HwAsic::Feature::SAI_FEC_COUNTERS:
+    case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
+    case HwAsic::Feature::DTL_WATERMARK_COUNTER:
+    case HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT:
+    case HwAsic::Feature::SAI_PRBS:
+    case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
+    case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
+    case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
       return true;
     case HwAsic::Feature::SAI_PORT_SERDES_FIELDS_RESET:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return getAsicMode() != AsicMode::ASIC_MODE_SIM;
     default:
       return false;
@@ -36,7 +45,9 @@ std::set<cfg::StreamType> Ramon3Asic::getQueueStreamTypes(
   switch (portType) {
     case cfg::PortType::CPU_PORT:
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       break;
     case cfg::PortType::FABRIC_PORT:
       return {cfg::StreamType::FABRIC_TX};
@@ -125,5 +136,9 @@ Ramon3Asic::desiredLoopbackModes() const {
   static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMode = {
       {cfg::PortType::FABRIC_PORT, cfg::PortLoopbackMode::MAC}};
   return kLoopbackMode;
+}
+
+uint32_t Ramon3Asic::getVirtualDevices() const {
+  return 2;
 }
 }; // namespace facebook::fboss

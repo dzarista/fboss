@@ -19,6 +19,7 @@
 #include "fboss/agent/PortStats.h"
 #include "fboss/agent/gen-cpp2/agent_stats_types.h"
 #include "fboss/agent/types.h"
+#include "fboss/lib/CommonUtils.h"
 
 namespace facebook::fboss {
 
@@ -38,7 +39,7 @@ class SwitchStats : public boost::noncopyable {
    */
   static std::string kCounterPrefix;
 
-  SwitchStats();
+  explicit SwitchStats(int numSwitches);
 
   /*
    * Return the PortStats object for the given PortID.
@@ -178,9 +179,15 @@ class SwitchStats : public boost::noncopyable {
   void ipv4TtlExceeded() {
     ipv4TtlExceeded_.addValue(1);
   }
+  void ipv4Ttl1Mine() {
+    ipv4Ttl1Mine_.addValue(1);
+  }
 
   void ipv6HopExceeded() {
     ipv6HopExceeded_.addValue(1);
+  }
+  void ipv6HopLimit1Mine() {
+    ipv6HopLimit1Mine_.addValue(1);
   }
 
   void udpTooSmall() {
@@ -243,6 +250,10 @@ class SwitchStats : public boost::noncopyable {
   void ipv6DstLookupFailure() {
     dstLookupFailureV6_.addValue(1);
     dstLookupFailure_.addValue(1);
+  }
+  void ipv6NdpNotMine() {
+    ipv6NdpNotMine_.addValue(1);
+    trapPktDrops_.addValue(1);
   }
 
   void stateUpdate(std::chrono::microseconds us) {
@@ -308,6 +319,10 @@ class SwitchStats : public boost::noncopyable {
 
   void linkStateChange() {
     linkStateChange_.addValue(1);
+  }
+
+  void linkActiveStateChange() {
+    linkActiveStateChange_.addValue(1);
   }
 
   void pcapDistFailure() {
@@ -399,9 +414,99 @@ class SwitchStats : public boost::noncopyable {
   void remoteResolvedArp(int value) {
     remoteResolvedArp_.incrementValue(value);
   }
-  void failedDsfSubscription(int value) {
+  void failedDsfSubscription(
+      const SwitchID& peer,
+      const std::string& peerName,
+      int value) {
     failedDsfSubscription_.incrementValue(value);
+    if (failedDsfSubscriptionByPeerSwitchId_.find(peer) ==
+        failedDsfSubscriptionByPeerSwitchId_.end()) {
+      failedDsfSubscriptionByPeerSwitchId_.emplace(
+          peer,
+          TLCounter(
+              fb303::ThreadCachedServiceData::get()->getThreadStats(),
+              folly::to<std::string>(
+                  kCounterPrefix, "failedDsfSubscriptionTo.", peerName)));
+    }
+    auto counter = failedDsfSubscriptionByPeerSwitchId_.find(peer);
+    counter->second.incrementValue(value);
   }
+
+  void fillAgentStats(AgentStats& agentStats) const;
+  void fillFabricReachabilityStats(
+      FabricReachabilityStats& fabricReachabilityStats) const;
+
+  void warmBoot() {
+    warmBoot_.addValue(1);
+  }
+
+  void coldBoot() {
+    coldBoot_.addValue(1);
+  }
+
+  void switchConfiguredMs(uint64_t ms) {
+    switchConfiguredMs_.addValue(ms);
+  }
+  void setFabricOverdrainPct(int16_t switchIndex, int16_t overdrainPct);
+
+  void hwAgentConnectionStatus(int switchIndex, bool connected) {
+    CHECK_LT(switchIndex, hwAgentConnectionStatus_.size());
+    hwAgentConnectionStatus_[switchIndex].incrementValue(connected ? 1 : -1);
+  }
+
+  void hwAgentUpdateTimeout(int switchIndex) {
+    CHECK_LT(switchIndex, hwAgentUpdateTimeouts_.size());
+    hwAgentUpdateTimeouts_[switchIndex].addValue(1);
+  }
+
+  void hwAgentStatsEventSinkConnectionStatus(int switchIndex, bool connected) {
+    CHECK_LT(switchIndex, thriftStreamConnectionStatus_.size());
+    if (!connected) {
+      thriftStreamConnectionStatus_[switchIndex].statsEventSinkDisconnected();
+    }
+    thriftStreamConnectionStatus_[switchIndex].setStatsEventSinkStatus(
+        connected);
+  }
+
+  void hwAgentLinkEventSinkConnectionStatus(int switchIndex, bool connected) {
+    CHECK_LT(switchIndex, thriftStreamConnectionStatus_.size());
+    if (!connected) {
+      thriftStreamConnectionStatus_[switchIndex].linkEventSinkDisconnected();
+    }
+    thriftStreamConnectionStatus_[switchIndex].setLinkEventSinkStatus(
+        connected);
+  }
+
+  void hwAgentFdbEventSinkConnectionStatus(int switchIndex, bool connected) {
+    CHECK_LT(switchIndex, thriftStreamConnectionStatus_.size());
+    if (!connected) {
+      thriftStreamConnectionStatus_[switchIndex].fdbEventSinkDisconnected();
+    }
+    thriftStreamConnectionStatus_[switchIndex].setFdbEventSinkStatus(connected);
+  }
+
+  void hwAgentRxPktEventSinkConnectionStatus(int switchIndex, bool connected) {
+    CHECK_LT(switchIndex, thriftStreamConnectionStatus_.size());
+    if (!connected) {
+      thriftStreamConnectionStatus_[switchIndex].rxPktEventSinkDisconnected();
+    }
+    thriftStreamConnectionStatus_[switchIndex].setRxPktEventSinkStatus(
+        connected);
+  }
+
+  void hwAgentTxPktEventStreamConnectionStatus(
+      int switchIndex,
+      bool connected) {
+    CHECK_LT(switchIndex, thriftStreamConnectionStatus_.size());
+    if (!connected) {
+      thriftStreamConnectionStatus_[switchIndex].txPktEventStreamDisconnected();
+    }
+    thriftStreamConnectionStatus_[switchIndex].setTxPktEventStreamStatus(
+        connected);
+  }
+
+  void getHwAgentStatus(
+      std::map<int16_t, HwAgentEventSyncStatus>& statusMap) const;
 
   typedef fb303::ThreadCachedServiceData::ThreadLocalStatsMap
       ThreadLocalStatsMap;
@@ -409,17 +514,98 @@ class SwitchStats : public boost::noncopyable {
   typedef fb303::ThreadCachedServiceData::TLHistogram TLHistogram;
   typedef fb303::ThreadCachedServiceData::TLCounter TLCounter;
 
-  void fillAgentStats(AgentStats& agentStats) const;
-  void fillFabricReachabilityStats(
-      FabricReachabilityStats& fabricReachabilityStats) const;
-
  private:
   // Forbidden copy constructor and assignment operator
   SwitchStats(SwitchStats const&) = delete;
   SwitchStats& operator=(SwitchStats const&) = delete;
 
-  explicit SwitchStats(ThreadLocalStatsMap* map);
+  explicit SwitchStats(ThreadLocalStatsMap* map, int numSwitches);
 
+  void updateFabricOverdrainWatermark(
+      int16_t switchIndex,
+      int16_t overdrainPct);
+  class HwAgentStreamConnectionStatus {
+   public:
+    explicit HwAgentStreamConnectionStatus(
+        ThreadLocalStatsMap* map,
+        int16_t switchIndex);
+    void setStatsEventSinkStatus(bool connected) {
+      statsEventSinkStatus_.incrementValue(connected ? 1 : -1);
+    }
+    void setLinkEventSinkStatus(bool connected) {
+      linkEventSinkStatus_.incrementValue(connected ? 1 : -1);
+    }
+    void setFdbEventSinkStatus(bool connected) {
+      fdbEventSinkStatus_.incrementValue(connected ? 1 : -1);
+    }
+    void setRxPktEventSinkStatus(bool connected) {
+      rxPktEventSinkStatus_.incrementValue(connected ? 1 : -1);
+    }
+    void setTxPktEventStreamStatus(bool connected) {
+      txPktEventStreamStatus_.incrementValue(connected ? 1 : -1);
+    }
+    void statsEventSinkDisconnected() {
+      statsEventSinkDisconnects_.addValue(1);
+    }
+    void linkEventSinkDisconnected() {
+      linkEventSinkDisconnects_.addValue(1);
+    }
+    void fdbEventSinkDisconnected() {
+      fdbEventSinkDisconnects_.addValue(1);
+    }
+    void rxPktEventSinkDisconnected() {
+      rxPktEventSinkDisconnects_.addValue(1);
+    }
+    void txPktEventStreamDisconnected() {
+      txPktEventStreamDisconnects_.addValue(1);
+    }
+    int64_t getStatsEventSinkStatus() const {
+      return getCumulativeValue(statsEventSinkStatus_, false /*hasSumSuffix*/);
+    }
+    int64_t getLinkEventSinkStatus() const {
+      return getCumulativeValue(linkEventSinkStatus_, false /*hasSumSuffix*/);
+    }
+    int64_t getFdbEventSinkStatus() const {
+      return getCumulativeValue(fdbEventSinkStatus_, false /*hasSumSuffix*/);
+    }
+    int64_t getRxPktEventSinkStatus() const {
+      return getCumulativeValue(rxPktEventSinkStatus_, false /*hasSumSuffix*/);
+    }
+    int64_t getTxPktEventStreamStatus() const {
+      return getCumulativeValue(
+          txPktEventStreamStatus_, false /*hasSumSuffix*/);
+    }
+    int64_t getStatsEventSinkDisconnectCount() const {
+      return getCumulativeValue(statsEventSinkDisconnects_);
+    }
+    int64_t getLinkEventSinkDisconnectCount() const {
+      return getCumulativeValue(linkEventSinkDisconnects_);
+    }
+    int64_t getFdbEventSinkDisconnectCount() const {
+      return getCumulativeValue(fdbEventSinkDisconnects_);
+    }
+    int64_t getRxPktEventSinkDisconnectCount() const {
+      return getCumulativeValue(rxPktEventSinkDisconnects_);
+    }
+    int64_t getTxPktEventStreamDisconnectCount() const {
+      return getCumulativeValue(txPktEventStreamDisconnects_);
+    }
+
+   private:
+    TLCounter statsEventSinkStatus_;
+    TLCounter linkEventSinkStatus_;
+    TLCounter fdbEventSinkStatus_;
+    TLCounter rxPktEventSinkStatus_;
+    TLCounter txPktEventStreamStatus_;
+
+    TLTimeseries statsEventSinkDisconnects_;
+    TLTimeseries linkEventSinkDisconnects_;
+    TLTimeseries fdbEventSinkDisconnects_;
+    TLTimeseries rxPktEventSinkDisconnects_;
+    TLTimeseries txPktEventStreamDisconnects_;
+  };
+
+  const int numSwitches_;
   // Total number of trapped packets
   TLTimeseries trapPkts_;
   // Number of trapped packets that were intentionally dropped.
@@ -460,6 +646,7 @@ class SwitchStats : public boost::noncopyable {
   // IPv6 Neighbor Discovery Protocol packets
   TLTimeseries trapPktNdp_;
   TLTimeseries ipv6NdpBad_;
+  TLTimeseries ipv6NdpNotMine_;
 
   // IPv4 Packets
   TLTimeseries ipv4Rx_;
@@ -475,9 +662,13 @@ class SwitchStats : public boost::noncopyable {
   TLTimeseries ipv4NoArp_;
   // IPv4 TTL exceeded
   TLTimeseries ipv4TtlExceeded_;
+  TLTimeseries ipv4Ttl1Mine_;
 
   // IPv6 hop count exceeded
   TLTimeseries ipv6HopExceeded_;
+  // Locally destined packets which arrive with
+  // hop limit 1
+  TLTimeseries ipv6HopLimit1Mine_;
 
   // UDP packets dropped due to smaller packet size
   TLTimeseries udpTooSmall_;
@@ -580,6 +771,11 @@ class SwitchStats : public boost::noncopyable {
    */
   TLTimeseries linkStateChange_;
 
+  /**
+   * Link state active/inactive change count
+   */
+  TLTimeseries linkActiveStateChange_;
+
   // Individual port stats objects, indexed by PortID
   PortStatsMap ports_;
 
@@ -650,6 +846,16 @@ class SwitchStats : public boost::noncopyable {
   TLCounter remoteResolvedArp_;
   // Failed Dsf subscriptions
   TLCounter failedDsfSubscription_;
+  // Failed Dsf subscriptions by peer SwitchID
+  std::map<SwitchID, TLCounter> failedDsfSubscriptionByPeerSwitchId_;
+
+  TLTimeseries coldBoot_;
+  TLTimeseries warmBoot_;
+  TLTimeseries switchConfiguredMs_;
+
+  std::vector<TLCounter> hwAgentConnectionStatus_;
+  std::vector<TLTimeseries> hwAgentUpdateTimeouts_;
+  std::vector<HwAgentStreamConnectionStatus> thriftStreamConnectionStatus_;
 };
 
 } // namespace facebook::fboss

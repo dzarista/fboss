@@ -38,14 +38,14 @@ void validateUdfConfig(
     EXPECT_EQ(
         udfApi.getAttribute(
             saiUdfGroup->adapterKey(), SaiUdfGroupTraits::Attributes::Length{}),
-        utility::kUdfHashFieldSizeInBytes);
+        utility::kUdfHashDstQueuePairFieldSizeInBytes);
 
     // Verify Udf attributes
     auto saiUdf = udfGroupIter->second->udfs[udfPacketMatcherName]->udf;
     EXPECT_EQ(
         udfApi.getAttribute(
             saiUdf->adapterKey(), SaiUdfTraits::Attributes::Offset{}),
-        utility::kUdfHashStartOffsetInBytes);
+        utility::kUdfHashDstQueuePairStartOffsetInBytes);
     EXPECT_EQ(
         udfApi.getAttribute(
             saiUdf->adapterKey(), SaiUdfTraits::Attributes::Base{}),
@@ -132,10 +132,24 @@ int getHwUdfPacketMatcherId(
       "Cannot find UdfMatch " + udfPackeMatchName + " in Sai Switch");
 }
 
-void validateUdfIdsSetInQset(
+void validateUdfIdsInQset(
     const HwSwitch* /* unused */,
-    const int /*aclGroupId*/) {
+    const int /*aclGroupId*/,
+    const bool /*isSet*/) {
   // not supported on SAI yet.
   EXPECT_TRUE(false);
 }
+
+cfg::SwitchConfig addUdfAclRoceOpcodeConfig(cfg::SwitchConfig& cfg) {
+  // not supported on SAI yet.
+  return cfg;
+}
+
+void validateUdfAclRoceOpcodeConfig(
+    const HwSwitch* /*hw*/,
+    std::shared_ptr<SwitchState> /*curState*/) {
+  // not supported on SAI yet.
+  EXPECT_TRUE(false);
+}
+
 } // namespace facebook::fboss::utility

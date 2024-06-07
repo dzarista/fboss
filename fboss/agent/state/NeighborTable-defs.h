@@ -68,7 +68,7 @@ SUBCLASS* NeighborTable<IPADDR, ENTRY, SUBCLASS>::modify(
 
   *interface = (*interface)->modify(state);
   auto newTable = this->clone();
-  (*interface)->setNeighborEntryTable<IPADDR>(newTable->toThrift());
+  (*interface)->setNeighborTable(std::move(newTable));
   return (*interface)->getNeighborEntryTable<IPADDR>().get();
 }
 
@@ -85,7 +85,7 @@ SUBCLASS* NeighborTable<IPADDR, ENTRY, SUBCLASS>::modify(
   // Make clone of interface
   auto interfacePtr = (*state)->getInterfaces()->getNode(interfaceId).get();
   interfacePtr = interfacePtr->modify(state);
-  interfacePtr->setNeighborEntryTable<IPADDR>(newTable->toThrift());
+  interfacePtr->setNeighborTable(std::move(newTable));
   return interfacePtr->getNeighborEntryTable<IPADDR>().get();
 }
 
@@ -98,7 +98,8 @@ void NeighborTable<IPADDR, ENTRY, SUBCLASS>::addEntry(
     NeighborState state,
     std::optional<cfg::AclLookupClass> classID,
     std::optional<int64_t> encapIndex,
-    bool isLocal) {
+    bool isLocal,
+    std::optional<bool> noHostRoute) {
   CHECK(!this->isPublished());
   state::NeighborEntryFields thrift{};
   thrift.ipaddress() = ip.str();
@@ -113,6 +114,9 @@ void NeighborTable<IPADDR, ENTRY, SUBCLASS>::addEntry(
     thrift.encapIndex() = *encapIndex;
   }
   thrift.isLocal() = isLocal;
+  if (noHostRoute) {
+    thrift.noHostRoute() = *noHostRoute;
+  }
   auto entry = std::make_shared<Entry>(std::move(thrift));
   this->addNode(entry);
 }
@@ -128,7 +132,8 @@ void NeighborTable<IPADDR, ENTRY, SUBCLASS>::addEntry(
       fields.state,
       fields.classID,
       fields.encapIndex,
-      fields.isLocal);
+      fields.isLocal,
+      fields.noHostRoute);
 }
 
 template <typename IPADDR, typename ENTRY, typename SUBCLASS>
@@ -140,7 +145,8 @@ void NeighborTable<IPADDR, ENTRY, SUBCLASS>::updateEntry(
     NeighborState state,
     std::optional<cfg::AclLookupClass> classID,
     std::optional<int64_t> encapIndex,
-    bool isLocal) {
+    bool isLocal,
+    std::optional<bool> noHostRoute) {
   auto entry = this->getNode(ip.str());
   entry = entry->clone();
   entry->setMAC(mac);
@@ -150,6 +156,7 @@ void NeighborTable<IPADDR, ENTRY, SUBCLASS>::updateEntry(
   entry->setClassID(classID);
   entry->setEncapIndex(encapIndex);
   entry->setIsLocal(isLocal);
+  entry->setNoHostRoute(noHostRoute);
   this->updateNode(std::move(entry));
 }
 
@@ -171,7 +178,8 @@ void NeighborTable<IPADDR, ENTRY, SUBCLASS>::updateEntry(
       fields.state,
       fields.classID,
       fields.encapIndex,
-      fields.isLocal);
+      fields.isLocal,
+      fields.noHostRoute);
 }
 
 template <typename IPADDR, typename ENTRY, typename SUBCLASS>

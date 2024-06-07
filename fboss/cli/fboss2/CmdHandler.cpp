@@ -465,8 +465,7 @@ const ValidAggMapType CmdHandler<CmdTypeT, CmdTypeTraits>::getValidAggs() {
       CmdTypeT::Traits::ALLOW_AGGREGATION) {
     apache::thrift::for_each_field(
         RetType(),
-        [&aggMap, this](
-            const ThriftField& /*outer_meta*/, auto&& outer_field_ref) {
+        [&aggMap](const ThriftField& /*outer_meta*/, auto&& outer_field_ref) {
           if constexpr (apache::thrift::is_thrift_struct_v<folly::detected_or_t<
                             void,
                             get_value_type_t,
@@ -477,7 +476,7 @@ const ValidAggMapType CmdHandler<CmdTypeT, CmdTypeTraits>::getValidAggs() {
             if constexpr (apache::thrift::is_thrift_struct_v<NestedType>) {
               apache::thrift::for_each_field(
                   NestedType(),
-                  [&, this](const ThriftField& meta, auto&& /*field_ref*/) {
+                  [&](const ThriftField& meta, auto&& /*field_ref*/) {
                     const auto& fieldType = *meta.type();
                     const auto& thriftBaseType = fieldType.getType();
 
@@ -551,8 +550,9 @@ const ValidAggMapType CmdHandler<CmdTypeT, CmdTypeTraits>::getValidAggs() {
                               *meta.name(),
                               std::vector<AggregateOpEnum>{
                                   AggregateOpEnum::COUNT});
-
-                        default:;
+                          break;
+                        default:
+                          (void)0; // do nothing
                       }
                     }
                   });

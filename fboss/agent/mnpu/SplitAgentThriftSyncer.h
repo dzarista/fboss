@@ -23,7 +23,8 @@ namespace facebook::fboss {
 
 class HwSwitch;
 class FdbEventSyncer;
-class LinkEventSyncer;
+class LinkActiveEventSyncer;
+class LinkChangeEventSyncer;
 class RxPktEventSyncer;
 class TxPktEventSyncer;
 class OperDeltaSyncer;
@@ -35,7 +36,8 @@ class SplitAgentThriftSyncer : public HwSwitchCallback {
       HwSwitch* hw,
       uint16_t serverPort,
       SwitchID switchId,
-      uint16_t switchIndex);
+      uint16_t switchIndex,
+      std::optional<std::string> multiSwitchStatsPrefix);
   ~SplitAgentThriftSyncer() override;
 
   void packetReceived(std::unique_ptr<RxPacket> pkt) noexcept override;
@@ -44,6 +46,11 @@ class SplitAgentThriftSyncer : public HwSwitchCallback {
       bool up,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override;
+  void linkActiveStateChanged(
+      const std::map<PortID, bool>& port2IsActive) override;
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+          port2OldAndNewConnectivity) override;
   void l2LearningUpdateReceived(
       L2Entry l2Entry,
       L2EntryUpdateType l2EntryUpdateType) override;
@@ -61,12 +68,13 @@ class SplitAgentThriftSyncer : public HwSwitchCallback {
  private:
   std::shared_ptr<folly::ScopedEventBaseThread> retryThread_;
   SwitchID switchId_;
-  std::unique_ptr<LinkEventSyncer> linkEventSinkClient_;
+  std::unique_ptr<LinkChangeEventSyncer> linkChangeEventSinkClient_;
   std::unique_ptr<TxPktEventSyncer> txPktEventStreamClient_;
   std::unique_ptr<OperDeltaSyncer> operDeltaClient_;
   std::unique_ptr<FdbEventSyncer> fdbEventSinkClient_;
   std::unique_ptr<RxPktEventSyncer> rxPktEventSinkClient_;
   std::unique_ptr<HwSwitchStatsSinkClient> hwSwitchStatsSinkClient_;
   bool isRunning_{false};
+  folly::Synchronized<uint64_t> rxPktEventsDropped_{0};
 };
 } // namespace facebook::fboss

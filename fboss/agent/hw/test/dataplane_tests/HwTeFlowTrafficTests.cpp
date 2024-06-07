@@ -19,7 +19,7 @@
 #include "fboss/agent/hw/test/HwTestUdfUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
-#include "fboss/agent/packet/PktFactory.h"
+#include "fboss/agent/packet/EthFrame.h"
 #include "fboss/agent/packet/PktUtil.h"
 #include "fboss/agent/state/RouteNextHop.h"
 #include "fboss/agent/state/SwitchState.h"
@@ -63,7 +63,7 @@ class HwTeFlowTrafficTest : public HwLinkStateDependentTest {
     };
     auto cfg = utility::onePortPerInterfaceConfig(
         getHwSwitch(), std::move(ports), getAsic()->desiredLoopbackModes());
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     return cfg;
   }
 
@@ -100,7 +100,9 @@ class HwTeFlowTrafficTest : public HwLinkStateDependentTest {
     utility::UDPDatagram datagram(udp, {0xff});
     auto ethFrame = utility::EthFrame(
         eth, utility::IPPacket<folly::IPAddressV6>(ip6, datagram));
-    auto pkt = ethFrame.getTxPacket(getHwSwitch());
+    auto pkt = ethFrame.getTxPacket([hw = getHwSwitch()](uint32_t size) {
+      return hw->allocatePacket(size);
+    });
     XLOG(DBG5) << "sending packet: ";
     XLOG(DBG5) << PktUtil::hexDump(pkt->buf());
     // send pkt on src port, let it loop back in switch and be l3 switched
@@ -137,7 +139,7 @@ class HwTeFlowTrafficTest : public HwLinkStateDependentTest {
     for (const auto& nextHop :
          {ecmpHelper.nhop(portDesc1()), ecmpHelper.nhop(portDesc2())}) {
       utility::ttlDecrementHandlingForLoopbackTraffic(
-          getHwSwitch(), ecmpHelper.getRouterId(), nextHop);
+          getHwSwitchEnsemble(), ecmpHelper.getRouterId(), nextHop);
     }
   }
 
@@ -153,7 +155,8 @@ class HwTeFlowTrafficTest : public HwLinkStateDependentTest {
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
 
     utility::pumpTraffic(
-        getHwSwitch(),
+        utility::getAllocatePktFn(getHwSwitchEnsemble()),
+        utility::getSendPktFunc(getHwSwitchEnsemble()),
         intfMac,
         {folly::IPAddress("1::10")},
         {dstIp},
@@ -281,9 +284,10 @@ class HwTeFlowTrafficTest : public HwLinkStateDependentTest {
     auto verifyPostWB = [&]() {
       if (udfAclEnabled) {
         _validateTeFlow();
-        utility::validateUdfIdsSetInQset(
+        utility::validateUdfIdsInQset(
             getHwSwitch(),
-            getHwSwitch()->getPlatform()->getAsic()->getDefaultACLGroupID());
+            getHwSwitch()->getPlatform()->getAsic()->getDefaultACLGroupID(),
+            true);
       }
     };
 
@@ -518,11 +522,11 @@ class HwUdfAclTeFlowTrafficTest : public HwTeFlowTrafficTest {
     };
     auto cfg = utility::onePortPerInterfaceConfig(
         getHwSwitch(), std::move(ports), getAsic()->desiredLoopbackModes());
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     // run exact match with UDF acls
     cfg.udfConfig() = utility::addUdfAclConfig();
     auto acl = utility::addAcl(&cfg, kUdfAclName);
-    acl->udfGroups() = {utility::kUdfRoceOpcodeAclGroupName};
+    acl->udfGroups() = {utility::kUdfAclRoceOpcodeGroupName};
     acl->roceOpcode() = utility::kUdfRoceOpcode;
     utility::addAclStat(&cfg, kUdfAclName, kUdfAclStatName);
     return cfg;

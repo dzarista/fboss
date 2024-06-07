@@ -9,6 +9,7 @@ add_library(link_tests
   fboss/agent/test/link_tests/LinkTestUtils.cpp
   fboss/agent/test/link_tests/LinkSanityTests.cpp
   fboss/agent/test/link_tests/PtpTests.cpp
+  fboss/agent/test/link_tests/OpticsTest.cpp
 )
 
 target_link_libraries(link_tests
@@ -17,10 +18,14 @@ target_link_libraries(link_tests
   main
   config_factory
   fboss_config_utils
+  load_balancer_test_utils
   load_balancer_utils
-  hw_olympic_qos_utils
-  hw_agent_packet_utils
+  olympic_qos_utils
+  port_test_utils
+  packet_snooper
+  hw_packet_utils
   packet
+  packet_snooper
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
 )

@@ -15,13 +15,12 @@
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwEcmpDataPlaneTestUtil.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestDscpMarkingUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/agent/test/utils/DscpMarkingUtils.h"
+#include "fboss/agent/test/utils/EcmpDataPlaneTestUtil.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 #include "fboss/agent/gen-cpp2/validated_shell_commands_constants.h"
 
@@ -213,8 +212,7 @@ void HwProdInvariantHelper::disableTtl() {
   for (const auto& nhop : ecmpHelper_->getNextHops()) {
     if (std::find(ecmpPorts_.begin(), ecmpPorts_.end(), nhop.portDesc) !=
         ecmpPorts_.end()) {
-      utility::disableTTLDecrements(
-          ensemble_->getHwSwitch(), RouterID(0), nhop);
+      utility::disableTTLDecrements(ensemble_, RouterID(0), nhop);
     }
   }
 }
@@ -235,7 +233,6 @@ void HwProdInvariantHelper::verifyQueuePerHostMapping(bool dscpMarkingTest) {
   }
 
   utility::verifyQueuePerHostMapping(
-      ensemble_->getHwSwitch(),
       ensemble_,
       vlanId,
       srcMac,

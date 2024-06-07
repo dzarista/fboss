@@ -10,6 +10,7 @@
 
 #include "fboss/agent/platforms/sai/SaiCloudRipperPlatform.h"
 
+#include "fboss/agent/hw/sai/api/UdfApi.h"
 #include "fboss/agent/hw/switch_asics/EbroAsic.h"
 #include "fboss/agent/platforms/common/cloud_ripper/CloudRipperPlatformMapping.h"
 
@@ -34,7 +35,7 @@ void SaiCloudRipperPlatform::setupAsic(
     std::optional<cfg::Range64> systemPortRange,
     folly::MacAddress& mac) {
   std::optional<cfg::SdkVersion> sdkVersion;
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_SDK_GTE_1_65_0)
   /*
    * HwAsic table instance in the sw switch reads the SDK version
    * from the agent config for prod and from sai switch ensemble
@@ -46,7 +47,7 @@ void SaiCloudRipperPlatform::setupAsic(
     sdkVersion = agentConfig->thrift.sw()->sdkVersion().value();
   } else {
     sdkVersion = cfg::SdkVersion{};
-    sdkVersion->asicSdk() = "1.65.0";
+    sdkVersion->asicSdk() = "1.65.1";
   }
 #endif
   asic_ = std::make_unique<EbroAsic>(
@@ -81,6 +82,12 @@ SaiCloudRipperPlatform::getInternalSystemPortConfig() const {
       {8, switchIdVal, 6, 24, 1000, 8},
       {9, switchIdVal, 8, 24, 1000, 8},
       {10, switchIdVal, 1, 24, 1000, 8}};
+}
+
+const std::set<sai_api_t>& SaiCloudRipperPlatform::getSupportedApiList() const {
+  static auto apis = getDefaultSwitchAsicSupportedApis();
+  apis.erase(facebook::fboss::UdfApi::ApiType);
+  return apis;
 }
 
 } // namespace facebook::fboss

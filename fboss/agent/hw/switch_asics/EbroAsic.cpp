@@ -19,13 +19,11 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::MPLS_ECMP:
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv6:
-
     case HwAsic::Feature::ECN:
     case HwAsic::Feature::L3_QOS:
     case HwAsic::Feature::QOS_MAP_GLOBAL:
     case HwAsic::Feature::SMAC_EQUALS_DMAC_CHECK_ENABLED:
     case HwAsic::Feature::PORT_TTL_DECREMENT_DISABLE:
-    case HwAsic::Feature::WEIGHTED_NEXTHOPGROUP_MEMBER:
     case HwAsic::Feature::SAI_WEIGHTED_NEXTHOPGROUP_MEMBER:
     case HwAsic::Feature::SWITCH_ATTR_INGRESS_ACL:
     case HwAsic::Feature::ACL_COPY_TO_CPU:
@@ -34,14 +32,13 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::SFLOW_SAMPLING:
     case HwAsic::Feature::SAI_ECN_WRED:
     case HwAsic::Feature::RESOURCE_USAGE_STATS:
-    case HwAsic::Feature::DEBUG_COUNTER:
+    case HwAsic::Feature::BLACKHOLE_ROUTE_DROP_COUNTER:
     case HwAsic::Feature::PENDING_L2_ENTRY:
     case HwAsic::Feature::COUNTER_REFRESH_INTERVAL:
     case HwAsic::Feature::MAC_AGING:
     case HwAsic::Feature::TELEMETRY_AND_MONITORING:
     case HwAsic::Feature::REMOVE_PORTS_FOR_COLDBOOT:
     case HwAsic::Feature::DEFAULT_VLAN:
-    case HwAsic::Feature::L2_LEARNING:
     case HwAsic::Feature::TRAFFIC_HASHING:
     case HwAsic::Feature::ACL_TABLE_GROUP:
     case HwAsic::Feature::CPU_PORT:
@@ -58,8 +55,6 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::ECMP_MEMBER_WIDTH_INTROSPECTION:
     case HwAsic::Feature::FABRIC_PORT_MTU:
     case HwAsic::Feature::SAI_MPLS_INSEGMENT:
-    case HwAsic::Feature::FABRIC_PORTS:
-    case HwAsic::Feature::SAI_PORT_SPEED_CHANGE:
     case HwAsic::Feature::ROUTE_METADATA:
     case HwAsic::Feature::P4_WARMBOOT:
     case HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS:
@@ -82,13 +77,14 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::ACL_COUNTER_LABEL:
-      return true;
-    // VOQ vs NPU mode dependent features
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
+    case HwAsic::Feature::PORT_WRED_COUNTER:
     case HwAsic::Feature::BRIDGE_PORT_8021Q:
     case HwAsic::Feature::WARMBOOT:
-      return getSwitchType() == cfg::SwitchType::NPU;
+    case HwAsic::Feature::ACL_METADATA_QUALIFER:
+    case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
+      return true;
     case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
-      return getSwitchType() == cfg::SwitchType::VOQ;
     case HwAsic::Feature::HOSTTABLE:
     case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
     case HwAsic::Feature::QCM:
@@ -105,6 +101,7 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::OBM_COUNTERS:
     case HwAsic::Feature::EGRESS_QUEUE_FLEX_COUNTER:
     case HwAsic::Feature::PFC:
+    case HwAsic::Feature::PFC_XON_TO_XOFF_COUNTER:
     case HwAsic::Feature::INGRESS_L3_INTERFACE:
     case HwAsic::Feature::NON_UNICAST_HASH:
     case HwAsic::Feature::DETAILED_L2_UPDATE:
@@ -129,7 +126,6 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::LINK_TRAINING:
     case HwAsic::Feature::SAI_RX_REASON_COUNTER:
     case HwAsic::Feature::VOQ:
-    case HwAsic::Feature::RECYCLE_PORT_STATS:
     case HwAsic::Feature::XPHY_PORT_STATE_TOGGLE:
     case HwAsic::Feature::SAI_PORT_GET_PMD_LANES:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
@@ -140,7 +136,6 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
     case HwAsic::Feature::PORT_FABRIC_ISOLATE:
     case HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT:
-
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
     case HwAsic::Feature::SAI_UDF_HASH:
@@ -148,7 +143,6 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
     case HwAsic::Feature::SLOW_STAT_UPDATE:
-    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
@@ -160,6 +154,22 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::ECMP_DLB_OFFSET:
     case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
     case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
+    case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+    case HwAsic::Feature::RX_SNR:
+    case HwAsic::Feature::MANAGEMENT_PORT:
+    case HwAsic::Feature::ANY_ACL_DROP_COUNTER:
+    case HwAsic::Feature::EGRESS_FORWARDING_DROP_COUNTER:
+    case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
+    case HwAsic::Feature::SAI_PRBS:
+    case HwAsic::Feature::SAI_PORT_SPEED_CHANGE:
+    case HwAsic::Feature::FABRIC_PORTS:
+    case HwAsic::Feature::RCI_WATERMARK_COUNTER:
+    case HwAsic::Feature::DTL_WATERMARK_COUNTER:
+    case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
+    case HwAsic::Feature::WEIGHTED_NEXTHOPGROUP_MEMBER:
+    case HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER:
+    case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
+    case HwAsic::Feature::CRC_ERROR_DETECT:
       return false;
   }
   return false;
@@ -168,7 +178,6 @@ bool EbroAsic::isSupportedNonFabric(Feature feature) const {
 bool EbroAsic::isSupportedFabric(Feature feature) const {
   switch (feature) {
     case HwAsic::Feature::REMOVE_PORTS_FOR_COLDBOOT:
-    case HwAsic::Feature::FABRIC_PORTS:
       return true;
     default:
       return false;
@@ -198,6 +207,7 @@ std::set<cfg::StreamType> EbroAsic::getQueueStreamTypes(
   switch (portType) {
     case cfg::PortType::CPU_PORT:
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
       /*
        * For Ebro asic, SDK 1.42.* queue type is ALL whereas SDK 1.56.* queue
        * type is unicast. Once SDK 1.56.* is rolled out after P4 warmboot
@@ -208,6 +218,7 @@ std::set<cfg::StreamType> EbroAsic::getQueueStreamTypes(
     case cfg::PortType::FABRIC_PORT:
       return {cfg::StreamType::FABRIC_TX};
     case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       // TODO: handle when we start modeling
       // recycle port for Ebro ASIC
       break;

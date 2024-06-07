@@ -20,6 +20,11 @@ enum PlatformAttributes {
   MAC = 2,
 }
 
+enum PlatformMappingProfile {
+  DEFAULT = 0,
+  INFERENCE = 1,
+}
+
 union ChipConfig {
   1: bcm_config.BcmConfig bcm;
   2: asic_config.AsicConfig asic;
@@ -47,6 +52,8 @@ struct PlatformPortMapping {
   5: switch_config.PortType portType = switch_config.PortType.INTERFACE_PORT;
   6: optional i32 attachedCoreId;
   7: optional i32 attachedCorePortIndex;
+  8: optional i32 virtualDeviceId;
+  9: switch_config.Scope scope = switch_config.Scope.LOCAL;
 }
 
 struct PlatformPortConfig {

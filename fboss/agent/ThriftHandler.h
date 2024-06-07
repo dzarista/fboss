@@ -42,7 +42,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
                       public fb303::FacebookBase2 {
  public:
   template <typename T>
-  using ThriftCallback = std::unique_ptr<apache::thrift::HandlerCallback<T>>;
+  using ThriftCallback = apache::thrift::HandlerCallbackPtr<T>;
   using TConnectionContext = apache::thrift::server::TConnectionContext;
 
   typedef network::thrift::Address Address;
@@ -229,6 +229,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getArpTable(std::vector<ArpEntryThrift>& arpTable) override;
   void getL2Table(std::vector<L2EntryThrift>& l2Table) override;
   void getAclTable(std::vector<AclEntryThrift>& AclTable) override;
+  void getAclTableGroup(AclTableThrift& aclTableEntry) override;
   void getAggregatePort(
       AggregatePortThrift& aggregatePortThrift,
       int32_t aggregatePortIDThrift) override;
@@ -293,9 +294,16 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getSysPortStats(
       std::map<std::string, HwSysPortStats>& hwSysPortStats) override;
   void getCpuPortStats(CpuPortStats& hwCpuPortStats) override;
+  void getAllCpuPortStats(std::map<int, CpuPortStats>& hwCpuPortStats) override;
   void getHwPortStats(std::map<std::string, HwPortStats>& hwPortStats) override;
   void getFabricReachabilityStats(
       FabricReachabilityStats& fabricReachabilityStats) override;
+  void getAllEcmpDetails(std::vector<EcmpDetails>& ecmpDetails) override;
+  void getHwAgentConnectionStatus(
+      std::map<int16_t, HwAgentEventSyncStatus>& hwAgentSyncStatusMap) override;
+  void getSwitchIndicesForInterfaces(
+      std::map<int16_t, std::vector<std::string>>& switchIndicesForInterfaces,
+      std::unique_ptr<std::vector<std::string>> interfaces) override;
 
   /*
    * Thrift handler for keepalive messages.  It's a no-op, but prevents the
@@ -407,6 +415,8 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getInterfacePhyInfo(
       std::map<std::string, phy::PhyInfo>& phyInfos,
       std::unique_ptr<std::vector<std::string>> portNames) override;
+  void getAllInterfacePhyInfo(
+      std::map<std::string, phy::PhyInfo>& phyInfos) override;
   bool isSwitchDrained() override;
   void getActualSwitchDrainState(std::map<int64_t, cfg::SwitchDrainState>&
                                      switchId2ActualSwitchDrainState) override;

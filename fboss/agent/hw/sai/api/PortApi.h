@@ -50,6 +50,13 @@ struct SaiPortTraits {
       std::optional<sai_attr_id_t> operator()();
     };
     using DiagModeEnable = SaiExtensionAttribute<bool, AttributeDiagModeEnable>;
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+    struct AttributeCrcErrorDetect {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using CrcErrorDetect =
+        SaiExtensionAttribute<sai_latch_status_t, AttributeCrcErrorDetect>;
+#endif
     struct AttributeFdrEnable {
       std::optional<sai_attr_id_t> operator()();
     };
@@ -179,10 +186,16 @@ struct SaiPortTraits {
         SAI_PORT_ATTR_EGRESS_SAMPLE_MIRROR_SESSION,
         std::vector<sai_object_id_t>,
         SaiObjectIdListDefault>;
-    using PrbsPolynomial =
-        SaiAttribute<EnumType, SAI_PORT_ATTR_PRBS_POLYNOMIAL, sai_uint32_t>;
-    using PrbsConfig =
-        SaiAttribute<EnumType, SAI_PORT_ATTR_PRBS_CONFIG, sai_int32_t>;
+    using PrbsPolynomial = SaiAttribute<
+        EnumType,
+        SAI_PORT_ATTR_PRBS_POLYNOMIAL,
+        sai_uint32_t,
+        SaiIntDefault<sai_uint32_t>>;
+    using PrbsConfig = SaiAttribute<
+        EnumType,
+        SAI_PORT_ATTR_PRBS_CONFIG,
+        sai_int32_t,
+        SaiPrbsConfigDefault>;
 #if SAI_API_VERSION >= SAI_VERSION(1, 8, 1)
     using PrbsRxState = SaiAttribute<
         EnumType,
@@ -280,6 +293,21 @@ struct SaiPortTraits {
         SAI_PORT_ATTR_PCS_RX_LINK_STATUS,
         sai_latch_status_t>;
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+    /*
+     * PPM = Parts per million
+     * RX_FREQUENCY_OFFSET_PPM => amount that a receiver serdes has to
+     * compensate for clock differences from the remote side
+     */
+    using RxFrequencyPPM = SaiAttribute<
+        EnumType,
+        SAI_PORT_ATTR_RX_FREQUENCY_OFFSET_PPM,
+        std::vector<sai_port_frequency_offset_ppm_values_t>>;
+    using RxSNR = SaiAttribute<
+        EnumType,
+        SAI_PORT_ATTR_RX_SNR,
+        std::vector<sai_port_snr_values_t>>;
+#endif
 #if SAI_API_VERSION >= SAI_VERSION(1, 9, 0)
     using InterFrameGap = SaiAttribute<
         EnumType,
@@ -343,6 +371,10 @@ struct SaiPortTraits {
         SAI_PORT_ATTR_SYSTEM_PORT,
         SaiObjectIdT,
         SaiObjectIdDefault>;
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+    using TxReadyStatus =
+        SaiAttribute<EnumType, SAI_PORT_ATTR_HOST_TX_READY_STATUS, sai_int32_t>;
+#endif
   };
   using AdapterKey = PortSaiId;
 
@@ -417,6 +449,8 @@ struct SaiPortTraits {
       std::optional<Attributes::EgressSamplePacketEnable>,
       std::optional<Attributes::IngressSampleMirrorSession>,
       std::optional<Attributes::EgressSampleMirrorSession>,
+      std::optional<Attributes::PrbsPolynomial>,
+      std::optional<Attributes::PrbsConfig>,
       std::optional<Attributes::IngressMacSecAcl>,
       std::optional<Attributes::EgressMacSecAcl>,
       std::optional<Attributes::SystemPortId>,
@@ -459,19 +493,33 @@ struct SaiPortTraits {
       SAI_PORT_STAT_WRED_DROPPED_PACKETS,
       SAI_PORT_STAT_ECN_MARKED_PACKETS,
   };
-  static constexpr std::array<sai_stat_id_t, 24> PfcCounterIdsToRead = {
-      SAI_PORT_STAT_PFC_0_RX_PKTS,        SAI_PORT_STAT_PFC_1_RX_PKTS,
-      SAI_PORT_STAT_PFC_2_RX_PKTS,        SAI_PORT_STAT_PFC_3_RX_PKTS,
-      SAI_PORT_STAT_PFC_4_RX_PKTS,        SAI_PORT_STAT_PFC_5_RX_PKTS,
-      SAI_PORT_STAT_PFC_6_RX_PKTS,        SAI_PORT_STAT_PFC_7_RX_PKTS,
-      SAI_PORT_STAT_PFC_0_TX_PKTS,        SAI_PORT_STAT_PFC_1_TX_PKTS,
-      SAI_PORT_STAT_PFC_2_TX_PKTS,        SAI_PORT_STAT_PFC_3_TX_PKTS,
-      SAI_PORT_STAT_PFC_4_TX_PKTS,        SAI_PORT_STAT_PFC_5_TX_PKTS,
-      SAI_PORT_STAT_PFC_6_TX_PKTS,        SAI_PORT_STAT_PFC_7_TX_PKTS,
-      SAI_PORT_STAT_PFC_0_ON2OFF_RX_PKTS, SAI_PORT_STAT_PFC_1_ON2OFF_RX_PKTS,
-      SAI_PORT_STAT_PFC_2_ON2OFF_RX_PKTS, SAI_PORT_STAT_PFC_3_ON2OFF_RX_PKTS,
-      SAI_PORT_STAT_PFC_4_ON2OFF_RX_PKTS, SAI_PORT_STAT_PFC_5_ON2OFF_RX_PKTS,
-      SAI_PORT_STAT_PFC_6_ON2OFF_RX_PKTS, SAI_PORT_STAT_PFC_7_ON2OFF_RX_PKTS,
+  static constexpr std::array<sai_stat_id_t, 16> PfcCounterIdsToRead = {
+      SAI_PORT_STAT_PFC_0_RX_PKTS,
+      SAI_PORT_STAT_PFC_1_RX_PKTS,
+      SAI_PORT_STAT_PFC_2_RX_PKTS,
+      SAI_PORT_STAT_PFC_3_RX_PKTS,
+      SAI_PORT_STAT_PFC_4_RX_PKTS,
+      SAI_PORT_STAT_PFC_5_RX_PKTS,
+      SAI_PORT_STAT_PFC_6_RX_PKTS,
+      SAI_PORT_STAT_PFC_7_RX_PKTS,
+      SAI_PORT_STAT_PFC_0_TX_PKTS,
+      SAI_PORT_STAT_PFC_1_TX_PKTS,
+      SAI_PORT_STAT_PFC_2_TX_PKTS,
+      SAI_PORT_STAT_PFC_3_TX_PKTS,
+      SAI_PORT_STAT_PFC_4_TX_PKTS,
+      SAI_PORT_STAT_PFC_5_TX_PKTS,
+      SAI_PORT_STAT_PFC_6_TX_PKTS,
+      SAI_PORT_STAT_PFC_7_TX_PKTS,
+  };
+  static constexpr std::array<sai_stat_id_t, 8> PfcXonToXoffCounterIdsToRead = {
+      SAI_PORT_STAT_PFC_0_ON2OFF_RX_PKTS,
+      SAI_PORT_STAT_PFC_1_ON2OFF_RX_PKTS,
+      SAI_PORT_STAT_PFC_2_ON2OFF_RX_PKTS,
+      SAI_PORT_STAT_PFC_3_ON2OFF_RX_PKTS,
+      SAI_PORT_STAT_PFC_4_ON2OFF_RX_PKTS,
+      SAI_PORT_STAT_PFC_5_ON2OFF_RX_PKTS,
+      SAI_PORT_STAT_PFC_6_ON2OFF_RX_PKTS,
+      SAI_PORT_STAT_PFC_7_ON2OFF_RX_PKTS,
   };
   static constexpr std::array<sai_stat_id_t, 0> CounterIdsToReadAndClear = {};
 };
@@ -541,10 +589,17 @@ SAI_ATTRIBUTE_NAME(Port, PcsRxLinkStatus)
 #if SAI_API_VERSION >= SAI_VERSION(1, 9, 0)
 SAI_ATTRIBUTE_NAME(Port, InterFrameGap)
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+SAI_ATTRIBUTE_NAME(Port, RxFrequencyPPM)
+SAI_ATTRIBUTE_NAME(Port, RxSNR)
+#endif
 SAI_ATTRIBUTE_NAME(Port, LinkTrainingEnable)
 SAI_ATTRIBUTE_NAME(Port, SerdesLaneList)
 SAI_ATTRIBUTE_NAME(Port, DiagModeEnable)
 SAI_ATTRIBUTE_NAME(Port, FdrEnable)
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+SAI_ATTRIBUTE_NAME(Port, CrcErrorDetect)
+#endif
 SAI_ATTRIBUTE_NAME(Port, FabricAttached);
 SAI_ATTRIBUTE_NAME(Port, FabricAttachedPortIndex);
 SAI_ATTRIBUTE_NAME(Port, FabricAttachedSwitchId);
@@ -558,6 +613,9 @@ SAI_ATTRIBUTE_NAME(Port, PfcTcDldIntervalRange);
 SAI_ATTRIBUTE_NAME(Port, PfcTcDlrIntervalRange);
 #endif
 SAI_ATTRIBUTE_NAME(Port, SystemPort);
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+SAI_ATTRIBUTE_NAME(Port, TxReadyStatus)
+#endif
 
 template <>
 struct SaiObjectHasStats<SaiPortTraits> : public std::true_type {};
@@ -742,6 +800,29 @@ class PortApi : public SaiApi<PortApi> {
   sai_status_t _getAttribute(PortSaiId key, sai_attribute_t* attr) const {
     return api_->get_port_attribute(key, 1, attr);
   }
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  sai_status_t _bulkGetAttribute(
+      PortSaiId* keys,
+      uint32_t* attrCount,
+      sai_attribute_t** attr,
+      sai_status_t* retStatus,
+      size_t objectCount) const {
+    sai_object_id_t rawIds[objectCount];
+    for (auto idx = 0; idx < objectCount; idx++) {
+      rawIds[idx] = *rawSaiId(&keys[idx]);
+    }
+
+    return api_->get_ports_attribute(
+        objectCount,
+        rawIds,
+        attrCount,
+        attr,
+        SAI_BULK_OP_ERROR_MODE_STOP_ON_ERROR,
+        retStatus);
+  }
+#endif
+
   sai_status_t _setAttribute(PortSaiId key, const sai_attribute_t* attr) const {
     return api_->set_port_attribute(key, attr);
   }

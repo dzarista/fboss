@@ -1,9 +1,12 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "fboss/agent/SwAgentInitializer.h"
+#include "fboss/agent/AgentDirectoryUtil.h"
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/SetupThrift.h"
 #include "fboss/agent/ThriftHandler.h"
+#include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/CommonUtils.h"
 
 #include <folly/io/async/EventBase.h>
@@ -29,11 +32,6 @@ DEFINE_int32(port, 5909, "The thrift server port");
 // current default 5909 is in conflict with VNC ports, need to
 // eventually migrate to 5959
 DEFINE_int32(migrated_port, 5959, "New thrift server port migrate to");
-DEFINE_int32(
-    stat_publish_interval_ms,
-    1000,
-    "How frequently to publish thread-local stats back to the "
-    "global store.  This should generally be less than 1 second.");
 // @lint-ignore CLANGTIDY
 DECLARE_int32(thrift_idle_timeout);
 
@@ -62,9 +60,11 @@ void SwSwitchInitializer::start() {
   start(sw_);
 }
 
-void SwSwitchInitializer::start(HwSwitchCallback* callback) {
+void SwSwitchInitializer::start(
+    HwSwitchCallback* callback,
+    const HwWriteBehavior& hwWriteBehavior) {
   initThread_ = std::make_unique<std::thread>(
-      &SwSwitchInitializer::initThread, this, callback);
+      &SwSwitchInitializer::initThread, this, callback, hwWriteBehavior);
 }
 
 SwitchFlags SwSwitchInitializer::setupFlags() {
@@ -88,8 +88,6 @@ SwitchFlags SwSwitchInitializer::setupFlags() {
 }
 
 void SwSwitchInitializer::stopFunctionScheduler() {
-  std::unique_lock<std::mutex> lk(initLock_);
-  initCondition_.wait(lk, [&] { return sw_->isFullyConfigured(); });
   if (fs_) {
     fs_->shutdown();
   }
@@ -100,18 +98,22 @@ void SwSwitchInitializer::waitForInitDone() {
   initCondition_.wait(lk, [&] { return sw_->isFullyConfigured(); });
 }
 
-void SwSwitchInitializer::initThread(HwSwitchCallback* callback) {
+void SwSwitchInitializer::initThread(
+    HwSwitchCallback* callback,
+    const HwWriteBehavior& hwWriteBehavior) {
   try {
-    init(callback);
+    init(callback, hwWriteBehavior);
   } catch (const std::exception& ex) {
     XLOG(FATAL) << "switch initialization failed: " << folly::exceptionStr(ex);
   }
 }
 
-void SwSwitchInitializer::init(HwSwitchCallback* hwSwitchCallback) {
+void SwSwitchInitializer::init(
+    HwSwitchCallback* hwSwitchCallback,
+    const HwWriteBehavior& hwWriteBehavior) {
   auto startTime = steady_clock::now();
   std::lock_guard<std::mutex> g(initLock_);
-  initImpl(hwSwitchCallback);
+  initImpl(hwSwitchCallback, hwWriteBehavior);
   sw_->applyConfig("apply initial config");
   // Enable route update logging for all routes so that when we are told
   // the first set of routes after a warm boot, we can log any changes
@@ -146,54 +148,30 @@ void SwAgentSignalHandler::signalReceived(int /*signum*/) noexcept {
   stopServices();
 }
 
-void SwAgentInitializer::stopServices() {
+void SwAgentInitializer::stopServer() {
   // stop Thrift server: stop all worker threads and
   // stop accepting new connections
   XLOG(DBG2) << "Stopping thrift server";
   server_->stop();
   XLOG(DBG2) << "Stopped thrift server";
+}
+
+void SwAgentInitializer::stopServices() {
+  stopServer();
   initializer_->stopFunctionScheduler();
   XLOG(DBG2) << "Stopped stats FunctionScheduler";
   fbossFinalize();
 }
 
-void SwAgentInitializer::handleExitSignal() {
-  restart_time::mark(RestartEvent::SIGNAL_RECEIVED);
-  XLOG(DBG2) << "[Exit] Signal received ";
-  steady_clock::time_point begin = steady_clock::now();
-  stopServices();
-  steady_clock::time_point servicesStopped = steady_clock::now();
-  XLOG(DBG2) << "[Exit] Services stop time "
-             << duration_cast<duration<float>>(servicesStopped - begin).count();
-  sw_->gracefulExit();
-  steady_clock::time_point switchGracefulExit = steady_clock::now();
-  XLOG(DBG2)
-      << "[Exit] Switch Graceful Exit time "
-      << duration_cast<duration<float>>(switchGracefulExit - servicesStopped)
-             .count()
-      << std::endl
-      << "[Exit] Total graceful Exit time "
-      << duration_cast<duration<float>>(switchGracefulExit - begin).count();
-
-  restart_time::mark(RestartEvent::SHUTDOWN);
-  __attribute__((unused)) auto leakedSw = sw_.release();
-#ifndef IS_OSS
-#if __has_feature(address_sanitizer)
-  __lsan_ignore_object(leakedSw);
-#endif
-#endif
-  initializer_.reset();
-}
-
-void SwAgentInitializer::stopAgent(bool setupWarmboot) {
+void SwAgentInitializer::stopAgent(bool setupWarmboot, bool gracefulExit) {
   if (setupWarmboot) {
-    handleExitSignal();
+    handleExitSignal(gracefulExit);
   } else {
     stopServices();
     auto revertToMinAlpmState =
         sw_->getHwAsicTable()->isFeatureSupportedOnAnyAsic(
             HwAsic::Feature::ROUTE_PROGRAMMING);
-    sw_->stop(revertToMinAlpmState);
+    sw_->stop(false /* gracefulStop */, revertToMinAlpmState);
     initializer_.reset();
   }
 }
@@ -204,19 +182,23 @@ int SwAgentInitializer::initAgent() {
   return initAgent(sw_.get());
 }
 
-int SwAgentInitializer::initAgent(HwSwitchCallback* callback) {
+int SwAgentInitializer::initAgent(
+    HwSwitchCallback* callback,
+    const HwWriteBehavior& hwWriteBehavior) {
   auto swHandler = std::make_shared<ThriftHandler>(sw_.get());
   swHandler->setIdleTimeout(FLAGS_thrift_idle_timeout);
   auto handlers = getThrifthandlers();
   handlers.push_back(swHandler);
   eventBase_ = new folly::EventBase();
+  std::vector<int> ports = {FLAGS_port, FLAGS_migrated_port};
+  // serve on hw agent port in mono so that clients can access
+  // hw agent apis on mono as well
+  if (!sw_->isRunModeMultiSwitch()) {
+    ports.push_back(FLAGS_hwagent_port_base);
+  }
 
   // Start the thrift server
-  server_ = setupThriftServer(
-      *eventBase_,
-      handlers,
-      {FLAGS_port, FLAGS_migrated_port},
-      true /*setupSSL*/);
+  server_ = setupThriftServer(*eventBase_, handlers, ports, true /*setupSSL*/);
 
   server_->setStreamExpireTime(std::chrono::milliseconds(0));
   server_->setIdleTimeout(std::chrono::milliseconds(0));
@@ -226,7 +208,7 @@ int SwAgentInitializer::initAgent(HwSwitchCallback* callback) {
   // At this point, we are guaranteed no other agent process will initialize
   // the ASIC because such a process would have crashed attempting to bind to
   // the Thrift port 5909
-  initializer_->start(callback);
+  initializer_->start(callback, hwWriteBehavior);
 
   /*
    * Updating stats could be expensive as each update must acquire lock. To
@@ -237,12 +219,13 @@ int SwAgentInitializer::initAgent(HwSwitchCallback* callback) {
       std::chrono::milliseconds(FLAGS_stat_publish_interval_ms));
 
   SwAgentSignalHandler signalHandler(
-      eventBase_, sw_.get(), [this]() { handleExitSignal(); });
+      eventBase_, sw_.get(), [this]() { handleExitSignal(true); });
 
   XLOG(DBG2) << "serving on localhost on port " << FLAGS_port << " and "
              << FLAGS_migrated_port;
   // @lint-ignore CLANGTIDY
   server_->serve();
+  server_.reset();
   return 0;
 }
 } // namespace facebook::fboss

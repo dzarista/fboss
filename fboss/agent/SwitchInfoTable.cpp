@@ -36,6 +36,11 @@ std::unordered_set<SwitchID> SwitchInfoTable::getSwitchIdsOfType(
   return switchIds;
 }
 
+std::unordered_set<SwitchID> SwitchInfoTable::getL3SwitchIDs() const {
+  return haveL3Switches() ? getSwitchIdsOfType(l3SwitchType())
+                          : std::unordered_set<SwitchID>();
+}
+
 std::unordered_set<SwitchID> SwitchInfoTable::getSwitchIDs() const {
   CHECK_NE(switchIdToSwitchInfo_.size(), 0);
   std::unordered_set<SwitchID> switchIds;
@@ -45,6 +50,24 @@ std::unordered_set<SwitchID> SwitchInfoTable::getSwitchIDs() const {
   return switchIds;
 }
 
+std::unordered_set<uint16_t> SwitchInfoTable::getSwitchIndicesOfType(
+    cfg::SwitchType type) const {
+  std::unordered_set<uint16_t> switchIdxs;
+  for (const auto& switchIdAndSwitchInfo : switchIdToSwitchInfo_) {
+    if (switchIdAndSwitchInfo.second.switchType() == type) {
+      switchIdxs.insert(*switchIdAndSwitchInfo.second.switchIndex());
+    }
+  }
+  return switchIdxs;
+}
+
+std::unordered_set<uint16_t> SwitchInfoTable::getSwitchIndices() const {
+  std::unordered_set<uint16_t> switchIdxs;
+  for (const auto& switchIdAndSwitchInfo : switchIdToSwitchInfo_) {
+    switchIdxs.insert(*switchIdAndSwitchInfo.second.switchIndex());
+  }
+  return switchIdxs;
+}
 bool SwitchInfoTable::vlansSupported() const {
   for (const auto& switchIdAndSwitchInfo : switchIdToSwitchInfo_) {
     if (switchIdAndSwitchInfo.second.switchType() == cfg::SwitchType::FABRIC ||
@@ -93,4 +116,11 @@ int16_t SwitchInfoTable::getSwitchIndexFromSwitchId(SwitchID switchId) const {
   return switchIdToSwitchInfo_.at(switchId).switchIndex().value();
 }
 
+cfg::SwitchInfo SwitchInfoTable::getSwitchInfo(SwitchID switchId) const {
+  auto swItr = switchIdToSwitchInfo_.find(switchId);
+  if (swItr == switchIdToSwitchInfo_.end()) {
+    throw FbossError("Could not find switchInfo for switch ID: ", switchId);
+  }
+  return swItr->second;
+}
 } // namespace facebook::fboss

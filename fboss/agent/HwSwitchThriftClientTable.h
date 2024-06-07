@@ -16,7 +16,12 @@
 #include "fboss/agent/if/gen-cpp2/FbossHwCtrl.h"
 #include "fboss/agent/types.h"
 
+DECLARE_int32(hwswitch_query_timeout);
+
 namespace facebook::fboss {
+std::unique_ptr<apache::thrift::Client<FbossHwCtrl>> createFbossHwClient(
+    int16_t port,
+    std::shared_ptr<folly::ScopedEventBaseThread> evbThread);
 class HwSwitchThriftClientTable {
  public:
   HwSwitchThriftClientTable(
@@ -27,11 +32,20 @@ class HwSwitchThriftClientTable {
   std::optional<std::map<::std::int64_t, FabricEndpoint>> getFabricConnectivity(
       SwitchID switchId);
 
- private:
-  apache::thrift::Client<FbossHwCtrl> createClient(int16_t port);
+  void clearHwPortStats(SwitchID switchId, std::vector<int32_t>& ports);
+  void clearAllHwPortStats(SwitchID switchId);
+  void getHwL2Table(SwitchID switchId, std::vector<L2EntryThrift>& l2Table);
+  std::string diagCmd(
+      SwitchID switchId,
+      const std::string& cmd,
+      const ClientInformation& clientInfo);
 
-  std::map<SwitchID, std::unique_ptr<apache::thrift::Client<FbossHwCtrl>>>
-      clients_;
-  std::shared_ptr<folly::ScopedEventBaseThread> evbThread_;
+ private:
+  std::map<
+      SwitchID,
+      std::pair<
+          std::unique_ptr<apache::thrift::Client<FbossHwCtrl>>,
+          std::shared_ptr<folly::ScopedEventBaseThread>>>
+      clientInfos_;
 };
 } // namespace facebook::fboss

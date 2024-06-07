@@ -456,6 +456,13 @@ struct SaiSwitchTraits {
         sai_uint32_t,
         AttributeMaxCoresWrapper,
         SaiIntDefault<uint32_t>>;
+    struct AttributeSdkBootTimeWrapper {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using SdkBootTime = SaiExtensionAttribute<
+        sai_uint32_t,
+        AttributeSdkBootTimeWrapper,
+        SaiIntDefault<uint32_t>>;
     using PfcDlrPacketAction = SaiAttribute<
         EnumType,
         SAI_SWITCH_ATTR_PFC_DLR_PACKET_ACTION,
@@ -530,6 +537,8 @@ struct SaiSwitchTraits {
 #endif
   static constexpr std::array<sai_stat_id_t, 0> CounterIdsToReadAndClear = {};
   static const std::vector<sai_stat_id_t>& dramStats();
+  static const std::vector<sai_stat_id_t>& rciWatermarkStats();
+  static const std::vector<sai_stat_id_t>& dtlWatermarkStats();
 };
 
 SAI_ATTRIBUTE_NAME(Switch, InitSwitch)
@@ -625,6 +634,7 @@ SAI_ATTRIBUTE_NAME(Switch, CreditWdTimer)
 #endif
 SAI_ATTRIBUTE_NAME(Switch, MaxCores)
 SAI_ATTRIBUTE_NAME(Switch, PfcDlrPacketAction)
+SAI_ATTRIBUTE_NAME(Switch, SdkBootTime)
 
 template <>
 struct SaiObjectHasStats<SaiSwitchTraits> : public std::true_type {};
@@ -658,6 +668,12 @@ class SwitchApi : public SaiApi<SwitchApi> {
       SwitchSaiId id,
       sai_queue_pfc_deadlock_notification_fn queue_pfc_deadlock_notification_cb)
       const;
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  void registerTxReadyStatusChangeCallback(
+      SwitchSaiId id,
+      sai_port_host_tx_ready_notification_fn port_state_change_cb) const;
+#endif
+
   void unregisterRxCallback(SwitchSaiId switch_id) const {
     registerRxCallback(switch_id, nullptr);
   }
@@ -676,6 +692,11 @@ class SwitchApi : public SaiApi<SwitchApi> {
   void unregisterQueuePfcDeadlockNotificationCallback(SwitchSaiId id) const {
     registerQueuePfcDeadlockNotificationCallback(id, nullptr);
   }
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  void unregisterTxReadyStatusChangeCallback(SwitchSaiId id) const {
+    registerTxReadyStatusChangeCallback(id, nullptr);
+  }
+#endif
 
  private:
   sai_status_t _create(

@@ -43,7 +43,6 @@
 #include "fboss/agent/hw/bcm/BcmPrbs.h"
 #include "fboss/agent/hw/bcm/BcmQosPolicyTable.h"
 #include "fboss/agent/hw/bcm/BcmQosUtils.h"
-#include "fboss/agent/hw/bcm/BcmSdkVer.h"
 #include "fboss/agent/hw/bcm/BcmSwitch.h"
 #include "fboss/agent/hw/bcm/BcmWarmBootCache.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_constants.h"
@@ -80,7 +79,6 @@ using facebook::stats::MonotonicCounter;
 
 namespace {
 constexpr int kPfcDeadlockDetectionTimeMsecMax = 1500;
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_21))
 /**
  * Size of a single page of codeword errors from bcm_port_fdr_stats_get()
  *
@@ -91,7 +89,6 @@ constexpr int kPfcDeadlockDetectionTimeMsecMax = 1500;
  * future.
  */
 static constexpr int kCodewordErrorsPageSize = 8;
-#endif
 
 bool hasPortQueueChanges(
     const shared_ptr<facebook::fboss::Port>& oldPort,
@@ -169,7 +166,6 @@ static void fdrStatConfigure(
     __attribute__((unused)) bcm_port_t port,
     __attribute__((unused)) bool enable,
     __attribute__((unused)) int symbErrSel = 0) {
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_21))
   // See Broadcom case for PDF doc of FDR APIs: 12196665
   //
   // Normally, FEC corrects errors and counts code words it cannot correct.
@@ -224,7 +220,6 @@ static void fdrStatConfigure(
     bcm_port_fdr_stats_t fdr_stats;
     bcm_port_fdr_stats_get(unit, port, &fdr_stats);
   }
-#endif
 }
 
 static const std::string getFdrStatsKey(int errorsPerCodeword) {
@@ -726,6 +721,7 @@ void BcmPort::program(const shared_ptr<Port>& port) {
 }
 
 void BcmPort::updatePortFlowletConfig(const std::shared_ptr<Port>& port) {
+  setPortFlowletConfig(port);
   if (hw_->getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES)) {
     XLOG(DBG3) << "Updating Port flowlet config for " << port->getName();
@@ -824,7 +820,6 @@ uint8_t BcmPort::determinePipe() const {
   auto rv = bcm_info_get(unit_, &info);
   bcmCheckError(rv, "failed to get unit info");
 
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_20))
   if (info.num_pipes > BCM_PIPES_MAX) {
     // Tomahawk4 has 16 data pipes larger than old BCM_PIPES_MAX(8)
     bcm_pbmp_t pbmp;
@@ -837,7 +832,6 @@ uint8_t BcmPort::determinePipe() const {
     }
     throw FbossError("Port ", port_, " not associated w/ any pipe");
   }
-#endif
 
   bcm_port_config_t portConfig;
   bcm_port_config_t_init(&portConfig);
@@ -1020,9 +1014,9 @@ void BcmPort::enableL3(bool enableV4, bool enableV6) {
               (std::get<2>(l3Option) ? "ENABLED" : "DISABLED"),
               bcm_errmsg(rv)));
     } else {
-      XLOG(DBG5) << "No need to program port control L3. "
-                 << "Current " << std::get<0>(l3Option) << " for port " << port_
-                 << " is " << (currVal ? "ENABLED" : "DISABLED")
+      XLOG(DBG5) << "No need to program port control L3. " << "Current "
+                 << std::get<0>(l3Option) << " for port " << port_ << " is "
+                 << (currVal ? "ENABLED" : "DISABLED")
                  << ", which is the same to expected: "
                  << (std::get<2>(l3Option) ? "ENABLED" : "DISABLED");
     }
@@ -1259,7 +1253,6 @@ phy::PhyInfo BcmPort::updateIPhyInfo() {
     }
     pmdState.lanes_ref()[lane] = laneState;
   }
-#if defined(BCM_SDK_VERSION_GTE_6_5_24)
   if (hw_->getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::PMD_RX_LOCK_STATUS)) {
     bcm_port_pmd_rx_lock_status_t lock_status;
@@ -1280,7 +1273,6 @@ phy::PhyInfo BcmPort::updateIPhyInfo() {
                 << bcm_errmsg(rv);
     }
   }
-#endif
 #if defined(BCM_SDK_VERSION_GTE_6_5_26)
   if (hw_->getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::PMD_RX_SIGNAL_DETECT)) {
@@ -1504,6 +1496,10 @@ void BcmPort::updateStats() {
 
   // Update any platform specific port counters
   getPlatformPort()->updateStats();
+  auto logicalPortId = getPlatformPort()->getHwLogicalPortId();
+  if (logicalPortId.has_value()) {
+    curPortStats.logicalPortId() = logicalPortId.value();
+  }
 };
 
 void BcmPort::updateFecStats(
@@ -1555,7 +1551,6 @@ void BcmPort::updateFecStats(
 }
 
 void BcmPort::updateFdrStats(__attribute__((unused)) std::chrono::seconds now) {
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_21))
   if (!hw_->getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::FEC_DIAG_COUNTERS)) {
     return;
@@ -1607,7 +1602,6 @@ void BcmPort::updateFdrStats(__attribute__((unused)) std::chrono::seconds now) {
     codewordErrorsPage_ = (codewordErrorsPage_ + 1) % pages;
     fdrStatConfigure(unit_, port_, true, codewordErrorsPage_);
   }
-#endif
 }
 
 void BcmPort::BcmPortStats::setQueueWaterMarks(
@@ -1897,19 +1891,20 @@ void BcmPort::setEgressPortMirror(const std::string& mirrorName) {
   egressMirror_ = mirrorName;
 }
 
-cfg::PortFlowletConfig BcmPort::getPortFlowletConfig() const {
-  cfg::PortFlowletConfig flowletConfig;
-  auto port = getProgrammedSettings();
-  if (port && (port->getFlowletConfigName().has_value())) {
-    if (port->getPortFlowletConfig().has_value()) {
-      auto flowletCfgPtr = port->getPortFlowletConfig().value();
-      CHECK(flowletCfgPtr != nullptr);
-      flowletConfig.scalingFactor() = flowletCfgPtr->getScalingFactor();
-      flowletConfig.loadWeight() = flowletCfgPtr->getLoadWeight();
-      flowletConfig.queueWeight() = flowletCfgPtr->getQueueWeight();
-    }
+void BcmPort::setPortFlowletConfig(const std::shared_ptr<Port>& port) {
+  if (port->getFlowletConfigName().has_value() &&
+      port->getPortFlowletConfig().has_value()) {
+    auto flowletCfgPtr = port->getPortFlowletConfig().value();
+    CHECK(flowletCfgPtr != nullptr);
+    portFlowletConfig_.scalingFactor() = flowletCfgPtr->getScalingFactor();
+    portFlowletConfig_.loadWeight() = flowletCfgPtr->getLoadWeight();
+    portFlowletConfig_.queueWeight() = flowletCfgPtr->getQueueWeight();
+  } else {
+    portFlowletConfig_.scalingFactor() = 0;
+    portFlowletConfig_.loadWeight() = 0;
+    portFlowletConfig_.queueWeight() = 0;
   }
-  return flowletConfig;
+  XLOG(DBG3) << "Updated Port flowlet config for " << port->getName();
 }
 
 void BcmPort::destroyAllPortStatsLocked(
@@ -2399,7 +2394,6 @@ phy::FecMode BcmPort::getFECMode() const {
 }
 
 bool BcmPort::getFdrEnabled() const {
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_21))
   if (!hw_->getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::FEC_DIAG_COUNTERS)) {
     return false;
@@ -2415,9 +2409,6 @@ bool BcmPort::getFdrEnabled() const {
       port_);
 
   return fdr_config.fdr_enable;
-#else
-  return false;
-#endif
 }
 
 void BcmPort::initCustomStats() const {
@@ -2559,8 +2550,8 @@ bool BcmPort::pfcWatchdogNeedsReprogramming(const std::shared_ptr<Port>& port) {
                << " detectionAndRecoveryEnable: "
                << programmedPfcWatchdogMap
                       [bcmCosqPFCDeadlockDetectionAndRecoveryEnable];
-    XLOG(DBG2) << "New PFC watchdog params: "
-               << " recoveryTimer: " << newPfcDeadlockRecoveryTimer
+    XLOG(DBG2) << "New PFC watchdog params: " << " recoveryTimer: "
+               << newPfcDeadlockRecoveryTimer
                << " detectionTimer: " << newPfcDeadlockDetectionTimer
                << " detectionAndRecoveryEnable: " << pfcWatchdogEnabledInSw;
     // Mismatch between SW and HW configs, reprogram!
@@ -2984,6 +2975,10 @@ const BufferPoolCfg& BcmPort::getDefaultIngressPoolSettings() const {
   return ingressBufferManager_->getDefaultIngressPoolSettings();
 }
 
+const std::string& BcmPort::getIngressBufferPoolName() const {
+  return ingressBufferManager_->getBufferPoolName();
+}
+
 int BcmPort::getProgrammedPgLosslessMode(const int pgId) const {
   return ingressBufferManager_->getProgrammedPgLosslessMode(pgId);
 }
@@ -3045,26 +3040,36 @@ void BcmPort::processChangedZeroPreemphasis(
     if (!newPort->getZeroPreemphasis()) {
       throw FbossError("Reverting zero preemphasis on port is not supported.");
     }
-    auto portID = newPort->getID();
     int rv;
     auto preemphasis = 0;
     if (!platformPort_->shouldUsePortResourceAPIs()) {
       rv = bcm_port_phy_control_set(
-          hw_->getUnit(),
-          portID,
-          BCM_PORT_PHY_CONTROL_PREEMPHASIS,
-          preemphasis);
+          hw_->getUnit(), port_, BCM_PORT_PHY_CONTROL_PREEMPHASIS, preemphasis);
     } else {
       bcm_port_phy_tx_t tx;
       bcm_port_phy_tx_t_init(&tx);
-      rv = bcm_port_phy_tx_get(hw_->getUnit(), portID, &tx);
+      rv = bcm_port_phy_tx_get(hw_->getUnit(), port_, &tx);
       bcmCheckError(rv, "Failed to get port tx settings");
       tx.pre = preemphasis & 0xf; // 0-3 bits
       tx.main = (preemphasis & 0x3f0) >> 4; // 4-9 bits
       tx.post = (preemphasis & 0x7c00) >> 10; // 10-14 bits
-      rv = bcm_port_phy_tx_set(hw_->getUnit(), portID, &tx);
+      rv = bcm_port_phy_tx_set(hw_->getUnit(), port_, &tx);
     }
     bcmCheckError(rv, "Failed to set port preemphasis");
+  }
+}
+
+void BcmPort::processChangedTxEnable(
+    const std::shared_ptr<Port>& oldPort,
+    const std::shared_ptr<Port>& newPort) {
+  if (oldPort->getTxEnable() != newPort->getTxEnable()) {
+    CHECK(newPort->getTxEnable().has_value());
+    auto rv = bcm_port_control_set(
+        hw_->getUnit(),
+        port_,
+        bcmPortControlTxEnable,
+        newPort->getTxEnable().value() ? 1 : 0);
+    bcmCheckError(rv, "failed to disable TX");
   }
 }
 

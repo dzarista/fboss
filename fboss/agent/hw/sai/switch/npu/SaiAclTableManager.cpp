@@ -171,7 +171,9 @@ std::
       qualifierExistsFn(cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE),
       qualifierExistsFn(cfg::AclTableQualifier::ETHER_TYPE),
       qualifierExistsFn(cfg::AclTableQualifier::OUTER_VLAN),
-
+#if !defined(TAJO_SDK)
+      qualifierExistsFn(cfg::AclTableQualifier::BTH_OPCODE),
+#endif
   };
 
   SaiAclTableTraits::AdapterHostKey adapterHostKey{addedAclTable->getID()};

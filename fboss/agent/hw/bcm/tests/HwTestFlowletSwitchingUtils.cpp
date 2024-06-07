@@ -11,9 +11,13 @@
 #include "fboss/agent/hw/test/HwTestFlowletSwitchingUtils.h"
 #include <fboss/agent/gen-cpp2/switch_config_types.h>
 #include "fboss/agent/hw/bcm/BcmEcmpUtils.h"
+#include "fboss/agent/hw/bcm/BcmError.h"
+#include "fboss/agent/hw/bcm/BcmSdkVer.h"
 #include "fboss/agent/hw/bcm/BcmSwitch.h"
+#include "fboss/agent/hw/bcm/tests/BcmSwitchEnsemble.h"
 #include "fboss/agent/hw/bcm/tests/BcmTestUtils.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
+#include "fboss/agent/test/TestEnsembleIf.h"
 
 using namespace facebook::fboss;
 
@@ -86,10 +90,66 @@ bool validateFlowletSwitchingEnabled(
   return true;
 }
 
+bool validateFlowSetTable(
+    const facebook::fboss::HwSwitch* hw,
+    const bool expectFlowsetSizeZero,
+    const int flowletTableSize) {
+  bool isVerified = true;
+
+  XLOG(DBG2) << "validateFlowSetTable with flowletTableSize: "
+             << flowletTableSize
+             << ", expectFlowsetSizeZero:" << expectFlowsetSizeZero;
+#if (                                      \
+    defined(BCM_SDK_VERSION_GTE_6_5_26) && \
+    !defined(BCM_SDK_VERSION_GTE_6_5_28))
+  int maxEntries = 0;
+  const auto bcmSwitch = static_cast<const BcmSwitch*>(hw);
+
+  int rv = bcm_switch_object_count_get(
+      bcmSwitch->getUnit(), bcmSwitchObjectEcmpDynamicFlowSetMax, &maxEntries);
+  bcmCheckError(rv, "Failed to get bcmSwitchObjectEcmpDynamicFlowSetMax");
+
+  int usedEntries = 0;
+  rv = bcm_switch_object_count_get(
+      bcmSwitch->getUnit(),
+      bcmSwitchObjectEcmpDynamicFlowSetUsed,
+      &usedEntries);
+  bcmCheckError(rv, "Failed to get bcmSwitchObjectEcmpDynamicFlowSetUsed");
+
+  int freeEntries = 0;
+  rv = bcm_switch_object_count_get(
+      bcmSwitch->getUnit(),
+      bcmSwitchObjectEcmpDynamicFlowSetFree,
+      &freeEntries);
+  bcmCheckError(rv, "Failed to get bcmSwitchObjectEcmpDynamicFlowSetFree");
+
+  if (maxEntries != KMaxFlowsetTableSize) {
+    XLOG(ERR) << "Max Entries are not as expected: " << maxEntries;
+    isVerified = false;
+  }
+  if (usedEntries < flowletTableSize) {
+    // expected flowset table size zero or not, flowsetTable Size should match
+    // the used entries
+    XLOG(ERR) << "ECMP flowset table : " << flowletTableSize
+              << ",  is more than usedEntries: " << usedEntries;
+    isVerified = false;
+  }
+
+  if ((maxEntries - usedEntries) != freeEntries) {
+    XLOG(ERR) << "Free entries: " << freeEntries
+              << ", unexpected when looking at the used entries : "
+              << usedEntries << " , max entries: " << maxEntries;
+    isVerified = false;
+  }
+#endif
+  return isVerified;
+}
+
 bool verifyEcmpForFlowletSwitching(
     const facebook::fboss::HwSwitch* hw,
     const folly::CIDRNetwork& prefix,
     const cfg::FlowletSwitchingConfig& flowletCfg,
+    const cfg::PortFlowletConfig& cfg,
     const bool flowletEnable,
     const bool expectFlowsetSizeZero) {
   const auto bcmSwitch = static_cast<const BcmSwitch*>(hw);
@@ -99,20 +159,35 @@ bool verifyEcmpForFlowletSwitching(
   existing.ecmp_intf = ecmp;
   existing.flags |= BCM_L3_WITH_ID;
   int pathsInHwCount;
+  bool isVerified = true;
   bcm_l3_ecmp_get(bcmSwitch->getUnit(), &existing, 0, nullptr, &pathsInHwCount);
   const int flowletTableSize = getFlowletSizeWithScalingFactor(
-      *flowletCfg.flowletTableSize(), pathsInHwCount, *flowletCfg.maxLinks());
+      bcmSwitch,
+      *flowletCfg.flowletTableSize(),
+      pathsInHwCount,
+      *flowletCfg.maxLinks());
+
+  isVerified =
+      validateFlowSetTable(hw, expectFlowsetSizeZero, flowletTableSize);
+
   if (flowletEnable && flowletTableSize > 0) {
-    CHECK_EQ(existing.dynamic_mode, BCM_L3_ECMP_DYNAMIC_MODE_NORMAL);
-    CHECK_EQ(existing.dynamic_age, *flowletCfg.inactivityIntervalUsecs());
-    CHECK_EQ(expectFlowsetSizeZero, 0);
+    auto dynamicMode = getFlowletDynamicMode(*flowletCfg.switchingMode());
+    if ((existing.dynamic_mode != dynamicMode) ||
+        (existing.dynamic_age != *flowletCfg.inactivityIntervalUsecs()) ||
+        (existing.dynamic_size != flowletTableSize) ||
+        (expectFlowsetSizeZero != 0)) {
+      isVerified = false;
+    }
   } else {
-    CHECK_EQ(existing.dynamic_mode, 0);
-    CHECK_EQ(expectFlowsetSizeZero, 1);
+    if ((existing.dynamic_mode != BCM_L3_ECMP_DYNAMIC_MODE_DISABLED) ||
+        (expectFlowsetSizeZero != 1) ||
+        (existing.dynamic_size != flowletTableSize)) {
+      isVerified = false;
+    }
   }
-  CHECK_EQ(existing.dynamic_size, flowletTableSize);
-  CHECK_GE(ecmp, 200000);
-  CHECK_LE(ecmp, 200128);
+  if ((ecmp > 200128) || (ecmp < 200000)) {
+    isVerified = false;
+  }
 
   auto ecmp_members = getEcmpGroupInHw(bcmSwitch, ecmp, pathsInHwCount);
   for (const auto& ecmp_member : ecmp_members) {
@@ -120,8 +195,59 @@ bool verifyEcmpForFlowletSwitching(
     bcm_l3_egress_ecmp_member_status_get(
         bcmSwitch->getUnit(), ecmp_member, &status);
     if (flowletEnable) {
-      CHECK_GE(status, BCM_L3_ECMP_DYNAMIC_MEMBER_HW);
+      if (status < BCM_L3_ECMP_DYNAMIC_MEMBER_HW) {
+        isVerified = false;
+      }
     }
+    bcm_l3_egress_t egress;
+    bcm_l3_egress_t_init(&egress);
+    bcm_l3_egress_get(0, ecmp_member, &egress);
+    if (flowletEnable &&
+        !(hw->getPlatform()->getAsic()->isSupported(
+            HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES))) {
+      // verify the port flowlet config values only in TH3
+      // since this port flowlet configs are set in egress object in TH3
+      CHECK_EQ(egress.dynamic_scaling_factor, *cfg.scalingFactor());
+      CHECK_EQ(egress.dynamic_load_weight, *cfg.loadWeight());
+      CHECK_EQ(egress.dynamic_queue_size_weight, *cfg.queueWeight());
+    } else {
+      // verify the default values in TH4
+      // since this won't be set in egress object in TH4
+      CHECK_EQ(egress.dynamic_scaling_factor, -1);
+      CHECK_EQ(egress.dynamic_load_weight, -1);
+      CHECK_EQ(egress.dynamic_queue_size_weight, -1);
+    }
+  }
+  return isVerified;
+}
+
+bool verifyEcmpForNonFlowlet(
+    const facebook::fboss::HwSwitch* hw,
+    const folly::CIDRNetwork& prefix,
+    const bool expectFlowsetFree) {
+  const auto bcmSwitch = static_cast<const BcmSwitch*>(hw);
+  auto ecmp = getEgressIdForRoute(bcmSwitch, prefix.first, prefix.second, kRid);
+  bcm_l3_egress_ecmp_t existing;
+  bcm_l3_egress_ecmp_t_init(&existing);
+  existing.ecmp_intf = ecmp;
+  existing.flags |= BCM_L3_WITH_ID;
+  int pathsInHwCount;
+  bcm_l3_ecmp_get(bcmSwitch->getUnit(), &existing, 0, nullptr, &pathsInHwCount);
+  // Ecmp Id should be greater than or equal to max dlb Ecmp Id
+  CHECK_GE(ecmp, kDlbEcmpMaxId);
+  // Check all the flowlet configs are disabled
+  CHECK_EQ(existing.dynamic_mode, BCM_L3_ECMP_DYNAMIC_MODE_DISABLED);
+  CHECK_EQ(existing.dynamic_age, 0);
+  CHECK_EQ(existing.dynamic_size, 0);
+  int freeEntries = 0;
+  bcm_switch_object_count_get(
+      bcmSwitch->getUnit(),
+      bcmSwitchObjectEcmpDynamicFlowSetFree,
+      &freeEntries);
+  if (expectFlowsetFree) {
+    CHECK_GE(freeEntries, 2048);
+  } else {
+    CHECK_EQ(freeEntries, 0);
   }
   return true;
 }
@@ -164,13 +290,15 @@ bool validateFlowletSwitchingDisabled(const facebook::fboss::HwSwitch* hw) {
   return true;
 }
 
-void setEcmpMemberStatus(const facebook::fboss::HwSwitch* hw) {
-  const auto bcmSwitch = static_cast<const BcmSwitch*>(hw);
-  auto ecmpMembers = utility::getEcmpMembersInHw(bcmSwitch);
-  for (const auto ecmpMember : ecmpMembers) {
-    bcm_l3_egress_ecmp_member_status_set(
-        bcmSwitch->getUnit(), ecmpMember, BCM_L3_ECMP_DYNAMIC_MEMBER_FORCE_UP);
-  }
+void setEcmpMemberStatus(const TestEnsembleIf* ensemble) {
+  const auto bcmEnsemble = dynamic_cast<const BcmSwitchEnsemble*>(ensemble);
+  auto bcmSwitch = bcmEnsemble->getHwSwitch();
+  setEcmpDynamicMemberUp(bcmSwitch);
 }
 
+int getL3EcmpDlbFailPackets(const TestEnsembleIf* ensemble) {
+  const auto bcmEnsemble = dynamic_cast<const BcmSwitchEnsemble*>(ensemble);
+  auto bcmSwitch = bcmEnsemble->getHwSwitch();
+  return bcmSwitch->getHwFlowletStats().l3EcmpDlbFailPackets().value();
+}
 } // namespace facebook::fboss::utility

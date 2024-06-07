@@ -115,11 +115,11 @@ TEST_F(HwSplitAgentCallbackTest, txPacket) {
   txPacket.data() = Packet::extractIOBuf(std::move(pkt));
 
   auto statBefore =
-      getPortOutPkts(getLatestPortStats(masterLogicalPortIds()[0]));
+      utility::getPortOutPkts(getLatestPortStats(masterLogicalPortIds()[0]));
   getHwSwitchEnsemble()->enqueueTxPacket(std::move(txPacket));
   WITH_RETRIES({
     auto statAfter =
-        getPortOutPkts(getLatestPortStats(masterLogicalPortIds()[0]));
+        utility::getPortOutPkts(getLatestPortStats(masterLogicalPortIds()[0]));
     EXPECT_EVENTUALLY_EQ(statAfter - statBefore, 1);
   });
 }
@@ -142,7 +142,6 @@ TEST_F(HwSplitAgentCallbackTest, operDeltaUpdate) {
   port->setOperState(false);
   port->setLoopbackMode(cfg::PortLoopbackMode::NONE);
   multiswitch::StateOperDelta operDelta;
-  operDelta.transaction() = true;
   operDelta.operDelta() = StateDelta(state, newState).getOperDelta();
   getHwSwitchEnsemble()->enqueueOperDelta(operDelta);
   EXPECT_TRUE(waitForPortEvent());
@@ -150,7 +149,6 @@ TEST_F(HwSplitAgentCallbackTest, operDeltaUpdate) {
   // Set port to up
   setPortIDAndStateToWaitFor(masterLogicalInterfacePortIds()[0], true);
   multiswitch::StateOperDelta operDelta2;
-  operDelta2.transaction() = true;
   operDelta2.operDelta() = StateDelta(newState, state).getOperDelta();
   getHwSwitchEnsemble()->enqueueOperDelta(operDelta2);
   EXPECT_TRUE(waitForPortEvent());

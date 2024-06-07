@@ -12,6 +12,7 @@
 #include "fboss/agent/hw/sai/switch/SaiSwitchManager.h"
 
 #include "fboss/agent/FbossError.h"
+#include "fboss/agent/Utils.h"
 #include "fboss/agent/hw/HwSysPortFb303Stats.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_constants.h"
 #include "fboss/agent/hw/sai/store/SaiStore.h"
@@ -71,8 +72,18 @@ SaiSystemPortManager::attributesFromSwSystemPort(
       .speed = static_cast<uint32_t>(swSystemPort->getSpeedMbps()),
       .num_voq = static_cast<uint32_t>(swSystemPort->getNumVoqs()),
   };
+  std::optional<SaiSystemPortTraits::Attributes::QosTcToQueueMap>
+      qosTcToQueueMap = std::nullopt;
+  auto qosMapHandle =
+      managerTable_->qosMapManager().getQosMap(swSystemPort->getQosPolicy());
+  if (qosMapHandle && qosMapHandle->tcToVoqMap) {
+    auto qosMap = qosMapHandle->tcToVoqMap;
+    auto qosMapId = qosMap->adapterKey();
+    qosTcToQueueMap =
+        SaiSystemPortTraits::Attributes::QosTcToQueueMap{qosMapId};
+  }
   return SaiSystemPortTraits::CreateAttributes{
-      config, true /*enabled*/, std::nullopt};
+      config, true /*enabled*/, qosTcToQueueMap};
 }
 
 SystemPortSaiId SaiSystemPortManager::addSystemPort(
@@ -109,7 +120,6 @@ SystemPortSaiId SaiSystemPortManager::addSystemPort(
   concurrentIndices_->sysPortSaiIds.insert(
       {swSystemPort->getID(), saiSystemPort->adapterKey()});
   configureQueues(swSystemPort, swSystemPort->getPortQueues()->impl());
-  setQosPolicy(swSystemPort->getID(), swSystemPort->getQosPolicy());
   return saiSystemPort->adapterKey();
 }
 
@@ -192,7 +202,6 @@ void SaiSystemPortManager::changeSystemPort(
     removeSystemPort(oldSystemPort);
     addSystemPort(newSystemPort);
   } else {
-    handle->systemPort->setAttributes(newAttributes);
     if (oldSystemPort->getPortName() != newSystemPort->getPortName()) {
       // Port name changed - update stats
       portStats_.find(newSystemPort->getID())
@@ -323,20 +332,21 @@ void SaiSystemPortManager::updateStats(
 
 std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
     const std::shared_ptr<MultiSwitchPortMap>& ports,
-    int64_t switchId,
-    std::optional<cfg::Range64> systemPortRange) {
+    const std::map<int64_t, cfg::SwitchInfo>& switchIdToSwitchInfo,
+    int64_t switchId) {
   auto sysPortMap = std::make_shared<SystemPortMap>();
-  CHECK(systemPortRange);
   const std::set<cfg::PortType> kCreateSysPortsFor = {
-      cfg::PortType::INTERFACE_PORT, cfg::PortType::RECYCLE_PORT};
+      cfg::PortType::INTERFACE_PORT,
+      cfg::PortType::RECYCLE_PORT,
+      cfg::PortType::EVENTOR_PORT};
   for (const auto& portMap : std::as_const(*ports)) {
     for (const auto& port : std::as_const(*portMap.second)) {
       if (kCreateSysPortsFor.find(port.second->getPortType()) ==
           kCreateSysPortsFor.end()) {
         continue;
       }
-      auto sysPort = std::make_shared<SystemPort>(
-          SystemPortID{*systemPortRange->minimum() + port.second->getID()});
+      auto sysPort = std::make_shared<SystemPort>(getSystemPortID(
+          port.second->getID(), switchIdToSwitchInfo, switchId));
       sysPort->setSwitchId(SwitchID(switchId));
       sysPort->setPortName(
           folly::sformat("{}:{}", switchId, port.second->getName()));
@@ -345,6 +355,7 @@ std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
       sysPort->setCorePortIndex(*platformPort->getCorePortIndex());
       sysPort->setSpeedMbps(static_cast<int>(port.second->getSpeed()));
       sysPort->setNumVoqs(8);
+      sysPort->setScope(platformPort->getScope());
       sysPort->setQosPolicy(port.second->getQosPolicy());
       sysPortMap->addSystemPort(std::move(sysPort));
     }

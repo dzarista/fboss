@@ -85,6 +85,31 @@ InterfaceID Port::getInterfaceID() const {
   return InterfaceID(intfs.at(0));
 }
 
+void Port::addError(PortError error) {
+  auto& errors = safe_cref<switch_state_tags::activeErrors>()->impl();
+  if (std::find(errors.cbegin(), errors.cend(), error) != errors.end()) {
+    return;
+  }
+  auto portErrors = getActiveErrors();
+  portErrors.push_back(error);
+  set<switch_state_tags::activeErrors>(portErrors);
+}
+
+void Port::removeError(PortError error) {
+  auto errors = getActiveErrors();
+  // std::erase is only available in c++20, implementing with a iterator loop
+  // instead.
+  //std::erase(errors, error);
+  for (auto it = errors.begin(); it != errors.end(); ) {
+    if (*it == error) {
+      it = errors.erase(it);
+    } else {
+      ++it;
+    }
+  }
+  set<switch_state_tags::activeErrors>(errors);
+}
+
 template class ThriftStructNode<Port, state::PortFields>;
 
 } // namespace facebook::fboss

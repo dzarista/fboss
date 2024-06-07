@@ -126,7 +126,11 @@ class AgentDirectoryUtil {
 
   std::string getRoutingProtocolColdBootDrainTimeFile() const;
 
+  std::string getRoutingProtocolColdBootDrainTimeFile(int switchIndex) const;
+
   std::string getSwSwitchCanWarmBootFile() const;
+
+  std::string getHwSwitchCanWarmBootFile(int switchIndex) const;
 
   std::string getPackageDirectory() const;
 
@@ -161,6 +165,27 @@ class AgentDirectoryUtil {
   std::string getMultiSwitchPreStartScript() const;
 
   std::string getPreStartShellScript() const;
+
+  // used in wrapper testing to make agent sleep for 5 seconds
+  std::string sleepSwSwitchOnSigTermFile() const;
+
+  std::string sleepHwSwitchOnSigTermFile(int switchIndex) const;
+
+  std::string getMaxPostSignalWaitTimeFile() const;
+
+  std::string getWrapperRefactorFlag() const;
+
+  std::string exitTimeFile(const std::string& processName) const;
+
+  std::string restartDurationFile(const std::string& processName) const;
+
+  std::string pidFile(const std::string& name) const;
+
+  std::string exitSwSwitchForColdBootFile() const;
+
+  std::string exitHwSwitchForColdBootFile(int switchIndex) const;
+
+  std::string agentEnsembleConfigDir() const;
 
  private:
   const std::string volatileStateDir_;

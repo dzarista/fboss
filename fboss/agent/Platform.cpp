@@ -20,8 +20,6 @@
 #include <folly/logging/xlog.h>
 #include <string>
 
-DEFINE_bool(hide_fabric_ports, false, "Elide ports of type fabric");
-
 DEFINE_int32(switchIndex, 0, "Switch Index for Asic");
 
 namespace facebook::fboss {
@@ -138,6 +136,10 @@ void Platform::init(
     XLOG(DBG2) << " Setting platform mac to: " << macStr.value();
     localMac_ = folly::MacAddress(*macStr);
   }
+
+  XLOG(DBG2) << "Initializing Platform with switch ID: " << switchId.value_or(0)
+             << " switch Index: " << switchIndex;
+
   setupAsic(switchType, switchId, switchIndex, systemPortRange, localMac_);
   initImpl(hwFeaturesDesired);
   // We should always initPorts() here instead of leaving the hw/ to call
@@ -224,6 +226,7 @@ int Platform::getLaneCount(cfg::PortProfileID profile) const {
     case cfg::PortProfileID::PROFILE_20G_2_NRZ_NOFEC_OPTICAL:
     case cfg::PortProfileID::PROFILE_50G_2_NRZ_NOFEC_OPTICAL:
     case cfg::PortProfileID::PROFILE_100G_2_PAM4_RS544X2N_OPTICAL:
+    case cfg::PortProfileID::PROFILE_100G_2_PAM4_RS544X2N_COPPER:
       return 2;
 
     case cfg::PortProfileID::PROFILE_40G_4_NRZ_NOFEC:

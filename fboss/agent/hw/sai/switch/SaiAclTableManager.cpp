@@ -477,25 +477,33 @@ SaiAclTableManager::addAclCounter(
     auto statName =
         folly::to<std::string>(*trafficCount.name(), ".", statSuffix);
     aclCounterTypeAndName.push_back(std::make_pair(counterType, statName));
-    aclStats_.reinitStat(statName, std::nullopt);
+    if (aclCounterRefMap.find(statName) == aclCounterRefMap.end()) {
+      // Create fb303 counter since stat is being added/readded again
+      aclStats_.reinitStat(statName, std::nullopt);
+      aclCounterRefMap[statName] = 1;
+    } else {
+      aclCounterRefMap[statName]++;
+    }
   }
 
-  SaiAclCounterTraits::AdapterHostKey adapterHostKey {
-    aclTableId,
+  SaiAclCounterTraits::AdapterHostKey adapterHostKey{
+      aclTableId,
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
-        aclCounterLabel,
+      aclCounterLabel,
 #endif
-        enablePacketCount, enableByteCount,
+      enablePacketCount,
+      enableByteCount,
   };
 
-  SaiAclCounterTraits::CreateAttributes attributes {
-    aclTableId,
+  SaiAclCounterTraits::CreateAttributes attributes{
+      aclTableId,
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
-        aclCounterLabel,
+      aclCounterLabel,
 #endif
-        enablePacketCount, enableByteCount,
-        std::nullopt, // counterPackets
-        std::nullopt, // counterBytes
+      enablePacketCount,
+      enableByteCount,
+      std::nullopt, // counterPackets
+      std::nullopt, // counterBytes
   };
 
   // The following logic is added temporarily for 5.1 -> 7.2 warmboot
@@ -795,6 +803,16 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
             addedAclEntry->getVlanID().value(), kOuterVlanIdMask))};
   }
 
+#if !defined(TAJO_SDK)
+  std::optional<SaiAclEntryTraits::Attributes::FieldBthOpcode> fieldBthOpcode{
+      std::nullopt};
+  if (addedAclEntry->getRoceOpcode()) {
+    fieldBthOpcode = SaiAclEntryTraits::Attributes::FieldBthOpcode{
+        AclEntryFieldU8(std::make_pair(
+            addedAclEntry->getRoceOpcode().value(), kBthOpcodeMask))};
+  }
+#endif
+
   std::optional<SaiAclEntryTraits::Attributes::FieldFdbDstUserMeta>
       fieldFdbDstUserMeta{std::nullopt};
   if (addedAclEntry->getLookupClassL2()) {
@@ -1037,12 +1055,15 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
        fieldDstMac.has_value() || fieldIpType.has_value() ||
        fieldTtl.has_value() || fieldFdbDstUserMeta.has_value() ||
        fieldRouteDstUserMeta.has_value() || fieldEtherType.has_value() ||
-       fieldNeighborDstUserMeta.has_value() ||
+       fieldNeighborDstUserMeta.has_value() || fieldOuterVlanId.has_value() ||
+#if !defined(TAJO_SDK)
+       fieldBthOpcode.has_value() ||
+#endif
        platform_->getAsic()->isSupported(HwAsic::Feature::EMPTY_ACL_MATCHER));
   if (fieldSrcPort.has_value()) {
     auto srcPortQualifierSupported = platform_->getAsic()->isSupported(
         HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
     srcPortQualifierSupported = false;
 #endif
     matcherIsValid &= srcPortQualifierSupported;
@@ -1065,21 +1086,49 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
     return AclEntrySaiId{0};
   }
 
-  SaiAclEntryTraits::CreateAttributes attributes {
-    aclTableId, priority, true, fieldSrcIpV6, fieldDstIpV6, fieldSrcIpV4,
-        fieldDstIpV4, fieldSrcPort, fieldOutPort, fieldL4SrcPort,
-        fieldL4DstPort, fieldIpProtocol, fieldTcpFlags, fieldIpFrag,
-        fieldIcmpV4Type, fieldIcmpV4Code, fieldIcmpV6Type, fieldIcmpV6Code,
-        fieldDscp, fieldDstMac, fieldIpType, fieldTtl, fieldFdbDstUserMeta,
-        fieldRouteDstUserMeta, fieldNeighborDstUserMeta, fieldEtherType,
-        fieldOuterVlanId, aclActionPacketAction, aclActionCounter,
-        aclActionSetTC, aclActionSetDSCP, aclActionMirrorIngress,
-        aclActionMirrorEgress, aclActionMacsecFlow,
+  SaiAclEntryTraits::CreateAttributes attributes{
+      aclTableId,
+      priority,
+      true,
+      fieldSrcIpV6,
+      fieldDstIpV6,
+      fieldSrcIpV4,
+      fieldDstIpV4,
+      fieldSrcPort,
+      fieldOutPort,
+      fieldL4SrcPort,
+      fieldL4DstPort,
+      fieldIpProtocol,
+      fieldTcpFlags,
+      fieldIpFrag,
+      fieldIcmpV4Type,
+      fieldIcmpV4Code,
+      fieldIcmpV6Type,
+      fieldIcmpV6Code,
+      fieldDscp,
+      fieldDstMac,
+      fieldIpType,
+      fieldTtl,
+      fieldFdbDstUserMeta,
+      fieldRouteDstUserMeta,
+      fieldNeighborDstUserMeta,
+      fieldEtherType,
+      fieldOuterVlanId,
+#if !defined(TAJO_SDK)
+      fieldBthOpcode,
+#endif
+      aclActionPacketAction,
+      aclActionCounter,
+      aclActionSetTC,
+      aclActionSetDSCP,
+      aclActionMirrorIngress,
+      aclActionMirrorEgress,
+      aclActionMacsecFlow,
 // action not supported by tajo. Besides, user defined trap
 // is used to make ACL take precedence over Hostif trap.
 // Tajo already supports this behavior
 #if !defined(TAJO_SDK)
-        aclActionSetUserTrap,
+      aclActionSetUserTrap,
 #endif
   };
 
@@ -1144,7 +1193,17 @@ void SaiAclTableManager::removeAclCounter(
   for (const auto& counterType : *trafficCount.types()) {
     auto statName =
         utility::statNameFromCounterType(*trafficCount.name(), counterType);
-    aclStats_.removeStat(statName);
+    auto entry = aclCounterRefMap.find(statName);
+    if (entry != aclCounterRefMap.end()) {
+      entry->second--;
+      if (entry->second == 0) {
+        // Counter no longer used. Remove from fb303 counters
+        aclStats_.removeStat(statName);
+        aclCounterRefMap.erase(entry);
+      }
+    } else {
+      throw FbossError("Acl counter ", statName, " not found om counter map");
+    }
   }
 }
 
@@ -1289,6 +1348,8 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
       platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2;
   bool isJericho3 =
       platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3;
+  bool isTomahawk5 =
+      platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_TOMAHAWK5;
 
   if (isTajo) {
     std::set<cfg::AclTableQualifier> tajoQualifiers = {
@@ -1304,7 +1365,7 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
         cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
         cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE};
 
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_SDK_GTE_1_65_0)
     std::vector<cfg::AclTableQualifier> tajoExtraQualifierList = {
         cfg::AclTableQualifier::SRC_PORT,
         cfg::AclTableQualifier::L4_SRC_PORT,
@@ -1322,10 +1383,10 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
     }
 #endif
     return tajoQualifiers;
-  } else if (isJericho2 || isJericho3) {
+  } else if (isJericho2) {
     // TODO(skhare)
     // Extend this list once the SAI implementation supports more qualifiers
-    std::set<cfg::AclTableQualifier> indusQualifiers = {
+    std::set<cfg::AclTableQualifier> jericho2Qualifiers = {
         cfg::AclTableQualifier::SRC_IPV6,
         cfg::AclTableQualifier::DST_IPV6,
         cfg::AclTableQualifier::SRC_PORT,
@@ -1334,8 +1395,21 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
         cfg::AclTableQualifier::IP_TYPE,
         cfg::AclTableQualifier::TTL,
     };
-
-    return indusQualifiers;
+    return jericho2Qualifiers;
+  } else if (isJericho3) {
+    std::set<cfg::AclTableQualifier> jericho3Qualifiers = {
+        cfg::AclTableQualifier::SRC_IPV6,
+        cfg::AclTableQualifier::DST_IPV6,
+        cfg::AclTableQualifier::SRC_IPV4,
+        cfg::AclTableQualifier::DST_IPV4,
+        cfg::AclTableQualifier::SRC_PORT,
+        cfg::AclTableQualifier::DSCP,
+        cfg::AclTableQualifier::TTL,
+        cfg::AclTableQualifier::IP_PROTOCOL,
+        cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
+        cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE,
+        cfg::AclTableQualifier::BTH_OPCODE};
+    return jericho3Qualifiers;
   } else {
     std::set<cfg::AclTableQualifier> bcmQualifiers = {
         cfg::AclTableQualifier::SRC_IPV6,
@@ -1371,6 +1445,11 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
      */
     if (isTrident2) {
       bcmQualifiers.erase(cfg::AclTableQualifier::LOOKUP_CLASS_L2);
+    }
+    // TH5 fails creating ACL table after adding vlan as qualifier with 10.0
+    // CS00012342272
+    if (isTomahawk5) {
+      bcmQualifiers.erase(cfg::AclTableQualifier::OUTER_VLAN);
     }
 
     return bcmQualifiers;
@@ -1526,6 +1605,15 @@ bool SaiAclTableManager::isQualifierSupported(
           std::get<
               std::optional<SaiAclTableTraits::Attributes::FieldOuterVlanId>>(
               attributes));
+    case cfg::AclTableQualifier::BTH_OPCODE:
+#if !defined(TAJO_SDK)
+      return hasField(
+          std::get<
+              std::optional<SaiAclTableTraits::Attributes::FieldBthOpcode>>(
+              attributes));
+#else
+      return false;
+#endif
     case cfg::AclTableQualifier::UDF:
       /* not supported */
       return false;
@@ -1554,7 +1642,7 @@ void SaiAclTableManager::recreateAclTable(
     const SaiAclTableTraits::CreateAttributes& newAttributes) {
   bool aclTableUpdateSupport =
       platform_->getAsic()->isSupported(HwAsic::Feature::SAI_ACL_TABLE_UPDATE);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
   aclTableUpdateSupport = false;
 #endif
   if (!aclTableUpdateSupport) {
@@ -1640,6 +1728,20 @@ void SaiAclTableManager::removeUnclaimedAclCounter() {
         aclCounter->release();
         return true;
       });
+}
+
+AclStats SaiAclTableManager::getAclStats() const {
+  AclStats aclStats;
+  for (const auto& handle : handles_) {
+    for (const auto& aclMember : handle.second->aclTableMembers) {
+      for (const auto& [counterType, counterName] :
+           aclMember.second->aclCounterTypeAndName) {
+        aclStats.statNameToCounterMap()->insert(
+            {counterName, aclStats_.getCumulativeValueIf(counterName)});
+      }
+    }
+  }
+  return aclStats;
 }
 
 } // namespace facebook::fboss

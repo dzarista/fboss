@@ -1,4 +1,7 @@
 // (c) Facebook, Inc. and its affiliates. Confidential and proprietary.
+
+#include <fboss/platform/weutil/FbossEepromParser.h>
+
 #include <cctype>
 #include <filesystem>
 #include <fstream>
@@ -9,7 +12,8 @@
 #include <utility>
 #include <vector>
 
-#include <fboss/platform/weutil/FbossEepromParser.h>
+#include <folly/logging/xlog.h>
+#include "fboss/platform/weutil/Crc16CcittAug.h"
 
 namespace {
 
@@ -36,10 +40,6 @@ typedef struct {
   std::optional<int> length;
   std::optional<int> offset;
 } EepromFieldEntry;
-
-} // namespace
-
-namespace facebook::fboss::platform {
 
 std::vector<EepromFieldEntry> kFieldDictionaryV3 = {
     {0, "Version", FIELD_LE_UINT, 1, 2}, // TypeCode 0 is reserved
@@ -128,11 +128,80 @@ std::vector<EepromFieldEntry> getEepromFieldDict(int version) {
       throw std::runtime_error(
           "Invalid EEPROM version : " + std::to_string(version));
       break;
-  };
+  }
   // The control should not come here, but adding this default
   // return value to avoid compiler warning.
   return kFieldDictionaryV5;
 };
+
+std::string parseMacHelper(int len, unsigned char* ptr, bool useBigEndian) {
+  std::string retVal = "";
+  // We convert char array to string only upto len or null pointer
+  int juice = 0;
+  while (juice < len) {
+    unsigned int val = useBigEndian ? ptr[juice] : ptr[len - juice - 1];
+    std::ostringstream ss;
+    ss << std::hex << val;
+    std::string strElement = ss.str();
+    // Pad 0 if the hex value is only 1 digit. Also,
+    // add ':' between 2 hex digits except for the last element
+    strElement =
+        (val < 16 ? "0" : "") + strElement + (juice != len - 1 ? ":" : "");
+    retVal += strElement;
+    juice = juice + 1;
+  }
+  return retVal;
+}
+
+// Header size in EEPROM. First two bytes are 0xFBFB followed
+// by a byte specifying the EEPROM version and one byte of 0xFF
+constexpr int kHeaderSize = 4;
+// Field Type and Length are 1 byte each.
+constexpr int kEepromTypeLengthSize = 2;
+// CRC size (16 bits)
+constexpr int kCrcSize = 2;
+
+} // namespace
+
+namespace facebook::fboss::platform {
+
+std::vector<std::pair<std::string, std::string>>
+FbossEepromParser::getContents() {
+  unsigned char buffer[kMaxEepromSize + 1] = {};
+
+  int readCount = loadEeprom(eepromPath_, buffer, offset_, kMaxEepromSize);
+
+  std::unordered_map<int, std::string> parsedValue;
+  int eepromVer = buffer[2];
+  switch (eepromVer) {
+    case 3:
+      parsedValue = parseEepromBlobLinear(buffer);
+      break;
+    case 4:
+    case 5:
+      parsedValue = parseEepromBlobTLV(
+          eepromVer, buffer, std::min(readCount, kMaxEepromSize));
+      break;
+    default:
+      throw std::runtime_error(fmt::format(
+          "EEPROM version {} is not supported. Only ver 4+ is supported.",
+          eepromVer));
+      break;
+  }
+
+  return prepareEepromFieldMap(parsedValue, eepromVer);
+}
+
+// Calculate the CRC16 of the EEPROM. The last 4 bytes of EEPROM
+// contents are the TLV (Type, Length, Value) of CRC, and should not
+// be included in the CRC calculation.
+uint16_t FbossEepromParser::calculateCrc16(const uint8_t* buffer, size_t len) {
+  if (len <= (kEepromTypeLengthSize + kCrcSize)) {
+    throw std::runtime_error("EEPROM blob size is too small.");
+  }
+  const size_t eepromSizeWithoutCrc = len - kEepromTypeLengthSize - kCrcSize;
+  return helpers::crc_ccitt_aug(buffer, eepromSizeWithoutCrc);
+}
 
 /*
  * Helper function, given the eeprom path, read it and store the blob
@@ -234,10 +303,12 @@ std::unordered_map<int, std::string> FbossEepromParser::parseEepromBlobTLV(
     int eepromVer,
     const unsigned char* buffer,
     const int readCount) {
-  int juice = 0; // A variable to count the number of items
-                 // parsed so far
-  int cursor = 4; // According to the Meta EEPROM v4 spec and later,
-                  // the actual data starts from 4th byte of eeprom.
+  // A variable to count the number of items parsed so far
+  int juice = 0;
+  // According to the Meta EEPROM v4 spec and later,
+  // the actual data starts from 4th byte of eeprom.
+  int cursor = kHeaderSize;
+
   std::unordered_map<int, std::string> parsedValue;
   std::string value;
 
@@ -250,7 +321,6 @@ std::unordered_map<int, std::string> FbossEepromParser::parseEepromBlobTLV(
     // First, get the itemCode of the TLV (T)
     int itemCode = (int)buffer[cursor];
     entryType itemType = FIELD_INVALID;
-    int itemLen = (int)buffer[cursor + 1];
     std::string key;
 
     // Vendors pad EEPROM with 0xff. Therefore, if item code is
@@ -259,7 +329,7 @@ std::unordered_map<int, std::string> FbossEepromParser::parseEepromBlobTLV(
       break;
     }
     // Look up our table to find the itemType and field name of this itemCode
-    for (int i = 0; i < fieldDictionary.size(); i++) {
+    for (size_t i = 0; i < fieldDictionary.size(); i++) {
       if (fieldDictionary[i].typeCode == itemCode) {
         itemType = fieldDictionary[i].fieldType;
         key = fieldDictionary[i].fieldName;
@@ -275,7 +345,8 @@ std::unordered_map<int, std::string> FbossEepromParser::parseEepromBlobTLV(
 
     // Find Length and Variable (L and V)
     int itemLength = buffer[cursor + 1];
-    unsigned char* itemDataPtr = (unsigned char*)&buffer[cursor + 2];
+    unsigned char* itemDataPtr =
+        (unsigned char*)&buffer[cursor + kEepromTypeLengthSize];
     // Parse the value according to the itemType
     switch (itemType) {
       case FIELD_LE_UINT:
@@ -308,7 +379,21 @@ std::unordered_map<int, std::string> FbossEepromParser::parseEepromBlobTLV(
     // Add the key-value pair to the result
     parsedValue[itemCode] = value;
     // Increment the cursor
-    cursor += itemLen + 2;
+    cursor += itemLength + kEepromTypeLengthSize;
+    // the CRC16 is the last content, parsing must stop.
+    if (key == "CRC16") {
+      uint16_t crcProgrammed = std::stoi(value, nullptr, 16);
+      uint16_t crcCalculated = calculateCrc16(buffer, cursor);
+      if (crcProgrammed == crcCalculated) {
+        parsedValue[itemCode] = value + " (CRC Matched)";
+      } else {
+        std::stringstream ss;
+        ss << std::hex << crcCalculated;
+        parsedValue[itemCode] =
+            value + " (CRC Mismatch. Expected 0x" + ss.str() + ")";
+      }
+      break;
+    }
   }
   return parsedValue;
 }
@@ -367,35 +452,6 @@ FbossEepromParser::prepareEepromFieldMap(
     }
   }
   return result;
-}
-
-ParsedEepromEntry FbossEepromParser::getAllInfo(
-    const std::string& eeprom,
-    const int offset) {
-  unsigned char buffer[kMaxEepromSize + 1] = {};
-
-  int readCount = loadEeprom(eeprom, buffer, offset, kMaxEepromSize);
-
-  // Ensure that this is EEPROM v4 or later
-  std::unordered_map<int, std::string> parsedValue;
-  int eepromVer = buffer[2];
-
-  switch (eepromVer) {
-    case 3:
-      parsedValue = parseEepromBlobLinear(buffer);
-      break;
-    case 4:
-    case 5:
-      parsedValue = parseEepromBlobTLV(
-          eepromVer, buffer, std::min(readCount, kMaxEepromSize));
-      break;
-    default:
-      throw std::runtime_error(
-          "EEPROM version is not supported. Only ver 4+ is supported.");
-      break;
-  }
-
-  return prepareEepromFieldMap(parsedValue, eepromVer);
 }
 
 // Parse Little Endian Uint field
@@ -469,25 +525,6 @@ std::string FbossEepromParser::parseString(int len, unsigned char* ptr) {
   return retVal;
 }
 
-std::string parseMacHelper(int len, unsigned char* ptr, bool useBigEndian) {
-  std::string retVal = "";
-  // We convert char array to string only upto len or null pointer
-  int juice = 0;
-  while (juice < len) {
-    unsigned int val = useBigEndian ? ptr[juice] : ptr[len - juice - 1];
-    std::ostringstream ss;
-    ss << std::hex << val;
-    std::string strElement = ss.str();
-    // Pad 0 if the hex value is only 1 digit. Also,
-    // add ':' between 2 hex digits except for the last element
-    strElement =
-        (val < 16 ? "0" : "") + strElement + (juice != len - 1 ? ":" : "");
-    retVal += strElement;
-    juice = juice + 1;
-  }
-  return retVal;
-}
-
 // For EEPROM V4, Parse MAC with the format XX:XX:XX:XX:XX:XX
 std::string FbossEepromParser::parseV4Mac(int len, unsigned char* ptr) {
   // In V4 EEPROM, all fields are little endian, even the MAC address
@@ -538,14 +575,6 @@ std::string FbossEepromParser::parseDate(int len, unsigned char* ptr) {
   monthString = (monthString.length() == 1 ? "0" : "") + monthString;
   dayString = (dayString.length() == 1 ? "0" : "") + dayString;
   return monthString + "-" + dayString + "-" + yearString;
-}
-
-ParsedEepromEntry FbossEepromParser::getEeprom(
-    const std::string& eeprom,
-    const int offset) {
-  // If eeprom is empty, use the chassis eeprom entity from the config.
-  std::string eepromEntity = eeprom;
-  return getAllInfo(eepromEntity, offset);
 }
 
 } // namespace facebook::fboss::platform

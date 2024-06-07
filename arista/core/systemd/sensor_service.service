@@ -2,6 +2,8 @@
 Description=Start sensor_service
 After=data_corral_service.service
 Wants=data_corral_service.service
+Wants=platform_manager.service
+After=platform_manager.service
 
 [Service]
 ExecStart=/opt/fboss/bin/run_sensor_service.sh

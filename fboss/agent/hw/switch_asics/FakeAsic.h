@@ -49,7 +49,9 @@ class FakeAsic : public HwAsic {
                                                         // support in fake
       case HwAsic::Feature::LINK_TRAINING:
       case HwAsic::Feature::SAI_PORT_VCO_CHANGE:
-      case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
+      case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+      case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
+      case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
         return false;
 
       default:
@@ -74,7 +76,9 @@ class FakeAsic : public HwAsic {
       case cfg::PortType::CPU_PORT:
         return {cfg::StreamType::MULTICAST};
       case cfg::PortType::INTERFACE_PORT:
+      case cfg::PortType::MANAGEMENT_PORT:
       case cfg::PortType::RECYCLE_PORT:
+      case cfg::PortType::EVENTOR_PORT:
         return {cfg::StreamType::UNICAST};
       case cfg::PortType::FABRIC_PORT:
         return {cfg::StreamType::FABRIC_TX};
@@ -138,6 +142,12 @@ class FakeAsic : public HwAsic {
   }
   uint32_t getMaxEcmpSize() const override {
     return 512;
+  }
+  std::optional<uint32_t> getMaxEcmpGroups() const override {
+    return 4;
+  }
+  std::optional<uint32_t> getMaxEcmpMembers() const override {
+    return 128;
   }
   AsicVendor getAsicVendor() const override {
     return HwAsic::AsicVendor::ASIC_VENDOR_FAKE;

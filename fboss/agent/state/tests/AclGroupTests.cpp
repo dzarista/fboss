@@ -16,7 +16,6 @@
 #include "fboss/agent/state/AclTable.h"
 #include "fboss/agent/state/AclTableGroup.h"
 #include "fboss/agent/state/AclTableMap.h"
-#include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/TestUtils.h"
 
@@ -52,6 +51,8 @@ const std::string kAclTableGroupName = "ingress-ACL-Table-Group";
 
 const std::string kAcl1a = "acl1a";
 const std::string kAcl1b = "acl1b";
+const std::string kAcl1c = "acl1c";
+const std::string kAcl1d = "acl1d";
 const std::string kAcl2a = "acl2a";
 const std::string kAcl2b = "acl2b";
 const std::string kAcl3a = "acl3a";
@@ -463,12 +464,32 @@ TEST(AclGroup, ApplyConfigColdbootMultipleAclTable) {
   auto entry1a = make_shared<AclEntry>(priority1++, kAcl1a);
   entry1a->setActionType(cfg::AclActionType::DENY);
   entry1a->setEnabled(true);
+
   auto entry1b = make_shared<AclEntry>(priority1++, kAcl1b);
-  entry1b->setAclAction(MatchAction());
+  entry1b->setActionType(cfg::AclActionType::DENY);
+  auto counter1b = cfg::TrafficCounter();
+  counter1b.name() = kAcl1b;
+  MatchAction action1b = MatchAction();
+  action1b.setTrafficCounter(counter1b);
+  entry1b->setAclAction(action1b);
   entry1b->setEnabled(true);
+
+  auto entry1c = make_shared<AclEntry>(priority1++, kAcl1c);
+  entry1c->setEnabled(true);
+
+  auto entry1d = make_shared<AclEntry>(priority1++, kAcl1d);
+  auto counter1d = cfg::TrafficCounter();
+  counter1d.name() = kAcl1d;
+  MatchAction action1d = MatchAction();
+  action1d.setTrafficCounter(counter1d);
+  entry1d->setAclAction(action1d);
+  entry1d->setEnabled(true);
+
   auto map1 = std::make_shared<AclMap>();
   map1->addEntry(entry1a);
   map1->addEntry(entry1b);
+  map1->addEntry(entry1c);
+  map1->addEntry(entry1d);
 
   auto table1 = std::make_shared<AclTable>(1, kTable1);
   table1->setAclMap(map1);
@@ -486,10 +507,13 @@ TEST(AclGroup, ApplyConfigColdbootMultipleAclTable) {
   cfg::AclTable cfgTable1;
   cfgTable1.name_ref() = kTable1;
   cfgTable1.priority_ref() = 1;
-  cfgTable1.aclEntries_ref()->resize(2);
+  cfgTable1.aclEntries_ref()->resize(4);
   cfgTable1.aclEntries_ref()[0].name_ref() = kAcl1a;
   cfgTable1.aclEntries_ref()[0].actionType_ref() = cfg::AclActionType::DENY;
   cfgTable1.aclEntries_ref()[1].name_ref() = kAcl1b;
+  cfgTable1.aclEntries_ref()[1].actionType_ref() = cfg::AclActionType::DENY;
+  cfgTable1.aclEntries_ref()[2].name_ref() = kAcl1c;
+  cfgTable1.aclEntries_ref()[3].name_ref() = kAcl1d;
 
   cfgTable1.actionTypes_ref()->resize(kActionTypes.size());
   cfgTable1.actionTypes_ref() = kActionTypes;
@@ -507,9 +531,22 @@ TEST(AclGroup, ApplyConfigColdbootMultipleAclTable) {
   // Make sure acl1b used so that it isn't ignored
   config.dataPlaneTrafficPolicy_ref() = cfg::TrafficPolicyConfig();
   config.dataPlaneTrafficPolicy_ref()->matchToAction_ref()->resize(
-      1, cfg::MatchToAction());
-  *config.dataPlaneTrafficPolicy_ref()->matchToAction_ref()[0].matcher_ref() =
+      2, cfg::MatchToAction());
+  config.dataPlaneTrafficPolicy_ref()->matchToAction_ref()[0].matcher_ref() =
       kAcl1b;
+  auto matchAction1b = cfg::MatchAction();
+  matchAction1b.counter() = kAcl1b;
+  config.dataPlaneTrafficPolicy_ref()->matchToAction_ref()[0].action_ref() =
+      matchAction1b;
+  config.dataPlaneTrafficPolicy_ref()->matchToAction_ref()[1].matcher_ref() =
+      kAcl1d;
+  auto matchAction1d = cfg::MatchAction();
+  matchAction1d.counter() = kAcl1d;
+  config.dataPlaneTrafficPolicy_ref()->matchToAction_ref()[1].action_ref() =
+      matchAction1d;
+  config.trafficCounters_ref()->resize(2, cfg::TrafficCounter());
+  *config.trafficCounters_ref()[0].name() = kAcl1b;
+  *config.trafficCounters_ref()[1].name() = kAcl1d;
 
   auto stateV1 = publishAndApplyConfig(stateEmpty, &config, platform.get());
 
@@ -542,6 +579,74 @@ TEST(AclGroup, ApplyConfigColdbootMultipleAclTable) {
           ->getTableIf(table1->getID())
           ->getQualifiers(),
       kQualifiers);
+  EXPECT_EQ(
+      *(stateV1->getAclTableGroups()
+            ->getNodeIf(kAclStage1)
+            ->getAclTableMap()
+            ->getTableIf(table1->getID())
+            ->getAclMap()),
+      *map1);
+
+  auto verify = [table1](
+                    shared_ptr<SwitchState> state,
+                    shared_ptr<AclEntry> aclEntry,
+                    std::string aclName,
+                    cfg::AclActionType aclActionType,
+                    bool verifyTrafficCounter) {
+    EXPECT_EQ(
+        *(state->getAclTableGroups()
+              ->getNodeIf(kAclStage1)
+              ->getAclTableMap()
+              ->getTableIf(table1->getID())
+              ->getAclMap()
+              ->getEntry(aclName)),
+        *aclEntry);
+    EXPECT_EQ(
+        state->getAclTableGroups()
+            ->getNodeIf(kAclStage1)
+            ->getAclTableMap()
+            ->getTableIf(table1->getID())
+            ->getAclMap()
+            ->getEntry(aclName)
+            ->getActionType(),
+        aclActionType);
+    if (verifyTrafficCounter) {
+      EXPECT_TRUE(
+          state->getAclTableGroups()
+              ->getNodeIf(kAclStage1)
+              ->getAclTableMap()
+              ->getTableIf(table1->getID())
+              ->getAclMap()
+              ->getEntry(aclName)
+              ->getAclAction() != nullptr);
+      EXPECT_EQ(
+          state->getAclTableGroups()
+              ->getNodeIf(kAclStage1)
+              ->getAclTableMap()
+              ->getTableIf(table1->getID())
+              ->getAclMap()
+              ->getEntry(aclName)
+              ->getAclAction()
+              ->cref<switch_state_tags::trafficCounter>()
+              ->cref<switch_config_tags::name>()
+              ->cref(),
+          aclName);
+    } else {
+      EXPECT_TRUE(
+          state->getAclTableGroups()
+              ->getNodeIf(kAclStage1)
+              ->getAclTableMap()
+              ->getTableIf(table1->getID())
+              ->getAclMap()
+              ->getEntry(aclName)
+              ->getAclAction() == nullptr);
+    }
+  };
+
+  verify(stateV1, entry1a, kAcl1a, cfg::AclActionType::DENY, false);
+  verify(stateV1, entry1b, kAcl1b, cfg::AclActionType::DENY, true);
+  verify(stateV1, entry1c, kAcl1c, cfg::AclActionType::PERMIT, false);
+  verify(stateV1, entry1d, kAcl1d, cfg::AclActionType::PERMIT, true);
 
   // Config contains 2 acl tables
   auto entry2a = make_shared<AclEntry>(priority2, kAcl2a);
@@ -653,14 +758,25 @@ TEST(AclGroup, ApplyConfigWarmbootMultipleAclTable) {
   config.aclTableGroup_ref() = cfgTableGroup;
   config.aclTableGroup_ref()->name_ref() = kGroup1;
   config.aclTableGroup_ref()->stage_ref() = kAclStage1;
+
+  // Expect aclTableGroup to throw an error if its empty
+  cfg::SwitchConfig emptyCfg{};
+  EXPECT_THROW(
+      publishAndApplyConfig(
+          std::make_shared<SwitchState>(), &emptyCfg, platform.get()),
+      FbossError);
+  /*
+   * Need to have aclTableGroup in the config if acltablegroup is enabled
+   * so create config with empty aclTableGroup before applying config
+   */
+  auto stateV0 = publishAndApplyConfig(
+      std::make_shared<SwitchState>(), &config, platform.get());
+  addSwitchInfo(stateV0);
+
   config.aclTableGroup_ref()->aclTables_ref()->resize(2);
   config.aclTableGroup_ref()->aclTables_ref()[0] = cfgTable1;
   config.aclTableGroup_ref()->aclTables_ref()[1] = cfgTable2;
 
-  cfg::SwitchConfig emptyCfg{};
-  auto stateV0 = publishAndApplyConfig(
-      std::make_shared<SwitchState>(), &emptyCfg, platform.get());
-  addSwitchInfo(stateV0);
   stateV0->resetAclTableGroups(tableGroups);
 
   auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());

@@ -38,7 +38,9 @@ class MonolithicSwSwitchInitializer : public SwSwitchInitializer {
   }
 
  private:
-  void initImpl(HwSwitchCallback* callback) override;
+  void initImpl(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) override;
   HwAgent* hwAgent_;
 };
 
@@ -67,7 +69,7 @@ class MonolithicAgentInitializer : public SwAgentInitializer {
    */
   virtual void setCmdLineFlagOverrides() const {}
 
-  void handleExitSignal() override;
+  void handleExitSignal(bool gracefulExit) override;
 
   std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
   getThrifthandlers() override;

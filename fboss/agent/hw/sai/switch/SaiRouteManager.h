@@ -24,12 +24,13 @@
 #include <mutex>
 
 DECLARE_bool(disable_valid_route_check);
+DECLARE_bool(classid_for_unresolved_routes);
 
 namespace facebook::fboss {
 
 class SaiManagerTable;
 class SaiPlatform;
-class SaiNextHopGroupHandle;
+struct SaiNextHopGroupHandle;
 class SaiStore;
 class SaiRouteManager;
 struct SaiCounterHandle;

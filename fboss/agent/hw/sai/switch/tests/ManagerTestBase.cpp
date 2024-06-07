@@ -38,6 +38,8 @@
 #endif
 
 namespace {
+constexpr auto kPrbsPolynomial = 31;
+
 facebook::fboss::cfg::AgentConfig getDummyConfig() {
   facebook::fboss::cfg::AgentConfig config;
 
@@ -316,6 +318,10 @@ std::shared_ptr<Port> ManagerTestBase::makePort(
     swPort->resetPinConfigs(
         saiPlatform->getPlatformMapping()->getPortIphyPinConfigs(matcher));
   }
+  phy::PortPrbsState prbsState;
+  prbsState.enabled() = true;
+  prbsState.polynominal() = kPrbsPolynomial;
+  swPort->setAsicPrbs(prbsState);
   return swPort;
 }
 
@@ -459,7 +465,8 @@ std::shared_ptr<ArpEntry> ManagerTestBase::makeArpEntry(
     std::optional<sai_uint32_t> metadata,
     std::optional<sai_uint32_t> encapIndex,
     bool isLocal,
-    cfg::InterfaceType intfType) const {
+    cfg::InterfaceType intfType,
+    bool noHostRoute) const {
   auto arpEntry = std::make_shared<ArpEntry>(
       testRemoteHost.ip.asV4(),
       testRemoteHost.mac,
@@ -473,6 +480,7 @@ std::shared_ptr<ArpEntry> ManagerTestBase::makeArpEntry(
     arpEntry->setEncapIndex(static_cast<int64_t>(encapIndex.value()));
   }
   arpEntry->setIsLocal(isLocal);
+  arpEntry->setNoHostRoute(noHostRoute);
   return arpEntry;
 }
 
@@ -482,9 +490,10 @@ std::shared_ptr<ArpEntry> ManagerTestBase::resolveArp(
     cfg::InterfaceType intfType,
     std::optional<sai_uint32_t> metadata,
     std::optional<sai_uint32_t> encapIndex,
-    bool isLocal) {
-  auto arpEntry =
-      makeArpEntry(id, testRemoteHost, metadata, encapIndex, isLocal, intfType);
+    bool isLocal,
+    bool noHostRoute) {
+  auto arpEntry = makeArpEntry(
+      id, testRemoteHost, metadata, encapIndex, isLocal, intfType, noHostRoute);
   saiManagerTable->neighborManager().addNeighbor(arpEntry);
   if (intfType == cfg::InterfaceType::VLAN) {
     saiManagerTable->fdbManager().addFdbEntry(

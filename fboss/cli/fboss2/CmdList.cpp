@@ -36,10 +36,18 @@
 #include "fboss/cli/fboss2/commands/show/dsfnodes/CmdShowDsfNodes.h"
 #include "fboss/cli/fboss2/commands/show/fabric/CmdShowFabric.h"
 #include "fboss/cli/fboss2/commands/show/fabric/reachability/CmdShowFabricReachability.h"
+#include "fboss/cli/fboss2/commands/show/fabric/topology/CmdShowFabricTopology.h"
+#include "fboss/cli/fboss2/commands/show/flowlet/CmdShowFlowlet.h"
 #include "fboss/cli/fboss2/commands/show/host/CmdShowHost.h"
+#include "fboss/cli/fboss2/commands/show/hwagent/CmdShowHwAgentStatus.h"
 #include "fboss/cli/fboss2/commands/show/hwobject/CmdShowHwObject.h"
 #include "fboss/cli/fboss2/commands/show/interface/CmdShowInterface.h"
+#include "fboss/cli/fboss2/commands/show/interface/capabilities/CmdShowInterfaceCapabilities.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/CmdShowInterfaceCounters.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/CmdShowInterfaceCountersFec.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/ber/CmdShowInterfaceCountersFecBer.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/histogram/CmdShowInterfaceCountersFecHistogram.h"
+#include "fboss/cli/fboss2/commands/show/interface/counters/fec/uncorrectable/CmdShowInterfaceCountersFecUncorrectable.h"
 #include "fboss/cli/fboss2/commands/show/interface/counters/mka/CmdShowInterfaceCountersMKA.h"
 #include "fboss/cli/fboss2/commands/show/interface/errors/CmdShowInterfaceErrors.h"
 #include "fboss/cli/fboss2/commands/show/interface/flaps/CmdShowInterfaceFlaps.h"
@@ -62,6 +70,7 @@
 #include "fboss/cli/fboss2/commands/show/port/CmdShowPortQueue.h"
 #include "fboss/cli/fboss2/commands/show/product/CmdShowProduct.h"
 #include "fboss/cli/fboss2/commands/show/product/CmdShowProductDetails.h"
+#include "fboss/cli/fboss2/commands/show/rif/CmdShowRif.h"
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRoute.h"
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRouteDetails.h"
 #include "fboss/cli/fboss2/commands/show/route/CmdShowRouteSummary.h"
@@ -115,7 +124,17 @@ const CommandTree& kCommandTree() {
            {"reachability",
             "Show Fabric ports that can reach the given switch name",
             commandHandler<CmdShowFabricReachability>,
-            argTypeHandler<CmdShowFabricReachabilityTraits>}}},
+            argTypeHandler<CmdShowFabricReachabilityTraits>},
+           {"topology",
+            "Show Fabric topology per virtual device",
+            commandHandler<CmdShowFabricTopology>,
+            argTypeHandler<CmdShowFabricTopologyTraits>}}},
+
+      {"show",
+       "flowlet",
+       "Show Flowlet information",
+       commandHandler<CmdShowFlowlet>,
+       argTypeHandler<CmdShowFlowletTraits>},
 
       {"show",
        "dsf",
@@ -162,6 +181,13 @@ const CommandTree& kCommandTree() {
             argTypeHandler<CmdShowPortQueueTraits>}}},
 
       {"show",
+       "rif",
+       "Show RIF information",
+       commandHandler<CmdShowRif>,
+       validFilterHandler<CmdShowRif>,
+       argTypeHandler<CmdShowRifTraits>},
+
+      {"show",
        "interface",
        "Show Interface information",
        commandHandler<CmdShowInterface>,
@@ -176,6 +202,26 @@ const CommandTree& kCommandTree() {
                  "Show Interface MKA counters",
                  commandHandler<CmdShowInterfaceCountersMKA>,
                  argTypeHandler<CmdShowInterfaceCountersMKATraits>},
+                {"fec",
+                 "Show Interface counters fec",
+                 commandHandler<CmdShowInterfaceCountersFec>,
+                 argTypeHandler<CmdShowInterfaceCountersFecTraits>,
+                 {
+                     {"ber",
+                      "Show Interface counters fec ber",
+                      commandHandler<CmdShowInterfaceCountersFecBer>,
+                      argTypeHandler<CmdShowInterfaceCountersFecBerTraits>},
+                     {"uncorrectable",
+                      "Show Interface counters fec uncorrectable",
+                      commandHandler<CmdShowInterfaceCountersFecUncorrectable>,
+                      argTypeHandler<
+                          CmdShowInterfaceCountersFecUncorrectableTraits>},
+                     {"histogram",
+                      "Show Interface counters fec histogram",
+                      commandHandler<CmdShowInterfaceCountersFecHistogram>,
+                      argTypeHandler<
+                          CmdShowInterfaceCountersFecHistogramTraits>},
+                 }},
             }},
 
            {"errors",
@@ -205,6 +251,10 @@ const CommandTree& kCommandTree() {
             "Show External Phy Port Map",
             commandHandler<CmdShowInterfacePhymap>,
             argTypeHandler<CmdShowInterfacePhymapTraits>},
+           {"capabilities",
+            "Show Supported Port capabilities on the ports",
+            commandHandler<CmdShowInterfaceCapabilities>,
+            argTypeHandler<CmdShowInterfaceCapabilitiesTraits>},
            {"prbs",
             "Show PRBS information",
             commandHandler<CmdShowInterfacePrbs>,
@@ -313,6 +363,12 @@ const CommandTree& kCommandTree() {
        "Show HW Objects",
        commandHandler<CmdShowHwObject>,
        argTypeHandler<CmdShowHwObjectTraits>},
+
+      {"show",
+       "hw-agent",
+       "Show HwAgent Status",
+       commandHandler<CmdShowHwAgentStatus>,
+       argTypeHandler<CmdShowHwAgentStatusTraits>},
 
       {"show",
        "l2",

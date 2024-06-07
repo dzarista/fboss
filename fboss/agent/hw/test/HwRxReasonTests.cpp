@@ -23,11 +23,15 @@ class HwRxReasonTests : public HwLinkStateDependentTest {
         getAsic()->desiredLoopbackModes(),
         true /*interfaceHasSubnet*/);
 
-    utility::setDefaultCpuTrafficPolicyConfig(cfg, getAsic());
+    utility::setDefaultCpuTrafficPolicyConfig(
+        cfg,
+        getHwSwitchEnsemble()->getL3Asics(),
+        getHwSwitchEnsemble()->isSai());
     // Remove DHCP from rxReason list
-    auto rxReasonListWithoutDHCP = utility::getCoppRxReasonToQueues(getAsic());
+    auto rxReasonListWithoutDHCP = utility::getCoppRxReasonToQueues(
+        getAsic(), getHwSwitchEnsemble()->isSai());
     auto dhcpRxReason = ControlPlane::makeRxReasonToQueueEntry(
-        cfg::PacketRxReason::DHCP, utility::kCoppMidPriQueueId);
+        cfg::PacketRxReason::DHCP, utility::getCoppMidPriQueueId({getAsic()}));
     auto dhcpRxReasonIter = std::find(
         rxReasonListWithoutDHCP.begin(),
         rxReasonListWithoutDHCP.end(),
@@ -47,7 +51,8 @@ TEST_F(HwRxReasonTests, InsertAndRemoveRxReason) {
     auto cfg = initialConfig();
     applyNewConfig(cfg);
     cfg.cpuTrafficPolicy()->rxReasonToQueueOrderedList() =
-        utility::getCoppRxReasonToQueues(getAsic());
+        utility::getCoppRxReasonToQueues(
+            getAsic(), getHwSwitchEnsemble()->isSai());
     applyNewConfig(cfg);
   };
   verifyAcrossWarmBoots(setup, verify);

@@ -11,7 +11,7 @@
 #pragma once
 
 // TODO: replace with our own ThriftTraverseResult
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 #include <thrift/lib/cpp2/reflection/folly_dynamic.h>
 #include <functional>
@@ -23,7 +23,7 @@
 namespace facebook::fboss::thrift_cow {
 
 template <typename TypeClass, typename TType, bool Immutable>
-class ThriftPrimitiveNode {
+class ThriftPrimitiveNode : public thrift_cow::Serializable {
  public:
   using Self = ThriftPrimitiveNode<TypeClass, TType, Immutable>;
   using CowType = FieldsType;
@@ -111,61 +111,40 @@ class ThriftPrimitiveNode {
   }
 #endif
 
-  folly::fbstring encode(fsdb::OperProtocol proto) const {
-    return serialize<TypeClass>(proto, toThrift());
-  }
-
-  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const {
+  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const override {
     return serializeBuf<TypeClass>(proto, toThrift());
   }
 
-  template <typename T = Self>
-  auto fromEncoded(fsdb::OperProtocol proto, const folly::fbstring& encoded)
-      -> std::enable_if_t<!T::immutable, void> {
-    fromThrift(deserialize<TC, TType>(proto, encoded));
+  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded)
+      override {
+    if constexpr (immutable) {
+      throwImmutableException();
+    } else {
+      fromThrift(deserializeBuf<TypeClass, TType>(proto, std::move(encoded)));
+    }
   }
 
-  template <typename T = Self>
-  auto fromEncoded(
-      fsdb::OperProtocol /*proto*/,
-      const folly::fbstring& /*encoded*/) const
-      -> std::enable_if_t<T::immutable, void> {
+  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded) const {
     throwImmutableException();
   }
 
-  template <typename T = Self>
-  auto fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded)
-      -> std::enable_if_t<!T::immutable, void> {
-    fromThrift(deserializeBuf<TypeClass, TType>(proto, std::move(encoded)));
-  }
-
-  template <typename T = Self>
-  auto fromEncodedBuf(
-      fsdb::OperProtocol /* proto */,
-      folly::IOBuf&& /* encoded */) -> std::enable_if_t<T::immutable, void> {
-    throwImmutableException();
-  }
-
-  template <typename T = Self>
-  auto remove(const std::string& token)
-      -> std::enable_if_t<!T::immutable, bool> {
+  bool remove(const std::string& token) {
     throw std::runtime_error(folly::to<std::string>(
         "Cannot remove a child from a primitive node: ", token));
   }
 
-  template <typename T = Self>
-  auto remove(const std::string& token) const
-      -> std::enable_if_t<T::immutable, bool> {
+  bool remove(const std::string& token) const {
     throw std::runtime_error(folly::to<std::string>(
         "Cannot remove a child from a primitive node: ", token));
   }
 
-  template <typename T = Self>
-  auto modify(const std::string&) -> std::enable_if_t<!T::immutable, void> {}
+  void modify(const std::string&) {
+    if constexpr (immutable) {
+      throwImmutableException();
+    }
+  }
 
-  template <typename T = Self>
-  auto modify(const std::string&) const
-      -> std::enable_if_t<T::immutable, void> {
+  void modify(const std::string&) const {
     throwImmutableException();
   }
 
@@ -183,31 +162,6 @@ class ThriftPrimitiveNode {
 
   std::size_t hash() const {
     return std::hash<ThriftType>()(obj_);
-  }
-
-  /*
-   * Visitors by string path
-   */
-
-  template <typename Func>
-  inline ThriftTraverseResult
-  visitPath(PathIter begin, PathIter end, Func&& f) {
-    return PathVisitor<TypeClass>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
-  }
-
-  template <typename Func>
-  inline ThriftTraverseResult visitPath(PathIter begin, PathIter end, Func&& f)
-      const {
-    return PathVisitor<TypeClass>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
-  }
-
-  template <typename Func>
-  inline ThriftTraverseResult cvisitPath(PathIter begin, PathIter end, Func&& f)
-      const {
-    return PathVisitor<TypeClass>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
   }
 
  private:

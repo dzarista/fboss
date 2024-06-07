@@ -102,6 +102,9 @@ class BcmCosQueueManager {
       const {
     return queueCounters_;
   }
+
+  std::map<int32_t, int64_t> getQueueStats(BcmCosQueueStatType statType);
+
   virtual const std::vector<BcmCosQueueCounterType>& getQueueCounterTypes()
       const = 0;
 

@@ -41,13 +41,18 @@ class CmdShowFabric : public CmdHandler<CmdShowFabric, CmdShowFabricTraits> {
   RetType queryClient(const HostInfo& hostInfo) {
     std::map<std::string, FabricEndpoint> entries;
     if (utils::isFbossFeatureEnabled(hostInfo.getName(), "multi_switch")) {
-      auto client =
-          utils::createClient<apache::thrift::Client<FbossHwCtrl>>(hostInfo);
-      client->sync_getHwFabricConnectivity(entries);
+      auto hwAgentQueryFn =
+          [&entries](
+              apache::thrift::Client<facebook::fboss::FbossHwCtrl>& client) {
+            std::map<std::string, FabricEndpoint> hwagentEntries;
+            client.sync_getHwFabricConnectivity(hwagentEntries);
+            entries.merge(hwagentEntries);
+          };
+      utils::runOnAllHwAgents(hostInfo, hwAgentQueryFn);
     } else {
       auto client =
           utils::createClient<apache::thrift::Client<FbossCtrl>>(hostInfo);
-      client->sync_getFabricReachability(entries);
+      client->sync_getFabricConnectivity(entries);
     }
     return createModel(entries);
   }

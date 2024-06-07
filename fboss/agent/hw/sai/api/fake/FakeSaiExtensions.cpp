@@ -1,5 +1,6 @@
 // Copyright 2004-present Facebook. All Rights Reserved.
 
+#include "fboss/agent/hw/sai/api/DebugCounterApi.h"
 #include "fboss/agent/hw/sai/api/PortApi.h"
 #include "fboss/agent/hw/sai/api/SwitchApi.h"
 #include "fboss/agent/hw/sai/api/TamApi.h"
@@ -9,6 +10,12 @@ extern "C" {
 }
 
 namespace facebook::fboss {
+
+namespace detail {
+std::optional<sai_int32_t> trapDrops() {
+  return std::nullopt;
+}
+} // namespace detail
 std::optional<sai_attr_id_t>
 SaiPortSerdesTraits::Attributes::AttributeTxLutModeIdWrapper::operator()() {
   return SAI_PORT_SERDES_ATTR_EXT_TX_LUT_MODE;
@@ -93,6 +100,11 @@ SaiPortTraits::Attributes::AttributeFdrEnable::operator()() {
 }
 
 std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeCrcErrorDetect::operator()() {
+  return SAI_PORT_ATTR_CRC_ERROR_TOKEN_DETECT;
+}
+
+std::optional<sai_attr_id_t>
 SaiPortTraits::Attributes::AttributeRxLaneSquelchEnable::operator()() {
   return SAI_PORT_ATTR_RX_LANE_SQUELCH_ENABLE;
 }
@@ -122,9 +134,23 @@ SaiSwitchTraits::Attributes::AttributeMaxCoresWrapper::operator()() {
   return std::nullopt;
 }
 
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeSdkBootTimeWrapper::operator()() {
+  return std::nullopt;
+}
+
 const std::vector<sai_stat_id_t>& SaiSwitchTraits::dramStats() {
   static const std::vector<sai_stat_id_t> stats;
   return stats;
 }
 
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::rciWatermarkStats() {
+  static const std::vector<sai_stat_id_t> stats;
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::dtlWatermarkStats() {
+  static const std::vector<sai_stat_id_t> stats;
+  return stats;
+}
 } // namespace facebook::fboss

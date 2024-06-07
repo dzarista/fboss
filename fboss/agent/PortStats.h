@@ -60,12 +60,16 @@ class PortStats {
   void dhcpV6DropPkt();
 
   void linkStateChange(bool isUp);
+  void linkActiveStateChange(bool isActive);
 
   void ipv4DstLookupFailure();
   void ipv6DstLookupFailure();
 
   void setPortStatus(bool isUp);
   void clearPortStatusCounter();
+
+  void setPortActiveStatus(bool isActive);
+  void clearPortActiveStatusCounter();
 
   void pktTooBig();
 

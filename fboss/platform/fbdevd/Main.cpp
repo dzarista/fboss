@@ -6,7 +6,6 @@
 #include <folly/logging/xlog.h>
 
 #include "fboss/platform/fbdevd/FbdevdImpl.h"
-#include "fboss/platform/fbdevd/Flags.h"
 #include "fboss/platform/fbdevd/if/gen-cpp2/FbdevManager.h"
 #include "fboss/platform/helpers/Init.h"
 
@@ -18,9 +17,9 @@ FOLLY_INIT_LOGGING_CONFIG("fboss=DBG2; default:async=true");
 
 int main(int argc, char** argv) {
   fb303::registerFollyLoggingOptionHandlers();
-  helpers::init(argc, argv);
+  helpers::init(&argc, &argv);
 
-  auto serviceImpl = std::make_shared<FbdevdImpl>(FLAGS_config_file);
+  auto serviceImpl = std::make_shared<FbdevdImpl>();
 
   // Set up scheduler.
   folly::FunctionScheduler scheduler;

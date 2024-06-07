@@ -237,12 +237,14 @@ class ArtInfoParser:
    """
    dutspecRe = re.compile( "dutspec\s+(?P<devName>\S+)" )
    interfacesBlockRe = re.compile(
-         "interfaces:\s+(?P<count>\d+)"
-         "(?P<data>.*?)"
+         "\s(?P<data>(Fabric\d|Ethernet\d).*?)"
          "child testbeds:", re.DOTALL )
 
    # Sample output
-   #  interfaces:             448
+   #  power-3          r160-rack29-pwr2:13 (on)
+   #  power-4          r160-rack39-ips109:8 (on)
+   #     Fabric41/1    vpr104 Fabric1/1 (fabric) (disabled)
+   #     Fabric41/2    vpr104 Fabric1/2 (fabric) (disabled)
    #     Fabric1/1            <snake> Fabric2/1 (fabric)
    #     Fabric41/1           vpr107 Fabric1/1 (fabric) (disabled)
    #     Ethernet13/1         svp614 eth7/1 (400G-8)

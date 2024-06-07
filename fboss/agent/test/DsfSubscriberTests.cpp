@@ -64,6 +64,8 @@ class DsfSubscriberTest : public ::testing::Test {
     // Create a separate instance of DsfSubscriber (vs
     // using one from SwSwitch) for ease of testing.
     dsfSubscriber_ = std::make_unique<DsfSubscriber>(sw_);
+    FLAGS_dsf_num_parallel_sessions_per_remote_interface_node =
+        std::numeric_limits<uint32_t>::max();
   }
 
   HwSwitchMatcher matcher(uint32_t switchID = 0) const {
@@ -94,8 +96,18 @@ class DsfSubscriberTest : public ::testing::Test {
 TEST_F(DsfSubscriberTest, scheduleUpdate) {
   auto sysPorts = makeSysPorts();
   auto rifs = makeRifs(sysPorts.get());
+
+  std::map<SwitchID, std::shared_ptr<SystemPortMap>> switchId2SystemPorts;
+  std::map<SwitchID, std::shared_ptr<InterfaceMap>> switchId2Intfs;
+  switchId2SystemPorts[SwitchID(kRemoteSwitchId)] = sysPorts;
+  switchId2Intfs[SwitchID(kRemoteSwitchId)] = rifs;
+
   dsfSubscriber_->scheduleUpdate(
-      sysPorts, rifs, "switch", SwitchID(kRemoteSwitchId));
+      "switch",
+      SwitchID(kRemoteSwitchId),
+      switchId2SystemPorts,
+      switchId2Intfs);
+
   // Don't wait for state update to mimic async scheduling of
   // state updates.
 }
@@ -117,14 +129,25 @@ TEST_F(DsfSubscriberTest, setupNeighbors) {
       auto& intf = intfIter.second;
       for (auto& ndpEntry : *intf->getNdpTable()) {
         ndpEntry.second->setIsLocal(false);
+        ndpEntry.second->setNoHostRoute(false);
       }
       for (auto& arpEntry : *intf->getArpTable()) {
         arpEntry.second->setIsLocal(false);
+        arpEntry.second->setNoHostRoute(false);
       }
     }
 
+    std::map<SwitchID, std::shared_ptr<SystemPortMap>> switchId2SystemPorts;
+    std::map<SwitchID, std::shared_ptr<InterfaceMap>> switchId2Intfs;
+    switchId2SystemPorts[SwitchID(kRemoteSwitchId)] = sysPorts;
+    switchId2Intfs[SwitchID(kRemoteSwitchId)] = rifs;
+
     dsfSubscriber_->scheduleUpdate(
-        sysPorts, rifs, "switch", SwitchID(kRemoteSwitchId));
+        "switch",
+        SwitchID(kRemoteSwitchId),
+        switchId2SystemPorts,
+        switchId2Intfs);
+
     waitForStateUpdates(sw_);
     EXPECT_EQ(
         sysPorts->toThrift(),
@@ -243,8 +266,20 @@ TEST_F(DsfSubscriberTest, addSubscription) {
 
   auto verifyDsfSessionState = [&](cfg::DsfNode& nodeConfig,
                                    const auto dsfSessionsThrift) {
+    std::set<std::string> remoteEndpoints;
+    std::for_each(
+        nodeConfig.loopbackIps()->begin(),
+        nodeConfig.loopbackIps()->end(),
+        [&](const auto loopbackSubnet) {
+          auto loopbackIp = folly::IPAddress::createNetwork(
+                                loopbackSubnet, -1 /*defaultCidr*/, false)
+                                .first;
+          remoteEndpoints.insert(DsfSubscriber::makeRemoteEndpoint(
+              *nodeConfig.name(), loopbackIp));
+        });
     for (const auto& dsfSession : dsfSessionsThrift) {
-      if (dsfSession.remoteName() == nodeConfig.name()) {
+      if (remoteEndpoints.find(*dsfSession.remoteName()) !=
+          remoteEndpoints.end()) {
         EXPECT_EQ(*dsfSession.state(), DsfSessionState::CONNECT);
         return true;
       }
@@ -371,25 +406,42 @@ TEST_F(DsfSubscriberTest, failedDsfCounter) {
 }
 
 TEST_F(DsfSubscriberTest, handleFsdbUpdate) {
-  auto sendSysPortUpdate =
-      [this](
-          const auto& dsfNode, const auto& sysPortPath, const auto& sysPort) {
-        MultiSwitchSystemPortMap sysPortMap;
-        sysPortMap.addNode(sysPort, matcher(*dsfNode.switchId()));
+  auto sendUpdate = [this](
+                        const auto& dsfNode,
+                        const auto& sysPortPath,
+                        const auto& sysPort,
+                        const auto& intfPath,
+                        const auto& intf) {
+    MultiSwitchSystemPortMap sysPortMap;
+    sysPortMap.addNode(sysPort, matcher(*dsfNode.switchId()));
 
-        fsdb::TaggedOperState sysPortState;
-        sysPortState.path()->path() = sysPortPath;
-        sysPortState.state()->contents() =
-            sysPortMap.encode(fsdb::OperProtocol::BINARY);
-        fsdb::OperSubPathUnit operState;
-        operState.changes() = {sysPortState};
+    fsdb::TaggedOperState sysPortState;
+    sysPortState.path()->path() = sysPortPath;
+    sysPortState.state()->contents() =
+        sysPortMap.encode(fsdb::OperProtocol::BINARY);
 
-        this->dsfSubscriber_->handleFsdbUpdate(
-            SwitchID(*dsfNode.switchId()),
-            *dsfNode.name(),
-            fsdb::OperSubPathUnit(operState));
-        waitForStateUpdates(sw_);
-      };
+    MultiSwitchInterfaceMap intfMap;
+    intfMap.addNode(intf, matcher(*dsfNode.switchId()));
+
+    fsdb::TaggedOperState intfState;
+    intfState.path()->path() = intfPath;
+    intfState.state()->contents() = intfMap.encode(fsdb::OperProtocol::BINARY);
+
+    fsdb::OperSubPathUnit operState;
+    operState.changes() = {sysPortState, intfState};
+
+    folly::IPAddress localIP("1::1");
+
+    this->dsfSubscriber_->handleFsdbUpdate(
+        localIP,
+        SwitchID(*dsfNode.switchId()),
+        *dsfNode.name(),
+        folly::IPAddress::createNetwork(
+            *dsfNode.loopbackIps()->cbegin(), -1 /*defaultCidr*/, false)
+            .first,
+        fsdb::OperSubPathUnit(operState));
+    waitForStateUpdates(sw_);
+  };
 
   const thriftpath::RootThriftPath<facebook::fboss::fsdb::FsdbOperStateRoot>
       stateRoot;
@@ -400,10 +452,25 @@ TEST_F(DsfSubscriberTest, handleFsdbUpdate) {
   auto sysPort1 =
       std::make_shared<SystemPort>(SystemPortID(kSysPortRangeMin + 1));
   sysPort1->setPortName("eth1/1/1");
-  sendSysPortUpdate(
+  sysPort1->setScope(cfg::Scope::GLOBAL);
+
+  auto intf1 = std::make_shared<Interface>(
+      InterfaceID(1001),
+      RouterID(0),
+      std::optional<VlanID>(std::nullopt),
+      folly::StringPiece("1001"),
+      folly::MacAddress{},
+      9000,
+      false,
+      false,
+      cfg::InterfaceType::SYSTEM_PORT);
+
+  sendUpdate(
       dsfNode5,
       stateRoot.agent().switchState().systemPortMaps().tokens(),
-      sysPort1);
+      sysPort1,
+      stateRoot.agent().switchState().interfaceMaps().tokens(),
+      intf1);
 
   EXPECT_EQ(sw_->getState()->getRemoteSystemPorts()->size(), 1);
   EXPECT_TRUE(
@@ -414,11 +481,28 @@ TEST_F(DsfSubscriberTest, handleFsdbUpdate) {
   auto sysPort2 =
       std::make_shared<SystemPort>(SystemPortID(kSysPortRangeMin + 2));
   sysPort2->setPortName("eth1/1/2");
-  sendSysPortUpdate(
+  sysPort2->setScope(cfg::Scope::GLOBAL);
+
+  auto intf2 = std::make_shared<Interface>(
+      InterfaceID(1002),
+      RouterID(0),
+      std::optional<VlanID>(std::nullopt),
+      folly::StringPiece("1002"),
+      folly::MacAddress{},
+      9000,
+      false,
+      false,
+      cfg::InterfaceType::SYSTEM_PORT);
+
+  sendUpdate(
       dsfNode6,
       stateRoot.agent().switchState().systemPortMaps().idTokens(),
-      sysPort2);
+      sysPort2,
+      stateRoot.agent().switchState().interfaceMaps().tokens(),
+      intf2);
+
   EXPECT_TRUE(
       sw_->getState()->getRemoteSystemPorts()->getSystemPortIf("eth1/1/2"));
 }
+
 } // namespace facebook::fboss

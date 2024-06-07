@@ -1,18 +1,18 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include <folly/FileUtil.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 
+#include "fboss/platform/config_lib/ConfigLib.h"
 #include "fboss/platform/sensor_service/test/TestUtils.h"
 
 using namespace facebook::fboss::platform::sensor_service;
 
-std::string mockSensorConfig(
-    const std::string& tmpPath,
-    const std::string& source) {
+namespace {
+
+std::string mockSensorConfig(const std::string& tmpPath) {
   SensorConfig config;
-  config.source_ref() = source;
 
   Sensor mock_fru_1_sensor_1, mock_fru_1_sensor_2, mock_fru_2_sensor_1;
   mock_fru_1_sensor_1.path_ref() = tmpPath + "/mock_fru_1_sensor_1_path:temp1";
@@ -25,11 +25,8 @@ std::string mockSensorConfig(
   value = "11.875";
   folly::writeFile(value, (*mock_fru_2_sensor_1.path()).c_str());
 
-  Thresholds thresholds{};
-  thresholds.lowerCriticalVal_ref() = 105;
-  mock_fru_1_sensor_1.thresholds_ref() = thresholds;
-  mock_fru_1_sensor_2.thresholds_ref() = thresholds;
-  mock_fru_2_sensor_1.thresholds_ref() = thresholds;
+  mock_fru_1_sensor_1.compute() = "@/1000";
+  mock_fru_2_sensor_1.compute() = "@ + 5";
 
   mock_fru_1_sensor_1.type_ref() = SensorType::TEMPERTURE;
   mock_fru_1_sensor_2.type_ref() = SensorType::FAN;
@@ -49,55 +46,19 @@ std::string mockSensorConfig(
   return fileName;
 }
 
-std::string mockSensorData(const std::string& tmpPath) {
-  folly::dynamic sensorJson = folly::dynamic::object;
-  sensorJson[tmpPath + "/mock_fru_1_sensor_1_path"] = folly::parseJson(R"({
-    "Adapter" : "Blah",
-    "temp1" : {
-      "temp1_input" : 25.000,
-      "temp1_max" : 255.750,
-      "temp1_min" : -256.000,
-      "temp1_max_alarm" : 0.000,
-      "temp1_min_alarm" : 0.000
-    }
-  })");
-  sensorJson[tmpPath + "/mock_fru_1_sensor_2_path"] = folly::parseJson(R"({
-    "Adapter": "Blah",
-    "fan1": {
-        "fan1_input": 11152.000,
-        "fan1_fault": 0.000
-    }
-  })");
-  sensorJson[tmpPath + "/mock_fru_2_sensor_1_path"] = folly::parseJson(R"({
-    "Adapter": "Blah",
-    "vin": {
-        "in1_input": 11.875,
-        "in1_min": 9.500,
-        "in1_crit": 14.000,
-        "in1_min_alarm": 0.000,
-        "in1_crit_alarm": 0.000
-    }
-  })");
-  std::string fileName = tmpPath + "/mock_sensor_data";
-  folly::writeFile(folly::toJson(sensorJson), fileName.c_str());
-  return fileName;
-}
+} // namespace
 
-std::unique_ptr<SensorServiceImpl> createSensorServiceImplForTest(
-    const std::string& tmpDirPath,
-    const std::string& source) {
-  return std::make_unique<SensorServiceImpl>(
-      mockSensorConfig(tmpDirPath, source));
-}
-
-std::string createMockSensorDataFile(const std::string& tmpDirPath) {
-  return mockSensorData(tmpDirPath);
+std::shared_ptr<SensorServiceImpl> createSensorServiceImplForTest(
+    const std::string& tmpDirPath) {
+  auto confFileName = mockSensorConfig(tmpDirPath);
+  FLAGS_config_file = confFileName;
+  return std::make_shared<SensorServiceImpl>();
 }
 
 std::map<std::string, float> getDefaultMockSensorData() {
   return std::map<std::string, float>{
-      {"MOCK_FRU_1_SENSOR_1", 25},
+      {"MOCK_FRU_1_SENSOR_1", 0.025 /* 25/10000 */},
       {"MOCK_FRU_1_SENSOR_2", 11152},
-      {"MOCK_FRU_2_SENSOR_1", 11.875},
+      {"MOCK_FRU_2_SENSOR_1", 16.875 /* 11.875 + 5*/},
   };
 }

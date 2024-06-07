@@ -13,11 +13,10 @@
 #include "fboss/fsdb/if/gen-cpp2/FsdbService.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_common_types.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
-#include "fboss/fsdb/oper/DbWriter.h"
 #include "fboss/fsdb/oper/instantiations/FsdbNaivePeriodicSubscribableStorage.h"
 #include "fboss/fsdb/server/FsdbConfig.h"
 #include "fboss/fsdb/server/FsdbOperTreeMetadataTracker.h"
-#include "fboss/fsdb/server/RocksDb.h"
+#include "fboss/lib/ThreadHeartbeat.h"
 #include "re2/re2.h"
 
 DECLARE_bool(checkSubscriberConfig);
@@ -34,9 +33,6 @@ class ServiceHandler : public FsdbServiceSvIf,
   struct Options {
     Options() {}
 
-    /* variable names absurd by design */
-    bool eraseRocksDbsInCtorAndDtor_CAUTION_DO_NOT_USE_IN_PRODUCTION{false};
-    bool useFakeRocksDb_CAUTION_DO_NOT_USE_IN_PRODUCTION{false};
     bool serveIdPathSubs{false};
 
     Options&& setServeIdPathSubs(bool val) && {
@@ -45,9 +41,10 @@ class ServiceHandler : public FsdbServiceSvIf,
     }
   };
 
+  using RawPathT = std::vector<std::string>;
+
   ServiceHandler(
-      std::unique_ptr<FsdbConfig> fsdbConfig,
-      const std::string& publisherIdsToOpenRocksDbAtStartFor,
+      std::shared_ptr<FsdbConfig> fsdbConfig,
       Options options = Options());
   ~ServiceHandler() override;
 
@@ -138,6 +135,29 @@ class ServiceHandler : public FsdbServiceSvIf,
       co_subscribeOperStatsDeltaExtended(
           std::unique_ptr<OperSubRequestExtended> /*request*/) override;
 
+  // Patch apis
+  folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
+      OperPubInitResponse,
+      PublisherMessage,
+      OperPubFinalResponse>>
+  co_publishState(std::unique_ptr<PubRequest> request) override;
+
+  folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
+      OperPubInitResponse,
+      PublisherMessage,
+      OperPubFinalResponse>>
+  co_publishStats(std::unique_ptr<PubRequest> request) override;
+
+  folly::coro::Task<apache::thrift::ResponseAndServerStream<
+      OperSubInitResponse,
+      SubscriberMessage>>
+  co_subscribeState(std::unique_ptr<SubRequest> request) override;
+
+  folly::coro::Task<apache::thrift::ResponseAndServerStream<
+      OperSubInitResponse,
+      SubscriberMessage>>
+  co_subscribeStats(std::unique_ptr<SubRequest> request) override;
+
   // Management Plane related ---------------------------------------
 
   folly::coro::Task<std::unique_ptr<PublisherIdToOperPublisherInfo>>
@@ -171,23 +191,32 @@ class ServiceHandler : public FsdbServiceSvIf,
     return operStorage_.getMetadata();
   }
 
-  std::set<OperSubscriberInfo> getActiveSubscriptions() const {
+  // Client key (clientId, Path, PubSubType, isStats)
+  using ClientKey = std::tuple<std::string, Path, PubSubType, bool>;
+  using ActiveSubscriptions = std::map<ClientKey, OperSubscriberInfo>;
+  using ActivePublishers = std::map<ClientKey, OperPublisherInfo>;
+
+  ActiveSubscriptions getActiveSubscriptions() const {
     return activeSubscriptions_.copy();
   }
-  std::set<OperPublisherInfo> getActivePublishers() const {
+  ActivePublishers getActivePublishers() const {
     return activePublishers_.copy();
   }
 
  private:
   void registerSubscription(const OperSubscriberInfo& info);
   void unregisterSubscription(const OperSubscriberInfo& info);
+  void updateSubscriptionCounters(
+      const OperSubscriberInfo& info,
+      bool isConnected);
   void registerPublisher(const OperPublisherInfo& info);
   void unregisterPublisher(
       const OperPublisherInfo& info,
       FsdbErrorCode disconnectReason);
   template <typename PubUnit>
   apache::thrift::SinkConsumer<PubUnit, OperPubFinalResponse> makeSinkConsumer(
-      std::unique_ptr<OperPubRequest> request,
+      RawPathT&& path,
+      const PublisherId& publisherId,
       bool isStats);
 
   folly::coro::AsyncGenerator<DeltaValue<OperState>&&> makeStateStreamGenerator(
@@ -208,17 +237,16 @@ class ServiceHandler : public FsdbServiceSvIf,
       std::unique_ptr<OperSubRequestExtended> request,
       bool isStats);
 
-  OperPublisherInfo
-  makePublisherInfo(const OperPubRequest& req, PubSubType type, bool isStats);
+  OperPublisherInfo makePublisherInfo(
+      const RawPathT& path,
+      const PublisherId& publisherId,
+      PubSubType type,
+      bool isStats);
 
   void initFlagDefaults(
       const std::unordered_map<std::string, std::string>& flags);
 
-  using RocksDbPtr = std::shared_ptr<RocksDbIf>;
-  template <typename T>
-  folly::F14FastMap<PublisherId, RocksDbPtr> createIfNeededAndOpenRocksDbs(
-      folly::F14FastSet<PublisherId> publisherIds) const;
-  RocksDbPtr getRocksDb(const PublisherId& publisherId) const;
+  void initPerStreamCounters();
 
   void validateSubscriptionPermissions(
       SubscriberId id,
@@ -227,28 +255,48 @@ class ServiceHandler : public FsdbServiceSvIf,
       bool hasRawPath,
       bool hasExtendedPath);
 
-  void validateOperPublishPermissions(
-      PublisherId id,
-      const std::vector<std::string>& path);
+  void validateOperPublishPermissions(PublisherId id, const RawPathT& path);
 
-  std::unique_ptr<FsdbConfig> fsdbConfig_;
-  folly::F14FastMap<PublisherId, RocksDbPtr> rocksDbs_; // const after ctor
+  std::shared_ptr<FsdbConfig> fsdbConfig_;
 
   const Options options_;
 
   using TLCounter = fb303::ThreadCachedServiceData::TLCounter;
+  using TLTimeseries = fb303::ThreadCachedServiceData::TLTimeseries;
+  using PublisherKey = std::pair<PublisherId, bool>;
   TLCounter num_instances_;
   TLCounter num_publishers_;
   TLCounter num_subscribers_;
-  TLCounter num_subscriptions_rejected_;
-  TLCounter num_publisher_unknown_requests_rejected_;
-  TLCounter num_publisher_path_requests_rejected_;
+  TLCounter num_subscriptions_;
+  TLCounter num_disconnected_subscribers_;
+  TLCounter num_disconnected_subscriptions_;
+  TLCounter num_disconnected_publishers_;
+  std::map<SubscriberId, TLCounter> disconnectedSubscribers_;
+  std::map<SubscriberId, TLCounter> connectedSubscriptions_;
+  std::map<SubscriberId, TLCounter> disconnectedSubscriptions_;
+  std::map<PublisherKey, TLCounter> disconnectedPublishers_;
+  TLTimeseries num_subscriptions_rejected_;
+  TLTimeseries num_publisher_unknown_requests_rejected_;
+  TLTimeseries num_publisher_path_requests_rejected_;
+  TLTimeseries num_dropped_stats_changes_;
+  TLTimeseries num_dropped_state_changes_;
   FsdbNaivePeriodicSubscribableStorage operStorage_;
-  DbWriter operDbWriter_;
   // TODO - decide on right DB abstraction for stats
   FsdbNaivePeriodicSubscribableStatsStorage operStatsStorage_;
-  folly::Synchronized<std::set<OperSubscriberInfo>> activeSubscriptions_;
-  folly::Synchronized<std::set<OperPublisherInfo>> activePublishers_;
+
+  /*
+   * A thread dedicated to monitor operStorage_ and operStatsStorage_
+   */
+  std::unique_ptr<ThreadHeartbeatWatchdog> heartbeatWatchdog_;
+
+  /*
+   * Tracks how many times a heart beat was missed from monitered threads
+   * This counter is periodically published to ODS
+   */
+  std::atomic<long> watchdogThreadHeartbeatMissedCount_{0};
+
+  folly::Synchronized<ActiveSubscriptions> activeSubscriptions_;
+  folly::Synchronized<ActivePublishers> activePublishers_;
 };
 
 } // namespace facebook::fboss::fsdb

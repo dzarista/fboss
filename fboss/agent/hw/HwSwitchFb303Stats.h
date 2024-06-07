@@ -68,13 +68,40 @@ class HwSwitchFb303Stats {
   void itppError() {
     itppErrors_.addValue(1);
   }
-
+  void epniError() {
+    epniErrors_.addValue(1);
+  }
+  void alignerError() {
+    alignerErrors_.addValue(1);
+  }
+  void forwardingQueueProcessorError() {
+    forwardingQueueProcessorErrors_.addValue(1);
+  }
+  void allReassemblyContextsTaken() {
+    allReassemblyContextsTaken_.addValue(1);
+  }
+  void hwInitializedTime(uint64_t ms) {
+    hwInitializedTimeMs_.addValue(ms);
+  }
+  void bootTime(uint64_t ms) {
+    bootTimeMs_.addValue(ms);
+  }
+  void coldBoot() {
+    coldBoot_.addValue(1);
+  }
+  void warmBoot() {
+    warmBoot_.addValue(1);
+  }
   void fabricReachabilityMissingCount(int64_t value);
   void fabricReachabilityMismatchCount(int64_t value);
+  void virtualDevicesWithAsymmetricConnectivity(int64_t value);
+
+  void bcmSdkVer(int64_t ver);
+  void bcmSaiSdkVer(int64_t ver);
+  void leabaSdkVer(int64_t ver);
 
   void update(const HwSwitchDramStats& dramStats);
   void update(const HwSwitchDropStats& dropStats);
-  // TODO: FSDB needs to support count() method on stats
 
   int64_t getTxPktAllocCount() const {
     return txPktAlloc_.count();
@@ -105,14 +132,31 @@ class HwSwitchFb303Stats {
   }
   int64_t getFabricReachabilityMismatchCount() const;
   int64_t getFabricReachabilityMissingCount() const;
+  int64_t getVirtualDevicesWithAsymmetricConnectivityCount() const;
   int64_t getPacketIntegrityDropsCount() const {
     return packetIntegrityDrops_.count();
   }
-  int64_t getPacketIntegrityDrops() const;
   int64_t getDramEnqueuedBytes() const;
   int64_t getDramDequeuedBytes() const;
+  // Asic errors
   int64_t getIreErrors() const;
   int64_t getItppErrors() const;
+  int64_t getEpniErrors() const;
+  int64_t getAlignerErrors() const;
+  int64_t getForwardingQueueProcessorErrors() const;
+  int64_t getAllReassemblyContextsTakenError() const;
+
+  // Switch drops
+  int64_t getPacketIntegrityDrops() const;
+  int64_t getFdrCellDrops() const;
+  int64_t getVoqResourcesExhautionDrops() const;
+  int64_t getGlobalResourcesExhautionDrops() const;
+  int64_t getSramResourcesExhautionDrops() const;
+  int64_t getVsqResourcesExhautionDrops() const;
+  int64_t getDropPrecedenceDrops() const;
+  int64_t getQueueResolutionDrops() const;
+  int64_t getIngresPacketPipelineRejectDrops() const;
+  int64_t getCorruptedCellPacketIntegrityDrops() const;
 
   HwAsicErrors getHwAsicErrors() const;
   FabricReachabilityStats getFabricReachabilityStats();
@@ -155,14 +199,36 @@ class HwSwitchFb303Stats {
   TLTimeseries globalDrops_;
   TLTimeseries globalReachDrops_;
   TLTimeseries packetIntegrityDrops_;
+  TLTimeseries fdrCellDrops_;
+  TLTimeseries voqResourceExhaustionDrops_;
+  TLTimeseries globalResourceExhaustionDrops_;
+  TLTimeseries sramResourceExhaustionDrops_;
+  TLTimeseries vsqResourceExhaustionDrops_;
+  TLTimeseries dropPrecedenceDrops_;
+  TLTimeseries queueResolutionDrops_;
+  TLTimeseries ingressPacketPipelineRejectDrops_;
+  TLTimeseries corruptedCellPacketIntegrityDrops_;
+  HwSwitchDropStats currentDropStats_;
   // Dram enqueue, dequeue bytes
   TLTimeseries dramEnqueuedBytes_;
   TLTimeseries dramDequeuedBytes_;
   // fabric reachability errors
   TLCounter fabricReachabilityMissingCount_;
   TLCounter fabricReachabilityMismatchCount_;
+  TLCounter virtualDevicesWithAsymmetricConnectivity_;
   TLTimeseries ireErrors_;
   TLTimeseries itppErrors_;
+  TLTimeseries epniErrors_;
+  TLTimeseries alignerErrors_;
+  TLTimeseries forwardingQueueProcessorErrors_;
+  TLTimeseries allReassemblyContextsTaken_;
+  TLTimeseries hwInitializedTimeMs_;
+  TLTimeseries bootTimeMs_;
+  TLTimeseries coldBoot_;
+  TLTimeseries warmBoot_;
+  TLCounter bcmSdkVer_;
+  TLCounter bcmSaiSdkVer_;
+  TLCounter leabaSdkVer_;
 };
 
 } // namespace facebook::fboss

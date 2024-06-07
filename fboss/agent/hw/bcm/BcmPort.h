@@ -95,6 +95,9 @@ class BcmPort {
   cfg::SampleDestination getSampleDestination() const {
     return sampleDest_;
   }
+  cfg::PortFlowletConfig getPortFlowletConfig() const {
+    return portFlowletConfig_;
+  }
   QueueConfig getCurrentQueueSettings();
 
   /*
@@ -231,6 +234,7 @@ class BcmPort {
 
   const PortPgConfig& getDefaultPgSettings() const;
   const BufferPoolCfg& getDefaultIngressPoolSettings() const;
+  const std::string& getIngressBufferPoolName() const;
   uint8_t determinePipe() const;
   int getPgMinLimitBytes(const int pgId) const;
   int getIngressSharedBytes(const int pgId) const;
@@ -240,9 +244,11 @@ class BcmPort {
   void processChangedZeroPreemphasis(
       const std::shared_ptr<Port>& oldPort,
       const std::shared_ptr<Port>& newPort);
+  void processChangedTxEnable(
+      const std::shared_ptr<Port>& oldPort,
+      const std::shared_ptr<Port>& newPort);
 
-  cfg::PortFlowletConfig getPortFlowletConfig() const;
-
+  void setPortFlowletConfig(const std::shared_ptr<Port>& port);
   void updatePortFlowletConfig(const std::shared_ptr<Port>& port);
 
  private:
@@ -394,6 +400,7 @@ class BcmPort {
   std::optional<std::string> egressMirror_;
   cfg::SampleDestination sampleDest_;
   TransmitterTechnology transmitterTechnology_{TransmitterTechnology::UNKNOWN};
+  cfg::PortFlowletConfig portFlowletConfig_;
 
   // The port group this port is a part of
   BcmPortGroup* portGroup_{nullptr};

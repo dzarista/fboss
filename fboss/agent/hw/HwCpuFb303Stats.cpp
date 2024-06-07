@@ -10,7 +10,6 @@
 
 #include "fboss/agent/hw/HwCpuFb303Stats.h"
 
-#include "fboss/agent/hw/CounterUtils.h"
 #include "fboss/agent/hw/StatsConstants.h"
 
 #include <folly/logging/xlog.h>
@@ -31,7 +30,11 @@ std::string HwCpuFb303Stats::statName(
 
 int64_t HwCpuFb303Stats::getCounterLastIncrement(
     folly::StringPiece statKey) const {
-  return queueCounters_.getCounterLastIncrement(statKey.str());
+  return queueCounters_.getCounterLastIncrement(statKey.str(), std::nullopt);
+}
+
+int64_t HwCpuFb303Stats::getCounter(const folly::StringPiece statName) const {
+  return queueCounters_.getCumulativeValueIf(statName.str());
 }
 
 void HwCpuFb303Stats::setupStats() {
@@ -108,13 +111,14 @@ CpuPortStats HwCpuFb303Stats::getCpuPortStats() const {
   cpuPortStats.queueToName_()->insert(
       queueId2Name_.begin(), queueId2Name_.end());
   for (const auto& queueIdAndName : queueId2Name_) {
-    ingressPackets = getCounterLastIncrement(
+    ingressPackets = getCounter(
         statName(kInPkts(), queueIdAndName.first, queueIdAndName.second));
     cpuPortStats.queueInPackets_()->emplace(
         queueIdAndName.first, ingressPackets);
 
-    discardPackets = getCounterLastIncrement(statName(
+    discardPackets = getCounter(statName(
         kInDroppedPkts(), queueIdAndName.first, queueIdAndName.second));
+
     cpuPortStats.queueDiscardPackets_()->emplace(
         queueIdAndName.first, discardPackets);
   }
@@ -148,4 +152,10 @@ void HwCpuFb303Stats::updateStats(const CpuPortStats& curPortStats) {
     }
   }
 }
+
+int64_t HwCpuFb303Stats::getCumulativeValueIf(
+    const folly::StringPiece statKey) const {
+  return queueCounters_.getCumulativeValueIf(statKey.str());
+}
+
 } // namespace facebook::fboss

@@ -21,9 +21,14 @@ class MockCmisModule : public CmisModule {
  public:
   template <typename XcvrImplT>
   explicit MockCmisModule(
-      TransceiverManager* transceiverManager,
-      std::unique_ptr<XcvrImplT> qsfpImpl)
-      : CmisModule(transceiverManager, std::move(qsfpImpl)) {
+      std::set<std::string> portNames,
+      XcvrImplT* qsfpImpl,
+      std::shared_ptr<const TransceiverConfig> cfgPtr)
+      : CmisModule(
+            std::move(portNames),
+            qsfpImpl,
+            cfgPtr,
+            true /*supportRemediate*/) {
     ON_CALL(*this, getModuleStateChanged).WillByDefault([this]() {
       // Only return true for the first read so that we can mimic the clear
       // on read register
@@ -49,16 +54,18 @@ class CmisTest : public TransceiverManagerTestHelper {
       TransceiverID id,
       TransceiverModuleIdentifier identifier =
           TransceiverModuleIdentifier::QSFP_PLUS_CMIS) {
-    auto xcvrImpl = std::make_unique<XcvrImplT>(id);
+    qsfpImpls_.push_back(
+        std::make_unique<XcvrImplT>(id, transceiverManager_.get()));
     // This override function use ids starting from 1
     transceiverManager_->overrideMgmtInterface(
         static_cast<int>(id) + 1, uint8_t(identifier));
-
     auto xcvr = static_cast<MockCmisModule*>(
         transceiverManager_->overrideTransceiverForTesting(
             id,
             std::make_unique<MockCmisModule>(
-                transceiverManager_.get(), std::move(xcvrImpl))));
+                transceiverManager_->getPortNames(id),
+                qsfpImpls_.back().get(),
+                tcvrConfig_)));
 
     // Refresh once to make sure the override transceiver finishes refresh
     transceiverManager_->refreshStateMachines();
@@ -249,6 +256,36 @@ TEST_F(CmisTest, cmis200GTransceiverInfoTest) {
   EXPECT_TRUE(xcvr->isPrbsSupported(phy::Side::SYSTEM));
   EXPECT_FALSE(xcvr->isSnrSupported(phy::Side::LINE));
   EXPECT_FALSE(xcvr->isSnrSupported(phy::Side::SYSTEM));
+
+  TransceiverPortState goodPortState1{
+      "", 0, cfg::PortSpeed::TWOHUNDREDG, 4, TransmitterTechnology::OPTICAL};
+  TransceiverPortState goodPortState2{
+      "", 0, cfg::PortSpeed::HUNDREDG, 4, TransmitterTechnology::OPTICAL};
+  for (auto portState : {goodPortState1, goodPortState2}) {
+    EXPECT_TRUE(xcvr->tcvrPortStateSupported(portState));
+  }
+
+  TransceiverPortState badPortState1{
+      "",
+      0,
+      cfg::PortSpeed::HUNDREDG,
+      4,
+      TransmitterTechnology::COPPER}; // Copper not supported
+  TransceiverPortState badPortState2{
+      "",
+      0,
+      cfg::PortSpeed::FOURHUNDREDG,
+      8,
+      TransmitterTechnology::OPTICAL}; // 400G not supported
+  TransceiverPortState badPortState3{
+      "",
+      1,
+      cfg::PortSpeed::HUNDREDG,
+      4,
+      TransmitterTechnology::OPTICAL}; // BAD START LANE
+  for (auto portState : {badPortState1, badPortState2, badPortState3}) {
+    EXPECT_FALSE(xcvr->tcvrPortStateSupported(portState));
+  }
 }
 
 TEST_F(CmisTest, cmis400GLr4TransceiverInfoTest) {
@@ -291,6 +328,7 @@ TEST_F(CmisTest, cmis400GLr4TransceiverInfoTest) {
     EXPECT_EQ(cmisData.page14()->data()[0], 0x06);
     // Check VDM cache
     EXPECT_TRUE(xcvr->isVdmSupported());
+    EXPECT_FALSE(xcvr->isVdmSupported(3));
     EXPECT_TRUE(cmisData.page20());
     EXPECT_EQ(cmisData.page20()->data()[0], 0x00);
     EXPECT_TRUE(cmisData.page21());
@@ -410,6 +448,36 @@ TEST_F(CmisTest, cmis400GLr4TransceiverInfoTest) {
               static_cast<uint8_t>(supportedApplication), lane),
           std::nullopt);
     }
+  }
+
+  TransceiverPortState goodPortState1{
+      "", 0, cfg::PortSpeed::TWOHUNDREDG, 4, TransmitterTechnology::OPTICAL};
+  TransceiverPortState goodPortState2{
+      "", 0, cfg::PortSpeed::FOURHUNDREDG, 8, TransmitterTechnology::OPTICAL};
+  for (auto portState : {goodPortState1, goodPortState2}) {
+    EXPECT_TRUE(xcvr->tcvrPortStateSupported(portState));
+  }
+
+  TransceiverPortState badPortState1{
+      "",
+      0,
+      cfg::PortSpeed::HUNDREDG,
+      4,
+      TransmitterTechnology::COPPER}; // Copper not supported
+  TransceiverPortState badPortState2{
+      "",
+      0,
+      cfg::PortSpeed::HUNDREDG,
+      4,
+      TransmitterTechnology::OPTICAL}; // 100G not supported
+  TransceiverPortState badPortState3{
+      "",
+      1,
+      cfg::PortSpeed::HUNDREDG,
+      4,
+      TransmitterTechnology::OPTICAL}; // BAD START LANE
+  for (auto portState : {badPortState1, badPortState2, badPortState3}) {
+    EXPECT_FALSE(xcvr->tcvrPortStateSupported(portState));
   }
 }
 
@@ -633,9 +701,520 @@ TEST_F(CmisTest, cmis2x400GFr4TransceiverInfoTest) {
   EXPECT_TRUE(diagsCap.value().snrLine().value());
   EXPECT_TRUE(diagsCap.value().snrSystem().value());
   EXPECT_TRUE(xcvr->isVdmSupported());
+  EXPECT_TRUE(xcvr->isVdmSupported(3));
   EXPECT_TRUE(xcvr->isPrbsSupported(phy::Side::LINE));
   EXPECT_TRUE(xcvr->isPrbsSupported(phy::Side::SYSTEM));
   EXPECT_TRUE(xcvr->isSnrSupported(phy::Side::LINE));
   EXPECT_TRUE(xcvr->isSnrSupported(phy::Side::SYSTEM));
+
+  TransceiverPortState goodPortState1{
+      "", 0, cfg::PortSpeed::TWOHUNDREDG, 4, TransmitterTechnology::OPTICAL};
+  TransceiverPortState goodPortState2{
+      "", 0, cfg::PortSpeed::HUNDREDG, 4, TransmitterTechnology::OPTICAL};
+  TransceiverPortState goodPortState3{
+      "", 0, cfg::PortSpeed::FOURHUNDREDG, 4, TransmitterTechnology::OPTICAL};
+  TransceiverPortState goodPortState4{
+      "", 4, cfg::PortSpeed::FOURHUNDREDG, 4, TransmitterTechnology::OPTICAL};
+  for (auto portState :
+       {goodPortState1, goodPortState2, goodPortState3, goodPortState4}) {
+    EXPECT_TRUE(xcvr->tcvrPortStateSupported(portState));
+  }
+
+  TransceiverPortState badPortState1{
+      "",
+      0,
+      cfg::PortSpeed::HUNDREDG,
+      4,
+      TransmitterTechnology::COPPER}; // Copper not supported
+  TransceiverPortState badPortState2{
+      "",
+      0,
+      cfg::PortSpeed::FORTYG,
+      4,
+      TransmitterTechnology::OPTICAL}; // 40G not supported
+  TransceiverPortState badPortState3{
+      "",
+      1,
+      cfg::PortSpeed::HUNDREDG,
+      4,
+      TransmitterTechnology::OPTICAL}; // BAD START LANE
+  for (auto portState : {badPortState1, badPortState2, badPortState3}) {
+    EXPECT_FALSE(xcvr->tcvrPortStateSupported(portState));
+  }
+}
+
+TEST_F(CmisTest, cmis2x400GFr4TransceiverVdmTest) {
+  auto xcvrID = TransceiverID(1);
+  auto xcvr = overrideCmisModule<Cmis2x400GFr4Transceiver>(
+      xcvrID, TransceiverModuleIdentifier::OSFP);
+  const auto& info = xcvr->getTransceiverInfo();
+  EXPECT_TRUE(info.tcvrState()->transceiverManagementInterface());
+  EXPECT_EQ(
+      info.tcvrState()->transceiverManagementInterface(),
+      TransceiverManagementInterface::CMIS);
+  EXPECT_EQ(xcvr->numHostLanes(), 8);
+  EXPECT_EQ(xcvr->numMediaLanes(), 8);
+  EXPECT_EQ(
+      info.tcvrState()->moduleMediaInterface(), MediaInterfaceCode::FR4_2x400G);
+
+  utility::HwTransceiverUtils::verifyDiagsCapability(
+      *info.tcvrState(),
+      transceiverManager_->getDiagsCapability(xcvrID),
+      false /* skipCheckingIndividualCapability */);
+
+  TransceiverTestsHelper tests(info);
+  tests.verifyVendorName("FACETEST");
+
+  auto diagsCap = transceiverManager_->getDiagsCapability(xcvrID);
+  EXPECT_TRUE(diagsCap.has_value());
+
+  EXPECT_TRUE(diagsCap.value().vdm().value());
+  EXPECT_TRUE(xcvr->isVdmSupported());
+  EXPECT_TRUE(xcvr->isVdmSupported(3));
+
+  auto vdmLocationInfo = xcvr->getVdmDiagsValLocation(SNR_MEDIA_IN);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x24));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 128);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(PAM4_LTP_MEDIA_IN);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x24));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 144);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(PRE_FEC_BER_MEDIA_IN_MAX);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x24));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 160);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(PRE_FEC_BER_MEDIA_IN_AVG);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x24));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 176);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(ERR_FRAME_MEDIA_IN_MAX);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x24));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 192);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(ERR_FRAME_MEDIA_IN_AVG);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x24));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 208);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(SNR_HOST_IN);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x25));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 128);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(PRE_FEC_BER_HOST_IN_MAX);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x25));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 160);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(PRE_FEC_BER_HOST_IN_AVG);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x25));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 176);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(ERR_FRAME_HOST_IN_MAX);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x25));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 192);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(ERR_FRAME_HOST_IN_AVG);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x25));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 208);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo =
+      xcvr->getVdmDiagsValLocation(PAM4_LEVEL0_STANDARD_DEVIATION_LINE);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x26));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 128);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo =
+      xcvr->getVdmDiagsValLocation(PAM4_LEVEL1_STANDARD_DEVIATION_LINE);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x26));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 144);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo =
+      xcvr->getVdmDiagsValLocation(PAM4_LEVEL2_STANDARD_DEVIATION_LINE);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x26));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 160);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo =
+      xcvr->getVdmDiagsValLocation(PAM4_LEVEL3_STANDARD_DEVIATION_LINE);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x26));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 176);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+  vdmLocationInfo = xcvr->getVdmDiagsValLocation(PAM4_MPI_LINE);
+  EXPECT_TRUE(vdmLocationInfo.vdmConfImplementedByModule);
+  EXPECT_EQ(vdmLocationInfo.vdmValPage, static_cast<CmisPages>(0x26));
+  EXPECT_EQ(vdmLocationInfo.vdmValOffset, 192);
+  EXPECT_EQ(vdmLocationInfo.vdmValLength, 16);
+
+  // Check the VDM stats values now
+  ProgramTransceiverState programTcvrState;
+  TransceiverPortState portState;
+  portState.portName = "eth1/1/1";
+  portState.startHostLane = 0;
+  portState.speed = cfg::PortSpeed::FOURHUNDREDG;
+  portState.numHostLanes = 4;
+  programTcvrState.ports.emplace(portState.portName, portState);
+  portState.portName = "eth1/1/5";
+  portState.startHostLane = 4;
+  portState.speed = cfg::PortSpeed::FOURHUNDREDG;
+  portState.numHostLanes = 4;
+  programTcvrState.ports.emplace(portState.portName, portState);
+
+  xcvr->programTransceiver(programTcvrState, false);
+
+  std::vector<int32_t> xcvrIds = {xcvrID};
+  transceiverManager_->triggerVdmStatsCapture(xcvrIds);
+
+  transceiverManager_->refreshStateMachines();
+  const auto& newInfo = xcvr->getTransceiverInfo();
+  EXPECT_TRUE(newInfo.tcvrStats()->vdmPerfMonitorStats().has_value());
+  EXPECT_EQ(
+      newInfo.tcvrStats()
+          ->vdmPerfMonitorStats()
+          ->mediaPortVdmStats()
+          .value()
+          .size(),
+      2);
+  EXPECT_EQ(
+      newInfo.tcvrStats()
+          ->vdmPerfMonitorStats()
+          ->hostPortVdmStats()
+          .value()
+          .size(),
+      2);
+  for (auto& [pName, stats] : newInfo.tcvrStats()
+                                  ->vdmPerfMonitorStats()
+                                  ->mediaPortVdmStats()
+                                  .value()) {
+    EXPECT_EQ(stats.laneSNR().value().size(), 4);
+  }
+  EXPECT_TRUE(newInfo.tcvrStats()->vdmPerfMonitorStatsForOds().has_value());
+  EXPECT_EQ(
+      newInfo.tcvrStats()
+          ->vdmPerfMonitorStatsForOds()
+          ->mediaPortVdmStats()
+          .value()
+          .size(),
+      2);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.laneSNRMin()
+              .value() *
+          100),
+      2103);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4Level0SDMax()
+              .value() *
+          100),
+      178);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4Level1SDMax()
+              .value() *
+          100),
+      184);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4Level2SDMax()
+              .value() *
+          100),
+      217);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4Level3SDMax()
+              .value() *
+          100),
+      213);
+  EXPECT_EQ(
+      int(newInfo.tcvrStats()
+              ->vdmPerfMonitorStatsForOds()
+              ->mediaPortVdmStats()
+              .value()
+              .begin()
+              ->second.lanePam4MPIMax()
+              .value() *
+          100),
+      132);
+
+  EXPECT_EQ(
+      newInfo.tcvrStats()
+          ->vdmPerfMonitorStatsForOds()
+          ->hostPortVdmStats()
+          .value()
+          .size(),
+      2);
+}
+
+TEST_F(CmisTest, cmis2x400GFr4DatapathProgramTest) {
+  auto xcvrID = TransceiverID(1);
+  auto xcvr = overrideCmisModule<Cmis2x400GFr4Transceiver>(
+      xcvrID, TransceiverModuleIdentifier::OSFP);
+  const auto& info = xcvr->getTransceiverInfo();
+  EXPECT_TRUE(info.tcvrState()->transceiverManagementInterface());
+  EXPECT_EQ(
+      info.tcvrState()->transceiverManagementInterface(),
+      TransceiverManagementInterface::CMIS);
+  EXPECT_EQ(xcvr->numHostLanes(), 8);
+  EXPECT_EQ(xcvr->numMediaLanes(), 8);
+
+  EXPECT_TRUE(xcvr->isRequestValidMultiportSpeedConfig(
+      cfg::PortSpeed::FOURHUNDREDG, 0, 4));
+  EXPECT_TRUE(xcvr->isRequestValidMultiportSpeedConfig(
+      cfg::PortSpeed::FOURHUNDREDG, 4, 4));
+  EXPECT_TRUE(xcvr->isRequestValidMultiportSpeedConfig(
+      cfg::PortSpeed::TWOHUNDREDG, 0, 4));
+  EXPECT_TRUE(xcvr->isRequestValidMultiportSpeedConfig(
+      cfg::PortSpeed::TWOHUNDREDG, 4, 4));
+  EXPECT_FALSE(xcvr->isRequestValidMultiportSpeedConfig(
+      cfg::PortSpeed::TWOHUNDREDG, 2, 4));
+  EXPECT_FALSE(
+      xcvr->isRequestValidMultiportSpeedConfig(cfg::PortSpeed::HUNDREDG, 0, 1));
+  EXPECT_FALSE(
+      xcvr->isRequestValidMultiportSpeedConfig(cfg::PortSpeed::HUNDREDG, 0, 4));
+  EXPECT_FALSE(
+      xcvr->isRequestValidMultiportSpeedConfig(cfg::PortSpeed::HUNDREDG, 4, 4));
+
+  EXPECT_TRUE(
+      xcvr->getValidMultiportSpeedConfig(cfg::PortSpeed::FOURHUNDREDG, 0, 4)
+          .has_value());
+  EXPECT_TRUE(
+      xcvr->getValidMultiportSpeedConfig(cfg::PortSpeed::FOURHUNDREDG, 4, 4)
+          .has_value());
+
+  auto speedCfgCombo =
+      xcvr->getValidMultiportSpeedConfig(cfg::PortSpeed::FOURHUNDREDG, 0, 4);
+  EXPECT_TRUE(speedCfgCombo.has_value());
+  EXPECT_EQ(speedCfgCombo.value()[4], SMFMediaInterfaceCode::FR4_400G);
+
+  speedCfgCombo =
+      xcvr->getValidMultiportSpeedConfig(cfg::PortSpeed::HUNDREDG, 4, 4);
+  EXPECT_TRUE(speedCfgCombo.has_value());
+  EXPECT_EQ(speedCfgCombo.value()[0], SMFMediaInterfaceCode::CWDM4_100G);
+
+  speedCfgCombo =
+      xcvr->getValidMultiportSpeedConfig(cfg::PortSpeed::HUNDREDG, 5, 1);
+  EXPECT_TRUE(speedCfgCombo.has_value());
+  EXPECT_EQ(speedCfgCombo.value()[0], SMFMediaInterfaceCode::FR1_100G);
+  EXPECT_EQ(speedCfgCombo.value()[1], SMFMediaInterfaceCode::FR1_100G);
+  EXPECT_EQ(speedCfgCombo.value()[2], SMFMediaInterfaceCode::FR1_100G);
+  EXPECT_EQ(speedCfgCombo.value()[3], SMFMediaInterfaceCode::FR1_100G);
+  EXPECT_EQ(speedCfgCombo.value()[4], SMFMediaInterfaceCode::FR1_100G);
+  EXPECT_EQ(speedCfgCombo.value()[6], SMFMediaInterfaceCode::FR1_100G);
+  EXPECT_EQ(speedCfgCombo.value()[7], SMFMediaInterfaceCode::FR1_100G);
+}
+
+TEST_F(CmisTest, cmis2x400GDr4TransceiverInfoTest) {
+  auto xcvrID = TransceiverID(1);
+  auto xcvr = overrideCmisModule<Cmis2x400GDr4Transceiver>(
+      xcvrID, TransceiverModuleIdentifier::OSFP);
+  const auto& info = xcvr->getTransceiverInfo();
+  EXPECT_TRUE(info.tcvrState()->transceiverManagementInterface());
+  EXPECT_EQ(
+      info.tcvrState()->transceiverManagementInterface(),
+      TransceiverManagementInterface::CMIS);
+  EXPECT_EQ(xcvr->numHostLanes(), 8);
+  EXPECT_EQ(xcvr->numMediaLanes(), 8);
+  EXPECT_EQ(
+      info.tcvrState()->moduleMediaInterface(), MediaInterfaceCode::DR4_2x400G);
+  for (auto& media : *info.tcvrState()->settings()->mediaInterface()) {
+    EXPECT_EQ(media.media()->get_smfCode(), SMFMediaInterfaceCode::DR4_400G);
+    EXPECT_EQ(media.code(), MediaInterfaceCode::DR4_400G);
+  }
+
+  // Check cmisStateChanged
+  EXPECT_TRUE(
+      info.tcvrState()->status() &&
+      info.tcvrState()->status()->cmisStateChanged() &&
+      *info.tcvrState()->status()->cmisStateChanged());
+
+  utility::HwTransceiverUtils::verifyDiagsCapability(
+      *info.tcvrState(),
+      transceiverManager_->getDiagsCapability(xcvrID),
+      false /* skipCheckingIndividualCapability */);
+
+  TransceiverTestsHelper tests(info);
+  tests.verifyVendorName("FACETEST");
+
+  auto diagsCap = transceiverManager_->getDiagsCapability(xcvrID);
+  EXPECT_TRUE(diagsCap.has_value());
+  std::vector<prbs::PrbsPolynomial> expectedSysPolynomials = {
+      prbs::PrbsPolynomial::PRBS31Q,
+      prbs::PrbsPolynomial::PRBS23Q,
+      prbs::PrbsPolynomial::PRBS15Q,
+      prbs::PrbsPolynomial::PRBS13Q,
+      prbs::PrbsPolynomial::PRBS9Q,
+      prbs::PrbsPolynomial::PRBS7Q,
+      prbs::PrbsPolynomial::PRBS31,
+      prbs::PrbsPolynomial::PRBS23,
+      prbs::PrbsPolynomial::PRBS15,
+      prbs::PrbsPolynomial::PRBS13,
+      prbs::PrbsPolynomial::PRBS9,
+      prbs::PrbsPolynomial::PRBS7};
+  std::vector<prbs::PrbsPolynomial> expectedLinePolynomials = {
+      prbs::PrbsPolynomial::PRBS31Q,
+      prbs::PrbsPolynomial::PRBS23Q,
+      prbs::PrbsPolynomial::PRBS15Q,
+      prbs::PrbsPolynomial::PRBS13Q,
+      prbs::PrbsPolynomial::PRBS9Q,
+      prbs::PrbsPolynomial::PRBS7Q,
+      prbs::PrbsPolynomial::PRBS31,
+      prbs::PrbsPolynomial::PRBS23,
+      prbs::PrbsPolynomial::PRBS15,
+      prbs::PrbsPolynomial::PRBS13,
+      prbs::PrbsPolynomial::PRBS9,
+      prbs::PrbsPolynomial::PRBS7};
+
+  auto linePrbsCapability = *(*diagsCap).prbsLineCapabilities();
+  auto sysPrbsCapability = *(*diagsCap).prbsSystemCapabilities();
+
+  tests.verifyPrbsPolynomials(expectedLinePolynomials, linePrbsCapability);
+  tests.verifyPrbsPolynomials(expectedSysPolynomials, sysPrbsCapability);
+
+  for (auto unsupportedApplication :
+       {SMFMediaInterfaceCode::LR4_10_400G,
+        SMFMediaInterfaceCode::FR4_400G,
+        SMFMediaInterfaceCode::FR1_100G,
+        SMFMediaInterfaceCode::FR4_200G,
+        SMFMediaInterfaceCode::CWDM4_100G}) {
+    EXPECT_EQ(
+        xcvr->getApplicationField(
+            static_cast<uint8_t>(unsupportedApplication), 0),
+        std::nullopt);
+  }
+
+  for (auto supportedApplication : {SMFMediaInterfaceCode::DR4_400G}) {
+    auto applicationField = xcvr->getApplicationField(
+        static_cast<uint8_t>(supportedApplication), 0);
+    EXPECT_NE(applicationField, std::nullopt);
+    std::vector<int> expectedStartLanes = {0, 4};
+    EXPECT_EQ(applicationField->hostStartLanes, expectedStartLanes);
+    EXPECT_EQ(applicationField->mediaStartLanes, expectedStartLanes);
+  }
+
+  EXPECT_TRUE(diagsCap.value().vdm().value());
+  EXPECT_TRUE(diagsCap.value().cdb().value());
+  EXPECT_TRUE(diagsCap.value().prbsLine().value());
+  EXPECT_TRUE(diagsCap.value().prbsSystem().value());
+  EXPECT_TRUE(diagsCap.value().loopbackLine().value());
+  EXPECT_TRUE(diagsCap.value().loopbackSystem().value());
+  EXPECT_TRUE(diagsCap.value().txOutputControl().value());
+  EXPECT_TRUE(diagsCap.value().rxOutputControl().value());
+  EXPECT_TRUE(diagsCap.value().snrLine().value());
+  EXPECT_TRUE(diagsCap.value().snrSystem().value());
+  EXPECT_TRUE(xcvr->isVdmSupported());
+  EXPECT_TRUE(xcvr->isPrbsSupported(phy::Side::LINE));
+  EXPECT_TRUE(xcvr->isPrbsSupported(phy::Side::SYSTEM));
+  EXPECT_TRUE(xcvr->isSnrSupported(phy::Side::LINE));
+  EXPECT_TRUE(xcvr->isSnrSupported(phy::Side::SYSTEM));
+}
+
+TEST_F(CmisTest, cmis400GDr4TransceiverInfoTest) {
+  auto xcvrID = TransceiverID(1);
+  auto xcvr = overrideCmisModule<Cmis400GDr4Transceiver>(xcvrID);
+  const auto& info = xcvr->getTransceiverInfo();
+  EXPECT_TRUE(info.tcvrState()->transceiverManagementInterface());
+  EXPECT_EQ(
+      info.tcvrState()->transceiverManagementInterface(),
+      TransceiverManagementInterface::CMIS);
+  EXPECT_EQ(xcvr->numHostLanes(), 8);
+  EXPECT_EQ(xcvr->numMediaLanes(), 4);
+  EXPECT_EQ(
+      info.tcvrState()->moduleMediaInterface(), MediaInterfaceCode::DR4_400G);
+  for (auto& media : *info.tcvrState()->settings()->mediaInterface()) {
+    EXPECT_EQ(media.media()->get_smfCode(), SMFMediaInterfaceCode::DR4_400G);
+    EXPECT_EQ(media.code(), MediaInterfaceCode::DR4_400G);
+  }
+  // Check cmisStateChanged
+  EXPECT_TRUE(
+      info.tcvrState()->status() &&
+      info.tcvrState()->status()->cmisStateChanged() &&
+      *info.tcvrState()->status()->cmisStateChanged());
+
+  utility::HwTransceiverUtils::verifyDiagsCapability(
+      *info.tcvrState(),
+      transceiverManager_->getDiagsCapability(xcvrID),
+      false /* skipCheckingIndividualCapability */);
+
+  TransceiverTestsHelper tests(info);
+  tests.verifyVendorName("FACETEST");
+
+  auto diagsCap = transceiverManager_->getDiagsCapability(xcvrID);
+  EXPECT_TRUE(diagsCap.has_value());
+  std::vector<prbs::PrbsPolynomial> expectedSysPolynomials = {
+      prbs::PrbsPolynomial::PRBS31Q,
+      prbs::PrbsPolynomial::PRBS23Q,
+      prbs::PrbsPolynomial::PRBS15Q,
+      prbs::PrbsPolynomial::PRBS13Q,
+      prbs::PrbsPolynomial::PRBS9Q,
+      prbs::PrbsPolynomial::PRBS7Q};
+  std::vector<prbs::PrbsPolynomial> expectedLinePolynomials = {
+      prbs::PrbsPolynomial::PRBS31Q,
+      prbs::PrbsPolynomial::PRBS23Q,
+      prbs::PrbsPolynomial::PRBS15Q,
+      prbs::PrbsPolynomial::PRBS13Q,
+      prbs::PrbsPolynomial::PRBS9Q,
+      prbs::PrbsPolynomial::PRBS7Q};
+
+  auto linePrbsCapability = *(*diagsCap).prbsLineCapabilities();
+  auto sysPrbsCapability = *(*diagsCap).prbsSystemCapabilities();
+
+  tests.verifyPrbsPolynomials(expectedLinePolynomials, linePrbsCapability);
+  tests.verifyPrbsPolynomials(expectedSysPolynomials, sysPrbsCapability);
+
+  for (auto unsupportedApplication :
+       {SMFMediaInterfaceCode::CWDM4_100G,
+        SMFMediaInterfaceCode::FR4_400G,
+        SMFMediaInterfaceCode::LR4_10_400G,
+        SMFMediaInterfaceCode::FR4_200G}) {
+    EXPECT_EQ(
+        xcvr->getApplicationField(
+            static_cast<uint8_t>(unsupportedApplication), 0),
+        std::nullopt);
+  }
+  for (auto supportedApplication : {SMFMediaInterfaceCode::DR4_400G}) {
+    auto applicationField = xcvr->getApplicationField(
+        static_cast<uint8_t>(supportedApplication), 0);
+    EXPECT_NE(applicationField, std::nullopt);
+    EXPECT_EQ(applicationField->hostStartLanes, std::vector<int>{0});
+    EXPECT_EQ(applicationField->mediaStartLanes, std::vector<int>{0});
+    for (uint8_t lane = 1; lane < 7; lane++) {
+      EXPECT_EQ(
+          xcvr->getApplicationField(
+              static_cast<uint8_t>(supportedApplication), lane),
+          std::nullopt);
+    }
+  }
 }
 } // namespace facebook::fboss

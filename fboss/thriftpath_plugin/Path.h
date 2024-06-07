@@ -2,79 +2,86 @@
 
 #pragma once
 
+#include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
+
 #include <folly/String.h>
 #include <folly/Unit.h>
-#include <thrift/lib/cpp2/TypeClass.h>
 #include <string>
 
 namespace thriftpath {
 
-#define STRUCT_CHILD_GETTERS(child, childId)                                 \
-  TypeFor<strings::child> child() const& {                                   \
-    return TypeFor<strings::child>(                                          \
-        copyAndExtendVec(this->tokens_, #child),                             \
-        copyAndExtendVec(this->idTokens_, folly::to<std::string>(childId))); \
-  }                                                                          \
-  TypeFor<strings::child> child()&& {                                        \
-    this->tokens_.push_back(#child);                                         \
-    this->idTokens_.push_back(folly::to<std::string>(childId));              \
-    return TypeFor<strings::child>(                                          \
-        std::move(this->tokens_), std::move(this->idTokens_));               \
+#define STRUCT_CHILD_GETTERS(child, childId)                        \
+  TypeFor<strings::child> child() const& {                          \
+    const std::string childIdStr = folly::to<std::string>(childId); \
+    facebook::fboss::fsdb::OperPathElem elem;                       \
+    elem.set_raw(childIdStr);                                       \
+    return TypeFor<strings::child>(                                 \
+        copyAndExtendVec(this->tokens_, #child),                    \
+        copyAndExtendVec(this->idTokens_, childIdStr),              \
+        copyAndExtendVec(this->extendedTokens_, std::move(elem)),   \
+        this->hasWildcards_);                                       \
+  }                                                                 \
+  TypeFor<strings::child> child()&& {                               \
+    this->tokens_.push_back(#child);                                \
+    const std::string childIdStr = folly::to<std::string>(childId); \
+    this->idTokens_.push_back(childIdStr);                          \
+    facebook::fboss::fsdb::OperPathElem elem;                       \
+    elem.set_raw(childIdStr);                                       \
+    this->extendedTokens_.push_back(std::move(elem));               \
+    return TypeFor<strings::child>(                                 \
+        std::move(this->tokens_),                                   \
+        std::move(this->idTokens_),                                 \
+        std::move(this->extendedTokens_),                           \
+        this->hasWildcards_);                                       \
   }
-#define CONTAINER_CHILD_GETTERS(key_type)                               \
-  Child operator[](key_type token) const& {                             \
-    const std::string strToken = folly::to<std::string>(token);         \
-    return Child(                                                       \
-        copyAndExtendVec(this->tokens_, strToken),                      \
-        copyAndExtendVec(this->idTokens_, strToken));                   \
-  }                                                                     \
-  Child operator[](key_type token)&& {                                  \
-    const std::string strToken = folly::to<std::string>(token);         \
-    this->tokens_.push_back(strToken);                                  \
-    this->idTokens_.push_back(strToken);                                \
-    return Child(std::move(this->tokens_), std::move(this->idTokens_)); \
+#define CONTAINER_CHILD_GETTERS(key_type)                                   \
+  Child operator[](key_type token) const& {                                 \
+    const std::string strToken = folly::to<std::string>(token);             \
+    facebook::fboss::fsdb::OperPathElem elem;                               \
+    elem.set_raw(strToken);                                                 \
+    return Child(                                                           \
+        copyAndExtendVec(this->tokens_, strToken),                          \
+        copyAndExtendVec(this->idTokens_, strToken),                        \
+        copyAndExtendVec(this->extendedTokens_, std::move(elem)),           \
+        this->hasWildcards_);                                               \
+  }                                                                         \
+  Child operator[](key_type token)&& {                                      \
+    const std::string strToken = folly::to<std::string>(token);             \
+    this->tokens_.push_back(strToken);                                      \
+    this->idTokens_.push_back(strToken);                                    \
+    facebook::fboss::fsdb::OperPathElem elem;                               \
+    elem.set_raw(strToken);                                                 \
+    this->extendedTokens_.push_back(std::move(elem));                       \
+    return Child(                                                           \
+        std::move(this->tokens_),                                           \
+        std::move(this->idTokens_),                                         \
+        std::move(this->extendedTokens_),                                   \
+        this->hasWildcards_);                                               \
+  }                                                                         \
+  Child operator[](facebook::fboss::fsdb::OperPathElem elem) const& {       \
+    return Child(                                                           \
+        {},                                                                 \
+        {},                                                                 \
+        copyAndExtendVec(this->extendedTokens_, std::move(elem)),           \
+        true /* hasWildcards */);                                           \
+  }                                                                         \
+  Child operator[](facebook::fboss::fsdb::OperPathElem elem)&& {            \
+    this->extendedTokens_.push_back(std::move(elem));                       \
+    return Child(                                                           \
+        {}, {}, std::move(this->extendedTokens_), true /* hasWildcards */); \
   }
 
-template <typename _DataT, typename _RootT, typename _TC, typename _ParentT>
-class Path {
+class BasePath {
  public:
-  using DataT = _DataT;
-  using RootT = _RootT;
-  using TC = _TC;
-  using ParentT = _ParentT;
-
-  Path(
+  BasePath(
       std::vector<std::string> tokens,
       std::vector<std::string> idTokens,
-      ParentT&& parent)
+      std::vector<facebook::fboss::fsdb::OperPathElem> extendedTokens,
+      bool hasWildcards)
       : tokens_(std::move(tokens)),
         idTokens_(std::move(idTokens)),
-        parent_(std::forward<ParentT>(parent)) {}
-
-  Path(std::vector<std::string> tokens, std::vector<std::string> idTokens)
-      : Path(tokens, idTokens, [&]() -> ParentT {
-          if constexpr (std::is_same_v<ParentT, folly::Unit>) {
-            assert(tokens.empty());
-            assert(idTokens.empty());
-            return folly::unit;
-          } else {
-            assert(!tokens.empty());
-            return ParentT(
-                std::vector<std::string>(
-                    tokens.begin(), std::prev(tokens.end())),
-                std::vector<std::string>(
-                    idTokens.begin(), std::prev(idTokens.end())));
-          }
-        }()) {}
-
-  std::string str() const {
-    // TODO: better format
-    return "/" + folly::join('/', tokens_.begin(), tokens_.end());
-  }
-
-  constexpr bool root() const {
-    return std::is_same_v<ParentT, folly::Unit>;
-  }
+        extendedTokens_(std::move(extendedTokens)),
+        hasWildcards_(hasWildcards) {}
 
   auto begin() const {
     return tokens_.cbegin();
@@ -85,29 +92,62 @@ class Path {
   }
 
   const std::vector<std::string>& tokens() const {
+    if (hasWildcards_) {
+      throw std::runtime_error("Cannot get raw tokens if path has wildcards");
+    }
     return tokens_;
   }
 
   const std::vector<std::string>& idTokens() const {
+    if (hasWildcards_) {
+      throw std::runtime_error("Cannot get raw tokens if path has wildcards");
+    }
     return idTokens_;
   }
 
-  const ParentT& parent() {
-    return parent_;
+  const std::vector<facebook::fboss::fsdb::OperPathElem>& extendedTokens()
+      const {
+    return extendedTokens_;
+  }
+
+  facebook::fboss::fsdb::ExtendedOperPath extendedPath() const {
+    facebook::fboss::fsdb::ExtendedOperPath path;
+    path.path() = extendedTokens_;
+    return path;
   }
 
   bool matchesPath(const std::vector<std::string>& other) const {
     return other == idTokens_ || other == tokens_;
   }
 
+  std::string str() const {
+    // TODO: better format
+    return "/" + folly::join('/', tokens_.begin(), tokens_.end());
+  }
+
  protected:
   std::vector<std::string> tokens_;
   std::vector<std::string> idTokens_;
+  // ids by default
+  std::vector<facebook::fboss::fsdb::OperPathElem> extendedTokens_;
+  bool hasWildcards_;
+};
 
- private:
-  // TODO: reduce memory usage by only storing begin/end in parent
-  // paths as a view type
-  ParentT parent_;
+template <
+    typename _DataT,
+    typename _RootT,
+    typename _TC,
+    typename _Tag,
+    typename _ParentT>
+class Path : public BasePath {
+ public:
+  using DataT = _DataT;
+  using RootT = _RootT;
+  using TC = _TC;
+  using Tag = _Tag;
+  using ParentT = _ParentT;
+
+  using BasePath::BasePath;
 };
 
 template <typename T>
@@ -136,5 +176,8 @@ class ChildThriftPath {
 std::vector<std::string> copyAndExtendVec(
     const std::vector<std::string>& parents,
     std::string last);
+std::vector<facebook::fboss::fsdb::OperPathElem> copyAndExtendVec(
+    const std::vector<facebook::fboss::fsdb::OperPathElem>& parents,
+    facebook::fboss::fsdb::OperPathElem last);
 
 } // namespace thriftpath

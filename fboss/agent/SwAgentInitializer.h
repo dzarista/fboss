@@ -26,14 +26,22 @@ class SwSwitchInitializer {
   explicit SwSwitchInitializer(SwSwitch* sw);
   virtual ~SwSwitchInitializer();
   void start();
-  void start(HwSwitchCallback* callback);
+  void start(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
   void stopFunctionScheduler();
   void waitForInitDone();
-  void init(HwSwitchCallback* callback);
+  void init(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
  protected:
-  virtual void initImpl(HwSwitchCallback*) = 0;
-  void initThread(HwSwitchCallback* callback);
+  virtual void initImpl(
+      HwSwitchCallback*,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) = 0;
+  void initThread(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
   SwitchFlags setupFlags();
 
   SwSwitch* sw_;
@@ -69,21 +77,25 @@ class SwAgentInitializer : public AgentInitializer {
     return initializer_.get();
   }
 
-  void stopServices();
-
-  void stopAgent(bool setupWarmboot) override;
+  // In case of gtest failures, we need to do an unclean exit to flag failures.
+  // Hence control that via the gracefulExit flag
+  void stopAgent(bool setupWarmboot, bool gracefulExit) override;
 
   int initAgent() override;
-  int initAgent(HwSwitchCallback* callback);
+  int initAgent(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
  protected:
   virtual std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
   getThrifthandlers() = 0;
 
-  virtual void handleExitSignal();
-
   std::unique_ptr<SwSwitch> sw_;
   std::unique_ptr<SwSwitchInitializer> initializer_;
+  virtual void handleExitSignal(bool gracefulExit) = 0;
+
+  void stopServer();
+  void stopServices();
 
  private:
   std::unique_ptr<apache::thrift::ThriftServer> server_;

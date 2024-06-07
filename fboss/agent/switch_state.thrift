@@ -54,6 +54,9 @@ struct PortFields {
   3: string portDescription;
   // TODO: use switch_config.PortState?
   4: string portState = "DISABLED";
+  // portOperState::
+  //  false => port is DOWN
+  //  true => port is UP
   5: bool portOperState = false;
   6: i32 ingressVlan;
   // TODO: use switch_config.PortSpeed?
@@ -113,6 +116,24 @@ struct PortFields {
   46: optional ctrl.PortLedExternalState portLedExternalState;
   47: bool rxLaneSquelch = false;
   48: bool zeroPreemphasis = false;
+
+  // Set only for ASICs that distinguish UP from ACTIVE e.g. J2, J3 etc.
+  // On those ASICs, an UP port is ACTIVE only if bi-directional connectivity
+  // is established and ports on both sides are ready to send data traffic.
+  //
+  // When set, portActiveState::
+  //  false => port is INACTIVE
+  //  true => port is ACTIVE
+  //
+  // When portActiveState is set,
+  //  - if portOperState is DOWN, portActiveState is always INACTIVE
+  //  - if portOperState is UP, portActiveState is either ACTIVE or INACTIVE.
+  49: optional bool portActiveState;
+  50: optional bool disableTTLDecrement;
+  51: optional bool txEnable;
+  // Current active errors seen on port
+  52: list<ctrl.PortError> activeErrors;
+  53: switch_config.Scope scope = switch_config.Scope.LOCAL;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields
@@ -189,6 +210,8 @@ struct AclEntryFields {
   27: optional bool enabled;
   28: optional list<string> udfGroups;
   29: optional byte roceOpcode;
+  30: optional list<byte> roceBytes;
+  31: optional list<byte> roceMask;
 }
 
 enum NeighborState {
@@ -213,6 +236,8 @@ struct NeighborEntryFields {
   8: bool isLocal = true;
   9: NeighborEntryType type = NeighborEntryType.DYNAMIC_ENTRY;
   10: optional i64 resolvedSince;
+  11: optional bool noHostRoute;
+  12: optional bool disableTTLDecrement;
 }
 
 typedef map<string, NeighborEntryFields> NeighborEntries
@@ -350,6 +375,14 @@ struct SwitchSettingsFields {
   // MAC OUIs used by meta for VM purpose.
   // When queue-per-host is enabled, MACs matching any OUI from this list could get any queue.
   36: list<string> metaMacOuis;
+  37: ctrl.SwitchRunState swSwitchRunState;
+  38: optional bool forceTrafficOverFabric;
+  39: optional bool creditWatchdog;
+  40: optional bool forceEcmpDynamicMemberUp;
+  // Programmable hostname, useful for ICMP responses and the like.
+  41: string hostname;
+  // When there's no IPv4 addresses configured, what address to use to source IPv4 ICMP packets from.
+  42: Address.BinaryAddress icmpV4UnavailableSrcAddress;
 }
 
 struct RoutePrefix {
@@ -466,6 +499,17 @@ struct InterfaceFields {
   17: optional string dhcpV6Relay;
   18: map<string, string> dhcpRelayOverridesV4;
   19: map<string, string> dhcpRelayOverridesV6;
+
+  /*
+   * Set only on Remote Interfaces of VOQ switches.
+   */
+  20: optional common.RemoteInterfaceType remoteIntfType;
+
+  /*
+   * Set only on Remote Interfaces of VOQ switches.
+   */
+  21: optional common.LivenessStatus remoteIntfLivenessStatus;
+  22: switch_config.Scope scope = switch_config.Scope.LOCAL;
 }
 
 enum LacpState {

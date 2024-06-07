@@ -120,7 +120,10 @@ cfg::SwitchConfig createSwitchConfig(
   *config.interfaces()[1].vlanID() = 1;
   config.interfaces()[1].name() = "DefaultHWInterface";
   config.interfaces()[1].mtu() = 9000;
-  config.interfaces()[1].ipAddresses()->resize(0);
+  config.interfaces()[1].ipAddresses()->resize(3);
+  config.interfaces()[1].ipAddresses()[0] = "20.164.4.10/24";
+  config.interfaces()[1].ipAddresses()[1] = "3401:db00:2110:3004::a/64";
+  config.interfaces()[1].ipAddresses()[2] = "fe80::face:b00c/64";
 
   if (ndpTimeout.count() > 0) {
     *config.arpTimeoutSeconds() = ndpTimeout.count();
@@ -550,6 +553,59 @@ TYPED_TEST(NdpTest, UnsolicitedRequest) {
   counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.ndp.sum", 1);
 }
 
+TYPED_TEST(NdpTest, NeighborSoliciationNotMine) {
+  auto handle = this->setupTestHandle();
+  auto sw = handle->getSw();
+
+  // Create an neighbor solicitation request
+  auto pkt = PktUtil::parseHexData(
+      // dst mac, src mac
+      "33 33 ff 00 00 0a  02 05 73 f9 46 fc"
+      // 802.1q, VLAN 5
+      "81 00 00 05"
+      // IPv6
+      "86 dd"
+      // Version 6, traffic class, flow label
+      "6e 00 00 00"
+      // Payload length: 32
+      "00 20"
+      // Next Header: 58 (ICMPv6), Hop Limit (255)
+      "3a ff"
+      // src addr (::0)
+      "34 01 00 00 00 00 00 00 00 00 00 00 00 00 00 0b"
+      // dst addr (3401:db00:2110:3004::a)
+      "34 01 db 00 21 10 30 04 00 00 00 00 00 00 00 0a"
+      // type: neighbor solicitation
+      "87"
+      // code
+      "00"
+      // checksum
+      "C6 5C"
+      // reserved
+      "00 00 00 00"
+      // target address (3401:db00:2110:3004::a)
+      "34 01 db 00 21 10 30 04 00 00 00 00 00 00 00 0a"
+      // Src link layer (mac) option
+      "01"
+      // Option len
+      "01"
+      // Src link layer address (mac)
+      "02 05 73 f9 46 fc");
+
+  // Cache the current stats
+  CounterCache counters(sw);
+
+  // Send the packet to the SwSwitch
+  handle->rxPacket(make_unique<IOBuf>(pkt), PortID(1), VlanID(5));
+
+  // Check the new stats
+  counters.update();
+  counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.pkts.sum", 1);
+  counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.drops.sum", 1);
+  counters.checkDelta(SwitchStats::kCounterPrefix + "trapped.ndp.sum", 1);
+  counters.checkDelta(SwitchStats::kCounterPrefix + "ipv6.ndp.not_mine.sum", 1);
+}
+
 TYPED_TEST(NdpTest, TriggerSolicitation) {
   /*
    * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
@@ -575,8 +631,8 @@ TYPED_TEST(NdpTest, TriggerSolicitation) {
       "86 dd"
       // Version 6, traffic class, flow label
       "6e 00 00 00"
-      // Payload length: 24
-      "00 18"
+      // Payload length: 8
+      "00 08"
       // Next Header: 17 (UDP), Hop Limit (255)
       "11 ff"
       // src addr (2401:db00:2110:1234::1:0)
@@ -629,8 +685,8 @@ TYPED_TEST(NdpTest, TriggerSolicitation) {
       "86 dd"
       // Version 6, traffic class, flow label
       "6e 00 00 00"
-      // Payload length: 24
-      "00 18"
+      // Payload length: 8
+      "00 08"
       // Next Header: 17 (UDP), Hop Limit (255)
       "11 ff"
       // src addr (2401:db00:2110:1234::1:0)
@@ -1072,8 +1128,8 @@ TYPED_TEST(NdpTest, PendingNdp) {
       "86 dd"
       // Version 6, traffic class, flow label
       "6e 00 00 00"
-      // Payload length: 24
-      "00 18"
+      // Payload length: 8
+      "00 08"
       // Next Header: 17 (UDP), Hop Limit (255)
       "11 ff"
       // src addr (2401:db00:2110:1234::1:0)
@@ -1180,8 +1236,8 @@ TYPED_TEST(NdpTest, PendingNdpCleanup) {
       "86 dd"
       // Version 6, traffic class, flow label
       "6e 00 00 00"
-      // Payload length: 24
-      "00 18"
+      // Payload length: 8
+      "00 08"
       // Next Header: 17 (UDP), Hop Limit (255)
       "11 ff"
       // src addr (2401:db00:2110:1234::1:0)
@@ -1240,8 +1296,8 @@ TYPED_TEST(NdpTest, PendingNdpCleanup) {
       "86 dd"
       // Version 6, traffic class, flow label
       "6e 00 00 00"
-      // Payload length: 24
-      "00 18"
+      // Payload length: 8
+      "00 08"
       // Next Header: 17 (UDP), Hop Limit (255)
       "11 ff"
       // src addr (2401:db00:2110:1234::1:0)
@@ -1367,8 +1423,8 @@ TYPED_TEST(NdpTest, NdpExpiration) {
       "86 dd"
       // Version 6, traffic class, flow label
       "6e 00 00 00"
-      // Payload length: 24
-      "00 18"
+      // Payload length: 8
+      "00 08"
       // Next Header: 17 (UDP), Hop Limit (255)
       "11 ff"
       // src addr (2401:db00:2110:1234::1:0)
@@ -1425,8 +1481,8 @@ TYPED_TEST(NdpTest, NdpExpiration) {
       "86 dd"
       // Version 6, traffic class, flow label
       "6e 00 00 00"
-      // Payload length: 24
-      "00 18"
+      // Payload length: 8
+      "00 08"
       // Next Header: 17 (UDP), Hop Limit (255)
       "11 ff"
       // src addr (2401:db00:2110:1234::1:0)
@@ -1499,16 +1555,6 @@ TYPED_TEST(NdpTest, NdpExpiration) {
   sendNeighborAdvertisement(
       handle.get(), targetIP3.str(), "02:10:20:30:40:24", 1, vlanID);
 
-  // Have getAndClearNeighborHit return false for the first entry,
-  // but true for the others. This should result in the first
-  // entry not being expired, while the others should get expired.
-  EXPECT_HW_CALL(sw, getAndClearNeighborHit(_, testing::Eq(targetIP)))
-      .WillRepeatedly(testing::Return(false));
-  EXPECT_HW_CALL(sw, getAndClearNeighborHit(_, testing::Eq(targetIP2)))
-      .WillRepeatedly(testing::Return(true));
-  EXPECT_HW_CALL(sw, getAndClearNeighborHit(_, testing::Eq(targetIP3)))
-      .WillRepeatedly(testing::Return(true));
-
   // The entries should now be valid instead of pending
   EXPECT_TRUE(neighbor0Reachable.wait());
   EXPECT_TRUE(neighbor1Reachable.wait());
@@ -1525,10 +1571,23 @@ TYPED_TEST(NdpTest, NdpExpiration) {
   EXPECT_NE(entry3, nullptr);
   EXPECT_EQ(entry3->isPending(), false);
 
-  // We should send two more neighbor solicitations for entry 2 & 3
-
+  // We should send neighbor solicitations for entries
   // before we expire them, but this time they're unicast as they're being
   // probed
+  EXPECT_OUT_OF_PORT_PKT(
+      sw,
+      "neighbor solicitation",
+      checkNeighborSolicitation(
+          MockPlatform::getMockLocalMac(),
+          IPAddressV6("2401:db00:2110:3004::"),
+          MacAddress("02:10:20:30:40:22"),
+          targetIP,
+          targetIP,
+          VlanID(5),
+          false),
+      PortID(1),
+      std::optional<uint8_t>(kNCStrictPriorityQueue));
+
   EXPECT_OUT_OF_PORT_PKT(
       sw,
       "neighbor solicitation",
@@ -1557,10 +1616,11 @@ TYPED_TEST(NdpTest, NdpExpiration) {
       PortID(1),
       std::optional<uint8_t>(kNCStrictPriorityQueue));
 
-  // Wait for the second and third entries to expire.
+  // Wait for the entries to expire.
   // We wait 2.5 seconds(plus change):
   // Up to 1.5 seconds for lifetime.
   // 1 more second for probe
+  WaitForNdpEntryExpiration expire0(sw, targetIP, vlanID);
   WaitForNdpEntryExpiration expire1(sw, targetIP2, vlanID);
   WaitForNdpEntryExpiration expire2(sw, targetIP3, vlanID);
   std::promise<bool> done;
@@ -1568,51 +1628,18 @@ TYPED_TEST(NdpTest, NdpExpiration) {
   evb->runInEventBaseThread(
       [&]() { evb->tryRunAfterDelay([&]() { done.set_value(true); }, 2550); });
   done.get_future().wait();
+  EXPECT_TRUE(expire0.wait());
   EXPECT_TRUE(expire1.wait());
   EXPECT_TRUE(expire2.wait());
 
-  // The first entry should not be expired, but the others should be
+  // The entries should be expired
   ndpTable = sw->getState()->getVlans()->getNodeIf(vlanID)->getNdpTable();
   entry = ndpTable->getEntryIf(targetIP);
   entry2 = ndpTable->getEntryIf(targetIP2);
   entry3 = ndpTable->getEntryIf(targetIP3);
-  EXPECT_NE(entry, nullptr);
-  EXPECT_EQ(entry->isPending(), false);
+  EXPECT_EQ(entry, nullptr);
   EXPECT_EQ(entry2, nullptr);
   EXPECT_EQ(entry3, nullptr);
-
-  // Now return true for the getAndClearNeighborHit calls on the first entry
-  EXPECT_HW_CALL(sw, getAndClearNeighborHit(_, testing::Eq(targetIP)))
-      .WillRepeatedly(testing::Return(true));
-
-  // We should see one more solicitation for entry 1 before we expire it
-
-  EXPECT_OUT_OF_PORT_PKT(
-      sw,
-      "neighbor solicitation",
-      checkNeighborSolicitation(
-          MockPlatform::getMockLocalMac(),
-          IPAddressV6("2401:db00:2110:3004::"),
-          MacAddress("02:10:20:30:40:22"),
-          targetIP,
-          targetIP,
-          vlanID,
-          false),
-      PortID(1),
-      std::optional<uint8_t>(kNCStrictPriorityQueue));
-  // Wait for the first entry to expire
-  WaitForNdpEntryExpiration expire0(sw, targetIP, vlanID);
-  std::promise<bool> done2;
-  evb->runInEventBaseThread(
-      [&]() { evb->tryRunAfterDelay([&]() { done2.set_value(true); }, 2050); });
-  done2.get_future().wait();
-  EXPECT_TRUE(expire0.wait());
-
-  // First entry should now be expired
-  entry =
-      sw->getState()->getVlans()->getNodeIf(vlanID)->getNdpTable()->getEntryIf(
-          targetIP);
-  EXPECT_EQ(entry, nullptr);
 }
 
 TYPED_TEST(NdpTest, FlushEntryWithConcurrentUpdate) {
@@ -1723,8 +1750,8 @@ TYPED_TEST(NdpTest, PortFlapRecover) {
       "86 dd"
       // Version 6, traffic class, flow label
       "6e 00 00 00"
-      // Payload length: 24
-      "00 18"
+      // Payload length: 8
+      "00 08"
       // Next Header: 17 (UDP), Hop Limit (255)
       "11 ff"
       // src addr (2401:db00:2110:1234::1:0)
@@ -1782,8 +1809,8 @@ TYPED_TEST(NdpTest, PortFlapRecover) {
       "86 dd"
       // Version 6, traffic class, flow label
       "6e 00 00 00"
-      // Payload length: 24
-      "00 18"
+      // Payload length: 8
+      "00 08"
       // Next Header: 17 (UDP), Hop Limit (255)
       "11 ff"
       // src addr (2401:db00:2110:1234::1:0)
@@ -1858,16 +1885,6 @@ TYPED_TEST(NdpTest, PortFlapRecover) {
   EXPECT_TRUE(neighbor1Reachable.wait());
   EXPECT_TRUE(neighbor2Reachable.wait());
 
-  // Have getAndClearNeighborHit return false for the first entry,
-  // but true for the others. This should result in the first
-  // entry not being expired, while the others should get expired.
-  EXPECT_HW_CALL(sw, getAndClearNeighborHit(_, testing::Eq(targetIP)))
-      .WillRepeatedly(testing::Return(false));
-  EXPECT_HW_CALL(sw, getAndClearNeighborHit(_, testing::Eq(targetIP2)))
-      .WillRepeatedly(testing::Return(true));
-  EXPECT_HW_CALL(sw, getAndClearNeighborHit(_, testing::Eq(targetIP3)))
-      .WillRepeatedly(testing::Return(true));
-
   // The entries should now be valid instead of pending
   ndpTable = sw->getState()->getVlans()->getNodeIf(vlanID)->getNdpTable();
   entry = ndpTable->getEntryIf(targetIP);
@@ -1896,16 +1913,13 @@ TYPED_TEST(NdpTest, PortFlapRecover) {
   // block until updates to neighbor entries have been picked up by SwitchState
   waitForStateUpdates(sw);
 
-  // The first two entries should be pending now, but not the third
+  // The first two entries should be pending now
   EXPECT_TRUE(neigbor0Pending.wait());
   EXPECT_TRUE(neigbor1Pending.wait());
 
   ndpTable = sw->getState()->getVlans()->getNodeIf(vlanID)->getNdpTable();
-  entry = ndpTable->getEntryIf(targetIP);
   entry2 = ndpTable->getEntryIf(targetIP2);
   entry3 = ndpTable->getEntryIf(targetIP3);
-  EXPECT_NE(entry, nullptr);
-  EXPECT_EQ(entry->isPending(), true);
   EXPECT_NE(entry2, nullptr);
   EXPECT_EQ(entry2->isPending(), true);
   EXPECT_NE(entry3, nullptr);

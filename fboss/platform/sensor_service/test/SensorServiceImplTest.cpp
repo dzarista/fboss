@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 
+#include "fboss/platform/config_lib/ConfigLib.h"
 #include "fboss/platform/sensor_service/SensorServiceImpl.h"
 #include "fboss/platform/sensor_service/Utils.h"
 #include "fboss/platform/sensor_service/test/TestUtils.h"
@@ -17,18 +18,12 @@ namespace facebook::fboss {
 
 class SensorServiceImplTest : public ::testing::Test {
  public:
-  void SetUp() override {
-    FLAGS_mock_lmsensor_json_data =
-        createMockSensorDataFile(tmpDir_.path().string());
-  }
-
   void testFetchAndCheckSensorData(
       std::shared_ptr<SensorServiceImpl> sensorServiceImpl,
       bool expectedSensorReadSuccess) {
     auto now = Utils::nowInSecs();
     sensorServiceImpl->fetchSensorData();
     auto sensorData = sensorServiceImpl->getAllSensorData();
-
     auto expectedSensors = getDefaultMockSensorData();
     EXPECT_EQ(sensorData.size(), expectedSensors.size());
     for (const auto& it : expectedSensors) {
@@ -43,37 +38,25 @@ class SensorServiceImplTest : public ::testing::Test {
       }
     }
   }
-
-  void testFetchAndCheckSensorData(
-      std::string source,
-      bool expectedSensorReadSuccess) {
-    auto sensorServiceImpl =
-        createSensorServiceImplForTest(tmpDir_.path().string(), source);
-    testFetchAndCheckSensorData(
-        std::move(sensorServiceImpl), expectedSensorReadSuccess);
-  }
-
-  folly::test::TemporaryDirectory tmpDir_ = folly::test::TemporaryDirectory();
 };
 
 TEST_F(SensorServiceImplTest, fetchAndCheckSensorDataSuccess) {
-  auto sources = std::vector<std::string>{"mock", "sysfs"};
-  for (const auto& source : sources) {
-    testFetchAndCheckSensorData(source, true);
-  }
-}
-
-TEST_F(SensorServiceImplTest, fetchAndCheckSensorDataSYFSFailure) {
-  auto confFileName = mockSensorConfig(tmpDir_.path().string(), "sysfs");
-  auto sensorServiceImpl = std::make_shared<SensorServiceImpl>(confFileName);
+  folly::test::TemporaryDirectory tmpDir = folly::test::TemporaryDirectory();
+  auto sensorServiceImpl =
+      createSensorServiceImplForTest(tmpDir.path().string());
 
   // Test that sensor reads work as expected
   testFetchAndCheckSensorData(sensorServiceImpl, true);
+}
 
-  // Remove sensors' sensor files.
+TEST_F(SensorServiceImplTest, fetchAndCheckSensorDataFailure) {
+  folly::test::TemporaryDirectory tmpDir = folly::test::TemporaryDirectory();
+  auto sensorServiceImpl =
+      createSensorServiceImplForTest(tmpDir.path().string());
+
+  // Remove sensor sysfs files
   std::string sensorConfJson;
-  ASSERT_TRUE(folly::readFile(confFileName.c_str(), sensorConfJson));
-
+  ASSERT_TRUE(folly::readFile(FLAGS_config_file.c_str(), sensorConfJson));
   SensorConfig sensorConfig;
   apache::thrift::SimpleJSONSerializer::deserialize<SensorConfig>(
       sensorConfJson, sensorConfig);
@@ -86,4 +69,45 @@ TEST_F(SensorServiceImplTest, fetchAndCheckSensorDataSYFSFailure) {
   // Check that sensor value/timestamp are now empty which implies read failed
   testFetchAndCheckSensorData(sensorServiceImpl, false);
 }
+
+TEST_F(SensorServiceImplTest, fetchAndCheckSensorDataSuccesAndThenFailure) {
+  folly::test::TemporaryDirectory tmpDir = folly::test::TemporaryDirectory();
+  auto sensorServiceImpl =
+      createSensorServiceImplForTest(tmpDir.path().string());
+
+  // CASE 1: Success
+  testFetchAndCheckSensorData(sensorServiceImpl, true);
+
+  // CASE 2: Failure (with sysfs files disappearing)
+  // Remove sensors' sensor files.
+  std::string sensorConfJson;
+  ASSERT_TRUE(folly::readFile(FLAGS_config_file.c_str(), sensorConfJson));
+  SensorConfig sensorConfig;
+  apache::thrift::SimpleJSONSerializer::deserialize<SensorConfig>(
+      sensorConfJson, sensorConfig);
+  for (const auto& [fruName, sensorMap] : *sensorConfig.sensorMapList()) {
+    for (const auto& [sensorName, sensor] : sensorMap) {
+      ASSERT_TRUE(std::filesystem::remove(*sensor.path()));
+    }
+  }
+  // Check that sensor value/timestamp are now empty which implies read failed
+  testFetchAndCheckSensorData(sensorServiceImpl, false);
+}
+
+TEST_F(SensorServiceImplTest, getSomeSensors) {
+  auto now = Utils::nowInSecs();
+  folly::test::TemporaryDirectory tmpDir = folly::test::TemporaryDirectory();
+  auto sensorServiceImpl =
+      createSensorServiceImplForTest(tmpDir.path().string());
+  sensorServiceImpl->fetchSensorData();
+  auto sensorData = sensorServiceImpl->getSensorsData(
+      {"MOCK_FRU_1_SENSOR_1", "BOGUS_SENSOR"});
+  EXPECT_EQ(sensorData.size(), 1);
+  EXPECT_EQ(*sensorData[0].name(), "MOCK_FRU_1_SENSOR_1");
+  EXPECT_FLOAT_EQ(
+      *sensorData[0].value(),
+      getDefaultMockSensorData()["MOCK_FRU_1_SENSOR_1"]);
+  EXPECT_GE(*sensorData[0].timeStamp(), now);
+}
+
 } // namespace facebook::fboss

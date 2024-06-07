@@ -15,6 +15,7 @@
 #include "fboss/cli/fboss2/commands/show/dsf/CmdShowDsf.h"
 #include "fboss/cli/fboss2/commands/show/dsf/subscription/gen-cpp2/model_types.h"
 #include "fboss/cli/fboss2/utils/CmdUtils.h"
+#include "thrift/lib/cpp/util/EnumUtils.h"
 
 namespace facebook::fboss {
 
@@ -38,17 +39,38 @@ class CmdShowDsfSubscription
         utils::createClient<apache::thrift::Client<FbossCtrl>>(hostInfo);
     std::vector<facebook::fboss::FsdbSubscriptionThrift> subscriptions;
     client->sync_getDsfSubscriptions(subscriptions);
-    return createModel(subscriptions);
+    std::vector<facebook::fboss::DsfSessionThrift> sessions;
+    client->sync_getDsfSessions(sessions);
+    return createModel(subscriptions, sessions);
   }
 
   RetType createModel(
-      std::vector<facebook::fboss::FsdbSubscriptionThrift> subscriptions) {
+      const std::vector<facebook::fboss::FsdbSubscriptionThrift>& subscriptions,
+      const std::vector<facebook::fboss::DsfSessionThrift>& sessions) {
     RetType model;
 
+    std::map<std::string, DsfSessionThrift> remoteNode2DsfSession;
+    std::for_each(
+        sessions.begin(),
+        sessions.end(),
+        [&remoteNode2DsfSession](const auto& session) {
+          remoteNode2DsfSession[*session.remoteName()] = session;
+        });
     for (const auto& subscriptionThrift : subscriptions) {
       cli::Subscription subscription;
-      subscription.name() = *subscriptionThrift.name();
-      subscription.state() = *subscriptionThrift.state();
+      subscription.name() = *subscriptionThrift.subscriptionId();
+      auto sitr = remoteNode2DsfSession.find(*subscription.name());
+      if (sitr != remoteNode2DsfSession.end()) {
+        auto session = remoteNode2DsfSession.find(*subscription.name())->second;
+        subscription.state() =
+            apache::thrift::util::enumNameSafe(*session.state());
+        if (session.state() == facebook::fboss::DsfSessionState::ESTABLISHED) {
+          subscription.establishedSince() =
+              utils::getPrettyElapsedTime(*session.lastEstablishedAt());
+        } else {
+          subscription.establishedSince() = "--";
+        }
+      }
       subscription.paths() = *subscriptionThrift.paths();
       model.subscriptions()->push_back(subscription);
     }
@@ -61,15 +83,17 @@ class CmdShowDsfSubscription
   }
 
   void printOutput(const RetType& model, std::ostream& out = std::cout) {
-    constexpr auto fmtString = "{:<30}{:<15}{:<45}\n";
+    constexpr auto fmtString = "{:<60}{:<25}{:<25}{:<45}\n";
 
-    out << fmt::format(fmtString, "Name", "State", "Subscription Paths");
+    out << fmt::format(
+        fmtString, "Name", "State", "Est Since", "Subscription Paths");
 
     for (const auto& entry : *model.subscriptions()) {
       out << fmt::format(
           fmtString,
           *entry.name(),
           *entry.state(),
+          *entry.establishedSince(),
           folly::join("; ", *entry.paths()));
     }
     out << std::endl;

@@ -11,10 +11,8 @@
 #include <filesystem>
 #include <iostream>
 
-#include <folly/FileUtil.h>
+#include <fmt/core.h>
 #include <folly/String.h>
-#include <folly/dynamic.h>
-#include <folly/json.h>
 #include <folly/logging/xlog.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 
@@ -27,18 +25,7 @@ using namespace folly::literals::shell_literals;
 namespace facebook::fboss::platform::fw_util {
 
 void FwUtilImpl::init() {
-  std::string fwUtilConfJson;
-  // Check if conf file name is set, if not, set the default name
-  if (confFileName_.empty()) {
-    XLOG(INFO) << "No config file was provided. Inferring from config_lib";
-    fwUtilConfJson = ConfigLib().getFwUtilConfig();
-  } else {
-    XLOG(INFO) << "Using config file: " << confFileName_;
-    if (!folly::readFile(confFileName_.c_str(), fwUtilConfJson)) {
-      throw std::runtime_error(
-          "Can not find firmware config file: " + confFileName_);
-    }
-  }
+  std::string fwUtilConfJson = ConfigLib().getFwUtilConfig();
   apache::thrift::SimpleJSONSerializer::deserialize<FwUtilConfig>(
       fwUtilConfJson, fwUtilConfig_);
 
@@ -157,6 +144,59 @@ void FwUtilImpl::doPreUpgrade(
   }
 }
 
+void FwUtilImpl::verifySha1sum(
+    const std::string& fpd,
+    const std::string& configSha1sum) {
+  const std::string cmd = folly::to<std::string>(
+      "sha1sum ", FLAGS_fw_binary_file, " | cut -d ' ' -f 1");
+
+  auto [exitStatus, standardOut] = PlatformUtils().execCommand(cmd);
+  if (exitStatus != 0) {
+    throw std::runtime_error("Run" + cmd + " failed!");
+  }
+  standardOut.erase(
+      std::remove(standardOut.begin(), standardOut.end(), '\n'),
+      standardOut.end());
+  if (configSha1sum != standardOut) {
+    throw std::runtime_error(fmt::format(
+        "{} config file sha1sum {} is different from current binary sha1sum of {}",
+        fpd,
+        configSha1sum,
+        standardOut));
+  }
+}
+
+void FwUtilImpl::doVersionAudit() {
+  bool mismatch = false;
+  for (const auto& [fpdName, fwConfig] : *fwUtilConfig_.fwConfigs()) {
+    std::string desiredVersion = *fwConfig.desiredVersion();
+    if (desiredVersion.empty()) {
+      XLOGF(
+          INFO,
+          "{} does not have a desired version specified in the config.",
+          fpdName);
+      continue;
+    }
+    folly::StringPiece actualVersion =
+        folly::trimWhitespace(runVersionCmd(*fwConfig.getVersionCmd()));
+    if (actualVersion != desiredVersion) {
+      XLOGF(
+          INFO,
+          "{} is at version {} which does not match config's desired version {}.",
+          fpdName,
+          actualVersion,
+          desiredVersion);
+      mismatch = true;
+    }
+  }
+  if (mismatch) {
+    XLOG(INFO, "Firmware version mismatch found.");
+    exit(1);
+  } else {
+    XLOG(INFO, "All firmware versions match the config.");
+  }
+}
+
 void FwUtilImpl::doFirmwareAction(
     const std::string& fpd,
     const std::string& action) {
@@ -164,37 +204,47 @@ void FwUtilImpl::doFirmwareAction(
   auto iter = fwUtilConfig_.fwConfigs()->find(fpd);
   if (iter == fwUtilConfig_.fwConfigs()->end()) {
     XLOG(INFO)
+        << fpd
         << " is not part of the firmware target_name list Please run ./fw-util --helpon=Flags for the right usage";
-    return;
+    exit(1);
   }
+  auto fwConfig = iter->second;
 
-  const std::string upgradeCmd = *iter->second.upgradeCmd();
-  const std::string readFwCmd = *iter->second.readFwCmd();
-  const std::string verifyFwCmd = *iter->second.verifyFwCmd();
+  const std::string upgradeCmd = *fwConfig.upgradeCmd();
+  const std::string readFwCmd = *fwConfig.readFwCmd();
+  const std::string verifyFwCmd = *fwConfig.verifyFwCmd();
 
   if (action == "program" && !upgradeCmd.empty()) {
-    if (iter->second.preUpgradeCmd().has_value()) {
-      doPreUpgrade(fpd, *iter->second.preUpgradeCmd());
+    // Verify sha1sum of the firmware matches the one in the config json
+    // This is needed only if we are going to program a new firmware image
+    // in a respective fpd. During EVT, we will leave the config without sha1sum
+    // since the binary will change a lot. We will add the sha1sum during DVT
+    // since firmware binary is expected to start being stable at that stage.
+    if (!fwConfig.sha1sum()->empty()) {
+      verifySha1sum(fpd, *fwConfig.sha1sum());
+    }
+    if (fwConfig.preUpgradeCmd().has_value()) {
+      doPreUpgrade(fpd, *fwConfig.preUpgradeCmd());
     }
     XLOG(INFO) << "running upgradeCmd";
     exitStatus = runCmd(upgradeCmd);
     checkCmdStatus(upgradeCmd, exitStatus);
-    if (iter->second.postUpgradeCmd().has_value()) {
+    if (fwConfig.postUpgradeCmd().has_value()) {
       XLOG(INFO) << "running postUpgradeCmd";
-      const std::string postUpgradeCmd = *iter->second.postUpgradeCmd();
+      const std::string postUpgradeCmd = *fwConfig.postUpgradeCmd();
       exitStatus = runCmd(postUpgradeCmd);
       checkCmdStatus(postUpgradeCmd, exitStatus);
     }
   } else if (action == "read" && !readFwCmd.empty()) {
-    if (iter->second.preUpgradeCmd().has_value()) {
-      doPreUpgrade(fpd, *iter->second.preUpgradeCmd());
+    if (fwConfig.preUpgradeCmd().has_value()) {
+      doPreUpgrade(fpd, *fwConfig.preUpgradeCmd());
     }
     XLOG(INFO) << "running readFwCmd";
     exitStatus = runCmd(readFwCmd);
     checkCmdStatus(readFwCmd, exitStatus);
   } else if (action == "verify" && !verifyFwCmd.empty()) {
-    if (iter->second.preUpgradeCmd().has_value()) {
-      doPreUpgrade(fpd, *iter->second.preUpgradeCmd());
+    if (fwConfig.preUpgradeCmd().has_value()) {
+      doPreUpgrade(fpd, *fwConfig.preUpgradeCmd());
     }
     exitStatus = runCmd(verifyFwCmd);
     checkCmdStatus(verifyFwCmd, exitStatus);
@@ -208,6 +258,14 @@ void FwUtilImpl::storeFilePath(
     const std::string& filePath) {
   const std::string textFile = "/home/" + fpd + "_filename.txt";
   const std::string cmd = "echo " + filePath + " > " + textFile;
+  auto [exitStatus, standardOut] = PlatformUtils().execCommand(cmd);
+  if (exitStatus != 0) {
+    throw std::runtime_error("Run" + cmd + " failed!");
+  }
+}
+void FwUtilImpl::removeFilePath(const std::string& fpd) {
+  const std::string textFile = "/home/" + fpd + "_filename.txt";
+  const std::string cmd = "rm " + textFile;
   auto [exitStatus, standardOut] = PlatformUtils().execCommand(cmd);
   if (exitStatus != 0) {
     throw std::runtime_error("Run" + cmd + " failed!");

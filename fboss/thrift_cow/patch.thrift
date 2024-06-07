@@ -13,20 +13,24 @@ typedef byte Empty
 
 struct StructPatch {
   1: map<i16, PatchNode> children;
+  2: optional ByteBuffer compressedChildren;
 }
 
 struct MapPatch {
   1: map<string, PatchNode> children;
+  2: optional ByteBuffer compressedChildren;
 }
 
 struct ListPatch {
   1: map<i32, PatchNode> children;
+  2: optional ByteBuffer compressedChildren;
 }
 
 // keys for set children are the actual value. PatchNode will be either a val or del
 // TODO: split this to an added + removed sets
 struct SetPatch {
   1: map<string, PatchNode> children;
+  2: optional ByteBuffer compressedChildren;
 }
 
 struct VariantPatch {
@@ -43,9 +47,4 @@ union PatchNode {
   5: ListPatch list_node;
   6: SetPatch set_node;
   7: VariantPatch variant_node;
-}
-
-struct Patch {
-  1: list<string> basePath;
-  2: PatchNode patch;
 }

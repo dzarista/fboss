@@ -41,6 +41,7 @@ class MockAsic : public HwAsic {
       case Feature::EGRESS_QUEUE_FLEX_COUNTER:
       case Feature::WIDE_ECMP:
       case HwAsic::Feature::LINK_TRAINING:
+      case HwAsic::Feature::WEIGHTED_NEXTHOPGROUP_MEMBER:
         return false;
       case Feature::CPU_PORT:
         return getSwitchType() != cfg::SwitchType::FABRIC;
@@ -67,7 +68,9 @@ class MockAsic : public HwAsic {
       case cfg::PortType::CPU_PORT:
         return {cfg::StreamType::MULTICAST};
       case cfg::PortType::INTERFACE_PORT:
+      case cfg::PortType::MANAGEMENT_PORT:
       case cfg::PortType::RECYCLE_PORT:
+      case cfg::PortType::EVENTOR_PORT:
         return {cfg::StreamType::UNICAST};
       case cfg::PortType::FABRIC_PORT:
         return {cfg::StreamType::FABRIC_TX};
@@ -133,6 +136,12 @@ class MockAsic : public HwAsic {
   }
   uint32_t getMaxEcmpSize() const override {
     return 512;
+  }
+  std::optional<uint32_t> getMaxEcmpGroups() const override {
+    return 4;
+  }
+  std::optional<uint32_t> getMaxEcmpMembers() const override {
+    return 128;
   }
   AsicVendor getAsicVendor() const override {
     return HwAsic::AsicVendor::ASIC_VENDOR_MOCK;

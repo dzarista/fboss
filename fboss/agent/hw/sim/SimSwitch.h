@@ -68,6 +68,20 @@ class SimSwitch : public HwSwitch {
   HwSwitchDropStats getSwitchDropStats() const override {
     return HwSwitchDropStats{};
   }
+  HwFlowletStats getHwFlowletStats() const override {
+    return HwFlowletStats{};
+  }
+  AclStats getAclStats() const override {
+    return AclStats{};
+  }
+
+  HwSwitchWatermarkStats getSwitchWatermarkStats() const override {
+    return HwSwitchWatermarkStats{};
+  }
+
+  std::vector<EcmpDetails> getAllEcmpDetails() const override {
+    return {};
+  }
 
   void fetchL2Table(std::vector<L2EntryThrift>* /*l2Table*/) const override {
     return;
@@ -85,12 +99,6 @@ class SimSwitch : public HwSwitch {
 
   void unregisterCallbacks() override {
     // TODO
-  }
-
-  bool getAndClearNeighborHit(RouterID /*vrf*/, folly::IPAddress& /*ip*/)
-      override {
-    // TODO
-    return false;
   }
 
   bool isPortUp(PortID /*port*/) const override {
@@ -129,11 +137,13 @@ class SimSwitch : public HwSwitch {
     return "";
   }
 
-  std::map<PortID, phy::PhyInfo> updateAllPhyInfo() override {
+  std::map<PortID, phy::PhyInfo> updateAllPhyInfoImpl() override {
     return {};
   }
-  std::map<PortID, FabricEndpoint> getFabricConnectivity() const override {
-    return {};
+  const std::map<PortID, FabricEndpoint>& getFabricConnectivity()
+      const override {
+    static const std::map<PortID, FabricEndpoint> kEmpty;
+    return kEmpty;
   }
   std::vector<PortID> getSwitchReachability(SwitchID switchId) const override {
     return {};
@@ -153,6 +163,10 @@ class SimSwitch : public HwSwitch {
   void gracefulExitImpl() override {}
 
   void initialStateApplied() override {}
+
+  void syncLinkStates() override {}
+  void syncLinkActiveStates() override {}
+  void syncLinkConnectivity() override {}
 
   // Forbidden copy constructor and assignment operator
   SimSwitch(SimSwitch const&) = delete;

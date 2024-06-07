@@ -32,7 +32,6 @@ const std::map<int64_t, cfg::SwitchInfo> getSwitchInfoFromConfigImpl(
         switchInfo.portIdRange()->maximum() =
             cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MAX();
       }
-      switchInfoMap.emplace(entry.first, switchInfo);
       if (switchInfo.switchType() == cfg::SwitchType::VOQ &&
           !switchInfo.systemPortRange()) {
         auto dsfItr =
@@ -53,7 +52,7 @@ const std::map<int64_t, cfg::SwitchInfo> getSwitchInfoFromConfig() {
   std::unique_ptr<AgentConfig> config;
   try {
     config = AgentConfig::fromDefaultFile();
-  } catch (const std::exception& e) {
+  } catch (const std::exception&) {
     // expected on devservers where no config file is available
     return std::map<int64_t, cfg::SwitchInfo>();
   }
@@ -92,7 +91,7 @@ const std::optional<cfg::SdkVersion> getSdkVersionFromConfig() {
   std::unique_ptr<AgentConfig> config;
   try {
     config = AgentConfig::fromDefaultFile();
-  } catch (const std::exception& e) {
+  } catch (const std::exception&) {
     return std::nullopt;
   }
   auto swConfig = config->thrift.sw();

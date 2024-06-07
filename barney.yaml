@@ -1,0 +1,277 @@
+images:
+  build_dnx_4.18:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_4.18
+        build: |
+          ./build.sh 4.18
+
+  build_dnx_5.12:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.12
+        build: |
+          ./build.sh 5.12
+
+  build_dnx_5.19:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.19
+        build: |
+          ./build.sh 5.19
+
+  build_dnx_5.12-el9:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.12-el9
+        build: |
+          ./build.sh 5.12
+
+  build_dnx_5.19-el9:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.19-el9
+        build: |
+          ./build.sh 5.19
+
+
+  package_dnx_4.18:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: .%build_dnx_4.18
+        build: |
+          ./package.sh dnx 4.18
+
+  package_dnx_5.12:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: .%build_dnx_5.12
+        build: |
+          ./package.sh dnx 5.12
+
+  package_dnx_5.19:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+        mappings:
+          /src/dest: .%build_dnx_5.19
+        build: |
+          ./package.sh dnx 5.19
+
+  package_dnx_5.12-el9:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/dest: .%build_dnx_5.12-el9
+        build: |
+          ./package.sh dnx 5.12
+
+  package_dnx_5.19-el9:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/dest: .%build_dnx_5.19-el9
+        build: |
+          ./package.sh dnx 5.19
+
+  internal/test_floor:
+    units:
+      - image: code.arista.io/infra/barney/barnzilla%base
+      - image: code.arista.io/infra/barney/barnzilla%rpms/coreutils
+      - image: code.arista.io/infra/barney/barnzilla%rpms/bash
+      - image: code.arista.io/infra/barney/barnzilla%rpms/util-linux
+      - image: code.arista.io/infra/barney/barnzilla%rpms/findutils
+
+  test/package_dnx_4.18:
+    description: |
+      Test that build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%package_dnx_4.18
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/4.18/arista-fboss-core-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/4.18/arista-fboss-platform-darwin-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/4.18/arista-fboss-platform-meru400bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/4.18/arista-fboss-platform-meru800bfa-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/4.18/arista-fboss-platform-meru800bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/4.18/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/4.18/showtech-arista-1-1.el8.x86_64.rpm
+
+  test/package_dnx_5.12:
+    description: |
+      Test that build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%package_dnx_5.12
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-core-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-darwin-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-meru400bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-meru800bfa-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-meru800bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/showtech-arista-1-1.el8.x86_64.rpm
+
+  test/package_dnx_5.19:
+    description: |
+      Test that build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%package_dnx_5.19
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-core-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-darwin-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-meru400bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-meru800bfa-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-meru800bia-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-yamp-1-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista_bsp_kmods-0.5.0-1.el8.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/showtech-arista-1-1.el8.x86_64.rpm
+
+  test/package_dnx_5.12-el9:
+    description: |
+      Test that build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%package_dnx_5.12-el9
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-core-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-darwin-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-meru400bia-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-meru800bfa-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-meru800bia-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/arista-fboss-platform-yamp-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.12/showtech-arista-1-1.el9.x86_64.rpm
+
+  test/package_dnx_5.19-el9:
+    description: |
+      Test that build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%package_dnx_5.19-el9
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-core-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-darwin-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-meru400bia-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-meru800bfa-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-meru800bia-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista-fboss-platform-yamp-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/arista_bsp_kmods-0.5.0-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/showtech-arista-1-1.el9.x86_64.rpm

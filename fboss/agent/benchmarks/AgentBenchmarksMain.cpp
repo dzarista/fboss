@@ -1,9 +1,9 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include <folly/Benchmark.h>
-#include <folly/dynamic.h>
 #include <folly/init/Init.h>
-#include <folly/json.h>
+#include <folly/json/dynamic.h>
+#include <folly/json/json.h>
 #include <folly/logging/Init.h>
 #include <gtest/gtest.h>
 
@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
   getrusage(RUSAGE_SELF, &endUsage);
   auto cpuTime =
       (timevalToUsec(endUsage.ru_stime) - timevalToUsec(startUsage.ru_stime)) +
-      (timevalToUsec(endUsage.ru_utime) - timevalToUsec(endUsage.ru_utime));
+      (timevalToUsec(endUsage.ru_utime) - timevalToUsec(startUsage.ru_utime));
 
   folly::dynamic rusageJson = folly::dynamic::object;
   rusageJson["cpu_time_usec"] = cpuTime;

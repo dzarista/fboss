@@ -17,7 +17,7 @@ class FsdbTestServer {
   FsdbTestServer(uint16_t port = 0)
       : FsdbTestServer(std::make_unique<FsdbConfig>(), port) {}
   explicit FsdbTestServer(
-      std::unique_ptr<FsdbConfig> config,
+      std::shared_ptr<FsdbConfig> config,
       uint16_t port = 0);
   ~FsdbTestServer();
 
@@ -41,7 +41,7 @@ class FsdbTestServer {
   std::optional<FsdbOperTreeMetadata> getPublisherRootMetadata(
       const std::string& root,
       bool isStats) const;
-  std::set<OperSubscriberInfo> getActiveSubscriptions() const;
+  ServiceHandler::ActiveSubscriptions getActiveSubscriptions() const;
 
  private:
   std::string getPublisherId(int publisherIdx) const;
@@ -50,7 +50,6 @@ class FsdbTestServer {
   std::unique_ptr<std::thread> thriftThread_;
   std::shared_ptr<ServiceHandler> handler_;
   uint16_t fsdbPort_{};
-  std::unique_ptr<folly::test::TemporaryDirectory> tmpDir_;
 };
 
 } // namespace facebook::fboss::fsdb::test

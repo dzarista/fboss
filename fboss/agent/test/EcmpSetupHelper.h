@@ -106,6 +106,10 @@ class BaseEcmpSetupHelper {
   AddrT ip(PortDescriptor portDesc) const {
     return nhop(portDesc).ip;
   }
+  bool forAggregatePorts() const {
+    CHECK(!portDesc2Interface_.empty());
+    return ecmpPortDescriptorAt(0).isAggregatePort();
+  }
 
   /*
    * resolveNextHops and unresolveNextHops resolves/unresolves the list
@@ -227,6 +231,31 @@ class EcmpSetupTargetedPorts
       const boost::container::flat_set<PortDescriptor>& nhops,
       const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}},
       const std::vector<NextHopWeight>& weights = std::vector<NextHopWeight>(),
+      std::optional<RouteCounterID> counterID = std::nullopt) const {
+    programRoutes(wrapper.get(), nhops, prefixes, weights, counterID);
+  }
+  void programRoutes(
+      RouteUpdateWrapper* wrapper,
+      const boost::container::flat_set<PortDescriptor>& nhops,
+      const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}},
+      const std::vector<NextHopWeight>& weights = std::vector<NextHopWeight>(),
+      std::optional<RouteCounterID> counterID = std::nullopt) const;
+
+  void programRoutes(
+      std::unique_ptr<RouteUpdateWrapper> wrapper,
+      const std::vector<boost::container::flat_set<PortDescriptor>>& nhops,
+      const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}},
+      const std::vector<std::vector<NextHopWeight>>& weights =
+          std::vector<std::vector<NextHopWeight>>(),
+      std::optional<RouteCounterID> counterID = std::nullopt) const {
+    programRoutes(wrapper.get(), nhops, prefixes, weights, counterID);
+  }
+  void programRoutes(
+      RouteUpdateWrapper* wrapper,
+      const std::vector<boost::container::flat_set<PortDescriptor>>& nhops,
+      const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}},
+      const std::vector<std::vector<NextHopWeight>>& weights =
+          std::vector<std::vector<NextHopWeight>>(),
       std::optional<RouteCounterID> counterID = std::nullopt) const;
 
   void programMplsRoutes(
@@ -248,6 +277,11 @@ class EcmpSetupTargetedPorts
 
   void unprogramRoutes(
       std::unique_ptr<RouteUpdateWrapper> wrapper,
+      const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}}) const {
+    unprogramRoutes(wrapper.get(), prefixes);
+  }
+  void unprogramRoutes(
+      RouteUpdateWrapper* wrapper,
       const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}}) const;
 
  private:
@@ -260,6 +294,12 @@ class EcmpSetupTargetedPorts
       std::map<PortDescriptor, LabelForwardingAction::LabelStack>& stacks,
       LabelForwardingAction::LabelForwardingType labelActionType,
       const std::vector<NextHopWeight>& weights) const;
+  void addRoutesToUpdater(
+      RouteUpdateWrapper* wrapper,
+      const boost::container::flat_set<PortDescriptor>& nhops,
+      const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}},
+      const std::vector<NextHopWeight>& weights = std::vector<NextHopWeight>(),
+      const std::optional<RouteCounterID>& counterID = std::nullopt) const;
 
   RouterID routerId_;
 };
@@ -384,6 +424,15 @@ class EcmpSetupAnyNPorts {
       size_t width,
       const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}},
       const std::vector<NextHopWeight>& weights =
+          std::vector<NextHopWeight>()) const {
+    programRoutes(wrapper.get(), width, prefixes, weights);
+  }
+
+  void programRoutes(
+      RouteUpdateWrapper* wrapper,
+      size_t width,
+      const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}},
+      const std::vector<NextHopWeight>& weights =
           std::vector<NextHopWeight>()) const;
 
   void programRoutes(
@@ -391,8 +440,16 @@ class EcmpSetupAnyNPorts {
       const boost::container::flat_set<PortDescriptor>& portDescs,
       const std::vector<RouteT>& prefixes,
       const std::vector<NextHopWeight>& weights =
-          std::vector<NextHopWeight>()) const;
+          std::vector<NextHopWeight>()) const {
+    programRoutes(updater.get(), portDescs, prefixes, weights);
+  }
 
+  void programRoutes(
+      RouteUpdateWrapper* updater,
+      const boost::container::flat_set<PortDescriptor>& portDescs,
+      const std::vector<RouteT>& prefixes,
+      const std::vector<NextHopWeight>& weights =
+          std::vector<NextHopWeight>()) const;
   void programIp2MplsRoutes(
       std::unique_ptr<RouteUpdateWrapper> wrapper,
       size_t width,
@@ -403,6 +460,12 @@ class EcmpSetupAnyNPorts {
 
   void unprogramRoutes(
       std::unique_ptr<RouteUpdateWrapper> wrapper,
+      const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}}) const {
+    unprogramRoutes(wrapper.get(), prefixes);
+  }
+
+  void unprogramRoutes(
+      RouteUpdateWrapper* wrapper,
       const std::vector<RouteT>& prefixes = {RouteT{IPAddrT(), 0}}) const;
 
   std::optional<VlanID> getVlan(

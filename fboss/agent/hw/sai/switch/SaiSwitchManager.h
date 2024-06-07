@@ -83,11 +83,16 @@ class SaiSwitchManager {
   bool isGlobalQoSMapSupported() const;
   bool isMplsQoSMapSupported() const;
 
-  void updateStats();
+  void updateStats(bool updateWatermarks);
 
   void setSwitchIsolate(bool isolate);
   HwSwitchDropStats getSwitchDropStats() const {
     return switchDropStats_;
+  }
+  void setForceTrafficOverFabric(bool forceTrafficOverFabric);
+  void setCreditWatchdog(bool creditWatchdog);
+  HwSwitchWatermarkStats getSwitchWatermarkStats() const {
+    return switchWatermarkStats_;
   }
 
  private:
@@ -115,6 +120,8 @@ class SaiSwitchManager {
   void resetLoadBalancer();
   const std::vector<sai_stat_id_t>& supportedDropStats() const;
   const std::vector<sai_stat_id_t>& supportedDramStats() const;
+  const std::vector<sai_stat_id_t>& supportedWatermarkStats() const;
+  const HwSwitchWatermarkStats getHwSwitchWatermarkStats() const;
   SaiManagerTable* managerTable_;
   const SaiPlatform* platform_;
   std::unique_ptr<SaiSwitchObj> switch_;
@@ -133,10 +140,14 @@ class SaiSwitchManager {
   // since this is an optional attribute in SAI
   std::optional<bool> isPtpTcEnabled_{std::nullopt};
   HwSwitchDropStats switchDropStats_;
+  HwSwitchWatermarkStats switchWatermarkStats_;
 };
 
 void fillHwSwitchDramStats(
     const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
     HwSwitchDramStats& hwSwitchDramStats);
-
+void fillHwSwitchWatermarkStats(
+    const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
+    HwSwitchWatermarkStats& hwSwitchWatermarkStats);
+void publishSwitchWatermarks(HwSwitchWatermarkStats& watermarkStats);
 } // namespace facebook::fboss

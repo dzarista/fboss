@@ -11,11 +11,13 @@
 #include "fboss/lib/phy/ExternalPhy.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 
-#include <folly/json.h>
+#include <fb303/ThreadCachedServiceData.h>
+#include <folly/json/json.h>
 #include <folly/logging/xlog.h>
 #include <thrift/lib/cpp/util/EnumUtils.h>
 #include <chrono>
 #include <cstdlib>
+#include <exception>
 #include <memory>
 
 DEFINE_bool(
@@ -287,7 +289,8 @@ bool PhyManager::setPortToPortCacheInfoLocked(
   if (!lockedCache->speed || lockedCache->systemLanes.empty() ||
       lockedCache->lineLanes.empty()) {
     if (publishPhyCb_) {
-      publishPhyCb_(std::string(getPortName(portID)), std::nullopt);
+      publishPhyCb_(
+          std::string(getPortName(portID)), std::nullopt, std::nullopt);
     }
   }
 
@@ -618,12 +621,23 @@ void PhyManager::updatePortStats(
           if (auto lastXphyInfo = getXphyInfo(portID)) {
             lastPhyInfo = *lastXphyInfo;
           }
-          auto xphyPortInfo =
-              xphy->getPortInfo(systemLanes, lineLanes, lastPhyInfo);
-          xphyPortInfo.state()->name() = getPortName(portID);
-          xphyPortInfo.state()->speed() = programmedSpeed;
-          stats = phy::ExternalPhyPortStats::fromPhyInfo(xphyPortInfo);
-          updateXphyInfo(portID, std::move(xphyPortInfo));
+          phy::PhyInfo currentPhyInfo;
+          currentPhyInfo.state() = phy::PhyState();
+          currentPhyInfo.stats() = phy::PhyStats();
+
+          try {
+            currentPhyInfo =
+                xphy->getPortInfo(systemLanes, lineLanes, lastPhyInfo);
+          } catch (const std::exception& ex) {
+            XLOG(ERR) << getPortName(portID) << " getPortInfo failed with "
+                      << ex.what();
+          }
+
+          currentPhyInfo.state()->name() = getPortName(portID);
+          currentPhyInfo.state()->speed() = programmedSpeed;
+          currentPhyInfo.stats()->ioStats() = xphy->getIOStats();
+          stats = phy::ExternalPhyPortStats::fromPhyInfo(currentPhyInfo);
+          updateXphyInfo(portID, std::move(currentPhyInfo));
         } else {
           stats = xphy->getPortStats(systemLanes, lineLanes);
         }
@@ -770,7 +784,10 @@ void PhyManager::publishXphyInfoSnapshots(PortID port) const {
 void PhyManager::updateXphyInfo(PortID portID, phy::PhyInfo&& phyInfo) {
   xphySnapshotManager_->updatePhyInfo(portID, phyInfo);
   if (publishPhyCb_) {
-    publishPhyCb_(std::string(getPortName(portID)), std::move(phyInfo));
+    publishPhyCb_(
+        std::string(getPortName(portID)),
+        std::move(phyInfo),
+        getHwPortStats(getPortName(portID)));
   }
 }
 
@@ -820,5 +837,28 @@ PhyManager::PortStatsWLockedPtr PhyManager::getWLockedStats(
         "Unrecoginized port=", portID, ", which is not in PlatformMapping");
   }
   return statsInfo->second->wlock();
+}
+
+void PhyManager::publishPhyIOStatsToFb303() const {
+  std::map<std::string, IOStats> ioStats;
+  for (const auto& pimAndXphy : xphyMap_) {
+    for (const auto& idAndXphy : pimAndXphy.second) {
+      auto ioStat = idAndXphy.second->getIOStats();
+      auto statPrefix = folly::to<std::string>(
+          "qsfp.pim", pimAndXphy.first, ".xphy", idAndXphy.first);
+
+      auto statName = statPrefix + ".mdioReadTotal";
+      tcData().setCounter(statName, *ioStat.numReadAttempted());
+
+      statName = statPrefix + ".mdioReadFailed";
+      tcData().setCounter(statName, *ioStat.numReadFailed());
+
+      statName = statPrefix + ".mdioWriteTotal";
+      tcData().setCounter(statName, *ioStat.numWriteAttempted());
+
+      statName = statPrefix + ".mdioWriteFailed";
+      tcData().setCounter(statName, *ioStat.numWriteFailed());
+    }
+  }
 }
 } // namespace facebook::fboss

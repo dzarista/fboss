@@ -34,6 +34,11 @@ class HwTestLearningUpdateObserver
  private:
   void packetReceived(RxPacket* /*pkt*/) noexcept override {}
   void linkStateChanged(PortID /*port*/, bool /*up*/) override {}
+  void linkActiveStateChanged(
+      const std::map<PortID, bool>& /*port2IsActive */) override {}
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+      /*port2OldAndNewConnectivity*/) override {}
 
   void applyStateUpdateHelper(
       L2Entry l2Entry,

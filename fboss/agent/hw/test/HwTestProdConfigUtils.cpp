@@ -13,8 +13,8 @@
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestPfcUtils.h"
+
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
 
 namespace facebook::fboss::utility {
 
@@ -25,30 +25,29 @@ void addProdFeaturesToConfig(
   /*
    * Configures port queue for cpu port
    */
-  utility::addCpuQueueConfig(config, hwAsic, isSai);
+  utility::addCpuQueueConfig(config, {hwAsic}, isSai);
   if (hwAsic->isSupported(HwAsic::Feature::L3_QOS)) {
     /*
      * Enable Olympic QOS
      */
-    utility::addOlympicQosMaps(config, hwAsic);
+    utility::addOlympicQosMaps(config, {hwAsic});
 
     /*
      * Enable Olympic Queue Config
      */
-    auto streamType =
-        *(hwAsic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicQueueConfig(&config, streamType, hwAsic, true);
+    utility::addOlympicQueueConfig(&config, {hwAsic}, true);
   }
   /*
    * Configure COPP, CPU traffic policy and ACLs
    */
-  utility::setDefaultCpuTrafficPolicyConfig(config, hwAsic);
+  utility::setDefaultCpuTrafficPolicyConfig(
+      config, std::vector<const HwAsic*>({hwAsic}), isSai);
 
   /*
    * Enable Load balancer
    */
   if (hwAsic->isSupported(HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION)) {
-    config.loadBalancers()->push_back(utility::getEcmpFullHashConfig(*hwAsic));
+    config.loadBalancers()->push_back(utility::getEcmpFullHashConfig({hwAsic}));
   }
 }
 } // namespace facebook::fboss::utility

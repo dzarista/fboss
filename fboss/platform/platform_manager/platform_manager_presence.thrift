@@ -1,6 +1,7 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
 namespace cpp2 facebook.fboss.platform.platform_manager
+namespace py3 fboss.platform.platform_manager
 
 // `devicePath`: DevicePath of the device which will create the sysfs file
 // indicating the presence.
@@ -12,7 +13,7 @@ namespace cpp2 facebook.fboss.platform.platform_manager
 struct SysfsFileHandle {
   1: string devicePath;
   2: string presenceFileName;
-  3: string desiredValue;
+  3: i16 desiredValue;
 }
 
 // `devicePath`: DevicePath of the gpiochip which holds the presence
@@ -25,12 +26,13 @@ struct SysfsFileHandle {
 struct GpioLineHandle {
   1: string devicePath;
   2: i32 lineIndex;
+  // TODO: Figure out appropriate type for desiredValue
   3: string desiredValue;
 }
 
 // The presence detection can be based on GPIO registers or sysfs paths.  Only
 // one of them should be populated
 struct PresenceDetection {
-  1: optional GpioLineHandle gpioHandle;
-  2: optional SysfsFileHandle sysfsHandle;
+  1: optional GpioLineHandle gpioLineHandle;
+  2: optional SysfsFileHandle sysfsFileHandle;
 }

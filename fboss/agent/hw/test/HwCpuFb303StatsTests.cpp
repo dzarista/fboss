@@ -64,12 +64,21 @@ HwPortStats getInitedStats() {
       {{1, 0}, {2, 0}}, // queueWredDroppedPackets
       {{1, 0}, {2, 0}}, // queueEcnMarkedPackets
       0, // fecCorrectedBits_
+      {{0, 100}, {1, 10}, {2, 1}}, // fecCodewords
+      0, // pqpErrorEgressDroppedPackets_
+      0, // fabricLinkDownDroppedCells_
       0, // timestamp
       "test", // portName
       {}, // macsec stats,
       0, // inLabelMissDiscards_
       {}, // queueWatermarkLevel
-      0 // inCongestionDiscards
+      0, // inCongestionDiscards
+      0, // inAclDiscards
+      0, // inTrapDiscards
+      0, // outForwardingDiscards
+      0, // fabricConnectivityMismatch
+      1, // logicalPortId
+      2, // leakyBucketFlapCount_
   };
 }
 
@@ -92,6 +101,10 @@ void verifyUpdatedStats(const HwCpuFb303Stats& cpuStats) {
     for (const auto& queueIdAndName : kQueue2Name) {
       EXPECT_EQ(
           cpuStats.getCounterLastIncrement(HwCpuFb303Stats::statName(
+              counterName, queueIdAndName.first, queueIdAndName.second)),
+          curValue);
+      EXPECT_EQ(
+          cpuStats.getCumulativeValueIf(HwCpuFb303Stats::statName(
               counterName, queueIdAndName.first, queueIdAndName.second)),
           curValue);
     }

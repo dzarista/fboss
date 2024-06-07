@@ -41,7 +41,33 @@ class CmdShowRouteDetails
         utils::createClient<facebook::fboss::FbossCtrlAsyncClient>(hostInfo);
 
     client->sync_getRouteTableDetails(entries);
-    return createModel(entries, queriedRoutes);
+
+    // queriedRoutes can take 2 forms, ip address or network address
+    // Treat the address as IP only if no mask is provided. Lookup the
+    // network address for this IP and add it to a new list for output
+    std::vector<std::string> finalRoutes;
+    std::transform(
+        queriedRoutes.begin(),
+        queriedRoutes.end(),
+        std::back_inserter(finalRoutes),
+        [&client](std::string queryRoute) -> std::string {
+          if (queryRoute.find("/") == std::string::npos) {
+            facebook::fboss::RouteDetails route;
+            auto addr =
+                facebook::network::toAddress(folly::IPAddress(queryRoute));
+            client->sync_getIpRouteDetails(route, addr, 0);
+            if (route.get_nextHopMulti().size() > 0) {
+              auto ipStr = utils::getAddrStr(*route.dest()->ip());
+              auto ipPrefix =
+                  ipStr + "/" + std::to_string(*route.dest()->prefixLength());
+              return ipPrefix;
+            }
+          }
+          return queryRoute;
+        });
+
+    ObjectArgType finalQueriedRoutes(finalRoutes);
+    return createModel(entries, finalQueriedRoutes);
   }
 
   void printOutput(const RetType& model, std::ostream& out = std::cout) {
@@ -159,10 +185,10 @@ class CmdShowRouteDetails
   std::string getClassID(cfg::AclLookupClass classID) {
     int classId = static_cast<int>(classID);
     switch (classID) {
-      case cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP4:
-        return fmt::format("DST_CLASS_L3_LOCAL_IP4({})", classId);
-      case cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP6:
-        return fmt::format("DST_CLASS_L3_LOCAL_IP6({})", classId);
+      case cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1:
+        return fmt::format("DST_CLASS_L3_LOCAL_1({})", classId);
+      case cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2:
+        return fmt::format("DST_CLASS_L3_LOCAL_2({})", classId);
       case cfg::AclLookupClass::CLASS_DROP:
         return fmt::format("CLASS_DROP({})", classId);
       case cfg::AclLookupClass::CLASS_QUEUE_PER_HOST_QUEUE_0:
@@ -187,6 +213,10 @@ class CmdShowRouteDetails
         return fmt::format("CLASS_QUEUE_PER_HOST_QUEUE_9({})", classId);
       case cfg::AclLookupClass::DST_CLASS_L3_DPR:
         return fmt::format("DST_CLASS_L3_DPR({})", classId);
+      case cfg::AclLookupClass::DEPRECATED_CLASS_UNRESOLVED_ROUTE_TO_CPU:
+        return fmt::format("CLASS_UNRESOLVED_ROUTE_TO_CPU({})", classId);
+      case cfg::AclLookupClass::DEPRECATED_CLASS_CONNECTED_ROUTE_TO_INTF:
+        return fmt::format("CLASS_CONNECTED_ROUTE_TO_INTF({})", classId);
     }
     throw std::runtime_error(
         "Unsupported ClassID: " + std::to_string(static_cast<int>(classID)));

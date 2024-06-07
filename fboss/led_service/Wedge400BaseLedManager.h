@@ -31,14 +31,18 @@ class Wedge400BaseLedManager : public LedManager {
   Wedge400BaseLedManager& operator=(Wedge400BaseLedManager const&) = delete;
 
  protected:
-  virtual led::LedColor calculateLedColor(
+  virtual led::LedState calculateLedState(
       uint32_t portId,
       cfg::PortProfileID portProfile) const override;
 
-  virtual void setLedColor(
+  led::LedColor forcedOnColor() const override {
+    return led::LedColor::WHITE;
+  }
+
+  virtual void setLedState(
       uint32_t portId,
       cfg::PortProfileID portProfile,
-      led::LedColor ledColor) override;
+      led::LedState ledState) override;
 };
 
 } // namespace facebook::fboss

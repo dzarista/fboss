@@ -57,6 +57,20 @@ add_library(hw_resource_stats_publisher
   fboss/agent/hw/HwResourceStatsPublisher.cpp
 )
 
+add_library(prbs_stats_entry
+  fboss/agent/hw/common/PrbsStatsEntry.h
+)
+
+add_library(hw_stat_printers
+  fboss/agent/hw/HwStatPrinters.cpp
+)
+
+target_link_libraries(hw_stat_printers
+  FBThrift::thriftcpp2
+  hardware_stats_cpp2
+  Folly::folly
+)
+
 target_link_libraries(hw_switch_warmboot_helper
   async_logger
   utils
@@ -110,4 +124,8 @@ target_link_libraries(buffer_stats
 target_link_libraries(hw_resource_stats_publisher
   fb303::fb303
   hardware_stats_cpp2
+)
+
+target_link_libraries(prbs_stats_entry
+  ctrl_cpp2
 )

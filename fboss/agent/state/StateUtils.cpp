@@ -9,16 +9,14 @@
  */
 
 #include "fboss/agent/state/StateUtils.h"
-
-#include <folly/Format.h>
-
 #include "fboss/agent/FbossError.h"
+#include "fboss/agent/state/SwitchState.h"
 
 namespace {
 const std::string kTunIntfPrefix = "fboss";
 } // anonymous namespace
 
-namespace facebook::fboss::util {
+namespace facebook::fboss::utility {
 
 bool isTunIntfName(std::string const& ifName) {
   return ifName.find(kTunIntfPrefix) == 0;
@@ -36,4 +34,36 @@ InterfaceID getIDFromTunIntfName(std::string const& ifName) {
   return InterfaceID(atoi(ifName.substr(kTunIntfPrefix.size()).c_str()));
 }
 
-} // namespace facebook::fboss::util
+folly::MacAddress getInterfaceMac(
+    const std::shared_ptr<SwitchState>& state,
+    VlanID vlan) {
+  return state->getInterfaces()->getInterfaceInVlan(vlan)->getMac();
+}
+folly::MacAddress getInterfaceMac(
+    const std::shared_ptr<SwitchState>& state,
+    InterfaceID intf) {
+  return state->getInterfaces()->getNode(intf)->getMac();
+}
+
+folly::MacAddress getFirstInterfaceMac(
+    const std::shared_ptr<SwitchState>& state) {
+  const auto& intfMap = state->getInterfaces()->cbegin()->second;
+  const auto& intf = std::as_const(*intfMap->cbegin()).second;
+  return intf->getMac();
+}
+
+std::optional<VlanID> firstVlanID(const std::shared_ptr<SwitchState>& state) {
+  std::optional<VlanID> firstVlanId;
+  if (state->getVlans()->numNodes()) {
+    firstVlanId =
+        utility::getFirstMap(state->getVlans())->cbegin()->second->getID();
+  }
+  return firstVlanId;
+}
+
+InterfaceID firstInterfaceID(const std::shared_ptr<SwitchState>& state) {
+  const auto& intfMap = state->getInterfaces()->cbegin()->second;
+  const auto& intf = std::as_const(*intfMap->cbegin()).second;
+  return intf->getID();
+}
+} // namespace facebook::fboss::utility

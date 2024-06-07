@@ -90,8 +90,19 @@ class HwHashPolarizationTests : public HwLinkStateDependentTest {
       const cfg::LoadBalancer& firstHash,
       const cfg::LoadBalancer& secondHash,
       bool expectPolarization) {
-    std::vector<cfg::LoadBalancer> firstHashes = {firstHash};
-    std::vector<cfg::LoadBalancer> secondHashes = {secondHash};
+    std::vector<cfg::LoadBalancer> firstHashes;
+    std::vector<cfg::LoadBalancer> secondHashes;
+    if (getHwSwitchEnsemble()->isSai()) {
+      firstHashes = {
+          firstHash,
+          utility::getTrunkHalfHashConfig({getPlatform()->getAsic()})};
+      secondHashes = {
+          secondHash,
+          utility::getTrunkHalfHashConfig({getPlatform()->getAsic()})};
+    } else {
+      firstHashes = {firstHash};
+      secondHashes = {secondHash};
+    }
     runTest(firstHashes, secondHashes, expectPolarization);
   }
 
@@ -123,12 +134,16 @@ class HwHashPolarizationTests : public HwLinkStateDependentTest {
               ecmpPorts.begin(), ecmpPorts.begin() + kEcmpWidth / 2});
       // Set first hash
       applyNewState(utility::addLoadBalancers(
-          getPlatform(), getProgrammedState(), firstHashes, scopeResolver()));
+          getHwSwitchEnsemble(),
+          getProgrammedState(),
+          firstHashes,
+          scopeResolver()));
 
       for (auto isV6 : {true, false}) {
         utility::pumpTraffic(
             isV6,
-            getHwSwitch(),
+            utility::getAllocatePktFn(getHwSwitchEnsemble()),
+            utility::getSendPktFunc(getHwSwitchEnsemble()),
             mac,
             firstVlan,
             masterLogicalInterfacePortIds()[kEcmpWidth]);
@@ -153,7 +168,10 @@ class HwHashPolarizationTests : public HwLinkStateDependentTest {
 
     // Set second hash
     applyNewState(utility::addLoadBalancers(
-        getPlatform(), getProgrammedState(), secondHashes, scopeResolver()));
+        getHwSwitchEnsemble(),
+        getProgrammedState(),
+        secondHashes,
+        scopeResolver()));
     auto makeTxPacket = [=, this](
                             folly::MacAddress srcMac, const auto& ipPayload) {
       return utility::makeUDPTxPacket(
@@ -163,8 +181,8 @@ class HwHashPolarizationTests : public HwLinkStateDependentTest {
           mac,
           ipPayload.header().srcAddr,
           ipPayload.header().dstAddr,
-          ipPayload.payload()->header().srcPort,
-          ipPayload.payload()->header().dstPort);
+          ipPayload.udpPayload()->header().srcPort,
+          ipPayload.udpPayload()->header().dstPort);
     };
     for (auto& ethFrame : rxPackets) {
       std::unique_ptr<TxPacket> pkt;
@@ -195,20 +213,20 @@ class HwHashPolarizationTests : public HwLinkStateDependentTest {
 };
 
 TEST_F(HwHashPolarizationTests, fullXfullHash) {
-  auto fullHashCfg = utility::getEcmpFullHashConfig(*getPlatform()->getAsic());
+  auto fullHashCfg = utility::getEcmpFullHashConfig({getPlatform()->getAsic()});
   runTest(fullHashCfg, fullHashCfg, true /*expect polarization*/);
 }
 
 TEST_F(HwHashPolarizationTests, fullXHalfHash) {
   auto firstHashes =
-      utility::getEcmpFullTrunkHalfHashConfig(*getPlatform()->getAsic());
+      utility::getEcmpFullTrunkHalfHashConfig({getPlatform()->getAsic()});
   firstHashes[0].seed() = getHwSwitch()->generateDeterministicSeed(
       LoadBalancerID::ECMP, kMacAddress01);
   firstHashes[1].seed() = getHwSwitch()->generateDeterministicSeed(
       LoadBalancerID::AGGREGATE_PORT, kMacAddress01);
 
   auto secondHashes =
-      utility::getEcmpFullTrunkHalfHashConfig(*getPlatform()->getAsic());
+      utility::getEcmpFullTrunkHalfHashConfig({getPlatform()->getAsic()});
   secondHashes[0].seed() = getHwSwitch()->generateDeterministicSeed(
       LoadBalancerID::ECMP, kMacAddress02);
   secondHashes[1].seed() = getHwSwitch()->generateDeterministicSeed(
@@ -220,13 +238,13 @@ TEST_F(HwHashPolarizationTests, fullXHalfHash) {
 TEST_F(HwHashPolarizationTests, fullXfullHashWithDifferentSeeds) {
   // Setup 2 identical hashes with only the seed changed
   auto firstHashes =
-      utility::getEcmpFullTrunkHalfHashConfig(*getPlatform()->getAsic());
+      utility::getEcmpFullTrunkHalfHashConfig({getPlatform()->getAsic()});
   firstHashes[0].seed() = getHwSwitch()->generateDeterministicSeed(
       LoadBalancerID::ECMP, kMacAddress01);
   firstHashes[1].seed() = getHwSwitch()->generateDeterministicSeed(
       LoadBalancerID::AGGREGATE_PORT, kMacAddress01);
   auto secondHashes =
-      utility::getEcmpFullTrunkHalfHashConfig(*getPlatform()->getAsic());
+      utility::getEcmpFullTrunkHalfHashConfig({getPlatform()->getAsic()});
   secondHashes[0].seed() = getHwSwitch()->generateDeterministicSeed(
       LoadBalancerID::ECMP, kMacAddress02);
   secondHashes[1].seed() = getHwSwitch()->generateDeterministicSeed(
@@ -255,7 +273,7 @@ struct HwHashPolarizationTestForAsic : public HwHashPolarizationTests {
     };
     auto verify = [=, this]() {
       auto secondHashes =
-          utility::getEcmpFullTrunkHalfHashConfig(*getPlatform()->getAsic());
+          utility::getEcmpFullTrunkHalfHashConfig({getPlatform()->getAsic()});
       secondHashes[0].seed() = getHwSwitch()->generateDeterministicSeed(
           LoadBalancerID::ECMP, kMacAddress02);
       secondHashes[1].seed() = getHwSwitch()->generateDeterministicSeed(
@@ -493,13 +511,22 @@ class HwHashTrunkPolarizationTests : public HwHashPolarizationTests {
           getHwSwitch(), std::set<PortID>{ports.begin(), ports.end()});
       // Set first hash
       applyNewState(utility::addLoadBalancers(
-          getPlatform(), getProgrammedState(), hashes, scopeResolver()));
+          getHwSwitchEnsemble(),
+          getProgrammedState(),
+          hashes,
+          scopeResolver()));
 
       auto logicalPorts = masterLogicalPortIds();
       auto portIter = logicalPorts.end() - 1;
 
       for (auto isV6 : {true, false}) {
-        utility::pumpTraffic(isV6, getHwSwitch(), mac, firstVlan, *portIter);
+        utility::pumpTraffic(
+            isV6,
+            utility::getAllocatePktFn(getHwSwitchEnsemble()),
+            utility::getSendPktFunc(getHwSwitchEnsemble()),
+            mac,
+            firstVlan,
+            *portIter);
       }
     } // stop capture
 
@@ -521,7 +548,10 @@ class HwHashTrunkPolarizationTests : public HwHashPolarizationTests {
 
     // Set second hash
     applyNewState(utility::addLoadBalancers(
-        getPlatform(), getProgrammedState(), secondHashes, scopeResolver()));
+        getHwSwitchEnsemble(),
+        getProgrammedState(),
+        secondHashes,
+        scopeResolver()));
     auto makeTxPacket = [=, this](
                             folly::MacAddress srcMac, const auto& ipPayload) {
       return utility::makeUDPTxPacket(
@@ -531,8 +561,8 @@ class HwHashTrunkPolarizationTests : public HwHashPolarizationTests {
           mac,
           ipPayload.header().srcAddr,
           ipPayload.header().dstAddr,
-          ipPayload.payload()->header().srcPort,
-          ipPayload.payload()->header().dstPort);
+          ipPayload.udpPayload()->header().srcPort,
+          ipPayload.udpPayload()->header().dstPort);
     };
 
     auto logicalPorts = masterLogicalPortIds();
@@ -565,14 +595,14 @@ class HwHashTrunkPolarizationTests : public HwHashPolarizationTests {
  public:
   void runFullHalfxFullHalfTest() {
     auto firstHashes =
-        utility::getEcmpFullTrunkHalfHashConfig(*getPlatform()->getAsic());
+        utility::getEcmpFullTrunkHalfHashConfig({getPlatform()->getAsic()});
     firstHashes[0].seed() = getHwSwitch()->generateDeterministicSeed(
         LoadBalancerID::ECMP, kMacAddress01);
     firstHashes[1].seed() = getHwSwitch()->generateDeterministicSeed(
         LoadBalancerID::AGGREGATE_PORT, kMacAddress01);
 
     auto secondHashes =
-        utility::getEcmpFullTrunkHalfHashConfig(*getPlatform()->getAsic());
+        utility::getEcmpFullTrunkHalfHashConfig({getPlatform()->getAsic()});
     secondHashes[0].seed() = getHwSwitch()->generateDeterministicSeed(
         LoadBalancerID::ECMP, kMacAddress02);
     secondHashes[1].seed() = getHwSwitch()->generateDeterministicSeed(

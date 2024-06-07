@@ -24,13 +24,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_1/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_1/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -59,13 +59,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_2/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_2/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -94,13 +94,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_3/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_3/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -129,13 +129,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_4/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_4/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -164,13 +164,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_5/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_5/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -199,13 +199,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_6/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_6/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -234,13 +234,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_7/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_7/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -269,13 +269,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_8/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_8/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -304,13 +304,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_9/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_9/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -339,13 +339,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_10/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_10/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -374,13 +374,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_11/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_11/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -409,13 +409,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_12/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_12/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -444,13 +444,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_13/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_13/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -479,13 +479,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_14/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_14/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -514,13 +514,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_15/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_15/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -549,13 +549,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_16/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_16/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -584,13 +584,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_17/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_17/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -619,13 +619,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_18/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_18/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -654,13 +654,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_19/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_19/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -689,13 +689,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_20/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_20/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -724,13 +724,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_21/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_21/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -759,13 +759,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_22/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_22/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -794,13 +794,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_23/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_23/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -829,13 +829,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_24/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_24/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -864,13 +864,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_25/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_25/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -899,13 +899,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_26/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_26/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -934,13 +934,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_27/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_27/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -969,13 +969,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_28/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_28/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1004,13 +1004,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_29/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_29/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1039,13 +1039,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_30/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_30/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1074,13 +1074,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_31/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_31/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1109,13 +1109,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_32/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_32/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1144,13 +1144,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_33/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_33/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1179,13 +1179,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_34/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_34/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1214,13 +1214,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_35/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_35/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1249,13 +1249,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_36/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_36/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1284,13 +1284,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_37/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_37/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1319,13 +1319,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_38/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_38/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1354,13 +1354,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_39/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_39/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1389,13 +1389,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_40/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_40/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1424,13 +1424,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_41/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_41/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1459,13 +1459,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_42/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_42/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1494,13 +1494,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_43/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_43/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1529,13 +1529,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_44/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_44/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1564,13 +1564,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_45/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_45/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1599,13 +1599,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_46/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_46/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1634,13 +1634,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_47/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_47/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1669,13 +1669,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_48/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_48/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1704,13 +1704,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_49/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_49/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1739,13 +1739,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_50/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_50/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1774,13 +1774,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_51/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_51/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1809,13 +1809,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_52/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_52/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1844,13 +1844,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_53/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_53/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1879,13 +1879,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_54/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_54/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1914,13 +1914,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_55/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_55/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1949,13 +1949,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_56/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_56/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -1984,13 +1984,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_57/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_57/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -2019,13 +2019,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_58/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_58/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -2054,13 +2054,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_59/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_59/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -2089,13 +2089,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_60/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_60/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -2124,13 +2124,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_61/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_61/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -2159,13 +2159,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_62/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_62/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -2194,13 +2194,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_63/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_63/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -2229,13 +2229,13 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_64/xcvr_reset",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "resetHoldHi": 1
+                  "resetHoldHi": 0
                 },
                 "presence": {
                   "sysfsPath": "/run/devmap/xcvrs/xcvr_64/xcvr_present",
                   "mask": 1,
                   "gpioOffset": 0,
-                  "presentHoldHi": 1
+                  "presentHoldHi": 0
                 },
                 "gpioChip": ""
               },
@@ -2265,770 +2265,770 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
         "ledMapping": {
           "1": {
               "id": 1,
-              "bluePath": "/sys/class/leds/port1_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port1_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port1_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port1_led1:yellow:status",
               "transceiverId": 1
           },
           "2": {
               "id": 2,
-              "bluePath": "/sys/class/leds/port1_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port1_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port1_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port1_led2:yellow:status",
               "transceiverId": 1
           },
           "3": {
               "id": 3,
-              "bluePath": "/sys/class/leds/port2_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port2_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port2_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port2_led1:yellow:status",
               "transceiverId": 2
           },
           "4": {
               "id": 4,
-              "bluePath": "/sys/class/leds/port2_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port2_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port2_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port2_led2:yellow:status",
               "transceiverId": 2
           },
           "5": {
               "id": 5,
-              "bluePath": "/sys/class/leds/port3_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port3_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port3_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port3_led1:yellow:status",
               "transceiverId": 3
           },
           "6": {
               "id": 6,
-              "bluePath": "/sys/class/leds/port3_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port3_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port3_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port3_led2:yellow:status",
               "transceiverId": 3
           },
           "7": {
               "id": 7,
-              "bluePath": "/sys/class/leds/port4_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port4_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port4_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port4_led1:yellow:status",
               "transceiverId": 4
           },
           "8": {
               "id": 8,
-              "bluePath": "/sys/class/leds/port4_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port4_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port4_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port4_led2:yellow:status",
               "transceiverId": 4
           },
           "9": {
               "id": 9,
-              "bluePath": "/sys/class/leds/port5_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port5_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port5_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port5_led1:yellow:status",
               "transceiverId": 5
           },
           "10": {
               "id": 10,
-              "bluePath": "/sys/class/leds/port5_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port5_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port5_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port5_led2:yellow:status",
               "transceiverId": 5
           },
           "11": {
               "id": 11,
-              "bluePath": "/sys/class/leds/port6_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port6_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port6_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port6_led1:yellow:status",
               "transceiverId": 6
           },
           "12": {
               "id": 12,
-              "bluePath": "/sys/class/leds/port6_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port6_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port6_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port6_led2:yellow:status",
               "transceiverId": 6
           },
           "13": {
               "id": 13,
-              "bluePath": "/sys/class/leds/port7_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port7_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port7_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port7_led1:yellow:status",
               "transceiverId": 7
           },
           "14": {
               "id": 14,
-              "bluePath": "/sys/class/leds/port7_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port7_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port7_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port7_led2:yellow:status",
               "transceiverId": 7
           },
           "15": {
               "id": 15,
-              "bluePath": "/sys/class/leds/port8_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port8_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port8_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port8_led1:yellow:status",
               "transceiverId": 8
           },
           "16": {
               "id": 16,
-              "bluePath": "/sys/class/leds/port8_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port8_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port8_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port8_led2:yellow:status",
               "transceiverId": 8
           },
           "17": {
               "id": 17,
-              "bluePath": "/sys/class/leds/port9_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port9_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port9_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port9_led1:yellow:status",
               "transceiverId": 9
           },
           "18": {
               "id": 18,
-              "bluePath": "/sys/class/leds/port9_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port9_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port9_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port9_led2:yellow:status",
               "transceiverId": 9
           },
           "19": {
               "id": 19,
-              "bluePath": "/sys/class/leds/port10_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port10_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port10_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port10_led1:yellow:status",
               "transceiverId": 10
           },
           "20": {
               "id": 20,
-              "bluePath": "/sys/class/leds/port10_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port10_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port10_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port10_led2:yellow:status",
               "transceiverId": 10
           },
           "21": {
               "id": 21,
-              "bluePath": "/sys/class/leds/port11_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port11_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port11_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port11_led1:yellow:status",
               "transceiverId": 11
           },
           "22": {
               "id": 22,
-              "bluePath": "/sys/class/leds/port11_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port11_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port11_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port11_led2:yellow:status",
               "transceiverId": 11
           },
           "23": {
               "id": 23,
-              "bluePath": "/sys/class/leds/port12_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port12_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port12_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port12_led1:yellow:status",
               "transceiverId": 12
           },
           "24": {
               "id": 24,
-              "bluePath": "/sys/class/leds/port12_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port12_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port12_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port12_led2:yellow:status",
               "transceiverId": 12
           },
           "25": {
               "id": 25,
-              "bluePath": "/sys/class/leds/port13_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port13_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port13_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port13_led1:yellow:status",
               "transceiverId": 13
           },
           "26": {
               "id": 26,
-              "bluePath": "/sys/class/leds/port13_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port13_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port13_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port13_led2:yellow:status",
               "transceiverId": 13
           },
           "27": {
               "id": 27,
-              "bluePath": "/sys/class/leds/port14_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port14_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port14_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port14_led1:yellow:status",
               "transceiverId": 14
           },
           "28": {
               "id": 28,
-              "bluePath": "/sys/class/leds/port14_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port14_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port14_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port14_led2:yellow:status",
               "transceiverId": 14
           },
           "29": {
               "id": 29,
-              "bluePath": "/sys/class/leds/port15_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port15_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port15_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port15_led1:yellow:status",
               "transceiverId": 15
           },
           "30": {
               "id": 30,
-              "bluePath": "/sys/class/leds/port15_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port15_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port15_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port15_led2:yellow:status",
               "transceiverId": 15
           },
           "31": {
               "id": 31,
-              "bluePath": "/sys/class/leds/port16_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port16_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port16_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port16_led1:yellow:status",
               "transceiverId": 16
           },
           "32": {
               "id": 32,
-              "bluePath": "/sys/class/leds/port16_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port16_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port16_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port16_led2:yellow:status",
               "transceiverId": 16
           },
           "33": {
               "id": 33,
-              "bluePath": "/sys/class/leds/port17_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port17_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port17_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port17_led1:yellow:status",
               "transceiverId": 17
           },
           "34": {
               "id": 34,
-              "bluePath": "/sys/class/leds/port17_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port17_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port17_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port17_led2:yellow:status",
               "transceiverId": 17
           },
           "35": {
               "id": 35,
-              "bluePath": "/sys/class/leds/port18_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port18_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port18_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port18_led1:yellow:status",
               "transceiverId": 18
           },
           "36": {
               "id": 36,
-              "bluePath": "/sys/class/leds/port18_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port18_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port18_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port18_led2:yellow:status",
               "transceiverId": 18
           },
           "37": {
               "id": 37,
-              "bluePath": "/sys/class/leds/port19_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port19_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port19_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port19_led1:yellow:status",
               "transceiverId": 19
           },
           "38": {
               "id": 38,
-              "bluePath": "/sys/class/leds/port19_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port19_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port19_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port19_led2:yellow:status",
               "transceiverId": 19
           },
           "39": {
               "id": 39,
-              "bluePath": "/sys/class/leds/port20_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port20_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port20_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port20_led1:yellow:status",
               "transceiverId": 20
           },
           "40": {
               "id": 40,
-              "bluePath": "/sys/class/leds/port20_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port20_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port20_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port20_led2:yellow:status",
               "transceiverId": 20
           },
           "41": {
               "id": 41,
-              "bluePath": "/sys/class/leds/port21_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port21_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port21_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port21_led1:yellow:status",
               "transceiverId": 21
           },
           "42": {
               "id": 42,
-              "bluePath": "/sys/class/leds/port21_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port21_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port21_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port21_led2:yellow:status",
               "transceiverId": 21
           },
           "43": {
               "id": 43,
-              "bluePath": "/sys/class/leds/port22_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port22_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port22_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port22_led1:yellow:status",
               "transceiverId": 22
           },
           "44": {
               "id": 44,
-              "bluePath": "/sys/class/leds/port22_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port22_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port22_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port22_led2:yellow:status",
               "transceiverId": 22
           },
           "45": {
               "id": 45,
-              "bluePath": "/sys/class/leds/port23_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port23_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port23_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port23_led1:yellow:status",
               "transceiverId": 23
           },
           "46": {
               "id": 46,
-              "bluePath": "/sys/class/leds/port23_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port23_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port23_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port23_led2:yellow:status",
               "transceiverId": 23
           },
           "47": {
               "id": 47,
-              "bluePath": "/sys/class/leds/port24_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port24_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port24_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port24_led1:yellow:status",
               "transceiverId": 24
           },
           "48": {
               "id": 48,
-              "bluePath": "/sys/class/leds/port24_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port24_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port24_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port24_led2:yellow:status",
               "transceiverId": 24
           },
           "49": {
               "id": 49,
-              "bluePath": "/sys/class/leds/port25_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port25_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port25_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port25_led1:yellow:status",
               "transceiverId": 25
           },
           "50": {
               "id": 50,
-              "bluePath": "/sys/class/leds/port25_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port25_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port25_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port25_led2:yellow:status",
               "transceiverId": 25
           },
           "51": {
               "id": 51,
-              "bluePath": "/sys/class/leds/port26_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port26_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port26_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port26_led1:yellow:status",
               "transceiverId": 26
           },
           "52": {
               "id": 52,
-              "bluePath": "/sys/class/leds/port26_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port26_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port26_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port26_led2:yellow:status",
               "transceiverId": 26
           },
           "53": {
               "id": 53,
-              "bluePath": "/sys/class/leds/port27_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port27_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port27_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port27_led1:yellow:status",
               "transceiverId": 27
           },
           "54": {
               "id": 54,
-              "bluePath": "/sys/class/leds/port27_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port27_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port27_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port27_led2:yellow:status",
               "transceiverId": 27
           },
           "55": {
               "id": 55,
-              "bluePath": "/sys/class/leds/port28_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port28_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port28_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port28_led1:yellow:status",
               "transceiverId": 28
           },
           "56": {
               "id": 56,
-              "bluePath": "/sys/class/leds/port28_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port28_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port28_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port28_led2:yellow:status",
               "transceiverId": 28
           },
           "57": {
               "id": 57,
-              "bluePath": "/sys/class/leds/port29_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port29_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port29_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port29_led1:yellow:status",
               "transceiverId": 29
           },
           "58": {
               "id": 58,
-              "bluePath": "/sys/class/leds/port29_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port29_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port29_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port29_led2:yellow:status",
               "transceiverId": 29
           },
           "59": {
               "id": 59,
-              "bluePath": "/sys/class/leds/port30_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port30_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port30_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port30_led1:yellow:status",
               "transceiverId": 30
           },
           "60": {
               "id": 60,
-              "bluePath": "/sys/class/leds/port30_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port30_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port30_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port30_led2:yellow:status",
               "transceiverId": 30
           },
           "61": {
               "id": 61,
-              "bluePath": "/sys/class/leds/port31_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port31_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port31_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port31_led1:yellow:status",
               "transceiverId": 31
           },
           "62": {
               "id": 62,
-              "bluePath": "/sys/class/leds/port31_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port31_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port31_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port31_led2:yellow:status",
               "transceiverId": 31
           },
           "63": {
               "id": 63,
-              "bluePath": "/sys/class/leds/port32_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port32_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port32_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port32_led1:yellow:status",
               "transceiverId": 32
           },
           "64": {
               "id": 64,
-              "bluePath": "/sys/class/leds/port32_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port32_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port32_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port32_led2:yellow:status",
               "transceiverId": 32
           },
           "65": {
               "id": 65,
-              "bluePath": "/sys/class/leds/port33_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port33_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port33_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port33_led1:yellow:status",
               "transceiverId": 33
           },
           "66": {
               "id": 66,
-              "bluePath": "/sys/class/leds/port33_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port33_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port33_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port33_led2:yellow:status",
               "transceiverId": 33
           },
           "67": {
               "id": 67,
-              "bluePath": "/sys/class/leds/port34_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port34_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port34_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port34_led1:yellow:status",
               "transceiverId": 34
           },
           "68": {
               "id": 68,
-              "bluePath": "/sys/class/leds/port34_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port34_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port34_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port34_led2:yellow:status",
               "transceiverId": 34
           },
           "69": {
               "id": 69,
-              "bluePath": "/sys/class/leds/port35_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port35_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port35_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port35_led1:yellow:status",
               "transceiverId": 35
           },
           "70": {
               "id": 70,
-              "bluePath": "/sys/class/leds/port35_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port35_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port35_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port35_led2:yellow:status",
               "transceiverId": 35
           },
           "71": {
               "id": 71,
-              "bluePath": "/sys/class/leds/port36_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port36_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port36_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port36_led1:yellow:status",
               "transceiverId": 36
           },
           "72": {
               "id": 72,
-              "bluePath": "/sys/class/leds/port36_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port36_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port36_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port36_led2:yellow:status",
               "transceiverId": 36
           },
           "73": {
               "id": 73,
-              "bluePath": "/sys/class/leds/port37_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port37_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port37_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port37_led1:yellow:status",
               "transceiverId": 37
           },
           "74": {
               "id": 74,
-              "bluePath": "/sys/class/leds/port37_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port37_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port37_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port37_led2:yellow:status",
               "transceiverId": 37
           },
           "75": {
               "id": 75,
-              "bluePath": "/sys/class/leds/port38_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port38_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port38_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port38_led1:yellow:status",
               "transceiverId": 38
           },
           "76": {
               "id": 76,
-              "bluePath": "/sys/class/leds/port38_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port38_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port38_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port38_led2:yellow:status",
               "transceiverId": 38
           },
           "77": {
               "id": 77,
-              "bluePath": "/sys/class/leds/port39_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port39_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port39_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port39_led1:yellow:status",
               "transceiverId": 39
           },
           "78": {
               "id": 78,
-              "bluePath": "/sys/class/leds/port39_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port39_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port39_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port39_led2:yellow:status",
               "transceiverId": 39
           },
           "79": {
               "id": 79,
-              "bluePath": "/sys/class/leds/port40_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port40_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port40_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port40_led1:yellow:status",
               "transceiverId": 40
           },
           "80": {
               "id": 80,
-              "bluePath": "/sys/class/leds/port40_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port40_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port40_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port40_led2:yellow:status",
               "transceiverId": 40
           },
           "81": {
               "id": 81,
-              "bluePath": "/sys/class/leds/port41_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port41_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port41_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port41_led1:yellow:status",
               "transceiverId": 41
           },
           "82": {
               "id": 82,
-              "bluePath": "/sys/class/leds/port41_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port41_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port41_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port41_led2:yellow:status",
               "transceiverId": 41
           },
           "83": {
               "id": 83,
-              "bluePath": "/sys/class/leds/port42_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port42_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port42_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port42_led1:yellow:status",
               "transceiverId": 42
           },
           "84": {
               "id": 84,
-              "bluePath": "/sys/class/leds/port42_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port42_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port42_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port42_led2:yellow:status",
               "transceiverId": 42
           },
           "85": {
               "id": 85,
-              "bluePath": "/sys/class/leds/port43_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port43_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port43_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port43_led1:yellow:status",
               "transceiverId": 43
           },
           "86": {
               "id": 86,
-              "bluePath": "/sys/class/leds/port43_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port43_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port43_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port43_led2:yellow:status",
               "transceiverId": 43
           },
           "87": {
               "id": 87,
-              "bluePath": "/sys/class/leds/port44_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port44_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port44_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port44_led1:yellow:status",
               "transceiverId": 44
           },
           "88": {
               "id": 88,
-              "bluePath": "/sys/class/leds/port44_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port44_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port44_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port44_led2:yellow:status",
               "transceiverId": 44
           },
           "89": {
               "id": 89,
-              "bluePath": "/sys/class/leds/port45_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port45_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port45_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port45_led1:yellow:status",
               "transceiverId": 45
           },
           "90": {
               "id": 90,
-              "bluePath": "/sys/class/leds/port45_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port45_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port45_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port45_led2:yellow:status",
               "transceiverId": 45
           },
           "91": {
               "id": 91,
-              "bluePath": "/sys/class/leds/port46_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port46_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port46_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port46_led1:yellow:status",
               "transceiverId": 46
           },
           "92": {
               "id": 92,
-              "bluePath": "/sys/class/leds/port46_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port46_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port46_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port46_led2:yellow:status",
               "transceiverId": 46
           },
           "93": {
               "id": 93,
-              "bluePath": "/sys/class/leds/port47_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port47_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port47_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port47_led1:yellow:status",
               "transceiverId": 47
           },
           "94": {
               "id": 94,
-              "bluePath": "/sys/class/leds/port47_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port47_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port47_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port47_led2:yellow:status",
               "transceiverId": 47
           },
           "95": {
               "id": 95,
-              "bluePath": "/sys/class/leds/port48_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port48_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port48_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port48_led1:yellow:status",
               "transceiverId": 48
           },
           "96": {
               "id": 96,
-              "bluePath": "/sys/class/leds/port48_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port48_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port48_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port48_led2:yellow:status",
               "transceiverId": 48
           },
           "97": {
               "id": 97,
-              "bluePath": "/sys/class/leds/port49_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port49_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port49_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port49_led1:yellow:status",
               "transceiverId": 49
           },
           "98": {
               "id": 98,
-              "bluePath": "/sys/class/leds/port49_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port49_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port49_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port49_led2:yellow:status",
               "transceiverId": 49
           },
           "99": {
               "id": 99,
-              "bluePath": "/sys/class/leds/port50_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port50_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port50_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port50_led1:yellow:status",
               "transceiverId": 50
           },
           "100": {
               "id": 100,
-              "bluePath": "/sys/class/leds/port50_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port50_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port50_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port50_led2:yellow:status",
               "transceiverId": 50
           },
           "101": {
               "id": 101,
-              "bluePath": "/sys/class/leds/port51_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port51_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port51_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port51_led1:yellow:status",
               "transceiverId": 51
           },
           "102": {
               "id": 102,
-              "bluePath": "/sys/class/leds/port51_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port51_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port51_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port51_led2:yellow:status",
               "transceiverId": 51
           },
           "103": {
               "id": 103,
-              "bluePath": "/sys/class/leds/port52_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port52_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port52_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port52_led1:yellow:status",
               "transceiverId": 52
           },
           "104": {
               "id": 104,
-              "bluePath": "/sys/class/leds/port52_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port52_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port52_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port52_led2:yellow:status",
               "transceiverId": 52
           },
           "105": {
               "id": 105,
-              "bluePath": "/sys/class/leds/port53_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port53_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port53_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port53_led1:yellow:status",
               "transceiverId": 53
           },
           "106": {
               "id": 106,
-              "bluePath": "/sys/class/leds/port53_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port53_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port53_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port53_led2:yellow:status",
               "transceiverId": 53
           },
           "107": {
               "id": 107,
-              "bluePath": "/sys/class/leds/port54_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port54_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port54_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port54_led1:yellow:status",
               "transceiverId": 54
           },
           "108": {
               "id": 108,
-              "bluePath": "/sys/class/leds/port54_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port54_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port54_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port54_led2:yellow:status",
               "transceiverId": 54
           },
           "109": {
               "id": 109,
-              "bluePath": "/sys/class/leds/port55_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port55_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port55_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port55_led1:yellow:status",
               "transceiverId": 55
           },
           "110": {
               "id": 110,
-              "bluePath": "/sys/class/leds/port55_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port55_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port55_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port55_led2:yellow:status",
               "transceiverId": 55
           },
           "111": {
               "id": 111,
-              "bluePath": "/sys/class/leds/port56_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port56_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port56_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port56_led1:yellow:status",
               "transceiverId": 56
           },
           "112": {
               "id": 112,
-              "bluePath": "/sys/class/leds/port56_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port56_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port56_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port56_led2:yellow:status",
               "transceiverId": 56
           },
           "113": {
               "id": 113,
-              "bluePath": "/sys/class/leds/port57_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port57_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port57_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port57_led1:yellow:status",
               "transceiverId": 57
           },
           "114": {
               "id": 114,
-              "bluePath": "/sys/class/leds/port57_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port57_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port57_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port57_led2:yellow:status",
               "transceiverId": 57
           },
           "115": {
               "id": 115,
-              "bluePath": "/sys/class/leds/port58_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port58_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port58_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port58_led1:yellow:status",
               "transceiverId": 58
           },
           "116": {
               "id": 116,
-              "bluePath": "/sys/class/leds/port58_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port58_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port58_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port58_led2:yellow:status",
               "transceiverId": 58
           },
           "117": {
               "id": 117,
-              "bluePath": "/sys/class/leds/port59_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port59_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port59_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port59_led1:yellow:status",
               "transceiverId": 59
           },
           "118": {
               "id": 118,
-              "bluePath": "/sys/class/leds/port59_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port59_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port59_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port59_led2:yellow:status",
               "transceiverId": 59
           },
           "119": {
               "id": 119,
-              "bluePath": "/sys/class/leds/port60_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port60_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port60_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port60_led1:yellow:status",
               "transceiverId": 60
           },
           "120": {
               "id": 120,
-              "bluePath": "/sys/class/leds/port60_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port60_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port60_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port60_led2:yellow:status",
               "transceiverId": 60
           },
           "121": {
               "id": 121,
-              "bluePath": "/sys/class/leds/port61_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port61_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port61_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port61_led1:yellow:status",
               "transceiverId": 61
           },
           "122": {
               "id": 122,
-              "bluePath": "/sys/class/leds/port61_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port61_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port61_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port61_led2:yellow:status",
               "transceiverId": 61
           },
           "123": {
               "id": 123,
-              "bluePath": "/sys/class/leds/port62_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port62_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port62_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port62_led1:yellow:status",
               "transceiverId": 62
           },
           "124": {
               "id": 124,
-              "bluePath": "/sys/class/leds/port62_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port62_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port62_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port62_led2:yellow:status",
               "transceiverId": 62
           },
           "125": {
               "id": 125,
-              "bluePath": "/sys/class/leds/port63_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port63_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port63_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port63_led1:yellow:status",
               "transceiverId": 63
           },
           "126": {
               "id": 126,
-              "bluePath": "/sys/class/leds/port63_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port63_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port63_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port63_led2:yellow:status",
               "transceiverId": 63
           },
           "127": {
               "id": 127,
-              "bluePath": "/sys/class/leds/port64_led1:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port64_led1:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port64_led1:blue:status",
+              "yellowPath": "/sys/class/leds/port64_led1:yellow:status",
               "transceiverId": 64
           },
           "128": {
               "id": 128,
-              "bluePath": "/sys/class/leds/port64_led2:blue:status/brightness",
-              "yellowPath": "/sys/class/leds/port64_led2:yellow:status/brightness",
+              "bluePath": "/sys/class/leds/port64_led2:blue:status",
+              "yellowPath": "/sys/class/leds/port64_led2:yellow:status",
               "transceiverId": 64
           }
         }

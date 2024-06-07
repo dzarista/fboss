@@ -55,11 +55,13 @@ class ThriftServerTest : public ::testing::Test {
  public:
   void SetUp() override {
     cfg::AgentConfig agentConfig;
-    agentConfig.defaultCommandLineArgs()->insert({"multi_switch", "true"});
+    FLAGS_multi_switch = true;
     agentConfig.sw() = testConfigA();
+    agentConfig.sw()->switchSettings()->switchIdToSwitchInfo() = {
+        {0, createSwitchInfo(cfg::SwitchType::NPU)},
+        {1, createSwitchInfo(cfg::SwitchType::NPU)}};
     handle_ = createTestHandle(&agentConfig.sw().value());
     sw_ = handle_->getSw();
-    sw_->initialConfigApplied(std::chrono::steady_clock::now());
     sw_->setConfig(std::make_unique<AgentConfig>(std::move(agentConfig)));
   }
 
@@ -187,6 +189,35 @@ TEST_F(ThriftServerTest, setPortStateBlocking) {
   EXPECT_FALSE(port->isEnabled());
 }
 
+TEST_F(ThriftServerTest, setPortDownOnSwitchExit) {
+  // setup server and clients
+  setupServerAndClients();
+
+  // Mark two switches as connected so that SwSwitch won't abort while
+  // shutting one of the switches
+  sw_->getHwSwitchHandler()->connected(SwitchID(0));
+  sw_->getHwSwitchHandler()->connected(SwitchID(1));
+
+  const PortID port5{5};
+  folly::coro::blockingWait(fbossCtlClient_->co_setPortState(port5, true));
+
+  // Bring the port up
+  sw_->linkStateChanged(port5, true);
+  WITH_RETRIES({
+    auto port = sw_->getState()->getPorts()->getNodeIf(port5);
+    EXPECT_EVENTUALLY_TRUE(port->isUp());
+  });
+
+  // Disconnect the first switch
+  sw_->getHwSwitchHandler()->notifyHwSwitchDisconnected(
+      SwitchID(0), false /*gracefulExit*/);
+
+  WITH_RETRIES({
+    auto port = sw_->getState()->getPorts()->getNodeIf(port5);
+    EXPECT_EVENTUALLY_FALSE(port->isUp());
+  });
+}
+
 CO_TEST_F(ThriftServerTest, packetStreamAndSink) {
   // setup server and clients
   setupServerWithMockAndClients();
@@ -228,7 +259,7 @@ CO_TEST_F(ThriftServerTest, setPortStateSink) {
   setupServerAndClients();
 
   const PortID port5{5};
-  auto result = co_await multiSwitchClient_->co_notifyLinkEvent(100);
+  auto result = co_await multiSwitchClient_->co_notifyLinkChangeEvent(0);
   auto verifyOperState = [this](const PortID& portId, bool up) {
     WITH_RETRIES({
       auto port = this->sw_->getState()->getPorts()->getNodeIf(portId);
@@ -239,29 +270,91 @@ CO_TEST_F(ThriftServerTest, setPortStateSink) {
       }
     });
   };
-  auto ret = co_await result.sink(
-      [&]() -> folly::coro::AsyncGenerator<multiswitch::LinkEvent&&> {
-        multiswitch::LinkEvent upEvent;
-        upEvent.port() = port5;
-        upEvent.up() = true;
-        co_yield std::move(upEvent);
-        verifyOperState(port5, true);
 
-        // set port oper state down
-        multiswitch::LinkEvent downEvent;
-        downEvent.port() = port5;
-        downEvent.up() = false;
-        co_yield std::move(downEvent);
-        verifyOperState(port5, false);
+  CounterCache counters(sw_);
+  auto ret = co_await result.sink(
+      [&]() -> folly::coro::AsyncGenerator<multiswitch::LinkChangeEvent&&> {
+        // verify link event sync is active
+        WITH_RETRIES({
+          counters.update();
+          EXPECT_EVENTUALLY_EQ(
+              counters.value("switch.0.link_event_sync_active"), 1);
+        });
+        {
+          multiswitch::LinkEvent upEvent;
+          upEvent.port() = port5;
+          upEvent.up() = true;
+          multiswitch::LinkChangeEvent changeEvent;
+          changeEvent.linkStateEvent() = upEvent;
+          co_yield std::move(changeEvent);
+          verifyOperState(port5, true);
+        }
+        {
+          // set port oper state down
+          multiswitch::LinkEvent downEvent;
+          downEvent.port() = port5;
+          downEvent.up() = false;
+          multiswitch::LinkChangeEvent changeEvent;
+          changeEvent.linkStateEvent() = downEvent;
+          co_yield std::move(changeEvent);
+          verifyOperState(port5, false);
+        }
       }());
   EXPECT_TRUE(ret);
 }
 
+CO_TEST_F(ThriftServerTest, setPortActiveStateSink) {
+  // setup server and clients
+  setupServerAndClients();
+
+  const PortID port5{5};
+  auto result = co_await multiSwitchClient_->co_notifyLinkChangeEvent(0);
+  auto verifyActiveState = [this](const PortID& portId, bool active) {
+    WITH_RETRIES({
+      auto port = this->sw_->getState()->getPorts()->getNodeIf(portId);
+      if (active) {
+        EXPECT_EVENTUALLY_TRUE(
+            port->getActiveState() == Port::ActiveState::ACTIVE);
+      } else {
+        EXPECT_EVENTUALLY_TRUE(
+            port->getActiveState() == Port::ActiveState::INACTIVE);
+      }
+    });
+  };
+
+  CounterCache counters(sw_);
+  auto ret = co_await result.sink(
+      [&]() -> folly::coro::AsyncGenerator<multiswitch::LinkChangeEvent&&> {
+        // verify link event sync is active
+        WITH_RETRIES({
+          counters.update();
+          EXPECT_EVENTUALLY_EQ(
+              counters.value("switch.0.link_event_sync_active"), 1);
+        });
+        {
+          multiswitch::LinkActiveEvent activeEvent;
+          activeEvent.port2IsActive()->insert({port5, true});
+          multiswitch::LinkChangeEvent changeEvent;
+          changeEvent.linkActiveEvents() = activeEvent;
+          co_yield std::move(changeEvent);
+          verifyActiveState(port5, true);
+        }
+        {
+          multiswitch::LinkActiveEvent inactiveEvent;
+          inactiveEvent.port2IsActive()->insert({port5, false});
+          multiswitch::LinkChangeEvent changeEvent;
+          changeEvent.linkActiveEvents() = inactiveEvent;
+          co_yield std::move(changeEvent);
+          verifyActiveState(port5, false);
+        }
+      }());
+  EXPECT_TRUE(ret);
+}
 CO_TEST_F(ThriftServerTest, fdbEventTest) {
   // setup server and clients
   setupServerAndClients();
 
-  auto result = co_await multiSwitchClient_->co_notifyFdbEvent(100);
+  auto result = co_await multiSwitchClient_->co_notifyFdbEvent(0);
   auto verifyMacState = [this](
                             const VlanID vlanId, std::string mac, bool added) {
     WITH_RETRIES({
@@ -286,8 +379,16 @@ CO_TEST_F(ThriftServerTest, fdbEventTest) {
     fdbEvent.updateType() = updateType;
     return fdbEvent;
   };
+
+  CounterCache counters(sw_);
   auto ret = co_await result.sink(
       [&]() -> folly::coro::AsyncGenerator<multiswitch::FdbEvent&&> {
+        // verify fdb event sync is active
+        WITH_RETRIES({
+          counters.update();
+          EXPECT_EVENTUALLY_EQ(
+              counters.value("switch.0.fdb_event_sync_active"), 1);
+        });
         // add a new mac entry to the table
         auto fdbEvent =
             createFdbEntry(L2EntryUpdateType::L2_ENTRY_UPDATE_TYPE_ADD);
@@ -309,9 +410,15 @@ CO_TEST_F(ThriftServerTest, receivePktHandler) {
 
   CounterCache counters(sw_);
   // Send packets to server using sink
-  auto result = co_await multiSwitchClient_->co_notifyRxPacket(100);
+  auto result = co_await multiSwitchClient_->co_notifyRxPacket(0);
   auto ret = co_await result.sink(
       [&]() -> folly::coro::AsyncGenerator<multiswitch::RxPacket&&> {
+        // verify rx pkt event sync is active
+        WITH_RETRIES({
+          counters.update();
+          EXPECT_EVENTUALLY_EQ(
+              counters.value("switch.0.rx_pkt_event_sync_active"), 1);
+        });
         multiswitch::RxPacket rxPkt;
         rxPkt.data() = std::make_unique<folly::IOBuf>(createV4Packet(
             folly::IPAddressV4("10.0.0.2"),
@@ -330,6 +437,10 @@ CO_TEST_F(ThriftServerTest, receivePktHandler) {
 CO_TEST_F(ThriftServerTest, transmitPktHandler) {
   // setup server and clients
   setupServerAndClients();
+
+  // Mark a switch as connected so that SwSwitch won't abort while tearing down
+  // the thrift stream
+  sw_->getHwSwitchHandler()->connected(SwitchID(1));
 
   std::string payloadPad(9216 * 2, 'f'); // jumbo pkt
   auto pkt = createV4Packet(
@@ -351,48 +462,98 @@ CO_TEST_F(ThriftServerTest, transmitPktHandler) {
   // got packet
   EXPECT_EQ(5, *val->port());
   EXPECT_EQ(origPktSize, (*val->data())->length());
+  sw_->getHwSwitchHandler()->stop();
 }
 
 CO_TEST_F(ThriftServerTest, statsUpdate) {
   // setup server and clients
   setupServerAndClients();
 
-  auto getTestStatUpdate = []() {
+  ThriftHandler handler(sw_);
+  auto portName = sw_->getState()->getPorts()->getNodeIf(PortID(5))->getName();
+
+  auto getTestStatUpdate = [&portName]() {
     multiswitch::HwSwitchStats stats;
     stats.timestamp() = 1000;
+
+    // port stats
     HwPortStats portStats;
     portStats.inBytes_() = 10000;
-    stats.hwPortStats() = {{"eth1", std::move(portStats)}};
+    portStats.outBytes_() = 20000;
+    for (auto queueId = 0; queueId < 10; queueId++) {
+      portStats.queueOutBytes_()[queueId] = queueId * 10;
+      portStats.queueOutDiscardBytes_()[queueId] = queueId * 2;
+    }
+    stats.hwPortStats() = {{portName, std::move(portStats)}};
+
+    // hw resource stats
     stats.hwResourceStats()->acl_counters_free() = 50;
+
+    // sys port stats
     HwSysPortStats sysPortStats;
     sysPortStats.queueOutBytes_() = {{1, 10}, {2, 20}};
-    stats.sysPortStats() = {{"eth1", std::move(sysPortStats)}};
+    stats.sysPortStats() = {{portName, std::move(sysPortStats)}};
+
+    // fabric reachability stats
     FabricReachabilityStats reachabilityStats;
     reachabilityStats.mismatchCount() = 10;
     reachabilityStats.missingCount() = 20;
     stats.fabricReachabilityStats() = std::move(reachabilityStats);
+
+    // cpu port stats
+    CpuPortStats cpuPortStats;
+    cpuPortStats.queueInPackets_() = {{1, 10}, {2, 20}};
+    stats.cpuPortStats() = std::move(cpuPortStats);
+
     return stats;
   };
+
   uint16_t switchIndex = 0;
 
+  CounterCache counters(sw_);
   // Send packets to server using sink
   auto result = co_await multiSwitchClient_->co_syncHwStats(0);
   auto ret = co_await result.sink(
       [&]() -> folly::coro::AsyncGenerator<multiswitch::HwSwitchStats&&> {
+        // verify stats sync is active
+        WITH_RETRIES({
+          counters.update();
+          EXPECT_EVENTUALLY_EQ(
+              counters.value("switch.0.stats_event_sync_active"), 1);
+        });
         co_yield getTestStatUpdate();
       }());
   EXPECT_TRUE(ret);
-  EXPECT_EQ(sw_->getHwSwitchStatsWithCopy(switchIndex), getTestStatUpdate());
+  EXPECT_EQ(sw_->getHwSwitchStatsExpensive(switchIndex), getTestStatUpdate());
   sw_->updateStats();
   EXPECT_EQ(sw_->getFabricReachabilityStats().mismatchCount().value(), 10);
   EXPECT_EQ(sw_->getFabricReachabilityStats().missingCount().value(), 20);
   auto agentStats = sw_->fillFsdbStats();
-  EXPECT_EQ(agentStats.hwPortStats()["eth1"].inBytes_().value(), 10000);
-  EXPECT_EQ(agentStats.sysPortStats()["eth1"].queueOutBytes_().value()[1], 10);
+  EXPECT_EQ(agentStats.hwPortStats()[portName].inBytes_().value(), 10000);
+  EXPECT_EQ(
+      agentStats.sysPortStats()[portName].queueOutBytes_().value()[1], 10);
   // CHECK entry in switchIndex map
   EXPECT_EQ(
       agentStats.hwResourceStatsMap()[switchIndex].acl_counters_free().value(),
       50);
   // Check old global entry
   EXPECT_EQ(agentStats.hwResourceStats()->acl_counters_free().value(), 50);
+  // verify that swswitch continues caching hwswitch stats after fsdb update
+  auto fdsbStats = sw_->fillFsdbStats();
+  EXPECT_EQ(sw_->getHwSwitchStatsExpensive(switchIndex), getTestStatUpdate());
+  PortInfoThrift portInfo;
+  handler.getPortInfo(portInfo, 5);
+  EXPECT_EQ(portInfo.input()->bytes().value(), 10000);
+  EXPECT_EQ(portInfo.output()->bytes().value(), 20000);
+  std::map<std::string, HwPortStats> hwPortStats;
+  handler.getHwPortStats(hwPortStats);
+  EXPECT_EQ(hwPortStats[portName].inBytes_(), 10000);
+  EXPECT_EQ(hwPortStats[portName].outBytes_(), 20000);
+  std::map<std::string, HwSysPortStats> hwSysPortStats;
+  handler.getSysPortStats(hwSysPortStats);
+  EXPECT_EQ(hwSysPortStats[portName].queueOutBytes_().value()[1], 10);
+  EXPECT_EQ(hwSysPortStats[portName].queueOutBytes_().value()[2], 20);
+  std::map<int, CpuPortStats> cpuPortStats;
+  handler.getAllCpuPortStats(cpuPortStats);
+  EXPECT_EQ(cpuPortStats[0], getTestStatUpdate().cpuPortStats().value());
 }

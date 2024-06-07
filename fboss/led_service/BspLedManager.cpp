@@ -1,15 +1,11 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "fboss/led_service/BspLedManager.h"
+#include <optional>
 #include "fboss/agent/EnumUtils.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/CommonPortUtils.h"
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
-
-namespace {
-constexpr facebook::fboss::led::LedColor kCablingErrorLedColor =
-    facebook::fboss::led::LedColor::YELLOW;
-}
 
 namespace facebook::fboss {
 
@@ -110,7 +106,7 @@ std::vector<uint32_t> BspLedManager::getCommonLedSwPorts(
 }
 
 /*
- * calculateLedColor
+ * calculateLedState
  *
  * This function will return the LED color for a given port. This function will
  * act on LedManager struct portDisplayMap_ to find the color. This function
@@ -118,14 +114,15 @@ std::vector<uint32_t> BspLedManager::getCommonLedSwPorts(
  * is already updated with latest. This function takes care of scenario where
  * the LED is shared by multiple SW ports
  */
-led::LedColor BspLedManager::calculateLedColor(
+led::LedState BspLedManager::calculateLedState(
     uint32_t portId,
     cfg::PortProfileID portProfile) const {
   if (portDisplayMap_.find(portId) == portDisplayMap_.end()) {
     XLOG(ERR) << folly::sformat(
         "Port {:d} LED color undetermined as the port operational info is not available",
         portId);
-    return led::LedColor::UNKNOWN;
+    return utility::constructLedState(
+        led::LedColor::UNKNOWN, led::Blink::UNKNOWN);
   }
 
   // Get all the SW ports which share the LED with the current port. Then find
@@ -133,13 +130,14 @@ led::LedColor BspLedManager::calculateLedColor(
 
   auto commonSwPorts = getCommonLedSwPorts(portId, portProfile);
   if (commonSwPorts.empty()) {
-    return led::LedColor::UNKNOWN;
+    return utility::constructLedState(
+        led::LedColor::UNKNOWN, led::Blink::UNKNOWN);
   }
 
   bool anyPortUp{false}, allPortsUp{true};
-  bool anyPortReachable{false}, allPortsReachable{true};
   bool anyCablingError{false};
   bool anyForcedOn{false}, anyForcedOff{false};
+  std::optional<bool> anyUndrainedPort{std::nullopt};
 
   for (auto swPort : commonSwPorts) {
     if (portDisplayMap_.find(swPort) == portDisplayMap_.end()) {
@@ -150,13 +148,17 @@ led::LedColor BspLedManager::calculateLedColor(
     anyPortUp |= thisPortUp;
     allPortsUp &= thisPortUp;
 
-    auto thisPortReachable = portDisplayMap_.at(swPort).neighborReachable;
-    anyPortReachable = anyPortReachable || thisPortReachable;
-    allPortsReachable = allPortsReachable && thisPortReachable;
-
     anyCablingError |= portDisplayMap_.at(swPort).cablingError;
     anyForcedOn |= portDisplayMap_.at(swPort).forcedOn;
     anyForcedOff |= portDisplayMap_.at(swPort).forcedOff;
+
+    if (portDisplayMap_.at(swPort).activeState.has_value()) {
+      if (!anyUndrainedPort.has_value()) {
+        anyUndrainedPort = *portDisplayMap_.at(swPort).activeState;
+      }
+      anyUndrainedPort =
+          *anyUndrainedPort || *portDisplayMap_.at(swPort).activeState;
+    }
   }
 
   // Sanity check warning
@@ -168,50 +170,73 @@ led::LedColor BspLedManager::calculateLedColor(
   // Foced LED value overrides the status
   if (anyForcedOn) {
     XLOG(DBG2) << fmt::format("Port {:d} Forced On", portId);
-    return led::LedColor::BLUE;
+    return utility::constructLedState(led::LedColor::BLUE, led::Blink::OFF);
   } else if (anyForcedOff) {
     XLOG(DBG2) << fmt::format("Port {:d} Forced Off", portId);
-    return led::LedColor::OFF;
+    return utility::constructLedState(led::LedColor::OFF, led::Blink::OFF);
   }
 
   XLOG(DBG2) << fmt::format(
-      "Port {:d}, anyPortUp={:s} allPortsUp={:s} anyPortReachable={:s} \
-      allPortsReachable = {:s} anyCablingError = {:s} ",
+      "Port {:d}, anyPortUp={:s} allPortsUp={:s} anyCablingError = {:s} anyUndrainedPort={:s}",
       portId,
       (anyPortUp ? "True" : "False"),
       (allPortsUp ? "True" : "False"),
-      (anyPortReachable ? "True" : "False"),
-      (allPortsReachable ? "True" : "False"),
-      (anyCablingError ? "True" : "False"));
+      (anyCablingError ? "True" : "False"),
+      (anyUndrainedPort.has_value() ? (*anyUndrainedPort ? "True" : "False")
+                                    : "N/A"));
 
-  // BSP LED color scheme:
-  //  - ALL ports on a fiber are down                         --> LED OFF
-  //  - ALL ports are up and have proper reachability/cabling --> LED GREEN
-  //  - Any other state                                       --> LED YELLOW
+  /*
+   * BSP LED color scheme:
+   * Undrained Port
+   *  # of ports UP and have correct reachability == 4    -> BLUE
+   *  0 < # of ports UP and have correct reachability < 4 -> AMBER
+   *  # of ports UP and have correct reachability == 0    -> OFF
+   *
+   * Drained Port
+   *  # of ports UP and have correct reachability == 4    -> SLOW FLASHING BLUE
+   *  0 < # of ports UP and have correct reachability < 4 -> FAST FLASHING AMBER
+   *  # of ports UP and have correct reachability == 0    -> SLOW FLASHING AMBER
+   */
 
   led::LedColor currPortColor{led::LedColor::UNKNOWN};
+  led::Blink currBlink{led::Blink::OFF};
 
-  if (!anyPortUp) {
-    currPortColor = led::LedColor::OFF;
-  } else if (allPortsUp && allPortsReachable && !anyCablingError) {
-    currPortColor = led::LedColor::GREEN;
+  if (!anyUndrainedPort.has_value() || *anyUndrainedPort) {
+    currBlink = led::Blink::OFF;
+    if (allPortsUp && !anyCablingError) {
+      currPortColor = led::LedColor::BLUE;
+    } else if (anyPortUp) {
+      currPortColor = led::LedColor::YELLOW;
+    } else {
+      currPortColor = led::LedColor::OFF;
+    }
   } else {
-    currPortColor = kCablingErrorLedColor;
+    if (allPortsUp && !anyCablingError) {
+      currPortColor = led::LedColor::BLUE;
+      currBlink = led::Blink::SLOW;
+    } else if (anyPortUp) {
+      currPortColor = led::LedColor::YELLOW;
+      currBlink = led::Blink::FAST;
+    } else {
+      currPortColor = led::LedColor::OFF;
+      currBlink = led::Blink::SLOW;
+    }
   }
-  return currPortColor;
+
+  return utility::constructLedState(currPortColor, currBlink);
 }
 
 /*
- * setLedColor
+ * setLedState
  *
  * Set the LED color in HW for the LED(s) on a given port. This function will
  * find all the LED for the SW port and set their color. This function should
  * not depend on FSDB provided values from portDisplayMap_
  */
-void BspLedManager::setLedColor(
+void BspLedManager::setLedState(
     uint32_t portId,
     cfg::PortProfileID portProfile,
-    led::LedColor ledColor) {
+    led::LedState ledState) {
   auto ledIds = getLedIdFromSwPort(portId, portProfile);
   if (ledIds.empty()) {
     XLOG(ERR) << "No Led Id found or the port " << portId;
@@ -224,7 +249,7 @@ void BspLedManager::setLedColor(
        bspSystemContainer_->getLedController(tcvrId + 1)) {
     if (std::find(ledIds.begin(), ledIds.end(), ledController.first) !=
         ledIds.end()) {
-      ledController.second->setColor(ledColor);
+      ledController.second->setLedState(ledState);
     }
   }
 }

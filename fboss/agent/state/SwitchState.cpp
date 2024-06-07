@@ -57,11 +57,6 @@ DEFINE_bool(
     false,
     "Allow multiple acl tables (acl table group)");
 
-DEFINE_bool(
-    sai_user_defined_trap,
-    false,
-    "Flag to use user defined trap when programming ACL action to punt packets to cpu queue.");
-
 /*
  * VOQ switches require that the packets are not tagged with VLAN.
  * We are gradually enhancing the wedge_agent to handle tagged as well as
@@ -147,6 +142,7 @@ std::shared_ptr<Map>& SwitchState::getMap(const HwSwitchMatcher& matcher) {
 SwitchState::SwitchState() {
   resetIntfs(std::make_shared<MultiSwitchInterfaceMap>());
   resetRemoteIntfs(std::make_shared<MultiSwitchInterfaceMap>());
+  resetRemoteSystemPorts(std::make_shared<MultiSwitchSystemPortMap>());
   resetTransceivers(std::make_shared<MultiSwitchTransceiverMap>());
   resetControlPlane(std::make_shared<MultiControlPlane>());
   resetSwitchSettings(std::make_shared<MultiSwitchSettings>());
@@ -346,6 +342,11 @@ void SwitchState::resetSystemPorts(
   ref<switch_state_tags::systemPortMaps>() = systemPorts;
 }
 
+void SwitchState::resetRemoteSystemPorts(
+    const std::shared_ptr<MultiSwitchSystemPortMap>& systemPorts) {
+  ref<switch_state_tags::remoteSystemPortMaps>() = systemPorts;
+}
+
 const std::shared_ptr<MultiSwitchSystemPortMap>& SwitchState::getSystemPorts()
     const {
   return safe_cref<switch_state_tags::systemPortMaps>();
@@ -365,8 +366,8 @@ void SwitchState::resetTeFlowTable(
   ref<switch_state_tags::teFlowTables>() = flowTable;
 }
 
-const std::shared_ptr<MultiTeFlowTable>& SwitchState::getTeFlowTable() const {
-  return safe_cref<switch_state_tags::teFlowTables>();
+const std::shared_ptr<MultiTeFlowTable> SwitchState::getTeFlowTable() const {
+  return get<switch_state_tags::teFlowTables>();
 }
 
 void SwitchState::resetDsfNodes(
@@ -510,7 +511,8 @@ std::unique_ptr<SwitchState> SwitchState::uniquePtrFromThrift(
   auto state = std::make_unique<SwitchState>();
   state->BaseT::fromThrift(switchState);
   if (FLAGS_enable_acl_table_group) {
-    auto aclMap = util::getFirstMap(state->cref<switch_state_tags::aclMaps>());
+    auto aclMap =
+        utility::getFirstMap(state->cref<switch_state_tags::aclMaps>());
     if (aclMap && aclMap->size()) {
       auto multiSwitchAclGroupMap =
           std::make_shared<MultiSwitchAclTableGroupMap>();
@@ -526,8 +528,8 @@ std::unique_ptr<SwitchState> SwitchState::uniquePtrFromThrift(
     }
   }
   if (!FLAGS_enable_acl_table_group) {
-    auto firstTableGroupMap =
-        util::getFirstMap(state->cref<switch_state_tags::aclTableGroupMaps>());
+    auto firstTableGroupMap = utility::getFirstMap(
+        state->cref<switch_state_tags::aclTableGroupMaps>());
     auto aclMap = firstTableGroupMap
         ? AclTableGroupMap::getDefaultAclTableGroupMap(
               firstTableGroupMap->toThrift())

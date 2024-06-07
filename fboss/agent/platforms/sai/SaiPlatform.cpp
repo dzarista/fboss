@@ -30,12 +30,14 @@
 #include "fboss/agent/platforms/sai/SaiCloudRipperPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiElbert8DDPhyPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiFakePlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiJanga800bicPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400bfuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800bfaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800biaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMorgan800ccPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiTahan800bcPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiWedge400CPlatformPort.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/lib/CommonFileUtils.h"
@@ -159,16 +161,21 @@ HwSwitch* SaiPlatform::getHwSwitch() const {
 
 void SaiPlatform::onHwInitialized(HwSwitchCallback* sw) {
   initLEDs();
-  sw->registerStateObserver(this, "SaiPlatform");
+  /*
+   * In multiswitch mode, the platform is part hw agent
+   * binary and has no access to swswitch. Skip state
+   * observer registration. The state updates will be
+   * propagated to platform as part of oper delta sync
+   * from sw agent to hw agent
+   */
+  if (sw) {
+    sw->registerStateObserver(this, "SaiPlatform");
+  }
 }
 
 void SaiPlatform::stateUpdated(const StateDelta& delta) {
   updatePorts(delta);
 }
-
-void SaiPlatform::onInitialConfigApplied(HwSwitchCallback* /* sw */) {}
-
-void SaiPlatform::stop() {}
 
 std::shared_ptr<apache::thrift::AsyncProcessorFactory>
 SaiPlatform::createHandler() {
@@ -290,11 +297,14 @@ void SaiPlatform::initPorts() {
   auto platformMode = getType();
   auto switchId =
       SwitchID(getAsic()->getSwitchId() ? *getAsic()->getSwitchId() : 0);
+  XLOG(DBG4) << "Platform ports are initialized with switch ID: " << switchId;
   HwSwitchMatcher matcher(std::unordered_set<SwitchID>({switchId}));
   for (auto& port : getPlatformPorts()) {
     std::unique_ptr<SaiPlatformPort> saiPort;
     PortID portId(port.first);
     if (scopeResolver()->scope(portId) != matcher) {
+      XLOG(DBG5) << "Skipping platform port " << portId
+                 << " due to scope mismatch";
       continue;
     }
     if (platformMode == PlatformType::PLATFORM_WEDGE400C ||
@@ -343,10 +353,16 @@ void SaiPlatform::initPorts() {
       saiPort = std::make_unique<SaiMeru400biaPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_MERU400BFU) {
       saiPort = std::make_unique<SaiMeru400bfuPlatformPort>(portId, this);
-    } else if (platformMode == PlatformType::PLATFORM_MERU800BFA) {
+    } else if (
+        platformMode == PlatformType::PLATFORM_MERU800BFA ||
+        platformMode == PlatformType::PLATFORM_MERU800BFA_P1) {
       saiPort = std::make_unique<SaiMeru800bfaPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_MONTBLANC) {
       saiPort = std::make_unique<SaiBcmMontblancPlatformPort>(portId, this);
+    } else if (platformMode == PlatformType::PLATFORM_JANGA800BIC) {
+      saiPort = std::make_unique<SaiJanga800bicPlatformPort>(portId, this);
+    } else if (platformMode == PlatformType::PLATFORM_TAHAN800BC) {
+      saiPort = std::make_unique<SaiTahan800bcPlatformPort>(portId, this);
     } else {
       saiPort = std::make_unique<SaiFakePlatformPort>(portId, this);
     }
@@ -528,59 +544,59 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
 
   std::optional<SaiSwitchTraits::Attributes::SwitchIsolate> switchIsolate{
       std::nullopt};
-  if (getAsic()->isSupported(HwAsic::Feature::LINK_STATE_BASED_ISOLATE)) {
+  if (getAsic()->isSupported(HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
     switchIsolate = true;
   }
 
   return {
-    initSwitch,
-        hwInfo, // hardware info
-        srcMac, // source mac
-        std::nullopt, // shell
-        std::nullopt, // ecmp hash v4
-        std::nullopt, // ecmp hash v6
-        std::nullopt, // lag hash v4
-        std::nullopt, // lag hash v6
-        std::nullopt, // ecmp hash seed
-        std::nullopt, // lag hash seed
-        std::nullopt, // ecmp hash algo
-        std::nullopt, // lag hash algo
-        std::nullopt, // restart warm
-        std::nullopt, // qos dscp to tc map
-        std::nullopt, // qos tc to queue map
-        std::nullopt, // qos exp to tc map
-        std::nullopt, // qos tc to exp map
-        macAgingTime,
-        std::nullopt, // ingress acl
-        aclFieldList,
-        std::nullopt, // tam object list
-        useEcnThresholds,
-        std::nullopt, // counter refresh interval
-        firmwarePathName, // Firmware path name
-        std::nullopt, // Firmware load method
-        std::nullopt, // Firmware load type
-        std::nullopt, // Hardware access bus
-        std::nullopt, // Platform context
-        std::nullopt, // Switch profile id
-        switchId, // Switch id
-        maxSystemCores,
-        sysPortConfigs, // System port config list
-        switchType,
-        std::nullopt, // Read function
-        std::nullopt, // Write function
+      initSwitch,
+      hwInfo, // hardware info
+      srcMac, // source mac
+      std::nullopt, // shell
+      std::nullopt, // ecmp hash v4
+      std::nullopt, // ecmp hash v6
+      std::nullopt, // lag hash v4
+      std::nullopt, // lag hash v6
+      std::nullopt, // ecmp hash seed
+      std::nullopt, // lag hash seed
+      std::nullopt, // ecmp hash algo
+      std::nullopt, // lag hash algo
+      std::nullopt, // restart warm
+      std::nullopt, // qos dscp to tc map
+      std::nullopt, // qos tc to queue map
+      std::nullopt, // qos exp to tc map
+      std::nullopt, // qos tc to exp map
+      macAgingTime,
+      std::nullopt, // ingress acl
+      aclFieldList,
+      std::nullopt, // tam object list
+      useEcnThresholds,
+      std::nullopt, // counter refresh interval
+      firmwarePathName, // Firmware path name
+      std::nullopt, // Firmware load method
+      std::nullopt, // Firmware load type
+      std::nullopt, // Hardware access bus
+      std::nullopt, // Platform context
+      std::nullopt, // Switch profile id
+      switchId, // Switch id
+      maxSystemCores,
+      sysPortConfigs, // System port config list
+      switchType,
+      std::nullopt, // Read function
+      std::nullopt, // Write function
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
-        std::nullopt, // Max ECMP member count
-        std::nullopt, // ECMP member count
+      std::nullopt, // Max ECMP member count
+      std::nullopt, // ECMP member count
 #endif
-        dllPath,
-        std::nullopt, // Restart Issu
-        switchIsolate,
+      dllPath,
+      std::nullopt, // Restart Issu
+      switchIsolate,
 #if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
-        creditWd, // Credit Watchdog
-        creditWdMs, // Credit Watchdog Timer
+      creditWd, // Credit Watchdog
+      creditWdMs, // Credit Watchdog Timer
 #endif
-        maxCores, // Max cores
-        std::nullopt, // PFC DLR Packet Action
+      maxCores, // Max cores
+      std::nullopt, // PFC DLR Packet Action
   };
 }
 
@@ -617,6 +633,10 @@ const std::set<sai_api_t>& SaiPlatform::getDefaultPhyAsicSupportedApis() const {
 
 const std::set<sai_api_t>& SaiPlatform::getSupportedApiList() const {
   return getDefaultSwitchAsicSupportedApis();
+}
+
+void SaiPlatform::stateChanged(const StateDelta& delta) {
+  updatePorts(delta);
 }
 
 } // namespace facebook::fboss

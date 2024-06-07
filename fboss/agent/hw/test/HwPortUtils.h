@@ -44,6 +44,11 @@ void assertPortsSampleDestination(
     const HwSwitch* hw,
     const std::map<PortID, int>& port2SampleDestination);
 
+bool portsExistsInPortGroup(
+    const Platform* platform,
+    const std::vector<PortID>& allPortsInGroup,
+    cfg::PortSpeed speed);
+
 void enablePortsInPortGroup(
     cfg::SwitchConfig* config,
     cfg::PortSpeed enabledLaneSpeed,
@@ -110,11 +115,6 @@ void verifyFec(
     const phy::ProfileSideConfig& expectedProfileConfig);
 
 void enableSixtapProgramming();
-
-cfg::PortSpeed getSpeed(cfg::PortProfileID profile);
-TransmitterTechnology getMediaType(cfg::PortProfileID profile);
-cfg::PortSpeed getDefaultFabricSpeed(const cfg::AsicType& asicType);
-cfg::PortSpeed getDefaultInterfaceSpeed(const cfg::AsicType& asicType);
 
 bool verifyLedStatus(HwSwitchEnsemble* ensemble, PortID port, bool up);
 } // namespace utility

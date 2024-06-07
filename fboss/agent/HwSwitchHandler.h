@@ -8,6 +8,7 @@
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/types.h"
+#include "fboss/lib/HwWriteBehavior.h"
 
 #include <folly/futures/Future.h>
 #include <folly/io/async/EventBase.h>
@@ -36,10 +37,10 @@ enum HwSwitchStateUpdateStatus {
 
 enum HwSwitchOperDeltaSyncState {
   DISCONNECTED, /* initial state */
-  WAITING_INITIAL_SYNC, /* Got first getOper request */
-  INITIAL_OPER_SENT, /* waiting for initial sync response */
-  OPER_SYNCED, /* initial sync completed */
-  CANCELLED, /* cancelled */
+  INITIAL_SYNC_SENT, /* initial sync sent, waiting for ack */
+  CONNECTED, /* ready for incremental updates */
+  CANCELLED, /* indicates client disconnecting or server graceful
+                shutdown */
 };
 
 using HwSwitchStateUpdateResult =
@@ -54,12 +55,13 @@ class HwSwitchHandler {
 
   void start();
 
+  void stop();
+
   virtual ~HwSwitchHandler();
 
   folly::Future<HwSwitchStateUpdateResult> stateChanged(
-      HwSwitchStateUpdate update);
-
-  virtual void exitFatal() const = 0;
+      HwSwitchStateUpdate update,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   virtual std::unique_ptr<TxPacket> allocatePacket(uint32_t size) const = 0;
 
@@ -74,65 +76,14 @@ class HwSwitchHandler {
   virtual bool sendPacketSwitchedAsync(
       std::unique_ptr<TxPacket> pkt) noexcept = 0;
 
-  virtual bool isValidStateUpdate(const StateDelta& delta) const = 0;
-
-  virtual void unregisterCallbacks() = 0;
-
-  virtual void gracefulExit(state::WarmbootState& thriftSwitchState) = 0;
-
-  virtual bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) = 0;
-
-  virtual folly::dynamic toFollyDynamic() const = 0;
-
-  virtual std::optional<uint32_t> getHwLogicalPortId(PortID portID) const = 0;
-
   virtual bool transactionsSupported(
       std::optional<cfg::SdkVersion> sdkVersion) const = 0;
 
-  virtual HwSwitchFb303Stats* getSwitchStats() const = 0;
-
-  virtual folly::F14FastMap<std::string, HwPortStats> getPortStats() const = 0;
-
-  virtual CpuPortStats getCpuPortStats() const = 0;
-
-  virtual std::map<std::string, HwSysPortStats> getSysPortStats() const = 0;
-
-  virtual HwSwitchDropStats getSwitchDropStats() const = 0;
-  virtual void updateStats() = 0;
-
-  virtual std::map<PortID, phy::PhyInfo> updateAllPhyInfo() = 0;
-
-  virtual uint64_t getDeviceWatermarkBytes() const = 0;
-
-  virtual void clearPortStats(
-      const std::unique_ptr<std::vector<int32_t>>& ports) = 0;
-
-  virtual std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(
-      int32_t portId) = 0;
-
-  virtual void clearPortAsicPrbsStats(int32_t portId) = 0;
-
-  virtual std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
-      int32_t portId) = 0;
-
-  virtual prbs::InterfacePrbsState getPortPrbsState(PortID portId) = 0;
-
-  virtual void switchRunStateChanged(SwitchRunState newState) = 0;
-
-  virtual std::shared_ptr<SwitchState> stateChanged(
-      const StateDelta& delta,
-      bool transaction) = 0;
-
   virtual HwSwitchStateOperUpdateResult stateChanged(
       const fsdb::OperDelta& delta,
-      bool transaction) = 0;
-
-  // platform access apis
-  virtual void onHwInitialized(HwSwitchCallback* callback) = 0;
-
-  virtual void onInitialConfigApplied(HwSwitchCallback* sw) = 0;
-
-  virtual void platformStop() = 0;
+      bool transaction,
+      const std::shared_ptr<SwitchState>& initialState,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) = 0;
 
   virtual std::map<PortID, FabricEndpoint> getFabricConnectivity() const = 0;
 
@@ -141,20 +92,12 @@ class HwSwitchHandler {
   virtual std::vector<PortID> getSwitchReachability(
       SwitchID switchId) const = 0;
 
-  virtual std::string getDebugDump() const = 0;
-
-  virtual void fetchL2Table(std::vector<L2EntryThrift>* l2Table) const = 0;
-
-  virtual std::string listObjects(
-      const std::vector<HwObjectType>& types,
-      bool cached) const = 0;
-
   virtual bool needL2EntryForNeighbor(
       const cfg::SwitchConfig* config) const = 0;
 
   virtual multiswitch::StateOperDelta getNextStateOperDelta(
       std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
-      bool initialSync) = 0;
+      int64_t lastUpdateSeqNum) = 0;
 
   virtual void notifyHwSwitchDisconnected() = 0;
 
@@ -165,22 +108,30 @@ class HwSwitchHandler {
 
   virtual SwitchRunState getHwSwitchRunState() = 0;
 
+  virtual void cancelOperDeltaSync() = 0;
+
+ protected:
+  fsdb::OperDelta getFullSyncOperDelta(
+      const std::shared_ptr<SwitchState>& state) const;
+
  private:
-  HwSwitchStateUpdateResult stateChangedImpl(const HwSwitchStateUpdate& update);
+  HwSwitchStateUpdateResult stateChangedImpl(
+      const HwSwitchStateUpdate& update,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   HwSwitchStateOperUpdateResult stateChangedImpl(
       const fsdb::OperDelta& delta,
-      bool transaction);
+      bool transaction,
+      const std::shared_ptr<SwitchState>& newState,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   void run();
 
-  void stop();
-
-  SwitchID switchId_;
-  cfg::SwitchInfo info_;
+  const SwitchID switchId_;
+  const cfg::SwitchInfo info_;
   folly::EventBase hwSwitchManagerEvb_;
   std::unique_ptr<std::thread> hwSwitchManagerThread_;
-  OperDeltaFilter operDeltaFilter_;
+  const OperDeltaFilter operDeltaFilter_;
 };
 
 } // namespace facebook::fboss

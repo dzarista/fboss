@@ -15,32 +15,12 @@
 #include "fboss/agent/state/InterfaceMap.h"
 #include "fboss/agent/state/NodeBase-defs.h"
 #include "fboss/agent/state/SwitchState.h"
-#include "folly/IPAddress.h"
-#include "folly/MacAddress.h"
-
-using folly::IPAddress;
-using folly::MacAddress;
-using folly::to;
-using std::string;
-
-namespace {
-constexpr auto kInterfaceId = "interfaceId";
-constexpr auto kRouterId = "routerId";
-constexpr auto kVlanId = "vlanId";
-constexpr auto kName = "name";
-constexpr auto kMac = "mac";
-constexpr auto kAddresses = "addresses";
-constexpr auto kNdpConfig = "ndpConfig";
-constexpr auto kMtu = "mtu";
-constexpr auto kIsVirtual = "isVirtual";
-constexpr auto kIsStateSyncDisabled = "isStateSyncDisabled";
-} // namespace
 
 namespace facebook::fboss {
 
 std::optional<folly::CIDRNetwork> Interface::getAddressToReach(
     const folly::IPAddress& dest) const {
-  auto getAddressToReachFn = [this, &dest](auto addresses) {
+  auto getAddressToReachFn = [&dest](auto addresses) {
     std::optional<folly::CIDRNetwork> reachableBy;
     for (const auto& [ipStr, mask] : addresses) {
       auto cidr = folly::CIDRNetwork(ipStr, mask);

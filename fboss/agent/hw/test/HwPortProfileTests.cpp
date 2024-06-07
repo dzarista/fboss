@@ -21,7 +21,12 @@ class HwPortProfileTest : public HwTest {
   cfg::SwitchConfig initialConfig(const std::vector<PortID>& ports) const {
     auto lbMode = getPlatform()->getAsic()->desiredLoopbackModes();
     return utility::oneL3IntfTwoPortConfig(
-        getHwSwitch(), ports[0], ports[1], lbMode);
+        getHwSwitch()->getPlatform()->getPlatformMapping(),
+        getHwSwitch()->getPlatform()->getAsic(),
+        ports[0],
+        ports[1],
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
+        lbMode);
   }
 
   void verifyPlatformMapping(PortID port) {
@@ -222,7 +227,8 @@ class HwPortProfileTest : public HwTest {
       applyNewConfig(config);
     };
     auto verify = [this, &availablePorts, &allPhyInfo]() {
-      allPhyInfo = getHwSwitch()->updateAllPhyInfo();
+      getHwSwitch()->updateAllPhyInfo();
+      allPhyInfo = getHwSwitch()->getAllPhyInfo();
       for (auto portID : {availablePorts[0], availablePorts[1]}) {
         verifyPort(portID);
         ASSERT_TRUE(allPhyInfo.find(portID) != allPhyInfo.end());
@@ -323,5 +329,7 @@ TEST_PROFILE(PROFILE_400G_8_PAM4_RS544X2N_COPPER)
 TEST_PROFILE(PROFILE_400G_4_PAM4_RS544X2N_OPTICAL)
 
 TEST_PROFILE(PROFILE_800G_8_PAM4_RS544X2N_OPTICAL)
+
+TEST_PROFILE(PROFILE_100G_2_PAM4_RS544X2N_COPPER)
 
 } // namespace facebook::fboss

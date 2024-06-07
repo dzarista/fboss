@@ -1,12 +1,13 @@
 // (c) Facebook, Inc. and its affiliates. Confidential and proprietary.
 
 #include <iostream>
+#include <string>
 #include <unordered_map>
 #include <utility>
 
 #include <folly/Conv.h>
 #include <folly/Format.h>
-#include <folly/json.h>
+#include <folly/json/json.h>
 #include <filesystem>
 
 #include "fboss/platform/helpers/PlatformUtils.h"
@@ -28,14 +29,6 @@ const std::string kFlashromGetContent = " -l " + kPathPrefix +
 const std::string kddComands = "dd if=" + kPathPrefix + "/bios of=" + kPredfl +
     " bs=1 skip=8192 count=61440 > /dev/null 2>&1";
 
-// Map eeprom_dev_type to symlink of sysfs path
-const std::unordered_map<std::string, std::string> eeprom_dev_mapping{
-    {"pem", "/run/devmap/eeproms/PEM_EEPROM"},
-    {"fanspinner", "/run/devmap/eeproms/FANSPINNER_EEPROM"},
-    {"rackmon", "/run/devmap/eeproms/RACKMON_EEPROM"},
-    {"chassis", "/tmp/WeutilDarwin/system-prefdl-bin"},
-};
-
 // Map weutil fields to prefld fields
 const std::unordered_map<std::string, std::string> kMapping{
     {"Product Name", "SID"},
@@ -47,6 +40,33 @@ const std::unordered_map<std::string, std::string> kMapping{
     {"System Manufacturing Date", "MfgTime2"},
     {"Local MAC", "MAC"},
     {"Product Serial Number", "SerialNumber"},
+};
+
+// weutil output fields and default value for all FBOSS switches w/wo OpenBMC
+const std::vector<std::pair<std::string, std::string>> weFields_{
+    {"Wedge EEPROM", "CHASSIS"},
+    {"Version", "0"},
+    {"Product Name", ""},
+    {"Product Part Number", ""},
+    {"System Assembly Part Number", ""},
+    {"Facebook PCBA Part Number", ""},
+    {"Facebook PCB Part Number", ""},
+    {"ODM PCBA Part Number", ""},
+    {"ODM PCBA Serial Number", ""},
+    {"Product Production State", "0"},
+    {"Product Version", ""},
+    {"Product Sub-Version", ""},
+    {"Product Serial Number", ""},
+    {"Product Asset Tag", ""},
+    {"System Manufacturer", ""},
+    {"System Manufacturing Date", ""},
+    {"PCB Manufacturer", ""},
+    {"Assembled At", ""},
+    {"Local MAC", ""},
+    {"Extended MAC Base", ""},
+    {"Extended MAC Address Size", ""},
+    {"Location on Fabric", ""},
+    {"CRC8", "0x0"},
 };
 
 const std::unordered_set<std::string> kFlashType = {
@@ -65,23 +85,18 @@ std::string getFlashType(const std::string& str) {
 } // namespace
 
 namespace facebook::fboss::platform {
-WeutilDarwin::WeutilDarwin(const std::string& eeprom) : eeprom_(eeprom) {
-  std::transform(eeprom_.begin(), eeprom_.end(), eeprom_.begin(), ::tolower);
-  if (eeprom_ == "" || eeprom_ == "chassis") {
+WeutilDarwin::WeutilDarwin(const std::string& eepromPath) {
+  std::string fruPath;
+  if (eepromPath == "") {
     genSpiPrefdlFile();
+    fruPath = kPredfl;
   } else {
-    // the symblink file should be created by udev rule already.
-    auto _it = eeprom_dev_mapping.find(eeprom_);
-    if (_it != eeprom_dev_mapping.end()) {
-      if (!std::filesystem::exists(_it->second)) {
-        throw std::runtime_error(
-            "eeprom device: " + _it->second + " does not exist!");
-      }
-    }
+    fruPath = eepromPath;
   }
+  eepromParser_ = std::make_unique<PrefdlBase>(fruPath);
 }
 
-void WeutilDarwin::genSpiPrefdlFile(void) {
+void WeutilDarwin::genSpiPrefdlFile() {
   int exitStatus = 0;
   std::string standardOut;
 
@@ -136,35 +151,19 @@ void WeutilDarwin::genSpiPrefdlFile(void) {
   }
 }
 
-std::vector<std::pair<std::string, std::string>> WeutilDarwin::getInfo(
-    const std::string&) {
-  PrefdlBase prefdl(kPredfl);
-
+std::vector<std::pair<std::string, std::string>> WeutilDarwin::getContents() {
   std::vector<std::pair<std::string, std::string>> ret;
-
-  for (auto item : weFields_) {
+  for (auto& item : weFields_) {
     auto it = kMapping.find(item.first);
     ret.emplace_back(
         item.first,
-        it == kMapping.end() ? item.second : prefdl.getField(it->second));
+        it == kMapping.end() ? item.second
+                             : eepromParser_->getField(it->second));
   }
-
   return ret;
 }
 
 void WeutilDarwin::printInfo() {
-  std::unique_ptr<PrefdlBase> pPrefdl;
-
-  if (eeprom_ != "") {
-    auto _it = eeprom_dev_mapping.find(eeprom_);
-    if (_it == eeprom_dev_mapping.end()) {
-      throw std::runtime_error("invalid eeprom type: " + eeprom_);
-    }
-    pPrefdl = std::make_unique<PrefdlBase>(_it->second);
-  } else {
-    pPrefdl = std::make_unique<PrefdlBase>(kPredfl);
-  }
-
   for (auto item : weFields_) {
     if (item.first == "Wedge EEPROM") {
       std::cout << item.first << folly::to<std::string>(" ", item.second, ":")
@@ -173,26 +172,14 @@ void WeutilDarwin::printInfo() {
       auto it = kMapping.find(item.first);
       std::cout << folly::to<std::string>(item.first, ": ")
                 << (it == kMapping.end() ? item.second
-                                         : pPrefdl->getField(it->second))
+                                         : eepromParser_->getField(it->second))
                 << std::endl;
     }
   }
 }
 
 void WeutilDarwin::printInfoJson() {
-  std::unique_ptr<PrefdlBase> pPrefdl;
   folly::dynamic wedgeInfo = folly::dynamic::object;
-
-  if (eeprom_ != "") {
-    auto _it = eeprom_dev_mapping.find(eeprom_);
-    if (_it == eeprom_dev_mapping.end()) {
-      throw std::runtime_error("invalid eeprom type: " + eeprom_);
-    }
-    pPrefdl = std::make_unique<PrefdlBase>(_it->second);
-
-  } else {
-    pPrefdl = std::make_unique<PrefdlBase>(kPredfl);
-  }
 
   wedgeInfo["Actions"] = folly::dynamic::array();
   wedgeInfo["Resources"] = folly::dynamic::array();
@@ -202,7 +189,8 @@ void WeutilDarwin::printInfoJson() {
     if (item.first != "Wedge EEPROM") {
       auto it = kMapping.find(item.first);
       wedgeInfo["Information"][item.first] =
-          (it == kMapping.end() ? item.second : pPrefdl->getField(it->second));
+          (it == kMapping.end() ? item.second
+                                : eepromParser_->getField(it->second));
     }
   }
 
@@ -215,27 +203,6 @@ void WeutilDarwin::printInfoJson() {
     wedgeInfo["Information"]["Extended MAC Address Size"] = "1";
   }
   std::cout << folly::toPrettyJson(wedgeInfo);
-}
-
-bool WeutilDarwin::getEepromPath(void) {
-  if (eeprom_ != "") {
-    if (eeprom_ != "pem" && eeprom_ != "fanspinner" && eeprom_ != "rackmon" &&
-        eeprom_ != "chassis") {
-      printUsage();
-      return false;
-    }
-  }
-  return true;
-}
-
-void WeutilDarwin::printUsage(void) {
-  std::cout
-      << "weutil [--h] [--json] [--eeprom pem|fanspinner|rackmon|chassis(default)]"
-      << std::endl;
-
-  std::cout << "usage examples:" << std::endl;
-  std::cout << "    weutil" << std::endl;
-  std::cout << "    weutil --eeprom pem" << std::endl;
 }
 
 } // namespace facebook::fboss::platform

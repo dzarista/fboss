@@ -19,8 +19,8 @@ enum class Sff8472Pages : int {
 class Sff8472Module : public QsfpModule {
  public:
   explicit Sff8472Module(
-      TransceiverManager* transceiverManager,
-      std::unique_ptr<TransceiverImpl> qsfpImpl);
+      std::set<std::string> portNames,
+      TransceiverImpl* qsfpImpl);
   virtual ~Sff8472Module() override;
 
   /*
@@ -48,6 +48,8 @@ class Sff8472Module : public QsfpModule {
   void customizeTransceiverLocked(
       TransceiverPortState& /* portState */) override {}
 
+  bool tcvrPortStateSupported(TransceiverPortState& portState) const override;
+
   virtual bool ensureTransceiverReadyLocked() override {
     return true;
   }
@@ -60,9 +62,7 @@ class Sff8472Module : public QsfpModule {
 
   void setPowerOverrideIfSupportedLocked(PowerControlState) override {}
 
-  TransmitterTechnology getQsfpTransmitterTechnology() const override {
-    return TransmitterTechnology::OPTICAL;
-  }
+  TransmitterTechnology getQsfpTransmitterTechnology() const override;
 
   std::optional<AlarmThreshold> getThresholdInfo() override {
     return std::nullopt;
@@ -99,7 +99,7 @@ class Sff8472Module : public QsfpModule {
 
   TransceiverSettings getTransceiverSettingsInfo() override;
 
-  PowerControlState getPowerControlValue() override {
+  PowerControlState getPowerControlValue(bool /* readFromCache */) override {
     return PowerControlState::HIGH_POWER_OVERRIDE;
   }
 
@@ -115,7 +115,7 @@ class Sff8472Module : public QsfpModule {
 
   void updateQsfpData(bool allPages = true) override;
 
-  bool remediateFlakyTransceiver(
+  void remediateFlakyTransceiver(
       bool allPortsDown,
       const std::vector<std::string>& ports) override;
 

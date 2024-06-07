@@ -12,7 +12,7 @@
 #include <folly/IPAddress.h>
 #include <folly/MacAddress.h>
 #include <folly/Range.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 #include "fboss/agent/AddressUtil.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
@@ -68,7 +68,10 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
       int mtu,
       bool isVirtual,
       bool isStateSyncDisabled,
-      cfg::InterfaceType type = cfg::InterfaceType::VLAN) {
+      cfg::InterfaceType type = cfg::InterfaceType::VLAN,
+      std::optional<RemoteInterfaceType> remoteIntfType = std::nullopt,
+      std::optional<LivenessStatus> remoteIntfLivenessStatus = std::nullopt,
+      cfg::Scope scope = cfg::Scope::LOCAL) {
     set<switch_state_tags::interfaceId>(id);
     setRouterID(router);
     if (vlan) {
@@ -80,6 +83,8 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
     setIsVirtual(isVirtual);
     setIsStateSyncDisabled(isStateSyncDisabled);
     setType(type);
+    setRemoteInterfaceType(remoteIntfType);
+    setScope(scope);
   }
 
   InterfaceID getID() const {
@@ -315,6 +320,15 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
   }
 
   template <typename NTable>
+  void setNeighborTable(std::shared_ptr<NTable> table) {
+    if constexpr (std::is_same_v<NTable, ArpTable>) {
+      ref<switch_state_tags::arpTable>() = std::move(table);
+    } else {
+      ref<switch_state_tags::ndpTable>() = std::move(table);
+    }
+  }
+
+  template <typename NTable>
   void setNeighborTable(state::NeighborEntries nbrTable) {
     if constexpr (std::is_same_v<NTable, ArpTable>) {
       return setArpTable(std::move(nbrTable));
@@ -408,6 +422,49 @@ class Interface : public ThriftStructNode<Interface, state::InterfaceFields> {
       return addr->cref();
     }
     return std::nullopt;
+  }
+
+  std::optional<RemoteInterfaceType> getRemoteInterfaceType() const {
+    if (auto remoteIntfType = cref<switch_state_tags::remoteIntfType>()) {
+      return remoteIntfType->cref();
+    }
+    return std::nullopt;
+  }
+
+  void setRemoteInterfaceType(
+      const std::optional<RemoteInterfaceType>& remoteIntfType = std::nullopt) {
+    if (remoteIntfType) {
+      set<switch_state_tags::remoteIntfType>(remoteIntfType.value());
+    } else {
+      ref<switch_state_tags::remoteIntfType>().reset();
+    }
+  }
+
+  std::optional<LivenessStatus> getRemoteLivenessStatus() const {
+    if (auto remoteIntfLivenessStatus =
+            cref<switch_state_tags::remoteIntfLivenessStatus>()) {
+      return remoteIntfLivenessStatus->cref();
+    }
+    return std::nullopt;
+  }
+
+  void setRemoteLivenessStatus(
+      const std::optional<LivenessStatus>& remoteIntfLivenessStatus =
+          std::nullopt) {
+    if (remoteIntfLivenessStatus) {
+      set<switch_state_tags::remoteIntfLivenessStatus>(
+          remoteIntfLivenessStatus.value());
+    } else {
+      ref<switch_state_tags::remoteIntfLivenessStatus>().reset();
+    }
+  }
+
+  void setScope(const cfg::Scope& scope) {
+    set<switch_state_tags::scope>(scope);
+  }
+
+  cfg::Scope getScope() const {
+    return cref<switch_state_tags::scope>()->cref();
   }
 
   /*

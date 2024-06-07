@@ -3,21 +3,19 @@
 
 #pragma once
 
-#include <folly/experimental/FunctionScheduler.h>
 #include <string>
 
+#include "fboss/platform/platform_manager/DataStore.h"
+#include "fboss/platform/platform_manager/DevicePathResolver.h"
 #include "fboss/platform/platform_manager/I2cExplorer.h"
 #include "fboss/platform/platform_manager/PciExplorer.h"
-#include "fboss/platform/platform_manager/PresenceDetector.h"
 #include "fboss/platform/platform_manager/gen-cpp2/platform_manager_config_types.h"
+#include "fboss/platform/weutil/CachedFbossEepromParser.h"
 
 namespace facebook::fboss::platform::platform_manager {
 class PlatformExplorer {
  public:
-  explicit PlatformExplorer(
-      std::chrono::seconds exploreInterval,
-      const PlatformConfig& config,
-      bool runOnce = false);
+  explicit PlatformExplorer(const PlatformConfig& config);
 
   // Explore the platform.
   void explore();
@@ -50,21 +48,6 @@ class PlatformExplorer {
       const std::string& slotPath,
       const std::vector<PciDeviceConfig>& pciDeviceConfigs);
 
-  // Get the kernel assigned I2C bus number for the given busName.
-  // If the busName could be found in global scope (e.g., bus from CPU),
-  // then return it directly. Otherwise, check if there is a mapping in the
-  // provided slotPath.
-  uint16_t getI2cBusNum(
-      const std::optional<std::string>& slotPath,
-      const std::string& pmUnitScopeBusName) const;
-
-  // Update the kernel assigned I2C bus number for the given busName. If the
-  // bus name is of global scope, then slotPath is empty.
-  void updateI2cBusNum(
-      const std::optional<std::string>& slotPath,
-      const std::string& pmUnitScopeBusName,
-      uint16_t busNum);
-
   // Get the instance id base for the FPGA at the given slotPath and
   // PmUnitScopedName. The instance id base is unique for each fpga hardware
   // discovered in the platform.
@@ -73,24 +56,28 @@ class PlatformExplorer {
       const std::string& pm);
 
  private:
-  // Get Gpio chip number of the given chip name at the given slot path
-  uint16_t getGpioChipNum(
-      const std::string& slotPath,
-      const std::string& gpioChipDeviceName);
-  // Update Gpio chip number of the given chip name at the given slot path
-  void updateGpioChipNum(
-      const std::string& slotPath,
-      const std::string& gpioChipDeviceName,
-      uint16_t gpioChipNum);
   void createDeviceSymLink(
       const std::string& linkPath,
-      const std::string& pmDevicePath);
+      const std::string& devicePath);
+  void reportExplorationSummary();
+  void setupI2cDevice(
+      const std::string& devicePath,
+      uint16_t busNum,
+      const I2cAddr& addr,
+      const std::vector<I2cRegData>& initRegSettings);
+  void createI2cDevice(
+      const std::string& devicePath,
+      const std::string& deviceName,
+      uint16_t busNum,
+      const I2cAddr& addr);
 
-  folly::FunctionScheduler scheduler_;
   PlatformConfig platformConfig_{};
   I2cExplorer i2cExplorer_{};
   PciExplorer pciExplorer_{};
-  PresenceDetector presenceDetector_{};
+  DataStore dataStore_{};
+  DevicePathResolver devicePathResolver_;
+  CachedFbossEepromParser eepromParser_{};
+
   // Map from <pmUnitPath, pmUnitScopeBusName> to kernel i2c bus name.
   // - The pmUnitPath to the rootPmUnit is /. So a bus at root PmUnit will have
   // the entry <"/", "MuxA@1"> -> i2c-54.
@@ -104,11 +91,12 @@ class PlatformExplorer {
   // Map from <slotPath, PmUnitScopedName> to instance ids for FPGAs.
   std::map<std::pair<std::string, std::string>, uint32_t> fpgaInstanceIds_{};
 
-  // This stores the PmUnit name which has been discovered at each SlotPath.
-  std::map<std::string, std::string> slotPathToPmUnitName_{};
-
   // Map from <SlotPath, GpioChipDeviceName> to gpio chip number.
   std::map<std::pair<std::string, std::string>, uint16_t> gpioChipNums_{};
+
+  // A collection of error messages to report at the end of an exploration.
+  // Map from DevicePath to errorMessages.
+  std::map<std::string, std::vector<std::string>> errorMessages_{};
 };
 
 } // namespace facebook::fboss::platform::platform_manager

@@ -12,7 +12,13 @@
 
 #include "fboss/agent/HwSwitch.h"
 
+namespace facebook::fboss {
+class TestEnsembleIf;
+}
 namespace facebook::fboss::utility {
+
+const int KMaxFlowsetTableSize = 32768;
+const int kDlbEcmpMaxId = 200128;
 
 bool validateFlowletSwitchingEnabled(
     const facebook::fboss::HwSwitch* hw,
@@ -22,8 +28,14 @@ bool verifyEcmpForFlowletSwitching(
     const facebook::fboss::HwSwitch* hw,
     const folly::CIDRNetwork& routePrefix,
     const cfg::FlowletSwitchingConfig& flowletCfg,
+    const cfg::PortFlowletConfig& portFlowletCfg,
     const bool flowletEnable,
     const bool expectFlowsetSizeZero = false);
+
+bool verifyEcmpForNonFlowlet(
+    const facebook::fboss::HwSwitch* hw,
+    const folly::CIDRNetwork& routePrefix,
+    const bool expectFlowsetFree);
 
 bool validatePortFlowletQuality(
     const facebook::fboss::HwSwitch* hw,
@@ -32,6 +44,13 @@ bool validatePortFlowletQuality(
 
 bool validateFlowletSwitchingDisabled(const facebook::fboss::HwSwitch* hw);
 
-void setEcmpMemberStatus(const facebook::fboss::HwSwitch* hw);
+void setEcmpMemberStatus(const facebook::fboss::TestEnsembleIf* hw);
+
+bool validateFlowSetTable(
+    const facebook::fboss::HwSwitch* hw,
+    const bool expectFlowsetSizeZero,
+    const int flowSetTableSize);
+
+int getL3EcmpDlbFailPackets(const facebook::fboss::TestEnsembleIf* hw);
 
 } // namespace facebook::fboss::utility

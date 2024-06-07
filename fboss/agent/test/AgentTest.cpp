@@ -11,6 +11,7 @@
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/SwitchState.h"
+#include "fboss/agent/test/utils/QosTestUtils.h"
 #include "fboss/qsfp_service/lib/QsfpClient.h"
 
 namespace {
@@ -25,6 +26,7 @@ DEFINE_bool(run_forever, false, "run the test forever");
 DEFINE_bool(run_forever_on_failure, false, "run the test forever on failure");
 
 DECLARE_string(config);
+DECLARE_bool(disable_looped_fabric_ports);
 
 namespace facebook::fboss {
 
@@ -44,6 +46,8 @@ void AgentTest::setupAgent() {
     hwAsicTableEntry->setDefaultStreamType(streamTypeOpt.value());
   }
   FLAGS_verify_apply_oper_delta = true;
+  // Looped ports are the common case in tests
+  FLAGS_disable_looped_fabric_ports = false;
   utilCreateDir(getAgentTestDir());
   setupConfigFlag();
   asyncInitThread_.reset(
@@ -57,7 +61,9 @@ void AgentTest::TearDown() {
       (::testing::Test::HasFailure() && FLAGS_run_forever_on_failure)) {
     runForever();
   }
-  MonolithicAgentInitializer::stopAgent(FLAGS_setup_for_warmboot);
+  bool gracefulExit = !::testing::Test::HasFailure();
+  MonolithicAgentInitializer::stopAgent(
+      FLAGS_setup_for_warmboot, gracefulExit /* gracefulExit */);
   asyncInitThread_->join();
   asyncInitThread_.reset();
 }
@@ -93,7 +99,8 @@ void AgentTest::resolveNeighbor(
     const AddrT& ip,
     VlanID vlanId,
     folly::MacAddress mac) {
-  auto resolveNeighborFn = [=](const std::shared_ptr<SwitchState>& state) {
+  auto resolveNeighborFn = [=,
+                            this](const std::shared_ptr<SwitchState>& state) {
     auto outputState{state->clone()};
     auto vlan = outputState->getVlans()->getNode(vlanId);
     auto nbrTable = vlan->template getNeighborEntryTable<AddrT>()->modify(
@@ -134,7 +141,7 @@ bool AgentTest::waitForSwitchStateCondition(
 }
 
 void AgentTest::setPortStatus(PortID portId, bool up) {
-  auto configFnLinkDown = [=](const std::shared_ptr<SwitchState>& state) {
+  auto configFnLinkDown = [=, this](const std::shared_ptr<SwitchState>& state) {
     auto newState = state->clone();
     auto ports = newState->getPorts()->modify(&newState);
     auto port = ports->getNodeIf(portId)->clone();
@@ -147,7 +154,7 @@ void AgentTest::setPortStatus(PortID portId, bool up) {
 }
 
 void AgentTest::setPortLoopbackMode(PortID portId, cfg::PortLoopbackMode mode) {
-  auto setLbMode = [=](const std::shared_ptr<SwitchState>& state) {
+  auto setLbMode = [=, this](const std::shared_ptr<SwitchState>& state) {
     auto newState = state->clone();
     auto ports = newState->getPorts()->modify(&newState);
     auto port = ports->getNodeIf(portId)->clone();
@@ -288,6 +295,20 @@ PortID AgentTest::getPortID(const std::string& portName) const {
     }
   }
   throw FbossError("No port named: ", portName);
+}
+
+void AgentTest::disableTTLDecrementOnPorts(
+    const boost::container::flat_set<PortDescriptor>& ecmpPorts) {
+  auto asicTable = sw()->getHwAsicTable();
+  sw()->updateStateBlocking(
+      "Disable TTL Decrement On Ports",
+      [ecmpPorts, asicTable](const std::shared_ptr<SwitchState>& state) {
+        auto newState = state->clone();
+        for (auto port : ecmpPorts) {
+          newState = utility::disableTTLDecrement(asicTable, newState, port);
+        }
+        return newState;
+      });
 }
 
 void initAgentTest(

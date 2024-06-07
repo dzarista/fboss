@@ -11,11 +11,12 @@
 #pragma once
 
 #include <fatal/container/tuple.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 #include <thrift/lib/cpp2/protocol/detail/protocol_methods.h>
 #include <thrift/lib/cpp2/reflection/folly_dynamic.h>
 #include <thrift/lib/cpp2/reflection/reflection.h>
 #include "fboss/agent/state/NodeBase-defs.h"
+#include "fboss/thrift_cow/nodes/NodeUtils.h"
 #include "fboss/thrift_cow/nodes/Serializer.h"
 #include "fboss/thrift_cow/nodes/Types.h"
 
@@ -169,22 +170,12 @@ struct ThriftMapFields {
   }
 
   bool remove(const std::string& token) {
+    // avoid infinite recursion in case key is string
     if constexpr (std::is_same_v<
                       KeyTypeClass,
-                      apache::thrift::type_class::enumeration>) {
-      // special handling for enum keyed maps
-      key_type enumKey;
-      if (fatal::enum_traits<key_type>::try_parse(enumKey, token)) {
-        return remove(enumKey);
-      }
-    } else if constexpr (std::is_same_v<
-                             KeyTypeClass,
-                             apache::thrift::type_class::string>) {
+                      apache::thrift::type_class::string>) {
       return storage_.erase(token);
-    }
-
-    auto key = folly::tryTo<key_type>(token);
-    if (key.hasValue()) {
+    } else if (auto key = tryParseKey<key_type, KeyTypeClass>(token)) {
       return remove(key.value());
     }
 
@@ -193,10 +184,10 @@ struct ThriftMapFields {
 
   template <typename T = Self>
   auto remove(const key_type& key) -> std::enable_if_t<
-      !std::is_same_v<
-          typename T::KeyTypeClass,
-          apache::thrift::type_class::string>,
-      bool> {
+                                       !std::is_same_v<
+                                           typename T::KeyTypeClass,
+                                           apache::thrift::type_class::string>,
+                                       bool> {
     return storage_.erase(key);
   }
 
@@ -283,7 +274,8 @@ struct ThriftMapFields {
 
 template <typename Traits, typename Resolver = ThriftMapResolver<Traits>>
 class ThriftMapNode
-    : public NodeBaseT<typename Resolver::type, ThriftMapFields<Traits>> {
+    : public NodeBaseT<typename Resolver::type, ThriftMapFields<Traits>>,
+      public thrift_cow::Serializable {
  public:
   using TC = typename Traits::TC;
   using TType = typename Traits::Type;
@@ -324,19 +316,12 @@ class ThriftMapNode
   }
 #endif
 
-  folly::fbstring encode(fsdb::OperProtocol proto) const {
-    return this->getFields()->encode(proto);
-  }
-
-  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const {
+  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const override {
     return this->getFields()->encodeBuf(proto);
   }
 
-  void fromEncoded(fsdb::OperProtocol proto, const folly::fbstring& encoded) {
-    return this->writableFields()->fromEncoded(proto, encoded);
-  }
-
-  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded) {
+  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded)
+      override {
     return this->writableFields()->fromEncodedBuf(proto, std::move(encoded));
   }
 
@@ -396,10 +381,10 @@ class ThriftMapNode
 
   template <typename T = Fields>
   auto remove(const key_type& key) -> std::enable_if_t<
-      !std::is_same_v<
-          typename T::KeyTypeClass,
-          apache::thrift::type_class::string>,
-      bool> {
+                                       !std::is_same_v<
+                                           typename T::KeyTypeClass,
+                                           apache::thrift::type_class::string>,
+                                       bool> {
     return this->writableFields()->remove(key);
   }
 
@@ -453,28 +438,22 @@ class ThriftMapNode
     return size() == 0;
   }
 
-  void modify(const std::string& token) {
-    if constexpr (std::is_same_v<
-                      typename Fields::KeyTypeClass,
-                      apache::thrift::type_class::enumeration>) {
-      // special handling for enum keyed maps
-      key_type enumKey;
-      if (fatal::enum_traits<key_type>::try_parse(enumKey, token)) {
-        modifyImpl(enumKey);
-        return;
-      }
+  bool tryModify(const std::string& token) {
+    if (auto parsedKey =
+            tryParseKey<key_type, typename Fields::KeyTypeClass>(token)) {
+      modifyTyped(parsedKey.value());
+      return true;
     }
-
-    auto key = folly::tryTo<key_type>(token);
-    if (key.hasValue()) {
-      modifyImpl(key.value());
-      return;
-    }
-
-    throw std::runtime_error(folly::to<std::string>("Invalid key: ", token));
+    return false;
   }
 
-  void modifyImpl(key_type key) {
+  void modify(const std::string& token) {
+    if (!tryModify(token)) {
+      throw std::runtime_error(folly::to<std::string>("Invalid key: ", token));
+    }
+  }
+
+  virtual void modifyTyped(key_type key) {
     DCHECK(!this->isPublished());
 
     if (auto it = this->find(key); it != this->end()) {
@@ -487,7 +466,7 @@ class ThriftMapNode
       }
     } else {
       // create unpublished default constructed child if missing
-      this->emplace(key);
+      this->emplace(key).first->second;
     }
   }
 
@@ -495,31 +474,6 @@ class ThriftMapNode
     auto newNode = ((*node)->isPublished()) ? (*node)->clone() : *node;
     newNode->modify(token);
     node->swap(newNode);
-  }
-
-  /*
-   * Visitors by string path
-   */
-
-  template <typename Func>
-  inline ThriftTraverseResult
-  visitPath(PathIter begin, PathIter end, Func&& f) {
-    return PathVisitor<TC>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
-  }
-
-  template <typename Func>
-  inline ThriftTraverseResult visitPath(PathIter begin, PathIter end, Func&& f)
-      const {
-    return PathVisitor<TC>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
-  }
-
-  template <typename Func>
-  inline ThriftTraverseResult cvisitPath(PathIter begin, PathIter end, Func&& f)
-      const {
-    return PathVisitor<TC>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
   }
 
   bool operator==(const Self& that) const {

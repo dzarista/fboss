@@ -27,11 +27,11 @@ class HwLoadBalancerTestV6RoCE
  private:
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = utility::onePortPerInterfaceConfig(
-        getHwSwitch(),
-        masterLogicalPortIds(),
-        getAsic()->desiredLoopbackModes());
-    cfg::UdfConfig udfCfg = utility::addUdfHashConfig();
-    cfg.udfConfig() = udfCfg;
+        getHwSwitchEnsemble(), masterLogicalPortIds());
+    if (isSupported(HwAsic::Feature::SAI_UDF_HASH)) {
+      cfg::UdfConfig udfCfg = utility::addUdfHashConfig();
+      cfg.udfConfig() = udfCfg;
+    }
     return cfg;
   }
 };
@@ -47,11 +47,7 @@ class HwLoadBalancerNegativeTestV6RoCE
  private:
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = utility::onePortPerInterfaceConfig(
-        getHwSwitch(),
-        masterLogicalPortIds(),
-        getAsic()->desiredLoopbackModes());
-    cfg::UdfConfig udfCfg;
-    cfg.udfConfig() = udfCfg;
+        getHwSwitchEnsemble(), masterLogicalPortIds());
     return cfg;
   }
 };
@@ -70,11 +66,11 @@ class HwLoadBalancerNegativeProtocolMatchTestV6RoCE
  private:
   cfg::SwitchConfig initialConfig() const override {
     auto cfg = utility::onePortPerInterfaceConfig(
-        getHwSwitch(),
-        masterLogicalPortIds(),
-        getAsic()->desiredLoopbackModes());
-    cfg::UdfConfig udfCfg = utility::addUdfHashConfig();
-    cfg.udfConfig() = udfCfg;
+        getHwSwitchEnsemble(), masterLogicalPortIds());
+    if (isSupported(HwAsic::Feature::SAI_UDF_HASH)) {
+      cfg::UdfConfig udfCfg = utility::addUdfHashConfig();
+      cfg.udfConfig() = udfCfg;
+    }
     return cfg;
   }
 };

@@ -3,11 +3,12 @@
 #include "fboss/lib/thrift_service_client/ThriftServiceClient.h"
 #include "fboss/qsfp_service/platforms/wedge/WedgeManager.h" // @manual=//fboss/qsfp_service/platforms/wedge:wedge-platform-default
 #include "fboss/qsfp_service/platforms/wedge/WedgeManagerInit.h" // @manual=//fboss/qsfp_service/platforms/wedge:wedge-platform-default
+#include "fboss/util/qsfp/QsfpServiceDetector.h"
 #include "fboss/util/qsfp/QsfpUtilContainer.h"
 #include "fboss/util/qsfp/QsfpUtilTx.h"
 #include "fboss/util/wedge_qsfp_util.h"
-#include "folly/gen/Base.h"
 
+#include <folly/gen/Base.h>
 #include <folly/init/Init.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -36,7 +37,7 @@ std::vector<FlagCommand> kCommands = {
     {"cdr_enable", {}},
     {"cdr_disable", {}},
     {"qsfp_hard_reset", {}},
-    {"qsfp_reset", {"reset_type", "reset_action"}},
+    {"qsfp_reset", {"qsfp_reset_type", "qsfp_reset_action"}},
     {"electrical_loopback", {}},
     {"optical_loopback", {}},
     {"clear_loopback", {}},
@@ -98,7 +99,7 @@ int main(int argc, char* argv[]) {
   bool good = true;
   std::unique_ptr<WedgeManager> wedgeManager = createWedgeManager();
   if (argc == 1) {
-    folly::gen::range(0, wedgeManager->getNumQsfpModules()) |
+    folly::gen::range(1, wedgeManager->getNumQsfpModules() + 1) |
         folly::gen::appendTo(ports);
   } else {
     for (int n = 1; n < argc; ++n) {
@@ -112,6 +113,13 @@ int main(int argc, char* argv[]) {
           portNames.push_back(portStr);
         } else {
           portNum = folly::to<unsigned int>(argv[n]);
+          auto portName = wedgeManager->getPortName(TransceiverID(portNum - 1));
+          if (portName.empty()) {
+            throw FbossError(
+                "Couldn't find a portName for transceiverID (1-indexed):",
+                portNum);
+          }
+          portNames.push_back(portName);
         }
         ports.push_back(portNum);
       } catch (const std::exception& ex) {
@@ -126,10 +134,6 @@ int main(int argc, char* argv[]) {
   }
   if (!good) {
     return EX_USAGE;
-  }
-
-  if (FLAGS_qsfp_reset) {
-    return resetQsfp(portNames, evb);
   }
 
   if (FLAGS_pause_remediation) {
@@ -170,7 +174,7 @@ int main(int argc, char* argv[]) {
         FLAGS_app_sel || FLAGS_cdb_command || FLAGS_update_bulk_module_fw ||
         FLAGS_vdm_info || FLAGS_prbs_start || FLAGS_prbs_stop ||
         FLAGS_prbs_stats || FLAGS_module_io_stats || FLAGS_batch_ops ||
-        FLAGS_capabilities);
+        FLAGS_capabilities || FLAGS_qsfp_reset);
 
   if (FLAGS_direct_i2c || !printInfo) {
     try {
@@ -189,7 +193,9 @@ int main(int argc, char* argv[]) {
           if (iter == domDataUnionMap.end()) {
             fprintf(stderr, "Port %d is not present.\n", tcvrId + 1);
           } else {
-            printPortDetail(iter->second, iter->first + 1);
+            auto logicalPorts = folly::join(
+                ", ", wedgeManager->getPortNames(TransceiverID(tcvrId)));
+            printPortDetail(iter->second, iter->first + 1, logicalPorts);
           }
         }
       } else {
@@ -200,8 +206,10 @@ int main(int argc, char* argv[]) {
             fprintf(
                 stderr, "qsfp_service didn't return data for Port %d\n", i + 1);
           } else {
+            auto logicalPorts =
+                folly::join(", ", wedgeManager->getPortNames(TransceiverID(i)));
             printPortDetailService(
-                iter->second, iter->first + 1, FLAGS_verbose);
+                iter->second, iter->first + 1, FLAGS_verbose, logicalPorts);
           }
         }
       }
@@ -299,7 +307,10 @@ int main(int argc, char* argv[]) {
       try {
         // Get the port details from the direct i2c read and then print out
         // the i2c info from module
-        printPortDetail(fetchDataFromLocalI2CBus(i2cInfo, portNum), portNum);
+        auto logicalPorts = folly::join(
+            ", ", wedgeManager->getPortNames(TransceiverID(portNum - 1)));
+        printPortDetail(
+            fetchDataFromLocalI2CBus(i2cInfo, portNum), portNum, logicalPorts);
       } catch (const I2cError& ex) {
         // This generally means the QSFP module is not present.
         fprintf(stderr, "Port %d: not present: %s\n", portNum, ex.what());
@@ -327,7 +338,7 @@ int main(int argc, char* argv[]) {
           TransceiverManagementInterface::CMIS) {
         printf("This command is applicable to CMIS module only\n");
       } else {
-        doCdbCommand(bus, portNum);
+        doCdbCommand(i2cInfo, portNum);
       }
     }
 
@@ -356,6 +367,33 @@ int main(int argc, char* argv[]) {
       } else if (FLAGS_prbs_stats) {
         printf("Showing PRBS stats for Module %d\n", portNum);
         getModulePrbsStats(i2cInfo, swPortList);
+      }
+    }
+  }
+
+  if (FLAGS_qsfp_reset) {
+    // Do a reset for the chosen ports.
+    if (FLAGS_direct_i2c) {
+      // Do a direct qsfp hard reset via the CPLD/GPIO.
+      for (unsigned int portNum : ports) {
+        if (doQsfpHardReset(bus, portNum)) {
+          printf("QSFP %d: Hard reset directly via HW done\n", portNum);
+        } else {
+          fprintf(
+              stderr, "QSFP %d: Hard reset directly via HW failed\n", portNum);
+        }
+      }
+    } else {
+      // Do a QSFP reset through the qsfp_service.
+      // The reset will depend on the flags: FLAGS_qsfp_reset_type and
+      // FLAGS_qsfp_reset_action which are defaulted to HARD_RESET and
+      // RESET_THEN_CLEAR.
+      retcode = resetQsfp(portNames, evb);
+      if (retcode != EX_OK) {
+        fprintf(stderr, "Failed to reset QSFP modules via qsfp_service\n");
+        return retcode;
+      } else {
+        printf("Successfully reset QSFP modules via qsfp_service\n");
       }
     }
   }

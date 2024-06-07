@@ -13,6 +13,7 @@
 #include "fboss/qsfp_service/fsdb/QsfpFsdbSyncManager.h"
 #include "fboss/qsfp_service/platforms/wedge/QsfpRestClient.h"
 #include "fboss/qsfp_service/platforms/wedge/WedgeI2CBusLock.h"
+#include "fboss/qsfp_service/platforms/wedge/WedgeQsfp.h"
 
 DECLARE_bool(override_program_iphy_ports_for_test);
 
@@ -46,7 +47,6 @@ class WedgeManager : public TransceiverManager {
   void writeTransceiverRegister(
       std::map<int32_t, WriteResponse>& response,
       std::unique_ptr<WriteRequest> request) override;
-  void customizeTransceiver(int32_t idx, cfg::PortSpeed speed) override;
   void syncPorts(TransceiverMap& info, std::unique_ptr<PortMap> ports) override;
 
   PlatformType getPlatformType() const override {
@@ -97,15 +97,6 @@ class WedgeManager : public TransceiverManager {
       std::map<int32_t, ModuleStatus>& moduleStatusMap,
       std::unique_ptr<std::vector<int32_t>> ids) override;
 
-  // This function will bring all the transceivers out of reset, making use
-  // of the specific implementation from each platform. Platforms that bring
-  // transceiver out of reset by default will stay no op.
-  virtual void clearAllTransceiverReset();
-
-  // This function will trigger a hard reset on the specific transceiver, making
-  // use of the specific implementation from each platform.
-  virtual void triggerQsfpHardReset(int idx);
-
   /*
    * This function will call PhyManager to create all the ExternalPhy objects
    */
@@ -151,7 +142,12 @@ class WedgeManager : public TransceiverManager {
       std::string&& portName,
       phy::PhyStats&& stat) const override;
 
+  virtual void publishPortStatToFsdb(std::string&& portName, HwPortStats&& stat)
+      const override;
+
   void loadConfig() override;
+
+  void createQsfpToBmcSyncInterface();
 
   std::string getSwitchDataCenter() const {
     return dataCenter_;
@@ -185,6 +181,8 @@ class WedgeManager : public TransceiverManager {
       TransceiverID tcvrID,
       facebook::fboss::TcvrState&& newState) override;
 
+  void initQsfpImplMap();
+
  private:
   // Forbidden copy constructor and assignment operator
   WedgeManager(WedgeManager const&) = delete;
@@ -198,5 +196,6 @@ class WedgeManager : public TransceiverManager {
   std::string dataCenter_{""};
   std::string hostnameScheme_{""};
   time_t nextOpticsToBmcSyncTime_{0};
+  std::vector<std::unique_ptr<WedgeQsfp>> qsfpImpls_;
 };
 } // namespace facebook::fboss

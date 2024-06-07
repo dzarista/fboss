@@ -186,14 +186,22 @@ SaiQueueManager::SaiQueueManager(
     const SaiPlatform* platform)
     : saiStore_(saiStore), managerTable_(managerTable), platform_(platform) {}
 
-void SaiQueueManager::changeQueueEcnWred(
-    SaiQueueHandle* queueHandle,
-    const PortQueue& newPortQueue) {
+bool SaiQueueManager::isVoqSwitchAndQueueHandleNotForVoq(
+    SaiQueueHandle* queueHandle) {
   auto qType = SaiApiTable::getInstance()->queueApi().getAttribute(
       queueHandle->queue->adapterKey(), SaiQueueTraits::Attributes::Type{});
   if (platform_->getAsic()->isSupported(HwAsic::Feature::VOQ) &&
       (SAI_QUEUE_TYPE_UNICAST_VOQ != qType) &&
       (SAI_QUEUE_TYPE_MULTICAST_VOQ != qType)) {
+    return true;
+  }
+  return false;
+}
+
+void SaiQueueManager::changeQueueEcnWred(
+    SaiQueueHandle* queueHandle,
+    const PortQueue& newPortQueue) {
+  if (isVoqSwitchAndQueueHandleNotForVoq(queueHandle)) {
     // VOQ switches support WRED/ECN configs on voqs only
     return;
   }
@@ -211,6 +219,10 @@ void SaiQueueManager::changeQueueEcnWred(
 void SaiQueueManager::changeQueueBufferProfile(
     SaiQueueHandle* queueHandle,
     const PortQueue& newPortQueue) {
+  if (isVoqSwitchAndQueueHandleNotForVoq(queueHandle)) {
+    // VOQ switches support buffer profiles on voqs only
+    return;
+  }
   auto newBufferProfile =
       managerTable_->bufferManager().getOrCreateProfile(newPortQueue);
   if (newBufferProfile != queueHandle->bufferProfile) {
@@ -243,9 +255,45 @@ void SaiQueueManager::changeQueueScheduler(
   }
 }
 
+void SaiQueueManager::queuePfcDeadlockDetectionRecoveryEnable(
+    SaiQueueHandle* queueHandle,
+    const bool portPfcWdEnabled) {
+  // FIXME: Move to GET_ATTR() once EnablePfcDldr is part of createAttr
+  bool enabled = SaiApiTable::getInstance()->queueApi().getAttribute(
+      queueHandle->queue->adapterKey(),
+      SaiQueueTraits::Attributes::EnablePfcDldr{});
+  if (enabled != portPfcWdEnabled) {
+    SaiApiTable::getInstance()->queueApi().setAttribute(
+        queueHandle->queue->adapterKey(),
+        SaiQueueTraits::Attributes::EnablePfcDldr{portPfcWdEnabled});
+  }
+}
+
+void SaiQueueManager::changeQueueDeadlockEnable(
+    SaiQueueHandle* queueHandle,
+    const Port* swPort) {
+  if (swPort && swPort->getPfc().has_value()) {
+    // Enabled PFC priorities cannot be changed without a cold boot
+    // and hence in this flow, just take care of a case where PFC
+    // WD is being enabled or disabled for queues.
+    auto pfcPris = swPort->getPfcPriorities();
+    auto queueId = GET_ATTR(Queue, Index, queueHandle->queue->attributes());
+    if (pfcPris.size() &&
+        (std::find(pfcPris.begin(), pfcPris.end(), queueId) != pfcPris.end())) {
+      // Assume 1:1 mapping between queue ID and PFC priorities
+      bool portPfcWdEnabled = swPort->getPfc()->watchdog().has_value();
+      queuePfcDeadlockDetectionRecoveryEnable(queueHandle, portPfcWdEnabled);
+      auto pfcWdEnabledStatus = portPfcWdEnabled ? "enabled" : "disabled";
+      XLOG(DBG3) << "PFC WD " << pfcWdEnabledStatus << " on queue" << queueId
+                 << " of " << swPort->getName();
+    }
+  }
+}
+
 void SaiQueueManager::changeQueue(
     SaiQueueHandle* queueHandle,
-    const PortQueue& newPortQueue) {
+    const PortQueue& newPortQueue,
+    const Port* swPort) {
   CHECK(queueHandle);
   auto queueType = GET_ATTR(Queue, Type, queueHandle->queue->attributes());
   if ((queueType != SAI_QUEUE_TYPE_UNICAST_VOQ) &&
@@ -254,19 +302,24 @@ void SaiQueueManager::changeQueue(
       changeQueueScheduler(queueHandle, newPortQueue);
     }
   }
-  if (platform_->getAsic()->isSupported(HwAsic::Feature::SAI_ECN_WRED)) {
-    changeQueueEcnWred(queueHandle, newPortQueue);
-  }
+  changeQueueEcnWred(queueHandle, newPortQueue);
   if (platform_->getAsic()->isSupported(HwAsic::Feature::BUFFER_POOL) &&
       (queueType != SAI_QUEUE_TYPE_FABRIC_TX)) {
-    changeQueueBufferProfile(queueHandle, newPortQueue);
+    if (!swPort || (swPort->getPortType() != cfg::PortType::MANAGEMENT_PORT)) {
+      // Unsupported for MANAGEMENT_PORT
+      changeQueueBufferProfile(queueHandle, newPortQueue);
+    }
+  }
+  if (queueType == SAI_QUEUE_TYPE_UNICAST) {
+    changeQueueDeadlockEnable(queueHandle, swPort);
   }
 }
 
 void SaiQueueManager::ensurePortQueueConfig(
     PortSaiId portSaiId,
     const SaiQueueHandles& queueHandles,
-    const QueueConfig& queues) {
+    const QueueConfig& queues,
+    const Port* swPort) {
   for (const auto& portQueue : queues) {
     SaiQueueTraits::CreateAttributes attributes =
         detail::makeQueueAttributes(portSaiId, *portQueue);
@@ -286,7 +339,7 @@ void SaiQueueManager::ensurePortQueueConfig(
       throw FbossError(
           "failed to find queue handle for queue id: ", (*portQueue).getID());
     }
-    changeQueue(queueHandleEntry->second.get(), *portQueue);
+    changeQueue(queueHandleEntry->second.get(), *portQueue, swPort);
   }
 }
 
@@ -390,13 +443,10 @@ SaiQueueManager::egressQueueNonWatermarkCounterIdsRead(int queueType) const {
         SaiQueueTraits::NonWatermarkWredCounterIdsToRead.end());
 
     if (platform_->getAsic()->isSupported(HwAsic::Feature::QUEUE_ECN_COUNTER)) {
-      // Supported on TAJO only with SDK version 1.42.4 onwards.
-#if !defined(TAJO_SDK_VERSION_1_42_1)
       extendedCounterIds.insert(
           extendedCounterIds.end(),
           SaiQueueTraits::NonWatermarkEcnCounterIdsToRead.begin(),
           SaiQueueTraits::NonWatermarkEcnCounterIdsToRead.end());
-#endif
     }
   }
 

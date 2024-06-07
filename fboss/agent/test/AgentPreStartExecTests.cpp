@@ -16,6 +16,8 @@
 #include <cstdio>
 #include <filesystem>
 
+using ::testing::_;
+
 namespace facebook::fboss {
 
 namespace {
@@ -129,23 +131,10 @@ class AgentPreStartExecTests : public ::testing::Test {
       // drain config needed for fdsw
       touchFile(util_->getAgentDrainConfig());
     }
-    if (!TestAttr::kCppRefactor) {
-      if (TestAttr::kMultiSwitch) {
-        EXPECT_CALL(
-            executor,
-            runShellCommand(util_->getMultiSwitchPreStartScript(), true))
-            .Times(1);
-      }
-    } else {
+    if (TestAttr::kCppRefactor) {
       ::testing::InSequence seq;
       EXPECT_CALL(*netwhoami, isFdsw()).WillOnce(Return(fdsw));
       EXPECT_CALL(*netwhoami, isFdsw()).WillOnce(Return(fdsw));
-      EXPECT_CALL(*netwhoami, isNotDrainable()).WillOnce(Return(false));
-      EXPECT_CALL(*netwhoami, isFdsw()).WillOnce(Return(fdsw));
-      if (drain && !fdsw) {
-        // device to be marked for draining
-        EXPECT_CALL(drainer, drain()).Times(1);
-      }
       EXPECT_CALL(*netwhoami, isBcmPlatform())
           .WillOnce(Return(TestAttr::kBrcm));
       if (!TestAttr::kBrcm) {
@@ -193,22 +182,42 @@ class AgentPreStartExecTests : public ::testing::Test {
                     "enable",
                     util_->getHwAgentServiceInstance(1)},
                 true));
+      } else {
+        EXPECT_CALL(
+            executor,
+            runCommand(
+                std::vector<std::string>{
+                    "/usr/bin/systemctl", "disable", "fboss_sw_agent"},
+                false));
+
+        EXPECT_CALL(
+            executor,
+            runCommand(
+                std::vector<std::string>{
+                    "/usr/bin/systemctl",
+                    "disable",
+                    "fboss_hw_agent@0.service"},
+                false));
+
+        if (TestAttr::kMultiSwitch) {
+          EXPECT_CALL(
+              executor,
+              runCommand(
+                  std::vector<std::string>{
+                      "/usr/bin/systemctl",
+                      "disable",
+                      "fboss_hw_agent@1.service"},
+                  false));
+        }
       }
       // update-buildinfo
       EXPECT_CALL(
           executor, runShellCommand("/usr/local/bin/fboss-build-info", false))
           .Times(1);
-      if (TestAttr::kMultiSwitch) {
-        EXPECT_CALL(
-            executor,
-            runShellCommand(util_->getMultiSwitchPreStartScript(), true))
-            .Times(1);
-      }
     }
 
     exec.run(
         &executor,
-        &drainer,
         std::move(netwhoami),
         *util_,
         std::make_unique<AgentConfig>(getConfig()),
@@ -275,7 +284,6 @@ class AgentPreStartExecTests : public ::testing::Test {
       EXPECT_THROW(
           exec.run(
               &executor,
-              &drainer,
               std::move(netwhoami),
               *util_,
               std::make_unique<AgentConfig>(getConfig()),
@@ -284,7 +292,6 @@ class AgentPreStartExecTests : public ::testing::Test {
     } else {
       exec.run(
           &executor,
-          &drainer,
           std::move(netwhoami),
           *util_,
           std::make_unique<AgentConfig>(getConfig()),
@@ -321,7 +328,7 @@ class AgentPreStartExecTests : public ::testing::Test {
   }
 
   void setMultiSwitchMode(std::map<std::string, std::string>& args) {
-    args.emplace("multi_switch", TestAttr::kMultiSwitch ? "true" : "false");
+    FLAGS_multi_switch = TestAttr::kMultiSwitch ? true : false;
   }
 
   void setSwitchIdToSwitchInfo(cfg::SwitchConfig& config) {
@@ -367,7 +374,7 @@ class AgentPreStartExecTests : public ::testing::Test {
                                              : getAsicSdkVersion(sdkVersion));
     createDirectoryTree(binDir);
     touchFile(binDir + "/wedge_agent");
-    touchFile(binDir + "/wedge_hwagent");
+    touchFile(binDir + "/fboss_hw_agent");
     createDirectory(binDir + "/db");
     touchFile(util_->getPackageDirectory() + "/fboss_sw_agent");
   }

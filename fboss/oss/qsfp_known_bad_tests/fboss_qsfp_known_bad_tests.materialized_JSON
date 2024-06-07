@@ -75,6 +75,9 @@
         },
         {
           "test_name_regex": "HwTransceiverResetTest.verifyResetControl$"
+        },
+        {
+          "test_name_regex": "PhyIOTest.phyIOStats$"
         }
     ],
     "elbert_5x16Q_3x8DD/physdk-credo-0.7.2/credo-0.7.2": [
@@ -104,6 +107,9 @@
         },
         {
           "test_name_regex": "HwTransceiverResetTest.verifyResetControl$"
+        },
+        {
+          "test_name_regex": "PhyIOTest.phyIOStats$"
         }
     ],
     "elbert_8x16Q/physdk-credo-0.7.2/credo-0.7.2": [
@@ -118,6 +124,9 @@
         },
         {
           "test_name_regex": "HwTransceiverResetTest.verifyResetControl$"
+        },
+        {
+          "test_name_regex": "PhyIOTest.phyIOStats$"
         }
     ],
     "fuji_5x16Q/physdk-barchetta2-5.2/barchetta2-5.2": [
@@ -185,6 +194,20 @@
         },
         {
           "test_name_regex": "HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER.TestProfile$"
+        }
+    ],
+    "janga800bic/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "HwTransceiverTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "HwTransceiverResetTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "OpticsFwUpgradeTest.*$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_800G_8_PAM4_RS544X2N_OPTICAL.TestProfile$"
         }
     ],
     "meru400bfu/physdk-credo-0.7.2/credo-0.7.2": [
@@ -317,6 +340,49 @@
         },
         {
           "test_name_regex": "HwTest_PROFILE_200G_4_PAM4_RS544X2N_OPTICAL.TestProfile$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_800G_8_PAM4_RS544X2N_OPTICAL.TestProfile$"
+        }
+    ],
+    "morgan800cc/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "HwTransceiverTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "HwTransceiverResetTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "OpticsFwUpgradeTest.*$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_100G_4_NRZ_RS528_COPPER.TestProfile$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_100G_4_NRZ_RS528_OPTICAL.TestProfile$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_200G_4_PAM4_RS544X2N_COPPER.TestProfile$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_200G_4_PAM4_RS544X2N_OPTICAL.TestProfile$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_800G_8_PAM4_RS544X2N_OPTICAL.TestProfile$"
+        }
+    ],
+    "tahan800bc/physdk-credo-0.7.2/credo-0.7.2": [
+        {
+          "test_name_regex": "HwTransceiverTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "HwTransceiverResetTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "OpticsFwUpgradeTest.*$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_800G_8_PAM4_RS544X2N_OPTICAL.TestProfile$"
         }
     ],
     "wedge100s/physdk-credo-0.7.2/credo-0.7.2": [
@@ -397,6 +463,9 @@
         },
         {
           "test_name_regex": "HwTransceiverResetTest.verifyResetControl$"
+        },
+        {
+          "test_name_regex": "PhyIOTest.phyIOStats$"
         }
     ]
   }

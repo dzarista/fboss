@@ -8,8 +8,16 @@
  *
  */
 #pragma once
+
 #include <cstdint>
 #include <mutex>
+#include <optional>
+#include <set>
+
+#include <folly/Synchronized.h>
+#include <folly/experimental/FunctionScheduler.h>
+#include <folly/futures/Future.h>
+
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/lib/firmware_storage/FbossFirmware.h"
 #include "fboss/lib/link_snapshots/SnapshotManager-defs.h"
@@ -18,11 +26,6 @@
 #include "fboss/qsfp_service/if/gen-cpp2/qsfp_service_config_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 #include "fboss/qsfp_service/module/Transceiver.h"
-
-#include <folly/Synchronized.h>
-#include <folly/experimental/FunctionScheduler.h>
-#include <folly/futures/Future.h>
-#include <optional>
 
 #define QSFP_LOG(level, tcvr) \
   XLOG(level) << "Transceiver " << tcvr->getNameString() << ": "
@@ -33,6 +36,7 @@
 namespace facebook {
 namespace fboss {
 
+struct QsfpConfig;
 class TransceiverImpl;
 class TransceiverManager;
 
@@ -50,6 +54,14 @@ class QsfpModuleError : public std::exception {
 
  private:
   std::string what_;
+};
+
+using TransceiverOverrides = std::vector<cfg::TransceiverConfigOverride>;
+
+struct TransceiverConfig {
+  explicit TransceiverConfig(const TransceiverOverrides& overrides)
+      : overridesConfig_(overrides) {}
+  TransceiverOverrides overridesConfig_;
 };
 
 /*
@@ -70,8 +82,8 @@ class QsfpModule : public Transceiver {
   using LengthAndGauge = std::pair<double, uint8_t>;
 
   explicit QsfpModule(
-      TransceiverManager* transceiverManager,
-      std::unique_ptr<TransceiverImpl> qsfpImpl);
+      std::set<std::string> portNames,
+      TransceiverImpl* qsfpImpl);
   virtual ~QsfpModule() override;
 
   /*
@@ -102,6 +114,11 @@ class QsfpModule : public Transceiver {
    * different qsfp settings based on speed
    */
   void customizeTransceiver(TransceiverPortState& portState) override;
+
+  virtual bool tcvrPortStateSupported(
+      TransceiverPortState& /* portState */) const override {
+    return false;
+  }
 
   /*
    * Returns the entire QSFP information
@@ -162,9 +179,7 @@ class QsfpModule : public Transceiver {
 
   virtual void configureModule(uint8_t /* startHostLane */) {}
 
-  bool isVdmSupported() const {
-    return isTransceiverFeatureSupported(TransceiverFeature::VDM);
-  }
+  bool isVdmSupported(uint8_t maxGroupRequested = 0) const;
 
   bool isPrbsSupported(phy::Side side) const {
     return isTransceiverFeatureSupported(TransceiverFeature::PRBS, side);
@@ -222,16 +237,20 @@ class QsfpModule : public Transceiver {
    * When allPortsDown is true, we trigger a full remediation otherwise we just
    * remediate specific datapaths
    */
-  bool tryRemediate(bool allPortsDown, const std::vector<std::string>& ports)
-      override;
+  bool tryRemediate(
+      bool allPortsDown,
+      time_t pauseRemediation,
+      const std::vector<std::string>& ports) override;
 
-  bool shouldRemediate() override;
+  bool shouldRemediate(time_t pauseRemediation) override;
 
   void markLastDownTime() override;
 
   time_t getLastDownTime() const override {
     return lastDownTime_.load();
   }
+
+  std::string getFwStorageHandle() const override;
 
   phy::PrbsStats getPortPrbsStats(const std::string& portName, phy::Side side)
       override;
@@ -254,6 +273,9 @@ class QsfpModule : public Transceiver {
   static TransceiverManagementInterface getTransceiverManagementInterface(
       const uint8_t moduleId,
       const unsigned int oneBasedPort);
+
+  virtual std::vector<MediaInterfaceCode> getSupportedMediaInterfaces()
+      const override;
 
   virtual std::vector<uint8_t> configuredHostLanes(
       uint8_t hostStartLane) const = 0;
@@ -290,16 +312,17 @@ class QsfpModule : public Transceiver {
   bool isTransceiverFeatureSupported(TransceiverFeature feature, phy::Side side)
       const;
 
-  bool requiresFirmwareUpgrade() const override;
-
   void setTransceiverLoopback(
       const std::string& portName,
       phy::Side side,
       bool setLoopback) override;
 
+  std::map<std::string, CdbDatapathSymErrHistogram> getSymbolErrorHistogram()
+      override;
+
  protected:
   /* Qsfp Internal Implementation */
-  std::unique_ptr<TransceiverImpl> qsfpImpl_;
+  TransceiverImpl* qsfpImpl_;
   // Flat memory systems don't support paged access to extra data
   bool flatMem_{false};
   /* This counter keeps track of the number of times
@@ -330,6 +353,9 @@ class QsfpModule : public Transceiver {
 
   // Diagnostic capabilities of the module
   folly::Synchronized<std::optional<DiagsCapability>> diagsCapability_;
+
+  // VDM groups supported
+  uint8_t vdmSupportedGroupsMax_ = 0;
 
   /*
    * Perform transceiver customization
@@ -436,7 +462,7 @@ class QsfpModule : public Transceiver {
   /*
    * Return what power control capability is currently enabled
    */
-  virtual PowerControlState getPowerControlValue() = 0;
+  virtual PowerControlState getPowerControlValue(bool readFromCache) = 0;
   /*
    * Return TransceiverStats
    */
@@ -453,6 +479,11 @@ class QsfpModule : public Transceiver {
   virtual std::optional<ExtendedSpecComplianceCode>
   getExtendedSpecificationComplianceCode() const {
     return std::nullopt;
+  }
+
+  virtual std::vector<MediaInterfaceCode> getSupportedMediaInterfacesLocked()
+      const {
+    return std::vector<MediaInterfaceCode>();
   }
 
   double mwToDb(double value);
@@ -491,13 +522,10 @@ class QsfpModule : public Transceiver {
    * Put logic here that should only be run on ports that have been
    * down for a long time. These are actions that are potentially more
    * disruptive, but have worked in the past to recover a transceiver.
-   * Only return true if there's an actual remediation happened
    */
-  virtual bool remediateFlakyTransceiver(
-      bool /* allPortsDown */,
-      const std::vector<std::string>& /* ports */) {
-    return false;
-  }
+  virtual void remediateFlakyTransceiver(
+      bool allPortsDown,
+      const std::vector<std::string>& ports) = 0;
 
   // make sure that tx_disable bits are clear
   virtual void ensureTxEnabled() {}
@@ -563,8 +591,30 @@ class QsfpModule : public Transceiver {
     return std::nullopt;
   }
 
+  virtual std::optional<VdmPerfMonitorStats> getVdmPerfMonitorStats() {
+    return std::nullopt;
+  }
+
+  virtual VdmPerfMonitorStatsForOds getVdmPerfMonitorStatsForOds(
+      VdmPerfMonitorStats& /* vdmPerfMonStats */) {
+    return VdmPerfMonitorStatsForOds{};
+  }
+
+  virtual std::map<std::string, CdbDatapathSymErrHistogram>
+  getCdbSymbolErrorHistogramLocked() {
+    return {};
+  }
+
   virtual bool setTransceiverTxLocked(
       const std::string& /* portName */,
+      phy::Side /* side */,
+      std::optional<uint8_t> /* userChannelMask */,
+      bool /* enable */) {
+    return false;
+  }
+
+  virtual bool setTransceiverTxImplLocked(
+      const std::set<uint8_t>& /* tcvrLanes */,
       phy::Side /* side */,
       std::optional<uint8_t> /* userChannelMask */,
       bool /* enable */) {
@@ -583,8 +633,6 @@ class QsfpModule : public Transceiver {
       const std::string& portName,
       phy::Side side) const;
 
-  unsigned int moduleResetCounter_{0};
-
   // Due to the mismatch of ODS reporting frequency and the interval of us
   // reading transceiver data, some of the clear on read information may
   // be lost in this process and not being captured in the ODS time series.
@@ -599,14 +647,14 @@ class QsfpModule : public Transceiver {
   folly::Synchronized<phy::PrbsStats> systemPrbsStats_;
   folly::Synchronized<phy::PrbsStats> linePrbsStats_;
 
-  bool shouldRemediateLocked() override;
+  bool shouldRemediateLocked(time_t pauseRemidiation) override;
 
   virtual bool upgradeFirmwareLockedImpl(
       std::unique_ptr<FbossFirmware> /* fbossFw */) const {
     return false;
   }
 
-  void triggerModuleResetLocked();
+  void triggerModuleReset();
 
  private:
   // no copy or assignment
@@ -628,6 +676,7 @@ class QsfpModule : public Transceiver {
    */
   bool tryRemediateLocked(
       bool allPortsDown,
+      time_t pauseRemdiation,
       const std::vector<std::string>& ports);
   /*
    * Perform a raw register read on the transceiver
@@ -653,10 +702,10 @@ class QsfpModule : public Transceiver {
       uint8_t data) override;
 
   bool upgradeFirmware(
-      const std::optional<cfg::Firmware>& fw = std::nullopt) override;
+      std::vector<std::unique_ptr<FbossFirmware>>& fwList) override;
 
   bool upgradeFirmwareLocked(
-      const std::optional<cfg::Firmware>& fw = std::nullopt);
+      std::vector<std::unique_ptr<FbossFirmware>>& fwList);
 
   /*
    * Perform logic OR operation to media lane signals in order to cache them
@@ -715,10 +764,6 @@ class QsfpModule : public Transceiver {
 
   std::unordered_map<std::string, std::set<uint8_t>> portNameToHostLanes_;
   std::unordered_map<std::string, std::set<uint8_t>> portNameToMediaLanes_;
-
-  // Returns the Firmware object from qsfp config for the given module.
-  // If there is no firmware in config, returns empty optional
-  std::optional<cfg::Firmware> getFirmwareFromCfg() const;
 
   time_t lastFwUpgradeStartTime_{0};
   time_t lastFwUpgradeEndTime_{0};

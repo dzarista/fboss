@@ -13,6 +13,7 @@ add_fbthrift_cpp_library(
     reflection
   DEPENDS
     fboss_cpp2
+    sensor_config_cpp2
 )
 
 add_fbthrift_cpp_library(
@@ -54,6 +55,17 @@ add_executable(sensor_service
 target_link_libraries(sensor_service
   sensor_service_lib
   fb303::fb303
+)
+
+add_executable(sensor_service_client
+  fboss/platform/sensor_service/SensorServicePlainTextClient.cpp
+)
+
+target_link_libraries(sensor_service_client
+  sensor_service_cpp2
+  platform_utils
+  Folly::folly
+  FBThrift::thriftcpp2
 )
 
 install(TARGETS sensor_service)

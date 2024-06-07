@@ -14,9 +14,9 @@
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/SwitchState.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 #include "fboss/agent/hw/test/ConfigFactory.h"
 
@@ -107,23 +107,43 @@ class HwAclPriorityTest : public HwTest {
 
 TYPED_TEST_SUITE(HwAclPriorityTest, TestTypes);
 
+// This test verifies that trafficPolicy configuration have no influence on
+// ACL entry priority
 TYPED_TEST(HwAclPriorityTest, CheckAclPriorityOrder) {
-  auto setup = [this]() {
+  const folly::IPAddress kIp("2400::1");
+  auto setup = [this, kIp]() {
     auto newCfg = this->initialConfig();
     addDenyPortAcl(newCfg, "A");
-    addDenyPortAcl(newCfg, "B");
+    addPermitIpAcl(newCfg, "B", kIp);
+    addDenyPortAcl(newCfg, "C");
+    addPermitIpAcl(newCfg, "D", kIp);
+
+    cfg::TrafficPolicyConfig trafficConfig;
+    trafficConfig.matchToAction()->resize(4);
+    newCfg.trafficCounters()->resize(4);
+    // create traffic policy in reverse order
+    for (int i = 3; i >= 0; i--) {
+      auto& acls = utility::getAcls(&newCfg, std::nullopt);
+      trafficConfig.matchToAction()[i].matcher() = *acls[i].name();
+      trafficConfig.matchToAction()[i].action()->counter() = *acls[i].name();
+      *newCfg.trafficCounters()[i].name() = *acls[i].name();
+    }
+    newCfg.dataPlaneTrafficPolicy() = trafficConfig;
     this->applyNewConfig(newCfg);
   };
 
   auto verify = [=, this]() {
-    for (auto acl : {"A", "B"}) {
+    for (auto acl : {"A", "B", "C", "D"}) {
       checkSwHwAclMatch(this->getHwSwitch(), this->getProgrammedState(), acl);
     }
-    auto aAcl = utility::getAclEntryByName(this->getProgrammedState(), "A");
-    int aPrio = aAcl->getPriority();
-    auto bAcl = utility::getAclEntryByName(this->getProgrammedState(), "B");
-    int bPrio = bAcl->getPriority();
-    EXPECT_EQ(aPrio + 1, bPrio);
+    auto getPrio = [this](std::string aclName) {
+      auto acl =
+          utility::getAclEntryByName(this->getProgrammedState(), aclName);
+      return acl->getPriority();
+    };
+    EXPECT_EQ(getPrio("A") + 1, getPrio("B"));
+    EXPECT_EQ(getPrio("B") + 1, getPrio("C"));
+    EXPECT_EQ(getPrio("C") + 1, getPrio("D"));
   };
   this->verifyAcrossWarmBoots(setup, verify);
 }
@@ -196,7 +216,10 @@ TYPED_TEST(HwAclPriorityTest, AclsChanged) {
     auto config = this->initialConfig();
     addDenyPortAcl(config, "acl0");
     // Get Acls from COPP policy
-    setDefaultCpuTrafficPolicyConfig(config, this->getPlatform()->getAsic());
+    setDefaultCpuTrafficPolicyConfig(
+        config,
+        this->getHwSwitchEnsemble()->getL3Asics(),
+        this->getHwSwitchEnsemble()->isSai());
     addPermitIpAcl(config, "acl1", kIp);
     this->applyNewConfig(config);
   };
@@ -209,8 +232,7 @@ TYPED_TEST(HwAclPriorityTest, AclsChanged) {
     this->applyNewConfig(config);
   };
 
-  this->verifyAcrossWarmBoots(
-      setup, []() {}, setupPostWb, []() {});
+  this->verifyAcrossWarmBoots(setup, []() {}, setupPostWb, []() {});
 }
 
 TYPED_TEST(HwAclPriorityTest, Reprioritize) {
@@ -222,7 +244,8 @@ TYPED_TEST(HwAclPriorityTest, Reprioritize) {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     cfg::TrafficPolicyConfig trafficConfig;
     trafficConfig.matchToAction()->resize(2);
-    cfg::MatchAction matchAction = getToQueueAction(1, cfg::ToCpuAction::TRAP);
+    cfg::MatchAction matchAction = getToQueueAction(
+        1, this->getHwSwitchEnsemble()->isSai(), cfg::ToCpuAction::TRAP);
     for (int i = 0; i < 2; i++) {
       auto& acls = utility::getAcls(&config, std::nullopt);
       trafficConfig.matchToAction()[i].matcher() = *acls[i].name();
@@ -241,7 +264,8 @@ TYPED_TEST(HwAclPriorityTest, Reprioritize) {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     cfg::TrafficPolicyConfig trafficConfig;
     trafficConfig.matchToAction()->resize(2);
-    cfg::MatchAction matchAction = getToQueueAction(1, cfg::ToCpuAction::TRAP);
+    cfg::MatchAction matchAction = getToQueueAction(
+        1, this->getHwSwitchEnsemble()->isSai(), cfg::ToCpuAction::TRAP);
     for (int i = 0; i < 2; i++) {
       auto& acls = utility::getAcls(&config, std::nullopt);
       trafficConfig.matchToAction()[i].matcher() = *acls[i].name();
@@ -252,7 +276,6 @@ TYPED_TEST(HwAclPriorityTest, Reprioritize) {
     this->applyNewConfig(config);
   };
 
-  this->verifyAcrossWarmBoots(
-      setup, []() {}, setupPostWb, []() {});
+  this->verifyAcrossWarmBoots(setup, []() {}, setupPostWb, []() {});
 }
 } // namespace facebook::fboss

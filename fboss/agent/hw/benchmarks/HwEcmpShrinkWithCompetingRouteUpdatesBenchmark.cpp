@@ -39,27 +39,18 @@ BENCHMARK(HwEcmpGroupShrinkWithCompetingRouteUpdates) {
 
   AgentEnsembleSwitchConfigFn initialConfigFn =
       [](const AgentEnsemble& ensemble) {
-        // Before m-mpu agent test, use first Asic for initialization.
-        auto switchIds = ensemble.getSw()->getHwAsicTable()->getSwitchIDs();
-        CHECK_GE(switchIds.size(), 1);
-        auto asic =
-            ensemble.getSw()->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
         return utility::onePortPerInterfaceConfig(
-            ensemble.getSw()->getPlatformMapping(),
-            asic,
-            ensemble.masterLogicalPortIds(),
-            asic->desiredLoopbackModes());
+            ensemble.getSw(), ensemble.masterLogicalPortIds());
         ;
       };
   ensemble = createAgentEnsemble(initialConfigFn);
   // TODO(zecheng): Deprecate agent access to HwSwitch
-  auto hwSwitch =
-      static_cast<MonolithicAgentInitializer*>(ensemble->agentInitializer())
-          ->platform()
-          ->getHwSwitch();
+  auto hwSwitch = ensemble->getHwSwitch();
   auto state = ensemble->getSw()->getState();
   auto ecmpHelper = utility::EcmpSetupAnyNPorts6(state);
-  ensemble->applyNewState(ecmpHelper.resolveNextHops(state, kEcmpWidth));
+  ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+    return ecmpHelper.resolveNextHops(in, kEcmpWidth);
+  });
   ecmpHelper.programRoutes(
       std::make_unique<SwSwitchRouteUpdateWrapper>(
           ensemble->getSw(), ensemble->getSw()->getRib()),

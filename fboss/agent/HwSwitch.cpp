@@ -15,7 +15,6 @@
 #include "fboss/agent/hw/HwSwitchFb303Stats.h"
 #include "fboss/agent/hw/HwSwitchWarmBootHelper.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
-#include "fboss/agent/normalization/Normalizer.h"
 #include "fboss/agent/rib/ForwardingInformationBaseUpdater.h"
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/SwitchState.h"
@@ -27,7 +26,10 @@
 #include <folly/experimental/TestUtil.h>
 #include <folly/logging/xlog.h>
 
+#include <re2/re2.h>
 #include <chrono>
+
+#include "fboss/lib/CommonFileUtils.h"
 
 DEFINE_bool(flexports, false, "Load the agent with flexport support enabled");
 DEFINE_int32(
@@ -40,6 +42,85 @@ DEFINE_bool(
     false,
     "Flag to turn on flowlet switching for DLB");
 
+DEFINE_int32(
+    update_phy_info_interval_s,
+    10,
+    "Update phy info interval in seconds");
+
+DEFINE_bool(
+    flowletStatsEnable,
+    false,
+    "Flag to turn on flowlet stats collection for DLB");
+
+DEFINE_bool(
+    skip_stats_update_for_debug,
+    false,
+    "Skip reading stats from ASIC to allow diag shell debugging!");
+
+namespace {
+constexpr auto kBuildSdkVersion = "SDK Version";
+
+/* This function takes a silicon SDK version string and converts it into
+   integers that can be sent to external systems such as ODS. The conversion is
+   performed as follows: First, the input string is matched against a regex to
+   make sure it has the right syntax: "BCM SDK Version: sdk-A.B.C" where A is an
+   integer representing the major version, B the minor version and C the release
+   version. Then integers are combined into a single number by multiplying major
+   by 10,000, minor by 100 and then adding all of them.
+   e.g:  For input "BCM SDK Version: sdk-6.4.3", returned value is 60403.
+   e.g:  For input "BCM SDK Version: sdk-6.11.10", returned value is 61110.
+   Returns an unsigned integer greater than zero, or zero on error.
+
+   Update - After logging SDK version instead of Bcm version, the string stored
+   within fb303 becomes
+   Bcm Switch: "  BCM SDK Version: sdk-6.5.17"
+   Bcm Sai Switch: "  SAI Version: 1.6.5  BCM-SAI SDK Version: 4.2.2.7  BCM SDK
+   Version: sdk-6.5.19"
+   Leaba Sai switch: "  LEABA-SAI SDK Version: 1.40.0"
+   This function will match each type of sdk and produce results accordingly.
+   */
+std::tuple<int, int, int> normalizeSdkVersion(std::string sdkVersion) {
+  /* Matches broadcom SDK version strings (e.g: BCM SDK Version: sdk-6.5.17) */
+  constexpr auto bcmSdkVerRegex =
+      "BCM SDK Version: sdk-([0-9]{1,2})\\.([0-9]{1,2})\\.([0-9]{1,2})";
+  static const re2::RE2 bcmSdkVersionRegex(bcmSdkVerRegex);
+  /* Broadcom SAI SDK version strings (e.g: BCM-SAI SDK Version: 4.2.2.7) */
+  constexpr auto bcmSaiSdkVerRegex =
+      "BCM-SAI SDK Version: ([0-9]{1,2})\\.([0-9]{1,2})\\.([0-9]{1,2})\\.([0-9]{1,2})";
+  static const re2::RE2 bcmSaiSdkVersionRegex(bcmSaiSdkVerRegex);
+  /* Leaba SAI SDK version strings (e.g: LEABA-SAI SDK Version: 1.40.0) */
+  constexpr auto leabaSaiSdkVerRegex =
+      "LEABA-SAI SDK Version: ([0-9]{1,2})\\.([0-9]{1,2})\\.([0-9]{1,2})";
+  static const re2::RE2 leabaSaiSdkVersionRegex(leabaSaiSdkVerRegex);
+
+  /* Only process versions that match the regex */
+  int major, minor, build, release;
+  int bcmVer = 0, bcmSaiVer = 0, leabaSaiVer = 0;
+  if (re2::RE2::PartialMatch(
+          sdkVersion, bcmSdkVerRegex, &major, &minor, &release)) {
+    bcmVer = major * 10000 + minor * 100 + release;
+  } else {
+    XLOG(WARNING) << "Failed to match bcm SDK version to int (" << sdkVersion
+                  << ")";
+  }
+  if (re2::RE2::PartialMatch(
+          sdkVersion, bcmSaiSdkVerRegex, &major, &minor, &build, &release)) {
+    bcmSaiVer = major * 1000000 + minor * 10000 + build * 100 + release;
+  } else {
+    XLOG(WARNING) << "Failed to match bcm sai SDK version to int ("
+                  << sdkVersion << ")";
+  }
+  if (re2::RE2::PartialMatch(
+          sdkVersion, leabaSaiSdkVerRegex, &major, &minor, &release)) {
+    leabaSaiVer = major * 10000 + minor * 100 + release;
+  } else {
+    XLOG(WARNING) << "Failed to match leaba sai SDK version to int ("
+                  << sdkVersion << ")";
+  }
+  return std::make_tuple(bcmVer, bcmSaiVer, leabaSaiVer);
+}
+
+} // namespace
 namespace facebook::fboss {
 
 std::string HwSwitch::getDebugDump() const {
@@ -74,11 +155,6 @@ void HwSwitch::switchRunStateChanged(SwitchRunState newState) {
 
 void HwSwitch::updateStats() {
   updateStatsImpl();
-  // send to normalizer
-  auto normalizer = Normalizer::getInstance();
-  if (normalizer) {
-    normalizer->processStats(getPortStats());
-  }
 }
 
 multiswitch::HwSwitchStats HwSwitch::getHwSwitchStats() {
@@ -88,16 +164,31 @@ multiswitch::HwSwitchStats HwSwitch::getHwSwitchStats() {
   hwSwitchStats.timestamp() = now.count();
   hwSwitchStats.hwPortStats() = getPortStats();
   hwSwitchStats.hwAsicErrors() = getSwitchStats()->getHwAsicErrors();
-  HwBufferPoolStats bufferPoolStats;
-  bufferPoolStats.deviceWatermarkBytes() = getDeviceWatermarkBytes();
-  hwSwitchStats.bufferPoolStats() = std::move(bufferPoolStats);
   hwSwitchStats.teFlowStats() = getTeFlowStats();
   hwSwitchStats.fabricReachabilityStats() = getFabricReachabilityStats();
   hwSwitchStats.sysPortStats() = getSysPortStats();
   hwSwitchStats.fb303GlobalStats() = getSwitchStats()->getAllFb303Stats();
   hwSwitchStats.cpuPortStats() = getCpuPortStats();
   hwSwitchStats.switchDropStats() = getSwitchDropStats();
+  hwSwitchStats.flowletStats() = getHwFlowletStats();
+  hwSwitchStats.aclStats() = getAclStats();
+  hwSwitchStats.switchWatermarkStats() = getSwitchWatermarkStats();
   return hwSwitchStats;
+}
+
+void HwSwitch::updateAllPhyInfo() {
+  // Determine if phy info needs to be collected
+  auto now =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  if (now - phyInfoUpdateTime_ >= FLAGS_update_phy_info_interval_s) {
+    phyInfoUpdateTime_ = now;
+    try {
+      *lastPhyInfo_.wlock() = updateAllPhyInfoImpl();
+    } catch (const std::exception& ex) {
+      XLOG(ERR) << "Error running updateAllPhyInfo: "
+                << folly::exceptionStr(ex);
+    }
+  }
 }
 
 uint32_t HwSwitch::generateDeterministicSeed(LoadBalancerID loadBalancerID) {
@@ -105,7 +196,21 @@ uint32_t HwSwitch::generateDeterministicSeed(LoadBalancerID loadBalancerID) {
       loadBalancerID, getPlatform()->getLocalMac());
 }
 
-void HwSwitch::gracefulExit(const state::WarmbootState& thriftSwitchState) {
+void HwSwitch::gracefulExit() {
+  auto* dirUtil = getPlatform()->getDirectoryUtil();
+  auto switchIndex = getPlatform()->getAsic()->getSwitchIndex();
+  auto sleepOnSigTermFile = dirUtil->sleepHwSwitchOnSigTermFile(switchIndex);
+  if (checkFileExists(sleepOnSigTermFile)) {
+    SCOPE_EXIT {
+      removeFile(sleepOnSigTermFile);
+    };
+    std::string timeStr;
+    if (folly::readFile(sleepOnSigTermFile.c_str(), timeStr)) {
+      // @lint-ignore CLANGTIDY
+      std::this_thread::sleep_for(
+          std::chrono::seconds(folly::to<uint32_t>(timeStr)));
+    }
+  }
   if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::WARMBOOT)) {
     gracefulExitImpl();
   }
@@ -114,21 +219,6 @@ void HwSwitch::gracefulExit(const state::WarmbootState& thriftSwitchState) {
 std::shared_ptr<SwitchState> HwSwitch::stateChangedTransaction(
     const StateDelta& delta,
     const HwWriteBehaviorRAII& behavior) {
-  if (!FLAGS_enable_state_oper_delta) {
-    // failback to move away from oper delta
-    if (!transactionsSupported()) {
-      throw FbossError("Transactions not supported on this switch");
-    }
-    try {
-      setProgrammedState(stateChanged(delta));
-    } catch (const FbossError& e) {
-      XLOG(WARNING) << " Transaction failed with error : " << *e.message()
-                    << " attempting rollback";
-      this->rollback(delta);
-      setProgrammedState(delta.oldState());
-    }
-    return getProgrammedState();
-  }
   auto result = stateChangedTransaction(delta.getOperDelta(), behavior);
   if (!result.changes()->empty()) {
     // changes have been rolled back to last good known state
@@ -294,7 +384,7 @@ HwWriteBehaviorRAII HwSwitch::getWarmBootWriteBehavior(
           HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT)) {
     return HwWriteBehaviorRAII(HwWriteBehavior::FAIL);
   }
-  return HwWriteBehaviorRAII(HwWriteBehavior::WRITE);
+  return HwWriteBehaviorRAII(HwWriteBehavior::LOG_FAIL);
 }
 
 HwInitResult HwSwitch::initLight(
@@ -305,8 +395,28 @@ HwInitResult HwSwitch::initLight(
   using std::chrono::steady_clock;
   steady_clock::time_point begin = steady_clock::now();
   auto ret = initLightImpl(callback, failHwCallsOnWarmboot);
-  ret.bootTime =
-      duration_cast<duration<float>>(steady_clock::now() - begin).count();
+  /* Merchant Silicon SDK Version */
+  std::string buildSdkVersion;
+  fb303::fbData->getExportedValue(buildSdkVersion, kBuildSdkVersion);
+  /* Remove newline in SDK version */
+  buildSdkVersion.erase(
+      std::remove(buildSdkVersion.begin(), buildSdkVersion.end(), '\n'),
+      buildSdkVersion.end());
+  /* Tuple of <bcmVersion, bcmSaiVersion, leabaSaiVersion> */
+  auto [bcmVer, bcmSaiVer, leabaSaiVer] = normalizeSdkVersion(buildSdkVersion);
+  if (bcmVer) {
+    getSwitchStats()->bcmSdkVer(bcmVer);
+  }
+  if (bcmSaiVer) {
+    getSwitchStats()->bcmSaiSdkVer(bcmSaiVer);
+  }
+  if (leabaSaiVer) {
+    getSwitchStats()->leabaSdkVer(leabaSaiVer);
+  }
+  auto end = steady_clock::now();
+  ret.bootTime = duration_cast<duration<float>>(end - begin).count();
+  getSwitchStats()->bootTime(
+      duration_cast<std::chrono::milliseconds>(end - begin).count());
   return ret;
 }
 
@@ -323,21 +433,27 @@ HwInitResult HwSwitch::initLightImpl(
   if (getPlatform()->getAsic()->getAsicType() !=
       cfg::AsicType::ASIC_TYPE_MOCK) {
     if (auto warmBootHelper = getPlatform()->getWarmBootHelper()) {
-      bootType = warmBootHelper->canWarmBoot() ? BootType::WARM_BOOT
-                                               : BootType::COLD_BOOT;
+      bool canWarmBoot =
+          (getPlatform()->getAsic()->isSupported(HwAsic::Feature::WARMBOOT));
+      canWarmBoot &= warmBootHelper->canWarmBoot();
+      bootType = canWarmBoot ? BootType::WARM_BOOT : BootType::COLD_BOOT;
     }
   }
   // initialize hardware switch
   auto ret = initImpl(callback, bootType, failHwCallsOnWarmboot);
   ret.bootType = bootType;
-  ret.initializedTime =
-      duration_cast<duration<float>>(steady_clock::now() - begin).count();
+  auto end = steady_clock::now();
+  ret.initializedTime = duration_cast<duration<float>>(end - begin).count();
+  getSwitchStats()->hwInitializedTime(
+      duration_cast<std::chrono::milliseconds>(end - begin).count());
   if (ret.bootType == BootType::WARM_BOOT) {
     // on warm boot, no need to apply minimum alpm state
     // wait for state to be injected by SwSwitch
     setProgrammedState(std::make_shared<SwitchState>());
+    getSwitchStats()->warmBoot();
     return ret;
   }
+  getSwitchStats()->coldBoot();
   if (switchType_ != cfg::SwitchType::NPU &&
       switchType_ != cfg::SwitchType::VOQ) {
     // no route programming, no need to apply minimum alpm state

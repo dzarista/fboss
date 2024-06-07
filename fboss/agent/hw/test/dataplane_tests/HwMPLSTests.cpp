@@ -17,9 +17,7 @@
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestMplsUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketSnooper.h"
-#include "fboss/agent/hw/test/HwTestPacketTrapEntry.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/TrafficPolicyUtils.h"
 #include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/packet/PktUtil.h"
 #include "fboss/agent/state/LabelForwardingEntry.h"
@@ -27,6 +25,8 @@
 #include "fboss/agent/state/RouteNextHop.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/TrunkUtils.h"
+#include "fboss/agent/test/utils/TrapPacketUtils.h"
+
 #include "fboss/agent/types.h"
 
 #include <gtest/gtest.h>
@@ -58,14 +58,12 @@ class HwMPLSTest : public HwLinkStateDependentTest {
       }
       return srcPortQualifierSupported;
     }
-    HwPacketVerifier(HwSwitchEnsemble* ensemble, PortID port, MPLSHdr hdr)
-        : ensemble_(ensemble), entry_{}, snooper_{}, expectedHdr_(hdr) {
+    HwPacketVerifier(HwSwitchEnsemble* ensemble, MPLSHdr hdr)
+        : ensemble_(ensemble), snooper_{}, expectedHdr_(hdr) {
       if (!isSrcPortQualifierSupported()) {
         return;
       }
       // capture packet exiting port (entering back due to loopback)
-      entry_ = std::make_unique<HwTestPacketTrapEntry>(
-          ensemble->getHwSwitch(), port);
       snooper_ = std::make_unique<HwTestPacketSnooper>(ensemble_);
     }
 
@@ -82,7 +80,6 @@ class HwMPLSTest : public HwLinkStateDependentTest {
     }
 
     HwSwitchEnsemble* ensemble_;
-    std::unique_ptr<HwTestPacketTrapEntry> entry_;
     std::unique_ptr<HwTestPacketSnooper> snooper_;
     MPLSHdr expectedHdr_;
   };
@@ -151,10 +148,16 @@ class HwMPLSTest : public HwLinkStateDependentTest {
     policy.defaultQosPolicy() = "qp";
     config.dataPlaneTrafficPolicy() = policy;
 
-    utility::setDefaultCpuTrafficPolicyConfig(config, getAsic());
+    utility::setDefaultCpuTrafficPolicyConfig(
+        config,
+        getHwSwitchEnsemble()->getL3Asics(),
+        getHwSwitchEnsemble()->isSai());
     utility::addCpuQueueConfig(
-        config, getAsic(), getHwSwitchEnsemble()->isSai());
+        config,
+        getHwSwitchEnsemble()->getL3Asics(),
+        getHwSwitchEnsemble()->isSai());
 
+    utility::addTrapPacketAcl(&config, masterLogicalPortIds()[0]);
     return config;
   }
 
@@ -242,7 +245,9 @@ class HwMPLSTest : public HwLinkStateDependentTest {
     utility::UDPDatagram datagram(udp, {0xff});
     auto pkt = utility::EthFrame(
                    eth, utility::IPPacket<folly::IPAddressV6>(ip6, datagram))
-                   .getTxPacket(getHwSwitch());
+                   .getTxPacket([hw = getHwSwitch()](uint32_t size) {
+                     return hw->allocatePacket(size);
+                   });
     XLOG(DBG2) << "sending packet: ";
     XLOG(DBG2) << PktUtil::hexDump(pkt->buf());
     // send pkt on src port, let it loop back in switch and be l3 switched
@@ -283,7 +288,9 @@ class HwMPLSTest : public HwLinkStateDependentTest {
         20000,
         VlanID(vlanId));
 
-    auto pkt = frame.getTxPacket(getHwSwitch());
+    auto pkt = frame.getTxPacket([hw = getHwSwitch()](uint32_t size) {
+      return hw->allocatePacket(size);
+    });
     XLOG(DBG2) << "sending packet: ";
     XLOG(DBG2) << PktUtil::hexDump(pkt->buf());
     // send pkt on src port, let it loop back in switch and be l3 switched
@@ -376,8 +383,8 @@ class HwMPLSTest : public HwLinkStateDependentTest {
     }
   }
 
-  HwPacketVerifier getPacketVerifer(PortID port, MPLSHdr hdr) {
-    return HwPacketVerifier(getHwSwitchEnsemble(), port, hdr);
+  HwPacketVerifier getPacketVerifer(MPLSHdr hdr) {
+    return HwPacketVerifier(getHwSwitchEnsemble(), hdr);
   }
 
   std::unique_ptr<utility::EcmpSetupTargetedPorts6> ecmpHelper_;
@@ -407,10 +414,9 @@ TYPED_TEST(HwMPLSTest, Push) {
         MPLSHdr::Label{102, 5, 0, 254}, // exp = 5 for tc = 2
         MPLSHdr::Label{101, 5, 1, 254}, // exp = 5 for tc = 2
     });
-    [[maybe_unused]] auto verifier = this->getPacketVerifer(
-        this->masterLogicalPortIds()[0], expectedMplsHdr);
+    [[maybe_unused]] auto verifier = this->getPacketVerifer(expectedMplsHdr);
 
-    auto outPktsBefore = getPortOutPkts(
+    auto outPktsBefore = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
 
     // generate the packet entering  port 1
@@ -419,7 +425,7 @@ TYPED_TEST(HwMPLSTest, Push) {
         this->masterLogicalPortIds()[1],
         DSCP(16)); // tc = 2 for dscp = 16
 
-    auto outPktsAfter = getPortOutPkts(
+    auto outPktsAfter = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     EXPECT_EQ((outPktsAfter - outPktsBefore), 1);
   };
@@ -443,10 +449,9 @@ TYPED_TEST(HwMPLSTest, Swap) {
     auto expectedMplsHdr = MPLSHdr({
         MPLSHdr::Label{expectedOutLabel, 2, true, 127}, // exp is remarked to 2
     });
-    [[maybe_unused]] auto verifier = this->getPacketVerifer(
-        this->masterLogicalPortIds()[0], expectedMplsHdr);
+    [[maybe_unused]] auto verifier = this->getPacketVerifer(expectedMplsHdr);
 
-    auto outPktsBefore = getPortOutPkts(
+    auto outPktsBefore = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
 
     // generate the packet entering  port 1
@@ -455,7 +460,7 @@ TYPED_TEST(HwMPLSTest, Swap) {
         this->masterLogicalPortIds()[1],
         EXP(5)); // send packet with exp 5
 
-    auto outPktsAfter = getPortOutPkts(
+    auto outPktsAfter = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     EXPECT_EQ((outPktsAfter - outPktsBefore), 1);
   };
@@ -554,12 +559,12 @@ TYPED_TEST(HwMPLSTest, Pop) {
         folly::IPAddressV6("2001::"), 128, this->getPortDescriptor(0));
   };
   auto verify = [=, this]() {
-    auto outPktsBefore = getPortOutPkts(
+    auto outPktsBefore = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     // send mpls packet with label and let it pop
     this->sendMplsPacket(1101, this->masterLogicalPortIds()[1]);
     // ip packet should be forwarded as per route for 2001::/128
-    auto outPktsAfter = getPortOutPkts(
+    auto outPktsAfter = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     EXPECT_EQ((outPktsAfter - outPktsBefore), 1);
   };
@@ -583,12 +588,12 @@ TYPED_TEST(HwMPLSTest, Php) {
         LabelForwardingAction::LabelForwardingType::PHP);
   };
   auto verify = [=, this]() {
-    auto outPktsBefore = getPortOutPkts(
+    auto outPktsBefore = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     // send mpls packet with label and let it forward with php
     this->sendMplsPacket(1101, this->masterLogicalPortIds()[1]);
     // ip packet should be forwarded through port 0
-    auto outPktsAfter = getPortOutPkts(
+    auto outPktsAfter = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     EXPECT_EQ((outPktsAfter - outPktsBefore), 1);
   };
@@ -632,7 +637,7 @@ TYPED_TEST(HwMPLSTest, Pop2Cpu) {
     auto v6PayLoad = frame->v6PayLoad();
     ASSERT_TRUE(v6PayLoad.has_value());
 
-    auto udpPayload = v6PayLoad->payload();
+    auto udpPayload = v6PayLoad->udpPayload();
     ASSERT_TRUE(udpPayload.has_value());
 
     auto hdr = v6PayLoad->header();
@@ -723,15 +728,14 @@ TYPED_TEST(HwMPLSTest, AclRedirectToNexthop) {
         MPLSHdr::Label{202, 5, 0, 254},
         MPLSHdr::Label{201, 5, 1, 254},
     });
-    [[maybe_unused]] auto verifier = this->getPacketVerifer(
-        this->masterLogicalPortIds()[0], expectedMplsHdr);
-    auto outPktsBefore = getPortOutPkts(
+    [[maybe_unused]] auto verifier = this->getPacketVerifer(expectedMplsHdr);
+    auto outPktsBefore = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     this->sendL3Packet(
         folly::IPAddressV6("2401::201:ab01"),
         this->masterLogicalPortIds()[1],
         DSCP(16));
-    auto outPktsAfter = getPortOutPkts(
+    auto outPktsAfter = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     EXPECT_EQ((outPktsAfter - outPktsBefore), 1);
   };
@@ -765,13 +769,13 @@ TYPED_TEST(HwMPLSTest, AclRedirectToNexthopDrop) {
         kAclName, ingressVlan, dstPrefix, {"1000::1"}, portIntfs, {});
   };
   auto verify = [=, this]() {
-    auto outPktsBefore = getPortOutPkts(
+    auto outPktsBefore = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     this->sendL3Packet(
         folly::IPAddressV6("2401::201:ab01"),
         this->masterLogicalPortIds()[1],
         DSCP(16));
-    auto outPktsAfter = getPortOutPkts(
+    auto outPktsAfter = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     // Packet drop expected
     EXPECT_EQ(outPktsAfter, outPktsBefore);
@@ -815,15 +819,14 @@ TYPED_TEST(HwMPLSTest, AclRedirectToNexthopMismatch) {
     });
     // Since ACL qualifiers do not match packet fields, packet must
     // exit via RIB route nexthops
-    [[maybe_unused]] auto verifier = this->getPacketVerifer(
-        this->masterLogicalPortIds()[0], expectedMplsHdr);
-    auto outPktsBefore = getPortOutPkts(
+    [[maybe_unused]] auto verifier = this->getPacketVerifer(expectedMplsHdr);
+    auto outPktsBefore = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     this->sendL3Packet(
         folly::IPAddressV6("2401::201:ab01"),
         this->masterLogicalPortIds()[1],
         DSCP(16));
-    auto outPktsAfter = getPortOutPkts(
+    auto outPktsAfter = utility::getPortOutPkts(
         this->getLatestPortStats(this->masterLogicalPortIds()[0]));
     EXPECT_EQ((outPktsAfter - outPktsBefore), 1);
   };
@@ -866,12 +869,14 @@ TYPED_TEST(HwMPLSTest, AclRedirectToNexthopMultipleNexthops) {
   auto verify = [=, this]() {
     std::vector<PortID> ports{
         this->masterLogicalPortIds()[0], this->masterLogicalPortIds()[1]};
-    auto outPktsBefore = getPortOutPkts(this->getLatestPortStats(ports));
+    auto outPktsBefore =
+        utility::getPortOutPkts(this->getLatestPortStats(ports));
     this->sendL3Packet(
         folly::IPAddressV6("2401::201:ab01"),
         this->masterLogicalPortIds()[2],
         DSCP(16));
-    auto outPktsAfter = getPortOutPkts(this->getLatestPortStats(ports));
+    auto outPktsAfter =
+        utility::getPortOutPkts(this->getLatestPortStats(ports));
     EXPECT_EQ((outPktsAfter - outPktsBefore), 1);
   };
   this->verifyAcrossWarmBoots(setup, verify);

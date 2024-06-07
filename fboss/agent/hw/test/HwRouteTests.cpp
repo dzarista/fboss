@@ -33,6 +33,7 @@
 using facebook::network::toBinaryAddress;
 
 DECLARE_bool(intf_nbr_tables);
+DECLARE_bool(classid_for_unresolved_routes);
 
 namespace facebook::fboss {
 
@@ -68,6 +69,30 @@ class HwRouteTest : public HwLinkStateDependentTest {
       ports.push_back(PortDescriptor(masterLogicalInterfacePortIds()[i]));
     }
     return ports;
+  }
+  RoutePrefix<AddrT> getSubnetIpForInterface() const {
+    auto state = this->getProgrammedState();
+    const VlanID vlanID{utility::kBaseVlanId};
+    auto vlan = state->getVlans()->getNodeIf(vlanID);
+    auto interface = state->getInterfaces()->getNodeIf(vlan->getInterfaceID());
+    if (interface) {
+      for (auto iter : std::as_const(*interface->getAddresses())) {
+        std::pair<folly::IPAddress, uint8_t> address(
+            folly::IPAddress(iter.first), iter.second->ref());
+        if constexpr (std::is_same_v<AddrT, folly::IPAddressV4>) {
+          if (address.first.isV4()) {
+            return RoutePrefix<folly::IPAddressV4>{
+                address.first.asV4(), address.second};
+          }
+        } else {
+          if (address.first.isV6()) {
+            return RoutePrefix<folly::IPAddressV6>{
+                address.first.asV6(), address.second};
+          }
+        }
+      }
+    }
+    XLOG(FATAL) << "Invald configuration vlan " << utility::kBaseVlanId;
   }
   const std::vector<RoutePrefix<AddrT>> kGetRoutePrefixes() const {
     if constexpr (std::is_same_v<AddrT, folly::IPAddressV4>) {
@@ -194,6 +219,24 @@ TYPED_TEST(HwRouteTest, VerifyClassID) {
   };
 
   this->verifyAcrossWarmBoots(setup, verify);
+}
+
+TYPED_TEST(HwRouteTest, VerifyClassIDForConnectedRoute) {
+  auto verify = [=, this]() {
+    auto ipAddr = this->getSubnetIpForInterface();
+    // verify if the connected route of the interface is present
+    utility::isHwRoutePresent(
+        this->getHwSwitch(), this->kRouterID(), ipAddr.toCidrNetwork());
+    if (this->getPlatform()->getAsic()->getAsicVendor() !=
+        HwAsic::AsicVendor::ASIC_VENDOR_TAJO) {
+      if (FLAGS_classid_for_connected_subnet_routes) {
+        this->verifyClassIDHelper(
+            ipAddr, cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
+      }
+    }
+  };
+
+  this->verifyAcrossWarmBoots([] {}, verify);
 }
 
 TYPED_TEST(HwRouteTest, VerifyClassIdWithNhopResolutionFlap) {
@@ -584,6 +627,10 @@ TYPED_TEST(HwRouteTest, verifyCpuRouteChange) {
     auto cidr = folly::CIDRNetwork(routePrefix.network(), routePrefix.mask());
     EXPECT_TRUE(
         utility::isHwRouteToCpu(this->getHwSwitch(), this->kRouterID(), cidr));
+    if (FLAGS_classid_for_unresolved_routes) {
+      EXPECT_TRUE(utility::isRouteUnresolvedToCpuClassId(
+          this->getHwSwitch(), this->kRouterID(), cidr));
+    }
 
     // Resolve next hops
     utility::EcmpSetupTargetedPorts<AddrT> ecmpHelper(

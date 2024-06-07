@@ -137,8 +137,20 @@ inline folly::StringPiece constexpr kFecUncorrectable() {
   return "fec_uncorrectable_errors";
 }
 
+inline folly::StringPiece constexpr kLeakyBucketFlapCnt() {
+  return "leaky_bucket_flap_cnt";
+}
+
 inline folly::StringPiece constexpr kInLabelMissDiscards() {
   return "in_label_miss_discards";
+}
+
+inline folly::StringPiece constexpr kInAclDiscards() {
+  return "in_acl_discards";
+}
+
+inline folly::StringPiece constexpr kInTrapDiscards() {
+  return "in_trap_discards";
 }
 
 inline folly::StringPiece constexpr kWredDroppedPackets() {
@@ -270,5 +282,17 @@ inline folly::StringPiece constexpr kOutMacsecCurrentXpn() {
 
 inline folly::StringPiece constexpr kInCongestionDiscards() {
   return "in_congestion_discards";
+}
+
+inline folly::StringPiece constexpr kOutForwardingDiscards() {
+  return "out_forwarding_discards";
+}
+
+inline folly::StringPiece constexpr kPqpErrorEgressDroppedPackets() {
+  return "pqp_error_egress_dropped_packets";
+}
+
+inline folly::StringPiece constexpr kFabricLinkDownDroppedCells() {
+  return "fabric_link_down_dropped_cells";
 }
 } // namespace facebook::fboss

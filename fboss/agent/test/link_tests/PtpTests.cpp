@@ -1,16 +1,17 @@
 // (c) Facebook, Inc. and its affiliates. Confidential and proprietary.
 
+#include <folly/IPAddress.h>
 #include <gtest/gtest.h>
 #include "fboss/agent/PlatformPort.h"
 #include "fboss/agent/SwSwitch.h"
-#include "fboss/agent/hw/test/HwAgentTestPacketSnooper.h"
 #include "fboss/agent/hw/test/HwTestEcmpUtils.h"
-#include "fboss/agent/hw/test/HwTestPacketTrapEntry.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/packet/PTPHeader.h"
 #include "fboss/agent/packet/PktUtil.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/link_tests/LinkTest.h"
+#include "fboss/agent/test/utils/PacketSnooper.h"
+#include "fboss/agent/test/utils/TrapPacketUtils.h"
 #include "fboss/lib/CommonUtils.h"
 
 #include "common/process/Process.h"
@@ -54,7 +55,7 @@ class PtpTests : public LinkTest {
   bool sendAndVerifyPtpPkts(
       PTPMessageType ptpType,
       const PortDescriptor& portDescriptor) {
-    HwAgentTestPacketSnooper snooper(sw()->getPacketObservers());
+    utility::SwSwitchPacketSnooper snooper(sw(), "snooper-1");
     XLOG(DBG2) << "Validating PTP packet fields on Port "
                << portDescriptor.phyPortID();
     auto matcher =
@@ -160,11 +161,18 @@ class PtpTests : public LinkTest {
     std::string updateMsg = enable ? "PTP enable" : "PTP disable";
     sw()->updateStateBlocking(updateMsg, [=](auto state) {
       auto newState = state->clone();
-      auto switchSettings = util::getFirstNodeIf(newState->getSwitchSettings())
-                                ->modify(&newState);
+      auto switchSettings =
+          utility::getFirstNodeIf(newState->getSwitchSettings())
+              ->modify(&newState);
       switchSettings->setPtpTcEnable(enable);
       return newState;
     });
+  }
+
+  void trapPackets(const folly::CIDRNetwork& prefix) {
+    cfg::SwitchConfig cfg = sw()->getConfig();
+    utility::addTrapPacketAcl(&cfg, prefix);
+    sw()->applyConfig("trapPackets", cfg);
   }
 
  protected:
@@ -201,7 +209,7 @@ TEST_F(PtpTests, verifyPtpTcDelayRequest) {
   // Ideally we should have used the l4port (PTP_UDP_EVENT_PORT), but
   // SAI doesn't support this qualifier yet
   folly::CIDRNetwork dstPrefix = folly::CIDRNetwork{kIPv6Dst, 128};
-  auto entry = HwTestPacketTrapEntry(platform()->getHwSwitch(), dstPrefix);
+  this->trapPackets(dstPrefix);
   programDefaultRoute(ecmpPorts, sw()->getLocalMac(scope(ecmpPorts)));
 
   verifyPtpTcOnPorts(ecmpPorts, PTPMessageType::PTP_DELAY_REQUEST);
@@ -209,7 +217,7 @@ TEST_F(PtpTests, verifyPtpTcDelayRequest) {
 
 TEST_F(PtpTests, verifyPtpTcAfterLinkFlap) {
   folly::CIDRNetwork dstPrefix = folly::CIDRNetwork{kIPv6Dst, 128};
-  auto entry = HwTestPacketTrapEntry(platform()->getHwSwitch(), dstPrefix);
+  this->trapPackets(dstPrefix);
   auto ecmpPorts = getVlanOwningCabledPorts();
   std::vector<PortID> portVec;
   boost::container::flat_set<PortDescriptor> portDescriptorSet;
@@ -252,7 +260,7 @@ TEST_F(PtpTests, verifyPtpTcAfterLinkFlap) {
 // Validate PTP TC when PTP is enabled while port is down.
 TEST_F(PtpTests, enablePtpPortDown) {
   folly::CIDRNetwork dstPrefix = folly::CIDRNetwork{kIPv6Dst, 128};
-  auto entry = HwTestPacketTrapEntry(platform()->getHwSwitch(), dstPrefix);
+  this->trapPackets(dstPrefix);
   auto ecmpPorts = getVlanOwningCabledPorts();
   std::vector<PortID> portVec;
   boost::container::flat_set<PortDescriptor> portDescriptorSet;

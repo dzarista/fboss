@@ -9,12 +9,13 @@
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketSnooper.h"
-#include "fboss/agent/hw/test/HwTestPacketTrapEntry.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/TrafficPolicyUtils.h"
 #include "fboss/agent/packet/PktUtil.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
+
+#include "fboss/agent/test/utils/TrapPacketUtils.h"
+
 #include "folly/logging/xlog.h"
 
 namespace facebook::fboss {
@@ -24,10 +25,10 @@ class HwIpInIpTunnelTest : public HwLinkStateDependentTest {
   std::string kTunnelTermDstIp = "2000::1";
   void SetUp() override {
     HwLinkStateDependentTest::SetUp();
-    std::vector<cfg::IpInIpTunnel> tunnelList;
     auto cfg{this->initialConfig()};
-    tunnelList.push_back(makeTunnelConfig("hwTestTunnel", kTunnelTermDstIp));
-    cfg.ipInIpTunnels() = tunnelList;
+    addTunnelConfig(cfg);
+    this->applyNewConfig(cfg);
+    utility::addTrapPacketAcl(&cfg, masterLogicalPortIds()[0]);
     this->applyNewConfig(cfg);
     utility::EcmpSetupAnyNPorts6 ecmpHelper(
         getProgrammedState(), getPlatform()->getLocalMac());
@@ -41,10 +42,18 @@ class HwIpInIpTunnelTest : public HwLinkStateDependentTest {
 
   cfg::SwitchConfig initialConfig() const override {
     return utility::oneL3IntfTwoPortConfig(
-        getHwSwitch(),
+        getHwSwitch()->getPlatform()->getPlatformMapping(),
+        getHwSwitch()->getPlatform()->getAsic(),
         masterLogicalPortIds()[0],
         masterLogicalPortIds()[1],
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
         getAsic()->desiredLoopbackModes());
+  }
+
+  void addTunnelConfig(cfg::SwitchConfig& cfg) {
+    std::vector<cfg::IpInIpTunnel> tunnelList;
+    tunnelList.push_back(makeTunnelConfig("hwTestTunnel", kTunnelTermDstIp));
+    cfg.ipInIpTunnels() = tunnelList;
   }
 
   cfg::IpInIpTunnel makeTunnelConfig(std::string name, std::string dstIp) {
@@ -170,8 +179,6 @@ TEST_F(HwIpInIpTunnelTest, IpinIpNoTunnelConfigured) {
 
 TEST_F(HwIpInIpTunnelTest, DecapPacketParsing) {
   auto verify = [=, this]() {
-    auto packetCapture = HwTestPacketTrapEntry(
-        getHwSwitch(), std::set<PortID>({masterLogicalPortIds()[0]}));
     HwTestPacketSnooper snooper(getHwSwitchEnsemble());
     sendIpInIpPacketPort(kTunnelTermDstIp, "dead::1", 0xFA, 0xCE);
     auto capturedPkt = snooper.waitForPacket(1);
@@ -184,14 +191,13 @@ TEST_F(HwIpInIpTunnelTest, DecapPacketParsing) {
     // using PIPE mode: inner DSCP and ECN should not be changed
     EXPECT_EQ(hdr.trafficClass, 0xCE);
 
-    auto udpPkt = v6Pkt->payload();
+    auto udpPkt = v6Pkt->udpPayload();
     auto payload = udpPkt->payload();
     EXPECT_EQ(payload.size(), 10);
     EXPECT_EQ(payload, std::vector<uint8_t>(10, 0xff));
     EXPECT_EQ(udpPkt->header().srcPort, 10000);
     EXPECT_EQ(udpPkt->header().dstPort, 20000);
   };
-
   this->verifyAcrossWarmBoots([=] {}, verify);
 }
 

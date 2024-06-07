@@ -117,6 +117,11 @@ enum VdmConfigTypeKey : uint8_t {
   VDM_CONFIG_ERR_FRAMES_HOST_IN_AVG = 22,
   VDM_CONFIG_ERR_FRAMES_MEDIA_IN_CURR = 23,
   VDM_CONFIG_ERR_FRAMES_HOST_IN_CURR = 24,
+  VDM_CONFIG_PAM4_LEVEL0_SD_LINE = 100,
+  VDM_CONFIG_PAM4_LEVEL1_SD_LINE = 101,
+  VDM_CONFIG_PAM4_LEVEL2_SD_LINE = 102,
+  VDM_CONFIG_PAM4_LEVEL3_SD_LINE = 103,
+  VDM_CONFIG_PAM4_MPI_LINE = 104,
 };
 
 struct VdmConfigType {
@@ -140,6 +145,11 @@ std::map<VdmConfigTypeKey, VdmConfigType> vdmConfigTypeMap = {
   {VDM_CONFIG_ERR_FRAMES_MEDIA_IN_MAX, {"Err Frames Media Input Maximum", VDM_DATA_TYPE_F16, 0, ""}},
   {VDM_CONFIG_ERR_FRAMES_MEDIA_IN_AVG, {"Err Frames Media Input Accumulated", VDM_DATA_TYPE_F16, 0, ""}},
   {VDM_CONFIG_ERR_FRAMES_MEDIA_IN_CURR, {"Err Frames Media Input Current", VDM_DATA_TYPE_F16, 0, ""}},
+  {VDM_CONFIG_PAM4_LEVEL0_SD_LINE, {"PAM4 Level0 Standard Deviation Line", VDM_DATA_TYPE_F16, 0, ""}},
+  {VDM_CONFIG_PAM4_LEVEL1_SD_LINE, {"PAM4 Level1 Standard Deviation Line", VDM_DATA_TYPE_F16, 0, ""}},
+  {VDM_CONFIG_PAM4_LEVEL2_SD_LINE, {"PAM4 Level2 Standard Deviation Line", VDM_DATA_TYPE_F16, 0, ""}},
+  {VDM_CONFIG_PAM4_LEVEL3_SD_LINE, {"PAM4 Level3 Standard Deviation Line", VDM_DATA_TYPE_F16, 0, ""}},
+  {VDM_CONFIG_PAM4_MPI_LINE, {"PAM4 MPI Line", VDM_DATA_TYPE_F16, 0, ""}},
   // Host side
   {VDM_CONFIG_ESNR_HOST_INPUT, {"eSNR Host Input", VDM_DATA_TYPE_U16, 1.0/256.0, "dB"}},
   {VDM_CONFIG_PAM4_LTP_HOST_INPUT, {"PAM4 LTP Host Input", VDM_DATA_TYPE_U16, 1.0/256.0, "dB"}},
@@ -206,9 +216,18 @@ DEFINE_bool(
     false,
     "Read Transceiver info from i2c bus instead of qsfp_service");
 DEFINE_bool(qsfp_hard_reset, false, "Issue a hard reset to port QSFP");
-DEFINE_bool(qsfp_reset, false, "Issue reset to QSFP ports");
-DEFINE_string(qsfp_reset_type, "INVALID", "HARD_RESET");
-DEFINE_string(qsfp_reset_action, "INVALID", "RESET_THEN_CLEAR");
+DEFINE_bool(
+    qsfp_reset,
+    false,
+    "Issue reset to QSFP ports. Will go through qsfp_service unless direct_i2c is specified.");
+DEFINE_string(
+    qsfp_reset_type,
+    "HARD_RESET",
+    "Reset via qsfp_service. Options supported are HARD_RESET");
+DEFINE_string(
+    qsfp_reset_action,
+    "RESET_THEN_CLEAR",
+    "Reset via qsfp_service. Options supported are RESET_THEN_CLEAR");
 DEFINE_bool(
     electrical_loopback,
     false,
@@ -258,6 +277,10 @@ DEFINE_uint32(
     0x00001011,
     "MSA password for module privilige operation");
 DEFINE_uint32(image_header_len, 0, "Firmware image header length");
+DEFINE_string(
+    forced_module_type,
+    "",
+    "Forced module type, values are cmis or sff");
 DEFINE_bool(
     get_module_fw_info,
     false,
@@ -375,13 +398,13 @@ std::map<prbs::PrbsPolynomial, int> cmisPrbsPolynominalMap = {
 
 // Forward declaration of utility functions for firmware upgrade
 std::vector<unsigned int> getUpgradeModList(
-    TransceiverI2CApi* bus,
+    DirectI2cInfo i2cInfo,
     std::vector<unsigned int> portlist,
     std::string moduleType,
     std::string fwVer);
 
 void fwUpgradeThreadHandler(
-    TransceiverI2CApi* bus,
+    DirectI2cInfo i2cInfo,
     std::vector<unsigned int> modlist,
     std::string firmwareFilename,
     uint32_t imageHdrLen);
@@ -465,7 +488,8 @@ TransceiverManagementInterface getModuleTypeDirect(
   // Get the module id to differentiate between CMIS (0x1e) and SFF
   for (auto retry = 0; retry < numRetryGetModuleType; retry++) {
     try {
-      bus->moduleRead(port, {TransceiverI2CApi::ADDR_QSFP, 0, 1}, &moduleId);
+      bus->moduleRead(
+          port, {TransceiverAccessParameter::ADDR_QSFP, 0, 1}, &moduleId);
     } catch (const I2cError& ex) {
       fprintf(
           stderr, "QSFP %d: not present or read error, retrying...\n", port);
@@ -519,7 +543,9 @@ bool flipModuleUpperPage(
     uint8_t page) {
   try {
     bus->moduleWrite(
-        port, {TransceiverI2CApi::ADDR_QSFP, 127, sizeof(page)}, &page);
+        port,
+        {TransceiverAccessParameter::ADDR_QSFP, 127, sizeof(page)},
+        &page);
   } catch (const I2cError& ex) {
     fprintf(stderr, "QSFP %d: Fail to flip module upper page\n", port);
     return false;
@@ -577,9 +603,11 @@ bool setCdr(TransceiverI2CApi* bus, unsigned int port, uint8_t value) {
   try {
     // ensure we have page0 selected
     uint8_t page0 = 0;
-    bus->moduleWrite(port, {TransceiverI2CApi::ADDR_QSFP, 127, 1}, &page0);
+    bus->moduleWrite(
+        port, {TransceiverAccessParameter::ADDR_QSFP, 127, 1}, &page0);
 
-    bus->moduleRead(port, {TransceiverI2CApi::ADDR_QSFP, 129, 1}, supported);
+    bus->moduleRead(
+        port, {TransceiverAccessParameter::ADDR_QSFP, 129, 1}, supported);
   } catch (const I2cError& ex) {
     fprintf(
         stderr,
@@ -598,7 +626,7 @@ bool setCdr(TransceiverI2CApi* bus, unsigned int port, uint8_t value) {
   // byte anyway
   uint8_t buf[1] = {value};
   try {
-    bus->moduleWrite(port, {TransceiverI2CApi::ADDR_QSFP, 98, 1}, buf);
+    bus->moduleWrite(port, {TransceiverAccessParameter::ADDR_QSFP, 98, 1}, buf);
   } catch (const I2cError& ex) {
     fprintf(stderr, "QSFP %d: Failed to set CDR\n", port);
     return false;
@@ -639,7 +667,7 @@ bool appSel(TransceiverI2CApi* bus, unsigned int port, uint8_t value) {
     for (int channel = 0; channel < 4; channel++) {
       bus->moduleWrite(
           port,
-          {TransceiverI2CApi::ADDR_QSFP,
+          {TransceiverAccessParameter::ADDR_QSFP,
            kCMISOffsetAppSelLane1 + channel,
            sizeof(applicationCode)},
           &applicationCode);
@@ -648,7 +676,7 @@ bool appSel(TransceiverI2CApi* bus, unsigned int port, uint8_t value) {
     uint8_t applySet0 = 0x0f;
     bus->moduleWrite(
         port,
-        {TransceiverI2CApi::ADDR_QSFP,
+        {TransceiverAccessParameter::ADDR_QSFP,
          kCMISOffsetStageCtrlSet0,
          sizeof(applySet0)},
         &applySet0);
@@ -1113,11 +1141,40 @@ DOMDataUnion fetchDataFromLocalI2CBus(
     DirectI2cInfo i2cInfo,
     unsigned int port) {
   // port is 1 based and WedgeQsfp is 0 based.
-  auto qsfpImpl = std::make_unique<WedgeQsfp>(port - 1, i2cInfo.bus);
+  auto qsfpImpl = std::make_unique<WedgeQsfp>(
+      port - 1, i2cInfo.bus, i2cInfo.transceiverManager);
   auto mgmtInterface = qsfpImpl->getTransceiverManagementInterface();
+  if (!FLAGS_forced_module_type.empty()) {
+    if (FLAGS_forced_module_type == "cmis") {
+      mgmtInterface = TransceiverManagementInterface::CMIS;
+    } else if (FLAGS_forced_module_type == "sff") {
+      mgmtInterface = TransceiverManagementInterface::SFF;
+    } else {
+      throw FbossError(
+          "Invalid forced module type specified: ", FLAGS_forced_module_type);
+    }
+  }
+
+  auto cfgPtr = i2cInfo.transceiverManager->getTransceiverConfig();
+
+  // On these platforms, we are configuring the 200G optics in 2x50G
+  // experimental mode. Thus 2 of the 4 lanes remain disabled which kicks in the
+  // remediation logic and flaps the other 2 ports. Disabling remediation for
+  // just these 2 platforms as this is an experimental mode only
+  bool cmisSupportRemediate = true;
+  auto tcvrMgr = i2cInfo.transceiverManager;
+  if (tcvrMgr->getPlatformType() == PlatformType::PLATFORM_MERU400BIU ||
+      tcvrMgr->getPlatformType() == PlatformType::PLATFORM_MERU400BFU) {
+    cmisSupportRemediate = false;
+  }
+
+  auto tcvrID = TransceiverID(qsfpImpl->getNum());
   if (mgmtInterface == TransceiverManagementInterface::CMIS) {
     auto cmisModule = std::make_unique<CmisModule>(
-        i2cInfo.transceiverManager, std::move(qsfpImpl));
+        tcvrMgr->getPortNames(tcvrID),
+        qsfpImpl.get(),
+        cfgPtr,
+        cmisSupportRemediate);
     try {
       cmisModule->refresh();
     } catch (FbossError& e) {
@@ -1128,7 +1185,7 @@ DOMDataUnion fetchDataFromLocalI2CBus(
     return cmisModule->getDOMDataUnion();
   } else if (mgmtInterface == TransceiverManagementInterface::SFF) {
     auto sffModule = std::make_unique<SffModule>(
-        i2cInfo.transceiverManager, std::move(qsfpImpl));
+        tcvrMgr->getPortNames(tcvrID), qsfpImpl.get(), cfgPtr);
     sffModule->refresh();
     return sffModule->getDOMDataUnion();
   } else {
@@ -1397,6 +1454,7 @@ void printHostLaneSignals(const std::vector<HostLaneSignals>& signals) {
       printf(
           " %-12s",
           apache::thrift::util::enumNameSafe(*(signal.cmisLaneState()))
+              .substr(0, 12)
               .c_str());
     }
   }
@@ -1704,8 +1762,6 @@ void printSff8472DetailService(
   const TcvrState& tcvrState = *can_throw(transceiverInfo.tcvrState());
   auto settings = *(tcvrState.settings());
 
-  printf("Port %d\n", port);
-
   // ------ Module Status -------
   printf("  Module Status:\n");
   if (auto identifier = tcvrState.identifier()) {
@@ -1752,8 +1808,6 @@ void printSffDetailService(
   const TcvrState& tcvrState = *can_throw(transceiverInfo.tcvrState());
 
   auto& settings = *(tcvrState.settings());
-
-  printf("Port %d\n", port);
 
   // ------ Module Status -------
   printf("  Module Status:\n");
@@ -1828,7 +1882,6 @@ void printSffDetail(const DOMDataUnion& domDataUnion, unsigned int port) {
   auto lowerBuf = sffData.lower()->data();
   auto page0Buf = sffData.page0()->data();
 
-  printf("Port %d\n", port);
   printf("  ID: %#04x\n", lowerBuf[0]);
   printf("  Status: 0x%02x 0x%02x\n", lowerBuf[1], lowerBuf[2]);
   printf("  Module State: 0x%02x\n", lowerBuf[3]);
@@ -2052,7 +2105,6 @@ void printCmisDetailService(
 
   auto moduleStatus = tcvrState.status();
   auto channels = *(tcvrStats.channels());
-  printf("Port %d\n", port);
   auto settings = *(tcvrState.settings());
 
   printManagementInterface(
@@ -2093,7 +2145,15 @@ void printCmisDetailService(
   if (moduleStatus && moduleStatus->fwStatus()) {
     auto fwStatus = *(moduleStatus->fwStatus());
     if (auto version = fwStatus.version()) {
-      printf("  FW Version: %s\n", (*version).c_str());
+      uint8_t integerPart, fractionalPart = 0;
+      size_t pos = version->find('.');
+      if (pos != std::string::npos) {
+        integerPart = stoi(version->substr(0, pos));
+        fractionalPart = stoi(version->substr(pos + 1));
+      } else {
+        integerPart = stoi(version->substr(0));
+      }
+      printf("  FW Version: %x.%x\n", integerPart, fractionalPart);
     }
     if (auto fwFault = fwStatus.fwFault()) {
       printf("  Firmware fault: 0x%x\n", *fwFault);
@@ -2135,7 +2195,6 @@ void printCmisDetail(const DOMDataUnion& domDataUnion, unsigned int port) {
     page14Buf = can_throw(cmisData.page14())->data();
   }
 
-  printf("Port %d\n", port);
   printf("  Module Interface Type: CMIS (200G or above)\n");
 
   printf(
@@ -2312,11 +2371,16 @@ void printCmisDetail(const DOMDataUnion& domDataUnion, unsigned int port) {
   printf("\n\n");
 }
 
-void printPortDetail(const DOMDataUnion& domDataUnion, unsigned int port) {
+void printPortDetail(
+    const DOMDataUnion& domDataUnion,
+    unsigned int port,
+    const std::string& portNames) {
   if (domDataUnion.__EMPTY__) {
     fprintf(stderr, "DOMDataUnion object is empty\n");
     return;
   }
+  printf("Port %d\n", port);
+  printf("Logical Ports: %s\n", portNames.c_str());
   if (domDataUnion.getType() == DOMDataUnion::Type::sff8636) {
     printSffDetail(domDataUnion, port);
   } else if (domDataUnion.getType() == DOMDataUnion::Type::cmis) {
@@ -2330,9 +2394,12 @@ void printPortDetail(const DOMDataUnion& domDataUnion, unsigned int port) {
 void printPortDetailService(
     const TransceiverInfo& transceiverInfo,
     unsigned int port,
-    bool verbose) {
+    bool verbose,
+    const std::string& portNames) {
   if (auto mgmtInterface = can_throw(transceiverInfo.tcvrState())
                                ->transceiverManagementInterface()) {
+    printf("Port %d\n", port);
+    printf("Logical Ports: %s\n", portNames.c_str());
     if (*mgmtInterface == TransceiverManagementInterface::SFF) {
       printSffDetailService(transceiverInfo, port, verbose);
     } else if (*mgmtInterface == TransceiverManagementInterface::SFF8472) {
@@ -2432,6 +2499,8 @@ int resetQsfp(const std::vector<std::string>& ports, folly::EventBase& evb) {
 
   switch (static_cast<ResetAction>(resetAction)) {
     case ResetAction::RESET_THEN_CLEAR:
+    case ResetAction::RESET:
+    case ResetAction::CLEAR_RESET:
       break;
     case ResetAction::INVALID:
     default:
@@ -2443,7 +2512,10 @@ int resetQsfp(const std::vector<std::string>& ports, folly::EventBase& evb) {
   try {
     auto client = getQsfpClient(evb);
     client->sync_resetTransceiver(ports, resetType, resetAction);
-    XLOG(INFO) << "Successfully reset ports";
+    XLOG(INFO) << fmt::format(
+        "Successfully reset ports via qsfp_service with resetType {} resetAction {}",
+        FLAGS_qsfp_reset_type,
+        FLAGS_qsfp_reset_action);
   } catch (const std::exception& ex) {
     XLOG(ERR) << fmt::format("Error reseting ports: {:s}", ex.what());
     return EX_SOFTWARE;
@@ -2528,7 +2600,8 @@ bool doMiniphotonLoopbackDirect(
   try {
     // Make sure we have page128 selected.
     uint8_t page128 = 128;
-    bus->moduleWrite(port, {TransceiverI2CApi::ADDR_QSFP, 127, 1}, &page128);
+    bus->moduleWrite(
+        port, {TransceiverAccessParameter::ADDR_QSFP, 127, 1}, &page128);
 
     uint8_t loopback = 0;
     if (mode == electricalLoopback) {
@@ -2537,7 +2610,8 @@ bool doMiniphotonLoopbackDirect(
       loopback = 0b10101010;
     }
     fprintf(stderr, "loopback value: %x\n", loopback);
-    bus->moduleWrite(port, {TransceiverI2CApi::ADDR_QSFP, 245, 1}, &loopback);
+    bus->moduleWrite(
+        port, {TransceiverAccessParameter::ADDR_QSFP, 245, 1}, &loopback);
   } catch (const I2cError& ex) {
     fprintf(stderr, "QSFP %d: fail to set loopback\n", port);
     return false;
@@ -2553,12 +2627,16 @@ void cmisHostInputLoopbackDirect(
     // Make sure we have page 0x13 selected.
     uint8_t page = 0x13;
     bus->moduleWrite(
-        port, {TransceiverI2CApi::ADDR_QSFP, 127, sizeof(page)}, &page);
+        port,
+        {TransceiverAccessParameter::ADDR_QSFP, 127, sizeof(page)},
+        &page);
 
     uint8_t data;
     if (!FLAGS_skip_check) {
       bus->moduleRead(
-          port, {TransceiverI2CApi::ADDR_QSFP, 128, sizeof(data)}, &data);
+          port,
+          {TransceiverAccessParameter::ADDR_QSFP, 128, sizeof(data)},
+          &data);
       if (!(data & 0x08)) {
         fprintf(
             stderr,
@@ -2570,7 +2648,9 @@ void cmisHostInputLoopbackDirect(
 
     data = (mode == electricalLoopback) ? 0xff : 0;
     bus->moduleWrite(
-        port, {TransceiverI2CApi::ADDR_QSFP, 183, sizeof(data)}, &data);
+        port,
+        {TransceiverAccessParameter::ADDR_QSFP, 183, sizeof(data)},
+        &data);
   } catch (const I2cError& ex) {
     fprintf(stderr, "QSFP %d: fail to set loopback\n", port);
   }
@@ -2584,12 +2664,16 @@ void cmisMediaInputLoopbackDirect(
     // Make sure we have page 0x13 selected.
     uint8_t page = 0x13;
     bus->moduleWrite(
-        port, {TransceiverI2CApi::ADDR_QSFP, 127, sizeof(page)}, &page);
+        port,
+        {TransceiverAccessParameter::ADDR_QSFP, 127, sizeof(page)},
+        &page);
 
     uint8_t data;
     if (!FLAGS_skip_check) {
       bus->moduleRead(
-          port, {TransceiverI2CApi::ADDR_QSFP, 128, sizeof(data)}, &data);
+          port,
+          {TransceiverAccessParameter::ADDR_QSFP, 128, sizeof(data)},
+          &data);
       if (!(data & 0x02)) {
         fprintf(
             stderr,
@@ -2601,7 +2685,9 @@ void cmisMediaInputLoopbackDirect(
 
     data = (mode == opticalLoopback) ? 0xff : 0;
     bus->moduleWrite(
-        port, {TransceiverI2CApi::ADDR_QSFP, 181, sizeof(data)}, &data);
+        port,
+        {TransceiverAccessParameter::ADDR_QSFP, 181, sizeof(data)},
+        &data);
   } catch (const I2cError& ex) {
     fprintf(stderr, "QSFP %d: fail to set loopback\n", port);
   }
@@ -2746,9 +2832,10 @@ bool cliModulefirmwareUpgrade(
   firmwareAttr.properties["image_type"] =
       FLAGS_dsp_image ? "dsp" : "application";
   auto fbossFwObj = std::make_unique<FbossFirmware>(firmwareAttr);
-
+  auto qsfpImpl = std::make_unique<WedgeQsfp>(
+      port - 1, i2cInfo.bus, i2cInfo.transceiverManager);
   auto fwUpgradeObj = std::make_unique<CmisFirmwareUpgrader>(
-      i2cInfo.bus, port, std::move(fbossFwObj));
+      qsfpImpl.get(), port, std::move(fbossFwObj));
 
   // Do the standalone upgrade in the same process as wedge_qsfp_util
   bool ret = fwUpgradeObj->cmisModuleFirmwareUpgrade();
@@ -2795,8 +2882,8 @@ bool cliModulefirmwareUpgrade(
   std::vector<unsigned int> modlist = portRangeStrToPortList(portRangeStr);
 
   // Get the list of all the modules where upgrade can be done
-  std::vector<unsigned int> finalModlist = getUpgradeModList(
-      i2cInfo.bus, modlist, FLAGS_module_type, FLAGS_fw_version);
+  std::vector<unsigned int> finalModlist =
+      getUpgradeModList(i2cInfo, modlist, FLAGS_module_type, FLAGS_fw_version);
 
   // Get the modules per controller (platform specific)
   int modsPerController = getModulesPerController();
@@ -2852,7 +2939,7 @@ bool cliModulefirmwareUpgrade(
   for (auto& bucketrow : bucket) {
     std::thread tHandler(
         fwUpgradeThreadHandler,
-        i2cInfo.bus,
+        i2cInfo,
         bucketrow,
         firmwareFilename,
         imageHdrLen);
@@ -2879,7 +2966,7 @@ bool cliModulefirmwareUpgrade(
  * fw upgrade on all these modules one by one in this thread context.
  */
 void fwUpgradeThreadHandler(
-    TransceiverI2CApi* bus,
+    DirectI2cInfo i2cInfo,
     std::vector<unsigned int> modlist,
     std::string firmwareFilename,
     uint32_t imageHdrLen) {
@@ -2897,9 +2984,10 @@ void fwUpgradeThreadHandler(
     firmwareAttr.properties["image_type"] =
         FLAGS_dsp_image ? "dsp" : "application";
     auto fbossFwObj = std::make_unique<FbossFirmware>(firmwareAttr);
-
+    auto qsfpImpl = std::make_unique<WedgeQsfp>(
+        module - 1, i2cInfo.bus, i2cInfo.transceiverManager);
     auto fwUpgradeObj = std::make_unique<CmisFirmwareUpgrader>(
-        bus, module, std::move(fbossFwObj));
+        qsfpImpl.get(), module, std::move(fbossFwObj));
 
     // Do the upgrade in this thread
     bool ret = fwUpgradeObj->cmisModuleFirmwareUpgrade();
@@ -2915,8 +3003,10 @@ void fwUpgradeThreadHandler(
     }
 
     // Find out the current version running on module
-    bus->moduleRead(
-        module, {TransceiverI2CApi::ADDR_QSFP, 39, 2}, versionNumber.data());
+    i2cInfo.bus->moduleRead(
+        module,
+        {TransceiverAccessParameter::ADDR_QSFP, 39, 2},
+        versionNumber.data());
     printf(
         "cmisModuleFirmwareUpgrade: Mod%d: Module Active Firmware Revision now: %d.%d\n",
         module,
@@ -2942,7 +3032,7 @@ void fwUpgradeThreadHandler(
  * upgrade
  */
 std::vector<unsigned int> getUpgradeModList(
-    TransceiverI2CApi* bus,
+    DirectI2cInfo i2cInfo,
     std::vector<unsigned int> portlist,
     std::string moduleType,
     std::string fwVer) {
@@ -2966,11 +3056,12 @@ std::vector<unsigned int> getUpgradeModList(
     std::string tempPartNo, tempFwVerStr;
 
     // Check if the module is present
-    if (!bus->isPresent(module)) {
+    if (!i2cInfo.bus->isPresent(module)) {
       continue;
     }
 
-    auto qsfpImpl = std::make_unique<WedgeQsfp>(module - 1, bus);
+    auto qsfpImpl = std::make_unique<WedgeQsfp>(
+        module - 1, i2cInfo.bus, i2cInfo.transceiverManager);
     auto mgmtInterface = qsfpImpl->getTransceiverManagementInterface();
 
     // Check if it is CMIS module
@@ -3187,7 +3278,7 @@ void get_module_fw_info(
  * 200"
  */
 
-void doCdbCommand(TransceiverI2CApi* bus, unsigned int module) {
+void doCdbCommand(DirectI2cInfo i2cInfo, unsigned int module) {
   if (FLAGS_command_code == -1) {
     printf("A valid command code is requied\n");
     return;
@@ -3211,12 +3302,13 @@ void doCdbCommand(TransceiverI2CApi* bus, unsigned int module) {
   // password to unlock CDB functions
   CdbCommandBlock cdbBlock;
   cdbBlock.createCdbCmdGeneric(commandCode, lplMem);
-
-  cdbBlock.selectCdbPage(bus, module);
-  cdbBlock.setMsaPassword(bus, module, FLAGS_msa_password);
+  auto qsfpImpl = std::make_unique<WedgeQsfp>(
+      module - 1, i2cInfo.bus, i2cInfo.transceiverManager);
+  cdbBlock.selectCdbPage(qsfpImpl.get());
+  cdbBlock.setMsaPassword(qsfpImpl.get(), FLAGS_msa_password);
 
   // Run the CDB command and get the output
-  bool rc = cdbBlock.cmisRunCdbCommand(bus, module);
+  bool rc = cdbBlock.cmisRunCdbCommand(qsfpImpl.get());
   printf("CDB command %s\n", rc ? "Successful" : "Failed");
 
   uint8_t* pResp;
@@ -3234,38 +3326,188 @@ void doCdbCommand(TransceiverI2CApi* bus, unsigned int module) {
 }
 
 /*
- * printVdmInfo
+ * printVdmInfoViaService
  *
- * Read the VDM information and print. The VDM config is present in page 20
- * (2 bytes per config entry) and the VDM values are present in page 24 (2
- * bytes value).
+ * Get the VDM Performance Monitoring stats from qsfp_service ad display the
+ * values
  */
-bool printVdmInfo(DirectI2cInfo i2cInfo, unsigned int port) {
+bool printVdmInfoViaService(unsigned int port) {
+  printf("Displaying VDM info for module %d via service:", port);
+
+  folly::EventBase& evb = QsfpUtilContainer::getInstance()->getEventBase();
+  std::vector<int32_t> portList;
+  unsigned int zeroBasedPortId = port - 1;
+  portList.push_back(zeroBasedPortId);
+  auto tcvrInfo = fetchInfoFromQsfpService(portList, evb);
+  if (tcvrInfo.find(zeroBasedPortId) == tcvrInfo.end()) {
+    printf("Could not get TransceiverInfo for port %d\n", port);
+    return false;
+  }
+
+  auto vdmStatsOpt =
+      tcvrInfo[zeroBasedPortId].tcvrStats().value().vdmPerfMonitorStats();
+  if (!vdmStatsOpt.has_value()) {
+    printf("VDM stats not available for port %d\n", port);
+    return false;
+  }
+
+  for (auto& [portName, mediaPortStats] :
+       vdmStatsOpt.value().mediaPortVdmStats().value()) {
+    printf("\n\nPort %s Media stats:\n", portName.c_str());
+    printf("           Min        Max        Avg        Cur\n");
+    printf(
+        "  BER    : %.2e   %.2e   %.2e   %.2e\n",
+        mediaPortStats.datapathBER().value().min().value(),
+        mediaPortStats.datapathBER().value().max().value(),
+        mediaPortStats.datapathBER().value().avg().value(),
+        mediaPortStats.datapathBER().value().cur().value());
+    printf(
+        "  FEC Err: %.2e   %.2e   %.2e   %.2e\n",
+        mediaPortStats.datapathErroredFrames().value().min().value(),
+        mediaPortStats.datapathErroredFrames().value().max().value(),
+        mediaPortStats.datapathErroredFrames().value().avg().value(),
+        mediaPortStats.datapathErroredFrames().value().cur().value());
+
+    if (!mediaPortStats.laneSNR().value().empty()) {
+      printf("\n  Channels ->    ");
+      for (auto& [channel, val] : mediaPortStats.laneSNR().value()) {
+        printf("%d       ", channel);
+      }
+    }
+    if (!mediaPortStats.laneSNR().value().empty()) {
+      printf("\n  SNR        :  ");
+      for (auto& [channel, val] : mediaPortStats.laneSNR().value()) {
+        printf("%4.2f   ", val);
+      }
+    }
+    if (!mediaPortStats.lanePam4Level0SD().value().empty()) {
+      printf("\n  PAM4 L0 SD :  ");
+      for (auto& [channel, val] : mediaPortStats.lanePam4Level0SD().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!mediaPortStats.lanePam4Level1SD().value().empty()) {
+      printf("\n  PAM4 L1 SD :  ");
+      for (auto& [channel, val] : mediaPortStats.lanePam4Level1SD().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!mediaPortStats.lanePam4Level2SD().value().empty()) {
+      printf("\n  PAM4 L2 SD :  ");
+      for (auto& [channel, val] : mediaPortStats.lanePam4Level2SD().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!mediaPortStats.lanePam4Level3SD().value().empty()) {
+      printf("\n  PAM4 L3 SD :  ");
+      for (auto& [channel, val] : mediaPortStats.lanePam4Level3SD().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!mediaPortStats.lanePam4MPI().value().empty()) {
+      printf("\n  PAM4 MPI   :  ");
+      for (auto& [channel, val] : mediaPortStats.lanePam4MPI().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!mediaPortStats.lanePam4LTP().value().empty()) {
+      printf("\n  PAM4 LTP   :  ");
+      for (auto& [channel, val] : mediaPortStats.lanePam4LTP().value()) {
+        printf("%4.2f  ", val);
+      }
+    }
+  }
+  printf("\n");
+  for (auto& [portName, hostPortStats] :
+       vdmStatsOpt.value().hostPortVdmStats().value()) {
+    printf("\nPort %s Host stats:\n", portName.c_str());
+    printf("           Min        Max        Avg        Cur\n");
+    printf(
+        "  BER    : %.2e   %.2e   %.2e   %.2e\n",
+        hostPortStats.datapathBER().value().min().value(),
+        hostPortStats.datapathBER().value().max().value(),
+        hostPortStats.datapathBER().value().avg().value(),
+        hostPortStats.datapathBER().value().cur().value());
+    printf(
+        "  FEC Err: %.2e   %.2e   %.2e   %.2e\n",
+        hostPortStats.datapathErroredFrames().value().min().value(),
+        hostPortStats.datapathErroredFrames().value().max().value(),
+        hostPortStats.datapathErroredFrames().value().avg().value(),
+        hostPortStats.datapathErroredFrames().value().cur().value());
+
+    if (!hostPortStats.laneSNR().value().empty()) {
+      printf("\n  Channel ->    ");
+      for (auto& [channel, val] : hostPortStats.laneSNR().value()) {
+        printf("%d       ", channel);
+      }
+    }
+    if (!hostPortStats.laneSNR().value().empty()) {
+      printf("\n  SNR     :  ");
+      for (auto& [channel, val] : hostPortStats.laneSNR().value()) {
+        printf("%4.2f   ", val);
+      }
+    }
+    if (!hostPortStats.lanePam4Level0SD().value().empty()) {
+      printf("\n  PAM4 L0 SD :  ");
+      for (auto& [channel, val] : hostPortStats.lanePam4Level0SD().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!hostPortStats.lanePam4Level1SD().value().empty()) {
+      printf("\n  PAM4 L1 SD :  ");
+      for (auto& [channel, val] : hostPortStats.lanePam4Level1SD().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!hostPortStats.lanePam4Level2SD().value().empty()) {
+      printf("\n  PAM4 L2 SD:  ");
+      for (auto& [channel, val] : hostPortStats.lanePam4Level2SD().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!hostPortStats.lanePam4Level3SD().value().empty()) {
+      printf("\n  PAM4 L3 SD :  ");
+      for (auto& [channel, val] : hostPortStats.lanePam4Level3SD().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!hostPortStats.lanePam4MPI().value().empty()) {
+      printf("\n  PAM4 MPI   :  ");
+      for (auto& [channel, val] : hostPortStats.lanePam4MPI().value()) {
+        printf("%4.2f    ", val);
+      }
+    }
+    if (!hostPortStats.lanePam4LTP().value().empty()) {
+      printf("\n  PAM4 LTP   :  ");
+      for (auto& [channel, val] : hostPortStats.lanePam4LTP().value()) {
+        printf("%4.2f  ", val);
+      }
+    }
+  }
+  printf(
+      "\nTime Collected: %s\n",
+      getLocalTime(vdmStatsOpt.value().statsCollectionTme().value()).c_str());
+  return true;
+}
+
+/*
+ * printVdmInfoDirect
+ *
+ * Read the VDM information from the optics and print. The VDM config is
+ * present in page 20 (2 bytes per config entry) and the VDM values are present
+ * in page 24 (2 bytes value).
+ */
+bool printVdmInfoDirect(DirectI2cInfo i2cInfo, unsigned int port) {
   DOMDataUnion domDataUnion;
 
-  printf("Displaying VDM info for module %d:\n", port);
+  printf("Displaying VDM info for module %d directly:\n", port);
 
-  if (!FLAGS_direct_i2c) {
-    // Read the optics data from qsfp_service
-    folly::EventBase evb;
-
-    int32_t idx = port - 1;
-    auto domDataUnionMap = fetchDataFromQsfpService({idx}, evb);
-    auto iter = domDataUnionMap.find(idx);
-    if (iter == domDataUnionMap.end()) {
-      fprintf(stderr, "Port %d is not present in QsfpService data\n", idx + 1);
-      return false;
-    } else {
-      domDataUnion = iter->second;
-    }
-  } else {
-    // Read the optics data directly from this process
-    try {
-      domDataUnion = fetchDataFromLocalI2CBus(i2cInfo, port);
-    } catch (const std::exception& ex) {
-      fprintf(stderr, "error reading QSFP data %u: %s\n", port, ex.what());
-      return false;
-    }
+  // Read the optics data directly from this process
+  try {
+    domDataUnion = fetchDataFromLocalI2CBus(i2cInfo, port);
+  } catch (const std::exception& ex) {
+    fprintf(stderr, "error reading QSFP data %u: %s\n", port, ex.what());
+    return false;
   }
 
   if (domDataUnion.getType() != DOMDataUnion::Type::cmis) {
@@ -3344,7 +3586,37 @@ bool printVdmInfo(DirectI2cInfo i2cInfo, unsigned int port) {
   // Host side info: control page = 0x20, data page = 0x24
   findAndPrintVdmInfo(page21Buf, page25Buf);
 
+  uint8_t vdmGroupsSupported;
+  readRegister(port, 128, 1, 0x2f, &vdmGroupsSupported);
+
+  // Check for VDM Advance Group3 support
+  // Control page: 0x22, data page: 0x26
+  if ((vdmGroupsSupported & 0x03) >= 2) {
+    auto page22Buf = can_throw(cmisData.page22())->data();
+    auto page26Buf = can_throw(cmisData.page26())->data();
+    findAndPrintVdmInfo(page22Buf, page26Buf);
+  }
+
   return true;
+}
+
+/*
+ * printVdmInfo
+ *
+ * Get and print the VDM performance monitoring diagsnostic data either
+ * directly from hardware or through qsfp_service
+ */
+bool printVdmInfo(DirectI2cInfo i2cInfo, unsigned int port) {
+  if (!FLAGS_direct_i2c) {
+    if (QsfpServiceDetector::getInstance()->isQsfpServiceActive()) {
+      return printVdmInfoViaService(port);
+    } else {
+      printf("Qsfp service is not active, pl provide --direct_i2c option\n");
+      return false;
+    }
+  } else {
+    return printVdmInfoDirect(i2cInfo, port);
+  }
 }
 
 /*
@@ -3571,7 +3843,8 @@ void setModulePrbsDirect(
 void setModulePrbsDirectCmis(TransceiverI2CApi* bus, int module, bool start) {
   // Set the page first
   uint8_t prbsPage = 0x13;
-  bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 127, 1}, &prbsPage);
+  bus->moduleWrite(
+      module, {TransceiverAccessParameter::ADDR_QSFP, 127, 1}, &prbsPage);
 
   auto patternEnum = nameToEnum<prbs::PrbsPolynomial>(FLAGS_prbs_pattern);
   auto patternInt = cmisPrbsPolynominalMap[patternEnum];
@@ -3583,10 +3856,12 @@ void setModulePrbsDirectCmis(TransceiverI2CApi* bus, int module, bool start) {
       pattern[i] = ((patternInt & 0xf) << 4) | (patternInt & 0xf);
     }
     if (FLAGS_generator) {
-      bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 156, 4}, pattern);
+      bus->moduleWrite(
+          module, {TransceiverAccessParameter::ADDR_QSFP, 156, 4}, pattern);
     }
     if (FLAGS_checker) {
-      bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 172, 4}, pattern);
+      bus->moduleWrite(
+          module, {TransceiverAccessParameter::ADDR_QSFP, 172, 4}, pattern);
     }
   }
 
@@ -3594,11 +3869,12 @@ void setModulePrbsDirectCmis(TransceiverI2CApi* bus, int module, bool start) {
   if (FLAGS_generator) {
     uint8_t generator = start ? 0xff : 0x00;
     bus->moduleWrite(
-        module, {TransceiverI2CApi::ADDR_QSFP, 152, 1}, &generator);
+        module, {TransceiverAccessParameter::ADDR_QSFP, 152, 1}, &generator);
   }
   if (FLAGS_checker) {
     uint8_t checker = start ? 0xff : 0x00;
-    bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 168, 1}, &checker);
+    bus->moduleWrite(
+        module, {TransceiverAccessParameter::ADDR_QSFP, 168, 1}, &checker);
   }
 }
 
@@ -3689,7 +3965,8 @@ void getModulePrbsStatsDirect(
 void getModulePrbsStatsDirectCmis(TransceiverI2CApi* bus, int module) {
   // Set the page first
   uint8_t prbsPage = 0x14;
-  bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 127, 1}, &prbsPage);
+  bus->moduleWrite(
+      module, {TransceiverAccessParameter::ADDR_QSFP, 127, 1}, &prbsPage);
 
   // Read the PRBS generator and checker lock status
   std::array<bool, 8> prbsGeneratorLocked;
@@ -3697,13 +3974,14 @@ void getModulePrbsStatsDirectCmis(TransceiverI2CApi* bus, int module) {
 
   uint8_t generatorLol;
   bus->moduleRead(
-      module, {TransceiverI2CApi::ADDR_QSFP, 137, 1}, &generatorLol);
+      module, {TransceiverAccessParameter::ADDR_QSFP, 137, 1}, &generatorLol);
   for (int i = 0; i < 8; i++) {
     prbsGeneratorLocked[i] = !((generatorLol >> i) & 0x1);
   }
 
   uint8_t checkerLol;
-  bus->moduleRead(module, {TransceiverI2CApi::ADDR_QSFP, 139, 1}, &checkerLol);
+  bus->moduleRead(
+      module, {TransceiverAccessParameter::ADDR_QSFP, 139, 1}, &checkerLol);
   for (int i = 0; i < 8; i++) {
     prbsCheckerLocked[i] = !((checkerLol >> i) & 0x1);
   }
@@ -3712,13 +3990,14 @@ void getModulePrbsStatsDirectCmis(TransceiverI2CApi* bus, int module) {
   std::array<float, 8> mediaBer;
 
   uint8_t diagSelect = 1;
-  bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 128, 1}, &diagSelect);
+  bus->moduleWrite(
+      module, {TransceiverAccessParameter::ADDR_QSFP, 128, 1}, &diagSelect);
   // Some modules take 1.8s to populate BER
   usleep(2 * 1000 * 1000); // @lint-ignore CLANGTIDY
 
   std::array<uint8_t, 16> berData;
   bus->moduleRead(
-      module, {TransceiverI2CApi::ADDR_QSFP, 208, 16}, berData.data());
+      module, {TransceiverAccessParameter::ADDR_QSFP, 208, 16}, berData.data());
 
   for (int i = 0; i < 8; i++) {
     int exponent = berData[i * 2] >> 3;
@@ -3731,12 +4010,13 @@ void getModulePrbsStatsDirectCmis(TransceiverI2CApi* bus, int module) {
   std::array<float, 8> mediaSnr;
 
   diagSelect = 6;
-  bus->moduleWrite(module, {TransceiverI2CApi::ADDR_QSFP, 128, 1}, &diagSelect);
+  bus->moduleWrite(
+      module, {TransceiverAccessParameter::ADDR_QSFP, 128, 1}, &diagSelect);
   usleep(2 * 1000 * 1000); // @lint-ignore CLANGTIDY
 
   std::array<uint8_t, 16> snrData;
   bus->moduleRead(
-      module, {TransceiverI2CApi::ADDR_QSFP, 240, 16}, snrData.data());
+      module, {TransceiverAccessParameter::ADDR_QSFP, 240, 16}, snrData.data());
 
   for (int i = 0; i < 8; i++) {
     mediaSnr[i] = snrData[i * 2] / 256.0 + snrData[(i * 2) + 1];
@@ -3772,7 +4052,7 @@ bool verifyDirectI2cCompliance() {
       FLAGS_get_remediation_until_time || FLAGS_read_reg || FLAGS_write_reg ||
       FLAGS_update_module_firmware || FLAGS_update_bulk_module_fw ||
       FLAGS_set_40g || FLAGS_set_100g || FLAGS_electrical_loopback ||
-      FLAGS_optical_loopback || FLAGS_clear_loopback) {
+      FLAGS_optical_loopback || FLAGS_clear_loopback || FLAGS_qsfp_reset) {
     if (FLAGS_direct_i2c) {
       if (QsfpServiceDetector::getInstance()->isQsfpServiceActive()) {
         XLOG(ERR)

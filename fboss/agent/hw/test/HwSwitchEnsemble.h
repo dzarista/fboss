@@ -81,6 +81,11 @@ class HwSwitchEnsemble : public TestEnsembleIf {
    private:
     virtual void packetReceived(RxPacket* pkt) noexcept = 0;
     virtual void linkStateChanged(PortID port, bool up) = 0;
+    virtual void linkActiveStateChanged(
+        const std::map<PortID, bool>& port2IsActive) = 0;
+    virtual void linkConnectivityChanged(
+        const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+            port2OldAndNewConnectivity) = 0;
     virtual void l2LearningUpdateReceived(
         L2Entry l2Entry,
         L2EntryUpdateType l2EntryUpdateType) = 0;
@@ -99,14 +104,21 @@ class HwSwitchEnsemble : public TestEnsembleIf {
     MULTISWITCH_THRIFT_SERVER, /* Start multiswitch service on test server */
   };
   using Features = std::set<Feature>;
+  using TestEnsembleIf::getLatestPortStats;
+  using TestEnsembleIf::getLatestSysPortStats;
 
   explicit HwSwitchEnsemble(const Features& featuresDesired);
   ~HwSwitchEnsemble() override;
   std::shared_ptr<SwitchState> applyNewState(
       std::shared_ptr<SwitchState> newState,
-      bool rollbackOnHwOverflow = false) override {
+      bool rollbackOnHwOverflow = false) {
     return applyNewStateImpl(newState, false, rollbackOnHwOverflow);
   }
+  void applyNewState(
+      StateUpdateFn fn,
+      const std::string& name = "test-update",
+      bool rollbackOnHwOverflow = false) override;
+
   std::shared_ptr<SwitchState> applyNewStateTransaction(
       std::shared_ptr<SwitchState> newState) {
     return applyNewStateImpl(newState, true);
@@ -116,9 +128,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       const cfg::SwitchConfig& config) override;
 
   std::shared_ptr<SwitchState> getProgrammedState() const override;
-  LinkStateToggler* getLinkToggler() {
-    return linkToggler_.get();
-  }
+  LinkStateToggler* getLinkToggler() override;
   RoutingInformationBase* getRib() {
     return routingInformationBase_.get();
   }
@@ -139,11 +149,16 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   HwAsicTable* getHwAsicTable() override {
     return hwAsicTable_.get();
   }
+  const HwAsicTable* getHwAsicTable() const override {
+    return hwAsicTable_.get();
+  }
+
   const std::map<int32_t, cfg::PlatformPortEntry>& getPlatformPorts()
       const override {
     return getPlatform()->getPlatformPorts();
   }
-  std::map<PortID, FabricEndpoint> getFabricConnectivity() const override {
+  std::map<PortID, FabricEndpoint> getFabricConnectivity(
+      SwitchID /* switchId */) const override {
     return getHwSwitch()->getFabricConnectivity();
   }
   FabricReachabilityStats getFabricReachabilityStats() const override {
@@ -164,6 +179,13 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       bool up,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override;
+  void linkActiveStateChanged(
+      const std::map<PortID, bool>& /*port2IsActive */) override;
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+      /*port2OldAndNewConnectivity*/) override {
+    // TODO
+  }
   void l2LearningUpdateReceived(
       L2Entry l2Entry,
       L2EntryUpdateType l2EntryUpdateType) override;
@@ -175,6 +197,12 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   void switchRunStateChanged(SwitchRunState switchState) override;
 
   static Features getAllFeatures();
+
+  // use ensure send packet for synchronous send
+  void sendPacketAsync(
+      std::unique_ptr<TxPacket> pkt,
+      std::optional<PortDescriptor> portDescriptor = std::nullopt,
+      std::optional<uint8_t> queueId = std::nullopt) override;
 
   /*
    * Depending on the implementation of the underlying forwarding plane, it is
@@ -207,7 +235,6 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       const std::chrono::duration<uint32_t, std::milli> msBetweenRetry =
           std::chrono::milliseconds(20));
 
-  std::vector<SystemPortID> masterLogicalSysPortIds() const;
   virtual std::vector<PortID> getAllPortsInGroup(PortID portID) const = 0;
   virtual std::vector<FlexPortMode> getSupportedFlexPortModes() const = 0;
   virtual bool isRouteScaleEnabled() const = 0;
@@ -218,14 +245,12 @@ class HwSwitchEnsemble : public TestEnsembleIf {
    * Get latest port stats for given ports
    */
   virtual std::map<PortID, HwPortStats> getLatestPortStats(
-      const std::vector<PortID>& ports);
-  HwPortStats getLatestPortStats(PortID port);
+      const std::vector<PortID>& ports) override;
   /*
    * Get latest sys port stats for given sys ports
    */
   virtual std::map<SystemPortID, HwSysPortStats> getLatestSysPortStats(
-      const std::vector<SystemPortID>& ports);
-  HwSysPortStats getLatestSysPortStats(SystemPortID port);
+      const std::vector<SystemPortID>& ports) override;
   /*
    * Get latest stats for given aggregate ports
    */
@@ -245,14 +270,14 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       int secondsToWaitPerIteration = 1);
   void ensureThrift();
 
-  virtual void runDiagCommand(
-      const std::string& input,
-      std::string& output) = 0;
   HwSwitchEnsembleRouteUpdateWrapper getRouteUpdater() {
     return HwSwitchEnsembleRouteUpdateWrapper(
         this, routingInformationBase_.get());
   }
-  size_t getMinPktsForLineRate(const PortID& portId);
+  std::unique_ptr<RouteUpdateWrapper> getRouteUpdaterWrapper() override {
+    return std::make_unique<HwSwitchEnsembleRouteUpdateWrapper>(
+        this, routingInformationBase_.get());
+  }
   int readPfcDeadlockDetectionCounter(const PortID& port);
   int readPfcDeadlockRecoveryCounter(const PortID& port);
   void clearPfcDeadlockRecoveryCounter(const PortID& port);
@@ -264,8 +289,6 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       std::vector<PortID>& downlinks,
       std::vector<PortID>& disabled,
       const int totalLinkCount);
-
-  virtual bool isSai() const = 0;
 
   const SwitchIdScopeResolver& scopeResolver() const override;
 
@@ -281,6 +304,33 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   void enqueueTxPacket(multiswitch::TxPacket);
 
   void enqueueOperDelta(multiswitch::StateOperDelta operDelta);
+
+  void clearPortStats(
+      const std::unique_ptr<std::vector<int32_t>>& ports) override {
+    getHwSwitch()->clearPortStats(ports);
+  }
+
+  folly::MacAddress getLocalMac(SwitchID /*id*/) const override {
+    return getHwSwitch()->getPlatform()->getLocalMac();
+  }
+
+  std::unique_ptr<TxPacket> allocatePacket(uint32_t size) override;
+
+  bool supportsAddRemovePort() const override {
+    return getHwSwitch()->getPlatform()->supportsAddRemovePort();
+  }
+
+  const PlatformMapping* getPlatformMapping() const override {
+    return getHwSwitch()->getPlatform()->getPlatformMapping();
+  }
+
+  cfg::SwitchConfig getCurrentConfig() const override {
+    return currentConfig_;
+  }
+  uint64_t getTrafficRate(
+      const HwPortStats& prevPortStats,
+      const HwPortStats& curPortStats,
+      const int secondsBetweenStatsCollection);
 
  protected:
   /*
@@ -318,7 +368,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   bool waitForRateOnPort(
       PortID port,
       uint64_t desiredBps,
-      int secondsToWaitPerIteration = 1);
+      int secondsToWaitPerIteration = 2);
 
   std::shared_ptr<SwitchState> programmedState_{nullptr};
   std::unique_ptr<RoutingInformationBase> routingInformationBase_;
@@ -342,6 +392,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   std::unique_ptr<MultiSwitchTestServer> swSwitchTestServer_;
   std::unique_ptr<SwSwitchWarmBootHelper> swSwitchWarmBootHelper_;
   HwEnsembleMultiSwitchThriftHandler* multiSwitchThriftHandler_{nullptr};
+  cfg::SwitchConfig currentConfig_;
 };
 
 } // namespace facebook::fboss

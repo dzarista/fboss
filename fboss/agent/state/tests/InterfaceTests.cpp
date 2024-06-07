@@ -228,12 +228,12 @@ TEST(Interface, Modify) {
     cfg::SwitchConfig config = testConfigA();
     auto stateV1 = publishAndApplyConfig(state, &config, platform.get());
     stateV1->publish();
-    auto origIntfMap = util::getFirstMap(stateV1->getInterfaces());
+    auto origIntfMap = utility::getFirstMap(stateV1->getInterfaces());
     auto origIntf = origIntfMap->cbegin()->second;
     auto origIntfs = stateV1->getInterfaces();
     auto newIntf = origIntf->modify(&stateV1);
     EXPECT_NE(origIntf.get(), newIntf);
-    EXPECT_NE(origIntfMap, util::getFirstMap(stateV1->getInterfaces()));
+    EXPECT_NE(origIntfMap, utility::getFirstMap(stateV1->getInterfaces()));
     EXPECT_NE(origIntfs, stateV1->getInterfaces());
   }
   {
@@ -244,12 +244,12 @@ TEST(Interface, Modify) {
     cfg::SwitchConfig config = testConfigA(cfg::SwitchType::VOQ);
     auto stateV1 = publishAndApplyConfig(state, &config, platform.get());
     stateV1->publish();
-    auto origIntfMap = util::getFirstMap(stateV1->getInterfaces());
+    auto origIntfMap = utility::getFirstMap(stateV1->getInterfaces());
     auto origIntf = origIntfMap->cbegin()->second;
     auto origIntfs = stateV1->getInterfaces();
     auto newIntf = origIntf->modify(&stateV1);
     EXPECT_NE(origIntf.get(), newIntf);
-    EXPECT_NE(origIntfMap, util::getFirstMap(stateV1->getInterfaces()));
+    EXPECT_NE(origIntfMap, utility::getFirstMap(stateV1->getInterfaces()));
     EXPECT_NE(origIntfs, stateV1->getInterfaces());
   }
 }
@@ -583,8 +583,8 @@ void checkChangedIntfs(
   EXPECT_EQ(addedIDs, foundAdded);
   EXPECT_EQ(removedIDs, foundRemoved);
 
-  validateSerialization(util::getFirstMap(oldIntfs));
-  validateSerialization(util::getFirstMap(newIntfs));
+  validateSerialization(utility::getFirstMap(oldIntfs));
+  validateSerialization(utility::getFirstMap(newIntfs));
 }
 
 TEST(InterfaceMap, Modify) {
@@ -857,5 +857,40 @@ TEST(Interface, getAllNodes) {
   auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
   EXPECT_EQ(
       *stateV1->getInterfaces()->getAllNodes(),
-      *util::getFirstMap(stateV1->getInterfaces()));
+      *utility::getFirstMap(stateV1->getInterfaces()));
+}
+
+TEST(Interface, getRemoteInterfaceType) {
+  auto platform = createMockPlatform();
+  auto stateV0 = std::make_shared<SwitchState>();
+  addSwitchInfo(stateV0, cfg::SwitchType::VOQ, 1 /* switchId*/);
+  auto config = testConfigA(cfg::SwitchType::VOQ);
+  auto stateV1 = publishAndApplyConfig(stateV0, &config, platform.get());
+  ASSERT_NE(nullptr, stateV1);
+
+  config.dsfNodes()->insert({5, makeDsfNodeCfg(5)});
+  auto stateV2 = publishAndApplyConfig(stateV1, &config, platform.get());
+  ASSERT_NE(nullptr, stateV2);
+
+  auto verifyRemoteInterfaceTypeHelper =
+      [](const std::shared_ptr<MultiSwitchInterfaceMap>& intfs,
+         const std::optional<RemoteInterfaceType>& expectedType) {
+        EXPECT_GT(intfs->size(), 0);
+        for (const auto& [_, intfMap] : std::as_const(*intfs)) {
+          for (const auto& [_, intf] : std::as_const(*intfMap)) {
+            EXPECT_EQ(intf->getRemoteInterfaceType(), expectedType);
+          }
+        }
+      };
+
+  // Local interfaces don't have remoteInterfaceType
+  verifyRemoteInterfaceTypeHelper(
+      stateV1->getInterfaces(),
+      std::optional<RemoteInterfaceType>(std::nullopt));
+
+  // Only statically programmed remote interfaces should be present given the
+  // config applied.
+  verifyRemoteInterfaceTypeHelper(
+      stateV2->getRemoteInterfaces(),
+      std::optional<RemoteInterfaceType>(RemoteInterfaceType::STATIC_ENTRY));
 }

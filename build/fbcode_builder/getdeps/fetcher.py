@@ -4,6 +4,8 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+# pyre-unsafe
+
 import errno
 import hashlib
 import os
@@ -681,15 +683,18 @@ def download_url_to_file_with_progress(url: str, file_name) -> None:
     start = time.time()
     try:
         if os.environ.get("GETDEPS_USE_WGET") is not None:
-            subprocess.run(
+            procargs = (
                 [
                     "wget",
+                ]
+                + os.environ.get("GETDEPS_WGET_ARGS", "").split()
+                + [
                     "-O",
                     file_name,
                     url,
                 ]
             )
-
+            subprocess.run(procargs, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             headers = None
 
         elif os.environ.get("GETDEPS_USE_LIBCURL") is not None:

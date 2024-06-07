@@ -90,13 +90,12 @@ std::vector<std::shared_ptr<SaiRoute>> SaiRouteManager::makeInterfaceToMeRoutes(
   toMeRoutes.reserve(swInterface->getAddresses()->size());
   // Compute per-address information
   for (auto iter : std::as_const(*swInterface->getAddresses())) {
-    folly::CIDRNetwork address(
-        folly::IPAddress(iter.first), iter.second->cref());
+    folly::IPAddress ipAddress(iter.first);
     // empty next hop group -- this route will not manage the
     // lifetime of a next hop group
     std::shared_ptr<SaiNextHopGroupHandle> nextHopGroup;
     // destination
-    folly::CIDRNetwork destination{address.first, address.first.bitCount()};
+    folly::CIDRNetwork destination{ipAddress, ipAddress.bitCount()};
     SaiRouteTraits::RouteEntry entry{switchId, virtualRouterId, destination};
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
     SaiRouteTraits::CreateAttributes attributes{
@@ -175,35 +174,88 @@ void SaiRouteManager::addOrUpdateRoute(
     if (newRoute->isConnected()) {
       CHECK_EQ(fwd.getNextHopSet().size(), 1);
       InterfaceID interfaceId{fwd.getNextHopSet().begin()->intf()};
-      const SaiRouterInterfaceHandle* routerInterfaceHandle =
-          managerTable_->routerInterfaceManager().getRouterInterfaceHandle(
-              interfaceId);
-      if (!routerInterfaceHandle) {
-        throw FbossError(
-            "cannot create subnet route without a sai_router_interface "
-            "for InterfaceID: ",
-            interfaceId);
-      }
+
       /*
-       * Remote interface routes are treated as connected for ECMP route
-       * resolution. In hw, the routes are pointing to drop to avoid attracting
-       * traffic.
+       * For VOQ switches with multiple asics, set connected routes to drop
+       * if the interface is not on the same asic.
+       * TODO - filter these connected routes in switchstate
        */
-      if (!routerInterfaceHandle->isLocal()) {
-        packetAction = SAI_PACKET_ACTION_DROP;
-      }
-      RouterInterfaceSaiId routerInterfaceId{
-          routerInterfaceHandle->adapterKey()};
+      if (platform_->getAsic()->getSwitchType() == cfg::SwitchType::VOQ) {
+        auto systemPortRange = platform_->getAsic()->getSystemPortRange();
+        CHECK(systemPortRange);
+        if (interfaceId < *systemPortRange->minimum() ||
+            interfaceId > *systemPortRange->maximum()) {
+          packetAction = SAI_PACKET_ACTION_DROP;
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
-      attributes = SaiRouteTraits::CreateAttributes{
-          packetAction, routerInterfaceId, metadata, std::nullopt};
+          attributes = SaiRouteTraits::CreateAttributes{
+              packetAction, SAI_NULL_OBJECT_ID, metadata, std::nullopt};
 #else
-      attributes = SaiRouteTraits::CreateAttributes{
-          packetAction, routerInterfaceId, metadata};
+          attributes = SaiRouteTraits::CreateAttributes{
+              packetAction, SAI_NULL_OBJECT_ID, metadata};
+#endif
+        }
+      }
+
+      if (packetAction != SAI_PACKET_ACTION_DROP) {
+        const SaiRouterInterfaceHandle* routerInterfaceHandle =
+            managerTable_->routerInterfaceManager().getRouterInterfaceHandle(
+                interfaceId);
+        if (!routerInterfaceHandle) {
+          throw FbossError(
+              "cannot create subnet route without a sai_router_interface "
+              "for InterfaceID: ",
+              interfaceId);
+        }
+        /*
+         * Remote interface routes are treated as connected for ECMP route
+         * resolution. In hw, the routes are pointing to drop to avoid
+         * attracting traffic.
+         */
+        if (!routerInterfaceHandle->isLocal()) {
+          packetAction = SAI_PACKET_ACTION_DROP;
+        }
+        /*
+         * For a subnet route pointing to a router interface BRCM-SAI uses
+         * classID 2. This packet would be copied to low priority queue to CPU
+         * when there is no conflict to this action.
+         * If a DENY data ACL conflicts with this action, the packet will be
+         * dropped before getting copied to the CPU. The reason is this classID
+         * is not backed by an rx reason or any other actions in the pipeline.
+         *
+         * The below flag means an ACL is also added to the configuration (in
+         * the cpu-policer section) which will have a higher priority than all
+         * other data ACLs.
+         *
+         * As a side note, for a host route, BRCM-SAI uses a class ID 1 and
+         * the IP2ME rx reason ensures this packet is duplicated and copied to
+         * the CPU even if there is a conflicting DENY ACL.
+         *
+         * Not-applicable to TAJO because update metadata on interface subnet
+         * route is unsupported. Also not supported on BRCM-SAI, which does not
+         * fuly support route classID programming yet.
+         *
+         * So, classid_for_connected_subnet_routes is currently disabled
+         * everywhere
+         */
+        if (FLAGS_classid_for_connected_subnet_routes &&
+            platform_->getAsic()->isSupported(
+                HwAsic::Feature::ROUTE_METADATA)) {
+          metadata =
+              static_cast<uint32_t>(cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
+        }
+        RouterInterfaceSaiId routerInterfaceId{
+            routerInterfaceHandle->adapterKey()};
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
+        attributes = SaiRouteTraits::CreateAttributes{
+            packetAction, routerInterfaceId, metadata, std::nullopt};
+#else
+        attributes = SaiRouteTraits::CreateAttributes{
+            packetAction, routerInterfaceId, metadata};
 #endif
 
-      XLOG(DBG3) << "Connected route: " << newRoute->str()
-                 << " routerInterfaceId: " << routerInterfaceId;
+        XLOG(DBG3) << "Connected route: " << newRoute->str()
+                   << " routerInterfaceId: " << routerInterfaceId;
+      }
     } else if (fwd.getNextHopSet().size() > 1) {
       /*
        * A Route which has more than one NextHops will create or reference an
@@ -253,6 +305,55 @@ void SaiRouteManager::addOrUpdateRoute(
             nextHopHandle = managedRouteNextHop;
           },
           managedSaiNextHop);
+
+      /*
+       * Refer S390808 for more details.
+       *
+       * FBOSS behaviour:
+       * Routes that uses single nexthop and are unresolved points to
+       * cpu port as the nexthop to trigger neighbor resolution. This is
+       * by setting the nexthop ID of the route to CPU port.
+       *
+       * SAI spec expectation:
+       * Based on the SAI spec, any route that points to CPU port should
+       * be treated as MYIP. As there is no way to differentiate between
+       * interface routes and VIp/ILA routes, both the routes are
+       * programmed with CPU port as the nexthop. NOTE that we configure
+       * a hostif trap for MYIP which will send packets to mid pri queue.
+       *
+       * BCM SAI behavior:
+       * Any /32 or /128 routes that points to CPU port will be
+       * treated as MYIP. BCM SAI ensures that only host routes
+       * are treated as IP2ME routes. For unresolved subnet routes, even
+       * though nexthop is set to CPU port, the class ID is set
+       * SUBNET_CLASS_ID which defaults to queue 0. For all unreoslved host
+       * routes, the class ID is set to IP2ME class ID which will be
+       * sent to mid pri queue due to IP2ME hostif trap. However, brcm-sai
+       * is also implicitly programming route classID underlyingly, which
+       * could cause conflict with our programming. So, do nothing on
+       * brcm sai switches for now, until brcm-sai is enhanced to support it.
+       *
+       * TAJO SDK behavior:
+       * For Tajo, any route (host route or subnet route) that points to
+       * CPU port will be treated as MYIP. Both host and subnet routes
+       * that are unresolved will be sent to mid pri queue due to the
+       * IP2ME hostif trap. So, FLAGS_classid_for_unresolved_routes is
+       * currently only enabled on tajo switches.
+       *
+       * Fix for the issue:
+       * In order to send these not MYIP routes to default queue,
+       * 1) Program unresolved routes that points to CPU port to a class ID
+       * CLASS_UNRESOLVED_ROUTE_TO_CPU
+       * 2) Add an ACL with qualifer as CLASS_UNRESOLVED_ROUTE_TO_CPU and
+       * action as low pri queue.
+       */
+      if (FLAGS_classid_for_unresolved_routes &&
+          platform_->getAsic()->isSupported(HwAsic::Feature::ROUTE_METADATA)) {
+        if (nextHopId == managerTable_->switchManager().getCpuPort()) {
+          metadata =
+              static_cast<uint32_t>(cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
+        }
+      }
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
       attributes = SaiRouteTraits::CreateAttributes{

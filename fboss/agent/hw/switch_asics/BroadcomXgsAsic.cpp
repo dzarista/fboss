@@ -11,9 +11,11 @@ std::set<cfg::StreamType> BroadcomXgsAsic::getQueueStreamTypes(
     case cfg::PortType::CPU_PORT:
       return {cfg::StreamType::MULTICAST};
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::FABRIC_PORT:
     case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       break;
   }
   throw FbossError(

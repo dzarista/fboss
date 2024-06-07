@@ -42,6 +42,7 @@
 #include "fboss/agent/hw/bcm/BcmBstStatsMgr.h"
 #include "fboss/agent/hw/bcm/BcmControlPlane.h"
 #include "fboss/agent/hw/bcm/BcmCosManager.h"
+#include "fboss/agent/hw/bcm/BcmEcmpUtils.h"
 #include "fboss/agent/hw/bcm/BcmEgressManager.h"
 #include "fboss/agent/hw/bcm/BcmEgressQueueFlexCounter.h"
 #include "fboss/agent/hw/bcm/BcmError.h"
@@ -124,6 +125,10 @@
 #include "fboss/agent/state/VlanMapDelta.h"
 #include "fboss/agent/types.h"
 
+#include "fboss/agent/hw/bcm/BcmHostUtils.h"
+
+#include "fboss/agent/LoadBalancerUtils.h"
+
 extern "C" {
 #include <bcm/link.h>
 #include <bcm/port.h>
@@ -162,7 +167,6 @@ using namespace std::chrono;
 using namespace facebook::fboss::utility;
 
 DEFINE_int32(linkscan_interval_us, 250000, "The Broadcom linkscan interval");
-DEFINE_bool(force_init_fp, true, "Force full field processor initialization");
 DEFINE_string(
     script_pre_asic_init,
     "script_pre_asic_init",
@@ -188,8 +192,6 @@ enum : uint8_t {
 };
 
 namespace {
-constexpr auto kHostTable = "hostTable";
-constexpr int kLogBcmErrorFreqMs = 3000;
 // On new platforms we found sflow samplig rate to be inconsistent
 // BRCM found this seed provides better results (see CS00011944544)
 constexpr auto kHSDKSflowSamplingSeed = 0x2f64c448;
@@ -354,6 +356,7 @@ BcmSwitch::BcmSwitch(BcmPlatform* platform, uint32_t featuresDesired)
       l3NextHopTable_(new BcmL3NextHopTable(this)),
       mplsNextHopTable_(new BcmMplsNextHopTable(this)),
       multiPathNextHopTable_(new BcmMultiPathNextHopTable(this)),
+      multiPathNextHopStatsManager_(new BcmMultiPathNextHopStatsManager()),
       labelMap_(new BcmLabelMap(this)),
       routeCounterTable_(
           getPlatform()->getAsic()->isSupported(
@@ -426,6 +429,7 @@ void BcmSwitch::resetTables() {
   // host references now.
   intfTable_.reset();
   egressManager_.reset();
+  multiPathNextHopStatsManager_.reset();
   multiPathNextHopTable_.reset();
   hostTable_.reset();
   toCPUEgress_.reset();
@@ -541,6 +545,11 @@ int BcmSwitch::addL2TableCb(
     bcm_l2_addr_t* l2Addr,
     void* userData) {
   auto* bcmSw = static_cast<BcmSwitch*>(userData);
+  if (bcmSw->getRunState() < SwitchRunState::CONFIGURED) {
+    XLOG(WARNING)
+        << "ignoreing learn notifications as switch is not configured.";
+    return 0;
+  }
   bcmSw->callback_->l2LearningUpdateReceived(
       createL2Entry(l2Addr, bcmSw->isL2EntryPending(l2Addr)),
       L2EntryUpdateType::L2_ENTRY_UPDATE_TYPE_ADD);
@@ -553,6 +562,11 @@ int BcmSwitch::addL2TableCbForPendingOnly(
     bcm_l2_addr_t* l2Addr,
     void* userData) {
   auto* bcmSw = static_cast<BcmSwitch*>(userData);
+  if (bcmSw->getRunState() < SwitchRunState::CONFIGURED) {
+    XLOG(WARNING)
+        << "ignoreing learn notifications as switch is not configured.";
+    return 0;
+  }
   if (bcmSw->isL2EntryPending(l2Addr)) {
     bcmSw->callback_->l2LearningUpdateReceived(
         createL2Entry(l2Addr, bcmSw->isL2EntryPending(l2Addr)),
@@ -567,6 +581,11 @@ int BcmSwitch::deleteL2TableCb(
     bcm_l2_addr_t* l2Addr,
     void* userData) {
   auto* bcmSw = static_cast<BcmSwitch*>(userData);
+  if (bcmSw->getRunState() < SwitchRunState::CONFIGURED) {
+    XLOG(WARNING)
+        << "ignoreing learn notifications as switch is not configured.";
+    return 0;
+  }
   bcmSw->callback_->l2LearningUpdateReceived(
       createL2Entry(l2Addr, bcmSw->isL2EntryPending(l2Addr)),
       L2EntryUpdateType::L2_ENTRY_UPDATE_TYPE_DELETE);
@@ -933,17 +952,14 @@ HwInitResult BcmSwitch::initImpl(
   setupCos();
 
   folly::dynamic switchStateJson;
-  std::optional<state::WarmbootState> switchStateThrift;
   if (warmBoot) {
     // This needs to be done after we have set
     // bcmSwitchL3EgressMode else the egress ids
     // in the host table don't show up correctly.
     // TODO: Use thrift representation for sw switch state.
-    auto warmbootStates =
+    auto switchStateJson =
         getPlatform()->getWarmBootHelper()->getWarmBootState();
-    switchStateJson = std::get<0>(warmbootStates);
-    switchStateThrift = std::get<1>(warmbootStates);
-    warmBootCache_->populate(switchStateJson, switchStateThrift);
+    warmBootCache_->populate(switchStateJson);
   }
   setupToCpuEgress();
   portTable_->initPorts(&pcfg, warmBoot);
@@ -967,15 +983,8 @@ HwInitResult BcmSwitch::initImpl(
   ret.bootType = bootType_;
 
   if (warmBoot) {
-    ret.switchState = warmBootCache_->getDumpedSwSwitchState().clone();
+    ret.switchState = std::make_shared<SwitchState>();
     getPlatform()->preWarmbootStateApplied();
-    const auto& routeTables = *(switchStateThrift->routeTables());
-    if (!routeTables.empty()) {
-      ret.rib = RoutingInformationBase::fromThrift(
-          routeTables,
-          ret.switchState->getFibs(),
-          ret.switchState->getLabelForwardingInformationBase());
-    }
   } else {
     auto bootState = std::make_shared<SwitchState>();
     bootState->publish();
@@ -1098,7 +1107,7 @@ void BcmSwitch::processSwitchSettingsEntryChanged(
 
   if (oldSwitchSettings->getL2LearningMode() !=
       newSwitchSettings->getL2LearningMode()) {
-    XLOG(DBG3) << "Configuring L2LearningMode old: "
+    XLOG(DBG2) << "Configuring L2LearningMode old: "
                << static_cast<int>(oldSwitchSettings->getL2LearningMode())
                << " new: "
                << static_cast<int>(newSwitchSettings->getL2LearningMode());
@@ -1154,6 +1163,16 @@ void BcmSwitch::processSwitchSettingsEntryChanged(
       newSwitchSettings->getExactMatchTableConfig()->toThrift()) {
     XLOG(DBG3) << "ExactMatch table setting changed";
     teFlowTable_->processTeFlowConfigChanged(newSwitchSettings);
+  }
+
+  if (oldSwitchSettings->getForceEcmpDynamicMemberUp() !=
+      newSwitchSettings->getForceEcmpDynamicMemberUp()) {
+    if (newSwitchSettings->getForceEcmpDynamicMemberUp().has_value() &&
+        newSwitchSettings->getForceEcmpDynamicMemberUp().value()) {
+      utility::setEcmpDynamicMemberUp(this);
+    } else {
+      throw FbossError("Reverting forceEcmpDynamicMemberUp is not supported.");
+    }
   }
 }
 
@@ -1384,20 +1403,22 @@ void BcmSwitch::processFlowletSwitchingConfigChanges(const StateDelta& delta) {
   // work as expected with flowlet ACL for existing DLB enabled switches.
   setEgressEcmpEtherType(0);
 
+  // flowlet is enabled here. lets walk through all ecmp objects to ensure
+  // things look ok for most purposes, this will be a no-op
+  const bool updateSuccess =
+      writableMultiPathNextHopTable()->updateEcmpsForFlowletTableLocked();
+  XLOG(DBG3) << "Update of the flowlet table: " << std::boolalpha
+             << updateSuccess;
+
   if (oldFlowletSwitching && newFlowletSwitching &&
-      *oldFlowletSwitching == *newFlowletSwitching) {
+      (*oldFlowletSwitching == *newFlowletSwitching)) {
+    // PortFlowlet config is changed but the global Flowlet config did not
+    // change then we need to update all the egress objects for TH3 here. Due
+    // to ECMP-Egress object dependency in TH3, updating egress object is done
+    // here.
+    egressManager_->updateAllEgressForFlowletSwitching();
     XLOG(DBG4) << "Flowlet switching config is same";
     return;
-  }
-
-  if (oldFlowletSwitching && !newFlowletSwitching) {
-    XLOG(DBG2) << "Flowlet switching config is removed";
-    setEcmpDynamicRandomSeed(0);
-  }
-
-  if (!oldFlowletSwitching && newFlowletSwitching) {
-    XLOG(DBG2) << "Flowlet switching config enabled";
-    setEcmpDynamicRandomSeed(0x5555);
   }
 
   processDynamicEgressLoadExponentChanged(
@@ -1415,7 +1436,22 @@ void BcmSwitch::processFlowletSwitchingConfigChanges(const StateDelta& delta) {
   processDynamicPhysicalQueueExponentChanged(
       oldFlowletSwitching, newFlowletSwitching);
 
-  egressManager_->processFlowletSwitchingConfigChanged(newFlowletSwitching);
+  if (newFlowletSwitching) {
+    if (!oldFlowletSwitching) {
+      XLOG(DBG2) << "Flowlet switching config changed";
+      setEcmpDynamicRandomSeed(0x5555);
+    }
+    // Update All egress first for flowlet config add or update
+    // This ordering is needed otherwise SDK fails for TH3
+    egressManager_->updateAllEgressForFlowletSwitching();
+    egressManager_->processFlowletSwitchingConfigChanged(newFlowletSwitching);
+  } else if (oldFlowletSwitching && !newFlowletSwitching) {
+    XLOG(DBG2) << "Flowlet switching config is removed";
+    setEcmpDynamicRandomSeed(0);
+    // Update All ecmps first for flowlet config removal
+    egressManager_->processFlowletSwitchingConfigChanged(newFlowletSwitching);
+    egressManager_->updateAllEgressForFlowletSwitching();
+  }
 }
 
 void BcmSwitch::processMacTableChanges(const StateDelta& stateDelta) {
@@ -1492,6 +1528,11 @@ std::shared_ptr<SwitchState> BcmSwitch::stateChangedImplLocked(
 
   processLoadBalancerChanges(delta);
 
+  // Need to update port flowlet config for added ports
+  // before neighbor/route delta programming of egress objects
+  // after warm boot for TH3
+  processPortFlowletConfigAdd(delta);
+
   // remove all routes to be deleted
   processRemovedRoutes(delta);
 
@@ -1512,8 +1553,9 @@ std::shared_ptr<SwitchState> BcmSwitch::stateChangedImplLocked(
 
   // Add all new VLANs, and modify VLAN port memberships.
   // We don't actually delete removed VLANs at this point, we simply remove
-  // all members from the VLAN.  This way any ports that ingress packets to this
-  // VLAN will still use this VLAN until we get the new VLAN fully configured.
+  // all members from the VLAN.  This way any ports that ingress packets to
+  // this VLAN will still use this VLAN until we get the new VLAN fully
+  // configured.
   forEachChanged(
       delta.getVlansDelta(),
       &BcmSwitch::processChangedVlan,
@@ -1876,6 +1918,16 @@ bool BcmSwitch::processChangedPortFlowletCfg(
   return false;
 }
 
+void BcmSwitch::processPortFlowletConfigAdd(const StateDelta& delta) {
+  // To update port flowlet config in bcm port object for all added ports
+  // This will not do any hardware programming on the port.
+  forEachAdded(delta.getPortsDelta(), [&](const shared_ptr<Port>& port) {
+    auto id = port->getID();
+    auto bcmPort = portTable_->getBcmPort(id);
+    bcmPort->setPortFlowletConfig(port);
+  });
+}
+
 void BcmSwitch::processAddedPorts(const StateDelta& delta) {
   // For now, this just enables stats on newly added ports
   forEachAdded(delta.getPortsDelta(), [&](const shared_ptr<Port>& port) {
@@ -1945,8 +1997,8 @@ void BcmSwitch::processChangedPorts(const StateDelta& delta) {
         auto asicPrbsChanged = oldPort->getAsicPrbs() != newPort->getAsicPrbs();
         XLOG_IF(DBG1, asicPrbsChanged) << "New asicPrbs on port " << id;
 
-        // if pfc config for port points to new PG profile, pfcChanged will find
-        // it
+        // if pfc config for port points to new PG profile, pfcChanged will
+        // find it
         auto pfcChanged = oldPort->getPfc() != newPort->getPfc();
         XLOG_IF(DBG1, pfcChanged) << "New pfc settings on port " << id;
 
@@ -1977,6 +2029,10 @@ void BcmSwitch::processChangedPorts(const StateDelta& delta) {
         // For the support of setting zero preemphasis in hw tests.
         if (oldPort->getZeroPreemphasis() != newPort->getZeroPreemphasis()) {
           bcmPort->processChangedZeroPreemphasis(oldPort, newPort);
+        }
+
+        if (oldPort->getTxEnable() != newPort->getTxEnable()) {
+          bcmPort->processChangedTxEnable(oldPort, newPort);
         }
       });
 }
@@ -2594,6 +2650,19 @@ void BcmSwitch::processAddedAndChangedNeighbor(
     const NeighborEntryT* entry) {
   auto* neighbor = neighborTable_->getNeighbor(neighborKey);
   CHECK(neighbor);
+  /*
+   * Prior to S391473, we used default noHostRoute to false. However
+   * some legacy SAI devices had this value erroneously set to true.
+   * So to mitigate we set made the field optional. However, some
+   * devices were already rolled out with the default of false.
+   * In Bcm layer we don't model noHostRoute setting. That comes out
+   * to a behavior of noHostRoute=false (default) or noHostRoute not
+   * being set.
+   */
+  if (entry->getNoHostRoute().has_value() && *entry->getNoHostRoute()) {
+    throw FbossError(
+        "No host route = true on neighbor entry not supported on BcmSwitch");
+  }
   BcmHostTableIf* hostTable;
   if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::HOSTTABLE)) {
     hostTable = hostTable_.get();
@@ -2621,6 +2690,10 @@ void BcmSwitch::processAddedAndChangedNeighbor(
         neighborMac,
         getPortTable()->getBcmPortId(port),
         entry->getClassID());
+  }
+
+  if (auto disableTTLDecrement = entry->getDisableTTLDecrement()) {
+    setTTLDecrement(this, neighborKey, disableTTLDecrement.value());
   }
   std::for_each(
       writableMplsNextHopTable()->getNextHops().begin(),
@@ -2754,6 +2827,12 @@ void BcmSwitch::processNeighborTableDelta(
         } else if (optype == REMOVED && !newEntry) {
           processRemovedNeighborEntry(oldEntry);
         } else if (optype == CHANGED && oldEntry && newEntry) {
+          if (DeltaComparison::policy() == DeltaComparison::Policy::DEEP &&
+              *oldEntry == *newEntry) {
+            XLOG(DBG2)
+                << "ignoring unchanged neighbor entry with deep delta comparison policy";
+            continue;
+          }
           processChangedNeighborEntry(oldEntry, newEntry);
         }
       } catch (const BcmError& error) {
@@ -2855,6 +2934,12 @@ void BcmSwitch::processRouteTableDelta(
       [&](RouterID id,
           const shared_ptr<RouteT>& oldRoute,
           const shared_ptr<RouteT>& newRoute) {
+        if (DeltaComparison::policy() == DeltaComparison::Policy::DEEP &&
+            *oldRoute == *newRoute) {
+          XLOG(DBG2)
+              << "ignoring unchanged route entry with deep delta comparison policy";
+          return;
+        }
         try {
           processChangedRoute(id, oldRoute, newRoute);
         } catch (const BcmError& e) {
@@ -3074,6 +3159,10 @@ TeFlowStats BcmSwitch::getTeFlowStats() const {
   return teFlowTable_->getFlowStats();
 }
 
+std::vector<EcmpDetails> BcmSwitch::getAllEcmpDetails() const {
+  return multiPathNextHopStatsManager_->getAllEcmpDetails();
+}
+
 shared_ptr<BcmSwitchEventCallback> BcmSwitch::registerSwitchEventCallback(
     bcm_switch_event_t eventID,
     shared_ptr<BcmSwitchEventCallback> callback) {
@@ -3098,12 +3187,28 @@ void BcmSwitch::updateGlobalStats() {
   }
 }
 
-std::map<PortID, phy::PhyInfo> BcmSwitch::updateAllPhyInfo() {
+std::map<PortID, phy::PhyInfo> BcmSwitch::updateAllPhyInfoImpl() {
   return portTable_->updateIPhyInfo();
 }
 
 uint64_t BcmSwitch::getDeviceWatermarkBytes() const {
   return bstStatsMgr_->getDeviceWatermarkBytes();
+}
+
+HwFlowletStats BcmSwitch::getHwFlowletStats() const {
+  return multiPathNextHopStatsManager_->getHwFlowletStats();
+}
+
+HwSwitchWatermarkStats BcmSwitch::getSwitchWatermarkStats() const {
+  HwSwitchWatermarkStats stats{};
+  stats.deviceWatermarkBytes() = bstStatsMgr_->getDeviceWatermarkBytes();
+  stats.globalHeadroomWatermarkBytes()->insert(
+      bstStatsMgr_->getGlobalHeadroomWatermarkBytes().begin(),
+      bstStatsMgr_->getGlobalHeadroomWatermarkBytes().end());
+  stats.globalSharedWatermarkBytes()->insert(
+      bstStatsMgr_->getGlobalSharedWatermarkBytes().begin(),
+      bstStatsMgr_->getGlobalSharedWatermarkBytes().end());
+  return stats;
 }
 
 bcm_if_t BcmSwitch::getDropEgressId() const {
@@ -3116,18 +3221,6 @@ bcm_if_t BcmSwitch::getToCPUEgressId() const {
   } else {
     return BcmEgressBase::INVALID;
   }
-}
-
-bool BcmSwitch::getAndClearNeighborHit(
-    RouterID /*vrf*/,
-    folly::IPAddress& /*ip*/) {
-  // TODO(aeckert): t20059623 This should look in the host table and
-  // check the hit bit, but that currently requires grabbing the main
-  // lock and opens up the possibility of bg thread getting stuck
-  // behind update thread.  For now, stub this out to return true and
-  // work on adding a better way to communicate hit bit + stale entry
-  // garbage collection.
-  return true;
 }
 
 void BcmSwitch::exitFatal() const {
@@ -3220,6 +3313,8 @@ void BcmSwitch::processDefaultAclgroupForUdf(
              << aclIdsToString(udfQsetIdsInHW)
              << " .Config ids: " << aclIdsToString(udfAclIds);
 
+  writableAclTable()->clearAclTable(
+      platform_->getAsic()->getDefaultACLGroupID());
   clearFPGroup(unit_, platform_->getAsic()->getDefaultACLGroupID());
   createAclGroup(
       udfAclIds.size() ? std::optional<std::set<bcm_udf_id_t>>(udfAclIds)
@@ -3369,12 +3464,11 @@ prbs::InterfacePrbsState BcmSwitch::getPortPrbsState(PortID portId) {
   return getBcmPortPrbsState(unit_, portTable_->getBcmPortId(portId));
 }
 
-std::vector<phy::PrbsLaneStats> BcmSwitch::getPortAsicPrbsStats(
-    int32_t portId) {
+std::vector<phy::PrbsLaneStats> BcmSwitch::getPortAsicPrbsStats(PortID portId) {
   return bcmStatUpdater_->getPortAsicPrbsStats(portId);
 }
 
-void BcmSwitch::clearPortAsicPrbsStats(int32_t portId) {
+void BcmSwitch::clearPortAsicPrbsStats(PortID portId) {
   bcmStatUpdater_->clearPortAsicPrbsStats(portId);
 }
 
@@ -3425,6 +3519,11 @@ void BcmSwitch::l2LearningCallback(
     int operation,
     void* userData) {
   auto* bcmSw = static_cast<BcmSwitch*>(userData);
+  if (bcmSw->getRunState() < SwitchRunState::CONFIGURED) {
+    XLOG(WARNING)
+        << "ignoreing learn notifications as switch is not configured.";
+    return;
+  }
   DCHECK_EQ(bcmSw->getUnit(), unit);
   bcmSw->l2LearningUpdateReceived(l2Addr, operation);
 }
@@ -3447,13 +3546,13 @@ void BcmSwitch::l2LearningCallback(
  *
  * The initial implementation (which used wrong BCM API to register callbacks,
  * and got L2 mod fifo to fill up), in addition to PENDING ADD callback, when
- * PENDING entry got VALIDATED, wedge_agent received DELETE for PENDING and ADD
- * for VALIDATED. Thus, wedge_agent had an explicit logic to ignore DELETE
+ * PENDING entry got VALIDATED, wedge_agent received DELETE for PENDING and
+ * ADD for VALIDATED. Thus, wedge_agent had an explicit logic to ignore DELETE
  * callback for * PENDING and ADD callback for VALIDATED.
  *
- * However, with correct BCM API to register callbacks, we no longer get DELETE
- * for PENDING and ADD for VALIDATED, and thus those need not be ignored here
- * (Broadcom case CS9347300).
+ * However, with correct BCM API to register callbacks, we no longer get
+ * DELETE for PENDING and ADD for VALIDATED, and thus those need not be
+ * ignored here (Broadcom case CS9347300).
  *
  * Furthermore, there is a legitimate case where wedge_agent receives ADD for
  * VALIDATED, and thus wedge_agent cannot ignore this callback but must handle
@@ -3561,12 +3660,12 @@ void BcmSwitch::setL3MtuFailPackets() {
 }
 
 void BcmSwitch::initFieldProcessor() const {
-  // We need to make sure we remove all the FlexCounter attached to acl entries
-  // in all the field process group before we call the bcm_field_init().
-  // Otherwise we'll lose the mapping b/w BcmIngressFieldProcessorFlexCounter
-  // and BcmAclEntry and won't be able to remove
-  // attached BcmIngressFieldProcessorFlexCounter even the BcmAclEntry is
-  // removed.
+  // We need to make sure we remove all the FlexCounter attached to acl
+  // entries in all the field process group before we call the
+  // bcm_field_init(). Otherwise we'll lose the mapping b/w
+  // BcmIngressFieldProcessorFlexCounter and BcmAclEntry and won't be able to
+  // remove attached BcmIngressFieldProcessorFlexCounter even the BcmAclEntry
+  // is removed.
   if (getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::INGRESS_FIELD_PROCESSOR_FLEX_COUNTER)) {
     for (auto grpId : {platform_->getAsic()->getDefaultACLGroupID()}) {
@@ -4092,21 +4191,9 @@ bool BcmSwitch::usePKTIO() const {
 uint32_t BcmSwitch::generateDeterministicSeed(
     LoadBalancerID loadBalancerID,
     folly::MacAddress platformMac) const {
-  // To avoid changing the seed across graceful restarts, the seed is generated
-  // deterministically using the local MAC address.
-  auto mac64 = platformMac.u64HBO();
-  uint32_t mac32 = static_cast<uint32_t>(mac64 & 0xFFFFFFFF);
-
-  uint32_t seed = 0;
-  switch (loadBalancerID) {
-    case LoadBalancerID::ECMP:
-      seed = folly::hash::jenkins_rev_mix32(mac32);
-      break;
-    case LoadBalancerID::AGGREGATE_PORT:
-      seed = folly::hash::twang_32from64(mac64);
-      break;
-  }
-  return seed;
+  // To avoid changing the seed across graceful restarts, the seed is
+  // generated deterministically using the local MAC address.
+  return utility::generateDeterministicSeed(loadBalancerID, platformMac, false);
 }
 
 void BcmSwitch::initialStateApplied() {
@@ -4127,6 +4214,31 @@ void BcmSwitch::initialStateApplied() {
       bcm_l3_route_add(getUnit(), &rt);
     }
   }
+}
+
+void BcmSwitch::syncLinkStates() {
+  linkScanBottomHalfEventBase_.runInEventBaseThread([this]() {
+    for (auto& port : std::as_const(*portTable_)) {
+      callback_->linkStateChanged(port.first, port.second->isUp());
+    }
+  });
+}
+
+CpuPortStats BcmSwitch::getCpuPortStats() const {
+  CpuPortStats cpuPortStats;
+  auto queueManager = getControlPlane()->getQueueManager();
+  cpuPortStats.queueInPackets_() =
+      queueManager->getQueueStats(BcmCosQueueStatType::OUT_PACKETS);
+  cpuPortStats.queueDiscardPackets_() =
+      queueManager->getQueueStats(BcmCosQueueStatType::DROPPED_PACKETS);
+  HwPortStats portStats;
+  getControlPlane()->updateQueueCounters(&portStats);
+  cpuPortStats.portStats_() = portStats;
+  return cpuPortStats;
+}
+
+AclStats BcmSwitch::getAclStats() const {
+  return bcmStatUpdater_->getAclStats();
 }
 
 } // namespace facebook::fboss

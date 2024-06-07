@@ -16,7 +16,9 @@
 namespace facebook::fboss {
 
 class HwLoadBalancerTestV6Flowlet
-    : public HwLoadBalancerTest<utility::HwIpV6RoCEEcmpDataPlaneTestUtil> {
+    : public HwLoadBalancerTest<
+          utility::HwIpV6RoCEEcmpDataPlaneTestUtil,
+          true /* flowletSwitchingEnable */> {
   std::unique_ptr<utility::HwIpV6RoCEEcmpDataPlaneTestUtil> getECMPHelper()
       override {
     return std::make_unique<utility::HwIpV6RoCEEcmpDataPlaneTestUtil>(
@@ -25,10 +27,8 @@ class HwLoadBalancerTestV6Flowlet
 
  private:
   cfg::SwitchConfig initialConfig() const override {
-    auto hwSwitch = getHwSwitch();
     auto cfg = utility::onePortPerInterfaceConfig(
-        hwSwitch, masterLogicalPortIds(), getAsic()->desiredLoopbackModes());
-    utility::addFlowletConfigs(cfg, masterLogicalPortIds());
+        getHwSwitchEnsemble(), masterLogicalPortIds());
     return cfg;
   }
 
@@ -40,8 +40,44 @@ class HwLoadBalancerTestV6Flowlet
 
 RUN_HW_LOAD_BALANCER_TEST_FOR_DLB(
     HwLoadBalancerTestV6Flowlet,
-    Ecmp,
-    Full,
-    FrontPanel)
+    VerifyWBFromFixedToPerPacket,
+    cfg::SwitchingMode::FIXED_ASSIGNMENT,
+    cfg::SwitchingMode::PER_PACKET_QUALITY,
+    5)
+
+RUN_HW_LOAD_BALANCER_TEST_FOR_DLB(
+    HwLoadBalancerTestV6Flowlet,
+    VerifyWBFromPerPacketToFixed,
+    cfg::SwitchingMode::PER_PACKET_QUALITY,
+    cfg::SwitchingMode::FIXED_ASSIGNMENT,
+    5)
+
+RUN_HW_LOAD_BALANCER_TEST_FOR_DLB(
+    HwLoadBalancerTestV6Flowlet,
+    VerifyWBFromFixedToFlowlet,
+    cfg::SwitchingMode::FIXED_ASSIGNMENT,
+    cfg::SwitchingMode::FLOWLET_QUALITY,
+    60)
+
+RUN_HW_LOAD_BALANCER_TEST_FOR_DLB(
+    HwLoadBalancerTestV6Flowlet,
+    VerifyWBFromFlowletToFixed,
+    cfg::SwitchingMode::FLOWLET_QUALITY,
+    cfg::SwitchingMode::FIXED_ASSIGNMENT,
+    60)
+
+RUN_HW_LOAD_BALANCER_TEST_FOR_DLB(
+    HwLoadBalancerTestV6Flowlet,
+    VerifyWBFromFlowletToPerPacket,
+    cfg::SwitchingMode::FLOWLET_QUALITY,
+    cfg::SwitchingMode::PER_PACKET_QUALITY,
+    60)
+
+RUN_HW_LOAD_BALANCER_TEST_FOR_DLB(
+    HwLoadBalancerTestV6Flowlet,
+    VerifyWBFromPerPacketToFlowlet,
+    cfg::SwitchingMode::PER_PACKET_QUALITY,
+    cfg::SwitchingMode::FLOWLET_QUALITY,
+    60)
 
 } // namespace facebook::fboss

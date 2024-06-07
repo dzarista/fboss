@@ -147,7 +147,8 @@ class ManagerTestBase : public ::testing::Test {
       std::optional<sai_uint32_t> metadata = std::nullopt,
       std::optional<sai_uint32_t> encapIndex = std::nullopt,
       bool isLocal = true,
-      cfg::InterfaceType type = cfg::InterfaceType::VLAN) const;
+      cfg::InterfaceType type = cfg::InterfaceType::VLAN,
+      bool noHostRoute = false) const;
 
   std::shared_ptr<ArpEntry> resolveArp(
       int id,
@@ -155,7 +156,8 @@ class ManagerTestBase : public ::testing::Test {
       cfg::InterfaceType type = cfg::InterfaceType::VLAN,
       std::optional<sai_uint32_t> metadata = std::nullopt,
       std::optional<sai_uint32_t> encapIndex = std::nullopt,
-      bool isLocal = true);
+      bool isLocal = true,
+      bool noHostRoute = false);
 
   std::shared_ptr<ArpEntry> makeArpEntry(
       const SystemPort& sysPort,
@@ -258,6 +260,8 @@ class ManagerTestBase : public ::testing::Test {
   std::shared_ptr<SwitchState> programmedState;
 
   static constexpr int kSysPortOffset = 100;
+  static constexpr double kSpeedConversionFactor = 1000.;
+  static constexpr double kRateConversionFactor = 1024. * 1024. * 1024.;
 
   const SwitchIdScopeResolver& scopeResolver() const;
 

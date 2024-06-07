@@ -612,6 +612,10 @@ class BuildCmd(ProjectCmdBase):
 
             fetcher = loader.create_fetcher(m)
 
+            if args.build_skip_lfs_download and hasattr(fetcher, "skip_lfs_download"):
+                print("skipping lfs download for %s" % m.name)
+                fetcher.skip_lfs_download()
+
             if isinstance(fetcher, SystemPackageFetcher):
                 # We are guaranteed that if the fetcher is set to
                 # SystemPackageFetcher then this item is completely
@@ -703,7 +707,11 @@ class BuildCmd(ProjectCmdBase):
 
                     # Only populate the cache from continuous build runs, and
                     # only if we have a built_marker.
-                    if args.schedule_type == "continuous" and has_built_marker:
+                    if (
+                        not args.skip_upload
+                        and args.schedule_type == "continuous"
+                        and has_built_marker
+                    ):
                         cached_project.upload()
                 elif args.verbose:
                     print("found good %s" % built_marker)
@@ -865,6 +873,13 @@ class BuildCmd(ProjectCmdBase):
             action="store_true",
             default=False,
         )
+        parser.add_argument(
+            "--build-type",
+            help="Set the build type explicitly.  Cmake and cargo builders act on them. Only Debug and RelWithDebInfo widely supported.",
+            choices=["Debug", "Release", "RelWithDebInfo", "MinSizeRel"],
+            action="store",
+            default=None,
+        )
 
 
 @cmd("fixup-dyn-deps", "Adjusts dynamic dependencies for packaging purposes")
@@ -967,7 +982,7 @@ class GenerateGitHubActionsCmd(ProjectCmdBase):
 
     def run_project_cmd(self, args, loader, manifest):
         platforms = [
-            HostType("linux", "ubuntu", "18"),
+            HostType("linux", "ubuntu", "22"),
             HostType("darwin", None, None),
             HostType("windows", None, None),
         ]
@@ -980,6 +995,11 @@ class GenerateGitHubActionsCmd(ProjectCmdBase):
     def get_run_on(self, args):
         if args.run_on_all_branches:
             return self.RUN_ON_ALL
+        if args.cron:
+            return f"""
+  schedule:
+    - cron: '{args.cron}'"""
+
         return f"""
   push:
     branches:
@@ -1089,6 +1109,10 @@ jobs:
 
             out.write("    - uses: actions/checkout@v4\n")
 
+            build_type_arg = ""
+            if args.build_type:
+                build_type_arg = f"--build-type {args.build_type} "
+
             if build_opts.free_up_disk:
                 free_up_disk = "--free-up-disk "
                 if not build_opts.is_windows():
@@ -1169,7 +1193,7 @@ jobs:
                             has_same_repo_dep = True
                         out.write("    - name: Build %s\n" % m.name)
                         out.write(
-                            f"      run: {getdepscmd}{allow_sys_arg} build {src_dir_arg}{free_up_disk}--no-tests {m.name}\n"
+                            f"      run: {getdepscmd}{allow_sys_arg} build {build_type_arg}{src_dir_arg}{free_up_disk}--no-tests {m.name}\n"
                         )
 
             out.write("    - name: Build %s\n" % manifest.name)
@@ -1190,7 +1214,7 @@ jobs:
                 no_tests_arg = "--no-tests "
 
             out.write(
-                f"      run: {getdepscmd}{allow_sys_arg} build {no_tests_arg}{no_deps_arg}--src-dir=. {manifest.name} {project_prefix}\n"
+                f"      run: {getdepscmd}{allow_sys_arg} build {build_type_arg}{no_tests_arg}{no_deps_arg}--src-dir=. {manifest.name} {project_prefix}\n"
             )
 
             out.write("    - name: Copy artifacts\n")
@@ -1243,7 +1267,11 @@ jobs:
             help="Allow CI to fire on all branches - Handy for testing",
         )
         parser.add_argument(
-            "--ubuntu-version", default="20.04", help="Version of Ubuntu to use"
+            "--ubuntu-version", default="22.04", help="Version of Ubuntu to use"
+        )
+        parser.add_argument(
+            "--cron",
+            help="Specify that the job runs on a cron schedule instead of on pushes",
         )
         parser.add_argument(
             "--main-branch",
@@ -1275,6 +1303,13 @@ jobs:
             help="Remove unused tools and clean up intermediate files if possible to maximise space for the build",
             action="store_true",
             default=False,
+        )
+        parser.add_argument(
+            "--build-type",
+            help="Set the build type explicitly.  Cmake and cargo builders act on them. Only Debug and RelWithDebInfo widely supported.",
+            choices=["Debug", "Release", "RelWithDebInfo", "MinSizeRel"],
+            action="store",
+            default=None,
         )
 
 
@@ -1356,9 +1391,26 @@ def parse_args():
         default=False,
     )
     add_common_arg(
+        "-su",
+        "--skip-upload",
+        help="skip upload steps",
+        action="store_true",
+        default=False,
+    )
+    add_common_arg(
         "--lfs-path",
         help="Provide a parent directory for lfs when fbsource is unavailable",
         default=None,
+    )
+    add_common_arg(
+        "--build-skip-lfs-download",
+        action="store_true",
+        default=False,
+        help=(
+            "Download from the URL, rather than LFS. This is useful "
+            "in cases where the upstream project has uploaded a new "
+            "version of the archive with a different hash"
+        ),
     )
 
     ap = argparse.ArgumentParser(

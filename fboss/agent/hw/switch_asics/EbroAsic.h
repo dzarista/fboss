@@ -113,6 +113,18 @@ class EbroAsic : public TajoAsic {
   uint32_t getMaxEcmpSize() const override {
     return 512;
   }
+  std::optional<uint32_t> getMaxEcmpGroups() const override {
+    // MT-697
+    // fbsource/third-party/tp2/leaba-sdk/1.42.8/sdk-1.42.8/sai/src/sai_device.h
+    // MAX_NEXT_HOPS = 4096
+    return 4096;
+  }
+  std::optional<uint32_t> getMaxEcmpMembers() const override {
+    // MT-697
+    // fbsource/third-party/tp2/leaba-sdk/1.42.8/sdk-1.42.8/sai/src/sai_device.h
+    // MAX_NEXT_HOP_GROUP_MEMBERS = 32768
+    return 32768;
+  }
   uint32_t getNumCores() const override {
     return 12;
   }
@@ -127,7 +139,7 @@ class EbroAsic : public TajoAsic {
  private:
   bool isSupportedFabric(Feature feature) const;
   bool isSupportedNonFabric(Feature feature) const;
-  static constexpr auto p4WarmbootBaseSdk = "1.65.0";
+  static constexpr auto p4WarmbootBaseSdk = "1.65.1";
   uint16_t mirrorTruncateSize_ = 220;
 };
 

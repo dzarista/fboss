@@ -5,3 +5,4 @@
 /external.install
 .*.swp
 arista/util/DSF*
+*__pycache__*

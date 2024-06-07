@@ -75,6 +75,7 @@ void ReconnectingThriftClient::setState(State state) {
     fb303::fbData->setCounter(getConnectedCounterName(), 1);
   } else if (state == State::CANCELLED) {
 #if FOLLY_HAS_COROUTINES
+    onCancellation();
     if (isGracefulServiceLoopCompletionRequested()) {
       folly::coro::blockingWait(serviceLoopScope_.joinAsync());
     } else {
@@ -96,8 +97,7 @@ void ReconnectingThriftClient::setServerOptions(
   if (!allowReset && *serverOptions_.rlock()) {
     throw std::runtime_error("Cannot reset server address");
   }
-  connectionLogStr_ =
-      fmt::format("{}->{}", clientId(), options.dstAddr.getAddressStr());
+  connectionLogStr_ = fmt::format("{}->{}", clientId(), options.deviceName);
   *serverOptions_.wlock() = std::move(options);
 }
 

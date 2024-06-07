@@ -124,13 +124,13 @@ void SaiPhyManager::updateAllXphyPortsStats() {
             for (auto& [xphy, platformInfo] : xphyToPlatform) {
               try {
                 platformInfo->getHwSwitch()->updateStats();
-                auto phyInfos = platformInfo->getHwSwitch()->updateAllPhyInfo();
+                platformInfo->getHwSwitch()->updateAllPhyInfo();
+                auto phyInfos = platformInfo->getHwSwitch()->getAllPhyInfo();
                 for (auto& [portId, phyInfo] : phyInfos) {
                   updateXphyInfo(portId, std::move(phyInfo));
                 }
               } catch (const std::exception& e) {
-                XLOG(INFO) << "Stats collection failed on : "
-                           << "switch: "
+                XLOG(INFO) << "Stats collection failed on : " << "switch: "
                            << platformInfo->getHwSwitch()->getSaiSwitchId()
                            << " xphy: " << xphy << " error: " << e.what();
               }
@@ -267,9 +267,8 @@ bool SaiPhyManager::setupMacsecState(
     // If macsecDesired is False and we are trying to remove Macsec from a list
     // of ports then from the portList, remove the ports which are not
     // programmed in HW for Macsec
-    PlatformInfo* platInfo;
     try {
-      platInfo = getPlatformInfo(portId);
+      getPlatformInfo(portId);
     } catch (FbossError& e) {
       if (macsecDesired) {
         throw;
@@ -485,7 +484,8 @@ phy::PhyInfo SaiPhyManager::getPhyInfo(PortID swPort) {
   auto saiPlatform = getSaiPlatform(globalPhyID);
   auto saiSwitch = static_cast<SaiSwitch*>(saiPlatform->getHwSwitch());
 
-  auto allPhyParams = saiSwitch->updateAllPhyInfo();
+  saiSwitch->updateAllPhyInfo();
+  auto allPhyParams = saiSwitch->getAllPhyInfo();
   if (allPhyParams.find(swPort) != allPhyParams.end()) {
     return allPhyParams[swPort];
   }
@@ -864,6 +864,17 @@ mka::MacsecSaStats SaiPhyManager::getMacsecSecureAssocStats(
   }
 }
 
+std::optional<HwPortStats> SaiPhyManager::getHwPortStats(
+    const std::string& portName) const {
+  auto portId = getPortId(portName);
+  auto saiSwitch = getSaiSwitch(portId);
+  auto hwPortStats = saiSwitch->getPortStats();
+  if (hwPortStats.find(portName) != hwPortStats.end()) {
+    return hwPortStats.at(portName);
+  }
+  return std::nullopt;
+}
+
 std::string SaiPhyManager::listHwObjects(
     std::vector<HwObjectType>& hwObjects,
     bool cached) {
@@ -1014,6 +1025,8 @@ std::vector<phy::PrbsLaneStats> SaiPhyManager::getPortPrbsStats(
 
   std::vector<phy::PrbsLaneStats> lanePrbs;
   phy::PrbsLaneStats oneLanePrbs;
+  oneLanePrbs.timeCollected() =
+      duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
   oneLanePrbs.laneId() = 0;
 
   bool prbsEnabled =
@@ -1105,13 +1118,7 @@ void SaiPhyManager::gracefulExit() {
 
       // Get SaiSwitch and SwitchState using global xphy id
       auto saiSwitch = getSaiSwitch(xphyID);
-      auto switchState = getPlatformInfo(xphyID)->getState();
-
-      // Get the current SwitchState and ThriftState which will be used to call
-      //  SaiSwitch::gracefulExit function
-      state::WarmbootState thriftSwitchState;
-      *thriftSwitchState.swSwitchState() = switchState->toThrift();
-      saiSwitch->gracefulExit(thriftSwitchState);
+      saiSwitch->gracefulExit();
     }
   }
 }

@@ -77,10 +77,12 @@ void HwTransceiverUtils::verifyPortNameToLaneMap(
       case MediaInterfaceCode::CWDM4_100G:
       case MediaInterfaceCode::FR4_200G:
       case MediaInterfaceCode::FR4_400G:
+      case MediaInterfaceCode::DR4_400G:
       case MediaInterfaceCode::LR4_400G_10KM:
         expectedMediaLanes = {0, 1, 2, 3};
         break;
       case MediaInterfaceCode::FR4_2x400G:
+      case MediaInterfaceCode::DR4_2x400G:
         if (profile ==
             cfg::PortProfileID::PROFILE_400G_4_PAM4_RS544X2N_OPTICAL) {
           if (std::find(
@@ -96,6 +98,10 @@ void HwTransceiverUtils::verifyPortNameToLaneMap(
         } else if (
             profile == cfg::PortProfileID::PROFILE_100G_1_PAM4_RS544_OPTICAL) {
           expectedMediaLanes = {*hostLaneMap[portName].begin()};
+        } else if (
+            profile ==
+            cfg::PortProfileID::PROFILE_800G_8_PAM4_RS544X2N_OPTICAL) {
+          expectedMediaLanes = {0, 1, 2, 3, 4, 5, 6, 7};
         } else {
           throw FbossError(
               "Unhandled profile ",
@@ -113,6 +119,9 @@ void HwTransceiverUtils::verifyPortNameToLaneMap(
       case MediaInterfaceCode::CR4_200G:
       case MediaInterfaceCode::CR8_400G:
         expectedMediaLanes = {};
+        break;
+      case MediaInterfaceCode::FR8_800G:
+        expectedMediaLanes = {0, 1, 2, 3, 4, 5, 6, 7};
     }
 
     XLOG(INFO) << "Verifying that " << portName << " uses media lanes "
@@ -206,7 +215,8 @@ void HwTransceiverUtils::verifyOpticsSettings(
               cfg::PortProfileID::PROFILE_53POINT125G_1_PAM4_RS545_OPTICAL)
           << "Transceiver:" << *tcvrState.port()
           << ", Lane=" << *mediaLane.lane()
-          << " txSquelch doesn't match expected";
+          << " txSquelch doesn't match expected." << " Profile was "
+          << apache::thrift::util::enumNameSafe(profile);
     }
   }
 
@@ -292,6 +302,10 @@ void HwTransceiverUtils::verifyMediaInterfaceCompliance(
       verifyCopper53gProfile(tcvrState, mediaInterfaces);
       break;
 
+    case cfg::PortProfileID::PROFILE_800G_8_PAM4_RS544X2N_OPTICAL:
+      verifyOptical800gProfile(mgmtInterface, mediaInterfaces);
+      break;
+
     default:
       throw FbossError(
           "Unhandled profile ", apache::thrift::util::enumNameSafe(profile));
@@ -360,10 +374,12 @@ void HwTransceiverUtils::verify400gProfile(
   for (const auto& mediaId : mediaInterfaces) {
     EXPECT_TRUE(
         *mediaId.media()->smfCode_ref() == SMFMediaInterfaceCode::FR4_400G ||
-        *mediaId.media()->smfCode_ref() == SMFMediaInterfaceCode::LR4_10_400G);
+        *mediaId.media()->smfCode_ref() == SMFMediaInterfaceCode::LR4_10_400G ||
+        *mediaId.media()->smfCode_ref() == SMFMediaInterfaceCode::DR4_400G);
     EXPECT_TRUE(
         *mediaId.code() == MediaInterfaceCode::FR4_400G ||
-        *mediaId.code() == MediaInterfaceCode::LR4_400G_10KM);
+        *mediaId.code() == MediaInterfaceCode::LR4_400G_10KM ||
+        *mediaId.code() == MediaInterfaceCode::DR4_400G);
   }
 }
 
@@ -417,6 +433,18 @@ void HwTransceiverUtils::verifyCopper53gProfile(
     EXPECT_TRUE(
         *mediaId.code() == MediaInterfaceCode::CR4_200G ||
         *mediaId.code() == MediaInterfaceCode::CR8_400G);
+  }
+}
+
+void HwTransceiverUtils::verifyOptical800gProfile(
+    const TransceiverManagementInterface mgmtInterface,
+    const std::vector<MediaInterfaceId>& mediaInterfaces) {
+  EXPECT_EQ(mgmtInterface, TransceiverManagementInterface::CMIS);
+
+  for (const auto& mediaId : mediaInterfaces) {
+    EXPECT_TRUE(
+        *mediaId.media()->smfCode_ref() == SMFMediaInterfaceCode::FR8_800G);
+    EXPECT_TRUE(*mediaId.code() == MediaInterfaceCode::FR8_800G);
   }
 }
 
@@ -500,7 +528,8 @@ void HwTransceiverUtils::verifyDiagsCapability(
             *diagsCapability->vdm(),
             (*mediaIntfCode == MediaInterfaceCode::FR4_400G ||
              *mediaIntfCode == MediaInterfaceCode::LR4_400G_10KM ||
-             *mediaIntfCode == MediaInterfaceCode::FR4_2x400G));
+             *mediaIntfCode == MediaInterfaceCode::FR4_2x400G ||
+             *mediaIntfCode == MediaInterfaceCode::DR4_2x400G));
         EXPECT_TRUE(*diagsCapability->cdb());
         EXPECT_TRUE(*diagsCapability->prbsLine());
         EXPECT_TRUE(*diagsCapability->prbsSystem());
@@ -509,7 +538,8 @@ void HwTransceiverUtils::verifyDiagsCapability(
         EXPECT_TRUE(*diagsCapability->txOutputControl());
         if (*mediaIntfCode == MediaInterfaceCode::FR4_400G ||
             *mediaIntfCode == MediaInterfaceCode::LR4_400G_10KM ||
-            *mediaIntfCode == MediaInterfaceCode::FR4_2x400G) {
+            *mediaIntfCode == MediaInterfaceCode::FR4_2x400G ||
+            *mediaIntfCode == MediaInterfaceCode::DR4_2x400G) {
           EXPECT_TRUE(*diagsCapability->rxOutputControl());
         }
       }

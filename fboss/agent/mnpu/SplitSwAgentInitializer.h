@@ -16,7 +16,9 @@ class SplitSwSwitchInitializer : public SwSwitchInitializer {
   explicit SplitSwSwitchInitializer(SwSwitch* sw) : SwSwitchInitializer(sw) {}
 
  private:
-  void initImpl(HwSwitchCallback* callback) override;
+  void initImpl(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) override;
 };
 
 class SplitSwAgentInitializer : public SwAgentInitializer {
@@ -27,9 +29,13 @@ class SplitSwAgentInitializer : public SwAgentInitializer {
   std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
   getThrifthandlers() override;
 
-  void handleExitSignal() override;
+  void handleExitSignal(bool gracefulExit) override;
+
+  void stopAgent(bool setupWarmboot, bool gracefulExit) override;
 
  private:
+  void exitForColdBoot();
+  void exitForWarmBoot(bool gracefulExit);
   AgentDirectoryUtil agentDirectoryUtil_;
 };
 

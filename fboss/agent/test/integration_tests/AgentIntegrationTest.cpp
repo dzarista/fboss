@@ -23,7 +23,7 @@
 namespace facebook::fboss {
 
 void AgentIntegrationTest::SetUp() {
-  AgentHwTest::SetUp();
+  AgentIntegrationTestBase::SetUp();
 }
 
 cfg::SwitchConfig AgentIntegrationTest::initialConfig() const {
@@ -38,7 +38,8 @@ cfg::SwitchConfig AgentIntegrationTest::initialConfig() const {
   utility::setPortToDefaultProfileIDMap(
       std::make_shared<MultiSwitchPortMap>(),
       platform()->getPlatformMapping(),
-      platform()->getAsic());
+      platform()->getAsic(),
+      platform()->supportsAddRemovePort());
   cfg = utility::onePortPerInterfaceConfig(
       platform()->getHwSwitch(),
       ports,

@@ -50,6 +50,7 @@ target_link_libraries(agent_test_utils
   label_forwarding_utils
   hw_mock
   monolithic_switch_handler
+  multi_switch_hw_switch_handler
 )
 
 add_library(ecmp_helper
@@ -94,15 +95,16 @@ target_link_libraries(agent_test_lib
   qsfp_service_client
   fboss_config_utils
   monolithic_agent_initializer
+  qos_test_utils
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
 )
 
-add_library(agent_hw_test_lib
-  fboss/agent/test/AgentHwTest.cpp
+add_library(agent_integration_test_base
+  fboss/agent/test/AgentIntegrationTestBase.cpp
 )
 
-target_link_libraries(agent_hw_test_lib
+target_link_libraries(agent_integration_test_base
   agent_test_lib
   main
   config_factory
@@ -111,14 +113,19 @@ target_link_libraries(agent_hw_test_lib
   ${LIBGMOCK_LIBRARIES}
 )
 
-add_library(split_agent_test_lib
-  fboss/agent/test/SplitAgentTest.cpp
+add_library(agent_hw_test
+  fboss/agent/test/AgentHwTest.cpp
 )
 
-target_link_libraries(split_agent_test_lib
+target_link_libraries(agent_hw_test
+  agent_hw_test_constants
   mono_agent_ensemble
+  production_features_cpp2
   core
   switch_asics
+  hw_copp_utils
+  stats_test_utils
+  hardware_stats_cpp2
   ${GTEST}
 )
 
@@ -144,6 +151,7 @@ add_library(test_ensemble_if
 
 target_link_libraries(test_ensemble_if
   state
+  hw_switch
 )
 
 add_library(agent_ensemble
@@ -151,6 +159,7 @@ add_library(agent_ensemble
 )
 
 target_link_libraries(agent_ensemble
+  handler
   hw_link_state_toggler
   route_distribution_gen
   main
@@ -167,4 +176,24 @@ add_library(mono_agent_ensemble
 target_link_libraries(mono_agent_ensemble
   agent_ensemble
   monolithic_agent_initializer
+  ${GTEST}
+)
+
+add_library(multi_switch_agent_ensemble
+  fboss/agent/test/MultiSwitchAgentEnsemble.cpp
+)
+
+target_link_libraries(multi_switch_agent_ensemble
+  agent_ensemble
+  split_agent_initializer
+  ${GTEST}
+)
+
+add_library(linkstate_toggler
+  fboss/agent/test/LinkStateToggler.cpp
+)
+
+target_link_libraries(linkstate_toggler
+  state
+  core
 )

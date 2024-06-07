@@ -14,15 +14,15 @@
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/HwTestPortUtils.h"
-#include "fboss/agent/hw/test/TrafficPolicyUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestAqmUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
 #include "fboss/agent/packet/EthHdr.h"
 #include "fboss/agent/packet/IPv6Hdr.h"
 #include "fboss/agent/packet/TCPHeader.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
+#include "fboss/agent/test/utils/AqmTestUtils.h"
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
 
 #include "fboss/lib/CommonUtils.h"
 
@@ -86,16 +86,10 @@ class HwAqmTest : public HwLinkStateDependentTest {
         masterLogicalPortIds(),
         getAsic()->desiredLoopbackModes());
     if (isSupported(HwAsic::Feature::L3_QOS)) {
-      auto streamType =
-          *(getPlatform()
-                ->getAsic()
-                ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
-                .begin());
-      utility::addOlympicQueueConfig(
-          &cfg, streamType, getPlatform()->getAsic());
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
+      utility::addOlympicQueueConfig(&cfg, getHwSwitchEnsemble()->getL3Asics());
+      utility::addOlympicQosMaps(cfg, getHwSwitchEnsemble()->getL3Asics());
     }
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     return cfg;
   }
 
@@ -111,10 +105,10 @@ class HwAqmTest : public HwLinkStateDependentTest {
                 ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
                 .begin());
       utility::addQueueWredDropConfig(
-          &cfg, streamType, getPlatform()->getAsic());
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
+          &cfg, streamType, getHwSwitchEnsemble()->getL3Asics());
+      utility::addOlympicQosMaps(cfg, getHwSwitchEnsemble()->getL3Asics());
     }
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     return cfg;
   }
 
@@ -126,16 +120,11 @@ class HwAqmTest : public HwLinkStateDependentTest {
         masterLogicalPortIds(),
         getAsic()->desiredLoopbackModes());
     if (isSupported(HwAsic::Feature::L3_QOS)) {
-      auto streamType =
-          *(getPlatform()
-                ->getAsic()
-                ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
-                .begin());
       utility::addOlympicQueueConfig(
-          &cfg, streamType, getPlatform()->getAsic(), enableWred, enableEcn);
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
+          &cfg, getHwSwitchEnsemble()->getL3Asics(), enableWred, enableEcn);
+      utility::addOlympicQosMaps(cfg, getHwSwitchEnsemble()->getL3Asics());
     }
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     return cfg;
   }
 
@@ -144,16 +133,11 @@ class HwAqmTest : public HwLinkStateDependentTest {
         getPlatform()->getPlatformMapping(),
         getAsic(),
         masterLogicalPortIds(),
+        getPlatform()->supportsAddRemovePort(),
         getAsic()->desiredLoopbackModes());
     if (isSupported(HwAsic::Feature::L3_QOS)) {
-      auto streamType =
-          *(getPlatform()
-                ->getAsic()
-                ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
-                .begin());
-      utility::addOlympicQueueConfig(
-          &cfg, streamType, getPlatform()->getAsic());
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
+      utility::addOlympicQueueConfig(&cfg, getHwSwitchEnsemble()->getL3Asics());
+      utility::addOlympicQosMaps(cfg, getHwSwitchEnsemble()->getL3Asics());
     }
     return cfg;
   }
@@ -259,6 +243,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       if (isEcn) {
         utility::addQueueEcnConfig(
             &cfg,
+            {getPlatform()->getAsic()},
             queueId,
             utility::kQueueConfigAqmsEcnThresholdMinMax,
             utility::kQueueConfigAqmsEcnThresholdMinMax,
@@ -266,6 +251,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       } else {
         utility::addQueueWredConfig(
             &cfg,
+            {getPlatform()->getAsic()},
             queueId,
             utility::kQueueConfigAqmsWredThresholdMinMax,
             utility::kQueueConfigAqmsWredThresholdMinMax,
@@ -278,7 +264,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
   void disableTTLDecrements(
       const utility::EcmpSetupTargetedPorts6& ecmpHelper) {
     utility::ttlDecrementHandlingForLoopbackTraffic(
-        getHwSwitch(),
+        getHwSwitchEnsemble(),
         ecmpHelper.getRouterId(),
         ecmpHelper.nhop(PortDescriptor(masterLogicalInterfacePortIds()[0])));
   }
@@ -317,7 +303,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       stats.wredDroppedPackets += portStats.get_wredDroppedPackets_();
     }
     // Always populate outPackets
-    stats.outPackets += getPortOutPkts(portStats);
+    stats.outPackets += utility::getPortOutPkts(portStats);
   }
 
   // For VoQ systems, WRED stat is collected from sysPorts and
@@ -373,7 +359,11 @@ class HwAqmTest : public HwLinkStateDependentTest {
     if (getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ) {
       // Gets watermarks + WRED drops in case of non-ECN traffic and
       // watermarks for ECN traffic for VoQ switches.
-      auto sysPortId = getSystemPortID(portId, getProgrammedState());
+      auto sysPortId = getSystemPortID(
+          portId,
+          utility::getFirstNodeIf(getProgrammedState()->getSwitchSettings())
+              ->getSwitchIdToSwitchInfo(),
+          getPlatform()->getHwSwitch()->getSwitchID());
       auto sysPortStats =
           getHwSwitchEnsemble()->getLatestSysPortStats(sysPortId);
       extractAqmTestStats(sysPortStats, portStats, queueId, stats);
@@ -385,69 +375,6 @@ class HwAqmTest : public HwLinkStateDependentTest {
                << ", WRED drops: " << stats.wredDroppedPackets
                << ", ECN marked: " << stats.outEcnCounter;
     return stats;
-  }
-
-  // The enableWred/ enableEcn params are used to specify the test should
-  // use WRED/ECN config or not. This helps validate functionality in AI
-  // network which uses ECN alone, the case with both ECN and WRED as in
-  // front end network or with just WRED.
-  void runTest(const uint8_t ecnVal, bool enableWred, bool enableEcn) {
-    if (!isSupported(HwAsic::Feature::L3_QOS)) {
-#if defined(GTEST_SKIP)
-      GTEST_SKIP();
-#endif
-      return;
-    }
-
-    auto kQueueId = utility::getOlympicQueueId(utility::OlympicQueueType::ECN1);
-    // For VoQ switch, AQM stats are collected from queue!
-    auto useQueueStatsForAqm =
-        getPlatform()->getAsic()->getSwitchType() == cfg::SwitchType::VOQ;
-    auto statsIncremented = [this](
-                                const AqmTestStats& aqmStats, uint8_t ecnVal) {
-      auto increment =
-          isEct(ecnVal) ? aqmStats.outEcnCounter : aqmStats.wredDroppedPackets;
-      return increment > 0;
-    };
-
-    auto setup = [&]() {
-      applyNewConfig(configureQueue2WithAqmThreshold(enableWred, enableEcn));
-      setupEcmpTraffic();
-      if (isEct(ecnVal)) {
-        sendPkt(kDscp(), ecnVal, true);
-        auto aqmStats = getAqmTestStats(
-            ecnVal,
-            masterLogicalInterfacePortIds()[0],
-            kQueueId,
-            useQueueStatsForAqm);
-        // Assert that ECT capable packets are not counted by port ECN
-        // counter when there is no congestion!
-        EXPECT_FALSE(statsIncremented(aqmStats, ecnVal));
-      }
-    };
-
-    auto verify = [&]() {
-      const int kNumPacketsToSend =
-          getHwSwitchEnsemble()->getMinPktsForLineRate(
-              masterLogicalInterfacePortIds()[0]);
-      sendPkts(kDscp(), ecnVal, kNumPacketsToSend);
-      /*
-       * Need traffic loop to build up for ECN/WRED to show up for some
-       * platforms. However, we cannot expect traffic to reach line rate
-       * in WRED config cases. There can also be a delay before stats are
-       * synced. So, add enough retries to avoid flakiness.
-       */
-      WITH_RETRIES_N_TIMED(10, std::chrono::milliseconds(1000), {
-        auto aqmStats = getAqmTestStats(
-            ecnVal,
-            masterLogicalInterfacePortIds()[0],
-            kQueueId,
-            useQueueStatsForAqm);
-        EXPECT_EVENTUALLY_TRUE(statsIncremented(aqmStats, ecnVal));
-      });
-    };
-
-    verifyAcrossWarmBoots(setup, verify);
   }
 
   void runWredDropTest() {
@@ -635,7 +562,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       auto sendPackets = [=, this](PortID /* port */, int numPacketsToSend) {
         // Single port config, traffic gets forwarded out of the same!
         sendPkts(
-            utility::kOlympicQueueToDscp(getAsic()).at(kQueueId).front(),
+            utility::kOlympicQueueToDscp().at(kQueueId).front(),
             ecnVal,
             numPacketsToSend,
             kPayloadLength);
@@ -753,7 +680,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       const int kNumPacketsToSend =
           getHwSwitchEnsemble()->getMinPktsForLineRate(portId);
       sendPkts(
-          utility::kOlympicQueueToDscp(getAsic()).at(queueId).front(),
+          utility::kOlympicQueueToDscp().at(queueId).front(),
           kECT1,
           kNumPacketsToSend);
     };
@@ -829,7 +756,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       constexpr auto kNumPacketsToSend{1000};
       for (auto queueId : wredQueueIds) {
         sendPkts(
-            utility::kOlympicQueueToDscp(getAsic()).at(queueId).front(),
+            utility::kOlympicQueueToDscp().at(queueId).front(),
             false,
             kNumPacketsToSend);
       }
@@ -930,7 +857,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
           utility::getOlympicQueueId(utility::OlympicQueueType::SILVER);
       for (auto const& port : ports) {
         sendPkts(
-            utility::kOlympicQueueToDscp(getAsic()).at(queueId).front(),
+            utility::kOlympicQueueToDscp().at(queueId).front(),
             ecnVal,
             numPacketsToSend,
             kPayloadLength,
@@ -993,26 +920,6 @@ class HwAqmTest : public HwLinkStateDependentTest {
     verifyAcrossWarmBoots(setup, verify);
   }
 };
-
-TEST_F(HwAqmTest, verifyEct0) {
-  runTest(kECT0, true /* enableWred */, true /* enableEcn */);
-}
-
-TEST_F(HwAqmTest, verifyEct1) {
-  runTest(kECT1, true /* enableWred */, true /* enableEcn */);
-}
-
-TEST_F(HwAqmTest, verifyEcnWithoutWredConfig) {
-  runTest(kECT1, false /* enableWred */, true /* enableEcn */);
-}
-
-TEST_F(HwAqmTest, verifyWredWithoutEcnConfig) {
-  runTest(kNotECT, true /* enableWred */, false /* enableEcn */);
-}
-
-TEST_F(HwAqmTest, verifyWred) {
-  runTest(kNotECT, true /* enableWred */, true /* enableEcn */);
-}
 
 TEST_F(HwAqmTest, verifyWredDrop) {
   runWredDropTest();

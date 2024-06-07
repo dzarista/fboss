@@ -22,6 +22,7 @@ bool RamonAsic::isSupported(Feature feature) const {
     case HwAsic::Feature::RX_LANE_SQUELCH_ENABLE:
     case HwAsic::Feature::WARMBOOT:
     case HwAsic::Feature::TELEMETRY_AND_MONITORING:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return true;
     default:
       return false;
@@ -34,7 +35,9 @@ std::set<cfg::StreamType> RamonAsic::getQueueStreamTypes(
   switch (portType) {
     case cfg::PortType::CPU_PORT:
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       break;
     case cfg::PortType::FABRIC_PORT:
       return {cfg::StreamType::FABRIC_TX};

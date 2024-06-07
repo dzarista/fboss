@@ -9,8 +9,8 @@
  */
 #pragma once
 
-#include <folly/dynamic.h>
 #include <folly/io/async/EventBase.h>
+#include <folly/json/dynamic.h>
 #include <gtest/gtest_prod.h>
 #include <optional>
 #include "fboss/agent/HwSwitch.h"
@@ -63,6 +63,7 @@ class BcmL3NextHop;
 class BcmLabeledHostKey;
 class BcmMplsNextHop;
 class BcmMultiPathNextHopTable;
+class BcmMultiPathNextHopStatsManager;
 class BcmNeighborTable;
 template <class K, class V>
 class BcmNextHopTable;
@@ -156,6 +157,12 @@ class BcmSwitchIf : public HwSwitch {
   virtual const BcmMultiPathNextHopTable* getMultiPathNextHopTable() const = 0;
 
   virtual BcmMultiPathNextHopTable* writableMultiPathNextHopTable() const = 0;
+
+  virtual const BcmMultiPathNextHopStatsManager*
+  getMultiPathNextHopStatsManager() const = 0;
+
+  virtual BcmMultiPathNextHopStatsManager*
+  writableMultiPathNextHopStatsManager() const = 0;
 
   virtual const BcmAclTable* getAclTable() const = 0;
 
@@ -349,6 +356,15 @@ class BcmSwitch : public BcmSwitchIf {
     return multiPathNextHopTable_.get();
   }
 
+  const BcmMultiPathNextHopStatsManager* getMultiPathNextHopStatsManager()
+      const override {
+    return multiPathNextHopStatsManager_.get();
+  }
+  BcmMultiPathNextHopStatsManager* writableMultiPathNextHopStatsManager()
+      const override {
+    return multiPathNextHopStatsManager_.get();
+  }
+
   const BcmQosPolicyTable* getQosPolicyTable() const override {
     return qosPolicyTable_.get();
   }
@@ -394,9 +410,7 @@ class BcmSwitch : public BcmSwitchIf {
     return {};
   }
 
-  CpuPortStats getCpuPortStats() const override {
-    throw FbossError("Unsupported platform for retrieving cpuPort stats");
-  }
+  CpuPortStats getCpuPortStats() const override;
 
   uint64_t getDeviceWatermarkBytes() const override;
 
@@ -405,6 +419,11 @@ class BcmSwitch : public BcmSwitchIf {
     // No HwSwitchDropStats collected
     return HwSwitchDropStats{};
   }
+
+  HwSwitchWatermarkStats getSwitchWatermarkStats() const override;
+  HwFlowletStats getHwFlowletStats() const override;
+
+  std::vector<EcmpDetails> getAllEcmpDetails() const override;
 
   /*
    * Wrapper functions to register and unregister a BCM event callbacks.  These
@@ -499,12 +518,6 @@ class BcmSwitch : public BcmSwitchIf {
    */
   void exitFatal() const override;
 
-  /*
-   * Returns true if the neighbor entry for the passed in ip
-   * has been hit.
-   */
-  bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) override;
-
   phy::FecMode getPortFECMode(PortID port) const override;
 
   cfg::PortSpeed getPortMaxSpeed(PortID port) const override;
@@ -566,8 +579,8 @@ class BcmSwitch : public BcmSwitchIf {
   void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
-  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(int32_t portId) override;
-  void clearPortAsicPrbsStats(int32_t portId) override;
+  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId) override;
+  void clearPortAsicPrbsStats(PortID portId) override;
 
   std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
       int32_t /* portId */) override;
@@ -612,13 +625,24 @@ class BcmSwitch : public BcmSwitchIf {
 
   bool usePKTIO() const;
 
-  std::map<PortID, phy::PhyInfo> updateAllPhyInfo() override;
-  std::map<PortID, FabricEndpoint> getFabricConnectivity() const override {
-    return {};
+  std::map<PortID, phy::PhyInfo> updateAllPhyInfoImpl() override;
+  const std::map<PortID, FabricEndpoint>& getFabricConnectivity()
+      const override {
+    static const std::map<PortID, FabricEndpoint> kEmpty;
+    return kEmpty;
   }
   std::vector<PortID> getSwitchReachability(SwitchID switchId) const override {
     return {};
   }
+
+  void syncLinkStates() override;
+
+  // no concept of link active states in BcmSwitch
+  void syncLinkActiveStates() override {}
+  // no (fabric) link connectivity concept in BcmSwitch
+  void syncLinkConnectivity() override {}
+
+  AclStats getAclStats() const override;
 
  private:
   enum Flags : uint32_t {
@@ -764,6 +788,8 @@ class BcmSwitch : public BcmSwitchIf {
   void processAddedAggregatePort(const std::shared_ptr<AggregatePort>& aggPort);
   void processRemovedAggregatePort(
       const std::shared_ptr<AggregatePort>& aggPort);
+
+  void processPortFlowletConfigAdd(const StateDelta& delta);
 
   void processLoadBalancerChanges(const StateDelta& delta);
   void processChangedLoadBalancer(
@@ -1132,6 +1158,8 @@ class BcmSwitch : public BcmSwitchIf {
   std::unique_ptr<BcmNextHopTable<BcmLabeledHostKey, BcmMplsNextHop>>
       mplsNextHopTable_;
   std::unique_ptr<BcmMultiPathNextHopTable> multiPathNextHopTable_;
+  std::unique_ptr<BcmMultiPathNextHopStatsManager>
+      multiPathNextHopStatsManager_;
   std::unique_ptr<BcmLabelMap> labelMap_;
   std::unique_ptr<BcmRouteCounterTableBase> routeCounterTable_;
   std::unique_ptr<BcmRouteTable> routeTable_;

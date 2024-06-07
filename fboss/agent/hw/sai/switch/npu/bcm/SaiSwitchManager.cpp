@@ -34,4 +34,31 @@ void fillHwSwitchDramStats(
   }
 }
 
+void fillHwSwitchWatermarkStats(
+    const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
+    HwSwitchWatermarkStats& hwSwitchWatermarkStats) {
+  hwSwitchWatermarkStats = {};
+  for (auto counterIdAndValue : counterId2Value) {
+    auto [counterId, value] = counterIdAndValue;
+    switch (counterId) {
+#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+      case SAI_SWITCH_STAT_DEVICE_RCI_WATERMARK_BYTES:
+        hwSwitchWatermarkStats.fdrRciWatermarkBytes() = value;
+        break;
+      case SAI_SWITCH_STAT_DEVICE_CORE_RCI_WATERMARK_BYTES:
+        hwSwitchWatermarkStats.coreRciWatermarkBytes() = value;
+        break;
+      case SAI_SWITCH_STAT_HIGHEST_QUEUE_CONGESTION_LEVEL:
+        hwSwitchWatermarkStats.dtlQueueWatermarkBytes() = value;
+        break;
+#endif
+      default:
+        throw FbossError("Got unexpected switch counter id: ", counterId);
+    }
+  }
+}
+
+// ARISTA hack to get build to pass, publishSwitchWatermarks() is called from
+// link_test/wedge_agent.
+void publishSwitchWatermarks(HwSwitchWatermarkStats& /*watermarkStats*/) {}
 } // namespace facebook::fboss

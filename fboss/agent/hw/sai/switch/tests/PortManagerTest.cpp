@@ -25,6 +25,7 @@
 
 using namespace facebook::fboss;
 
+namespace facebook::fboss {
 class PortManagerTest : public ManagerTestBase {
  public:
   void SetUp() override {
@@ -120,43 +121,45 @@ class PortManagerTest : public ManagerTestBase {
     SaiPortTraits::Attributes::AdminState adminState{true};
     SaiPortTraits::Attributes::HwLaneList lanes(ls);
     SaiPortTraits::Attributes::Speed speed{static_cast<int>(portSpeed)};
-    SaiPortTraits::CreateAttributes a {
-      lanes, speed, adminState, std::nullopt,
+    SaiPortTraits::CreateAttributes a{
+        lanes,        speed,        adminState,   std::nullopt,
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
-          std::nullopt, std::nullopt,
+        std::nullopt, std::nullopt,
 #endif
 #if SAI_API_VERSION >= SAI_VERSION(1, 11, 0)
-          std::nullopt, // Port Fabric Isolate
+        std::nullopt, // Port Fabric Isolate
 #endif
-          std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-          std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-          std::nullopt, // Ingress Mirror Session
-          std::nullopt, // Egress Mirror Session
-          std::nullopt, // Ingress Sample Packet
-          std::nullopt, // Egress Sample Packet
-          std::nullopt, // Ingress mirror sample session
-          std::nullopt, // Egress mirror sample session
-          std::nullopt, // Ingress macsec acl
-          std::nullopt, // Egress macsec acl
-          std::nullopt, // System Port Id
-          std::nullopt, // PTP Mode
-          std::nullopt, // PFC Mode
-          std::nullopt, // PFC Priorities
+        std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
+        std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
+        std::nullopt, // Ingress Mirror Session
+        std::nullopt, // Egress Mirror Session
+        std::nullopt, // Ingress Sample Packet
+        std::nullopt, // Egress Sample Packet
+        std::nullopt, // Ingress mirror sample session
+        std::nullopt, // Egress mirror sample session
+        std::nullopt, // PRBS Polynomial
+        std::nullopt, // PRBS Config
+        std::nullopt, // Ingress macsec acl
+        std::nullopt, // Egress macsec acl
+        std::nullopt, // System Port Id
+        std::nullopt, // PTP Mode
+        std::nullopt, // PFC Mode
+        std::nullopt, // PFC Priorities
 #if !defined(TAJO_SDK)
-          std::nullopt, // PFC Rx Priorities
-          std::nullopt, // PFC Tx Priorities
+        std::nullopt, // PFC Rx Priorities
+        std::nullopt, // PFC Tx Priorities
 #endif
-          std::nullopt, // TC to Priority Group map
-          std::nullopt, // PFC Priority to Queue map
+        std::nullopt, // TC to Priority Group map
+        std::nullopt, // PFC Priority to Queue map
 #if SAI_API_VERSION >= SAI_VERSION(1, 9, 0)
-          std::nullopt, // Inter Frame Gap
+        std::nullopt, // Inter Frame Gap
 #endif
-          std::nullopt, // Link Training Enable,
-          std::nullopt, // FDR Enable
-          std::nullopt, // Rx Lane Squelch Enable
+        std::nullopt, // Link Training Enable,
+        std::nullopt, // FDR Enable
+        std::nullopt, // Rx Lane Squelch Enable
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
-          std::nullopt, // PFC Deadlock Detection Interval
-          std::nullopt, // PFC Deadlock Recovery Interval
+        std::nullopt, // PFC Deadlock Detection Interval
+        std::nullopt, // PFC Deadlock Recovery Interval
 #endif
     };
     return portApi.create<SaiPortTraits>(a, 0);
@@ -488,3 +491,34 @@ TEST_F(PortManagerTest, getFabricReachabilityForSwitch) {
           static_cast<SwitchID>(0));
   EXPECT_EQ(portIds.size(), 2);
 }
+
+TEST_F(PortManagerTest, calculateRate) {
+  // test ports have default speed of 25G
+  auto speed = cfg::PortSpeed::TWENTYFIVEG;
+  for (const auto& testInterface : testInterfaces) {
+    for (const auto& remoteHost : testInterface.remoteHosts) {
+      std::shared_ptr<Port> swPort = makePort(remoteHost.port);
+      auto rate = saiManagerTable->portManager().calculateRate(
+          static_cast<int>(swPort->getSpeed()));
+      EXPECT_EQ(
+          rate,
+          static_cast<int>(speed) / kSpeedConversionFactor *
+              kRateConversionFactor);
+    }
+  }
+}
+
+TEST_F(PortManagerTest, updatePrbsStatsEntryRate) {
+  std::shared_ptr<Port> swPort0 = makePort(p0);
+  auto newSpeed = cfg::PortSpeed::FIFTYG;
+  saiManagerTable->portManager().addPort(swPort0);
+  swPort0->setSpeed(newSpeed);
+  saiManagerTable->portManager().updatePrbsStatsEntryRate(swPort0);
+  EXPECT_EQ(
+      saiManagerTable->portManager()
+          .portAsicPrbsStats_[swPort0->getID()][0]
+          .getRate(),
+      static_cast<int>(newSpeed) / kSpeedConversionFactor *
+          kRateConversionFactor);
+}
+} // namespace facebook::fboss

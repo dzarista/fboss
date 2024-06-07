@@ -27,16 +27,48 @@ enum class CmisPages : int {
   PAGE14 = 0x14,
   PAGE20 = 0x20,
   PAGE21 = 0x21,
+  PAGE22 = 0x22,
   PAGE24 = 0x24,
   PAGE25 = 0x25,
+  PAGE26 = 0x26,
   PAGE2F = 0x2F
+};
+
+enum VdmConfigType {
+  UNSUPPORTED = 0,
+  SNR_MEDIA_IN = 5,
+  SNR_HOST_IN = 6,
+  PAM4_LTP_MEDIA_IN = 7,
+  PRE_FEC_BER_MEDIA_IN_MIN = 9,
+  PRE_FEC_BER_HOST_IN_MIN = 10,
+  PRE_FEC_BER_MEDIA_IN_MAX = 11,
+  PRE_FEC_BER_HOST_IN_MAX = 12,
+  PRE_FEC_BER_MEDIA_IN_AVG = 13,
+  PRE_FEC_BER_HOST_IN_AVG = 14,
+  PRE_FEC_BER_MEDIA_IN_CUR = 15,
+  PRE_FEC_BER_HOST_IN_CUR = 16,
+  ERR_FRAME_MEDIA_IN_MIN = 17,
+  ERR_FRAME_HOST_IN_MIN = 18,
+  ERR_FRAME_MEDIA_IN_MAX = 19,
+  ERR_FRAME_HOST_IN_MAX = 20,
+  ERR_FRAME_MEDIA_IN_AVG = 21,
+  ERR_FRAME_HOST_IN_AVG = 22,
+  ERR_FRAME_MEDIA_IN_CUR = 23,
+  ERR_FRAME_HOST_IN_CUR = 24,
+  PAM4_LEVEL0_STANDARD_DEVIATION_LINE = 100,
+  PAM4_LEVEL1_STANDARD_DEVIATION_LINE = 101,
+  PAM4_LEVEL2_STANDARD_DEVIATION_LINE = 102,
+  PAM4_LEVEL3_STANDARD_DEVIATION_LINE = 103,
+  PAM4_MPI_LINE = 104,
 };
 
 class CmisModule : public QsfpModule {
  public:
   explicit CmisModule(
-      TransceiverManager* transceiverManager,
-      std::unique_ptr<TransceiverImpl> qsfpImpl);
+      std::set<std::string> portNames,
+      TransceiverImpl* qsfpImpl,
+      std::shared_ptr<const TransceiverConfig> cfg,
+      bool supportRemediate);
   virtual ~CmisModule() override;
 
   struct ApplicationAdvertisingField {
@@ -81,7 +113,16 @@ class CmisModule : public QsfpModule {
     MAX_QSFP_PAGE_SIZE = 128,
   };
 
+  static constexpr int kMaxOsfpNumLanes = 8;
+
   using LengthAndGauge = std::pair<double, uint8_t>;
+
+  using VdmDiagsLocationStatus = struct VdmDiagsLocationStatus_t {
+    bool vdmConfImplementedByModule = false;
+    CmisPages vdmValPage;
+    int vdmValOffset;
+    int vdmValLength;
+  };
 
   void configureModule(uint8_t startHostLane) override;
 
@@ -97,6 +138,21 @@ class CmisModule : public QsfpModule {
   prbs::InterfacePrbsState getPortPrbsStateLocked(
       std::optional<const std::string> portName,
       phy::Side side) override;
+
+  VdmDiagsLocationStatus getVdmDiagsValLocation(VdmConfigType vdmConf) const;
+
+  bool tcvrPortStateSupported(TransceiverPortState& portState) const override;
+
+  bool isRequestValidMultiportSpeedConfig(
+      cfg::PortSpeed speed,
+      uint8_t startHostLane,
+      uint8_t numLanes);
+
+  std::optional<std::array<SMFMediaInterfaceCode, kMaxOsfpNumLanes>>
+  getValidMultiportSpeedConfig(
+      cfg::PortSpeed speed,
+      uint8_t startHostLane,
+      uint8_t numLanes);
 
  protected:
   // QSFP+ requires a bottom 128 byte page describing important monitoring
@@ -114,8 +170,13 @@ class CmisModule : public QsfpModule {
   uint8_t page14_[MAX_QSFP_PAGE_SIZE];
   uint8_t page20_[MAX_QSFP_PAGE_SIZE];
   uint8_t page21_[MAX_QSFP_PAGE_SIZE];
+  uint8_t page22_[MAX_QSFP_PAGE_SIZE];
   uint8_t page24_[MAX_QSFP_PAGE_SIZE];
   uint8_t page25_[MAX_QSFP_PAGE_SIZE];
+  uint8_t page26_[MAX_QSFP_PAGE_SIZE];
+
+  // Some of the pages are static and they need not be read every refresh cycle
+  bool staticPagesCached_{false};
 
   /*
    * This function returns a pointer to the value in the static cached
@@ -151,7 +212,10 @@ class CmisModule : public QsfpModule {
   /*
    * Set appropriate application code for PortSpeed, if supported
    */
-  void setApplicationCodeLocked(cfg::PortSpeed speed, uint8_t startHostLane);
+  void setApplicationCodeLocked(
+      cfg::PortSpeed speed,
+      uint8_t startHostLane,
+      uint8_t numHostLanesForPort);
   /*
    * returns individual sensor values after scaling
    */
@@ -240,11 +304,7 @@ class CmisModule : public QsfpModule {
   /*
    * Return what power control capability is currently enabled
    */
-  PowerControlState getPowerControlValue() override;
-  /*
-   * Return TransceiverStats
-   */
-  bool getTransceiverStats(TransceiverStats& stats);
+  PowerControlState getPowerControlValue(bool readFromCache) override;
   /*
    * Return SignalFlag which contains Tx/Rx LOS/LOL
    */
@@ -267,10 +327,18 @@ class CmisModule : public QsfpModule {
    * Gets the Media Type encoding (byte 85 in CMIS)
    */
   MediaTypeEncodings getMediaTypeEncoding() const;
+
   /*
    * Gets the Single Mode Fiber Interface codes from SFF-8024
    */
   SMFMediaInterfaceCode getSmfMediaInterface(uint8_t lane = 0) const;
+
+  /*
+   * Returns the list of media interfaces supported by the module
+   */
+  std::vector<MediaInterfaceCode> getSupportedMediaInterfacesLocked()
+      const override;
+
   /*
    * Returns the firmware version
    * <Module firmware version, DSP version, Build revision>
@@ -302,15 +370,22 @@ class CmisModule : public QsfpModule {
    * Put logic here that should only be run on ports that have been
    * down for a long time. These are actions that are potentially more
    * disruptive, but have worked in the past to recover a transceiver.
-   * Only return true if there's an actual remediation happened
    */
-  bool remediateFlakyTransceiver(
+  void remediateFlakyTransceiver(
       bool allPortsDown,
       const std::vector<std::string>& ports) override;
 
   virtual void setDiagsCapability() override;
 
   virtual std::optional<VdmDiagsStats> getVdmDiagsStatsInfo() override;
+
+  virtual std::optional<VdmPerfMonitorStats> getVdmPerfMonitorStats() override;
+
+  virtual VdmPerfMonitorStatsForOds getVdmPerfMonitorStatsForOds(
+      VdmPerfMonitorStats& vdmPerfMonStats) override;
+
+  virtual std::map<std::string, CdbDatapathSymErrHistogram>
+  getCdbSymbolErrorHistogramLocked() override;
 
   /*
    * Trigger next VDM stats capture
@@ -334,6 +409,8 @@ class CmisModule : public QsfpModule {
       uint8_t application,
       uint8_t startHostLane) const;
 
+  SMFMediaInterfaceCode getApplicationFromApSelCode(uint8_t apSelCode) const;
+
   // Returns the list of host lanes configured in the same datapath as the
   // provided startHostLane
   std::vector<uint8_t> configuredHostLanes(
@@ -345,10 +422,16 @@ class CmisModule : public QsfpModule {
       uint8_t startHostLane) const override;
 
   /*
-   * Set the Transceiver Tx channel endbale/disable
+   * Set the Transceiver Tx channel enable/disable
    */
   virtual bool setTransceiverTxLocked(
       const std::string& portName,
+      phy::Side side,
+      std::optional<uint8_t> userChannelMask,
+      bool enable) override;
+
+  virtual bool setTransceiverTxImplLocked(
+      const std::set<uint8_t>& tcvrLanes,
       phy::Side side,
       std::optional<uint8_t> userChannelMask,
       bool enable) override;
@@ -365,6 +448,9 @@ class CmisModule : public QsfpModule {
   // no copy or assignment
   CmisModule(CmisModule const&) = delete;
   CmisModule& operator=(CmisModule const&) = delete;
+
+  // VDM data location of each VDM config types
+  std::map<VdmConfigType, VdmDiagsLocationStatus> vdmConfigDataLocations_;
 
   /* Helper function to read/write a CmisField. The function will extract the
    * page number, offset and length information from the CmisField and then make
@@ -473,6 +559,41 @@ class CmisModule : public QsfpModule {
 
   bool upgradeFirmwareLockedImpl(
       std::unique_ptr<FbossFirmware> fbossFw) const override;
+
+  void readFromCacheOrHw(
+      CmisField field,
+      uint8_t* data,
+      bool forcedReadFromHw = false);
+
+  void updateVdmDiagsValLocation();
+
+  double f16ToDouble(uint8_t byte0, uint8_t byte1);
+  std::pair<std::optional<const uint8_t*>, int> getVdmDataValPtr(
+      VdmConfigType vdmConf);
+
+  SMFMediaInterfaceCode getMediaIntfCodeFromSpeed(
+      cfg::PortSpeed speed,
+      uint8_t numLanes);
+
+  bool isMultiPortOptics() {
+    return getIdentifier() == TransceiverModuleIdentifier::OSFP;
+  }
+
+  // Private functions to extract and fill in VDM performance monitoring stats
+  bool fillVdmPerfMonitorSnr(VdmPerfMonitorStats& vdmStats);
+  bool fillVdmPerfMonitorBer(VdmPerfMonitorStats& vdmStats);
+  bool fillVdmPerfMonitorFecErr(VdmPerfMonitorStats& vdmStats);
+  bool fillVdmPerfMonitorLtp(VdmPerfMonitorStats& vdmStats);
+  bool fillVdmPerfMonitorPam4Data(VdmPerfMonitorStats& vdmStats);
+
+  const std::shared_ptr<const TransceiverConfig> tcvrConfig_;
+
+  bool supportRemediate_;
+  std::map<int32_t, SymErrHistogramBin> getCdbSymbolErrorHistogramLocked(
+      uint8_t datapathId,
+      bool mediaSide);
+
+  uint8_t datapathResetPendingMask_{0};
 };
 
 } // namespace fboss

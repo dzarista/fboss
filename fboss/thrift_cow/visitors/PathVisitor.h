@@ -3,14 +3,94 @@
 #pragma once
 
 #include <type_traits>
+#include <utility>
 #include "folly/Conv.h"
+#include "folly/logging/xlog.h"
 
+#include <fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h>
+#include <fboss/thrift_cow/nodes/NodeUtils.h>
+#include <fboss/thrift_cow/nodes/Serializer.h>
 #include <fboss/thrift_cow/visitors/VisitorUtils.h>
 #include <thrift/lib/cpp2/Thrift.h>
 #include <thrift/lib/cpp2/TypeClass.h>
 #include <thrift/lib/cpp2/reflection/reflection.h>
 
 namespace facebook::fboss::thrift_cow {
+
+namespace pv_detail {
+using PathIter = typename std::vector<std::string>::const_iterator;
+}
+
+// Base class for "untyped" operators. This base class should be the prefered
+// way to use visitors. Operations should subclass this and override the virtual
+// methods but pass a pointer to the base class to avoid extra unique
+// instantiations
+class BasePathVisitorOperator {
+ public:
+  virtual ~BasePathVisitorOperator() = default;
+
+  template <typename Node>
+  inline void
+  visitTyped(Node& node, pv_detail::PathIter begin, pv_detail::PathIter end) {
+    if constexpr (std::is_const_v<Node>) {
+      cvisit(node, begin, end);
+      cvisit(node);
+    } else {
+      visit(node, begin, end);
+      visit(node);
+    }
+  }
+
+ protected:
+  virtual void visit(
+      Serializable& /* node */,
+      pv_detail::PathIter /* begin */,
+      pv_detail::PathIter /* end */) {}
+
+  virtual void visit(Serializable& node) {}
+
+  virtual void cvisit(
+      const Serializable& /* node */,
+      pv_detail::PathIter /* begin */,
+      pv_detail::PathIter /* end */) {}
+
+  virtual void cvisit(const Serializable& node) {}
+};
+
+struct GetEncodedPathVisitorOperator : public BasePathVisitorOperator {
+  explicit GetEncodedPathVisitorOperator(fsdb::OperProtocol protocol)
+      : protocol_(protocol) {}
+
+  std::optional<folly::fbstring> val{std::nullopt};
+
+ protected:
+  void cvisit(const Serializable& node) override {
+    val = node.encode(protocol_);
+  }
+
+  void visit(Serializable& node) override {
+    val = node.encode(protocol_);
+  }
+
+ private:
+  fsdb::OperProtocol protocol_;
+};
+
+struct SetEncodedPathVisitorOperator : public BasePathVisitorOperator {
+  SetEncodedPathVisitorOperator(
+      fsdb::OperProtocol protocol,
+      const folly::fbstring& val)
+      : protocol_(protocol), val_(val) {}
+
+ protected:
+  void visit(facebook::fboss::thrift_cow::Serializable& node) override {
+    node.fromEncoded(protocol_, val_);
+  }
+
+ private:
+  fsdb::OperProtocol protocol_;
+  const folly::fbstring& val_{};
+};
 
 /*
  * This visitor takes a path object and a thrift type and is able to
@@ -30,9 +110,6 @@ enum class ThriftTraverseResult {
   VISITOR_EXCEPTION,
   INVALID_SET_MEMBER,
 };
-
-template <typename TC>
-struct PathVisitor;
 
 /*
  * invokeVisitorFnHelper allows us to support two different visitor signatures:
@@ -60,27 +137,46 @@ enum class PathVisitMode {
 
 namespace pv_detail {
 
+template <typename TC>
+struct PathVisitorImpl;
+
 using PathIter = typename std::vector<std::string>::const_iterator;
 
-template <typename Node, typename Func>
-auto invokeVisitorFnHelper(Node& node, PathIter begin, PathIter end, Func&& f)
-    -> std::invoke_result_t<Func, Node&, PathIter, PathIter> {
-  return f(node, begin, end);
-}
+// Version of an operator that forwards operation to a lambda. This should be
+// used as sparingly as possible, only when node types are needed, because
+// every call with this templated operator is a unique instantiation of the
+// entire template tree
+template <typename Func>
+struct LambdaPathVisitorOperator {
+  explicit LambdaPathVisitorOperator(Func&& f) : f_(std::forward<Func>(f)) {}
 
-template <typename Node, typename Func>
-auto invokeVisitorFnHelper(
-    Node& node,
-    PathIter /*begin*/,
-    PathIter /*end*/,
-    Func&& f) -> std::invoke_result_t<Func, Node&> {
-  return f(node);
-}
+  template <typename Node>
+  inline auto
+  visitTyped(Node& node, pv_detail::PathIter begin, pv_detail::PathIter end)
+      -> std::invoke_result_t<
+          Func,
+          Node&,
+          pv_detail::PathIter,
+          pv_detail::PathIter> {
+    return f_(node, begin, end);
+  }
+
+  template <typename Node>
+  inline auto visitTyped(
+      Node& node,
+      pv_detail::PathIter /* begin */,
+      pv_detail::PathIter /* end */) -> std::invoke_result_t<Func, Node&> {
+    return f_(node);
+  }
+
+ private:
+  Func f_;
+};
 
 template <
     typename TC,
     typename Node,
-    typename Func,
+    typename Op,
     // only enable for Node types
     std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
         true>
@@ -89,39 +185,37 @@ ThriftTraverseResult visitNode(
     PathIter begin,
     PathIter end,
     const PathVisitMode& mode,
-    Func&& f) {
+    Op& op) {
   if (mode == PathVisitMode::FULL || begin == end) {
     try {
-      invokeVisitorFnHelper(node, begin, end, std::forward<Func>(f));
+      op.visitTyped(node, begin, end);
       if (begin == end) {
         return ThriftTraverseResult::OK;
       }
-    } catch (const std::exception&) {
+    } catch (const std::exception& ex) {
+      XLOG(ERR) << "Exception while traversing path: " << ex.what();
       return ThriftTraverseResult::VISITOR_EXCEPTION;
     }
   }
 
   if constexpr (std::is_const_v<Node>) {
-    return PathVisitor<TC>::visit(
-        *node.getFields(), begin, end, mode, std::forward<Func>(f));
+    return PathVisitorImpl<TC>::visit(*node.getFields(), begin, end, mode, op);
   } else {
-    return PathVisitor<TC>::visit(
-        *node.writableFields(), begin, end, mode, std::forward<Func>(f));
+    return PathVisitorImpl<TC>::visit(
+        *node.writableFields(), begin, end, mode, op);
   }
 }
-
-} // namespace pv_detail
 
 /**
  * Set
  */
 template <typename ValueTypeClass>
-struct PathVisitor<apache::thrift::type_class::set<ValueTypeClass>> {
+struct PathVisitorImpl<apache::thrift::type_class::set<ValueTypeClass>> {
   using TC = apache::thrift::type_class::set<ValueTypeClass>;
 
   template <
       typename Node,
-      typename Func,
+      typename Op,
       // only enable for Node types
       std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
           true>
@@ -130,14 +224,13 @@ struct PathVisitor<apache::thrift::type_class::set<ValueTypeClass>> {
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
-    return pv_detail::visitNode<TC>(
-        node, begin, end, mode, std::forward<Func>(f));
+      Op& op) {
+    return pv_detail::visitNode<TC>(node, begin, end, mode, op);
   }
 
   template <
       typename Fields,
-      typename Func,
+      typename Op,
       // only enable for Fields types
       std::enable_if_t<
           std::is_same_v<typename Fields::CowType, FieldsType>,
@@ -147,33 +240,17 @@ struct PathVisitor<apache::thrift::type_class::set<ValueTypeClass>> {
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
+      Op& op) {
     using ValueTType = typename Fields::ValueTType;
 
     // Get value
     auto token = *begin++;
-    ValueTType value;
 
-    // need to handle enumeration, integral, string types
-    if constexpr (std::is_same_v<
-                      ValueTypeClass,
-                      apache::thrift::type_class::enumeration>) {
-      if (fatal::enum_traits<ValueTType>::try_parse(value, token)) {
-        if (auto it = fields.find(value); it != fields.end()) {
-          // Recurse further
-          return PathVisitor<ValueTypeClass>::visit(
-              **it, begin, end, mode, std::forward<Func>(f));
-        }
-      }
-    }
-
-    auto valueTry = folly::tryTo<ValueTType>(token);
-    if (!valueTry.hasError()) {
-      value = valueTry.value();
-      if (auto it = fields.find(value); it != fields.end()) {
+    if (auto value = tryParseKey<ValueTType, ValueTypeClass>(token)) {
+      if (auto it = fields.find(*value); it != fields.end()) {
         // Recurse further
-        return PathVisitor<ValueTypeClass>::visit(
-            **it, begin, end, mode, std::forward<Func>(f));
+        return PathVisitorImpl<ValueTypeClass>::visit(
+            **it, begin, end, mode, op);
       } else {
         return ThriftTraverseResult::NON_EXISTENT_NODE;
       }
@@ -188,12 +265,12 @@ struct PathVisitor<apache::thrift::type_class::set<ValueTypeClass>> {
  * List
  */
 template <typename ValueTypeClass>
-struct PathVisitor<apache::thrift::type_class::list<ValueTypeClass>> {
+struct PathVisitorImpl<apache::thrift::type_class::list<ValueTypeClass>> {
   using TC = apache::thrift::type_class::list<ValueTypeClass>;
 
   template <
       typename Node,
-      typename Func,
+      typename Op,
       // only enable for Node types
       std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
           true>
@@ -202,14 +279,13 @@ struct PathVisitor<apache::thrift::type_class::list<ValueTypeClass>> {
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
-    return pv_detail::visitNode<TC>(
-        node, begin, end, mode, std::forward<Func>(f));
+      Op& op) {
+    return pv_detail::visitNode<TC>(node, begin, end, mode, op);
   }
 
   template <
       typename Fields,
-      typename Func,
+      typename Op,
       // only enable for Fields types
       std::enable_if_t<
           std::is_same_v<typename Fields::CowType, FieldsType>,
@@ -219,7 +295,7 @@ struct PathVisitor<apache::thrift::type_class::list<ValueTypeClass>> {
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
+      Op& op) {
     // Parse and pop token. Also check for index bound
     auto index = folly::tryTo<size_t>(*begin++);
     if (index.hasError() || index.value() >= fields.size()) {
@@ -229,11 +305,10 @@ struct PathVisitor<apache::thrift::type_class::list<ValueTypeClass>> {
     // Recurse at a given index
     if constexpr (std::is_const_v<Fields>) {
       const auto& next = *fields.ref(index.value());
-      return PathVisitor<ValueTypeClass>::visit(
-          next, begin, end, mode, std::forward<Func>(f));
+      return PathVisitorImpl<ValueTypeClass>::visit(next, begin, end, mode, op);
     } else {
-      return PathVisitor<ValueTypeClass>::visit(
-          *fields.ref(index.value()), begin, end, mode, std::forward<Func>(f));
+      return PathVisitorImpl<ValueTypeClass>::visit(
+          *fields.ref(index.value()), begin, end, mode, op);
     }
   }
 };
@@ -242,13 +317,13 @@ struct PathVisitor<apache::thrift::type_class::list<ValueTypeClass>> {
  * Map
  */
 template <typename KeyTypeClass, typename MappedTypeClass>
-struct PathVisitor<
+struct PathVisitorImpl<
     apache::thrift::type_class::map<KeyTypeClass, MappedTypeClass>> {
   using TC = apache::thrift::type_class::map<KeyTypeClass, MappedTypeClass>;
 
   template <
       typename Node,
-      typename Func,
+      typename Op,
       // only enable for Node types
       std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
           true>
@@ -257,14 +332,13 @@ struct PathVisitor<
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
-    return pv_detail::visitNode<TC>(
-        node, begin, end, mode, std::forward<Func>(f));
+      Op& op) {
+    return pv_detail::visitNode<TC>(node, begin, end, mode, op);
   }
 
   template <
       typename Fields,
-      typename Func,
+      typename Op,
       // only enable for Fields types
       std::enable_if_t<
           std::is_same_v<typename Fields::CowType, FieldsType>,
@@ -274,43 +348,22 @@ struct PathVisitor<
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
+      Op& op) {
     using key_type = typename Fields::key_type;
 
     // Get key
     auto token = *begin++;
 
-    if constexpr (std::is_same_v<
-                      KeyTypeClass,
-                      apache::thrift::type_class::enumeration>) {
-      // special handling for enum keyed maps
-      key_type value;
-      if (fatal::enum_traits<key_type>::try_parse(value, token)) {
-        if (fields.find(value) != fields.end()) {
-          // Recurse further
-          return PathVisitor<MappedTypeClass>::visit(
-              *fields.ref(value), begin, end, mode, std::forward<Func>(f));
-        } else {
-          return ThriftTraverseResult::NON_EXISTENT_NODE;
-        }
-      }
-    }
-
-    auto key = folly::tryTo<key_type>(token);
-    if (key.hasValue()) {
+    if (auto key = tryParseKey<key_type, KeyTypeClass>(token)) {
       if (fields.find(key.value()) != fields.end()) {
         // Recurse further
         if constexpr (std::is_const_v<Fields>) {
           const auto& next = *fields.ref(key.value());
-          return PathVisitor<MappedTypeClass>::visit(
-              next, begin, end, mode, std::forward<Func>(f));
+          return PathVisitorImpl<MappedTypeClass>::visit(
+              next, begin, end, mode, op);
         } else {
-          return PathVisitor<MappedTypeClass>::visit(
-              *fields.ref(key.value()),
-              begin,
-              end,
-              mode,
-              std::forward<Func>(f));
+          return PathVisitorImpl<MappedTypeClass>::visit(
+              *fields.ref(key.value()), begin, end, mode, op);
         }
       } else {
         return ThriftTraverseResult::NON_EXISTENT_NODE;
@@ -325,12 +378,12 @@ struct PathVisitor<
  * Variant
  */
 template <>
-struct PathVisitor<apache::thrift::type_class::variant> {
+struct PathVisitorImpl<apache::thrift::type_class::variant> {
   using TC = apache::thrift::type_class::variant;
 
   template <
       typename Node,
-      typename Func,
+      typename Op,
       // only enable for Node types
       std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
           true>
@@ -339,14 +392,13 @@ struct PathVisitor<apache::thrift::type_class::variant> {
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
-    return pv_detail::visitNode<TC>(
-        node, begin, end, mode, std::forward<Func>(f));
+      Op& op) {
+    return pv_detail::visitNode<TC>(node, begin, end, mode, op);
   }
 
   template <
       typename Fields,
-      typename Func,
+      typename Op,
       // only enable for Fields types
       std::enable_if_t<
           std::is_same_v<typename Fields::CowType, FieldsType>,
@@ -356,7 +408,7 @@ struct PathVisitor<apache::thrift::type_class::variant> {
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
+      Op& op) {
     using MemberTypes = typename Fields::MemberTypes;
 
     auto result = ThriftTraverseResult::INVALID_VARIANT_MEMBER;
@@ -380,11 +432,9 @@ struct PathVisitor<apache::thrift::type_class::variant> {
       // const shared_ptr<T>, not shared_ptr<const T>.
       if constexpr (std::is_const_v<Fields>) {
         const auto& next = *child;
-        result = PathVisitor<tc>::visit(
-            next, begin, end, mode, std::forward<Func>(f));
+        result = PathVisitorImpl<tc>::visit(next, begin, end, mode, op);
       } else {
-        result = PathVisitor<tc>::visit(
-            *child, begin, end, mode, std::forward<Func>(f));
+        result = PathVisitorImpl<tc>::visit(*child, begin, end, mode, op);
       }
     });
 
@@ -396,12 +446,12 @@ struct PathVisitor<apache::thrift::type_class::variant> {
  * Structure
  */
 template <>
-struct PathVisitor<apache::thrift::type_class::structure> {
+struct PathVisitorImpl<apache::thrift::type_class::structure> {
   using TC = apache::thrift::type_class::structure;
 
   template <
       typename Node,
-      typename Func,
+      typename Op,
       // only enable for Node types
       std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
           true>
@@ -410,14 +460,13 @@ struct PathVisitor<apache::thrift::type_class::structure> {
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
-    return pv_detail::visitNode<TC>(
-        node, begin, end, mode, std::forward<Func>(f));
+      Op& op) {
+    return pv_detail::visitNode<TC>(node, begin, end, mode, op);
   }
 
   template <
       typename Fields,
-      typename Func,
+      typename Op,
       // only enable for Fields types
       std::enable_if_t<
           std::is_same_v<typename Fields::CowType, FieldsType>,
@@ -427,7 +476,7 @@ struct PathVisitor<apache::thrift::type_class::structure> {
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
+      Op& op) {
     using Members = typename Fields::Members;
 
     // Get key
@@ -453,11 +502,9 @@ struct PathVisitor<apache::thrift::type_class::structure> {
       // const shared_ptr<T>, not shared_ptr<const T>.
       if constexpr (std::is_const_v<Fields>) {
         const auto& next = *child;
-        result = PathVisitor<tc>::visit(
-            next, begin, end, mode, std::forward<Func>(f));
+        result = PathVisitorImpl<tc>::visit(next, begin, end, mode, op);
       } else {
-        result = PathVisitor<tc>::visit(
-            *child, begin, end, mode, std::forward<Func>(f));
+        result = PathVisitorImpl<tc>::visit(*child, begin, end, mode, op);
       }
     });
 
@@ -473,32 +520,109 @@ struct PathVisitor<apache::thrift::type_class::structure> {
  * - enumeration
  */
 template <typename TC>
-struct PathVisitor {
+struct PathVisitorImpl {
   static_assert(
       !std::is_same<apache::thrift::type_class::unknown, TC>::value,
       "No static reflection support for the given type. "
       "Forgot to specify reflection option or include fatal header file? "
       "Refer to thrift/lib/cpp2/reflection/reflection.h");
 
-  template <typename Node, typename Func>
+  template <typename Node, typename Op>
   static ThriftTraverseResult visit(
       Node& node,
       pv_detail::PathIter begin,
       pv_detail::PathIter end,
       const PathVisitMode& mode,
-      Func&& f) {
+      Op& op) {
     if (mode == PathVisitMode::FULL || begin == end) {
       try {
-        pv_detail::invokeVisitorFnHelper(
-            node, begin, end, std::forward<Func>(f));
+        // unfortunately its tough to get full const correctness for primitive
+        // types since we don't enforce whether or not lambdas or operators take
+        // a const param. Here we cast away the const and rely on primitive
+        // node's functions throwing an exception if the node is immutable.
+        op.visitTyped(
+            *const_cast<std::remove_const_t<Node>*>(&node), begin, end);
         if (begin == end) {
           return ThriftTraverseResult::OK;
         }
-      } catch (const std::exception&) {
+      } catch (const std::exception& ex) {
+        XLOG(ERR) << "Exception while traversing path: " << ex.what();
         return ThriftTraverseResult::VISITOR_EXCEPTION;
       }
     }
     return ThriftTraverseResult::NON_EXISTENT_NODE;
+  }
+};
+
+} // namespace pv_detail
+
+// Helper for creating LambdaPathVisitorOperator. As above, should be used
+// sparingly, only when node types are required
+template <typename Func>
+inline pv_detail::LambdaPathVisitorOperator<Func> pvlambda(Func&& f) {
+  return pv_detail::LambdaPathVisitorOperator<Func>(std::forward<Func>(f));
+}
+
+template <typename TC>
+struct PathVisitor {
+  template <
+      typename Node,
+      typename Func,
+      // only enable for Node types
+      std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
+          true>
+  static inline ThriftTraverseResult visit(
+      Node& node,
+      pv_detail::PathIter begin,
+      pv_detail::PathIter end,
+      const PathVisitMode& mode,
+      pv_detail::LambdaPathVisitorOperator<Func>& op) {
+    return pv_detail::PathVisitorImpl<TC>::visit(node, begin, end, mode, op);
+  }
+
+  template <
+      typename Node,
+      // only enable for Node types
+      std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
+          true>
+  static inline ThriftTraverseResult visit(
+      Node& node,
+      pv_detail::PathIter begin,
+      pv_detail::PathIter end,
+      const PathVisitMode& mode,
+      BasePathVisitorOperator& op) {
+    return pv_detail::PathVisitorImpl<TC>::visit(node, begin, end, mode, op);
+  }
+
+  template <
+      typename Fields,
+      typename Func,
+      // only enable for Fields types
+      std::enable_if_t<
+          std::is_same_v<typename Fields::CowType, FieldsType>,
+          bool> = true>
+  inline static ThriftTraverseResult visit(
+      Fields& fields,
+      pv_detail::PathIter begin,
+      pv_detail::PathIter end,
+      const PathVisitMode& mode,
+      pv_detail::LambdaPathVisitorOperator<Func>& op) {
+    return pv_detail::PathVisitorImpl<TC>::visit(fields, begin, end, mode, op);
+  }
+
+  template <
+      typename Fields,
+      // only enable for Fields types
+      std::enable_if_t<
+          std::is_same_v<typename Fields::CowType, FieldsType>,
+          bool> = true>
+  inline static ThriftTraverseResult visit(
+      Fields& fields,
+      pv_detail::PathIter begin,
+      pv_detail::PathIter end,
+      const PathVisitMode& mode,
+      BasePathVisitorOperator& op) {
+    return pv_detail::PathVisitorImpl<TC>::visit(fields, begin, end, mode, op);
   }
 };
 

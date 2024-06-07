@@ -109,17 +109,21 @@ class Patch(ConfigElement):
       self.instructionsFile = instructionsFile
       assert self.name, 'Patch is missing field name'
       assert self.patchFile, 'Patch is missing field patchFile'
-      assert os.path.isfile(self.patchFile), f'Patch patchFile {patchFile} not found'
+      assert os.path.isfile(self.patchFile) or os.path.isdir(self.patchFile), (
+         f'Patch patchFile {patchFile} not found'
+      )
       assert self.instructionsFile, 'Patch is missing field instructionsFile'
       assert os.path.isfile(self.instructionsFile), (
             f'Patch instructionsFile {instructionsFile} not found'
       )
+      self.patchFileIsDir = os.path.isdir(self.patchFile)
 
    def install(self, targetDir):
-      shutil.copyfile(
-            self.patchFile,
-            os.path.join(targetDir, os.path.basename(self.patchFile))
-      )
+      destDir = os.path.join(targetDir, os.path.basename(self.patchFile))
+      if self.patchFileIsDir:
+         shutil.copytree(self.patchFile, destDir)
+      else:
+         shutil.copyfile(self.patchFile, destDir)
 
    def readmeStr(self):
       with open(self.instructionsFile) as f:
@@ -259,7 +263,7 @@ class DsfBundleConfig:
                PastReleaseNotes(r.get('name'), r.get('notesFile'))
                for r in self.configJson.get('pastReleaseNotes', [])
          ]
- 
+
          knownIssuesFile = self.configJson.get('knownIssuesFile')
          if knownIssuesFile:
             self.knownIssuesFile = KnownIssuesFile(knownIssuesFile)
@@ -329,15 +333,21 @@ def generateTarball(configFile, targetDir, echoReadme=False, createTarFile=False
       os.mkdir(patchesDir)
       for p in config.patches:
          p.install(patchesDir)
-      patchFilenames = [
-            os.path.join(patchesDir, os.path.basename(p.patchFile))
-            for p in config.patches
-      ]
+      patchFilenameStrs = []
+      for p in config.patches:
+         patchFileInTarball = os.path.join(patchesDir, os.path.basename(p.patchFile))
+         patchFilenameStrs.append(f'- {patchFileInTarball}')
+         if p.patchFileIsDir:
+            for pFile in os.listdir(p.patchFile):
+               patchFilenameStrs.append(
+                     f'  - {os.path.join(patchFileInTarball, pFile)}'
+               )
+
       readme += ( '\n----------------------------------------'
                   '\n   Patches'
                   '\n----------------------------------------'
                   '\n\nThe following patches are included in this bundle:\n' +
-                  '\n'.join(f'- {p}' for p in patchFilenames) +
+                  '\n'.join(patchFilenameStrs) +
                   '\n\nInstructions:'
                   '\n-------------------------------\n' +
                   ''.join(p.readmeStr() for p in config.patches) +

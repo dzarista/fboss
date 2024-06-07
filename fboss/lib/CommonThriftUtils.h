@@ -52,26 +52,38 @@ class ReconnectingThriftClient {
   enum class Priority : uint8_t { NORMAL, CRITICAL };
 
   struct ServerOptions {
-    ServerOptions(const std::string& dstIp, uint16_t dstPort)
-        : dstAddr(folly::SocketAddress(dstIp, dstPort)) {}
-
-    ServerOptions(const std::string& dstIp, uint16_t dstPort, std::string srcIp)
+    ServerOptions(
+        const std::string& dstIp,
+        uint16_t dstPort,
+        const std::optional<std::string>& deviceName = std::nullopt)
         : dstAddr(folly::SocketAddress(dstIp, dstPort)),
-          srcAddr(folly::SocketAddress(srcIp, 0)) {}
+          deviceName(deviceName.value_or(dstAddr.getAddressStr())) {}
 
     ServerOptions(
         const std::string& dstIp,
         uint16_t dstPort,
-        std::string srcIp,
-        Priority priority)
+        const std::string& srcIp,
+        const std::optional<std::string>& deviceName = std::nullopt)
         : dstAddr(folly::SocketAddress(dstIp, dstPort)),
           srcAddr(folly::SocketAddress(srcIp, 0)),
-          priority{priority} {}
+          deviceName(deviceName.value_or(dstAddr.getAddressStr())) {}
+
+    ServerOptions(
+        const std::string& dstIp,
+        uint16_t dstPort,
+        const std::string& srcIp,
+        Priority priority,
+        const std::optional<std::string>& deviceName = std::nullopt)
+        : dstAddr(folly::SocketAddress(dstIp, dstPort)),
+          srcAddr(folly::SocketAddress(srcIp, 0)),
+          priority{priority},
+          deviceName(deviceName.value_or(dstAddr.getAddressStr())) {}
 
     folly::SocketAddress dstAddr;
     std::string fsdbPort;
     std::optional<folly::SocketAddress> srcAddr;
     std::optional<Priority> priority;
+    std::string deviceName;
   };
 
   ReconnectingThriftClient(
@@ -105,6 +117,7 @@ class ReconnectingThriftClient {
   virtual void resetClient() = 0;
   bool isCancelled() const;
   bool isConnectedToServer() const;
+  virtual void onCancellation() = 0;
 
  protected:
   virtual void setState(State state);

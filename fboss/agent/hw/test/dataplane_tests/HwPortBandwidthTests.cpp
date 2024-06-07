@@ -12,10 +12,10 @@
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
 
 #include <boost/range/combine.hpp>
 #include <folly/IPAddress.h>
@@ -30,16 +30,10 @@ class HwPortBandwidthTest : public HwLinkStateDependentTest {
         getAsic()->desiredLoopbackModes());
 
     if (isSupported(HwAsic::Feature::L3_QOS)) {
-      auto streamType =
-          *(getPlatform()
-                ->getAsic()
-                ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
-                .begin());
-      utility::addOlympicQueueConfig(
-          &cfg, streamType, getPlatform()->getAsic());
-      utility::addOlympicQosMaps(cfg, getPlatform()->getAsic());
+      utility::addOlympicQueueConfig(&cfg, getHwSwitchEnsemble()->getL3Asics());
+      utility::addOlympicQosMaps(cfg, getHwSwitchEnsemble()->getL3Asics());
     }
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     return cfg;
   }
 
@@ -62,7 +56,7 @@ class HwPortBandwidthTest : public HwLinkStateDependentTest {
   void disableTTLDecrements(
       const utility::EcmpSetupTargetedPorts6& ecmpHelper) {
     utility::ttlDecrementHandlingForLoopbackTraffic(
-        getHwSwitch(),
+        getHwSwitchEnsemble(),
         ecmpHelper.getRouterId(),
         ecmpHelper.nhop(PortDescriptor(masterLogicalInterfacePortIds()[0])));
   }
@@ -120,7 +114,7 @@ class HwPortBandwidthTest : public HwLinkStateDependentTest {
   }
 
   uint8_t kQueueId0Dscp(const HwAsic* hwAsic) const {
-    return utility::kOlympicQueueToDscp(hwAsic).at(kQueueId0()).front();
+    return utility::kOlympicQueueToDscp().at(kQueueId0()).front();
   }
 
   uint32_t kMinPps() const {
@@ -136,7 +130,7 @@ class HwPortBandwidthTest : public HwLinkStateDependentTest {
   }
 
   uint8_t kQueueId1Dscp(const HwAsic* hwAsic) const {
-    return utility::kOlympicQueueToDscp(hwAsic).at(kQueueId1()).front();
+    return utility::kOlympicQueueToDscp().at(kQueueId1()).front();
   }
 
   uint32_t kMinKbps() const {
@@ -334,6 +328,7 @@ void HwPortBandwidthTest::verifyQueueShaper() {
         utility::kQueueConfigBurstSizeMaxKb);
     utility::addQueueWredConfig(
         &newCfg,
+        {getPlatform()->getAsic()},
         kQueueId0(),
         utility::kQueueConfigAqmsWredThresholdMinMax,
         utility::kQueueConfigAqmsWredThresholdMinMax,
@@ -341,6 +336,7 @@ void HwPortBandwidthTest::verifyQueueShaper() {
         isVoq);
     utility::addQueueEcnConfig(
         &newCfg,
+        {getPlatform()->getAsic()},
         kQueueId0(),
         utility::kQueueConfigAqmsEcnThresholdMinMax,
         utility::kQueueConfigAqmsEcnThresholdMinMax,

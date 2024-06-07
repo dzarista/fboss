@@ -170,8 +170,19 @@ void LldpManager::sendLldpOnAllPorts() {
   std::shared_ptr<SwitchState> state = sw_->getState();
   for (const auto& portMap : std::as_const(*state->getPorts())) {
     for (const auto& port : std::as_const(*portMap.second)) {
-      if (port.second->getPortType() == cfg::PortType::INTERFACE_PORT &&
-          port.second->isPortUp()) {
+      bool sendLldp = false;
+      switch (port.second->getPortType()) {
+        case cfg::PortType::INTERFACE_PORT:
+        case cfg::PortType::MANAGEMENT_PORT:
+          sendLldp = true;
+          break;
+        case cfg::PortType::FABRIC_PORT:
+        case cfg::PortType::CPU_PORT:
+        case cfg::PortType::RECYCLE_PORT:
+        case cfg::PortType::EVENTOR_PORT:
+          break;
+      }
+      if (sendLldp && port.second->isPortUp()) {
         sendLldpInfo(port.second);
       } else {
         XLOG(DBG5) << "Skipping LLDP send on port: " << port.second->getID();
@@ -335,10 +346,30 @@ std::unique_ptr<TxPacket> LldpManager::createLldpPkt(
     const std::string& portdesc,
     const uint16_t ttl,
     const uint16_t capabilities) {
+  return createLldpPkt(
+      [sw](uint32_t size) { return sw->allocatePacket(size); },
+      macaddr,
+      vlanID,
+      hostname,
+      portname,
+      portdesc,
+      ttl,
+      capabilities);
+}
+
+std::unique_ptr<TxPacket> LldpManager::createLldpPkt(
+    const facebook::fboss::utility::AllocatePktFn& allocatePacket,
+    const MacAddress macaddr,
+    const std::optional<VlanID>& vlanID,
+    const std::string& hostname,
+    const std::string& portname,
+    const std::string& portdesc,
+    const uint16_t ttl,
+    const uint16_t capabilities) {
   static std::string lldpSysDescStr("FBOSS");
   uint32_t frameLen = LldpPktSize(hostname, portname, portdesc, lldpSysDescStr);
 
-  auto pkt = sw->allocatePacket(frameLen);
+  auto pkt = allocatePacket(frameLen);
   fillLldpTlv(
       pkt.get(),
       macaddr,
@@ -351,7 +382,6 @@ std::unique_ptr<TxPacket> LldpManager::createLldpPkt(
       capabilities);
   return pkt;
 }
-
 void LldpManager::sendLldpInfo(const std::shared_ptr<Port>& port) {
   PortID thisPortID = port->getID();
   auto switchId = sw_->getScopeResolver()->scope(thisPortID).switchId();
@@ -381,8 +411,7 @@ void LldpManager::sendLldpInfo(const std::shared_ptr<Port>& port) {
   sw_->sendNetworkControlPacketAsync(
       std::move(pkt), PortDescriptor(thisPortID));
 
-  XLOG(DBG4) << "sent LLDP "
-             << " on port " << port->getID() << " with CPU MAC "
+  XLOG(DBG4) << "sent LLDP " << " on port " << port->getID() << " with CPU MAC "
              << cpuMac.toString() << " port id " << port->getName()
              << " and vlan " << port->getIngressVlan();
 }

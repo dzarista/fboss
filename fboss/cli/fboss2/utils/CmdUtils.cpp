@@ -175,7 +175,7 @@ bool comparePortName(
 bool compareSystemPortName(
     const std::basic_string<char>& nameA,
     const std::basic_string<char>& nameB) {
-  static const RE2 exp("([^:]+):([a-z][a-z][a-z])(\\d+)/(\\d+)/(\\d)");
+  static const RE2 exp("([^:]+):([a-z][a-z][a-z])(\\d+)/(\\d+)/(\\d+)");
   std::string switchNameA, moduleNameA, moduleNumStrA, portNumStrA,
       subportNumStrA;
   std::string switchNameB, moduleNameB, moduleNumStrB, portNumStrB,
@@ -191,7 +191,7 @@ bool compareSystemPortName(
     throw std::invalid_argument(folly::to<std::string>(
         "Invalid port name: ",
         nameA,
-        "\nPort name must match 'moduleNum/port/subport' pattern"));
+        "\nSystemPort name must match 'moduleNum/port/subport' pattern"));
   }
 
   if (!RE2::FullMatch(
@@ -205,7 +205,7 @@ bool compareSystemPortName(
     throw std::invalid_argument(folly::to<std::string>(
         "Invalid port name: ",
         nameB,
-        "\nPort name must match 'moduleNum/port/subport' pattern"));
+        "\nSystemPort name must match 'moduleNum/port/subport' pattern"));
   }
 
   int ret;
@@ -258,7 +258,7 @@ std::string getCmdToRun(const std::string& hostname, const std::string& cmd) {
 }
 
 std::string runCmd(const std::string& cmd) {
-  std::array<char, 1024> buffer;
+  std::array<char, 4096> buffer;
   std::string result;
   std::unique_ptr<FILE, decltype(&pclose)> pipe(
       popen(cmd.c_str(), "r"), pclose);
@@ -303,6 +303,21 @@ std::string getSubscriptionPathStr(const fsdb::OperSubscriberInfo& subscriber) {
     extPaths.push_back(folly::join("/", pathElements));
   }
   return folly::join(";", extPaths);
+}
+
+std::map<int16_t, std::vector<std::string>> getSwitchIndicesForInterfaces(
+    const HostInfo& hostInfo,
+    const std::vector<std::string>& interfaces) {
+  std::map<int16_t, std::vector<std::string>> switchIndicesForInterfaces;
+  try {
+    auto agentClient =
+        utils::createClient<apache::thrift::Client<FbossCtrl>>(hostInfo);
+    agentClient->sync_getSwitchIndicesForInterfaces(
+        switchIndicesForInterfaces, interfaces);
+  } catch (const std::exception& e) {
+    std::cerr << e.what();
+  }
+  return switchIndicesForInterfaces;
 }
 
 } // namespace facebook::fboss::utils

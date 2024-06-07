@@ -47,7 +47,6 @@ class SaiPlatform : public Platform, public StateObserver {
 
   HwSwitch* getHwSwitch() const override;
   void onHwInitialized(HwSwitchCallback* sw) override;
-  void onInitialConfigApplied(HwSwitchCallback* sw) override;
   std::shared_ptr<apache::thrift::AsyncProcessorFactory> createHandler()
       override;
   TransceiverIdxThrift getPortMapping(PortID port, cfg::PortProfileID profileID)
@@ -60,7 +59,6 @@ class SaiPlatform : public Platform, public StateObserver {
   std::string getHwConfigDumpFile();
   void generateHwConfigFile();
   virtual sai_service_method_table_t* getServiceMethodTable() const;
-  void stop() override;
   HwSwitchWarmBootHelper* getWarmBootHelper() override;
   void stateUpdated(const StateDelta& delta) override;
 
@@ -116,7 +114,7 @@ class SaiPlatform : public Platform, public StateObserver {
   }
 
   /*
-   * Based on the switch types: regular switch vs phy, some apis might not be
+   * Based on the switch types: regular switch vs phy, some APIs might not be
    * supported.
    * The default apis list for these two different asic types are just based
    * on our current experience. Eventually we will use getSupportedApiList()
@@ -140,6 +138,8 @@ class SaiPlatform : public Platform, public StateObserver {
       const;
 
   std::string getHwAsicConfig();
+
+  void stateChanged(const StateDelta& delta) override;
 
  protected:
   std::unique_ptr<SaiSwitch> saiSwitch_;

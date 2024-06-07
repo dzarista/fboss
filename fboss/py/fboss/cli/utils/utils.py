@@ -210,6 +210,61 @@ def get_vlan_port_map(
     return vlan_port_map
 
 
+@retryable(num_tries=3, sleep_time=0.1)
+def get_system_port_map(
+    agent_client, qsfp_client, colors=True, details=True
+) -> DefaultDict[str, DefaultDict[str, List[str]]]:
+    """fetch port info and map vlan -> ports"""
+    all_port_info_map = agent_client.getAllPortInfo()
+    port_status_map = agent_client.getPortStatus()
+    sys_ports = agent_client.getSystemPorts()
+    dsf_nodes = agent_client.getDsfNodes()
+    qsfp_info_map = get_qsfp_info_map(qsfp_client, None, continue_on_error=True)
+
+    sys_port_map: DefaultDict[str, DefaultDict[str, List[str]]] = defaultdict(
+        lambda: defaultdict(lambda: [])
+    )
+    for sys_port in sys_ports.values():
+        sysPortRange = dsf_nodes[sys_port.switchId].systemPortRange
+        port_id = sys_port.portId - sysPortRange.minimum
+        port = all_port_info_map[port_id]
+        port_status = port_status_map.get(port.portId)
+        enabled = port_status.enabled
+        up = port_status.up
+        speed = int(port_status.speedMbps / 1000)
+        fab_port = "fab" in port.name
+
+        if port_status.transceiverIdx:
+            channels = port_status.transceiverIdx.channels
+            qsfp_id = port_status.transceiverIdx.transceiverId
+        else:
+            channels = []
+            qsfp_id = None
+
+        # galaxy fab ports have no transceiver
+        qsfp_info = qsfp_info_map.get(qsfp_id)
+        qsfp_present = qsfp_info.tcvrState.present if qsfp_info else False
+
+        port_summary = get_port_summary(
+            port.name,
+            channels,
+            qsfp_present,
+            fab_port,
+            enabled,
+            speed,
+            up,
+            colors,
+            details,
+        )
+
+        if not port_summary:
+            continue
+
+        sys_port_map[sys_port.portId][port.name].append(port_summary)
+
+    return sys_port_map
+
+
 def get_port_summary(
     port_name: str,
     channels: List[int],
@@ -223,7 +278,7 @@ def get_port_summary(
 ) -> str:
     """build the port summary output taking into account various state"""
     COLOR_RED, COLOR_GREEN, COLOR_RESET = get_colors() if colors else ("", "", "")
-    port_speed_display = get_port_speed_display(speed, enabled, up) if details else ""
+    port_speed_display = get_port_speed_display(speed) if details else ""
     # port has channels assigned with sfp present or fab port, is enabled/up
     if ((channels and qsfp_present) or fab_port) and enabled and up:
         return f"{COLOR_GREEN}{port_name}{COLOR_RESET} {port_speed_display}"
@@ -237,17 +292,8 @@ def get_port_summary(
     return ""
 
 
-def get_port_speed_display(speed, enabled, up):
-    if not enabled:
-        return ""
-    if enabled and not up:
-        return "()"
-    if enabled and up:
-        return f"({speed}G)"
-
-    raise RuntimeError(
-        f"Invalid port state: speed - {speed}, enabled - {enabled}, up - {up}"
-    )
+def get_port_speed_display(speed):
+    return f"({speed}G)"
 
 
 @retryable(num_tries=3, sleep_time=0.1)
@@ -350,9 +396,9 @@ def fboss2_deprecate(fboss2_cmd: str, notes="", level=DeprecationLevel.WARN):
                     fboss2_warning.format(
                         fboss2_cmd=fboss2_cmd,
                         notes=extra_notes,
-                        status=f"{TTY_RED}disabled{TTY_RESET}"
-                        if removed
-                        else "deprecated",
+                        status=(
+                            f"{TTY_RED}disabled{TTY_RESET}" if removed else "deprecated"
+                        ),
                     ),
                     file=sys.stderr,
                 )

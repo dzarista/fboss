@@ -11,8 +11,8 @@ Source: %{expand:%%(pwd)}
 %define _fboss_yamp_dir fboss.git/arista/platform/yamp
 %define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
 
-%define _fboss_target_share %{buildroot}/opt/fboss/share
-%define _fboss_target_var %{buildroot}/var/facebook/fboss/
+%define _fboss_target_share %{root}/%{buildroot}/opt/fboss/share
+%define _fboss_target_var %{root}/%{buildroot}/var/facebook/fboss/
 
 %description
 This package provides platform-specific utilities to run Meta FBOSS OSS on Arista

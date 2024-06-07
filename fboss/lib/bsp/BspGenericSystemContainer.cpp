@@ -3,7 +3,7 @@
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
 #include <folly/FileUtil.h>
 #include <folly/Singleton.h>
-#include "fboss/lib/bsp/janga/JangaBspPlatformMapping.h"
+#include "fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bia/Meru400biaBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400biu/Meru400biuBspPlatformMapping.h"
@@ -11,6 +11,7 @@
 #include "fboss/lib/bsp/meru800bia/Meru800biaBspPlatformMapping.h"
 #include "fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.h"
 #include "fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.h"
+#include "fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.h"
 
 DEFINE_string(
     bsp_platform_mapping_override_path,
@@ -21,9 +22,11 @@ namespace facebook {
 namespace fboss {
 
 template <typename T>
-BspPlatformMapping* BspGenericSystemContainer<T>::initBspPlatformMapping() {
+std::unique_ptr<BspPlatformMapping>
+BspGenericSystemContainer<T>::initBspPlatformMapping() {
   std::string platformMappingStr;
-  if (!FLAGS_bsp_platform_mapping_override_path.empty()) {
+  bool mappingOverride = !FLAGS_bsp_platform_mapping_override_path.empty();
+  if (mappingOverride) {
     if (!folly::readFile(
             FLAGS_bsp_platform_mapping_override_path.data(),
             platformMappingStr)) {
@@ -33,10 +36,11 @@ BspPlatformMapping* BspGenericSystemContainer<T>::initBspPlatformMapping() {
     XLOG(INFO) << "Overriding BSP platform mapping from "
                << FLAGS_bsp_platform_mapping_override_path;
   }
-  bspPlatformMapping_ = FLAGS_bsp_platform_mapping_override_path.empty()
-      ? new T()
-      : new T(platformMappingStr);
-  return bspPlatformMapping_;
+  if (mappingOverride) {
+    return std::make_unique<T>(platformMappingStr);
+  }
+
+  return std::make_unique<T>();
 }
 
 using Meru400bfuSystemContainer =
@@ -101,11 +105,23 @@ std::shared_ptr<Morgan800ccSystemContainer>
 Morgan800ccSystemContainer::getInstance() {
   return _morgan800ccSystemContainer.try_get();
 }
-using JangaSystemContainer = BspGenericSystemContainer<JangaBspPlatformMapping>;
-folly::Singleton<JangaSystemContainer> _jangaSystemContainer;
+
+using Janga800bicSystemContainer =
+    BspGenericSystemContainer<Janga800bicBspPlatformMapping>;
+folly::Singleton<Janga800bicSystemContainer> _janga800bicSystemContainer;
 template <>
-std::shared_ptr<JangaSystemContainer> JangaSystemContainer::getInstance() {
-  return _jangaSystemContainer.try_get();
+std::shared_ptr<Janga800bicSystemContainer>
+Janga800bicSystemContainer::getInstance() {
+  return _janga800bicSystemContainer.try_get();
+}
+
+using Tahan800bcSystemContainer =
+    BspGenericSystemContainer<Tahan800bcBspPlatformMapping>;
+folly::Singleton<Tahan800bcSystemContainer> _tahan800bcSystemContainer;
+template <>
+std::shared_ptr<Tahan800bcSystemContainer>
+Tahan800bcSystemContainer::getInstance() {
+  return _tahan800bcSystemContainer.try_get();
 }
 
 } // namespace fboss

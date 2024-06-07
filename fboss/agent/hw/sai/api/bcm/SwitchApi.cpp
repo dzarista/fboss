@@ -67,11 +67,37 @@ std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
   return std::nullopt;
 }
 
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeSdkBootTimeWrapper::operator()() {
+  return SAI_SWITCH_ATTR_CUSTOM_RANGE_START + 1;
+}
+
 const std::vector<sai_stat_id_t>& SaiSwitchTraits::dramStats() {
 #if defined(BRCM_SAI_SDK_DNX)
   static const std::vector<sai_stat_id_t> stats{
       SAI_SWITCH_STAT_DEVICE_DRAM_ENQUEUED_BYTES,
       SAI_SWITCH_STAT_DEVICE_DRAM_DEQUEUED_BYTES};
+#else
+  static const std::vector<sai_stat_id_t> stats;
+#endif
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::rciWatermarkStats() {
+#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+  static const std::vector<sai_stat_id_t> stats{
+      SAI_SWITCH_STAT_DEVICE_RCI_WATERMARK_BYTES,
+      SAI_SWITCH_STAT_DEVICE_CORE_RCI_WATERMARK_BYTES};
+#else
+  static const std::vector<sai_stat_id_t> stats;
+#endif
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::dtlWatermarkStats() {
+#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+  static const std::vector<sai_stat_id_t> stats{
+      SAI_SWITCH_STAT_HIGHEST_QUEUE_CONGESTION_LEVEL};
 #else
   static const std::vector<sai_stat_id_t> stats;
 #endif

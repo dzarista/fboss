@@ -267,6 +267,40 @@ void RibRouteTables::reconfigure(
   }
 }
 
+void RibRouteTables::reconfigureRemoteInterfaceRoutes(
+    const SwitchIdScopeResolver* resolver,
+    const RouterIDAndNetworkToInterfaceRoutes& routerIDToRemoteInterfaceRoutes,
+    const FibUpdateFunction& fibUpdateCallback,
+    void* cookie) {
+  for (auto& vrf : getVrfList()) {
+    std::vector<RibRouteUpdater::RouteEntry> interfaceRoutes;
+    const auto& iter = routerIDToRemoteInterfaceRoutes.find(vrf);
+    if (iter != routerIDToRemoteInterfaceRoutes.end()) {
+      for (const auto& [network, interfaceIDAndAddr] : iter->second) {
+        auto interfaceID = interfaceIDAndAddr.first;
+        auto address = interfaceIDAndAddr.second;
+        ResolvedNextHop resolvedNextHop(
+            address, interfaceID, UCMP_DEFAULT_WEIGHT);
+        RouteNextHopEntry nextHop(
+            static_cast<NextHop>(resolvedNextHop),
+            AdminDistance::DIRECTLY_CONNECTED);
+        interfaceRoutes.emplace_back(network, nextHop);
+      }
+      updateRib(vrf, [&](auto& routeTable) {
+        RibRouteUpdater updater(
+            &(routeTable.v4NetworkToRoute),
+            &(routeTable.v6NetworkToRoute),
+            &(routeTable.labelToRoute));
+        updater.update(
+            {{ClientID::REMOTE_INTERFACE_ROUTE, interfaceRoutes}},
+            {},
+            {ClientID::REMOTE_INTERFACE_ROUTE});
+      });
+      updateFib(resolver, vrf, fibUpdateCallback, cookie);
+    }
+  }
+}
+
 template <typename RouteType, typename RouteIdType>
 void RibRouteTables::update(
     const SwitchIdScopeResolver* resolver,
@@ -481,6 +515,19 @@ void RoutingInformationBase::reconfigure(
   ribUpdateEventBase_.runInEventBaseThreadAndWait(updateFn);
 }
 
+void RoutingInformationBase::reconfigureRemoteInterfaceRoutes(
+    const SwitchIdScopeResolver* resolver,
+    const RouterIDAndNetworkToInterfaceRoutes& routerIDToRemoteInterfaceRoutes,
+    const FibUpdateFunction& fibUpdateCallback,
+    void* cookie) {
+  ensureRunning();
+  auto updateFn = [&] {
+    ribTables_.reconfigureRemoteInterfaceRoutes(
+        resolver, routerIDToRemoteInterfaceRoutes, fibUpdateCallback, cookie);
+  };
+  ribUpdateEventBase_.runInEventBaseThreadAndWait(updateFn);
+}
+
 template <typename TraitsType>
 RoutingInformationBase::UpdateStatistics RoutingInformationBase::updateImpl(
     const SwitchIdScopeResolver* resolver,
@@ -531,7 +578,7 @@ RoutingInformationBase::UpdateStatistics RoutingInformationBase::updateImpl(
           updateType,
           fibUpdateCallback,
           cookie);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
       updateException = std::current_exception();
     }
   };

@@ -16,14 +16,13 @@
 #include <memory>
 #include <unordered_map>
 #include "fboss/agent/AgentDirectoryUtil.h"
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/PlatformPort.h"
 #include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/if/gen-cpp2/ctrl_types.h"
 #include "fboss/agent/platforms/common/PlatformMapping.h"
 #include "fboss/agent/types.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
-
-DECLARE_bool(hide_fabric_ports);
 
 DECLARE_int32(switchIndex);
 
@@ -38,6 +37,7 @@ class HwAsic;
 class HwSwitchWarmBootHelper;
 class PlatformProductInfo;
 class HwSwitchCallback;
+class StateDelta;
 
 /*
  * Platform represents a specific switch/router platform.
@@ -77,12 +77,6 @@ class Platform {
       std::unique_ptr<AgentConfig> config,
       uint32_t hwFeaturesDesired,
       int16_t switchIndex);
-
-  /*
-   * Allows the platorm to run any necessary cleanup steps like
-   * stopping threads.
-   */
-  virtual void stop() = 0;
 
   /*
    * Two ways to get the configuration of the switch. config() will
@@ -158,13 +152,6 @@ class Platform {
    * HwSwitch can be performed here.
    */
   virtual void onHwInitialized(HwSwitchCallback* sw) = 0;
-
-  /*
-   * onInitialConfigApplied() will be called after the initial
-   * configuration has been applied.  Platform-specific initialization
-   * that needs to happen after this can be performed here.
-   */
-  virtual void onInitialConfigApplied(HwSwitchCallback* sw) = 0;
 
   /*
    * Create the handler for HwSwitch service
@@ -268,6 +255,8 @@ class Platform {
               folly::to<std::string>("switch.", FLAGS_switchIndex, "."))
         : std::optional<std::string>();
   }
+
+  virtual void stateChanged(const StateDelta& delta) = 0;
 
  private:
   /*

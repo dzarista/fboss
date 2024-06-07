@@ -17,7 +17,7 @@ if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
    FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
 fi
 
-DEFAULT_CENTOS_RELEASE="8"
+DEFAULT_CENTOS_RELEASE="9"
 if [[ -z "${CENTOS_RELEASE}" ]]; then
    echo "No Centos release defined in environment, using Centos${DEFAULT_CENTOS_RELEASE}"
    CENTOS_RELEASE="${DEFAULT_CENTOS_RELEASE}"
@@ -110,32 +110,48 @@ maybe_setup_build_env() {
    git clone git@github.com:aristanetworks/Aqua_SAI.git
    cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
-   git checkout Arista-SAI_11.0.0.4_EA
+   git checkout eos-trunk
    # Use patch0-Jupiter-SAI-Makefile.patch w/SAI < 10.0.0
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
-   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/sdk_6.5.29_dnx.1_SAI_11.0.0_EA"
-   wget http://dist/storage/fboss/FBOSS-SAI/sai-sdk-all-6.5.29-dnx.1-68459b9ee.tar.xz
-   tar -xf sai-sdk-all-6.5.29-dnx.1-68459b9ee.tar.xz
+   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA"
+   sdk_file="sai-sdk-all-6.5.30-84b4f2be3.tar.xz"
+   wget http://dist/storage/fboss/FBOSS-SAI/$sdk_file
+   tar -xf "$sdk_file"
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29
-   wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_29_DNX_Kernel_Module_fixes.patch
-   patch "sdk-6.5.29-dnx.1-gpl-modules/make/Make.config" < patch3-SDK-6_5_29_DNX_Kernel_Module_fixes.patch
+   wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
+   patch "dnx-sdk-6.5.30-gpl-modules/make/Make.config" < patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
    # Patch to skip check for proto R3 ASICs.
    wget http://dist/storage/fboss/FBOSS-SAI/patch11-SDK-6_5_29-Ramon3-proto-fix.patch
-   patch "sdk-6.5.29-dnx.1/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
+   patch "hsdk-all-6.5.30/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
+   # Patch to rename get_time for centos9 build (collides with the same symbol in
+   # iproute2)
+   wget http://dist/storage/fboss/FBOSS-SAI/patch12-SDK-6_5_29-get_time-symbol-fix.patch
+   patch "hsdk-all-6.5.30/src/appl/diag/gdpll.c" -p1 < patch12-SDK-6_5_29-get_time-symbol-fix.patch
 
-   # If kernel is newer than 4.18, need to patch ksal.c for compatibility with newer kernel.
-   if [[ "${FBOSS_LINUX_KERNEL}" != "4.18" ]]; then
-      wget http://dist/storage/fboss/FBOSS-SAI/patch5-SAI-ksal-SDK-6_5_29.dnx.1.patch
-      patch -p1 < patch5-SAI-ksal-SDK-6_5_29.dnx.1.patch
-   fi
+   # Patch bcm-knet.c kernel module to workaround some missing netdev_* API calls in
+   # the kernel we are building. Should be available in the 6.x kernels.
+   # TODO : get rid of this patch when we switch to 6.x kernel.
+   wget http://dist/storage/fboss/FBOSS-SAI/patch15-SDK-6_5_30_SP1_bcm-knet-build-fixes.patch
+   patch "dnx-sdk-6.5.30-gpl-modules/systems/linux/kernel/modules/bcm-knet/bcm-knet.c" < patch15-SDK-6_5_30_SP1_bcm-knet-build-fixes.patch
 
    # Kernel 5.19 patches.
    if [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]]; then
       # We need to fix some conflicting build options and fix the linux-user-bde Makefile
       # to support NO_PRECOMPILED_MODULE=1.
-      wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post-SDK-6_5_29.dnx.1.patch
-      patch -p1 < patch9-SDK-5.19-post-SDK-6_5_29.dnx.1.patch
+      wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post-SDK-6_5_30.patch
+      patch -p1 < patch9-SDK-5.19-post-SDK-6_5_30.patch
+   fi
+
+   # Centos 9 build related patches and deps
+   if [[ "${CENTOS_RELEASE}" == "9" ]];
+   then
+      wget http://dist/storage/fboss/FBOSS-SAI/el9/CS00012328096_01_fixes_to_compile_on_Centos9_SDK_6_5_30_SP3.patch
+      patch -p1 < CS00012328096_01_fixes_to_compile_on_Centos9_SDK_6_5_30_SP3.patch
+      # Copy some deps required for centos 9 build
+      # libnsl.a needs to be copied over to /usr/lib64 in the container.
+      cd "${FBOSS_HOST_DIR}"
+      wget http://dist/storage/fboss/FBOSS-SAI/el9/libnsl.a
    fi
 
    # Download FBOSS linux header files.
@@ -180,6 +196,8 @@ enter_container_shell() {
 do_build() {
    setup
    run_cmd_container bash build.sh $@ --kernel "${FBOSS_LINUX_KERNEL}"
+   # Restore files that have potentially been clobbered by the FBOSS build process.
+   git -C "$FBOSS_REPO_DIR" restore "build/*"
 }
 
 do_package() {

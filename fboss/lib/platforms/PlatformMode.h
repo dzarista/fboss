@@ -78,12 +78,16 @@ inline std::string toString(PlatformType mode) {
       return "MERU800BIA";
     case PlatformType::PLATFORM_MERU800BFA:
       return "MERU800BFA";
+    case PlatformType::PLATFORM_MERU800BFA_P1:
+      return "MERU800BFA_P1";
     case PlatformType::PLATFORM_MORGAN800CC:
-      return "MORGAN800_CC";
+      return "MORGAN800CC";
     case PlatformType::PLATFORM_FAKE_SAI:
       return "FAKE_SAI";
-    case PlatformType::PLATFORM_JANGA:
-      return "JANGA";
+    case PlatformType::PLATFORM_JANGA800BIC:
+      return "JANGA800BIC";
+    case PlatformType::PLATFORM_TAHAN800BC:
+      return "TAHAN800BC";
   }
   throw std::runtime_error("Unknown mode");
   return "Unknown";

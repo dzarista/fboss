@@ -22,8 +22,9 @@
 #include "fboss/agent/test/ResourceLibUtil.h"
 #include "fboss/lib/FunctionCallTimeReporter.h"
 
-#include "fboss/agent/benchmarks/AgentBenchmarks.h"
-#include "fboss/agent/test/MonoAgentEnsemble.h"
+#include "fboss/agent/test/AgentEnsemble.h"
+
+DECLARE_bool(json);
 
 namespace facebook::fboss {
 
@@ -38,30 +39,22 @@ void routeAddDelBenchmarker(bool measureAdd) {
   folly::BenchmarkSuspender suspender;
   AgentEnsembleSwitchConfigFn initialConfigFn =
       [](const AgentEnsemble& ensemble) {
-        // Before m-mpu agent test, use first Asic for initialization.
-        auto switchIds = ensemble.getSw()->getHwAsicTable()->getSwitchIDs();
-        CHECK_GE(switchIds.size(), 1);
-        auto asic =
-            ensemble.getSw()->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
         return utility::onePortPerInterfaceConfig(
-            ensemble.getSw()->getPlatformMapping(),
-            asic,
-            ensemble.masterLogicalPortIds(),
-            asic->desiredLoopbackModes());
+            ensemble.getSw(), ensemble.masterLogicalPortIds());
       };
   auto ensemble = createAgentEnsemble(initialConfigFn);
   auto* sw = ensemble->getSw();
 
   auto routeGenerator = RouteScaleGeneratorT(sw->getState());
-  // TODO(zecheng): Deprecate ensemble access to platform
-  auto platform =
-      static_cast<MonolithicAgentInitializer*>(ensemble->agentInitializer())
-          ->platform();
-  if (!routeGenerator.isSupported(platform->getType())) {
+  auto swSwitch = ensemble->agentInitializer()->sw();
+  auto platformType = swSwitch->getPlatformType();
+  if (!routeGenerator.isSupported(platformType)) {
     // skip if this is not supported for a platform
     return;
   }
-  ensemble->applyNewState(routeGenerator.resolveNextHops(sw->getState()));
+  ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+    return routeGenerator.resolveNextHops(in);
+  });
   const RouterID kRid(0);
   auto routeChunks = routeGenerator.getThriftRoutes();
   auto allThriftRoutes = routeGenerator.allThriftRoutes();

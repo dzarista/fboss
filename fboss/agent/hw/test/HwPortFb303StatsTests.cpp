@@ -10,6 +10,7 @@
 
 #include "fboss/agent/hw/HwPortFb303Stats.h"
 #include "fboss/agent/hw/StatsConstants.h"
+#include "fboss/agent/hw/gen-cpp2/hardware_stats_constants.h"
 
 #include <fb303/ServiceData.h>
 #include <folly/logging/xlog.h>
@@ -133,19 +134,43 @@ HwPortStats getInitedStats() {
       {{1, 5}, {2, 5}}, // queueWredDroppedPackets
       {{1, 6}, {2, 6}}, // queueEcnMarkedPackets
       0, // fecCorrectedBits_
+      {{0, 100}, {1, 10}, {2, 1}}, // fecCodewords
+      26, // pqpErrorEgressDroppedPackets_
+      27, // fabricLinkDownDroppedCells_
       0, // timestamp
       "test", // portName
       macsecStats,
       24, // inLabelMissDiscards_
       {}, // queueWatermarkLevel
-      25 // inCongestionDiscards
+      0, // inCongestionDiscards - unused
+      26, // inAclDiscards
+      27, // inTrapDiscards
+      28, // outForwardingDiscards
+      0, // fabricConnectivityMismatch
+      1, // logicalPortId
+      2, // leakyBucketFlapCount_
   };
 }
 
-void updateStats(HwPortFb303Stats& portStats) {
-  auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
+HwPortStats resetOptionals(HwPortStats stats) {
+  stats.macsecStats().reset();
+  stats.inAclDiscards_().reset();
+  stats.inTrapDiscards_().reset();
+  stats.outForwardingDiscards_().reset();
+  return stats;
+}
+
+HwPortStats getInitedStatsSansOptionals() {
+  return resetOptionals(getInitedStats());
+}
+
+HwPortStats getEmptyStats() {
   // To get last increment from monotonic counter we need to update it twice
   HwPortStats empty{};
+  // Initialize the optionals, so we can see a delta when we update these with
+  // actual values
+  empty.inAclDiscards_() = 0;
+  empty.inTrapDiscards_() = 0;
   MacsecStats emptyMacsecStats{
       apache::thrift::FragileConstructor(),
       mka::MacsecPortStats{
@@ -214,7 +239,16 @@ void updateStats(HwPortFb303Stats& portStats) {
       *empty.queueOutBytes_() = *empty.queueOutPackets_() =
           *empty.queueWatermarkBytes_() = *empty.queueEcnMarkedPackets_() =
               *empty.queueWredDroppedPackets_() = {{1, 0}, {2, 0}};
-  portStats.updateStats(empty, now);
+  return empty;
+}
+
+HwPortStats getEmptyStatsSansOptionals() {
+  return resetOptionals(getEmptyStats());
+}
+
+void updateStats(HwPortFb303Stats& portStats) {
+  auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
+  portStats.updateStats(getEmptyStats(), now);
   portStats.updateStats(getInitedStats(), now);
 }
 
@@ -223,7 +257,10 @@ void verifyUpdatedStats(const HwPortFb303Stats& portStats) {
   for (auto counterName : portStats.kPortStatKeys()) {
     // +1 because first initialization is to -1
     auto actualVal = portStats.getCounterLastIncrement(
-        HwPortFb303Stats::statName(counterName, kPortName));
+        HwPortFb303Stats::statName(counterName, kPortName), 0);
+    if (actualVal == 0) {
+      continue;
+    }
     auto expectedVal = (curValue++) + 1;
     EXPECT_EQ(actualVal, expectedVal) << "failed for " << counterName;
     XLOG(DBG2) << counterName << ": " << actualVal << " " << expectedVal;
@@ -242,18 +279,20 @@ void verifyUpdatedStats(const HwPortFb303Stats& portStats) {
     ++curValue;
   }
   curValue = 1;
-  for (auto counterName : portStats.kInMacsecPortStatKeys()) {
-    EXPECT_EQ(
-        portStats.getCounterLastIncrement(
-            HwPortFb303Stats::statName(counterName, kPortName)),
-        curValue++);
-  }
-  curValue = 1;
-  for (auto counterName : portStats.kOutMacsecPortStatKeys()) {
-    EXPECT_EQ(
-        portStats.getCounterLastIncrement(
-            HwPortFb303Stats::statName(counterName, kPortName)),
-        curValue++);
+  if (portStats.portStats().macsecStats().has_value()) {
+    for (auto counterName : portStats.kInMacsecPortStatKeys()) {
+      EXPECT_EQ(
+          portStats.getCounterLastIncrement(
+              HwPortFb303Stats::statName(counterName, kPortName)),
+          curValue++);
+    }
+    curValue = 1;
+    for (auto counterName : portStats.kOutMacsecPortStatKeys()) {
+      EXPECT_EQ(
+          portStats.getCounterLastIncrement(
+              HwPortFb303Stats::statName(counterName, kPortName)),
+          curValue++);
+    }
   }
 }
 } // namespace
@@ -340,6 +379,14 @@ TEST(HwPortFb303StatsTest, ReInit) {
 TEST(HwPortFb303Stats, UpdateStats) {
   HwPortFb303Stats portStats(kPortName, kQueue2Name);
   updateStats(portStats);
+  verifyUpdatedStats(portStats);
+}
+
+TEST(HwPortFb303Stats, UpdateStatsSansOptionals) {
+  HwPortFb303Stats portStats(kPortName, kQueue2Name);
+  auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
+  portStats.updateStats(getEmptyStatsSansOptionals(), now);
+  portStats.updateStats(getInitedStatsSansOptionals(), now);
   verifyUpdatedStats(portStats);
 }
 

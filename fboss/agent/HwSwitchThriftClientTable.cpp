@@ -21,39 +21,25 @@
 
 #include <memory>
 
-namespace facebook::fboss {
-HwSwitchThriftClientTable::HwSwitchThriftClientTable(
-    int16_t basePort,
-    const std::map<int64_t, cfg::SwitchInfo>& switchIdToSwitchInfo) {
-  evbThread_ =
-      std::make_shared<folly::ScopedEventBaseThread>("HwSwitchCtrlClient");
-  for (const auto& [switchId, switchInfo] : switchIdToSwitchInfo) {
-    auto port = basePort + *switchInfo.switchIndex();
-    clients_.emplace(
-        SwitchID(switchId),
-        std::make_unique<apache::thrift::Client<FbossHwCtrl>>(
-            createClient(port)));
-  }
-}
+DEFINE_int32(hwswitch_query_timeout, 120, "Timeout for hw switch thrift query");
 
+namespace facebook::fboss {
 /*
  * Creates a reconnecting thrift client to query HwAgent. This does not
  * connect to server yet. The connection happens when the first thrift api
  * call is made
  */
-apache::thrift::Client<FbossHwCtrl> HwSwitchThriftClientTable::createClient(
-    int16_t port) {
+std::unique_ptr<apache::thrift::Client<FbossHwCtrl>> createFbossHwClient(
+    int16_t port,
+    std::shared_ptr<folly::ScopedEventBaseThread> evbThread) {
   auto reconnectingChannel =
       apache::thrift::PooledRequestChannel::newSyncChannel(
-          evbThread_, [this, port](folly::EventBase& evb) {
+          evbThread, [port, evbThread](folly::EventBase& evb) {
             return apache::thrift::RetryingRequestChannel::newChannel(
                 evb,
                 2, /*retries before error*/
                 apache::thrift::ReconnectingRequestChannel::newChannel(
-                    *evbThread_->getEventBase(),
-                    [port](
-                        folly::EventBase& evb,
-                        folly::AsyncSocket::ConnectCallback& /*cb*/) {
+                    *evbThread->getEventBase(), [port](folly::EventBase& evb) {
                       auto socket = folly::AsyncSocket::UniquePtr(
                           new folly::AsyncSocket(&evb));
                       socket->connect(
@@ -61,18 +47,33 @@ apache::thrift::Client<FbossHwCtrl> HwSwitchThriftClientTable::createClient(
                       auto channel =
                           apache::thrift::RocketClientChannel::newChannel(
                               std::move(socket));
+                      channel->setTimeout(FLAGS_hwswitch_query_timeout * 1000);
                       return channel;
                     }));
           });
-  return apache::thrift::Client<FbossHwCtrl>(std::move(reconnectingChannel));
+  return std::make_unique<apache::thrift::Client<FbossHwCtrl>>(
+      std::move(reconnectingChannel));
+}
+
+HwSwitchThriftClientTable::HwSwitchThriftClientTable(
+    int16_t basePort,
+    const std::map<int64_t, cfg::SwitchInfo>& switchIdToSwitchInfo) {
+  for (const auto& [switchId, switchInfo] : switchIdToSwitchInfo) {
+    auto evbThread = std::make_shared<folly::ScopedEventBaseThread>(
+        fmt::format("HwSwitchCtrlClient-{}", *switchInfo.switchIndex()));
+    auto port = basePort + *switchInfo.switchIndex();
+    clientInfos_.emplace(
+        SwitchID(switchId),
+        std::make_pair(createFbossHwClient(port, evbThread), evbThread));
+  }
 }
 
 apache::thrift::Client<FbossHwCtrl>* HwSwitchThriftClientTable::getClient(
     SwitchID switchId) {
-  if (clients_.find(switchId) == clients_.end()) {
+  if (clientInfos_.find(switchId) == clientInfos_.end()) {
     throw FbossError("No client found for switch ", switchId);
   }
-  return clients_.at(switchId).get();
+  return clientInfos_.at(switchId).first.get();
 }
 
 std::optional<std::map<::std::int64_t, FabricEndpoint>>
@@ -89,4 +90,57 @@ HwSwitchThriftClientTable::getFabricConnectivity(SwitchID switchId) {
   return reachability;
 }
 
+void HwSwitchThriftClientTable::clearHwPortStats(
+    SwitchID switchId,
+    std::vector<int32_t>& ports) {
+  auto client = getClient(switchId);
+  try {
+    client->sync_clearHwPortStats(ports);
+  } catch (const std::exception& ex) {
+    XLOG(ERR) << "Failed to clear ports for switch : " << switchId
+              << " error: " << ex.what();
+  }
+}
+
+void HwSwitchThriftClientTable::clearAllHwPortStats(SwitchID switchId) {
+  auto client = getClient(switchId);
+  try {
+    client->sync_clearAllHwPortStats();
+  } catch (const std::exception& ex) {
+    XLOG(ERR) << "Failed to clear ports for switch : " << switchId
+              << " error: " << ex.what();
+  }
+}
+
+void HwSwitchThriftClientTable::getHwL2Table(
+    SwitchID switchId,
+    std::vector<L2EntryThrift>& l2Table) {
+  auto client = getClient(switchId);
+  try {
+    client->sync_getHwL2Table(l2Table);
+  } catch (const std::exception& ex) {
+    XLOG(ERR) << "Failed to get l2 table for switch : " << switchId
+              << " error: " << ex.what();
+  }
+}
+
+std::string HwSwitchThriftClientTable::diagCmd(
+    SwitchID switchId,
+    const std::string& cmd,
+    const ClientInformation& clientInfo) {
+  auto client = getClient(switchId);
+  fbstring out;
+  try {
+    client->sync_diagCmd(
+        out,
+        cmd,
+        clientInfo,
+        0 /* serverTimeoutMsecs */,
+        false /* bypassFilter */);
+  } catch (const std::exception& ex) {
+    XLOG(ERR) << "Failed run diagCmd for switch : " << switchId
+              << " error: " << ex.what();
+  }
+  return out.toStdString();
+}
 } // namespace facebook::fboss

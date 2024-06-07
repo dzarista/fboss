@@ -31,7 +31,11 @@ std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
 }
 std::optional<sai_attr_id_t>
 SaiPortTraits::Attributes::AttributeSystemPortId::operator()() {
+#if defined(TAJO_SDK_EBRO)
   return SAI_PORT_ATTR_EXT_SYSTEM_PORT_ID;
+#else
+  return std::nullopt;
+#endif
 }
 std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
     AttributeRxAfeAdaptiveEnableWrapper::operator()() {
@@ -53,4 +57,10 @@ std::optional<sai_attr_id_t>
 SaiPortTraits::Attributes::AttributeFdrEnable::operator()() {
   return std::nullopt;
 }
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeCrcErrorDetect::operator()() {
+  return std::nullopt;
+}
+#endif
 } // namespace facebook::fboss

@@ -7,7 +7,6 @@ namespace facebook::fboss {
 
 bool Jericho3Asic::isSupported(Feature feature) const {
   switch (feature) {
-    case HwAsic::Feature::ECN:
     case HwAsic::Feature::SCHEDULER_PPS:
     case HwAsic::Feature::NEXTHOP_TTL_DECREMENT_DISABLE:
     case HwAsic::Feature::OBJECT_KEY_CACHE:
@@ -24,11 +23,9 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::EGRESS_MIRRORING:
     case HwAsic::Feature::EGRESS_SFLOW:
     case HwAsic::Feature::DEFAULT_VLAN:
-    case HwAsic::Feature::L2_LEARNING:
     case HwAsic::Feature::CPU_PORT:
     case HwAsic::Feature::VRF:
     case HwAsic::Feature::SAI_HASH_FIELDS_CLEAR_BEFORE_SET:
-    case HwAsic::Feature::ROUTE_COUNTERS:
     case HwAsic::Feature::SAI_WEIGHTED_NEXTHOPGROUP_MEMBER:
     case HwAsic::Feature::PORT_TX_DISABLE:
     case HwAsic::Feature::SAI_PORT_ERR_STATUS:
@@ -36,63 +33,67 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::FABRIC_PORTS:
     case HwAsic::Feature::LINK_TRAINING:
     case HwAsic::Feature::FEC:
-    case HwAsic::Feature::FEC_CORRECTED_BITS:
-    case HwAsic::Feature::SAI_FEC_COUNTERS:
     case HwAsic::Feature::SAI_TTL0_PACKET_FORWARD_ENABLE:
     case HwAsic::Feature::PMD_RX_LOCK_STATUS:
     case HwAsic::Feature::PMD_RX_SIGNAL_DETECT:
     case HwAsic::Feature::MEDIA_TYPE:
     case HwAsic::Feature::PORT_FABRIC_ISOLATE:
-    case HwAsic::Feature::QUEUE_ECN_COUNTER:
-    case HwAsic::Feature::SAI_ECN_WRED:
     case HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT:
     case HwAsic::Feature::SWITCH_DROP_STATS:
     case HwAsic::Feature::PACKET_INTEGRITY_DROP_STATS:
-    case HwAsic::Feature::LINK_STATE_BASED_ISOLATE:
     case HwAsic::Feature::SAI_CONFIGURE_SIX_TAP:
     case HwAsic::Feature::DRAM_ENQUEUE_DEQUEUE_STATS:
-    case HwAsic::Feature::DEBUG_COUNTER:
-    case HwAsic::Feature::CREDIT_WATCHDOG:
+    case HwAsic::Feature::RESOURCE_USAGE_STATS:
+    case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
+    case HwAsic::Feature::SAI_FEC_COUNTERS:
+    case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
+    case HwAsic::Feature::BLACKHOLE_ROUTE_DROP_COUNTER:
+    case HwAsic::Feature::ECN:
+    case HwAsic::Feature::SAI_ECN_WRED:
+    case HwAsic::Feature::QUEUE_ECN_COUNTER:
+    case HwAsic::Feature::MANAGEMENT_PORT:
+    case HwAsic::Feature::ANY_ACL_DROP_COUNTER:
+    case HwAsic::Feature::EGRESS_FORWARDING_DROP_COUNTER:
+    case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
+    case HwAsic::Feature::ACL_COUNTER_LABEL:
+    case HwAsic::Feature::ACL_COPY_TO_CPU:
+    case HwAsic::Feature::SWITCH_ATTR_INGRESS_ACL:
+    case HwAsic::Feature::ACL_TABLE_GROUP:
+    case HwAsic::Feature::ERSPANv4:
+    case HwAsic::Feature::ERSPANv6:
+    case HwAsic::Feature::RCI_WATERMARK_COUNTER:
+    case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
+    case HwAsic::Feature::SAI_PRBS:
+    case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
+    case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
+    case HwAsic::Feature::WARMBOOT:
+    case HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER:
+    case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
+    case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
+    case HwAsic::Feature::CRC_ERROR_DETECT:
+    case HwAsic::Feature::ACL_METADATA_QUALIFER:
+    case HwAsic::Feature::L3_MTU_ERROR_TRAP:
       return true;
-
-    // TODO fix once queue stats are available on J3
-    case HwAsic::Feature::L3_QOS:
-    case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
-    // TODO: Remove once rcy port stats work on J3
-    case HwAsic::Feature::RECYCLE_PORT_STATS:
-      return false;
-
+    // Features not expected to work on SIM
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
     case HwAsic::Feature::BUFFER_POOL:
     case HwAsic::Feature::PFC:
+    case HwAsic::Feature::PFC_XON_TO_XOFF_COUNTER:
     case HwAsic::Feature::SAI_PORT_SERDES_FIELDS_RESET:
     case HwAsic::Feature::VOQ:
     case HwAsic::Feature::FABRIC_TX_QUEUES:
     case HwAsic::Feature::VOQ_DELETE_COUNTER:
+    case HwAsic::Feature::L3_QOS:
+    case HwAsic::Feature::TC_TO_QUEUE_QOS_MAP_ON_SYSTEM_PORT:
+    case HwAsic::Feature::CREDIT_WATCHDOG:
+    case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
       return getAsicMode() != AsicMode::ASIC_MODE_SIM;
-    // FIXME - make true when J3-AI supports these features
-    // For now these are only supported on J3 SIM and J3 HW
-    // For HW we only run in J3-AI mode, hence marking these
-    // features as SIM only
-    case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
-    case HwAsic::Feature::ECMP_HASH_V4:
-    case HwAsic::Feature::ECMP_HASH_V6:
-    case HwAsic::Feature::TRAFFIC_HASHING:
-    case HwAsic::Feature::SWITCH_ATTR_INGRESS_ACL:
-    case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
-    case HwAsic::Feature::ACL_TABLE_GROUP:
-    case HwAsic::Feature::MULTIPLE_ACL_TABLES:
-    case HwAsic::Feature::ACL_COPY_TO_CPU:
-    case HwAsic::Feature::ACL_COUNTER_LABEL:
-    case HwAsic::Feature::RESOURCE_USAGE_STATS:
-    case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
-      return getAsicMode() == AsicMode::ASIC_MODE_SIM;
     // SIM specific features.
     case HwAsic::Feature::SAI_PORT_ETHER_STATS:
     case HwAsic::Feature::SLOW_STAT_UPDATE:
       // supported only on the SIM
       return getAsicMode() == AsicMode::ASIC_MODE_SIM;
-
+    case HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE:
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS:
     case HwAsic::Feature::SAI_LAG_HASH:
@@ -130,7 +131,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     // associate RIFs directly with ports. Hence no bridge port
     // is created (or supported for now).
     case HwAsic::Feature::BRIDGE_PORT_8021Q:
-    // TODO - get the features working on Jericho2 ASIC
     case HwAsic::Feature::FABRIC_PORT_MTU:
     case HwAsic::Feature::EXTENDED_FEC:
     case HwAsic::Feature::SAI_RX_REASON_COUNTER:
@@ -138,7 +138,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::XPHY_PORT_STATE_TOGGLE:
     case HwAsic::Feature::SAI_PORT_GET_PMD_LANES:
     case HwAsic::Feature::SAI_PORT_VCO_CHANGE:
-    case HwAsic::Feature::WARMBOOT:
     case HwAsic::Feature::ROUTE_METADATA:
     case HwAsic::Feature::FLOWLET:
     case HwAsic::Feature::P4_WARMBOOT:
@@ -154,19 +153,25 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
     case HwAsic::Feature::SAI_EAPOL_TRAP:
-    case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::PORT_EYE_VALUES:
     case HwAsic::Feature::ECMP_DLB_OFFSET:
-    case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
-    case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
     case HwAsic::Feature::SPAN:
-    case HwAsic::Feature::ERSPANv4:
     case HwAsic::Feature::SFLOWv4:
     case HwAsic::Feature::MPLS:
     case HwAsic::Feature::MPLS_ECMP:
-    case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv6:
+    case HwAsic::Feature::RX_SNR:
+    case HwAsic::Feature::FEC_CORRECTED_BITS:
+    case HwAsic::Feature::ROUTE_COUNTERS:
+    // J3-AI natively supports hashing. So hash configuration is not supported.
+    case HwAsic::Feature::HASH_FIELDS_CUSTOMIZATION:
+    case HwAsic::Feature::ECMP_HASH_V4:
+    case HwAsic::Feature::ECMP_HASH_V6:
+    case HwAsic::Feature::TRAFFIC_HASHING:
+    case HwAsic::Feature::PORT_WRED_COUNTER:
+    case HwAsic::Feature::DTL_WATERMARK_COUNTER:
+    case HwAsic::Feature::MULTIPLE_ACL_TABLES:
       return false;
   }
   return false;
@@ -178,22 +183,22 @@ std::set<cfg::StreamType> Jericho3Asic::getQueueStreamTypes(
     case cfg::PortType::CPU_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::FABRIC_PORT:
       return {cfg::StreamType::FABRIC_TX};
   }
   throw FbossError(
-      "Jericho2 ASIC does not support:",
+      "Jericho3 ASIC does not support:",
       apache::thrift::util::enumNameSafe(portType));
 }
 int Jericho3Asic::getDefaultNumPortQueues(
     cfg::StreamType streamType,
     cfg::PortType portType) const {
   if (getAsicMode() == AsicMode::ASIC_MODE_SIM) {
-    // TODO skip returning 0 unconditionally here once J3 SDK
-    // supports queue stats on HW. SIM will continue to have
-    // no queues though.
+    // SIM will continue to have no queues though.
     return 0;
   }
   switch (streamType) {
@@ -201,10 +206,9 @@ int Jericho3Asic::getDefaultNumPortQueues(
       switch (portType) {
         case cfg::PortType::CPU_PORT:
         case cfg::PortType::RECYCLE_PORT:
-          // TODO - update to 8 once TC object support
-          // for channelized support is added.
-          return 0;
         case cfg::PortType::INTERFACE_PORT:
+        case cfg::PortType::MANAGEMENT_PORT:
+        case cfg::PortType::EVENTOR_PORT:
           return 8;
         case cfg::PortType::FABRIC_PORT:
           break;
@@ -237,7 +241,9 @@ uint64_t Jericho3Asic::getDefaultReservedBytes(
     case cfg::PortType::RECYCLE_PORT:
       return 4096;
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::FABRIC_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       return 0;
   }
   throw FbossError(
@@ -256,8 +262,8 @@ cfg::Range64 Jericho3Asic::getReservedEncapIndexRange() const {
 
 HwAsic::RecyclePortInfo Jericho3Asic::getRecyclePortInfo() const {
   return {
-      .coreId = 0,
-      .corePortIndex = 1,
+      .coreId = 2,
+      .corePortIndex = 2,
       .speedMbps = 10000 // 10G
   };
 }
@@ -266,8 +272,10 @@ const std::map<cfg::PortType, cfg::PortLoopbackMode>&
 Jericho3Asic::desiredLoopbackModes() const {
   static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMode = {
       {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::PHY},
+      {cfg::PortType::MANAGEMENT_PORT, cfg::PortLoopbackMode::PHY},
       {cfg::PortType::FABRIC_PORT, cfg::PortLoopbackMode::MAC},
-      {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE}};
+      {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE},
+      {cfg::PortType::EVENTOR_PORT, cfg::PortLoopbackMode::NONE}};
   return kLoopbackMode;
 }
 

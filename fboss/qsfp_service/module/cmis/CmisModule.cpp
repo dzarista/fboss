@@ -9,7 +9,6 @@
 #include <string>
 #include "common/time/Time.h"
 #include "fboss/agent/FbossError.h"
-#include "fboss/lib/i2c/FirmwareUpgrader.h"
 #include "fboss/lib/phy/gen-cpp2/prbs_types.h"
 #include "fboss/lib/platforms/PlatformMode.h"
 #include "fboss/lib/usb/TransceiverI2CApi.h"
@@ -18,6 +17,7 @@
 #include "fboss/qsfp_service/if/gen-cpp2/qsfp_service_config_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 #include "fboss/qsfp_service/lib/QsfpConfigParserHelper.h"
+#include "fboss/qsfp_service/module/FirmwareUpgrader.h"
 #include "fboss/qsfp_service/module/QsfpFieldInfo.h"
 #include "fboss/qsfp_service/module/QsfpHelper.h"
 #include "fboss/qsfp_service/module/TransceiverImpl.h"
@@ -42,6 +42,16 @@ constexpr int kUsecBetweenLaneInit = 10000;
 constexpr int kUsecVdmLatchHold = 100000;
 constexpr int kUsecDiagSelectLatchWait = 10000;
 constexpr int kUsecAfterAppProgramming = 500000;
+constexpr int kUsecDatapathStateUpdateTime = 5000000; // 5 seconds
+constexpr int kUsecDatapathStatePollTime = 500000; // 500 ms
+constexpr double kU16TypeLsbDivisor = 256.0;
+constexpr int kVdmDescriptorLength = 2;
+
+// Definitions for CDB Histogram
+constexpr int kCdbSymErrHistBinSize = 6;
+constexpr int kCdbSymErrHistMaxOffset = 1;
+constexpr int kCdbSymErrHistAvgOffset = 3;
+constexpr int kCdbSymErrHistCurOffset = 5;
 
 std::array<std::string, 9> channelConfigErrorMsg = {
     "No status available, config under progress",
@@ -66,28 +76,6 @@ enum DiagnosticFeatureEncoding {
   BER = 0x1,
   SNR = 0x6,
   LATCHED_BER = 0x11,
-};
-
-enum VdmConfigType {
-  UNSUPPORTED = 0,
-  SNR_MEDIA_IN = 5,
-  SNR_HOST_IN = 6,
-  PRE_FEC_BER_MEDIA_IN_MIN = 9,
-  PRE_FEC_BER_HOST_IN_MIN = 10,
-  PRE_FEC_BER_MEDIA_IN_MAX = 11,
-  PRE_FEC_BER_HOST_IN_MAX = 12,
-  PRE_FEC_BER_MEDIA_IN_AVG = 13,
-  PRE_FEC_BER_HOST_IN_AVG = 14,
-  PRE_FEC_BER_MEDIA_IN_CUR = 15,
-  PRE_FEC_BER_HOST_IN_CUR = 16,
-  ERR_FRAME_MEDIA_IN_MIN = 17,
-  ERR_FRAME_HOST_IN_MIN = 18,
-  ERR_FRAME_MEDIA_IN_MAX = 19,
-  ERR_FRAME_HOST_IN_MAX = 20,
-  ERR_FRAME_MEDIA_IN_AVG = 21,
-  ERR_FRAME_HOST_IN_AVG = 22,
-  ERR_FRAME_MEDIA_IN_CUR = 23,
-  ERR_FRAME_HOST_IN_CUR = 24,
 };
 
 // As per CMIS4.0
@@ -192,6 +180,7 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     {CmisField::CHANNEL_TX_BIAS, {CmisPages::PAGE11, 170, 16}},
     {CmisField::CHANNEL_RX_PWR, {CmisPages::PAGE11, 186, 16}},
     {CmisField::CONFIG_ERROR_LANES, {CmisPages::PAGE11, 202, 4}},
+    {CmisField::ACTIVE_CTRL_ALL_LANES, {CmisPages::PAGE11, 206, 8}},
     {CmisField::ACTIVE_CTRL_LANE_1, {CmisPages::PAGE11, 206, 1}},
     {CmisField::ACTIVE_CTRL_LANE_2, {CmisPages::PAGE11, 207, 1}},
     {CmisField::ACTIVE_CTRL_LANE_3, {CmisPages::PAGE11, 208, 1}},
@@ -278,6 +267,7 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     // Page 20h
     {CmisField::PAGE_UPPER20H, {CmisPages::PAGE20, 128, 128}},
     {CmisField::VDM_CONF_SNR_MEDIA_IN, {CmisPages::PAGE20, 128, 8}},
+    {CmisField::VDM_CONF_PAM4_LTP_MEDIA_IN, {CmisPages::PAGE20, 136, 8}},
     {CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_MIN, {CmisPages::PAGE20, 144, 2}},
     {CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_MAX, {CmisPages::PAGE20, 146, 2}},
     {CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_AVG, {CmisPages::PAGE20, 148, 2}},
@@ -296,9 +286,17 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     {CmisField::VDM_CONF_ERR_FRAME_HOST_IN_MAX, {CmisPages::PAGE21, 170, 2}},
     {CmisField::VDM_CONF_ERR_FRAME_HOST_IN_AVG, {CmisPages::PAGE21, 172, 2}},
     {CmisField::VDM_CONF_ERR_FRAME_HOST_IN_CUR, {CmisPages::PAGE21, 174, 2}},
+    // Page 22h
+    {CmisField::PAGE_UPPER22H, {CmisPages::PAGE22, 128, 128}},
+    {CmisField::VDM_CONF_PAM4_LEVEL0_SD_LINE, {CmisPages::PAGE22, 128, 16}},
+    {CmisField::VDM_CONF_PAM4_LEVEL1_SD_LINE, {CmisPages::PAGE22, 144, 16}},
+    {CmisField::VDM_CONF_PAM4_LEVEL2_SD_LINE, {CmisPages::PAGE22, 160, 16}},
+    {CmisField::VDM_CONF_PAM4_LEVEL3_SD_LINE, {CmisPages::PAGE22, 176, 16}},
+    {CmisField::VDM_CONF_PAM4_MPI_LINE, {CmisPages::PAGE22, 192, 16}},
     // Page 24h
     {CmisField::PAGE_UPPER24H, {CmisPages::PAGE24, 128, 128}},
     {CmisField::VDM_VAL_SNR_MEDIA_IN, {CmisPages::PAGE24, 128, 8}},
+    {CmisField::VDM_VAL_PAM4_LTP_MEDIA_IN, {CmisPages::PAGE24, 136, 8}},
     {CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_MIN, {CmisPages::PAGE24, 144, 2}},
     {CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_MAX, {CmisPages::PAGE24, 146, 2}},
     {CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_AVG, {CmisPages::PAGE24, 148, 2}},
@@ -317,8 +315,16 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     {CmisField::VDM_VAL_ERR_FRAME_HOST_IN_MAX, {CmisPages::PAGE25, 170, 2}},
     {CmisField::VDM_VAL_ERR_FRAME_HOST_IN_AVG, {CmisPages::PAGE25, 172, 2}},
     {CmisField::VDM_VAL_ERR_FRAME_HOST_IN_CUR, {CmisPages::PAGE25, 174, 2}},
+    // Page 26h
+    {CmisField::PAGE_UPPER26H, {CmisPages::PAGE26, 128, 128}},
+    {CmisField::VDM_VAL_PAM4_LEVEL0_SD_LINE, {CmisPages::PAGE26, 128, 16}},
+    {CmisField::VDM_VAL_PAM4_LEVEL1_SD_LINE, {CmisPages::PAGE26, 144, 16}},
+    {CmisField::VDM_VAL_PAM4_LEVEL2_SD_LINE, {CmisPages::PAGE26, 160, 16}},
+    {CmisField::VDM_VAL_PAM4_LEVEL3_SD_LINE, {CmisPages::PAGE26, 176, 16}},
+    {CmisField::VDM_VAL_PAM4_MPI_LINE, {CmisPages::PAGE26, 192, 16}},
     // Page 2Fh
     {CmisField::PAGE_UPPER2FH, {CmisPages::PAGE2F, 128, 128}},
+    {CmisField::VDM_GROUPS_SUPPORT, {CmisPages::PAGE2F, 128, 1}},
     {CmisField::VDM_LATCH_REQUEST, {CmisPages::PAGE2F, 144, 1}},
     {CmisField::VDM_LATCH_DONE, {CmisPages::PAGE2F, 145, 1}},
 };
@@ -363,8 +369,13 @@ static SpeedApplicationMapping speedApplicationMapping = {
      {SMFMediaInterfaceCode::FR1_100G}},
     {cfg::PortSpeed::TWOHUNDREDG, {SMFMediaInterfaceCode::FR4_200G}},
     {cfg::PortSpeed::FOURHUNDREDG,
-     {SMFMediaInterfaceCode::FR4_400G, SMFMediaInterfaceCode::LR4_10_400G}},
-};
+     {SMFMediaInterfaceCode::FR4_400G,
+      SMFMediaInterfaceCode::LR4_10_400G,
+      SMFMediaInterfaceCode::DR4_400G}},
+    {
+        cfg::PortSpeed::EIGHTHUNDREDG,
+        {SMFMediaInterfaceCode::FR8_800G},
+    }};
 
 static std::map<SMFMediaInterfaceCode, MediaInterfaceCode>
     mediaInterfaceMapping = {
@@ -373,6 +384,8 @@ static std::map<SMFMediaInterfaceCode, MediaInterfaceCode>
         {SMFMediaInterfaceCode::FR4_200G, MediaInterfaceCode::FR4_200G},
         {SMFMediaInterfaceCode::FR4_400G, MediaInterfaceCode::FR4_400G},
         {SMFMediaInterfaceCode::LR4_10_400G, MediaInterfaceCode::LR4_400G_10KM},
+        {SMFMediaInterfaceCode::DR4_400G, MediaInterfaceCode::DR4_400G},
+        {SMFMediaInterfaceCode::FR8_800G, MediaInterfaceCode::FR8_800G},
 };
 
 constexpr uint8_t kPage0CsumRangeStart = 128;
@@ -441,6 +454,88 @@ std::array<CmisField, 4> prbsChkHostPatternFields = {
     CmisField::HOST_CHECKER_PATTERN_SELECT_LANE_8_7,
 };
 
+const std::vector<
+    std::array<SMFMediaInterfaceCode, CmisModule::kMaxOsfpNumLanes>>
+    osfpValidSpeedCombination = {
+        {
+            // 2x400G-FR4
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+        },
+        {
+            // 2x200G-FR4
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+        },
+        {
+            // 400G-FR4 + 200G-FR4
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+        },
+        {
+            // 200G-FR4 + 400G-FR4
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+        },
+        {
+            // 8x100G-FR1
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+        },
+        {
+            // 2x100G-CWDM4
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+        },
+        {
+            // 1x800G-2FR4
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+        },
+};
+
 void getQsfpFieldAddress(
     CmisField field,
     int& dataAddress,
@@ -455,6 +550,36 @@ void getQsfpFieldAddress(
 
 uint8_t laneMask(uint8_t startLane, uint8_t numLanes) {
   return ((1 << numLanes) - 1) << startLane;
+}
+
+bool isValidVdmConfigType(int vdmConf) {
+  if (vdmConf == static_cast<int>(SNR_MEDIA_IN) ||
+      vdmConf == static_cast<int>(SNR_HOST_IN) ||
+      vdmConf == static_cast<int>(PAM4_LTP_MEDIA_IN) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_MEDIA_IN_MIN) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_HOST_IN_MIN) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_MEDIA_IN_MAX) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_HOST_IN_MAX) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_MEDIA_IN_AVG) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_HOST_IN_AVG) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_MEDIA_IN_CUR) ||
+      vdmConf == static_cast<int>(PRE_FEC_BER_HOST_IN_CUR) ||
+      vdmConf == static_cast<int>(ERR_FRAME_MEDIA_IN_MIN) ||
+      vdmConf == static_cast<int>(ERR_FRAME_HOST_IN_MIN) ||
+      vdmConf == static_cast<int>(ERR_FRAME_MEDIA_IN_MAX) ||
+      vdmConf == static_cast<int>(ERR_FRAME_HOST_IN_MAX) ||
+      vdmConf == static_cast<int>(ERR_FRAME_MEDIA_IN_AVG) ||
+      vdmConf == static_cast<int>(ERR_FRAME_HOST_IN_AVG) ||
+      vdmConf == static_cast<int>(ERR_FRAME_MEDIA_IN_CUR) ||
+      vdmConf == static_cast<int>(ERR_FRAME_HOST_IN_CUR) ||
+      vdmConf == static_cast<int>(PAM4_LEVEL0_STANDARD_DEVIATION_LINE) ||
+      vdmConf == static_cast<int>(PAM4_LEVEL1_STANDARD_DEVIATION_LINE) ||
+      vdmConf == static_cast<int>(PAM4_LEVEL2_STANDARD_DEVIATION_LINE) ||
+      vdmConf == static_cast<int>(PAM4_LEVEL3_STANDARD_DEVIATION_LINE) ||
+      vdmConf == static_cast<int>(PAM4_MPI_LINE)) {
+    return true;
+  }
+  return false;
 }
 
 std::optional<CmisModule::ApplicationAdvertisingField>
@@ -472,10 +597,25 @@ CmisModule::getApplicationField(uint8_t application, uint8_t startHostLane)
   return std::nullopt;
 }
 
+SMFMediaInterfaceCode CmisModule::getApplicationFromApSelCode(
+    uint8_t apSelCode) const {
+  for (const auto& capability : moduleCapabilities_) {
+    if (capability.ApSelCode == apSelCode) {
+      return static_cast<SMFMediaInterfaceCode>(
+          capability.moduleMediaInterface);
+    }
+  }
+  return SMFMediaInterfaceCode::UNKNOWN;
+}
+
 CmisModule::CmisModule(
-    TransceiverManager* transceiverManager,
-    std::unique_ptr<TransceiverImpl> qsfpImpl)
-    : QsfpModule(transceiverManager, std::move(qsfpImpl)) {}
+    std::set<std::string> portNames,
+    TransceiverImpl* qsfpImpl,
+    std::shared_ptr<const TransceiverConfig> cfg,
+    bool supportRemediate)
+    : QsfpModule(std::move(portNames), qsfpImpl),
+      tcvrConfig_(std::move(cfg)),
+      supportRemediate_(supportRemediate) {}
 
 CmisModule::~CmisModule() {}
 
@@ -491,14 +631,15 @@ void CmisModule::readCmisField(
     // changing page) and when the skipPageChange argument is not true
     uint8_t page = static_cast<uint8_t>(dataPage);
     qsfpImpl_->writeTransceiver(
-        {TransceiverI2CApi::ADDR_QSFP,
+        {TransceiverAccessParameter::ADDR_QSFP,
          127,
          sizeof(page),
          static_cast<int>(CmisPages::LOWER)},
         &page);
   }
   qsfpImpl_->readTransceiver(
-      {TransceiverI2CApi::ADDR_QSFP, dataOffset, dataLength, dataPage}, data);
+      {TransceiverAccessParameter::ADDR_QSFP, dataOffset, dataLength, dataPage},
+      data);
 }
 
 void CmisModule::writeCmisField(
@@ -513,14 +654,15 @@ void CmisModule::writeCmisField(
     // changing page) and when the skipPageChange argument is not true
     uint8_t page = static_cast<uint8_t>(dataPage);
     qsfpImpl_->writeTransceiver(
-        {TransceiverI2CApi::ADDR_QSFP,
+        {TransceiverAccessParameter::ADDR_QSFP,
          127,
          sizeof(page),
          static_cast<int>(CmisPages::LOWER)},
         &page);
   }
   qsfpImpl_->writeTransceiver(
-      {TransceiverI2CApi::ADDR_QSFP, dataOffset, dataLength, dataPage}, data);
+      {TransceiverAccessParameter::ADDR_QSFP, dataOffset, dataLength, dataPage},
+      data);
 }
 
 FlagLevels CmisModule::getQsfpSensorFlags(CmisField fieldName, int offset) {
@@ -752,7 +894,7 @@ TransceiverSettings CmisModule::getTransceiverSettingsInfo() {
   settings.powerMeasurement() =
       flatMem_ ? FeatureState::UNSUPPORTED : FeatureState::ENABLED;
 
-  settings.powerControl() = getPowerControlValue();
+  settings.powerControl() = getPowerControlValue(true /* readFromCache */);
   settings.rateSelect() = flatMem_ ? RateSelectState::UNSUPPORTED
                                    : RateSelectState::APPLICATION_RATE_SELECT;
   settings.rateSelectSetting() = RateSelectSetting::UNSUPPORTED;
@@ -991,6 +1133,22 @@ SMFMediaInterfaceCode CmisModule::getSmfMediaInterface(uint8_t lane) const {
   return (SMFMediaInterfaceCode)currentApplication;
 }
 
+std::vector<MediaInterfaceCode> CmisModule::getSupportedMediaInterfacesLocked()
+    const {
+  std::vector<MediaInterfaceCode> supportedMediaInterfaces;
+
+  for (const auto& capability : moduleCapabilities_) {
+    auto smfMediaInterface =
+        static_cast<SMFMediaInterfaceCode>(capability.moduleMediaInterface);
+    if (mediaInterfaceMapping.find(smfMediaInterface) !=
+        mediaInterfaceMapping.end()) {
+      supportedMediaInterfaces.push_back(
+          mediaInterfaceMapping.at(smfMediaInterface));
+    }
+  }
+  return supportedMediaInterfaces;
+}
+
 MediaTypeEncodings CmisModule::getMediaTypeEncoding() const {
   return static_cast<MediaTypeEncodings>(
       getSettingsValue(CmisField::MEDIA_TYPE_ENCODINGS));
@@ -1088,9 +1246,16 @@ void CmisModule::getApplicationCapabilities() {
   }
 }
 
-PowerControlState CmisModule::getPowerControlValue() {
-  if (getSettingsValue(
-          CmisField::MODULE_CONTROL, uint8_t(POWER_CONTROL_MASK))) {
+PowerControlState CmisModule::getPowerControlValue(bool readFromCache) {
+  uint8_t moduleControl;
+  if (readFromCache) {
+    moduleControl = getSettingsValue(
+        CmisField::MODULE_CONTROL, uint8_t(POWER_CONTROL_MASK));
+  } else {
+    readCmisField(CmisField::MODULE_CONTROL, &moduleControl);
+    moduleControl &= POWER_CONTROL_MASK;
+  }
+  if (moduleControl) {
     return PowerControlState::POWER_LPMODE;
   } else {
     return PowerControlState::HIGH_POWER_OVERRIDE;
@@ -1342,6 +1507,147 @@ SignalFlags CmisModule::getSignalFlagInfo() {
   return signalFlags;
 }
 
+/*
+ * updateVdmDiagsValLocation
+ *
+ * This function scans the VDM config pages by looking into each 2 byte
+ * descriptors. It builds up the mapping from VDM config type to the VDM value
+ * location (page, offset and length). These config could be module based config
+ * or lane/datapath based config. The function updates the lowest offset of the
+ * corresponding VDM data value. For config present in VDM page 0x20-23, the
+ * coresponding data is present in VDM pages 0x24-27
+ */
+void CmisModule::updateVdmDiagsValLocation() {
+  if (!cacheIsValid() || !isVdmSupported()) {
+    QSFP_LOG(DBG2, this) << "Module does not support VDM diagnostics";
+    return;
+  }
+
+  // The VdmConf can be present at any offset from page 0x20 to 0x22. Check all
+  // the descriptors (2 bytes) on these pages
+  std::vector<CmisField> cmisVdmConfPages = {
+      CmisField::PAGE_UPPER20H, CmisField::PAGE_UPPER21H};
+  if (isVdmSupported(3)) {
+    cmisVdmConfPages.push_back(CmisField::PAGE_UPPER22H);
+  }
+
+  for (auto field : cmisVdmConfPages) {
+    int page;
+    int startOffset;
+    int endOffset;
+    int length;
+    uint8_t data[128];
+    const uint8_t* dataPtr = data;
+    getQsfpFieldAddress(field, page, startOffset, length);
+    endOffset = startOffset + length - 1;
+    readFromCacheOrHw(field, data, true);
+
+    // Each 2 byte descriptor:
+    //    byte_1[7..0] -> VDM config type
+    enum VdmConfigType lastConfig = UNSUPPORTED;
+    for (auto offset = startOffset; offset <= endOffset;
+         offset += kVdmDescriptorLength, dataPtr += kVdmDescriptorLength) {
+      if (isValidVdmConfigType(dataPtr[1])) {
+        if (static_cast<VdmConfigType>(dataPtr[1]) == lastConfig) {
+          vdmConfigDataLocations_[lastConfig].vdmValLength += 2;
+        } else {
+          VdmDiagsLocationStatus vdmConfStatus;
+          vdmConfStatus.vdmConfImplementedByModule = true;
+          vdmConfStatus.vdmValPage = static_cast<CmisPages>(page + 4);
+          vdmConfStatus.vdmValOffset = offset;
+          vdmConfStatus.vdmValLength = 2;
+          lastConfig = static_cast<VdmConfigType>(dataPtr[1]);
+          vdmConfigDataLocations_[lastConfig] = vdmConfStatus;
+        }
+      }
+    }
+  }
+
+  QSFP_LOG(DBG2, this) << "Module's VDM Config Locations found:";
+  for (auto& it : vdmConfigDataLocations_) {
+    QSFP_LOG(DBG2, this) << "VDM Config Type: " << static_cast<int>(it.first)
+                         << ", Page: " << static_cast<int>(it.second.vdmValPage)
+                         << ", Offset: " << it.second.vdmValOffset
+                         << ", Length: " << it.second.vdmValLength;
+  }
+}
+
+/*
+ * getVdmDiagsValLocation
+ *
+ * For a given VDM config type, this function returns the VDM data location
+ * values.
+ */
+CmisModule::VdmDiagsLocationStatus CmisModule::getVdmDiagsValLocation(
+    VdmConfigType vdmConf) const {
+  // Try to return VDM data location info now. If still no info available then
+  // return empty values
+  if (vdmConfigDataLocations_.find(vdmConf) == vdmConfigDataLocations_.end()) {
+    return CmisModule::VdmDiagsLocationStatus{};
+  }
+  return vdmConfigDataLocations_.at(vdmConf);
+}
+
+/*
+ * getCdbSymbolErrorHistogramLocked
+ *
+ * Return symbol error histogram data for all bins for a given datapath id and
+ * the media/host side
+ */
+std::map<int32_t, SymErrHistogramBin>
+CmisModule::getCdbSymbolErrorHistogramLocked(
+    uint8_t datapathId,
+    bool mediaSide) {
+  std::map<int32_t, SymErrHistogramBin> histData;
+  CdbCommandBlock commandBlockBuf;
+
+  commandBlockBuf.createCdbCmdSymbolErrorHistogram(datapathId, mediaSide);
+  auto ret = commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+  if (ret && commandBlockBuf.getCdbRlplLength() >= 1) {
+    int numBins = commandBlockBuf.getCdbLplFlatMemory()[0];
+    for (auto bin = 0; bin < numBins; bin++) {
+      SymErrHistogramBin binHistData;
+      binHistData.nbitSymbolErrorMax() = f16ToDouble(
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistMaxOffset],
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistMaxOffset + 1]);
+      binHistData.nbitSymbolErrorAvg() = f16ToDouble(
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistAvgOffset],
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistAvgOffset + 1]);
+      binHistData.nbitSymbolErrorCur() = f16ToDouble(
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistCurOffset],
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistCurOffset + 1]);
+      histData[bin] = binHistData;
+    }
+  }
+  return histData;
+}
+
+/*
+ * getCdbSymbolErrorHistogramLocked
+ *
+ * Return symbol error histogram data for all bins for all datapaths for the
+ * both media/host side
+ */
+std::map<std::string, CdbDatapathSymErrHistogram>
+CmisModule::getCdbSymbolErrorHistogramLocked() {
+  std::map<std::string, CdbDatapathSymErrHistogram> cdbDpSymErrHist;
+  for (auto& [portName, hostLanes] : getPortNameToHostLanes()) {
+    // Datapath Id is same as first lane Id
+    int datapathId = *hostLanes.begin();
+    cdbDpSymErrHist[portName].media() =
+        getCdbSymbolErrorHistogramLocked(datapathId, true);
+    cdbDpSymErrHist[portName].host() =
+        getCdbSymbolErrorHistogramLocked(datapathId, false);
+  }
+  return cdbDpSymErrHist;
+}
+
 std::optional<VdmDiagsStats> CmisModule::getVdmDiagsStatsInfo() {
   VdmDiagsStats vdmStats;
   const uint8_t* data;
@@ -1356,248 +1662,287 @@ std::optional<VdmDiagsStats> CmisModule::getVdmDiagsStatsInfo() {
   vdmStats.statsCollectionTme() = WallClockUtil::NowInSecFast();
 
   // Fill in channel SNR Media In
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_SNR_MEDIA_IN, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  uint8_t vdmConfType = data[1];
-  if (vdmConfType == SNR_MEDIA_IN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_SNR_MEDIA_IN, dataAddress, offset, length);
+  auto vdmDiagsValLocation = getVdmDiagsValLocation(SNR_MEDIA_IN);
+  if (vdmDiagsValLocation.vdmConfImplementedByModule) {
+    dataAddress = static_cast<int>(vdmDiagsValLocation.vdmValPage);
+    offset = vdmDiagsValLocation.vdmValOffset;
+    length = vdmDiagsValLocation.vdmValLength;
     data = getQsfpValuePtr(dataAddress, offset, length);
     for (auto lanes = 0; lanes < length / 2; lanes++) {
       double snr;
-      snr = data[lanes * 2] + (data[lanes * 2 + 1] / 256.0);
+      snr = data[lanes * 2] + (data[lanes * 2 + 1] / kU16TypeLsbDivisor);
       vdmStats.eSnrMediaChannel()[lanes] = snr;
     }
   }
 
-  // Helper function to convert U16 format to double
-  auto f16ToDouble = [](uint8_t byte0, uint8_t byte1) -> double {
-    double ber;
-    int expon = byte0 >> 3;
-    expon -= 24;
-    int mant = ((byte0 & 0x7) << 8) | byte1;
-    ber = mant * exp10(expon);
-    return ber;
+  // Lambda to extract BER or Frame Error values for a given VDM config type
+  auto captureVdmBerFrameErrorValues =
+      [&](VdmConfigType vdmConfType) -> std::optional<double> {
+    vdmDiagsValLocation = getVdmDiagsValLocation(vdmConfType);
+    if (vdmDiagsValLocation.vdmConfImplementedByModule) {
+      dataAddress = static_cast<int>(vdmDiagsValLocation.vdmValPage);
+      offset = vdmDiagsValLocation.vdmValOffset;
+      length = vdmDiagsValLocation.vdmValLength;
+      data = getQsfpValuePtr(dataAddress, offset, length);
+      return f16ToDouble(data[0], data[1]);
+    }
+    return std::nullopt;
   };
 
   // Fill in Media Pre FEC BER values
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_MIN,
-      dataAddress,
-      offset,
-      length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_MEDIA_IN_MIN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_MIN,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerMediaMin() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_MEDIA_IN_MIN)) {
+    vdmStats.preFecBerMediaMin() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_MAX,
-      dataAddress,
-      offset,
-      length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_MEDIA_IN_MAX) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_MAX,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerMediaMax() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_MEDIA_IN_MAX)) {
+    vdmStats.preFecBerMediaMax() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_AVG,
-      dataAddress,
-      offset,
-      length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_MEDIA_IN_AVG) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_AVG,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerMediaAvg() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_MEDIA_IN_AVG)) {
+    vdmStats.preFecBerMediaAvg() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_MEDIA_IN_CUR,
-      dataAddress,
-      offset,
-      length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_MEDIA_IN_CUR) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_MEDIA_IN_CUR,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerMediaCur() = f16ToDouble(data[0], data[1]);
-  }
-
-  // Fill in Media Post FEC Errored Frames values
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_MEDIA_IN_MIN, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_MEDIA_IN_MIN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_MEDIA_IN_MIN, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameMediaMin() = f16ToDouble(data[0], data[1]);
-  }
-
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_MEDIA_IN_MAX, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_MEDIA_IN_MAX) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_MEDIA_IN_MAX, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameMediaMax() = f16ToDouble(data[0], data[1]);
-  }
-
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_MEDIA_IN_AVG, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_MEDIA_IN_AVG) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_MEDIA_IN_AVG, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameMediaAvg() = f16ToDouble(data[0], data[1]);
-  }
-
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_MEDIA_IN_CUR, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_MEDIA_IN_CUR) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_MEDIA_IN_CUR, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameMediaCur() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_MEDIA_IN_CUR)) {
+    vdmStats.preFecBerMediaCur() = berVal.value();
   }
 
   // Fill in Host Pre FEC BER values
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_HOST_IN_MIN, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_HOST_IN_MIN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_HOST_IN_MIN,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerHostMin() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_MIN)) {
+    vdmStats.preFecBerHostMin() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_HOST_IN_MAX, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_HOST_IN_MAX) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_HOST_IN_MAX,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerHostMax() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_MAX)) {
+    vdmStats.preFecBerHostMax() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_HOST_IN_AVG, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_HOST_IN_AVG) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_HOST_IN_AVG,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerHostAvg() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_AVG)) {
+    vdmStats.preFecBerHostAvg() = berVal.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_PRE_FEC_BER_HOST_IN_CUR, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == PRE_FEC_BER_HOST_IN_CUR) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_PRE_FEC_BER_HOST_IN_CUR,
-        dataAddress,
-        offset,
-        length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.preFecBerHostCur() = f16ToDouble(data[0], data[1]);
+  if (auto berVal = captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_CUR)) {
+    vdmStats.preFecBerHostCur() = berVal.value();
+  }
+
+  // Fill in Media Post FEC Errored Frames values
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_MIN)) {
+    vdmStats.errFrameMediaMin() = errFrames.value();
+  }
+
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_MAX)) {
+    vdmStats.errFrameMediaMax() = errFrames.value();
+  }
+
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_AVG)) {
+    vdmStats.errFrameMediaAvg() = errFrames.value();
+  }
+
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_CUR)) {
+    vdmStats.errFrameMediaCur() = errFrames.value();
   }
 
   // Fill in Host Post FEC Errored Frame values
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_HOST_IN_MIN, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_HOST_IN_MIN) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_HOST_IN_MIN, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameHostMin() = f16ToDouble(data[0], data[1]);
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_MIN)) {
+    vdmStats.errFrameHostMin() = errFrames.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_HOST_IN_MAX, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_HOST_IN_MAX) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_HOST_IN_MAX, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameHostMax() = f16ToDouble(data[0], data[1]);
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_MAX)) {
+    vdmStats.errFrameHostMax() = errFrames.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_HOST_IN_AVG, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_HOST_IN_AVG) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_HOST_IN_AVG, dataAddress, offset, length);
-    data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameHostAvg() = f16ToDouble(data[0], data[1]);
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_AVG)) {
+    vdmStats.errFrameHostAvg() = errFrames.value();
   }
 
-  getQsfpFieldAddress(
-      CmisField::VDM_CONF_ERR_FRAME_HOST_IN_CUR, dataAddress, offset, length);
-  data = getQsfpValuePtr(dataAddress, offset, length);
-  vdmConfType = data[1];
-  if (vdmConfType == ERR_FRAME_HOST_IN_CUR) {
-    getQsfpFieldAddress(
-        CmisField::VDM_VAL_ERR_FRAME_HOST_IN_CUR, dataAddress, offset, length);
+  if (auto errFrames = captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_CUR)) {
+    vdmStats.errFrameHostCur() = errFrames.value();
+  }
+
+  // Fill in VDM Advance group3 performance monitoring info
+  if (isVdmSupported(3)) {
+    // Lambda to read the VDM PM value for the given VDM Config
+    auto getVdmPmLaneValues =
+        [&](VdmConfigType vdmConf) -> std::map<int, double> {
+      std::map<int, double> pmMap;
+      vdmDiagsValLocation = getVdmDiagsValLocation(vdmConf);
+      if (vdmDiagsValLocation.vdmConfImplementedByModule) {
+        dataAddress = static_cast<int>(vdmDiagsValLocation.vdmValPage);
+        offset = vdmDiagsValLocation.vdmValOffset;
+        length = vdmDiagsValLocation.vdmValLength;
+        data = getQsfpValuePtr(dataAddress, offset, length);
+        for (auto lanes = 0; lanes < length / 2; lanes++) {
+          double pmVal;
+          pmVal = f16ToDouble(data[lanes * 2], data[lanes * 2 + 1]);
+          pmMap[lanes] = pmVal;
+        }
+      }
+      return pmMap;
+    };
+
+    // PAM4 Level0
+    auto sdL0Map = getVdmPmLaneValues(PAM4_LEVEL0_STANDARD_DEVIATION_LINE);
+    for (auto [lane, sdL0] : sdL0Map) {
+      vdmStats.pam4Level0SDLine()[lane] = sdL0;
+    }
+
+    // PAM4 Level1
+    auto sdL1Map = getVdmPmLaneValues(PAM4_LEVEL1_STANDARD_DEVIATION_LINE);
+    for (auto [lane, sdL1] : sdL1Map) {
+      vdmStats.pam4Level1SDLine()[lane] = sdL1;
+    }
+
+    // PAM4 Level2
+    auto sdL2Map = getVdmPmLaneValues(PAM4_LEVEL2_STANDARD_DEVIATION_LINE);
+    for (auto [lane, sdL2] : sdL2Map) {
+      vdmStats.pam4Level2SDLine()[lane] = sdL2;
+    }
+
+    // PAM4 Level3
+    auto sdL3Map = getVdmPmLaneValues(PAM4_LEVEL3_STANDARD_DEVIATION_LINE);
+    for (auto [lane, sdL3] : sdL3Map) {
+      vdmStats.pam4Level3SDLine()[lane] = sdL3;
+    }
+
+    // PAM4 MPI
+    auto mpiMap = getVdmPmLaneValues(PAM4_MPI_LINE);
+    for (auto [lane, mpi] : mpiMap) {
+      vdmStats.pam4MPILine()[lane] = mpi;
+    }
+  }
+
+  // Fill in channel LTP Media In
+  vdmDiagsValLocation = getVdmDiagsValLocation(PAM4_LTP_MEDIA_IN);
+  if (vdmDiagsValLocation.vdmConfImplementedByModule) {
+    dataAddress = static_cast<int>(vdmDiagsValLocation.vdmValPage);
+    offset = vdmDiagsValLocation.vdmValOffset;
+    length = vdmDiagsValLocation.vdmValLength;
     data = getQsfpValuePtr(dataAddress, offset, length);
-    vdmStats.errFrameHostCur() = f16ToDouble(data[0], data[1]);
+    for (auto lanes = 0; lanes < length / 2; lanes++) {
+      double ltp;
+      ltp = data[lanes * 2] + (data[lanes * 2 + 1] / kU16TypeLsbDivisor);
+      vdmStats.pam4LtpMediaChannel()[lanes] = ltp;
+    }
   }
 
   return vdmStats;
+}
+
+/*
+ * getVdmPerfMonitorStats
+ *
+ * This function extracts all VDM info from the VDM specific pages and then
+ * returns VDM Performance Monitoring Diags stats.
+ */
+std::optional<VdmPerfMonitorStats> CmisModule::getVdmPerfMonitorStats() {
+  VdmPerfMonitorStats vdmStats;
+
+  if (!isVdmSupported() || !cacheIsValid()) {
+    return std::nullopt;
+  }
+
+  vdmStats.statsCollectionTme() = WallClockUtil::NowInSecFast();
+
+  if (!fillVdmPerfMonitorSnr(vdmStats)) {
+    QSFP_LOG(ERR, this) << "Failed to get VDM Perf Monitor SNR";
+  }
+  if (!fillVdmPerfMonitorBer(vdmStats)) {
+    QSFP_LOG(ERR, this) << "Failed to get VDM Perf Monitor BER";
+  }
+  if (!fillVdmPerfMonitorFecErr(vdmStats)) {
+    QSFP_LOG(ERR, this) << "Failed to get VDM Perf Monitor FEC Error Rate";
+  }
+  if (!fillVdmPerfMonitorLtp(vdmStats)) {
+    QSFP_LOG(ERR, this) << "Failed to get VDM Perf Monitor LTP";
+  }
+  if (!fillVdmPerfMonitorPam4Data(vdmStats)) {
+    QSFP_LOG(ERR, this) << "Failed to get VDM Perf Monitor PAM4 data";
+  }
+
+  QSFP_LOG(DBG5, this) << "Read VDM Performance Monitoring stats";
+  QSFP_LOG(DBG5, this) << "Stats Collection Time: "
+                       << vdmStats.statsCollectionTme().value();
+  QSFP_LOG(DBG5, this) << "Read " << vdmStats.mediaPortVdmStats()->size()
+                       << " ports on media side and "
+                       << vdmStats.hostPortVdmStats()->size()
+                       << " ports on host side";
+  for (auto& [portName, mediaVdmStats] : vdmStats.mediaPortVdmStats().value()) {
+    QSFP_LOG(DBG5, this) << "Port: " << portName
+                         << " recorded media side stats for "
+                         << mediaVdmStats.laneSNR()->size() << " lanes";
+  }
+  return vdmStats;
+}
+
+/*
+ * getVdmPerfMonitorStatsForOds
+ *
+ * Consolidate the VDM stats for publishing to ODS/Fbagent
+ * - For Pre FEC BER and Post FEC BER -> Report Max value
+ * - For SNR -> Report Min value across all lanes
+ * - For PAM4 SD, MPI, LTP -> Report Max value across all lanes
+ */
+VdmPerfMonitorStatsForOds CmisModule::getVdmPerfMonitorStatsForOds(
+    VdmPerfMonitorStats& vdmPerfMonStats) {
+  VdmPerfMonitorStatsForOds vdmPerfMonOdsStats;
+
+  vdmPerfMonOdsStats.statsCollectionTme() =
+      vdmPerfMonStats.statsCollectionTme().value();
+
+  // Lambda to report Min and Max value from a map of lane id to lane values
+  auto findMinMax =
+      [](std::map<int32_t, double>& vdmStats) -> std::pair<double, double> {
+    double min = std::numeric_limits<double>::max();
+    double max = std::numeric_limits<double>::lowest();
+    for (auto& [lane, vdmVal] : vdmStats) {
+      if (vdmVal > max) {
+        max = vdmVal;
+      }
+      if (vdmVal < min) {
+        min = vdmVal;
+      }
+    }
+    return std::make_pair(min, max);
+  };
+
+  // Media side stats consolidation
+  for (auto& [portName, portMediaVdmStats] :
+       vdmPerfMonStats.mediaPortVdmStats().value()) {
+    // Report BER and Post Fec BER, need to report Max only
+    vdmPerfMonOdsStats.mediaPortVdmStats()[portName].datapathBERMax() =
+        portMediaVdmStats.datapathBER()->max().value();
+    vdmPerfMonOdsStats.mediaPortVdmStats()[portName]
+        .datapathErroredFramesMax() =
+        portMediaVdmStats.datapathErroredFrames()->max().value();
+
+    // For SNR, report Min value among all lanes
+    vdmPerfMonOdsStats.mediaPortVdmStats()[portName].laneSNRMin() =
+        findMinMax(portMediaVdmStats.laneSNR().value()).first;
+
+    // For PAM4 SD, MPI, LTP, report Max value among all lanes
+    vdmPerfMonOdsStats.mediaPortVdmStats()[portName].lanePam4Level0SDMax() =
+        findMinMax(portMediaVdmStats.lanePam4Level0SD().value()).second;
+    vdmPerfMonOdsStats.mediaPortVdmStats()[portName].lanePam4Level1SDMax() =
+        findMinMax(portMediaVdmStats.lanePam4Level1SD().value()).second;
+    vdmPerfMonOdsStats.mediaPortVdmStats()[portName].lanePam4Level2SDMax() =
+        findMinMax(portMediaVdmStats.lanePam4Level2SD().value()).second;
+    vdmPerfMonOdsStats.mediaPortVdmStats()[portName].lanePam4Level3SDMax() =
+        findMinMax(portMediaVdmStats.lanePam4Level3SD().value()).second;
+    vdmPerfMonOdsStats.mediaPortVdmStats()[portName].lanePam4MPIMax() =
+        findMinMax(portMediaVdmStats.lanePam4MPI().value()).second;
+    vdmPerfMonOdsStats.mediaPortVdmStats()[portName].lanePam4LTPMax() =
+        findMinMax(portMediaVdmStats.lanePam4LTP().value()).second;
+  }
+
+  // Host side stats consolidation
+  for (auto& [portName, portHostVdmStats] :
+       vdmPerfMonStats.hostPortVdmStats().value()) {
+    // Report BER and Post Fec BER, need to report Max only
+    vdmPerfMonOdsStats.hostPortVdmStats()[portName].datapathBERMax() =
+        portHostVdmStats.datapathBER()->max().value();
+    vdmPerfMonOdsStats.hostPortVdmStats()[portName].datapathErroredFramesMax() =
+        portHostVdmStats.datapathErroredFrames()->max().value();
+  }
+
+  return vdmPerfMonOdsStats;
 }
 
 TransceiverModuleIdentifier CmisModule::getIdentifier() {
@@ -1673,15 +2018,43 @@ CmisModule::getQsfpValuePtr(int dataAddress, int offset, int length) const {
       case CmisPages::PAGE21:
         CHECK_LE(offset + length, sizeof(page21_));
         return (page21_ + offset);
+      case CmisPages::PAGE22:
+        CHECK_LE(offset + length, sizeof(page22_));
+        return (page22_ + offset);
       case CmisPages::PAGE24:
         CHECK_LE(offset + length, sizeof(page24_));
         return (page24_ + offset);
       case CmisPages::PAGE25:
         CHECK_LE(offset + length, sizeof(page25_));
         return (page25_ + offset);
+      case CmisPages::PAGE26:
+        CHECK_LE(offset + length, sizeof(page26_));
+        return (page26_ + offset);
       default:
         throw FbossError("Invalid Data Address 0x%d", dataAddress);
     }
+  }
+}
+
+/*
+ * readFromCacheOrHw
+ *
+ * This function reads the register field from either register cache or from
+ * hardware (if the cache is not available). This function assumes the input
+ * data pointer has the space allocated for the entire given CMIS register space
+ */
+void CmisModule::readFromCacheOrHw(
+    CmisField field,
+    uint8_t* data,
+    bool forcedReadFromHw) {
+  int offset;
+  int length;
+  int dataAddress;
+  getQsfpFieldAddress(field, dataAddress, offset, length);
+  if (cacheIsValid() && !forcedReadFromHw) {
+    getQsfpValue(dataAddress, offset, length, data);
+  } else {
+    readCmisField(field, data);
   }
 }
 
@@ -1713,8 +2086,10 @@ DOMDataUnion CmisModule::getDOMDataUnion() {
       cmisData.page14() = IOBuf::wrapBufferAsValue(page14_, MAX_QSFP_PAGE_SIZE);
       cmisData.page20() = IOBuf::wrapBufferAsValue(page20_, MAX_QSFP_PAGE_SIZE);
       cmisData.page21() = IOBuf::wrapBufferAsValue(page21_, MAX_QSFP_PAGE_SIZE);
+      cmisData.page22() = IOBuf::wrapBufferAsValue(page22_, MAX_QSFP_PAGE_SIZE);
       cmisData.page24() = IOBuf::wrapBufferAsValue(page24_, MAX_QSFP_PAGE_SIZE);
       cmisData.page25() = IOBuf::wrapBufferAsValue(page25_, MAX_QSFP_PAGE_SIZE);
+      cmisData.page26() = IOBuf::wrapBufferAsValue(page26_, MAX_QSFP_PAGE_SIZE);
     }
   }
   cmisData.timeCollected() = lastRefreshTime_;
@@ -1804,7 +2179,8 @@ void CmisModule::updateQsfpData(bool allPages) {
 
 void CmisModule::setApplicationCodeLocked(
     cfg::PortSpeed speed,
-    uint8_t startHostLane) {
+    uint8_t startHostLane,
+    uint8_t numHostLanesForPort) {
   QSFP_LOG(INFO, this) << folly::sformat(
       "Trying to set application code for speed {} on startHostLane {}",
       apache::thrift::util::enumNameSafe(speed),
@@ -1866,13 +2242,6 @@ void CmisModule::setApplicationCodeLocked(
   // check if any of those are present in the moduleCapabilities. We configure
   // the first application that both we support and the module supports
   for (auto application : applicationIter->second) {
-    // If the currently configured application is the same as what we are trying
-    // to configure, then skip the configuration
-    if (static_cast<uint8_t>(application) == currentApplication) {
-      QSFP_LOG(INFO, this) << "Speed matches. Doing nothing.";
-      return;
-    }
-
     auto capability =
         getApplicationField(static_cast<uint8_t>(application), startHostLane);
 
@@ -1882,7 +2251,27 @@ void CmisModule::setApplicationCodeLocked(
     }
 
     auto numHostLanes = capability->hostLaneCount;
+    if (speed == cfg::PortSpeed::HUNDREDG &&
+        numHostLanesForPort != numHostLanes) {
+      continue;
+    }
+
     uint8_t hostLaneMask = laneMask(startHostLane, numHostLanes);
+
+    // If the currently configured application is the same as what we are trying
+    // to configure, then skip the configuration
+    if (static_cast<uint8_t>(application) == currentApplication) {
+      QSFP_LOG(INFO, this) << "Speed matches. Doing nothing";
+      // Make sure the datapath is initialized, otherwise initialize it before
+      // returning
+      if (datapathResetPendingMask_ & hostLaneMask) {
+        resetDataPathWithFunc(std::nullopt, hostLaneMask);
+        datapathResetPendingMask_ &= ~hostLaneMask;
+        QSFP_LOG(INFO, this) << "Reset datapath for lane mask " << hostLaneMask
+                             << " before returning";
+      }
+      return;
+    }
 
     auto setApplicationSelectCode = [this,
                                      &capability,
@@ -1976,14 +2365,63 @@ void CmisModule::setApplicationCodeLocked(
 
       writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySetForConfigureLanes);
 
+      datapathResetPendingMask_ = applySetForConfigureLanes;
+
       QSFP_LOG(INFO, this) << folly::sformat(
           "set application to {:#x}", capability->moduleMediaInterface);
+    };
+
+    // Lambda to get the valid lane config combination for the given speed on
+    // start host lane and then apply this config to all the lanes. The data
+    // path setting will be applied to all the lanes
+    auto setApplicationSelectCodeAllLanes = [this,
+                                             speed,
+                                             startHostLane,
+                                             numHostLanes]() {
+      if (auto laneProgramValues = getValidMultiportSpeedConfig(
+              speed, startHostLane, numHostLanes)) {
+        std::array<uint8_t, kMaxOsfpNumLanes> stageSet0Config;
+        for (auto lane = 0; lane < kMaxOsfpNumLanes;) {
+          if (auto laneCapability = getApplicationField(
+                  static_cast<uint8_t>(laneProgramValues.value()[lane]),
+                  lane)) {
+            uint8_t currApSelCode = laneCapability.value().ApSelCode;
+            for (auto currApLane = lane;
+                 currApLane < lane + laneCapability.value().hostLaneCount;
+                 currApLane++) {
+              stageSet0Config[currApLane] = currApSelCode << APP_SEL_BITSHIFT |
+                  (lane << DATA_PATH_ID_BITSHIFT);
+            }
+            lane += laneCapability.value().hostLaneCount;
+          } else {
+            stageSet0Config[lane++] = 0;
+          }
+        }
+        writeCmisField(CmisField::APP_SEL_ALL_LANES, stageSet0Config.data());
+
+        // Trigger the Set 0 application code setting to be applied on data
+        // path init for all the lanes. The actual data-path init will be
+        // triggered from the caller function
+        uint8_t applySetForSpecificLanes = laneMask(0, kMaxOsfpNumLanes);
+        writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySetForSpecificLanes);
+
+        datapathResetPendingMask_ = applySetForSpecificLanes;
+      }
     };
 
     // In 400G-FR4 case we will have 8 host lanes instead of 4. Further more,
     // we need to deactivate all the lanes when we switch to an application with
     // a different lane count. CMIS4.0-8.8.4
-    resetDataPathWithFunc(setApplicationSelectCode, hostLaneMask);
+    if (getIdentifier() == TransceiverModuleIdentifier::OSFP &&
+        !isRequestValidMultiportSpeedConfig(
+            speed, startHostLane, numHostLanes)) {
+      resetDataPathWithFunc(setApplicationSelectCodeAllLanes, hostLaneMask);
+    } else {
+      resetDataPathWithFunc(setApplicationSelectCode, hostLaneMask);
+    }
+
+    datapathResetPendingMask_ &= ~hostLaneMask;
+
     // Certain OSFP Modules require a long time to finish application
     // programming. The modules say config is accepted and applied, but
     // internally the module will still be processing the config. If we don't
@@ -2007,6 +2445,158 @@ void CmisModule::setApplicationCodeLocked(
       "Port: ",
       qsfpImpl_->getName(),
       " Unsupported Application by the module: "));
+}
+
+/*
+ * getMediaIntfCodeFromSpeed
+ *
+ * Returns the media interface code for a given speed and the number of lanes on
+ * this optics. This function uses the optics static value from register cache.
+ * Pl note that the different optics can implement the same media interface code
+ * using diferent number of lanes. ie: QSFP 400G-FR4 implements 400G-FR4 (code
+ * 0x1d) using 8 lanes of 50G serdes on host whereas OSFP 2x400G-FR4 implements
+ * the same 400G-FR4 (code 0x1d) using 4 lanes of 100G serdes on host.
+ */
+SMFMediaInterfaceCode CmisModule::getMediaIntfCodeFromSpeed(
+    cfg::PortSpeed speed,
+    uint8_t numLanes) {
+  auto applicationIter = speedApplicationMapping.find(speed);
+  if (applicationIter == speedApplicationMapping.end()) {
+    return SMFMediaInterfaceCode::UNKNOWN;
+  }
+
+  for (auto application : applicationIter->second) {
+    for (const auto& capability : moduleCapabilities_) {
+      if (capability.moduleMediaInterface ==
+              static_cast<uint8_t>(application) &&
+          capability.hostLaneCount == numLanes) {
+        return application;
+      }
+    }
+  }
+  return SMFMediaInterfaceCode::UNKNOWN;
+}
+
+/*
+ * isRequestValidMultiportSpeedConfig
+ *
+ * This function returns if the requested speed on given number of lanes will
+ * result in valid config on the overall optics. If the requested config on
+ * given lanes will result in non-supported speed config (as described in static
+ * list osfpValidSpeedCombination) then this function returns false otherwise
+ * returns true. This function does not rely on cache and does the directHW read
+ * to know the current speed config on the lanes.
+ */
+bool CmisModule::isRequestValidMultiportSpeedConfig(
+    cfg::PortSpeed speed,
+    uint8_t startHostLane,
+    uint8_t numLanes) {
+  if (!isMultiPortOptics()) {
+    // For non-multiport supporting optics, return true rightaway
+    return true;
+  }
+
+  // Sanity check
+  auto desiredMediaIntfCode = getMediaIntfCodeFromSpeed(speed, numLanes);
+  if (desiredMediaIntfCode == SMFMediaInterfaceCode::UNKNOWN) {
+    QSFP_LOG(ERR, this) << "Unsupported Speed "
+                        << apache::thrift::util::enumNameSafe(speed);
+    return false;
+  }
+
+  // Get the current speed config on the Multiport optics lanes. Avoid cache
+  // and read from HW directly
+  std::array<uint8_t, kMaxOsfpNumLanes> currHwSpeedConfig;
+  readCmisField(CmisField::ACTIVE_CTRL_ALL_LANES, currHwSpeedConfig.data());
+  for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+    currHwSpeedConfig[laneId] =
+        (currHwSpeedConfig[laneId] & APP_SEL_MASK) >> APP_SEL_BITSHIFT;
+  }
+
+  // Find what will be the new config after applying the requested config
+  std::array<SMFMediaInterfaceCode, kMaxOsfpNumLanes> desiredSpeedConfig;
+  for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+    if (laneId >= startHostLane && laneId < startHostLane + numLanes) {
+      desiredSpeedConfig[laneId] = desiredMediaIntfCode;
+    } else {
+      desiredSpeedConfig[laneId] =
+          getApplicationFromApSelCode(currHwSpeedConfig[laneId]);
+    }
+  }
+
+  // Check if this is supported speed config combo on this optics and return
+  for (auto& validSpeedCombo : osfpValidSpeedCombination) {
+    bool combolValid = true;
+    for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+      if (validSpeedCombo[laneId] != desiredSpeedConfig[laneId]) {
+        combolValid = false;
+        break;
+      }
+    }
+    if (combolValid) {
+      QSFP_LOG(DBG2, this) << folly::sformat(
+          "Found the valid speed combo of media intf id {:s} for lanemask {:#x}",
+          apache::thrift::util::enumNameSafe(desiredMediaIntfCode),
+          laneMask(startHostLane, numLanes));
+      return true;
+    }
+  }
+  QSFP_LOG(DBG2, this) << folly::sformat(
+      "Could not find the valid speed combo of media intf id {:s} for lanemask {:#x}",
+      apache::thrift::util::enumNameSafe(desiredMediaIntfCode),
+      laneMask(startHostLane, numLanes));
+  return false;
+}
+
+/*
+ * getValidMultiportSpeedConfig
+ *
+ * Returns the valid speed config for all the lanes of the multi-port optics
+ * which matches closely with the supported speed combo on the optics. If no
+ * valid speed combo is found then returns nullopt
+ */
+std::optional<std::array<SMFMediaInterfaceCode, CmisModule::kMaxOsfpNumLanes>>
+CmisModule::getValidMultiportSpeedConfig(
+    cfg::PortSpeed speed,
+    uint8_t startHostLane,
+    uint8_t numLanes) {
+  auto desiredMediaIntfCode = getMediaIntfCodeFromSpeed(speed, numLanes);
+  if (desiredMediaIntfCode == SMFMediaInterfaceCode::UNKNOWN) {
+    QSFP_LOG(ERR, this) << "Unsupported Speed "
+                        << apache::thrift::util::enumNameSafe(speed);
+    return std::nullopt;
+  }
+
+  CHECK_LE(startHostLane + numLanes, kMaxOsfpNumLanes);
+  for (auto& validSpeedCombo : osfpValidSpeedCombination) {
+    bool combolValid = true;
+    for (int laneId = startHostLane; laneId < startHostLane + numLanes;
+         laneId++) {
+      if (validSpeedCombo[laneId] != desiredMediaIntfCode) {
+        combolValid = false;
+        break;
+      }
+    }
+    if (combolValid) {
+      std::string speedCfgCombo;
+      for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+        speedCfgCombo +=
+            apache::thrift::util::enumNameSafe(validSpeedCombo[laneId]);
+        speedCfgCombo += " ";
+      }
+      QSFP_LOG(DBG2, this) << folly::sformat(
+          "Returning the valid speed combo of media intf id {:s} for lanemask {:#x} = {:s}",
+          apache::thrift::util::enumNameSafe(desiredMediaIntfCode),
+          laneMask(startHostLane, numLanes),
+          speedCfgCombo);
+      return validSpeedCombo;
+    }
+  }
+  QSFP_LOG(ERR, this) << folly::sformat(
+      "No valid speed combo found for speed {:s} and lanemask {:#x}",
+      apache::thrift::util::enumNameSafe(speed),
+      laneMask(startHostLane, numLanes));
+  return std::nullopt;
 }
 
 /*
@@ -2074,9 +2664,8 @@ bool CmisModule::checkLaneConfigError(
  * Put logic here that should only be run on ports that have been
  * down for a long time. These are actions that are potentially more
  * disruptive, but have worked in the past to recover a transceiver.
- * Always return true
  */
-bool CmisModule::remediateFlakyTransceiver(
+void CmisModule::remediateFlakyTransceiver(
     bool allPortsDown,
     const std::vector<std::string>& ports) {
   QSFP_LOG(INFO, this) << "allPortsDown = " << allPortsDown
@@ -2086,7 +2675,7 @@ bool CmisModule::remediateFlakyTransceiver(
   if (allPortsDown) {
     // This api accept 1 based module id however the module id in WedgeManager
     // is 0 based.
-    triggerModuleResetLocked();
+    triggerModuleReset();
   } else {
     auto portNameToHostLanesMap = getPortNameToHostLanes();
     for (const auto& port : ports) {
@@ -2111,7 +2700,6 @@ bool CmisModule::remediateFlakyTransceiver(
 
   // Reset lastRemediateTime_ so we can use cool down before next remediation
   lastRemediateTime_ = std::time(nullptr);
-  return true;
 }
 
 void CmisModule::setPowerOverrideIfSupportedLocked(
@@ -2178,10 +2766,47 @@ void CmisModule::ensureRxOutputSquelchEnabled(
   }
 }
 
+bool CmisModule::tcvrPortStateSupported(TransceiverPortState& portState) const {
+  if (portState.transmitterTech != getQsfpTransmitterTechnology()) {
+    return false;
+  }
+
+  if (getQsfpTransmitterTechnology() == TransmitterTechnology::COPPER) {
+    // Return true irrespective of speed as the copper cables are mostly
+    // flexible with all speeds. We can change this later when we know of any
+    // limitations
+    return true;
+  }
+
+  auto speed = portState.speed;
+  auto startHostLane = portState.startHostLane;
+  auto numHostLanes = portState.numHostLanes;
+  auto applicationIter = speedApplicationMapping.find(speed);
+
+  if (applicationIter == speedApplicationMapping.end()) {
+    // Speed Not supported
+    return false;
+  }
+
+  for (auto application : applicationIter->second) {
+    if (auto capability = getApplicationField(
+            static_cast<uint8_t>(application), startHostLane)) {
+      // Application supported on the starting host lane
+      auto hostLaneCount = capability->hostLaneCount;
+      if (numHostLanes == hostLaneCount) {
+        // Host Lane count also matches
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void CmisModule::customizeTransceiverLocked(TransceiverPortState& portState) {
   auto& portName = portState.portName;
   auto speed = portState.speed;
   auto startHostLane = portState.startHostLane;
+  auto numHostLanes = portState.numHostLanes;
   QSFP_LOG(INFO, this) << folly::sformat(
       "customizeTransceiverLocked: PortName {}, Speed {}, StartHostLane {}",
       portName,
@@ -2191,13 +2816,12 @@ void CmisModule::customizeTransceiverLocked(TransceiverPortState& portState) {
    * This must be called with a lock held on qsfpModuleMutex_
    */
   if (customizationSupported()) {
-    TransceiverSettings settings = getTransceiverSettingsInfo();
-
     // We want this on regardless of speed
-    setPowerOverrideIfSupportedLocked(*settings.powerControl());
+    setPowerOverrideIfSupportedLocked(
+        getPowerControlValue(false /* readFromCache */));
 
     if (speed != cfg::PortSpeed::DEFAULT) {
-      setApplicationCodeLocked(speed, startHostLane);
+      setApplicationCodeLocked(speed, startHostLane, numHostLanes);
     }
 
     // For 200G-FR4 module operating in 2x50G mode, disable squelch on all lanes
@@ -2250,8 +2874,8 @@ bool CmisModule::ensureTransceiverReadyLocked() {
     uint8_t moduleStatus;
     readCmisField(CmisField::MODULE_STATE, &moduleStatus);
     bool isReady =
-        ((CmisModuleState)((moduleStatus & MODULE_STATUS_MASK) >> MODULE_STATUS_BITSHIFT) ==
-         CmisModuleState::READY);
+        ((CmisModuleState)((moduleStatus & MODULE_STATUS_MASK) >>
+                           MODULE_STATUS_BITSHIFT) == CmisModuleState::READY);
     return isReady;
   }
 
@@ -2307,19 +2931,13 @@ void CmisModule::configureModule(uint8_t startHostLane) {
                        << apache::thrift::util::enumNameSafe(appCode)
                        << " starting on host lane " << startHostLane;
 
-  if (!getTransceiverManager()->getQsfpConfig()) {
-    QSFP_LOG(ERR, this) << "qsfpConfig is NULL, skipping module configuration";
-    return;
-  }
-
   auto moduleFactor = getModuleConfigOverrideFactor(
       std::nullopt, // Part Number : TODO: Read and cache tcvrPartNumber
       appCode // Application code
   );
 
   // Set the Rx equalizer setting based on QSFP config
-  const auto& qsfpCfg = getTransceiverManager()->getQsfpConfig()->thrift;
-  for (const auto& override : *qsfpCfg.transceiverConfigOverrides()) {
+  for (const auto& override : tcvrConfig_->overridesConfig_) {
     // Check if there is an override for all kinds of transceivers or
     // an override for the current application code(speed)
     if (overrideFactorMatchFound(
@@ -2356,6 +2974,10 @@ MediaInterfaceCode CmisModule::getModuleMediaInterface() const {
     if (smfCode == SMFMediaInterfaceCode::FR4_400G &&
         firstModuleCapability->hostStartLanes.size() == 2) {
       moduleMediaInterface = MediaInterfaceCode::FR4_2x400G;
+    } else if (
+        smfCode == SMFMediaInterfaceCode::DR4_400G &&
+        firstModuleCapability->hostStartLanes.size() == 2) {
+      moduleMediaInterface = MediaInterfaceCode::DR4_2x400G;
     } else {
       moduleMediaInterface = mediaInterfaceMapping[smfCode];
     }
@@ -2489,101 +3111,138 @@ void CmisModule::setDiagsCapability() {
     // diagsCapability isn't valid either
     return;
   }
-  auto diagsCapability = diagsCapability_.wlock();
-  if (!diagsCapability->has_value()) {
-    QSFP_LOG(INFO, this) << "Setting diag capability";
-    DiagsCapability diags;
+  // Limiting the scope of diagsCapability_ write lock
+  {
+    auto diagsCapability = diagsCapability_.wlock();
+    if (!diagsCapability->has_value()) {
+      QSFP_LOG(INFO, this) << "Setting diag capability";
+      DiagsCapability diags;
 
-    auto readFromCacheOrHw = [&](CmisField field, uint8_t* data) {
-      int offset;
-      int length;
-      int dataAddress;
-      getQsfpFieldAddress(field, dataAddress, offset, length);
-      if (cacheIsValid()) {
-        getQsfpValue(dataAddress, offset, length, data);
-      } else {
-        readCmisField(field, data);
-      }
-    };
+      auto getPrbsCapabilities =
+          [&](CmisField generatorField,
+              CmisField checkerField) -> std::vector<prbs::PrbsPolynomial> {
+        int offset;
+        int length;
+        int dataAddress;
+        getQsfpFieldAddress(generatorField, dataAddress, offset, length);
+        CHECK_EQ(length, 2);
+        getQsfpFieldAddress(checkerField, dataAddress, offset, length);
+        CHECK_EQ(length, 2);
 
-    auto getPrbsCapabilities =
-        [&](CmisField generatorField,
-            CmisField checkerField) -> std::vector<prbs::PrbsPolynomial> {
-      int offset;
-      int length;
-      int dataAddress;
-      getQsfpFieldAddress(generatorField, dataAddress, offset, length);
-      CHECK_EQ(length, 2);
-      getQsfpFieldAddress(checkerField, dataAddress, offset, length);
-      CHECK_EQ(length, 2);
+        uint8_t generatorCapsData[2];
+        readFromCacheOrHw(generatorField, generatorCapsData);
+        uint16_t generatorCaps =
+            (generatorCapsData[1] << 8) | generatorCapsData[0];
 
-      uint8_t generatorCapsData[2];
-      readFromCacheOrHw(generatorField, generatorCapsData);
-      uint16_t generatorCaps =
-          (generatorCapsData[1] << 8) | generatorCapsData[0];
+        uint8_t checkerCapsData[2];
+        readFromCacheOrHw(checkerField, checkerCapsData);
+        uint16_t checkerCaps = (checkerCapsData[1] << 8) | checkerCapsData[0];
 
-      uint8_t checkerCapsData[2];
-      readFromCacheOrHw(checkerField, checkerCapsData);
-      uint16_t checkerCaps = (checkerCapsData[1] << 8) | checkerCapsData[0];
-
-      std::vector<prbs::PrbsPolynomial> caps;
-      for (auto patternIDPolynomialPair : prbsPatternMap.right) {
-        // We claim PRBS polynomial is supported when both generator and
-        // checker support the polynomial
-        if (generatorCaps & (1 << patternIDPolynomialPair.first) &&
-            checkerCaps & (1 << patternIDPolynomialPair.first)) {
-          caps.push_back(patternIDPolynomialPair.second);
+        std::vector<prbs::PrbsPolynomial> caps;
+        for (auto patternIDPolynomialPair : prbsPatternMap.right) {
+          // We claim PRBS polynomial is supported when both generator and
+          // checker support the polynomial
+          if (generatorCaps & (1 << patternIDPolynomialPair.first) &&
+              checkerCaps & (1 << patternIDPolynomialPair.first)) {
+            caps.push_back(patternIDPolynomialPair.second);
+          }
         }
+        return caps;
+      };
+
+      uint8_t data;
+      readFromCacheOrHw(CmisField::VDM_DIAG_SUPPORT, &data);
+      diags.vdm() = (data & FieldMasks::VDM_SUPPORT_MASK) ? true : false;
+      diags.diagnostics() =
+          (data & FieldMasks::DIAGS_SUPPORT_MASK) ? true : false;
+
+      readFromCacheOrHw(CmisField::CDB_SUPPORT, &data);
+      diags.cdb() = (data & FieldMasks::CDB_SUPPORT_MASK) ? true : false;
+
+      readFromCacheOrHw(CmisField::TX_CONTROL_SUPPORT, &data);
+      diags.txOutputControl() =
+          (data & FieldMasks::TX_DISABLE_SUPPORT_MASK) ? true : false;
+      readFromCacheOrHw(CmisField::RX_CONTROL_SUPPORT, &data);
+      diags.rxOutputControl() =
+          (data & FieldMasks::RX_DISABLE_SUPPORT_MASK) ? true : false;
+
+      if (*diags.diagnostics()) {
+        readFromCacheOrHw(CmisField::LOOPBACK_CAPABILITY, &data);
+        diags.loopbackSystem() =
+            (data & FieldMasks::LOOPBACK_SYS_SUPPOR_MASK) ? true : false;
+        diags.loopbackLine() =
+            (data & FieldMasks::LOOPBACK_LINE_SUPPORT_MASK) ? true : false;
+
+        readFromCacheOrHw(CmisField::PATTERN_CHECKER_CAPABILITY, &data);
+        diags.prbsLine() =
+            (data & FieldMasks::PRBS_LINE_SUPPRT_MASK) ? true : false;
+        diags.prbsSystem() =
+            (data & FieldMasks::PRBS_SYS_SUPPRT_MASK) ? true : false;
+        if (*diags.prbsLine()) {
+          diags.prbsLineCapabilities() = getPrbsCapabilities(
+              CmisField::MEDIA_SUPPORTED_GENERATOR_PATTERNS,
+              CmisField::MEDIA_SUPPORTED_CHECKER_PATTERNS);
+        }
+        if (*diags.prbsSystem()) {
+          diags.prbsSystemCapabilities() = getPrbsCapabilities(
+              CmisField::HOST_SUPPORTED_GENERATOR_PATTERNS,
+              CmisField::HOST_SUPPORTED_CHECKER_PATTERNS);
+        }
+
+        readFromCacheOrHw(CmisField::DIAGNOSTIC_CAPABILITY, &data);
+        diags.snrLine() = data & FieldMasks::SNR_LINE_SUPPORT_MASK;
+        diags.snrSystem() = data & FieldMasks::SNR_SYS_SUPPORT_MASK;
       }
-      return caps;
-    };
 
-    uint8_t data;
-    readFromCacheOrHw(CmisField::VDM_DIAG_SUPPORT, &data);
-    diags.vdm() = (data & FieldMasks::VDM_SUPPORT_MASK) ? true : false;
-    diags.diagnostics() =
-        (data & FieldMasks::DIAGS_SUPPORT_MASK) ? true : false;
-
-    readFromCacheOrHw(CmisField::CDB_SUPPORT, &data);
-    diags.cdb() = (data & FieldMasks::CDB_SUPPORT_MASK) ? true : false;
-
-    readFromCacheOrHw(CmisField::TX_CONTROL_SUPPORT, &data);
-    diags.txOutputControl() =
-        (data & FieldMasks::TX_DISABLE_SUPPORT_MASK) ? true : false;
-    readFromCacheOrHw(CmisField::RX_CONTROL_SUPPORT, &data);
-    diags.rxOutputControl() =
-        (data & FieldMasks::RX_DISABLE_SUPPORT_MASK) ? true : false;
-
-    if (*diags.diagnostics()) {
-      readFromCacheOrHw(CmisField::LOOPBACK_CAPABILITY, &data);
-      diags.loopbackSystem() =
-          (data & FieldMasks::LOOPBACK_SYS_SUPPOR_MASK) ? true : false;
-      diags.loopbackLine() =
-          (data & FieldMasks::LOOPBACK_LINE_SUPPORT_MASK) ? true : false;
-
-      readFromCacheOrHw(CmisField::PATTERN_CHECKER_CAPABILITY, &data);
-      diags.prbsLine() =
-          (data & FieldMasks::PRBS_LINE_SUPPRT_MASK) ? true : false;
-      diags.prbsSystem() =
-          (data & FieldMasks::PRBS_SYS_SUPPRT_MASK) ? true : false;
-      if (*diags.prbsLine()) {
-        diags.prbsLineCapabilities() = getPrbsCapabilities(
-            CmisField::MEDIA_SUPPORTED_GENERATOR_PATTERNS,
-            CmisField::MEDIA_SUPPORTED_CHECKER_PATTERNS);
-      }
-      if (*diags.prbsSystem()) {
-        diags.prbsSystemCapabilities() = getPrbsCapabilities(
-            CmisField::HOST_SUPPORTED_GENERATOR_PATTERNS,
-            CmisField::HOST_SUPPORTED_CHECKER_PATTERNS);
+      if (*diags.vdm()) {
+        readCmisField(CmisField::VDM_GROUPS_SUPPORT, &data);
+        vdmSupportedGroupsMax_ = (data & VDM_GROUPS_SUPPORT_MASK) + 1;
       }
 
-      readFromCacheOrHw(CmisField::DIAGNOSTIC_CAPABILITY, &data);
-      diags.snrLine() = data & FieldMasks::SNR_LINE_SUPPORT_MASK;
-      diags.snrSystem() = data & FieldMasks::SNR_SYS_SUPPORT_MASK;
+      if (*diags.cdb()) {
+        CdbCommandBlock commandBlockBuf;
+        // CdbCommandBlock* commandBlock = &commandBlockBuf;
+
+        // Get FW download, FW readback, EPL capability
+        commandBlockBuf.createCdbCmdGetFwFeatureInfo();
+        // Run the CDB command
+        bool status = commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+
+        // If the CDB command is successfull then the return info is in LPL
+        // memory offset 141, 142. The LPL base offset is 136.
+        if (status && commandBlockBuf.getCdbRlplLength() >= 3) {
+          diags.cdbFirmwareUpgrade() =
+              commandBlockBuf.getCdbLplFlatMemory()[5] != 0;
+          diags.cdbEplMemorySupported() =
+              commandBlockBuf.getCdbLplFlatMemory()[5] ==
+                  CDB_FW_DOWNLOAD_EPL_SUPPORTED ||
+              commandBlockBuf.getCdbLplFlatMemory()[5] ==
+                  CDB_FW_DOWNLOAD_LPL_EPL_SUPPORTED;
+          diags.cdbFirmwareReadback() =
+              commandBlockBuf.getCdbLplFlatMemory()[6] != 0;
+        }
+
+        // Check CDB symbol error histogram command support. If command does
+        // not fail then it is implemented
+        commandBlockBuf.createCdbCmdSymbolErrorHistogram(0, true);
+        diags.cdbSymbolErrorHistogramLine() =
+            commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+        commandBlockBuf.createCdbCmdSymbolErrorHistogram(0, false);
+        diags.cdbSymbolErrorHistogramSystem() =
+            commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+        // CDB Rx error histogram
+        commandBlockBuf.createCdbCmdRxErrorHistogram(0, true);
+        diags.cdbRxErrorHistogramLine() =
+            commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+        commandBlockBuf.createCdbCmdRxErrorHistogram(0, false);
+        diags.cdbRxErrorHistogramSystem() =
+            commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+      }
+      *diagsCapability = diags;
     }
-
-    *diagsCapability = diags;
   }
+  // Scan and update the VDM diags locations
+  updateVdmDiagsValLocation();
 }
 
 /*
@@ -2697,6 +3356,10 @@ void CmisModule::latchAndReadVdmDataLocked() {
   // Read data for publishing to ODS
   readCmisField(CmisField::PAGE_UPPER24H, page24_);
   readCmisField(CmisField::PAGE_UPPER25H, page25_);
+  if (isVdmSupported(3)) {
+    // Cache VDM group 3 page only if it is supported
+    readCmisField(CmisField::PAGE_UPPER26H, page26_);
+  }
 
   // Write Byte 2F.144, bit 7 to 0 (clear latch)
   latchRequest &= ~FieldMasks::VDM_LATCH_REQUEST_MASK;
@@ -3081,14 +3744,16 @@ void CmisModule::resetDataPathWithFunc(
   uint8_t dataPathDeInit = dataPathDeInitReg | hostLaneMask;
   writeCmisField(CmisField::DATA_PATH_DEINIT, &dataPathDeInit);
 
-  // Lambda to check if lanes datapath are deactivated
-  auto isDatapathDeactivated = [&](uint8_t laneMask) -> bool {
+  // Lambda to check if the datapath for the lanes has been updated to one of
+  // the desired states
+  auto isDatapathUpdated = [&](uint8_t laneMask,
+                               std::vector<CmisLaneState> state) -> bool {
     for (uint8_t lane = 0; lane < numHostLanes(); lane++) {
       if (!((1 << lane) & laneMask)) {
         continue;
       }
-      if (getDatapathLaneStateLocked(lane, false) !=
-          CmisLaneState::DEACTIVATED) {
+      auto dpState = getDatapathLaneStateLocked(lane, false);
+      if (std::find(state.begin(), state.end(), dpState) == state.end()) {
         return false;
       }
     }
@@ -3096,19 +3761,19 @@ void CmisModule::resetDataPathWithFunc(
   };
 
   // Wait for all datapath state machines to get Deactivated
-  auto maxRetries = 10;
+  auto maxRetries = kUsecDatapathStateUpdateTime / kUsecDatapathStatePollTime;
   auto retries = 0;
   while (retries++ < maxRetries) {
     /* sleep override */
-    usleep(kUsecBetweenLaneInit);
-    if (isDatapathDeactivated(hostLaneMask)) {
+    usleep(kUsecDatapathStatePollTime);
+    if (isDatapathUpdated(hostLaneMask, {CmisLaneState::DEACTIVATED})) {
       break;
     }
   }
   if (retries >= maxRetries) {
-    XLOG(ERR) << fmt::format(
+    QSFP_LOG(ERR, this) << fmt::format(
         "Datapath could not deactivate even after waiting {:d} uSec",
-        kUsecBetweenLaneInit * maxRetries);
+        kUsecDatapathStateUpdateTime);
   }
 
   // Call the afterDataPathDeinitFunc() after detactivate all lanes
@@ -3119,8 +3784,24 @@ void CmisModule::resetDataPathWithFunc(
   // Release the lanes from DeInit.
   dataPathDeInit = dataPathDeInitReg & ~(hostLaneMask);
   writeCmisField(CmisField::DATA_PATH_DEINIT, &dataPathDeInit);
-  /* sleep override */
-  usleep(kUsecBetweenLaneInit);
+
+  // Wait for the datapath to come out of deactivated state
+  maxRetries = kUsecDatapathStateUpdateTime / kUsecDatapathStatePollTime;
+  retries = 0;
+  while (retries++ < maxRetries) {
+    /* sleep override */
+    usleep(kUsecDatapathStatePollTime);
+    if (isDatapathUpdated(
+            hostLaneMask,
+            {CmisLaneState::ACTIVATED, CmisLaneState::DATAPATH_INITIALIZED})) {
+      break;
+    }
+  }
+  if (retries >= maxRetries) {
+    QSFP_LOG(ERR, this) << fmt::format(
+        "Datapath didn't come out of deactivated state even after waiting {:d} uSec",
+        kUsecDatapathStateUpdateTime);
+  }
 
   QSFP_LOG(INFO, this) << folly::sformat(
       "DATA_PATH_DEINIT set and reset done for host lane mask 0x{:#x}",
@@ -3168,6 +3849,14 @@ void CmisModule::updateVdmCacheLocked() {
   readCmisField(CmisField::PAGE_UPPER21H, page21_);
   readCmisField(CmisField::PAGE_UPPER24H, page24_);
   readCmisField(CmisField::PAGE_UPPER25H, page25_);
+  if (isVdmSupported(3)) {
+    // Cache VDM group 3 page only if it is supported
+    if (!staticPagesCached_) {
+      readCmisField(CmisField::PAGE_UPPER22H, page22_);
+      staticPagesCached_ = true;
+    }
+    readCmisField(CmisField::PAGE_UPPER26H, page26_);
+  }
 }
 
 void CmisModule::updateCmisStateChanged(
@@ -3194,13 +3883,7 @@ void CmisModule::updateCmisStateChanged(
 }
 
 bool CmisModule::supportRemediate() {
-  if (getTransceiverManager()->getPlatformType() ==
-          PlatformType::PLATFORM_MERU400BIU ||
-      getTransceiverManager()->getPlatformType() ==
-          PlatformType::PLATFORM_MERU400BFU) {
-    return false;
-  }
-  return true;
+  return supportRemediate_;
 }
 
 /*
@@ -3219,7 +3902,21 @@ bool CmisModule::setTransceiverTxLocked(
   // Get the list of lanes to disable/enable the Tx output
   auto tcvrLanes = getTcvrLanesForPort(portName, side);
   if (tcvrLanes.empty()) {
-    XLOG(ERR) << fmt::format("Empty lane list for port {:s}", portName);
+    QSFP_LOG(ERR, this) << fmt::format(
+        "Empty lane list for port {:s}", portName);
+    return false;
+  }
+
+  return setTransceiverTxImplLocked(tcvrLanes, side, userChannelMask, enable);
+}
+
+bool CmisModule::setTransceiverTxImplLocked(
+    const std::set<uint8_t>& tcvrLanes,
+    phy::Side side,
+    std::optional<uint8_t> userChannelMask,
+    bool enable) {
+  if (tcvrLanes.empty()) {
+    QSFP_LOG(ERR, this) << "Empty lane list";
     return false;
   }
 
@@ -3227,7 +3924,7 @@ bool CmisModule::setTransceiverTxLocked(
   if (!isTransceiverFeatureSupported(TransceiverFeature::TX_DISABLE, side)) {
     throw FbossError(fmt::format(
         "Module {:s} does not support transceiver TX output control on {:s}",
-        portName,
+        qsfpImpl_->getName(),
         ((side == phy::Side::LINE) ? "Line" : "System")));
   }
 
@@ -3250,7 +3947,7 @@ bool CmisModule::upgradeFirmwareLockedImpl(
   QSFP_LOG(INFO, this) << "Upgrading CMIS Module Firmware";
 
   auto fwUpgradeObj = std::make_unique<CmisFirmwareUpgrader>(
-      getTransceiverManager()->i2cBus(), getID() + 1, std::move(fbossFw));
+      qsfpImpl_, getID(), std::move(fbossFw));
 
   bool ret = fwUpgradeObj->cmisModuleFirmwareUpgrade();
   return ret;
@@ -3270,7 +3967,7 @@ void CmisModule::setTransceiverLoopbackLocked(
   // Get the list of lanes to disable/enable the loopback
   auto tcvrLanes = getTcvrLanesForPort(portName, side);
   if (tcvrLanes.empty()) {
-    XLOG(ERR) << fmt::format(
+    QSFP_LOG(ERR, this) << fmt::format(
         "No {:s} lanes available for port {:s}",
         (side == phy::Side::SYSTEM ? "HOST" : "LINE"),
         portName);
@@ -3294,6 +3991,338 @@ void CmisModule::setTransceiverLoopbackLocked(
       tcvrLanes, std::nullopt, !setLoopback, hostOrMediaInputLbEnable);
 
   writeCmisField(regField, &hostOrMediaInputLbEnable);
+}
+
+/*
+ * f16ToDouble
+ *
+ * Convert CMIS VDM F16 type (16 bit) to a floating point number
+ */
+double CmisModule::f16ToDouble(uint8_t byte0, uint8_t byte1) {
+  double ber;
+  int expon = byte0 >> 3;
+  expon -= 24;
+  int mant = ((byte0 & 0x7) << 8) | byte1;
+  ber = mant * exp10(expon);
+  return ber;
+}
+
+/*
+ * getVdmDataValPtr
+ *
+ * Returns the VDM data value pointer from register cache along with VDM data
+ * length, otherwise returns null
+ */
+std::pair<std::optional<const uint8_t*>, int> CmisModule::getVdmDataValPtr(
+    VdmConfigType vdmConf) {
+  const uint8_t* data;
+  int offset;
+  int length;
+  int dataAddress;
+
+  if (!cacheIsValid()) {
+    return std::make_pair(std::nullopt, 0);
+  }
+  auto vdmDiagsValLocation = getVdmDiagsValLocation(vdmConf);
+  if (vdmDiagsValLocation.vdmConfImplementedByModule) {
+    dataAddress = static_cast<int>(vdmDiagsValLocation.vdmValPage);
+    offset = vdmDiagsValLocation.vdmValOffset;
+    length = vdmDiagsValLocation.vdmValLength;
+    data = getQsfpValuePtr(dataAddress, offset, length);
+    return std::make_pair(data, length);
+  }
+  return std::make_pair(std::nullopt, 0);
+}
+
+/*
+ * fillVdmPerfMonitorSnr
+ *
+ * Private function to fill in the VDM performance monitor stats for SNR
+ */
+bool CmisModule::fillVdmPerfMonitorSnr(VdmPerfMonitorStats& vdmStats) {
+  if (!isVdmSupported() || !cacheIsValid()) {
+    return false;
+  }
+
+  // Get the SW Ports and the Channels for each port
+  auto& portNameToMediaLanes = getPortNameToMediaLanes();
+
+  // Fill in channel SNR Media In
+  std::map<int, double> channelSnrMap;
+  auto [data, length] = getVdmDataValPtr(SNR_MEDIA_IN);
+  if (data) {
+    for (auto lanes = 0; lanes < length / 2; lanes++) {
+      double snr;
+      snr = data.value()[lanes * 2] +
+          (data.value()[lanes * 2 + 1] / kU16TypeLsbDivisor);
+      channelSnrMap[lanes] = snr;
+    }
+  }
+  for (auto& [portName, mediaLanes] : portNameToMediaLanes) {
+    for (auto& mediaLane : mediaLanes) {
+      vdmStats.mediaPortVdmStats()[portName].laneSNR()[mediaLane] =
+          channelSnrMap[mediaLane];
+    }
+  }
+  return true;
+}
+
+/*
+ * fillVdmPerfMonitorBer
+ *
+ * Private function to fill in the VDM performance monitor stats for BER (Bit
+ * Error Rate) on both Media and Host side
+ */
+bool CmisModule::fillVdmPerfMonitorBer(VdmPerfMonitorStats& vdmStats) {
+  if (!isVdmSupported() || !cacheIsValid()) {
+    return false;
+  }
+
+  // Get the SW Ports and the Channels for each port
+  // Get the SW Ports and the Channels for each port
+  auto& portNameToMediaLanes = getPortNameToMediaLanes();
+  auto& portNameToHostLanes = getPortNameToHostLanes();
+
+  // Lambda to extract BER or Frame Error values for a given VDM config type on
+  // a SW Port
+  auto captureVdmBerFrameErrorValues =
+      [&](VdmConfigType vdmConfType, int startLane) -> std::optional<double> {
+    auto [data, length] = getVdmDataValPtr(vdmConfType);
+    if (data) {
+      return f16ToDouble(
+          data.value()[startLane * kVdmDescriptorLength],
+          data.value()[startLane * kVdmDescriptorLength + 1]);
+    }
+    return std::nullopt;
+  };
+
+  // Fill in Media side per port values
+  for (auto& [portName, mediaLanes] : portNameToMediaLanes) {
+    auto startLane = *mediaLanes.begin();
+
+    // Fill in Media Pre FEC BER values
+    if (auto berVal = captureVdmBerFrameErrorValues(
+            PRE_FEC_BER_MEDIA_IN_MIN, startLane)) {
+      vdmStats.mediaPortVdmStats()[portName].datapathBER()->min() =
+          berVal.value();
+    }
+    if (auto berVal = captureVdmBerFrameErrorValues(
+            PRE_FEC_BER_MEDIA_IN_MAX, startLane)) {
+      vdmStats.mediaPortVdmStats()[portName].datapathBER()->max() =
+          berVal.value();
+    }
+    if (auto berVal = captureVdmBerFrameErrorValues(
+            PRE_FEC_BER_MEDIA_IN_AVG, startLane)) {
+      vdmStats.mediaPortVdmStats()[portName].datapathBER()->avg() =
+          berVal.value();
+    }
+    if (auto berVal = captureVdmBerFrameErrorValues(
+            PRE_FEC_BER_MEDIA_IN_CUR, startLane)) {
+      vdmStats.mediaPortVdmStats()[portName].datapathBER()->cur() =
+          berVal.value();
+    }
+  }
+
+  // Fill in Host side per port values
+  for (auto& [portName, hostLanes] : portNameToHostLanes) {
+    auto startLane = *hostLanes.begin();
+
+    // Fill in Host Pre FEC BER values
+    if (auto berVal =
+            captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_MIN, startLane)) {
+      vdmStats.hostPortVdmStats()[portName].datapathBER()->min() =
+          berVal.value();
+    }
+    if (auto berVal =
+            captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_MAX, startLane)) {
+      vdmStats.hostPortVdmStats()[portName].datapathBER()->max() =
+          berVal.value();
+    }
+    if (auto berVal =
+            captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_AVG, startLane)) {
+      vdmStats.hostPortVdmStats()[portName].datapathBER()->avg() =
+          berVal.value();
+    }
+    if (auto berVal =
+            captureVdmBerFrameErrorValues(PRE_FEC_BER_HOST_IN_CUR, startLane)) {
+      vdmStats.hostPortVdmStats()[portName].datapathBER()->cur() =
+          berVal.value();
+    }
+  }
+  return true;
+}
+
+/*
+ * fillVdmPerfMonitorFecErr
+ *
+ * Private function to fill in the VDM performance monitor stats for FEC Error
+ * Rate (Post FEC BER) on both Media and Host side
+ */
+bool CmisModule::fillVdmPerfMonitorFecErr(VdmPerfMonitorStats& vdmStats) {
+  if (!isVdmSupported() || !cacheIsValid()) {
+    return false;
+  }
+
+  // Get the SW Ports and the Channels for each port
+  auto& portNameToMediaLanes = getPortNameToMediaLanes();
+  auto& portNameToHostLanes = getPortNameToHostLanes();
+
+  // Lambda to extract BER or Frame Error values for a given VDM config type on
+  // a SW Port
+  auto captureVdmBerFrameErrorValues =
+      [&](VdmConfigType vdmConfType, int startLane) -> std::optional<double> {
+    auto [data, length] = getVdmDataValPtr(vdmConfType);
+    if (data) {
+      return f16ToDouble(
+          data.value()[startLane * kVdmDescriptorLength],
+          data.value()[startLane * kVdmDescriptorLength + 1]);
+    }
+    return std::nullopt;
+  };
+
+  // Fill in Media side per port values
+  for (auto& [portName, mediaLanes] : portNameToMediaLanes) {
+    auto startLane = *mediaLanes.begin();
+
+    // Fill in Media Post FEC Errored Frames values
+    if (auto errFrames =
+            captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_MIN, startLane)) {
+      vdmStats.mediaPortVdmStats()[portName].datapathErroredFrames()->min() =
+          errFrames.value();
+    }
+    if (auto errFrames =
+            captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_MAX, startLane)) {
+      vdmStats.mediaPortVdmStats()[portName].datapathErroredFrames()->max() =
+          errFrames.value();
+    }
+    if (auto errFrames =
+            captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_AVG, startLane)) {
+      vdmStats.mediaPortVdmStats()[portName].datapathErroredFrames()->avg() =
+          errFrames.value();
+    }
+    if (auto errFrames =
+            captureVdmBerFrameErrorValues(ERR_FRAME_MEDIA_IN_CUR, startLane)) {
+      vdmStats.mediaPortVdmStats()[portName].datapathErroredFrames()->cur() =
+          errFrames.value();
+    }
+  }
+
+  // Fill in Host side per port values
+  for (auto& [portName, hostLanes] : portNameToHostLanes) {
+    auto startLane = *hostLanes.begin();
+
+    // Fill in Host Post FEC Errored Frame values
+    if (auto errFrames =
+            captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_MIN, startLane)) {
+      vdmStats.hostPortVdmStats()[portName].datapathErroredFrames()->min() =
+          errFrames.value();
+    }
+    if (auto errFrames =
+            captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_MAX, startLane)) {
+      vdmStats.hostPortVdmStats()[portName].datapathErroredFrames()->max() =
+          errFrames.value();
+    }
+    if (auto errFrames =
+            captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_AVG, startLane)) {
+      vdmStats.hostPortVdmStats()[portName].datapathErroredFrames()->avg() =
+          errFrames.value();
+    }
+    if (auto errFrames =
+            captureVdmBerFrameErrorValues(ERR_FRAME_HOST_IN_CUR, startLane)) {
+      vdmStats.hostPortVdmStats()[portName].datapathErroredFrames()->cur() =
+          errFrames.value();
+    }
+  }
+  return true;
+}
+
+/*
+ * fillVdmPerfMonitorLtp
+ *
+ * Private function to fill in the VDM performance monitor stats for LTP (Level
+ * Transition Parameter) on Media side
+ */
+bool CmisModule::fillVdmPerfMonitorLtp(VdmPerfMonitorStats& vdmStats) {
+  if (!isVdmSupported() || !cacheIsValid()) {
+    return false;
+  }
+
+  // Get the SW Ports and the Channels for each port
+  auto& portNameToMediaLanes = getPortNameToMediaLanes();
+
+  // Fill in channel LTP Media In
+  std::map<int, double> channelLtpMap;
+  auto [data, length] = getVdmDataValPtr(PAM4_LTP_MEDIA_IN);
+  if (data) {
+    for (auto lanes = 0; lanes < length / 2; lanes++) {
+      double ltp;
+      ltp = data.value()[lanes * 2] +
+          (data.value()[lanes * 2 + 1] / kU16TypeLsbDivisor);
+      channelLtpMap[lanes] = ltp;
+    }
+  }
+  for (auto& [portName, mediaLanes] : portNameToMediaLanes) {
+    for (auto& mediaLane : mediaLanes) {
+      vdmStats.mediaPortVdmStats()[portName].lanePam4LTP()[mediaLane] =
+          channelLtpMap[mediaLane];
+    }
+  }
+  return true;
+}
+
+/*
+ * fillVdmPerfMonitorPam4Data
+ *
+ * Private function to fill in the VDM performance monitor stats for PAM4 like
+ * each level standard deviation, MPI (Multi Path Interference) on Media side
+ */
+bool CmisModule::fillVdmPerfMonitorPam4Data(VdmPerfMonitorStats& vdmStats) {
+  if (!isVdmSupported(3) || !cacheIsValid()) {
+    return false;
+  }
+
+  // Get the SW Ports and the Channels for each port
+  auto& portNameToMediaLanes = getPortNameToMediaLanes();
+
+  // Fill in VDM Advance group3 performance monitoring info
+
+  // Lambda to read the VDM PM value for the given VDM Config
+  auto getVdmPmLaneValues =
+      [&](VdmConfigType vdmConf) -> std::map<int, double> {
+    std::map<int, double> pmMap;
+    auto [data, length] = getVdmDataValPtr(vdmConf);
+    if (data) {
+      for (auto lanes = 0; lanes < length / 2; lanes++) {
+        double pmVal;
+        pmVal =
+            f16ToDouble(data.value()[lanes * 2], data.value()[lanes * 2 + 1]);
+        pmMap[lanes] = pmVal;
+      }
+    }
+    return pmMap;
+  };
+
+  // PAM4 Level0, Level1, Level2 , Level3, MPI
+  auto sdL0Map = getVdmPmLaneValues(PAM4_LEVEL0_STANDARD_DEVIATION_LINE);
+  auto sdL1Map = getVdmPmLaneValues(PAM4_LEVEL1_STANDARD_DEVIATION_LINE);
+  auto sdL2Map = getVdmPmLaneValues(PAM4_LEVEL2_STANDARD_DEVIATION_LINE);
+  auto sdL3Map = getVdmPmLaneValues(PAM4_LEVEL3_STANDARD_DEVIATION_LINE);
+  auto mpiMap = getVdmPmLaneValues(PAM4_MPI_LINE);
+  for (auto& [portName, mediaLanes] : portNameToMediaLanes) {
+    for (auto& mediaLane : mediaLanes) {
+      vdmStats.mediaPortVdmStats()[portName].lanePam4Level0SD()[mediaLane] =
+          sdL0Map[mediaLane];
+      vdmStats.mediaPortVdmStats()[portName].lanePam4Level1SD()[mediaLane] =
+          sdL1Map[mediaLane];
+      vdmStats.mediaPortVdmStats()[portName].lanePam4Level2SD()[mediaLane] =
+          sdL2Map[mediaLane];
+      vdmStats.mediaPortVdmStats()[portName].lanePam4Level3SD()[mediaLane] =
+          sdL3Map[mediaLane];
+      vdmStats.mediaPortVdmStats()[portName].lanePam4MPI()[mediaLane] =
+          mpiMap[mediaLane];
+    }
+  }
+  return true;
 }
 
 } // namespace fboss

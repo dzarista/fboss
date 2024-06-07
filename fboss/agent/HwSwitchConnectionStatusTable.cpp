@@ -8,6 +8,10 @@
  *
  */
 #include "fboss/agent/HwSwitchConnectionStatusTable.h"
+#include "fboss/agent/SwSwitch.h"
+#include "fboss/agent/SwitchStats.h"
+
+#include <folly/logging/xlog.h>
 
 namespace facebook::fboss {
 void HwSwitchConnectionStatusTable::connected(SwitchID switchId) {
@@ -23,11 +27,30 @@ void HwSwitchConnectionStatusTable::connected(SwitchID switchId) {
     // notify the waiting thread
     hwSwitchConnectedCV_.notify_one();
   }
+  auto switchIndex =
+      sw_->getSwitchInfoTable().getSwitchIndexFromSwitchId(switchId);
+  sw_->stats()->hwAgentConnectionStatus(switchIndex, true /*connected*/);
 }
 
-void HwSwitchConnectionStatusTable::disconnected(SwitchID switchId) {
+bool HwSwitchConnectionStatusTable::disconnected(SwitchID switchId) {
   std::unique_lock<std::mutex> lk(hwSwitchConnectedMutex_);
-  connectedSwitches_.erase(switchId);
+  // Switch was not connected. This can happen if switch sends a
+  // graceful restart notification and later thrift stream detects
+  // a connection loss and notifies the disconnect.
+  if (!connectedSwitches_.erase(switchId)) {
+    return false;
+  }
+  // If there are no more active connections to HwSwitch, we cannot
+  // apply any new state updates. Hence exit the SwSwitch.
+  // In normal shutdown sequence, we exit SwSwitch first before shutting
+  // down HwSwitch. Hence this condition can happen only if all HwSwitches crash
+  if (connectedSwitches_.empty()) {
+    XLOG(FATAL) << "No active HwSwitch connections";
+  }
+  auto switchIndex =
+      sw_->getSwitchInfoTable().getSwitchIndexFromSwitchId(switchId);
+  sw_->stats()->hwAgentConnectionStatus(switchIndex, false /*connected*/);
+  return true;
 }
 
 bool HwSwitchConnectionStatusTable::waitUntilHwSwitchConnected() {
@@ -48,4 +71,10 @@ void HwSwitchConnectionStatusTable::cancelWait() {
   }
   hwSwitchConnectedCV_.notify_one();
 }
+
+int HwSwitchConnectionStatusTable::getConnectionStatus(SwitchID switchId) {
+  std::unique_lock<std::mutex> lk(hwSwitchConnectedMutex_);
+  return connectedSwitches_.find(switchId) != connectedSwitches_.end() ? 1 : 0;
+}
+
 } // namespace facebook::fboss

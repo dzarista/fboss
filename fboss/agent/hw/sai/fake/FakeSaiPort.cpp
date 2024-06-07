@@ -54,6 +54,8 @@ sai_status_t create_port_fn(
   bool disableTtlDecrement{false};
   sai_port_interface_type_t interface_type{SAI_PORT_INTERFACE_TYPE_NONE};
   bool txEnable{true};
+  std::optional<uint32_t> prbsPolynomial;
+  std::optional<int32_t> prbsConfig;
   std::optional<sai_object_id_t> ingressMacsecAcl;
   std::optional<sai_object_id_t> egressMacsecAcl;
   std::optional<uint16_t> systemPortId;
@@ -74,6 +76,7 @@ sai_status_t create_port_fn(
   std::optional<bool> rxLaneSquelchEnable;
   std::vector<sai_map_t> pfcTcDldInterval;
   std::vector<sai_map_t> pfcTcDlrInterval;
+  std::optional<sai_latch_status_t> portCrcErrDetect;
 
   for (int i = 0; i < attr_count; ++i) {
     switch (attr_list[i].id) {
@@ -175,6 +178,12 @@ sai_status_t create_port_fn(
           egressMirrorList.push_back(attr_list[i].value.objlist.list[j]);
         }
       } break;
+      case SAI_PORT_ATTR_PRBS_POLYNOMIAL:
+        prbsPolynomial = attr_list[i].value.u32;
+        break;
+      case SAI_PORT_ATTR_PRBS_CONFIG:
+        prbsConfig = attr_list[i].value.s32;
+        break;
       case SAI_PORT_ATTR_INGRESS_MACSEC_ACL:
         ingressMacsecAcl = attr_list[i].value.oid;
         break;
@@ -230,6 +239,11 @@ sai_status_t create_port_fn(
       case SAI_PORT_ATTR_RX_LANE_SQUELCH_ENABLE:
         rxLaneSquelchEnable = attr_list[i].value.booldata;
         break;
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+      case SAI_PORT_ATTR_CRC_ERROR_TOKEN_DETECT:
+        portCrcErrDetect = attr_list[i].value.latchstatus;
+        break;
+#endif
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
       case SAI_PORT_ATTR_PFC_TC_DLD_INTERVAL:
         for (int j = 0; j < attr_list[i].value.maplist.count; ++j) {
@@ -369,6 +383,9 @@ sai_status_t create_port_fn(
   }
   if (pfcTcDlrInterval.size()) {
     port.pfcTcDlrInterval = pfcTcDlrInterval;
+  }
+  if (portCrcErrDetect.has_value()) {
+    port.portCrcErrDetect = portCrcErrDetect.value();
   }
 
   return SAI_STATUS_SUCCESS;
@@ -535,6 +552,34 @@ sai_status_t set_port_attribute_fn(
                 .list[j];
       }
     } break;
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+    case SAI_PORT_ATTR_RX_FREQUENCY_OFFSET_PPM: {
+      port.portRxPPM.count = static_cast<sai_port_frequency_offset_ppm_list_t>(
+                                 attr->value.portfrequencyoffsetppmlist)
+                                 .count;
+      auto& ppmList = port.portRxPPM.list;
+      auto ppmVector = std::vector<sai_port_frequency_offset_ppm_values_t>();
+      ppmVector.resize(port.portRxPPM.count);
+      ppmList = ppmVector.data();
+      for (int j = 0; j < port.portRxPPM.count; j++) {
+        ppmList[j] = static_cast<sai_port_frequency_offset_ppm_list_t>(
+                         attr->value.portfrequencyoffsetppmlist)
+                         .list[j];
+      }
+    } break;
+    case SAI_PORT_ATTR_RX_SNR: {
+      port.portRxSNR.count =
+          static_cast<sai_port_snr_list_t>(attr->value.portsnrlist).count;
+      auto& snrList = port.portRxSNR.list;
+      auto snrVector = std::vector<sai_port_snr_values_t>();
+      snrVector.resize(port.portRxSNR.count);
+      snrList = snrVector.data();
+      for (int j = 0; j < port.portRxSNR.count; j++) {
+        snrList[j] =
+            static_cast<sai_port_snr_list_t>(attr->value.portsnrlist).list[j];
+      }
+    } break;
+#endif
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 3) || defined(TAJO_SDK_VERSION_1_42_8)
     case SAI_PORT_ATTR_RX_SIGNAL_DETECT: {
       port.portRxSignalDetect.count =
@@ -639,6 +684,12 @@ sai_status_t set_port_attribute_fn(
     case SAI_PORT_ATTR_FDR_ENABLE:
       port.fdrEnable = attr->value.booldata;
       break;
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+    case SAI_PORT_ATTR_CRC_ERROR_TOKEN_DETECT:
+      port.portCrcErrDetect =
+          static_cast<sai_latch_status_t>(attr->value.latchstatus);
+      break;
+#endif
     case SAI_PORT_ATTR_RX_LANE_SQUELCH_ENABLE:
       port.rxLaneSquelchEnable = attr->value.booldata;
       break;
@@ -920,6 +971,11 @@ sai_status_t get_port_attribute_fn(
       case SAI_PORT_ATTR_FDR_ENABLE:
         attr->value.booldata = port.fdrEnable;
         break;
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+      case SAI_PORT_ATTR_CRC_ERROR_TOKEN_DETECT:
+        attr[i].value.latchstatus = port.portCrcErrDetect;
+        break;
+#endif
       case SAI_PORT_ATTR_RX_LANE_SQUELCH_ENABLE:
         attr->value.booldata = port.rxLaneSquelchEnable;
         break;

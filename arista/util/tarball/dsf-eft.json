@@ -1,9 +1,21 @@
 {
    "latestReleaseNotes" : {
-         "name" : "October 20 2023 EFT",
-         "notesFile" : "release_notes/oct20_eft.txt"
+         "name" : "January 26 2024 EFT",
+         "notesFile" : "release_notes/jan26_eft.txt"
    },
    "pastReleaseNotes" : [
+      {
+         "name" : "December 22 2023 EFT",
+         "notesFile" : "release_notes/dec22_eft.txt"
+      },
+      {
+         "name" : "November 17 2023 EFT",
+         "notesFile" : "release_notes/nov17_eft.txt"
+      },
+      {
+         "name" : "October 20 2023 EFT",
+         "notesFile" : "release_notes/oct20_eft.txt"
+      },
       {
          "name" : "September 20 2023 EFT",
          "notesFile" : "release_notes/sep20_eft.txt"
@@ -30,7 +42,7 @@
       },
       {
          "name" : "flashrom",
-         "patchFile" : "patches/flashrom.patch",
+         "patchFile" : "patches/flashrom",
          "instructionsFile" : "patches/flashrom_instructions.txt"
       },
       {
@@ -41,12 +53,8 @@
    ],
    "programmables" : [
       {
-         "name" : "BMC Image",
-         "imageFile" : "programmables/flash-meru-arista-dev.bin"
-      },
-      {
          "name" : "Aboot Image",
-         "imageFile" : "programmables/Aboot-norcal13-13.1.0-lcc-64m-ENG-33784852.rom"
+         "imageFile" : "programmables/Aboot.rom"
       },
       {
          "name" : "Meru SCM CPLD Image",
@@ -54,20 +62,44 @@
       },
       {
          "name" : "Meru800bia SMB FPGA Image",
-         "imageFile" : "programmables/meru800bia-smb-fpga.xsvf"
+         "imageFile" : "programmables/meru800bia-smb-fpga.abit"
+      },
+      {
+         "name" : "Meru800bia Fan CPLD Image",
+         "imageFile" : "programmables/meru800bia-fan-cpld.astp"
       },
       {
          "name" : "Meru800bfa SMB CPLD Image",
-         "imageFile" : "programmables/meru800bfa-smb-cpld.stp"
+         "imageFile" : "programmables/meru800bfa-smb-cpld.astp"
+      },
+      {
+         "name" : "Meru800bfa SMB FPGA0 Image",
+         "imageFile" : "programmables/meru800bfa-smb-fpga0.abit"
+      },
+      {
+         "name" : "Meru800bfa SMB FPGA1 Image",
+         "imageFile" : "programmables/meru800bfa-smb-fpga1.abit"
+      },
+      {
+         "name" : "Meru800bfa SMB FPGA2 Image",
+         "imageFile" : "programmables/meru800bfa-smb-fpga2.abit"
+      },
+      {
+         "name" : "Meru800bfa SMB FPGA3 Image",
+         "imageFile" : "programmables/meru800bfa-smb-fpga3.abit"
+      },
+      {
+         "name" : "Meru800bfa Fan CPLD Image",
+         "imageFile" : "programmables/meru800bfa-fan-cpld.astp"
       }
    ],
    "repos" : [
       {
-         "name" : "APL",
-         "url" : "git@github.com:aristanetworks/apl.facebook.git",
+         "name" : "fboss.bsp.arista",
+         "url" : "git@github.com:facebookexternal/fboss.bsp.arista.git",
          "branch" : "main",
-         "commitHash" : "b02e382480f784029b0b96c7ca405cf0282e3568",
-         "note" : "- kernel drivers in src/\n- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/"
+         "commitHash" : "02801a760b50637c052d5a657cc45ce7894a059f",
+         "note" : "- Meru800bia BSP in meru800bia/\n- Meru800bfa BSP in meru800bfa/\n- auxdev kernel drivers in bsp-kmods/\n- Utils/patches in fw-util-common/"
       }
    ],
    "testResults" : []

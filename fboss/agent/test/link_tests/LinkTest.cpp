@@ -17,6 +17,7 @@
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/link_tests/LinkTest.h"
+#include "fboss/agent/test/utils/QosTestUtils.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/CommonUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -25,6 +26,8 @@
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types_custom_protocol.h"
 
 DECLARE_bool(enable_macsec);
+
+DECLARE_bool(skip_drain_check_for_prbs);
 
 namespace {
 const std::vector<std::string> kRestartQsfpService = {
@@ -79,6 +82,7 @@ void LinkTest::TearDown() {
 
 void LinkTest::setCmdLineFlagOverrides() const {
   FLAGS_enable_macsec = true;
+  FLAGS_skip_drain_check_for_prbs = true;
   AgentTest::setCmdLineFlagOverrides();
 }
 
@@ -261,15 +265,17 @@ void LinkTest::programDefaultRoute(
 }
 
 void LinkTest::disableTTLDecrements(
-    const boost::container::flat_set<PortDescriptor>& ecmpPorts) const {
-  utility::EcmpSetupTargetedPorts6 ecmp6(sw()->getState());
-  for (const auto& nextHop : ecmp6.getNextHops()) {
-    if (ecmpPorts.find(nextHop.portDesc) != ecmpPorts.end()) {
-      utility::disableTTLDecrements(
-          platform()->getHwSwitch(), ecmp6.getRouterId(), nextHop);
-    }
+    const boost::container::flat_set<PortDescriptor>& ecmpPorts) {
+  if (sw()->getHwAsicTable()->isFeatureSupportedOnAnyAsic(
+          HwAsic::Feature::PORT_TTL_DECREMENT_DISABLE)) {
+    disableTTLDecrementOnPorts(ecmpPorts);
+  } else {
+    utility::EcmpSetupTargetedPorts6 ecmp6(sw()->getState());
+    utility::disableTTLDecrements(
+        sw(), ecmp6.getRouterId(), ecmp6.getNextHops());
   }
 }
+
 void LinkTest::createL3DataplaneFlood(
     const boost::container::flat_set<PortDescriptor>& ecmpPorts) {
   auto switchId = scope(ecmpPorts);
@@ -277,11 +283,15 @@ void LinkTest::createL3DataplaneFlood(
       sw()->getState(), sw()->getLocalMac(switchId));
   programDefaultRoute(ecmpPorts, ecmp6);
   disableTTLDecrements(ecmpPorts);
-  auto vlanID = util::getFirstMap(sw()->getState()->getVlans())
+  auto vlanID = utility::getFirstMap(sw()->getState()->getVlans())
                     ->cbegin()
                     ->second->getID();
   utility::pumpTraffic(
-      true, platform()->getHwSwitch(), sw()->getLocalMac(switchId), vlanID);
+      true,
+      utility::getAllocatePktFn(sw()),
+      utility::getSendPktFunc(sw()),
+      sw()->getLocalMac(switchId),
+      vlanID);
   // TODO: Assert that traffic reached a certain rate
   XLOG(DBG2) << "Created L3 Data Plane Flood";
 }
@@ -344,16 +354,32 @@ std::set<std::pair<PortID, PortID>> LinkTest::getConnectedPairs() const {
   waitForLldpOnCabledPorts();
   std::set<std::pair<PortID, PortID>> connectedPairs;
   for (auto cabledPort : cabledPorts_) {
-    auto lldpNeighbors = sw()->getLldpMgr()->getDB()->getNeighbors(cabledPort);
-    if (lldpNeighbors.size() != 1) {
-      XLOG(WARN) << "Wrong lldp neighbor size for port "
-                 << getPortName(cabledPort) << ", should be 1 but got "
-                 << lldpNeighbors.size();
-      continue;
+    PortID neighborPort;
+    auto portType = platform()->getPlatformPort(cabledPort)->getPortType();
+    if (portType == cfg::PortType::FABRIC_PORT) {
+      auto fabricReachabilityEntries =
+          platform()->getHwSwitch()->getFabricConnectivity();
+      auto fabricPortEndpoint = fabricReachabilityEntries.find(cabledPort);
+      if (fabricPortEndpoint == fabricReachabilityEntries.end() ||
+          !*fabricPortEndpoint->second.isAttached()) {
+        XLOG(DBG2) << " No fabric end points on : " << getPortName(cabledPort);
+        continue;
+      }
+      neighborPort = PortID(fabricPortEndpoint->second.get_portId()) +
+          getRemotePortOffset(platform()->getType());
+    } else {
+      auto lldpNeighbors =
+          sw()->getLldpMgr()->getDB()->getNeighbors(cabledPort);
+      if (lldpNeighbors.size() != 1) {
+        XLOG(WARN) << "Wrong lldp neighbor size for port "
+                   << getPortName(cabledPort) << ", should be 1 but got "
+                   << lldpNeighbors.size();
+        continue;
+      }
+      neighborPort = getPortID((*lldpNeighbors.begin())->getPortId());
     }
-    auto neighborPort = getPortID((*lldpNeighbors.begin())->getPortId());
-    // Insert sorted pairs, so that the same pair does not show up twice in the
-    // set
+    // Insert sorted pairs, so that the same pair does not show up twice in
+    // the set
     auto connectedPair = cabledPort < neighborPort
         ? std::make_pair(cabledPort, neighborPort)
         : std::make_pair(neighborPort, cabledPort);
@@ -440,6 +466,11 @@ LinkTest::getConnectedOpticalPortPairWithFeature(
           bool sysLoopCapable =
               tcvrState.diagCapability().value().loopbackSystem().value();
           if (sysLoopCapable) {
+            connectedOpticalFeaturedPorts.insert(portPair);
+          }
+        } else if (feature == TransceiverFeature::VDM) {
+          bool vdmCapable = tcvrState.diagCapability().value().vdm().value();
+          if (vdmCapable) {
             connectedOpticalFeaturedPorts.insert(portPair);
           }
         }
@@ -578,6 +609,26 @@ void LinkTest::setLinkState(bool enable, std::vector<PortID>& portIds) {
   }
   EXPECT_NO_THROW(
       waitForLinkStatus(portIds, enable, 60, std::chrono::milliseconds(1000)););
+}
+
+std::vector<std::pair<PortID, PortID>> LinkTest::getPortPairsForFecErrInj()
+    const {
+  auto connectedPairs = getConnectedPairs();
+  std::unordered_set<phy::FecMode> supportedFecs = {
+      phy::FecMode::RS528, phy::FecMode::RS544, phy::FecMode::RS544_2N};
+  std::vector<std::pair<PortID, PortID>> supportedPorts;
+  for (const auto& [port1, port2] : connectedPairs) {
+    auto fecPort1 = platform()->getHwSwitch()->getPortFECMode(port1);
+    auto fecPort2 = platform()->getHwSwitch()->getPortFECMode(port2);
+    if (fecPort1 != fecPort2) {
+      throw FbossError(
+          "FEC different on both ends of the link: ", fecPort1, fecPort2);
+    }
+    if (supportedFecs.find(fecPort1) != supportedFecs.end()) {
+      supportedPorts.push_back({port1, port2});
+    }
+  }
+  return supportedPorts;
 }
 
 int linkTestMain(

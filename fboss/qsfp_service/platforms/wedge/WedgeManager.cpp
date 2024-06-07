@@ -21,7 +21,7 @@
 
 #include <folly/FileUtil.h>
 #include <folly/gen/Base.h>
-#include <folly/json.h>
+#include <folly/json/json.h>
 #include <folly/logging/xlog.h>
 #include <thrift/lib/cpp/util/EnumUtils.h>
 #include <chrono>
@@ -32,22 +32,25 @@ DEFINE_bool(
     "Override wedge_agent programInternalPhyPorts(). For test only");
 
 DEFINE_bool(
-    optics_thermal_data_post,
+    optics_data_post_to_rest,
     false,
     "Enable qsfp_service to post optics thermal data to BMC");
+
+DEFINE_bool(
+    enable_tcvr_i2c_logging,
+    false,
+    "Enable transceiver I2C logging feature in qsfp_service");
 
 namespace facebook {
 namespace fboss {
 
 namespace {
 
-constexpr int kSecAfterModuleOutOfReset = 2;
-
 static const std::unordered_set<TransceiverID> kEmptryTransceiverIDs = {};
 
 static const std::string kQsfpToBmcSyncDataVersion{"1.0"};
 
-static const int kOpticsThermalSyncInterval = 300;
+static const int kOpticsThermalSyncInterval = 10;
 
 } // namespace
 
@@ -73,9 +76,6 @@ WedgeManager::WedgeManager(
 
   dataCenter_ = getDeviceDatacenter();
   hostnameScheme_ = getDeviceHostnameScheme();
-  if (FLAGS_optics_thermal_data_post) {
-    qsfpRestClient_ = std::make_unique<QsfpRestClient>();
-  }
 }
 
 WedgeManager::~WedgeManager() {
@@ -85,34 +85,14 @@ WedgeManager::~WedgeManager() {
 }
 
 void WedgeManager::loadConfig() {
-  const auto& platformPorts = platformMapping_->getPlatformPorts();
-  for (const auto& it : platformPorts) {
-    auto port = it.second;
-    // Get the transceiver id based on the port info from config.
-    auto portId = *port.mapping()->id();
-    auto transceiverId = getTransceiverID(PortID(portId));
-    if (!transceiverId) {
-      XLOG(ERR) << "Did not find transceiver id for port id " << portId;
-      continue;
-    }
-    // Add the port to the transceiver indexed port group.
-    auto portGroupIt = portGroupMap_.find(transceiverId.value());
-    if (portGroupIt == portGroupMap_.end()) {
-      portGroupMap_[transceiverId.value()] =
-          std::set<cfg::PlatformPortEntry>{port};
-    } else {
-      portGroupIt->second.insert(port);
-    }
-    std::string portName = *port.mapping()->name();
-    portNameToModule_[portName] = transceiverId.value();
-    XLOG(INFO) << "Added port " << portName << " with portId " << portId
-               << " to transceiver " << transceiverId.value();
-  }
-
   // Process QSFP config here
   qsfpConfig_ = QsfpConfig::fromDefaultFile();
+  const auto& qsfpCfg = qsfpConfig_->thrift;
+  tcvrConfig_ = std::make_shared<TransceiverConfig>(
+      *qsfpCfg.transceiverConfigOverrides());
+
   if (FLAGS_publish_state_to_fsdb) {
-    fsdbSyncManager_->updateConfig(qsfpConfig_->thrift);
+    fsdbSyncManager_->updateConfig(qsfpCfg);
     // We should only start the fsdbSyncManager_ once. isSystemInitialized is
     // the flag for us to know whether this is the first time or not. In tests,
     // we call loadConfig again and adding this check avoids the sync manager to
@@ -158,7 +138,32 @@ void WedgeManager::initTransceiverMap() {
   // FLAGS_override_program_iphy_ports_for_test true.
   setOverrideTcvrToPortAndProfileForTesting();
 
+  initQsfpImplMap();
+
+  // Create Qsfp to BMC sync interface through Rest client
+  createQsfpToBmcSyncInterface();
+
   refreshTransceivers();
+}
+
+void WedgeManager::initQsfpImplMap() {
+  // Create WedgeQsfp for each QSFP module present in the system
+  for (int idx = 0; idx < getNumQsfpModules(); idx++) {
+    qsfpImpls_.push_back(
+        std::make_unique<WedgeQsfp>(idx, wedgeI2cBus_.get(), this));
+  }
+}
+
+void WedgeManager::createQsfpToBmcSyncInterface() {
+  if (FLAGS_optics_data_post_to_rest) {
+    try {
+      qsfpRestClient_ = std::make_unique<QsfpRestClient>();
+      XLOG(INFO) << "Created QSFP to BMC Sync Interface through Rest Client";
+    } catch (const std::exception& ex) {
+      XLOG(ERR)
+          << "Failed to created QSFP to BMC Sync Interface through Rest Client";
+    }
+  }
 }
 
 void WedgeManager::getTransceiversInfo(
@@ -328,26 +333,6 @@ void WedgeManager::writeTransceiverRegister(
       .wait();
 }
 
-void WedgeManager::customizeTransceiver(int32_t idx, cfg::PortSpeed speed) {
-  if (!isValidTransceiver(idx)) {
-    return;
-  }
-  auto lockedTransceivers = transceivers_.rlock();
-  if (auto it = lockedTransceivers->find(TransceiverID(idx));
-      it != lockedTransceivers->end()) {
-    try {
-      auto portName = getPortName(TransceiverID(idx));
-      // This API uses transceiverID so we don't know which port to program.
-      // Just program the first port
-      TransceiverPortState state{portName, 0, speed};
-      it->second->customizeTransceiver(state);
-    } catch (const std::exception& ex) {
-      XLOG(ERR) << "Transceiver " << idx
-                << ": Error calling customizeTransceiver(): " << ex.what();
-    }
-  }
-}
-
 void WedgeManager::syncPorts(
     std::map<int32_t, TransceiverInfo>& info,
     std::unique_ptr<std::map<int32_t, PortStatus>> ports) {
@@ -384,6 +369,8 @@ std::vector<TransceiverID> WedgeManager::refreshTransceivers() {
     return {};
   }
 
+  // Clear Transceiver reset for all transceivers not held
+  // in reset.
   clearAllTransceiverReset();
 
   // Since transceivers may appear or disappear, we need to update our
@@ -396,11 +383,11 @@ std::vector<TransceiverID> WedgeManager::refreshTransceivers() {
 
   // Send the optical thermal data to BMC if needed
   auto currTime = std::time(nullptr);
-  if (FLAGS_optics_thermal_data_post &&
+  if (FLAGS_optics_data_post_to_rest && qsfpRestClient_.get() &&
       (nextOpticsToBmcSyncTime_ <= currTime)) {
     // Post the optics thermal data to BMC
     auto qsfpToBmcSyncData = getQsfpToBmcSyncDataSerialized();
-    // Post data to BMC using usb0 Rest endpoint
+    // Post data to BMC using eth0.4088 Rest endpoint
     try {
       auto ret = qsfpRestClient_->postQsfpThermalData(qsfpToBmcSyncData);
       if (!ret) {
@@ -480,48 +467,17 @@ int WedgeManager::scanTransceiverPresence(
   return numTransceiversUp;
 }
 
-void WedgeManager::clearAllTransceiverReset() {
-  qsfpPlatApi_->clearAllTransceiverReset();
-  // Required delay time between a transceiver getting out of reset and fully
-  // functional.
-  sleep(kSecAfterModuleOutOfReset);
-}
-
-void WedgeManager::triggerQsfpHardReset(int idx) {
-  // This api accepts 1 based module id however the module id in
-  // WedgeManager is 0 based.
-  XLOG(INFO) << "triggerQsfpHardReset called for " << idx;
-  qsfpPlatApi_->triggerQsfpHardReset(idx + 1);
-  bool removeTransceiver = false;
-  {
-    // Read Lock to trigger all state machine changes
-    auto lockedTransceivers = transceivers_.rlock();
-    if (auto it = lockedTransceivers->find(TransceiverID(idx));
-        it != lockedTransceivers->end()) {
-      it->second->removeTransceiver();
-      removeTransceiver = true;
-    }
-  }
-
-  if (removeTransceiver) {
-    // Write lock to remove the transceiver
-    auto lockedTransceivers = transceivers_.wlock();
-    auto it = lockedTransceivers->find(TransceiverID(idx));
-    lockedTransceivers->erase(it);
-  }
-}
-
 std::unique_ptr<TransceiverI2CApi> WedgeManager::getI2CBus() {
   return std::make_unique<WedgeI2CBusLock>(std::make_unique<WedgeI2CBus>());
 }
 
 void WedgeManager::updateTransceiverMap() {
   std::vector<folly::Future<TransceiverManagementInterface>> futInterfaces;
-  std::vector<std::unique_ptr<WedgeQsfp>> qsfpImpls;
-  for (int idx = 0; idx < getNumQsfpModules(); idx++) {
-    qsfpImpls.push_back(std::make_unique<WedgeQsfp>(idx, wedgeI2cBus_.get()));
+  const auto numTransceivers = getNumQsfpModules();
+  CHECK_EQ(qsfpImpls_.size(), numTransceivers);
+  for (int idx = 0; idx < numTransceivers; idx++) {
     futInterfaces.push_back(
-        qsfpImpls[idx]->futureGetTransceiverManagementInterface());
+        qsfpImpls_[idx]->futureGetTransceiverManagementInterface());
   }
   folly::collectAllUnsafe(futInterfaces.begin(), futInterfaces.end()).wait();
 
@@ -530,8 +486,10 @@ void WedgeManager::updateTransceiverMap() {
   std::unordered_set<int> tcvrsToHardReset;
 
   {
+    // Order of locking is important here.
+    auto transceiversInReset = tcvrsHeldInReset_.rlock();
     auto lockedTransceiversRPtr = transceivers_.rlock();
-    for (int idx = 0; idx < qsfpImpls.size(); idx++) {
+    for (int idx = 0; idx < numTransceivers; idx++) {
       if (!futInterfaces[idx].isReady()) {
         XLOG(ERR)
             << "Failed getting TransceiverManagementInterface for TransceiverID="
@@ -556,7 +514,14 @@ void WedgeManager::updateTransceiverMap() {
       // Either we don't have a transceiver here before or we had a new one
       // since the management interface changed, we want to create a new module
       // here.
-      tcvrsToCreate.insert(idx);
+      // If the transceiver is held in reset, we dont create a new one in its
+      // place until it is released from reset.
+      if (transceiversInReset->count(idx) == 0) {
+        tcvrsToCreate.insert(idx);
+      } else {
+        XLOG(INFO) << "TransceiverID=" << idx
+                   << " is held in reset. Not adding transceiver";
+      }
     }
   } // end of scope for transceivers_.rlock
 
@@ -564,36 +529,53 @@ void WedgeManager::updateTransceiverMap() {
     auto lockedTransceiversWPtr = transceivers_.wlock();
     // Delete the transceivers first before potentially creating them later
     for (auto idx : tcvrsToDelete) {
-      auto it = lockedTransceiversWPtr->find(TransceiverID(idx));
-      lockedTransceiversWPtr->erase(it);
+      lockedTransceiversWPtr->erase(TransceiverID(idx));
     }
 
+    auto tcvrConfig = getTransceiverConfig();
+
+    // On these platforms, we are configuring the 200G optics in 2x50G
+    // experimental mode. Thus 2 of the 4 lanes remain disabled which kicks in
+    // the remediation logic and flaps the other 2 ports. Disabling remediation
+    // for just these 2 platforms as this is an experimental mode only
+    bool cmisSupportRemediate = true;
+    if (getPlatformType() == PlatformType::PLATFORM_MERU400BIU ||
+        getPlatformType() == PlatformType::PLATFORM_MERU400BFU) {
+      cmisSupportRemediate = false;
+    }
     for (auto idx : tcvrsToCreate) {
+      TransceiverID tcvrID(idx);
       if (futInterfaces[idx].value() == TransceiverManagementInterface::CMIS) {
         XLOG(INFO) << "Making CMIS QSFP for TransceiverID=" << idx;
         lockedTransceiversWPtr->emplace(
-            TransceiverID(idx),
-            std::make_unique<CmisModule>(this, std::move(qsfpImpls[idx])));
+            tcvrID,
+            std::make_unique<CmisModule>(
+                getPortNames(tcvrID),
+                qsfpImpls_[idx].get(),
+                tcvrConfig,
+                cmisSupportRemediate));
       } else if (
           futInterfaces[idx].value() == TransceiverManagementInterface::SFF) {
         XLOG(INFO) << "Making Sff QSFP for TransceiverID=" << idx;
         lockedTransceiversWPtr->emplace(
-            TransceiverID(idx),
-            std::make_unique<SffModule>(this, std::move(qsfpImpls[idx])));
+            tcvrID,
+            std::make_unique<SffModule>(
+                getPortNames(tcvrID), qsfpImpls_[idx].get(), tcvrConfig));
       } else if (
           futInterfaces[idx].value() ==
           TransceiverManagementInterface::SFF8472) {
         XLOG(INFO) << "Making Sff8472 module for TransceiverID=" << idx;
         lockedTransceiversWPtr->emplace(
-            TransceiverID(idx),
-            std::make_unique<Sff8472Module>(this, std::move(qsfpImpls[idx])));
+            tcvrID,
+            std::make_unique<Sff8472Module>(
+                getPortNames(tcvrID), qsfpImpls_[idx].get()));
       } else {
         XLOG(ERR) << "Unknown Transceiver interface: "
                   << static_cast<int>(futInterfaces[idx].value())
                   << " for TransceiverID=" << idx;
 
         try {
-          if (!qsfpImpls[idx]->detectTransceiver()) {
+          if (!qsfpImpls_[idx]->detectTransceiver()) {
             XLOG(DBG3) << "Transceiver is not present. TransceiverID=" << idx;
             continue;
           }
@@ -608,7 +590,7 @@ void WedgeManager::updateTransceiverMap() {
         // Check if we have expected ports info synced over and if all of
         // the ports are down. If any of them is not down then we will not
         // perform the reset.
-        bool safeToReset = areAllPortsDown(TransceiverID(idx)).first;
+        bool safeToReset = areAllPortsDown(tcvrID).first;
         if (std::time(nullptr) <= pauseRemediationUntil_) {
           XLOG(WARN) << "Remediation is paused, won't hard reset a present "
                      << "transceiver with unknown interface. TransceiverID="
@@ -620,8 +602,8 @@ void WedgeManager::updateTransceiverMap() {
                     << idx;
         }
       }
-    } // end of scope for transceivers_.wlock
-  }
+    }
+  } // end of scope for transceivers_.wlock
 
   for (auto idx : tcvrsToHardReset) {
     try {
@@ -940,8 +922,10 @@ void WedgeManager::setOverrideTcvrToPortAndProfileForTesting(
     for (const auto& portPairs : *qsfpTestConfig->cabledPortPairs()) {
       auto aPortID = getPortIDByPortName(*portPairs.aPortName());
       auto zPortID = getPortIDByPortName(*portPairs.zPortName());
-      CHECK(aPortID.has_value());
-      CHECK(zPortID.has_value());
+      CHECK(aPortID.has_value())
+          << "Couldn't find port ID for " << *portPairs.aPortName();
+      CHECK(zPortID.has_value())
+          << "Couldn't find port ID for " << *portPairs.zPortName();
       // If the SW port has transceiver id, add it to
       // overrideTcvrToPortAndProfile
       if (auto tcvrID = getTransceiverID(PortID(*aPortID))) {
@@ -988,6 +972,14 @@ void WedgeManager::publishPhyStatToFsdb(
   }
 }
 
+void WedgeManager::publishPortStatToFsdb(
+    std::string&& portName,
+    HwPortStats&& stat) const {
+  if (FLAGS_publish_stats_to_fsdb) {
+    fsdbSyncManager_->updatePortStat(std::move(portName), std::move(stat));
+  }
+}
+
 /*
  * getQsfpToBmcSyncData
  *
@@ -999,18 +991,20 @@ QsfpToBmcSyncData WedgeManager::getQsfpToBmcSyncData() const {
 
   // Gather system data
   qsfpToBmcData.syncDataStructVersion() = kQsfpToBmcSyncDataVersion;
+  qsfpToBmcData.timestamp() = std::time(nullptr);
   qsfpToBmcData.switchDeploymentInfo().value().dataCenter() =
       getSwitchDataCenter();
   qsfpToBmcData.switchDeploymentInfo().value().hostnameScheme() =
       getSwitchRole();
 
   // Gather Transceiver Data
-  std::map<int16_t, TransceiverThermalData> tcvrData;
+  std::map<std::string, TransceiverThermalData> tcvrData;
   std::vector<int32_t> ids;
   folly::gen::range(0, getNumQsfpModules()) | folly::gen::appendTo(ids);
 
   for (auto id : ids) {
     auto tcvrID = TransceiverID(id);
+    auto portName = getPortName(tcvrID);
     TransceiverInfo tcvrInfo;
 
     try {
@@ -1041,11 +1035,11 @@ QsfpToBmcSyncData WedgeManager::getQsfpToBmcSyncData() const {
                         .value()
                         .value()
                         .value();
-      tcvrData[id].temperature() = floor(temp);
+      tcvrData[portName].temperature() = floor(temp);
 
       MediaInterfaceCode moduleType =
           tcvrInfo.tcvrState().value().moduleMediaInterface().value();
-      tcvrData[id].moduleMediaInterface() =
+      tcvrData[portName].moduleMediaInterface() =
           apache::thrift::util::enumNameSafe(moduleType);
     }
   }

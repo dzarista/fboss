@@ -54,38 +54,16 @@ void MonolithicHwSwitchHandler::unregisterCallbacks() {
   hw_->unregisterCallbacks();
 }
 
-void MonolithicHwSwitchHandler::gracefulExit(
-    state::WarmbootState& thriftSwitchState) {
-  hw_->gracefulExit(thriftSwitchState);
-}
-
-bool MonolithicHwSwitchHandler::getAndClearNeighborHit(
-    RouterID vrf,
-    folly::IPAddress& ip) {
-  return hw_->getAndClearNeighborHit(vrf, ip);
+void MonolithicHwSwitchHandler::gracefulExit() {
+  hw_->gracefulExit();
 }
 
 folly::dynamic MonolithicHwSwitchHandler::toFollyDynamic() const {
   return hw_->toFollyDynamic();
 }
 
-std::optional<uint32_t> MonolithicHwSwitchHandler::getHwLogicalPortId(
-    PortID portID) const {
-  auto platformPort = platform_->getPlatformPort(portID);
-  return platformPort->getHwLogicalPortId();
-}
-
 void MonolithicHwSwitchHandler::onHwInitialized(HwSwitchCallback* callback) {
   platform_->onHwInitialized(callback);
-}
-
-void MonolithicHwSwitchHandler::onInitialConfigApplied(
-    HwSwitchCallback* callback) {
-  platform_->onInitialConfigApplied(callback);
-}
-
-void MonolithicHwSwitchHandler::platformStop() {
-  platform_->stop();
 }
 
 bool MonolithicHwSwitchHandler::transactionsSupported(
@@ -113,12 +91,26 @@ HwSwitchDropStats MonolithicHwSwitchHandler::getSwitchDropStats() const {
   return hw_->getSwitchDropStats();
 }
 
-std::map<PortID, phy::PhyInfo> MonolithicHwSwitchHandler::updateAllPhyInfo() {
-  return hw_->updateAllPhyInfo();
+HwSwitchWatermarkStats MonolithicHwSwitchHandler::getSwitchWatermarkStats()
+    const {
+  return hw_->getSwitchWatermarkStats();
+}
+
+void MonolithicHwSwitchHandler::updateAllPhyInfo() {
+  hw_->updateAllPhyInfo();
+}
+
+std::map<PortID, phy::PhyInfo> MonolithicHwSwitchHandler::getAllPhyInfo()
+    const {
+  return hw_->getAllPhyInfo();
 }
 
 uint64_t MonolithicHwSwitchHandler::getDeviceWatermarkBytes() const {
   return hw_->getDeviceWatermarkBytes();
+}
+
+HwFlowletStats MonolithicHwSwitchHandler::getHwFlowletStats() const {
+  return hw_->getHwFlowletStats();
 }
 
 HwSwitchFb303Stats* MonolithicHwSwitchHandler::getSwitchStats() const {
@@ -131,11 +123,11 @@ void MonolithicHwSwitchHandler::clearPortStats(
 }
 
 std::vector<phy::PrbsLaneStats> MonolithicHwSwitchHandler::getPortAsicPrbsStats(
-    int32_t portId) {
+    PortID portId) {
   return hw_->getPortAsicPrbsStats(portId);
 }
 
-void MonolithicHwSwitchHandler::clearPortAsicPrbsStats(int32_t portId) {
+void MonolithicHwSwitchHandler::clearPortAsicPrbsStats(PortID portId) {
   hw_->clearPortAsicPrbsStats(portId);
 }
 
@@ -153,11 +145,8 @@ void MonolithicHwSwitchHandler::switchRunStateChanged(SwitchRunState newState) {
   hw_->switchRunStateChanged(newState);
 }
 
-std::shared_ptr<SwitchState> MonolithicHwSwitchHandler::stateChanged(
-    const StateDelta& delta,
-    bool transaction) {
-  return transaction ? hw_->stateChangedTransaction(delta)
-                     : hw_->stateChanged(delta);
+std::vector<EcmpDetails> MonolithicHwSwitchHandler::getAllEcmpDetails() const {
+  return hw_->getAllEcmpDetails();
 }
 
 CpuPortStats MonolithicHwSwitchHandler::getCpuPortStats() const {
@@ -202,9 +191,13 @@ bool MonolithicHwSwitchHandler::needL2EntryForNeighbor(
 std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>
 MonolithicHwSwitchHandler::stateChanged(
     const fsdb::OperDelta& delta,
-    bool transaction) {
-  auto operResult = transaction ? hw_->stateChangedTransaction(delta)
-                                : hw_->stateChanged(delta);
+    bool transaction,
+    const std::shared_ptr<SwitchState>& /*newState*/,
+    const HwWriteBehavior& hwWriteBehavior) {
+  auto operResult = transaction
+      ? hw_->stateChangedTransaction(
+            delta, HwWriteBehaviorRAII(hwWriteBehavior))
+      : hw_->stateChanged(delta, HwWriteBehaviorRAII(hwWriteBehavior));
   /*
    * For monolithic, return success for update since SwSwitch should not
    * do rollback for partial update failure. In monolithic SwSwitch
@@ -216,16 +209,43 @@ MonolithicHwSwitchHandler::stateChanged(
 
 multiswitch::StateOperDelta MonolithicHwSwitchHandler::getNextStateOperDelta(
     std::unique_ptr<multiswitch::StateOperDelta> /*prevOperResult*/,
-    bool /*initialSync*/) {
+    int64_t /*lastUpdateSeqNum*/) {
   throw FbossError("Not supported");
 }
 
-void MonolithicHwSwitchHandler::notifyHwSwitchDisconnected() {
-  throw FbossError("Not supported");
-}
+// no action to take for monolithic
+void MonolithicHwSwitchHandler::notifyHwSwitchDisconnected() {}
 
 SwitchRunState MonolithicHwSwitchHandler::getHwSwitchRunState() {
   return hw_->getRunState();
+}
+
+AclStats MonolithicHwSwitchHandler::getAclStats() const {
+  return hw_->getAclStats();
+}
+
+void MonolithicHwSwitchHandler::getHwStats(
+    multiswitch::HwSwitchStats& hwStats) const {
+  auto now = duration_cast<std::chrono::seconds>(
+      std::chrono::system_clock::now().time_since_epoch());
+  hwStats.timestamp() = now.count();
+
+  hwStats.hwPortStats() = getPortStats();
+  hwStats.sysPortStats() = getSysPortStats();
+  hwStats.switchDropStats() = getSwitchDropStats();
+  hwStats.fabricReachabilityStats() = getFabricReachabilityStats();
+  hwStats.switchWatermarkStats() = getSwitchWatermarkStats();
+  if (auto hwSwitchStats = getSwitchStats()) {
+    hwStats.hwAsicErrors() = hwSwitchStats->getHwAsicErrors();
+  }
+  for (auto& [portId, phyInfoPerPort] : getAllPhyInfo()) {
+    hwStats.phyInfo()->emplace(portId, phyInfoPerPort);
+  }
+  hwStats.flowletStats() = getHwFlowletStats();
+  hwStats.cpuPortStats() = getCpuPortStats();
+  hwStats.aclStats() = getAclStats();
+  // update global stats
+  hwStats.fb303GlobalStats() = hw_->getSwitchStats()->getAllFb303Stats();
 }
 
 } // namespace facebook::fboss

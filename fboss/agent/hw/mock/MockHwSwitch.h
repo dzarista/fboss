@@ -40,7 +40,6 @@ class MockHwSwitch : public HwSwitch {
       std::shared_ptr<SwitchState>(
           const StateDelta& delta,
           const HwWriteBehaviorRAII&));
-  MOCK_METHOD2(getAndClearNeighborHit, bool(RouterID, folly::IPAddress&));
 
   std::unique_ptr<TxPacket> allocatePacket(uint32_t size) const override;
 
@@ -91,6 +90,10 @@ class MockHwSwitch : public HwSwitch {
       void(const std::unique_ptr<std::vector<int32_t>>&));
   MOCK_CONST_METHOD0(getBootType, BootType());
   MOCK_CONST_METHOD0(getTeFlowStats, TeFlowStats());
+  MOCK_CONST_METHOD0(getHwFlowletStats, HwFlowletStats());
+  MOCK_CONST_METHOD0(getAllEcmpDetails, std::vector<EcmpDetails>());
+  MOCK_CONST_METHOD0(getAclStats, AclStats());
+  MOCK_CONST_METHOD0(getSwitchWatermarkStats, HwSwitchWatermarkStats());
 
   MockPlatform* getPlatform() const override {
     return platform_;
@@ -129,8 +132,10 @@ class MockHwSwitch : public HwSwitch {
   MOCK_CONST_METHOD2(
       listObjects,
       std::string(const std::vector<HwObjectType>&, bool));
-  MOCK_METHOD0(updateAllPhyInfo, std::map<PortID, phy::PhyInfo>());
-  MOCK_CONST_METHOD0(getFabricConnectivity, std::map<PortID, FabricEndpoint>());
+  MOCK_METHOD0(updateAllPhyInfoImpl, std::map<PortID, phy::PhyInfo>());
+  MOCK_CONST_METHOD0(
+      getFabricConnectivity,
+      const std::map<PortID, FabricEndpoint>&());
   MOCK_CONST_METHOD1(
       getSwitchReachability,
       std::vector<PortID>(SwitchID switchId));
@@ -142,6 +147,9 @@ class MockHwSwitch : public HwSwitch {
  private:
   MOCK_METHOD1(switchRunStateChangedImpl, void(SwitchRunState newState));
   MOCK_METHOD0(initialStateApplied, void());
+  MOCK_METHOD0(syncLinkStates, void());
+  MOCK_METHOD0(syncLinkActiveStates, void());
+  MOCK_METHOD0(syncLinkConnectivity, void());
 
   MockPlatform* platform_;
 

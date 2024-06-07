@@ -10,7 +10,7 @@
 
 #include "fboss/agent/hw/sai/switch/SaiSwitch.h"
 
-#include "fboss/agent/FabricReachabilityManager.h"
+#include "fboss/agent/FabricConnectivityManager.h"
 #include "fboss/agent/hw/HwResourceStatsPublisher.h"
 #include "fboss/agent/hw/sai/switch/ConcurrentIndices.h"
 #include "fboss/agent/hw/sai/switch/SaiAclTableManager.h"
@@ -23,7 +23,13 @@
 #include "fboss/agent/hw/sai/switch/SaiSystemPortManager.h"
 
 namespace facebook::fboss {
+
 void SaiSwitch::updateStatsImpl() {
+  if (FLAGS_skip_stats_update_for_debug) {
+    // Skip collecting any ASIC stats while debugs are in progress
+    return;
+  }
+
   auto now =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   bool updateWatermarks = now - watermarkStatsUpdateTime_ >=
@@ -33,27 +39,30 @@ void SaiSwitch::updateStatsImpl() {
   }
 
   int64_t missingCount = 0, mismatchCount = 0;
-  auto portsIter = concurrentIndices_->portIds.begin();
-  while (portsIter != concurrentIndices_->portIds.end()) {
+  auto portsIter = concurrentIndices_->portSaiId2PortInfo.begin();
+  std::map<PortID, multiswitch::FabricConnectivityDelta> connectivityDelta;
+  while (portsIter != concurrentIndices_->portSaiId2PortInfo.end()) {
     {
       std::lock_guard<std::mutex> locked(saiSwitchMutex_);
-      managerTable_->portManager().updateStats(
-          portsIter->second, updateWatermarks);
-      auto endpointOpt =
-          managerTable_->portManager().getFabricReachabilityForPort(
-              portsIter->second);
+      auto endpointOpt = managerTable_->portManager().getFabricConnectivity(
+          portsIter->second.portID);
       if (endpointOpt.has_value()) {
-        fabricReachabilityManager_->processReachabilityInfoForPort(
-            portsIter->second, *endpointOpt);
-        if (fabricReachabilityManager_->isReachabilityInfoMissing(
-                portsIter->second)) {
+        auto delta = fabricConnectivityManager_->processConnectivityInfoForPort(
+            portsIter->second.portID, *endpointOpt);
+        if (delta) {
+          connectivityDelta.insert({portsIter->second.portID, *delta});
+        }
+        if (fabricConnectivityManager_->isConnectivityInfoMissing(
+                portsIter->second.portID)) {
           missingCount++;
         }
-        if (fabricReachabilityManager_->isReachabilityInfoMismatch(
-                portsIter->second)) {
+        if (fabricConnectivityManager_->isConnectivityInfoMismatch(
+                portsIter->second.portID)) {
           mismatchCount++;
         }
       }
+      managerTable_->portManager().updateStats(
+          portsIter->second.portID, updateWatermarks);
     }
     ++portsIter;
   }
@@ -102,7 +111,15 @@ void SaiSwitch::updateStatsImpl() {
   }
   {
     std::lock_guard<std::mutex> locked(saiSwitchMutex_);
-    managerTable_->switchManager().updateStats();
+    managerTable_->switchManager().updateStats(updateWatermarks);
   }
+  reportAsymmetricTopology();
+  linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThread(
+      [this, connectivityDelta = std::move(connectivityDelta)] {
+        if (connectivityDelta.size()) {
+          linkConnectivityChanged(connectivityDelta);
+        }
+      });
 }
+
 } // namespace facebook::fboss

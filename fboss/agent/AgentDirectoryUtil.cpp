@@ -149,6 +149,12 @@ std::string AgentDirectoryUtil::getRoutingProtocolColdBootDrainTimeFile()
   return getVolatileStateDir() + "/routing_protocol_cold_boot_drain_time";
 }
 
+std::string AgentDirectoryUtil::getRoutingProtocolColdBootDrainTimeFile(
+    int switchIndex) const {
+  return getVolatileStateDir() + "/routing_protocol_cold_boot_drain_time_" +
+      folly::to<std::string>(switchIndex);
+}
+
 std::string AgentDirectoryUtil::getSwSwitchCanWarmBootFile() const {
   return getWarmBootDir() + "/can_warm_boot";
 }
@@ -221,5 +227,58 @@ std::string AgentDirectoryUtil::getMultiSwitchPreStartScript() const {
 
 std::string AgentDirectoryUtil::getPreStartShellScript() const {
   return getVolatileStateDir() + "/pre_start.sh";
+}
+
+std::string AgentDirectoryUtil::sleepSwSwitchOnSigTermFile() const {
+  return getVolatileStateDir() + "/sw_sleep_on_sigterm";
+}
+
+std::string AgentDirectoryUtil::sleepHwSwitchOnSigTermFile(
+    int switchIndex) const {
+  return getVolatileStateDir() + "/hw_sleep_on_sigterm" +
+      folly::to<std::string>(switchIndex);
+}
+
+std::string AgentDirectoryUtil::getMaxPostSignalWaitTimeFile() const {
+  return getVolatileStateDir() + "/max_post_signal_wait_time_wedge_agent";
+}
+
+std::string AgentDirectoryUtil::getWrapperRefactorFlag() const {
+  return "/etc/fboss/features/cpp_wedge_agent_wrapper/current/on";
+}
+
+std::string AgentDirectoryUtil::exitTimeFile(
+    const std::string& processName) const {
+  return "/dev/shm/" + processName + "_last_exit_time";
+}
+
+std::string AgentDirectoryUtil::restartDurationFile(
+    const std::string& processName) const {
+  return "/dev/shm/" + processName + "_last_restart_duration";
+}
+
+std::string AgentDirectoryUtil::pidFile(const std::string& name) const {
+  return getVolatileStateDir() + "/." + name + ".pid";
+}
+
+std::string AgentDirectoryUtil::exitSwSwitchForColdBootFile() const {
+  return folly::to<std::string>(
+      getVolatileStateDir(), "/exit_sw_for_cold_boot");
+}
+
+std::string AgentDirectoryUtil::exitHwSwitchForColdBootFile(
+    int switchIndex) const {
+  return folly::to<std::string>(
+      getVolatileStateDir(), "/exit_hw_for_cold_boot_", switchIndex);
+}
+
+std::string AgentDirectoryUtil::getHwSwitchCanWarmBootFile(
+    int switchIndex) const {
+  return folly::to<std::string>(
+      getWarmBootDir(), "/can_warm_boot_", switchIndex);
+}
+
+std::string AgentDirectoryUtil::agentEnsembleConfigDir() const {
+  return folly::to<std::string>(getPersistentStateDir(), "/agent_ensemble/");
 }
 } // namespace facebook::fboss

@@ -12,8 +12,7 @@
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
-#include "fboss/agent/hw/test/HwSwitchEnsembleFactory.h"
-#include "fboss/agent/hw/test/HwVoqUtils.h"
+#include "fboss/agent/test/utils/VoqTestUtils.h"
 
 #include "fboss/agent/benchmarks/AgentBenchmarks.h"
 
@@ -73,11 +72,8 @@ BENCHMARK(HwStatsCollection) {
         auto portsNew = ports;
         portsNew.resize(std::min((int)ports.size(), numPortsToCollectStats));
 
-        auto config = utility::onePortPerInterfaceConfig(
-            ensemble.getSw()->getPlatformMapping(),
-            asic,
-            portsNew,
-            asic->desiredLoopbackModes());
+        auto config =
+            utility::onePortPerInterfaceConfig(ensemble.getSw(), portsNew);
         if (asic->isSupported(HwAsic::Feature::ROUTE_COUNTERS)) {
           config.switchSettings()->maxRouteCounterIDs() = numRouteCounters;
         }
@@ -92,14 +88,18 @@ BENCHMARK(HwStatsCollection) {
 
   // Setup Remote Intf and System Ports
   if (ensemble->getSw()->getSwitchInfoTable().haveVoqSwitches()) {
-    ensemble->applyNewState(utility::setupRemoteIntfAndSysPorts(
-        ensemble->getProgrammedState(),
-        ensemble->scopeResolver(),
-        ensemble->getSw()->getConfig()));
+    ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::setupRemoteIntfAndSysPorts(
+          in,
+          ensemble->scopeResolver(),
+          ensemble->getSw()->getConfig(),
+          ensemble->getSw()->getHwAsicTable()->isFeatureSupportedOnAllAsic(
+              HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE));
+    });
     // For VOQ switches we have 2K - 4K remote system ports (each with 4-8
     // VOQs). This is >10x of local ports on NPU platforms. Therefore, only run
-    // 1000 iterations.
-    iterations = 1000;
+    // 100 iterations.
+    iterations = 100;
   }
 
   std::vector<PortID> ports = ensemble->masterLogicalPortIds();

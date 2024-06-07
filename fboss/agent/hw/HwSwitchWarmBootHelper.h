@@ -9,11 +9,9 @@
  */
 #pragma once
 
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 #include <string>
 #include "fboss/agent/gen-cpp2/switch_state_types.h"
-
-#include "fboss/agent/SwSwitchWarmBootHelper.h"
 
 namespace facebook::fboss {
 
@@ -38,10 +36,8 @@ class HwSwitchWarmBootHelper {
 
   void storeHwSwitchWarmBootState(const folly::dynamic& switchState);
 
-  std::tuple<folly::dynamic, std::optional<state::WarmbootState>>
-  getWarmBootState() const;
+  folly::dynamic getWarmBootState() const;
 
-  state::WarmbootState getSwSwitchWarmBootState() const;
   folly::dynamic getHwSwitchWarmBootState() const;
 
   // bcm switch specific
@@ -74,7 +70,6 @@ class HwSwitchWarmBootHelper {
 
   std::string warmBootFlag() const;
   std::string forceColdBootOnceFlag() const;
-  std::string warmBootHwSwitchStateFile_DEPRECATED() const;
   std::string warmBootHwSwitchStateFile() const;
   std::string warmBootThriftSwitchStateFile() const;
 

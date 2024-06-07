@@ -14,8 +14,8 @@
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwTest.h"
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestDscpMarkingUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
+#include "fboss/agent/test/utils/DscpMarkingUtils.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 #include "fboss/agent/state/SwitchState.h"
 
@@ -26,6 +26,9 @@ DECLARE_bool(enable_acl_table_group);
 using namespace facebook::fboss;
 
 namespace {
+
+const std::int16_t kMaxDefaultAcls = 5;
+const std::int16_t kMaxAclTables = 2;
 
 bool isAclTableGroupEnabled(
     const HwSwitch* hwSwitch,
@@ -60,7 +63,7 @@ class SaiAclTableGroupTest : public HwTest {
   bool isSupported() const {
     bool multipleAclTableSupport =
         HwTest::isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
     multipleAclTableSupport = false;
 #endif
     return multipleAclTableSupport;
@@ -70,8 +73,9 @@ class SaiAclTableGroupTest : public HwTest {
     std::vector<cfg::AclTableQualifier> qualifiers = {
         cfg::AclTableQualifier::DSCP};
     std::vector<cfg::AclTableActionType> actions = {
-        cfg::AclTableActionType::PACKET_ACTION};
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+        cfg::AclTableActionType::PACKET_ACTION,
+        cfg::AclTableActionType::COUNTER};
+#if defined(TAJO_SDK_GTE_1_65_0)
     qualifiers.push_back(cfg::AclTableQualifier::TTL);
     actions.push_back(cfg::AclTableActionType::COUNTER);
 #endif
@@ -88,7 +92,7 @@ class SaiAclTableGroupTest : public HwTest {
         2 /* priority */,
         {cfg::AclTableActionType::PACKET_ACTION,
          cfg::AclTableActionType::COUNTER},
-        {cfg::AclTableQualifier::TTL});
+        {cfg::AclTableQualifier::TTL, cfg::AclTableQualifier::DSCP});
   }
 
   void addAclTable1Entry1(
@@ -233,8 +237,10 @@ class SaiAclTableGroupTest : public HwTest {
     // Table 1: For QPH and Dscp Acl.
     addQphDscpAclTable(newCfg);
 
-    utility::addQueuePerHostAclEntry(newCfg, kQphDscpTable());
-    utility::addDscpAclEntryWithCounter(newCfg, kQphDscpTable(), getAsic());
+    utility::addQueuePerHostAclEntry(
+        newCfg, kQphDscpTable(), getHwSwitchEnsemble()->isSai());
+    utility::addDscpAclEntryWithCounter(
+        newCfg, kQphDscpTable(), getHwSwitchEnsemble()->isSai());
   }
 
   void addTwoAclTables(cfg::SwitchConfig* newCfg) {
@@ -329,6 +335,34 @@ class SaiAclTableGroupTest : public HwTest {
         4);
   }
 
+  void addDefaultCounterAclsToTable(cfg::SwitchConfig& cfg, bool reverse) {
+    for (int table = 1; table <= kMaxAclTables; table++) {
+      for (int num = 1; num <= kMaxDefaultAcls; num++) {
+        auto aclNum = num;
+        if (reverse) {
+          // Need to reverse the order of acls
+          aclNum = (kMaxDefaultAcls + 1) - num;
+        }
+        auto tableName = folly::to<std::string>("table", table);
+        auto aclEntryName =
+            folly::to<std::string>(tableName, "_counter_acl", aclNum);
+        auto counterName =
+            folly::to<std::string>(tableName, "_counter", aclNum);
+        addCounterAclToAclTable(
+            &cfg, tableName, aclEntryName, counterName, aclNum);
+      }
+    }
+    applyNewConfig(cfg);
+  }
+  void verifyAclStatCount(
+      const std::string& aclTableName,
+      int aclCount,
+      int statCount,
+      int counterCount) {
+    utility::checkAclEntryAndStatCount(
+        getHwSwitch(), aclCount, statCount, counterCount, aclTableName);
+  }
+
   /*
    * Helper API to configure 2 acl tables with the below entries
    * Table 1: QPH, DSCP table. Table 1 entries: QPH acls
@@ -340,7 +374,8 @@ class SaiAclTableGroupTest : public HwTest {
 
     utility::addAclTableGroup(&newCfg, kAclStage(), "Ingress Table Group");
     addQphDscpAclTable(&newCfg, addExtraQualifier);
-    utility::addQueuePerHostAclEntry(&newCfg, kQphDscpTable());
+    utility::addQueuePerHostAclEntry(
+        &newCfg, kQphDscpTable(), getHwSwitchEnsemble()->isSai());
     utility::addTtlAclTable(&newCfg, 2 /* priority */, addExtraQualifier);
 
     return newCfg;
@@ -377,15 +412,16 @@ class SaiAclTableGroupTest : public HwTest {
       applyNewConfig(newCfg);
     };
 
-    auto verify = [=]() {
+    auto verify = [=, this]() {
       verifyAclEntryTestHelper(
           17 /* table1EntryCount*/, 3 /*table2EntryCount*/);
     };
 
-    auto setupPostWarmboot = [=]() {
+    auto setupPostWarmboot = [=, this]() {
       auto newCfg = getMultiAclConfig(addQualifierDuringWarmboot);
       // Add Dscp acl to table 1 post warmboot
-      utility::addDscpAclEntryWithCounter(&newCfg, kQphDscpTable(), getAsic());
+      utility::addDscpAclEntryWithCounter(
+          &newCfg, kQphDscpTable(), this->getHwSwitchEnsemble()->isSai());
       // Add a new counter acl to table 2 post warmboot
       addCounterAclToAclTable(
           &newCfg,
@@ -413,7 +449,7 @@ class SaiAclTableGroupTest : public HwTest {
       applyNewConfig(newCfg);
     };
 
-    auto verifyPostWarmboot = [=]() {
+    auto verifyPostWarmboot = [=, this]() {
       verifyAclEntryTestHelper(
           37 /* table1EntryCount*/, 3 /* table1EntryCount*/);
     };
@@ -433,7 +469,7 @@ TEST_F(SaiAclTableGroupTest, SingleAclTableGroup) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
   };
 
@@ -453,7 +489,7 @@ TEST_F(SaiAclTableGroupTest, MultipleTablesNoEntries) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch(), kAclTable1()));
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch(), kAclTable2()));
@@ -477,7 +513,7 @@ TEST_F(SaiAclTableGroupTest, MultipleTablesWithEntries) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() { verifyMultipleTableWithEntriesHelper(); };
+  auto verify = [=, this]() { verifyMultipleTableWithEntriesHelper(); };
 
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -498,7 +534,7 @@ TEST_F(SaiAclTableGroupTest, AddTablesThenEntries) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() { verifyMultipleTableWithEntriesHelper(); };
+  auto verify = [=, this]() { verifyMultipleTableWithEntriesHelper(); };
 
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -521,7 +557,7 @@ TEST_F(SaiAclTableGroupTest, RemoveAclTable) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_FALSE(utility::isAclTableEnabled(getHwSwitch(), kAclTable1()));
     ASSERT_FALSE(utility::isAclTableEnabled(getHwSwitch(), kAclTable2()));
@@ -545,7 +581,7 @@ TEST_F(SaiAclTableGroupTest, AddTwoTablesDeleteFirst) {
     deleteQphDscpAclTable(&newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_FALSE(utility::isAclTableEnabled(getHwSwitch(), kQphDscpTable()));
     ASSERT_TRUE(utility::isAclTableEnabled(
@@ -565,7 +601,7 @@ TEST_F(SaiAclTableGroupTest, AddTwoTablesDeleteSecond) {
     deleteTtlAclTable(&newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch(), kQphDscpTable()));
     ASSERT_FALSE(utility::isAclTableEnabled(
@@ -587,7 +623,7 @@ TEST_F(SaiAclTableGroupTest, AddTwoTablesDeleteAddFirst) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch(), kQphDscpTable()));
     ASSERT_TRUE(utility::isAclTableEnabled(
@@ -609,7 +645,7 @@ TEST_F(SaiAclTableGroupTest, AddTwoTablesDeleteAddSecond) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch(), kQphDscpTable()));
     ASSERT_TRUE(utility::isAclTableEnabled(
@@ -624,19 +660,18 @@ TEST_F(SaiAclTableGroupTest, AddFirstTableAfterWarmboot) {
 
   auto setup = [this]() { warmbootSetupHelper(tableAddType::table2); };
 
-  auto setupPostWarmboot = [=]() {
+  auto setupPostWarmboot = [=, this]() {
     warmbootSetupHelper(tableAddType::tableBoth);
   };
 
-  auto verifyPostWarmboot = [=]() {
+  auto verifyPostWarmboot = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch(), kQphDscpTable()));
     ASSERT_TRUE(utility::isAclTableEnabled(
         getHwSwitch(), utility::getTtlAclTableName()));
   };
 
-  verifyAcrossWarmBoots(
-      setup, []() {}, setupPostWarmboot, verifyPostWarmboot);
+  verifyAcrossWarmBoots(setup, []() {}, setupPostWarmboot, verifyPostWarmboot);
 }
 
 TEST_F(SaiAclTableGroupTest, AddSecondTableAfterWarmboot) {
@@ -644,19 +679,18 @@ TEST_F(SaiAclTableGroupTest, AddSecondTableAfterWarmboot) {
 
   auto setup = [this]() { warmbootSetupHelper(tableAddType::table1); };
 
-  auto setupPostWarmboot = [=]() {
+  auto setupPostWarmboot = [=, this]() {
     warmbootSetupHelper(tableAddType::tableBoth);
   };
 
-  auto verifyPostWarmboot = [=]() {
+  auto verifyPostWarmboot = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch(), kQphDscpTable()));
     ASSERT_TRUE(utility::isAclTableEnabled(
         getHwSwitch(), utility::getTtlAclTableName()));
   };
 
-  verifyAcrossWarmBoots(
-      setup, []() {}, setupPostWarmboot, verifyPostWarmboot);
+  verifyAcrossWarmBoots(setup, []() {}, setupPostWarmboot, verifyPostWarmboot);
 }
 
 TEST_F(SaiAclTableGroupTest, DeleteFirstTableAfterWarmboot) {
@@ -664,17 +698,18 @@ TEST_F(SaiAclTableGroupTest, DeleteFirstTableAfterWarmboot) {
 
   auto setup = [this]() { warmbootSetupHelper(tableAddType::tableBoth); };
 
-  auto setupPostWarmboot = [=]() { warmbootSetupHelper(tableAddType::table2); };
+  auto setupPostWarmboot = [=, this]() {
+    warmbootSetupHelper(tableAddType::table2);
+  };
 
-  auto verifyPostWarmboot = [=]() {
+  auto verifyPostWarmboot = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_FALSE(utility::isAclTableEnabled(getHwSwitch(), kQphDscpTable()));
     ASSERT_TRUE(utility::isAclTableEnabled(
         getHwSwitch(), utility::getTtlAclTableName()));
   };
 
-  verifyAcrossWarmBoots(
-      setup, []() {}, setupPostWarmboot, verifyPostWarmboot);
+  verifyAcrossWarmBoots(setup, []() {}, setupPostWarmboot, verifyPostWarmboot);
 }
 
 TEST_F(SaiAclTableGroupTest, DeleteSecondTableAfterWarmboot) {
@@ -682,17 +717,18 @@ TEST_F(SaiAclTableGroupTest, DeleteSecondTableAfterWarmboot) {
 
   auto setup = [this]() { warmbootSetupHelper(tableAddType::tableBoth); };
 
-  auto setupPostWarmboot = [=]() { warmbootSetupHelper(tableAddType::table1); };
+  auto setupPostWarmboot = [=, this]() {
+    warmbootSetupHelper(tableAddType::table1);
+  };
 
-  auto verifyPostWarmboot = [=]() {
+  auto verifyPostWarmboot = [=, this]() {
     ASSERT_TRUE(isAclTableGroupEnabled(getHwSwitch(), SAI_ACL_STAGE_INGRESS));
     ASSERT_TRUE(utility::isAclTableEnabled(getHwSwitch(), kQphDscpTable()));
     ASSERT_FALSE(utility::isAclTableEnabled(
         getHwSwitch(), utility::getTtlAclTableName()));
   };
 
-  verifyAcrossWarmBoots(
-      setup, []() {}, setupPostWarmboot, verifyPostWarmboot);
+  verifyAcrossWarmBoots(setup, []() {}, setupPostWarmboot, verifyPostWarmboot);
 }
 
 TEST_F(SaiAclTableGroupTest, TestAclTableGroupRoundtrip) {
@@ -714,11 +750,54 @@ TEST_F(SaiAclTableGroupTest, TestAclTableGroupRoundtrip) {
     applyNewConfig(newCfg);
   };
 
-  auto verify = [=]() {
+  auto verify = [=, this]() {
     verifyAclTableHelper(utility::kDefaultAclTable(), kAclTable1Entry1(), 1);
   };
 
   verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(SaiAclTableGroupTest, RepositionAclEntriesPostWarmboot) {
+  ASSERT_TRUE(isSupported());
+
+  auto setup = [this]() {
+    auto newCfg = initialConfig();
+
+    utility::addAclTableGroup(&newCfg, kAclStage(), "Ingress Table Group");
+    addAclTable1(newCfg);
+    addAclTable2(newCfg);
+    addDefaultCounterAclsToTable(newCfg, false);
+  };
+
+  auto verify = [=, this]() {
+    verifyAclStatCount(
+        kAclTable1(),
+        /*ACLs*/ kMaxDefaultAcls,
+        /*stats*/ kMaxDefaultAcls,
+        /*counters*/ kMaxDefaultAcls);
+    verifyAclStatCount(
+        kAclTable2(), kMaxDefaultAcls, kMaxDefaultAcls, kMaxDefaultAcls);
+  };
+
+  auto setupPostWarmboot = [=, this]() {
+    auto newCfg = initialConfig();
+
+    utility::addAclTableGroup(&newCfg, kAclStage(), "Ingress Table Group");
+    addAclTable1(newCfg);
+    addAclTable2(newCfg);
+    addDefaultCounterAclsToTable(newCfg, true);
+  };
+
+  auto verifyPostWarmboot = [=, this]() {
+    verifyAclStatCount(
+        kAclTable1(),
+        /*ACLs*/ kMaxDefaultAcls,
+        /*stats*/ kMaxDefaultAcls,
+        /*counters*/ kMaxDefaultAcls);
+    verifyAclStatCount(
+        kAclTable2(), kMaxDefaultAcls, kMaxDefaultAcls, kMaxDefaultAcls);
+  };
+  verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
 }
 
 /*

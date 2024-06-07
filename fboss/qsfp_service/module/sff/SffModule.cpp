@@ -182,9 +182,10 @@ void getQsfpFieldAddress(
 }
 
 SffModule::SffModule(
-    TransceiverManager* transceiverManager,
-    std::unique_ptr<TransceiverImpl> qsfpImpl)
-    : QsfpModule(transceiverManager, std::move(qsfpImpl)) {}
+    std::set<std::string> portNames,
+    TransceiverImpl* qsfpImpl,
+    std::shared_ptr<const TransceiverConfig> cfg)
+    : QsfpModule(std::move(portNames), qsfpImpl), tcvrConfig_(std::move(cfg)) {}
 
 SffModule::~SffModule() {}
 
@@ -218,10 +219,10 @@ void SffModule::readField(
     // changing page) and when the skipPageChange argument is not true
     uint8_t page = static_cast<uint8_t>(dataPage);
     qsfpImpl_->writeTransceiver(
-        {TransceiverI2CApi::ADDR_QSFP, 127, sizeof(page)}, &page);
+        {TransceiverAccessParameter::ADDR_QSFP, 127, sizeof(page)}, &page);
   }
   qsfpImpl_->readTransceiver(
-      {TransceiverI2CApi::ADDR_QSFP, dataOffset, dataLength}, data);
+      {TransceiverAccessParameter::ADDR_QSFP, dataOffset, dataLength}, data);
 }
 
 void SffModule::writeField(
@@ -236,10 +237,10 @@ void SffModule::writeField(
     // changing page) and when the skipPageChange argument is not true
     uint8_t page = static_cast<uint8_t>(dataPage);
     qsfpImpl_->writeTransceiver(
-        {TransceiverI2CApi::ADDR_QSFP, 127, sizeof(page)}, &page);
+        {TransceiverAccessParameter::ADDR_QSFP, 127, sizeof(page)}, &page);
   }
   qsfpImpl_->writeTransceiver(
-      {TransceiverI2CApi::ADDR_QSFP, dataOffset, dataLength}, data);
+      {TransceiverAccessParameter::ADDR_QSFP, dataOffset, dataLength}, data);
 }
 
 FlagLevels SffModule::getQsfpSensorFlags(SffField fieldName) {
@@ -426,7 +427,7 @@ TransceiverSettings SffModule::getTransceiverSettingsInfo() {
       getSettingsValue(SffField::CDR_CONTROL, LOWER_BITS_MASK));
   settings.powerMeasurement() = SffFieldInfo::getFeatureState(getSettingsValue(
       SffField::DIAGNOSTIC_MONITORING_TYPE, POWER_MEASUREMENT_MASK));
-  settings.powerControl() = getPowerControlValue();
+  settings.powerControl() = getPowerControlValue(true /* readFromCache */);
   settings.rateSelect() = getRateSelectValue();
   settings.rateSelectSetting() =
       getRateSelectSettingValue(*settings.rateSelect());
@@ -535,9 +536,16 @@ RateSelectState SffModule::getRateSelectValue() {
   return RateSelectState::UNSUPPORTED;
 }
 
-PowerControlState SffModule::getPowerControlValue() {
-  switch (static_cast<PowerControl>(getSettingsValue(
-      SffField::POWER_CONTROL, uint8_t(PowerControl::POWER_CONTROL_MASK)))) {
+PowerControlState SffModule::getPowerControlValue(bool readFromCache) {
+  uint8_t powerControl;
+  if (readFromCache) {
+    powerControl = getSettingsValue(
+        SffField::POWER_CONTROL, uint8_t(PowerControl::POWER_CONTROL_MASK));
+  } else {
+    readSffField(SffField::POWER_CONTROL, &powerControl);
+    powerControl &= uint8_t(PowerControl::POWER_CONTROL_MASK);
+  }
+  switch (static_cast<PowerControl>(powerControl)) {
     case PowerControl::POWER_SET_BY_HW:
       return PowerControlState::POWER_SET_BY_HW;
     case PowerControl::HIGH_POWER_OVERRIDE:
@@ -1247,9 +1255,8 @@ void SffModule::setPowerOverrideIfSupportedLocked(
  * Put logic here that should only be run on ports that have been
  * down for a long time. These are actions that are potentially more
  * disruptive, but have worked in the past to recover a transceiver.
- * Only return true if there's an actual remediation happened
  */
-bool SffModule::remediateFlakyTransceiver(
+void SffModule::remediateFlakyTransceiver(
     bool /* allPortsDown */,
     const std::vector<std::string>& /* ports */) {
   QSFP_LOG(INFO, this) << "Performing potentially disruptive remediations";
@@ -1257,7 +1264,6 @@ bool SffModule::remediateFlakyTransceiver(
   resetLowPowerMode();
   ensureTxEnabled();
   lastRemediateTime_ = std::time(nullptr);
-  return true;
 }
 void SffModule::resetLowPowerMode() {
   // Newer transceivers will have a auto-clearing reset bit that is
@@ -1381,8 +1387,7 @@ void SffModule::overwriteChannelControlSettings() {
   // Set the Equalizer setting based on QSFP config.
   // TODO: Skip configuring settings if the current values are same as what we
   // want to configure
-  const auto& qsfpCfg = getTransceiverManager()->getQsfpConfig()->thrift;
-  for (const auto& override : *qsfpCfg.transceiverConfigOverrides()) {
+  for (const auto& override : tcvrConfig_->overridesConfig_) {
     // Check if this override factor requires overriding TxEqualization
     if (auto txEqualization = sffTxEqualizationOverride(*override.config())) {
       auto settingValue = getSettingForAllLanes(*txEqualization);
@@ -1409,6 +1414,23 @@ void SffModule::overwriteChannelControlSettings() {
   }
 }
 
+bool SffModule::tcvrPortStateSupported(TransceiverPortState& portState) const {
+  if (portState.transmitterTech != getQsfpTransmitterTechnology()) {
+    return false;
+  }
+
+  if (getQsfpTransmitterTechnology() == TransmitterTechnology::COPPER) {
+    // Return true irrespective of speed as the copper cables are mostly
+    // flexible with all speeds. We can change this later when we know of any
+    // limitations
+    return true;
+  }
+
+  return (portState.speed == cfg::PortSpeed::HUNDREDG ||
+          portState.speed == cfg::PortSpeed::FORTYG) &&
+      (portState.startHostLane == 0) && portState.numHostLanes == 4;
+}
+
 void SffModule::customizeTransceiverLocked(TransceiverPortState& portState) {
   auto& portName = portState.portName;
   auto speed = portState.speed;
@@ -1429,7 +1451,8 @@ void SffModule::customizeTransceiverLocked(TransceiverPortState& portState) {
     overwriteChannelControlSettings();
 
     // We want this on regardless of speed
-    setPowerOverrideIfSupportedLocked(*settings.powerControl());
+    setPowerOverrideIfSupportedLocked(
+        getPowerControlValue(false /* readFromCache */));
 
     if (speed != cfg::PortSpeed::DEFAULT) {
       setCdrIfSupported(speed, *settings.cdrTx(), *settings.cdrRx());
@@ -1771,7 +1794,21 @@ bool SffModule::setTransceiverTxLocked(
   auto tcvrLanes = getTcvrLanesForPort(portName, side);
 
   if (tcvrLanes.empty()) {
-    XLOG(ERR) << fmt::format("No lanes available for port {:s}", portName);
+    QSFP_LOG(ERR, this) << fmt::format(
+        "No lanes available for port {:s}", portName);
+    return false;
+  }
+
+  return setTransceiverTxImplLocked(tcvrLanes, side, userChannelMask, enable);
+}
+
+bool SffModule::setTransceiverTxImplLocked(
+    const std::set<uint8_t>& tcvrLanes,
+    phy::Side side,
+    std::optional<uint8_t> userChannelMask,
+    bool enable) {
+  if (tcvrLanes.empty()) {
+    QSFP_LOG(ERR, this) << "No lanes available";
     return false;
   }
 
@@ -1779,7 +1816,7 @@ bool SffModule::setTransceiverTxLocked(
   if (!isTransceiverFeatureSupported(TransceiverFeature::TX_DISABLE, side)) {
     throw FbossError(fmt::format(
         "Module {:s} does not support transceiver TX output control on {:s}",
-        portName,
+        qsfpImpl_->getName(),
         ((side == phy::Side::LINE) ? "Line" : "System")));
   }
 

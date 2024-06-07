@@ -9,7 +9,7 @@
  */
 
 #include "fboss/agent/hw/sai/hw_test/SaiRollbackTest.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 namespace facebook::fboss {
 
@@ -22,7 +22,7 @@ class SaiQPHRollbackTest : public SaiRollbackTest {
         getAsic()->desiredLoopbackModes());
     if (isSupported(HwAsic::Feature::L3_QOS)) {
       utility::addQueuePerHostQueueConfig(&cfg);
-      utility::addQueuePerHostAcls(&cfg);
+      utility::addQueuePerHostAcls(&cfg, getHwSwitchEnsemble()->isSai());
     }
     return cfg;
   }

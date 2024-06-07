@@ -6,7 +6,6 @@
 
 #include "fboss/platform/fan_service/Bsp.h"
 #include "fboss/platform/fan_service/ControlLogic.h"
-#include "fboss/platform/fan_service/Mokujin.h"
 #include "fboss/platform/fan_service/SensorData.h"
 
 #include "fboss/platform/fan_service/if/gen-cpp2/fan_service_config_types.h"
@@ -18,7 +17,7 @@ namespace facebook::fboss::platform::fan_service {
 
 class FanServiceImpl {
  public:
-  explicit FanServiceImpl(const std::string& configFile);
+  explicit FanServiceImpl();
   ~FanServiceImpl() = default; // Make compiler happy in handling smart pointers
   // Runs Fan PWM control logic
   int controlFan();
@@ -37,6 +36,13 @@ class FanServiceImpl {
     return pControlLogic_->getFanStatuses();
   }
 
+  void setFanHold(std::optional<int> pwm) {
+    pControlLogic_->setFanHold(pwm);
+  }
+  std::optional<int> getFanHold() {
+    return pControlLogic_->getFanHold();
+  }
+
  private:
   // Attributes
   // BSP contains platform specific I/O methonds
@@ -52,10 +58,5 @@ class FanServiceImpl {
   uint64_t lastControlExecutionTimeSec_{0};
   // The timestamp of the last sensor data fetch
   uint64_t lastSensorFetchTimeSec_{0};
-  std::string confFileName_{};
-
-  // The factory method to return the proper BSP object,
-  // based on the platform type specified in config file
-  std::shared_ptr<Bsp> BspFactory();
 };
 } // namespace facebook::fboss::platform::fan_service

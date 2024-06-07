@@ -89,8 +89,7 @@ class AgentTest : public ::testing::Test, public MonolithicAgentInitializer {
 
   template <typename SETUP_FN, typename VERIFY_FN>
   void verifyAcrossWarmBoots(SETUP_FN setup, VERIFY_FN verify) {
-    verifyAcrossWarmBoots(
-        setup, verify, []() {}, []() {});
+    verifyAcrossWarmBoots(setup, verify, []() {}, []() {});
   }
   template <typename VERIFY_FN>
   void verifyAcrossWarmBoots(VERIFY_FN verify) {
@@ -121,6 +120,9 @@ class AgentTest : public ::testing::Test, public MonolithicAgentInitializer {
       const boost::container::flat_set<PortDescriptor>& ports);
 
   PortID getPortID(const std::string& portName) const;
+
+  void disableTTLDecrementOnPorts(
+      const boost::container::flat_set<PortDescriptor>& ecmpPorts);
 
  private:
   template <typename AddrT>

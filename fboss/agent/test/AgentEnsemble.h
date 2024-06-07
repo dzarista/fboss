@@ -12,9 +12,11 @@
 #include "fboss/agent/Main.h"
 
 #include "fboss/agent/FbossInit.h"
+#include "fboss/agent/HwSwitchThriftClientTable.h"
 #include "fboss/agent/SwAgentInitializer.h"
 #include "fboss/agent/SwSwitch.h"
-#include "fboss/agent/hw/test/LinkStateToggler.h"
+#include "fboss/agent/SwSwitchWarmBootHelper.h"
+#include "fboss/agent/test/LinkStateToggler.h"
 #include "fboss/agent/test/RouteDistributionGenerator.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
 
@@ -24,6 +26,7 @@ DECLARE_bool(setup_for_warmboot);
 namespace facebook::fboss {
 class StateObserver;
 class AgentEnsemble;
+class HwSwitch;
 
 using AgentEnsembleSwitchConfigFn =
     std::function<cfg::SwitchConfig(const AgentEnsemble&)>;
@@ -31,10 +34,13 @@ using AgentEnsemblePlatformConfigFn = std::function<void(cfg::PlatformConfig&)>;
 
 class AgentEnsemble : public TestEnsembleIf {
  public:
-  AgentEnsemble() {}
+  AgentEnsemble() : AgentEnsemble("agent.conf") {}
   explicit AgentEnsemble(const std::string& configFileName);
-  ~AgentEnsemble();
+  virtual ~AgentEnsemble() override;
   using TestEnsembleIf::masterLogicalPortIds;
+  using StateUpdateFn = SwSwitch::StateUpdateFn;
+  using TestEnsembleIf::getLatestPortStats;
+  using TestEnsembleIf::getLatestSysPortStats;
 
   void setupEnsemble(
       uint32_t hwFeaturesDesired,
@@ -72,6 +78,11 @@ class AgentEnsemble : public TestEnsembleIf {
     return getProgrammedState();
   }
 
+  std::unique_ptr<RouteUpdateWrapper> getRouteUpdaterWrapper() override {
+    return std::make_unique<SwSwitchRouteUpdateWrapper>(
+        getSw()->getRouteUpdater());
+  }
+
   virtual const SwAgentInitializer* agentInitializer() const = 0;
   virtual SwAgentInitializer* agentInitializer() = 0;
   virtual void createSwitch(
@@ -79,13 +90,15 @@ class AgentEnsemble : public TestEnsembleIf {
       uint32_t hwFeaturesDesired,
       PlatformInitFn initPlatform) = 0;
   virtual void reloadPlatformConfig() = 0;
-  virtual bool isSai() const = 0;
 
-  std::shared_ptr<SwitchState> applyNewState(
-      std::shared_ptr<SwitchState> state,
+  void applyNewState(
+      StateUpdateFn fn,
+      const std::string& name = "test-update",
       bool transaction = false) override;
 
   std::vector<PortID> masterLogicalPortIds() const override;
+
+  std::vector<PortID> masterLogicalPortIds(SwitchID switchID) const;
 
   void switchRunStateChanged(SwitchRunState runState) override;
 
@@ -105,7 +118,7 @@ class AgentEnsemble : public TestEnsembleIf {
 
   static void enableExactMatch(bcm::BcmConfig& config);
 
-  static std::string getInputConfigFile();
+  std::string getInputConfigFile();
 
   void packetReceived(std::unique_ptr<RxPacket> pkt) noexcept override {
     getSw()->packetReceived(std::move(pkt));
@@ -116,11 +129,21 @@ class AgentEnsemble : public TestEnsembleIf {
       bool up,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override {
-    if (getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED) {
-      if (linkToggler_) {
-        linkToggler_->linkStateChanged(port, up);
-      }
+    if (getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED &&
+        linkToggler_) {
+      linkToggler_->linkStateChanged(port, up);
+      getSw()->linkStateChanged(port, up);
     }
+  }
+
+  void linkActiveStateChanged(
+      const std::map<PortID, bool>& port2IsActive) override {
+    getSw()->linkActiveStateChanged(port2IsActive);
+  }
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+          port2OldAndNewConnectivity) override {
+    getSw()->linkConnectivityChanged(port2OldAndNewConnectivity);
   }
 
   void l2LearningUpdateReceived(
@@ -139,9 +162,10 @@ class AgentEnsemble : public TestEnsembleIf {
   }
 
   std::map<PortID, HwPortStats> getLatestPortStats(
-      const std::vector<PortID>& ports);
+      const std::vector<PortID>& ports) override;
 
-  HwPortStats getLatestPortStats(const PortID& port);
+  std::map<SystemPortID, HwSysPortStats> getLatestSysPortStats(
+      const std::vector<SystemPortID>& ports) override;
 
   void setLoopbackMode(cfg::PortLoopbackMode mode) {
     mode_ = mode;
@@ -156,12 +180,15 @@ class AgentEnsemble : public TestEnsembleIf {
     return getSw()->getHwAsicTable();
   }
 
-  std::map<PortID, FabricEndpoint> getFabricConnectivity() const override {
-    return getSw()->getHwSwitchHandler()->getFabricConnectivity();
+  const HwAsicTable* getHwAsicTable() const override {
+    return getSw()->getHwAsicTable();
   }
 
+  std::map<PortID, FabricEndpoint> getFabricConnectivity(
+      SwitchID switchId) const override;
+
   FabricReachabilityStats getFabricReachabilityStats() const override {
-    return getSw()->getHwSwitchHandler()->getFabricReachabilityStats();
+    return getSw()->getFabricReachabilityStats();
   }
 
   void updateStats() override {
@@ -172,17 +199,98 @@ class AgentEnsemble : public TestEnsembleIf {
       override;
   void unregisterStateObserver(StateObserver* observer) override;
 
+  virtual HwSwitch* getHwSwitch() = 0;
+  virtual const HwSwitch* getHwSwitch() const = 0;
+  void runDiagCommand(
+      const std::string& input,
+      std::string& output,
+      std::optional<SwitchID> switchId = std::nullopt) override;
+
+  void clearPortStats(
+      const std::unique_ptr<std::vector<int32_t>>& ports) override;
+
+  void clearPortStats();
+
+  LinkStateToggler* getLinkToggler() override;
+
+  folly::MacAddress getLocalMac(SwitchID id) const override {
+    return getSw()->getLocalMac(id);
+  }
+  void waitForLineRateOnPort(PortID port);
+  void waitForSpecificRateOnPort(
+      PortID port,
+      const uint64_t desiredBps,
+      int secondsToWaitPerIteration = 1);
+
+  void sendPacketAsync(
+      std::unique_ptr<TxPacket> pkt,
+      std::optional<PortDescriptor> portDescriptor,
+      std::optional<uint8_t> queueId) override;
+
+  std::unique_ptr<TxPacket> allocatePacket(uint32_t size) override;
+
+  bool supportsAddRemovePort() const override {
+    return getSw()->getPlatformSupportsAddRemovePort();
+  }
+
+  const PlatformMapping* getPlatformMapping() const override {
+    return getSw()->getPlatformMapping();
+  }
+
+  void bringUpPort(PortID port) {
+    bringUpPorts({port});
+  }
+  void bringDownPort(PortID port) {
+    bringDownPorts({port});
+  }
+  void bringUpPorts(const std::vector<PortID>& ports);
+  void bringDownPorts(const std::vector<PortID>& ports);
+
+  cfg::SwitchConfig getCurrentConfig() const override {
+    return getSw()->getConfig();
+  }
+  bool ensureSendPacketSwitched(std::unique_ptr<TxPacket> pkt);
+  bool ensureSendPacketOutOfPort(
+      std::unique_ptr<TxPacket> pkt,
+      PortID portID,
+      std::optional<uint8_t> queue = std::nullopt);
+
+  virtual void ensureHwSwitchConnected(SwitchID switchId) = 0;
+  uint64_t getTrafficRate(
+      const HwPortStats& prevPortStats,
+      const HwPortStats& curPortStats,
+      const int secondsBetweenStatsCollection);
+
+ protected:
+  void joinAsyncInitThread() {
+    if (asyncInitThread_) {
+      asyncInitThread_->join();
+      asyncInitThread_.reset();
+    }
+  }
+
  private:
+  void setConfigFiles(const std::string& fileName);
+  void setBootType();
+  void overrideConfigFlag(const std::string& fileName);
+
   void writeConfig(const cfg::SwitchConfig& config);
   void writeConfig(const cfg::AgentConfig& config);
   void writeConfig(const cfg::AgentConfig& config, const std::string& file);
+  bool waitForRateOnPort(
+      PortID port,
+      uint64_t desiredBps,
+      int secondsToWaitPerIteration = 2);
 
   cfg::SwitchConfig initialConfig_;
   std::unique_ptr<std::thread> asyncInitThread_{nullptr};
-  std::vector<PortID> masterLogicalPortIds_;
-  std::string configFile_{"agent.conf"};
+  std::vector<PortID> masterLogicalPortIds_; /* all ports */
+  std::map<SwitchID, std::vector<PortID>>
+      switchId2PortIds_; /* per switch ports */
+  std::string configFile_{};
   std::unique_ptr<LinkStateToggler> linkToggler_;
   cfg::PortLoopbackMode mode_{cfg::PortLoopbackMode::MAC};
+  BootType bootType_{BootType::COLD_BOOT};
 };
 
 void initEnsemble(
@@ -195,6 +303,7 @@ std::unique_ptr<AgentEnsemble> createAgentEnsemble(
         AgentEnsemblePlatformConfigFn(),
     uint32_t featuresDesired =
         (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
-         HwSwitch::FeaturesDesired::LINKSCAN_DESIRED));
+         HwSwitch::FeaturesDesired::LINKSCAN_DESIRED |
+         HwSwitch::FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED));
 
 } // namespace facebook::fboss

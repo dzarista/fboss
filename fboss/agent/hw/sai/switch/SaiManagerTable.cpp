@@ -165,14 +165,12 @@ void SaiManagerTable::reset(bool skipSwitchManager) {
   // ports. So before we delete system ports, its required
   // to reset the queue associations.
   portManager_->resetQueues();
-  systemPortManager_.reset();
-  portManager_.reset();
+  portManager_->clearQosPolicy();
   // Hash manager is going away, reset hashes
   switchManager_->resetHashes();
   hashManager_.reset();
   // Qos map manager is going away, reset global qos maps
   switchManager_->resetQosMaps();
-  qosMapManager_.reset();
   samplePacketManager_.reset();
 
   // ACL Table Group is going away, reset ingressACL pointing to it
@@ -190,8 +188,15 @@ void SaiManagerTable::reset(bool skipSwitchManager) {
   // to trap packet to a specific CPU queue, some platforms require creating an
   // ACL with action to set hostif user defined mapping to a specific queue id.
   hostifManager_.reset();
-  bufferManager_.reset();
   wredManager_.reset();
+
+  // ports may be referenced in acls, reset ports after acls
+  systemPortManager_.reset();
+  portManager_.reset();
+
+  // qos maps and buffer pools are referenced in ports, reset after ports
+  qosMapManager_.reset();
+  bufferManager_.reset();
 
   // CSP CS00011823810
 #if !defined(BRCM_SAI_SDK_XGS_AND_DNX)

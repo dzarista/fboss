@@ -28,8 +28,8 @@
 
 #include <folly/FileUtil.h>
 #include <folly/Subprocess.h>
-#include <folly/dynamic.h>
-#include <folly/json.h>
+#include <folly/json/dynamic.h>
+#include <folly/json/json.h>
 #include <folly/logging/xlog.h>
 
 #include <boost/filesystem/operations.hpp>
@@ -224,6 +224,7 @@ std::vector<ClientID> AllClientIDs() {
       ClientID::BGPD,
       ClientID::STATIC_ROUTE,
       ClientID::INTERFACE_ROUTE,
+      ClientID::REMOTE_INTERFACE_ROUTE,
       ClientID::LINKLOCAL_ROUTE,
       ClientID::STATIC_INTERNAL,
       ClientID::OPENR,
@@ -316,22 +317,75 @@ PortID getPortID(
     SystemPortID sysPortId,
     const std::shared_ptr<SwitchState>& state) {
   auto sysPort = state->getSystemPorts()->getNode(sysPortId);
-  auto voqSwitchId = sysPort->getSwitchId();
-  auto sysPortRange = state->getDsfNodes()
-                          ->getNodeIf(SwitchID(voqSwitchId))
-                          ->getSystemPortRange();
+  auto switchId = sysPort->getSwitchId();
+  auto switchIdToSwitchInfo = state->getSwitchSettings()
+                                  ->getSwitchSettings(HwSwitchMatcher(
+                                      std::unordered_set<SwitchID>({switchId})))
+                                  ->getSwitchIdToSwitchInfo();
+  auto switchInfo = switchIdToSwitchInfo.find(switchId);
+  if (switchInfo == switchIdToSwitchInfo.end()) {
+    throw FbossError(
+        "switchId: ", switchId, " not found in switchToSwitchInfo");
+  }
+  auto sysPortRange = switchInfo->second.systemPortRange();
   CHECK(sysPortRange.has_value());
-  return PortID(static_cast<int64_t>(sysPortId) - *sysPortRange->minimum());
+  auto portIdRange = switchInfo->second.portIdRange();
+  CHECK(portIdRange.has_value());
+  return PortID(
+      static_cast<int64_t>(sysPortId) - *sysPortRange->minimum() +
+      *portIdRange->minimum());
 }
 
 SystemPortID getSystemPortID(
     const PortID& portId,
-    const std::shared_ptr<SwitchState>& state) {
-  auto sysPortRange = state->getAssociatedSystemPortRangeIf(portId);
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo,
+    int64_t switchId) {
+  auto switchInfo = switchToSwitchInfo.find(switchId);
+  if (switchInfo == switchToSwitchInfo.end()) {
+    throw FbossError(
+        "switchId: ", switchId, " not found in switchToSwitchInfo");
+  }
+  auto sysPortRange = switchInfo->second.systemPortRange();
   CHECK(sysPortRange.has_value());
-  auto systemPortId = static_cast<int64_t>(portId) + *sysPortRange->minimum();
+  auto portIdRange = *switchInfo->second.portIdRange();
+  auto systemPortId = static_cast<int64_t>(portId) + *sysPortRange->minimum() -
+      *portIdRange.minimum();
   CHECK_LE(systemPortId, *sysPortRange->maximum());
   return SystemPortID(systemPortId);
+}
+
+SystemPortID getSystemPortID(
+    const PortID& portId,
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo,
+    SwitchID switchId) {
+  return getSystemPortID(
+      portId, switchToSwitchInfo, static_cast<int64_t>(switchId));
+}
+
+SystemPortID getSystemPortID(
+    const PortID& portId,
+    const std::shared_ptr<SwitchState>& state,
+    SwitchID switchId) {
+  return getSystemPortID(
+      portId,
+      state->getSwitchSettings()
+          ->getSwitchSettings(
+              HwSwitchMatcher(std::unordered_set<SwitchID>({switchId})))
+          ->getSwitchIdToSwitchInfo(),
+      switchId);
+}
+
+cfg::Range64 getFirstSwitchSystemPortIdRange(
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo) {
+  for (const auto& [switchId, switchInfo] : switchToSwitchInfo) {
+    // Only VOQ switches have system ports
+    if (switchInfo.switchType() == cfg::SwitchType::VOQ &&
+        switchInfo.switchIndex() == 0) {
+      CHECK(switchInfo.systemPortRange().has_value());
+      return *switchInfo.systemPortRange();
+    }
+  }
+  throw FbossError("No VOQ switch with switchIndex 0 found");
 }
 
 std::vector<PortID> getPortsForInterface(
@@ -384,6 +438,18 @@ bool isAnyInterfacePortInLoopbackMode(
       XLOG(DBG2) << "Port: " << port->getName()
                  << " in interface: " << interface->getID()
                  << " is in loopback mode";
+      return true;
+    }
+  }
+  return false;
+}
+
+bool isAnyInterfacePortRecyclePort(
+    std::shared_ptr<SwitchState> swState,
+    const std::shared_ptr<Interface> interface) {
+  for (auto portId : getPortsForInterface(interface->getID(), swState)) {
+    auto port = swState->getPorts()->getNodeIf(portId);
+    if (port && port->getPortType() == cfg::PortType::RECYCLE_PORT) {
       return true;
     }
   }
@@ -630,10 +696,9 @@ AdminDistance getAdminDistanceForClientId(
   return static_cast<AdminDistance>(distance->second);
 }
 
-size_t getNumUpPorts(
+size_t getNumActiveFabricPorts(
     const std::shared_ptr<SwitchState>& state,
-    const HwSwitchMatcher& matcher,
-    cfg::PortType portType) {
+    const HwSwitchMatcher& matcher) {
   auto portMap = state->getPorts()->getMapNodeIf(matcher);
   if (!portMap) {
     return 0;
@@ -642,8 +707,10 @@ size_t getNumUpPorts(
   return std::count_if(
       std::begin(std::as_const(*portMap)),
       std::end(std::as_const(*portMap)),
-      [portType](const auto& port) {
-        return port.second->getPortType() == portType && port.second->isUp();
+      [](const auto& port) {
+        return port.second->getPortType() == cfg::PortType::FABRIC_PORT &&
+            port.second->isActive().has_value() &&
+            port.second->isActive().value() == true;
       });
 }
 
@@ -651,7 +718,7 @@ size_t getNumUpPorts(
  * SwitchDrainState can be modified from configuration.
  * However, some VOQ switch implementations require that the switch must be
  * initialized as DRAINED and can be in UNDRAINED state iff certain
- * number (pre-configured threshold) of fabric links are up.
+ * number (pre-configured threshold) of fabric links are ACTIVE.
  *
  * Thus, if configured switch state is
  *    - DRAINED => return DRAINED.
@@ -660,7 +727,7 @@ size_t getNumUpPorts(
  */
 cfg::SwitchDrainState computeActualSwitchDrainState(
     const std::shared_ptr<SwitchSettings>& switchSettings,
-    int numFabricPortsUp) {
+    int numActiveFabricPorts) {
   CHECK(switchSettings);
 
   // For non-VOQ switches, actual switch drain state is the same as desired
@@ -688,7 +755,7 @@ cfg::SwitchDrainState computeActualSwitchDrainState(
       switch (switchSettings->getActualSwitchDrainState()) {
         case cfg::SwitchDrainState::UNDRAINED:
           if (switchSettings->getMinLinksToRemainInVOQDomain().has_value() &&
-              numFabricPortsUp <
+              numActiveFabricPorts <
                   switchSettings->getMinLinksToRemainInVOQDomain().value()) {
             newSwitchDrainState = cfg::SwitchDrainState::DRAINED;
           } else {
@@ -697,7 +764,7 @@ cfg::SwitchDrainState computeActualSwitchDrainState(
           break;
         case cfg::SwitchDrainState::DRAINED:
           if (switchSettings->getMinLinksToJoinVOQDomain().has_value() &&
-              numFabricPortsUp >=
+              numActiveFabricPorts >=
                   switchSettings->getMinLinksToJoinVOQDomain().value()) {
             newSwitchDrainState = cfg::SwitchDrainState::UNDRAINED;
           } else {
@@ -712,6 +779,74 @@ cfg::SwitchDrainState computeActualSwitchDrainState(
 
 uint64_t getMacOui(const folly::MacAddress macAddress) {
   return macAddress.u64HBO() & 0x0000FFFFFF000000;
+}
+
+/*
+ * For Multi-NPU devices, each NPU appears once in the DsfNodeMap with
+ * identical name but different switchID.
+ * Build a switchName to (sorted switchIDs) map.
+ * e.g. rdsw002 => [4, 8]
+ * assign switchIndex to switchID starting 0 i.e.
+ * [4 => 0], [8 => 1]...
+ */
+std::unordered_map<SwitchID, SwitchIndex> computeSwitchIdToSwitchIndex(
+    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap) {
+  std::unordered_map<std::string, std::set<SwitchID>> switchNameToSwitchIDs;
+  for (const auto& [_, dsfNodes] : std::as_const(*dsfNodeMap)) {
+    for (const auto& [_, node] : std::as_const(*dsfNodes)) {
+      switchNameToSwitchIDs[node->getName()].insert(node->getSwitchId());
+    }
+  }
+
+  std::unordered_map<SwitchID, SwitchIndex> switchIdToSwitchIndex;
+  for (const auto& [switchName, switchIDs] : switchNameToSwitchIDs) {
+    auto switchIndex = 0;
+    for (const auto& switchID : switchIDs) {
+      switchIdToSwitchIndex[switchID] = switchIndex++;
+    }
+  }
+
+  return switchIdToSwitchIndex;
+}
+
+std::set<SwitchID> getAllSwitchIDsForSwitch(
+    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap,
+    const SwitchID& switchID) {
+  auto dsfNode = dsfNodeMap->getNodeIf(switchID);
+  CHECK(dsfNode);
+
+  auto switchName = dsfNode->getName();
+  std::set<SwitchID> allSwitchIDs;
+  for (const auto& [_, dsfNodes] : std::as_const(*dsfNodeMap)) {
+    for (const auto& [_, node] : std::as_const(*dsfNodes)) {
+      if (node->getName() == switchName) {
+        allSwitchIDs.insert(node->getSwitchId());
+      }
+    }
+  }
+
+  return allSwitchIDs;
+}
+
+uint32_t getRemotePortOffset(const PlatformType platformType) {
+  switch (platformType) {
+    case PlatformType::PLATFORM_MERU400BIU:
+      return 256;
+    case PlatformType::PLATFORM_MERU400BIA:
+      return 256;
+    case PlatformType::PLATFORM_MERU400BFU:
+      return 0;
+    case PlatformType::PLATFORM_MERU800BFA:
+    case PlatformType::PLATFORM_MERU800BFA_P1:
+      return 0;
+    case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_JANGA800BIC:
+      return 1024;
+
+    default:
+      return 0;
+  }
+  return 0;
 }
 
 } // namespace facebook::fboss

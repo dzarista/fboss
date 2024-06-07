@@ -172,6 +172,12 @@ DEFINE_extract(
     portlanelatchstatuslist);
 DEFINE_extract(sai_latch_status_t, latchstatus);
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+DEFINE_extract(
+    std::vector<sai_port_frequency_offset_ppm_values_t>,
+    portfrequencyoffsetppmlist);
+DEFINE_extract(std::vector<sai_port_snr_values_t>, portsnrlist);
+#endif
 DEFINE_extract(facebook::fboss::AclEntryFieldU8, aclfield);
 DEFINE_extract(facebook::fboss::AclEntryFieldU16, aclfield);
 DEFINE_extract(facebook::fboss::AclEntryFieldU32, aclfield);
@@ -942,6 +948,22 @@ template <typename AttrEnumT, AttrEnumT AttrEnum, typename DataT>
 struct hash<facebook::fboss::SaiAttribute<AttrEnumT, AttrEnum, DataT, void>> {
   size_t operator()(
       const facebook::fboss::SaiAttribute<AttrEnumT, AttrEnum, DataT, void>&
+          attr) const {
+    size_t seed = 0;
+    boost::hash_combine(seed, attr.value());
+    return seed;
+  }
+};
+
+template <
+    typename AttrEnumT,
+    AttrEnumT AttrEnum,
+    typename DataT,
+    typename DefaultT>
+struct hash<
+    facebook::fboss::SaiAttribute<AttrEnumT, AttrEnum, DataT, DefaultT>> {
+  size_t operator()(
+      const facebook::fboss::SaiAttribute<AttrEnumT, AttrEnum, DataT, DefaultT>&
           attr) const {
     size_t seed = 0;
     boost::hash_combine(seed, attr.value());

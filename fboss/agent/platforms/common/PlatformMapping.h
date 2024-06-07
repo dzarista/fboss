@@ -16,9 +16,9 @@
 
 DECLARE_string(platform_mapping_override_path);
 DECLARE_bool(multi_npu_platform_mapping);
+DECLARE_int32(platform_mapping_profile);
 
-namespace facebook {
-namespace fboss {
+namespace facebook::fboss {
 
 cfg::PlatformPortConfigOverrideFactor buildPlatformPortConfigOverrideFactor(
     const TransceiverInfo& transceiverInfo);
@@ -72,7 +72,7 @@ class PlatformPortProfileConfigMatcher {
 
 class PlatformMapping {
  public:
-  PlatformMapping() {}
+  PlatformMapping() = default;
   explicit PlatformMapping(const std::string& jsonPlatformMappingStr);
   explicit PlatformMapping(const cfg::PlatformMapping& mapping);
   virtual ~PlatformMapping() = default;
@@ -126,6 +126,9 @@ class PlatformMapping {
       PortID portID,
       cfg::PortSpeed speed) const;
 
+  std::map<std::string, std::vector<cfg::PortProfileID>> getAllPortProfiles()
+      const;
+
   const phy::DataPlanePhyChip& getPortIphyChip(PortID port) const;
 
   void setPlatformPort(int32_t portID, cfg::PlatformPortEntry port) {
@@ -158,6 +161,8 @@ class PlatformMapping {
 
   std::optional<std::string> getPortNameByPortId(PortID portId) const;
 
+  std::optional<int32_t> getVirtualDeviceID(const std::string& portName) const;
+
   /*
    * Some platforms need customize their raw override factor generated from
    * Transceiver or Chip to match their PlatformMapping PortConfigOverrides
@@ -172,6 +177,13 @@ class PlatformMapping {
   virtual bool supportsInterPacketGapBits() const {
     return false;
   }
+
+  std::vector<cfg::PortProfileID> getPortProfileFromLinkProperties(
+      cfg::PortSpeed speed,
+      uint16_t numLanes,
+      phy::IpModulation modulation,
+      phy::FecMode fec,
+      std::optional<TransmitterTechnology> medium) const;
 
  protected:
   std::map<int32_t, cfg::PlatformPortEntry> platformPorts_;
@@ -189,5 +201,4 @@ class PlatformMapping {
   PlatformMapping(PlatformMapping const&) = delete;
   PlatformMapping& operator=(PlatformMapping const&) = delete;
 };
-} // namespace fboss
-} // namespace facebook
+} // namespace facebook::fboss

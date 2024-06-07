@@ -17,6 +17,7 @@
 #include "fboss/agent/hw/sai/switch/SaiBufferManager.h"
 #include "fboss/agent/hw/sai/switch/SaiSchedulerManager.h"
 #include "fboss/agent/hw/sai/switch/SaiWredManager.h"
+#include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/PortQueue.h"
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/types.h"
@@ -55,7 +56,10 @@ class SaiQueueManager {
       SaiManagerTable* managerTable,
       const SaiPlatform* platform);
   SaiQueueHandles loadQueues(const std::vector<QueueSaiId>& queueSaiIds);
-  void changeQueue(SaiQueueHandle* queueHandle, const PortQueue& newPortQueue);
+  void changeQueue(
+      SaiQueueHandle* queueHandle,
+      const PortQueue& newPortQueue,
+      const Port* swPort = nullptr);
   void changeQueueBufferProfile(
       SaiQueueHandle* queueHandle,
       const PortQueue& newPortQueue);
@@ -65,10 +69,17 @@ class SaiQueueManager {
   void changeQueueScheduler(
       SaiQueueHandle* queueHandle,
       const PortQueue& newPortQueue);
+  void changeQueueDeadlockEnable(
+      SaiQueueHandle* queueHandle,
+      const Port* swPort);
+  void queuePfcDeadlockDetectionRecoveryEnable(
+      SaiQueueHandle* queueHandle,
+      const bool portPfcWdEnabled);
   void ensurePortQueueConfig(
       PortSaiId portSaiId,
       const SaiQueueHandles& queueHandles,
-      const QueueConfig& queues);
+      const QueueConfig& queues,
+      const facebook::fboss::Port* swPort = nullptr);
   void updateStats(
       const std::vector<SaiQueueHandle*>& queues,
       HwPortStats& stats,
@@ -82,6 +93,7 @@ class SaiQueueManager {
   QueueConfig getQueueSettings(const SaiQueueHandles& queueHandles) const;
 
  private:
+  bool isVoqSwitchAndQueueHandleNotForVoq(SaiQueueHandle* queueHandle);
   const std::vector<sai_stat_id_t>& supportedNonWatermarkCounterIdsRead(
       int queueType,
       SaiQueueHandle* queueHandle) const;

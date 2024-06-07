@@ -18,8 +18,8 @@
 #include "fboss/agent/hw/sai/diag/SaiRepl.h"
 #include "fboss/agent/hw/sai/hw_test/SaiTestHandler.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
-#include "fboss/agent/hw/test/LinkStateToggler.h"
 #include "fboss/agent/platforms/sai/SaiPlatformInit.h"
+#include "fboss/agent/test/LinkStateToggler.h"
 
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/SwitchStats.h"
@@ -35,6 +35,7 @@
 DECLARE_int32(thrift_port);
 DECLARE_bool(setup_thrift);
 DECLARE_string(config);
+DECLARE_bool(classid_for_unresolved_routes);
 
 namespace {
 using namespace facebook::fboss;
@@ -122,7 +123,8 @@ uint64_t SaiSwitchEnsemble::getSdkSwitchId() const {
 
 void SaiSwitchEnsemble::runDiagCommand(
     const std::string& input,
-    std::string& output) {
+    std::string& output,
+    std::optional<SwitchID> /*switchId*/) {
   ClientInformation clientInfo;
   clientInfo.username() = "hw_test";
   clientInfo.hostname() = "hw_test";
@@ -172,6 +174,15 @@ void SaiSwitchEnsemble::init(
   hwAsicTableEntry->setDefaultStreamType(
       getPlatform()->getAsic()->getDefaultStreamType());
   getPlatform()->initLEDs();
+  if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::ROUTE_METADATA)) {
+    // TODO: enable after classid_for_connected_subnet_routes feature is fully
+    // verified
+    FLAGS_classid_for_connected_subnet_routes = false;
+  }
+  if (getPlatform()->getAsic()->getAsicVendor() ==
+      HwAsic::AsicVendor::ASIC_VENDOR_TAJO) {
+    FLAGS_classid_for_unresolved_routes = true;
+  }
   auto hw = static_cast<SaiSwitch*>(getHwSwitch());
   diagShell_ = std::make_unique<DiagShell>(hw);
   diagCmdServer_ = std::make_unique<DiagCmdServer>(hw, diagShell_.get());

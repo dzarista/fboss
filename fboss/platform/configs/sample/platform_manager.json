@@ -49,14 +49,16 @@
       "pluggedInSlotType": "SCM_SLOT",
       "pciDeviceConfigs": [
         {
-          "name": "SCM_IOB",
+          "pmUnitScopedName": "SCM_IOB",
           "vendorId": "0x83bf",
           "deviceId": "0xab87",
           "i2cAdapterConfigs": [
             {
-              "pmUnitScopedName": "SCM_IOB_I2C_0",
-              "deviceName": "i2c-smb",
-              "iobufOffset": "0x0023"
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SCM_IOB_I2C_0",
+                "deviceName": "i2c-smb",
+                "iobufOffset": "0x0023"
+              }
             }
           ],
           "spiMasterConfigs": [
@@ -66,7 +68,14 @@
                 "deviceName": "spi",
                 "iobufOffset": "0x0034"
               },
-              "numberOfCsPins": 1
+              "spiDeviceConfigs": [
+                {
+                  "pmUnitScopedName": "MCB_SPI_0_DEVICE_0",
+                  "modalias": "spidev",
+                  "chipSelect": 0,
+                  "maxSpeedHz": 25000000
+                }
+              ]
             },
             {
               "fpgaIpBlockConfig": {
@@ -74,7 +83,14 @@
                 "deviceName": "spi",
                 "iobufOffset": "0x0334"
               },
-              "numberOfCsPins": 1
+              "spiDeviceConfigs": [
+                {
+                  "pmUnitScopedName": "MCB_SPI_1_DEVICE_0",
+                  "modalias": "spidev",
+                  "chipSelect": 0,
+                  "maxSpeedHz": 25000000
+                }
+              ]
             }
           ]
         }
@@ -84,8 +100,7 @@
           "busName": "CPU@1",
           "address": "0x50",
           "kernelDeviceName": "pca9x44",
-          "pmUnitScopeName": "scm_mux1",
-          "deviceType": "",
+          "pmUnitScopedName": "SCM_MUX1",
           "numOutgoingChannels": 4
         }
       ],
@@ -104,7 +119,7 @@
       "pluggedInSlotType": "SMB_SLOT",
       "pciDevices": [
         {
-          "name": "SMB_IOB",
+          "pmUnitScopedName": "SMB_IOB",
           "vendorId": "0x1132",
           "deviceId": "0xab56",
           "i2cAdapterConfigs": [
@@ -130,29 +145,25 @@
           "busName": "SMB_IOB_I2C_0",
           "address": "0x54",
           "kernelDeviceName": "lm75",
-          "pmUnitScopeName": "inlet_sensor",
-          "deviceType": "SENSOR"
+          "pmUnitScopedName": "INLET_SENSOR"
         },
         {
           "busName": "SMB_IOB_I2C_1",
           "address": "0x55",
           "kernelDeviceName": "lm75",
-          "pmUnitScopeName": "outlet_sensor",
-          "deviceType": "SENSOR"
+          "pmUnitScopedName": "OUTLET_SENSOR"
         },
         {
           "busName": "SMB_IOB_I2C_1",
           "address": "0x54",
           "kernelDeviceName": "lm75",
-          "pmUnitScopeName": "asic_sensor",
-          "deviceType": "SENSOR"
+          "pmUnitScopedName": "ASIC_SENSOR"
         },
         {
           "busName": "INCOMING@2",
           "address": "0x11",
           "kernelDeviceName": "24c02",
-          "pmUnitScopeName": "chassis_eeprom",
-          "deviceType": "EEPROM",
+          "pmUnitScopedName": "CHASSIS_EEPROM",
           "isChassisEeprom": true
         }
       ],
@@ -174,36 +185,32 @@
           "busName": "INCOMING@0",
           "address": "0x12",
           "kernelDeviceName": "lm75",
-          "pmUnitScopeName": "yolo_sensor1",
-          "deviceType": "SENSOR"
+          "pmUnitScopedName": "YOLO_SENSOR1"
         },
         {
           "busName": "INCOMING@1",
           "address": "0x55",
           "kernelDeviceName": "pca9x44",
-          "pmUnitScopeName": "yolo_mux1",
-          "deviceType": "",
+          "pmUnitScopedName": "YOLO_MUX1",
           "numOutgoingChannels": 4
         },
         {
           "busName": "INCOMING@2",
           "address": "0x54",
           "kernelDeviceName": "pca9x42",
-          "pmUnitScopeName": "yolo_mux2",
-          "deviceType": "",
+          "pmUnitScopedName": "YOLO_MUX2",
           "numOutgoingChannels": 2
         },
         {
           "busName": "yolo_mux2@1",
           "address": "0x12",
           "kernelDeviceName": "lm75",
-          "pmUnitScopeName": "yolo_sensor2",
-          "deviceType": "SENSOR"
+          "pmUnitScopedName": "YOLO_SENSOR2"
         }
       ],
       "pciDevices": [
         {
-          "name": "DOM_FPGA",
+          "pmUnitScopedName": "DOM_FPGA",
           "vendorId": "0x1132",
           "deviceId": "0xab56",
           "i2cAdapterConfigs": [
@@ -253,8 +260,7 @@
           "busName": "INCOMING@0",
           "address": "0x12",
           "kernelDeviceName": "lm75",
-          "pmUnitScopeName": "psu_2gh_sensor",
-          "deviceType": "SENSOR"
+          "pmUnitScopedName": "PSU_2GH_SENSOR"
         }
       ],
       "outgoingSlotConfigs": {}
@@ -270,8 +276,7 @@
           "busName": "INCOMING@0",
           "address": "0x15",
           "kernelDeviceName": "pca9x42",
-          "pmUnitScopeName": "pim_mux",
-          "deviceType": "",
+          "pmUnitScopedName": "PIM_MUX",
           "numOutgoingChannels": 2
         }
       ],
@@ -301,9 +306,9 @@
     "/run/devmap/fpgas/SCM_IOB": "/[SCM_IOB]",
     "/run/devmap/fpgas/SMB_IOB": "/SMB_SLOT@0/[SMB_IOB]",
     "/run/devmap/fpgas/DOM_FPGA": "/SMB_SLOT@0/YOLO_SLOT@0/[DOM_FPGA]",
-    "/run/devmap/i2c_busses/SCM_IOB_MASTER_0": "/[SCM_IOB_I2C_0]",
-    "/run/devmap/i2c_busses/SMB_IOB_MASTER_0": "/SMB_SLOT@0/[SMB_IOB_I2C_0]",
-    "/run/devmap/i2c_busses/SMB_IOB_MASTER_1": "/SMB_SLOT@0/[SMB_IOB_I2C_1]",
-    "/run/devmap/i2c_busses/DOM_MASTER_0": "/SMB_SLOT@0/YOLO_SLOT@0/[YOLO_DOM_I2C_0]"
+    "/run/devmap/i2c-busses/SCM_IOB_MASTER_0": "/[SCM_IOB_I2C_0]",
+    "/run/devmap/i2c-busses/SMB_IOB_MASTER_0": "/SMB_SLOT@0/[SMB_IOB_I2C_0]",
+    "/run/devmap/i2c-busses/SMB_IOB_MASTER_1": "/SMB_SLOT@0/[SMB_IOB_I2C_1]",
+    "/run/devmap/i2c-busses/DOM_MASTER_0": "/SMB_SLOT@0/YOLO_SLOT@0/[YOLO_DOM_I2C_0]"
   }
 }

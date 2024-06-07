@@ -44,8 +44,8 @@ void FsdbSwitchStateSubscriber::subscribeToState(
     return;
   }
 
-  auto stateCb = [](fsdb::FsdbStreamClient::State /*old*/,
-                    fsdb::FsdbStreamClient::State /*new*/) {};
+  auto stateCb = [](fsdb::SubscriptionState /*old*/,
+                    fsdb::SubscriptionState /*new*/) {};
   auto dataCb = [=](fsdb::OperState&& state) {
     if (auto contents = state.contents()) {
       // Deserialize the FSDB update to switch state struct. This will be
@@ -68,6 +68,9 @@ void FsdbSwitchStateSubscriber::subscribeToState(
           if (onePortInfo.portLedExternalState().has_value()) {
             ledSwitchStateUpdate[onePortId].ledExternalState =
                 onePortInfo.portLedExternalState().value();
+          }
+          if (auto activeState = onePortInfo.portActiveState()) {
+            ledSwitchStateUpdate[onePortId].activeState = *activeState;
           }
         }
       }

@@ -16,7 +16,7 @@
 #include <stdexcept>
 #include "fboss/agent/FbossError.h"
 #include "fboss/led_service/LedManager.h"
-#include "fboss/lib/bsp/BspSystemContainer.h"
+#include "fboss/lib/bsp/BspGenericSystemContainer.h"
 
 namespace facebook::fboss {
 
@@ -32,6 +32,15 @@ class BspLedManager : public LedManager {
   BspLedManager();
   virtual ~BspLedManager() override {}
 
+  // Initialize the system container and mapping
+  template <typename ContainerType, typename MappingType>
+  void init() {
+    bspSystemContainer_ =
+        BspGenericSystemContainer<ContainerType>::getInstance().get();
+    bspSystemContainer_->createBspLedContainers();
+    platformMapping_ = std::make_unique<MappingType>();
+  }
+
   // Forbidden copy constructor and assignment operator
   BspLedManager(BspLedManager const&) = delete;
   BspLedManager& operator=(BspLedManager const&) = delete;
@@ -40,14 +49,14 @@ class BspLedManager : public LedManager {
   // System container to get LED controller
   BspSystemContainer* bspSystemContainer_{nullptr};
 
-  virtual led::LedColor calculateLedColor(
+  virtual led::LedState calculateLedState(
       uint32_t portId,
       cfg::PortProfileID portProfile) const override;
 
-  virtual void setLedColor(
+  virtual void setLedState(
       uint32_t portId,
       cfg::PortProfileID portProfile,
-      led::LedColor ledColor) override;
+      led::LedState ledState) override;
 
   std::set<int> getLedIdFromSwPort(
       uint32_t portId,

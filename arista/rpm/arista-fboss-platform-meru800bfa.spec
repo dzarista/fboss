@@ -14,10 +14,8 @@ Source: %{expand:%%(pwd)}
 %define _fboss_config_dir %{_fboss_build_repo_dir}/fboss/platform/configs
 %define _sai_sdk_src_dir Aqua_SAI/sdk-src
 
-%define _fboss_target_share %{buildroot}/opt/fboss/share
-%define _fboss_target_var %{buildroot}/var/facebook/fboss/
-%define _fboss_target_bin %{buildroot}/opt/fboss/bin/
-%define _fboss_target_udev %{buildroot}/etc/udev/rules.d/
+%define _fboss_target_share %{root}/%{buildroot}/opt/fboss/share
+%define _fboss_target_var %{root}/%{buildroot}/var/facebook/fboss/
 
 %description
 This package provides platform-specific utilities to run Meta FBOSS OSS on Arista
@@ -36,10 +34,6 @@ mkdir -p %{_fboss_target_share}
 cp -rf db %{_fboss_target_share}/
 mkdir -p %{_fboss_target_var}
 install config/fruid/fruid.json %{_fboss_target_var}
-mkdir -p %{_fboss_target_bin}
-install -m 755 scripts/platform_init.sh %{_fboss_target_bin}
-mkdir -p %{_fboss_target_udev}
-install config/udev/99-meru800bfa.rules %{_fboss_target_udev}
 mkdir -p %{_fboss_target_share}/platform_configs
 install config/npu*_platform_mapping.json %{_fboss_target_share}
 mkdir -p %{_fboss_target_share}/platform_configs
@@ -48,7 +42,5 @@ cp -rf platform_configs/* %{_fboss_target_share}/platform_configs/
 %files
 /var/facebook/fboss/fruid.json
 /opt/fboss/share/db
-/opt/fboss/bin/platform_init.sh
-/etc/udev/rules.d/99-meru800bfa.rules
 /opt/fboss/share/platform_configs
 /opt/fboss/share/npu*_platform_mapping.json

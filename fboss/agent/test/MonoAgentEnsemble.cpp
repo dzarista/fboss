@@ -1,13 +1,20 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "fboss/agent/test/MonoAgentEnsemble.h"
-
+#include <gtest/gtest.h>
 #include "fboss/agent/Main.h"
 
 namespace facebook::fboss {
 
 MonoAgentEnsemble::~MonoAgentEnsemble() {
-  agentInitializer_.stopAgent(false);
+  bool gracefulExit = !::testing::Test::HasFailure();
+  agentInitializer_.stopAgent(
+      false /* setupWarmboot */, gracefulExit /* gracefulExit */);
+  // wait for async thread to finish to prevent race between
+  // - stopping of thrift server
+  // - destruction of agentInitializer_ triggering destruction of thrift server
+  // this race can cause accessing data which has already been destroyed
+  joinAsyncInitThread();
 }
 
 const SwAgentInitializer* MonoAgentEnsemble::agentInitializer() const {
@@ -33,6 +40,14 @@ void MonoAgentEnsemble::reloadPlatformConfig() {
 
 bool MonoAgentEnsemble::isSai() const {
   return agentInitializer_.platform()->isSai();
+}
+
+HwSwitch* MonoAgentEnsemble::getHwSwitch() {
+  return agentInitializer_.platform()->getHwSwitch();
+}
+
+const HwSwitch* MonoAgentEnsemble::getHwSwitch() const {
+  return agentInitializer_.platform()->getHwSwitch();
 }
 
 std::unique_ptr<AgentEnsemble> createAgentEnsemble(

@@ -17,10 +17,8 @@
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestMplsUtils.h"
 #include "fboss/agent/hw/test/HwTestPacketSnooper.h"
-#include "fboss/agent/hw/test/HwTestPacketTrapEntry.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
 #include "fboss/agent/hw/test/HwTestRouteUtils.h"
-#include "fboss/agent/hw/test/TrafficPolicyUtils.h"
 #include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/packet/PktUtil.h"
 #include "fboss/agent/state/LabelForwardingEntry.h"
@@ -130,7 +128,9 @@ class HwRouteStatTest : public HwLinkStateDependentTest {
     // get tx packet
     auto ethFrame = utility::EthFrame(
         eth, utility::IPPacket<folly::IPAddressV6>(ip6, datagram));
-    auto pkt = ethFrame.getTxPacket(getHwSwitch());
+    auto pkt = ethFrame.getTxPacket([hw = getHwSwitch()](uint32_t size) {
+      return hw->allocatePacket(size);
+    });
     // send pkt on src port, let it loop back in switch and be l3 switched
     getHwSwitchEnsemble()->ensureSendPacketOutOfPort(std::move(pkt), from);
     return ethFrame.length();

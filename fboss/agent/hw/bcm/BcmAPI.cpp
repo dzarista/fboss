@@ -18,7 +18,7 @@
 #include "fboss/agent/hw/bcm/BcmWarmBootHelper.h"
 #include "fboss/lib/AlertLogger.h"
 
-#include <folly/experimental/StringKeyedUnorderedMap.h>
+#include <folly/container/F14Map.h>
 
 #include <folly/Memory.h>
 #include <folly/String.h>
@@ -361,6 +361,20 @@ bool BcmAPI::isHwInSimMode() {
   static const bool isSimMode_ = std::getenv("BCM_SIM_PATH");
   return isSimMode_;
 }
+
+#if defined(BCM_SDK_VERSION_GTE_6_5_29)
+void BcmAPI::bdeDestroy() {
+  int rv = 0;
+
+  if (!isHwInSimMode()) {
+    rv = linux_bde_destroy(bde);
+    bcmCheckError(rv, "failed to destroy BDE");
+  } else {
+    XLOG(DBG2) << "BCM running in SIM mode";
+    bdeDestroySim();
+  }
+}
+#endif
 
 std::unique_ptr<BcmUnit> BcmAPI::createOnlyUnit(BcmPlatform* platform) {
   auto numDevices = BcmAPI::getNumSwitches();

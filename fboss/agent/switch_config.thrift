@@ -168,6 +168,12 @@ enum PortProfileID {
   PROFILE_50G_1_PAM4_RS544_COPPER = 43,
   PROFILE_50G_1_PAM4_RS544_OPTICAL = 44,
   PROFILE_400G_4_PAM4_RS544X2N_COPPER = 45,
+  PROFILE_100G_2_PAM4_RS544X2N_COPPER = 46,
+}
+
+enum Scope {
+  LOCAL = 0,
+  GLOBAL = 1,
 }
 
 /**
@@ -361,8 +367,23 @@ enum AclActionType {
  * The look up class for an acl
  */
 enum AclLookupClass {
-  DST_CLASS_L3_LOCAL_IP4 = 1,
-  DST_CLASS_L3_LOCAL_IP6 = 2,
+  /*
+   * Use cases:
+   * 1. on sai switches: class ID for my ip /32 /128 routes pointing to cpu
+   * 2. on native bcm switches: ipv4 routes point to cpu
+   */
+  DST_CLASS_L3_LOCAL_1 = 1,
+
+  /*
+   * Use cases:
+   * 1. on sai switches: routes that uses single nexthop and are unresolved points to
+   * cpu port as the nexthop to trigger neighbor resolution. Associate
+   * a class ID for those routes which will be matched against an ACL
+   * to send the packet to default queue. Refer to S390808 for more details.
+   * 2. on sai switches: class ID for connected subnet routes pointing to router interface.
+   * 3. on native bcm switches: ipv6 routes point to cpu
+   */
+  DST_CLASS_L3_LOCAL_2 = 2,
 
   // Class for DROP ACL
   CLASS_DROP = 9,
@@ -384,6 +405,10 @@ enum AclLookupClass {
 
   // set by BGP for deterministic path routes
   DST_CLASS_L3_DPR = 20,
+
+  // will be replaced by DST_CLASS_L3_LOCAL_1 and DST_CLASS_L3_LOCAL_2
+  DEPRECATED_CLASS_UNRESOLVED_ROUTE_TO_CPU = 21,
+  DEPRECATED_CLASS_CONNECTED_ROUTE_TO_INTF = 22,
 }
 
 enum PacketLookupResultType {
@@ -496,6 +521,10 @@ struct AclEntry {
   31: optional list<string> udfGroups;
 
   32: optional byte roceOpcode;
+
+  33: optional list<byte> roceBytes;
+
+  34: optional list<byte> roceMask;
 }
 
 enum AclTableActionType {
@@ -534,6 +563,7 @@ enum AclTableQualifier {
   ETHER_TYPE = 22,
   OUTER_VLAN = 23,
   UDF = 24,
+  BTH_OPCODE = 25,
 }
 
 struct AclTable {
@@ -550,11 +580,13 @@ enum AclStage {
   EGRESS_MACSEC = 2,
 }
 
+// startdocs_AclTableGroup_struct
 struct AclTableGroup {
   1: string name;
   2: list<AclTable> aclTables = [];
   3: AclStage stage = AclStage.INGRESS;
 }
+// enddocs_AclTableGroup_struct
 
 /*
  * We only support unicast in FBOSS, but for completeness sake
@@ -910,6 +942,8 @@ enum PortType {
   FABRIC_PORT = 1,
   CPU_PORT = 2,
   RECYCLE_PORT = 3,
+  MANAGEMENT_PORT = 4,
+  EVENTOR_PORT = 5,
 }
 
 struct PortNeighbor {
@@ -1084,6 +1118,8 @@ struct Port {
    * PortFlowletConfigName to covey the flowlet config profile used for DLB
    */
   30: optional PortFlowletConfigName flowletConfigName;
+
+  31: Scope scope = Scope.LOCAL;
 }
 
 enum LacpPortRate {
@@ -1334,6 +1370,7 @@ struct Interface {
   /* Override DHCPv4/6 relayer on a per host basis */
   14: optional map<string, string> dhcpRelayOverridesV4;
   15: optional map<string, string> dhcpRelayOverridesV6;
+  16: Scope scope = Scope.LOCAL;
 }
 
 struct StaticRouteWithNextHops {
@@ -1787,6 +1824,15 @@ struct PortFlowletConfig {
   3: i16 queueWeight;
 }
 
+enum SwitchingMode {
+  // flowlet regular quality based reassignments
+  FLOWLET_QUALITY = 0,
+  // per packet assignments
+  PER_PACKET_QUALITY = 1,
+  // flowlet is disabled
+  FIXED_ASSIGNMENT = 2,
+}
+
 struct FlowletSwitchingConfig {
   // wait for lack of activitiy interval on the flow before load balancing
   1: i16 inactivityIntervalUsecs;
@@ -1813,6 +1859,8 @@ struct FlowletSwitchingConfig {
   // maximum links used for flowlet switching.
   // Needed for scaling flowset table
   11: i16 maxLinks;
+  // switching mode
+  12: SwitchingMode switchingMode = FLOWLET_QUALITY;
 }
 
 /**
@@ -1885,6 +1933,7 @@ struct SwitchConfig {
   19: map<i32, i32> clientIdToAdminDistance = {
     2: 0, // INTERFACE_ROUTE
     3: 0, // LINKLOCAL_ROUTE
+    4: 0, // REMOTE_INTERFACE_ROUTE
     1: 1, // STATIC_ROUTE
     786: 10, // OPENR
     0: 20, // BGPD
@@ -1943,4 +1992,8 @@ struct SwitchConfig {
   50: optional FlowletSwitchingConfig flowletSwitchingConfig;
   51: list<PortQueue> defaultVoqConfig = [];
   52: optional map<PortFlowletConfigName, PortFlowletConfig> portFlowletConfigs;
+  // When there's no IPv4 addresses configured, what address to use to source IPv4 ICMP packets from.
+  53: optional string icmpV4UnavailableSrcAddress;
+  // Overrides the system hostname, useful in ICMP responses
+  54: optional string hostname;
 }

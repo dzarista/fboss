@@ -11,12 +11,28 @@ add_fbthrift_cpp_library(
     reflection
 )
 
+add_library(weutil_fboss_eeprom_parser
+  fboss/platform/weutil/FbossEepromParser.cpp
+  fboss/platform/weutil/Crc16CcittAug.cpp
+)
+
+target_link_libraries(weutil_fboss_eeprom_parser
+  Folly::folly
+)
+
 add_library(weutil_lib
   fboss/platform/weutil/WeutilDarwin.cpp
   fboss/platform/weutil/WeutilImpl.cpp
   fboss/platform/weutil/prefdl/Prefdl.cpp
   fboss/platform/weutil/Weutil.cpp
-  fboss/platform/weutil/FbossEepromParser.cpp
+)
+
+add_library(ioctl_smbus_eeprom_reader
+  fboss/platform/weutil/IoctlSmbusEepromReader.cpp
+)
+
+target_link_libraries(ioctl_smbus_eeprom_reader
+  fmt::fmt
 )
 
 target_link_libraries(weutil_lib
@@ -24,12 +40,13 @@ target_link_libraries(weutil_lib
   platform_utils
   Folly::folly
   weutil_config_cpp2
+  weutil_fboss_eeprom_parser
   platform_config_lib
+  ioctl_smbus_eeprom_reader
 )
 
 add_executable(weutil
   fboss/platform/weutil/main.cpp
-  fboss/platform/weutil/Flags.cpp
 )
 
 target_link_libraries(weutil

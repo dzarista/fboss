@@ -25,8 +25,7 @@ using namespace facebook::fboss::platform::fw_util_config;
 
 class FwUtilImpl {
  public:
-  explicit FwUtilImpl(const std::string& confFileName)
-      : confFileName_{confFileName} {
+  explicit FwUtilImpl() {
     init();
   }
   void printVersion(const std::string&);
@@ -37,13 +36,13 @@ class FwUtilImpl {
   void checkCmdStatus(const std::string&, int);
   int runCmd(const std::string&);
   void storeFilePath(const std::string&, const std::string&);
+  void removeFilePath(const std::string&);
   void doPreUpgrade(const std::string&, const std::string&);
   std::string printFpdList();
+  void verifySha1sum(const std::string&, const std::string&);
+  void doVersionAudit();
 
  private:
-  // Firmware config file full path
-  std::string confFileName_{};
-
   FwUtilConfig fwUtilConfig_{};
 
   void init();

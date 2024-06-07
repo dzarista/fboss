@@ -36,14 +36,9 @@
 #include "fboss/agent/state/VlanMapDelta.h"
 #include "fboss/fsdb/common/Utils.h"
 
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 
 using std::shared_ptr;
-
-DEFINE_bool(
-    enable_state_oper_delta,
-    true,
-    "Generate and process oper delta for state delta processing");
 
 DEFINE_bool(
     state_oper_delta_use_id_paths,
@@ -299,10 +294,7 @@ MultiSwitchMapDelta<MultiTeFlowTable> StateDelta::getTeFlowEntriesDelta()
 const fsdb::OperDelta& StateDelta::getOperDelta() const {
   if (!operDelta_.has_value()) {
     operDelta_.emplace(fsdb::computeOperDelta(
-        old_,
-        new_,
-        switchStateRootPath(),
-        FLAGS_state_oper_delta_use_id_paths));
+        old_, new_, {}, FLAGS_state_oper_delta_use_id_paths));
   }
   return operDelta_.value();
 }
@@ -341,5 +333,32 @@ template struct MultiSwitchMapDelta<MultiSwitchAclTableGroupMap>;
 template struct MultiSwitchMapDelta<MultiSwitchDsfNodeMap>;
 template struct MultiSwitchMapDelta<MultiSwitchSystemPortMap>;
 template struct MultiSwitchMapDelta<MultiSwitchAclMap>;
+
+bool isStateDeltaEmpty(const StateDelta& stateDelta) {
+  bool empty{true};
+  SwitchState::Fields().forEachChildName(
+      [&empty, &stateDelta](auto* child, auto name) {
+        using ChildType = std::decay_t<std::remove_pointer_t<decltype(child)>>;
+        using Name = std::decay_t<decltype(name)>;
+        bool isEmpty = true;
+        if constexpr (
+            std::is_same_v<Name, switch_state_tags::switchSettingsMap> ||
+            std::is_same_v<Name, switch_state_tags::controlPlaneMap>) {
+          isEmpty = (DeltaFunctions::isEmpty(ThriftMapDelta<ChildType>(
+              stateDelta.oldState()->get<Name>().get(),
+              stateDelta.newState()->get<Name>().get())));
+        } else {
+          isEmpty = (DeltaFunctions::isEmpty(MultiSwitchMapDelta<ChildType>(
+              stateDelta.oldState()->get<Name>().get(),
+              stateDelta.newState()->get<Name>().get())));
+        }
+        if (!isEmpty) {
+          XLOG(INFO) << "Delta for " << utility::TagName<Name>::value()
+                     << " is not empty";
+        }
+        empty &= isEmpty;
+      });
+  return empty;
+}
 
 } // namespace facebook::fboss

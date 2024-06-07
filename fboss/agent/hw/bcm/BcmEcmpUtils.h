@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "fboss/agent/Utils.h"
+
 #include <cstdint>
 #include <set>
 #include <vector>
@@ -31,6 +33,7 @@ namespace facebook::fboss::utility {
 
 int getEcmpSizeInHw(const BcmSwitch* hw, bcm_if_t ecmp, int sizeInSw);
 int getFlowletSizeWithScalingFactor(
+    const BcmSwitch* hw,
     const int flowSetTableSize,
     const int numPaths,
     const int maxPaths);
@@ -47,5 +50,9 @@ bcm_if_t getEgressIdForRoute(
     bcm_vrf_t vrf = 0);
 
 bool isNativeUcmpEnabled(const BcmSwitch* hw, bcm_if_t ecmp);
+
+void setEcmpDynamicMemberUp(const BcmSwitch* hw);
+
+uint32 getFlowletDynamicMode(const cfg::SwitchingMode& switchingMode);
 
 } // namespace facebook::fboss::utility

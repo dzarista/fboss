@@ -123,6 +123,7 @@ class HwIngressBufferTest : public HwTest {
     cfg::PortPfc pfc;
     pfc.portPgConfigName() = "foo";
     pfc.tx() = pfcEnable;
+    pfc.rx() = pfcEnable;
     portCfg->pfc() = pfc;
   }
 
@@ -153,7 +154,7 @@ class HwIngressBufferTest : public HwTest {
 // validate that SDK programming is as per the cfg
 // Read back from HW (using SDK calls) and validate
 TEST_F(HwIngressBufferTest, validateConfig) {
-  auto setup = [=]() { setupHelper(); };
+  auto setup = [=, this]() { setupHelper(); };
 
   auto verify = [&]() {
     utility::checkSwHwPgCfgMatch(
@@ -280,7 +281,10 @@ TEST_F(HwIngressBufferTest, validatePGQueueChanges) {
     // update one PG, and see ifs reflected in the HW
     std::map<std::string, std::vector<cfg::PortPgConfig>> portPgConfigMap;
     portPgConfigMap["foo"] = getPortPgConfig(
-        getPlatform()->getAsic()->getPacketBufferUnitSize(), {1});
+        getPlatform()->getAsic()->getPacketBufferUnitSize(),
+        {1},
+        0,
+        true /* enableHeadroom */);
     cfg_.portPgConfigs() = portPgConfigMap;
     applyNewConfig(cfg_);
   };
@@ -288,14 +292,9 @@ TEST_F(HwIngressBufferTest, validatePGQueueChanges) {
   auto verify = [&]() {
     utility::checkSwHwPgCfgMatch(
         getHwSwitch(),
-        getProgrammedState()->getPort(PortID(masterLogicalPortIds()[0])),
+        getProgrammedState()->getPort(
+            PortID(masterLogicalInterfacePortIds()[0])),
         true /*pfcEnable*/);
-
-    std::set<int> pgIdSetExpected = {1};
-    utility::checkSwHwPgIdSetMatch(
-        getHwSwitch(),
-        getProgrammedState()->getPort(PortID(masterLogicalPortIds()[0])),
-        pgIdSetExpected);
   };
 
   verifyAcrossWarmBoots(setup, verify);

@@ -11,14 +11,17 @@
 #include <folly/logging/Init.h>
 #include <folly/logging/xlog.h>
 #include "fboss/agent/AgentConfig.h"
+#include "fboss/agent/AgentFeatures.h"
+#include "fboss/agent/AlpmUtils.h"
 #include "fboss/agent/CommonInit.h"
 #include "fboss/agent/FbossInit.h"
-#include "fboss/agent/HwAgent.h"
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/RestartTimeTracker.h"
 #include "fboss/agent/SetupThrift.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/mnpu/SplitAgentThriftSyncer.h"
+#include "fboss/agent/state/StateDelta.h"
+#include "fboss/lib/CommonFileUtils.h"
 
 #include <chrono>
 
@@ -27,11 +30,6 @@ FOLLY_INIT_LOGGING_CONFIG("DBG2; default:async=true");
 #else
 FOLLY_INIT_LOGGING_CONFIG("fboss=DBG2; default:async=true");
 #endif
-
-DEFINE_int32(
-    hwagent_port_base,
-    5931,
-    "The first thrift server port reserved for HwAgent");
 
 DEFINE_int32(swswitch_port, 5959, "Port for SwSwitch");
 
@@ -42,6 +40,17 @@ using facebook::fboss::SwitchRunState;
 
 namespace {
 
+// Convert std::map<PortID, phy::PhyInfo> to std::map<int, phy::PhyInfo>
+std::map<int, facebook::fboss::phy::PhyInfo> getPhyInfoForSwitchStats(
+    const std::map<facebook::fboss::PortID, facebook::fboss::phy::PhyInfo>&
+        phyInfo) {
+  std::map<int, facebook::fboss::phy::PhyInfo> phyInfoForSwitchStats;
+  for (auto& [portId, phyInfoPerPort] : phyInfo) {
+    phyInfoForSwitchStats.emplace(portId, phyInfoPerPort);
+  }
+  return phyInfoForSwitchStats;
+}
+
 /*
  * This function is executed periodically by the UpdateStats thread.
  */
@@ -51,6 +60,8 @@ void updateStats(
   if (hw->getRunState() >= SwitchRunState::CONFIGURED) {
     hw->updateStats();
     auto hwSwitchStats = hw->getHwSwitchStats();
+    hw->updateAllPhyInfo();
+    hwSwitchStats.phyInfo() = getPhyInfoForSwitchStats(hw->getAllPhyInfo());
     syncer->updateHwSwitchStats(std::move(hwSwitchStats));
   }
 }
@@ -67,11 +78,44 @@ void SplitHwAgentSignalHandler::signalReceived(int /*signum*/) noexcept {
     hwAgent_->waitForInitDone();
   }
   steady_clock::time_point begin = steady_clock::now();
+  // unregister sdk callbacks so that we do not get sdk updates while shutting
+  // down
+  hwAgent_->getPlatform()->getHwSwitch()->unregisterCallbacks();
   stopServices();
   steady_clock::time_point servicesStopped = steady_clock::now();
   XLOG(DBG2) << "[Exit] Services stop time "
              << duration_cast<duration<float>>(servicesStopped - begin).count();
-  hwAgent_->getPlatform()->getHwSwitch()->gracefulExit(state::WarmbootState());
+  auto dirUtil = hwAgent_->getPlatform()->getDirectoryUtil();
+  auto switchIndex = hwAgent_->getPlatform()->getAsic()->getSwitchIndex();
+  auto exitForColdBootFile = dirUtil->exitHwSwitchForColdBootFile(switchIndex);
+  if (!checkFileExists(dirUtil->exitHwSwitchForColdBootFile(switchIndex))) {
+    hwAgent_->getPlatform()->getHwSwitch()->gracefulExit();
+  } else {
+    SCOPE_EXIT {
+      removeFile(exitForColdBootFile);
+    };
+    XLOG(DBG2)
+        << "[Exit] Cold boot detected, skipping warmboot, unregistering callbacks";
+    if (hwAgent_->getPlatform()->getAsic()->isSupported(
+            HwAsic::Feature::ROUTE_PROGRAMMING)) {
+      auto programmedState =
+          hwAgent_->getPlatform()->getHwSwitch()->getProgrammedState();
+      auto alpmState = getMinAlpmRouteState(programmedState);
+      XLOG(DBG2) << "[Exit] programming minimum ALPM routes";
+      // minimum ALPM state retains default routes while removes all other
+      // routes this is required because default routes can not be removed
+      // before other routes are removed and this restriction must be respected
+      // while exiting for cold boot. this is ensured by both SwAgent shutdown
+      // for cold boot and HwAgent shutdown for cold boot. this is because two
+      // agents may indepdently shutdown for cold boot and regardless of the
+      // order of shutdown this constraint must be satisfied.
+      hwAgent_->getPlatform()->getHwSwitch()->stateChanged(
+          StateDelta(programmedState, alpmState));
+    }
+    // invoke destructors
+    XLOG(DBG2) << "[Exit] destryoing hardware agent";
+    hwAgent_.reset();
+  }
   steady_clock::time_point switchGracefulExit = steady_clock::now();
   XLOG(DBG2)
       << "[Exit] Switch Graceful Exit time "
@@ -98,10 +142,13 @@ int hwAgentMain(
       hwAgent->getPlatform()->getHwSwitch(),
       FLAGS_swswitch_port,
       SwitchID(*hwAgent->getPlatform()->getAsic()->getSwitchId()),
-      FLAGS_switchIndex);
+      FLAGS_switchIndex,
+      hwAgent->getPlatform()->getMultiSwitchStatsPrefix());
 
   auto ret =
       hwAgent->initAgent(true /* failHwCallsOnWarmboot */, thriftSyncer.get());
+
+  hwAgent->getPlatform()->onHwInitialized(nullptr /*sw*/);
 
   hwAgent->getPlatform()->getHwSwitch()->switchRunStateChanged(
       SwitchRunState::INITIALIZED);
@@ -139,13 +186,25 @@ int hwAgentMain(
 
   SplitHwAgentSignalHandler signalHandler(
       &eventBase,
-      [&thriftSyncer, &fs]() {
+      [&thriftSyncer, &fs, &server]() {
+        XLOG(DBG2) << "[Exit] Stopping Thrift Syncer";
         thriftSyncer->stop();
+        XLOG(DBG2) << "[Exit] Stopping Thrift Server";
+        server->stop();
         if (fs) {
+          XLOG(DBG2) << "[Exit] Stopping Function Scheduler";
           fs->shutdown();
         }
       },
-      hwAgent.get());
+      std::move(hwAgent));
+
+  /*
+   * Updating stats could be expensive as each update must acquire lock. To
+   * avoid this overhead, we use ThreadLocal version for updating stats, and
+   * start a publish thread to aggregate the counters periodically.
+   */
+  facebook::fb303::ThreadCachedServiceData::get()->startPublishThread(
+      std::chrono::milliseconds(FLAGS_stat_publish_interval_ms));
 
   restart_time::mark(RestartEvent::INITIALIZED);
 

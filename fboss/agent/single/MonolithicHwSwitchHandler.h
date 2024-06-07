@@ -22,7 +22,7 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
 
   virtual ~MonolithicHwSwitchHandler() override = default;
 
-  void exitFatal() const override;
+  void exitFatal() const;
 
   std::unique_ptr<TxPacket> allocatePacket(uint32_t size) const override;
 
@@ -35,59 +35,52 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
 
   bool sendPacketSwitchedAsync(std::unique_ptr<TxPacket> pkt) noexcept override;
 
-  bool isValidStateUpdate(const StateDelta& delta) const override;
+  bool isValidStateUpdate(const StateDelta& delta) const;
 
-  void unregisterCallbacks() override;
+  void unregisterCallbacks();
 
-  void gracefulExit(state::WarmbootState& thriftSwitchState) override;
+  void gracefulExit();
 
-  bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) override;
+  folly::dynamic toFollyDynamic() const;
 
-  folly::dynamic toFollyDynamic() const override;
+  folly::F14FastMap<std::string, HwPortStats> getPortStats() const;
 
-  std::optional<uint32_t> getHwLogicalPortId(PortID portID) const override;
+  std::map<std::string, HwSysPortStats> getSysPortStats() const;
+  HwSwitchDropStats getSwitchDropStats() const;
 
-  folly::F14FastMap<std::string, HwPortStats> getPortStats() const override;
+  void updateStats();
 
-  std::map<std::string, HwSysPortStats> getSysPortStats() const override;
-  HwSwitchDropStats getSwitchDropStats() const override;
+  void updateAllPhyInfo();
+  std::map<PortID, phy::PhyInfo> getAllPhyInfo() const;
 
-  void updateStats() override;
+  uint64_t getDeviceWatermarkBytes() const;
 
-  std::map<PortID, phy::PhyInfo> updateAllPhyInfo() override;
+  HwFlowletStats getHwFlowletStats() const;
 
-  uint64_t getDeviceWatermarkBytes() const override;
+  HwSwitchFb303Stats* getSwitchStats() const;
 
-  HwSwitchFb303Stats* getSwitchStats() const override;
+  void clearPortStats(const std::unique_ptr<std::vector<int32_t>>& ports);
 
-  void clearPortStats(
-      const std::unique_ptr<std::vector<int32_t>>& ports) override;
+  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId);
 
-  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(int32_t portId) override;
+  void clearPortAsicPrbsStats(PortID portId);
 
-  void clearPortAsicPrbsStats(int32_t portId) override;
+  std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(int32_t portId);
 
-  std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
-      int32_t portId) override;
+  prbs::InterfacePrbsState getPortPrbsState(PortID portId);
 
-  prbs::InterfacePrbsState getPortPrbsState(PortID portId) override;
+  void switchRunStateChanged(SwitchRunState newState);
 
-  void switchRunStateChanged(SwitchRunState newState) override;
+  std::vector<EcmpDetails> getAllEcmpDetails() const;
 
   // platform access apis
-  void onHwInitialized(HwSwitchCallback* callback) override;
-
-  void onInitialConfigApplied(HwSwitchCallback* sw) override;
-
-  void platformStop() override;
-
-  std::shared_ptr<SwitchState> stateChanged(
-      const StateDelta& delta,
-      bool transaction) override;
+  void onHwInitialized(HwSwitchCallback* callback);
 
   std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus> stateChanged(
       const fsdb::OperDelta& delta,
-      bool transaction) override;
+      bool transaction,
+      const std::shared_ptr<SwitchState>& newState,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) override;
 
   bool transactionsSupported(
       std::optional<cfg::SdkVersion> sdkVersion) const override;
@@ -102,7 +95,7 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
     return platform_;
   }
 
-  CpuPortStats getCpuPortStats() const override;
+  CpuPortStats getCpuPortStats() const;
 
   std::map<PortID, FabricEndpoint> getFabricConnectivity() const override;
 
@@ -110,26 +103,34 @@ class MonolithicHwSwitchHandler : public HwSwitchHandler {
 
   std::vector<PortID> getSwitchReachability(SwitchID switchId) const override;
 
-  std::string getDebugDump() const override;
+  std::string getDebugDump() const;
 
-  void fetchL2Table(std::vector<L2EntryThrift>* l2Table) const override;
+  void fetchL2Table(std::vector<L2EntryThrift>* l2Table) const;
 
   std::string listObjects(const std::vector<HwObjectType>& types, bool cached)
-      const override;
+      const;
 
   bool needL2EntryForNeighbor(const cfg::SwitchConfig* config) const override;
 
   multiswitch::StateOperDelta getNextStateOperDelta(
       std::unique_ptr<multiswitch::StateOperDelta> prevOperResult,
-      bool initialSync) override;
+      int64_t lastUpdateSeqNum) override;
 
   void notifyHwSwitchDisconnected() override;
 
   HwSwitchOperDeltaSyncState getHwSwitchOperDeltaSyncState() override {
-    return HwSwitchOperDeltaSyncState::OPER_SYNCED;
+    return HwSwitchOperDeltaSyncState::CONNECTED;
   }
 
   SwitchRunState getHwSwitchRunState() override;
+
+  void cancelOperDeltaSync() override {}
+
+  AclStats getAclStats() const;
+
+  HwSwitchWatermarkStats getSwitchWatermarkStats() const;
+
+  void getHwStats(multiswitch::HwSwitchStats& hwStats) const;
 
  private:
   Platform* platform_;

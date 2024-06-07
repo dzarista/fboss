@@ -18061,13 +18061,13 @@
     "chip": {
       "bcm": {
         "config": {
+          "fabric_distributed_system_enable": "1",
           "dpp_db_path": "/opt/fboss/share/db/",
           "custom_feature_lane_swap_disable.BCM8892X": "0",
           "appl_enable_intr_init.BCM8892X": "1",
           "appl_param_module_id.BCM8892X": "0",
           "core_clock_speed_khz.BCM8892X": "1350000",
           "custom_feature_lane_swap_disable.BCM8892X": "0",
-          "fabric_cell_fifo_dma_enable.BCM8892X": "1",
           "fabric_num_pipes.BCM8892X": "1",
           "fabric_pipe_map.BCM8892X": "0",
           "fe_mc_id_range.BCM8892X": "128K",

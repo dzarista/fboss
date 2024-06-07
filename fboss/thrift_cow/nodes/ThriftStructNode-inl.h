@@ -13,7 +13,7 @@
 #include <fatal/container/tuple.h>
 #include <folly/Conv.h>
 #include <folly/FBString.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 #include <thrift/lib/cpp2/reflection/folly_dynamic.h>
 #include <thrift/lib/cpp2/reflection/reflection.h>
@@ -116,7 +116,7 @@ struct CopyToMember {
 
 // Invoke a function on each child. Expects functions that take a raw
 // pointer to a node.
-template <typename FieldsT>
+template <typename FieldsT, bool withName = false>
 struct ChildInvoke {
   using NamedMemberTypes = typename FieldsT::NamedMemberTypes;
 
@@ -126,7 +126,11 @@ struct ChildInvoke {
         typename NamedMemberTypes::template type_of<typename T::name>;
     ChildType value = storage.template get<typename T::name>();
     if (value) {
-      fn(value.get());
+      if constexpr (!withName) {
+        fn(value.get());
+      } else {
+        fn(value.get(), typename T::name());
+      }
     }
   }
 };
@@ -340,6 +344,14 @@ struct ThriftStructFields {
         struct_helpers::ChildInvoke<Self>(), storage_, std::forward<Fn>(fn));
   }
 
+  template <typename Fn>
+  void forEachChildName(Fn fn) {
+    fatal::foreach<ChildrenTypes>(
+        struct_helpers::ChildInvoke<Self, true>(),
+        storage_,
+        std::forward<Fn>(fn));
+  }
+
   folly::fbstring encode(fsdb::OperProtocol proto) const {
     return serialize<TC>(proto, toThrift());
   }
@@ -378,7 +390,8 @@ template <typename TType, typename Resolver = ThriftStructResolver<TType>>
 class ThriftStructNode
     : public NodeBaseT<
           typename Resolver::type,
-          ThriftStructFields<TType, typename Resolver::type>> {
+          ThriftStructFields<TType, typename Resolver::type>>,
+      public thrift_cow::Serializable {
  public:
   using Self = ThriftStructNode<TType, Resolver>;
   using Derived = typename Resolver::type;
@@ -415,19 +428,12 @@ class ThriftStructNode
   }
 #endif
 
-  folly::fbstring encode(fsdb::OperProtocol proto) const {
-    return this->getFields()->encode(proto);
-  }
-
-  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const {
+  folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const override {
     return this->getFields()->encodeBuf(proto);
   }
 
-  void fromEncoded(fsdb::OperProtocol proto, const folly::fbstring& encoded) {
-    return this->writableFields()->fromEncoded(proto, encoded);
-  }
-
-  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded) {
+  void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded)
+      override {
     return this->writableFields()->fromEncodedBuf(proto, std::move(encoded));
   }
 
@@ -514,7 +520,7 @@ class ThriftStructNode
     return child;
   }
 
-  void modify(const std::string& token) {
+  virtual void modify(const std::string& token) {
     visitMember<typename Fields::Members>(token, [&](auto tag) {
       using name = typename decltype(fatal::tag_type(tag))::name;
       this->modify<name>();
@@ -537,16 +543,17 @@ class ThriftStructNode
 
     auto result = ThriftTraverseResult::OK;
     if (begin != end) {
-      auto f = [](auto&& node, auto begin, auto end) {
+      // TODO: can probably remove lambda use here
+      auto op = pvlambda([](auto&& node, auto begin, auto end) {
         if (begin == end) {
           return;
         }
         auto tok = *begin;
         node.modify(tok);
-      };
+      });
 
-      result = PathVisitor<TC>::visit(
-          *newRoot, begin, end, PathVisitMode::FULL, std::move(f));
+      result =
+          PathVisitor<TC>::visit(*newRoot, begin, end, PathVisitMode::FULL, op);
     }
 
     // if successful and changed, reset root
@@ -565,46 +572,26 @@ class ThriftStructNode
     // first clone root if needed
     auto newRoot = ((*root)->isPublished()) ? (*root)->clone() : *root;
 
-    auto f = [](auto&& node, auto begin, auto end) {
+    // TODO: can probably remove lambda use here
+    auto op = pvlambda([](auto&& node, auto begin, auto end) {
       auto tok = *begin;
       if (begin == end) {
         node.remove(tok);
       } else {
         node.modify(tok);
       }
-    };
+    });
 
     // Traverse to second to last hop and call remove. Modify parents
     // along the way
     auto result = PathVisitor<TC>::visit(
-        *newRoot, begin, end - 1, PathVisitMode::FULL, std::move(f));
+        *newRoot, begin, end - 1, PathVisitMode::FULL, op);
 
     // if successful, reset root
     if (result == ThriftTraverseResult::OK) {
       (*root).swap(newRoot);
     }
     return result;
-  }
-
-  template <typename Func>
-  inline ThriftTraverseResult
-  visitPath(PathIter begin, PathIter end, Func&& f) {
-    return PathVisitor<TC>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
-  }
-
-  template <typename Func>
-  inline ThriftTraverseResult visitPath(PathIter begin, PathIter end, Func&& f)
-      const {
-    return PathVisitor<TC>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
-  }
-
-  template <typename Func>
-  inline ThriftTraverseResult cvisitPath(PathIter begin, PathIter end, Func&& f)
-      const {
-    return PathVisitor<TC>::visit(
-        *this, begin, end, PathVisitMode::LEAF, std::forward<Func>(f));
   }
 
   bool operator==(const Self& that) const {

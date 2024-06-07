@@ -8,7 +8,6 @@
  *
  */
 
-#include "fboss/agent/Platform.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleFactory.h"
@@ -20,9 +19,9 @@
 #include "fboss/agent/benchmarks/AgentBenchmarks.h"
 
 #include <folly/IPAddressV6.h>
-#include <folly/dynamic.h>
 #include <folly/init/Init.h>
-#include <folly/json.h>
+#include <folly/json/dynamic.h>
+#include <folly/json/json.h>
 
 #include <folly/Benchmark.h>
 #include <folly/logging/xlog.h>
@@ -48,36 +47,22 @@ BENCHMARK(runTxSlowPathBenchmark) {
       [](const AgentEnsemble& ensemble) {
         auto ports = ensemble.masterLogicalPortIds();
         CHECK_GT(ports.size(), 0);
-
-        // Before m-mpu agent test, use first Asic for initialization.
-        auto switchIds = ensemble.getSw()->getHwAsicTable()->getSwitchIDs();
-        CHECK_GE(switchIds.size(), 1);
-        auto asic =
-            ensemble.getSw()->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
-        return utility::onePortPerInterfaceConfig(
-            ensemble.getSw()->getPlatformMapping(),
-            asic,
-            ports,
-            asic->desiredLoopbackModes());
+        return utility::onePortPerInterfaceConfig(ensemble.getSw(), ports);
       };
   ensemble = createAgentEnsemble(initialConfigFn);
 
   auto swSwitch = ensemble->getSw();
-  auto state = ensemble->getSw()->getState();
-  auto ecmpHelper = utility::EcmpSetupAnyNPorts6(state);
+  auto ecmpHelper = utility::EcmpSetupAnyNPorts6(ensemble->getSw()->getState());
   auto portUsed = ecmpHelper.ecmpPortDescriptorAt(0).phyPortID();
 
-  state =
-      ensemble->applyNewState(ecmpHelper.resolveNextHops(state, kEcmpWidth));
+  ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+    return ecmpHelper.resolveNextHops(in, kEcmpWidth);
+  });
   ecmpHelper.programRoutes(
       std::make_unique<SwSwitchRouteUpdateWrapper>(
           ensemble->getSw(), ensemble->getSw()->getRib()),
       kEcmpWidth);
-  // TODO(zecheng): Deprecate ensemble access to platform
-  auto platform =
-      static_cast<MonolithicAgentInitializer*>(ensemble->agentInitializer())
-          ->platform();
-  auto cpuMac = platform->getLocalMac();
+  auto cpuMac = ensemble->getSw()->getLocalMac(SwitchID(0));
   auto vlanId = utility::firstVlanID(ensemble->getProgrammedState());
   std::atomic<bool> packetTxDone{false};
   std::thread t([cpuMac, vlanId, swSwitch, &packetTxDone]() {
@@ -105,14 +90,32 @@ BENCHMARK(runTxSlowPathBenchmark) {
       getOutPktsAndBytes(ensemble.get(), PortID(portUsed));
   auto timeBefore = std::chrono::steady_clock::now();
   // Let the packet flood warm up
-  std::this_thread::sleep_for(std::chrono::seconds(5));
-  auto [pktsAfter, bytesAfter] =
-      getOutPktsAndBytes(ensemble.get(), PortID(portUsed));
-  auto timeAfter = std::chrono::steady_clock::now();
+  std::this_thread::sleep_for(std::chrono::seconds(30));
   packetTxDone = true;
   t.join();
+  auto timeAfter = std::chrono::steady_clock::now();
   std::chrono::duration<double, std::milli> durationMillseconds =
       timeAfter - timeBefore;
+  auto pktsAfter = pktsBefore;
+  auto bytesAfter = bytesBefore;
+  auto kMaxIterations = 30;
+  // Wait for stats increment to stop. On some platforms it
+  // takes longer for port stats to reflect the sent bytes.
+  for (auto i = 0; i < kMaxIterations; ++i) {
+    auto pktsPrior = pktsAfter;
+    auto bytesPrior = bytesAfter;
+    std::tie(pktsAfter, bytesAfter) =
+        getOutPktsAndBytes(ensemble.get(), PortID(portUsed));
+    if (pktsPrior == pktsAfter && bytesPrior == bytesAfter) {
+      break;
+    }
+    XLOG(INFO) << " Stats still incrementing after iteration: " << i + 1;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    if (i == kMaxIterations - 1) {
+      XLOG(INFO) << " Stats still incrementing after iteration: " << i + 1
+                 << " Reported TX pps maybe lower than actual pps";
+    }
+  }
   uint32_t pps = (static_cast<double>(pktsAfter - pktsBefore) /
                   durationMillseconds.count()) *
       1000;

@@ -15,7 +15,7 @@ cd "${FBOSS_DIR}"
 
 # Install dependencies.
 echo -ne "\nInstalling dependencies\n"
-declare -a deps=("python36-devel"
+declare -a deps=("python3-devel"
                  "epel-release"
                  "flashrom"
                  "lm_sensors"
@@ -71,15 +71,27 @@ echo "Found model name ${MODEL_NAME} in ${FRU}"
 mkdir -p /etc/coop
 
 FBOSS_SHARE_DIR="/opt/fboss/share"
-WEDGE_AGENT_PLATFORM_CONFIG="${FBOSS_SHARE_DIR}/hw_test_configs/${MODEL_NAME}.agent.materialized_JSON"
+# Default wedge agent config (currently uses link tests config)
+WEDGE_AGENT_PLATFORM_CONFIG="${FBOSS_SHARE_DIR}/link_test_configs/${MODEL_NAME}.materialized_JSON"
 WEDGE_AGENT_DEFAULT_CONFIG="/etc/coop/agent.conf"
 if [ -f "${WEDGE_AGENT_PLATFORM_CONFIG}" ]; then
    echo "Linking ${WEDGE_AGENT_PLATFORM_CONFIG} to ${WEDGE_AGENT_DEFAULT_CONFIG}"
    ln -sf "${WEDGE_AGENT_PLATFORM_CONFIG}" "${WEDGE_AGENT_DEFAULT_CONFIG}"
 else
-   echo "No platform wedge_agent config found for model name ${MODEL_NAME}"
+   echo "No platform wedge agent config found for model name ${MODEL_NAME}"
 fi
 
+# Hardware tests config
+HW_TEST_PLATFORM_CONFIG="${FBOSS_SHARE_DIR}/hw_test_configs/${MODEL_NAME}.agent.materialized_JSON"
+HW_TEST_DEFAULT_CONFIG="/etc/coop/hw.conf"
+if [ -f "${HW_TEST_PLATFORM_CONFIG}" ]; then
+   echo "Linking ${HW_TEST_PLATFORM_CONFIG} to ${HW_TEST_DEFAULT_CONFIG}"
+   ln -sf "${HW_TEST_PLATFORM_CONFIG}" "${HW_TEST_DEFAULT_CONFIG}"
+else
+   echo "No platform hw_test config found for model name ${MODEL_NAME}"
+fi
+
+# QSFP service config
 QSFP_PLATFORM_CONFIG="$FBOSS_SHARE_DIR/qsfp_test_configs/$MODEL_NAME.materialized_JSON"
 QSFP_DEFAULT_CONFIG="/etc/coop/qsfp.conf"
 if [ -f "$QSFP_PLATFORM_CONFIG" ]; then
@@ -89,6 +101,7 @@ else
    echo "No platform qsfp_service config found for model name ${MODEL_NAME}"
 fi
 
+# Link tests config
 LINK_PLATFORM_CONFIG="$FBOSS_SHARE_DIR/link_test_configs/$MODEL_NAME.materialized_JSON"
 LINK_DEFAULT_CONFIG="/etc/coop/link.conf"
 if [ -f "$LINK_PLATFORM_CONFIG" ]; then

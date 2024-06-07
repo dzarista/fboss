@@ -261,10 +261,10 @@ void sendDHCPPacket(
       + dhcpMsgTypeOpt
       // Other options to append
       + appendOptions +
-      // 3 X Pad, 1 X end
-      "00  00  00 ff"));
+      // 4 X Pad, 1 X end
+      "00  00  00 00 ff"));
   ASSERT_EQ(
-      payloadSize + udpHdrSize + ipHdrSize + ethHdrSize + /*'\0'*/ 1,
+      payloadSize + udpHdrSize + ipHdrSize + ethHdrSize + /*'\0\0'*/ 2,
       buf->length())
       << "Don't forget to adjust the headers' length";
   handle->rxPacket(std::move(buf), PortID(1), VlanID(1));
@@ -322,7 +322,7 @@ TxMatchFn checkDHCPPkt(
           "expected protocol to be ", IPPROTO_UDP, "; got ", ipHdr.protocol);
     }
 
-    SwitchStats switchStats;
+    SwitchStats switchStats(1 /*numSwitches*/);
     PortStats portStats(PortID(0), "foo", &switchStats);
     UDPHeader udpHdr;
     udpHdr.parse(&c, &portStats);

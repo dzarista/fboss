@@ -16,13 +16,12 @@
 #include "fboss/agent/hw/test/HwTestProdConfigUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
 #include "fboss/agent/hw/test/ProdConfigFactory.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestDscpMarkingUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestUtils.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/agent/test/utils/DscpMarkingUtils.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 
 namespace {
@@ -125,7 +124,8 @@ void ProdInvariantTest::setupConfigFlag() {
   utility::setPortToDefaultProfileIDMap(
       std::make_shared<MultiSwitchPortMap>(),
       platform()->getPlatformMapping(),
-      platform()->getAsic());
+      platform()->getAsic(),
+      platform()->supportsAddRemovePort());
   testConfig.sw() = initialConfig();
   const auto& baseConfig = platform()->config();
   testConfig.defaultCommandLineArgs() =
@@ -146,7 +146,8 @@ void ProdInvariantTest::sendTraffic() {
       sw()->getState(), sw()->getState()->getVlans()->getFirstVlanID());
   utility::pumpTraffic(
       true,
-      platform()->getHwSwitch(),
+      utility::getAllocatePktFn(sw()),
+      utility::getSendPktFunc(sw()),
       mac,
       sw()->getState()->getVlans()->getFirstVlanID());
 }

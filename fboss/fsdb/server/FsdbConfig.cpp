@@ -15,12 +15,12 @@ DEFINE_string(
 namespace facebook::fboss::fsdb {
 
 // static
-std::unique_ptr<FsdbConfig> FsdbConfig::fromDefaultFile() {
+std::shared_ptr<FsdbConfig> FsdbConfig::fromDefaultFile() {
   return fromFile(FLAGS_fsdb_config);
 }
 
 // static
-std::unique_ptr<FsdbConfig> FsdbConfig::fromFile(folly::StringPiece path) {
+std::shared_ptr<FsdbConfig> FsdbConfig::fromFile(folly::StringPiece path) {
   std::string raw;
   if (!folly::readFile(path.data(), raw)) {
     FsdbException e;
@@ -32,10 +32,10 @@ std::unique_ptr<FsdbConfig> FsdbConfig::fromFile(folly::StringPiece path) {
 }
 
 // static
-std::unique_ptr<FsdbConfig> FsdbConfig::fromRaw(const std::string& raw) {
+std::shared_ptr<FsdbConfig> FsdbConfig::fromRaw(const std::string& raw) {
   Config thrift;
   apache::thrift::SimpleJSONSerializer::deserialize<Config>(raw, thrift);
-  return std::make_unique<FsdbConfig>(std::move(thrift));
+  return std::make_shared<FsdbConfig>(std::move(thrift));
 }
 
 std::string FsdbConfig::configRaw() const {
@@ -66,19 +66,24 @@ const std::reference_wrapper<const PathConfig> FsdbConfig::getPathConfig(
       folly::join("/", path));
 }
 
-const std::optional<std::reference_wrapper<const SubscriberConfig>>
+const std::optional<
+    std::pair<SubscriberId, std::reference_wrapper<const SubscriberConfig>>>
 FsdbConfig::getSubscriberConfig(const SubscriberId& id) const {
   const auto& subscribers = thrift_.subscribers();
   auto it = subscribers->find(id);
   if (it != subscribers->end()) {
-    return it->second;
+    return std::
+        pair<SubscriberId, std::reference_wrapper<const SubscriberConfig>>(
+            it->first, it->second);
   }
 
   // fallback: id contains :<ConfiguredSubscriberIdSubstring>
   for (const auto& [key, value] : *subscribers) {
     if ((key.rfind(":") != std::string::npos) &&
         (id.find(key) != std::string::npos)) {
-      return value;
+      return std::
+          pair<SubscriberId, std::reference_wrapper<const SubscriberConfig>>(
+              key, value);
     }
   }
 

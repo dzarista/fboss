@@ -2,6 +2,7 @@
   "defaultCommandLineArgs": {
     "check_wb_handles": "true",
     "counter_refresh_interval": "0",
+    "log_variable_name": "true",
     "mode": "meru400bfu",
     "skip_transceiver_programming": "true"
   },
@@ -144,6 +145,7 @@
           "bist_enable.BCM8879X": "0",
           "core_clock_speed_khz.BCM8879X": "1000000",
           "custom_feature_access_only.BCM8879X": "0",
+          "custom_feature_fabric_cgm_ddc_th_tune.BCM8879X": "1",
           "custom_feature_lane_swap_disable.BCM8879X": "0",
           "custom_feature_mesh_topology_sync_mode": "1",
           "custom_feature_ser_event_generate": "1",
@@ -1638,8 +1640,8 @@
           "soc_family.BCM8879X": "BCM8879X",
           "srd_tx_drv_hv_disable.BCM8879X": "0",
           "stable_location.BCM8879X": "3",
-          "stable_size.BCM8879X": "350000",
-          "sw_state_max_size.BCM8879X": "250000",
+          "stable_size.BCM8879X": "550000",
+          "sw_state_max_size.BCM8879X": "450000",
           "system_contains_multiple_pipe_device.BCM8879X": "0",
           "system_ref_core_clock_khz.BCM8879X": "1600000",
           "tdma_intr_enable.BCM8879X": "0",

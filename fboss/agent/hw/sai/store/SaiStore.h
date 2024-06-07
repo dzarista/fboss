@@ -24,7 +24,7 @@
 #include "fboss/agent/hw/sai/store/Traits.h"
 #include "fboss/lib/RefMap.h"
 
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 
 #include <memory>
 #include <optional>
@@ -168,8 +168,7 @@ class SaiObjectStore {
       auto ins = objects_.refOrInsert(adapterHostKey, std::move(obj));
       if (!ins.second) {
         XLOG(FATAL) << "[" << saiObjectTypeToString(SaiObjectTraits::ObjectType)
-                    << "]"
-                    << " Unexpected duplicate adapterHostKey";
+                    << "]" << " Unexpected duplicate adapterHostKey";
       }
       warmBootHandles_.emplace(adapterHostKey, ins.first);
     }
@@ -578,7 +577,8 @@ class SaiStore {
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
       SaiObjectStore<SaiCounterTraits>,
 #endif
-      SaiObjectStore<SaiDebugCounterTraits>,
+      SaiObjectStore<SaiInPortDebugCounterTraits>,
+      SaiObjectStore<SaiOutPortDebugCounterTraits>,
       SaiObjectStore<SaiSystemPortTraits>,
       SaiObjectStore<SaiPortTraits>,
       SaiObjectStore<SaiUdfTraits>,

@@ -41,9 +41,9 @@
 DECLARE_bool(intf_nbr_tables);
 
 DEFINE_bool(
-    accept_unsolicited_neighbor_adv,
+    disable_icmp_error_response,
     false,
-    "Accept unsolicited NDP advertisements sent to multicast address");
+    "Disable sending icmp error response pkts in agent");
 
 using folly::IPAddressV6;
 using folly::MacAddress;
@@ -156,6 +156,17 @@ void IPv6Handler::handlePacket(
              << " dst: " << ipv6.dstAddr.str() << " (" << dst << ")"
              << " nextHeader: " << static_cast<int>(ipv6.nextHeader);
 
+  auto payloadLength = pkt->getLength() - (cursor - Cursor(pkt->buf()));
+  if (ipv6.payloadLength > payloadLength) {
+    sw_->portStats(pkt->getSrcPort())->pktBogus();
+    XLOG(DBG3) << "Discarding pkt with invalid length field. length: " << " ("
+               << ipv6.payloadLength << ")" << "payload length: " << " ("
+               << payloadLength << ")" << " src: " << ipv6.srcAddr.str() << " ("
+               << src << ")" << " dst: " << ipv6.dstAddr.str() << " (" << dst
+               << ")";
+    return;
+  }
+
   // Additional data (such as FCS) may be appended after the IP payload
   auto payload = folly::IOBuf::wrapBuffer(cursor.data(), ipv6.payloadLength);
   cursor.reset(payload.get());
@@ -255,6 +266,9 @@ void IPv6Handler::handlePacket(
     // packets destined for us
     // Anything not handled by the controller, we will forward it to the host,
     // i.e. ping, ssh, bgp...
+    if (ipv6.hopLimit == 1) {
+      sw_->stats()->ipv6HopLimit1Mine();
+    }
     if (ipv6.payloadLength > intf->getMtu()) {
       // Generate PTB as interface to dst intf has MTU smaller than payload
       sendICMPv6PacketTooBig(
@@ -622,6 +636,11 @@ void IPv6Handler::sendICMPv6TimeExceeded(
     MacAddress src,
     IPv6Hdr& v6Hdr,
     folly::io::Cursor cursor) {
+  if (FLAGS_disable_icmp_error_response) {
+    XLOG(DBG4)
+        << "skipping sending icmpv6 time exceeded since icmp error response generation is disabled";
+    return;
+  }
   auto state = sw_->getState();
 
   /*
@@ -684,6 +703,11 @@ void IPv6Handler::sendICMPv6PacketTooBig(
     IPv6Hdr& v6Hdr,
     int expectedMtu,
     folly::io::Cursor cursor) {
+  if (FLAGS_disable_icmp_error_response) {
+    XLOG(DBG4)
+        << "skipping sending icmpv6 time exceeded since icmp error response generation is disabled";
+    return;
+  }
   auto state = sw_->getState();
 
   // payload serialization function
@@ -753,6 +777,12 @@ void IPv6Handler::sendMulticastNeighborSolicitation(
     const IPAddressV6& targetIP,
     const MacAddress& srcMac,
     const std::optional<VlanID>& vlanID) {
+  if (FLAGS_disable_neighbor_updates) {
+    XLOG(DBG4)
+        << "skipping sending neighbor solicitation since neighbor updates are disabled";
+    return;
+  }
+
   IPAddressV6 solicitedNodeAddr = targetIP.getSolicitedNodeAddress();
   MacAddress dstMac = MacAddress::createMulticast(solicitedNodeAddr);
   // For now, we always use our link local IP as the source.
@@ -793,6 +823,14 @@ void IPv6Handler::sendUnicastNeighborSolicitation(
     const folly::MacAddress& srcMac,
     const std::optional<VlanID>& vlanID,
     const PortDescriptor& portDescriptor) {
+  auto portToSend{portDescriptor};
+
+  if (FLAGS_disable_neighbor_updates) {
+    XLOG(DBG4)
+        << "skipping sending neighbor solicitation since neighbor updates are disabled";
+    return;
+  }
+
   auto state = sw->getState();
 
   InterfaceID intfID;
@@ -805,10 +843,9 @@ void IPv6Handler::sendUnicastNeighborSolicitation(
       intfID = sw->getInterfaceIDForAggregatePort(portDescriptor.aggPortID());
       break;
     case PortDescriptor::PortType::SYSTEM_PORT:
-      // We expect the caller to resolve the system port down to its underlying
-      // physical port.
-      throw FbossError("Received checkReachability query on systemPort");
-      break;
+      auto physPortID = getPortID(portDescriptor.sysPortID(), sw->getState());
+      portToSend = PortDescriptor(physPortID);
+      intfID = sw->getState()->getInterfaceIDForPort(physPortID);
   }
 
   if (!Interface::isIpAttached(targetIP, intfID, state)) {
@@ -819,12 +856,13 @@ void IPv6Handler::sendUnicastNeighborSolicitation(
   }
 
   XLOG(DBG4) << "sending unicast neighbor solicitation to " << targetIP << "("
-             << targetMac << ")"
-             << " on interface " << intfID << " from " << srcIP << "(" << srcMac
-             << ")  portDescriptor:" << portDescriptor.str();
+             << targetMac << ")" << " on interface " << intfID << " from "
+             << srcIP << "(" << srcMac
+             << ")  portDescriptor:" << portDescriptor.str()
+             << " portToSend: " << portToSend.str();
 
   return sendNeighborSolicitation(
-      sw, targetIP, targetMac, srcIP, srcMac, targetIP, vlanID, portDescriptor);
+      sw, targetIP, targetMac, srcIP, srcMac, targetIP, vlanID, portToSend);
 }
 
 void IPv6Handler::sendMulticastNeighborSolicitation(
@@ -972,6 +1010,16 @@ void IPv6Handler::floodNeighborAdvertisements() {
                    << intf->getName();
         continue;
       }
+
+      // If NDP is flooded on recycle port interface, it will be resolved and
+      // will get added as DYNAMIC entry, which is incorrect.
+      if (isAnyInterfacePortRecyclePort(sw_->getState(), intf)) {
+        XLOG(DBG2)
+            << "Do not flood neighbor advertisement on recycle port interface: "
+            << intf->getName();
+        continue;
+      }
+
       for (auto iter : std::as_const(*intf->getAddresses())) {
         auto addrEntry = folly::IPAddress(iter.first);
         if (!addrEntry.isV6()) {
@@ -1093,6 +1141,7 @@ void IPv6Handler::receivedNdpNotMine(
     PortDescriptor port,
     ICMPv6Type type,
     uint32_t flags) {
+  sw_->stats()->ipv6NdpNotMine();
   auto updater = sw_->getNeighborUpdater();
   if constexpr (std::is_same_v<VlanOrIntfT, Vlan>) {
     updater->receivedNdpNotMine(

@@ -7,9 +7,9 @@
 #include <fboss/fsdb/oper/DeltaValue.h>
 #include <fboss/thrift_cow/storage/Storage.h>
 #include <folly/Expected.h>
-#include <folly/dynamic.h>
 #include <folly/experimental/coro/AsyncGenerator.h>
 #include <folly/experimental/coro/Sleep.h>
+#include <folly/json/dynamic.h>
 #include <folly/logging/xlog.h>
 #include <chrono>
 #include "fboss/fsdb/if/gen-cpp2/fsdb_common_types.h"
@@ -141,6 +141,34 @@ class SubscribableStorage {
         subscriber, std::move(paths), protocol);
   }
 
+#ifdef ENABLE_PATCH_APIS
+  template <
+      typename Path,
+      typename = std::enable_if_t<
+          std::is_same_v<typename folly::remove_cvref_t<Path>::RootT, RootT>,
+          void>>
+  folly::coro::AsyncGenerator<Patch&&>
+  subscribe_patch(SubscriberId subscriber, Path&& path, OperProtocol protocol) {
+    return this->subscribe_patch(
+        subscriber, path.begin(), path.end(), protocol);
+  }
+  folly::coro::AsyncGenerator<Patch&&> subscribe_patch(
+      SubscriberId subscriber,
+      const ConcretePath& path,
+      OperProtocol protocol) {
+    return this->subscribe_patch(
+        subscriber, path.begin(), path.end(), protocol);
+  }
+  folly::coro::AsyncGenerator<Patch&&> subscribe_patch(
+      SubscriberId subscriber,
+      PathIter begin,
+      PathIter end,
+      OperProtocol protocol) {
+    return static_cast<Impl*>(this)->subscribe_patch_impl(
+        subscriber, begin, end, protocol);
+  }
+#endif
+
   // wrapper calls to underlying storage
 
   template <
@@ -257,9 +285,11 @@ class SubscribableStorage {
     static_cast<Impl*>(this)->remove_impl(begin, end);
   }
 
-  std::optional<StorageError> patch(thrift_cow::Patch&& patch) {
+#ifdef ENABLE_PATCH_APIS
+  std::optional<StorageError> patch(Patch&& patch) {
     return static_cast<Impl*>(this)->patch_impl(std::move(patch));
   }
+#endif
 
   std::optional<StorageError> patch(const fsdb::OperDelta& delta) {
     return static_cast<Impl*>(this)->patch_impl(delta);
@@ -268,83 +298,6 @@ class SubscribableStorage {
   std::optional<StorageError> patch(const fsdb::TaggedOperState& state) {
     return static_cast<Impl*>(this)->patch_impl(state);
   }
-
-#ifdef ENABLE_DYNAMIC_APIS
-  using DynamicResult = Result<folly::dynamic>;
-
-  template <
-      typename Path,
-      typename = std::enable_if_t<
-          std::is_same_v<typename folly::remove_cvref_t<Path>::RootT, RootT>,
-          void>>
-  folly::coro::AsyncGenerator<DeltaValue<folly::dynamic>&&> subscribe_dynamic(
-      SubscriberId subscriber,
-      Path&& path) {
-    return this->subscribe_dynamic(subscriber, path.begin(), path.end());
-  }
-  folly::coro::AsyncGenerator<DeltaValue<folly::dynamic>&&> subscribe_dynamic(
-      SubscriberId subscriber,
-      const ConcretePath& path) {
-    return this->subscribe_dynamic(subscriber, path.begin(), path.end());
-  }
-  folly::coro::AsyncGenerator<DeltaValue<folly::dynamic>&&>
-  subscribe_dynamic(SubscriberId subscriber, PathIter begin, PathIter end) {
-    return static_cast<Impl*>(this)->subscribe_dynamic_impl(
-        subscriber, begin, end);
-  }
-
-  template <
-      typename Path,
-      typename =
-          std::enable_if_t<std::is_same_v<typename Path::RootT, RootT>, void>>
-  DynamicResult get_dynamic(const Path& path) const {
-    return get_dynamic(path.begin(), path.end());
-  }
-  DynamicResult get_dynamic(const ConcretePath& path) const {
-    return get_dynamic(path.begin(), path.end());
-  }
-  DynamicResult get_dynamic(PathIter begin, PathIter end) const {
-    return static_cast<Impl const*>(this)->get_dynamic_impl(begin, end);
-  }
-
-  template <
-      typename Path,
-      typename =
-          std::enable_if_t<std::is_same_v<typename Path::RootT, RootT>, void>>
-  std::optional<StorageError> set_dynamic(
-      const Path& path,
-      const folly::dynamic& value) {
-    return this->set_dynamic(path.begin(), path.end(), value);
-  }
-  std::optional<StorageError> set_dynamic(
-      const ConcretePath& path,
-      const folly::dynamic& value) {
-    return set_dynamic(path.begin(), path.end(), value);
-  }
-  std::optional<StorageError>
-  set_dynamic(PathIter begin, PathIter end, const folly::dynamic& value) {
-    return static_cast<Impl*>(this)->set_dynamic_impl(begin, end, value);
-  }
-
-  template <
-      typename Path,
-      typename =
-          std::enable_if_t<std::is_same_v<typename Path::RootT, RootT>, void>>
-  std::optional<StorageError> add_dynamic(
-      const Path& path,
-      const folly::dynamic& value) {
-    return this->add_dynamic(path.begin(), path.end(), value);
-  }
-  std::optional<StorageError> add_dynamic(
-      const ConcretePath& path,
-      const folly::dynamic& value) {
-    return add_dynamic(path.begin(), path.end(), value);
-  }
-  std::optional<StorageError>
-  add_dynamic(PathIter begin, PathIter end, const folly::dynamic& value) {
-    return static_cast<Impl*>(this)->add_dynamic_impl(begin, end, value);
-  }
-#endif
 };
 
 } // namespace facebook::fboss::fsdb

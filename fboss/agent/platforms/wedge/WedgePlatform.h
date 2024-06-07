@@ -43,8 +43,6 @@ class WedgePlatform : public BcmPlatform, public StateObserver {
   void initPorts() override;
   BcmPlatformPortMap getPlatformPortMap() override;
 
-  void stop() override;
-
   void stateUpdated(const StateDelta& /*delta*/) override;
 
   virtual std::unique_ptr<WedgePortMapping> createPortMapping() = 0;
@@ -57,7 +55,6 @@ class WedgePlatform : public BcmPlatform, public StateObserver {
   void onUnitCreate(int unit) override;
   void onUnitAttach(int unit) override;
   void preWarmbootStateApplied() override;
-  void onInitialConfigApplied(HwSwitchCallback* /*sw*/) override {}
 
   bool canUseHostTableForHostRoutes() const override {
     return FLAGS_enable_routes_in_host_table;
@@ -68,6 +65,7 @@ class WedgePlatform : public BcmPlatform, public StateObserver {
       PortID port,
       cfg::PortProfileID /* profileID */) const override;
   PlatformPort* getPlatformPort(PortID id) const override;
+  void stateChanged(const StateDelta& delta) override;
 
  protected:
   std::unique_ptr<WedgePortMapping> portMapping_;

@@ -13,6 +13,7 @@ include "fboss/qsfp_service/if/transceiver.thrift"
 include "common/fb303/if/fb303.thrift"
 include "fboss/agent/if/fboss.thrift"
 include "fboss/lib/phy/prbs.thrift"
+include "fboss/lib/if/io_stats.thrift"
 
 enum IpModulation {
   NRZ = 1,
@@ -141,6 +142,8 @@ struct TxSettings {
   18: optional i32 setPrecode;
   19: optional i32 pre3;
   20: optional i32 driverSwing;
+  21: optional i32 innerEyeNeg;
+  22: optional i32 innerEyePos;
 }
 
 struct RxSettings {
@@ -159,6 +162,20 @@ struct RxSettings {
   13: optional i32 thpEn;
   14: optional i32 dcTermEn;
   15: optional i32 setPrecode;
+  16: optional i32 instgBoost1Start;
+  17: optional i32 instgBoost1Step;
+  18: optional i32 instgBoost1Stop;
+  19: optional i32 instgBoost2OrHrStart;
+  20: optional i32 instgBoost2OrHrStep;
+  21: optional i32 instgBoost2OrHrStop;
+  22: optional i32 instgC1Start1p7;
+  23: optional i32 instgC1Step1p7;
+  24: optional i32 instgC1Stop1p7;
+  25: optional i32 instgDfeStart1p7;
+  26: optional i32 instgDfeStep1p7;
+  27: optional i32 instgDfeStop1p7;
+  28: optional i32 enableScanSelection;
+  29: optional i32 instgScanUseSrSettings;
 }
 
 struct LaneMap {
@@ -226,6 +243,7 @@ enum DataPlanePhyChipType {
   IPHY = 1,
   XPHY = 2,
   TRANSCEIVER = 3,
+  BACKPLANE = 4,
 }
 
 struct DataPlanePhyChip {
@@ -306,6 +324,7 @@ struct PrbsLaneStats {
   7: i32 timeSinceLastClear;
   8: optional double snr;
   9: optional double maxSnr;
+  10: i32 timeCollected;
 }
 
 struct PrbsStats {
@@ -389,6 +408,9 @@ struct RsFecInfo {
   // This also means that the preFECBer could be approximated as well.
   3: i64 correctedBits;
   4: double preFECBer;
+  // Map of symbol error to number of codewords with that many symbol errors.
+  // Stores cumulative counts
+  5: map<i16, i64> codewordStats;
 }
 
 struct PmdInfo {
@@ -443,6 +465,8 @@ struct LaneStats {
 struct LinkFaultStatus {
   1: bool localFault;
   2: bool remoteFault;
+  3: bool highCrcErrorRateLive;
+  4: i32 highCrcErrorRateChangedCount = 0;
 }
 
 struct RsInfo {
@@ -465,6 +489,7 @@ struct PhyStats {
   1: optional PhySideStats system;
   2: PhySideStats line;
   3: optional i64 linkFlapCount;
+  9: io_stats.IOStats ioStats;
   10: i32 timeCollected;
 }
 
@@ -497,6 +522,9 @@ service FbossCommonPhyCtrl extends fb303.FacebookService {
     1: fboss.FbossBaseError error,
   );
   map<string, PhyInfo> getInterfacePhyInfo(1: list<string> portNames) throws (
+    1: fboss.FbossBaseError error,
+  );
+  map<string, PhyInfo> getAllInterfacePhyInfo() throws (
     1: fboss.FbossBaseError error,
   );
   /*

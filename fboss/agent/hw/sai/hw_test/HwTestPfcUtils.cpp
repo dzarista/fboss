@@ -9,6 +9,7 @@
  */
 #include "fboss/agent/hw/test/HwTestPfcUtils.h"
 #include <gtest/gtest.h>
+#include <cmath>
 #include "fboss/agent/hw/sai/switch/SaiPortManager.h"
 #include "fboss/agent/hw/sai/switch/SaiSwitch.h"
 
@@ -63,40 +64,114 @@ std::optional<cfg::PfcWatchdog> getProgrammedPfcDeadlockParams(
                         ->managerTable()
                         ->portManager()
                         .getPortHandle(portId);
+  std::optional<cfg::PfcWatchdog> pfcWdProgramming{};
   CHECK(portHandle);
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
+  cfg::PfcWatchdog pfcWd;
+  bool pfcWdEnabled{false};
+  // PFC deadlock enable/disable is a per queue config. PFC
+  // deadlock should be enabled for atleast one queue.
+  for (auto pri = 0; pri < 8 && !pfcWdEnabled; pri++) {
+    auto queueHandle = static_cast<const SaiSwitch*>(hw)
+                           ->managerTable()
+                           ->portManager()
+                           .getQueueHandle(portId, pri);
+    pfcWdEnabled = SaiApiTable::getInstance()->queueApi().getAttribute(
+        queueHandle->queue->adapterKey(),
+        SaiQueueTraits::Attributes::EnablePfcDldr{});
+  }
+
+  // Return if PFC deadlock detection/recovery is not enabled
+  // on any queue!
+  if (!pfcWdEnabled) {
+    return pfcWdProgramming;
+  }
+
+  auto pfcDlrPacketAction =
+      SaiApiTable::getInstance()->switchApi().getAttribute(
+          static_cast<const SaiSwitch*>(hw)->getSaiSwitchId(),
+          SaiSwitchTraits::Attributes::PfcDlrPacketAction{});
+  pfcWd.recoveryAction() = pfcWatchdogRecoveryAction(pfcDlrPacketAction);
+
   std::vector<sai_map_t> pfcDldTimer =
       SaiApiTable::getInstance()->portApi().getAttribute(
           portHandle->port->adapterKey(),
           SaiPortTraits::Attributes::PfcTcDldInterval{});
+  if (pfcDldTimer.size()) {
+    pfcWd.detectionTimeMsecs() = pfcDldTimer.at(0).value;
+    // Timers for all enabled priorities should be the same!
+    for (const auto& dldTimer : pfcDldTimer) {
+      EXPECT_EQ(dldTimer.value, *pfcWd.detectionTimeMsecs());
+    }
+  }
+
   std::vector<sai_map_t> pfcDlrTimer =
       SaiApiTable::getInstance()->portApi().getAttribute(
           portHandle->port->adapterKey(),
           SaiPortTraits::Attributes::PfcTcDlrInterval{});
-  // PfcWD is programmed in HW, we'll see non zero
-  // PFC DLD/DLR timers.
-  if (pfcDldTimer.size() && pfcDlrTimer.size()) {
-    cfg::PfcWatchdog pfcWd;
-    pfcWd.detectionTimeMsecs() = pfcDlrTimer.at(0).value;
-    // Timers for all priorities should be the same!
-    for (const auto& dldTimer : pfcDldTimer) {
-      EXPECT_EQ(dldTimer.value, *pfcWd.detectionTimeMsecs());
-    }
+  if (pfcDlrTimer.size()) {
     pfcWd.recoveryTimeMsecs() = pfcDlrTimer.at(0).value;
-    // Timers for all priorities should be the same!
+    // Timers for all enabled priorities should be the same!
     for (const auto& dlrTimer : pfcDlrTimer) {
       EXPECT_EQ(dlrTimer.value, *pfcWd.recoveryTimeMsecs());
     }
-
-    auto pfcDlrPacketAction =
-        SaiApiTable::getInstance()->switchApi().getAttribute(
-            static_cast<const SaiSwitch*>(hw)->getSaiSwitchId(),
-            SaiSwitchTraits::Attributes::PfcDlrPacketAction{});
-    pfcWd.recoveryAction() = pfcWatchdogRecoveryAction(pfcDlrPacketAction);
-    return pfcWd;
   }
+  pfcWdProgramming = pfcWd;
 #endif
-  return std::nullopt;
+  return pfcWdProgramming;
+}
+
+// DNX SDK logic returns the closest possible HW value to the configured one
+int findExpectedHwTimerClosestToConfiguredDnx(
+    cfg::AsicType asicType,
+    const int configuredTimeMsec) {
+  const long kCoreFrequencyHz = 1350000000;
+  long nOfClockCycles =
+      configuredTimeMsec * 1000000 * kCoreFrequencyHz / 1000000000;
+  // Follow DNX logic of finding values for roudUp and roundDown cases
+  // and taking the one closest to configured value.
+  auto getHwTimerMsec = [&](int log2Val) {
+    const int kGranularityRoundingFactor =
+        (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2) ? 10 : 1;
+    return kGranularityRoundingFactor *
+        (static_cast<int>(
+            std::pow(2.0, log2Val) * 1000000000 / (kCoreFrequencyHz * 1000000) /
+            kGranularityRoundingFactor));
+  };
+
+  int hwTimerMsecUp = getHwTimerMsec(std::ceil(std::log2(nOfClockCycles)));
+  int hwTimerMsecDown = getHwTimerMsec(std::floor(std::log2(nOfClockCycles)));
+  XLOG(DBG0) << "Configured: " << configuredTimeMsec
+             << ", hwTimer roundUp: " << hwTimerMsecUp
+             << ", hwTimer roundDown: " << hwTimerMsecDown;
+  // Return the hwTimer value computed closest to the cnfigured one!
+  if (std::abs(hwTimerMsecDown - configuredTimeMsec) <=
+      std::abs(hwTimerMsecUp - configuredTimeMsec)) {
+    return hwTimerMsecDown;
+  } else {
+    return hwTimerMsecUp;
+  }
+}
+
+cfg::PfcWatchdog getExpectedPfcWatchdogProgrammingInHwFromConfig(
+    const HwSwitch* hw,
+    const cfg::PfcWatchdog& configuredWd) {
+  // This could be different for different platforms
+  auto asicType = static_cast<const SaiSwitch*>(hw)
+                      ->getPlatform()
+                      ->getAsic()
+                      ->getAsicType();
+  cfg::PfcWatchdog expectedWd{configuredWd};
+  // Modify the fields that we expect to be different from config
+  if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
+      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    expectedWd.detectionTimeMsecs() = findExpectedHwTimerClosestToConfiguredDnx(
+        asicType, *configuredWd.detectionTimeMsecs());
+  } else {
+    expectedWd.detectionTimeMsecs() = *configuredWd.detectionTimeMsecs();
+  }
+
+  return expectedWd;
 }
 
 // Verifies if the PFC watchdog config provided matches the one
@@ -109,7 +184,9 @@ void pfcWatchdogProgrammingMatchesConfig(
   auto pfcWdProgrammed = getProgrammedPfcDeadlockParams(hw, portId);
   EXPECT_EQ(watchdogEnabled, pfcWdProgrammed.has_value());
   if (pfcWdProgrammed.has_value()) {
-    EXPECT_EQ(watchdog, *pfcWdProgrammed);
+    auto expectedPfcWdProgramming =
+        getExpectedPfcWatchdogProgrammingInHwFromConfig(hw, watchdog);
+    utility::checkPfcWdSwHwCfgMatch(expectedPfcWdProgramming, *pfcWdProgrammed);
   }
 }
 
@@ -157,6 +234,10 @@ void checkSwHwPgCfgMatch(
                         ->managerTable()
                         ->portManager()
                         .getPortHandle(PortID(swPort->getID()));
+  // Ensure that both SW and HW has the same number of PG IDs
+  EXPECT_EQ(
+      portHandle->configuredIngressPriorityGroups.size(),
+      swPort->getPortPgConfigs()->size());
   for (const auto& pgConfig : std::as_const(*swPgConfig)) {
     auto id = pgConfig->cref<switch_state_tags::id>()->cref();
     auto iter = portHandle->configuredIngressPriorityGroups.find(
@@ -234,13 +315,4 @@ void checkSwHwPgCfgMatch(
   }
 }
 
-void checkSwHwPgIdSetMatch(
-    const HwSwitch* /* unused */,
-    const std::shared_ptr<Port>& /* unused */,
-    std::set<int>& /* unused */) {
-  EXPECT_TRUE(false);
-  // This function is not implemented yet.
-  // If the test is running on SAI Switches,
-  // it should throw an error.
-}
 } // namespace facebook::fboss::utility

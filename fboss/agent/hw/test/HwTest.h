@@ -14,7 +14,7 @@
 #include <utility>
 
 #include <folly/Range.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 
 #include "fboss/agent/Constants.h"
 #include "fboss/agent/GtestDefs.h"
@@ -25,10 +25,10 @@
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.h"
-#include "fboss/agent/hw/test/HwTestConstants.h"
-#include "fboss/agent/hw/test/HwTestStatUtils.h"
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/SwitchState.h"
+#include "fboss/agent/test/utils/AgentHwTestConstants.h"
+#include "fboss/agent/test/utils/PortStatsTestUtils.h"
 #include "fboss/agent/types.h"
 
 DECLARE_bool(setup_for_warmboot);
@@ -65,9 +65,14 @@ class HwTest : public ::testing::Test,
 
   void packetReceived(RxPacket* /*pkt*/) noexcept override {}
   void linkStateChanged(PortID /*port*/, bool /*up*/) override {}
+  void linkActiveStateChanged(
+      const std::map<PortID, bool>& /*port2IsActive */) override {}
   void l2LearningUpdateReceived(
       L2Entry /*l2Entry*/,
       L2EntryUpdateType /*l2EntryUpdateType*/) override {}
+  void linkConnectivityChanged(
+      const std::map<PortID, multiswitch::FabricConnectivityDelta>&
+      /*port2OldAndNewConnectivity*/) override {}
 
   HwSwitchEnsemble* getHwSwitchEnsemble() {
     return hwSwitchEnsemble_.get();
@@ -99,6 +104,7 @@ class HwTest : public ::testing::Test,
   std::vector<PortID> getAllPortsInGroup(PortID portID) const;
 
   const SwitchIdScopeResolver& scopeResolver() const;
+  void checkNoStatsChange(int trys = 1);
 
  protected:
   /*
@@ -147,8 +153,7 @@ class HwTest : public ::testing::Test,
 
   template <typename SETUP_FN, typename VERIFY_FN>
   void verifyAcrossWarmBoots(SETUP_FN setup, VERIFY_FN verify) {
-    verifyAcrossWarmBoots(
-        setup, verify, []() {}, []() {});
+    verifyAcrossWarmBoots(setup, verify, []() {}, []() {});
   }
   std::shared_ptr<SwitchState> applyNewConfig(const cfg::SwitchConfig& config);
   std::shared_ptr<SwitchState> applyNewState(

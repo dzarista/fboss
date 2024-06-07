@@ -56,7 +56,11 @@ class BcmPortTest : public BcmTest {
   }
   cfg::SwitchConfig initialConfig() const override {
     return utility::oneL3IntfTwoPortConfig(
-        getHwSwitch(), masterLogicalPortIds()[0], masterLogicalPortIds()[1]);
+        getHwSwitch()->getPlatform()->getPlatformMapping(),
+        getHwSwitch()->getPlatform()->getAsic(),
+        masterLogicalPortIds()[0],
+        masterLogicalPortIds()[1],
+        getHwSwitch()->getPlatform()->supportsAddRemovePort());
   }
 };
 
@@ -292,7 +296,7 @@ TEST_F(BcmPortTest, SampleDestination) {
     cfg::SflowTunnel sflowTunnel;
     *sflowTunnel.ip() = "10.0.0.1";
     sflowTunnel.udpSrcPort() = 6545;
-    sflowTunnel.udpDstPort() = 5343;
+    sflowTunnel.udpDstPort() = 6343;
     tunnel.sflowTunnel() = sflowTunnel;
     newCfg.mirrors()->resize(1);
     *newCfg.mirrors()[0].name() = "sflow";
@@ -387,7 +391,7 @@ TEST_F(BcmPortTest, SampleDestinationMirror) {
     cfg::SflowTunnel sflowTunnel;
     *sflowTunnel.ip() = "10.0.0.1";
     sflowTunnel.udpSrcPort() = 6545;
-    sflowTunnel.udpDstPort() = 5343;
+    sflowTunnel.udpDstPort() = 6343;
     tunnel.sflowTunnel() = sflowTunnel;
     *mirror.name() = "mirror";
     mirror.destination()->tunnel() = tunnel;
@@ -442,6 +446,7 @@ TEST_F(BcmPortTest, AssertL3Enabled) {
         getHwSwitch()->getPlatform()->getPlatformMapping(),
         getHwSwitch()->getPlatform()->getAsic(),
         masterLogicalPortIds(),
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
         getPlatform()->getAsic()->desiredLoopbackModes()));
   };
   auto verify = [this]() {
@@ -477,7 +482,6 @@ TEST_F(BcmPortTest, AssertL3Enabled) {
   verifyAcrossWarmBoots(setup, verify);
 }
 
-#if (defined(IS_OPENNSA) || defined(BCM_SDK_VERSION_GTE_6_5_21))
 TEST_F(BcmPortTest, PortFdrStats) {
   // Feature supported in Tomahawk4 and above. This test is marked known bad
   // in platforms with unsupported ASICs.
@@ -498,7 +502,6 @@ TEST_F(BcmPortTest, PortFdrStats) {
   };
   verifyAcrossWarmBoots(setup, verify);
 }
-#endif
 
 TEST_F(BcmPortTest, SetInterPacketGapBits) {
   if (!getPlatform()->getPlatformMapping()->supportsInterPacketGapBits()) {
@@ -512,6 +515,7 @@ TEST_F(BcmPortTest, SetInterPacketGapBits) {
         getHwSwitch()->getPlatform()->getPlatformMapping(),
         getHwSwitch()->getPlatform()->getAsic(),
         masterLogicalPortIds(),
+        getHwSwitch()->getPlatform()->supportsAddRemovePort(),
         getPlatform()->getAsic()->desiredLoopbackModes()));
   };
   auto verify = [this]() {

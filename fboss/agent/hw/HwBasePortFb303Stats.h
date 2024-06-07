@@ -48,6 +48,7 @@ class HwBasePortFb303Stats {
   void queueChanged(int queueId, const std::string& queueName);
   void queueRemoved(int queueId);
   void pfcPriorityChanged(std::vector<PfcPriority> enabledPriorities);
+  void updateLeakyBucketFlapCnt(int cnt);
 
   /*
    * Port stat name
@@ -73,7 +74,9 @@ class HwBasePortFb303Stats {
       folly::StringPiece portName,
       PfcPriority priority);
 
-  int64_t getCounterLastIncrement(folly::StringPiece statKey) const;
+  int64_t getCounterLastIncrement(
+      folly::StringPiece statKey,
+      std::optional<int64_t> defaultVal = std::nullopt) const;
 
   virtual const std::vector<folly::StringPiece>& kPortStatKeys() const = 0;
   virtual const std::vector<folly::StringPiece>& kQueueStatKeys() const = 0;

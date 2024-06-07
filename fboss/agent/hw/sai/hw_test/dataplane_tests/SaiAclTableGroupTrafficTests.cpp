@@ -9,17 +9,19 @@
  */
 
 #include "fboss/agent/SwitchStats.h"
+#include "fboss/agent/hw/sai/api/SaiVersion.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
 #include "fboss/agent/hw/test/HwTestPacketUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestDscpMarkingUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestOlympicUtils.h"
 #include "fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.h"
-#include "fboss/agent/hw/test/dataplane_tests/HwTestQueuePerHostUtils.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
+#include "fboss/agent/test/utils/DscpMarkingUtils.h"
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
+#include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
+#include "fboss/agent/packet/IPProto.h"
 
 DECLARE_bool(enable_acl_table_group);
 
@@ -377,7 +379,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
   void verifyMultipleAclTablesHelper() {
     bool multipleAclTableSupport =
         HwTest::isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
     multipleAclTableSupport = false;
 #endif
     ASSERT_TRUE(multipleAclTableSupport);
@@ -394,7 +396,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
        */
       bool addAllQualifiers = false;
       resolveNeigborAndProgramRoutes(*helper_, kEcmpWidth);
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_SDK_GTE_1_65_0)
       addAllQualifiers = true;
 #endif
 
@@ -407,7 +409,10 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
         auto newCfg{initialConfig()};
         utility::addQueuePerHostQueueConfig(&newCfg);
         utility::addQueuePerHostAclTables(
-            &newCfg, 1 /*priority*/, addAllQualifiers);
+            &newCfg,
+            1 /*priority*/,
+            addAllQualifiers,
+            this->getHwSwitchEnsemble()->isSai());
         utility::addTtlAclTable(&newCfg, 2 /*priority*/);
         applyNewConfig(newCfg);
       }
@@ -504,8 +509,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
         intermediateAclStatsMatch, updateStats));
 
     auto intermediateAclPkts = pktCounterHelper();
-    sendAllPacketshelper<AddrT>(
-        dstIP, frontPanel, utility::kIcpDscp(getAsic()));
+    sendAllPacketshelper<AddrT>(dstIP, frontPanel, utility::kIcpDscp());
     auto afterAclStatsMatch = [&]() {
       auto [dscpAclPkts, ttlAclPkts] = pktCounterHelper();
       XLOG(DBG2) << "Intermediate ICP pkts: " << intermediateAclPkts.first
@@ -543,7 +547,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
   void verifyDscpTtlAclTablesHelper() {
     bool multipleAclTableSupport =
         HwTest::isSupported(HwAsic::Feature::MULTIPLE_ACL_TABLES);
-#if defined(TAJO_SDK_VERSION_1_42_1) || defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8)
     multipleAclTableSupport = false;
 #endif
     ASSERT_TRUE(multipleAclTableSupport);
@@ -555,7 +559,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
        */
       bool addAllQualifiers = false;
       resolveNeigborAndProgramRoutes(*helper_, kEcmpWidth);
-#if defined(TAJO_SDK_VERSION_1_65_0) || defined(TAJO_SDK_VERSION_1_68_0)
+#if defined(TAJO_SDK_GTE_1_65_0)
       addAllQualifiers = true;
 #endif
 
@@ -566,9 +570,12 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
 
       if (this->isSupported()) {
         auto newCfg{initialConfig()};
-        utility::addOlympicQosMaps(newCfg, getAsic());
+        utility::addOlympicQosMaps(newCfg, {getAsic()});
         utility::addDscpAclTable(
-            &newCfg, 1 /*priority*/, addAllQualifiers, getAsic());
+            &newCfg,
+            1 /*priority*/,
+            addAllQualifiers,
+            this->getHwSwitchEnsemble()->isSai());
         utility::addTtlAclTable(&newCfg, 2);
         applyNewConfig(newCfg);
       }

@@ -390,6 +390,11 @@ class CmdGlobalOptions {
     return agentThriftPort_;
   }
 
+  int getHwAgentThriftPort(int switchIndex) const {
+    CHECK_LT(switchIndex, hwAgentThriftPort_.size());
+    return hwAgentThriftPort_[switchIndex];
+  }
+
   int getBgpStreamThriftPort() const {
     return bgpStreamThriftPort_;
   }
@@ -432,6 +437,10 @@ class CmdGlobalOptions {
 
   int getSensorServiceThriftPort() const {
     return sensorServiceThriftPort_;
+  }
+
+  int getFanServiceThriftPort() const {
+    return fanServiceThriftPort_;
   }
 
   int getTeAgentThriftPort() const {
@@ -529,6 +538,7 @@ class CmdGlobalOptions {
   std::string logUsage_{"scuba"};
   int fsdbThriftPort_{5908};
   int agentThriftPort_{5909};
+  std::vector<int> hwAgentThriftPort_{5931, 5932};
   int qsfpThriftPort_{5910};
   int bgpThriftPort_{6909};
   int smcThriftPort_{1421};
@@ -539,6 +549,7 @@ class CmdGlobalOptions {
   int bmcHttpPort_{8443};
   int rackmonThriftPort_{5973};
   int sensorServiceThriftPort_{5970};
+  int fanServiceThriftPort_{5972};
   int teAgentThriftPort_{2022};
   int dataCorralServiceThriftPort_{5971};
   int vipInjectorThriftPort_{3333};

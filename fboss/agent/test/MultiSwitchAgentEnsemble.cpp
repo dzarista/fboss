@@ -1,10 +1,20 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "fboss/agent/test/MultiSwitchAgentEnsemble.h"
+#include <gtest/gtest.h>
+
+#include "fboss/agent/SwitchStats.h"
 
 namespace facebook::fboss {
 MultiSwitchAgentEnsemble::~MultiSwitchAgentEnsemble() {
-  agentInitializer_->stopAgent(false);
+  bool gracefulExit = !::testing::Test::HasFailure();
+  agentInitializer_->stopAgent(
+      false /* setupWarmboot */, gracefulExit /* gracefulExit */);
+  // wait for async thread to finish to prevent race between
+  // - stopping of thrift server
+  // - destruction of agentInitializer_ triggering destruction of thrift server
+  // this race can cause accessing data which has already been destroyed
+  joinAsyncInitThread();
 }
 
 const SwAgentInitializer* MultiSwitchAgentEnsemble::agentInitializer() const {
@@ -38,6 +48,16 @@ bool MultiSwitchAgentEnsemble::isSai() const {
   return sdkVersion.value().saiSdk().has_value();
 }
 
+HwSwitch* MultiSwitchAgentEnsemble::getHwSwitch() {
+  throw FbossError("getHwSwitch is unsupported for MultiSwitchAgentEnsemble");
+  return nullptr;
+}
+
+const HwSwitch* MultiSwitchAgentEnsemble::getHwSwitch() const {
+  throw FbossError("getHwSwitch is unsupported for MultiSwitchAgentEnsemble");
+  return nullptr;
+}
+
 std::unique_ptr<AgentEnsemble> createAgentEnsemble(
     AgentEnsembleSwitchConfigFn initialConfigFn,
     AgentEnsemblePlatformConfigFn platformConfigFn,
@@ -48,6 +68,20 @@ std::unique_ptr<AgentEnsemble> createAgentEnsemble(
       std::make_unique<MultiSwitchAgentEnsemble>();
   ensemble->setupEnsemble(featuresDesired, initialConfigFn, platformConfigFn);
   return ensemble;
+}
+
+void MultiSwitchAgentEnsemble::ensureHwSwitchConnected(SwitchID switchId) {
+  auto switchIndex =
+      getSw()->getSwitchInfoTable().getSwitchIndexFromSwitchId(switchId);
+  WITH_RETRIES({
+    std::map<int16_t, HwAgentEventSyncStatus> statusMap;
+    getSw()->stats()->getHwAgentStatus(statusMap);
+    EXPECT_EVENTUALLY_EQ(*(statusMap[switchIndex].fdbEventSyncActive()), 1);
+    EXPECT_EVENTUALLY_EQ(*(statusMap[switchIndex].txPktEventSyncActive()), 1);
+    EXPECT_EVENTUALLY_EQ(*(statusMap[switchIndex].rxPktEventSyncActive()), 1);
+    EXPECT_EVENTUALLY_EQ(*(statusMap[switchIndex].linkEventSyncActive()), 1);
+    EXPECT_EVENTUALLY_EQ(*(statusMap[switchIndex].statsEventSyncActive()), 1);
+  });
 }
 
 } // namespace facebook::fboss

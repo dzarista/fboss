@@ -6,9 +6,15 @@
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/Utils.h"
 
+#include <folly/io/async/ScopedEventBaseThread.h>
 #include "fboss/agent/CommonInit.h"
 #include "fboss/agent/EncapIndexAllocator.h"
+#include "fboss/agent/ThriftHandler.h"
+#include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
+#include "fboss/agent/test/utils/PacketSendUtils.h"
+#include "fboss/lib/CommonFileUtils.h"
+#include "fboss/lib/CommonUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 
 #include <gtest/gtest.h>
@@ -28,7 +34,8 @@ std::optional<facebook::fboss::cfg::StreamType> kStreamTypeOpt{std::nullopt};
 
 namespace facebook::fboss {
 AgentEnsemble::AgentEnsemble(const std::string& configFileName) {
-  configFile_ = configFileName;
+  setConfigFiles(configFileName);
+  setBootType();
 }
 
 void AgentEnsemble::setupEnsemble(
@@ -37,30 +44,30 @@ void AgentEnsemble::setupEnsemble(
     AgentEnsemblePlatformConfigFn platformConfigFn) {
   FLAGS_verify_apply_oper_delta = true;
 
-  if (platformConfigFn) {
+  if (bootType_ == BootType::COLD_BOOT) {
     auto agentConf =
         AgentConfig::fromFile(AgentEnsemble::getInputConfigFile())->thrift;
-    platformConfigFn(*(agentConf.platform()));
+    if (platformConfigFn) {
+      platformConfigFn(*(agentConf.platform()));
+    }
     // some platform config may need cold boots. so overwrite the config before
     // creating a switch
-    writeConfig(agentConf, FLAGS_config);
+    writeConfig(agentConf, configFile_);
   }
+  overrideConfigFlag(configFile_);
   createSwitch(
-      AgentConfig::fromDefaultFile(), hwFeaturesDesired, kPlatformInitFn);
+      AgentConfig::fromFile(configFile_), hwFeaturesDesired, kPlatformInitFn);
 
-  // TODO: Handle multiple Asics
-  HwAsic* asic = getHwAsicTable()->getHwAsicIf(SwitchID(0));
-  if (kStreamTypeOpt.has_value()) {
-    asic->setDefaultStreamType(kStreamTypeOpt.value());
+  for (auto switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+    HwAsic* asic = getHwAsicTable()->getHwAsicIf(switchId);
+    if (kStreamTypeOpt.has_value()) {
+      asic->setDefaultStreamType(kStreamTypeOpt.value());
+    }
+    switchId2PortIds_[switchId] = std::vector<PortID>();
   }
 
-  utility::setPortToDefaultProfileIDMap(
-      std::make_shared<MultiSwitchPortMap>(),
-      getSw()->getPlatformMapping(),
-      asic);
   auto portsByControllingPort = utility::getSubsidiaryPortIDs(
       getSw()->getPlatformMapping()->getPlatformPorts());
-
   const auto& platformPorts = getSw()->getPlatformMapping()->getPlatformPorts();
   for (const auto& port : portsByControllingPort) {
     if (!FLAGS_hide_fabric_ports ||
@@ -68,32 +75,61 @@ void AgentEnsemble::setupEnsemble(
                 ->second.mapping()
                 ->portType() != cfg::PortType::FABRIC_PORT) {
       masterLogicalPortIds_.push_back(port.first);
+      auto switchId = getSw()->getScopeResolver()->scope(port.first).switchId();
+      switchId2PortIds_[switchId].push_back(port.first);
     }
   }
-  initialConfig_ = initialConfigFn(*this);
-  applyInitialConfig(initialConfig_);
-  // reload the new config
-  reloadPlatformConfig();
+
+  for (auto switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+    HwAsic* asic = getHwAsicTable()->getHwAsicIf(switchId);
+    utility::setPortToDefaultProfileIDMap(
+        std::make_shared<MultiSwitchPortMap>(), /* unused */
+        getSw()->getPlatformMapping(),
+        asic,
+        getSw()->getPlatformSupportsAddRemovePort(),
+        switchId2PortIds_[switchId]);
+  }
+
+  if (bootType_ == BootType::COLD_BOOT) {
+    initialConfig_ = initialConfigFn(*this);
+    applyInitialConfig(initialConfig_);
+    // reload the new config
+    reloadPlatformConfig();
+  } else {
+    initialConfig_ = *(AgentConfig::fromFile(configFile_)->thrift.sw());
+  }
 
   // Setup LinkStateToggler and start agent
   if (hwFeaturesDesired & HwSwitch::FeaturesDesired::LINKSCAN_DESIRED) {
     setupLinkStateToggler();
   }
   startAgent();
+
+  for (const auto& switchId : getSw()->getSwitchInfoTable().getSwitchIDs()) {
+    ensureHwSwitchConnected(switchId);
+  }
 }
 
 void AgentEnsemble::startAgent() {
   // TODO: provide a way to enable tun intf, for now disable it expressedly,
   // this can also be done with CLI option, however netcastle runners can not
-  // use that option, because hw tests and hw benchmarks using hwswitch ensemble
-  // doesn't have CLI option to disable tun intf. Also get rid of explicit
-  // setting this flag and emply CLI option to disable tun manager.
+  // use that option, because hw tests and hw benchmarks using hwswitch
+  // ensemble doesn't have CLI option to disable tun intf. Also get rid of
+  // explicit setting this flag and emply CLI option to disable tun manager.
   FLAGS_tun_intf = false;
   auto* initializer = agentInitializer();
-  asyncInitThread_.reset(new std::thread([this, initializer] {
+  auto hwWriteBehavior = HwWriteBehavior::WRITE;
+  if (getSw()->getWarmBootHelper()->canWarmBoot()) {
+    hwWriteBehavior = HwWriteBehavior::LOG_FAIL;
+    if (getSw()->getHwAsicTable()->isFeatureSupportedOnAllAsic(
+            HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT)) {
+      hwWriteBehavior = HwWriteBehavior::FAIL;
+    }
+  }
+  asyncInitThread_.reset(new std::thread([this, initializer, hwWriteBehavior] {
     // hardware switch events will be dispatched to agent ensemble
     // agent ensemble is responsible to dispatch them to SwSwitch
-    initializer->initAgent(this);
+    initializer->initAgent(this, hwWriteBehavior);
   }));
   initializer->initializer()->waitForInitDone();
   // if cold booting, invoke link toggler
@@ -101,23 +137,32 @@ void AgentEnsemble::startAgent() {
       linkToggler_ != nullptr) {
     linkToggler_->applyInitialConfig(initialConfig_);
   }
+  // With link state toggler, initial config is applied with ports down to
+  // later bring up the ports. This causes the config to be written as
+  // loopback mode = None. Write the init config again to have the proper
+  // config.
+  applyNewConfig(initialConfig_);
 }
 
 void AgentEnsemble::writeConfig(const cfg::SwitchConfig& config) {
   auto* initializer = agentInitializer();
-  auto agentConfig = initializer->sw()->getAgentConfig();
+  auto isSwConfigured =
+      initializer->sw() && initializer->sw()->isFullyConfigured();
+  auto agentConfig = isSwConfigured
+      ? initializer->sw()->getAgentConfig()
+      : AgentConfig::fromFile(configFile_)->thrift;
+
   agentConfig.sw() = config;
+  // Inherit SDK version from previous config
+  auto inputConfig = AgentConfig::fromFile(FLAGS_config)->thrift;
+  if (inputConfig.sw()->sdkVersion().has_value()) {
+    agentConfig.sw()->sdkVersion() = inputConfig.sw()->sdkVersion().value();
+  }
   writeConfig(agentConfig);
 }
 
 void AgentEnsemble::writeConfig(const cfg::AgentConfig& agentConfig) {
-  auto* initializer = agentInitializer();
-  auto testConfigDir =
-      initializer->sw()->getDirUtil()->getPersistentStateDir() +
-      "/agent_ensemble/";
-  utilCreateDir(testConfigDir);
-  auto fileName = testConfigDir + configFile_;
-  writeConfig(agentConfig, fileName);
+  writeConfig(agentConfig, configFile_);
 }
 
 void AgentEnsemble::writeConfig(
@@ -128,17 +173,16 @@ void AgentEnsemble::writeConfig(
       apache::thrift::SimpleJSONSerializer::serialize<std::string>(
           agentConfig));
   newAgentConfig.dumpConfig(fileName);
-  if (kInputConfigFile.empty()) {
-    // saving the original config file.
-    kInputConfigFile = FLAGS_config;
-  }
+}
+
+void AgentEnsemble::overrideConfigFlag(const std::string& fileName) {
   FLAGS_config = fileName;
-  initFlagDefaults(*newAgentConfig.thrift.defaultCommandLineArgs());
+  initFlagDefaults(
+      *(AgentConfig::fromFile(fileName)->thrift.defaultCommandLineArgs()));
 }
 
 AgentEnsemble::~AgentEnsemble() {
-  asyncInitThread_->join();
-  asyncInitThread_.reset();
+  joinAsyncInitThread();
 }
 
 void AgentEnsemble::applyNewConfig(
@@ -154,9 +198,7 @@ std::vector<PortID> AgentEnsemble::masterLogicalPortIds() const {
   return masterLogicalPortIds_;
 }
 
-void AgentEnsemble::switchRunStateChanged(SwitchRunState runState) {
-  getSw()->switchRunStateChanged(runState);
-}
+void AgentEnsemble::switchRunStateChanged(SwitchRunState runState) {}
 
 void AgentEnsemble::programRoutes(
     const RouterID& rid,
@@ -193,29 +235,28 @@ void AgentEnsemble::unprogramRoutes(
 void AgentEnsemble::gracefulExit() {
   auto* initializer = agentInitializer();
   // exit for warm boot
-  initializer->stopAgent(true);
+  bool gracefulExit = !::testing::Test::HasFailure();
+  initializer->stopAgent(
+      true /* setupWarmboot */, gracefulExit /* gracefulExit */);
 }
 
-std::shared_ptr<SwitchState> AgentEnsemble::applyNewState(
-    std::shared_ptr<SwitchState> state,
+void AgentEnsemble::applyNewState(
+    StateUpdateFn fn,
+    const std::string& name,
     bool transaction) {
-  if (!state) {
-    return getSw()->getState();
-  }
-
   // TODO: Handle multiple Asics
   auto asic = getSw()->getHwAsicTable()->getHwAsics().cbegin()->second;
-
-  state = EncapIndexAllocator::updateEncapIndices(
-      StateDelta(getProgrammedState(), state), *asic);
-  transaction
-      ? getSw()->updateStateWithHwFailureProtection(
-            "apply new state with failure protection",
-            [state](const std::shared_ptr<SwitchState>&) { return state; })
-      : getSw()->updateStateBlocking(
-            "apply new state",
-            [state](const std::shared_ptr<SwitchState>&) { return state; });
-  return getSw()->getState();
+  CHECK(asic);
+  auto applyUpdate = [&](const std::shared_ptr<SwitchState>& in) {
+    auto newState = fn(in);
+    if (!newState) {
+      return newState;
+    }
+    return EncapIndexAllocator::updateEncapIndices(
+        StateDelta(in, newState), *asic);
+  };
+  transaction ? getSw()->updateStateWithHwFailureProtection(name, applyUpdate)
+              : getSw()->updateStateBlocking(name, applyUpdate);
 }
 
 void AgentEnsemble::enableExactMatch(bcm::BcmConfig& config) {
@@ -237,9 +278,24 @@ void AgentEnsemble::setupLinkStateToggler() {
 
 std::string AgentEnsemble::getInputConfigFile() {
   if (kInputConfigFile.empty()) {
-    return FLAGS_config;
+    kInputConfigFile = FLAGS_config;
   }
   return kInputConfigFile;
+}
+
+void AgentEnsemble::setConfigFiles(const std::string& fileName) {
+  if (kInputConfigFile.empty()) {
+    kInputConfigFile = FLAGS_config;
+  }
+  utilCreateDir(AgentDirectoryUtil().agentEnsembleConfigDir());
+  configFile_ = AgentDirectoryUtil().agentEnsembleConfigDir() + fileName;
+}
+
+void AgentEnsemble::setBootType() {
+  auto dirUtil = AgentDirectoryUtil();
+  bootType_ = (checkFileExists(dirUtil.getSwSwitchCanWarmBootFile()))
+      ? BootType::WARM_BOOT
+      : BootType::COLD_BOOT;
 }
 
 void initEnsemble(
@@ -252,22 +308,12 @@ void initEnsemble(
 std::map<PortID, HwPortStats> AgentEnsemble::getLatestPortStats(
     const std::vector<PortID>& ports) {
   std::map<PortID, HwPortStats> portIdStatsMap;
-  getSw()->updateStats();
-
-  auto swState = getSw()->getState();
-  auto stats = getSw()->getHwSwitchHandler()->getPortStats();
-  for (auto [portName, stats] : stats) {
-    auto portId = swState->getPorts()->getPort(portName)->getID();
-    if (std::find(ports.begin(), ports.end(), (PortID)portId) == ports.end()) {
-      continue;
-    }
-    portIdStatsMap.emplace((PortID)portId, stats);
-  }
-  return portIdStatsMap;
+  return getSw()->getHwPortStats(ports);
 }
 
-HwPortStats AgentEnsemble::getLatestPortStats(const PortID& port) {
-  return getLatestPortStats(std::vector<PortID>{port})[port];
+std::map<SystemPortID, HwSysPortStats> AgentEnsemble::getLatestSysPortStats(
+    const std::vector<SystemPortID>& ports) {
+  return getSw()->getHwSysPortStats(ports);
 }
 
 void AgentEnsemble::registerStateObserver(
@@ -278,6 +324,234 @@ void AgentEnsemble::registerStateObserver(
 
 void AgentEnsemble::unregisterStateObserver(StateObserver* observer) {
   getSw()->unregisterStateObserver(observer);
+}
+
+std::map<PortID, FabricEndpoint> AgentEnsemble::getFabricConnectivity(
+    SwitchID switchId) const {
+  if (FLAGS_multi_switch) {
+    std::map<PortID, FabricEndpoint> connectivity;
+    auto gotConnectivity =
+        getSw()->getHwSwitchThriftClientTable()->getFabricConnectivity(
+            switchId);
+    CHECK(gotConnectivity.has_value());
+    for (auto [portId, fabricEndpoint] : gotConnectivity.value()) {
+      connectivity.insert({PortID(portId), fabricEndpoint});
+    }
+    return connectivity;
+  } else {
+    return getSw()->getHwSwitchHandler()->getFabricConnectivity();
+  }
+}
+
+void AgentEnsemble::runDiagCommand(
+    const std::string& input,
+    std::string& output,
+    std::optional<SwitchID> switchId) {
+  ClientInformation clientInfo;
+  clientInfo.username() = "agent_ensemble";
+  clientInfo.hostname() = "agent_ensemble";
+  if (FLAGS_multi_switch) {
+    CHECK(switchId.has_value());
+    output = getSw()->getHwSwitchThriftClientTable()->diagCmd(
+        switchId.value(), input, clientInfo);
+  } else {
+    auto client = createFbossHwClient(
+        5909, std::make_shared<folly::ScopedEventBaseThread>());
+    fbstring out;
+    client->sync_diagCmd(
+        out,
+        input,
+        clientInfo,
+        0 /* serverTimeoutMsecs */,
+        false /* bypassFilter */);
+    output = out;
+  }
+}
+
+LinkStateToggler* AgentEnsemble::getLinkToggler() {
+  return linkToggler_.get();
+}
+
+uint64_t AgentEnsemble::getTrafficRate(
+    const HwPortStats& prevPortStats,
+    const HwPortStats& curPortStats,
+    const int secondsBetweenStatsCollection) {
+  auto prevPortBytes = *prevPortStats.outBytes_();
+  auto prevPortPackets =
+      (*prevPortStats.outUnicastPkts_() + *prevPortStats.outMulticastPkts_() +
+       *prevPortStats.outBroadcastPkts_());
+
+  auto curPortPackets =
+      (*curPortStats.outUnicastPkts_() + *curPortStats.outMulticastPkts_() +
+       *curPortStats.outBroadcastPkts_());
+
+  // 20 bytes are consumed by ethernet preamble, start of frame and
+  // interpacket gap. Account for that in linerate.
+  auto packetPaddingBytes = (curPortPackets - prevPortPackets) * 20;
+  auto curPortBytes = *curPortStats.outBytes_() + packetPaddingBytes;
+  auto rate = static_cast<uint64_t>((curPortBytes - prevPortBytes) * 8) /
+      secondsBetweenStatsCollection;
+  XLOG(DBG2) << ": Current rate " << rate << " bps" << ", curPortBytes "
+             << curPortBytes << " prevPortBytes " << prevPortBytes
+             << " curPortPackets " << curPortPackets << " prevPortPackets "
+             << prevPortPackets;
+  return rate;
+}
+
+/*
+ * Wait for traffic on port to reach specified rate. If the
+ * specified rate is reached, return true, else false.
+ */
+bool AgentEnsemble::waitForRateOnPort(
+    PortID port,
+    const uint64_t desiredBps,
+    int secondsToWaitPerIteration) {
+  // Need to wait for atleast one second
+  if (secondsToWaitPerIteration < 1) {
+    secondsToWaitPerIteration = 1;
+    XLOG(WARNING) << "Setting wait time to 1 second for tests!";
+  }
+
+  const auto portSpeedBps =
+      static_cast<uint64_t>(
+          getProgrammedState()->getPorts()->getNodeIf(port)->getSpeed()) *
+      1000 * 1000;
+  if (desiredBps > portSpeedBps) {
+    // Cannot achieve higher than line rate
+    XLOG(ERR) << "Desired rate " << desiredBps << " bps is > port rate "
+              << portSpeedBps << " bps!!";
+    return false;
+  }
+
+  // The first iteration in the below loop will not be successful
+  // given the prev/curr stats collections are back to back!
+  auto prevPortStats = getLatestPortStats(port);
+  XLOG(DBG0) << "Desired rate " << desiredBps;
+  WITH_RETRIES_N_TIMED(
+      10, std::chrono::milliseconds(1000 * secondsToWaitPerIteration), {
+        auto curPortStats = getLatestPortStats(port);
+        auto rate = getTrafficRate(
+            prevPortStats, curPortStats, secondsToWaitPerIteration);
+        // Update prev stats for the next iteration if needed!
+        prevPortStats = curPortStats;
+        if (desiredBps == 0) {
+          EXPECT_EVENTUALLY_EQ(rate, desiredBps);
+        } else {
+          EXPECT_EVENTUALLY_TRUE(rate >= desiredBps);
+        }
+        return true;
+      });
+  return false;
+}
+
+void AgentEnsemble::waitForLineRateOnPort(PortID port) {
+  const auto portSpeedBps =
+      static_cast<uint64_t>(
+          getProgrammedState()->getPorts()->getNodeIf(port)->getSpeed()) *
+      1000 * 1000;
+  if (waitForRateOnPort(port, portSpeedBps)) {
+    // Traffic on port reached line rate!
+    return;
+  }
+  throw FbossError("Line rate was never reached");
+}
+
+void AgentEnsemble::waitForSpecificRateOnPort(
+    PortID port,
+    const uint64_t desiredBps,
+    int secondsToWaitPerIteration) {
+  if (waitForRateOnPort(port, desiredBps, secondsToWaitPerIteration)) {
+    // Traffic on port reached desired rate!
+    return;
+  }
+
+  throw FbossError("Desired rate ", desiredBps, " bps was never reached");
+}
+
+void AgentEnsemble::sendPacketAsync(
+    std::unique_ptr<TxPacket> pkt,
+    std::optional<PortDescriptor> portDescriptor,
+    std::optional<uint8_t> queueId) {
+  if (!portDescriptor.has_value()) {
+    getSw()->sendPacketSwitchedAsync(std::move(pkt));
+    return;
+  }
+  getSw()->sendPacketOutOfPortAsync(
+      std::move(pkt), portDescriptor->phyPortID(), queueId);
+}
+
+std::unique_ptr<TxPacket> AgentEnsemble::allocatePacket(uint32_t size) {
+  return getSw()->allocatePacket(size);
+}
+
+void AgentEnsemble::bringUpPorts(const std::vector<PortID>& ports) {
+  CHECK(linkToggler_);
+  linkToggler_->bringUpPorts(ports);
+}
+
+void AgentEnsemble::bringDownPorts(const std::vector<PortID>& ports) {
+  CHECK(linkToggler_);
+  linkToggler_->bringDownPorts(ports);
+}
+
+std::vector<PortID> AgentEnsemble::masterLogicalPortIds(
+    SwitchID switchId) const {
+  return switchId2PortIds_.at(switchId);
+}
+
+void AgentEnsemble::clearPortStats() {
+  auto portsVec = std::make_unique<std::vector<int32_t>>();
+  for (const auto& [key, ports] :
+       std::as_const(*getProgrammedState()->getPorts())) {
+    for (const auto& [id, port] : std::as_const(*ports)) {
+      portsVec->push_back(id);
+    }
+  }
+  clearPortStats(std::move(portsVec));
+}
+
+void AgentEnsemble::clearPortStats(
+    const std::unique_ptr<std::vector<int32_t>>& ports) {
+  ThriftHandler(getSw()).clearPortStats(
+      std::make_unique<std::vector<int32_t>>(std::move(*ports)));
+}
+
+bool AgentEnsemble::ensureSendPacketSwitched(std::unique_ptr<TxPacket> pkt) {
+  // lambda that returns HwPortStats for the given port(s)
+  auto getPortStats =
+      [&](const std::vector<PortID>& portIds) -> std::map<PortID, HwPortStats> {
+    return getLatestPortStats(portIds);
+  };
+  auto getSysPortStats = [&](const std::vector<SystemPortID>& portIds)
+      -> std::map<SystemPortID, HwSysPortStats> {
+    return getLatestSysPortStats(portIds);
+  };
+
+  return utility::ensureSendPacketSwitched(
+      this,
+      std::move(pkt),
+      masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
+      getPortStats,
+      masterLogicalSysPortIds(),
+      getSysPortStats);
+}
+
+bool AgentEnsemble::ensureSendPacketOutOfPort(
+    std::unique_ptr<TxPacket> pkt,
+    PortID portID,
+    std::optional<uint8_t> queue) {
+  // lambda that returns HwPortStats for the given port(s)
+  auto getPortStats =
+      [&](const std::vector<PortID>& portIds) -> std::map<PortID, HwPortStats> {
+    return getLatestPortStats(portIds);
+  };
+  return utility::ensureSendPacketOutOfPort(
+      this,
+      std::move(pkt),
+      portID,
+      masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
+      getPortStats,
+      queue);
 }
 
 } // namespace facebook::fboss
