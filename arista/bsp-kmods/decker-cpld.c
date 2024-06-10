@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/version.h>
 
 #include "i2c_dev_sysfs.h"
 
@@ -260,8 +261,12 @@ static const i2c_dev_attr_st cpld_sys_attrs[] = {
 
 static i2c_dev_data_st cpld_dev_data;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+static int cpld_i2c_probe(struct i2c_client *client)
+#else
 static int cpld_i2c_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
+#endif
 {
 	int ret;
 	u8 major_rev, minor_rev;
@@ -282,11 +287,19 @@ static int cpld_i2c_probe(struct i2c_client *client,
 				       ARRAY_SIZE(cpld_sys_attrs));
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+static void cpld_i2c_remove(struct i2c_client *client)
+{
+	i2c_dev_sysfs_data_clean(client, &cpld_dev_data);
+	return;
+}
+#else
 static int cpld_i2c_remove(struct i2c_client *client)
 {
 	i2c_dev_sysfs_data_clean(client, &cpld_dev_data);
 	return 0;
 }
+#endif
 
 static const struct i2c_device_id cpld_dev_ids[] = {
 	{ "decker_cpld", 0 },
