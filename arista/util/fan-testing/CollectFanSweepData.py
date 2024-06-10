@@ -301,7 +301,7 @@ class FbossFanTestEdut():
          if val <= 0 and key not in ( 'deltaT', 'opticsMargin', 'opticsMargin30C' ):
             raise ValueError(f'{key} reading invalid value ({val})')
 
-class Maunakea( FbossFanTestEdut ):
+class MaunaKea( FbossFanTestEdut ):
    '''Class that implements methods specifically for Mauna Kea platforms'''
    def getFanMfr( self, id ):
       idBits = id & 0b111 # filter to fan id according to Mauna key table
@@ -313,7 +313,7 @@ class Maunakea( FbossFanTestEdut ):
          raise ValueError( 'Fan mfr not detected' )
 
 # FIXME: Monterey class is outdated
-class Monterey( Maunakea ):
+class Monterey( MaunaKea ):
    '''Class that defines some Monterey helpers to collect
    FSCD qualification data'''
    def getOpticTemps( self ):
@@ -373,7 +373,7 @@ class Monterey( Maunakea ):
             addr=addr ) )[ 0 ].split( ' ' )[ 0 ], 16 ) / 2.55 )
       return pwms
 
-class Viper( Maunakea ):
+class Viper( MaunaKea ):
    '''Class that defines some Viper helpers to collect
    FSCD qualification data'''
 
@@ -502,7 +502,7 @@ class Viper( Maunakea ):
       fanVendor = self.getFanMfr( fanId )
       return self.calculateCFM( self.CFM_DATA, pwm, fanVendor )
 
-class Whistler( Maunakea ):
+class Whistler( MaunaKea ):
    '''Class that defines some Whistler helpers to collect
    FSCD qualification data'''
 
