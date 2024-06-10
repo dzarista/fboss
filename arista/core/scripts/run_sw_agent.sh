@@ -13,6 +13,10 @@ fi
 # the local leaf device.
 ARGS+=(--allow_running_switch_state_mutations=true)
 
+# Run in multi switch mode with multi npu platform mapping.
+ARGS+=(-multi_npu_platform_mapping)
+ARGS+=(-multi_switch)
+
 if BIN=$(find /opt/fboss/bin/* -type f -name fboss_sw_agent*); then
    cd /opt/fboss && source bin/setup_fboss_env
    cd /opt/fboss && ./bin/setup.py --reload
