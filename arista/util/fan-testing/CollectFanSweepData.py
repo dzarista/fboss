@@ -1,5 +1,4 @@
-#!/usr/bin/env arista-python
-
+#!/usr/bin/env python3
 # Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
@@ -18,6 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 DEFAULT_RPMS = [ 100, 90, 80, 70, 60, 50, 40, 30, 28, 26, 24, 22, 20 ]
+SAMPLE_COUNT = 10
 
 tool_description = '''This script is intended to collect some thermal data on
 a system for intention of generating some Thermal fan control tables
@@ -36,6 +36,14 @@ def getAverage( data ):
    if len( data ) == 0:
       return 0
    return sum( data ) / len( data )
+
+def avgSample(dataFunc, sampleCount):
+   '''Calculates the average of the values returned by a given function'''
+   total = 0
+   for _ in range(sampleCount):
+      value = dataFunc()
+      total += float(value)
+   return total / sampleCount
 
 class FbossFanTestEdut():
    def __init__( self, edut ):
@@ -198,6 +206,12 @@ class FbossFanTestEdut():
       with CliTest.MaybeRunInConfigSession( cli ):
          cli.runCmd( "environment fan-speed override 30" )
 
+   def enablePidAlgo( self ):
+      cli = self.edut.consoleCli()
+      cli.gotoMode( CliTest.enableMode )
+      with CliTest.MaybeRunInConfigSession( cli ):
+         cli.runCmd( "environment fan-speed auto" )
+
    def collectDataRaw( self ):
       '''Return an object with all RAW data collected'''
       hottestOptic = self.getHottestOpticTemp()
@@ -244,32 +258,37 @@ class FbossFanTestEdut():
 
    def collectData( self ):
       '''Return an object with all collected data'''
-      hottestOptic = self.getHottestOpticTemp()
-      avgFanPwm = self.getAvgFanPwm()
+      avgFanRpm = avgSample( self.getAvgFanRpm, SAMPLE_COUNT )
+      hottestOptic = avgSample( self.getHottestOpticTemp, SAMPLE_COUNT )
+      hottestAsic = avgSample( self.getHottestAsicTemp, SAMPLE_COUNT )
+      hottestCpuTemp = avgSample( self.getHottestCpuTemp, SAMPLE_COUNT )
+      avgFanPwm = avgSample( self.getAvgFanPwm, SAMPLE_COUNT )
       cfm = self.getCFM( avgFanPwm )
-      power = self.getTotalSystemPower()
-      inletTemp = self.getInletTemp()
-      outletTemp = self.getOutletTemp()
+      power = avgSample( self.getTotalSystemPower, SAMPLE_COUNT )
+      inletTemp = avgSample( self.getInletTemp, SAMPLE_COUNT )
+      outletTemp = avgSample( self.getOutletTemp, SAMPLE_COUNT )
+      ssdTemp = avgSample( self.getSsdTemp, SAMPLE_COUNT )
+      psuRpm = avgSample( self.getAvgPsuFanRpm, SAMPLE_COUNT )
       maxOpticTemp = 75 #TODO: make maxOpticTemp dynamic
       opticsMargin = maxOpticTemp - hottestOptic 
       opticsMargin30C = opticsMargin - ( 30 - inletTemp )
 
       return {
-            'AvgRpm': round( self.getAvgFanRpm(), 4 ),
+            'AvgRpm': round( avgFanRpm, 4 ),
             'HottestOptic': round( hottestOptic, 4 ),
-            'HottestAsic': round( self.getHottestAsicTemp(), 4),
-            'HottestCpuTemp': round( self.getHottestCpuTemp(), 4),
+            'HottestAsic': round( hottestAsic, 4),
+            'HottestCpuTemp': round( hottestCpuTemp, 4),
             'AvgFanPwm': round( avgFanPwm, 4 ),
             'Airflow(CFM)': round( cfm, 4 ),
             'SystemPower': round( power, 4 ),
             'Inlet': round( inletTemp, 4 ),
             'Outlet': round( outletTemp, 4 ),
-            'SsdTemp': round( self.getSsdTemp(), 4 ),
+            'SsdTemp': round( ssdTemp, 4 ),
             'CFM/W': round(cfm / power, 4),
             'DeltaT': round( outletTemp - inletTemp, 4 ),
             'OpticsMargin': round( opticsMargin, 4 ),
             'OpticsMargin30C': round( opticsMargin30C, 4 ),
-            'AvgPsusRpm': round( self.getAvgPsuFanRpm(), 4 ),
+            'AvgPsusRpm': round( psuRpm, 4 ),
             'AvgTrafficRate': round( self.getAvgTrafficRate(), 4 ),
             'Connected': self.getSystemIntfsConnectedCount()
       }
@@ -279,7 +298,7 @@ class FbossFanTestEdut():
       data = self.collectData()
       for key, val in data.items():
          # Ignore deltaT and opticsMargin30C as they are calculated and maybe <= 0
-         if val <= 0 and key not in ( 'deltaT', 'opticsMargin', 'opticsMargin30C',  ):
+         if val <= 0 and key not in ( 'deltaT', 'opticsMargin', 'opticsMargin30C' ):
             raise ValueError(f'{key} reading invalid value ({val})')
 
 class Maunakea( FbossFanTestEdut ):
@@ -807,6 +826,9 @@ def main( argv ):
 
    # write collected data to a csv 
    df.to_csv( f'{filename}.csv', index = False )
+
+   # Renable PID algo
+   obj.enablePidAlgo()
 
 if __name__ == '__main__':
    sys.exit( main( sys.argv[ 1 : ] ) )
