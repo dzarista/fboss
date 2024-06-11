@@ -224,6 +224,7 @@ std::vector<ClientID> AllClientIDs() {
       ClientID::BGPD,
       ClientID::STATIC_ROUTE,
       ClientID::INTERFACE_ROUTE,
+      ClientID::REMOTE_INTERFACE_ROUTE,
       ClientID::LINKLOCAL_ROUTE,
       ClientID::STATIC_INTERNAL,
       ClientID::OPENR,
@@ -437,6 +438,18 @@ bool isAnyInterfacePortInLoopbackMode(
       XLOG(DBG2) << "Port: " << port->getName()
                  << " in interface: " << interface->getID()
                  << " is in loopback mode";
+      return true;
+    }
+  }
+  return false;
+}
+
+bool isAnyInterfacePortRecyclePort(
+    std::shared_ptr<SwitchState> swState,
+    const std::shared_ptr<Interface> interface) {
+  for (auto portId : getPortsForInterface(interface->getID(), swState)) {
+    auto port = swState->getPorts()->getNodeIf(portId);
+    if (port && port->getPortType() == cfg::PortType::RECYCLE_PORT) {
       return true;
     }
   }
@@ -794,6 +807,46 @@ std::unordered_map<SwitchID, SwitchIndex> computeSwitchIdToSwitchIndex(
   }
 
   return switchIdToSwitchIndex;
+}
+
+std::set<SwitchID> getAllSwitchIDsForSwitch(
+    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap,
+    const SwitchID& switchID) {
+  auto dsfNode = dsfNodeMap->getNodeIf(switchID);
+  CHECK(dsfNode);
+
+  auto switchName = dsfNode->getName();
+  std::set<SwitchID> allSwitchIDs;
+  for (const auto& [_, dsfNodes] : std::as_const(*dsfNodeMap)) {
+    for (const auto& [_, node] : std::as_const(*dsfNodes)) {
+      if (node->getName() == switchName) {
+        allSwitchIDs.insert(node->getSwitchId());
+      }
+    }
+  }
+
+  return allSwitchIDs;
+}
+
+uint32_t getRemotePortOffset(const PlatformType platformType) {
+  switch (platformType) {
+    case PlatformType::PLATFORM_MERU400BIU:
+      return 256;
+    case PlatformType::PLATFORM_MERU400BIA:
+      return 256;
+    case PlatformType::PLATFORM_MERU400BFU:
+      return 0;
+    case PlatformType::PLATFORM_MERU800BFA:
+    case PlatformType::PLATFORM_MERU800BFA_P1:
+      return 0;
+    case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_JANGA800BIC:
+      return 1024;
+
+    default:
+      return 0;
+  }
+  return 0;
 }
 
 } // namespace facebook::fboss

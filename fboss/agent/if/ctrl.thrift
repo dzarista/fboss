@@ -51,6 +51,12 @@ enum PortLedExternalState {
   CABLING_ERROR = 1,
   EXTERNAL_FORCE_ON = 2,
   EXTERNAL_FORCE_OFF = 3,
+  CABLING_ERROR_LOOP_DETECTED = 4,
+}
+
+enum PortError {
+  ERROR_DISABLE_LOOP_DETECTED = 1,
+  LANE_SWAP_DETECTED = 2,
 }
 
 struct IpPrefix {
@@ -144,6 +150,7 @@ struct ArpEntryThrift {
   10: optional i64 switchId;
   11: optional i64 resolvedSince;
   12: i32 interfaceID;
+  13: switch_config.PortDescriptor portDescriptor;
 }
 
 enum L2EntryType {
@@ -233,6 +240,7 @@ struct InterfaceDetail {
   7: i32 mtu;
   8: optional common.RemoteInterfaceType remoteIntfType;
   9: optional common.LivenessStatus remoteIntfLivenessStatus;
+  10: switch_config.Scope scope = switch_config.Scope.LOCAL;
 }
 
 /*
@@ -361,6 +369,7 @@ struct PortInfoThrift {
   23: optional i32 hwLogicalPortId;
   24: bool isDrained;
   25: optional PortActiveState activeState;
+  26: list<PortError> activeErrors;
 }
 
 // Port queueing configuration
@@ -410,6 +419,7 @@ struct SystemPortThrift {
    * Set only on Remote System Ports of VOQ switches.
    */
   13: optional common.LivenessStatus remoteSystemPortLivenessStatus;
+  14: switch_config.Scope scope = switch_config.Scope.LOCAL;
 }
 
 struct PortHardwareDetails {
@@ -433,6 +443,7 @@ struct NdpEntryThrift {
   10: optional i64 switchId;
   11: optional i64 resolvedSince;
   12: i32 interfaceID;
+  13: switch_config.PortDescriptor portDescriptor;
 }
 
 enum BootType {
@@ -565,6 +576,12 @@ enum ClientID {
    * bounded by link scope. Routes here are exclusive to INTERFACE_ROUTE.
    */
   LINKLOCAL_ROUTE = 3,
+
+  /*
+   * Interface routes that are derived from remote interface nodes in the DSF cluster.
+   * These routes are propagated by DSF subscriptions.
+   */
+  REMOTE_INTERFACE_ROUTE = 4,
 
   /*
    * Auto generated routes by Agent. Agent by default programs default (v4 & v6)
@@ -705,6 +722,9 @@ struct FsdbSubscriptionThrift {
   1: string name;
   2: list<string> paths;
   3: string state;
+  4: string ip;
+  // Unique ID for subscription to name, ip
+  5: string subscriptionId;
 }
 
 enum DsfSessionState {
@@ -727,6 +747,7 @@ struct MultiSwitchRunState {
   1: SwitchRunState swSwitchRunState;
   // SwitchIndex to SwitchRunState
   2: map<i32, SwitchRunState> hwIndexToRunState;
+  3: bool multiSwitchEnabled;
 }
 
 struct EcmpDetails {
@@ -1419,6 +1440,13 @@ service FbossCtrl extends phy.FbossCommonPhyCtrl {
    * Get all the ecmp object details in the HW
    */
   list<EcmpDetails> getAllEcmpDetails() throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Get switch indices for interfaces
+   */
+  map<i16, list<string>> getSwitchIndicesForInterfaces(
+    1: list<string> interfaces,
+  ) throws (1: fboss.FbossBaseError error);
 }
 
 service NeighborListenerClient extends fb303.FacebookService {

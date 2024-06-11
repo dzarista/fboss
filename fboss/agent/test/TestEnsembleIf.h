@@ -24,12 +24,45 @@ class TestEnsembleIf : public HwSwitchCallback {
   ~TestEnsembleIf() override {}
   virtual std::vector<PortID> masterLogicalPortIds() const = 0;
   std::vector<PortID> masterLogicalPortIds(
-      const std::set<cfg::PortType>& portTypes) const;
+      const std::set<cfg::PortType>& portTypes) const {
+    return masterLogicalPortIdsImpl(portTypes, {});
+  }
   std::vector<PortID> masterLogicalInterfacePortIds() const {
     return masterLogicalPortIds({cfg::PortType::INTERFACE_PORT});
   }
   std::vector<PortID> masterLogicalFabricPortIds() const {
     return masterLogicalPortIds({cfg::PortType::FABRIC_PORT});
+  }
+
+  std::vector<PortID> masterLogicalPortIds(
+      const std::set<cfg::PortType>& portTypes,
+      const std::set<SwitchID>& switchIds) const {
+    return masterLogicalPortIdsImpl(portTypes, switchIds);
+  }
+  std::vector<PortID> masterLogicalInterfacePortIds(
+      const std::set<SwitchID>& switchIds) const {
+    return masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}, switchIds);
+  }
+  std::vector<PortID> masterLogicalFabricPortIds(
+      const std::set<SwitchID>& switchIds) const {
+    return masterLogicalPortIds({cfg::PortType::FABRIC_PORT}, switchIds);
+  }
+  std::vector<PortID> masterLogicalPortIds(
+      const std::set<cfg::PortType>& portTypes,
+      SwitchID switchId) const {
+    return masterLogicalPortIdsImpl(portTypes, {switchId});
+  }
+  std::vector<PortID> masterLogicalInterfacePortIds(SwitchID switchId) const {
+    return masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}, {switchId});
+  }
+  std::vector<PortID> masterLogicalFabricPortIds(SwitchID switchId) const {
+    return masterLogicalPortIds({cfg::PortType::FABRIC_PORT}, {switchId});
+  }
+
+  size_t getMinPktsForLineRate(const PortID& port) {
+    auto portSpeed =
+        getProgrammedState()->getPorts()->getNodeIf(port)->getSpeed();
+    return (portSpeed > cfg::PortSpeed::HUNDREDG ? 1000 : 100);
   }
 
   virtual void applyNewState(
@@ -59,6 +92,14 @@ class TestEnsembleIf : public HwSwitchCallback {
       const std::unique_ptr<std::vector<int32_t>>& ports) = 0;
   virtual std::map<PortID, HwPortStats> getLatestPortStats(
       const std::vector<PortID>& ports) = 0;
+  HwPortStats getLatestPortStats(PortID port) {
+    return getLatestPortStats(std::vector<PortID>({port}))[port];
+  }
+  virtual std::map<SystemPortID, HwSysPortStats> getLatestSysPortStats(
+      const std::vector<SystemPortID>& ports) = 0;
+  HwSysPortStats getLatestSysPortStats(SystemPortID port) {
+    return getLatestSysPortStats(std::vector<SystemPortID>({port}))[port];
+  }
   virtual LinkStateToggler* getLinkToggler() = 0;
   virtual bool isSai() const = 0;
   virtual folly::MacAddress getLocalMac(SwitchID id) const = 0;
@@ -69,6 +110,14 @@ class TestEnsembleIf : public HwSwitchCallback {
   virtual std::unique_ptr<TxPacket> allocatePacket(uint32_t size) = 0;
   virtual bool supportsAddRemovePort() const = 0;
   virtual const PlatformMapping* getPlatformMapping() const = 0;
+  virtual cfg::SwitchConfig getCurrentConfig() const = 0;
+  std::vector<const HwAsic*> getL3Asics() const;
+  std::vector<SystemPortID> masterLogicalSysPortIds() const;
+
+ private:
+  std::vector<PortID> masterLogicalPortIdsImpl(
+      const std::set<cfg::PortType>& portTypes,
+      const std::set<SwitchID>& switches) const;
 };
 
 } // namespace facebook::fboss

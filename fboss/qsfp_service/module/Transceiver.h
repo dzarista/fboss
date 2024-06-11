@@ -52,10 +52,12 @@ struct TransceiverPortState {
   uint8_t startHostLane;
   cfg::PortSpeed speed = cfg::PortSpeed::DEFAULT;
   uint8_t numHostLanes;
+  TransmitterTechnology transmitterTech = TransmitterTechnology::UNKNOWN;
 
   bool operator==(const TransceiverPortState& other) const {
     return speed == other.speed && portName == other.portName &&
-        startHostLane == other.startHostLane;
+        startHostLane == other.startHostLane &&
+        transmitterTech == other.transmitterTech;
   }
 };
 
@@ -288,6 +290,15 @@ class Transceiver {
       bool upgradeInProgress) = 0;
 
   virtual std::string getFwStorageHandle() const = 0;
+
+  virtual std::map<std::string, CdbDatapathSymErrHistogram>
+  getSymbolErrorHistogram() = 0;
+
+  virtual std::vector<MediaInterfaceCode> getSupportedMediaInterfaces()
+      const = 0;
+
+  virtual bool tcvrPortStateSupported(
+      TransceiverPortState& portState) const = 0;
 
  protected:
   virtual void latchAndReadVdmDataLocked() = 0;

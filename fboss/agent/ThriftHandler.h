@@ -42,7 +42,7 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
                       public fb303::FacebookBase2 {
  public:
   template <typename T>
-  using ThriftCallback = std::unique_ptr<apache::thrift::HandlerCallback<T>>;
+  using ThriftCallback = apache::thrift::HandlerCallbackPtr<T>;
   using TConnectionContext = apache::thrift::server::TConnectionContext;
 
   typedef network::thrift::Address Address;
@@ -301,6 +301,9 @@ class ThriftHandler : virtual public FbossCtrlSvIf,
   void getAllEcmpDetails(std::vector<EcmpDetails>& ecmpDetails) override;
   void getHwAgentConnectionStatus(
       std::map<int16_t, HwAgentEventSyncStatus>& hwAgentSyncStatusMap) override;
+  void getSwitchIndicesForInterfaces(
+      std::map<int16_t, std::vector<std::string>>& switchIndicesForInterfaces,
+      std::unique_ptr<std::vector<std::string>> interfaces) override;
 
   /*
    * Thrift handler for keepalive messages.  It's a no-op, but prevents the

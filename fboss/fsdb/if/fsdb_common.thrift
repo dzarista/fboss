@@ -77,3 +77,26 @@ enum FsdbSubscriptionState {
   DISCONNECTED = 1,
   CONNECTED = 2,
 }
+
+enum FsdbClient {
+  UNSPECIFIED = 0,
+  AGENT = 1,
+  QSFP_SERVICE = 2,
+  MKA_SERVICE = 3,
+  BGP = 4,
+  OPENR = 5,
+  FAN_SERVICE = 6,
+  SENSOR_SERVICE = 7,
+  LED_SERVICE = 8,
+  NETSTATE = 9,
+  FSDB_NORMALIZER = 10,
+  SWITCH_AGENT = 11,
+  FBOSS2_CLI = 12,
+  ADHOC = 13,
+}
+
+struct ClientId {
+  1: FsdbClient client;
+  // Optional freeform id. Should be used sparingly, only for subscribers that have multiple idential subscriptions
+  2: string instanceId = "";
+}

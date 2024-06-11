@@ -81,12 +81,16 @@ struct TrafficTestParams {
 };
 
 std::tuple<int, int, int> getPfcTxRxXonHwPortStats(
+    facebook::fboss::HwSwitchEnsemble* ensemble,
     const facebook::fboss::HwPortStats& portStats,
     const int pfcPriority) {
   return {
       portStats.get_outPfc_().at(pfcPriority),
       portStats.get_inPfc_().at(pfcPriority),
-      portStats.get_inPfcXon_().at(pfcPriority)};
+      ensemble->getAsic()->isSupported(
+          facebook::fboss::HwAsic::Feature::PFC_XON_TO_XOFF_COUNTER)
+          ? portStats.get_inPfcXon_().at(pfcPriority)
+          : 0};
 }
 
 bool getPfcCountersRetry(
@@ -98,7 +102,7 @@ bool getPfcCountersRetry(
   auto pfcCountersIncrementing = [&](const auto& newStats) {
     auto portStatsIter = newStats.find(portId);
     std::tie(txPfcCtr, rxPfcCtr, rxPfcXonCtr) =
-        getPfcTxRxXonHwPortStats(portStatsIter->second, pfcPriority);
+        getPfcTxRxXonHwPortStats(ensemble, portStatsIter->second, pfcPriority);
     XLOG(DBG0) << " Port: " << portId << " PFC TX/RX PFC/RX_PFC_XON "
                << txPfcCtr << "/" << rxPfcCtr << "/" << rxPfcXonCtr
                << ", priority: " << pfcPriority;
@@ -128,22 +132,29 @@ void validateBufferPoolWatermarkCounters(
     facebook::fboss::HwSwitchEnsemble* ensemble,
     const int /* pri */,
     const std::vector<facebook::fboss::PortID>& /* portIds */) {
-  auto globalSharedWatermarksIncrementing = [&]() {
-    // Native implementation reports per ITM watermark!
-    std::string itmInfo = ensemble->isSai() ? "" : ".itm0";
-    auto counters = facebook::fb303::fbData->getRegexCounters({folly::sformat(
-        "buffer_watermark_global_(shared|headroom){}.*.p100.60", itmInfo)});
-    for (const auto& ctr : counters) {
-      XLOG(DBG0) << ctr.first << " : " << ctr.second;
-      if (!ctr.second) {
-        return false;
-      }
+  uint64_t globalHeadroomWatermark{};
+  uint64_t globalSharedWatermark{};
+  WITH_RETRIES({
+    ensemble->getHwSwitch()->updateStats();
+    auto switchWatermarkStats =
+        ensemble->getHwSwitch()->getSwitchWatermarkStats();
+    for (auto& headroomStats :
+         *switchWatermarkStats.globalHeadroomWatermarkBytes()) {
+      globalHeadroomWatermark += headroomStats.second;
     }
-    return true;
-  };
-  auto updateStats = [&]() { ensemble->getHwSwitch()->updateStats(); };
-  EXPECT_TRUE(ensemble->waitStatsCondition(
-      globalSharedWatermarksIncrementing, updateStats));
+    for (auto& sharedStats :
+         *switchWatermarkStats.globalSharedWatermarkBytes()) {
+      globalSharedWatermark += sharedStats.second;
+    }
+    XLOG(DBG0) << "Global headroom watermark: " << globalHeadroomWatermark
+               << ", Global shared watermark: " << globalSharedWatermark;
+    if (ensemble->getAsic()->isSupported(
+            facebook::fboss::HwAsic::Feature::
+                INGRESS_PRIORITY_GROUP_HEADROOM_WATERMARK)) {
+      EXPECT_EVENTUALLY_GT(globalHeadroomWatermark, 0);
+    }
+    EXPECT_EVENTUALLY_GT(globalSharedWatermark, 0);
+  });
 }
 
 void validateIngressPriorityGroupWatermarkCounters(
@@ -211,7 +222,7 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
         getHwSwitch(),
         masterLogicalPortIds(),
         getAsic()->desiredLoopbackModes());
-    utility::setTTLZeroCpuConfig(getAsic(), cfg);
+    utility::setTTLZeroCpuConfig(getHwSwitchEnsemble()->getL3Asics(), cfg);
     return cfg;
   }
   folly::IPAddressV6 kDestIp1() const {
@@ -344,21 +355,28 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
     }
 
     // create lossy pgs
-    for (auto pgId : kLossyPgIds) {
-      cfg::PortPgConfig pgConfig;
-      pgConfig.id() = pgId;
-      pgConfig.bufferPoolName() = "bufferNew";
-      // provide atleast 1 cell worth of minLimit
-      pgConfig.minLimitBytes() = pgLimit;
-      // headroom set 0 identifies lossy pgs
-      pgConfig.headroomLimitBytes() = 0;
-      // resume offset
-      pgConfig.resumeOffsetBytes() = resumeOffset;
-      // set scaling factor
-      if (scalingFactor) {
-        pgConfig.scalingFactor() = *scalingFactor;
+    if (!FLAGS_allow_zero_headroom_for_lossless_pg) {
+      // If the flag is set, we already have lossless PGs being created
+      // with headroom as 0 and there is no way to differentiate lossy
+      // and lossless PGs now that headroom is set to zero for lossless.
+      // So, avoid creating lossy PGs as this will result in PFC being
+      // enabled for 3 priorities, which is not supported for TAJO.
+      for (auto pgId : kLossyPgIds) {
+        cfg::PortPgConfig pgConfig;
+        pgConfig.id() = pgId;
+        pgConfig.bufferPoolName() = "bufferNew";
+        // provide atleast 1 cell worth of minLimit
+        pgConfig.minLimitBytes() = pgLimit;
+        // headroom set 0 identifies lossy pgs
+        pgConfig.headroomLimitBytes() = 0;
+        // resume offset
+        pgConfig.resumeOffsetBytes() = resumeOffset;
+        // set scaling factor
+        if (scalingFactor) {
+          pgConfig.scalingFactor() = *scalingFactor;
+        }
+        portPgConfigs.emplace_back(pgConfig);
       }
-      portPgConfigs.emplace_back(pgConfig);
     }
 
     portPgConfigMap["foo"] = portPgConfigs;
@@ -401,7 +419,8 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
       const facebook::fboss::PortID& portId,
       const int pfcPriority) {
     auto portStats = getLatestPortStats(portId);
-    return getPfcTxRxXonHwPortStats(portStats, pfcPriority);
+    return getPfcTxRxXonHwPortStats(
+        getHwSwitchEnsemble(), portStats, pfcPriority);
   }
 
   void validateInitPfcCounters(
@@ -497,8 +516,7 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
     };
     auto verify = [&]() { verifyCommon(false /* postWb */); };
     auto verifyPostWb = [&]() { verifyCommon(true /* postWb */); };
-    verifyAcrossWarmBoots(
-        setup, verify, []() {}, verifyPostWb);
+    verifyAcrossWarmBoots(setup, verify, []() {}, verifyPostWb);
   }
 
   void setupEcmpTraffic() {

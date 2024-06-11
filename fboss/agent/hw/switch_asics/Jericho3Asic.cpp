@@ -23,7 +23,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::EGRESS_MIRRORING:
     case HwAsic::Feature::EGRESS_SFLOW:
     case HwAsic::Feature::DEFAULT_VLAN:
-    case HwAsic::Feature::L2_LEARNING:
     case HwAsic::Feature::CPU_PORT:
     case HwAsic::Feature::VRF:
     case HwAsic::Feature::SAI_HASH_FIELDS_CLEAR_BEFORE_SET:
@@ -65,6 +64,15 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::RCI_WATERMARK_COUNTER:
     case HwAsic::Feature::SAI_ACL_ENTRY_SRC_PORT_QUALIFIER:
     case HwAsic::Feature::SAI_PRBS:
+    case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
+    case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
+    case HwAsic::Feature::WARMBOOT:
+    case HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER:
+    case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
+    case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
+    case HwAsic::Feature::CRC_ERROR_DETECT:
+    case HwAsic::Feature::ACL_METADATA_QUALIFER:
+    case HwAsic::Feature::L3_MTU_ERROR_TRAP:
       return true;
     // Features not expected to work on SIM
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
@@ -130,7 +138,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::XPHY_PORT_STATE_TOGGLE:
     case HwAsic::Feature::SAI_PORT_GET_PMD_LANES:
     case HwAsic::Feature::SAI_PORT_VCO_CHANGE:
-    case HwAsic::Feature::WARMBOOT:
     case HwAsic::Feature::ROUTE_METADATA:
     case HwAsic::Feature::FLOWLET:
     case HwAsic::Feature::P4_WARMBOOT:
@@ -146,11 +153,9 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SEPARATE_BYTE_AND_PACKET_ACL_COUNTER:
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
     case HwAsic::Feature::SAI_EAPOL_TRAP:
-    case HwAsic::Feature::L3_MTU_ERROR_TRAP:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::PORT_EYE_VALUES:
     case HwAsic::Feature::ECMP_DLB_OFFSET:
-    case HwAsic::Feature::SAI_FEC_CODEWORDS_STATS:
     case HwAsic::Feature::SPAN:
     case HwAsic::Feature::SFLOWv4:
     case HwAsic::Feature::MPLS:
@@ -165,8 +170,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ECMP_HASH_V6:
     case HwAsic::Feature::TRAFFIC_HASHING:
     case HwAsic::Feature::PORT_WRED_COUNTER:
-    case HwAsic::Feature::ACL_METADATA_QUALIFER:
-    case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
     case HwAsic::Feature::DTL_WATERMARK_COUNTER:
     case HwAsic::Feature::MULTIPLE_ACL_TABLES:
       return false;
@@ -182,6 +185,7 @@ std::set<cfg::StreamType> Jericho3Asic::getQueueStreamTypes(
     case cfg::PortType::INTERFACE_PORT:
     case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       return {cfg::StreamType::UNICAST};
     case cfg::PortType::FABRIC_PORT:
       return {cfg::StreamType::FABRIC_TX};
@@ -204,6 +208,7 @@ int Jericho3Asic::getDefaultNumPortQueues(
         case cfg::PortType::RECYCLE_PORT:
         case cfg::PortType::INTERFACE_PORT:
         case cfg::PortType::MANAGEMENT_PORT:
+        case cfg::PortType::EVENTOR_PORT:
           return 8;
         case cfg::PortType::FABRIC_PORT:
           break;
@@ -238,6 +243,7 @@ uint64_t Jericho3Asic::getDefaultReservedBytes(
     case cfg::PortType::INTERFACE_PORT:
     case cfg::PortType::MANAGEMENT_PORT:
     case cfg::PortType::FABRIC_PORT:
+    case cfg::PortType::EVENTOR_PORT:
       return 0;
   }
   throw FbossError(
@@ -256,8 +262,8 @@ cfg::Range64 Jericho3Asic::getReservedEncapIndexRange() const {
 
 HwAsic::RecyclePortInfo Jericho3Asic::getRecyclePortInfo() const {
   return {
-      .coreId = 0,
-      .corePortIndex = 1,
+      .coreId = 2,
+      .corePortIndex = 2,
       .speedMbps = 10000 // 10G
   };
 }
@@ -268,7 +274,8 @@ Jericho3Asic::desiredLoopbackModes() const {
       {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::PHY},
       {cfg::PortType::MANAGEMENT_PORT, cfg::PortLoopbackMode::PHY},
       {cfg::PortType::FABRIC_PORT, cfg::PortLoopbackMode::MAC},
-      {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE}};
+      {cfg::PortType::RECYCLE_PORT, cfg::PortLoopbackMode::NONE},
+      {cfg::PortType::EVENTOR_PORT, cfg::PortLoopbackMode::NONE}};
   return kLoopbackMode;
 }
 

@@ -94,7 +94,6 @@ class HwSwitch {
     PACKET_RX_DESIRED = 0x01,
     LINKSCAN_DESIRED = 0x02,
     TAM_EVENT_NOTIFY_DESIRED = 0x04,
-    LINK_ACTIVE_INACTIVE_NOTIFY_DESIRED = 0x08,
   };
 
   explicit HwSwitch(
@@ -320,12 +319,6 @@ class HwSwitch {
   }
 
   /*
-   * Returns true if the arp/ndp entry for the passed in ip/intf has been hit
-   * since the last call to getAndClearNeighborHit.
-   */
-  virtual bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) = 0;
-
-  /*
    * Clear port stats for specified port
    */
   virtual void clearPortStats(
@@ -385,6 +378,7 @@ class HwSwitch {
 
   virtual void syncLinkStates() = 0;
   virtual void syncLinkActiveStates() = 0;
+  virtual void syncLinkConnectivity() = 0;
 
   virtual AclStats getAclStats() const = 0;
 

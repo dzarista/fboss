@@ -52,12 +52,13 @@ class MockMultiSwitchHwSwitchHandler : public MultiSwitchHwSwitchHandler {
   MOCK_METHOD2(
       stateChanged,
       std::shared_ptr<SwitchState>(const StateDelta&, bool));
-  MOCK_METHOD3(
+  MOCK_METHOD4(
       stateChanged,
       std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>(
           const fsdb::OperDelta&,
           bool,
-          const std::shared_ptr<SwitchState>&));
+          const std::shared_ptr<SwitchState>&,
+          const HwWriteBehavior&));
 };
 
 template <cfg::SwitchType type, bool enableIntfNbrTable, int count = 1>
@@ -91,6 +92,9 @@ using SwitchTypeTestTypes = ::testing::Types<
     SwitchTypeT<cfg::SwitchType::VOQ>,
     SwitchTypeT<cfg::SwitchType::FABRIC>>;
 
+using DsfSwitchTypeTestTypes = ::testing::Types<
+    SwitchTypeT<cfg::SwitchType::VOQ>,
+    SwitchTypeT<cfg::SwitchType::FABRIC>>;
 /*
  * In the non unit test code state passed to apply*Config is the state
  * returned from SwSwitch init, which is always published. However this
@@ -254,7 +258,8 @@ std::shared_ptr<SwitchState> testStateA(
  * Same as testStateA but with all ports
  * enabled and up
  */
-std::shared_ptr<SwitchState> testStateAWithPortsUp();
+std::shared_ptr<SwitchState> testStateAWithPortsUp(
+    cfg::SwitchType switchType = cfg::SwitchType::NPU);
 
 /*
  * Same as testStateA but with AclLookupClass associated with every port.
@@ -263,6 +268,8 @@ std::shared_ptr<SwitchState> testStateAWithPortsUp();
 std::shared_ptr<SwitchState> testStateAWithLookupClasses();
 
 std::shared_ptr<SwitchState> testStateAWithoutIpv4VlanIntf(VlanID vlanId);
+
+std::shared_ptr<SwitchState> testStateAWithoutIpv4();
 
 /*
  * Bring all ports up for a given input state

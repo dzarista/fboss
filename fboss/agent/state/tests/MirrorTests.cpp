@@ -10,7 +10,6 @@
 #include "folly/MacAddress.h"
 
 #include <folly/IPAddress.h>
-#include <folly/logging/xlog.h>
 #include <gtest/gtest.h>
 
 namespace facebook::fboss {
@@ -80,7 +79,7 @@ const folly::IPAddress MirrorTest::tunnelDestination =
 const char* MirrorTest::egressPortName = "port5";
 const PortID MirrorTest::egressPort = PortID(5);
 const uint8_t MirrorTest::dscp = 46;
-const TunnelUdpPorts MirrorTest::udpPorts = {6545, 5343};
+const TunnelUdpPorts MirrorTest::udpPorts = {6545, 6343};
 
 TEST_F(MirrorTest, MirrorWithPort) {
   config_.mirrors()->push_back(

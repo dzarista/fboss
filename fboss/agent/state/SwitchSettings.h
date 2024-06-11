@@ -135,6 +135,10 @@ class SwitchSettings
     return safe_cref<switch_state_tags::metaMacOuis>();
   }
 
+  auto getHostname() const {
+    return safe_cref<switch_state_tags::hostname>().get();
+  }
+
   // THRIFT_COPY
   std::vector<std::pair<VlanID, folly::MacAddress>>
   getMacAddrsToBlock_DEPRECATED() const {
@@ -168,6 +172,10 @@ class SwitchSettings
 
   void setMetaMacOuis(const std::vector<std::string>& metaMacOuis) {
     set<switch_state_tags::metaMacOuis>(metaMacOuis);
+  }
+
+  void setHostname(const std::string& hostname) {
+    set<switch_state_tags::hostname>(hostname);
   }
 
   cfg::SwitchType getSwitchType(int64_t switchId) const {
@@ -417,6 +425,24 @@ class SwitchSettings
     }
   }
 
+  folly::IPAddressV4 getIcmpV4UnavailableSrcAddress() const {
+    auto srcAddress =
+        cref<switch_state_tags::icmpV4UnavailableSrcAddress>()->toThrift();
+    if (srcAddress.addr()->size() == 0) {
+      // RFC7600 - IANA allocated IPv4 dummy address for 192.0.0.8/32
+      // Should use this if not set
+      return folly::IPAddressV4({192, 0, 0, 8});
+    }
+
+    return network::toIPAddress(srcAddress).asV4();
+  }
+
+  void setIcmpV4UnavailableSrcAddress(
+      folly::IPAddressV4 icmpV4UnavailableSrcAddress) {
+    set<switch_state_tags::icmpV4UnavailableSrcAddress>(
+        network::toBinaryAddress(icmpV4UnavailableSrcAddress));
+  }
+
   std::shared_ptr<QcmCfg> getQcmCfg() const {
     return safe_cref<switch_state_tags::qcmCfg>();
   }
@@ -495,6 +521,39 @@ class SwitchSettings
     } else {
       set<switch_state_tags::forceTrafficOverFabric>(
           forceTrafficOverFabric.value());
+    }
+  }
+
+  std::optional<bool> getCreditWatchdog() const {
+    if (auto creditWatchdog = cref<switch_state_tags::creditWatchdog>()) {
+      return creditWatchdog->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setCreditWatchdog(std::optional<bool> creditWatchdog) {
+    if (!creditWatchdog) {
+      ref<switch_state_tags::creditWatchdog>().reset();
+    } else {
+      set<switch_state_tags::creditWatchdog>(creditWatchdog.value());
+    }
+  }
+
+  std::optional<bool> getForceEcmpDynamicMemberUp() const {
+    if (auto forceEcmpDynamicMemberUp =
+            cref<switch_state_tags::forceEcmpDynamicMemberUp>()) {
+      return forceEcmpDynamicMemberUp->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setForceEcmpDynamicMemberUp(
+      std::optional<bool> forceEcmpDynamicMemberUp) {
+    if (!forceEcmpDynamicMemberUp) {
+      ref<switch_state_tags::forceEcmpDynamicMemberUp>().reset();
+    } else {
+      set<switch_state_tags::forceEcmpDynamicMemberUp>(
+          forceEcmpDynamicMemberUp.value());
     }
   }
 

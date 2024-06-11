@@ -262,7 +262,7 @@ bool isRouteUnresolvedToCpuClassId(
     const folly::CIDRNetwork& cidrNetwork) {
   auto classId = getHwRouteClassID(hwSwitch, rid, cidrNetwork);
   return classId.has_value() &&
-      classId.value() == cfg::AclLookupClass::CLASS_UNRESOLVED_ROUTE_TO_CPU;
+      classId.value() == cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2;
 }
 
 } // namespace facebook::fboss::utility

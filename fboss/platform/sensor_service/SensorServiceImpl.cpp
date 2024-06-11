@@ -18,7 +18,6 @@
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 
 #include "fboss/platform/config_lib/ConfigLib.h"
-#include "fboss/platform/helpers/PlatformUtils.h"
 #include "fboss/platform/sensor_service/FsdbSyncer.h"
 #include "fboss/platform/sensor_service/SensorServiceImpl.h"
 #include "fboss/platform/sensor_service/Utils.h"
@@ -112,6 +111,11 @@ void SensorServiceImpl::fetchSensorData() {
       // to delete this counter if there is a failure.
       fb303::fbData->setCounter(
           fmt::format(kReadValue, sensorName), sensorData.value().value_or(0));
+
+      // Add thresholds and sensorType to FSDB
+      sensorData.thresholds() =
+          sensor.thresholds() ? *sensor.thresholds() : Thresholds();
+      sensorData.sensorType() = *sensor.type();
       polledData[sensorName] = sensorData;
     }
   }

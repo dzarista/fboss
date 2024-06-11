@@ -24,26 +24,6 @@
 #include "fboss/qsfp_service/if/gen-cpp2/qsfp_state_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/qsfp_stats_types.h"
 
-namespace {
-struct TransceiverData {
-  int portID;
-  facebook::fboss::GlobalSensors sensor;
-  facebook::fboss::MediaInterfaceCode mediaInterfaceCode;
-  uint32_t timeCollected;
-
-  TransceiverData(
-      int portID_,
-      facebook::fboss::GlobalSensors sensor_,
-      facebook::fboss::MediaInterfaceCode mediaInterfaceCode_,
-      uint32_t timeCollected_) {
-    portID = portID_;
-    sensor = sensor_;
-    mediaInterfaceCode = mediaInterfaceCode_;
-    timeCollected = timeCollected_;
-  }
-};
-} // namespace
-
 namespace facebook::fboss::platform::fan_service {
 
 class Bsp {
@@ -57,20 +37,12 @@ class Bsp {
   // emergencyShutdown: function to shutdown the platform upon overheat
   virtual int emergencyShutdown(bool enable);
   int kickWatchdog();
-  // setFanPwm... : Fan pwm set function. Used by Control Logic Class
-  virtual bool setFanPwmSysfs(std::string path, int pwm);
-  virtual bool
-  setFanPwmShell(std::string command, std::string fanName, int pwm);
-  // setFanLed... : Fan pwm set function. Used by Control Logic Class
-  virtual bool setFanLedSysfs(std::string path, int pwm);
-  virtual bool
-  setFanLedShell(std::string command, std::string fanName, int pwm);
-  // Other public functions that cannot be overridden
+  virtual bool setFanPwmSysfs(const std::string& path, int pwm);
+  virtual bool setFanLedSysfs(const std::string& path, int pwm);
   virtual uint64_t getCurrentTime() const;
   virtual bool checkIfInitialSensorDataRead() const;
   bool getEmergencyState() const;
-  virtual float readSysfs(std::string path) const;
-  virtual bool initializeQsfpService();
+  virtual float readSysfs(const std::string& path) const;
   static apache::thrift::RpcOptions getRpcOptions();
 
   FsdbSensorSubscriber* fsdbSensorSubscriber() {
@@ -79,22 +51,13 @@ class Bsp {
   void getSensorDataThrift(std::shared_ptr<SensorData> pSensorData);
 
  protected:
-  // replaceAllString : String replace helper function
-  std::string replaceAllString(
-      std::string original,
-      std::string src,
-      std::string tgt) const;
   // This attribute is accessed by internal function.
   void setEmergencyState(bool state);
 
   const FanServiceConfig config_;
 
  private:
-  virtual int run(const std::string& cmd);
   void getOpticsDataFromQsfpSvc(
-      const Optic& opticsGroup,
-      std::shared_ptr<SensorData> pSensorData);
-  void getOpticsDataSysfs(
       const Optic& opticsGroup,
       std::shared_ptr<SensorData> pSensorData);
   std::shared_ptr<std::thread> thread_{nullptr};
@@ -110,20 +73,12 @@ class Bsp {
   bool initialSensorDataRead_{false};
 
   // Low level access function for setting PWM and LED value
-  virtual bool writeSysfs(std::string path, int value);
-  virtual bool setFanShell(
-      std::string command,
-      std::string valueSymbol,
-      std::string fanName,
-      int pwm);
-
-  float getSensorDataSysfs(std::string path);
-  void processOpticEntries(
+  virtual bool writeSysfs(const std::string& path, int value);
+  std::vector<std::pair<std::string, float>> processOpticEntries(
       const Optic& opticsGroup,
       std::shared_ptr<SensorData> pSensorData,
       uint64_t& currentQsfpSvcTimestamp,
-      const std::map<int32_t, TransceiverData>& cacheTable,
-      OpticEntry* opticData);
+      const std::map<int32_t, TransceiverInfo>& transceiverInfoMap);
 
   std::unique_ptr<FsdbSensorSubscriber> fsdbSensorSubscriber_;
   std::unique_ptr<fsdb::FsdbPubSubManager> fsdbPubSubMgr_;

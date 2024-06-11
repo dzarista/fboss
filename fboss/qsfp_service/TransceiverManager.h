@@ -47,6 +47,7 @@ struct NpuPortStatus {
   int portId;
   bool operState; // true for link up, false for link down
   bool portEnabled; // true for enabled, false for disabled
+  bool asicPrbsEnabled; // true for enabled, false for disabled
   std::string profileID;
 };
 
@@ -63,6 +64,9 @@ class TransceiverManager {
       std::unique_ptr<PlatformMapping> platformMapping);
   virtual ~TransceiverManager();
   void gracefulExit();
+  void setGracefulExitingFlag() {
+    isExiting_ = true;
+  }
 
   /*
    * Initialize the qsfp_service components, which might include:
@@ -254,6 +258,10 @@ class TransceiverManager {
   std::vector<phy::TxRxEnableResponse> setInterfaceTxRx(
       const std::vector<phy::TxRxEnableRequest>& txRxEnableRequests);
 
+  void getSymbolErrorHistogram(
+      CdbDatapathSymErrHistogram& symErr,
+      const std::string& portName);
+
   virtual std::string saiPhyRegisterAccess(
       std::string /* portName */,
       bool /* opRead */,
@@ -380,6 +388,11 @@ class TransceiverManager {
   // with present filed is false.
   TransceiverInfo getTransceiverInfo(TransceiverID id) const;
 
+  void getAllPortSupportedProfiles(
+      std::map<std::string, std::vector<cfg::PortProfileID>>&
+          supportedPortProfiles,
+      bool checkOptics);
+
   // Function to convert port name string to software port id
   std::optional<PortID> getPortIDByPortName(const std::string& portName) const;
 
@@ -438,7 +451,8 @@ class TransceiverManager {
       phy::PortComponent component,
       const phy::PortPrbsState& state);
 
-  phy::PrbsStats getPortPrbsStats(PortID portId, phy::PortComponent component);
+  phy::PrbsStats getPortPrbsStats(PortID portId, phy::PortComponent component)
+      const;
 
   void clearPortPrbsStats(PortID portId, phy::PortComponent component);
 
@@ -458,15 +472,27 @@ class TransceiverManager {
 
   void getInterfacePrbsState(
       prbs::InterfacePrbsState& prbsState,
-      std::string portName,
-      phy::PortComponent component);
+      const std::string& portName,
+      phy::PortComponent component) const;
+
+  void getAllInterfacePrbsStates(
+      std::map<std::string, prbs::InterfacePrbsState>& prbsStates,
+      phy::PortComponent component) const;
 
   phy::PrbsStats getInterfacePrbsStats(
-      std::string portName,
-      phy::PortComponent component);
+      const std::string& portName,
+      phy::PortComponent component) const;
+
+  void getAllInterfacePrbsStats(
+      std::map<std::string, phy::PrbsStats>& prbsStats,
+      phy::PortComponent component) const;
 
   void clearInterfacePrbsStats(
       std::string portName,
+      phy::PortComponent component);
+
+  void bulkClearInterfacePrbsStats(
+      std::unique_ptr<std::vector<std::string>> interfaces,
       phy::PortComponent component);
 
   std::optional<DiagsCapability> getDiagsCapability(TransceiverID id) const;
@@ -482,7 +508,11 @@ class TransceiverManager {
       std::string&& /* portName */,
       phy::PhyStats&& /* stat */) const {}
 
-  std::optional<TransceiverID> getTransceiverID(PortID id);
+  virtual void publishPortStatToFsdb(
+      std::string&& /* portName */,
+      HwPortStats&& /* stat */) const {}
+
+  std::optional<TransceiverID> getTransceiverID(PortID id) const;
 
   QsfpServiceRunState getRunState() const;
 
@@ -544,15 +574,20 @@ class TransceiverManager {
 
   void setPhyManager(std::unique_ptr<PhyManager> phyManager) {
     phyManager_ = std::move(phyManager);
-    phyManager_->setPublishPhyCb([this](auto&& portName, auto&& newInfo) {
-      if (newInfo.has_value()) {
-        publishPhyStateToFsdb(
-            std::string(portName), std::move(*newInfo->state()));
-        publishPhyStatToFsdb(std::move(portName), std::move(*newInfo->stats()));
-      } else {
-        publishPhyStateToFsdb(std::string(portName), std::nullopt);
-      }
-    });
+    phyManager_->setPublishPhyCb(
+        [this](auto&& portName, auto&& newInfo, auto&& portStats) {
+          if (newInfo.has_value()) {
+            publishPhyStateToFsdb(
+                std::string(portName), std::move(*newInfo->state()));
+            publishPhyStatToFsdb(
+                std::string(portName), std::move(*newInfo->stats()));
+          } else {
+            publishPhyStateToFsdb(std::string(portName), std::nullopt);
+          }
+          if (portStats.has_value()) {
+            publishPortStatToFsdb(std::move(portName), std::move(*portStats));
+          }
+        });
   }
 
   // Update the cached PortStatus of TransceiverToPortInfo based on the input
@@ -720,7 +755,16 @@ class TransceiverManager {
    */
   void removeWarmBootFlag();
 
+  // Store the warmboot state for qsfp_service. This will be updated
+  // periodically after Transceiver State machine updates to maintain
+  // the state if graceful shutdown did not happen.
+  // Will also be called during graceful exit for qsfp_service once the state
+  // machine stops.
   void setWarmBootState();
+
+  // Set the can_warm_boot flag for qsfp service. Done after successful
+  // initialization to avoid cold booting non-XPhy systems in case of a
+  // non-graceful exit and also set during graceful exit.
   void setCanWarmBoot();
 
   void readWarmBootStateFile();
@@ -728,9 +772,16 @@ class TransceiverManager {
 
   bool upgradeFirmware(Transceiver& tcvr);
 
+  bool isRunningAsicPrbs(TransceiverID tcvr) const;
+
   // Returns the Firmware object from qsfp config for the given module.
   // If there is no firmware in config, returns empty optional
   std::optional<cfg::Firmware> getFirmwareFromCfg(Transceiver& tcvr) const;
+
+  // Store the QSFP service state for warm boots.
+  // Updated on every refresh of the state machine as well as during graceful
+  // exit.
+  std::string qsfpServiceWarmbootState_ = {};
 
   // TEST ONLY
   // This private map is an override of agent getPortStatus()
@@ -758,7 +809,7 @@ class TransceiverManager {
 
   // A global flag to indicate whether the service is exiting.
   // If it is, we should not accept any state update
-  bool isExiting_{false};
+  std::atomic<bool> isExiting_{false};
 
   /*
    * Flag that indicates whether the service has been fully initialized.

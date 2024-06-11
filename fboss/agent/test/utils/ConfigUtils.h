@@ -115,6 +115,9 @@ cfg::SwitchConfig onePortPerInterfaceConfig(
     int baseIntfId = kBaseVlanId,
     bool enableFabricPorts = false);
 
+cfg::SwitchConfig
+oneL3IntfTwoPortConfig(const SwSwitch* sw, PortID port1, PortID port2);
+
 cfg::SwitchConfig oneL3IntfTwoPortConfig(
     const PlatformMapping* platformMapping,
     const HwAsic* asic,
@@ -168,7 +171,7 @@ cfg::SwitchConfig twoL3IntfConfig(
         kDefaultLoopbackMap());
 cfg::SwitchConfig twoL3IntfConfig(
     const PlatformMapping* platformMapping,
-    const HwAsic* asic,
+    const std::vector<const HwAsic*>& asics,
     bool supportsAddRemovePort,
     PortID port1,
     PortID port2,
@@ -194,5 +197,47 @@ void delMatcher(cfg::SwitchConfig* config, const std::string& matcherName);
  * state of the Hardware.
  */
 std::unordered_map<PortID, cfg::PortProfileID>& getPortToDefaultProfileIDMap();
+
+bool isRswPlatform(PlatformType type);
+
+/*
+ * Functions to get uplinks and downlinks return a pair of vectors, which is a
+ * lot to write out, so we define a simple type that's descriptive and saves a
+ * few keystrokes.
+ */
+typedef std::pair<std::vector<PortID>, std::vector<PortID>> UplinkDownlinkPair;
+
+UplinkDownlinkPair getRswUplinkDownlinkPorts(
+    const cfg::SwitchConfig& config,
+    const int ecmpWidth);
+
+UplinkDownlinkPair getRtswUplinkDownlinkPorts(
+    const cfg::SwitchConfig& config,
+    const int ecmpWidth);
+
+UplinkDownlinkPair getAllUplinkDownlinkPorts(
+    PlatformType platformType,
+    const cfg::SwitchConfig& config,
+    const int ecmpWidth = 4,
+    const bool mmu_lossless = false);
+
+void configurePortGroup(
+    const PlatformMapping* platformMapping,
+    bool supportsAddRemovePort,
+    cfg::SwitchConfig& config,
+    cfg::PortSpeed speed,
+    std::vector<PortID> allPortsInGroup);
+
+std::vector<PortID> getAllPortsInGroup(
+    const PlatformMapping* platformMapping,
+    PortID portID);
+
+void removeSubsumedPorts(
+    cfg::SwitchConfig& config,
+    const cfg::PlatformPortConfig& profile,
+    bool supportsAddRemovePort);
+
+std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
+    const cfg::SwitchConfig& config);
 
 } // namespace facebook::fboss::utility

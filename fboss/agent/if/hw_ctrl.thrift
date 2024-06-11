@@ -8,6 +8,10 @@ namespace py.asyncio neteng.fboss.asyncio.hw_ctrl
 include "fboss/agent/if/common.thrift"
 include "fboss/agent/if/fboss.thrift"
 include "fboss/agent/if/ctrl.thrift"
+include "fboss/lib/phy/phy.thrift"
+include "fboss/lib/phy/prbs.thrift"
+
+const i32 DEFAULT_HW_CTRL_BASE_PORT = 5931;
 
 struct RemoteEndpoint {
   1: i64 switchId;
@@ -60,5 +64,56 @@ service FbossHwCtrl {
   string listHwObjects(
     1: list<ctrl.HwObjectType> objects,
     2: bool cached,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Type of boot performed by the hw agent
+   */
+  ctrl.BootType getBootType();
+
+  /*
+   * Get the PRBS state on an interface.
+   */
+  prbs.InterfacePrbsState getInterfacePrbsState(
+    1: string interface,
+    2: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Get the PRBS settings on all interfaces.
+   */
+  map<string, prbs.InterfacePrbsState> getAllInterfacePrbsStates(
+    1: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Get the PRBS stats on an interface.
+   */
+  phy.PrbsStats getInterfacePrbsStats(
+    1: string interface,
+    2: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Get the PRBS stats on all interfaces.
+   */
+  map<string, phy.PrbsStats> getAllInterfacePrbsStats(
+    1: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Clear the PRBS stats counters on an interface.
+   */
+  void clearInterfacePrbsStats(
+    1: string interface,
+    2: phy.PortComponent component,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
+   * Bulk clear the PRBS stats counters on interfaces.
+   */
+  void bulkClearInterfacePrbsStats(
+    1: list<string> interfaces,
+    2: phy.PortComponent component,
   ) throws (1: fboss.FbossBaseError error);
 }

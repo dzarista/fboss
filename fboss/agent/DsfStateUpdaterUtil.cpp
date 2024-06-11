@@ -2,13 +2,24 @@
 
 #include "fboss/agent/DsfStateUpdaterUtil.h"
 
+#include "fboss/agent/rib/ForwardingInformationBaseUpdater.h"
+#include "fboss/agent/rib/RoutingInformationBase.h"
 #include "fboss/agent/state/StateDelta.h"
+
+namespace {
+
+typedef std::pair<facebook::fboss::InterfaceID, folly::IPAddress> IntfAddress;
+typedef boost::container::flat_map<folly::CIDRNetwork, IntfAddress> IntfRoute;
+typedef boost::container::flat_map<facebook::fboss::RouterID, IntfRoute>
+    IntfRouteTable;
+} // namespace
 
 namespace facebook::fboss {
 
 std::shared_ptr<SwitchState> DsfStateUpdaterUtil::getUpdatedState(
     const std::shared_ptr<SwitchState>& in,
     const SwitchIdScopeResolver* scopeResolver,
+    RoutingInformationBase* /* rib */,
     const std::map<SwitchID, std::shared_ptr<SystemPortMap>>&
         switchId2SystemPorts,
     const std::map<SwitchID, std::shared_ptr<InterfaceMap>>& switchId2Intfs) {
@@ -95,11 +106,17 @@ std::shared_ptr<SwitchState> DsfStateUpdaterUtil::getUpdatedState(
         oldNode->getRemoteSystemPortType().value() ==
             RemoteSystemPortType::STATIC_ENTRY) {
       XLOG(DBG2)
-          << "Skip overwriting STATIC remoteSystemPorts: "
-          << " STATIC: "
+          << "Skip overwriting STATIC remoteSystemPorts: " << " STATIC: "
           << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
                  oldNode->toThrift())
           << " non-STATIC: "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 newNode->toThrift());
+      return oldNode;
+    }
+    if (newNode && newNode->getScope() == cfg::Scope::LOCAL) {
+      XLOG(DBG3)
+          << "Ignore remote system port of local type "
           << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
                  newNode->toThrift());
       return oldNode;
@@ -117,11 +134,17 @@ std::shared_ptr<SwitchState> DsfStateUpdaterUtil::getUpdatedState(
         oldNode->getRemoteInterfaceType().value() ==
             RemoteInterfaceType::STATIC_ENTRY) {
       XLOG(DBG2)
-          << "Skip overwriting STATIC remoteInterface: "
-          << " STATIC: "
+          << "Skip overwriting STATIC remoteInterface: " << " STATIC: "
           << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
                  oldNode->toThrift())
           << " non-STATIC: "
+          << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
+                 newNode->toThrift());
+      return oldNode;
+    }
+    if (newNode && newNode->getScope() == cfg::Scope::LOCAL) {
+      XLOG(DBG3)
+          << "Ignore remote rif of local type "
           << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
                  newNode->toThrift());
       return oldNode;
@@ -168,6 +191,9 @@ std::shared_ptr<SwitchState> DsfStateUpdaterUtil::getUpdatedState(
         [&](const auto& newNode) {
           auto clonedNode =
               makeRemote(std::decay_t<decltype(newNode)>{nullptr}, newNode);
+          if (!clonedNode) {
+            return;
+          }
           if constexpr (std::is_same_v<MapT, MultiSwitchSystemPortMap>) {
             mapToUpdate->addNode(clonedNode, scopeResolver->scope(clonedNode));
           } else {

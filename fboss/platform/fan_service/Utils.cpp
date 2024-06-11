@@ -25,10 +25,12 @@ std::unordered_set<std::string> zoneTypes = {
 std::unordered_set<std::string> opticTypes = {
     constants::OPTIC_TYPE_100_GENERIC(),
     constants::OPTIC_TYPE_200_GENERIC(),
-    constants::OPTIC_TYPE_400_GENERIC()};
+    constants::OPTIC_TYPE_400_GENERIC(),
+    constants::OPTIC_TYPE_800_GENERIC()};
 
 std::unordered_set<std::string> opticAggregationTypes = {
-    constants::OPTIC_AGGREGATION_TYPE_MAX()};
+    constants::OPTIC_AGGREGATION_TYPE_MAX(),
+    constants::OPTIC_AGGREGATION_TYPE_PID()};
 
 std::unordered_set<std::string> sensorPwmCalcTypes = {
     constants::SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE(),
@@ -39,6 +41,18 @@ std::unordered_set<std::string> sensorPwmCalcTypes = {
 
 namespace facebook::fboss::platform::fan_service {
 bool Utils::isValidConfig(const FanServiceConfig& config) {
+  if (config.controlInterval()) {
+    if (*config.controlInterval()->pwmUpdateInterval() <= 0) {
+      XLOG(ERR) << "Invalid pwm update interval: "
+                << *config.controlInterval()->pwmUpdateInterval();
+      return false;
+    }
+    if (*config.controlInterval()->sensorReadInterval() <= 0) {
+      XLOG(ERR) << "Invalid sensor read interval: "
+                << *config.controlInterval()->sensorReadInterval();
+      return false;
+    }
+  }
   for (const auto& sensor : *config.sensors()) {
     if (!accessMethodTypes.count(*sensor.access()->accessType())) {
       XLOG(ERR) << "Invalid access method: " << *sensor.access()->accessType();
@@ -64,24 +78,20 @@ bool Utils::isValidConfig(const FanServiceConfig& config) {
   }
 
   for (const auto& fan : *config.fans()) {
-    if (!accessMethodTypes.count(*fan.rpmAccess()->accessType())) {
-      XLOG(ERR) << "Invalid rpmAccess method: "
-                << *fan.rpmAccess()->accessType();
+    if (fan.rpmSysfsPath()->empty()) {
+      XLOG(ERR) << "rpmSysfsPath cannot be empty";
       return false;
     }
-    if (!accessMethodTypes.count(*fan.pwmAccess()->accessType())) {
-      XLOG(ERR) << "Invalid pwmAccess method: "
-                << *fan.pwmAccess()->accessType();
+    if (fan.pwmSysfsPath()->empty()) {
+      XLOG(ERR) << "pwmSysfsPath cannot be empty";
       return false;
     }
-    if (!accessMethodTypes.count(*fan.presenceAccess()->accessType())) {
-      XLOG(ERR) << "Invalid presenceAccess method: "
-                << *fan.presenceAccess()->accessType();
+    if (fan.presenceSysfsPath()->empty()) {
+      XLOG(ERR) << "presenceSysfsPath cannot be empty";
       return false;
     }
-    if (!accessMethodTypes.count(*fan.ledAccess()->accessType())) {
-      XLOG(ERR) << "Invalid ledAccess method: "
-                << *fan.ledAccess()->accessType();
+    if (fan.ledSysfsPath()->empty()) {
+      XLOG(ERR) << "ledSysfsPath cannot be empty";
       return false;
     }
   }
@@ -104,6 +114,21 @@ bool Utils::isValidConfig(const FanServiceConfig& config) {
       XLOG(ERR) << "Invalid optic aggregation type: "
                 << *optic.aggregationType();
       return false;
+    }
+    if (*optic.aggregationType() == constants::OPTIC_AGGREGATION_TYPE_PID()) {
+      if (optic.pidSettings()->empty()) {
+        XLOG(ERR) << "PID settings cannot be empty for optic aggregation type: "
+                  << *optic.aggregationType();
+        return false;
+      }
+    } else if (
+        *optic.aggregationType() == constants::OPTIC_AGGREGATION_TYPE_MAX()) {
+      if (optic.tempToPwmMaps()->empty()) {
+        XLOG(ERR)
+            << "tempToPwmMaps settings cannot be empty for optic aggregation type: "
+            << *optic.aggregationType();
+        return false;
+      }
     }
   }
 

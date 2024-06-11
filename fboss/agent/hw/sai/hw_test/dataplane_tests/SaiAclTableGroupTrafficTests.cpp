@@ -509,8 +509,7 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
         intermediateAclStatsMatch, updateStats));
 
     auto intermediateAclPkts = pktCounterHelper();
-    sendAllPacketshelper<AddrT>(
-        dstIP, frontPanel, utility::kIcpDscp(getAsic()));
+    sendAllPacketshelper<AddrT>(dstIP, frontPanel, utility::kIcpDscp());
     auto afterAclStatsMatch = [&]() {
       auto [dscpAclPkts, ttlAclPkts] = pktCounterHelper();
       XLOG(DBG2) << "Intermediate ICP pkts: " << intermediateAclPkts.first
@@ -571,12 +570,11 @@ class SaiAclTableGroupTrafficTest : public HwLinkStateDependentTest {
 
       if (this->isSupported()) {
         auto newCfg{initialConfig()};
-        utility::addOlympicQosMaps(newCfg, getAsic());
+        utility::addOlympicQosMaps(newCfg, {getAsic()});
         utility::addDscpAclTable(
             &newCfg,
             1 /*priority*/,
             addAllQualifiers,
-            getAsic(),
             this->getHwSwitchEnsemble()->isSai());
         utility::addTtlAclTable(&newCfg, 2);
         applyNewConfig(newCfg);

@@ -692,7 +692,35 @@ class Port : public ThriftStructNode<Port, state::PortFields> {
     }
   }
 
+  std::optional<bool> getTxEnable() const {
+    if (auto value = cref<switch_state_tags::txEnable>()) {
+      return value->toThrift();
+    }
+    return std::nullopt;
+  }
+
+  void setTxEnable(std::optional<bool> txEnable) {
+    if (txEnable.has_value()) {
+      set<switch_state_tags::txEnable>(*txEnable);
+    } else {
+      ref<switch_state_tags::txEnable>().reset();
+    }
+  }
+
+  std::vector<PortError> getActiveErrors() const {
+    return safe_cref<switch_state_tags::activeErrors>()->toThrift();
+  }
+  void addError(PortError error);
+  void removeError(PortError error);
   Port* modify(std::shared_ptr<SwitchState>* state);
+
+  void setScope(const cfg::Scope& scope) {
+    set<ctrl_if_tags::scope>(scope);
+  }
+
+  cfg::Scope getScope() const {
+    return cref<ctrl_if_tags::scope>()->cref();
+  }
 
  private:
   auto getRxSaks() const {

@@ -41,10 +41,6 @@ HwSwitch* SimPlatform::getHwSwitch() const {
 
 void SimPlatform::onHwInitialized(HwSwitchCallback* /*sw*/) {}
 
-void SimPlatform::onInitialConfigApplied(HwSwitchCallback* /*sw*/) {}
-
-void SimPlatform::stop() {}
-
 void SimPlatform::initPorts() {
   for (auto i = 0; i < numPorts_; i++) {
     auto portID = PortID(i);

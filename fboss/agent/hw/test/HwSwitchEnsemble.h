@@ -104,6 +104,8 @@ class HwSwitchEnsemble : public TestEnsembleIf {
     MULTISWITCH_THRIFT_SERVER, /* Start multiswitch service on test server */
   };
   using Features = std::set<Feature>;
+  using TestEnsembleIf::getLatestPortStats;
+  using TestEnsembleIf::getLatestSysPortStats;
 
   explicit HwSwitchEnsemble(const Features& featuresDesired);
   ~HwSwitchEnsemble() override;
@@ -233,7 +235,6 @@ class HwSwitchEnsemble : public TestEnsembleIf {
       const std::chrono::duration<uint32_t, std::milli> msBetweenRetry =
           std::chrono::milliseconds(20));
 
-  std::vector<SystemPortID> masterLogicalSysPortIds() const;
   virtual std::vector<PortID> getAllPortsInGroup(PortID portID) const = 0;
   virtual std::vector<FlexPortMode> getSupportedFlexPortModes() const = 0;
   virtual bool isRouteScaleEnabled() const = 0;
@@ -245,13 +246,11 @@ class HwSwitchEnsemble : public TestEnsembleIf {
    */
   virtual std::map<PortID, HwPortStats> getLatestPortStats(
       const std::vector<PortID>& ports) override;
-  HwPortStats getLatestPortStats(PortID port);
   /*
    * Get latest sys port stats for given sys ports
    */
   virtual std::map<SystemPortID, HwSysPortStats> getLatestSysPortStats(
-      const std::vector<SystemPortID>& ports);
-  HwSysPortStats getLatestSysPortStats(SystemPortID port);
+      const std::vector<SystemPortID>& ports) override;
   /*
    * Get latest stats for given aggregate ports
    */
@@ -279,7 +278,6 @@ class HwSwitchEnsemble : public TestEnsembleIf {
     return std::make_unique<HwSwitchEnsembleRouteUpdateWrapper>(
         this, routingInformationBase_.get());
   }
-  size_t getMinPktsForLineRate(const PortID& portId);
   int readPfcDeadlockDetectionCounter(const PortID& port);
   int readPfcDeadlockRecoveryCounter(const PortID& port);
   void clearPfcDeadlockRecoveryCounter(const PortID& port);
@@ -325,6 +323,14 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   const PlatformMapping* getPlatformMapping() const override {
     return getHwSwitch()->getPlatform()->getPlatformMapping();
   }
+
+  cfg::SwitchConfig getCurrentConfig() const override {
+    return currentConfig_;
+  }
+  uint64_t getTrafficRate(
+      const HwPortStats& prevPortStats,
+      const HwPortStats& curPortStats,
+      const int secondsBetweenStatsCollection);
 
  protected:
   /*
@@ -386,6 +392,7 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   std::unique_ptr<MultiSwitchTestServer> swSwitchTestServer_;
   std::unique_ptr<SwSwitchWarmBootHelper> swSwitchWarmBootHelper_;
   HwEnsembleMultiSwitchThriftHandler* multiSwitchThriftHandler_{nullptr};
+  cfg::SwitchConfig currentConfig_;
 };
 
 } // namespace facebook::fboss

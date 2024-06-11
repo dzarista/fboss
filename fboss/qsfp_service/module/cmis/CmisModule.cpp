@@ -47,6 +47,12 @@ constexpr int kUsecDatapathStatePollTime = 500000; // 500 ms
 constexpr double kU16TypeLsbDivisor = 256.0;
 constexpr int kVdmDescriptorLength = 2;
 
+// Definitions for CDB Histogram
+constexpr int kCdbSymErrHistBinSize = 6;
+constexpr int kCdbSymErrHistMaxOffset = 1;
+constexpr int kCdbSymErrHistAvgOffset = 3;
+constexpr int kCdbSymErrHistCurOffset = 5;
+
 std::array<std::string, 9> channelConfigErrorMsg = {
     "No status available, config under progress",
     "Config accepted and applied",
@@ -174,6 +180,7 @@ static QsfpFieldInfo<CmisField, CmisPages>::QsfpFieldMap cmisFields = {
     {CmisField::CHANNEL_TX_BIAS, {CmisPages::PAGE11, 170, 16}},
     {CmisField::CHANNEL_RX_PWR, {CmisPages::PAGE11, 186, 16}},
     {CmisField::CONFIG_ERROR_LANES, {CmisPages::PAGE11, 202, 4}},
+    {CmisField::ACTIVE_CTRL_ALL_LANES, {CmisPages::PAGE11, 206, 8}},
     {CmisField::ACTIVE_CTRL_LANE_1, {CmisPages::PAGE11, 206, 1}},
     {CmisField::ACTIVE_CTRL_LANE_2, {CmisPages::PAGE11, 207, 1}},
     {CmisField::ACTIVE_CTRL_LANE_3, {CmisPages::PAGE11, 208, 1}},
@@ -447,6 +454,88 @@ std::array<CmisField, 4> prbsChkHostPatternFields = {
     CmisField::HOST_CHECKER_PATTERN_SELECT_LANE_8_7,
 };
 
+const std::vector<
+    std::array<SMFMediaInterfaceCode, CmisModule::kMaxOsfpNumLanes>>
+    osfpValidSpeedCombination = {
+        {
+            // 2x400G-FR4
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+        },
+        {
+            // 2x200G-FR4
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+        },
+        {
+            // 400G-FR4 + 200G-FR4
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+        },
+        {
+            // 200G-FR4 + 400G-FR4
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_200G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+            SMFMediaInterfaceCode::FR4_400G,
+        },
+        {
+            // 8x100G-FR1
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+            SMFMediaInterfaceCode::FR1_100G,
+        },
+        {
+            // 2x100G-CWDM4
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+            SMFMediaInterfaceCode::CWDM4_100G,
+        },
+        {
+            // 1x800G-2FR4
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+            SMFMediaInterfaceCode::FR8_800G,
+        },
+};
+
 void getQsfpFieldAddress(
     CmisField field,
     int& dataAddress,
@@ -506,6 +595,17 @@ CmisModule::getApplicationField(uint8_t application, uint8_t startHostLane)
     }
   }
   return std::nullopt;
+}
+
+SMFMediaInterfaceCode CmisModule::getApplicationFromApSelCode(
+    uint8_t apSelCode) const {
+  for (const auto& capability : moduleCapabilities_) {
+    if (capability.ApSelCode == apSelCode) {
+      return static_cast<SMFMediaInterfaceCode>(
+          capability.moduleMediaInterface);
+    }
+  }
+  return SMFMediaInterfaceCode::UNKNOWN;
 }
 
 CmisModule::CmisModule(
@@ -1033,6 +1133,22 @@ SMFMediaInterfaceCode CmisModule::getSmfMediaInterface(uint8_t lane) const {
   return (SMFMediaInterfaceCode)currentApplication;
 }
 
+std::vector<MediaInterfaceCode> CmisModule::getSupportedMediaInterfacesLocked()
+    const {
+  std::vector<MediaInterfaceCode> supportedMediaInterfaces;
+
+  for (const auto& capability : moduleCapabilities_) {
+    auto smfMediaInterface =
+        static_cast<SMFMediaInterfaceCode>(capability.moduleMediaInterface);
+    if (mediaInterfaceMapping.find(smfMediaInterface) !=
+        mediaInterfaceMapping.end()) {
+      supportedMediaInterfaces.push_back(
+          mediaInterfaceMapping.at(smfMediaInterface));
+    }
+  }
+  return supportedMediaInterfaces;
+}
+
 MediaTypeEncodings CmisModule::getMediaTypeEncoding() const {
   return static_cast<MediaTypeEncodings>(
       getSettingsValue(CmisField::MEDIA_TYPE_ENCODINGS));
@@ -1470,6 +1586,66 @@ CmisModule::VdmDiagsLocationStatus CmisModule::getVdmDiagsValLocation(
     return CmisModule::VdmDiagsLocationStatus{};
   }
   return vdmConfigDataLocations_.at(vdmConf);
+}
+
+/*
+ * getCdbSymbolErrorHistogramLocked
+ *
+ * Return symbol error histogram data for all bins for a given datapath id and
+ * the media/host side
+ */
+std::map<int32_t, SymErrHistogramBin>
+CmisModule::getCdbSymbolErrorHistogramLocked(
+    uint8_t datapathId,
+    bool mediaSide) {
+  std::map<int32_t, SymErrHistogramBin> histData;
+  CdbCommandBlock commandBlockBuf;
+
+  commandBlockBuf.createCdbCmdSymbolErrorHistogram(datapathId, mediaSide);
+  auto ret = commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+  if (ret && commandBlockBuf.getCdbRlplLength() >= 1) {
+    int numBins = commandBlockBuf.getCdbLplFlatMemory()[0];
+    for (auto bin = 0; bin < numBins; bin++) {
+      SymErrHistogramBin binHistData;
+      binHistData.nbitSymbolErrorMax() = f16ToDouble(
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistMaxOffset],
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistMaxOffset + 1]);
+      binHistData.nbitSymbolErrorAvg() = f16ToDouble(
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistAvgOffset],
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistAvgOffset + 1]);
+      binHistData.nbitSymbolErrorCur() = f16ToDouble(
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistCurOffset],
+          commandBlockBuf.getCdbLplFlatMemory()
+              [bin * kCdbSymErrHistBinSize + kCdbSymErrHistCurOffset + 1]);
+      histData[bin] = binHistData;
+    }
+  }
+  return histData;
+}
+
+/*
+ * getCdbSymbolErrorHistogramLocked
+ *
+ * Return symbol error histogram data for all bins for all datapaths for the
+ * both media/host side
+ */
+std::map<std::string, CdbDatapathSymErrHistogram>
+CmisModule::getCdbSymbolErrorHistogramLocked() {
+  std::map<std::string, CdbDatapathSymErrHistogram> cdbDpSymErrHist;
+  for (auto& [portName, hostLanes] : getPortNameToHostLanes()) {
+    // Datapath Id is same as first lane Id
+    int datapathId = *hostLanes.begin();
+    cdbDpSymErrHist[portName].media() =
+        getCdbSymbolErrorHistogramLocked(datapathId, true);
+    cdbDpSymErrHist[portName].host() =
+        getCdbSymbolErrorHistogramLocked(datapathId, false);
+  }
+  return cdbDpSymErrHist;
 }
 
 std::optional<VdmDiagsStats> CmisModule::getVdmDiagsStatsInfo() {
@@ -2066,13 +2242,6 @@ void CmisModule::setApplicationCodeLocked(
   // check if any of those are present in the moduleCapabilities. We configure
   // the first application that both we support and the module supports
   for (auto application : applicationIter->second) {
-    // If the currently configured application is the same as what we are trying
-    // to configure, then skip the configuration
-    if (static_cast<uint8_t>(application) == currentApplication) {
-      QSFP_LOG(INFO, this) << "Speed matches. Doing nothing.";
-      return;
-    }
-
     auto capability =
         getApplicationField(static_cast<uint8_t>(application), startHostLane);
 
@@ -2088,6 +2257,21 @@ void CmisModule::setApplicationCodeLocked(
     }
 
     uint8_t hostLaneMask = laneMask(startHostLane, numHostLanes);
+
+    // If the currently configured application is the same as what we are trying
+    // to configure, then skip the configuration
+    if (static_cast<uint8_t>(application) == currentApplication) {
+      QSFP_LOG(INFO, this) << "Speed matches. Doing nothing";
+      // Make sure the datapath is initialized, otherwise initialize it before
+      // returning
+      if (datapathResetPendingMask_ & hostLaneMask) {
+        resetDataPathWithFunc(std::nullopt, hostLaneMask);
+        datapathResetPendingMask_ &= ~hostLaneMask;
+        QSFP_LOG(INFO, this) << "Reset datapath for lane mask " << hostLaneMask
+                             << " before returning";
+      }
+      return;
+    }
 
     auto setApplicationSelectCode = [this,
                                      &capability,
@@ -2181,14 +2365,63 @@ void CmisModule::setApplicationCodeLocked(
 
       writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySetForConfigureLanes);
 
+      datapathResetPendingMask_ = applySetForConfigureLanes;
+
       QSFP_LOG(INFO, this) << folly::sformat(
           "set application to {:#x}", capability->moduleMediaInterface);
+    };
+
+    // Lambda to get the valid lane config combination for the given speed on
+    // start host lane and then apply this config to all the lanes. The data
+    // path setting will be applied to all the lanes
+    auto setApplicationSelectCodeAllLanes = [this,
+                                             speed,
+                                             startHostLane,
+                                             numHostLanes]() {
+      if (auto laneProgramValues = getValidMultiportSpeedConfig(
+              speed, startHostLane, numHostLanes)) {
+        std::array<uint8_t, kMaxOsfpNumLanes> stageSet0Config;
+        for (auto lane = 0; lane < kMaxOsfpNumLanes;) {
+          if (auto laneCapability = getApplicationField(
+                  static_cast<uint8_t>(laneProgramValues.value()[lane]),
+                  lane)) {
+            uint8_t currApSelCode = laneCapability.value().ApSelCode;
+            for (auto currApLane = lane;
+                 currApLane < lane + laneCapability.value().hostLaneCount;
+                 currApLane++) {
+              stageSet0Config[currApLane] = currApSelCode << APP_SEL_BITSHIFT |
+                  (lane << DATA_PATH_ID_BITSHIFT);
+            }
+            lane += laneCapability.value().hostLaneCount;
+          } else {
+            stageSet0Config[lane++] = 0;
+          }
+        }
+        writeCmisField(CmisField::APP_SEL_ALL_LANES, stageSet0Config.data());
+
+        // Trigger the Set 0 application code setting to be applied on data
+        // path init for all the lanes. The actual data-path init will be
+        // triggered from the caller function
+        uint8_t applySetForSpecificLanes = laneMask(0, kMaxOsfpNumLanes);
+        writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySetForSpecificLanes);
+
+        datapathResetPendingMask_ = applySetForSpecificLanes;
+      }
     };
 
     // In 400G-FR4 case we will have 8 host lanes instead of 4. Further more,
     // we need to deactivate all the lanes when we switch to an application with
     // a different lane count. CMIS4.0-8.8.4
-    resetDataPathWithFunc(setApplicationSelectCode, hostLaneMask);
+    if (getIdentifier() == TransceiverModuleIdentifier::OSFP &&
+        !isRequestValidMultiportSpeedConfig(
+            speed, startHostLane, numHostLanes)) {
+      resetDataPathWithFunc(setApplicationSelectCodeAllLanes, hostLaneMask);
+    } else {
+      resetDataPathWithFunc(setApplicationSelectCode, hostLaneMask);
+    }
+
+    datapathResetPendingMask_ &= ~hostLaneMask;
+
     // Certain OSFP Modules require a long time to finish application
     // programming. The modules say config is accepted and applied, but
     // internally the module will still be processing the config. If we don't
@@ -2212,6 +2445,158 @@ void CmisModule::setApplicationCodeLocked(
       "Port: ",
       qsfpImpl_->getName(),
       " Unsupported Application by the module: "));
+}
+
+/*
+ * getMediaIntfCodeFromSpeed
+ *
+ * Returns the media interface code for a given speed and the number of lanes on
+ * this optics. This function uses the optics static value from register cache.
+ * Pl note that the different optics can implement the same media interface code
+ * using diferent number of lanes. ie: QSFP 400G-FR4 implements 400G-FR4 (code
+ * 0x1d) using 8 lanes of 50G serdes on host whereas OSFP 2x400G-FR4 implements
+ * the same 400G-FR4 (code 0x1d) using 4 lanes of 100G serdes on host.
+ */
+SMFMediaInterfaceCode CmisModule::getMediaIntfCodeFromSpeed(
+    cfg::PortSpeed speed,
+    uint8_t numLanes) {
+  auto applicationIter = speedApplicationMapping.find(speed);
+  if (applicationIter == speedApplicationMapping.end()) {
+    return SMFMediaInterfaceCode::UNKNOWN;
+  }
+
+  for (auto application : applicationIter->second) {
+    for (const auto& capability : moduleCapabilities_) {
+      if (capability.moduleMediaInterface ==
+              static_cast<uint8_t>(application) &&
+          capability.hostLaneCount == numLanes) {
+        return application;
+      }
+    }
+  }
+  return SMFMediaInterfaceCode::UNKNOWN;
+}
+
+/*
+ * isRequestValidMultiportSpeedConfig
+ *
+ * This function returns if the requested speed on given number of lanes will
+ * result in valid config on the overall optics. If the requested config on
+ * given lanes will result in non-supported speed config (as described in static
+ * list osfpValidSpeedCombination) then this function returns false otherwise
+ * returns true. This function does not rely on cache and does the directHW read
+ * to know the current speed config on the lanes.
+ */
+bool CmisModule::isRequestValidMultiportSpeedConfig(
+    cfg::PortSpeed speed,
+    uint8_t startHostLane,
+    uint8_t numLanes) {
+  if (!isMultiPortOptics()) {
+    // For non-multiport supporting optics, return true rightaway
+    return true;
+  }
+
+  // Sanity check
+  auto desiredMediaIntfCode = getMediaIntfCodeFromSpeed(speed, numLanes);
+  if (desiredMediaIntfCode == SMFMediaInterfaceCode::UNKNOWN) {
+    QSFP_LOG(ERR, this) << "Unsupported Speed "
+                        << apache::thrift::util::enumNameSafe(speed);
+    return false;
+  }
+
+  // Get the current speed config on the Multiport optics lanes. Avoid cache
+  // and read from HW directly
+  std::array<uint8_t, kMaxOsfpNumLanes> currHwSpeedConfig;
+  readCmisField(CmisField::ACTIVE_CTRL_ALL_LANES, currHwSpeedConfig.data());
+  for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+    currHwSpeedConfig[laneId] =
+        (currHwSpeedConfig[laneId] & APP_SEL_MASK) >> APP_SEL_BITSHIFT;
+  }
+
+  // Find what will be the new config after applying the requested config
+  std::array<SMFMediaInterfaceCode, kMaxOsfpNumLanes> desiredSpeedConfig;
+  for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+    if (laneId >= startHostLane && laneId < startHostLane + numLanes) {
+      desiredSpeedConfig[laneId] = desiredMediaIntfCode;
+    } else {
+      desiredSpeedConfig[laneId] =
+          getApplicationFromApSelCode(currHwSpeedConfig[laneId]);
+    }
+  }
+
+  // Check if this is supported speed config combo on this optics and return
+  for (auto& validSpeedCombo : osfpValidSpeedCombination) {
+    bool combolValid = true;
+    for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+      if (validSpeedCombo[laneId] != desiredSpeedConfig[laneId]) {
+        combolValid = false;
+        break;
+      }
+    }
+    if (combolValid) {
+      QSFP_LOG(DBG2, this) << folly::sformat(
+          "Found the valid speed combo of media intf id {:s} for lanemask {:#x}",
+          apache::thrift::util::enumNameSafe(desiredMediaIntfCode),
+          laneMask(startHostLane, numLanes));
+      return true;
+    }
+  }
+  QSFP_LOG(DBG2, this) << folly::sformat(
+      "Could not find the valid speed combo of media intf id {:s} for lanemask {:#x}",
+      apache::thrift::util::enumNameSafe(desiredMediaIntfCode),
+      laneMask(startHostLane, numLanes));
+  return false;
+}
+
+/*
+ * getValidMultiportSpeedConfig
+ *
+ * Returns the valid speed config for all the lanes of the multi-port optics
+ * which matches closely with the supported speed combo on the optics. If no
+ * valid speed combo is found then returns nullopt
+ */
+std::optional<std::array<SMFMediaInterfaceCode, CmisModule::kMaxOsfpNumLanes>>
+CmisModule::getValidMultiportSpeedConfig(
+    cfg::PortSpeed speed,
+    uint8_t startHostLane,
+    uint8_t numLanes) {
+  auto desiredMediaIntfCode = getMediaIntfCodeFromSpeed(speed, numLanes);
+  if (desiredMediaIntfCode == SMFMediaInterfaceCode::UNKNOWN) {
+    QSFP_LOG(ERR, this) << "Unsupported Speed "
+                        << apache::thrift::util::enumNameSafe(speed);
+    return std::nullopt;
+  }
+
+  CHECK_LE(startHostLane + numLanes, kMaxOsfpNumLanes);
+  for (auto& validSpeedCombo : osfpValidSpeedCombination) {
+    bool combolValid = true;
+    for (int laneId = startHostLane; laneId < startHostLane + numLanes;
+         laneId++) {
+      if (validSpeedCombo[laneId] != desiredMediaIntfCode) {
+        combolValid = false;
+        break;
+      }
+    }
+    if (combolValid) {
+      std::string speedCfgCombo;
+      for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+        speedCfgCombo +=
+            apache::thrift::util::enumNameSafe(validSpeedCombo[laneId]);
+        speedCfgCombo += " ";
+      }
+      QSFP_LOG(DBG2, this) << folly::sformat(
+          "Returning the valid speed combo of media intf id {:s} for lanemask {:#x} = {:s}",
+          apache::thrift::util::enumNameSafe(desiredMediaIntfCode),
+          laneMask(startHostLane, numLanes),
+          speedCfgCombo);
+      return validSpeedCombo;
+    }
+  }
+  QSFP_LOG(ERR, this) << folly::sformat(
+      "No valid speed combo found for speed {:s} and lanemask {:#x}",
+      apache::thrift::util::enumNameSafe(speed),
+      laneMask(startHostLane, numLanes));
+  return std::nullopt;
 }
 
 /*
@@ -2381,6 +2766,42 @@ void CmisModule::ensureRxOutputSquelchEnabled(
   }
 }
 
+bool CmisModule::tcvrPortStateSupported(TransceiverPortState& portState) const {
+  if (portState.transmitterTech != getQsfpTransmitterTechnology()) {
+    return false;
+  }
+
+  if (getQsfpTransmitterTechnology() == TransmitterTechnology::COPPER) {
+    // Return true irrespective of speed as the copper cables are mostly
+    // flexible with all speeds. We can change this later when we know of any
+    // limitations
+    return true;
+  }
+
+  auto speed = portState.speed;
+  auto startHostLane = portState.startHostLane;
+  auto numHostLanes = portState.numHostLanes;
+  auto applicationIter = speedApplicationMapping.find(speed);
+
+  if (applicationIter == speedApplicationMapping.end()) {
+    // Speed Not supported
+    return false;
+  }
+
+  for (auto application : applicationIter->second) {
+    if (auto capability = getApplicationField(
+            static_cast<uint8_t>(application), startHostLane)) {
+      // Application supported on the starting host lane
+      auto hostLaneCount = capability->hostLaneCount;
+      if (numHostLanes == hostLaneCount) {
+        // Host Lane count also matches
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void CmisModule::customizeTransceiverLocked(TransceiverPortState& portState) {
   auto& portName = portState.portName;
   auto speed = portState.speed;
@@ -2453,8 +2874,8 @@ bool CmisModule::ensureTransceiverReadyLocked() {
     uint8_t moduleStatus;
     readCmisField(CmisField::MODULE_STATE, &moduleStatus);
     bool isReady =
-        ((CmisModuleState)((moduleStatus & MODULE_STATUS_MASK) >> MODULE_STATUS_BITSHIFT) ==
-         CmisModuleState::READY);
+        ((CmisModuleState)((moduleStatus & MODULE_STATUS_MASK) >>
+                           MODULE_STATUS_BITSHIFT) == CmisModuleState::READY);
     return isReady;
   }
 
@@ -2778,6 +3199,45 @@ void CmisModule::setDiagsCapability() {
         vdmSupportedGroupsMax_ = (data & VDM_GROUPS_SUPPORT_MASK) + 1;
       }
 
+      if (*diags.cdb()) {
+        CdbCommandBlock commandBlockBuf;
+        // CdbCommandBlock* commandBlock = &commandBlockBuf;
+
+        // Get FW download, FW readback, EPL capability
+        commandBlockBuf.createCdbCmdGetFwFeatureInfo();
+        // Run the CDB command
+        bool status = commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+
+        // If the CDB command is successfull then the return info is in LPL
+        // memory offset 141, 142. The LPL base offset is 136.
+        if (status && commandBlockBuf.getCdbRlplLength() >= 3) {
+          diags.cdbFirmwareUpgrade() =
+              commandBlockBuf.getCdbLplFlatMemory()[5] != 0;
+          diags.cdbEplMemorySupported() =
+              commandBlockBuf.getCdbLplFlatMemory()[5] ==
+                  CDB_FW_DOWNLOAD_EPL_SUPPORTED ||
+              commandBlockBuf.getCdbLplFlatMemory()[5] ==
+                  CDB_FW_DOWNLOAD_LPL_EPL_SUPPORTED;
+          diags.cdbFirmwareReadback() =
+              commandBlockBuf.getCdbLplFlatMemory()[6] != 0;
+        }
+
+        // Check CDB symbol error histogram command support. If command does
+        // not fail then it is implemented
+        commandBlockBuf.createCdbCmdSymbolErrorHistogram(0, true);
+        diags.cdbSymbolErrorHistogramLine() =
+            commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+        commandBlockBuf.createCdbCmdSymbolErrorHistogram(0, false);
+        diags.cdbSymbolErrorHistogramSystem() =
+            commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+        // CDB Rx error histogram
+        commandBlockBuf.createCdbCmdRxErrorHistogram(0, true);
+        diags.cdbRxErrorHistogramLine() =
+            commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+        commandBlockBuf.createCdbCmdRxErrorHistogram(0, false);
+        diags.cdbRxErrorHistogramSystem() =
+            commandBlockBuf.cmisRunCdbCommand(qsfpImpl_);
+      }
       *diagsCapability = diags;
     }
   }

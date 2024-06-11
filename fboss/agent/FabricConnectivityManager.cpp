@@ -12,6 +12,7 @@
 #include "fboss/agent/platforms/common/meru400bfu/Meru400bfuPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400bia/Meru400biaPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru400biu/Meru400biuPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru800bfa/Meru800bfaP1PlatformMapping.h"
 #include "fboss/agent/platforms/common/meru800bfa/Meru800bfaPlatformMapping.h"
 #include "fboss/agent/platforms/common/meru800bia/Meru800biaPlatformMapping.h"
 
@@ -49,6 +50,11 @@ getPlatformMappingForDsfNode(const PlatformType platformType) {
           true /*multiNpuPlatformMapping*/};
       return &meru800bfa;
     }
+    case PlatformType::PLATFORM_MERU800BFA_P1: {
+      static Meru800bfaP1PlatformMapping meru800bfa{
+          true /*multiNpuPlatformMapping*/};
+      return &meru800bfa;
+    }
     case PlatformType::PLATFORM_MERU800BIA: {
       static Meru800biaPlatformMapping meru800bia;
       return &meru800bia;
@@ -61,26 +67,6 @@ getPlatformMappingForDsfNode(const PlatformType platformType) {
       break;
   }
   return nullptr;
-}
-
-uint32_t getRemotePortOffset(const PlatformType platformType) {
-  switch (platformType) {
-    case PlatformType::PLATFORM_MERU400BIU:
-      return 256;
-    case PlatformType::PLATFORM_MERU400BIA:
-      return 256;
-    case PlatformType::PLATFORM_MERU400BFU:
-      return 0;
-    case PlatformType::PLATFORM_MERU800BFA:
-      return 0;
-    case PlatformType::PLATFORM_MERU800BIA:
-    case PlatformType::PLATFORM_JANGA800BIC:
-      return 1024;
-
-    default:
-      return 0;
-  }
-  return 0;
 }
 
 static const HwAsic& getHwAsicForAsicType(const cfg::AsicType& asicType) {
@@ -197,6 +183,35 @@ std::string toStr(const RemoteEndpoint& r) {
   return ss.str();
 }
 
+std::string toStr(const FabricEndpoint& endpoint) {
+  std::stringstream ss;
+  ss << " Attached: " << *endpoint.isAttached() << std::endl;
+  if (*endpoint.isAttached()) {
+    ss << " Remote switch, id: " << *endpoint.switchId()
+       << " name:" << endpoint.switchName().value_or("--") << std::endl;
+    ss << " Remote port, id: " << *endpoint.portId()
+       << " name:" << endpoint.portName().value_or("--") << std::endl;
+    ss << " Switch Type: "
+       << apache::thrift::util::enumNameSafe(*endpoint.switchType())
+       << std::endl;
+  }
+
+  // Expected switch, port
+  ss << " Expected switch, id: " << endpoint.expectedSwitchId().value_or(-1)
+     << " name:" << endpoint.expectedSwitchName().value_or("--") << std::endl;
+  ss << " Expected port, id: " << endpoint.expectedPortId().value_or(-1)
+     << " name:" << endpoint.expectedPortName().value_or("--") << std::endl;
+  return ss.str();
+}
+
+std::string toStr(const multiswitch::FabricConnectivityDelta& delta) {
+  std::stringstream ss;
+  ss << " Old endpoint: "
+     << (delta.oldConnectivity() ? toStr(*delta.oldConnectivity()) : "null");
+  ss << " New endpoint: "
+     << (delta.newConnectivity() ? toStr(*delta.newConnectivity()) : "null");
+  return ss.str();
+}
 } // namespace
 
 namespace facebook::fboss {
@@ -206,6 +221,39 @@ void toAppend(const RemoteEndpoint& endpoint, folly::fbstring* result) {
 }
 void toAppend(const RemoteEndpoint& endpoint, std::string* result) {
   *result += toStr(endpoint);
+}
+
+void toAppend(const FabricEndpoint& endpoint, folly::fbstring* result) {
+  result->append(toStr(endpoint));
+}
+void toAppend(const FabricEndpoint& endpoint, std::string* result) {
+  *result += toStr(endpoint);
+}
+
+void toAppend(
+    const multiswitch::FabricConnectivityDelta& delta,
+    folly::fbstring* result) {
+  result->append(toStr(delta));
+}
+void toAppend(
+    const multiswitch::FabricConnectivityDelta& delta,
+    std::string* result) {
+  *result += toStr(delta);
+}
+
+std::ostream& operator<<(std::ostream& os, const RemoteEndpoint& endpoint) {
+  os << toStr(endpoint);
+  return os;
+}
+std::ostream& operator<<(std::ostream& os, const FabricEndpoint& endpoint) {
+  os << toStr(endpoint);
+  return os;
+}
+std::ostream& operator<<(
+    std::ostream& os,
+    const multiswitch::FabricConnectivityDelta& delta) {
+  os << toStr(delta);
+  return os;
 }
 
 void FabricConnectivityManager::updateExpectedSwitchIdAndPortIdForPort(
@@ -272,14 +320,15 @@ void FabricConnectivityManager::updateExpectedSwitchIdAndPortIdForPort(
              << fabricEndpoint.expectedPortId().value();
 }
 
-void FabricConnectivityManager::addPort(const std::shared_ptr<Port>& swPort) {
+void FabricConnectivityManager::addOrUpdatePort(
+    const std::shared_ptr<Port>& swPort) {
   // Non-Faric port connectivity is handled by LLDP
   if (swPort->getPortType() != cfg::PortType::FABRIC_PORT) {
     return;
   }
 
   fabricPortId2Name_[swPort->getID()] = swPort->getName();
-  FabricEndpoint expectedEndpoint;
+  auto& expectedEndpoint = currentNeighborConnectivity_[swPort->getID()];
   const auto& expectedNeighbors =
       swPort->getExpectedNeighborValues()->toThrift();
   if (expectedNeighbors.size()) {
@@ -289,7 +338,6 @@ void FabricConnectivityManager::addPort(const std::shared_ptr<Port>& swPort) {
     expectedEndpoint.expectedPortName() = *neighbor.remotePort();
   }
 
-  currentNeighborConnectivity_[swPort->getID()] = expectedEndpoint;
   updateExpectedSwitchIdAndPortIdForPort(swPort->getID());
 }
 
@@ -316,10 +364,9 @@ void FabricConnectivityManager::updatePorts(const StateDelta& delta) {
       delta.getPortsDelta(),
       [&](const std::shared_ptr<Port>& oldSwPort,
           const std::shared_ptr<Port>& newSwPort) {
-        removePort(oldSwPort);
-        addPort(newSwPort);
+        addOrUpdatePort(newSwPort);
       },
-      [&](const std::shared_ptr<Port>& newPort) { addPort(newPort); },
+      [&](const std::shared_ptr<Port>& newPort) { addOrUpdatePort(newPort); },
       [&](const std::shared_ptr<Port>& deletePort) { removePort(deletePort); });
 }
 
@@ -541,5 +588,25 @@ FabricConnectivityManager::getVirtualDeviceToRemoteConnectionGroups(
         remoteEndpoint);
   }
   return virtualDevice2RemoteConnectionGroups;
+}
+
+int FabricConnectivityManager::virtualDevicesWithAsymmetricConnectivity(
+    const std::map<int64_t, RemoteConnectionGroups>&
+        virtualDevice2RemoteConnectionGroups) {
+  int virtualDevicesWithAsymmetricConnectivity{0};
+  for (const auto& [virtualDeviceId, remoteConnectionGroups] :
+       virtualDevice2RemoteConnectionGroups) {
+    if (remoteConnectionGroups.size() > 1) {
+      ++virtualDevicesWithAsymmetricConnectivity;
+      XLOG(DBG4) << " Asymmetric topology detected on virtual device: "
+                 << virtualDeviceId;
+      for (const auto& [numConnections, remoteConnections] :
+           remoteConnectionGroups) {
+        XLOG(DBG4) << " Remote endpoints with : " << numConnections
+                   << " connections : " << folly::join(",", remoteConnections);
+      }
+    }
+  }
+  return virtualDevicesWithAsymmetricConnectivity;
 }
 } // namespace facebook::fboss

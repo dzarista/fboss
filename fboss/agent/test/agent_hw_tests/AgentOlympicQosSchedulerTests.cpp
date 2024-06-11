@@ -11,7 +11,7 @@
 #include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
-#include "fboss/agent/test/utils/CommonUtils.h"
+#include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/ConfigUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
@@ -22,7 +22,6 @@
 #include <folly/IPAddress.h>
 
 namespace {
-auto constexpr kRetries = 10;
 auto constexpr kRateSamplingInterval = 25;
 auto constexpr kEcmpWidthForTest = 1;
 } // namespace
@@ -163,18 +162,17 @@ class AgentOlympicQosSchedulerTest : public AgentHwTest {
 
   void _setupOlympicV2Queues() {
     auto newCfg{initialConfig(*getAgentEnsemble())};
-    auto streamType = *(
-        getAsic()->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicV2WRRQueueConfig(&newCfg, streamType, getAsic());
-    utility::addOlympicV2QosMaps(newCfg, getAsic());
-    utility::setTTLZeroCpuConfig(getAsic(), newCfg);
+    utility::addOlympicV2WRRQueueConfig(
+        &newCfg, getAgentEnsemble()->getL3Asics());
+    utility::addOlympicV2QosMaps(newCfg, getAgentEnsemble()->getL3Asics());
+    utility::setTTLZeroCpuConfig(getAgentEnsemble()->getL3Asics(), newCfg);
     applyNewConfig(newCfg);
   }
 
   void verifyWRRAndSP(const std::vector<int>& queueIds, int trafficQueueId) {
     auto verify = [=, this]() {
       EXPECT_TRUE(verifySPHelper(
-          trafficQueueId, queueIds, utility::kOlympicQueueToDscp(getAsic())));
+          trafficQueueId, queueIds, utility::kOlympicQueueToDscp()));
     };
 
     verifyAcrossWarmBoots([]() {}, verify);
@@ -192,11 +190,9 @@ class AgentOlympicQosSchedulerTest : public AgentHwTest {
           XLOG(DBG2) << "send traffic to WRR queue " << queue
                      << " and SP queue " << trafficQueueId;
           sendUdpPktsForAllQueues(
-              {queue, trafficQueueId}, utility::kOlympicQueueToDscp(getAsic()));
+              {queue, trafficQueueId}, utility::kOlympicQueueToDscp());
           EXPECT_TRUE(verifySPHelper(
-              trafficQueueId,
-              queueIds,
-              utility::kOlympicQueueToDscp(getAsic())));
+              trafficQueueId, queueIds, utility::kOlympicQueueToDscp()));
           // toggle route to stop traffic, and then send traffic to each WRR
           // queue and SP queue
           XLOG(DBG2) << "unprogram routes";
@@ -232,24 +228,18 @@ class AgentOlympicQosSchedulerTest : public AgentHwTest {
  protected:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    auto asic = utility::getFirstAsic(ensemble.getSw());
     auto cfg = utility::onePortPerInterfaceConfig(
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
-    auto streamType =
-        *(asic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicQueueConfig(&cfg, streamType, asic);
-    utility::addOlympicQosMaps(cfg, asic);
-    utility::setTTLZeroCpuConfig(asic, cfg);
+    utility::addOlympicQueueConfig(&cfg, ensemble.getL3Asics());
+    utility::addOlympicQosMaps(cfg, ensemble.getL3Asics());
+    utility::setTTLZeroCpuConfig(ensemble.getL3Asics(), cfg);
     return cfg;
   }
   std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const override {
     return {production_features::ProductionFeature::L3_QOS};
-  }
-  const HwAsic* getAsic() const {
-    return utility::getFirstAsic(getAgentEnsemble()->getSw());
   }
   void verifyWRR();
   void verifySP(bool frontPanelTraffic = true);
@@ -370,16 +360,14 @@ bool AgentOlympicQosSchedulerTest::verifySPHelper(
     bool fromFrontPanel) {
   XLOG(DBG0) << "trafficQueueId: " << trafficQueueId;
   auto portId = outPort();
-  auto startTrafficFun = [this,
-                          portId,
-                          queueIds,
-                          queueToDscp,
-                          fromFrontPanel]() {
-    utility::EcmpSetupAnyNPorts6 ecmpHelper6{getProgrammedState(), dstMac()};
-    _setup(ecmpHelper6);
-    sendUdpPktsForAllQueues(queueIds, queueToDscp, fromFrontPanel);
-    getAgentEnsemble()->waitForLineRateOnPort(portId);
-  };
+  auto startTrafficFun =
+      [this, portId, queueIds, queueToDscp, fromFrontPanel]() {
+        utility::EcmpSetupAnyNPorts6 ecmpHelper6{
+            getProgrammedState(), dstMac()};
+        _setup(ecmpHelper6);
+        sendUdpPktsForAllQueues(queueIds, queueToDscp, fromFrontPanel);
+        getAgentEnsemble()->waitForLineRateOnPort(portId);
+      };
   WITH_RETRIES_N(10, {
     auto [portStatsBefore, portStatsAfter] = sendTrafficAndCollectStats(
                                                  {portId},
@@ -406,11 +394,10 @@ bool AgentOlympicQosSchedulerTest::verifySPHelper(
 void AgentOlympicQosSchedulerTest::verifyWRR() {
   auto verify = [=, this]() {
     EXPECT_TRUE(verifyWRRHelper(
-        utility::getMaxWeightWRRQueue(
-            utility::kOlympicWRRQueueToWeight(getAsic())),
-        utility::kOlympicWRRQueueToWeight(getAsic()),
-        utility::kOlympicWRRQueueIds(getAsic()),
-        utility::kOlympicQueueToDscp(getAsic())));
+        utility::getMaxWeightWRRQueue(utility::kOlympicWRRQueueToWeight()),
+        utility::kOlympicWRRQueueToWeight(),
+        utility::kOlympicWRRQueueIds(),
+        utility::kOlympicQueueToDscp()));
   };
 
   verifyAcrossWarmBoots([]() {}, verify);
@@ -427,8 +414,8 @@ void AgentOlympicQosSchedulerTest::verifySP(bool frontPanelTraffic) {
         // should starve other SP queues
         // altogether
         utility::getOlympicQueueId(utility::OlympicQueueType::NC),
-        utility::kOlympicSPQueueIds(getAsic()),
-        utility::kOlympicQueueToDscp(getAsic()),
+        utility::kOlympicSPQueueIds(),
+        utility::kOlympicQueueToDscp(),
         frontPanelTraffic));
   };
 
@@ -437,7 +424,7 @@ void AgentOlympicQosSchedulerTest::verifySP(bool frontPanelTraffic) {
 
 void AgentOlympicQosSchedulerTest::verifyWRRAndICP() {
   verifyWRRAndSP(
-      utility::kOlympicWRRAndICPQueueIds(getAsic()),
+      utility::kOlympicWRRAndICPQueueIds(),
       utility::getOlympicQueueId(
           utility::OlympicQueueType::ICP)); // SP should starve WRR
                                             // queues altogether
@@ -445,7 +432,7 @@ void AgentOlympicQosSchedulerTest::verifyWRRAndICP() {
 
 void AgentOlympicQosSchedulerTest::verifyWRRAndNC() {
   verifyWRRAndSP(
-      utility::kOlympicWRRAndNCQueueIds(getAsic()),
+      utility::kOlympicWRRAndNCQueueIds(),
       utility::getOlympicQueueId(
           utility::OlympicQueueType::NC)); // SP should starve WRR
                                            // queues altogether
@@ -453,7 +440,7 @@ void AgentOlympicQosSchedulerTest::verifyWRRAndNC() {
 
 void AgentOlympicQosSchedulerTest::verifySingleWRRAndNC() {
   verifySingleWRRAndSP(
-      utility::kOlympicWRRAndNCQueueIds(getAsic()),
+      utility::kOlympicWRRAndNCQueueIds(),
       utility::getOlympicQueueId(
           utility::OlympicQueueType::NC)); // SP should starve WRR
                                            // queues altogether
@@ -472,21 +459,23 @@ void AgentOlympicQosSchedulerTest::verifyWRRToAllSPDscpToQueue() {
   };
 
   auto verify = [=, this]() {
-    _verifyDscpQueueMappingHelper(utility::kOlympicQueueToDscp(getAsic()));
+    _verifyDscpQueueMappingHelper(utility::kOlympicQueueToDscp());
   };
 
   auto setupPostWarmboot = [=, this]() {
     auto newCfg{initialConfig(*getAgentEnsemble())};
-    auto streamType = *(
-        getAsic()->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicAllSPQueueConfig(&newCfg, streamType, getAsic());
-    utility::addOlympicV2QosMaps(newCfg, getAsic());
-    utility::setTTLZeroCpuConfig(getAsic(), newCfg);
+    utility::addOlympicAllSPQueueConfig(
+        &newCfg,
+        *(utility::getStreamType(
+              cfg::PortType::INTERFACE_PORT, getAgentEnsemble()->getL3Asics())
+              .begin()));
+    utility::addOlympicV2QosMaps(newCfg, getAgentEnsemble()->getL3Asics());
+    utility::setTTLZeroCpuConfig(getAgentEnsemble()->getL3Asics(), newCfg);
     applyNewConfig(newCfg);
   };
 
   auto verifyPostWarmboot = [=, this]() {
-    _verifyDscpQueueMappingHelper(utility::kOlympicV2QueueToDscp(getAsic()));
+    _verifyDscpQueueMappingHelper(utility::kOlympicV2QueueToDscp());
   };
 
   verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
@@ -506,11 +495,13 @@ void AgentOlympicQosSchedulerTest::verifyWRRToAllSPTraffic() {
 
   auto setupPostWarmboot = [=, this]() {
     auto newCfg{initialConfig(*getAgentEnsemble())};
-    auto streamType = *(
-        getAsic()->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicAllSPQueueConfig(&newCfg, streamType, getAsic());
-    utility::addOlympicV2QosMaps(newCfg, getAsic());
-    utility::setTTLZeroCpuConfig(getAsic(), newCfg);
+    utility::addOlympicAllSPQueueConfig(
+        &newCfg,
+        *(utility::getStreamType(
+              cfg::PortType::INTERFACE_PORT, getAgentEnsemble()->getL3Asics())
+              .begin()));
+    utility::addOlympicV2QosMaps(newCfg, getAgentEnsemble()->getL3Asics());
+    utility::setTTLZeroCpuConfig(getAgentEnsemble()->getL3Asics(), newCfg);
     applyNewConfig(newCfg);
   };
 
@@ -520,8 +511,8 @@ void AgentOlympicQosSchedulerTest::verifyWRRToAllSPTraffic() {
         // should starve other SP queues
         // altogether
         utility::getOlympicV2QueueId(utility::OlympicV2QueueType::NC),
-        utility::kOlympicAllSPQueueIds(getAsic()),
-        utility::kOlympicV2QueueToDscp(getAsic())));
+        utility::kOlympicAllSPQueueIds(),
+        utility::kOlympicV2QueueToDscp()));
   };
 
   verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
@@ -540,14 +531,14 @@ void AgentOlympicQosSchedulerTest::verifyDscpToQueueOlympicToOlympicV2() {
   };
 
   auto verify = [=, this]() {
-    _verifyDscpQueueMappingHelper(utility::kOlympicQueueToDscp(getAsic()));
+    _verifyDscpQueueMappingHelper(utility::kOlympicQueueToDscp());
   };
 
   auto setupPostWarmboot = [=, this]() { _setupOlympicV2Queues(); };
 
   auto verifyPostWarmboot = [=, this]() {
     // Verify DSCP to Queue mapping
-    _verifyDscpQueueMappingHelper(utility::kOlympicV2QueueToDscp(getAsic()));
+    _verifyDscpQueueMappingHelper(utility::kOlympicV2QueueToDscp());
   };
 
   verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
@@ -566,11 +557,10 @@ void AgentOlympicQosSchedulerTest::verifyWRRForOlympicToOlympicV2() {
      * Verify whether the WRR weights are being honored
      */
     EXPECT_TRUE(verifyWRRHelper(
-        utility::getMaxWeightWRRQueue(
-            utility::kOlympicV2WRRQueueToWeight(getAsic())),
-        utility::kOlympicV2WRRQueueToWeight(getAsic()),
-        utility::kOlympicV2WRRQueueIds(getAsic()),
-        utility::kOlympicV2QueueToDscp(getAsic())));
+        utility::getMaxWeightWRRQueue(utility::kOlympicV2WRRQueueToWeight()),
+        utility::kOlympicV2WRRQueueToWeight(),
+        utility::kOlympicV2WRRQueueIds(),
+        utility::kOlympicV2QueueToDscp()));
   };
 
   verifyAcrossWarmBoots(
@@ -590,21 +580,19 @@ void AgentOlympicQosSchedulerTest::verifyDscpToQueueOlympicV2ToOlympic() {
   };
 
   auto verify = [=, this]() {
-    _verifyDscpQueueMappingHelper(utility::kOlympicV2QueueToDscp(getAsic()));
+    _verifyDscpQueueMappingHelper(utility::kOlympicV2QueueToDscp());
   };
 
   auto setupPostWarmboot = [=, this]() {
     auto newCfg{initialConfig(*getAgentEnsemble())};
-    auto streamType = *(
-        getAsic()->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicQueueConfig(&newCfg, streamType, getAsic());
-    utility::addOlympicQosMaps(newCfg, getAsic());
-    utility::setTTLZeroCpuConfig(getAsic(), newCfg);
+    utility::addOlympicQueueConfig(&newCfg, getAgentEnsemble()->getL3Asics());
+    utility::addOlympicQosMaps(newCfg, getAgentEnsemble()->getL3Asics());
+    utility::setTTLZeroCpuConfig(getAgentEnsemble()->getL3Asics(), newCfg);
     applyNewConfig(newCfg);
   };
 
   auto verifyPostWarmboot = [=, this]() {
-    _verifyDscpQueueMappingHelper(utility::kOlympicQueueToDscp(getAsic()));
+    _verifyDscpQueueMappingHelper(utility::kOlympicQueueToDscp());
   };
 
   verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
@@ -627,11 +615,13 @@ void AgentOlympicQosSchedulerTest::verifyOlympicV2WRRToAllSPTraffic() {
 
   auto setupPostWarmboot = [=, this]() {
     auto newCfg{initialConfig(*getAgentEnsemble())};
-    auto streamType = *(
-        getAsic()->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicAllSPQueueConfig(&newCfg, streamType, getAsic());
-    utility::addOlympicV2QosMaps(newCfg, getAsic());
-    utility::setTTLZeroCpuConfig(getAsic(), newCfg);
+    utility::addOlympicAllSPQueueConfig(
+        &newCfg,
+        *(utility::getStreamType(
+              cfg::PortType::INTERFACE_PORT, getAgentEnsemble()->getL3Asics())
+              .begin()));
+    utility::addOlympicV2QosMaps(newCfg, getAgentEnsemble()->getL3Asics());
+    utility::setTTLZeroCpuConfig(getAgentEnsemble()->getL3Asics(), newCfg);
     applyNewConfig(newCfg);
   };
 
@@ -641,8 +631,8 @@ void AgentOlympicQosSchedulerTest::verifyOlympicV2WRRToAllSPTraffic() {
         // should starve other SP queues
         // altogether
         utility::getOlympicV2QueueId(utility::OlympicV2QueueType::NC),
-        utility::kOlympicAllSPQueueIds(getAsic()),
-        utility::kOlympicV2QueueToDscp(getAsic())));
+        utility::kOlympicAllSPQueueIds(),
+        utility::kOlympicV2QueueToDscp()));
   };
 
   verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
@@ -659,11 +649,13 @@ void AgentOlympicQosSchedulerTest::verifyOlympicV2AllSPTrafficToWRR() {
   auto setup = [=, this]() {
     _setup(ecmpHelper6);
     auto newCfg{initialConfig(*getAgentEnsemble())};
-    auto streamType = *(
-        getAsic()->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicAllSPQueueConfig(&newCfg, streamType, getAsic());
-    utility::addOlympicV2QosMaps(newCfg, getAsic());
-    utility::setTTLZeroCpuConfig(getAsic(), newCfg);
+    auto streamType =
+        *(utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+              ->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT)
+              .begin());
+    utility::addOlympicAllSPQueueConfig(&newCfg, streamType);
+    utility::addOlympicV2QosMaps(newCfg, getAgentEnsemble()->getL3Asics());
+    utility::setTTLZeroCpuConfig(getAgentEnsemble()->getL3Asics(), newCfg);
     applyNewConfig(newCfg);
   };
 
@@ -674,11 +666,10 @@ void AgentOlympicQosSchedulerTest::verifyOlympicV2AllSPTrafficToWRR() {
   auto verifyPostWarmboot = [=, this]() {
     // Verify whether the WRR weights are being honored
     EXPECT_TRUE(verifyWRRHelper(
-        utility::getMaxWeightWRRQueue(
-            utility::kOlympicV2WRRQueueToWeight(getAsic())),
-        utility::kOlympicV2WRRQueueToWeight(getAsic()),
-        utility::kOlympicV2WRRQueueIds(getAsic()),
-        utility::kOlympicV2QueueToDscp(getAsic())));
+        utility::getMaxWeightWRRQueue(utility::kOlympicV2WRRQueueToWeight()),
+        utility::kOlympicV2WRRQueueToWeight(),
+        utility::kOlympicV2WRRQueueIds(),
+        utility::kOlympicV2QueueToDscp()));
   };
 
   verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
@@ -699,7 +690,7 @@ TEST_F(AgentOlympicQosSchedulerTest, VerifySP) {
  * tests front panel traffic.
  */
 TEST_F(AgentOlympicQosSchedulerTest, VerifySPPreemptionCPUTraffic) {
-  auto spQueueIds = utility::kOlympicSPQueueIds(getAsic());
+  auto spQueueIds = utility::kOlympicSPQueueIds();
   auto getQueueIndex = [&](int queueId) {
     for (auto i = 0; i < spQueueIds.size(); ++i) {
       if (spQueueIds[i] == queueId) {
@@ -751,13 +742,10 @@ class AgentOlympicV2MigrationQosSchedulerTest
     : public AgentOlympicQosSchedulerTest {
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    auto asic = utility::getFirstAsic(ensemble.getSw());
     auto cfg = AgentOlympicQosSchedulerTest::initialConfig(ensemble);
-    auto streamType =
-        *(asic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicV2WRRQueueConfig(&cfg, streamType, asic);
-    utility::addOlympicV2QosMaps(cfg, asic);
-    utility::setTTLZeroCpuConfig(asic, cfg);
+    utility::addOlympicV2WRRQueueConfig(&cfg, ensemble.getL3Asics());
+    utility::addOlympicV2QosMaps(cfg, ensemble.getL3Asics());
+    utility::setTTLZeroCpuConfig(ensemble.getL3Asics(), cfg);
     return cfg;
   }
 };
@@ -777,12 +765,13 @@ class AgentOlympicV2SPToWRRQosSchedulerTest
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
     auto cfg = AgentOlympicQosSchedulerTest::initialConfig(ensemble);
-    auto asic = utility::getFirstAsic(ensemble.getSw());
-    auto streamType =
-        *(asic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin());
-    utility::addOlympicAllSPQueueConfig(&cfg, streamType, asic);
-    utility::addOlympicV2QosMaps(cfg, asic);
-    utility::setTTLZeroCpuConfig(asic, cfg);
+    utility::addOlympicAllSPQueueConfig(
+        &cfg,
+        *(utility::getStreamType(
+              cfg::PortType::INTERFACE_PORT, ensemble.getL3Asics())
+              .begin()));
+    utility::addOlympicV2QosMaps(cfg, ensemble.getL3Asics());
+    utility::setTTLZeroCpuConfig(ensemble.getL3Asics(), cfg);
     return cfg;
   }
 };

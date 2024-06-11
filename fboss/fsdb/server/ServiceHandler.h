@@ -19,11 +19,6 @@
 #include "fboss/lib/ThreadHeartbeat.h"
 #include "re2/re2.h"
 
-#ifndef IS_OSS
-#include "fboss/fsdb/oper/DbWriter.h"
-#include "fboss/fsdb/server/RocksDb.h"
-#endif
-
 DECLARE_bool(checkSubscriberConfig);
 DECLARE_bool(enforceSubscriberConfig);
 DECLARE_bool(checkOperOwnership);
@@ -38,9 +33,6 @@ class ServiceHandler : public FsdbServiceSvIf,
   struct Options {
     Options() {}
 
-    /* variable names absurd by design */
-    bool eraseRocksDbsInCtorAndDtor_CAUTION_DO_NOT_USE_IN_PRODUCTION{false};
-    bool useFakeRocksDb_CAUTION_DO_NOT_USE_IN_PRODUCTION{false};
     bool serveIdPathSubs{false};
 
     Options&& setServeIdPathSubs(bool val) && {
@@ -49,9 +41,10 @@ class ServiceHandler : public FsdbServiceSvIf,
     }
   };
 
+  using RawPathT = std::vector<std::string>;
+
   ServiceHandler(
       std::shared_ptr<FsdbConfig> fsdbConfig,
-      const std::string& publisherIdsToOpenRocksDbAtStartFor,
       Options options = Options());
   ~ServiceHandler() override;
 
@@ -142,6 +135,29 @@ class ServiceHandler : public FsdbServiceSvIf,
       co_subscribeOperStatsDeltaExtended(
           std::unique_ptr<OperSubRequestExtended> /*request*/) override;
 
+  // Patch apis
+  folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
+      OperPubInitResponse,
+      PublisherMessage,
+      OperPubFinalResponse>>
+  co_publishState(std::unique_ptr<PubRequest> request) override;
+
+  folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
+      OperPubInitResponse,
+      PublisherMessage,
+      OperPubFinalResponse>>
+  co_publishStats(std::unique_ptr<PubRequest> request) override;
+
+  folly::coro::Task<apache::thrift::ResponseAndServerStream<
+      OperSubInitResponse,
+      SubscriberMessage>>
+  co_subscribeState(std::unique_ptr<SubRequest> request) override;
+
+  folly::coro::Task<apache::thrift::ResponseAndServerStream<
+      OperSubInitResponse,
+      SubscriberMessage>>
+  co_subscribeStats(std::unique_ptr<SubRequest> request) override;
+
   // Management Plane related ---------------------------------------
 
   folly::coro::Task<std::unique_ptr<PublisherIdToOperPublisherInfo>>
@@ -199,7 +215,8 @@ class ServiceHandler : public FsdbServiceSvIf,
       FsdbErrorCode disconnectReason);
   template <typename PubUnit>
   apache::thrift::SinkConsumer<PubUnit, OperPubFinalResponse> makeSinkConsumer(
-      std::unique_ptr<OperPubRequest> request,
+      RawPathT&& path,
+      const PublisherId& publisherId,
       bool isStats);
 
   folly::coro::AsyncGenerator<DeltaValue<OperState>&&> makeStateStreamGenerator(
@@ -220,20 +237,16 @@ class ServiceHandler : public FsdbServiceSvIf,
       std::unique_ptr<OperSubRequestExtended> request,
       bool isStats);
 
-  OperPublisherInfo
-  makePublisherInfo(const OperPubRequest& req, PubSubType type, bool isStats);
+  OperPublisherInfo makePublisherInfo(
+      const RawPathT& path,
+      const PublisherId& publisherId,
+      PubSubType type,
+      bool isStats);
 
   void initFlagDefaults(
       const std::unordered_map<std::string, std::string>& flags);
 
   void initPerStreamCounters();
-
-#ifndef IS_OSS
-  using RocksDbPtr = std::shared_ptr<RocksDbIf>;
-  template <typename T>
-  folly::F14FastMap<PublisherId, RocksDbPtr> createIfNeededAndOpenRocksDbs(
-      folly::F14FastSet<PublisherId> publisherIds) const;
-#endif
 
   void validateSubscriptionPermissions(
       SubscriberId id,
@@ -242,9 +255,7 @@ class ServiceHandler : public FsdbServiceSvIf,
       bool hasRawPath,
       bool hasExtendedPath);
 
-  void validateOperPublishPermissions(
-      PublisherId id,
-      const std::vector<std::string>& path);
+  void validateOperPublishPermissions(PublisherId id, const RawPathT& path);
 
   std::shared_ptr<FsdbConfig> fsdbConfig_;
 
@@ -270,10 +281,6 @@ class ServiceHandler : public FsdbServiceSvIf,
   TLTimeseries num_dropped_stats_changes_;
   TLTimeseries num_dropped_state_changes_;
   FsdbNaivePeriodicSubscribableStorage operStorage_;
-#ifndef IS_OSS
-  folly::F14FastMap<PublisherId, RocksDbPtr> rocksDbs_; // const after ctor
-  DbWriter operDbWriter_;
-#endif
   // TODO - decide on right DB abstraction for stats
   FsdbNaivePeriodicSubscribableStatsStorage operStatsStorage_;
 

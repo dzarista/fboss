@@ -149,9 +149,13 @@ class HwMPLSTest : public HwLinkStateDependentTest {
     config.dataPlaneTrafficPolicy() = policy;
 
     utility::setDefaultCpuTrafficPolicyConfig(
-        config, getAsic(), getHwSwitchEnsemble()->isSai());
+        config,
+        getHwSwitchEnsemble()->getL3Asics(),
+        getHwSwitchEnsemble()->isSai());
     utility::addCpuQueueConfig(
-        config, getAsic(), getHwSwitchEnsemble()->isSai());
+        config,
+        getHwSwitchEnsemble()->getL3Asics(),
+        getHwSwitchEnsemble()->isSai());
 
     utility::addTrapPacketAcl(&config, masterLogicalPortIds()[0]);
     return config;

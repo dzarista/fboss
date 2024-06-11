@@ -115,6 +115,11 @@ class QsfpModule : public Transceiver {
    */
   void customizeTransceiver(TransceiverPortState& portState) override;
 
+  virtual bool tcvrPortStateSupported(
+      TransceiverPortState& /* portState */) const override {
+    return false;
+  }
+
   /*
    * Returns the entire QSFP information
    */
@@ -269,6 +274,9 @@ class QsfpModule : public Transceiver {
       const uint8_t moduleId,
       const unsigned int oneBasedPort);
 
+  virtual std::vector<MediaInterfaceCode> getSupportedMediaInterfaces()
+      const override;
+
   virtual std::vector<uint8_t> configuredHostLanes(
       uint8_t hostStartLane) const = 0;
 
@@ -308,6 +316,9 @@ class QsfpModule : public Transceiver {
       const std::string& portName,
       phy::Side side,
       bool setLoopback) override;
+
+  std::map<std::string, CdbDatapathSymErrHistogram> getSymbolErrorHistogram()
+      override;
 
  protected:
   /* Qsfp Internal Implementation */
@@ -470,6 +481,11 @@ class QsfpModule : public Transceiver {
     return std::nullopt;
   }
 
+  virtual std::vector<MediaInterfaceCode> getSupportedMediaInterfacesLocked()
+      const {
+    return std::vector<MediaInterfaceCode>();
+  }
+
   double mwToDb(double value);
 
   /*
@@ -582,6 +598,11 @@ class QsfpModule : public Transceiver {
   virtual VdmPerfMonitorStatsForOds getVdmPerfMonitorStatsForOds(
       VdmPerfMonitorStats& /* vdmPerfMonStats */) {
     return VdmPerfMonitorStatsForOds{};
+  }
+
+  virtual std::map<std::string, CdbDatapathSymErrHistogram>
+  getCdbSymbolErrorHistogramLocked() {
+    return {};
   }
 
   virtual bool setTransceiverTxLocked(

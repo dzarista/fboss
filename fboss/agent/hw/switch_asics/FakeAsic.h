@@ -51,6 +51,7 @@ class FakeAsic : public HwAsic {
       case HwAsic::Feature::SAI_PORT_VCO_CHANGE:
       case HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE:
       case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
+      case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
         return false;
 
       default:
@@ -77,6 +78,7 @@ class FakeAsic : public HwAsic {
       case cfg::PortType::INTERFACE_PORT:
       case cfg::PortType::MANAGEMENT_PORT:
       case cfg::PortType::RECYCLE_PORT:
+      case cfg::PortType::EVENTOR_PORT:
         return {cfg::StreamType::UNICAST};
       case cfg::PortType::FABRIC_PORT:
         return {cfg::StreamType::FABRIC_TX};

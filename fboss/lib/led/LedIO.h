@@ -29,8 +29,8 @@ class LedIO {
  public:
   explicit LedIO(LedMapping ledMapping);
   ~LedIO() {}
-  void setColor(led::LedColor color);
-  led::LedColor getColor() const;
+  void setLedState(led::LedState state);
+  led::LedState getLedState() const;
 
   // Forbidden copy constructor and assignment operator
   LedIO(LedIO const&) = delete;
@@ -38,13 +38,15 @@ class LedIO {
 
  private:
   void init();
-  void blueOn();
+  void blueOn(led::Blink blink);
   void blueOff();
-  void yellowOn();
+  void yellowOn(led::Blink blink);
   void yellowOff();
+  void turnOffAllLeds();
   void setLed(const std::string& ledPath, const std::string& ledOp);
+  void setBlink(const std::string& ledPath, led::Blink blink);
 
-  led::LedColor currColor_;
+  led::LedState currState_;
   uint32_t id_;
   std::optional<std::string> bluePath_;
   std::optional<std::string> yellowPath_;

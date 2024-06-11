@@ -77,7 +77,6 @@ class HwAsic {
     EGRESS_SFLOW,
     DEFAULT_VLAN,
     SAI_LAG_HASH,
-    L2_LEARNING,
     SAI_ACL_ENTRY_SRC_PORT_QUALIFIER,
     TRAFFIC_HASHING,
     ACL_TABLE_GROUP,
@@ -173,6 +172,10 @@ class HwAsic {
     SAI_PRBS,
     RCI_WATERMARK_COUNTER,
     DTL_WATERMARK_COUNTER,
+    LINK_ACTIVE_INACTIVE_NOTIFY,
+    PQP_ERROR_EGRESS_DROP_COUNTER,
+    FABRIC_LINK_DOWN_CELL_DROP_COUNTER,
+    CRC_ERROR_DETECT,
   };
 
   enum class AsicMode {
@@ -355,6 +358,17 @@ class HwAsic {
   virtual std::vector<prbs::PrbsPolynomial> getSupportedPrbsPolynomials()
       const {
     return {};
+  }
+
+  virtual std::optional<uint32_t> getMaxAclTables() const {
+    return std::nullopt;
+  }
+  virtual std::optional<uint32_t> getMaxAclEntries() const {
+    return std::nullopt;
+  }
+
+  virtual uint32_t getThresholdGranularity() const {
+    return 1;
   }
 
  protected:

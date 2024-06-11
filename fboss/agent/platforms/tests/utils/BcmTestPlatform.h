@@ -35,8 +35,6 @@ class BcmTestPlatform : public BcmPlatform {
 
   HwSwitch* getHwSwitch() const override;
   void onHwInitialized(HwSwitchCallback* sw) override;
-  void onInitialConfigApplied(HwSwitchCallback* sw) override;
-  void stop() override;
   std::shared_ptr<apache::thrift::AsyncProcessorFactory> createHandler()
       override {
     return nullptr;
@@ -72,6 +70,8 @@ class BcmTestPlatform : public BcmPlatform {
   BcmWarmBootHelper* getWarmBootHelper() override {
     return warmBootHelper_.get();
   }
+
+  void stateChanged(const StateDelta& /*delta*/) override {}
 
   PlatformPort* getPlatformPort(PortID portID) const override;
 

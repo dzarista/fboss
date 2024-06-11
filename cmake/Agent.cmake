@@ -55,6 +55,7 @@ target_link_libraries(hw_switch_handler
   utils
   multiswitch_ctrl_cpp2
   state
+  hw_write_behavior
 )
 
 add_library(monolithic_switch_handler
@@ -205,10 +206,9 @@ add_library(core
   fboss/agent/oss/PacketLogger.cpp
   fboss/agent/oss/RouteUpdateLogger.cpp
   fboss/agent/oss/SwSwitch.cpp
-  fboss/agent/oss/FsdbSyncer.cpp
+  fboss/agent/FsdbSyncer.cpp
 )
 
-if (FBOSS_CENTOS9)
 add_library(
    agent_fsdb_sync_manager
    fboss/agent/AgentFsdbSyncManager.cpp
@@ -224,7 +224,6 @@ target_link_libraries(
   tuple_utils
   switch_state_cpp2
 )
-endif()
 
 set(core_libs
   agent_config_cpp2
@@ -277,11 +276,9 @@ set(core_libs
   hw_ctrl_cpp2
   loadbalancer_utils
   monolithic_switch_handler
+  l2learn_event_observer
+  agent_fsdb_sync_manager
 )
-
-if (FBOSS_CENTOS9)
-  list(APPEND core_libs agent_fsdb_sync_manager)
-endif()
 
 target_link_libraries(core ${core_libs})
 
@@ -380,10 +377,11 @@ target_link_libraries(sflow_shim_utils
 
 
 add_library(fsdb_helper
-  fboss/agent/oss/FsdbHelper.cpp
+  fboss/agent/FsdbHelper.cpp
 )
 
 target_link_libraries(fsdb_helper
+  fsdb_model
   fsdb_oper_cpp2
   fsdb_utils
   state
@@ -426,6 +424,7 @@ add_library(hwagent-main
 )
 
 target_link_libraries(hwagent-main
+  agent_features
   fboss_common_init
   platform_base
   fboss_common_cpp2
@@ -580,6 +579,7 @@ add_library(sw_switch_warmboot_helper
 target_link_libraries(sw_switch_warmboot_helper
   async_logger
   fboss_error
+  hw_asic_table
   state
   standalone_rib
   utils
@@ -593,6 +593,7 @@ add_library(sw_agent_initializer
 )
 
 target_link_libraries(sw_agent_initializer
+  agent_features
   core
   Folly::folly
   FBThrift::thriftcpp2
@@ -621,4 +622,17 @@ add_library(loadbalancer_utils
 target_link_libraries(loadbalancer_utils
   switch_config_cpp2
   Folly::folly
+)
+
+add_library(hw_asic_table
+  fboss/agent/HwAsicTable.cpp
+)
+
+target_link_libraries(hw_asic_table
+  fboss_error
+  fboss_types
+  platform_mapping_utils
+  product_info
+  switch_asics
+  utils
 )

@@ -21,8 +21,10 @@
 #include "fboss/lib/CommonUtils.h"
 
 #include "fboss/agent/test/utils/AclTestUtils.h"
+#include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
 #include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
+#include "fboss/agent/test/utils/PacketTestUtils.h"
 
 DECLARE_bool(enable_acl_table_group);
 
@@ -64,6 +66,10 @@ std::unique_ptr<facebook::fboss::TxPacket> createUdpPktImpl(
 
   return txPacket;
 }
+
+const auto kIPv6LinkLocalUcastAddress = folly::IPAddressV6("fe80::2");
+const auto kNetworkControlDscp = 48;
+
 } // namespace
 
 std::string getMplsDestNoMatchCounterName() {
@@ -114,6 +120,19 @@ uint16_t getCoppHighPriQueueId(const HwAsic* hwAsic) {
           "AsicType ", hwAsic->getAsicType(), " doesn't support queue feature");
   }
   throw FbossError("Unexpected AsicType ", hwAsic->getAsicType());
+}
+
+uint16_t getCoppMidPriQueueId(const std::vector<const HwAsic*>& hwAsics) {
+  auto hwAsic = checkSameAndGetAsic(hwAsics);
+  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    return kJ3CoppMidPriQueueId;
+  }
+  return kCoppMidPriQueueId;
+}
+
+uint16_t getCoppHighPriQueueId(const std::vector<const HwAsic*>& hwAsics) {
+  auto hwAsic = checkSameAndGetAsic(hwAsics);
+  return getCoppHighPriQueueId(hwAsic);
 }
 
 cfg::ToCpuAction getCpuActionType(const HwAsic* hwAsic) {
@@ -208,9 +227,10 @@ cfg::PortQueueRate setPortQueueRate(const HwAsic* hwAsic, uint16_t queueId) {
 
 void addCpuQueueConfig(
     cfg::SwitchConfig& config,
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& asics,
     bool isSai,
     bool setQueueRate) {
+  auto hwAsic = checkSameAndGetAsic(asics);
   std::vector<cfg::PortQueue> cpuQueues;
 
   cfg::PortQueue queue0;
@@ -244,7 +264,7 @@ void addCpuQueueConfig(
   cpuQueues.push_back(queue1);
 
   cfg::PortQueue queue2;
-  queue2.id() = kCoppMidPriQueueId;
+  queue2.id() = getCoppMidPriQueueId({hwAsic});
   queue2.name() = "cpuQueue-mid";
   queue2.streamType() = getCpuDefaultStreamType(hwAsic);
   queue2.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
@@ -264,8 +284,9 @@ void addCpuQueueConfig(
 
 void setDefaultCpuTrafficPolicyConfig(
     cfg::SwitchConfig& config,
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& asics,
     bool isSai) {
+  auto hwAsic = checkSameAndGetAsic(asics);
   auto cpuAcls = utility::defaultCpuAcls(hwAsic, config, isSai);
 
   for (int i = 0; i < cpuAcls.size(); i++) {
@@ -342,27 +363,29 @@ void addMidPriAclForNw(
     const folly::CIDRNetwork& dstNetwork,
     cfg::ToCpuAction toCpuAction,
     std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls,
-    bool isSai) {
+    bool isSai,
+    int midPriQueueId) {
   cfg::AclEntry acl;
   auto dstIp = folly::to<std::string>(dstNetwork.first, "/", dstNetwork.second);
   acl.name() = folly::to<std::string>("cpuPolicing-mid-", dstIp);
   acl.dstIp() = dstIp;
 
   acls.push_back(std::make_pair(
-      acl,
-      createQueueMatchAction(utility::kCoppMidPriQueueId, isSai, toCpuAction)));
+      acl, createQueueMatchAction(midPriQueueId, isSai, toCpuAction)));
 }
 
-void addLowPriAclForConnectedSubnetRoutes(
+void addHighPriAclForMyIPNetworkControl(
     cfg::ToCpuAction toCpuAction,
+    int highPriQueueId,
     std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>& acls,
     bool isSai) {
   cfg::AclEntry acl;
-  acl.name() = folly::to<std::string>("cpu-connected-subnet-route-acl");
-  acl.lookupClassRoute() = cfg::AclLookupClass::CLASS_CONNECTED_ROUTE_TO_INTF;
+  acl.name() =
+      folly::to<std::string>("cpuPolicing-high-myip-network-control-acl");
+  acl.lookupClassRoute() = cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1;
+  acl.dscp() = 48;
   acls.push_back(std::make_pair(
-      acl,
-      createQueueMatchAction(utility::kCoppLowPriQueueId, isSai, toCpuAction)));
+      acl, createQueueMatchAction(highPriQueueId, isSai, toCpuAction)));
 }
 
 void addLowPriAclForUnresolvedRoutes(
@@ -371,7 +394,7 @@ void addLowPriAclForUnresolvedRoutes(
     bool isSai) {
   cfg::AclEntry acl;
   acl.name() = folly::to<std::string>("cpu-unresolved-route-acl");
-  acl.lookupClassRoute() = cfg::AclLookupClass::CLASS_UNRESOLVED_ROUTE_TO_CPU;
+  acl.lookupClassRoute() = cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2;
   acls.push_back(std::make_pair(
       acl,
       createQueueMatchAction(utility::kCoppLowPriQueueId, isSai, toCpuAction)));
@@ -405,7 +428,10 @@ std::shared_ptr<facebook::fboss::Interface> getEligibleInterface(
   return nullptr;
 }
 
-void setTTLZeroCpuConfig(const HwAsic* hwAsic, cfg::SwitchConfig& config) {
+void setTTLZeroCpuConfig(
+    const std::vector<const HwAsic*>& asics,
+    cfg::SwitchConfig& config) {
+  auto hwAsic = checkSameAndGetAsic(asics);
   if (!hwAsic->isSupported(HwAsic::Feature::SAI_TTL0_PACKET_FORWARD_ENABLE)) {
     // don't configure if not supported
     return;
@@ -418,6 +444,23 @@ void setTTLZeroCpuConfig(const HwAsic* hwAsic, cfg::SwitchConfig& config) {
   cfg::CPUTrafficPolicyConfig cpuConfig;
   cpuConfig.rxReasonToQueueOrderedList() = {std::move(ttlRxReasonToQueue)};
   config.cpuTrafficPolicy() = cpuConfig;
+}
+
+void excludeTTL1TrapConfig(cfg::SwitchConfig& config) {
+  std::vector<cfg::PacketRxReasonToQueue> rxReasons;
+  // Exclude TTL_1 trap since on some devices we disable it
+  // to set up data plane loops
+  CHECK(config.cpuTrafficPolicy().has_value());
+  CHECK(config.cpuTrafficPolicy()->rxReasonToQueueOrderedList().has_value());
+  if (config.cpuTrafficPolicy()->rxReasonToQueueOrderedList()->size()) {
+    for (auto rxReasonAndQueue :
+         *config.cpuTrafficPolicy()->rxReasonToQueueOrderedList()) {
+      if (*rxReasonAndQueue.rxReason() != cfg::PacketRxReason::TTL_1) {
+        rxReasons.push_back(rxReasonAndQueue);
+      }
+    }
+  }
+  config.cpuTrafficPolicy()->rxReasonToQueueOrderedList() = rxReasons;
 }
 
 void setPortQueueSharedBytes(cfg::PortQueue& queue, bool isSai) {
@@ -475,21 +518,32 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForSai(
       kIPv6LinkLocalMcastNetwork(),
       getCpuActionType(hwAsic),
       acls,
-      true /*isSai*/);
+      true /*isSai*/,
+      getCoppMidPriQueueId({hwAsic}));
   // All fe80::/10 to mid pri queue
   addMidPriAclForNw(
       kIPv6LinkLocalUcastNetwork(),
       getCpuActionType(hwAsic),
       acls,
-      true /*isSai*/);
+      true /*isSai*/,
+      getCoppMidPriQueueId({hwAsic}));
 
   if (hwAsic->isSupported(HwAsic::Feature::ACL_METADATA_QUALIFER)) {
-    // Unresolved route class ID to low pri queue
+    addHighPriAclForMyIPNetworkControl(
+        cfg::ToCpuAction::TRAP,
+        getCoppHighPriQueueId(hwAsic),
+        acls,
+        true /*isSai*/);
+    /*
+     * Unresolved route class ID to low pri queue.
+     * For unresolved route ACL, both the hostif trap and the ACL will
+     * be hit on TAJO and 2 packets will be punted to CPU.
+     * Do not rely on getCpuActionType but explicitly configure
+     * the cpu action to TRAP. Connected subnet route has the same class ID
+     * and also goes to low pri queue
+     */
     addLowPriAclForUnresolvedRoutes(
-        getCpuActionType(hwAsic), acls, true /*isSai*/);
-    // Connected subnet route class ID to low pri queue
-    addLowPriAclForConnectedSubnetRoutes(
-        getCpuActionType(hwAsic), acls, true /*isSai*/);
+        cfg::ToCpuAction::TRAP, acls, true /*isSai*/);
   }
 
   return acls;
@@ -543,8 +597,8 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForBcm(
         isSrcPort ? "srcPort:" : "dstPrt:",
         utility::kBgpPort);
     acl.lookupClassNeighbor() = isV4
-        ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP4
-        : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP6;
+        ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1
+        : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2;
 
     if (isSrcPort) {
       acl.l4SrcPort() = utility::kBgpPort;
@@ -571,8 +625,8 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForBcm(
         "-network-control");
     acl.dscp() = 48;
     acl.lookupClassNeighbor() = isV4
-        ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP4
-        : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP6;
+        ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1
+        : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2;
 
     acls.emplace_back(
         acl,
@@ -625,23 +679,33 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForBcm(
     acl.name() = folly::to<std::string>(
         "cpuPolicing-mid-", isV4 ? "dstLocalIp4" : "dstLocalIp6");
     acl.lookupClassNeighbor() = isV4
-        ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP4
-        : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_IP6;
+        ? cfg::AclLookupClass::DST_CLASS_L3_LOCAL_1
+        : cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2;
 
     acls.emplace_back(
         acl,
         createQueueMatchAction(
-            utility::kCoppMidPriQueueId, isSai, getCpuActionType(hwAsic)));
+            utility::getCoppMidPriQueueId({hwAsic}),
+            isSai,
+            getCpuActionType(hwAsic)));
   };
   addMidPriDstClassL3Acl(true);
   addMidPriDstClassL3Acl(false);
 
   // unicast and multicast link local dst ip
   addMidPriAclForNw(
-      kIPv6LinkLocalMcastNetwork(), getCpuActionType(hwAsic), acls, isSai);
+      kIPv6LinkLocalMcastNetwork(),
+      getCpuActionType(hwAsic),
+      acls,
+      isSai,
+      getCoppMidPriQueueId({hwAsic}));
   // All fe80::/10 to mid pri queue
   addMidPriAclForNw(
-      kIPv6LinkLocalUcastNetwork(), getCpuActionType(hwAsic), acls, isSai);
+      kIPv6LinkLocalUcastNetwork(),
+      getCpuActionType(hwAsic),
+      acls,
+      isSai,
+      getCoppMidPriQueueId({hwAsic}));
 
   // mpls no match
   {
@@ -686,6 +750,7 @@ void addTrafficCounter(
 std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueuesForSai(
     const HwAsic* hwAsic) {
   auto coppHighPriQueueId = utility::getCoppHighPriQueueId(hwAsic);
+  auto coppMidPriQueueId = utility::getCoppMidPriQueueId({hwAsic});
   ControlPlane::RxReasonToQueue rxReasonToQueues = {
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::ARP, coppHighPriQueueId),
@@ -698,17 +763,17 @@ std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueuesForSai(
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::BGPV6, coppHighPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
-          cfg::PacketRxReason::CPU_IS_NHOP, kCoppMidPriQueueId),
+          cfg::PacketRxReason::CPU_IS_NHOP, coppMidPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::LACP, coppHighPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
           cfg::PacketRxReason::TTL_1, kCoppLowPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
-          cfg::PacketRxReason::LLDP, kCoppMidPriQueueId),
+          cfg::PacketRxReason::LLDP, coppMidPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
-          cfg::PacketRxReason::DHCP, kCoppMidPriQueueId),
+          cfg::PacketRxReason::DHCP, coppMidPriQueueId),
       ControlPlane::makeRxReasonToQueueEntry(
-          cfg::PacketRxReason::DHCPV6, kCoppMidPriQueueId),
+          cfg::PacketRxReason::DHCPV6, coppMidPriQueueId),
   };
 
   if (hwAsic->isSupported(HwAsic::Feature::SAI_EAPOL_TRAP)) {
@@ -740,11 +805,12 @@ std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueuesForBcm(
     const HwAsic* hwAsic) {
   std::vector<cfg::PacketRxReasonToQueue> rxReasonToQueues;
   auto coppHighPriQueueId = utility::getCoppHighPriQueueId(hwAsic);
+  auto coppMidPriQueueId = utility::getCoppMidPriQueueId({hwAsic});
   std::vector<std::pair<cfg::PacketRxReason, uint16_t>>
       rxReasonToQueueMappings = {
           std::pair(cfg::PacketRxReason::ARP, coppHighPriQueueId),
-          std::pair(cfg::PacketRxReason::DHCP, kCoppMidPriQueueId),
-          std::pair(cfg::PacketRxReason::BPDU, kCoppMidPriQueueId),
+          std::pair(cfg::PacketRxReason::DHCP, coppMidPriQueueId),
+          std::pair(cfg::PacketRxReason::BPDU, coppMidPriQueueId),
           std::pair(cfg::PacketRxReason::L3_MTU_ERROR, kCoppLowPriQueueId),
           std::pair(cfg::PacketRxReason::L3_SLOW_PATH, kCoppLowPriQueueId),
           std::pair(cfg::PacketRxReason::L3_DEST_MISS, kCoppLowPriQueueId),
@@ -837,22 +903,31 @@ uint64_t getCpuQueueInPackets(SwSwitch* sw, SwitchID switchId, int queueId) {
       : cpuPortStats.queueInPackets_()->at(queueId);
 }
 
+template <typename SwitchT>
 uint64_t getQueueOutPacketsWithRetry(
+    SwitchT* switchPtr,
+    SwitchID switchId,
     int queueId,
-    SwSwitch* sw,
     int retryTimes,
     uint64_t expectedNumPkts,
     int postMatchRetryTimes) {
   uint64_t outPkts = 0;
-  auto asic = getFirstAsic(sw);
+  const HwAsic* asic;
+  if constexpr (std::is_same_v<SwitchT, SwSwitch>) {
+    asic = static_cast<SwSwitch*>(switchPtr)->getHwAsicTable()->getHwAsicIf(
+        switchId);
+  } else {
+    asic = static_cast<HwSwitch*>(switchPtr)->getPlatform()->getAsic();
+  }
+
   do {
     for (auto i = 0; i <= utility::getCoppHighPriQueueId(asic); i++) {
       auto qOutPkts =
-          utility::getCpuQueueInPackets(sw, getFirstSwitchId(sw), i);
+          getCpuQueueOutPacketsAndBytes(switchPtr, i, switchId).first;
       XLOG(DBG2) << "QueueID: " << i << " qOutPkts: " << qOutPkts;
     }
 
-    outPkts = utility::getCpuQueueInPackets(sw, getFirstSwitchId(sw), queueId);
+    outPkts = getCpuQueueOutPacketsAndBytes(switchPtr, queueId, switchId).first;
     if (retryTimes == 0 || (outPkts >= expectedNumPkts)) {
       break;
     }
@@ -868,7 +943,7 @@ uint64_t getQueueOutPacketsWithRetry(
   } while (retryTimes-- > 0);
 
   while ((outPkts == expectedNumPkts) && postMatchRetryTimes--) {
-    outPkts = utility::getCpuQueueInPackets(sw, getFirstSwitchId(sw), queueId);
+    outPkts = getCpuQueueOutPacketsAndBytes(switchPtr, queueId, switchId).first;
   }
 
   return outPkts;
@@ -922,4 +997,225 @@ std::unique_ptr<facebook::fboss::TxPacket> createUdpPkt(
       dscp);
 }
 
+std::pair<uint64_t, uint64_t>
+getCpuQueueOutPacketsAndBytes(SwSwitch* sw, int queueId, SwitchID switchId) {
+  HwPortStats stats = *getLatestCpuStats(sw, switchId).portStats_();
+  return getCpuQueueOutPacketsAndBytes(stats, queueId);
+}
+
+std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
+    HwSwitch* hw,
+    int queueId,
+    SwitchID /* switchId */) {
+  hw->updateStats();
+  HwPortStats stats = *hw->getCpuPortStats().portStats_();
+  return getCpuQueueOutPacketsAndBytes(stats, queueId);
+}
+
+std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
+    HwPortStats& stats,
+    int queueId) {
+  auto queueIter = stats.queueOutPackets_()->find(queueId);
+  auto outPackets =
+      (queueIter != stats.queueOutPackets_()->end()) ? queueIter->second : 0;
+  queueIter = stats.queueOutBytes_()->find(queueId);
+  auto outBytes =
+      (queueIter != stats.queueOutBytes_()->end()) ? queueIter->second : 0;
+  return std::pair(outPackets, outBytes);
+}
+
+template uint64_t getQueueOutPacketsWithRetry<SwSwitch>(
+    SwSwitch* switchPtr,
+    SwitchID switchId,
+    int queueId,
+    int retryTimes,
+    uint64_t expectedNumPkts,
+    int postMatchRetryTimes);
+
+template uint64_t getQueueOutPacketsWithRetry<HwSwitch>(
+    HwSwitch* switchPtr,
+    SwitchID switchId,
+    int queueId,
+    int retryTimes,
+    uint64_t expectedNumPkts,
+    int postMatchRetryTimes);
+
+template <typename SwitchT>
+void sendAndVerifyPkts(
+    SwitchT* switchPtr,
+    SwitchID switchId,
+    std::shared_ptr<SwitchState> swState,
+    const folly::IPAddress& destIp,
+    uint16_t destPort,
+    uint8_t queueId,
+    PortID srcPort,
+    uint8_t trafficClass) {
+  auto sendPkts = [&] {
+    auto vlanId = utility::firstVlanID(swState);
+    auto intfMac = utility::getFirstInterfaceMac(swState);
+    utility::sendTcpPkts(
+        switchPtr,
+        1 /*numPktsToSend*/,
+        vlanId,
+        intfMac,
+        destIp,
+        utility::kNonSpecialPort1,
+        destPort,
+        srcPort,
+        trafficClass);
+  };
+
+  sendPktAndVerifyCpuQueue(switchPtr, switchId, queueId, sendPkts, 1);
+}
+
+/*
+ * Pick a common copp Acl (link local + NC) and run dataplane test
+ * to verify whether a common COPP acl is being hit.
+ * TODO: Enhance this to cover every copp invariant acls.
+ * Implement a similar function to cover all rxreasons invariant as well
+ */
+template <typename SwitchT>
+void verifyCoppAcl(
+    SwitchT* switchPtr,
+    SwitchID switchId,
+    const HwAsic* hwAsic,
+    std::shared_ptr<SwitchState> swState,
+    PortID srcPort) {
+  XLOG(DBG2) << "Verifying Copp ACL";
+  sendAndVerifyPkts(
+      switchPtr,
+      switchId,
+      swState,
+      kIPv6LinkLocalUcastAddress,
+      utility::kNonSpecialPort2,
+      utility::getCoppHighPriQueueId(hwAsic),
+      srcPort,
+      kNetworkControlDscp);
+}
+
+template <typename SwitchT>
+void verifyCoppInvariantHelper(
+    SwitchT* switchPtr,
+    SwitchID switchId,
+    const HwAsic* hwAsic,
+    std::shared_ptr<SwitchState> swState,
+    PortID srcPort) {
+  auto intf = getEligibleInterface(swState);
+  if (!intf) {
+    throw FbossError(
+        "No eligible uplink/downlink interfaces in config to verify COPP invariant");
+  }
+  for (auto iter : std::as_const(*intf->getAddresses())) {
+    auto destIp = folly::IPAddress(iter.first);
+    if (destIp.isLinkLocal()) {
+      // three elements in the address vector: ipv4, ipv6 and a link local one
+      // if the address qualifies as link local, it will loop back to the queue
+      // again, adding an extra packet to the queue and failing the verification
+      // thus, we skip the last one and only send BGP packets to v4 and v6 addr
+      continue;
+    }
+    sendAndVerifyPkts(
+        switchPtr,
+        switchId,
+        swState,
+        destIp,
+        utility::kBgpPort,
+        utility::getCoppHighPriQueueId(hwAsic),
+        srcPort);
+  }
+  auto addrs = intf->getAddressesCopy();
+  sendAndVerifyPkts(
+      switchPtr,
+      switchId,
+      swState,
+      addrs.begin()->first,
+      utility::kNonSpecialPort2,
+      utility::getCoppMidPriQueueId({hwAsic}),
+      srcPort);
+
+  verifyCoppAcl(switchPtr, switchId, hwAsic, swState, srcPort);
+}
+
+CpuPortStats getCpuPortStats(SwSwitch* sw, SwitchID switchId) {
+  std::map<int, CpuPortStats> cpuStats;
+  sw->getAllCpuPortStats(cpuStats);
+  if (cpuStats.find(switchId) == cpuStats.end()) {
+    throw FbossError("No cpu port stats found for switchId: ", switchId);
+  }
+  return cpuStats.at(switchId);
+}
+
+/*
+ * Takes a SwitchConfig and returns a map of queue IDs to DSCPs.
+ * Particularly useful in verifyQueueMappings, where we don't have a guarantee
+ * of what the QoS policies look like and we can't rely on something like
+ * kOlympicQueueToDscp().
+ */
+std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
+    const cfg::SwitchConfig& config) {
+  std::map<int, std::vector<uint8_t>> queueToDscp;
+
+  for (const auto& qosPolicy : *config.qosPolicies()) {
+    const auto& qosName = qosPolicy.get_name();
+    XLOG(DBG2) << "Iterating over QoS policies: found qosPolicy " << qosName;
+
+    // Optional thrift field access
+    if (const auto& qosMap = qosPolicy.qosMap()) {
+      const auto& dscpMaps = *qosMap->dscpMaps();
+
+      for (const auto& dscpMap : dscpMaps) {
+        auto queueId = dscpMap.get_internalTrafficClass();
+        // Internally (i.e. in thrift), the mapping is implemented as a
+        // map<int16_t, vector<int8_t>>; however, in functions like
+        // verifyQueueMapping in HwTestQosUtils, the argument used is of the
+        // form map<int, uint8_t>.
+        // Trying to assign vector<uint8_t> to a vector<int8_t> makes the STL
+        // unhappy, so we can just loop through and construct one on our own.
+        std::vector<uint8_t> dscps;
+        for (auto val : *dscpMap.fromDscpToTrafficClass()) {
+          dscps.push_back((uint8_t)val);
+        }
+        queueToDscp[(int)queueId] = std::move(dscps);
+      }
+    } else {
+      XLOG(ERR) << "qosMap not found in qosPolicy: " << qosName;
+    }
+  }
+
+  return queueToDscp;
+}
+
+template void sendAndVerifyPkts<SwSwitch>(
+    SwSwitch* switchPtr,
+    SwitchID switchId,
+    std::shared_ptr<SwitchState> swState,
+    const folly::IPAddress& destIp,
+    uint16_t destPort,
+    uint8_t queueId,
+    PortID srcPort,
+    uint8_t trafficClass);
+
+template void sendAndVerifyPkts<HwSwitch>(
+    HwSwitch* switchPtr,
+    SwitchID switchId,
+    std::shared_ptr<SwitchState> swState,
+    const folly::IPAddress& destIp,
+    uint16_t destPort,
+    uint8_t queueId,
+    PortID srcPort,
+    uint8_t trafficClass);
+
+template void verifyCoppInvariantHelper<SwSwitch>(
+    SwSwitch* switchPtr,
+    SwitchID switchId,
+    const HwAsic* hwAsic,
+    std::shared_ptr<SwitchState> swState,
+    PortID srcPort);
+
+template void verifyCoppInvariantHelper<HwSwitch>(
+    HwSwitch* switchPtr,
+    SwitchID switchId,
+    const HwAsic* hwAsic,
+    std::shared_ptr<SwitchState> swState,
+    PortID srcPort);
 } // namespace facebook::fboss::utility

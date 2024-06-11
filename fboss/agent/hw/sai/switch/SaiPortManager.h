@@ -111,6 +111,7 @@ struct SaiPortHandle {
   std::shared_ptr<SaiQosMap> tcToQueueQosMap;
   std::optional<std::string> qosPolicy;
   SaiQueueHandles queues;
+  bool prbsEnabled;
 
   void resetQueues();
   SaiPortMirrorInfo mirrorInfo;
@@ -211,10 +212,8 @@ class SaiPortManager {
   std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId);
   void clearPortAsicPrbsStats(PortID portId);
   prbs::InterfacePrbsState getPortPrbsState(PortID portId);
-  void updateStats(
-      PortID portID,
-      bool updateWatermarks = false,
-      int isConnectivityInfoMismatch = 0);
+  void updatePrbsStats(PortID portId);
+  void updateStats(PortID portID, bool updateWatermarks = false);
 
   void updateConnectivityStats(PortID portID);
 
@@ -260,6 +259,13 @@ class SaiPortManager {
   std::optional<sai_latch_status_t> getPcsRxLinkStatus(
       PortSaiId saiPortId) const;
 #endif
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+  std::optional<sai_latch_status_t> getHighCrcErrorRate(
+      PortSaiId saiPortId,
+      PortID swPort) const;
+#endif
+  void updateLeakyBucketFb303Counter(PortID portId, int value);
 
   void enableAfeAdaptiveMode(PortID portId);
 
@@ -381,7 +387,7 @@ class SaiPortManager {
   void programPfcBuffers(const std::shared_ptr<Port>& swPort);
   void removePfcBuffers(const std::shared_ptr<Port>& swPort);
   sai_port_prbs_config_t getSaiPortPrbsConfig(bool enabled) const;
-  void initAsicPrbsStats(const std::shared_ptr<Port>& swPort);
+  void initAsicPrbsStats(PortID portId, uint32_t speed);
   void removeIngressPriorityGroupMappings(SaiPortHandle* portHandle);
   void applyPriorityGroupBufferProfile(
       const std::shared_ptr<Port>& swPort,
@@ -404,13 +410,16 @@ class SaiPortManager {
   void changeQosPolicy(
       const std::shared_ptr<Port>& oldPort,
       const std::shared_ptr<Port>& newPort);
+  void changeTxEnable(
+      const std::shared_ptr<Port>& oldPort,
+      const std::shared_ptr<Port>& newPort);
   void reloadSixTapAttributes(
       SaiPortHandle* portHandle,
       SaiPortSerdesTraits::CreateAttributes& attr);
   std::shared_ptr<SaiPort> createPortWithBasicAttributes(
       const std::shared_ptr<Port>& swPort);
-  double calculateRate(const std::shared_ptr<Port>& swPort);
-  void updateRate(const std::shared_ptr<Port>& swPort);
+  double calculateRate(uint32_t speed);
+  void updatePrbsStatsEntryRate(const std::shared_ptr<Port>& swPort);
 
   SaiStore* saiStore_;
   SaiManagerTable* managerTable_;
@@ -433,8 +442,9 @@ class SaiPortManager {
   bool tcToQueueMapAllowedOnPort_;
   bool globalQosMapSupported_;
   std::unordered_map<PortID, time_t> lastFecCounterReadTime_;
+  std::unordered_map<PortID, time_t> lastPrbsRxStateReadTime_;
   FRIEND_TEST(PortManagerTest, calculateRate);
-  FRIEND_TEST(PortManagerTest, updateRate);
+  FRIEND_TEST(PortManagerTest, updatePrbsStatsEntryRate);
 };
 
 } // namespace facebook::fboss

@@ -9,13 +9,13 @@
  */
 
 #include "fboss/agent/HwAsicTable.h"
-#include "fboss/agent/Platform.h"
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/utils/AclTestUtils.h"
+
+#include "fboss/agent/test/utils/CoppTestUtils.h"
 #include "fboss/agent/test/utils/QosTestUtils.h"
 #include "fboss/agent/test/utils/TrapPacketUtils.h"
 
@@ -47,11 +47,6 @@ BENCHMARK(RxSlowPathBenchmark) {
     std::vector<PortID> ports = {
         ensemble.masterLogicalPortIds({cfg::PortType::INTERFACE_PORT})[0]};
 
-    // Before m-mpu agent test, use first Asic for initialization.
-    auto switchIds = ensemble.getSw()->getHwAsicTable()->getSwitchIDs();
-    CHECK_GE(switchIds.size(), 1);
-    auto asic =
-        ensemble.getSw()->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
     // For J2 and J3, initialize recycle port as well to allow l3 lookup on
     // recycle port
     if (ensemble.getSw()->getHwAsicTable()->isFeatureSupportedOnAllAsic(
@@ -66,7 +61,7 @@ BENCHMARK(RxSlowPathBenchmark) {
     // We don't want to set queue rate that limits the number of rx pkts
     utility::addCpuQueueConfig(
         config,
-        asic,
+        ensemble.getL3Asics(),
         ensemble.isSai(),
         /* setQueueRate */ false);
     auto trapDstIp = folly::CIDRNetwork{kDstIp, 128};
@@ -76,15 +71,13 @@ BENCHMARK(RxSlowPathBenchmark) {
     // forward TTL=0 packet.
     if (ensemble.getSw()->getHwAsicTable()->isFeatureSupportedOnAllAsic(
             HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT)) {
-      utility::setTTLZeroCpuConfig(asic, config);
+      utility::setTTLZeroCpuConfig(ensemble.getL3Asics(), config);
     }
     return config;
   };
 
   auto ensemble = createAgentEnsemble(initialConfigFn);
 
-  // TODO(zecheng): Deprecate agent access to HwSwitch
-  auto hwSwitch = ensemble->getHwSwitch();
   // capture packet exiting port 0 (entering due to loopback)
   auto dstMac = utility::getFirstInterfaceMac(ensemble->getProgrammedState());
   auto ecmpHelper =
@@ -112,19 +105,25 @@ BENCHMARK(RxSlowPathBenchmark) {
       folly::IPAddressV6(kDstIp),
       8000,
       8001);
-  hwSwitch->sendPacketSwitchedSync(std::move(txPacket));
+  ensemble->getSw()->sendPacketSwitchedAsync(std::move(txPacket));
 
   constexpr auto kBurnIntevalInSeconds = 5;
   // Let the packet flood warm up
   std::this_thread::sleep_for(std::chrono::seconds(kBurnIntevalInSeconds));
   constexpr uint8_t kCpuQueue = 0;
-  auto [pktsBefore, bytesBefore] =
-      utility::getCpuQueueOutPacketsAndBytes(hwSwitch, kCpuQueue);
+  std::map<int, CpuPortStats> cpuStatsBefore;
+  ensemble->getSw()->getAllCpuPortStats(cpuStatsBefore);
+  auto statsBefore = cpuStatsBefore[0];
+  auto [pktsBefore, bytesBefore] = utility::getCpuQueueOutPacketsAndBytes(
+      *statsBefore.portStats_(), kCpuQueue);
   auto timeBefore = std::chrono::steady_clock::now();
   CHECK_NE(pktsBefore, 0);
   std::this_thread::sleep_for(std::chrono::seconds(kBurnIntevalInSeconds));
-  auto [pktsAfter, bytesAfter] =
-      utility::getCpuQueueOutPacketsAndBytes(hwSwitch, kCpuQueue);
+  std::map<int, CpuPortStats> cpuStatsAfter;
+  ensemble->getSw()->getAllCpuPortStats(cpuStatsAfter);
+  auto statsAfter = cpuStatsAfter[0];
+  auto [pktsAfter, bytesAfter] = utility::getCpuQueueOutPacketsAndBytes(
+      *statsAfter.portStats_(), kCpuQueue);
   auto timeAfter = std::chrono::steady_clock::now();
   std::chrono::duration<double, std::milli> durationMillseconds =
       timeAfter - timeBefore;

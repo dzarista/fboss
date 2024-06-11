@@ -57,12 +57,6 @@ using std::mutex;
 namespace facebook {
 namespace fboss {
 
-// Module state machine Timeout (seconds) for Agent to qsfp_service port status
-// sync up first time
-static constexpr int kStateMachineAgentPortSyncupTimeout = 120;
-// Module State machine optics remediation/bringup interval (seconds)
-static constexpr int kStateMachineOpticsRemediateInterval = 30;
-
 TransceiverID QsfpModule::getID() const {
   return TransceiverID(qsfpImpl_->getNum());
 }
@@ -607,6 +601,29 @@ void QsfpModule::setTransceiverLoopback(
     // In mulththreaded environment, run the function in event base thread
     via(i2cEvb).thenValue([setTcvrFn](auto&&) mutable { setTcvrFn(); }).get();
   }
+}
+
+std::map<std::string, CdbDatapathSymErrHistogram>
+QsfpModule::getSymbolErrorHistogram() {
+  std::map<std::string, CdbDatapathSymErrHistogram> symErr;
+
+  // Lambda to call Qsfp function
+  auto getSymErrFn = [&]() {
+    lock_guard<std::mutex> g(qsfpModuleMutex_);
+    symErr = getCdbSymbolErrorHistogramLocked();
+  };
+
+  auto i2cEvb = qsfpImpl_->getI2cEventBase();
+  if (!i2cEvb) {
+    // In non-multithreaded environment, run the function in current thread
+    getSymErrFn();
+  } else {
+    // In mulththreaded environment, run the function in event base thread
+    via(i2cEvb)
+        .thenValue([getSymErrFn](auto&&) mutable { getSymErrFn(); })
+        .get();
+  }
+  return symErr;
 }
 
 /*
@@ -1212,6 +1229,12 @@ TransceiverManagementInterface QsfpModule::getTransceiverManagementInterface(
   XLOG(ERR) << fmt::format(
       "QSFP {:d}: Bad module Id = {:d}", oneBasedPort, moduleId);
   return TransceiverManagementInterface::NONE;
+}
+
+std::vector<MediaInterfaceCode> QsfpModule::getSupportedMediaInterfaces()
+    const {
+  lock_guard<std::mutex> g(qsfpModuleMutex_);
+  return getSupportedMediaInterfacesLocked();
 }
 
 void QsfpModule::programTransceiver(

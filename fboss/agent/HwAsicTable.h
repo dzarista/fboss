@@ -10,7 +10,7 @@ namespace facebook::fboss {
 
 class HwAsicTable {
  public:
-  explicit HwAsicTable(
+  HwAsicTable(
       const std::map<int64_t, cfg::SwitchInfo>& switchIdToSwitchInfo,
       std::optional<cfg::SdkVersion> sdkVersion);
   const HwAsic* getHwAsicIf(SwitchID switchID) const;
@@ -26,6 +26,9 @@ class HwAsicTable {
       SwitchID switchId,
       cfg::PortType portType) const;
   std::unordered_set<SwitchID> getSwitchIDs() const;
+
+  std::unordered_set<SwitchID> getSwitchIDs(HwAsic::Feature feature) const;
+  std::vector<const HwAsic*> getL3Asics() const;
 
  private:
   HwAsic* getHwAsicIfImpl(SwitchID switchID) const;

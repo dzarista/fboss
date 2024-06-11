@@ -324,6 +324,7 @@ struct PrbsLaneStats {
   7: i32 timeSinceLastClear;
   8: optional double snr;
   9: optional double maxSnr;
+  10: i32 timeCollected;
 }
 
 struct PrbsStats {
@@ -464,7 +465,8 @@ struct LaneStats {
 struct LinkFaultStatus {
   1: bool localFault;
   2: bool remoteFault;
-  3: bool highCrcErrorRate;
+  3: bool highCrcErrorRateLive;
+  4: i32 highCrcErrorRateChangedCount = 0;
 }
 
 struct RsInfo {

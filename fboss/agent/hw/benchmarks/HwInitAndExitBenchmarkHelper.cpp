@@ -20,11 +20,11 @@
 #include "fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestProdConfigUtils.h"
-#include "fboss/agent/hw/test/HwVoqUtils.h"
 #include "fboss/agent/hw/test/LoadBalancerUtils.h"
 #include "fboss/agent/test/RouteDistributionGenerator.h"
 #include "fboss/agent/test/RouteScaleGenerators.h"
 #include "fboss/agent/test/utils/FabricTestUtils.h"
+#include "fboss/agent/test/utils/VoqTestUtils.h"
 
 #include "fboss/lib/FunctionCallTimeReporter.h"
 #include "fboss/lib/platforms/PlatformMode.h"
@@ -204,14 +204,23 @@ void initandExitBenchmarkHelper(
 
   AgentEnsembleSwitchConfigFn voqInitialConfig =
       [](const AgentEnsemble& ensemble) {
+        FLAGS_hide_fabric_ports = false;
         auto config = utility::onePortPerInterfaceConfig(
-            ensemble.getSw(), ensemble.masterLogicalPortIds());
+            ensemble.getSw(),
+            ensemble.masterLogicalPortIds(),
+            true, /*interfaceHasSubnet*/
+            true, /*setInterfaceMac*/
+            utility::kBaseVlanId,
+            true /*enable fabric ports*/);
+        utility::populatePortExpectedNeighbors(
+            ensemble.masterLogicalPortIds(), config);
         config.dsfNodes() = *utility::addRemoteDsfNodeCfg(*config.dsfNodes());
         return config;
       };
 
   AgentEnsembleSwitchConfigFn fabricInitialConfig =
       [](const AgentEnsemble& ensemble) {
+        FLAGS_hide_fabric_ports = false;
         auto config = utility::onePortPerInterfaceConfig(
             ensemble.getSw(),
             ensemble.masterLogicalPortIds(),
@@ -241,10 +250,18 @@ void initandExitBenchmarkHelper(
     switch (switchType) {
       case cfg::SwitchType::VOQ:
         ensemble = createAgentEnsemble(voqInitialConfig);
-        ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
-          return utility::setupRemoteIntfAndSysPorts(
-              in, ensemble->scopeResolver(), ensemble->getSw()->getConfig());
-        });
+        if (ensemble->getSw()->getBootType() == BootType::COLD_BOOT) {
+          ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+            return utility::setupRemoteIntfAndSysPorts(
+                in,
+                ensemble->scopeResolver(),
+                ensemble->getSw()->getConfig(),
+                ensemble->getSw()
+                    ->getHwAsicTable()
+                    ->isFeatureSupportedOnAllAsic(
+                        HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE));
+          });
+        }
         break;
       case cfg::SwitchType::NPU:
         ensemble = createAgentEnsemble(npuInitialConfig);

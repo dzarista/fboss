@@ -97,16 +97,19 @@
 #define TAJO_P4_WB_SDK
 #endif
 
-#if defined(TAJO_SDK_VERSION_1_68_0) || defined(TAJO_SDK_VERSION_24_1_0)
+#if defined(TAJO_SDK_VERSION_1_68_0) || defined(TAJO_SDK_VERSION_24_1_0) || \
+    defined(TAJO_SDK_VERSION_24_3_0)
 #define TAJO_SDK_MORGAN
 #endif
 
-#if defined(TAJO_SDK_VERSION_1_42_8) || defined(TAJO_SDK_VERSION_1_65_1)
+#if defined(TAJO_SDK_VERSION_1_42_8) || defined(TAJO_SDK_VERSION_1_65_1) || \
+    defined(TAJO_SDK_VERSION_24_4_90)
 #define TAJO_SDK_EBRO
 #endif
 
 #if defined(TAJO_SDK_VERSION_1_65_1) || defined(TAJO_SDK_VERSION_1_68_0) || \
-    defined(TAJO_SDK_VERSION_24_1_0)
+    defined(TAJO_SDK_VERSION_24_1_0) || defined(TAJO_SDK_VERSION_24_3_0) || \
+    defined(TAJO_SDK_VERSION_24_4_90)
 #define TAJO_SDK_GTE_1_65_0
 #endif
 

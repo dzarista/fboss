@@ -1014,9 +1014,9 @@ void BcmPort::enableL3(bool enableV4, bool enableV6) {
               (std::get<2>(l3Option) ? "ENABLED" : "DISABLED"),
               bcm_errmsg(rv)));
     } else {
-      XLOG(DBG5) << "No need to program port control L3. "
-                 << "Current " << std::get<0>(l3Option) << " for port " << port_
-                 << " is " << (currVal ? "ENABLED" : "DISABLED")
+      XLOG(DBG5) << "No need to program port control L3. " << "Current "
+                 << std::get<0>(l3Option) << " for port " << port_ << " is "
+                 << (currVal ? "ENABLED" : "DISABLED")
                  << ", which is the same to expected: "
                  << (std::get<2>(l3Option) ? "ENABLED" : "DISABLED");
     }
@@ -1496,6 +1496,10 @@ void BcmPort::updateStats() {
 
   // Update any platform specific port counters
   getPlatformPort()->updateStats();
+  auto logicalPortId = getPlatformPort()->getHwLogicalPortId();
+  if (logicalPortId.has_value()) {
+    curPortStats.logicalPortId() = logicalPortId.value();
+  }
 };
 
 void BcmPort::updateFecStats(
@@ -2546,8 +2550,8 @@ bool BcmPort::pfcWatchdogNeedsReprogramming(const std::shared_ptr<Port>& port) {
                << " detectionAndRecoveryEnable: "
                << programmedPfcWatchdogMap
                       [bcmCosqPFCDeadlockDetectionAndRecoveryEnable];
-    XLOG(DBG2) << "New PFC watchdog params: "
-               << " recoveryTimer: " << newPfcDeadlockRecoveryTimer
+    XLOG(DBG2) << "New PFC watchdog params: " << " recoveryTimer: "
+               << newPfcDeadlockRecoveryTimer
                << " detectionTimer: " << newPfcDeadlockDetectionTimer
                << " detectionAndRecoveryEnable: " << pfcWatchdogEnabledInSw;
     // Mismatch between SW and HW configs, reprogram!
@@ -2971,6 +2975,10 @@ const BufferPoolCfg& BcmPort::getDefaultIngressPoolSettings() const {
   return ingressBufferManager_->getDefaultIngressPoolSettings();
 }
 
+const std::string& BcmPort::getIngressBufferPoolName() const {
+  return ingressBufferManager_->getBufferPoolName();
+}
+
 int BcmPort::getProgrammedPgLosslessMode(const int pgId) const {
   return ingressBufferManager_->getProgrammedPgLosslessMode(pgId);
 }
@@ -3032,26 +3040,36 @@ void BcmPort::processChangedZeroPreemphasis(
     if (!newPort->getZeroPreemphasis()) {
       throw FbossError("Reverting zero preemphasis on port is not supported.");
     }
-    auto portID = newPort->getID();
     int rv;
     auto preemphasis = 0;
     if (!platformPort_->shouldUsePortResourceAPIs()) {
       rv = bcm_port_phy_control_set(
-          hw_->getUnit(),
-          portID,
-          BCM_PORT_PHY_CONTROL_PREEMPHASIS,
-          preemphasis);
+          hw_->getUnit(), port_, BCM_PORT_PHY_CONTROL_PREEMPHASIS, preemphasis);
     } else {
       bcm_port_phy_tx_t tx;
       bcm_port_phy_tx_t_init(&tx);
-      rv = bcm_port_phy_tx_get(hw_->getUnit(), portID, &tx);
+      rv = bcm_port_phy_tx_get(hw_->getUnit(), port_, &tx);
       bcmCheckError(rv, "Failed to get port tx settings");
       tx.pre = preemphasis & 0xf; // 0-3 bits
       tx.main = (preemphasis & 0x3f0) >> 4; // 4-9 bits
       tx.post = (preemphasis & 0x7c00) >> 10; // 10-14 bits
-      rv = bcm_port_phy_tx_set(hw_->getUnit(), portID, &tx);
+      rv = bcm_port_phy_tx_set(hw_->getUnit(), port_, &tx);
     }
     bcmCheckError(rv, "Failed to set port preemphasis");
+  }
+}
+
+void BcmPort::processChangedTxEnable(
+    const std::shared_ptr<Port>& oldPort,
+    const std::shared_ptr<Port>& newPort) {
+  if (oldPort->getTxEnable() != newPort->getTxEnable()) {
+    CHECK(newPort->getTxEnable().has_value());
+    auto rv = bcm_port_control_set(
+        hw_->getUnit(),
+        port_,
+        bcmPortControlTxEnable,
+        newPort->getTxEnable().value() ? 1 : 0);
+    bcmCheckError(rv, "failed to disable TX");
   }
 }
 

@@ -126,8 +126,6 @@ class SaiSwitch : public HwSwitch {
 
   bool isPortUp(PortID port) const override;
 
-  bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) override;
-
   void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
@@ -229,6 +227,7 @@ class SaiSwitch : public HwSwitch {
 
   void syncLinkStates() override;
   void syncLinkActiveStates() override;
+  void syncLinkConnectivity() override;
 
   AclStats getAclStats() const override;
 
@@ -336,6 +335,8 @@ class SaiSwitch : public HwSwitch {
   void initLinkScanLocked(const std::lock_guard<std::mutex>& lock);
   void initRxLocked(const std::lock_guard<std::mutex>& lock);
   void initTxReadyStatusChangeLocked(const std::lock_guard<std::mutex>& lock);
+  void initLinkConnectivityChangeLocked(
+      const std::lock_guard<std::mutex>& lock);
 
   bool isFeatureSetupLocked(
       FeaturesDesired feature,
@@ -368,7 +369,9 @@ class SaiSwitch : public HwSwitch {
 
   void updateRsInfo(
       phy::PhySideState& sideState,
-      std::shared_ptr<SaiPort> port);
+      std::shared_ptr<SaiPort> port,
+      PortID swPort,
+      phy::PhySideState& lastSideState);
 
   void linkStateChangedCallbackBottomHalf(
       std::vector<sai_port_oper_status_notification_t> data);
@@ -387,6 +390,7 @@ class SaiSwitch : public HwSwitch {
       const std::shared_ptr<SwitchSettings>& newSwitchSettings);
 
   void syncLinkStatesLocked(const std::lock_guard<std::mutex>& lock);
+  void syncLinkConnectivityLocked(const std::lock_guard<std::mutex>& lock);
 
   template <typename LockPolicyT>
   void processDefaultDataPlanePolicyDelta(
@@ -565,6 +569,8 @@ class SaiSwitch : public HwSwitch {
   folly::EventBase fdbEventBottomHalfEventBase_;
   std::unique_ptr<std::thread> txReadyStatusChangeBottomHalfThread_;
   folly::EventBase txReadyStatusChangeBottomHalfEventBase_;
+  std::unique_ptr<std::thread> linkConnectivityChangeBottomHalfThread_;
+  folly::EventBase linkConnectivityChangeBottomHalfEventBase_;
 
   HwResourceStats hwResourceStats_;
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};

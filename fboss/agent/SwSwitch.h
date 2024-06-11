@@ -10,6 +10,7 @@
 #pragma once
 
 #include "fboss/agent/HwSwitchHandler.h"
+#include "fboss/agent/L2LearnEventObserver.h"
 #include "fboss/agent/MultiHwSwitchHandler.h"
 #include "fboss/agent/MultiSwitchFb303Stats.h"
 #include "fboss/agent/PacketObserver.h"
@@ -25,6 +26,7 @@
 #include "fboss/agent/single/MonolithicHwSwitchHandler.h"
 #include "fboss/agent/state/StateUpdate.h"
 #include "fboss/agent/types.h"
+#include "fboss/lib/HwWriteBehavior.h"
 #include "fboss/lib/ThreadHeartbeat.h"
 #include "fboss/lib/link_snapshots/SnapshotManager-defs.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
@@ -239,6 +241,7 @@ class SwSwitch : public HwSwitchCallback {
       HwSwitchCallback* callback,
       std::unique_ptr<TunManager> tunMgr,
       HwSwitchInitFn hwSwitchInitFn,
+      const HwWriteBehavior& hwWriteBehavior,
       SwitchFlags flags = SwitchFlags::DEFAULT);
 
   void init(SwitchFlags flags = SwitchFlags::DEFAULT);
@@ -697,6 +700,10 @@ class SwSwitch : public HwSwitchCallback {
     return pktObservers_.get();
   }
 
+  L2LearnEventObservers* getL2LearnEventObservers() {
+    return l2LearnEventObservers_.get();
+  }
+
   /*
    * Get the LldpManager object
    */
@@ -799,11 +806,6 @@ class SwSwitch : public HwSwitchCallback {
   void invokeNeighborListener(
       const std::vector<std::string>& added,
       const std::vector<std::string>& deleted);
-
-  /*
-   * Returns true if the arp/ndp entry for the passed in ip has been hit.
-   */
-  bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress ip);
 
   std::string getConfigStr() const;
   cfg::SwitchConfig getConfig() const;
@@ -908,7 +910,7 @@ class SwSwitch : public HwSwitchCallback {
   }
 
   void updateDsfSubscriberState(
-      const std::string& nodeName,
+      const std::string& remoteEndpoint,
       fsdb::FsdbSubscriptionState oldState,
       fsdb::FsdbSubscriptionState newState);
 
@@ -943,8 +945,12 @@ class SwSwitch : public HwSwitchCallback {
       const std::vector<SystemPortID>& portId) const;
   void getAllHwPortStats(std::map<std::string, HwPortStats>& hwPortStats) const;
   void getAllCpuPortStats(std::map<int, CpuPortStats>& hwCpuPortStats) const;
-  bool isRunModeMultiSwitch();
-  MonolithicHwSwitchHandler* getMonolithicHwSwitchHandler();
+  bool isRunModeMultiSwitch() const;
+  bool isRunModeMonolithic() const {
+    return !isRunModeMultiSwitch();
+  }
+  MonolithicHwSwitchHandler* getMonolithicHwSwitchHandler() const;
+  int16_t getSwitchIndexForInterface(const std::string& interface) const;
 
  private:
   std::optional<folly::MacAddress> getSourceMac(
@@ -1059,7 +1065,9 @@ class SwSwitch : public HwSwitchCallback {
   void postInit();
 
   void updateMultiSwitchGlobalFb303Stats();
-  void updateFabricReachabilityStats();
+
+  void stopHwSwitchHandler();
+
   // TODO: To be removed once switchWatermarkStats is available in prod
   HwBufferPoolStats getBufferPoolStatsFromSwitchWatermarkStats();
 
@@ -1164,6 +1172,7 @@ class SwSwitch : public HwSwitchCallback {
    */
   std::map<StateObserver*, std::string> stateObservers_;
   std::unique_ptr<PacketObservers> pktObservers_;
+  std::unique_ptr<L2LearnEventObservers> l2LearnEventObservers_;
 
   std::unique_ptr<ArpHandler> arp_;
   std::unique_ptr<IPv4Handler> ipv4_;
@@ -1219,6 +1228,5 @@ class SwSwitch : public HwSwitchCallback {
   folly::Synchronized<std::unique_ptr<AgentConfig>> agentConfig_;
   folly::Synchronized<std::map<uint16_t, multiswitch::HwSwitchStats>>
       hwSwitchStats_;
-  folly::Synchronized<FabricReachabilityStats> fabricReachabilityStats_;
 };
 } // namespace facebook::fboss

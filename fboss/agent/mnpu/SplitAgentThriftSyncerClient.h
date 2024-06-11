@@ -11,6 +11,7 @@
 #include <memory>
 
 #include <folly/CancellationToken.h>
+#include <folly/Synchronized.h>
 #include <folly/io/async/EventBase.h>
 #include <folly/io/async/ScopedEventBaseThread.h>
 #include <gflags/gflags.h>
@@ -18,6 +19,8 @@
 
 #if FOLLY_HAS_COROUTINES
 #include <folly/experimental/coro/AsyncScope.h>
+#include <folly/experimental/coro/BlockingWait.h>
+#include <folly/experimental/coro/BoundedQueue.h>
 #include <folly/experimental/coro/UnboundedQueue.h>
 #endif
 
@@ -53,6 +56,7 @@ class SplitAgentThriftClient : public ReconnectingThriftClient {
     return switchId_;
   }
   virtual void connected() = 0;
+  virtual void disconnected() = 0;
 
  private:
 #if FOLLY_HAS_COROUTINES
@@ -66,7 +70,43 @@ class SplitAgentThriftClient : public ReconnectingThriftClient {
       multiSwitchClient_;
 };
 
-template <typename CallbackObjectT>
+#if FOLLY_HAS_COROUTINES
+using FdbEventQueueType = folly::coro::UnboundedQueue<
+    multiswitch::FdbEvent,
+    true /*SingleProducer*/,
+    true /* SingleConsumer*/>;
+#else
+using FdbEventQueueType = std::queue<multiswitch::FdbEvent>;
+#endif
+
+#if FOLLY_HAS_COROUTINES
+using StatsEventQueueType = folly::coro::UnboundedQueue<
+    multiswitch::HwSwitchStats,
+    true /*SingleProducer*/,
+    true /* SingleConsumer*/>;
+#else
+using StatsEventQueueType = std::queue<multiswitch::HwSwitchStats>;
+#endif
+
+#if FOLLY_HAS_COROUTINES
+using LinkChangeEventQueueType = folly::coro::UnboundedQueue<
+    multiswitch::LinkChangeEvent,
+    true /*SingleProducer*/,
+    true /* SingleConsumer*/>;
+#else
+using LinkChangeEventQueueType = std::queue<multiswitch::LinkChangeEvent>;
+#endif
+
+#if FOLLY_HAS_COROUTINES
+using RxPktEventQueueType = folly::coro::BoundedQueue<
+    multiswitch::RxPacket,
+    true /*SingleProducer*/,
+    true /* SingleConsumer*/>;
+#else
+using RxPktEventQueueType = std::queue<multiswitch::RxPacket>;
+#endif
+
+template <typename CallbackObjectT, typename EventQueueT>
 class ThriftSinkClient : public SplitAgentThriftClient {
  public:
   using EventNotifierSinkClient =
@@ -81,27 +121,40 @@ class ThriftSinkClient : public SplitAgentThriftClient {
       SwitchID switchId,
       ThriftSinkConnectFn connectFn,
       std::shared_ptr<folly::ScopedEventBaseThread> eventThread,
-      folly::EventBase* connRetryEvb);
+#if FOLLY_HAS_COROUTINES
+      EventQueueT& eventsQueue,
+#endif
+      folly::EventBase* connRetryEvb,
+      std::optional<std::string> multiSwitchStatsPrefix);
   ~ThriftSinkClient() override;
   void resetClient() override;
+  void onCancellation() override;
   void enqueue(CallbackObjectT callbackObject) {
+    if (!isConnectedToServer()) {
+      eventsDroppedCount_.add(1);
+      return;
+    }
 #if FOLLY_HAS_COROUTINES
-    eventsQueue_.enqueue(std::move(callbackObject));
+    if constexpr (std::is_same_v<EventQueueT, RxPktEventQueueType>) {
+      folly::coro::blockingWait(
+          eventsQueue_.enqueue(std::move(callbackObject)));
+    } else {
+      eventsQueue_.enqueue(std::move(callbackObject));
+    }
 #endif
   }
   void startClientService() override;
 
+  void disconnected() override;
+
  private:
 #if FOLLY_HAS_COROUTINES
   folly::coro::Task<void> serveStream() override;
-  folly::coro::UnboundedQueue<
-      CallbackObjectT,
-      true /*SingleProducer*/,
-      true /* SingleConsumer*/>
-      eventsQueue_;
+  EventQueueT& eventsQueue_;
 #endif
   std::unique_ptr<EventNotifierSinkClient> sinkClient_;
   ThriftSinkConnectFn connectFn_;
+  fb303::TimeseriesWrapper eventsDroppedCount_;
   int32_t serverPort_;
 };
 
@@ -131,6 +184,8 @@ class ThriftStreamClient : public SplitAgentThriftClient {
   ~ThriftStreamClient() override;
   void resetClient() override;
   void startClientService() override;
+  void disconnected() override {}
+  void onCancellation() override {}
 
  private:
 #if FOLLY_HAS_COROUTINES

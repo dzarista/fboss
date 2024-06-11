@@ -518,12 +518,6 @@ class BcmSwitch : public BcmSwitchIf {
    */
   void exitFatal() const override;
 
-  /*
-   * Returns true if the neighbor entry for the passed in ip
-   * has been hit.
-   */
-  bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) override;
-
   phy::FecMode getPortFECMode(PortID port) const override;
 
   cfg::PortSpeed getPortMaxSpeed(PortID port) const override;
@@ -645,6 +639,8 @@ class BcmSwitch : public BcmSwitchIf {
 
   // no concept of link active states in BcmSwitch
   void syncLinkActiveStates() override {}
+  // no (fabric) link connectivity concept in BcmSwitch
+  void syncLinkConnectivity() override {}
 
   AclStats getAclStats() const override;
 

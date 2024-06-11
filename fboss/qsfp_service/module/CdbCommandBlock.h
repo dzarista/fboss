@@ -19,6 +19,8 @@ class TransceiverImpl;
  */
 class CdbCommandBlock {
  public:
+  static constexpr uint8_t kCdbLplMemoryLength = 120;
+
   // Constructor to initialize data block from 0
   CdbCommandBlock() {
     resetCdbBlock();
@@ -57,6 +59,10 @@ class CdbCommandBlock {
   void createCdbCmdModuleQuery();
   // Create firmware feature info query command
   void createCdbCmdGetFwFeatureInfo();
+  // Create Symbol Error Histogram command
+  void createCdbCmdSymbolErrorHistogram(uint8_t datapathId, bool mediaSide);
+  // Create Rx Error Histogram command
+  void createCdbCmdRxErrorHistogram(uint8_t laneId, bool mediaSide);
   // Create generic command structure
   void createCdbCmdGeneric(uint16_t commandCode, std::vector<uint8_t>& lplData);
 
@@ -104,7 +110,7 @@ class CdbCommandBlock {
     uint8_t cdbRlplLength; // Reg 134
     uint8_t cdbRlplChecksum; // Reg 135
     union {
-      uint8_t cdbLplFlatMemory[120]; // Reg 136-255
+      uint8_t cdbLplFlatMemory[kCdbLplMemoryLength]; // Reg 136-255
       struct {
         uint32_t cdbImageSize; // Reg 136-139
         uint32_t reserved;
