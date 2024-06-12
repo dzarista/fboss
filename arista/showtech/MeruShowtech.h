@@ -14,7 +14,6 @@ namespace showtech {
 class MeruShowtech : public Showtech {
 public:
   MeruShowtech(bool verbose) : Showtech(verbose) {}
-  std::string getVersion() override { return "1.1"; }
   void printPlatformInfo() override;
   // The first CPU i2c bus is unused and takes a long time to scan,
   // so skip scanning.

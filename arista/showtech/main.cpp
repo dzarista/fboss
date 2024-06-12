@@ -22,14 +22,9 @@ std::unique_ptr<Showtech> get_platform_showtech(bool verbose) {
       return std::make_unique<DarwinShowtech>(verbose);
     } else if (platform == "meru800bia" || platform == "meru800bfa") {
       return std::make_unique<MeruShowtech>(verbose);
-    } else {
-      std::cout << "Unsupported platform: " << platform << "\n";
-      std::exit(1);
     }
-  } else {
-    std::cout << "Failed to discover platform from dmidecode\n";
-    std::exit(1);
   }
+  return std::make_unique<GenericShowtech>(verbose);
 }
 
 int main(int argc, const char *argv[]) {
