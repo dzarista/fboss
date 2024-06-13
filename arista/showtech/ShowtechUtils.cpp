@@ -36,7 +36,7 @@ std::string run_cmd_no_check(std::string cmd) {
 
 void print_fboss2_show_cmd(std::string cmd) {
   std::cout << "#### fboss2 show " << cmd << " ####\n";
-  std::cout << run_cmd_no_check("LANG=en_US.UTF-8 fboss2 show " + cmd) << std::endl;
+  std::cout << run_cmd_no_check("fboss2 show " + cmd) << std::endl;
 }
 
 void strip(std::string &str) {

@@ -24,6 +24,7 @@
 #include <linux/workqueue.h>
 #include <linux/leds.h>
 #include <linux/watchdog.h>
+#include <linux/version.h>
 
 #define DRIVER_NAME "dsf-fan-cpld"
 
@@ -953,6 +954,18 @@ static const struct watchdog_info fan_wdt_info = {
 	.identity = KBUILD_MODNAME,
 };
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+static void cpld_remove(struct i2c_client *client)
+{
+	struct cpld_data *cpld = i2c_get_clientdata(client);
+
+	mutex_lock(&cpld->lock);
+	cancel_delayed_work_sync(&cpld->dwork);
+	mutex_unlock(&cpld->lock);
+
+	return;
+}
+#else
 static int cpld_remove(struct i2c_client *client)
 {
 	struct cpld_data *cpld = i2c_get_clientdata(client);
@@ -963,9 +976,16 @@ static int cpld_remove(struct i2c_client *client)
 
 	return 0;
 }
+#endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+static int cpld_probe(struct i2c_client *client)
+{
+	const struct i2c_device_id *id;
+#else
 static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
+#endif
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct cpld_data *cpld;

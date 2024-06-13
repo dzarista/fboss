@@ -365,7 +365,7 @@ static struct auxiliary_driver scd_led_driver = {
 		.name = DRIVER_NAME,
 	},
 	.probe = scd_led_probe,
-        .remove = scd_led_remove,
+	.remove = scd_led_remove,
 	.id_table = scd_led_ids,
 };
 module_auxiliary_driver(scd_led_driver);
