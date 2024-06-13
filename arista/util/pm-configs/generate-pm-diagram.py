@@ -81,7 +81,6 @@ class PciDeviceConfigs():
 class PmUnit():
    def __init__(self, name, data, parent = None, incomingSlot = None):
       self.data = data
-      self.pmUnitConfigs = data["pmUnitConfigs"].items()
       self.pmUnitConfigs = data["pmUnitConfigs"]
       self.parent: PmUnit = parent
       self.incomingSlot: OutgoingSlotConfigs = incomingSlot
