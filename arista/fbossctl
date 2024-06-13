@@ -86,6 +86,8 @@ maybe_setup_build_env() {
       KERNEL_TAR="FBOSS_KERNEL_SRC_5.19.0.tar.gz"
    elif [[ "${FBOSS_LINUX_KERNEL}" == "4.18" ]]; then
       KERNEL_TAR="FBOSS_KERNEL_SRC_4.18.0-408.el8.x86_64.tar.gz"
+   elif [[ "${FBOSS_LINUX_KERNEL}" == "6.4" ]]; then
+      KERNEL_TAR="FBOSS_KERNEL_SRC_6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4.tar.gz"
    else
       echo "Unsupported kernel version: ${FBOSS_LINUX_KERNEL}"
       exit 1
@@ -131,16 +133,22 @@ maybe_setup_build_env() {
 
    # Patch bcm-knet.c kernel module to workaround some missing netdev_* API calls in
    # the kernel we are building. Should be available in the 6.x kernels.
-   # TODO : get rid of this patch when we switch to 6.x kernel.
    wget http://dist/storage/fboss/FBOSS-SAI/patch15-SDK-6_5_30_SP1_bcm-knet-build-fixes.patch
    patch "dnx-sdk-6.5.30-gpl-modules/systems/linux/kernel/modules/bcm-knet/bcm-knet.c" < patch15-SDK-6_5_30_SP1_bcm-knet-build-fixes.patch
 
    # Kernel 5.19 patches.
-   if [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]]; then
+   if [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]] || [[ "${FBOSS_LINUX_KERNEL}" == "6.4" ]]; then
       # We need to fix some conflicting build options and fix the linux-user-bde Makefile
       # to support NO_PRECOMPILED_MODULE=1.
       wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post-SDK-6_5_30.patch
       patch -p1 < patch9-SDK-5.19-post-SDK-6_5_30.patch
+   fi
+
+   # Kernel 6.4 patches.
+   if [[ "${FBOSS_LINUX_KERNEL}" == "6.4" ]]; then
+      # Need to adjust for breaking change in netif_napi_add parameters.
+      wget http://dist/storage/fboss/FBOSS-SAI/patch16-SDK-6.4-post-SDK-6_5_30-bcm-knet-netif.patch
+      patch "dnx-sdk-6.5.30-gpl-modules/systems/linux/kernel/modules/bcm-knet/bcm-knet.c" < patch16-SDK-6.4-post-SDK-6_5_30-bcm-knet-netif.patch
    fi
 
    # Centos 9 build related patches and deps
