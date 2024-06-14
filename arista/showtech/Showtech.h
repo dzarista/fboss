@@ -14,22 +14,31 @@ public:
   virtual ~Showtech() = default;
   void printShowtech();
 
+  std::string version = "1.2";
+
 protected:
   // These should be common between platforms.
   void printVersion();
   void printCpuDetails();
   void printFbossDetails();
   void printWeutil(std::string target);
+  void printLspci();
   void printI2cDetect();
   void printL1Info();
   void printLogs();
 
   // Each platform overrides platform-specific info here.
-  virtual std::string getVersion() { return "0.0"; }
   virtual void printPlatformInfo() = 0;
   virtual std::set<int> i2cBusIgnore() = 0;
 
   bool verbose_;
+};
+
+class GenericShowtech : public Showtech {
+public:
+  GenericShowtech(bool verbose) : Showtech(verbose) {}
+  void printPlatformInfo() override {};
+  std::set<int> i2cBusIgnore() override { return {}; }
 };
 } // namespace showtech
 

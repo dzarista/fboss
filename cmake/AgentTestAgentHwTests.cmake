@@ -9,6 +9,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentDscpMarkingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentDscpQueueMappingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentDeepPacketInspectionTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentDiagShellStressTests.cpp
   fboss/agent/test/agent_hw_tests/AgentEmptyTests.cpp
   fboss/agent/test/agent_hw_tests/AgentEgressForwardingDiscardCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentRouteOverDifferentAddressFamilyNhopTests.cpp
@@ -20,6 +21,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentL3ForwardingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentL4PortBlackholingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentMacLearningTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentMirroringTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosSchedulerTests.cpp
   fboss/agent/test/agent_hw_tests/AgentQueuePerHostL2Tests.cpp
@@ -37,6 +39,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentWatermarkTests.cpp
   fboss/agent/test/agent_hw_tests/AgentSwitchStatsTxCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentMmuTuningTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentSflowMirrorTest.cpp
 )
 
 target_link_libraries(agent_hw_test_src
@@ -78,6 +81,9 @@ target_link_libraries(agent_hw_test_src
   mac_test_utils
   port_stats_test_utils
   utils
+  sflow_shim_utils
+  pktutil
+  mirror_test_utils
 )
 
 add_executable(multi_switch_agent_hw_test

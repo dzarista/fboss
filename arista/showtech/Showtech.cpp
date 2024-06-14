@@ -13,7 +13,7 @@ namespace showtech {
 
 void Showtech::printVersion() {
   std::cout << "################################\n";
-  std::cout << "##### SHOWTECH VERSION " << getVersion() << " #####\n";
+  std::cout << "##### SHOWTECH VERSION " << version << " #####\n";
   std::cout << "################################\n\n";
 }
 
@@ -45,6 +45,20 @@ void Showtech::printWeutil(std::string target) {
   }
   std::cout << "##### " + target + " SERIAL NUMBER #####\n";
   std::cout << run_cmd_no_check(cmd) << std::endl;
+}
+
+void Showtech::printLspci() {
+  std::string cmd;
+
+  std::cout << "################################\n";
+  std::cout << "############# LSPCI ############\n";
+  std::cout << "################################\n\n";
+
+  cmd = "lspci";
+  if (verbose_) {
+     cmd = cmd + " -vvv";
+  }
+  std::cout << cmd << std::endl << run_cmd_no_check(cmd) << std::endl;
 }
 
 void Showtech::printI2cDetect() {
@@ -113,6 +127,7 @@ void Showtech::printShowtech() {
   printCpuDetails();
   printFbossDetails();
   printPlatformInfo();
+  printLspci();
   printL1Info();
   if (verbose_) {
     printI2cDetect();

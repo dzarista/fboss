@@ -79,6 +79,7 @@ enum FsdbSubscriptionState {
 }
 
 enum FsdbClient {
+  UNSPECIFIED = 0,
   AGENT = 1,
   QSFP_SERVICE = 2,
   MKA_SERVICE = 3,
@@ -96,5 +97,6 @@ enum FsdbClient {
 
 struct ClientId {
   1: FsdbClient client;
-  2: optional string instanceId;
+  // Optional freeform id. Should be used sparingly, only for subscribers that have multiple idential subscriptions
+  2: string instanceId = "";
 }

@@ -34,7 +34,8 @@ static constexpr uint8_t kCdbCommandStatusBusyCmdExec = 0x83;
 // firmware download takes too much time. During this each CDB command takes
 // average 5 seconds to increasing this CDB timeout value to 10 seconds
 constexpr int cdbCommandTimeoutUsec = 10000000;
-constexpr int cdbCommandIntervalUsec = 100000;
+constexpr int cdbCommandErrorIntervalUsec = 100000;
+constexpr int cdbCommandStatusPollIntervalUsec = 10000;
 constexpr int cdbMemoryWriteDelayUsec = 5000;
 
 // CMIS firmware related register offsets
@@ -68,7 +69,8 @@ void CdbCommandBlock::i2cWriteAndContinue(
   } catch (const std::exception& e) {
     XLOG(INFO) << "write() raised exception: Sleep for 100ms and continue: "
                << e.what();
-    usleep(cdbCommandIntervalUsec);
+    /* sleep override */
+    usleep(cdbCommandErrorIntervalUsec);
   }
 
   auto writeTime = std::chrono::steady_clock::now() - startTime;
@@ -160,15 +162,19 @@ bool CdbCommandBlock::cmisRunCdbCommand(TransceiverImpl* bus) {
   auto startTime = std::chrono::steady_clock::now();
   auto finishTime =
       startTime + std::chrono::microseconds(cdbCommandTimeoutUsec);
-  usleep(cdbCommandIntervalUsec);
+  /* sleep override */
+  usleep(cdbCommandStatusPollIntervalUsec);
   while (true) {
     try {
       bus->readTransceiver(
           {TransceiverAccessParameter::ADDR_QSFP, kCdbCommandStatusReg, 1},
           &status);
     } catch (const std::exception& e) {
-      XLOG(INFO) << "read() raised exception: Sleep for 100ms and continue";
-      usleep(cdbCommandIntervalUsec);
+      XLOG(INFO) << folly::sformat(
+          "cmisRunCdbCommand Mod{:d}: read status raised exception: Sleep for 100ms and continue",
+          bus->getNum());
+      /* sleep override */
+      usleep(cdbCommandErrorIntervalUsec);
       status = kCdbCommandStatusBusyCmdCaptured;
     }
     if (status != kCdbCommandStatusBusyCmdCaptured &&
@@ -180,9 +186,13 @@ bool CdbCommandBlock::cmisRunCdbCommand(TransceiverImpl* bus) {
 
     auto currTime = std::chrono::steady_clock::now();
     if (currTime > finishTime) {
+      XLOG(INFO) << folly::sformat(
+          "cmisRunCdbCommand Mod{:d}: Command status still busy, breaking out",
+          bus->getNum());
       break;
     }
-    usleep(cdbCommandIntervalUsec);
+    /* sleep override */
+    usleep(cdbCommandStatusPollIntervalUsec);
   }
 
   auto cdbWaitTime = std::chrono::steady_clock::now() - startTime;
@@ -206,16 +216,21 @@ bool CdbCommandBlock::cmisRunCdbCommand(TransceiverImpl* bus) {
       {TransceiverAccessParameter::ADDR_QSFP, kCdbRlplLengthReg, 1},
       &this->cdbFields_.cdbRlplLength);
 
-  auto i2cReadWithRetry =
-      [&](uint8_t i2cAddress, int offset, int length, uint8_t* buf) {
-        try {
-          bus->readTransceiver({i2cAddress, offset, length}, buf);
-        } catch (const std::exception& e) {
-          XLOG(INFO) << "read() raised exception: Sleep for 100ms and retry";
-          usleep(cdbCommandIntervalUsec);
-          bus->readTransceiver({i2cAddress, offset, length}, buf);
-        }
-      };
+  auto i2cReadWithRetry = [&](uint8_t i2cAddress,
+                              int offset,
+                              int length,
+                              uint8_t* buf) {
+    try {
+      bus->readTransceiver({i2cAddress, offset, length}, buf);
+    } catch (const std::exception& e) {
+      XLOG(INFO) << folly::sformat(
+          "cmisRunCdbCommand Mod{:d}: read generic raised exception: Sleep for 100ms and retry",
+          bus->getNum());
+      /* sleep override */
+      usleep(cdbCommandErrorIntervalUsec);
+      bus->readTransceiver({i2cAddress, offset, length}, buf);
+    }
+  };
 
   // If the CDB has returned some data (cdbRlplLength>0 indicates this) then
   // read the rlpl data from CDB's RLPL memory to the same given structure
@@ -223,10 +238,13 @@ bool CdbCommandBlock::cmisRunCdbCommand(TransceiverImpl* bus) {
     // While reading we can read upto 128 bytes so there no need to do
     // chunk of read here
     // Read the CDB's LPL memory content in our commandBlocks->cdbLplMemory
+    uint8_t replyLength =
+        std::min(this->cdbFields_.cdbRlplLength, kCdbLplMemoryLength);
+
     i2cReadWithRetry(
         TransceiverAccessParameter::ADDR_QSFP,
         136,
-        this->cdbFields_.cdbRlplLength,
+        replyLength,
         this->cdbFields_.cdbLplMemory.cdbLplFlatMemory);
   }
   return true;

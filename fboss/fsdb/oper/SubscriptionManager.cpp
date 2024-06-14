@@ -12,6 +12,14 @@
 
 namespace facebook::fboss::fsdb {
 
+std::string getPublisherDroppedMessage(
+    FsdbErrorCode disconnectReason,
+    std::string pubRoot) {
+  return (disconnectReason == FsdbErrorCode::PUBLISHER_GR_DISCONNECT)
+      ? fmt::format("publisher dropped for GR for root: {}", std::move(pubRoot))
+      : fmt::format("All publishers dropped for root: {}", std::move(pubRoot));
+}
+
 void SubscriptionManagerBase::pruneSimpleSubscriptions() {
   std::vector<std::string> toDelete;
   for (auto& [name, subscription] : subscriptions_) {
@@ -59,18 +67,20 @@ void SubscriptionManagerBase::closeNoPublisherActiveSubscriptions(
     FsdbErrorCode disconnectReason) {
   XLOG(DBG2) << " closeSubscriptions: "
              << apache::thrift::util::enumNameSafe(disconnectReason);
-  const std::string msg =
-      (disconnectReason == FsdbErrorCode::PUBLISHER_GR_DISCONNECT)
-      ? "publisher dropped for GR"
-      : "All publishers dropped";
   for (auto& [name, subscription] : subscriptions_) {
     if (!metadataServer.getMetadata(subscription->publisherTreeRoot())) {
-      subscription->allPublishersGone(disconnectReason, msg);
+      subscription->allPublishersGone(
+          disconnectReason,
+          getPublisherDroppedMessage(
+              disconnectReason, subscription->publisherTreeRoot()));
     }
   }
   for (auto& [name, subscription] : extendedSubscriptions_) {
     if (!metadataServer.getMetadata(subscription->publisherTreeRoot())) {
-      subscription->allPublishersGone(disconnectReason, msg);
+      subscription->allPublishersGone(
+          disconnectReason,
+          getPublisherDroppedMessage(
+              disconnectReason, subscription->publisherTreeRoot()));
     }
   }
 }
@@ -96,7 +106,7 @@ void SubscriptionManagerBase::registerSubscription(
 }
 
 void SubscriptionManagerBase::unregisterSubscription(const std::string& name) {
-  XLOG(INFO) << "Unregistering subscription " << name;
+  XLOG(DBG1) << "Unregistering subscription " << name;
   if (auto it = subscriptions_.find(name); it != subscriptions_.end()) {
     auto rawPtr = it->second.get();
     initialSyncNeeded_.erase(rawPtr);
@@ -107,7 +117,7 @@ void SubscriptionManagerBase::unregisterSubscription(const std::string& name) {
 
 void SubscriptionManagerBase::unregisterExtendedSubscription(
     const std::string& name) {
-  XLOG(INFO) << "Unregistering extended subscription " << name;
+  XLOG(DBG1) << "Unregistering extended subscription " << name;
   if (auto it = extendedSubscriptions_.find(name);
       it != extendedSubscriptions_.end()) {
     initialSyncNeededExtended_.erase(it->second);
@@ -162,7 +172,7 @@ void SubscriptionManagerBase::serveHeartbeat() {
 void SubscriptionManagerBase::registerSubscription(
     std::string name,
     std::unique_ptr<Subscription> subscription) {
-  XLOG(INFO) << "Registering subscription " << name;
+  XLOG(DBG1) << "Registering subscription " << name;
   auto rawPtr = subscription.get();
   auto ret = subscriptions_.emplace(name, std::move(subscription));
   if (!ret.second) {
@@ -175,7 +185,7 @@ void SubscriptionManagerBase::registerSubscription(
 void SubscriptionManagerBase::registerExtendedSubscription(
     std::string name,
     std::shared_ptr<ExtendedSubscription> subscription) {
-  XLOG(INFO) << "Registering extended subscription " << name;
+  XLOG(DBG1) << "Registering extended subscription " << name;
   DCHECK(subscription);
   auto ret = extendedSubscriptions_.emplace(name, subscription);
   if (!ret.second) {

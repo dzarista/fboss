@@ -41,6 +41,8 @@ class ServiceHandler : public FsdbServiceSvIf,
     }
   };
 
+  using RawPathT = std::vector<std::string>;
+
   ServiceHandler(
       std::shared_ptr<FsdbConfig> fsdbConfig,
       Options options = Options());
@@ -133,6 +135,29 @@ class ServiceHandler : public FsdbServiceSvIf,
       co_subscribeOperStatsDeltaExtended(
           std::unique_ptr<OperSubRequestExtended> /*request*/) override;
 
+  // Patch apis
+  folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
+      OperPubInitResponse,
+      PublisherMessage,
+      OperPubFinalResponse>>
+  co_publishState(std::unique_ptr<PubRequest> request) override;
+
+  folly::coro::Task<apache::thrift::ResponseAndSinkConsumer<
+      OperPubInitResponse,
+      PublisherMessage,
+      OperPubFinalResponse>>
+  co_publishStats(std::unique_ptr<PubRequest> request) override;
+
+  folly::coro::Task<apache::thrift::ResponseAndServerStream<
+      OperSubInitResponse,
+      SubscriberMessage>>
+  co_subscribeState(std::unique_ptr<SubRequest> request) override;
+
+  folly::coro::Task<apache::thrift::ResponseAndServerStream<
+      OperSubInitResponse,
+      SubscriberMessage>>
+  co_subscribeStats(std::unique_ptr<SubRequest> request) override;
+
   // Management Plane related ---------------------------------------
 
   folly::coro::Task<std::unique_ptr<PublisherIdToOperPublisherInfo>>
@@ -190,7 +215,8 @@ class ServiceHandler : public FsdbServiceSvIf,
       FsdbErrorCode disconnectReason);
   template <typename PubUnit>
   apache::thrift::SinkConsumer<PubUnit, OperPubFinalResponse> makeSinkConsumer(
-      std::unique_ptr<OperPubRequest> request,
+      RawPathT&& path,
+      const PublisherId& publisherId,
       bool isStats);
 
   folly::coro::AsyncGenerator<DeltaValue<OperState>&&> makeStateStreamGenerator(
@@ -211,8 +237,11 @@ class ServiceHandler : public FsdbServiceSvIf,
       std::unique_ptr<OperSubRequestExtended> request,
       bool isStats);
 
-  OperPublisherInfo
-  makePublisherInfo(const OperPubRequest& req, PubSubType type, bool isStats);
+  OperPublisherInfo makePublisherInfo(
+      const RawPathT& path,
+      const PublisherId& publisherId,
+      PubSubType type,
+      bool isStats);
 
   void initFlagDefaults(
       const std::unordered_map<std::string, std::string>& flags);
@@ -226,9 +255,7 @@ class ServiceHandler : public FsdbServiceSvIf,
       bool hasRawPath,
       bool hasExtendedPath);
 
-  void validateOperPublishPermissions(
-      PublisherId id,
-      const std::vector<std::string>& path);
+  void validateOperPublishPermissions(PublisherId id, const RawPathT& path);
 
   std::shared_ptr<FsdbConfig> fsdbConfig_;
 

@@ -17,7 +17,7 @@ else
 fi
 
 usage() {
-   echo "Usage: $1 --arch <dnx|xgs> --kernel <4.18|5.12|5.19> "
+   echo "Usage: $1 --arch <dnx|xgs> --kernel <4.18|5.12|5.19|6.4> "
    echo "          [ --build-dir <build directory> ] "
    echo "          [ --rebuild-all ] [ --rebuild-fboss ] "
    echo "          [ --fboss-bins-only ] [ --with-debug-symbols ] "
@@ -76,8 +76,11 @@ while [[ $# -gt 0 ]]; do
       elif [ "$2" == "5.19" ];
       then
          KERNEL="5.19"
+      elif [ "$2" == "6.4" ];
+      then
+         KERNEL="6.4"
       else
-         echo "Unsupported kernel $2, please provide one of 4.18, 5.12, or 5.19."
+         echo "Unsupported kernel $2, please provide one of 4.18, 5.12, 5.19, or 6.4."
 	 exit 1
       fi
       shift
@@ -107,6 +110,8 @@ if [ $KERNEL = "4.18" ]; then
    export KERNEL_SRC="$FBOSS_DIR/4.18.0-408.el8.x86_64"
 elif [ $KERNEL = "5.12" ]; then
    export KERNEL_SRC="$FBOSS_DIR/5.12.0-0_fbk2_3390_g7ecb4ac46d7f"
+elif [ $KERNEL = "6.4" ]; then
+   export KERNEL_SRC="$FBOSS_DIR/6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4"
 else
    export KERNEL_SRC="$FBOSS_DIR/5.19.0"
 fi
@@ -165,7 +170,7 @@ then
    done
 
    # 5.19 kernel has additional requirements.
-   if [ $KERNEL == "5.19" ]; then
+   if [ $KERNEL == "5.19" ] || [ $KERNEL == "6.4" ]; then
       mkdir -p /tools/
       ln -s /usr/bin/ /tools/bin
    fi

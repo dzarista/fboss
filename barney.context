@@ -8,16 +8,16 @@
                "commit": "ef49e7dd537da663af1a4e7700458617111afa6e"
             },
             "code.arista.io/aqua-sai/in-eos": {
-               "commit": "b254b4b3977dc25f0ea7b448401706d90c403514"
+               "commit": "68d2b572c822ade8473fda4d72dd3c8c40c03ffc"
             },
             "code.arista.io/infra/barney/barnzilla": {
-               "commit": "62094d9a65938e2fac95686a6d36073497a8d6a6"
+               "commit": "c1327b64122bf52ce23877dea5bd88bc5d6ecbc6"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "376701450312109e214816566987cd88671d0241"
+               "commit": "ac19fe25d9c1b4158561ac7fe8a6939610c2236d"
             },
             "barney.ci/alpine": {
-               "commit": "eccbe9c35688adcf948ffa1180c4a5147fec1799"
+               "commit": "49671dbaab239292a9384dbb68cd75605cb3f289"
             },
             "barney.ci/golang": {
                "commit": "94538b1da2dcf9ed287d6be983f5328892a9ad94"

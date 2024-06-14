@@ -47,6 +47,7 @@ struct NpuPortStatus {
   int portId;
   bool operState; // true for link up, false for link down
   bool portEnabled; // true for enabled, false for disabled
+  bool asicPrbsEnabled; // true for enabled, false for disabled
   std::string profileID;
 };
 
@@ -63,6 +64,9 @@ class TransceiverManager {
       std::unique_ptr<PlatformMapping> platformMapping);
   virtual ~TransceiverManager();
   void gracefulExit();
+  void setGracefulExitingFlag() {
+    isExiting_ = true;
+  }
 
   /*
    * Initialize the qsfp_service components, which might include:
@@ -768,6 +772,8 @@ class TransceiverManager {
 
   bool upgradeFirmware(Transceiver& tcvr);
 
+  bool isRunningAsicPrbs(TransceiverID tcvr) const;
+
   // Returns the Firmware object from qsfp config for the given module.
   // If there is no firmware in config, returns empty optional
   std::optional<cfg::Firmware> getFirmwareFromCfg(Transceiver& tcvr) const;
@@ -803,7 +809,7 @@ class TransceiverManager {
 
   // A global flag to indicate whether the service is exiting.
   // If it is, we should not accept any state update
-  bool isExiting_{false};
+  std::atomic<bool> isExiting_{false};
 
   /*
    * Flag that indicates whether the service has been fully initialized.

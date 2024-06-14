@@ -143,6 +143,17 @@ class CmisModule : public QsfpModule {
 
   bool tcvrPortStateSupported(TransceiverPortState& portState) const override;
 
+  bool isRequestValidMultiportSpeedConfig(
+      cfg::PortSpeed speed,
+      uint8_t startHostLane,
+      uint8_t numLanes);
+
+  std::optional<std::array<SMFMediaInterfaceCode, kMaxOsfpNumLanes>>
+  getValidMultiportSpeedConfig(
+      cfg::PortSpeed speed,
+      uint8_t startHostLane,
+      uint8_t numLanes);
+
  protected:
   // QSFP+ requires a bottom 128 byte page describing important monitoring
   // information, and then an upper 128 byte page with less frequently
@@ -564,6 +575,10 @@ class CmisModule : public QsfpModule {
       cfg::PortSpeed speed,
       uint8_t numLanes);
 
+  bool isMultiPortOptics() {
+    return getIdentifier() == TransceiverModuleIdentifier::OSFP;
+  }
+
   // Private functions to extract and fill in VDM performance monitoring stats
   bool fillVdmPerfMonitorSnr(VdmPerfMonitorStats& vdmStats);
   bool fillVdmPerfMonitorBer(VdmPerfMonitorStats& vdmStats);
@@ -577,6 +592,8 @@ class CmisModule : public QsfpModule {
   std::map<int32_t, SymErrHistogramBin> getCdbSymbolErrorHistogramLocked(
       uint8_t datapathId,
       bool mediaSide);
+
+  uint8_t datapathResetPendingMask_{0};
 };
 
 } // namespace fboss

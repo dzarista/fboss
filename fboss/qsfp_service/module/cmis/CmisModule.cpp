@@ -2242,13 +2242,6 @@ void CmisModule::setApplicationCodeLocked(
   // check if any of those are present in the moduleCapabilities. We configure
   // the first application that both we support and the module supports
   for (auto application : applicationIter->second) {
-    // If the currently configured application is the same as what we are trying
-    // to configure, then skip the configuration
-    if (static_cast<uint8_t>(application) == currentApplication) {
-      QSFP_LOG(INFO, this) << "Speed matches. Doing nothing.";
-      return;
-    }
-
     auto capability =
         getApplicationField(static_cast<uint8_t>(application), startHostLane);
 
@@ -2264,6 +2257,21 @@ void CmisModule::setApplicationCodeLocked(
     }
 
     uint8_t hostLaneMask = laneMask(startHostLane, numHostLanes);
+
+    // If the currently configured application is the same as what we are trying
+    // to configure, then skip the configuration
+    if (static_cast<uint8_t>(application) == currentApplication) {
+      QSFP_LOG(INFO, this) << "Speed matches. Doing nothing";
+      // Make sure the datapath is initialized, otherwise initialize it before
+      // returning
+      if (datapathResetPendingMask_ & hostLaneMask) {
+        resetDataPathWithFunc(std::nullopt, hostLaneMask);
+        datapathResetPendingMask_ &= ~hostLaneMask;
+        QSFP_LOG(INFO, this) << "Reset datapath for lane mask " << hostLaneMask
+                             << " before returning";
+      }
+      return;
+    }
 
     auto setApplicationSelectCode = [this,
                                      &capability,
@@ -2357,14 +2365,63 @@ void CmisModule::setApplicationCodeLocked(
 
       writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySetForConfigureLanes);
 
+      datapathResetPendingMask_ = applySetForConfigureLanes;
+
       QSFP_LOG(INFO, this) << folly::sformat(
           "set application to {:#x}", capability->moduleMediaInterface);
+    };
+
+    // Lambda to get the valid lane config combination for the given speed on
+    // start host lane and then apply this config to all the lanes. The data
+    // path setting will be applied to all the lanes
+    auto setApplicationSelectCodeAllLanes = [this,
+                                             speed,
+                                             startHostLane,
+                                             numHostLanes]() {
+      if (auto laneProgramValues = getValidMultiportSpeedConfig(
+              speed, startHostLane, numHostLanes)) {
+        std::array<uint8_t, kMaxOsfpNumLanes> stageSet0Config;
+        for (auto lane = 0; lane < kMaxOsfpNumLanes;) {
+          if (auto laneCapability = getApplicationField(
+                  static_cast<uint8_t>(laneProgramValues.value()[lane]),
+                  lane)) {
+            uint8_t currApSelCode = laneCapability.value().ApSelCode;
+            for (auto currApLane = lane;
+                 currApLane < lane + laneCapability.value().hostLaneCount;
+                 currApLane++) {
+              stageSet0Config[currApLane] = currApSelCode << APP_SEL_BITSHIFT |
+                  (lane << DATA_PATH_ID_BITSHIFT);
+            }
+            lane += laneCapability.value().hostLaneCount;
+          } else {
+            stageSet0Config[lane++] = 0;
+          }
+        }
+        writeCmisField(CmisField::APP_SEL_ALL_LANES, stageSet0Config.data());
+
+        // Trigger the Set 0 application code setting to be applied on data
+        // path init for all the lanes. The actual data-path init will be
+        // triggered from the caller function
+        uint8_t applySetForSpecificLanes = laneMask(0, kMaxOsfpNumLanes);
+        writeCmisField(CmisField::STAGE_CTRL_SET_0, &applySetForSpecificLanes);
+
+        datapathResetPendingMask_ = applySetForSpecificLanes;
+      }
     };
 
     // In 400G-FR4 case we will have 8 host lanes instead of 4. Further more,
     // we need to deactivate all the lanes when we switch to an application with
     // a different lane count. CMIS4.0-8.8.4
-    resetDataPathWithFunc(setApplicationSelectCode, hostLaneMask);
+    if (getIdentifier() == TransceiverModuleIdentifier::OSFP &&
+        !isRequestValidMultiportSpeedConfig(
+            speed, startHostLane, numHostLanes)) {
+      resetDataPathWithFunc(setApplicationSelectCodeAllLanes, hostLaneMask);
+    } else {
+      resetDataPathWithFunc(setApplicationSelectCode, hostLaneMask);
+    }
+
+    datapathResetPendingMask_ &= ~hostLaneMask;
+
     // Certain OSFP Modules require a long time to finish application
     // programming. The modules say config is accepted and applied, but
     // internally the module will still be processing the config. If we don't
@@ -2418,6 +2475,128 @@ SMFMediaInterfaceCode CmisModule::getMediaIntfCodeFromSpeed(
     }
   }
   return SMFMediaInterfaceCode::UNKNOWN;
+}
+
+/*
+ * isRequestValidMultiportSpeedConfig
+ *
+ * This function returns if the requested speed on given number of lanes will
+ * result in valid config on the overall optics. If the requested config on
+ * given lanes will result in non-supported speed config (as described in static
+ * list osfpValidSpeedCombination) then this function returns false otherwise
+ * returns true. This function does not rely on cache and does the directHW read
+ * to know the current speed config on the lanes.
+ */
+bool CmisModule::isRequestValidMultiportSpeedConfig(
+    cfg::PortSpeed speed,
+    uint8_t startHostLane,
+    uint8_t numLanes) {
+  if (!isMultiPortOptics()) {
+    // For non-multiport supporting optics, return true rightaway
+    return true;
+  }
+
+  // Sanity check
+  auto desiredMediaIntfCode = getMediaIntfCodeFromSpeed(speed, numLanes);
+  if (desiredMediaIntfCode == SMFMediaInterfaceCode::UNKNOWN) {
+    QSFP_LOG(ERR, this) << "Unsupported Speed "
+                        << apache::thrift::util::enumNameSafe(speed);
+    return false;
+  }
+
+  // Get the current speed config on the Multiport optics lanes. Avoid cache
+  // and read from HW directly
+  std::array<uint8_t, kMaxOsfpNumLanes> currHwSpeedConfig;
+  readCmisField(CmisField::ACTIVE_CTRL_ALL_LANES, currHwSpeedConfig.data());
+  for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+    currHwSpeedConfig[laneId] =
+        (currHwSpeedConfig[laneId] & APP_SEL_MASK) >> APP_SEL_BITSHIFT;
+  }
+
+  // Find what will be the new config after applying the requested config
+  std::array<SMFMediaInterfaceCode, kMaxOsfpNumLanes> desiredSpeedConfig;
+  for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+    if (laneId >= startHostLane && laneId < startHostLane + numLanes) {
+      desiredSpeedConfig[laneId] = desiredMediaIntfCode;
+    } else {
+      desiredSpeedConfig[laneId] =
+          getApplicationFromApSelCode(currHwSpeedConfig[laneId]);
+    }
+  }
+
+  // Check if this is supported speed config combo on this optics and return
+  for (auto& validSpeedCombo : osfpValidSpeedCombination) {
+    bool combolValid = true;
+    for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+      if (validSpeedCombo[laneId] != desiredSpeedConfig[laneId]) {
+        combolValid = false;
+        break;
+      }
+    }
+    if (combolValid) {
+      QSFP_LOG(DBG2, this) << folly::sformat(
+          "Found the valid speed combo of media intf id {:s} for lanemask {:#x}",
+          apache::thrift::util::enumNameSafe(desiredMediaIntfCode),
+          laneMask(startHostLane, numLanes));
+      return true;
+    }
+  }
+  QSFP_LOG(DBG2, this) << folly::sformat(
+      "Could not find the valid speed combo of media intf id {:s} for lanemask {:#x}",
+      apache::thrift::util::enumNameSafe(desiredMediaIntfCode),
+      laneMask(startHostLane, numLanes));
+  return false;
+}
+
+/*
+ * getValidMultiportSpeedConfig
+ *
+ * Returns the valid speed config for all the lanes of the multi-port optics
+ * which matches closely with the supported speed combo on the optics. If no
+ * valid speed combo is found then returns nullopt
+ */
+std::optional<std::array<SMFMediaInterfaceCode, CmisModule::kMaxOsfpNumLanes>>
+CmisModule::getValidMultiportSpeedConfig(
+    cfg::PortSpeed speed,
+    uint8_t startHostLane,
+    uint8_t numLanes) {
+  auto desiredMediaIntfCode = getMediaIntfCodeFromSpeed(speed, numLanes);
+  if (desiredMediaIntfCode == SMFMediaInterfaceCode::UNKNOWN) {
+    QSFP_LOG(ERR, this) << "Unsupported Speed "
+                        << apache::thrift::util::enumNameSafe(speed);
+    return std::nullopt;
+  }
+
+  CHECK_LE(startHostLane + numLanes, kMaxOsfpNumLanes);
+  for (auto& validSpeedCombo : osfpValidSpeedCombination) {
+    bool combolValid = true;
+    for (int laneId = startHostLane; laneId < startHostLane + numLanes;
+         laneId++) {
+      if (validSpeedCombo[laneId] != desiredMediaIntfCode) {
+        combolValid = false;
+        break;
+      }
+    }
+    if (combolValid) {
+      std::string speedCfgCombo;
+      for (int laneId = 0; laneId < kMaxOsfpNumLanes; laneId++) {
+        speedCfgCombo +=
+            apache::thrift::util::enumNameSafe(validSpeedCombo[laneId]);
+        speedCfgCombo += " ";
+      }
+      QSFP_LOG(DBG2, this) << folly::sformat(
+          "Returning the valid speed combo of media intf id {:s} for lanemask {:#x} = {:s}",
+          apache::thrift::util::enumNameSafe(desiredMediaIntfCode),
+          laneMask(startHostLane, numLanes),
+          speedCfgCombo);
+      return validSpeedCombo;
+    }
+  }
+  QSFP_LOG(ERR, this) << folly::sformat(
+      "No valid speed combo found for speed {:s} and lanemask {:#x}",
+      apache::thrift::util::enumNameSafe(speed),
+      laneMask(startHostLane, numLanes));
+  return std::nullopt;
 }
 
 /*
