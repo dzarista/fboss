@@ -9,6 +9,7 @@
 #include "fboss/qsfp_service/QsfpConfig.h"
 #include "fboss/qsfp_service/if/gen-cpp2/qsfp_service_config_types.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
+#include "fboss/qsfp_service/module/I2cLogBuffer.h"
 #include "fboss/qsfp_service/module/QsfpModule.h"
 #include "fboss/qsfp_service/module/cmis/CmisModule.h"
 #include "fboss/qsfp_service/module/sff/Sff8472Module.h"
@@ -147,10 +148,30 @@ void WedgeManager::initTransceiverMap() {
 }
 
 void WedgeManager::initQsfpImplMap() {
+  auto i2cLogConfig = qsfpConfig_->thrift.transceiverI2cLogging();
+  bool i2c_logging_Enabled =
+      i2cLogConfig.has_value() && FLAGS_enable_tcvr_i2c_logging;
+  if (i2c_logging_Enabled) {
+    auto logConfig = apache::thrift::can_throw(i2cLogConfig.value());
+    XLOG(INFO) << fmt::format(
+        "Create i2c log buffer per tcvr: size {} read {} write {} disOnFail {} ",
+        logConfig.bufferSlots().value(),
+        logConfig.readLog().value(),
+        logConfig.writeLog().value(),
+        logConfig.disableOnFail().value());
+  } else {
+    XLOG(INFO) << "Did not create tcvr i2c log buffers";
+  }
   // Create WedgeQsfp for each QSFP module present in the system
   for (int idx = 0; idx < getNumQsfpModules(); idx++) {
-    qsfpImpls_.push_back(
-        std::make_unique<WedgeQsfp>(idx, wedgeI2cBus_.get(), this));
+    std::unique_ptr<I2cLogBuffer> logBuffer;
+    if (i2c_logging_Enabled) {
+      auto fileName = getI2cLogName(idx);
+      auto logConfig = apache::thrift::can_throw(i2cLogConfig.value());
+      logBuffer = std::make_unique<I2cLogBuffer>(logConfig, fileName);
+    }
+    qsfpImpls_.push_back(std::make_unique<WedgeQsfp>(
+        idx, wedgeI2cBus_.get(), this, std::move(logBuffer)));
   }
 }
 
@@ -331,6 +352,19 @@ void WedgeManager::writeTransceiverRegister(
             }
           })
       .wait();
+}
+
+size_t WedgeManager::getI2cLogBufferCapacity(int32_t portId) {
+  return qsfpImpls_[portId]->getI2cLogBufferCapacity();
+}
+
+std::pair<size_t, size_t> WedgeManager::dumpTransceiverI2cLog(
+    const std::string& portName) {
+  auto itr = portNameToModule_.find(portName);
+  if (itr == portNameToModule_.end()) {
+    throw FbossError("Can't find transceiver module for port name: ", portName);
+  }
+  return dumpTransceiverI2cLog(itr->second);
 }
 
 void WedgeManager::syncPorts(

@@ -65,10 +65,12 @@ class NaivePeriodicSubscribableStorage
             trackMetadata,
             metricPrefix,
             convertToIDPaths),
-        currentState_(std::in_place_t{}, initialState),
-        lastPublishedState_(*currentState_.rlock()) {
-    subscriptions_.wlock()->setRequireResponseOnInitialSync(
-        requireResponseOnInitialSync);
+        currentState_(std::in_place, initialState),
+        lastPublishedState_(*currentState_.rlock()),
+        subscriptions_(
+            std::in_place,
+            patchOperProtocol_,
+            requireResponseOnInitialSync) {
 #ifdef ENABLE_PATCH_APIS
     subscriptions_.wlock()->useIdPaths(convertToIDPaths);
 #endif
@@ -180,6 +182,7 @@ class NaivePeriodicSubscribableStorage
 #ifdef ENABLE_PATCH_APIS
   std::optional<StorageError> patch_impl(Patch&& patch) {
     if (patch.patch()->getType() == thrift_cow::PatchNode::Type::__EMPTY__) {
+      XLOG(DBG3) << "Patch is empty, nothing to do";
       return StorageError::TYPE_ERROR;
     }
     auto& path = *patch.basePath();

@@ -12,6 +12,7 @@
 
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/AgentDirectoryUtil.h"
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/AlpmUtils.h"
 #include "fboss/agent/ApplyThriftConfig.h"
 #include "fboss/agent/ArpHandler.h"
@@ -275,6 +276,8 @@ void accumulateFb303GlobalStats(
       toAdd.fabric_reachability_missing().value();
   *accumulated.fabric_reachability_mismatch() +=
       toAdd.fabric_reachability_mismatch().value();
+  *accumulated.switch_reachability_change() +=
+      toAdd.switch_reachability_change().value();
 }
 
 void accumulateGlobalCpuStats(
@@ -1135,10 +1138,23 @@ void SwSwitch::init(
 
   // Notify resource accountant of the initial state.
   if (!resourceAccountant_->isValidRouteUpdate(initialStateDelta)) {
-    throw FbossError(
-        "Not enough resource to apply initialState. ",
-        "This should not happen given the state was previously applied, ",
-        "but possible if calculation or threshold changes across warmboot.");
+    // If DLB is enabled and pre-warmboot state has >128 ECMP groups, any
+    // failure is due to DLB resource check failure. Resource accounting will
+    // not be enabled in this boot and stay disabled until next warmboot
+    //
+    // This is the first invocation of isValidRouteUpdate. At this time,
+    // ResourceAccountant::checkDlbResource_ is True by default. If the method
+    // returns False, set checkDlbResource_ to False. This will disable further
+    // DLB resource checks within resource accounting
+    if (FLAGS_dlbResourceCheckEnable && FLAGS_flowletSwitchingEnable) {
+      XLOG(DBG0) << "DLB resource check disabled until next warmboot";
+      resourceAccountant_->enableDlbResourceCheck(false);
+    } else {
+      throw FbossError(
+          "Not enough resource to apply initialState. ",
+          "This should not happen given the state was previously applied, ",
+          "but possible if calculation or threshold changes across warmboot.");
+    }
   }
   multiHwSwitchHandler_->stateChanged(
       initialStateDelta, false, hwWriteBehavior);
@@ -1194,7 +1210,7 @@ void SwSwitch::init(
       this, std::move(tunMgr), hwSwitchInitFn, HwWriteBehavior::WRITE, flags);
 }
 
-void SwSwitch::init(SwitchFlags flags) {
+void SwSwitch::init(const HwWriteBehavior& hwWriteBehavior, SwitchFlags flags) {
   /* used for split Software Switch init */
   auto initialState = preInit(flags);
   initialState->publish();
@@ -1207,16 +1223,30 @@ void SwSwitch::init(SwitchFlags flags) {
   const auto initialStateDelta = StateDelta(emptyState, initialState);
   // Notify resource accountant of the initial state.
   if (!resourceAccountant_->isValidRouteUpdate(initialStateDelta)) {
-    throw FbossError(
-        "Not enough resource to apply initialState. ",
-        "This should not happen given the state was previously applied, ",
-        "but possible if calculation or threshold changes across warmboot.");
+    // If DLB is enabled and pre-warmboot state has >128 ECMP groups, any
+    // failure is due to DLB resource check failure. Resource accounting will
+    // not be enabled in this boot and stay disabled until next warmboot
+    //
+    // This is the first invocation of isValidRouteUpdate. At this time,
+    // ResourceAccountant::checkDlbResource_ is True by default. If the method
+    // returns False, set checkDlbResource_ to False. This will disable further
+    // DLB resource checks within resource accounting
+    if (FLAGS_dlbResourceCheckEnable && FLAGS_flowletSwitchingEnable) {
+      XLOG(DBG0) << "DLB resource check disabled until next warmboot";
+      resourceAccountant_->enableDlbResourceCheck(false);
+    } else {
+      throw FbossError(
+          "Not enough resource to apply initialState. ",
+          "This should not happen given the state was previously applied, ",
+          "but possible if calculation or threshold changes across warmboot.");
+    }
   }
   // Do not send cold boot state to hwswitch. This is to avoid
   // deleting any cold boot state entries that hwswitch has learned from sdk
   if (bootType_ == BootType::WARM_BOOT) {
     try {
-      getHwSwitchHandler()->stateChanged(initialStateDelta, false);
+      getHwSwitchHandler()->stateChanged(
+          initialStateDelta, false, hwWriteBehavior);
     } catch (const std::exception& ex) {
       throw FbossError("Failed to sync initial state to HwSwitch: ", ex.what());
     }
@@ -2387,8 +2417,11 @@ void SwSwitch::sendPacketOutViaThriftStream(
     txPacket.queue() = queue.value();
   }
   txPacket.data() = Packet::extractIOBuf(std::move(pkt));
+  auto switchIndex =
+      getSwitchInfoTable().getSwitchIndexFromSwitchId(SwitchID(switchId));
   try {
     getPacketStreamMap()->getStream(switchId).next(std::move(txPacket));
+    stats()->hwAgentTxPktSent(switchIndex);
   } catch (const std::exception& e) {
     stats()->pktDropped();
     XLOG(DBG2) << "Error sending packet via thrift stream to switch "
@@ -3223,7 +3256,7 @@ std::map<SystemPortID, HwSysPortStats> SwSwitch::getHwSysPortStats(
     auto hwswitchStats = hwswitchStatsMap->find(switchIndex);
     if (hwswitchStats != hwswitchStatsMap->end()) {
       auto portName =
-          getState()->getSystemPorts()->getNodeIf(portId)->getPortName();
+          getState()->getSystemPorts()->getNodeIf(portId)->getName();
       auto statsMap = hwswitchStats->second.sysPortStats();
       auto entry = statsMap->find(portName);
       if (entry != statsMap->end()) {

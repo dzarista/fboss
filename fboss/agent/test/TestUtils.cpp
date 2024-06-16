@@ -466,7 +466,7 @@ std::shared_ptr<SystemPort> makeSysPort(
     int64_t switchId) {
   auto sysPort = std::make_shared<SystemPort>(SystemPortID(sysPortId));
   sysPort->setSwitchId(SwitchID(switchId));
-  sysPort->setPortName(folly::sformat("sysPort{}", sysPortId));
+  sysPort->setName(folly::sformat("sysPort{}", sysPortId));
   sysPort->setCoreIndex(42);
   sysPort->setCorePortIndex(24);
   sysPort->setSpeedMbps(10000);
@@ -708,7 +708,7 @@ std::unique_ptr<SwSwitch> setupMockSwitchWithoutHW(
       std::make_pair<std::string, std::string>("multi_switch", "true");
   thrift.defaultCommandLineArgs()->emplace(std::move(multiSwitch));
   swSwitch->setConfig(std::make_unique<AgentConfig>(thrift));
-  swSwitch->init(SwitchFlags::DEFAULT);
+  swSwitch->init(HwWriteBehavior::WRITE, SwitchFlags::DEFAULT);
   swSwitch->applyConfig("initial config", *config);
   swSwitch->initialConfigApplied(std::chrono::steady_clock::now());
   return swSwitch;

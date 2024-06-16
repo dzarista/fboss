@@ -238,7 +238,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/HwIpInIpTunnelTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMPLSTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwMacLearningAndNeighborResolutionTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMirroringTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwOverflowTest.cpp
   fboss/agent/hw/test/dataplane_tests/HwTeFlowTrafficTests.cpp
@@ -247,7 +246,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/HwProdInvariantTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwPacketSendTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwQueuePerHostL2Tests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwQueuePerHostTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwQueuePerHostRouteTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwSflowTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwSflowMirrorTest.cpp
@@ -292,7 +290,6 @@ target_link_libraries(hw_switch_test
   copp_test_utils
   dscp_marking_utils
   ecmp_dataplane_test_util
-  fabric_test_utils
   hw_packet_utils
   hw_switch_ensemble
   voq_test_utils

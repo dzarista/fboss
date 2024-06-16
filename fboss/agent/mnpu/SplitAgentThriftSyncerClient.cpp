@@ -147,6 +147,13 @@ ThriftSinkClient<CallbackObjectT, EventQueueT>::ThriftSinkClient(
               name,
               ".events_dropped"),
           fb303::SUM,
+          fb303::RATE),
+      eventSentCount_(
+          folly::to<std::string>(
+              multiSwitchStatsPrefix ? *multiSwitchStatsPrefix + "." : "",
+              name,
+              ".events_sent"),
+          fb303::SUM,
           fb303::RATE) {
 }
 
@@ -232,7 +239,8 @@ ThriftStreamClient<StreamObjectT>::ThriftStreamClient(
     EventHandlerFn eventHandlerFn,
     HwSwitch* hw,
     std::shared_ptr<folly::ScopedEventBaseThread> eventThread,
-    folly::EventBase* retryEvb)
+    folly::EventBase* retryEvb,
+    std::optional<std::string> multiSwitchStatsPrefix)
     : SplitAgentThriftClient(
           std::string(name),
           eventThread,
@@ -245,7 +253,15 @@ ThriftStreamClient<StreamObjectT>::ThriftStreamClient(
       connectFn_(std::move(connectFn)),
 #endif
       eventHandlerFn_(std::move(eventHandlerFn)),
-      hw_(hw) {
+      hw_(hw),
+      eventReceivedCount_(
+
+          folly::to<std::string>(
+              multiSwitchStatsPrefix ? *multiSwitchStatsPrefix + "." : "",
+              name,
+              ".events_received"),
+          fb303::SUM,
+          fb303::RATE) {
 }
 
 template <typename StreamObjectT>
@@ -259,7 +275,8 @@ void ThriftStreamClient<StreamObjectT>::startClientService() {
 #if FOLLY_HAS_COROUTINES
 template <typename StreamObjectT>
 folly::coro::Task<void> ThriftStreamClient<StreamObjectT>::serveStream() {
-  while (const auto& event = co_await streamClient_->next()) {
+  while (const auto& event = co_await folly::coro::co_withCancellation(
+             cancellationSource_.getToken(), streamClient_->next())) {
     if (isCancelled()) {
       co_return;
     }
@@ -276,6 +293,11 @@ void ThriftStreamClient<StreamObjectT>::resetClient() {
   streamClient_.reset();
 #endif
   SplitAgentThriftClient::resetClient();
+}
+
+template <typename StreamObjectT>
+void ThriftStreamClient<StreamObjectT>::onCancellation() {
+  cancellationSource_.requestCancellation();
 }
 
 template <typename StreamObjectT>

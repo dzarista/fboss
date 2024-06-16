@@ -21,6 +21,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentL3ForwardingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentL4PortBlackholingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentMacLearningTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentMacLearningAndNeighborResolutionTests.cpp
   fboss/agent/test/agent_hw_tests/AgentMirroringTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosSchedulerTests.cpp
@@ -84,6 +85,7 @@ target_link_libraries(agent_hw_test_src
   sflow_shim_utils
   pktutil
   mirror_test_utils
+  voq_test_utils
 )
 
 add_executable(multi_switch_agent_hw_test

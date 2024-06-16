@@ -2,10 +2,13 @@
 
 #include <gtest/gtest.h>
 #include "fboss/agent/AgentConfig.h"
+#include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwTestEcmpUtils.h"
 #include "fboss/agent/test/link_tests/LinkTest.h"
+#include "fboss/agent/test/utils/PortTestUtils.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/CommonUtils.h"
+#include "fboss/lib/thrift_service_client/ThriftServiceClient.h"
 
 using namespace ::testing;
 using namespace facebook::fboss;
@@ -23,6 +26,69 @@ class SpeedChangeTest : public LinkTest {
   void setupConfigFlag() override;
 
  protected:
+  // Query Qsfp service for eligible port profiles. If current port speed is the
+  // same as from_speed and there exists eligible port profiles for to_speed,
+  // return that info to the caller.
+  std::map<int, cfg::PortProfileID> getEligiblePortsAndProfile(
+      cfg::SwitchConfig cfg,
+      cfg::PortSpeed fromSpeed,
+      cfg::PortSpeed toSpeed) {
+    std::map<std::string, std::vector<cfg::PortProfileID>> supportedProfiles;
+    auto qsfpServiceClient = utils::createQsfpServiceClient();
+    qsfpServiceClient->sync_getAllPortSupportedProfiles(
+        supportedProfiles, true /* checkOptics */);
+
+    std::map<int, cfg::PortProfileID> eligiblePortsAndProfile;
+    for (const auto& port : *cfg.ports()) {
+      CHECK(port.name().has_value());
+      if (*port.speed() == fromSpeed &&
+          supportedProfiles.find(*port.name()) != supportedProfiles.end()) {
+        for (const auto& profile : supportedProfiles.at(*port.name())) {
+          if (utility::getSpeed(profile) == toSpeed) {
+            eligiblePortsAndProfile.emplace(*port.logicalID(), profile);
+            break;
+          }
+        }
+      }
+    }
+    return eligiblePortsAndProfile;
+  }
+
+  cfg::SwitchConfig createSpeedChangeConfig(
+      cfg::PortSpeed fromSpeed,
+      cfg::PortSpeed toSpeed) {
+    cfg::AgentConfig testConfig = platform()->config()->thrift;
+    auto swConfig = *testConfig.sw();
+
+    // Iterate through ports to find eligible ports
+    auto eligilePortsAndProfile =
+        getEligiblePortsAndProfile(swConfig, fromSpeed, toSpeed);
+    CHECK_GT(eligilePortsAndProfile.size(), 0);
+
+    for (auto& port : *swConfig.ports()) {
+      auto iter = eligilePortsAndProfile.find(*port.logicalID());
+      if (iter != eligilePortsAndProfile.end()) {
+        auto desiredProfileId = iter->second;
+        XLOG(INFO) << folly::sformat(
+            "Changing speed and profile on port {:s} from speed={:s},profile={:s} to speed={:s},profile={:s}",
+            port.name().ensure(),
+            apache::thrift::util::enumName(*port.speed()),
+            apache::thrift::util::enumName(*port.profileID()),
+            apache::thrift::util::enumName(utility::getSpeed(desiredProfileId)),
+            apache::thrift::util::enumName(desiredProfileId));
+        PortID portID = PortID(*port.logicalID());
+        utility::configurePortProfile(
+            *platform()->getHwSwitch(),
+            swConfig,
+            desiredProfileId,
+            utility::getAllPortsInGroup(sw()->getPlatformMapping(), portID),
+            portID);
+      }
+    }
+
+    return swConfig;
+  }
+
   std::optional<SpeedAndProfile> getSecondarySpeedAndProfile(
       cfg::PortProfileID profileID) const;
 
@@ -54,6 +120,47 @@ class SpeedChangeTest : public LinkTest {
         apache::thrift::SimpleJSONSerializer::serialize<std::string>(
             testConfig));
     newCfg.dumpConfig(pathOfNewConfig);
+  }
+
+  void runSpeedChangeTest(cfg::PortSpeed fromSpeed, cfg::PortSpeed toSpeed) {
+    auto setup = [this, fromSpeed, toSpeed]() {
+      auto newConfig = createSpeedChangeConfig(fromSpeed, toSpeed);
+
+      // Apply the new config
+      sw()->applyConfig("set secondary speeds", newConfig);
+
+      EXPECT_NO_THROW(waitForAllCabledPorts(true));
+      createL3DataplaneFlood();
+    };
+    auto verify = [this]() {
+      /*
+       * Verify the following on all cabled ports
+       * 1. Link comes up at secondary speeds
+       * 2. LLDP neighbor is discovered
+       * 3. Assert no in discards
+       */
+      EXPECT_NO_THROW(waitForAllCabledPorts(true));
+      checkWithRetry(
+          [this]() { return sendAndCheckReachabilityOnAllCabledPorts(); });
+      // Assert no traffic loss and no ecmp shrink. If ports flap
+      // these conditions will not be true
+      assertNoInDiscards();
+
+      if (platform()->getHwSwitch()->getBootType() == BootType::COLD_BOOT) {
+        auto ecmpSizeInSw = getVlanOwningCabledPorts().size();
+        XLOG(INFO) << "[DBG] ECMP size in sw: " << ecmpSizeInSw;
+        WITH_RETRIES({
+          EXPECT_EVENTUALLY_EQ(
+              utility::getEcmpSizeInHw(
+                  platform()->getHwSwitch(),
+                  {folly::IPAddress("::"), 0},
+                  RouterID(0),
+                  ecmpSizeInSw),
+              ecmpSizeInSw);
+        });
+      }
+    };
+    verifyAcrossWarmBoots(setup, verify);
   }
 
   std::string originalConfigCopy;
@@ -190,3 +297,16 @@ TEST_F(SpeedChangeTest, speedChangeActivatedByWb) {
 
   verifyAcrossWarmBoots(speedChangeSetup, speedChangeVerify);
 }
+
+#define TEST_SPEED_CHANGE(from_speed, to_speed)                               \
+  TEST_F(SpeedChangeTest, from_speed##To##to_speed) {                         \
+    runSpeedChangeTest(cfg::PortSpeed::from_speed, cfg::PortSpeed::to_speed); \
+  }
+
+TEST_SPEED_CHANGE(TWOHUNDREDG, HUNDREDG);
+
+TEST_SPEED_CHANGE(HUNDREDG, TWOHUNDREDG);
+
+TEST_SPEED_CHANGE(TWOHUNDREDG, FOURHUNDREDG);
+
+TEST_SPEED_CHANGE(FOURHUNDREDG, TWOHUNDREDG);

@@ -167,11 +167,34 @@ class I2CTestData:
 
 @dataclass_json
 @dataclass
+class GpioLineInfo:
+    name: str
+    direction: str
+    getValue: Optional[int] = None
+
+
+@dataclass_json
+@dataclass
+class GpioTestData:
+    numLines: int
+    lines: List[GpioLineInfo]
+
+
+@dataclass_json
+@dataclass
+class HwmonTestData:
+    expectedFeatures: List[str] = field(default_factory=list)
+
+
+@dataclass_json
+@dataclass
 class I2CDevice:
     channel: int
     deviceName: str
     address: str
     testData: Optional[I2CTestData] = None
+    hwmonTestData: Optional[HwmonTestData] = None
+    gpioTestData: Optional[GpioTestData] = None
 
 
 @dataclass_json
@@ -179,6 +202,19 @@ class I2CDevice:
 class I2CAdapter:
     auxDevice: AuxDevice
     i2cDevices: List[I2CDevice] = field(default_factory=list)
+
+
+@dataclass_json
+@dataclass
+class LedTestInfo:
+    expectedColors: List[str]
+
+
+@dataclass_json
+@dataclass
+class LedCtrlInfo:
+    auxDevice: AuxDevice
+    ledTestInfo: LedTestInfo
 
 
 @dataclass_json
@@ -191,6 +227,7 @@ class FpgaSpec:
     subSystemDeviceId: str
     i2cAdapters: List[I2CAdapter] = field(default_factory=list)
     xcvrCtrls: List[AuxDevice] = field(default_factory=list)
+    ledCtrls: List[LedCtrlInfo] = field(default_factory=list)
     auxDevices: List[AuxDevice] = field(default_factory=list)
 
 

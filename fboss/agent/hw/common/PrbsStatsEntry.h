@@ -62,9 +62,9 @@ class PrbsStatsEntry {
     }
     system_clock::time_point now = system_clock::now();
     accuErrorCount_ += num_errors;
+    auto startTime = std::max(timeLastCleared_, timeLastCollect_);
     milliseconds duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            now - timeLastCollect_);
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime);
     if (duration.count() == 0) {
       return;
     }
@@ -80,6 +80,7 @@ class PrbsStatsEntry {
     if (locked_) {
       locked_ = false;
       accuErrorCount_ = 0;
+      maxBer_ = -1.;
       numLossOfLock_++;
     }
     timeLastCollect_ = now;
@@ -89,6 +90,7 @@ class PrbsStatsEntry {
     system_clock::time_point now = system_clock::now();
     locked_ = true;
     accuErrorCount_ = 0;
+    maxBer_ = -1.;
     numLossOfLock_++;
     timeLastLocked_ = now;
     timeLastCollect_ = now;
@@ -102,9 +104,10 @@ class PrbsStatsEntry {
     if (!locked_) {
       *prbsLaneStats.ber() = 0.;
     } else {
+      auto startTime = std::max(timeLastCleared_, timeLastLocked_);
       milliseconds duration =
           std::chrono::duration_cast<std::chrono::milliseconds>(
-              timeLastCollect_ - timeLastLocked_);
+              timeLastCollect_ - startTime);
       if (duration.count() == 0) {
         *prbsLaneStats.ber() = 0.;
       } else {
@@ -145,6 +148,7 @@ class PrbsStatsEntry {
   double rate_ = 0.;
   bool locked_ = false;
   int64_t accuErrorCount_ = 0;
+  // maxBer_ is the maximum BER seen since last lock
   double maxBer_ = -1.;
   int32_t numLossOfLock_ = 0;
   system_clock::time_point timeLastLocked_;

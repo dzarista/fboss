@@ -10,16 +10,17 @@
 
 #include <gtest/gtest.h>
 
-#include "fboss/agent/GtestDefs.h"
-#include "fboss/agent/hw/test/ConfigFactory.h"
-#include "fboss/agent/hw/test/HwLinkStateDependentTest.h"
-#include "fboss/agent/hw/test/HwTestLearningUpdateObserver.h"
-#include "fboss/agent/hw/test/HwTestNeighborUtils.h"
-#include "fboss/agent/hw/test/HwTestPacketUtils.h"
+#include "fboss/agent/TxPacket.h"
 #include "fboss/agent/state/Port.h"
+#include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
 #include "fboss/agent/test/TrunkUtils.h"
+#include "fboss/agent/test/utils/AsicUtils.h"
+#include "fboss/agent/test/utils/ConfigUtils.h"
+#include "fboss/agent/test/utils/L2LearningUpdateObserverUtil.h"
 #include "fboss/agent/test/utils/MacTestUtils.h"
+#include "fboss/agent/test/utils/PacketTestUtils.h"
+#include "fboss/lib/CommonUtils.h"
 
 DECLARE_bool(intf_nbr_tables);
 
@@ -90,33 +91,45 @@ using LearningAndPortTypes = ::testing::Types<
 } // namespace
 
 template <typename LearningModeAndPortT>
-class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
+class AgentMacLearningAndNeighborResolutionTest : public AgentHwTest {
  public:
   static auto constexpr kLearningMode = LearningModeAndPortT::kLearningMode;
   static auto constexpr kIsTrunk = LearningModeAndPortT::kIsTrunk;
   static auto constexpr isIntfNbrTable = LearningModeAndPortT::isIntfNbrTable;
 
  protected:
-  void SetUp() override {
+  void setCmdLineFlagOverrides() const override {
+    AgentHwTest::setCmdLineFlagOverrides();
     FLAGS_intf_nbr_tables = isIntfNbrTable;
-    HwLinkStateDependentTest::SetUp();
   }
 
-  cfg::SwitchConfig initialConfig() const override {
+  std::vector<production_features::ProductionFeature>
+  getProductionFeaturesVerified() const override {
+    std::vector<production_features::ProductionFeature> features = {
+        production_features::ProductionFeature::MAC_LEARNING};
+
+    if (isIntfNbrTable) {
+      features.push_back(
+          production_features::ProductionFeature::INTERFACE_NEIGHBOR_TABLE);
+    }
+    if (kIsTrunk) {
+      features.push_back(production_features::ProductionFeature::LAG);
+    }
+    return features;
+  }
+
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto hwAsics = ensemble.getSw()->getHwAsicTable()->getL3Asics();
+    auto asic = utility::checkSameAndGetAsic(hwAsics);
     auto inConfig = utility::oneL3IntfNPortConfig(
-        getHwSwitch()->getPlatform()->getPlatformMapping(),
-        getHwSwitch()->getPlatform()->getAsic(),
-        allConfigPorts(),
-        getHwSwitch()->getPlatform()->supportsAddRemovePort());
+        ensemble.getSw()->getPlatformMapping(),
+        asic,
+        allConfigPorts(ensemble),
+        ensemble.getSw()->getPlatformSupportsAddRemovePort(),
+        asic->desiredLoopbackModes());
     return LearningModeAndPortT::initialConfig(inConfig);
   }
-#ifndef IS_OSS
-  HwSwitchEnsemble::Features featuresDesired() const override {
-    return {
-        HwSwitchEnsemble::LINKSCAN,
-        HwSwitchEnsemble::MULTISWITCH_THRIFT_SERVER};
-  }
-#endif
   PortDescriptor portDescriptor() const {
     return kIsTrunk ? PortDescriptor(kAggID)
                     : PortDescriptor(masterLogicalPortIds()[0]);
@@ -143,44 +156,72 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
   }
 
   void enableTrunks() {
-    applyNewState(utility::enableTrunkPorts(this->getProgrammedState()));
+    applyNewState(
+        [&](const std::shared_ptr<SwitchState>& in) {
+          auto newState = utility::enableTrunkPorts(in);
+          return newState;
+        },
+        "enable trunk ports");
   }
 
   void learnMac(PortDescriptor port, bool wait = false) {
-    HwTestLearningUpdateAutoObserver observer(this->getHwSwitchEnsemble());
+    L2LearningUpdateObserverUtil l2LearningObserver;
     bringUpPorts(physicalPortsFor(port));
     bringDownPorts(physicalPortsExcluding(port));
 
     // Disable aging, so entry stays in L2 table when we verify.
-    utility::setMacAgeTimerSeconds(getHwSwitchEnsemble(), 0);
+    utility::setMacAgeTimerSeconds(getAgentEnsemble(), 0);
+    l2LearningObserver.startObserving(getAgentEnsemble());
     triggerMacLearning(port);
     if (wait) {
-      observer.waitForLearningUpdates(1, 1);
+      l2LearningObserver.waitForLearningUpdates(1, 1);
     }
+    l2LearningObserver.stopObserving();
+    l2LearningObserver.reset();
   }
 
   void learnMacAndProgramNeighbors(
       PortDescriptor port,
       std::optional<cfg::AclLookupClass> lookupClass = std::nullopt) {
-    learnMac(port);
     programNeighbors(port, lookupClass);
-  }
-  void updateMacEntry(std::optional<cfg::AclLookupClass> lookupClass) {
-    auto newState = getProgrammedState()->clone();
-    auto vlan = newState->getVlans()->getNodeIf(kVlanID).get();
-    auto macTable = vlan->getMacTable().get();
-    macTable = macTable->modify(&vlan, &newState);
-    auto macEntry = macTable->getNode(kNeighborMac.toString());
-    macTable->updateEntry(
-        kNeighborMac, macEntry->getPort(), lookupClass, macEntry->getType());
-    applyNewState(newState);
+    learnMac(port);
   }
 
-  bool skipTest() const {
-    // Neighbor and MAC interaction tests only relevant for
-    // HwSwitch that maintain MAC entries for nighbors
-    return !getHwSwitch()->needL2EntryForNeighbor();
+  void updateMacEntry(std::optional<cfg::AclLookupClass> lookupClass) {
+    applyNewState(
+        [&](const std::shared_ptr<SwitchState>& in) {
+          auto newState = in->clone();
+          auto vlan = newState->getVlans()->getNodeIf(kVlanID).get();
+          auto macTable = vlan->getMacTable().get();
+          macTable = macTable->modify(&vlan, &newState);
+          auto macEntry = macTable->getNode(kNeighborMac.toString());
+          macTable->updateEntry(
+              kNeighborMac,
+              macEntry->getPort(),
+              lookupClass,
+              macEntry->getType());
+          return newState;
+        },
+        "update mac entry");
   }
+  void verifyMacEntry(std::optional<cfg::AclLookupClass> lookupClass) {
+    WITH_RETRIES({
+      auto state = getProgrammedState();
+      auto vlan = state->getVlans()->getNodeIf(kVlanID);
+      auto macTable = vlan->getMacTable();
+      auto macEntry = macTable->getNodeIf(kNeighborMac.toString());
+      EXPECT_EVENTUALLY_NE(macEntry, nullptr);
+      if (macEntry) {
+        if (lookupClass) {
+          EXPECT_EVENTUALLY_EQ(macEntry->getClassID(), lookupClass.value());
+          XLOG(DBG2) << "Lookup class matched";
+        } else {
+          XLOG(DBG2) << "Lookup class not set; skipping checking";
+        }
+      }
+    });
+  }
+
   void removeNeighbors() {
     removeNeighbor(neighborAddr<folly::IPAddressV4>());
     removeNeighbor(neighborAddr<folly::IPAddressV6>());
@@ -193,7 +234,17 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
     programNeighbor(port, neighborAddr<folly::IPAddressV6>(), lookupClass);
   }
 
-  std::vector<PortID> physicalPortsFor(PortDescriptor port) const {
+  void verifyNeighborsAndMac(
+      std::optional<cfg::AclLookupClass> lookupClass = std::nullopt,
+      bool verifyMac = true) {
+    verifyNeighbor(neighborAddr<folly::IPAddressV4>(), lookupClass);
+    verifyNeighbor(neighborAddr<folly::IPAddressV6>(), lookupClass);
+    if (verifyMac) {
+      verifyMacEntry(lookupClass);
+    }
+  }
+
+  std::vector<PortID> physicalPortsFor(PortDescriptor& port) const {
     if (!port.isAggregatePort()) {
       return {port.phyPortID()};
     } else if (port.aggPortID() == kAggID) {
@@ -202,10 +253,10 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
       return {masterLogicalPortIds()[2], masterLogicalPortIds()[3]};
     }
   }
-  std::vector<PortID> physicalPortsExcluding(PortDescriptor port) {
+  std::vector<PortID> physicalPortsExcluding(PortDescriptor& port) {
     std::vector<PortID> otherPorts;
     auto portDescrPorts = physicalPortsFor(port);
-    for (auto configPort : allConfigPorts()) {
+    for (auto configPort : allConfigPorts(*getAgentEnsemble())) {
       if (std::find(portDescrPorts.begin(), portDescrPorts.end(), configPort) ==
           portDescrPorts.end()) {
         otherPorts.emplace_back(configPort);
@@ -215,8 +266,8 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
   }
 
  private:
-  std::vector<PortID> allConfigPorts() const {
-    auto masterLogicalPorts = masterLogicalPortIds();
+  std::vector<PortID> allConfigPorts(const AgentEnsemble& ensemble) const {
+    auto masterLogicalPorts = ensemble.masterLogicalPortIds();
     return std::vector<PortID>(
         masterLogicalPorts.begin(), masterLogicalPorts.begin() + 4);
   }
@@ -227,13 +278,12 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
         getProgrammedState()->getPorts()->getNodeIf(phyPort)->getIngressVlan();
 
     auto txPacket = utility::makeEthTxPacket(
-        getHwSwitch(),
+        getSw(),
         vlanID,
         kNeighborMac,
         MacAddress::BROADCAST,
         ETHERTYPE::ETHERTYPE_LLDP);
-    EXPECT_TRUE(getHwSwitchEnsemble()->ensureSendPacketOutOfPort(
-        std::move(txPacket), phyPort));
+    getAgentEnsemble()->ensureSendPacketOutOfPort(std::move(txPacket), phyPort);
   }
   void verifySentPacket(const folly::IPAddress& dstIp) {
     auto firstVlanID = getProgrammedState()->getVlans()->getFirstVlanID();
@@ -243,7 +293,7 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
     auto srcIp =
         dstIp.isV6() ? folly::IPAddress("1::3") : folly::IPAddress("1.1.1.3");
     auto txPacket = utility::makeUDPTxPacket(
-        getHwSwitch(),
+        getSw(),
         firstVlanID,
         srcMac, // src mac
         intfMac, // dst mac
@@ -253,7 +303,7 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
         8001 // l4 dst port
     );
     EXPECT_TRUE(
-        getHwSwitchEnsemble()->ensureSendPacketSwitched(std::move(txPacket)));
+        getAgentEnsemble()->ensureSendPacketSwitched(std::move(txPacket)));
   }
   template <typename AddrT>
   void programNeighbor(
@@ -265,42 +315,77 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
         ArpTable,
         NdpTable>;
 
-    auto state = getProgrammedState()->clone();
+    applyNewState(
+        [&](const std::shared_ptr<SwitchState>& in) {
+          auto state = in->clone();
+          NeighborTableT* neighborTable;
+          if (isIntfNbrTable) {
+            neighborTable = state->getInterfaces()
+                                ->getNode(kIntfID)
+                                ->template getNeighborEntryTable<AddrT>()
+                                ->modify(kIntfID, &state);
+          } else {
+            neighborTable = state->getVlans()
+                                ->getNode(kVlanID)
+                                ->template getNeighborEntryTable<AddrT>()
+                                ->modify(kVlanID, &state);
+          }
 
-    NeighborTableT* neighborTable;
-    if (isIntfNbrTable) {
-      neighborTable = state->getInterfaces()
-                          ->getNode(kIntfID)
-                          ->template getNeighborEntryTable<AddrT>()
-                          ->modify(kIntfID, &state);
-    } else {
-      neighborTable = state->getVlans()
-                          ->getNode(kVlanID)
-                          ->template getNeighborEntryTable<AddrT>()
-                          ->modify(kVlanID, &state);
-    }
-
-    if (neighborTable->getEntryIf(addr)) {
-      neighborTable->updateEntry(
-          addr,
-          kNeighborMac,
-          port,
-          kIntfID,
-          NeighborState::REACHABLE,
-          lookupClass);
-    } else {
-      neighborTable->addEntry(addr, kNeighborMac, port, kIntfID);
-      // Update entry to add classid if any
-      neighborTable->updateEntry(
-          addr,
-          kNeighborMac,
-          port,
-          kIntfID,
-          NeighborState::REACHABLE,
-          lookupClass);
-    }
-    applyNewState(state);
+          if (neighborTable->getEntryIf(addr)) {
+            neighborTable->updateEntry(
+                addr,
+                kNeighborMac,
+                port,
+                kIntfID,
+                NeighborState::REACHABLE,
+                lookupClass);
+          } else {
+            neighborTable->addEntry(addr, kNeighborMac, port, kIntfID);
+            // Update entry to add classid if any
+            neighborTable->updateEntry(
+                addr,
+                kNeighborMac,
+                port,
+                kIntfID,
+                NeighborState::REACHABLE,
+                lookupClass);
+          }
+          return state;
+        },
+        "program neighbor");
   }
+
+  template <typename AddrT>
+  void verifyNeighbor(
+      const AddrT& addr,
+      std::optional<cfg::AclLookupClass> lookupClass = std::nullopt) {
+    using NeighborTableT = typename std::conditional_t<
+        std::is_same<AddrT, folly::IPAddressV4>::value,
+        ArpTable,
+        NdpTable>;
+    WITH_RETRIES({
+      NeighborTableT* neighborTable;
+      auto state = getProgrammedState();
+      if (isIntfNbrTable) {
+        neighborTable = state->getInterfaces()
+                            ->getNode(kIntfID)
+                            ->template getNeighborEntryTable<AddrT>()
+                            ->modify(kIntfID, &state);
+      } else {
+        neighborTable = state->getVlans()
+                            ->getNode(kVlanID)
+                            ->template getNeighborEntryTable<AddrT>()
+                            ->modify(kVlanID, &state);
+      }
+      auto entry = neighborTable->getEntryIf(addr);
+      EXPECT_EVENTUALLY_TRUE(entry);
+      if (entry) {
+        XLOG(DBG2) << "Neighbor entry matched";
+        EXPECT_EVENTUALLY_EQ(entry->getClassID(), lookupClass);
+      }
+    });
+  }
+
   template <typename AddrT>
   void removeNeighbor(const AddrT& ip) {
     using NeighborTableT = typename std::conditional_t<
@@ -308,46 +393,51 @@ class HwMacLearningAndNeighborResolutionTest : public HwLinkStateDependentTest {
         ArpTable,
         NdpTable>;
 
-    auto newState{getProgrammedState()->clone()};
+    applyNewState(
+        [&](const std::shared_ptr<SwitchState>& in) {
+          auto newState = in->clone();
+          NeighborTableT* neighborTable;
+          if (isIntfNbrTable) {
+            neighborTable = newState->getInterfaces()
+                                ->getNode(kIntfID)
+                                ->template getNeighborEntryTable<AddrT>()
+                                ->modify(kIntfID, &newState);
+          } else {
+            neighborTable = newState->getVlans()
+                                ->getNode(kVlanID)
+                                ->template getNeighborEntryTable<AddrT>()
+                                ->modify(kVlanID, &newState);
+          }
 
-    NeighborTableT* neighborTable;
-    if (isIntfNbrTable) {
-      neighborTable = newState->getInterfaces()
-                          ->getNode(kIntfID)
-                          ->template getNeighborEntryTable<AddrT>()
-                          ->modify(kIntfID, &newState);
-    } else {
-      neighborTable = newState->getVlans()
-                          ->getNode(kVlanID)
-                          ->template getNeighborEntryTable<AddrT>()
-                          ->modify(kVlanID, &newState);
-    }
-
-    neighborTable->removeEntry(ip);
-    applyNewState(newState);
+          neighborTable->removeEntry(ip);
+          return newState;
+        },
+        "remove neighbor");
   }
   const VlanID kVlanID{utility::kBaseVlanId};
   const InterfaceID kIntfID{utility::kBaseVlanId};
   const folly::MacAddress kNeighborMac{"2:3:4:5:6:7"};
 };
 
-TYPED_TEST_SUITE(HwMacLearningAndNeighborResolutionTest, LearningAndPortTypes);
+TYPED_TEST_SUITE(
+    AgentMacLearningAndNeighborResolutionTest,
+    LearningAndPortTypes);
 
 // Typical scenario where neighbor resolution (ARP, NDP) packet cause MAC
 // learning followed by neighbor resolution and programming
 TYPED_TEST(
-    HwMacLearningAndNeighborResolutionTest,
+    AgentMacLearningAndNeighborResolutionTest,
     learnMacAndProgramNeighbors) {
-  if (this->skipTest()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-    return;
-  }
   auto setup = [this]() {
     this->learnMacAndProgramNeighbors(this->portDescriptor());
   };
-  auto verify = [this]() { this->verifyForwarding(); };
+  auto verify = [this]() {
+    auto portDescriptor = this->portDescriptor();
+    this->bringDownPorts(this->physicalPortsExcluding(portDescriptor));
+    this->verifyNeighborsAndMac(
+        std::nullopt, this->kLearningMode == cfg::L2LearningMode::SOFTWARE);
+    this->verifyForwarding();
+  };
   this->verifyAcrossWarmBoots(setup, verify);
 }
 // Learn MAC, program neighbors and now age MAC.
@@ -356,32 +446,25 @@ TYPED_TEST(
 //  should have no influence
 //  - For SAI we configure static MAC, so it should never age.
 TYPED_TEST(
-    HwMacLearningAndNeighborResolutionTest,
+    AgentMacLearningAndNeighborResolutionTest,
     learnMacProgramNeighborsAndAgeMac) {
-  if (this->skipTest()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-    return;
-  }
   auto setup = [this]() {
     this->learnMacAndProgramNeighbors(this->portDescriptor());
-    utility::setMacAgeTimerSeconds(this->getHwSwitchEnsemble(), kMinAgeInSecs);
+    utility::setMacAgeTimerSeconds(this->getAgentEnsemble(), kMinAgeInSecs);
     std::this_thread::sleep_for(std::chrono::seconds(2 * kMinAgeInSecs));
   };
-  auto verify = [this]() { this->verifyForwarding(); };
+  auto verify = [this]() {
+    auto portDescriptor = this->portDescriptor();
+    this->bringDownPorts(this->physicalPortsExcluding(portDescriptor));
+    this->verifyNeighborsAndMac(std::nullopt, false);
+    this->verifyForwarding();
+  };
   this->verifyAcrossWarmBoots(setup, verify);
 }
 
 TYPED_TEST(
-    HwMacLearningAndNeighborResolutionTest,
+    AgentMacLearningAndNeighborResolutionTest,
     learnMacProgramNeighborsAndUpdateMac) {
-  if (this->skipTest()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-    return;
-  }
   auto setup = [this]() {
     this->learnMacAndProgramNeighbors(this->portDescriptor());
     // Update neighbor class Id
@@ -389,17 +472,17 @@ TYPED_TEST(
     // Update MAC class ID
     this->updateMacEntry(kLookupClass);
   };
-  auto verify = [this]() { this->verifyForwarding(); };
+  auto verify = [this]() {
+    auto portDescriptor = this->portDescriptor();
+    this->bringDownPorts(this->physicalPortsExcluding(portDescriptor));
+    this->verifyNeighborsAndMac(
+        kLookupClass, this->kLearningMode == cfg::L2LearningMode::SOFTWARE);
+    this->verifyForwarding();
+  };
   this->verifyAcrossWarmBoots(setup, verify);
 }
 
-TYPED_TEST(HwMacLearningAndNeighborResolutionTest, flapMacAndNeighbors) {
-  if (this->skipTest()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-    return;
-  }
+TYPED_TEST(AgentMacLearningAndNeighborResolutionTest, flapMacAndNeighbors) {
   auto program = [this] {
     this->learnMacAndProgramNeighbors(this->portDescriptor());
     // Update neighbor class Id
@@ -411,7 +494,7 @@ TYPED_TEST(HwMacLearningAndNeighborResolutionTest, flapMacAndNeighbors) {
     // Remove neighbors and macs
     this->removeNeighbors();
     // Age out Mac
-    utility::setMacAgeTimerSeconds(this->getHwSwitchEnsemble(), kMinAgeInSecs);
+    utility::setMacAgeTimerSeconds(this->getAgentEnsemble(), kMinAgeInSecs);
     std::this_thread::sleep_for(std::chrono::seconds(2 * kMinAgeInSecs));
   };
   auto setup = [program, prune]() {
@@ -419,7 +502,13 @@ TYPED_TEST(HwMacLearningAndNeighborResolutionTest, flapMacAndNeighbors) {
     prune();
     program();
   };
-  auto verify = [this]() { this->verifyForwarding(); };
+  auto verify = [this]() {
+    auto portDescriptor = this->portDescriptor();
+    this->bringDownPorts(this->physicalPortsExcluding(portDescriptor));
+    this->verifyNeighborsAndMac(
+        kLookupClass, this->kLearningMode == cfg::L2LearningMode::SOFTWARE);
+    this->verifyForwarding();
+  };
   this->verifyAcrossWarmBoots(setup, verify);
 }
 
@@ -427,14 +516,8 @@ TYPED_TEST(HwMacLearningAndNeighborResolutionTest, flapMacAndNeighbors) {
 // learning followed by neighbor resolution and programming. Post that
 // simulate a MAC move
 TYPED_TEST(
-    HwMacLearningAndNeighborResolutionTest,
+    AgentMacLearningAndNeighborResolutionTest,
     learnMacProgramNeighborsAndMove) {
-  if (this->skipTest()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-    return;
-  }
   auto program = [this](auto port) {
     this->learnMacAndProgramNeighbors(port);
     // Update neighbor class Id
@@ -447,19 +530,19 @@ TYPED_TEST(
     // Now move it to port descriptor 2
     program(this->portDescriptor2());
   };
-  auto verify = [this]() { this->verifyForwarding(); };
+  auto verify = [this]() {
+    auto portDescriptor = this->portDescriptor2();
+    this->bringDownPorts(this->physicalPortsExcluding(portDescriptor));
+    this->verifyNeighborsAndMac(
+        kLookupClass, this->kLearningMode == cfg::L2LearningMode::SOFTWARE);
+    this->verifyForwarding();
+  };
   this->verifyAcrossWarmBoots(setup, verify);
 }
 
 TYPED_TEST(
-    HwMacLearningAndNeighborResolutionTest,
+    AgentMacLearningAndNeighborResolutionTest,
     learnMacLinkDownNeighborResolve) {
-  if (this->skipTest()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-  }
-
   auto program = [this](auto port) {
     this->learnMac(port, true /* wait */);
     this->bringDownPorts(this->physicalPortsFor(port));
@@ -472,7 +555,11 @@ TYPED_TEST(
     this->programNeighbors(port, kLookupClass);
   };
 
-  auto verify = [this]() { this->verifyForwarding(); };
+  auto verify = [this]() {
+    auto portDescriptor = this->portDescriptor();
+    this->bringDownPorts(this->physicalPortsExcluding(portDescriptor));
+    this->verifyForwarding();
+  };
 
   this->verifyAcrossWarmBoots(setup, verify);
 }

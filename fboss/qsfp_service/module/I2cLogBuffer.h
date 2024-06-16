@@ -28,7 +28,7 @@ namespace facebook::fboss {
  *       min(kMaxI2clogDataSize, param.len)
  */
 
-constexpr int kMaxI2clogDataSize = 32;
+constexpr int kMaxI2clogDataSize = 128;
 
 class I2cLogBuffer {
   using TimePointSteady = std::chrono::steady_clock::time_point;
@@ -49,22 +49,34 @@ class I2cLogBuffer {
     TransceiverAccessParameter param;
     std::array<uint8_t, kMaxI2clogDataSize> data;
     Operation op;
+    bool success{true};
     // Using default constructor for TransceiverAccessParameter when
     // initializing the buffer.
     I2cLogEntry() : param(TransceiverAccessParameter(0, 0, 0)) {}
   };
+
+  // NOTE: The maximum number of entries in config is 8196. see qsfp_config.cinc
+  static_assert(
+      sizeof(I2cLogEntry) < 200,
+      "I2cLogEntry must be < 200B to accommodate 8196 log entries in < 2MB of DRAM per transceiver.");
 
   struct I2cReplayEntry {
     TransceiverAccessParameter param;
     Operation op;
     std::array<uint8_t, kMaxI2clogDataSize> data;
     uint64_t delay;
+    bool success{true};
     I2cReplayEntry(
         TransceiverAccessParameter param,
         Operation op,
         std::array<uint8_t, kMaxI2clogDataSize> data,
-        uint64_t delay)
-        : param(param), op(op), data(std::move(data)), delay(delay) {}
+        uint64_t delay,
+        bool success)
+        : param(param),
+          op(op),
+          data(std::move(data)),
+          delay(delay),
+          success(success) {}
   };
 
   explicit I2cLogBuffer(cfg::TransceiverI2cLogging config, std::string logFile);
@@ -73,7 +85,8 @@ class I2cLogBuffer {
   void log(
       const TransceiverAccessParameter& param,
       const uint8_t* data,
-      Operation op);
+      Operation op,
+      bool success = true);
 
   // Dump the buffer contents into a vector of I2cLogEntry.
   // The vector (enriesOut) will be resized to the size of buffers,
@@ -83,7 +96,10 @@ class I2cLogBuffer {
   // will be cleared.
   // It is recommended that entriesOut is created with capacity <size_>
   // on the stack before calling this function (reduce allocation latency).
-  size_t dump(std::vector<I2cLogEntry>& entriesOut);
+  // Returns a pair: total enties logged and number of entries in circular
+  // buffer. Total entries logged could be much higher than capacity of circular
+  // buffer.
+  std::pair<size_t, size_t> dump(std::vector<I2cLogEntry>& entriesOut);
 
   // Get the number of entries logged to the buffer. The size of the
   // buffer can be smaller than total entries logged.
@@ -91,9 +107,10 @@ class I2cLogBuffer {
     return totalEntries_;
   }
 
-  // Disable Logging for both read/write operations if
-  // disableOnError is set in config.
-  void transactionError();
+  // Get the capacity
+  size_t getI2cLogBufferCapacity() const {
+    return config_.get_bufferSlots();
+  }
 
   // Dumps the buffer contents into logFile_.
   // Format: Each log entry will be dumped into a single line.
@@ -116,15 +133,26 @@ class I2cLogBuffer {
   std::string logFile_;
   std::mutex mutex_;
 
-  size_t getHeader(std::stringstream& ss, size_t entries, size_t numContents);
+  size_t getSize() {
+    // Avoid the tsan errors. size_ is also a const member variable.
+    std::lock_guard<std::mutex> g(mutex_);
+    return size_;
+  }
+
   void getEntryTime(std::stringstream& ss, const TimePointSystem& time_point);
 
+  template <typename T>
+  void getOptional(std::stringstream& ss, T value);
+
   // Operations to re-construct I2cReplayEntry from a log file.
+  static size_t
+  getHeader(std::stringstream& ss, size_t entries, size_t numContents);
   static std::string getField(const std::string& line, char left, char right);
   static TransceiverAccessParameter getParam(std::stringstream& ss);
   static I2cLogBuffer::Operation getOp(std::stringstream& ss);
   static std::array<uint8_t, kMaxI2clogDataSize> getData(std::string str);
   static uint64_t getDelay(const std::string& str);
+  static bool getSuccess(const std::string& str);
 };
 
 } // namespace facebook::fboss

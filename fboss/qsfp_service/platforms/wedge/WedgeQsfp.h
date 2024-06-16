@@ -9,13 +9,17 @@
  */
 #pragma once
 
-#include <folly/futures/Future.h>
-#include <folly/io/async/EventBase.h>
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <mutex>
+
+#include <folly/futures/Future.h>
+#include <folly/io/async/EventBase.h>
+
 #include "fboss/lib/IOStatsRecorder.h"
 #include "fboss/qsfp_service/TransceiverManager.h"
+#include "fboss/qsfp_service/module/I2cLogBuffer.h"
 #include "fboss/qsfp_service/module/TransceiverImpl.h"
 #include "fboss/qsfp_service/platforms/wedge/WedgeI2CBusLock.h"
 
@@ -31,7 +35,8 @@ class WedgeQsfp : public TransceiverImpl {
   WedgeQsfp(
       int module,
       TransceiverI2CApi* i2c,
-      TransceiverManager* const tcvrManager);
+      TransceiverManager* const tcvrManager,
+      std::unique_ptr<I2cLogBuffer> logBuffer);
 
   ~WedgeQsfp() override;
 
@@ -100,12 +105,19 @@ class WedgeQsfp : public TransceiverImpl {
     tcvrManager_->updateStateBlocking(TransceiverID(module_), event);
   }
 
+  // Dump i2c log to file. Return number of header/log entries.
+  std::pair<size_t, size_t> dumpTransceiverI2cLog();
+
+  // Get the capacity of the i2c buffer.
+  size_t getI2cLogBufferCapacity();
+
  private:
   int module_;
   std::string moduleName_;
   TransceiverI2CApi* threadSafeI2CBus_;
   TransceiverManager* const tcvrManager_;
   IOStatsRecorder ioStatsRecorder_;
+  std::unique_ptr<I2cLogBuffer> logBuffer_;
 };
 
 } // namespace fboss

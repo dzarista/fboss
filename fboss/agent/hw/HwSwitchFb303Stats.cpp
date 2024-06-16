@@ -147,6 +147,11 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
       virtualDevicesWithAsymmetricConnectivity_(
           map,
           getCounterPrefix() + "virtual_devices_with_asymmetric_connectivity"),
+      switchReachabilityChangeCount_(
+          map,
+          getCounterPrefix() + "switch_reachability_change",
+          SUM,
+          RATE),
       ireErrors_(map, getCounterPrefix() + vendor + ".ire.errors", SUM, RATE),
       itppErrors_(map, getCounterPrefix() + vendor + ".itpp.errors", SUM, RATE),
       epniErrors_(map, getCounterPrefix() + vendor + ".epni.errors", SUM, RATE),
@@ -318,6 +323,10 @@ int64_t HwSwitchFb303Stats::getCorruptedCellPacketIntegrityDrops() const {
   return currentDropStats_.corruptedCellPacketIntegrityDrops().value_or(0);
 }
 
+int64_t HwSwitchFb303Stats::getSwitchReachabilityChangeCount() const {
+  return getCumulativeValue(switchReachabilityChangeCount_);
+}
+
 HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   HwAsicErrors asicErrors;
   asicErrors.parityErrors() = getCumulativeValue(parityErrors_);
@@ -342,6 +351,7 @@ FabricReachabilityStats HwSwitchFb303Stats::getFabricReachabilityStats() {
   stats.missingCount() = getFabricReachabilityMissingCount();
   stats.virtualDevicesWithAsymmetricConnectivity() =
       getVirtualDevicesWithAsymmetricConnectivityCount();
+  stats.switchReachabilityChangeCount() = getSwitchReachabilityChangeCount();
   return stats;
 }
 
@@ -410,6 +420,8 @@ HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
       getFabricReachabilityMissingCount();
   hwFb303Stats.virtual_devices_with_asymmetric_connectivity() =
       getVirtualDevicesWithAsymmetricConnectivityCount();
+  hwFb303Stats.switch_reachability_change() =
+      getSwitchReachabilityChangeCount();
   hwFb303Stats.ingress_receive_editor_errors() = getIreErrors();
   hwFb303Stats.ingress_transmit_pipeline_errors() = getItppErrors();
   hwFb303Stats.egress_packet_network_interface_errors() = getEpniErrors();
@@ -442,6 +454,9 @@ void HwSwitchFb303Stats::updateStats(HwSwitchFb303GlobalStats& globalStats) {
   updateValue(packetIntegrityDrops_, *globalStats.packet_integrity_drops());
   updateValue(dramEnqueuedBytes_, *globalStats.dram_enqueued_bytes());
   updateValue(dramDequeuedBytes_, *globalStats.dram_dequeued_bytes());
+  updateValue(
+      switchReachabilityChangeCount_,
+      *globalStats.switch_reachability_change());
   fb303::fbData->setCounter(
       fabricReachabilityMissingCount_.name(),
       *globalStats.fabric_reachability_missing());
