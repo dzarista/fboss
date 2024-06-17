@@ -116,12 +116,6 @@ class FbossFanTestEdut():
                                 slot ][ 'inputPower' ]
       return totalPower
 
-   def shutEosFanControl( self ):
-      '''Shut down EOS fan control algorithm'''
-      self.edut.aconsPathCmdIs(
-            r"/ar/Sysdb/environment/thermostat/config",
-            "_.mode='manual'" )
-
    def StartEosFanControl( self ):
       '''Start down EOS fan control algorithm'''
       self.edut.aconsPathCmdIs(
@@ -136,12 +130,12 @@ class FbossFanTestEdut():
       '''Return a list of all system PSU fan RPMs'''
       raise NotImplementedError
 
-   def setFanRpm( self, pct ):
+   def setFanSpeed( self, pct ):
       '''Set fan speed as a % of max fan RPM'''
-      self.shutEosFanControl()
-      self.edut.aconsPathCmdIs(
-            '/ar/Sysdb/environment/thermostat/config',
-            f'_.fanSpeed={pct}'.format( pct=pct ) )
+      cli = self.edut.consoleCli()
+      cli.gotoMode( CliTest.enableMode )
+      with CliTest.MaybeRunInConfigSession( cli ):
+         cli.runCmd( f"environment fan-speed override {pct}" )
 
    def getFanPwms( self ):
       '''Return a list of all system fan PWM (%)'''
@@ -206,11 +200,27 @@ class FbossFanTestEdut():
       with CliTest.MaybeRunInConfigSession( cli ):
          cli.runCmd( "environment fan-speed override 30" )
 
+      # Set the poll interval to 1 day to avoid the fan speed being overriden by 
+      # the algo. This is necessary for zone testing as this test directly modifies
+      # the speed of each test and the pollInterval being large will avoid having the 
+      # fan speeds being overwritten throughout the duration of the test
+      self.edut.aconsPathCmdIs(
+         r"/ar/Sysdb/environment/thermostat/config",
+         "_.pollInterval=86400" )
+
    def enablePidAlgo( self ):
       cli = self.edut.consoleCli()
       cli.gotoMode( CliTest.enableMode )
       with CliTest.MaybeRunInConfigSession( cli ):
          cli.runCmd( "environment fan-speed auto" )
+      
+      # Reset pollInterval to default.
+      defaultPollInterval = self.edut.aconsPathCmdIs(
+         r"/ar/Sysdb/environment/thermostat/config",
+         "print( _.defaultPollInterval )" )[ 0 ]
+      self.edut.aconsPathCmdIs(
+         r"/ar/Sysdb/environment/thermostat/config",
+         f"_.pollInterval={defaultPollInterval}" )
 
    def collectDataRaw( self ):
       '''Return an object with all RAW data collected'''
@@ -246,10 +256,10 @@ class FbossFanTestEdut():
          rawData[opticName] = opticTemp
 
       for fanIdx, fanPwm in enumerate(fanPwms):
-         rawData[f'fan{fanIdx}'] = fanPwm
+         rawData[f'fan{fanIdx}_pwm'] = fanPwm
 
       for fanIdx, fanRpm in enumerate(fanRpms):
-         rawData[f'fan{fanIdx}'] = fanRpm
+         rawData[f'fan{fanIdx}_rpm'] = fanRpm
 
       for psuIdx, psuRpm in enumerate(psuRpms):
          rawData[f'psu{psuIdx}'] = psuRpm
@@ -296,9 +306,13 @@ class FbossFanTestEdut():
    def checkSetup( self ):
       '''Confirms that the data collected is valid'''
       data = self.collectData()
+      # Ignore deltaT and opticsMargin30C as they are calculated and maybe <= 0
+      ignoreList = [ 'DeltaT', 'OpticsMargin', 'OpticsMargin30C' ]
+      if 'whistler' in self.__class__.__name__.lower():
+         ignoreList.append( 'AvgTrafficRate' )
+
       for key, val in data.items():
-         # Ignore deltaT and opticsMargin30C as they are calculated and maybe <= 0
-         if val <= 0 and key not in ( 'deltaT', 'opticsMargin', 'opticsMargin30C' ):
+         if val <= 0 and key not in ignoreList:
             raise ValueError(f'{key} reading invalid value ({val})')
 
 class MaunaKea( FbossFanTestEdut ):
@@ -640,6 +654,128 @@ class Whistler( MaunaKea ):
       fanVendor = self.getFanMfr( fanId )
       return self.calculateCFM( self.CFM_DATA, pwm, fanVendor )
 
+class WhistlerSystemZone( Whistler ):
+   '''Updates functions to only test fans within the System zone'''
+
+   def getFanIds( self ):
+      '''Returns a list of fan Ids where indexes map to fan slots'''
+      fanIds = []
+
+      for cpldAddr in ( 0x61, 0x62 ):
+         for fanReg in ( 0x61, 0x62, 0x63, 0x64 ):
+            fanIds.append( int( self.edut.bashSuCmdIs(
+               f'smbus read8 /scd/1/3/{cpldAddr} {fanReg}' 
+               )[ 0 ].split( ' ' )[ 0 ], 16 ) )
+
+      if not all( x == fanIds[ 0 ] for x in fanIds ):
+         print( "WARN: Not all inserted fans are identical. For CFM calculations, \
+               test data from the fan in the first slot will be used" )
+
+      return fanIds
+
+   def getFanRpms( self ):
+      rpmList = []
+      maxSpeed = 0
+
+      shCool = self.edut.showCmdIs( 'show sys env cool det',
+                                     dataFormat='json' )
+      for fanInfo in shCool[ 'fanTraySlots' ]:
+         maxSpeed = fanInfo[ 'fans' ][ 0 ][ 'maxSpeed' ]
+
+      for i in range( 5, 12 + 1 ):
+         pct = self.edut.aconsPathCmdIs(
+            r'/ar/Sysdb/environment/thermostat/status/fanConfig/Fan{}\/1/speed'.
+            format( i ), 'ls -l' )[ 0 ].split( ' ' )[ -1 ]
+         rpmList.append( maxSpeed * float( pct ) / 100.0 )
+      return rpmList
+
+   def getFanPwms( self ):
+      '''Return Fan PWMs as a list, reported as a percentage'''
+      pwms = []
+      # read PWM registers and return them as a pct PWM
+      # The registers store it as an unsigned integer 0->255
+
+      for cpldAddr in ( 0x61, 0x62 ):
+         for fanReg in ( 0x10, 0x20, 0x30, 0x40 ):
+            pwms.append( int( self.edut.bashSuCmdIs(
+               f'smbus read8 /scd/1/3/{cpldAddr} {fanReg}' )
+               [ 0 ].split( ' ' )[ 0 ], 16 ) / 2.55 )
+      return pwms
+
+   def setFanSpeed( self, pct ):
+      '''Set fan speed as a % of max fan RPM for System zone'''
+      # Set System zone fans speed
+      for fanIdx in range( 5, 12 + 1 ):
+         self.edut.aconsPathCmdIs(
+            fr"/ar/Sysdb/environment/thermostat/status/fanConfig/Fan{fanIdx}\/1",
+            f"_.speed={pct}" )
+      # Set Asic zone fans speed to 20%
+      for fanIdx in range( 1, 4 + 1 ):
+         self.edut.aconsPathCmdIs(
+            fr"/ar/Sysdb/environment/thermostat/status/fanConfig/Fan{fanIdx}\/1",
+            f"_.speed=20" )
+
+class WhistlerAsicZone( Whistler ):
+   '''Updates functions to only test fans within the Asic zone'''
+
+   def getFanIds( self ):
+      '''Returns a list of fan Ids where indexes map to fan slots'''
+      fanIds = []
+      cpldAddr = 0x60
+      
+      for fanReg in ( 0x61, 0x62, 0x63, 0x64 ):
+         fanIds.append( int( self.edut.bashSuCmdIs(
+            f'smbus read8 /scd/1/3/{cpldAddr} {fanReg}' 
+            )[ 0 ].split( ' ' )[ 0 ], 16 ) )
+
+      if not all( x == fanIds[ 0 ] for x in fanIds ):
+         print( "WARN: Not all inserted fans are identical. For CFM calculations, \
+               test data from the fan in the first slot will be used" )
+
+      return fanIds
+
+   def getFanRpms( self ):
+      rpmList = []
+      maxSpeed = 0
+
+      shCool = self.edut.showCmdIs( 'show sys env cool det',
+                                     dataFormat='json' )
+      for fanInfo in shCool[ 'fanTraySlots' ]:
+         maxSpeed = fanInfo[ 'fans' ][ 0 ][ 'maxSpeed' ]
+
+      for i in range( 1, 4 + 1 ):
+         pct = self.edut.aconsPathCmdIs(
+            r'/ar/Sysdb/environment/thermostat/status/fanConfig/Fan{}\/1/speed'.
+            format( i ), 'ls -l' )[ 0 ].split( ' ' )[ -1 ]
+         rpmList.append( maxSpeed * float( pct ) / 100.0 )
+      return rpmList
+
+   def getFanPwms( self ):
+      '''Return Fan PWMs as a list, reported as a percentage'''
+      pwms = []
+      cpldAddr = 0x60
+      # read PWM registers and return them as a pct PWM
+      # The registers store it as an unsigned integer 0->255
+
+      for fanReg in ( 0x10, 0x20, 0x30, 0x40 ):
+         pwms.append( int( self.edut.bashSuCmdIs(
+            f'smbus read8 /scd/1/3/{cpldAddr} {fanReg}' )
+            [ 0 ].split( ' ' )[ 0 ], 16 ) / 2.55 )
+      return pwms
+
+   def setFanSpeed( self, pct ):
+      '''Set fan speed as a % of max fan RPM for System zone'''
+      # Set Asic zone fans speed
+      for fanIdx in range( 1, 4 + 1 ):
+         self.edut.aconsPathCmdIs(
+            fr"/ar/Sysdb/environment/thermostat/status/fanConfig/Fan{fanIdx}\/1",
+            f"_.speed={pct}" )
+      # Set System zone fans speed to 30%
+      for fanIdx in range( 5, 12 + 1 ):
+         self.edut.aconsPathCmdIs(
+            fr"/ar/Sysdb/environment/thermostat/status/fanConfig/Fan{fanIdx}\/1",
+            f"_.speed=30" )
+
 def renderPlot( pdf, dfX, dfY, title ):
    fig, ax = plt.subplots(figsize=( 8, 6 ))
    for column in dfY:
@@ -655,6 +791,7 @@ def parseArgs( argv ):
    parser = argparse.ArgumentParser(
          prog='CollectFanSweepData', description=tool_description )
    parser.add_argument( '-d', '--dut', help='Dut to setup fan data collection' )
+   parser.add_argument( '-z', '--zone', help='Specify cooling zone if valid' )
    parser.add_argument( '--soak-time', type=int, default=30,
          help='Number minutes to soak at each step' )
    parser.add_argument( '--rpms', metavar='N', type=int, nargs='*',
@@ -676,7 +813,12 @@ def main( argv ):
    elif edut.product() in ( 'Viper', 'ViperJ3' ):
       obj = Viper( edut )
    elif edut.product() in ( 'Whistler' ):
-      obj = Whistler( edut )
+      if args.zone.lower() == 'asic':
+         obj = WhistlerAsicZone( edut )
+      elif args.zone.lower() == 'system':
+         obj = WhistlerSystemZone( edut )
+      else:
+         obj = Whistler( edut )
    else:
       assert( 'Product Class not defined for {}'.format( edut.product() ) )
 
@@ -705,21 +847,29 @@ def main( argv ):
    filename = f'{args.dut}_{timestamp}'
 
    with open( f'{filename}_RAW.csv', 'w', newline='' ) as csvfile:
-      fieldnames = ['Timestamp'] + list(obj.collectDataRaw().keys())
+      fieldnames = ['Timestamp', 'TargetRpm'] + list(obj.collectDataRaw().keys())
       csvwriter = csv.DictWriter(csvfile, fieldnames=fieldnames)
       csvwriter.writeheader()
 
       for targetRpm in args.rpms:
          print( f'Setting fan speed to {targetRpm}' )
-         obj.setFanRpm( targetRpm )
+         obj.setFanSpeed( targetRpm )
 
+         # FIXME: For whistler, the log is so large and takes about 20 seconds.
+         # This limits the soak time on whistler to 20 minutes minimum
          for _ in range( args.soak_time * 6 ):
+            start_time = time.time()
             dataRaw = obj.collectDataRaw()
-            timestamp = datetime.datetime.now().strftime( '%Y-%m-%d %H:%M:%S' )
-            row = {'Timestamp': timestamp}
+            timestamp = datetime.datetime.now().strftime( '%Y-%m-%d_%H:%M:%S' )
+            row = {'Timestamp': timestamp, 'TargetRpm': targetRpm}
             row.update(dataRaw)
-            csvwriter.writerow(dataRaw)
-            time.sleep( 10 )
+            csvwriter.writerow(row)
+            end_time = time.time()
+            time_wasted = end_time - start_time
+            sleep_time = 10 - time_wasted
+
+            if sleep_time > 0:
+               time.sleep(sleep_time)
 
          data = obj.collectData()
          data[ 'TargetRpm' ] = targetRpm
