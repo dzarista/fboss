@@ -39,6 +39,13 @@ images:
         build: |
           ./build.sh 5.19
 
+  build_dnx_6.4-el9:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/dest: code.arista.io/aqua-sai/in-eos%dnx_6.4-el9
+        build: |
+          ./build.sh 6.4
 
   package_dnx_4.18:
     units:
@@ -79,6 +86,14 @@ images:
           /src/dest: .%build_dnx_5.19-el9
         build: |
           ./package.sh dnx 5.19
+
+  package_dnx_6.4-el9:
+    units:
+      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/dest: .%build_dnx_6.4-el9
+        build: |
+          ./package.sh dnx 6.4
 
   internal/test_floor:
     units:
@@ -275,3 +290,43 @@ images:
         - sh
         - -c
         - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/5.19/showtech-arista-1-1.el9.x86_64.rpm
+
+  test/package_dnx_6.4-el9:
+    description: |
+      Test that build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%package_dnx_6.4-el9
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-core-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-darwin-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-meru400bia-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-meru800bfa-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-meru800bia-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-yamp-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista_bsp_kmods-0.5.0-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/showtech-arista-1-1.el9.x86_64.rpm

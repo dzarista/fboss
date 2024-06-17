@@ -8,25 +8,25 @@
                "commit": "ef49e7dd537da663af1a4e7700458617111afa6e"
             },
             "code.arista.io/aqua-sai/in-eos": {
-               "commit": "0a124e5f0f14b4a0e970d0565b4482c20f34f55a"
+               "commit": "68d2b572c822ade8473fda4d72dd3c8c40c03ffc"
             },
             "code.arista.io/infra/barney/barnzilla": {
-               "commit": "f4c19bf0c8ea012d89f13b88f6d34b47215b68f1"
+               "commit": "c1327b64122bf52ce23877dea5bd88bc5d6ecbc6"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "f8678a421aef21de1431af5cdf642346013dabbf"
+               "commit": "ac19fe25d9c1b4158561ac7fe8a6939610c2236d"
             },
             "barney.ci/alpine": {
-               "commit": "1fc7fba9ef99c08ca89b629908f26a5a159f8ad0"
+               "commit": "49671dbaab239292a9384dbb68cd75605cb3f289"
             },
             "barney.ci/golang": {
-               "commit": "fd7924d7bd05bbd7845c1117b38f35922e25f5b2"
+               "commit": "94538b1da2dcf9ed287d6be983f5328892a9ad94"
             },
             "github.com/golang/go": {
                "commit": "adbfb672ba485630d75f8b5598228a63f4af08a4"
             },
             "barney.ci/byob": {
-               "commit": "987493ed5237c2220e1a4b8b83e35f4a1158b508"
+               "commit": "5a0dede1a0e942da91ad8966eb6bd9ac180d722a"
             },
             "github.com/goreleaser/nfpm": {
                "commit": "9af00e6421bae54bdb7a36f60055d0d66c07909d"

@@ -231,14 +231,18 @@ void SaiRouteManager::addOrUpdateRoute(
          * the CPU even if there is a conflicting DENY ACL.
          *
          * Not-applicable to TAJO because update metadata on interface subnet
-         * route is unsupported
+         * route is unsupported. Also not supported on BRCM-SAI, which does not
+         * fuly support route classID programming yet.
+         *
+         * So, classid_for_connected_subnet_routes is currently disabled
+         * everywhere
          */
-#if !defined(TAJO_SDK)
-        if (FLAGS_classid_for_connected_subnet_routes) {
-          metadata = static_cast<uint32_t>(
-              cfg::AclLookupClass::DEPRECATED_CLASS_CONNECTED_ROUTE_TO_INTF);
+        if (FLAGS_classid_for_connected_subnet_routes &&
+            platform_->getAsic()->isSupported(
+                HwAsic::Feature::ROUTE_METADATA)) {
+          metadata =
+              static_cast<uint32_t>(cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
         }
-#endif
         RouterInterfaceSaiId routerInterfaceId{
             routerInterfaceHandle->adapterKey()};
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
@@ -324,13 +328,17 @@ void SaiRouteManager::addOrUpdateRoute(
        * though nexthop is set to CPU port, the class ID is set
        * SUBNET_CLASS_ID which defaults to queue 0. For all unreoslved host
        * routes, the class ID is set to IP2ME class ID which will be
-       * sent to mid pri queue due to IP2ME hostif trap.
+       * sent to mid pri queue due to IP2ME hostif trap. However, brcm-sai
+       * is also implicitly programming route classID underlyingly, which
+       * could cause conflict with our programming. So, do nothing on
+       * brcm sai switches for now, until brcm-sai is enhanced to support it.
        *
        * TAJO SDK behavior:
        * For Tajo, any route (host route or subnet route) that points to
        * CPU port will be treated as MYIP. Both host and subnet routes
        * that are unresolved will be sent to mid pri queue due to the
-       * IP2ME hostif trap.
+       * IP2ME hostif trap. So, FLAGS_classid_for_unresolved_routes is
+       * currently only enabled on tajo switches.
        *
        * Fix for the issue:
        * In order to send these not MYIP routes to default queue,
@@ -342,8 +350,8 @@ void SaiRouteManager::addOrUpdateRoute(
       if (FLAGS_classid_for_unresolved_routes &&
           platform_->getAsic()->isSupported(HwAsic::Feature::ROUTE_METADATA)) {
         if (nextHopId == managerTable_->switchManager().getCpuPort()) {
-          metadata = static_cast<uint32_t>(
-              cfg::AclLookupClass::DEPRECATED_CLASS_UNRESOLVED_ROUTE_TO_CPU);
+          metadata =
+              static_cast<uint32_t>(cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
         }
       }
 

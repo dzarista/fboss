@@ -19,9 +19,11 @@
 #include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/leds.h>
+#include <linux/limits.h>
 #include <linux/pci.h>
 
 #include "fbiob-auxdev.h"
+#include "scd-attrs.h"
 
 #define DRIVER_NAME		"scd-leds"
 
@@ -38,9 +40,31 @@
 #define SCD_LED_FLASH_RATE_MASK_1	0xFFFF
 #define SCD_LED_FLASH_RATE_MASK_2	0x00FF
 
+#define SCD_LED_ATTR_COUNT 3
+
+struct scd_led_attribute {
+	struct device_attribute attr;
+	struct scd_led_dev *led;
+	char name[NAME_MAX];
+};
+
+#define SCD_LED_ATTR(_led_attr, _name, _mode, _show, _store, _led) \
+	do {                                                                   \
+		snprintf(_led_attr.name, NAME_MAX, _name);                  \
+		_led_attr.attr =                                          \
+			(struct device_attribute)__ATTR_NAME_PTR(              \
+				_led_attr.name, _mode, _show, _store);        \
+		_led_attr.led = _led; \
+	} while (0)
+
+#define SCD_RW_LED_ATTR(_led_attr, _name, _show, _store, _led) \
+	SCD_LED_ATTR(_led_attr, _name, S_IRUGO | S_IWUSR,        \
+		      _show, _store, _led)
+
 struct scd_led_priv;
 
 struct scd_led_dev {
+	struct scd_led_attribute attr[SCD_LED_ATTR_COUNT];
 	struct led_classdev cdev;
 	char name[NAME_MAX];
 	u32 led_on_mask;
@@ -86,8 +110,7 @@ static int brightness_set(struct led_classdev *led_cdev,
 		reg &= ~(SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN | SCD_LED_INTENSITY_BLUE);
 	} else {
 		/*
-		 * clear all the color bits before turning on the specific
-		 * color.
+		 * clear all the color bits before turning on the specific color.
 		 */
 		reg &= ~(SCD_LED_BLUE | SCD_LED_GREEN | SCD_LED_RED);
 		reg |= ldev->led_on_mask;
@@ -99,12 +122,110 @@ static int brightness_set(struct led_classdev *led_cdev,
 	return 0;
 }
 
+static void scd_led_blink(struct led_classdev *led_cdev)
+{
+	struct scd_led_dev *ldev = container_of(led_cdev, struct scd_led_dev, cdev);
+
+	led_blink_set(led_cdev, &ldev->cdev.blink_delay_on, &ldev->cdev.blink_delay_off);
+}
+
+static ssize_t store_trigger(
+				struct device *dev,
+				struct device_attribute *attr,
+				const char *buf,
+				size_t size)
+{
+	struct scd_led_attribute *led_attr = container_of(attr, struct scd_led_attribute, attr);
+	struct scd_led_dev *ldev = led_attr->led;
+	struct led_classdev *led_cdev = &ldev->cdev;
+	char *nl;
+
+	mutex_lock(&ldev->priv->lock);
+
+	nl = strchr(buf, '\n');
+	if (nl)
+		*nl = '\0';
+
+	if (strcmp(buf, "timer") == 0)
+		scd_led_blink(led_cdev);
+
+	mutex_unlock(&ldev->priv->lock);
+	return size;
+}
+
+static ssize_t show_trigger(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t store_delay(
+				struct device *dev,
+				struct device_attribute *attr,
+				const char *buf,
+				size_t size)
+{
+	struct scd_led_attribute *led_attr = container_of(attr, struct scd_led_attribute, attr);
+	struct led_classdev *led_cdev = &led_attr->led->cdev;
+	struct scd_led_priv *priv = led_attr->led->priv;
+	int res;
+	long value;
+
+	mutex_lock(&priv->lock);
+	res = kstrtol(buf, 10, &value);
+	if (res < 0)
+		return res;
+
+	if (!strcmp(led_attr->name, "delay_off"))
+		led_cdev->blink_delay_off = value;
+	else
+		led_cdev->blink_delay_on = value;
+	mutex_unlock(&priv->lock);
+	return size;
+}
+
+static ssize_t show_delay(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scd_led_attribute *led_attr = container_of(attr, struct scd_led_attribute, attr);
+	struct led_classdev *led_cdev = &led_attr->led->cdev;
+
+	if (!strcmp(led_attr->name, "delay_off"))
+		return sprintf(buf, "%d\n", led_cdev->blink_delay_off);
+	return sprintf(buf, "%d\n", led_cdev->blink_delay_on);
+}
+
+static int scd_led_register(struct scd_led_dev *ldev)
+{
+	int ret;
+
+	ret = devm_led_classdev_register(&ldev->priv->auxdev->dev, &ldev->cdev);
+	if (ret) {
+		dev_err(&ldev->priv->auxdev->dev, "could not register led: %d", ret);
+		return ret;
+	}
+	dev_info(&ldev->priv->auxdev->dev, "%s @ %pS\n", ldev->name, ldev->priv->mmio_csr);
+
+	SCD_RW_LED_ATTR(ldev->attr[0], "trigger", show_trigger, store_trigger, ldev);
+	SCD_RW_LED_ATTR(ldev->attr[1], "delay_on", show_delay, store_delay, ldev);
+	SCD_RW_LED_ATTR(ldev->attr[2], "delay_off", show_delay, store_delay, ldev);
+	for (int i = 0; i < SCD_LED_ATTR_COUNT; i++) {
+		ret = sysfs_create_file(&ldev->cdev.dev->kobj, &ldev->attr[i].attr.attr);
+		if (ret) {
+			dev_err(&ldev->priv->auxdev->dev,
+				"could not create %s attribute for led: %d",
+				ldev->attr[i].name,
+				ret);
+			return ret;
+		}
+	}
+	return ret;
+}
+
 static int scd_led_init(struct scd_led_priv *priv,
 			const char *name,
 			const char *color,
 			struct scd_led_dev *ldev)
 {
-	if (!strcmp(color, "amber"))
+	if (!strcmp(color, "yellow"))
 		ldev->led_on_mask = SCD_LED_RED | SCD_LED_GREEN;
 	else if (!strcmp(color, "blue"))
 		ldev->led_on_mask = SCD_LED_BLUE;
@@ -123,16 +244,14 @@ static int scd_led_init(struct scd_led_priv *priv,
 	ldev->cdev.brightness_set_blocking = brightness_set;
 	ldev->cdev.default_trigger = "timer";
 
-	dev_info(&priv->auxdev->dev, "%s @ %pS\n", name, priv->mmio_csr);
-
-	return devm_led_classdev_register(&priv->auxdev->dev, &ldev->cdev);
+	return scd_led_register(ldev);
 }
 
 static int scd_leds_init(struct scd_led_priv *priv, const char *name)
 {
 	int ret = 0;
-	const char *portColors[] = {"blue", "amber"};
-	const char *statusColors[] = {"red", "green", "blue", "amber"};
+	const char *portColors[] = {"blue", "yellow"};
+	const char *statusColors[] = {"red", "green", "blue", "yellow"};
 	const char **colors;
 
 	if (priv->num_leds == 2) colors = portColors;
@@ -208,10 +327,10 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	/*
 	* Register led for each color.
 	*/
-	if (led_data.port_num > 0)
-		sprintf(led_name, "%s_port%d_led%d", pdata->id.name, led_data.port_num,
-			 led_data.led_idx);
-	else sprintf(led_name, "%s%d", pdata->id.name, led_data.led_idx);
+	if (led_data.port_num > 0) {
+		sprintf(led_name, "port%d_led%d", led_data.port_num, led_data.led_idx);
+	}
+	else strcpy(led_name, pdata->id.name);
 
 	ret = scd_leds_init(priv, led_name);
 
@@ -221,10 +340,22 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	return 0;
 }
 
+static void scd_led_remove(struct auxiliary_device *auxdev) {
+	struct scd_led_priv *priv = dev_get_drvdata(&auxdev->dev);
+
+	for (int i = 0; i < priv->num_leds; ++i) {
+		for (int j = 0; j < SCD_LED_ATTR_COUNT; ++j) {
+			sysfs_remove_file(&priv->leds[i].cdev.dev->kobj, &priv->leds[i].attr[j].attr.attr);
+		}
+	}
+}
+
 static const struct auxiliary_device_id scd_led_ids[] = {
-	{ .name = "scd.osfp_led" },
-	{ .name = "scd.qsfp_led" },
-	{ .name = "scd.status_led" },
+	{ .name = "scd.fan_led" },
+	{ .name = "scd.port_led" },
+	{ .name = "scd.psu_led" },
+	{ .name = "scd.smb_led" },
+	{ .name = "scd.sys_led" },
 	{},
 };
 MODULE_DEVICE_TABLE(auxiliary, scd_led_ids);
@@ -234,6 +365,7 @@ static struct auxiliary_driver scd_led_driver = {
 		.name = DRIVER_NAME,
 	},
 	.probe = scd_led_probe,
+	.remove = scd_led_remove,
 	.id_table = scd_led_ids,
 };
 module_auxiliary_driver(scd_led_driver);

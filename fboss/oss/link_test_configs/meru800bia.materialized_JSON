@@ -19,7 +19,7 @@
         "routable": true,
         "ingressVlan": 0,
         "speed": 10000,
-        "name": "rcy1/1/55",
+        "name": "rcy1/1/441",
         "description": "",
         "queues_DEPRECATED": [
           
@@ -42,7 +42,218 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
+      },
+      {
+        "logicalID": 2,
+        "state": 1,
+        "minFrameSize": 64,
+        "maxFrameSize": 9412,
+        "parserType": 1,
+        "routable": true,
+        "ingressVlan": 0,
+        "speed": 10000,
+        "name": "rcy1/1/442",
+        "description": "",
+        "queues_DEPRECATED": [
+          
+        ],
+        "pause": {
+          "tx": false,
+          "rx": false
+        },
+        "sFlowIngressRate": 0,
+        "sFlowEgressRate": 0,
+        "loopbackMode": 0,
+        "expectedLLDPValues": {
+          
+        },
+        "lookupClasses": [
+          
+        ],
+        "profileID": 11,
+        "portType": 3,
+        "expectedNeighborReachability": [
+          
+        ],
+        "drainState": 0,
+        "scope": 0
+      },
+      {
+        "logicalID": 3,
+        "state": 1,
+        "minFrameSize": 64,
+        "maxFrameSize": 9412,
+        "parserType": 1,
+        "routable": true,
+        "ingressVlan": 0,
+        "speed": 10000,
+        "name": "rcy1/1/443",
+        "description": "",
+        "queues_DEPRECATED": [
+          
+        ],
+        "pause": {
+          "tx": false,
+          "rx": false
+        },
+        "sFlowIngressRate": 0,
+        "sFlowEgressRate": 0,
+        "loopbackMode": 0,
+        "expectedLLDPValues": {
+          
+        },
+        "lookupClasses": [
+          
+        ],
+        "profileID": 11,
+        "portType": 3,
+        "expectedNeighborReachability": [
+          
+        ],
+        "drainState": 0,
+        "scope": 0
+      },
+      {
+        "logicalID": 4,
+        "state": 1,
+        "minFrameSize": 64,
+        "maxFrameSize": 9412,
+        "parserType": 1,
+        "routable": true,
+        "ingressVlan": 0,
+        "speed": 10000,
+        "name": "rcy1/1/444",
+        "description": "",
+        "queues_DEPRECATED": [
+          
+        ],
+        "pause": {
+          "tx": false,
+          "rx": false
+        },
+        "sFlowIngressRate": 0,
+        "sFlowEgressRate": 0,
+        "loopbackMode": 0,
+        "expectedLLDPValues": {
+          
+        },
+        "lookupClasses": [
+          
+        ],
+        "profileID": 11,
+        "portType": 3,
+        "expectedNeighborReachability": [
+          
+        ],
+        "drainState": 0,
+        "scope": 0
+      },
+      {
+        "logicalID": 5,
+        "state": 1,
+        "minFrameSize": 64,
+        "maxFrameSize": 9412,
+        "parserType": 1,
+        "routable": true,
+        "ingressVlan": 0,
+        "speed": 10000,
+        "name": "rcy1/1/445",
+        "description": "",
+        "queues_DEPRECATED": [
+          
+        ],
+        "pause": {
+          "tx": false,
+          "rx": false
+        },
+        "sFlowIngressRate": 0,
+        "sFlowEgressRate": 0,
+        "loopbackMode": 0,
+        "expectedLLDPValues": {
+          
+        },
+        "lookupClasses": [
+          
+        ],
+        "profileID": 11,
+        "portType": 3,
+        "expectedNeighborReachability": [
+          
+        ],
+        "drainState": 0,
+        "scope": 0
+      },
+      {
+        "logicalID": 6,
+        "state": 1,
+        "minFrameSize": 64,
+        "maxFrameSize": 9412,
+        "parserType": 1,
+        "routable": true,
+        "ingressVlan": 0,
+        "speed": 10000,
+        "name": "evt1/1/506",
+        "description": "",
+        "queues_DEPRECATED": [
+          
+        ],
+        "pause": {
+          "tx": false,
+          "rx": false
+        },
+        "sFlowIngressRate": 0,
+        "sFlowEgressRate": 0,
+        "loopbackMode": 0,
+        "expectedLLDPValues": {
+          
+        },
+        "lookupClasses": [
+          
+        ],
+        "profileID": 11,
+        "portType": 5,
+        "expectedNeighborReachability": [
+          
+        ],
+        "drainState": 0,
+        "scope": 0
+      },
+      {
+        "logicalID": 7,
+        "state": 2,
+        "minFrameSize": 64,
+        "maxFrameSize": 9412,
+        "parserType": 1,
+        "routable": true,
+        "ingressVlan": 0,
+        "speed": 100000,
+        "name": "eth1/39/1",
+        "description": "",
+        "queues_DEPRECATED": [
+          
+        ],
+        "pause": {
+          "tx": false,
+          "rx": false
+        },
+        "sFlowIngressRate": 0,
+        "sFlowEgressRate": 0,
+        "loopbackMode": 0,
+        "expectedLLDPValues": {
+          "2": "eth1/28/1"
+        },
+        "lookupClasses": [
+          
+        ],
+        "profileID": 23,
+        "portType": 4,
+        "expectedNeighborReachability": [
+          
+        ],
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 1093,
@@ -76,7 +287,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1089,
@@ -110,7 +322,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1088,
@@ -144,7 +357,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1091,
@@ -178,7 +392,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1092,
@@ -212,7 +427,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1090,
@@ -246,7 +462,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1094,
@@ -280,7 +497,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1095,
@@ -314,7 +532,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1096,
@@ -348,7 +567,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1103,
@@ -382,7 +602,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1098,
@@ -416,7 +637,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1097,
@@ -450,7 +672,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1100,
@@ -484,7 +707,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1101,
@@ -518,7 +742,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1102,
@@ -552,7 +777,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1099,
@@ -586,7 +812,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1080,
@@ -620,7 +847,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1081,
@@ -654,7 +882,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1082,
@@ -688,7 +917,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1083,
@@ -722,7 +952,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1084,
@@ -756,7 +987,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1085,
@@ -790,7 +1022,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1086,
@@ -824,7 +1057,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1087,
@@ -858,7 +1092,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1074,
@@ -892,7 +1127,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1075,
@@ -926,7 +1162,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1072,
@@ -960,7 +1197,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1073,
@@ -994,7 +1232,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1076,
@@ -1028,7 +1267,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1077,
@@ -1062,7 +1302,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1078,
@@ -1096,7 +1337,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1079,
@@ -1130,7 +1372,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1070,
@@ -1164,7 +1407,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1071,
@@ -1198,7 +1442,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1069,
@@ -1232,7 +1477,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1065,
@@ -1266,7 +1512,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1068,
@@ -1300,7 +1547,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1066,
@@ -1334,7 +1582,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1064,
@@ -1368,7 +1617,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1067,
@@ -1402,7 +1652,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1061,
@@ -1436,7 +1687,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1063,
@@ -1470,7 +1722,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1062,
@@ -1504,7 +1757,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1057,
@@ -1538,7 +1792,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1060,
@@ -1572,7 +1827,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1058,
@@ -1606,7 +1862,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1056,
@@ -1640,7 +1897,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1059,
@@ -1674,7 +1932,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1048,
@@ -1708,7 +1967,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1049,
@@ -1742,7 +2002,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1050,
@@ -1776,7 +2037,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1051,
@@ -1810,7 +2072,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1052,
@@ -1844,7 +2107,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1053,
@@ -1878,7 +2142,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1054,
@@ -1912,7 +2177,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1055,
@@ -1946,7 +2212,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1042,
@@ -1980,7 +2247,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1043,
@@ -2014,7 +2282,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1040,
@@ -2048,7 +2317,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1041,
@@ -2082,7 +2352,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1044,
@@ -2116,7 +2387,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1045,
@@ -2150,7 +2422,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1046,
@@ -2184,7 +2457,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1047,
@@ -2218,7 +2492,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1034,
@@ -2252,7 +2527,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1033,
@@ -2286,7 +2562,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1032,
@@ -2320,7 +2597,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1039,
@@ -2354,7 +2632,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1035,
@@ -2388,7 +2667,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1038,
@@ -2422,7 +2702,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1037,
@@ -2456,7 +2737,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1036,
@@ -2490,7 +2772,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1026,
@@ -2524,7 +2807,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1025,
@@ -2558,7 +2842,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1024,
@@ -2592,7 +2877,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1031,
@@ -2626,7 +2912,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1027,
@@ -2660,7 +2947,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1030,
@@ -2694,7 +2982,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1029,
@@ -2728,7 +3017,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1028,
@@ -2762,10 +3052,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
-        "logicalID": 14,
+        "logicalID": 20,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -2796,10 +3087,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 15,
+        "logicalID": 21,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -2830,10 +3122,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 18,
+        "logicalID": 24,
         "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -2864,10 +3157,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 19,
+        "logicalID": 25,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -2898,10 +3192,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 12,
+        "logicalID": 18,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -2932,10 +3227,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 13,
+        "logicalID": 19,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -2966,10 +3262,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 16,
+        "logicalID": 22,
         "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3000,10 +3297,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 17,
+        "logicalID": 23,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3034,10 +3332,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 8,
+        "logicalID": 14,
         "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3068,10 +3367,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 4,
+        "logicalID": 10,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3102,10 +3402,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 5,
+        "logicalID": 11,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3136,10 +3437,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 10,
+        "logicalID": 16,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3170,10 +3472,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 11,
+        "logicalID": 17,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3204,10 +3507,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 6,
+        "logicalID": 12,
         "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3238,10 +3542,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 2,
+        "logicalID": 8,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3272,10 +3577,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 3,
+        "logicalID": 9,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3306,10 +3612,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 20,
+        "logicalID": 26,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3340,10 +3647,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 21,
+        "logicalID": 27,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3374,10 +3682,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 24,
+        "logicalID": 30,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3408,10 +3717,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 25,
+        "logicalID": 31,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3442,10 +3752,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 22,
+        "logicalID": 28,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3476,10 +3787,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 23,
+        "logicalID": 29,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3510,10 +3822,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 36,
+        "logicalID": 42,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3544,10 +3857,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 37,
+        "logicalID": 43,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3578,10 +3892,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 26,
+        "logicalID": 32,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3612,10 +3927,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 27,
+        "logicalID": 33,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3646,10 +3962,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 32,
+        "logicalID": 38,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3680,10 +3997,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 33,
+        "logicalID": 39,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3714,10 +4032,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 34,
+        "logicalID": 40,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3748,10 +4067,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 35,
+        "logicalID": 41,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3782,10 +4102,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 28,
+        "logicalID": 34,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3816,10 +4137,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 29,
+        "logicalID": 35,
         "state": 1,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3850,10 +4172,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 30,
+        "logicalID": 36,
         "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3884,10 +4207,11 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
-        "logicalID": 31,
+        "logicalID": 37,
         "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
@@ -3918,7 +4242,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 1
       },
       {
         "logicalID": 1117,
@@ -3952,7 +4277,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1116,
@@ -3986,7 +4312,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1112,
@@ -4020,7 +4347,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1119,
@@ -4054,7 +4382,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1115,
@@ -4088,7 +4417,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1118,
@@ -4122,7 +4452,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1114,
@@ -4156,7 +4487,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1113,
@@ -4190,7 +4522,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1110,
@@ -4224,7 +4557,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1111,
@@ -4258,7 +4592,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1109,
@@ -4292,7 +4627,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1105,
@@ -4326,7 +4662,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1108,
@@ -4360,7 +4697,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1106,
@@ -4394,7 +4732,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1104,
@@ -4428,7 +4767,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1107,
@@ -4462,7 +4802,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1138,
@@ -4496,7 +4837,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1139,
@@ -4530,7 +4872,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1141,
@@ -4564,7 +4907,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1143,
@@ -4598,7 +4942,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1140,
@@ -4632,7 +4977,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1136,
@@ -4666,7 +5012,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1142,
@@ -4700,7 +5047,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1137,
@@ -4734,7 +5082,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1120,
@@ -4768,7 +5117,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1123,
@@ -4802,7 +5152,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1125,
@@ -4836,7 +5187,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1121,
@@ -4870,7 +5222,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1124,
@@ -4904,7 +5257,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1122,
@@ -4938,7 +5292,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1126,
@@ -4972,7 +5327,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1127,
@@ -5006,7 +5362,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1133,
@@ -5040,7 +5397,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1132,
@@ -5074,7 +5432,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1134,
@@ -5108,7 +5467,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1135,
@@ -5142,7 +5502,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1131,
@@ -5176,7 +5537,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1128,
@@ -5210,7 +5572,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1130,
@@ -5244,7 +5607,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1129,
@@ -5278,7 +5642,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1149,
@@ -5312,7 +5677,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1150,
@@ -5346,7 +5712,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1144,
@@ -5380,7 +5747,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1151,
@@ -5414,7 +5782,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1146,
@@ -5448,7 +5817,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1148,
@@ -5482,7 +5852,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1147,
@@ -5516,7 +5887,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1145,
@@ -5550,7 +5922,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1168,
@@ -5584,7 +5957,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1171,
@@ -5618,7 +5992,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1173,
@@ -5652,7 +6027,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1169,
@@ -5686,7 +6062,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1172,
@@ -5720,7 +6097,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1170,
@@ -5754,7 +6132,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1174,
@@ -5788,7 +6167,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1175,
@@ -5822,7 +6202,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1176,
@@ -5856,7 +6237,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1177,
@@ -5890,7 +6272,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1178,
@@ -5924,7 +6307,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1183,
@@ -5958,7 +6342,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1181,
@@ -5992,7 +6377,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1180,
@@ -6026,7 +6412,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1179,
@@ -6060,7 +6447,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1182,
@@ -6094,7 +6482,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1165,
@@ -6128,7 +6517,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1166,
@@ -6162,7 +6552,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1160,
@@ -6196,7 +6587,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1167,
@@ -6230,7 +6622,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1162,
@@ -6264,7 +6657,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1164,
@@ -6298,7 +6692,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1163,
@@ -6332,7 +6727,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1161,
@@ -6366,7 +6762,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1156,
@@ -6400,7 +6797,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1159,
@@ -6434,7 +6832,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1157,
@@ -6468,7 +6867,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1153,
@@ -6502,7 +6902,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1152,
@@ -6536,7 +6937,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1154,
@@ -6570,7 +6972,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1158,
@@ -6604,7 +7007,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       },
       {
         "logicalID": 1155,
@@ -6638,41 +7042,8 @@
         "expectedNeighborReachability": [
           
         ],
-        "drainState": 0
-      },
-      {
-        "logicalID": 38,
-        "state": 2,
-        "minFrameSize": 64,
-        "maxFrameSize": 9412,
-        "parserType": 1,
-        "routable": true,
-        "ingressVlan": 0,
-        "speed": 100000,
-        "name": "eth1/39/1",
-        "description": "",
-        "queues_DEPRECATED": [
-          
-        ],
-        "pause": {
-          "tx": false,
-          "rx": false
-        },
-        "sFlowIngressRate": 0,
-        "sFlowEgressRate": 0,
-        "loopbackMode": 0,
-        "expectedLLDPValues": {
-          "2": "eth1/28/1"
-        },
-        "lookupClasses": [
-          
-        ],
-        "profileID": 23,
-        "portType": 4,
-        "expectedNeighborReachability": [
-          
-        ],
-        "drainState": 0
+        "drainState": 0,
+        "scope": 0
       }
     ],
     "vlans": [
@@ -6693,10 +7064,11 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 1
       },
       {
-        "intfID": 138,
+        "intfID": 107,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -6705,10 +7077,11 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 1
       },
       {
-        "intfID": 118,
+        "intfID": 124,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -6718,10 +7091,11 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 1
       },
       {
-        "intfID": 116,
+        "intfID": 122,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -6731,10 +7105,11 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 1
       },
       {
-        "intfID": 108,
+        "intfID": 114,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -6744,10 +7119,11 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 1
       },
       {
-        "intfID": 106,
+        "intfID": 112,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -6757,10 +7133,11 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 1
       },
       {
-        "intfID": 130,
+        "intfID": 136,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -6770,7 +7147,8 @@
         "mtu": 9000,
         "isVirtual": false,
         "isStateSyncDisabled": true,
-        "type": 2
+        "type": 2,
+        "scope": 1
       }
     ],
     "arpTimeoutSeconds": 60,
@@ -6807,8 +7185,9 @@
       },
       {
         "dscp": 48,
-        "name": "cpuPolicing-high-NetworkControl-dstLocal-127.0.0.1/32",
-        "actionType": 1
+        "name": "cpuPolicing-high-NetworkControl-dstLocal",
+        "actionType": 1,
+        "lookupClassRoute": 1
       },
       {
         "dstIp": "fe80::/10",
@@ -6922,7 +7301,7 @@
             }
           },
           {
-            "matcher": "cpuPolicing-high-NetworkControl-dstLocal-127.0.0.1/32",
+            "matcher": "cpuPolicing-high-NetworkControl-dstLocal",
             "action": {
               "sendToQueue": {
                 "queueId": 7
@@ -7017,6 +7396,10 @@
           "queueId": 0
         },
         {
+          "rxReason": 14,
+          "queueId": 0
+        },
+        {
           "rxReason": 0,
           "queueId": 1
         }
@@ -7084,7 +7467,7 @@
             },
             "systemPortRange": {
               "minimum": 100,
-              "maximum": 140
+              "maximum": 144
             },
             "switchMac": "02:00:00:00:00:01",
             "connectionHandle": "15:00"
@@ -7107,7 +7490,7 @@
           ],
           "systemPortRange": {
             "minimum": 100,
-            "maximum": 140
+            "maximum": 144
           },
           "nodeMac": "02:00:00:00:0F:0B",
           "asicType": 14,
@@ -7124,7 +7507,7 @@
         "common": {
           "config": {
             "appl_enable_oam.BCM8889X": "0",
-            "appl_param_rcy_mirror_ports_range.BCM8889X": "100-139",
+            "appl_param_rcy_mirror_ports_range.BCM8889X": "100-143",
             "bcm_stat_interval": "1000000",
             "custom_feature_adapter_do_collect_enable.BCM8889X_ADAPTER": "1",
             "custom_feature_cmicx_gen2_pdma_interface_optimization": "1",
@@ -8141,22 +8524,62 @@
             "port_priorities": "8",
             "port_priorities_0": "2",
             "port_priorities_1": "2",
+            "port_priorities_2": "2",
             "port_priorities_200": "2",
             "port_priorities_201": "2",
             "port_priorities_202": "2",
             "port_priorities_203": "2",
-            "port_priorities_sch.BCM8886X": "8",
-            "port_priorities_sch_0": "8",
-            "port_priorities_sch_1": "8",
+            "port_priorities_3": "2",
+            "port_priorities_4": "2",
+            "port_priorities_5": "2",
+            "port_priorities_sch.BCM8889X": "8",
             "programmability_image_name.BCM8889X": "AI23",
             "programmability_ucode_relative_path.BCM8889X": "pemla/ucode/AI23/jr3native/u_code_db2pem.txt",
             "qos_map_multi_get_mode": "1",
+            "rcy_mirror_to_forward_port_map_107.BCM8889X": "7",
+            "rcy_mirror_to_forward_port_map_108.BCM8889X": "8",
+            "rcy_mirror_to_forward_port_map_109.BCM8889X": "9",
+            "rcy_mirror_to_forward_port_map_110.BCM8889X": "10",
+            "rcy_mirror_to_forward_port_map_111.BCM8889X": "11",
+            "rcy_mirror_to_forward_port_map_112.BCM8889X": "12",
+            "rcy_mirror_to_forward_port_map_113.BCM8889X": "13",
+            "rcy_mirror_to_forward_port_map_114.BCM8889X": "14",
+            "rcy_mirror_to_forward_port_map_115.BCM8889X": "15",
+            "rcy_mirror_to_forward_port_map_116.BCM8889X": "16",
+            "rcy_mirror_to_forward_port_map_117.BCM8889X": "17",
+            "rcy_mirror_to_forward_port_map_118.BCM8889X": "18",
+            "rcy_mirror_to_forward_port_map_119.BCM8889X": "19",
+            "rcy_mirror_to_forward_port_map_120.BCM8889X": "20",
+            "rcy_mirror_to_forward_port_map_121.BCM8889X": "21",
+            "rcy_mirror_to_forward_port_map_122.BCM8889X": "22",
+            "rcy_mirror_to_forward_port_map_123.BCM8889X": "23",
+            "rcy_mirror_to_forward_port_map_124.BCM8889X": "24",
+            "rcy_mirror_to_forward_port_map_125.BCM8889X": "25",
+            "rcy_mirror_to_forward_port_map_126.BCM8889X": "26",
+            "rcy_mirror_to_forward_port_map_127.BCM8889X": "27",
+            "rcy_mirror_to_forward_port_map_128.BCM8889X": "28",
+            "rcy_mirror_to_forward_port_map_129.BCM8889X": "29",
+            "rcy_mirror_to_forward_port_map_130.BCM8889X": "30",
+            "rcy_mirror_to_forward_port_map_131.BCM8889X": "31",
+            "rcy_mirror_to_forward_port_map_132.BCM8889X": "32",
+            "rcy_mirror_to_forward_port_map_133.BCM8889X": "33",
+            "rcy_mirror_to_forward_port_map_134.BCM8889X": "34",
+            "rcy_mirror_to_forward_port_map_135.BCM8889X": "35",
+            "rcy_mirror_to_forward_port_map_136.BCM8889X": "36",
+            "rcy_mirror_to_forward_port_map_137.BCM8889X": "37",
+            "rcy_mirror_to_forward_port_map_138.BCM8889X": "38",
+            "rcy_mirror_to_forward_port_map_139.BCM8889X": "39",
+            "rcy_mirror_to_forward_port_map_140.BCM8889X": "40",
+            "rcy_mirror_to_forward_port_map_141.BCM8889X": "41",
+            "rcy_mirror_to_forward_port_map_142.BCM8889X": "42",
+            "rcy_mirror_to_forward_port_map_143.BCM8889X": "43",
             "rif_id_max": "0x2000",
             "sai_acl_qset_optimization": "0x1",
             "sai_async_fdb_nbr_enable": "0x1",
             "sai_common_hash_crc": "0x1",
             "sai_dis_ctr_incr_on_port_ln_dn": "0",
             "sai_disable_srcmacqedstmac_ctrl": "0x1",
+            "sai_eventor_port_lane_base": "500",
             "sai_global_scoped_rcy_port": "1",
             "sai_ifp_enable_on_cpu_tx": "0x1",
             "sai_l3_max_ecmp_paths": "512",
@@ -8172,11 +8595,7 @@
             "sai_trigger_linkscan_remote_local_faults": "0",
             "sat_enable.BCM8889X_ADAPTER": "1",
             "soc_family.BCM8889X": "BCM8889X",
-            "stable_filename": "/dev/shm/warmboot_data_0",
-            "stable_filename.1": "/dev/shm/warmboot_data_1",
-            "stable_filename.2": "/dev/shm/warmboot_data_2",
-            "stable_filename.BCM8889X_ADAPTER": "warmboot_data_0",
-            "stable_location.BCM8889X": "4",
+            "stable_location.BCM8889X": "3",
             "stable_location.BCM8889X_ADAPTER": "3",
             "stable_size.BCM8889X": "1450000000",
             "stable_size.BCM8889X_ADAPTER": "1450000000",
@@ -8189,9 +8608,9 @@
             "tm_port_header_type_in_202.BCM8889X": "INJECTED_PP",
             "tm_port_header_type_in_203.BCM8889X": "INJECTED_PP",
             "tm_port_header_type_in_218.BCM8889X_ADAPTER": "INJECTED",
-            "tm_port_header_type_in_230.BCM8889X": "INJECTED",
             "tm_port_header_type_in_240.BCM8889X": "INJECTED",
             "tm_port_header_type_in_241.BCM8889X": "INJECTED",
+            "tm_port_header_type_in_6.BCM8889X": "INJECTED",
             "tm_port_header_type_out_0.BCM8889X": "CPU",
             "tm_port_header_type_out_1.BCM8889X": "ETH",
             "tm_port_header_type_out_200.BCM8889X": "ETH",
@@ -8204,18 +8623,49 @@
             "ucode_port_0.BCM8889X": "CPU.0:core_0.0",
             "ucode_port_0.BCM8889X_ADAPTER": "CPU.0:core_0.0",
             "ucode_port_1.BCM8889X": "RCY.25:core_2.2",
-            "ucode_port_10.BCM8889X": "CDGE4_8:core_0.10",
-            "ucode_port_11.BCM8889X": "CDGE4_9:core_0.11",
-            "ucode_port_12.BCM8889X": "CDGE4_10:core_1.2",
-            "ucode_port_13.BCM8889X": "CDGE4_11:core_1.3",
-            "ucode_port_14.BCM8889X": "CDGE4_12:core_1.4",
-            "ucode_port_15.BCM8889X": "CDGE4_13:core_1.5",
-            "ucode_port_16.BCM8889X": "CDGE4_14:core_1.6",
-            "ucode_port_17.BCM8889X": "CDGE4_15:core_1.7",
-            "ucode_port_18.BCM8889X": "CDGE4_16:core_1.8",
-            "ucode_port_19.BCM8889X": "CDGE4_17:core_1.9",
-            "ucode_port_2.BCM8889X": "CDGE4_0:core_0.2",
-            "ucode_port_20.BCM8889X": "CDGE4_18:core_2.12",
+            "ucode_port_10.BCM8889X": "CDGE4_2:core_0.4",
+            "ucode_port_107.BCM8889X": "RCY_MIRROR.7:core_2.107",
+            "ucode_port_108.BCM8889X": "RCY_MIRROR.8:core_0.108",
+            "ucode_port_109.BCM8889X": "RCY_MIRROR.9:core_0.109",
+            "ucode_port_11.BCM8889X": "CDGE4_3:core_0.5",
+            "ucode_port_110.BCM8889X": "RCY_MIRROR.10:core_0.110",
+            "ucode_port_111.BCM8889X": "RCY_MIRROR.11:core_0.111",
+            "ucode_port_112.BCM8889X": "RCY_MIRROR.12:core_0.112",
+            "ucode_port_114.BCM8889X": "RCY_MIRROR.14:core_0.114",
+            "ucode_port_116.BCM8889X": "RCY_MIRROR.16:core_0.116",
+            "ucode_port_117.BCM8889X": "RCY_MIRROR.17:core_0.117",
+            "ucode_port_118.BCM8889X": "RCY_MIRROR.18:core_1.118",
+            "ucode_port_119.BCM8889X": "RCY_MIRROR.19:core_1.119",
+            "ucode_port_12.BCM8889X": "D3CE2:core_0.6",
+            "ucode_port_120.BCM8889X": "RCY_MIRROR.20:core_1.120",
+            "ucode_port_121.BCM8889X": "RCY_MIRROR.21:core_1.121",
+            "ucode_port_122.BCM8889X": "RCY_MIRROR.22:core_1.122",
+            "ucode_port_123.BCM8889X": "RCY_MIRROR.23:core_1.123",
+            "ucode_port_124.BCM8889X": "RCY_MIRROR.24:core_1.124",
+            "ucode_port_125.BCM8889X": "RCY_MIRROR.25:core_1.125",
+            "ucode_port_126.BCM8889X": "RCY_MIRROR.26:core_2.126",
+            "ucode_port_127.BCM8889X": "RCY_MIRROR.27:core_2.127",
+            "ucode_port_128.BCM8889X": "RCY_MIRROR.28:core_2.128",
+            "ucode_port_129.BCM8889X": "RCY_MIRROR.29:core_2.129",
+            "ucode_port_130.BCM8889X": "RCY_MIRROR.30:core_2.130",
+            "ucode_port_131.BCM8889X": "RCY_MIRROR.31:core_2.131",
+            "ucode_port_132.BCM8889X": "RCY_MIRROR.32:core_2.132",
+            "ucode_port_133.BCM8889X": "RCY_MIRROR.33:core_2.133",
+            "ucode_port_134.BCM8889X": "RCY_MIRROR.34:core_3.134",
+            "ucode_port_136.BCM8889X": "RCY_MIRROR.36:core_3.136",
+            "ucode_port_138.BCM8889X": "RCY_MIRROR.38:core_3.138",
+            "ucode_port_139.BCM8889X": "RCY_MIRROR.39:core_3.139",
+            "ucode_port_14.BCM8889X": "D3CE3:core_0.8",
+            "ucode_port_140.BCM8889X": "RCY_MIRROR.40:core_3.140",
+            "ucode_port_141.BCM8889X": "RCY_MIRROR.41:core_3.141",
+            "ucode_port_142.BCM8889X": "RCY_MIRROR.42:core_3.142",
+            "ucode_port_143.BCM8889X": "RCY_MIRROR.43:core_3.143",
+            "ucode_port_16.BCM8889X": "CDGE4_8:core_0.10",
+            "ucode_port_17.BCM8889X": "CDGE4_9:core_0.11",
+            "ucode_port_18.BCM8889X": "CDGE4_10:core_1.12",
+            "ucode_port_19.BCM8889X": "CDGE4_11:core_1.3",
+            "ucode_port_2.BCM8889X": "RCY.21:core_0.1",
+            "ucode_port_20.BCM8889X": "CDGE4_12:core_1.4",
             "ucode_port_200.BCM8889X": "CPU.8:core_1.200",
             "ucode_port_200.BCM8889X_ADAPTER": "CPU.8:core_0.200",
             "ucode_port_201.BCM8889X": "CPU.16:core_0.201",
@@ -8224,33 +8674,39 @@
             "ucode_port_202.BCM8889X_ADAPTER": "CPU.24:core_0.202",
             "ucode_port_203.BCM8889X": "CPU.32:core_0.203",
             "ucode_port_203.BCM8889X_ADAPTER": "CPU.32:core_0.203",
-            "ucode_port_21.BCM8889X": "CDGE4_19:core_2.3",
+            "ucode_port_21.BCM8889X": "CDGE4_13:core_1.5",
             "ucode_port_218.BCM8889X_ADAPTER": "SAT:core_0.218",
-            "ucode_port_22.BCM8889X": "CDGE4_20:core_2.4",
-            "ucode_port_23.BCM8889X": "CDGE4_21:core_2.5",
-            "ucode_port_230.BCM8889X": "EVENTOR:core_0.230",
-            "ucode_port_24.BCM8889X": "CDGE4_22:core_2.6",
+            "ucode_port_22.BCM8889X": "CDGE4_14:core_1.6",
+            "ucode_port_23.BCM8889X": "CDGE4_15:core_1.7",
+            "ucode_port_24.BCM8889X": "CDGE4_16:core_1.8",
             "ucode_port_240.BCM8889X": "OLP0:core_0.240",
             "ucode_port_241.BCM8889X": "OLP1:core_0.241",
-            "ucode_port_25.BCM8889X": "CDGE4_23:core_2.7",
-            "ucode_port_26.BCM8889X": "CDGE4_24:core_2.8",
-            "ucode_port_27.BCM8889X": "CDGE4_25:core_2.9",
-            "ucode_port_28.BCM8889X": "CDGE4_26:core_3.2",
-            "ucode_port_29.BCM8889X": "CDGE4_27:core_3.3",
-            "ucode_port_3.BCM8889X": "CDGE4_1:core_0.3",
-            "ucode_port_30.BCM8889X": "CGE28:core_3.4",
-            "ucode_port_31.BCM8889X": "CGE29:core_3.5",
-            "ucode_port_32.BCM8889X": "CDGE4_30:core_3.6",
-            "ucode_port_33.BCM8889X": "CDGE4_31:core_3.7",
-            "ucode_port_34.BCM8889X": "CDGE4_32:core_3.8",
-            "ucode_port_35.BCM8889X": "CDGE4_33:core_3.9",
-            "ucode_port_36.BCM8889X": "CDGE4_34:core_3.10",
-            "ucode_port_37.BCM8889X": "CDGE4_35:core_3.11",
-            "ucode_port_38.BCM8889X": "CGE36:core_2.11",
-            "ucode_port_4.BCM8889X": "CDGE4_2:core_0.4",
-            "ucode_port_5.BCM8889X": "CDGE4_3:core_0.5",
-            "ucode_port_6.BCM8889X": "D3CE2:core_0.6",
-            "ucode_port_8.BCM8889X": "D3CE3:core_0.8",
+            "ucode_port_25.BCM8889X": "CDGE4_17:core_1.9",
+            "ucode_port_26.BCM8889X": "CDGE4_18:core_2.12",
+            "ucode_port_27.BCM8889X": "CDGE4_19:core_2.3",
+            "ucode_port_28.BCM8889X": "CDGE4_20:core_2.4",
+            "ucode_port_29.BCM8889X": "CDGE4_21:core_2.5",
+            "ucode_port_3.BCM8889X": "RCY.22:core_1.1",
+            "ucode_port_30.BCM8889X": "CDGE4_22:core_2.6",
+            "ucode_port_31.BCM8889X": "CDGE4_23:core_2.7",
+            "ucode_port_32.BCM8889X": "CDGE4_24:core_2.8",
+            "ucode_port_33.BCM8889X": "CDGE4_25:core_2.9",
+            "ucode_port_34.BCM8889X": "CDGE4_26:core_3.2",
+            "ucode_port_35.BCM8889X": "CDGE4_27:core_3.3",
+            "ucode_port_36.BCM8889X": "CGE28:core_3.4",
+            "ucode_port_37.BCM8889X": "CGE29:core_3.5",
+            "ucode_port_38.BCM8889X": "CDGE4_30:core_3.6",
+            "ucode_port_39.BCM8889X": "CDGE4_31:core_3.7",
+            "ucode_port_4.BCM8889X": "RCY.23:core_2.1",
+            "ucode_port_40.BCM8889X": "CDGE4_32:core_3.8",
+            "ucode_port_41.BCM8889X": "CDGE4_33:core_3.9",
+            "ucode_port_42.BCM8889X": "CDGE4_34:core_3.10",
+            "ucode_port_43.BCM8889X": "CDGE4_35:core_3.11",
+            "ucode_port_5.BCM8889X": "RCY.24:core_3.1",
+            "ucode_port_6.BCM8889X": "EVENTOR:core_1.2",
+            "ucode_port_7.BCM8889X": "CGE36:core_2.11",
+            "ucode_port_8.BCM8889X": "CDGE4_0:core_0.2",
+            "ucode_port_9.BCM8889X": "CDGE4_1:core_0.3",
             "warmboot_support.BCM8889X": "on",
             "warmboot_support.BCM8889X_ADAPTER": "on"
           }

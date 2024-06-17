@@ -3,8 +3,6 @@
 # In general, libraries and binaries in fboss/foo/bar are built by
 # cmake/FooBar.cmake
 
-if(BUILD_FBOSS_CLI)
-
 add_fbthrift_cpp_library(
   cli_model
   fboss/cli/fboss2/cli.thrift
@@ -224,6 +222,15 @@ add_fbthrift_cpp_library(
 )
 
 add_fbthrift_cpp_library(
+  show_interface_capabilities
+  fboss/cli/fboss2/commands/show/interface/capabilities/model.thrift
+  OPTIONS
+    json
+  DEPENDS
+    switch_config_cpp2
+)
+
+add_fbthrift_cpp_library(
   show_route_model
   fboss/cli/fboss2/commands/show/route/model.thrift
   OPTIONS
@@ -278,6 +285,15 @@ add_fbthrift_cpp_library(
 add_fbthrift_cpp_library(
   show_interface_counters_fec_ber
   fboss/cli/fboss2/commands/show/interface/counters/fec/ber/model.thrift
+  OPTIONS
+    json
+  DEPENDS
+    phy_cpp2
+)
+
+add_fbthrift_cpp_library(
+  show_interface_counters_fec_histogram
+  fboss/cli/fboss2/commands/show/interface/counters/fec/histogram/model.thrift
   OPTIONS
     json
   DEPENDS
@@ -362,9 +378,11 @@ add_executable(fboss2
   fboss/cli/fboss2/commands/show/interface/counters/fec/CmdShowInterfaceCountersFec.h
   fboss/cli/fboss2/commands/show/interface/counters/fec/ber/CmdShowInterfaceCountersFecBer.h
   fboss/cli/fboss2/commands/show/interface/counters/fec/uncorrectable/CmdShowInterfaceCountersFecUncorrectable.h
+  fboss/cli/fboss2/commands/show/interface/counters/fec/histogram/CmdShowInterfaceCountersFecHistogram.h
   fboss/cli/fboss2/commands/show/interface/counters/mka/CmdShowInterfaceCountersMKA.h
   fboss/cli/fboss2/commands/show/interface/phy/CmdShowInterfacePhy.h
   fboss/cli/fboss2/commands/show/interface/phymap/CmdShowInterfacePhymap.h
+  fboss/cli/fboss2/commands/show/interface/capabilities/CmdShowInterfaceCapabilities.h
   fboss/cli/fboss2/commands/show/interface/status/CmdShowInterfaceStatus.h
   fboss/cli/fboss2/commands/show/interface/prbs/CmdShowInterfacePrbs.h
   fboss/cli/fboss2/commands/show/interface/prbs/capabilities/CmdShowInterfacePrbsCapabilities.h
@@ -440,6 +458,7 @@ target_link_libraries(fboss2
   show_interface_status
   show_interface_phy
   show_interface_phymap
+  show_interface_capabilities
   show_interface_prbs_capabilities
   show_interface_prbs_state
   show_interface_prbs_stats
@@ -451,6 +470,7 @@ target_link_libraries(fboss2
   show_teflow_model
   show_hwagent_status_model
   show_interface_counters_fec_ber
+  show_interface_counters_fec_histogram
   show_fabric_topology_model
   show_rif
   show_interface_counters_fec_uncorrectable
@@ -483,5 +503,3 @@ add_library(tabulate
 set_target_properties(tabulate PROPERTIES LINKER_LANGUAGE CXX)
 
 install(TARGETS fboss2)
-
-endif()

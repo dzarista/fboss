@@ -2,6 +2,7 @@
 
 #include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/HwAsicTable.h"
+#include "fboss/agent/hw/gen-cpp2/hardware_stats_constants.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/test/utils/StatsTestUtils.h"
@@ -43,7 +44,9 @@ void AgentHwTest::SetUp() {
   agentEnsemble_ = createAgentEnsemble(initialConfigFn);
 
   if (isSupportedOnAllAsics(HwAsic::Feature::ROUTE_METADATA)) {
-    FLAGS_classid_for_connected_subnet_routes = true;
+    // TODO: enable after classid_for_connected_subnet_routes feature is fully
+    // verified
+    FLAGS_classid_for_connected_subnet_routes = false;
   }
 }
 
@@ -182,6 +185,13 @@ std::map<PortID, HwPortStats> AgentHwTest::getLatestPortStats(
   checkWithRetry(
       [&portStats, &ports, this]() {
         portStats = getSw()->getHwPortStats(ports);
+        // Check collect timestamp is valid
+        for (const auto& [portId, portStats] : portStats) {
+          if (*portStats.timestamp__ref() ==
+              hardware_stats_constants::STAT_UNINITIALIZED()) {
+            return false;
+          }
+        }
         return !portStats.empty();
       },
       120,
@@ -192,6 +202,32 @@ std::map<PortID, HwPortStats> AgentHwTest::getLatestPortStats(
 
 HwPortStats AgentHwTest::getLatestPortStats(const PortID& port) {
   return getLatestPortStats(std::vector<PortID>({port})).begin()->second;
+}
+
+std::map<PortID, HwPortStats> AgentHwTest::getNextUpdatedPortStats(
+    const std::vector<PortID>& ports) {
+  const auto lastPortStats = getLatestPortStats(ports);
+  std::map<PortID, HwPortStats> nextPortStats;
+  checkWithRetry(
+      [&lastPortStats, &nextPortStats, &ports, this]() {
+        nextPortStats = getSw()->getHwPortStats(ports);
+        // Check collect timestamp is different from last port stats
+        for (const auto& [portId, portStats] : nextPortStats) {
+          if (*portStats.timestamp__ref() ==
+              *lastPortStats.at(portId).timestamp__ref()) {
+            return false;
+          }
+        }
+        return !nextPortStats.empty();
+      },
+      120,
+      std::chrono::milliseconds(1000),
+      " fetch next port stats");
+  return nextPortStats;
+}
+
+HwPortStats AgentHwTest::getNextUpdatedPortStats(const PortID& port) {
+  return getNextUpdatedPortStats(std::vector<PortID>({port})).begin()->second;
 }
 
 // return last incremented port stats. the port stats contains a timer
@@ -358,8 +394,9 @@ cfg::SwitchConfig AgentHwTest::addCoppConfig(
       ensemble.getSw()->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
   const auto& cpuStreamTypes =
       asic->getQueueStreamTypes(cfg::PortType::CPU_PORT);
-  utility::setDefaultCpuTrafficPolicyConfig(config, asic, ensemble.isSai());
-  utility::addCpuQueueConfig(config, asic, ensemble.isSai());
+  utility::setDefaultCpuTrafficPolicyConfig(
+      config, ensemble.getL3Asics(), ensemble.isSai());
+  utility::addCpuQueueConfig(config, ensemble.getL3Asics(), ensemble.isSai());
   return config;
 }
 

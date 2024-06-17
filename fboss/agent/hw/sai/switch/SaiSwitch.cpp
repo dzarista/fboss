@@ -1342,110 +1342,114 @@ std::map<PortID, phy::PhyInfo> SaiSwitch::updateAllPhyInfoLocked() {
 
   for (const auto& portIdAndHandle : managerTable_->portManager()) {
     PortID portID = portIdAndHandle.first;
-    if (portManager.getPortType(portID) == cfg::PortType::RECYCLE_PORT) {
-      continue;
-    }
-
-    auto portHandle = portIdAndHandle.second.get();
-    if (portHandle == nullptr) {
-      XLOG(DBG3) << "PortHandle not found for port "
-                 << static_cast<int>(portID);
-      continue;
-    }
-
-    auto fb303PortStat = portManager.getLastPortStat(portID);
-    if (fb303PortStat == nullptr) {
-      XLOG(DBG3) << "fb303PortStat not found for port "
-                 << static_cast<int>(portID);
-      continue;
-    }
-
-    phy::PhyInfo lastPhyInfo;
-    if (auto itr = lastPhyInfos_.find(portID); itr != lastPhyInfos_.end()) {
-      lastPhyInfo = itr->second;
-    }
-
-    phy::PhyInfo phyParams;
-    phyParams.state() = phy::PhyState();
-    phyParams.stats() = phy::PhyStats();
-    // LINE Side always exists
-    phyParams.state()->line()->side() = phy::Side::LINE;
-    phyParams.stats()->line()->side() = phy::Side::LINE;
-
-    phyParams.state()->name() = fb303PortStat->portName();
-    phyParams.state()->switchID() = getSaiSwitchId();
-    // Global phy parameters
-    phy::DataPlanePhyChip phyChip;
-    auto chipType = getPlatform()->getAsic()->getDataPlanePhyChipType();
-    phyChip.type() = chipType;
-    bool isXphy = *phyChip.type() == phy::DataPlanePhyChipType::XPHY;
-    phyParams.state()->phyChip() = phyChip;
-    phyParams.state()->linkState() = portManager.isUp(portID);
-    phyParams.state()->speed() = portManager.getSpeed(portID);
-
-    if (isXphy) {
-      phyParams.state()->system() = phy::PhySideState();
-      phyParams.state()->system()->side() = phy::Side::SYSTEM;
-      phyParams.stats()->system() = phy::PhySideStats();
-      phyParams.stats()->system()->side() = phy::Side::SYSTEM;
-    }
-
-    phyParams.state()->line()->interfaceType() =
-        getInterfaceType(portID, chipType);
-    phyParams.state()->line()->medium() = portManager.getMedium(portID);
-    // Update PMD Info
-    phy::PmdState lastLinePmdState;
-    auto lastState = lastPhyInfo.state();
-    lastLinePmdState = *lastState->line()->pmd();
-    phy::PmdStats lastLinePmdStats;
-    auto lastStats = lastPhyInfo.stats();
-    lastLinePmdStats = *lastStats->line()->pmd();
-    updatePmdInfo(
-        *phyParams.state()->line(),
-        *phyParams.stats()->line(),
-        portHandle->port,
-        lastLinePmdState,
-        lastLinePmdStats,
-        portID);
-    if (isXphy) {
-      CHECK(phyParams.state()->system().has_value());
-      CHECK(phyParams.stats()->system().has_value());
-      phy::PmdState lastSysPmdState;
-      phy::PmdStats lastSysPmdStats;
-      if (lastPhyInfo.state()->system().has_value()) {
-        lastSysPmdState = *lastPhyInfo.state()->system()->pmd();
+    if (portManager.getPortType(portID) == cfg::PortType::INTERFACE_PORT ||
+        portManager.getPortType(portID) == cfg::PortType::FABRIC_PORT ||
+        portManager.getPortType(portID) == cfg::PortType::MANAGEMENT_PORT) {
+      auto portHandle = portIdAndHandle.second.get();
+      if (portHandle == nullptr) {
+        XLOG(DBG3) << "PortHandle not found for port "
+                   << static_cast<int>(portID);
+        continue;
       }
-      if (lastPhyInfo.stats()->system().has_value()) {
-        lastSysPmdStats = *lastPhyInfo.stats()->system()->pmd();
+
+      auto fb303PortStat = portManager.getLastPortStat(portID);
+      if (fb303PortStat == nullptr) {
+        XLOG(DBG3) << "fb303PortStat not found for port "
+                   << static_cast<int>(portID);
+        continue;
       }
+
+      phy::PhyInfo lastPhyInfo;
+      if (auto itr = lastPhyInfos_.find(portID); itr != lastPhyInfos_.end()) {
+        lastPhyInfo = itr->second;
+      }
+
+      phy::PhyInfo phyParams;
+      phyParams.state() = phy::PhyState();
+      phyParams.stats() = phy::PhyStats();
+      // LINE Side always exists
+      phyParams.state()->line()->side() = phy::Side::LINE;
+      phyParams.stats()->line()->side() = phy::Side::LINE;
+
+      phyParams.state()->name() = fb303PortStat->portName();
+      phyParams.state()->switchID() = getSaiSwitchId();
+      // Global phy parameters
+      phy::DataPlanePhyChip phyChip;
+      auto chipType = getPlatform()->getAsic()->getDataPlanePhyChipType();
+      phyChip.type() = chipType;
+      bool isXphy = *phyChip.type() == phy::DataPlanePhyChipType::XPHY;
+      phyParams.state()->phyChip() = phyChip;
+      phyParams.state()->linkState() = portManager.isUp(portID);
+      phyParams.state()->speed() = portManager.getSpeed(portID);
+
+      if (isXphy) {
+        phyParams.state()->system() = phy::PhySideState();
+        phyParams.state()->system()->side() = phy::Side::SYSTEM;
+        phyParams.stats()->system() = phy::PhySideStats();
+        phyParams.stats()->system()->side() = phy::Side::SYSTEM;
+      }
+
+      phyParams.state()->line()->interfaceType() =
+          getInterfaceType(portID, chipType);
+      phyParams.state()->line()->medium() = portManager.getMedium(portID);
+      // Update PMD Info
+      phy::PmdState lastLinePmdState;
+      auto lastState = lastPhyInfo.state();
+      lastLinePmdState = *lastState->line()->pmd();
+      phy::PmdStats lastLinePmdStats;
+      auto lastStats = lastPhyInfo.stats();
+      lastLinePmdStats = *lastStats->line()->pmd();
       updatePmdInfo(
-          *phyParams.state()->system(),
-          *phyParams.stats()->system(),
-          portHandle->sysPort,
-          lastSysPmdState,
-          lastSysPmdStats,
+          *phyParams.state()->line(),
+          *phyParams.stats()->line(),
+          portHandle->port,
+          lastLinePmdState,
+          lastLinePmdStats,
           portID);
+      if (isXphy) {
+        CHECK(phyParams.state()->system().has_value());
+        CHECK(phyParams.stats()->system().has_value());
+        phy::PmdState lastSysPmdState;
+        phy::PmdStats lastSysPmdStats;
+        if (lastPhyInfo.state()->system().has_value()) {
+          lastSysPmdState = *lastPhyInfo.state()->system()->pmd();
+        }
+        if (lastPhyInfo.stats()->system().has_value()) {
+          lastSysPmdStats = *lastPhyInfo.stats()->system()->pmd();
+        }
+        updatePmdInfo(
+            *phyParams.state()->system(),
+            *phyParams.stats()->system(),
+            portHandle->sysPort,
+            lastSysPmdState,
+            lastSysPmdStats,
+            portID);
+      }
+
+      // Update PCS Info
+      updatePcsInfo(
+          *(*phyParams.state()).line(),
+          *(*phyParams.stats()).line(),
+          portID,
+          phy::Side::LINE,
+          lastPhyInfo,
+          fb303PortStat,
+          *phyParams.state()->speed(),
+          portHandle->port);
+
+      // Update Reconciliation Sublayer (RS) Info
+      updateRsInfo(
+          *phyParams.state()->line(),
+          portHandle->port,
+          portID,
+          *lastPhyInfo.state()->line());
+
+      // PhyInfo update timestamp
+      auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
+      phyParams.state()->timeCollected() = now.count();
+      phyParams.stats()->timeCollected() = now.count();
+      returnPhyParams[portID] = phyParams;
     }
-
-    // Update PCS Info
-    updatePcsInfo(
-        *(*phyParams.state()).line(),
-        *(*phyParams.stats()).line(),
-        portID,
-        phy::Side::LINE,
-        lastPhyInfo,
-        fb303PortStat,
-        *phyParams.state()->speed(),
-        portHandle->port);
-
-    // Update Reconciliation Sublayer (RS) Info
-    updateRsInfo(*phyParams.state()->line(), portHandle->port);
-
-    // PhyInfo update timestamp
-    auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
-    phyParams.state()->timeCollected() = now.count();
-    phyParams.stats()->timeCollected() = now.count();
-    returnPhyParams[portID] = phyParams;
   }
   lastPhyInfos_ = returnPhyParams;
   return returnPhyParams;
@@ -1685,7 +1689,9 @@ void SaiSwitch::updatePcsInfo(
 
 void SaiSwitch::updateRsInfo(
     phy::PhySideState& sideState,
-    std::shared_ptr<SaiPort> port) {
+    std::shared_ptr<SaiPort> port,
+    [[maybe_unused]] PortID swPort,
+    [[maybe_unused]] phy::PhySideState& lastState) {
   auto errStatus =
       managerTable_->portManager().getPortErrStatus(port->adapterKey());
   phy::LinkFaultStatus faultStatus;
@@ -1697,15 +1703,34 @@ void SaiSwitch::updateRsInfo(
       case SAI_PORT_ERR_STATUS_REMOTE_FAULT_STATUS:
         faultStatus.remoteFault() = true;
         break;
-      case SAI_PORT_ERR_STATUS_CRC_RATE:
-        faultStatus.highCrcErrorRate() = true;
-        break;
       default:
         break;
     }
   }
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
+  if (auto highCrcErrorRate = managerTable_->portManager().getHighCrcErrorRate(
+          port->adapterKey(), swPort)) {
+    faultStatus.highCrcErrorRateLive() = highCrcErrorRate->current_status;
+    if (highCrcErrorRate->changed) {
+      if (lastState.rs().has_value()) {
+        faultStatus.highCrcErrorRateChangedCount() =
+            lastState.rs()
+                ->faultStatus()
+                ->highCrcErrorRateChangedCount()
+                .value() +
+            1;
+      } else {
+        faultStatus.highCrcErrorRateChangedCount() = 1;
+      }
+      managerTable_->portManager().updateLeakyBucketFb303Counter(
+          swPort, *faultStatus.highCrcErrorRateChangedCount());
+    }
+  }
+#endif
+
   if (*faultStatus.localFault() || *faultStatus.remoteFault() ||
-      *faultStatus.highCrcErrorRate()) {
+      *faultStatus.highCrcErrorRateLive()) {
     phy::RsInfo rsInfo;
     rsInfo.faultStatus() = faultStatus;
     sideState.rs() = rsInfo;
@@ -1826,12 +1851,6 @@ void SaiSwitch::exitFatal() const {
 bool SaiSwitch::isPortUp(PortID port) const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   return isPortUpLocked(lock, port);
-}
-
-bool SaiSwitch::getAndClearNeighborHit(
-    RouterID /*vrf*/,
-    folly::IPAddress& /*ip*/) {
-  return true;
 }
 
 void SaiSwitch::clearPortStats(
@@ -2169,32 +2188,8 @@ HwInitResult SaiSwitch::initLocked(
   __gSaiIdToSwitch.insert_or_assign(saiSwitchId_, this);
   SaiApiTable::getInstance()->enableLogging(FLAGS_enable_sai_log);
   if (bootType_ == BootType::WARM_BOOT) {
-    auto [switchStateJson, switchStateThrift] =
-        platform_->getWarmBootHelper()->getWarmBootState();
-    if (switchStateThrift) {
-      try {
-        ret.switchState =
-            SwitchState::fromThrift(*switchStateThrift->swSwitchState());
-      } catch (const FbossError& error) {
-        if (!dumpBinaryThriftToFile(
-                platform_->getDirectoryUtil()->getCrashThriftSwitchStateFile(),
-                *switchStateThrift->swSwitchState())) {
-          XLOG(ERR) << "failed to dump switch state to file: "
-                    << getPlatform()
-                           ->getDirectoryUtil()
-                           ->getCrashThriftSwitchStateFile();
-        } else {
-          XLOG(DBG2) << "dumped switch state to file: "
-                     << getPlatform()
-                            ->getDirectoryUtil()
-                            ->getCrashThriftSwitchStateFile();
-        }
-        XLOG(FATAL) << "Failed to recover switch state from thrift. "
-                    << error.what();
-      }
-    } else {
-      XLOG(FATAL) << "Thrift switch state not found";
-    }
+    auto switchStateJson = platform_->getWarmBootHelper()->getWarmBootState();
+    ret.switchState = std::make_shared<SwitchState>();
     if (platform_->getAsic()->isSupported(HwAsic::Feature::OBJECT_KEY_CACHE)) {
       adapterKeysJson = std::make_unique<folly::dynamic>(
           switchStateJson[kHwSwitch][kAdapterKeys]);
@@ -2208,13 +2203,6 @@ HwInitResult SaiSwitch::initLocked(
         switchStateJson[kHwSwitch].items().end()) {
       adapterKeys2AdapterHostKeysJson = std::make_unique<folly::dynamic>(
           switchStateJson[kHwSwitch][kAdapterKey2AdapterHostKey]);
-    }
-    const auto& routeTables = *(switchStateThrift->routeTables());
-    if (!routeTables.empty()) {
-      ret.rib = RoutingInformationBase::fromThrift(
-          routeTables,
-          ret.switchState->getFibs(),
-          ret.switchState->getLabelForwardingInformationBase());
     }
   }
   initStoreAndManagersLocked(

@@ -17,10 +17,6 @@ MultiSwitchHwSwitchHandler::MultiSwitchHwSwitchHandler(
     SwSwitch* sw)
     : HwSwitchHandler(switchId, info), sw_(sw) {}
 
-void MultiSwitchHwSwitchHandler::exitFatal() const {
-  // TODO: implement this
-}
-
 std::unique_ptr<TxPacket> MultiSwitchHwSwitchHandler::allocatePacket(
     uint32_t size) const {
   return TxPacket::allocateTxPacket(size);
@@ -43,96 +39,12 @@ bool MultiSwitchHwSwitchHandler::sendPacketSwitchedAsync(
   return sendPacketOutViaThriftStream(std::move(pkt));
 }
 
-bool MultiSwitchHwSwitchHandler::isValidStateUpdate(
-    const StateDelta& /*delta*/) const {
-  // TODO: implement this
-  return true;
-}
-
-void MultiSwitchHwSwitchHandler::unregisterCallbacks() {
-  // TODO: implement this
-}
-
-void MultiSwitchHwSwitchHandler::gracefulExit() {
-  // TODO: implement this
-}
-
-bool MultiSwitchHwSwitchHandler::getAndClearNeighborHit(
-    RouterID /*vrf*/,
-    folly::IPAddress& /*ip*/) {
-  return true; // TODO: implement this
-}
-
-folly::dynamic MultiSwitchHwSwitchHandler::toFollyDynamic() const {
-  // TODO: implement this
-  return folly::dynamic::object;
-}
-
-std::optional<uint32_t> MultiSwitchHwSwitchHandler::getHwLogicalPortId(
-    PortID /*portID*/) const {
-  // TODO: query hwswitch and return logical port id
-  return std::nullopt;
-}
-
-void MultiSwitchHwSwitchHandler::onHwInitialized(
-    HwSwitchCallback* /*callback*/) {
-  // TODO: implement this
-}
-
-void MultiSwitchHwSwitchHandler::onInitialConfigApplied(
-    HwSwitchCallback* /*callback*/) {
-  // TODO: implement this
-}
-
-void MultiSwitchHwSwitchHandler::platformStop() {
-  // TODO: implement this
-}
-
 bool MultiSwitchHwSwitchHandler::transactionsSupported(
     std::optional<cfg::SdkVersion> sdkVersion) const {
   if (sdkVersion.has_value() && sdkVersion.value().saiSdk().has_value()) {
     return true;
   }
   return false;
-}
-
-void MultiSwitchHwSwitchHandler::clearPortStats(
-    const std::unique_ptr<std::vector<int32_t>>& /*ports*/) {
-  // TODO: implement this
-}
-
-std::vector<phy::PrbsLaneStats>
-MultiSwitchHwSwitchHandler::getPortAsicPrbsStats(PortID /*portId*/) {
-  // TODO: implement this
-  return {};
-}
-
-void MultiSwitchHwSwitchHandler::clearPortAsicPrbsStats(PortID /*portId*/) {
-  // TODO: implement this
-}
-
-std::vector<prbs::PrbsPolynomial>
-MultiSwitchHwSwitchHandler::getPortPrbsPolynomials(int32_t /*portId*/) {
-  // TODO: implement this
-  return {};
-}
-
-prbs::InterfacePrbsState MultiSwitchHwSwitchHandler::getPortPrbsState(
-    PortID /* portId */) {
-  // TODO: implement this
-  return prbs::InterfacePrbsState{};
-}
-
-void MultiSwitchHwSwitchHandler::switchRunStateChanged(
-    SwitchRunState /*newState*/) {
-  // TODO: implement this
-}
-
-std::shared_ptr<SwitchState> MultiSwitchHwSwitchHandler::stateChanged(
-    const StateDelta& /*delta*/,
-    bool /*transaction*/) {
-  // TODO: implement this
-  return nullptr;
 }
 
 std::map<PortID, FabricEndpoint>
@@ -146,28 +58,8 @@ std::vector<PortID> MultiSwitchHwSwitchHandler::getSwitchReachability(
   return std::vector<PortID>();
 }
 
-std::string MultiSwitchHwSwitchHandler::getDebugDump() const {
-  throw FbossError("getDebugDump not implemented");
-}
-
-void MultiSwitchHwSwitchHandler::fetchL2Table(
-    std::vector<L2EntryThrift>* /*l2Table*/) const {
-  throw FbossError("fetchL2Table not implemented");
-}
-
-std::string MultiSwitchHwSwitchHandler::listObjects(
-    const std::vector<HwObjectType>& /*types*/,
-    bool /*cached*/) const {
-  throw FbossError("listObjects not implemented");
-}
-
 FabricReachabilityStats MultiSwitchHwSwitchHandler::getFabricReachabilityStats()
     const {
-  // TODO: implement this
-  return {};
-}
-
-std::vector<EcmpDetails> MultiSwitchHwSwitchHandler::getAllEcmpDetails() const {
   // TODO: implement this
   return {};
 }
@@ -201,7 +93,8 @@ std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>
 MultiSwitchHwSwitchHandler::stateChanged(
     const fsdb::OperDelta& delta,
     bool transaction,
-    const std::shared_ptr<SwitchState>& newState) {
+    const std::shared_ptr<SwitchState>& newState,
+    const HwWriteBehavior& /* hwWriteBehavior */) {
   multiswitch::StateOperDelta stateDelta;
   {
     std::unique_lock<std::mutex> lk(stateUpdateMutex_);

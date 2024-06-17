@@ -135,6 +135,8 @@ HwPortStats getInitedStats() {
       {{1, 6}, {2, 6}}, // queueEcnMarkedPackets
       0, // fecCorrectedBits_
       {{0, 100}, {1, 10}, {2, 1}}, // fecCodewords
+      26, // pqpErrorEgressDroppedPackets_
+      27, // fabricLinkDownDroppedCells_
       0, // timestamp
       "test", // portName
       macsecStats,
@@ -145,6 +147,8 @@ HwPortStats getInitedStats() {
       27, // inTrapDiscards
       28, // outForwardingDiscards
       0, // fabricConnectivityMismatch
+      1, // logicalPortId
+      2, // leakyBucketFlapCount_
   };
 }
 

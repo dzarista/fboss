@@ -36,6 +36,7 @@ target_link_libraries(copp_test_utils
 )
 
 add_library(pkt_test_utils
+  fboss/agent/test/utils/PacketSendUtils.cpp
   fboss/agent/test/utils/PacketTestUtils.cpp
 )
 
@@ -108,6 +109,7 @@ target_link_libraries(config_utils
   platform_mapping
   switch_config_cpp2
   test_ensemble_if
+  port_test_utils
 )
 
 add_library(asic_test_utils
@@ -134,9 +136,20 @@ target_link_libraries(qos_test_utils
   Folly::folly
 )
 
+add_library(l2learn_observer_util
+  fboss/agent/test/utils/L2LearningUpdateObserverUtil.cpp
+)
+
+target_link_libraries(l2learn_observer_util
+  core
+  l2learn_event_observer
+  Folly::folly
+)
+
 add_library(queue_per_host_test_utils
   fboss/agent/test/utils/QueuePerHostTestUtils.cpp
 )
+
 
 target_link_libraries(queue_per_host_test_utils
   asic_test_utils
@@ -287,6 +300,10 @@ target_link_libraries(aqm_test_utils
   switch_asics
   switch_config_cpp2
   fboss_error
+  port_test_utils
+  test_ensemble_if
+  common_utils
+  ${GTEST}
 )
 
 add_library(agent_hw_test_constants
@@ -302,6 +319,7 @@ add_library(scale_test_utils
 )
 
 target_link_libraries(scale_test_utils
+  asic_test_utils
   core
   switch_asics
 )
@@ -329,4 +347,42 @@ target_link_libraries(route_test_utils
   route_update_wrapper
   ctrl_cpp2
   route_distribution_gen
+)
+
+add_library(queue_test_utils
+  fboss/agent/test/utils/QueueTestUtils.cpp
+)
+
+target_link_libraries(queue_test_utils
+  config_utils
+  olympic_qos_utils
+  switch_asics
+  switch_config_cpp2
+)
+
+add_library(mirror_test_utils
+  fboss/agent/test/utils/MirrorTestUtils.cpp
+)
+
+target_link_libraries(mirror_test_utils
+  config_utils
+  fboss_types
+  trap_packet_utils
+  switch_config_cpp2
+  Folly::folly
+)
+
+add_library(voq_test_utils
+  fboss/agent/test/utils/VoqTestUtils.cpp
+)
+
+target_link_libraries(voq_test_utils
+  config_factory
+  switch_asics
+  fboss_types
+  switchid_scope_resolver
+  switch_config_cpp2
+  state
+  ecmp_helper
+  test_ensemble_if
 )

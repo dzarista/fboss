@@ -49,6 +49,10 @@ sai_int32_t getPortTypeFromCfg(const cfg::PortType& cfgPortType) {
 #if defined(SAI_VERSION_11_0_EA_DNX_ODP)
       return SAI_PORT_TYPE_MGMT;
 #endif
+    case cfg::PortType::EVENTOR_PORT:
+#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+      return SAI_PORT_TYPE_EVENTOR;
+#endif
     case cfg::PortType::INTERFACE_PORT:
       return SAI_PORT_TYPE_LOGICAL;
     case cfg::PortType::FABRIC_PORT:
@@ -90,6 +94,12 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
           SAI_PORT_STAT_IF_IN_ERRORS,
           SAI_PORT_STAT_IF_OUT_OCTETS,
       };
+#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+      if (platform_->getAsic()->isSupported(
+              HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER)) {
+        counterIds.emplace_back(SAI_PORT_STAT_IF_IN_LINK_DOWN_CELL_DROP);
+      }
+#endif
       return counterIds;
     }
     if (getPortType(port) == cfg::PortType::RECYCLE_PORT) {
@@ -171,6 +181,11 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
       counterIds.emplace_back(SAI_PORT_STAT_ETHER_STATS_TX_NO_ERRORS);
       counterIds.emplace_back(SAI_PORT_STAT_ETHER_STATS_RX_NO_ERRORS);
     }
+    if (platform_->getAsic()->isSupported(
+            HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER)) {
+      counterIds.emplace_back(
+          SAI_PORT_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS);
+    }
     return counterIds;
   };
   port2SupportedStats_.emplace(port, getSupportedStats());
@@ -247,6 +262,10 @@ PortSaiId SaiPortManager::addPortImpl(const std::shared_ptr<Port>& swPort) {
   auto portSaiId = saiPort->adapterKey();
   uint32_t hwLogicalPortId = static_cast<uint32_t>(portSaiId);
   platformPort->setHwLogicalPortId(hwLogicalPortId);
+  auto asicPrbs = swPort->getAsicPrbs();
+  if (asicPrbs.enabled().value()) {
+    initAsicPrbsStats(swPort->getID(), static_cast<int>(swPort->getSpeed()));
+  }
   return portSaiId;
 }
 
@@ -297,10 +316,14 @@ void SaiPortManager::changePortImpl(
                << ": old vlan: " << oldPort->getIngressVlan()
                << ", new vlan: " << newPort->getIngressVlan();
   }
+  auto oldAsicPrbsEnabled = oldPort->getAsicPrbs().enabled().value();
+  auto newAsicPrbsEnabled = newPort->getAsicPrbs().enabled().value();
   if (newPort->getProfileID() != oldPort->getProfileID()) {
     auto platformPort = platform_->getPort(newPort->getID());
     platformPort->setCurrentProfile(newPort->getProfileID());
-    updateRate(newPort);
+    if (oldAsicPrbsEnabled == newAsicPrbsEnabled && newAsicPrbsEnabled) {
+      updatePrbsStatsEntryRate(newPort);
+    }
   }
 
   changeMirror(oldPort, newPort);
@@ -337,6 +360,20 @@ void SaiPortManager::changePortImpl(
       oldPort->getPortQueues()->impl(),
       newPort->getPortQueues()->impl());
   changeQosPolicy(oldPort, newPort);
+  if (oldAsicPrbsEnabled != newAsicPrbsEnabled) {
+    if (newAsicPrbsEnabled) {
+      initAsicPrbsStats(
+          newPort->getID(), static_cast<int>(newPort->getSpeed()));
+    } else {
+      auto portAsicPrbsStatsItr = portAsicPrbsStats_.find(newPort->getID());
+      if (portAsicPrbsStatsItr == portAsicPrbsStats_.end()) {
+        throw FbossError(
+            "Asic prbs lane error map not initialized for port ",
+            newPort->getID());
+      }
+      portAsicPrbsStats_.erase(newPort->getID());
+    }
+  }
 }
 
 void SaiPortManager::attributesFromSaiStore(
@@ -517,8 +554,8 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   }
 
   std::optional<bool> fdrEnable;
-#if defined(BRCM_SAI_SDK_GTE_10_0) && defined(BRCM_SAI_SDK_XGS)
-  if (swPort->getPortType() != cfg::PortType::MANAGEMENT_PORT && adminState &&
+#if defined(BRCM_SAI_SDK_GTE_10_0) || defined(SAI_VERSION_11_0_EA_DNX_ODP)
+  if (swPort->getPortType() == cfg::PortType::INTERFACE_PORT && adminState &&
       platform_->getAsic()->isSupported(
           HwAsic::Feature::SAI_FEC_CODEWORDS_STATS)) {
     fdrEnable = true;
@@ -555,6 +592,10 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
     disableTtl = SaiPortTraits::Attributes::DisableTtlDecrement{
         swPort->getTTLDisableDecrement().value()};
   }
+  std::optional<SaiPortTraits::Attributes::PktTxEnable> pktTxEnable{};
+  if (auto txEnable = swPort->getTxEnable()) {
+    pktTxEnable = SaiPortTraits::Attributes::PktTxEnable{txEnable.value()};
+  }
   auto portPfcInfo = getPortPfcAttributes(swPort);
   if (basicAttributeOnly) {
     return SaiPortTraits::CreateAttributes{
@@ -581,7 +622,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         std::nullopt,
         disableTtl,
         std::nullopt,
-        std::nullopt,
+        pktTxEnable, /* PktTxEnable */
         std::nullopt,
         std::nullopt,
         std::nullopt,
@@ -754,7 +795,8 @@ void SaiPortManager::programSerdes(
   if (!platform_->isSerdesApiSupported() ||
       !platform_->getAsic()->isSupported(
           HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING) ||
-      swPort->getPortType() == cfg::PortType::RECYCLE_PORT) {
+      swPort->getPortType() == cfg::PortType::RECYCLE_PORT ||
+      swPort->getPortType() == cfg::PortType::EVENTOR_PORT) {
     return;
   }
 

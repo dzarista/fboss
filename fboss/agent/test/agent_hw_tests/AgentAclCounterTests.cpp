@@ -251,6 +251,7 @@ class AgentAclCounterTest : public AgentHwTest {
         255,
         std::nullopt,
         1 /* one packet */,
+        utility::kUdfRoceOpcode,
         this->roceReservedByte_);
   }
 
@@ -389,7 +390,8 @@ class AgentAclCounterTest : public AgentHwTest {
 
   auto verifyAclType(bool bumpOnHit, bool frontPanel, AclType aclType) {
     auto egressPort = helper_->ecmpPortDescriptorAt(0).phyPortID();
-    auto pktsBefore = *getLatestPortStats(egressPort).outUnicastPkts__ref();
+    auto pktsBefore =
+        *getNextUpdatedPortStats(egressPort).outUnicastPkts__ref();
     auto aclPktCountBefore =
         utility::getAclInOutPackets(getSw(), getCounterName(aclType));
     auto aclBytesCountBefore = utility::getAclInOutPackets(
@@ -410,7 +412,8 @@ class AgentAclCounterTest : public AgentHwTest {
       auto aclBytesCountAfter = utility::getAclInOutPackets(
           getSw(), getCounterName(aclType), true /* bytes */);
 
-      auto pktsAfter = *getLatestPortStats(egressPort).outUnicastPkts__ref();
+      auto pktsAfter =
+          *getNextUpdatedPortStats(egressPort).outUnicastPkts__ref();
       XLOG(DBG2) << "\n"
                  << "PacketCounter: " << pktsBefore << " -> " << pktsAfter
                  << "\n"
@@ -580,6 +583,56 @@ TEST_F(AgentUdfAclCounterTest, VerifyUdfWithOtherAcls) {
       true /* bump on hit */,
       true /* front panel port */,
       {AclType::UDF, AclType::SRC_PORT});
+}
+
+// Add UDF for hash config after warmboot
+TEST_F(AgentUdfAclCounterTest, VerifyUdfPlusUdfHash) {
+  auto setup = [this]() {
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return helper_->resolveNextHops(in, 2);
+    });
+    auto wrapper = getSw()->getRouteUpdater();
+    helper_->programRoutes(&wrapper, kEcmpWidth);
+    auto newCfg{initialConfig(*getAgentEnsemble())};
+    addAclAndStat(&newCfg, AclType::UDF);
+    applyNewConfig(newCfg);
+  };
+
+  auto verify = [this]() { verifyAclType(true, true, AclType::UDF); };
+
+  auto setupPostWarmboot = [this]() {
+    auto newCfg{initialConfig(*getAgentEnsemble())};
+    newCfg.udfConfig() = utility::addUdfHashAclConfig();
+    addAclAndStat(&newCfg, AclType::UDF);
+    applyNewConfig(newCfg);
+  };
+
+  verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verify);
+}
+
+// Remove UDF for hash config after warmboot
+TEST_F(AgentUdfAclCounterTest, VerifyUdfMinusUdfHash) {
+  auto setup = [this]() {
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return helper_->resolveNextHops(in, 2);
+    });
+    auto wrapper = getSw()->getRouteUpdater();
+    helper_->programRoutes(&wrapper, kEcmpWidth);
+    auto newCfg{initialConfig(*getAgentEnsemble())};
+    newCfg.udfConfig() = utility::addUdfHashAclConfig();
+    addAclAndStat(&newCfg, AclType::UDF);
+    applyNewConfig(newCfg);
+  };
+
+  auto verify = [this]() { verifyAclType(true, true, AclType::UDF); };
+
+  auto setupPostWarmboot = [this]() {
+    auto newCfg{initialConfig(*getAgentEnsemble())};
+    addAclAndStat(&newCfg, AclType::UDF);
+    applyNewConfig(newCfg);
+  };
+
+  verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verify);
 }
 
 class AgentBthOpcodeAclCounterTest

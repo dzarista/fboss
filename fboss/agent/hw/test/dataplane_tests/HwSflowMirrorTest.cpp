@@ -13,6 +13,7 @@
 #include "fboss/agent/state/Mirror.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/TrunkUtils.h"
+#include "fboss/agent/test/utils/MirrorTestUtils.h"
 #include "fboss/agent/test/utils/TrapPacketUtils.h"
 
 #include <gtest/gtest.h>
@@ -124,12 +125,14 @@ class HwSflowMirrorTest : public HwLinkStateDependentTest {
   }
 
   void addTrapPacketv4Acl(cfg::SwitchConfig* cfg) {
-    auto v4Prefix = folly::CIDRNetwork{"101.101.101.101", 32};
+    auto ip = utility::getSflowMirrorDestination(true);
+    auto v4Prefix = folly::CIDRNetwork{ip, 32};
     utility::addTrapPacketAcl(cfg, v4Prefix);
   }
 
   void addTrapPacketv6Acl(cfg::SwitchConfig* cfg) {
-    auto v6Prefix = folly::CIDRNetwork{"2401:101:101::101", 128};
+    auto ip = utility::getSflowMirrorDestination(false);
+    auto v6Prefix = folly::CIDRNetwork{ip, 128};
     utility::addTrapPacketAcl(cfg, v6Prefix);
   }
 
@@ -143,36 +146,15 @@ class HwSflowMirrorTest : public HwLinkStateDependentTest {
 
   void
   configMirror(cfg::SwitchConfig* config, bool truncate, bool isV4 = true) {
-    cfg::SflowTunnel sflowTunnel;
-    sflowTunnel.ip() = isV4 ? "101.101.101.101" : "2401:101:101::101";
-    sflowTunnel.udpSrcPort() = 6545;
-    sflowTunnel.udpDstPort() = 5343;
-
-    cfg::MirrorTunnel tunnel;
-    tunnel.sflowTunnel() = sflowTunnel;
-
-    cfg::MirrorDestination destination;
-    destination.tunnel() = tunnel;
-
-    config->mirrors()->resize(1);
-    config->mirrors()[0].name() = "mirror";
-    config->mirrors()[0].destination() = destination;
-    config->mirrors()[0].truncate() = truncate;
-    if (isV4) {
-      addTrapPacketv4Acl(config);
-    } else {
-      addTrapPacketv6Acl(config);
-    }
+    utility::configureSflowMirror(*config, truncate, isV4);
   }
 
   void configSampling(cfg::SwitchConfig* config, int sampleRate) const {
-    for (auto i = 1; i < getPortsForSampling().size(); i++) {
-      auto portId = getPortsForSampling()[i];
-      auto portCfg = utility::findCfgPort(*config, portId);
-      portCfg->sFlowIngressRate() = sampleRate;
-      portCfg->sampleDest() = cfg::SampleDestination::MIRROR;
-      portCfg->ingressMirror() = "mirror";
-    }
+    auto ports = getPortsForSampling();
+    utility::configureSflowSampling(
+        *config,
+        std::vector<PortID>(ports.begin() + 1, ports.end()),
+        sampleRate);
   }
 
   void resolveMirror(int portIdx = 0, bool useRandomMac = false) {
@@ -181,7 +163,7 @@ class HwSflowMirrorTest : public HwLinkStateDependentTest {
         : utility::getFirstInterfaceMac(getProgrammedState());
     auto state = getProgrammedState()->clone();
     auto mirrors = state->getMirrors()->modify(&state);
-    auto mirror = mirrors->getNodeIf("mirror")->clone();
+    auto mirror = mirrors->getNodeIf("sflow_mirror")->clone();
     ASSERT_NE(mirror, nullptr);
 
     auto ip = mirror->getDestinationIp().value();
@@ -384,6 +366,44 @@ TEST_F(HwSflowMirrorTest, StressMirrorSessionConfigUnconfig) {
   };
   auto verify = [=, this]() { verifySampledPacket(); };
   verifyAcrossWarmBoots(setup, verify);
+}
+
+// S410132 will be reproduced with n warmboot execution of this test
+// 1. Start with the test as is and run with --setup_for_warmboot
+// 2. Repeat again with --setup_for_warmboot. This would alter encap MAC used
+// 3. Run again with --setup_for_warmboot. MAC would again be different.
+// 4. Running again now would crash the agent
+//
+// Note that the crash was caused by a mismatched attribute (truncate size)
+// leading to a set_mirror_session_attribute call after each warmboot which was
+// messing up the internal state.
+TEST_F(HwSflowMirrorTest, SetMirrorSession) {
+  if (!getPlatform()->getAsic()->isSupported(HwAsic::Feature::SFLOW_SAMPLING)) {
+#if defined(GTEST_SKIP)
+    GTEST_SKIP();
+#endif
+    return;
+  }
+  auto setup = [=, this]() {
+    auto config = initialConfig();
+    configMirror(&config, true);
+    configSampling(&config, 1);
+    applyNewConfig(config);
+    resolveMirror();
+    resolveMirror(1, true);
+    resolveMirror(2, true);
+    resolveMirror();
+  };
+  auto setupPostWarmboot = [=, this]() {
+    // change to resolveMirror() after 2nd warmboot
+    auto mirror = getProgrammedState()->getMirrors()->getNodeIf("sflow_mirror");
+    if (mirror->getEgressPort().value() == getPortsForSampling()[0]) {
+      resolveMirror(1, true);
+    } else {
+      resolveMirror(0);
+    }
+  };
+  verifyAcrossWarmBoots(setup, []() {}, setupPostWarmboot, []() {});
 }
 
 TEST_F(HwSflowMirrorTest, VerifySampledPacket) {

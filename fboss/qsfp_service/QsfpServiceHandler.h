@@ -78,6 +78,9 @@ class QsfpServiceHandler
       int32_t timeout,
       std::unique_ptr<std::vector<std::string>> portList) override;
 
+  void unpauseRemediation(
+      std::unique_ptr<std::vector<std::string>> portList) override;
+
   void getRemediationUntilTime(
       std::map<std::string, int32_t>& info,
       std::unique_ptr<std::vector<std::string>> portList) override;
@@ -127,12 +130,26 @@ class QsfpServiceHandler
       phy::PortComponent component) override;
 
   /*
+   * Get the PRBS settings on all interfaces.
+   */
+  void getAllInterfacePrbsStates(
+      std::map<std::string, prbs::InterfacePrbsState>& prbsStates,
+      phy::PortComponent component) override;
+
+  /*
    * Get the PRBS stats on an interface. Useful when debugging a link
    * down or flapping issue.
    */
   void getInterfacePrbsStats(
       phy::PrbsStats& response,
       std::unique_ptr<std::string> portName,
+      phy::PortComponent component) override;
+
+  /*
+   * Get the PRBS stats on all interfaces.
+   */
+  void getAllInterfacePrbsStats(
+      std::map<std::string, phy::PrbsStats>& prbsStats,
       phy::PortComponent component) override;
 
   /*
@@ -146,6 +163,10 @@ class QsfpServiceHandler
 
   void clearInterfacePrbsStats(
       std::unique_ptr<std::string> portName,
+      phy::PortComponent component) override;
+
+  void bulkClearInterfacePrbsStats(
+      std::unique_ptr<std::vector<std::string>> interfaces,
       phy::PortComponent component) override;
 
   /*
@@ -234,6 +255,11 @@ class QsfpServiceHandler
   void getSymbolErrorHistogram(
       CdbDatapathSymErrHistogram& symErr,
       std::unique_ptr<std::string> portName) override;
+
+  void getAllPortSupportedProfiles(
+      std::map<std::string, std::vector<cfg::PortProfileID>>&
+          supportedPortProfiles,
+      bool checkOptics) override;
 
 #if FOLLY_HAS_COROUTINES
   folly::coro::Task<bool> co_sakInstallRx(

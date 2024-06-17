@@ -126,8 +126,6 @@ class SaiSwitch : public HwSwitch {
 
   bool isPortUp(PortID port) const override;
 
-  bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) override;
-
   void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
@@ -371,7 +369,9 @@ class SaiSwitch : public HwSwitch {
 
   void updateRsInfo(
       phy::PhySideState& sideState,
-      std::shared_ptr<SaiPort> port);
+      std::shared_ptr<SaiPort> port,
+      PortID swPort,
+      phy::PhySideState& lastSideState);
 
   void linkStateChangedCallbackBottomHalf(
       std::vector<sai_port_oper_status_notification_t> data);

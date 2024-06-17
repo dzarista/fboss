@@ -271,7 +271,7 @@ cfg::SwitchConfig testConfigAImpl(bool isMhnic, cfg::SwitchType switchType) {
     cfg.interfaces()[0].intfID() = 1;
     cfg.interfaces()[0].routerID() = 0;
     cfg.interfaces()[0].vlanID() = 1;
-    cfg.interfaces()[0].name() = "fboss1";
+    cfg.interfaces()[0].name() = "eth1/5/1";
     cfg.interfaces()[0].mac() = "00:02:00:00:00:01";
     cfg.interfaces()[0].mtu() = 9000;
     cfg.interfaces()[0].ipAddresses()->resize(4);
@@ -283,7 +283,7 @@ cfg::SwitchConfig testConfigAImpl(bool isMhnic, cfg::SwitchType switchType) {
     cfg.interfaces()[1].intfID() = 55;
     cfg.interfaces()[1].routerID() = 0;
     cfg.interfaces()[1].vlanID() = 55;
-    cfg.interfaces()[1].name() = "fboss55";
+    cfg.interfaces()[1].name() = "eth1/6/1";
     cfg.interfaces()[1].mac() = "00:02:00:00:00:55";
     cfg.interfaces()[1].mtu() = 9000;
     cfg.interfaces()[1].ipAddresses()->resize(4);
@@ -320,7 +320,8 @@ cfg::SwitchConfig testConfigAImpl(bool isMhnic, cfg::SwitchType switchType) {
         cfg.interfaces()[i].intfID() = intfId;
         cfg.interfaces()[i].routerID() = 0;
         cfg.interfaces()[i].type() = cfg::InterfaceType::SYSTEM_PORT;
-        cfg.interfaces()[i].name() = folly::sformat("fboss{}", intfId);
+        cfg.interfaces()[i].name() =
+            folly::sformat("eth1/{}/1", *cfg.ports()[i].logicalID());
         cfg.interfaces()[i].mac() = "00:02:00:00:00:55";
         cfg.interfaces()[i].mtu() = 9000;
         cfg.interfaces()[i].ipAddresses()->resize(2);
@@ -471,6 +472,7 @@ std::shared_ptr<SystemPort> makeSysPort(
   sysPort->setSpeedMbps(10000);
   sysPort->setNumVoqs(8);
   sysPort->setQosPolicy(qosPolicy);
+  sysPort->setScope(cfg::Scope::GLOBAL);
   return sysPort;
 }
 
@@ -864,6 +866,9 @@ shared_ptr<SwitchState> testStateA(cfg::SwitchType switchType) {
         std::make_pair(0, createSwitchInfo(switchType)));
   }
   auto switchSettings = std::make_shared<SwitchSettings>();
+  switchSettings->setHostname("test.switch");
+  switchSettings->setIcmpV4UnavailableSrcAddress(
+      folly::IPAddressV4("192.0.2.1"));
   switchSettings->setSwitchIdToSwitchInfo(switchIdToSwitchInfo);
   addSwitchSettingsToState(
       state, switchSettings, switchIdToSwitchInfo.begin()->first);
@@ -981,6 +986,21 @@ shared_ptr<SwitchState> testStateAWithLookupClasses() {
 
 shared_ptr<SwitchState> testStateAWithoutIpv4VlanIntf(VlanID vlanId) {
   return removeVlanIPv4Address(testStateA(), vlanId);
+}
+
+shared_ptr<SwitchState> testStateAWithoutIpv4() {
+  // Removes IPv4 from EVERY interface on the switch
+  auto ret = testStateA();
+
+  auto vlans = ret->getVlans();
+  for (auto multiSwitchVlanMap : *vlans) {
+    for (auto vlanMap : *multiSwitchVlanMap.second) {
+      auto vlan = vlanMap.second;
+      ret = removeVlanIPv4Address(ret, vlan->getID());
+    }
+  }
+
+  return ret;
 }
 
 std::string fbossHexDump(const IOBuf* buf) {
@@ -1415,10 +1435,11 @@ std::unique_ptr<SwSwitch> createSwSwitchWithMultiSwitch(
         ON_CALL(*handler, stateChanged(_, _))
             .WillByDefault(
                 [=](const auto& delta, bool) { return delta.newState(); });
-        ON_CALL(*handler, stateChanged(_, _, _))
+        ON_CALL(*handler, stateChanged(_, _, _, _))
             .WillByDefault([=](const fsdb::OperDelta&,
                                bool,
-                               const std::shared_ptr<SwitchState>&) {
+                               const std::shared_ptr<SwitchState>&,
+                               const HwWriteBehavior&) {
               return std::make_pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>(
                   fsdb::OperDelta{},
                   HwSwitchStateUpdateStatus::HWSWITCH_STATE_UPDATE_SUCCEEDED);

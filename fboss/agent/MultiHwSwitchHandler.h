@@ -58,9 +58,8 @@ class MultiHwSwitchHandler {
 
   std::shared_ptr<SwitchState> stateChanged(
       const StateDelta& delta,
-      bool transaction);
-
-  void exitFatal();
+      bool transaction,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   std::unique_ptr<TxPacket> allocatePacket(uint32_t size);
 
@@ -73,38 +72,7 @@ class MultiHwSwitchHandler {
 
   bool sendPacketSwitchedAsync(std::unique_ptr<TxPacket> pkt) noexcept;
 
-  bool isValidStateUpdate(const StateDelta& delta);
-
-  void unregisterCallbacks();
-
-  void gracefulExit();
-
-  bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip);
-
-  folly::dynamic toFollyDynamic();
-
-  std::optional<uint32_t> getHwLogicalPortId(PortID portID);
-
   bool transactionsSupported() const;
-
-  void clearPortStats(const std::unique_ptr<std::vector<int32_t>>& ports);
-
-  std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(PortID portId);
-
-  void clearPortAsicPrbsStats(PortID portId);
-
-  std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(int32_t portId);
-
-  prbs::InterfacePrbsState getPortPrbsState(PortID portId);
-
-  void switchRunStateChanged(SwitchRunState newState);
-
-  // platform access apis
-  void onHwInitialized(HwSwitchCallback* callback);
-
-  void onInitialConfigApplied(HwSwitchCallback* sw);
-
-  void platformStop();
 
   std::map<PortID, FabricEndpoint> getFabricConnectivity();
 
@@ -112,16 +80,10 @@ class MultiHwSwitchHandler {
 
   std::vector<PortID> getSwitchReachability(SwitchID switchId);
 
-  std::string getDebugDump();
-
-  void fetchL2Table(std::vector<L2EntryThrift>* l2Table);
-
-  std::string listObjects(const std::vector<HwObjectType>& types, bool cached);
-
   bool needL2EntryForNeighbor(const cfg::SwitchConfig* config) const;
 
   // For test purpose
-  std::map<SwitchID, HwSwitchHandler*> getHwSwitchHandlers();
+  std::map<SwitchID, HwSwitchHandler*> getHwSwitchHandlers() const;
 
   /*
    * blocks till atleast one HwSwitch is connected.
@@ -139,11 +101,7 @@ class MultiHwSwitchHandler {
     connectionStatusTable_.disconnected(switchId);
   }
 
-  std::vector<EcmpDetails> getAllEcmpDetails();
-
   void fillHwAgentConnectionStatus(AgentStats& agentStats);
-
-  AclStats getAclStats();
 
  private:
   bool transactionsSupported(std::optional<cfg::SdkVersion> sdkVersion) const;
@@ -152,11 +110,13 @@ class MultiHwSwitchHandler {
 
   folly::Future<HwSwitchStateUpdateResult> stateChanged(
       SwitchID switchId,
-      const HwSwitchStateUpdate& update);
+      const HwSwitchStateUpdate& update,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   std::map<SwitchID, HwSwitchStateUpdateResult> stateChanged(
       const std::map<SwitchID, const StateDelta&>& deltas,
-      bool transaction);
+      bool transaction,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   std::map<SwitchID, HwSwitchStateUpdateResult> getStateUpdateResult(
       const std::vector<SwitchID>& switchIds,

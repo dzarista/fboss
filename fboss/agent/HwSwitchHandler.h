@@ -8,6 +8,7 @@
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/types.h"
+#include "fboss/lib/HwWriteBehavior.h"
 
 #include <folly/futures/Future.h>
 #include <folly/io/async/EventBase.h>
@@ -59,9 +60,8 @@ class HwSwitchHandler {
   virtual ~HwSwitchHandler();
 
   folly::Future<HwSwitchStateUpdateResult> stateChanged(
-      HwSwitchStateUpdate update);
-
-  virtual void exitFatal() const = 0;
+      HwSwitchStateUpdate update,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   virtual std::unique_ptr<TxPacket> allocatePacket(uint32_t size) const = 0;
 
@@ -76,53 +76,14 @@ class HwSwitchHandler {
   virtual bool sendPacketSwitchedAsync(
       std::unique_ptr<TxPacket> pkt) noexcept = 0;
 
-  virtual bool isValidStateUpdate(const StateDelta& delta) const = 0;
-
-  virtual void unregisterCallbacks() = 0;
-
-  virtual void gracefulExit() = 0;
-
-  virtual bool getAndClearNeighborHit(RouterID vrf, folly::IPAddress& ip) = 0;
-
-  virtual folly::dynamic toFollyDynamic() const = 0;
-
-  virtual std::optional<uint32_t> getHwLogicalPortId(PortID portID) const = 0;
-
   virtual bool transactionsSupported(
       std::optional<cfg::SdkVersion> sdkVersion) const = 0;
-
-  virtual void clearPortStats(
-      const std::unique_ptr<std::vector<int32_t>>& ports) = 0;
-
-  virtual std::vector<phy::PrbsLaneStats> getPortAsicPrbsStats(
-      PortID portId) = 0;
-
-  virtual void clearPortAsicPrbsStats(PortID portId) = 0;
-
-  virtual std::vector<prbs::PrbsPolynomial> getPortPrbsPolynomials(
-      int32_t portId) = 0;
-
-  virtual prbs::InterfacePrbsState getPortPrbsState(PortID portId) = 0;
-
-  virtual void switchRunStateChanged(SwitchRunState newState) = 0;
-
-  virtual std::shared_ptr<SwitchState> stateChanged(
-      const StateDelta& delta,
-      bool transaction) = 0;
 
   virtual HwSwitchStateOperUpdateResult stateChanged(
       const fsdb::OperDelta& delta,
       bool transaction,
-      const std::shared_ptr<SwitchState>& initialState) = 0;
-
-  virtual std::vector<EcmpDetails> getAllEcmpDetails() const = 0;
-
-  // platform access apis
-  virtual void onHwInitialized(HwSwitchCallback* callback) = 0;
-
-  virtual void onInitialConfigApplied(HwSwitchCallback* sw) = 0;
-
-  virtual void platformStop() = 0;
+      const std::shared_ptr<SwitchState>& initialState,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) = 0;
 
   virtual std::map<PortID, FabricEndpoint> getFabricConnectivity() const = 0;
 
@@ -130,14 +91,6 @@ class HwSwitchHandler {
 
   virtual std::vector<PortID> getSwitchReachability(
       SwitchID switchId) const = 0;
-
-  virtual std::string getDebugDump() const = 0;
-
-  virtual void fetchL2Table(std::vector<L2EntryThrift>* l2Table) const = 0;
-
-  virtual std::string listObjects(
-      const std::vector<HwObjectType>& types,
-      bool cached) const = 0;
 
   virtual bool needL2EntryForNeighbor(
       const cfg::SwitchConfig* config) const = 0;
@@ -157,19 +110,20 @@ class HwSwitchHandler {
 
   virtual void cancelOperDeltaSync() = 0;
 
-  virtual AclStats getAclStats() const = 0;
-
  protected:
   fsdb::OperDelta getFullSyncOperDelta(
       const std::shared_ptr<SwitchState>& state) const;
 
  private:
-  HwSwitchStateUpdateResult stateChangedImpl(const HwSwitchStateUpdate& update);
+  HwSwitchStateUpdateResult stateChangedImpl(
+      const HwSwitchStateUpdate& update,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   HwSwitchStateOperUpdateResult stateChangedImpl(
       const fsdb::OperDelta& delta,
       bool transaction,
-      const std::shared_ptr<SwitchState>& newState);
+      const std::shared_ptr<SwitchState>& newState,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
   void run();
 

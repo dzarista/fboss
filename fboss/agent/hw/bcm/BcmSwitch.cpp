@@ -167,7 +167,6 @@ using namespace std::chrono;
 using namespace facebook::fboss::utility;
 
 DEFINE_int32(linkscan_interval_us, 250000, "The Broadcom linkscan interval");
-DEFINE_bool(force_init_fp, true, "Force full field processor initialization");
 DEFINE_string(
     script_pre_asic_init,
     "script_pre_asic_init",
@@ -953,17 +952,14 @@ HwInitResult BcmSwitch::initImpl(
   setupCos();
 
   folly::dynamic switchStateJson;
-  std::optional<state::WarmbootState> switchStateThrift;
   if (warmBoot) {
     // This needs to be done after we have set
     // bcmSwitchL3EgressMode else the egress ids
     // in the host table don't show up correctly.
     // TODO: Use thrift representation for sw switch state.
-    auto warmbootStates =
+    auto switchStateJson =
         getPlatform()->getWarmBootHelper()->getWarmBootState();
-    switchStateJson = std::get<0>(warmbootStates);
-    switchStateThrift = std::get<1>(warmbootStates);
-    warmBootCache_->populate(switchStateJson, switchStateThrift);
+    warmBootCache_->populate(switchStateJson);
   }
   setupToCpuEgress();
   portTable_->initPorts(&pcfg, warmBoot);
@@ -987,15 +983,8 @@ HwInitResult BcmSwitch::initImpl(
   ret.bootType = bootType_;
 
   if (warmBoot) {
-    ret.switchState = warmBootCache_->getDumpedSwSwitchState().clone();
+    ret.switchState = std::make_shared<SwitchState>();
     getPlatform()->preWarmbootStateApplied();
-    const auto& routeTables = *(switchStateThrift->routeTables());
-    if (!routeTables.empty()) {
-      ret.rib = RoutingInformationBase::fromThrift(
-          routeTables,
-          ret.switchState->getFibs(),
-          ret.switchState->getLabelForwardingInformationBase());
-    }
   } else {
     auto bootState = std::make_shared<SwitchState>();
     bootState->publish();
@@ -3232,18 +3221,6 @@ bcm_if_t BcmSwitch::getToCPUEgressId() const {
   } else {
     return BcmEgressBase::INVALID;
   }
-}
-
-bool BcmSwitch::getAndClearNeighborHit(
-    RouterID /*vrf*/,
-    folly::IPAddress& /*ip*/) {
-  // TODO(aeckert): t20059623 This should look in the host table and
-  // check the hit bit, but that currently requires grabbing the main
-  // lock and opens up the possibility of bg thread getting stuck
-  // behind update thread.  For now, stub this out to return true and
-  // work on adding a better way to communicate hit bit + stale entry
-  // garbage collection.
-  return true;
 }
 
 void BcmSwitch::exitFatal() const {

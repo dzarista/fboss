@@ -112,6 +112,11 @@ DEFINE_bool(
     false, // false => Prevents such mutations in prod
     "Allow mutations of running switch state by external thrift calls");
 
+DEFINE_bool(
+    skip_drain_check_for_prbs,
+    false,
+    "Skips drain check for local PRBS testing");
+
 DECLARE_bool(intf_nbr_tables);
 
 DECLARE_bool(enable_acl_table_group);
@@ -652,6 +657,10 @@ void addRecylePortRifNeighbors(
       nbrThrift.ip() = facebook::network::toBinaryAddress(entry->getIP());
       nbrThrift.mac() = entry->getMac().toString();
       nbrThrift.port() = kRecyclePortId;
+      nbrThrift.portDescriptor()->portId() = kRecyclePortId;
+      nbrThrift.portDescriptor()->portType() =
+          cfg::PortDescriptorType::Physical;
+
       nbrThrift.vlanName() = "--";
       nbrThrift.interfaceID() = kRecyclePortId;
       // Local recycle port for RIF, should always be STATIC
@@ -914,6 +923,8 @@ static void populateInterfaceDetail(
     interfaceDetail.remoteIntfLivenessStatus() =
         intf->getRemoteLivenessStatus().value();
   }
+
+  interfaceDetail.scope() = intf->getScope();
 }
 
 void ThriftHandler::getAllInterfaces(
@@ -972,8 +983,23 @@ void ThriftHandler::addRemoteNeighbors(
     return;
   }
   for (auto& nbr : nbrs) {
-    if (*nbr.port()) {
-      nbr.switchId() = state->getAssociatedSwitchID(PortID(*nbr.port()));
+    if (nbr.portDescriptor().has_value()) {
+      PortID portID;
+      switch (*nbr.portDescriptor().value().portType()) {
+        case cfg::PortDescriptorType::Physical:
+          portID = *nbr.portDescriptor().value().portId();
+          break;
+        case cfg::PortDescriptorType::SystemPort:
+          portID = getPortID(
+              SystemPortID(*nbr.portDescriptor().value().portId()), state);
+          break;
+        case cfg::PortDescriptorType::Aggregate:
+          throw FbossError(
+              "Aggregate ports are not yet supported for VOQ switches");
+          break;
+      }
+
+      nbr.switchId() = state->getAssociatedSwitchID(portID);
     }
   }
   const auto& remoteRifs = state->getRemoteInterfaces();
@@ -990,6 +1016,9 @@ void ThriftHandler::addRemoteNeighbors(
         nbrThrift.mac() = entry->getMac().toString();
         CHECK(rif->getSystemPortID().has_value());
         nbrThrift.port() = static_cast<int32_t>(*rif->getSystemPortID());
+        nbrThrift.portDescriptor()->portId() = *rif->getSystemPortID();
+        nbrThrift.portDescriptor()->portType() =
+            cfg::PortDescriptorType::SystemPort;
         nbrThrift.vlanName() = "--";
         nbrThrift.interfaceID() = static_cast<int32_t>(*rif->getSystemPortID());
 
@@ -1081,7 +1110,7 @@ void ThriftHandler::getL2Table(std::vector<L2EntryThrift>& l2Table) {
           l2Table.end(), l2TableForSwitch.begin(), l2TableForSwitch.end());
     }
   } else {
-    sw_->getHwSwitchHandler()->fetchL2Table(&l2Table);
+    sw_->getMonolithicHwSwitchHandler()->fetchL2Table(&l2Table);
   }
   XLOG(DBG6) << "L2 Table size:" << l2Table.size();
 }
@@ -1466,16 +1495,23 @@ void ThriftHandler::setInterfacePrbs(
   if (component != phy::PortComponent::ASIC) {
     throw FbossError("Unsupported component");
   }
-  if (!state->generatorEnabled().has_value() &&
+  if ((state->generatorEnabled().has_value() &&
+       state->checkerEnabled().has_value()) &&
+      (state->generatorEnabled().value() == state->checkerEnabled().value())) {
+    auto portID = sw_->getPlatformMapping()->getPortID(*portName);
+    bool enabled =
+        (state->generatorEnabled().value() && state->checkerEnabled().value());
+    setPortPrbs(
+        portID, component, enabled, static_cast<int>(*state->polynomial_ref()));
+  } else if (
+      !state->generatorEnabled().has_value() ||
       !state->checkerEnabled().has_value()) {
-    throw FbossError("Neither generator or checker specified for PRBS setting");
+    throw FbossError(
+        "Both generator and checker must be specified for PRBS setting");
+  } else {
+    throw FbossError(
+        "ASIC only supports bidirectional PRBS. Generator and checker must be both enabled or disabled.");
   }
-  auto portID = sw_->getPlatformMapping()->getPortID(*portName);
-  bool enabled = (state->generatorEnabled().has_value() &&
-                  state->generatorEnabled().value()) ||
-      (state->checkerEnabled().has_value() && state->checkerEnabled().value());
-  setPortPrbs(
-      portID, component, enabled, static_cast<int>(*state->polynomial_ref()));
 }
 
 void ThriftHandler::clearPortPrbsStats(
@@ -1508,9 +1544,12 @@ void ThriftHandler::getPortPrbsStats(
     prbsStats.component() = phy::PortComponent::ASIC;
     for (const auto& lane : asicPrbsStats) {
       prbsStats.laneStats()->push_back(lane);
+      auto timeCollected = lane.timeCollected().value();
+      // Store most recent timeCollected across all lane stats
+      if (timeCollected > prbsStats.timeCollected()) {
+        prbsStats.timeCollected() = timeCollected;
+      }
     }
-    auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
-    prbsStats.timeCollected() = now.count();
   } else if (
       component == phy::PortComponent::GB_SYSTEM ||
       component == phy::PortComponent::GB_LINE) {
@@ -1542,7 +1581,19 @@ void ThriftHandler::setPortPrbs(
           capabilities.end()) {
     throw FbossError("Polynomial not supported");
   }
-
+  auto switchId = sw_->getScopeResolver()->scope(portId).switchId();
+  auto switchType = sw_->getHwAsicTable()->getHwAsic(switchId)->getSwitchType();
+  // If ASIC is DNX and --skip-drain-check-for-prbs is disabled, check if
+  // interface or device is drained before setting interface PRBS.
+  if (switchType == cfg::SwitchType::VOQ ||
+      switchType == cfg::SwitchType::FABRIC) {
+    auto isDrained =
+        (port->getPortDrainState() == cfg::PortDrainState::DRAINED) ||
+        isSwitchDrained();
+    if (!FLAGS_skip_drain_check_for_prbs && !isDrained) {
+      throw FbossError("Cannot set PRBS on undrained interface");
+    }
+  }
   phy::PortPrbsState newPrbsState;
   *newPrbsState.enabled() = enable;
   *newPrbsState.polynominal() = polynominal;
@@ -2699,7 +2750,11 @@ void ThriftHandler::getMplsRouteDetails(
 void ThriftHandler::getHwDebugDump(std::string& out) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  out = sw_->getHwSwitchHandler()->getDebugDump();
+  if (sw_->isRunModeMonolithic()) {
+    out = sw_->getMonolithicHwSwitchHandler()->getDebugDump();
+  } else {
+    throw FbossError("getHwDebugDump is not supported onmulti switch");
+  }
 }
 
 void ThriftHandler::getPlatformMapping(cfg::PlatformMapping& ret) {
@@ -2712,7 +2767,12 @@ void ThriftHandler::listHwObjects(
     bool cached) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  out = sw_->getHwSwitchHandler()->listObjects(*hwObjects, cached);
+  if (sw_->isRunModeMonolithic()) {
+    out = sw_->getMonolithicHwSwitchHandler()->listObjects(*hwObjects, cached);
+  } else {
+    throw FbossError(
+        "listHwObjects() is not supported for fboss_sw_agent. Clients should query hw agent insted");
+  }
 }
 
 void ThriftHandler::getBlockedNeighbors(
@@ -3064,10 +3124,15 @@ void ThriftHandler::getDsfSubscriptions(
     for (const auto& [_, node] : std::as_const(*dsfNodes)) {
       if (node->getType() == cfg::DsfNodeType::INTERFACE_NODE &&
           node->getLoopbackIps()->size()) {
-        const auto loopbackIp = (*node->getLoopbackIps()->cbegin())->toThrift();
-        loopbackIpToName.emplace(
-            IPAddress(loopbackIp.substr(0, loopbackIp.find("/"))),
-            node->getName());
+        auto loopbackIps = node->getLoopbackIps()->toThrift();
+        std::for_each(
+            loopbackIps.begin(),
+            loopbackIps.end(),
+            [&loopbackIpToName, node = node](const auto& loopbackSubnet) {
+              loopbackIpToName.emplace(
+                  IPAddress(loopbackSubnet.substr(0, loopbackSubnet.find("/"))),
+                  node->getName());
+            });
       }
     }
   }
@@ -3082,6 +3147,9 @@ void ThriftHandler::getDsfSubscriptions(
     auto serverIp = IPAddress(subscriptionInfo.server);
     if (loopbackIpToName.find(serverIp) != loopbackIpToName.end()) {
       subscriptionThrift.name() = loopbackIpToName[serverIp];
+      subscriptionThrift.ip() = serverIp.str();
+      subscriptionThrift.subscriptionId() = DsfSubscriber::makeRemoteEndpoint(
+          *subscriptionThrift.name(), serverIp);
       subscriptions.push_back(subscriptionThrift);
     } else {
       XLOG(ERR) << "Unable to find loopback ip " << subscriptionInfo.server
@@ -3165,7 +3233,29 @@ void ThriftHandler::getMultiSwitchRunState(MultiSwitchRunState& runState) {
 void ThriftHandler::getAllEcmpDetails(std::vector<EcmpDetails>& ecmpDetails) {
   auto log = LOG_THRIFT_CALL(DBG1);
   ensureConfigured(__func__);
-  ecmpDetails = sw_->getHwSwitchHandler()->getAllEcmpDetails();
+  if (sw_->isRunModeMonolithic()) {
+    ecmpDetails = sw_->getMonolithicHwSwitchHandler()->getAllEcmpDetails();
+  } else {
+    throw FbossError("getAllEcmpDetails is not supported in multi-switch mode");
+  }
+}
+
+void ThriftHandler::getSwitchIndicesForInterfaces(
+    std::map<int16_t, std::vector<std::string>>& switchIndicesForInterfaces,
+    std::unique_ptr<std::vector<std::string>> interfaces) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  for (const auto& interface : *interfaces) {
+    auto switchIndex = sw_->getSwitchIndexForInterface(interface);
+    auto switchIndicesForInterfacesItr =
+        switchIndicesForInterfaces.find(switchIndex);
+    if (switchIndicesForInterfacesItr == switchIndicesForInterfaces.end()) {
+      std::vector<std::string> switchIndexInterfaces{interface};
+      switchIndicesForInterfaces[switchIndex] = switchIndexInterfaces;
+    } else {
+      switchIndicesForInterfaces[switchIndex].push_back(interface);
+    }
+  }
 }
 
 } // namespace facebook::fboss

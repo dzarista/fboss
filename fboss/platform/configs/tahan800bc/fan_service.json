@@ -6,17 +6,11 @@
   "pwmTransitionValue": 50,
   "pwmLowerThreshold": 30,
   "pwmUpperThreshold": 80,
-  "shutdownCmd": "wedge_power reset -s",
   "sensors": [
     {
       "sensorName": "PDB_INLET_LM75_TEMP",
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
-      },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
       },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1000,
@@ -42,11 +36,6 @@
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
       },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
-      },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1000,
       "normalUpTable": {
@@ -70,11 +59,6 @@
       "sensorName": "TH5_U39_INLET_LM75_TEMP",
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
-      },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
       },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1000,
@@ -100,11 +84,6 @@
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
       },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
-      },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1000,
       "normalUpTable": {
@@ -128,11 +107,6 @@
       "sensorName": "PWR_U57_OUTLET_BOT_LM75_TEMP",
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
-      },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
       },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1000,
@@ -158,11 +132,6 @@
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
       },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
-      },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1000,
       "normalUpTable": {
@@ -187,11 +156,6 @@
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
       },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
-      },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1000,
       "normalUpTable": {
@@ -215,11 +179,6 @@
       "sensorName": "SMB_U77_INLET_LEFT_BOT_LM75_TEMP",
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
-      },
-      "alarm": {
-        "highMajor": 105,
-        "highMinor": 90,
-        "minorSoakSeconds": 15
       },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "scale": 1000,

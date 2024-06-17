@@ -5,6 +5,7 @@
 #include <fboss/fsdb/oper/CowSubscriptionManager.h>
 #include <fboss/fsdb/oper/DeltaValue.h>
 #include <fboss/fsdb/oper/NaivePeriodicSubscribableStorageBase.h>
+#include <fboss/fsdb/oper/PathConverter.h>
 #include <fboss/fsdb/oper/SubscribableStorage.h>
 #include <fboss/thrift_cow/storage/CowStorage.h>
 #include <fboss/thrift_cow/storage/Storage.h>
@@ -177,15 +178,13 @@ class NaivePeriodicSubscribableStorage
   }
 
 #ifdef ENABLE_PATCH_APIS
-  std::optional<StorageError> patch_impl(thrift_cow::Patch&& patch) {
+  std::optional<StorageError> patch_impl(Patch&& patch) {
     if (patch.patch()->getType() == thrift_cow::PatchNode::Type::__EMPTY__) {
-      return std::nullopt;
+      return StorageError::TYPE_ERROR;
     }
     auto& path = *patch.basePath();
-    // TODO: include metadata in patch
-    auto metadata = OperMetadata();
     auto state = currentState_.wlock();
-    updateMetadata(path.begin(), path.end(), metadata);
+    updateMetadata(path.begin(), path.end(), *patch.metadata());
     return state->patch(std::move(patch));
   }
   using NaivePeriodicSubscribableStorageBase::subscribe_patch_impl;
@@ -306,30 +305,43 @@ class NaivePeriodicSubscribableStorage
     f(*subscriptions_.wlock());
   }
 
-  ConcretePath convertPath(ConcretePath&& path) const override {
-#ifdef ENABLE_PATCH_APIS
-    return convertSubsToIDPaths_
-        ? PathConverter<RootT>::pathToIdTokens(std::move(path))
-        : path;
-#else
-    return path;
-#endif
-  }
+  ConcretePath convertPath(ConcretePath&& path) const override;
 
-  ExtPath convertPath(const ExtPath& path) const override {
-#ifdef ENABLE_PATCH_APIS
-    return convertSubsToIDPaths_ ? PathConverter<RootT>::extPathToIdTokens(path)
-                                 : path;
-#else
-    return path;
-#endif
-  }
+  ExtPath convertPath(const ExtPath& path) const override;
 
   folly::Synchronized<Storage> currentState_;
   folly::Synchronized<Storage> lastPublishedState_;
 
   folly::Synchronized<SubscribeManager> subscriptions_;
 };
+
+// To avoid compiler inlining these heavy functions and allow for caching
+// template instantiations, these need to be implemented outside the class body
+
+template <typename Storage, typename SubscribeManager>
+typename Storage::ConcretePath
+NaivePeriodicSubscribableStorage<Storage, SubscribeManager>::convertPath(
+    ConcretePath&& path) const {
+#ifdef ENABLE_PATCH_APIS
+  return convertSubsToIDPaths_
+      ? PathConverter<RootT>::pathToIdTokens(std::move(path))
+      : path;
+#else
+  return path;
+#endif
+}
+
+template <typename Storage, typename SubscribeManager>
+typename Storage::ExtPath
+NaivePeriodicSubscribableStorage<Storage, SubscribeManager>::convertPath(
+    const ExtPath& path) const {
+#ifdef ENABLE_PATCH_APIS
+  return convertSubsToIDPaths_ ? PathConverter<RootT>::extPathToIdTokens(path)
+                               : path;
+#else
+  return path;
+#endif
+}
 
 template <typename Root>
 using NaivePeriodicSubscribableCowStorage = NaivePeriodicSubscribableStorage<

@@ -133,6 +133,7 @@ struct PortFields {
   51: optional bool txEnable;
   // Current active errors seen on port
   52: list<ctrl.PortError> activeErrors;
+  53: switch_config.Scope scope = switch_config.Scope.LOCAL;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields
@@ -378,6 +379,10 @@ struct SwitchSettingsFields {
   38: optional bool forceTrafficOverFabric;
   39: optional bool creditWatchdog;
   40: optional bool forceEcmpDynamicMemberUp;
+  // Programmable hostname, useful for ICMP responses and the like.
+  41: string hostname;
+  // When there's no IPv4 addresses configured, what address to use to source IPv4 ICMP packets from.
+  42: Address.BinaryAddress icmpV4UnavailableSrcAddress;
 }
 
 struct RoutePrefix {
@@ -504,6 +509,7 @@ struct InterfaceFields {
    * Set only on Remote Interfaces of VOQ switches.
    */
   21: optional common.LivenessStatus remoteIntfLivenessStatus;
+  22: switch_config.Scope scope = switch_config.Scope.LOCAL;
 }
 
 enum LacpState {

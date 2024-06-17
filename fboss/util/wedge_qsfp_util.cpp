@@ -277,6 +277,10 @@ DEFINE_uint32(
     0x00001011,
     "MSA password for module privilige operation");
 DEFINE_uint32(image_header_len, 0, "Firmware image header length");
+DEFINE_string(
+    forced_module_type,
+    "",
+    "Forced module type, values are cmis or sff");
 DEFINE_bool(
     get_module_fw_info,
     false,
@@ -1140,6 +1144,17 @@ DOMDataUnion fetchDataFromLocalI2CBus(
   auto qsfpImpl = std::make_unique<WedgeQsfp>(
       port - 1, i2cInfo.bus, i2cInfo.transceiverManager);
   auto mgmtInterface = qsfpImpl->getTransceiverManagementInterface();
+  if (!FLAGS_forced_module_type.empty()) {
+    if (FLAGS_forced_module_type == "cmis") {
+      mgmtInterface = TransceiverManagementInterface::CMIS;
+    } else if (FLAGS_forced_module_type == "sff") {
+      mgmtInterface = TransceiverManagementInterface::SFF;
+    } else {
+      throw FbossError(
+          "Invalid forced module type specified: ", FLAGS_forced_module_type);
+    }
+  }
+
   auto cfgPtr = i2cInfo.transceiverManager->getTransceiverConfig();
 
   // On these platforms, we are configuring the 200G optics in 2x50G
@@ -1439,6 +1454,7 @@ void printHostLaneSignals(const std::vector<HostLaneSignals>& signals) {
       printf(
           " %-12s",
           apache::thrift::util::enumNameSafe(*(signal.cmisLaneState()))
+              .substr(0, 12)
               .c_str());
     }
   }
@@ -2129,7 +2145,15 @@ void printCmisDetailService(
   if (moduleStatus && moduleStatus->fwStatus()) {
     auto fwStatus = *(moduleStatus->fwStatus());
     if (auto version = fwStatus.version()) {
-      printf("  FW Version: %s\n", (*version).c_str());
+      uint8_t integerPart, fractionalPart = 0;
+      size_t pos = version->find('.');
+      if (pos != std::string::npos) {
+        integerPart = stoi(version->substr(0, pos));
+        fractionalPart = stoi(version->substr(pos + 1));
+      } else {
+        integerPart = stoi(version->substr(0));
+      }
+      printf("  FW Version: %x.%x\n", integerPart, fractionalPart);
     }
     if (auto fwFault = fwStatus.fwFault()) {
       printf("  Firmware fault: 0x%x\n", *fwFault);

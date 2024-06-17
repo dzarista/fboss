@@ -21,6 +21,7 @@
 #include "fboss/agent/hw/test/HwSwitchEnsemble.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/PortMap.h"
+#include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/PortTestUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
 #include "fboss/lib/platforms/PlatformMode.h"
@@ -34,8 +35,9 @@ using namespace facebook::fboss::utility;
 
 namespace facebook::fboss::utility {
 
-std::pair<int, int> getRetryCountAndDelay(const HwAsic* asic) {
-  if (asic->isSupported(HwAsic::Feature::SLOW_STAT_UPDATE)) {
+std::pair<int, int> getRetryCountAndDelay(const HwAsicTable* hwAsicTable) {
+  if (hwAsicTable->isFeatureSupportedOnAllAsic(
+          HwAsic::Feature::SLOW_STAT_UPDATE)) {
     return std::make_pair(50, 5000);
   }
   // default
@@ -96,18 +98,18 @@ cfg::SwitchConfig oneL3IntfConfig(
 
 cfg::SwitchConfig oneL3IntfConfig(
     const PlatformMapping* platformMapping,
-    const HwAsic* asic,
+    const std::vector<const HwAsic*>& asics,
     PortID port,
     bool supportsAddRemovePort,
-    const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap,
     int baseVlanId) {
   std::vector<PortID> ports{port};
+  auto asic = checkSameAndGetAsic(asics);
   return oneL3IntfNPortConfig(
       platformMapping,
       asic,
       ports,
       supportsAddRemovePort,
-      lbModeMap,
+      asic->desiredLoopbackModes(),
       true,
       baseVlanId);
 }
@@ -154,7 +156,7 @@ cfg::SwitchConfig twoL3IntfConfig(
     const std::map<cfg::PortType, cfg::PortLoopbackMode>& lbModeMap) {
   return twoL3IntfConfig(
       hwSwitch->getPlatform()->getPlatformMapping(),
-      hwSwitch->getPlatform()->getAsic(),
+      std::vector<const HwAsic*>({hwSwitch->getPlatform()->getAsic()}),
       hwSwitch->getPlatform()->supportsAddRemovePort(),
       port1,
       port2,
