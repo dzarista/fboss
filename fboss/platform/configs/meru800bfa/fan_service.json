@@ -4,7 +4,7 @@
   "pwmBoostOnNoQsfpAfterInSec" : 0,
   "pwmBoostValue" : 60,
   "pwmTransitionValue" : 50,
-  "pwmLowerThreshold" : 24,
+  "pwmLowerThreshold" : 10,
   "pwmUpperThreshold" : 100,
   "shutdownCmd" : "echo 0xdead > /run/devmap/fpgas/MERU_SCM_CPLD/chassis_power_cycle",
   "optics" : [
@@ -53,6 +53,54 @@
       "failDownTable": {
         "15": 28,
         "110": 80
+      }
+    },
+    {
+      "sensorName": "R3_0_TEMP",
+      "access": {
+        "accessType": "ACCESS_TYPE_THRIFT"
+      },
+      "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
+      "scale": 1,
+      "normalUpTable": {
+        "15": 10,
+        "65": 80
+      },
+      "normalDownTable": {
+        "15": 10,
+        "65": 80
+      },
+      "failUpTable": {
+        "15": 10,
+        "65": 80
+      },
+      "failDownTable": {
+        "15": 10,
+        "65": 80
+      }
+    },
+    {
+      "sensorName": "R3_1_TEMP",
+      "access": {
+        "accessType": "ACCESS_TYPE_THRIFT"
+      },
+      "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
+      "scale": 1,
+      "normalUpTable": {
+        "15": 10,
+        "65": 80
+      },
+      "normalDownTable": {
+        "15": 10,
+        "65": 80
+      },
+      "failUpTable": {
+        "15": 10,
+        "65": 80
+      },
+      "failDownTable": {
+        "15": 10,
+        "65": 80
       }
     }
   ],
@@ -217,16 +265,27 @@
   "zones": [
     {
       "zoneType": "ZONE_TYPE_MAX",
+      "zoneName": "asic_zone",
+      "sensorNames": [
+        "R3_0_TEMP",
+        "R3_1_TEMP"
+      ],
+      "fanNames":[
+        "fan_1",
+        "fan_2",
+        "fan_3",
+        "fan_4"
+      ],
+      "slope": 3
+    },
+    {
+      "zoneType": "ZONE_TYPE_MAX",
       "zoneName": "system_zone",
       "sensorNames": [
         "SMB_INLET_TEMP",
         "osfp_group_1"
       ],
       "fanNames": [
-        "fan_1",
-        "fan_2",
-        "fan_3",
-        "fan_4",
         "fan_5",
         "fan_6",
         "fan_7",
