@@ -8,16 +8,11 @@
  *
  */
 
-#include "fboss/platform/sensor_service/SensorStatsPub.h"
+#include "fboss/agent/hw/benchmarks/HwRouteScaleBenchmarkHelpers.h"
 
-namespace facebook::fboss::platform::sensor_service {
+namespace facebook::fboss {
 
-void SensorStatsPub::init() {
-  return;
+BENCHMARK(HwVoqScaleRouteDelBenchmark) {
+  voqRouteBenchmark(false /* add */);
 }
-
-void SensorStatsPub::publishStats() {
-  return;
-}
-
-} // namespace facebook::fboss::platform::sensor_service
+} // namespace facebook::fboss

@@ -108,21 +108,22 @@ class NaivePeriodicSubscribableStorageBase {
       OperProtocol protocol);
 
 #ifdef ENABLE_PATCH_APIS
-  folly::coro::AsyncGenerator<Patch&&> subscribe_patch_impl(
+  folly::coro::AsyncGenerator<SubscriberMessage&&> subscribe_patch_impl(
       SubscriberId subscriber,
-      PathIter begin,
-      PathIter end,
-      OperProtocol protocol) {
-    auto path = convertPath(ConcretePath(begin, end));
-    auto [gen, subscription] = PatchSubscription::create(
+      std::map<SubscriptionKey, RawOperPath> rawPaths) {
+    for (auto& [key, path] : rawPaths) {
+      auto convertedPath = convertPath(std::move(*path.path()));
+      path.path() = std::move(convertedPath);
+    }
+    auto root = getPublisherRoot(rawPaths);
+    auto [gen, subscription] = ExtendedPatchSubscription::create(
         std::move(subscriber),
-        path.begin(),
-        path.end(),
-        protocol,
-        getPublisherRoot(path.begin(), path.end()));
+        std::move(rawPaths),
+        patchOperProtocol_,
+        std::move(root));
     withSubMgrWLocked([subscription = std::move(subscription)](
                           SubscriptionManagerBase& mgr) mutable {
-      mgr.registerSubscription(std::move(subscription));
+      mgr.registerExtendedSubscription(std::move(subscription));
     });
     return std::move(gen);
   }
@@ -180,6 +181,9 @@ class NaivePeriodicSubscribableStorageBase {
       ExtPathIter begin,
       ExtPathIter end) const;
 
+  std::optional<std::string> getPublisherRoot(
+      const std::map<SubscriptionKey, RawOperPath>& paths) const;
+
   void updateMetadata(
       PathIter begin,
       PathIter end,
@@ -200,7 +204,10 @@ class NaivePeriodicSubscribableStorageBase {
 
   std::chrono::steady_clock::time_point lastHeartbeatTime_;
 
- private:
+  // as an optimization, for now we decide what protocol is used in patches
+  // instead of letting the client choose
+  const OperProtocol patchOperProtocol_{OperProtocol::COMPACT};
+
  private:
   //  Helper methods to get sub mgr that support lambdas with return values
   template <

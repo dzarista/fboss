@@ -17,6 +17,14 @@ OperState makeEmptyState(OperProtocol proto) {
   return empty;
 }
 
+ExtSubPathMap makeSimplePathMap(std::vector<ExtendedOperPath> paths) {
+  ExtSubPathMap map;
+  for (auto i = 0; i < paths.size(); ++i) {
+    map[i] = std::move(paths[i]);
+  }
+  return map;
+}
+
 } // namespace
 
 void BaseDeltaSubscription::appendRootDeltaUnit(const OperDeltaUnit& unit) {
@@ -28,7 +36,7 @@ void BaseDeltaSubscription::appendRootDeltaUnit(const OperDeltaUnit& unit) {
   // objects to manage synchronization.
   if (!currDelta_) {
     currDelta_.emplace();
-    currDelta_->protocol() = *protocol_;
+    currDelta_->protocol() = operProtocol();
   }
 
   OperDeltaUnit toStore;
@@ -100,6 +108,7 @@ FullyResolvedExtendedPathSubscription::FullyResolvedExtendedPathSubscription(
     : BasePathSubscription(
           subscription.subscriberId(),
           path,
+          subscription.operProtocol(),
           subscription.publisherTreeRoot()),
       subscription_(subscription) {}
 
@@ -115,11 +124,6 @@ PubSubType FullyResolvedExtendedPathSubscription::type() const {
   return subscription_.type();
 }
 
-std::optional<OperProtocol>
-FullyResolvedExtendedPathSubscription::operProtocol() const {
-  return subscription_.operProtocol();
-}
-
 void FullyResolvedExtendedPathSubscription::offer(
     DeltaValue<OperState> source) {
   // Convert to DeltaValue<TaggedOperState>. Could do this in the
@@ -131,7 +135,7 @@ void FullyResolvedExtendedPathSubscription::offer(
   if (source.oldVal) {
     target.oldVal->state() = std::move(*source.oldVal);
   } else {
-    target.oldVal->state() = makeEmptyState(*operProtocol());
+    target.oldVal->state() = makeEmptyState(operProtocol());
   }
 
   target.newVal.emplace();
@@ -139,7 +143,7 @@ void FullyResolvedExtendedPathSubscription::offer(
   if (source.newVal) {
     target.newVal->state() = std::move(*source.newVal);
   } else {
-    target.newVal->state() = makeEmptyState(*operProtocol());
+    target.newVal->state() = makeEmptyState(operProtocol());
   }
 
   subscription_.buffer(std::move(target));
@@ -166,7 +170,7 @@ FullyResolvedExtendedDeltaSubscription::FullyResolvedExtendedDeltaSubscription(
     : BaseDeltaSubscription(
           subscription.subscriberId(),
           path,
-          *subscription.operProtocol(),
+          subscription.operProtocol(),
           subscription.publisherTreeRoot()),
       subscription_(subscription) {}
 
@@ -200,11 +204,6 @@ PubSubType FullyResolvedExtendedDeltaSubscription::type() const {
   return subscription_.type();
 }
 
-std::optional<OperProtocol>
-FullyResolvedExtendedDeltaSubscription::operProtocol() const {
-  return subscription_.operProtocol();
-}
-
 void FullyResolvedExtendedDeltaSubscription::allPublishersGone(
     FsdbErrorCode /* disconnectReason */,
     const std::string& /* msg */) {
@@ -222,7 +221,7 @@ ExtendedPathSubscription::create(
   auto [generator, pipe] = folly::coro::AsyncPipe<gen_type>::create();
   auto subscription = std::make_shared<ExtendedPathSubscription>(
       std::move(subscriber),
-      std::move(paths),
+      makeSimplePathMap(paths),
       std::move(pipe),
       std::move(protocol),
       std::move(publisherRoot));
@@ -249,6 +248,7 @@ void ExtendedPathSubscription::flush(
 }
 
 std::unique_ptr<Subscription> ExtendedPathSubscription::resolve(
+    const SubscriptionKey& /* key */,
     const std::vector<std::string>& path) {
   return std::make_unique<FullyResolvedExtendedPathSubscription>(path, *this);
 }
@@ -274,7 +274,7 @@ ExtendedDeltaSubscription::create(
   auto [generator, pipe] = folly::coro::AsyncPipe<gen_type>::create();
   auto subscription = std::make_shared<ExtendedDeltaSubscription>(
       std::move(subscriber),
-      std::move(paths),
+      makeSimplePathMap(paths),
       std::move(pipe),
       std::move(protocol),
       std::move(publisherRoot));
@@ -282,6 +282,7 @@ ExtendedDeltaSubscription::create(
 }
 
 std::unique_ptr<Subscription> ExtendedDeltaSubscription::resolve(
+    const SubscriptionKey& /* key */,
     const std::vector<std::string>& path) {
   return std::make_unique<FullyResolvedExtendedDeltaSubscription>(path, *this);
 }
@@ -317,36 +318,153 @@ void ExtendedDeltaSubscription::allPublishersGone(
   pipe_.write(Utils::createFsdbException(disconnectReason, msg));
 }
 
+PatchSubscription::PatchSubscription(
+    const SubscriptionKey& key,
+    std::vector<std::string> path,
+    ExtendedPatchSubscription& subscription)
+    : Subscription(
+          subscription.subscriberId(),
+          std::move(path),
+          subscription.operProtocol(),
+          subscription.publisherTreeRoot()),
+      key_(key),
+      subscription_(subscription) {}
+
 void PatchSubscription::allPublishersGone(
     FsdbErrorCode disconnectReason,
     const std::string& msg) {
-  pipe_.write(Utils::createFsdbException(disconnectReason, msg));
-}
-
-std::optional<Patch> PatchSubscription::moveFromCurrPatch(
-    const SubscriptionMetadataServer& /* metadataServer */) {
-  std::optional<Patch> patch = std::move(currPatch_);
-  currPatch_.reset();
-  return patch;
+  // No-op as we expect the extended subscription to send the hangup message
 }
 
 void PatchSubscription::serveHeartbeat() {
-  // TODO: heartbeat
+  // No-op as we expect the extended subscription to send the heartbeat
 }
 
 void PatchSubscription::flush(
     const SubscriptionMetadataServer& metadataServer) {
-  if (auto patch = moveFromCurrPatch(metadataServer)) {
-    pipe_.write(*patch);
+  // No-op as propagation is done in offer()
+}
+
+void PatchSubscription::offer(thrift_cow::PatchNode node) {
+  Patch patch;
+  patch.basePath() = path();
+  patch.patch() = std::move(node);
+  subscription_.buffer(key_, std::move(patch));
+}
+
+bool PatchSubscription::isActive() const {
+  return subscription_.isActive();
+}
+
+std::pair<
+    folly::coro::AsyncGenerator<ExtendedPatchSubscription::gen_type&&>,
+    std::unique_ptr<ExtendedPatchSubscription>>
+ExtendedPatchSubscription::create(
+    SubscriberId subscriber,
+    std::vector<std::string> path,
+    OperProtocol protocol,
+    std::optional<std::string> publisherRoot) {
+  RawOperPath p;
+  p.path() = std::move(path);
+  return create(
+      std::move(subscriber),
+      std::map<SubscriptionKey, RawOperPath>{{0, std::move(p)}},
+      std::move(protocol),
+      std::move(publisherRoot));
+}
+
+std::pair<
+    folly::coro::AsyncGenerator<ExtendedPatchSubscription::gen_type&&>,
+    std::unique_ptr<ExtendedPatchSubscription>>
+ExtendedPatchSubscription::create(
+    SubscriberId subscriber,
+    std::map<SubscriptionKey, RawOperPath> paths,
+    OperProtocol protocol,
+    std::optional<std::string> publisherRoot) {
+  std::map<SubscriptionKey, ExtendedOperPath> extendedPaths;
+  for (auto& [key, path] : paths) {
+    std::vector<OperPathElem> extendedPath;
+    extendedPath.reserve(path.path()->size());
+    for (auto& tok : *path.path()) {
+      extendedPath.emplace_back().set_raw(std::move(tok));
+    }
+    extendedPaths[key].path() = std::move(extendedPath);
+  }
+  return create(
+      std::move(subscriber),
+      std::move(extendedPaths),
+      std::move(protocol),
+      std::move(publisherRoot));
+}
+
+std::pair<
+    folly::coro::AsyncGenerator<ExtendedPatchSubscription::gen_type&&>,
+    std::unique_ptr<ExtendedPatchSubscription>>
+ExtendedPatchSubscription::create(
+    SubscriberId subscriber,
+    std::map<SubscriptionKey, ExtendedOperPath> paths,
+    OperProtocol protocol,
+    std::optional<std::string> publisherRoot) {
+  auto [generator, pipe] = folly::coro::AsyncPipe<gen_type>::create();
+  auto subscription = std::make_unique<ExtendedPatchSubscription>(
+      std::move(subscriber),
+      std::move(paths),
+      std::move(pipe),
+      std::move(protocol),
+      std::move(publisherRoot));
+  return std::make_pair(std::move(generator), std::move(subscription));
+}
+
+std::unique_ptr<Subscription> ExtendedPatchSubscription::resolve(
+    const SubscriptionKey& key,
+    const std::vector<std::string>& path) {
+  return std::make_unique<PatchSubscription>(key, path, *this);
+}
+
+void ExtendedPatchSubscription::buffer(
+    const SubscriptionKey& key,
+    Patch&& newVal) {
+  buffered_[key] = std::move(newVal);
+}
+
+std::optional<SubscriberChunk> ExtendedPatchSubscription::moveCurChunk(
+    const SubscriptionMetadataServer& metadataServer) {
+  if (buffered_.empty()) {
+    return std::nullopt;
+  }
+  for (auto& [_, patch] : buffered_) {
+    patch.metadata() = getMetadata(metadataServer);
+    patch.protocol() = operProtocol();
+  }
+  SubscriberChunk chunk;
+  chunk.patches() = std::move(buffered_);
+  buffered_ = {};
+  return chunk;
+}
+
+void ExtendedPatchSubscription::flush(
+    const SubscriptionMetadataServer& metadataServer) {
+  if (auto chunk = moveCurChunk(metadataServer)) {
+    SubscriberMessage msg;
+    msg.set_chunk(std::move(*chunk));
+    pipe_.write(std::move(msg));
   }
 }
 
-void PatchSubscription::setPatchRoot(thrift_cow::PatchNode node) {
-  if (!currPatch_) {
-    currPatch_ = Patch();
-    // TODO: set path, protocol
-  }
-  currPatch_->patch() = std::move(node);
+void ExtendedPatchSubscription::serveHeartbeat() {
+  SubscriberMessage msg;
+  msg.set_heartbeat();
+  pipe_.write(std::move(msg));
+}
+
+bool ExtendedPatchSubscription::isActive() const {
+  return !pipe_.isClosed();
+}
+
+void ExtendedPatchSubscription::allPublishersGone(
+    FsdbErrorCode disconnectReason,
+    const std::string& msg) {
+  pipe_.write(Utils::createFsdbException(disconnectReason, msg));
 }
 
 } // namespace facebook::fboss::fsdb

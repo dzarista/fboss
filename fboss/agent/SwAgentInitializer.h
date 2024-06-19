@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <folly/experimental/FunctionScheduler.h>
+#include <folly/executors/FunctionScheduler.h>
 
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 #include "fboss/agent/AgentInitializer.h"
@@ -96,10 +96,15 @@ class SwAgentInitializer : public AgentInitializer {
 
   void stopServer();
   void stopServices();
+  void waitForServerStopped();
 
  private:
   std::unique_ptr<apache::thrift::ThriftServer> server_;
   folly::EventBase* eventBase_;
+
+  std::atomic<bool> serverStarted_{false};
+  std::mutex serverStopMutex_;
+  std::condition_variable serverStopCV_;
 };
 
 } // namespace facebook::fboss

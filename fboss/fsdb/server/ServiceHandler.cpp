@@ -130,6 +130,8 @@ Path buildPathUnion(facebook::fboss::fsdb::OperSubscriberInfo info) {
   } else if (info.extendedPaths() && info.extendedPaths()->size() > 0) {
     std::vector<ExtendedOperPath> extendedPaths;
     pathUnion.set_extendedPaths(*info.extendedPaths());
+  } else if (info.paths() && info.paths()->size() > 0) {
+    pathUnion.set_rawPaths(*info.paths());
   }
   return pathUnion;
 }
@@ -239,7 +241,7 @@ ServiceHandler::ServiceHandler(
           std::chrono::seconds(FLAGS_stateSubscriptionHeartbeat_s),
           FLAGS_trackMetadata,
           "fsdb",
-          options.serveIdPathSubs,
+          options_.serveIdPathSubs,
           true),
       operStatsStorage_(
           {},
@@ -247,7 +249,7 @@ ServiceHandler::ServiceHandler(
           std::chrono::seconds(FLAGS_statsSubscriptionHeartbeat_s),
           FLAGS_trackMetadata,
           "fsdb",
-          options.serveIdPathSubs) {
+          options_.serveIdPathSubs) {
   num_instances_.incrementValue(1);
 
   initPerStreamCounters();
@@ -305,6 +307,8 @@ OperPublisherInfo ServiceHandler::makePublisherInfo(
 }
 
 void ServiceHandler::registerPublisher(const OperPublisherInfo& info) {
+  XLOG(DBG2) << "Publisher connected " << *info.publisherId() << " : "
+             << folly::join("/", *info.path()->raw());
   if (info.publisherId()->empty()) {
     throw Utils::createFsdbException(
         FsdbErrorCode::EMPTY_PUBLISHER_ID, "Publisher Id must not be empty");
@@ -410,13 +414,16 @@ ServiceHandler::makeSinkConsumer(
         OperPubFinalResponse finalResponse;
         try {
           while (auto chunk = co_await gen.next()) {
-            XLOG(DBG3) << " chunk received";
+            XLOG(DBG5) << " chunk received";
+            std::optional<StorageError> patchErr;
             if constexpr (std::is_same_v<PubUnit, OperState>) {
               updateMetadata(chunk->metadata().ensure());
               if (isStats) {
-                operStatsStorage_.set_encoded(path.begin(), path.end(), *chunk);
+                patchErr = operStatsStorage_.set_encoded(
+                    path.begin(), path.end(), *chunk);
               } else {
-                operStorage_.set_encoded(path.begin(), path.end(), *chunk);
+                patchErr =
+                    operStorage_.set_encoded(path.begin(), path.end(), *chunk);
               }
             } else if constexpr (std::is_same_v<PubUnit, OperDelta>) {
               updateMetadata(chunk->metadata().ensure());
@@ -435,9 +442,9 @@ ServiceHandler::makeSinkConsumer(
                   chunk->changes()->end());
 
               if (isStats) {
-                operStatsStorage_.patch(*chunk);
+                patchErr = operStatsStorage_.patch(*chunk);
               } else {
-                operStorage_.patch(*chunk);
+                patchErr = operStorage_.patch(*chunk);
               }
               auto numDropped = numChanges - chunk->changes()->size();
               if (numDropped) {
@@ -455,11 +462,16 @@ ServiceHandler::makeSinkConsumer(
               auto patchChunk = chunk->move_patch();
               updateMetadata(*patchChunk.metadata());
               if (isStats) {
-                operStatsStorage_.patch(std::move(patchChunk));
+                patchErr = operStatsStorage_.patch(std::move(patchChunk));
               } else {
-                operStorage_.patch(std::move(patchChunk));
+                patchErr = operStorage_.patch(std::move(patchChunk));
               }
             }
+            XLOG(DBG5) << "Chunk patch result "
+                       << (patchErr
+                               ? fmt::format(
+                                     "error: {}", fmt::underlying(*patchErr))
+                               : "success");
           }
           co_return finalResponse;
         } catch (const fsdb::FsdbException& ex) {
@@ -599,28 +611,6 @@ makeSubscriberInfo(const SubRequest& req, PubSubType type, bool isStats) {
   return info;
 }
 
-template <typename Storage>
-folly::coro::AsyncGenerator<SubscriberMessage&&> makeSubStreamGenerator(
-    Storage& storage,
-    std::unique_ptr<SubRequest> request) {
-  // TODO: for the sake of incremental diffs just looking at first path for
-  // now, later will support multi path
-  auto path = *request->paths()->begin()->second.path();
-  auto gen = storage.subscribe_patch(
-      *request->clientId()->instanceId(),
-      path.begin(),
-      path.end(),
-      *request->protocol());
-  while (auto chunk = co_await gen.next()) {
-    SubscriberMessage message;
-    // TODO: handle heartbeat
-    SubscriberChunk subChunk;
-    subChunk.patch() = std::move(*chunk);
-    message.set_chunk(std::move(subChunk));
-    co_yield std::move(message);
-  }
-}
-
 void validatePaths(
     const std::map<SubscriptionKey, RawOperPath>& paths,
     bool isStats) {
@@ -685,11 +675,12 @@ void ServiceHandler::registerSubscription(const OperSubscriberInfo& info) {
   XLOG(INFO) << "Registering subscription " << *info.subscriberId();
   bool hasRawPath = info.path() && !info.path()->raw()->empty();
   bool hasExtendedPath = info.extendedPaths() && !info.extendedPaths()->empty();
+  bool hasMultiPaths = info.paths() && !info.paths()->empty();
   validateSubscriptionPermissions(
       *info.subscriberId(),
       *info.type(),
       *info.isStats(),
-      hasRawPath,
+      hasRawPath || hasMultiPaths,
       hasExtendedPath);
   auto key = ClientKey(
       *info.subscriberId(),
@@ -1098,10 +1089,8 @@ ServiceHandler::co_subscribeState(std::unique_ptr<SubRequest> request) {
        request = std::move(request),
        cleanupSubscriber = std::move(cleanupSubscriber)]() mutable
       -> folly::coro::AsyncGenerator<SubscriberMessage&&> {
-        auto gen = makeSubStreamGenerator(operStorage_, std::move(request));
-        while (auto val = co_await gen.next()) {
-          co_yield std::move(*val);
-        }
+        return operStorage_.subscribe_patch(
+            *request->clientId()->instanceId(), *request->paths());
       });
   co_return {{}, std::move(stream)};
 }
@@ -1123,11 +1112,8 @@ ServiceHandler::co_subscribeStats(std::unique_ptr<SubRequest> request) {
        request = std::move(request),
        cleanupSubscriber = std::move(cleanupSubscriber)]() mutable
       -> folly::coro::AsyncGenerator<SubscriberMessage&&> {
-        auto gen =
-            makeSubStreamGenerator(operStatsStorage_, std::move(request));
-        while (auto val = co_await gen.next()) {
-          co_yield std::move(*val);
-        }
+        return operStatsStorage_.subscribe_patch(
+            *request->clientId()->instanceId(), *request->paths());
       });
   co_return {{}, std::move(stream)};
 }
@@ -1271,11 +1257,14 @@ void ServiceHandler::initPerStreamCounters(void) {
                   fsdb_common_constants::kFsdbServiceHandlerNativeStatsPrefix(),
                   "disconnected_subscriber.",
                   key)));
-      if (auto counter = disconnectedSubscribers_.find(key);
-          counter != disconnectedSubscribers_.end()) {
-        counter->second.incrementValue(1);
-      }
       auto count = value.numExpectedSubscriptions().value();
+      if (count > 0) {
+        if (auto counter = disconnectedSubscribers_.find(key);
+            counter != disconnectedSubscribers_.end()) {
+          counter->second.incrementValue(1);
+        }
+        num_disconnected_subscriptions_.incrementValue(count);
+      }
       disconnectedSubscriptions_.emplace(
           key,
           TLCounter(
@@ -1288,7 +1277,6 @@ void ServiceHandler::initPerStreamCounters(void) {
           counter != disconnectedSubscriptions_.end()) {
         counter->second.incrementValue(count);
       }
-      num_disconnected_subscriptions_.incrementValue(count);
       connectedSubscriptions_.emplace(
           key,
           TLCounter(

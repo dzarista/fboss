@@ -43,11 +43,11 @@ class SystemPort
   void setSwitchId(SwitchID swId) {
     set<ctrl_if_tags::switchId>(static_cast<int64_t>(swId));
   }
-  std::string getPortName() const {
+  std::string getName() const {
     return get<ctrl_if_tags::portName>()->toThrift();
   }
-  void setPortName(const std::string& portName) {
-    set<ctrl_if_tags::portName>(portName);
+  void setName(const std::string& name) {
+    set<ctrl_if_tags::portName>(name);
   }
   auto getPortQueues() const {
     return safe_cref<switch_state_tags::queues>();
@@ -142,6 +142,11 @@ class SystemPort
 
   cfg::Scope getScope() const {
     return cref<ctrl_if_tags::scope>()->cref();
+  }
+
+  bool isStatic() const {
+    return getRemoteSystemPortType().has_value() &&
+        getRemoteSystemPortType().value() == RemoteSystemPortType::STATIC_ENTRY;
   }
 
  private:

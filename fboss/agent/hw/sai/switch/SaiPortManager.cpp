@@ -963,16 +963,28 @@ void SaiPortManager::updatePrbsStatsEntryRate(
   }
 }
 
-void SaiPortManager::initAsicPrbsStats(PortID portId, uint32_t speed) {
+void SaiPortManager::initAsicPrbsStats(const std::shared_ptr<Port>& swPort) {
   if (!platform_->getAsic()->isSupported(HwAsic::Feature::SAI_PRBS)) {
     return;
   }
+  auto portId = swPort->getID();
+  XLOG(DBG2) << "ASIC PRBS enabled with polynomial set to "
+             << swPort->getAsicPrbs().polynominal().value() << " for port "
+             << portId;
+  auto speed = static_cast<int>(swPort->getSpeed());
   auto rate = calculateRate(speed);
   auto prbsStatsTable = PrbsStatsTable();
   // Dump cumulative PRBS stats on first PrbsStatsEntry because there is no
   // per-lane PRBS counter available in SAI.
   prbsStatsTable.push_back(PrbsStatsEntry(portId, rate));
   portAsicPrbsStats_[portId] = std::move(prbsStatsTable);
+#if SAI_API_VERSION >= SAI_VERSION(1, 8, 1) && defined(BRCM_SAI_SDK_XGS_AND_DNX)
+  // Trigger initial read of PrbsRxState to help clear any initial lock
+  // losses
+  auto portHandle = getPortHandle(portId);
+  SaiApiTable::getInstance()->portApi().getAttribute(
+      portHandle->port->adapterKey(), SaiPortTraits::Attributes::PrbsRxState{});
+#endif
 }
 
 PortSaiId SaiPortManager::addPort(const std::shared_ptr<Port>& swPort) {
@@ -1675,6 +1687,7 @@ std::vector<phy::PrbsLaneStats> SaiPortManager::getPortAsicPrbsStats(
 }
 
 void SaiPortManager::clearPortAsicPrbsStats(PortID portId) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 8, 1)
   auto portAsicPrbsStatsItr = portAsicPrbsStats_.find(portId);
   if (portAsicPrbsStatsItr == portAsicPrbsStats_.end()) {
     throw FbossError(
@@ -1683,6 +1696,12 @@ void SaiPortManager::clearPortAsicPrbsStats(PortID portId) {
   auto& prbsStatsTable = portAsicPrbsStatsItr->second;
   auto& prbsStatsEntry = prbsStatsTable.front();
   prbsStatsEntry.clearPrbsStats();
+  auto* handle = getPortHandleImpl(PortID(portId));
+  // Read PrbsRxState when PRBS stats are cleared to reset start point for next
+  // read.
+  SaiApiTable::getInstance()->portApi().getAttribute(
+      handle->port->adapterKey(), SaiPortTraits::Attributes::PrbsRxState{});
+#endif
 }
 
 void SaiPortManager::updatePrbsStats(PortID portId) {
@@ -2717,13 +2736,25 @@ void SaiPortManager::changeZeroPreemphasis(
           "Cannot set zero preemphasis on non existent port: ",
           newPort->getID());
     }
-    // TH4 and TH5 not yet supporting setting zero three-tap values
-    if (platform_->getAsic()->getAsicType() ==
+
+    // Check if the platform supports setting zero preemphasis.
+    // TH4 and TH5 starts supporting zero preemphasis starting 11.0
+#if defined(BRCM_SAI_SDK_GTE_11_0)
+    bool supportsZeroPreemphasis =
+        platform_->getAsic()->isSupported(
+            HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS) ||
+        platform_->getAsic()->getAsicType() ==
             cfg::AsicType::ASIC_TYPE_TOMAHAWK4 ||
         platform_->getAsic()->getAsicType() ==
-            cfg::AsicType::ASIC_TYPE_TOMAHAWK5) {
+            cfg::AsicType::ASIC_TYPE_TOMAHAWK5;
+#else
+    bool supportsZeroPreemphasis = platform_->getAsic()->isSupported(
+        HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS);
+#endif
+    if (!supportsZeroPreemphasis) {
       return;
     }
+
     auto gotAttributes = portHandle->port->attributes();
     auto numLanes =
         std::get<SaiPortTraits::Attributes::HwLaneList>(gotAttributes)

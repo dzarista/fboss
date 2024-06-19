@@ -30,6 +30,7 @@
  */
 
 DECLARE_bool(dsf_4k);
+DECLARE_bool(dsf_100g_nif_breakout);
 DECLARE_bool(enable_acl_table_chain_group);
 DECLARE_int32(oper_sync_req_timeout);
 DECLARE_bool(hide_fabric_ports);
@@ -45,3 +46,5 @@ DECLARE_bool(classid_for_connected_subnet_routes);
 DECLARE_int32(stat_publish_interval_ms);
 DECLARE_int32(hwagent_port_base);
 DECLARE_bool(force_init_fp);
+DECLARE_bool(flowletSwitchingEnable);
+DECLARE_bool(dlbResourceCheckEnable);

@@ -114,7 +114,7 @@ bool DsfSubscriber::isLocal(SwitchID nodeSwitchId) const {
   return localSwitchIds.find(nodeSwitchId) != localSwitchIds.end();
 }
 
-void DsfSubscriber::scheduleUpdate(
+void DsfSubscriber::updateWithRollbackProtection(
     const std::string& nodeName,
     const SwitchID& nodeSwitchId,
     const std::map<SwitchID, std::shared_ptr<SystemPortMap>>&
@@ -156,9 +156,11 @@ void DsfSubscriber::scheduleUpdate(
         return std::shared_ptr<SwitchState>{};
       };
 
-  sw_->updateState(
-      folly::sformat("Update state for node: {}", nodeName),
-      std::move(updateDsfStateFn));
+  sw_->getRib()->updateStateInRibThread([this, nodeName, updateDsfStateFn]() {
+    sw_->updateStateWithHwFailureProtection(
+        folly::sformat("Update state for node: {}", nodeName),
+        updateDsfStateFn);
+  });
 }
 
 void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
@@ -484,7 +486,7 @@ void DsfSubscriber::handleFsdbUpdate(
           remoteNodeName);
     }
   }
-  scheduleUpdate(
+  updateWithRollbackProtection(
       remoteNodeName, remoteSwitchId, switchId2SystemPorts, switchId2Intfs);
 }
 

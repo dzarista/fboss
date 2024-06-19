@@ -332,6 +332,10 @@ DEFINE_bool(
     capabilities,
     false,
     "Show module capabilities for all present modules");
+DEFINE_bool(
+    dump_tcvr_i2c_log,
+    false,
+    "Dump the transceiver i2c log to /dev/shm/fboss/qsfp_service");
 
 namespace {
 struct ModulePartInfo_s {
@@ -1142,7 +1146,7 @@ DOMDataUnion fetchDataFromLocalI2CBus(
     unsigned int port) {
   // port is 1 based and WedgeQsfp is 0 based.
   auto qsfpImpl = std::make_unique<WedgeQsfp>(
-      port - 1, i2cInfo.bus, i2cInfo.transceiverManager);
+      port - 1, i2cInfo.bus, i2cInfo.transceiverManager, /*logBuffer*/ nullptr);
   auto mgmtInterface = qsfpImpl->getTransceiverManagementInterface();
   if (!FLAGS_forced_module_type.empty()) {
     if (FLAGS_forced_module_type == "cmis") {
@@ -2524,6 +2528,37 @@ int resetQsfp(const std::vector<std::string>& ports, folly::EventBase& evb) {
   return EX_OK;
 }
 
+int dumpTransceiverI2cLog(
+    const std::vector<std::string>& ports,
+    folly::EventBase& evb) {
+  auto ret = EX_OK;
+  std::vector<std::string> successPorts;
+  std::vector<std::string> failedPorts;
+  for (auto& port : ports) {
+    try {
+      auto client = getQsfpClient(evb);
+      client->sync_dumpTransceiverI2cLog(port);
+      successPorts.push_back(port);
+    } catch (const std::exception& ex) {
+      failedPorts.push_back(port);
+      ret = EX_SOFTWARE;
+    }
+  }
+
+  if (!successPorts.empty()) {
+    XLOG(INFO) << fmt::format(
+        "Successfully dumped i2c log for ports: {:s}",
+        folly::join(",", successPorts));
+  }
+  if (!failedPorts.empty()) {
+    XLOG(INFO) << fmt::format(
+        "Failed to dump i2c log for ports: {:s}",
+        folly::join(",", failedPorts));
+  }
+
+  return ret;
+}
+
 bool setTransceiverLoopback(
     DirectI2cInfo i2cInfo,
     std::vector<std::string> portList,
@@ -2833,7 +2868,7 @@ bool cliModulefirmwareUpgrade(
       FLAGS_dsp_image ? "dsp" : "application";
   auto fbossFwObj = std::make_unique<FbossFirmware>(firmwareAttr);
   auto qsfpImpl = std::make_unique<WedgeQsfp>(
-      port - 1, i2cInfo.bus, i2cInfo.transceiverManager);
+      port - 1, i2cInfo.bus, i2cInfo.transceiverManager, /*logBuffer*/ nullptr);
   auto fwUpgradeObj = std::make_unique<CmisFirmwareUpgrader>(
       qsfpImpl.get(), port, std::move(fbossFwObj));
 
@@ -2985,7 +3020,10 @@ void fwUpgradeThreadHandler(
         FLAGS_dsp_image ? "dsp" : "application";
     auto fbossFwObj = std::make_unique<FbossFirmware>(firmwareAttr);
     auto qsfpImpl = std::make_unique<WedgeQsfp>(
-        module - 1, i2cInfo.bus, i2cInfo.transceiverManager);
+        module - 1,
+        i2cInfo.bus,
+        i2cInfo.transceiverManager,
+        /*logBuffer*/ nullptr);
     auto fwUpgradeObj = std::make_unique<CmisFirmwareUpgrader>(
         qsfpImpl.get(), module, std::move(fbossFwObj));
 
@@ -3061,7 +3099,10 @@ std::vector<unsigned int> getUpgradeModList(
     }
 
     auto qsfpImpl = std::make_unique<WedgeQsfp>(
-        module - 1, i2cInfo.bus, i2cInfo.transceiverManager);
+        module - 1,
+        i2cInfo.bus,
+        i2cInfo.transceiverManager,
+        /*logBuffer*/ nullptr);
     auto mgmtInterface = qsfpImpl->getTransceiverManagementInterface();
 
     // Check if it is CMIS module
@@ -3303,7 +3344,10 @@ void doCdbCommand(DirectI2cInfo i2cInfo, unsigned int module) {
   CdbCommandBlock cdbBlock;
   cdbBlock.createCdbCmdGeneric(commandCode, lplMem);
   auto qsfpImpl = std::make_unique<WedgeQsfp>(
-      module - 1, i2cInfo.bus, i2cInfo.transceiverManager);
+      module - 1,
+      i2cInfo.bus,
+      i2cInfo.transceiverManager,
+      /*logBuffer*/ nullptr);
   cdbBlock.selectCdbPage(qsfpImpl.get());
   cdbBlock.setMsaPassword(qsfpImpl.get(), FLAGS_msa_password);
 
