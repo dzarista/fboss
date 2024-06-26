@@ -1,5 +1,7 @@
 [Unit]
 Description=FBOSS sw agent
+Wants=platform_manager.service
+After=platform_manager.service
 
 [Service]
 ExecStart=/opt/fboss/bin/run_sw_agent.sh
