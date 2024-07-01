@@ -610,6 +610,7 @@ class BuildCmd(ProjectCmdBase):
                     build_dir,
                     inst_dir,
                     loader,
+                    dep_manifests,
                 )
                 for preparer in prepare_builders:
                     preparer.prepare(reconfigure=reconfigure)
