@@ -309,10 +309,20 @@ void SaiSwitchManager::programEcmpLoadBalancerParams(
     std::optional<cfg::HashingAlgorithm> algo) {
   auto hashSeed = seed ? seed.value() : 0;
   auto hashAlgo = algo ? toSaiHashAlgo(algo.value()) : SAI_HASH_ALGORITHM_CRC;
+  size_t kMaskLimit = sizeof(int) * kBitsPerByte;
+  auto maxHashSeedLength = platform_->getAsic()->getMaxHashSeedLength();
+  CHECK(maxHashSeedLength <= kMaskLimit);
+  int mask = (maxHashSeedLength == kMaskLimit)
+      ? -1
+      : static_cast<int>(pow(2.0, maxHashSeedLength) - 1);
+  hashSeed &= mask;
   switch_->setOptionalAttribute(
       SaiSwitchTraits::Attributes::EcmpDefaultHashSeed{hashSeed});
-  switch_->setOptionalAttribute(
-      SaiSwitchTraits::Attributes::EcmpDefaultHashAlgorithm{hashAlgo});
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::SAI_ECMP_HASH_ALGORITHM)) {
+    switch_->setOptionalAttribute(
+        SaiSwitchTraits::Attributes::EcmpDefaultHashAlgorithm{hashAlgo});
+  }
 }
 
 template <typename HashAttrT>

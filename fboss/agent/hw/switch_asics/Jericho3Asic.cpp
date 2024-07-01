@@ -7,7 +7,6 @@ namespace facebook::fboss {
 
 bool Jericho3Asic::isSupported(Feature feature) const {
   switch (feature) {
-    case HwAsic::Feature::SCHEDULER_PPS:
     case HwAsic::Feature::NEXTHOP_TTL_DECREMENT_DISABLE:
     case HwAsic::Feature::OBJECT_KEY_CACHE:
     case HwAsic::Feature::PKTIO:
@@ -73,6 +72,10 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::CRC_ERROR_DETECT:
     case HwAsic::Feature::ACL_METADATA_QUALIFER:
     case HwAsic::Feature::L3_MTU_ERROR_TRAP:
+    case HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW:
+    case HwAsic::Feature::SFLOWv6:
+    case HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT:
+    case HwAsic::Feature::CPU_VOQ_BUFFER_PROFILE:
       return true;
     // Features not expected to work on SIM
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
@@ -106,7 +109,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::HSDK:
     case HwAsic::Feature::L3_EGRESS_MODE_AUTO_ENABLED:
     case HwAsic::Feature::INGRESS_FIELD_PROCESSOR_FLEX_COUNTER:
-    case HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT:
     case HwAsic::Feature::PENDING_L2_ENTRY:
     case HwAsic::Feature::EGRESS_QUEUE_FLEX_COUNTER:
     case HwAsic::Feature::INGRESS_L3_INTERFACE:
@@ -160,7 +162,6 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SFLOWv4:
     case HwAsic::Feature::MPLS:
     case HwAsic::Feature::MPLS_ECMP:
-    case HwAsic::Feature::SFLOWv6:
     case HwAsic::Feature::RX_SNR:
     case HwAsic::Feature::FEC_CORRECTED_BITS:
     case HwAsic::Feature::ROUTE_COUNTERS:
@@ -172,6 +173,8 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PORT_WRED_COUNTER:
     case HwAsic::Feature::DTL_WATERMARK_COUNTER:
     case HwAsic::Feature::MULTIPLE_ACL_TABLES:
+    case HwAsic::Feature::SAI_ECMP_HASH_ALGORITHM:
+    case HwAsic::Feature::SCHEDULER_PPS:
       return false;
   }
   return false;

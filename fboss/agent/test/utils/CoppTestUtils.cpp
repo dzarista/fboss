@@ -33,6 +33,8 @@ constexpr int kDownlinkBaseVlanId = 2000;
 constexpr uint32_t kCoppLowPriReservedBytes = 1040;
 constexpr uint32_t kCoppDefaultPriReservedBytes = 1040;
 constexpr uint32_t kBcmCoppLowPriSharedBytes = 10192;
+constexpr uint32_t kDnxCoppLowMaxDynamicSharedBytes = 20 * 1024 * 1024;
+constexpr uint32_t kDnxCoppMidMaxDynamicSharedBytes = 20 * 1024 * 1024;
 constexpr uint32_t kBcmCoppDefaultPriSharedBytes = 10192;
 const std::string kMplsDestNoMatchAclName = "cpuPolicing-mpls-dest-nomatch";
 const std::string kMplsDestNoMatchCounterName = "mpls-dest-nomatch-counter";
@@ -218,7 +220,12 @@ cfg::PortQueueRate setPortQueueRate(const HwAsic* hwAsic, uint16_t queueId) {
   if (hwAsic->isSupported(HwAsic::Feature::SCHEDULER_PPS)) {
     portQueueRate.pktsPerSec_ref() = getRange(0, pps);
   } else {
-    uint32_t kbps = getCoppQueueKbpsFromPps(hwAsic, pps);
+    uint32_t kbps;
+    if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      kbps = kCoppDnxLowPriKbitsPerSec;
+    } else {
+      kbps = getCoppQueueKbpsFromPps(hwAsic, pps);
+    }
     portQueueRate.kbitsPerSec_ref() = getRange(0, kbps);
   }
 
@@ -246,22 +253,25 @@ void addCpuQueueConfig(
     queue0.reservedBytes() = kCoppLowPriReservedBytes;
   }
   setPortQueueSharedBytes(queue0, isSai);
+  setPortQueueMaxDynamicSharedBytes(queue0, hwAsic);
   cpuQueues.push_back(queue0);
 
-  cfg::PortQueue queue1;
-  queue1.id() = kCoppDefaultPriQueueId;
-  queue1.name() = "cpuQueue-default";
-  queue1.streamType() = getCpuDefaultStreamType(hwAsic);
-  queue1.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
-  queue1.weight() = kCoppDefaultPriWeight;
-  if (setQueueRate) {
-    queue1.portQueueRate() = setPortQueueRate(hwAsic, kCoppDefaultPriQueueId);
+  if (!isSai) {
+    cfg::PortQueue queue1;
+    queue1.id() = kCoppDefaultPriQueueId;
+    queue1.name() = "cpuQueue-default";
+    queue1.streamType() = getCpuDefaultStreamType(hwAsic);
+    queue1.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
+    queue1.weight() = kCoppDefaultPriWeight;
+    if (setQueueRate) {
+      queue1.portQueueRate() = setPortQueueRate(hwAsic, kCoppDefaultPriQueueId);
+    }
+    if (!hwAsic->mmuQgroupsEnabled()) {
+      queue1.reservedBytes() = kCoppDefaultPriReservedBytes;
+    }
+    setPortQueueSharedBytes(queue1, isSai);
+    cpuQueues.push_back(queue1);
   }
-  if (!hwAsic->mmuQgroupsEnabled()) {
-    queue1.reservedBytes() = kCoppDefaultPriReservedBytes;
-  }
-  setPortQueueSharedBytes(queue1, isSai);
-  cpuQueues.push_back(queue1);
 
   cfg::PortQueue queue2;
   queue2.id() = getCoppMidPriQueueId({hwAsic});
@@ -269,6 +279,7 @@ void addCpuQueueConfig(
   queue2.streamType() = getCpuDefaultStreamType(hwAsic);
   queue2.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
   queue2.weight() = kCoppMidPriWeight;
+  setPortQueueMaxDynamicSharedBytes(queue2, hwAsic);
   cpuQueues.push_back(queue2);
 
   cfg::PortQueue queue9;
@@ -437,12 +448,22 @@ void setTTLZeroCpuConfig(
     return;
   }
 
+  std::vector<cfg::PacketRxReasonToQueue> rxReasons;
+  if (config.cpuTrafficPolicy().has_value() &&
+      config.cpuTrafficPolicy()->rxReasonToQueueOrderedList().has_value() &&
+      config.cpuTrafficPolicy()->rxReasonToQueueOrderedList()->size()) {
+    for (auto rxReasonAndQueue :
+         *config.cpuTrafficPolicy()->rxReasonToQueueOrderedList()) {
+      rxReasons.push_back(rxReasonAndQueue);
+    }
+  }
   auto ttlRxReasonToQueue = cfg::PacketRxReasonToQueue();
   ttlRxReasonToQueue.rxReason() = cfg::PacketRxReason::TTL_0;
   ttlRxReasonToQueue.queueId() = 0;
 
+  rxReasons.push_back(ttlRxReasonToQueue);
   cfg::CPUTrafficPolicyConfig cpuConfig;
-  cpuConfig.rxReasonToQueueOrderedList() = {std::move(ttlRxReasonToQueue)};
+  cpuConfig.rxReasonToQueueOrderedList() = rxReasons;
   config.cpuTrafficPolicy() = cpuConfig;
 }
 
@@ -471,6 +492,18 @@ void setPortQueueSharedBytes(cfg::PortQueue& queue, bool isSai) {
       queue.sharedBytes() = kBcmCoppLowPriSharedBytes;
     } else if (queue.id() == kCoppDefaultPriQueueId) {
       queue.sharedBytes() = kBcmCoppDefaultPriSharedBytes;
+    }
+  }
+}
+
+void setPortQueueMaxDynamicSharedBytes(
+    cfg::PortQueue& queue,
+    const HwAsic* hwAsic) {
+  if (hwAsic->isSupported(HwAsic::Feature::CPU_VOQ_BUFFER_PROFILE)) {
+    if (queue.id() == kCoppLowPriQueueId) {
+      queue.maxDynamicSharedBytes() = kDnxCoppLowMaxDynamicSharedBytes;
+    } else if (queue.id() == getCoppMidPriQueueId({hwAsic})) {
+      queue.maxDynamicSharedBytes() = kDnxCoppMidMaxDynamicSharedBytes;
     }
   }
 }

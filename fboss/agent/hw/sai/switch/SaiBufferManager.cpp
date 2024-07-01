@@ -422,8 +422,18 @@ SaiBufferProfileTraits::CreateAttributes SaiBufferManager::profileCreateAttrs(
     dynThresh = platform_->getAsic()->getBufferDynThreshFromScalingFactor(
         queue.getScalingFactor().value());
   }
+  std::optional<SaiBufferProfileTraits::Attributes::SharedFadtMaxTh>
+      sharedFadtMaxTh;
+#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+  if (queue.getMaxDynamicSharedBytes()) {
+    sharedFadtMaxTh = queue.getMaxDynamicSharedBytes().value();
+  } else {
+    // use default value 0
+    sharedFadtMaxTh = 0;
+  }
+#endif
   return SaiBufferProfileTraits::CreateAttributes{
-      pool, reservedBytes, mode, dynThresh, 0, 0, 0, std::nullopt};
+      pool, reservedBytes, mode, dynThresh, 0, 0, 0, sharedFadtMaxTh};
 }
 
 void SaiBufferManager::setupBufferPool(
@@ -479,6 +489,13 @@ SaiBufferManager::ingressProfileCreateAttrs(
   if (config.resumeOffsetBytes()) {
     xonOffsetTh = *config.resumeOffsetBytes();
   }
+  std::optional<SaiBufferProfileTraits::Attributes::SharedFadtMaxTh>
+      sharedFadtMaxTh;
+#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+  // use default 0 since this attribute currently only used by profile for
+  // cpu/eventor/rcy port queues
+  sharedFadtMaxTh = 0;
+#endif
   return SaiBufferProfileTraits::CreateAttributes{
       pool,
       reservedBytes,
@@ -487,7 +504,7 @@ SaiBufferManager::ingressProfileCreateAttrs(
       xoffTh,
       xonTh,
       xonOffsetTh,
-      std::nullopt};
+      sharedFadtMaxTh};
 }
 
 std::shared_ptr<SaiBufferProfile> SaiBufferManager::getOrCreateIngressProfile(

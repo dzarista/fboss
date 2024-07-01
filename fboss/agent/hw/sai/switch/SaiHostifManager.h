@@ -44,6 +44,7 @@ struct SaiCpuPortHandle {
   std::optional<SystemPortSaiId> cpuSystemPortId;
   SaiQueueHandles queues;
   std::vector<SaiQueueHandle*> configuredQueues;
+  SaiQueueHandles voqs;
 };
 
 struct SaiHostifTrapHandle {
@@ -94,6 +95,9 @@ class SaiHostifManager {
   SaiQueueHandle* getQueueHandle(const SaiQueueConfig& saiQueueConfig);
   const SaiQueueHandle* getQueueHandle(
       const SaiQueueConfig& saiQueueConfig) const;
+  SaiQueueHandle* getVoqHandle(const SaiQueueConfig& saiQueueConfig);
+  const SaiQueueHandle* getVoqHandle(
+      const SaiQueueConfig& saiQueueConfig) const;
   void updateStats(bool updateWatermarks = false);
   HwPortStats getCpuPortStats() const;
   QueueConfig getQueueSettings() const;
@@ -120,11 +124,13 @@ class SaiHostifManager {
 
   void loadCpuPort();
   void loadCpuPortQueues();
+  void loadCpuSystemPortVoqs();
   void changeCpuQueue(
       const ControlPlane::PortQueues& oldQueueConfig,
       const ControlPlane::PortQueues& newQueueConfig);
   SaiQueueHandle* getQueueHandleImpl(
       const SaiQueueConfig& saiQueueConfig) const;
+  SaiQueueHandle* getVoqHandleImpl(const SaiQueueConfig& saiQueueConfig) const;
   SaiHostifTrapHandle* getHostifTrapHandleImpl(
       cfg::PacketRxReason rxReason) const;
   void publishCpuQueueWatermark(int cosq, uint64_t peakBytes) const;

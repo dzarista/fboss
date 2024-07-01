@@ -53,6 +53,7 @@ bool Trident2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ACL_COUNTER_LABEL:
     case HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING:
     case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
+    case HwAsic::Feature::SAI_ECMP_HASH_ALGORITHM:
       return true;
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv4:
@@ -162,6 +163,8 @@ bool Trident2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER:
     case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
     case HwAsic::Feature::CRC_ERROR_DETECT:
+    case HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW:
+    case HwAsic::Feature::CPU_VOQ_BUFFER_PROFILE:
       return false;
   }
   return false;

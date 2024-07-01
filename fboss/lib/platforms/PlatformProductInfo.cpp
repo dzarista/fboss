@@ -13,10 +13,10 @@
 #include <boost/algorithm/string.hpp>
 #include <folly/FileUtil.h>
 #include <folly/MacAddress.h>
-#include <folly/experimental/TestUtil.h>
 #include <folly/json/dynamic.h>
 #include <folly/json/json.h>
 #include <folly/logging/xlog.h>
+#include <folly/testing/TestUtil.h>
 
 namespace {
 constexpr auto kInfo = "Information";
@@ -165,7 +165,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_MORGAN800CC;
     } else if (modelName.find("FAKE_SAI") == 0) {
       type_ = PlatformType::PLATFORM_FAKE_SAI;
-    } else if (modelName.find("JANGA800BIC") == 0) {
+    } else if (
+        modelName.find("JANGA800BIC") == 0 || modelName.find("JANGA") == 0) {
       type_ = PlatformType::PLATFORM_JANGA800BIC;
     } else if (
         modelName.find("TAHAN800BC") == 0 ||

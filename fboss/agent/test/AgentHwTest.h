@@ -12,10 +12,16 @@
 #include <gtest/gtest.h>
 
 DECLARE_int32(update_watermark_stats_interval_s);
+DECLARE_int32(update_voq_stats_interval_s);
 DECLARE_bool(publish_state_to_fsdb);
 DECLARE_bool(publish_stats_to_fsdb);
 DECLARE_bool(intf_nbr_tables);
 DECLARE_bool(classid_for_unresolved_routes);
+DECLARE_bool(disable_neighbor_updates);
+DECLARE_bool(disable_icmp_error_response);
+DECLARE_bool(enable_snapshot_debugs);
+DECLARE_bool(disable_looped_fabric_ports);
+DECLARE_bool(dsf_subscribe);
 
 namespace facebook::fboss {
 
@@ -195,11 +201,17 @@ class AgentHwTest : public ::testing::Test {
   SwitchID switchIdForPort(PortID port) const;
   const HwAsic* hwAsicForPort(PortID port) const;
 
+  void populateArpNeighborsToCache(const std::shared_ptr<Interface>& interface);
+  void populateNdpNeighborsToCache(const std::shared_ptr<Interface>& interface);
+
  private:
   void applyNewStateImpl(
       StateUpdateFn fn,
       const std::string& name,
       bool transaction);
+
+  void dumpConfigWithOverriddenGflags(AgentConfig* agentConfig) const;
+
   /*
    * Derived classes have the option to not run verify on
    * certain DUTs. E.g. non controlling nodes in Multinode setups
@@ -211,6 +223,9 @@ class AgentHwTest : public ::testing::Test {
   virtual std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const = 0;
   void printProductionFeatures() const;
+  virtual bool failHwCallsOnWarmboot() const {
+    return true;
+  }
 
   AgentEnsemblePlatformConfigFn platformConfigFn_ = nullptr;
   std::unique_ptr<AgentEnsemble> agentEnsemble_;

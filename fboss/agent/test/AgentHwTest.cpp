@@ -2,6 +2,7 @@
 
 #include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/HwAsicTable.h"
+#include "fboss/agent/NeighborUpdater.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_constants.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
@@ -14,14 +15,13 @@ DEFINE_bool(
     list_production_feature,
     false,
     "list production feature needed for every single test");
-DECLARE_bool(disable_neighbor_updates);
-DECLARE_bool(disable_icmp_error_response);
-DECLARE_bool(enable_snapshot_debugs);
-DECLARE_bool(disable_looped_fabric_ports);
 
 namespace {
 int kArgc;
 char** kArgv;
+
+constexpr auto kOverriddenAgentConfigFile = "overridden_agent.conf";
+constexpr auto kConfig = "config";
 } // namespace
 
 namespace facebook::fboss {
@@ -31,17 +31,24 @@ void AgentHwTest::SetUp() {
     printProductionFeatures();
     return;
   }
-  fbossCommonInit(kArgc, kArgv);
+  auto config = fbossCommonInit(kArgc, kArgv);
   // Reset any global state being tracked in singletons
   // Each test then sets up its own state as needed.
   folly::SingletonVault::singleton()->destroyInstances();
   folly::SingletonVault::singleton()->reenableInstances();
 
   setCmdLineFlagOverrides();
+  dumpConfigWithOverriddenGflags(config.get());
 
   AgentEnsembleSwitchConfigFn initialConfigFn =
       [this](const AgentEnsemble& ensemble) { return initialConfig(ensemble); };
-  agentEnsemble_ = createAgentEnsemble(initialConfigFn);
+  agentEnsemble_ = createAgentEnsemble(
+      initialConfigFn,
+      AgentEnsemblePlatformConfigFn(),
+      (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
+       HwSwitch::FeaturesDesired::LINKSCAN_DESIRED |
+       HwSwitch::FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED),
+      failHwCallsOnWarmboot());
 
   if (isSupportedOnAllAsics(HwAsic::Feature::ROUTE_METADATA)) {
     // TODO: enable after classid_for_connected_subnet_routes feature is fully
@@ -62,8 +69,9 @@ void AgentHwTest::setCmdLineFlagOverrides() const {
   // with tests
   FLAGS_tun_intf = false;
   // Set watermark stats update interval to 0 so we always refresh BST stats
-  // in each updateStats call
+  // in each updateStats call (same for VOQ stats)
   FLAGS_update_watermark_stats_interval_s = 0;
+  FLAGS_update_voq_stats_interval_s = 0;
   // disable neighbor updates
   FLAGS_disable_neighbor_updates = true;
   // disable icmp error response
@@ -73,6 +81,8 @@ void AgentHwTest::setCmdLineFlagOverrides() const {
   FLAGS_publish_state_to_fsdb = false;
   // Looped ports are the common case in tests
   FLAGS_disable_looped_fabric_ports = false;
+  // Disable DSF subscription on single-box test
+  FLAGS_dsf_subscribe = false;
 }
 void AgentHwTest::TearDown() {
   if (FLAGS_run_forever ||
@@ -448,6 +458,55 @@ SwitchID AgentHwTest::switchIdForPort(PortID port) const {
 
 const HwAsic* AgentHwTest::hwAsicForPort(PortID port) const {
   return getSw()->getHwAsicTable()->getHwAsic(switchIdForPort(port));
+}
+
+void AgentHwTest::populateArpNeighborsToCache(
+    const std::shared_ptr<Interface>& interface) {
+  auto arpCache = getAgentEnsemble()
+                      ->getSw()
+                      ->getNeighborUpdater()
+                      ->getArpCacheForIntf(interface->getID())
+                      .get();
+  getAgentEnsemble()->getSw()->getNeighborCacheEvb()->runInEventBaseThread(
+      [interface, arpCache] {
+        arpCache->repopulate(interface->getArpTable());
+      });
+}
+
+void AgentHwTest::populateNdpNeighborsToCache(
+    const std::shared_ptr<Interface>& interface) {
+  auto ndpCache = getAgentEnsemble()
+                      ->getSw()
+                      ->getNeighborUpdater()
+                      ->getNdpCacheForIntf(interface->getID())
+                      .get();
+  getAgentEnsemble()->getSw()->getNeighborCacheEvb()->runInEventBaseThread(
+      [interface, ndpCache] {
+        ndpCache->repopulate(interface->getNdpTable());
+      });
+}
+
+void AgentHwTest::dumpConfigWithOverriddenGflags(
+    AgentConfig* inputAgentConfig) const {
+  cfg::AgentConfig newAgentConfig;
+  std::map<std::string, std::string> defaultCommandLineArgs;
+  std::vector<gflags::CommandLineFlagInfo> flags;
+  gflags::GetAllFlags(&flags);
+  for (const auto& flag : flags) {
+    // Skip writing flags if 1) default value, and 2) config itself.
+    if (!flag.is_default && flag.name != kConfig) {
+      defaultCommandLineArgs.emplace(flag.name, flag.current_value);
+    }
+  }
+
+  *newAgentConfig.defaultCommandLineArgs() = defaultCommandLineArgs;
+  *newAgentConfig.sw() = *inputAgentConfig->thrift.sw();
+  *newAgentConfig.platform() = *inputAgentConfig->thrift.platform();
+  auto agentConfig = AgentConfig(newAgentConfig);
+  utilCreateDir(AgentDirectoryUtil().agentEnsembleConfigDir());
+  agentConfig.dumpConfig(
+      AgentDirectoryUtil().agentEnsembleConfigDir() +
+      kOverriddenAgentConfigFile);
 }
 
 void initAgentHwTest(

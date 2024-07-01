@@ -66,7 +66,7 @@ class Jericho2Asic : public BroadcomAsic {
     return 160;
   }
   uint16_t getMirrorTruncateSize() const override {
-    return 254;
+    return 128;
   }
   uint32_t getMaxWideEcmpSize() const override {
     return 512;
@@ -118,6 +118,9 @@ class Jericho2Asic : public BroadcomAsic {
   }
   uint32_t getThresholdGranularity() const override {
     return 1024;
+  }
+  uint32_t getMaxHashSeedLength() const override {
+    return 16;
   }
 };
 
