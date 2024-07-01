@@ -41,7 +41,7 @@ images:
 
   build_dnx_6.4-el9:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
         mappings:
           /src/dest: code.arista.io/aqua-sai/in-eos%dnx_6.4-el9
         build: |
@@ -89,7 +89,7 @@ images:
 
   package_dnx_6.4-el9:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
         mappings:
           /src/dest: .%build_dnx_6.4-el9
         build: |
