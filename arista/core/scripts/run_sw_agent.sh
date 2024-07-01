@@ -20,6 +20,8 @@ ARGS+=(-multi_switch)
 if BIN=$(find /opt/fboss/bin/* -type f -name fboss_sw_agent*); then
    cd /opt/fboss && source bin/setup_fboss_env
    cd /opt/fboss && ./bin/setup.py --reload
+   # Notify dependent services (for now the hw agent service) that they can start.
+   systemd-notify --ready
    export DPP_DB_PATH=/opt/fboss/share/db
    "${BIN}" "${ARGS[@]}"
 else
