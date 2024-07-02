@@ -4,7 +4,7 @@
             "barney.ci/barneyfile": {
                "commit": "963a03aa0fc5f96fbe785a7505c7876667015ce0"
             },
-            "github.com/aristanetworks/fboss-centos": {
+            "code.arista.io/os/fboss-centos": {
                "commit": "ef49e7dd537da663af1a4e7700458617111afa6e"
             },
             "code.arista.io/aqua-sai/in-eos": {
