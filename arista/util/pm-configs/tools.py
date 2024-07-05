@@ -136,7 +136,7 @@ def generateI2cAdapterSymlinks( i2cAdapterConfig, pmUnit ):
    i2cAdapterList = i2cAdapterConfig[ f"{pmUnit}_FPGA" ]
    for i, config in enumerate( i2cAdapterList ):
       for adapterNum in range( config.numberOfAdapters ):
-         symlinkToDevicePaths[f"{basePath}{i}_CH{adapterNum}"] = \
+         symlinkToDevicePaths[ f"{basePath}{i}_CH{adapterNum}" ] = \
             f"{pathPrefix}/[{config.pmUnitScopedName}@{adapterNum}]"
    return symlinkToDevicePaths
 
@@ -150,22 +150,22 @@ def generateSensorSymlinks( embeddedSensorsConfig, i2cDeviceConfig, pmUnit ):
       basePath = "/run/devmap/sensors/CPU_"
       for config in embeddedSensorsList:
          name = config.pmUnitScopedName
-         symlinkToDevicePaths[f"{basePath}{name.split('_', 1)[1]}"] = f"/[{ name }]"
+         symlinkToDevicePaths[ f"{basePath}{name.split('_', 1)[1]}" ] = f"/[{ name }]"
       for config in i2cDeviceList:
          name = config.pmUnitScopedName
          if "IDPROM" in name or "PCA" in name:
             continue
-         symlinkToDevicePaths[f"{basePath}{name.split('_', 1)[1]}"] = f"/[{ name }]"
+         symlinkToDevicePaths[ f"{basePath}{name.split('_', 1)[1]}" ] = f"/[{ name }]"
    elif pmUnit == "SMB":
       basePath = "/run/devmap/sensors/"
       for config in embeddedSensorsList:
          name = config.pmUnitScopedName
-         symlinkToDevicePaths[f"{basePath}{name}"] = f"/SMB_SLOT@0/[{ name }]"
+         symlinkToDevicePaths[ f"{ basePath }{ name }" ] = f"/SMB_SLOT@0/[{ name }]"
       for config in i2cDeviceList:
          name = config.pmUnitScopedName
          if "IDPROM" in name or "PCA" in name:
             continue
-         symlinkToDevicePaths[f"{basePath}{name}"] = f"/SMB_SLOT@0/[{ name }]"
+         symlinkToDevicePaths[ f"{ basePath }{ name }" ] = f"/SMB_SLOT@0/[{ name }]"
    return symlinkToDevicePaths
 
 def generateXcvrSymlinks( xcvrConfigList ):
@@ -173,7 +173,7 @@ def generateXcvrSymlinks( xcvrConfigList ):
    for config in xcvrConfigList:
       portNumber = config.portNumber
       portType = config.portType
-      symlinkToDevicePaths[f"/run/devmap/xcvrs/xcvr_{portNumber}"] = \
+      symlinkToDevicePaths[ f"/run/devmap/xcvrs/xcvr_{portNumber}" ] = \
          f"/SMB_SLOT@0/[{portType.upper()}_PORT{portNumber}_XCVR]"
    return symlinkToDevicePaths
 

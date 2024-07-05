@@ -2,7 +2,8 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 '''
-Script to generate an FBOSS OSS Platform Manager JSON config file from a Google Spreadsheet.
+Script to generate an FBOSS OSS Platform Manager JSON config file from a Python
+hardware description file.
 
 Thrift model found here:
 https://github.com/facebook/fboss/blob/main/fboss/platform/platform_manager/platform_manager_config.thrift
@@ -35,9 +36,7 @@ class BaseConfigs:
 
    def dumpJson( self, jsonDict ):
       return json.dumps( jsonDict, indent=3 )
-   
-   # def filterEntities( self, name, entities ):
-   #    return [ entity for entity in entities if entity.get("name") == name ]
+
 
 class PlatformConfig( BaseConfigs ):
    '''Models a PlatformConfig JSON object.'''
@@ -369,7 +368,6 @@ class SpiMasterConfigs( BaseConfigs ):
 class LedCtrlConfigs( BaseConfigs ):
    def __init__( self, configs, nameFilter ):
       self.list = []
-      # self.entities = configs.filterEntities( nameFilter, configs.xcvrConfigsDict )
       self.entities = configs.xcvrConfigsDict[nameFilter] \
          if nameFilter in configs.xcvrConfigsDict.keys() else []
       for entity in self.entities:
@@ -377,7 +375,6 @@ class LedCtrlConfigs( BaseConfigs ):
          for led in portLeds:
             self.list.append( led )
 
-      # self.entities = configs.filterEntities( nameFilter, configs.ledConfigsDict )
       self.entities = configs.ledConfigsDict[nameFilter] \
          if nameFilter in configs.ledConfigsDict.keys() else []
       for id, entity in enumerate( self.entities ):
@@ -392,8 +389,6 @@ class LedCtrlConfigs( BaseConfigs ):
          attribute = f"led{i}Offset"
          if hasattr( entity, attribute ) and getattr( entity, attribute ):
             ledList.append( getattr( entity, attribute ) )
-      # ledList = [led for i in range( 1, 5 )\
-      #            if (led := entity.get( f"led{i}Offset" ))]
       ledIdx = 1
 
       assert portNumber and portType and len( ledList ) >= 2,\
@@ -486,13 +481,14 @@ class SymbolicLinkToDevicePath( BaseConfigs ):
 
 
 def main():
-   # if len( sys.argv ) < 2:
-   #    print( f'Usage: {sys.argv[ 0 ]} <platform_name>' )
-   #    sys.exit( 1 )
+   if len( sys.argv ) < 2:
+      print( f'Usage: {sys.argv[ 0 ]} <platform_name>' )
+      sys.exit( 1 )
 
-   # platformName = sys.argv[ 1 ]
-   pmconfigs = PlatformConfig( Viper )
-   print( pmconfigs.asJson() )
+   platformName = sys.argv[ 1 ]
+   if platformName == 'Viper':
+      pmconfigs = PlatformConfig( Viper )
+      print( pmconfigs.asJson() )
 
 if __name__ == '__main__':
    main()
