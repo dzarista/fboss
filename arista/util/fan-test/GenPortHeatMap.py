@@ -84,6 +84,7 @@ class PortHeatMap:
       return portTable
 
 class ViperPortHeatMap( PortHeatMap ):
+   # TODO: add the QSFP port 39
    portMap = [
       [ 'Fab1', 'Fab5', '',      'Eth11', 'Eth15', '',      'Eth21', 'Eth25', '',      'Fab31', 'Fab35' ],
       [ 'Fab2', 'Fab6', '',      'Eth12', 'Eth16', '',      'Eth22', 'Eth26', '',      'Fab32', 'Fab36' ],
@@ -223,7 +224,7 @@ def main():
       )
       pwmContent = [ header, Spacer( 0, 20 ), heatMap ]
       # Every Nth heat map, add a newline.
-      if index and ( index + 1 ) % mapper.mapsPerPage == 0:
+      if ( index + 1 ) % mapper.mapsPerPage == 0:
          pwmContent.append( PageBreak() )
       else:
          pwmContent.append( Spacer( 0, 20 ) )
