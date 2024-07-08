@@ -133,8 +133,7 @@ def generateI2cAdapterSymlinks( i2cAdapterConfig, pmUnit ):
    elif pmUnit == "SMB":
       basePath = "/run/devmap/i2c-busses/MERU800BIA_SMB_FPGA_SMBUS"
       pathPrefix = "/SMB_SLOT@0"
-   i2cAdapterList = i2cAdapterConfig[ f"{pmUnit}_FPGA" ]
-   for i, config in enumerate( i2cAdapterList ):
+   for i, config in enumerate( i2cAdapterConfig ):
       for adapterNum in range( config.numberOfAdapters ):
          symlinkToDevicePaths[ f"{basePath}{i}_CH{adapterNum}" ] = \
             f"{pathPrefix}/[{config.pmUnitScopedName}@{adapterNum}]"
@@ -142,26 +141,22 @@ def generateI2cAdapterSymlinks( i2cAdapterConfig, pmUnit ):
 
 def generateSensorSymlinks( embeddedSensorsConfig, i2cDeviceConfig, pmUnit ):
    symlinkToDevicePaths = OrderedDict()
-   embeddedSensorsList = embeddedSensorsConfig[ pmUnit ] \
-      if pmUnit in embeddedSensorsConfig.keys() else []
-   i2cDeviceList = i2cDeviceConfig[ pmUnit ] \
-      if pmUnit in i2cDeviceConfig.keys() else []
    if pmUnit == "SCM":
       basePath = "/run/devmap/sensors/CPU_"
-      for config in embeddedSensorsList:
+      for config in embeddedSensorsConfig:
          name = config.pmUnitScopedName
          symlinkToDevicePaths[ f"{basePath}{name.split('_', 1)[1]}" ] = f"/[{ name }]"
-      for config in i2cDeviceList:
+      for config in i2cDeviceConfig:
          name = config.pmUnitScopedName
          if "IDPROM" in name or "PCA" in name:
             continue
          symlinkToDevicePaths[ f"{basePath}{name.split('_', 1)[1]}" ] = f"/[{ name }]"
    elif pmUnit == "SMB":
       basePath = "/run/devmap/sensors/"
-      for config in embeddedSensorsList:
+      for config in embeddedSensorsConfig:
          name = config.pmUnitScopedName
          symlinkToDevicePaths[ f"{ basePath }{ name }" ] = f"/SMB_SLOT@0/[{ name }]"
-      for config in i2cDeviceList:
+      for config in i2cDeviceConfig:
          name = config.pmUnitScopedName
          if "IDPROM" in name or "PCA" in name:
             continue

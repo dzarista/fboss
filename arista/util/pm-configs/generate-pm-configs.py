@@ -22,16 +22,7 @@ class BaseConfigs:
       self.rootPmUnitName = hwDesc.ROOT_PM_UNIT_NAME      
       self.slotTypeConfigsDict = hwDesc.SLOT_TYPE_CONFIGS
       self.pmUnitConfigsList = hwDesc.PM_UNIT_CONFIGS
-      self.pciDeviceConfigsDict = hwDesc.PCI_DEVICE_CONFIGS
-      self.embeddedSensorsDict = hwDesc.EMBEDDED_SENSORS_CONFIGS
-      self.i2cAdapterConfigsDict = hwDesc.I2C_ADAPTER_CONFIGS
-      self.spiMasterConfigsDict = hwDesc.SPI_MASTER_CONFIGS
-      self.xcvrConfigsDict = hwDesc.XCVR_CONFIGS
-      self.ledConfigsDict = hwDesc.LED_CONFIGS
-      self.i2cDeviceConfigsDict = hwDesc.I2C_DEVICE_CONFIGS
-      self.outgoingSlotConfigsDict = hwDesc.OUTGOING_SLOT_CONFIGS
       self.i2cAdaptersFromCpuDict = hwDesc.I2C_ADAPTERS_FROM_CPU
-      self.symbolicLinkToDevicePathDict = hwDesc.SYMBOLIC_LINK_TO_DEVICE_PATH
       self.kmodsSettingsDict = hwDesc.KMODS_SETTINGS_DICT
 
    def dumpJson( self, jsonDict ):
@@ -53,7 +44,6 @@ class PlatformConfig( BaseConfigs ):
       self.slotTypeConfigs = SlotTypeConfigs( configs )
       self.pmUnitConfigs = PmUnitConfigs( configs )
       self.i2cAdaptersFromCpu = I2cAdaptersFromCpu( configs )
-      self.symbolicLinkToDevicePath = SymbolicLinkToDevicePath( configs )
       self.kmodsSettings = configs.kmodsSettingsDict
 
    def asJson( self ):
@@ -64,7 +54,7 @@ class PlatformConfig( BaseConfigs ):
       jsonDict[ "pmUnitConfigs" ] = self.pmUnitConfigs.getDict()
       jsonDict[ "i2cAdaptersFromCpu" ] = self.i2cAdaptersFromCpu.getList()
       jsonDict[ "symbolicLinkToDevicePath" ] = \
-         self.symbolicLinkToDevicePath.getDict()
+         self.pmUnitConfigs.parseSymbolicLinkToDevicePaths()
       jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings["bspKmodsRpmName"]
       jsonDict[ "bspKmodsRpmVersion" ] = \
          str( self.kmodsSettings["bspKmodsRpmVersion"] )
@@ -124,24 +114,34 @@ class PmUnitConfigs( BaseConfigs ):
    def __init__( self, configs ):
       self.entities = configs.pmUnitConfigsList
       self.jsonDict = OrderedDict()
-      for name in self.entities:
-         self.jsonDict[name] = self.parsePmUnitConfig( name, configs )
+      for pmUnit in self.entities:
+         name = pmUnit.PM_UNIT_NAME
+         self.jsonDict[name] = self.parsePmUnitConfig( pmUnit )
 
-   def parsePmUnitConfig( self, name, configs):
+   def parsePmUnitConfig( self, pmUnit ):
+      name = pmUnit.PM_UNIT_NAME
       pluggedInSlotType = f'{name}_SLOT'
 
       assert name and pluggedInSlotType, "name and pluggedInSlotType are required"
 
-      embeddedSensorConfigs = EmbeddedSensorConfigs( configs, name ).getList()
+      embeddedSensorConfigs = EmbeddedSensorConfigs( pmUnit ).getList()
 
       return {
          "pluggedInSlotType": pluggedInSlotType,
-         "i2cDeviceConfigs": I2cDeviceConfigs( configs, name ).getList(),
-         "outgoingSlotConfigs": OutgoingSlotConfigs( configs, name ).getDict(),
-         "pciDeviceConfigs": PciDeviceConfigs( configs, name ).getList(),
+         "i2cDeviceConfigs": I2cDeviceConfigs( pmUnit ).getList(),
+         "outgoingSlotConfigs": OutgoingSlotConfigs( pmUnit ).getDict(),
+         "pciDeviceConfigs": PciDeviceConfigs( pmUnit ).getList(),
          **( { "embeddedSensorConfigs": \
             embeddedSensorConfigs } if len( embeddedSensorConfigs ) > 0 else {} )
       }
+
+   def parseSymbolicLinkToDevicePaths( self ):
+      symlinkDict = {}
+      for pmUnit in self.entities:
+         pmUnitDict = pmUnit.SYMBOLIC_LINK_TO_DEVICE_PATH
+         for symlink, devicePath in pmUnitDict.items():
+            symlinkDict[symlink] = devicePath
+      return symlinkDict
 
    def getDict( self ):
       return self.jsonDict
@@ -151,10 +151,8 @@ class PmUnitConfigs( BaseConfigs ):
 
 
 class I2cDeviceConfigs( BaseConfigs ):
-   def __init__( self, configs, nameFilter ):
-      self.entities = configs.i2cDeviceConfigsDict
-      self.entities = self.entities[nameFilter] \
-         if nameFilter in self.entities.keys() else []
+   def __init__( self, pmUnit ):
+      self.entities = pmUnit.I2C_DEVICE_CONFIGS
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseI2cDeviceConfigs( entity ) )
@@ -196,10 +194,8 @@ class I2cDeviceConfigs( BaseConfigs ):
 
 
 class OutgoingSlotConfigs( BaseConfigs ):
-   def __init__( self, configs, nameFilter ):
-      self.entities = configs.outgoingSlotConfigsDict
-      self.entities = self.entities[nameFilter] \
-         if nameFilter in self.entities.keys() else []
+   def __init__( self, pmUnit ):
+      self.entities = pmUnit.OUTGOING_SLOT_CONFIGS
       self.jsonDict = OrderedDict()
       for entity in self.entities:
          slotName = entity.slotName
@@ -236,15 +232,13 @@ class OutgoingSlotConfigs( BaseConfigs ):
 
 
 class PciDeviceConfigs( BaseConfigs ):
-   def __init__( self, configs, nameFilter ):
-      self.entities = configs.pciDeviceConfigsDict
-      self.entities = self.entities[nameFilter] \
-         if nameFilter in self.entities.keys() else []
+   def __init__( self, pmUnit ):
+      self.entities = pmUnit.PCI_DEVICE_CONFIGS
       self.list = []
       for entity in self.entities:
-         self.list.append( self.parsePciDeviceConfigs( entity, configs ) )
+         self.list.append( self.parsePciDeviceConfigs( entity, pmUnit ) )
 
-   def parsePciDeviceConfigs( self, entity, configs ):
+   def parsePciDeviceConfigs( self, entity, pmUnit ):
       pmUnitScopedName = entity.pmUnitScopedName
       vendorId = entity.vendorId
       deviceId = entity.deviceId
@@ -261,10 +255,10 @@ class PciDeviceConfigs( BaseConfigs ):
          "subSystemVendorId": subSystemVendorId,
          "subSystemDeviceId": subSystemDeviceId,
          "i2cAdapterConfigs": \
-            I2cAdapterConfigs( configs, pmUnitScopedName ).getList(),
-         "spiMasterConfigs": SpiMasterConfigs( configs, pmUnitScopedName ).getList(),
-         "ledCtrlConfigs": LedCtrlConfigs( configs, pmUnitScopedName ).getList(),
-         "xcvrCtrlConfigs": XcvrCtrlConfigs( configs, pmUnitScopedName ).getList()
+            I2cAdapterConfigs( pmUnit ).getList(),
+         "spiMasterConfigs": SpiMasterConfigs( pmUnit ).getList(),
+         "ledCtrlConfigs": LedCtrlConfigs( pmUnit ).getList(),
+         "xcvrCtrlConfigs": XcvrCtrlConfigs( pmUnit ).getList()
       }
 
    def getList( self ):
@@ -272,15 +266,13 @@ class PciDeviceConfigs( BaseConfigs ):
 
 
 class EmbeddedSensorConfigs( BaseConfigs ):
-   def __init__( self, configs, nameFilter ):
-      self.entities = configs.embeddedSensorsDict
-      self.entities = self.entities[nameFilter] \
-         if nameFilter in self.entities.keys() else []
+   def __init__( self, pmUnit ):
+      self.entities = pmUnit.EMBEDDED_SENSORS_CONFIGS
       self.list = []
       for entity in self.entities:
-         self.list.append( self.parseEmbeddedSensorsConfigs( entity, configs ) )
+         self.list.append( self.parseEmbeddedSensorsConfigs( entity ) )
 
-   def parseEmbeddedSensorsConfigs( self, entity, configs ):
+   def parseEmbeddedSensorsConfigs( self, entity ):
       pmUnitScopedName = entity.pmUnitScopedName
       sysfsPath = entity.sysfsPath
 
@@ -297,10 +289,8 @@ class EmbeddedSensorConfigs( BaseConfigs ):
    
 
 class I2cAdapterConfigs( BaseConfigs ):
-   def __init__( self, configs, nameFilter ):
-      self.entities = configs.i2cAdapterConfigsDict
-      self.entities = self.entities[nameFilter] \
-         if nameFilter in self.entities.keys() else []
+   def __init__( self, pmUnit ):
+      self.entities = pmUnit.I2C_ADAPTER_CONFIGS
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseI2cAdapterConfigs( entity ) )
@@ -331,10 +321,8 @@ class I2cAdapterConfigs( BaseConfigs ):
 
 
 class SpiMasterConfigs( BaseConfigs ):
-   def __init__( self, configs, nameFilter ):
-      self.entities = configs.spiMasterConfigsDict
-      self.entities = self.entities[nameFilter] \
-         if nameFilter in self.entities.keys() else []
+   def __init__( self, pmUnit ):
+      self.entities = pmUnit.SPI_MASTER_CONFIGS
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseSpiMasterConfigs( entity ) )
@@ -366,17 +354,15 @@ class SpiMasterConfigs( BaseConfigs ):
 
 
 class LedCtrlConfigs( BaseConfigs ):
-   def __init__( self, configs, nameFilter ):
+   def __init__( self, pmUnit ):
       self.list = []
-      self.entities = configs.xcvrConfigsDict[nameFilter] \
-         if nameFilter in configs.xcvrConfigsDict.keys() else []
+      self.entities = pmUnit.XCVR_CONFIGS
       for entity in self.entities:
          portLeds = [ *self.parseXcvrLeds( entity ) ]
          for led in portLeds:
             self.list.append( led )
 
-      self.entities = configs.ledConfigsDict[nameFilter] \
-         if nameFilter in configs.ledConfigsDict.keys() else []
+      self.entities = pmUnit.LED_CONFIGS
       for id, entity in enumerate( self.entities ):
          self.list.append( self.parseStatusLeds( entity, id+1 ) )
 
@@ -431,10 +417,8 @@ class LedCtrlConfigs( BaseConfigs ):
 
 
 class XcvrCtrlConfigs( BaseConfigs ):
-   def __init__( self, configs, nameFilter):
-      self.entities = configs.xcvrConfigsDict
-      self.entities = self.entities[nameFilter] \
-         if nameFilter in self.entities.keys() else []
+   def __init__( self, pmUnit ):
+      self.entities = pmUnit.XCVR_CONFIGS
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseXcvrCtrlConfig( entity ) )
@@ -470,14 +454,6 @@ class I2cAdaptersFromCpu( BaseConfigs ):
 
    def getList( self ):
       return self.list
-
-
-class SymbolicLinkToDevicePath( BaseConfigs ):
-   def __init__( self, configs ):
-      self.jsonDict = configs.symbolicLinkToDevicePathDict
-
-   def getDict( self ):
-      return self.jsonDict
 
 
 def main():
