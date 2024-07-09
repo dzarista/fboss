@@ -1,0 +1,172 @@
+# Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
+# Arista Networks, Inc. Confidential and Proprietary.
+
+from tools import SlotTypeConfig, I2cDeviceConfig, SlotConfig, LedConfig, \
+   enumerateXcvrConfigsWhistler, generateXcvrSymlinks, generateI2cAdapterSymlinks, \
+   generateSensorSymlinks, enumerateFANSlotConfigs, enumeratePciDeviceConfigs, \
+   enumerateI2cAdapterConfigs, enumerateSpiMasterConfigs
+
+from BaseConfigs import SCMUnit, SMBUnit, PSUUnit, FANUnit, Platform
+
+
+class WhistlerSCM( SCMUnit ):
+   
+   OUTGOING_SLOT_CONFIGS = [
+      SlotConfig(
+         slotName="SMB_SLOT@0",
+         outgoingI2cBusNames=[ "SCM_I2C_MASTER1@0", 
+                                 "SCM_I2C_MASTER1@1",
+                                 "SCM_I2C_MASTER1@2",
+                                 "SCM_I2C_MASTER1@3" ]
+      )
+   ]
+
+   SYMBOLIC_LINK_TO_DEVICE_PATH = {
+      "/run/devmap/fpgas/MERU_SCM_CPLD": "/[SCM_FPGA]",
+      **generateI2cAdapterSymlinks( SCMUnit.I2C_ADAPTER_CONFIGS, "SCM" ),
+      "/run/devmap/eeproms/MERU_SCM_EEPROM_P1": "/[SCM_IDPROM_P1]",
+      **generateSensorSymlinks( SCMUnit.EMBEDDED_SENSORS_CONFIGS, \
+                                 SCMUnit.I2C_DEVICE_CONFIGS, "SCM" ),
+   }
+
+
+class WhistlerSMB( SMBUnit ):
+
+   I2C_DEVICE_CONFIGS = [
+      I2cDeviceConfig( "INCOMING@0", "0x23", "decker_cpld", "SMB_CPLD" ),
+      I2cDeviceConfig( "INCOMING@0", "0x4D", "max6581", "SMB_MAX6581" ),
+      I2cDeviceConfig( "INCOMING@0", "0x48", "tmp75", "SMB_TMP75" ),
+      I2cDeviceConfig( "INCOMING@1", "0x60", "raa228228", "SMB_RAA228926_R3R0_CORE" ),
+      I2cDeviceConfig( "INCOMING@1", "0x50", "isl68226", "SMB_ISL68226_R3R0_ANLG0" ),
+      I2cDeviceConfig( "INCOMING@1", "0x51", "isl68226", "SMB_ISL68226_R3R0_ANLG1" ),
+      I2cDeviceConfig( "INCOMING@1", "0x61", "raa228228", "SMB_RAA228926_R3R1_CORE" ),
+      I2cDeviceConfig( "INCOMING@1", "0x52", "isl68226", "SMB_ISL68226_R3R1_ANLG0" ),
+      I2cDeviceConfig( "INCOMING@1", "0x53", "isl68226", "SMB_ISL68226_R3R1_ANLG1" ),
+      I2cDeviceConfig( "INCOMING@1", "0x5A", "isl68226", "SMB_ISL68226_OSFP_TL" ),
+      I2cDeviceConfig( "INCOMING@1", "0x5B", "isl68226", "SMB_ISL68226_OSFP_TR" ),
+      I2cDeviceConfig( "INCOMING@1", "0x5C", "isl68226", "SMB_ISL68226_OSFP_BL" ),
+      I2cDeviceConfig( "INCOMING@1", "0x5D", "isl68226", "SMB_ISL68226_OSFP_BR" ),
+      I2cDeviceConfig( "INCOMING@2", "0x11", "ucd90320", "SMB_UCD90320" ),
+      I2cDeviceConfig( "INCOMING@3", "0x48", "tmp75", "FAN0_TMP75" ),
+      I2cDeviceConfig( "INCOMING@3", "0x60", "oasis_cpld0", "FAN0_CPLD" ),
+      I2cDeviceConfig( "INCOMING@3", "0x49", "tmp75", "FAN1_TMP75" ),
+      I2cDeviceConfig( "INCOMING@3", "0x61", "oasis_cpld1", "FAN1_CPLD" ),
+      I2cDeviceConfig( "INCOMING@3", "0x4A", "tmp75", "FAN2_TMP75" ),
+      I2cDeviceConfig( "INCOMING@3", "0x62", "oasis_cpld2", "FAN2_CPLD" )
+   ]
+
+   OUTGOING_SLOT_CONFIGS = [
+      SlotConfig(
+         slotName="PSU_SLOT@0",
+         presenceFileName="psu1_prsnt",
+         presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
+         outgoingI2cBusNames=[ "SMB_FPGA3_I2C_MASTER4@0" ]
+      ),
+      SlotConfig(
+         slotName="PSU_SLOT@1",
+         presenceFileName="psu2_prsnt",
+         presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
+         outgoingI2cBusNames=[ "SMB_FPGA2_I2C_MASTER4@0" ]
+      ),
+      SlotConfig(
+         slotName="PSU_SLOT@2",
+         presenceFileName="psu3_prsnt",
+         presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
+         outgoingI2cBusNames=[ "SMB_FPGA3_I2C_MASTER4@1" ]
+      ),
+      SlotConfig(
+         slotName="PSU_SLOT@3",
+         presenceFileName="psu4_prsnt",
+         presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
+         outgoingI2cBusNames=[ "SMB_FPGA2_I2C_MASTER4@1" ]
+      ),
+      *enumerateFANSlotConfigs( 12, "/SMB_SLOT@0/[FAN*_CPLD]" )
+   ]
+
+   PCI_DEVICE_CONFIGS = [
+      *enumeratePciDeviceConfigs( 4, "SMB_FPGA*", "0x3475", "0x0001", "0x3475", "0x0004" )
+   ]
+
+   I2C_ADAPTER_CONFIGS = [
+      *enumerateI2cAdapterConfigs( 4, 5, "SMB_FPGA*", "SMB_FPGA*_I2C_MASTER*", "0x8000" )
+   ]
+
+   SPI_MASTER_CONFIGS = [
+      *enumerateSpiMasterConfigs( PCI_DEVICE_CONFIGS )
+   ]
+   
+   XCVR_CONFIGS = [
+      *enumerateXcvrConfigsWhistler( numDevices=4, configsPerDevice=32,
+         baseDeviceName="SMB_FPGA*", portType="osfp", xcvrBaseOffset="0xA010", 
+         led1BaseOffset="0x6100", led2BaseOffset="0x6110" )
+   ]
+
+   LED_CONFIGS = [
+      LedConfig( "SMB_FPGA2", ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
+      LedConfig( "SMB_FPGA2", ledName="FAN_STATUS_LED", offset="0x6060" ),
+      LedConfig( "SMB_FPGA2", ledName="PSU_STATUS_LED", offset="0x6070" ),
+      LedConfig( "SMB_FPGA2", ledName="SMB_STATUS_LED", offset="0x60a0" )
+   ]
+
+   SYMBOLIC_LINK_TO_DEVICE_PATH = {
+      "/run/devmap/eeproms/MERU800BFA_SMB_EEPROM": "/SMB_SLOT@0/[IDPROM]",
+      "/run/devmap/cplds/MERU800BFA_SMB_CPLD": "/SMB_SLOT@0/[SMB_CPLD]",
+      "/run/devmap/fpgas/MERU800BFA_SMB_FPGA0": "/SMB_SLOT@0/[SMB_FPGA0]",
+      "/run/devmap/fpgas/MERU800BFA_SMB_FPGA1": "/SMB_SLOT@0/[SMB_FPGA1]",
+      "/run/devmap/fpgas/MERU800BFA_SMB_FPGA2": "/SMB_SLOT@0/[SMB_FPGA2]",
+      "/run/devmap/fpgas/MERU800BFA_SMB_FPGA3": "/SMB_SLOT@0/[SMB_FPGA3]",
+      **generateI2cAdapterSymlinks( I2C_ADAPTER_CONFIGS, "SMB", "Whistler" ),
+      **generateSensorSymlinks( SMBUnit.EMBEDDED_SENSORS_CONFIGS, \
+                                 I2C_DEVICE_CONFIGS, "SMB" ),
+      "/run/devmap/cplds/FAN0_CPLD": "/SMB_SLOT@0/[FAN0_CPLD]",
+      "/run/devmap/cplds/FAN1_CPLD": "/SMB_SLOT@0/[FAN1_CPLD]",
+      "/run/devmap/cplds/FAN2_CPLD": "/SMB_SLOT@0/[FAN2_CPLD]",
+      "/run/devmap/sensors/PSU1_PMBUS": "/SMB_SLOT@0/PSU_SLOT@0/[PSU_PMBUS]",
+      "/run/devmap/sensors/PSU2_PMBUS": "/SMB_SLOT@0/PSU_SLOT@1/[PSU_PMBUS]",
+      "/run/devmap/sensors/PSU3_PMBUS": "/SMB_SLOT@0/PSU_SLOT@2/[PSU_PMBUS]",
+      "/run/devmap/sensors/PSU4_PMBUS": "/SMB_SLOT@0/PSU_SLOT@3/[PSU_PMBUS]",
+      **generateXcvrSymlinks( XCVR_CONFIGS )
+   }
+
+
+class WhistlerPSU( PSUUnit ):
+   
+   I2C_DEVICE_CONFIGS = [
+      I2cDeviceConfig( "INCOMING@0", "0x58", "pmbus", "PSU_PMBUS" )
+   ]
+
+
+class WhistlerFAN( FANUnit ):
+   pass
+
+
+class Whistler( Platform ): 
+
+   PLATFORM_NAME = "meru800bfa"
+
+   SLOT_TYPE_CONFIGS = [
+      SlotTypeConfig( 
+         slotName="SCM_SLOT", 
+         idPromConfigBusName="SMBus I801 adapter at 1000",
+         idPromConfigAddress="0x50",
+         idpromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=15360
+      ),
+      SlotTypeConfig(
+         slotName="SMB_SLOT",
+         numOutgoingI2cBuses=4,
+         idPromConfigBusName="INCOMING@0",
+         idPromConfigAddress="0x52",
+         idpromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=15360
+      ),
+      SlotTypeConfig(
+         slotName="PSU_SLOT",
+         numOutgoingI2cBuses=1
+      ),
+      SlotTypeConfig(
+         slotName="FAN_SLOT"
+      )
+   ]
+
+   PM_UNIT_CONFIGS = [ WhistlerSCM, WhistlerSMB, WhistlerPSU, WhistlerFAN ]

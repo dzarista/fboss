@@ -1,75 +1,28 @@
 # Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-from tools import SlotTypeConfig, I2cDeviceConfig, SlotConfig, PciDeviceConfig, \
-   I2cAdapterConfig, SpiMasterConfig, XcvrConfig, LedConfig, EmbeddedSensorConfig, \
-   enumerateXcvrConfigs, generateXcvrSymlinks, generateI2cAdapterSymlinks, \
-   generateSensorSymlinks, InitRegSettings, SpiDeviceConfig
+from tools import SlotTypeConfig, I2cDeviceConfig, SlotConfig, XcvrConfig, LedConfig, \
+   enumerateXcvrConfigsViper, generateXcvrSymlinks, generateI2cAdapterSymlinks, \
+   generateSensorSymlinks, InitRegSettings, enumerateFANSlotConfigs, \
+   enumeratePciDeviceConfigs, enumerateI2cAdapterConfigs, enumerateSpiMasterConfigs
+
+from BaseConfigs import SCMUnit, SMBUnit, PSUUnit, FANUnit, Platform
 
 
-class PmUnit:
-
-   I2C_DEVICE_CONFIGS = []
-   OUTGOING_SLOT_CONFIGS = []
-   PCI_DEVICE_CONFIGS = []
-   I2C_ADAPTER_CONFIGS = []
-   SPI_MASTER_CONFIGS = []
-   XCVR_CONFIGS = []
-   LED_CONFIGS = []
-   EMBEDDED_SENSORS_CONFIGS = []
-   SYMBOLIC_LINK_TO_DEVICE_PATH = []
-
-
-class SCMUnit( PmUnit ):
-
-   PM_UNIT_NAME = "SCM"
-
-   I2C_DEVICE_CONFIGS = [
-      I2cDeviceConfig( "SCM_I2C_MASTER0@0", "0x40", "pmbus", "SCM_MPS_PMBUS" ),
-      I2cDeviceConfig( "SCM_I2C_MASTER0@1", "0x50", "24c512", "SCM_IDPROM_P1", 
-                     hasCpuMac=True ),
-      I2cDeviceConfig( "SCM_I2C_MASTER0@2", "0x30", "pxm1310", "SCM_PXM1310_1" ),
-      I2cDeviceConfig( "SCM_I2C_MASTER0@2", "0x3e", "pxe1610", "SCM_PXE1211" ),
-      I2cDeviceConfig( "SCM_I2C_MASTER0@2", "0x40", "pxm1310", "SCM_PXM1310_2" )
-   ]
-
-   OUTGOING_SLOT_CONFIGS = [
-      SlotConfig(
-         slotName="SMB_SLOT@0",
-         outgoingI2cBusNames=[ "SCM_I2C_MASTER1@0", 
-                                 "SCM_I2C_MASTER1@2",
-                                 "SCM_I2C_MASTER1@3" ]
-      )
-   ]
-
-   PCI_DEVICE_CONFIGS = [
-      PciDeviceConfig( "SCM_FPGA", "0x3475", "0x0001", "0x3475", "0x0008" )
-   ]
-
-   I2C_ADAPTER_CONFIGS = [
-      I2cAdapterConfig( "SCM_I2C_MASTER0", "i2c_master", -1, "0x8000", 8 ),
-      I2cAdapterConfig( "SCM_I2C_MASTER1", "i2c_master", -1, "0x8080", 8 )
-   ]
-   
-   EMBEDDED_SENSORS_CONFIGS = [
-      EmbeddedSensorConfig( pmUnitScopedName="CPU_CORE_TEMP", 
-                           sysfsPath="/sys/bus/platform/devices/coretemp.0" )
-   ]
+class ViperSCM( SCMUnit ):
 
    SYMBOLIC_LINK_TO_DEVICE_PATH = {
       "/run/devmap/fpgas/MERU_SCM_CPLD": "/[SCM_FPGA]",
-      **generateI2cAdapterSymlinks( I2C_ADAPTER_CONFIGS, "SCM" ),
+      **generateI2cAdapterSymlinks( SCMUnit.I2C_ADAPTER_CONFIGS, "SCM" ),
       "/run/devmap/eeproms/MERU_SCM_EEPROM_P1": "/[SCM_IDPROM_P1]",
       "/run/devmap/eeproms/MERU_SCM_EEPROM": "/[IDPROM]",
-      **generateSensorSymlinks( EMBEDDED_SENSORS_CONFIGS, \
-                                 I2C_DEVICE_CONFIGS, "SCM" ),
+      **generateSensorSymlinks( SCMUnit.EMBEDDED_SENSORS_CONFIGS, \
+                                 SCMUnit.I2C_DEVICE_CONFIGS, "SCM" ),
    }
 
 
-class SMBUnit( PmUnit ):
+class ViperSMB( SMBUnit ):
    
-   PM_UNIT_NAME = "SMB"
-
    I2C_DEVICE_CONFIGS = [
       I2cDeviceConfig( "INCOMING@0", "0x50", "24c512", "SMB_IDPROM" ),
       I2cDeviceConfig( "INCOMING@0", "0x74", "pca9539", "SMB_PCA", 
@@ -89,16 +42,16 @@ class SMBUnit( PmUnit ):
                            ( 38, -121 ),
                            ( 39, -121 )
                         ] ) ),
+      I2cDeviceConfig( "INCOMING@2", "0x48", "tmp75", "FAN_TMP75",
+                        initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) ),
+      I2cDeviceConfig( "INCOMING@2", "0x60", "pali2_cpld", "FAN_CPLD" ),
       I2cDeviceConfig( "SMB_I2C_MASTER0@0", "0x45", "raa228228", 
                         "SMB_RAA228926_J3" ),
       I2cDeviceConfig( "SMB_I2C_MASTER0@0", "0x54", "isl68226", 
                         "SMB_ISL68226_J3" ),
       I2cDeviceConfig( "SMB_I2C_MASTER0@0", "0x55", "isl68226", 
                         "SMB_ISL68226_OPTICS" ),
-      I2cDeviceConfig( "SMB_I2C_MASTER0@2", "0x48", "tmp75", "SMB_MGMT_TMP75" ),
-      I2cDeviceConfig( "INCOMING@2", "0x48", "tmp75", "FAN_TMP75",
-                        initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) ),
-      I2cDeviceConfig( "INCOMING@2", "0x60", "pali2_cpld", "FAN_CPLD" )
+      I2cDeviceConfig( "SMB_I2C_MASTER0@2", "0x48", "tmp75", "SMB_MGMT_TMP75" )
    ]
 
    OUTGOING_SLOT_CONFIGS = [
@@ -114,65 +67,35 @@ class SMBUnit( PmUnit ):
          presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA]",
          outgoingI2cBusNames=[ "SMB_I2C_MASTER0@6" ]
       ),
-      SlotConfig(
-         slotName="FAN_SLOT@0",
-         presenceFileName="fan1_present",
-         presenceDevicePath="/SMB_SLOT@0/[FAN_CPLD]"
-      ),
-      SlotConfig(
-         slotName="FAN_SLOT@1",
-         presenceFileName="fan2_present",
-         presenceDevicePath="/SMB_SLOT@0/[FAN_CPLD]"
-      ),
-      SlotConfig(
-         slotName="FAN_SLOT@2",
-         presenceFileName="fan3_present",
-         presenceDevicePath="/SMB_SLOT@0/[FAN_CPLD]"
-      ),
-      SlotConfig(
-         slotName="FAN_SLOT@3",
-         presenceFileName="fan4_present",
-         presenceDevicePath="/SMB_SLOT@0/[FAN_CPLD]"
-      )
+      *enumerateFANSlotConfigs( 4, "/SMB_SLOT@0/[FAN_CPLD]" )
    ]
 
    PCI_DEVICE_CONFIGS = [
-      PciDeviceConfig( "SMB_FPGA", "0x3475", "0x0001", "0x3475", "0x0003" )
+      *enumeratePciDeviceConfigs( 1, "SMB_FPGA", "0x3475", "0x0001", "0x3475", "0x0003" )
    ]
 
    I2C_ADAPTER_CONFIGS = [
-      I2cAdapterConfig( "SMB_I2C_MASTER0", "i2c_master", -1, "0x8000", 8),
-      I2cAdapterConfig( "SMB_I2C_MASTER1", "i2c_master", -1, "0x8080", 8),
-      I2cAdapterConfig( "SMB_I2C_MASTER2", "i2c_master", -1, "0x8100", 8),
-      I2cAdapterConfig( "SMB_I2C_MASTER3", "i2c_master", -1, "0x8180", 8),
-      I2cAdapterConfig( "SMB_I2C_MASTER4", "i2c_master", -1, "0x8200", 8),
-      I2cAdapterConfig( "SMB_I2C_MASTER5", "i2c_master", -1, "0x8280", 8),
+      *enumerateI2cAdapterConfigs( 1, 6, "SMB_FPGA", "SMB_I2C_MASTER*", "0x8000" )
    ]
 
    SPI_MASTER_CONFIGS = [
-      SpiMasterConfig( "SMB_SPI_MASTER0", "spi_master", -1, "0x7900",
-                        spiDeviceConfigs=[ SpiDeviceConfig(
-                           pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
-                           chipSelect=0,
-                           modalias="spidev",
-                           maxSpeedHz=25000000
-                        ) ] )
+      *enumerateSpiMasterConfigs( PCI_DEVICE_CONFIGS )
    ]
    
    XCVR_CONFIGS = [
-      *enumerateXcvrConfigs( numConfigs=38, basePortNumber=1, portType="osfp", 
-                              xcvrBaseOffset="0xA010", led1BaseOffset="0x6100", 
-                              led2BaseOffset="0x6110" ),
-      XcvrConfig( portNumber=39, portType="qsfp", xcvrCtrlOffset="0xA290",
+      *enumerateXcvrConfigsViper( numConfigs=38, name="SMB_FPGA", basePortNumber=1, 
+                              portType="osfp", xcvrBaseOffset="0xA010", 
+                              led1BaseOffset="0x6100", led2BaseOffset="0x6110" ),
+      XcvrConfig( "SMB_FPGA", portNumber=39, portType="qsfp", xcvrCtrlOffset="0xA290",
                   led1Offset="0x65C0", led2Offset="0x65D0", led3Offset="0x65E0",
                   led4Offset="0x65F0" )
    ]
 
    LED_CONFIGS = [
-      LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
-      LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
-      LedConfig( ledName="PSU_STATUS_LED", offset="0x6070" ),
-      LedConfig( ledName="SMB_STATUS_LED", offset="0x6090" )
+      LedConfig( "SMB_FPGA", ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
+      LedConfig( "SMB_FPGA", ledName="FAN_STATUS_LED", offset="0x6060" ),
+      LedConfig( "SMB_FPGA", ledName="PSU_STATUS_LED", offset="0x6070" ),
+      LedConfig( "SMB_FPGA", ledName="SMB_STATUS_LED", offset="0x6090" )
    ]
 
    SYMBOLIC_LINK_TO_DEVICE_PATH = {
@@ -180,7 +103,7 @@ class SMBUnit( PmUnit ):
       "/run/devmap/fpgas/MERU800BIA_SMB_FPGA": "/SMB_SLOT@0/[SMB_FPGA]",
       **generateI2cAdapterSymlinks( I2C_ADAPTER_CONFIGS, "SMB" ),
       "/run/devmap/gpiochips/SMB_PCA": "/SMB_SLOT@0/[SMB_PCA]",
-      **generateSensorSymlinks( PmUnit.EMBEDDED_SENSORS_CONFIGS, \
+      **generateSensorSymlinks( SMBUnit.EMBEDDED_SENSORS_CONFIGS, \
                                  I2C_DEVICE_CONFIGS, "SMB" ),
       **generateXcvrSymlinks( XCVR_CONFIGS ),
       "/run/devmap/flashes/SMB_SPI_MASTER0_DEVICE1": \
@@ -188,9 +111,7 @@ class SMBUnit( PmUnit ):
    }
 
 
-class PSUUnit( PmUnit ):
-
-   PM_UNIT_NAME = "PSU"
+class ViperPSU( PSUUnit ):
 
    I2C_DEVICE_CONFIGS = [
       I2cDeviceConfig( "INCOMING@0", "0x58", "pmbus", "PSU_PMBUS" )
@@ -202,19 +123,16 @@ class PSUUnit( PmUnit ):
    }
 
 
-class FANUnit( PmUnit ):
-
-   PM_UNIT_NAME = "FAN"
+class ViperFAN( FANUnit ):
 
    SYMBOLIC_LINK_TO_DEVICE_PATH = {
       "/run/devmap/cplds/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]",
    }
 
 
-class Viper:
+class Viper( Platform ):
 
    PLATFORM_NAME = "meru800bia"
-   ROOT_PM_UNIT_NAME = "SCM"
 
    SLOT_TYPE_CONFIGS = [
       SlotTypeConfig( 
@@ -225,7 +143,7 @@ class Viper:
          idPromConfigOffset=15360
       ),
       SlotTypeConfig(
-         slotName='SMB_SLOT',
+         slotName="SMB_SLOT",
          numOutgoingI2cBuses=3,
          idPromConfigBusName="INCOMING@0",
          idPromConfigAddress="0x50",
@@ -241,17 +159,4 @@ class Viper:
       )
    ]
 
-   PM_UNIT_CONFIGS = [ SCMUnit, SMBUnit, PSUUnit, FANUnit ]
-
-   I2C_ADAPTERS_FROM_CPU = [
-      { "adapter" : "SMBus I801 adapter at 1000" }
-   ]
-
-   KMODS_SETTINGS_DICT = {
-      "bspKmodsRpmName": "arista_bsp_kmods",
-      "bspKmodsRpmVersion": "0.7.2-1",
-      "bspKmodsToReload" : 
-         "scd-xcvr, scd-spi, scd-leds, scd-smbus, dsf-fan-cpld",
-      "sharedKmodsToReload": "scd",
-      "upstreamKmodsToLoad": "spidev, i2c-i801"
-   }
+   PM_UNIT_CONFIGS = [ ViperSCM, ViperSMB, ViperPSU, ViperFAN ]

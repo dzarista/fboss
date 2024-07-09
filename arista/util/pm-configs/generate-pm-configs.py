@@ -14,6 +14,7 @@ import json
 import sys
 
 from Viper import Viper
+from Whistler import Whistler
 
 class BaseConfigs:
    def __init__( self, hwDesc ):
@@ -255,10 +256,10 @@ class PciDeviceConfigs( BaseConfigs ):
          "subSystemVendorId": subSystemVendorId,
          "subSystemDeviceId": subSystemDeviceId,
          "i2cAdapterConfigs": \
-            I2cAdapterConfigs( pmUnit ).getList(),
-         "spiMasterConfigs": SpiMasterConfigs( pmUnit ).getList(),
-         "ledCtrlConfigs": LedCtrlConfigs( pmUnit ).getList(),
-         "xcvrCtrlConfigs": XcvrCtrlConfigs( pmUnit ).getList()
+            I2cAdapterConfigs( pmUnit, pmUnitScopedName ).getList(),
+         "spiMasterConfigs": SpiMasterConfigs( pmUnit, pmUnitScopedName ).getList(),
+         "ledCtrlConfigs": LedCtrlConfigs( pmUnit, pmUnitScopedName ).getList(),
+         "xcvrCtrlConfigs": XcvrCtrlConfigs( pmUnit, pmUnitScopedName ).getList()
       }
 
    def getList( self ):
@@ -289,8 +290,10 @@ class EmbeddedSensorConfigs( BaseConfigs ):
    
 
 class I2cAdapterConfigs( BaseConfigs ):
-   def __init__( self, pmUnit ):
+   def __init__( self, pmUnit, nameFilter ):
       self.entities = pmUnit.I2C_ADAPTER_CONFIGS
+      self.entities = [entity for entity in self.entities \
+                       if nameFilter == entity.name ]
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseI2cAdapterConfigs( entity ) )
@@ -321,8 +324,10 @@ class I2cAdapterConfigs( BaseConfigs ):
 
 
 class SpiMasterConfigs( BaseConfigs ):
-   def __init__( self, pmUnit ):
+   def __init__( self, pmUnit, nameFilter ):
       self.entities = pmUnit.SPI_MASTER_CONFIGS
+      self.entities = [entity for entity in self.entities \
+                       if nameFilter == entity.name ]
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseSpiMasterConfigs( entity ) )
@@ -354,15 +359,19 @@ class SpiMasterConfigs( BaseConfigs ):
 
 
 class LedCtrlConfigs( BaseConfigs ):
-   def __init__( self, pmUnit ):
+   def __init__( self, pmUnit, nameFilter ):
       self.list = []
       self.entities = pmUnit.XCVR_CONFIGS
+      self.entities = [entity for entity in self.entities \
+                       if nameFilter == entity.name ]
       for entity in self.entities:
          portLeds = [ *self.parseXcvrLeds( entity ) ]
          for led in portLeds:
             self.list.append( led )
 
       self.entities = pmUnit.LED_CONFIGS
+      self.entities = [entity for entity in self.entities \
+                       if nameFilter == entity.name ]
       for id, entity in enumerate( self.entities ):
          self.list.append( self.parseStatusLeds( entity, id+1 ) )
 
@@ -417,8 +426,10 @@ class LedCtrlConfigs( BaseConfigs ):
 
 
 class XcvrCtrlConfigs( BaseConfigs ):
-   def __init__( self, pmUnit ):
+   def __init__( self, pmUnit, nameFilter ):
       self.entities = pmUnit.XCVR_CONFIGS
+      self.entities = [entity for entity in self.entities \
+                       if nameFilter == entity.name ]
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseXcvrCtrlConfig( entity ) )
@@ -464,6 +475,9 @@ def main():
    platformName = sys.argv[ 1 ]
    if platformName == 'Viper':
       pmconfigs = PlatformConfig( Viper )
+      print( pmconfigs.asJson() )
+   elif platformName == 'Whistler':
+      pmconfigs = PlatformConfig( Whistler )
       print( pmconfigs.asJson() )
 
 if __name__ == '__main__':
