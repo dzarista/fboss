@@ -1,7 +1,7 @@
 images:
   build_dnx_4.18:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image
         mappings:
           /src/dest: code.arista.io/aqua-sai/in-eos%dnx_4.18
         build: |
@@ -9,7 +9,7 @@ images:
 
   build_dnx_5.12:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image
         mappings:
           /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.12
         build: |
@@ -17,7 +17,7 @@ images:
 
   build_dnx_5.19:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image
         mappings:
           /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.19
         build: |
@@ -25,7 +25,7 @@ images:
 
   build_dnx_5.12-el9:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
         mappings:
           /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.12-el9
         build: |
@@ -33,7 +33,7 @@ images:
 
   build_dnx_5.19-el9:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
         mappings:
           /src/dest: code.arista.io/aqua-sai/in-eos%dnx_5.19-el9
         build: |
@@ -41,7 +41,7 @@ images:
 
   build_dnx_6.4-el9:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
         mappings:
           /src/dest: code.arista.io/aqua-sai/in-eos%dnx_6.4-el9
         build: |
@@ -49,7 +49,7 @@ images:
 
   package_dnx_4.18:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image
         mappings:
           /src/dest: .%build_dnx_4.18
         build: |
@@ -57,7 +57,7 @@ images:
 
   package_dnx_5.12:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image
         mappings:
           /src/dest: .%build_dnx_5.12
         build: |
@@ -65,7 +65,7 @@ images:
 
   package_dnx_5.19:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image
         mappings:
           /src/dest: .%build_dnx_5.19
         build: |
@@ -73,7 +73,7 @@ images:
 
   package_dnx_5.12-el9:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
         mappings:
           /src/dest: .%build_dnx_5.12-el9
         build: |
@@ -81,7 +81,7 @@ images:
 
   package_dnx_5.19-el9:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
         mappings:
           /src/dest: .%build_dnx_5.19-el9
         build: |
@@ -89,7 +89,7 @@ images:
 
   package_dnx_6.4-el9:
     units:
-      - floor: github.com/aristanetworks/fboss-centos%fboss-centos-image-el9
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
         mappings:
           /src/dest: .%build_dnx_6.4-el9
         build: |

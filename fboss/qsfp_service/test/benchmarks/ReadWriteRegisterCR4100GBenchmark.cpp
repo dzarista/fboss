@@ -7,19 +7,16 @@
  *  of patent rights can be found in the PATENTS file in the same directory.
  *
  */
+#include <folly/Benchmark.h>
+#include <unordered_set>
 
-#include "fboss/agent/platforms/common/lassen/LassenPlatformMapping.h"
-
-namespace {
-constexpr auto kJsonPlatformMappingStr = R"()";
-} // namespace
+#include "fboss/qsfp_service/platforms/wedge/WedgeManager.h"
+#include "fboss/qsfp_service/test/benchmarks/HwBenchmarkUtils.h"
 
 namespace facebook::fboss {
-LassenPlatformMapping::LassenPlatformMapping()
-    : PlatformMapping(kJsonPlatformMappingStr) {}
 
-LassenPlatformMapping::LassenPlatformMapping(
-    const std::string& platformMappingStr)
-    : PlatformMapping(platformMappingStr) {}
+BENCHMARK_MULTI(ReadRegister_CR4_100G) {
+  return readOneByte(MediaInterfaceCode::CR4_100G);
+}
 
 } // namespace facebook::fboss

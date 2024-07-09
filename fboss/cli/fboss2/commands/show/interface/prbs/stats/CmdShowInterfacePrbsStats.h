@@ -62,33 +62,29 @@ class CmdShowInterfacePrbsStats : public CmdHandler<
   }
 
   void printOutput(const RetType& model, std::ostream& out = std::cout) {
+    Table table;
+    table.setHeader(
+        {"Interface",
+         "Component",
+         "Lane",
+         "Locked",
+         "BER",
+         "Max BER",
+         "SNR",
+         "Max SNR",
+         "Num Loss Of Lock",
+         "Time Since Last Lock",
+         "Time Since Last Clear",
+         "Time Since Last Update"});
     auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
     for (const auto& intfEntry : *model.interfaceEntries()) {
       for (const auto& entry : *intfEntry.componentEntries()) {
         auto stats = *(entry.prbsStats());
-        out << "Interface: " << *entry.interfaceName() << std::endl;
-        out << "Component: "
-            << apache::thrift::util::enumNameSafe(*entry.component())
-            << std::endl;
-        out << "Time Since Last Update: "
-            << utils::getPrettyElapsedTime(*(stats.timeCollected()))
-            << std::endl;
+        auto interface = *entry.interfaceName();
+        auto component = apache::thrift::util::enumNameSafe(*entry.component());
         if (stats.laneStats()->empty()) {
           continue;
         }
-        std::vector<std::string> header = {"Field Name"};
-        std::unordered_map<int, phy::PrbsLaneStats&> statsPerLane;
-        Table table;
-        table.setHeader(
-            {"Lane",
-             "Locked",
-             "BER",
-             "Max BER",
-             "SNR",
-             "Max SNR",
-             "Num Loss Of Lock",
-             "Time Since Last Lock",
-             "Time Since Last Clear"});
         for (auto laneStat : *stats.laneStats()) {
           std::ostringstream ber, maxBer, snr, maxSnr;
           ber << *laneStat.ber();
@@ -99,22 +95,28 @@ class CmdShowInterfacePrbsStats : public CmdHandler<
               ? utils::getPrettyElapsedTime(
                     now.count() - *laneStat.timeSinceLastClear())
               : "N/A";
+          std::string lastUpdate = *laneStat.timeCollected()
+              ? utils::getPrettyElapsedTime(*laneStat.timeCollected())
+              : "N/A";
           table.addRow(
-              {(*laneStat.laneId() == -1) ? "-"
+              {interface,
+               component,
+               (*laneStat.laneId() == -1) ? "-"
                                           : std::to_string(*laneStat.laneId()),
-               *laneStat.locked() ? "True" : "False",
-               ber.str(),
-               maxBer.str(),
+               styledLocked(*laneStat.locked()),
+               utils::styledBer(*laneStat.ber()),
+               utils::styledBer(*laneStat.maxBer()),
                snr.str(),
                maxSnr.str(),
-               std::to_string(*laneStat.numLossOfLock()),
+               styledNumLossOfLock(*laneStat.numLossOfLock()),
                utils::getPrettyElapsedTime(
                    now.count() - *laneStat.timeSinceLastLocked()),
-               lastClear});
+               lastClear,
+               lastUpdate});
         }
-        out << table << std::endl;
       }
     }
+    out << table << std::endl;
   }
 
   RetType createModel(
@@ -199,6 +201,24 @@ class CmdShowInterfacePrbsStats : public CmdHandler<
           "Could not find interface in PRBS stats: " + interface);
     }
     return componentPrbsStatsItr->second;
+  }
+
+  Table::StyledCell styledLocked(bool locked) {
+    if (locked) {
+      return Table::StyledCell("True", Table::Style::GOOD);
+    } else {
+      return Table::StyledCell("False", Table::Style::ERROR);
+    }
+  }
+
+  Table::StyledCell styledNumLossOfLock(int numLossOfLock) {
+    std::ostringstream outStringStream;
+    outStringStream << numLossOfLock;
+    if (numLossOfLock > 0) {
+      return Table::StyledCell(outStringStream.str(), Table::Style::ERROR);
+    } else {
+      return Table::StyledCell(outStringStream.str(), Table::Style::GOOD);
+    }
   }
 
  private:

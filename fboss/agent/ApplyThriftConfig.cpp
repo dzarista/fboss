@@ -997,13 +997,15 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
         SystemPortID(recyclePortId),
         std::make_optional(RemoteSystemPortType::STATIC_ENTRY));
     sysPort->setSwitchId(node->getSwitchId());
-    sysPort->setPortName(getRecyclePortName(node));
+    sysPort->setName(getRecyclePortName(node));
     const auto& recyclePortInfo = dsfNodeAsic->getRecyclePortInfo();
     sysPort->setCoreIndex(recyclePortInfo.coreId);
     sysPort->setCorePortIndex(recyclePortInfo.corePortIndex);
     sysPort->setSpeedMbps(recyclePortInfo.speedMbps); // 10G
     sysPort->setNumVoqs(8);
     sysPort->setScope(cfg::Scope::GLOBAL);
+    sysPort->resetPortQueues(utility::getFirstNodeIf(new_->getSwitchSettings())
+                                 ->getDefaultVoqConfig());
     if (auto cpuTrafficPolicy = cfg_->cpuTrafficPolicy()) {
       if (auto trafficPolicy = cpuTrafficPolicy->trafficPolicy()) {
         if (auto defaultQosPolicy = trafficPolicy->defaultQosPolicy()) {
@@ -1018,7 +1020,7 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
         InterfaceID(recyclePortId),
         RouterID(0),
         std::optional<VlanID>(std::nullopt),
-        folly::StringPiece(sysPort->getPortName()),
+        folly::StringPiece(sysPort->getName()),
         *node->getMac(),
         9000,
         true,
@@ -1398,7 +1400,7 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
           switchSettings->getSwitchIdToSwitchInfo(),
           switchId));
       sysPort->setSwitchId(SwitchID(switchId));
-      sysPort->setPortName(
+      sysPort->setName(
           folly::sformat("{}:{}", nodeName, port.second->getName()));
       auto platformPort =
           platformMapping_->getPlatformPort(port.second->getID());

@@ -592,6 +592,7 @@ add_fbthrift_cpp_library(
   SERVICES
     MultiSwitchCtrl
   DEPENDS
+    common_cpp2
     ctrl_cpp2
     fsdb_oper_cpp2
     hardware_stats_cpp2
@@ -619,10 +620,6 @@ include_directories(${RE2_INCLUDE_DIR})
 find_library(EXPRTK exprtk)
 find_path(EXPRTK_INCLUDE_DIR NAMES exprtk.hpp)
 include_directories(${EXPRTK_INCLUDE_DIR})
-
-# OSS is still using C++17. Use following flag to allow internal build
-# to use C++20 features. Remove the below flag once OSS start using C++20.
-add_definitions (-DIS_OSS_CPP17=true)
 
 # Unit Testing
 add_definitions (-DIS_OSS=true)

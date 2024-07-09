@@ -26,6 +26,7 @@
 #include "fboss/cli/fboss2/utils/CmdUtilsCommon.h"
 #include "fboss/cli/fboss2/utils/HostInfo.h"
 #include "fboss/cli/fboss2/utils/PrbsUtils.h"
+#include "fboss/cli/fboss2/utils/Table.h"
 #include "fboss/fsdb/if/gen-cpp2/FsdbService.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 #include "fboss/lib/phy/gen-cpp2/prbs_types.h"
@@ -319,8 +320,7 @@ class LinkDirection : public BaseObjectArgType<std::string> {
  public:
   /* implicit */ LinkDirection(std::vector<std::string> v) {
     if (v.empty()) {
-      throw std::runtime_error(
-          "Incomplete command, expecting '<ingress|egress>'");
+      throw std::runtime_error("Incomplete command, expecting '<system|line>'");
     }
 
     direction = getLinkDirection(v);
@@ -331,13 +331,13 @@ class LinkDirection : public BaseObjectArgType<std::string> {
 
  private:
   phy::Direction getLinkDirection(std::vector<std::string>& v) {
-    if (std::find(v.begin(), v.end(), "ingress") != v.end()) {
+    if (std::find(v.begin(), v.end(), "line") != v.end()) {
       return phy::Direction::RECEIVE;
-    } else if (std::find(v.begin(), v.end(), "egress") != v.end()) {
+    } else if (std::find(v.begin(), v.end(), "system") != v.end()) {
       return phy::Direction::TRANSMIT;
     } else {
       throw std::runtime_error(folly::to<std::string>(
-          "Unexpected direction '", v[0], "', expecting 'ingress|egress'"));
+          "Unexpected direction '", v[0], "', expecting 'system|line'"));
     }
   }
 };
@@ -465,5 +465,6 @@ bool isFbossFeatureEnabled(
 std::map<int16_t, std::vector<std::string>> getSwitchIndicesForInterfaces(
     const HostInfo& hostInfo,
     const std::vector<std::string>& interfaces);
+Table::StyledCell styledBer(double ber);
 
 } // namespace facebook::fboss::utils

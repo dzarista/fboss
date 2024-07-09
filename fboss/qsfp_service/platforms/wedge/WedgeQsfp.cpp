@@ -67,10 +67,12 @@ namespace fboss {
 WedgeQsfp::WedgeQsfp(
     int module,
     TransceiverI2CApi* wedgeI2CBus,
-    TransceiverManager* const tcvrManager)
+    TransceiverManager* const tcvrManager,
+    std::unique_ptr<I2cLogBuffer> logBuffer)
     : module_(module),
       threadSafeI2CBus_(wedgeI2CBus),
-      tcvrManager_(tcvrManager) {
+      tcvrManager_(tcvrManager),
+      logBuffer_(std::move(logBuffer)) {
   moduleName_ = folly::to<std::string>(module);
 }
 
@@ -95,9 +97,16 @@ int WedgeQsfp::readTransceiver(
     };
     generateIOErrorForTest("readTransceiver()");
     threadSafeI2CBus_->moduleRead(module_ + 1, param, fieldValue);
+    if (logBuffer_) {
+      logBuffer_->log(param, fieldValue, I2cLogBuffer::Operation::Read);
+    }
   } catch (const std::exception& ex) {
     XLOG(ERR) << "Read from transceiver " << module_ << " at offset " << offset
               << " with length " << len << " failed: " << ex.what();
+    if (logBuffer_) {
+      logBuffer_->log(
+          param, fieldValue, I2cLogBuffer::Operation::Read, /*success*/ false);
+    }
     throw;
   }
   return len;
@@ -123,7 +132,9 @@ int WedgeQsfp::writeTransceiver(
     };
     generateIOErrorForTest("writeTransceiver()");
     threadSafeI2CBus_->moduleWrite(module_ + 1, param, fieldValue);
-
+    if (logBuffer_) {
+      logBuffer_->log(param, fieldValue, I2cLogBuffer::Operation::Write);
+    }
     // Intel transceiver require some delay for every write.
     // So in the case of writing succeeded, we wait for 20ms.
     // Also this works because we do not write more than 1 byte for now.
@@ -132,6 +143,10 @@ int WedgeQsfp::writeTransceiver(
     XLOG(ERR) << "Write to transceiver " << module_ << " at offset " << offset
               << " with length " << len
               << " failed: " << folly::exceptionStr(ex);
+    if (logBuffer_) {
+      logBuffer_->log(
+          param, fieldValue, I2cLogBuffer::Operation::Write, /*success*/ false);
+    }
     throw;
   }
   return len;
@@ -274,6 +289,29 @@ std::array<uint8_t, 2> WedgeQsfp::getFirmwareVer() {
       {TransceiverAccessParameter::ADDR_QSFP, kCommonModuleFwVerReg, 2},
       fwVer.data());
   return fwVer;
+}
+
+size_t WedgeQsfp::getI2cLogBufferCapacity() {
+  if (logBuffer_) {
+    return logBuffer_->getI2cLogBufferCapacity();
+  }
+  return 0;
+}
+
+std::pair<size_t, size_t> WedgeQsfp::dumpTransceiverI2cLog() {
+  std::pair<size_t, size_t> entries = {0, 0};
+  if (logBuffer_) {
+    try {
+      entries = logBuffer_->dumpToFile();
+    } catch (std::exception& ex) {
+      XLOG(ERR) << fmt::format(
+          "Failed to dump log for module{}: {:s}", module_, ex.what());
+    }
+  } else {
+    XLOG(ERR) << fmt::format("Module has no I2C Log: {}", module_);
+  }
+
+  return entries;
 }
 
 } // namespace fboss

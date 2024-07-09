@@ -8,9 +8,13 @@
  *
  */
 #include "fboss/agent/HwAgentMain.h"
+#include <fb303/FollyLoggingHandler.h>
+#include <fb303/ServiceData.h>
 #include <folly/logging/Init.h>
 #include <folly/logging/xlog.h>
-#include "fboss/agent/AgentConfig.h"
+#ifndef IS_OSS
+#include "common/fb303/cpp/DefaultControl.h"
+#endif
 #include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/AlpmUtils.h"
 #include "fboss/agent/CommonInit.h"
@@ -57,7 +61,7 @@ std::map<int, facebook::fboss::phy::PhyInfo> getPhyInfoForSwitchStats(
 void updateStats(
     facebook::fboss::HwSwitch* hw,
     facebook::fboss::SplitAgentThriftSyncer* syncer) {
-  if (hw->getRunState() >= SwitchRunState::CONFIGURED) {
+  if (hw->getRunState() == SwitchRunState::CONFIGURED) {
     hw->updateStats();
     auto hwSwitchStats = hw->getHwSwitchStats();
     hw->updateAllPhyInfo();
@@ -76,15 +80,20 @@ void SplitHwAgentSignalHandler::signalReceived(int /*signum*/) noexcept {
     XLOG(WARNING)
         << "[Exit] Signal received before initializing hw switch, waiting for initialization to finish.";
     hwAgent_->waitForInitDone();
+    XLOG(DBG2) << "[Exit] Wait for initialization done";
   }
   steady_clock::time_point begin = steady_clock::now();
+  // Mark HwSwitch run state as exiting
+  hwAgent_->getPlatform()->getHwSwitch()->switchRunStateChanged(
+      SwitchRunState::EXITING);
   // unregister sdk callbacks so that we do not get sdk updates while shutting
   // down
+  XLOG(DBG2) << "[Exit] unregistering callbacks";
   hwAgent_->getPlatform()->getHwSwitch()->unregisterCallbacks();
+  steady_clock::time_point unregisterCallbacks = steady_clock::now();
+  syncer_->stopOperDeltaSync();
   stopServices();
   steady_clock::time_point servicesStopped = steady_clock::now();
-  XLOG(DBG2) << "[Exit] Services stop time "
-             << duration_cast<duration<float>>(servicesStopped - begin).count();
   auto dirUtil = hwAgent_->getPlatform()->getDirectoryUtil();
   auto switchIndex = hwAgent_->getPlatform()->getAsic()->getSwitchIndex();
   auto exitForColdBootFile = dirUtil->exitHwSwitchForColdBootFile(switchIndex);
@@ -94,8 +103,7 @@ void SplitHwAgentSignalHandler::signalReceived(int /*signum*/) noexcept {
     SCOPE_EXIT {
       removeFile(exitForColdBootFile);
     };
-    XLOG(DBG2)
-        << "[Exit] Cold boot detected, skipping warmboot, unregistering callbacks";
+    XLOG(DBG2) << "[Exit] Cold boot detected, skipping warmboot";
     if (hwAgent_->getPlatform()->getAsic()->isSupported(
             HwAsic::Feature::ROUTE_PROGRAMMING)) {
       auto programmedState =
@@ -113,13 +121,17 @@ void SplitHwAgentSignalHandler::signalReceived(int /*signum*/) noexcept {
           StateDelta(programmedState, alpmState));
     }
     // invoke destructors
-    XLOG(DBG2) << "[Exit] destryoing hardware agent";
+    XLOG(DBG2) << "[Exit] destroying hardware agent";
     hwAgent_.reset();
   }
   steady_clock::time_point switchGracefulExit = steady_clock::now();
   XLOG(DBG2)
       << "[Exit] Switch Graceful Exit time "
       << duration_cast<duration<float>>(switchGracefulExit - servicesStopped)
+             .count()
+      << std::endl
+      << "[Exit] Services Exit time "
+      << duration_cast<duration<float>>(servicesStopped - unregisterCallbacks)
              .count()
       << std::endl
       << "[Exit] Total graceful Exit time "
@@ -133,7 +145,12 @@ int hwAgentMain(
     char** argv,
     uint32_t hwFeaturesDesired,
     PlatformInitFn initPlatformFn) {
-  auto config = fbossCommonInit(argc, argv);
+  fb303::registerFollyLoggingOptionHandlers();
+  // Allow the fb303 setOption() call to update the command line flag
+  // settings.  This allows us to change the log levels on the fly using
+  //  setOption().
+  fb303::fbData->setUseOptionsAsFlags(true);
+  auto config = fbossCommonInit(argc, argv, true /*useBitsflowAclFileSuffix*/);
 
   auto hwAgent = std::make_unique<HwAgent>(
       std::move(config), hwFeaturesDesired, initPlatformFn, FLAGS_switchIndex);
@@ -183,6 +200,10 @@ int hwAgentMain(
       {hwAgent->getPlatform()->createHandler()},
       {FLAGS_hwagent_port_base + FLAGS_switchIndex},
       true /*setupSSL*/);
+#ifndef IS_OSS
+  server->setControlInterface(
+      std::make_shared<facebook::fb303::DefaultControl>());
+#endif
 
   SplitHwAgentSignalHandler signalHandler(
       &eventBase,
@@ -190,13 +211,20 @@ int hwAgentMain(
         XLOG(DBG2) << "[Exit] Stopping Thrift Syncer";
         thriftSyncer->stop();
         XLOG(DBG2) << "[Exit] Stopping Thrift Server";
-        server->stop();
+        auto stopController = server->getStopController();
+        if (auto lockedPtr = stopController.lock()) {
+          lockedPtr->stop();
+          XLOG(DBG2) << "[Exit] Stopped Thrift Server";
+        } else {
+          LOG(WARNING) << "Unable to stop Thrift Server";
+        }
         if (fs) {
           XLOG(DBG2) << "[Exit] Stopping Function Scheduler";
           fs->shutdown();
         }
       },
-      std::move(hwAgent));
+      std::move(hwAgent),
+      thriftSyncer.get());
 
   /*
    * Updating stats could be expensive as each update must acquire lock. To
@@ -213,6 +241,7 @@ int hwAgentMain(
   // is migrated to ServiceFramework.
   // @lint-ignore CLANGTIDY
   server->serve();
+  server.reset();
   return 0;
 }
 
