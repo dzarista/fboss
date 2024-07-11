@@ -16,18 +16,19 @@ import sys
 from Viper import Viper
 from Whistler import Whistler
 
+
 class BaseConfigs:
    def __init__( self, hwDesc ):
 
-      self.platformName = hwDesc.PLATFORM_NAME
-      self.rootPmUnitName = hwDesc.ROOT_PM_UNIT_NAME      
-      self.slotTypeConfigsDict = hwDesc.SLOT_TYPE_CONFIGS
-      self.pmUnitConfigsList = hwDesc.PM_UNIT_CONFIGS
-      self.i2cAdaptersFromCpuDict = hwDesc.I2C_ADAPTERS_FROM_CPU
-      self.kmodsSettingsDict = hwDesc.KMODS_SETTINGS_DICT
+      self.platformName = hwDesc.platformName
+      self.rootPmUnitName = hwDesc.rootPmUnitName      
+      self.slotTypeConfigsDict = hwDesc.slotTypeConfigs
+      self.pmUnitConfigsList = hwDesc.pmUnitConfigs
+      self.i2cAdaptersFromCpuDict = hwDesc.i2cAdaptersFromCpu
+      self.kmodsSettingsDict = hwDesc.kmodsSettings
 
    def dumpJson( self, jsonDict ):
-      return json.dumps( jsonDict, indent=3 )
+      return json.dumps( jsonDict, indent=2 )
 
 
 class PlatformConfig( BaseConfigs ):
@@ -41,7 +42,7 @@ class PlatformConfig( BaseConfigs ):
 
       assert self.platformName and self.rootPmUnitName,\
          "platformName and rootPmUnitName are required"
-      
+
       self.slotTypeConfigs = SlotTypeConfigs( configs )
       self.pmUnitConfigs = PmUnitConfigs( configs )
       self.i2cAdaptersFromCpu = I2cAdaptersFromCpu( configs )
@@ -116,11 +117,11 @@ class PmUnitConfigs( BaseConfigs ):
       self.entities = configs.pmUnitConfigsList
       self.jsonDict = OrderedDict()
       for pmUnit in self.entities:
-         name = pmUnit.PM_UNIT_NAME
+         name = pmUnit.pmUnitName
          self.jsonDict[name] = self.parsePmUnitConfig( pmUnit )
 
    def parsePmUnitConfig( self, pmUnit ):
-      name = pmUnit.PM_UNIT_NAME
+      name = pmUnit.pmUnitName
       pluggedInSlotType = f'{name}_SLOT'
 
       assert name and pluggedInSlotType, "name and pluggedInSlotType are required"
@@ -139,9 +140,10 @@ class PmUnitConfigs( BaseConfigs ):
    def parseSymbolicLinkToDevicePaths( self ):
       symlinkDict = {}
       for pmUnit in self.entities:
-         pmUnitDict = pmUnit.SYMBOLIC_LINK_TO_DEVICE_PATH
-         for symlink, devicePath in pmUnitDict.items():
-            symlinkDict[symlink] = devicePath
+         pmUnitDict = pmUnit.symlinkToDevicePaths
+         if pmUnitDict:
+            for symlink, devicePath in pmUnitDict.items():
+               symlinkDict[symlink] = devicePath
       return symlinkDict
 
    def getDict( self ):
@@ -153,7 +155,8 @@ class PmUnitConfigs( BaseConfigs ):
 
 class I2cDeviceConfigs( BaseConfigs ):
    def __init__( self, pmUnit ):
-      self.entities = pmUnit.I2C_DEVICE_CONFIGS
+      self.entities = pmUnit.i2cDeviceConfigs \
+         if pmUnit.i2cDeviceConfigs else []
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseI2cDeviceConfigs( entity ) )
@@ -196,7 +199,8 @@ class I2cDeviceConfigs( BaseConfigs ):
 
 class OutgoingSlotConfigs( BaseConfigs ):
    def __init__( self, pmUnit ):
-      self.entities = pmUnit.OUTGOING_SLOT_CONFIGS
+      self.entities = pmUnit.outgoingSlotConfigs \
+         if pmUnit.outgoingSlotConfigs else []
       self.jsonDict = OrderedDict()
       for entity in self.entities:
          slotName = entity.slotName
@@ -234,12 +238,13 @@ class OutgoingSlotConfigs( BaseConfigs ):
 
 class PciDeviceConfigs( BaseConfigs ):
    def __init__( self, pmUnit ):
-      self.entities = pmUnit.PCI_DEVICE_CONFIGS
+      self.entities = pmUnit.pciDeviceConfigs \
+         if pmUnit.pciDeviceConfigs else []
       self.list = []
       for entity in self.entities:
-         self.list.append( self.parsePciDeviceConfigs( entity, pmUnit ) )
+         self.list.append( self.parsePciDeviceConfigs( entity ) )
 
-   def parsePciDeviceConfigs( self, entity, pmUnit ):
+   def parsePciDeviceConfigs( self, entity ):
       pmUnitScopedName = entity.pmUnitScopedName
       vendorId = entity.vendorId
       deviceId = entity.deviceId
@@ -256,10 +261,10 @@ class PciDeviceConfigs( BaseConfigs ):
          "subSystemVendorId": subSystemVendorId,
          "subSystemDeviceId": subSystemDeviceId,
          "i2cAdapterConfigs": \
-            I2cAdapterConfigs( pmUnit, pmUnitScopedName ).getList(),
-         "spiMasterConfigs": SpiMasterConfigs( pmUnit, pmUnitScopedName ).getList(),
-         "ledCtrlConfigs": LedCtrlConfigs( pmUnit, pmUnitScopedName ).getList(),
-         "xcvrCtrlConfigs": XcvrCtrlConfigs( pmUnit, pmUnitScopedName ).getList()
+            I2cAdapterConfigs( entity ).getList(),
+         "spiMasterConfigs": SpiMasterConfigs( entity ).getList(),
+         "ledCtrlConfigs": LedCtrlConfigs( entity ).getList(),
+         "xcvrCtrlConfigs": XcvrCtrlConfigs( entity ).getList()
       }
 
    def getList( self ):
@@ -268,7 +273,8 @@ class PciDeviceConfigs( BaseConfigs ):
 
 class EmbeddedSensorConfigs( BaseConfigs ):
    def __init__( self, pmUnit ):
-      self.entities = pmUnit.EMBEDDED_SENSORS_CONFIGS
+      self.entities = pmUnit.embeddedSensorConfigs \
+         if pmUnit.embeddedSensorConfigs else []
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseEmbeddedSensorsConfigs( entity ) )
@@ -290,10 +296,9 @@ class EmbeddedSensorConfigs( BaseConfigs ):
    
 
 class I2cAdapterConfigs( BaseConfigs ):
-   def __init__( self, pmUnit, nameFilter ):
-      self.entities = pmUnit.I2C_ADAPTER_CONFIGS
-      self.entities = [entity for entity in self.entities \
-                       if nameFilter == entity.name ]
+   def __init__( self, pciDeviceConfig ):
+      self.entities = pciDeviceConfig.i2cAdapterConfigs \
+         if pciDeviceConfig.i2cAdapterConfigs else []
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseI2cAdapterConfigs( entity ) )
@@ -324,10 +329,9 @@ class I2cAdapterConfigs( BaseConfigs ):
 
 
 class SpiMasterConfigs( BaseConfigs ):
-   def __init__( self, pmUnit, nameFilter ):
-      self.entities = pmUnit.SPI_MASTER_CONFIGS
-      self.entities = [entity for entity in self.entities \
-                       if nameFilter == entity.name ]
+   def __init__( self, pciDeviceConfig ):
+      self.entities = pciDeviceConfig.spiMasterConfigs \
+         if pciDeviceConfig.spiMasterConfigs else []
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseSpiMasterConfigs( entity ) )
@@ -359,19 +363,17 @@ class SpiMasterConfigs( BaseConfigs ):
 
 
 class LedCtrlConfigs( BaseConfigs ):
-   def __init__( self, pmUnit, nameFilter ):
+   def __init__( self, pciDeviceConfig ):
       self.list = []
-      self.entities = pmUnit.XCVR_CONFIGS
-      self.entities = [entity for entity in self.entities \
-                       if nameFilter == entity.name ]
+      self.entities = pciDeviceConfig.xcvrCtrlConfigs \
+         if pciDeviceConfig.xcvrCtrlConfigs else []
       for entity in self.entities:
          portLeds = [ *self.parseXcvrLeds( entity ) ]
          for led in portLeds:
             self.list.append( led )
 
-      self.entities = pmUnit.LED_CONFIGS
-      self.entities = [entity for entity in self.entities \
-                       if nameFilter == entity.name ]
+      self.entities = pciDeviceConfig.ledCtrlConfigs \
+         if pciDeviceConfig.ledCtrlConfigs else []
       for id, entity in enumerate( self.entities ):
          self.list.append( self.parseStatusLeds( entity, id+1 ) )
 
@@ -426,10 +428,9 @@ class LedCtrlConfigs( BaseConfigs ):
 
 
 class XcvrCtrlConfigs( BaseConfigs ):
-   def __init__( self, pmUnit, nameFilter ):
-      self.entities = pmUnit.XCVR_CONFIGS
-      self.entities = [entity for entity in self.entities \
-                       if nameFilter == entity.name ]
+   def __init__( self, pciDeviceConfig ):
+      self.entities = pciDeviceConfig.xcvrCtrlConfigs \
+         if pciDeviceConfig.xcvrCtrlConfigs else []
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseXcvrCtrlConfig( entity ) )
@@ -474,11 +475,11 @@ def main():
 
    platformName = sys.argv[ 1 ]
    if platformName == 'Viper':
-      pmconfigs = PlatformConfig( Viper )
-      print( pmconfigs.asJson() )
+      platform = Viper()
    elif platformName == 'Whistler':
-      pmconfigs = PlatformConfig( Whistler )
-      print( pmconfigs.asJson() )
+      platform = Whistler()
+   pmconfigs = PlatformConfig( platform )
+   print( pmconfigs.asJson() )
 
 if __name__ == '__main__':
    main()
