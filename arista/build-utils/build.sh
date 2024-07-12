@@ -317,11 +317,13 @@ else
    make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods modules
    mkdir -p $SCRATCH_DIR/bsp-kmods
    cp -f $FBOSS_DIR/fboss.git/arista/bsp-kmods/*.ko $SCRATCH_DIR/bsp-kmods/
+   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
 
    echo "****BUILDING SHOWTECH DEPENDENCIES"
    make -C $FBOSS_DIR/fboss.git/arista/showtech
    mkdir -p $SCRATCH_DIR/showtech
    cp -f $FBOSS_DIR/fboss.git/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
+   make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 
    # Copy over kernel modules
    mkdir -p "$fboss_output_dir/lib/modules"
