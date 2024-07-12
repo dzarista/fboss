@@ -231,7 +231,6 @@ class PmUnitConfig:
                      f"/run/devmap/eeproms/MERU_SCM_EEPROM_"
                      f"{ name.split( '_' )[ -1 ] }" 
                   ] = f"/[{ name }]"
-                  symlinkDict[ "/run/devmap/eeproms/MERU_SCM_EEPROM" ] = "/[IDPROM]"
             for slotConfig in self.outgoingSlotConfigs:
                if platform == "meru800bia":
                   symlinkDict[ 
