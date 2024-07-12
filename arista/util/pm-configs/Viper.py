@@ -54,17 +54,6 @@ class Viper( PlatformConfig ):
          FANUnit()
       ] )
 
-      '''SCM Unit Configs Below'''
-
-      self.pmUnitConfigs[ 0 ].populateSymlinkToDevicePaths( self.platformName )
-      self.pmUnitConfigs[ 0 ].addSymlinkToDevicePaths( {
-         "/run/devmap/fpgas/MERU_SCM_CPLD": "/[SCM_FPGA]",
-         "/run/devmap/eeproms/MERU_SCM_EEPROM_P1": "/[SCM_IDPROM_P1]",
-         "/run/devmap/eeproms/MERU_SCM_EEPROM": "/[IDPROM]"
-      } )
-
-      '''SMB Unit Configs Below'''
-
       self.pmUnitConfigs[ 1 ].addI2cDeviceConfigs( [
          I2cDeviceConfig( "INCOMING@0", "0x50", "24c512", "SMB_IDPROM" ),
          I2cDeviceConfig( "INCOMING@0", "0x74", "pca9539", "SMB_PCA", 
@@ -113,7 +102,8 @@ class Viper( PlatformConfig ):
       ] )
 
       self.pmUnitConfigs[ 1 ].addPciDeviceConfigs( [
-         *enumeratePciDeviceConfigs( 1, "SMB_FPGA", "0x3475", "0x0001", "0x3475", "0x0003" )
+         *enumeratePciDeviceConfigs( 1, "SMB_FPGA", "0x3475", "0x0001", "0x3475", 
+                                     "0x0003" )
       ] )
 
       for pciConfig in self.pmUnitConfigs[ 1 ].pciDeviceConfigs:
@@ -129,10 +119,12 @@ class Viper( PlatformConfig ):
                            ) ] )
          ] )
          pciConfig.addXcvrCtrlConfigs( numConfigs=38, basePortNumber=1 )
-         pciConfig.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39, portType="qsfp", 
-                                 xcvrBaseOffset="0xA290", led1BaseOffset="0x65C0", 
-                                 led2BaseOffset="0x65D0", led3BaseOffset="0x65E0",
-                                 led4BaseOffset="0x65F0")
+         pciConfig.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39, 
+                                       portType="qsfp", xcvrBaseOffset="0xA290", 
+                                       led1BaseOffset="0x65C0", 
+                                       led2BaseOffset="0x65D0", 
+                                       led3BaseOffset="0x65E0",
+                                       led4BaseOffset="0x65F0" )
          pciConfig.addLedCtrlConfigs( [
             LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
             LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
@@ -140,29 +132,11 @@ class Viper( PlatformConfig ):
             LedConfig( ledName="SMB_STATUS_LED", offset="0x6090" )
          ] )
 
-      self.pmUnitConfigs[ 1 ].populateSymlinkToDevicePaths( self.platformName )
-      self.pmUnitConfigs[ 1 ].addSymlinkToDevicePaths( {
-         "/run/devmap/eeproms/MERU800BIA_SMB_EEPROM": "/SMB_SLOT@0/[SMB_IDPROM]",
-         "/run/devmap/fpgas/MERU800BIA_SMB_FPGA": "/SMB_SLOT@0/[SMB_FPGA]",
-         "/run/devmap/gpiochips/SMB_PCA": "/SMB_SLOT@0/[SMB_PCA]",
-         "/run/devmap/flashes/SMB_SPI_MASTER0_DEVICE1": \
-            "/SMB_SLOT@0/[SMB_SPI_MASTER0_DEVICE1]"
-      } )
-
-      '''PSU Unit Configs Below'''
-
       self.pmUnitConfigs[ 2 ].addI2cDeviceConfigs( [
          I2cDeviceConfig( "INCOMING@0", "0x58", "pmbus", "PSU_PMBUS" )
       ] )
 
-      self.pmUnitConfigs[ 2 ].addSymlinkToDevicePaths( {
-         "/run/devmap/sensors/PSU1_PMBUS": "/SMB_SLOT@0/PSU_SLOT@0/[PSU_PMBUS]",
-         "/run/devmap/sensors/PSU2_PMBUS": "/SMB_SLOT@0/PSU_SLOT@1/[PSU_PMBUS]"
-      } )
+      for pmConfig in self.pmUnitConfigs:
+         pmConfig.populateSymlinkToDevicePaths( self.platformName )
 
-      '''FAN Unit Configs Below'''
-
-      self.pmUnitConfigs[ 3 ].addSymlinkToDevicePaths( {
-         "/run/devmap/cplds/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]"
-      } )
 

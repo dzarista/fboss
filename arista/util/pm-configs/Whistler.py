@@ -56,8 +56,6 @@ class Whistler( PlatformConfig ):
       self.kmodsSettings[ "bspKmodsToReload" ] = \
          "scd-xcvr, scd-spi, scd-leds, scd-smbus, dsf-fan-cpld, decker-cpld"
 
-      '''SCM Unit Configs Below'''
-
       self.pmUnitConfigs[ 0 ].outgoingSlotConfigs[ 0 ].outgoingI2cBusNames = [ 
          "SCM_I2C_MASTER1@0", 
          "SCM_I2C_MASTER1@1",
@@ -65,24 +63,22 @@ class Whistler( PlatformConfig ):
          "SCM_I2C_MASTER1@3" 
       ]
 
-      self.pmUnitConfigs[ 0 ].populateSymlinkToDevicePaths( self.platformName )
-      self.pmUnitConfigs[ 0 ].addSymlinkToDevicePaths( {
-         "/run/devmap/fpgas/MERU_SCM_CPLD": "/[SCM_FPGA]",
-         "/run/devmap/eeproms/MERU_SCM_EEPROM_P1": "/[SCM_IDPROM_P1]"
-      } )
-
-      '''SMB Unit Configs Below'''
-
       self.pmUnitConfigs[ 1 ].addI2cDeviceConfigs( [
          I2cDeviceConfig( "INCOMING@0", "0x23", "decker_cpld", "SMB_CPLD" ),
          I2cDeviceConfig( "INCOMING@0", "0x4D", "max6581", "SMB_MAX6581" ),
          I2cDeviceConfig( "INCOMING@0", "0x48", "tmp75", "SMB_TMP75" ),
-         I2cDeviceConfig( "INCOMING@1", "0x60", "raa228228", "SMB_RAA228926_R3R0_CORE" ),
-         I2cDeviceConfig( "INCOMING@1", "0x50", "isl68226", "SMB_ISL68226_R3R0_ANLG0" ),
-         I2cDeviceConfig( "INCOMING@1", "0x51", "isl68226", "SMB_ISL68226_R3R0_ANLG1" ),
-         I2cDeviceConfig( "INCOMING@1", "0x61", "raa228228", "SMB_RAA228926_R3R1_CORE" ),
-         I2cDeviceConfig( "INCOMING@1", "0x52", "isl68226", "SMB_ISL68226_R3R1_ANLG0" ),
-         I2cDeviceConfig( "INCOMING@1", "0x53", "isl68226", "SMB_ISL68226_R3R1_ANLG1" ),
+         I2cDeviceConfig( "INCOMING@1", "0x60", "raa228228", 
+                          "SMB_RAA228926_R3R0_CORE" ),
+         I2cDeviceConfig( "INCOMING@1", "0x50", "isl68226", 
+                          "SMB_ISL68226_R3R0_ANLG0" ),
+         I2cDeviceConfig( "INCOMING@1", "0x51", "isl68226", 
+                          "SMB_ISL68226_R3R0_ANLG1" ),
+         I2cDeviceConfig( "INCOMING@1", "0x61", "raa228228", 
+                          "SMB_RAA228926_R3R1_CORE" ),
+         I2cDeviceConfig( "INCOMING@1", "0x52", "isl68226", 
+                          "SMB_ISL68226_R3R1_ANLG0" ),
+         I2cDeviceConfig( "INCOMING@1", "0x53", "isl68226", 
+                          "SMB_ISL68226_R3R1_ANLG1" ),
          I2cDeviceConfig( "INCOMING@1", "0x5A", "isl68226", "SMB_ISL68226_OSFP_TL" ),
          I2cDeviceConfig( "INCOMING@1", "0x5B", "isl68226", "SMB_ISL68226_OSFP_TR" ),
          I2cDeviceConfig( "INCOMING@1", "0x5C", "isl68226", "SMB_ISL68226_OSFP_BL" ),
@@ -125,20 +121,27 @@ class Whistler( PlatformConfig ):
       ] )
 
       self.pmUnitConfigs[ 1 ].addPciDeviceConfigs( [
-         *enumeratePciDeviceConfigs( 4, "SMB_FPGA*", "0x3475", "0x0001", "0x3475", "0x0004" )
+         *enumeratePciDeviceConfigs( 4, "SMB_FPGA*", "0x3475", "0x0001", "0x3475", 
+                                     "0x0004" )
       ] )
 
       for pciConfig in self.pmUnitConfigs[ 1 ].pciDeviceConfigs:
          pciConfig.addI2cAdapterConfigs( 5, "SMB_FPGA*_I2C_MASTER*", "0x8000" )
          pciConfig.addSpiMasterConfigs( [
-            SpiMasterConfig( "SMB_SPI_MASTER0", "spi_master", -1, 
-                           "0x7900",
-                           spiDeviceConfigs=[ SpiDeviceConfig(
-                              pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
-                              chipSelect=0,
-                              modalias="spidev",
-                              maxSpeedHz=25000000
-                           ) ] )
+            SpiMasterConfig( 
+               "SMB_SPI_MASTER0", 
+               "spi_master", 
+               -1, 
+               "0x7900",
+               spiDeviceConfigs=[ 
+                  SpiDeviceConfig(
+                     pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
+                     chipSelect=0,
+                     modalias="spidev",
+                     maxSpeedHz=25000000
+                  ) 
+               ]
+            )
          ] )
 
       self.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs( 
@@ -161,28 +164,9 @@ class Whistler( PlatformConfig ):
          LedConfig( ledName="SMB_STATUS_LED", offset="0x60a0" )
       ] )
 
-      self.pmUnitConfigs[ 1 ].populateSymlinkToDevicePaths( self.platformName )
-      self.pmUnitConfigs[ 1 ].addSymlinkToDevicePaths( {
-         "/run/devmap/eeproms/MERU800BFA_SMB_EEPROM": "/SMB_SLOT@0/[IDPROM]",
-         "/run/devmap/cplds/MERU800BFA_SMB_CPLD": "/SMB_SLOT@0/[SMB_CPLD]",
-         "/run/devmap/fpgas/MERU800BFA_SMB_FPGA0": "/SMB_SLOT@0/[SMB_FPGA0]",
-         "/run/devmap/fpgas/MERU800BFA_SMB_FPGA1": "/SMB_SLOT@0/[SMB_FPGA1]",
-         "/run/devmap/fpgas/MERU800BFA_SMB_FPGA2": "/SMB_SLOT@0/[SMB_FPGA2]",
-         "/run/devmap/fpgas/MERU800BFA_SMB_FPGA3": "/SMB_SLOT@0/[SMB_FPGA3]",
-         "/run/devmap/cplds/FAN0_CPLD": "/SMB_SLOT@0/[FAN0_CPLD]",
-         "/run/devmap/cplds/FAN1_CPLD": "/SMB_SLOT@0/[FAN1_CPLD]",
-         "/run/devmap/cplds/FAN2_CPLD": "/SMB_SLOT@0/[FAN2_CPLD]"
-      } )
-
-      '''PSU Unit Configs Below'''
-
       self.pmUnitConfigs[ 2 ].addI2cDeviceConfigs( [
          I2cDeviceConfig( "INCOMING@0", "0x58", "pmbus", "PSU_PMBUS" )
       ] )
 
-      self.pmUnitConfigs[ 2 ].addSymlinkToDevicePaths( {
-         "/run/devmap/sensors/PSU1_PMBUS": "/SMB_SLOT@0/PSU_SLOT@0/[PSU_PMBUS]",
-         "/run/devmap/sensors/PSU2_PMBUS": "/SMB_SLOT@0/PSU_SLOT@1/[PSU_PMBUS]",
-         "/run/devmap/sensors/PSU3_PMBUS": "/SMB_SLOT@0/PSU_SLOT@2/[PSU_PMBUS]",
-         "/run/devmap/sensors/PSU4_PMBUS": "/SMB_SLOT@0/PSU_SLOT@3/[PSU_PMBUS]"
-      } )
+      for pmConfig in self.pmUnitConfigs:
+         pmConfig.populateSymlinkToDevicePaths( self.platformName )
