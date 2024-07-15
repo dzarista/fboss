@@ -86,6 +86,7 @@ class TestEmptyConfigs( unittest.TestCase ):
       self.assertEqual( testPciConfig[ "ledCtrlConfigs" ], [] )
       self.assertEqual( testPciConfig[ "xcvrCtrlConfigs" ], [] ) 
 
+
 class TestEnumerationFunctions( unittest.TestCase ):
 
    def test_xcvr_config( self ):
@@ -140,6 +141,40 @@ class TestEnumerationFunctions( unittest.TestCase ):
             self.assertEqual( testLedConfig[ i ][ "ledId" ], 1 )
          else:
             self.assertEqual( testLedConfig[ i ][ "ledId" ], 2 )
+
+   def test_i2c_adapter_config( self ):
+      platform = PlatformConfig( "test_platform" )
+      platform.addPmUnitConfigs( [
+         PmUnitConfig( "TEST_UNIT" )
+      ] )
+      platform.pmUnitConfigs[ 0 ].addPciDeviceConfigs( [
+         PciDeviceConfig(
+            pmUnitScopedName="TEST_FPGA8",
+            vendorId="0x3475",
+            deviceId="0x0001",
+            subSystemVendorId="0x3475",
+            subSystemDeviceId="0x0003"
+         )
+      ] )
+      platform.pmUnitConfigs[ 0 ].pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
+         numAdapters=20, 
+         adapterBaseName="SMB_FPGA{}_I2C_MASTER{}", 
+         baseCsrOffset="0x4000"
+      )
+      pmconfigs = generator.PlatformConfig( platform )
+      pmUnitDict = pmconfigs.pmUnitConfigs.getDict()
+      testUnitConfig = pmUnitDict[ "TEST_UNIT" ]
+      config = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "i2cAdapterConfigs" ]
+      self.assertEqual( len( config ), 20 )
+      for i in range( 20 ):
+         self.assertEqual(
+            config[ i ][ "fpgaIpBlockConfig" ][ "pmUnitScopedName" ],
+            f"SMB_FPGA8_I2C_MASTER{ i }"
+         )
+         self.assertEqual(
+            config[ i ][ "fpgaIpBlockConfig" ][ "csrOffset" ],
+            hex( 0x4000 + i * 0x80 )
+         )
 
 
 if __name__ == '__main__':
