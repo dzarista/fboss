@@ -11,10 +11,17 @@ https://github.com/facebook/fboss/blob/main/fboss/platform/platform_manager/plat
 
 from collections import OrderedDict
 import json
+import re
 import sys
 
 from Viper import Viper
 from Whistler import Whistler
+
+
+def reformatOneElementLists( jsonDump ):
+   pattern = re.compile( r'\[\s*(-?\d+)\s*\]' )
+   output_string = pattern.sub( r'[\1]', jsonDump )
+   return output_string
 
 
 class BaseConfigs:
@@ -28,7 +35,9 @@ class BaseConfigs:
       self.kmodsSettingsDict = hwDesc.kmodsSettings
 
    def dumpJson( self, jsonDict ):
-      return json.dumps( jsonDict, indent=2 )
+      jsonDump = json.dumps( jsonDict, indent=2 )
+      output = reformatOneElementLists( jsonDump )
+      return output
 
 
 class PlatformConfig( BaseConfigs ):

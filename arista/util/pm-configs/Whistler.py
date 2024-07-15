@@ -2,18 +2,20 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from BaseConfigs import (
-   PlatformConfig,
-   SlotTypeConfig, 
-   I2cDeviceConfig, 
-   SlotConfig, 
-   LedConfig,
-   SpiMasterConfig, 
-   SpiDeviceConfig,
    enumerateFANSlotConfigs, 
-   enumeratePciDeviceConfigs
+   enumeratePciDeviceConfigs,
+   FANUnit,
+   I2cDeviceConfig, 
+   LedConfig,
+   PlatformConfig,
+   PSUUnit,
+   SCMUnit, 
+   SlotConfig, 
+   SlotTypeConfig, 
+   SMBUnit,
+   SpiDeviceConfig, 
+   SpiMasterConfig
 )
-
-from BaseConfigs import SCMUnit, SMBUnit, PSUUnit, FANUnit
 
 
 class Whistler( PlatformConfig ): 
@@ -117,16 +119,16 @@ class Whistler( PlatformConfig ):
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
             outgoingI2cBusNames=[ "SMB_FPGA2_I2C_MASTER4@1" ]
          ),
-         *enumerateFANSlotConfigs( 12, "/SMB_SLOT@0/[FAN*_CPLD]" )
+         *enumerateFANSlotConfigs( 12, "/SMB_SLOT@0/[FAN{}_CPLD]" )
       ] )
 
       self.pmUnitConfigs[ 1 ].addPciDeviceConfigs( [
-         *enumeratePciDeviceConfigs( 4, "SMB_FPGA*", "0x3475", "0x0001", "0x3475", 
+         *enumeratePciDeviceConfigs( 4, "SMB_FPGA{}", "0x3475", "0x0001", "0x3475", 
                                      "0x0004" )
       ] )
 
       for pciConfig in self.pmUnitConfigs[ 1 ].pciDeviceConfigs:
-         pciConfig.addI2cAdapterConfigs( 5, "SMB_FPGA*_I2C_MASTER*", "0x8000" )
+         pciConfig.addI2cAdapterConfigs( 5, "SMB_FPGA{}_I2C_MASTER{}", "0x8000" )
          pciConfig.addSpiMasterConfigs( [
             SpiMasterConfig( 
                "SMB_SPI_MASTER0", 

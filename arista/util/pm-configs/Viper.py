@@ -2,19 +2,21 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from BaseConfigs import (
-   PlatformConfig,
-   SlotTypeConfig, 
-   I2cDeviceConfig, 
-   SlotConfig, 
-   LedConfig,
-   SpiMasterConfig, 
-   SpiDeviceConfig,
-   InitRegSettings,
    enumerateFANSlotConfigs, 
-   enumeratePciDeviceConfigs
+   enumeratePciDeviceConfigs,
+   FANUnit,
+   I2cDeviceConfig, 
+   InitRegSettings,
+   LedConfig,
+   PlatformConfig,
+   PSUUnit,
+   SCMUnit, 
+   SlotConfig, 
+   SlotTypeConfig, 
+   SMBUnit,
+   SpiDeviceConfig, 
+   SpiMasterConfig
 )
-
-from BaseConfigs import SCMUnit, SMBUnit, PSUUnit, FANUnit
 
 
 class Viper( PlatformConfig ):
@@ -107,16 +109,17 @@ class Viper( PlatformConfig ):
       ] )
 
       for pciConfig in self.pmUnitConfigs[ 1 ].pciDeviceConfigs:
-         pciConfig.addI2cAdapterConfigs( 6, "SMB_I2C_MASTER*", "0x8000" )
+         pciConfig.addI2cAdapterConfigs( 6, "SMB_I2C_MASTER{}", "0x8000" )
          pciConfig.addSpiMasterConfigs( [
             SpiMasterConfig( "SMB_SPI_MASTER0", "spi_master", -1, 
-                           "0x7900",
-                           spiDeviceConfigs=[ SpiDeviceConfig(
-                              pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
-                              chipSelect=0,
-                              modalias="spidev",
-                              maxSpeedHz=25000000
-                           ) ] )
+                             "0x7900",
+                             spiDeviceConfigs=[ SpiDeviceConfig(
+                             pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
+                             chipSelect=0,
+                             modalias="spidev",
+                             maxSpeedHz=25000000
+                             ) ] 
+                           )
          ] )
          pciConfig.addXcvrCtrlConfigs( numConfigs=38, basePortNumber=1 )
          pciConfig.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39, 

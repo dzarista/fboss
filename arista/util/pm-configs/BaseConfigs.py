@@ -127,7 +127,7 @@ class PmUnitConfig:
                      devName = adapterConfig.pmUnitScopedName.split( '_', 2 )[ 1 ]
                      symlinkDict[ 
                         f"{ basePath }_{ devName }_SMBUS"
-                        f"{adapterConfig.pmUnitScopedName[-1]}_CH{adapterNo}" 
+                        f"{ adapterConfig.pmUnitScopedName[ -1 ] }_CH{ adapterNo }" 
                      ] = ( f"/SMB_SLOT@0/[{ adapterConfig.pmUnitScopedName }@"
                            f"{ adapterNo }]" )
       return symlinkDict
@@ -216,7 +216,7 @@ class PmUnitConfig:
             elif self.pmUnitName == "SMB":
                symlinkDict[ 
                   f"/run/devmap/fpgas/{ platform.upper() }_"
-                  f"{pciConfig.pmUnitScopedName}"
+                  f"{ pciConfig.pmUnitScopedName }"
                ] = f"/SMB_SLOT@0/[{ pciConfig.pmUnitScopedName }]"
       return symlinkDict
    
@@ -235,7 +235,7 @@ class PmUnitConfig:
                if platform == "meru800bia":
                   symlinkDict[ 
                      f"/run/devmap/eeproms/{ platform.upper() }_SMB_EEPROM"
-                  ] = f"/{slotConfig.slotName}/[SMB_IDPROM]"
+                  ] = f"/{ slotConfig.slotName }/[SMB_IDPROM]"
                elif platform == "meru800bfa":
                   symlinkDict[ 
                      f"/run/devmap/eeproms/{ platform.upper() }_SMB_EEPROM"
@@ -322,7 +322,7 @@ class SlotConfig:
    def __init__( self, slotName, presenceFileName=None, presenceDevicePath=None, 
                  outgoingI2cBusNames=None ):
       self.slotName = slotName
-      self.slotType = slotName.split("@")[ 0 ] 
+      self.slotType = slotName.split( "@" )[ 0 ] 
       self.presenceFileName = presenceFileName
       self.presenceDevicePath = presenceDevicePath
       self.outgoingI2cBusNames = outgoingI2cBusNames
@@ -344,22 +344,13 @@ class PciDeviceConfig:
 
    def addI2cAdapterConfigs( self, numAdapters, adapterBaseName, baseCsrOffset ):
       configs = []
-      adapterStarCount = adapterBaseName.count( '*' )
+      numFormatSpecifiers = adapterBaseName.count( '{}' )
       for i in range( numAdapters ):
-         if adapterStarCount == 2:
-            pos = adapterBaseName.find( '*' )
-            rpos = adapterBaseName.rfind( '*' )
+         if numFormatSpecifiers == 2:
             deviceNum = self.pmUnitScopedName[ -1 ]
-            adapterName = (
-               f"{ adapterBaseName[ :pos ] }{ deviceNum }"
-               f"{ adapterBaseName[ pos+1:rpos ]}{ i }{ adapterBaseName[ rpos+1: ]}"
-            )
-         elif adapterStarCount == 1:
-            pos = adapterBaseName.find( '*' )
-            adapterName = (
-               f"{ adapterBaseName[ :pos ] }{ i }"
-               f"{ adapterBaseName[ pos+1: ] }"
-            )
+            adapterName = adapterBaseName.format( deviceNum, i )
+         elif numFormatSpecifiers == 1:
+            adapterName = adapterBaseName.format( i )
          else:
             adapterName = adapterBaseName
          csrOffset = hex( int( baseCsrOffset, 16 ) + i * 0x80 )
@@ -523,11 +514,8 @@ def enumerateXcvrConfigsWhistler( numConfigs, basePortNumber, portType,
 def enumerateFANSlotConfigs( numConfigs, generalPath ):
    configs = []
    for i in range( numConfigs ):
-      if '*' in generalPath:
-         pos = generalPath.find( '*' )
-         presenceDevicePath = (
-            f"{ generalPath[ :pos ]}{ i // 4 }{ generalPath[ pos+1: ] }"
-         )
+      if '{}' in generalPath:
+         presenceDevicePath = generalPath.format( i // 4 )
       else:
          presenceDevicePath = generalPath
       configs.append( 
@@ -544,9 +532,8 @@ def enumeratePciDeviceConfigs( numConfigs, deviceBaseName, vendorId, deviceId,
                                subSystemVendorId, subSystemBaseDeviceId ):
    configs = []
    for i in range( numConfigs ):
-      if '*' in deviceBaseName:
-         pos = deviceBaseName.find( '*' )
-         deviceName = f"{ deviceBaseName[ :pos ] }{ i }{ deviceBaseName[ pos+1: ] }"
+      if '{}' in deviceBaseName:
+         deviceName = deviceBaseName.format( i )
       else:
          deviceName = deviceBaseName
       configs.append( 
@@ -588,7 +575,7 @@ class SCMUnit( PmUnitConfig ):
                                      "0x0008" )
       ] )
 
-      self.pciDeviceConfigs[ 0 ].addI2cAdapterConfigs( 2, "SCM_I2C_MASTER*", 
+      self.pciDeviceConfigs[ 0 ].addI2cAdapterConfigs( 2, "SCM_I2C_MASTER{}", 
                                                        "0x8000" )
       self.addEmbeddedSensorConfigs( [
          EmbeddedSensorConfig( 
