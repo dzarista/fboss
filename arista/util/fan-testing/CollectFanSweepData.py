@@ -790,10 +790,11 @@ def renderPlot( pdf, dfX, dfY, title ):
 def parseArgs( argv ):
    parser = argparse.ArgumentParser(
          prog='CollectFanSweepData', description=tool_description )
-   parser.add_argument( '-d', '--dut', help='Dut to setup fan data collection' )
+   parser.add_argument( '-d', '--dut', required=True,
+                       help='Dut to setup fan data collection' )
    parser.add_argument( '-z', '--zone', help='Specify cooling zone if valid' )
    parser.add_argument( '--soak-time', type=int, default=30,
-         help='Number minutes to soak at each step' )
+         required=True, help='Number minutes to soak at each step' )
    parser.add_argument( '--rpms', metavar='N', type=int, nargs='*',
          default=DEFAULT_RPMS, help='List of RPMs to iterate through')
    parser.add_argument( '--ignore-checks',action='store_true', default=False,
@@ -813,9 +814,9 @@ def main( argv ):
    elif edut.product() in ( 'Viper', 'ViperJ3' ):
       obj = Viper( edut )
    elif edut.product() in ( 'Whistler' ):
-      if args.zone.lower() == 'asic':
+      if args.zone and args.zone.lower() == 'asic':
          obj = WhistlerAsicZone( edut )
-      elif args.zone.lower() == 'system':
+      elif args.zone and args.zone.lower() == 'system':
          obj = WhistlerSystemZone( edut )
       else:
          obj = Whistler( edut )
