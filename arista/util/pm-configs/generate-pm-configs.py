@@ -68,18 +68,18 @@ class PlatformConfig( BaseConfigs ):
       jsonDict[ "symbolicLinkToDevicePath" ] = (
          self.pmUnitConfigs.parseSymbolicLinkToDevicePaths()
       )
-      jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings["bspKmodsRpmName"]
+      jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings[ "bspKmodsRpmName" ]
       jsonDict[ "bspKmodsRpmVersion" ] = (
-         str( self.kmodsSettings["bspKmodsRpmVersion"] )
+         str( self.kmodsSettings[ "bspKmodsRpmVersion" ] )
       )
       jsonDict[ "bspKmodsToReload" ] = (
-         self.kmodsSettings["bspKmodsToReload"].split(", ")
+         self.kmodsSettings[ "bspKmodsToReload" ].split( ", " )
       )
       jsonDict[ "sharedKmodsToReload" ] = (
-         self.kmodsSettings["sharedKmodsToReload"].split(", ")
+         self.kmodsSettings[ "sharedKmodsToReload" ].split( ", " )
       )
       jsonDict[ "upstreamKmodsToLoad" ] = (
-         self.kmodsSettings["upstreamKmodsToLoad"].split(", ")
+         self.kmodsSettings[ "upstreamKmodsToLoad" ].split( ", " )
       )
 
       return self.dumpJson( jsonDict )
@@ -87,7 +87,9 @@ class PlatformConfig( BaseConfigs ):
 
 class SlotTypeConfigs( BaseConfigs ):
    def __init__( self, configs ):
-      self.entities = configs.slotTypeConfigsDict
+      self.entities = (
+         configs.slotTypeConfigsDict if configs.slotTypeConfigsDict else {}
+      )
       self.jsonDict = OrderedDict()
       for entity in self.entities:
          name = entity.slotName
@@ -132,7 +134,9 @@ class SlotTypeConfigs( BaseConfigs ):
 
 class PmUnitConfigs( BaseConfigs ):
    def __init__( self, configs ):
-      self.entities = configs.pmUnitConfigsList
+      self.entities = (
+         configs.pmUnitConfigsList if configs.pmUnitConfigsList else {}
+      )
       self.jsonDict = OrderedDict()
       for pmUnit in self.entities:
          name = pmUnit.pmUnitName
@@ -442,7 +446,7 @@ class LedCtrlConfigs( BaseConfigs ):
       led = {
          "fpgaIpBlockConfig": {
             "pmUnitScopedName": name,
-            "deviceName": f"{name[:3].lower()}_led",
+            "deviceName": f"{ name[ :3 ].lower() }_led",
             "csrOffset": offset
          },
          "portNumber": -1,
