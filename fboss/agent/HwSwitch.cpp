@@ -37,11 +37,6 @@ DEFINE_int32(
     60,
     "Update watermark stats interval in seconds");
 
-DEFINE_bool(
-    flowletSwitchingEnable,
-    false,
-    "Flag to turn on flowlet switching for DLB");
-
 DEFINE_int32(
     update_phy_info_interval_s,
     10,
@@ -384,7 +379,7 @@ HwWriteBehaviorRAII HwSwitch::getWarmBootWriteBehavior(
           HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT)) {
     return HwWriteBehaviorRAII(HwWriteBehavior::FAIL);
   }
-  return HwWriteBehaviorRAII(HwWriteBehavior::WRITE);
+  return HwWriteBehaviorRAII(HwWriteBehavior::LOG_FAIL);
 }
 
 HwInitResult HwSwitch::initLight(

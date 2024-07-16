@@ -8,6 +8,8 @@
 
 #include "fboss/fsdb/client/FsdbDeltaPublisher.h"
 #include "fboss/fsdb/client/FsdbDeltaSubscriber.h"
+#include "fboss/fsdb/client/FsdbPatchPublisher.h"
+#include "fboss/fsdb/client/FsdbPatchSubscriber.h"
 #include "fboss/fsdb/client/FsdbStatePublisher.h"
 #include "fboss/fsdb/client/FsdbStateSubscriber.h"
 #include "fboss/fsdb/client/FsdbStreamClient.h"
@@ -34,6 +36,7 @@ class TestFsdbStreamClient : public FsdbStreamClient {
 };
 
 OperDelta makeDelta(const cfg::AgentConfig& cfg);
+Patch makePatch(const cfg::AgentConfig& cfg);
 /*
  * makeState serializes FsdbOperStateRoot, after updating
  * agent config inside the root object
@@ -42,6 +45,7 @@ OperState makeState(const cfg::AgentConfig& cfg);
 
 OperDelta makeDelta(
     const folly::F14FastMap<std::string, HwPortStats>& portStats);
+Patch makePatch(const folly::F14FastMap<std::string, HwPortStats>& portStats);
 /*
  * makeState serializes FsdbOperStatsRoot, after updating
  * agent config inside the root object
@@ -58,13 +62,14 @@ folly::F14FastMap<std::string, HwPortStats> makePortStats(
 
 template <typename PubSubT>
 class TestFsdbSubscriber : public PubSubT::SubscriberT {
+ public:
   using SubUnitT = typename PubSubT::SubUnitT;
   using BaseT = typename PubSubT::SubscriberT;
 
- public:
+  template <typename PathT>
   TestFsdbSubscriber(
       const std::string& clientId,
-      const std::vector<std::string>& subscribePath,
+      const PathT& subscribePath,
       folly::EventBase* streamEvb,
       folly::EventBase* connRetryEvb,
       bool subscribeStats = false)
@@ -97,11 +102,17 @@ class TestFsdbSubscriber : public PubSubT::SubscriberT {
   bool initialSyncDone() const {
     return initialSyncDone_;
   }
-  void assertQueue(int expectedSize, int retries = 60) const {
+  void assertQueue(int expectedSize, int retries = 10) const {
     WITH_RETRIES_N(retries, {
       ASSERT_EVENTUALLY_EQ(queueSize(), expectedSize);
       for (const auto& unit : queuedUnits()) {
-        ASSERT_GT(*unit.metadata()->lastConfirmedAt(), 0);
+        if constexpr (std::is_same_v<SubUnitT, SubscriberChunk>) {
+          for (const auto& [_, patch] : *unit.patches()) {
+            ASSERT_GT(*patch.metadata()->lastConfirmedAt(), 0);
+          }
+        } else {
+          ASSERT_GT(*unit.metadata()->lastConfirmedAt(), 0);
+        }
       }
     });
   }
@@ -123,8 +134,13 @@ struct StateExtSubT {
   using SubUnitT = OperState;
   using SubscriberT = FsdbExtStateSubscriber;
 };
+struct PatchSubT {
+  using SubUnitT = SubscriberChunk;
+  using SubscriberT = FsdbPatchSubscriber;
+};
 using TestFsdbDeltaSubscriber = TestFsdbSubscriber<DeltaSubT>;
 using TestFsdbStateSubscriber = TestFsdbSubscriber<StateSubT>;
+using TestFsdbPatchSubscriber = TestFsdbSubscriber<PatchSubT>;
 using TestFsdbExtStateSubscriber = TestFsdbSubscriber<StateExtSubT>;
 
 template <bool pubSubStats>
@@ -148,4 +164,16 @@ struct StatePubSubT {
 
 using StatePubSubForStats = StatePubSubT<true>;
 using StatePubSubForState = StatePubSubT<false>;
+
+template <bool pubSubStats>
+struct PatchPubSubT {
+  using PubUnitT = Patch;
+  using PublisherT = FsdbPatchPublisher;
+  using SubUnitT = SubscriberChunk;
+  using SubscriberT = TestFsdbPatchSubscriber;
+  static bool constexpr PubSubStats = pubSubStats;
+};
+
+using PatchPubSubForStats = PatchPubSubT<true>;
+using PatchPubSubForState = PatchPubSubT<false>;
 } // namespace facebook::fboss::fsdb::test

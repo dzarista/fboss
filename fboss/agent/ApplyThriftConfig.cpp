@@ -29,6 +29,7 @@
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/SwitchInfoUtils.h"
+#include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 #include "fboss/agent/if/gen-cpp2/mpls_types.h"
 #include "fboss/agent/platforms/common/PlatformMapping.h"
@@ -287,7 +288,8 @@ class ThriftConfigApplier {
       const std::vector<cfg::PortQueue>& cfgPortQueues,
       uint16_t maxQueues,
       cfg::StreamType streamType,
-      std::optional<cfg::QosMap> qosMap = std::nullopt);
+      std::optional<cfg::QosMap> qosMap = std::nullopt,
+      bool resetDefaultQueue = true);
   // update cfg port queue attribute to state port queue object
   void setPortQueue(
       std::shared_ptr<PortQueue> newQueue,
@@ -808,11 +810,18 @@ std::optional<QueueConfig> ThriftConfigApplier::getDefaultVoqConfigIfChanged(
     std::shared_ptr<SwitchSettings> origSwitchSettings) {
   if (cfg_->defaultVoqConfig()->size()) {
     const auto kNumVoqs = 8;
+    auto origPortQueues = QueueConfig();
+    if (origSwitchSettings &&
+        !origSwitchSettings->getDefaultVoqConfig().empty()) {
+      origPortQueues = origSwitchSettings->getDefaultVoqConfig();
+    }
     std::optional<QueueConfig> defaultVoqConfig = updatePortQueues(
-        QueueConfig(),
+        origPortQueues,
         *cfg_->defaultVoqConfig(),
         kNumVoqs,
-        cfg::StreamType::UNICAST);
+        cfg::StreamType::UNICAST,
+        std::nullopt,
+        false);
     if (!origSwitchSettings ||
         (origSwitchSettings->getDefaultVoqConfig() != *defaultVoqConfig)) {
       return defaultVoqConfig;
@@ -988,13 +997,15 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
         SystemPortID(recyclePortId),
         std::make_optional(RemoteSystemPortType::STATIC_ENTRY));
     sysPort->setSwitchId(node->getSwitchId());
-    sysPort->setPortName(getRecyclePortName(node));
+    sysPort->setName(getRecyclePortName(node));
     const auto& recyclePortInfo = dsfNodeAsic->getRecyclePortInfo();
     sysPort->setCoreIndex(recyclePortInfo.coreId);
     sysPort->setCorePortIndex(recyclePortInfo.corePortIndex);
     sysPort->setSpeedMbps(recyclePortInfo.speedMbps); // 10G
     sysPort->setNumVoqs(8);
     sysPort->setScope(cfg::Scope::GLOBAL);
+    sysPort->resetPortQueues(utility::getFirstNodeIf(new_->getSwitchSettings())
+                                 ->getDefaultVoqConfig());
     if (auto cpuTrafficPolicy = cfg_->cpuTrafficPolicy()) {
       if (auto trafficPolicy = cpuTrafficPolicy->trafficPolicy()) {
         if (auto defaultQosPolicy = trafficPolicy->defaultQosPolicy()) {
@@ -1009,7 +1020,7 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
         InterfaceID(recyclePortId),
         RouterID(0),
         std::optional<VlanID>(std::nullopt),
-        folly::StringPiece(sysPort->getPortName()),
+        folly::StringPiece(sysPort->getName()),
         *node->getMac(),
         9000,
         true,
@@ -1389,7 +1400,7 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
           switchSettings->getSwitchIdToSwitchInfo(),
           switchId));
       sysPort->setSwitchId(SwitchID(switchId));
-      sysPort->setPortName(
+      sysPort->setName(
           folly::sformat("{}:{}", nodeName, port.second->getName()));
       auto platformPort =
           platformMapping_->getPlatformPort(port.second->getID());
@@ -1739,7 +1750,8 @@ QueueConfig ThriftConfigApplier::updatePortQueues(
     const std::vector<cfg::PortQueue>& cfgPortQueues,
     uint16_t maxQueues,
     cfg::StreamType streamType,
-    std::optional<cfg::QosMap> qosMap) {
+    std::optional<cfg::QosMap> qosMap,
+    bool resetDefaultQueue) {
   QueueConfig newPortQueues;
 
   /*
@@ -1807,14 +1819,17 @@ QueueConfig ThriftConfigApplier::updatePortQueues(
                 pfcPriorities)
           : createPortQueue(newQueueIter->second, trafficClass, pfcPriorities);
       newQueues.erase(newQueueIter);
-    } else {
+      newPortQueues.push_back(newPortQueue);
+    } else if (resetDefaultQueue) {
+      // Resetting defaut queues are not applicable to VOQs - we only configure
+      // the ones present in config.
       newPortQueue = std::make_shared<PortQueue>(static_cast<uint8_t>(queueId));
       newPortQueue->setStreamType(streamType);
       if (streamType == cfg::StreamType::FABRIC_TX) {
         newPortQueue->setScheduling(cfg::QueueScheduling::INTERNAL);
       }
+      newPortQueues.push_back(newPortQueue);
     }
-    newPortQueues.push_back(newPortQueue);
   }
 
   std::sort(
@@ -4263,6 +4278,25 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings(
       : IPAddressV6("::");
   if (oldDhcpV6ReplySrc != newDhcpV6ReplySrc) {
     newSwitchSettings->setDhcpV6ReplySrc(newDhcpV6ReplySrc);
+    switchSettingsChange = true;
+  }
+
+  auto oldIcmpV4UnavailableSrcAddress = orig_->getIcmpV4UnavailableSrcAddress();
+  auto newIcmpV4UnavailableSrcAddress = cfg_->icmpV4UnavailableSrcAddress();
+  if (newIcmpV4UnavailableSrcAddress.has_value()) {
+    auto newIcmpV4Address = IPAddressV4(*newIcmpV4UnavailableSrcAddress);
+    if (newIcmpV4Address != oldIcmpV4UnavailableSrcAddress) {
+      newSwitchSettings->setIcmpV4UnavailableSrcAddress(newIcmpV4Address);
+      switchSettingsChange = true;
+    }
+  }
+
+  auto oldHostname = orig_->getHostname();
+  auto newHostname = cfg_->hostname() && !(*cfg_->hostname()).empty()
+      ? *cfg_->hostname()
+      : getLocalHostname();
+  if (oldHostname != newHostname) {
+    newSwitchSettings->setHostname(newHostname);
     switchSettingsChange = true;
   }
 

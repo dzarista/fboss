@@ -10,13 +10,16 @@
 namespace facebook::fboss {
 
 class SwitchState;
+class MultiSwitchThriftHandler;
 
 class SplitSwSwitchInitializer : public SwSwitchInitializer {
  public:
   explicit SplitSwSwitchInitializer(SwSwitch* sw) : SwSwitchInitializer(sw) {}
 
  private:
-  void initImpl(HwSwitchCallback* callback) override;
+  void initImpl(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) override;
 };
 
 class SplitSwAgentInitializer : public SwAgentInitializer {
@@ -33,8 +36,9 @@ class SplitSwAgentInitializer : public SwAgentInitializer {
 
  private:
   void exitForColdBoot();
-  void exitForWarmBoot();
+  void exitForWarmBoot(bool gracefulExit);
   AgentDirectoryUtil agentDirectoryUtil_;
+  MultiSwitchThriftHandler* multiSwitchThriftHandler_{nullptr};
 };
 
 } // namespace facebook::fboss

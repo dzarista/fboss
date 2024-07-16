@@ -4,6 +4,8 @@
 
 DEFINE_bool(dsf_4k, false, "Enable DSF Scale Test config");
 
+DEFINE_bool(dsf_100g_nif_breakout, false, "Enable J3 DSF Scale Test config");
+
 DEFINE_bool(
     sai_user_defined_trap,
     false,
@@ -37,6 +39,15 @@ DEFINE_uint32(
     dsf_gr_hold_time,
     0,
     "GR hold time for FSDB DsfSubscription in sec");
+// Remote neighbor entries are always flushed to avoid blackholing the traffic.
+// However, by default, remote{systemPorts, Rifs} are not flushed but marked
+// STALE in the software. This is to avoid hardware programmign churn.
+// Setting this flag to True will cause Agent to flush remote{systemPorts,
+// Rifs} from the hardware.
+DEFINE_bool(
+    dsf_flush_remote_sysports_and_rifs_on_gr,
+    false,
+    "Flush Remote{systemPorts, Rifs} on GR");
 DEFINE_uint32(
     dsf_num_parallel_sessions_per_remote_interface_node,
     1,
@@ -60,3 +71,15 @@ DEFINE_int32(
     "The first thrift server port reserved for HwAgent");
 
 DEFINE_bool(force_init_fp, true, "Force full field processor initialization");
+
+DEFINE_bool(
+    flowletSwitchingEnable,
+    false,
+    "Flag to turn on flowlet switching for DLB");
+
+// TODO (ravi)
+// This is more a safety tool for fast rollback if RTSWs run into an issue
+DEFINE_bool(
+    dlbResourceCheckEnable,
+    true,
+    "Flag to enable resource checks on DLB ecmp groups");

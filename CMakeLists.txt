@@ -68,13 +68,6 @@ if ($ENV{BUILD_SAI_FAKE_LINK_TEST})
   set (BUILD_SAI_FAKE_LINK_TEST ON)
 endif()
 
-option(BUILD_FBOSS_CLI "Build FBOSS CLI" OFF)
-if ($ENV{BUILD_FBOSS_CLI})
-  message(STATUS "ENV BUILD_FBOSS_CLI is set")
-  set (BUILD_FBOSS_CLI ON)
-endif()
-
-
 if (BUILD_SAI_FAKE_LINK_TEST)
   message(STATUS "Configured to build SAI Fake Link Test binaries")
 endif()
@@ -89,8 +82,8 @@ if (SAI_BRCM_IMPL)
 endif()
 
 set(SAI_VER_MAJOR "1")
-set(SAI_VER_MINOR "13")
-set(SAI_VER_RELEASE "2")
+set(SAI_VER_MINOR "14")
+set(SAI_VER_RELEASE "0")
 
 if (NOT "$ENV{SAI_SDK_VERSION}" STREQUAL "")
   message(STATUS "ENV SAI_SDK_VERSION is set to $ENV{SAI_SDK_VERSION}")
@@ -599,6 +592,7 @@ add_fbthrift_cpp_library(
   SERVICES
     MultiSwitchCtrl
   DEPENDS
+    common_cpp2
     ctrl_cpp2
     fsdb_oper_cpp2
     hardware_stats_cpp2
@@ -626,10 +620,6 @@ include_directories(${RE2_INCLUDE_DIR})
 find_library(EXPRTK exprtk)
 find_path(EXPRTK_INCLUDE_DIR NAMES exprtk.hpp)
 include_directories(${EXPRTK_INCLUDE_DIR})
-
-# OSS is still using C++17. Use following flag to allow internal build
-# to use C++20 features. Remove the below flag once OSS start using C++20.
-add_definitions (-DIS_OSS_CPP17=true)
 
 # Unit Testing
 add_definitions (-DIS_OSS=true)
@@ -665,6 +655,13 @@ add_dependencies(qsfp_targets
   qsfp_service
   qsfp_hw_test
   wedge_qsfp_util
+)
+
+add_custom_target(fboss_other_services)
+add_dependencies(fboss_other_services
+  qsfp_targets
+  fboss2
+  fsdb
 )
 
 if (BUILD_SAI_FAKE)

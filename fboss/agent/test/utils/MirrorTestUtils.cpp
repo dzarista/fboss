@@ -12,11 +12,15 @@ folly::IPAddress getSflowMirrorDestination(bool isV4) {
               : folly::IPAddress("2401:101:101::101");
 }
 
-void configureSflowMirror(cfg::SwitchConfig& config, bool truncate, bool isV4) {
+void configureSflowMirror(
+    cfg::SwitchConfig& config,
+    const std::string& mirrorName,
+    bool truncate,
+    bool isV4) {
   cfg::SflowTunnel sflowTunnel;
   sflowTunnel.ip() = getSflowMirrorDestination(isV4).str();
   sflowTunnel.udpSrcPort() = 6545;
-  sflowTunnel.udpDstPort() = 5343;
+  sflowTunnel.udpDstPort() = 6343;
 
   cfg::MirrorTunnel tunnel;
   tunnel.sflowTunnel() = sflowTunnel;
@@ -25,24 +29,29 @@ void configureSflowMirror(cfg::SwitchConfig& config, bool truncate, bool isV4) {
   destination.tunnel() = tunnel;
 
   cfg::Mirror mirror;
-  mirror.name() = "sflow_mirror";
+  mirror.name() = mirrorName;
   mirror.destination() = destination;
   mirror.truncate() = truncate;
 
   config.mirrors()->push_back(mirror);
-  folly::CIDRNetwork cidr{*sflowTunnel.ip(), (isV4 ? 32 : 128)};
+}
+
+void configureTrapAcl(cfg::SwitchConfig& config, bool isV4) {
+  folly::CIDRNetwork cidr{
+      getSflowMirrorDestination(isV4).str(), (isV4 ? 32 : 128)};
   utility::addTrapPacketAcl(&config, cidr);
 }
 
 void configureSflowSampling(
     cfg::SwitchConfig& config,
+    const std::string& mirrorName,
     const std::vector<PortID>& ports,
     int sampleRate) {
   for (const auto& port : ports) {
     auto portCfg = utility::findCfgPort(config, port);
     portCfg->sFlowIngressRate() = sampleRate;
     portCfg->sampleDest() = cfg::SampleDestination::MIRROR;
-    portCfg->ingressMirror() = "sflow_mirror";
+    portCfg->ingressMirror() = mirrorName;
   }
 }
 

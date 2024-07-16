@@ -3,8 +3,6 @@
 # In general, libraries and binaries in fboss/foo/bar are built by
 # cmake/FooBar.cmake
 
-if(BUILD_FBOSS_CLI)
-
 add_fbthrift_cpp_library(
   cli_model
   fboss/cli/fboss2/cli.thrift
@@ -428,6 +426,7 @@ target_link_libraries(fboss2
   hw_ctrl_cpp2
   qsfp_cpp2
   phy_cpp2
+  led_service_types_cpp2
   hardware_stats_cpp2
   mka_structs_cpp2
   fsdb_cpp2
@@ -505,5 +504,3 @@ add_library(tabulate
 set_target_properties(tabulate PROPERTIES LINKER_LANGUAGE CXX)
 
 install(TARGETS fboss2)
-
-endif()

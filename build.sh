@@ -12,6 +12,8 @@ if [ $KERNEL = "4.18" ]; then
    export KERNEL_SRC="4.18.0-408.el8.x86_64"
 elif [ $KERNEL = "5.12" ]; then
    export KERNEL_SRC="5.12.0-0_fbk2_3390_g7ecb4ac46d7f"
+elif [ $KERNEL = "6.4" ]; then
+   export KERNEL_SRC="6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4"
 else
    export KERNEL_SRC="5.19.0"
 fi
@@ -116,7 +118,7 @@ do
    cp $fw_path $fboss_output_dir
 done
 
-if [ "$KERNEL" == "5.19" ]; then
+if [ "$KERNEL" == "5.19" ] || [ "$KERNEL" == "6.4" ]; then
    # Download fboss kernel src
    KERNEL_SRC_TAR=FBOSS_KERNEL_SRC_"${KERNEL_SRC}".tar.gz
    wget -P $SCRATCH_DIR/downloads http://dist/storage/fboss/fbossImageFiles/"${KERNEL_SRC_TAR}"
@@ -139,6 +141,15 @@ mkdir -p $fboss_output_dir/lib/fb-py-libs
 cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
 cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
 find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/env python3|' {} +
+
+# Extract platform mappings
+SRC_MAPPING_DIR="${FBOSS_REPO}/fboss/agent/platforms/common"
+SRC_MAPPING_FILES=(
+    "${SRC_MAPPING_DIR}/meru800bia/Meru800biaPlatformMapping.cpp"
+    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaPlatformMapping.cpp"
+    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaP1PlatformMapping.cpp"
+)
+$FBOSS_REPO/arista/build-utils/ExtractMappings.py -d "${SCRATCH_DIR}/PlatformMappings" "${SRC_MAPPING_FILES[@]}"
 
 # Cache the fboss commit that we built, this will be packaged and available on the
 # box at /opt/fboss/ when arista-fboss-core RPM is installed.

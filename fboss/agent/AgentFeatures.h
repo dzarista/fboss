@@ -30,6 +30,7 @@
  */
 
 DECLARE_bool(dsf_4k);
+DECLARE_bool(dsf_100g_nif_breakout);
 DECLARE_bool(enable_acl_table_chain_group);
 DECLARE_int32(oper_sync_req_timeout);
 DECLARE_bool(hide_fabric_ports);
@@ -38,9 +39,12 @@ DECLARE_bool(dsf_subscribe);
 DECLARE_bool(dsf_subscriber_skip_hw_writes);
 DECLARE_bool(dsf_subscriber_cache_updated_state);
 DECLARE_uint32(dsf_gr_hold_time);
+DECLARE_bool(dsf_flush_remote_sysports_and_rifs_on_gr);
 DECLARE_uint32(dsf_num_parallel_sessions_per_remote_interface_node);
 
 DECLARE_bool(classid_for_connected_subnet_routes);
 DECLARE_int32(stat_publish_interval_ms);
 DECLARE_int32(hwagent_port_base);
 DECLARE_bool(force_init_fp);
+DECLARE_bool(flowletSwitchingEnable);
+DECLARE_bool(dlbResourceCheckEnable);

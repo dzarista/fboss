@@ -8,9 +8,21 @@
 #include <folly/logging/xlog.h>
 #include <chrono>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 namespace facebook::fboss::fsdb {
+
+template <typename PubUnit>
+std::string FsdbPublisher<PubUnit>::typeStr() {
+  if constexpr (std::is_same_v<PubUnit, OperDelta>) {
+    return "Delta";
+  } else if constexpr (std::is_same_v<PubUnit, OperState>) {
+    return "Path";
+  } else {
+    return "Patch";
+  }
+}
 
 template <typename PubUnit>
 OperPubRequest FsdbPublisher<PubUnit>::createRequest() const {
@@ -41,9 +53,7 @@ void FsdbPublisher<PubUnit>::handleStateChange(
 }
 template <typename PubUnit>
 bool FsdbPublisher<PubUnit>::write(PubUnit&& pubUnit) {
-  if (!pubUnit.metadata()) {
-    pubUnit.metadata() = OperMetadata{};
-  }
+  pubUnit.metadata().ensure();
   if (!pubUnit.metadata()->lastConfirmedAt()) {
     auto now = std::chrono::system_clock::now();
     pubUnit.metadata()->lastConfirmedAt() =
@@ -124,5 +134,6 @@ bool FsdbPublisher<PubUnit>::disconnectForGR() {
 
 template class FsdbPublisher<OperDelta>;
 template class FsdbPublisher<OperState>;
+template class FsdbPublisher<Patch>;
 
 } // namespace facebook::fboss::fsdb

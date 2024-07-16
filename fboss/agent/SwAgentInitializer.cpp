@@ -34,6 +34,10 @@ DEFINE_int32(port, 5909, "The thrift server port");
 DEFINE_int32(migrated_port, 5959, "New thrift server port migrate to");
 // @lint-ignore CLANGTIDY
 DECLARE_int32(thrift_idle_timeout);
+DEFINE_int32(
+    sw_thrift_server_stop_timeout_s,
+    10,
+    "Seconds to wait for thrift server to stop.");
 
 namespace facebook::fboss {
 
@@ -60,9 +64,11 @@ void SwSwitchInitializer::start() {
   start(sw_);
 }
 
-void SwSwitchInitializer::start(HwSwitchCallback* callback) {
+void SwSwitchInitializer::start(
+    HwSwitchCallback* callback,
+    const HwWriteBehavior& hwWriteBehavior) {
   initThread_ = std::make_unique<std::thread>(
-      &SwSwitchInitializer::initThread, this, callback);
+      &SwSwitchInitializer::initThread, this, callback, hwWriteBehavior);
 }
 
 SwitchFlags SwSwitchInitializer::setupFlags() {
@@ -96,18 +102,22 @@ void SwSwitchInitializer::waitForInitDone() {
   initCondition_.wait(lk, [&] { return sw_->isFullyConfigured(); });
 }
 
-void SwSwitchInitializer::initThread(HwSwitchCallback* callback) {
+void SwSwitchInitializer::initThread(
+    HwSwitchCallback* callback,
+    const HwWriteBehavior& hwWriteBehavior) {
   try {
-    init(callback);
+    init(callback, hwWriteBehavior);
   } catch (const std::exception& ex) {
     XLOG(FATAL) << "switch initialization failed: " << folly::exceptionStr(ex);
   }
 }
 
-void SwSwitchInitializer::init(HwSwitchCallback* hwSwitchCallback) {
+void SwSwitchInitializer::init(
+    HwSwitchCallback* hwSwitchCallback,
+    const HwWriteBehavior& hwWriteBehavior) {
   auto startTime = steady_clock::now();
   std::lock_guard<std::mutex> g(initLock_);
-  initImpl(hwSwitchCallback);
+  initImpl(hwSwitchCallback, hwWriteBehavior);
   sw_->applyConfig("apply initial config");
   // Enable route update logging for all routes so that when we are told
   // the first set of routes after a warm boot, we can log any changes
@@ -146,8 +156,13 @@ void SwAgentInitializer::stopServer() {
   // stop Thrift server: stop all worker threads and
   // stop accepting new connections
   XLOG(DBG2) << "Stopping thrift server";
-  server_->stop();
-  XLOG(DBG2) << "Stopped thrift server";
+  auto stopController = server_->getStopController();
+  if (auto lockedPtr = stopController.lock()) {
+    lockedPtr->stop();
+    XLOG(DBG2) << "Stopped thrift server";
+  } else {
+    LOG(WARNING) << "Unable to stop Thrift Server";
+  }
 }
 
 void SwAgentInitializer::stopServices() {
@@ -170,13 +185,29 @@ void SwAgentInitializer::stopAgent(bool setupWarmboot, bool gracefulExit) {
   }
 }
 
+void SwAgentInitializer::waitForServerStopped() {
+  if (serverStarted_) {
+    std::unique_lock<std::mutex> lock(serverStopMutex_);
+    serverStopCV_.wait_for(
+        lock, std::chrono::seconds(FLAGS_sw_thrift_server_stop_timeout_s), [&] {
+          return !serverStarted_;
+        });
+    if (serverStarted_) {
+      XLOG(WARNING) << "Thrift server failed to stop after waiting "
+                    << FLAGS_sw_thrift_server_stop_timeout_s << " seconds";
+    }
+  }
+}
+
 int SwAgentInitializer::initAgent() {
   CHECK_NE(sw_.get() != nullptr, (false));
   CHECK_NE((initializer_.get() != nullptr), (false));
   return initAgent(sw_.get());
 }
 
-int SwAgentInitializer::initAgent(HwSwitchCallback* callback) {
+int SwAgentInitializer::initAgent(
+    HwSwitchCallback* callback,
+    const HwWriteBehavior& hwWriteBehavior) {
   auto swHandler = std::make_shared<ThriftHandler>(sw_.get());
   swHandler->setIdleTimeout(FLAGS_thrift_idle_timeout);
   auto handlers = getThrifthandlers();
@@ -200,7 +231,7 @@ int SwAgentInitializer::initAgent(HwSwitchCallback* callback) {
   // At this point, we are guaranteed no other agent process will initialize
   // the ASIC because such a process would have crashed attempting to bind to
   // the Thrift port 5909
-  initializer_->start(callback);
+  initializer_->start(callback, hwWriteBehavior);
 
   /*
    * Updating stats could be expensive as each update must acquire lock. To
@@ -213,11 +244,20 @@ int SwAgentInitializer::initAgent(HwSwitchCallback* callback) {
   SwAgentSignalHandler signalHandler(
       eventBase_, sw_.get(), [this]() { handleExitSignal(true); });
 
+  {
+    std::unique_lock<std::mutex> lk(serverStopMutex_);
+    serverStarted_ = true;
+  }
   XLOG(DBG2) << "serving on localhost on port " << FLAGS_port << " and "
              << FLAGS_migrated_port;
   // @lint-ignore CLANGTIDY
   server_->serve();
   server_.reset();
+  {
+    std::unique_lock<std::mutex> lk(serverStopMutex_);
+    serverStarted_ = false;
+  }
+  serverStopCV_.notify_one();
   return 0;
 }
 } // namespace facebook::fboss

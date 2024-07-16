@@ -147,25 +147,34 @@ class SubscribableStorage {
       typename = std::enable_if_t<
           std::is_same_v<typename folly::remove_cvref_t<Path>::RootT, RootT>,
           void>>
-  folly::coro::AsyncGenerator<thrift_cow::Patch&&>
-  subscribe_patch(SubscriberId subscriber, Path&& path, OperProtocol protocol) {
-    return this->subscribe_patch(
-        subscriber, path.begin(), path.end(), protocol);
-  }
-  folly::coro::AsyncGenerator<thrift_cow::Patch&&> subscribe_patch(
+  folly::coro::AsyncGenerator<SubscriberMessage&&> subscribe_patch(
       SubscriberId subscriber,
-      const ConcretePath& path,
-      OperProtocol protocol) {
-    return this->subscribe_patch(
-        subscriber, path.begin(), path.end(), protocol);
+      Path&& path) {
+    return this->subscribe_patch(subscriber, path.begin(), path.end());
   }
-  folly::coro::AsyncGenerator<thrift_cow::Patch&&> subscribe_patch(
+  folly::coro::AsyncGenerator<SubscriberMessage&&> subscribe_patch(
       SubscriberId subscriber,
-      PathIter begin,
-      PathIter end,
-      OperProtocol protocol) {
+      const ConcretePath& path) {
+    return this->subscribe_patch(subscriber, path.begin(), path.end());
+  }
+  folly::coro::AsyncGenerator<SubscriberMessage&&>
+  subscribe_patch(SubscriberId subscriber, PathIter begin, PathIter end) {
+    RawOperPath rawPath;
+    rawPath.path() = std::vector<std::string>(begin, end);
+    return this->subscribe_patch(subscriber, std::move(rawPath));
+  }
+  folly::coro::AsyncGenerator<SubscriberMessage&&> subscribe_patch(
+      SubscriberId subscriber,
+      RawOperPath rawPath) {
+    return subscribe_patch(
+        std::move(subscriber),
+        std::map<SubscriptionKey, RawOperPath>{{0, std::move(rawPath)}});
+  }
+  folly::coro::AsyncGenerator<SubscriberMessage&&> subscribe_patch(
+      SubscriberId subscriber,
+      std::map<SubscriptionKey, RawOperPath> rawPaths) {
     return static_cast<Impl*>(this)->subscribe_patch_impl(
-        subscriber, begin, end, protocol);
+        std::move(subscriber), std::move(rawPaths));
   }
 #endif
 
@@ -286,7 +295,7 @@ class SubscribableStorage {
   }
 
 #ifdef ENABLE_PATCH_APIS
-  std::optional<StorageError> patch(thrift_cow::Patch&& patch) {
+  std::optional<StorageError> patch(Patch&& patch) {
     return static_cast<Impl*>(this)->patch_impl(std::move(patch));
   }
 #endif

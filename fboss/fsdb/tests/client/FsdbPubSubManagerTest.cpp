@@ -136,8 +136,13 @@ class FsdbPubSubManagerTest : public ::testing::Test {
                       FsdbDeltaPublisher>) {
       pubSubManager_->createStatDeltaPublisher(
           kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
-    } else {
+    } else if constexpr (std::is_same_v<
+                             typename TestParam::PublisherT,
+                             FsdbStatePublisher>) {
       pubSubManager_->createStatPathPublisher(
+          kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
+    } else {
+      pubSubManager_->createStatPatchPublisher(
           kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
     }
     connectionSync_.wait();
@@ -147,8 +152,13 @@ class FsdbPubSubManagerTest : public ::testing::Test {
                       FsdbDeltaPublisher>) {
       pubSubManager_->createStateDeltaPublisher(
           kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
-    } else {
+    } else if constexpr (std::is_same_v<
+                             typename TestParam::PublisherT,
+                             FsdbStatePublisher>) {
       pubSubManager_->createStatePathPublisher(
+          kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
+    } else {
+      pubSubManager_->createStatePatchPublisher(
           kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
     }
     connectionSync_.wait();
@@ -156,20 +166,35 @@ class FsdbPubSubManagerTest : public ::testing::Test {
     checkPublishing(false /*isStats*/);
     checkPublishing(true /*isStats*/);
   }
-  void createPublisher(bool isStats, bool isDelta) {
-    if (isStats && isDelta) {
-      pubSubManager_->createStateDeltaPublisher(
-          kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
-    } else if (isStats && !isDelta) {
-      pubSubManager_->createStatPathPublisher(
-          kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
-    } else if (!isStats && isDelta) {
-      pubSubManager_->createStateDeltaPublisher(
-          kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
-    } else {
-      CHECK(!isStats && !isDelta);
-      pubSubManager_->createStatePathPublisher(
-          kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
+  void createPublisher(bool isStats, PubSubType type) {
+    switch (type) {
+      case PubSubType::DELTA:
+        if (isStats) {
+          pubSubManager_->createStateDeltaPublisher(
+              kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
+        } else {
+          pubSubManager_->createStateDeltaPublisher(
+              kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
+        }
+        break;
+      case PubSubType::PATH:
+        if (isStats) {
+          pubSubManager_->createStatPathPublisher(
+              kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
+        } else {
+          pubSubManager_->createStatePathPublisher(
+              kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
+        }
+        break;
+      case PubSubType::PATCH:
+        if (isStats) {
+          pubSubManager_->createStatPatchPublisher(
+              kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
+        } else {
+          pubSubManager_->createStatePatchPublisher(
+              kPublishRoot, stateChangeCb(), fsdbTestServer_->getFsdbPort());
+        }
+        break;
     }
     connectionSync_.wait();
     connectionSync_.reset();
@@ -241,8 +266,7 @@ class FsdbPubSubManagerTest : public ::testing::Test {
         subscriptionPath(),
         stChangeCb,
         operDeltaUpdate,
-        "::1",
-        fsdbTestServer_->getFsdbPort());
+        FsdbStreamClient::ServerOptions("::1", fsdbTestServer_->getFsdbPort()));
   }
   void addStateDeltaSubscription(
       FsdbDeltaSubscriber::FsdbOperDeltaUpdateCb operDeltaUpdate,
@@ -251,8 +275,7 @@ class FsdbPubSubManagerTest : public ::testing::Test {
         subscriptionPath(),
         stChangeCb,
         operDeltaUpdate,
-        "::1",
-        fsdbTestServer_->getFsdbPort());
+        FsdbStreamClient::ServerOptions("::1", fsdbTestServer_->getFsdbPort()));
   }
   void addSubscriptions(
       FsdbDeltaSubscriber::FsdbOperDeltaUpdateCb operDeltaUpdate) {
@@ -266,8 +289,7 @@ class FsdbPubSubManagerTest : public ::testing::Test {
         subscriptionPath(),
         stChangeCb,
         operPathUpdate,
-        "::1",
-        fsdbTestServer_->getFsdbPort());
+        FsdbStreamClient::ServerOptions("::1", fsdbTestServer_->getFsdbPort()));
   }
   void addStatePathSubscription(
       FsdbStateSubscriber::FsdbOperStateUpdateCb operPathUpdate,
@@ -276,8 +298,7 @@ class FsdbPubSubManagerTest : public ::testing::Test {
         subscriptionPath(),
         stChangeCb,
         operPathUpdate,
-        "::1",
-        fsdbTestServer_->getFsdbPort());
+        FsdbStreamClient::ServerOptions("::1", fsdbTestServer_->getFsdbPort()));
   }
   void addStatePathSubscriptionWithGrHoldTime(
       FsdbStateSubscriber::FsdbOperStateUpdateCb operPathUpdate,
@@ -330,10 +351,16 @@ class FsdbPubSubManagerTest : public ::testing::Test {
       auto delta = makeDelta(toPublish);
       isStat ? pubSubManager_->publishStat(std::move(delta))
              : pubSubManager_->publishState(std::move(delta));
-    } else {
+    } else if constexpr (std::is_same_v<
+                             typename TestParam::PubUnitT,
+                             OperState>) {
       auto state = makeState(toPublish);
       isStat ? pubSubManager_->publishStat(std::move(state))
              : pubSubManager_->publishState(std::move(state));
+    } else {
+      auto patch = makePatch(toPublish);
+      isStat ? pubSubManager_->publishStat(std::move(patch))
+             : pubSubManager_->publishState(std::move(patch));
     }
   }
 
@@ -518,7 +545,7 @@ TYPED_TEST_SUITE(FsdbPubSubManagerGRHoldTest, GRHoldTestTypes);
 
 TYPED_TEST(FsdbPubSubManagerGRHoldTest, verifySubscriptionDisconnect) {
   folly::Synchronized<std::vector<OperState>> statePaths;
-  this->createPublisher(false, true);
+  this->createPublisher(false, PubSubType::DELTA);
   this->addStatePathSubscriptionWithGrHoldTime(
       this->makeOperStateCb(statePaths), this->subscriptionStateChangeCb(), 0);
   // Publish
@@ -542,7 +569,7 @@ TYPED_TEST(FsdbPubSubManagerGRHoldTest, verifySubscriptionDisconnect) {
 
 TYPED_TEST(FsdbPubSubManagerGRHoldTest, verifyGRHoldTimeExpiry) {
   folly::Synchronized<std::vector<OperState>> statePaths;
-  this->createPublisher(false, true);
+  this->createPublisher(false, PubSubType::DELTA);
   this->addStatePathSubscriptionWithGrHoldTime(
       this->makeOperStateCb(statePaths),
       this->subscriptionStateChangeCb(),
@@ -565,7 +592,7 @@ TYPED_TEST(FsdbPubSubManagerGRHoldTest, verifyGRHoldTimeExpiry) {
 
 TYPED_TEST(FsdbPubSubManagerGRHoldTest, verifyResyncWithinGRHoldTime) {
   folly::Synchronized<std::vector<OperState>> statePaths;
-  this->createPublisher(false, true);
+  this->createPublisher(false, PubSubType::DELTA);
   this->addStatePathSubscriptionWithGrHoldTime(
       this->makeOperStateCb(statePaths),
       this->subscriptionStateChangeCb(),
@@ -578,7 +605,7 @@ TYPED_TEST(FsdbPubSubManagerGRHoldTest, verifyResyncWithinGRHoldTime) {
         this->getSubscriptionState(), SubscriptionState::CONNECTED_GR_HOLD);
   });
   // reconnect publisher, and verify publisher reconnect within GR hold time
-  this->createPublisher(false, true);
+  this->createPublisher(false, PubSubType::DELTA);
   this->publish(makeAgentConfig({{"foo", "bar"}}));
   // verify subscriber state stays connected, and never disconnected
   WITH_RETRIES({

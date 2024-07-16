@@ -12769,7 +12769,7 @@
         "isVirtual": false,
         "isStateSyncDisabled": true,
         "type": 2,
-        "scope": 0
+        "scope": 1
       },
       {
         "intfID": 277,
@@ -12782,7 +12782,7 @@
         "isVirtual": false,
         "isStateSyncDisabled": true,
         "type": 2,
-        "scope": 0
+        "scope": 1
       },
       {
         "intfID": 2151,
@@ -12796,7 +12796,7 @@
         "isVirtual": false,
         "isStateSyncDisabled": true,
         "type": 2,
-        "scope": 0
+        "scope": 1
       },
       {
         "intfID": 2153,
@@ -12810,7 +12810,7 @@
         "isVirtual": false,
         "isStateSyncDisabled": true,
         "type": 2,
-        "scope": 0
+        "scope": 1
       }
     ],
     "arpTimeoutSeconds": 60,
@@ -12847,8 +12847,9 @@
       },
       {
         "dscp": 48,
-        "name": "cpuPolicing-high-NetworkControl-dstLocal-127.0.0.1/32",
-        "actionType": 1
+        "name": "cpuPolicing-high-NetworkControl-dstLocal",
+        "actionType": 1,
+        "lookupClassRoute": 1
       },
       {
         "dstIp": "fe80::/10",
@@ -12881,42 +12882,26 @@
       {
         "id": 7,
         "streamType": 0,
-        "weight": 4,
-        "scheduling": 0,
+        "scheduling": 1,
         "name": "cpuQueue-high"
       },
       {
         "id": 3,
         "streamType": 0,
-        "weight": 2,
-        "scheduling": 0,
+        "scheduling": 1,
         "name": "cpuQueue-mid"
       },
       {
         "id": 1,
         "streamType": 0,
-        "weight": 1,
-        "scheduling": 0,
-        "name": "cpuQueue-default",
-        "portQueueRate": {
-          "pktsPerSec": {
-            "minimum": 0,
-            "maximum": 1000
-          }
-        }
+        "scheduling": 1,
+        "name": "cpuQueue-default"
       },
       {
         "id": 0,
         "streamType": 0,
-        "weight": 1,
-        "scheduling": 0,
-        "name": "cpuQueue-low",
-        "portQueueRate": {
-          "pktsPerSec": {
-            "minimum": 0,
-            "maximum": 500
-          }
-        }
+        "scheduling": 1,
+        "name": "cpuQueue-low"
       }
     ],
     "cpuTrafficPolicy": {
@@ -12952,7 +12937,7 @@
             }
           },
           {
-            "matcher": "cpuPolicing-high-NetworkControl-dstLocal-127.0.0.1/32",
+            "matcher": "cpuPolicing-high-NetworkControl-dstLocal",
             "action": {
               "sendToQueue": {
                 "queueId": 7

@@ -260,11 +260,12 @@ class SaiPortManager {
       PortSaiId saiPortId) const;
 #endif
 
-#if defined(BRCM_SAI_SDK_GTE_11_0)
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 3)
   std::optional<sai_latch_status_t> getHighCrcErrorRate(
       PortSaiId saiPortId,
       PortID swPort) const;
 #endif
+  void updateLeakyBucketFb303Counter(PortID portId, int value);
 
   void enableAfeAdaptiveMode(PortID portId);
 
@@ -386,7 +387,7 @@ class SaiPortManager {
   void programPfcBuffers(const std::shared_ptr<Port>& swPort);
   void removePfcBuffers(const std::shared_ptr<Port>& swPort);
   sai_port_prbs_config_t getSaiPortPrbsConfig(bool enabled) const;
-  void initAsicPrbsStats(PortID portId, uint32_t speed);
+  void initAsicPrbsStats(const std::shared_ptr<Port>& swPort);
   void removeIngressPriorityGroupMappings(SaiPortHandle* portHandle);
   void applyPriorityGroupBufferProfile(
       const std::shared_ptr<Port>& swPort,

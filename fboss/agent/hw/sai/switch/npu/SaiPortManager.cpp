@@ -35,7 +35,8 @@ namespace {
 std::optional<SaiPortTraits::Attributes::SystemPortId> getSystemPortId(
     const SaiPlatform* platform,
     PortID portId) {
-  if (platform->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_EBRO) {
+  if (platform->getAsic()->getAsicVendor() ==
+      HwAsic::AsicVendor::ASIC_VENDOR_TAJO) {
     return std::optional<SaiPortTraits::Attributes::SystemPortId>{
         portId + platform->getAsic()->getSystemPortIDOffset()};
   }
@@ -264,7 +265,7 @@ PortSaiId SaiPortManager::addPortImpl(const std::shared_ptr<Port>& swPort) {
   platformPort->setHwLogicalPortId(hwLogicalPortId);
   auto asicPrbs = swPort->getAsicPrbs();
   if (asicPrbs.enabled().value()) {
-    initAsicPrbsStats(swPort->getID(), static_cast<int>(swPort->getSpeed()));
+    initAsicPrbsStats(swPort);
   }
   return portSaiId;
 }
@@ -362,8 +363,7 @@ void SaiPortManager::changePortImpl(
   changeQosPolicy(oldPort, newPort);
   if (oldAsicPrbsEnabled != newAsicPrbsEnabled) {
     if (newAsicPrbsEnabled) {
-      initAsicPrbsStats(
-          newPort->getID(), static_cast<int>(newPort->getSpeed()));
+      initAsicPrbsStats(newPort);
     } else {
       auto portAsicPrbsStatsItr = portAsicPrbsStats_.find(newPort->getID());
       if (portAsicPrbsStatsItr == portAsicPrbsStats_.end()) {
@@ -581,8 +581,6 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
     if (asicPrbs.enabled().value()) {
       prbsPolynomial =
           static_cast<sai_uint32_t>(asicPrbs.polynominal().value());
-      XLOG(DBG2) << "ASIC PRBS enabled with polynomial set to "
-                 << asicPrbs.polynominal().value() << " for port " << portID;
     }
   }
   std::optional<SaiPortTraits::Attributes::DisableTtlDecrement> disableTtl{};
@@ -884,7 +882,9 @@ void SaiPortManager::programSerdes(
   // create if serdes doesn't exist or update existing serdes
   portHandle->serdes = store.setObject(serdesKey, serdesAttributes);
 
-  if (platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_GARONNE) {
+  if (platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_GARONNE ||
+      platform_->getAsic()->getAsicType() ==
+          cfg::AsicType::ASIC_TYPE_TOMAHAWK5) {
     /*
      * SI settings are not programmed to the hardware when the port is
      * created with admin UP. We need to explicitly toggle the admin

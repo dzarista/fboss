@@ -46,7 +46,6 @@ void initFlagDefaults(const std::map<std::string, std::string>& defaults) {
     gflags::SetCommandLineOptionWithMode(
         item.first.c_str(), item.second.c_str(), gflags::SET_FLAGS_DEFAULT);
   }
-  FLAGS_classid_for_unresolved_routes = true;
 }
 
 class SignalHandler : public AsyncSignalHandler {
@@ -150,6 +149,10 @@ void SaiSwitchEnsemble::init(
   initFlagDefaults(*agentConfig->thrift.defaultCommandLineArgs());
   auto platform =
       initSaiPlatform(std::move(agentConfig), getHwSwitchFeatures(), 0);
+  if (platform->getAsic()->getAsicVendor() ==
+      HwAsic::AsicVendor::ASIC_VENDOR_TAJO) {
+    FLAGS_classid_for_unresolved_routes = true;
+  }
   if (auto tcvr = info.overrideTransceiverInfo) {
     platform->setOverrideTransceiverInfo(*tcvr);
   }

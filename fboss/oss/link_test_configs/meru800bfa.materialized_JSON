@@ -36968,7 +36968,7 @@
         
       ],
       "switchType": 3,
-      "switchId": 0,
+      "switchId": 512,
       "exactMatchTableConfigs": [
         
       ],
@@ -36977,7 +36977,7 @@
       },
       "switchDrainState": 0,
       "switchIdToSwitchInfo": {
-        "0": {
+        "512": {
             "switchType": 3,
             "asicType": 16,
             "switchIndex": 0,
@@ -36987,7 +36987,7 @@
             },
             "connectionHandle": "15:00"
         },
-        "1": {
+        "514": {
             "switchType": 3,
             "asicType": 16,
             "switchIndex": 1,
@@ -37006,7 +37006,13 @@
       ]
     },
     "dsfNodes": {
-      
+       "512": {
+        "name": "",
+        "switchId": 0, 
+        "type": 1, 
+        "asicType": 16, 
+        "platformType": 30
+      }
     },
     "defaultVoqConfig": [
       

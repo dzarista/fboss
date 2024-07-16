@@ -23,8 +23,6 @@ struct TestPort {
 
 class PrbsTest : public LinkTest {
  public:
-  static constexpr int kPauseRemediationTimeout = 86400;
-
   bool checkValidMedia(PortID port, MediaInterfaceCode media) {
     auto tcvrSpec = utility::getTransceiverSpec(sw(), port);
     this->platform()->getPlatformPort(port)->getTransceiverSpec();
@@ -76,15 +74,7 @@ class PrbsTest : public LinkTest {
     }
   }
 
-  void runTest(bool pauseRemediation = false) {
-    // Pause remediation on all port transceivers (only applies for ASIC <->
-    // ASIC PRBS)
-    if (pauseRemediation) {
-      WITH_RETRIES_N_TIMED(12, std::chrono::milliseconds(5000), {
-        EXPECT_EVENTUALLY_TRUE(pauseRemediationOnAllInterfaces());
-      });
-    }
-
+  void runTest() {
     prbs::InterfacePrbsState enabledState;
     enabledState.generatorEnabled() = true;
     enabledState.checkerEnabled() = true;
@@ -95,18 +85,7 @@ class PrbsTest : public LinkTest {
     disabledState.generatorEnabled() = false;
     disabledState.checkerEnabled() = false;
 
-    auto timestampBeforeClear = std::time(nullptr);
-    /* sleep override */ std::this_thread::sleep_for(1s);
-    XLOG(DBG2) << "Clearing PRBS stats before starting the test";
-    clearPrbsStatsOnAllInterfaces();
-
-    // 1. Verify the last clear timestamp advanced and num loss of lock was
-    // reset to 0
-    XLOG(DBG2) << "Verifying PRBS stats are cleared before starting the test";
-    checkPrbsStatsAfterClearOnAllInterfaces(
-        timestampBeforeClear, false /* prbsEnabled */);
-
-    // 2. Enable PRBS on all Ports
+    // 1. Enable PRBS on all Ports
     XLOG(DBG2) << "Enabling PRBS Generator on all ports";
     enabledState.generatorEnabled() = true;
     enabledState.checkerEnabled().reset();
@@ -129,7 +108,7 @@ class PrbsTest : public LinkTest {
       EXPECT_EVENTUALLY_TRUE(setPrbsOnAllInterfaces(enabledState));
     });
 
-    // 3. Check Prbs State on all ports, they all should be enabled
+    // 2. Check Prbs State on all ports, they all should be enabled
     XLOG(DBG2) << "Checking PRBS state after enabling PRBS";
     // Retry for a minute to give the qsfp_service enough chance to
     // successfully refresh a transceiver
@@ -137,38 +116,38 @@ class PrbsTest : public LinkTest {
       EXPECT_EVENTUALLY_TRUE(checkPrbsStateOnAllInterfaces(enabledState));
     });
 
-    // 4. Let PRBS warm up for 10 seconds
+    // 3. Let PRBS warm up for 10 seconds
     /* sleep override */ std::this_thread::sleep_for(10s);
 
-    // 5. Do an initial check of PRBS stats to account for lock loss
+    // 4. Do an initial check of PRBS stats to account for lock loss
     // at startup.
     XLOG(DBG2) << "Initially checking PRBS stats";
     checkPrbsStatsOnAllInterfaces(true);
 
-    // 6. Clear the PRBS stats to clear the instability at PRBS startup
+    // 5. Clear the PRBS stats to clear the instability at PRBS startup
     XLOG(DBG2) << "Clearing PRBS stats before monitoring stats";
     clearPrbsStatsOnAllInterfaces();
 
-    // 7. Let PRBS run for 10 seconds so that we can check the BER later
+    // 6. Let PRBS run for 10 seconds so that we can check the BER later
     /* sleep override */ std::this_thread::sleep_for(10s);
 
-    // 8. Check PRBS stats, expect no loss of lock
+    // 7. Check PRBS stats, expect no loss of lock
     XLOG(DBG2) << "Verifying PRBS stats";
     checkPrbsStatsOnAllInterfaces();
 
-    // 9. Clear PRBS stats
-    timestampBeforeClear = std::time(nullptr);
+    // 8. Clear PRBS stats
+    auto timestampBeforeClear = std::time(nullptr);
     /* sleep override */ std::this_thread::sleep_for(1s);
     XLOG(DBG2) << "Clearing PRBS stats";
     clearPrbsStatsOnAllInterfaces();
 
-    // 10. Verify the last clear timestamp advanced and that there was no
+    // 9. Verify the last clear timestamp advanced and that there was no
     // impact on some of the other fields
     XLOG(DBG2) << "Verifying PRBS stats after clear";
     checkPrbsStatsAfterClearOnAllInterfaces(
         timestampBeforeClear, true /* prbsEnabled */);
 
-    // 11. Disable PRBS on all Ports
+    // 10. Disable PRBS on all Ports
     XLOG(DBG2) << "Disabling PRBS";
     // Retry for a minute to give the qsfp_service enough chance to
     // successfully refresh a transceiver
@@ -176,7 +155,7 @@ class PrbsTest : public LinkTest {
       EXPECT_EVENTUALLY_TRUE(setPrbsOnAllInterfaces(disabledState));
     });
 
-    // 12. Check Prbs State on all ports, they all should be disabled
+    // 11. Check Prbs State on all ports, they all should be disabled
     XLOG(DBG2) << "Checking PRBS state after disabling PRBS";
     // Retry for a minute to give the qsfp_service enough chance to
     // successfully refresh a transceiver
@@ -184,7 +163,7 @@ class PrbsTest : public LinkTest {
       EXPECT_EVENTUALLY_TRUE(checkPrbsStateOnAllInterfaces(disabledState));
     });
 
-    // 13. Link and traffic should come back up now
+    // 12. Link and traffic should come back up now
     XLOG(DBG2) << "Waiting for links and traffic to come back up";
     EXPECT_NO_THROW(waitForAllCabledPorts(true));
     waitForLldpOnCabledPorts();
@@ -194,23 +173,6 @@ class PrbsTest : public LinkTest {
 
  private:
   std::vector<TestPort> portsToTest_;
-
-  bool pauseRemediationOnAllInterfaces() {
-    std::vector<std::string> interfaces;
-    auto qsfpServiceClient = utils::createQsfpServiceClient();
-    for (const auto& port : portsToTest_) {
-      interfaces.push_back(port.portName);
-    }
-    try {
-      qsfpServiceClient->sync_pauseRemediation(
-          kPauseRemediationTimeout, interfaces);
-    } catch (const std::exception& ex) {
-      XLOG(ERR) << "Pausing remediation failed with " << ex.what() << "for "
-                << folly::join(",", interfaces);
-      return false;
-    }
-    return true;
-  }
 
   template <class Client>
   bool setPrbsOnInterface(
@@ -234,6 +196,16 @@ class PrbsTest : public LinkTest {
       auto component = testPort.component;
       state.polynomial_ref() = testPort.polynomial;
       if (component == phy::PortComponent::ASIC) {
+        // Setting ASIC PRBS requires generator and checker to be both enabled
+        // or both disabled.
+        if ((state.generatorEnabled() && state.generatorEnabled().value()) ||
+            (state.checkerEnabled() && state.checkerEnabled().value())) {
+          state.generatorEnabled() = true;
+          state.checkerEnabled() = true;
+        } else {
+          state.generatorEnabled() = false;
+          state.checkerEnabled() = false;
+        }
         auto agentClient = utils::createWedgeAgentClient();
         WITH_RETRIES_N_TIMED(6, std::chrono::milliseconds(5000), {
           EXPECT_EVENTUALLY_TRUE(
@@ -520,7 +492,7 @@ class TransceiverLineToTransceiverLinePrbsTest : public PrbsTest {
   std::vector<TestPort> getPortsToTest() override {
     std::vector<TestPort> portsToTest;
     auto connectedPairs = this->getConnectedPairs();
-    for (const auto [port1, port2] : connectedPairs) {
+    for (const auto& [port1, port2] : connectedPairs) {
       auto portName1 = this->getPortName(port1);
       auto portName2 = this->getPortName(port2);
 
@@ -554,8 +526,8 @@ class PhyToTransceiverSystemPrbsTest : public PrbsTest {
         ComponentA == phy::PortComponent::GB_LINE);
     std::vector<TestPort> portsToTest;
     auto connectedPairs = this->getConnectedPairs();
-    for (const auto [port1, port2] : connectedPairs) {
-      for (const auto port : {port1, port2}) {
+    for (const auto& [port1, port2] : connectedPairs) {
+      for (const auto& port : {port1, port2}) {
         auto portName = this->getPortName(port);
         if (!this->checkValidMedia(port, Media) ||
             !this->checkPrbsSupported(portName, ComponentA, PolynomialA) ||
@@ -580,7 +552,7 @@ class AsicToAsicPrbsTest : public PrbsTest {
   std::vector<TestPort> getPortsToTest() override {
     std::vector<TestPort> portsToTest;
     auto connectedPairs = this->getConnectedPairs();
-    for (const auto [port1, port2] : connectedPairs) {
+    for (const auto& [port1, port2] : connectedPairs) {
       auto portName1 = this->getPortName(port1);
       auto portName2 = this->getPortName(port2);
 
@@ -651,7 +623,7 @@ class AsicToAsicPrbsTest : public PrbsTest {
   struct PRBS_ASIC_TEST_NAME(ASIC, POLYNOMIAL)                          \
       : public AsicToAsicPrbsTest<prbs::PrbsPolynomial::POLYNOMIAL> {}; \
   TEST_F(PRBS_ASIC_TEST_NAME(ASIC, POLYNOMIAL), prbsSanity) {           \
-    runTest(true);                                                      \
+    runTest();                                                          \
   }
 
 PRBS_TRANSCEIVER_LINE_TRANSCEIVER_LINE_TEST(FR1_100G, PRBS31);

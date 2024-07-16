@@ -30,10 +30,10 @@
         "isVirtual": false,
         "isStateSyncDisabled": true,
         "type": 2,
-        "scope": 0
+        "scope": 1
       },
       {
-        "intfID": 138,
+        "intfID": 107,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -43,7 +43,7 @@
         "isVirtual": false,
         "isStateSyncDisabled": true,
         "type": 2,
-        "scope": 0
+        "scope": 1
       }
     ],
     "arpTimeoutSeconds": 60,
@@ -184,7 +184,7 @@
         "common": {
           "config": {
             "appl_enable_oam.BCM8889X": "0",
-            "appl_param_rcy_mirror_ports_range.BCM8889X": "100-139",
+            "appl_param_rcy_mirror_ports_range.BCM8889X": "100-143",
             "bcm_stat_interval": "1000000",
             "custom_feature_adapter_do_collect_enable.BCM8889X_ADAPTER": "1",
             "custom_feature_cmicx_gen2_pdma_interface_optimization": "1",
@@ -1262,9 +1262,9 @@
             "tm_port_header_type_in_202.BCM8889X": "INJECTED_PP",
             "tm_port_header_type_in_203.BCM8889X": "INJECTED_PP",
             "tm_port_header_type_in_218.BCM8889X_ADAPTER": "INJECTED",
-            "tm_port_header_type_in_230.BCM8889X": "INJECTED",
             "tm_port_header_type_in_240.BCM8889X": "INJECTED",
             "tm_port_header_type_in_241.BCM8889X": "INJECTED",
+            "tm_port_header_type_in_6.BCM8889X": "INJECTED",
             "tm_port_header_type_out_0.BCM8889X": "CPU",
             "tm_port_header_type_out_1.BCM8889X": "ETH",
             "tm_port_header_type_out_200.BCM8889X": "ETH",
@@ -1328,7 +1328,7 @@
             "ucode_port_40.BCM8889X": "D3CE16:core_3.8",
             "ucode_port_42.BCM8889X": "D3CE17:core_3.10",
             "ucode_port_5.BCM8889X": "RCY.24:core_3.1",
-            "ucode_port_6.BCM8889X": "EVENTOR:core_1.2",
+            "ucode_port_6.BCM8889X": "EVENTOR:core_0.42",
             "ucode_port_7.BCM8889X": "CGE36:core_2.11",
             "ucode_port_8.BCM8889X": "D3CE0:core_0.2",
             "warmboot_support.BCM8889X": "on",

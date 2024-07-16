@@ -277,7 +277,7 @@ std::shared_ptr<Port> ManagerTestBase::makePort(
       break;
     case cfg::PortSpeed::HUNDREDANDSIXPOINTTWOFIVEG:
       swPort->setProfileId(
-          cfg::PortProfileID::PROFILE_100G_1_PAM4_RS544_COPPER);
+          cfg::PortProfileID::PROFILE_106POINT25G_1_PAM4_RS544_COPPER);
       break;
     case cfg::PortSpeed::TWOHUNDREDG:
       swPort->setProfileId(
@@ -412,7 +412,7 @@ std::shared_ptr<SystemPort> ManagerTestBase::makeSystemPort(
     int64_t switchId) const {
   auto sysPort = std::make_shared<SystemPort>(SystemPortID(sysPortId));
   sysPort->setSwitchId(SwitchID(switchId));
-  sysPort->setPortName("sysPort1");
+  sysPort->setName("sysPort1");
   sysPort->setCoreIndex(42);
   sysPort->setCorePortIndex(24);
   sysPort->setSpeedMbps(10000);

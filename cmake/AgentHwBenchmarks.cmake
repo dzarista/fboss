@@ -37,7 +37,7 @@ add_library(hw_stats_collection_speed
 target_link_libraries(hw_stats_collection_speed
   config_factory
   hw_packet_utils
-  hw_voq_utils
+  voq_test_utils
   ecmp_helper
   mono_agent_ensemble
   mono_agent_benchmarks
@@ -298,7 +298,7 @@ add_library(hw_init_and_exit_benchmark_helper
 target_link_libraries(hw_init_and_exit_benchmark_helper
   config_factory
   fabric_test_utils
-  hw_voq_utils
+  voq_test_utils
   mono_agent_ensemble
   mono_agent_benchmarks
   route_scale_gen
@@ -399,4 +399,20 @@ target_link_libraries(hw_anticipated_scale_route_del_speed
   function_call_time_reporter
   Folly::folly
   Folly::follybenchmark
+)
+
+add_library(hw_voq_scale_route_add_speed
+  fboss/agent/hw/benchmarks/HwVoqScaleRouteAddBenchmark.cpp
+)
+
+target_link_libraries(hw_voq_scale_route_add_speed
+  route_scale_gen
+)
+
+add_library(hw_voq_scale_route_del_speed
+  fboss/agent/hw/benchmarks/HwVoqScaleRouteDelBenchmark.cpp
+)
+
+target_link_libraries(hw_voq_scale_route_del_speed
+  route_scale_gen
 )

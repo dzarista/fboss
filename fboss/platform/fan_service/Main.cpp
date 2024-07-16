@@ -5,7 +5,7 @@
 #include <string>
 
 #include <fb303/FollyLoggingHandler.h>
-#include <folly/experimental/FunctionScheduler.h>
+#include <folly/executors/FunctionScheduler.h>
 #include <folly/logging/Init.h>
 #include <folly/logging/xlog.h>
 #include <gflags/gflags.h>
@@ -23,8 +23,6 @@ DEFINE_int32(
     control_interval,
     1,
     "How often we will check whether sensor read and pwm control is needed");
-
-FOLLY_INIT_LOGGING_CONFIG("fboss=DBG2; default:async=true");
 
 int main(int argc, char** argv) {
   fb303::registerFollyLoggingOptionHandlers();

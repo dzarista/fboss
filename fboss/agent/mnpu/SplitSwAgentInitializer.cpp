@@ -16,9 +16,11 @@
 
 namespace facebook::fboss {
 
-void SplitSwSwitchInitializer::initImpl(HwSwitchCallback* callback) {
+void SplitSwSwitchInitializer::initImpl(
+    HwSwitchCallback* /* callback */,
+    const HwWriteBehavior& hwWriteBehavior) {
   // this blocks until at least one hardware switch is up
-  sw_->init(setupFlags());
+  sw_->init(hwWriteBehavior, setupFlags());
 }
 
 SplitSwAgentInitializer::SplitSwAgentInitializer() {
@@ -36,6 +38,7 @@ std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
 SplitSwAgentInitializer::getThrifthandlers() {
   std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>> handlers;
   auto handler = std::make_shared<MultiSwitchThriftHandler>(sw_.get());
+  multiSwitchThriftHandler_ = handler.get();
   handlers.push_back(handler);
   return handlers;
 }
@@ -63,6 +66,7 @@ void SplitSwAgentInitializer::handleExitSignal(bool gracefulExit) {
   XLOG(DBG2) << "[Exit] Wait until initialization done ";
   initializer_->waitForInitDone();
   initializer_->stopFunctionScheduler();
+  multiSwitchThriftHandler_->cancelEventSyncers();
   steady_clock::time_point switchGracefulExitBegin = steady_clock::now();
   sw_->gracefulExit();
   steady_clock::time_point switchGracefulExitEnd = steady_clock::now();
@@ -89,6 +93,7 @@ void SplitSwAgentInitializer::handleExitSignal(bool gracefulExit) {
 #endif
 #endif
   initializer_.reset();
+  this->waitForServerStopped();
   if (gracefulExit) {
     exit(0);
   } else {
@@ -96,11 +101,9 @@ void SplitSwAgentInitializer::handleExitSignal(bool gracefulExit) {
   }
 }
 
-void SplitSwAgentInitializer::stopAgent(
-    bool setupWarmboot,
-    bool /*gracefulExit*/) {
+void SplitSwAgentInitializer::stopAgent(bool setupWarmboot, bool gracefulExit) {
   if (setupWarmboot) {
-    exitForWarmBoot();
+    exitForWarmBoot(gracefulExit);
   } else {
     exitForColdBoot();
   }
@@ -114,7 +117,7 @@ void SplitSwAgentInitializer::exitForColdBoot() {
   initializer_.reset();
 }
 
-void SplitSwAgentInitializer::exitForWarmBoot() {
-  handleExitSignal(true);
+void SplitSwAgentInitializer::exitForWarmBoot(bool gracefulExit) {
+  handleExitSignal(gracefulExit);
 }
 } // namespace facebook::fboss

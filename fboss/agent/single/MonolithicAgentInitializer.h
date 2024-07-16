@@ -3,7 +3,7 @@
 #pragma once
 #include <memory>
 
-#include <folly/experimental/FunctionScheduler.h>
+#include <folly/executors/FunctionScheduler.h>
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 #include "fboss/agent/CommonInit.h"
 #include "fboss/agent/HwAgent.h"
@@ -38,7 +38,9 @@ class MonolithicSwSwitchInitializer : public SwSwitchInitializer {
   }
 
  private:
-  void initImpl(HwSwitchCallback* callback) override;
+  void initImpl(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) override;
   HwAgent* hwAgent_;
 };
 

@@ -5,23 +5,15 @@
 #include <fboss/thrift_cow/nodes/NodeUtils.h>
 #include <fboss/thrift_cow/nodes/Serializer.h>
 #include <fboss/thrift_cow/visitors/PatchHelpers.h>
-#include <thrift/lib/cpp2/reflection/reflection.h>
+#include <fboss/thrift_cow/visitors/gen-cpp2/results_types.h>
 
+#include <thrift/lib/cpp/util/EnumUtils.h>
+#include <thrift/lib/cpp2/reflection/reflection.h>
 #include <optional>
 
 #pragma once
 
 namespace facebook::fboss::thrift_cow {
-
-enum class PatchResult {
-  OK,
-  INVALID_STRUCT_MEMBER,
-  INVALID_VARIANT_MEMBER,
-  INVALID_PATCH_TYPE,
-  NON_EXISTENT_NODE,
-  KEY_PARSE_ERROR,
-  PATCHING_IMMUTABLE_NODE,
-};
 
 template <typename TC>
 struct PatchApplier;
@@ -30,11 +22,36 @@ struct NodeType;
 struct FieldsType;
 
 namespace pa_detail {
-inline PatchResult patchNode(Serializable& n, ByteBuffer&& buf) {
-  n.fromEncodedBuf(fsdb::OperProtocol::COMPACT, std::move(buf));
-  return PatchResult::OK;
+
+template <typename TC, typename Node>
+inline PatchApplyResult
+patchNode(Node& n, ByteBuffer&& buf, fsdb::OperProtocol protocol) {
+  if constexpr (is_cow_type_v<Node>) {
+    n.fromEncodedBuf(protocol, std::move(buf));
+  } else {
+    n = deserializeBuf<TC, Node>(protocol, std::move(buf));
+  }
+  return PatchApplyResult::OK;
 }
+
+std::vector<int> getSortedIndices(const ListPatch& node);
 } // namespace pa_detail
+
+class PatchTraverser {
+ public:
+  void push(int tok);
+  void push(std::string tok);
+  PatchApplyResult traverseResult(const PatchApplyResult& result);
+  void pop();
+
+  PatchApplyResult currentResult() {
+    return curResult_;
+  }
+
+ private:
+  std::vector<std::string> curPath_;
+  PatchApplyResult curResult_{PatchApplyResult::OK};
+};
 
 /*
  * Map
@@ -44,47 +61,82 @@ struct PatchApplier<
     apache::thrift::type_class::map<KeyTypeClass, MappedTypeClass>> {
   using TC = apache::thrift::type_class::map<KeyTypeClass, MappedTypeClass>;
 
-  template <
-      typename Node,
-      // only enable for Node types
-      std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
-          true>
-  static inline PatchResult apply(Node& node, PatchNode&& patch) {
+  template <typename Node>
+  static inline PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol = fsdb::OperProtocol::COMPACT) {
+    PatchTraverser traverser;
+    return apply(node, std::move(patch), protocol, traverser);
+  }
+
+  template <typename Node>
+  static PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol,
+      PatchTraverser& traverser) {
     if (patch.getType() == PatchNode::Type::val) {
-      return pa_detail::patchNode(node, patch.move_val());
+      return pa_detail::patchNode<TC>(node, patch.move_val(), protocol);
     }
     if (patch.getType() != PatchNode::Type::map_node) {
-      return PatchResult::INVALID_PATCH_TYPE;
+      return PatchApplyResult::INVALID_PATCH_TYPE;
     }
 
-    using Fields = typename Node::Fields;
-    using key_type = typename Fields::key_type;
-
-    PatchResult result = PatchResult::OK;
+    using key_type = typename Node::key_type;
 
     decompressPatch(patch);
     auto mapPatch = patch.move_map_node();
     for (auto&& [key, childPatch] : *std::move(mapPatch).children()) {
+      traverser.push(key);
       if (auto parsedKey = tryParseKey<key_type, KeyTypeClass>(key)) {
-        if (childPatch.getType() == PatchNode::Type::del) {
-          node.remove(std::move(*parsedKey));
-        } else {
-          node.modifyTyped(*parsedKey);
-
-          auto res = PatchApplier<MappedTypeClass>::apply(
-              *node.ref(std::move(*parsedKey)), std::move(childPatch));
-          // Continue patching even if there is an error, but still return an
-          // error if encountered
-          if (res != PatchResult::OK) {
-            result = res;
-          }
-        }
+        traverser.traverseResult(applyChildPatch(
+            node, std::move(*parsedKey), std::move(childPatch), protocol));
       } else {
-        result = PatchResult::KEY_PARSE_ERROR;
+        traverser.traverseResult(PatchApplyResult::KEY_PARSE_ERROR);
       }
+      traverser.pop();
     }
 
-    return result;
+    return traverser.currentResult();
+  }
+
+ private:
+  template <typename Node, typename KeyT>
+  static PatchApplyResult applyChildPatch(
+      Node& node,
+      KeyT key,
+      PatchNode&& childPatch,
+      fsdb::OperProtocol protocol)
+    requires(is_cow_type_v<Node>)
+  {
+    if (childPatch.getType() == PatchNode::Type::del) {
+      node.remove(std::move(key));
+      return PatchApplyResult::OK;
+    } else {
+      node.modifyTyped(key);
+      return PatchApplier<MappedTypeClass>::apply(
+          *node.ref(std::move(key)),
+          std::move(childPatch),
+          std::move(protocol));
+    }
+  }
+
+  template <typename Node, typename KeyT>
+  static PatchApplyResult applyChildPatch(
+      Node& node,
+      KeyT key,
+      PatchNode&& childPatch,
+      fsdb::OperProtocol protocol)
+    requires(!is_cow_type_v<Node>)
+  {
+    if (childPatch.getType() == PatchNode::Type::del) {
+      node.erase(std::move(key));
+      return PatchApplyResult::OK;
+    } else {
+      return PatchApplier<MappedTypeClass>::apply(
+          node[std::move(key)], std::move(childPatch), std::move(protocol));
+    }
   }
 };
 
@@ -95,97 +147,155 @@ template <typename ValueTypeClass>
 struct PatchApplier<apache::thrift::type_class::list<ValueTypeClass>> {
   using TC = apache::thrift::type_class::list<ValueTypeClass>;
 
-  template <
-      typename Node,
-      // only enable for Node types
-      std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
-          true>
-  static inline PatchResult apply(Node& node, PatchNode&& patch) {
+  template <typename Node>
+  static inline PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol = fsdb::OperProtocol::COMPACT) {
+    PatchTraverser traverser;
+    return apply(node, std::move(patch), protocol, traverser);
+  }
+
+  template <typename Node>
+  static PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol,
+      PatchTraverser& traverser) {
     if (patch.getType() == PatchNode::Type::val) {
-      return pa_detail::patchNode(node, patch.move_val());
+      return pa_detail::patchNode<TC>(node, patch.move_val(), protocol);
     }
     if (patch.getType() != PatchNode::Type::list_node) {
-      return PatchResult::INVALID_PATCH_TYPE;
+      return PatchApplyResult::INVALID_PATCH_TYPE;
     }
-
-    PatchResult result = PatchResult::OK;
 
     decompressPatch(patch);
     auto listPatch = patch.move_list_node();
 
     // In case of removals, we want to make sure we resolve later indices first.
     // So first we need to sort the indices
-    std::vector<int> indices;
-    indices.reserve(listPatch.children()->size());
-    for (const auto& pair : *listPatch.children()) {
-      indices.push_back(pair.first);
-    }
-    std::sort(indices.begin(), indices.end(), std::greater<>());
+    std::vector<int> indices = pa_detail::getSortedIndices(listPatch);
 
     // Iterate through sorted keys and access values in the map
     for (const int index : indices) {
+      traverser.push(index);
       auto& childPatch = listPatch.children()->at(index);
-      if (childPatch.getType() == PatchNode::Type::del) {
-        node.remove(index);
-        continue;
-      }
-      node.modify(index);
-      auto res = PatchApplier<ValueTypeClass>::apply(
-          *node.ref(index), std::move(std::move(childPatch)));
-      if (res != PatchResult::OK) {
-        result = res;
-      }
+      traverser.traverseResult(
+          applyChildPatch(node, index, std::move(childPatch), protocol));
+      traverser.pop();
     }
 
-    return result;
+    return traverser.currentResult();
+  }
+
+ private:
+  template <typename Node>
+  static PatchApplyResult applyChildPatch(
+      Node& node,
+      int32_t index,
+      PatchNode&& childPatch,
+      fsdb::OperProtocol protocol)
+    requires(is_cow_type_v<Node>)
+  {
+    if (childPatch.getType() == PatchNode::Type::del) {
+      node.remove(index);
+      return PatchApplyResult::OK;
+    } else {
+      node.modify(index);
+      return PatchApplier<ValueTypeClass>::apply(
+          *node.ref(index),
+          std::move(std::move(childPatch)),
+          std::move(protocol));
+    }
+  }
+
+  template <typename Node>
+  static PatchApplyResult applyChildPatch(
+      Node& node,
+      int32_t index,
+      PatchNode&& childPatch,
+      fsdb::OperProtocol protocol)
+    requires(!is_cow_type_v<Node>)
+  {
+    if (childPatch.getType() == PatchNode::Type::del) {
+      node.erase(node.begin() + index);
+      return PatchApplyResult::OK;
+    } else {
+      if (node.size() <= index) {
+        node.resize(index + 1);
+      }
+      return PatchApplier<ValueTypeClass>::apply(
+          node.at(index),
+          std::move(std::move(childPatch)),
+          std::move(protocol));
+    }
+    return PatchApplyResult::OK;
   }
 };
 
 /**
  * Set
  */
-template <typename ValueTypeClass>
-struct PatchApplier<apache::thrift::type_class::set<ValueTypeClass>> {
-  using TC = apache::thrift::type_class::set<ValueTypeClass>;
-  template <
-      typename Node,
-      // only enable for Node types
-      std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
-          true>
-  static inline PatchResult apply(Node& node, PatchNode&& patch) {
+template <typename KeyTypeClass>
+struct PatchApplier<apache::thrift::type_class::set<KeyTypeClass>> {
+  using TC = apache::thrift::type_class::set<KeyTypeClass>;
+
+  template <typename Node>
+  static inline PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol = fsdb::OperProtocol::COMPACT) {
+    PatchTraverser traverser;
+    return apply(node, std::move(patch), protocol, traverser);
+  }
+
+  template <typename Node>
+  static PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol,
+      PatchTraverser& traverser) {
     if (patch.getType() == PatchNode::Type::val) {
-      return pa_detail::patchNode(node, patch.move_val());
+      return pa_detail::patchNode<TC>(node, patch.move_val(), protocol);
     }
     if (patch.getType() != PatchNode::Type::set_node) {
-      return PatchResult::INVALID_PATCH_TYPE;
+      return PatchApplyResult::INVALID_PATCH_TYPE;
     }
 
-    using ValueTType = typename Node::ValueTType;
-
-    PatchResult result = PatchResult::OK;
+    using key_type = typename Node::key_type;
 
     decompressPatch(patch);
     auto setPatch = patch.move_set_node();
     for (auto&& [key, childPatch] : *std::move(setPatch).children()) {
-      // for sets keys are our values
-      std::optional<ValueTType> value =
-          tryParseKey<ValueTType, ValueTypeClass>(key);
-      if (!value) {
-        result = PatchResult::KEY_PARSE_ERROR;
-        break;
-      }
-      // We only support sets of primitives
-      // lets not recurse and just handle add/remove here
-      if (childPatch.getType() == PatchNode::Type::del) {
-        node.erase(std::move(*value));
-      } else if (childPatch.getType() == PatchNode::Type::val) {
-        node.emplace(std::move(*value));
+      traverser.push(key);
+      if (std::optional<key_type> value =
+              tryParseKey<key_type, KeyTypeClass>(key)) {
+        traverser.traverseResult(
+            applyChildPatch(node, std::move(*value), std::move(childPatch)));
       } else {
-        result = PatchResult::INVALID_PATCH_TYPE;
+        traverser.traverseResult(PatchApplyResult::KEY_PARSE_ERROR);
       }
+      traverser.pop();
     }
 
-    return result;
+    return traverser.currentResult();
+  }
+
+ private:
+  template <typename Node, typename KeyT>
+  static PatchApplyResult
+  applyChildPatch(Node& node, KeyT key, PatchNode&& childPatch) {
+    // We only support sets of primitives
+    // lets not recurse and just handle add/remove here
+    if (childPatch.getType() == PatchNode::Type::del) {
+      node.erase(std::move(key));
+      return PatchApplyResult::OK;
+    } else if (childPatch.getType() == PatchNode::Type::val) {
+      node.emplace(std::move(key));
+      return PatchApplyResult::OK;
+    } else {
+      return PatchApplyResult::INVALID_PATCH_TYPE;
+    }
   }
 };
 
@@ -196,27 +306,50 @@ template <>
 struct PatchApplier<apache::thrift::type_class::variant> {
   using TC = apache::thrift::type_class::variant;
 
-  template <
-      typename Node,
-      // only enable for Node types
-      std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
-          true>
-  static inline PatchResult apply(Node& node, PatchNode&& patch) {
+  template <typename Node>
+  static inline PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol = fsdb::OperProtocol::COMPACT) {
+    PatchTraverser traverser;
+    return apply(node, std::move(patch), protocol, traverser);
+  }
+
+  template <typename Node>
+  static PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol,
+      PatchTraverser& traverser) {
     if (patch.getType() == PatchNode::Type::val) {
-      return pa_detail::patchNode(node, patch.move_val());
+      return pa_detail::patchNode<TC>(node, patch.move_val(), protocol);
     }
     if (patch.getType() != PatchNode::Type::variant_node) {
-      return PatchResult::INVALID_PATCH_TYPE;
+      return PatchApplyResult::INVALID_PATCH_TYPE;
     }
-
-    PatchResult result = PatchResult::INVALID_VARIANT_MEMBER;
-
-    using Fields = typename Node::Fields;
-    using Members = typename Fields::MemberTypes;
 
     auto variantPatch = patch.variant_node_ref();
     auto key = *variantPatch->id();
+    traverser.push(key);
+    traverser.traverseResult(
+        applyChildPatch(node, std::move(*variantPatch), protocol));
+    traverser.pop();
 
+    return traverser.currentResult();
+  }
+
+ private:
+  template <typename Node>
+  static PatchApplyResult applyChildPatch(
+      Node& node,
+      VariantPatch&& childPatch,
+      fsdb::OperProtocol protocol)
+    requires(is_cow_type_v<Node>)
+  {
+    using Fields = typename Node::Fields;
+    using Members = typename Fields::MemberTypes;
+    auto key = *childPatch.id();
+    PatchApplyResult result = PatchApplyResult::INVALID_VARIANT_MEMBER;
     fatal::scalar_search<Members, fatal::get_type::id>(key, [&](auto tag) {
       using descriptor = typename decltype(fatal::tag_type(tag))::member;
       using name = typename descriptor::metadata::name;
@@ -227,13 +360,43 @@ struct PatchApplier<apache::thrift::type_class::variant> {
 
       if (!child) {
         // child is unset, cannot traverse through missing optional child
-        result = PatchResult::NON_EXISTENT_NODE;
+        result = PatchApplyResult::NON_EXISTENT_NODE;
         return;
       }
-      result =
-          PatchApplier<tc>::apply(*child, std::move(*variantPatch->child()));
+      result = PatchApplier<tc>::apply(
+          *child, std::move(*childPatch.child()), std::move(protocol));
     });
+    return result;
+  }
 
+  template <typename Node>
+  static PatchApplyResult applyChildPatch(
+      Node& node,
+      VariantPatch&& childPatch,
+      fsdb::OperProtocol protocol)
+    requires(!is_cow_type_v<Node>)
+  {
+    PatchApplyResult result = PatchApplyResult::INVALID_VARIANT_MEMBER;
+    auto key = *childPatch.id();
+    using descriptors = typename apache::thrift::reflect_variant<
+        folly::remove_cvref_t<Node>>::traits::descriptors;
+    fatal::foreach<descriptors>([&](auto tag) {
+      using descriptor = decltype(fatal::tag_type(tag));
+
+      if (descriptor::id::value != key) {
+        return;
+      }
+
+      // switch union value to point at new path.
+      if (node.getType() != descriptor::metadata::id::value) {
+        descriptor::set(node);
+      }
+
+      result = PatchApplier<typename descriptor::metadata::type_class>::apply(
+          typename descriptor::getter()(node),
+          std::move(*childPatch.child()),
+          std::move(protocol));
+    });
     return result;
   }
 };
@@ -245,49 +408,111 @@ template <>
 struct PatchApplier<apache::thrift::type_class::structure> {
   using TC = apache::thrift::type_class::structure;
 
-  template <
-      typename Node,
-      // only enable for Node types
-      std::enable_if_t<std::is_same_v<typename Node::CowType, NodeType>, bool> =
-          true>
-  static inline PatchResult apply(Node& node, PatchNode&& patch) {
+  template <typename Node>
+  static inline PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol = fsdb::OperProtocol::COMPACT) {
+    PatchTraverser traverser;
+    return apply(node, std::move(patch), protocol, traverser);
+  }
+
+  template <typename Node>
+  static PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol,
+      PatchTraverser& traverser) {
     if (patch.getType() == PatchNode::Type::val) {
-      return pa_detail::patchNode(node, patch.move_val());
+      return pa_detail::patchNode<TC>(node, patch.move_val(), protocol);
     }
     if (patch.getType() != PatchNode::Type::struct_node) {
-      return PatchResult::INVALID_PATCH_TYPE;
+      return PatchApplyResult::INVALID_PATCH_TYPE;
     }
 
-    using Fields = typename Node::Fields;
-    PatchResult result = PatchResult::OK;
     decompressPatch(patch);
     auto structPatch = patch.move_struct_node();
     for (auto&& [key, childPatch] : *std::move(structPatch).children()) {
-      auto invalidMember = true;
-      fatal::scalar_search<typename Fields::Members, fatal::get_type::id>(
-          key, [&, childPatch = std::move(childPatch)](auto indexed) mutable {
-            invalidMember = false;
-            using member = decltype(fatal::tag_type(indexed));
-            using name = typename member::name;
-            using tc = typename member::type_class;
-
-            if (childPatch.getType() == PatchNode::Type::del) {
-              node.template remove<name>();
-              return;
-            }
-
-            auto& child = node.template modify<name>();
-            auto res = PatchApplier<tc>::apply(*child, std::move(childPatch));
-            // Continue patching even if there is an error, but still return an
-            // error if encountered
-            if (res != PatchResult::OK) {
-              result = res;
-            }
-          });
-      if (invalidMember) {
-        result = PatchResult::INVALID_STRUCT_MEMBER;
-      }
+      traverser.push(key);
+      traverser.traverseResult(
+          applyChildPatch(node, key, std::move(childPatch), protocol));
+      traverser.pop();
     }
+    return traverser.currentResult();
+  }
+
+  template <typename Node>
+  static PatchApplyResult applyChildPatch(
+      Node& node,
+      int16_t childKey,
+      PatchNode&& childPatch,
+      fsdb::OperProtocol protocol)
+    requires(is_cow_type_v<Node>)
+  {
+    using Fields = typename Node::Fields;
+    PatchApplyResult result = PatchApplyResult::INVALID_STRUCT_MEMBER;
+    fatal::scalar_search<typename Fields::Members, fatal::get_type::id>(
+        childKey,
+        [&, childPatch = std::move(childPatch)](auto indexed) mutable {
+          using member = decltype(fatal::tag_type(indexed));
+          using name = typename member::name;
+          using tc = typename member::type_class;
+
+          if (childPatch.getType() == PatchNode::Type::del) {
+            node.template remove<name>();
+            result = PatchApplyResult::OK;
+            return;
+          }
+
+          auto& child = node.template modify<name>();
+          result = PatchApplier<tc>::apply(
+              *child, std::move(childPatch), std::move(protocol));
+        });
+    return result;
+  }
+
+  template <typename Node>
+  static PatchApplyResult applyChildPatch(
+      Node& node,
+      int16_t childKey,
+      PatchNode&& childPatch,
+      fsdb::OperProtocol protocol)
+    requires(!is_cow_type_v<Node>)
+  {
+    PatchApplyResult result = PatchApplyResult::INVALID_STRUCT_MEMBER;
+
+    // Perform linear search over all members for key
+    fatal::foreach<typename apache::thrift::reflect_struct<
+        folly::remove_cvref_t<Node>>::members>([&](auto indexed) mutable {
+      using member = decltype(fatal::tag_type(indexed));
+      if (member::id::value != childKey) {
+        return;
+      }
+
+      constexpr bool isOptional =
+          member::optional::value == apache::thrift::optionality::optional;
+
+      if (childPatch.getType() == PatchNode::Type::del) {
+        if constexpr (isOptional) {
+          typename member::field_ref_getter{}(node).reset();
+          result = PatchApplyResult::OK;
+        } else {
+          result = PatchApplyResult::INVALID_PATCH_TYPE;
+        }
+        return;
+      }
+
+      // If optional and not set, create it first
+      if constexpr (isOptional) {
+        typename member::field_ref_getter{}(node).ensure();
+      }
+
+      // Recurse further
+      result = PatchApplier<typename member::type_class>::apply(
+          typename member::getter{}(node),
+          std::move(childPatch),
+          std::move(protocol));
+    });
     return result;
   }
 };
@@ -307,21 +532,30 @@ struct PatchApplier {
       "Forgot to specify reflection option or include fatal header file? "
       "Refer to thrift/lib/cpp2/reflection/reflection.h");
 
+  template <typename Node>
+  static inline PatchApplyResult apply(
+      Node& node,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol = fsdb::OperProtocol::COMPACT) {
+    PatchTraverser traverser;
+    return apply(node, std::move(patch), protocol, traverser);
+  }
+
   template <typename Fields>
-  static PatchResult apply(Fields& fields, PatchNode&& patch) {
+  static PatchApplyResult apply(
+      Fields& fields,
+      PatchNode&& patch,
+      fsdb::OperProtocol protocol,
+      PatchTraverser& /* traverser */) {
     if (patch.getType() != PatchNode::Type::val) {
-      return PatchResult::INVALID_PATCH_TYPE;
+      return PatchApplyResult::INVALID_PATCH_TYPE;
     }
-    // This can only happen if we are trying to apply a patch a set entry which
-    // are immutable. In practice this should never happen because for sets we
-    // always patch at the set level, though it is technically possible because
-    // we allow for patching at a base path, which could technically be a set
-    // entry
-    if constexpr (Fields::immutable) {
-      return PatchResult::PATCHING_IMMUTABLE_NODE;
-    } else {
-      return pa_detail::patchNode(fields, patch.move_val());
+    if constexpr (is_cow_type_v<Fields>) {
+      if constexpr (Fields::immutable) {
+        return PatchApplyResult::PATCHING_IMMUTABLE_NODE;
+      }
     }
+    return pa_detail::patchNode<TC>(fields, patch.move_val(), protocol);
   }
 };
 

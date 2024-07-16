@@ -175,6 +175,7 @@ class HwAsic {
     LINK_ACTIVE_INACTIVE_NOTIFY,
     PQP_ERROR_EGRESS_DROP_COUNTER,
     FABRIC_LINK_DOWN_CELL_DROP_COUNTER,
+    CRC_ERROR_DETECT,
   };
 
   enum class AsicMode {
@@ -299,6 +300,10 @@ class HwAsic {
   }
 
   virtual std::optional<uint32_t> getMaxEcmpMembers() const {
+    return std::nullopt;
+  }
+
+  virtual std::optional<uint32_t> getMaxDlbEcmpGroups() const {
     return std::nullopt;
   }
 

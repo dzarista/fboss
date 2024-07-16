@@ -147,6 +147,13 @@ ThriftSinkClient<CallbackObjectT, EventQueueT>::ThriftSinkClient(
               name,
               ".events_dropped"),
           fb303::SUM,
+          fb303::RATE),
+      eventSentCount_(
+          folly::to<std::string>(
+              multiSwitchStatsPrefix ? *multiSwitchStatsPrefix + "." : "",
+              name,
+              ".events_sent"),
+          fb303::SUM,
           fb303::RATE) {
 }
 
@@ -184,6 +191,7 @@ ThriftSinkClient<CallbackObjectT, EventQueueT>::serveStream() {
         while (true) {
           auto event = co_await eventsQueue_.dequeue();
           if (isCancelled()) {
+            XLOG(DBG2) << "Cancelled stream for " << clientId();
             co_return;
           }
           co_yield std::move(event);
@@ -198,6 +206,28 @@ ThriftSinkClient<CallbackObjectT, EventQueueT>::~ThriftSinkClient() {
   CHECK(isCancelled());
 }
 
+/*
+ * This function is called when the sink is cancelled on HwAgent shutdown
+ * The sink async generator is constantly waiting for next event. In normal
+ * sequence of events, the sink generator will get an exception when server
+ * is unreachable or client disconnects. However in some cases, the exception
+ * is not thrown and the sink generator is blocked forever. For such cases, we
+ * need to enqueue a dummy event to unblock the sink generator and exit based on
+ * the connection state. Another way to unblock the sink generator is to use
+ * cancellation with dequeue. However in this case, the control does not return
+ * to the caller resulting in no reconnection attempts when sw agent alone
+ * restarts.
+ */
+template <typename CallbackObjectT, typename EventQueueT>
+void ThriftSinkClient<CallbackObjectT, EventQueueT>::onCancellation() {
+  auto dummyEvent = CallbackObjectT();
+  if constexpr (std::is_same_v<EventQueueT, RxPktEventQueueType>) {
+    folly::coro::blockingWait(eventsQueue_.enqueue(std::move(dummyEvent)));
+  } else {
+    eventsQueue_.enqueue(std::move(dummyEvent));
+  }
+}
+
 template <typename StreamObjectT>
 ThriftStreamClient<StreamObjectT>::ThriftStreamClient(
     folly::StringPiece name,
@@ -209,7 +239,8 @@ ThriftStreamClient<StreamObjectT>::ThriftStreamClient(
     EventHandlerFn eventHandlerFn,
     HwSwitch* hw,
     std::shared_ptr<folly::ScopedEventBaseThread> eventThread,
-    folly::EventBase* retryEvb)
+    folly::EventBase* retryEvb,
+    std::optional<std::string> multiSwitchStatsPrefix)
     : SplitAgentThriftClient(
           std::string(name),
           eventThread,
@@ -222,7 +253,15 @@ ThriftStreamClient<StreamObjectT>::ThriftStreamClient(
       connectFn_(std::move(connectFn)),
 #endif
       eventHandlerFn_(std::move(eventHandlerFn)),
-      hw_(hw) {
+      hw_(hw),
+      eventReceivedCount_(
+
+          folly::to<std::string>(
+              multiSwitchStatsPrefix ? *multiSwitchStatsPrefix + "." : "",
+              name,
+              ".events_received"),
+          fb303::SUM,
+          fb303::RATE) {
 }
 
 template <typename StreamObjectT>
@@ -236,7 +275,8 @@ void ThriftStreamClient<StreamObjectT>::startClientService() {
 #if FOLLY_HAS_COROUTINES
 template <typename StreamObjectT>
 folly::coro::Task<void> ThriftStreamClient<StreamObjectT>::serveStream() {
-  while (const auto& event = co_await streamClient_->next()) {
+  while (const auto& event = co_await folly::coro::co_withCancellation(
+             cancellationSource_.getToken(), streamClient_->next())) {
     if (isCancelled()) {
       co_return;
     }
@@ -253,6 +293,11 @@ void ThriftStreamClient<StreamObjectT>::resetClient() {
   streamClient_.reset();
 #endif
   SplitAgentThriftClient::resetClient();
+}
+
+template <typename StreamObjectT>
+void ThriftStreamClient<StreamObjectT>::onCancellation() {
+  cancellationSource_.requestCancellation();
 }
 
 template <typename StreamObjectT>

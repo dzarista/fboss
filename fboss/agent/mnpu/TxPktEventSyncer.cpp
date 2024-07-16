@@ -29,7 +29,8 @@ TxPktEventSyncer::TxPktEventSyncer(
     uint16_t serverPort,
     SwitchID switchId,
     folly::EventBase* connRetryEvb,
-    HwSwitch* hw)
+    HwSwitch* hw,
+    std::optional<std::string> multiSwitchStatsPrefix)
     : ThriftStreamClient<multiswitch::TxPacket>::ThriftStreamClient(
           "TxPktEventThriftSyncer",
           serverPort,
@@ -41,7 +42,8 @@ TxPktEventSyncer::TxPktEventSyncer(
           hw,
           std::make_shared<folly::ScopedEventBaseThread>(
               "TxPktEventSyncerThread"),
-          connRetryEvb) {
+          connRetryEvb,
+          multiSwitchStatsPrefix) {
 }
 
 #if FOLLY_HAS_COROUTINES
@@ -58,6 +60,10 @@ TxPktEventSyncer::initTxPktEventStream(
 void TxPktEventSyncer::TxPacketEventHandler(
     multiswitch::TxPacket& txPkt,
     HwSwitch* hw) {
+  if (hw->getRunState() == SwitchRunState::EXITING) {
+    XLOG(DBG4) << "TxPktEventSyncer: hwswitch exiting, dropping packet";
+    return;
+  }
   auto len = (*txPkt.data())->computeChainDataLength();
   auto pkt = hw->allocatePacket(len);
   folly::io::RWPrivateCursor cursor(pkt->buf());

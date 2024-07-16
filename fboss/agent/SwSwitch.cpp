@@ -12,6 +12,7 @@
 
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/AgentDirectoryUtil.h"
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/AlpmUtils.h"
 #include "fboss/agent/ApplyThriftConfig.h"
 #include "fboss/agent/ArpHandler.h"
@@ -275,6 +276,8 @@ void accumulateFb303GlobalStats(
       toAdd.fabric_reachability_missing().value();
   *accumulated.fabric_reachability_mismatch() +=
       toAdd.fabric_reachability_mismatch().value();
+  *accumulated.switch_reachability_change() +=
+      toAdd.switch_reachability_change().value();
 }
 
 void accumulateGlobalCpuStats(
@@ -459,7 +462,9 @@ void SwSwitch::stop(bool isGracefulStop, bool revertToMinAlpmState) {
   // First tell the hw to stop sending us events by unregistering the callback
   // After this we should no longer receive packets or link state changed events
   // while we are destroying ourselves
-  multiHwSwitchHandler_->unregisterCallbacks();
+  if (isRunModeMonolithic()) {
+    getMonolithicHwSwitchHandler()->unregisterCallbacks();
+  }
 
   // Stop tunMgr so we don't get any packets to process
   // in software that were sent to the switch ip or were
@@ -654,8 +659,7 @@ void SwSwitch::gracefulExit() {
                       switchStateToFollyDone - stopThreadsAndHandlersDone)
                       .count();
     // Cleanup if we ever initialized
-    multiHwSwitchHandler_->gracefulExit();
-    multiHwSwitchHandler_->stop();
+    stopHwSwitchHandler();
     storeWarmBootState(thriftSwitchState);
     XLOG(DBG2)
         << "[Exit] SwSwitch Graceful Exit time "
@@ -1106,10 +1110,12 @@ void SwSwitch::init(
     HwSwitchCallback* callback,
     std::unique_ptr<TunManager> tunMgr,
     HwSwitchInitFn hwSwitchInitFn,
+    const HwWriteBehavior& hwWriteBehavior,
     SwitchFlags flags) {
   auto begin = steady_clock::now();
   flags_ = flags;
-  auto hwInitRet = hwSwitchInitFn(callback, false /*failHwCallsOnWarmboot*/);
+  auto failHwCallsOnWarmboot = (hwWriteBehavior == HwWriteBehavior::FAIL);
+  auto hwInitRet = hwSwitchInitFn(callback, failHwCallsOnWarmboot);
   auto initialState = preInit(flags);
   if (hwInitRet.bootType != bootType_) {
     // this is being done for preprod2trunk migration. further until tooling
@@ -1132,13 +1138,26 @@ void SwSwitch::init(
 
   // Notify resource accountant of the initial state.
   if (!resourceAccountant_->isValidRouteUpdate(initialStateDelta)) {
-    throw FbossError(
-        "Not enough resource to apply initialState. ",
-        "This should not happen given the state was previously applied, ",
-        "but possible if calculation or threshold changes across warmboot.");
+    // If DLB is enabled and pre-warmboot state has >128 ECMP groups, any
+    // failure is due to DLB resource check failure. Resource accounting will
+    // not be enabled in this boot and stay disabled until next warmboot
+    //
+    // This is the first invocation of isValidRouteUpdate. At this time,
+    // ResourceAccountant::checkDlbResource_ is True by default. If the method
+    // returns False, set checkDlbResource_ to False. This will disable further
+    // DLB resource checks within resource accounting
+    if (FLAGS_dlbResourceCheckEnable && FLAGS_flowletSwitchingEnable) {
+      XLOG(DBG0) << "DLB resource check disabled until next warmboot";
+      resourceAccountant_->enableDlbResourceCheck(false);
+    } else {
+      throw FbossError(
+          "Not enough resource to apply initialState. ",
+          "This should not happen given the state was previously applied, ",
+          "but possible if calculation or threshold changes across warmboot.");
+    }
   }
-
-  multiHwSwitchHandler_->stateChanged(initialStateDelta, false);
+  multiHwSwitchHandler_->stateChanged(
+      initialStateDelta, false, hwWriteBehavior);
   // For cold boot there will be discripancy between applied state and state
   // that exists in hardware. this discrepancy is until config is applied, after
   // that the two states are in sync. tolerating this discrepancy for now
@@ -1187,10 +1206,11 @@ void SwSwitch::init(
     std::unique_ptr<TunManager> tunMgr,
     HwSwitchInitFn hwSwitchInitFn,
     SwitchFlags flags) {
-  this->init(this, std::move(tunMgr), hwSwitchInitFn, flags);
+  this->init(
+      this, std::move(tunMgr), hwSwitchInitFn, HwWriteBehavior::WRITE, flags);
 }
 
-void SwSwitch::init(SwitchFlags flags) {
+void SwSwitch::init(const HwWriteBehavior& hwWriteBehavior, SwitchFlags flags) {
   /* used for split Software Switch init */
   auto initialState = preInit(flags);
   initialState->publish();
@@ -1203,16 +1223,30 @@ void SwSwitch::init(SwitchFlags flags) {
   const auto initialStateDelta = StateDelta(emptyState, initialState);
   // Notify resource accountant of the initial state.
   if (!resourceAccountant_->isValidRouteUpdate(initialStateDelta)) {
-    throw FbossError(
-        "Not enough resource to apply initialState. ",
-        "This should not happen given the state was previously applied, ",
-        "but possible if calculation or threshold changes across warmboot.");
+    // If DLB is enabled and pre-warmboot state has >128 ECMP groups, any
+    // failure is due to DLB resource check failure. Resource accounting will
+    // not be enabled in this boot and stay disabled until next warmboot
+    //
+    // This is the first invocation of isValidRouteUpdate. At this time,
+    // ResourceAccountant::checkDlbResource_ is True by default. If the method
+    // returns False, set checkDlbResource_ to False. This will disable further
+    // DLB resource checks within resource accounting
+    if (FLAGS_dlbResourceCheckEnable && FLAGS_flowletSwitchingEnable) {
+      XLOG(DBG0) << "DLB resource check disabled until next warmboot";
+      resourceAccountant_->enableDlbResourceCheck(false);
+    } else {
+      throw FbossError(
+          "Not enough resource to apply initialState. ",
+          "This should not happen given the state was previously applied, ",
+          "but possible if calculation or threshold changes across warmboot.");
+    }
   }
   // Do not send cold boot state to hwswitch. This is to avoid
   // deleting any cold boot state entries that hwswitch has learned from sdk
   if (bootType_ == BootType::WARM_BOOT) {
     try {
-      getHwSwitchHandler()->stateChanged(initialStateDelta, false);
+      getHwSwitchHandler()->stateChanged(
+          initialStateDelta, false, hwWriteBehavior);
     } catch (const std::exception& ex) {
       throw FbossError("Failed to sync initial state to HwSwitch: ", ex.what());
     }
@@ -1648,7 +1682,10 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
     // Another thing we could try here is rolling back to the old state.
     XLOG(ERR) << "error applying state change to hardware: "
               << folly::exceptionStr(ex);
-    multiHwSwitchHandler_->exitFatal();
+
+    if (isRunModeMonolithic()) {
+      getMonolithicHwSwitchHandler()->exitFatal();
+    }
 
     dumpBadStateUpdate(oldState, newState);
     XLOG(FATAL) << "encountered a fatal error: " << folly::exceptionStr(ex);
@@ -2380,8 +2417,11 @@ void SwSwitch::sendPacketOutViaThriftStream(
     txPacket.queue() = queue.value();
   }
   txPacket.data() = Packet::extractIOBuf(std::move(pkt));
+  auto switchIndex =
+      getSwitchInfoTable().getSwitchIndexFromSwitchId(SwitchID(switchId));
   try {
     getPacketStreamMap()->getStream(switchId).next(std::move(txPacket));
+    stats()->hwAgentTxPktSent(switchIndex);
   } catch (const std::exception& e) {
     stats()->pktDropped();
     XLOG(DBG2) << "Error sending packet via thrift stream to switch "
@@ -2757,7 +2797,16 @@ bool SwSwitch::isValidStateUpdate(const StateDelta& delta) const {
     XLOG(ERR) << "More than one sflow mirrors configured";
     isValid = false;
   }
-  return isValid && multiHwSwitchHandler_->isValidStateUpdate(delta);
+
+  if (isValid) {
+    if (isRunModeMonolithic()) {
+      isValid = getMonolithicHwSwitchHandler()->isValidStateUpdate(delta);
+    } else {
+      // TODO - implement state update validation for multiswitch
+    }
+  }
+
+  return isValid;
 }
 
 AdminDistance SwSwitch::clientIdToAdminDistance(int clientId) const {
@@ -3207,7 +3256,7 @@ std::map<SystemPortID, HwSysPortStats> SwSwitch::getHwSysPortStats(
     auto hwswitchStats = hwswitchStatsMap->find(switchIndex);
     if (hwswitchStats != hwswitchStatsMap->end()) {
       auto portName =
-          getState()->getSystemPorts()->getNodeIf(portId)->getPortName();
+          getState()->getSystemPorts()->getNodeIf(portId)->getName();
       auto statsMap = hwswitchStats->second.sysPortStats();
       auto entry = statsMap->find(portName);
       if (entry != statsMap->end()) {
@@ -3217,6 +3266,13 @@ std::map<SystemPortID, HwSysPortStats> SwSwitch::getHwSysPortStats(
     }
   }
   return hwPortsStats;
+}
+
+void SwSwitch::stopHwSwitchHandler() {
+  if (isRunModeMonolithic()) {
+    getMonolithicHwSwitchHandler()->gracefulExit();
+  }
+  multiHwSwitchHandler_->stop();
 }
 
 } // namespace facebook::fboss

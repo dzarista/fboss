@@ -42,6 +42,8 @@ set(fsdb_pub_sub_files
   fboss/fsdb/client/FsdbDeltaSubscriber.cpp
   fboss/fsdb/client/FsdbStatePublisher.cpp
   fboss/fsdb/client/FsdbStateSubscriber.cpp
+  fboss/fsdb/client/FsdbPatchPublisher.cpp
+  fboss/fsdb/client/FsdbPatchSubscriber.cpp
 )
 
 add_library(fsdb_pub_sub ${fsdb_pub_sub_files})
@@ -50,6 +52,7 @@ set(fsdb_pub_sub_libs
   fsdb_common_cpp2
   fsdb_flags
   fsdb_oper_cpp2
+  patch_cpp2
   fsdb_stream_client
   Folly::folly
   FBThrift::thriftcpp2

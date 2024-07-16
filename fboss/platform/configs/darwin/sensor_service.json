@@ -236,6 +236,7 @@
           "upperCriticalVal": 3.795,
           "lowerCriticalVal": 2.8
         },
+        "compute": "@/1000.0",
         "type": 1
       },
       "POS_12V": {

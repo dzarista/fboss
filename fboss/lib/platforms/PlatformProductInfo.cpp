@@ -130,8 +130,6 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_FAKE_WEDGE;
     } else if (modelName.find("CLOUDRIPPER") == 0) {
       type_ = PlatformType::PLATFORM_CLOUDRIPPER;
-    } else if (modelName.find("Lassen") == 0 || modelName.find("LASSEN") == 0) {
-      type_ = PlatformType::PLATFORM_LASSEN;
     } else if (
         modelName.find("Sandia") == 0 || modelName.find("SANDIA") == 0 ||
         modelName.find("8508-F-SYS-HV") == 0) {
@@ -161,7 +159,9 @@ void PlatformProductInfo::initMode() {
         modelName.find("ASY-57651-102") == 0 ||
         modelName.find("DCS-DS-7720R4-128PE-AC-F") == 0) {
       type_ = PlatformType::PLATFORM_MERU800BFA;
-    } else if (modelName.find("MORGAN800CC") == 0) {
+    } else if (
+        modelName.find("MORGAN800CC") == 0 ||
+        modelName.find("8501-SYS-MT") == 0) {
       type_ = PlatformType::PLATFORM_MORGAN800CC;
     } else if (modelName.find("FAKE_SAI") == 0) {
       type_ = PlatformType::PLATFORM_FAKE_SAI;
@@ -199,8 +199,6 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_ELBERT;
     } else if (FLAGS_mode == "darwin") {
       type_ = PlatformType::PLATFORM_DARWIN;
-    } else if (FLAGS_mode == "lassen") {
-      type_ = PlatformType::PLATFORM_LASSEN;
     } else if (FLAGS_mode == "sandia") {
       type_ = PlatformType::PLATFORM_SANDIA;
     } else if (FLAGS_mode == "meru400biu") {

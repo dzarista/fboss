@@ -1,12 +1,12 @@
 {
-    "platform": "merubfa",
+    "platform": "meru800bfa",
     "kmods": [
         "scd",
-        "scd-spi",
-        "scd-leds",
-        "scd-xcvr",
-        "scd-smbus",
-        "dsf-fan-cpld",
+        "scd_spi",
+        "scd_leds",
+        "scd_xcvr",
+        "scd_smbus",
+        "dsf_fan_cpld",
         "decker_cpld"
     ],
     "fpgas": [
@@ -38,6 +38,9 @@
                                         "expected": "0xd0"
                                     }
                                 ]
+                            },
+                            "hwmonTestData": {
+                                "expectedFeatures": ["in1", "in2", "temp1", "power1", "curr1"]
                             }
                         },
                         {
@@ -85,12 +88,62 @@
                     "auxDevice": {
                         "type": "I2C",
                         "deviceName": "i2c_master",
-                        "csrOffset": "0x8100",
+                        "csrOffset": "0x8080",
                         "i2cInfo": {
                             "numChannels": 8
                         }
                     },
-                    "i2cDevices": []
+                    "i2cDevices": [
+                        {
+                            "channel": 3,
+                            "deviceName": "oasis_cpld0",
+                            "address": "0x60",
+                            "testData": {
+                                "i2cSetData": [
+                                    {
+                                        "reg": "0x02",
+                                        "value": "0x66"
+                                    }
+                                ]
+                            },
+                            "hwmonTestData": {
+                                "expectedFeatures": ["fan1", "fan2", "fan3"]
+                            }
+                        },
+                        {
+                            "channel": 3,
+                            "deviceName": "oasis_cpld1",
+                            "address": "0x61",
+                            "testData": {
+                                "i2cSetData": [
+                                    {
+                                        "reg": "0x02",
+                                        "value": "0x66"
+                                    }
+                                ]
+                            },
+                            "hwmonTestData": {
+                                "expectedFeatures": ["fan1", "fan2", "fan3"]
+                            }
+                        },
+                        {
+                            "channel": 3,
+                            "deviceName": "oasis_cpld2",
+                            "address": "0x62",
+                            "testData": {
+                                "i2cSetData": [
+                                    {
+                                        "reg": "0x02",
+                                        "value": "0x66"
+                                    }
+                                ]
+                            },
+                            "hwmonTestData": {
+                                "expectedFeatures": ["fan1", "fan2", "fan3"]
+                            }
+                        }
+
+                    ]
                 },
                 {
                     "auxDevice": {
@@ -114,15 +167,27 @@
                     },
                     "i2cDevices": []
                 }
-            ],
-            "auxDevices": [
+            ]
+        },
+        {
+            "name": "SMB_FPGA0",
+            "vendorId": "0x3475",
+            "deviceId": "0x0001",
+            "subSystemVendorId": "0x3475",
+            "subSystemDeviceId": "0x0004",
+            "ledCtrls": [
                 {
-                    "deviceName": "osfp_led",
-                    "type": "LED",
-                    "csrOffset": "0x6100",
-                    "ledInfo": {
-                        "portNumber": 1,
-                        "ledId": 1
+                    "auxDevice": {
+                        "type": "LED",
+                        "deviceName": "port_led",
+                        "csrOffset": "0x6100",
+                        "ledInfo": {
+                            "portNumber": 1,
+                            "ledId": 1
+                        }
+                    },
+                    "ledTestInfo": {
+                        "expectedColors": ["blue", "yellow"]
                     }
                 }
             ]
@@ -153,6 +218,64 @@
             "subSystemVendorId": "0x3475",
             "subSystemDeviceId": "0x0006",
             "i2cAdapters": [],
+            "ledCtrls": [
+                {
+                    "auxDevice": {
+                        "type": "LED",
+                        "deviceName": "fan_led",
+                        "csrOffset": "0x6060",
+                        "ledInfo": {
+                            "portNumber": -1,
+                            "ledId": -1
+                        }
+                    },
+                    "ledTestInfo": {
+                        "expectedColors": ["red", "green", "blue", "yellow"]
+                    }
+                },
+                {
+                    "auxDevice": {
+                        "type": "LED",
+                        "deviceName": "psu_led",
+                        "csrOffset": "0x6070",
+                        "ledInfo": {
+                            "portNumber": -1,
+                            "ledId": -1
+                        }
+                    },
+                    "ledTestInfo": {
+                        "expectedColors": ["red", "green", "blue", "yellow"]
+                    }
+                },
+                {
+                    "auxDevice": {
+                        "type": "LED",
+                        "deviceName": "sys_led",
+                        "csrOffset": "0x6050",
+                        "ledInfo": {
+                            "portNumber": -1,
+                            "ledId": -1
+                        }
+                    },
+                    "ledTestInfo": {
+                        "expectedColors": ["red", "green", "blue", "yellow"]
+                    }
+                },
+                {
+                    "auxDevice": {
+                        "type": "LED",
+                        "deviceName": "smb_led",
+                        "csrOffset": "0x60a0",
+                        "ledInfo": {
+                            "portNumber": -1,
+                            "ledId": -1
+                        }
+                    },
+                    "ledTestInfo": {
+                        "expectedColors": ["red", "green", "blue", "yellow"]
+                    }
+                }
+            ],
             "auxDevices": []
         },
         {

@@ -163,12 +163,13 @@ enum PortProfileID {
   PROFILE_400G_4_PAM4_RS544X2N_OPTICAL = 38,
   PROFILE_800G_8_PAM4_RS544X2N_OPTICAL = 39,
   PROFILE_100G_2_PAM4_RS544X2N_OPTICAL = 40,
-  PROFILE_100G_1_PAM4_RS544_COPPER = 41,
-  PROFILE_100G_1_PAM4_RS544_OPTICAL = 42,
+  PROFILE_106POINT25G_1_PAM4_RS544_COPPER = 41,
+  PROFILE_106POINT25G_1_PAM4_RS544_OPTICAL = 42,
   PROFILE_50G_1_PAM4_RS544_COPPER = 43,
   PROFILE_50G_1_PAM4_RS544_OPTICAL = 44,
   PROFILE_400G_4_PAM4_RS544X2N_COPPER = 45,
   PROFILE_100G_2_PAM4_RS544X2N_COPPER = 46,
+  PROFILE_100G_1_PAM4_RS544_OPTICAL = 47,
 }
 
 enum Scope {
@@ -1992,4 +1993,8 @@ struct SwitchConfig {
   50: optional FlowletSwitchingConfig flowletSwitchingConfig;
   51: list<PortQueue> defaultVoqConfig = [];
   52: optional map<PortFlowletConfigName, PortFlowletConfig> portFlowletConfigs;
+  // When there's no IPv4 addresses configured, what address to use to source IPv4 ICMP packets from.
+  53: optional string icmpV4UnavailableSrcAddress;
+  // Overrides the system hostname, useful in ICMP responses
+  54: optional string hostname;
 }

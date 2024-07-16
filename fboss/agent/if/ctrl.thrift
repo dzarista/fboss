@@ -56,6 +56,7 @@ enum PortLedExternalState {
 
 enum PortError {
   ERROR_DISABLE_LOOP_DETECTED = 1,
+  LANE_SWAP_DETECTED = 2,
 }
 
 struct IpPrefix {
@@ -239,6 +240,7 @@ struct InterfaceDetail {
   7: i32 mtu;
   8: optional common.RemoteInterfaceType remoteIntfType;
   9: optional common.LivenessStatus remoteIntfLivenessStatus;
+  10: switch_config.Scope scope = switch_config.Scope.LOCAL;
 }
 
 /*
@@ -651,6 +653,7 @@ enum HwObjectType {
   MACSEC = 22,
   SAI_MANAGED_OBJECTS = 23,
   IPTUNNEL = 24,
+  SYSTEM_PORT = 25,
 }
 
 exception FbossFibUpdateError {

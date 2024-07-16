@@ -42,6 +42,7 @@ target_link_libraries(main
   fboss_common_init
 # base
   fboss_init
+  platform_base
   Folly::folly
 )
 
@@ -55,6 +56,7 @@ target_link_libraries(hw_switch_handler
   utils
   multiswitch_ctrl_cpp2
   state
+  hw_write_behavior
 )
 
 add_library(monolithic_switch_handler
@@ -507,6 +509,7 @@ add_library(fboss_common_init
 target_link_libraries(fboss_common_init
   fboss_init
   load_agent_config
+  platform_base
   Folly::folly
   fb303::fb303
 )

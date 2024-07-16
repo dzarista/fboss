@@ -166,7 +166,7 @@ CLI::App* CmdSubcommands::addCommand(
         }
         case utils::ObjectArgTypeId::OBJECT_ARG_TYPE_LINK_DIRECTION: {
           subCmd->add_option(
-              "direction", args, "Link direction - ingress|egress\n");
+              "direction", args, "Link direction - system|line\n");
           break;
         }
         case utils::ObjectArgTypeId::OBJECT_ARG_TYPE_FSDB_PATH: {
@@ -210,6 +210,9 @@ CLI::App* CmdSubcommands::addCommand(
           break;
         case utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_SWITCH_NAME_LIST:
           subCmd->add_option("switch_name_list", args, "Switch Name(s)");
+          break;
+        case utils::ObjectArgTypeId::OBJECT_ARG_TYPE_FAN_PWM:
+          subCmd->add_option("pwm", args, "Fan PWM (0..100) or 'disable'");
           break;
         case utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_UNINITIALIZE:
         case utils::ObjectArgTypeId::OBJECT_ARG_TYPE_ID_NONE:

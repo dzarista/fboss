@@ -156,6 +156,7 @@ class SaiSwitch : public HwSwitch {
   void linkConnectivityChanged(
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&
           connectivityDelta);
+  void switchReachabilityChangeTopHalf();
 
   /**
    * Runs a diag cmd on the corresponding unit
@@ -337,6 +338,8 @@ class SaiSwitch : public HwSwitch {
   void initTxReadyStatusChangeLocked(const std::lock_guard<std::mutex>& lock);
   void initLinkConnectivityChangeLocked(
       const std::lock_guard<std::mutex>& lock);
+  void initSwitchReachabilityChangeLocked(
+      const std::lock_guard<std::mutex>& lock);
 
   bool isFeatureSetupLocked(
       FeaturesDesired feature,
@@ -369,11 +372,14 @@ class SaiSwitch : public HwSwitch {
 
   void updateRsInfo(
       phy::PhySideState& sideState,
-      std::shared_ptr<SaiPort> port);
+      std::shared_ptr<SaiPort> port,
+      PortID swPort,
+      phy::PhySideState& lastSideState);
 
   void linkStateChangedCallbackBottomHalf(
       std::vector<sai_port_oper_status_notification_t> data);
   void txReadyStatusChangeCallbackBottomHalf();
+  void switchReachabilityChangeBottomHalf();
 
   uint64_t getDeviceWatermarkBytesLocked(
       const std::lock_guard<std::mutex>& lock) const;
@@ -569,6 +575,8 @@ class SaiSwitch : public HwSwitch {
   folly::EventBase txReadyStatusChangeBottomHalfEventBase_;
   std::unique_ptr<std::thread> linkConnectivityChangeBottomHalfThread_;
   folly::EventBase linkConnectivityChangeBottomHalfEventBase_;
+  std::unique_ptr<std::thread> switchReachabilityChangeBottomHalfThread_;
+  folly::EventBase switchReachabilityChangeBottomHalfEventBase_;
 
   HwResourceStats hwResourceStats_;
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};

@@ -9,6 +9,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentDscpMarkingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentDscpQueueMappingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentDeepPacketInspectionTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentDiagShellStressTests.cpp
   fboss/agent/test/agent_hw_tests/AgentEmptyTests.cpp
   fboss/agent/test/agent_hw_tests/AgentEgressForwardingDiscardCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentRouteOverDifferentAddressFamilyNhopTests.cpp
@@ -20,6 +21,8 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentL3ForwardingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentL4PortBlackholingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentMacLearningTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentMacLearningAndNeighborResolutionTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentMirroringTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosSchedulerTests.cpp
   fboss/agent/test/agent_hw_tests/AgentQueuePerHostL2Tests.cpp
@@ -37,6 +40,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentWatermarkTests.cpp
   fboss/agent/test/agent_hw_tests/AgentSwitchStatsTxCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentMmuTuningTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentSflowMirrorTest.cpp
 )
 
 target_link_libraries(agent_hw_test_src
@@ -78,29 +82,10 @@ target_link_libraries(agent_hw_test_src
   mac_test_utils
   port_stats_test_utils
   utils
-)
-
-add_executable(multi_switch_agent_hw_test
-  fboss/agent/test/agent_hw_tests/MultiSwitchAgentHwTest.cpp
-)
-
-target_link_libraries(multi_switch_agent_hw_test
-  -Wl,--whole-archive
-  acl_test_utils
-  agent_test_utils
-  copp_test_utils
-  pkt_test_utils
-  agent_hw_test_src
-  agent_hw_test
-  multi_switch_agent_ensemble
-  olympic_qos_utils
-  trunk_utils
-  traffic_policy_utils
-  Folly::folly
-  hw_packet_utils
-  -Wl,--no-whole-archive
-  ${GTEST}
-  ${LIBGMOCK_LIBRARIES}
+  sflow_shim_utils
+  pktutil
+  mirror_test_utils
+  voq_test_utils
 )
 
 function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)

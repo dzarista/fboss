@@ -30,6 +30,7 @@ namespace {
 facebook::fboss::PlatformInitFn kPlatformInitFn;
 static std::string kInputConfigFile;
 std::optional<facebook::fboss::cfg::StreamType> kStreamTypeOpt{std::nullopt};
+static const int kMsWaitForStatsRetry = 2000;
 } // namespace
 
 namespace facebook::fboss {
@@ -118,10 +119,18 @@ void AgentEnsemble::startAgent() {
   // explicit setting this flag and emply CLI option to disable tun manager.
   FLAGS_tun_intf = false;
   auto* initializer = agentInitializer();
-  asyncInitThread_.reset(new std::thread([this, initializer] {
+  auto hwWriteBehavior = HwWriteBehavior::WRITE;
+  if (getSw()->getWarmBootHelper()->canWarmBoot()) {
+    hwWriteBehavior = HwWriteBehavior::LOG_FAIL;
+    if (getSw()->getHwAsicTable()->isFeatureSupportedOnAllAsic(
+            HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT)) {
+      hwWriteBehavior = HwWriteBehavior::FAIL;
+    }
+  }
+  asyncInitThread_.reset(new std::thread([this, initializer, hwWriteBehavior] {
     // hardware switch events will be dispatched to agent ensemble
     // agent ensemble is responsible to dispatch them to SwSwitch
-    initializer->initAgent(this);
+    initializer->initAgent(this, hwWriteBehavior);
   }));
   initializer->initializer()->waitForInitDone();
   // if cold booting, invoke link toggler
@@ -364,6 +373,32 @@ LinkStateToggler* AgentEnsemble::getLinkToggler() {
   return linkToggler_.get();
 }
 
+uint64_t AgentEnsemble::getTrafficRate(
+    const HwPortStats& prevPortStats,
+    const HwPortStats& curPortStats,
+    const int secondsBetweenStatsCollection) {
+  auto prevPortBytes = *prevPortStats.outBytes_();
+  auto prevPortPackets =
+      (*prevPortStats.outUnicastPkts_() + *prevPortStats.outMulticastPkts_() +
+       *prevPortStats.outBroadcastPkts_());
+
+  auto curPortPackets =
+      (*curPortStats.outUnicastPkts_() + *curPortStats.outMulticastPkts_() +
+       *curPortStats.outBroadcastPkts_());
+
+  // 20 bytes are consumed by ethernet preamble, start of frame and
+  // interpacket gap. Account for that in linerate.
+  auto packetPaddingBytes = (curPortPackets - prevPortPackets) * 20;
+  auto curPortBytes = *curPortStats.outBytes_() + packetPaddingBytes;
+  auto rate = static_cast<uint64_t>((curPortBytes - prevPortBytes) * 8) /
+      secondsBetweenStatsCollection;
+  XLOG(DBG2) << ": Current rate " << rate << " bps" << ", curPortBytes "
+             << curPortBytes << " prevPortBytes " << prevPortBytes
+             << " curPortPackets " << curPortPackets << " prevPortPackets "
+             << prevPortPackets;
+  return rate;
+}
+
 /*
  * Wait for traffic on port to reach specified rate. If the
  * specified rate is reached, return true, else false.
@@ -389,32 +424,22 @@ bool AgentEnsemble::waitForRateOnPort(
     return false;
   }
 
+  // The first iteration in the below loop will not be successful
+  // given the prev/curr stats collections are back to back!
+  auto prevPortStats = getLatestPortStats(port);
+  XLOG(DBG0) << "Desired rate " << desiredBps;
   WITH_RETRIES_N_TIMED(
       10, std::chrono::milliseconds(1000 * secondsToWaitPerIteration), {
-        const auto prevPortStats = getLatestPortStats(port);
-        auto prevPortBytes = *prevPortStats.outBytes_();
-        auto prevPortPackets =
-            (*prevPortStats.outUnicastPkts_() +
-             *prevPortStats.outMulticastPkts_() +
-             *prevPortStats.outBroadcastPkts_());
-
-        const auto curPortStats = getLatestPortStats(port);
-        auto curPortPackets =
-            (*curPortStats.outUnicastPkts_() +
-             *curPortStats.outMulticastPkts_() +
-             *curPortStats.outBroadcastPkts_());
-
-        // 20 bytes are consumed by ethernet preamble, start of frame and
-        // interpacket gap. Account for that in linerate.
-        auto packetPaddingBytes = (curPortPackets - prevPortPackets) * 20;
-        auto curPortBytes = *curPortStats.outBytes_() + packetPaddingBytes;
-        auto rate = static_cast<uint64_t>((curPortBytes - prevPortBytes) * 8) /
-            secondsToWaitPerIteration;
-        XLOG(DBG2) << ": Current rate " << rate << " bps < expected rate "
-                   << desiredBps << " bps. curPortBytes " << curPortBytes
-                   << " prevPortBytes " << prevPortBytes << " curPortPackets "
-                   << curPortPackets << " prevPortPackets " << prevPortPackets;
-        EXPECT_EVENTUALLY_TRUE(rate >= desiredBps);
+        auto curPortStats = getLatestPortStats(port);
+        auto rate = getTrafficRate(
+            prevPortStats, curPortStats, secondsToWaitPerIteration);
+        // Update prev stats for the next iteration if needed!
+        prevPortStats = curPortStats;
+        if (desiredBps == 0) {
+          EXPECT_EVENTUALLY_EQ(rate, desiredBps);
+        } else {
+          EXPECT_EVENTUALLY_TRUE(rate >= desiredBps);
+        }
         return true;
       });
   return false;
@@ -496,7 +521,12 @@ bool AgentEnsemble::ensureSendPacketSwitched(std::unique_ptr<TxPacket> pkt) {
   // lambda that returns HwPortStats for the given port(s)
   auto getPortStats =
       [&](const std::vector<PortID>& portIds) -> std::map<PortID, HwPortStats> {
-    return getLatestPortStats(portIds);
+    std::map<PortID, HwPortStats> portStats;
+    WITH_RETRIES({
+      portStats = getLatestPortStats(portIds);
+      EXPECT_EVENTUALLY_TRUE(portStats.size());
+    });
+    return portStats;
   };
   auto getSysPortStats = [&](const std::vector<SystemPortID>& portIds)
       -> std::map<SystemPortID, HwSysPortStats> {
@@ -509,7 +539,8 @@ bool AgentEnsemble::ensureSendPacketSwitched(std::unique_ptr<TxPacket> pkt) {
       masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
       getPortStats,
       masterLogicalSysPortIds(),
-      getSysPortStats);
+      getSysPortStats,
+      kMsWaitForStatsRetry);
 }
 
 bool AgentEnsemble::ensureSendPacketOutOfPort(
@@ -527,7 +558,8 @@ bool AgentEnsemble::ensureSendPacketOutOfPort(
       portID,
       masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}),
       getPortStats,
-      queue);
+      queue,
+      kMsWaitForStatsRetry);
 }
 
 } // namespace facebook::fboss

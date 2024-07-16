@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <folly/experimental/FunctionScheduler.h>
+#include <folly/executors/FunctionScheduler.h>
 
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 #include "fboss/agent/AgentInitializer.h"
@@ -26,14 +26,22 @@ class SwSwitchInitializer {
   explicit SwSwitchInitializer(SwSwitch* sw);
   virtual ~SwSwitchInitializer();
   void start();
-  void start(HwSwitchCallback* callback);
+  void start(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
   void stopFunctionScheduler();
   void waitForInitDone();
-  void init(HwSwitchCallback* callback);
+  void init(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
  protected:
-  virtual void initImpl(HwSwitchCallback*) = 0;
-  void initThread(HwSwitchCallback* callback);
+  virtual void initImpl(
+      HwSwitchCallback*,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE) = 0;
+  void initThread(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
   SwitchFlags setupFlags();
 
   SwSwitch* sw_;
@@ -74,7 +82,9 @@ class SwAgentInitializer : public AgentInitializer {
   void stopAgent(bool setupWarmboot, bool gracefulExit) override;
 
   int initAgent() override;
-  int initAgent(HwSwitchCallback* callback);
+  int initAgent(
+      HwSwitchCallback* callback,
+      const HwWriteBehavior& hwWriteBehavior = HwWriteBehavior::WRITE);
 
  protected:
   virtual std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
@@ -86,10 +96,15 @@ class SwAgentInitializer : public AgentInitializer {
 
   void stopServer();
   void stopServices();
+  void waitForServerStopped();
 
  private:
   std::unique_ptr<apache::thrift::ThriftServer> server_;
   folly::EventBase* eventBase_;
+
+  std::atomic<bool> serverStarted_{false};
+  std::mutex serverStopMutex_;
+  std::condition_variable serverStopCV_;
 };
 
 } // namespace facebook::fboss

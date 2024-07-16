@@ -231,14 +231,18 @@ void SaiRouteManager::addOrUpdateRoute(
          * the CPU even if there is a conflicting DENY ACL.
          *
          * Not-applicable to TAJO because update metadata on interface subnet
-         * route is unsupported
+         * route is unsupported. Also not supported on BRCM-SAI, which does not
+         * fuly support route classID programming yet.
+         *
+         * So, classid_for_connected_subnet_routes is currently disabled
+         * everywhere
          */
-#if !defined(TAJO_SDK)
-        if (FLAGS_classid_for_connected_subnet_routes) {
+        if (FLAGS_classid_for_connected_subnet_routes &&
+            platform_->getAsic()->isSupported(
+                HwAsic::Feature::ROUTE_METADATA)) {
           metadata =
               static_cast<uint32_t>(cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
         }
-#endif
         RouterInterfaceSaiId routerInterfaceId{
             routerInterfaceHandle->adapterKey()};
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
@@ -295,7 +299,7 @@ void SaiRouteManager::addOrUpdateRoute(
 
             auto managedRouteNextHop =
                 refOrCreateManagedRouteNextHop<NextHopTraits>(
-                    routeHandle, entry, managedNextHop);
+                    routeHandle, entry, managedNextHop, metadata);
 
             nextHopId = managedRouteNextHop->adapterKey();
             nextHopHandle = managedRouteNextHop;
@@ -333,7 +337,8 @@ void SaiRouteManager::addOrUpdateRoute(
        * For Tajo, any route (host route or subnet route) that points to
        * CPU port will be treated as MYIP. Both host and subnet routes
        * that are unresolved will be sent to mid pri queue due to the
-       * IP2ME hostif trap.
+       * IP2ME hostif trap. So, FLAGS_classid_for_unresolved_routes is
+       * currently only enabled on tajo switches.
        *
        * Fix for the issue:
        * In order to send these not MYIP routes to default queue,
@@ -342,15 +347,14 @@ void SaiRouteManager::addOrUpdateRoute(
        * 2) Add an ACL with qualifer as CLASS_UNRESOLVED_ROUTE_TO_CPU and
        * action as low pri queue.
        */
-#if defined(TAJO_SDK)
       if (FLAGS_classid_for_unresolved_routes &&
           platform_->getAsic()->isSupported(HwAsic::Feature::ROUTE_METADATA)) {
         if (nextHopId == managerTable_->switchManager().getCpuPort()) {
+          XLOG(DBG2) << "set route class id to 2";
           metadata =
               static_cast<uint32_t>(cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
         }
       }
-#endif
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)
       attributes = SaiRouteTraits::CreateAttributes{
@@ -527,7 +531,8 @@ std::shared_ptr<ManagedRouteNextHopT>
 SaiRouteManager::refOrCreateManagedRouteNextHop(
     SaiRouteHandle* routeHandle,
     SaiRouteTraits::RouteEntry entry,
-    std::shared_ptr<ManagedNextHopT> nexthop) {
+    std::shared_ptr<ManagedNextHopT> nexthop,
+    std::optional<SaiRouteTraits::Attributes::Metadata> metadata) {
   auto routeNexthopHandle = routeHandle->nexthopHandle_;
   using ManagedNextHopSharedPtr = std::shared_ptr<ManagedRouteNextHopT>;
   if (std::holds_alternative<ManagedNextHopSharedPtr>(routeNexthopHandle)) {
@@ -536,14 +541,27 @@ SaiRouteManager::refOrCreateManagedRouteNextHop(
     CHECK(existingManagedRouteNextHop) << "null managed route next hop";
     if (existingManagedRouteNextHop->adapterHostKey() ==
         nexthop->adapterHostKey()) {
+      auto oldMetadata = existingManagedRouteNextHop->getMetadata();
+      XLOG(DBG3) << "update existing managedRouteNextHop metadata from "
+                 << (oldMetadata.has_value()
+                         ? std::to_string(oldMetadata.value().value())
+                         : "none")
+                 << " to "
+                 << (metadata.has_value()
+                         ? std::to_string(metadata.value().value())
+                         : "none");
+      existingManagedRouteNextHop->setMetadata(metadata);
       return existingManagedRouteNextHop;
     }
   }
-  auto routeMetadataSupported =
+  auto routeMetadataSupported = FLAGS_classid_for_unresolved_routes &&
       platform_->getAsic()->isSupported(HwAsic::Feature::ROUTE_METADATA);
   PortSaiId cpuPort = managerTable_->switchManager().getCpuPort();
   auto managedRouteNextHop = std::make_shared<ManagedRouteNextHopT>(
-      cpuPort, this, entry, nexthop, routeMetadataSupported);
+      cpuPort, this, entry, nexthop, routeMetadataSupported, metadata);
+  XLOG(DBG3) << "create new managedRouteNexHop with metadata "
+             << (metadata.has_value() ? std::to_string(metadata.value().value())
+                                      : "none");
   SaiObjectEventPublisher::getInstance()->get<NextHopTraitsT>().subscribe(
       managedRouteNextHop);
   return managedRouteNextHop;
@@ -555,14 +573,16 @@ ManagedRouteNextHop<NextHopTraitsT>::ManagedRouteNextHop(
     SaiRouteManager* routeManager,
     SaiRouteTraits::AdapterHostKey routeKey,
     std::shared_ptr<ManagedNextHop<NextHopTraitsT>> managedNextHop,
-    bool routeMetadataSupported)
+    bool routeMetadataSupported,
+    std::optional<SaiRouteTraits::Attributes::Metadata> metadata)
     : detail::SaiObjectEventSubscriber<NextHopTraitsT>(
           managedNextHop->adapterHostKey()),
       cpuPort_(cpuPort),
       routeManager_(routeManager),
       routeKey_(std::move(routeKey)),
       managedNextHop_(managedNextHop),
-      routeMetadataSupported_(routeMetadataSupported) {}
+      routeMetadataSupported_(routeMetadataSupported),
+      metadata_(metadata) {}
 
 template <typename NextHopTraitsT>
 void ManagedRouteNextHop<NextHopTraitsT>::afterCreate(
@@ -588,11 +608,18 @@ void ManagedRouteNextHop<NextHopTraitsT>::afterCreate(
   auto& currentNextHop =
       std::get<std::optional<SaiRouteTraits::Attributes::NextHopId>>(
           attributes);
+  auto& metadata =
+      std::get<std::optional<SaiRouteTraits::Attributes::Metadata>>(attributes);
   currentNextHop = nextHopId;
+  if (routeMetadataSupported_) {
+    metadata = metadata_;
+  }
   route->setAttributes(attributes);
   updateMetadata(currentMetadata);
   XLOG(DBG2) << "ManagedRouteNextHop afterCreate: " << routeKey_.toString()
-             << " assign nextHopId: " << nextHopId;
+             << " assign nextHopId: " << nextHopId << " metadata: "
+             << (metadata.has_value() ? std::to_string(metadata.value().value())
+                                      : "none");
 }
 
 template <typename NextHopTraitsT>
@@ -600,13 +627,24 @@ void ManagedRouteNextHop<NextHopTraitsT>::beforeRemove() {
   XLOG(DBG2) << "ManagedRouteNextHop beforeRemove, set route to CPU: "
              << routeKey_.toString();
 
-  // set route to CPU
   auto route = routeManager_->getRouteObject(routeKey_);
+  auto& api = SaiApiTable::getInstance()->routeApi();
+  SaiRouteTraits::Attributes::Metadata currentMetadata = routeMetadataSupported_
+      ? api.getAttribute(
+            route->adapterKey(), SaiRouteTraits::Attributes::Metadata{})
+      : 0;
+  // set route to CPU
   auto attributes = route->attributes();
 
   std::get<std::optional<SaiRouteTraits::Attributes::NextHopId>>(attributes) =
       static_cast<sai_object_id_t>(cpuPort_);
+  if (routeMetadataSupported_) {
+    std::get<std::optional<SaiRouteTraits::Attributes::Metadata>>(attributes) =
+        static_cast<uint32_t>(cfg::AclLookupClass::DST_CLASS_L3_LOCAL_2);
+  }
+
   route->setAttributes(attributes);
+  updateMetadata(currentMetadata);
   this->setPublisherObject(nullptr);
 }
 
@@ -621,6 +659,9 @@ sai_object_id_t ManagedRouteNextHop<NextHopTraitsT>::adapterKey() const {
 template <typename NextHopTraitsT>
 void ManagedRouteNextHop<NextHopTraitsT>::updateMetadata(
     SaiRouteTraits::Attributes::Metadata currentMetadata) const {
+  if (!routeMetadataSupported_) {
+    return;
+  }
   auto route = routeManager_->getRouteObject(routeKey_);
   CHECK(route);
 
@@ -654,6 +695,18 @@ template <typename NextHopTraitsT>
 typename NextHopTraitsT::AdapterHostKey
 ManagedRouteNextHop<NextHopTraitsT>::adapterHostKey() const {
   return this->managedNextHop_->adapterHostKey();
+}
+
+template <typename NextHopTraitsT>
+std::optional<SaiRouteTraits::Attributes::Metadata>
+ManagedRouteNextHop<NextHopTraitsT>::getMetadata() const {
+  return metadata_;
+}
+
+template <typename NextHopTraitsT>
+void ManagedRouteNextHop<NextHopTraitsT>::setMetadata(
+    std::optional<SaiRouteTraits::Attributes::Metadata> metadata) {
+  metadata_ = metadata;
 }
 
 template class ManagedRouteNextHop<SaiIpNextHopTraits>;

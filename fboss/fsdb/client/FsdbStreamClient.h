@@ -33,6 +33,7 @@ class Client;
 
 DECLARE_int32(fsdb_state_chunk_timeout);
 DECLARE_int32(fsdb_stat_chunk_timeout);
+DECLARE_int32(fsdb_reconnect_ms);
 
 using State = facebook::fboss::ReconnectingThriftClient::State;
 
@@ -58,7 +59,8 @@ class FsdbStreamClient : public ReconnectingThriftClient {
       const std::string& counterPrefix,
       bool isStats = false,
       StreamStateChangeCb stateChangeCb = [](State /*old*/,
-                                             State /*newState*/) {});
+                                             State /*newState*/) {},
+      int fsdbReconnectMs = FLAGS_fsdb_reconnect_ms);
   virtual ~FsdbStreamClient();
 
   bool serviceLoopRunning() const {
@@ -70,6 +72,7 @@ class FsdbStreamClient : public ReconnectingThriftClient {
   fsdb::FsdbErrorCode getDisconnectReason() const {
     return *disconnectReason_.rlock();
   }
+  void onCancellation() override {}
 
   template <typename PubUnit>
   using PubStreamT = apache::thrift::ClientSink<PubUnit, OperPubFinalResponse>;
@@ -77,16 +80,20 @@ class FsdbStreamClient : public ReconnectingThriftClient {
   using SubStreamT = apache::thrift::ClientBufferedStream<SubUnit>;
   using StatePubStreamT = PubStreamT<OperState>;
   using DeltaPubStreamT = PubStreamT<OperDelta>;
+  using PatchPubStreamT = PubStreamT<PublisherMessage>;
   using StateSubStreamT = SubStreamT<OperState>;
   using DeltaSubStreamT = SubStreamT<OperDelta>;
+  using PatchSubStreamT = SubStreamT<SubscriberMessage>;
   using StateExtSubStreamT = SubStreamT<OperSubPathUnit>;
   using DeltaExtSubStreamT = SubStreamT<OperSubDeltaUnit>;
 
   using StreamT = std::variant<
       StatePubStreamT,
       DeltaPubStreamT,
+      PatchPubStreamT,
       StateSubStreamT,
       DeltaSubStreamT,
+      PatchSubStreamT,
       StateExtSubStreamT,
       DeltaExtSubStreamT>;
 

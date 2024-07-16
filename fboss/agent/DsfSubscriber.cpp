@@ -114,7 +114,7 @@ bool DsfSubscriber::isLocal(SwitchID nodeSwitchId) const {
   return localSwitchIds.find(nodeSwitchId) != localSwitchIds.end();
 }
 
-void DsfSubscriber::scheduleUpdate(
+void DsfSubscriber::updateWithRollbackProtection(
     const std::string& nodeName,
     const SwitchID& nodeSwitchId,
     const std::map<SwitchID, std::shared_ptr<SystemPortMap>>&
@@ -156,9 +156,11 @@ void DsfSubscriber::scheduleUpdate(
         return std::shared_ptr<SwitchState>{};
       };
 
-  sw_->updateState(
-      folly::sformat("Update state for node: {}", nodeName),
-      std::move(updateDsfStateFn));
+  sw_->getRib()->updateStateInRibThread([this, nodeName, updateDsfStateFn]() {
+    sw_->updateStateWithHwFailureProtection(
+        folly::sformat("Update state for node: {}", nodeName),
+        updateDsfStateFn);
+  });
 }
 
 void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
@@ -210,9 +212,6 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
     auto nodeSwitchId = node->getSwitchId();
 
     auto localIps = getLocalIps(stateDelta.newState());
-    // Use loopback IP of any local VOQ switch as src for FSDB subscriptions
-    // TODO: Evaluate what we should do if one or more VOQ switches go down
-    auto localIp = localIps.begin()->first.str();
     for (const auto& [srcIPAddr, dstIPAddr] :
          getDsfSessionIps(localIps, node->getLoopbackIpsSorted())) {
       auto dstIP = dstIPAddr.str();
@@ -250,7 +249,7 @@ void DsfSubscriber::stateUpdated(const StateDelta& stateDelta) {
                 dstIPAddr,
                 std::move(operStateUnit));
           },
-          getServerOptions(localIp, dstIP));
+          getServerOptions(srcIP, dstIP));
     }
   };
   auto rmDsfNode = [&](const std::shared_ptr<DsfNode>& node) {
@@ -305,17 +304,24 @@ void DsfSubscriber::processGRHoldTimerExpired(
       for (auto& [_, remoteSystemPort] : *remoteSystemPortMap) {
         // GR timeout expired for an Interface Node.
         // Mark all remote system ports synced over control plane (i.e.
-        // DYNAMIC) as STALE for every switchID on that Interface Node.
+        // DYNAMIC) as STALE for every switchID on that Interface Node
+        // if FLAGS_dsf_flush_remote_sysports_and_rifs_on_gr is not set.
+        // Otherwise, remove those remote system ports.
         if (allNodeSwitchIDs.count(remoteSystemPort->getSwitchId()) > 0 &&
             remoteSystemPort->getRemoteSystemPortType().has_value() &&
             remoteSystemPort->getRemoteSystemPortType().value() ==
                 RemoteSystemPortType::DYNAMIC_ENTRY) {
-          auto clonedNode = remoteSystemPort->isPublished()
-              ? remoteSystemPort->clone()
-              : remoteSystemPort;
-          clonedNode->setRemoteLivenessStatus(LivenessStatus::STALE);
-          remoteSystemPorts->updateNode(
-              clonedNode, sw_->getScopeResolver()->scope(clonedNode));
+          if (FLAGS_dsf_flush_remote_sysports_and_rifs_on_gr) {
+            remoteSystemPorts->removeNode(remoteSystemPort->getID());
+          } else {
+            auto clonedNode = remoteSystemPort->isPublished()
+                ? remoteSystemPort->clone()
+                : remoteSystemPort;
+            clonedNode->setRemoteLivenessStatus(LivenessStatus::STALE);
+            remoteSystemPorts->updateNode(
+                clonedNode, sw_->getScopeResolver()->scope(clonedNode));
+          }
+
           changed = true;
         }
       }
@@ -324,29 +330,36 @@ void DsfSubscriber::processGRHoldTimerExpired(
     auto remoteInterfaces = out->getRemoteInterfaces()->modify(&out);
     for (auto& [_, remoteInterfaceMap] : *remoteInterfaces) {
       for (auto& [_, remoteInterface] : *remoteInterfaceMap) {
-        const auto& remoteSystemPort =
-            remoteSystemPorts->getNodeIf(*remoteInterface->getSystemPortID());
+        const auto& remoteSystemPort = in->getRemoteSystemPorts()->getNodeIf(
+            *remoteInterface->getSystemPortID());
 
         if (remoteSystemPort) {
           auto switchID = remoteSystemPort->getSwitchId();
           // GR timeout expired for an Interface Node.
           // Mark all remote interfaces synced over control plane (i.e.
           // DYNAMIC) as STALE for every switchID on that Interface Node,
-          // Remove all the neighbor entries on that interface.
+          // if FLAGS_dsf_flush_remote_sysports_and_rifs_on_gr is not set.
+          // Otherwise, remove those remote rifs.
+          // Always remove all the neighbor entries on that interface or else
+          // we will end up blackholing the traffic.
           if (allNodeSwitchIDs.count(switchID) > 0 &&
-
               remoteInterface->getRemoteInterfaceType().has_value() &&
               remoteInterface->getRemoteInterfaceType().value() ==
                   RemoteInterfaceType::DYNAMIC_ENTRY) {
-            auto clonedNode = remoteInterface->isPublished()
-                ? remoteInterface->clone()
-                : remoteInterface;
-            clonedNode->setRemoteLivenessStatus(LivenessStatus::STALE);
-            clonedNode->setArpTable(state::NeighborEntries{});
-            clonedNode->setNdpTable(state::NeighborEntries{});
+            if (FLAGS_dsf_flush_remote_sysports_and_rifs_on_gr) {
+              remoteInterfaces->removeNode(remoteInterface->getID());
+            } else {
+              auto clonedNode = remoteInterface->isPublished()
+                  ? remoteInterface->clone()
+                  : remoteInterface;
+              clonedNode->setRemoteLivenessStatus(LivenessStatus::STALE);
+              clonedNode->setArpTable(state::NeighborEntries{});
+              clonedNode->setNdpTable(state::NeighborEntries{});
 
-            remoteInterfaces->updateNode(
-                clonedNode, sw_->getScopeResolver()->scope(clonedNode, out));
+              remoteInterfaces->updateNode(
+                  clonedNode, sw_->getScopeResolver()->scope(clonedNode, out));
+            }
+
             changed = true;
           }
         }
@@ -473,7 +486,7 @@ void DsfSubscriber::handleFsdbUpdate(
           remoteNodeName);
     }
   }
-  scheduleUpdate(
+  updateWithRollbackProtection(
       remoteNodeName, remoteSwitchId, switchId2SystemPorts, switchId2Intfs);
 }
 

@@ -128,6 +128,7 @@ class ThriftSinkClient : public SplitAgentThriftClient {
       std::optional<std::string> multiSwitchStatsPrefix);
   ~ThriftSinkClient() override;
   void resetClient() override;
+  void onCancellation() override;
   void enqueue(CallbackObjectT callbackObject) {
     if (!isConnectedToServer()) {
       eventsDroppedCount_.add(1);
@@ -140,6 +141,7 @@ class ThriftSinkClient : public SplitAgentThriftClient {
     } else {
       eventsQueue_.enqueue(std::move(callbackObject));
     }
+    eventSentCount_.add(1);
 #endif
   }
   void startClientService() override;
@@ -154,6 +156,7 @@ class ThriftSinkClient : public SplitAgentThriftClient {
   std::unique_ptr<EventNotifierSinkClient> sinkClient_;
   ThriftSinkConnectFn connectFn_;
   fb303::TimeseriesWrapper eventsDroppedCount_;
+  fb303::TimeseriesWrapper eventSentCount_;
   int32_t serverPort_;
 };
 
@@ -179,11 +182,13 @@ class ThriftStreamClient : public SplitAgentThriftClient {
       EventHandlerFn eventHandlerFn,
       HwSwitch* hw,
       std::shared_ptr<folly::ScopedEventBaseThread> eventThread,
-      folly::EventBase* retryEvb);
+      folly::EventBase* retryEvb,
+      std::optional<std::string> multiSwitchStatsPrefix);
   ~ThriftStreamClient() override;
   void resetClient() override;
   void startClientService() override;
   void disconnected() override {}
+  void onCancellation() override;
 
  private:
 #if FOLLY_HAS_COROUTINES
@@ -195,5 +200,7 @@ class ThriftStreamClient : public SplitAgentThriftClient {
 
   EventHandlerFn eventHandlerFn_;
   HwSwitch* hw_;
+  folly::CancellationSource cancellationSource_;
+  fb303::TimeseriesWrapper eventReceivedCount_;
 };
 } // namespace facebook::fboss

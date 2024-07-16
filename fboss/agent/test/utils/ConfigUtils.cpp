@@ -60,6 +60,40 @@ std::string getLocalCpuMacStr() {
   return kLocalCpuMac().toString();
 }
 
+std::vector<cfg::PortQueue> getDefaultVoqCfg() {
+  std::vector<cfg::PortQueue> voqs;
+
+  cfg::PortQueue defaultQueue;
+  defaultQueue.id() = 0;
+  defaultQueue.name() = "default";
+  defaultQueue.streamType() = cfg::StreamType::UNICAST;
+  defaultQueue.scheduling() = cfg::QueueScheduling::INTERNAL;
+  voqs.push_back(defaultQueue);
+
+  cfg::PortQueue rdmaQueue;
+  rdmaQueue.id() = 2;
+  rdmaQueue.name() = "rdma";
+  rdmaQueue.streamType() = cfg::StreamType::UNICAST;
+  rdmaQueue.scheduling() = cfg::QueueScheduling::INTERNAL;
+  voqs.push_back(rdmaQueue);
+
+  cfg::PortQueue monitoringQueue;
+  monitoringQueue.id() = 6;
+  monitoringQueue.name() = "monitoring";
+  monitoringQueue.streamType() = cfg::StreamType::UNICAST;
+  monitoringQueue.scheduling() = cfg::QueueScheduling::INTERNAL;
+  voqs.push_back(monitoringQueue);
+
+  cfg::PortQueue ncQueue;
+  ncQueue.id() = 7;
+  ncQueue.name() = "nc";
+  ncQueue.streamType() = cfg::StreamType::UNICAST;
+  ncQueue.scheduling() = cfg::QueueScheduling::INTERNAL;
+  voqs.push_back(ncQueue);
+
+  return voqs;
+}
+
 const std::map<cfg::PortType, cfg::PortLoopbackMode>& kDefaultLoopbackMap() {
   static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMap = {
       {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::NONE},
@@ -419,10 +453,12 @@ cfg::SwitchConfig onePortPerInterfaceConfig(
     bool setInterfaceMac,
     int baseIntfId,
     bool enableFabricPorts) {
-  // Before m-mpu agent test, use first Asic for initialization.
+  std::vector<const HwAsic*> asics;
   auto switchIds = swSwitch->getHwAsicTable()->getSwitchIDs();
-  CHECK_GE(switchIds.size(), 1);
-  auto asic = swSwitch->getHwAsicTable()->getHwAsic(*switchIds.cbegin());
+  for (const auto& switchId : switchIds) {
+    asics.push_back(swSwitch->getHwAsicTable()->getHwAsic(switchId));
+  }
+  auto asic = checkSameAndGetAsic(asics);
   return onePortPerInterfaceConfig(
       swSwitch->getPlatformMapping(),
       asic,
@@ -432,7 +468,10 @@ cfg::SwitchConfig onePortPerInterfaceConfig(
       interfaceHasSubnet,
       setInterfaceMac,
       baseIntfId,
-      enableFabricPorts);
+      enableFabricPorts,
+      // Use SwitchInfo from --config if SwSwitch is provided
+      swSwitch->getSwitchInfoTable().getSwitchIdToSwitchInfo(),
+      swSwitch->getHwAsicTable()->getHwAsics());
 }
 
 cfg::SwitchConfig onePortPerInterfaceConfig(
@@ -444,7 +483,10 @@ cfg::SwitchConfig onePortPerInterfaceConfig(
     bool interfaceHasSubnet,
     bool setInterfaceMac,
     int baseIntfId,
-    bool enableFabricPorts) {
+    bool enableFabricPorts,
+    const std::optional<std::map<SwitchID, cfg::SwitchInfo>>&
+        switchIdToSwitchInfo,
+    const std::optional<std::map<SwitchID, const HwAsic*>>& hwAsicTable) {
   return multiplePortsPerIntfConfig(
       platformMapping,
       asic,
@@ -455,7 +497,9 @@ cfg::SwitchConfig onePortPerInterfaceConfig(
       setInterfaceMac,
       baseIntfId,
       1, /* portPerIntf*/
-      enableFabricPorts);
+      enableFabricPorts,
+      switchIdToSwitchInfo,
+      hwAsicTable);
 }
 
 cfg::SwitchConfig onePortPerInterfaceConfig(
@@ -493,7 +537,10 @@ cfg::SwitchConfig multiplePortsPerIntfConfig(
     bool setInterfaceMac,
     const int baseVlanId,
     const int portsPerIntf,
-    bool enableFabricPorts) {
+    bool enableFabricPorts,
+    const std::optional<std::map<SwitchID, cfg::SwitchInfo>>&
+        switchIdToSwitchInfo,
+    const std::optional<std::map<SwitchID, const HwAsic*>>& hwAsicTable) {
   std::map<PortID, VlanID> port2vlan;
   std::vector<VlanID> vlans;
   std::vector<PortID> vlanPorts;
@@ -531,7 +578,9 @@ cfg::SwitchConfig multiplePortsPerIntfConfig(
       lbModeMap,
       supportsAddRemovePort,
       true /*optimizePortProfile*/,
-      enableFabricPorts);
+      enableFabricPorts,
+      switchIdToSwitchInfo,
+      hwAsicTable);
   auto addInterface = [&config](
                           int32_t intfId,
                           int32_t vlanId,
@@ -583,7 +632,8 @@ cfg::SwitchConfig multiplePortsPerIntfConfig(
     const std::set<cfg::PortType> kCreateIntfsFor = {
         cfg::PortType::INTERFACE_PORT,
         cfg::PortType::RECYCLE_PORT,
-        cfg::PortType::MANAGEMENT_PORT};
+        cfg::PortType::MANAGEMENT_PORT,
+        cfg::PortType::EVENTOR_PORT};
     for (const auto& port : *config.ports()) {
       if (kCreateIntfsFor.find(*port.portType()) == kCreateIntfsFor.end()) {
         continue;
@@ -626,51 +676,63 @@ cfg::SwitchConfig genPortVlanCfg(
     const std::map<cfg::PortType, cfg::PortLoopbackMode> lbModeMap,
     bool supportsAddRemovePort,
     bool optimizePortProfile,
-    bool enableFabricPorts) {
+    bool enableFabricPorts,
+    const std::optional<std::map<SwitchID, cfg::SwitchInfo>>&
+        switchIdToSwitchInfo,
+    const std::optional<std::map<SwitchID, const HwAsic*>>& hwAsicTable) {
   cfg::SwitchConfig config;
-  auto switchType = asic->getSwitchType();
-  auto asicType = asic->getAsicType();
-  int64_t switchId{0};
-  if (asic->getSwitchId().has_value()) {
-    switchId = *asic->getSwitchId();
-    if (switchType == cfg::SwitchType::VOQ ||
-        switchType == cfg::SwitchType::FABRIC) {
-      config.dsfNodes()->insert(
-          {*asic->getSwitchId(), dsfNodeConfig(*asic, *asic->getSwitchId())});
+  if (switchIdToSwitchInfo.has_value() && hwAsicTable.has_value()) {
+    populateSwitchInfo(
+        config, switchIdToSwitchInfo.value(), hwAsicTable.value());
+  } else {
+    std::map<SwitchID, cfg::SwitchInfo> defaultSwitchIdToSwitchInfo;
+    std::map<SwitchID, const HwAsic*> defaultHwAsicTable;
+    auto switchType = asic->getSwitchType();
+    auto asicType = asic->getAsicType();
+    int64_t switchId{0};
+    if (asic->getSwitchId().has_value()) {
+      switchId = *asic->getSwitchId();
     }
+    defaultHwAsicTable.insert({SwitchID(switchId), asic});
+    cfg::SwitchInfo switchInfo;
+    cfg::Range64 portIdRange;
+    portIdRange.minimum() =
+        cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MIN();
+    portIdRange.maximum() =
+        cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MAX();
+    switchInfo.portIdRange() = portIdRange;
+    switchInfo.switchIndex() = 0;
+    switchInfo.switchType() = switchType;
+    switchInfo.asicType() = asicType;
+    // TODO: Instead of using hard codings for connection handle and
+    // src mac, get the configs from AgentConfig
+    if (asicType == cfg::AsicType::ASIC_TYPE_RAMON) {
+      switchInfo.connectionHandle() = "0c:00";
+    } else if (asicType == cfg::AsicType::ASIC_TYPE_RAMON3) {
+      switchInfo.connectionHandle() = "15:00";
+    } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2) {
+      switchInfo.switchMac() = "02:00:00:00:00:01";
+      switchInfo.connectionHandle() = "68:00";
+    } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      switchInfo.switchMac() = "02:00:00:00:00:01";
+      switchInfo.connectionHandle() = "15:00";
+    } else if (
+        asicType == cfg::AsicType::ASIC_TYPE_EBRO ||
+        asicType == cfg::AsicType::ASIC_TYPE_YUBA) {
+      switchInfo.connectionHandle() = "/dev/uio0";
+    }
+    if (asic->getSystemPortRange().has_value()) {
+      switchInfo.systemPortRange() = *asic->getSystemPortRange();
+    }
+    defaultSwitchIdToSwitchInfo.insert({SwitchID(switchId), switchInfo});
+    populateSwitchInfo(config, defaultSwitchIdToSwitchInfo, defaultHwAsicTable);
   }
-  cfg::SwitchInfo switchInfo;
-  cfg::Range64 portIdRange;
-  portIdRange.minimum() =
-      cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MIN();
-  portIdRange.maximum() =
-      cfg::switch_config_constants::DEFAULT_PORT_ID_RANGE_MAX();
-  switchInfo.portIdRange() = portIdRange;
-  switchInfo.switchIndex() = 0;
-  switchInfo.switchType() = switchType;
-  switchInfo.asicType() = asicType;
-  // TODO: Instead of using hard codings for connection handle and
-  // src mac, get the configs from AgentConfig
-  if (asicType == cfg::AsicType::ASIC_TYPE_RAMON) {
-    switchInfo.connectionHandle() = "0c:00";
-  } else if (asicType == cfg::AsicType::ASIC_TYPE_RAMON3) {
-    switchInfo.connectionHandle() = "15:00";
-  } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2) {
-    switchInfo.switchMac() = "02:00:00:00:00:01";
-    switchInfo.connectionHandle() = "68:00";
-  } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
-    switchInfo.switchMac() = "02:00:00:00:00:01";
-    switchInfo.connectionHandle() = "15:00";
-  } else if (
-      asicType == cfg::AsicType::ASIC_TYPE_EBRO ||
-      asicType == cfg::AsicType::ASIC_TYPE_YUBA) {
-    switchInfo.connectionHandle() = "/dev/uio0";
+  auto switchType = asic->getSwitchType();
+  // VOQ config
+  if (switchType == cfg::SwitchType::VOQ) {
+    config.defaultVoqConfig() = getDefaultVoqCfg();
   }
-  if (asic->getSystemPortRange().has_value()) {
-    switchInfo.systemPortRange() = *asic->getSystemPortRange();
-  }
-  config.switchSettings()->switchIdToSwitchInfo() = {
-      std::make_pair(switchId, switchInfo)};
+
   // Use getPortToDefaultProfileIDMap() to genetate the default config instead
   // of using PlatformMapping.
   // The main reason is to avoid using PlatformMapping is because some of the
@@ -758,6 +820,28 @@ cfg::SwitchConfig genPortVlanCfg(
     }
   }
   return config;
+}
+
+void populateSwitchInfo(
+    cfg::SwitchConfig& config,
+    const std::map<SwitchID, cfg::SwitchInfo>& switchIdToSwitchInfo,
+    const std::map<SwitchID, const HwAsic*>& hwAsicTable) {
+  std::map<long, cfg::SwitchInfo> newSwitchIdToSwitchInfo;
+  std::map<long, cfg::DsfNode> newDsfNodes;
+  for (const auto& [switchId, switchInfo] : switchIdToSwitchInfo) {
+    newSwitchIdToSwitchInfo.insert({switchId, switchInfo});
+    auto hwAsicTableItr = hwAsicTable.find(switchId);
+    if (hwAsicTableItr == hwAsicTable.end()) {
+      throw FbossError("HwAsic not found for SwitchID: ", switchId);
+    }
+    const auto& hwAsic = hwAsicTableItr->second;
+    if (hwAsic->getSwitchType() == cfg::SwitchType::VOQ ||
+        hwAsic->getSwitchType() == cfg::SwitchType::FABRIC) {
+      newDsfNodes.insert({switchId, dsfNodeConfig(*hwAsic, switchId)});
+    }
+  }
+  config.switchSettings()->switchIdToSwitchInfo() = newSwitchIdToSwitchInfo;
+  config.dsfNodes() = newDsfNodes;
 }
 
 cfg::SwitchConfig
