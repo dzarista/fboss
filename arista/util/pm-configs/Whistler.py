@@ -55,8 +55,14 @@ class Whistler( PlatformConfig ):
          FANUnit()
       ] )
 
-      self.kmodsSettings[ "bspKmodsToReload" ] = \
-         "scd-xcvr, scd-spi, scd-leds, scd-smbus, dsf-fan-cpld, decker-cpld"
+      self.kmodsSettings[ "bspKmodsToReload" ] = [
+         "scd-xcvr",
+         "scd-spi",
+         "scd-leds",
+         "scd-smbus",
+         "dsf-fan-cpld",
+         "decker-cpld"
+      ]
 
       self.pmUnitConfigs[ 0 ].outgoingSlotConfigs[ 0 ].outgoingI2cBusNames = [ 
          "SCM_I2C_MASTER1@0", 
@@ -172,3 +178,7 @@ class Whistler( PlatformConfig ):
 
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths( self.platformName )
+
+if __name__ == '__main__':
+   platform = Whistler()
+   print( platform.asJson() )

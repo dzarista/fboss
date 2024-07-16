@@ -142,4 +142,8 @@ class Viper( PlatformConfig ):
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths( self.platformName )
 
+if __name__ == '__main__':
+   platform = Viper()
+   print( platform.asJson() )
+
 

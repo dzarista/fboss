@@ -2,7 +2,14 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from collections import OrderedDict
+import json
 import re
+
+
+def reformatOneElementLists( jsonDump ):
+   pattern = re.compile( r'\[\s*(-?\d+)\s*\]' )
+   output_string = pattern.sub( r'[\1]', jsonDump )
+   return output_string
 
 
 class PlatformConfig:
@@ -21,18 +28,110 @@ class PlatformConfig:
          or {
             "bspKmodsRpmName": "arista_bsp_kmods",
             "bspKmodsRpmVersion": "0.7.2-1",
-            "bspKmodsToReload" : 
-               "scd-xcvr, scd-spi, scd-leds, scd-smbus, dsf-fan-cpld",
-            "sharedKmodsToReload": "scd",
-            "upstreamKmodsToLoad": "spidev, i2c-i801" 
+            "bspKmodsToReload" : [
+               "scd-xcvr", 
+               "scd-spi",
+               "scd-leds",
+               "scd-smbus",
+               "dsf-fan-cpld"
+            ],
+            "sharedKmodsToReload": [ "scd" ],
+            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ] 
          }
       )
 
    def addSlotTypeConfigs( self, newConfigs ):
       self.slotTypeConfigs.extend( newConfigs ) 
 
+   def getSlotTypeConfigsDict( self ):
+      jsonDict = {}
+      for config in self.slotTypeConfigs:
+         name = config.slotName
+         jsonDict[ name ] = config.asJson()
+      return jsonDict
+
    def addPmUnitConfigs( self, newConfigs ):
       self.pmUnitConfigs.extend( newConfigs )
+
+   def getPmUnitConfigsDict( self ):
+      jsonDict = {}
+      for config in self.pmUnitConfigs:
+         name = config.pmUnitName
+         jsonDict[ name ] = config.asJson() 
+      return jsonDict
+   
+   def parseSymbolicLinkToDevicePaths( self ):
+      symlinkDict = {}
+      for config in self.pmUnitConfigs:
+         pmUnitDict = config.symlinkToDevicePaths
+         if pmUnitDict:
+            for symlink, devicePath in pmUnitDict.items():
+               symlinkDict[ symlink ] = devicePath
+      return symlinkDict
+
+   def asJson( self ):
+      jsonDict = OrderedDict()
+      jsonDict[ "platformName" ] = self.platformName
+      jsonDict[ "rootPmUnitName" ] = self.rootPmUnitName
+      jsonDict[ "slotTypeConfigs" ] = self.getSlotTypeConfigsDict()
+      jsonDict[ "pmUnitConfigs" ] = self.getPmUnitConfigsDict()
+      jsonDict[ "i2cAdaptersFromCpu" ] = self.i2cAdaptersFromCpu
+      jsonDict[ "symbolicLinkToDevicePath" ] = (
+         self.parseSymbolicLinkToDevicePaths()
+      )
+      jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings[ "bspKmodsRpmName" ]
+      jsonDict[ "bspKmodsRpmVersion" ] = self.kmodsSettings[ "bspKmodsRpmVersion" ]
+      jsonDict[ "bspKmodsToReload" ] = self.kmodsSettings[ "bspKmodsToReload" ]
+      jsonDict[ "sharedKmodsToReload" ] = self.kmodsSettings[ "sharedKmodsToReload" ]
+      jsonDict[ "upstreamKmodsToLoad" ] = self.kmodsSettings[ "upstreamKmodsToLoad" ]
+
+      jsonDump = json.dumps( jsonDict, indent=2 )
+      output = reformatOneElementLists( jsonDump )
+
+      return output
+
+
+class SlotTypeConfig:
+   def __init__( self, slotName, numOutgoingI2cBuses=0, 
+                 idPromConfigBusName=None, idPromConfigAddress=None,
+                 idpromConfigKernelDeviceName=None, idPromConfigOffset=None ):
+      self.slotName = slotName
+      self.numOutgoingI2cBuses = numOutgoingI2cBuses
+      self.idPromConfigBusName = idPromConfigBusName
+      self.idPromConfigAddress = idPromConfigAddress
+      self.idPromConfigKernelDeviceName = idpromConfigKernelDeviceName
+      self.idPromConfigOffset = idPromConfigOffset
+      self.pmUnitName = slotName.split( '_' )[ 0 ]
+
+   def asJson( self ):
+      idpCfg = self.parseIdpromConfig()
+
+      assert self.numOutgoingI2cBuses is not None, (
+         "numOutgoingI2cBuses is required"
+      )
+
+      return {
+         "numOutgoingI2cBuses": self.numOutgoingI2cBuses,
+         **({ "idpromConfig": idpCfg } if idpCfg and all( idpCfg.values() ) else {}),
+         **({ "pmUnitName": self.pmUnitName } if self.pmUnitName else {})
+      }
+
+   def parseIdpromConfig( self ):
+      busName = self.idPromConfigBusName
+      address = self.idPromConfigAddress
+      kernelDeviceName = self.idPromConfigKernelDeviceName
+      offset = self.idPromConfigOffset
+      assert ( busName == address == kernelDeviceName ) or\
+         ( busName and address and kernelDeviceName ), (
+            "Error: 1 or 2 of the strings are empty"
+         )
+
+      return {
+         "busName": busName,
+         "address": address.lower() if address else '',
+         "kernelDeviceName": kernelDeviceName,
+         "offset": offset
+      }
 
 
 class PmUnitConfig:
@@ -249,26 +348,66 @@ class PmUnitConfig:
                      f"/run/devmap/flashes/{ config.pmUnitScopedName }" 
                   ] = f"/SMB_SLOT@0/[{ config.pmUnitScopedName }]"
       return symlinkDict
+   
+   def asJson( self ):
+      name = self.pmUnitName
+      pluggedInSlotType = f'{name}_SLOT'
 
-class SlotTypeConfig:
-   def __init__( self, slotName, numOutgoingI2cBuses=0, 
-                 idPromConfigBusName=None, idPromConfigAddress=None,
-                 idpromConfigKernelDeviceName=None, idPromConfigOffset=None ):
-      self.slotName = slotName
-      self.numOutgoingI2cBuses = numOutgoingI2cBuses
-      self.idPromConfigBusName = idPromConfigBusName
-      self.idPromConfigAddress = idPromConfigAddress
-      self.idPromConfigKernelDeviceName = idpromConfigKernelDeviceName
-      self.idPromConfigOffset = idPromConfigOffset
-      self.pmUnitName = slotName.split( '_' )[ 0 ]
+      assert name and pluggedInSlotType, "name and pluggedInSlotType are required"
 
+      embeddedSensorConfigs = self.getEmbeddedSensorConfigsList()
 
-class InitRegSettings:
-   def __init__( self, offsetBufPairs ):
-      self.list = []
-      for regOffset, ioBuf in offsetBufPairs:
-         self.list.append( { "regOffset": regOffset, "ioBuf": [ ioBuf ] } )
+      return {
+         "pluggedInSlotType": pluggedInSlotType,
+         "i2cDeviceConfigs": self.getI2cDeviceConfigsList(),
+         "outgoingSlotConfigs": self.getOutgoingSlotConfigsDict(),
+         "pciDeviceConfigs": self.getPciDeviceConfigsList(),
+         **( { "embeddedSensorConfigs":
+            embeddedSensorConfigs } if len( embeddedSensorConfigs ) > 0 else {} )
+      }
+   
+   def getEmbeddedSensorConfigsList( self ):
+      list = []
+      for config in self.embeddedSensorConfigs:
+         list.append( config.asJson() )
+      return list
+   
+   def getI2cDeviceConfigsList( self ):
+      list = []
+      for config in self.i2cDeviceConfigs:
+         list.append( config.asJson() )
+      return list
+   
+   def getOutgoingSlotConfigsDict( self ):
+      jsonDict = {}
+      for config in self.outgoingSlotConfigs:
+         slotName = config.slotName
+         jsonDict[ slotName ] = config.asJson()
+      return jsonDict
+   
+   def getPciDeviceConfigsList( self ):
+      list = []
+      for config in self.pciDeviceConfigs:
+         list.append( config.asJson() )
+      return list
+   
 
+class EmbeddedSensorConfig:
+   def __init__( self, pmUnitScopedName, sysfsPath ):
+      self.pmUnitScopedName = pmUnitScopedName
+      self.sysfsPath = sysfsPath
+
+   def asJson( self ):
+
+      assert self.pmUnitScopedName and self.sysfsPath, (
+         "missing details in EmbeddedSensorsConfig"
+      )
+
+      return {
+         "pmUnitScopedName": self.pmUnitScopedName,
+         "sysfsPath": self.sysfsPath
+      }
+   
 
 class I2cDeviceConfig:
    def __init__( self, busName, address, kernelDeviceName, pmUnitScopedName,
@@ -287,6 +426,46 @@ class I2cDeviceConfig:
       self.numOutgoingChannels = numOutgoingChannels
       self.initRegSettings = initRegSettings
 
+   def asJson( self ):
+      busName = self.busName
+      address = self.address
+      kernelDeviceName = self.kernelDeviceName
+      pmUnitScopedName = self.pmUnitScopedName
+      numOutgoingChannels = self.numOutgoingChannels
+      hasBmcMac = self.hasBmcMac
+      hasCpuMac = self.hasCpuMac
+      hasSwitchAsicMac = self.hasSwitchAsicMac
+      hasReservedMac = self.hasReservedMac
+      isGpioChip = self.isGpioChip
+      initRegSettings = self.initRegSettings
+
+      assert busName and address and kernelDeviceName and pmUnitScopedName, ( 
+         "missing required details in I2cDeviceConfigs"
+      )
+
+      return {
+         "busName": busName,
+         "address": address.lower(),
+         "kernelDeviceName": kernelDeviceName,
+         "pmUnitScopedName": pmUnitScopedName,
+         **({ "numOutgoingChannels": numOutgoingChannels }
+            if numOutgoingChannels else {}),
+         **({ "hasBmcMac": bool( hasBmcMac ) } if hasBmcMac else {}),
+         **({ "hasCpuMac": bool( hasCpuMac ) } if hasCpuMac else {}),
+         **({ "hasSwitchAsicMac": hasSwitchAsicMac } if hasSwitchAsicMac else {}),
+         **({ "hasReservedMac": hasReservedMac } if hasReservedMac else {}),
+         **({ "isGpioChip": isGpioChip } if isGpioChip else {}),
+         **({ "initRegSettings": initRegSettings.list }
+            if initRegSettings and initRegSettings.list else {})
+      }
+
+
+class InitRegSettings:
+   def __init__( self, offsetBufPairs ):
+      self.list = []
+      for regOffset, ioBuf in offsetBufPairs:
+         self.list.append( { "regOffset": regOffset, "ioBuf": [ ioBuf ] } )
+
 
 class SlotConfig:
    def __init__( self, slotName, presenceFileName=None, presenceDevicePath=None, 
@@ -296,6 +475,32 @@ class SlotConfig:
       self.presenceFileName = presenceFileName
       self.presenceDevicePath = presenceDevicePath
       self.outgoingI2cBusNames = outgoingI2cBusNames
+
+   def asJson( self ):
+      slotType = self.slotType
+      presenceDevicePath = self.presenceDevicePath
+      presenceFileName = self.presenceFileName
+      outgoingI2cBusNames = self.outgoingI2cBusNames
+
+      assert slotType, "missing slotType in OutgoingSlotConfigs"
+
+      presenceDetection = None
+      if presenceFileName and presenceDevicePath:
+         presenceDetection = {
+            "sysfsFileHandle": {
+               "devicePath": presenceDevicePath,
+               "presenceFileName": presenceFileName,
+               "desiredValue": 1
+            }
+         }
+
+      return {
+         "slotType": slotType,
+         **({ "presenceDetection":  presenceDetection }\
+             if presenceDetection else {}),
+         "outgoingI2cBusNames": outgoingI2cBusNames \
+              if outgoingI2cBusNames else []
+      }
 
 
 class PciDeviceConfig:
@@ -351,6 +556,58 @@ class PciDeviceConfig:
    def addLedCtrlConfigs( self, newConfigs ):
       self.ledCtrlConfigs.extend( newConfigs )
 
+   def asJson( self ):
+      pmUnitScopedName = self.pmUnitScopedName
+      vendorId = self.vendorId
+      deviceId = self.deviceId
+      subSystemVendorId = self.subSystemVendorId
+      subSystemDeviceId = self.subSystemDeviceId
+
+      assert pmUnitScopedName and vendorId and deviceId and subSystemVendorId\
+            and subSystemDeviceId, "missing details in PciDeviceConfigs"
+
+      return {
+         "pmUnitScopedName": pmUnitScopedName,
+         "vendorId": vendorId,
+         "deviceId": deviceId,
+         "subSystemVendorId": subSystemVendorId,
+         "subSystemDeviceId": subSystemDeviceId,
+         "i2cAdapterConfigs": self.getI2cAdapterConfigsList(),
+         "spiMasterConfigs": self.getSpiMasterConfigsList(),
+         "ledCtrlConfigs": self.getLedCtrlConfigsList(),
+         "xcvrCtrlConfigs": self.getXcvrConfigsList()
+      }
+   
+   def getI2cAdapterConfigsList( self ):
+      list = []
+      for config in self.i2cAdapterConfigs:
+         list.append( config.asJson() )
+      return list
+   
+   def getSpiMasterConfigsList( self ):
+      list = []
+      for config in self.spiMasterConfigs:
+         list.append( config.asJson() )
+      return list
+   
+   def getLedCtrlConfigsList( self ):
+      list = []
+      for config in self.xcvrCtrlConfigs:
+         portLeds = [ *config.parseXcvrLeds() ]
+         for led in portLeds:
+            list.append( led )
+
+      for identifier, config in enumerate( self.ledCtrlConfigs ):
+         list.append( config.parseStatusLeds( identifier+1 ) )
+      
+      return list
+   
+   def getXcvrConfigsList( self ):
+      list = []
+      for config in self.xcvrCtrlConfigs:
+         list.append( config.parseConfig() )
+      return list
+
 
 class I2cAdapterConfig:
    def __init__( self, pmUnitScopedName, deviceName, iobufOffset, 
@@ -360,6 +617,60 @@ class I2cAdapterConfig:
       self.iobufOffset = iobufOffset
       self.csrOffset = csrOffset
       self.numberOfAdapters = numberOfAdapters
+
+   def asJson( self ):
+      pmUnitScopedName = self.pmUnitScopedName
+      deviceName = self.deviceName
+      iobufOffset = str( self.iobufOffset ).lower()
+      csrOffset = str( self.csrOffset ).lower()
+      numberOfAdapters = self.numberOfAdapters
+
+      assert pmUnitScopedName and deviceName and iobufOffset and csrOffset\
+            and numberOfAdapters, "missing details in I2cAdapterConfigs"
+      
+      return {
+         "fpgaIpBlockConfig": {
+            "pmUnitScopedName": pmUnitScopedName,
+            "deviceName": deviceName,
+            **({ "iobufOffset": str( int( iobufOffset, 16 ) ) }\
+               if iobufOffset and iobufOffset != "-1" else {}),
+            "csrOffset": csrOffset
+         },
+         "numberOfAdapters": numberOfAdapters
+      }
+
+
+class SpiMasterConfig:
+   def __init__( self, pmUnitScopedName, deviceName, iobufOffset, 
+                 csrOffset, spiDeviceConfigs=None ):
+      self.pmUnitScopedName = pmUnitScopedName
+      self.deviceName = deviceName
+      self.iobufOffset = iobufOffset
+      self.csrOffset = csrOffset
+      self.spiDeviceConfigs = spiDeviceConfigs
+
+   def asJson( self ):
+      pmUnitScopedName = self.pmUnitScopedName
+      deviceName = self.deviceName
+      iobufOffset = str( self.iobufOffset ).lower()
+      csrOffset = str( self.csrOffset ).lower()
+      spiDeviceConfigs = self.spiDeviceConfigs
+
+      assert pmUnitScopedName and deviceName and csrOffset is not None, (
+         "missing details in SpiMasterConfigs"
+      )
+      
+      return {
+         "fpgaIpBlockConfig": {
+            "pmUnitScopedName": pmUnitScopedName,
+            "deviceName": deviceName,
+            **({ "iobufOffset": str( int( iobufOffset, 16 ) ) }
+               if iobufOffset and iobufOffset != "-1" else {}),            
+            "csrOffset": csrOffset
+         },
+         **({ "spiDeviceConfigs": [ config.dict for config in spiDeviceConfigs ] }
+            if spiDeviceConfigs else {}),
+      }
 
 
 class SpiDeviceConfig:
@@ -376,16 +687,6 @@ class SpiDeviceConfig:
       }
 
 
-class SpiMasterConfig:
-   def __init__( self, pmUnitScopedName, deviceName, iobufOffset, 
-                 csrOffset, spiDeviceConfigs=None ):
-      self.pmUnitScopedName = pmUnitScopedName
-      self.deviceName = deviceName
-      self.iobufOffset = iobufOffset
-      self.csrOffset = csrOffset
-      self.spiDeviceConfigs = spiDeviceConfigs
-
-
 class XcvrConfig:
    def __init__( self, portNumber, portType,	xcvrCtrlOffset, led1Offset,
                  led2Offset, led3Offset, led4Offset ):
@@ -397,17 +698,78 @@ class XcvrConfig:
       self.led3Offset = led3Offset
       self.led4Offset = led4Offset
 
+   def parseXcvrLeds( self ):
+      returnList = []
+      portNumber = self.portNumber
+      portType = self.portType
+      ledList = []
+      for i in range( 1, 5 ):
+         attribute = f"led{i}Offset"
+         if hasattr( self, attribute ) and getattr( self, attribute ):
+            ledList.append( getattr( self, attribute ) )
+      ledIdx = 1
+
+      assert portNumber and portType and len( ledList ) >= 2, (
+            "missing details in xcvr leds"
+      )
+      
+      for idx, ledOffset in enumerate( ledList ):
+         returnList.append( {
+            "fpgaIpBlockConfig": {
+               "pmUnitScopedName": 
+                  f'{ portType }_PORT{ portNumber }_LED{ idx+1 }'.upper(),
+               "deviceName": 'port_led',
+               "csrOffset": ledOffset.lower()
+            },
+            "portNumber": portNumber,
+            "ledId": ledIdx
+         } )
+         ledIdx += 1
+
+      return returnList
+
+   def parseConfig( self ):
+      portNumber = self.portNumber
+      portType = self.portType
+      xcvrCtrlOffset = self.xcvrCtrlOffset.lower()
+
+      assert portNumber and portType and xcvrCtrlOffset, (
+            "missing details in xcvr file"
+      )
+         
+      return {
+         "fpgaIpBlockConfig": {
+            "pmUnitScopedName": f'{ portType }_PORT{ portNumber }_XCVR'.upper(),
+            "deviceName": 'xcvr_ctrl',
+            "csrOffset": xcvrCtrlOffset
+         },
+         "portNumber": portNumber,
+      }
+
 
 class LedConfig:
    def __init__( self, ledName, offset ):
       self.ledName = ledName
       self.offset = offset
 
+   def parseStatusLeds( self, identifier ):
+      name = self.ledName.upper()
+      offset = self.offset.lower()
 
-class EmbeddedSensorConfig:
-   def __init__( self, pmUnitScopedName, sysfsPath ):
-      self.pmUnitScopedName = pmUnitScopedName
-      self.sysfsPath = sysfsPath
+      assert name and offset, "missing details in status leds"
+      
+      led = {
+         "fpgaIpBlockConfig": {
+            "pmUnitScopedName": name,
+            "deviceName": f"{ name[ :3 ].lower() }_led",
+            "csrOffset": offset
+         },
+         "portNumber": -1,
+         "ledId": identifier
+      }
+   
+      return led
+
 
 def enumerateXcvrConfigsViper( numConfigs, basePortNumber, portType, 
                                xcvrBaseOffset, led1BaseOffset, led2BaseOffset, 
