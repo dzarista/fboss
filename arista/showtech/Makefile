@@ -5,7 +5,7 @@ CXXFLAGS := -std=c++1z -Wall -Wextra
 LIBS := -lstdc++fs
 
 PROG := platform-showtech
-OBJS := DarwinShowtech.o MeruShowtech.o Showtech.o ShowtechUtils.o
+OBJS := DarwinShowtech.o MeruShowtech.o Showtech.o ShowtechUtils.o PsuShowtech.o
 
 all: $(PROG)
 
@@ -19,6 +19,8 @@ MeruShowtech.o: MeruShowtech.cpp MeruShowtech.h Showtech.h
 ShowtechUtils.o: ShowtechUtils.cpp ShowtechUtils.h
 
 Showtech.o: Showtech.cpp Showtech.h ShowtechUtils.h
+
+PsuShowtech.o: PsuShowtech.cpp PsuShowtech.h
 
 .PHONY: clean
 

@@ -27,6 +27,7 @@ private:
   void printAllFpgaVersions();
   void printFanInfo();
   void printI2cInfo();
+  void printPsuShowtechInfo();
 };
 } // namespace showtech
 
