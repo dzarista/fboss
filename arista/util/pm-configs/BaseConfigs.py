@@ -10,16 +10,15 @@ class PlatformConfig:
                  pmUnitConfigs=None, i2cAdaptersFromCpu=None, kmodsSettings=None ):
       self.platformName = platformName
       self.rootPmUnitName = rootPmUnitName
-      self.slotTypeConfigs = slotTypeConfigs
-      self.pmUnitConfigs = pmUnitConfigs
-      if i2cAdaptersFromCpu:
-         self.i2cAdaptersFromCpu = i2cAdaptersFromCpu
-      else:
-         self.i2cAdaptersFromCpu =[ { "adapter" : "SMBus I801 adapter at 1000" } ]
-      if kmodsSettings:
-         self.kmodsSettings = kmodsSettings
-      else:
-         self.kmodsSettings = {
+      self.slotTypeConfigs = slotTypeConfigs or []
+      self.pmUnitConfigs = pmUnitConfigs or []
+      self.i2cAdaptersFromCpu = (
+         i2cAdaptersFromCpu 
+         or [ { "adapter" : "SMBus I801 adapter at 1000" } ]
+      )
+      self.kmodsSettings = (
+         kmodsSettings 
+         or {
             "bspKmodsRpmName": "arista_bsp_kmods",
             "bspKmodsRpmVersion": "0.7.2-1",
             "bspKmodsToReload" : 
@@ -27,18 +26,13 @@ class PlatformConfig:
             "sharedKmodsToReload": "scd",
             "upstreamKmodsToLoad": "spidev, i2c-i801" 
          }
+      )
 
    def addSlotTypeConfigs( self, newConfigs ):
-      if self.slotTypeConfigs:
-         self.slotTypeConfigs = [ *self.slotTypeConfigs, *newConfigs ]
-      else:
-         self.slotTypeConfigs = newConfigs
+      self.slotTypeConfigs.extend( newConfigs ) 
 
    def addPmUnitConfigs( self, newConfigs ):
-      if self.pmUnitConfigs:
-         self.pmUnitConfigs = [ *self.pmUnitConfigs, *newConfigs ]
-      else:
-         self.pmUnitConfigs = newConfigs
+      self.pmUnitConfigs.extend( newConfigs )
 
 
 class PmUnitConfig:
@@ -46,37 +40,25 @@ class PmUnitConfig:
                  pciDeviceConfigs=None, embeddedSensorConfigs=None, 
                  symlinkToDevicePaths=None ):
       self.pmUnitName = pmUnitName
-      self.i2cDeviceConfigs = i2cDeviceConfigs
-      self.outgoingSlotConfigs = outgoingSlotConfigs
-      self.pciDeviceConfigs = pciDeviceConfigs
-      self.embeddedSensorConfigs = embeddedSensorConfigs
-      self.symlinkToDevicePaths = symlinkToDevicePaths
+      self.i2cDeviceConfigs = i2cDeviceConfigs or []
+      self.outgoingSlotConfigs = outgoingSlotConfigs or []
+      self.pciDeviceConfigs = pciDeviceConfigs or []
+      self.embeddedSensorConfigs = embeddedSensorConfigs or []
+      self.symlinkToDevicePaths = symlinkToDevicePaths or {}
 
    def addI2cDeviceConfigs( self, newConfigs ):
-      if self.i2cDeviceConfigs:
-         self.i2cDeviceConfigs = [ *self.i2cDeviceConfigs, *newConfigs ]
-      else:
-         self.i2cDeviceConfigs = newConfigs
+      self.i2cDeviceConfigs.extend( newConfigs )
 
    def addOutgoingSlotConfigs( self, newConfigs ):
-      if self.outgoingSlotConfigs:
-         self.outgoingSlotConfigs = [ *self.outgoingSlotConfigs, *newConfigs ]
-      else:
-         self.outgoingSlotConfigs = newConfigs
+      self.outgoingSlotConfigs.extend( newConfigs )
 
    def addPciDeviceConfigs( self, newConfigs ):
-      if self.pciDeviceConfigs:
-         self.pciDeviceConfigs = [ *self.pciDeviceConfigs, *newConfigs ]
-      else:
-         self.pciDeviceConfigs = newConfigs
+      self.pciDeviceConfigs.extend( newConfigs )
 
    def addEmbeddedSensorConfigs( self, newConfigs ):
-      if self.embeddedSensorConfigs:
-         self.embeddedSensorConfigs = [ *self.embeddedSensorConfigs, *newConfigs ]
-      else:
-         self.embeddedSensorConfigs = newConfigs
+      self.embeddedSensorConfigs.extend( newConfigs )
 
-   def populateSymlinkToDevicePaths( self, platform="meru800bia" ):
+   def populateSymlinkToDevicePaths( self, platform ):
       addedPaths = { 
          **self.generateFpgaSymlinks( platform ), 
          **self.generateI2cAdapterSymlinks( platform ),
@@ -87,22 +69,10 @@ class PmUnitConfig:
          **self.generateXcvrSymlinks(),
          **self.generateFlashSymlinks()
       }
-      if self.symlinkToDevicePaths:
-         self.symlinkToDevicePaths = {
-            **self.symlinkToDevicePaths,
-            **addedPaths
-         }
-      else:
-         self.symlinkToDevicePaths = addedPaths
+      self.symlinkToDevicePaths.update( addedPaths )
 
    def addSymlinkToDevicePaths( self, newPaths ):
-      if self.symlinkToDevicePaths:
-         self.symlinkToDevicePaths = {
-            **self.symlinkToDevicePaths,
-            **newPaths
-         }
-      else:
-         self.symlinkToDevicePaths = newPaths
+      self.symlinkToDevicePaths.update( newPaths )
 
    def generateI2cAdapterSymlinks( self, platform ):
       symlinkDict = OrderedDict()
@@ -337,10 +307,10 @@ class PciDeviceConfig:
       self.deviceId = deviceId
       self.subSystemVendorId = subSystemVendorId
       self.subSystemDeviceId = subSystemDeviceId
-      self.i2cAdapterConfigs = i2cAdapterConfigs
-      self.spiMasterConfigs = spiMasterConfigs
-      self.ledCtrlConfigs = ledCtrlConfigs
-      self.xcvrCtrlConfigs = xcvrCtrlConfigs
+      self.i2cAdapterConfigs = i2cAdapterConfigs or []
+      self.spiMasterConfigs = spiMasterConfigs or []
+      self.ledCtrlConfigs = ledCtrlConfigs or []
+      self.xcvrCtrlConfigs = xcvrCtrlConfigs or []
 
    def addI2cAdapterConfigs( self, numAdapters, adapterBaseName, baseCsrOffset ):
       configs = []
@@ -357,16 +327,10 @@ class PciDeviceConfig:
          configs.append( 
             I2cAdapterConfig( adapterName, "i2c_master", -1, csrOffset, 8 )
          )
-      if self.i2cAdapterConfigs:
-         self.i2cAdapterConfigs = [ *self.i2cAdapterConfigs, *configs ]
-      else:
-         self.i2cAdapterConfigs = configs
+      self.i2cAdapterConfigs.extend( configs )
 
    def addSpiMasterConfigs( self, newConfigs ):
-      if self.spiMasterConfigs:
-         self.spiMasterConfigs = [ *self.spiMasterConfigs, *newConfigs ]
-      else:
-         self.spiMasterConfigs = newConfigs
+      self.spiMasterConfigs.extend( newConfigs )
 
    def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, portType="osfp", 
                            xcvrBaseOffset="0xA010", led1BaseOffset="0x6100", 
@@ -382,16 +346,10 @@ class PciDeviceConfig:
                                                  portType, xcvrBaseOffset, 
                                                  led1BaseOffset, led2BaseOffset, 
                                                  led3BaseOffset, led4BaseOffset )
-      if self.xcvrCtrlConfigs:
-         self.xcvrCtrlConfigs = [ *self.xcvrCtrlConfigs, *newConfigs ]
-      else:
-         self.xcvrCtrlConfigs = newConfigs
+      self.xcvrCtrlConfigs.extend( newConfigs )
 
    def addLedCtrlConfigs( self, newConfigs ):
-      if self.ledCtrlConfigs:
-         self.ledCtrlConfigs = [ *self.ledCtrlConfigs, *newConfigs ]
-      else:
-         self.ledCtrlConfigs = newConfigs
+      self.ledCtrlConfigs.extend( newConfigs )
 
 
 class I2cAdapterConfig:

@@ -1,3 +1,6 @@
+# Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
+# Arista Networks, Inc. Confidential and Proprietary.
+
 import importlib
 import unittest
 
@@ -11,7 +14,7 @@ generator = importlib.import_module( "generate-pm-configs" )
  
 class TestEmptyConfigs( unittest.TestCase ):
 
-   def test_default_platform( self ):
+   def testDefaultPlatform( self ):
       platform = PlatformConfig( "test_platform" )
       pmconfigs = generator.PlatformConfig( platform )
       self.assertEqual( pmconfigs.platformName, "test_platform" )
@@ -43,7 +46,7 @@ class TestEmptyConfigs( unittest.TestCase ):
          [ "spidev", "i2c-i801" ] 
       )
 
-   def test_empty_pm_unit_config( self ):
+   def testEmptyPmUnitConfig( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [
          PmUnitConfig( "TEST_UNIT" )
@@ -57,7 +60,7 @@ class TestEmptyConfigs( unittest.TestCase ):
       self.assertEqual( testUnitConfig[ "outgoingSlotConfigs" ], {} )
       self.assertEqual( testUnitConfig[ "pciDeviceConfigs" ], [] )
 
-   def test_empty_pci_device_config( self ):
+   def testEmptyPciDeviceConfig( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [
          PmUnitConfig( "TEST_UNIT" )
@@ -89,7 +92,7 @@ class TestEmptyConfigs( unittest.TestCase ):
 
 class TestEnumerationFunctions( unittest.TestCase ):
 
-   def test_xcvr_config( self ):
+   def testXcvrConfig( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [
          PmUnitConfig( "TEST_UNIT" )
@@ -142,7 +145,7 @@ class TestEnumerationFunctions( unittest.TestCase ):
          else:
             self.assertEqual( testLedConfig[ i ][ "ledId" ], 2 )
 
-   def test_i2c_adapter_config( self ):
+   def testI2cAdapterConfig( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [
          PmUnitConfig( "TEST_UNIT" )

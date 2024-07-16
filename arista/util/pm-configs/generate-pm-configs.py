@@ -87,9 +87,7 @@ class PlatformConfig( BaseConfigs ):
 
 class SlotTypeConfigs( BaseConfigs ):
    def __init__( self, configs ):
-      self.entities = (
-         configs.slotTypeConfigsDict if configs.slotTypeConfigsDict else {}
-      )
+      self.entities = configs.slotTypeConfigsDict
       self.jsonDict = OrderedDict()
       for entity in self.entities:
          name = entity.slotName
@@ -134,9 +132,7 @@ class SlotTypeConfigs( BaseConfigs ):
 
 class PmUnitConfigs( BaseConfigs ):
    def __init__( self, configs ):
-      self.entities = (
-         configs.pmUnitConfigsList if configs.pmUnitConfigsList else {}
-      )
+      self.entities = configs.pmUnitConfigsList
       self.jsonDict = OrderedDict()
       for pmUnit in self.entities:
          name = pmUnit.pmUnitName
@@ -177,7 +173,7 @@ class PmUnitConfigs( BaseConfigs ):
 
 class I2cDeviceConfigs( BaseConfigs ):
    def __init__( self, pmUnit ):
-      self.entities = pmUnit.i2cDeviceConfigs if pmUnit.i2cDeviceConfigs else []
+      self.entities = pmUnit.i2cDeviceConfigs
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseI2cDeviceConfigs( entity ) )
@@ -221,9 +217,7 @@ class I2cDeviceConfigs( BaseConfigs ):
 
 class OutgoingSlotConfigs( BaseConfigs ):
    def __init__( self, pmUnit ):
-      self.entities = (
-         pmUnit.outgoingSlotConfigs if pmUnit.outgoingSlotConfigs else []
-      )
+      self.entities = pmUnit.outgoingSlotConfigs
       self.jsonDict = OrderedDict()
       for entity in self.entities:
          slotName = entity.slotName
@@ -261,8 +255,7 @@ class OutgoingSlotConfigs( BaseConfigs ):
 
 class PciDeviceConfigs( BaseConfigs ):
    def __init__( self, pmUnit ):
-      self.entities = pmUnit.pciDeviceConfigs \
-         if pmUnit.pciDeviceConfigs else []
+      self.entities = pmUnit.pciDeviceConfigs
       self.list = []
       for entity in self.entities:
          self.list.append( self.parsePciDeviceConfigs( entity ) )
@@ -295,9 +288,7 @@ class PciDeviceConfigs( BaseConfigs ):
 
 class EmbeddedSensorConfigs( BaseConfigs ):
    def __init__( self, pmUnit ):
-      self.entities = (
-         pmUnit.embeddedSensorConfigs if pmUnit.embeddedSensorConfigs else []
-      )
+      self.entities = pmUnit.embeddedSensorConfigs
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseEmbeddedSensorsConfigs( entity ) )
@@ -321,10 +312,7 @@ class EmbeddedSensorConfigs( BaseConfigs ):
 
 class I2cAdapterConfigs( BaseConfigs ):
    def __init__( self, pciDeviceConfig ):
-      self.entities = (
-         pciDeviceConfig.i2cAdapterConfigs 
-         if pciDeviceConfig.i2cAdapterConfigs else []
-      )
+      self.entities = pciDeviceConfig.i2cAdapterConfigs 
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseI2cAdapterConfigs( entity ) )
@@ -356,9 +344,7 @@ class I2cAdapterConfigs( BaseConfigs ):
 
 class SpiMasterConfigs( BaseConfigs ):
    def __init__( self, pciDeviceConfig ):
-      self.entities = (
-         pciDeviceConfig.spiMasterConfigs if pciDeviceConfig.spiMasterConfigs else []
-      )
+      self.entities = pciDeviceConfig.spiMasterConfigs
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseSpiMasterConfigs( entity ) )
@@ -393,9 +379,7 @@ class SpiMasterConfigs( BaseConfigs ):
 class LedCtrlConfigs( BaseConfigs ):
    def __init__( self, pciDeviceConfig ):
       self.list = []
-      self.entities = (
-         pciDeviceConfig.xcvrCtrlConfigs if pciDeviceConfig.xcvrCtrlConfigs else []
-      )
+      self.entities = pciDeviceConfig.xcvrCtrlConfigs
       for entity in self.entities:
          portLeds = [ *self.parseXcvrLeds( entity ) ]
          for led in portLeds:
@@ -461,9 +445,7 @@ class LedCtrlConfigs( BaseConfigs ):
 
 class XcvrCtrlConfigs( BaseConfigs ):
    def __init__( self, pciDeviceConfig ):
-      self.entities = (
-         pciDeviceConfig.xcvrCtrlConfigs if pciDeviceConfig.xcvrCtrlConfigs else []
-      )
+      self.entities = pciDeviceConfig.xcvrCtrlConfigs
       self.list = []
       for entity in self.entities:
          self.list.append( self.parseXcvrCtrlConfig( entity ) )
