@@ -281,7 +281,7 @@ else
          sed -i 's/STANDARD 17/STANDARD 20/g' "$REPO_PREFIX-$fboss_dep.git/CMakeLists.txt"
       done
    fi
-   time ./build/fbcode_builder/getdeps.py build --allow-system-packages \
+   time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
       --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
    cd $FBOSS_DIR/fboss.git
    ./fboss/oss/scripts/package-fboss.py --scratch-path "$SCRATCH_DIR"
@@ -317,11 +317,13 @@ else
    make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods modules
    mkdir -p $SCRATCH_DIR/bsp-kmods
    cp -f $FBOSS_DIR/fboss.git/arista/bsp-kmods/*.ko $SCRATCH_DIR/bsp-kmods/
+   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
 
    echo "****BUILDING SHOWTECH DEPENDENCIES"
    make -C $FBOSS_DIR/fboss.git/arista/showtech
    mkdir -p $SCRATCH_DIR/showtech
    cp -f $FBOSS_DIR/fboss.git/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
+   make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 
    # Copy over kernel modules
    mkdir -p "$fboss_output_dir/lib/modules"
