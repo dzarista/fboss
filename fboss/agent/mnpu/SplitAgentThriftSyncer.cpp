@@ -37,7 +37,8 @@ SplitAgentThriftSyncer::SplitAgentThriftSyncer(
           serverPort,
           switchId_,
           retryThread_->getEventBase(),
-          hw)),
+          hw,
+          multiSwitchStatsPrefix)),
       operDeltaClient_(
           std::make_unique<OperDeltaSyncer>(serverPort, switchId_, hw)),
       fdbEventSinkClient_(std::make_unique<FdbEventSyncer>(
@@ -176,11 +177,14 @@ void SplitAgentThriftSyncer::stop() {
   // Stop any started services
   linkChangeEventSinkClient_->cancel();
   txPktEventStreamClient_->cancel();
-  operDeltaClient_->stopOperSync();
   fdbEventSinkClient_->cancel();
   rxPktEventSinkClient_->cancel();
   hwSwitchStatsSinkClient_->cancel();
   isRunning_ = false;
+}
+
+void SplitAgentThriftSyncer::stopOperDeltaSync() {
+  operDeltaClient_->stopOperSync();
 }
 
 SplitAgentThriftSyncer::~SplitAgentThriftSyncer() {

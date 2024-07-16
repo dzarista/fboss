@@ -32,7 +32,11 @@ class TestSubscription : public Subscription {
   void serveHeartbeat() override {}
 
   explicit TestSubscription(std::vector<std::string> path)
-      : Subscription("testSubcriber", std::move(path), std::nullopt) {}
+      : Subscription(
+            "testSubcriber",
+            std::move(path),
+            OperProtocol::BINARY,
+            std::nullopt) {}
 };
 
 class TestDeltaSubscription : public Subscription {
@@ -53,13 +57,21 @@ class TestDeltaSubscription : public Subscription {
   void serveHeartbeat() override {}
 
   explicit TestDeltaSubscription(std::vector<std::string> path)
-      : Subscription("testSubcriber", std::move(path), std::nullopt) {}
+      : Subscription(
+            "testSubcriber",
+            std::move(path),
+            OperProtocol::BINARY,
+            std::nullopt) {}
 };
 
 class TestExtendedSubscription : public ExtendedSubscription {
  public:
-  explicit TestExtendedSubscription(std::vector<ExtendedOperPath> paths)
-      : ExtendedSubscription("testSubcriber", std::move(paths), std::nullopt) {}
+  explicit TestExtendedSubscription(ExtSubPathMap paths)
+      : ExtendedSubscription(
+            "testSubcriber",
+            std::move(paths),
+            OperProtocol::BINARY,
+            std::nullopt) {}
 
   PubSubType type() const override {
     return PubSubType::PATH;
@@ -76,6 +88,7 @@ class TestExtendedSubscription : public ExtendedSubscription {
   void flush(const SubscriptionMetadataServer&) override {}
   void serveHeartbeat() override {}
   std::unique_ptr<Subscription> resolve(
+      const SubscriptionKey& /* key */,
       const std::vector<std::string>& path) override {
     return std::make_unique<TestSubscription>(path);
   }
@@ -187,15 +200,14 @@ TEST(SubscriptionPathStoreTests, IncrementalResolveExtended) {
                    .get();
   auto path5 = ext_path_builder::raw("a").raw("b").get();
 
-  using PathVec = std::vector<ExtendedOperPath>;
-  auto extSub1 =
-      std::make_shared<TestExtendedSubscription>(PathVec{std::move(path1)});
-  auto extSub2 =
-      std::make_shared<TestExtendedSubscription>(PathVec{std::move(path2)});
+  auto extSub1 = std::make_shared<TestExtendedSubscription>(
+      ExtSubPathMap{{0, std::move(path1)}});
+  auto extSub2 = std::make_shared<TestExtendedSubscription>(
+      ExtSubPathMap{{0, std::move(path2)}});
   auto extSub3 = std::make_shared<TestExtendedSubscription>(
-      PathVec{std::move(path3), std::move(path4)});
-  auto extSub4 =
-      std::make_shared<TestExtendedSubscription>(PathVec{std::move(path5)});
+      ExtSubPathMap{{0, std::move(path3)}, {1, std::move(path4)}});
+  auto extSub4 = std::make_shared<TestExtendedSubscription>(
+      ExtSubPathMap{{0, std::move(path5)}});
 
   SubscriptionPathStore store;
   StubSubscriptionManager manager;

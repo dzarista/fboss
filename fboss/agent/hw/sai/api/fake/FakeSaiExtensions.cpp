@@ -1,5 +1,6 @@
 // Copyright 2004-present Facebook. All Rights Reserved.
 
+#include "fboss/agent/hw/sai/api/BufferApi.h"
 #include "fboss/agent/hw/sai/api/DebugCounterApi.h"
 #include "fboss/agent/hw/sai/api/PortApi.h"
 #include "fboss/agent/hw/sai/api/SwitchApi.h"
@@ -136,6 +137,16 @@ SaiSwitchTraits::Attributes::AttributeMaxCoresWrapper::operator()() {
 
 std::optional<sai_attr_id_t>
 SaiSwitchTraits::Attributes::AttributeSdkBootTimeWrapper::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeFabricRemoteReachablePortList::operator()() {
+  return SAI_SWITCH_ATTR_FABRIC_REMOTE_REACHABLE_PORT_LIST;
+}
+
+std::optional<sai_attr_id_t>
+SaiBufferProfileTraits::Attributes::AttributeSharedFadtMaxTh::operator()() {
   return std::nullopt;
 }
 

@@ -1,13 +1,12 @@
 // Copyright (c) 2004-present, Meta Platforms, Inc. and affiliates.
 // All Rights Reserved.
 #include <fb303/FollyLoggingHandler.h>
-#include <folly/experimental/FunctionScheduler.h>
+#include <folly/executors/FunctionScheduler.h>
 #include <folly/logging/Init.h>
 
 #include "fboss/platform/helpers/Init.h"
 #include "fboss/platform/sensor_service/Flags.h"
 #include "fboss/platform/sensor_service/SensorServiceThriftHandler.h"
-#include "fboss/platform/sensor_service/SensorStatsPub.h"
 
 using namespace facebook;
 using namespace facebook::fboss::platform;
@@ -25,17 +24,10 @@ int main(int argc, char** argv) {
 
   folly::FunctionScheduler scheduler;
 
-  SensorStatsPub publisher(serviceImpl.get());
-
   scheduler.addFunction(
       [serviceImpl]() { serviceImpl->fetchSensorData(); },
       std::chrono::seconds(FLAGS_sensor_fetch_interval),
       "fetchSensorData");
-
-  scheduler.addFunction(
-      [&publisher]() { publisher.publishStats(); },
-      std::chrono::seconds(FLAGS_stats_publish_interval),
-      "SensorStatsPublish");
 
   scheduler.start();
 

@@ -142,6 +142,15 @@ cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
 cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
 find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/env python3|' {} +
 
+# Extract platform mappings
+SRC_MAPPING_DIR="${FBOSS_REPO}/fboss/agent/platforms/common"
+SRC_MAPPING_FILES=(
+    "${SRC_MAPPING_DIR}/meru800bia/Meru800biaPlatformMapping.cpp"
+    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaPlatformMapping.cpp"
+    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaP1PlatformMapping.cpp"
+)
+$FBOSS_REPO/arista/build-utils/ExtractMappings.py -d "${SCRATCH_DIR}/PlatformMappings" "${SRC_MAPPING_FILES[@]}"
+
 # Cache the fboss commit that we built, this will be packaged and available on the
 # box at /opt/fboss/ when arista-fboss-core RPM is installed.
 # Since we are always doing a local build in barney, we can just use the commit hash

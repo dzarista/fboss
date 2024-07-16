@@ -27,6 +27,8 @@ using namespace ::testing;
 DEFINE_int32(sflow_test_rate, 90000, "sflow sampling rate for hw test");
 DEFINE_int32(sflow_test_time, 5, "sflow test traffic time in seconds");
 
+const std::string kSflowMirror = "sflow_mirror";
+
 namespace facebook::fboss {
 class HwSflowMirrorTest : public HwLinkStateDependentTest {
  protected:
@@ -146,13 +148,18 @@ class HwSflowMirrorTest : public HwLinkStateDependentTest {
 
   void
   configMirror(cfg::SwitchConfig* config, bool truncate, bool isV4 = true) {
-    utility::configureSflowMirror(*config, truncate, isV4);
+    utility::configureSflowMirror(*config, kSflowMirror, truncate, isV4);
+  }
+
+  void configureTrapAcl(cfg::SwitchConfig* config, bool isV4 = true) const {
+    utility::configureTrapAcl(*config, isV4);
   }
 
   void configSampling(cfg::SwitchConfig* config, int sampleRate) const {
     auto ports = getPortsForSampling();
     utility::configureSflowSampling(
         *config,
+        kSflowMirror,
         std::vector<PortID>(ports.begin() + 1, ports.end()),
         sampleRate);
   }
@@ -163,7 +170,7 @@ class HwSflowMirrorTest : public HwLinkStateDependentTest {
         : utility::getFirstInterfaceMac(getProgrammedState());
     auto state = getProgrammedState()->clone();
     auto mirrors = state->getMirrors()->modify(&state);
-    auto mirror = mirrors->getNodeIf("sflow_mirror")->clone();
+    auto mirror = mirrors->getNodeIf(kSflowMirror)->clone();
     ASSERT_NE(mirror, nullptr);
 
     auto ip = mirror->getDestinationIp().value();
@@ -267,6 +274,7 @@ class HwSflowMirrorTest : public HwLinkStateDependentTest {
     auto setup = [=, this]() {
       auto config = initialConfig();
       configMirror(&config, false);
+      configureTrapAcl(&config);
       configSampling(&config, FLAGS_sflow_test_rate);
       applyNewConfig(config);
       setupRoutes();
@@ -355,6 +363,7 @@ TEST_F(HwSflowMirrorTest, StressMirrorSessionConfigUnconfig) {
   auto setup = [=, this]() {
     auto config = initialConfig();
     configMirror(&config, false);
+    configureTrapAcl(&config);
     configSampling(&config, 1);
     applyNewConfig(config);
     for (auto i = 0; i < 500; i++) {
@@ -378,7 +387,9 @@ TEST_F(HwSflowMirrorTest, StressMirrorSessionConfigUnconfig) {
 // leading to a set_mirror_session_attribute call after each warmboot which was
 // messing up the internal state.
 TEST_F(HwSflowMirrorTest, SetMirrorSession) {
-  if (!getPlatform()->getAsic()->isSupported(HwAsic::Feature::SFLOW_SAMPLING)) {
+  if (!getPlatform()->getAsic()->isSupported(HwAsic::Feature::SFLOW_SAMPLING) ||
+      !getPlatform()->getAsic()->isSupported(
+          HwAsic::Feature::MIRROR_PACKET_TRUNCATION)) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
 #endif
@@ -387,6 +398,7 @@ TEST_F(HwSflowMirrorTest, SetMirrorSession) {
   auto setup = [=, this]() {
     auto config = initialConfig();
     configMirror(&config, true);
+    configureTrapAcl(&config);
     configSampling(&config, 1);
     applyNewConfig(config);
     resolveMirror();
@@ -396,7 +408,7 @@ TEST_F(HwSflowMirrorTest, SetMirrorSession) {
   };
   auto setupPostWarmboot = [=, this]() {
     // change to resolveMirror() after 2nd warmboot
-    auto mirror = getProgrammedState()->getMirrors()->getNodeIf("sflow_mirror");
+    auto mirror = getProgrammedState()->getMirrors()->getNodeIf(kSflowMirror);
     if (mirror->getEgressPort().value() == getPortsForSampling()[0]) {
       resolveMirror(1, true);
     } else {
@@ -416,6 +428,7 @@ TEST_F(HwSflowMirrorTest, VerifySampledPacket) {
   auto setup = [=, this]() {
     auto config = initialConfig();
     configMirror(&config, false);
+    configureTrapAcl(&config);
     configSampling(&config, 1);
     applyNewConfig(config);
     resolveMirror();
@@ -436,6 +449,7 @@ TEST_F(HwSflowMirrorTest, VerifySampledPacketWithTruncateV4) {
   auto setup = [=, this]() {
     auto config = initialConfig();
     configMirror(&config, true);
+    configureTrapAcl(&config);
     configSampling(&config, 1);
     applyNewConfig(config);
     resolveMirror();
@@ -486,6 +500,7 @@ TEST_F(HwSflowMirrorTest, VerifySampledPacketWithTruncateV6) {
   auto setup = [=, this]() {
     auto config = initialConfig();
     configMirror(&config, true, false);
+    configureTrapAcl(&config, false);
     configSampling(&config, 1);
     applyNewConfig(config);
     resolveMirror();
@@ -551,6 +566,7 @@ TEST_F(HwSflowMirrorTest, VerifySampledPacketWithLagMemberAsEgressPort) {
     auto config = initialConfig();
     configTrunk(&config);
     configMirror(&config, true /* truncate */, false /* isv6 */);
+    configureTrapAcl(&config, false);
     configSampling(&config, 1);
     auto state = applyNewConfig(config);
     applyNewState(utility::enableTrunkPorts(state));

@@ -21,7 +21,6 @@ constexpr auto kNumPortPerCore = 10;
 // 7: mgm port, 8-43 front panel nif
 constexpr auto kRemoteSysPortOffset = 7;
 constexpr auto kNumRdsw = 128;
-constexpr auto kNumEdsw = 16;
 
 int getPerNodeSysPorts(cfg::AsicType asicType) {
   return asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ? 20 : 44;
@@ -32,9 +31,8 @@ int getPerNodeSysPorts(const HwAsic* asic) {
 } // namespace
 
 int getDsfNodeCount(const HwAsic* asic) {
-  return asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2
-      ? kNumRdsw
-      : kNumRdsw + kNumEdsw;
+  return asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2 ? kNumRdsw
+                                                                  : kNumRdsw;
 }
 
 std::optional<std::map<int64_t, cfg::DsfNode>> addRemoteDsfNodeCfg(
@@ -87,7 +85,7 @@ std::shared_ptr<SwitchState> addRemoteSysPort(
   auto localPort = localPorts->cbegin()->second;
   auto remoteSystemPorts = newState->getRemoteSystemPorts()->modify(&newState);
   auto remoteSysPort = std::make_shared<SystemPort>(portId);
-  remoteSysPort->setPortName(folly::to<std::string>(
+  remoteSysPort->setName(folly::to<std::string>(
       "hwTestSwitch", remoteSwitchId, ":eth/", portId, "/1"));
   remoteSysPort->setSwitchId(remoteSwitchId);
   remoteSysPort->setNumVoqs(localPort->getNumVoqs());

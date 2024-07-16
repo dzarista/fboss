@@ -102,7 +102,7 @@ SystemPortSaiId SaiSystemPortManager::addSystemPort(
   portStats_.emplace(
       swSystemPort->getID(),
       std::make_unique<HwSysPortFb303Stats>(
-          swSystemPort->getPortName(),
+          swSystemPort->getName(),
           HwBasePortFb303Stats::QueueId2Name(),
           platform_->getMultiSwitchStatsPrefix()));
   auto handle = std::make_unique<SaiSystemPortHandle>();
@@ -202,10 +202,10 @@ void SaiSystemPortManager::changeSystemPort(
     removeSystemPort(oldSystemPort);
     addSystemPort(newSystemPort);
   } else {
-    if (oldSystemPort->getPortName() != newSystemPort->getPortName()) {
+    if (oldSystemPort->getName() != newSystemPort->getName()) {
       // Port name changed - update stats
       portStats_.find(newSystemPort->getID())
-          ->second->portNameChanged(newSystemPort->getPortName());
+          ->second->portNameChanged(newSystemPort->getName());
     }
     // TODO:
     // Compare qos queues changing and if so update qosmap
@@ -348,7 +348,7 @@ std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
       auto sysPort = std::make_shared<SystemPort>(getSystemPortID(
           port.second->getID(), switchIdToSwitchInfo, switchId));
       sysPort->setSwitchId(SwitchID(switchId));
-      sysPort->setPortName(
+      sysPort->setName(
           folly::sformat("{}:{}", switchId, port.second->getName()));
       auto platformPort = platform_->getPlatformPort(port.second->getID());
       sysPort->setCoreIndex(*platformPort->getAttachedCoreId());

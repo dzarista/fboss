@@ -39,6 +39,7 @@ union Path {
   1: OperPath operPath;
   2: RawOperPath rawPath;
   3: list<ExtendedOperPath> extendedPaths;
+  4: map<SubscriptionKey, RawOperPath> rawPaths;
 }
 
 enum OperProtocol {
@@ -128,7 +129,6 @@ typedef i32 SubscriptionKey
 
 struct SubRequest {
   1: map<SubscriptionKey, RawOperPath> paths;
-  2: OperProtocol protocol = OperProtocol.COMPACT;
   3: fsdb_common.ClientId clientId;
 // TODO: option to request shallow patches?
 }
@@ -137,7 +137,7 @@ struct Patch {
   1: list<string> basePath;
   2: patch.PatchNode patch;
   3: OperMetadata metadata;
-// TODO: oper protocol
+  4: OperProtocol protocol = OperProtocol.COMPACT;
 }
 
 union PublisherMessage {
@@ -146,11 +146,12 @@ union PublisherMessage {
 }
 
 struct SubscriberChunk {
-  1: SubscriptionKey key;
-  2: Patch patch;
+  1: map<SubscriptionKey, Patch> patches;
 }
+
+struct Heartbeat {}
 
 union SubscriberMessage {
   1: SubscriberChunk chunk;
-// TODO: add heartbeats
+  2: Heartbeat heartbeat;
 }
