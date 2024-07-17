@@ -19,7 +19,6 @@ git fetch upstream
 
 # Check out a new branch which will be updated
 branch_name="srv-fboss-arista-robot.upstream_${date_string}"
-branch_name="upstream_${date_string}"
 if git ls-remote --exit-code --heads $repo_name $branch_name; then
    git push origin -d $branch_name
 fi
