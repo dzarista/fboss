@@ -358,6 +358,12 @@ void SaiHostifManager::processRxReasonToQueueDelta(
 
   for (auto index = 0; index < oldRxReasonToQueue->size(); index++) {
     const auto& oldRxReasonEntry = oldRxReasonToQueue->cref(index);
+    if (oldRxReasonEntry->cref<switch_config_tags::rxReason>()->toThrift() ==
+        cfg::PacketRxReason::UNMATCHED) {
+      // UNMATCHED was never added in the first place, so ignoring here
+      XLOG(WARN) << "ignoring UNMATCHED packet rx reason";
+      continue;
+    }
     auto newRxReasonEntry = std::find_if(
         newRxReasonToQueue->cbegin(),
         newRxReasonToQueue->cend(),
@@ -441,6 +447,28 @@ SaiQueueHandle* SaiHostifManager::getQueueHandle(
   return getQueueHandleImpl(saiQueueConfig);
 }
 
+SaiQueueHandle* FOLLY_NULLABLE
+SaiHostifManager::getVoqHandleImpl(const SaiQueueConfig& saiQueueConfig) const {
+  auto itr = cpuPortHandle_->voqs.find(saiQueueConfig);
+  if (itr == cpuPortHandle_->voqs.end()) {
+    XLOG(FATAL) << "No cpu voq handle configured for " << saiQueueConfig.first;
+  }
+  if (!itr->second.get()) {
+    XLOG(FATAL) << "Invalid null SaiQueueHandle for cpu voq";
+  }
+  return itr->second.get();
+}
+
+const SaiQueueHandle* FOLLY_NULLABLE
+SaiHostifManager::getVoqHandle(const SaiQueueConfig& saiQueueConfig) const {
+  return getVoqHandleImpl(saiQueueConfig);
+}
+
+SaiQueueHandle* FOLLY_NULLABLE
+SaiHostifManager::getVoqHandle(const SaiQueueConfig& saiQueueConfig) {
+  return getVoqHandleImpl(saiQueueConfig);
+}
+
 void SaiHostifManager::changeCpuQueue(
     const ControlPlane::PortQueues& oldQueueConfig,
     const ControlPlane::PortQueues& newQueueConfig) {
@@ -472,6 +500,17 @@ void SaiHostifManager::changeCpuQueue(
             : asic->getDefaultScalingFactor(
                   newPortQueue->getStreamType(), true /*cpu port*/));
     managerTable_->queueManager().changeQueue(queueHandle, *portQueue);
+    if (platform_->getAsic()->isSupported(
+            HwAsic::Feature::CPU_VOQ_BUFFER_PROFILE)) {
+      auto voqHandle = getVoqHandle(saiQueueConfig);
+      if (newPortQueue->getMaxDynamicSharedBytes()) {
+        portQueue->setMaxDynamicSharedBytes(
+            *newPortQueue->getMaxDynamicSharedBytes());
+      }
+      if (voqHandle) {
+        managerTable_->queueManager().changeQueue(voqHandle, *portQueue);
+      }
+    }
     if (newPortQueue->getName().has_value()) {
       auto queueName = *newPortQueue->getName();
       cpuStats_.queueChanged(newPortQueue->getID(), queueName);
@@ -517,6 +556,25 @@ void SaiHostifManager::loadCpuPortQueues() {
       managerTable_->queueManager().loadQueues(queueSaiIds);
 }
 
+void SaiHostifManager::loadCpuSystemPortVoqs() {
+  std::vector<sai_object_id_t> voqList;
+  voqList.resize(8);
+  SaiSystemPortTraits::Attributes::QosVoqList voqListAttribute{voqList};
+  auto voqSaiIdList = SaiApiTable::getInstance()->systemPortApi().getAttribute(
+      cpuPortHandle_->cpuSystemPortId.value(), voqListAttribute);
+  if (voqSaiIdList.size() == 0) {
+    throw FbossError("no voqs exist for cpu port ");
+  }
+  std::vector<QueueSaiId> voqSaiIds;
+  voqSaiIds.reserve(voqSaiIdList.size());
+  std::transform(
+      voqSaiIdList.begin(),
+      voqSaiIdList.end(),
+      std::back_inserter(voqSaiIds),
+      [](sai_object_id_t voqId) -> QueueSaiId { return QueueSaiId(voqId); });
+  cpuPortHandle_->voqs = managerTable_->queueManager().loadQueues(voqSaiIds);
+}
+
 void SaiHostifManager::loadCpuPort() {
   cpuPortHandle_ = std::make_unique<SaiCpuPortHandle>();
   cpuPortHandle_->cpuPortId = managerTable_->switchManager().getCpuPort();
@@ -530,6 +588,9 @@ void SaiHostifManager::loadCpuPort() {
                << cpuPortHandle_->cpuSystemPortId.value();
   }
   loadCpuPortQueues();
+  if (platform_->getAsic()->isSupported(HwAsic::Feature::VOQ)) {
+    loadCpuSystemPortVoqs();
+  }
 }
 
 void SaiHostifManager::updateStats(bool updateWatermarks) {

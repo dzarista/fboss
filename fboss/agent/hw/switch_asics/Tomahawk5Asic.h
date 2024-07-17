@@ -14,6 +14,8 @@ class Tomahawk5Asic : public BroadcomXgsAsic {
   cfg::AsicType getAsicType() const override {
     return cfg::AsicType::ASIC_TYPE_TOMAHAWK5;
   }
+  const std::map<cfg::PortType, cfg::PortLoopbackMode>& desiredLoopbackModes()
+      const override;
   phy::DataPlanePhyChipType getDataPlanePhyChipType() const override {
     return phy::DataPlanePhyChipType::IPHY;
   }
@@ -55,8 +57,7 @@ class Tomahawk5Asic : public BroadcomXgsAsic {
     return 341;
   }
   uint16_t getMirrorTruncateSize() const override {
-    // TODO: update numbers if necessary
-    return 254;
+    return 204;
   }
 
   uint32_t getMaxWideEcmpSize() const override {

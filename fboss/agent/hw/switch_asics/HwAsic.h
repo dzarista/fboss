@@ -176,6 +176,9 @@ class HwAsic {
     PQP_ERROR_EGRESS_DROP_COUNTER,
     FABRIC_LINK_DOWN_CELL_DROP_COUNTER,
     CRC_ERROR_DETECT,
+    EVENTOR_PORT_FOR_SFLOW,
+    CPU_VOQ_BUFFER_PROFILE,
+    SAI_ECMP_HASH_ALGORITHM,
   };
 
   enum class AsicMode {
@@ -373,6 +376,10 @@ class HwAsic {
 
   virtual uint32_t getThresholdGranularity() const {
     return 1;
+  }
+
+  virtual uint32_t getMaxHashSeedLength() const {
+    return 32;
   }
 
  protected:

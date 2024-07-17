@@ -334,10 +334,18 @@ class ThriftConfigApplier {
   std::pair<folly::MacAddress, uint16_t> getSystemLacpConfig();
   uint8_t computeMinimumLinkCount(const cfg::AggregatePort& cfg);
   std::shared_ptr<VlanMap> updateVlans();
+  bool updateMacTable(
+      std::shared_ptr<Vlan>& newVlan,
+      const std::set<PortDescriptor>& portDescs);
+  std::map<uint32_t, std::set<PortDescriptor>>
+  getMapOfVlanToPortsNeedingMacClear(
+      const std::shared_ptr<MultiSwitchPortMap> newPorts,
+      const std::shared_ptr<MultiSwitchPortMap> origPorts);
   std::shared_ptr<Vlan> createVlan(const cfg::Vlan* config);
   std::shared_ptr<Vlan> updateVlan(
       const std::shared_ptr<Vlan>& orig,
-      const cfg::Vlan* config);
+      const cfg::Vlan* config,
+      const std::set<PortDescriptor>& portDescs);
   std::shared_ptr<AclTableGroup> updateAclTableGroup(
       cfg::AclStage aclStage,
       const std::shared_ptr<AclTableGroup>& origAclTableGroup);
@@ -1595,6 +1603,9 @@ std::shared_ptr<PortQueue> ThriftConfigApplier::createPortQueue(
   if (pfcPriorities) {
     queue->setPfcPrioritySet(pfcPriorities.value());
   }
+  if (auto maxDynamicSharedBytes = cfg->maxDynamicSharedBytes()) {
+    queue->setMaxDynamicSharedBytes(*maxDynamicSharedBytes);
+  }
   return queue;
 }
 
@@ -2449,6 +2460,40 @@ uint8_t ThriftConfigApplier::computeMinimumLinkCount(
   return minLinkCount;
 }
 
+// If create only attributes or speed changes for a port, we
+// delete the port and recreate it. In this sequence, before
+// a port is deleted, we need to remove VLAN membership and
+// before that, need to clear any MACs learnt on that port/
+// VLAN. This API identifies VLAN id / ports where all MACs
+// learnt need to be cleared.
+std::map<uint32_t, std::set<PortDescriptor>>
+ThriftConfigApplier::getMapOfVlanToPortsNeedingMacClear(
+    const std::shared_ptr<MultiSwitchPortMap> newPorts,
+    const std::shared_ptr<MultiSwitchPortMap> origPorts) {
+  std::map<uint32_t, std::set<PortDescriptor>> vlanToPortMap;
+
+  for (auto& portMap : std::as_const(*origPorts)) {
+    for (auto& [oldPortId, oldPort] : std::as_const(*portMap.second)) {
+      auto newPort = std::as_const(*newPorts).getNodeIf(oldPortId);
+      if (!newPort || oldPort->getSpeed() != newPort->getSpeed()) {
+        // If oldPort does not exist anymore or if the speed has changed,
+        // we need to clear mac addresses learnt on the port for all vlans
+        // before port removal is attempted.
+        for (auto& [vlanId, _] : oldPort->getVlans()) {
+          auto vlanIter = vlanToPortMap.find(vlanId);
+          if (vlanIter == vlanToPortMap.end()) {
+            vlanToPortMap[vlanId] =
+                std::set<PortDescriptor>{PortDescriptor(oldPort->getID())};
+          } else {
+            vlanIter->second.insert(PortDescriptor(oldPort->getID()));
+          }
+        }
+      }
+    }
+  }
+  return vlanToPortMap;
+}
+
 shared_ptr<VlanMap> ThriftConfigApplier::updateVlans() {
   const auto& switchSettings =
       utility::getFirstNodeIf(new_->getSwitchSettings());
@@ -2472,6 +2517,11 @@ shared_ptr<VlanMap> ThriftConfigApplier::updateVlans() {
   VlanMap::NodeContainer newVlans;
   bool changed = false;
 
+  std::map<uint32_t, std::set<PortDescriptor>> vlanToPortMap{};
+  if (new_ && orig_) {
+    vlanToPortMap =
+        getMapOfVlanToPortsNeedingMacClear(new_->getPorts(), orig_->getPorts());
+  }
   // Process all supplied VLAN configs
   size_t numExistingProcessed = 0;
   for (const auto& vlanCfg : *cfg_->vlans()) {
@@ -2479,7 +2529,12 @@ shared_ptr<VlanMap> ThriftConfigApplier::updateVlans() {
     auto origVlan = origVlans->getNodeIf(id);
     shared_ptr<Vlan> newVlan;
     if (origVlan) {
-      newVlan = updateVlan(origVlan, &vlanCfg);
+      std::set<PortDescriptor> portDescs;
+      auto vlanIter = vlanToPortMap.find(id);
+      if (vlanIter != vlanToPortMap.end()) {
+        portDescs = vlanIter->second;
+      }
+      newVlan = updateVlan(origVlan, &vlanCfg, portDescs);
       ++numExistingProcessed;
     } else {
       newVlan = createVlan(&vlanCfg);
@@ -2530,9 +2585,29 @@ shared_ptr<Vlan> ThriftConfigApplier::createVlan(const cfg::Vlan* config) {
   return vlan;
 }
 
+bool ThriftConfigApplier::updateMacTable(
+    std::shared_ptr<Vlan>& newVlan,
+    const std::set<PortDescriptor>& portDescs) {
+  auto newMacTable{newVlan->getMacTable()->clone()};
+  int macRemovedCount{0};
+  for (auto& [_, macEntry] : std::as_const(*(newVlan->getMacTable()))) {
+    if (portDescs.contains(macEntry->getPort())) {
+      newMacTable->removeEntry(macEntry->getMac());
+      macRemovedCount++;
+    }
+  }
+  if (macRemovedCount) {
+    newVlan->setMacTable(newMacTable);
+    XLOG(DBG2) << "Removed " << macRemovedCount << " MAC addresses on VLAN "
+               << newVlan->getID();
+  }
+  return macRemovedCount > 0;
+}
+
 shared_ptr<Vlan> ThriftConfigApplier::updateVlan(
     const shared_ptr<Vlan>& orig,
-    const cfg::Vlan* config) {
+    const cfg::Vlan* config,
+    const std::set<PortDescriptor>& portSet) {
   CHECK_EQ(orig->getID(), VlanID(*config->id()));
   const auto& ports = vlanPorts_[orig->getID()];
 
@@ -2562,10 +2637,11 @@ shared_ptr<Vlan> ThriftConfigApplier::updateVlan(
     }
   }
 
+  bool macChanged = updateMacTable(newVlan, portSet);
   if (orig->getName() == *config->name() && oldIntfID == newIntfID &&
       orig->getPorts() == ports && oldDhcpV4Relay == newDhcpV4Relay &&
       oldDhcpV6Relay == newDhcpV6Relay && !changed_neighbor_table &&
-      !changed_dhcp_overrides) {
+      !changed_dhcp_overrides && !macChanged) {
     return nullptr;
   }
 
@@ -2574,6 +2650,7 @@ shared_ptr<Vlan> ThriftConfigApplier::updateVlan(
   newVlan->setPorts(ports);
   newVlan->setDhcpV4Relay(newDhcpV4Relay);
   newVlan->setDhcpV6Relay(newDhcpV6Relay);
+
   return newVlan;
 }
 
@@ -4613,7 +4690,25 @@ std::shared_ptr<MirrorMap> ThriftConfigApplier::updateMirrors() {
     return nullptr;
   }
 
-  return newMirrors;
+  auto newMirrorWithSwitchIds = std::make_shared<MirrorMap>();
+  for (auto& switchIdAndSwitchInfo :
+       *cfg_->switchSettings()->switchIdToSwitchInfo()) {
+    if (switchIdAndSwitchInfo.second.switchType() != cfg::SwitchType::VOQ &&
+        switchIdAndSwitchInfo.second.switchType() != cfg::SwitchType::NPU) {
+      continue;
+    }
+    auto switchId = switchIdAndSwitchInfo.first;
+    for (auto& mirrorMapEntry : std::as_const(*newMirrors)) {
+      auto newMirror = mirrorMapEntry.second->clone();
+      newMirror->setSwitchId(SwitchID(switchId));
+      // TODO: Mirror name is unique per switch, so we need
+      // to append the switchId to the mirror name.
+      newMirrorWithSwitchIds->insert(
+          mirrorMapEntry.first, std::move(newMirror));
+    }
+  }
+
+  return newMirrorWithSwitchIds;
 }
 
 std::shared_ptr<Mirror> ThriftConfigApplier::createMirror(

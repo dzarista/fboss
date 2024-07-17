@@ -29,6 +29,7 @@
 #include <thread>
 
 DECLARE_int32(update_watermark_stats_interval_s);
+DECLARE_int32(update_voq_stats_interval_s);
 DECLARE_bool(force_recreate_acl_tables);
 DECLARE_bool(skip_stats_update_for_debug);
 
@@ -582,6 +583,7 @@ class SaiSwitch : public HwSwitch {
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};
 
   int64_t watermarkStatsUpdateTime_{0};
+  int64_t voqStatsUpdateTime_{0};
   cfg::AsicType asicType_;
 
   std::map<PortID, phy::PhyInfo> lastPhyInfos_;

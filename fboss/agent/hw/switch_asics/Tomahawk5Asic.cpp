@@ -96,6 +96,7 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::MANAGEMENT_PORT:
     case HwAsic::Feature::PORT_WRED_COUNTER:
     case HwAsic::Feature::ACL_METADATA_QUALIFER:
+    case HwAsic::Feature::SAI_ECMP_HASH_ALGORITHM:
       return true;
     // features not working well with bcmsim
     case HwAsic::Feature::MIRROR_PACKET_TRUNCATION:
@@ -164,6 +165,8 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER:
     case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
     case HwAsic::Feature::CRC_ERROR_DETECT:
+    case HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW:
+    case HwAsic::Feature::CPU_VOQ_BUFFER_PROFILE:
       return false;
   }
   return false;
@@ -190,5 +193,13 @@ int Tomahawk5Asic::getDefaultNumPortQueues(
       " portType: ",
       apache::thrift::util::enumNameSafe(portType),
       " combination");
+}
+
+const std::map<cfg::PortType, cfg::PortLoopbackMode>&
+Tomahawk5Asic::desiredLoopbackModes() const {
+  static const std::map<cfg::PortType, cfg::PortLoopbackMode> kLoopbackMode = {
+      {cfg::PortType::INTERFACE_PORT, cfg::PortLoopbackMode::MAC},
+      {cfg::PortType::MANAGEMENT_PORT, cfg::PortLoopbackMode::NONE}};
+  return kLoopbackMode;
 }
 } // namespace facebook::fboss

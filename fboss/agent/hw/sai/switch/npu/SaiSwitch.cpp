@@ -38,6 +38,17 @@ void SaiSwitch::updateStatsImpl() {
     watermarkStatsUpdateTime_ = now;
   }
 
+  // Space out VOQ stats update and watermark as much as possible - to avoid
+  // stats collection blocking normal updates.
+  // Allow frequent collection in test scenario, where the interval is set to 0.
+  bool updateVoqStats = FLAGS_update_voq_stats_interval_s == 0 ||
+      (now - voqStatsUpdateTime_ >= FLAGS_update_voq_stats_interval_s &&
+       now - watermarkStatsUpdateTime_ >=
+           (FLAGS_update_voq_stats_interval_s / 2));
+  if (updateVoqStats) {
+    voqStatsUpdateTime_ = now;
+  }
+
   int64_t missingCount = 0, mismatchCount = 0;
   auto portsIter = concurrentIndices_->portSaiId2PortInfo.begin();
   std::map<PortID, multiswitch::FabricConnectivityDelta> connectivityDelta;
@@ -75,7 +86,7 @@ void SaiSwitch::updateStatsImpl() {
     {
       std::lock_guard<std::mutex> locked(saiSwitchMutex_);
       managerTable_->systemPortManager().updateStats(
-          sysPortsIter->second, updateWatermarks);
+          sysPortsIter->second, updateWatermarks, updateVoqStats);
     }
     ++sysPortsIter;
   }

@@ -137,14 +137,14 @@ void ManagerTestBase::setupSaiPlatform() {
     auto* ports = setupState->getSystemPorts()->modify(&setupState);
     for (const auto& testInterface : testInterfaces) {
       auto swPort =
-          makeSystemPort(std::nullopt, kSysPortOffset + testInterface.id);
+          makeSystemPort("default", kSysPortOffset + testInterface.id);
       ports->addNode(swPort, scope);
     }
     auto* remoteSysports =
         setupState->getRemoteSystemPorts()->modify(&setupState);
     for (const auto& testRemoteInterface : testRemoteInterfaces) {
       auto swPort =
-          makeSystemPort(std::nullopt, kSysPortOffset + testRemoteInterface.id);
+          makeSystemPort("default", kSysPortOffset + testRemoteInterface.id);
       remoteSysports->addNode(swPort, scope);
     }
   }
@@ -418,6 +418,8 @@ std::shared_ptr<SystemPort> ManagerTestBase::makeSystemPort(
   sysPort->setSpeedMbps(10000);
   sysPort->setNumVoqs(8);
   sysPort->setQosPolicy(qosPolicy);
+  std::vector<uint8_t> queueIds = {0, 2, 6, 7};
+  sysPort->resetPortQueues(makeQueueConfig(queueIds));
   return sysPort;
 }
 
@@ -581,7 +583,7 @@ std::shared_ptr<PortQueue> ManagerTestBase::makePortQueue(
     cfg::QueueScheduling schedType,
     uint8_t weight,
     uint64_t minPps,
-    uint64_t maxPps) {
+    uint64_t maxPps) const {
   auto portQueue = std::make_shared<PortQueue>(queueId);
   std::string queueName = "queue";
   queueName.append(std::to_string(queueId));
@@ -604,7 +606,7 @@ QueueConfig ManagerTestBase::makeQueueConfig(
     cfg::QueueScheduling schedType,
     uint8_t weight,
     uint64_t minPps,
-    uint64_t maxPps) {
+    uint64_t maxPps) const {
   QueueConfig queueConfig;
   for (auto queueId : queueIds) {
     auto portQueue =
