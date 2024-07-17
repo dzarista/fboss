@@ -4,7 +4,7 @@ set -x
 #### to https://github.com/aristanetworks/arista-fboss
 
 repo_name=git@github.com:aristanetworks/arista-fboss.git
-date_string=$(date +"%d-%m-%Y")
+date_string=$(date +"%m-%d-%Y")
 pr_title="arista-fboss upstream sync ${date_string}"
 pr_description="syncing https://github.com/aristanetworks/arista-fboss to https://github.com/facebook/fboss on ${date_string}"
 output_file=upstream_sync_status.txt
@@ -18,6 +18,7 @@ git remote add upstream git@github.com:facebook/fboss.git
 git fetch upstream
 
 # Check out a new branch which will be updated
+branch_name="srv-fboss-arista-robot.upstream_${date_string}"
 branch_name="upstream_${date_string}"
 if git ls-remote --exit-code --heads $repo_name $branch_name; then
    git push origin -d $branch_name
@@ -49,7 +50,8 @@ if [ "$auto_merge_successful" = false ] ; then
       grep 'both modified:' git_status_output.txt | sed $line -n -e 's/^.*both modified: //p' | while read -r line ; do
          echo $line >> $output_file
       done
-      echo "\nMerge conflicts" >> $output_file
+      echo $'\n' >> $output_file
+      echo "Merge conflicts" >> $output_file
       echo "================" >> $output_file
       cat git_diff_output.txt >> $output_file
    else
@@ -58,7 +60,8 @@ if [ "$auto_merge_successful" = false ] ; then
       echo "git status" >> $output_file
       echo "==========" >> $output_file
       cat git_status_output.txt >> $output_file
-      echo "\ngit diff" >> $output_file
+      echo $'\n' >> $output_file
+      echo "git diff" >> $output_file
       echo "========" >> $output_file
       cat git_diff_output.txt >> $output_file
    fi
