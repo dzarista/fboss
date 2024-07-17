@@ -1,7 +1,7 @@
 # Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-from BaseConfigs import (
+from GeneratePmConfigs.BaseConfigs import (
    enumerateFANSlotConfigs, 
    enumeratePciDeviceConfigs,
    FANUnit,
@@ -179,6 +179,11 @@ class Whistler( PlatformConfig ):
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths( self.platformName )
 
-if __name__ == '__main__':
+
+def main():
    platform = Whistler()
    print( platform.asJson() )
+
+
+if __name__ == '__main__':
+   main()

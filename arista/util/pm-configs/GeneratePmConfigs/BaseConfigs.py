@@ -557,21 +557,18 @@ class PciDeviceConfig:
       self.ledCtrlConfigs.extend( newConfigs )
 
    def asJson( self ):
-      pmUnitScopedName = self.pmUnitScopedName
-      vendorId = self.vendorId
-      deviceId = self.deviceId
-      subSystemVendorId = self.subSystemVendorId
-      subSystemDeviceId = self.subSystemDeviceId
 
-      assert pmUnitScopedName and vendorId and deviceId and subSystemVendorId\
-            and subSystemDeviceId, "missing details in PciDeviceConfigs"
+      assert self.pmUnitScopedName and self.vendorId and self.deviceId \
+         and self.subSystemVendorId and self.subSystemDeviceId, (
+            "missing details in PciDeviceConfigs"
+         )
 
       return {
-         "pmUnitScopedName": pmUnitScopedName,
-         "vendorId": vendorId,
-         "deviceId": deviceId,
-         "subSystemVendorId": subSystemVendorId,
-         "subSystemDeviceId": subSystemDeviceId,
+         "pmUnitScopedName": self.pmUnitScopedName,
+         "vendorId": self.vendorId,
+         "deviceId": self.deviceId,
+         "subSystemVendorId": self.subSystemVendorId,
+         "subSystemDeviceId": self.subSystemDeviceId,
          "i2cAdapterConfigs": self.getI2cAdapterConfigsList(),
          "spiMasterConfigs": self.getSpiMasterConfigsList(),
          "ledCtrlConfigs": self.getLedCtrlConfigsList(),

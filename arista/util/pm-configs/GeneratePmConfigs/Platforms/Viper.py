@@ -1,7 +1,7 @@
 # Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-from BaseConfigs import (
+from GeneratePmConfigs.BaseConfigs import (
    enumerateFANSlotConfigs, 
    enumeratePciDeviceConfigs,
    FANUnit,
@@ -56,6 +56,13 @@ class Viper( PlatformConfig ):
          FANUnit()
       ] )
 
+      '''
+      Initial I2c register values are implicitly cast to 8-bit unsigned integer
+      values when creating a device, but Python uses two's complement.
+      -121 in 8-bit two's complement has the same binary representation as
+      135 in 8-bit unsigned. Register values represent temperature in Celsius and 
+      are used to overwrite the default temperature settings.
+      '''
       self.pmUnitConfigs[ 1 ].addI2cDeviceConfigs( [
          I2cDeviceConfig( "INCOMING@0", "0x50", "24c512", "SMB_IDPROM" ),
          I2cDeviceConfig( "INCOMING@0", "0x74", "pca9539", "SMB_PCA", 
@@ -142,8 +149,13 @@ class Viper( PlatformConfig ):
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths( self.platformName )
 
-if __name__ == '__main__':
+
+def main():
    platform = Viper()
    print( platform.asJson() )
+
+
+if __name__ == '__main__':
+   main()
 
 
