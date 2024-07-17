@@ -1,0 +1,28 @@
+on: 
+  workflow_dispatch:
+
+name: Upstream Sync
+
+jobs:
+  run_sample_script:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check-out latest code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.GIT_PRIVATE_KEY }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Run Bash script
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./arista-ci-scripts/upstream_sync.sh
+      - name: Send status email
+        if: success() || failure()
+        run: |
+          cat upstream_sync_status.txt
+        shell: bash

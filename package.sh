@@ -8,13 +8,16 @@ FBOSS_REPO_RPM_DIR="$FBOSS_REPO/arista/rpm"
 RPM_DIR="/tmp/rpmbuild/RPMS/x86_64"
 ARCH=$1
 KERNEL=$2
-FBOSS_RPM_DIR="$DESTDIR/usr/share/ptest-data/Fboss/RPMS/$ARCH/$KERNEL"
+FBOSS_PTEST_DATA_DIR="${DESTDIR}/usr/share/ptest-data/Fboss"
+FBOSS_RPM_DIR="$FBOSS_PTEST_DATA_DIR/RPMS/$ARCH/$KERNEL"
 RPMS=()
 
 if [ $KERNEL = "4.18" ]; then
    export KERNEL_SRC="4.18.0-408.el8.x86_64"
 elif [ $KERNEL = "5.12" ]; then
    export KERNEL_SRC="5.12.0-0_fbk2_3390_g7ecb4ac46d7f"
+elif [ $KERNEL = "6.4" ]; then
+   export KERNEL_SRC="6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4"
 else
    export KERNEL_SRC="5.19.0"
 fi
@@ -49,3 +52,6 @@ for rpm in "${RPMS[@]}"; do
     built_rpm=$(find "${RPM_DIR}" -type f -name "$(basename ${rpm%.*})*")
     cp -f "${built_rpm}" "${FBOSS_RPM_DIR}"
 done
+
+# Copy platform mappings
+cp -rf /src/dest/tmp_build_dir/PlatformMappings "${FBOSS_PTEST_DATA_DIR}/"

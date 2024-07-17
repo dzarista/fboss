@@ -2,6 +2,7 @@
 // Arista Networks, Inc. Confidential and Proprietary.
 
 #include "MeruShowtech.h"
+#include "PsuShowtech.h"
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -145,11 +146,19 @@ void MeruShowtech::printI2cInfo() {
   }
 }
 
+void MeruShowtech::printPsuShowtechInfo() {
+  std::cout << "##########################\n";
+  std::cout << "##### PSU DEBUG INFO #####\n";
+  std::cout << "##########################\n\n";
+  printPsuInfo();
+}
+
 void MeruShowtech::printPlatformInfo() {
   printWeutil("SCM");
   printWeutil("SMB");
   printAllFpgaVersions();
   printFanInfo();
+  printPsuShowtechInfo();
   if (verbose_) {
     printI2cInfo();
   }
