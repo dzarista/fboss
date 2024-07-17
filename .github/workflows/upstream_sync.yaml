@@ -24,5 +24,9 @@ jobs:
       - name: Send status email
         if: success() || failure()
         run: |
-          cat upstream_sync_status.txt
+          mail_to="arajeev@arista.com"
+          subject="Upstream Sync Status"
+          body_text_file="arista-ci-scripts/upstream_sync_status_email_body.txt"
+          attachment_path="upstream_sync_status.txt"
+          ./arista-ci-scripts/mailer.py --mail_to="$mail_to" --subject="$subject" --body_text_file="$body_text_file" --attachment_path="$attachment_path" --sender_mail_id="${{ secrets.GMAIL_USER_NAME }}" --sender_mail_password="${{ secrets.GMAIL_PASSWORD }}"
         shell: bash
