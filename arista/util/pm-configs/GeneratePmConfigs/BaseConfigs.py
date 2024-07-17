@@ -21,7 +21,7 @@ class PlatformConfig:
       self.pmUnitConfigs = pmUnitConfigs or []
       self.i2cAdaptersFromCpu = (
          i2cAdaptersFromCpu 
-         or [ { "adapter" : "SMBus I801 adapter at 1000" } ]
+         or [ "SMBus I801 adapter at 1000" ]
       )
       self.kmodsSettings = (
          kmodsSettings 
@@ -113,7 +113,7 @@ class SlotTypeConfig:
       return {
          "numOutgoingI2cBuses": self.numOutgoingI2cBuses,
          **({ "idpromConfig": idpCfg } if idpCfg and all( idpCfg.values() ) else {}),
-         **({ "pmUnitName": self.pmUnitName } if self.pmUnitName else {})
+         "pmUnitName": self.pmUnitName
       }
 
    def parseIdpromConfig( self ):
