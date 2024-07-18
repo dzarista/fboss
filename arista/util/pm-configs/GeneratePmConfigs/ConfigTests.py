@@ -3,7 +3,7 @@
 
 import unittest
 
-from GeneratePmConfigs.BaseConfigs import (
+from BaseConfigs import (
    EmbeddedSensorConfig,
    InitRegSettings,
    I2cDeviceConfig,

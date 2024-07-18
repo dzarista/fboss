@@ -1,7 +1,7 @@
 # Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-from GeneratePmConfigs.BaseConfigs import (
+from BaseConfigs import (
    enumerateFANSlotConfigs, 
    enumeratePciDeviceConfigs,
    FANUnit,
