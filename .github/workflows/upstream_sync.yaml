@@ -19,7 +19,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Run Bash script
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.SRV_FBOSS_ARISTA_ROBOT_TOKEN }}
         run: ./arista-ci-scripts/upstream_sync.sh
       - name: Send status email
         if: success() || failure()
