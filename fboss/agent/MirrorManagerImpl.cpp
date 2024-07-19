@@ -14,6 +14,8 @@
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/state/Vlan.h"
 
+#include "fboss/agent/platforms/common/PlatformMappingUtils.h"
+
 DECLARE_bool(intf_nbr_tables);
 
 template <typename AddrT>
@@ -23,6 +25,7 @@ using NeighborEntryT =
 namespace {
 
 using facebook::fboss::Interface;
+using facebook::fboss::PortID;
 using facebook::fboss::SwitchState;
 
 template <typename AddrT>
@@ -37,9 +40,31 @@ auto getNeighborEntryTableHelper(
   }
 }
 
+folly::MacAddress getEventorPortInterfaceMac(
+    const std::shared_ptr<SwitchState>& state,
+    PortID portId) {
+  auto intfID = state->getInterfaceIDForPort(portId);
+  auto intf = state->getInterfaces()->getNodeIf(intfID);
+  return intf->getMac();
+}
+
 } // namespace
 
 namespace facebook::fboss {
+
+template <typename AddrT>
+PortID MirrorManagerImpl<AddrT>::getEventorPortForSflowMirror(
+    SwitchID switchId) {
+  const auto& portIds =
+      sw_->getPlatformMapping()->getPlatformPorts(cfg::PortType::EVENTOR_PORT);
+  HwSwitchMatcher matcher(std::unordered_set<SwitchID>({switchId}));
+  for (const auto& portId : portIds) {
+    if (sw_->getScopeResolver()->scope(portId) == matcher) {
+      return portId;
+    }
+  }
+  throw FbossError("No eventor port found for sflow mirror");
+}
 
 template <typename AddrT>
 std::shared_ptr<Mirror> MirrorManagerImpl<AddrT>::updateMirror(
@@ -123,9 +148,23 @@ std::shared_ptr<Mirror> MirrorManagerImpl<AddrT>::updateMirror(
     break;
   }
 
+  auto asic = sw_->getHwAsicTable()->getHwAsic(mirror->getSwitchId());
+  if (newMirror && newMirror->type() == Mirror::Type::SFLOW &&
+      asic->isSupported(HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW)) {
+    // TODO: Destination mac address of the mirror session also
+    // should be overridden to router mac so that the packet can
+    // loop back and hit the eventor port and get routed to the
+    // mirror destination
+    auto eventorPort = getEventorPortForSflowMirror(mirror->getSwitchId());
+    newMirror->setEgressPort(eventorPort);
+    newMirror->setDestinationMac(
+        getEventorPortInterfaceMac(state, eventorPort));
+  }
+
   if (*mirror == *newMirror) {
     return std::shared_ptr<Mirror>(nullptr);
   }
+
   return newMirror;
 }
 

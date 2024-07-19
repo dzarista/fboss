@@ -170,6 +170,7 @@ enum PortProfileID {
   PROFILE_400G_4_PAM4_RS544X2N_COPPER = 45,
   PROFILE_100G_2_PAM4_RS544X2N_COPPER = 46,
   PROFILE_100G_1_PAM4_RS544_OPTICAL = 47,
+  PROFILE_50G_2_NRZ_RS528_OPTICAL = 48,
 }
 
 enum Scope {
@@ -802,6 +803,7 @@ struct PortQueue {
    * pps as well as kbps.
    */
   9: optional i32 packetsPerSec_DEPRECATED;
+  // this specifies the static max threshold in buffer profile
   10: optional i32 sharedBytes;
   // Only Unicast queue supports aqms
   11: optional list<ActiveQueueManagement> aqms;
@@ -809,6 +811,9 @@ struct PortQueue {
 
   13: optional i32 bandwidthBurstMinKbits;
   14: optional i32 bandwidthBurstMaxKbits;
+  // this specifies the dynamic max threshold in buffer profile,
+  // e.g. when scalingFactor/alpha is used
+  15: optional i32 maxDynamicSharedBytes;
 }
 
 struct DscpQosMap {

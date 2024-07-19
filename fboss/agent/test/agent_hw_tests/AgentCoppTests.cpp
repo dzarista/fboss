@@ -26,6 +26,7 @@
 #include "fboss/agent/test/utils/PacketSnooper.h"
 #include "fboss/agent/test/utils/PacketTestUtils.h"
 #include "fboss/agent/test/utils/QosTestUtils.h"
+#include "fboss/agent/test/utils/TrapPacketUtils.h"
 #include "fboss/agent/types.h"
 #include "fboss/lib/CommonUtils.h"
 
@@ -1310,6 +1311,8 @@ class AgentCoppQosTest : public AgentHwTest {
     utility::excludeTTL1TrapConfig(cfg);
     addCustomCpuQueueConfig(cfg, ensemble.getL3Asics());
     utility::setTTLZeroCpuConfig(ensemble.getL3Asics(), cfg);
+    auto prefix = folly::CIDRNetwork{kIpForLowPriorityQueue, 128};
+    utility::addTrapPacketAcl(&cfg, prefix);
     return cfg;
   }
 
@@ -1506,52 +1509,43 @@ class AgentCoppQosTest : public AgentHwTest {
   void addCustomCpuQueueConfig(
       cfg::SwitchConfig& config,
       std::vector<const HwAsic*> hwAsics,
-      bool addEcnConfig = false) const {
+      bool addEcnConfig = false,
+      bool addQueueRate = false) const {
     std::vector<cfg::PortQueue> cpuQueues;
     auto hwAsic = utility::checkSameAndGetAsic(hwAsics);
     cfg::PortQueue queue0;
     queue0.id() = utility::kCoppLowPriQueueId;
     queue0.name() = "cpuQueue-low";
     queue0.streamType() = utility::getCpuDefaultStreamType(hwAsic);
-    queue0.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
-    queue0.weight() =
-        utility::kCoppMidPriWeight; // Weight of mid priority queue
+    queue0.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
     if (addEcnConfig) {
       queue0.aqms() = {};
       queue0.aqms()->push_back(utility::kGetOlympicEcnConfig(hwAsic));
     }
+    if (addQueueRate) {
+      queue0.portQueueRate() =
+          utility::setPortQueueRate(hwAsic, utility::kCoppLowPriQueueId);
+    }
+    utility::setPortQueueMaxDynamicSharedBytes(queue0, hwAsic);
     cpuQueues.push_back(queue0);
 
-    cfg::PortQueue queue1;
-    queue1.id() = utility::kCoppDefaultPriQueueId;
-    queue1.name() = "cpuQueue-default";
-    queue1.streamType() = utility::getCpuDefaultStreamType(hwAsic);
-    queue1.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
-    queue1.weight() = utility::kCoppDefaultPriWeight;
-    if (addEcnConfig) {
-      queue1.aqms() = {};
-      queue1.aqms()->push_back(utility::kGetOlympicEcnConfig(hwAsic));
-    }
-    cpuQueues.push_back(queue1);
-
     cfg::PortQueue queue2;
-    queue2.id() = utility::kCoppMidPriQueueId;
+    queue2.id() = utility::getCoppMidPriQueueId({hwAsic});
     queue2.name() = "cpuQueue-mid";
     queue2.streamType() = utility::getCpuDefaultStreamType(hwAsic);
-    queue2.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
-    queue2.weight() = utility::kCoppMidPriWeight;
+    queue2.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
     if (addEcnConfig) {
       queue2.aqms() = {};
       queue2.aqms()->push_back(utility::kGetOlympicEcnConfig(hwAsic));
     }
+    utility::setPortQueueMaxDynamicSharedBytes(queue2, hwAsic);
     cpuQueues.push_back(queue2);
 
     cfg::PortQueue queue9;
     queue9.id() = utility::getCoppHighPriQueueId(hwAsic);
     queue9.name() = "cpuQueue-high";
     queue9.streamType() = utility::getCpuDefaultStreamType(hwAsic);
-    queue9.scheduling() = cfg::QueueScheduling::WEIGHTED_ROUND_ROBIN;
-    queue9.weight() = utility::kCoppHighPriWeight;
+    queue9.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
     if (addEcnConfig) {
       queue9.aqms() = {};
       queue9.aqms()->push_back(utility::kGetOlympicEcnConfig(hwAsic));
@@ -1570,7 +1564,8 @@ class AgentCoppQueueStuckTest : public AgentCoppQosTest {
     addCustomCpuQueueConfig(
         cfg,
         ensemble.getSw()->getHwAsicTable()->getL3Asics(),
-        true /*addEcnConfig*/);
+        true /*addEcnConfig*/,
+        true /*addQueueRate*/);
     return cfg;
   }
 };
@@ -1583,34 +1578,43 @@ TEST_F(AgentCoppQueueStuckTest, CpuQueueHighRateTraffic) {
     createLineRateTrafficOnPort(
         masterLogicalInterfacePortIds()[0], baseVlan, kIpForLowPriorityQueue);
 
-    uint64_t previousLowPriorityPacketCount{};
-    /*
-     * Running the test for atleast kTestIterations. As we have
-     * traffic at close to line rate being received on CPU low
-     * priority queue, this is enough to validate possible queue
-     * stuck condition.
-     */
-
+    const double kVariance = 0.30; // i.e. + or -30%
+    uint64_t kDurationInSecs = 12;
+    uint64_t pktSize = EthHdr::SIZE + IPv6Hdr::size() + 256;
+    uint64_t expectedRate = utility::kCoppDnxLowPriKbitsPerSec * 1024;
+    auto expectedRateLow = expectedRate * (1 - kVariance);
+    auto expectedRateHigh = expectedRate * (1 + kVariance);
     WITH_RETRIES({
       // Read low priority copp queue counters
-      uint64_t lowPriorityPacketCount = utility::getQueueOutPacketsWithRetry(
-          this->getSw(),
-          this->switchIdForPort(
-              this->masterLogicalPortIds({cfg::PortType::INTERFACE_PORT})[0]),
-          utility::kCoppLowPriQueueId,
-          0 /* retryTimes */,
-          0 /* expectedNumPkts */);
-      XLOG(DBG0) << "Received packet count: " << lowPriorityPacketCount;
-      /*
-       * Make sure that COPP queue keeps moving! As we are sending
-       * close to line rate low priority packets, we dont expect it
-       * to be read without an increment.  Queue not incrementing in
-       * a single iteration is good enough to flag a stuck condition
-       * given each iteration waits long enough.
-       */
-      EXPECT_EVENTUALLY_NE(
-          lowPriorityPacketCount, previousLowPriorityPacketCount);
-      previousLowPriorityPacketCount = lowPriorityPacketCount;
+      uint64_t lowPriorityPacketCountBefore =
+          utility::getQueueOutPacketsWithRetry(
+              this->getSw(),
+              this->switchIdForPort(this->masterLogicalPortIds(
+                  {cfg::PortType::INTERFACE_PORT})[0]),
+              utility::kCoppLowPriQueueId,
+              0 /* retryTimes */,
+              0 /* expectedNumPkts */);
+      /* sleep override */
+      sleep(kDurationInSecs);
+      uint64_t lowPriorityPacketCountAfter =
+          utility::getQueueOutPacketsWithRetry(
+              this->getSw(),
+              this->switchIdForPort(this->masterLogicalPortIds(
+                  {cfg::PortType::INTERFACE_PORT})[0]),
+              utility::kCoppLowPriQueueId,
+              0 /* retryTimes */,
+              0 /* expectedNumPkts */);
+
+      uint64_t actualRate =
+          (lowPriorityPacketCountAfter - lowPriorityPacketCountBefore) *
+          pktSize * 8 / kDurationInSecs;
+      XLOG(DBG0) << "Before packet count: " << lowPriorityPacketCountBefore
+                 << ", After packet count: " << lowPriorityPacketCountAfter
+                 << ", Actual rate in bps: " << actualRate
+                 << ", Expected rate low in bps: " << expectedRateLow
+                 << ", Expected rate high in bps: " << expectedRateHigh;
+      EXPECT_EVENTUALLY_TRUE(
+          expectedRateLow <= actualRate && actualRate <= expectedRateHigh);
     });
   };
 
@@ -1618,19 +1622,11 @@ TEST_F(AgentCoppQueueStuckTest, CpuQueueHighRateTraffic) {
 }
 
 TEST_F(AgentCoppQosTest, HighVsLowerPriorityCpuQueueTrafficPrioritization) {
-  constexpr int kReceiveRetriesInSeconds = 2;
+  constexpr int kReceiveRetries = 2;
   constexpr int kHighPriorityPacketCount = 30000;
   constexpr int packetsPerBurst = 1000;
-  std::map<folly::IPAddress, uint64_t> rxPktCountMap{};
 
   auto setup = [=, this]() { setupEcmpDataplaneLoop(); };
-
-  auto pktReceiveHandler = [&](RxPacket* pkt) {
-    auto destinationAddress = getDestinationIpIfValid(pkt);
-    if (destinationAddress.has_value()) {
-      rxPktCountMap[destinationAddress.value()]++;
-    }
-  };
 
   auto verify = [&]() {
     auto configIntf = folly::copy(
@@ -1638,7 +1634,6 @@ TEST_F(AgentCoppQosTest, HighVsLowerPriorityCpuQueueTrafficPrioritization) {
     const auto ipForHighPriorityQueue =
         folly::IPAddress::createNetwork(configIntf.ipAddresses()[1], -1, false)
             .first;
-    // Register packet receive callback
     auto baseVlan = utility::firstVlanID(getProgrammedState());
 
     // Create dataplane loop with lowerPriority traffic on port0
@@ -1649,25 +1644,19 @@ TEST_F(AgentCoppQosTest, HighVsLowerPriorityCpuQueueTrafficPrioritization) {
       nextVlan = *baseVlan + 1;
     }
 
-    std::atomic<bool> packetVerifyRunning{true};
-    std::unique_ptr<std::thread> packetVerifyThread;
-    packetVerifyThread = std::make_unique<std::thread>(
-        [this, &packetVerifyRunning, &pktReceiveHandler]() {
-          utility::SwSwitchPacketSnooper snooper(
-              getSw(), "AgentCoppQosTest snooper");
-          initThread("PacketRxVerify");
-          while (packetVerifyRunning) {
-            auto frame = snooper.waitForPacket(5);
-            if (frame) {
-              auto pkt = make_unique<SwRxPacket>(std::move(*frame));
-              pktReceiveHandler(pkt.get());
-            }
-          }
-        });
-
     auto portId = masterLogicalInterfacePortIds()[1];
     auto switchId = getSw()->getScopeResolver()->scope(portId).switchId();
     auto asic = getSw()->getHwAsicTable()->getHwAsic(switchId);
+
+    auto highPriorityCoppQueueStatsBefore =
+        utility::getQueueOutPacketsWithRetry(
+            getSw(),
+            this->switchIdForPort(
+                this->masterLogicalPortIds({cfg::PortType::INTERFACE_PORT})[0]),
+            utility::getCoppHighPriQueueId(asic),
+            kReceiveRetries,
+            0);
+
     // Send a fixed number of high priority packets on port1
     sendPacketBursts(
         portId,
@@ -1679,71 +1668,17 @@ TEST_F(AgentCoppQosTest, HighVsLowerPriorityCpuQueueTrafficPrioritization) {
         utility::kBgpPort);
 
     // Check high priority queue stats to see if all packets are received
-    auto highPriorityCoppQueueStats = utility::getQueueOutPacketsWithRetry(
+    auto highPriorityCoppQueueStatsAfter = utility::getQueueOutPacketsWithRetry(
         getSw(),
         this->switchIdForPort(
             this->masterLogicalPortIds({cfg::PortType::INTERFACE_PORT})[0]),
         utility::getCoppHighPriQueueId(asic),
-        kReceiveRetriesInSeconds,
-        kHighPriorityPacketCount);
+        kReceiveRetries,
+        highPriorityCoppQueueStatsBefore + kHighPriorityPacketCount);
 
-    // Unregister packet received callback
-    packetVerifyRunning = false;
-
-    XLOG(DBG0) << "Received packet count  -> HighPriority:"
-               << rxPktCountMap[ipForHighPriorityQueue]
-               << ", LowerPriority:" << rxPktCountMap[kIpForLowPriorityQueue];
-
-    WITH_RETRIES({
-      uint64_t lowerPriorityCoppQueueStats =
-          utility::getQueueOutPacketsWithRetry(
-              getSw(),
-              this->switchIdForPort(this->masterLogicalPortIds(
-                  {cfg::PortType::INTERFACE_PORT})[0]),
-              utility::kCoppLowPriQueueId,
-              0 /* retryTimes */,
-              0 /* expectedNumPkts */);
-      /*
-       * Stats on lower priority queue will not be same as above
-       * as traffic continues to be punted, printing for reference
-       */
-      XLOG(DBG0) << "COPP queue packet count-> HighPriority:"
-                 << highPriorityCoppQueueStats
-                 << ", LowerPriority:" << lowerPriorityCoppQueueStats;
-
-      // Get the drop stats on the high and lower priority CPU queues
-      auto highPriorityCoppQueueDiscardStats =
-          utility::getQueueOutPacketsWithRetry(
-              getSw(),
-              this->switchIdForPort(this->masterLogicalPortIds(
-                  {cfg::PortType::INTERFACE_PORT})[0]),
-              utility::getCoppHighPriQueueId(asic),
-              0 /* retryTimes */,
-              0 /* expectedNumPkts */);
-      auto lowerPriorityCoppQueueDiscardStats =
-          utility::getQueueOutPacketsWithRetry(
-              getSw(),
-              this->switchIdForPort(this->masterLogicalPortIds(
-                  {cfg::PortType::INTERFACE_PORT})[0]),
-              utility::kCoppLowPriQueueId,
-              0 /* retryTimes */,
-              0 /* expectedNumPkts */);
-
-      XLOG(DBG0) << "COPP queue drop count  -> HighPriority:"
-                 << highPriorityCoppQueueDiscardStats
-                 << ", LowerPriority:" << lowerPriorityCoppQueueDiscardStats;
-
-      // Test fails if there is a drop in the high priority queue
-      EXPECT_EVENTUALLY_EQ(highPriorityCoppQueueDiscardStats, 0);
-
-      /*
-       * Test passes if all the high priority packets sent are received at
-       * application layer, this will verify no drops after dequeue from
-       * the COPP queue.
-       */
-      EXPECT_EVENTUALLY_EQ(
-          kHighPriorityPacketCount, rxPktCountMap[ipForHighPriorityQueue]);
-    });
+    EXPECT_EQ(
+        kHighPriorityPacketCount,
+        highPriorityCoppQueueStatsAfter - highPriorityCoppQueueStatsBefore);
   };
 
   this->verifyAcrossWarmBoots(setup, verify);

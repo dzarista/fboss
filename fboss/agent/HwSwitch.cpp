@@ -23,8 +23,8 @@
 
 #include <fb303/ThreadCachedServiceData.h>
 #include <folly/FileUtil.h>
-#include <folly/experimental/TestUtil.h>
 #include <folly/logging/xlog.h>
+#include <folly/testing/TestUtil.h>
 
 #include <re2/re2.h>
 #include <chrono>
@@ -36,6 +36,11 @@ DEFINE_int32(
     update_watermark_stats_interval_s,
     60,
     "Update watermark stats interval in seconds");
+
+DEFINE_int32(
+    update_voq_stats_interval_s,
+    60,
+    "Update voq stats interval in seconds");
 
 DEFINE_int32(
     update_phy_info_interval_s,
@@ -374,12 +379,16 @@ HwInitResult HwSwitch::init(
 
 HwWriteBehaviorRAII HwSwitch::getWarmBootWriteBehavior(
     bool failHwCallsOnWarmboot) const {
-  if (failHwCallsOnWarmboot &&
-      getPlatform()->getAsic()->isSupported(
+  if (getPlatform()->getAsic()->isSupported(
           HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT)) {
-    return HwWriteBehaviorRAII(HwWriteBehavior::FAIL);
+    if (failHwCallsOnWarmboot) {
+      return HwWriteBehaviorRAII(HwWriteBehavior::FAIL);
+    } else {
+      return HwWriteBehaviorRAII(HwWriteBehavior::WRITE);
+    }
+  } else {
+    return HwWriteBehaviorRAII(HwWriteBehavior::LOG_FAIL);
   }
-  return HwWriteBehaviorRAII(HwWriteBehavior::LOG_FAIL);
 }
 
 HwInitResult HwSwitch::initLight(

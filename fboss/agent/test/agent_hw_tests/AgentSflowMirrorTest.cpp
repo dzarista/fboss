@@ -15,7 +15,6 @@
 #include "fboss/agent/test/utils/ConfigUtils.h"
 #include "fboss/agent/test/utils/MirrorTestUtils.h"
 #include "fboss/agent/test/utils/PacketSnooper.h"
-#include "fboss/agent/test/utils/QosTestUtils.h"
 #include "fboss/lib/CommonUtils.h"
 
 #include "fboss/agent/SflowShimUtils.h"
@@ -51,8 +50,6 @@ class AgentSflowMirrorTest : public AgentHwTest {
     auto asic = ensemble.getSw()->getHwAsicTable()->getHwAsic(port0Switch);
     auto ports = getPortsForSampling(ensemble.masterLogicalPortIds(), asic);
     this->configureMirror(cfg);
-    this->configureTrapAcl(cfg);
-    configSampling(cfg, ports, 1);
     return cfg;
   }
 
@@ -62,15 +59,17 @@ class AgentSflowMirrorTest : public AgentHwTest {
   }
 
   void configureTrapAcl(cfg::SwitchConfig& cfg) const {
-    utility::configureTrapAcl(cfg, std::is_same_v<AddrT, folly::IPAddressV4>);
+    utility::configureTrapAcl(cfg, getNonSflowSampledInterfacePorts());
   }
 
-  PortID getNonSflowSampledInterfacePorts() {
-    return getPortsForSampling()[0];
+  PortID getNonSflowSampledInterfacePorts() const {
+    return getAsic()->isSupported(HwAsic::Feature::MANAGEMENT_PORT)
+        ? masterLogicalPortIds({cfg::PortType::MANAGEMENT_PORT})[0]
+        : getPortsForSampling()[0];
   }
 
   std::vector<PortID> getPortsForSampling() const {
-    auto portIds = masterLogicalPortIds();
+    auto portIds = masterLogicalPortIds({cfg::PortType::INTERFACE_PORT});
     auto switchID = switchIdForPort(portIds[0]);
     auto asic = getSw()->getHwAsicTable()->getHwAsic(switchID);
     return getPortsForSampling(portIds, asic);
@@ -146,43 +145,6 @@ class AgentSflowMirrorTest : public AgentHwTest {
     return getAsic()->getMirrorTruncateSize();
   }
 
-  std::shared_ptr<SwitchState> updateMacAddress(
-      const std::shared_ptr<SwitchState>& state,
-      AddrT ip,
-      PortID egressPort,
-      const std::optional<folly::MacAddress>& randomMac) {
-    /* add tunnel destination ip as neighbor */
-    auto outputState{state->clone()};
-
-    using NeighborTableT = typename std::conditional_t<
-        std::is_same<AddrT, folly::IPAddressV4>::value,
-        ArpTable,
-        NdpTable>;
-
-    auto mac = randomMac.has_value() ? randomMac.value()
-                                     : utility::getFirstInterfaceMac(state);
-    auto port = outputState->getPorts()->getNodeIf(egressPort);
-    auto vlanID = port->getIngressVlan();
-    auto vlan = outputState->getVlans()->getNodeIf(vlanID);
-    auto intf = outputState->getInterfaces()->getNodeIf(vlan->getInterfaceID());
-
-    NeighborTableT* nbrTable;
-    if (FLAGS_intf_nbr_tables) {
-      nbrTable = intf->template getNeighborEntryTable<AddrT>()->modify(
-          intf->getID(), &outputState);
-    } else {
-      nbrTable = vlan->template getNeighborEntryTable<AddrT>()->modify(
-          vlan->getID(), &outputState);
-    }
-
-    auto entry = nbrTable->getEntryIf(ip);
-    CHECK(entry);
-    entry = entry->clone();
-    entry->setMAC(mac);
-    nbrTable->updateEntry(ip, entry);
-    return outputState;
-  }
-
   void resolveRouteForMirrorDestination() {
     const auto mirrorDestinationPort = getNonSflowSampledInterfacePorts();
     boost::container::flat_set<PortDescriptor> nhopPorts{
@@ -206,18 +168,29 @@ class AgentSflowMirrorTest : public AgentHwTest {
         getAgentEnsemble()->getRouteUpdaterWrapper(), nhopPorts, {prefix});
   }
 
-  utility::EthFrame genPacket(int portIndex, size_t payloadSize) {
-    auto portId = masterLogicalPortIds()[portIndex];
-    auto vlanId =
-        getProgrammedState()->getPorts()->getNodeIf(portId)->getIngressVlan();
-    auto mac = utility::getInterfaceMac(
-        getProgrammedState(), static_cast<VlanID>(vlanId));
+  std::unique_ptr<facebook::fboss::TxPacket> genPacket(
+      int portIndex,
+      size_t payloadSize) {
+    auto vlanId = utility::firstVlanID(getProgrammedState());
+    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
     folly::IPAddressV6 sip{"2401:db00:dead:beef::2401"};
     folly::IPAddressV6 dip{folly::to<std::string>(kIpStr, portIndex, "::1")};
     uint16_t sport = 9701;
     uint16_t dport = 9801;
-    return utility::getEthFrame(
-        mac, mac, sip, dip, sport, dport, VlanID(vlanId), payloadSize);
+    std::vector<uint8_t> payload(payloadSize, 0xff);
+    auto pkt = utility::makeUDPTxPacket(
+        getSw(),
+        vlanId,
+        intfMac,
+        intfMac,
+        sip,
+        dip,
+        sport,
+        dport,
+        0,
+        255,
+        payload);
+    return pkt;
   }
 
   int getSflowPacketHeaderLength() {
@@ -241,14 +214,12 @@ class AgentSflowMirrorTest : public AgentHwTest {
     getAgentEnsemble()->bringDownPorts(
         std::vector<PortID>(ports.begin() + 2, ports.end()));
     auto pkt = genPacket(1, 256);
+    auto length = pkt->buf()->length();
 
     utility::SwSwitchPacketSnooper snooper(getSw(), "snooper");
     XLOG(DBG2) << "Sending packet through port " << ports[1];
     getAgentEnsemble()->sendPacketAsync(
-        pkt.getTxPacket(
-            [sw = getSw()](uint32_t size) { return sw->allocatePacket(size); }),
-        PortDescriptor(ports[1]),
-        std::nullopt);
+        std::move(pkt), PortDescriptor(ports[1]), std::nullopt);
 
     std::optional<std::unique_ptr<folly::IOBuf>> capturedPktBuf;
     WITH_RETRIES({
@@ -259,10 +230,10 @@ class AgentSflowMirrorTest : public AgentHwTest {
     auto capturedPkt = utility::EthFrame(capturedPktCursor);
 
     // captured packet has encap header on top
-    ASSERT_GE(capturedPkt.length(), pkt.length());
+    ASSERT_GE(capturedPkt.length(), length);
     EXPECT_GE(capturedPkt.length(), getSflowPacketHeaderLength());
 
-    auto delta = capturedPkt.length() - pkt.length();
+    auto delta = capturedPkt.length() - length;
     EXPECT_LE(delta, getSflowPacketHeaderLength());
     auto payload = std::is_same_v<AddrT, folly::IPAddressV4>
         ? capturedPkt.v4PayLoad()->udpPayload()->payload()
@@ -306,14 +277,12 @@ class AgentSflowMirrorTest : public AgentHwTest {
     getAgentEnsemble()->bringDownPorts(
         std::vector<PortID>(ports.begin() + 2, ports.end()));
     auto pkt = genPacket(1, 8000);
+    auto length = pkt->buf()->length();
 
     utility::SwSwitchPacketSnooper snooper(getSw(), "snooper");
     XLOG(DBG2) << "Sending packet through port " << ports[1];
     getAgentEnsemble()->sendPacketAsync(
-        pkt.getTxPacket(
-            [sw = getSw()](uint32_t size) { return sw->allocatePacket(size); }),
-        PortDescriptor(ports[1]),
-        std::nullopt);
+        std::move(pkt), PortDescriptor(ports[1]), std::nullopt);
 
     std::optional<std::unique_ptr<folly::IOBuf>> capturedPktBuf;
     WITH_RETRIES({
@@ -324,7 +293,7 @@ class AgentSflowMirrorTest : public AgentHwTest {
     auto capturedPkt = utility::EthFrame(capturedPktCursor);
 
     // captured packet has encap header on top
-    EXPECT_LE(capturedPkt.length(), pkt.length());
+    EXPECT_LE(capturedPkt.length(), length);
     auto capturedHdrSize = getSflowPacketHeaderLength(true);
     EXPECT_GE(capturedPkt.length(), capturedHdrSize);
 
@@ -360,11 +329,7 @@ class AgentSflowMirrorTest : public AgentHwTest {
 
     for (auto i = 1; i < ports.size(); i++) {
       getAgentEnsemble()->sendPacketAsync(
-          pkt.getTxPacket([sw = getSw()](uint32_t size) {
-            return sw->allocatePacket(size);
-          }),
-          PortDescriptor(ports[i]),
-          std::nullopt);
+          std::move(pkt), PortDescriptor(ports[i]), std::nullopt);
       getAgentEnsemble()->waitForLineRateOnPort(ports[i]);
     }
 
@@ -397,6 +362,7 @@ class AgentSflowMirrorTest : public AgentHwTest {
       auto ports = getPortsForSampling();
       auto config = initialConfig(*getAgentEnsemble());
       configSampling(config, 1);
+      configureTrapAcl(config);
       applyNewConfig(config);
       resolveRouteForMirrorDestination();
     };
@@ -414,6 +380,7 @@ class AgentSflowMirrorTest : public AgentHwTest {
     auto setup = [=, this]() {
       auto config = initialConfig(*getAgentEnsemble());
       configSampling(config, FLAGS_sflow_test_rate);
+      configureTrapAcl(config);
       applyNewConfig(config);
       resolveRouteForMirrorDestination();
     };
