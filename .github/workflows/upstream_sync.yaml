@@ -11,7 +11,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Check-out latest code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ssh-key: ${{ secrets.GIT_PRIVATE_KEY }}
@@ -21,12 +21,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SRV_FBOSS_ARISTA_ROBOT_TOKEN }}
         run: ./arista-ci-scripts/upstream_sync.sh
+      - name: Set Date Environment Variable
+        run: echo "TODAYS_DATE=$(date +'%m-%d-%Y')" >> $GITHUB_ENV
       - name: Send status email
         if: success() || failure()
         run: |
           mail_to="arajeev@arista.com"
-          subject="Upstream Sync Status"
-          body_text_file="arista-ci-scripts/upstream_sync_status_email_body.txt"
+          subject="aristanetworks/arista-fboss upstream sync - $TODAYS_DATE"
+          body_text_file="status_email_file.txt"
           attachment_path="upstream_sync_status.txt"
           ./arista-ci-scripts/mailer.py --mail_to="$mail_to" --subject="$subject" --body_text_file="$body_text_file" --attachment_path="$attachment_path" --sender_mail_id="${{ secrets.GMAIL_USERNAME }}" --sender_mail_password="${{ secrets.GMAIL_PASSWORD }}"
         shell: bash
