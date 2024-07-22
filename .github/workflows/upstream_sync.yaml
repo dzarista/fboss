@@ -11,12 +11,11 @@ jobs:
       pull-requests: write
     steps:
       - name: Check-out latest code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ssh-key: ${{ secrets.GIT_PRIVATE_KEY }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.SRV_FBOSS_ARISTA_ROBOT_TOKEN }}
       - name: Run Bash script
         env:
           GH_TOKEN: ${{ secrets.SRV_FBOSS_ARISTA_ROBOT_TOKEN }}
