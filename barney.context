@@ -17,7 +17,7 @@
                "commit": "62835b9fb7ec54eef66e5c47561565db8925a93b"
             },
             "barney.ci/alpine": {
-               "commit": "957357dfbb603385c9c0aebee8b1bfcc4244e3d9"
+               "commit": "19372680977d9a0b848e75a39f385bff9aafc650"
             },
             "barney.ci/golang": {
                "commit": "dd612eba506a1c084a80920c879586c5ca196f7a"
