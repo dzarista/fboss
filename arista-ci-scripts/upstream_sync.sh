@@ -7,8 +7,11 @@ repo_name=git@github.com:aristanetworks/arista-fboss.git
 date_string=$(date +"%m-%d-%Y")
 pr_title="arista-fboss upstream sync ${date_string}"
 pr_description="syncing https://github.com/aristanetworks/arista-fboss to https://github.com/facebook/fboss on ${date_string}"
+# File attached in the status email
 output_file=upstream_sync_status.txt
+# Status email text
 status_email_file=status_email_content.txt
+# Status email subject
 email_subject_file=status_email_subject.txt
 
 # Setting up github username and email
@@ -31,9 +34,9 @@ git checkout -b $branch_name origin/main || exit 1
 if git merge --no-edit upstream/main; then
    auto_merge_successful=true
    git push origin HEAD
-   gh pr create --title "$pr_title" --body "$pr_description" --head $branch_name --base main --repo $repo_name
+   pr_link=$(gh pr create --title "$pr_title" --body "$pr_description" --head $branch_name --base main --repo $repo_name | grep https)
    echo "Created a pull request from branch $branch_name" > $output_file
-   echo "Created the pull request $pr_title with all the upstream changes" > $status_email_file
+   echo "Created the pull request $pr_link with all the upstream changes" > $status_email_file
 else
    auto_merge_successful=false
    git status > git_status_output.txt
@@ -43,9 +46,10 @@ fi
 echo "aristanetworks/arista-fboss upstream sync: $date_string" > $email_subject_file
 
 if [ "$auto_merge_successful" = false ] ; then
+   # Try to create a pull request by excluding the files with merge conflicts
    if git merge --no-edit upstream/main --strategy-option ours; then
       git push origin HEAD
-      gh pr create --title "$pr_title" --body "$pr_description" --head $branch_name --base main --repo $repo_name
+      pr_link=$(gh pr create --title "$pr_title" --body "$pr_description" --head $branch_name --base main --repo $repo_name | grep https)
       echo "Created a pull request from branch $branch_name. However some of the upstream changes were not pulled due to merge conflicts." > $output_file
       # Display any merge conficts which were not resolved
       echo "The following files had merge conflicts:" >> $output_file
@@ -57,7 +61,7 @@ if [ "$auto_merge_successful" = false ] ; then
       echo "Details of the merge conflicts" >> $output_file
       echo "==============================" >> $output_file
       cat git_diff_output.txt >> $output_file
-      echo "Created the pull request '$pr_title' after excluding some upstream changes. Please see the attached file to analyze the excluded files." > $status_email_file
+      echo "Created the pull request $pr_link after excluding some upstream changes. Please see the attached file to analyze the excluded files." > $status_email_file
    else
       echo "Encountered merge conflict which cannot be handled. Aborting further execution. See the logs below for more information" > $output_file
       # Displays merge confict details
@@ -69,7 +73,7 @@ if [ "$auto_merge_successful" = false ] ; then
       echo "========" >> $output_file
       cat git_diff_output.txt >> $output_file
       echo "Could not create a pull request with the upstream changes. Please see the attached file for more details." > $status_email_file
+      exit -1
    fi
-   exit -1
 fi
 
