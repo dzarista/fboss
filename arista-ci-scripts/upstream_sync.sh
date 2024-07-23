@@ -8,7 +8,8 @@ date_string=$(date +"%m-%d-%Y")
 pr_title="arista-fboss upstream sync ${date_string}"
 pr_description="syncing https://github.com/aristanetworks/arista-fboss to https://github.com/facebook/fboss on ${date_string}"
 output_file=upstream_sync_status.txt
-status_email_file=status_email_file.txt
+status_email_file=status_email_content.txt
+email_subject_file=status_email_subject.txt
 
 # Setting up github username and email
 git config --local user.email "srv-fboss-arista@arista.com";
@@ -39,6 +40,7 @@ else
    git diff > git_diff_output.txt
    git merge --abort
 fi
+echo "aristanetworks/arista-fboss upstream sync: $date_string" > $email_subject_file
 
 if [ "$auto_merge_successful" = false ] ; then
    if git merge --no-edit upstream/main --strategy-option ours; then
@@ -55,7 +57,7 @@ if [ "$auto_merge_successful" = false ] ; then
       echo "Details of the merge conflicts" >> $output_file
       echo "==============================" >> $output_file
       cat git_diff_output.txt >> $output_file
-      echo "Created the pull request $pr_title after excluding some upstream changes. Please see the attached file to analyze the excluded files." > $status_email_file
+      echo "Created the pull request '$pr_title' after excluding some upstream changes. Please see the attached file to analyze the excluded files." > $status_email_file
    else
       echo "Encountered merge conflict which cannot be handled. Aborting further execution. See the logs below for more information" > $output_file
       # Displays merge confict details
