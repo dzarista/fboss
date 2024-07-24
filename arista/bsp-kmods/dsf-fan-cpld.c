@@ -885,7 +885,6 @@ static int cpld_init(struct cpld_data *cpld)
 	struct cpld_fan_led_data *led;
 	int err;
 	int i;
-	int j;
 
 	err = cpld_read_byte(cpld, MINOR_VERSION_REG, &cpld->minor);
 	if (err)
@@ -978,6 +977,13 @@ static int cpld_remove(struct i2c_client *client)
 }
 #endif
 
+static const struct i2c_device_id cpld_id[] = { { "oasis_cpld0", OASIS_CPLD0 },
+						{ "oasis_cpld1", OASIS_CPLD1 },
+						{ "oasis_cpld2", OASIS_CPLD2 },
+						{ "pali2_cpld", PALI2_CPLD },
+						{} };
+MODULE_DEVICE_TABLE(i2c, cpld_id);
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
 static int cpld_probe(struct i2c_client *client)
 {
@@ -991,6 +997,11 @@ static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct cpld_data *cpld;
 	int err;
 	int i;
+
+	id = i2c_match_id(cpld_id, client);
+	if (!id) {
+		return -ENODEV;
+	}
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
@@ -1033,9 +1044,9 @@ static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	cpld->wdd.parent = hwmon_dev;
 	cpld->wdd.timeout = WDT_TIMEOUT;
 	cpld->wdd.max_timeout = WDT_MAX_TIMEOUT;
-	watchdog_init_timeout(&cpld->wdd, 0, hwmon_dev);
+	watchdog_init_timeout(&cpld->wdd, 0, dev);
 
-	err = devm_watchdog_register_device(hwmon_dev, &cpld->wdd);
+	err = devm_watchdog_register_device(dev, &cpld->wdd);
 	if (err) {
 		dev_err(hwmon_dev, "watchdog_register_device failed, ret=%d\n", err);
 		return err;
@@ -1044,22 +1055,14 @@ static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return err;
 }
 
-static const struct i2c_device_id cpld_id[] = { { "oasis_cpld0", OASIS_CPLD0 },
-						{ "oasis_cpld1", OASIS_CPLD1 },
-						{ "oasis_cpld2", OASIS_CPLD2 },
-						{ "pali2_cpld", PALI2_CPLD },
-						{} };
-
-MODULE_DEVICE_TABLE(i2c, cpld_id);
-
 static struct i2c_driver cpld_driver = {
-	.class = I2C_CLASS_HWMON,
-	.driver = {
-		.name = DRIVER_NAME,
-	},
-	.id_table = cpld_id,
-	.probe = cpld_probe,
-	.remove = cpld_remove,
+   .class = I2C_CLASS_HWMON,
+   .driver = {
+      .name = DRIVER_NAME,
+   },
+   .id_table = cpld_id,
+   .probe = cpld_probe,
+   .remove = cpld_remove,
 };
 
 static int __init dsf_fan_cpld_init(void)
