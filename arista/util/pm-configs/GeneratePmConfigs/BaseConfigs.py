@@ -12,12 +12,43 @@ def reformatOneElementLists( jsonDump ):
    return output_string
 
 
+def constructHelper( currDevice, currPath, outputList ):
+   while not isinstance( currDevice, PmUnitConfig ):
+      currDevice = currDevice.parentConfig
+   platformConfig = currDevice.parentConfig
+   if currDevice.pmUnitName == platformConfig.rootPmUnitName:
+      outputList.append( currPath )
+      return
+   for pmUnit in platformConfig.pmUnitConfigs:
+      for slotConfig in pmUnit.outgoingSlotConfigs:
+         if slotConfig.slotType == f"{ currDevice.pmUnitName }_SLOT":
+            constructHelper( 
+               slotConfig, 
+               f"/{ slotConfig.slotName }{ currPath }", 
+               outputList
+            )
+
+
+def constructBusPaths( bus ):
+   outputList = []
+   startPath = f"/[{ bus.busName }]"
+   outputList = []
+   constructHelper( bus, startPath, outputList )
+   return outputList
+
+
+def constructDevicePaths( device ):
+   startPath = f"/[{ device.pmUnitScopedName }]"
+   outputList = []
+   constructHelper( device, startPath, outputList )
+   return outputList
+
+
 class PlatformConfig:
-   def __init__( self, platformName, rootPmUnitName="SCM", slotTypeConfigs=None,
-                 pmUnitConfigs=None, i2cAdaptersFromCpu=None, kmodsSettings=None ):
+   def __init__( self, platformName, rootPmUnitName="SCM", pmUnitConfigs=None, 
+                 i2cAdaptersFromCpu=None, kmodsSettings=None ):
       self.platformName = platformName
       self.rootPmUnitName = rootPmUnitName
-      self.slotTypeConfigs = slotTypeConfigs or []
       self.pmUnitConfigs = pmUnitConfigs or []
       self.i2cAdaptersFromCpu = (
          i2cAdaptersFromCpu 
@@ -40,9 +71,6 @@ class PlatformConfig:
          }
       )
 
-   def addSlotTypeConfigs( self, newConfigs ):
-      self.slotTypeConfigs.extend( newConfigs ) 
-
    def getSlotTypeConfigsDict( self ):
       jsonDict = {}
       for pmConfig in self.pmUnitConfigs:
@@ -53,6 +81,8 @@ class PlatformConfig:
       return jsonDict
 
    def addPmUnitConfigs( self, newConfigs ):
+      for config in newConfigs:
+         config.addParentConfigPointer( self )
       self.pmUnitConfigs.extend( newConfigs )
 
    def getPmUnitConfigsDict( self ):
@@ -104,6 +134,9 @@ class SlotTypeConfig:
       self.idPromConfigKernelDeviceName = idpromConfigKernelDeviceName
       self.idPromConfigOffset = idPromConfigOffset
       self.pmUnitName = pmUnitName
+
+   def addPmUnitConfigPointer( self, pmUnitConfig ):
+      self.pmUnitConfig = pmUnitConfig
 
    def asJson( self ):
       idpCfg = self.parseIdpromConfig()
@@ -157,17 +190,29 @@ class PmUnitConfig:
                                             idPromConfigBusName, idPromConfigAddress,
                                             idpromConfigKernelDeviceName,
                                             idPromConfigOffset )
+      self.slotTypeConfig.addPmUnitConfigPointer( self )
+      
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig
 
    def addI2cDeviceConfigs( self, newConfigs ):
+      for config in newConfigs:
+         config.addParentConfigPointer( self )
       self.i2cDeviceConfigs.extend( newConfigs )
 
    def addOutgoingSlotConfigs( self, newConfigs ):
+      for config in newConfigs:
+         config.addParentConfigPointer( self )
       self.outgoingSlotConfigs.extend( newConfigs )
 
    def addPciDeviceConfigs( self, newConfigs ):
+      for config in newConfigs:
+         config.addParentConfigPointer( self )
       self.pciDeviceConfigs.extend( newConfigs )
 
    def addEmbeddedSensorConfigs( self, newConfigs ):
+      for config in newConfigs:
+         config.addParentConfigPointer( self )
       self.embeddedSensorConfigs.extend( newConfigs )
 
    def populateSymlinkToDevicePaths( self, platform ):
@@ -177,7 +222,6 @@ class PmUnitConfig:
          **self.generateSMBIdPromSymlinks( platform ),
          **self.generateSensorSymlinks( platform ),
          **self.generateEmbeddedSensorSymlinks(),
-         **self.generatePsuBusSymlinks(),
          **self.generateXcvrSymlinks(),
          **self.generateSpiDeviceSymlinks()
       }
@@ -217,9 +261,8 @@ class PmUnitConfig:
       for pciConfig in self.pciDeviceConfigs:
          for xcvrConfig in pciConfig.xcvrCtrlConfigs:
             portNumber = xcvrConfig.portNumber
-            portType = xcvrConfig.portType
             symlinkDict[ f"/run/devmap/xcvrs/xcvr_{ portNumber }" ] = (
-               f"/SMB_SLOT@0/[{ portType.upper() }_PORT{ portNumber }_XCVR]" 
+               constructDevicePaths( xcvrConfig )[ 0 ] 
             )
       symlinkDict = OrderedDict(
          sorted(
@@ -247,18 +290,6 @@ class PmUnitConfig:
                ] = f"/{ slotConfig.slotName }/[IDPROM]"
       return symlinkDict
 
-   def generatePsuBusSymlinks( self ):
-      symlinkDict = OrderedDict()
-      if self.pmUnitName == "SMB":
-         for slotConfig in self.outgoingSlotConfigs:
-            if slotConfig.slotType == "PSU_SLOT":
-               name = slotConfig.slotName
-               portNum = int( name[ -1 ] ) + 1
-               symlinkDict[ f"/run/devmap/sensors/PSU{ portNum }_PMBUS" ] = (
-                  f"/SMB_SLOT@0/{ name }/[PSU_PMBUS]"
-               )
-      return symlinkDict
-   
    def generateSpiDeviceSymlinks( self ):
       symlinkDict = OrderedDict()
       spiMasterConfigs = [ config for pciConfig in self.pciDeviceConfigs
@@ -329,18 +360,15 @@ class EmbeddedSensorConfig:
       }
    
    def generateSymlinkDevicePath( self, pmUnitName ):
-      pathDict = {
-         "SCM": {
-            f"/run/devmap/sensors/CPU_{ self.pmUnitScopedName.split('_', 1)[ 1 ] }":
-               f"/[{ self.pmUnitScopedName }]"
-         },
-         "SMB": {
-            f"/run/devmap/sensors/{ self.pmUnitScopedName }":
-               f"/SMB_SLOT@0/[{ self.pmUnitScopedName }]"
-         }
+      symlinkDict = {
+         "SCM":
+            f"/run/devmap/sensors/CPU_{ self.pmUnitScopedName.split('_', 1)[ 1 ] }",
+         "SMB": f"/run/devmap/sensors/{ self.pmUnitScopedName }"
       }
-      return pathDict[ pmUnitName ]
+      return { symlinkDict[ pmUnitName ]: constructDevicePaths( self )[ 0 ] }
    
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig  
 
 class I2cDeviceConfig:
    def __init__( self, address, kernelDeviceName, pmUnitScopedName,
@@ -360,6 +388,9 @@ class I2cDeviceConfig:
       self.hasReservedMac = hasReservedMac
       self.numOutgoingChannels = numOutgoingChannels
       self.initRegSettings = initRegSettings
+
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig 
 
    def addBusName( self, busName ):
       self.busName = busName
@@ -409,59 +440,64 @@ class GpioChip( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self, platform, pmUnitName ):
       return {
          f"/run/devmap/gpiochips/{ self.pmUnitScopedName }": 
-            f"/SMB_SLOT@0/[{ self.pmUnitScopedName }]"
+            constructDevicePaths( self )[ 0 ]
       }
    
 
 class Sensor( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self, platform, pmUnitName ):
-      pathDict = {
-         "SCM": {
-            f"/run/devmap/sensors/CPU_{ self.pmUnitScopedName.split( '_', 1 )[ 1 ]}": 
-               f"/[{ self.pmUnitScopedName }]"
-         },
-         "SMB": {
-            f"/run/devmap/sensors/{ self.pmUnitScopedName }": 
-               f"/SMB_SLOT@0/[{ self.pmUnitScopedName }]"
-         }
+      symlinkDict = {
+         "SCM":
+            f"/run/devmap/sensors/CPU_{ self.pmUnitScopedName.split( '_', 1 )[ 1 ]}",
+         "SMB": f"/run/devmap/sensors/{ self.pmUnitScopedName }"
       }
-      return pathDict[ pmUnitName ]
+      return { symlinkDict[ pmUnitName ]: constructDevicePaths( self )[ 0 ] }
 
    
 class SMBCpld( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self, platform, pmUnitName ):
       return {
          f"/run/devmap/cplds/{ platform.upper() }_SMB_CPLD":
-            "/SMB_SLOT@0/[SMB_CPLD]"
+            constructDevicePaths( self )[ 0 ]
       }
 
 
 class FANCpld( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self, platform, pmUnitName ):
-      fanNumIdx = self.pmUnitScopedName.find( "FAN" ) + 3
-      pathDict = {
-         "meru800bia": {
-            "/run/devmap/cplds/FAN_CPLD": "/SMB_SLOT@0/FAN_CPLD",
-            "/run/devmap/sensors/FAN_CPLD": "/SMB_SLOT@0/FAN_CPLD"
-         },
-         "meru800bfa": {
-            f"/run/devmap/cplds/{ self.pmUnitScopedName }": 
-               f"/SMB_SLOT@0/[{ self.pmUnitScopedName }]",
-            f"/run/devmap/sensors/FAN_CPLD"
-            f"{ self.pmUnitScopedName[ fanNumIdx ] }":
-               f"/SMB_SLOT@0/[{ self.pmUnitScopedName }]"
+      devicePath = constructDevicePaths( self )[ 0 ]
+      if platform == "meru800bia":
+         return {
+            "/run/devmap/cplds/FAN_CPLD": devicePath,
+            "/run/devmap/sensors/FAN_CPLD": devicePath
          }
-      }
-      return pathDict[ platform ]
+      if platform == "meru800bfa":
+         fanNumIdx = self.pmUnitScopedName.find( "FAN" ) + 3
+         return {
+            f"/run/devmap/cplds/{ self.pmUnitScopedName }": 
+               devicePath,
+            f"/run/devmap/sensors/FAN_CPLD{ self.pmUnitScopedName[ fanNumIdx ] }":
+               devicePath
+         }
 
 
 class SCMIdProm( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self, platform, pmUnitName ):
       return {
          f"/run/devmap/eeproms/MERU_SCM_EEPROM_"
-         f"{self.pmUnitScopedName.split( '_' )[ -1 ]}": 
-            f"/[{ self.pmUnitScopedName }]"
+         f"{ self.pmUnitScopedName.split( '_' )[ -1 ] }": 
+            constructDevicePaths( self )[ 0 ]
       }
+   
+
+class PSUBus( I2cDeviceConfig ):
+   def generateSymlinkDevicePath(self, platform, pmUnitName):
+      symlinkDict = OrderedDict()
+      devicePaths = constructDevicePaths( self )
+      for path in devicePaths:
+         slotNumIndex = path.find( "PSU_SLOT@" ) + len( "PSU_SLOT@" )
+         portNum = int( path[ slotNumIndex ] ) + 1
+         symlinkDict[ f"/run/devmap/sensors/PSU{ portNum }_PMBUS" ] = path
+      return symlinkDict
 
 
 class InitRegSettings:
@@ -479,6 +515,9 @@ class SlotConfig:
       self.presenceFileName = presenceFileName
       self.presenceDevicePath = presenceDevicePath
       self.outgoingI2cBuses = outgoingI2cBuses or []
+
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig
 
    def asJson( self ):
       slotType = self.slotType
@@ -521,6 +560,9 @@ class PciDeviceConfig:
       self.ledCtrlConfigs = ledCtrlConfigs or []
       self.xcvrCtrlConfigs = xcvrCtrlConfigs or []
 
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig
+
    def addI2cAdapterConfigs( self, numAdapters, adapterBaseName, baseCsrOffset ):
       configs = []
       numFormatSpecifiers = adapterBaseName.count( '{}' )
@@ -534,11 +576,13 @@ class PciDeviceConfig:
             adapterName = adapterBaseName
          csrOffset = hex( int( baseCsrOffset, 16 ) + i * 0x80 )
          configs.append( 
-            I2cAdapterConfig( adapterName, "i2c_master", -1, csrOffset, 8 )
+            I2cAdapterConfig( self, adapterName, "i2c_master", -1, csrOffset, 8 )
          )
       self.i2cAdapterConfigs.extend( configs )
 
    def addSpiMasterConfigs( self, newConfigs ):
+      for config in newConfigs:
+         config.addParentConfigPointer( self )
       self.spiMasterConfigs.extend( newConfigs )
 
    def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, portType="osfp", 
@@ -555,6 +599,8 @@ class PciDeviceConfig:
                                                  portType, xcvrBaseOffset, 
                                                  led1BaseOffset, led2BaseOffset, 
                                                  led3BaseOffset, led4BaseOffset )
+      for config in newConfigs:
+         config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
 
    def addLedCtrlConfigs( self, newConfigs ):
@@ -610,21 +656,17 @@ class PciDeviceConfig:
       return lst
 
    def generateSymlinkDevicePath( self, platform, pmUnitName ):
-      pathDict = {
-         "SCM": {
-            "/run/devmap/fpgas/MERU_SCM_CPLD": f"/[{ self.pmUnitScopedName }]"
-         },
-         "SMB": {
-            f"/run/devmap/fpgas/{ platform.upper() }_{ self.pmUnitScopedName }":
-               f"/SMB_SLOT@0/[{ self.pmUnitScopedName }]"
-         }
+      symlinkDict = {
+         "SCM": "/run/devmap/fpgas/MERU_SCM_CPLD",
+         "SMB": f"/run/devmap/fpgas/{ platform.upper() }_{ self.pmUnitScopedName }"
       }
-      return pathDict[ pmUnitName ]
+      return { symlinkDict[ pmUnitName ]: constructDevicePaths( self )[ 0 ] } 
 
 
 class I2cBus:
-   def __init__( self, busName, devicesOnBus=None ):
+   def __init__( self, busName, parentConfig, devicesOnBus=None ):
       self.busName = busName
+      self.parentConfig = parentConfig
       self.devicesOnBus = devicesOnBus or []
 
    def addI2cDevices( self, i2cDevices ):
@@ -632,18 +674,20 @@ class I2cBus:
 
 
 class I2cAdapterConfig:
-   def __init__( self, pmUnitScopedName, deviceName, iobufOffset, 
+   def __init__( self, parentConfig, pmUnitScopedName, deviceName, iobufOffset, 
                  csrOffset, numberOfAdapters ):
+      self.parentConfig = parentConfig
       self.pmUnitScopedName = pmUnitScopedName
       self.deviceName = deviceName
       self.iobufOffset = iobufOffset
       self.csrOffset = csrOffset
       self.numberOfAdapters = numberOfAdapters
-      self.buses = { i : I2cBus(
+      self.buses = [ I2cBus(
          busName=f"{ self.pmUnitScopedName }@{ i }",
+         parentConfig=self,
          devicesOnBus=[]
          ) for i in range( numberOfAdapters )
-      }
+      ]
 
    def asJson( self ):
       pmUnitScopedName = self.pmUnitScopedName
@@ -720,6 +764,9 @@ class SpiMasterConfig:
       self.iobufOffset = iobufOffset
       self.csrOffset = csrOffset
       self.spiDeviceConfigs = spiDeviceConfigs
+      if self.spiDeviceConfigs:
+         for config in self.spiDeviceConfigs:
+            config.addParentConfigPointer( self )
 
    def asJson( self ):
       pmUnitScopedName = self.pmUnitScopedName
@@ -743,6 +790,9 @@ class SpiMasterConfig:
          **({ "spiDeviceConfigs": [ config.dict for config in spiDeviceConfigs ] }
             if spiDeviceConfigs else {}),
       }
+   
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig
 
 
 class SpiDeviceConfig:
@@ -761,12 +811,15 @@ class SpiDeviceConfig:
    def generateSymlinkDevicePath( self ):
       return {}
 
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig
+
 
 class Flash( SpiDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/flashes/{ self.pmUnitScopedName }":
-            f"/SMB_SLOT@0/[{ self.pmUnitScopedName }]"
+            constructDevicePaths( self )[ 0 ]
       }
 
 
@@ -780,6 +833,10 @@ class XcvrConfig:
       self.led2Offset = led2Offset
       self.led3Offset = led3Offset
       self.led4Offset = led4Offset
+      self.pmUnitScopedName = f"{ portType }_PORT{ portNumber }_XCVR".upper()
+
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig
 
    def parseXcvrLeds( self ):
       returnList = []
@@ -970,7 +1027,7 @@ class PSUUnit( PmUnitConfig ):
       )
 
       self.addI2cDeviceConfigs( [
-         I2cDeviceConfig( "0x58", "pmbus", "PSU_PMBUS", incomingBusIndex=0 )
+         PSUBus( "0x58", "pmbus", "PSU_PMBUS", incomingBusIndex=0 )
       ] )
 
 
