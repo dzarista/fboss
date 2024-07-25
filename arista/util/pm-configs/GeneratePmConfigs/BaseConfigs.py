@@ -45,31 +45,24 @@ def constructDevicePaths( device ):
 
 
 class PlatformConfig:
-   def __init__( self, platformName, rootPmUnitName="SCM", pmUnitConfigs=None, 
-                 i2cAdaptersFromCpu=None, kmodsSettings=None ):
+   def __init__( self, platformName, rootPmUnitName="SCM" ):
       self.platformName = platformName
       self.rootPmUnitName = rootPmUnitName
-      self.pmUnitConfigs = pmUnitConfigs or []
-      self.i2cAdaptersFromCpu = (
-         i2cAdaptersFromCpu 
-         or [ "SMBus I801 adapter at 1000" ]
-      )
-      self.kmodsSettings = (
-         kmodsSettings 
-         or {
-            "bspKmodsRpmName": "arista_bsp_kmods",
-            "bspKmodsRpmVersion": "0.7.2-1",
-            "bspKmodsToReload" : [
-               "scd-xcvr", 
-               "scd-spi",
-               "scd-leds",
-               "scd-smbus",
-               "dsf-fan-cpld"
-            ],
-            "sharedKmodsToReload": [ "scd" ],
-            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ] 
-         }
-      )
+      self.pmUnitConfigs = []
+      self.i2cAdaptersFromCpu = [ "SMBus I801 adapter at 1000" ]
+      self.kmodsSettings = {
+         "bspKmodsRpmName": "arista_bsp_kmods",
+         "bspKmodsRpmVersion": "0.7.2-1",
+         "bspKmodsToReload" : [
+            "scd-xcvr", 
+            "scd-spi",
+            "scd-leds",
+            "scd-smbus",
+            "dsf-fan-cpld"
+         ],
+         "sharedKmodsToReload": [ "scd" ],
+         "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ] 
+      }
 
    def getSlotTypeConfigsDict( self ):
       jsonDict = {}
@@ -122,20 +115,18 @@ class PlatformConfig:
 
 
 class SlotTypeConfig:
-   def __init__( self, pmUnitName, numOutgoingI2cBuses=0, 
-                 idPromConfigBusName=None, idPromConfigAddress=None,
-                 idpromConfigKernelDeviceName=None, idPromConfigOffset=None ):
+   def __init__( self, pmUnitName ):
       self.slotName = f"{ pmUnitName }_SLOT"
-      self.numOutgoingI2cBuses = numOutgoingI2cBuses
-      self.idPromConfigBusName = idPromConfigBusName
-      self.idPromConfigAddress = idPromConfigAddress
-      self.idPromConfigKernelDeviceName = idpromConfigKernelDeviceName
-      self.idPromConfigOffset = idPromConfigOffset
+      self.numOutgoingI2cBuses = 0
+      self.idPromConfigBusName = None
+      self.idPromConfigAddress = None
+      self.idPromConfigKernelDeviceName = None
+      self.idPromConfigOffset = None
       self.pmUnitName = pmUnitName
-      self.pmUnitConfig = None
+      self.parentConfig = None
 
-   def addPmUnitConfigPointer( self, pmUnitConfig ):
-      self.pmUnitConfig = pmUnitConfig
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig
 
    def asJson( self ):
       idpCfg = self.parseIdpromConfig()
@@ -169,28 +160,26 @@ class SlotTypeConfig:
 
 
 class PmUnitConfig:
-   def __init__( self, pmUnitName, slotTypeConfig=None, 
-                 i2cDeviceConfigs=None, outgoingSlotConfigs=None, 
-                 pciDeviceConfigs=None, embeddedSensorConfigs=None, 
-                 symlinkToDevicePaths=None ):
+   def __init__( self, pmUnitName ):
       self.pmUnitName = pmUnitName
-      self.slotTypeConfig = slotTypeConfig or SlotTypeConfig( self.pmUnitName )
-      self.i2cDeviceConfigs = i2cDeviceConfigs or []
-      self.outgoingSlotConfigs = outgoingSlotConfigs or []
-      self.pciDeviceConfigs = pciDeviceConfigs or []
-      self.embeddedSensorConfigs = embeddedSensorConfigs or []
-      self.symlinkToDevicePaths = symlinkToDevicePaths or {}
+      self.slotTypeConfig = SlotTypeConfig( self.pmUnitName )
+      self.i2cDeviceConfigs = []
+      self.outgoingSlotConfigs = []
+      self.pciDeviceConfigs = []
+      self.embeddedSensorConfigs = []
+      self.symlinkToDevicePaths = {}
       self.parentConfig = None
 
    def setSlotTypeConfig( self, numOutgoingI2cBuses=0, idPromConfigBusName=None, 
                           idPromConfigAddress=None, 
-                          idpromConfigKernelDeviceName=None,
+                          idPromConfigKernelDeviceName=None,
                           idPromConfigOffset=None ):
-      self.slotTypeConfig = SlotTypeConfig( self.pmUnitName, numOutgoingI2cBuses, 
-                                            idPromConfigBusName, idPromConfigAddress,
-                                            idpromConfigKernelDeviceName,
-                                            idPromConfigOffset )
-      self.slotTypeConfig.addPmUnitConfigPointer( self )
+      self.slotTypeConfig.numOutgoingI2cBuses = numOutgoingI2cBuses
+      self.slotTypeConfig.idPromConfigBusName = idPromConfigBusName
+      self.slotTypeConfig.idPromConfigAddress = idPromConfigAddress
+      self.slotTypeConfig.idPromConfigKernelDeviceName = idPromConfigKernelDeviceName
+      self.slotTypeConfig.idPromConfigOffset = idPromConfigOffset
+      self.slotTypeConfig.addParentConfigPointer( self )
       
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -550,17 +539,16 @@ class SlotConfig:
 
 class PciDeviceConfig:
    def __init__( self, pmUnitScopedName, vendorId, deviceId, subSystemVendorId,
-                 subSystemDeviceId, i2cAdapterConfigs=None, spiMasterConfigs=None, 
-                 ledCtrlConfigs=None, xcvrCtrlConfigs=None ):
+                 subSystemDeviceId ):
       self.pmUnitScopedName = pmUnitScopedName
       self.vendorId = vendorId
       self.deviceId = deviceId
       self.subSystemVendorId = subSystemVendorId
       self.subSystemDeviceId = subSystemDeviceId
-      self.i2cAdapterConfigs = i2cAdapterConfigs or []
-      self.spiMasterConfigs = spiMasterConfigs or []
-      self.ledCtrlConfigs = ledCtrlConfigs or []
-      self.xcvrCtrlConfigs = xcvrCtrlConfigs or []
+      self.i2cAdapterConfigs = []
+      self.spiMasterConfigs = []
+      self.ledCtrlConfigs = []
+      self.xcvrCtrlConfigs = []
       self.parentConfig = None
 
    def addParentConfigPointer( self, parentConfig ):
@@ -571,7 +559,7 @@ class PciDeviceConfig:
       numFormatSpecifiers = adapterBaseName.count( '{}' )
       for i in range( numAdapters ):
          if numFormatSpecifiers == 2:
-            deviceNum = self.pmUnitScopedName[ -1 ]
+            deviceNum = re.search( r'(\d+)', self.pmUnitScopedName ).group( 1 )
             adapterName = adapterBaseName.format( deviceNum, i )
          elif numFormatSpecifiers == 1:
             adapterName = adapterBaseName.format( i )
@@ -758,7 +746,7 @@ class SpiMasterConfig:
       pmUnitScopedName = self.pmUnitScopedName
       deviceName = self.deviceName
       iobufOffset = str( self.iobufOffset ).lower()
-      csrOffset = str( self.csrOffset ).lower()
+      csrOffset = self.csrOffset
       spiDeviceConfigs = self.spiDeviceConfigs
 
       assert pmUnitScopedName and deviceName and csrOffset is not None, (
@@ -771,7 +759,7 @@ class SpiMasterConfig:
             "deviceName": deviceName,
             **({ "iobufOffset": str( int( iobufOffset, 16 ) ) }
                if iobufOffset and iobufOffset != "-1" else {}),            
-            "csrOffset": csrOffset
+            "csrOffset": str( csrOffset ).lower()
          },
          **({ "spiDeviceConfigs": [ config.dict for config in spiDeviceConfigs ] }
             if spiDeviceConfigs else {}),
@@ -881,16 +869,16 @@ class LedConfig:
       self.offset = offset
 
    def parseStatusLeds( self, identifier ):
-      name = self.ledName.upper()
-      offset = self.offset.lower()
+      name = self.ledName
+      offset = self.offset
 
       assert name and offset, "missing details in status leds"
       
       led = {
          "fpgaIpBlockConfig": {
-            "pmUnitScopedName": name,
+            "pmUnitScopedName": name.upper(),
             "deviceName": f"{ name[ :3 ].lower() }_led",
-            "csrOffset": offset
+            "csrOffset": offset.lower()
          },
          "portNumber": -1,
          "ledId": identifier

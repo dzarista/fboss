@@ -62,8 +62,29 @@ convention is different from all the other devices.
 `GpioChip`: Any device that is of the GpioChip type. Different symbolic link naming
 applies.
 
+`PSUBus`: Specific definition for any PSU bus. This is a special case since there can
+be multiple physical PSU buses connected to another PM unit, even though we would
+only have one such definition in the PSU PM unit config.
+
 `Sensor`: If a device does not fit any of the previous categories, it should most
 likely be classified as sensor, which will apply the more generic naming conventions.
+
+### Symbolic Link to Device Path Generation
+
+The device path of virtually any device (I2C, PCI, Embedded Sensor, Xcvr, etc.) 
+or I2C bus can be generated using the helper functions `constructDevicePaths` 
+and `constructBusPaths`, respectively. These functions return a list that generally
+only contains one item, unless a given device is found in multiple physical PM units
+across the platform (for example, `Whistler` has 4 PSU slots, so the function will
+return a list of 4 different device paths when passed the PSUBus device as a
+parameter).
+
+### Assumptions
+
+So far, the PM config generation tool assumes existence of platforms with
+a single SCM unit and SMB unit only. Although the device path generation functions
+would correctly return multiple paths if there were (for example) 2 SMB units, there
+is no precedent established for symbolic link naming conventions in such a case.
 
 ## How to generate
 

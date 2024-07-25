@@ -28,7 +28,7 @@ class WhistlerSCM( SCMUnit ):
       self.setSlotTypeConfig(
          idPromConfigBusName="SMBus I801 adapter at 1000",
          idPromConfigAddress="0x50",
-         idpromConfigKernelDeviceName="24c512",
+         idPromConfigKernelDeviceName="24c512",
          idPromConfigOffset=15360
       )
 
@@ -88,7 +88,7 @@ class WhistlerSMB( SMBUnit ):
          numOutgoingI2cBuses=4,
          idPromConfigBusName="INCOMING@0",
          idPromConfigAddress="0x52",
-         idpromConfigKernelDeviceName="24c512",
+         idPromConfigKernelDeviceName="24c512",
          idPromConfigOffset=15360
       )
 
