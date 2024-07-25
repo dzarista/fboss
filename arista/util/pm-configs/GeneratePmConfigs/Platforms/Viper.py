@@ -204,7 +204,7 @@ class Viper( PlatformConfig ):
       ] )
 
       for pmConfig in self.pmUnitConfigs:
-         pmConfig.populateSymlinkToDevicePaths( self.platformName )
+         pmConfig.populateSymlinkToDevicePaths()
 
 
 def main():
