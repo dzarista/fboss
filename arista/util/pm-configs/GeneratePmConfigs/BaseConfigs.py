@@ -209,15 +209,12 @@ class PmUnitConfig:
          **self.generateFpgaSymlinks(), 
          **self.generateI2cBusSymlinks(),
          **self.generateSMBIdPromSymlinks(),
-         **self.generateSensorSymlinks(),
+         **self.generateI2cDeviceSymlinks(),
          **self.generateEmbeddedSensorSymlinks(),
          **self.generateXcvrSymlinks(),
          **self.generateSpiDeviceSymlinks()
       }
       self.symlinkToDevicePaths.update( addedPaths )
-
-   def addSymlinkToDevicePaths( self, newPaths ):
-      self.symlinkToDevicePaths.update( newPaths )
 
    def generateI2cBusSymlinks( self ):
       symlinkDict = OrderedDict()
@@ -228,7 +225,7 @@ class PmUnitConfig:
          symlinkDict.update( bus.generateSymlinkDevicePath() )
       return symlinkDict
    
-   def generateSensorSymlinks( self ):
+   def generateI2cDeviceSymlinks( self ):
       symlinkDict = OrderedDict()
       for i2cConfig in self.i2cDeviceConfigs:
          symlinkDict.update( i2cConfig.generateSymlinkDevicePath() )
@@ -344,13 +341,10 @@ class EmbeddedSensorConfig:
       }
    
    def generateSymlinkDevicePath( self ):
-      pmUnitName = self.parentConfig.pmUnitName
-      symlinkDict = {
-         "SCM":
-            f"/run/devmap/sensors/CPU_{ self.pmUnitScopedName.split('_', 1)[ 1 ] }",
-         "SMB": f"/run/devmap/sensors/{ self.pmUnitScopedName }"
+      return { 
+         f"/run/devmap/sensors/{ self.pmUnitScopedName }": 
+         constructDevicePaths( self )[ 0 ]
       }
-      return { symlinkDict[ pmUnitName ]: constructDevicePaths( self )[ 0 ] }
    
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig  
@@ -452,22 +446,20 @@ class SMBCpld( I2cDeviceConfig ):
 
 class FANCpld( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
-      platform = self.parentConfig.parentConfig.platformName
       devicePath = constructDevicePaths( self )[ 0 ]
-      if platform == "meru800bia":
+      match = re.search( r'FAN(\d+)', devicePath )
+      if not match:
          return {
-            "/run/devmap/cplds/FAN_CPLD": devicePath,
-            "/run/devmap/sensors/FAN_CPLD": devicePath
+            f"/run/devmap/cplds/{ self.pmUnitScopedName }": devicePath,
+            f"/run/devmap/sensors/{ self.pmUnitScopedName }": devicePath
          }
-      if platform == "meru800bfa":
-         match = re.search( r'FAN(\d+)', devicePath )
+      else:
          return {
             f"/run/devmap/cplds/{ self.pmUnitScopedName }": 
                devicePath,
             f"/run/devmap/sensors/FAN_CPLD{ match.group( 1 ) }":
                devicePath
          }
-      return {}
 
 
 class SCMIdProm( I2cDeviceConfig ):
