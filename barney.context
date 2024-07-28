@@ -26,7 +26,7 @@
                "commit": "8e1fdea8316d840fd07e9d6e026048e53290948b"
             },
             "barney.ci/byob": {
-               "commit": "4738bd6d9e8d67b8e324973ff884461147954b40"
+               "commit": "5f0259338f45e7a3adfe988712f2a470b34791fa"
             },
             "github.com/goreleaser/nfpm": {
                "commit": "9af00e6421bae54bdb7a36f60055d0d66c07909d"
