@@ -39,11 +39,8 @@ class PlatformConfigTest( unittest.TestCase ):
       self.assertEqual( platform.rootPmUnitName, "SCM" )
       self.assertEqual( platform.getSlotTypeConfigsDict(), {} ) 
       self.assertEqual( platform.getPmUnitConfigsDict(), {} )
-      self.assertEqual( 
-         platform.i2cAdaptersFromCpu, 
-         [ "SMBus I801 adapter at 1000" ]
-      )
-      self.assertEqual( 
+      self.assertEqual( platform.i2cAdaptersFromCpu, [] )
+      self.assertEqual(
          platform.kmodsSettings[ "bspKmodsRpmName" ],
          "arista_bsp_kmods"
       )
@@ -51,18 +48,9 @@ class PlatformConfigTest( unittest.TestCase ):
          str( platform.kmodsSettings[ "bspKmodsRpmVersion" ] ), 
          "0.7.2-1"
       )
-      self.assertEqual(
-         platform.kmodsSettings[ "bspKmodsToReload" ],
-         [ "scd-xcvr", "scd-spi", "scd-leds", "scd-smbus", "dsf-fan-cpld" ]
-      )
-      self.assertEqual(
-         platform.kmodsSettings[ "sharedKmodsToReload" ],
-         [ "scd" ]
-      )
-      self.assertEqual(
-         platform.kmodsSettings[ "upstreamKmodsToLoad" ],
-         [ "spidev", "i2c-i801" ] 
-      )
+      self.assertEqual( platform.kmodsSettings[ "bspKmodsToReload" ], [] )
+      self.assertEqual( platform.kmodsSettings[ "sharedKmodsToReload" ], [] )
+      self.assertEqual( platform.kmodsSettings[ "upstreamKmodsToLoad" ], [] )
 
    def testAddPmUnitConfig( self ):
       platform = PlatformConfig( "test_platform" )
@@ -355,12 +343,14 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       scmUnit.pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
          1, "SCM_I2C_MASTER{}", "0x8000" 
       )
-      scmUnit.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ].addDevicesOnAdapters(
-         {
-            3 : [ scmUnit.i2cDeviceConfigs[ 0 ] ],
-            4 : [ scmUnit.i2cDeviceConfigs[ 1 ] ],
-            5 : [ scmUnit.i2cDeviceConfigs[ 2 ] ]
-         }
+      scmUnit.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ].buses[ 3 ].addI2cDevices(
+         [ scmUnit.i2cDeviceConfigs[ 0 ] ]
+      )
+      scmUnit.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ].buses[ 4 ].addI2cDevices(
+         [ scmUnit.i2cDeviceConfigs[ 1 ] ]
+      )
+      scmUnit.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ].buses[ 5 ].addI2cDevices(
+         [ scmUnit.i2cDeviceConfigs[ 2 ] ]
       )
       scmUnit.addOutgoingSlotConfigs( [
          SlotConfig( slotName="SMB_SLOT@7" )
@@ -778,7 +768,7 @@ class XcvrConfigTest( unittest.TestCase ):
       self.platform = PlatformConfig( "test_platform" )
       self.platform.addPmUnitConfigs( [
          PmUnitConfig( "SCM" ),
-         PmUnitConfig( "SMB")
+         PmUnitConfig( "SMB" )
       ] )
 
    def testXcvrConfigViper( self ):
@@ -796,8 +786,7 @@ class XcvrConfigTest( unittest.TestCase ):
          basePortNumber=1,
          portType="test",
          xcvrBaseOffset="0x0000", 
-         led1BaseOffset="0x1000", 
-         led2BaseOffset="0x1010"
+         ledBaseOffset="0x1000"
       )
       self.platform.pmUnitConfigs[ 0 ].addOutgoingSlotConfigs( [
          SlotConfig( slotName="SMB_SLOT@5" )
@@ -847,10 +836,10 @@ class XcvrConfigTest( unittest.TestCase ):
                                      "0x0003")
       ] )
       self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs( 
-         numConfigs=16, basePortNumber=1, whistler=True
+         numConfigs=16, basePortNumber=1, portNumberSkipStep=4
       )
       self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 1 ].addXcvrCtrlConfigs( 
-         numConfigs=16, basePortNumber=5, whistler=True
+         numConfigs=16, basePortNumber=5, portNumberSkipStep=4
       )
       pmUnitDict = self.platform.getPmUnitConfigsDict()
       testUnitConfig = pmUnitDict[ "SMB" ]

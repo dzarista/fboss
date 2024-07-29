@@ -49,19 +49,13 @@ class PlatformConfig:
       self.platformName = platformName
       self.rootPmUnitName = rootPmUnitName
       self.pmUnitConfigs = []
-      self.i2cAdaptersFromCpu = [ "SMBus I801 adapter at 1000" ]
+      self.i2cAdaptersFromCpu = []
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
          "bspKmodsRpmVersion": "0.7.2-1",
-         "bspKmodsToReload" : [
-            "scd-xcvr", 
-            "scd-spi",
-            "scd-leds",
-            "scd-smbus",
-            "dsf-fan-cpld"
-         ],
-         "sharedKmodsToReload": [ "scd" ],
-         "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ] 
+         "bspKmodsToReload": [],
+         "sharedKmodsToReload": [],
+         "upstreamKmodsToLoad": []
       }
 
    def getSlotTypeConfigsDict( self ):
@@ -91,6 +85,12 @@ class PlatformConfig:
          for symlink, devicePath in pmUnitDict.items():
             symlinkDict[ symlink ] = devicePath
       return symlinkDict
+   
+   def addI2cAdaptersFromCpu( self, newConfigs ):
+      self.i2cAdaptersFromCpu.extend( newConfigs )
+
+   def addKmodsSettings( self, newConfigDict ):
+      self.kmodsSettings.update( newConfigDict )
 
    def asJson( self ):
       jsonDict = OrderedDict()
@@ -104,9 +104,9 @@ class PlatformConfig:
       )
       jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings[ "bspKmodsRpmName" ]
       jsonDict[ "bspKmodsRpmVersion" ] = self.kmodsSettings[ "bspKmodsRpmVersion" ]
-      jsonDict[ "bspKmodsToReload" ] = self.kmodsSettings[ "bspKmodsToReload" ]
-      jsonDict[ "sharedKmodsToReload" ] = self.kmodsSettings[ "sharedKmodsToReload" ]
-      jsonDict[ "upstreamKmodsToLoad" ] = self.kmodsSettings[ "upstreamKmodsToLoad" ]
+      jsonDict[ "bspKmodsToReload" ] = self.kmodsSettings[ "bspKmodsToReload" ] 
+      jsonDict[ "sharedKmodsToReload" ] = self.kmodsSettings[ "sharedKmodsToReload" ] 
+      jsonDict[ "upstreamKmodsToLoad" ] = self.kmodsSettings[ "upstreamKmodsToLoad" ] 
 
       jsonDump = json.dumps( jsonDict, indent=2 )
       output = reformatOneElementLists( jsonDump )
@@ -275,9 +275,8 @@ class PmUnitConfig:
       spiMasterConfigs = [ config for pciConfig in self.pciDeviceConfigs
                            for config in pciConfig.spiMasterConfigs ]
       for spiMasterConfig in spiMasterConfigs:
-         if spiMasterConfig.spiDeviceConfigs:
-            for config in spiMasterConfig.spiDeviceConfigs:
-               symlinkDict.update( config.generateSymlinkDevicePath() )
+         for config in spiMasterConfig.spiDeviceConfigs:
+            symlinkDict.update( config.generateSymlinkDevicePath() )
       return symlinkDict
    
    def asJson( self ):
@@ -298,16 +297,10 @@ class PmUnitConfig:
       }
    
    def getEmbeddedSensorConfigsList( self ):
-      lst = []
-      for config in self.embeddedSensorConfigs:
-         lst.append( config.asJson() )
-      return lst
+      return [ config.asJson() for config in self.embeddedSensorConfigs ]
    
    def getI2cDeviceConfigsList( self ):
-      lst = []
-      for config in self.i2cDeviceConfigs:
-         lst.append( config.asJson() )
-      return lst
+      return [ config.asJson() for config in self.i2cDeviceConfigs ]
    
    def getOutgoingSlotConfigsDict( self ):
       jsonDict = {}
@@ -317,10 +310,7 @@ class PmUnitConfig:
       return jsonDict
    
    def getPciDeviceConfigsList( self ):
-      lst = []
-      for config in self.pciDeviceConfigs:
-         lst.append( config.asJson() )
-      return lst
+      return [ config.asJson() for config in self.pciDeviceConfigs ]
    
 
 class EmbeddedSensorConfig:
@@ -429,7 +419,8 @@ class Sensor( I2cDeviceConfig ):
       pmUnitName = self.parentConfig.pmUnitName
       symlinkDict = {
          "SCM":
-            f"/run/devmap/sensors/CPU_{ self.pmUnitScopedName.split( '_', 1 )[ 1 ]}",
+            f"/run/devmap/sensors/CPU_"
+            f"{ self.pmUnitScopedName.split( '_', 1 )[ 1 ] }",
          "SMB": f"/run/devmap/sensors/{ self.pmUnitScopedName }"
       }
       return { symlinkDict[ pmUnitName ]: constructDevicePaths( self )[ 0 ] }
@@ -569,19 +560,11 @@ class PciDeviceConfig:
       self.spiMasterConfigs.extend( newConfigs )
 
    def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, portType="osfp", 
-                           xcvrBaseOffset="0xA010", led1BaseOffset="0x6100", 
-                           led2BaseOffset="0x6110", led3BaseOffset=None, 
-                           led4BaseOffset=None, whistler=False ):
-      if whistler:
-         newConfigs = enumerateXcvrConfigsWhistler( numConfigs, basePortNumber, 
-                                                    portType, xcvrBaseOffset, 
-                                                    led1BaseOffset, led2BaseOffset, 
-                                                    led3BaseOffset, led4BaseOffset )
-      else:
-         newConfigs = enumerateXcvrConfigsViper( numConfigs, basePortNumber, 
-                                                 portType, xcvrBaseOffset, 
-                                                 led1BaseOffset, led2BaseOffset, 
-                                                 led3BaseOffset, led4BaseOffset )
+                           xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
+                           ledsPerXcvr=2, portNumberSkipStep=1 ):
+      newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, portType, 
+                                         xcvrBaseOffset, ledBaseOffset, ledsPerXcvr,
+                                         portNumberSkipStep )
       for config in newConfigs:
          config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
@@ -609,34 +592,25 @@ class PciDeviceConfig:
       }
    
    def getI2cAdapterConfigsList( self ):
-      lst = []
-      for config in self.i2cAdapterConfigs:
-         lst.append( config.asJson() )
-      return lst
+      return [ config.asJson() for config in self.i2cAdapterConfigs ]
    
    def getSpiMasterConfigsList( self ):
-      lst = []
-      for config in self.spiMasterConfigs:
-         lst.append( config.asJson() )
-      return lst
+      return [ config.asJson() for config in self.spiMasterConfigs ]
    
    def getLedCtrlConfigsList( self ):
-      lst = []
+      configList = []
       for config in self.xcvrCtrlConfigs:
          portLeds = [ *config.parseXcvrLeds() ]
          for led in portLeds:
-            lst.append( led )
+            configList.append( led )
 
       for identifier, config in enumerate( self.ledCtrlConfigs ):
-         lst.append( config.parseStatusLeds( identifier+1 ) )
+         configList.append( config.parseStatusLeds( identifier+1 ) )
       
-      return lst
+      return configList
    
    def getXcvrConfigsList( self ):
-      lst = []
-      for config in self.xcvrCtrlConfigs:
-         lst.append( config.parseConfig() )
-      return lst
+      return [ config.parseConfig() for config in self.xcvrCtrlConfigs ]
 
    def generateSymlinkDevicePath( self ):
       platform = self.parentConfig.parentConfig.platformName
@@ -655,6 +629,8 @@ class I2cBus:
       self.devicesOnBus = devicesOnBus or []
 
    def addI2cDevices( self, i2cDevices ):
+      for device in i2cDevices:
+         device.addBusName( self.busName )
       self.devicesOnBus.extend( i2cDevices )
 
    def generateSymlinkDevicePath( self ):
@@ -713,13 +689,6 @@ class I2cAdapterConfig:
          "numberOfAdapters": numberOfAdapters
       }
    
-   def addDevicesOnAdapters( self, deviceDict ):
-      for adapterIndex in deviceDict:
-         busName = f"{ self.pmUnitScopedName }@{ adapterIndex }"
-         for device in deviceDict[ adapterIndex ]:
-            device.addBusName( busName )
-            self.buses[ adapterIndex ].addI2cDevices( deviceDict[ adapterIndex ] )
-
 
 class SpiMasterConfig:
    def __init__( self, pmUnitScopedName, deviceName, iobufOffset, 
@@ -728,10 +697,9 @@ class SpiMasterConfig:
       self.deviceName = deviceName
       self.iobufOffset = iobufOffset
       self.csrOffset = csrOffset
-      self.spiDeviceConfigs = spiDeviceConfigs
-      if self.spiDeviceConfigs:
-         for config in self.spiDeviceConfigs:
-            config.addParentConfigPointer( self )
+      self.spiDeviceConfigs = spiDeviceConfigs or []
+      for config in self.spiDeviceConfigs:
+         config.addParentConfigPointer( self )
       self.parentConfig = None
 
    def asJson( self ):
@@ -879,63 +847,31 @@ class LedConfig:
       return led
 
 
-def enumerateXcvrConfigsViper( numConfigs, basePortNumber, portType, 
-                               xcvrBaseOffset, led1BaseOffset, led2BaseOffset, 
-                               led3BaseOffset=None, led4BaseOffset=None ):
-   configs = []
-   for i in range( numConfigs ):
-      xcvrCtrlOffset = hex( int( xcvrBaseOffset, 16 ) + i * 0x10 )
-      led1Off = hex( int( led1BaseOffset, 16 ) + i * 0x20 )
-      led2Off = hex( int( led2BaseOffset, 16 ) + i * 0x20 )
-      led3Off = None
-      if led3BaseOffset:
-         led3Off = hex( int( led3BaseOffset, 16 ) + i * 0x20 )
-      led4Off = None
-      if led4BaseOffset:
-         led4Off = hex( int( led4BaseOffset, 16 ) + i * 0x20 )
-      configs.append( 
-         XcvrConfig(
-            portNumber=basePortNumber + i,
-            portType=portType,
-            xcvrCtrlOffset=xcvrCtrlOffset,
-            led1Offset=led1Off,
-            led2Offset=led2Off,
-            led3Offset=led3Off,
-            led4Offset=led4Off
-         )
-      )
-   return configs
-
-
-def enumerateXcvrConfigsWhistler( numConfigs, basePortNumber, portType, 
-                                  xcvrBaseOffset, led1BaseOffset, led2BaseOffset, 
-                                  led3BaseOffset=None, led4BaseOffset=None ):
+def enumerateXcvrConfigs( numConfigs, basePortNumber, portType, xcvrBaseOffset, 
+                          ledBaseOffset, ledsPerXcvr, portNumberSkipStep=1 ):
    configs = []
    currIndex = basePortNumber
+   currLedOffset = int( ledBaseOffset, 16 )
    for i in range( numConfigs ):
       xcvrCtrlOffset = hex( int( xcvrBaseOffset, 16 ) + i * 0x10 )
-      led1Off = hex( int( led1BaseOffset, 16 ) + i * 0x20 )
-      led2Off = hex( int( led2BaseOffset, 16 ) + i * 0x20 )
-      led3Off = None
-      if led3BaseOffset:
-         led3Off = hex( int( led3BaseOffset, 16 ) + i * 0x20 )
-      led4Off = None
-      if led4BaseOffset:
-         led4Off = hex( int( led4BaseOffset, 16 ) + i * 0x20 )
+      ledOffsets = [ hex( currLedOffset + i * 0x10 ) 
+                     for i in range( ledsPerXcvr ) ]
       configs.append( 
          XcvrConfig(
             portNumber=currIndex,
             portType=portType,
             xcvrCtrlOffset=xcvrCtrlOffset,
-            led1Offset=led1Off,
-            led2Offset=led2Off,
-            led3Offset=led3Off,
-            led4Offset=led4Off
+            led1Offset=ledOffsets[ 0 ],
+            led2Offset=ledOffsets[ 1 ],
+            led3Offset=ledOffsets[ 2 ] if ledsPerXcvr > 2 else None,
+            led4Offset=ledOffsets[ 3 ] if ledsPerXcvr > 3 else None
          )
       )
-      if currIndex % 4 == 0:
-         currIndex += 4
+      if portNumberSkipStep > 1:
+         if currIndex % portNumberSkipStep == 0:
+            currIndex += portNumberSkipStep
       currIndex += 1
+      currLedOffset += ledsPerXcvr * 0x10
    return configs
 
 
@@ -979,6 +915,64 @@ def enumeratePciDeviceConfigs( numConfigs, deviceBaseName, vendorId, deviceId,
 class SCMUnit( PmUnitConfig ):
    def __init__( self ):
       super().__init__( "SCM" )
+
+
+class SCMFairyWren( SCMUnit ):
+   def __init__( self ):
+      super().__init__()
+
+      self.setSlotTypeConfig(
+         idPromConfigBusName="SMBus I801 adapter at 1000",
+         idPromConfigAddress="0x50",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=15360
+      )
+
+      scmMpsDev = Sensor( "0x40", "pmbus", "SCM_MPS_PMBUS" )
+      scmIdprom = SCMIdProm( "0x50", "24c512", "SCM_IDPROM_P1", hasCpuMac=True )
+      scmPxm1310_1 = Sensor( "0x30", "pxm1310", "SCM_PXM1310_1" )
+      scmPxe1610 = Sensor( "0x3e", "pxe1610", "SCM_PXE1211" )
+      scmPxm1310_2 = Sensor( "0x40", "pxm1310", "SCM_PXM1310_2" )
+      self.addI2cDeviceConfigs( [
+         scmMpsDev,
+         scmIdprom,
+         scmPxm1310_1,
+         scmPxe1610,
+         scmPxm1310_2
+      ] )
+
+      scmFpga = PciDeviceConfig( "SCM_FPGA", "0x3475", "0x0001", "0x3475", "0x0008" )
+      self.addPciDeviceConfigs( [ scmFpga ] )
+
+      scmFpga.addI2cAdapterConfigs( 2, "SCM_I2C_MASTER{}", "0x8000" )
+
+      scmI2cMaster0 = scmFpga.i2cAdapterConfigs[ 0 ]
+      scmI2cMaster0.buses[ 0 ].addI2cDevices( [ scmMpsDev ] )
+      scmI2cMaster0.buses[ 1 ].addI2cDevices( [ scmIdprom ] )
+      scmI2cMaster0.buses[ 2 ].addI2cDevices( [
+         scmPxm1310_1,
+         scmPxe1610,
+         scmPxm1310_2
+      ] )
+
+      scmI2cMaster1 = scmFpga.i2cAdapterConfigs[ 1 ]
+      self.addOutgoingSlotConfigs( [
+         SlotConfig(
+            slotName="SMB_SLOT@0",
+            outgoingI2cBuses=[ 
+               scmI2cMaster1.buses[ 0 ],
+               scmI2cMaster1.buses[ 2 ],
+               scmI2cMaster1.buses[ 3 ]
+            ]
+         )
+      ] )
+
+      self.addEmbeddedSensorConfigs( [
+         EmbeddedSensorConfig( 
+            pmUnitScopedName="CPU_CORE_TEMP", 
+            sysfsPath="/sys/bus/platform/devices/coretemp.0" 
+         )
+      ] )
 
 
 class SMBUnit( PmUnitConfig ):

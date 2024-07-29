@@ -4,15 +4,13 @@
 from BaseConfigs import (
    enumerateFANSlotConfigs, 
    enumeratePciDeviceConfigs,
-   EmbeddedSensorConfig,
    FANCpld,
    FANUnit,
    Flash,
    LedConfig,
    PlatformConfig,
    PSUUnit,
-   SCMIdProm,
-   SCMUnit, 
+   SCMFairyWren,
    Sensor,
    SlotConfig, 
    SMBCpld,
@@ -21,61 +19,20 @@ from BaseConfigs import (
 )
 
 
-class WhistlerSCM( SCMUnit ):
+class WhistlerSCM( SCMFairyWren ):
    def __init__( self ):
       super().__init__()
 
-      self.setSlotTypeConfig(
-         idPromConfigBusName="SMBus I801 adapter at 1000",
-         idPromConfigAddress="0x50",
-         idPromConfigKernelDeviceName="24c512",
-         idPromConfigOffset=15360
-      )
-
-      self.addI2cDeviceConfigs( [
-         Sensor( "0x40", "pmbus", "SCM_MPS_PMBUS" ),
-         SCMIdProm( "0x50", "24c512", "SCM_IDPROM_P1", hasCpuMac=True ),
-         Sensor( "0x30", "pxm1310", "SCM_PXM1310_1" ),
-         Sensor( "0x3e", "pxe1610", "SCM_PXE1211" ),
-         Sensor( "0x40", "pxm1310", "SCM_PXM1310_2" )
-      ] )
-
-      self.addPciDeviceConfigs( [
-         *enumeratePciDeviceConfigs( 1, "SCM_FPGA", "0x3475", "0x0001", "0x3475", 
-                                     "0x0008" )
-      ] )
-
-      self.pciDeviceConfigs[ 0 ].addI2cAdapterConfigs( 2, "SCM_I2C_MASTER{}", 
-                                                       "0x8000" )
-      
-      self.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ].addDevicesOnAdapters(
-         {
-            0: [ self.i2cDeviceConfigs[ 0 ] ],
-            1: [ self.i2cDeviceConfigs[ 1 ] ],
-            2: [ 
-                  self.i2cDeviceConfigs[ 2 ], 
-                  self.i2cDeviceConfigs[ 3 ],
-                  self.i2cDeviceConfigs[ 4 ] 
-               ]
-         }
-      )
-
+      scmI2cMaster1 = self.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 1 ]
       self.addOutgoingSlotConfigs( [
          SlotConfig(
             slotName="SMB_SLOT@0",
             outgoingI2cBuses=[ 
-               self.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 1 ].buses[ 0 ],
-               self.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 1 ].buses[ 1 ],
-               self.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 1 ].buses[ 2 ],
-               self.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 1 ].buses[ 3 ]
+               scmI2cMaster1.buses[ 0 ],
+               scmI2cMaster1.buses[ 1 ],
+               scmI2cMaster1.buses[ 2 ],
+               scmI2cMaster1.buses[ 3 ]
             ]
-         )
-      ] )
-
-      self.addEmbeddedSensorConfigs( [
-         EmbeddedSensorConfig( 
-            pmUnitScopedName="CPU_CORE_TEMP", 
-            sysfsPath="/sys/bus/platform/devices/coretemp.0" 
          )
       ] )
 
@@ -129,6 +86,10 @@ class WhistlerSMB( SMBUnit ):
          *enumeratePciDeviceConfigs( 4, "SMB_FPGA{}", "0x3475", "0x0001", "0x3475", 
                                      "0x0004" )
       ] )
+      smbFpga0 = self.pciDeviceConfigs[ 0 ]
+      smbFpga1 = self.pciDeviceConfigs[ 1 ]
+      smbFpga2 = self.pciDeviceConfigs[ 2 ]
+      smbFpga3 = self.pciDeviceConfigs[ 3 ]
 
       for pciConfig in self.pciDeviceConfigs:
          pciConfig.addI2cAdapterConfigs( 5, "SMB_FPGA{}_I2C_MASTER{}", "0x8000" )
@@ -149,54 +110,52 @@ class WhistlerSMB( SMBUnit ):
             )
          ] )
 
-      self.pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs( 
-         numConfigs=32, basePortNumber=1, whistler=True
+      smbFpga0.addXcvrCtrlConfigs( 
+         numConfigs=32, basePortNumber=1, portNumberSkipStep=4
       )
-      self.pciDeviceConfigs[ 1 ].addXcvrCtrlConfigs( 
-         numConfigs=32, basePortNumber=5, whistler=True
+      smbFpga1.addXcvrCtrlConfigs( 
+         numConfigs=32, basePortNumber=5, portNumberSkipStep=4
       )
-      self.pciDeviceConfigs[ 2 ].addXcvrCtrlConfigs(
-         numConfigs=32, basePortNumber=65, whistler=True
+      smbFpga2.addXcvrCtrlConfigs(
+         numConfigs=32, basePortNumber=65, portNumberSkipStep=4
       )
-      self.pciDeviceConfigs[ 3 ].addXcvrCtrlConfigs(
-         numConfigs=32, basePortNumber=69, whistler=True
+      smbFpga3.addXcvrCtrlConfigs(
+         numConfigs=32, basePortNumber=69, portNumberSkipStep=4
       )
 
-      self.pciDeviceConfigs[ 2 ].addLedCtrlConfigs( [
+      smbFpga2.addLedCtrlConfigs( [
          LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
          LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
          LedConfig( ledName="PSU_STATUS_LED", offset="0x6070" ),
          LedConfig( ledName="SMB_STATUS_LED", offset="0x60a0" )
       ] )
 
+      smbFpga2Master4 = smbFpga2.i2cAdapterConfigs[ 4 ]
+      smbFpga3Master4 = smbFpga3.i2cAdapterConfigs[ 4 ]
       self.addOutgoingSlotConfigs( [
          SlotConfig(
             slotName="PSU_SLOT@0",
             presenceFileName="psu1_prsnt",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
-            outgoingI2cBuses=[ self.pciDeviceConfigs[ 3 ]
-                 .i2cAdapterConfigs[ 4 ].buses[ 0 ] ]
+            outgoingI2cBuses=[ smbFpga3Master4.buses[ 0 ] ]
          ),
          SlotConfig(
             slotName="PSU_SLOT@1",
             presenceFileName="psu2_prsnt",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
-            outgoingI2cBuses=[ self.pciDeviceConfigs[ 2 ]
-                 .i2cAdapterConfigs[ 4 ].buses[ 0 ] ]
+            outgoingI2cBuses=[ smbFpga2Master4.buses[ 0 ] ]
          ),
          SlotConfig(
             slotName="PSU_SLOT@2",
             presenceFileName="psu3_prsnt",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
-            outgoingI2cBuses=[ self.pciDeviceConfigs[ 3 ]
-                 .i2cAdapterConfigs[ 4 ].buses[ 1 ] ]
+            outgoingI2cBuses=[ smbFpga3Master4.buses[ 1 ] ]
          ),
          SlotConfig(
             slotName="PSU_SLOT@3",
             presenceFileName="psu4_prsnt",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
-            outgoingI2cBuses=[ self.pciDeviceConfigs[ 2 ]
-                 .i2cAdapterConfigs[ 4 ].buses[ 1 ] ]
+            outgoingI2cBuses=[ smbFpga2Master4.buses[ 1 ] ]
          ),
          *enumerateFANSlotConfigs( 12, "/SMB_SLOT@0/[FAN{}_CPLD]" )
       ] )
@@ -214,14 +173,22 @@ class Whistler( PlatformConfig ):
          FANUnit()
       ] )
 
-      self.kmodsSettings[ "bspKmodsToReload" ] = [
-         "scd-xcvr",
-         "scd-spi",
-         "scd-leds",
-         "scd-smbus",
-         "dsf-fan-cpld",
-         "decker-cpld"
-      ]
+      self.addI2cAdaptersFromCpu( [ "SMBus I801 adapter at 1000" ] )
+
+      self.addKmodsSettings(
+         {
+            "bspKmodsToReload" : [
+               "scd-xcvr",
+               "scd-spi",
+               "scd-leds",
+               "scd-smbus",
+               "dsf-fan-cpld",
+               "decker-cpld"
+            ],
+            "sharedKmodsToReload": [ "scd" ],
+            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ] 
+         }
+      )
 
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths()
