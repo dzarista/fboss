@@ -47,7 +47,11 @@ else
 fi
 
 if [ "$auto_merge_successful" = false ] ; then
+   # Check out a copy of upstream branch
    upstream_copy_branch_name="srv-fboss-arista-robot.upstream_copy_${date_string}"
+   if git ls-remote --exit-code --heads $repo_name $upstream_copy_branch_name; then
+      git push origin -d $upstream_copy_branch_name
+   fi
    git checkout -b $upstream_copy_branch_name upstream/main || exit 1
    git push origin $upstream_copy_branch_name
 
@@ -65,6 +69,6 @@ if [ "$auto_merge_successful" = false ] ; then
    echo "Details of the merge conflicts" >> $output_file
    echo "==============================" >> $output_file
    cat git_diff_output.txt >> $output_file
-   echo "Created the pull request $pr_link. Please see the attached file to analyze the merge conflicts." > $status_email_file
+   echo "Created the pull request $pr_link with some merge conflicts. Please see the attached file to analyze the merge conflicts." > $status_email_file
 fi
 
