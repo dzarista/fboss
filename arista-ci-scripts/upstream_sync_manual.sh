@@ -23,11 +23,13 @@ git remote add upstream git@github.com:facebook/fboss.git
 git fetch upstream
 
 # Check out a new branch which will be updated
-branch_name="srv-fboss-arista-robot.upstream_${date_string}"
+branch_name="srv-fboss-arista-robot.fetch_upstream_${date_string}"
 if git ls-remote --exit-code --heads $repo_name $branch_name; then
    git push origin -d $branch_name
 fi
 git checkout -b $branch_name origin/main || exit 1
+
+echo "aristanetworks/arista-fboss upstream sync: $date_string" > $email_subject_file
 
 # Merges upstream branch and its associated develpment history into main branch
 # --no-edit option is used to supress editing the auto-generated merge message
@@ -43,11 +45,16 @@ else
    git diff > git_diff_output.txt
    git merge --abort
 fi
-echo "aristanetworks/arista-fboss upstream sync: $date_string" > $email_subject_file
 
 if [ "$auto_merge_successful" = false ] ; then
-   pr_link=$(gh pr create --title "$pr_title" --body "$pr_description" --head upstream/main --base main --repo $repo_name | grep https)
-   echo "Created a pull request from the upstream branch. However some of the upstream changes were not pulled due to merge conflicts." > $output_file
+   upstream_copy_branch_name="srv-fboss-arista-robot.upstream_copy_${date_string}"
+   git checkout -b $upstream_copy_branch_name upstream/main || exit 1
+   git push origin $upstream_copy_branch_name
+
+   git checkout main || exit 1
+
+   pr_link=$(gh pr create --title "$pr_title" --body "$pr_description" --head $upstream_copy_branch_name --base main --repo $repo_name | grep https)
+   echo "Created a pull request from the upstream branch. However, some merge conflicts need to be resolved manually." > $output_file
    # Display any merge conficts which were not resolved
    echo "The following files had merge conflicts:" >> $output_file
    echo "========================================" >> $output_file
@@ -58,6 +65,6 @@ if [ "$auto_merge_successful" = false ] ; then
    echo "Details of the merge conflicts" >> $output_file
    echo "==============================" >> $output_file
    cat git_diff_output.txt >> $output_file
-   echo "Created the pull request $pr_link after excluding some upstream changes. Please see the attached file to analyze the excluded files." > $status_email_file
+   echo "Created the pull request $pr_link. Please see the attached file to analyze the merge conflicts." > $status_email_file
 fi
 
