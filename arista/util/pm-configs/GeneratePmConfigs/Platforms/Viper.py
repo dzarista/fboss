@@ -99,29 +99,29 @@ class ViperSMB( SMBUnit ):
          PciDeviceConfig( "SMB_FPGA", "0x3475", "0x0001", "0x3475", "0x0003" )
       ] )
 
-      for pciConfig in self.pciDeviceConfigs:
-         pciConfig.addI2cAdapterConfigs( 6, "SMB_I2C_MASTER{}", "0x8000" )
-         pciConfig.addSpiMasterConfigs( [
-            SpiMasterConfig( "SMB_SPI_MASTER0", "spi_master", -1, 
-                             "0x7900",
-                             spiDeviceConfigs=[ Flash(
-                                 pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
-                                 chipSelect=0,
-                                 modalias="spidev",
-                                 maxSpeedHz=25000000
-                             ) ] 
-                           )
-         ] )
-         pciConfig.addXcvrCtrlConfigs( numConfigs=38, basePortNumber=1 )
-         pciConfig.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39, 
-                                       portType="qsfp", xcvrBaseOffset="0xA290", 
-                                       ledBaseOffset="0x65C0", ledsPerXcvr=4 )
-         pciConfig.addLedCtrlConfigs( [
-            LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
-            LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
-            LedConfig( ledName="PSU_STATUS_LED", offset="0x6070" ),
-            LedConfig( ledName="SMB_STATUS_LED", offset="0x6090" )
-         ] )
+      smbFpga = self.pciDeviceConfigs[ 0 ]
+      smbFpga.addI2cAdapterConfigs( 6, "SMB_I2C_MASTER{}", "0x8000" )
+      smbFpga.addSpiMasterConfigs( [
+         SpiMasterConfig( "SMB_SPI_MASTER0", "spi_master", -1, 
+                           "0x7900",
+                           spiDeviceConfigs=[ Flash(
+                              pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
+                              chipSelect=0,
+                              modalias="spidev",
+                              maxSpeedHz=25000000
+                           ) ] 
+                        )
+      ] )
+      smbFpga.addXcvrCtrlConfigs( numConfigs=38, basePortNumber=1 )
+      smbFpga.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39, 
+                                    portType="qsfp", xcvrBaseOffset="0xA290", 
+                                    ledBaseOffset="0x65C0", ledsPerXcvr=4 )
+      smbFpga.addLedCtrlConfigs( [
+         LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
+         LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
+         LedConfig( ledName="PSU_STATUS_LED", offset="0x6070" ),
+         LedConfig( ledName="SMB_STATUS_LED", offset="0x6090" )
+      ] )
 
       smbI2cMaster0 = self.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ]
       smbI2cMaster0.buses[ 0 ].addI2cDevices( [ smbRaa, smbIsl, smbIslOptics ] )

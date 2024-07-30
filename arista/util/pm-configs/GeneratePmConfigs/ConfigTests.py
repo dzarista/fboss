@@ -655,7 +655,7 @@ class I2cAdapterConfigTest( unittest.TestCase ):
 
    def testSingleAdapterConfig( self ):
       self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
-         1, "SMB_I2C_MASTER", "0x8000"
+         1, "SMB_I2C_MASTER{}", "0x8000"
       )
       pmUnitDict = self.platform.getPmUnitConfigsDict()
       testUnitConfig = pmUnitDict[ "SMB" ]

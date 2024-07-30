@@ -544,10 +544,8 @@ class PciDeviceConfig:
          if numFormatSpecifiers == 2:
             deviceNum = re.search( r'(\d+)', self.pmUnitScopedName ).group( 1 )
             adapterName = adapterBaseName.format( deviceNum, i )
-         elif numFormatSpecifiers == 1:
-            adapterName = adapterBaseName.format( i )
          else:
-            adapterName = adapterBaseName
+            adapterName = adapterBaseName.format( i )
          csrOffset = hex( int( baseCsrOffset, 16 ) + i * 0x80 )
          configs.append( 
             I2cAdapterConfig( self, adapterName, "i2c_master", -1, csrOffset, 8 )
