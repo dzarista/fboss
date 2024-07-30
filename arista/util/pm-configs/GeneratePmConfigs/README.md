@@ -468,6 +468,7 @@ class EagleSMB( SMBUnit ):
             )
         ] )
 
+
 class Eagle( PlatformConfig ):
     def __init__( self ):
         super().__init__( "eagle" )
@@ -496,7 +497,7 @@ Note that in general, we use variable names to reference config objects rather t
 indexing through multiple lists to grab the object we need. This makes the code less
 prone to errors in case configs need to be modified in the future. However, when adding
 objects that have no reference in further code, it is acceptable to omit creating
-a variale and to simply initialize the object within the corresponding adder method.
+a variable and to simply initialize the object within the corresponding adder method.
 
 ## How to generate
 
