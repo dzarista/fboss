@@ -828,7 +828,7 @@ class XcvrConfigTest( unittest.TestCase ):
          PmUnitConfig( "SMB" )
       ] )
 
-   def testXcvrConfigViper( self ):
+   def testXcvrConfigStandard( self ):
       self.platform.pmUnitConfigs[ 1 ].addPciDeviceConfigs( [
          PciDeviceConfig(
             pmUnitScopedName="SMB_FPGA",
@@ -887,7 +887,7 @@ class XcvrConfigTest( unittest.TestCase ):
       )
       self.assertFalse( "/run/devmap/xcvrs/xcvr_33" in symlinkDict )
 
-   def testXcvrConfigWhistler( self ):
+   def testXcvrConfigWithPortSkips( self ):
       self.platform.pmUnitConfigs[ 1 ].addPciDeviceConfigs( [
          *enumeratePciDeviceConfigs( 2, "SMB_FPGA{}", "0x3475", "0x0001", "0x3475", 
                                      "0x0003")
@@ -909,6 +909,54 @@ class XcvrConfigTest( unittest.TestCase ):
             len( testUnitConfig[ "pciDeviceConfigs" ][ i ][ "ledCtrlConfigs" ] ),
             32
          )
+
+   def testLedsPerXcvr( self ):
+      self.platform.pmUnitConfigs[ 1 ].addPciDeviceConfigs( [
+         PciDeviceConfig(
+            pmUnitScopedName="SMB_FPGA",
+            vendorId="0x3475",
+            deviceId="0x0001",
+            subSystemVendorId="0x3475",
+            subSystemDeviceId="0x0003"
+         )
+      ] )
+      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs( 
+         numConfigs=32, 
+         basePortNumber=1,
+         portType="test",
+         xcvrBaseOffset="0x0000", 
+         ledBaseOffset="0x1000",
+         ledsPerXcvr=4
+      )
+      pmUnitDict = self.platform.getPmUnitConfigsDict()
+      testUnitConfig = pmUnitDict[ "SMB" ]
+      testXcvrConfig = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "xcvrCtrlConfigs" ]
+      testLedConfig = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "ledCtrlConfigs" ]
+      self.assertEqual( len( testXcvrConfig ), 32 )
+      for i in range( 32 ):
+         self.assertEqual(
+            testXcvrConfig[ i ][ "fpgaIpBlockConfig" ][ "csrOffset" ], 
+            hex( 0x00 + i * 0x10 )
+         )
+         self.assertEqual( testXcvrConfig[ i ][ "portNumber" ], i+1 )
+      self.assertEqual( len( testLedConfig ), 128 )
+      self.assertEqual(
+         testLedConfig[ 0 ][ "fpgaIpBlockConfig" ][ "pmUnitScopedName" ],
+         "TEST_PORT1_LED1"
+      )
+      for i in range( 128 ):
+         self.assertEqual(
+            testLedConfig[ i ][ "fpgaIpBlockConfig" ][ "csrOffset" ],
+            hex( 0x1000 + i * 0x10 )
+         )
+         if i % 4 == 0:
+            self.assertEqual( testLedConfig[ i ][ "ledId" ], 1 )
+         elif i % 4 == 1:
+            self.assertEqual( testLedConfig[ i ][ "ledId" ], 2 )
+         elif i % 4 == 2:
+            self.assertEqual( testLedConfig[ i ][ "ledId" ], 3 )
+         else:
+            self.assertEqual( testLedConfig[ i ][ "ledId" ], 4 )
 
 
 class LedConfigTest( unittest.TestCase ):
