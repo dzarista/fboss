@@ -20,6 +20,7 @@ from BaseConfigs import (
    PSUBus,
    PSUUnit,
    PmUnitConfig,
+   SCMFairyWren,
    SCMIdProm,
    SCMUnit,
    Sensor,
@@ -61,6 +62,49 @@ class PlatformConfigTest( unittest.TestCase ):
       self.assertEqual( len( pmUnitDict ), 2 )
       self.assertTrue( "SCM" in pmUnitDict )
       self.assertTrue( "SMB" in pmUnitDict )
+
+   def testAddI2cAdaptersFromCpu( self ):
+      platform = PlatformConfig( "test_platform" )
+      platform.addI2cAdaptersFromCpu( [ "SMBus I801 adapter at 1000" ] )
+      self.assertEqual( 
+         platform.i2cAdaptersFromCpu,
+         [ "SMBus I801 adapter at 1000" ]
+      )
+
+   def testKmodsSettings( self ):
+      platform = PlatformConfig( "test_platform" )
+      platform.addKmodsSettings(
+         {
+            "bspKmodsToReload" : [
+               "scd-xcvr",
+               "scd-spi",
+               "scd-leds",
+               "scd-smbus",
+               "dsf-fan-cpld",
+               "decker-cpld"
+            ],
+            "sharedKmodsToReload": [ "scd" ],
+            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ] 
+         }
+      )
+      self.assertEqual( 
+         platform.kmodsSettings[ "bspKmodsToReload" ],
+         [
+            "scd-xcvr",
+            "scd-spi",
+            "scd-leds",
+            "scd-smbus",
+            "dsf-fan-cpld",
+            "decker-cpld"
+         ],
+      )
+      self.assertEqual(
+         platform.kmodsSettings[ "sharedKmodsToReload" ], [ "scd" ]
+      )
+      self.assertEqual(
+         platform.kmodsSettings[ "upstreamKmodsToLoad" ],
+         [ "spidev", "i2c-i801" ]
+      )
 
 
 class SlotTypeConfigTest( unittest.TestCase ):
@@ -219,6 +263,19 @@ class PmUnitConfigTest( unittest.TestCase ):
       self.assertTrue( "PSU" in pmUnitDict )
       self.assertTrue( "FAN" in pmUnitDict )
       self.assertEqual( len( pmUnitDict[ "PSU" ][ "i2cDeviceConfigs" ] ), 1 )
+
+   def testSCMFairyWren( self ):
+      platform = PlatformConfig( "test_platform" )
+      platform.addPmUnitConfigs( [
+         SCMFairyWren()
+      ] )
+      pmUnitDict = platform.getPmUnitConfigsDict()
+      self.assertTrue( "SCM" in pmUnitDict )
+      self.assertEqual( len( pmUnitDict[ "SCM" ][ "i2cDeviceConfigs" ] ), 5 )
+      self.assertEqual( len( pmUnitDict[ "SCM" ][ "pciDeviceConfigs" ] ), 1 )
+      self.assertEqual( len( pmUnitDict[ "SCM" ][ "outgoingSlotConfigs" ] ), 1 )
+      self.assertTrue( "SMB_SLOT@0" in pmUnitDict[ "SCM" ][ "outgoingSlotConfigs" ] )
+      self.assertEqual( len( pmUnitDict[ "SCM" ][ "embeddedSensorConfigs" ] ), 1 )
 
 
 class EmbeddedSensorConfigTest( unittest.TestCase ):
