@@ -74,15 +74,19 @@ that there are two different symbolic links defined for each FAN CPLD, unlike fo
 other device.
 - `SMBCpld`: Specific definition for any CPLD in the SMB unit. Different rules apply
 compared to FAN CPLD, only one symbolic link is defined.
-- `SCMIdProm`: Specific definition for IdProm in the SCM unit. Symbolic link naming
-convention is different from all the other devices.
+- `FairywrenIdProm`: Definition for IdProm specifically on the Fairywren CPU card. This
+is because of some irregular naming conventions, which should be standardized for future platforms.
+- `SCMIdProm`: Definition for IdProm in the SCM unit for all other platforms not
+utilizing the Fairywren CPU card.
 - `GpioChip`: Any device that is of the GpioChip type. Different symbolic link naming
 applies.
 - `PSUBus`: Specific definition for any PSU bus. This is a special case since there can
 be multiple physical PSU buses connected to another PM unit, even though we would
 only have one such definition in the PSU PM unit config.
+- `FairywrenSensor`: Should be used for all sensors within SCM units on platforms using
+the Fairywren CPU card. Once again, this is because of some irregular naming conventions.
 - `Sensor`: If a device does not fit any of the previous categories, it should most
-likely be classified as sensor, which will apply a more generic naming convention.
+likely be classified as normal sensor, which will apply a more generic naming convention.
 
 ### Pci Device Config
 
