@@ -2,36 +2,35 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from BaseConfigs import (
-   enumerateFANSlotConfigs, 
+   enumerateFANSlotConfigs,
    FANUnit,
    FANCpld,
-   Flash, 
+   Flash,
    GpioChip,
    InitRegSettings,
    LedConfig,
    PciDeviceConfig,
    PlatformConfig,
    PSUUnit,
-   SCMFairyWren,
+   SCMFairywren,
    Sensor,
-   SlotConfig, 
+   SlotConfig,
    SMBUnit,
    SpiMasterConfig
 )
 
 
-class ViperSCM( SCMFairyWren ):
+class ViperSCM( SCMFairywren ):
    def __init__( self ):
       super().__init__()
 
-      scmI2cMaster1 = self.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 1 ]
       self.addOutgoingSlotConfigs( [
          SlotConfig(
             slotName="SMB_SLOT@0",
-            outgoingI2cBuses=[ 
-               scmI2cMaster1.buses[ 0 ],
-               scmI2cMaster1.buses[ 2 ],
-               scmI2cMaster1.buses[ 3 ]
+            outgoingI2cBuses=[
+               self.scmI2cMaster1.buses[ 0 ],
+               self.scmI2cMaster1.buses[ 2 ],
+               self.scmI2cMaster1.buses[ 3 ]
             ]
          )
       ] )
@@ -53,17 +52,17 @@ class ViperSMB( SMBUnit ):
       Initial I2c register values are implicitly cast to 8-bit unsigned integer
       values when creating a device, but Python uses two's complement.
       -121 in 8-bit two's complement has the same binary representation as
-      135 in 8-bit unsigned. Register values represent temperature in Celsius and 
+      135 in 8-bit unsigned. Register values represent temperature in Celsius and
       are used to overwrite the default temperature settings.
       '''
       smbPca = GpioChip( "0x74", "pca9539", "SMB_PCA", incomingBusIndex=0 )
       smbTmp75Front = Sensor( "0x49", "tmp75", "SMB_TMP75_FRONT", incomingBusIndex=1,
                               initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
-      smbTmp75Back = Sensor( "0x4A", "tmp75", "SMB_TMP75_REAR", 
-                                incomingBusIndex=1,
-                                initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
+      smbTmp75Back = Sensor( "0x4A", "tmp75", "SMB_TMP75_REAR",
+                             incomingBusIndex=1,
+                             initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
       smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=1,
-                        initRegSettings=InitRegSettings( [
+                       initRegSettings=InitRegSettings( [
                            ( 32, 110 ),
                            ( 33, -121 ),
                            ( 34, -121 ),
@@ -81,9 +80,9 @@ class ViperSMB( SMBUnit ):
       smbIsl = Sensor( "0x54", "isl68226", "SMB_ISL68226_J3" )
       smbIslOptics = Sensor( "0x55", "isl68226", "SMB_ISL68226_OPTICS" )
       smbMgmtTemp = Sensor( "0x48", "tmp75", "SMB_MGMT_TMP75" )
-      
+
       self.addI2cDeviceConfigs( [
-         smbPca, 
+         smbPca,
          smbTmp75Front,
          smbTmp75Back,
          smbMax,
@@ -102,19 +101,19 @@ class ViperSMB( SMBUnit ):
       smbFpga = self.pciDeviceConfigs[ 0 ]
       smbFpga.addI2cAdapterConfigs( 6, "SMB_I2C_MASTER{}", "0x8000" )
       smbFpga.addSpiMasterConfigs( [
-         SpiMasterConfig( "SMB_SPI_MASTER0", "spi_master", -1, 
+         SpiMasterConfig( "SMB_SPI_MASTER0", "spi_master", -1,
                            "0x7900",
                            spiDeviceConfigs=[ Flash(
                               pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
                               chipSelect=0,
                               modalias="spidev",
                               maxSpeedHz=25000000
-                           ) ] 
+                           ) ]
                         )
       ] )
       smbFpga.addXcvrCtrlConfigs( numConfigs=38, basePortNumber=1 )
-      smbFpga.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39, 
-                                    portType="qsfp", xcvrBaseOffset="0xA290", 
+      smbFpga.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39,
+                                    portType="qsfp", xcvrBaseOffset="0xA290",
                                     ledBaseOffset="0x65C0", ledsPerXcvr=4 )
       smbFpga.addLedCtrlConfigs( [
          LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
@@ -145,7 +144,6 @@ class ViperSMB( SMBUnit ):
 
 
 class Viper( PlatformConfig ):
-
    def __init__( self ):
       super().__init__( "meru800bia" )
 
@@ -161,14 +159,14 @@ class Viper( PlatformConfig ):
       self.addKmodsSettings(
          {
             "bspKmodsToReload" : [
-               "scd-xcvr", 
+               "scd-xcvr",
                "scd-spi",
                "scd-leds",
                "scd-smbus",
                "dsf-fan-cpld"
             ],
             "sharedKmodsToReload": [ "scd" ],
-            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ] 
+            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ]
          }
       )
 

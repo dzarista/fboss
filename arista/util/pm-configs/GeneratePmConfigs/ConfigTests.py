@@ -8,6 +8,8 @@ from BaseConfigs import (
    EmbeddedSensorConfig,
    enumerateFANSlotConfigs,
    enumeratePciDeviceConfigs,
+   FairywrenIdProm,
+   FairywrenSensor,
    FANCpld,
    FANUnit,
    Flash,
@@ -20,7 +22,7 @@ from BaseConfigs import (
    PSUBus,
    PSUUnit,
    PmUnitConfig,
-   SCMFairyWren,
+   SCMFairywren,
    SCMIdProm,
    SCMUnit,
    Sensor,
@@ -33,12 +35,11 @@ from BaseConfigs import (
 
 
 class PlatformConfigTest( unittest.TestCase ):
-
    def testEmptyPlatform( self ):
       platform = PlatformConfig( "test_platform" )
       self.assertEqual( platform.platformName, "test_platform" )
       self.assertEqual( platform.rootPmUnitName, "SCM" )
-      self.assertEqual( platform.getSlotTypeConfigsDict(), {} ) 
+      self.assertEqual( platform.getSlotTypeConfigsDict(), {} )
       self.assertEqual( platform.getPmUnitConfigsDict(), {} )
       self.assertEqual( platform.i2cAdaptersFromCpu, [] )
       self.assertEqual(
@@ -46,7 +47,7 @@ class PlatformConfigTest( unittest.TestCase ):
          "arista_bsp_kmods"
       )
       self.assertEqual(
-         str( platform.kmodsSettings[ "bspKmodsRpmVersion" ] ), 
+         str( platform.kmodsSettings[ "bspKmodsRpmVersion" ] ),
          "0.7.2-1"
       )
       self.assertEqual( platform.kmodsSettings[ "bspKmodsToReload" ], [] )
@@ -66,7 +67,7 @@ class PlatformConfigTest( unittest.TestCase ):
    def testAddI2cAdaptersFromCpu( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addI2cAdaptersFromCpu( [ "SMBus I801 adapter at 1000" ] )
-      self.assertEqual( 
+      self.assertEqual(
          platform.i2cAdaptersFromCpu,
          [ "SMBus I801 adapter at 1000" ]
       )
@@ -84,10 +85,10 @@ class PlatformConfigTest( unittest.TestCase ):
                "decker-cpld"
             ],
             "sharedKmodsToReload": [ "scd" ],
-            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ] 
+            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ]
          }
       )
-      self.assertEqual( 
+      self.assertEqual(
          platform.kmodsSettings[ "bspKmodsToReload" ],
          [
             "scd-xcvr",
@@ -108,7 +109,6 @@ class PlatformConfigTest( unittest.TestCase ):
 
 
 class SlotTypeConfigTest( unittest.TestCase ):
-
    def testDefaultSlot( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [ PmUnitConfig( pmUnitName="SCM" ) ] )
@@ -132,17 +132,17 @@ class SlotTypeConfigTest( unittest.TestCase ):
       jsonDict = platform.getSlotTypeConfigsDict()
       self.assertTrue( "SMB_SLOT" in jsonDict )
       self.assertTrue( "idpromConfig" in jsonDict[ "SMB_SLOT" ] )
-      self.assertEqual( 
-         jsonDict[ "SMB_SLOT" ][ "idpromConfig" ][ "busName" ], 
-         "INCOMING@42" 
+      self.assertEqual(
+         jsonDict[ "SMB_SLOT" ][ "idpromConfig" ][ "busName" ],
+         "INCOMING@42"
       )
-      self.assertEqual( 
+      self.assertEqual(
          jsonDict[ "SMB_SLOT" ][ "idpromConfig" ][ "address" ],
          "0x52"
       )
-      self.assertEqual( 
-         jsonDict[ "SMB_SLOT" ][ "idpromConfig" ][ "kernelDeviceName" ], 
-         "24c512" 
+      self.assertEqual(
+         jsonDict[ "SMB_SLOT" ][ "idpromConfig" ][ "kernelDeviceName" ],
+         "24c512"
       )
       self.assertEqual( jsonDict[ "SMB_SLOT" ][ "idpromConfig" ][ "offset" ], 12000 )
 
@@ -160,7 +160,6 @@ class SlotTypeConfigTest( unittest.TestCase ):
 
 
 class PmUnitConfigTest( unittest.TestCase ):
-
    def testEmptyPmUnitConfig( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [ PmUnitConfig( "TEST_UNIT" ) ] )
@@ -205,7 +204,7 @@ class PmUnitConfigTest( unittest.TestCase ):
       self.assertTrue( "FAN_SLOT@1" in pmUnitDict[ "SMB" ][ "outgoingSlotConfigs" ] )
 
    def testAddPciDeviceConfigs( self ):
-      platform = PlatformConfig( "test_platform" ) 
+      platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [ PmUnitConfig( pmUnitName="SMB" ) ] )
       platform.pmUnitConfigs[ 0 ].addPciDeviceConfigs( [
          PciDeviceConfig( "SMB_FPGA13", "0x3475", "0x0001", "0x3475", "0x0003" ),
@@ -214,11 +213,11 @@ class PmUnitConfigTest( unittest.TestCase ):
       pmUnitDict = platform.getPmUnitConfigsDict()
       self.assertTrue( "pciDeviceConfigs" in pmUnitDict[ "SMB" ] )
       self.assertEqual( len( pmUnitDict[ "SMB" ][ "pciDeviceConfigs" ] ), 2 )
-      self.assertEqual( 
+      self.assertEqual(
          pmUnitDict[ "SMB" ][ "pciDeviceConfigs" ][ 0 ][ "pmUnitScopedName" ],
          "SMB_FPGA13"
       )
-      self.assertEqual( 
+      self.assertEqual(
          pmUnitDict[ "SMB" ][ "pciDeviceConfigs" ][ 1 ][ "pmUnitScopedName" ],
          "SMB_FPGA7"
       )
@@ -227,23 +226,23 @@ class PmUnitConfigTest( unittest.TestCase ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [ PmUnitConfig( pmUnitName="SCM" ) ] )
       platform.pmUnitConfigs[ 0 ].addEmbeddedSensorConfigs( [
-         EmbeddedSensorConfig( 
-            pmUnitScopedName="CPU_CORE_TEMP0", 
-            sysfsPath="/sys/bus/platform/devices/coretemp.0" 
+         EmbeddedSensorConfig(
+            pmUnitScopedName="CPU_CORE_TEMP0",
+            sysfsPath="/sys/bus/platform/devices/coretemp.0"
          ),
-         EmbeddedSensorConfig( 
-            pmUnitScopedName="CPU_CORE_TEMP1", 
-            sysfsPath="/sys/bus/platform/devices/coretemp.1" 
+         EmbeddedSensorConfig(
+            pmUnitScopedName="CPU_CORE_TEMP1",
+            sysfsPath="/sys/bus/platform/devices/coretemp.1"
          )
       ] )
       pmUnitDict = platform.getPmUnitConfigsDict()
       self.assertTrue( "embeddedSensorConfigs" in pmUnitDict[ "SCM" ] )
       self.assertEqual( len( pmUnitDict[ "SCM" ][ "embeddedSensorConfigs" ] ), 2 )
-      self.assertEqual( 
+      self.assertEqual(
          pmUnitDict[ "SCM" ][ "embeddedSensorConfigs" ][ 0 ][ "pmUnitScopedName" ],
          "CPU_CORE_TEMP0"
       )
-      self.assertEqual( 
+      self.assertEqual(
          pmUnitDict[ "SCM" ][ "embeddedSensorConfigs" ][ 1 ][ "pmUnitScopedName" ],
          "CPU_CORE_TEMP1"
       )
@@ -264,10 +263,10 @@ class PmUnitConfigTest( unittest.TestCase ):
       self.assertTrue( "FAN" in pmUnitDict )
       self.assertEqual( len( pmUnitDict[ "PSU" ][ "i2cDeviceConfigs" ] ), 1 )
 
-   def testSCMFairyWren( self ):
+   def testSCMFairywren( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [
-         SCMFairyWren()
+         SCMFairywren()
       ] )
       pmUnitDict = platform.getPmUnitConfigsDict()
       self.assertTrue( "SCM" in pmUnitDict )
@@ -279,7 +278,6 @@ class PmUnitConfigTest( unittest.TestCase ):
 
 
 class EmbeddedSensorConfigTest( unittest.TestCase ):
-
    def testIncompleteConfig( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [ PmUnitConfig( pmUnitName="SCM" ) ] )
@@ -308,10 +306,9 @@ class EmbeddedSensorConfigTest( unittest.TestCase ):
 
 
 class I2cDeviceConfigTest( unittest.TestCase ):
-
    def setUp( self ):
       self.platform = PlatformConfig( "test_platform" )
-      self.platform.addPmUnitConfigs( [ 
+      self.platform.addPmUnitConfigs( [
          PmUnitConfig( pmUnitName="SCM" ),
          PmUnitConfig( pmUnitName="SMB" ),
          PmUnitConfig( pmUnitName="PSU" )
@@ -342,7 +339,7 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       self.assertTrue(
          "isGpioChip" in pmUnitDict[ "SCM" ][ "i2cDeviceConfigs" ][ 0 ]
       )
-      self.assertTrue( 
+      self.assertTrue(
          pmUnitDict[ "SCM" ][ "i2cDeviceConfigs" ][ 0 ][ "isGpioChip" ]
       )
 
@@ -377,14 +374,18 @@ class I2cDeviceConfigTest( unittest.TestCase ):
          self.assertRegex( match, oneLiner )
 
    def testSymlinkToDevicePaths( self ):
+      # Note that on a real platform, FairywrenIdProm and SCMIdProm would not
+      # co-exist together. This is simply for symlink testing purposes.
       self.platform.pmUnitConfigs[ 0 ].addI2cDeviceConfigs( [
          GpioChip( "0x74", "pca9539", "SCM_PCA" ),
-         Sensor( "0x30", "pxm1310", "SCM_PXM1310_1" ),
-         SCMIdProm( "0x50", "24c512", "SCM_IDPROM_P2", hasCpuMac=True ),
+         FairywrenSensor( "0x30", "pxm1310", "SCM_PXM1310_1" ),
+         FairywrenIdProm( "0x50", "24c512", "SCM_IDPROM_P1", hasCpuMac=True ),
+         SCMIdProm( "0x60", "24c512", "EXTRA_TEST_EEPROM" ),
       ] )
-      # Note that on a real platform, FAN_CPLD and FAN0_CPLD would not co-exist
-      # together. This is simply for symlink testing purposes.
+      # Similarly, FAN_CPLD and FAN0_CPLD would also not be both defined on the same
+      # platform.
       self.platform.pmUnitConfigs[ 1 ].addI2cDeviceConfigs( [
+         Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=0 ),
          FANCpld( "0x60", "pali2_cpld", "FAN_CPLD", incomingBusIndex=2 ),
          FANCpld( "0x61", "oasis_cpld0", "FAN0_CPLD", incomingBusIndex=3 ),
          SMBCpld( "0x23", "decker_cpld", "SMB_CPLD", incomingBusIndex=0 )
@@ -394,11 +395,11 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       ] )
       scmUnit = self.platform.pmUnitConfigs[ 0 ]
       scmUnit.addPciDeviceConfigs( [
-         *enumeratePciDeviceConfigs( 1, "SCM_FPGA", "0x3475", "0x0001", "0x3475", 
+         *enumeratePciDeviceConfigs( 1, "SCM_FPGA", "0x3475", "0x0001", "0x3475",
                                      "0x0008" )
       ] )
       scmUnit.pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
-         1, "SCM_I2C_MASTER{}", "0x8000" 
+         1, "SCM_I2C_MASTER{}", "0x8000"
       )
       scmUnit.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ].buses[ 3 ].addI2cDevices(
          [ scmUnit.i2cDeviceConfigs[ 0 ] ]
@@ -407,12 +408,12 @@ class I2cDeviceConfigTest( unittest.TestCase ):
          [ scmUnit.i2cDeviceConfigs[ 1 ] ]
       )
       scmUnit.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ].buses[ 5 ].addI2cDevices(
-         [ scmUnit.i2cDeviceConfigs[ 2 ] ]
+         [ scmUnit.i2cDeviceConfigs[ 2 ], scmUnit.i2cDeviceConfigs[ 3 ] ]
       )
       scmUnit.addOutgoingSlotConfigs( [
          SlotConfig( slotName="SMB_SLOT@7" )
       ] )
-      self.platform.pmUnitConfigs[ 1 ].addOutgoingSlotConfigs( [ 
+      self.platform.pmUnitConfigs[ 1 ].addOutgoingSlotConfigs( [
          SlotConfig( slotName="PSU_SLOT@13" ),
          SlotConfig( slotName="PSU_SLOT@31" )
       ] )
@@ -423,15 +424,16 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       '''
       8 symlinks for i2c buses
       1 for SCM_FPGA
-      3 for SCM i2c devices
+      4 for SCM i2c devices
+      1 for SMB sensor
       4 symlinks for 2 FAN Cplds
       1 for SMB Cpld
       1 for SMB Idprom (generated automatically)
       2 for PSU buses
       '''
-      self.assertEqual( len( symlinkDict ), 20 )
+      self.assertEqual( len( symlinkDict ), 22 )
       self.assertTrue( "/run/devmap/gpiochips/SCM_PCA" in symlinkDict )
-      self.assertEqual( 
+      self.assertEqual(
          symlinkDict[ "/run/devmap/gpiochips/SCM_PCA" ], "/[SCM_PCA]"
       )
       self.assertTrue( "/run/devmap/sensors/CPU_PXM1310_1" in symlinkDict )
@@ -439,10 +441,20 @@ class I2cDeviceConfigTest( unittest.TestCase ):
          symlinkDict[ "/run/devmap/sensors/CPU_PXM1310_1" ],
          "/[SCM_PXM1310_1]"
       )
-      self.assertTrue( "/run/devmap/eeproms/MERU_SCM_EEPROM_P2" in symlinkDict )
+      self.assertTrue( "/run/devmap/eeproms/MERU_SCM_EEPROM_P1" in symlinkDict )
       self.assertEqual(
-         symlinkDict[ "/run/devmap/eeproms/MERU_SCM_EEPROM_P2" ],
-         "/[SCM_IDPROM_P2]"
+         symlinkDict[ "/run/devmap/eeproms/MERU_SCM_EEPROM_P1" ],
+         "/[SCM_IDPROM_P1]"
+      )
+      self.assertTrue( "/run/devmap/eeproms/EXTRA_TEST_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/EXTRA_TEST_EEPROM" ],
+         "/[EXTRA_TEST_EEPROM]"
+      )
+      self.assertTrue( "/run/devmap/sensors/SMB_MAX6581" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/sensors/SMB_MAX6581" ],
+         "/SMB_SLOT@7/[SMB_MAX6581]"
       )
       self.assertTrue( "/run/devmap/sensors/FAN_CPLD" in symlinkDict )
       self.assertTrue( "/run/devmap/cplds/FAN_CPLD" in symlinkDict )
@@ -482,7 +494,6 @@ class I2cDeviceConfigTest( unittest.TestCase ):
 
 
 class SlotConfigTest( unittest.TestCase ):
-
    def testNoExtraFields( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [ PmUnitConfig( pmUnitName="SMB" ) ] )
@@ -494,7 +505,7 @@ class SlotConfigTest( unittest.TestCase ):
          "FAN_SLOT@1" in pmUnitDict[ "SMB" ][ "outgoingSlotConfigs" ]
       )
       self.assertTrue(
-         "presenceDetection" 
+         "presenceDetection"
          not in pmUnitDict[ "SMB" ][ "outgoingSlotConfigs" ][ "FAN_SLOT@1" ]
       )
 
@@ -511,9 +522,9 @@ class SlotConfigTest( unittest.TestCase ):
          SlotConfig(
             slotName="PSU_SLOT@0",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA]",
-            outgoingI2cBuses=[ 
+            outgoingI2cBuses=[
                platform.pmUnitConfigs[ 0 ].pciDeviceConfigs[ 0 ]
-               .i2cAdapterConfigs[ 0 ].buses[ 5 ] 
+               .i2cAdapterConfigs[ 0 ].buses[ 5 ]
             ]
          )
       ] )
@@ -522,7 +533,7 @@ class SlotConfigTest( unittest.TestCase ):
          "PSU_SLOT@0" in pmUnitDict[ "SMB" ][ "outgoingSlotConfigs" ]
       )
       self.assertTrue(
-         "presenceDetection" 
+         "presenceDetection"
          not in pmUnitDict[ "SMB" ][ "outgoingSlotConfigs" ][ "PSU_SLOT@0" ]
       )
       self.assertEqual(
@@ -547,7 +558,7 @@ class SlotConfigTest( unittest.TestCase ):
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA]",
             outgoingI2cBuses=[
                platform.pmUnitConfigs[ 0 ].pciDeviceConfigs[ 0 ]
-               .i2cAdapterConfigs[ 1 ].buses[ 6 ] 
+               .i2cAdapterConfigs[ 1 ].buses[ 6 ]
             ]
          )
       ] )
@@ -556,7 +567,7 @@ class SlotConfigTest( unittest.TestCase ):
          "PSU_SLOT@0" in pmUnitDict[ "SMB" ][ "outgoingSlotConfigs" ]
       )
       self.assertTrue(
-         "presenceDetection" 
+         "presenceDetection"
          in pmUnitDict[ "SMB" ][ "outgoingSlotConfigs" ][ "PSU_SLOT@0" ]
       )
       self.assertEqual(
@@ -601,7 +612,6 @@ class SlotConfigTest( unittest.TestCase ):
 
 
 class PciDeviceConfigTest( unittest.TestCase ):
-
    def testEmptyPciDeviceConfig( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [
@@ -628,11 +638,10 @@ class PciDeviceConfigTest( unittest.TestCase ):
       self.assertEqual( testPciConfig[ "i2cAdapterConfigs" ], [] )
       self.assertEqual( testPciConfig[ "spiMasterConfigs" ], [] )
       self.assertEqual( testPciConfig[ "ledCtrlConfigs" ], [] )
-      self.assertEqual( testPciConfig[ "xcvrCtrlConfigs" ], [] ) 
+      self.assertEqual( testPciConfig[ "xcvrCtrlConfigs" ], [] )
 
 
 class I2cAdapterConfigTest( unittest.TestCase ):
-
    def setUp( self ):
       self.platform = PlatformConfig( "test_platform" )
       self.platform.addPmUnitConfigs( [
@@ -664,8 +673,8 @@ class I2cAdapterConfigTest( unittest.TestCase ):
 
    def testMultipleAdapterConfigs( self ):
       self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
-         numAdapters=20, 
-         adapterBaseName="SMB_FPGA{}_I2C_MASTER{}", 
+         numAdapters=20,
+         adapterBaseName="SMB_FPGA{}_I2C_MASTER{}",
          baseCsrOffset="0x4000"
       )
       pmUnitDict = self.platform.getPmUnitConfigsDict()
@@ -684,19 +693,19 @@ class I2cAdapterConfigTest( unittest.TestCase ):
 
    def testI2cBuses( self ):
       self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
-         numAdapters=12, 
-         adapterBaseName="SMB_FPGA{}_I2C_MASTER{}", 
+         numAdapters=12,
+         adapterBaseName="SMB_FPGA{}_I2C_MASTER{}",
          baseCsrOffset="0x4000"
       )
       self.platform.pmUnitConfigs[ 1 ].populateSymlinkToDevicePaths()
       symlinkDict = self.platform.parseSymbolicLinkToDevicePaths()
       self.assertEqual( len( symlinkDict.keys() ), 12 * 8 + 1 )
       self.assertTrue( "/run/devmap/fpgas/TEST_PLATFORM_SMB_FPGA13" in symlinkDict )
-      self.assertEqual( 
+      self.assertEqual(
          symlinkDict[ "/run/devmap/fpgas/TEST_PLATFORM_SMB_FPGA13" ],
          "/SMB_SLOT@21/[SMB_FPGA13]"
       )
-      self.assertTrue( 
+      self.assertTrue(
          "/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH7" in symlinkDict
       )
       self.assertEqual(
@@ -712,7 +721,6 @@ class I2cAdapterConfigTest( unittest.TestCase ):
 
 
 class SpiMasterConfigTest( unittest.TestCase ):
-
    def setUp( self ):
       self.platform = PlatformConfig( "test_platform" )
       self.platform.addPmUnitConfigs( [ PmUnitConfig( "SCM" ) ] )
@@ -735,7 +743,7 @@ class SpiMasterConfigTest( unittest.TestCase ):
       config = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "spiMasterConfigs" ][ 0 ]
       self.assertFalse( "spiDeviceConfigs" in config )
       self.assertFalse( "iobufOffset" in config[ "fpgaIpBlockConfig" ] )
-      self.assertEqual( 
+      self.assertEqual(
          config[ "fpgaIpBlockConfig" ][ "pmUnitScopedName" ],
          "SCM_SPI_MASTER0"
       )
@@ -743,14 +751,14 @@ class SpiMasterConfigTest( unittest.TestCase ):
    def testSpiDeviceConfig( self ):
       self.platform.pmUnitConfigs[ 0 ].pciDeviceConfigs[ 0 ].addSpiMasterConfigs( [
          SpiMasterConfig( "SCM_SPI_MASTER0", "spi_master", "0x80", "0x7900",
-                           spiDeviceConfigs=[ 
+                           spiDeviceConfigs=[
                               Flash(
                                  pmUnitScopedName="SMB_SPI_MASTER0_DEVICE42",
                                  chipSelect=0,
                                  modalias="spidev",
                                  maxSpeedHz=25000000
                               )
-                           ] 
+                           ]
                         )
       ] )
       pmUnitDict = self.platform.getPmUnitConfigsDict()
@@ -758,7 +766,7 @@ class SpiMasterConfigTest( unittest.TestCase ):
       config = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "spiMasterConfigs" ][ 0 ]
       self.assertTrue( "spiDeviceConfigs" in config )
       self.assertTrue( "iobufOffset" in config[ "fpgaIpBlockConfig" ] )
-      self.assertEqual( 
+      self.assertEqual(
          config[ "fpgaIpBlockConfig" ][ "iobufOffset" ], str( int( "0x80", 16 ) )
       )
       self.assertEqual( len( config[ "spiDeviceConfigs" ] ), 1 )
@@ -777,23 +785,23 @@ class SpiMasterConfigTest( unittest.TestCase ):
    def testSymlinkToDevicePath( self ):
       self.platform.pmUnitConfigs[ 0 ].pciDeviceConfigs[ 0 ].addSpiMasterConfigs( [
          SpiMasterConfig( "SCM_SPI_MASTER13", "spi_master", "0x80", "0x7900",
-                           spiDeviceConfigs=[ 
+                           spiDeviceConfigs=[
                               Flash(
                                  pmUnitScopedName="SMB_SPI_MASTER13_DEVICE42",
                                  chipSelect=0,
                                  modalias="spidev",
                                  maxSpeedHz=25000000
                               )
-                           ] 
+                           ]
                         )
       ] )
       self.platform.pmUnitConfigs[ 0 ].populateSymlinkToDevicePaths()
       symlinkDict = self.platform.parseSymbolicLinkToDevicePaths()
       self.assertEqual( len( symlinkDict ), 2 )
-      self.assertTrue( 
+      self.assertTrue(
          "/run/devmap/flashes/SMB_SPI_MASTER13_DEVICE42" in symlinkDict
       )
-      self.assertEqual( 
+      self.assertEqual(
          symlinkDict[ "/run/devmap/flashes/SMB_SPI_MASTER13_DEVICE42" ],
          "/[SMB_SPI_MASTER13_DEVICE42]"
       )
@@ -801,14 +809,14 @@ class SpiMasterConfigTest( unittest.TestCase ):
    def testDefaultSpiDeviceNoSymlink( self ):
       self.platform.pmUnitConfigs[ 0 ].pciDeviceConfigs[ 0 ].addSpiMasterConfigs( [
          SpiMasterConfig( "SCM_SPI_MASTER13", "spi_master", "0x80", "0x7900",
-                           spiDeviceConfigs=[ 
+                           spiDeviceConfigs=[
                               SpiDeviceConfig(
                                  pmUnitScopedName="SMB_SPI_MASTER13_DEVICE42",
                                  chipSelect=0,
                                  modalias="spidev",
                                  maxSpeedHz=25000000
                               )
-                           ] 
+                           ]
                         )
       ] )
       self.platform.pmUnitConfigs[ 0 ].populateSymlinkToDevicePaths()
@@ -820,7 +828,6 @@ class SpiMasterConfigTest( unittest.TestCase ):
 
 
 class XcvrConfigTest( unittest.TestCase ):
-
    def setUp( self ):
       self.platform = PlatformConfig( "test_platform" )
       self.platform.addPmUnitConfigs( [
@@ -838,11 +845,11 @@ class XcvrConfigTest( unittest.TestCase ):
             subSystemDeviceId="0x0003"
          )
       ] )
-      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs( 
-         numConfigs=32, 
+      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs(
+         numConfigs=32,
          basePortNumber=1,
          portType="test",
-         xcvrBaseOffset="0x0000", 
+         xcvrBaseOffset="0x0000",
          ledBaseOffset="0x1000"
       )
       self.platform.pmUnitConfigs[ 0 ].addOutgoingSlotConfigs( [
@@ -859,7 +866,7 @@ class XcvrConfigTest( unittest.TestCase ):
       )
       for i in range( 32 ):
          self.assertEqual(
-            testXcvrConfig[ i ][ "fpgaIpBlockConfig" ][ "csrOffset" ], 
+            testXcvrConfig[ i ][ "fpgaIpBlockConfig" ][ "csrOffset" ],
             hex( 0x00 + i * 0x10 )
          )
          self.assertEqual( testXcvrConfig[ i ][ "portNumber" ], i+1 )
@@ -889,13 +896,13 @@ class XcvrConfigTest( unittest.TestCase ):
 
    def testXcvrConfigWithPortSkips( self ):
       self.platform.pmUnitConfigs[ 1 ].addPciDeviceConfigs( [
-         *enumeratePciDeviceConfigs( 2, "SMB_FPGA{}", "0x3475", "0x0001", "0x3475", 
+         *enumeratePciDeviceConfigs( 2, "SMB_FPGA{}", "0x3475", "0x0001", "0x3475",
                                      "0x0003")
       ] )
-      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs( 
+      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs(
          numConfigs=16, basePortNumber=1, portNumberSkipStep=4
       )
-      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 1 ].addXcvrCtrlConfigs( 
+      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 1 ].addXcvrCtrlConfigs(
          numConfigs=16, basePortNumber=5, portNumberSkipStep=4
       )
       pmUnitDict = self.platform.getPmUnitConfigsDict()
@@ -920,11 +927,11 @@ class XcvrConfigTest( unittest.TestCase ):
             subSystemDeviceId="0x0003"
          )
       ] )
-      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs( 
-         numConfigs=32, 
+      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs(
+         numConfigs=32,
          basePortNumber=1,
          portType="test",
-         xcvrBaseOffset="0x0000", 
+         xcvrBaseOffset="0x0000",
          ledBaseOffset="0x1000",
          ledsPerXcvr=4
       )
@@ -935,7 +942,7 @@ class XcvrConfigTest( unittest.TestCase ):
       self.assertEqual( len( testXcvrConfig ), 32 )
       for i in range( 32 ):
          self.assertEqual(
-            testXcvrConfig[ i ][ "fpgaIpBlockConfig" ][ "csrOffset" ], 
+            testXcvrConfig[ i ][ "fpgaIpBlockConfig" ][ "csrOffset" ],
             hex( 0x00 + i * 0x10 )
          )
          self.assertEqual( testXcvrConfig[ i ][ "portNumber" ], i+1 )
@@ -960,7 +967,6 @@ class XcvrConfigTest( unittest.TestCase ):
 
 
 class LedConfigTest( unittest.TestCase ):
-
    def setUp( self ):
       self.platform = PlatformConfig( "test_platform" )
       self.platform.addPmUnitConfigs( [ PmUnitConfig( "SCM" ) ] )

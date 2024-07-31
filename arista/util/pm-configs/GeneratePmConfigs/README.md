@@ -4,9 +4,9 @@ Copyright (C) 2024 Arista Networks, Inc.
 
 ## Purpose
 
-This directory contains code for defining a Python-based hardware description of 
-a specific platform and automatically generating the contents of 
-`platform_manager.json` config files living [here](https://github.com/aristanetworks/arista-fboss/tree/main/fboss/platform/configs). 
+This directory contains code for defining a Python-based hardware description of
+a specific platform and automatically generating the contents of
+`platform_manager.json` config files living [here](https://github.com/aristanetworks/arista-fboss/tree/main/fboss/platform/configs).
 
 Structure of the PM config file is defined by Meta in the following [thrift file](https://github.com/aristanetworks/arista-fboss/blob/5fd2a0a0a4165937cb174a1ff5d5bb23c394d1cb/fboss/platform/platform_manager/platform_manager_config.thrift).
 
@@ -15,7 +15,7 @@ Structure of the PM config file is defined by Meta in the following [thrift file
 All Python objects necessary to build an internal representation of a platform are
 defined in `BaseConfigs.py`. In order to define hardware description for a platform
 not yet supported, create a new file Python file in `Platforms` directory with the
-platform name. 
+platform name.
 
 ## Overview of major building blocks
 
@@ -23,7 +23,7 @@ platform name.
 
 The `PlatformConfig` object represents the highest level of abstraction and provides
 full hardware description of a given platform. All platform-specific classes
-(e.g. `Viper` and `Whistler`) must inherit from `PlatformConfig`, because it also 
+(e.g. `Viper` and `Whistler`) must inherit from `PlatformConfig`, because it also
 pre-defines some features common to all platforms supported so far. If a new platform
 does not share these features, they have to be overwritten in the child class.
 
@@ -33,7 +33,7 @@ by calling the overloaded `.asJson()` method.
 
 ### PM Unit Config
 
-Vast majority of the config is PM unit focused. This provides higher dedgree of code
+Vast majority of the config is PM unit focused. This provides higher degree of code
 reusability in case multiple platforms share similar PM unit configurations;
 the overarching idea is that the PlatformConfig can be created by "glueing together"
 multiple standalone PM units (by using the `addPmUnitConfigs` function) with minimal
@@ -41,13 +41,13 @@ work required to specify how to connect these units.
 
 When defining a new platform, standard approach is to take existing base classes
 (`SCMUnit`, `SMBUnit`, `PSUUnit`, `FANUnit`) and define platform-specific PM unit
-config classes on top of them (e.g. `ViperSCM`). If a platform's does not have any
+config classes on top of them (e.g. `ViperSCM`). If a platform does not have any
 additional configurations, one can simply use the base class definition.
 
 Additionally, if multiple platforms share the same specifications of a single
 PM unit, that can also be defined in `BaseConfigs.py` to allow for more code
-reusability. For example, both `Viper` and `Whistler` platforms share the FairyWren
-CPU card, so we define a `SCMFairyWren` class that inherits from `SCMUnit`, and later
+reusability. For example, both `Viper` and `Whistler` platforms share the Fairywren
+CPU card, so we define a `SCMFairywren` class that inherits from `SCMUnit`, and later
 we only have to configure the specific outgoing slot configs in `ViperSCM` and
 `WhistlerSCM`.
 
@@ -58,15 +58,15 @@ The `busName` is a key attribute of this config, and there are generally two way
 defining it based on whether the source FPGA and the I2c device are within the same
 PM unit or not.
 - If the I2c device is within a different PM unit (e.g. SMB IdProm connected to the
-SCM FPGA), you must specify an optional argument `incomingBusIndex` in the config 
+SCM FPGA), you must specify an optional argument `incomingBusIndex` in the config
 initialization, which will then create the PM unit scoped bus name in the form
 `INCOMING@<incomingBusIndex>`.
 - If both devices are within the same PM unit, there is no need to specify this
-argument. Instead, the device should be mapped to a specific bus using the 
-`addI2cDevices` method of the `I2cBus` class. This will automatically infer the 
+argument. Instead, the device should be mapped to a specific bus using the
+`addI2cDevices` method of the `I2cBus` class. This will automatically infer the
 `busName` attribute from the bus object, since they are within the same scope.
 
-For the purpose of symbolic link to device path generation, we define some more 
+For the purpose of symbolic link to device path generation, we define some more
 specific device types on top of the base `I2cAdapterConfig` class:
 
 - `FANCpld`: Specific definition for any FAN CPLD. The reason for such a distinction is
@@ -86,7 +86,7 @@ likely be classified as sensor, which will apply a more generic naming conventio
 
 ### Pci Device Config
 
-`PciDeviceConfig` is used to define FPGAs on the platform. This class has a few 
+`PciDeviceConfig` is used to define FPGAs on the platform. This class has a few
 methods that are worth exploring in more detail:
 
 - `addI2cAdapterConfigs`: This method adds corresponding I2c adapter configs to the
@@ -94,18 +94,18 @@ FPGA. However, unlike some other adder methods, this one abstracts away the actu
 initialization of `I2cAdapterConfig` classes from the user. The user must simply
 specify the following:
     - `numAdapters`: How many adapters to create
-    - `adapterBaseName`: There are two different options here. 
-    1. If we're defining adapters for a PM unit with a single FPGA, (e.g. Viper 
-    SMB), the base name will contain one format specifier for the master index as so:
+    - `adapterBaseName`: There are two different options here.
+    1. If we're defining adapters for a PM unit with a single FPGA, (e.g. `Viper`
+    SMB unit), the base name will contain one format specifier for the master index as so:
     `SMB_I2C_MASTER{}`.
     2. If we have multiple FPGAs within a single PM unit
-    (e.g. Whistler SMB), we need to include two format specifiers for the FPGA index
+    (e.g. `Whistler` SMB unit), we need to include two format specifiers for the FPGA index
     as well as the master index, respectively: `SMB_FPGA{}_I2C_MASTER{}`.
     - `baseCsrOffset`: Base offset of the first adapter. Subsequent adapters are
     created with 0x80 spacing.
-- `addXcvrCtrlConfigs`: This method adds corresponding transceiver configs to the 
+- `addXcvrCtrlConfigs`: This method adds corresponding transceiver configs to the
 FPGA. Since there can be potentially hundreds of transceiver configs needed for one
-platform, the process of defining these is highly automated. The user needs to 
+platform, the process of defining these is highly automated. The user needs to
 specify the following:
     - `numConfigs`: How many configs to create
     - `basePortNumber`: Port number from which to start numbering configs
@@ -114,9 +114,9 @@ specify the following:
     created with 0x10 spacing.
     - `ledBaseOffset`: Each transceiver has up to 4 LEDs, created with 0x10 spacing.
     - `ledsPerXcvr`: How many LEDs should be created per transceiver. Default is 2,
-    which works for Viper and Whistler so far.
+    which works for `Viper` and `Whistler` so far.
     - `portNumberSkipStep`: Most tricky parameter to specify. For some systems like
-    Whistler, the port numbers controlled by a specific FPGA devices are not all
+    `Whistler`, the port numbers controlled by a specific FPGA devices are not all
     sequential but include certain jumps (e.g. `SMB_FPGA0` controls ports 1, 2, 3, 4,
     9, 10, 11, 12, 17, 18, 19, 20, etc). This parameter specifies how big the "jump"
     is, and consequently, how many port numbers in a row to create. Default is 1, which
@@ -135,11 +135,11 @@ therefore be mapped to specific `I2cBus` objects.
 
 ### Other config classes
 
-- `EmbeddedSensorConfig`: Config class for devices such as the core temperature 
+- `EmbeddedSensorConfig`: Config class for devices such as the core temperature
 sensor on the CPU.
 - `I2cBus`: Defines a specific bus of an I2c adapter. Supports the use of `addI2cDevices`
 method to map to I2c devices on the same PM unit.
-- `InitRegSettings`: Config class for initial register settings of an I2c device. Used 
+- `InitRegSettings`: Config class for initial register settings of an I2c device. Used
 for example to overwrite default max temperature values on several sensors.
 - `SlotConfig`: Config class for defining outgoing slot configs. In general, the largest
 number of outgoing slot configs is of type FAN. Hence, there is also a helper function
@@ -149,7 +149,7 @@ called `enumerateFANSlotConfigs` for defining these efficiently.
 every PM unit generally has just one type of slot type config associated with it.
 - `SpiMasterConfig`: Config class for Spi master associated with a specific FPGA.
 - `SpiDeviceConfig`: Config class for Spi device connected to a specific Spi master.
-For the purpose of symbolic link to device path generation, we also define a more 
+For the purpose of symbolic link to device path generation, we also define a more
 specific child class called `Flash`.
 - `XcvrConfig`: Config class for transceivers mapped to a spefific FPGA. Process of
 defining these configs is more closelly described above.
@@ -159,8 +159,8 @@ purpose status LEDs, which are defined by this class.
 ### Symbolic Link to Device Path Generation
 
 While symbolic link naming conventions have to be hardcoded to a certain extent, the
-device path of virtually any device (I2c, Pci, Embedded Sensor, Xcvr, etc.) 
-or I2c bus can be generated using the helper functions `constructDevicePaths` 
+device path of virtually any device (I2c, Pci, Embedded Sensor, Xcvr, etc.)
+or I2c bus can be generated using the helper functions `constructDevicePaths`
 and `constructBusPaths`, respectively. These functions return a list that generally
 only contains one item, unless a given device is found in multiple physical PM units
 across the platform (for example, `Whistler` has 4 PSU slots, so the function will
@@ -185,7 +185,7 @@ initialization we only specify the PM unit name but none of the other configs su
 associated `PciDeviceConfigs`). Instead, there is a dedicaded adder method for each
 of the child configs. This is a design choice, and has to do
 with the fact that the adder methods create pointers from the child configs back
-to its parent config, which are necessary during symbolic link to device path 
+to its parent config, which are necessary during symbolic link to device path
 generation.
 
 ## Testing suite
@@ -198,7 +198,7 @@ the future, if new features are added to the config generation tool, please also
 corresponding tests to make sure the test coverage stays up to date.
 
 After pip installing the `coverage` module, the test suite can be typically invoked
-using the command `coverage run -m ConfigTests`, and subsequently running 
+using the command `coverage run -m ConfigTests`, and subsequently running
 `coverage report -m` to display the coverage statistics. For more sophisticated use
 cases, please refer to the package documentation.
 
@@ -225,7 +225,7 @@ Specify the SCM slot type config, filling in information about the SCM IdProm.
             idPromConfigAddress="0x50",
             idPromConfigKernelDeviceName="24c512",
             idPromConfigOffset=15360
-        ) 
+        )
 ```
 Our SCM unit will have just one I2c device and that is the SCM IdProm. Add it to the
 list of i2cDeviceConfigs by using the `addI2cDevices` adder method.
@@ -242,7 +242,7 @@ Next, add an I2c adapter on our FPGA and connect the SCM IdProm device defined a
 to I2c bus `SCM_I2C_MASTER0@1`.
 ```python
         scmFpga.addI2cAdapterConfigs( 1, "SCM_I2C_MASTER{}", "0x8000" )
-        
+
         scmI2cMaster0 = scmFpga.i2cAdapterConfigs[ 0 ]
         scmI2cMaster0.buses[ 1 ].addI2cDevices( [ scmIdProm ] )
 ```
@@ -254,7 +254,7 @@ the I2c adapter config.
         self.addOutgoingSlotConfigs( [
             SlotConfig(
                 slotName="SMB_SLOT@0",
-                outgoingI2cBuses=[ 
+                outgoingI2cBuses=[
                     scmI2cMaster0.buses[ 3 ],
                     scmI2cMaster0.buses[ 4 ]
                 ]
@@ -290,7 +290,7 @@ generic type `Sensor`.
 Let's add two FPGAs to demonstrate how to use `enumeratePciDeviceConfigs`.
 ```python
         self.addPciDeviceConfigs( [
-            *enumeratePciDeviceConfigs( 2, "SMB_FPGA{}", "0x3475", "0x0001", 
+            *enumeratePciDeviceConfigs( 2, "SMB_FPGA{}", "0x3475", "0x0001",
                                         "0x3475", "0x0003" )
         ] )
         smbFpga0 = self.pciDeviceConfigs[ 0 ]
@@ -306,7 +306,7 @@ Now, let's add transceiver configs. Here, we assume that our platform uses the
 more sophisticated port number layout with jumps. Hence, we expect `SMB_FPGA0` to map
 to port numbers 1, 2, 3, 4, 9, 10, 11, 12, while `SMB_FPGA1` should map to 5, 6, 7, 8,
 13, 14, 15, 16. You can verify that by generating the PM config later.
-```python 
+```python
         smbFpga0.addXcvrCtrlConfigs( numConfigs=8, basePortNumber=1, portNumberSkipStep=4 )
         smbFpga1.addXcvrCtrlConfigs( numConfigs=8, basePortNumber=5, portNumberSkipStep=4 )
 ```
@@ -397,7 +397,7 @@ class EagleSCM( SCMUnit ):
             idPromConfigAddress="0x50",
             idPromConfigKernelDeviceName="24c512",
             idPromConfigOffset=15360
-        ) 
+        )
 
         scmIdProm = SCMIdProm( "0x50", "24c512", "SCM_IDPROM_P1", hasCpuMac=True )
         self.addI2cDeviceConfigs( [ scmIdProm ] )
@@ -406,14 +406,14 @@ class EagleSCM( SCMUnit ):
         self.addPciDeviceConfigs( [ scmFpga ] )
 
         scmFpga.addI2cAdapterConfigs( 1, "SCM_I2C_MASTER{}", "0x8000" )
-        
+
         scmI2cMaster0 = scmFpga.i2cAdapterConfigs[ 0 ]
         scmI2cMaster0.buses[ 1 ].addI2cDevices( [ scmIdProm ] )
 
         self.addOutgoingSlotConfigs( [
             SlotConfig(
                 slotName="SMB_SLOT@0",
-                outgoingI2cBuses=[ 
+                outgoingI2cBuses=[
                     scmI2cMaster0.buses[ 3 ],
                     scmI2cMaster0.buses[ 4 ]
                 ]
@@ -439,7 +439,7 @@ class EagleSMB( SMBUnit ):
         self.addI2cDeviceConfigs( [ smbPca, smbTmp75 ] )
 
         self.addPciDeviceConfigs( [
-            *enumeratePciDeviceConfigs( 2, "SMB_FPGA{}", "0x3475", "0x0001", 
+            *enumeratePciDeviceConfigs( 2, "SMB_FPGA{}", "0x3475", "0x0001",
                                         "0x3475", "0x0003" )
         ] )
         smbFpga0 = self.pciDeviceConfigs[ 0 ]
