@@ -14,7 +14,7 @@ tool_description = '''This script is intended to collect sensor data and verify
 the values are within the thresholds specified in sensor_configs
 
 For Example:
-python3 sensorCollect.py --interval 10 --time 36000 --sensors \
+python3 sensorCollect.py --interval 10 --duration 36000 --sensors \
 SCM_VRM1_VIN SCM_VRM1_VOUT_VCCIN SCM_VRM1_VOUT_1V8_CPU SCM_VRM1_TEMP1 \
 SCM_VRM1_TEMP2 SCM_VRM2_VIN SCM_VRM2_VOUT_1V2_VDDQ SCM_VRM2_VOUT_VNN_NAC \
 SCM_VRM2_VOUT_1V0_CPU SCM_VRM2_TEMP1 SCM_VRM2_TEMP2 SCM_VRM3_VIN \
@@ -34,7 +34,7 @@ class SensorCollect:
       return result.stdout
 
    def readMultiplePaths( self, paths ):
-      cmd = "cat " + " ".join( paths )
+      cmd = f"cat {' '.join( paths )}"
       output = self.runCmd( cmd )
       return output.splitlines()
 
@@ -94,7 +94,7 @@ def parseArgs( argv ):
          prog='sensorCollect', description=tool_description )
    parser.add_argument( '-i','--interval', type=int, default=10,
             required=True, help='Interval between data collected in milliseconds' )
-   parser.add_argument( '-t','--time', type=int, default=3600,
+   parser.add_argument( '-d','--duration', type=int, default=3600,
                        required=True, help='Duration of the test in seconds' )
    parser.add_argument( '-s', '--sensors', type=str, nargs='*', required=True,
                        help='List of sensors')
@@ -108,7 +108,7 @@ def main( argv ):
    current_time = datetime.datetime.now()
    timestamp = current_time.strftime('%Y%m%d_%H%M%S')
    interval = args.interval / 1000
-   iterations = int(args.time / interval)
+   iterations = int(args.duration / interval)
    filename = f'sensors_{timestamp}'
 
    with open( f'{filename}.csv', 'w', newline='' ) as csvfile:
@@ -116,13 +116,13 @@ def main( argv ):
       csvwriter = csv.DictWriter(csvfile, fieldnames=fieldnames)
       csvwriter.writeheader()
 
-      print( "starting sensor test..." )
+      print( "Collecting sensor data..." )
       for _ in range( iterations ):
          start_time = time.time()
          dataRaw = obj.getSensors( f"{filename}.log" )
          timestamp = datetime.datetime.now()
-         timestampStr = timestamp.strftime( '%Y-%m-%d_%H:%M:%S:' )\
-            + f"{timestamp.microsecond // 1000:03d}"
+         timestampStr = ( timestamp.strftime( '%Y-%m-%d_%H:%M:%S:' )
+            + f"{timestamp.microsecond // 1000:03d}" )
          row = { 'Timestamp': timestampStr }
          row.update( dataRaw )
          csvwriter.writerow( row )
