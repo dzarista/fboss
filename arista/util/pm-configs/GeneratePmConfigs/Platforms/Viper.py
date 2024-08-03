@@ -1,6 +1,7 @@
 # Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
+import sys
 from BaseConfigs import (
    enumerateFANSlotConfigs,
    FANUnit,
@@ -175,8 +176,17 @@ class Viper( PlatformConfig ):
 
 
 def main():
+   if len( sys.argv ) < 2:
+      print( f'Usage: { sys.argv[ 0 ] } <json type>' )
+      sys.exit( 1 )
+
+   assert sys.argv[ 1 ] == 'pm-config' or sys.argv[ 1 ] == 'sensor-service'
+
    platform = Viper()
-   print( platform.asJson() )
+   if sys.argv[ 1 ] == 'pm-config':
+      print( platform.asJson() )
+   elif sys.argv[ 1 ] == 'sensor-service':
+      print( platform.sensorServiceJson() )
 
 
 if __name__ == '__main__':

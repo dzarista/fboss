@@ -19,12 +19,12 @@ configs that match with the device's PM unit. By doing this recursively, it
 eventually reaches the root PM unit, building up the device path along the way. This
 functionality is utilized during symbolic link to device path generation.
 '''
-def constructHelper( currDevice, currPath, outputList ):
+def constructHelper( currDevice, currPath, outputSet ):
    while not isinstance( currDevice, PmUnitConfig ):
       currDevice = currDevice.parentConfig
    platformConfig = currDevice.parentConfig
    if currDevice.pmUnitName == platformConfig.rootPmUnitName:
-      outputList.append( currPath )
+      outputSet.add( currPath )
       return
    for pmUnit in platformConfig.pmUnitConfigs:
       for slotConfig in pmUnit.outgoingSlotConfigs:
@@ -32,22 +32,22 @@ def constructHelper( currDevice, currPath, outputList ):
             constructHelper(
                slotConfig,
                f"/{ slotConfig.slotName }{ currPath }",
-               outputList
+               outputSet
             )
 
 
 def constructBusPaths( bus ):
    startPath = f"/[{ bus.busName }]"
-   outputList = []
-   constructHelper( bus, startPath, outputList )
-   return outputList
+   outputSet = set()
+   constructHelper( bus, startPath, outputSet )
+   return outputSet
 
 
 def constructDevicePaths( device ):
    startPath = f"/[{ device.pmUnitScopedName }]"
-   outputList = []
-   constructHelper( device, startPath, outputList )
-   return outputList
+   outputSet = set()
+   constructHelper( device, startPath, outputSet )
+   return outputSet
 
 
 class PlatformConfig:
@@ -97,6 +97,13 @@ class PlatformConfig:
 
    def addKmodsSettings( self, newConfigDict ):
       self.kmodsSettings.update( newConfigDict )
+
+   def sensorServiceJson( self ):
+      jsonDict = OrderedDict()
+      for pmConfig in self.pmUnitConfigs:
+         jsonDict.update( pmConfig.getSensorServiceDict() )
+      sensorConfigDict = { 'sensorMapList': jsonDict }
+      return json.dumps( sensorConfigDict, indent=2 )
 
    def asJson( self ):
       jsonDict = OrderedDict()
@@ -249,7 +256,7 @@ class PmUnitConfig:
          for xcvrConfig in pciConfig.xcvrCtrlConfigs:
             portNumber = xcvrConfig.portNumber
             symlinkDict[ f"/run/devmap/xcvrs/xcvr_{ portNumber }" ] = (
-               constructDevicePaths( xcvrConfig )[ 0 ]
+               next( iter( constructDevicePaths( xcvrConfig ) ) )
             )
       symlinkDict = OrderedDict(
          sorted(
@@ -318,12 +325,25 @@ class PmUnitConfig:
    def getPciDeviceConfigsList( self ):
       return [ config.asJson() for config in self.pciDeviceConfigs ]
 
+   def getSensorServiceDict( self ):
+      sensorServiceDict = OrderedDict()
+      for i2cDevice in self.i2cDeviceConfigs:
+         configDict = i2cDevice.getSensorConfigsDict()
+         for pmUnit in configDict:
+            sensorServiceDict.setdefault( pmUnit, {} ).update( configDict[ pmUnit ] )
+      # for embeddedDevice in self.embeddedSensorConfigs:
+      #    configDict = embeddedDevice.getSensorConfigsDict()
+      #    for pmUnit in configDict:
+      #       sensorServiceDict.setdefault( pmUnit, [] ).update( configDict[ pmUnit ] )
+      return sensorServiceDict
+
 
 class EmbeddedSensorConfig:
    def __init__( self, pmUnitScopedName, sysfsPath ):
       self.pmUnitScopedName = pmUnitScopedName
       self.sysfsPath = sysfsPath
       self.parentConfig = None
+      self.sensorConfigs = []
 
    def asJson( self ):
       assert self.pmUnitScopedName and self.sysfsPath, (
@@ -338,11 +358,32 @@ class EmbeddedSensorConfig:
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/sensors/{ self.pmUnitScopedName }":
-         constructDevicePaths( self )[ 0 ]
+         next( iter( constructDevicePaths( self ) ) )
       }
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
+
+   def getSensorConfigsDict( self ):
+      sensorDict = OrderedDict()
+      devicePaths = constructDevicePaths( self )
+      pmUnitName = self.parentConfig.pmUnitName
+      if len( devicePaths ) == 1:
+         sensorDict[ pmUnitName ] = OrderedDict()
+         for config in self.sensorConfigs:
+            sensorDict[ pmUnitName ][ config.name ] = config.toDict()
+      else:
+         for i in range( len( devicePaths ) ):
+            pmUnit = f"{ pmUnitName }{ i+1 }"
+            sensorDict[ pmUnit ] = OrderedDict()
+            for config in self.sensorConfigs:
+               sensorDict[ pmUnit ][ config.name.format( i ) ] = config.toDict()
+      return sensorDict
+
+   def addSensorConfigs( self, newConfigs ):
+      for config in newConfigs:
+         config.addParentConfigPointer( self )
+      self.sensorConfigs.extend( newConfigs )
 
 
 class I2cDeviceConfig:
@@ -364,6 +405,7 @@ class I2cDeviceConfig:
       self.numOutgoingChannels = numOutgoingChannels
       self.initRegSettings = initRegSettings
       self.parentConfig = None
+      self.sensorConfigs = []
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -373,6 +415,29 @@ class I2cDeviceConfig:
 
    def generateSymlinkDevicePath( self ):
       return {}
+
+   def addSensorConfigs( self, newConfigs ):
+      for config in newConfigs:
+         config.addParentConfigPointer( self )
+      self.sensorConfigs.extend( newConfigs )
+
+   def getSensorConfigsDict( self ):
+      sensorDict = OrderedDict()
+      devicePaths = constructDevicePaths( self )
+      pmUnitName = self.parentConfig.pmUnitName
+      if len( devicePaths ) == 1:
+         sensorDict[ pmUnitName ] = OrderedDict()
+         for config in self.sensorConfigs:
+            sensorDict[ pmUnitName ][
+               f"{ pmUnitName }_{ config.name }" ] = config.toDict()
+      else:
+         for i in range( len( devicePaths ) ):
+            pmUnit = f"{ pmUnitName }{ i+1 }"
+            sensorDict[ pmUnit ] = OrderedDict()
+            for config in self.sensorConfigs:
+               sensorDict[ pmUnit ][
+                  f"{ pmUnitName }{ i }_{config.name}" ] = config.toDict()
+      return sensorDict
 
    def asJson( self ):
       busName = self.busName
@@ -416,7 +481,7 @@ class GpioChip( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/gpiochips/{ self.pmUnitScopedName }":
-            constructDevicePaths( self )[ 0 ]
+            next( iter( constructDevicePaths( self ) ) )
       }
 
 
@@ -424,7 +489,7 @@ class Sensor( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/sensors/{ self.pmUnitScopedName }":
-            constructDevicePaths( self )[ 0 ]
+            next( iter( constructDevicePaths( self ) ) )
       }
 
 
@@ -433,7 +498,7 @@ class FairywrenSensor( I2cDeviceConfig ):
       return {
          f"/run/devmap/sensors/CPU_"
          f"{ self.pmUnitScopedName.split( '_', 1 )[ 1 ] }":
-            constructDevicePaths( self )[ 0 ]
+            next( iter( constructDevicePaths( self ) ) )
       }
 
 
@@ -442,13 +507,13 @@ class SMBCpld( I2cDeviceConfig ):
       platform = self.parentConfig.parentConfig.platformName
       return {
          f"/run/devmap/cplds/{ platform.upper() }_SMB_CPLD":
-            constructDevicePaths( self )[ 0 ]
+            next( iter( constructDevicePaths( self ) ) )
       }
 
 
 class FANCpld( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
-      devicePath = constructDevicePaths( self )[ 0 ]
+      devicePath = next( iter( constructDevicePaths( self ) ) )
       match = re.search( r'FAN(\d+)', devicePath )
       if not match:
          return {
@@ -468,14 +533,15 @@ class SCMIdProm( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/eeproms/{ self.pmUnitScopedName }":
-            constructDevicePaths( self )[ 0 ]
+            next( iter( constructDevicePaths( self ) ) )
       }
 
 
 class FairywrenIdProm( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
-         f"/run/devmap/eeproms/MERU_SCM_EEPROM_P1": constructDevicePaths( self )[ 0 ]
+         f"/run/devmap/eeproms/MERU_SCM_EEPROM_P1":
+            next( iter( constructDevicePaths( self ) ) )
       }
 
 
@@ -635,7 +701,7 @@ class PciDeviceConfig:
       )
       return {
          f"/run/devmap/fpgas/{ self.symlinkDeviceName }":
-            constructDevicePaths( self )[ 0 ]
+            next( iter( constructDevicePaths( self ) ) )
       }
 
 
@@ -653,7 +719,7 @@ class I2cBus:
    def generateSymlinkDevicePath( self ):
       pciDevice = self.parentConfig.parentConfig
       pciDeviceName = pciDevice.symlinkDeviceName
-      busPath = constructBusPaths( self )[ 0 ]
+      busPath = next( iter( constructBusPaths( self ) ) )
       match = re.search( r'(\d+)@(\d+)', busPath )
       return {
          f"/run/devmap/i2c-busses/{ pciDeviceName }_SMBUS"
@@ -764,7 +830,7 @@ class Flash( SpiDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/flashes/{ self.pmUnitScopedName }":
-            constructDevicePaths( self )[ 0 ]
+            next( iter( constructDevicePaths( self ) ) )
       }
 
 
@@ -922,6 +988,75 @@ def enumeratePciDeviceConfigs( numConfigs, deviceBaseName, vendorId, deviceId,
    return configs
 
 
+class Thresholds:
+   '''Every sensor may define the following four thresholds:
+
+   upperCriticalVal: upper threshold for critical (strong) alarm
+   lowerCriticalVal: lower threshold for critical (strong) alarm
+   maxAlarmVal: upper threshold for conventional alarm
+   minAlarmVal: lower threshold for conventional alarm
+   '''
+
+   def __init__( self, upperCriticalVal=None, lowerCriticalVal=None,
+                 maxAlarmVal=None, minAlarmVal=None ):
+      self.upperCriticalVal = upperCriticalVal
+      self.lowerCriticalVal = lowerCriticalVal
+      self.maxAlarmVal = maxAlarmVal
+      self.minAlarmVal = minAlarmVal
+
+   def toDict( self ):
+      thresholdsDict = OrderedDict()
+      if self.upperCriticalVal is not None:
+         thresholdsDict[ 'upperCriticalVal' ] = float( self.upperCriticalVal )
+      if self.lowerCriticalVal is not None:
+         thresholdsDict[ 'lowerCriticalVal' ] = float( self.lowerCriticalVal )
+      if self.maxAlarmVal is not None:
+         thresholdsDict[ 'maxAlarmVal' ] = float( self.maxAlarmVal )
+      if self.minAlarmVal is not None:
+         thresholdsDict[ 'minAlarmVal' ] = float( self.minAlarmVal )
+      return thresholdsDict
+
+
+class SensorConfig:
+   '''A distinct sensor in the FRU, composed of:
+
+   name: sensor name
+   path: sysfs path that sensor_services uses to read value
+   thresholds: collection of sensor thresholds
+   compute: scale factor
+   sensorType: sensor type, one of:
+         0 = power in watts
+         1 = voltage in volts
+         2 = current in amps
+         3 = temperature in C
+         4 = fan speed in RPM
+   '''
+
+   def __init__( self, name, path, compute, sensorType, thresholds=None ):
+      assert name
+      assert path
+      assert sensorType in range( 0, 5 )
+      self.name = name
+      self.path = path
+      self.thresholds = thresholds
+      self.compute = compute
+      self.sensorType = sensorType
+      self.parentConfig = None
+
+   def toDict( self ):
+      sensorDict = OrderedDict()
+      sensorDict[ 'path' ] = self.path
+      if self.thresholds:
+         sensorDict[ 'thresholds' ] = self.thresholds.toDict()
+      if self.compute:
+         sensorDict[ 'compute' ] = self.compute
+      sensorDict[ 'type' ] = int( self.sensorType )
+      return sensorDict
+
+   def addParentConfigPointer( self, parentConfig ):
+      self.parentConfig = parentConfig
+
+
 class SCMUnit( PmUnitConfig ):
    def __init__( self ):
       super().__init__( "SCM" )
@@ -939,11 +1074,168 @@ class SCMFairywren( SCMUnit ):
       )
 
       scmMpsDev = FairywrenSensor( "0x40", "pmbus", "SCM_MPS_PMBUS" )
+      scmMpsDev.addSensorConfigs( [
+         SensorConfig( "ECB_VIN",
+                       "/run/devmap/sensors/CPU_MPS_PMBUS/in1_input",
+                       "@/32000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                       )
+         ),
+         SensorConfig( "ECB_OUT",
+                       "/run/devmap/sensors/CPU_MPS_PMBUS/in2_input",
+                       "@/32000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                       )
+         ),
+         SensorConfig( "ECB_IOUT",
+                       "/run/devmap/sensors/CPU_MPS_PMBUS/curr1_input",
+                       "@/1000.0",
+                       2
+         )
+      ] )
       scmIdprom = FairywrenIdProm( "0x50", "24c512", "SCM_IDPROM_P1",
                                    hasCpuMac=True )
       scmPxm1310_1 = FairywrenSensor( "0x30", "pxm1310", "SCM_PXM1310_1" )
+      scmPxm1310_1.addSensorConfigs( [
+         SensorConfig( "VRM1_VIN",
+                       "/run/devmap/sensors/CPU_PXM1310_1/in1_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                       )
+         ),
+         SensorConfig( "VRM1_VOUT_VCCIN",
+                       "/run/devmap/sensors/CPU_PXM1310_1/in3_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=2.16, lowerCriticalVal=1.44
+                       )
+         ),
+         SensorConfig( "VRM1_VOUT_1V8_CPU",
+                       "/run/devmap/sensors/CPU_PXM1310_1/in4_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=2.16, lowerCriticalVal=1.44
+                       )
+         ),
+         SensorConfig( "VRM1_TEMP1",
+                       "/run/devmap/sensors/CPU_PXM1310_1/temp1_input",
+                       "@/1000.0",
+                       3,
+                       thresholds=Thresholds(
+                           upperCriticalVal=110.0, maxAlarmVal=105.0
+                       )
+         ),
+         SensorConfig( "VRM1_TEMP2",
+                       "/run/devmap/sensors/CPU_PXM1310_1/temp2_input",
+                       "@/1000.0",
+                       3,
+                       thresholds=Thresholds(
+                           upperCriticalVal=110.0, maxAlarmVal=105.0
+                       )
+         )
+      ] )
       scmPxe1610 = FairywrenSensor( "0x3e", "pxe1610", "SCM_PXE1211" )
+      scmPxe1610.addSensorConfigs( [
+         SensorConfig( "VRM2_VIN",
+                       "/run/devmap/sensors/CPU_PXE1211/in1_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                       )
+         ),
+         SensorConfig( "VRM2_VOUT_1V2_VDDQ",
+                       "/run/devmap/sensors/CPU_PXE1211/in4_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=1.44, lowerCriticalVal=0.96
+                       )
+         ),
+         SensorConfig( "VRM2_VOUT_VNN_NAC",
+                       "/run/devmap/sensors/CPU_PXE1211/in5_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=1.44, lowerCriticalVal=0.48
+                       )
+         ),
+         SensorConfig( "VRM2_VOUT_1V0_CPU",
+                       "/run/devmap/sensors/CPU_PXE1211/in6_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=1.2, lowerCriticalVal=0.8
+                       )
+         ),
+         SensorConfig( "VRM2_TEMP1",
+                       "/run/devmap/sensors/CPU_PXE1211/temp1_input",
+                       "@/1000.0",
+                       3,
+                       thresholds=Thresholds(
+                           upperCriticalVal=110.0, maxAlarmVal=105.0
+                       )
+         ),
+         SensorConfig( "VRM2_TEMP2",
+                       "/run/devmap/sensors/CPU_PXE1211/temp2_input",
+                       "@/1000.0",
+                       3,
+                       thresholds=Thresholds(
+                          upperCriticalVal=110.0, maxAlarmVal=105.0
+                       )
+         ),
+      ] )
       scmPxm1310_2 = FairywrenSensor( "0x40", "pxm1310", "SCM_PXM1310_2" )
+      scmPxm1310_2.addSensorConfigs( [
+         SensorConfig( "VRM3_VIN",
+                       "/run/devmap/sensors/CPU_PXM1310_2/in1_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                       )
+         ),
+         SensorConfig( "VRM3_VOUT_1V05_CPU",
+                       "/run/devmap/sensors/CPU_PXM1310_2/in3_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=1.272, lowerCriticalVal=0.848
+                       )
+         ),
+         SensorConfig( "VRM3_VOUT_VNN_PCH",
+                       "/run/devmap/sensors/CPU_PXM1310_2/in4_input",
+                       "@/1000.0",
+                       1,
+                       thresholds=Thresholds(
+                           upperCriticalVal=1.44, lowerCriticalVal=0.48
+                       )
+         ),
+         SensorConfig( "VRM3_TEMP1",
+                       "/run/devmap/sensors/CPU_PXM1310_2/temp1_input",
+                       "@/1000.0",
+                       3,
+                       thresholds=Thresholds(
+                           upperCriticalVal=110.0, maxAlarmVal=105.0
+                       )
+         ),
+         SensorConfig( "VRM3_TEMP2",
+                       "/run/devmap/sensors/CPU_PXM1310_2/temp2_input",
+                       "@/1000.0",
+                       3,
+                       thresholds=Thresholds(
+                           upperCriticalVal=110.0, maxAlarmVal=105.0
+                       )
+         )
+      ] )
       self.addI2cDeviceConfigs( [
          scmMpsDev,
          scmIdprom,
