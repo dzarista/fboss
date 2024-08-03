@@ -19,12 +19,12 @@ configs that match with the device's PM unit. By doing this recursively, it
 eventually reaches the root PM unit, building up the device path along the way. This
 functionality is utilized during symbolic link to device path generation.
 '''
-def constructHelper( currDevice, currPath, outputSet ):
+def constructHelper( currDevice, currPath, outputList ):
    while not isinstance( currDevice, PmUnitConfig ):
       currDevice = currDevice.parentConfig
    platformConfig = currDevice.parentConfig
    if currDevice.pmUnitName == platformConfig.rootPmUnitName:
-      outputSet.add( currPath )
+      outputList.append( currPath )
       return
    for pmUnit in platformConfig.pmUnitConfigs:
       for slotConfig in pmUnit.outgoingSlotConfigs:
@@ -32,22 +32,22 @@ def constructHelper( currDevice, currPath, outputSet ):
             constructHelper(
                slotConfig,
                f"/{ slotConfig.slotName }{ currPath }",
-               outputSet
+               outputList
             )
 
 
 def constructBusPaths( bus ):
    startPath = f"/[{ bus.busName }]"
-   outputSet = set()
-   constructHelper( bus, startPath, outputSet )
-   return outputSet
+   outputList = []
+   constructHelper( bus, startPath, outputList )
+   return outputList
 
 
 def constructDevicePaths( device ):
    startPath = f"/[{ device.pmUnitScopedName }]"
-   outputSet = set()
-   constructHelper( device, startPath, outputSet )
-   return outputSet
+   outputList = []
+   constructHelper( device, startPath, outputList )
+   return outputList
 
 
 class PlatformConfig:
@@ -256,7 +256,7 @@ class PmUnitConfig:
          for xcvrConfig in pciConfig.xcvrCtrlConfigs:
             portNumber = xcvrConfig.portNumber
             symlinkDict[ f"/run/devmap/xcvrs/xcvr_{ portNumber }" ] = (
-               next( iter( constructDevicePaths( xcvrConfig ) ) )
+               constructDevicePaths( xcvrConfig )[ 0 ]
             )
       symlinkDict = OrderedDict(
          sorted(
@@ -358,7 +358,7 @@ class EmbeddedSensorConfig:
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/sensors/{ self.pmUnitScopedName }":
-         next( iter( constructDevicePaths( self ) ) )
+            constructDevicePaths( self )[ 0 ]
       }
 
    def addParentConfigPointer( self, parentConfig ):
@@ -481,7 +481,7 @@ class GpioChip( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/gpiochips/{ self.pmUnitScopedName }":
-            next( iter( constructDevicePaths( self ) ) )
+            constructDevicePaths( self )[ 0 ]
       }
 
 
@@ -489,7 +489,7 @@ class Sensor( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/sensors/{ self.pmUnitScopedName }":
-            next( iter( constructDevicePaths( self ) ) )
+            constructDevicePaths( self )[ 0 ]
       }
 
 
@@ -498,7 +498,7 @@ class FairywrenSensor( I2cDeviceConfig ):
       return {
          f"/run/devmap/sensors/CPU_"
          f"{ self.pmUnitScopedName.split( '_', 1 )[ 1 ] }":
-            next( iter( constructDevicePaths( self ) ) )
+            constructDevicePaths( self )[ 0 ]
       }
 
 
@@ -507,13 +507,13 @@ class SMBCpld( I2cDeviceConfig ):
       platform = self.parentConfig.parentConfig.platformName
       return {
          f"/run/devmap/cplds/{ platform.upper() }_SMB_CPLD":
-            next( iter( constructDevicePaths( self ) ) )
+            constructDevicePaths( self )[ 0 ]
       }
 
 
 class FANCpld( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
-      devicePath = next( iter( constructDevicePaths( self ) ) )
+      devicePath = constructDevicePaths( self )[ 0 ]
       match = re.search( r'FAN(\d+)', devicePath )
       if not match:
          return {
@@ -533,7 +533,7 @@ class SCMIdProm( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/eeproms/{ self.pmUnitScopedName }":
-            next( iter( constructDevicePaths( self ) ) )
+            constructDevicePaths( self )[ 0 ]
       }
 
 
@@ -541,7 +541,7 @@ class FairywrenIdProm( I2cDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/eeproms/MERU_SCM_EEPROM_P1":
-            next( iter( constructDevicePaths( self ) ) )
+            constructDevicePaths( self )[ 0 ]
       }
 
 
@@ -701,7 +701,7 @@ class PciDeviceConfig:
       )
       return {
          f"/run/devmap/fpgas/{ self.symlinkDeviceName }":
-            next( iter( constructDevicePaths( self ) ) )
+            constructDevicePaths( self )[ 0 ]
       }
 
 
@@ -719,7 +719,7 @@ class I2cBus:
    def generateSymlinkDevicePath( self ):
       pciDevice = self.parentConfig.parentConfig
       pciDeviceName = pciDevice.symlinkDeviceName
-      busPath = next( iter( constructBusPaths( self ) ) )
+      busPath = constructBusPaths( self )[ 0 ]
       match = re.search( r'(\d+)@(\d+)', busPath )
       return {
          f"/run/devmap/i2c-busses/{ pciDeviceName }_SMBUS"
@@ -830,7 +830,7 @@ class Flash( SpiDeviceConfig ):
    def generateSymlinkDevicePath( self ):
       return {
          f"/run/devmap/flashes/{ self.pmUnitScopedName }":
-            next( iter( constructDevicePaths( self ) ) )
+            constructDevicePaths( self )[ 0 ]
       }
 
 
@@ -1260,16 +1260,6 @@ class SCMFairywren( SCMUnit ):
       ] )
 
       self.scmI2cMaster1 = self.scmFpga.i2cAdapterConfigs[ 1 ]
-      self.addOutgoingSlotConfigs( [
-         SlotConfig(
-            slotName="SMB_SLOT@0",
-            outgoingI2cBuses=[
-               self.scmI2cMaster1.buses[ 0 ],
-               self.scmI2cMaster1.buses[ 2 ],
-               self.scmI2cMaster1.buses[ 3 ]
-            ]
-         )
-      ] )
 
       self.addEmbeddedSensorConfigs( [
          EmbeddedSensorConfig(
