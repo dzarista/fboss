@@ -323,7 +323,7 @@ class Viper( PlatformConfig ):
 
 def main():
    if len( sys.argv ) < 2:
-      print( f'Usage: { sys.argv[ 0 ] } <json type>' )
+      print( f'Usage: { sys.argv[ 0 ] } <config file type>' )
       sys.exit( 1 )
 
    assert sys.argv[ 1 ] == 'pm-config' or sys.argv[ 1 ] == 'sensor-service'
