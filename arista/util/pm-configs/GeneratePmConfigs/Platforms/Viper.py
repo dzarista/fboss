@@ -15,9 +15,11 @@ from BaseConfigs import (
    PSUUnit,
    SCMFairywren,
    Sensor,
+   SensorConfig,
    SlotConfig,
    SMBUnit,
-   SpiMasterConfig
+   SpiMasterConfig,
+   Thresholds
 )
 
 
@@ -57,11 +59,26 @@ class ViperSMB( SMBUnit ):
       are used to overwrite the default temperature settings.
       '''
       smbPca = GpioChip( "0x74", "pca9539", "SMB_PCA", incomingBusIndex=0 )
+
       smbTmp75Front = Sensor( "0x49", "tmp75", "SMB_TMP75_FRONT", incomingBusIndex=1,
                               initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
+      smbTmp75Front.addSensorConfigs( [
+         SensorConfig( "BOARD_FRONT_TEMP", "temp1_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=85.0, maxAlarmVal=80.0
+                       ) )
+      ] )
+
       smbTmp75Back = Sensor( "0x4A", "tmp75", "SMB_TMP75_REAR",
                              incomingBusIndex=1,
                              initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
+      smbTmp75Back.addSensorConfigs( [
+         SensorConfig( "BOARD_REAR_TEMP", "temp1_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=85.0, maxAlarmVal=80.0
+                       ) )
+      ] )
+
       smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=1,
                        initRegSettings=InitRegSettings( [
                            ( 32, 110 ),
@@ -74,13 +91,142 @@ class ViperSMB( SMBUnit ):
                            ( 39, -121 )
                         ] )
                      )
+      smbMax.addSensorConfigs( [
+         SensorConfig( "J3_BOARD_TEMP", "temp1_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=85.0
+                       ) ),
+         SensorConfig( "J3_DIODE_CORE_TEMP", "temp2_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                       ) ),
+         SensorConfig( "J3_DIODE_FAB0_TEMP", "temp3_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                       ) ),
+         SensorConfig( "J3_DIODE_FAB1_TEMP", "temp4_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                       ) ),
+         SensorConfig( "J3_DIODE_NIF0_TEMP", "temp5_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                       ) ),
+         SensorConfig( "J3_DIODE_NIF1_TEMP", "temp6_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                       ) ),
+         SensorConfig( "J3_DIODE_HBM0_TEMP", "temp7_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                       ) ),
+         SensorConfig( "J3_DIODE_HBM1_TEMP", "temp8_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                       ) )
+      ] )
+
       smbFanTmp = Sensor( "0x48", "tmp75", "FAN_TMP75", incomingBusIndex=2,
                           initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
+      smbFanTmp.addSensorConfigs( [
+         SensorConfig( "FAN_BOARD_TEMP", "temp1_input", 3, compute="@/1000.0",
+                       prependPmUnit=False,
+                       thresholds=Thresholds(
+                           upperCriticalVal=85.0, maxAlarmVal=80.0
+                       ) )
+      ] )
+
       smbFanCpld = FANCpld( "0x60", "pali2_cpld", "FAN_CPLD", incomingBusIndex=2 )
+      smbFanCpld.addSensorConfigs( [
+         SensorConfig( "RPM", "fan1_input", 4,
+                       thresholds=Thresholds(
+                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
+                       ) ),
+         SensorConfig( "RPM", "fan2_input", 4,
+                       thresholds=Thresholds(
+                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
+                       ) ),
+         SensorConfig( "RPM", "fan3_input", 4,
+                       thresholds=Thresholds(
+                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
+                       ) ),
+         SensorConfig( "RPM", "fan4_input", 4,
+                       thresholds=Thresholds(
+                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
+                       ) ),
+      ] )
+
       smbRaa = Sensor( "0x45", "raa228228", "SMB_RAA228926_J3" )
+      smbRaa.addSensorConfigs( [
+         SensorConfig( "VRM1_VIN", "in1_input", 1, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                       ) ),
+         SensorConfig( "VRM1_VOUT_J3_0V85_CORE", "in3_input", 1, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=0.93, lowerCriticalVal=0.62
+                       ) ),
+         SensorConfig( "VRM1_TEMP", "temp1_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=120.0, maxAlarmVal=115.0
+                       ) ),
+      ] )
+
       smbIsl = Sensor( "0x54", "isl68226", "SMB_ISL68226_J3" )
+      smbIsl.addSensorConfigs( [
+         SensorConfig( "VRM2_VIN", "in1_input", 1, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                       ) ),
+         SensorConfig( "VRM2_VOUT_J3_0V9", "in3_input", 1, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=1.08, lowerCriticalVal=0.72
+                       ) ),
+         SensorConfig( "VRM2_VOUT_J3_0V75", "in4_input", 1, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=0.9, lowerCriticalVal=0.6
+                       ) ),
+         SensorConfig( "VRM2_VOUT_J3_1V2", "in5_input", 1, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=1.44, lowerCriticalVal=0.96
+                       ) ),
+         SensorConfig( "VRM2_TEMP1", "temp1_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=120.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "VRM2_TEMP2", "temp2_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=120.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "VRM2_TEMP3", "temp3_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=120.0, maxAlarmVal=115.0
+                       ) )
+      ] )
+
       smbIslOptics = Sensor( "0x55", "isl68226", "SMB_ISL68226_OPTICS" )
+      smbIslOptics.addSensorConfigs( [
+         SensorConfig( "VRM3_VIN", "in1_input", 1, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                       ) ),
+         SensorConfig( "VRM3_VOUT_OPTICS_3V3", "in3_input", 1, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                       ) ),
+         SensorConfig( "VRM3_TEMP", "temp1_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=120.0, maxAlarmVal=115.0
+                       ) )
+      ] )
+
       smbMgmtTemp = Sensor( "0x48", "tmp75", "SMB_MGMT_TMP75" )
+      smbMgmtTemp.addSensorConfigs( [
+         SensorConfig( "MGMT_INLET_TEMP", "temp1_input", 3, compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=75.0, maxAlarmVal=70.0
+                       ) )
+      ] )
 
       self.addI2cDeviceConfigs( [
          smbPca,
