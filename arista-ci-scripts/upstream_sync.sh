@@ -23,11 +23,13 @@ git remote add upstream git@github.com:facebook/fboss.git
 git fetch upstream
 
 # Check out a new branch which will be updated
-branch_name="srv-fboss-arista-robot.upstream_${date_string}"
+branch_name="srv-fboss-arista-robot.fetch_upstream_${date_string}"
 if git ls-remote --exit-code --heads $repo_name $branch_name; then
    git push origin -d $branch_name
 fi
 git checkout -b $branch_name origin/main || exit 1
+
+echo "aristanetworks/arista-fboss upstream sync: $date_string" > $email_subject_file
 
 # Merges upstream branch and its associated develpment history into main branch
 # --no-edit option is used to supress editing the auto-generated merge message
@@ -43,37 +45,30 @@ else
    git diff > git_diff_output.txt
    git merge --abort
 fi
-echo "aristanetworks/arista-fboss upstream sync: $date_string" > $email_subject_file
 
 if [ "$auto_merge_successful" = false ] ; then
-   # Try to create a pull request by excluding the files with merge conflicts
-   if git merge --no-edit upstream/main --strategy-option ours; then
-      git push origin HEAD
-      pr_link=$(gh pr create --title "$pr_title" --body "$pr_description" --head $branch_name --base main --repo $repo_name | grep https)
-      echo "Created a pull request from branch $branch_name. However some of the upstream changes were not pulled due to merge conflicts." > $output_file
-      # Display any merge conficts which were not resolved
-      echo "The following files had merge conflicts:" >> $output_file
-      echo "========================================" >> $output_file
-      grep 'both modified:' git_status_output.txt | sed $line -n -e 's/^.*both modified: //p' | while read -r line ; do
-         echo $line >> $output_file
-      done
-      echo $'\n' >> $output_file
-      echo "Details of the merge conflicts" >> $output_file
-      echo "==============================" >> $output_file
-      cat git_diff_output.txt >> $output_file
-      echo "Created the pull request $pr_link after excluding some upstream changes. Please see the attached file to analyze the excluded files." > $status_email_file
-   else
-      echo "Encountered merge conflict which cannot be handled. Aborting further execution. See the logs below for more information" > $output_file
-      # Displays merge confict details
-      echo "git status" >> $output_file
-      echo "==========" >> $output_file
-      cat git_status_output.txt >> $output_file
-      echo $'\n' >> $output_file
-      echo "git diff" >> $output_file
-      echo "========" >> $output_file
-      cat git_diff_output.txt >> $output_file
-      echo "Could not create a pull request with the upstream changes. Please see the attached file for more details." > $status_email_file
-      exit -1
+   # Check out a copy of upstream branch
+   upstream_copy_branch_name="srv-fboss-arista-robot.upstream_copy_${date_string}"
+   if git ls-remote --exit-code --heads $repo_name $upstream_copy_branch_name; then
+      git push origin -d $upstream_copy_branch_name
    fi
+   git checkout -b $upstream_copy_branch_name upstream/main || exit 1
+   git push origin $upstream_copy_branch_name
+
+   git checkout main || exit 1
+
+   pr_link=$(gh pr create --title "$pr_title" --body "$pr_description" --head $upstream_copy_branch_name --base main --repo $repo_name | grep https)
+   echo "Created a pull request from the upstream branch. However, some merge conflicts need to be resolved manually." > $output_file
+   # Display any merge conficts which were not resolved
+   echo "The following files had merge conflicts:" >> $output_file
+   echo "========================================" >> $output_file
+   grep 'both modified:' git_status_output.txt | sed $line -n -e 's/^.*both modified: //p' | while read -r line ; do
+      echo $line >> $output_file
+   done
+   echo $'\n' >> $output_file
+   echo "Details of the merge conflicts" >> $output_file
+   echo "==============================" >> $output_file
+   cat git_diff_output.txt >> $output_file
+   echo "Created the pull request $pr_link with some merge conflicts. Please see the attached file to analyze the merge conflicts." > $status_email_file
 fi
 
