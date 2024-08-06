@@ -105,7 +105,7 @@ class PlatformConfig:
       sensorConfigDict = { 'sensorMapList': jsonDict }
       return json.dumps( sensorConfigDict, indent=2 )
 
-   def asJson( self ):
+   def pmConfigJson( self ):
       jsonDict = OrderedDict()
       jsonDict[ "platformName" ] = self.platformName
       jsonDict[ "rootPmUnitName" ] = self.rootPmUnitName
@@ -453,18 +453,6 @@ class I2cDeviceConfig:
                   f"{ pmUnitName }{ i+1 }_{ config.name }" ] = config.toDict( i+1 )
       return sensorDict
 
-   def addFANRpms( self, numConfigs, upperCriticalVal, lowerCriticalVal ):
-      newConfigs = []
-      for i in range( numConfigs ):
-         newConfigs.append(
-            SensorConfig( "RPM", f"fan{ i+1 }_input", 4,
-                          thresholds=Thresholds(
-                              upperCriticalVal=upperCriticalVal,
-                              lowerCriticalVal=lowerCriticalVal
-                          ) )
-         )
-      self.addSensorConfigs( newConfigs )
-
    def asJson( self ):
       busName = self.busName
       address = self.address
@@ -558,6 +546,18 @@ class FANCpld( I2cDeviceConfig ):
          sensorDict[ f"FAN{ baseFanIndex+i+1 }" ][
             f"FAN{ baseFanIndex+i+1 }_{ config.name }" ] = config.toDict()
       return sensorDict
+
+   def addFANRpms( self, numConfigs, upperCriticalVal, lowerCriticalVal ):
+      newConfigs = []
+      for i in range( numConfigs ):
+         newConfigs.append(
+            SensorConfig( "RPM", f"fan{ i+1 }_input", 4,
+                          thresholds=Thresholds(
+                              upperCriticalVal=upperCriticalVal,
+                              lowerCriticalVal=lowerCriticalVal
+                          ) )
+         )
+      self.addSensorConfigs( newConfigs )
 
 
 class SCMIdProm( I2cDeviceConfig ):
@@ -1027,7 +1027,6 @@ class Thresholds:
    maxAlarmVal: upper threshold for conventional alarm
    minAlarmVal: lower threshold for conventional alarm
    '''
-
    def __init__( self, upperCriticalVal=None, lowerCriticalVal=None,
                  maxAlarmVal=None, minAlarmVal=None ):
       self.upperCriticalVal = upperCriticalVal
@@ -1049,20 +1048,6 @@ class Thresholds:
 
 
 class SensorConfig:
-   '''A distinct sensor in the FRU, composed of:
-
-   name: sensor name
-   path: sysfs path that sensor_services uses to read value
-   thresholds: collection of sensor thresholds
-   compute: scale factor
-   sensorType: sensor type, one of:
-         0 = power in watts
-         1 = voltage in volts
-         2 = current in amps
-         3 = temperature in C
-         4 = fan speed in RPM
-   '''
-
    def __init__( self, name, path, sensorType, compute=None, thresholds=None,
                  prependPmUnit=True ):
       assert name

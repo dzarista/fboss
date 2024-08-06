@@ -60,10 +60,12 @@ class WhistlerSMB( SMBUnit ):
                            upperCriticalVal=95.0, maxAlarmVal=90.0
                        ) ),
          SensorConfig( "R3_0_TEMP", "temp2_input", 3, compute="@/1000.0",
+                       prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=125.0, maxAlarmVal=110.0
                        ) ),
          SensorConfig( "R3_1_TEMP", "temp3_input", 3, compute="@/1000.0",
+                       prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=125.0, maxAlarmVal=110.0
                        ) ),
@@ -543,7 +545,7 @@ class Whistler( PlatformConfig ):
 
 
 def main():
-   if len( sys.argv ) < 2:
+   if len( sys.argv ) != 2:
       print( f'Usage: { sys.argv[ 0 ] } <config file type>' )
       sys.exit( 1 )
 
@@ -551,7 +553,7 @@ def main():
 
    platform = Whistler()
    if sys.argv[ 1 ] == 'pm-config':
-      print( platform.asJson() )
+      print( platform.pmConfigJson() )
    elif sys.argv[ 1 ] == 'sensor-service':
       print( platform.sensorServiceJson() )
 

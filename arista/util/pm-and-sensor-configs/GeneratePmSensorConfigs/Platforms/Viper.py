@@ -305,7 +305,7 @@ class Viper( PlatformConfig ):
 
 
 def main():
-   if len( sys.argv ) < 2:
+   if len( sys.argv ) != 2:
       print( f'Usage: { sys.argv[ 0 ] } <config file type>' )
       sys.exit( 1 )
 
@@ -313,7 +313,7 @@ def main():
 
    platform = Viper()
    if sys.argv[ 1 ] == 'pm-config':
-      print( platform.asJson() )
+      print( platform.pmConfigJson() )
    elif sys.argv[ 1 ] == 'sensor-service':
       print( platform.sensorServiceJson() )
 
