@@ -453,6 +453,18 @@ class I2cDeviceConfig:
                   f"{ pmUnitName }{ i+1 }_{ config.name }" ] = config.toDict( i+1 )
       return sensorDict
 
+   def addFANRpms( self, numConfigs, upperCriticalVal, lowerCriticalVal ):
+      newConfigs = []
+      for i in range( numConfigs ):
+         newConfigs.append(
+            SensorConfig( "RPM", f"fan{ i+1 }_input", 4,
+                          thresholds=Thresholds(
+                              upperCriticalVal=upperCriticalVal,
+                              lowerCriticalVal=lowerCriticalVal
+                          ) )
+         )
+      self.addSensorConfigs( newConfigs )
+
    def asJson( self ):
       busName = self.busName
       address = self.address

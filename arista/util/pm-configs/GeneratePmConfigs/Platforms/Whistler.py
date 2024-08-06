@@ -382,24 +382,7 @@ class WhistlerSMB( SMBUnit ):
       ] )
 
       smbFan0Cpld = FANCpld( "0x60", "oasis_cpld0", "FAN0_CPLD", incomingBusIndex=3 )
-      smbFan0Cpld.addSensorConfigs( [
-         SensorConfig( "RPM", "fan1_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan2_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan3_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan4_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-      ] )
+      smbFan0Cpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
       smbFan1Tmp = Sensor( "0x49", "tmp75", "FAN1_TMP75", incomingBusIndex=3 )
       smbFan1Tmp.addSensorConfigs( [
@@ -411,24 +394,7 @@ class WhistlerSMB( SMBUnit ):
       ] )
 
       smbFan1Cpld = FANCpld( "0x61", "oasis_cpld1", "FAN1_CPLD", incomingBusIndex=3 )
-      smbFan1Cpld.addSensorConfigs( [
-         SensorConfig( "RPM", "fan1_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan2_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan3_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan4_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-      ] )
+      smbFan1Cpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
       smbFan2Tmp = Sensor( "0x4A", "tmp75", "FAN2_TMP75", incomingBusIndex=3 )
       smbFan2Tmp.addSensorConfigs( [
@@ -440,24 +406,7 @@ class WhistlerSMB( SMBUnit ):
       ] )
 
       smbFan2Cpld = FANCpld( "0x62", "oasis_cpld2", "FAN2_CPLD", incomingBusIndex=3 )
-      smbFan2Cpld.addSensorConfigs( [
-         SensorConfig( "RPM", "fan1_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan2_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan3_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan4_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-      ] )
+      smbFan2Cpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
       self.addI2cDeviceConfigs( [
          smbCpld,

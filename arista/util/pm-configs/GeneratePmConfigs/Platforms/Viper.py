@@ -137,24 +137,7 @@ class ViperSMB( SMBUnit ):
       ] )
 
       smbFanCpld = FANCpld( "0x60", "pali2_cpld", "FAN_CPLD", incomingBusIndex=2 )
-      smbFanCpld.addSensorConfigs( [
-         SensorConfig( "RPM", "fan1_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan2_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan3_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-         SensorConfig( "RPM", "fan4_input", 4,
-                       thresholds=Thresholds(
-                           upperCriticalVal=14900.0, lowerCriticalVal=1100.0
-                       ) ),
-      ] )
+      smbFanCpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
       smbRaa = Sensor( "0x45", "raa228228", "SMB_RAA228926_J3" )
       smbRaa.addSensorConfigs( [
