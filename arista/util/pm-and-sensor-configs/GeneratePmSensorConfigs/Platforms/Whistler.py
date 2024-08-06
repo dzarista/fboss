@@ -437,6 +437,7 @@ class WhistlerSMB( SMBUnit ):
          *enumeratePciDeviceConfigs( 4, "SMB_FPGA{}", "0x3475", "0x0001", "0x3475",
                                      "0x0004" )
       ] )
+
       smbFpga0 = self.pciDeviceConfigs[ 0 ]
       smbFpga1 = self.pciDeviceConfigs[ 1 ]
       smbFpga2 = self.pciDeviceConfigs[ 2 ]

@@ -29,13 +29,13 @@ does not share these features, they have to be overwritten in the child class.
 
 Every platform-specific file should define a `main` function that simply instantiates
 an object of the given class (child of `PlatformConfig`) and generates either one of
-the JSON configs by calling the overloaded `.pmConfigJson()` and `sensorServiceJson()` methods.
+the JSON configs by calling the overloaded `pmConfigJson()` and `sensorServiceJson()` methods.
 
 ### PM Unit Config
 
 Vast majority of the config is PM unit focused. This provides higher degree of code
 reusability in case multiple platforms share similar PM unit configurations;
-the overarching idea is that the PlatformConfig can be created by "glueing together"
+the overarching idea is that the `PlatformConfig` can be created by "glueing together"
 multiple standalone PM units (by using the `addPmUnitConfigs` function) with minimal
 work required to specify how to connect these units.
 
@@ -158,7 +158,7 @@ be automatically inferred from the `I2cDeviceConfig` corresponding to device `SM
 - `prependPmUnit`: Names of most sensor configs begin with the corresponding PM unit.
 For this reason, sensor configs can be defined without specifying the PM unit (e.g.
 instead of `SCM_ECB_VIN` we simply use `ECB_VIN` when initializing a new `SensorConfig`,
-`SCM` is added during json generation). However, some sensor config naming does not
+`SCM` is added during JSON generation). However, some sensor config naming does not
 follow this convention. In that case, you should set `prependPmUnit=False` and specify
 the whole sensor name.
 

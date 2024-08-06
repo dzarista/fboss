@@ -4,7 +4,6 @@
 import json
 import re
 import unittest
-
 from BaseConfigs import (
    EmbeddedSensorConfig,
    enumerateFANSlotConfigs,
@@ -1012,6 +1011,7 @@ class LedConfigTest( unittest.TestCase ):
       with self.assertRaises( AssertionError ):
          self.platform.getPmUnitConfigsDict()
 
+
 class SensorServiceTest( unittest.TestCase ):
    def setUp( self ):
       self.platform = PlatformConfig( "test_platform" )
@@ -1163,6 +1163,7 @@ class SensorServiceTest( unittest.TestCase ):
             ][ f"FAN{ i+1 }" ][ f"FAN{ i+1 }_RPM" ][ "path" ],
             f"/run/devmap/sensors/FAN_CPLD0/fan{ i+1 }_input"
          )
+
 
 if __name__ == '__main__':
    unittest.main()

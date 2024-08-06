@@ -569,7 +569,7 @@ class SCMIdProm( I2cDeviceConfig ):
 class FairywrenIdProm( I2cDeviceConfig ):
    def __init__( self, *args, **kwargs ):
       super().__init__( *args, **kwargs )
-      self.symlinkPath = f"/run/devmap/eeproms/MERU_SCM_EEPROM_P1"
+      self.symlinkPath = "/run/devmap/eeproms/MERU_SCM_EEPROM_P1"
 
 
 class PSUBus( I2cDeviceConfig ):
@@ -1020,13 +1020,6 @@ def enumeratePciDeviceConfigs( numConfigs, deviceBaseName, vendorId, deviceId,
 
 
 class Thresholds:
-   '''Every sensor may define the following four thresholds:
-
-   upperCriticalVal: upper threshold for critical (strong) alarm
-   lowerCriticalVal: lower threshold for critical (strong) alarm
-   maxAlarmVal: upper threshold for conventional alarm
-   minAlarmVal: lower threshold for conventional alarm
-   '''
    def __init__( self, upperCriticalVal=None, lowerCriticalVal=None,
                  maxAlarmVal=None, minAlarmVal=None ):
       self.upperCriticalVal = upperCriticalVal
@@ -1108,8 +1101,10 @@ class SCMFairywren( SCMUnit ):
                        ) ),
          SensorConfig( "ECB_IOUT", "curr1_input", 2, compute="@/1000.0" )
       ] )
+
       scmIdprom = FairywrenIdProm( "0x50", "24c512", "SCM_IDPROM_P1",
                                    hasCpuMac=True )
+
       scmPxm1310_1 = FairywrenSensor( "0x30", "pxm1310", "SCM_PXM1310_1" )
       scmPxm1310_1.addSensorConfigs( [
          SensorConfig( "VRM1_VIN", "in1_input", 1, compute="@/1000.0",
@@ -1133,6 +1128,7 @@ class SCMFairywren( SCMUnit ):
                            upperCriticalVal=110.0, maxAlarmVal=105.0
                        ) )
       ] )
+
       scmPxe1610 = FairywrenSensor( "0x3e", "pxe1610", "SCM_PXE1211" )
       scmPxe1610.addSensorConfigs( [
          SensorConfig( "VRM2_VIN", "in1_input", 1, compute="@/1000.0",
@@ -1160,6 +1156,7 @@ class SCMFairywren( SCMUnit ):
                           upperCriticalVal=110.0, maxAlarmVal=105.0
                        ) ),
       ] )
+
       scmPxm1310_2 = FairywrenSensor( "0x40", "pxm1310", "SCM_PXM1310_2" )
       scmPxm1310_2.addSensorConfigs( [
          SensorConfig( "VRM3_VIN", "in1_input", 1, compute="@/1000.0",
@@ -1183,6 +1180,7 @@ class SCMFairywren( SCMUnit ):
                            upperCriticalVal=110.0, maxAlarmVal=105.0
                        ) )
       ] )
+
       self.addI2cDeviceConfigs( [
          scmMpsDev,
          scmIdprom,
@@ -1259,6 +1257,7 @@ class SCMFairywren( SCMUnit ):
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) )
       ] )
+
       self.addEmbeddedSensorConfigs( [ cpuCoreTemp ] )
 
 
