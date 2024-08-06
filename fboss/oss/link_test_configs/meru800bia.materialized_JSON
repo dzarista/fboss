@@ -7184,12 +7184,6 @@
         "actionType": 1
       },
       {
-        "dscp": 48,
-        "name": "cpuPolicing-high-NetworkControl-dstLocal",
-        "actionType": 1,
-        "lookupClassRoute": 1
-      },
-      {
         "dstIp": "fe80::/10",
         "name": "cpuPolicing-mid-linkLocal-v6",
         "actionType": 1

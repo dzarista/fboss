@@ -21,6 +21,7 @@ This package provides core utilities to run Meta FBOSS OSS on Arista switches.
 set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/tmp_build_dir/fboss_bins-* .
+cp -af %{SOURCEURL0}/tmp_build_dir/psu-upgrade .
 cp -af %{SOURCEURL0}/%{_fboss_core_dir}/* .
 find %{SOURCEURL0}/%{_fboss_build_dir} -maxdepth 1 -type f -executable -exec cp {} ./fboss_bins-*/bin/ \;
 
@@ -41,6 +42,9 @@ cp -f scripts/run_hw_tests_dnx.sh %{_fboss_target_bin}
 cp -f scripts/fboss-state-sync.py %{_fboss_target_bin}
 cp -f scripts/cpu-oob-eeprom-util.sh %{_fboss_target_bin}
 cp -f scripts/switch-to-bmc.sh %{_fboss_target_bin}
+
+# Install utility binaries
+cp -f psu-upgrade/psu-upgrade %{_fboss_target_bin}
 
 # Install systemd services.
 mkdir -p %{_fboss_target_systemd}

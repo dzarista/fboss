@@ -20,7 +20,7 @@ jobs:
       - name: Run Bash script
         env:
           GH_TOKEN: ${{ secrets.SRV_FBOSS_ARISTA_ROBOT_TOKEN }}
-        run: ./arista-ci-scripts/upstream_sync_manual.sh
+        run: ./arista-ci-scripts/upstream_sync.sh
       - name: Send status email
         if: success() || failure()
         run: |
