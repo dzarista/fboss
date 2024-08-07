@@ -90,8 +90,8 @@ struct scd_dev_priv {
 	size_t mem_len;
 	void __iomem *localbus;
 	unsigned int magic;
-	struct scd_reg reg_table[MAX_NUM_REGS];
-	struct scd_reg *end_reg;
+	struct scd_reg sysfs_reg_table[MAX_NUM_REGS];
+	struct scd_reg *sysfs_reg_end;
 	struct attribute_group *sysfs_attr_group;
 	struct regbit_sysfs_entry *regbit_sysfs_table;
 	u32 scd_revision;
@@ -110,6 +110,40 @@ struct scd_dev_priv {
 	struct fbiob_cdev_desc cdev_desc;
 };
 
+/*
+ * XXX Special settings for the ROOK CPU CPLD on Darwin:
+ *   - ROOK CPLD is a LPC device, and the driver uses the LPC-ISA bridge
+ *     available in the AMD-Kabini chip as a PCI device.
+ *   - The PCI vid:pid (8086:6f76) is "borrowed" from Intel.
+ *   - DO NOT include 8086:6f76 in the driver's static ID table, because
+ *     the driver may claim Intel 8086:6f76 devices on some Xeon platforms
+ *     unexpectedly.
+ *     To manually bind the driver to ROOK CPU CPLD, please run:
+ *       echo "8086 6f76" > /sys/bus/pci/drivers/scd/new_id
+ *   - The memory and irq resources are pre-allocated in Darwin, and below
+ *     module parameters are just for debugging purposes.
+ *       > scd.lpc_res_addr - beginning of the LPC physical memory
+ *       > scd.lpc_res_size - size of the LPC block, in 4K increments
+ *       > scd.lpc_irq - assigned interrupt number
+ */
+
+static struct pci_device_id scd_lpc_table[] = {
+        { PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f76) },
+        { 0 },
+};
+
+static unsigned long lpc_res_addr = 0xb0000000;
+module_param(lpc_res_addr, long, 0);
+MODULE_PARM_DESC(lpc_res_addr, "physical address of LPC resource");
+
+static int lpc_res_size = 0x10000;
+module_param(lpc_res_size, int, 0);
+MODULE_PARM_DESC(lpc_res_size, "size of LPC resource");
+
+static int lpc_irq = 7;
+module_param(lpc_irq, int, 0);
+MODULE_PARM_DESC(lpc_irq, "interrupt of LPC SCD");
+
 u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
 {
 	u32 res = 0;
@@ -124,7 +158,6 @@ u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
 	dev_dbg(&pdev->dev, "io:read 0x%04x => 0x%08x", reg->offset, res);
 	return res;
 }
-EXPORT_SYMBOL(scd_read_register);
 
 void scd_write_register(struct pci_dev *pdev, struct scd_reg *reg, u32 val)
 {
@@ -138,26 +171,30 @@ void scd_write_register(struct pci_dev *pdev, struct scd_reg *reg, u32 val)
 		iowrite32(val, reg->mem);
 	}
 }
-EXPORT_SYMBOL(scd_write_register);
 
-static int scd_regs_init(struct scd_dev_priv *priv) {
+static int scd_sysfs_regs_init(struct scd_dev_priv *priv)
+{
 	struct regbit_sysfs_entry *sysfs;
 	struct scd_reg *reg;
 	bool reg_exists;
+	struct resource *res;
+	struct device *dev = &priv->pdev->dev;
 
-	priv->end_reg = priv->reg_table + MAX_NUM_REGS;
+	priv->sysfs_reg_end = priv->sysfs_reg_table + MAX_NUM_REGS;
 
 	// Populate register information based on defined sysfs attrs.
 	for (sysfs = priv->regbit_sysfs_table; sysfs->name != NULL; sysfs++) {
 		reg_exists = false;
-		for(reg = priv->reg_table; reg < priv->end_reg && reg->valid; reg++) {
+		for (reg = priv->sysfs_reg_table;
+		     reg < priv->sysfs_reg_end && reg->valid;
+		     reg++) {
 			if (reg->offset == sysfs->reg_offset) {
 				reg_exists = true;
 				break;
 			}
 		}
-		if (reg == priv->end_reg) {
-			dev_err(&priv->pdev->dev, "defined registers exceed max\n");
+		if (reg == priv->sysfs_reg_end) {
+			dev_err(dev, "defined registers exceed max\n");
 			return -ENXIO;
 		}
 		if (!reg_exists) {
@@ -166,25 +203,50 @@ static int scd_regs_init(struct scd_dev_priv *priv) {
 		}
 	}
 
+	// Map memory for all registers managed by this device.
+	for (reg = priv->sysfs_reg_table;
+	     reg < priv->sysfs_reg_end && reg->valid;
+	     reg++) {
+		res = devm_request_mem_region(
+			dev, priv->csr_bus_addr + reg->offset,
+			REG_BLK_SIZE, SCD_MODULE_NAME);
+		if (!res) {
+			dev_err(dev, "cannot request PCI memory region\n");
+			return -EBUSY;
+		}
+
+		reg->mem = devm_ioremap(
+			dev, priv->csr_bus_addr + reg->offset,
+			REG_BLK_SIZE);
+		if (!reg->mem) {
+			dev_err(dev, "cannot remap PCI memory region\n");
+			return -ENOMEM;
+		}
+	}
+
 	return 0;
 }
 
-static void scd_regs_remove(struct scd_dev_priv *priv) {
+static void scd_sysfs_regs_destroy(struct scd_dev_priv *priv)
+{
 	struct scd_reg *reg;
 
-	for(reg = priv->reg_table; reg < priv->end_reg; reg++) {
+	for (reg = priv->sysfs_reg_table; reg < priv->sysfs_reg_end; reg++) {
 		reg->offset = 0;
 		reg->valid = 0;
 		reg->mem = NULL;
 	}
 
-	priv->end_reg = NULL;
+	priv->sysfs_reg_end = NULL;
 }
 
-static struct scd_reg *scd_reg_at_offset(struct scd_dev_priv *priv, u32 offset) {
+static struct scd_reg *scd_reg_at_offset(struct scd_dev_priv *priv, u32 offset)
+{
 	struct scd_reg *reg;
 
-	for(reg = priv->reg_table; reg < priv->end_reg && reg->valid; reg++) {
+	for (reg = priv->sysfs_reg_table;
+	     reg < priv->sysfs_reg_end && reg->valid;
+	     reg++) {
 		if (reg->offset == offset) {
 			return reg;
 		}
@@ -511,6 +573,22 @@ BLACKCOMB_SCD_ATTRS(2)
 BLACKCOMB_SCD_ATTRS(3)
 #undef REGBIT_FILE
 
+/*
+ * XXX LPC callback for the ROOK CPLD on Darwin.
+ */
+static int scd_lpc_enable(struct pci_dev *pdev)
+{
+	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
+
+	priv->csr_bus_addr = lpc_res_addr;
+	priv->mem_len = lpc_res_size;
+	return 0;
+}
+
+static const struct scd_driver_cb scd_lpc_cb = {
+	.enable = scd_lpc_enable,
+};
+
 static void scd_pci_disable(struct pci_dev *pdev)
 {
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
@@ -521,7 +599,6 @@ static void scd_pci_disable(struct pci_dev *pdev)
 		priv->localbus = NULL;
 	}
 
-	scd_regs_remove(priv);
 
 	pci_disable_device(pdev);
 }
@@ -531,9 +608,7 @@ static int scd_pci_enable(struct pci_dev *pdev)
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
 	int err;
 	u16 ssid;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct scd_reg *reg;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -543,26 +618,6 @@ static int scd_pci_enable(struct pci_dev *pdev)
 
 	priv->csr_bus_addr = pci_resource_start(pdev, SCD_BAR_REGS);
 	priv->mem_len = pci_resource_len(pdev, SCD_BAR_REGS);
-
-	// Map memory for all registers managed by this device.
-	for(reg = priv->reg_table; reg < priv->end_reg && reg->valid; reg++) {
-		res = devm_request_mem_region(
-			dev, priv->csr_bus_addr + reg->offset,
-			REG_BLK_SIZE, SCD_MODULE_NAME);
-		if (!res) {
-			err = -EBUSY;
-			dev_err(dev, "cannot request PCI memory region\n");
-			goto err_exit;
-		}
-		reg->mem = devm_ioremap(
-			dev, priv->csr_bus_addr + reg->offset,
-			REG_BLK_SIZE);
-		if (!reg->mem) {
-			dev_err(dev, "cannot remap PCI memory region\n");
-			err = -ENXIO;
-			goto err_exit;
-		}
-	}
 
 	/*
 	 * check if this device uses partial reconfiguration to load the
@@ -615,9 +670,6 @@ static void scd_remove(struct pci_dev *pdev)
 	if (priv == NULL)
 		return;
 
-	// call pci bits to release
-	priv->driver_cb->disable(pdev);
-
 	priv->magic = 0;
 
 	if (priv->cdev_initialized)
@@ -626,6 +678,11 @@ static void scd_remove(struct pci_dev *pdev)
 		fbiob_auxbus_destroy(&priv->aux_bus);
 	if (priv->sysfs_initialized)
 		sysfs_remove_group(&pdev->dev.kobj, priv->sysfs_attr_group);
+
+	scd_sysfs_regs_destroy(priv);
+
+	if (priv->driver_cb->disable)
+		priv->driver_cb->disable(pdev);
 
 	ASSERT(!priv->localbus);
 
@@ -645,7 +702,13 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct regbit_sysfs_entry *regbit_sysfs_table = NULL;
 	struct scd_reg *rev_reg;
 
-	scd_cb = &scd_pci_cb;
+	if (pci_match_id(scd_lpc_table, pdev)) {
+		dev_info(&pdev->dev, "apply scd_lpc settings\n");
+		scd_cb = &scd_lpc_cb;
+	} else {
+		scd_cb = &scd_pci_cb;
+	}
+
 	switch(ent->subdevice) {
 		case FAIRYWREN_SCD_PCI_SUBDEVICE_ID:
 			sysfs_attr_group = &fairywren_scd_attr_group;
@@ -696,14 +759,14 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->regbit_sysfs_table = regbit_sysfs_table;
 	priv->sysfs_attr_group = sysfs_attr_group;
 
-	err = scd_regs_init(priv);
+	pci_set_drvdata(pdev, priv);
+
+	err = scd_cb->enable(pdev);
 	if (err) {
 		goto fail;
 	}
 
-	pci_set_drvdata(pdev, priv);
-
-	err = scd_cb->enable(pdev);
+	err = scd_sysfs_regs_init(priv);
 	if (err) {
 		goto fail;
 	}

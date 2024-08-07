@@ -953,6 +953,7 @@ static const struct watchdog_info fan_wdt_info = {
 	.identity = KBUILD_MODNAME,
 };
 
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 static void cpld_remove(struct i2c_client *client)
 {
@@ -1054,6 +1055,8 @@ static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	return err;
 }
+
+
 
 static struct i2c_driver cpld_driver = {
    .class = I2C_CLASS_HWMON,
