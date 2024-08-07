@@ -17,8 +17,7 @@ This package provides Linux kernel drivers to manage Arista switch devices
 
 %prep
 set -x
-find . -mindepth 1 -delete
-cp -af %{SOURCEURL0}/%{_kmods_build_dir}/* .
+find %{SOURCEURL0}/%{_kmods_build_dir} -type f -name "*.ko" -exec cp {} . \;
 
 %install
 mkdir -p %{_drv_destdir}
