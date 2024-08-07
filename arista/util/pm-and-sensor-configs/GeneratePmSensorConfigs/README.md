@@ -1,4 +1,4 @@
-# FBOSS OSS Platform Manager Config Generation Tool
+# FBOSS OSS Platform Manager and Sensor Service Config Generation Tool
 
 Copyright (C) 2024 Arista Networks, Inc.
 
@@ -6,7 +6,7 @@ Copyright (C) 2024 Arista Networks, Inc.
 
 This directory contains code for defining a Python-based hardware description of
 a specific platform and automatically generating the contents of
-`platform_manager.json` config files living [here](https://github.com/aristanetworks/arista-fboss/tree/main/fboss/platform/configs).
+`platform_manager.json` and `sensor_service.json` config files both living [here](https://github.com/aristanetworks/arista-fboss/tree/main/fboss/platform/configs).
 
 Structure of the PM config file is defined by Meta in the following [thrift file](https://github.com/aristanetworks/arista-fboss/blob/5fd2a0a0a4165937cb174a1ff5d5bb23c394d1cb/fboss/platform/platform_manager/platform_manager_config.thrift).
 
@@ -28,14 +28,14 @@ pre-defines some features common to all platforms supported so far. If a new pla
 does not share these features, they have to be overwritten in the child class.
 
 Every platform-specific file should define a `main` function that simply instantiates
-an object of the given class (child of `PlatformConfig`) and generates the JSON config
-by calling the overloaded `.asJson()` method.
+an object of the given class (child of `PlatformConfig`) and generates either one of
+the JSON configs by calling the overloaded `pmConfigJson()` and `sensorServiceJson()` methods.
 
 ### PM Unit Config
 
 Vast majority of the config is PM unit focused. This provides higher degree of code
 reusability in case multiple platforms share similar PM unit configurations;
-the overarching idea is that the PlatformConfig can be created by "glueing together"
+the overarching idea is that the `PlatformConfig` can be created by "glueing together"
 multiple standalone PM units (by using the `addPmUnitConfigs` function) with minimal
 work required to specify how to connect these units.
 
@@ -137,6 +137,36 @@ through buses. Each adapter config has an attribute `buses`, which is a list
 containing `I2cBus` objects. As mentioned above, `I2cDeviceConfig` objects can
 therefore be mapped to specific `I2cBus` objects.
 
+### Sensor Config
+
+`SensorConfig` is used to define the specifications of all sensors placed on `I2cDevices` or
+`EmbeddedSensors`, and so is a major building block required to generate the sensor service
+config file. It is worth exploring the attributes of this class in more detail:
+- `name`: Sensor name.
+- `path`: Path appendix to the path of corresponding `I2cDevice` or `EmbeddedSensor`.
+For example, if the actual path to sensor is `/run/devmap/sensors/SMB_MAX6581/temp1_input`,
+you should only set path to `temp1_input`. The base path `/run/devmap/sensors/SMB_MAX6581/` will
+be automatically inferred from the `I2cDeviceConfig` corresponding to device `SMB_MAX6581`.
+- `sensorType`: To improve readability, please use the `SensorType` Enum to define the type. Values correspond to the following types:
+    - 0 = Power in watts
+    - 1 = Voltage in volts
+    - 2 = Current in amps
+    - 3 = Temperature in Celsius
+    - 4 = Fan speed in RPM
+- `compute`: scale factor
+- `thresholds`: collection of sensor thresholds, wrapped in the `Thresholds` class.
+- `prependPmUnit`: Names of most sensor configs begin with the corresponding PM unit.
+For this reason, sensor configs can be defined without specifying the PM unit (e.g.
+instead of `SCM_ECB_VIN` we simply use `ECB_VIN` when initializing a new `SensorConfig`,
+`SCM` is added during JSON generation). However, some sensor config naming does not
+follow this convention. In that case, you should set `prependPmUnit=False` and specify
+the whole sensor name.
+
+`SensorConfigs` can be added to `I2cDeviceConfigs` or `EmbeddedSensorConfigs` using
+the `addSensorConfigs` method implemented for each of the parent config classes.
+Furthermore, the `FANCpld` class also implements the `addFANRpms` method, which makes
+the addition of multiple FAN RPMs to a single `FANCpld` device more efficient.
+
 ### Other config classes
 
 - `EmbeddedSensorConfig`: Config class for devices such as the core temperature
@@ -159,6 +189,12 @@ specific child class called `Flash`.
 defining these configs is more closelly described above.
 - `LedConfig`: Apart from LEDs on transceivers, there are also several special
 purpose status LEDs, which are defined by this class.
+- `Thresholds`: Config class used to specify sensor thresholds for each `SensorConfig`.
+Every sensor may define the following four thresholds:
+    - `upperCriticalVal`: upper threshold for critical (strong) alarm
+    - `lowerCriticalVal`: lower threshold for critical (strong) alarm
+    - `maxAlarmVal`: upper threshold for conventional alarm
+    - `minAlarmVal`: lower threshold for conventional alarm
 
 ### Symbolic Link to Device Path Generation
 
@@ -177,6 +213,7 @@ necessary devices in your platform file, remember to include this code block:
 for pmConfig in self.pmUnitConfigs:
     pmConfig.populateSymlinkToDevicePaths()
 ```
+
 ## Additional technicalities
 
 - So far, the PM config generation tool assumes existence of platforms with
@@ -195,15 +232,22 @@ generation.
 ## Testing suite
 
 In order to test whether the config classes and functions defined in `BaseConfigs.py`
-behave as expected, there is a breadth test suite `ConfigTests.py` available.
-We are using the [Coverage.py](https://coverage.readthedocs.io/en/7.6.0/) tool to
-validate that our test suite achieves 100% coverage on the `BaseConfigs.py` file. In
-the future, if new features are added to the config generation tool, please also include
-corresponding tests to make sure the test coverage stays up to date.
+behave as expected, there are currently two breadth test suites available:
+`PmConfigTests.py` and `SensorServiceTests.py`. We are using the
+[Coverage.py](https://coverage.readthedocs.io/en/7.6.0/) tool to validate that our
+test suites achieve a combined 100% coverage on the `BaseConfigs.py` file.
+In the future, if new features are added to the config generation tool, please also
+include corresponding tests to make sure the test coverage stays up to date.
 
-After pip installing the `coverage` module, the test suite can be typically invoked
-using the command `coverage run -m ConfigTests`, and subsequently running
-`coverage report -m` to display the coverage statistics. For more sophisticated use
+After pip installing the `coverage` module, the individual test suites can be invoked
+using commands:
+```shell
+coverage run -m -p PmConfigTests
+coverage run -m -p SensorServiceTests
+```
+The `-p` flag ensures that for each `coverage` run, a unique `.coverage` file is created.
+Then, we can combine individual files using `coverage combine .coverage*`. To display
+combined coverage statistics, run `coverage report -m`. For more sophisticated use
 cases, please refer to the package documentation.
 
 ## Practical example
@@ -283,13 +327,28 @@ be equal to the number of buses specified within the `SMB_SLOT@0` config in `Eag
             idPromConfigOffset=15360
         )
 ```
-Our SMB unit will have two I2c devices, one of type `GpioChip` and one of the more
-generic type `Sensor`.
+Our SMB unit will have three I2c devices, one of type `GpioChip`, one of a more
+generic type `Sensor`, and one of type `FANCpld`. Let's add a sensor config on the
+`Sensor` device to demonstrate how to use `addSensorConfigs`. Also, notice that we can
+use the `addFANRpms` function of the `FANCpld` class to define 4 FAN RPM sensor configs
+more efficiently.
 ```python
         smbPca = GpioChip( "0x74", "pca9539", "SMB_PCA", incomingBusIndex=0 )
+
         smbTmp75 = Sensor( "0x49", "tmp75", "SMB_TMP75", incomingBusIndex=1,
                             initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
-        self.addI2cDeviceConfigs( [ smbPca, smbTmp75 ] )
+        smbTmp75.addSensorConfigs( [
+            SensorConfig( "FAN_BOARD_TEMP", "temp1_input", SensorType.TEMP,
+                          compute="@/1000.0", prependPmUnit=False,
+                          thresholds=Thresholds(
+                                upperCriticalVal=85.0, maxAlarmVal=80.0
+                          ) )
+        ] )
+
+        smbFanCpld = FANCpld( "0x60", "pali2_cpld", "FAN_CPLD", incomingBusIndex=1 )
+        smbFanCpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
+
+        self.addI2cDeviceConfigs( [ smbPca, smbTmp75, smbFanCpld ] )
 ```
 Let's add two FPGAs to demonstrate how to use `enumeratePciDeviceConfigs`.
 ```python
@@ -341,7 +400,8 @@ class Eagle( PlatformConfig ):
         super().__init__( "eagle" )
 ```
 Add the SCM and SMB units defined above, along with generic PSU and FAN units. Note
-that the generic PSU unit definition already includes a `PSUBus` device definition.
+that the generic PSU unit definition already includes a `PSUBus` device definition
+along with some `SensorConfigs` on the `PSUBus`.
 ```python
         self.addPmUnitConfigs( [
             EagleSCM(),
@@ -360,11 +420,23 @@ to make sure that symbolic link to device paths are created.
         for pmConfig in self.pmUnitConfigs:
             pmConfig.populateSymlinkToDevicePaths()
 ```
-To generate the PM config file, we will add the following main function.
+To generate the PM config file, we will add the following main function. Notice that
+a user can specify whichever one of the two configs should be generated using
+command-line arguments.
 ```python
 def main():
+   if len( sys.argv ) != 2:
+      print( f'Usage: { sys.argv[ 0 ] } <config file type>' )
+      sys.exit( 1 )
+
+   assert sys.argv[ 1 ] == 'pm-config' or sys.argv[ 1 ] == 'sensor-service'
+
    platform = Eagle()
-   print( platform.asJson() )
+   if sys.argv[ 1 ] == 'pm-config':
+      print( platform.pmConfigJson() )
+   elif sys.argv[ 1 ] == 'sensor-service':
+      print( platform.sensorServiceJson() )
+
 
 if __name__ == '__main__':
    main()
@@ -378,6 +450,7 @@ added all necessary imports from `BaseConfigs.py`.
 ```python
 from BaseConfigs import (
    enumeratePciDeviceConfigs,
+   FANCpld,
    FANUnit,
    GpioChip,
    InitRegSettings,
@@ -387,8 +460,11 @@ from BaseConfigs import (
    SCMIdProm,
    SCMUnit,
    Sensor,
+   SensorConfig,
+   SensorType,
    SMBUnit,
-   SlotConfig
+   SlotConfig,
+   Thresholds
 )
 
 
@@ -438,9 +514,22 @@ class EagleSMB( SMBUnit ):
         )
 
         smbPca = GpioChip( "0x74", "pca9539", "SMB_PCA", incomingBusIndex=0 )
+
         smbTmp75 = Sensor( "0x49", "tmp75", "SMB_TMP75", incomingBusIndex=1,
                             initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
-        self.addI2cDeviceConfigs( [ smbPca, smbTmp75 ] )
+        smbTmp75.addSensorConfigs( [
+            SensorConfig( "FAN_BOARD_TEMP", "temp1_input", SensorType.TEMP,
+                          compute="@/1000.0",
+                          prependPmUnit=False,
+                          thresholds=Thresholds(
+                                upperCriticalVal=85.0, maxAlarmVal=80.0
+                          ) )
+        ] )
+
+        smbFanCpld = FANCpld( "0x60", "pali2_cpld", "FAN_CPLD", incomingBusIndex=1 )
+        smbFanCpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
+
+        self.addI2cDeviceConfigs( [ smbPca, smbTmp75, smbFanCpld ] )
 
         self.addPciDeviceConfigs( [
             *enumeratePciDeviceConfigs( 2, "SMB_FPGA{}", "0x3475", "0x0001",
@@ -491,8 +580,18 @@ class Eagle( PlatformConfig ):
 
 
 def main():
+   if len( sys.argv ) != 2:
+      print( f'Usage: { sys.argv[ 0 ] } <config file type>' )
+      sys.exit( 1 )
+
+   assert sys.argv[ 1 ] == 'pm-config' or sys.argv[ 1 ] == 'sensor-service'
+
    platform = Eagle()
-   print( platform.asJson() )
+   if sys.argv[ 1 ] == 'pm-config':
+      print( platform.pmConfigJson() )
+   elif sys.argv[ 1 ] == 'sensor-service':
+      print( platform.sensorServiceJson() )
+
 
 if __name__ == '__main__':
    main()
@@ -507,10 +606,15 @@ a variable and to simply initialize the object within the corresponding adder me
 
 To generate a PM config for a specific platform, run
 ```
-python3 -m Platforms.<platform_name> > platform_manager.json
+python3 -m Platforms.<platform_name> pm-config > platform_manager.json
 ```
-So for the practical example above you can generate a config file by executing
+To generate a sensor service config for a specific platform, run
 ```
-python3 -m Platforms.Eagle > platform_manager.json
+python3 -m Platforms.<platform_name> sensor-service > sensor_service.json
+```
+So for the practical example above you can generate the two config files by executing
+```
+python3 -m Platforms.Eagle pm-config > platform_manager.json
+python3 -m Platforms.Eagle sensor-service > sensor_service.json
 ```
 from the `GeneratePmConfigs` directory, assuming you saved the config file as `Platforms/Eagle.py`.

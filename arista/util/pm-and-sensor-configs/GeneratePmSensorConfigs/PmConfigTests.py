@@ -3,7 +3,6 @@
 
 import re
 import unittest
-
 from BaseConfigs import (
    EmbeddedSensorConfig,
    enumerateFANSlotConfigs,
@@ -30,7 +29,7 @@ from BaseConfigs import (
    SMBCpld,
    SMBUnit,
    SpiDeviceConfig,
-   SpiMasterConfig
+   SpiMasterConfig,
 )
 
 
@@ -272,8 +271,6 @@ class PmUnitConfigTest( unittest.TestCase ):
       self.assertTrue( "SCM" in pmUnitDict )
       self.assertEqual( len( pmUnitDict[ "SCM" ][ "i2cDeviceConfigs" ] ), 5 )
       self.assertEqual( len( pmUnitDict[ "SCM" ][ "pciDeviceConfigs" ] ), 1 )
-      self.assertEqual( len( pmUnitDict[ "SCM" ][ "outgoingSlotConfigs" ] ), 1 )
-      self.assertTrue( "SMB_SLOT@0" in pmUnitDict[ "SCM" ][ "outgoingSlotConfigs" ] )
       self.assertEqual( len( pmUnitDict[ "SCM" ][ "embeddedSensorConfigs" ] ), 1 )
 
 
@@ -366,7 +363,7 @@ class I2cDeviceConfigTest( unittest.TestCase ):
          len( pmUnitDict[ "SCM" ][ "i2cDeviceConfigs" ][ 0 ][ "initRegSettings" ] ),
          8
       )
-      jsonDump = self.platform.asJson()
+      jsonDump = self.platform.pmConfigJson()
       pattern = re.compile( r'"ioBuf": \[[^\]]*\]' )
       matches = pattern.findall( jsonDump )
       oneLiner = re.compile( r'"ioBuf": \[-?\d+\]' )
