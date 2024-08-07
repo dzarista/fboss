@@ -147,7 +147,7 @@ config file. It is worth exploring the attributes of this class in more detail:
 For example, if the actual path to sensor is `/run/devmap/sensors/SMB_MAX6581/temp1_input`,
 you should only set path to `temp1_input`. The base path `/run/devmap/sensors/SMB_MAX6581/` will
 be automatically inferred from the `I2cDeviceConfig` corresponding to device `SMB_MAX6581`.
-- `sensorType`: Sensor type, one of:
+- `sensorType`: To improve readability, please use the `SensorType` Enum to define the type. Values correspond to the following types:
     - 0 = Power in watts
     - 1 = Voltage in volts
     - 2 = Current in amps
@@ -232,15 +232,22 @@ generation.
 ## Testing suite
 
 In order to test whether the config classes and functions defined in `BaseConfigs.py`
-behave as expected, there is a breadth test suite `ConfigTests.py` available.
-We are using the [Coverage.py](https://coverage.readthedocs.io/en/7.6.0/) tool to
-validate that our test suite achieves 100% coverage on the `BaseConfigs.py` file. In
-the future, if new features are added to the config generation tool, please also include
-corresponding tests to make sure the test coverage stays up to date.
+behave as expected, there are currently two breadth test suites available:
+`PmConfigTests.py` and `SensorServiceTests.py`. We are using the
+[Coverage.py](https://coverage.readthedocs.io/en/7.6.0/) tool to validate that our
+test suites achieve a combined 100% coverage on the `BaseConfigs.py` file.
+In the future, if new features are added to the config generation tool, please also
+include corresponding tests to make sure the test coverage stays up to date.
 
-After pip installing the `coverage` module, the test suite can be typically invoked
-using the command `coverage run -m ConfigTests`, and subsequently running
-`coverage report -m` to display the coverage statistics. For more sophisticated use
+After pip installing the `coverage` module, the individual test suites can be invoked
+using commands:
+```shell
+coverage run -m -p PmConfigTests
+coverage run -m -p SensorServiceTests
+```
+The `-p` flag ensures that for each `coverage` run, a unique `.coverage` file is created.
+Then, we can combine individual files using `coverage combine .coverage*`. To display
+combined coverage statistics, run `coverage report -m`. For more sophisticated use
 cases, please refer to the package documentation.
 
 ## Practical example
@@ -331,8 +338,8 @@ more efficiently.
         smbTmp75 = Sensor( "0x49", "tmp75", "SMB_TMP75", incomingBusIndex=1,
                             initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
         smbTmp75.addSensorConfigs( [
-            SensorConfig( "FAN_BOARD_TEMP", "temp1_input", 3, compute="@/1000.0",
-                          prependPmUnit=False,
+            SensorConfig( "FAN_BOARD_TEMP", "temp1_input", SensorType.TEMP,
+                          compute="@/1000.0", prependPmUnit=False,
                           thresholds=Thresholds(
                                 upperCriticalVal=85.0, maxAlarmVal=80.0
                           ) )
@@ -454,6 +461,7 @@ from BaseConfigs import (
    SCMUnit,
    Sensor,
    SensorConfig,
+   SensorType,
    SMBUnit,
    SlotConfig,
    Thresholds
@@ -510,7 +518,8 @@ class EagleSMB( SMBUnit ):
         smbTmp75 = Sensor( "0x49", "tmp75", "SMB_TMP75", incomingBusIndex=1,
                             initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
         smbTmp75.addSensorConfigs( [
-            SensorConfig( "FAN_BOARD_TEMP", "temp1_input", 3, compute="@/1000.0",
+            SensorConfig( "FAN_BOARD_TEMP", "temp1_input", SensorType.TEMP,
+                          compute="@/1000.0",
                           prependPmUnit=False,
                           thresholds=Thresholds(
                                 upperCriticalVal=85.0, maxAlarmVal=80.0

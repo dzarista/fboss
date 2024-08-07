@@ -2,6 +2,7 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from collections import OrderedDict
+from enum import Enum
 import json
 import re
 
@@ -551,7 +552,7 @@ class FANCpld( I2cDeviceConfig ):
       newConfigs = []
       for i in range( numConfigs ):
          newConfigs.append(
-            SensorConfig( "RPM", f"fan{ i+1 }_input", 4,
+            SensorConfig( "RPM", f"fan{ i+1 }_input", SensorType.FAN_SPEED,
                           thresholds=Thresholds(
                               upperCriticalVal=upperCriticalVal,
                               lowerCriticalVal=lowerCriticalVal
@@ -1040,14 +1041,22 @@ class Thresholds:
       return thresholdsDict
 
 
+class SensorType( Enum ):
+   POWER = 0
+   VOLTAGE = 1
+   CURRENT = 2
+   TEMP = 3
+   FAN_SPEED = 4
+
+
 class SensorConfig:
-   def __init__( self, name, path, sensorType, compute=None, thresholds=None,
+   def __init__( self, name, filename, sensorType, compute=None, thresholds=None,
                  prependPmUnit=True ):
       assert name
-      assert path
-      assert sensorType in range( 0, 5 )
+      assert filename
+      assert sensorType in SensorType
       self.name = name
-      self.path = path
+      self.filename = filename
       self.thresholds = thresholds
       self.compute = compute
       self.sensorType = sensorType
@@ -1058,15 +1067,15 @@ class SensorConfig:
       sensorDict = OrderedDict()
       baseSensorPath = self.parentConfig.symlinkPath
       sensorDict[ 'path' ] = (
-         f"{ baseSensorPath.format( pmUnitIndex ) }/{ self.path }"
+         f"{ baseSensorPath.format( pmUnitIndex ) }/{ self.filename }"
          if pmUnitIndex and "{}" in baseSensorPath
-         else f"{ baseSensorPath.format( pmUnitIndex ) }/{ self.path }"
+         else f"{ baseSensorPath.format( pmUnitIndex ) }/{ self.filename }"
       )
       if self.thresholds:
          sensorDict[ 'thresholds' ] = self.thresholds.toDict()
       if self.compute:
          sensorDict[ 'compute' ] = self.compute
-      sensorDict[ 'type' ] = int( self.sensorType )
+      sensorDict[ 'type' ] = self.sensorType.value
       return sensorDict
 
    def addParentConfigPointer( self, parentConfig ):
@@ -1091,15 +1100,18 @@ class SCMFairywren( SCMUnit ):
 
       scmMpsDev = FairywrenSensor( "0x40", "pmbus", "SCM_MPS_PMBUS" )
       scmMpsDev.addSensorConfigs( [
-         SensorConfig( "ECB_VIN", "in1_input", 1, compute="@/32000.0",
+         SensorConfig( "ECB_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/32000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=3.96, lowerCriticalVal=2.64
                        ) ),
-         SensorConfig( "ECB_VOUT", "in2_input", 1, compute="@/32000.0",
+         SensorConfig( "ECB_VOUT", "in2_input", SensorType.VOLTAGE,
+                       compute="@/32000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=14.4, lowerCriticalVal=9.6
                        ) ),
-         SensorConfig( "ECB_IOUT", "curr1_input", 2, compute="@/1000.0" )
+         SensorConfig( "ECB_IOUT", "curr1_input", SensorType.CURRENT,
+                       compute="@/1000.0" )
       ] )
 
       scmIdprom = FairywrenIdProm( "0x50", "24c512", "SCM_IDPROM_P1",
@@ -1107,23 +1119,28 @@ class SCMFairywren( SCMUnit ):
 
       scmPxm1310_1 = FairywrenSensor( "0x30", "pxm1310", "SCM_PXM1310_1" )
       scmPxm1310_1.addSensorConfigs( [
-         SensorConfig( "VRM1_VIN", "in1_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM1_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=14.4, lowerCriticalVal=9.6
                        ) ),
-         SensorConfig( "VRM1_VOUT_VCCIN", "in3_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM1_VOUT_VCCIN", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=2.16, lowerCriticalVal=1.44
                        ) ),
-         SensorConfig( "VRM1_VOUT_1V8_CPU", "in4_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM1_VOUT_1V8_CPU", "in4_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=2.16, lowerCriticalVal=1.44
                        ) ),
-         SensorConfig( "VRM1_TEMP1", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM1_TEMP1", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=110.0, maxAlarmVal=105.0
                        ) ),
-         SensorConfig( "VRM1_TEMP2", "temp2_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM1_TEMP2", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=110.0, maxAlarmVal=105.0
                        ) )
@@ -1131,27 +1148,33 @@ class SCMFairywren( SCMUnit ):
 
       scmPxe1610 = FairywrenSensor( "0x3e", "pxe1610", "SCM_PXE1211" )
       scmPxe1610.addSensorConfigs( [
-         SensorConfig( "VRM2_VIN", "in1_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM2_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=14.4, lowerCriticalVal=9.6
                        ) ),
-         SensorConfig( "VRM2_VOUT_1V2_VDDQ", "in4_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM2_VOUT_1V2_VDDQ", "in4_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=1.44, lowerCriticalVal=0.96
                        ) ),
-         SensorConfig( "VRM2_VOUT_VNN_NAC", "in5_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM2_VOUT_VNN_NAC", "in5_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=1.44, lowerCriticalVal=0.48
                        ) ),
-         SensorConfig( "VRM2_VOUT_1V0_CPU", "in6_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM2_VOUT_1V0_CPU", "in6_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=1.2, lowerCriticalVal=0.8
                        ) ),
-         SensorConfig( "VRM2_TEMP1", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM2_TEMP1", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=110.0, maxAlarmVal=105.0
                        ) ),
-         SensorConfig( "VRM2_TEMP2", "temp2_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM2_TEMP2", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                           upperCriticalVal=110.0, maxAlarmVal=105.0
                        ) ),
@@ -1159,23 +1182,28 @@ class SCMFairywren( SCMUnit ):
 
       scmPxm1310_2 = FairywrenSensor( "0x40", "pxm1310", "SCM_PXM1310_2" )
       scmPxm1310_2.addSensorConfigs( [
-         SensorConfig( "VRM3_VIN", "in1_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM3_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=14.4, lowerCriticalVal=9.6
                        ) ),
-         SensorConfig( "VRM3_VOUT_1V05_CPU", "in3_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM3_VOUT_1V05_CPU", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=1.272, lowerCriticalVal=0.848
                        ) ),
-         SensorConfig( "VRM3_VOUT_VNN_PCH", "in4_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM3_VOUT_VNN_PCH", "in4_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=1.44, lowerCriticalVal=0.48
                        ) ),
-         SensorConfig( "VRM3_TEMP1", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM3_TEMP1", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=110.0, maxAlarmVal=105.0
                        ) ),
-         SensorConfig( "VRM3_TEMP2", "temp2_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM3_TEMP2", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=110.0, maxAlarmVal=105.0
                        ) )
@@ -1211,48 +1239,48 @@ class SCMFairywren( SCMUnit ):
                         sysfsPath="/sys/bus/platform/devices/coretemp.0"
                     )
       cpuCoreTemp.addSensorConfigs( [
-         SensorConfig( "CPU_PACKAGE_TEMP", "temp1_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_PACKAGE_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) ),
-         SensorConfig( "CPU_CORE0_TEMP", "temp2_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_CORE0_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) ),
-         SensorConfig( "CPU_CORE1_TEMP", "temp3_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_CORE1_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) ),
-         SensorConfig( "CPU_CORE2_TEMP", "temp4_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_CORE2_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) ),
-         SensorConfig( "CPU_CORE3_TEMP", "temp5_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_CORE3_TEMP", "temp5_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) ),
-         SensorConfig( "CPU_CORE4_TEMP", "temp6_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_CORE4_TEMP", "temp6_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) ),
-         SensorConfig( "CPU_CORE5_TEMP", "temp7_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_CORE5_TEMP", "temp7_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) ),
-         SensorConfig( "CPU_CORE6_TEMP", "temp8_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_CORE6_TEMP", "temp8_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) ),
-         SensorConfig( "CPU_CORE7_TEMP", "temp9_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_CORE7_TEMP", "temp9_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) )
@@ -1276,35 +1304,39 @@ class PSUUnit( PmUnitConfig ):
 
       psuBus = PSUBus( "0x58", "pmbus", "PSU_PMBUS", incomingBusIndex=0 )
       psuBus.addSensorConfigs( [
-         SensorConfig( "VIN", "in1_input", 1, compute="@/1000.0" ),
-         SensorConfig( "VOUT", "in3_input", 1, compute="@/1000.0",
+         SensorConfig( "VIN", "in1_input", SensorType.VOLTAGE, compute="@/1000.0" ),
+         SensorConfig( "VOUT", "in3_input", SensorType.VOLTAGE, compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=14.4, lowerCriticalVal=9.6
                        ) ),
-         SensorConfig( "FAN1_RPM", "fan1_input", 4,
+         SensorConfig( "FAN1_RPM", "fan1_input", SensorType.FAN_SPEED,
                        thresholds=Thresholds(
                            upperCriticalVal=25500.0, lowerCriticalVal=0.0
                        ) ),
-         SensorConfig( "FAN2_RPM", "fan2_input", 4,
+         SensorConfig( "FAN2_RPM", "fan2_input", SensorType.FAN_SPEED,
                        thresholds=Thresholds(
                            upperCriticalVal=25500.0, lowerCriticalVal=0.0
                        ) ),
-         SensorConfig( "TEMP1", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "TEMP1", "temp1_input", SensorType.TEMP, compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=70.0, maxAlarmVal=65.0
                        ) ),
-         SensorConfig( "TEMP2", "temp2_input", 3, compute="@/1000.0",
+         SensorConfig( "TEMP2", "temp2_input", SensorType.TEMP, compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=130.0, maxAlarmVal=120.0
                        ) ),
-         SensorConfig( "TEMP3", "temp3_input", 3, compute="@/1000.0",
+         SensorConfig( "TEMP3", "temp3_input", SensorType.TEMP, compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=120.0, maxAlarmVal=112.0
                        ) ),
-         SensorConfig( "IIN", "curr1_input", 2, compute="@/1000.0" ),
-         SensorConfig( "IOUT", "curr2_input", 2, compute="@/1000.0" ),
-         SensorConfig( "PIN", "power1_input", 0, compute="@/1000000.0" ),
-         SensorConfig( "POUT", "power2_input", 0, compute="@/1000000.0" ),
+         SensorConfig( "IIN", "curr1_input", SensorType.CURRENT,
+                       compute="@/1000.0" ),
+         SensorConfig( "IOUT", "curr2_input", SensorType.CURRENT,
+                       compute="@/1000.0" ),
+         SensorConfig( "PIN", "power1_input", SensorType.POWER,
+                       compute="@/1000000.0" ),
+         SensorConfig( "POUT", "power2_input", SensorType.POWER,
+                       compute="@/1000000.0" ),
       ] )
 
       self.addI2cDeviceConfigs( [

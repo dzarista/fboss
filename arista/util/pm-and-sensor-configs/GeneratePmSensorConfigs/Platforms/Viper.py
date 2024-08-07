@@ -16,6 +16,7 @@ from BaseConfigs import (
    SCMFairywren,
    Sensor,
    SensorConfig,
+   SensorType,
    SlotConfig,
    SMBUnit,
    SpiMasterConfig,
@@ -63,7 +64,8 @@ class ViperSMB( SMBUnit ):
       smbTmp75Front = Sensor( "0x49", "tmp75", "SMB_TMP75_FRONT", incomingBusIndex=1,
                               initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
       smbTmp75Front.addSensorConfigs( [
-         SensorConfig( "BOARD_FRONT_TEMP", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "BOARD_FRONT_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=85.0, maxAlarmVal=80.0
                        ) )
@@ -73,7 +75,8 @@ class ViperSMB( SMBUnit ):
                              incomingBusIndex=1,
                              initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
       smbTmp75Back.addSensorConfigs( [
-         SensorConfig( "BOARD_REAR_TEMP", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "BOARD_REAR_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=85.0, maxAlarmVal=80.0
                        ) )
@@ -92,35 +95,43 @@ class ViperSMB( SMBUnit ):
                         ] )
                      )
       smbMax.addSensorConfigs( [
-         SensorConfig( "J3_BOARD_TEMP", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "J3_BOARD_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=85.0
                        ) ),
-         SensorConfig( "J3_DIODE_CORE_TEMP", "temp2_input", 3, compute="@/1000.0",
+         SensorConfig( "J3_DIODE_CORE_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=135.0, maxAlarmVal=120.0
                        ) ),
-         SensorConfig( "J3_DIODE_FAB0_TEMP", "temp3_input", 3, compute="@/1000.0",
+         SensorConfig( "J3_DIODE_FAB0_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=135.0, maxAlarmVal=120.0
                        ) ),
-         SensorConfig( "J3_DIODE_FAB1_TEMP", "temp4_input", 3, compute="@/1000.0",
+         SensorConfig( "J3_DIODE_FAB1_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=135.0, maxAlarmVal=120.0
                        ) ),
-         SensorConfig( "J3_DIODE_NIF0_TEMP", "temp5_input", 3, compute="@/1000.0",
+         SensorConfig( "J3_DIODE_NIF0_TEMP", "temp5_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=135.0, maxAlarmVal=120.0
                        ) ),
-         SensorConfig( "J3_DIODE_NIF1_TEMP", "temp6_input", 3, compute="@/1000.0",
+         SensorConfig( "J3_DIODE_NIF1_TEMP", "temp6_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=135.0, maxAlarmVal=120.0
                        ) ),
-         SensorConfig( "J3_DIODE_HBM0_TEMP", "temp7_input", 3, compute="@/1000.0",
+         SensorConfig( "J3_DIODE_HBM0_TEMP", "temp7_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=135.0, maxAlarmVal=120.0
                        ) ),
-         SensorConfig( "J3_DIODE_HBM1_TEMP", "temp8_input", 3, compute="@/1000.0",
+         SensorConfig( "J3_DIODE_HBM1_TEMP", "temp8_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=135.0, maxAlarmVal=120.0
                        ) )
@@ -129,8 +140,8 @@ class ViperSMB( SMBUnit ):
       smbFanTmp = Sensor( "0x48", "tmp75", "FAN_TMP75", incomingBusIndex=2,
                           initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
       smbFanTmp.addSensorConfigs( [
-         SensorConfig( "FAN_BOARD_TEMP", "temp1_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "FAN_BOARD_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=85.0, maxAlarmVal=80.0
                        ) )
@@ -141,15 +152,18 @@ class ViperSMB( SMBUnit ):
 
       smbRaa = Sensor( "0x45", "raa228228", "SMB_RAA228926_J3" )
       smbRaa.addSensorConfigs( [
-         SensorConfig( "VRM1_VIN", "in1_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM1_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=14.4, lowerCriticalVal=9.6
                        ) ),
-         SensorConfig( "VRM1_VOUT_J3_0V85_CORE", "in3_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM1_VOUT_J3_0V85_CORE", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=0.93, lowerCriticalVal=0.62
                        ) ),
-         SensorConfig( "VRM1_TEMP", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=120.0, maxAlarmVal=115.0
                        ) ),
@@ -157,31 +171,38 @@ class ViperSMB( SMBUnit ):
 
       smbIsl = Sensor( "0x54", "isl68226", "SMB_ISL68226_J3" )
       smbIsl.addSensorConfigs( [
-         SensorConfig( "VRM2_VIN", "in1_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM2_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=14.4, lowerCriticalVal=9.6
                        ) ),
-         SensorConfig( "VRM2_VOUT_J3_0V9", "in3_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM2_VOUT_J3_0V9", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=1.08, lowerCriticalVal=0.72
                        ) ),
-         SensorConfig( "VRM2_VOUT_J3_0V75", "in4_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM2_VOUT_J3_0V75", "in4_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=0.9, lowerCriticalVal=0.6
                        ) ),
-         SensorConfig( "VRM2_VOUT_J3_1V2", "in5_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM2_VOUT_J3_1V2", "in5_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=1.44, lowerCriticalVal=0.96
                        ) ),
-         SensorConfig( "VRM2_TEMP1", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM2_TEMP1", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=120.0, maxAlarmVal=115.0
                        ) ),
-         SensorConfig( "VRM2_TEMP2", "temp2_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM2_TEMP2", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=120.0, maxAlarmVal=115.0
                        ) ),
-         SensorConfig( "VRM2_TEMP3", "temp3_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM2_TEMP3", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=120.0, maxAlarmVal=115.0
                        ) )
@@ -189,15 +210,18 @@ class ViperSMB( SMBUnit ):
 
       smbIslOptics = Sensor( "0x55", "isl68226", "SMB_ISL68226_OPTICS" )
       smbIslOptics.addSensorConfigs( [
-         SensorConfig( "VRM3_VIN", "in1_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM3_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=14.4, lowerCriticalVal=9.6
                        ) ),
-         SensorConfig( "VRM3_VOUT_OPTICS_3V3", "in3_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM3_VOUT_OPTICS_3V3", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=3.96, lowerCriticalVal=2.64
                        ) ),
-         SensorConfig( "VRM3_TEMP", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "VRM3_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=120.0, maxAlarmVal=115.0
                        ) )
@@ -205,7 +229,8 @@ class ViperSMB( SMBUnit ):
 
       smbMgmtTemp = Sensor( "0x48", "tmp75", "SMB_MGMT_TMP75" )
       smbMgmtTemp.addSensorConfigs( [
-         SensorConfig( "MGMT_INLET_TEMP", "temp1_input", 3, compute="@/1000.0",
+         SensorConfig( "MGMT_INLET_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=75.0, maxAlarmVal=70.0
                        ) )
