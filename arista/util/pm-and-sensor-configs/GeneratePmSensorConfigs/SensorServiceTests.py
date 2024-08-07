@@ -11,6 +11,7 @@ from BaseConfigs import (
    PmUnitConfig,
    Sensor,
    SensorConfig,
+   SensorType,
    SlotConfig,
    Thresholds
 )
@@ -33,18 +34,18 @@ class SensorServiceTest( unittest.TestCase ):
       ] )
 
    def testInvalidConfig( self ):
-      with self.assertRaises( AssertionError ):
+      with self.assertRaises( TypeError ):
          self.platform.pmUnitConfigs[ 0 ].i2cDeviceConfigs[ 0 ].addSensorConfigs(
-            SensorConfig( "ECB_VIN", "in1_input", 6 )
+            SensorConfig( "ECB_VIN", "in1_input", 0 )
          )
       with self.assertRaises( AssertionError ):
          self.platform.pmUnitConfigs[ 0 ].i2cDeviceConfigs[ 0 ].addSensorConfigs(
-            SensorConfig( "ECB_VIN", None, 0 )
+            SensorConfig( "ECB_VIN", None, SensorType.POWER )
          )
 
    def testNoComputeAndThresholds( self ):
       self.platform.pmUnitConfigs[ 0 ].i2cDeviceConfigs[ 0 ].addSensorConfigs( [
-            SensorConfig( "ECB_VIN", "in1_input", 0 )
+            SensorConfig( "ECB_VIN", "in1_input", SensorType.VOLTAGE )
          ] )
       jsonDump = self.platform.sensorServiceJson()
       sensorDict = json.loads( jsonDump )
@@ -58,8 +59,8 @@ class SensorServiceTest( unittest.TestCase ):
 
    def testThresholds( self ):
       self.platform.pmUnitConfigs[ 0 ].i2cDeviceConfigs[ 0 ].addSensorConfigs( [
-            SensorConfig( "ECB_VIN", "in1_input", 0, compute="@/1000.0",
-                          prependPmUnit=False,
+            SensorConfig( "ECB_VIN", "in1_input", SensorType.VOLTAGE,
+                          compute="@/1000.0", prependPmUnit=False,
                           thresholds=Thresholds(
                               upperCriticalVal=20.0, maxAlarmVal=30.0
                           ) )
@@ -71,7 +72,7 @@ class SensorServiceTest( unittest.TestCase ):
       self.assertTrue( "thresholds" in sensorConfig )
       self.assertTrue( "compute" in sensorConfig )
       self.assertEqual( sensorConfig[ "compute" ], "@/1000.0" )
-      self.assertEqual( sensorConfig[ "type" ], 0 )
+      self.assertEqual( sensorConfig[ "type" ], 1 )
       self.assertTrue( "upperCriticalVal" in sensorConfig[ "thresholds" ] )
       self.assertFalse( "lowerCriticalVal" in sensorConfig[ "thresholds" ] )
       self.assertTrue( "maxAlarmVal" in sensorConfig[ "thresholds" ] )
@@ -87,12 +88,13 @@ class SensorServiceTest( unittest.TestCase ):
          )
       ] )
       self.platform.pmUnitConfigs[ 0 ].embeddedSensorConfigs[ 0 ].addSensorConfigs( [
-         SensorConfig( "CPU_PACKAGE_TEMP", "temp1_input", 3, compute="@/1000.0",
-                       prependPmUnit=False,
+         SensorConfig( "CPU_PACKAGE_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) ),
-         SensorConfig( "CPU_CORE_TEMP0", "temp2_input", 3, compute="@/1000.0",
+         SensorConfig( "CPU_CORE_TEMP0", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) )
@@ -119,7 +121,8 @@ class SensorServiceTest( unittest.TestCase ):
          SlotConfig( "SMB_SLOT@1" )
       ] )
       self.platform.pmUnitConfigs[ 1 ].i2cDeviceConfigs[ 0 ].addSensorConfigs( [
-         SensorConfig( "VRM2_VIN", "in1_input", 1, compute="@/1000.0",
+         SensorConfig( "VRM2_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=14.4, minAlarmVal=9.6
                        ) )
@@ -131,7 +134,8 @@ class SensorServiceTest( unittest.TestCase ):
          )
       ] )
       self.platform.pmUnitConfigs[ 1 ].embeddedSensorConfigs[ 0 ].addSensorConfigs( [
-         SensorConfig( "CORE_TEMP0", "temp2_input", 3, compute="@/1000.0",
+         SensorConfig( "CORE_TEMP0", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=100.0, maxAlarmVal=90.0
                        ) )
