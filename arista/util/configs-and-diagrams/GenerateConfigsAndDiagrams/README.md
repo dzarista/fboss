@@ -422,27 +422,6 @@ to make sure that symbolic link to device paths are created.
         for pmConfig in self.pmUnitConfigs:
             pmConfig.populateSymlinkToDevicePaths()
 ```
-To generate the PM config file, we will add the following main function. Notice that
-a user can specify whichever one of the two configs should be generated using
-command-line arguments.
-```python
-def main():
-   if len( sys.argv ) != 2:
-      print( f'Usage: { sys.argv[ 0 ] } <config file type>' )
-      sys.exit( 1 )
-
-   assert sys.argv[ 1 ] == 'pm-config' or sys.argv[ 1 ] == 'sensor-service'
-
-   platform = Eagle()
-   if sys.argv[ 1 ] == 'pm-config':
-      print( platform.pmConfigJson() )
-   elif sys.argv[ 1 ] == 'sensor-service':
-      print( platform.sensorServiceJson() )
-
-
-if __name__ == '__main__':
-   main()
-```
 
 ### Resulting config file
 
@@ -579,24 +558,6 @@ class Eagle( PlatformConfig ):
 
         for pmConfig in self.pmUnitConfigs:
             pmConfig.populateSymlinkToDevicePaths()
-
-
-def main():
-   if len( sys.argv ) != 2:
-      print( f'Usage: { sys.argv[ 0 ] } <config file type>' )
-      sys.exit( 1 )
-
-   assert sys.argv[ 1 ] == 'pm-config' or sys.argv[ 1 ] == 'sensor-service'
-
-   platform = Eagle()
-   if sys.argv[ 1 ] == 'pm-config':
-      print( platform.pmConfigJson() )
-   elif sys.argv[ 1 ] == 'sensor-service':
-      print( platform.sensorServiceJson() )
-
-
-if __name__ == '__main__':
-   main()
 ```
 Note that in general, we use variable names to reference config objects rather than
 indexing through multiple lists to grab the object we need. This makes the code less
@@ -606,24 +567,27 @@ a variable and to simply initialize the object within the corresponding adder me
 
 ## How to generate
 
+There is a master script `generate.py` that can be used to generate any of the three
+supported configs/diagrams for a specific platform. The platform name and type of
+output to generate can be specified as command-line arguments.
+
 To generate a PM config for a specific platform, run
 ```
-python3 -m Platforms.<platform_name> pm-config > platform_manager.json
+python3 generate.py <platform_name> pm-config > platform_manager.json
 ```
 To generate a sensor service config for a specific platform, run
 ```
-python3 -m Platforms.<platform_name> sensor-service > sensor_service.json
+python3 generate.py <platform_name> sensor-service > sensor_service.json
 ```
 To generate a platform diagram, run
 ```
-python3 -m Platforms.<platform_name> pm-diagram
+python3 generate.py <platform_name> pm-diagram
 ```
 So for the practical example above you can generate the two config files
 and the diagram by executing
 ```
-python3 -m Platforms.Eagle pm-config > platform_manager.json
-python3 -m Platforms.Eagle sensor-service > sensor_service.json
-python3 -m Platforms.Eagle pm-diagram
+python3 generate.py Eagle pm-config > platform_manager.json
+python3 generate.py Eagle sensor-service > sensor_service.json
+python3 generate.py Eagle pm-diagram
 ```
-from the `GeneratePmConfigs` directory, assuming you saved the config file as `Platforms/Eagle.py`.
-The platform diagram will be automatically saved as a `.png` file in the current directory.
+from the `configs-and-diagrams` directory, assuming you saved the config file as `GenerateConfigsAndDiagrams/Platforms/Eagle.py`. The platform diagram will be automatically saved as a `.png` file in the current directory.
