@@ -130,7 +130,7 @@ class PlatformConfig:
          jsonDict.update( pmConfig.getSensorServiceDict() )
       sensorConfigDict = { 'sensorMapList': jsonDict }
       output = json.dumps( sensorConfigDict, indent=2 )
-      print( output )
+      return output
 
    def pmConfigJson( self ):
       jsonDict = OrderedDict()
@@ -150,7 +150,7 @@ class PlatformConfig:
 
       jsonDump = json.dumps( jsonDict, indent=2 )
       output = reformatOneElementLists( jsonDump )
-      print( output )
+      return output
 
    def genDiagram( self ):
       graph_attr = {

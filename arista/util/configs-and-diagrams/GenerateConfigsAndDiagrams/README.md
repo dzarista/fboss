@@ -244,8 +244,8 @@ include corresponding tests to make sure the test coverage stays up to date.
 After pip installing the `coverage` module, the individual test suites can be invoked
 using commands:
 ```shell
-coverage run -m -p PmConfigTests
-coverage run -m -p SensorServiceTests
+coverage run -m -p GenerateConfigsAndDiagrams.PmConfigTests
+coverage run -m -p GenerateConfigsAndDiagrams.SensorServiceTests
 ```
 The `-p` flag ensures that for each `coverage` run, a unique `.coverage` file is created.
 Then, we can combine individual files using `coverage combine .coverage*`. To display

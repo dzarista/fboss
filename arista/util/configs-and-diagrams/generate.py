@@ -24,7 +24,10 @@ def main():
    }
 
    platform = platforms[ args.platform ]()
-   getattr( platform, output[ args.output ] )()
+   result = getattr( platform, output[ args.output ] )()
+
+   if args.output in [ 'pm-config', 'sensor-service' ]:
+      print( result )
 
 if __name__ == '__main__':
    main()

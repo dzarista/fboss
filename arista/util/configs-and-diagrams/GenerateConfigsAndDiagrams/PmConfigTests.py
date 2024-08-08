@@ -3,7 +3,7 @@
 
 import re
 import unittest
-from BaseConfigs import (
+from .BaseConfigs import (
    EmbeddedSensorConfig,
    enumerateFANSlotConfigs,
    enumeratePciDeviceConfigs,
