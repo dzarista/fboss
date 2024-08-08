@@ -334,13 +334,15 @@ def main():
       print( f'Usage: { sys.argv[ 0 ] } <config file type>' )
       sys.exit( 1 )
 
-   assert sys.argv[ 1 ] == 'pm-config' or sys.argv[ 1 ] == 'sensor-service'
+   assert sys.argv[ 1 ] in [ 'pm-config', 'sensor-service', 'pm-diagram' ]
 
    platform = Viper()
    if sys.argv[ 1 ] == 'pm-config':
       print( platform.pmConfigJson() )
    elif sys.argv[ 1 ] == 'sensor-service':
       print( platform.sensorServiceJson() )
+   elif sys.argv[ 1 ] == 'pm-diagram':
+      platform.genDiagram()
 
 
 if __name__ == '__main__':
