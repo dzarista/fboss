@@ -3,15 +3,6 @@ from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
 import argparse
 
 def main():
-   parser = argparse.ArgumentParser()
-   parser.add_argument( 'platform', choices=[ 'Viper', 'Whistler' ],
-                        help='Platform name' )
-   parser.add_argument( 'output',
-                        choices=[ 'pm-config', 'sensor-config', 'pm-diagram' ],
-                        help='Config/diagram to generate' )
-
-   args = parser.parse_args()
-
    platforms = {
       'Viper': Viper,
       'Whistler': Whistler
@@ -22,6 +13,14 @@ def main():
       'sensor-config': 'sensorServiceJson',
       'pm-diagram': 'genDiagram'
    }
+
+   parser = argparse.ArgumentParser()
+   parser.add_argument( 'platform', choices=platforms.keys(),
+                        help='Platform name' )
+   parser.add_argument( 'output',
+                        choices=[ 'pm-config', 'sensor-config', 'pm-diagram' ],
+                        help='Config/diagram to generate' )
+   args = parser.parse_args()
 
    platform = platforms[ args.platform ]()
    result = getattr( platform, output[ args.output ] )()
