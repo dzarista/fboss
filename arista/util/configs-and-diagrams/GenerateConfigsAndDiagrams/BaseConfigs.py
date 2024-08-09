@@ -2,6 +2,7 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from collections import OrderedDict
+from diagrams import Diagram, Cluster, Edge, Node as _Node
 from enum import Enum
 import json
 import re
@@ -51,10 +52,32 @@ def constructDevicePaths( device ):
    return outputList
 
 
+class Node:
+   def __init__( self, name, shape="record", fillcolor="#5f97e4", **kwargs ):
+      node_attributes = {
+        "label": name,
+        "labelloc": "c",
+        "shape": shape,
+        "width": "5",
+        "height": "1.6",
+        "fixedsize": "true",
+        "style": "filled",
+        'fontsize': '16',
+        "fillcolor": fillcolor,
+        "fontcolor": "white",
+      }
+      node_attributes.update( kwargs )
+      self.node = _Node( **node_attributes )
+
+   def getNode(self):
+      return self.node
+
+
 class PlatformConfig:
    def __init__( self, platformName, rootPmUnitName="SCM" ):
       self.platformName = platformName
       self.rootPmUnitName = rootPmUnitName
+      self.rootPmUnitPointer = None
       self.pmUnitConfigs = []
       self.i2cAdaptersFromCpu = []
       self.kmodsSettings = {
@@ -76,6 +99,8 @@ class PlatformConfig:
    def addPmUnitConfigs( self, newConfigs ):
       for config in newConfigs:
          config.addParentConfigPointer( self )
+         if config.pmUnitName == self.rootPmUnitName:
+            self.rootPmUnitPointer = config
       self.pmUnitConfigs.extend( newConfigs )
 
    def getPmUnitConfigsDict( self ):
@@ -104,7 +129,8 @@ class PlatformConfig:
       for pmConfig in self.pmUnitConfigs:
          jsonDict.update( pmConfig.getSensorServiceDict() )
       sensorConfigDict = { 'sensorMapList': jsonDict }
-      return json.dumps( sensorConfigDict, indent=2 )
+      output = json.dumps( sensorConfigDict, indent=2 )
+      return output
 
    def pmConfigJson( self ):
       jsonDict = OrderedDict()
@@ -124,8 +150,18 @@ class PlatformConfig:
 
       jsonDump = json.dumps( jsonDict, indent=2 )
       output = reformatOneElementLists( jsonDump )
-
       return output
+
+   def genDiagram( self ):
+      graph_attr = {
+         "ratio": "0.5625",
+         'rankdir': 'LR',
+         'show': 'False',
+         'fontsize': '48'
+      }
+      with Diagram( f"Platform: { self.platformName }", show=False,
+                    graph_attr=graph_attr ):
+         self.rootPmUnitPointer.render()
 
 
 class SlotTypeConfig:
@@ -344,6 +380,107 @@ class PmUnitConfig:
                )
       return sensorServiceDict
 
+   def renderCluster( self, incomingSlot ):
+      # NOTE: FANs are handled as a special case since they don't contain any
+      # incoming/outgoing buses
+      isRoot = self.parentConfig.rootPmUnitName == self.pmUnitName
+      pmUnitIndex = (
+         f" { int( incomingSlot.slotName.split( '@' )[ 1 ] ) + 1 }"
+         if incomingSlot and incomingSlot.slotType in ( "FAN_SLOT", "PSU_SLOT" )
+         else ""
+      )
+
+      # SMB_IDPROM is a special case that has to be manually added just for the
+      # purpose of diagram generation
+      if self.pmUnitName == "SMB":
+         smbIdProm = I2cDeviceConfig(
+            self.slotTypeConfig.idPromConfigAddress,
+            self.slotTypeConfig.idPromConfigKernelDeviceName,
+            "SMB_IDPROM",
+            incomingBusIndex=int( self.slotTypeConfig.idPromConfigBusName[ -1 ] )
+         )
+         self.addI2cDeviceConfigs( [ smbIdProm ] )
+
+      with Cluster(
+         f"PmUnit - { self.pmUnitName }{ pmUnitIndex } {'(Root)' if isRoot else ''}",
+         graph_attr={ "rankdir":"TB", 'fontsize':'30', "margin": "20" }
+      ):
+
+         if isRoot:
+            with Cluster( "CPU", graph_attr={ 'fontsize':'24' } ):
+               for config in self.embeddedSensorConfigs:
+                  Node( config.pmUnitScopedName ).getNode()
+
+         for slot in self.outgoingSlotConfigs:
+            slot.renderNode()
+
+         with Cluster( "I2C devices", graph_attr={ 'fontsize':'24' } ):
+            for i2cDev in self.i2cDeviceConfigs:
+               i2cDev.renderNode()
+               # This handles the FAN_CPLD to Fans relationship
+               if isinstance( i2cDev, FANCpld ):
+                  for slot in self.outgoingSlotConfigs:
+                     if ( slot.slotType == "FAN_SLOT"
+                          and i2cDev.pmUnitScopedName in slot.presenceDevicePath ):
+                        attrs = {}
+                        i2cDev.node - Edge( style="dashed", **attrs ) - slot.node
+
+         for pciDev in self.pciDeviceConfigs:
+            pciDev.renderNode()
+            for i2cDev in self.i2cDeviceConfigs:
+               thisBus = i2cDev.busName.split( "@" )[ 0 ]
+               pciAdapterNames = [ adapter.pmUnitScopedName
+                                   for adapter in pciDev.i2cAdapterConfigs ]
+               if thisBus in pciAdapterNames:
+                  attrs = {
+                     "minlen":"2",
+                     "headlabel":i2cDev.busName,
+                     'fontsize':'16'
+                  }
+                  pciDev.node >> Edge( **attrs ) >> i2cDev.node
+
+            if pciDev.xcvrCtrlConfigs:
+               xcvrNode = Node( "XCVRs" ).getNode()
+               attrs = {
+                  "minlen":"0",
+               }
+               pciDev.node >> Edge( **attrs ) >> xcvrNode
+
+         for slot in self.outgoingSlotConfigs:
+            for bus in slot.outgoingI2cBuses:
+               pciDev = bus.parentConfig.parentConfig
+               attrs = {
+                  "minlen":"3",
+               }
+               pciDev.node - Edge( **attrs ) - slot.node
+
+         if incomingSlot:
+            for i2cDev in self.i2cDeviceConfigs:
+               if i2cDev.busName.split( "@" )[ 0 ] == "INCOMING":
+                  attrs = {
+                     "minlen": "3",
+                     "headlabel":i2cDev.busName,
+                     "fontsize":"16",
+                     "labeldistance":"6.0"
+                  }
+                  incomingSlot.node >> Edge( **attrs ) >> i2cDev.node
+
+            if self.pmUnitName == "FAN" and len( self.i2cDeviceConfigs ) == 0:
+               attrs = {
+                  "minlen": "3",
+               }
+               incomingSlot.node - Edge(
+                  style="dashed", **attrs
+               ) >> Node( "FAN" ).getNode()
+
+   def render( self, incomingSlot=None ):
+      self.renderCluster( incomingSlot )
+
+      for slotConfig in self.outgoingSlotConfigs:
+         for pmConfig in self.parentConfig.pmUnitConfigs:
+            if slotConfig.slotType == f"{ pmConfig.pmUnitName }_SLOT":
+               pmConfig.render( slotConfig )
+
 
 class EmbeddedSensorConfig:
    def __init__( self, pmUnitScopedName, sysfsPath ):
@@ -417,6 +554,7 @@ class I2cDeviceConfig:
       self.parentConfig = None
       self.symlinkPath = None
       self.sensorConfigs = []
+      self.node = None
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -486,6 +624,10 @@ class I2cDeviceConfig:
          **({ "initRegSettings": initRegSettings.list }
             if initRegSettings and initRegSettings.list else {})
       }
+
+   def renderNode( self ):
+      self.node = Node( f"{{ { self.address } | { self.pmUnitScopedName } }}",
+                        shape="Mrecord" ).getNode()
 
 
 class GpioChip( I2cDeviceConfig ):
@@ -604,6 +746,7 @@ class SlotConfig:
       self.presenceDevicePath = presenceDevicePath
       self.outgoingI2cBuses = outgoingI2cBuses or []
       self.parentConfig = None
+      self.node = None
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -634,6 +777,22 @@ class SlotConfig:
               if outgoingI2cBusNames else []
       }
 
+   def renderNode( self ):
+      buses=""
+      for bus in self.outgoingI2cBuses:
+         buses += f"{ bus.busName }|"
+      buses = buses[ :-1 ]
+
+      if buses:
+         label = f" { self.slotName } | {{ {{ { buses } }} }}"
+      else:
+         label = self.slotName
+
+      height = max( str( 2*len( self.outgoingI2cBuses ) ), "2" )
+      self.node = Node( self.slotName, fillcolor="transparent", fontcolor="black",
+                        height=height, style="dashed", width="4", label=label
+                  ).getNode()
+
 
 class PciDeviceConfig:
    def __init__( self, pmUnitScopedName, vendorId, deviceId, subSystemVendorId,
@@ -649,6 +808,7 @@ class PciDeviceConfig:
       self.ledCtrlConfigs = []
       self.xcvrCtrlConfigs = []
       self.parentConfig = None
+      self.node = None
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -735,6 +895,17 @@ class PciDeviceConfig:
          f"/run/devmap/fpgas/{ self.symlinkDeviceName }":
             constructDevicePaths( self )[ 0 ]
       }
+
+   def renderNode(self):
+      vid = f"VID: { self.vendorId }"
+      did = f"DID: { self.deviceId }"
+      svid = f"SVID: { self.subSystemVendorId }"
+      sdid = f"SDID: { self.subSystemDeviceId }"
+
+      label = ( f"{ self.pmUnitScopedName } |"
+                f" {{ {{{ vid } | { did } }}| {{{ svid } | { sdid } }} }}" )
+      self.node = Node( label, fillcolor="#ecf3e7", fontcolor="black", height="4",
+                        width="4" ).getNode()
 
 
 class I2cBus:

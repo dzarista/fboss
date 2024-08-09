@@ -3,7 +3,7 @@
 
 import json
 import unittest
-from BaseConfigs import (
+from .BaseConfigs import (
    EmbeddedSensorConfig,
    FairywrenSensor,
    FANCpld,

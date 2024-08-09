@@ -1,8 +1,7 @@
 # Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-import sys
-from BaseConfigs import (
+from ..BaseConfigs import (
    enumerateFANSlotConfigs,
    FANUnit,
    FANCpld,
@@ -327,23 +326,5 @@ class Viper( PlatformConfig ):
 
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths()
-
-
-def main():
-   if len( sys.argv ) != 2:
-      print( f'Usage: { sys.argv[ 0 ] } <config file type>' )
-      sys.exit( 1 )
-
-   assert sys.argv[ 1 ] == 'pm-config' or sys.argv[ 1 ] == 'sensor-service'
-
-   platform = Viper()
-   if sys.argv[ 1 ] == 'pm-config':
-      print( platform.pmConfigJson() )
-   elif sys.argv[ 1 ] == 'sensor-service':
-      print( platform.sensorServiceJson() )
-
-
-if __name__ == '__main__':
-   main()
 
 
