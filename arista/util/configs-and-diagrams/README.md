@@ -577,7 +577,7 @@ python3 generate.py <platform_name> pm-config > platform_manager.json
 ```
 To generate a sensor service config for a specific platform, run
 ```
-python3 generate.py <platform_name> sensor-service > sensor_service.json
+python3 generate.py <platform_name> sensor-config > sensor_service.json
 ```
 To generate a platform diagram, run
 ```
@@ -587,7 +587,7 @@ So for the practical example above you can generate the two config files
 and the diagram by executing
 ```
 python3 generate.py Eagle pm-config > platform_manager.json
-python3 generate.py Eagle sensor-service > sensor_service.json
+python3 generate.py Eagle sensor-config > sensor_service.json
 python3 generate.py Eagle pm-diagram
 ```
 from the `configs-and-diagrams` directory, assuming you saved the config file as `GenerateConfigsAndDiagrams/Platforms/Eagle.py`. The platform diagram will be automatically saved as a `.png` file in the current directory.
