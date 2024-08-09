@@ -38,7 +38,7 @@ class ViperSCM( SCMFairywren ):
          )
       ] )
 
-
+# Test trigger
 class ViperSMB( SMBUnit ):
    def __init__( self ):
       super().__init__()
