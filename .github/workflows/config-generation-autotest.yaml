@@ -1,9 +1,6 @@
 name: Run Config Generation Tool Test Suite
 
 on:
-  push:
-    paths:
-      - 'arista/util/configs-and-diagrams/**'
   pull_request:
     paths:
       - 'arista/util/configs-and-diagrams/**'
