@@ -996,7 +996,7 @@ class LedConfigTest( unittest.TestCase ):
       )
       self.assertEqual(
          config[ 2 ][ "fpgaIpBlockConfig" ][ "deviceName" ],
-         "tes_led"
+         "tes_"
       )
 
    def testIncompleteLedConfig( self ):
