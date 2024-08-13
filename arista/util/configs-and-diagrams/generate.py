@@ -1,9 +1,15 @@
+#!/usrb/bin/env python3
+
+import argparse
+
+from GenerateConfigsAndDiagrams.Platforms.Rackhawk import Rackhawk, RackhawkORv3
 from GenerateConfigsAndDiagrams.Platforms.Viper import Viper
 from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
-import argparse
 
 def main():
    platforms = {
+      'Rackhawk': Rackhawk,
+      'RackhawkORv3': RackhawkORv3,
       'Viper': Viper,
       'Whistler': Whistler
    }
