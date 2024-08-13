@@ -1,0 +1,25 @@
+Back-ported BSP Drivers
+=======================
+
+This directory contains drivers back-ported from upstream Linux.
+
+Drivers from fbkernel 6.4
+----------------------
+
+Below 2 drivers are included Linux v6.4, but we have to "backport" them
+to BSP folder because CONFIG_REGULATOR option is Not enabled in fbkernel
+6.4.3-fbk1 (which leads to driver probe failures).
+
+Driver List:
+  * bp4a_lm90.c
+  * bp4a_max1363.c
+
+Backported from:
+  * Repository: fbkernel
+  * Branch    : release-v6.4-fbk1
+  * Path      : drivers/hwmon/, drivers/iio/
+
+Additional changes:
+  * Added "bp4a_" prefix to filenames.
+  * Added "bp4a_" prefix to of/id/driver table variables.
+  * ignore devm_regulator_get_enable() error in probe() function.

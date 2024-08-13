@@ -13,6 +13,9 @@ obj-m += scd-leds.o
 obj-m += scd-xcvr.o
 obj-m += scd-spi.o
 
+# Backported drivers
+obj-y += backports/
+
 # Device drivers for Viper and Whistler
 obj-y += dsf/
 

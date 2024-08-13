@@ -4,6 +4,8 @@ KMOD_DRIVERS=(
     amax5970
     aslg4f4527
     blackhawk_cpld
+    bp4a_lm90
+    bp4a_max1363
     decker_cpld
     dsf_fan_cpld
     rook_fan_cpld
