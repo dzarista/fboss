@@ -392,7 +392,8 @@ class PmUnitConfig:
 
       # SMB_IDPROM is a special case that has to be manually added just for the
       # purpose of diagram generation
-      if self.pmUnitName == "SMB":
+      if self.pmUnitName == "SMB" and self.slotTypeConfig.idPromConfigBusName:
+         import pdb; pdb.set_trace()
          smbIdProm = I2cDeviceConfig(
             self.slotTypeConfig.idPromConfigAddress,
             self.slotTypeConfig.idPromConfigKernelDeviceName,
