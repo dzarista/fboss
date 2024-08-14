@@ -36,7 +36,9 @@ class RookCpld( PciDeviceConfig ):
             I2cAdapterConfig( self, f'ROOK_SMBUS{accelNum}', 'i2c_master', -1,
                               hex( baseAccelOffset + accelNum * accelStride ), 4,
                               busSymlinkPrefix='ROOK_SMBUS' )
-            for accelNum in [ 0, 2, 3 ]
+            # Accel 1 is unused and really shouldn't be here, but PM can't handle
+            # non-contiguous adapters correctly (the adapter names are incorrect).
+            for accelNum in [ 0, 1, 2, 3 ]
       ]
       self.i2cAdapterConfigs = i2cAdapterConfigs
 
@@ -46,11 +48,11 @@ class RookCpld( PciDeviceConfig ):
 
    @property
    def switchcardSmbusAccel( self ):
-      return self.i2cAdapterConfigs[ 1 ]
+      return self.i2cAdapterConfigs[ 2 ]
 
    @property
    def fancardSmbusAccel( self ):
-      return self.i2cAdapterConfigs[ 2 ]
+      return self.i2cAdapterConfigs[ 3 ]
 
 
 class RackhawkScd( PciDeviceConfig ):
@@ -61,9 +63,15 @@ class RackhawkScd( PciDeviceConfig ):
       self.addLeds()
 
    def addI2cAdapters( self ):
+      baseAccelOffset = 0x8000
+      accelStride = 0x80
       self.i2cAdapterConfigs = [
-            I2cAdapterConfig( self, 'SCD_SMBUS1', 'i2c_master', -1, '0x8080', 8,
+            I2cAdapterConfig( self, f'SCD_SMBUS{accelNum}', 'i2c_master', -1,
+                              hex( baseAccelOffset + accelNum * accelStride ), 8,
                               busSymlinkPrefix='SCD_SMBUS' )
+            # Accel 0 is unused and really shouldn't be here, but PM can't handle
+            # non-contiguous adapters correctly (the adapter names are incorrect).
+            for accelNum in [ 0, 1 ]
       ]
 
    def addLeds( self ):
@@ -75,7 +83,7 @@ class RackhawkScd( PciDeviceConfig ):
 
    @property
    def switchcardSmbusAccel( self ):
-      return self.i2cAdapterConfigs[ 0 ]
+      return self.i2cAdapterConfigs[ 1 ]
 
 
 class BlackhawkCpld( I2cDeviceConfig ):
