@@ -202,6 +202,14 @@
             },
             {
               "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "ROOK_SMBUS1",
+                "deviceName": "i2c_master",
+                "csrOffset": "0x8080"
+              },
+              "numberOfAdapters": 4
+            },
+            {
+              "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "ROOK_SMBUS2",
                 "deviceName": "i2c_master",
                 "csrOffset": "0x8100"
@@ -228,6 +236,14 @@
           "subSystemVendorId": "0x3475",
           "subSystemDeviceId": "0x0002",
           "i2cAdapterConfigs": [
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SCD_SMBUS0",
+                "deviceName": "i2c_master",
+                "csrOffset": "0x8000"
+              },
+              "numberOfAdapters": 8
+            },
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "SCD_SMBUS1",
@@ -333,6 +349,10 @@
     "/run/devmap/i2c-busses/ROOK_SMBUS0_CH1": "/[ROOK_SMBUS0@1]",
     "/run/devmap/i2c-busses/ROOK_SMBUS0_CH2": "/[ROOK_SMBUS0@2]",
     "/run/devmap/i2c-busses/ROOK_SMBUS0_CH3": "/[ROOK_SMBUS0@3]",
+    "/run/devmap/i2c-busses/ROOK_SMBUS1_CH0": "/[ROOK_SMBUS1@0]",
+    "/run/devmap/i2c-busses/ROOK_SMBUS1_CH1": "/[ROOK_SMBUS1@1]",
+    "/run/devmap/i2c-busses/ROOK_SMBUS1_CH2": "/[ROOK_SMBUS1@2]",
+    "/run/devmap/i2c-busses/ROOK_SMBUS1_CH3": "/[ROOK_SMBUS1@3]",
     "/run/devmap/i2c-busses/ROOK_SMBUS2_CH0": "/[ROOK_SMBUS2@0]",
     "/run/devmap/i2c-busses/ROOK_SMBUS2_CH1": "/[ROOK_SMBUS2@1]",
     "/run/devmap/i2c-busses/ROOK_SMBUS2_CH2": "/[ROOK_SMBUS2@2]",
@@ -341,6 +361,14 @@
     "/run/devmap/i2c-busses/ROOK_SMBUS3_CH1": "/[ROOK_SMBUS3@1]",
     "/run/devmap/i2c-busses/ROOK_SMBUS3_CH2": "/[ROOK_SMBUS3@2]",
     "/run/devmap/i2c-busses/ROOK_SMBUS3_CH3": "/[ROOK_SMBUS3@3]",
+    "/run/devmap/i2c-busses/SCD_SMBUS0_CH0": "/[SCD_SMBUS0@0]",
+    "/run/devmap/i2c-busses/SCD_SMBUS0_CH1": "/[SCD_SMBUS0@1]",
+    "/run/devmap/i2c-busses/SCD_SMBUS0_CH2": "/[SCD_SMBUS0@2]",
+    "/run/devmap/i2c-busses/SCD_SMBUS0_CH3": "/[SCD_SMBUS0@3]",
+    "/run/devmap/i2c-busses/SCD_SMBUS0_CH4": "/[SCD_SMBUS0@4]",
+    "/run/devmap/i2c-busses/SCD_SMBUS0_CH5": "/[SCD_SMBUS0@5]",
+    "/run/devmap/i2c-busses/SCD_SMBUS0_CH6": "/[SCD_SMBUS0@6]",
+    "/run/devmap/i2c-busses/SCD_SMBUS0_CH7": "/[SCD_SMBUS0@7]",
     "/run/devmap/i2c-busses/SCD_SMBUS1_CH0": "/[SCD_SMBUS1@0]",
     "/run/devmap/i2c-busses/SCD_SMBUS1_CH1": "/[SCD_SMBUS1@1]",
     "/run/devmap/i2c-busses/SCD_SMBUS1_CH2": "/[SCD_SMBUS1@2]",
