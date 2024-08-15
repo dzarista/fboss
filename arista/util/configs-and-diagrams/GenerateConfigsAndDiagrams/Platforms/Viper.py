@@ -226,7 +226,7 @@ class ViperSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbMgmtTemp = Sensor( "0x48", "tmp75", "SMB_MGMT_TMP75" )
+      smbMgmtTemp = Sensor( "0x42", "tmp75", "SMB_MGMT_TMP75" )
       smbMgmtTemp.addSensorConfigs( [
          SensorConfig( "MGMT_INLET_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
