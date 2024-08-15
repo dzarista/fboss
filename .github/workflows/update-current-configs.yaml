@@ -27,10 +27,7 @@ jobs:
     - name: Update JSON configs for all platforms
       run: |
         cd arista/util/configs-and-diagrams
-        python generate.py Viper pm-config > ../../../fboss/platform/configs/meru800bia/platform_manager.json
-        python generate.py Viper sensor-config > ../../../fboss/platform/configs/meru800bia/sensor_service.json
-        python generate.py Whistler pm-config > ../../../fboss/platform/configs/meru800bfa/platform_manager.json
-        python generate.py Whistler sensor-config > ../../../fboss/platform/configs/meru800bfa/sensor_service.json
+        python generate.py --update_all_configs
 
         git config --global user.name "GitHub Actions"
         git config --global user.email "actions@github.com"
