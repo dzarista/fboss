@@ -35,7 +35,7 @@
  * 125kHz clock. A new RPM sample must be triggered by software by writing
  * the RPM_SAMPLE register bit then waiting the required interval.
  *
- * This driver creates several device attributes in sysfs:
+ * This driver creates several device attributes in sysfs hwmon:
  *
  * pwm
  * inner_fan_rpm
@@ -47,6 +47,7 @@
  * rm_idprom_wp
  * rm_pwr_cyc
  *
+ * as well as a rackmon::status LED in /sys/class/leds/.
  */
 
 #include <linux/bitops.h>
@@ -58,6 +59,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
@@ -124,6 +126,8 @@ struct aslg4f4527_data {
 	s32 inner_fan_rpm;
 	s32 outer_fan_rpm;
 	s32 fan1_input; /* Average of inner and outer */
+
+	struct led_classdev cdev;
 };
 
 /*-----------------------------------------------------------------------*/
@@ -179,8 +183,8 @@ static s32 calculate_rpm(u16 initial_count, u16 tach)
 	s32 val;
 
 	/* Prevent division by zero in case of a misread. In valid reading,
-   * tach cannot be greated than initial_count because tach counts down
-   * from initial count. */
+	 * tach cannot be greated than initial_count because tach counts down
+	 * from initial count. */
 	if (initial_count - tach <= 0) {
 		return 0;
 	}
@@ -202,8 +206,8 @@ static struct aslg4f4527_data *sample_rpm(struct device *dev)
 	mutex_lock(&data->update_lock);
 
 	/* Take a new sample when the interval has passed or when the PWM target has
-   * been updated.
-   */
+	 * been updated.
+	 */
 	next_sample =
 		data->last_sample + msecs_to_jiffies(data->sample_interval);
 	if (time_after(jiffies, next_sample) || data->pwm_updated) {
@@ -288,7 +292,10 @@ static s32 read_pwm(struct i2c_client *client, u8 *pwm)
 		return err;
 	}
 
-	*pwm = err & 0xff;
+	/* Invert PWM target as in SW the target is the high duty cycle but in
+	 * the register the value represents low duty cycle.
+	 */
+	*pwm = 255 - (err & 0xff);
 
 	return 0;
 }
@@ -304,13 +311,15 @@ static s32 write_pwm(struct i2c_client *client, u8 pwm_target)
 	}
 
 	/* PWM target registers don't support 0 and 255 values, so adjust as
-   * needed.
-   */
+   	 * needed.
+   	 */
 	if (pwm_target < PWM_MIN) {
 		pwm_target = PWM_MIN;
 	} else if (pwm_target > PWM_MAX) {
 		pwm_target = PWM_MAX;
 	}
+
+	pwm_target = 255 - pwm_target;
 
 	/* Update the standby PWM target register */
 	err = i2c_smbus_write_byte_data(client, standby_pwm_target_reg,
@@ -461,6 +470,42 @@ static const struct attribute_group aslg4f4527_gpo_group = {
 	.attrs = aslg4f4527_gpo_attrs,
 };
 
+/*-----------------------------------------------------------------------
+ * led_classdev functions for rackmon LED
+ *
+ * Valid LED settings are:
+ * 0 = off
+ * 1 = red
+ * 2 = green
+ *
+ * LED registers are active low so negate register values.
+ */
+
+#define LED_RED_BIT	0
+#define LED_GREEN_BIT	1
+
+static void brightness_set(struct led_classdev *led_cdev,
+			   enum led_brightness val)
+{
+	struct aslg4f4527_data *data =
+		container_of(led_cdev, struct aslg4f4527_data, cdev);
+
+	write_virtual_input(data->client, RLED_L, (~val >> LED_RED_BIT) & 1);
+	write_virtual_input(data->client, GLED_L, (~val >> LED_GREEN_BIT) & 1);
+}
+
+static enum led_brightness brightness_get(struct led_classdev *led_cdev)
+{
+	struct aslg4f4527_data *data =
+		container_of(led_cdev, struct aslg4f4527_data, cdev);
+	u8 red_val, green_val;
+
+	read_virtual_input(data->client, RLED_L, &red_val);
+	read_virtual_input(data->client, GLED_L, &green_val);
+
+	return ((~red_val & 1) << LED_RED_BIT) | ((~green_val & 1) << LED_GREEN_BIT);
+}
+
 /*-----------------------------------------------------------------------*/
 
 /* initializing device  */
@@ -487,8 +532,8 @@ static int aslg4f4527_init_client(struct aslg4f4527_data *data,
 	data->pwm_updated = 1;
 
 	/* Read tach counter initial values. Tach counters cound down from
-   * initial values.
-   */
+   	 * initial values.
+   	 */
 	ret = i2c_smbus_read_word_data(client, REG_CNT0_CONTROL_DATA);
 	if (ret < 0) {
 		goto abort_init;
@@ -501,6 +546,12 @@ static int aslg4f4527_init_client(struct aslg4f4527_data *data,
 	}
 	data->outer_tach_initial_count = ret & 0xffff;
 	data->sample_interval = RPM_SAMPLE_INTERVAL_MS;
+
+	/* Init led class. */
+	data->cdev.name = "rackmon::status";
+	data->cdev.brightness_set = brightness_set;
+	data->cdev.brightness_get = brightness_get;
+	ret = devm_led_classdev_register(&client->dev, &data->cdev);
 
 abort_init:
 	mutex_unlock(&data->update_lock);

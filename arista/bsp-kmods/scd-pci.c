@@ -41,6 +41,7 @@
 
 #define SCD_PCI_VENDOR_ID		0x3475
 #define SCD_PCI_DEVICE_ID		0x0001
+#define DARWIN_SCD_PCI_SUBDEVICE_ID	0x0002
 #define FAIRYWREN_SCD_PCI_SUBDEVICE_ID	0x0008
 #define VIPER_SCD_PCI_SUBDEVICE_ID	0x0003
 #define BLACKCOMB_SCD0_PCI_SUBDEVICE_ID	0x0004
@@ -373,6 +374,36 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	REGBIT_FILE(fpga_sub_ver, 0x100, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(fpga_ver, 0x100, 16, 16, FMODE_RO, regbit_sysfs_show, NULL)
 
+#define DARWIN_REGBIT_FPGA_FILES							\
+	REGBIT_FILE(sat0_cpld_sub_ver, 0x400, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(sat0_cpld_ver, 0x400, 8, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(sat1_cpld_sub_ver, 0x400, 16, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(sat1_cpld_ver, 0x400, 24, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(pem_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(rackmon_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(pem_status, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(pem_input_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(sec_chip_reset_enter, 0x4000, 0, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(th3_pci_reset_enter, 0x4000, 1, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(th3_sys_reset_enter, 0x4000, 2, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(sat0_cpld_reset_enter, 0x4000, 3, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(sat1_cpld_reset_enter, 0x4000, 4, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(sec_chip_reset_clear, 0x4010, 0, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(th3_pci_reset_clear, 0x4010, 1, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(th3_sys_reset_clear, 0x4010, 2, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(sat0_cpld_reset_clear, 0x4010, 3, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(sat1_cpld_reset_clear, 0x4010, 4, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)
+
 #define FAIRYWREN_REGBIT_FPGA_FILES							\
 	REGBIT_FILE(bmc_mode, 0x8, 30, 1, FMODE_RO, regbit_sysfs_show, NULL)		\
 	REGBIT_FILE(bmc_aboot_grab, 0x2e00, 2, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
@@ -463,6 +494,16 @@ struct regbit_sysfs_entry scd_regbit_sysfs[] = {
 	},
 };
 
+struct regbit_sysfs_entry darwin_scd_regbit_sysfs[] = {
+	REGBIT_COMMON_FILES
+	DARWIN_REGBIT_FPGA_FILES
+
+	/* Always the last entry */
+	{
+		.name = NULL,
+	},
+};
+
 struct regbit_sysfs_entry fairywren_scd_regbit_sysfs[] = {
 	REGBIT_COMMON_FILES
 	FAIRYWREN_REGBIT_FPGA_FILES
@@ -511,6 +552,7 @@ BLACKCOMB_REGBIT_SYSFS(3)
 #define REGBIT_FILE(_name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
 static DEVICE_ATTR(_name, _mode, _show, _store);
 REGBIT_COMMON_FILES
+DARWIN_REGBIT_FPGA_FILES
 FAIRYWREN_REGBIT_FPGA_FILES
 VIPER_REGBIT_FPGA_FILES
 BLACKCOMB0_REGBIT_FPGA_FILES
@@ -526,6 +568,16 @@ static struct attribute *scd_attrs[] = {
 
 static struct attribute_group scd_attr_group = {
 	.attrs = scd_attrs,
+};
+
+static struct attribute *darwin_scd_attrs[] = {
+	REGBIT_COMMON_FILES
+	DARWIN_REGBIT_FPGA_FILES
+	NULL,
+};
+
+static struct attribute_group darwin_scd_attr_group = {
+	.attrs = darwin_scd_attrs,
 };
 
 static struct attribute *fairywren_scd_attrs[] = {
@@ -710,6 +762,10 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	switch(ent->subdevice) {
+		case DARWIN_SCD_PCI_SUBDEVICE_ID:
+			sysfs_attr_group = &darwin_scd_attr_group;
+			regbit_sysfs_table = darwin_scd_regbit_sysfs;
+			break;
 		case FAIRYWREN_SCD_PCI_SUBDEVICE_ID:
 			sysfs_attr_group = &fairywren_scd_attr_group;
 			regbit_sysfs_table = fairywren_scd_regbit_sysfs;
@@ -827,6 +883,8 @@ static void scd_shutdown(struct pci_dev *pdev)
 }
 
 static struct pci_device_id scd_pci_table[] = {
+	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
+			SCD_PCI_VENDOR_ID, DARWIN_SCD_PCI_SUBDEVICE_ID) },
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
 			 SCD_PCI_VENDOR_ID, FAIRYWREN_SCD_PCI_SUBDEVICE_ID) },
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
