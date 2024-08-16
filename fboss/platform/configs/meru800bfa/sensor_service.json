@@ -260,6 +260,24 @@
         "compute": "@/1000.0",
         "type": 3
       },
+      "R3_0_TEMP": {
+        "path": "/run/devmap/sensors/SMB_MAX6581/temp2_input",
+        "thresholds": {
+          "upperCriticalVal": 125.0,
+          "maxAlarmVal": 110.0
+        },
+        "compute": "@/1000.0",
+        "type": 3
+      },
+      "R3_1_TEMP": {
+        "path": "/run/devmap/sensors/SMB_MAX6581/temp3_input",
+        "thresholds": {
+          "upperCriticalVal": 125.0,
+          "maxAlarmVal": 110.0
+        },
+        "compute": "@/1000.0",
+        "type": 3
+      },
       "SMB_BOARD_REAR_RIGHT_TEMP": {
         "path": "/run/devmap/sensors/SMB_MAX6581/temp5_input",
         "thresholds": {
@@ -799,24 +817,6 @@
         },
         "compute": "@/1000.0",
         "type": 3
-      },
-      "R3_0_TEMP": {
-        "path": "/run/devmap/sensors/SMB_MAX6581/temp2_input",
-        "thresholds": {
-          "upperCriticalVal": 125.0,
-          "maxAlarmVal": 110.0
-        },
-        "compute": "@/1000.0",
-        "type": 3
-      },
-      "R3_1_TEMP": {
-        "path": "/run/devmap/sensors/SMB_MAX6581/temp3_input",
-        "thresholds": {
-          "upperCriticalVal": 125.0,
-          "maxAlarmVal": 110.0
-        },
-        "compute": "@/1000.0",
-        "type": 3
       }
     },
     "FAN1": {
@@ -1010,12 +1010,12 @@
       "PSU1_PIN": {
         "path": "/run/devmap/sensors/PSU1_PMBUS/power1_input",
         "compute": "@/1000000.0",
-        "type": 4
+        "type": 0
       },
       "PSU1_POUT": {
         "path": "/run/devmap/sensors/PSU1_PMBUS/power2_input",
         "compute": "@/1000000.0",
-        "type": 4
+        "type": 0
       }
     },
     "PSU2": {
