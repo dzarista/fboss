@@ -1,8 +1,7 @@
 on: 
-  schedule:
-    - cron: '0 0 * * 5'
+  workflow_dispatch:
 
-name: Upstream Sync
+name: Upstream Sync Manual
 
 jobs:
   run_sample_script:
@@ -25,7 +24,7 @@ jobs:
       - name: Send status email
         if: success() || failure()
         run: |
-          mail_to="fbosstest-dev@arista.com"
+          mail_to="arajeev@arista.com"
           subject=$(cat status_email_subject.txt)
           body_text_file="status_email_content.txt"
           attachment_path="upstream_sync_status.txt"

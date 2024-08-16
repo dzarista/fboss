@@ -117,7 +117,7 @@ maybe_setup_build_env() {
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
    cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA"
-   sdk_file="sai-sdk-all-6.5.30-7821ccdc2e.tar.xz"
+   sdk_file="sai-sdk-all-6.5.30-abe5182cf3.tar.xz"
    wget http://dist/storage/fboss/FBOSS-SAI/$sdk_file
    tar -xf "$sdk_file"
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29

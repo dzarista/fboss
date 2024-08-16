@@ -135,6 +135,11 @@ make -C $FBOSS_REPO/arista/showtech
 mkdir -p $SCRATCH_DIR/showtech
 cp -f $FBOSS_REPO/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
 
+# Building psu-upgrade dependencies
+make -C $FBOSS_REPO/arista/psu-upgrade
+mkdir -p $SCRATCH_DIR/psu-upgrade
+cp -f $FBOSS_REPO/arista/psu-upgrade/psu-upgrade $SCRATCH_DIR/psu-upgrade/
+
 # Generate python thrift libraries
 $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/ctrl.thrift
 mkdir -p $fboss_output_dir/lib/fb-py-libs
