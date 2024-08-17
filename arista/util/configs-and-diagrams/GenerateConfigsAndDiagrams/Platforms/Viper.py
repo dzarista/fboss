@@ -60,7 +60,7 @@ class ViperSMB( SMBUnit ):
       '''
       smbPca = GpioChip( "0x74", "pca9539", "SMB_PCA", incomingBusIndex=0 )
 
-      smbTmp75Front = Sensor( "0x49", "tmp75", "SMB_TMP75_FRONT", incomingBusIndex=1,
+      smbTmp75Front = Sensor( "0x49", "lm75", "SMB_TMP75_FRONT", incomingBusIndex=1,
                               initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
       smbTmp75Front.addSensorConfigs( [
          SensorConfig( "BOARD_FRONT_TEMP", "temp1_input", SensorType.TEMP,
@@ -70,7 +70,7 @@ class ViperSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbTmp75Back = Sensor( "0x4A", "tmp75", "SMB_TMP75_REAR",
+      smbTmp75Back = Sensor( "0x4A", "lm75", "SMB_TMP75_REAR",
                              incomingBusIndex=1,
                              initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
       smbTmp75Back.addSensorConfigs( [
@@ -136,7 +136,7 @@ class ViperSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbFanTmp = Sensor( "0x48", "tmp75", "FAN_TMP75", incomingBusIndex=2,
+      smbFanTmp = Sensor( "0x48", "lm75", "FAN_TMP75", incomingBusIndex=2,
                           initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
       smbFanTmp.addSensorConfigs( [
          SensorConfig( "FAN_BOARD_TEMP", "temp1_input", SensorType.TEMP,
@@ -226,7 +226,7 @@ class ViperSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbMgmtTemp = Sensor( "0x48", "tmp75", "SMB_MGMT_TMP75" )
+      smbMgmtTemp = Sensor( "0x48", "lm75", "SMB_MGMT_TMP75" )
       smbMgmtTemp.addSensorConfigs( [
          SensorConfig( "MGMT_INLET_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
