@@ -2,22 +2,27 @@
 # SPDX-License-Identifier: GPL-2.0+
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 
-ccflags-y += -I${M}/lib
+PWD := $(shell pwd)
 
-scd-objs := scd-pci.o lib/fbiob-auxdev.o lib/fbiob-cdev.o
+subdir-ccflags-y += -I${M}/lib
+
 obj-m += scd.o
+scd-objs := scd-pci.o lib/fbiob-auxdev.o lib/fbiob-cdev.o
 obj-m += scd-smbus.o
 obj-m += scd-leds.o
 obj-m += scd-xcvr.o
 obj-m += scd-spi.o
 
-obj-m += i2c_dev_sysfs.o
-obj-m += decker-cpld.o
-obj-m += dsf-fan-cpld.o
+# Backported drivers
+obj-y += backports/
+
+# Device drivers for Viper and Whistler
+obj-y += dsf/
+
+#Device drivers for Darwin.
+obj-y += darwin/
 
 KDIR ?= /lib/modules/${BUILD_KERNEL}/build
-
-PWD := $(shell pwd)
 
 kmods:
 	$(MAKE) -C $(KDIR) M=$(PWD) modules

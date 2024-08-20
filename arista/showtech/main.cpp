@@ -7,9 +7,9 @@
 #include "ShowtechUtils.h"
 #include <algorithm>
 #include <cstring>
-#include <memory>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <memory>
 
 using namespace showtech;
 
@@ -17,8 +17,9 @@ std::unique_ptr<Showtech> get_platform_showtech(bool verbose) {
   std::string platform;
   if (run_cmd("dmidecode -s system-product-name", platform) == 0) {
     strip(platform);
-    std::transform(platform.begin(), platform.end(), platform.begin(), ::tolower);
-    if (platform == "darwin") {
+    std::transform(platform.begin(), platform.end(), platform.begin(),
+                   ::tolower);
+    if (platform == "darwin" || platform == "darwin48v") {
       return std::make_unique<DarwinShowtech>(verbose);
     } else if (platform == "meru800bia" || platform == "meru800bfa") {
       return std::make_unique<MeruShowtech>(verbose);

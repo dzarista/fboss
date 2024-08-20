@@ -273,13 +273,316 @@
         },
         "compute": "@/1000.0",
         "type": 3
+      },
+      "SC_POS_12V_TH3_A": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in1_input",
+        "thresholds": {
+          "upperCriticalVal": 13.8,
+          "lowerCriticalVal": 9.5
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_12V_TH3_B": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in2_input",
+        "thresholds": {
+          "upperCriticalVal": 13.8,
+          "lowerCriticalVal": 9.5
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_12V_STDBY": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in3_input",
+        "thresholds": {
+          "upperCriticalVal": 13.8,
+          "lowerCriticalVal": 9.5
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_5V0": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in4_input",
+        "thresholds": {
+          "upperCriticalVal": 5.75,
+          "lowerCriticalVal": 4.25
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_3V3": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in5_input",
+        "thresholds": {
+          "upperCriticalVal": 3.795,
+          "lowerCriticalVal": 2.805
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_3V3_QSFPDD_A": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in6_input",
+        "thresholds": {
+          "upperCriticalVal": 3.795,
+          "lowerCriticalVal": 2.805
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_3V3_QSFPDD_B": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in7_input",
+        "thresholds": {
+          "upperCriticalVal": 3.795,
+          "lowerCriticalVal": 2.805
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_3V3_STDBY": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in8_input",
+        "thresholds": {
+          "upperCriticalVal": 3.795,
+          "lowerCriticalVal": 2.475
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_2V5_LT": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in9_input",
+        "thresholds": {
+          "upperCriticalVal": 5.1,
+          "lowerCriticalVal": 0.5
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_2V5_RT": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in10_input",
+        "thresholds": {
+          "upperCriticalVal": 5.1,
+          "lowerCriticalVal": 0.5
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_1V8": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in11_input",
+        "thresholds": {
+          "upperCriticalVal": 2.07,
+          "lowerCriticalVal": 1.53
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_1V5_A": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in12_input",
+        "thresholds": {
+          "upperCriticalVal": 1.725,
+          "lowerCriticalVal": 1.275
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_1V5_B": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in13_input",
+        "thresholds": {
+          "upperCriticalVal": 1.38,
+          "lowerCriticalVal": 1.02
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_1V2": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in14_input",
+        "thresholds": {
+          "upperCriticalVal": 1.38,
+          "lowerCriticalVal": 1.02
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_0V8_AVDD": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in15_input",
+        "thresholds": {
+          "upperCriticalVal": 0.92,
+          "lowerCriticalVal": 0.72
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "SC_POS_0V9_VDD": {
+        "path": "/run/devmap/sensors/SC_POS_UCD90320/in16_input",
+        "thresholds": {
+          "upperCriticalVal": 1.35,
+          "lowerCriticalVal": 0.38
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "TH3_VRD1_VIN": {
+        "path": "/run/devmap/sensors/SC_TH3_CORE_IR35223/in1_input",
+        "thresholds": {
+          "upperCriticalVal": 14.5,
+          "lowerCriticalVal": 9.0
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "TH3_VRD1_VOUT": {
+        "path": "/run/devmap/sensors/SC_TH3_CORE_IR35223/in2_input",
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "TH3_VRD1_TEMP": {
+        "path": "/run/devmap/sensors/SC_TH3_CORE_IR35223/temp1_input",
+        "thresholds": {
+          "upperCriticalVal": 125.0
+        },
+        "compute": "@/1000.0",
+        "type": 3
+      },
+      "TH3_VRD1_POUT": {
+        "path": "/run/devmap/sensors/SC_TH3_CORE_IR35223/power2_input",
+        "thresholds": {
+          "upperCriticalVal": 400.0
+        },
+        "compute": "@/1000000.0",
+        "type": 0
+      },
+      "TH3_VRD1_IIN": {
+        "path": "/run/devmap/sensors/SC_TH3_CORE_IR35223/curr1_input",
+        "thresholds": {
+          "upperCriticalVal": 60.5
+        },
+        "compute": "@/1000.0",
+        "type": 2
+      },
+      "TH3_VRD1_IOUT": {
+        "path": "/run/devmap/sensors/SC_TH3_CORE_IR35223/curr2_input",
+        "thresholds": {
+          "upperCriticalVal": 464.0
+        },
+        "compute": "@/1000.0",
+        "type": 2
+      },
+      "TH3_VRD2_VIN": {
+        "path": "/run/devmap/sensors/SC_TH3_ANLG_IR35223/in1_input",
+        "thresholds": {
+          "upperCriticalVal": 14.5,
+          "lowerCriticalVal": 9.0
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "TH3_VRD2_VOUT": {
+        "path": "/run/devmap/sensors/SC_TH3_ANLG_IR35223/in2_input",
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "TH3_VRD2_TEMP": {
+        "path": "/run/devmap/sensors/SC_TH3_ANLG_IR35223/temp1_input",
+        "thresholds": {
+          "upperCriticalVal": 125.0
+        },
+        "compute": "@/1000.0",
+        "type": 3
+      },
+      "TH3_VRD2_POUT": {
+        "path": "/run/devmap/sensors/SC_TH3_ANLG_IR35223/power2_input",
+        "thresholds": {
+          "upperCriticalVal": 400.0
+        },
+        "compute": "@/1000000.0",
+        "type": 0
+      },
+      "TH3_VRD2_IIN": {
+        "path": "/run/devmap/sensors/SC_TH3_ANLG_IR35223/curr1_input",
+        "thresholds": {
+          "upperCriticalVal": 60.5
+        },
+        "compute": "@/1000.0",
+        "type": 2
+      },
+      "TH3_VRD2_IOUT": {
+        "path": "/run/devmap/sensors/SC_TH3_ANLG_IR35223/curr2_input",
+        "thresholds": {
+          "upperCriticalVal": 124.0
+        },
+        "compute": "@/1000.0",
+        "type": 2
+      },
+      "QSFPDD_VRD_VIN": {
+        "path": "/run/devmap/sensors/SC_QSFPDD_IR35223/in1_input",
+        "thresholds": {
+          "upperCriticalVal": 14.5,
+          "lowerCriticalVal": 9.0
+        },
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "QSFPDD_VRD_VOUT_A": {
+        "path": "/run/devmap/sensors/SC_QSFPDD_IR35223/in2_input",
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "QSFPDD_VRD_VOUT_B": {
+        "path": "/run/devmap/sensors/SC_QSFPDD_IR35223/in3_input",
+        "compute": "@/1000.0",
+        "type": 1
+      },
+      "QSFPDD_VRD_TEMP": {
+        "path": "/run/devmap/sensors/SC_QSFPDD_IR35223/temp1_input",
+        "thresholds": {
+          "upperCriticalVal": 125.0
+        },
+        "compute": "@/1000.0",
+        "type": 3
+      },
+      "QSFPDD_VRD_POUT_A": {
+        "path": "/run/devmap/sensors/SC_QSFPDD_IR35223/power2_input",
+        "thresholds": {
+          "upperCriticalVal": 400.0
+        },
+        "compute": "@/1000000.0",
+        "type": 0
+      },
+      "QSFPDD_VRD_POUT_B": {
+        "path": "/run/devmap/sensors/SC_QSFPDD_IR35223/power3_input",
+        "thresholds": {
+          "upperCriticalVal": 400.0
+        },
+        "compute": "@/1000000.0",
+        "type": 0
+      },
+      "QSFPDD_VRD_IIN": {
+        "path": "/run/devmap/sensors/SC_QSFPDD_IR35223/curr1_input",
+        "thresholds": {
+          "upperCriticalVal": 60.5
+        },
+        "compute": "@/1000.0",
+        "type": 2
+      },
+      "QSFPDD_VRD_IOUT_A": {
+        "path": "/run/devmap/sensors/SC_QSFPDD_IR35223/curr2_input",
+        "thresholds": {
+          "upperCriticalVal": 120.0
+        },
+        "compute": "@/1000.0",
+        "type": 2
+      },
+      "QSFPDD_VRD_IOUT_B": {
+        "path": "/run/devmap/sensors/SC_QSFPDD_IR35223/curr3_input",
+        "thresholds": {
+          "upperCriticalVal": 120.0
+        },
+        "compute": "@/1000.0",
+        "type": 2
       }
     },
     "FAN1": {
       "FAN1_RPM": {
         "path": "/run/devmap/sensors/FAN_CPLD/fan1_input",
         "thresholds": {
-          "upperCriticalVal": 25500,
+          "upperCriticalVal": 29500,
           "lowerCriticalVal": 2600
         },
         "type": 4
@@ -289,7 +592,7 @@
       "FAN2_RPM": {
         "path": "/run/devmap/sensors/FAN_CPLD/fan2_input",
         "thresholds": {
-          "upperCriticalVal": 25500,
+          "upperCriticalVal": 29500,
           "lowerCriticalVal": 2600
         },
         "type": 4
@@ -299,7 +602,7 @@
       "FAN3_RPM": {
         "path": "/run/devmap/sensors/FAN_CPLD/fan3_input",
         "thresholds": {
-          "upperCriticalVal": 25500,
+          "upperCriticalVal": 29500,
           "lowerCriticalVal": 2600
         },
         "type": 4
@@ -309,7 +612,7 @@
       "FAN4_RPM": {
         "path": "/run/devmap/sensors/FAN_CPLD/fan4_input",
         "thresholds": {
-          "upperCriticalVal": 25500,
+          "upperCriticalVal": 29500,
           "lowerCriticalVal": 2600
         },
         "type": 4
@@ -319,7 +622,7 @@
       "FAN5_RPM": {
         "path": "/run/devmap/sensors/FAN_CPLD/fan5_input",
         "thresholds": {
-          "upperCriticalVal": 25500,
+          "upperCriticalVal": 29500,
           "lowerCriticalVal": 2600
         },
         "type": 4
