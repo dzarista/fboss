@@ -98,6 +98,8 @@ void PlatformProductInfo::initMode() {
     } else if (
         modelName.find("Wedge400") == 0 || modelName.find("WEDGE400") == 0) {
       type_ = PlatformType::PLATFORM_WEDGE400;
+    } else if ( modelName.find("DARWIN48V") == 0 ) {
+      type_ = PlatformType::PLATFORM_DARWIN48V;
     } else if (
         modelName.find("Darwin") == 0 || modelName.find("DARWIN") == 0 ||
         modelName.find("DCS-7060") == 0 || modelName.find("Rackhawk") == 0) {
@@ -200,6 +202,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_ELBERT;
     } else if (FLAGS_mode == "darwin") {
       type_ = PlatformType::PLATFORM_DARWIN;
+    } else if (FLAGS_mode == "darwin48v") {
+      type_ = PlatformType::PLATFORM_DARWIN48V;
     } else if (FLAGS_mode == "sandia") {
       type_ = PlatformType::PLATFORM_SANDIA;
     } else if (FLAGS_mode == "meru400biu") {
