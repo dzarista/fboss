@@ -14,7 +14,9 @@ from .BaseConfigs import (
    Flash,
    GpioChip,
    InitRegSettings,
+   I2cAdapterConfig,
    I2cDeviceConfig,
+   I2cIdProm,
    LedConfig,
    PciDeviceConfig,
    PlatformConfig,
@@ -22,7 +24,6 @@ from .BaseConfigs import (
    PSUUnit,
    PmUnitConfig,
    SCMFairywren,
-   SCMIdProm,
    SCMUnit,
    Sensor,
    SlotConfig,
@@ -371,13 +372,13 @@ class I2cDeviceConfigTest( unittest.TestCase ):
          self.assertRegex( match, oneLiner )
 
    def testSymlinkToDevicePaths( self ):
-      # Note that on a real platform, FairywrenIdProm and SCMIdProm would not
+      # Note that on a real platform, FairywrenIdProm and I2cIdProm would not
       # co-exist together. This is simply for symlink testing purposes.
       self.platform.pmUnitConfigs[ 0 ].addI2cDeviceConfigs( [
          GpioChip( "0x74", "pca9539", "SCM_PCA" ),
          FairywrenSensor( "0x30", "pxm1310", "SCM_PXM1310_1" ),
          FairywrenIdProm( "0x50", "24c512", "SCM_IDPROM_P1", hasCpuMac=True ),
-         SCMIdProm( "0x60", "24c512", "EXTRA_TEST_EEPROM" ),
+         I2cIdProm( "0x60", "24c512", "EXTRA_TEST_EEPROM" ),
       ] )
       # Similarly, FAN_CPLD and FAN0_CPLD would also not be both defined on the same
       # platform.
@@ -488,6 +489,27 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       self.platform.pmUnitConfigs[ 0 ].populateSymlinkToDevicePaths()
       symlinkDict = self.platform.parseSymbolicLinkToDevicePaths()
       self.assertEqual( len( symlinkDict ), 0 )
+
+
+class SinglePSUConfigTest( unittest.TestCase ):
+   def setUp( self ):
+      self.platform = PlatformConfig( "test_platform" )
+      self.platform.addPmUnitConfigs( [
+         PmUnitConfig( pmUnitName="SCM" ),
+         PSUUnit( singlePSU=True ),
+      ] )
+      self.platform.pmUnitConfigs[ 0 ].addOutgoingSlotConfigs( [
+         SlotConfig( slotName="PSU_SLOT@0" ),
+      ] )
+      for pmConfig in self.platform.pmUnitConfigs:
+         pmConfig.populateSymlinkToDevicePaths()
+
+   def testSinglePSU( self ):
+      '''Test that when a platform defines a PmUnit with a single PSU
+      that the sensor endpoint doesn't include a number.
+      '''
+      symlinkDict = self.platform.parseSymbolicLinkToDevicePaths()
+      self.assertTrue( "/run/devmap/sensors/PSU_PMBUS" in symlinkDict )
 
 
 class SlotConfigTest( unittest.TestCase ):
@@ -607,14 +629,37 @@ class SlotConfigTest( unittest.TestCase ):
             f"/SMB_SLOT@0/[FAN{ i // 4 }_CPLD]"
          )
 
+   def testEnumerateFANSlotConfigsFansPerCpld( self ):
+      '''Try setting different values for fansPerCpld and ensure that the correct
+      number of slots are added.
+      '''
+      numFans = 4
+      fansPerCpld = 2
+      platform = PlatformConfig( "test_platform" )
+      platform.addPmUnitConfigs( [ PmUnitConfig( pmUnitName="SMB" ) ] )
+      platform.pmUnitConfigs[ 0 ].addOutgoingSlotConfigs( [
+         *enumerateFANSlotConfigs( numFans, "/SMB_SLOT@0/[FAN_CPLD]",
+                                   fansPerCpld=fansPerCpld )
+      ] )
+      pmUnitDict = platform.getPmUnitConfigsDict()
+      for i in range( numFans ):
+         self.assertTrue(
+            f"FAN_SLOT@{ i }" in pmUnitDict[ "SMB" ][ "outgoingSlotConfigs" ]
+         )
+         self.assertEqual(
+            pmUnitDict[ "SMB" ][ "outgoingSlotConfigs" ][ f"FAN_SLOT@{ i }" ][
+               "presenceDetection" ][ "sysfsFileHandle" ][ "presenceFileName" ],
+            f'fan{ i % fansPerCpld + 1 }_present'
+         )
+
 
 class PciDeviceConfigTest( unittest.TestCase ):
-   def testEmptyPciDeviceConfig( self ):
-      platform = PlatformConfig( "test_platform" )
-      platform.addPmUnitConfigs( [
+   def setUp( self ):
+      self.platform = PlatformConfig( "test_platform", rootPmUnitName="TEST_UNIT" )
+      self.platform.addPmUnitConfigs( [
          PmUnitConfig( "TEST_UNIT" )
       ] )
-      platform.pmUnitConfigs[ 0 ].addPciDeviceConfigs( [
+      self.platform.pmUnitConfigs[ 0 ].addPciDeviceConfigs( [
          PciDeviceConfig(
             pmUnitScopedName="TEST_FPGA",
             vendorId="0x3475",
@@ -623,7 +668,9 @@ class PciDeviceConfigTest( unittest.TestCase ):
             subSystemDeviceId="0x0003"
          )
       ] )
-      pmUnitDict = platform.getPmUnitConfigsDict()
+
+   def testEmptyPciDeviceConfig( self ):
+      pmUnitDict = self.platform.getPmUnitConfigsDict()
       testUnitConfig = pmUnitDict[ "TEST_UNIT" ]
       self.assertEqual( len( testUnitConfig[ "pciDeviceConfigs" ] ), 1 )
       testPciConfig = testUnitConfig[ "pciDeviceConfigs" ][ 0 ]
@@ -636,6 +683,14 @@ class PciDeviceConfigTest( unittest.TestCase ):
       self.assertEqual( testPciConfig[ "spiMasterConfigs" ], [] )
       self.assertEqual( testPciConfig[ "ledCtrlConfigs" ], [] )
       self.assertEqual( testPciConfig[ "xcvrCtrlConfigs" ], [] )
+
+   def testPciDeviceConfigSymlinkDir( self ):
+      pciFpga = self.platform.pmUnitConfigs[ 0 ].pciDeviceConfigs[ 0 ]
+      pciFpga.symlinkDir = 'cplds'
+      pciFpga.symlinkDeviceName = 'TEST_FPGA'
+      self.platform.pmUnitConfigs[ 0 ].populateSymlinkToDevicePaths()
+      symlinkDict = self.platform.parseSymbolicLinkToDevicePaths()
+      self.assertTrue( '/run/devmap/cplds/TEST_FPGA' in symlinkDict )
 
 
 class I2cAdapterConfigTest( unittest.TestCase ):
@@ -715,6 +770,22 @@ class I2cAdapterConfigTest( unittest.TestCase ):
       self.assertFalse(
          "/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS12_CH7" in symlinkDict
       )
+
+   def testAdapterConfigWithBusSymlinkPrefix( self ):
+      '''Test that when a busSymlinkPrefix is provided to an I2cAdapterConfig that
+      the resulting symlink paths are as epected.
+      '''
+      pciDevice = self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ]
+      pciDevice.i2cAdapterConfigs.append(
+            I2cAdapterConfig( pciDevice, 'MY_SMBUS0', 'i2c_master', -1, '0x8000', 4,
+                              busSymlinkPrefix='RANDOM' )
+      )
+      self.platform.pmUnitConfigs[ 1 ].populateSymlinkToDevicePaths()
+      symlinkDict = self.platform.parseSymbolicLinkToDevicePaths()
+      self.assertTrue( '/run/devmap/i2c-busses/RANDOM0_CH0' in symlinkDict )
+      self.assertTrue( '/run/devmap/i2c-busses/RANDOM0_CH1' in symlinkDict )
+      self.assertTrue( '/run/devmap/i2c-busses/RANDOM0_CH2' in symlinkDict )
+      self.assertTrue( '/run/devmap/i2c-busses/RANDOM0_CH3' in symlinkDict )
 
 
 class SpiMasterConfigTest( unittest.TestCase ):

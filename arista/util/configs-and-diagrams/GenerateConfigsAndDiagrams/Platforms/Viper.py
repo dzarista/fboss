@@ -51,13 +51,11 @@ class ViperSMB( SMBUnit ):
          idPromConfigOffset=15360
       )
 
-      '''
-      Initial I2c register values are implicitly cast to 8-bit unsigned integer
-      values when creating a device, but Python uses two's complement.
-      -121 in 8-bit two's complement has the same binary representation as
-      135 in 8-bit unsigned. Register values represent temperature in Celsius and
-      are used to overwrite the default temperature settings.
-      '''
+      # Initial I2c register values are implicitly cast to 8-bit unsigned integer
+      # values when creating a device, but Python uses two's complement.
+      # -121 in 8-bit two's complement has the same binary representation as
+      # 135 in 8-bit unsigned. Register values represent temperature in Celsius and
+      # are used to overwrite the default temperature settings.
       smbPca = GpioChip( "0x74", "pca9539", "SMB_PCA", incomingBusIndex=0 )
 
       smbTmp75Front = Sensor( "0x49", "lm75", "SMB_TMP75_FRONT", incomingBusIndex=1,
