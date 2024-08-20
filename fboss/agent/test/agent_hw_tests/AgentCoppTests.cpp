@@ -205,11 +205,12 @@ class AgentCoppTest : public AgentHwTest {
   void sendPkt(
       std::unique_ptr<TxPacket> pkt,
       bool outOfPort,
-      bool snoopAndVerify = false) {
+      bool snoopAndVerify = false,
+      bool skipTtlDecrement = true) {
     XLOG(DBG2) << "Packet Dump::"
                << folly::hexDump(pkt->buf()->data(), pkt->buf()->length());
 
-    auto ethFrame = utility::makeEthFrame(*pkt, true /*skipTtlDecrement*/);
+    auto ethFrame = utility::makeEthFrame(*pkt, skipTtlDecrement);
     utility::SwSwitchPacketSnooper snooper(
         getSw(), "snoop", std::nullopt, ethFrame);
     if (outOfPort) {
@@ -236,7 +237,8 @@ class AgentCoppTest : public AgentHwTest {
       uint8_t trafficClass = 0,
       std::optional<std::vector<uint8_t>> payload = std::nullopt,
       bool expectQueueHit = true,
-      bool outOfPort = true) {
+      bool outOfPort = true,
+      bool skipTtlDecrement = true) {
     const auto kNumPktsToSend = 1;
     auto vlanId = utility::firstVlanID(getProgrammedState());
     auto destinationMac =
@@ -251,7 +253,11 @@ class AgentCoppTest : public AgentHwTest {
           l4DstPort,
           trafficClass,
           payload);
-      sendPkt(std::move(pkt), outOfPort, expectQueueHit /*snoopAndVerify*/);
+      sendPkt(
+          std::move(pkt),
+          outOfPort,
+          expectQueueHit /*snoopAndVerify*/,
+          skipTtlDecrement);
     };
     utility::sendPktAndVerifyCpuQueue(
         getSw(),
@@ -381,13 +387,18 @@ class AgentCoppTest : public AgentHwTest {
     EXPECT_EQ(1, afterOutPkts - beforeOutPkts);
   }
 
-  void setupEcmp() {
+  void setupEcmp(bool useInterfaceMac = false) {
     if constexpr (!isTrunk) {
       utility::EcmpSetupAnyNPorts6 ecmpHelper(
-          getProgrammedState(), getLocalMacAddress());
+          getProgrammedState(),
+          useInterfaceMac ? utility::getFirstInterfaceMac(getProgrammedState())
+                          : getLocalMacAddress());
       resolveNeigborAndProgramRoutes(ecmpHelper, 1);
     } else {
-      utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
+      utility::EcmpSetupTargetedPorts6 ecmpHelper(
+          getProgrammedState(),
+          useInterfaceMac ? utility::getFirstInterfaceMac(getProgrammedState())
+                          : getLocalMacAddress());
       flat_set<PortDescriptor> ports;
       ports.insert(PortDescriptor(AggregatePortID(1)));
       applyNewState(
@@ -959,22 +970,39 @@ TYPED_TEST(AgentCoppTest, Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ) {
  * packets. This gets forwarded to cpu queue 9
  */
 TYPED_TEST(AgentCoppTest, CpuPortIpv6LinkLocalUcastIp) {
-  auto setup = [=, this]() { this->setup(); };
+  auto setup = [=, this]() {
+    this->setup();
+    if (!this->isSupportedOnAllAsics(HwAsic::Feature::BRIDGE_PORT_8021Q)) {
+      // no l2 bridging, need to create L3 loop on DNX
+      this->setupEcmp(true);
+    }
+  };
 
   auto verify = [=, this]() {
+    std::optional<folly::MacAddress> dstMac;
+    bool skipTtlDecrement;
+    if (this->isSupportedOnAllAsics(HwAsic::Feature::BRIDGE_PORT_8021Q)) {
+      // use random mac, packets would be flooded and loopback
+      dstMac = folly::MacAddress("00:00:00:00:00:01");
+      skipTtlDecrement = true;
+    } else {
+      // use interface mac, otherwise would be dropped on dnx
+      dstMac = utility::getFirstInterfaceMac(this->getProgrammedState());
+      skipTtlDecrement = false;
+    }
     auto nbrLinkLocalAddr = folly::IPAddressV6("fe80:face:b11c::1");
-    auto randomMac = folly::MacAddress("00:00:00:00:00:01");
     this->sendTcpPktAndVerifyCpuQueue(
         utility::getCoppHighPriQueueId(utility::checkSameAndGetAsic(
             this->getAgentEnsemble()->getL3Asics())),
         nbrLinkLocalAddr,
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
-        randomMac,
+        dstMac,
         kNetworkControlDscp,
         std::nullopt,
         true,
-        false /*outOfPort*/);
+        false /*outOfPort*/,
+        skipTtlDecrement);
   };
 
   this->verifyAcrossWarmBoots(setup, verify);
@@ -1118,6 +1146,15 @@ TYPED_TEST(AgentCoppTest, UnresolvedRoutesToLowPriQueue) {
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
         std::nullopt);
+    // unresolved route packet with network control dscp 48 should
+    // stil go to low priority cpu queue
+    this->sendTcpPktAndVerifyCpuQueue(
+        utility::kCoppLowPriQueueId,
+        randomIP,
+        utility::kNonSpecialPort1,
+        utility::kNonSpecialPort2,
+        std::nullopt,
+        kNetworkControlDscp);
   };
   this->verifyAcrossWarmBoots(setup, verify);
 }
@@ -1679,6 +1716,34 @@ TEST_F(AgentCoppQosTest, HighVsLowerPriorityCpuQueueTrafficPrioritization) {
     EXPECT_EQ(
         kHighPriorityPacketCount,
         highPriorityCoppQueueStatsAfter - highPriorityCoppQueueStatsBefore);
+
+    if (asic->isSupported(HwAsic::Feature::CPU_VOQ_BUFFER_PROFILE)) {
+      // check watermark of low priority voq should reach max shared buffer size
+      const double kVariance = 0.01;
+      auto watermarkBytesLow = utility::getDnxCoppMaxDynamicSharedBytes(
+                                   utility::kCoppLowPriQueueId) *
+          (1 - kVariance);
+      auto watermarkBytesHigh = utility::getDnxCoppMaxDynamicSharedBytes(
+                                    utility::kCoppLowPriQueueId) *
+          (1 + kVariance);
+      WITH_RETRIES({
+        auto voqWaterMarkBytes =
+            getLatestCpuSysPortStats().value().get_queueWatermarkBytes_();
+        auto lowPriorityWaterMarkBytes =
+            voqWaterMarkBytes.at(utility::kCoppLowPriQueueId);
+        XLOG(DBG2) << "low priority cpu voq watermark counter "
+                   << lowPriorityWaterMarkBytes;
+        for (auto iter = voqWaterMarkBytes.begin();
+             iter != voqWaterMarkBytes.end();
+             iter++) {
+          XLOG(DBG2) << "cpu voq " << iter->first << " has watermarker counter "
+                     << iter->second;
+        }
+        EXPECT_EVENTUALLY_TRUE(
+            lowPriorityWaterMarkBytes < watermarkBytesHigh &&
+            lowPriorityWaterMarkBytes > watermarkBytesLow);
+      });
+    }
   };
 
   this->verifyAcrossWarmBoots(setup, verify);

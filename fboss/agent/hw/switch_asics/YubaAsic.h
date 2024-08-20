@@ -22,7 +22,7 @@ class YubaAsic : public TajoAsic {
       std::optional<int64_t> id,
       int16_t index,
       std::optional<cfg::Range64> systemPortRange,
-      folly::MacAddress& mac,
+      const folly::MacAddress& mac,
       std::optional<cfg::SdkVersion> sdkVersion = std::nullopt)
       : TajoAsic(
             type,
@@ -33,7 +33,9 @@ class YubaAsic : public TajoAsic {
             sdkVersion,
             {cfg::SwitchType::NPU,
              cfg::SwitchType::VOQ,
-             cfg::SwitchType::FABRIC}) {}
+             cfg::SwitchType::FABRIC}) {
+    HwAsic::setDefaultStreamType(cfg::StreamType::UNICAST);
+  }
   bool isSupported(Feature feature) const override {
     return getSwitchType() != cfg::SwitchType::FABRIC
         ? isSupportedNonFabric(feature)
@@ -119,6 +121,17 @@ class YubaAsic : public TajoAsic {
     return 1;
   }
   cfg::Range64 getReservedEncapIndexRange() const override;
+
+  std::vector<prbs::PrbsPolynomial> getSupportedPrbsPolynomials()
+      const override {
+    return {
+        prbs::PrbsPolynomial::PRBS9,
+        prbs::PrbsPolynomial::PRBS11,
+        prbs::PrbsPolynomial::PRBS13,
+        prbs::PrbsPolynomial::PRBS15,
+        prbs::PrbsPolynomial::PRBS31,
+    };
+  }
 
  private:
   bool isSupportedFabric(Feature feature) const;

@@ -6,7 +6,7 @@
 #include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_types.h"
 #include "fboss/fsdb/oper/Subscription.h"
-#include "fboss/fsdb/oper/SubscriptionPathStore.h"
+#include "fboss/fsdb/oper/SubscriptionStore.h"
 
 #include <folly/logging/xlog.h>
 #include <string>
@@ -24,14 +24,6 @@ class SubscriptionManagerBase {
       : patchOperProtocol_(patchOperProtocol),
         requireResponseOnInitialSync_(requireResponseOnInitialSync) {}
 
-  virtual ~SubscriptionManagerBase() = default;
-
-  void pruneSimpleSubscriptions();
-
-  std::vector<std::string> markExtendedSubscriptionsThatNeedPruning();
-
-  void pruneExtendedSubscriptions(const std::vector<std::string>& toDelete);
-
   void pruneCancelledSubscriptions();
 
   void closeNoPublisherActiveSubscriptions(
@@ -41,25 +33,17 @@ class SubscriptionManagerBase {
   void registerExtendedSubscription(
       std::shared_ptr<ExtendedSubscription> subscription);
 
-  virtual void registerSubscription(std::unique_ptr<Subscription> subscription);
-
-  void unregisterSubscription(const std::string& name);
-
-  void unregisterExtendedSubscription(const std::string& name);
+  void registerSubscription(std::unique_ptr<Subscription> subscription);
 
   size_t numSubscriptions() const {
-    return subscriptions_.size();
+    return store_.rlock()->subscriptions().size();
   }
 
   size_t numPathStores() const {
-    return lookup_.numPathStores();
+    return store_.rlock()->lookup().numPathStores();
   }
 
   std::vector<OperSubscriberInfo> getSubscriptions() const;
-
-  void flush(const SubscriptionMetadataServer& metadataServer);
-
-  void serveHeartbeat();
 
   void useIdPaths(bool idPaths) {
     useIdPaths_ = idPaths;
@@ -85,25 +69,22 @@ class SubscriptionManagerBase {
       std::shared_ptr<ExtendedSubscription> subscription);
 
  protected:
-  void processAddedPath(
-      std::vector<std::string>::const_iterator begin,
-      std::vector<std::string>::const_iterator end);
+  void registerPendingSubscriptions(SubscriptionStore& store);
 
-  // owned subscriptions, keyed on name they were registered with
-  std::unordered_map<std::string, std::unique_ptr<Subscription>> subscriptions_;
-  std::unordered_map<std::string, std::shared_ptr<ExtendedSubscription>>
-      extendedSubscriptions_;
-  std::unordered_set<Subscription*> initialSyncNeeded_;
-  std::unordered_set<std::shared_ptr<ExtendedSubscription>>
-      initialSyncNeededExtended_;
-
-  // lookup for the subscriptions, keyed on path
-  SubscriptionPathStore lookup_;
+  folly::Synchronized<SubscriptionStore> store_;
 
   bool useIdPaths_{false};
 
   const OperProtocol patchOperProtocol_{OperProtocol::COMPACT};
   bool requireResponseOnInitialSync_{false};
+
+ private:
+  using PendingSubscriptions = std::vector<std::unique_ptr<Subscription>>;
+  using PendingExtendedSubscriptions =
+      std::vector<std::shared_ptr<ExtendedSubscription>>;
+  folly::Synchronized<PendingSubscriptions> pendingSubscriptions_;
+  folly::Synchronized<PendingExtendedSubscriptions>
+      pendingExtendedSubscriptions_;
 };
 
 template <typename _Root, typename Impl>
@@ -113,24 +94,46 @@ class SubscriptionManager : public SubscriptionManagerBase {
 
   using SubscriptionManagerBase::SubscriptionManagerBase;
 
-  void initialSyncForNewSubscriptions(
-      const Root& newData,
-      const SubscriptionMetadataServer& metadataServer) {
-    static_cast<Impl*>(this)->doInitialSync(newData, metadataServer);
+  void publishAndAddPaths(std::shared_ptr<Root>& root) {
+    auto store = store_.wlock();
+    static_cast<Impl*>(this)->publishAndAddPaths(*store, root);
   }
 
-  // TODO: hinting at changed paths for improved efficiency
   void serveSubscriptions(
-      const Root& oldData,
-      const Root& newData,
+      const std::shared_ptr<Root>& oldRoot,
+      const std::shared_ptr<Root>& newRoot,
       const SubscriptionMetadataServer& metadataServer) {
-    try {
-      static_cast<Impl*>(this)->serveSubscriptions(
-          oldData, newData, metadataServer);
-    } catch (const std::exception&) {
-      XLOG(ERR) << "Exception serving subscriptions...";
+    auto impl = static_cast<Impl*>(this);
+    auto store = store_.wlock();
+
+    registerPendingSubscriptions(*store);
+
+    store->pruneCancelledSubscriptions();
+
+    if (oldRoot != newRoot) {
+      try {
+        impl->serveSubscriptions(*store, oldRoot, newRoot, metadataServer);
+      } catch (const std::exception&) {
+        XLOG(ERR) << "Exception serving subscriptions...";
+      }
+      impl->pruneDeletedPaths(&store->lookup(), oldRoot, newRoot);
     }
+    // Serve new subscriptions after serving existing subscriptions.
+    // New subscriptions will get a full object dump on first sync.
+    // If we serve them before the loop above, we have to be careful
+    // to not serve them again in the loop above. So just move to serve
+    // after. Post the initial sync, these new subscriptions will be
+    // pruned from initialSyncNeeded list and will get served on
+    // changes only
+    impl->doInitialSync(*store, newRoot, metadataServer);
+    // Flush all subscription queues from serve and initial sync steps
+    store->flush(metadataServer);
   }
+
+ private:
+  // don't let the subclass direct access to the store to simplify locking
+  // policy. Instead we'll handle all the locking of the store here
+  using SubscriptionManagerBase::store_;
 };
 
 } // namespace facebook::fboss::fsdb

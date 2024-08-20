@@ -31,15 +31,6 @@ class FsdbPubSubManager {
   using Path = std::vector<std::string>;
   using MultiPath = std::vector<Path>;
 
-  struct SubscriptionInfo {
-    std::string server;
-    bool isDelta;
-    bool isStats;
-    std::vector<std::string> paths;
-    FsdbStreamClient::State state;
-    FsdbErrorCode disconnectReason;
-  };
-
   /* Publisher create APIs */
   void createStateDeltaPublisher(
       const Path& publishPath,
@@ -136,13 +127,13 @@ class FsdbPubSubManager {
       FsdbStreamClient::ServerOptions&& serverOptions =
           kDefaultServerOptions());
   void addStatePathSubscription(
-      FsdbStateSubscriber::SubscriptionOptions&& subscriptionOptions,
+      SubscriptionOptions&& subscriptionOptions,
       const Path& subscribePath,
       SubscriptionStateChangeCb stateChangeCb,
       FsdbStateSubscriber::FsdbOperStateUpdateCb operStateCb,
       FsdbStreamClient::ServerOptions&& serverOptions);
   void addStatePathSubscription(
-      FsdbExtStateSubscriber::SubscriptionOptions&& subscriptionOptions,
+      SubscriptionOptions&& subscriptionOptions,
       const MultiPath& subscribePaths,
       SubscriptionStateChangeCb stateChangeCb,
       FsdbExtStateSubscriber::FsdbOperStateUpdateCb operStateCb,
@@ -206,7 +197,7 @@ class FsdbPubSubManager {
 
   FsdbStreamClient::State getStatePathSubsriptionState(
       const MultiPath& subscribePath,
-      const std::string& fsdbHost = "::1");
+      const std::string& fsdbHost = "::1") const;
 
   const std::vector<SubscriptionInfo> getSubscriptionInfo() const;
 
@@ -268,7 +259,7 @@ class FsdbPubSubManager {
       const std::optional<std::string>& clientIdSuffix = std::nullopt);
   template <typename SubscriberT, typename PathElement>
   void addSubscriptionImpl(
-      typename SubscriberT::SubscriptionOptions&& subscriptionOptions,
+      SubscriptionOptions&& subscriptionOptions,
       const std::vector<PathElement>& subscribePath,
       SubscriptionStateChangeCb stateChangeCb,
       typename SubscriberT::FsdbSubUnitUpdateCb subUnitAvailableCb,
@@ -301,10 +292,10 @@ class FsdbPubSubManager {
   std::unique_ptr<FsdbPatchPublisher> statPatchPublisher_;
   // Subscribers
   folly::Synchronized<
-      std::unordered_map<std::string, std::unique_ptr<FsdbStreamClient>>>
+      std::unordered_map<std::string, std::unique_ptr<FsdbSubscriberBase>>>
       statePath2Subscriber_;
   folly::Synchronized<
-      std::unordered_map<std::string, std::unique_ptr<FsdbStreamClient>>>
+      std::unordered_map<std::string, std::unique_ptr<FsdbSubscriberBase>>>
       statPath2Subscriber_;
 
 // per class placeholder for test code injection

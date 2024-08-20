@@ -145,6 +145,10 @@ class AclTableStoreTest : public SaiStoreTest {
     return std::make_pair(17, 0xFF);
   }
 
+  std::pair<sai_uint8_t, sai_uint8_t> kIpv6NextHeader() const {
+    return std::make_pair(17, 0xFF);
+  }
+
   sai_uint32_t kPacketAction() const {
     return SAI_PACKET_ACTION_DROP;
   }
@@ -159,6 +163,10 @@ class AclTableStoreTest : public SaiStoreTest {
 
   sai_object_id_t kSetUserTrap() const {
     return 50;
+  }
+
+  bool kDisableArsForwarding() const {
+    return false;
   }
 
   sai_uint8_t kSetTC() const {
@@ -229,6 +237,7 @@ class AclTableStoreTest : public SaiStoreTest {
             true, // ethertype
             true, // outer vlan id
             true, // bth opcode
+            true, // ipv6 next header
         },
         0);
   }
@@ -265,6 +274,7 @@ class AclTableStoreTest : public SaiStoreTest {
             AclEntryFieldU16(this->kEtherType()),
             AclEntryFieldU16(this->kOuterVlanId()),
             AclEntryFieldU8(this->kBthOpcode()),
+            AclEntryFieldU8(this->kIpv6NextHeader()),
             AclEntryActionU32(this->kPacketAction()),
             AclEntryActionSaiObjectIdT(this->kCounter()),
             AclEntryActionU8(this->kSetTC()),
@@ -273,6 +283,7 @@ class AclTableStoreTest : public SaiStoreTest {
             AclEntryActionSaiObjectIdList(this->kMirrorEgress()),
             AclEntryActionSaiObjectIdT(this->kMacsecFlow()),
             AclEntryActionSaiObjectIdT(this->kSetUserTrap()),
+            AclEntryActionBool(this->kDisableArsForwarding()),
         },
         0);
   }
@@ -396,6 +407,7 @@ TEST_P(AclTableStoreParamTest, aclTableCtorCreate) {
       true, // ethertype
       true, // outer vlan id
       true, // bth opcode
+      true, // ipv6 next header
   };
 
   SaiAclTableTraits::AdapterHostKey k{"AclTable1"};
@@ -438,6 +450,7 @@ TEST_P(AclTableStoreParamTest, AclEntryCreateCtor) {
       this->kEtherType(),
       this->kOuterVlanId(),
       this->kBthOpcode(),
+      this->kIpv6NextHeader(),
       this->kPacketAction(),
       this->kCounter(),
       this->kSetTC(),
@@ -445,7 +458,8 @@ TEST_P(AclTableStoreParamTest, AclEntryCreateCtor) {
       this->kMirrorIngress(),
       this->kMirrorEgress(),
       this->kMacsecFlow(),
-      this->kSetUserTrap()};
+      this->kSetUserTrap(),
+      this->kDisableArsForwarding()};
 
   SaiObject<SaiAclEntryTraits> obj = createObj<SaiAclEntryTraits>(k, c, 0);
   EXPECT_EQ(GET_ATTR(AclEntry, TableId, obj.attributes()), aclTableId);

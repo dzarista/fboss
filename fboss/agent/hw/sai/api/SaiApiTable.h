@@ -10,6 +10,8 @@
 #pragma once
 
 #include "fboss/agent/hw/sai/api/AclApi.h"
+#include "fboss/agent/hw/sai/api/ArsApi.h"
+#include "fboss/agent/hw/sai/api/ArsProfileApi.h"
 #include "fboss/agent/hw/sai/api/BridgeApi.h"
 #include "fboss/agent/hw/sai/api/BufferApi.h"
 #include "fboss/agent/hw/sai/api/CounterApi.h"
@@ -64,6 +66,12 @@ class SaiApiTable {
       const std::set<sai_api_t>& desiredApis);
 
   const AclApi& aclApi() const;
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+  const ArsApi& arsApi() const;
+
+  const ArsProfileApi& arsProfileApi() const;
+#endif
 
   const BridgeApi& bridgeApi() const;
 
@@ -145,6 +153,10 @@ class SaiApiTable {
  private:
   std::tuple<
       std::unique_ptr<AclApi>,
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+      std::unique_ptr<ArsApi>,
+      std::unique_ptr<ArsProfileApi>,
+#endif
       std::unique_ptr<BridgeApi>,
       std::unique_ptr<BufferApi>,
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 0)

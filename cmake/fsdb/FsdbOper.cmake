@@ -6,6 +6,7 @@
 add_library(subscription_manager
   fboss/fsdb/oper/DeltaValue.h
   fboss/fsdb/oper/CowDeletePathTraverseHelper.h
+  fboss/fsdb/oper/CowInitialSyncTraverseHelper.h
   fboss/fsdb/oper/CowPublishAndAddTraverseHelper.h
   fboss/fsdb/oper/CowPublishAndAddTraverseHelper.cpp
   fboss/fsdb/oper/CowSubscriptionManager.h
@@ -18,6 +19,8 @@ add_library(subscription_manager
   fboss/fsdb/oper/SubscriptionMetadataServer.h
   fboss/fsdb/oper/SubscriptionPathStore.cpp
   fboss/fsdb/oper/SubscriptionPathStore.h
+  fboss/fsdb/oper/SubscriptionStore.cpp
+  fboss/fsdb/oper/SubscriptionStore.h
 )
 
 target_link_libraries(subscription_manager
@@ -33,14 +36,14 @@ target_link_libraries(subscription_manager
   thrift_cow_visitors
 )
 
-add_library(path_helpers
+add_library(oper_path_helpers
   fboss/fsdb/oper/PathConverter.cpp
   fboss/fsdb/oper/PathConverter.h
   fboss/fsdb/oper/PathValidator.cpp
   fboss/fsdb/oper/PathValidator.h
 )
 
-target_link_libraries(path_helpers
+target_link_libraries(oper_path_helpers
   fsdb_config_cpp2
   fsdb_common_cpp2
   fsdb_utils
@@ -54,13 +57,12 @@ add_library(subscribable_storage
   fboss/fsdb/oper/NaivePeriodicSubscribableStorageBase.h
   fboss/fsdb/oper/NaivePeriodicSubscribableStorageBase.cpp
   fboss/fsdb/oper/NaivePeriodicSubscribableStorage.h
-  fboss/fsdb/oper/NaivePeriodicSubscribableStorage.cpp
   fboss/fsdb/oper/SubscribableStorage.h
 )
 
 target_link_libraries(subscribable_storage
   cow_storage
-  path_helpers
+  oper_path_helpers
   fsdb_config_cpp2
   fsdb_common_cpp2
   fsdb_oper_cpp2

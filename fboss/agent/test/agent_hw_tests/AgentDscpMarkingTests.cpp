@@ -43,9 +43,13 @@ class AgentDscpMarkingTest : public AgentHwTest {
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
-    utility::addOlympicQosMaps(cfg, ensemble.getL3Asics());
-    utility::addDscpCounterAcl(&cfg);
-    utility::addDscpMarkingAcls(&cfg, ensemble.isSai());
+    auto l3Asics = ensemble.getL3Asics();
+    auto asic = utility::checkSameAndGetAsic(l3Asics);
+    utility::addOlympicQosMaps(cfg, l3Asics);
+    // drop packets are match to avoid packets matching multiple times in L3
+    // loop case
+    utility::addDscpCounterAcl(asic, &cfg, cfg::AclActionType::DENY);
+    utility::addDscpMarkingAcls(asic, &cfg, ensemble.isSai());
     return cfg;
   }
 
@@ -66,18 +70,26 @@ class AgentDscpMarkingTest : public AgentHwTest {
      *
      * Inject a pkt with dscp = ICP DSCP, l4SrcPort matching ACL2:
      *   - The packet will match ACL1, thus counter incremented.
-     *   - Packet egress via front panel port which is in loopback mode.
-     *   - Thus, packet gets looped back.
-     *   - Hits ACL1 again, and thus counter incremented twice.
+     *   - Packet dropped after hitting ACL1
      */
 
     auto setup = [=, this]() {
-      utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+      utility::EcmpSetupAnyNPorts6 ecmpHelper(
+          getProgrammedState(),
+          utility::getFirstInterfaceMac(getProgrammedState()),
+          RouterID(0),
+          false,
+          {cfg::PortType::INTERFACE_PORT});
       resolveNeigborAndProgramRoutes(ecmpHelper, kEcmpWidth);
     };
 
     auto verify = [=, this]() {
-      utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+      utility::EcmpSetupAnyNPorts6 ecmpHelper(
+          getProgrammedState(),
+          utility::getFirstInterfaceMac(getProgrammedState()),
+          RouterID(0),
+          false,
+          {cfg::PortType::INTERFACE_PORT});
       auto portId = ecmpHelper.ecmpPortDescriptorAt(0).phyPortID();
       auto portStatsBefore = getLatestPortStats(portId);
 
@@ -132,9 +144,9 @@ class AgentDscpMarkingTest : public AgentHwTest {
           // See detailed comment block at the beginning of this function
           EXPECT_EVENTUALLY_EQ(
               afterAclInOutPkts2 - afterAclInOutPkts,
-              (2 /* ACL hit twice */ * 2 /* l4SrcPort, l4DstPort */ *
+              (1 /* ACL hit once */ * 2 /* l4SrcPort, l4DstPort */ *
                utility::kUdpPorts().size()) +
-                  (2 /* ACL hit twice */ * 2 /* l4SrcPort, l4DstPort */ *
+                  (1 /* ACL hit once */ * 2 /* l4SrcPort, l4DstPort */ *
                    utility::kTcpPorts().size()));
         });
       }
@@ -171,9 +183,8 @@ class AgentDscpMarkingTest : public AgentHwTest {
       IP_PROTO proto,
       std::optional<uint16_t> l4SrcPort,
       std::optional<uint16_t> l4DstPort) {
-    auto vlanId =
-        VlanID(*initialConfig(*getAgentEnsemble()).vlanPorts()[0].vlanID());
-    auto intfMac = utility::getInterfaceMac(getProgrammedState(), vlanId);
+    auto vlanId = utility::firstVlanID(getProgrammedState());
+    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
 
     std::unique_ptr<facebook::fboss::TxPacket> txPacket;
@@ -211,7 +222,12 @@ class AgentDscpMarkingTest : public AgentHwTest {
     // Since it is not re-written, it should hit the pipeline as if it
     // ingressed on the port, and be properly queued.
     if (frontPanel) {
-      utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+      utility::EcmpSetupAnyNPorts6 ecmpHelper(
+          getProgrammedState(),
+          utility::getFirstInterfaceMac(getProgrammedState()),
+          RouterID(0),
+          false,
+          {cfg::PortType::INTERFACE_PORT});
       auto outPort = ecmpHelper.ecmpPortDescriptorAt(kEcmpWidth).phyPortID();
       getSw()->sendPacketOutOfPortAsync(std::move(txPacket), outPort);
     } else {

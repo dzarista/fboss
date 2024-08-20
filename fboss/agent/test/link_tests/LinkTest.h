@@ -10,16 +10,16 @@
 
 #include <boost/container/flat_set.hpp>
 
-DECLARE_string(oob_asset);
-DECLARE_string(oob_flash_device_name);
-DECLARE_string(openbmc_password);
-DECLARE_bool(enable_lldp);
-DECLARE_bool(tun_intf);
-DECLARE_string(volatile_state_dir);
+// TODO Movng these to Linktestutils.h causes linker error. Resolve and move
+// them
 DECLARE_bool(setup_for_warmboot);
 DECLARE_string(config);
+DECLARE_string(volatile_state_dir);
 DECLARE_bool(disable_neighbor_updates);
+DECLARE_bool(link_stress_test);
+DECLARE_bool(enable_macsec);
 
+DECLARE_bool(skip_drain_check_for_prbs);
 namespace facebook::fboss {
 
 using namespace std::chrono_literals;
@@ -39,22 +39,12 @@ class LinkTest : public AgentTest {
  protected:
   void SetUp() override;
   void overrideL2LearningConfig(bool swLearning = false, int ageTimer = 300);
+  void setupTtl0ForwardingEnable();
   void waitForAllCabledPorts(
       bool up,
       uint32_t retries = 60,
       std::chrono::duration<uint32_t, std::milli> msBetweenRetry =
           std::chrono::milliseconds(1000)) const;
-  void waitForAllTransceiverStates(
-      bool up,
-      uint32_t retries = 60,
-      std::chrono::duration<uint32_t, std::milli> msBetweenRetry =
-          std::chrono::milliseconds(1000)) const;
-  std::map<int32_t, TransceiverInfo> waitForTransceiverInfo(
-      std::vector<int32_t> transceiverIds,
-      uint32_t retries = 2,
-      std::chrono::duration<uint32_t, std::milli> msBetweenRetry =
-          std::chrono::duration_cast<std::chrono::milliseconds>(
-              std::chrono::seconds(10))) const;
   bool checkReachabilityOnAllCabledPorts() const;
   /*
    * Get pairs of ports connected to each other
@@ -76,7 +66,8 @@ class LinkTest : public AgentTest {
   const std::set<TransceiverID>& getCabledTranceivers() const {
     return cabledTransceivers_;
   }
-  boost::container::flat_set<PortDescriptor> getVlanOwningCabledPorts() const;
+  boost::container::flat_set<PortDescriptor> getSingleVlanOrRoutedCabledPorts()
+      const;
   const std::vector<PortID>& getCabledFabricPorts() const {
     return cabledFabricPorts_;
   }
@@ -87,18 +78,14 @@ class LinkTest : public AgentTest {
   void programDefaultRoute(
       const boost::container::flat_set<PortDescriptor>& ecmpPorts,
       std::optional<folly::MacAddress> dstMac = std::nullopt);
-  /*
-   * Disable TTL decrement on a set of ports
-   */
-  void disableTTLDecrements(
-      const boost::container::flat_set<PortDescriptor>& ecmpPorts);
+
   /*
    * Create a L3 data plane loop and seed it with traffic
    */
   void createL3DataplaneFlood(
       const boost::container::flat_set<PortDescriptor>& inPorts);
   void createL3DataplaneFlood() {
-    createL3DataplaneFlood(getVlanOwningCabledPorts());
+    createL3DataplaneFlood(getSingleVlanOrRoutedCabledPorts());
   }
   std::string getPortName(PortID port) const;
   std::vector<std::string> getPortName(
@@ -110,12 +97,6 @@ class LinkTest : public AgentTest {
       TransceiverFeature feature,
       phy::Side side) const;
 
-  void waitForStateMachineState(
-      const std::set<TransceiverID>& transceiversToCheck,
-      TransceiverStateMachineState stateMachineState,
-      uint32_t retries,
-      std::chrono::duration<uint32_t, std::milli> msBetweenRetry) const;
-
   void waitForLldpOnCabledPorts(
       uint32_t retries = 60,
       std::chrono::duration<uint32_t, std::milli> msBetweenRetry =
@@ -123,13 +104,13 @@ class LinkTest : public AgentTest {
 
   void setCmdLineFlagOverrides() const override;
 
-  void restartQsfpService(bool coldboot) const;
-
   void TearDown() override;
 
   void setLinkState(bool enable, std::vector<PortID>& portIds);
 
   std::vector<std::pair<PortID, PortID>> getPortPairsForFecErrInj() const;
+
+  const TransceiverSpec* getTransceiverSpec(const SwSwitch* sw, PortID portId);
 
  private:
   void programDefaultRoute(

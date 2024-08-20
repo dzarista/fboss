@@ -225,7 +225,7 @@ void IPv6Handler::handlePacket(
     // Forward multicast packet directly to corresponding host interface
     // and let Linux handle it. In software we consume ICMPv6 Multicast
     // packets for function of NDP protocol, rest all are forwarded to host.
-    auto intfID = sw_->getState()->getInterfaceIDForPort(port);
+    auto intfID = sw_->getState()->getInterfaceIDForPort(PortDescriptor(port));
     intf = state->getInterfaces()->getNodeIf(intfID);
   } else if (ipv6.dstAddr.isLinkLocal()) {
     // If srcPort == CPU port, this packet was injected by self, and then
@@ -240,7 +240,8 @@ void IPv6Handler::handlePacket(
     } else {
       // Forward link-local packet directly to corresponding host interface
       // provided desAddr is assigned to that interface.
-      auto intfID = sw_->getState()->getInterfaceIDForPort(port);
+      auto intfID =
+          sw_->getState()->getInterfaceIDForPort(PortDescriptor(port));
       intf = state->getInterfaces()->getNodeIf(intfID);
       if (intf && !(intf->hasAddress(ipv6.dstAddr))) {
         intf = nullptr;
@@ -248,14 +249,18 @@ void IPv6Handler::handlePacket(
     }
   } else {
     // Else loopup host interface based on destAddr
-    intf = interfaceMap->getInterfaceIf(RouterID(0), ipv6.dstAddr);
+    const auto iter = sw_->getAddrToLocalIntfMap().find(
+        std::make_pair(RouterID(0), ipv6.dstAddr));
+    if (iter != sw_->getAddrToLocalIntfMap().end()) {
+      intf = interfaceMap->getNodeIf(iter->second);
+    }
   }
 
   // If the packet is destined to us, accept packets
   // with a hop limit of 1. Else we need to forward
   // this packet so the hop limit should be at least 1
   auto minHopLimit = intf ? 0 : 1;
-  if (ipv6.hopLimit <= minHopLimit) {
+  if (FLAGS_send_icmp_time_exceeded && ipv6.hopLimit <= minHopLimit) {
     XLOG(DBG4) << "Rx IPv6 Packet with hop limit exceeded";
     sw_->portStats(port)->pktDropped();
     sw_->portStats(port)->ipv6HopExceeded();
@@ -379,7 +384,8 @@ void IPv6Handler::handleRouterSolicitation(
 
   cursor.skip(4); // 4 reserved bytes
 
-  auto intfID = sw_->getState()->getInterfaceIDForPort(pkt->getSrcPort());
+  auto intfID =
+      sw_->getState()->getInterfaceIDForPort(PortDescriptor(pkt->getSrcPort()));
   auto intf = sw_->getState()->getInterfaces()->getNodeIf(intfID);
   if (!intf) {
     sw_->portStats(pkt)->pktDropped();
@@ -673,7 +679,7 @@ void IPv6Handler::sendICMPv6TimeExceeded(
   IPAddressV6 srcIp;
   try {
     srcIp = getSwitchIntfIPv6(
-        state, sw_->getState()->getInterfaceIDForPort(srcPort));
+        state, sw_->getState()->getInterfaceIDForPort(PortDescriptor(srcPort)));
   } catch (const std::exception&) {
     srcIp = getAnyIntfIPv6(state);
   }
@@ -732,8 +738,8 @@ void IPv6Handler::sendICMPv6PacketTooBig(
     sendCursor->push(cursor, remainingLength);
   };
 
-  IPAddressV6 srcIp =
-      getSwitchIntfIPv6(state, sw_->getState()->getInterfaceIDForPort(srcPort));
+  IPAddressV6 srcIp = getSwitchIntfIPv6(
+      state, sw_->getState()->getInterfaceIDForPort(PortDescriptor(srcPort)));
   auto icmpPkt = createICMPv6Pkt(
       sw_,
       dst,
@@ -846,16 +852,15 @@ void IPv6Handler::sendUnicastNeighborSolicitation(
   InterfaceID intfID;
   switch (portDescriptor.type()) {
     case PortDescriptor::PortType::PHYSICAL:
-      intfID =
-          sw->getState()->getInterfaceIDForPort(portDescriptor.phyPortID());
+      intfID = sw->getState()->getInterfaceIDForPort(portDescriptor);
       break;
     case PortDescriptor::PortType::AGGREGATE:
-      intfID = sw->getInterfaceIDForAggregatePort(portDescriptor.aggPortID());
+      intfID = sw->getState()->getInterfaceIDForPort(portDescriptor);
       break;
     case PortDescriptor::PortType::SYSTEM_PORT:
       auto physPortID = getPortID(portDescriptor.sysPortID(), sw->getState());
       portToSend = PortDescriptor(physPortID);
-      intfID = sw->getState()->getInterfaceIDForPort(physPortID);
+      intfID = sw->getState()->getInterfaceIDForPort(portToSend);
   }
 
   if (!Interface::isIpAttached(targetIP, intfID, state)) {
@@ -1068,6 +1073,11 @@ void IPv6Handler::sendNeighborAdvertisement(
     MacAddress dstMac,
     IPAddressV6 dstIP,
     const std::optional<PortDescriptor>& portDescriptor) {
+  if (FLAGS_disable_neighbor_updates) {
+    XLOG(DBG4)
+        << "skipping sending neighbor advertisement since neighbor updates are disabled";
+    return;
+  }
   XLOG(DBG4) << "sending neighbor advertisement to " << dstIP.str() << " ("
              << dstMac << "): for " << srcIP << " (" << srcMac << ")";
 

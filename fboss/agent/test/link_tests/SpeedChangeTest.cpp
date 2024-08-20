@@ -5,6 +5,7 @@
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwTestEcmpUtils.h"
 #include "fboss/agent/test/link_tests/LinkTest.h"
+#include "fboss/agent/test/link_tests/LinkTestUtils.h"
 #include "fboss/agent/test/utils/PortTestUtils.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/CommonUtils.h"
@@ -29,7 +30,7 @@ class SpeedChangeTest : public LinkTest {
   // Query Qsfp service for eligible port profiles. If current port speed is the
   // same as from_speed and there exists eligible port profiles for to_speed,
   // return that info to the caller.
-  std::map<int, cfg::PortProfileID> getEligiblePortsAndProfile(
+  std::map<int, cfg::PortProfileID> getEligibleOpticalPortsAndProfile(
       cfg::SwitchConfig cfg,
       cfg::PortSpeed fromSpeed,
       cfg::PortSpeed toSpeed) {
@@ -38,15 +39,37 @@ class SpeedChangeTest : public LinkTest {
     qsfpServiceClient->sync_getAllPortSupportedProfiles(
         supportedProfiles, true /* checkOptics */);
 
+    std::vector<int32_t> transceiverIds;
+    // Get all transceiverIDs for the ports
+    for (const auto& port : *cfg.ports()) {
+      PortID portID = PortID(*port.logicalID());
+      auto tcvrId =
+          platform()->getPlatformPort(portID)->getTransceiverID().value();
+      transceiverIds.push_back(tcvrId);
+    }
+
+    auto transceiverInfos = utility::waitForTransceiverInfo(transceiverIds);
     std::map<int, cfg::PortProfileID> eligiblePortsAndProfile;
     for (const auto& port : *cfg.ports()) {
       CHECK(port.name().has_value());
-      if (*port.speed() == fromSpeed &&
-          supportedProfiles.find(*port.name()) != supportedProfiles.end()) {
-        for (const auto& profile : supportedProfiles.at(*port.name())) {
-          if (utility::getSpeed(profile) == toSpeed) {
-            eligiblePortsAndProfile.emplace(*port.logicalID(), profile);
-            break;
+      auto tcvrId = platform()
+                        ->getPlatformPort(PortID(*port.logicalID()))
+                        ->getTransceiverID()
+                        .value();
+      auto tcvrInfo = transceiverInfos.find(tcvrId);
+      if (tcvrInfo != transceiverInfos.end()) {
+        auto tcvrState = *tcvrInfo->second.tcvrState();
+        if (TransmitterTechnology::OPTICAL ==
+            tcvrState.cable().value_or({}).transmitterTech()) {
+          // Only consider optical ports
+          if (*port.speed() == fromSpeed &&
+              supportedProfiles.find(*port.name()) != supportedProfiles.end()) {
+            for (const auto& profile : supportedProfiles.at(*port.name())) {
+              if (utility::getSpeed(profile) == toSpeed) {
+                eligiblePortsAndProfile.emplace(*port.logicalID(), profile);
+                break;
+              }
+            }
           }
         }
       }
@@ -62,7 +85,7 @@ class SpeedChangeTest : public LinkTest {
 
     // Iterate through ports to find eligible ports
     auto eligilePortsAndProfile =
-        getEligiblePortsAndProfile(swConfig, fromSpeed, toSpeed);
+        getEligibleOpticalPortsAndProfile(swConfig, fromSpeed, toSpeed);
     CHECK_GT(eligilePortsAndProfile.size(), 0);
 
     for (auto& port : *swConfig.ports()) {
@@ -147,7 +170,7 @@ class SpeedChangeTest : public LinkTest {
       assertNoInDiscards();
 
       if (platform()->getHwSwitch()->getBootType() == BootType::COLD_BOOT) {
-        auto ecmpSizeInSw = getVlanOwningCabledPorts().size();
+        auto ecmpSizeInSw = getSingleVlanOrRoutedCabledPorts().size();
         XLOG(INFO) << "[DBG] ECMP size in sw: " << ecmpSizeInSw;
         WITH_RETRIES({
           EXPECT_EVENTUALLY_EQ(
@@ -172,8 +195,8 @@ void SpeedChangeTest::setupConfigFlag() {
   //      1. Make a copy of the original config. Existing copy is overridden
   //      2. The speeds and profiles are modified by this test in the original
   //      config.
-  //    TearDown - Do nothing. Keep the modified config in the FLAGS_config
-  //    path.
+  //    TearDown - Do nothing. Keep the modified config in the
+  //    FLAGS_config path.
   // Warmboot iteration -
   //    SetUp - Do nothing. Agent loads up with the modified config (setup by
   //      coldboot iteration)
@@ -247,7 +270,7 @@ TEST_F(SpeedChangeTest, secondarySpeed) {
     // Assert no traffic loss and no ecmp shrink. If ports flap
     // these conditions will not be true
     assertNoInDiscards();
-    auto ecmpSizeInSw = getVlanOwningCabledPorts().size();
+    auto ecmpSizeInSw = getSingleVlanOrRoutedCabledPorts().size();
     EXPECT_EQ(
         utility::getEcmpSizeInHw(
             platform()->getHwSwitch(),

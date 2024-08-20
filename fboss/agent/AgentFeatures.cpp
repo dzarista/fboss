@@ -54,10 +54,20 @@ DEFINE_uint32(
     "Number of parallel DSF sessions per remote Interface Node. "
     "1 for Prod. > 1 for scale tests");
 
+DEFINE_int32(
+    dsf_num_fsdb_connect_threads,
+    1,
+    "Number of threads to use for DSF remote connection pool");
+
+DEFINE_int32(
+    dsf_num_fsdb_stream_threads,
+    1,
+    "Number of threads to use for DSF remote stream pool");
+
 DEFINE_bool(
-    classid_for_connected_subnet_routes,
+    set_classid_for_my_subnet_and_ip_routes,
     false,
-    "Flag to set the class ID for connected subnet routes that point to RIF");
+    "Flag to disable implicit route classid set by sai/sdk, and always explicitly set class ID for my subnet routes and my ip routes from fboss");
 
 DEFINE_int32(
     stat_publish_interval_ms,
@@ -83,3 +93,22 @@ DEFINE_bool(
     dlbResourceCheckEnable,
     true,
     "Flag to enable resource checks on DLB ecmp groups");
+
+DEFINE_bool(
+    send_icmp_time_exceeded,
+    true,
+    "Flag to indicate whether to send ICMP time exceeded for hop limit exceeded");
+
+DEFINE_bool(
+    disable_looped_fabric_ports,
+    true,
+    "Disable fabric ports where loop is detected to stop traffic blackholing");
+
+// Wrong fabric connection detection. Flag to enable/disable this mechanism in
+// SDK
+DEFINE_bool(
+    detect_wrong_fabric_connections,
+    true,
+    "Enable wrong fabric connection. Done via SDK");
+
+DEFINE_bool(dsf_edsw_platform_mapping, false, "Use EDSW platform mapping");

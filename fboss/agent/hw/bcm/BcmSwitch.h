@@ -9,10 +9,10 @@
  */
 #pragma once
 
-#include <folly/io/async/EventBase.h>
 #include <folly/json/dynamic.h>
 #include <gtest/gtest_prod.h>
 #include <optional>
+#include "fboss/agent/FbossEventBase.h"
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
@@ -641,8 +641,12 @@ class BcmSwitch : public BcmSwitchIf {
   void syncLinkActiveStates() override {}
   // no (fabric) link connectivity concept in BcmSwitch
   void syncLinkConnectivity() override {}
+  // no switch reachability in BcmSwitch
+  void syncSwitchReachability() override {}
 
   AclStats getAclStats() const override;
+
+  std::shared_ptr<SwitchState> reconstructSwitchState() const override;
 
  private:
   enum Flags : uint32_t {
@@ -1176,7 +1180,7 @@ class BcmSwitch : public BcmSwitchIf {
   std::unique_ptr<BcmBstStatsMgr> bstStatsMgr_;
 
   std::unique_ptr<std::thread> linkScanBottomHalfThread_;
-  folly::EventBase linkScanBottomHalfEventBase_;
+  FbossEventBase linkScanBottomHalfEventBase_;
 
   std::unique_ptr<BcmSwitchSettings> switchSettings_;
 

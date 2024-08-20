@@ -116,7 +116,7 @@
             },
             "connectionHandle": "15:00"
         },
-        "1": {
+        "2": {
             "switchType": 3,
             "asicType": 16,
             "switchIndex": 1,
@@ -156,8 +156,10 @@
             "custom_feature_use_new_access.BCM8892X_ADAPTER": "1",
             "fabric_connectivity_based_on_integrity.BCM8892X": "0",
             "fabric_distributed_system_enable": "1",
+            "fabric_load_balancing_mode": "BALANCED_INPUT",
             "fabric_num_pipes.BCM8892X": "1",
             "fabric_pipe_map.BCM8892X": "0",
+            "fabric_wrong_connectivity_protection_en": "1",
             "fe_mc_id_range.BCM8892X": "128K",
             "load_firmware.BCM8892X": "0x102",
             "mdio_output_delay_ext.BCM8892X": "14",
@@ -176,9 +178,9 @@
             "schan_timeout_usec.BCM8892X": "300000",
             "serdes_fabric_clk_freq_out.BCM8892X": "bypass",
             "soc_family.BCM8892X": "BCM8892X",
-            "stable_location.BCM8892X": "3",
-            "stable_size.BCM8892X": "800000",
-            "sw_state_max_size.BCM8892X": "750000",
+            "stable_location.BCM8892X": "4",
+            "stable_size.BCM8892X": "1600000",
+            "sw_state_max_size.BCM8892X": "1500000",
             "system_contains_multiple_pipe_device.BCM8892X": "0",
             "tdma_intr_enable.BCM8892X": "0",
             "tdma_timeout_usec.BCM8892X": "5000000",

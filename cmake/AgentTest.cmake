@@ -100,6 +100,21 @@ target_link_libraries(agent_test_lib
   ${LIBGMOCK_LIBRARIES}
 )
 
+add_library(agent_ensemble_test_lib
+  fboss/agent/test/AgentEnsembleTest.cpp
+)
+
+target_link_libraries(agent_ensemble_test_lib
+  main
+  qsfp_cpp2
+  qsfp_service_client
+  fboss_config_utils
+  agent_ensemble
+  qos_test_utils
+  ${GTEST}
+  ${LIBGMOCK_LIBRARIES}
+)
+
 add_library(agent_integration_test_base
   fboss/agent/test/AgentIntegrationTestBase.cpp
 )
@@ -166,6 +181,7 @@ target_link_libraries(agent_ensemble
   config_factory
   fboss_config_utils
   test_ensemble_if
+  pkt_test_utils
   ${GTEST}
 )
 
@@ -174,8 +190,11 @@ add_library(mono_agent_ensemble
 )
 
 target_link_libraries(mono_agent_ensemble
+  -Wl,--whole-archive
   agent_ensemble
   monolithic_agent_initializer
+  agent_hw_test_thrift_handler
+  -Wl,--no-whole-archive
   ${GTEST}
 )
 

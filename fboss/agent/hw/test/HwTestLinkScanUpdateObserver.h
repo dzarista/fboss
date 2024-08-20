@@ -26,6 +26,10 @@ class HwTestLinkScanUpdateObserver
   void linkConnectivityChanged(
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&
       /*port2OldAndNewConnectivity*/) override {}
+  void switchReachabilityChanged(
+      const SwitchID /*switchId*/,
+      const std::map<SwitchID, std::set<PortID>>& /*switchReachabilityInfo*/)
+      override {}
   HwSwitchEnsemble* ensemble_;
 };
 

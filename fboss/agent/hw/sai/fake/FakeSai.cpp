@@ -31,6 +31,8 @@ void FakeSai::clear() {
   fs->aclEntryManager.clear();
   fs->aclCounterManager.clear();
   fs->aclTableManager.clear();
+  fs->arsManager.clear();
+  fs->arsProfileManager.clear();
   fs->bridgeManager.clearWithMembers();
   fs->counterManager.clear();
   fs->debugCounterManager.clear();
@@ -135,6 +137,15 @@ sai_status_t sai_api_query(sai_api_t sai_api_id, void** api_method_table) {
   switch (sai_api_id) {
     case SAI_API_ACL:
       facebook::fboss::populate_acl_api((sai_acl_api_t**)api_method_table);
+      res = SAI_STATUS_SUCCESS;
+      break;
+    case SAI_API_ARS:
+      facebook::fboss::populate_ars_api((sai_ars_api_t**)api_method_table);
+      res = SAI_STATUS_SUCCESS;
+      break;
+    case SAI_API_ARS_PROFILE:
+      facebook::fboss::populate_ars_profile_api(
+          (sai_ars_profile_api_t**)api_method_table);
       res = SAI_STATUS_SUCCESS;
       break;
     case SAI_API_BRIDGE:

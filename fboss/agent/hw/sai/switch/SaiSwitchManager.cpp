@@ -21,6 +21,7 @@
 #include "fboss/agent/hw/sai/switch/SaiManagerTable.h"
 #include "fboss/agent/hw/sai/switch/SaiUdfManager.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
+#include "fboss/agent/hw/switch_asics/Jericho3Asic.h"
 #include "fboss/agent/platforms/sai/SaiPlatform.h"
 #include "fboss/agent/state/DeltaFunctions.h"
 #include "fboss/agent/state/LoadBalancer.h"
@@ -87,12 +88,17 @@ void fillHwSwitchDropStats(
        * FDR cell drops
        * SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS -
        * Reassembly drops due to corrupted cells
+       * SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS -
+       * Reassembly drops due to missing cells
        */
       case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS:
         dropStats.fdrCellDrops() = val;
         break;
       case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS:
         dropStats.corruptedCellPacketIntegrityDrops() = val;
+        break;
+      case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS:
+        dropStats.missingCellPacketIntegrityDrops() = val;
         break;
       /*
        * From CS00012306170
@@ -159,6 +165,7 @@ void fillHwSwitchDropStats(
       case SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_6_DROPPED_PKTS:
       case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS:
       case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS:
+      case SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS:
         fillAsicSpecificCounter(counterId, value, asicType, hwSwitchDropStats);
         break;
       default:
@@ -526,6 +533,7 @@ void SaiSwitchManager::addOrUpdateLagLoadBalancer(
 
 void SaiSwitchManager::addOrUpdateLoadBalancer(
     const std::shared_ptr<LoadBalancer>& newLb) {
+  XLOG(DBG2) << "Add load balancer : " << newLb->getID();
   if (newLb->getID() == cfg::LoadBalancerID::AGGREGATE_PORT) {
     return addOrUpdateLagLoadBalancer(newLb);
   }
@@ -535,11 +543,13 @@ void SaiSwitchManager::addOrUpdateLoadBalancer(
 void SaiSwitchManager::changeLoadBalancer(
     const std::shared_ptr<LoadBalancer>& /*oldLb*/,
     const std::shared_ptr<LoadBalancer>& newLb) {
+  XLOG(DBG2) << "Change load balancer : " << newLb->getID();
   return addOrUpdateLoadBalancer(newLb);
 }
 
 void SaiSwitchManager::removeLoadBalancer(
     const std::shared_ptr<LoadBalancer>& oldLb) {
+  XLOG(DBG2) << "Remove load balancer : " << oldLb->getID();
   if (oldLb->getID() == cfg::LoadBalancerID::AGGREGATE_PORT) {
     programLagLoadBalancerParams(std::nullopt, std::nullopt);
     resetLoadBalancer<SaiSwitchTraits::Attributes::LagHashV4>();
@@ -653,6 +663,27 @@ void SaiSwitchManager::resetTamObject() {
       std::vector<sai_object_id_t>{SAI_NULL_OBJECT_ID}});
 }
 
+void SaiSwitchManager::setArsProfile(
+    [[maybe_unused]] ArsProfileSaiId arsProfileSaiId) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+  if (FLAGS_flowletSwitchingEnable &&
+      platform_->getAsic()->isSupported(HwAsic::Feature::FLOWLET)) {
+    switch_->setOptionalAttribute(
+        SaiSwitchTraits::Attributes::ArsProfile{arsProfileSaiId});
+  }
+#endif
+}
+
+void SaiSwitchManager::resetArsProfile() {
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+  if (FLAGS_flowletSwitchingEnable &&
+      platform_->getAsic()->isSupported(HwAsic::Feature::FLOWLET)) {
+    switch_->setOptionalAttribute(
+        SaiSwitchTraits::Attributes::ArsProfile{SAI_NULL_OBJECT_ID});
+  }
+#endif
+}
+
 void SaiSwitchManager::setupCounterRefreshInterval() {
   switch_->setOptionalAttribute(
       SaiSwitchTraits::Attributes::CounterRefreshInterval{
@@ -708,6 +739,7 @@ const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedDropStats() const {
       static const std::vector<sai_stat_id_t> kJerichoConfigDropStats{
           SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS,
           SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_1_DROPPED_PKTS,
+          SAI_SWITCH_STAT_OUT_CONFIGURED_DROP_REASONS_2_DROPPED_PKTS,
       };
       stats.insert(
           stats.end(),
@@ -748,6 +780,12 @@ const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedDramStats() const {
         SaiSwitchTraits::dramStats().begin(),
         SaiSwitchTraits::dramStats().end());
   }
+  if (platform_->getAsic()->isSupported(HwAsic::Feature::DRAM_BLOCK_TIME)) {
+    stats.insert(
+        stats.end(),
+        SaiSwitchTraits::dramBlockTime().begin(),
+        SaiSwitchTraits::dramBlockTime().end());
+  }
   return stats;
 }
 
@@ -771,6 +809,30 @@ const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedWatermarkStats()
         stats.end(),
         SaiSwitchTraits::dtlWatermarkStats().begin(),
         SaiSwitchTraits::dtlWatermarkStats().end());
+  }
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::EGRESS_CORE_BUFFER_WATERMARK)) {
+    stats.insert(
+        stats.end(),
+        SaiSwitchTraits::egressCoreBufferWatermarkBytes().begin(),
+        SaiSwitchTraits::egressCoreBufferWatermarkBytes().end());
+  }
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedCreditStats()
+    const {
+  static std::vector<sai_stat_id_t> stats;
+  if (stats.size()) {
+    // initialized
+    return stats;
+  }
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::DELETED_CREDITS_STAT)) {
+    stats.insert(
+        stats.end(),
+        SaiSwitchTraits::deletedCredits().begin(),
+        SaiSwitchTraits::deletedCredits().end());
   }
   return stats;
 }
@@ -852,6 +914,13 @@ void SaiSwitchManager::updateStats(bool updateWatermarks) {
     fillHwSwitchDramStats(switch_->getStats(switchDramStats), dramStats);
     platform_->getHwSwitch()->getSwitchStats()->update(dramStats);
   }
+  auto switchCreditStats = supportedCreditStats();
+  if (switchCreditStats.size()) {
+    switch_->updateStats(switchCreditStats, SAI_STATS_MODE_READ_AND_CLEAR);
+    HwSwitchCreditStats creditStats;
+    fillHwSwitchCreditStats(switch_->getStats(switchCreditStats), creditStats);
+    platform_->getHwSwitch()->getSwitchStats()->update(creditStats);
+  }
   if (updateWatermarks) {
     switchWatermarkStats_ = getHwSwitchWatermarkStats();
     publishSwitchWatermarks(switchWatermarkStats_);
@@ -864,6 +933,8 @@ void SaiSwitchManager::setSwitchIsolate(bool isolate) {
   CHECK(
       platform_->getAsic()->getSwitchType() == cfg::SwitchType::FABRIC ||
       platform_->getAsic()->getSwitchType() == cfg::SwitchType::VOQ);
+  XLOG(DBG2) << " Setting switch state to : "
+             << (isolate ? "DRAINED" : "UNDRAINED");
   switch_->setOptionalAttribute(
       SaiSwitchTraits::Attributes::SwitchIsolate{isolate});
 }
@@ -896,5 +967,21 @@ void SaiSwitchManager::setCreditWatchdog(bool creditWatchdog) {
   switch_->setOptionalAttribute(
       SaiSwitchTraits::Attributes::CreditWd{creditWatchdog});
 #endif
+}
+
+void SaiSwitchManager::setLocalCapsuleSwitchIds(
+    const std::map<SwitchID, int>& switchIdToNumCores) {
+  std::vector<sai_uint32_t> values;
+  for (const auto& it : switchIdToNumCores) {
+    sai_uint32_t switchId = it.first;
+    int numCores = it.second;
+    for (auto idx = 0; idx < numCores; idx++) {
+      values.push_back(switchId + idx);
+    }
+  }
+  XLOG(DBG2) << "set local capsule switch ids "
+             << std::string(values.begin(), values.end());
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::MultiStageLocalSwitchIds{values});
 }
 } // namespace facebook::fboss

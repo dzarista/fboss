@@ -60,6 +60,10 @@ DEFINE_bool(
     enforcePublisherConfig,
     false,
     "whether to enforce PublisherConfig for publish stream requests");
+DEFINE_bool(
+    forceRegisterSubscriptions,
+    false,
+    "Whether to bypass unique subscriber check. Should only be used during debugging");
 
 static constexpr auto kWatchdogThreadHeartbeatMissed =
     "watchdog_thread_heartbeat_missed";
@@ -406,6 +410,7 @@ ServiceHandler::makeSinkConsumer(
 
   apache::thrift::SinkConsumer<PubUnit, OperPubFinalResponse> consumer{
       [this,
+       publisherId,
        disconnectReason = std::move(disconnectReason),
        cleanupPublisher = std::move(cleanupPublisher),
        path = std::move(path),
@@ -475,13 +480,15 @@ ServiceHandler::makeSinkConsumer(
           }
           co_return finalResponse;
         } catch (const fsdb::FsdbException& ex) {
-          XLOG(ERR) << " Server:sink: FsdbException: "
+          XLOG(ERR) << "Publisher " << publisherId
+                    << " Server:sink: FsdbException: "
                     << apache::thrift::util::enumNameSafe(ex.get_errorCode())
                     << ": " << ex.get_message();
           *disconnectReason = ex.get_errorCode();
           throw;
         } catch (const std::exception& e) {
-          XLOG(INFO) << " Got exception in publish loop: " << e.what();
+          XLOG(INFO) << "Publisher " << publisherId
+                     << " Got exception in publish loop: " << e.what();
           throw;
         }
       },
@@ -687,12 +694,16 @@ void ServiceHandler::registerSubscription(const OperSubscriberInfo& info) {
       buildPathUnion(info),
       *info.type(),
       *info.isStats());
-  auto resp = activeSubscriptions_.wlock()->insert({std::move(key), info});
-  if (!resp.second) {
-    throw Utils::createFsdbException(
-        FsdbErrorCode::ID_ALREADY_EXISTS,
-        "Dup subscriber id: ",
-        *info.subscriberId());
+  if (FLAGS_forceRegisterSubscriptions) {
+    (*activeSubscriptions_.wlock())[std::move(key)] = info;
+  } else {
+    auto resp = activeSubscriptions_.wlock()->insert({std::move(key), info});
+    if (!resp.second) {
+      throw Utils::createFsdbException(
+          FsdbErrorCode::ID_ALREADY_EXISTS,
+          "Dup subscriber id: ",
+          *info.subscriberId());
+    }
   }
   updateSubscriptionCounters(info, true);
 }

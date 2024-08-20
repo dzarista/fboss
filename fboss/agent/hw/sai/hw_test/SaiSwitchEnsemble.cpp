@@ -78,7 +78,7 @@ SaiSwitchEnsemble::SaiSwitchEnsemble(
 std::unique_ptr<std::thread> SaiSwitchEnsemble::createThriftThread(
     const SaiSwitch* hwSwitch) {
   return std::make_unique<std::thread>([hwSwitch] {
-    folly::EventBase* eventBase = new folly::EventBase();
+    FbossEventBase* eventBase = new FbossEventBase();
     auto handler = std::make_shared<SaiTestHandler>(hwSwitch);
     auto server = setupThriftServer(
         *eventBase, handler, {FLAGS_thrift_port}, true /* setupSSL*/);
@@ -179,9 +179,9 @@ void SaiSwitchEnsemble::init(
       getPlatform()->getAsic()->getDefaultStreamType());
   getPlatform()->initLEDs();
   if (getPlatform()->getAsic()->isSupported(HwAsic::Feature::ROUTE_METADATA)) {
-    // TODO: enable after classid_for_connected_subnet_routes feature is fully
+    // TODO: enable after explicit_route_classid feature is fully
     // verified
-    FLAGS_classid_for_connected_subnet_routes = false;
+    FLAGS_set_classid_for_my_subnet_and_ip_routes = false;
   }
   auto hw = static_cast<SaiSwitch*>(getHwSwitch());
   diagShell_ = std::make_unique<DiagShell>(hw);

@@ -6,10 +6,12 @@
 #include <optional>
 #include <string>
 
+#include "fboss/platform/platform_manager/gen-cpp2/platform_manager_config_types.h"
+
 namespace facebook::fboss::platform::platform_manager {
 class DataStore {
  public:
-  DataStore() = default;
+  explicit DataStore(const PlatformConfig& config);
   virtual ~DataStore() = default;
 
   // Get the kernel assigned I2C bus number for the given busName.
@@ -27,24 +29,8 @@ class DataStore {
       const std::string& pmUnitScopeBusName,
       uint16_t busNum);
 
-  // Get Gpio chip number of the given chip name at the given SlotPath
-  uint16_t getGpioChipNum(
-      const std::string& slotPath,
-      const std::string& gpioChipDeviceName) const;
-
-  // Update Gpio chip number of the given chip name at the given SlotPath
-  void updateGpioChipNum(
-      const std::string& slotPath,
-      const std::string& gpioChipDeviceName,
-      uint16_t gpioChipNum);
-
   // Get PmUnitName at the given SlotPath
   std::string getPmUnitName(const std::string& slotPath) const;
-
-  // Update PmUnitName at the given SlotPath
-  void updatePmUnitName(
-      const std::string& slotPath,
-      const std::string& pmUnitName);
 
   // Checks if a PmUnit exists at the given SlotPath
   bool hasPmUnit(const std::string& slotPath) const;
@@ -59,11 +45,11 @@ class DataStore {
 
   bool hasSysfsPath(const std::string& devicePath) const;
 
-  // Get InstanceId for a given PciSubDevicePath
-  uint32_t getInstanceId(const std::string& devicePath);
-
-  // Update InstanceId for a given PciSubDevicePath
-  void updateInstanceId(const std::string& devicePath, uint32_t instanceId);
+  // Update SysfsPath for a given PciSubDevicePath
+  void updateSysfsPath(
+      const std::string& slotPath,
+      const std::string& pmUnitScopedName,
+      const std::string& sysfsPath);
 
   // Get CharDevPath for a given PciSubDevicePath
   std::string getCharDevPath(const std::string& devicePath) const;
@@ -72,6 +58,16 @@ class DataStore {
   void updateCharDevPath(
       const std::string& devicePath,
       const std::string& charDevPath);
+
+  // Update PmUnitInfo(pmUnitName, productSubVersion) for a given slotPath.
+  void updatePmUnitInfo(
+      const std::string& slotPath,
+      const std::string& pmUnitName,
+      std::optional<int> productSubVersion);
+
+  // Resolve PmUnitConfig based on the platformSubVersion from eeprom.
+  // Throws if none of the VersionedPmUnitConfig matches the version.
+  PmUnitConfig resolvePmUnitConfig(const std::string& slotPath) const;
 
  private:
   // Map from <pmUnitPath, pmUnitScopeBusName> to kernel i2c bus name.
@@ -84,19 +80,16 @@ class DataStore {
   std::map<std::pair<std::optional<std::string>, std::string>, uint16_t>
       i2cBusNums_{};
 
-  // Map from <SlotPath, GpioChipDeviceName> to gpio chip number.
-  std::map<std::pair<std::string, std::string>, uint16_t> gpioChipNums_{};
-
-  // Stores the PmUnitName which has been discovered at each SlotPath.
-  std::map<std::string, std::string> slotPathToPmUnitName_{};
-
   // Map from PciSubDevicePath to SysfsPath.
   std::map<std::string, std::string> pciSubDevicePathToSysfsPath_{};
 
-  // Map from PciSubDevicePath to instanceId.
-  std::map<std::string, uint32_t> pciSubDevicePathToInstanceId_{};
-
   // Map from PciSubDevicePath to CharDevPath
   std::map<std::string, std::string> pciSubDevicePathToCharDevPath_{};
+
+  // Map from PmUnitName to its PmUnitInfo(PmUnitName, ProductSubVersion)
+  std::map<std::string, std::pair<std::string, std::optional<int>>>
+      slotPathToPmUnitInfo{};
+
+  const PlatformConfig& platformConfig_;
 };
 } // namespace facebook::fboss::platform::platform_manager

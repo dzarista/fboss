@@ -19,7 +19,6 @@
 
 #include <gtest/gtest.h>
 
-DECLARE_bool(tun_intf);
 DEFINE_bool(
     setup_for_warmboot,
     false,
@@ -40,9 +39,10 @@ AgentEnsemble::AgentEnsemble(const std::string& configFileName) {
 }
 
 void AgentEnsemble::setupEnsemble(
-    uint32_t hwFeaturesDesired,
     AgentEnsembleSwitchConfigFn initialConfigFn,
+    bool disableLinkStateToggler,
     AgentEnsemblePlatformConfigFn platformConfigFn,
+    uint32_t hwFeaturesDesired,
     bool failHwCallsOnWarmboot) {
   FLAGS_verify_apply_oper_delta = true;
 
@@ -102,7 +102,8 @@ void AgentEnsemble::setupEnsemble(
   }
 
   // Setup LinkStateToggler and start agent
-  if (hwFeaturesDesired & HwSwitch::FeaturesDesired::LINKSCAN_DESIRED) {
+  if (hwFeaturesDesired & HwSwitch::FeaturesDesired::LINKSCAN_DESIRED &&
+      disableLinkStateToggler == false) {
     setupLinkStateToggler();
   }
   startAgent(failHwCallsOnWarmboot);
@@ -113,12 +114,6 @@ void AgentEnsemble::setupEnsemble(
 }
 
 void AgentEnsemble::startAgent(bool failHwCallsOnWarmboot) {
-  // TODO: provide a way to enable tun intf, for now disable it expressedly,
-  // this can also be done with CLI option, however netcastle runners can not
-  // use that option, because hw tests and hw benchmarks using hwswitch
-  // ensemble doesn't have CLI option to disable tun intf. Also get rid of
-  // explicit setting this flag and emply CLI option to disable tun manager.
-  FLAGS_tun_intf = false;
   auto* initializer = agentInitializer();
   auto hwWriteBehavior = HwWriteBehavior::WRITE;
   if (getSw()->getWarmBootHelper()->canWarmBoot()) {
@@ -399,7 +394,7 @@ uint64_t AgentEnsemble::getTrafficRate(
   auto curPortBytes = *curPortStats.outBytes_() + packetPaddingBytes;
   auto rate = static_cast<uint64_t>((curPortBytes - prevPortBytes) * 8) /
       secondsBetweenStatsCollection;
-  XLOG(DBG2) << ": Current rate " << rate << " bps" << ", curPortBytes "
+  XLOG(DBG2) << "Current rate " << rate << " bps" << ", curPortBytes "
              << curPortBytes << " prevPortBytes " << prevPortBytes
              << " curPortPackets " << curPortPackets << " prevPortPackets "
              << prevPortPackets;
@@ -434,7 +429,8 @@ bool AgentEnsemble::waitForRateOnPort(
   // The first iteration in the below loop will not be successful
   // given the prev/curr stats collections are back to back!
   auto prevPortStats = getLatestPortStats(port);
-  XLOG(DBG0) << "Desired rate " << desiredBps;
+  XLOG(DBG0) << "PortID: " << port << ", Desired rate " << desiredBps;
+  bool metDesiredRate = false;
   WITH_RETRIES_N_TIMED(
       10, std::chrono::milliseconds(1000 * secondsToWaitPerIteration), {
         auto curPortStats = getLatestPortStats(port);
@@ -443,13 +439,13 @@ bool AgentEnsemble::waitForRateOnPort(
         // Update prev stats for the next iteration if needed!
         prevPortStats = curPortStats;
         if (desiredBps == 0) {
-          EXPECT_EVENTUALLY_EQ(rate, desiredBps);
+          metDesiredRate = rate == desiredBps;
         } else {
-          EXPECT_EVENTUALLY_TRUE(rate >= desiredBps);
+          metDesiredRate = rate >= desiredBps;
         }
-        return true;
+        EXPECT_EVENTUALLY_TRUE(metDesiredRate);
       });
-  return false;
+  return metDesiredRate;
 }
 
 void AgentEnsemble::waitForLineRateOnPort(PortID port) {

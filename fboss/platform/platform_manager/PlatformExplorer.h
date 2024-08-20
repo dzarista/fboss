@@ -9,12 +9,17 @@
 #include "fboss/platform/platform_manager/DevicePathResolver.h"
 #include "fboss/platform/platform_manager/I2cExplorer.h"
 #include "fboss/platform/platform_manager/PciExplorer.h"
+#include "fboss/platform/platform_manager/PresenceChecker.h"
 #include "fboss/platform/platform_manager/gen-cpp2/platform_manager_config_types.h"
+#include "fboss/platform/platform_manager/gen-cpp2/platform_manager_service_types.h"
 #include "fboss/platform/weutil/CachedFbossEepromParser.h"
 
 namespace facebook::fboss::platform::platform_manager {
 class PlatformExplorer {
  public:
+  auto static constexpr kFirmwareVersion = "{}.firmware_version";
+  auto static constexpr kGroupedFirmwareVersion = "{}.firmware_version.{}";
+
   explicit PlatformExplorer(const PlatformConfig& config);
 
   // Explore the platform.
@@ -55,6 +60,15 @@ class PlatformExplorer {
       const std::string& slotPath,
       const std::string& pm);
 
+  // Publish firmware versions read from /run/devmap files to ODS. Additionally,
+  // paths will be prefixed with rootPrefix, which is intended for testing
+  // purposes.
+  void publishFirmwareVersions(
+      const std::optional<std::string>& rootPrefix = std::nullopt);
+
+  // Get the last PlatformManagerStatus.
+  PlatformManagerStatus getPMStatus() const;
+
  private:
   void createDeviceSymLink(
       const std::string& linkPath,
@@ -74,9 +88,10 @@ class PlatformExplorer {
   PlatformConfig platformConfig_{};
   I2cExplorer i2cExplorer_{};
   PciExplorer pciExplorer_{};
-  DataStore dataStore_{};
-  DevicePathResolver devicePathResolver_;
   CachedFbossEepromParser eepromParser_{};
+  DataStore dataStore_;
+  DevicePathResolver devicePathResolver_;
+  PresenceChecker presenceChecker_;
 
   // Map from <pmUnitPath, pmUnitScopeBusName> to kernel i2c bus name.
   // - The pmUnitPath to the rootPmUnit is /. So a bus at root PmUnit will have
@@ -97,6 +112,11 @@ class PlatformExplorer {
   // A collection of error messages to report at the end of an exploration.
   // Map from DevicePath to errorMessages.
   std::map<std::string, std::vector<std::string>> errorMessages_{};
+
+  // A thrift struct which contains the status of PM exploration.
+  // This member is thread safe since callers could be on different threads
+  // E.g thrift API call on `getLastPmStatus`.
+  folly::Synchronized<PlatformManagerStatus> platformManagerStatus_{};
 };
 
 } // namespace facebook::fboss::platform::platform_manager

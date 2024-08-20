@@ -43,10 +43,14 @@ class AgentEnsemble : public TestEnsembleIf {
   using TestEnsembleIf::getLatestSysPortStats;
 
   void setupEnsemble(
-      uint32_t hwFeaturesDesired,
       AgentEnsembleSwitchConfigFn initConfig,
+      bool disableLinkStateToggler,
       AgentEnsemblePlatformConfigFn platformConfig =
           AgentEnsemblePlatformConfigFn(),
+      uint32_t featuresDesired =
+          (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
+           HwSwitch::FeaturesDesired::LINKSCAN_DESIRED |
+           HwSwitch::FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED),
       bool failHwCallsOnWarmboot = false);
 
   void startAgent(bool failHwCallsOnWarmboot = false);
@@ -130,9 +134,10 @@ class AgentEnsemble : public TestEnsembleIf {
       bool up,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override {
-    if (getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED &&
-        linkToggler_) {
-      linkToggler_->linkStateChanged(port, up);
+    if (getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED) {
+      if (linkToggler_) {
+        linkToggler_->linkStateChanged(port, up);
+      }
       getSw()->linkStateChanged(port, up);
     }
   }
@@ -145,6 +150,13 @@ class AgentEnsemble : public TestEnsembleIf {
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&
           port2OldAndNewConnectivity) override {
     getSw()->linkConnectivityChanged(port2OldAndNewConnectivity);
+  }
+
+  void switchReachabilityChanged(
+      const SwitchID switchId,
+      const std::map<SwitchID, std::set<PortID>>& switchReachabilityInfo)
+      override {
+    getSw()->switchReachabilityChanged(switchId, switchReachabilityInfo);
   }
 
   void l2LearningUpdateReceived(
@@ -300,6 +312,7 @@ void initEnsemble(
 
 std::unique_ptr<AgentEnsemble> createAgentEnsemble(
     AgentEnsembleSwitchConfigFn initialConfigFn,
+    bool disableLinkStateToggler,
     AgentEnsemblePlatformConfigFn platformConfigFn =
         AgentEnsemblePlatformConfigFn(),
     uint32_t featuresDesired =

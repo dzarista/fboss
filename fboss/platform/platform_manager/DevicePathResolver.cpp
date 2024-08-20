@@ -8,7 +8,6 @@
 #include "fboss/platform/platform_manager/PciExplorer.h"
 #include "fboss/platform/platform_manager/Utils.h"
 
-using namespace facebook::fboss::platform::platform_manager;
 namespace fs = std::filesystem;
 
 namespace {
@@ -16,6 +15,8 @@ constexpr auto kIdprom = "IDPROM";
 const re2::RE2 kHwmonRe{"hwmon\\d+"};
 const re2::RE2 kIioDeviceRe{"iio:device\\d+"};
 } // namespace
+
+namespace facebook::fboss::platform::platform_manager {
 
 DevicePathResolver::DevicePathResolver(
     const PlatformConfig& config,
@@ -71,6 +72,30 @@ std::string DevicePathResolver::resolveI2cBusPath(
   const auto [slotPath, deviceName] = Utils().parseDevicePath(devicePath);
   return fmt::format(
       "/dev/i2c-{}", dataStore_.getI2cBusNum(slotPath, deviceName));
+}
+
+std::string DevicePathResolver::resolvePciSubDevSysfsPath(
+    const std::string& devicePath) {
+  auto sysfsPath = dataStore_.getSysfsPath(devicePath);
+  if (!fs::exists(sysfsPath)) {
+    throw std::runtime_error(fmt::format(
+        "Fail to resolve PciSubDevice's SysfsPath for {} - {} no longer exists",
+        devicePath,
+        sysfsPath));
+  }
+  return sysfsPath;
+}
+
+std::string DevicePathResolver::resolvePciSubDevCharDevPath(
+    const std::string& devicePath) const {
+  auto charDevPath = dataStore_.getCharDevPath(devicePath);
+  if (!fs::exists(charDevPath)) {
+    throw std::runtime_error(fmt::format(
+        "Fail to resolve PciSubDevice's CharDevPath for {} - {} no longer exists",
+        devicePath,
+        charDevPath));
+  }
+  return charDevPath;
 }
 
 std::string DevicePathResolver::resolveI2cDevicePath(
@@ -132,14 +157,13 @@ std::string DevicePathResolver::resolvePciDevicePath(
 
 std::optional<std::string> DevicePathResolver::resolvePresencePath(
     const std::string& devicePath,
-    const std::string& presenceFileName) {
+    const std::string& presenceFileName) const {
   const auto [slotPath, deviceName] = Utils().parseDevicePath(devicePath);
   if (!dataStore_.hasPmUnit(slotPath)) {
     XLOG(ERR) << fmt::format("No PmUnit exists at {}", slotPath);
     return std::nullopt;
   }
-  auto pmUnitName = dataStore_.getPmUnitName(slotPath);
-  auto pmUnitConfig = platformConfig_.pmUnitConfigs()->at(pmUnitName);
+  auto pmUnitConfig = dataStore_.resolvePmUnitConfig(slotPath);
   auto i2cDeviceConfig = std::find_if(
       pmUnitConfig.i2cDeviceConfigs()->begin(),
       pmUnitConfig.i2cDeviceConfigs()->end(),
@@ -196,8 +220,7 @@ std::optional<std::string> DevicePathResolver::resolvePresencePath(
 I2cDeviceConfig DevicePathResolver::getI2cDeviceConfig(
     const std::string& slotPath,
     const std::string& deviceName) {
-  auto pmUnitName = dataStore_.getPmUnitName(slotPath);
-  auto pmUnitConfig = platformConfig_.pmUnitConfigs()->at(pmUnitName);
+  auto pmUnitConfig = dataStore_.resolvePmUnitConfig(slotPath);
   auto i2cDeviceConfig = std::find_if(
       pmUnitConfig.i2cDeviceConfigs()->begin(),
       pmUnitConfig.i2cDeviceConfigs()->end(),
@@ -212,8 +235,7 @@ I2cDeviceConfig DevicePathResolver::getI2cDeviceConfig(
 }
 
 IdpromConfig DevicePathResolver::getIdpromConfig(const std::string& slotPath) {
-  auto pmUnitName = dataStore_.getPmUnitName(slotPath);
-  auto pmUnitConfig = platformConfig_.pmUnitConfigs()->at(pmUnitName);
+  auto pmUnitConfig = dataStore_.resolvePmUnitConfig(slotPath);
   auto idpromConfig = platformConfig_.slotTypeConfigs()
                           ->at(*pmUnitConfig.pluggedInSlotType())
                           .idpromConfig();
@@ -227,8 +249,7 @@ IdpromConfig DevicePathResolver::getIdpromConfig(const std::string& slotPath) {
 PciDeviceConfig DevicePathResolver::getPciDeviceConfig(
     const std::string& slotPath,
     const std::string& deviceName) {
-  auto pmUnitName = dataStore_.getPmUnitName(slotPath);
-  auto pmUnitConfig = platformConfig_.pmUnitConfigs()->at(pmUnitName);
+  auto pmUnitConfig = dataStore_.resolvePmUnitConfig(slotPath);
   auto pciDeviceConfig = std::find_if(
       pmUnitConfig.pciDeviceConfigs()->begin(),
       pmUnitConfig.pciDeviceConfigs()->end(),
@@ -241,3 +262,4 @@ PciDeviceConfig DevicePathResolver::getPciDeviceConfig(
   }
   return *pciDeviceConfig;
 }
+} // namespace facebook::fboss::platform::platform_manager

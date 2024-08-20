@@ -10,7 +10,6 @@
 #include <folly/container/F14Map.h>
 #include <folly/logging/xlog.h>
 #include <re2/re2.h>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -29,7 +28,7 @@ struct PartiallyResolvedExtendedSubscription {
   void debugPrint() const;
 };
 
-class SubscriptionManagerBase;
+class SubscriptionStore;
 
 class SubscriptionPathStore {
  public:
@@ -40,13 +39,13 @@ class SubscriptionPathStore {
   void remove(Subscription* subscription);
 
   void incrementallyResolve(
-      SubscriptionManagerBase& manager,
+      SubscriptionStore& store,
       std::shared_ptr<ExtendedSubscription> subscription,
       SubscriptionKey subKey,
       std::vector<std::string>& pathSoFar);
 
   void processAddedPath(
-      SubscriptionManagerBase& manager,
+      SubscriptionStore& store,
       PathIter begin,
       PathIter curr,
       PathIter end);
@@ -61,6 +60,8 @@ class SubscriptionPathStore {
   SubscriptionPathStore* getOrCreateChild(const std::string& key);
 
   void removeChild(const std::string& key);
+
+  void clear();
 
   void debugPrint() const;
 
@@ -85,6 +86,10 @@ class SubscriptionPathStore {
   findStore(PathIter begin, PathIter end) const;
 
   const std::vector<Subscription*>& subscriptions() const {
+    return subscriptions_;
+  }
+
+  std::vector<Subscription*>& subscriptions() {
     return subscriptions_;
   }
 
