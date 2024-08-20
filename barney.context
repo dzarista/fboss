@@ -5,7 +5,7 @@
                "commit": "963a03aa0fc5f96fbe785a7505c7876667015ce0"
             },
             "code.arista.io/os/fboss-centos": {
-               "commit": "ef49e7dd537da663af1a4e7700458617111afa6e"
+               "commit": "1bef35fd1312a074d86f1cf6f593f80bda55daf0"
             },
             "code.arista.io/aqua-sai/in-eos": {
                "commit": "2534d0648b1942af8fc7fc7c9e4ecf4b31f5e07e"
