@@ -78,7 +78,6 @@ class PlatformConfig:
       self.platformName = platformName
       self.rootPmUnitName = rootPmUnitName
       self.rootPmUnitPointer = None
-      self.rootSlotType = f"{ rootPmUnitName }_SLOT"
       self.pmUnitConfigs = []
       self.i2cAdaptersFromCpu = []
       self.kmodsSettings = {
@@ -137,7 +136,6 @@ class PlatformConfig:
       jsonDict = OrderedDict()
       jsonDict[ "platformName" ] = self.platformName
       jsonDict[ "rootPmUnitName" ] = self.rootPmUnitName
-      jsonDict[ "rootSlotType" ] = self.rootSlotType
       jsonDict[ "slotTypeConfigs" ] = self.getSlotTypeConfigsDict()
       jsonDict[ "pmUnitConfigs" ] = self.getPmUnitConfigsDict()
       jsonDict[ "i2cAdaptersFromCpu" ] = self.i2cAdaptersFromCpu
