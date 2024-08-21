@@ -483,17 +483,17 @@ class WhistlerSMB( SMBUnit ):
       smbFpga2 = self.pciDeviceConfigs[ 2 ]
       smbFpga3 = self.pciDeviceConfigs[ 3 ]
 
-      for pciConfig in self.pciDeviceConfigs:
-         pciConfig.addI2cAdapterConfigs( 5, "SMB_FPGA{}_I2C_MASTER{}", "0x8000" )
-         pciConfig.addSpiMasterConfigs( [
+      for fpgaNum, fpga in enumerate( self.pciDeviceConfigs ):
+         fpga.addI2cAdapterConfigs( 5, "SMB_FPGA{}_I2C_MASTER{}", "0x8000" )
+         fpga.addSpiMasterConfigs( [
             SpiMasterConfig(
-               "SMB_SPI_MASTER0",
+               f"SMB_SPI{ fpgaNum }_MASTER0",
                "spi_master",
                -1,
                "0x7900",
                spiDeviceConfigs=[
                   Flash(
-                     pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
+                     pmUnitScopedName=f"SMB_SPI{ fpgaNum }_MASTER0_DEVICE1",
                      chipSelect=0,
                      modalias="spidev",
                      maxSpeedHz=25000000
