@@ -316,7 +316,7 @@ else
    echo "****BUILDING BSP-KMODS"
    make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods modules
    mkdir -p $SCRATCH_DIR/bsp-kmods
-   cp -f $FBOSS_DIR/fboss.git/arista/bsp-kmods/*.ko $SCRATCH_DIR/bsp-kmods/
+   find $FBOSS_DIR/fboss.git/arista/bsp-kmods -type f -name "*.ko" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
    make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
 
    echo "****BUILDING SHOWTECH DEPENDENCIES"
