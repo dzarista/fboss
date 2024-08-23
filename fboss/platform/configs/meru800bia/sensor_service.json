@@ -132,15 +132,6 @@
         "compute": "@/1000.0",
         "type": 1
       },
-      "SCM_VRM1_TEMP1": {
-        "path": "/run/devmap/sensors/CPU_PXM1310_1/temp1_input",
-        "thresholds": {
-          "upperCriticalVal": 110.0,
-          "maxAlarmVal": 105.0
-        },
-        "compute": "@/1000.0",
-        "type": 3
-      },
       "SCM_VRM1_TEMP2": {
         "path": "/run/devmap/sensors/CPU_PXM1310_1/temp2_input",
         "thresholds": {
