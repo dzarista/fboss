@@ -1320,6 +1320,7 @@ class SCMFairywren( SCMUnit ):
                         pmUnitScopedName="CPU_CORE_TEMP",
                         sysfsPath="/sys/bus/platform/devices/coretemp.0"
                     )
+
       cpuCoreTemp.addSensorConfigs( [
          SensorConfig( "CPU_PACKAGE_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0", prependPmUnit=False,
