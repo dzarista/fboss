@@ -43,7 +43,8 @@ auto getNeighborEntryTableHelper(
 folly::MacAddress getEventorPortInterfaceMac(
     const std::shared_ptr<SwitchState>& state,
     PortID portId) {
-  auto intfID = state->getInterfaceIDForPort(portId);
+  auto intfID =
+      state->getInterfaceIDForPort(facebook::fboss::PortDescriptor(portId));
   auto intf = state->getInterfaces()->getNodeIf(intfID);
   return intf->getMac();
 }
@@ -76,12 +77,14 @@ std::shared_ptr<Mirror> MirrorManagerImpl<AddrT>::updateMirror(
 
   auto newMirror = std::make_shared<Mirror>(
       mirror->getID(),
-      mirror->configHasEgressPort() ? mirror->getEgressPort() : std::nullopt,
+      mirror->configHasEgressPort() ? mirror->getEgressPortDesc()
+                                    : std::nullopt,
       mirror->getDestinationIp(),
       mirror->getSrcIp(),
       mirror->getTunnelUdpPorts(),
       mirror->getDscp(),
       mirror->getTruncate());
+  newMirror->setSwitchId(mirror->getSwitchId());
 
   for (const auto& nexthop : nexthops) {
     const auto entry =
@@ -93,17 +96,18 @@ std::shared_ptr<Mirror> MirrorManagerImpl<AddrT>::updateMirror(
     }
     auto neighborPort = entry->getPort();
     if (mirror->configHasEgressPort()) {
+      auto egressPortDesc = mirror->getEgressPortDesc().value();
       if (!neighborPort.isPhysicalPort() ||
-          neighborPort.phyPortID() != mirror->getEgressPort().value()) {
+          neighborPort.phyPortID() != egressPortDesc.phyPortID()) {
         // TODO: support configuring LAG egress for mirror
         continue;
       }
     }
 
-    std::optional<PortID> egressPort{};
+    std::optional<PortDescriptor> egressPortDesc{};
     switch (neighborPort.type()) {
       case PortDescriptor::PortType::PHYSICAL:
-        egressPort = entry->getPort().phyPortID();
+        egressPortDesc = entry->getPort();
         break;
       case PortDescriptor::PortType::AGGREGATE: {
         // pick first forwarding member port
@@ -120,7 +124,7 @@ std::shared_ptr<Mirror> MirrorManagerImpl<AddrT>::updateMirror(
         }
         for (auto subPortAndFwdState : subportAndFwdStates) {
           if (subPortAndFwdState.second == AggregatePort::Forwarding::ENABLED) {
-            egressPort = subPortAndFwdState.first;
+            egressPortDesc = PortDescriptor(subPortAndFwdState.first);
             break;
           }
         }
@@ -130,7 +134,7 @@ std::shared_ptr<Mirror> MirrorManagerImpl<AddrT>::updateMirror(
         break;
     }
 
-    if (!egressPort) {
+    if (!egressPortDesc) {
       continue;
     }
 
@@ -144,19 +148,15 @@ std::shared_ptr<Mirror> MirrorManagerImpl<AddrT>::updateMirror(
         nexthop,
         entry,
         newMirror->getTunnelUdpPorts()));
-    newMirror->setEgressPort(egressPort.value());
+    newMirror->setEgressPortDesc(egressPortDesc.value());
     break;
   }
 
   auto asic = sw_->getHwAsicTable()->getHwAsic(mirror->getSwitchId());
   if (newMirror && newMirror->type() == Mirror::Type::SFLOW &&
       asic->isSupported(HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW)) {
-    // TODO: Destination mac address of the mirror session also
-    // should be overridden to router mac so that the packet can
-    // loop back and hit the eventor port and get routed to the
-    // mirror destination
     auto eventorPort = getEventorPortForSflowMirror(mirror->getSwitchId());
-    newMirror->setEgressPort(eventorPort);
+    newMirror->setEgressPortDesc(PortDescriptor(eventorPort));
     newMirror->setDestinationMac(
         getEventorPortInterfaceMac(state, eventorPort));
   }

@@ -52,11 +52,12 @@ add_library(fsdb_path_converter
 
 target_link_libraries(fsdb_path_converter
   fsdb_model
-  path_helpers
+  oper_path_helpers
 )
 
 add_library(fsdb_naive_periodic_subscribable_storage
-  fboss/fsdb/oper/instantiations/FsdbNaivePeriodicSubscribableStorage.cpp
+  fboss/fsdb/oper/instantiations/FsdbNaivePeriodicSubscribableStateStorage.cpp
+  fboss/fsdb/oper/instantiations/FsdbNaivePeriodicSubscribableStatsStorage.cpp
 )
 
 target_compile_options(fsdb_naive_periodic_subscribable_storage PUBLIC "-DENABLE_PATCH_APIS")

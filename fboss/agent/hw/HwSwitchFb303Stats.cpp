@@ -128,6 +128,11 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
           getCounterPrefix() + "corrupted_cell_packet_integrity_drops",
           SUM,
           RATE),
+      missingCellPacketIntegrityDrops_(
+          map,
+          getCounterPrefix() + "missing_cell_packet_integrity_drops",
+          SUM,
+          RATE),
       dramEnqueuedBytes_(
           map,
           getCounterPrefix() + "dram_enqueued_bytes",
@@ -136,6 +141,16 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
       dramDequeuedBytes_(
           map,
           getCounterPrefix() + "dram_dequeued_bytes",
+          SUM,
+          RATE),
+      dramBlockedTimeNsec_(
+          map,
+          getCounterPrefix() + "dram_blocked_time_ns",
+          SUM,
+          RATE),
+      deletedCreditBytes_(
+          map,
+          getCounterPrefix() + "deleted_credit_bytes",
           SUM,
           RATE),
       fabricReachabilityMissingCount_(
@@ -147,6 +162,7 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
       virtualDevicesWithAsymmetricConnectivity_(
           map,
           getCounterPrefix() + "virtual_devices_with_asymmetric_connectivity"),
+      portGroupSkew_(map, getCounterPrefix() + "port_group_skew"),
       switchReachabilityChangeCount_(
           map,
           getCounterPrefix() + "switch_reachability_change",
@@ -246,6 +262,11 @@ void HwSwitchFb303Stats::update(const HwSwitchDropStats& dropStats) {
         *dropStats.corruptedCellPacketIntegrityDrops() -
         currentDropStats_.corruptedCellPacketIntegrityDrops().value_or(0));
   }
+  if (dropStats.missingCellPacketIntegrityDrops().has_value()) {
+    missingCellPacketIntegrityDrops_.addValue(
+        *dropStats.missingCellPacketIntegrityDrops() -
+        currentDropStats_.missingCellPacketIntegrityDrops().value_or(0));
+  }
   currentDropStats_ = dropStats;
 }
 
@@ -256,6 +277,15 @@ void HwSwitchFb303Stats::update(const HwSwitchDramStats& dramStats) {
   if (dramStats.dramDequeuedBytes().has_value()) {
     dramDequeuedBytes_.addValue(*dramStats.dramDequeuedBytes());
   }
+  if (dramStats.dramBlockedTimeNsec().has_value()) {
+    dramBlockedTimeNsec_.addValue(*dramStats.dramBlockedTimeNsec());
+  }
+}
+
+void HwSwitchFb303Stats::update(const HwSwitchCreditStats& creditStats) {
+  if (creditStats.deletedCreditBytes().has_value()) {
+    deletedCreditBytes_.addValue(*creditStats.deletedCreditBytes());
+  }
 }
 
 int64_t HwSwitchFb303Stats::getDramEnqueuedBytes() const {
@@ -264,6 +294,14 @@ int64_t HwSwitchFb303Stats::getDramEnqueuedBytes() const {
 
 int64_t HwSwitchFb303Stats::getDramDequeuedBytes() const {
   return getCumulativeValue(dramDequeuedBytes_);
+}
+
+int64_t HwSwitchFb303Stats::getDramBlockedTimeNsec() const {
+  return getCumulativeValue(dramBlockedTimeNsec_);
+}
+
+int64_t HwSwitchFb303Stats::getDeletedCreditBytes() const {
+  return getCumulativeValue(deletedCreditBytes_);
 }
 
 int64_t HwSwitchFb303Stats::getIreErrors() const {
@@ -323,6 +361,10 @@ int64_t HwSwitchFb303Stats::getCorruptedCellPacketIntegrityDrops() const {
   return currentDropStats_.corruptedCellPacketIntegrityDrops().value_or(0);
 }
 
+int64_t HwSwitchFb303Stats::getMissingCellPacketIntegrityDrops() const {
+  return currentDropStats_.missingCellPacketIntegrityDrops().value_or(0);
+}
+
 int64_t HwSwitchFb303Stats::getSwitchReachabilityChangeCount() const {
   return getCumulativeValue(switchReachabilityChangeCount_);
 }
@@ -369,6 +411,10 @@ void HwSwitchFb303Stats::virtualDevicesWithAsymmetricConnectivity(
       virtualDevicesWithAsymmetricConnectivity_.name(), value);
 }
 
+void HwSwitchFb303Stats::portGroupSkew(int64_t value) {
+  fb303::fbData->setCounter(portGroupSkew_.name(), value);
+}
+
 void HwSwitchFb303Stats::bcmSdkVer(int64_t ver) {
   fb303::fbData->setCounter(bcmSdkVer_.name(), ver);
 }
@@ -399,6 +445,11 @@ int64_t HwSwitchFb303Stats::getVirtualDevicesWithAsymmetricConnectivityCount()
   return counterVal ? *counterVal : 0;
 }
 
+int64_t HwSwitchFb303Stats::getPortGroupSkewCount() const {
+  auto counterVal = fb303::fbData->getCounterIfExists(portGroupSkew_.name());
+  return counterVal ? *counterVal : 0;
+}
+
 HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
   HwSwitchFb303GlobalStats hwFb303Stats;
   hwFb303Stats.tx_pkt_allocated() = getCumulativeValue(txPktAlloc_);
@@ -414,6 +465,8 @@ HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
   hwFb303Stats.asic_error() = getCumulativeValue(asicErrors_);
   hwFb303Stats.dram_enqueued_bytes() = getCumulativeValue(dramEnqueuedBytes_);
   hwFb303Stats.dram_dequeued_bytes() = getCumulativeValue(dramDequeuedBytes_);
+  hwFb303Stats.dram_blocked_time_ns() =
+      getCumulativeValue(dramBlockedTimeNsec_);
   hwFb303Stats.fabric_reachability_missing() =
       getFabricReachabilityMismatchCount();
   hwFb303Stats.fabric_reachability_mismatch() =
@@ -435,6 +488,7 @@ HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
   if (currentDropStats_.fdrCellDrops().has_value()) {
     hwFb303Stats.fdr_cell_drops() = *currentDropStats_.fdrCellDrops();
   }
+  hwFb303Stats.deleted_credit_bytes() = getDeletedCreditBytes();
   return hwFb303Stats;
 }
 
@@ -454,6 +508,9 @@ void HwSwitchFb303Stats::updateStats(HwSwitchFb303GlobalStats& globalStats) {
   updateValue(packetIntegrityDrops_, *globalStats.packet_integrity_drops());
   updateValue(dramEnqueuedBytes_, *globalStats.dram_enqueued_bytes());
   updateValue(dramDequeuedBytes_, *globalStats.dram_dequeued_bytes());
+  if (globalStats.dram_blocked_time_ns().has_value()) {
+    updateValue(dramBlockedTimeNsec_, *globalStats.dram_blocked_time_ns());
+  }
   updateValue(
       switchReachabilityChangeCount_,
       *globalStats.switch_reachability_change());

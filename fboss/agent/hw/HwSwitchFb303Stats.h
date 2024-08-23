@@ -99,6 +99,7 @@ class HwSwitchFb303Stats {
   void fabricReachabilityMissingCount(int64_t value);
   void fabricReachabilityMismatchCount(int64_t value);
   void virtualDevicesWithAsymmetricConnectivity(int64_t value);
+  void portGroupSkew(int64_t value);
 
   void bcmSdkVer(int64_t ver);
   void bcmSaiSdkVer(int64_t ver);
@@ -106,6 +107,7 @@ class HwSwitchFb303Stats {
 
   void update(const HwSwitchDramStats& dramStats);
   void update(const HwSwitchDropStats& dropStats);
+  void update(const HwSwitchCreditStats& creditStats);
 
   int64_t getTxPktAllocCount() const {
     return txPktAlloc_.count();
@@ -137,12 +139,17 @@ class HwSwitchFb303Stats {
   int64_t getFabricReachabilityMismatchCount() const;
   int64_t getFabricReachabilityMissingCount() const;
   int64_t getVirtualDevicesWithAsymmetricConnectivityCount() const;
+  int64_t getPortGroupSkewCount() const;
   int64_t getSwitchReachabilityChangeCount() const;
   int64_t getPacketIntegrityDropsCount() const {
     return packetIntegrityDrops_.count();
   }
+  // Dram bytes
   int64_t getDramEnqueuedBytes() const;
   int64_t getDramDequeuedBytes() const;
+  int64_t getDramBlockedTimeNsec() const;
+  // Credit stats
+  int64_t getDeletedCreditBytes() const;
   // Asic errors
   int64_t getIreErrors() const;
   int64_t getItppErrors() const;
@@ -162,6 +169,7 @@ class HwSwitchFb303Stats {
   int64_t getQueueResolutionDrops() const;
   int64_t getIngresPacketPipelineRejectDrops() const;
   int64_t getCorruptedCellPacketIntegrityDrops() const;
+  int64_t getMissingCellPacketIntegrityDrops() const;
 
   HwAsicErrors getHwAsicErrors() const;
   FabricReachabilityStats getFabricReachabilityStats();
@@ -213,14 +221,19 @@ class HwSwitchFb303Stats {
   TLTimeseries queueResolutionDrops_;
   TLTimeseries ingressPacketPipelineRejectDrops_;
   TLTimeseries corruptedCellPacketIntegrityDrops_;
+  TLTimeseries missingCellPacketIntegrityDrops_;
   HwSwitchDropStats currentDropStats_;
   // Dram enqueue, dequeue bytes
   TLTimeseries dramEnqueuedBytes_;
   TLTimeseries dramDequeuedBytes_;
+  TLTimeseries dramBlockedTimeNsec_;
+  // Credit stats
+  TLTimeseries deletedCreditBytes_;
   // fabric reachability errors
   TLCounter fabricReachabilityMissingCount_;
   TLCounter fabricReachabilityMismatchCount_;
   TLCounter virtualDevicesWithAsymmetricConnectivity_;
+  TLCounter portGroupSkew_;
   TLTimeseries switchReachabilityChangeCount_;
   TLTimeseries ireErrors_;
   TLTimeseries itppErrors_;

@@ -40,7 +40,11 @@ namespace {
 
 constexpr int kUsecBetweenPowerModeFlap = 100000;
 
+bool cdrSupportedSpeed(facebook::fboss::cfg::PortSpeed speed) {
+  return speed == facebook::fboss::cfg::PortSpeed::HUNDREDG ||
+      speed == facebook::fboss::cfg::PortSpeed::FIFTYG;
 }
+} // namespace
 
 namespace facebook {
 namespace fboss {
@@ -456,7 +460,11 @@ std::vector<uint8_t> SffModule::configuredHostLanes(
   if (hostStartLane != 0) {
     return {};
   }
-  return {0, 1, 2, 3};
+  if (currentConfiguredSpeed_ == cfg::PortSpeed::FIFTYG) {
+    return {0, 1};
+  } else {
+    return {0, 1, 2, 3};
+  }
 }
 
 std::vector<uint8_t> SffModule::configuredMediaLanes(
@@ -470,7 +478,12 @@ std::vector<uint8_t> SffModule::configuredMediaLanes(
   if (ext_comp_code && *ext_comp_code == ExtendedSpecComplianceCode::FR1_100G) {
     return {0};
   }
-  return {0, 1, 2, 3};
+
+  if (currentConfiguredSpeed_ == cfg::PortSpeed::FIFTYG) {
+    return {0, 1};
+  } else {
+    return {0, 1, 2, 3};
+  }
 }
 
 RateSelectSetting SffModule::getRateSelectSettingValue(RateSelectState state) {
@@ -1105,10 +1118,8 @@ void SffModule::setCdrIfSupported(
   // no change is needed
   auto toChange = [speed](FeatureState state) {
     return state != FeatureState::UNSUPPORTED &&
-        ((speed == cfg::PortSpeed::HUNDREDG &&
-          state != FeatureState::ENABLED) ||
-         (speed != cfg::PortSpeed::HUNDREDG &&
-          state != FeatureState::DISABLED));
+        ((cdrSupportedSpeed(speed) && state != FeatureState::ENABLED) ||
+         (!cdrSupportedSpeed(speed) && state != FeatureState::DISABLED));
   };
 
   bool changeRx = toChange(currentStateRx);
@@ -1122,7 +1133,7 @@ void SffModule::setCdrIfSupported(
   // isn't supported will be ignored anyway
   FeatureState newState = FeatureState::DISABLED;
   uint8_t value = 0x0;
-  if (speed == cfg::PortSpeed::HUNDREDG) {
+  if (cdrSupportedSpeed(speed)) {
     value = 0xFF;
     newState = FeatureState::ENABLED;
   }
@@ -1167,7 +1178,7 @@ void SffModule::setRateSelectIfSupported(
   } else if (speed == cfg::PortSpeed::FORTYG) {
     // Optimised for 10G channels
     alreadySet = translateEnum(RateSelectSetting::LESS_THAN_12GB, 0b00000000);
-  } else if (speed == cfg::PortSpeed::HUNDREDG) {
+  } else if (cdrSupportedSpeed(speed)) {
     // Optimised for 25GB channels
     alreadySet =
         translateEnum(RateSelectSetting::FROM_24GB_to_26GB, 0b10101010);
@@ -1426,20 +1437,21 @@ bool SffModule::tcvrPortStateSupported(TransceiverPortState& portState) const {
     return true;
   }
 
-  return (portState.speed == cfg::PortSpeed::HUNDREDG ||
-          portState.speed == cfg::PortSpeed::FORTYG) &&
-      (portState.startHostLane == 0) && portState.numHostLanes == 4;
+  return (portState.speed == cfg::PortSpeed::FIFTYG &&
+          portState.startHostLane == 0 && portState.numHostLanes == 2) ||
+      ((portState.speed == cfg::PortSpeed::HUNDREDG ||
+        portState.speed == cfg::PortSpeed::FORTYG) &&
+       (portState.startHostLane == 0) && portState.numHostLanes == 4);
 }
 
 void SffModule::customizeTransceiverLocked(TransceiverPortState& portState) {
-  auto& portName = portState.portName;
   auto speed = portState.speed;
-  auto startHostLane = portState.startHostLane;
   QSFP_LOG(INFO, this) << folly::sformat(
-      "customizeTransceiverLocked: PortName {}, Speed {}, StartHostLane {}",
-      portName,
+      "customizeTransceiverLocked: PortName {}, Speed {}, StartHostLane {}, numHostLanes {}",
+      portState.portName,
       apache::thrift::util::enumNameSafe(speed),
-      startHostLane);
+      portState.startHostLane,
+      portState.numHostLanes);
   /*
    * This must be called with a lock held on qsfpModuleMutex_
    */
@@ -1462,6 +1474,7 @@ void SffModule::customizeTransceiverLocked(TransceiverPortState& portState) {
   } else {
     QSFP_LOG(DBG1, this) << "Customization not supported";
   }
+  currentConfiguredSpeed_ = speed;
 }
 
 /*

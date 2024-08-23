@@ -16,6 +16,11 @@ DEFINE_bool(
     false,
     "list production feature needed for every single test");
 
+DEFINE_bool(
+    disable_link_toggler,
+    false,
+    "Used by certain tests where we don't want to bring up ports by toggler");
+
 namespace {
 int kArgc;
 char** kArgv;
@@ -44,16 +49,17 @@ void AgentHwTest::SetUp() {
       [this](const AgentEnsemble& ensemble) { return initialConfig(ensemble); };
   agentEnsemble_ = createAgentEnsemble(
       initialConfigFn,
-      AgentEnsemblePlatformConfigFn(),
+      FLAGS_disable_link_toggler /*disableLinkStateToggler*/,
+      platformConfigFn_,
       (HwSwitch::FeaturesDesired::PACKET_RX_DESIRED |
        HwSwitch::FeaturesDesired::LINKSCAN_DESIRED |
        HwSwitch::FeaturesDesired::TAM_EVENT_NOTIFY_DESIRED),
       failHwCallsOnWarmboot());
 
   if (isSupportedOnAllAsics(HwAsic::Feature::ROUTE_METADATA)) {
-    // TODO: enable after classid_for_connected_subnet_routes feature is fully
-    // verified
-    FLAGS_classid_for_connected_subnet_routes = false;
+    // TODO: enable after set_classid_for_my_subnet_and_ip_routes feature is
+    // fully verified
+    FLAGS_set_classid_for_my_subnet_and_ip_routes = false;
   }
 }
 
@@ -72,6 +78,9 @@ void AgentHwTest::setCmdLineFlagOverrides() const {
   // in each updateStats call (same for VOQ stats)
   FLAGS_update_watermark_stats_interval_s = 0;
   FLAGS_update_voq_stats_interval_s = 0;
+  // Always collect cable lengthhs in each iteration of
+  // stats collection loop.
+  FLAGS_update_cable_length_stats_s = 0;
   // disable neighbor updates
   FLAGS_disable_neighbor_updates = true;
   // disable icmp error response
@@ -81,9 +90,13 @@ void AgentHwTest::setCmdLineFlagOverrides() const {
   FLAGS_publish_state_to_fsdb = false;
   // Looped ports are the common case in tests
   FLAGS_disable_looped_fabric_ports = false;
+  // Looped fabric ports show up as wrong fabric connection.
+  // disable this detection
+  FLAGS_detect_wrong_fabric_connections = false;
   // Disable DSF subscription on single-box test
   FLAGS_dsf_subscribe = false;
 }
+
 void AgentHwTest::TearDown() {
   if (FLAGS_run_forever ||
       (::testing::Test::HasFailure() && FLAGS_run_forever_on_failure)) {
@@ -310,10 +323,14 @@ std::map<SystemPortID, HwSysPortStats> AgentHwTest::getLatestSysPortStats(
           auto portName =
               portStatName.substr(0, portStatName.find_last_of("_"));
           try {
-            portId = getProgrammedState()
-                         ->getSystemPorts()
-                         ->getSystemPort(portName)
-                         ->getID();
+            if (portName.find("cpu") != std::string::npos) {
+              portId = 0;
+            } else {
+              portId = getProgrammedState()
+                           ->getSystemPorts()
+                           ->getSystemPort(portName)
+                           ->getID();
+            }
           } catch (const FbossError&) {
             // Look in remote sys ports if we couldn't find in local sys ports
             portId = getProgrammedState()
@@ -322,7 +339,10 @@ std::map<SystemPortID, HwSysPortStats> AgentHwTest::getLatestSysPortStats(
                          ->getID();
           }
           if (std::find(ports.begin(), ports.end(), portId) != ports.end()) {
-            portIdStatsMap.emplace(portId, stats);
+            if (*stats.timestamp_() !=
+                hardware_stats_constants::STAT_UNINITIALIZED()) {
+              portIdStatsMap.emplace(portId, stats);
+            }
           }
         }
         return ports.size() == portIdStatsMap.size();
@@ -338,6 +358,29 @@ HwSysPortStats AgentHwTest::getLatestSysPortStats(const SystemPortID& port) {
   return getLatestSysPortStats(std::vector<SystemPortID>({port}))
       .begin()
       ->second;
+}
+
+std::optional<HwSysPortStats> AgentHwTest::getLatestCpuSysPortStats() {
+  std::map<std::string, HwSysPortStats> systemPortStats;
+  std::optional<HwSysPortStats> portStats;
+  checkWithRetry(
+      [&systemPortStats, &portStats, this]() {
+        bool found = false;
+        getSw()->getAllHwSysPortStats(systemPortStats);
+        for (auto [portStatName, stats] : systemPortStats) {
+          if (portStatName.find("cpu") != std::string::npos) {
+            XLOG(DBG2) << "found cpu port stats for " << portStatName;
+            portStats = stats;
+            found = true;
+          }
+        }
+        return found;
+      },
+      120,
+      std::chrono::milliseconds(1000),
+      " fetch cpu system port stats");
+
+  return portStats;
 }
 
 HwSwitchDropStats AgentHwTest::getAggregatedSwitchDropStats() {
@@ -467,7 +510,7 @@ void AgentHwTest::populateArpNeighborsToCache(
                       ->getNeighborUpdater()
                       ->getArpCacheForIntf(interface->getID())
                       .get();
-  getAgentEnsemble()->getSw()->getNeighborCacheEvb()->runInEventBaseThread(
+  getAgentEnsemble()->getSw()->getNeighborCacheEvb()->runInFbossEventBaseThread(
       [interface, arpCache] {
         arpCache->repopulate(interface->getArpTable());
       });
@@ -480,7 +523,7 @@ void AgentHwTest::populateNdpNeighborsToCache(
                       ->getNeighborUpdater()
                       ->getNdpCacheForIntf(interface->getID())
                       .get();
-  getAgentEnsemble()->getSw()->getNeighborCacheEvb()->runInEventBaseThread(
+  getAgentEnsemble()->getSw()->getNeighborCacheEvb()->runInFbossEventBaseThread(
       [interface, ndpCache] {
         ndpCache->repopulate(interface->getNdpTable());
       });

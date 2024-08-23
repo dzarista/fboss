@@ -6,11 +6,11 @@
 #include <re2/re2.h>
 
 #include "fboss/platform/platform_manager/I2cExplorer.h"
-#include "fboss/platform/platform_manager/PciExplorer.h"
 #include "fboss/platform/platform_manager/gen-cpp2/platform_manager_config_constants.h"
 
 namespace {
 const re2::RE2 kRpmVersionRegex{"^[0-9]+\\.[0-9]+\\.[0-9]+\\-[0-9]+$"};
+const re2::RE2 kPciIdRegex{"0x[0-9a-f]{4}"};
 const re2::RE2 kPciDevOffsetRegex{"0x[0-9a-f]+"};
 const re2::RE2 kSymlinkRegex{"^/run/devmap/(?P<SymlinkDirs>[a-z0-9-]+)/.+"};
 const re2::RE2 kDevPathRegex{"/([A-Z]+_SLOT@[0-9]+/)*\\[.+\\]"};
@@ -117,26 +117,22 @@ bool ConfigValidator::isValidPciDeviceConfig(
         *pciDeviceConfig.pmUnitScopedName());
     return false;
   }
-  if (!re2::RE2::FullMatch(
-          *pciDeviceConfig.vendorId(), PciExplorer().kPciIdRegex)) {
+  if (!re2::RE2::FullMatch(*pciDeviceConfig.vendorId(), kPciIdRegex)) {
     XLOG(ERR) << "Invalid PCI vendor id : " << *pciDeviceConfig.vendorId();
     return false;
   }
-  if (!re2::RE2::FullMatch(
-          *pciDeviceConfig.deviceId(), PciExplorer().kPciIdRegex)) {
+  if (!re2::RE2::FullMatch(*pciDeviceConfig.deviceId(), kPciIdRegex)) {
     XLOG(ERR) << "Invalid PCI device id : " << *pciDeviceConfig.deviceId();
     return false;
   }
   if (!pciDeviceConfig.subSystemDeviceId()->empty() &&
-      !re2::RE2::FullMatch(
-          *pciDeviceConfig.subSystemVendorId(), PciExplorer().kPciIdRegex)) {
+      !re2::RE2::FullMatch(*pciDeviceConfig.subSystemVendorId(), kPciIdRegex)) {
     XLOG(ERR) << "Invalid PCI subsystem vendor id : "
               << *pciDeviceConfig.subSystemVendorId();
     return false;
   }
   if (!pciDeviceConfig.subSystemVendorId()->empty() &&
-      !re2::RE2::FullMatch(
-          *pciDeviceConfig.subSystemDeviceId(), PciExplorer().kPciIdRegex)) {
+      !re2::RE2::FullMatch(*pciDeviceConfig.subSystemDeviceId(), kPciIdRegex)) {
     XLOG(ERR) << "Invalid PCI subsystem device id : "
               << *pciDeviceConfig.subSystemDeviceId();
     return false;
@@ -256,31 +252,57 @@ bool ConfigValidator::isValid(const PlatformConfig& config) {
     return false;
   }
 
+  if (config.rootSlotType()->empty()) {
+    XLOG(ERR) << "Platform rootSlotType cannot be empty";
+    return false;
+  }
+
+  if (config.slotTypeConfigs()->find(*config.rootSlotType()) ==
+      config.slotTypeConfigs()->end()) {
+    XLOG(ERR) << fmt::format(
+        "Invalid rootSlotType {}. Not found in slotTypeConfigs",
+        *config.rootSlotType());
+    return false;
+  }
+
   // Validate SlotTypeConfigs.
   for (const auto& [slotName, slotTypeConfig] : *config.slotTypeConfigs()) {
+    XLOG(INFO) << fmt::format(
+        "Validating SlotTypeConfig for Slot {}...", slotName);
     if (!isValidSlotTypeConfig(slotTypeConfig)) {
       return false;
     }
   }
 
-  for (const auto& [name, pmUnitConfig] : *config.pmUnitConfigs()) {
-    // Validate PciDeviceConfigs
-    for (const auto& pciDeviceConfig : *pmUnitConfig.pciDeviceConfigs_ref()) {
-      if (!isValidPciDeviceConfig(pciDeviceConfig)) {
+  for (const auto& [pmUnitName, pmUnitConfig] : *config.pmUnitConfigs()) {
+    XLOG(INFO) << fmt::format(
+        "Validating PmUnitConfig for PmUnit {} in Slot {}...",
+        pmUnitName,
+        *pmUnitConfig.pluggedInSlotType());
+    if (!isValidPmUnitConfig(*config.slotTypeConfigs(), pmUnitConfig)) {
+      return false;
+    }
+  }
+
+  for (const auto& [pmUnitName, versionedPmUnitConfigs] :
+       *config.versionedPmUnitConfigs()) {
+    XLOG(INFO) << fmt::format(
+        "Validating VersionedPmUnitConfigs for PmUnit {}...", pmUnitName);
+    if (versionedPmUnitConfigs.empty()) {
+      XLOG(ERR) << fmt::format(
+          "VersionedPmUnitConfigs for {} must not be empty", pmUnitName);
+      return false;
+    }
+    for (const auto& versionedPmUnitConfig : versionedPmUnitConfigs) {
+      if (*versionedPmUnitConfig.productSubVersion() < 0) {
+        XLOG(ERR) << fmt::format(
+            "One of PmUnit {}'s VersionedPmUnitConfig has a negative ProductSubVersion",
+            pmUnitName);
         return false;
       }
-    }
-
-    // Validate I2cDeviceConfigs
-    for (const auto& i2cDeviceConfig : *pmUnitConfig.i2cDeviceConfigs_ref()) {
-      if (!isValidI2cDeviceConfig(i2cDeviceConfig)) {
-        return false;
-      }
-    }
-
-    // Validate SlotConfigs
-    for (const auto& [_, slotConfig] : *pmUnitConfig.outgoingSlotConfigs()) {
-      if (!isValidSlotConfig(slotConfig)) {
+      if (!isValidPmUnitConfig(
+              *config.slotTypeConfigs(),
+              *versionedPmUnitConfig.pmUnitConfig())) {
         return false;
       }
     }
@@ -297,6 +319,39 @@ bool ConfigValidator::isValid(const PlatformConfig& config) {
     return false;
   }
 
+  return true;
+}
+
+bool ConfigValidator::isValidPmUnitConfig(
+    const std::map<std::string, SlotTypeConfig>& slotTypeConfigs,
+    const PmUnitConfig& pmUnitConfig) {
+  if (!slotTypeConfigs.contains(*pmUnitConfig.pluggedInSlotType())) {
+    XLOG(ERR) << fmt::format(
+        "Plugged-into Slot {} which has a missing SlotTypeConfig definition",
+        *pmUnitConfig.pluggedInSlotType());
+    return false;
+  }
+
+  // Validate PciDeviceConfigs
+  for (const auto& pciDeviceConfig : *pmUnitConfig.pciDeviceConfigs_ref()) {
+    if (!isValidPciDeviceConfig(pciDeviceConfig)) {
+      return false;
+    }
+  }
+
+  // Validate I2cDeviceConfigs
+  for (const auto& i2cDeviceConfig : *pmUnitConfig.i2cDeviceConfigs_ref()) {
+    if (!isValidI2cDeviceConfig(i2cDeviceConfig)) {
+      return false;
+    }
+  }
+
+  // Validate SlotConfigs
+  for (const auto& [_, slotConfig] : *pmUnitConfig.outgoingSlotConfigs()) {
+    if (!isValidSlotConfig(slotConfig)) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -319,8 +374,9 @@ bool ConfigValidator::isValidPresenceDetection(
       XLOG(ERR) << "devicePath for GpioLineHandle cannot be empty";
       return false;
     }
-    if (presenceDetection.gpioLineHandle()->desiredValue()->empty()) {
-      XLOG(ERR) << "desiredValue for GpioLineHandle cannot be empty";
+    if (presenceDetection.gpioLineHandle()->desiredValue() < 0) {
+      XLOG(ERR)
+          << "desiredValue for GpioLineHandle cannot be < 0. Typically 0 or 1";
       return false;
     }
   }

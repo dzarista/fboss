@@ -161,6 +161,12 @@ class PortManagerTest : public ManagerTestBase {
         std::nullopt, // PFC Deadlock Detection Interval
         std::nullopt, // PFC Deadlock Recovery Interval
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+        std::nullopt, // ARS enable
+        std::nullopt, // ARS scaling factor
+        std::nullopt, // ARS port load past weight
+        std::nullopt, // ARS port load future weight
+#endif
     };
     return portApi.create<SaiPortTraits>(a, 0);
   }
@@ -336,7 +342,8 @@ TEST_F(PortManagerTest, portConsolidationAddPort) {
 void checkCounterExport(
     const std::string& portName,
     ExpectExport expectExport) {
-  for (auto statKey : HwPortFb303Stats("dummy").kPortStatKeys()) {
+  for (auto statKey :
+       HwPortFb303Stats("dummy").kPortMonotonicCounterStatKeys()) {
     switch (expectExport) {
       case ExpectExport::EXPORT:
         EXPECT_TRUE(facebook::fbData->getStatMap()->contains(
@@ -353,7 +360,8 @@ void checkCounterExport(
 TEST_F(PortManagerTest, changePortNameAndCheckCounters) {
   std::shared_ptr<Port> swPort = makePort(p0);
   saiManagerTable->portManager().addPort(swPort);
-  for (auto statKey : HwPortFb303Stats("dummy").kPortStatKeys()) {
+  for (auto statKey :
+       HwPortFb303Stats("dummy").kPortMonotonicCounterStatKeys()) {
     EXPECT_TRUE(facebook::fbData->getStatMap()->contains(
         HwPortFb303Stats::statName(statKey, swPort->getName())));
   }
@@ -372,7 +380,8 @@ TEST_F(PortManagerTest, updateStats) {
   saiManagerTable->portManager().updateStats(swPort->getID());
   auto portStat =
       saiManagerTable->portManager().getLastPortStat(swPort->getID());
-  for (auto statKey : HwPortFb303Stats("dummy").kPortStatKeys()) {
+  for (auto statKey :
+       HwPortFb303Stats("dummy").kPortMonotonicCounterStatKeys()) {
     EXPECT_EQ(
         portStat->getCounterLastIncrement(
             HwPortFb303Stats::statName(statKey, swPort->getName())),

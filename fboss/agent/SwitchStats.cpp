@@ -292,7 +292,11 @@ SwitchStats::SwitchStats(ThreadLocalStatsMap* map, int numSwitches)
           map,
           kCounterPrefix + "switch_configured_ms",
           SUM,
-          RATE) {
+          RATE),
+      dsfGrExpired_(map, kCounterPrefix + "dsfsession_gr_expired", SUM, RATE),
+      dsfUpdateFailed_(map, kCounterPrefix + "dsf_update_failed", SUM, RATE)
+
+{
   for (auto switchIndex = 0; switchIndex < numSwitches; switchIndex++) {
     hwAgentConnectionStatus_.emplace_back(TLCounter(
         map,
@@ -452,6 +456,14 @@ SwitchStats::HwAgentStreamConnectionStatus::HwAgentStreamConnectionStatus(
               switchIndex,
               ".",
               "tx_pkt_event_sync_active"))),
+      switchReachabilityChangeEventSinkStatus_(TLCounter(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "switch_reachability_change_event_sync_active"))),
       statsEventSinkDisconnects_(TLTimeseries(
           map,
           folly::to<std::string>(
@@ -500,6 +512,16 @@ SwitchStats::HwAgentStreamConnectionStatus::HwAgentStreamConnectionStatus(
               switchIndex,
               ".",
               "tx_pkt_event_sync_disconnects"),
+          SUM,
+          RATE)),
+      switchReachabilityChangeEventSinkDisconnects_(TLTimeseries(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "switch_reachability_change_event_sync_disconnects"),
           SUM,
           RATE)),
       statsEventsReceived_(TLTimeseries(
@@ -551,6 +573,16 @@ SwitchStats::HwAgentStreamConnectionStatus::HwAgentStreamConnectionStatus(
               ".",
               "tx_pkt_event_sent"),
           SUM,
+          RATE)),
+      switchReachabilityChangeEventsReceived_(TLTimeseries(
+          map,
+          folly::to<std::string>(
+              kCounterPrefix,
+              "switch.",
+              switchIndex,
+              ".",
+              "switch_reachability_change_event_received"),
+          SUM,
           RATE)) {}
 
 void SwitchStats::setFabricOverdrainPct(
@@ -566,5 +598,22 @@ void SwitchStats::setFabricOverdrainPct(
   // against the current value. Instead set the global value directly
   fb303::fbData->setCounter(fabricOverdrainCounter(switchIndex), overdrainPct);
   updateFabricOverdrainWatermark(switchIndex, overdrainPct);
+}
+
+void SwitchStats::failedDsfSubscription(
+    const std::string& peerName,
+    int value) {
+  failedDsfSubscription_.incrementValue(value);
+  if (failedDsfSubscriptionByPeerSwitchName_.find(peerName) ==
+      failedDsfSubscriptionByPeerSwitchName_.end()) {
+    failedDsfSubscriptionByPeerSwitchName_.emplace(
+        peerName,
+        TLCounter(
+            fb303::ThreadCachedServiceData::get()->getThreadStats(),
+            folly::to<std::string>(
+                kCounterPrefix, "failedDsfSubscriptionTo.", peerName)));
+  }
+  auto counter = failedDsfSubscriptionByPeerSwitchName_.find(peerName);
+  counter->second.incrementValue(value);
 }
 } // namespace facebook::fboss

@@ -15,7 +15,7 @@ class EbroAsic : public TajoAsic {
       std::optional<int64_t> id,
       int16_t index,
       std::optional<cfg::Range64> systemPortRange,
-      folly::MacAddress& mac,
+      const folly::MacAddress& mac,
       std::optional<cfg::SdkVersion> sdkVersion = std::nullopt)
       : TajoAsic(
             type,
@@ -28,11 +28,10 @@ class EbroAsic : public TajoAsic {
              cfg::SwitchType::VOQ,
              cfg::SwitchType::FABRIC}) {
     if (sdkVersion.has_value() && sdkVersion->asicSdk().has_value()) {
+      currentSdkVersion_ = getAsicSdkVersion(sdkVersion->asicSdk().value());
       auto p4WarmbootSdkVersion = getAsicSdkVersion(p4WarmbootBaseSdk);
-      auto currentSdkVersion = getAsicSdkVersion(sdkVersion->asicSdk().value());
-      if (currentSdkVersion >= p4WarmbootSdkVersion) {
+      if (currentSdkVersion_ >= p4WarmbootSdkVersion) {
         HwAsic::setDefaultStreamType(cfg::StreamType::UNICAST);
-        mirrorTruncateSize_ = 343;
       }
     }
   }
@@ -84,7 +83,7 @@ class EbroAsic : public TajoAsic {
     return 257;
   }
   uint16_t getMirrorTruncateSize() const override {
-    return mirrorTruncateSize_;
+    return isP4WarmbootEnabled() ? 343 : 220;
   }
   uint32_t getMaxWideEcmpSize() const override {
     return 128;
@@ -134,13 +133,18 @@ class EbroAsic : public TajoAsic {
   uint32_t getNumMemoryBuffers() const override {
     return 1;
   }
+  bool isP4WarmbootEnabled() const {
+    auto p4WarmbootSdkVersion = getAsicSdkVersion(p4WarmbootBaseSdk);
+    return currentSdkVersion_.has_value() &&
+        currentSdkVersion_ >= p4WarmbootSdkVersion;
+  }
   cfg::Range64 getReservedEncapIndexRange() const override;
 
  private:
   bool isSupportedFabric(Feature feature) const;
   bool isSupportedNonFabric(Feature feature) const;
   static constexpr auto p4WarmbootBaseSdk = "1.65.1";
-  uint16_t mirrorTruncateSize_ = 220;
+  std::optional<uint64_t> currentSdkVersion_{std::nullopt};
 };
 
 } // namespace facebook::fboss

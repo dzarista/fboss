@@ -1,6 +1,7 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "fboss/agent/TxPacket.h"
+#include "fboss/agent/hw/HwResourceStatsPublisher.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/packet/EthFrame.h"
 #include "fboss/agent/packet/PktFactory.h"
@@ -10,6 +11,7 @@
 #include "fboss/agent/test/utils/CoppTestUtils.h"
 #include "fboss/agent/test/utils/FabricTestUtils.h"
 #include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
+#include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/agent/test/utils/PacketSnooper.h"
 #include "fboss/agent/test/utils/PortTestUtils.h"
 #include "fboss/agent/test/utils/TrapPacketUtils.h"
@@ -24,6 +26,7 @@ namespace {
 constexpr uint8_t kDefaultQueue = 0;
 }
 
+using namespace facebook::fb303;
 namespace facebook::fboss {
 class AgentVoqSwitchTest : public AgentHwTest {
  public:
@@ -52,6 +55,7 @@ class AgentVoqSwitchTest : public AgentHwTest {
         break;
       }
     }
+    utility::addNetworkAIQosMaps(config, ensemble.getL3Asics());
     return config;
   }
 
@@ -262,7 +266,9 @@ class AgentVoqSwitchTest : public AgentHwTest {
   void addDscpAclWithCounter() {
     auto newCfg = initialConfig(*getAgentEnsemble());
     auto* acl = utility::addAcl(&newCfg, kDscpAclName());
+    auto asic = utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics());
     acl->dscp() = 0x24;
+    utility::addEtherTypeToAcl(asic, acl, cfg::EtherType::IPv6);
     utility::addAclStat(
         &newCfg,
         kDscpAclName(),
@@ -325,6 +331,96 @@ class AgentVoqSwitchTest : public AgentHwTest {
     }
     cpuConfig.rxReasonToQueueOrderedList() = rxReasonToQueues;
     cfg.cpuTrafficPolicy() = cpuConfig;
+  }
+};
+
+class AgentVoqSwitchLineRateTest : public AgentVoqSwitchTest {
+ public:
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto config = AgentVoqSwitchTest::initialConfig(ensemble);
+    utility::setTTLZeroCpuConfig(ensemble.getL3Asics(), config);
+    return config;
+  }
+
+  folly::MacAddress getIntfMac() const {
+    return utility::getFirstInterfaceMac(getProgrammedState());
+  }
+
+  void sendPacket(
+      const folly::IPAddressV6& dstIp,
+      std::optional<std::vector<uint8_t>> payload =
+          std::optional<std::vector<uint8_t>>()) {
+    folly::IPAddressV6 kSrcIp("2402::1");
+    const auto dstMac = getIntfMac();
+    const auto srcMac = utility::MacAddressGenerator().get(dstMac.u64NBO() + 1);
+
+    auto txPacket = utility::makeUDPTxPacket(
+        getSw(),
+        std::nullopt, // vlanID
+        srcMac,
+        dstMac,
+        kSrcIp,
+        dstIp,
+        8000, // l4 src port
+        8001, // l4 dst port
+        0x24 << 2, // dscp
+        255, // hopLimit
+        std::move(payload));
+    // Forward the packet in the pipeline
+    getSw()->sendPacketSwitchedAsync(std::move(txPacket));
+  }
+
+  std::vector<folly::IPAddressV6> getOneRemoteHostIpPerInterfacePort() {
+    std::vector<folly::IPAddressV6> ips{};
+    auto portIds = masterLogicalInterfacePortIds();
+    for (int idx = 1; idx <= portIds.size(); idx++) {
+      ips.push_back(
+          folly::IPAddressV6(folly::to<std::string>(2401, "::", idx)));
+    }
+    return ips;
+  }
+
+  void setupEcmpDataplaneLoopOnAllPorts() {
+    utility::EcmpSetupTargetedPorts6 ecmpHelper(
+        getProgrammedState(), getIntfMac());
+    std::vector<PortDescriptor> portDescriptors;
+    std::vector<flat_set<PortDescriptor>> portDescSets;
+    for (auto& portId : masterLogicalInterfacePortIds()) {
+      portDescriptors.push_back(PortDescriptor(portId));
+      portDescSets.push_back(flat_set<PortDescriptor>{PortDescriptor(portId)});
+    }
+    applyNewState([&portDescriptors,
+                   &ecmpHelper](const std::shared_ptr<SwitchState>& in) {
+      return ecmpHelper.resolveNextHops(
+          in,
+          flat_set<PortDescriptor>(
+              std::make_move_iterator(portDescriptors.begin()),
+              std::make_move_iterator(portDescriptors.end())));
+    });
+
+    std::vector<RoutePrefixV6> routePrefixes;
+    for (auto prefix : getOneRemoteHostIpPerInterfacePort()) {
+      routePrefixes.push_back(RoutePrefixV6{prefix, 128});
+    }
+    auto routeUpdater = getSw()->getRouteUpdater();
+    ecmpHelper.programRoutes(&routeUpdater, portDescSets, routePrefixes);
+  }
+
+  auto createTrafficOnMultiplePorts(int numberOfPorts) {
+    auto minPktsForLineRate = getAgentEnsemble()->getMinPktsForLineRate(
+        masterLogicalInterfacePortIds()[0]);
+    auto hostIps = getOneRemoteHostIpPerInterfacePort();
+    for (int idx = 0; idx < numberOfPorts; idx++) {
+      for (int count = 0; count < minPktsForLineRate; count++) {
+        sendPacket(hostIps[idx], std::vector<uint8_t>(1024, 0xff));
+      }
+    }
+    // Now, make sure that we have line rate traffic on these ports!
+    for (int idx = 0; idx < numberOfPorts; idx++) {
+      getAgentEnsemble()->waitForLineRateOnPort(
+          masterLogicalInterfacePortIds()[idx]);
+    }
   }
 };
 
@@ -423,6 +519,14 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, collectStats) {
   auto verify = [this]() {
     EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
     getSw()->updateStats();
+    WITH_RETRIES({
+      auto port2Stats = getSw()->getHwPortStats(masterLogicalFabricPortIds());
+      for (auto portId : masterLogicalFabricPortIds()) {
+        auto pitr = port2Stats.find(portId);
+        EXPECT_EVENTUALLY_TRUE(pitr != port2Stats.end());
+        EXPECT_EVENTUALLY_TRUE(pitr->second.cableLengthMeters().has_value());
+      }
+    });
   };
   verifyAcrossWarmBoots([] {}, verify);
 }
@@ -432,6 +536,64 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, checkFabricConnectivity) {
     for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
       utility::checkFabricConnectivity(getAgentEnsemble(), switchId);
     }
+  };
+  verifyAcrossWarmBoots([] {}, verify);
+}
+
+TEST_F(AgentVoqSwitchWithFabricPortsTest, switchReachability) {
+  auto verify = [=, this]() {
+    EXPECT_GT(getProgrammedState()->getPorts()->numNodes(), 0);
+    auto fabricPortId =
+        PortID(masterLogicalPortIds({cfg::PortType::FABRIC_PORT})[0]);
+    auto drainPort = [&](bool drain, PortID fabPortId) {
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        auto out = in->clone();
+        auto port = out->getPorts()->getNodeIf(fabPortId);
+        auto newPort = port->modify(&out);
+        newPort->setPortDrainState(
+            drain ? cfg::PortDrainState::DRAINED
+                  : cfg::PortDrainState::UNDRAINED);
+        return out;
+      });
+    };
+    auto switchReachableOverPort = [&](bool reachable,
+                                       PortID portId,
+                                       int expectedGroupSize) {
+      auto switchId = *getSw()->getHwAsicTable()->getSwitchIDs().begin();
+      WITH_RETRIES({
+        const auto& reachability = getSw()->getSwitchReachability();
+        const auto switchIter = reachability.find(switchId);
+        EXPECT_EVENTUALLY_TRUE(switchIter != reachability.end());
+        auto switchReachability = switchIter->second;
+        const auto switchToPortGroupIter =
+            switchReachability.switchIdToFabricPortGroupMap()->find(switchId);
+        EXPECT_EVENTUALLY_TRUE(
+            switchToPortGroupIter !=
+            switchReachability.switchIdToFabricPortGroupMap()->end());
+
+        const auto portGroupIter =
+            switchReachability.fabricPortGroupMap()->find(
+                switchToPortGroupIter->second);
+        EXPECT_EVENTUALLY_TRUE(
+            portGroupIter != switchIter->second.fabricPortGroupMap()->end());
+        EXPECT_EVENTUALLY_EQ(portGroupIter->second.size(), expectedGroupSize);
+        // If the size matches, then check for port membership
+        auto portNameIter = std::find(
+            portGroupIter->second.begin(),
+            portGroupIter->second.end(),
+            getProgrammedState()->getPorts()->getNodeIf(portId)->getName());
+        EXPECT_EVENTUALLY_EQ(
+            (portNameIter != portGroupIter->second.end()), reachable);
+      });
+    };
+    drainPort(true /*drain*/, fabricPortId);
+    switchReachableOverPort(
+        false /*reachable*/,
+        fabricPortId,
+        masterLogicalFabricPortIds().size() - 1);
+    drainPort(false /*drain*/, fabricPortId);
+    switchReachableOverPort(
+        true /*reachable*/, fabricPortId, masterLogicalFabricPortIds().size());
   };
   verifyAcrossWarmBoots([] {}, verify);
 }
@@ -864,6 +1026,7 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
       int64_t beforeQueueOutPkts = 0, beforeQueueOutBytes = 0;
       int64_t afterQueueOutPkts = 0, afterQueueOutBytes = 0;
       int64_t beforeVoQOutBytes = 0, afterVoQOutBytes = 0;
+      int64_t egressCoreWatermarkBytes = 0;
 
       if (isSupportedOnAllAsics(HwAsic::Feature::L3_QOS)) {
         auto beforeAllQueueOut = getAllQueueOutPktsBytes();
@@ -918,6 +1081,15 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
                   getPortOutPktsBytes(*frontPanelPort);
             }
             auto afterRecyclePkts = getRecyclePortPkts();
+            for (const auto& switchWatermarksIter :
+                 getAllSwitchWatermarkStats()) {
+              if (switchWatermarksIter.second.egressCoreBufferWatermarkBytes()
+                      .has_value()) {
+                egressCoreWatermarkBytes +=
+                    switchWatermarksIter.second.egressCoreBufferWatermarkBytes()
+                        .value();
+              }
+            }
             XLOG(DBG2) << "Verifying: "
                        << (isFrontPanel ? "Send Packet from Front Panel Port"
                                         : "Send Packet from CPU Port")
@@ -938,7 +1110,9 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
                        << " afterAclPkts: " << afterAclPkts
                        << " afterFrontPanelPkts: " << afterFrontPanelOutPkts
                        << " afterFrontPanelBytes: " << afterFrontPanelOutBytes
-                       << " afterRecyclePkts: " << afterRecyclePkts;
+                       << " afterRecyclePkts: " << afterRecyclePkts
+                       << " egressCoreWatermarkBytes: "
+                       << egressCoreWatermarkBytes;
 
             EXPECT_EVENTUALLY_EQ(afterOutPkts - 1, beforeOutPkts);
             int extraByteOffset = 0;
@@ -983,6 +1157,10 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
               EXPECT_EVENTUALLY_EQ(
                   *afterSwitchDropStats.queueResolutionDrops(),
                   *beforeSwitchDropStats.queueResolutionDrops() + 1);
+            }
+            if (isSupportedOnAllAsics(
+                    HwAsic::Feature::EGRESS_CORE_BUFFER_WATERMARK)) {
+              EXPECT_EVENTUALLY_GT(egressCoreWatermarkBytes, 0);
             }
           });
     };
@@ -1209,6 +1387,46 @@ TEST_F(AgentVoqSwitchTest, dramEnqueueDequeueBytes) {
   verifyAcrossWarmBoots(setup, verify);
 }
 
+TEST_F(AgentVoqSwitchTest, verifyQueueLatencyWatermark) {
+  utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+  const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+  auto setup = [this, kPort]() {
+    addRemoveNeighbor(kPort, true /* add neighbor*/);
+  };
+
+  auto verify = [this, kPort, &ecmpHelper]() {
+    // Disable both port TX and credit watchdog
+    utility::setCreditWatchdogAndPortTx(
+        getAgentEnsemble(), kPort.phyPortID(), false);
+    auto queueId{0};
+    auto dscpForQueue =
+        utility::kOlympicQueueToDscp().find(queueId)->second.at(0);
+    auto sendPkts = [this, kPort, &ecmpHelper, dscpForQueue]() {
+      for (auto i = 0; i < 10000; ++i) {
+        sendPacket(
+            ecmpHelper.ip(kPort),
+            std::nullopt,
+            std::vector<uint8_t>(4000),
+            dscpForQueue);
+      }
+    };
+    sendPkts();
+    sleep(1);
+    // Enable port TX
+    utility::setPortTx(getAgentEnsemble(), kPort.phyPortID(), true);
+    WITH_RETRIES({
+      auto queueLatencyWatermarkNsec =
+          *getLatestSysPortStats(getSystemPortID(kPort))
+               .queueLatencyWatermarkNsec_();
+      XLOG(DBG2) << "Port: " << kPort.phyPortID() << " voq queueId: " << queueId
+                 << " latency watermark: " << queueLatencyWatermarkNsec[queueId]
+                 << " nsec";
+      EXPECT_EVENTUALLY_GT(queueLatencyWatermarkNsec[queueId], 5000);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
 class AgentVoqSwitchWithMultipleDsfNodesTest : public AgentVoqSwitchTest {
  public:
   cfg::SwitchConfig initialConfig(
@@ -1229,11 +1447,485 @@ class AgentVoqSwitchWithMultipleDsfNodesTest : public AgentVoqSwitchTest {
     CHECK(*remoteNode.type() == cfg::DsfNodeType::INTERFACE_NODE);
     return SwitchID(switchId);
   }
+
+ protected:
+  void assertVoqTailDrops(
+      const folly::IPAddressV6& nbrIp,
+      const SystemPortID& sysPortId) {
+    auto sendPkts = [=, this]() {
+      for (auto i = 0; i < 1000; ++i) {
+        sendPacket(nbrIp, std::nullopt);
+      }
+    };
+    auto voqDiscardBytes = 0;
+    WITH_RETRIES({
+      sendPkts();
+      voqDiscardBytes =
+          getLatestSysPortStats(sysPortId).get_queueOutDiscardBytes_().at(
+              kDefaultQueue);
+      XLOG(INFO) << " VOQ discard bytes: " << voqDiscardBytes;
+      EXPECT_EVENTUALLY_GT(voqDiscardBytes, 0);
+    });
+    WITH_RETRIES({
+      if (utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+              ->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+        auto switchIndices = getSw()->getSwitchInfoTable().getSwitchIndices();
+        int totalVoqResourceExhaustionDrops = 0;
+        for (const auto& switchIndex : switchIndices) {
+          auto switchStats = getSw()->getHwSwitchStatsExpensive()[switchIndex];
+          const auto& voqExhaustionDrop =
+              switchStats.switchDropStats()->voqResourceExhaustionDrops();
+          CHECK(voqExhaustionDrop.has_value());
+          XLOG(INFO) << " Voq resource exhaustion drops for switchIndex "
+                     << switchIndex << " : " << *voqExhaustionDrop;
+          totalVoqResourceExhaustionDrops += *voqExhaustionDrop;
+        }
+        EXPECT_EVENTUALLY_GT(totalVoqResourceExhaustionDrops, 0);
+      }
+    });
+    checkNoStatsChange(10);
+  }
 };
 
 TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, twoDsfNodes) {
   verifyAcrossWarmBoots([] {}, [] {});
 }
+
+TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, remoteSystemPort) {
+  auto setup = [this]() {
+    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // keeping remote switch id passed below in sync with it
+    int numCores =
+        utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+            ->getNumCores();
+    auto getStats = [] {
+      return std::make_tuple(
+          fbData->getCounter(kSystemPortsFree), fbData->getCounter(kVoqsFree));
+    };
+    auto [beforeSysPortsFree, beforeVoqsFree] = getStats();
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteSysPort(
+          in,
+          scopeResolver(),
+          SystemPortID(401),
+          static_cast<SwitchID>(numCores));
+    });
+    WITH_RETRIES({
+      auto [afterSysPortsFree, afterVoqsFree] = getStats();
+      XLOG(INFO) << " Before sysPortsFree: " << beforeSysPortsFree
+                 << " voqsFree: " << beforeVoqsFree
+                 << " after sysPortsFree: " << afterSysPortsFree
+                 << " voqsFree: " << afterVoqsFree;
+      EXPECT_EVENTUALLY_EQ(beforeSysPortsFree - 1, afterSysPortsFree);
+      // 8 VOQs allocated per sys port
+      EXPECT_EVENTUALLY_EQ(beforeVoqsFree - 8, afterVoqsFree);
+    });
+  };
+  verifyAcrossWarmBoots(setup, [] {});
+}
+
+TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, remoteRouterInterface) {
+  auto setup = [this]() {
+    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // keeping remote switch id passed below in sync with it
+    int numCores =
+        utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+            ->getNumCores();
+    auto constexpr remotePortId = 401;
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteSysPort(
+          in,
+          scopeResolver(),
+          SystemPortID(remotePortId),
+          static_cast<SwitchID>(numCores));
+    });
+
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteInterface(
+          in,
+          scopeResolver(),
+          InterfaceID(remotePortId),
+          // TODO - following assumes we haven't
+          // already used up the subnets below for
+          // local interfaces. In that sense it
+          // has a implicit coupling with how ConfigFactory
+          // generates subnets for local interfaces
+          {
+              {folly::IPAddress("100::1"), 64},
+              {folly::IPAddress("100.0.0.1"), 24},
+          });
+    });
+  };
+  verifyAcrossWarmBoots(setup, [] {});
+}
+
+TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, addRemoveRemoteNeighbor) {
+  auto setup = [this]() {
+    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // keeping remote switch id passed below in sync with it
+    int numCores =
+        utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+            ->getNumCores();
+    auto constexpr remotePortId = 401;
+    const SystemPortID kRemoteSysPortId(remotePortId);
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteSysPort(
+          in,
+          scopeResolver(),
+          kRemoteSysPortId,
+          static_cast<SwitchID>(numCores));
+    });
+    const InterfaceID kIntfId(remotePortId);
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteInterface(
+          in,
+          scopeResolver(),
+          kIntfId,
+          // TODO - following assumes we haven't
+          // already used up the subnets below for
+          // local interfaces. In that sense it
+          // has a implicit coupling with how ConfigFactory
+          // generates subnets for local interfaces
+          {
+              {folly::IPAddress("100::1"), 64},
+              {folly::IPAddress("100.0.0.1"), 24},
+          });
+    });
+    folly::IPAddressV6 kNeighborIp("100::2");
+    PortDescriptor kPort(kRemoteSysPortId);
+    // Add neighbor
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoveRemoteNeighbor(
+          in,
+          scopeResolver(),
+          kNeighborIp,
+          kIntfId,
+          kPort,
+          true,
+          utility::getDummyEncapIndex(getAgentEnsemble()));
+    });
+
+    // Remove neighbor
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoveRemoteNeighbor(
+          in,
+          scopeResolver(),
+          kNeighborIp,
+          kIntfId,
+          kPort,
+          false,
+          utility::getDummyEncapIndex(getAgentEnsemble()));
+    });
+  };
+  verifyAcrossWarmBoots(setup, [] {});
+}
+
+TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, voqDelete) {
+  auto constexpr remotePortId = 401;
+  const SystemPortID kRemoteSysPortId(remotePortId);
+  folly::IPAddressV6 kNeighborIp("100::2");
+  auto setup = [=, this]() {
+    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // keeping remote switch id passed below in sync with it
+    int numCores =
+        utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+            ->getNumCores();
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteSysPort(
+          in,
+          scopeResolver(),
+          kRemoteSysPortId,
+          static_cast<SwitchID>(numCores));
+    });
+    const InterfaceID kIntfId(remotePortId);
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteInterface(
+          in,
+          scopeResolver(),
+          kIntfId,
+          // TODO - following assumes we haven't
+          // already used up the subnets below for
+          // local interfaces. In that sense it
+          // has a implicit coupling with how ConfigFactory
+          // generates subnets for local interfaces
+          {
+              {folly::IPAddress("100::1"), 64},
+              {folly::IPAddress("100.0.0.1"), 24},
+          });
+    });
+    PortDescriptor kPort(kRemoteSysPortId);
+    // Add neighbor
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoveRemoteNeighbor(
+          in,
+          scopeResolver(),
+          kNeighborIp,
+          kIntfId,
+          kPort,
+          true,
+          utility::getDummyEncapIndex(getAgentEnsemble()));
+    });
+  };
+  auto verify = [=, this]() {
+    auto getVoQDeletedPkts = [=, this]() {
+      if (!isSupportedOnAllAsics(HwAsic::Feature::VOQ_DELETE_COUNTER)) {
+        return 0L;
+      }
+      return getLatestSysPortStats(kRemoteSysPortId)
+          .get_queueCreditWatchdogDeletedPackets_()
+          .at(kDefaultQueue);
+    };
+
+    auto voqDeletedPktsBefore = getVoQDeletedPkts();
+    utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+    auto frontPanelPort = ecmpHelper.ecmpPortDescriptorAt(1).phyPortID();
+    for (auto i = 0; i < 100; ++i) {
+      // Send pkts via front panel
+      sendPacket(kNeighborIp, frontPanelPort, std::vector<uint8_t>(1024, 0xff));
+    }
+    WITH_RETRIES({
+      auto voqDeletedPktsAfter = getVoQDeletedPkts();
+      XLOG(INFO) << "Voq deleted pkts, before: " << voqDeletedPktsBefore
+                 << " after: " << voqDeletedPktsAfter;
+      EXPECT_EVENTUALLY_EQ(voqDeletedPktsBefore + 100, voqDeletedPktsAfter);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, stressAddRemoveObjects) {
+  auto setup = [=, this]() {
+    // Disable credit watchdog
+    utility::enableCreditWatchdog(getAgentEnsemble(), false);
+  };
+  auto verify = [this]() {
+    auto numIterations = 500;
+    auto constexpr remotePortId = 401;
+    const SystemPortID kRemoteSysPortId(remotePortId);
+    folly::IPAddressV6 kNeighborIp("100::2");
+    utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
+    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // keeping remote switch id passed below in sync with it
+    int numCores =
+        utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+            ->getNumCores();
+    const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
+    const InterfaceID kIntfId(remotePortId);
+    PortDescriptor kRemotePort(kRemoteSysPortId);
+    auto addObjects = [&]() {
+      // add local neighbor
+      addRemoveNeighbor(kPort, true /* add neighbor*/);
+      // Remote objs
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        return utility::addRemoteSysPort(
+            in,
+            scopeResolver(),
+            kRemoteSysPortId,
+            static_cast<SwitchID>(numCores));
+      });
+      const InterfaceID kIntfId(remotePortId);
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        return utility::addRemoteInterface(
+            in,
+            scopeResolver(),
+            kIntfId,
+            // TODO - following assumes we haven't
+            // already used up the subnets below for
+            // local interfaces. In that sense it
+            // has a implicit coupling with how ConfigFactory
+            // generates subnets for local interfaces
+            {
+                {folly::IPAddress("100::1"), 64},
+                {folly::IPAddress("100.0.0.1"), 24},
+            });
+      });
+      PortDescriptor kPort(kRemoteSysPortId);
+      // Add neighbor
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        return utility::addRemoveRemoteNeighbor(
+            in,
+            scopeResolver(),
+            kNeighborIp,
+            kIntfId,
+            kPort,
+            true,
+            utility::getDummyEncapIndex(getAgentEnsemble()));
+      });
+    };
+    auto removeObjects = [&]() {
+      addRemoveNeighbor(kPort, false /* remove neighbor*/);
+      // Remove neighbor
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        return utility::addRemoveRemoteNeighbor(
+            in,
+            scopeResolver(),
+            kNeighborIp,
+            kIntfId,
+            kPort,
+            false,
+            utility::getDummyEncapIndex(getAgentEnsemble()));
+      });
+      // Remove rif
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        return utility::removeRemoteInterface(in, kIntfId);
+      });
+      // Remove sys port
+      applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+        return utility::removeRemoteSysPort(in, kRemoteSysPortId);
+      });
+    };
+    for (auto i = 0; i < numIterations; ++i) {
+      addObjects();
+      // Delete on all but the last iteration. In the last iteration
+      // we will leave the entries intact and then forward pkts
+      // to this VOQ
+      if (i < numIterations - 1) {
+        removeObjects();
+      }
+    }
+    assertVoqTailDrops(kNeighborIp, kRemoteSysPortId);
+    auto beforePkts =
+        getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_();
+    // CPU send
+    sendPacket(ecmpHelper.ip(kPort), std::nullopt);
+    auto frontPanelPort = ecmpHelper.ecmpPortDescriptorAt(1).phyPortID();
+    sendPacket(ecmpHelper.ip(kPort), frontPanelPort);
+    WITH_RETRIES({
+      auto afterPkts =
+          getLatestPortStats(kPort.phyPortID()).get_outUnicastPkts_();
+      EXPECT_EVENTUALLY_EQ(afterPkts, beforePkts + 2);
+    });
+    // removeObjects before exiting for WB
+    removeObjects();
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, voqTailDropCounter) {
+  folly::IPAddressV6 kNeighborIp("100::2");
+  auto constexpr remotePortId = 401;
+  const SystemPortID kRemoteSysPortId(remotePortId);
+  auto setup = [=, this]() {
+    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // keeping remote switch id passed below in sync with it
+    int numCores =
+        utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+            ->getNumCores();
+    // Disable credit watchdog
+    utility::enableCreditWatchdog(getAgentEnsemble(), false);
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteSysPort(
+          in,
+          scopeResolver(),
+          kRemoteSysPortId,
+          static_cast<SwitchID>(numCores));
+    });
+    const InterfaceID kIntfId(remotePortId);
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteInterface(
+          in,
+          scopeResolver(),
+          kIntfId,
+          {
+              {folly::IPAddress("100::1"), 64},
+              {folly::IPAddress("100.0.0.1"), 24},
+          });
+    });
+    PortDescriptor kPort(kRemoteSysPortId);
+    // Add neighbor
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoveRemoteNeighbor(
+          in,
+          scopeResolver(),
+          kNeighborIp,
+          kIntfId,
+          kPort,
+          true,
+          utility::getDummyEncapIndex(getAgentEnsemble()));
+    });
+  };
+
+  auto verify = [=, this]() {
+    assertVoqTailDrops(kNeighborIp, kRemoteSysPortId);
+  };
+  verifyAcrossWarmBoots(setup, verify);
+};
+
+TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, verifyDscpToVoqMapping) {
+  folly::IPAddressV6 kNeighborIp("100::2");
+  auto constexpr remotePortId = 401;
+  const SystemPortID kRemoteSysPortId(remotePortId);
+  auto setup = [=, this]() {
+    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // keeping remote switch id passed below in sync with it
+    int numCores =
+        utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+            ->getNumCores();
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteSysPort(
+          in,
+          scopeResolver(),
+          kRemoteSysPortId,
+          static_cast<SwitchID>(numCores));
+    });
+    const InterfaceID kIntfId(remotePortId);
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteInterface(
+          in,
+          scopeResolver(),
+          kIntfId,
+          // TODO - following assumes we haven't
+          // already used up the subnets below for
+          // local interfaces. In that sense it
+          // has a implicit coupling with how ConfigFactory
+          // generates subnets for local interfaces
+          {
+              {folly::IPAddress("100::1"), 64},
+              {folly::IPAddress("100.0.0.1"), 24},
+          });
+    });
+    PortDescriptor kPort(kRemoteSysPortId);
+    // Add neighbor
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoveRemoteNeighbor(
+          in,
+          scopeResolver(),
+          kNeighborIp,
+          kIntfId,
+          kPort,
+          true,
+          utility::getDummyEncapIndex(getAgentEnsemble()));
+    });
+  };
+
+  auto verify = [=, this]() {
+    for (const auto& q2dscps : utility::kNetworkAIV2QueueToDscp()) {
+      auto queueId = q2dscps.first;
+      for (auto dscp : q2dscps.second) {
+        XLOG(DBG2) << "verify packet with dscp " << static_cast<int>(dscp)
+                   << " goes to queue " << queueId;
+        auto statsBefore = getLatestSysPortStats(kRemoteSysPortId);
+        auto queueBytesBefore = statsBefore.queueOutBytes_()->at(queueId) +
+            statsBefore.queueOutDiscardBytes_()->at(queueId);
+        sendPacket(
+            kNeighborIp,
+            std::nullopt,
+            std::optional<std::vector<uint8_t>>(),
+            dscp);
+        WITH_RETRIES({
+          auto statsAfter = getLatestSysPortStats(kRemoteSysPortId);
+          auto queueBytesAfter = statsAfter.queueOutBytes_()->at(queueId) +
+              statsAfter.queueOutDiscardBytes_()->at(queueId);
+          XLOG(DBG2) << "queue " << queueId
+                     << " stats before: " << queueBytesBefore
+                     << " stats after: " << queueBytesAfter;
+          EXPECT_EVENTUALLY_GT(queueBytesAfter, queueBytesBefore);
+        });
+      }
+    }
+  };
+  verifyAcrossWarmBoots(setup, verify);
+};
 
 class AgentVoqSwitchFullScaleDsfNodesTest : public AgentVoqSwitchTest {
  public:
@@ -1508,6 +2200,65 @@ TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, stressProgramEcmpRoutes) {
     }
   };
   verifyAcrossWarmBoots(setup, [] {});
+}
+
+TEST_F(AgentVoqSwitchLineRateTest, dramBlockedTime) {
+  auto setup = [=, this]() {
+    constexpr int kNumberOfPortsForDramBlock{6};
+    setupEcmpDataplaneLoopOnAllPorts();
+    createTrafficOnMultiplePorts(kNumberOfPortsForDramBlock);
+  };
+  auto verify = [=, this]() {
+    // Force traffic to use DRAM to increase DRAM enqueue/dequeue!
+    for (const auto& switchId : getSw()->getHwAsicTable()->getSwitchIDs()) {
+      int64_t dramBlockedTimeNs = 0;
+      auto switchIndex =
+          getSw()->getSwitchInfoTable().getSwitchIndexFromSwitchId(switchId);
+      WITH_RETRIES({
+        std::string out;
+        getAgentEnsemble()->runDiagCommand(
+            "m IPS_DRAM_ONLY_PROFILE  DRAM_ONLY_PROFILE=-1\nmod CGM_VOQ_SRAM_DRAM_MODE 0 127 VOQ_SRAM_DRAM_MODE_DATA=0x2\ns CGM_DRAM_BOUND_STATE_TH 0\nmodreg TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_WRITE_LEAKY_BUCKET_ASSERT_THRESHOLD=2 DRAM_BLOCKED_WRITE_LEAKY_BUCKET_DEASSERT_THRESHOLD=1 DRAM_BLOCKED_WRITE_PLUS_READ_LEAKY_BUCKET_ASSERT_THRESHOLD=2 DRAM_BLOCKED_WRITE_PLUS_READ_LEAKY_BUCKET_DEASSERT_THRESHOLD=1 DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_ASSERT_THRESHOLD=3 DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_DEASSERT_THRESHOLD=1\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand("quit\n", out, switchId);
+
+        auto switchStats = getSw()->getHwSwitchStatsExpensive()[switchIndex];
+        if (switchStats.fb303GlobalStats()
+                ->dram_blocked_time_ns()
+                .has_value()) {
+          dramBlockedTimeNs =
+              *switchStats.fb303GlobalStats()->dram_blocked_time_ns();
+        }
+        XLOG(DBG2) << "Switch ID: " << switchId
+                   << ", Dram blocked time nsec: " << dramBlockedTimeNs;
+        EXPECT_EVENTUALLY_GT(dramBlockedTimeNs, 0);
+      });
+    }
+  };
+  this->verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(AgentVoqSwitchLineRateTest, creditsDeleted) {
+  auto setup = [=, this]() { setupEcmpDataplaneLoopOnAllPorts(); };
+  auto verify = [=, this]() {
+    const auto kPort = masterLogicalInterfacePortIds()[0];
+    auto switchId = scopeResolver().scope(kPort).switchId();
+    auto switchIndex =
+        getSw()->getSwitchInfoTable().getSwitchIndexFromSwitchId(switchId);
+    createTrafficOnMultiplePorts(1);
+    WITH_RETRIES({
+      auto switchStats = getSw()->getHwSwitchStatsExpensive()[switchIndex];
+      auto deletedCreditBytes =
+          switchStats.fb303GlobalStats()->deleted_credit_bytes().value_or(0);
+      XLOG(DBG2) << "Switch ID: " << switchId
+                 << ", deleted credit bytes: " << deletedCreditBytes;
+      EXPECT_EVENTUALLY_GT(deletedCreditBytes, 0);
+    });
+    // Stop traffic loop, so that it gets restarted after warmboot
+    addRemoveNeighbor(PortDescriptor(kPort), false);
+    addRemoveNeighbor(PortDescriptor(kPort), true);
+  };
+  this->verifyAcrossWarmBoots(setup, verify);
 }
 
 } // namespace facebook::fboss

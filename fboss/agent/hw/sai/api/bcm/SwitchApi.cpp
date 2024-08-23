@@ -84,7 +84,7 @@ const std::vector<sai_stat_id_t>& SaiSwitchTraits::dramStats() {
 }
 
 const std::vector<sai_stat_id_t>& SaiSwitchTraits::rciWatermarkStats() {
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   static const std::vector<sai_stat_id_t> stats{
       SAI_SWITCH_STAT_DEVICE_RCI_WATERMARK_BYTES,
       SAI_SWITCH_STAT_DEVICE_CORE_RCI_WATERMARK_BYTES};
@@ -95,9 +95,40 @@ const std::vector<sai_stat_id_t>& SaiSwitchTraits::rciWatermarkStats() {
 }
 
 const std::vector<sai_stat_id_t>& SaiSwitchTraits::dtlWatermarkStats() {
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   static const std::vector<sai_stat_id_t> stats{
       SAI_SWITCH_STAT_HIGHEST_QUEUE_CONGESTION_LEVEL};
+#else
+  static const std::vector<sai_stat_id_t> stats;
+#endif
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::dramBlockTime() {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  static const std::vector<sai_stat_id_t> stats{
+      SAI_SWITCH_STAT_DEVICE_DRAM_BLOCK_TOTAL_TIME};
+#else
+  static const std::vector<sai_stat_id_t> stats;
+#endif
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>&
+SaiSwitchTraits::egressCoreBufferWatermarkBytes() {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  static const std::vector<sai_stat_id_t> stats{
+      SAI_SWITCH_STAT_DEVICE_EGRESS_DB_WM};
+#else
+  static const std::vector<sai_stat_id_t> stats;
+#endif
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::deletedCredits() {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  static const std::vector<sai_stat_id_t> stats{
+      SAI_SWITCH_STAT_DEVICE_DELETED_CREDIT_COUNTER};
 #else
   static const std::vector<sai_stat_id_t> stats;
 #endif
@@ -173,6 +204,89 @@ std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
     AttributeFabricRemoteReachablePortList::operator()() {
 #if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_11_0)
   return SAI_SWITCH_ATTR_FABRIC_REMOTE_REACHABLE_PORT_LIST;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeRouteNoImplicitMetaDataWrapper::operator()() {
+#if defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_ROUTE_NO_IMPLICIT_META_DATA;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeRouteAllowImplicitMetaDataWrapper::operator()() {
+#if defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_ROUTE_ALLOW_IMPLICIT_META_DATA;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeMultiStageLocalSwitchIdsWrapper::operator()() {
+#if defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_MULTI_STAGE_LOCAL_SWITCH_IDS;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMinLocalNs::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MIN_LOCAL;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMaxLocalNs::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MAX_LOCAL;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMinLevel1Ns::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MIN_LEVEL_1;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMaxLevel1Ns::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MAX_LEVEL_1;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMinLevel2Ns::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MIN_LEVEL_2;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMaxLevel2Ns::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MAX_LEVEL_2;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeReachabilityGroupList::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
+  return SAI_SWITCH_ATTR_REACHABILITY_GROUP_LIST;
 #endif
   return std::nullopt;
 }

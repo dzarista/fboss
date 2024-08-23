@@ -140,7 +140,7 @@ cfg::ToCpuAction getCpuActionType(const HwAsic* hwAsic);
 
 uint64_t getCpuQueueWatermarkBytes(HwPortStats& stats, int queueId);
 std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueues(
-    const HwAsic* hwAsic,
+    const std::vector<const HwAsic*>& hwAsics,
     bool isSai);
 
 std::pair<uint64_t, uint64_t> getCpuQueueOutPacketsAndBytes(
@@ -266,5 +266,12 @@ void excludeTTL1TrapConfig(cfg::SwitchConfig& config);
 CpuPortStats getCpuPortStats(SwSwitch* sw, SwitchID switchId);
 
 cfg::PortQueueRate setPortQueueRate(const HwAsic* hwAsic, uint16_t queueId);
+
+uint32_t getDnxCoppMaxDynamicSharedBytes(uint16_t queueId);
+
+AgentConfig setTTL0PacketForwardingEnableConfig(
+    SwSwitch* sw,
+    AgentConfig& agentConfig);
+
 } // namespace utility
 } // namespace facebook::fboss

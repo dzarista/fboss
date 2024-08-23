@@ -34,6 +34,28 @@ class CachedFbossEepromParser {
     return std::nullopt;
   }
 
+  std::optional<int> getProductVersion(
+      const std::string& eepromFilePath,
+      uint16_t offset = 0) {
+    for (const auto& [key, value] : getContents(eepromFilePath, offset)) {
+      if (key == "Product Version") {
+        return std::stoi(value);
+      }
+    }
+    return std::nullopt;
+  }
+
+  std::optional<int> getProductSubVersion(
+      const std::string& eepromFilePath,
+      uint16_t offset = 0) {
+    for (const auto& [key, value] : getContents(eepromFilePath, offset)) {
+      if (key == "Product Sub-Version") {
+        return std::stoi(value);
+      }
+    }
+    return std::nullopt;
+  }
+
  private:
   std::map<
       std::pair<std::string /* eepromFilePath */, uint16_t /* offset */>,

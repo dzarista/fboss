@@ -69,6 +69,8 @@ class MockSffModule : public SffModule {
   MOCK_CONST_METHOD0(customizationSupported, bool());
   MOCK_METHOD0(getModuleStatus, ModuleStatus());
   MOCK_METHOD0(getVendorInfo, Vendor());
+  MOCK_METHOD0(verifyEepromChecksums, bool());
+  MOCK_CONST_METHOD0(getModuleMediaInterface, MediaInterfaceCode());
 
   // Provide way to call parent
   void actualSetCdrIfSupported(
@@ -144,6 +146,16 @@ class MockSffModule : public SffModule {
     return SffModule::writeTransceiver(param, data);
   }
 
+  void setFwVersion(std::string appFwVersion, std::string dspFwVersion) {
+    ModuleStatus moduleStatus;
+    FirmwareStatus fw;
+    fw.version() = appFwVersion;
+    fw.dspFwVer() = dspFwVersion;
+    moduleStatus.fwStatus() = fw;
+    ON_CALL(*this, getModuleStatus())
+        .WillByDefault(testing::Return(moduleStatus));
+  }
+
   void setAppFwVersion(std::string fwVersion) {
     ModuleStatus moduleStatus;
     FirmwareStatus fw;
@@ -166,6 +178,26 @@ class MockSffModule : public SffModule {
     Vendor vendor;
     vendor.partNumber() = partNumber;
     ON_CALL(*this, getVendorInfo()).WillByDefault(testing::Return(vendor));
+  }
+
+  void overrideVendorInfo(
+      std::string name,
+      std::string partNumber,
+      std::string serialNumber) {
+    Vendor vendor;
+    vendor.name() = name;
+    vendor.partNumber() = partNumber;
+    vendor.serialNumber() = serialNumber;
+    ON_CALL(*this, getVendorInfo()).WillByDefault(testing::Return(vendor));
+  }
+
+  void overrideValidChecksums(bool isValid) {
+    ON_CALL(*this, verifyEepromChecksums())
+        .WillByDefault(testing::Return(isValid));
+  }
+  void overrideMediaInterfaceCode(MediaInterfaceCode mediaInterfaceCode) {
+    ON_CALL(*this, getModuleMediaInterface())
+        .WillByDefault(testing::Return(mediaInterfaceCode));
   }
 
   TransceiverInfo fakeInfo_;

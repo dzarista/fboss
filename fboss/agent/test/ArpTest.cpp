@@ -318,9 +318,9 @@ class ArpTest : public ::testing::Test {
 TYPED_TEST_SUITE(ArpTest, NbrTableTypes);
 
 TYPED_TEST(ArpTest, BasicSendRequest) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
+  // Keep test disabled for intf nbr tables because pending neighbor entries are
+  // currently not stored in intfs.
+  // TODO(jeffkim8482) Remove test once intf nbr migration is complete
   if (this->isIntfNbrTable()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -410,7 +410,7 @@ TYPED_TEST(ArpTest, TableUpdates) {
       std::optional<uint8_t>(kNCStrictPriorityQueue));
 
   // Inform the SwSwitch of the ARP request
-  handle->rxPacket(std::move(buf), PortID(1), vlanID);
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   // Check the new ArpTable does not have any entry
@@ -455,7 +455,7 @@ TYPED_TEST(ArpTest, TableUpdates) {
       std::optional<uint8_t>(kNCStrictPriorityQueue));
 
   // Inform the SwSwitch of the ARP request
-  handle->rxPacket(make_unique<IOBuf>(hex), PortID(1), vlanID);
+  handle->rxPacket(make_unique<IOBuf>(hex), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   // Wait for any updates triggered by the packet to complete.
@@ -494,7 +494,7 @@ TYPED_TEST(ArpTest, TableUpdates) {
           vlanID),
       PortID(1),
       std::optional<uint8_t>(kNCStrictPriorityQueue));
-  handle->rxPacket(make_unique<IOBuf>(hex), PortID(1), vlanID);
+  handle->rxPacket(make_unique<IOBuf>(hex), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   // Check the counters again
@@ -530,7 +530,7 @@ TYPED_TEST(ArpTest, TableUpdates) {
 
   EXPECT_STATE_UPDATE_TIMES(sw, 0);
   EXPECT_HW_CALL(sw, sendPacketSwitchedAsync_(_)).Times(0);
-  handle->rxPacket(std::move(buf), PortID(1), vlanID);
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   counters.update();
@@ -569,7 +569,7 @@ TYPED_TEST(ArpTest, TableUpdates) {
   // And then 1 (or 2 depends on coalescing) for Static mac updates
   EXPECT_STATE_UPDATE_TIMES_ATLEAST(sw, 2);
   EXPECT_HW_CALL(sw, sendPacketSwitchedAsync_(_)).Times(0);
-  handle->rxPacket(std::move(buf), PortID(2), vlanID);
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(2)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
   waitForStateUpdates(sw);
 
@@ -625,7 +625,7 @@ TYPED_TEST(ArpTest, TableUpdates) {
           vlanID),
       PortID(1),
       std::optional<uint8_t>(kNCStrictPriorityQueue));
-  handle->rxPacket(std::move(buf), PortID(1), vlanID);
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
   waitForStateUpdates(sw);
 
@@ -684,7 +684,7 @@ TYPED_TEST(ArpTest, TableUpdates) {
           vlanID),
       PortID(5),
       std::optional<uint8_t>(kNCStrictPriorityQueue));
-  handle->rxPacket(std::move(buf), PortID(5), vlanID);
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(5)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
   waitForStateUpdates(sw);
 
@@ -741,7 +741,7 @@ TYPED_TEST(ArpTest, NotMine) {
   CounterCache counters(sw);
 
   // Inform the SwSwitch of the ARP request
-  handle->rxPacket(std::move(buf), PortID(1), VlanID(1));
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(1)), VlanID(1));
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   // Check the new stats
@@ -780,7 +780,7 @@ TYPED_TEST(ArpTest, BadHlen) {
   CounterCache counters(sw);
 
   // Inform the SwSwitch of the ARP request
-  handle->rxPacket(std::move(buf), PortID(1), VlanID(1));
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(1)), VlanID(1));
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   // Check the new stats
@@ -825,7 +825,7 @@ void sendArpReply(
   cursor.write<uint32_t>(dstIP.toLong()); // target IP
 
   // Inform the SwSwitch of the ARP request
-  handle->rxPacket(std::move(buf), PortID(port), VlanID(1));
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(port)), VlanID(1));
   handle->getSw()->getNeighborUpdater()->waitForPendingUpdates();
 }
 
@@ -914,9 +914,9 @@ TYPED_TEST(ArpTest, FlushEntry) {
 }
 
 TYPED_TEST(ArpTest, PendingArp) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
+  // Keep test disabled for intf nbr tables because pending neighbor entries are
+  // currently not stored in intfs.
+  // TODO(jeffkim8482) Remove test once intf nbr migration is complete
   if (this->isIntfNbrTable()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -962,7 +962,7 @@ TYPED_TEST(ArpTest, PendingArp) {
           IPAddressV4("10.0.0.10"),
           vlanID));
 
-  handle->rxPacket(make_unique<IOBuf>(hex), PortID(1), vlanID);
+  handle->rxPacket(make_unique<IOBuf>(hex), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   // Should see a pending entry now
@@ -986,7 +986,7 @@ TYPED_TEST(ArpTest, PendingArp) {
 
   // Receiving this duplicate packet should NOT trigger an ARP request out,
 
-  handle->rxPacket(make_unique<IOBuf>(hex), PortID(1), vlanID);
+  handle->rxPacket(make_unique<IOBuf>(hex), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   // Should still see a pending entry now
@@ -1020,7 +1020,7 @@ TYPED_TEST(ArpTest, PendingArp) {
   // Verify that we don't ever overwrite a valid entry with a pending one.
   // Receive the same packet again, entry should still be valid
 
-  handle->rxPacket(make_unique<IOBuf>(hex), PortID(1), vlanID);
+  handle->rxPacket(make_unique<IOBuf>(hex), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
   waitForStateUpdates(sw);
   entry = getArpEntry(sw, IPAddressV4("10.0.0.10"), vlanID);
@@ -1029,9 +1029,9 @@ TYPED_TEST(ArpTest, PendingArp) {
 };
 
 TYPED_TEST(ArpTest, PendingArpCleanup) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
+  // Keep test disabled for intf nbr tables because pending neighbor entries are
+  // currently not stored in intfs.
+  // TODO(jeffkim8482) Remove test once intf nbr migration is complete
   if (this->isIntfNbrTable()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -1063,7 +1063,7 @@ TYPED_TEST(ArpTest, PendingArpCleanup) {
 
   std::promise<bool> done;
   auto* evb = sw->getBackgroundEvb();
-  evb->runInEventBaseThread(
+  evb->runInFbossEventBaseThread(
       [&]() { evb->tryRunAfterDelay([&]() { done.set_value(true); }, 1010); });
   done.get_future().wait(); // Entries should be removed
 
@@ -1073,9 +1073,9 @@ TYPED_TEST(ArpTest, PendingArpCleanup) {
 }
 
 TYPED_TEST(ArpTest, ArpTableSerialization) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
+  // Keep test disabled for intf nbr tables because pending neighbor entries are
+  // currently not stored in intfs.
+  // TODO(jeffkim8482) Remove test once intf nbr migration is complete
   if (this->isIntfNbrTable()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -1115,9 +1115,9 @@ TYPED_TEST(ArpTest, ArpTableSerialization) {
 }
 
 TYPED_TEST(ArpTest, ArpExpiration) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
+  // Keep test disabled for intf nbr tables because pending neighbor entries are
+  // currently not stored in intfs.
+  // TODO(jeffkim8482) Remove test once intf nbr migration is complete
   if (this->isIntfNbrTable()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -1158,7 +1158,7 @@ TYPED_TEST(ArpTest, ArpExpiration) {
   std::promise<bool> done;
 
   auto* evb = sw->getBackgroundEvb();
-  evb->runInEventBaseThread(
+  evb->runInFbossEventBaseThread(
       [&]() { evb->tryRunAfterDelay([&]() { done.set_value(true); }, 2550); });
   done.get_future().wait();
 
@@ -1166,15 +1166,6 @@ TYPED_TEST(ArpTest, ArpExpiration) {
 }
 
 TYPED_TEST(ArpTest, FlushEntryWithConcurrentUpdate) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
-  if (this->isIntfNbrTable()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-  }
-
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
   ThriftHandler thriftHandler(sw);
@@ -1192,13 +1183,24 @@ TYPED_TEST(ArpTest, FlushEntryWithConcurrentUpdate) {
   // populate arp entries first before flush
   {
     std::array<std::unique_ptr<WaitForArpEntryReachable>, 255> arpReachables;
-    std::transform(
-        targetIPs.begin(),
-        targetIPs.end(),
-        arpReachables.begin(),
-        [&](const IPAddressV4& ip) {
-          return make_unique<WaitForArpEntryReachable>(sw, ip);
-        });
+    if (this->isIntfNbrTable()) {
+      auto intf = sw->getState()->getInterfaceIDForPort(PortDescriptor(portID));
+      std::transform(
+          targetIPs.begin(),
+          targetIPs.end(),
+          arpReachables.begin(),
+          [&](const IPAddressV4& ip) {
+            return make_unique<WaitForArpEntryReachable>(sw, ip, intf);
+          });
+    } else {
+      std::transform(
+          targetIPs.begin(),
+          targetIPs.end(),
+          arpReachables.begin(),
+          [&](const IPAddressV4& ip) {
+            return make_unique<WaitForArpEntryReachable>(sw, ip);
+          });
+    }
     for (auto& ip : targetIPs) {
       sendArpReply(handle.get(), ip.str(), "02:10:20:30:40:22", portID);
     }
@@ -1214,7 +1216,7 @@ TYPED_TEST(ArpTest, FlushEntryWithConcurrentUpdate) {
       sendArpReply(
           handle.get(), targetIPs[index].str(), "02:10:20:30:40:22", portID);
       index = (index + 1) % targetIPs.size();
-      usleep(1000);
+      waitForStateUpdates(handle->getSw());
     }
   });
 
@@ -1233,9 +1235,9 @@ TYPED_TEST(ArpTest, FlushEntryWithConcurrentUpdate) {
 }
 
 TYPED_TEST(ArpTest, PortFlapRecover) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
+  // Keep test disabled for intf nbr tables because pending neighbor entries are
+  // currently not stored in intfs.
+  // TODO(jeffkim8482) Remove test once intf nbr migration is complete
   if (this->isIntfNbrTable()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -1344,9 +1346,9 @@ TYPED_TEST(ArpTest, PortFlapRecover) {
 }
 
 TYPED_TEST(ArpTest, receivedPacketWithDirectlyConnectedDestination) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
+  // Keep test disabled for intf nbr tables because pending neighbor entries are
+  // currently not stored in intfs.
+  // TODO(jeffkim8482) Remove test once intf nbr migration is complete
   if (this->isIntfNbrTable()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -1393,7 +1395,7 @@ TYPED_TEST(ArpTest, receivedPacketWithDirectlyConnectedDestination) {
   // once to expire the ARP entry
   EXPECT_STATE_UPDATE_TIMES(sw, 2);
 
-  handle->rxPacket(std::move(buf), PortID(1), vlanID);
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   waitForStateUpdates(sw);
@@ -1414,15 +1416,6 @@ TYPED_TEST(ArpTest, receivedPacketWithDirectlyConnectedDestination) {
 }
 
 TYPED_TEST(ArpTest, receivedPacketWithNoRouteToDestination) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
-  if (this->isIntfNbrTable()) {
-#if defined(GTEST_SKIP)
-    GTEST_SKIP();
-#endif
-  }
-
   auto handle = setupTestHandle();
   auto sw = handle->getSw();
   VlanID vlanID(1);
@@ -1454,7 +1447,7 @@ TYPED_TEST(ArpTest, receivedPacketWithNoRouteToDestination) {
   EXPECT_STATE_UPDATE_TIMES(sw, 0);
   EXPECT_HW_CALL(sw, sendPacketSwitchedAsync_(_)).Times(0);
 
-  handle->rxPacket(std::move(buf), PortID(1), vlanID);
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   waitForStateUpdates(sw);
@@ -1474,9 +1467,9 @@ TYPED_TEST(ArpTest, receivedPacketWithNoRouteToDestination) {
 }
 
 TYPED_TEST(ArpTest, receivedPacketWithRouteToDestination) {
-  /*
-   * TODO(skhare) Fix this test for Interface neighbor tables, and then enable.
-   */
+  // Keep test disabled for intf nbr tables because pending neighbor entries are
+  // currently not stored in intfs.
+  // TODO(jeffkim8482) Remove test once intf nbr migration is complete
   if (this->isIntfNbrTable()) {
 #if defined(GTEST_SKIP)
     GTEST_SKIP();
@@ -1533,7 +1526,7 @@ TYPED_TEST(ArpTest, receivedPacketWithRouteToDestination) {
             senderIP, MacAddress("00:02:00:00:00:01"), nexthop, vlanID));
   }
 
-  handle->rxPacket(std::move(buf), PortID(1), vlanID);
+  handle->rxPacket(std::move(buf), PortDescriptor(PortID(1)), vlanID);
   sw->getNeighborUpdater()->waitForPendingUpdates();
 
   waitForStateUpdates(sw);

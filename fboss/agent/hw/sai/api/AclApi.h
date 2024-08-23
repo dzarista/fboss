@@ -12,6 +12,7 @@
 #include "fboss/agent/hw/sai/api/SaiApi.h"
 #include "fboss/agent/hw/sai/api/SaiAttribute.h"
 #include "fboss/agent/hw/sai/api/SaiAttributeDataTypes.h"
+#include "fboss/agent/hw/sai/api/SaiVersion.h"
 #include "fboss/agent/hw/sai/api/Types.h"
 
 #include <folly/logging/xlog.h>
@@ -190,9 +191,13 @@ struct SaiAclTableTraits {
         SaiAttribute<EnumType, SAI_ACL_TABLE_ATTR_FIELD_ETHER_TYPE, bool>;
     using FieldOuterVlanId =
         SaiAttribute<EnumType, SAI_ACL_TABLE_ATTR_FIELD_OUTER_VLAN_ID, bool>;
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
     using FieldBthOpcode =
         SaiAttribute<EnumType, SAI_ACL_TABLE_ATTR_FIELD_BTH_OPCODE, bool>;
+#endif
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+    using FieldIpv6NextHeader =
+        SaiAttribute<EnumType, SAI_ACL_TABLE_ATTR_FIELD_IPV6_NEXT_HEADER, bool>;
 #endif
   };
 
@@ -225,9 +230,13 @@ struct SaiAclTableTraits {
       std::optional<Attributes::FieldNeighborDstUserMeta>,
       std::optional<Attributes::FieldEthertype>,
       std::optional<Attributes::FieldOuterVlanId>
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
       ,
       std::optional<Attributes::FieldBthOpcode>
+#endif
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+      ,
+      std::optional<Attributes::FieldIpv6NextHeader>
 #endif
       >;
 
@@ -264,8 +273,11 @@ SAI_ATTRIBUTE_NAME(AclTable, AvailableEntry);
 SAI_ATTRIBUTE_NAME(AclTable, AvailableCounter);
 SAI_ATTRIBUTE_NAME(AclTable, FieldEthertype);
 SAI_ATTRIBUTE_NAME(AclTable, FieldOuterVlanId);
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
 SAI_ATTRIBUTE_NAME(AclTable, FieldBthOpcode);
+#endif
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+SAI_ATTRIBUTE_NAME(AclTable, FieldIpv6NextHeader);
 #endif
 
 struct SaiAclEntryTraits {
@@ -382,10 +394,16 @@ struct SaiAclEntryTraits {
         EnumType,
         SAI_ACL_ENTRY_ATTR_FIELD_OUTER_VLAN_ID,
         AclEntryFieldU16>;
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
     using FieldBthOpcode = SaiAttribute<
         EnumType,
         SAI_ACL_ENTRY_ATTR_FIELD_BTH_OPCODE,
+        AclEntryFieldU8>;
+#endif
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+    using FieldIpv6NextHeader = SaiAttribute<
+        EnumType,
+        SAI_ACL_ENTRY_ATTR_FIELD_IPV6_NEXT_HEADER,
         AclEntryFieldU8>;
 #endif
     using ActionPacketAction = SaiAttribute<
@@ -423,6 +441,13 @@ struct SaiAclEntryTraits {
         SAI_ACL_ENTRY_ATTR_ACTION_SET_USER_TRAP_ID,
         AclEntryActionSaiObjectIdT>;
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+    using ActionDisableArsForwarding = SaiAttribute<
+        EnumType,
+        SAI_ACL_ENTRY_ATTR_ACTION_DISABLE_ARS_FORWARDING,
+        AclEntryActionBool,
+        SaiAclEntryActionBoolFalse>;
+#endif
   };
 
   using AdapterKey = AclEntrySaiId;
@@ -456,8 +481,11 @@ struct SaiAclEntryTraits {
       std::optional<Attributes::FieldNeighborDstUserMeta>,
       std::optional<Attributes::FieldEthertype>,
       std::optional<Attributes::FieldOuterVlanId>,
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
       std::optional<Attributes::FieldBthOpcode>,
+#endif
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+      std::optional<Attributes::FieldIpv6NextHeader>,
 #endif
       std::optional<Attributes::ActionPacketAction>,
       std::optional<Attributes::ActionCounter>,
@@ -469,6 +497,10 @@ struct SaiAclEntryTraits {
 #if !defined(TAJO_SDK)
       ,
       std::optional<Attributes::ActionSetUserTrap>
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+      ,
+      std::optional<Attributes::ActionDisableArsForwarding>
 #endif
       >;
 };
@@ -500,8 +532,11 @@ SAI_ATTRIBUTE_NAME(AclEntry, FieldRouteDstUserMeta);
 SAI_ATTRIBUTE_NAME(AclEntry, FieldNeighborDstUserMeta);
 SAI_ATTRIBUTE_NAME(AclEntry, FieldEthertype);
 SAI_ATTRIBUTE_NAME(AclEntry, FieldOuterVlanId);
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
 SAI_ATTRIBUTE_NAME(AclEntry, FieldBthOpcode);
+#endif
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+SAI_ATTRIBUTE_NAME(AclEntry, FieldIpv6NextHeader);
 #endif
 SAI_ATTRIBUTE_NAME(AclEntry, ActionPacketAction);
 SAI_ATTRIBUTE_NAME(AclEntry, ActionCounter);
@@ -512,6 +547,9 @@ SAI_ATTRIBUTE_NAME(AclEntry, ActionMirrorEgress);
 SAI_ATTRIBUTE_NAME(AclEntry, ActionMacsecFlow);
 #if !defined(TAJO_SDK)
 SAI_ATTRIBUTE_NAME(AclEntry, ActionSetUserTrap);
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+SAI_ATTRIBUTE_NAME(AclEntry, ActionDisableArsForwarding);
 #endif
 
 struct SaiAclCounterTraits {

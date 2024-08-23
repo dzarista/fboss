@@ -1,5 +1,7 @@
 namespace cpp2 facebook.fboss.cli
 
+include "fboss/qsfp_service/if/transceiver.thrift"
+
 struct ShowTransceiverModel {
   /* key: transceiverId, value: TransceiverDetail */
   1: map<i32, TransceiverDetail> transceivers;
@@ -20,4 +22,8 @@ struct TransceiverDetail {
   12: list<double> rxSnr;
   13: string appFwVer;
   14: string dspFwVer;
+  15: string validationStatus;
+  16: string notValidatedReason;
+  17: transceiver.FlagLevels tempFlags;
+  18: transceiver.FlagLevels vccFlags;
 }

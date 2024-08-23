@@ -274,6 +274,13 @@ add_fbthrift_cpp_library(
     phy_cpp2
 )
 add_fbthrift_cpp_library(
+  switch_reachability_cpp2
+  fboss/agent/switch_reachability.thrift
+  OPTIONS
+    json
+    reflection
+)
+add_fbthrift_cpp_library(
   switch_state_cpp2
   fboss/agent/switch_state.thrift
   OPTIONS
@@ -309,6 +316,17 @@ add_fbthrift_cpp_library(
     prbs_cpp2
 )
 add_fbthrift_cpp_library(
+  transceiver_validation_cpp2
+  fboss/qsfp_service/if/transceiver_validation.thrift
+  OPTIONS
+    json
+    reflection
+  DEPENDS
+    transceiver_cpp2
+    switch_config_cpp2
+    fboss_common_cpp2
+)
+add_fbthrift_cpp_library(
   qsfp_config_cpp2
   fboss/qsfp_service/if/qsfp_service_config.thrift
   OPTIONS
@@ -316,6 +334,7 @@ add_fbthrift_cpp_library(
     reflection
   DEPENDS
     transceiver_cpp2
+    transceiver_validation_cpp2
     switch_config_cpp2
 )
 add_fbthrift_cpp_library(
@@ -492,6 +511,13 @@ add_fbthrift_cpp_library(
     reflection
 )
 add_fbthrift_cpp_library(
+  qsfp_production_features_cpp2
+  fboss/qsfp_service/test/hw_test/qsfp_production_features.thrift
+  OPTIONS
+    json
+    reflection
+)
+add_fbthrift_cpp_library(
   i2c_controller_stats_cpp2
   fboss/lib/i2c/i2c_controller_stats.thrift
 )
@@ -555,6 +581,7 @@ add_fbthrift_cpp_library(
     FbossHwCtrl
   DEPENDS
     ctrl_cpp2
+    switch_state_cpp2
 )
 
 add_fbthrift_cpp_library(
@@ -599,6 +626,25 @@ add_fbthrift_cpp_library(
     phy_cpp2
 )
 
+add_fbthrift_cpp_library(
+  agent_hw_test_ctrl_cpp2
+  fboss/agent/if/agent_hw_test_ctrl.thrift
+  SERVICES
+    AgentHwTestCtrl
+  OPTIONS
+    json
+    reflection
+  DEPENDS
+    common_cpp2
+    ctrl_cpp2
+    fboss_cpp2
+    switch_state_cpp2
+    phy_cpp2
+    prbs_cpp2
+  OPTIONS
+    json
+)
+
 find_library(USB usb-1.0)
 find_path(USB_INCLUDE_DIR NAMES libusb-1.0/libusb.h)
 include_directories(${USB_INCLUDE_DIR})
@@ -620,6 +666,10 @@ include_directories(${RE2_INCLUDE_DIR})
 find_library(EXPRTK exprtk)
 find_path(EXPRTK_INCLUDE_DIR NAMES exprtk.hpp)
 include_directories(${EXPRTK_INCLUDE_DIR})
+
+find_library(LIBGPIOD gpiod)
+find_path(LIBGPIOD_INCLUDE_DIR NAMES gpiod.h)
+include_directories(${LIBGPIOD_INCLUDE_DIR})
 
 # Unit Testing
 add_definitions (-DIS_OSS=true)
@@ -665,11 +715,42 @@ add_dependencies(fboss_other_services
 )
 
 if (BUILD_SAI_FAKE)
+add_custom_target(fboss_agent_thrift_libs)
+add_dependencies(fboss_agent_thrift_libs
+  mpls_cpp2
+  switch_config_cpp2
+  agent_config_cpp2
+  platform_config_cpp2
+  switch_reachability_cpp2
+  switch_state_cpp2
+  optic_cpp2
+  fboss_cpp2
+  sflow_cpp2
+  common_cpp2
+  product_info_cpp2
+  hardware_stats_cpp2
+  ctrl_cpp2
+  packet_stream_cpp2
+  bcm_config_cpp2
+  asic_config_cpp2
+  asic_config_v2_cpp2
+  agent_stats_cpp2
+  production_features_cpp2
+  hw_ctrl_cpp2
+  sai_ctrl_cpp2
+  hw_test_ctrl_cpp2
+  sai_test_ctrl_cpp2
+  multiswitch_ctrl_cpp2
+  lldp_structs_cpp2
+  validated_shell_commands_cpp2
+)
+
 add_custom_target(fboss_fake_agent_targets)
 add_dependencies(fboss_fake_agent_targets
   sai_test-fake
   sai_agent_hw_test-fake
   multi_switch_agent_hw_test
+  fboss_agent_thrift_libs
 )
 if (BUILD_SAI_FAKE_LINK_TEST)
 add_dependencies(fboss_fake_agent_targets

@@ -263,6 +263,8 @@ class SwitchState : public ThriftStructNode<SwitchState, state::SwitchState> {
    * for ports that have intf of type SYS_PORT attached.
    */
   std::optional<cfg::Range64> getAssociatedSystemPortRangeIf(PortID port) const;
+  std::optional<int> getClusterId(SwitchID switchId) const;
+  std::vector<SwitchID> getIntraClusterSwitchIds(SwitchID switchId) const;
   const std::shared_ptr<MultiSwitchInterfaceMap>& getInterfaces() const;
   std::shared_ptr<AclEntry> getAcl(const std::string& name) const;
 
@@ -474,7 +476,7 @@ class SwitchState : public ThriftStructNode<SwitchState, state::SwitchState> {
    */
   std::shared_ptr<InterfaceMap> getInterfaces(SwitchID switchId) const;
 
-  InterfaceID getInterfaceIDForPort(PortID portId) const;
+  InterfaceID getInterfaceIDForPort(const PortDescriptor& port) const;
   /*
    * The following functions modify the static state.
    * The should only be called on newly created SwitchState objects that are

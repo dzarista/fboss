@@ -474,6 +474,79 @@ struct SaiSwitchTraits {
     using FabricRemoteReachablePortList = SaiExtensionAttribute<
         std::vector<sai_object_id_t>,
         AttributeFabricRemoteReachablePortList>;
+    struct AttributeRouteNoImplicitMetaDataWrapper {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using RouteNoImplicitMetaData =
+        SaiExtensionAttribute<bool, AttributeRouteNoImplicitMetaDataWrapper>;
+    struct AttributeRouteAllowImplicitMetaDataWrapper {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using RouteAllowImplicitMetaData =
+        SaiExtensionAttribute<bool, AttributeRouteAllowImplicitMetaDataWrapper>;
+    struct AttributeMultiStageLocalSwitchIdsWrapper {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using MultiStageLocalSwitchIds = SaiExtensionAttribute<
+        std::vector<sai_uint32_t>,
+        AttributeMultiStageLocalSwitchIdsWrapper,
+        SaiU32ListDefault>;
+    struct AttributeVoqLatencyMinLocalNs {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using VoqLatencyMinLocalNs = SaiExtensionAttribute<
+        sai_int32_t,
+        AttributeVoqLatencyMinLocalNs,
+        SaiIntDefault<sai_int32_t>>;
+    struct AttributeVoqLatencyMaxLocalNs {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using VoqLatencyMaxLocalNs = SaiExtensionAttribute<
+        sai_int32_t,
+        AttributeVoqLatencyMaxLocalNs,
+        SaiIntDefault<sai_int32_t>>;
+    struct AttributeVoqLatencyMinLevel1Ns {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using VoqLatencyMinLevel1Ns = SaiExtensionAttribute<
+        sai_int32_t,
+        AttributeVoqLatencyMinLevel1Ns,
+        SaiIntDefault<sai_int32_t>>;
+    struct AttributeVoqLatencyMaxLevel1Ns {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using VoqLatencyMaxLevel1Ns = SaiExtensionAttribute<
+        sai_int32_t,
+        AttributeVoqLatencyMaxLevel1Ns,
+        SaiIntDefault<sai_int32_t>>;
+    struct AttributeVoqLatencyMinLevel2Ns {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using VoqLatencyMinLevel2Ns = SaiExtensionAttribute<
+        sai_int32_t,
+        AttributeVoqLatencyMinLevel2Ns,
+        SaiIntDefault<sai_int32_t>>;
+    struct AttributeVoqLatencyMaxLevel2Ns {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using VoqLatencyMaxLevel2Ns = SaiExtensionAttribute<
+        sai_int32_t,
+        AttributeVoqLatencyMaxLevel2Ns,
+        SaiIntDefault<sai_int32_t>>;
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+    using ArsProfile = SaiAttribute<
+        EnumType,
+        SAI_SWITCH_ATTR_ARS_PROFILE,
+        SaiObjectIdT,
+        SaiObjectIdDefault>;
+#endif
+    struct AttributeReachabilityGroupList {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using ReachabilityGroupList = SaiExtensionAttribute<
+        sai_u32_list_t,
+        AttributeReachabilityGroupList,
+        SaiU32ListDefault>;
   };
   using AdapterKey = SwitchSaiId;
   using AdapterHostKey = std::monostate;
@@ -527,7 +600,21 @@ struct SaiSwitchTraits {
       std::optional<Attributes::CreditWdTimer>,
 #endif
       std::optional<Attributes::MaxCores>,
-      std::optional<Attributes::PfcDlrPacketAction>>;
+      std::optional<Attributes::PfcDlrPacketAction>,
+      std::optional<Attributes::RouteNoImplicitMetaData>,
+      std::optional<Attributes::RouteAllowImplicitMetaData>,
+      std::optional<Attributes::MultiStageLocalSwitchIds>,
+      std::optional<Attributes::VoqLatencyMinLocalNs>,
+      std::optional<Attributes::VoqLatencyMaxLocalNs>,
+      std::optional<Attributes::VoqLatencyMinLevel1Ns>,
+      std::optional<Attributes::VoqLatencyMaxLevel1Ns>,
+      std::optional<Attributes::VoqLatencyMinLevel2Ns>,
+      std::optional<Attributes::VoqLatencyMaxLevel2Ns>
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+      ,
+      std::optional<Attributes::ArsProfile>
+#endif
+      >;
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
   static constexpr std::array<sai_stat_id_t, 3> CounterIdsToRead = {
@@ -545,6 +632,9 @@ struct SaiSwitchTraits {
   static const std::vector<sai_stat_id_t>& dramStats();
   static const std::vector<sai_stat_id_t>& rciWatermarkStats();
   static const std::vector<sai_stat_id_t>& dtlWatermarkStats();
+  static const std::vector<sai_stat_id_t>& dramBlockTime();
+  static const std::vector<sai_stat_id_t>& egressCoreBufferWatermarkBytes();
+  static const std::vector<sai_stat_id_t>& deletedCredits();
 };
 
 SAI_ATTRIBUTE_NAME(Switch, InitSwitch)
@@ -642,6 +732,19 @@ SAI_ATTRIBUTE_NAME(Switch, MaxCores)
 SAI_ATTRIBUTE_NAME(Switch, PfcDlrPacketAction)
 SAI_ATTRIBUTE_NAME(Switch, SdkBootTime)
 SAI_ATTRIBUTE_NAME(Switch, FabricRemoteReachablePortList)
+SAI_ATTRIBUTE_NAME(Switch, RouteNoImplicitMetaData)
+SAI_ATTRIBUTE_NAME(Switch, RouteAllowImplicitMetaData)
+SAI_ATTRIBUTE_NAME(Switch, MultiStageLocalSwitchIds)
+SAI_ATTRIBUTE_NAME(Switch, VoqLatencyMinLocalNs);
+SAI_ATTRIBUTE_NAME(Switch, VoqLatencyMaxLocalNs);
+SAI_ATTRIBUTE_NAME(Switch, VoqLatencyMinLevel1Ns);
+SAI_ATTRIBUTE_NAME(Switch, VoqLatencyMaxLevel1Ns);
+SAI_ATTRIBUTE_NAME(Switch, VoqLatencyMinLevel2Ns);
+SAI_ATTRIBUTE_NAME(Switch, VoqLatencyMaxLevel2Ns);
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+SAI_ATTRIBUTE_NAME(Switch, ArsProfile)
+#endif
+SAI_ATTRIBUTE_NAME(Switch, ReachabilityGroupList);
 
 template <>
 struct SaiObjectHasStats<SaiSwitchTraits> : public std::true_type {};

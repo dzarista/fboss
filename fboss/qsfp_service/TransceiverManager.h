@@ -27,6 +27,7 @@
 #include "fboss/lib/usb/TransceiverPlatformApi.h"
 #include "fboss/qsfp_service/QsfpConfig.h"
 #include "fboss/qsfp_service/TransceiverStateMachineUpdate.h"
+#include "fboss/qsfp_service/TransceiverValidator.h"
 #include "fboss/qsfp_service/module/Transceiver.h"
 
 #include <folly/IntrusiveList.h>
@@ -36,8 +37,14 @@
 #include <map>
 #include <vector>
 
+#define MODULE_LOG(level, Module, tcvrID) \
+  XLOG(level) << Module << " tcvrID:" << tcvrID << ": "
+
+#define FW_LOG(level, tcvrID) MODULE_LOG(level, "[FWUPG]", tcvrID)
+
 DECLARE_string(qsfp_service_volatile_dir);
 DECLARE_bool(can_qsfp_service_warm_boot);
+DECLARE_bool(enable_tcvr_validation);
 
 namespace facebook::fboss {
 
@@ -79,6 +86,10 @@ class TransceiverManager {
   virtual void getTransceiversInfo(
       std::map<int32_t, TransceiverInfo>& info,
       std::unique_ptr<std::vector<int32_t>> ids) = 0;
+  virtual void getAllTransceiversValidationInfo(
+      std::map<int32_t, std::string>& info,
+      std::unique_ptr<std::vector<int32_t>> ids,
+      bool getConfigString) = 0;
   virtual void getTransceiversRawDOMData(
       std::map<int32_t, RawDOMData>& info,
       std::unique_ptr<std::vector<int32_t>> ids) = 0;
@@ -103,6 +114,14 @@ class TransceiverManager {
 
   int getFailedOpticsFwUpgradeCount() const {
     return failedOpticsFwUpgradeCount_;
+  }
+
+  int getExceededTimeLimitFwUpgradeCount() const {
+    return exceededTimeLimitFwUpgradeCount_;
+  }
+
+  int getMaxTimeTakenForFwUpgrade() const {
+    return maxTimeTakenForFwUpgrade_;
   }
 
   bool isValidTransceiver(int32_t id) {
@@ -313,6 +332,28 @@ class TransceiverManager {
       TransceiverID id) const;
 
   bool getNeedResetDataPath(TransceiverID id) const;
+
+  TransceiverValidationInfo getTransceiverValidationInfo(
+      TransceiverID id,
+      bool validatePortProfile) const;
+
+  bool validateTransceiverById(
+      TransceiverID id,
+      std::string& notValidatedReason,
+      bool validatePortProfile);
+
+  void checkPresentThenValidateTransceiver(TransceiverID id);
+
+  std::string getTransceiverValidationConfigString(TransceiverID id) const;
+
+  bool validateTransceiverConfiguration(
+      TransceiverValidationInfo& tcvrInfo,
+      std::string& notValidatedReason) const;
+
+  int getNumNonValidatedTransceiverConfigs(
+      const std::map<int32_t, TransceiverInfo>& infoMap) const;
+
+  void updateValidationCache(TransceiverID id, bool isValid);
 
   // ========== Public functions for TransceiverStateMachine ==========
   // This refresh TransceiverStateMachine functions will handle all state
@@ -560,6 +601,8 @@ class TransceiverManager {
   // has to be different from whats already running in HW.
   bool requiresFirmwareUpgrade(Transceiver& tcvr) const;
 
+  std::vector<std::string> getPortsRequiringOpticsFwUpgrade() const;
+
  protected:
   /*
    * Check to see if we can attempt a warm boot.
@@ -641,6 +684,13 @@ class TransceiverManager {
   std::unique_ptr<QsfpConfig> qsfpConfig_;
   std::shared_ptr<const TransceiverConfig> tcvrConfig_;
 
+  /* This variable stores the TransceiverValidator object which maintains
+   * data structures for all transceiver configurations currently deployed
+   * in the fleet. This is left as a nullptr if either the feature flag
+   * is not enabled or the relevant structs are not included in the config file.
+   */
+  std::unique_ptr<TransceiverValidator> tcvrValidator_;
+
   // For platforms that needs to program xphy
   std::unique_ptr<PhyManager> phyManager_;
 
@@ -657,6 +707,8 @@ class TransceiverManager {
   virtual void updateTcvrStateInFsdb(
       TransceiverID /* tcvrID */,
       facebook::fboss::TcvrState&& /* newState */) {}
+
+  std::set<TransceiverID> getPresentTransceivers() const;
 
  private:
   // Forbidden copy constructor and assignment operator
@@ -748,8 +800,6 @@ class TransceiverManager {
   // Update the cached PortStatus of TransceiverToPortInfo using wedge_agent
   // getPortStatus() results
   void updateTransceiverPortStatus() noexcept;
-
-  std::set<TransceiverID> getPresentTransceivers() const;
 
   // Check whether the specified stableTcvrs need remediation and then trigger
   // the remediation events to remediate such transceivers.
@@ -904,10 +954,21 @@ class TransceiverManager {
       std::function<void(TransceiverManager* const, int)>>
       resetFunctionMap_;
 
+  /*
+   * This cache stores the most recent result of validation for each
+   * transceiver.
+   */
+  folly::Synchronized<std::unordered_set<TransceiverID>>
+      nonValidTransceiversCache_;
+
   void initPortToModuleMap();
+
+  void initTcvrValidator();
 
   std::atomic<int> successfulOpticsFwUpgradeCount_{0};
   std::atomic<int> failedOpticsFwUpgradeCount_{0};
+  std::atomic<int> exceededTimeLimitFwUpgradeCount_{0};
+  std::atomic<int> maxTimeTakenForFwUpgrade_{0};
 
   friend class TransceiverStateMachineTest;
 };

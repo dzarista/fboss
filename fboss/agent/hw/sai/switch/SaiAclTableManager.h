@@ -98,6 +98,7 @@ class SaiAclTableManager {
   static auto constexpr kEtherTypeMask = 0xFFFF;
   static auto constexpr kOuterVlanIdMask = 0xFFF;
   static auto constexpr kBthOpcodeMask = 0xFF;
+  static auto constexpr kIpv6NextHeaderMask = 0xFF;
 
   static const folly::MacAddress& kMacMask() {
     static const folly::MacAddress macMask{"FF:FF:FF:FF:FF:FF"};
@@ -117,6 +118,13 @@ class SaiAclTableManager {
       const std::shared_ptr<AclTable>& oldAclTable,
       const std::shared_ptr<AclTable>& newAclTable,
       cfg::AclStage aclStage);
+  std::shared_ptr<AclTable> reconstructAclTable(
+      int priority,
+      const std::string& name) const;
+  std::shared_ptr<AclEntry> reconstructAclEntry(
+      const std::string& tableName,
+      const std::string& aclEntryName,
+      int priority) const;
   bool needsAclTableRecreate(
       const std::shared_ptr<AclTable>& oldAclTable,
       const std::shared_ptr<AclTable>& newAclTable);

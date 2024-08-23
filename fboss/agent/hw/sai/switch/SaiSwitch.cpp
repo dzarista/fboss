@@ -43,6 +43,7 @@
 #include "fboss/agent/hw/sai/switch/SaiNeighborManager.h"
 #include "fboss/agent/hw/sai/switch/SaiNextHopGroupManager.h"
 #include "fboss/agent/hw/sai/switch/SaiPortManager.h"
+#include "fboss/agent/hw/sai/switch/SaiPortUtils.h"
 #include "fboss/agent/hw/sai/switch/SaiRouteManager.h"
 #include "fboss/agent/hw/sai/switch/SaiRouterInterfaceManager.h"
 #include "fboss/agent/hw/sai/switch/SaiRxPacket.h"
@@ -58,6 +59,7 @@
 #include "fboss/agent/platforms/sai/SaiPlatform.h"
 #include "fboss/lib/HwWriteBehavior.h"
 
+#include "fboss/agent/AsicUtils.h"
 #include "fboss/agent/rib/RoutingInformationBase.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/StateDelta.h"
@@ -310,7 +312,7 @@ void SaiSwitch::unregisterCallbacks() noexcept {
   // just need to block until the last event is processed
   if (runState_ >= SwitchRunState::CONFIGURED &&
       getFeaturesDesired() & FeaturesDesired::LINKSCAN_DESIRED) {
-    linkStateBottomHalfEventBase_.runInEventBaseThreadAndWait(
+    linkStateBottomHalfEventBase_.runInFbossEventBaseThreadAndWait(
         [this]() { linkStateBottomHalfEventBase_.terminateLoopSoon(); });
     linkStateBottomHalfThread_->join();
     // link scan is completely shut-off
@@ -321,7 +323,7 @@ void SaiSwitch::unregisterCallbacks() noexcept {
   if (runState_ >= SwitchRunState::CONFIGURED &&
       platform_->getAsic()->isSupported(
           HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY)) {
-    txReadyStatusChangeBottomHalfEventBase_.runInEventBaseThreadAndWait(
+    txReadyStatusChangeBottomHalfEventBase_.runInFbossEventBaseThreadAndWait(
         [this]() {
           txReadyStatusChangeBottomHalfEventBase_.terminateLoopSoon();
         });
@@ -330,19 +332,56 @@ void SaiSwitch::unregisterCallbacks() noexcept {
   }
   if (runState_ >= SwitchRunState::CONFIGURED &&
       platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
-    linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThreadAndWait(
+    linkConnectivityChangeBottomHalfEventBase_.runInFbossEventBaseThreadAndWait(
         [this]() {
           linkConnectivityChangeBottomHalfEventBase_.terminateLoopSoon();
         });
     linkConnectivityChangeBottomHalfThread_->join();
     // link connectivity change processing is completely shut-off
   }
+  if (runState_ >= SwitchRunState::CONFIGURED &&
+      platform_->getAsic()->isSupported(
+          HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY)) {
+    switchReachabilityChangeBottomHalfEventBase_
+        .runInFbossEventBaseThreadAndWait([this]() {
+          switchReachabilityChangeBottomHalfEventBase_.terminateLoopSoon();
+        });
+    switchReachabilityChangeBottomHalfThread_->join();
+    // switch reachability change processing is completely shut-off
+  }
 
   if (runState_ >= SwitchRunState::INITIALIZED) {
-    fdbEventBottomHalfEventBase_.runInEventBaseThreadAndWait(
+    fdbEventBottomHalfEventBase_.runInFbossEventBaseThreadAndWait(
         [this]() { fdbEventBottomHalfEventBase_.terminateLoopSoon(); });
     fdbEventBottomHalfThread_->join();
   }
+}
+
+template <typename LockPolicyT>
+void SaiSwitch::processLocalCapsuleSwitchIdsDelta(
+    const StateDelta& delta,
+    const LockPolicyT& lockPolicy) {
+  SwitchID mySwitchId =
+      static_cast<SwitchID>(platform_->getAsic()->getSwitchId().value());
+  auto dsfNodesDelta = delta.getDsfNodesDelta();
+  if (dsfNodesDelta.begin() == dsfNodesDelta.end() ||
+      !delta.newState()->getClusterId(mySwitchId)) {
+    return;
+  }
+  std::vector<SwitchID> newVal;
+  CHECK(platform_->getAsic()->getSwitchId());
+  if (dsfNodesDelta.getNew() &&
+      dsfNodesDelta.getNew()->begin() != dsfNodesDelta.getNew()->end()) {
+    newVal = delta.newState()->getIntraClusterSwitchIds(mySwitchId);
+  }
+  std::map<SwitchID, int> switchIdToNumCores;
+  for (auto switchId : newVal) {
+    auto dsfNode = delta.newState()->getDsfNodes()->getNodeIf(switchId);
+    CHECK(dsfNode);
+    const auto& hwAsic = getHwAsicForAsicType(dsfNode->getAsicType());
+    switchIdToNumCores[switchId] = hwAsic.getNumCores();
+  }
+  managerTable_->switchManager().setLocalCapsuleSwitchIds(switchIdToNumCores);
 }
 
 template <typename LockPolicyT>
@@ -562,6 +601,7 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
       delta.getTeFlowEntriesDelta(), managerTable_->teFlowEntryManager());
   // update switch settings first
   processSwitchSettingsChanged(delta, lockPolicy);
+  processLocalCapsuleSwitchIdsDelta(delta, lockPolicy);
 
   // process non-default qos policies, which are stored in
   // SwitchStatae::qosPolicyMaps
@@ -1330,6 +1370,9 @@ std::map<std::string, HwSysPortStats> SaiSwitch::getSysPortStatsLocked(
   for (auto& entry : portIdStatsMap) {
     portStatsMap.emplace(entry.second->portName(), entry.second->portStats());
   }
+  auto& cpuSysPortStats =
+      managerTable_->hostifManager().getCpuSysPortFb303Stats();
+  portStatsMap.emplace(cpuSysPortStats.portName(), cpuSysPortStats.portStats());
   return portStatsMap;
 }
 
@@ -1888,7 +1931,7 @@ void SaiSwitch::linkStateChangedCallbackTopHalf(
   std::vector<sai_port_oper_status_notification_t> operStatusTmp;
   operStatusTmp.resize(count);
   std::copy(operStatus, operStatus + count, operStatusTmp.data());
-  linkStateBottomHalfEventBase_.runInEventBaseThread(
+  linkStateBottomHalfEventBase_.runInFbossEventBaseThread(
       [this, operStatus = std::move(operStatusTmp)]() mutable {
         linkStateChangedCallbackBottomHalf(std::move(operStatus));
       });
@@ -1898,7 +1941,7 @@ void SaiSwitch::linkStateChangedCallbackBottomHalf(
     std::vector<sai_port_oper_status_notification_t> operStatus) {
   std::map<PortID, bool> swPortId2Status;
   for (auto i = 0; i < operStatus.size(); i++) {
-    bool up = operStatus[i].port_state == SAI_PORT_OPER_STATUS_UP;
+    bool up = utility::isPortOperUp(operStatus[i].port_state);
 
     // Look up SwitchState PortID by port sai id in ConcurrentIndices
     const auto portItr = concurrentIndices_->portSaiId2PortInfo.find(
@@ -2003,7 +2046,7 @@ void SaiSwitch::txReadyStatusChangeCallbackTopHalf(SwitchSaiId switchId) {
     return;
   }
 
-  txReadyStatusChangeBottomHalfEventBase_.runInEventBaseThread(
+  txReadyStatusChangeBottomHalfEventBase_.runInFbossEventBaseThread(
       [this]() mutable { txReadyStatusChangeCallbackBottomHalf(); });
 }
 
@@ -2075,11 +2118,72 @@ void SaiSwitch::linkConnectivityChanged(
 }
 
 void SaiSwitch::switchReachabilityChangeTopHalf() {
-  // TODO
+  if (!platform_->getAsic()->isSupported(
+          HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY)) {
+    // Callback handling and rest of the flow is unsupported!
+    return;
+  }
+  auto changePending = switchReachabilityChangePending_.wlock();
+  if (!*changePending) {
+    *changePending = true;
+    switchReachabilityChangeBottomHalfEventBase_.runInFbossEventBaseThread(
+        [this]() mutable { switchReachabilityChangeBottomHalf(); });
+  }
+}
+
+std::set<PortID> SaiSwitch::getFabricReachabilityPortIds(
+    const std::vector<sai_object_id_t>& switchIdAndFabricPortSaiIds) const {
+  int64_t switchId = switchIdAndFabricPortSaiIds.at(0);
+  if (switchIdAndFabricPortSaiIds.size() > 1) {
+    XLOG(DBG2) << "SwitchID " << switchId << " reachable over "
+               << switchIdAndFabricPortSaiIds.size() - 1 << " ports!";
+  } else if (switchIdAndFabricPortSaiIds.size() == 1) {
+    XLOG(DBG2) << "SwitchID " << switchId << " unreachable over fabric!";
+  }
+  // Index 0 has switchId and indices 1 onwards has fabric port SAI id,
+  // need to find the PortID associated with these fabric port SAI ids.
+  std::set<PortID> portIds{};
+  for (auto idx = 1; idx < switchIdAndFabricPortSaiIds.size(); idx++) {
+    const auto portItr = concurrentIndices_->portSaiId2PortInfo.find(
+        static_cast<PortSaiId>(switchIdAndFabricPortSaiIds.at(idx)));
+    if (portItr == concurrentIndices_->portSaiId2PortInfo.cend()) {
+      XLOG(WARNING)
+          << "Received port notification for port with unknown sai id: "
+          << switchIdAndFabricPortSaiIds.at(idx);
+      continue;
+    }
+    portIds.insert(portItr->second.portID);
+  }
+  return portIds;
 }
 
 void SaiSwitch::switchReachabilityChangeBottomHalf() {
-  // TODO
+  *switchReachabilityChangePending_.wlock() = false;
+  auto& switchApi = SaiApiTable::getInstance()->switchApi();
+
+  for (const auto& [_, dsfNodes] :
+       std::as_const(*getProgrammedState()->getDsfNodes())) {
+    std::map<SwitchID, std::set<PortID>> reachabilityInfo{};
+    for (const auto& [switchId, node] : std::as_const(*dsfNodes)) {
+      auto maxFabricPorts =
+          getMaxNumberOfFabricPorts(*node->toThrift().asicType());
+      std::vector<sai_object_id_t> output(maxFabricPorts + 1);
+      // Requirement to have the switchId as first entry in the list,
+      // the get() will return fabric ports over which the switchId is
+      // reachable in indices 1 onwards.
+      output.at(0) = switchId;
+      // TODO: Use bulkGetAttribute instead of multiple getAttributes()
+      auto switchIdAndFabricPortSaiIds = switchApi.getAttribute(
+          saiSwitchId_,
+          SaiSwitchTraits::Attributes::FabricRemoteReachablePortList{output});
+      CHECK_EQ(switchIdAndFabricPortSaiIds.at(0), switchId);
+      reachabilityInfo[SwitchID(switchId)] =
+          getFabricReachabilityPortIds(switchIdAndFabricPortSaiIds);
+    }
+    callback_->switchReachabilityChanged(
+        SwitchID(platform_->getAsic()->getSwitchId().value()),
+        reachabilityInfo);
+  }
 }
 
 BootType SaiSwitch::getBootType() const {
@@ -2351,7 +2455,7 @@ void SaiSwitch::initLinkScanLocked(const std::lock_guard<std::mutex>& lock) {
     initThread("fbossSaiLnkScnBH");
     linkStateBottomHalfEventBase_.loopForever();
   });
-  linkStateBottomHalfEventBase_.runInEventBaseThread([=, this, &lock]() {
+  linkStateBottomHalfEventBase_.runInFbossEventBaseThread([=, this, &lock]() {
     auto& switchApi = SaiApiTable::getInstance()->switchApi();
     switchApi.registerPortStateChangeCallback(
         saiSwitchId_, __glinkStateChangedNotification);
@@ -2383,7 +2487,7 @@ void SaiSwitch::syncLinkStatesLocked(
 
 void SaiSwitch::syncLinkStates() {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
-  linkStateBottomHalfEventBase_.runInEventBaseThread(
+  linkStateBottomHalfEventBase_.runInFbossEventBaseThread(
       [=, this, &lock]() { syncLinkStatesLocked(lock); });
 }
 
@@ -2394,14 +2498,14 @@ void SaiSwitch::initLinkConnectivityChangeLocked(
         initThread("fbossLnkCnctBH");
         linkConnectivityChangeBottomHalfEventBase_.loopForever();
       });
-  linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThread(
+  linkConnectivityChangeBottomHalfEventBase_.runInFbossEventBaseThread(
       [this, &lock] { syncLinkConnectivityLocked(lock); });
 }
 
 void SaiSwitch::syncLinkConnectivity() {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   if (linkConnectivityChangeBottomHalfThread_) {
-    linkConnectivityChangeBottomHalfEventBase_.runInEventBaseThread(
+    linkConnectivityChangeBottomHalfEventBase_.runInFbossEventBaseThread(
         [this, &lock] { syncLinkConnectivityLocked(lock); });
   }
 }
@@ -2423,8 +2527,17 @@ void SaiSwitch::syncLinkActiveStates() {
   // Link active state is valid only for fabric ports
   if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
     std::lock_guard<std::mutex> lock(saiSwitchMutex_);
-    txReadyStatusChangeBottomHalfEventBase_.runInEventBaseThread(
+    txReadyStatusChangeBottomHalfEventBase_.runInFbossEventBaseThread(
         [=, this]() { txReadyStatusChangeCallbackBottomHalf(); });
+  }
+}
+
+void SaiSwitch::syncSwitchReachability() {
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY)) {
+    std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+    switchReachabilityChangeBottomHalfEventBase_.runInFbossEventBaseThread(
+        [=, this]() { switchReachabilityChangeBottomHalf(); });
   }
 }
 
@@ -2436,31 +2549,48 @@ void SaiSwitch::initTxReadyStatusChangeLocked(
         initThread("fbossSaiTxReadyStatusChangeStatusBH");
         txReadyStatusChangeBottomHalfEventBase_.loopForever();
       });
-  txReadyStatusChangeBottomHalfEventBase_.runInEventBaseThread([=, this]() {
-    auto& switchApi = SaiApiTable::getInstance()->switchApi();
-    switchApi.registerTxReadyStatusChangeCallback(
-        saiSwitchId_, __gTxReadyStatusChangeNotification);
+  txReadyStatusChangeBottomHalfEventBase_.runInFbossEventBaseThread(
+      [=, this]() {
+        auto& switchApi = SaiApiTable::getInstance()->switchApi();
+        switchApi.registerTxReadyStatusChangeCallback(
+            saiSwitchId_, __gTxReadyStatusChangeNotification);
 
-    /*
-     * If we query/process before registering the callback, then callbacks
-     * after we query/process but before we register the callback could get
-     * lost.
-     *
-     * Thus, query the initial state and process after registering the
-     * callback.
-     *
-     * Moreover, query/process in the same context that registers/processes
-     * callback to guarantee that we don't miss any callbacks and those are
-     * always ordered.
-     */
-    txReadyStatusChangeCallbackBottomHalf();
-  });
+        /*
+         * If we query/process before registering the callback, then callbacks
+         * after we query/process but before we register the callback could get
+         * lost.
+         *
+         * Thus, query the initial state and process after registering the
+         * callback.
+         *
+         * Moreover, query/process in the same context that registers/processes
+         * callback to guarantee that we don't miss any callbacks and those are
+         * always ordered.
+         */
+        txReadyStatusChangeCallbackBottomHalf();
+      });
 #endif
 }
 
 void SaiSwitch::initSwitchReachabilityChangeLocked(
     const std::lock_guard<std::mutex>& /* lock */) {
-  // TODO
+  switchReachabilityChangeBottomHalfThread_ =
+      std::make_unique<std::thread>([this]() {
+        initThread("fbossSaiSwitchReachabilityChangeBH");
+        switchReachabilityChangeBottomHalfEventBase_.loopForever();
+      });
+  switchReachabilityChangeBottomHalfEventBase_.runInFbossEventBaseThread(
+      [=, this]() {
+        /*
+         * Query the initial state after registering the callbacks to avoid a
+         * potentially missed callback and update.
+         *
+         * Moreover, query/process in the same context that registers/processes
+         * callback to guarantee that we don't miss any callbacks and those are
+         * always ordered.
+         */
+        switchReachabilityChangeBottomHalf();
+      });
 }
 
 bool SaiSwitch::isMissingSrcPortAllowed(HostifTrapSaiId hostifTrapSaiId) {
@@ -3142,6 +3272,11 @@ void SaiSwitch::switchRunStateChangedImplLocked(
       if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
         initLinkConnectivityChangeLocked(lock);
       }
+
+      if (platform_->getAsic()->isSupported(
+              HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY)) {
+        initSwitchReachabilityChangeLocked(lock);
+      }
     } break;
     default:
       break;
@@ -3220,7 +3355,7 @@ void SaiSwitch::fdbEventCallback(
     fdbEventNotificationDataTmp.push_back(FdbEventNotificationData(
         data[i].event_type, data[i].fdb_entry, bridgePortSaiId, fdbMetaData));
   }
-  fdbEventBottomHalfEventBase_.runInEventBaseThread(
+  fdbEventBottomHalfEventBase_.runInFbossEventBaseThread(
       [this,
        fdbNotifications = std::move(fdbEventNotificationDataTmp)]() mutable {
         auto lock = std::lock_guard<std::mutex>(saiSwitchMutex_);
@@ -3844,5 +3979,85 @@ void SaiSwitch::reportAsymmetricTopology() const {
   getSwitchStats()->virtualDevicesWithAsymmetricConnectivity(
       FabricConnectivityManager::virtualDevicesWithAsymmetricConnectivity(
           virtualDevice2RemoteConnectionGroups));
+}
+
+/*
+ * Until later versions of the chip (B0), cable lengths seen by
+ * each port group has a bearing on how efficiently FDR-in buffers on J3 are
+ * utilized.
+ * If all port groups see roughly the same cable length then they all dequeue
+ * cells for a pkt to FDR-out buffers around the same time. If OTOH a port
+ * groups sees substantially lower cable lengths, FDR-in corresponding
+ * to that port group dequeues to FDR-out faster. This causes cells to
+ * sit for longer in FDR-out buffers, leading to more stress on the
+ * latter. Our cabling plans try to minimize this. Report the skew seen
+ * here to corroborate that cabling was as desired
+ */
+void SaiSwitch::reportInterPortGroupCableSkew() const {
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  if (getPlatform()->getAsic()->getAsicType() !=
+      cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    // Port group skew relevant only for J3
+    return;
+  }
+  std::map<PortID, uint32_t> portId2CableLen;
+  auto& portIdStatsMap = managerTable_->portManager().getLastPortStats();
+  for (auto& entry : portIdStatsMap) {
+    if (entry.second->portStats().cableLengthMeters().has_value()) {
+      portId2CableLen.insert(
+          {entry.first, entry.second->portStats().cableLengthMeters().value()});
+    }
+  }
+  auto portGroupSkew =
+      getPlatform()->getAsic()->computePortGroupSkew(portId2CableLen);
+  if (portGroupSkew) {
+    getSwitchStats()->portGroupSkew(*portGroupSkew);
+  }
+}
+
+std::shared_ptr<SwitchState> SaiSwitch::reconstructSwitchState() const {
+  auto state = std::make_shared<SwitchState>();
+  state->resetAclTableGroups(reconstructMultiSwitchAclTableGroupMap());
+  state->resetAcls(reconstructMultiSwitchAclMap());
+  return state;
+}
+
+std::shared_ptr<MultiSwitchAclTableGroupMap>
+SaiSwitch::reconstructMultiSwitchAclTableGroupMap() const {
+  auto programmedState = getProgrammedState();
+  auto multiSwitchAclTableGroupMap =
+      std::make_shared<MultiSwitchAclTableGroupMap>();
+  for (const auto& [matcher, aclTableGroupMap] :
+       std::as_const(*programmedState->getAclTableGroups())) {
+    auto reconstructedAclTableGroupMap = std::make_shared<AclTableGroupMap>();
+    for (const auto& [stage, aclTableGroup] :
+         std::as_const(*aclTableGroupMap)) {
+      auto name = aclTableGroup->getName();
+      auto reconstructedAclTableGroup =
+          managerTable_->aclTableGroupManager().reconstructAclTableGroup(
+              stage, name);
+      reconstructedAclTableGroupMap->addNode(reconstructedAclTableGroup);
+    }
+    multiSwitchAclTableGroupMap->addMapNode(
+        reconstructedAclTableGroupMap, HwSwitchMatcher(matcher));
+  }
+  return multiSwitchAclTableGroupMap;
+}
+
+std::shared_ptr<MultiSwitchAclMap> SaiSwitch::reconstructMultiSwitchAclMap()
+    const {
+  auto reconstructedMultiSwitchAclMap = std::make_shared<MultiSwitchAclMap>();
+  auto programmedState = getProgrammedState();
+  for (const auto& [matcher, aclMap] :
+       std::as_const(*programmedState->getAcls())) {
+    for (const auto& [name, aclEntry] : std::as_const(*aclMap)) {
+      auto reconstructedAclEntry =
+          managerTable_->aclTableManager().reconstructAclEntry(
+              kAclTable1, name, aclEntry->getPriority());
+      reconstructedMultiSwitchAclMap->addNode(
+          reconstructedAclEntry, HwSwitchMatcher(matcher));
+    }
+  }
+  return reconstructedMultiSwitchAclMap;
 }
 } // namespace facebook::fboss
