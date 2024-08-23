@@ -28,7 +28,8 @@ enum AclType {
   SRC_PORT,
   SRC_PORT_DENY,
   L4_DST_PORT,
-  UDF,
+  UDF_OPCODE_ACK,
+  UDF_OPCODE_WRITE_IMMEDIATE,
   BTH_OPCODE,
   FLOWLET,
   // UDF flowlet also matches on udf in addtion to FLOWLET fields
@@ -112,8 +113,11 @@ class AgentAclCounterTest : public AgentHwTest {
       case AclType::L4_DST_PORT:
         aclName = "test-l4-port-acl";
         break;
-      case AclType::UDF:
-        aclName = "test-udf-acl";
+      case AclType::UDF_OPCODE_ACK:
+        aclName = "test-udf-opcode-ack-acl";
+        break;
+      case AclType::UDF_OPCODE_WRITE_IMMEDIATE:
+        aclName = "test-udf-opcode-write-immediate-acl";
         break;
       case AclType::BTH_OPCODE:
         aclName = "test-bth-opcode-acl";
@@ -146,8 +150,11 @@ class AgentAclCounterTest : public AgentHwTest {
       case AclType::L4_DST_PORT:
         counterName = "test-l4-port-acl-stats";
         break;
-      case AclType::UDF:
-        counterName = "test-udf-acl-stats";
+      case AclType::UDF_OPCODE_ACK:
+        counterName = "test-udf-opcode-ack-acl-stats";
+        break;
+      case AclType::UDF_OPCODE_WRITE_IMMEDIATE:
+        counterName = "test-udf-opcode-write-immediate-acl-stats";
         break;
       case AclType::BTH_OPCODE:
         counterName = "test-bth-opcode-acl-stats";
@@ -237,9 +244,12 @@ class AgentAclCounterTest : public AgentHwTest {
     verifyAcrossWarmBoots(setup, verify);
   }
 
-  size_t sendRoceTraffic(const PortID frontPanelEgrPort) {
+  size_t sendRoceTraffic(const PortID frontPanelEgrPort, AclType aclType) {
     auto vlanId = utility::firstVlanID(getProgrammedState());
     auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
+    uint8_t opcode = (aclType == AclType::UDF_OPCODE_WRITE_IMMEDIATE)
+        ? utility::kUdfRoceOpcodeWriteImmediate
+        : utility::kUdfRoceOpcodeAck;
     return utility::pumpRoCETraffic(
         true,
         utility::getAllocatePktFn(getAgentEnsemble()),
@@ -251,7 +261,7 @@ class AgentAclCounterTest : public AgentHwTest {
         255,
         std::nullopt,
         1 /* one packet */,
-        utility::kUdfRoceOpcode,
+        opcode,
         this->roceReservedByte_);
   }
 
@@ -399,9 +409,11 @@ class AgentAclCounterTest : public AgentHwTest {
     size_t sizeOfPacketSent = 0;
 
     // for udf or bth_opcode testing, send roce packets
-    if (aclType == AclType::UDF || aclType == AclType::BTH_OPCODE ||
-        aclType == AclType::FLOWLET || aclType == AclType::UDF_FLOWLET) {
-      sizeOfPacketSent = sendRoceTraffic(egressPort);
+    if (aclType == AclType::UDF_OPCODE_ACK ||
+        aclType == AclType::UDF_OPCODE_WRITE_IMMEDIATE ||
+        aclType == AclType::BTH_OPCODE || aclType == AclType::FLOWLET ||
+        aclType == AclType::UDF_FLOWLET) {
+      sizeOfPacketSent = sendRoceTraffic(egressPort, aclType);
     } else {
       sizeOfPacketSent = sendPacket(frontPanel, bumpOnHit, aclType);
     }
@@ -431,17 +443,21 @@ class AgentAclCounterTest : public AgentHwTest {
         EXPECT_EVENTUALLY_GE(aclPktCountAfter, aclPktCountBefore + 1);
         // At most we should get a pkt bump of 2
         EXPECT_EVENTUALLY_LE(aclPktCountAfter, aclPktCountBefore + 2);
-        EXPECT_EVENTUALLY_GE(
-            aclBytesCountAfter, aclBytesCountBefore + sizeOfPacketSent);
-        // On native BCM we see 4 extra bytes in the acl counter. This is
-        // likely due to ingress vlan getting imposed and getting counted
-        // when packet hits acl in ingress pipeline
-        EXPECT_EVENTUALLY_LE(
-            aclBytesCountAfter,
-            aclBytesCountBefore + (2 * sizeOfPacketSent) + 4);
+        if (isSupportedOnAllAsics(HwAsic::Feature::ACL_BYTE_COUNTER)) {
+          EXPECT_EVENTUALLY_GE(
+              aclBytesCountAfter, aclBytesCountBefore + sizeOfPacketSent);
+          //  On native BCM we see 4 extra bytes in the acl counter. This is
+          //  likely due to ingress vlan getting imposed and getting counted
+          //  when packet hits acl in ingress pipeline
+          EXPECT_EVENTUALLY_LE(
+              aclBytesCountAfter,
+              aclBytesCountBefore + (2 * sizeOfPacketSent) + 4);
+        }
       } else {
         EXPECT_EVENTUALLY_EQ(aclPktCountBefore, aclPktCountAfter);
-        EXPECT_EVENTUALLY_EQ(aclBytesCountBefore, aclBytesCountAfter);
+        if (isSupportedOnAllAsics(HwAsic::Feature::ACL_BYTE_COUNTER)) {
+          EXPECT_EVENTUALLY_EQ(aclBytesCountBefore, aclBytesCountAfter);
+        }
       }
     });
   }
@@ -450,17 +466,12 @@ class AgentAclCounterTest : public AgentHwTest {
     auto aclName = getAclName(aclType);
     auto counterName = getCounterName(aclType);
     auto acl = utility::addAcl(config, aclName, aclActionType_);
-    auto asic = hwAsicForPort(
-        masterLogicalPortIds({cfg::PortType::INTERFACE_PORT})[kEcmpWidth]);
     switch (aclType) {
       case AclType::TCP_TTLD:
       case AclType::UDP_TTLD:
         acl->srcIp() = "2620:0:1cfe:face:b00c::/64";
         acl->proto() = aclType == AclType::UDP_TTLD ? 17 : 6;
-        if (asic->getAsicType() != cfg::AsicType::ASIC_TYPE_JERICHO3) {
-          // TODO(daiweix): remove after J3 ACL supports IP_TYPE
-          acl->ipType() = cfg::IpType::IP6;
-        }
+        acl->ipType() = cfg::IpType::IP6;
         acl->ttl() = cfg::Ttl();
         *acl->ttl()->value() = 128;
         *acl->ttl()->mask() = 128;
@@ -473,12 +484,17 @@ class AgentAclCounterTest : public AgentHwTest {
         acl->srcPort() = helper_->ecmpPortDescriptorAt(0).phyPortID();
         acl->l4DstPort() = kL4DstPort2();
         break;
-      case AclType::UDF:
+      case AclType::UDF_OPCODE_ACK:
         acl->udfGroups() = {utility::kUdfAclRoceOpcodeGroupName};
-        acl->roceOpcode() = utility::kUdfRoceOpcode;
+        acl->roceOpcode() = utility::kUdfRoceOpcodeAck;
+        break;
+      case AclType::UDF_OPCODE_WRITE_IMMEDIATE:
+        acl->udfGroups() = {utility::kUdfAclRoceOpcodeGroupName};
+        acl->roceOpcode() = utility::kUdfRoceOpcodeWriteImmediate;
         break;
       case AclType::BTH_OPCODE:
-        acl->roceOpcode() = utility::kUdfRoceOpcode;
+        acl->etherType() = cfg::EtherType::IPv6;
+        acl->roceOpcode() = utility::kUdfRoceOpcodeAck;
         break;
       case AclType::FLOWLET:
       case AclType::UDF_FLOWLET:
@@ -575,14 +591,71 @@ class AgentUdfAclCounterTest
 
 TEST_F(AgentUdfAclCounterTest, VerifyUdf) {
   counterBumpOnHitHelper(
-      true /* bump on hit */, true /* front panel port */, {AclType::UDF});
+      true /* bump on hit */,
+      true /* front panel port */,
+      {AclType::UDF_OPCODE_ACK, AclType::UDF_OPCODE_WRITE_IMMEDIATE});
 }
 
 TEST_F(AgentUdfAclCounterTest, VerifyUdfWithOtherAcls) {
   counterBumpOnHitHelper(
       true /* bump on hit */,
       true /* front panel port */,
-      {AclType::UDF, AclType::SRC_PORT});
+      {AclType::UDF_OPCODE_ACK,
+       AclType::UDF_OPCODE_WRITE_IMMEDIATE,
+       AclType::SRC_PORT});
+}
+
+TEST_F(AgentUdfAclCounterTest, VerifyAddRemoveUdfAcls) {
+  auto setup = [this]() {
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return helper_->resolveNextHops(in, 2);
+    });
+    auto wrapper = getSw()->getRouteUpdater();
+    helper_->programRoutes(&wrapper, kEcmpWidth);
+    auto newCfg{initialConfig(*getAgentEnsemble())};
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_ACK);
+    applyNewConfig(newCfg);
+  };
+
+  auto verify = [this]() {
+    XLOG(DBG2) << "verify roce ack packets are matched";
+    verifyAclType(true, true, AclType::UDF_OPCODE_ACK);
+    XLOG(DBG2) << "verify roce write immediate packets are not matched";
+    verifyAclType(false, true, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
+    auto newCfg{initialConfig(*getAgentEnsemble())};
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
+    applyNewConfig(newCfg);
+    XLOG(DBG2) << "verify roce ack packets are not matched";
+    verifyAclType(false, true, AclType::UDF_OPCODE_ACK);
+    XLOG(DBG2) << "verify roce write immediate packets are matched";
+    verifyAclType(true, true, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
+    newCfg = initialConfig(*getAgentEnsemble());
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_ACK);
+    applyNewConfig(newCfg);
+  };
+
+  auto setupPostWarmboot = [this]() {
+    auto newCfg{initialConfig(*getAgentEnsemble())};
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_ACK);
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
+    applyNewConfig(newCfg);
+  };
+
+  auto verifyPostWarmboot = [this]() {
+    XLOG(DBG2) << "verify roce ack packets are matched";
+    verifyAclType(true, true, AclType::UDF_OPCODE_ACK);
+    XLOG(DBG2) << "verify roce write immediate packets are matched";
+    verifyAclType(true, true, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
+    auto newCfg{initialConfig(*getAgentEnsemble())};
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_ACK);
+    applyNewConfig(newCfg);
+    XLOG(DBG2) << "verify roce ack packets are matched";
+    verifyAclType(true, true, AclType::UDF_OPCODE_ACK);
+    XLOG(DBG2) << "verify roce write immediate packets are not matched";
+    verifyAclType(false, true, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
+  };
+
+  verifyAcrossWarmBoots(setup, verify, setupPostWarmboot, verifyPostWarmboot);
 }
 
 // Add UDF for hash config after warmboot
@@ -594,16 +667,21 @@ TEST_F(AgentUdfAclCounterTest, VerifyUdfPlusUdfHash) {
     auto wrapper = getSw()->getRouteUpdater();
     helper_->programRoutes(&wrapper, kEcmpWidth);
     auto newCfg{initialConfig(*getAgentEnsemble())};
-    addAclAndStat(&newCfg, AclType::UDF);
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_ACK);
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
     applyNewConfig(newCfg);
   };
 
-  auto verify = [this]() { verifyAclType(true, true, AclType::UDF); };
+  auto verify = [this]() {
+    verifyAclType(true, true, AclType::UDF_OPCODE_ACK);
+    verifyAclType(true, true, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
+  };
 
   auto setupPostWarmboot = [this]() {
     auto newCfg{initialConfig(*getAgentEnsemble())};
     newCfg.udfConfig() = utility::addUdfHashAclConfig();
-    addAclAndStat(&newCfg, AclType::UDF);
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_ACK);
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
     applyNewConfig(newCfg);
   };
 
@@ -620,15 +698,20 @@ TEST_F(AgentUdfAclCounterTest, VerifyUdfMinusUdfHash) {
     helper_->programRoutes(&wrapper, kEcmpWidth);
     auto newCfg{initialConfig(*getAgentEnsemble())};
     newCfg.udfConfig() = utility::addUdfHashAclConfig();
-    addAclAndStat(&newCfg, AclType::UDF);
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_ACK);
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
     applyNewConfig(newCfg);
   };
 
-  auto verify = [this]() { verifyAclType(true, true, AclType::UDF); };
+  auto verify = [this]() {
+    verifyAclType(true, true, AclType::UDF_OPCODE_ACK);
+    verifyAclType(true, true, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
+  };
 
   auto setupPostWarmboot = [this]() {
     auto newCfg{initialConfig(*getAgentEnsemble())};
-    addAclAndStat(&newCfg, AclType::UDF);
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_ACK);
+    addAclAndStat(&newCfg, AclType::UDF_OPCODE_WRITE_IMMEDIATE);
     applyNewConfig(newCfg);
   };
 
@@ -725,7 +808,9 @@ TEST_F(AgentFlowletAclCounterTest, VerifyFlowletWithUdf) {
   counterBumpOnFlowletAclHitHelper(
       true /* bump on hit */,
       true /* front panel port */,
-      {AclType::FLOWLET, AclType::UDF});
+      {AclType::FLOWLET,
+       AclType::UDF_OPCODE_ACK,
+       AclType::UDF_OPCODE_WRITE_IMMEDIATE});
 }
 
 // Verifying the FLOWLET Acl always hit ahead of UDF Acl
@@ -734,6 +819,8 @@ TEST_F(AgentFlowletAclCounterTest, VerifyUdfFlowletWithUdf) {
   counterBumpOnFlowletAclHitHelper(
       true /* bump on hit */,
       true /* front panel port */,
-      {AclType::UDF_FLOWLET, AclType::UDF});
+      {AclType::UDF_FLOWLET,
+       AclType::UDF_OPCODE_ACK,
+       AclType::UDF_OPCODE_WRITE_IMMEDIATE});
 }
 } // namespace facebook::fboss

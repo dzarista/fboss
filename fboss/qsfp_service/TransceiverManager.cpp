@@ -49,6 +49,16 @@ DEFINE_int32(
     1,
     "How many transceivers sharing the same evb to schedule a firmware upgrade on at a time");
 
+DEFINE_int32(
+    firmware_upgrade_time_limit,
+    1080,
+    "Maximum time limit (in seconds) for a firmware upgrade test. Exceeding this limit will increment an fb303 counter that keeps track of slow firmware upgrade tests.");
+
+DEFINE_bool(
+    enable_tcvr_validation,
+    false,
+    "Enable transceiver validation feature in qsfp_service");
+
 namespace {
 constexpr auto kForceColdBootFileName = "cold_boot_once_qsfp_service";
 constexpr auto kWarmBootFlag = "can_warm_boot";
@@ -155,6 +165,18 @@ void TransceiverManager::initPortToModuleMap() {
   }
 }
 
+void TransceiverManager::initTcvrValidator() {
+  auto tcvrValConfig = qsfpConfig_->thrift.transceiverValidationConfig();
+
+  if (FLAGS_enable_tcvr_validation && tcvrValConfig.has_value()) {
+    tcvrValidator_ =
+        std::make_unique<TransceiverValidator>(tcvrValConfig.value());
+    XLOG(INFO) << "Enabling transceiver config validation.";
+  } else {
+    XLOG(INFO) << "Not enabling transceiver config validation.";
+  }
+}
+
 void TransceiverManager::readWarmBootStateFile() {
   CHECK(canWarmBoot_);
 
@@ -186,6 +208,9 @@ void TransceiverManager::init() {
   initExternalPhyMap();
   // Initialize the I2c bus
   initTransceiverMap();
+
+  // Create data structures for validating transceiver configs
+  initTcvrValidator();
 
   if (!isSystemInitialized_) {
     isSystemInitialized_ = true;
@@ -383,19 +408,41 @@ const std::string TransceiverManager::getPortName(TransceiverID tcvrId) const {
   return portNames.empty() ? "" : *portNames.begin();
 }
 
+std::vector<std::string> TransceiverManager::getPortsRequiringOpticsFwUpgrade()
+    const {
+  std::vector<std::string> ports;
+  if (!isFullyInitialized()) {
+    throw FbossError("Service is still initializing...");
+  }
+  auto lockedTransceivers = transceivers_.rlock();
+  for (const auto& tcvrIt : *lockedTransceivers) {
+    if (requiresFirmwareUpgrade(*tcvrIt.second)) {
+      ports.push_back(getPortName(tcvrIt.first));
+    }
+  }
+  return ports;
+}
+
 bool TransceiverManager::firmwareUpgradeRequired(TransceiverID id) {
   auto lockedTransceivers = transceivers_.rlock();
   auto tcvrIt = lockedTransceivers->find(id);
-
-  if (forceFirmwareUpgradeForTesting_ ||
-      (tcvrIt != lockedTransceivers->end() && tcvrIt->second->isPresent() &&
-       requiresFirmwareUpgrade(*tcvrIt->second))) {
+  if (tcvrIt == lockedTransceivers->end()) {
+    XLOG(ERR) << "[FWUPG] firmwareUpgradeRequired: Transceiver:" << id
+              << " is not in transceiver map";
+    return false;
+  }
+  auto& tcvr = *tcvrIt->second;
+  bool canUpgrade = false;
+  bool iOevbBusy = false;
+  bool present = tcvr.isPresent();
+  std::string partNumber = tcvr.getPartNumber();
+  bool requiresUpgrade = present && requiresFirmwareUpgrade(tcvr);
+  if (forceFirmwareUpgradeForTesting_ || requiresUpgrade) {
     // If we are here, it means that this transceiver is present and has the
     // firmware version mismatch and hence requires upgrade
     // We also need to check that at any time one i2c evb should run firmware
     // upgrade. If not, the other transceivers will be inoperational for a long
     // time until the first transceiver is done upgrading
-    bool canUpgrade = false;
     {
       auto fwEvbWLock = evbsRunningFirmwareUpgrade_.wlock();
       auto moduleEvb = tcvrIt->second->getEvb();
@@ -407,44 +454,48 @@ bool TransceiverManager::firmwareUpgradeRequired(TransceiverID id) {
         fwEvbWLock->at(moduleEvb).push_back(id);
         canUpgrade = true;
       } else {
-        XLOG(INFO)
-            << "Transceiver: " << id
-            << ", cannot schedule firmware upgrade since the IO evb is already running upgrades";
-        canUpgrade = false;
+        iOevbBusy = true;
       }
     } // end of fwEvbWLock lock
-    return canUpgrade;
   }
-  return false;
+
+  FW_LOG(INFO, tcvr.getID())
+      << " firmwareUpgradeRequired: " << " present: " << present
+      << " partNumber: " << partNumber << " iOevbBusy:" << iOevbBusy
+      << " canUpgrade: " << canUpgrade
+      << " requiresUpgrade: " << requiresUpgrade;
+  return canUpgrade;
 }
 
 std::optional<cfg::Firmware> TransceiverManager::getFirmwareFromCfg(
     Transceiver& tcvr) const {
+  int tcvrID = tcvr.getID();
   if (!qsfpConfig_) {
-    XLOG(DBG4) << "qsfpConfig is NULL. No Firmware to return";
+    FW_LOG(DBG4, tcvrID) << " qsfpConfig is NULL. No Firmware to return";
     return std::nullopt;
   }
 
   const auto& qsfpCfg = qsfpConfig_->thrift;
   auto qsfpCfgFw = qsfpCfg.transceiverFirmwareVersions();
   if (!qsfpCfgFw.has_value()) {
-    XLOG(DBG4) << "transceiverFirmwareVersions is NULL. No Firmware to return";
+    FW_LOG(DBG4, tcvrID)
+        << " transceiverFirmwareVersions is NULL. No Firmware to return";
     return std::nullopt;
   }
 
   auto cachedTcvrInfo = tcvr.getTransceiverInfo();
   auto vendor = cachedTcvrInfo.tcvrState()->vendor();
   if (!vendor.has_value()) {
-    XLOG(DBG4) << "Vendor not set. No Firmware to return";
+    FW_LOG(DBG4, tcvrID) << " Vendor not set. No Firmware to return";
     return std::nullopt;
   }
 
   auto fwVersionInCfgIt =
       qsfpCfgFw->versionsMap()->find(vendor->get_partNumber());
   if (fwVersionInCfgIt == qsfpCfgFw->versionsMap()->end()) {
-    XLOG(DBG4) << folly::sformat(
-        "transceiverFirmwareVersions doesn't have a firmware version for part number {:s}.  No Firmware to return",
-        vendor->get_partNumber());
+    FW_LOG(DBG4, tcvrID)
+        << " transceiverFirmwareVersions doesn't have a firmware version for part number "
+        << vendor->get_partNumber();
     return std::nullopt;
   }
 
@@ -457,49 +508,65 @@ bool TransceiverManager::requiresFirmwareUpgrade(Transceiver& tcvr) const {
   auto cachedTcvrInfo = tcvr.getTransceiverInfo();
   auto moduleStatus = cachedTcvrInfo.tcvrState()->status();
   int tcvrID = tcvr.getID();
+  const std::string partNumber = tcvr.getPartNumber();
+
   if (!moduleStatus.has_value()) {
-    XLOG(DBG4)
-        << "Transceiver: " << tcvrID
+    FW_LOG(DBG4, tcvrID)
+        << " Part Number " << partNumber
         << " moduleStatus not set. Returning false from requiresFirmwareUpgrade";
     return false;
   }
 
   auto fwStatus = moduleStatus->fwStatus();
   if (!fwStatus.has_value()) {
-    XLOG(DBG4)
-        << "Transceiver: " << tcvrID
+    FW_LOG(DBG4, tcvrID)
+        << " Part Number " << partNumber
         << " fwStatus not set. Returning false from requiresFirmwareUpgrade";
     return false;
   }
 
   auto fwFromConfig = getFirmwareFromCfg(tcvr);
   if (!fwFromConfig.has_value()) {
-    XLOG(DBG4)
-        << "Transceiver: " << tcvrID
+    FW_LOG(DBG4, tcvrID)
+        << " Part Number " << partNumber
         << " Fw not available in config. Returning false from requiresFirmwareUpgrade";
     return false;
   }
 
-  for (auto fwIt : *fwFromConfig->versions()) {
-    if (fwIt.get_fwType() == cfg::FirmwareType::APPLICATION &&
-        fwStatus->version() && fwIt.get_version() != *fwStatus->version()) {
-      XLOG(INFO) << "Transceiver: " << tcvrID
-                 << " Application Version in cfg=" << fwIt.get_version()
-                 << " current operational version= " << *fwStatus->version()
-                 << ". Returning true from requiresFirmwareUpgrade for tcvr="
-                 << tcvr.getID();
+  auto& versions = *fwFromConfig->versions();
+  for (auto fwIt : versions) {
+    const auto& fwType = fwIt.get_fwType();
+    if (fwType == cfg::FirmwareType::APPLICATION && fwStatus->version() &&
+        fwIt.get_version() != *fwStatus->version()) {
+      FW_LOG(INFO, tcvrID)
+          << " Part Number " << partNumber
+          << " Application Version in cfg=" << fwIt.get_version()
+          << " current operational version= " << *fwStatus->version()
+          << ". Returning true from requiresFirmwareUpgrade for tcvr="
+          << tcvr.getID();
       return true;
     }
-    if (fwIt.get_fwType() == cfg::FirmwareType::DSP && fwStatus->dspFwVer() &&
+    if (fwType == cfg::FirmwareType::DSP && fwStatus->dspFwVer() &&
         fwIt.get_version() != *fwStatus->dspFwVer()) {
-      XLOG(INFO) << "Transceiver: " << tcvrID
-                 << " DSP Version in cfg=" << fwIt.get_version()
-                 << " current operational version= " << *fwStatus->dspFwVer()
-                 << ". Returning true from requiresFirmwareUpgrade for tcvr="
-                 << tcvr.getID();
+      FW_LOG(INFO, tcvrID)
+          << " Part Number " << partNumber
+          << " DSP Version in cfg=" << fwIt.get_version()
+          << " current operational version= " << *fwStatus->dspFwVer()
+          << ". Returning true from requiresFirmwareUpgrade for tcvr="
+          << tcvr.getID();
       return true;
     }
+    FW_LOG(DBG, tcvrID) << " Part Number " << partNumber << " FW Type Cfg "
+                        << apache::thrift::util::enumNameSafe(fwType)
+                        << " FW Version CFG " << fwIt.get_version()
+                        << " FW Version Status "
+                        << fwStatus->version().value_or("NOT_SET");
   }
+
+  FW_LOG(INFO, tcvrID)
+      << " Part Number " << partNumber
+      << " num versions found: " << versions.size()
+      << " Version match in requiresFirmwareUpgrade. Not Upgrading";
 
   // Versions match. No need to upgrade firmware
   return false;
@@ -507,18 +574,25 @@ bool TransceiverManager::requiresFirmwareUpgrade(Transceiver& tcvr) const {
 
 bool TransceiverManager::upgradeFirmware(Transceiver& tcvr) {
   std::optional<cfg::Firmware> fwFromConfig = getFirmwareFromCfg(tcvr);
+  const auto tcvrID = tcvr.getID();
+  std::string partNumber = tcvr.getPartNumber();
   if (fwFromConfig.has_value()) {
-    XLOG(INFO) << "Upgrading firmware to the one in qsfp config";
+    FW_LOG(INFO, tcvrID)
+        << " Upgrading firmware to the one in qsfp config. PartNumber="
+        << partNumber;
   } else {
-    XLOG(ERR) << "No firmware version found to upgrade";
+    FW_LOG(ERR, tcvrID) << " No firmware version found to upgrade. partNumber="
+                        << partNumber;
     failedOpticsFwUpgradeCount_++;
     return false;
   }
 
   std::string fwStorageHandleName = tcvr.getFwStorageHandle();
   if (fwStorageHandleName.empty()) {
-    XLOG(ERR)
-        << "Can't find the fwStorage handle for this part number. Skipping fw upgrade";
+    FW_LOG(ERR, tcvrID) << " Can't find the fwStorage handle. Part Number="
+                        << partNumber
+                        << " fwStorageHandle=" << fwStorageHandleName
+                        << ". Skipping fw upgrade";
     failedOpticsFwUpgradeCount_++;
     return false;
   }
@@ -530,17 +604,34 @@ bool TransceiverManager::upgradeFirmware(Transceiver& tcvr) {
     fwList.emplace_back(
         fwStorage()->getFirmware(fwStorageHandleName, *fw.version()));
 
-    XLOG(INFO) << "Adding FW for upgrade: tcvr=" << tcvr.getID()
-               << " firmware. Type="
-               << apache::thrift::util::enumNameSafe(*fw.fwType())
-               << " Version=" << *fw.version();
+    FW_LOG(INFO, tcvrID) << "Adding FW for upgrade. Firmware type="
+                         << apache::thrift::util::enumNameSafe(*fw.fwType())
+                         << " Part Number=" << partNumber
+                         << " fwStorageHandle=" << fwStorageHandleName
+                         << " Version=" << *fw.version();
   }
 
-  if (tcvr.upgradeFirmware(fwList)) {
-    return true;
+  auto start = std::chrono::steady_clock::now();
+  bool upgradeResult = tcvr.upgradeFirmware(fwList);
+  auto end = std::chrono::steady_clock::now();
+  auto upgradeTime = static_cast<int>(
+      std::chrono::duration_cast<std::chrono::seconds>(end - start).count());
+
+  if (upgradeTime > FLAGS_firmware_upgrade_time_limit) {
+    exceededTimeLimitFwUpgradeCount_++;
+    int prevMaxTime = maxTimeTakenForFwUpgrade_.load();
+    while (prevMaxTime < upgradeTime &&
+           !maxTimeTakenForFwUpgrade_.compare_exchange_weak(
+               prevMaxTime, upgradeTime)) {
+      prevMaxTime = maxTimeTakenForFwUpgrade_.load();
+    }
   }
 
-  return false;
+  FW_LOG(INFO, tcvr.getID())
+      << " Firmware upgrade time was " << upgradeTime
+      << " seconds. Expected time was " << FLAGS_firmware_upgrade_time_limit
+      << " seconds.";
+  return upgradeResult;
 }
 
 void TransceiverManager::doTransceiverFirmwareUpgrade(TransceiverID tcvrID) {
@@ -548,17 +639,18 @@ void TransceiverManager::doTransceiverFirmwareUpgrade(TransceiverID tcvrID) {
   auto lockedTransceivers = transceivers_.rlock();
   auto tcvrIt = lockedTransceivers->find(tcvrID);
   if (tcvrIt == lockedTransceivers->end() || !tcvrIt->second->isPresent()) {
-    XLOG(INFO) << "Transceiver not found for ID=" << tcvrID
-               << ". Can't do firmware upgrade";
+    XLOG(INFO) << "[FWUPG] Transceiver:" << tcvrID
+               << " not found. Can't do firmware upgrade";
     return;
   }
-  XLOG(INFO) << " Triggering Transceiver Firmware Upgrade for Transceiver="
-             << tcvrIt->first;
+  auto& tcvr = *tcvrIt->second;
+  FW_LOG(INFO, tcvr.getID())
+      << " Triggering Transceiver Firmware Upgrade for Part Number="
+      << tcvr.getPartNumber();
 
   auto updateStateInFsdb = [&](bool status) {
     if (FLAGS_publish_stats_to_fsdb) {
-      auto tcvrInfo =
-          tcvrIt->second->updateFwUpgradeStatusInTcvrInfoLocked(status);
+      auto tcvrInfo = tcvr.updateFwUpgradeStatusInTcvrInfoLocked(status);
       updateTcvrStateInFsdb(tcvrIt->first, std::move(*tcvrInfo.tcvrState()));
     }
   };
@@ -1550,6 +1642,147 @@ void TransceiverManager::resetUpgradedTransceiversToDiscovered() {
       }
     }
     waitForAllBlockingStateUpdateDone(results);
+  }
+}
+
+TransceiverValidationInfo TransceiverManager::getTransceiverValidationInfo(
+    TransceiverID id,
+    bool validatePortProfile) const {
+  TransceiverValidationInfo tcvrInfo;
+  tcvrInfo.id = id;
+
+  const auto& cachedTcvrInfo = getTransceiverInfo(id);
+  const auto& cachedTcvrState = cachedTcvrInfo.tcvrState();
+  tcvrInfo.validEepromChecksums = cachedTcvrState->eepromCsumValid().value();
+
+  auto vendor = cachedTcvrState->vendor();
+  if (!vendor.has_value() || vendor->name().value().empty()) {
+    tcvrInfo.requiredFields = std::make_pair(false, "missingVendor");
+    return tcvrInfo;
+  }
+  tcvrInfo.vendorName = vendor->name().value();
+
+  tcvrInfo.vendorSerialNumber = vendor->serialNumber().value();
+  if (vendor->partNumber().value().empty()) {
+    tcvrInfo.requiredFields = std::make_pair(false, "missingVendorPartNumber");
+    return tcvrInfo;
+  }
+  tcvrInfo.vendorPartNumber = vendor->partNumber().value();
+
+  auto mediaInterface = cachedTcvrState->moduleMediaInterface();
+  tcvrInfo.mediaInterfaceCode = mediaInterface.has_value()
+      ? apache::thrift::util::enumNameSafe(mediaInterface.value())
+      : "NOVALUE";
+
+  // TODO: Once firmware sync is enabled, consider firmware versions to
+  // be required.
+  auto moduleStatus = cachedTcvrState->status();
+  if (moduleStatus.has_value() && moduleStatus->fwStatus().has_value()) {
+    tcvrInfo.firmwareVersion = moduleStatus->fwStatus()->version().value_or("");
+    tcvrInfo.dspFirmwareVersion =
+        moduleStatus->fwStatus()->dspFwVer().value_or("");
+  }
+
+  if (validatePortProfile) {
+    const auto& programmedPortToPortInfo = getProgrammedIphyPortToPortInfo(id);
+    for (const auto& [portID, portInfo] : programmedPortToPortInfo) {
+      tcvrInfo.portProfileIds.push_back(portInfo.profile);
+    }
+    if (!tcvrInfo.portProfileIds.size()) {
+      tcvrInfo.requiredFields = std::make_pair(false, "missingPortProfileIds");
+    }
+  }
+
+  return tcvrInfo;
+}
+
+bool TransceiverManager::validateTransceiverById(
+    TransceiverID id,
+    std::string& notValidatedReason,
+    bool validatePortProfile) {
+  if (tcvrValidator_ == nullptr) {
+    XLOG(DBG5) << "Transceiver Validation not enabled. Skipping.";
+    return false;
+  }
+
+  TransceiverValidationInfo tcvrInfo =
+      getTransceiverValidationInfo(id, validatePortProfile);
+
+  bool isValidated =
+      validateTransceiverConfiguration(tcvrInfo, notValidatedReason);
+  updateValidationCache(id, isValidated);
+  return isValidated;
+}
+
+void TransceiverManager::checkPresentThenValidateTransceiver(TransceiverID id) {
+  {
+    auto lockedTransceivers = transceivers_.rlock();
+    if (lockedTransceivers->find(id) == lockedTransceivers->end()) {
+      return;
+    }
+  }
+  std::string notValidatedReason;
+  validateTransceiverById(id, notValidatedReason, true);
+}
+
+std::string TransceiverManager::getTransceiverValidationConfigString(
+    TransceiverID id) const {
+  if (tcvrValidator_ == nullptr) {
+    XLOG(DBG5) << "Transceiver Validation not enabled. Skipping.";
+    return "";
+  }
+
+  TransceiverValidationInfo tcvrInfo = getTransceiverValidationInfo(id, true);
+  std::string notValidatedReason;
+  if (validateTransceiverConfiguration(tcvrInfo, notValidatedReason)) {
+    return "";
+  }
+
+  folly::dynamic r = folly::dynamic::object;
+  std::vector<std::string> portProfileIdStrings;
+  for (auto portProfileId : tcvrInfo.portProfileIds) {
+    portProfileIdStrings.push_back(
+        apache::thrift::util::enumNameSafe(portProfileId));
+  }
+
+  r["Transceiver ID"] = static_cast<int>(tcvrInfo.id);
+  r["Transceiver Vendor"] = tcvrInfo.vendorName;
+  r["Transceiver Serial Number"] = tcvrInfo.vendorSerialNumber;
+  r["Transceiver Part Number"] = tcvrInfo.vendorPartNumber;
+  r["Transceiver Media Interface Code"] = tcvrInfo.mediaInterfaceCode;
+  r["Transceiver Application Firmware Version"] = tcvrInfo.firmwareVersion;
+  r["Transceiver DSP Firmware Version"] = tcvrInfo.dspFirmwareVersion;
+  r["Transceiver Port Profile Ids"] = folly::join(",", portProfileIdStrings);
+  r["Non-Validated Attribute"] = notValidatedReason;
+
+  return folly::toPrettyJson(r);
+}
+
+int TransceiverManager::getNumNonValidatedTransceiverConfigs(
+    const std::map<int32_t, TransceiverInfo>& infoMap) const {
+  auto nonValidatedSet = nonValidTransceiversCache_.rlock();
+  int numConfigs = 0;
+
+  for (auto& [tcvrId, tcvrInfo] : infoMap) {
+    auto isPresent = tcvrInfo.tcvrState()->present().value();
+    auto isNonValid =
+        nonValidatedSet->find(static_cast<TransceiverID>(tcvrId)) !=
+        nonValidatedSet->end();
+
+    if (isPresent && isNonValid) {
+      numConfigs++;
+    }
+  }
+
+  return numConfigs;
+}
+
+void TransceiverManager::updateValidationCache(TransceiverID id, bool isValid) {
+  auto nonValidatedSet = nonValidTransceiversCache_.wlock();
+  if (!isValid) {
+    nonValidatedSet->insert(id);
+  } else {
+    nonValidatedSet->erase(id);
   }
 }
 
@@ -2813,6 +3046,15 @@ std::string TransceiverManager::getPortInfo(std::string portName) {
     throw FbossError(folly::sformat("getPortInfo: Invalid port {}", portName));
   }
   return getPhyManager()->getPortInfoStr(PortID(swPort.value()));
+}
+
+bool TransceiverManager::validateTransceiverConfiguration(
+    TransceiverValidationInfo& tcvrInfo,
+    std::string& notValidatedReason) const {
+  if (tcvrValidator_ == nullptr) {
+    return false;
+  }
+  return tcvrValidator_->validateTcvr(tcvrInfo, notValidatedReason);
 }
 
 } // namespace facebook::fboss

@@ -7081,6 +7081,19 @@
         "scope": 1
       },
       {
+        "intfID": 16,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 0
+      },
+      {
         "intfID": 34,
         "routerID": 0,
         "vlanID": 0,
@@ -7169,39 +7182,53 @@
         "dstIp": "ff02::/16",
         "srcPort": 0,
         "name": "cpuPolicing-CPU-Port-Mcast-v6",
-        "actionType": 1
+        "actionType": 1,
+        "etherType": 34525
       },
       {
         "dstIp": "fe80::/10",
         "dscp": 48,
         "name": "cpuPolicing-high-NetworkControl-linkLocal-v6",
-        "actionType": 1
+        "actionType": 1,
+        "etherType": 34525
       },
       {
         "dstIp": "ff02::/16",
         "dscp": 48,
         "name": "cpuPolicing-high-NetworkControl-ff02::/16",
-        "actionType": 1
+        "actionType": 1,
+        "etherType": 34525
+      },
+      {
+        "dscp": 48,
+        "name": "cpuPolicing-high-NetworkControl-dstLocal",
+        "actionType": 1,
+        "lookupClassRoute": 1,
+        "etherType": 34525
       },
       {
         "dstIp": "fe80::/10",
         "name": "cpuPolicing-mid-linkLocal-v6",
-        "actionType": 1
+        "actionType": 1,
+        "etherType": 34525
       },
       {
         "name": "cpuPolicing-low-unresolved-route",
         "actionType": 1,
-        "lookupClassRoute": 2
+        "lookupClassRoute": 2,
+        "etherType": 34525
       },
       {
         "dstIp": "ff02::/16",
         "name": "cpuPolicing-mid-ff02::/16",
-        "actionType": 1
+        "actionType": 1,
+        "etherType": 34525
       },
       {
         "dstIp": "ff00::/8",
         "name": "drop-v6-multicast",
-        "actionType": 0
+        "actionType": 0,
+        "etherType": 34525
       }
     ],
     "maxNeighborProbes": 300,
@@ -7231,19 +7258,21 @@
         "id": 3,
         "streamType": 0,
         "scheduling": 1,
-        "name": "cpuQueue-mid"
-      },
-      {
-        "id": 1,
-        "streamType": 0,
-        "scheduling": 1,
-        "name": "cpuQueue-default"
+        "name": "cpuQueue-mid",
+        "maxDynamicSharedBytes": 20971520
       },
       {
         "id": 0,
         "streamType": 0,
         "scheduling": 1,
-        "name": "cpuQueue-low"
+        "name": "cpuQueue-low",
+        "portQueueRate": {
+          "kbitsPerSec": {
+            "minimum": 0,
+            "maximum": 102400
+          }
+        },
+        "maxDynamicSharedBytes": 20971520
       }
     ],
     "cpuTrafficPolicy": {
@@ -7376,10 +7405,6 @@
         {
           "rxReason": 14,
           "queueId": 0
-        },
-        {
-          "rxReason": 0,
-          "queueId": 1
         }
       ]
     },
@@ -8573,10 +8598,11 @@
             "sai_pkt_rx_pkt_size": "16512",
             "sai_recycle_port_lane_base": "440",
             "sai_trigger_linkscan_remote_local_faults": "0",
+            "sai_voq_wm_latency_enable": "1",
             "sat_enable.BCM8889X_ADAPTER": "1",
             "soc_family.BCM8889X": "BCM8889X",
-            "stable_location.BCM8889X": "3",
-            "stable_location.BCM8889X_ADAPTER": "3",
+            "stable_location.BCM8889X": "4",
+            "stable_location.BCM8889X_ADAPTER": "4",
             "stable_size.BCM8889X": "1450000000",
             "stable_size.BCM8889X_ADAPTER": "1450000000",
             "sw_state_max_size.BCM8889X": "1400000000",

@@ -3,6 +3,8 @@
 #pragma once
 
 #include "fboss/fsdb/client/FsdbStreamClient.h"
+#include "fboss/fsdb/common/PathHelpers.h"
+#include "fboss/fsdb/if/gen-cpp2/fsdb_common_types.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
 
 #include <folly/Format.h>
@@ -14,8 +16,6 @@
 #include <functional>
 
 namespace facebook::fboss::fsdb {
-
-std::string extendedPathsStr(const std::vector<ExtendedOperPath>& path);
 
 enum class SubscriptionState : uint16_t {
   DISCONNECTED,
@@ -64,29 +64,46 @@ inline std::string subscriptionStateToString(SubscriptionState state) {
 using SubscriptionStateChangeCb =
     std::function<void(SubscriptionState, SubscriptionState)>;
 
+struct SubscriptionOptions {
+  SubscriptionOptions() = default;
+  explicit SubscriptionOptions(
+      const std::string& clientId,
+      bool subscribeStats = false,
+      uint32_t grHoldTimeSec = 0)
+      : clientId_(clientId),
+        subscribeStats_(subscribeStats),
+        grHoldTimeSec_(grHoldTimeSec) {}
+
+  const std::string clientId_;
+  bool subscribeStats_{false};
+  uint32_t grHoldTimeSec_{0};
+};
+
+struct SubscriptionInfo {
+  std::string server;
+  bool isDelta;
+  bool isStats;
+  std::vector<std::string> paths;
+  FsdbStreamClient::State state;
+  FsdbErrorCode disconnectReason;
+};
+
+class FsdbSubscriberBase : public FsdbStreamClient {
+ public:
+  using FsdbStreamClient::FsdbStreamClient;
+
+  virtual SubscriptionInfo getInfo() const = 0;
+};
+
 template <typename SubUnit, typename Paths>
-class FsdbSubscriber : public FsdbStreamClient {
+class FsdbSubscriber : public FsdbSubscriberBase {
   std::string typeStr() const;
   std::string pathsStr(const Paths& path) const;
 
  public:
-  struct SubscriptionOptions {
-    SubscriptionOptions() = default;
-    explicit SubscriptionOptions(
-        const std::string& clientId,
-        bool subscribeStats = false,
-        uint32_t grHoldTimeSec = 0)
-        : clientId_(clientId),
-          subscribeStats_(subscribeStats),
-          grHoldTimeSec_(grHoldTimeSec) {}
-
-    const std::string clientId_;
-    bool subscribeStats_{false};
-    uint32_t grHoldTimeSec_{0};
-  };
-
   using FsdbSubUnitUpdateCb = std::function<void(SubUnit&&)>;
   using SubUnitT = SubUnit;
+
   FsdbSubscriber(
       const std::string& clientId,
       const Paths& subscribePaths,
@@ -116,7 +133,7 @@ class FsdbSubscriber : public FsdbStreamClient {
       std::optional<SubscriptionStateChangeCb> stateChangeCb = std::nullopt,
       std::optional<FsdbStreamStateChangeCb> connectionStateChangeCb =
           std::nullopt)
-      : FsdbStreamClient(
+      : FsdbSubscriberBase(
             options.clientId_,
             streamEvb,
             connRetryEvb,
@@ -148,6 +165,16 @@ class FsdbSubscriber : public FsdbStreamClient {
 
   virtual ~FsdbSubscriber() override {
     cancelStaleStateTimeout();
+  }
+
+  SubscriptionInfo getInfo() const override {
+    return SubscriptionInfo{
+        getServer(),
+        !std::is_same_v<SubUnit, OperState>,
+        this->isStats(),
+        PathHelpers::toStringList(subscribePaths_),
+        getState(),
+        getDisconnectReason()};
   }
 
  protected:

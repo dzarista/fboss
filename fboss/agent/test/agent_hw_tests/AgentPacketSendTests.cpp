@@ -47,7 +47,7 @@ class AgentPacketSendTest : public AgentHwTest {
       return outPackets + outDiscards >= expectedOutPkts;
     };
 
-    WITH_RETRIES_N_TIMED(3, std::chrono::seconds(1), {
+    WITH_RETRIES_N_TIMED(10, std::chrono::seconds(1), {
       EXPECT_EVENTUALLY_TRUE(waitForExpectedOutPackets(
           ensemble->getLatestPortStats(ensemble->masterLogicalPortIds())));
     });
@@ -106,6 +106,67 @@ TEST_F(AgentPacketSendTest, LldpToFrontPanelOutOfPort) {
           asicType != cfg::AsicType::ASIC_TYPE_YUBA) {
         EXPECT_EVENTUALLY_EQ(
             1,
+            *portStatsAfter.outMulticastPkts_() -
+                *portStatsBefore.outMulticastPkts_());
+      }
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(AgentPacketSendTest, LldpToFrontPanelOutOfPortWithBufClone) {
+  auto setup = [=]() {};
+  auto verify = [=, this]() {
+    auto portStatsBefore =
+        getLatestPortStats(masterLogicalInterfacePortIds()[0]);
+    auto vlanId = utility::firstVlanID(getProgrammedState());
+    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
+    auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
+    auto payLoadSize = 256;
+    auto numPkts = 20;
+    std::vector<folly::IOBuf*> bufs;
+    for (int i = 0; i < numPkts; i++) {
+      auto txPacket = utility::makeEthTxPacket(
+          getSw(),
+          vlanId,
+          srcMac,
+          folly::MacAddress("01:80:c2:00:00:0e"),
+          facebook::fboss::ETHERTYPE::ETHERTYPE_LLDP,
+          std::vector<uint8_t>(payLoadSize, 0xff));
+      // emulate packet buf clone in PcapPkt, which should make
+      // freeTxBuf() get called after txPacket destructor
+      auto buf = new folly::IOBuf();
+      txPacket->buf()->cloneInto(*buf);
+      bufs.push_back(buf);
+      getSw()->sendPacketOutOfPortAsync(
+          std::move(txPacket),
+          masterLogicalInterfacePortIds()[0],
+          std::nullopt);
+    }
+    for (auto buf : bufs) {
+      delete buf;
+    }
+    // vlan tag should be removed
+    auto pktLengthSent = (EthHdr::SIZE + payLoadSize) * numPkts;
+    WITH_RETRIES({
+      auto portStatsAfter =
+          getLatestPortStats(masterLogicalInterfacePortIds()[0]);
+      XLOG(DBG2) << "Lldp Packet:" << " before pkts:"
+                 << *portStatsBefore.outMulticastPkts_()
+                 << ", after pkts:" << *portStatsAfter.outMulticastPkts_()
+                 << ", before bytes:" << *portStatsBefore.outBytes_()
+                 << ", after bytes:" << *portStatsAfter.outBytes_();
+      // GE as some platforms include FCS in outBytes count
+      EXPECT_EVENTUALLY_GE(
+          *portStatsAfter.outBytes_() - *portStatsBefore.outBytes_(),
+          pktLengthSent);
+      auto portSwitchId =
+          scopeResolver().scope(masterLogicalPortIds()[0]).switchId();
+      auto asicType = getAsic(portSwitchId).getAsicType();
+      if (asicType != cfg::AsicType::ASIC_TYPE_EBRO &&
+          asicType != cfg::AsicType::ASIC_TYPE_YUBA) {
+        EXPECT_EVENTUALLY_EQ(
+            numPkts,
             *portStatsAfter.outMulticastPkts_() -
                 *portStatsBefore.outMulticastPkts_());
       }
@@ -364,6 +425,8 @@ TEST_F(AgentPacketSendReceiveLagTest, LacpPacketReceiveSrcPort) {
         "enable trunk ports");
   };
   auto verify = [=, this]() {
+    getAgentEnsemble()->getSw()->getPacketObservers()->registerPacketObserver(
+        this, "LacpPacketReceiveSrcPort");
     auto vlanId = utility::firstVlanID(getProgrammedState());
     auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
     auto payLoadSize = 256;
@@ -400,9 +463,10 @@ TEST_F(AgentPacketSendReceiveLagTest, LacpPacketReceiveSrcPort) {
       EXPECT_EQ(port, PortID(getLastPktSrcPort()));
       EXPECT_EQ(kAggId, getLastPktSrcAggregatePort());
     }
+    getAgentEnsemble()->getSw()->getPacketObservers()->unregisterPacketObserver(
+        this, "LacpPacketReceiveSrcPort");
   };
-  setup();
-  verify();
+  verifyAcrossWarmBoots(setup, verify);
 }
 
 class AgentPacketFloodTest : public AgentHwTest {
@@ -414,13 +478,10 @@ class AgentPacketFloodTest : public AgentHwTest {
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
     auto l3Asics = ensemble.getSw()->getHwAsicTable()->getL3Asics();
-    auto asic = utility::checkSameAndGetAsic(l3Asics);
-    auto cfg = utility::oneL3IntfNPortConfig(
-        ensemble.getSw()->getPlatformMapping(),
-        asic,
-        getLogicalPortIDs(),
-        ensemble.getSw()->getPlatformSupportsAddRemovePort(),
-        asic->desiredLoopbackModes());
+    auto cfg = utility::onePortPerInterfaceConfig(
+        ensemble.getSw(),
+        ensemble.masterLogicalPortIds(),
+        true /*interfaceHasSubnet*/);
     utility::setDefaultCpuTrafficPolicyConfig(cfg, l3Asics, ensemble.isSai());
     utility::addCpuQueueConfig(cfg, l3Asics, ensemble.isSai());
     return cfg;

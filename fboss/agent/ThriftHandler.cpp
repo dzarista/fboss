@@ -332,6 +332,8 @@ void getPortInfoHelper(
       std::vector<signed char> dscps;
       auto& tcToDscp = qosPolicy->getDscpMap()->cref<switch_state_tags::from>();
       auto& tcToQueueId = qosPolicy->getTrafficClassToQueueId();
+      FOLLY_PUSH_WARNING
+      FOLLY_GCC_DISABLE_WARNING("-Wdangling-pointer")
       for (const auto& entry : std::as_const(*tcToDscp)) {
         auto& tc = entry->get<switch_state_tags::trafficClass>()->cref();
         auto& dscp = entry->get<switch_state_tags::attr>()->cref();
@@ -339,6 +341,7 @@ void getPortInfoHelper(
           dscps.push_back(dscp);
         }
       }
+      FOLLY_POP_WARNING
       pq.dscps() = dscps;
     }
 
@@ -1235,6 +1238,7 @@ void ThriftHandler::getAllPortInfo(map<int32_t, PortInfoThrift>& portInfoMap) {
 void ThriftHandler::clearPortStats(unique_ptr<vector<int32_t>> ports) {
   auto log = LOG_THRIFT_CALL(DBG1, *ports);
   ensureConfigured(__func__);
+  utility::clearSwPortStats(*ports, sw_->getState());
   if (sw_->isRunModeMultiSwitch()) {
     for (const auto& switchId : sw_->getSwitchInfoTable().getSwitchIDs()) {
       std::vector<int32_t> portList;
@@ -3149,7 +3153,7 @@ void ThriftHandler::getDsfSubscriptions(
     if (loopbackIpToName.find(serverIp) != loopbackIpToName.end()) {
       subscriptionThrift.name() = loopbackIpToName[serverIp];
       subscriptionThrift.ip() = serverIp.str();
-      subscriptionThrift.subscriptionId() = DsfSubscriber::makeRemoteEndpoint(
+      subscriptionThrift.subscriptionId() = DsfSubscription::makeRemoteEndpoint(
           *subscriptionThrift.name(), serverIp);
       subscriptions.push_back(subscriptionThrift);
     } else {
@@ -3256,6 +3260,39 @@ void ThriftHandler::getSwitchIndicesForInterfaces(
     } else {
       switchIndicesForInterfaces[switchIndex].push_back(interface);
     }
+  }
+}
+
+void ThriftHandler::getSwitchIdToSwitchInfo(
+    std::map<int64_t, cfg::SwitchInfo>& switchIdToSwitchInfo) {
+  ensureConfigured(__func__);
+
+  // SwitchSettings are per switchId(s), and should hold switchInfo for
+  // corresponding SwitchId(s).
+  // However, today SwitchSettingsFields carries
+  //  - switchIdToSwitchInfo: switchInfo for every SwitchId,
+  //  - switchInfo i.e. switchInfo for corresponding SwitchId(s):
+  //
+  //  However, switchInfo is not always popualted correctly.
+  //
+  // TODO:
+  //   - Populate switchInfo correctly.
+  //   - Change every switchIdToSwitchInfo callsite to consume switchInfo
+  //   - At that time, switch to below implementation:
+  // for (const auto& [matcherString, switchSettings] :
+  //      std::as_const(*sw_->getState()->getSwitchSettings())) {
+  //      auto matcher = HwSwitchMatcher(matcherString);
+  //      switchIdToSwitchInfo[matcher.switchId()] =
+  //      switchSettings->getSwitchInfo();
+  // }
+  //
+  //   - Remove switchIdToSwitchInfo from SwitchSettingsFields.
+
+  const auto& switchSettings =
+      utility::getFirstNodeIf(sw_->getState()->getSwitchSettings());
+  for (const auto& [switchId, switchInfo] :
+       switchSettings->getSwitchIdToSwitchInfo()) {
+    switchIdToSwitchInfo[switchId] = switchInfo;
   }
 }
 

@@ -25,6 +25,10 @@ DEFINE_int32(
     storage_thread_heartbeat_ms,
     10000,
     "subscribable storage thread's heartbeat interval (ms)");
+DEFINE_bool(
+    serveHeartbeats,
+    false,
+    "Whether or not to serve hearbeats in subscription streams");
 
 namespace facebook::fboss::fsdb {
 
@@ -57,6 +61,11 @@ NaivePeriodicSubscribableStorageBase::NaivePeriodicSubscribableStorageBase(
 
   fb303::ThreadCachedServiceData::get()->addStatExportType(
       serveSubNum_, fb303::SUM);
+
+  if (FLAGS_serveHeartbeats) {
+    heartbeatThread_ = std::make_unique<folly::ScopedEventBaseThread>(
+        "SubscriptionHeartbeats");
+  }
 }
 
 FsdbOperTreeMetadataTracker NaivePeriodicSubscribableStorageBase::getMetadata()
@@ -86,9 +95,6 @@ void NaivePeriodicSubscribableStorageBase::start_impl() {
       "ServeSubscriptions",
       FLAGS_storage_thread_heartbeat_ms,
       heartbeatStatsFunc);
-
-  // serve first heartbeat 1 interval away
-  lastHeartbeatTime_ = std::chrono::steady_clock::now();
 
   backgroundScope_.add(serveSubscriptions().scheduleOn(&evb_));
 
@@ -142,22 +148,16 @@ void NaivePeriodicSubscribableStorageBase::unregisterPublisher(
   if (!trackMetadata_) {
     return;
   }
-  // Acquire subscriptions lock since we may need to
-  // trim subscriptions is corresponding publishers goes
-  // away. Acquiring locks in the same order subscriptionMgr,
-  // metadataTracker to keep TSAN happy
-  withSubMgrWLocked([&](SubscriptionManagerBase& mgr) {
-    metadataTracker_.withWLock([&](auto& tracker) {
-      CHECK(tracker);
-      auto publisherRoot = getPublisherRoot(begin, end);
-      CHECK(publisherRoot);
-      tracker->unregisterPublisherRoot(*publisherRoot);
-      if (!tracker->getPublisherRootMetadata(*publisherRoot)) {
-        mgr.closeNoPublisherActiveSubscriptions(
-            SubscriptionMetadataServer(tracker->getAllMetadata()),
-            disconnectReason);
-      }
-    });
+  metadataTracker_.withWLock([&](auto& tracker) {
+    CHECK(tracker);
+    auto publisherRoot = getPublisherRoot(begin, end);
+    CHECK(publisherRoot);
+    tracker->unregisterPublisherRoot(*publisherRoot);
+    if (!tracker->getPublisherRootMetadata(*publisherRoot)) {
+      subMgr().closeNoPublisherActiveSubscriptions(
+          SubscriptionMetadataServer(tracker->getAllMetadata()),
+          disconnectReason);
+    }
   });
 }
 
@@ -271,13 +271,11 @@ NaivePeriodicSubscribableStorageBase::subscribe_encoded_impl(
       std::move(subscriber),
       path.begin(),
       path.end(),
+      protocol,
       getPublisherRoot(path.begin(), path.end()),
-      protocol);
-  std::unique_ptr<Subscription> subscriptionPtr = std::move(subscription);
-  withSubMgrWLocked([subscriptionPtr = std::move(subscriptionPtr)](
-                        SubscriptionManagerBase& mgr) mutable {
-    mgr.registerSubscription(std::move(subscriptionPtr));
-  });
+      heartbeatThread_ ? heartbeatThread_->getEventBase() : nullptr,
+      subscriptionHeartbeatInterval_);
+  subMgr().registerSubscription(std::move(subscription));
   return std::move(gen);
 }
 
@@ -293,11 +291,10 @@ NaivePeriodicSubscribableStorageBase::subscribe_delta_impl(
       path.begin(),
       path.end(),
       protocol,
-      getPublisherRoot(path.begin(), path.end()));
-  withSubMgrWLocked([subscription = std::move(subscription)](
-                        SubscriptionManagerBase& mgr) mutable {
-    mgr.registerSubscription(std::move(subscription));
-  });
+      getPublisherRoot(path.begin(), path.end()),
+      heartbeatThread_ ? heartbeatThread_->getEventBase() : nullptr,
+      subscriptionHeartbeatInterval_);
+  subMgr().registerSubscription(std::move(subscription));
   return std::move(gen);
 }
 
@@ -312,11 +309,10 @@ NaivePeriodicSubscribableStorageBase::subscribe_encoded_extended_impl(
       std::move(subscriber),
       std::move(paths),
       std::move(publisherRoot),
-      protocol);
-  withSubMgrWLocked(
-      [subscription = std::move(subscription)](SubscriptionManagerBase& mgr) {
-        mgr.registerExtendedSubscription(std::move(subscription));
-      });
+      protocol,
+      heartbeatThread_ ? heartbeatThread_->getEventBase() : nullptr,
+      subscriptionHeartbeatInterval_);
+  subMgr().registerExtendedSubscription(std::move(subscription));
   return std::move(gen);
 }
 
@@ -331,11 +327,10 @@ NaivePeriodicSubscribableStorageBase::subscribe_delta_extended_impl(
       std::move(subscriber),
       std::move(paths),
       std::move(publisherRoot),
-      protocol);
-  withSubMgrWLocked(
-      [subscription = std::move(subscription)](SubscriptionManagerBase& mgr) {
-        mgr.registerExtendedSubscription(std::move(subscription));
-      });
+      protocol,
+      heartbeatThread_ ? heartbeatThread_->getEventBase() : nullptr,
+      subscriptionHeartbeatInterval_);
+  subMgr().registerExtendedSubscription(std::move(subscription));
   return std::move(gen);
 }
 

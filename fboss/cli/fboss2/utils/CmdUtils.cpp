@@ -241,6 +241,13 @@ std::optional<std::string> getMyHostname(const std::string& hostname) {
   return utils::removeFbDomains(std::string(actualHostname));
 }
 
+std::string escapeDoubleQuotes(const std::string& cmd) {
+  std::string cmdCopy = cmd;
+  const re2::RE2 doubleQuotes("\"");
+  re2::RE2::Replace(&cmdCopy, doubleQuotes, "\\\"");
+  return cmdCopy;
+}
+
 std::string getCmdToRun(const std::string& hostname, const std::string& cmd) {
   // For running on localhost
   //    return cmd as is.
@@ -253,7 +260,7 @@ std::string getCmdToRun(const std::string& hostname, const std::string& cmd) {
                                        hostname,
                                        " ",
                                        "\"",
-                                       cmd,
+                                       escapeDoubleQuotes(cmd),
                                        "\"");
 }
 
@@ -289,18 +296,26 @@ std::string getSubscriptionPathStr(const fsdb::OperSubscriberInfo& subscriber) {
     return folly::join("/", subscriber.get_path()->get_raw());
   }
   std::vector<std::string> extPaths;
-  for (const auto& extPath : *subscriber.get_extendedPaths()) {
-    std::vector<std::string> pathElements;
-    for (const auto& pathElm : *extPath.path()) {
-      if (pathElm.any_ref().has_value()) {
-        pathElements.push_back("*");
-      } else if (pathElm.regex_ref().has_value()) {
-        pathElements.push_back(*pathElm.regex_ref());
-      } else {
-        pathElements.push_back(*pathElm.raw_ref());
+  if (auto subExtPaths = subscriber.get_extendedPaths()) {
+    for (const auto& extPath : *subExtPaths) {
+      std::vector<std::string> pathElements;
+      for (const auto& pathElm : *extPath.path()) {
+        if (pathElm.any_ref().has_value()) {
+          pathElements.push_back("*");
+        } else if (pathElm.regex_ref().has_value()) {
+          pathElements.push_back(*pathElm.regex_ref());
+        } else {
+          pathElements.push_back(*pathElm.raw_ref());
+        }
       }
+      extPaths.push_back(folly::join("/", pathElements));
     }
-    extPaths.push_back(folly::join("/", pathElements));
+  }
+  auto paths = subscriber.get_paths();
+  if (paths) {
+    for (const auto& path : *paths) {
+      extPaths.push_back(folly::join("/", path.second.get_path()));
+    }
   }
   return folly::join(";", extPaths);
 }
@@ -330,6 +345,16 @@ Table::StyledCell styledBer(double ber) {
     return Table::StyledCell(outStringStream.str(), Table::Style::WARN);
   }
   return Table::StyledCell(outStringStream.str(), Table::Style::GOOD);
+}
+
+Table::StyledCell styledFecTail(int tail) {
+  if (tail > 12) {
+    return Table::StyledCell(folly::to<std::string>(tail), Table::Style::ERROR);
+  }
+  if (tail > 8) {
+    return Table::StyledCell(folly::to<std::string>(tail), Table::Style::WARN);
+  }
+  return Table::StyledCell(folly::to<std::string>(tail), Table::Style::GOOD);
 }
 
 } // namespace facebook::fboss::utils

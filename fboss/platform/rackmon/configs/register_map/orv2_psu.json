@@ -1,7 +1,8 @@
 {
     "name": "ORV2_PSU",
     "address_range": [
-        [160, 191]
+        [164, 166],
+        [180, 182]
     ],
     "probe_register": 104,
     "default_baudrate": 19200,
@@ -311,6 +312,7 @@
             "keep": 10,
             "format": "FLOAT",
             "precision": 6,
+            "sign": true,
             "name": "PSU Input VAC"
         },
         {
@@ -327,6 +329,7 @@
             "keep": 10,
             "format": "FLOAT",
             "precision": 10,
+            "sign": true,
             "name": "PSU Input Current AC"
         },
         {
@@ -343,6 +346,7 @@
             "keep": 10,
             "format": "FLOAT",
             "precision": 9,
+            "sign": true,
             "name": "Battery Voltage (Detected by PSU)"
         },
         {
@@ -358,6 +362,7 @@
             "length": 1,
             "format": "FLOAT",
             "precision": 8,
+            "sign": true,
             "name": "Battery Current Output"
         },
         {
@@ -373,6 +378,7 @@
             "length": 1,
             "format": "FLOAT",
             "precision": 12,
+            "sign": true,
             "name": "Battery Current Input"
         },
         {
@@ -389,6 +395,7 @@
             "keep": 10,
             "format": "FLOAT",
             "precision": 11,
+            "sign": true,
             "name": "PSU Output Voltage"
         },
         {
@@ -405,6 +412,7 @@
             "keep": 10,
             "format": "FLOAT",
             "precision": 6,
+            "sign": true,
             "name": "PSU Output Current"
         },
         {
@@ -420,6 +428,7 @@
             "length": 1,
             "format": "FLOAT",
             "precision": 9,
+            "sign": true,
             "name": "PSU IT Load Voltage Output"
         },
         {
@@ -434,6 +443,7 @@
             "length": 1,
             "format": "FLOAT",
             "precision": 12,
+            "sign": true,
             "name": "PSU IT Load Current Output"
         },
         {
@@ -449,6 +459,7 @@
             "length": 1,
             "format": "FLOAT",
             "precision": 6,
+            "sign": true,
             "name": "PSU Bulk Cap Voltage"
         },
         {
@@ -465,6 +476,7 @@
             "keep": 10,
             "format": "FLOAT",
             "precision": 3,
+            "sign": true,
             "name": "PSU Input Power"
         },
         {
@@ -480,6 +492,7 @@
             "keep": 10,
             "format": "FLOAT",
             "precision": 3,
+            "sign": true,
             "name": "PSU Output Power"
         },
         {
@@ -539,6 +552,7 @@
             "length": 1,
             "format": "FLOAT",
             "precision": 7,
+            "sign": true,
             "name": "PSU Temp 0 (inlet)"
         },
         {
@@ -553,6 +567,7 @@
             "length": 1,
             "format": "FLOAT",
             "precision": 7,
+            "sign": true,
             "name": "PSU Temp 1 (outlet)"
         },
         {

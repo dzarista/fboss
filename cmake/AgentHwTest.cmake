@@ -209,14 +209,11 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwTestAclUtils.cpp
   fboss/agent/hw/test/HwTestPortUtils.cpp
   fboss/agent/hw/test/HwTestCoppUtils.cpp
-  fboss/agent/hw/test/HwRouteScaleTest.cpp
   fboss/agent/hw/test/HwRouteTests.cpp
   fboss/agent/hw/test/HwTrunkTests.cpp
   fboss/agent/hw/test/HwVlanTests.cpp
-  fboss/agent/hw/test/HwVoqSwitchTests.cpp
   fboss/agent/hw/test/HwL2ClassIDTests.cpp
   fboss/agent/hw/test/HwAclMatchActionsTests.cpp
-  fboss/agent/hw/test/HwAclPriorityTests.cpp
   fboss/agent/hw/test/HwAclQualifierTests.cpp
   fboss/agent/hw/test/HwVerifyPfcConfigInHwTest.cpp
   fboss/agent/hw/test/HwAclStatTests.cpp
@@ -225,7 +222,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwPortProfileTests.cpp
   fboss/agent/hw/test/HwPortStressTests.cpp
   fboss/agent/hw/test/HwResourceStatsTests.cpp
-  fboss/agent/hw/test/HwRxReasonTests.cpp
   fboss/agent/hw/test/HwSwitchStateReplayTest.cpp
   fboss/agent/hw/test/HwParityErrorTest.cpp
   fboss/agent/hw/test/HwPtpTcTests.cpp
@@ -238,17 +234,12 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/dataplane_tests/HwIpInIpTunnelTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwMPLSTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwLoadBalancerTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwMirroringTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwOverflowTest.cpp
   fboss/agent/hw/test/dataplane_tests/HwTeFlowTrafficTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwTrafficPfcTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwProdInvariantHelper.cpp
   fboss/agent/hw/test/dataplane_tests/HwProdInvariantTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwPacketSendTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwQueuePerHostL2Tests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwQueuePerHostRouteTests.cpp
   fboss/agent/hw/test/dataplane_tests/HwSflowTests.cpp
-  fboss/agent/hw/test/dataplane_tests/HwSflowMirrorTest.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestAqmUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestQosUtils.cpp
   fboss/agent/hw/test/dataplane_tests/HwTestPfcUtils.cpp

@@ -181,6 +181,10 @@ inline folly::StringPiece constexpr kErrorsPerCodeword() {
   return "errors_per_codeword";
 }
 
+inline folly::StringPiece constexpr kLatencyWatermarkNsec() {
+  return "latency_watermark_nsec";
+}
+
 /**
  * Maximum FEC errors we can ever see under any config
  */
@@ -294,5 +298,13 @@ inline folly::StringPiece constexpr kPqpErrorEgressDroppedPackets() {
 
 inline folly::StringPiece constexpr kFabricLinkDownDroppedCells() {
   return "fabric_link_down_dropped_cells";
+}
+
+inline folly::StringPiece constexpr kCableLengthMeters() {
+  return "cable_length_meters";
+}
+
+inline folly::StringPiece constexpr kDataCellsFilterOn() {
+  return "data_cells_filter_on";
 }
 } // namespace facebook::fboss

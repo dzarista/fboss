@@ -52,11 +52,13 @@ add_executable(platform_manager
   fboss/platform/platform_manager/PlatformManagerHandler.cpp
   fboss/platform/platform_manager/DevicePathResolver.cpp
   fboss/platform/platform_manager/Utils.cpp
+  fboss/platform/platform_manager/PresenceChecker.cpp
 )
 
 target_link_libraries(platform_manager
   fb303::fb303
   platform_config_lib
+  platform_name_lib
   platform_utils
   platform_manager_config_cpp2
   platform_manager_presence_cpp2
@@ -65,6 +67,8 @@ target_link_libraries(platform_manager
   weutil_fboss_eeprom_parser
   ioctl_smbus_eeprom_reader
   i2c_ctrl
+  ${LIBGPIOD}
+  gpiod_line
 )
 
 install(TARGETS platform_manager)

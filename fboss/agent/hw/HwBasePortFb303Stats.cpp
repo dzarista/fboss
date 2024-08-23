@@ -10,8 +10,10 @@
 
 #include "fboss/agent/hw/HwBasePortFb303Stats.h"
 
+#include "fboss/agent/hw/CounterUtils.h"
 #include "fboss/agent/hw/StatsConstants.h"
 
+#include <fb303/ServiceData.h>
 #include <folly/logging/xlog.h>
 
 namespace facebook::fboss {
@@ -47,11 +49,16 @@ int64_t HwBasePortFb303Stats::getCounterLastIncrement(
 void HwBasePortFb303Stats::reinitStats(std::optional<std::string> oldPortName) {
   XLOG(DBG2) << "Reinitializing stats for " << portName_;
 
-  for (auto statKey : kPortStatKeys()) {
+  for (auto statKey : kPortMonotonicCounterStatKeys()) {
     reinitStat(statKey, portName_, oldPortName);
   }
+  for (auto statKey : kPortFb303CounterStatKeys()) {
+    // For fb303 - init will happen on the next set. So here we
+    // just delete the counter
+    utility::deleteCounter(statName(statKey, oldPortName.value_or("")));
+  }
   for (auto queueIdAndName : queueId2Name_) {
-    for (auto statKey : kQueueStatKeys()) {
+    for (auto statKey : kQueueMonotonicCounterStatKeys()) {
       auto newStatName = statName(
           statKey, portName_, queueIdAndName.first, queueIdAndName.second);
       std::optional<std::string> oldStatName = oldPortName
@@ -69,7 +76,7 @@ void HwBasePortFb303Stats::reinitStats(std::optional<std::string> oldPortName) {
   }
   // Init per priority PFC stats
   for (auto pfcPriority : enabledPfcPriorities_) {
-    for (auto statKey : kPfcStatKeys()) {
+    for (auto statKey : kPfcMonotonicCounterStatKeys()) {
       auto newStatName = statName(statKey, portName_, pfcPriority);
       std::optional<std::string> oldStatName = oldPortName
           ? std::optional<std::string>(
@@ -81,7 +88,7 @@ void HwBasePortFb303Stats::reinitStats(std::optional<std::string> oldPortName) {
   if (enabledPfcPriorities_.size()) {
     // If PFC is enabled for priorities, init aggregated port
     // PFC counters as well.
-    for (auto statKey : kPfcStatKeys()) {
+    for (auto statKey : kPfcMonotonicCounterStatKeys()) {
       auto newStatName = statName(statKey, portName_);
       std::optional<std::string> oldStatName = oldPortName
           ? std::optional<std::string>(statName(statKey, *oldPortName))
@@ -101,8 +108,8 @@ void HwBasePortFb303Stats::reinitMacsecStats(
       reinitStat(statKey, portName_, oldPortName);
     }
   };
-  reinitStats(kInMacsecPortStatKeys());
-  reinitStats(kOutMacsecPortStatKeys());
+  reinitStats(kInMacsecPortMonotonicCounterStatKeys());
+  reinitStats(kOutMacsecPortMonotonicCounterStatKeys());
 
   macsecStatsInited_ = true;
 }
@@ -141,14 +148,14 @@ void HwBasePortFb303Stats::queueChanged(
       ? std::nullopt
       : std::optional<std::string>(qitr->second);
   queueId2Name_[queueId] = queueName;
-  for (auto statKey : kQueueStatKeys()) {
+  for (auto statKey : kQueueMonotonicCounterStatKeys()) {
     reinitStat(statKey, queueId, oldQueueName);
   }
 }
 
 void HwBasePortFb303Stats::queueRemoved(int queueId) {
   auto qitr = queueId2Name_.find(queueId);
-  for (auto statKey : kQueueStatKeys()) {
+  for (auto statKey : kQueueMonotonicCounterStatKeys()) {
     portCounters_.removeStat(
         statName(statKey, portName_, queueId, queueId2Name_[queueId]));
   }
@@ -164,14 +171,14 @@ void HwBasePortFb303Stats::pfcPriorityChanged(
 
   for (auto& pfcPriority : enabledPfcPriorities_) {
     // Remove old priorities stats
-    for (auto statKey : kPfcStatKeys()) {
+    for (auto statKey : kPfcMonotonicCounterStatKeys()) {
       portCounters_.removeStat(statName(statKey, portName_, pfcPriority));
     }
   }
   enabledPfcPriorities_ = std::move(enabledPriorities);
 
   for (auto pfcPriority : enabledPfcPriorities_) {
-    for (auto statKey : kPfcStatKeys()) {
+    for (auto statKey : kPfcMonotonicCounterStatKeys()) {
       portCounters_.reinitStat(
           statName(statKey, portName_, pfcPriority), std::nullopt);
     }
@@ -179,11 +186,11 @@ void HwBasePortFb303Stats::pfcPriorityChanged(
   if (enabledPfcPriorities_.size()) {
     // If PFC is enabled for priorities, init aggregated port
     // PFC counters as well.
-    for (auto statKey : kPfcStatKeys()) {
+    for (auto statKey : kPfcMonotonicCounterStatKeys()) {
       portCounters_.reinitStat(statName(statKey, portName_), std::nullopt);
     }
   } else {
-    for (auto statKey : kPfcStatKeys()) {
+    for (auto statKey : kPfcMonotonicCounterStatKeys()) {
       portCounters_.removeStat(statName(statKey, portName_));
     }
   }

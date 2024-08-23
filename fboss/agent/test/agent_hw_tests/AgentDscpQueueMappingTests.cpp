@@ -108,12 +108,14 @@ class AgentDscpQueueMappingTest : public AgentDscpQueueMappingTestBase {
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
+    // QosMap
+    auto l3Asics = ensemble.getL3Asics();
+    utility::addOlympicQosMaps(cfg, l3Asics);
     auto kAclName = "acl1";
-    utility::addDscpAclToCfg(&cfg, kAclName, kDscp());
+    auto asic = utility::checkSameAndGetAsic(l3Asics);
+    utility::addDscpAclToCfg(asic, &cfg, kAclName, kDscp());
     utility::addTrafficCounter(
-        &cfg,
-        kCounterName(),
-        utility::getAclCounterTypes(ensemble.getL3Asics()));
+        &cfg, kCounterName(), utility::getAclCounterTypes(l3Asics));
     utility::addQueueMatcher(
         &cfg, kAclName, kQueueId(), ensemble.isSai(), kCounterName());
     return cfg;
@@ -175,6 +177,9 @@ class AgentAclAndDscpQueueMappingTest : public AgentDscpQueueMappingTestBase {
     cfg::Ttl ttl; // Match packets with hop limit > 127
     std::tie(*ttl.value(), *ttl.mask()) = std::make_tuple(0x80, 0x80);
     acl->ttl() = ttl;
+    auto l3Asics = ensemble.getL3Asics();
+    auto asic = utility::checkSameAndGetAsic(l3Asics);
+    utility::addEtherTypeToAcl(asic, acl, cfg::EtherType::IPv6);
     utility::addAclStat(
         &cfg,
         "acl0",
@@ -214,7 +219,11 @@ class AgentAclAndDscpQueueMappingTest : public AgentDscpQueueMappingTestBase {
                      << " afterAclInOutPkts = " << afterAclInOutPkts;
 
           EXPECT_EVENTUALLY_EQ(1, afterQueueOutPkts - beforeQueueOutPkts);
-          EXPECT_EVENTUALLY_EQ(2, afterAclInOutPkts - beforeAclInOutPkts);
+          // On some ASICs looped back pkt hits the ACL before being
+          // dropped in the ingress pipeline, hence GE
+          EXPECT_EVENTUALLY_GE(afterAclInOutPkts, beforeAclInOutPkts + 1);
+          // At most we should get a pkt bump of 2
+          EXPECT_EVENTUALLY_LE(afterAclInOutPkts, beforeAclInOutPkts + 2);
         });
       }
     };
@@ -233,17 +242,17 @@ class AgentAclConflictAndDscpQueueMappingTest
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
 
+    auto l3Asics = ensemble.getL3Asics();
+    auto asic = utility::checkSameAndGetAsic(l3Asics);
     // The QoS map sends packets to queue kQueueIdQosMap() i.e. 7,
     // The ACL sends them to queue kQueueIdAcl() i.e. 2.
     // QosMap
-    utility::addOlympicQosMaps(cfg, ensemble.getL3Asics());
+    utility::addOlympicQosMaps(cfg, l3Asics);
 
     // ACL
-    utility::addDscpAclToCfg(&cfg, "acl0", kDscp());
+    utility::addDscpAclToCfg(asic, &cfg, "acl0", kDscp());
     utility::addTrafficCounter(
-        &cfg,
-        kCounterName(),
-        utility::getAclCounterTypes(ensemble.getL3Asics()));
+        &cfg, kCounterName(), utility::getAclCounterTypes(l3Asics));
     utility::addQueueMatcher(
         &cfg, "acl0", kQueueIdAcl(), ensemble.isSai(), kCounterName());
     return cfg;
@@ -304,7 +313,11 @@ class AgentAclConflictAndDscpQueueMappingTest
            */
           EXPECT_EVENTUALLY_GE(afterQueueOutPktsAcl - beforeQueueOutPktsAcl, 1);
 
-          EXPECT_EVENTUALLY_EQ(2, afterAclInOutPkts - beforeAclInOutPkts);
+          // On some ASICs looped back pkt hits the ACL before being
+          // dropped in the ingress pipeline, hence GE
+          EXPECT_EVENTUALLY_GE(afterAclInOutPkts, beforeAclInOutPkts + 1);
+          // At most we should get a pkt bump of 2
+          EXPECT_EVENTUALLY_LE(afterAclInOutPkts, beforeAclInOutPkts + 2);
         });
       }
     };

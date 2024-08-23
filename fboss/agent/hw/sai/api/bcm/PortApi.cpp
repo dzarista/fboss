@@ -33,7 +33,7 @@ SaiPortTraits::Attributes::AttributeDiagModeEnable::operator()() {
 
 std::optional<sai_attr_id_t>
 SaiPortTraits::Attributes::AttributeFdrEnable::operator()() {
-#if defined(BRCM_SAI_SDK_GTE_10_0) || defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_GTE_10_0) || defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   return SAI_PORT_ATTR_FDR_ENABLE;
 #else
   return std::nullopt;
@@ -81,6 +81,33 @@ std::optional<sai_attr_id_t>
 SaiPortTraits::Attributes::AttributeCrcErrorDetect::operator()() {
 #if defined(BRCM_SAI_SDK_GTE_11_0)
   return SAI_PORT_ATTR_CRC_ERROR_TOKEN_DETECT;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeCablePropogationDelayNS::operator()() {
+#if defined(BRCM_SAI_SDK_GTE_11_0) && defined(BRCM_SAI_SDK_DNX)
+  return SAI_PORT_ATTR_CABLE_PROPAGATION_DELAY;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeFabricDataCellsFilterStatus::operator()() {
+#if defined(BRCM_SAI_SDK_GTE_11_0) && defined(BRCM_SAI_SDK_DNX)
+  return SAI_PORT_ATTR_FABRIC_DATA_CELL_FILTER_STATUS;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeReachabilityGroup::operator()() {
+#if defined(BRCM_SAI_SDK_GTE_12_0) && defined(BRCM_SAI_SDK_DNX)
+  return SAI_PORT_ATTR_REACHABILITY_GROUP;
 #else
   return std::nullopt;
 #endif

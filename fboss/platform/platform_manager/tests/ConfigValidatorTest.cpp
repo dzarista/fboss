@@ -23,7 +23,7 @@ SlotTypeConfig getValidSlotTypeConfig() {
 GpioLineHandle getValidGpioLineHandle() {
   auto gpioLineHandle = GpioLineHandle();
   gpioLineHandle.devicePath() = "/SMB_SLOT@0/[SMB_PCA]";
-  gpioLineHandle.desiredValue() = "1";
+  gpioLineHandle.desiredValue() = 1;
   gpioLineHandle.lineIndex() = 4;
   return gpioLineHandle;
 }
@@ -53,11 +53,53 @@ TEST(ConfigValidatorTest, InvalidPlatformName) {
   EXPECT_FALSE(ConfigValidator().isValid(config));
 }
 
+TEST(ConfigValidatorTest, InvalidRootSlotType) {
+  auto config = PlatformConfig();
+  config.platformName() = "MERU400BIU";
+  config.rootSlotType() = "SCM_SLOT";
+  config.bspKmodsRpmName() = "sample_bsp_rpm";
+  config.bspKmodsRpmVersion() = "1.0.0-4";
+  EXPECT_FALSE(ConfigValidator().isValid(config));
+}
+
 TEST(ConfigValidatorTest, ValidConfig) {
   auto config = PlatformConfig();
   config.platformName() = "MERU400BIU";
+  config.rootSlotType() = "SCM_SLOT";
+  config.slotTypeConfigs() = {{"SCM_SLOT", getValidSlotTypeConfig()}};
+  auto pmUnitConfig = PmUnitConfig();
+  pmUnitConfig.pluggedInSlotType() = "SCM_SLOT";
+  config.pmUnitConfigs() = {{"FAN_TRAY", pmUnitConfig}};
   config.bspKmodsRpmName() = "sample_bsp_rpm";
   config.bspKmodsRpmVersion() = "1.0.0-4";
+  EXPECT_TRUE(ConfigValidator().isValid(config));
+}
+
+TEST(ConfigValidatorTest, InvalidVersionedPmUnitConfigs) {
+  auto config = PlatformConfig();
+  config.platformName() = "MERU400BIU";
+  config.rootSlotType() = "SCM_SLOT";
+  config.slotTypeConfigs() = {{"SCM_SLOT", getValidSlotTypeConfig()}};
+  config.bspKmodsRpmName() = "sample_bsp_rpm";
+  config.bspKmodsRpmVersion() = "1.0.0-4";
+  config.versionedPmUnitConfigs() = {{"FAN_TRAY", {}}};
+  EXPECT_FALSE(ConfigValidator().isValid(config));
+  auto versionedPmUnitConfig = VersionedPmUnitConfig();
+  versionedPmUnitConfig.productSubVersion() = -1;
+  config.versionedPmUnitConfigs() = {{"FAN_TRAY", {versionedPmUnitConfig}}};
+  EXPECT_FALSE(ConfigValidator().isValid(config));
+}
+
+TEST(ConfigValidatorTest, ValidVersionedPmUnitConfigs) {
+  auto config = PlatformConfig();
+  config.platformName() = "MERU400BIU";
+  config.rootSlotType() = "SCM_SLOT";
+  config.slotTypeConfigs() = {{"SCM_SLOT", getValidSlotTypeConfig()}};
+  config.bspKmodsRpmName() = "sample_bsp_rpm";
+  config.bspKmodsRpmVersion() = "1.0.0-4";
+  auto versionedPmUnitConfig = VersionedPmUnitConfig();
+  versionedPmUnitConfig.pmUnitConfig()->pluggedInSlotType() = "SCM_SLOT";
+  config.versionedPmUnitConfigs() = {{"FAN_TRAY", {versionedPmUnitConfig}}};
   EXPECT_TRUE(ConfigValidator().isValid(config));
 }
 
@@ -94,7 +136,7 @@ TEST(ConfigValidatorTest, PresenceDetection) {
   presenceDetection.gpioLineHandle()->devicePath() = "";
   EXPECT_FALSE(ConfigValidator().isValidPresenceDetection(presenceDetection));
   presenceDetection.gpioLineHandle() = getValidGpioLineHandle();
-  presenceDetection.gpioLineHandle()->desiredValue() = "";
+  presenceDetection.gpioLineHandle()->desiredValue() = -1;
   EXPECT_FALSE(ConfigValidator().isValidPresenceDetection(presenceDetection));
   presenceDetection.gpioLineHandle() = getValidGpioLineHandle();
   presenceDetection.sysfsFileHandle() = getValidSysfsFileHandle();
