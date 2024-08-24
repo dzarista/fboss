@@ -1,7 +1,6 @@
 {
   "platformName": "meru800bfa",
   "rootPmUnitName": "SCM",
-  "rootSlotType": "SCM_SLOT",
   "slotTypeConfigs": {
     "SCM_SLOT": {
       "numOutgoingI2cBuses": 0,
@@ -4443,7 +4442,7 @@
     "/run/devmap/sensors/PSU4_PMBUS": "/SMB_SLOT@0/PSU_SLOT@3/[PSU_PMBUS]"
   },
   "bspKmodsRpmName": "arista_bsp_kmods",
-  "bspKmodsRpmVersion": "0.7.3-1",
+  "bspKmodsRpmVersion": "0.7.2-1",
   "bspKmodsToReload": [
     "scd-xcvr",
     "scd-spi",
