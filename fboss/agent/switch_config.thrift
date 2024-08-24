@@ -566,6 +566,7 @@ enum AclTableQualifier {
   OUTER_VLAN = 23,
   UDF = 24,
   BTH_OPCODE = 25,
+  IPV6_NEXT_HEADER = 26,
 }
 
 struct AclTable {
@@ -1740,6 +1741,15 @@ struct DsfNode {
   6: optional string nodeMac;
   7: AsicType asicType;
   8: fboss_common.PlatformType platformType;
+  // used by two stage ramon test setup to figure out
+  // switches inside the same local capsule.
+  // In prod, this info could be figured out from name
+  // like rdsw001.c085.n001.snc1, where 85 is cluster id.
+  9: optional i32 clusterId;
+  // Applicable only for FABRIC_NODES
+  // Denotes the level for fabric switch in
+  // the DSF n/w topology. Value is either 1 or 2
+  10: optional i32 fabricLevel;
 }
 
 /**

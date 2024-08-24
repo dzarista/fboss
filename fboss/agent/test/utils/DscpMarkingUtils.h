@@ -30,8 +30,14 @@ std::string kCounterName();
 std::string getIngressAclTableGroupName();
 uint8_t kIcpDscp();
 
-void addDscpMarkingAcls(cfg::SwitchConfig* config, bool isSai);
-void addDscpCounterAcl(cfg::SwitchConfig* config);
+void addDscpMarkingAcls(
+    const HwAsic* hwAsic,
+    cfg::SwitchConfig* config,
+    bool isSai);
+void addDscpCounterAcl(
+    const HwAsic* hwAsic,
+    cfg::SwitchConfig* config,
+    cfg::AclActionType actionType);
 void addDscpMarkingAclTable(cfg::SwitchConfig* config, bool isSai);
 void addDscpAclEntryWithCounter(
     cfg::SwitchConfig* config,

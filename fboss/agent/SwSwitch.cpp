@@ -272,6 +272,11 @@ void accumulateFb303GlobalStats(
       toAdd.packet_integrity_drops().value();
   *accumulated.dram_enqueued_bytes() += toAdd.dram_enqueued_bytes().value();
   *accumulated.dram_dequeued_bytes() += toAdd.dram_dequeued_bytes().value();
+  if (toAdd.dram_blocked_time_ns().has_value()) {
+    uint64_t dramBlockedTime = accumulated.dram_blocked_time_ns().value_or(0);
+    dramBlockedTime += toAdd.dram_blocked_time_ns().value();
+    accumulated.dram_blocked_time_ns() = dramBlockedTime;
+  }
   *accumulated.fabric_reachability_missing() +=
       toAdd.fabric_reachability_missing().value();
   *accumulated.fabric_reachability_mismatch() +=
@@ -326,8 +331,23 @@ void updatePhyFb303Stats(
     }
   }
 }
-
 } // anonymous namespace
+
+namespace std {
+template <>
+struct hash<std::set<facebook::fboss::PortID>> {
+  size_t operator()(const std::set<facebook::fboss::PortID>& portIds) const;
+};
+
+size_t hash<std::set<facebook::fboss::PortID>>::operator()(
+    const std::set<facebook::fboss::PortID>& portIds) const {
+  size_t seed = 0;
+  for (const auto& portId : portIds) {
+    boost::hash_combine(seed, static_cast<int32_t>(portId));
+  }
+  return seed;
+}
+} // namespace std
 
 namespace facebook::fboss {
 
@@ -712,9 +732,6 @@ AgentStats SwSwitch::fillFsdbStats() {
   {
     auto lockedStats = hwSwitchStats_.wlock();
     // fill stats using hwswitch exported data if available
-    if (lockedStats->empty()) {
-      return agentStats;
-    }
     for (auto& [switchIdx, hwSwitchStats] : *lockedStats) {
       // accumulate error stats from all switches in global values
       accumulateHwAsicErrorStats(
@@ -1181,7 +1198,7 @@ void SwSwitch::init(
   }
 
   // Notify the state observers of the initial state
-  updateEventBase_.runInEventBaseThread([initialState, this]() {
+  updateEventBase_.runInFbossEventBaseThread([initialState, this]() {
     notifyStateObservers(
         StateDelta(std::make_shared<SwitchState>(), initialState));
   });
@@ -1258,9 +1275,10 @@ void SwSwitch::init(const HwWriteBehavior& hwWriteBehavior, SwitchFlags flags) {
   setStateInternal(initialState);
   if (bootType_ == BootType::WARM_BOOT) {
     // Notify the state observers of the initial state
-    updateEventBase_.runInEventBaseThread([emptyState, initialState, this]() {
-      notifyStateObservers(StateDelta(emptyState, initialState));
-    });
+    updateEventBase_.runInFbossEventBaseThread(
+        [emptyState, initialState, this]() {
+          notifyStateObservers(StateDelta(emptyState, initialState));
+        });
   }
   if (FLAGS_log_all_fib_updates) {
     constexpr auto kAllFibUpdates = "all_fib_updates";
@@ -1341,12 +1359,12 @@ void SwSwitch::registerStateObserver(
     StateObserver* observer,
     const string& name) {
   XLOG(DBG2) << "Registering state observer: " << name;
-  updateEventBase_.runImmediatelyOrRunInEventBaseThreadAndWait(
+  updateEventBase_.runImmediatelyOrRunInFbossEventBaseThreadAndWait(
       [=, this]() { addStateObserver(observer, name); });
 }
 
 void SwSwitch::unregisterStateObserver(StateObserver* observer) {
-  updateEventBase_.runImmediatelyOrRunInEventBaseThreadAndWait(
+  updateEventBase_.runImmediatelyOrRunInFbossEventBaseThreadAndWait(
       [=, this]() { removeStateObserver(observer); });
 }
 
@@ -1377,6 +1395,10 @@ void SwSwitch::notifyStateObservers(const StateDelta& delta) {
     // Make sure the SwSwitch is not already being destroyed
     return;
   }
+  // Update AddrToLocalIntf map maintained in sw switch, for fast interface
+  // lookup in rx path.
+  updateAddrToLocalIntf(delta);
+
   for (auto observerName : stateObservers_) {
     try {
       auto observer = observerName.first;
@@ -1411,9 +1433,9 @@ bool SwSwitch::updateState(unique_ptr<StateUpdate> update) {
   }
 
   // Signal the update thread that updates are pending.
-  // We call runInEventBaseThread() with a static function pointer since this
-  // is more efficient than having to allocate a new bound function object.
-  updateEventBase_.runInEventBaseThread(handlePendingUpdatesHelper, this);
+  // We call runInFbossEventBaseThread() with a static function pointer since
+  // this is more efficient than having to allocate a new bound function object.
+  updateEventBase_.runInFbossEventBaseThread(handlePendingUpdatesHelper, this);
   return true;
 }
 
@@ -1837,10 +1859,18 @@ void SwSwitch::packetReceivedThrowExceptionOnError(
   handlePacket(std::move(pkt));
 }
 
+PortDescriptor SwSwitch::getPortFromPkt(const RxPacket* pkt) const {
+  if (pkt->isFromAggregatePort()) {
+    return PortDescriptor(AggregatePortID(pkt->getSrcAggregatePort()));
+  } else {
+    return PortDescriptor(PortID(pkt->getSrcPort()));
+  }
+}
+
 void SwSwitch::handlePacket(std::unique_ptr<RxPacket> pkt) {
   if (FLAGS_intf_nbr_tables) {
     auto intf = getState()->getInterfaces()->getNodeIf(
-        getState()->getInterfaceIDForPort(pkt->getSrcPort()));
+        getState()->getInterfaceIDForPort(getPortFromPkt(pkt.get())));
     handlePacketImpl(std::move(pkt), intf);
   } else {
     auto vlan =
@@ -1899,16 +1929,23 @@ void SwSwitch::handlePacketImpl(
       ? folly::to<std::string>(static_cast<int>(vlanID.value()))
       : "None";
 
-  std::stringstream ss;
-  ss << "trapped packet: src_port=" << pkt->getSrcPort() << " srcAggPort="
-     << (pkt->isFromAggregatePort()
-             ? folly::to<string>(pkt->getSrcAggregatePort())
-             : "None")
-     << " vlan=" << vlanIDStr << " length=" << len << " src=" << srcMac
-     << " dst=" << dstMac << " ethertype=0x" << std::hex << ethertype
-     << " :: " << pkt->describeDetails();
-  XLOG(DBG5) << ss.str();
-  XLOG_EVERY_N(DBG2, 10000) << "sampled " << ss.str();
+  XLOG(DBG5) << "trapped packet: src_port=" << pkt->getSrcPort()
+             << " srcAggPort="
+             << (pkt->isFromAggregatePort()
+                     ? folly::to<string>(pkt->getSrcAggregatePort())
+                     : "None")
+             << " vlan=" << vlanIDStr << " length=" << len << " src=" << srcMac
+             << " dst=" << dstMac << " ethertype=0x" << std::hex << ethertype
+             << " :: " << pkt->describeDetails();
+  XLOG_EVERY_N(DBG2, 10000)
+      << "sampled " << "trapped packet: src_port=" << pkt->getSrcPort()
+      << " srcAggPort="
+      << (pkt->isFromAggregatePort()
+              ? folly::to<string>(pkt->getSrcAggregatePort())
+              : "None")
+      << " vlan=" << vlanIDStr << " length=" << len << " src=" << srcMac
+      << " dst=" << dstMac << " ethertype=0x" << std::hex << ethertype
+      << " :: " << pkt->describeDetails();
 
   switch (ethertype) {
     case ArpHandler::ETHERTYPE_ARP:
@@ -2091,13 +2128,47 @@ void SwSwitch::linkActiveStateChanged(
     XLOG(DBG2) << "SwitchIDs: " << matcher.matcherString()
                << " numActiveFabricPorts: " << numActiveFabricPorts
                << " Switch Drain state: "
-               << getDrainStateChangedStr(getState(), newState, matcher);
+               << getDrainStateChangedStr(state, newState, matcher);
 
     return newState;
   };
   updateStateNoCoalescing(
       "Port ActiveState (ACTIVE/INACTIVE) Update",
       std::move(updateActiveStateFn));
+}
+
+void SwSwitch::switchReachabilityChanged(
+    const SwitchID switchId,
+    const std::map<SwitchID, std::set<PortID>>& switchReachabilityInfo) {
+  switch_reachability::SwitchReachability newReachability;
+  int currentIdx = 1;
+  std::unordered_map<std::set<PortID>, int> portGrp2Id;
+  for (const auto& [destinationSwitchId, portIdSet] : switchReachabilityInfo) {
+    int portGroupId;
+    auto [_, inserted] = portGrp2Id.insert({portIdSet, currentIdx});
+    if (inserted) {
+      std::vector<std::string> portGroup(portIdSet.size());
+      std::transform(
+          portIdSet.begin(),
+          portIdSet.end(),
+          portGroup.begin(),
+          [this](PortID portId) {
+            return getState()->getPorts()->getNode(portId)->getName();
+          });
+      newReachability.fabricPortGroupMap()[currentIdx] = std::move(portGroup);
+      portGroupId = currentIdx++;
+    } else {
+      // Need to find the ID for the portIdSet that was already added
+      portGroupId = portGrp2Id.find(portIdSet)->second;
+    }
+    newReachability.switchIdToFabricPortGroupMap()[static_cast<int64_t>(
+        destinationSwitchId)] = portGroupId;
+  }
+  // Update switch reachability info with the latest data
+  (*hwSwitchReachability_.wlock())[switchId] = newReachability;
+  runFsdbSyncFunction([switchId, &newReachability](auto& syncer) {
+    syncer->switchReachabilityChanged(switchId, std::move(newReachability));
+  });
 }
 
 void SwSwitch::startThreads() {
@@ -2200,34 +2271,34 @@ void SwSwitch::postInit() {
 }
 
 void SwSwitch::stopThreads() {
-  // We use runInEventBaseThread() to terminateLoopSoon() rather than calling
-  // it directly here.  This ensures that any events already scheduled via
-  // runInEventBaseThread() will have a chance to run.
+  // We use runInFbossEventBaseThread() to terminateLoopSoon() rather than
+  // calling it directly here.  This ensures that any events already scheduled
+  // via runInFbossEventBaseThread() will have a chance to run.
   //
   // Alternatively, it would be nicer to update EventBase so it can notify
   // callbacks when the event loop is being stopped.
   if (backgroundThread_) {
-    backgroundEventBase_.runInEventBaseThread(
+    backgroundEventBase_.runInFbossEventBaseThread(
         [this] { backgroundEventBase_.terminateLoopSoon(); });
   }
   if (updateThread_) {
-    updateEventBase_.runInEventBaseThread(
+    updateEventBase_.runInFbossEventBaseThread(
         [this] { updateEventBase_.terminateLoopSoon(); });
   }
   if (packetTxThread_) {
-    packetTxEventBase_.runInEventBaseThread(
+    packetTxEventBase_.runInFbossEventBaseThread(
         [this] { packetTxEventBase_.terminateLoopSoon(); });
   }
   if (pcapDistributionThread_) {
-    pcapDistributionEventBase_.runInEventBaseThread(
+    pcapDistributionEventBase_.runInFbossEventBaseThread(
         [this] { pcapDistributionEventBase_.terminateLoopSoon(); });
   }
   if (lacpThread_) {
-    lacpEventBase_.runInEventBaseThread(
+    lacpEventBase_.runInFbossEventBaseThread(
         [this] { lacpEventBase_.terminateLoopSoon(); });
   }
   if (neighborCacheThread_) {
-    neighborCacheEventBase_.runInEventBaseThread(
+    neighborCacheEventBase_.runInFbossEventBaseThread(
         [this] { neighborCacheEventBase_.terminateLoopSoon(); });
   }
   if (backgroundThread_) {
@@ -2261,7 +2332,7 @@ void SwSwitch::stopThreads() {
   } while (!updatesDrained);
 }
 
-void SwSwitch::threadLoop(StringPiece name, EventBase* eventBase) {
+void SwSwitch::threadLoop(StringPiece name, folly::EventBase* eventBase) {
   initThread(name);
   eventBase->loopForever();
 }
@@ -3273,6 +3344,38 @@ void SwSwitch::stopHwSwitchHandler() {
     getMonolithicHwSwitchHandler()->gracefulExit();
   }
   multiHwSwitchHandler_->stop();
+}
+
+void SwSwitch::updateAddrToLocalIntf(const StateDelta& delta) {
+  DeltaFunctions::forEachChanged(
+      delta.getIntfsDelta(),
+      [&](const auto& oldNode, const auto& newNode) {
+        const auto oldRouterId = oldNode->getRouterID();
+        for (const auto& [addr, _] : std::as_const(*oldNode->getAddresses())) {
+          addrToLocalIntf_.erase(
+              std::make_pair(oldRouterId, folly::IPAddress(addr)));
+        }
+        const auto newRouterId = newNode->getRouterID();
+        for (const auto& [addr, _] : std::as_const(*newNode->getAddresses())) {
+          addrToLocalIntf_.insert(
+              std::make_pair(newRouterId, folly::IPAddress(addr)),
+              newNode->getID());
+        }
+      },
+      [&](const auto& added) {
+        const auto routerId = added->getRouterID();
+        for (const auto& [addr, _] : std::as_const(*added->getAddresses())) {
+          addrToLocalIntf_.insert(
+              std::make_pair(routerId, folly::IPAddress(addr)), added->getID());
+        }
+      },
+      [&](const auto& removed) {
+        const auto routerId = removed->getRouterID();
+        for (const auto& [addr, _] : std::as_const(*removed->getAddresses())) {
+          addrToLocalIntf_.erase(
+              std::make_pair(routerId, folly::IPAddress(addr)));
+        }
+      });
 }
 
 } // namespace facebook::fboss

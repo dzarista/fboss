@@ -9,7 +9,6 @@
  */
 #include "fboss/qsfp_service/module/QsfpModule.h"
 
-#include <iomanip>
 #include <string>
 
 #include <boost/assign.hpp>
@@ -18,13 +17,9 @@
 #include <folly/io/async/EventBase.h>
 #include <folly/logging/xlog.h>
 
-#include "common/time/Time.h"
-
 #include "fboss/agent/FbossError.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
-#include "fboss/lib/usb/TransceiverI2CApi.h"
 #include "fboss/qsfp_service/StatsPublisher.h"
-#include "fboss/qsfp_service/TransceiverManager.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types.h"
 #include "fboss/qsfp_service/module/TransceiverImpl.h"
 
@@ -98,7 +93,11 @@ QsfpModule::QsfpModule(
     TransceiverImpl* qsfpImpl)
     : Transceiver(),
       qsfpImpl_(qsfpImpl),
-      snapshots_(TransceiverSnapshotCache(std::move(portNames))) {
+      snapshots_(TransceiverSnapshotCache(portNames)) {
+  CHECK(!portNames.empty())
+      << "No portNames attached to this transceiver in platform mapping";
+  StatsPublisher::initPerPortFb303Stats(portNames);
+  primaryPortName_ = *portNames.begin();
   markLastDownTime();
 }
 
@@ -245,6 +244,21 @@ TransceiverInfo QsfpModule::getTransceiverInfo() const {
   return **cachedInfo;
 }
 
+std::string QsfpModule::getPartNumber() const {
+  std::string partNumber = "UNKNOWN";
+  try {
+    auto transceiverInfo = getTransceiverInfo();
+    const auto& cachedTcvrState = transceiverInfo.tcvrState();
+    const auto& vendor = cachedTcvrState.value().vendor();
+    if (vendor.has_value()) {
+      partNumber = vendor.value().get_partNumber();
+    }
+  } catch (const std::exception& ex) {
+    QSFP_LOG(ERR, this) << "Error calling getTransceiverInfo(): " << ex.what();
+  }
+  return partNumber;
+}
+
 Transceiver::TransceiverPresenceDetectionStatus QsfpModule::detectPresence() {
   lock_guard<std::mutex> g(qsfpModuleMutex_);
   return detectPresenceLocked();
@@ -373,11 +387,13 @@ void QsfpModule::updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus) {
     if (auto tempFlags = sensorInfo.temp()->flags()) {
       if (*tempFlags->alarm()->high() || *tempFlags->warn()->high()) {
         StatsPublisher::bumpHighTemp();
+        StatsPublisher::bumpHighTempPort(primaryPortName_);
       }
     }
     if (auto vccFlags = sensorInfo.vcc()->flags()) {
       if (*vccFlags->alarm()->high() || *vccFlags->warn()->high()) {
         StatsPublisher::bumpHighVcc();
+        StatsPublisher::bumpHighVccPort(primaryPortName_);
       }
     }
     tcvrStats.sensor() = sensorInfo;

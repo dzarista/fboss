@@ -435,6 +435,12 @@ void HwSwitchEnsemble::linkActiveStateChanged(
   // TODO
 }
 
+void HwSwitchEnsemble::switchReachabilityChanged(
+    const SwitchID /*switchId*/,
+    const std::map<SwitchID, std::set<PortID>>& /*switchReachabilityInfo*/) {
+  // TODO
+}
+
 void HwSwitchEnsemble::packetReceived(std::unique_ptr<RxPacket> pkt) noexcept {
   auto hwEventObservers = hwEventObservers_.rlock();
   std::for_each(
@@ -573,7 +579,11 @@ std::map<SystemPortID, HwSysPortStats> HwSwitchEnsemble::getLatestSysPortStats(
     auto portName = portStatName.substr(0, portStatName.find_last_of("_"));
     SystemPortID portId;
     try {
-      portId = swState->getSystemPorts()->getSystemPort(portName)->getID();
+      if (portName.find("cpu") != std::string::npos) {
+        portId = 0;
+      } else {
+        portId = swState->getSystemPorts()->getSystemPort(portName)->getID();
+      }
     } catch (const FbossError&) {
       // Look in remote sys ports if we couldn't find in local sys ports
       portId =

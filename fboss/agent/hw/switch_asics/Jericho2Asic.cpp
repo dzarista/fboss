@@ -84,6 +84,7 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::ANY_TRAP_DROP_COUNTER:
     case HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY:
     case HwAsic::Feature::SAI_ECMP_HASH_ALGORITHM:
+    case HwAsic::Feature::ACL_BYTE_COUNTER:
       return true;
     case HwAsic::Feature::UDF_HASH_FIELD_QUERY:
     case HwAsic::Feature::IN_PAUSE_INCREMENTS_DISCARDS:
@@ -171,6 +172,15 @@ bool Jericho2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::CRC_ERROR_DETECT:
     case HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW:
     case HwAsic::Feature::CPU_VOQ_BUFFER_PROFILE:
+    case HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY:
+    case HwAsic::Feature::CABLE_PROPOGATION_DELAY:
+    case HwAsic::Feature::DATA_CELL_FILTER:
+    case HwAsic::Feature::DRAM_BLOCK_TIME:
+    case HwAsic::Feature::VOQ_LATENCY_WATERMARK_BIN:
+    case HwAsic::Feature::ACL_ENTRY_ETHER_TYPE:
+    case HwAsic::Feature::EGRESS_CORE_BUFFER_WATERMARK:
+    case HwAsic::Feature::DELETED_CREDITS_STAT:
+    case HwAsic::Feature::INGRESS_PRIORITY_GROUP_DROPPED_PACKETS:
       return false;
   }
   return false;

@@ -111,6 +111,21 @@ SaiPortTraits::Attributes::AttributeRxLaneSquelchEnable::operator()() {
 }
 
 std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeCablePropogationDelayNS::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeFabricDataCellsFilterStatus::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeReachabilityGroup::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
 SaiSwitchTraits::Attributes::AttributeRestartIssuWrapper::operator()() {
   return SAI_SWITCH_ATTR_EXT_RESTART_ISSU;
 }
@@ -150,6 +165,21 @@ SaiBufferProfileTraits::Attributes::AttributeSharedFadtMaxTh::operator()() {
   return std::nullopt;
 }
 
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeRouteNoImplicitMetaDataWrapper::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeRouteAllowImplicitMetaDataWrapper::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeMultiStageLocalSwitchIdsWrapper::operator()() {
+  return std::nullopt;
+}
+
 const std::vector<sai_stat_id_t>& SaiSwitchTraits::dramStats() {
   static const std::vector<sai_stat_id_t> stats;
   return stats;
@@ -163,5 +193,56 @@ const std::vector<sai_stat_id_t>& SaiSwitchTraits::rciWatermarkStats() {
 const std::vector<sai_stat_id_t>& SaiSwitchTraits::dtlWatermarkStats() {
   static const std::vector<sai_stat_id_t> stats;
   return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::dramBlockTime() {
+  static const std::vector<sai_stat_id_t> stats;
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>& SaiSwitchTraits::deletedCredits() {
+  static const std::vector<sai_stat_id_t> stats;
+  return stats;
+}
+
+const std::vector<sai_stat_id_t>&
+SaiSwitchTraits::egressCoreBufferWatermarkBytes() {
+  static const std::vector<sai_stat_id_t> stats;
+  return stats;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMinLocalNs::operator()() {
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MIN_LOCAL;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMaxLocalNs::operator()() {
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MAX_LOCAL;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMinLevel1Ns::operator()() {
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MIN_LEVEL_1;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMaxLevel1Ns::operator()() {
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MAX_LEVEL_1;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMinLevel2Ns::operator()() {
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MIN_LEVEL_2;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqLatencyMaxLevel2Ns::operator()() {
+  return SAI_SWITCH_ATTR_VOQ_LATENCY_MAX_LEVEL_2;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeReachabilityGroupList::operator()() {
+  return SAI_SWITCH_ATTR_REACHABILITY_GROUP_LIST;
 }
 } // namespace facebook::fboss

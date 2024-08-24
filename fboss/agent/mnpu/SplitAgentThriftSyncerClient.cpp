@@ -90,6 +90,7 @@ folly::coro::Task<void> SplitAgentThriftClient::serviceLoopWrapper() {
   try {
     co_await serveStream();
   } catch (const folly::OperationCancelled&) {
+    XLOG(DBG2) << "Server cancelled stream for " << clientId();
     bool wasConnected = isConnectedToServer();
     setState(State::CANCELLED);
     if (wasConnected) {
@@ -221,8 +222,10 @@ ThriftSinkClient<CallbackObjectT, EventQueueT>::~ThriftSinkClient() {
 template <typename CallbackObjectT, typename EventQueueT>
 void ThriftSinkClient<CallbackObjectT, EventQueueT>::onCancellation() {
   auto dummyEvent = CallbackObjectT();
-  if constexpr (std::is_same_v<EventQueueT, RxPktEventQueueType>) {
-    folly::coro::blockingWait(eventsQueue_.enqueue(std::move(dummyEvent)));
+  if constexpr (std::is_same_v<
+                    EventQueueT,
+                    folly::coro::BoundedQueue<CallbackObjectT, true, true>>) {
+    eventsQueue_.try_enqueue(std::move(dummyEvent));
   } else {
     eventsQueue_.enqueue(std::move(dummyEvent));
   }
@@ -314,5 +317,8 @@ template class ThriftStreamClient<multiswitch::TxPacket>;
 template class ThriftSinkClient<
     multiswitch::HwSwitchStats,
     StatsEventQueueType>;
+template class ThriftSinkClient<
+    multiswitch::SwitchReachabilityChangeEvent,
+    SwitchReachabilityChangeEventQueueType>;
 
 } // namespace facebook::fboss

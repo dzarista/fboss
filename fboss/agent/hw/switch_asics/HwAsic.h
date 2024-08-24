@@ -15,7 +15,7 @@ class HwAsic {
       std::optional<int64_t> switchId,
       int16_t switchIndex,
       std::optional<cfg::Range64> systemPortRange,
-      folly::MacAddress& mac,
+      const folly::MacAddress& mac,
       std::optional<cfg::SdkVersion> sdkVersion = std::nullopt,
       std::unordered_set<cfg::SwitchType> supportedModes = {
           cfg::SwitchType::NPU});
@@ -179,6 +179,16 @@ class HwAsic {
     EVENTOR_PORT_FOR_SFLOW,
     CPU_VOQ_BUFFER_PROFILE,
     SAI_ECMP_HASH_ALGORITHM,
+    SWITCH_REACHABILITY_CHANGE_NOTIFY,
+    CABLE_PROPOGATION_DELAY,
+    DRAM_BLOCK_TIME,
+    VOQ_LATENCY_WATERMARK_BIN,
+    ACL_ENTRY_ETHER_TYPE,
+    ACL_BYTE_COUNTER,
+    DATA_CELL_FILTER,
+    EGRESS_CORE_BUFFER_WATERMARK,
+    DELETED_CREDITS_STAT,
+    INGRESS_PRIORITY_GROUP_DROPPED_PACKETS,
   };
 
   enum class AsicMode {
@@ -201,7 +211,7 @@ class HwAsic {
       std::optional<int64_t> switchID,
       int16_t switchIndex,
       std::optional<cfg::Range64> systemPortRange,
-      folly::MacAddress& mac,
+      const folly::MacAddress& mac,
       std::optional<cfg::SdkVersion> sdkVersion);
   virtual bool isSupported(Feature) const = 0;
   virtual cfg::AsicType getAsicType() const = 0;
@@ -345,6 +355,8 @@ class HwAsic {
   const folly::MacAddress& getAsicMac() const {
     return asicMac_;
   }
+  virtual std::optional<uint32_t> computePortGroupSkew(
+      const std::map<PortID, uint32_t>& portId2cableLen) const;
 
   struct RecyclePortInfo {
     uint32_t coreId;

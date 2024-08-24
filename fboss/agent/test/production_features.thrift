@@ -46,6 +46,14 @@ enum ProductionFeature {
   INTERFACE_NEIGHBOR_TABLE = 33,
   INGRESS_MIRRORING = 34,
   EGRESS_MIRRORING = 35,
+  RSW_ROUTE_SCALE = 36,
+  FSW_ROUTE_SCALE = 37,
+  HGRID_DU_ROUTE_SCALE = 38,
+  HGRID_UU_ROUTE_SCALE = 39,
+  HUNDRED_THOUSAND_ROUTE_SCALE = 40,
+  TH_ALPM_ROUTE_SCALE = 41,
+  # production feature which is present on all platforms, keep it at the end
+  HW_SWITCH = 65536,
 }
 
 struct AsicToProductionFeatures {

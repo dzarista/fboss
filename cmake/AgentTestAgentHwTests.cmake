@@ -27,6 +27,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentOlympicQosSchedulerTests.cpp
   fboss/agent/test/agent_hw_tests/AgentQueuePerHostL2Tests.cpp
   fboss/agent/test/agent_hw_tests/AgentQueuePerHostTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentQueuePerHostRouteTests.cpp
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchTests.cpp
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchInterruptsTests.cpp
   fboss/agent/test/agent_hw_tests/AgentFabricSwitchTests.cpp
@@ -41,10 +42,16 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentSwitchStatsTxCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentMmuTuningTests.cpp
   fboss/agent/test/agent_hw_tests/AgentSflowMirrorTest.cpp
+  fboss/agent/test/agent_hw_tests/AgentAclPriorityTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentTrunkLoadBalancerTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentRxReasonTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentRouteScaleTests.cpp
+  fboss/agent/test/agent_hw_tests/MultiNodeAgentVoqSwitchTests.cpp
 )
 
 target_link_libraries(agent_hw_test_src
   acl_test_utils
+  address_utils
   agent_test_utils
   aqm_test_utils
   copp_test_utils
@@ -58,6 +65,7 @@ target_link_libraries(agent_hw_test_src
   core
   hw_asic_table
   hw_switch_fb303_stats
+  hw_resource_stats_publisher
   config_factory
   agent_hw_test
   ecmp_helper
@@ -106,6 +114,7 @@ function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
     hw_packet_utils
     olympic_qos_utils
     traffic_policy_utils
+    sai_traced_api
     -Wl,--no-whole-archive
   )
 

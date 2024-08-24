@@ -40,6 +40,7 @@ class MockHwSwitch : public HwSwitch {
       std::shared_ptr<SwitchState>(
           const StateDelta& delta,
           const HwWriteBehaviorRAII&));
+  MOCK_CONST_METHOD0(reconstructSwitchState, std::shared_ptr<SwitchState>());
 
   std::unique_ptr<TxPacket> allocatePacket(uint32_t size) const override;
 
@@ -150,6 +151,7 @@ class MockHwSwitch : public HwSwitch {
   MOCK_METHOD0(syncLinkStates, void());
   MOCK_METHOD0(syncLinkActiveStates, void());
   MOCK_METHOD0(syncLinkConnectivity, void());
+  MOCK_METHOD0(syncSwitchReachability, void());
 
   MockPlatform* platform_;
 

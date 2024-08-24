@@ -12,6 +12,7 @@
 
 #include <fboss/fsdb/common/Utils.h>
 #include <fboss/fsdb/oper/CowDeletePathTraverseHelper.h>
+#include <fboss/fsdb/oper/CowInitialSyncTraverseHelper.h>
 #include <fboss/fsdb/oper/CowPublishAndAddTraverseHelper.h>
 #include <fboss/fsdb/oper/CowSubscriptionTraverseHelper.h>
 #include <fboss/fsdb/oper/SubscriptionManager.h>
@@ -21,9 +22,10 @@
 #include <fboss/thrift_cow/visitors/PatchBuilder.h>
 #include <fboss/thrift_cow/visitors/PathVisitor.h>
 #include <fboss/thrift_cow/visitors/RecurseVisitor.h>
-#include <folly/Traits.h>
 #include "fboss/fsdb/if/gen-cpp2/fsdb_oper_fatal_types.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
+
+#include <folly/Traits.h>
 
 namespace facebook::fboss::fsdb {
 
@@ -40,53 +42,83 @@ constexpr bool is_shared_ptr_v = is_shared_ptr<T>::value;
 
 namespace csm_detail {
 template <typename NodeT>
-class OperDeltaUnitCache {
+class OperUnitCache {
  public:
-  OperDeltaUnitCache(
+  OperUnitCache(
       const std::vector<std::string>& path,
       // TODO: use serializable
       const NodeT& oldNode,
       const NodeT& newNode)
       : path_(path), oldNode_(oldNode), newNode_(newNode) {}
 
-  const OperDeltaUnit& binaryUnit() {
-    return getOrBuild(binaryUnit_, fsdb::OperProtocol::BINARY);
-  }
-
-  const OperDeltaUnit& compactUnit() {
-    return getOrBuild(compactUnit_, fsdb::OperProtocol::COMPACT);
-  }
-
-  const OperDeltaUnit& jsonUnit() {
-    return getOrBuild(jsonUnit_, fsdb::OperProtocol::SIMPLE_JSON);
-  }
-
-  const OperDeltaUnit& getEncoded(fsdb::OperProtocol protocol) {
+  const OperDeltaUnit& getEncodedDelta(const fsdb::OperProtocol& protocol) {
     switch (protocol) {
       case fsdb::OperProtocol::BINARY:
-        return binaryUnit();
+        return getOrBuildDelta(binaryUnit_, fsdb::OperProtocol::BINARY);
       case fsdb::OperProtocol::COMPACT:
-        return compactUnit();
+        return getOrBuildDelta(compactUnit_, fsdb::OperProtocol::COMPACT);
       case fsdb::OperProtocol::SIMPLE_JSON:
-        return jsonUnit();
+        return getOrBuildDelta(jsonUnit_, fsdb::OperProtocol::SIMPLE_JSON);
+    }
+    throw std::runtime_error("Unsupported protocol");
+  }
+
+  const std::optional<folly::fbstring>& getEncodedState(
+      const fsdb::OperProtocol& protocol,
+      bool newState = true) {
+    switch (protocol) {
+      case fsdb::OperProtocol::BINARY:
+        return getOrBuildState(
+            newState ? newStateBinary_ : oldStateBinary_,
+            fsdb::OperProtocol::BINARY,
+            newState);
+      case fsdb::OperProtocol::COMPACT:
+        return getOrBuildState(
+            newState ? newStateCompact_ : oldStateCompact_,
+            fsdb::OperProtocol::COMPACT,
+            newState);
+      case fsdb::OperProtocol::SIMPLE_JSON:
+        return getOrBuildState(
+            newState ? newStateJson_ : oldStateJson_,
+            fsdb::OperProtocol::SIMPLE_JSON,
+            newState);
     }
     throw std::runtime_error("Unsupported protocol");
   }
 
  private:
-  const OperDeltaUnit& getOrBuild(
+  const OperDeltaUnit& getOrBuildDelta(
       std::optional<OperDeltaUnit>& unit,
-      fsdb::OperProtocol protocol) {
+      const fsdb::OperProtocol& protocol) {
     if (!unit.has_value()) {
-      unit = buildOperDeltaUnit(path_, oldNode_, newNode_, protocol);
+      unit.emplace();
+      unit->path()->raw() = path_;
+      unit->oldState().from_optional(
+          getEncodedState(protocol, false /* newState */));
+      unit->newState().from_optional(
+          getEncodedState(protocol, true /* newState */));
     }
     return *unit;
+  }
+  const std::optional<folly::fbstring>& getOrBuildState(
+      std::optional<folly::fbstring>& state,
+      const fsdb::OperProtocol& protocol,
+      bool newState = true) {
+    const auto& node = newState ? newNode_ : oldNode_;
+    if (!state.has_value() && node) {
+      state = node->encode(protocol);
+    }
+    return state;
   }
 
   const std::vector<std::string>& path_;
   const NodeT& oldNode_;
   const NodeT& newNode_;
   std::optional<OperDeltaUnit> binaryUnit_, compactUnit_, jsonUnit_;
+  std::optional<folly::fbstring> newStateBinary_, newStateCompact_,
+      newStateJson_;
+  std::optional<folly::fbstring> oldStateBinary_, oldStateCompact_,
+      oldStateJson_;
 };
 } // namespace csm_detail
 
@@ -99,27 +131,28 @@ class CowSubscriptionManager
 
   using Base::Base;
   using Base::patchOperProtocol;
+  using Base::publishAndAddPaths;
+  using Base::serveSubscriptions;
 
  private:
-  template <typename NodeT>
+  template <typename OperCache>
   void servePathEncoded(
       BasePathSubscription* subscription,
-      NodeT&& oldNode,
-      NodeT&& newNode,
+      OperCache& cache,
       OperProtocol protocol,
-      const Root& newStorage,
       const SubscriptionMetadataServer& metadataServer) {
     std::optional<OperState> oldState, newState;
-    if (oldNode) {
+    if (cache.getEncodedState(protocol, false)) {
       oldState.emplace();
-      oldState->contents() = oldNode->encode(protocol);
+      oldState->contents().from_optional(
+          cache.getEncodedState(protocol, false));
       oldState->protocol() = protocol;
       // No metadata for oldState, we don't maintain metadata
       // history
     }
-    if (newNode) {
+    if (cache.getEncodedState(protocol, true)) {
       newState.emplace();
-      newState->contents() = newNode->encode(protocol);
+      newState->contents().from_optional(cache.getEncodedState(protocol, true));
       newState->protocol() = protocol;
       newState->metadata() = subscription->getMetadata(metadataServer);
     }
@@ -128,75 +161,100 @@ class CowSubscriptionManager
   }
 
   void doInitialSyncSimple(
-      const Root& newRoot,
+      SubscriptionStore& store,
+      const std::shared_ptr<Root>& newRoot,
       const SubscriptionMetadataServer& metadataServer) {
-    auto it = this->initialSyncNeeded_.begin();
-    while (it != this->initialSyncNeeded_.end()) {
-      auto& subscription = *it;
-
-      if (!metadataServer.ready(subscription->publisherTreeRoot())) {
-        ++it;
-        continue;
+    auto processPath = [&](CowInitialSyncTraverseHelper& traverser,
+                           const auto& node) {
+      SubscriptionPathStore* lookup = traverser.currentStore();
+      if (!lookup) {
+        // no subscriptions here
+        return;
       }
+      // we should only get a visit if we have a subscription needing initial
+      // sync, in which case we should have a lookup
+      CHECK(lookup);
+      CHECK(node);
+      auto oldNode = std::remove_cvref_t<decltype(node)>();
+      csm_detail::OperUnitCache operUnitCache(traverser.path(), oldNode, node);
 
-      const auto& path = subscription->path();
-
-      thrift_cow::GetEncodedPathVisitorOperator op(
-          subscription->operProtocol());
-      const auto& root = *newRoot.root();
-      thrift_cow::RootPathVisitor::visit(
-          root, path.begin(), path.end(), thrift_cow::PathVisitMode::LEAF, op);
-      if (op.val) {
+      // TODO: maybe switch to reverse iter to erase is cheaper
+      auto& subscriptions = lookup->subscriptions();
+      auto it = subscriptions.begin();
+      while (it != subscriptions.end()) {
+        auto& subscription = *it;
+        CHECK(subscription);
+        if (!metadataServer.ready(subscription->publisherTreeRoot())) {
+          ++it;
+          continue;
+        }
         if (subscription->type() == PubSubType::PATH) {
           auto pathSubscription =
               static_cast<BasePathSubscription*>(subscription);
           std::optional<OperState> state;
           state.emplace();
-          state->contents() = *op.val;
+          state->contents().from_optional(
+              operUnitCache.getEncodedState(subscription->operProtocol()));
           state->protocol() = subscription->operProtocol();
           state->metadata() = subscription->getMetadata(metadataServer);
           auto value = DeltaValue<OperState>(std::nullopt, std::move(state));
           pathSubscription->offer(std::move(value));
         } else if (subscription->type() == PubSubType::DELTA) {
-          // Delta subscription
-          OperDeltaUnit deltaUnit;
-          deltaUnit.path()->raw() = path;
-          deltaUnit.newState() = *op.val;
           auto deltaSubscription =
               static_cast<BaseDeltaSubscription*>(subscription);
-          deltaSubscription->appendRootDeltaUnit(std::move(deltaUnit));
-          deltaSubscription->flush(metadataServer);
+          deltaSubscription->appendRootDeltaUnit(
+              operUnitCache.getEncodedDelta(subscription->operProtocol()));
         } else if (subscription->type() == PubSubType::PATCH) {
           auto patchSubscription =
               static_cast<PatchSubscription*>(subscription);
           thrift_cow::PatchNode patchNode;
-          // TODO: try to change to a shared holding a IOBuf instead of copying
-          // from an fbstring
-          auto buf = folly::IOBuf::copyBuffer(op.val->data(), op.val->length());
+          // TODO: try to change to a shared holding a IOBuf instead of
+          // copying from an fbstring
+          auto& state =
+              operUnitCache.getEncodedState(subscription->operProtocol());
+          auto buf = folly::IOBuf::copyBuffer(state->data(), state->length());
           patchNode.set_val(*buf);
           patchSubscription->offer(std::move(patchNode));
-          patchSubscription->flush(metadataServer);
         }
-      } else if (this->requireResponseOnInitialSync_) {
-        // on initialSync, offer even an empty value
-        subscription->serveHeartbeat();
+        store.lookup().add(subscription);
+        subscription->firstChunkSent();
+        // TODO: trim empty path store nodes
+        it = subscriptions.erase(it);
       }
+    };
 
-      this->lookup_.add(subscription);
-      it = this->initialSyncNeeded_.erase(it);
+    auto traverser = CowInitialSyncTraverseHelper(&store.initialSyncNeeded());
+    thrift_cow::RootRecurseVisitor::visit(
+        traverser,
+        newRoot,
+        thrift_cow::RecurseVisitOptions(
+            thrift_cow::RecurseVisitMode::FULL,
+            thrift_cow::RecurseVisitOrder::CHILDREN_FIRST,
+            this->useIdPaths_),
+        std::move(processPath));
+    if (this->requireResponseOnInitialSync_) {
+      for (auto& [_, subscription] : store.subscriptions()) {
+        if (metadataServer.ready(subscription->publisherTreeRoot()) &&
+            subscription->needsFirstChunk()) {
+          subscription->serveHeartbeat();
+          subscription->firstChunkSent();
+        }
+      }
+      // on initialSync, offer even an empty value
     }
   }
 
   void doInitialSyncExtended(
-      const Root& newRoot,
+      SubscriptionStore& store,
+      const std::shared_ptr<Root>& newRoot,
       const SubscriptionMetadataServer& metadataServer) {
-    const auto& root = *newRoot.root();
+    const auto& root = *newRoot;
     auto process = [&](const auto& path, auto& node) {
-      this->processAddedPath(path.begin(), path.end());
+      store.processAddedPath(path.begin(), path.end());
     };
 
-    auto it = this->initialSyncNeededExtended_.begin();
-    while (it != this->initialSyncNeededExtended_.end()) {
+    auto it = store.initialSyncNeededExtended().begin();
+    while (it != store.initialSyncNeededExtended().end()) {
       auto& subscription = *it;
 
       if (!metadataServer.ready(subscription->publisherTreeRoot())) {
@@ -208,19 +266,21 @@ class CowSubscriptionManager
       for (const auto& [key, path] : paths) {
         // seed beginnings of the path in to lookup tree
         std::vector<std::string> emptyPathSoFar;
-        this->lookup_.incrementallyResolve(
-            *this, subscription, key, emptyPathSoFar);
+        store.lookup().incrementallyResolve(
+            store, subscription, key, emptyPathSoFar);
 
         thrift_cow::ExtPathVisitorOptions options(this->useIdPaths_);
         thrift_cow::RootExtendedPathVisitor::visit(
             root, path.path()->begin(), path.path()->end(), options, process);
       }
-      it = this->initialSyncNeededExtended_.erase(it);
+      it = store.initialSyncNeededExtended().erase(it);
     }
   }
 
  public:
-  void publishAndAddPaths(Root& storage) {
+  void publishAndAddPaths(
+      SubscriptionStore& store,
+      std::shared_ptr<Root>& root) {
     // this helper recurses through all unpublished paths and ensures
     // that we tell SubscriptionPathStore of any new paths.
     auto processPath = [&](const std::vector<std::string>& /*path*/,
@@ -233,8 +293,7 @@ class CowSubscriptionManager
       }
     };
 
-    auto root = storage.root();
-    CowPublishAndAddTraverseHelper traverser(&this->lookup_, this);
+    CowPublishAndAddTraverseHelper traverser(&store.lookup(), &store);
     thrift_cow::RootRecurseVisitor::visit(
         traverser,
         root,
@@ -245,14 +304,13 @@ class CowSubscriptionManager
         std::move(processPath));
   }
 
-  void pruneDeletedPaths(const Root& oldStorage, const Root& newStorage) {
+  void pruneDeletedPaths(
+      SubscriptionPathStore* lookup,
+      const std::shared_ptr<Root>& oldRoot,
+      const std::shared_ptr<Root>& newRoot) {
     // This helper uses DeltaVisitor to visit all deleted nodes in
     // CHILDREN_FIRST order, and remove SubscriptionPathStores created
     // for corresponding paths.
-
-    const auto oldRoot = oldStorage.root();
-    const auto newRoot = newStorage.root();
-
     if (!oldRoot) {
       return;
     }
@@ -277,7 +335,7 @@ class CowSubscriptionManager
       }
     };
 
-    CowDeletePathTraverseHelper traverser(&this->lookup_);
+    CowDeletePathTraverseHelper traverser(lookup);
 
     thrift_cow::RootDeltaVisitor::visit(
         traverser,
@@ -291,8 +349,9 @@ class CowSubscriptionManager
   }
 
   void serveSubscriptions(
-      const Root& oldStorage,
-      const Root& newStorage,
+      SubscriptionStore& store,
+      const std::shared_ptr<Root>& oldRoot,
+      const std::shared_ptr<Root>& newRoot,
       const SubscriptionMetadataServer& metadataServer) {
     auto processChange = [&](CowSubscriptionTraverseHelper& traverser,
                              auto& oldNode,
@@ -327,7 +386,7 @@ class CowSubscriptionManager
 
       auto& path = traverser.path();
 
-      csm_detail::OperDeltaUnitCache deltaUnitCache(path, oldNode, newNode);
+      csm_detail::OperUnitCache operUnitCache(path, oldNode, newNode);
 
       if (lookup) {
         const auto& exactSubscriptions = lookup->subscriptions();
@@ -335,20 +394,18 @@ class CowSubscriptionManager
           if (relevant->type() == PubSubType::PATH) {
             auto* pathSubscription =
                 static_cast<BasePathSubscription*>(relevant);
-
+            // TODO: cache encoded state
             servePathEncoded(
                 pathSubscription,
-                oldNode,
-                newNode,
+                operUnitCache,
                 pathSubscription->operProtocol(),
-                newStorage,
                 metadataServer);
           } else if (relevant->type() == PubSubType::DELTA) {
             if (isMinimalOrAddedOrRemoved) {
               auto* deltaSubscription =
                   static_cast<DeltaSubscription*>(relevant);
               deltaSubscription->appendRootDeltaUnit(
-                  deltaUnitCache.getEncoded(relevant->operProtocol()));
+                  operUnitCache.getEncodedDelta(relevant->operProtocol()));
             }
           } else if (
               relevant->type() == PubSubType::PATCH &&
@@ -381,13 +438,10 @@ class CowSubscriptionManager
           }
           auto* deltaSubscription = static_cast<DeltaSubscription*>(relevant);
           deltaSubscription->appendRootDeltaUnit(
-              deltaUnitCache.getEncoded(relevant->operProtocol()));
+              operUnitCache.getEncodedDelta(relevant->operProtocol()));
         }
       }
     };
-
-    const auto& [oldRoot, newRoot] =
-        std::tie(oldStorage.root(), newStorage.root());
 
     // can only build patches with id paths
     std::optional<thrift_cow::PatchNodeBuilder> patchBuilder;
@@ -395,7 +449,7 @@ class CowSubscriptionManager
       patchBuilder.emplace(
           patchOperProtocol(), true /* incrementallyCompress */);
     }
-    CowSubscriptionTraverseHelper traverser(&this->lookup_, patchBuilder);
+    CowSubscriptionTraverseHelper traverser(&store.lookup(), patchBuilder);
     if (oldRoot && newRoot) {
       thrift_cow::RootDeltaVisitor::visit(
           traverser,
@@ -410,12 +464,11 @@ class CowSubscriptionManager
       processChange(
           traverser, oldRoot, newRoot, thrift_cow::DeltaElemTag::MINIMAL);
     }
-
-    this->flush(metadataServer);
   }
 
   void doInitialSync(
-      const Root& newRoot,
+      SubscriptionStore& store,
+      const std::shared_ptr<Root>& newRoot,
       const SubscriptionMetadataServer& metadataServer) {
     /*
      * It is important we do the extended subscriptions before the
@@ -423,9 +476,8 @@ class CowSubscriptionManager
      * the initial sync needed set based on the initial matching paths.
      */
 
-    doInitialSyncExtended(newRoot, metadataServer);
-    doInitialSyncSimple(newRoot, metadataServer);
-    this->flush(metadataServer);
+    doInitialSyncExtended(store, newRoot, metadataServer);
+    doInitialSyncSimple(store, newRoot, metadataServer);
   }
 
 }; // namespace facebook::fboss::fsdb

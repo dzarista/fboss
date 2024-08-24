@@ -10,6 +10,7 @@
 #pragma once
 
 #include "fboss/agent/FabricConnectivityManager.h"
+#include "fboss/agent/FbossEventBase.h"
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/L2Entry.h"
 #include "fboss/agent/hw/HwSwitchFb303Stats.h"
@@ -21,7 +22,6 @@
 #include "fboss/agent/platforms/sai/SaiPlatform.h"
 #include "folly/MacAddress.h"
 
-#include <folly/io/async/EventBase.h>
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 
 #include <memory>
@@ -230,8 +230,11 @@ class SaiSwitch : public HwSwitch {
   void syncLinkStates() override;
   void syncLinkActiveStates() override;
   void syncLinkConnectivity() override;
+  void syncSwitchReachability() override;
 
   AclStats getAclStats() const override;
+
+  std::shared_ptr<SwitchState> reconstructSwitchState() const override;
 
  private:
   void gracefulExitImpl() override;
@@ -257,6 +260,7 @@ class SaiSwitch : public HwSwitch {
 
   void updateStatsImpl() override;
   void reportAsymmetricTopology() const;
+  void reportInterPortGroupCableSkew() const;
   template <typename LockPolicyT>
   void updateResourceUsage(const LockPolicyT& lockPolicy);
   /*
@@ -381,6 +385,8 @@ class SaiSwitch : public HwSwitch {
       std::vector<sai_port_oper_status_notification_t> data);
   void txReadyStatusChangeCallbackBottomHalf();
   void switchReachabilityChangeBottomHalf();
+  std::set<PortID> getFabricReachabilityPortIds(
+      const std::vector<sai_object_id_t>& switchIdAndFabricPortSaiIds) const;
 
   uint64_t getDeviceWatermarkBytesLocked(
       const std::lock_guard<std::mutex>& lock) const;
@@ -396,6 +402,11 @@ class SaiSwitch : public HwSwitch {
 
   void syncLinkStatesLocked(const std::lock_guard<std::mutex>& lock);
   void syncLinkConnectivityLocked(const std::lock_guard<std::mutex>& lock);
+
+  template <typename LockPolicyT>
+  void processLocalCapsuleSwitchIdsDelta(
+      const StateDelta& delta,
+      const LockPolicyT& lockPolicy);
 
   template <typename LockPolicyT>
   void processDefaultDataPlanePolicyDelta(
@@ -532,6 +543,11 @@ class SaiSwitch : public HwSwitch {
       std::optional<cfg::PfcWatchdogRecoveryAction> recoveryAction);
   void setFabricPortOwnershipToAdapter();
 
+  /* reconstruction state apis */
+  std::shared_ptr<MultiSwitchAclTableGroupMap>
+  reconstructMultiSwitchAclTableGroupMap() const;
+  std::shared_ptr<MultiSwitchAclMap> reconstructMultiSwitchAclMap() const;
+
   /*
    * SaiSwitch must support a few varieties of concurrent access:
    * 1. state updates on the SwSwitch update thread calling stateChanged
@@ -569,26 +585,28 @@ class SaiSwitch : public HwSwitch {
   SwitchSaiId saiSwitchId_;
 
   std::unique_ptr<std::thread> linkStateBottomHalfThread_;
-  folly::EventBase linkStateBottomHalfEventBase_;
+  FbossEventBase linkStateBottomHalfEventBase_;
   std::unique_ptr<std::thread> fdbEventBottomHalfThread_;
-  folly::EventBase fdbEventBottomHalfEventBase_;
+  FbossEventBase fdbEventBottomHalfEventBase_;
   std::unique_ptr<std::thread> txReadyStatusChangeBottomHalfThread_;
-  folly::EventBase txReadyStatusChangeBottomHalfEventBase_;
+  FbossEventBase txReadyStatusChangeBottomHalfEventBase_;
   std::unique_ptr<std::thread> linkConnectivityChangeBottomHalfThread_;
-  folly::EventBase linkConnectivityChangeBottomHalfEventBase_;
+  FbossEventBase linkConnectivityChangeBottomHalfEventBase_;
   std::unique_ptr<std::thread> switchReachabilityChangeBottomHalfThread_;
-  folly::EventBase switchReachabilityChangeBottomHalfEventBase_;
+  FbossEventBase switchReachabilityChangeBottomHalfEventBase_;
 
   HwResourceStats hwResourceStats_;
   std::atomic<SwitchRunState> runState_{SwitchRunState::UNINITIALIZED};
 
   int64_t watermarkStatsUpdateTime_{0};
   int64_t voqStatsUpdateTime_{0};
+  int64_t cableLengthStatsUpdateTime_{0};
   cfg::AsicType asicType_;
 
   std::map<PortID, phy::PhyInfo> lastPhyInfos_;
   std::unique_ptr<FabricConnectivityManager> fabricConnectivityManager_;
   bool pfcDeadlockEnabled_{false};
+  folly::Synchronized<bool> switchReachabilityChangePending_{false};
 };
 
 } // namespace facebook::fboss

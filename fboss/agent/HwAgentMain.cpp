@@ -27,6 +27,8 @@
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/lib/CommonFileUtils.h"
 
+#include "fboss/agent/hw/test/HwTestThriftHandler.h"
+
 #include <chrono>
 
 #ifdef IS_OSS
@@ -86,6 +88,9 @@ void SplitHwAgentSignalHandler::signalReceived(int /*signum*/) noexcept {
   // Mark HwSwitch run state as exiting
   hwAgent_->getPlatform()->getHwSwitch()->switchRunStateChanged(
       SwitchRunState::EXITING);
+  // rx pkt callback handler might be waiting on event enqueue. Cancel any
+  // pending events to avoid sdk callbak unregistration getting stuck
+  syncer_->cancelPendingRxPktEnqueue();
   // unregister sdk callbacks so that we do not get sdk updates while shutting
   // down
   XLOG(DBG2) << "[Exit] unregistering callbacks";
@@ -194,10 +199,20 @@ int hwAgentMain(
     XLOG(DBG2) << "Started background thread: UpdateStatsThread";
   }
 
+  std::vector<std::shared_ptr<apache::thrift::AsyncProcessorFactory>>
+      handlers{};
+  handlers.push_back(hwAgent->getPlatform()->createHandler());
+  if (true) {
+    // Add HwTestThriftHandler to the thrift server
+    auto testUtilsHandler = utility::createHwTestThriftHandler(
+        hwAgent->getPlatform()->getHwSwitch());
+    handlers.push_back(std::move(testUtilsHandler));
+  }
+
   folly::EventBase eventBase;
   auto server = setupThriftServer(
       eventBase,
-      {hwAgent->getPlatform()->createHandler()},
+      handlers,
       {FLAGS_hwagent_port_base + FLAGS_switchIndex},
       true /*setupSSL*/);
 #ifndef IS_OSS

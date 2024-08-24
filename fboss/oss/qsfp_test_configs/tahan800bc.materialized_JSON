@@ -28,7 +28,7 @@
           "versions": [
             {
               "fwType": 1,
-              "version": "3.7"
+              "version": "3.8"
             }
           ]
       },
@@ -36,7 +36,23 @@
           "versions": [
             {
               "fwType": 1,
-              "version": "3.7"
+              "version": "3.8"
+            }
+          ]
+      },
+      "FTCD4313E2PCLFBC": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "3.5"
+            }
+          ]
+      },
+      "FTCD4313E2PCLFBE": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "3.5"
             }
           ]
       },
@@ -144,6 +160,22 @@
             }
           ]
       },
+      "T-OH8CNH-NFL": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "36.240"
+            }
+          ]
+      },
+      "T-OH8CNH-NFM": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "36.240"
+            }
+          ]
+      },
       "T-OL8CNT-NF2": {
           "versions": [
             {
@@ -158,6 +190,6 @@
     "writeLog": true,
     "readLog": true,
     "disableOnFail": false,
-    "bufferSlots": 8192
+    "bufferSlots": 40960
   }
 }

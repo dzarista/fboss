@@ -11,6 +11,7 @@
 #include "fboss/agent/LldpManager.h"
 
 #include <thrift/lib/cpp/util/EnumUtils.h>
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/PortStats.h"
 #include "fboss/agent/SwSwitch.h"
@@ -23,10 +24,6 @@
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/state/SwitchSettings.h"
 
-DEFINE_bool(
-    disable_looped_fabric_ports,
-    true,
-    "Disable fabric ports where loop is detected to stop traffic blackholing");
 namespace facebook::fboss {
 namespace {
 struct BwInfo {
@@ -47,6 +44,7 @@ void PortUpdateHandler::disableIfLooped(
     const std::shared_ptr<Port>& newPort,
     const std::shared_ptr<SwitchState>& newState) {
   if (!FLAGS_disable_looped_fabric_ports) {
+    XLOG(DBG2) << " Port loop detection disabled";
     return;
   }
   if (newPort->getPortType() != cfg::PortType::FABRIC_PORT) {
@@ -60,9 +58,8 @@ void PortUpdateHandler::disableIfLooped(
     return;
   }
 
-  if (newPort->isDrained() ||
-      (newPort->getActiveState().has_value() && !newPort->isActive().value())) {
-    // Port is drained or inactive, nothing to do
+  if (newPort->isDrained()) {
+    // Port is drained nothing to do
     return;
   }
 
@@ -198,6 +195,8 @@ void PortUpdateHandler::stateUpdated(const StateDelta& delta) {
         }
       },
       [&](const std::shared_ptr<Port>& oldPort) {
+        sw_->portStats(oldPort->getID())->clearPortStatusCounter();
+        sw_->portStats(oldPort->getID())->clearPortActiveStatusCounter();
         for (SwitchStats& switchStats : sw_->getAllThreadsSwitchStats()) {
           switchStats.deletePortStats(oldPort->getID());
         }

@@ -340,7 +340,7 @@ void SaiBufferManager::updateStats() {
 }
 
 const std::vector<sai_stat_id_t>&
-SaiBufferManager::supportedIngressPriorityGroupStats() const {
+SaiBufferManager::supportedIngressPriorityGroupWatermarkStats() const {
   static std::vector<sai_stat_id_t> stats;
   if (stats.size()) {
     // initialized
@@ -366,38 +366,72 @@ SaiBufferManager::supportedIngressPriorityGroupStats() const {
   return stats;
 }
 
+const std::vector<sai_stat_id_t>&
+SaiBufferManager::supportedIngressPriorityGroupNonWatermarkStats() const {
+  static std::vector<sai_stat_id_t> stats;
+  if (!stats.size()) {
+    stats.insert(
+        stats.end(),
+        SaiIngressPriorityGroupTraits::CounterIdsToRead.begin(),
+        SaiIngressPriorityGroupTraits::CounterIdsToRead.end());
+    if (platform_->getAsic()->isSupported(
+            HwAsic::Feature::INGRESS_PRIORITY_GROUP_DROPPED_PACKETS)) {
+      stats.push_back(SAI_INGRESS_PRIORITY_GROUP_STAT_DROPPED_PACKETS);
+    }
+  }
+  return stats;
+}
+
+void SaiBufferManager::updateIngressPriorityGroupWatermarkStats(
+    const std::shared_ptr<SaiIngressPriorityGroup>& ingressPriorityGroup,
+    const IngressPriorityGroupID& pgId,
+    const HwPortStats& hwPortStats) {
+  const auto& ingressPriorityGroupWatermarkStats =
+      supportedIngressPriorityGroupWatermarkStats();
+  const std::string& portName = *hwPortStats.portName_();
+  ingressPriorityGroup->updateStats(
+      ingressPriorityGroupWatermarkStats, SAI_STATS_MODE_READ_AND_CLEAR);
+  auto counters = ingressPriorityGroup->getStats();
+  auto iter =
+      counters.find(SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES);
+  auto maxPgSharedBytes = iter != counters.end() ? iter->second : 0;
+  iter =
+      counters.find(SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES);
+  auto maxPgHeadroomBytes = iter != counters.end() ? iter->second : 0;
+  publishPgWatermarks(portName, pgId, maxPgHeadroomBytes, maxPgSharedBytes);
+}
+
+void SaiBufferManager::updateIngressPriorityGroupNonWatermarkStats(
+    const std::shared_ptr<SaiIngressPriorityGroup>& ingressPriorityGroup,
+    const IngressPriorityGroupID& /*pgId*/,
+    HwPortStats& hwPortStats) {
+  const auto& ingressPriorityGroupStats =
+      supportedIngressPriorityGroupNonWatermarkStats();
+  ingressPriorityGroup->updateStats(
+      ingressPriorityGroupStats, SAI_STATS_MODE_READ);
+  auto counters = ingressPriorityGroup->getStats();
+  auto iter = counters.find(SAI_INGRESS_PRIORITY_GROUP_STAT_DROPPED_PACKETS);
+  if (iter != counters.end()) {
+    // In Congestion Discards are exposed at port level
+    *hwPortStats.inCongestionDiscards_() += iter->second;
+  }
+}
+
 void SaiBufferManager::updateIngressPriorityGroupStats(
     const PortID& portId,
-    const std::string& portName,
+    HwPortStats& hwPortStats,
     bool updateWatermarks) {
-  /*
-   * As of now, only watermark stats are supported for IngressPriorityGroup.
-   * Hence returning here if watermark stats collection is not needed. Will
-   * need modifications to this code if we enable non-watermark stats as well,
-   * to poll watermark and non-watermark stats differently based on the
-   * updateWatermarks option.
-   */
-  if (!updateWatermarks) {
-    return;
-  }
   SaiPortHandle* portHandle =
       managerTable_->portManager().getPortHandle(portId);
-  const auto& ingressPriorityGroupWatermarkStats =
-      supportedIngressPriorityGroupStats();
   for (const auto& ipgInfo : portHandle->configuredIngressPriorityGroups) {
     const auto& ingressPriorityGroup =
         ipgInfo.second.pgHandle->ingressPriorityGroup;
-    ingressPriorityGroup->updateStats(
-        ingressPriorityGroupWatermarkStats, SAI_STATS_MODE_READ_AND_CLEAR);
-    auto counters = ingressPriorityGroup->getStats();
-    auto iter =
-        counters.find(SAI_INGRESS_PRIORITY_GROUP_STAT_SHARED_WATERMARK_BYTES);
-    auto maxPgSharedBytes = iter != counters.end() ? iter->second : 0;
-    iter = counters.find(
-        SAI_INGRESS_PRIORITY_GROUP_STAT_XOFF_ROOM_WATERMARK_BYTES);
-    auto maxPgHeadroomBytes = iter != counters.end() ? iter->second : 0;
-    publishPgWatermarks(
-        portName, ipgInfo.first, maxPgHeadroomBytes, maxPgSharedBytes);
+    if (updateWatermarks) {
+      updateIngressPriorityGroupWatermarkStats(
+          ingressPriorityGroup, ipgInfo.first, hwPortStats);
+    }
+    updateIngressPriorityGroupNonWatermarkStats(
+        ingressPriorityGroup, ipgInfo.first, hwPortStats);
   }
 }
 
@@ -424,7 +458,7 @@ SaiBufferProfileTraits::CreateAttributes SaiBufferManager::profileCreateAttrs(
   }
   std::optional<SaiBufferProfileTraits::Attributes::SharedFadtMaxTh>
       sharedFadtMaxTh;
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   if (queue.getMaxDynamicSharedBytes()) {
     sharedFadtMaxTh = queue.getMaxDynamicSharedBytes().value();
   } else {
@@ -491,7 +525,7 @@ SaiBufferManager::ingressProfileCreateAttrs(
   }
   std::optional<SaiBufferProfileTraits::Attributes::SharedFadtMaxTh>
       sharedFadtMaxTh;
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   // use default 0 since this attribute currently only used by profile for
   // cpu/eventor/rcy port queues
   sharedFadtMaxTh = 0;

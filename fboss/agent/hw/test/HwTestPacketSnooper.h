@@ -38,6 +38,10 @@ class HwTestPacketSnooper : public HwSwitchEnsemble::HwSwitchEventObserverIf {
   void linkConnectivityChanged(
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&
       /*port2OldAndNewConnectivity*/) override {}
+  void switchReachabilityChanged(
+      const SwitchID /*switchId*/,
+      const std::map<SwitchID, std::set<PortID>>& /*switchReachabilityInfo*/)
+      override {}
 
   HwSwitchEnsemble* ensemble_;
   utility::PacketSnooper snooper_;

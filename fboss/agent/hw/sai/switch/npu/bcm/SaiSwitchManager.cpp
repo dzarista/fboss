@@ -27,6 +27,11 @@ void fillHwSwitchDramStats(
       case SAI_SWITCH_STAT_DEVICE_DRAM_DEQUEUED_BYTES:
         hwSwitchDramStats.dramDequeuedBytes() = value;
         break;
+#if defined(BRCM_SAI_SDK_GTE_11_0)
+      case SAI_SWITCH_STAT_DEVICE_DRAM_BLOCK_TOTAL_TIME:
+        hwSwitchDramStats.dramBlockedTimeNsec() = value;
+        break;
+#endif
 #endif
       default:
         throw FbossError("Got unexpected switch counter id: ", counterId);
@@ -41,7 +46,7 @@ void fillHwSwitchWatermarkStats(
   for (auto counterIdAndValue : counterId2Value) {
     auto [counterId, value] = counterIdAndValue;
     switch (counterId) {
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
       case SAI_SWITCH_STAT_DEVICE_RCI_WATERMARK_BYTES:
         hwSwitchWatermarkStats.fdrRciWatermarkBytes() = value;
         break;
@@ -50,6 +55,26 @@ void fillHwSwitchWatermarkStats(
         break;
       case SAI_SWITCH_STAT_HIGHEST_QUEUE_CONGESTION_LEVEL:
         hwSwitchWatermarkStats.dtlQueueWatermarkBytes() = value;
+        break;
+      case SAI_SWITCH_STAT_DEVICE_EGRESS_DB_WM:
+        hwSwitchWatermarkStats.egressCoreBufferWatermarkBytes() = value;
+        break;
+#endif
+      default:
+        throw FbossError("Got unexpected switch counter id: ", counterId);
+    }
+  }
+}
+
+void fillHwSwitchCreditStats(
+    const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
+    HwSwitchCreditStats& hwSwitchCreditStats) {
+  for (auto counterIdAndValue : counterId2Value) {
+    auto [counterId, value] = counterIdAndValue;
+    switch (counterId) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+      case SAI_SWITCH_STAT_DEVICE_DELETED_CREDIT_COUNTER:
+        hwSwitchCreditStats.deletedCreditBytes() = value;
         break;
 #endif
       default:

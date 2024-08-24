@@ -11,6 +11,7 @@
 #pragma once
 
 #include "fboss/agent/hw/sai/api/SaiApiTable.h"
+#include "fboss/agent/hw/sai/api/Types.h"
 #include "fboss/agent/hw/sai/api/VirtualRouterApi.h"
 #include "fboss/agent/hw/sai/store/SaiObject.h"
 #include "fboss/agent/hw/sai/store/SaiStore.h"
@@ -66,6 +67,9 @@ class SaiSwitchManager {
   void setTamObject(std::vector<sai_object_id_t> tamObject);
   void resetTamObject();
 
+  void setArsProfile(ArsProfileSaiId arsProfileSaiId);
+  void resetArsProfile();
+
   void setMacAgingSeconds(sai_uint32_t agingSeconds);
   sai_uint32_t getMacAgingSeconds() const;
 
@@ -96,6 +100,8 @@ class SaiSwitchManager {
   HwSwitchWatermarkStats getSwitchWatermarkStats() const {
     return switchWatermarkStats_;
   }
+  void setLocalCapsuleSwitchIds(
+      const std::map<SwitchID, int>& switchIdToNumCores);
 
  private:
   void programEcmpLoadBalancerParams(
@@ -123,6 +129,7 @@ class SaiSwitchManager {
   const std::vector<sai_stat_id_t>& supportedDropStats() const;
   const std::vector<sai_stat_id_t>& supportedDramStats() const;
   const std::vector<sai_stat_id_t>& supportedWatermarkStats() const;
+  const std::vector<sai_stat_id_t>& supportedCreditStats() const;
   const HwSwitchWatermarkStats getHwSwitchWatermarkStats() const;
   SaiManagerTable* managerTable_;
   const SaiPlatform* platform_;
@@ -151,5 +158,8 @@ void fillHwSwitchDramStats(
 void fillHwSwitchWatermarkStats(
     const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
     HwSwitchWatermarkStats& hwSwitchWatermarkStats);
+void fillHwSwitchCreditStats(
+    const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
+    HwSwitchCreditStats& hwSwitchCreditStats);
 void publishSwitchWatermarks(HwSwitchWatermarkStats& watermarkStats);
 } // namespace facebook::fboss

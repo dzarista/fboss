@@ -22,6 +22,31 @@ target_link_libraries(link_tests
   load_balancer_utils
   olympic_qos_utils
   port_test_utils
+  copp_test_utils
+  packet_snooper
+  hw_packet_utils
+  packet
+  packet_snooper
+  ${GTEST}
+  ${LIBGMOCK_LIBRARIES}
+)
+
+add_library(agent_ensemble_link_tests
+  fboss/agent/test/link_tests/AgentEnsembleLinkTest.cpp
+  fboss/agent/test/link_tests/LinkTestUtils.cpp
+)
+
+target_link_libraries(agent_ensemble_link_tests
+  agent_ensemble_test_lib
+  ecmp_helper
+  main
+  config_factory
+  fboss_config_utils
+  load_balancer_test_utils
+  load_balancer_utils
+  olympic_qos_utils
+  port_test_utils
+  copp_test_utils
   packet_snooper
   hw_packet_utils
   packet

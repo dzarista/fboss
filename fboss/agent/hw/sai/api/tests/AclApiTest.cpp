@@ -243,6 +243,10 @@ class AclApiTest : public ::testing::Test {
     return std::make_pair(17, 0xFF);
   }
 
+  std::pair<sai_uint8_t, sai_uint8_t> kIpv6NextHeader() const {
+    return std::make_pair(17, 0xFF);
+  }
+
   sai_uint32_t kPacketAction() const {
     return SAI_PACKET_ACTION_DROP;
   }
@@ -288,6 +292,10 @@ class AclApiTest : public ::testing::Test {
 
   sai_object_id_t kSetUserTrap() const {
     return 50;
+  }
+
+  bool kDisableArsForwarding() const {
+    return false;
   }
 
   const std::vector<sai_object_id_t>& kMirrorIngress() const {
@@ -363,6 +371,7 @@ class AclApiTest : public ::testing::Test {
             true, // ether type
             true, // outer vlan id
             true, // bth opcode
+            true, // ipv6 next header
         },
         kSwitchID());
   }
@@ -445,6 +454,8 @@ class AclApiTest : public ::testing::Test {
         aclFieldOuterVlanIdAttribute{AclEntryFieldU16(kOuterVlanId())};
     SaiAclEntryTraits::Attributes::FieldBthOpcode aclFieldBthOpcodeAttribute{
         AclEntryFieldU8(kBthOpcode())};
+    SaiAclEntryTraits::Attributes::FieldIpv6NextHeader
+        aclFieldIpv6NextHeaderAttribute{AclEntryFieldU8(kIpv6NextHeader())};
     SaiAclEntryTraits::Attributes::ActionPacketAction aclActionPacketAction{
         AclEntryActionU32(kPacketAction())};
     SaiAclEntryTraits::Attributes::ActionCounter aclActionCounter{
@@ -462,6 +473,9 @@ class AclApiTest : public ::testing::Test {
         AclEntryActionSaiObjectIdT(kMacsecFlow())};
     SaiAclEntryTraits::Attributes::ActionSetUserTrap aclActionSetUserTrap{
         AclEntryActionSaiObjectIdT(kSetUserTrap())};
+    SaiAclEntryTraits::Attributes::ActionDisableArsForwarding
+        aclActionDisableArsForwarding{
+            AclEntryActionBool(kDisableArsForwarding())};
 
     return aclApi->create<SaiAclEntryTraits>(
         {aclTableIdAttribute,
@@ -492,6 +506,7 @@ class AclApiTest : public ::testing::Test {
          aclFieldEtherTypeAttribute,
          aclFieldOuterVlanIdAttribute,
          aclFieldBthOpcodeAttribute,
+         aclFieldIpv6NextHeaderAttribute,
          aclActionPacketAction,
          aclActionCounter,
          aclActionSetTC,
@@ -499,7 +514,8 @@ class AclApiTest : public ::testing::Test {
          aclActionMirrorIngress,
          aclActionMirrorEgress,
          aclActionMacsecFlow,
-         aclActionSetUserTrap},
+         aclActionSetUserTrap,
+         aclActionDisableArsForwarding},
         kSwitchID());
   }
 
@@ -622,6 +638,7 @@ class AclApiTest : public ::testing::Test {
       const std::pair<sai_uint16_t, sai_uint16_t>& etherType,
       const std::pair<sai_uint16_t, sai_uint16_t>& outerVlanId,
       const std::pair<sai_uint8_t, sai_uint8_t>& bthOpcode,
+      const std::pair<sai_uint8_t, sai_uint8_t>& ipv6NextHeader,
       sai_uint32_t packetAction,
       sai_object_id_t counter,
       sai_uint8_t setTC,
@@ -630,6 +647,7 @@ class AclApiTest : public ::testing::Test {
       const std::vector<sai_object_id_t>& mirrorEgress,
       sai_object_id_t macsecFlow,
       sai_object_id_t setUserTrap,
+      bool disableArsForwarding,
       bool enabled = true) const {
     auto aclPriorityGot = aclApi->getAttribute(
         aclEntryId, SaiAclEntryTraits::Attributes::Priority());
@@ -686,6 +704,8 @@ class AclApiTest : public ::testing::Test {
         aclEntryId, SaiAclEntryTraits::Attributes::FieldOuterVlanId());
     auto aclFieldBthOpcodeGot = aclApi->getAttribute(
         aclEntryId, SaiAclEntryTraits::Attributes::FieldBthOpcode());
+    auto aclFieldIpv6NextHeaderGot = aclApi->getAttribute(
+        aclEntryId, SaiAclEntryTraits::Attributes::FieldIpv6NextHeader());
 
     auto aclActionPacketActionGot = aclApi->getAttribute(
         aclEntryId, SaiAclEntryTraits::Attributes::ActionPacketAction());
@@ -703,6 +723,9 @@ class AclApiTest : public ::testing::Test {
         aclEntryId, SaiAclEntryTraits::Attributes::ActionMacsecFlow());
     auto aclActionSetUserTrapGot = aclApi->getAttribute(
         aclEntryId, SaiAclEntryTraits::Attributes::ActionSetUserTrap());
+    auto aclActionDisableArsForwardingGot = aclApi->getAttribute(
+        aclEntryId,
+        SaiAclEntryTraits::Attributes::ActionDisableArsForwarding());
 
     EXPECT_EQ(aclPriorityGot, priority);
     EXPECT_EQ(aclEnabledGot, enabled);
@@ -733,6 +756,7 @@ class AclApiTest : public ::testing::Test {
     EXPECT_EQ(aclFieldEtherTypeGot.getDataAndMask(), etherType);
     EXPECT_EQ(aclFieldOuterVlanIdGot.getDataAndMask(), outerVlanId);
     EXPECT_EQ(aclFieldBthOpcodeGot.getDataAndMask(), bthOpcode);
+    EXPECT_EQ(aclFieldIpv6NextHeaderGot.getDataAndMask(), ipv6NextHeader);
 
     EXPECT_EQ(aclActionPacketActionGot.getData(), packetAction);
     EXPECT_EQ(aclActionCounterGot.getData(), counter);
@@ -742,6 +766,7 @@ class AclApiTest : public ::testing::Test {
     EXPECT_EQ(aclActionMirrorEgress.getData(), mirrorEgress);
     EXPECT_EQ(aclActionMacsecFlowGot.getData(), macsecFlow);
     EXPECT_EQ(aclActionSetUserTrapGot.getData(), setUserTrap);
+    EXPECT_EQ(aclActionDisableArsForwardingGot.getData(), disableArsForwarding);
   }
 
   std::shared_ptr<FakeSai> fs;
@@ -956,6 +981,7 @@ TEST_F(AclApiTest, getAclEntryAttribute) {
       kEtherType(),
       kOuterVlanId(),
       kBthOpcode(),
+      kIpv6NextHeader(),
       kPacketAction(),
       kCounter(),
       kSetTC(),
@@ -963,7 +989,8 @@ TEST_F(AclApiTest, getAclEntryAttribute) {
       kMirrorIngress(),
       kMirrorEgress(),
       kMacsecFlow(),
-      kSetUserTrap());
+      kSetUserTrap(),
+      kDisableArsForwarding());
 }
 
 TEST_F(AclApiTest, getAclCounterAttribute) {
@@ -1139,6 +1166,8 @@ TEST_F(AclApiTest, setAclEntryAttribute) {
       AclEntryFieldU16(kOuterVlanId())};
   SaiAclEntryTraits::Attributes::FieldBthOpcode aclFieldBthOpcode{
       AclEntryFieldU8(kBthOpcode())};
+  SaiAclEntryTraits::Attributes::FieldIpv6NextHeader aclFieldIpv6NextHeader{
+      AclEntryFieldU8(kIpv6NextHeader())};
 
   SaiAclEntryTraits::Attributes::ActionPacketAction aclActionPacketAction2{
       AclEntryActionU32(kPacketAction2())};
@@ -1156,6 +1185,9 @@ TEST_F(AclApiTest, setAclEntryAttribute) {
       AclEntryActionSaiObjectIdT(kMacsecFlow2())};
   SaiAclEntryTraits::Attributes::ActionSetUserTrap aclActionSetUserTrap{
       AclEntryActionSaiObjectIdT(kSetUserTrap())};
+  SaiAclEntryTraits::Attributes::ActionDisableArsForwarding
+      aclActionDisableArsForwarding{
+          AclEntryActionBool(kDisableArsForwarding())};
 
   aclApi->setAttribute(aclEntryId, aclPriorityAttribute2);
 
@@ -1184,6 +1216,7 @@ TEST_F(AclApiTest, setAclEntryAttribute) {
   aclApi->setAttribute(aclEntryId, aclFieldEtherType);
   aclApi->setAttribute(aclEntryId, aclFieldOuterVlanId);
   aclApi->setAttribute(aclEntryId, aclFieldBthOpcode);
+  aclApi->setAttribute(aclEntryId, aclFieldIpv6NextHeader);
   aclApi->setAttribute(aclEntryId, aclActionPacketAction2);
   aclApi->setAttribute(aclEntryId, aclActionCounter2);
   aclApi->setAttribute(aclEntryId, aclActionSetTC2);
@@ -1192,6 +1225,7 @@ TEST_F(AclApiTest, setAclEntryAttribute) {
   aclApi->setAttribute(aclEntryId, aclActionMirrorEgress2);
   aclApi->setAttribute(aclEntryId, aclActionMacsecFlow2);
   aclApi->setAttribute(aclEntryId, aclActionSetUserTrap);
+  aclApi->setAttribute(aclEntryId, aclActionDisableArsForwarding);
 
   getAndVerifyAclEntryAttribute(
       aclEntryId,
@@ -1221,6 +1255,7 @@ TEST_F(AclApiTest, setAclEntryAttribute) {
       kEtherType(),
       kOuterVlanId(),
       kBthOpcode(),
+      kIpv6NextHeader(),
       kPacketAction2(),
       kCounter2(),
       kSetTC2(),
@@ -1228,7 +1263,8 @@ TEST_F(AclApiTest, setAclEntryAttribute) {
       kMirrorIngress2(),
       kMirrorEgress2(),
       kMacsecFlow2(),
-      kSetUserTrap());
+      kSetUserTrap(),
+      kDisableArsForwarding());
 
   SaiAclEntryTraits::Attributes::ActionPacketAction aclActionPacketAction3{
       AclEntryActionU32(kPacketAction3())};

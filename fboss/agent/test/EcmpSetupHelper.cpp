@@ -9,11 +9,13 @@
  */
 
 #include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/agent/hw/switch_asics/HwAsic.h"
 
 #include <iterator>
 
 #include "fboss/agent/ApplyThriftConfig.h"
 #include "fboss/agent/RouteUpdateWrapper.h"
+#include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/state/AggregatePort.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/Port.h"
@@ -78,14 +80,33 @@ flat_map<InterfaceID, folly::CIDRNetwork> computeInterface2Subnet(
 
 namespace facebook::fboss::utility {
 
-boost::container::flat_set<PortDescriptor> getPortsWithExclusiveVlanMembership(
-    const std::shared_ptr<SwitchState>& state) {
+boost::container::flat_set<PortDescriptor> getSingleVlanOrRoutedCabledPorts(
+    const SwSwitch* sw) {
   boost::container::flat_set<PortDescriptor> ports;
-  for (const auto& vlanTable : std::as_const(*state->getVlans())) {
-    for (auto [id, vlan] : std::as_const(*vlanTable.second)) {
-      auto memberPorts = vlan->getPorts();
-      if (memberPorts.size() == 1) {
-        ports.insert(PortDescriptor{PortID(memberPorts.begin()->first)});
+
+  if (!sw->getSwitchInfoTable().haveL3Switches()) {
+    XLOG(INFO) << "No L3 switches found, skipping single vlan/routed ports";
+    return {};
+  }
+  /*
+   * VOQ switches do not have any vlan ports. They have only routed ports.
+   * So, we need to get the routed ports which are of type INTERFACE_PORT.
+   */
+  if (sw->getSwitchInfoTable().l3SwitchType() == cfg::SwitchType::VOQ) {
+    for (const auto& portMap : std::as_const(*sw->getState()->getPorts())) {
+      for (const auto& port : std::as_const(*portMap.second)) {
+        if (port.second->getPortType() == cfg::PortType::INTERFACE_PORT) {
+          ports.insert(PortDescriptor{PortID(port.second->getID())});
+        }
+      }
+    }
+  } else {
+    for (const auto& vlanTable : std::as_const(*sw->getState()->getVlans())) {
+      for (auto [id, vlan] : std::as_const(*vlanTable.second)) {
+        auto memberPorts = vlan->getPorts();
+        if (memberPorts.size() == 1) {
+          ports.insert(PortDescriptor{PortID(memberPorts.begin()->first)});
+        }
       }
     }
   }
@@ -98,13 +119,13 @@ BaseEcmpSetupHelper<AddrT, NextHopT>::BaseEcmpSetupHelper() {}
 template <typename AddrT, typename NextHopT>
 flat_map<PortDescriptor, InterfaceID>
 BaseEcmpSetupHelper<AddrT, NextHopT>::computePortDesc2Interface(
-    const std::shared_ptr<SwitchState>& inputState) const {
+    const std::shared_ptr<SwitchState>& inputState,
+    const std::set<cfg::PortType>& portTypes) const {
   boost::container::flat_map<PortDescriptor, InterfaceID> portDesc2Interface;
   std::set<PortID> portIds;
   for (const auto& portMap : std::as_const(*inputState->getPorts())) {
     for (const auto& port : std::as_const(*portMap.second)) {
-      if (port.second->getPortType() == cfg::PortType::INTERFACE_PORT ||
-          port.second->getPortType() == cfg::PortType::MANAGEMENT_PORT) {
+      if (portTypes.find(port.second->getPortType()) != portTypes.end()) {
         portIds.insert(port.second->getID());
       }
     }
@@ -421,18 +442,20 @@ EcmpSetupTargetedPorts<IPAddrT>::EcmpSetupTargetedPorts(
     const std::shared_ptr<SwitchState>& inputState,
     std::optional<folly::MacAddress> nextHopMac,
     RouterID routerId,
-    bool forProdConfig)
+    bool forProdConfig,
+    const std::set<cfg::PortType>& portTypes)
     : BaseEcmpSetupHelper<IPAddrT, EcmpNextHopT>(), routerId_(routerId) {
-  computeNextHops(inputState, nextHopMac, forProdConfig);
+  computeNextHops(inputState, nextHopMac, forProdConfig, portTypes);
 }
 
 template <typename IPAddrT>
 void EcmpSetupTargetedPorts<IPAddrT>::computeNextHops(
     const std::shared_ptr<SwitchState>& inputState,
     std::optional<folly::MacAddress> nextHopMac,
-    bool forProdConfig) {
+    bool forProdConfig,
+    const std::set<cfg::PortType>& portTypes) {
   BaseEcmpSetupHelperT::portDesc2Interface_ =
-      BaseEcmpSetupHelperT::computePortDesc2Interface(inputState);
+      BaseEcmpSetupHelperT::computePortDesc2Interface(inputState, portTypes);
   auto intf2Subnet =
       computeInterface2Subnet(inputState, BaseEcmpSetupHelperT::kIsV6);
   int offset = 0;
@@ -810,9 +833,10 @@ template <typename IPAddrT>
 void MplsEcmpSetupTargetedPorts<IPAddrT>::computeNextHops(
     const std::shared_ptr<SwitchState>& inputState,
     std::optional<folly::MacAddress> nextHopMac,
-    bool forProdConfig) {
+    bool forProdConfig,
+    const std::set<cfg::PortType>& portTypes) {
   BaseEcmpSetupHelperT::portDesc2Interface_ =
-      BaseEcmpSetupHelperT::computePortDesc2Interface(inputState);
+      BaseEcmpSetupHelperT::computePortDesc2Interface(inputState, portTypes);
   auto intf2Subnet =
       computeInterface2Subnet(inputState, BaseEcmpSetupHelperT::kIsV6);
   int offset = 0;
