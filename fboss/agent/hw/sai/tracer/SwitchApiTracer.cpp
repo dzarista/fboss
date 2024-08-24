@@ -91,6 +91,9 @@ std::map<int32_t, std::pair<std::string, std::size_t>> _SwitchMap{
     SAI_ATTR_MAP(Switch, CreditWdTimer),
 #endif
     SAI_ATTR_MAP(Switch, PfcDlrPacketAction),
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+    SAI_ATTR_MAP(Switch, ArsProfile),
+#endif
 };
 
 void handleExtensionAttributes() {
@@ -109,6 +112,16 @@ void handleExtensionAttributes() {
   SAI_EXT_ATTR_MAP(Switch, SwitchIsolate)
   SAI_EXT_ATTR_MAP(Switch, SdkBootTime)
   SAI_EXT_ATTR_MAP(Switch, FabricRemoteReachablePortList)
+  SAI_EXT_ATTR_MAP(Switch, RouteNoImplicitMetaData)
+  SAI_EXT_ATTR_MAP(Switch, RouteAllowImplicitMetaData)
+  SAI_EXT_ATTR_MAP(Switch, MultiStageLocalSwitchIds)
+  SAI_EXT_ATTR_MAP(Switch, VoqLatencyMinLocalNs);
+  SAI_EXT_ATTR_MAP(Switch, VoqLatencyMaxLocalNs);
+  SAI_EXT_ATTR_MAP(Switch, VoqLatencyMinLevel1Ns);
+  SAI_EXT_ATTR_MAP(Switch, VoqLatencyMaxLevel1Ns);
+  SAI_EXT_ATTR_MAP(Switch, VoqLatencyMinLevel2Ns);
+  SAI_EXT_ATTR_MAP(Switch, VoqLatencyMaxLevel2Ns);
+  SAI_EXT_ATTR_MAP(Switch, ReachabilityGroupList);
 }
 
 } // namespace

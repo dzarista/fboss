@@ -213,7 +213,10 @@ class SaiPortManager {
   void clearPortAsicPrbsStats(PortID portId);
   prbs::InterfacePrbsState getPortPrbsState(PortID portId);
   void updatePrbsStats(PortID portId);
-  void updateStats(PortID portID, bool updateWatermarks = false);
+  void updateStats(
+      PortID portID,
+      bool updateWatermarks = false,
+      bool updateCableLengths = false);
 
   void updateConnectivityStats(PortID portID);
 
@@ -420,6 +423,7 @@ class SaiPortManager {
       const std::shared_ptr<Port>& swPort);
   double calculateRate(uint32_t speed);
   void updatePrbsStatsEntryRate(const std::shared_ptr<Port>& swPort);
+  void resetCableLength(PortID portId);
 
   SaiStore* saiStore_;
   SaiManagerTable* managerTable_;

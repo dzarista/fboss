@@ -76,6 +76,15 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::SFLOWv6:
     case HwAsic::Feature::ZERO_SDK_WRITE_WARMBOOT:
     case HwAsic::Feature::CPU_VOQ_BUFFER_PROFILE:
+    case HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY:
+    case HwAsic::Feature::CABLE_PROPOGATION_DELAY:
+    case HwAsic::Feature::DRAM_BLOCK_TIME:
+    case HwAsic::Feature::VOQ_LATENCY_WATERMARK_BIN:
+    case HwAsic::Feature::ACL_ENTRY_ETHER_TYPE:
+    case HwAsic::Feature::ACL_BYTE_COUNTER:
+    case HwAsic::Feature::EGRESS_CORE_BUFFER_WATERMARK:
+    case HwAsic::Feature::DELETED_CREDITS_STAT:
+    case HwAsic::Feature::INGRESS_PRIORITY_GROUP_DROPPED_PACKETS:
       return true;
     // Features not expected to work on SIM
     case HwAsic::Feature::SHARED_INGRESS_EGRESS_BUFFER_POOL:
@@ -175,6 +184,7 @@ bool Jericho3Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::MULTIPLE_ACL_TABLES:
     case HwAsic::Feature::SAI_ECMP_HASH_ALGORITHM:
     case HwAsic::Feature::SCHEDULER_PPS:
+    case HwAsic::Feature::DATA_CELL_FILTER:
       return false;
   }
   return false;
@@ -288,5 +298,53 @@ HwAsic::AsicMode Jericho3Asic::getAsicMode() const {
     return AsicMode::ASIC_MODE_SIM;
   }
   return AsicMode::ASIC_MODE_HW;
+}
+
+std::optional<uint32_t> Jericho3Asic::computePortGroupSkew(
+    const std::map<PortID, uint32_t>& portId2cableLen) const {
+  std::map<int, uint32_t> portGroup2MaxCableLen;
+  auto updatePortGroupMax = [&portGroup2MaxCableLen](
+                                int groupId, uint32_t cableLen) {
+    auto pgItr = portGroup2MaxCableLen.find(groupId);
+    auto currentMax = pgItr != portGroup2MaxCableLen.end() ? pgItr->second : 0;
+    portGroup2MaxCableLen[groupId] = std::max(currentMax, cableLen);
+  };
+  static auto const kPortGroups = getPortGroups();
+  for (auto [portId, cableLen] : portId2cableLen) {
+    auto portIdInt = static_cast<int>(portId);
+    for (auto g = 0; g < kPortGroups.size(); ++g) {
+      auto [portGroupStart, portGroupEnd] = kPortGroups.at(g);
+      if (portIdInt >= portGroupStart && portIdInt <= portGroupEnd) {
+        updatePortGroupMax(g, cableLen);
+        continue;
+      }
+    }
+  }
+  std::set<uint32_t> portGroupMaxLensSorted;
+  std::for_each(
+      portGroup2MaxCableLen.begin(),
+      portGroup2MaxCableLen.end(),
+      [&portGroupMaxLensSorted](auto groupAndLen) {
+        portGroupMaxLensSorted.insert(groupAndLen.second);
+      });
+  if (portGroupMaxLensSorted.empty()) {
+    return std::nullopt;
+  }
+  return *portGroupMaxLensSorted.rbegin() - *portGroupMaxLensSorted.begin();
+}
+
+std::vector<std::pair<int, int>> Jericho3Asic::getPortGroups() const {
+  // J3 has fabric ports organized in 4 groups of
+  // 40 ports each starting at port id 1024
+  constexpr auto kPortGroupStart = 1024;
+  constexpr auto kPortGroupSize = 40;
+  constexpr auto kNumPortGroups = 4;
+  std::vector<std::pair<int, int>> portGroups;
+  for (auto g = 0; g < kNumPortGroups; ++g) {
+    auto portGroupStart = kPortGroupStart + g * kPortGroupSize;
+    auto portGroupEnd = portGroupStart + kPortGroupSize - 1;
+    portGroups.push_back(std::make_pair(portGroupStart, portGroupEnd));
+  }
+  return portGroups;
 }
 } // namespace facebook::fboss

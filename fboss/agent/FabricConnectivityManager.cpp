@@ -61,7 +61,8 @@ getPlatformMappingForDsfNode(const PlatformType platformType) {
       return &meru800bia;
     }
     case PlatformType::PLATFORM_JANGA800BIC: {
-      static Janga800bicPlatformMapping janga800bic;
+      static Janga800bicPlatformMapping janga800bic{
+          true /*multiNpuPlatformMapping*/};
       return &janga800bic;
     }
     default:
@@ -155,6 +156,12 @@ void FabricConnectivityManager::updateExpectedSwitchIdAndPortIdForPort(
   auto& fabricEndpoint = currentNeighborConnectivity_[portID];
   if (!fabricEndpoint.expectedSwitchName().has_value() ||
       !fabricEndpoint.expectedPortName().has_value()) {
+    // Incomplete or missing expected neighbor info. Clear out
+    // any previously derived expectedSwitchId/expectedPortId
+    fabricEndpoint.expectedSwitchId().reset();
+    fabricEndpoint.expectedPortId().reset();
+    fabricEndpoint.switchName().reset();
+    fabricEndpoint.portName().reset();
     return;
   }
 
@@ -230,8 +237,10 @@ void FabricConnectivityManager::addOrUpdatePort(
     const auto& neighbor = expectedNeighbors.front();
     expectedEndpoint.expectedSwitchName() = *neighbor.remoteSystem();
     expectedEndpoint.expectedPortName() = *neighbor.remotePort();
+  } else {
+    expectedEndpoint.expectedSwitchName().reset();
+    expectedEndpoint.expectedPortName().reset();
   }
-
   updateExpectedSwitchIdAndPortIdForPort(swPort->getID());
 }
 

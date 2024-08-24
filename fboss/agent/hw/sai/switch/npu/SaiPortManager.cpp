@@ -47,11 +47,11 @@ std::optional<SaiPortTraits::Attributes::SystemPortId> getSystemPortId(
 sai_int32_t getPortTypeFromCfg(const cfg::PortType& cfgPortType) {
   switch (cfgPortType) {
     case cfg::PortType::MANAGEMENT_PORT:
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
       return SAI_PORT_TYPE_MGMT;
 #endif
     case cfg::PortType::EVENTOR_PORT:
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
       return SAI_PORT_TYPE_EVENTOR;
 #endif
     case cfg::PortType::INTERFACE_PORT:
@@ -95,7 +95,7 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
           SAI_PORT_STAT_IF_IN_ERRORS,
           SAI_PORT_STAT_IF_OUT_OCTETS,
       };
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
       if (platform_->getAsic()->isSupported(
               HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER)) {
         counterIds.emplace_back(SAI_PORT_STAT_IF_IN_LINK_DOWN_CELL_DROP);
@@ -121,6 +121,13 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
     if (!platform_->getAsic()->isSupported(
             HwAsic::Feature::PORT_WRED_COUNTER)) {
       countersToFilter.insert(SAI_PORT_STAT_WRED_DROPPED_PACKETS);
+    }
+    if (getPortType(port) == cfg::PortType::MANAGEMENT_PORT &&
+        platform_->getAsic()->getAsicType() ==
+            cfg::AsicType::ASIC_TYPE_TOMAHAWK5) {
+      // TODO(daiweix): follow-up with brcm why this basic stats
+      // does not work for TH5 management port
+      countersToFilter.insert(SAI_PORT_STAT_IF_IN_OCTETS);
     }
     counterIds.reserve(SaiPortTraits::CounterIdsToRead.size() + 1);
     std::copy_if(
@@ -374,6 +381,9 @@ void SaiPortManager::changePortImpl(
       portAsicPrbsStats_.erase(newPort->getID());
     }
   }
+  if (newPort->isUp() != oldPort->isUp() && !newPort->isUp()) {
+    resetCableLength(newPort->getID());
+  }
 }
 
 void SaiPortManager::attributesFromSaiStore(
@@ -554,7 +564,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   }
 
   std::optional<bool> fdrEnable;
-#if defined(BRCM_SAI_SDK_GTE_10_0) || defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_GTE_10_0) || defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   if (swPort->getPortType() == cfg::PortType::INTERFACE_PORT && adminState &&
       platform_->getAsic()->isSupported(
           HwAsic::Feature::SAI_FEC_CODEWORDS_STATS)) {
@@ -595,6 +605,29 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
     pktTxEnable = SaiPortTraits::Attributes::PktTxEnable{txEnable.value()};
   }
   auto portPfcInfo = getPortPfcAttributes(swPort);
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+  std::optional<SaiPortTraits::Attributes::ArsEnable> arsEnable = std::nullopt;
+  std::optional<SaiPortTraits::Attributes::ArsPortLoadScalingFactor>
+      arsPortLoadScalingFactor = std::nullopt;
+  std::optional<SaiPortTraits::Attributes::ArsPortLoadPastWeight>
+      arsPortLoadPastWeight = std::nullopt;
+  std::optional<SaiPortTraits::Attributes::ArsPortLoadFutureWeight>
+      arsPortLoadFutureWeight = std::nullopt;
+  if (FLAGS_flowletSwitchingEnable &&
+      platform_->getAsic()->isSupported(HwAsic::Feature::FLOWLET)) {
+    auto flowletCfg = swPort->getPortFlowletConfig();
+    if (swPort->getFlowletConfigName().has_value() &&
+        swPort->getPortFlowletConfig().has_value()) {
+      auto flowletCfgPtr = swPort->getPortFlowletConfig().value();
+      arsEnable = true;
+      arsPortLoadScalingFactor = flowletCfgPtr->getScalingFactor();
+      arsPortLoadPastWeight = flowletCfgPtr->getLoadWeight();
+      arsPortLoadFutureWeight = flowletCfgPtr->getQueueWeight();
+    }
+  }
+#endif
+
   if (basicAttributeOnly) {
     return SaiPortTraits::CreateAttributes{
 #if defined(BRCM_SAI_SDK_DNX)
@@ -650,6 +683,12 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
         std::nullopt, // PFC Deadlock Detection Interval
         std::nullopt, // PFC Deadlock Recovery Interval
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+        std::nullopt, // ARS enable
+        std::nullopt, // ARS scaling factor
+        std::nullopt, // ARS port load past weight
+        std::nullopt, // ARS port load future weight
 #endif
     };
   }
@@ -711,6 +750,12 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
 #if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
       std::nullopt, // PFC Deadlock Detection Interval
       std::nullopt, // PFC Deadlock Recovery Interval
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+      arsEnable, // ARS enable
+      arsPortLoadScalingFactor, // ARS scaling factor
+      arsPortLoadPastWeight, // ARS port load past weight
+      arsPortLoadFutureWeight, // ARS port load future weight
 #endif
   };
 }

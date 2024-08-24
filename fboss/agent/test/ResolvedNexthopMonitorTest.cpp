@@ -102,7 +102,7 @@ class ResolvedNexthopMonitorTest : public ::testing::Test {
     if (!mirror) {
       mirror = std::make_shared<Mirror>(
           std::string("mirror"),
-          std::make_optional<PortID>(PortID(5)),
+          std::make_optional<PortDescriptor>(PortID(5)),
           std::optional<folly::IPAddress>());
       mnpuMirrors->addNode(
           mirror, HwSwitchMatcher(mnpuMirrors->cbegin()->first));
@@ -118,7 +118,7 @@ class ResolvedNexthopMonitorTest : public ::testing::Test {
 
   void runInUpdateEventBaseAndWait(Func func) {
     auto* evb = sw_->getUpdateEvb();
-    evb->runInEventBaseThreadAndWait(std::move(func));
+    evb->runInFbossEventBaseThreadAndWait(std::move(func));
   }
 
   void schedulePendingStateUpdates() {

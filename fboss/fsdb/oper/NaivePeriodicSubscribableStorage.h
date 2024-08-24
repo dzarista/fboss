@@ -27,8 +27,6 @@
 
 namespace facebook::fboss::fsdb {
 
-DECLARE_bool(serveHeartbeats);
-
 template <typename Storage, typename SubscribeManager>
 class NaivePeriodicSubscribableStorage
     : public NaivePeriodicSubscribableStorageBase,
@@ -42,6 +40,7 @@ class NaivePeriodicSubscribableStorage
   using PathIter = typename Storage::PathIter;
   using ExtPath = typename Storage::ExtPath;
   using ExtPathIter = typename Storage::ExtPathIter;
+  using RootNode = typename Storage::StorageImpl;
 
   template <typename T>
   using Result = typename Storage::template Result<T>;
@@ -67,12 +66,9 @@ class NaivePeriodicSubscribableStorage
             convertToIDPaths),
         currentState_(std::in_place, initialState),
         lastPublishedState_(*currentState_.rlock()),
-        subscriptions_(
-            std::in_place,
-            patchOperProtocol_,
-            requireResponseOnInitialSync) {
+        subscriptions_(patchOperProtocol_, requireResponseOnInitialSync) {
 #ifdef ENABLE_PATCH_APIS
-    subscriptions_.wlock()->useIdPaths(convertToIDPaths);
+    subscriptions_.useIdPaths(convertToIDPaths);
 #endif
     auto currentState = currentState_.wlock();
     currentState->publish();
@@ -98,6 +94,9 @@ class NaivePeriodicSubscribableStorage
   using Base::subscribe_delta_extended;
   using Base::subscribe_encoded;
   using Base::subscribe_encoded_extended;
+#ifdef ENABLE_PATCH_APIS
+  using Base::subscribe_patch;
+#endif
 
   template <typename T>
   Result<T> get_impl(PathIter begin, PathIter end) const {
@@ -224,6 +223,32 @@ class NaivePeriodicSubscribableStorage
   using NaivePeriodicSubscribableStorageBase::subscribe_encoded_impl;
   using NaivePeriodicSubscribableStorageBase::subscribe_impl;
 
+  std::tuple<
+      std::shared_ptr<RootNode>,
+      std::shared_ptr<RootNode>,
+      SubscriptionMetadataServer>
+  publishCurrentState() {
+    auto lastState = lastPublishedState_.wlock();
+    auto currentState = currentState_.rlock();
+
+    auto oldRoot = lastState->root();
+    auto newRoot = currentState->root();
+    /*
+     * Grab a copy of metadata while holding current state
+     * lock. This way we are guaranteed to get metadata
+     * corresponding to currentState
+     */
+    SubscriptionMetadataServer metadataServer = getCurrentMetadataServer();
+
+    if (oldRoot != newRoot) {
+      // make sure newRoot is fully published before swapping
+      subscriptions_.publishAndAddPaths(newRoot);
+    }
+
+    *lastState = Storage(*currentState);
+    return std::make_tuple(oldRoot, newRoot, metadataServer);
+  }
+
   folly::coro::Task<void> serveSubscriptions() override {
     while (true) {
       auto start = std::chrono::steady_clock::now();
@@ -232,44 +257,8 @@ class NaivePeriodicSubscribableStorage
         break;
       }
 
-      {
-        auto currentState = currentState_.rlock();
-        auto lastState = lastPublishedState_.wlock();
-        auto subscriptions = subscriptions_.wlock();
-
-        /*
-         * Grab a copy of metadata while holding current state
-         * lock. This way we are guaranteed to get metadata
-         * corresponding to currentState
-         */
-        SubscriptionMetadataServer metadataServer = getCurrentMetadataServer();
-
-        subscriptions->pruneCancelledSubscriptions();
-
-        if (*lastState != *currentState) {
-          auto newState = *currentState;
-          subscriptions->publishAndAddPaths(newState);
-          subscriptions->serveSubscriptions(
-              *lastState, newState, metadataServer);
-          subscriptions->pruneDeletedPaths(*lastState, newState);
-          *lastState = std::move(newState);
-        }
-        // Serve new subscriptions after serving existing subscriptions.
-        // New subscriptions will get a full object dump on first sync.
-        // If we serve them before the loop above, we have to be careful
-        // to not serve them again in the loop above. So just move to serve
-        // after. Post the initial sync, these new subscriptions will be
-        // pruned from initialSyncNeeded list and will get served on
-        // changes only
-        subscriptions->initialSyncForNewSubscriptions(
-            *currentState, metadataServer);
-      }
-
-      if (FLAGS_serveHeartbeats &&
-          start - lastHeartbeatTime_ >= subscriptionHeartbeatInterval_) {
-        subscriptions_.wlock()->serveHeartbeat();
-        lastHeartbeatTime_ = start;
-      }
+      auto [oldRoot, newRoot, metadataServer] = publishCurrentState();
+      subscriptions_.serveSubscriptions(oldRoot, newRoot, metadataServer);
 
       exportServeMetrics(start);
 
@@ -297,15 +286,12 @@ class NaivePeriodicSubscribableStorage
   }
 
  protected:
-  void withSubMgrRLockedImpl(
-      folly::FunctionRef<void(const SubscriptionManagerBase&)> f)
-      const override {
-    f(*subscriptions_.rlock());
+  const SubscriptionManagerBase& subMgr() const override {
+    return subscriptions_;
   }
 
-  void withSubMgrWLockedImpl(
-      folly::FunctionRef<void(SubscriptionManagerBase&)> f) override {
-    f(*subscriptions_.wlock());
+  SubscriptionManagerBase& subMgr() override {
+    return subscriptions_;
   }
 
   ConcretePath convertPath(ConcretePath&& path) const override;
@@ -315,7 +301,7 @@ class NaivePeriodicSubscribableStorage
   folly::Synchronized<Storage> currentState_;
   folly::Synchronized<Storage> lastPublishedState_;
 
-  folly::Synchronized<SubscribeManager> subscriptions_;
+  SubscribeManager subscriptions_;
 };
 
 // To avoid compiler inlining these heavy functions and allow for caching
@@ -349,5 +335,5 @@ NaivePeriodicSubscribableStorage<Storage, SubscribeManager>::convertPath(
 template <typename Root>
 using NaivePeriodicSubscribableCowStorage = NaivePeriodicSubscribableStorage<
     CowStorage<Root>,
-    CowSubscriptionManager<CowStorage<Root>>>;
+    CowSubscriptionManager<thrift_cow::ThriftStructNode<Root>>>;
 } // namespace facebook::fboss::fsdb

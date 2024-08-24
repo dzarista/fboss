@@ -54,6 +54,7 @@ DEFINE_string(
     firmware_path,
     "/etc/packages/neteng-fboss-wedge_agent/current",
     "Path to load the firmware");
+
 namespace {
 
 std::unordered_map<std::string, std::string> kSaiProfileValues;
@@ -204,7 +205,8 @@ void SaiPlatform::generateHwConfigFile() {
   }
 }
 
-std::string SaiPlatform::getHwAsicConfig() {
+std::string SaiPlatform::getHwAsicConfig(
+    const std::unordered_map<std::string, std::string>& overrides) {
   /*
    * This function is used to dump the HW config into a file based
    * on new asic config format. Newer platforms will begin using
@@ -243,9 +245,15 @@ std::string SaiPlatform::getHwAsicConfig() {
   auto asicConfig = config()->thrift.platform()->chip()->get_asicConfig();
   auto& commonConfigs = asicConfig.common()->get_config();
   std::vector<std::string> nameValStrs;
+  auto addNameValue = [&nameValStrs, &overrides](const auto& keyAndVal) {
+    auto oitr = overrides.find(keyAndVal.first);
+    nameValStrs.emplace_back(folly::to<std::string>(
+        keyAndVal.first,
+        '=',
+        oitr == overrides.end() ? keyAndVal.second : oitr->second));
+  };
   for (const auto& entry : commonConfigs) {
-    nameValStrs.emplace_back(
-        folly::to<std::string>(entry.first, '=', entry.second));
+    addNameValue(entry);
   }
   /*
    * Single NPU platfroms will not have any npu entries. In such cases,
@@ -260,8 +268,7 @@ std::string SaiPlatform::getHwAsicConfig() {
     const auto& npuEntry = npuEntries.find(FLAGS_switchIndex);
     if (npuEntry != npuEntries.end()) {
       for (const auto& entry : npuEntry->second.get_config()) {
-        nameValStrs.emplace_back(
-            folly::to<std::string>(entry.first, '=', entry.second));
+        addNameValue(entry);
       }
     }
   }
@@ -550,6 +557,22 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     switchIsolate = true;
   }
 
+  std::optional<int32_t> voqLatencyMinLocalNs;
+  std::optional<int32_t> voqLatencyMaxLocalNs;
+  std::optional<int32_t> voqLatencyMinLevel1Ns;
+  std::optional<int32_t> voqLatencyMaxLevel1Ns;
+  std::optional<int32_t> voqLatencyMinLevel2Ns;
+  std::optional<int32_t> voqLatencyMaxLevel2Ns;
+  // TODO: Look at making this part of config instead of hardcoding
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_11_0)
+  voqLatencyMinLocalNs = 5000;
+  voqLatencyMaxLocalNs = 4294967295;
+  voqLatencyMinLevel1Ns = 500000;
+  voqLatencyMaxLevel1Ns = 4294967295;
+  voqLatencyMinLevel2Ns = 800000;
+  voqLatencyMaxLevel2Ns = 4294967295;
+#endif
+
   return {
       initSwitch,
       hwInfo, // hardware info
@@ -599,6 +622,18 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
 #endif
       maxCores, // Max cores
       std::nullopt, // PFC DLR Packet Action
+      std::nullopt, // route no implicit meta data
+      std::nullopt, // route allow implicit meta data
+      std::nullopt, // multi-stage local switch ids
+      voqLatencyMinLocalNs, // Local VoQ latency bin min
+      voqLatencyMaxLocalNs, // Local VoQ latency bin max
+      voqLatencyMinLevel1Ns, // Level1 VoQ latency bin min
+      voqLatencyMaxLevel1Ns, // Level1 VoQ latency bin max
+      voqLatencyMinLevel2Ns, // Level2 VoQ latency bin min
+      voqLatencyMaxLevel2Ns, // Level2 VoQ latency bin max
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+      std::nullopt, // ARS profile
+#endif
   };
 }
 

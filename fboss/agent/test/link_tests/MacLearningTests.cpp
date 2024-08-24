@@ -11,6 +11,7 @@
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/TestUtils.h"
 #include "fboss/agent/test/link_tests/LinkTest.h"
+#include "fboss/agent/test/utils/QosTestUtils.h"
 
 #include "fboss/lib/CommonFileUtils.h"
 
@@ -71,10 +72,10 @@ class MacLearningTest : public LinkTest {
   void verifyL2EntryValidated(PortID txPort, MacAddress srcMac) {
     // send packets whose src mac matches L2 entry and verify no drops,
     // if L2 entry is in pending state, these packets would be dropped
-    auto ecmpPorts = getVlanOwningCabledPorts();
+    auto ecmpPorts = getSingleVlanOrRoutedCabledPorts();
     auto switchId = scope(ecmpPorts);
     programDefaultRoute(ecmpPorts, sw()->getLocalMac(switchId));
-    disableTTLDecrements(ecmpPorts);
+    utility::disableTTLDecrements(sw(), ecmpPorts);
     // wait long enough for all L2 entries learned/validated, port stats updated
     // sleep override
     sleep(5);
@@ -121,7 +122,7 @@ TEST_F(MacLearningTest, l2EntryFlap) {
     txPacket(macAddr, vlan, txPort);
     verifyL2EntryLearned(macAddr, vlan);
 
-    sw()->getUpdateEvb()->runInEventBaseThread([]() {
+    sw()->getUpdateEvb()->runInFbossEventBaseThread([]() {
       XLOG(DBG2) << "Pause state update evb thread";
       // sleep override
       sleep(kL2AgeTimer + kL2LearnDelay);

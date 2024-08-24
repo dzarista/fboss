@@ -20,6 +20,7 @@
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/agent/test/utils/AclTestUtils.h"
 #include "fboss/agent/test/utils/DscpMarkingUtils.h"
 #include "fboss/agent/test/utils/QueuePerHostTestUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -45,7 +46,8 @@ void ProdInvariantTest::setupAgentTestEcmp(
   // the next hop IP.
   auto forProdConfig =
       useProdConfig_.has_value() ? useProdConfig_.value() : false;
-  utility::EcmpSetupTargetedPorts6 ecmp6(sw()->getState(), forProdConfig);
+  utility::EcmpSetupTargetedPorts6 ecmp6(
+      sw()->getState(), forProdConfig, {cfg::PortType::INTERFACE_PORT});
 
   sw()->updateStateBlocking("Resolve nhops", [&](auto state) {
     return ecmp6.resolveNextHops(state, ports);
@@ -58,10 +60,12 @@ void ProdInvariantTest::setupAgentTestEcmp(
 
 void ProdInvariantTest::SetUp() {
   AgentTest::SetUp();
-  auto ecmpUplinlinkPorts =
-      utility::getAllUplinkDownlinkPorts(
-          platform()->getHwSwitch(), initialConfig(), kEcmpWidth, false)
-          .first;
+  auto ecmpUplinlinkPorts = utility::getAllUplinkDownlinkPorts(
+                                platform()->getHwSwitch(),
+                                initialConfig(),
+                                kEcmpWidth,
+                                is_mmu_lossless_mode())
+                                .first;
   for (auto& uplinkPort : ecmpUplinlinkPorts) {
     ecmpPorts_.push_back(PortDescriptor(uplinkPort));
   }
@@ -154,10 +158,12 @@ void ProdInvariantTest::sendTraffic() {
 
 PortID ProdInvariantTest::getDownlinkPort() {
   // pick the first downlink in the list
-  auto downlinkPort =
-      utility::getAllUplinkDownlinkPorts(
-          platform()->getHwSwitch(), initialConfig(), kEcmpWidth, false)
-          .second[0];
+  auto downlinkPort = utility::getAllUplinkDownlinkPorts(
+                          platform()->getHwSwitch(),
+                          initialConfig(),
+                          kEcmpWidth,
+                          is_mmu_lossless_mode())
+                          .second[0];
   return downlinkPort;
 }
 
@@ -234,7 +240,10 @@ void ProdInvariantTest::verifyDscpToQueueMapping() {
   }
 
   auto uplinkDownlinkPorts = utility::getAllUplinkDownlinkPorts(
-      platform()->getHwSwitch(), initialConfig(), kEcmpWidth, false);
+      platform()->getHwSwitch(),
+      initialConfig(),
+      kEcmpWidth,
+      is_mmu_lossless_mode());
 
   // gather all uplink + downlink ports
   std::vector<PortID> portIds = uplinkDownlinkPorts.first;
@@ -470,6 +479,110 @@ TEST_F(ProdInvariantRswMhnicTest, verifyInvariants) {
     verifyQueuePerHostMapping(true /*dscpMarkingTest*/);
     verifyQueuePerHostMapping(false /*dscpMarkingTest*/);
     verifySafeDiagCommands();
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+class ProdInvariantRtswTest : public ProdInvariantTest {
+ public:
+  ProdInvariantRtswTest() {
+    set_mmu_lossless(true);
+  }
+
+ protected:
+  cfg::SwitchConfig getConfigFromFlag() override {
+    auto config = ProdInvariantTest::getConfigFromFlag();
+
+    // alter the flowlet-* dstIP (present only when dlb_crosszone enabled) to
+    // match IP of the test RoCE packet.
+    for (auto& acl : *config.acls()) {
+      if (acl.dstIp().has_value() &&
+          (acl.name().value().find("flowlet") != std::string::npos)) {
+        acl.dstIp() = "2001::/50";
+      }
+    }
+
+    return config;
+  }
+
+  void verifyFlowletAcls() {
+    // verify udf roce opcode ACL
+    sendAndVerifyRoCETraffic(
+        utility::kUdfRoceOpcodeAck,
+        utility::kUdfAclRoceOpcodeName,
+        utility::kUdfAclRoceOpcodeStats);
+
+    // verify flowlet ACL to enable DLB
+    sendAndVerifyRoCETraffic(
+        utility::kUdfRoceOpcodeWriteImmediate,
+        "flowlet-selective-enable",
+        "flowlet-selective-stats");
+
+    // 12 is a random opcode not ack or write-imm. This ACL will go away once
+    // all RTSWs transition to spray
+    sendAndVerifyRoCETraffic(12, "flowlet-enable", "flowlet-stats");
+
+    ASSERT_TRUE(flowletAclsFound_ > 0);
+  }
+
+ private:
+  void sendAndVerifyRoCETraffic(
+      int opcode,
+      std::string aclName,
+      std::string counterName) {
+    // DLB configuration is still evolving so we will opportunistically test
+    // ACLs if they are present on a given device
+    if (!utility::checkConfigHasAclEntry(initialConfig(), aclName)) {
+      XLOG(DBG2) << aclName << " ACL entry not found, skipping verification";
+      return;
+    }
+
+    auto aclPktCountBefore = utility::getAclInOutPackets(sw(), counterName);
+    auto mac = utility::getInterfaceMac(
+        sw()->getState(), sw()->getState()->getVlans()->getFirstVlanID());
+
+    utility::pumpRoCETraffic(
+        true,
+        utility::getAllocatePktFn(sw()),
+        utility::getSendPktFunc(sw()),
+        mac,
+        sw()->getState()->getVlans()->getFirstVlanID(),
+        getDownlinkPort(),
+        utility::kUdfL4DstPort,
+        255,
+        std::nullopt,
+        1,
+        opcode,
+        utility::kRoceReserved);
+
+    WITH_RETRIES({
+      auto aclPktCountAfter = utility::getAclInOutPackets(sw(), counterName);
+
+      XLOG(DBG2) << "\n"
+                 << "aclPacketCounter(" << counterName
+                 << "): " << aclPktCountBefore << " -> " << (aclPktCountAfter);
+
+      // On some ASICs looped back pkt hits the ACL before being
+      // dropped in the ingress pipeline, hence GE
+      EXPECT_EVENTUALLY_GE(aclPktCountAfter, aclPktCountBefore + 1);
+      // At most we should get a pkt bump of 2
+      EXPECT_EVENTUALLY_LE(aclPktCountAfter, aclPktCountBefore + 2);
+    });
+    flowletAclsFound_++;
+  }
+  int flowletAclsFound_ = 0;
+};
+
+TEST_F(ProdInvariantRtswTest, verifyInvariants) {
+  auto setup = [&]() {};
+  auto verify = [&]() {
+    verifyAcl();
+    verifyCopp();
+    verifyLoadBalancing();
+    verifyDscpToQueueMapping();
+    verifySafeDiagCommands();
+    verifyThriftHandler();
+    verifyFlowletAcls();
   };
   verifyAcrossWarmBoots(setup, verify);
 }

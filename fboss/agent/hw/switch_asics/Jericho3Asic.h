@@ -14,7 +14,7 @@ class Jericho3Asic : public BroadcomAsic {
       std::optional<int64_t> id,
       int16_t index,
       std::optional<cfg::Range64> systemPortRange,
-      folly::MacAddress& mac,
+      const folly::MacAddress& mac,
       std::optional<cfg::SdkVersion> sdkVersion = std::nullopt)
       : BroadcomAsic(
             type,
@@ -71,7 +71,7 @@ class Jericho3Asic : public BroadcomAsic {
     return 160;
   }
   uint16_t getMirrorTruncateSize() const override {
-    return 254;
+    return 128;
   }
   uint32_t getMaxWideEcmpSize() const override {
     return 512;
@@ -140,6 +140,9 @@ class Jericho3Asic : public BroadcomAsic {
   uint32_t getMaxHashSeedLength() const override {
     return 16;
   }
+  std::optional<uint32_t> computePortGroupSkew(
+      const std::map<PortID, uint32_t>& portId2cableLen) const override;
+  std::vector<std::pair<int, int>> getPortGroups() const;
 };
 
 } // namespace facebook::fboss

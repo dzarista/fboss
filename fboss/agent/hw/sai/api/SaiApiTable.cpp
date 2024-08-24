@@ -81,6 +81,16 @@ const AclApi& SaiApiTable::aclApi() const {
   return getApi<AclApi>();
 }
 
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+const ArsApi& SaiApiTable::arsApi() const {
+  return getApi<ArsApi>();
+}
+
+const ArsProfileApi& SaiApiTable::arsProfileApi() const {
+  return getApi<ArsProfileApi>();
+}
+#endif
+
 const BridgeApi& SaiApiTable::bridgeApi() const {
   return getApi<BridgeApi>();
 }

@@ -17,6 +17,8 @@
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/link_tests/LinkTest.h"
+#include "fboss/agent/test/link_tests/LinkTestUtils.h"
+#include "fboss/agent/test/utils/CoppTestUtils.h"
 #include "fboss/agent/test/utils/QosTestUtils.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/CommonUtils.h"
@@ -24,20 +26,6 @@
 #include "fboss/lib/phy/gen-cpp2/phy_types_custom_protocol.h"
 #include "fboss/lib/thrift_service_client/ThriftServiceClient.h"
 #include "fboss/qsfp_service/if/gen-cpp2/transceiver_types_custom_protocol.h"
-
-DECLARE_bool(enable_macsec);
-
-DECLARE_bool(skip_drain_check_for_prbs);
-
-namespace {
-const std::vector<std::string> kRestartQsfpService = {
-    "/bin/systemctl",
-    "restart",
-    "qsfp_service_for_testing"};
-
-const std::string kForceColdbootQsfpSvcFileName =
-    "/dev/shm/fboss/qsfp_service/cold_boot_once_qsfp_service";
-} // namespace
 
 namespace facebook::fboss {
 
@@ -51,19 +39,8 @@ void LinkTest::SetUp() {
   // Will lower the timeout back to 1min once we can support parallel
   // programming
   waitForAllCabledPorts(true, 60, 5s);
-  waitForAllTransceiverStates(true, 60, 5s);
+  utility::waitForAllTransceiverStates(true, getCabledTranceivers(), 60, 5s);
   XLOG(DBG2) << "Link Test setup ready";
-}
-
-void LinkTest::restartQsfpService(bool coldboot) const {
-  if (coldboot) {
-    createFile(kForceColdbootQsfpSvcFileName);
-    XLOG(DBG2) << "Restarting QSFP Service in coldboot mode";
-  } else {
-    XLOG(DBG2) << "Restarting QSFP Service in warmboot mode";
-  }
-
-  folly::Subprocess(kRestartQsfpService).waitChecked();
 }
 
 void LinkTest::TearDown() {
@@ -105,6 +82,20 @@ void LinkTest::overrideL2LearningConfig(bool swLearning, int ageTimer) {
   platform()->reloadConfig();
 }
 
+void LinkTest::setupTtl0ForwardingEnable() {
+  if (!sw()->getHwAsicTable()->isFeatureSupportedOnAnyAsic(
+          HwAsic::Feature::SAI_TTL0_PACKET_FORWARD_ENABLE)) {
+    // don't configure if not supported
+    return;
+  }
+  auto agentConfig = AgentConfig::fromFile(FLAGS_config);
+  auto newAgentConfig =
+      utility::setTTL0PacketForwardingEnableConfig(sw(), *agentConfig);
+  newAgentConfig.dumpConfig(getTestConfigPath());
+  FLAGS_config = getTestConfigPath();
+  platform()->reloadConfig();
+}
+
 // Waits till the link status of the ports in cabledPorts vector reaches
 // the expected state
 void LinkTest::waitForAllCabledPorts(
@@ -112,49 +103,6 @@ void LinkTest::waitForAllCabledPorts(
     uint32_t retries,
     std::chrono::duration<uint32_t, std::milli> msBetweenRetry) const {
   waitForLinkStatus(getCabledPorts(), up, retries, msBetweenRetry);
-}
-
-void LinkTest::waitForAllTransceiverStates(
-    bool up,
-    uint32_t retries,
-    std::chrono::duration<uint32_t, std::milli> msBetweenRetry) const {
-  waitForStateMachineState(
-      cabledTransceivers_,
-      up ? TransceiverStateMachineState::ACTIVE
-         : TransceiverStateMachineState::INACTIVE,
-      retries,
-      msBetweenRetry);
-}
-
-// Wait until we have successfully fetched transceiver info (and thus know
-// which transceivers are available for testing)
-std::map<int32_t, TransceiverInfo> LinkTest::waitForTransceiverInfo(
-    std::vector<int32_t> transceiverIds,
-    uint32_t retries,
-    std::chrono::duration<uint32_t, std::milli> msBetweenRetry) const {
-  std::map<int32_t, TransceiverInfo> info;
-  while (retries--) {
-    try {
-      auto qsfpServiceClient = utils::createQsfpServiceClient();
-      qsfpServiceClient->sync_getTransceiverInfo(info, transceiverIds);
-    } catch (const std::exception& ex) {
-      XLOG(WARN) << "Failed to call qsfp_service getTransceiverInfo(). "
-                 << folly::exceptionStr(ex);
-    }
-    // Make sure we have at least one present transceiver
-    for (const auto& it : info) {
-      if (*it.second.tcvrState()->present()) {
-        return info;
-      }
-    }
-    XLOG(DBG2) << "TransceiverInfo was empty";
-    if (retries) {
-      /* sleep override */
-      std::this_thread::sleep_for(msBetweenRetry);
-    }
-  }
-
-  throw FbossError("TransceiverInfo was never populated.");
 }
 
 // Initializes the vector that holds the ports that are expected to be cabled.
@@ -195,7 +143,7 @@ LinkTest::getOpticalCabledPortsAndNames(bool pluggableOnly) const {
     transceiverIds.push_back(tcvrId);
   }
 
-  auto transceiverInfos = waitForTransceiverInfo(transceiverIds);
+  auto transceiverInfos = utility::waitForTransceiverInfo(transceiverIds);
   for (const auto& port : getCabledPorts()) {
     auto portName = getPortName(port);
     auto tcvrId = platform()->getPlatformPort(port)->getTransceiverID().value();
@@ -232,13 +180,14 @@ const std::vector<PortID>& LinkTest::getCabledPorts() const {
   return cabledPorts_;
 }
 
-boost::container::flat_set<PortDescriptor> LinkTest::getVlanOwningCabledPorts()
-    const {
+boost::container::flat_set<PortDescriptor>
+LinkTest::getSingleVlanOrRoutedCabledPorts() const {
   boost::container::flat_set<PortDescriptor> ecmpPorts;
-  auto vlanOwningPorts =
-      utility::getPortsWithExclusiveVlanMembership(sw()->getState());
+  auto singleVlanOrRoutedPorts =
+      utility::getSingleVlanOrRoutedCabledPorts(sw());
   for (auto port : getCabledPorts()) {
-    if (vlanOwningPorts.find(PortDescriptor(port)) != vlanOwningPorts.end()) {
+    if (singleVlanOrRoutedPorts.find(PortDescriptor(port)) !=
+        singleVlanOrRoutedPorts.end()) {
       ecmpPorts.insert(PortDescriptor(port));
     }
   }
@@ -264,28 +213,14 @@ void LinkTest::programDefaultRoute(
   programDefaultRoute(ecmpPorts, ecmp6);
 }
 
-void LinkTest::disableTTLDecrements(
-    const boost::container::flat_set<PortDescriptor>& ecmpPorts) {
-  if (sw()->getHwAsicTable()->isFeatureSupportedOnAnyAsic(
-          HwAsic::Feature::PORT_TTL_DECREMENT_DISABLE)) {
-    disableTTLDecrementOnPorts(ecmpPorts);
-  } else {
-    utility::EcmpSetupTargetedPorts6 ecmp6(sw()->getState());
-    utility::disableTTLDecrements(
-        sw(), ecmp6.getRouterId(), ecmp6.getNextHops());
-  }
-}
-
 void LinkTest::createL3DataplaneFlood(
     const boost::container::flat_set<PortDescriptor>& ecmpPorts) {
   auto switchId = scope(ecmpPorts);
   utility::EcmpSetupTargetedPorts6 ecmp6(
       sw()->getState(), sw()->getLocalMac(switchId));
   programDefaultRoute(ecmpPorts, ecmp6);
-  disableTTLDecrements(ecmpPorts);
-  auto vlanID = utility::getFirstMap(sw()->getState()->getVlans())
-                    ->cbegin()
-                    ->second->getID();
+  utility::disableTTLDecrements(sw(), ecmpPorts);
+  auto vlanID = utility::firstVlanID(sw()->getState());
   utility::pumpTraffic(
       true,
       utility::getAllocatePktFn(sw()),
@@ -427,7 +362,7 @@ LinkTest::getConnectedOpticalPortPairWithFeature(
     transceiverIds.push_back(tcvrId);
   }
 
-  auto transceiverInfos = waitForTransceiverInfo(transceiverIds);
+  auto transceiverInfos = utility::waitForTransceiverInfo(transceiverIds);
   std::set<std::pair<PortID, PortID>> connectedOpticalFeaturedPorts;
   for (auto portPair : connectedOpticalPortPairs) {
     auto tcvrId =
@@ -479,64 +414,6 @@ LinkTest::getConnectedOpticalPortPairWithFeature(
   }
 
   return connectedOpticalFeaturedPorts;
-}
-
-void LinkTest::waitForStateMachineState(
-    const std::set<TransceiverID>& transceiversToCheck,
-    TransceiverStateMachineState stateMachineState,
-    uint32_t retries,
-    std::chrono::duration<uint32_t, std::milli> msBetweenRetry) const {
-  XLOG(DBG2) << "Checking qsfp TransceiverStateMachineState on "
-             << folly::join(",", transceiversToCheck);
-
-  std::vector<int32_t> expectedTransceiver;
-  for (auto transceiverID : transceiversToCheck) {
-    expectedTransceiver.push_back(transceiverID);
-  }
-
-  std::vector<int32_t> badTransceivers;
-  while (retries--) {
-    badTransceivers.clear();
-    std::map<int32_t, TransceiverInfo> info;
-    try {
-      auto qsfpServiceClient = utils::createQsfpServiceClient();
-      qsfpServiceClient->sync_getTransceiverInfo(info, expectedTransceiver);
-    } catch (const std::exception& ex) {
-      // We have retry mechanism to handle failure. No crash here
-      XLOG(WARN) << "Failed to call qsfp_service getTransceiverInfo(). "
-                 << folly::exceptionStr(ex);
-    }
-    // Check whether all expected transceivers have expected state
-    for (auto transceiverID : expectedTransceiver) {
-      // Only continue if the transceiver state machine matches
-      if (auto transceiverInfoIt = info.find(transceiverID);
-          transceiverInfoIt != info.end()) {
-        if (auto state =
-                transceiverInfoIt->second.tcvrState()->stateMachineState();
-            state.has_value() && *state == stateMachineState) {
-          continue;
-        }
-      }
-      // Otherwise such transceiver is considered to be in a bad state
-      badTransceivers.push_back(transceiverID);
-    }
-
-    if (badTransceivers.empty()) {
-      XLOG(DBG2) << "All qsfp TransceiverStateMachineState on "
-                 << folly::join(",", expectedTransceiver) << " match "
-                 << apache::thrift::util::enumNameSafe(stateMachineState);
-      return;
-    } else {
-      /* sleep override */
-      std::this_thread::sleep_for(msBetweenRetry);
-    }
-  }
-
-  throw FbossError(
-      "Transceivers:[",
-      folly::join(",", badTransceivers),
-      "] don't have expected TransceiverStateMachineState:",
-      apache::thrift::util::enumNameSafe(stateMachineState));
 }
 
 void LinkTest::waitForLldpOnCabledPorts(
@@ -601,6 +478,18 @@ void LinkTest::logLinkDbgMessage(std::vector<PortID>& portIDs) const {
       XLOG(ERR) << "Transceiver info missing for " << portName;
     }
   }
+}
+
+const TransceiverSpec* LinkTest::getTransceiverSpec(
+    const SwSwitch* sw,
+    PortID portId) {
+  auto platformPort = sw->getPlatformMapping()->getPlatformPort(portId);
+  const auto& chips = sw->getPlatformMapping()->getChips();
+  if (auto tcvrID = utility::getTransceiverId(platformPort, chips)) {
+    auto transceiver = sw->getState()->getTransceivers()->getNodeIf(*tcvrID);
+    return transceiver.get();
+  }
+  return nullptr;
 }
 
 void LinkTest::setLinkState(bool enable, std::vector<PortID>& portIds) {

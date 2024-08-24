@@ -17,12 +17,11 @@
 #include "fboss/lib/FunctionCallTimeReporter.h"
 
 #include "fboss/agent/benchmarks/AgentBenchmarks.h"
+#include "fboss/agent/hw/benchmarks/HwTeFlowScaleBenchmarkHelper.h"
 
 #include <folly/Benchmark.h>
 #include <folly/IPAddress.h>
 #include <folly/logging/xlog.h>
-
-DEFINE_int32(teflow_scale_entries, 9216, "Teflow scale entries");
 
 namespace facebook::fboss {
 
@@ -59,7 +58,8 @@ BENCHMARK(HwTeFlowStatsCollection) {
         AgentEnsemble::enableExactMatch(bcm);
       };
 
-  ensemble = createAgentEnsemble(initialConfigFn, platformConfigFn);
+  ensemble = createAgentEnsemble(
+      initialConfigFn, false /*disableLinkStateToggler*/, platformConfigFn);
   const auto& ports = ensemble->masterLogicalPortIds();
   // TODO(zecheng): Deprecate agent access to HwSwitch
   auto hwSwitch = ensemble->getHwSwitch();

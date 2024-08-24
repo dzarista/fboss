@@ -36,6 +36,10 @@ class HwTestLearningUpdateObserver
   void linkStateChanged(PortID /*port*/, bool /*up*/) override {}
   void linkActiveStateChanged(
       const std::map<PortID, bool>& /*port2IsActive */) override {}
+  void switchReachabilityChanged(
+      const SwitchID /*switchId*/,
+      const std::map<SwitchID, std::set<PortID>>& /*switchReachabilityInfo*/)
+      override {}
   void linkConnectivityChanged(
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&
       /*port2OldAndNewConnectivity*/) override {}
@@ -50,7 +54,7 @@ class HwTestLearningUpdateObserver
   std::vector<std::pair<L2Entry, L2EntryUpdateType>> data_;
 
   std::unique_ptr<std::thread> applyStateUpdateThread_;
-  folly::EventBase applyStateUpdateEventBase_;
+  FbossEventBase applyStateUpdateEventBase_;
 };
 
 class HwTestLearningUpdateAutoObserver : public HwTestLearningUpdateObserver {

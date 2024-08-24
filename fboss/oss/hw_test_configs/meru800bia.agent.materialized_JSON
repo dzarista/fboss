@@ -4,6 +4,7 @@
     "counter_refresh_interval": "0",
     "intf_nbr_tables": "true",
     "log_variable_name": "true",
+    "sai_configure_six_tap": "true",
     "skip_transceiver_programming": "true"
   },
   "sw": {
@@ -34,6 +35,19 @@
       },
       {
         "intfID": 17,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 16,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -1249,10 +1263,11 @@
             "sai_recycle_port_lane_base": "440",
             "sai_trigger_linkscan_remote_local_faults": "0",
             "sai_uncached_port_stats": "0x1",
+            "sai_voq_wm_latency_enable": "1",
             "sat_enable.BCM8889X_ADAPTER": "1",
             "soc_family.BCM8889X": "BCM8889X",
-            "stable_location.BCM8889X": "3",
-            "stable_location.BCM8889X_ADAPTER": "3",
+            "stable_location.BCM8889X": "4",
+            "stable_location.BCM8889X_ADAPTER": "4",
             "stable_size.BCM8889X": "1450000000",
             "stable_size.BCM8889X_ADAPTER": "1450000000",
             "sw_state_max_size.BCM8889X": "1400000000",

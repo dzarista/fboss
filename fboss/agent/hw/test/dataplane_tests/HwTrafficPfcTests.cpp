@@ -59,7 +59,7 @@ static const std::
              "0x40000000000000000"},
             {std::make_tuple(
                  facebook::fboss::cfg::AsicType::ASIC_TYPE_JERICHO3,
-                 2,
+                 8,
                  2),
              "4"},
 };
@@ -446,26 +446,36 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
       for (const auto& portId : portIds) {
         auto portStats = getHwSwitchEnsemble()->getLatestPortStats(portId);
         auto ingressDropRaw = *portStats.inDiscardsRaw_();
+        uint64_t ingressCongestionDiscards = 0;
+        std::string ingressCongestionDiscardLog{};
+        if (getHwSwitchEnsemble()->getAsic()->isSupported(
+                HwAsic::Feature::INGRESS_PRIORITY_GROUP_DROPPED_PACKETS)) {
+          ingressCongestionDiscards = *portStats.inCongestionDiscards_();
+          ingressCongestionDiscardLog = " IngressCongestionDiscards: " +
+              std::to_string(ingressCongestionDiscards);
+        }
         XLOG(DBG0) << " validateIngressDropCounters: Port: " << portId
-                   << " IngressDropRaw: " << ingressDropRaw;
+                   << " IngressDropRaw: " << ingressDropRaw
+                   << ingressCongestionDiscardLog;
         EXPECT_EVENTUALLY_GT(ingressDropRaw, 0);
+        if (getHwSwitchEnsemble()->getAsic()->isSupported(
+                HwAsic::Feature::INGRESS_PRIORITY_GROUP_DROPPED_PACKETS)) {
+          EXPECT_EVENTUALLY_GT(ingressCongestionDiscards, 0);
+        }
       }
       if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
         // Jericho3 has additional VSQ drops counters which accounts for
         // ingress buffer drops.
-        // TODO: Check if 'vsqResourceExhaustionDrops' is incrementing for
-        // now, eventually move to a new per port/PG based ingress congestion
-        // discard counter when supported via CS00012336173.
         getHwSwitchEnsemble()->getHwSwitch()->updateStats();
         fb303::ThreadCachedServiceData::get()->publishStats();
-        auto ingressCongestionDiscards = getHwSwitchEnsemble()
-                                             ->getHwSwitch()
-                                             ->getSwitchStats()
-                                             ->getVsqResourcesExhautionDrops();
+        auto vsqResourcesExhautionDrops = getHwSwitchEnsemble()
+                                              ->getHwSwitch()
+                                              ->getSwitchStats()
+                                              ->getVsqResourcesExhautionDrops();
         XLOG(DBG0)
             << " validateIngressDropCounters: vsqResourceExhaustionDrops: "
-            << ingressCongestionDiscards;
-        EXPECT_EVENTUALLY_GT(ingressCongestionDiscards, 0);
+            << vsqResourcesExhautionDrops;
+        EXPECT_EVENTUALLY_GT(vsqResourcesExhautionDrops, 0);
       }
     });
   }
@@ -494,9 +504,9 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
           {masterLogicalInterfacePortIds()[0],
            masterLogicalInterfacePortIds()[1]},
           pfcPriority);
-      pumpTraffic(trafficClass);
     };
     auto verifyCommon = [&](bool postWb) {
+      pumpTraffic(trafficClass);
       // check counters are as expected
       validateCounterFn(
           getHwSwitchEnsemble(),
@@ -667,6 +677,8 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
         (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3)) {
       // As traffic cannot trigger deadlock for DNX, force back
       // to back PFC frame generation which causes a deadlock!
+      XLOG(DBG0) << "Triggering PFC deadlock detection on port ID : "
+                 << static_cast<int>(port);
       auto iter = kRegValToForcePfcTxForPriorityOnPortDnx.find(std::make_tuple(
           getAsic()->getAsicType(), static_cast<int>(port), kLosslessPriority));
       EXPECT_FALSE(iter == kRegValToForcePfcTxForPriorityOnPortDnx.end());

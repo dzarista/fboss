@@ -11,6 +11,7 @@
 #include "fboss/agent/test/LinkStateToggler.h"
 
 #include "fboss/agent/ApplyThriftConfig.h"
+#include "fboss/agent/Utils.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
@@ -21,10 +22,92 @@
 #include <gtest/gtest.h>
 
 namespace {
+
+using namespace facebook::fboss;
+
 // Instead of bringing up ports 1-by-1, bring them up in batches such that
 // 1) Similar to prod environment where links could come up in batches, and
 // 2) More efficient during testing.
 constexpr auto kBatchSize = 32;
+
+std::string getMyHostName(const cfg::SwitchConfig& cfg) {
+  CHECK_GE(cfg.switchSettings()->switchIdToSwitchInfo()->size(), 1);
+  auto [switchID, switchInfo] =
+      *cfg.switchSettings()->switchIdToSwitchInfo()->begin();
+
+  if (switchInfo.switchType() == cfg::SwitchType::VOQ ||
+      switchInfo.switchType() == cfg::SwitchType::FABRIC) {
+    // A host may have multiple switchIDs, but all those switchIDs will carry
+    // the same hostname. Thus, get any switchID
+    auto dsfNodeIter = cfg.dsfNodes()->find(switchID);
+    if (dsfNodeIter == cfg.dsfNodes()->end()) {
+      throw FbossError("SwitchID:", switchID, " Not found in DSF Node map");
+    }
+    return *dsfNodeIter->second.name();
+  } else {
+    return getLocalHostnameUqdn();
+  }
+}
+
+bool skipTogglingPort(const cfg::Port& port, const std::string& myHostName) {
+  switch (*port.portType()) {
+    case cfg::PortType::INTERFACE_PORT: {
+      // TODO: Migrate LLDP neighbor implementation from using
+      // expecetedLLDPValues to more generic expectedNeighborReachability.
+      // At that time, case FABRIC_PORT implementation will work for
+      // INTERFACE_PORT as well.
+
+      // Toggle ports that have empty LLDP neighbor
+      if (port.expectedLLDPValues()->size() == 0) {
+        return false;
+      }
+
+      auto lldpTagToValue = port.expectedLLDPValues();
+
+      auto sysIter = lldpTagToValue->find(cfg::LLDPTag::SYSTEM_NAME);
+      if (sysIter == lldpTagToValue->end()) {
+        return false;
+      }
+      auto remoteSystem = sysIter->second;
+
+      auto portIter = lldpTagToValue->find(cfg::LLDPTag::PORT);
+      if (portIter == lldpTagToValue->end()) {
+        return false;
+      }
+      auto remotePort = portIter->second;
+
+      // Toggle, if expected neighbor is same as self.
+      return !(
+          myHostName == remoteSystem && port.name().value_or("") == remotePort);
+    }
+    case cfg::PortType::FABRIC_PORT: {
+      // Toggle ports that have empty neighbor
+      if (port.expectedNeighborReachability()->size() == 0) {
+        return false;
+      }
+
+      CHECK_EQ(port.expectedNeighborReachability()->size(), 1);
+      auto expectedNeighbor = port.expectedNeighborReachability()->front();
+      auto remoteSystem = *expectedNeighbor.remoteSystem();
+      auto remotePort = *expectedNeighbor.remotePort();
+
+      // Toggle, if expected neighbor is same as self.
+      return !(
+          myHostName == remoteSystem && port.name().value_or("") == remotePort);
+    }
+    case cfg::PortType::CPU_PORT:
+    case cfg::PortType::RECYCLE_PORT:
+    case cfg::PortType::EVENTOR_PORT:
+      return true;
+    case cfg::PortType::MANAGEMENT_PORT:
+      return false;
+  }
+
+  throw FbossError(
+      "invalid port type: ",
+      apache::thrift::util::enumNameSafe(*port.portType()));
+}
+
 } // namespace
 
 namespace facebook::fboss {
@@ -177,9 +260,9 @@ std::shared_ptr<SwitchState> LinkStateToggler::applyInitialConfigWithPortsDown(
   // bringUpPorts API
   auto cfg = initCfg;
   boost::container::flat_map<int, cfg::PortState> portId2DesiredState;
+  auto myHostName = getMyHostName(initCfg);
   for (auto& port : *cfg.ports()) {
-    if (port.portType() == cfg::PortType::RECYCLE_PORT ||
-        port.portType() == cfg::PortType::EVENTOR_PORT) {
+    if (skipTogglingPort(port, myHostName)) {
       continue;
     }
     portId2DesiredState[*port.logicalID()] = *port.state();
@@ -198,8 +281,7 @@ std::shared_ptr<SwitchState> LinkStateToggler::applyInitialConfigWithPortsDown(
 
   // Wait for port state to be disabled in switch state
   for (auto& port : *cfg.ports()) {
-    if (port.portType() == cfg::PortType::RECYCLE_PORT ||
-        port.portType() == cfg::PortType::EVENTOR_PORT) {
+    if (skipTogglingPort(port, myHostName)) {
       continue;
     }
     waitForPortDown(PortID(*port.logicalID()));
@@ -250,13 +332,15 @@ std::shared_ptr<SwitchState> LinkStateToggler::applyInitialConfigWithPortsDown(
 
 void LinkStateToggler::bringUpPorts(const cfg::SwitchConfig& initCfg) {
   std::vector<PortID> portsToBringUp;
-  folly::gen::from(*initCfg.ports()) | folly::gen::filter([](const auto& port) {
-    return *port.state() == cfg::PortState::ENABLED &&
-        (*port.portType() != cfg::PortType::RECYCLE_PORT &&
-         *port.portType() != cfg::PortType::EVENTOR_PORT);
-  }) | folly::gen::map([](const auto& port) {
-    return PortID(*port.logicalID());
-  }) | folly::gen::appendTo(portsToBringUp);
+  auto myHostName = getMyHostName(initCfg);
+  folly::gen::from(*initCfg.ports()) |
+      folly::gen::filter([&myHostName](const auto& port) {
+        return *port.state() == cfg::PortState::ENABLED &&
+            !skipTogglingPort(port, myHostName);
+      }) |
+      folly::gen::map(
+          [](const auto& port) { return PortID(*port.logicalID()); }) |
+      folly::gen::appendTo(portsToBringUp);
   bringUpPorts(portsToBringUp);
 }
 

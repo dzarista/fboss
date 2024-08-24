@@ -33,19 +33,20 @@
 #include <iostream>
 #include <thread>
 
+DECLARE_bool(send_icmp_time_exceeded);
+
 namespace facebook::fboss {
 
 const std::string kDstIp = "2620:0:1cfe:face:b00c::4";
 
 BENCHMARK(RxSlowPathBenchmark) {
-  constexpr int kEcmpWidth = 1;
   AgentEnsembleSwitchConfigFn initialConfigFn = [](const AgentEnsemble&
                                                        ensemble) {
+    FLAGS_sai_user_defined_trap = true;
     CHECK_GE(
         ensemble.masterLogicalPortIds({cfg::PortType::INTERFACE_PORT}).size(),
         1);
-    std::vector<PortID> ports = {
-        ensemble.masterLogicalPortIds({cfg::PortType::INTERFACE_PORT})[0]};
+    std::vector<PortID> ports = {ensemble.masterLogicalInterfacePortIds()[0]};
 
     // For J2 and J3, initialize recycle port as well to allow l3 lookup on
     // recycle port
@@ -68,27 +69,34 @@ BENCHMARK(RxSlowPathBenchmark) {
     utility::addTrapPacketAcl(&config, trapDstIp);
 
     // Since J2 and J3 does not support disabling TLL on port, create TRAP to
-    // forward TTL=0 packet.
+    // forward TTL=0 packet. Also not send icmp time exceeded packet, since CPU
+    // will trap TTL=0 packet.
     if (ensemble.getSw()->getHwAsicTable()->isFeatureSupportedOnAllAsic(
             HwAsic::Feature::CPU_TX_VIA_RECYCLE_PORT)) {
+      FLAGS_send_icmp_time_exceeded = false;
       utility::setTTLZeroCpuConfig(ensemble.getL3Asics(), config);
     }
     return config;
   };
 
-  auto ensemble = createAgentEnsemble(initialConfigFn);
+  auto ensemble =
+      createAgentEnsemble(initialConfigFn, false /*disableLinkStateToggler*/);
 
   // capture packet exiting port 0 (entering due to loopback)
   auto dstMac = utility::getFirstInterfaceMac(ensemble->getProgrammedState());
   auto ecmpHelper =
       utility::EcmpSetupAnyNPorts6(ensemble->getProgrammedState(), dstMac);
+  flat_set<PortDescriptor> firstIntfPort;
+  firstIntfPort.insert(
+      PortDescriptor(ensemble->masterLogicalInterfacePortIds()[0]));
   ensemble->applyNewState([&](const std::shared_ptr<SwitchState>& in) {
-    return ecmpHelper.resolveNextHops(in, kEcmpWidth);
+    return ecmpHelper.resolveNextHops(in, firstIntfPort);
   });
   ecmpHelper.programRoutes(
       std::make_unique<SwSwitchRouteUpdateWrapper>(
           ensemble->getSw(), ensemble->getSw()->getRib()),
-      kEcmpWidth);
+      firstIntfPort,
+      {RoutePrefixV6{folly::IPAddressV6(), 0}});
   // Disable TTL decrements
   utility::ttlDecrementHandlingForLoopbackTraffic(
       ensemble.get(), ecmpHelper.getRouterId(), ecmpHelper.getNextHops()[0]);
@@ -96,18 +104,21 @@ BENCHMARK(RxSlowPathBenchmark) {
   const auto kSrcMac = folly::MacAddress{"fa:ce:b0:00:00:0c"};
   // Send packet
   auto vlanId = utility::firstVlanID(ensemble->getProgrammedState());
-  auto txPacket = utility::makeUDPTxPacket(
-      ensemble->getSw(),
-      vlanId,
-      kSrcMac,
-      dstMac,
-      folly::IPAddressV6("2620:0:1cfe:face:b00c::3"),
-      folly::IPAddressV6(kDstIp),
-      8000,
-      8001);
-  ensemble->getSw()->sendPacketSwitchedAsync(std::move(txPacket));
+  auto constexpr kPacketToSend = 10;
+  for (int i = 0; i < kPacketToSend; i++) {
+    auto txPacket = utility::makeUDPTxPacket(
+        ensemble->getSw(),
+        vlanId,
+        kSrcMac,
+        dstMac,
+        folly::IPAddressV6("2620:0:1cfe:face:b00c::3"),
+        folly::IPAddressV6(kDstIp),
+        8000,
+        8001);
+    ensemble->getSw()->sendPacketSwitchedAsync(std::move(txPacket));
+  }
 
-  constexpr auto kBurnIntevalInSeconds = 5;
+  constexpr auto kBurnIntevalInSeconds = 10;
   // Let the packet flood warm up
   std::this_thread::sleep_for(std::chrono::seconds(kBurnIntevalInSeconds));
   constexpr uint8_t kCpuQueue = 0;

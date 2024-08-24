@@ -94,6 +94,7 @@ target_link_libraries(switchinfo_utils
   switch_asics
   ctrl_cpp2
   fboss_types
+  agent_config_cpp2
 )
 
 target_link_libraries(address_utils
@@ -159,6 +160,7 @@ add_library(core
   fboss/agent/DsfSession.cpp
   fboss/agent/DsfStateUpdaterUtil.cpp
   fboss/agent/DsfSubscriber.cpp
+  fboss/agent/DsfSubscription.cpp
   fboss/agent/FabricConnectivityManager.cpp
   fboss/agent/EncapIndexAllocator.cpp
   fboss/agent/FibHelpers.cpp
@@ -231,6 +233,7 @@ target_link_libraries(
   state
   fsdb_model
   tuple_utils
+  switch_reachability_cpp2
   switch_state_cpp2
 )
 
@@ -288,6 +291,7 @@ set(core_libs
   monolithic_switch_handler
   l2learn_event_observer
   agent_fsdb_sync_manager
+  fboss_event_base
 )
 
 target_link_libraries(core ${core_libs})
@@ -301,6 +305,15 @@ target_link_libraries(error
   Folly::folly
 )
 
+add_library(thrifthandler_utils
+  fboss/agent/ThriftHandlerUtils.cpp
+)
+
+target_link_libraries(thrifthandler_utils
+  fboss_types
+  state
+)
+
 add_library(handler
   fboss/agent/ThriftHandler.cpp
 )
@@ -312,10 +325,19 @@ target_link_libraries(handler
   ctrl_cpp2
   log_thrift_call
   Folly::folly
+  thrifthandler_utils
 )
 
 target_link_libraries(fboss_types
   switch_config_cpp2
+  Folly::folly
+)
+
+add_library(fboss_event_base
+  fboss/agent/FbossEventBase.h
+)
+
+target_link_libraries(fboss_event_base
   Folly::folly
 )
 
@@ -442,6 +464,7 @@ target_link_libraries(hwagent-main
   setup_thrift
   split_agent_thrift_syncer
   Folly::folly
+  agent_hw_test_thrift_handler
 )
 
 add_library(restart_time_tracker
@@ -485,6 +508,7 @@ add_library(split_agent_thrift_syncer
   fboss/agent/mnpu/FdbEventSyncer.cpp
   fboss/agent/mnpu/HwSwitchStatsSinkClient.cpp
   fboss/agent/mnpu/LinkChangeEventSyncer.cpp
+  fboss/agent/mnpu/SwitchReachabilityChangeEventSyncer.cpp
   fboss/agent/mnpu/OperDeltaSyncer.cpp
   fboss/agent/mnpu/RxPktEventSyncer.cpp
   fboss/agent/mnpu/SplitAgentThriftSyncer.cpp

@@ -10,59 +10,83 @@
 
 namespace facebook::fboss {
 
-std::size_t refreshTcvrs(MediaInterfaceCode mediaType) {
-  folly::BenchmarkSuspender suspender;
-  std::size_t iters = 0;
-  auto wedgeMgr = setupForColdboot();
-  wedgeMgr->init();
+std::vector<TransceiverID> getMatchingTcvrIds(
+    const std::shared_ptr<WedgeManager>& wedgeMgr,
+    MediaInterfaceCode mediaType) {
+  std::vector<TransceiverID> tcvrIds;
+  auto qsfpConfig = wedgeMgr->getQsfpConfig();
+  if (qsfpConfig == nullptr) {
+    throw FbossError("Qsfp Config is not set.");
+  }
+  auto qsfpTestConfig = qsfpConfig->thrift.qsfpTestConfig();
+  CHECK(qsfpTestConfig.has_value());
 
-  for (int i = 0; i < wedgeMgr->getNumQsfpModules(); i++) {
-    TransceiverID id(i);
-    auto interface =
-        wedgeMgr->getTransceiverInfo(id).tcvrState()->moduleMediaInterface();
+  for (const auto& portPairs : *qsfpTestConfig->cabledPortPairs()) {
+    for (auto portName : {portPairs.aPortName(), portPairs.zPortName()}) {
+      auto portID = wedgeMgr->getPortIDByPortName(*portName);
+      CHECK(portID.has_value());
+      auto tcvrID = wedgeMgr->getTransceiverID(PortID(*portID));
+      if (!tcvrID) {
+        continue;
+      }
 
-    if (interface.has_value() && interface.value() == mediaType) {
-      std::unordered_set<TransceiverID> tcvr{id};
+      auto interface = wedgeMgr->getTransceiverInfo(*tcvrID)
+                           .tcvrState()
+                           ->moduleMediaInterface();
 
-      suspender.dismiss();
-      wedgeMgr->TransceiverManager::refreshTransceivers(tcvr);
-      suspender.rehire();
-      iters++;
+      if (interface.has_value() && interface.value() == mediaType) {
+        tcvrIds.push_back(*tcvrID);
+      }
     }
   }
 
-  return iters;
+  return tcvrIds;
+}
+
+std::size_t refreshTcvrs(MediaInterfaceCode mediaType) {
+  // Initialization
+  gflags::SetCommandLineOptionWithMode(
+      "qsfp_data_refresh_interval", "0", gflags::SET_FLAGS_DEFAULT);
+  folly::BenchmarkSuspender suspender;
+  // Making shared ptr so that we can use common helper function.
+  std::shared_ptr<WedgeManager> wedgeMgr = setupForColdboot();
+  wedgeMgr->init();
+
+  // Refresh Transceivers
+  auto tcvrIds = getMatchingTcvrIds(wedgeMgr, mediaType);
+  for (auto tcvrId : tcvrIds) {
+    suspender.dismiss();
+    wedgeMgr->TransceiverManager::refreshTransceivers({tcvrId});
+    suspender.rehire();
+  }
+
+  return tcvrIds.size();
 }
 
 std::size_t readOneByte(MediaInterfaceCode mediaType) {
   folly::BenchmarkSuspender suspender;
-  std::size_t iters = 0;
-  auto wedgeMgr = setupForColdboot();
+  // Making shared ptr so that we can use common helper function.
+  std::shared_ptr<WedgeManager> wedgeMgr = setupForColdboot();
   wedgeMgr->init();
 
-  for (int i = 0; i < wedgeMgr->getNumQsfpModules(); i++) {
-    TransceiverID id(i);
-    auto interface =
-        wedgeMgr->getTransceiverInfo(id).tcvrState()->moduleMediaInterface();
+  // Read Transceivers
+  auto tcvrIds = getMatchingTcvrIds(wedgeMgr, mediaType);
+  for (auto tcvrId : tcvrIds) {
+    std::map<int32_t, ReadResponse> response;
+    std::unique_ptr<ReadRequest> request(new ReadRequest);
+    TransceiverIOParameters param;
 
-    if (interface.has_value() && interface.value() == mediaType) {
-      std::unordered_set<TransceiverID> tcvr{id};
-      std::map<int32_t, ReadResponse> response;
-      std::unique_ptr<ReadRequest> request(new ReadRequest);
-      TransceiverIOParameters param;
+    request->ids() = {static_cast<int>(tcvrId)};
+    param.offset() = 0;
+    param.length() = 1;
+    request->parameter() = param;
 
-      request->ids() = {i};
-      param.offset() = 0;
-      param.length() = 1;
-      request->parameter() = param;
-      suspender.dismiss();
-      wedgeMgr->readTransceiverRegister(response, std::move(request));
-      suspender.rehire();
-      iters++;
-    }
+    suspender.dismiss();
+    wedgeMgr->readTransceiverRegister(response, std::move(request));
+    suspender.rehire();
   }
 
-  return iters;
+  return tcvrIds.size();
 }
 
 std::unique_ptr<WedgeManager> setupForColdboot() {

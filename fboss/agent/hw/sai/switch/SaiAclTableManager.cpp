@@ -684,11 +684,26 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
 
   std::optional<SaiAclEntryTraits::Attributes::FieldIpProtocol> fieldIpProtocol{
       std::nullopt};
-  if (addedAclEntry->getProto()) {
+  auto qualifierSet = getSupportedQualifierSet();
+  if (qualifierSet.find(cfg::AclTableQualifier::IP_PROTOCOL) !=
+          qualifierSet.end() &&
+      addedAclEntry->getProto()) {
     fieldIpProtocol = SaiAclEntryTraits::Attributes::FieldIpProtocol{
         AclEntryFieldU8(std::make_pair(
             addedAclEntry->getProto().value(), kIpProtocolMask))};
   }
+
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+  std::optional<SaiAclEntryTraits::Attributes::FieldIpv6NextHeader>
+      fieldIpv6NextHeader{std::nullopt};
+  if (qualifierSet.find(cfg::AclTableQualifier::IPV6_NEXT_HEADER) !=
+          qualifierSet.end() &&
+      addedAclEntry->getProto()) {
+    fieldIpv6NextHeader = SaiAclEntryTraits::Attributes::FieldIpv6NextHeader{
+        AclEntryFieldU8(std::make_pair(
+            addedAclEntry->getProto().value(), kIpv6NextHeaderMask))};
+  }
+#endif
 
   std::optional<SaiAclEntryTraits::Attributes::FieldTcpFlags> fieldTcpFlags{
       std::nullopt};
@@ -803,7 +818,7 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
             addedAclEntry->getVlanID().value(), kOuterVlanIdMask))};
   }
 
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
   std::optional<SaiAclEntryTraits::Attributes::FieldBthOpcode> fieldBthOpcode{
       std::nullopt};
   if (addedAclEntry->getRoceOpcode()) {
@@ -860,6 +875,11 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
 #if !defined(TAJO_SDK)
   std::optional<SaiAclEntryTraits::Attributes::ActionSetUserTrap>
       aclActionSetUserTrap{std::nullopt};
+#endif
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+  std::optional<SaiAclEntryTraits::Attributes::ActionDisableArsForwarding>
+      aclActionDisableArsForwarding{std::nullopt};
 #endif
 
   auto action = addedAclEntry->getAclAction();
@@ -1038,6 +1058,21 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
             apache::thrift::util::enumNameSafe(*macsecFlowAction.action()));
       }
     }
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+    if (FLAGS_flowletSwitchingEnable &&
+        platform_->getAsic()->isSupported(HwAsic::Feature::FLOWLET)) {
+      if (matchAction.getFlowletAction().has_value()) {
+        auto flowletAction = matchAction.getFlowletAction().value();
+        switch (flowletAction) {
+          case cfg::FlowletAction::FORWARD:
+            aclActionDisableArsForwarding =
+                SaiAclEntryTraits::Attributes::ActionDisableArsForwarding{
+                    false};
+            break;
+        }
+      }
+    }
+#endif
   }
 
   // TODO(skhare) At least one field and one action must be specified.
@@ -1056,8 +1091,11 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
        fieldTtl.has_value() || fieldFdbDstUserMeta.has_value() ||
        fieldRouteDstUserMeta.has_value() || fieldEtherType.has_value() ||
        fieldNeighborDstUserMeta.has_value() || fieldOuterVlanId.has_value() ||
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
        fieldBthOpcode.has_value() ||
+#endif
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+       fieldIpv6NextHeader.has_value() ||
 #endif
        platform_->getAsic()->isSupported(HwAsic::Feature::EMPTY_ACL_MATCHER));
   if (fieldSrcPort.has_value()) {
@@ -1075,6 +1113,9 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
        aclActionMirrorEgress.has_value() || aclActionMacsecFlow.has_value()
 #if !defined(TAJO_SDK)
        || aclActionSetUserTrap.has_value()
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+       || aclActionDisableArsForwarding.has_value()
 #endif
       );
 
@@ -1114,8 +1155,11 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
       fieldNeighborDstUserMeta,
       fieldEtherType,
       fieldOuterVlanId,
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
       fieldBthOpcode,
+#endif
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+      fieldIpv6NextHeader,
 #endif
       aclActionPacketAction,
       aclActionCounter,
@@ -1129,6 +1173,9 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
 // Tajo already supports this behavior
 #if !defined(TAJO_SDK)
       aclActionSetUserTrap,
+#endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+      aclActionDisableArsForwarding,
 #endif
   };
 
@@ -1367,6 +1414,8 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
 
 #if defined(TAJO_SDK_GTE_1_65_0)
     std::vector<cfg::AclTableQualifier> tajoExtraQualifierList = {
+        cfg::AclTableQualifier::ETHER_TYPE,
+        cfg::AclTableQualifier::BTH_OPCODE,
         cfg::AclTableQualifier::SRC_PORT,
         cfg::AclTableQualifier::L4_SRC_PORT,
         cfg::AclTableQualifier::L4_DST_PORT,
@@ -1398,6 +1447,7 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
     return jericho2Qualifiers;
   } else if (isJericho3) {
     std::set<cfg::AclTableQualifier> jericho3Qualifiers = {
+        cfg::AclTableQualifier::ETHER_TYPE,
         cfg::AclTableQualifier::SRC_IPV6,
         cfg::AclTableQualifier::DST_IPV6,
         cfg::AclTableQualifier::SRC_IPV4,
@@ -1405,7 +1455,8 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
         cfg::AclTableQualifier::SRC_PORT,
         cfg::AclTableQualifier::DSCP,
         cfg::AclTableQualifier::TTL,
-        cfg::AclTableQualifier::IP_PROTOCOL,
+        cfg::AclTableQualifier::IPV6_NEXT_HEADER,
+        cfg::AclTableQualifier::IP_TYPE,
         cfg::AclTableQualifier::LOOKUP_CLASS_NEIGHBOR,
         cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE,
         cfg::AclTableQualifier::BTH_OPCODE};
@@ -1605,12 +1656,21 @@ bool SaiAclTableManager::isQualifierSupported(
           std::get<
               std::optional<SaiAclTableTraits::Attributes::FieldOuterVlanId>>(
               attributes));
+
     case cfg::AclTableQualifier::BTH_OPCODE:
-#if !defined(TAJO_SDK)
+#if !defined(TAJO_SDK) || defined(TAJO_SDK_GTE_1_65_0)
       return hasField(
           std::get<
               std::optional<SaiAclTableTraits::Attributes::FieldBthOpcode>>(
               attributes));
+#else
+      return false;
+#endif
+    case cfg::AclTableQualifier::IPV6_NEXT_HEADER:
+#if !defined(TAJO_SDK) && !defined(BRCM_SAI_SDK_XGS)
+      return hasField(
+          std::get<std::optional<
+              SaiAclTableTraits::Attributes::FieldIpv6NextHeader>>(attributes));
 #else
       return false;
 #endif
@@ -1744,4 +1804,16 @@ AclStats SaiAclTableManager::getAclStats() const {
   return aclStats;
 }
 
+std::shared_ptr<AclTable> SaiAclTableManager::reconstructAclTable(
+    int /*priority*/,
+    const std::string& /*name*/) const {
+  throw FbossError("reconstructAclTable not implemented in SaiAclTableManager");
+}
+
+std::shared_ptr<AclEntry> SaiAclTableManager::reconstructAclEntry(
+    const std::string& /*tableName*/,
+    const std::string& /*aclEntryName*/,
+    int /*priority*/) const {
+  throw FbossError("reconstructAclEntry not implemented in SaiAclTableManager");
+}
 } // namespace facebook::fboss

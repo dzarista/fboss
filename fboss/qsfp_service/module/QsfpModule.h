@@ -126,6 +126,11 @@ class QsfpModule : public Transceiver {
   TransceiverInfo getTransceiverInfo() const override;
 
   /*
+   * Returns the Transceiver Part Number
+   */
+  std::string getPartNumber() const override;
+
+  /*
    * Perform a raw register read on the transceiver
    */
   std::unique_ptr<IOBuf> readTransceiver(
@@ -776,6 +781,8 @@ class QsfpModule : public Transceiver {
   // transceiverInfo.tcvrState and return the new transceiverInfo
   TransceiverInfo updateFwUpgradeStatusInTcvrInfoLocked(
       bool upgradeInProgress) override;
+
+  std::string primaryPortName_;
 };
 } // namespace fboss
 } // namespace facebook

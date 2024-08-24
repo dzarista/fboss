@@ -41,11 +41,16 @@ DECLARE_bool(dsf_subscriber_cache_updated_state);
 DECLARE_uint32(dsf_gr_hold_time);
 DECLARE_bool(dsf_flush_remote_sysports_and_rifs_on_gr);
 DECLARE_uint32(dsf_num_parallel_sessions_per_remote_interface_node);
+DECLARE_int32(dsf_num_fsdb_connect_threads);
+DECLARE_int32(dsf_num_fsdb_stream_threads);
 
-DECLARE_bool(classid_for_connected_subnet_routes);
+DECLARE_bool(set_classid_for_my_subnet_and_ip_routes);
 DECLARE_int32(stat_publish_interval_ms);
 DECLARE_int32(hwagent_port_base);
 DECLARE_bool(force_init_fp);
 DECLARE_bool(flowletSwitchingEnable);
 DECLARE_bool(dlbResourceCheckEnable);
 DECLARE_bool(disable_neighbor_solicitation);
+DECLARE_bool(disable_looped_fabric_ports);
+DECLARE_bool(detect_wrong_fabric_connections);
+DECLARE_bool(dsf_edsw_platform_mapping);

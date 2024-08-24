@@ -16,6 +16,8 @@
 #include "fboss/agent/SysError.h"
 #include "fboss/agent/hw/sai/api/LoggingUtil.h"
 #include "fboss/agent/hw/sai/tracer/AclApiTracer.h"
+#include "fboss/agent/hw/sai/tracer/ArsApiTracer.h"
+#include "fboss/agent/hw/sai/tracer/ArsProfileApiTracer.h"
 #include "fboss/agent/hw/sai/tracer/BridgeApiTracer.h"
 #include "fboss/agent/hw/sai/tracer/BufferApiTracer.h"
 #include "fboss/agent/hw/sai/tracer/CounterApiTracer.h"
@@ -200,6 +202,20 @@ sai_status_t __wrap_sai_api_query(
       *api_method_table = facebook::fboss::wrappedAclApi();
       SaiTracer::getInstance()->logApiQuery(sai_api_id, "acl_api");
       break;
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+    case SAI_API_ARS:
+      SaiTracer::getInstance()->arsApi_ =
+          static_cast<sai_ars_api_t*>(*api_method_table);
+      *api_method_table = facebook::fboss::wrappedArsApi();
+      SaiTracer::getInstance()->logApiQuery(sai_api_id, "ars_api");
+      break;
+    case SAI_API_ARS_PROFILE:
+      SaiTracer::getInstance()->arsProfileApi_ =
+          static_cast<sai_ars_profile_api_t*>(*api_method_table);
+      *api_method_table = facebook::fboss::wrappedArsProfileApi();
+      SaiTracer::getInstance()->logApiQuery(sai_api_id, "ars_profile_api");
+      break;
+#endif
     case SAI_API_BRIDGE:
       SaiTracer::getInstance()->bridgeApi_ =
           static_cast<sai_bridge_api_t*>(*api_method_table);
@@ -1328,6 +1344,14 @@ vector<string> SaiTracer::setAttrList(
     case SAI_OBJECT_TYPE_ACL_TABLE_GROUP_MEMBER:
       setAclTableGroupMemberAttributes(attr_list, attr_count, attrLines, rv);
       break;
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+    case SAI_OBJECT_TYPE_ARS:
+      setArsAttributes(attr_list, attr_count, attrLines, rv);
+      break;
+    case SAI_OBJECT_TYPE_ARS_PROFILE:
+      setArsProfileAttributes(attr_list, attr_count, attrLines, rv);
+      break;
+#endif
     case SAI_OBJECT_TYPE_BRIDGE:
       setBridgeAttributes(attr_list, attr_count, attrLines, rv);
       break;
@@ -1773,6 +1797,10 @@ void SaiTracer::initVarCounts() {
   varCounts_.emplace(SAI_OBJECT_TYPE_ACL_TABLE, 0);
   varCounts_.emplace(SAI_OBJECT_TYPE_ACL_TABLE_GROUP, 0);
   varCounts_.emplace(SAI_OBJECT_TYPE_ACL_TABLE_GROUP_MEMBER, 0);
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+  varCounts_.emplace(SAI_OBJECT_TYPE_ARS, 0);
+  varCounts_.emplace(SAI_OBJECT_TYPE_ARS_PROFILE, 0);
+#endif
   varCounts_.emplace(SAI_OBJECT_TYPE_BRIDGE, 0);
   varCounts_.emplace(SAI_OBJECT_TYPE_BRIDGE_PORT, 0);
   varCounts_.emplace(SAI_OBJECT_TYPE_BUFFER_POOL, 0);

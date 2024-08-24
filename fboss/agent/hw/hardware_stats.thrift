@@ -91,6 +91,8 @@ struct HwPortStats {
   59: optional i64 fabricConnectivityMismatch_DEPRECATED;
   60: optional i32 logicalPortId;
   61: optional i64 leakyBucketFlapCount_;
+  62: optional i64 cableLengthMeters;
+  63: optional bool dataCellsFilterOn;
 }
 
 struct HwSysPortStats {
@@ -100,6 +102,7 @@ struct HwSysPortStats {
   3: map<i16, i64> queueWatermarkBytes_ = {};
   4: map<i16, i64> queueWredDroppedPackets_ = {};
   5: map<i16, i64> queueCreditWatchdogDeletedPackets_ = {};
+  6: map<i16, i64> queueLatencyWatermarkNsec_ = {};
 
   // seconds from epoch
   // Field index at a distance to allow for other stat additions
@@ -264,6 +267,7 @@ struct HwSwitchWatermarkStats {
   4: i64 deviceWatermarkBytes;
   5: map<string, i64> globalHeadroomWatermarkBytes;
   6: map<string, i64> globalSharedWatermarkBytes;
+  7: optional i64 egressCoreBufferWatermarkBytes;
 }
 
 struct CpuPortStats {
@@ -287,11 +291,17 @@ struct HwSwitchDropStats {
   10: optional i64 queueResolutionDrops;
   11: optional i64 ingressPacketPipelineRejectDrops;
   12: optional i64 corruptedCellPacketIntegrityDrops;
+  13: optional i64 missingCellPacketIntegrityDrops;
 }
 
 struct HwSwitchDramStats {
   1: optional i64 dramEnqueuedBytes;
   2: optional i64 dramDequeuedBytes;
+  3: optional i64 dramBlockedTimeNsec;
+}
+
+struct HwSwitchCreditStats {
+  1: optional i64 deletedCreditBytes;
 }
 
 struct HwSwitchFb303GlobalStats {
@@ -321,6 +331,21 @@ struct HwSwitchFb303GlobalStats {
   23: optional i64 forwarding_queue_processor_errors;
   24: i64 virtual_devices_with_asymmetric_connectivity;
   25: i64 switch_reachability_change;
+  /*
+   * Until later versions of the chip (B0), cable lengths seen by
+   * each port group has a bearing on how efficiently FDR-in buffers on J3 are
+   * utilized.
+   * If all port groups see roughly the same cable length then they all dequeue
+   * cells for a pkt to FDR-out buffers around the same time. If OTOH a port
+   * groups sees substantially lower cable lengths, FDR-in corresponding
+   * to that port group dequeues to FDR-out faster. This causes cells to
+   * sit for longer in FDR-out buffers, leading to more stress on the
+   * latter. Our cabling plans try to minimize this. Report the skew seen
+   * here to corroborate that cabling was as desired
+  */
+  26: optional i64 inter_port_group_cable_skew_meters;
+  27: optional i64 dram_blocked_time_ns;
+  28: optional i64 deleted_credit_bytes;
 }
 
 struct HwFlowletStats {

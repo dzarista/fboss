@@ -29,6 +29,7 @@ class RxPktEventSyncer;
 class TxPktEventSyncer;
 class OperDeltaSyncer;
 class HwSwitchStatsSinkClient;
+class SwitchReachabilityChangeEventSyncer;
 
 class SplitAgentThriftSyncer : public HwSwitchCallback {
  public:
@@ -51,6 +52,10 @@ class SplitAgentThriftSyncer : public HwSwitchCallback {
   void linkConnectivityChanged(
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&
           port2OldAndNewConnectivity) override;
+  void switchReachabilityChanged(
+      const SwitchID switchId,
+      const std::map<SwitchID, std::set<PortID>>& switchReachabilityInfo)
+      override;
   void l2LearningUpdateReceived(
       L2Entry l2Entry,
       L2EntryUpdateType l2EntryUpdateType) override;
@@ -65,6 +70,7 @@ class SplitAgentThriftSyncer : public HwSwitchCallback {
   void stop();
   void updateHwSwitchStats(multiswitch::HwSwitchStats stats);
   void stopOperDeltaSync();
+  void cancelPendingRxPktEnqueue();
 
  private:
   std::shared_ptr<folly::ScopedEventBaseThread> retryThread_;
@@ -75,6 +81,8 @@ class SplitAgentThriftSyncer : public HwSwitchCallback {
   std::unique_ptr<FdbEventSyncer> fdbEventSinkClient_;
   std::unique_ptr<RxPktEventSyncer> rxPktEventSinkClient_;
   std::unique_ptr<HwSwitchStatsSinkClient> hwSwitchStatsSinkClient_;
+  std::unique_ptr<SwitchReachabilityChangeEventSyncer>
+      switchReachabilityChangeEventSinkClient_;
   bool isRunning_{false};
   folly::Synchronized<uint64_t> rxPktEventsDropped_{0};
 };

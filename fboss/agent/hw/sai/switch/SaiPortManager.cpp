@@ -303,7 +303,7 @@ void fillHwPortStats(
       case SAI_PORT_STAT_OUT_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS:
         hwPortStats.pqpErrorEgressDroppedPackets_() = value;
         break;
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
       case SAI_PORT_STAT_IF_IN_LINK_DOWN_CELL_DROP:
         hwPortStats.fabricLinkDownDroppedCells_() = value;
         break;
@@ -854,7 +854,7 @@ cfg::PortType SaiPortManager::getPortType(PortID portId) const {
 }
 
 void SaiPortManager::setPortType(PortID port, cfg::PortType type) {
-  port2PortType_.insert({port, type});
+  port2PortType_[port] = type;
   // If Port type changed, supported stats need to be updated
   port2SupportedStats_.clear();
   XLOG(DBG2) << " Port : " << port << " type set to : "
@@ -1023,6 +1023,22 @@ void SaiPortManager::changePort(
     setPortType(newPort->getID(), newPort->getPortType());
   }
   changePortImpl(oldPort, newPort);
+}
+
+void SaiPortManager::resetCableLength(PortID portId) {
+  auto portStatItr = portStats_.find(portId);
+  if (portStatItr == portStats_.end()) {
+    // No stats exist, nothing to do
+    return;
+  }
+  auto curPortStats = portStatItr->second->portStats();
+  if (!curPortStats.cableLengthMeters().has_value()) {
+    // Value not set, return
+    return;
+  }
+  curPortStats.cableLengthMeters().reset();
+  auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
+  portStatItr->second->updateStats(curPortStats, now);
 }
 
 void SaiPortManager::addSamplePacket(const std::shared_ptr<Port>& swPort) {
@@ -1404,12 +1420,12 @@ std::shared_ptr<Port> SaiPortManager::swPortFromAttributes(
     case SAI_PORT_TYPE_LOGICAL:
       port->setPortType(derivePortTypeOfLogicalPort(portSaiId));
       break;
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
     case SAI_PORT_TYPE_MGMT:
       port->setPortType(cfg::PortType::MANAGEMENT_PORT);
       break;
 #endif
-#if defined(SAI_VERSION_11_0_EA_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
     case SAI_PORT_TYPE_EVENTOR:
       port->setPortType(cfg::PortType::EVENTOR_PORT);
       break;
@@ -1582,7 +1598,7 @@ bool SaiPortManager::rxSNRSupported() const {
 }
 
 bool SaiPortManager::fecCodewordsStatsSupported(PortID portId) const {
-#if defined(BRCM_SAI_SDK_GTE_10_0) || defined(SAI_VERSION_11_0_EA_DNX_ODP) || \
+#if defined(BRCM_SAI_SDK_GTE_10_0) || defined(BRCM_SAI_SDK_DNX_GTE_11_0) || \
     defined(TAJO_SDK_MORGAN)
   return platform_->getAsic()->isSupported(
              HwAsic::Feature::SAI_FEC_CODEWORDS_STATS) &&
@@ -1742,7 +1758,10 @@ void SaiPortManager::updatePrbsStats(PortID portId) {
 #endif
 }
 
-void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
+void SaiPortManager::updateStats(
+    PortID portId,
+    bool updateWatermarks,
+    bool updateCableLengths) {
   auto handlesItr = handles_.find(portId);
   if (handlesItr == handles_.end()) {
     return;
@@ -1838,10 +1857,52 @@ void SaiPortManager::updateStats(PortID portId, bool updateWatermarks) {
       handle->configuredQueues, curPortStats, updateWatermarks);
   managerTable_->macsecManager().updateStats(portId, curPortStats);
   managerTable_->bufferManager().updateIngressPriorityGroupStats(
-      portId, *curPortStats.portName_(), updateWatermarks);
+      portId, curPortStats, updateWatermarks);
   auto logicalPortId = platform_->getPlatformPort(portId)->getHwLogicalPortId();
   if (logicalPortId) {
     curPortStats.logicalPortId() = *logicalPortId;
+  }
+  if (updateCableLengths && portType == cfg::PortType::FABRIC_PORT &&
+      platform_->getAsic()->isSupported(
+          HwAsic::Feature::CABLE_PROPOGATION_DELAY)) {
+    /*
+    ** Cable length collection is expensive, taking upto 50ms per
+    ** port. Cable length can really only change in face of recabling. So
+    ** we optimize as follows
+    ** - Reset cable len on port down event
+    ** - Collect cable len only for up ports that don't have cable len set.
+
+    ** The reason for resetting on port down event and not on stats collection
+    ** round is that stats collection is periodic. So consider a port getting
+    ** recabled, if it got recabled and came up within our stats collection
+    ** interval, we would not recollect cable len until next warm/cold boot.
+    ** Reason for not collecting cable len stat on port Up and doing it
+    ** in periodic stat collection is that we may need to try multiple times
+    ** since when port comes up, not everything  is synchronized immediately
+    */
+    if (isUp(portId) && !curPortStats.cableLengthMeters().has_value()) {
+      std::optional<SaiPortTraits::Attributes::CablePropogationDelayNS> attrT =
+          SaiPortTraits::Attributes::CablePropogationDelayNS{};
+      auto cablePropogationDelayNS =
+          SaiApiTable::getInstance()->portApi().getAttribute(
+              handle->port->adapterKey(), attrT);
+      CHECK(cablePropogationDelayNS.has_value());
+      if (*cablePropogationDelayNS != std::numeric_limits<uint32_t>::max()) {
+        // In fiber it takes about 5ns for light to travel 1 meter
+        curPortStats.cableLengthMeters() =
+            std::ceil(*cablePropogationDelayNS / 5.0);
+      }
+    }
+  }
+  if (portType == cfg::PortType::FABRIC_PORT &&
+      platform_->getAsic()->isSupported(HwAsic::Feature::DATA_CELL_FILTER)) {
+    std::optional<SaiPortTraits::Attributes::FabricDataCellsFilterStatus>
+        attrT = SaiPortTraits::Attributes::FabricDataCellsFilterStatus{};
+    curPortStats.dataCellsFilterOn() =
+        SaiApiTable::getInstance()->portApi().getAttribute(
+            handle->port->adapterKey(), attrT)
+        ? true
+        : false;
   }
   portStats_[portId]->updateStats(curPortStats, now);
   auto lastPrbsRxStateReadTimeIt = lastPrbsRxStateReadTime_.find(portId);
@@ -2108,6 +2169,14 @@ void SaiPortManager::programSampling(
     SamplePacketAction action,
     uint64_t sampleRate,
     std::optional<cfg::SampleDestination> sampleDestination) {
+  auto portType = getPortType(portId);
+  if (portType != cfg::PortType::INTERFACE_PORT) {
+    throw FbossError(
+        "Programming Sampling is only supported for Interface Ports; PortID: ",
+        portId,
+        " has type",
+        apache::thrift::util::enumNameSafe(portType));
+  }
   auto destination = sampleDestination.has_value()
       ? sampleDestination.value()
       : cfg::SampleDestination::CPU;
@@ -2151,6 +2220,15 @@ void SaiPortManager::programMirror(
     MirrorDirection direction,
     MirrorAction action,
     std::optional<std::string> mirrorId) {
+  auto portType = getPortType(portId);
+  if (portType != cfg::PortType::INTERFACE_PORT) {
+    throw FbossError(
+        "Programming mirroring is only supported for Interface Ports; PortID: ",
+        portId,
+        " has type",
+        apache::thrift::util::enumNameSafe(portType));
+  }
+
   auto portHandle = getPortHandle(portId);
   std::vector<sai_object_id_t> mirrorOidList{};
   if (action == MirrorAction::START) {
@@ -2183,6 +2261,14 @@ void SaiPortManager::programSamplingMirror(
     MirrorDirection direction,
     MirrorAction action,
     std::optional<std::string> mirrorId) {
+  auto portType = getPortType(portId);
+  if (portType != cfg::PortType::INTERFACE_PORT) {
+    throw FbossError(
+        "Programming sampling mirror is only supported for Interface Ports; PortID: ",
+        portId,
+        " has type",
+        apache::thrift::util::enumNameSafe(portType));
+  }
   auto portHandle = getPortHandle(portId);
   std::vector<sai_object_id_t> mirrorOidList{};
   if (action == MirrorAction::START) {

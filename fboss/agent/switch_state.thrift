@@ -49,8 +49,8 @@ struct RxSak {
 // Port configuration and oper state fields
 // TODO: separate config and operational state
 struct PortFields {
-  1: required i32 portId;
-  2: required string portName;
+  1: i32 portId;
+  2: string portName;
   3: string portDescription;
   // TODO: use switch_config.PortState?
   4: string portState = "DISABLED";
@@ -134,12 +134,13 @@ struct PortFields {
   // Current active errors seen on port
   52: list<ctrl.PortError> activeErrors;
   53: switch_config.Scope scope = switch_config.Scope.LOCAL;
+  54: optional i32 reachabilityGroupId;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields
 
 struct TransceiverSpecFields {
-  1: required i16 id;
+  1: i16 id;
   2: optional double cableLength;
   3: optional transceiver.MediaInterfaceCode mediaInterface;
   4: optional transceiver.TransceiverManagementInterface managementInterface;
@@ -310,6 +311,7 @@ struct MirrorFields {
   11: optional MirrorTunnel tunnel;
   12: bool isResolved;
   13: i64 switchId;
+  14: optional switch_config.PortDescriptor egressPortDesc;
 }
 
 struct ControlPlaneFields {
@@ -384,6 +386,8 @@ struct SwitchSettingsFields {
   41: string hostname;
   // When there's no IPv4 addresses configured, what address to use to source IPv4 ICMP packets from.
   42: Address.BinaryAddress icmpV4UnavailableSrcAddress;
+  // Switch property of reachability group size, for the use of input balanced mode.
+  43: optional i32 reachabilityGroupSize;
 }
 
 struct RoutePrefix {

@@ -6,6 +6,9 @@
 #include <folly/logging/xlog.h>
 
 namespace facebook::fboss::platform::platform_manager {
+
+DataStore::DataStore(const PlatformConfig& config) : platformConfig_(config) {}
+
 uint16_t DataStore::getI2cBusNum(
     const std::optional<std::string>& slotPath,
     const std::string& pmUnitScopeBusName) const {
@@ -36,50 +39,16 @@ void DataStore::updateI2cBusNum(
   i2cBusNums_[std::make_pair(slotPath, pmUnitScopeBusName)] = busNum;
 }
 
-uint16_t DataStore::getGpioChipNum(
-    const std::string& slotPath,
-    const std::string& gpioChipDeviceName) const {
-  auto it = gpioChipNums_.find(std::make_pair(slotPath, gpioChipDeviceName));
-  if (it != gpioChipNums_.end()) {
-    return it->second;
-  }
-  throw std::runtime_error(fmt::format(
-      "Could not find gpio chip number for {} at {}",
-      gpioChipDeviceName,
-      slotPath));
-}
-
-void DataStore::updateGpioChipNum(
-    const std::string& slotPath,
-    const std::string& gpioChipDeviceName,
-    uint16_t gpioChipNum) {
-  XLOG(INFO) << fmt::format(
-      "Updating gpio chip {} in {} to gpio chip number {} (gpiochip{})",
-      gpioChipDeviceName,
-      slotPath,
-      gpioChipNum,
-      gpioChipNum);
-  gpioChipNums_[std::make_pair(slotPath, gpioChipDeviceName)] = gpioChipNum;
-}
-
 std::string DataStore::getPmUnitName(const std::string& slotPath) const {
-  if (slotPathToPmUnitName_.find(slotPath) != slotPathToPmUnitName_.end()) {
-    return slotPathToPmUnitName_.at(slotPath);
+  if (slotPathToPmUnitInfo.find(slotPath) != slotPathToPmUnitInfo.end()) {
+    return slotPathToPmUnitInfo.at(slotPath).first;
   }
   throw std::runtime_error(
       fmt::format("Could not find PmUnit at {}", slotPath));
 }
 
-void DataStore::updatePmUnitName(
-    const std::string& slotPath,
-    const std::string& pmUnitName) {
-  XLOG(INFO) << fmt::format(
-      "Updating SlotPath {} to have PmUnit {}", slotPath, pmUnitName);
-  slotPathToPmUnitName_[slotPath] = pmUnitName;
-}
-
 bool DataStore::hasPmUnit(const std::string& slotPath) const {
-  return slotPathToPmUnitName_.find(slotPath) != slotPathToPmUnitName_.end();
+  return slotPathToPmUnitInfo.find(slotPath) != slotPathToPmUnitInfo.end();
 }
 
 std::string DataStore::getSysfsPath(const std::string& devicePath) const {
@@ -104,23 +73,6 @@ bool DataStore::hasSysfsPath(const std::string& devicePath) const {
       pciSubDevicePathToSysfsPath_.end();
 }
 
-uint32_t DataStore::getInstanceId(const std::string& devicePath) {
-  auto itr = pciSubDevicePathToInstanceId_.find(devicePath);
-  if (itr != pciSubDevicePathToInstanceId_.end()) {
-    return itr->second;
-  }
-  throw std::runtime_error(
-      fmt::format("Could not find instanceId for {}", devicePath));
-}
-
-void DataStore::updateInstanceId(
-    const std::string& devicePath,
-    uint32_t instanceId) {
-  XLOG(INFO) << fmt::format(
-      "Updating instanceId for {} to {}", devicePath, instanceId);
-  pciSubDevicePathToInstanceId_[devicePath] = instanceId;
-}
-
 std::string DataStore::getCharDevPath(const std::string& devicePath) const {
   auto itr = pciSubDevicePathToCharDevPath_.find(devicePath);
   if (itr != pciSubDevicePathToCharDevPath_.end()) {
@@ -138,4 +90,54 @@ void DataStore::updateCharDevPath(
   pciSubDevicePathToCharDevPath_[devicePath] = charDevPath;
 }
 
+void DataStore::updatePmUnitInfo(
+    const std::string& slotPath,
+    const std::string& pmUnitName,
+    std::optional<int> productSubVersion) {
+  XLOG(INFO) << fmt::format(
+      "At SlotPath {}, updating to PmUnit {} {}",
+      slotPath,
+      pmUnitName,
+      productSubVersion
+          ? fmt::format("ProductSubVersion {}", *productSubVersion)
+          : "");
+  slotPathToPmUnitInfo[slotPath] = {pmUnitName, productSubVersion};
+}
+
+PmUnitConfig DataStore::resolvePmUnitConfig(const std::string& slotPath) const {
+  if (slotPathToPmUnitInfo.find(slotPath) == slotPathToPmUnitInfo.end()) {
+    throw std::runtime_error(
+        fmt::format("Unable to resolve PmUnitInfo for {}", slotPath));
+  }
+  const auto [pmUnitName, productSubVersion] =
+      slotPathToPmUnitInfo.at(slotPath);
+  if (!productSubVersion) {
+    XLOG(INFO) << fmt::format(
+        "Resolved {} to default PmUnitConfig of {}. No ProductSubversion was "
+        "read from IDPROM at the slotPath.",
+        slotPath,
+        pmUnitName);
+    return platformConfig_.pmUnitConfigs()->at(pmUnitName);
+  }
+  if (platformConfig_.versionedPmUnitConfigs()->contains(pmUnitName)) {
+    for (const auto& versionedPmUnitConfig :
+         platformConfig_.versionedPmUnitConfigs()->at(pmUnitName)) {
+      if (*versionedPmUnitConfig.productSubVersion() == *productSubVersion) {
+        XLOG(INFO) << fmt::format(
+            "Resolved {} to PmUnitConfig of {} with ProductSubVersion {}",
+            slotPath,
+            pmUnitName,
+            *productSubVersion);
+        return *versionedPmUnitConfig.pmUnitConfig();
+      }
+    }
+  }
+  XLOG(INFO) << fmt::format(
+      "Resolved {} to default PmUnitConfig of {}. No versioned config for "
+      "ProductSubVersion {}",
+      slotPath,
+      pmUnitName,
+      *productSubVersion);
+  return platformConfig_.pmUnitConfigs()->at(pmUnitName);
+}
 } // namespace facebook::fboss::platform::platform_manager

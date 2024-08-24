@@ -20,6 +20,7 @@ enum class RegisterValueType {
   FLOAT = 2,
   FLAGS = 3,
   HEX = 4,
+  LONG = 5,
 };
 
 enum RegisterEndian { BIG, LITTLE };
@@ -59,6 +60,9 @@ struct RegisterDescriptor {
   // Shift floating point value.
   float shift = 0.0;
 
+  // true if we expect sign bit (signed)
+  bool sign = false;
+
   // If the register stores flags, this provides the desc.
   FlagsDescType flags{};
 
@@ -78,8 +82,13 @@ struct FlagType {
 
 struct RegisterValue {
   using FlagsType = std::vector<FlagType>;
-  using ValueType = std::
-      variant<int32_t, float, std::string, std::vector<uint8_t>, FlagsType>;
+  using ValueType = std::variant<
+      int32_t,
+      int64_t,
+      float,
+      std::string,
+      std::vector<uint8_t>,
+      FlagsType>;
 
   // Dictates which of the variants in value to expect
   RegisterValueType type = RegisterValueType::INTEGER;
@@ -99,12 +108,14 @@ struct RegisterValue {
  private:
   void makeString(const std::vector<uint16_t>& reg);
   void makeHex(const std::vector<uint16_t>& reg);
-  void makeInteger(const std::vector<uint16_t>& reg, RegisterEndian end);
+  void
+  makeInteger(const std::vector<uint16_t>& reg, RegisterEndian end, bool sign);
   void makeFloat(
       const std::vector<uint16_t>& reg,
       uint16_t precision,
       float scale,
-      float shift);
+      float shift,
+      bool sign);
   void makeFlags(
       const std::vector<uint16_t>& reg,
       const RegisterDescriptor::FlagsDescType& flagsDesc);

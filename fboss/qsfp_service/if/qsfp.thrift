@@ -26,6 +26,14 @@ service QsfpService extends phy.FbossCommonPhyCtrl {
   ) throws (1: fboss.FbossBaseError error);
 
   /*
+   * Get config validation status of a transceiver
+   */
+  map<i32, string> getTransceiverConfigValidationInfo(
+    1: list<i32> idx,
+    2: bool getConfigString,
+  ) throws (1: fboss.FbossBaseError error);
+
+  /*
    * Do a raw read on the data for a specific transceiver.
    */
   map<i32, transceiver.RawDOMData> getTransceiverRawDOMData(
@@ -284,6 +292,10 @@ service QsfpService extends phy.FbossCommonPhyCtrl {
    * Dump the i2c log for a transceiver
    */
   void dumpTransceiverI2cLog(1: string portName) throws (
+    1: fboss.FbossBaseError error,
+  );
+
+  list<string> getPortsRequiringOpticsFwUpgrade() throws (
     1: fboss.FbossBaseError error,
   );
 }
