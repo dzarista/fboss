@@ -82,7 +82,7 @@ class PlatformConfig:
       self.i2cAdaptersFromCpu = []
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
-         "bspKmodsRpmVersion": "0.7.2-1",
+         "bspKmodsRpmVersion": "0.7.3-1",
          "bspKmodsToReload": [],
          "sharedKmodsToReload": [],
          "upstreamKmodsToLoad": []
@@ -136,6 +136,7 @@ class PlatformConfig:
       jsonDict = OrderedDict()
       jsonDict[ "platformName" ] = self.platformName
       jsonDict[ "rootPmUnitName" ] = self.rootPmUnitName
+      jsonDict[ "rootSlotType" ] = f"{ self.rootPmUnitName }_SLOT"
       jsonDict[ "slotTypeConfigs" ] = self.getSlotTypeConfigsDict()
       jsonDict[ "pmUnitConfigs" ] = self.getPmUnitConfigsDict()
       jsonDict[ "i2cAdaptersFromCpu" ] = self.i2cAdaptersFromCpu
