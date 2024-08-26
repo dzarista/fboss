@@ -887,8 +887,9 @@ class PciDeviceConfig:
          for led in portLeds:
             configList.append( led )
 
-      for identifier, config in enumerate( self.ledCtrlConfigs ):
-         configList.append( config.parseStatusLeds( identifier+1 ) )
+      statusLedsNumbers = {}
+      for config in self.ledCtrlConfigs:
+         configList.append( config.parseStatusLeds( statusLedsNumbers ) )
 
       return configList
 
@@ -1119,20 +1120,22 @@ class LedConfig:
       self.ledName = ledName
       self.offset = offset
 
-   def parseStatusLeds( self, identifier ):
+   def parseStatusLeds( self, statusLedNumbers ):
       name = self.ledName
       offset = self.offset
 
       assert name and offset, "missing details in status leds"
 
+      deviceName = f"{ name[ :3 ].lower() }_led"
+      statusLedNumbers[ deviceName ] = statusLedNumbers.get( deviceName, 0 ) + 1
       led = {
          "fpgaIpBlockConfig": {
             "pmUnitScopedName": name.upper(),
-            "deviceName": f"{ name[ :3 ].lower() }_led",
+            "deviceName": deviceName,
             "csrOffset": offset.lower()
          },
          "portNumber": -1,
-         "ledId": identifier
+         "ledId": statusLedNumbers[ deviceName ]
       }
 
       return led
