@@ -272,7 +272,7 @@
                 "csrOffset": "0x6060"
               },
               "portNumber": -1,
-              "ledId": 2
+              "ledId": 1
             },
             {
               "fpgaIpBlockConfig": {
@@ -281,7 +281,7 @@
                 "csrOffset": "0x6070"
               },
               "portNumber": -1,
-              "ledId": 3
+              "ledId": 1
             }
           ],
           "xcvrCtrlConfigs": []
