@@ -1,6 +1,7 @@
 // Copyright (c) 2024 Arista Networks, Inc.  All rights reserved.
 // Arista Networks, Inc. Confidential and Proprietary.
 
+#include "DeviceHandler.h"
 #include "PsuUpdate.h"
 #include <csignal>
 #include <errno.h>
@@ -24,7 +25,7 @@ void printUsage() {
       ss << "|";
     }
   }
-  ss << "> --update <file_path> --vendor <Delta|Arista>";
+  ss << "> --update <file_path>";
 
   std::cout << ss.str() << std::endl;
 }
@@ -32,7 +33,7 @@ void printUsage() {
 int main(int argc, const char *argv[]) {
   int psuCount = getPsuCount();
   int psuNum = 0;
-  if (argc < 5) {
+  if (argc < 4) {
     printUsage();
     return -1;
   }
@@ -51,18 +52,16 @@ int main(int argc, const char *argv[]) {
   }
 
   std::string updateFilePath = "";
-  std::string vendorName = "";
 
-  for (int i = 2; i < argc; i++) {
-    std::string arg = argv[i];
-    if (arg == "--update" && i + 1 < argc) {
-      updateFilePath = argv[++i];
-    } else if (arg == "--vendor" && i + 1 < argc) {
-      vendorName = argv[++i];
-    }
+  std::string arg = argv[2];
+  if (arg == "--update") {
+    updateFilePath = argv[3];
+  } else {
+    printUsage();
+    return -1;
   }
 
-  if (updateFilePath.empty() && vendorName.empty()) {
+  if (updateFilePath.empty()) {
     printUsage();
     return -1;
   }
@@ -91,5 +90,5 @@ int main(int argc, const char *argv[]) {
     return -1;
   }
 
-  return updatePsu(psuNum, updateFilePath, vendorName);
+  return prepUpdatePsu(psuNum, updateFilePath);
 }
