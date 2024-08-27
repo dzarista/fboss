@@ -35,7 +35,7 @@ int main(int argc, const char *argv[]) {
   int psuNum = 0;
   if (argc < 4) {
     printUsage();
-    return -1;
+    return 1;
   }
 
   std::string psuArg = argv[1];
@@ -48,7 +48,7 @@ int main(int argc, const char *argv[]) {
   }
   if (psuNum == 0) {
     printUsage();
-    return -1;
+    return 1;
   }
 
   std::string updateFilePath = "";
@@ -58,12 +58,12 @@ int main(int argc, const char *argv[]) {
     updateFilePath = argv[3];
   } else {
     printUsage();
-    return -1;
+    return 1;
   }
 
   if (updateFilePath.empty()) {
     printUsage();
-    return -1;
+    return 1;
   }
 
   int pidFile = open("/var/run/psu-upgrade.pid", O_RDWR | O_CREAT, 0666);
@@ -74,7 +74,7 @@ int main(int argc, const char *argv[]) {
 
   if (!isPsuPresent(psuNum)) {
     std::cout << "PSU" << psuNum << " not present" << std::endl;
-    return -1;
+    return 1;
   }
 
   int backupPsus = 0;
@@ -87,8 +87,12 @@ int main(int argc, const char *argv[]) {
   if (backupPsus == 0) {
     std::cout << "Another PSU must be functional to perform update"
               << std::endl;
-    return -1;
+    return 1;
   }
 
-  return prepUpdatePsu(psuNum, updateFilePath);
+  if (prepUpdatePsu(psuNum, updateFilePath)) {
+    return 0;
+  } else {
+    return 1;
+  }
 }
