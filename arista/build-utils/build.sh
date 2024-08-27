@@ -126,8 +126,12 @@ fi
 # install missing dependencies for SDK build.
 dnf install -y sudo
 sudo dnf install --enablerepo "$DEV_TOOLS_REPO" -y perl-List-MoreUtils perl-YAML.noarch \
-   perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel doxygen
+   perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel doxygen \
+   yaml-cpp-static
 sudo dnf install -y python3-filelock platform-python-devel double-conversion-devel
+
+# Link the libyaml cpp staticl library to the path that the SDK build expects.
+ln -s /usr/lib64/libyaml-cpp.a  /usr/lib64/libyaml.a
 
 # Python3 is the default in CENTOS RELEASE > 8.
 if [ "$CENTOS_RELEASE_MAJOR" == "8" ]; then
@@ -252,6 +256,12 @@ else
    export SAI_ONLY=1
    export SAI_BRCM_IMPL=1 # Needed only for BRCM SAI
    export GETDEPS_USE_WGET=1
+   # 11.3 GA and later releases include a EDK firmware image for firmware based
+   # isolate.
+   # Env var pointing to the EDK firmware image ld script file. We use the env var in
+   # the FBOSS cmake configuration to make the linker use this script for linking all
+   # FBOSS binaries.
+   export SAI_EDK_HOST_LDS_PATH="$SAI_BUILD_DIR/libraries/edk-host-image.lds"
    cd "$FBOSS_DIR/fboss.git"
 
    echo "****BUILD_KNOWN_GOOD_HASH $BUILD_KNOWN_GOOD_HASH"
