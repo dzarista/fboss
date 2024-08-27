@@ -26,7 +26,7 @@ set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_darwin_dir}/* .
 mkdir -p platform_configs
-cp -af %{SOURCEURL0}/%{_fboss_config_dir}/darwin/* platform_configs/
+cp -af %{SOURCEURL0}/%{_fboss_config_dir}/darwin48v/* platform_configs/
 
 %install
 mkdir -p %{_fboss_target_var}
