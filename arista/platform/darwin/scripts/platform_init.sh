@@ -18,6 +18,8 @@ load_kernel_modules() {
                         "scd-smbus"
                         "scd-watchdog"
                         "rook-fan-cpld"
+                        "bp4a_lm90"
+                        "bp4a_max1363"
                        )
 
    # In 5.x kernels, the scd-leds driver has a dependency on the led-class module.
