@@ -19,7 +19,9 @@ from ..BaseConfigs import (
    SensorConfig,
    SensorType,
    SlotConfig,
-   Thresholds
+   Thresholds,
+   SpiMasterConfig,
+   Flash
 )
 
 
@@ -61,7 +63,17 @@ class RackhawkScd( PciDeviceConfig ):
                         symlinkDeviceName='SCD_FPGA' )
       self.addI2cAdapters()
       self.addLeds()
-
+      self.addSpiMasterConfigs( [
+         SpiMasterConfig( "SCD_SPI_MASTER", "spi_master", -1,
+                           "0x7900",
+                           spiDeviceConfigs=[ Flash(
+                              pmUnitScopedName="SCD_SPI_MASTER_DEVICE1",
+                              chipSelect=0,
+                              modalias="spidev",
+                              maxSpeedHz=25000000
+                           ) ]
+                        )
+      ] )
    def addI2cAdapters( self ):
       baseAccelOffset = 0x8000
       accelStride = 0x80
@@ -808,6 +820,7 @@ class Rackhawk( PlatformConfig ):
          'scd',
          'scd-leds',
          'scd-smbus',
+         'scd-spi',
          'rook-fan-cpld',
          'blackhawk-cpld',
          'aslg4f4527',
