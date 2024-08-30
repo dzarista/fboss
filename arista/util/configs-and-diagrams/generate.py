@@ -9,7 +9,6 @@ from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
 
 def main():
    platforms = {
-      'Rackhawk': Rackhawk,
       'RackhawkORv3': RackhawkORv3,
       'Viper': Viper,
       'Whistler': Whistler
