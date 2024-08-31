@@ -5,7 +5,7 @@
 # This script allows users to build, package, and install FBOSS OSS, as well as
 # enter the containerized build environment.
 
-DEFAULT_BUILD_DIR="//garage/${USER}/fboss-build"
+DEFAULT_BUILD_DIR="/garage/${USER}/arista-fboss/fboss-build"
 if [[ -z "${FBOSS_BUILD_DIR}" ]]; then
    echo "No FBOSS_BUILD_DIR defined in environment, using ${DEFAULT_BUILD_DIR}" 
    FBOSS_BUILD_DIR="${DEFAULT_BUILD_DIR}"
@@ -187,9 +187,9 @@ run_cmd_container() {
    # Run the given command in an FBOSS OSS build container. Note that we mount
    # the git repo inside of the build directory: this is needed for the build
    # scripts.
-   docker run -l owner="${USER}" --privileged --rm -it \
-      -v "${FBOSS_HOST_DIR}":/var/FBOSS/ \
-      -v "${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
+   docker run -l owner="${USER}" --rm -it \
+      -v "/b5/container/$(hostname)/rootfs/data${FBOSS_HOST_DIR}":/var/FBOSS/ \
+      -v "/b5/container/$(hostname)/rootfs/data${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
       -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" $@
 }
 

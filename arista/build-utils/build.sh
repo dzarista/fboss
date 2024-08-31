@@ -219,7 +219,7 @@ then
    rm -rf "$SCRATCH_DIR"/fboss_bins*
    rm -rf $SCRATCH_DIR/bsp-kmods
    rm -rf $SCRATCH_DIR/showtech
-   make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
+   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
    make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 fi
 cd $FBOSS_DIR/fboss.git
@@ -228,7 +228,7 @@ cd $FBOSS_DIR/fboss.git
 # stable commit hash
 rm -rf build/deps/github_hashes/facebook
 rm -rf build/deps/github_hashes/facebookincubator
-tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz
+tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
 
 echo "======= Starting FBOSS build ========"
 
@@ -291,8 +291,10 @@ else
          sed -i 's/STANDARD 17/STANDARD 20/g' "$REPO_PREFIX-$fboss_dep.git/CMakeLists.txt"
       done
    fi
+   echo "******22222222*******"
    time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
       --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
+   echo "******33333333*******"
    cd $FBOSS_DIR/fboss.git
    ./fboss/oss/scripts/package-fboss.py --scratch-path "$SCRATCH_DIR"
 
