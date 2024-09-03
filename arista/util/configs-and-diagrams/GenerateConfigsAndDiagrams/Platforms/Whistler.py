@@ -91,7 +91,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbTmp = Sensor( "0x48", "tmp75", "SMB_TMP75", incomingBusIndex=0 )
+      smbTmp = Sensor( "0x48", "lm75", "SMB_TMP75", incomingBusIndex=0 )
       smbTmp.addSensorConfigs( [
          SensorConfig( "INLET_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -414,7 +414,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbFan0Tmp = Sensor( "0x48", "tmp75", "FAN0_TMP75", incomingBusIndex=3 )
+      smbFan0Tmp = Sensor( "0x48", "lm75", "FAN0_TMP75", incomingBusIndex=3 )
       smbFan0Tmp.addSensorConfigs( [
          SensorConfig( "FAN_BOARD0_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0", prependPmUnit=False,
@@ -426,7 +426,7 @@ class WhistlerSMB( SMBUnit ):
       smbFan0Cpld = FANCpld( "0x60", "oasis_cpld0", "FAN0_CPLD", incomingBusIndex=3 )
       smbFan0Cpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
-      smbFan1Tmp = Sensor( "0x49", "tmp75", "FAN1_TMP75", incomingBusIndex=3 )
+      smbFan1Tmp = Sensor( "0x49", "lm75", "FAN1_TMP75", incomingBusIndex=3 )
       smbFan1Tmp.addSensorConfigs( [
          SensorConfig( "FAN_BOARD1_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0", prependPmUnit=False,
@@ -438,7 +438,7 @@ class WhistlerSMB( SMBUnit ):
       smbFan1Cpld = FANCpld( "0x61", "oasis_cpld1", "FAN1_CPLD", incomingBusIndex=3 )
       smbFan1Cpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
-      smbFan2Tmp = Sensor( "0x4A", "tmp75", "FAN2_TMP75", incomingBusIndex=3 )
+      smbFan2Tmp = Sensor( "0x4A", "lm75", "FAN2_TMP75", incomingBusIndex=3 )
       smbFan2Tmp.addSensorConfigs( [
          SensorConfig( "FAN_BOARD2_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0", prependPmUnit=False,
