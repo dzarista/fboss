@@ -95,6 +95,14 @@ images:
         build: |
           ./package.sh dnx 6.4
 
+  build_swi_dnx_6.4-el9:
+    units:
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/dest: .%package_dnx_6.4-el9
+        build: |
+          ./build_swi.sh dnx 6.4
+
   internal/test_floor:
     units:
       - image: code.arista.io/infra/barney/barnzilla%base
@@ -330,3 +338,15 @@ images:
         - sh
         - -c
         - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/showtech-arista-1-1.el9.x86_64.rpm
+        
+  test/build_swi_dnx_6.4-el9:
+    description: |
+      Test that build artifacts exist.
+    units:
+      - image: .%internal/test_floor
+      - image: .%build_swi_dnx_6.4-el9
+    finalizers:
+      -
+        - sh
+        - -c
+        - test -e /usr/share/ptest-data/Fboss/FBOSS.swi
