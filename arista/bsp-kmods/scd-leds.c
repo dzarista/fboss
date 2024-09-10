@@ -107,14 +107,13 @@ static int brightness_set(struct led_classdev *led_cdev,
 	reg = csr_read(priv->mmio_csr);
 	if (value == 0) {
 		reg &= ~(ldev->led_on_mask);
-		reg &= ~(SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN | SCD_LED_INTENSITY_BLUE);
 	} else {
 		/*
 		 * clear all the color bits before turning on the specific color.
 		 */
-		reg &= ~(SCD_LED_BLUE | SCD_LED_GREEN | SCD_LED_RED);
+        reg &= ~(SCD_LED_BLUE | SCD_LED_GREEN | SCD_LED_RED | SCD_LED_INTENSITY_BLUE |
+                 SCD_LED_INTENSITY_GREEN | SCD_LED_INTENSITY_RED);
 		reg |= ldev->led_on_mask;
-		reg |= (SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN | SCD_LED_INTENSITY_BLUE);
 	}
 	csr_write(priv->mmio_csr, reg);
 
@@ -226,13 +225,14 @@ static int scd_led_init(struct scd_led_priv *priv,
 			struct scd_led_dev *ldev)
 {
 	if (!strcmp(color, "yellow"))
-		ldev->led_on_mask = SCD_LED_RED | SCD_LED_GREEN;
+		ldev->led_on_mask = (SCD_LED_RED | SCD_LED_GREEN | 
+                             SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN);
 	else if (!strcmp(color, "blue"))
-		ldev->led_on_mask = SCD_LED_BLUE;
+		ldev->led_on_mask = SCD_LED_BLUE | SCD_LED_INTENSITY_BLUE;
 	else if (!strcmp(color, "green"))
-		ldev->led_on_mask = SCD_LED_GREEN;
+		ldev->led_on_mask = SCD_LED_GREEN | SCD_LED_INTENSITY_GREEN;
 	else if (!strcmp(color, "red"))
-		ldev->led_on_mask = SCD_LED_RED;
+		ldev->led_on_mask = SCD_LED_RED | SCD_LED_INTENSITY_RED;
 	else
 		return -EINVAL;
 
@@ -318,9 +318,9 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	reg &= ~SCD_LED_MASK_ALL;
 
 	if (led_data.port_num > 0)
-		reg |= SCD_LED_BLUE;
+		reg |= SCD_LED_BLUE | SCD_LED_INTENSITY_BLUE;
 	else
-		reg |= SCD_LED_GREEN;
+		reg |= SCD_LED_GREEN | SCD_LED_INTENSITY_GREEN;
 
 	csr_write(priv->mmio_csr, reg);
 
