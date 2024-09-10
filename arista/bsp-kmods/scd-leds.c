@@ -111,8 +111,8 @@ static int brightness_set(struct led_classdev *led_cdev,
 		/*
 		 * clear all the color bits before turning on the specific color.
 		 */
-        reg &= ~(SCD_LED_BLUE | SCD_LED_GREEN | SCD_LED_RED | SCD_LED_INTENSITY_BLUE |
-                 SCD_LED_INTENSITY_GREEN | SCD_LED_INTENSITY_RED);
+		reg &= ~(SCD_LED_BLUE | SCD_LED_GREEN | SCD_LED_RED | SCD_LED_INTENSITY_BLUE |
+				 SCD_LED_INTENSITY_GREEN | SCD_LED_INTENSITY_RED);
 		reg |= ldev->led_on_mask;
 	}
 	csr_write(priv->mmio_csr, reg);
@@ -226,7 +226,7 @@ static int scd_led_init(struct scd_led_priv *priv,
 {
 	if (!strcmp(color, "yellow"))
 		ldev->led_on_mask = (SCD_LED_RED | SCD_LED_GREEN | 
-                             SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN);
+							 SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN);
 	else if (!strcmp(color, "blue"))
 		ldev->led_on_mask = SCD_LED_BLUE | SCD_LED_INTENSITY_BLUE;
 	else if (!strcmp(color, "green"))
