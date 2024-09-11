@@ -272,7 +272,7 @@ static int scd_leds_init(struct scd_led_priv *priv, const char *name)
         if (ret) return ret;
     }
 
-	// Initialize register and sysfs value
+	// Initialize register and sysfs value for blue/green led
 	priv->leds[0].cdev.brightness = 1;
 	csr_write(priv->mmio_csr, reg);
 
