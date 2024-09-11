@@ -249,18 +249,33 @@ static int scd_led_init(struct scd_led_priv *priv,
 
 static int scd_leds_init(struct scd_led_priv *priv, const char *name)
 {
+	u32 reg;
 	int ret = 0;
 	const char *portColors[] = {"blue", "yellow"};
-	const char *statusColors[] = {"red", "green", "blue", "yellow"};
+	const char *statusColors[] = {"green", "red", "blue", "yellow"};
 	const char **colors;
 
-	if (priv->num_leds == 2) colors = portColors;
-	else colors = statusColors;
+	// Init color and brightness to ON depending on led type
+	reg = csr_read(priv->mmio_csr);
+	reg &= ~SCD_LED_MASK_ALL;
+
+	if (priv->num_leds == 2) {
+		colors = portColors;
+		reg |= SCD_LED_BLUE | SCD_LED_INTENSITY_BLUE;
+	} else {
+		colors = statusColors;
+		reg |= SCD_LED_GREEN | SCD_LED_INTENSITY_GREEN;
+	}
 
     for (int i = 0; i < priv->num_leds; ++i) {
 		ret = scd_led_init(priv, name, colors[i], &priv->leds[i]);
         if (ret) return ret;
     }
+
+	// Initialize register and sysfs value
+	priv->leds[0].cdev.brightness = 1;
+	csr_write(priv->mmio_csr, reg);
+
     return 0;
 }
 
@@ -309,20 +324,6 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	priv->id = auxdev->id;
 	priv->auxdev = auxdev;
 	priv->pci_dev = to_pci_dev(dev->parent);
-
-	/*
-	* Set default color to blue if it's a port LED, no blinking.
-	*/
-	reg = csr_read(priv->mmio_csr);
-
-	reg &= ~SCD_LED_MASK_ALL;
-
-	if (led_data.port_num > 0)
-		reg |= SCD_LED_BLUE | SCD_LED_INTENSITY_BLUE;
-	else
-		reg |= SCD_LED_GREEN | SCD_LED_INTENSITY_GREEN;
-
-	csr_write(priv->mmio_csr, reg);
 
 	/*
 	* Register led for each color.
