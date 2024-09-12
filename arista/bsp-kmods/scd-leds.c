@@ -226,7 +226,7 @@ static int scd_led_init(struct scd_led_priv *priv,
 {
 	if (!strcmp(color, "yellow"))
 		ldev->led_on_mask = (SCD_LED_RED | SCD_LED_GREEN | 
-							 SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN);
+			 SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN);
 	else if (!strcmp(color, "blue"))
 		ldev->led_on_mask = SCD_LED_BLUE | SCD_LED_INTENSITY_BLUE;
 	else if (!strcmp(color, "green"))
