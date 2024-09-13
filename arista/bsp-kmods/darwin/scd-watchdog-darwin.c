@@ -76,7 +76,7 @@ static int scd_wdt_probe(struct auxiliary_device *auxdev,
 	wdd = devm_kzalloc(dev, sizeof(*wdd), GFP_KERNEL);
 
 	res = devm_request_mem_region(dev, pdata->csr_offset,
-					  SCD_WDT_MEM_SIZE, auxdev->name);
+				  SCD_WDT_MEM_SIZE, auxdev->name);
 	if (!res)
 		return -EBUSY;
 
