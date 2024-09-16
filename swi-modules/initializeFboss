@@ -1,0 +1,57 @@
+#!/bin/sh
+
+echo "INITIALIZING FBOSS"
+
+mkdir -p "/tmp/SWI"
+unzip -oq "/run/initramfs/overlayfs/FBOSS.swi" -d /tmp/SWI
+
+swi_dir="/tmp/SWI"
+
+echo "Overlay Files: "
+ls "/tmp/SWI"
+echo "------"
+
+core_rpm_keywords="core showtech bsp_kmods"
+
+system_product=$(dmidecode -s system-product-name)
+
+install_rpm_by_keyword() {
+    keyword="$1"
+
+    find "$swi_dir" -name "*.rpm" | while read rpm_file; do
+        filename=$(basename "$rpm_file")
+        case "$filename" in
+            *"$keyword"*)
+                echo "Installing $filename..."
+                rpm -ivh "$rpm_file"
+                ;;
+        esac
+    done
+}
+
+for keyword in $core_rpm_keywords; do
+    install_rpm_by_keyword "$keyword"
+done
+
+case "$system_product" in
+    "MERU800BFA")
+        install_rpm_by_keyword "meru800bfa-"
+        ;;
+    "MERU800BIA")
+        install_rpm_by_keyword "meru800bia-"
+        ;;
+    "Darwin")
+        install_rpm_by_keyword "darwin-"
+        ;;
+    *)
+        echo "Unknown product: $system_product. No additional RPMs installed."
+        ;;
+esac
+
+/opt/fboss/bin/fboss_init.sh
+if [ $? -ne 0 ]; then
+    echo "Failed to run fboss_init.sh"
+    exit 1
+fi
+
+exit 0

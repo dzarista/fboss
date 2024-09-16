@@ -1,10 +1,18 @@
 [Unit]
-Description=Start platform manager (if supported)
+Description=FBOSS Platform Manager  
+Before=sensor_service.service  
+Before=fan_service.service  
+Before=data_corral_service.service  
+Before=led_service.service  
+Before=qsfp_service.service  
+Before=fruid.service
 
 [Service]
+LimitNOFILE=10000000  
+LimitCORE=32G
 Type=notify
 ExecStartPre=/bin/bash -c '[[ -f /opt/fboss/share/platform_configs/platform_manager.json ]]'
-ExecStart=/opt/fboss/bin/run_platform_manager.sh
+ExecStart=/opt/fboss/bin/platform_manager -config-file /opt/fboss/share/platform_configs/platform_manager.json -noenable_pkg_mgmnt --run_once=false
 TimeoutSec=300
 
 [Install]
