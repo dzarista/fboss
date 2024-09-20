@@ -3,7 +3,6 @@
 # Switch the system to BMC mode.
 
 IGNORE_OUT="2>/dev/null > /dev/null"
-USB_PATH="/sys/bus/usb/devices/usb1/1-2"
 
 no_reboot=0
 check_usb_connectivity=0
@@ -18,9 +17,9 @@ usage() {
 }
 
 switch_to_bmc_fairywren() {
-   REV=$1
-   DEV_ADDR=0x52
+   REV="$1"
 
+   DEV_ADDR=0x52
    # P1 systems have DS4520 at 0x50
    if [[ "${REV}" == "1.0" ]]; then
       DEV_ADDR=0x50
@@ -44,6 +43,14 @@ switch_to_bmc_fairywren() {
    fi
 }
 
+switch_to_bmc() {
+   platform="$1"
+   if [[ "$platform" == "fairywren" ]]; then
+      REV=$(dmidecode -t 2 | grep "Version" | awk '{print $2}')
+      switch_to_bmc_fairywren "${REV}"
+   fi
+}
+
 wait_for_cmd() {
    cmd="$1"
    timeout="$2"
@@ -58,18 +65,28 @@ wait_for_cmd() {
 }
 
 re_enumerate_usb0() {
+   usb_path="$1"
    echo "Attempting to re-enumerate usb0"
    for v in $(seq 0 1); do
-      echo "$v" > "$USB_PATH/authorized"
-      wait_for_cmd "cat $USB_PATH/authorized | grep $v"
+      echo "$v" > "$usb_path/authorized"
+      wait_for_cmd "cat $usb_path/authorized | grep $v"
       sleep 1
    done
    return 0
 }
 
-check_usb_connectivity_fairywren() {
+check_usb_connectivity() {
+   platform="$1"
    MAX_RETRIES=3
-   bmc_not_reset="/run/devmap/fpgas/MERU_SCM_CPLD/bmc_not_reset"
+
+   if [[ "$platform" == "fairywren" ]]; then
+      bmc_not_reset="/run/devmap/fpgas/MERU_SCM_CPLD/bmc_not_reset"
+      usb_path="/sys/bus/usb/devices/usb1/1-2"
+      usb_dev="1-2:1.0"
+   else
+      return
+   fi
+
    for i in $(seq 1 $MAX_RETRIES); do
       echo "Turning off BMC"
       echo 0 > "$bmc_not_reset"
@@ -80,11 +97,11 @@ check_usb_connectivity_fairywren() {
 
       for retries in $(seq 1 3); do
          echo "Waiting for BMC usb Hub to show up..."
-         if ! wait_for_cmd "ls $USB_PATH/ $IGNORE_OUT" 300; then
+         if ! wait_for_cmd "ls $usb_path/ $IGNORE_OUT" 300; then
             break
          fi
          echo "Waiting for BMC usb0 interface to show up..."
-         if wait_for_cmd "ls $USB_PATH/1-2:1.0/ $IGNORE_OUT" 150; then
+         if wait_for_cmd "ls $usb_path/$usb_dev/ $IGNORE_OUT" 150; then
             echo "Waiting for usb ipv6 config to exist..."
             if wait_for_cmd "ls /proc/sys/net/ipv6/conf/usb0/disable_ipv6 $IGNORE_OUT" 100; then
                sysctl --quiet --write net.ipv6.conf.usb0.disable_ipv6=0 > /dev/null
@@ -99,7 +116,7 @@ check_usb_connectivity_fairywren() {
                return 0
             fi
          fi
-         re_enumerate_usb0
+         re_enumerate_usb0 "$usb_path"
       done
       echo "Timed out on attempt $i"
    done
@@ -124,13 +141,14 @@ elif [ $# -gt 1 ]; then
 fi
 
 PRODUCT=$(dmidecode -t 2 | grep "Product" | awk '{print $3}')
-VERSION=$(dmidecode -t 2 | grep "Version" | awk '{print $2}')
 if [[ "${PRODUCT}" =~ MERU800B(I|F)A ]]; then
-   if [ $check_usb_connectivity -eq 0 ]; then
-      switch_to_bmc_fairywren "${VERSION}"
-   else
-      check_usb_connectivity_fairywren
-   fi
+   platform="fairywren"
 else
    echo "Product not supported!"
+fi
+
+if [ $check_usb_connectivity -eq 0 ]; then
+   switch_to_bmc "$platform"
+else
+   check_usb_connectivity "$platform"
 fi
