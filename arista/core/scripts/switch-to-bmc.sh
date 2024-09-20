@@ -65,7 +65,7 @@ wait_for_cmd() {
 }
 
 re_enumerate_usb0() {
-   usb_path="/sys/bus/usb/devices/usb1/$USB"
+   usb_path="/sys/bus/usb/devices/usb1/$USB_HUB"
    echo "Attempting to re-enumerate usb0"
    for v in $(seq 0 1); do
       echo "$v" > "$usb_path/authorized"
@@ -79,7 +79,7 @@ check_usb_connectivity() {
    MAX_RETRIES=3
 
    bmc_not_reset="$CPLD/bmc_not_reset"
-   usb_path="/sys/bus/usb/devices/usb1/$USB"
+   usb_path="/sys/bus/usb/devices/usb1/$USB_HUB"
 
    for i in $(seq 1 $MAX_RETRIES); do
       echo "Turning off BMC"
@@ -95,7 +95,7 @@ check_usb_connectivity() {
             break
          fi
          echo "Waiting for BMC usb0 interface to show up..."
-         if wait_for_cmd "ls $usb_path/$USB_DEV/ $IGNORE_OUT" 150; then
+         if wait_for_cmd "ls $usb_path/$USB_INTF/ $IGNORE_OUT" 150; then
             echo "Waiting for usb ipv6 config to exist..."
             if wait_for_cmd "ls /proc/sys/net/ipv6/conf/usb0/disable_ipv6 $IGNORE_OUT" 100; then
                sysctl --quiet --write net.ipv6.conf.usb0.disable_ipv6=0 > /dev/null
@@ -138,8 +138,8 @@ PRODUCT=$(dmidecode -t 2 | grep "Product" | awk '{print $3}')
 if [[ "${PRODUCT}" =~ MERU800B(I|F)A ]]; then
    platform="fairywren"
    CPLD="/run/devmap/fpgas/MERU_SCM_CPLD"
-   USB="1-2"
-   USB_DEV="1-2:1.0"
+   USB_HUB="1-2"
+   USB_INTF="1-2:1.0"
 else
    echo "Product not supported!"
 fi
