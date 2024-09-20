@@ -325,12 +325,16 @@ class SwitchStats : public boost::noncopyable {
     linkActiveStateChange_.addValue(1);
   }
 
-  void pcapDistFailure() {
-    pcapDistFailure_.incrementValue(1);
+  void switchReachabilityChangeProcessed() {
+    switchReachabilityChangeProcessed_.addValue(1);
   }
 
-  void updateStatsException() {
-    updateStatsExceptions_.addValue(1);
+  int64_t getSwitchReachabilityChangeProcessed() {
+    return getCumulativeValue(switchReachabilityChangeProcessed_);
+  }
+
+  void pcapDistFailure() {
+    pcapDistFailure_.incrementValue(1);
   }
 
   void pktTooBig() {
@@ -428,6 +432,30 @@ class SwitchStats : public boost::noncopyable {
     coldBoot_.addValue(1);
   }
 
+  void multiSwitchStatus(bool enabled) {
+    multiSwitchStatus_.addValue(enabled ? 1 : 0);
+  }
+
+  void hiPriPktsReceived() {
+    hiPriPktsReceived_.addValue(1);
+  }
+
+  void midPriPktsReceived() {
+    midPriPktsReceived_.addValue(1);
+  }
+
+  void loPriPktsReceived() {
+    loPriPktsReceived_.addValue(1);
+  }
+
+  void midPriPktsDropped() {
+    midPriPktsDropped_.addValue(1);
+  }
+
+  void loPriPktsDropped() {
+    loPriPktsDropped_.addValue(1);
+  }
+
   void switchConfiguredMs(uint64_t ms) {
     switchConfiguredMs_.addValue(ms);
   }
@@ -519,6 +547,10 @@ class SwitchStats : public boost::noncopyable {
 
   void hwAgentTxPktSent(int switchIndex) {
     thriftStreamConnectionStatus_[switchIndex].txPktEventSent();
+  }
+
+  void hwAgentRxBadPktReceived(int switchIndex) {
+    thriftStreamConnectionStatus_[switchIndex].rxBadPktReceived();
   }
 
   void dsfSessionGrExpired() {
@@ -633,6 +665,9 @@ class SwitchStats : public boost::noncopyable {
     void switchReachabilityChangeEventReceived() {
       switchReachabilityChangeEventsReceived_.addValue(1);
     }
+    void rxBadPktReceived() {
+      rxBadPktReceived_.addValue(1);
+    }
     int64_t getStatsEventSinkDisconnectCount() const {
       return getCumulativeValue(statsEventSinkDisconnects_);
     }
@@ -663,6 +698,9 @@ class SwitchStats : public boost::noncopyable {
     int64_t getRxPktEventReceivedCount() const {
       return getCumulativeValue(rxPktEventsReceived_);
     }
+    int64_t getrxBadPktReceivedCount() const {
+      return getCumulativeValue(rxBadPktReceived_);
+    }
     int64_t getTxPktEventSentCount() const {
       return getCumulativeValue(txPktEventsSent_);
     }
@@ -691,6 +729,7 @@ class SwitchStats : public boost::noncopyable {
     TLTimeseries rxPktEventsReceived_;
     TLTimeseries txPktEventsSent_;
     TLTimeseries switchReachabilityChangeEventsReceived_;
+    TLTimeseries rxBadPktReceived_;
   };
 
   const int numSwitches_;
@@ -864,6 +903,11 @@ class SwitchStats : public boost::noncopyable {
    */
   TLTimeseries linkActiveStateChange_;
 
+  /**
+   * Switch reachability change count
+   */
+  TLTimeseries switchReachabilityChangeProcessed_;
+
   // Individual port stats objects, indexed by PortID
   PortStatsMap ports_;
 
@@ -873,9 +917,6 @@ class SwitchStats : public boost::noncopyable {
 
   // Number of packets dropped by the PCAP distribution service
   TLCounter pcapDistFailure_;
-
-  // Number of failed updateStats callbacks do to exceptions.
-  TLTimeseries updateStatsExceptions_;
 
   // Number of packet too big ICMPv6 triggered
   TLTimeseries trapPktTooBig_;
@@ -942,6 +983,14 @@ class SwitchStats : public boost::noncopyable {
   TLTimeseries switchConfiguredMs_;
   TLTimeseries dsfGrExpired_;
   TLTimeseries dsfUpdateFailed_;
+  TLTimeseries hiPriPktsReceived_;
+  TLTimeseries midPriPktsReceived_;
+  TLTimeseries loPriPktsReceived_;
+  TLTimeseries midPriPktsDropped_;
+  TLTimeseries loPriPktsDropped_;
+
+  // TODO: delete this once multi_switch becomes default
+  TLTimeseries multiSwitchStatus_;
 
   std::vector<TLCounter> hwAgentConnectionStatus_;
   std::vector<TLTimeseries> hwAgentUpdateTimeouts_;

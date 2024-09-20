@@ -179,11 +179,12 @@ add_library(prod_config_utils
 )
 
 target_link_libraries(prod_config_utils
+  copp_test_utils
   load_balancer_utils
   switch_config_cpp2
+  traffic_policy_utils
   olympic_qos_utils
   hw_copp_utils
-  hw_switch_test
 )
 
 add_fbthrift_cpp_library(
@@ -204,7 +205,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwLabelSwitchRouteTest.cpp
   fboss/agent/hw/test/HwLinkStateDependentTest.cpp
   fboss/agent/hw/test/HwMirrorTests.cpp
-  fboss/agent/hw/test/HwNeighborTests.cpp
   fboss/agent/hw/test/HwTest.cpp
   fboss/agent/hw/test/HwTestAclUtils.cpp
   fboss/agent/hw/test/HwTestPortUtils.cpp
@@ -212,9 +212,6 @@ set(hw_switch_test_srcs
   fboss/agent/hw/test/HwRouteTests.cpp
   fboss/agent/hw/test/HwTrunkTests.cpp
   fboss/agent/hw/test/HwVlanTests.cpp
-  fboss/agent/hw/test/HwL2ClassIDTests.cpp
-  fboss/agent/hw/test/HwAclMatchActionsTests.cpp
-  fboss/agent/hw/test/HwAclQualifierTests.cpp
   fboss/agent/hw/test/HwVerifyPfcConfigInHwTest.cpp
   fboss/agent/hw/test/HwAclStatTests.cpp
   fboss/agent/hw/test/HwPortTests.cpp
@@ -310,6 +307,7 @@ target_link_libraries(hw_switch_test
   hw_stat_printers
   port_stats_test_utils
   agent_hw_test_constants
+  sai_switch_ensemble
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
 )

@@ -9,6 +9,7 @@
 #include "fboss/fsdb/if/FsdbModel.h"
 #include "fboss/fsdb/if/gen-cpp2/fsdb_common_types.h"
 #include "fboss/thrift_cow/nodes/Serializer.h"
+#include "fboss/util/Logging.h"
 
 using namespace facebook::fboss;
 namespace {
@@ -53,10 +54,11 @@ std::vector<std::vector<std::string>> getAllSubscribePaths(
           DsfSubscription::makeRemoteEndpoint(localNodeName, localIP))
           .tokens()};
 }
-auto constexpr kDsfCtrlLogPrefix = "DSF_CTRL_EVENT: ";
 } // namespace
 
 namespace facebook::fboss {
+
+using k_fsdb_model = fsdb::fsdb_model_tags::strings;
 
 DsfSubscription::DsfSubscription(
     fsdb::SubscriptionOptions options,
@@ -73,6 +75,11 @@ DsfSubscription::DsfSubscription(
       hwUpdateEvb_(hwUpdateEvb),
       fsdbPubSubMgr_(new fsdb::FsdbPubSubManager(
           opts_.clientId_,
+          reconnectEvb,
+          subscriberEvb)),
+      subMgr_(new FsdbAdaptedSubManager(
+          fsdb::SubscriptionOptions(opts_),
+          getServerOptions(localIp.str(), remoteIp.str()),
           reconnectEvb,
           subscriberEvb)),
       localNodeName_(std::move(localNodeName)),
@@ -112,25 +119,70 @@ void DsfSubscription::stop() {
   stopped_ = true;
 }
 void DsfSubscription::setupSubscription() {
-  fsdbPubSubMgr_->addStatePathSubscription(
-      fsdb::SubscriptionOptions(opts_),
-      getAllSubscribePaths(localNodeName_, localIp_),
-      [this](
-          fsdb::SubscriptionState oldState, fsdb::SubscriptionState newState) {
-        handleFsdbSubscriptionStateUpdate(oldState, newState);
-      },
-      [this](fsdb::OperSubPathUnit&& operStateUnit) {
-        handleFsdbUpdate(std::move(operStateUnit));
-      },
-      getServerOptions(localIp_.str(), remoteIp_.str()));
-  XLOG(DBG2) << kDsfCtrlLogPrefix
-             << "added subscription for : " << remoteEndpointStr();
+  auto subscriptionStateCb = [this](
+                                 fsdb::SubscriptionState oldState,
+                                 fsdb::SubscriptionState newState) {
+    handleFsdbSubscriptionStateUpdate(oldState, newState);
+  };
+  if (FLAGS_dsf_subscribe_patch) {
+    auto remoteEndpoint = makeRemoteEndpoint(localNodeName_, localIp_);
+    auto sysPortPathKey = subMgr_->addPath(getSystemPortsPath());
+    auto inftMapKey = subMgr_->addPath(getInterfacesPath());
+    auto dsfSubscriptionsKey = subMgr_->addPath(
+        getDsfSubscriptionsPath(makeRemoteEndpoint(localNodeName_, localIp_)));
+    subMgr_->subscribe(
+        [this, remoteEndpoint, sysPortPathKey, inftMapKey, dsfSubscriptionsKey](
+            auto update) {
+          auto agentState =
+              update.data->template safe_cref<k_fsdb_model::agent>();
+          bool portsOrIntfsChanged = false;
+          for (const auto& key : update.updatedKeys) {
+            if (key == sysPortPathKey || key == inftMapKey) {
+              portsOrIntfsChanged = true;
+            } else if (key == dsfSubscriptionsKey) {
+              auto newRemoteState =
+                  agentState
+                      ->template safe_cref<k_fsdb_model::fsdbSubscriptions>()
+                      ->safe_cref(remoteEndpoint)
+                      ->toThrift();
+              session_.remoteSubStateChanged(newRemoteState);
+            }
+          }
+          if (portsOrIntfsChanged) {
+            auto switchState =
+                agentState->template safe_cref<k_fsdb_model::switchState>();
+            queueRemoteStateChanged(
+                *switchState->getSystemPorts(), *switchState->getInterfaces());
+          }
+        },
+        std::move(subscriptionStateCb));
+  } else {
+    fsdbPubSubMgr_->addStatePathSubscription(
+        fsdb::SubscriptionOptions(opts_),
+        getAllSubscribePaths(localNodeName_, localIp_),
+        [this](
+            fsdb::SubscriptionState oldState,
+            fsdb::SubscriptionState newState) {
+          handleFsdbSubscriptionStateUpdate(oldState, newState);
+        },
+        [this](fsdb::OperSubPathUnit&& operStateUnit) {
+          handleFsdbUpdate(std::move(operStateUnit));
+        },
+        getServerOptions(localIp_.str(), remoteIp_.str()));
+    XLOG(DBG2) << kDsfCtrlLogPrefix
+               << "added subscription for : " << remoteEndpointStr();
+  }
 }
+
 void DsfSubscription::tearDownSubscription() {
-  fsdbPubSubMgr_->removeStatePathSubscription(
-      getAllSubscribePaths(localNodeName_, localIp_), remoteIp_.str());
-  XLOG(DBG2) << kDsfCtrlLogPrefix
-             << "removed subscription for : " << remoteEndpointStr();
+  if (FLAGS_dsf_subscribe_patch) {
+    subMgr_->stop();
+  } else {
+    fsdbPubSubMgr_->removeStatePathSubscription(
+        getAllSubscribePaths(localNodeName_, localIp_), remoteIp_.str());
+    XLOG(DBG2) << kDsfCtrlLogPrefix
+               << "removed subscription for : " << remoteEndpointStr();
+  }
 }
 std::string DsfSubscription::remoteEndpointStr() const {
   static const std::string kRemoteEndpoint =
@@ -143,9 +195,13 @@ fsdb::FsdbStreamClient::State DsfSubscription::getStreamState() const {
 }
 
 const fsdb::SubscriptionInfo DsfSubscription::getSubscriptionInfo() const {
-  // Since we own our own pub sub mgr, there should always be exactly one
-  // subscription
-  return fsdbPubSubMgr_->getSubscriptionInfo()[0];
+  if (FLAGS_dsf_subscribe_patch) {
+    return *subMgr_->getInfo();
+  } else {
+    // Since we own our own pub sub mgr, there should always be exactly one
+    // subscription
+    return fsdbPubSubMgr_->getSubscriptionInfo().at(0);
+  }
 }
 
 std::string DsfSubscription::makeRemoteEndpoint(
@@ -158,7 +214,8 @@ void DsfSubscription::handleFsdbSubscriptionStateUpdate(
     fsdb::SubscriptionState oldState,
     fsdb::SubscriptionState newState) {
   auto remoteEndpoint = makeRemoteEndpoint(remoteNodeName_, remoteIp_);
-  XLOG(DBG2) << "DsfSubscriber: " << remoteEndpoint
+
+  XLOG(DBG2) << kDsfCtrlLogPrefix << "DsfSubscriber: " << remoteEndpoint
              << ": subscription state changed "
              << fsdb::subscriptionStateToString(oldState) << " -> "
              << fsdb::subscriptionStateToString(newState);
@@ -188,34 +245,27 @@ void DsfSubscription::handleFsdbSubscriptionStateUpdate(
 }
 
 void DsfSubscription::handleFsdbUpdate(fsdb::OperSubPathUnit&& operStateUnit) {
-  DsfUpdate dsfUpdate;
+  bool portsOrIntfsChanged{false};
   for (const auto& change : *operStateUnit.changes()) {
     if (getSystemPortsPath().matchesPath(*change.path()->path())) {
       XLOG(DBG2) << "Got sys port update from : " << remoteNodeName_;
-      MultiSwitchSystemPortMap mswitchSysPorts;
-      mswitchSysPorts.fromThrift(thrift_cow::deserialize<
-                                 MultiSwitchSystemPortMapTypeClass,
-                                 MultiSwitchSystemPortMapThriftType>(
+      curMswitchSysPorts_.fromThrift(thrift_cow::deserialize<
+                                     MultiSwitchSystemPortMapTypeClass,
+                                     MultiSwitchSystemPortMapThriftType>(
           fsdb::OperProtocol::BINARY, *change.state()->contents()));
-      for (const auto& [id, sysPortMap] : mswitchSysPorts) {
-        auto matcher = HwSwitchMatcher(id);
-        dsfUpdate.switchId2SystemPorts[matcher.switchId()] = sysPortMap;
-      }
+      portsOrIntfsChanged = true;
     } else if (getInterfacesPath().matchesPath(*change.path()->path())) {
       XLOG(DBG2) << "Got rif update from : " << remoteNodeName_;
-      MultiSwitchInterfaceMap mswitchIntfs;
-      mswitchIntfs.fromThrift(thrift_cow::deserialize<
-                              MultiSwitchInterfaceMapTypeClass,
-                              MultiSwitchInterfaceMapThriftType>(
+      curMswitchIntfs_.fromThrift(thrift_cow::deserialize<
+                                  MultiSwitchInterfaceMapTypeClass,
+                                  MultiSwitchInterfaceMapThriftType>(
           fsdb::OperProtocol::BINARY, *change.state()->contents()));
-      for (const auto& [id, intfMap] : mswitchIntfs) {
-        auto matcher = HwSwitchMatcher(id);
-        dsfUpdate.switchId2Intfs[matcher.switchId()] = intfMap;
-      }
+      portsOrIntfsChanged = true;
     } else if (getDsfSubscriptionsPath(
                    makeRemoteEndpoint(localNodeName_, localIp_))
                    .matchesPath(*change.path()->path())) {
-      XLOG(DBG2) << "Got dsf sub update from : " << remoteNodeName_;
+      XLOG(DBG2) << kDsfCtrlLogPrefix
+                 << "Got dsf sub update from : " << remoteNodeName_;
 
       using targetType = fsdb::FsdbSubscriptionState;
       using targetTypeClass = apache::thrift::type_class::enumeration;
@@ -232,7 +282,29 @@ void DsfSubscription::handleFsdbUpdate(fsdb::OperSubPathUnit&& operStateUnit) {
           remoteNodeName_);
     }
   }
+  if (portsOrIntfsChanged) {
+    queueRemoteStateChanged(curMswitchSysPorts_, curMswitchIntfs_);
+  }
+}
+
+void DsfSubscription::queueRemoteStateChanged(
+    const MultiSwitchSystemPortMap& newPortMap,
+    const MultiSwitchInterfaceMap& newInterfaceMap) {
+  DsfUpdate dsfUpdate;
+  for (const auto& [id, sysPortMap] : newPortMap) {
+    auto matcher = HwSwitchMatcher(id);
+    dsfUpdate.switchId2SystemPorts[matcher.switchId()] = sysPortMap;
+  }
+  for (const auto& [id, intfMap] : newInterfaceMap) {
+    auto matcher = HwSwitchMatcher(id);
+    dsfUpdate.switchId2Intfs[matcher.switchId()] = intfMap;
+  }
+  queueDsfUpdate(std::move(dsfUpdate));
+}
+
+void DsfSubscription::queueDsfUpdate(DsfUpdate&& dsfUpdate) {
   bool needsScheduling = false;
+
   {
     auto nextDsfUpdateWlock = nextDsfUpdate_.wlock();
     // If nextDsfUpdate is not null, then just overwrite
@@ -269,23 +341,8 @@ void DsfSubscription::handleFsdbUpdate(fsdb::OperSubPathUnit&& operStateUnit) {
         // At this point nextDsfUpdate should be null
         CHECK_EQ(*nextDsfUpdateWlock, nullptr);
       }
-      try {
-        updateWithRollbackProtection(
-            update.switchId2SystemPorts, update.switchId2Intfs);
-
-      } catch (std::exception& e) {
-        XLOG(DBG2) << kDsfCtrlLogPrefix
-                   << " update failed for : " << remoteEndpointStr();
-        sw_->stats()->dsfUpdateFailed();
-        // Tear down subscription so no more updates come for this
-        // subscription
-        tearDownSubscription();
-        // Clear any queued updates
-        auto nextDsfUpdateWlock = nextDsfUpdate_.wlock();
-        nextDsfUpdateWlock->reset();
-        // Setup subscription again to trigger a full resync
-        setupSubscription();
-      }
+      updateWithRollbackProtection(
+          update.switchId2SystemPorts, update.switchId2Intfs);
     });
   }
 }
@@ -332,11 +389,29 @@ void DsfSubscription::updateWithRollbackProtection(
 
     return std::shared_ptr<SwitchState>{};
   };
-
+  updateDsfState(updateDsfStateFn);
+}
+void DsfSubscription::updateDsfState(
+    const std::function<std::shared_ptr<SwitchState>(
+        const std::shared_ptr<SwitchState>&)>& updateDsfStateFn) {
   sw_->getRib()->updateStateInRibThread([this, updateDsfStateFn]() {
-    sw_->updateStateWithHwFailureProtection(
-        folly::sformat("Update state for node: {}", localNodeName_),
-        updateDsfStateFn);
+    try {
+      sw_->updateStateWithHwFailureProtection(
+          folly::sformat("Update state for node: {}", localNodeName_),
+          updateDsfStateFn);
+    } catch (const std::exception& e) {
+      XLOG(DBG2) << kDsfCtrlLogPrefix
+                 << " update failed for : " << remoteEndpointStr();
+      sw_->stats()->dsfUpdateFailed();
+      // Tear down subscription so no more updates come for this
+      // subscription
+      tearDownSubscription();
+      // Clear any queued updates
+      auto nextDsfUpdateWlock = nextDsfUpdate_.wlock();
+      nextDsfUpdateWlock->reset();
+      // Setup subscription again to trigger a full resync
+      setupSubscription();
+    }
   });
 }
 
@@ -347,6 +422,7 @@ void DsfSubscription::processGRHoldTimerExpired() {
     bool changed{false};
     auto out = in->clone();
 
+    int expiredOrRemovedSysPorts = 0;
     auto remoteSystemPorts = out->getRemoteSystemPorts()->modify(&out);
     for (auto& [_, remoteSystemPortMap] : *remoteSystemPorts) {
       for (auto& [_, remoteSystemPort] : *remoteSystemPortMap) {
@@ -359,8 +435,12 @@ void DsfSubscription::processGRHoldTimerExpired() {
             remoteSystemPort->getRemoteSystemPortType().has_value() &&
             remoteSystemPort->getRemoteSystemPortType().value() ==
                 RemoteSystemPortType::DYNAMIC_ENTRY) {
+          expiredOrRemovedSysPorts++;
+
           if (FLAGS_dsf_flush_remote_sysports_and_rifs_on_gr) {
             remoteSystemPorts->removeNode(remoteSystemPort->getID());
+            XLOG(DBG2) << kDsfCtrlLogPrefix << "Removed remote system port "
+                       << remoteSystemPort->getName();
           } else {
             auto clonedNode = remoteSystemPort->isPublished()
                 ? remoteSystemPort->clone()
@@ -368,6 +448,8 @@ void DsfSubscription::processGRHoldTimerExpired() {
             clonedNode->setRemoteLivenessStatus(LivenessStatus::STALE);
             remoteSystemPorts->updateNode(
                 clonedNode, sw_->getScopeResolver()->scope(clonedNode));
+            XLOG(DBG2) << kDsfCtrlLogPrefix << "Marked remote system port "
+                       << remoteSystemPort->getName() << " as STALE";
           }
 
           changed = true;
@@ -375,6 +457,11 @@ void DsfSubscription::processGRHoldTimerExpired() {
       }
     }
 
+    XLOG(DBG2) << kDsfCtrlLogPrefix << "Expired/removed"
+               << expiredOrRemovedSysPorts << " remote ports from remote node "
+               << remoteNodeName_;
+
+    int expiredOrRemovedInterfaces = 0;
     auto remoteInterfaces = out->getRemoteInterfaces()->modify(&out);
     for (auto& [_, remoteInterfaceMap] : *remoteInterfaces) {
       for (auto& [_, remoteInterface] : *remoteInterfaceMap) {
@@ -394,8 +481,12 @@ void DsfSubscription::processGRHoldTimerExpired() {
               remoteInterface->getRemoteInterfaceType().has_value() &&
               remoteInterface->getRemoteInterfaceType().value() ==
                   RemoteInterfaceType::DYNAMIC_ENTRY) {
+            expiredOrRemovedInterfaces++;
+
             if (FLAGS_dsf_flush_remote_sysports_and_rifs_on_gr) {
               remoteInterfaces->removeNode(remoteInterface->getID());
+              XLOG(DBG2) << kDsfCtrlLogPrefix << "Removed remote interface "
+                         << remoteNodeName_ << "/" << remoteInterface->getID();
             } else {
               auto clonedNode = remoteInterface->isPublished()
                   ? remoteInterface->clone()
@@ -403,9 +494,11 @@ void DsfSubscription::processGRHoldTimerExpired() {
               clonedNode->setRemoteLivenessStatus(LivenessStatus::STALE);
               clonedNode->setArpTable(state::NeighborEntries{});
               clonedNode->setNdpTable(state::NeighborEntries{});
-
               remoteInterfaces->updateNode(
                   clonedNode, sw_->getScopeResolver()->scope(clonedNode, out));
+              XLOG(DBG2) << kDsfCtrlLogPrefix << "Marked remote interface "
+                         << remoteNodeName_ << "/" << remoteInterface->getName()
+                         << " as STALE";
             }
 
             changed = true;
@@ -414,16 +507,16 @@ void DsfSubscription::processGRHoldTimerExpired() {
       }
     }
 
+    XLOG(DBG2) << kDsfCtrlLogPrefix << "Expired/removed "
+               << expiredOrRemovedInterfaces
+               << " remote interfaces from remote node " << remoteNodeName_;
+
     if (changed) {
       return out;
     }
     return std::shared_ptr<SwitchState>{};
   };
 
-  sw_->getRib()->updateStateInRibThread([this, updateDsfStateFn]() {
-    sw_->updateStateWithHwFailureProtection(
-        folly::sformat("Update state for node: {}", remoteNodeName_),
-        updateDsfStateFn);
-  });
+  updateDsfState(updateDsfStateFn);
 }
 } // namespace facebook::fboss

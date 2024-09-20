@@ -20,6 +20,7 @@ class AgentEnsembleTest : public ::testing::Test {
   }
   void TearDown() override;
   void tearDownAgentEnsemble(bool doWarmboot = false);
+  using StateUpdateFn = SwSwitch::StateUpdateFn;
 
  protected:
   void setupAgentEnsemble();
@@ -52,10 +53,26 @@ class AgentEnsembleTest : public ::testing::Test {
    * used to verify that none of the traffic bearing ports flapped
    */
   void assertNoInDiscards(int maxNumDiscards = 0);
+  void assertNoInErrors(int maxNumDiscards = 0);
+
+  void getAllHwPortStats(std::map<std::string, HwPortStats>& hwPortStats) const;
 
   void reloadPlatformConfig();
   std::map<PortID, FabricEndpoint> getFabricConnectivity(
       SwitchID switchId) const;
+
+  void applyNewState(
+      const StateUpdateFn& fn,
+      const std::string& name = "agent-ensemble-test") {
+    return applyNewStateImpl(fn, name, false);
+  }
+
+  void applyNewStateImpl(
+      const StateUpdateFn& fn,
+      const std::string& name,
+      bool transaction) {
+    agentEnsemble_->applyNewState(fn, name, transaction);
+  }
 
   template <
       typename SETUP_FN,
@@ -113,6 +130,8 @@ class AgentEnsembleTest : public ::testing::Test {
     return getAgentTestDir() + "/agent.conf";
   }
 
+  std::shared_ptr<SwitchState> applyNewConfig(const cfg::SwitchConfig& config);
+
   void dumpRunningConfig(const std::string& targetDir);
   SwSwitch* getSw() const;
   void setupConfigFile(
@@ -134,7 +153,8 @@ class AgentEnsembleTest : public ::testing::Test {
   void setupPlatformConfig(AgentEnsemblePlatformConfigFn platformConfigFn) {
     platformConfigFn_ = std::move(platformConfigFn);
   }
-  cfg::SwitchConfig initialConfig(const AgentEnsemble& ensemble) const;
+  virtual cfg::SwitchConfig initialConfig(const AgentEnsemble& ensemble);
+  virtual void preInitSetup();
   bool isSupportedOnAllAsics(HwAsic::Feature feature) const;
   AgentEnsemble* getAgentEnsemble() const;
   const std::shared_ptr<SwitchState> getProgrammedState() const;

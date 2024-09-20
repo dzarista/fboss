@@ -1,11 +1,12 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "fboss/platform/platform_manager/PlatformExplorer.h"
-#include "fboss/platform/weutil/IoctlSmbusEepromReader.h"
 
+#include <algorithm>
 #include <chrono>
 #include <exception>
 #include <filesystem>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -13,12 +14,17 @@
 #include <fb303/ServiceData.h>
 #include <folly/FileUtil.h>
 #include <folly/logging/xlog.h>
+#include <re2/re2.h>
 
+#include "fboss/platform/helpers/PlatformFsUtils.h"
+#include "fboss/platform/helpers/PlatformUtils.h"
 #include "fboss/platform/platform_manager/Utils.h"
 #include "fboss/platform/platform_manager/gen-cpp2/platform_manager_config_constants.h"
+#include "fboss/platform/weutil/IoctlSmbusEepromReader.h"
 
+namespace facebook::fboss::platform::platform_manager {
 namespace {
-auto constexpr kTotalFailures = "total_failures";
+constexpr auto kTotalFailures = "total_failures";
 constexpr auto kRootSlotPath = "/";
 
 std::string getSlotPath(
@@ -31,15 +37,87 @@ std::string getSlotPath(
   }
 }
 
+// Read an arbitrary version string from the file at given path, then attempt to
+// parse as an X.Y(.Z) version number where each part is a valid 3-digit decimal
+// integer.
+//
+// The file is expected to only contain the version string itself. If we fail to
+// read a non-empty version string, or if the string contains whitespace or
+// control characters, the string returned corresponds to an error. Otherwise,
+// the version string is considered valid and returned, even if it cannot be
+// parsed numerically.
+//
+// The returned integer is encoded as:
+//   X * 1,000,000 + Y * 1000 + Z
+// If the version string only has 2 parts (X.Y) then Z=0.
+// If the version string cannot be parsed into 3-digit decimal values in X.Y(.Z)
+// format, then 0 is returned.
+//
+// Examples of integer values:
+//   1. "1.2.3", return 1,002,003
+//   2. "4.5", return 4,005,000
+//   3. "12345.6789", return 0 (integers exceed 3 digits)
+//   4. "foobar", return 0
+//   5. "foo.bar", return 0
+std::pair<std::string, int> readVersionString(
+    const std::string& path,
+    const facebook::fboss::platform::PlatformFsUtils* platformFsUtils) {
+  static const re2::RE2 kFwVerXYPattern =
+      re2::RE2(PlatformExplorer::kFwVerXYPatternStr);
+  static const re2::RE2 kFwVerXYZPattern =
+      re2::RE2(PlatformExplorer::kFwVerXYZPatternStr);
+  const auto versionFileContent = platformFsUtils->getStringFileContent(path);
+  if (!versionFileContent) {
+    XLOGF(
+        ERR,
+        "Failed to open firmware version file {}: {}",
+        path,
+        folly::errnoStr(errno));
+    return {fmt::format("ERROR_FILE_{}", errno), 0};
+  }
+  const auto versionString = versionFileContent.value();
+  if (versionString.empty()) {
+    XLOGF(ERR, "Empty firmware version file {}", path);
+    return {"ERROR_EMPTY_FILE", 0};
+  }
+  if (folly::hasSpaceOrCntrlSymbols(versionString)) {
+    XLOGF(
+        ERR,
+        "Firmware version string \"{}\" from file {} contains whitespace or control characters.",
+        versionString,
+        path);
+    return {"ERROR_INVALID_STRING", 0};
+  }
+  // These names are for ease of reference. Neither semver nor any other
+  // interpretation is enforced in fw_ver.
+  int major = 0;
+  int minor = 0;
+  int patch = 0;
+  bool match = re2::RE2::FullMatch(
+                   versionString, kFwVerXYZPattern, &major, &minor, &patch) ||
+      re2::RE2::FullMatch(versionString, kFwVerXYPattern, &major, &minor);
+  if (!match) {
+    XLOGF(
+        WARN,
+        "Firmware version string {} from file {} does not match XXX.YYY.ZZZ format. This may be OK if it's an expected checksum.",
+        versionString,
+        path);
+    return {versionString, 0};
+  }
+  CHECK(major < 1000 && minor < 1000 && patch < 1000);
+  int odsValue = major * 1'000'000 + minor * 1000 + patch;
+  return {versionString, odsValue};
+}
+
 // Read a singular version number from the file at given path. If there is any
 // error reading the file, log and return a default of 0. The version number
 // must be the first non-whitespace substring, but the file may contain
 // additional non-numeric data after the version (e.g. human-readable comments).
-// TODO: Handle hwmon/info_rom cases (by standardizing them away, if possible).
-int readVersionNumber(const std::string& path) {
-  const auto versionFileContent =
-      facebook::fboss::platform ::platform_manager::Utils()
-          .getStringFileContent(path);
+// TODO: Handle info_rom cases (by standardizing them away, if possible).
+int readVersionNumber(
+    const std::string& path,
+    const PlatformFsUtils* platformFsUtils) {
+  const auto versionFileContent = platformFsUtils->getStringFileContent(path);
   if (!versionFileContent) {
     // This log is necessary to distinguish read error vs reading "0".
     XLOGF(
@@ -63,23 +141,39 @@ int readVersionNumber(const std::string& path) {
     return 0;
   }
 }
-} // namespace
 
-namespace facebook::fboss::platform::platform_manager {
+PlatformManagerStatus createPmStatus(
+    const ExplorationStatus& explorationStatus,
+    int64_t lastExplorationTime) {
+  PlatformManagerStatus status;
+  status.explorationStatus() = explorationStatus;
+  status.lastExplorationTime() = lastExplorationTime;
+  return status;
+}
+
+PlatformManagerStatus createPmStatus(
+    const ExplorationStatus& explorationStatus) {
+  return createPmStatus(explorationStatus, 0);
+}
+} // namespace
 
 namespace constants = platform_manager_config_constants;
 
-PlatformExplorer::PlatformExplorer(const PlatformConfig& config)
+PlatformExplorer::PlatformExplorer(
+    const PlatformConfig& config,
+    const std::shared_ptr<PlatformFsUtils> platformFsUtils)
     : platformConfig_(config),
       dataStore_(platformConfig_),
       devicePathResolver_(platformConfig_, dataStore_, i2cExplorer_),
-      presenceChecker_(devicePathResolver_) {}
+      presenceChecker_(devicePathResolver_),
+      explorationErrMap_(platformConfig_, dataStore_),
+      platformFsUtils_(platformFsUtils) {
+  updatePmStatus(createPmStatus(ExplorationStatus::UNSTARTED));
+}
 
 void PlatformExplorer::explore() {
   XLOG(INFO) << "Exploring the platform";
-  platformManagerStatus_.withWLock([](PlatformManagerStatus& status) {
-    status.explorationStatus() = ExplorationStatus::IN_PROGRESS;
-  });
+  updatePmStatus(createPmStatus(ExplorationStatus::IN_PROGRESS));
   for (const auto& [busName, busNum] :
        i2cExplorer_.getBusNums(*platformConfig_.i2cAdaptersFromCpu())) {
     dataStore_.updateI2cBusNum(std::nullopt, busName, busNum);
@@ -94,17 +188,12 @@ void PlatformExplorer::explore() {
     createDeviceSymLink(linkPath, devicePath);
   }
   publishFirmwareVersions();
-  reportExplorationSummary();
-  platformManagerStatus_.withWLock([&](PlatformManagerStatus& status) {
-    // TODO: T198759367
-    status.explorationStatus() = errorMessages_.empty()
-        ? ExplorationStatus::SUCCEEDED
-        : ExplorationStatus::FAILED;
-    status.lastExplorationTime() =
-        std::chrono::duration_cast<std::chrono::seconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count();
-  });
+  auto explorationStatus = concludeExploration();
+  updatePmStatus(createPmStatus(
+      explorationStatus,
+      std::chrono::duration_cast<std::chrono::seconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count()));
 }
 
 void PlatformExplorer::explorePmUnit(
@@ -203,6 +292,8 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
   auto slotTypeConfig = platformConfig_.slotTypeConfigs_ref()->at(slotType);
   CHECK(slotTypeConfig.idpromConfig() || slotTypeConfig.pmUnitName());
   std::optional<std::string> pmUnitNameInEeprom{std::nullopt};
+  std::optional<int> productProductionStateInEeprom{std::nullopt};
+  std::optional<int> productVersionInEeprom{std::nullopt};
   std::optional<int> productSubVersionInEeprom{std::nullopt};
   if (slotTypeConfig.idpromConfig_ref()) {
     auto idpromConfig = *slotTypeConfig.idpromConfig_ref();
@@ -236,8 +327,7 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
             *idpromConfig.address(),
             e.what());
         XLOG(ERR) << errMsg;
-        errorMessages_[Utils().createDevicePath(slotPath, "IDPROM")].push_back(
-            errMsg);
+        explorationErrMap_.add(slotPath, "IDPROM", errMsg);
       }
     } else {
       createI2cDevice(
@@ -256,8 +346,23 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
       // I think we can refactor this simpler once I2CDevicePaths are also
       // stored in DataStore. 1/ Create IDPROMs 2/ Read contents from eepromPath
       // stored in DataStore.
+      productProductionStateInEeprom = eepromParser_.getProdutProductionState(
+          eepromPath, *idpromConfig.offset());
+      productVersionInEeprom =
+          eepromParser_.getProductVersion(eepromPath, *idpromConfig.offset());
       productSubVersionInEeprom = eepromParser_.getProductSubVersion(
           eepromPath, *idpromConfig.offset());
+      XLOG(INFO) << fmt::format(
+          "Found ProductProductionState `{}` ProductVersion `{}` ProductSubVersion `{}` in IDPROM {} at {}",
+          productProductionStateInEeprom
+              ? std::to_string(*productProductionStateInEeprom)
+              : "<ABSENT>",
+          productVersionInEeprom ? std::to_string(*productVersionInEeprom)
+                                 : "<ABSENT>",
+          productSubVersionInEeprom ? std::to_string(*productSubVersionInEeprom)
+                                    : "<ABSENT>",
+          eepromPath,
+          slotPath);
     } catch (const std::exception& e) {
       auto errMsg = fmt::format(
           "Could not fetch contents of IDPROM {} in {}. {}",
@@ -265,8 +370,7 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
           slotPath,
           e.what());
       XLOG(ERR) << errMsg;
-      errorMessages_[Utils().createDevicePath(slotPath, "IDPROM")].push_back(
-          errMsg);
+      explorationErrMap_.add(slotPath, "IDPROM", errMsg);
     }
     if (pmUnitNameInEeprom) {
       XLOG(INFO) << fmt::format(
@@ -275,16 +379,10 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
           eepromPath,
           slotPath);
     }
-    if (productSubVersionInEeprom) {
-      XLOG(INFO) << fmt::format(
-          "Found PlatformSubVersion `{}` in IDPROM {} at {}",
-          *productSubVersionInEeprom,
-          eepromPath,
-          slotPath);
-    }
   }
 
   auto pmUnitName = pmUnitNameInEeprom;
+  XLOG(INFO) << "SlotType PmUnitName: " << *slotTypeConfig.pmUnitName();
   if (slotTypeConfig.pmUnitName()) {
     if (pmUnitNameInEeprom &&
         *pmUnitNameInEeprom != *slotTypeConfig.pmUnitName()) {
@@ -306,7 +404,12 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
         "or SlotTypeConfig::idpromConfig at {}",
         slotPath));
   }
-  dataStore_.updatePmUnitInfo(slotPath, *pmUnitName, productSubVersionInEeprom);
+  dataStore_.updatePmUnitInfo(
+      slotPath,
+      *pmUnitName,
+      productProductionStateInEeprom,
+      productVersionInEeprom,
+      productSubVersionInEeprom);
   return pmUnitName;
 }
 
@@ -365,9 +468,8 @@ void PlatformExplorer::exploreI2cDevices(
           slotPath,
           ex.what());
       XLOG(ERR) << errMsg;
-      errorMessages_[Utils().createDevicePath(
-                         slotPath, *i2cDeviceConfig.pmUnitScopedName())]
-          .push_back(errMsg);
+      explorationErrMap_.add(
+          slotPath, *i2cDeviceConfig.pmUnitScopedName(), errMsg);
     }
   }
 }
@@ -472,9 +574,8 @@ void PlatformExplorer::explorePciDevices(
           slotPath,
           ex.what());
       XLOG(ERR) << errMsg;
-      errorMessages_[Utils().createDevicePath(
-                         slotPath, *pciDeviceConfig.pmUnitScopedName())]
-          .push_back(errMsg);
+      explorationErrMap_.add(
+          slotPath, *pciDeviceConfig.pmUnitScopedName(), errMsg);
     }
   }
 }
@@ -494,7 +595,7 @@ void PlatformExplorer::createDeviceSymLink(
     const std::string& linkPath,
     const std::string& devicePath) {
   auto linkParentPath = std::filesystem::path(linkPath).parent_path();
-  if (!Utils().createDirectories(linkParentPath.string())) {
+  if (!platformFsUtils_->createDirectories(linkParentPath.string())) {
     XLOG(ERR) << fmt::format(
         "Failed to create the parent path ({})", linkParentPath.string());
     return;
@@ -535,7 +636,7 @@ void PlatformExplorer::createDeviceSymLink(
         devicePath,
         ex.what());
     XLOG(ERR) << errMsg;
-    errorMessages_[devicePath].push_back(errMsg);
+    explorationErrMap_.add(devicePath, errMsg);
     return;
   }
   XLOG(INFO) << fmt::format(
@@ -551,44 +652,42 @@ void PlatformExplorer::createDeviceSymLink(
   }
 }
 
-void PlatformExplorer::reportExplorationSummary() {
-  std::map<std::string, std::vector<std::string>> errorMessagesBySlotPath;
-  for (const auto& [devicePath, errMsgs] : errorMessages_) {
-    const auto [slotPath, pmUnitScopedName] =
-        Utils().parseDevicePath(devicePath);
-    std::copy(
-        errMsgs.begin(),
-        errMsgs.end(),
-        std::back_inserter(errorMessagesBySlotPath[slotPath]));
-  }
-  if (errorMessagesBySlotPath.empty()) {
-    XLOG(INFO) << "SUCCESS. Completed setting up all the devices.";
-    return;
-  }
-  XLOG(INFO) << "Completed setting up devices with errors";
-  for (const auto& [slotPath, errMsgs] : errorMessagesBySlotPath) {
+ExplorationStatus PlatformExplorer::concludeExploration() {
+  XLOG(INFO) << fmt::format(
+      "Concluding {} exploration...", *platformConfig_.platformName());
+  for (const auto& [devicePath, errorMessages] : explorationErrMap_) {
+    auto [slotPath, deviceName] = Utils().parseDevicePath(devicePath);
     XLOG(INFO) << fmt::format(
-        "Failures in PmUnit {} at {}",
-        dataStore_.hasPmUnit(slotPath) ? dataStore_.getPmUnitName(slotPath)
-                                       : "<ABSENT>",
+        "{} Failures in Device {} for PmUnit {} at SlotPath {}",
+        errorMessages.isExpected() ? "Expected" : "Unexpected",
+        deviceName,
+        dataStore_.hasPmUnit(slotPath)
+            ? *dataStore_.getPmUnitInfo(slotPath).name()
+            : "<ABSENT>",
         slotPath);
     int i = 1;
-    for (const auto& errMsg : errMsgs) {
+    for (const auto& errMsg : errorMessages.getMessages()) {
       XLOG(INFO) << fmt::format("{}. {}", i++, errMsg);
     }
   }
-  fb303::fbData->setCounter(kTotalFailures, errorMessages_.size());
+  fb303::fbData->setCounter(kTotalFailures, explorationErrMap_.size());
+  if (explorationErrMap_.empty()) {
+    return ExplorationStatus::SUCCEEDED;
+  } else if (
+      explorationErrMap_.size() == explorationErrMap_.numExpectedErrors()) {
+    return ExplorationStatus::SUCCEEDED_WITH_EXPECTED_ERRORS;
+  } else {
+    return ExplorationStatus::FAILED;
+  }
 }
 
-void PlatformExplorer::publishFirmwareVersions(
-    const std::optional<std::string>& rootPrefix) {
-  const auto& root = rootPrefix.value_or("");
+void PlatformExplorer::publishFirmwareVersions() {
   for (const auto& [linkPath, _] :
        *platformConfig_.symbolicLinkToDevicePath()) {
     auto deviceType = "";
-    if (linkPath.starts_with(root + "/run/devmap/cplds")) {
+    if (linkPath.starts_with("/run/devmap/cplds")) {
       deviceType = "cpld";
-    } else if (linkPath.starts_with(root + "/run/devmap/fpgas")) {
+    } else if (linkPath.starts_with("/run/devmap/fpgas")) {
       deviceType = "fpga";
     } else {
       continue;
@@ -598,29 +697,63 @@ void PlatformExplorer::publishFirmwareVersions(
     // Note: The vector is guaranteed to be non-empty due to the prefix check.
     CHECK(!linkPathParts.empty());
     const auto deviceName = linkPathParts.back();
-    const auto version =
-        readVersionNumber(fmt::format("{}/{}_ver", linkPath, deviceType));
-    const auto subversion =
-        readVersionNumber(fmt::format("{}/{}_sub_ver", linkPath, deviceType));
+    std::string versionString;
+    int odsValue = 0;
+    std::string verDirPath = linkPath;
+    // Check for and handle hwmon case. e.g.
+    // /run/devmap/cplds/FAN0_CPLD/hwmon/hwmon20/
+    auto hwmonSubdirPath = std::filesystem::path(linkPath) / "hwmon";
+    if (platformFsUtils_->exists(hwmonSubdirPath)) {
+      for (const auto& entry : platformFsUtils_->ls(hwmonSubdirPath)) {
+        if (entry.is_directory() &&
+            entry.path().filename().string().starts_with("hwmon")) {
+          verDirPath = hwmonSubdirPath / entry.path().filename();
+          break;
+        }
+      }
+    }
+    // New-style fw_ver
+    auto fwVerFilePath = std::filesystem::path(verDirPath) / "fw_ver";
+    if (platformFsUtils_->exists(fwVerFilePath)) {
+      auto version = readVersionString(fwVerFilePath, platformFsUtils_.get());
+      versionString = version.first;
+      odsValue = version.second;
+    } else {
+      const auto version = readVersionNumber(
+          fmt::format("{}/{}_ver", verDirPath, deviceType),
+          platformFsUtils_.get());
+      const auto subversion = readVersionNumber(
+          fmt::format("{}/{}_sub_ver", verDirPath, deviceType),
+          platformFsUtils_.get());
 
-    std::string fullVersionString = fmt::format("{}.{}", version, subversion);
-    int odsValue = version * 1000 + subversion;
+      versionString = fmt::format("{}.{}", version, subversion);
+      odsValue = version * 1000 + subversion;
+    }
 
     XLOGF(
         INFO,
         "Reporting firmware version for {} - version string:{} ODS value:{}",
         deviceName,
-        fullVersionString,
+        versionString,
         odsValue);
     fb303::fbData->setCounter(
         fmt::format(kFirmwareVersion, deviceName), odsValue);
     fb303::fbData->setCounter(
-        fmt::format(kGroupedFirmwareVersion, deviceName, fullVersionString), 1);
+        fmt::format(kGroupedFirmwareVersion, deviceName, versionString), 1);
   }
 }
 
 PlatformManagerStatus PlatformExplorer::getPMStatus() const {
   return platformManagerStatus_.copy();
+}
+
+PmUnitInfo PlatformExplorer::getPmUnitInfo(const std::string& slotPath) const {
+  return dataStore_.getPmUnitInfo(slotPath);
+}
+
+void PlatformExplorer::updatePmStatus(const PlatformManagerStatus& newStatus) {
+  platformManagerStatus_.withWLock(
+      [&](PlatformManagerStatus& status) { status = newStatus; });
 }
 
 void PlatformExplorer::setupI2cDevice(
@@ -632,7 +765,7 @@ void PlatformExplorer::setupI2cDevice(
     i2cExplorer_.setupI2cDevice(busNum, addr, initRegSettings);
   } catch (const std::exception& ex) {
     XLOG(ERR) << ex.what();
-    errorMessages_[devicePath].push_back(ex.what());
+    explorationErrMap_.add(devicePath, ex.what());
   }
 }
 
@@ -647,7 +780,7 @@ void PlatformExplorer::createI2cDevice(
     i2cExplorer_.createI2cDevice(pmUnitScopedName, deviceName, busNum, addr);
   } catch (const std::exception& ex) {
     XLOG(ERR) << ex.what();
-    errorMessages_[devicePath].push_back(ex.what());
+    explorationErrMap_.add(devicePath, ex.what());
   }
 }
 } // namespace facebook::fboss::platform::platform_manager

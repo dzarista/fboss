@@ -92,18 +92,6 @@ ACTION(ThrowException) {
   throw std::exception();
 }
 
-TEST_F(SwSwitchTest, UpdateStatsExceptionCounter) {
-  CounterCache counters(sw);
-
-  MockHwSwitch* hw = getMockHw(sw);
-  EXPECT_CALL(*hw, updateStatsImpl()).Times(1).WillRepeatedly(ThrowException());
-  sw->updateStats();
-
-  counters.update();
-  counters.checkDelta(
-      SwitchStats::kCounterPrefix + "update_stats_exceptions.sum.60", 1);
-}
-
 TEST_F(SwSwitchTest, VerifyIsValidStateUpdate) {
   ON_CALL(*getMockHw(sw), isValidStateUpdate(_))
       .WillByDefault(testing::Return(true));
@@ -246,6 +234,7 @@ TEST_F(SwSwitchTest, multiSwitchFb303Stats) {
     globalStats.global_drops() = val;
     globalStats.global_reachability_drops() = val;
     globalStats.packet_integrity_drops() = val;
+    globalStats.vsq_resource_exhaustion_drops() = val;
     globalStats.dram_enqueued_bytes() = val;
     globalStats.dram_dequeued_bytes() = val;
     globalStats.dram_blocked_time_ns() = val;
@@ -275,6 +264,7 @@ TEST_F(SwSwitchTest, multiSwitchFb303Stats) {
     EXPECT_EQ(counters.value("global_drops.sum"), expectedVal);
     EXPECT_EQ(counters.value("global_reachability_drops.sum"), expectedVal);
     EXPECT_EQ(counters.value("packet_integrity_drops.sum"), expectedVal);
+    EXPECT_EQ(counters.value("vsq_resource_exhaustion_drops.sum"), expectedVal);
     EXPECT_EQ(counters.value("dram_enqueued_bytes.sum"), expectedVal);
     EXPECT_EQ(counters.value("dram_dequeued_bytes.sum"), expectedVal);
     EXPECT_EQ(counters.value("dram_blocked_time_ns.sum"), expectedVal);
