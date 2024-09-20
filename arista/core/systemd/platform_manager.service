@@ -12,7 +12,7 @@ LimitNOFILE=10000000
 LimitCORE=32G
 Type=notify
 ExecStartPre=/bin/bash -c '[[ -f /opt/fboss/share/platform_configs/platform_manager.json ]]'
-ExecStart=/opt/fboss/bin/platform_manager -config-file /opt/fboss/share/platform_configs/platform_manager.json -noenable_pkg_mgmnt --run_once=false
+ExecStart=/opt/fboss/bin/platform_manager -config-file /opt/fboss/share/platform_configs/platform_manager.json -noenable_pkg_mgmnt --run_once=false -reload_kmods=true
 TimeoutSec=300
 
 [Install]
