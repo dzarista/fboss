@@ -1024,8 +1024,10 @@ CpuCosQueueId hwQueueIdToCpuCosQueueId(uint8_t hwQueueId) {
     case 9:
       return CpuCosQueueId::HIPRI;
     default:
-      XLOG(FATAL) << "Got Invalid hwQueueId " << hwQueueId;
-      break;
+      // ARISTA Hack to avoid fboss_hw_agent crash on J3.
+      //XLOG(FATAL) << "Got Invalid hwQueueId " << hwQueueId;
+      //break;
+      return CpuCosQueueId::DEFAULT;
   }
 }
 } // namespace facebook::fboss
