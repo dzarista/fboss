@@ -1327,6 +1327,8 @@ class SCMFairywren( SCMUnit ):
       if self.supportsP1:
          self.scmI2cMaster0.buses[ 1 ].addI2cDevices( [ scmIdprom ] )
 
+      self.scmI2cMaster1 = self.scmFpga.i2cAdapterConfigs[ 1 ]
+
       cpuCoreTemp = EmbeddedSensorConfig(
                         pmUnitScopedName="CPU_CORE_TEMP",
                         sysfsPath="/sys/bus/platform/devices/coretemp.0"
