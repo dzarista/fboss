@@ -1274,6 +1274,8 @@ class SCMUnit( PmUnitConfig ):
 
 
 class SCMFairywren( SCMUnit ):
+   supportsP1 = True
+
    def __init__( self ):
       super().__init__()
 
@@ -1303,10 +1305,15 @@ class SCMFairywren( SCMUnit ):
       scmIdprom = FairywrenIdProm( "0x50", "24c512", "SCM_IDPROM_P1",
                                    hasCpuMac=True )
 
-      self.addI2cDeviceConfigs( [
+      i2cDeviceConfigs = [
          scmMpsDev,
          scmIdprom
-      ] )
+      ]
+
+      if not self.supportsP1:
+         i2cDeviceConfigs.remove( scmIdprom )
+
+      self.addI2cDeviceConfigs( i2cDeviceConfigs )
 
       self.scmFpga = PciDeviceConfig( "SCM_FPGA", "0x3475", "0x0001", "0x3475",
                                       "0x0008", symlinkDeviceName="MERU_SCM_CPLD" )
@@ -1316,9 +1323,9 @@ class SCMFairywren( SCMUnit ):
 
       self.scmI2cMaster0 = self.scmFpga.i2cAdapterConfigs[ 0 ]
       self.scmI2cMaster0.buses[ 0 ].addI2cDevices( [ scmMpsDev ] )
-      self.scmI2cMaster0.buses[ 1 ].addI2cDevices( [ scmIdprom ] )
 
-      self.scmI2cMaster1 = self.scmFpga.i2cAdapterConfigs[ 1 ]
+      if self.supportsP1:
+         self.scmI2cMaster0.buses[ 1 ].addI2cDevices( [ scmIdprom ] )
 
       cpuCoreTemp = EmbeddedSensorConfig(
                         pmUnitScopedName="CPU_CORE_TEMP",

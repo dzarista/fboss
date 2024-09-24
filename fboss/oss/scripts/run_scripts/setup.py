@@ -97,6 +97,7 @@ class SetupFboss:
             self.src_bde_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
             )
+        # BUG____: Add support to ViperB0 once we have hardware
     ### ARISTA END ###
 
 

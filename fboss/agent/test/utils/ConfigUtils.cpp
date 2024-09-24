@@ -410,6 +410,19 @@ cfg::DsfNode dsfNodeConfig(
                 localMac),
             fromPlatformType);
       }
+      case cfg::AsicType::ASIC_TYPE_JERICHO3B: {
+        auto fromPlatformType = platformType.has_value()
+            ? platformType.value()
+            : PlatformType::PLATFORM_MERU800BIAB;
+        return std::pair(
+            std::make_unique<Jericho3Asic>(
+                fromAsic.getSwitchType(),
+                switchId,
+                fromAsic.getSwitchIndex(),
+                systemPortRange,
+                localMac),
+            fromPlatformType);
+      }
       case cfg::AsicType::ASIC_TYPE_RAMON:
         return std::pair(
             std::make_unique<RamonAsic>(

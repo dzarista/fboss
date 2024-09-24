@@ -24,7 +24,8 @@ from ..BaseConfigs import (
 
 
 class ViperSCM( SCMFairywren ):
-   def __init__( self ):
+   def __init__( self, supportsP1 ):
+      self.supportsP1 = supportsP1
       super().__init__()
 
       self.addOutgoingSlotConfigs( [
@@ -40,6 +41,8 @@ class ViperSCM( SCMFairywren ):
 
 
 class ViperSMB( SMBUnit ):
+   symlinkDeviceName = 'MERU800BIA_SMB_FPGA'
+
    def __init__( self ):
       super().__init__()
 
@@ -247,7 +250,8 @@ class ViperSMB( SMBUnit ):
       ] )
 
       self.addPciDeviceConfigs( [
-         PciDeviceConfig( "SMB_FPGA", "0x3475", "0x0001", "0x3475", "0x0003" )
+         PciDeviceConfig( "SMB_FPGA", "0x3475", "0x0001", "0x3475", "0x0003",
+                         self.symlinkDeviceName )
       ] )
 
       smbFpga = self.pciDeviceConfigs[ 0 ]
@@ -296,11 +300,14 @@ class ViperSMB( SMBUnit ):
 
 
 class Viper( PlatformConfig ):
+   codename = 'meru800bia'
+   supportsP1 = True
+
    def __init__( self ):
-      super().__init__( "meru800bia" )
+      super().__init__( self.codename )
 
       self.addPmUnitConfigs( [
-         ViperSCM(),
+         ViperSCM( self.supportsP1 ),
          ViperSMB(),
          PSUUnit(),
          FANUnit()
@@ -325,4 +332,6 @@ class Viper( PlatformConfig ):
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths()
 
-
+class ViperB0( Viper ):
+    codename = 'meru800biab'
+    supportsP1 = False
