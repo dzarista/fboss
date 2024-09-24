@@ -682,7 +682,7 @@ class RackhawkSwitch( PmUnitConfig ):
 
 
 class RackhawkRackmon( PmUnitConfig ):
-   def __init__( self, hasPem=True ):
+   def __init__( self ):
       super().__init__( 'RACKMON' )
 
       # TODO: Need PM to be able to handle other EEPROM formats
@@ -707,14 +707,19 @@ class RackhawkRackmon( PmUnitConfig ):
       pcaGpio = GpioChip( '0x74', 'pca9539', 'RACKMON_PLS', incomingBusIndex=0 )
       fanspinnerIdProm = I2cIdProm( '0x50', '24c512', 'FANSPINNER_EEPROM',
                                     incomingBusIndex=0 )
-      #rackmonIdProm = I2cIdProm( '0x52', '24c512', 'RACKMON_EEPROM',
-      #                           incomingBusIndex=0 )
       self.addI2cDeviceConfigs( [
          aslg4f4527,
          pcaGpio,
          fanspinnerIdProm,
-         #rackmonIdProm
       ] )
+
+   def populateSymlinkToDevicePaths( self ):
+      # Override this method to account for special-case Rackmon EEPROM.
+      addedPaths = {
+         "/run/devmap/eeproms/RACKMON_EEPROM": "/RACKMON_SLOT@0/[IDPROM]",
+         **self.generateI2cDeviceSymlinks(),
+      }
+      self.symlinkToDevicePaths.update( addedPaths )
 
 
 class RackhawkPEM( PmUnitConfig ):
@@ -806,7 +811,7 @@ class Rackhawk( PlatformConfig ):
       pmUnits = [
             RackhawkSwitch( self.hasPem ),
             FANUnit(),
-            RackhawkRackmon( self.hasPem ),
+            RackhawkRackmon(),
       ]
       if self.hasPem:
          pmUnits.append( RackhawkPEM() )
