@@ -1469,7 +1469,7 @@
     "/run/devmap/i2c-busses/MERU_SCM_CPLD_SMBUS1_CH5": "/[SCM_I2C_MASTER1@5]",
     "/run/devmap/i2c-busses/MERU_SCM_CPLD_SMBUS1_CH6": "/[SCM_I2C_MASTER1@6]",
     "/run/devmap/i2c-busses/MERU_SCM_CPLD_SMBUS1_CH7": "/[SCM_I2C_MASTER1@7]",
-    "/run/devmap/eeproms/MERU800BIAB_SMB_EEPROM": "/SMB_SLOT@0/[IDPROM]",
+    "/run/devmap/eeproms/MERU800BIA_SMB_EEPROM": "/SMB_SLOT@0/[IDPROM]",
     "/run/devmap/sensors/CPU_MPS_PMBUS": "/[SCM_MPS_PMBUS]",
     "/run/devmap/sensors/CPU_CORE_TEMP": "/[CPU_CORE_TEMP]",
     "/run/devmap/fpgas/MERU800BIA_SMB_FPGA": "/SMB_SLOT@0/[SMB_FPGA]",

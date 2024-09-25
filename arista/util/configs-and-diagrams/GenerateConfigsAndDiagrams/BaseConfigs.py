@@ -88,6 +88,12 @@ class PlatformConfig:
          "upstreamKmodsToLoad": []
       }
 
+   def getPmunit( self, pmUnitName ):
+      for pmUnit in self.pmUnitConfigs:
+         if pmUnit.pmUnitName == pmUnitName:
+            return pmUnit
+      return None
+
    def getSlotTypeConfigsDict( self ):
       jsonDict = {}
       for pmConfig in self.pmUnitConfigs:
@@ -211,7 +217,7 @@ class SlotTypeConfig:
 
 
 class PmUnitConfig:
-   def __init__( self, pmUnitName ):
+   def __init__( self, pmUnitName, prefixSymlink=None ):
       self.pmUnitName = pmUnitName
       self.slotTypeConfig = SlotTypeConfig( self.pmUnitName )
       self.i2cDeviceConfigs = []
@@ -219,6 +225,7 @@ class PmUnitConfig:
       self.pciDeviceConfigs = []
       self.embeddedSensorConfigs = []
       self.symlinkToDevicePaths = {}
+      self.prefixSymlink = prefixSymlink
       self.parentConfig = None
 
    def setSlotTypeConfig( self, numOutgoingI2cBuses=0, idPromConfigBusName=None,
@@ -316,8 +323,10 @@ class PmUnitConfig:
       if self.pmUnitName == "SCM":
          for slotConfig in self.outgoingSlotConfigs:
             if slotConfig.slotType == "SMB_SLOT":
+               smbPmUnit = self.parentConfig.getPmunit( "SMB" )
+               symlinkDeviceName = smbPmUnit.prefixSymlink or platform.upper()
                symlinkDict[
-                  f"/run/devmap/eeproms/{ platform.upper() }_SMB_EEPROM"
+                  f"/run/devmap/eeproms/{ symlinkDeviceName }_SMB_EEPROM"
                ] = f"/{ slotConfig.slotName }/[IDPROM]"
       return symlinkDict
 
@@ -1386,8 +1395,8 @@ class SCMFairywren( SCMUnit ):
 
 
 class SMBUnit( PmUnitConfig ):
-   def __init__( self ):
-      super().__init__( "SMB" )
+   def __init__( self, prefixSymlink=None ):
+      super().__init__( "SMB", prefixSymlink )
 
 
 class PSUUnit( PmUnitConfig ):

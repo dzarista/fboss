@@ -41,10 +41,10 @@ class ViperSCM( SCMFairywren ):
 
 
 class ViperSMB( SMBUnit ):
-   symlinkDeviceName = 'MERU800BIA_SMB_FPGA'
+   prefixSymlink = 'MERU800BIA'
 
    def __init__( self ):
-      super().__init__()
+      super().__init__( self.prefixSymlink )
 
       self.setSlotTypeConfig(
          numOutgoingI2cBuses=3,
@@ -251,7 +251,7 @@ class ViperSMB( SMBUnit ):
 
       self.addPciDeviceConfigs( [
          PciDeviceConfig( "SMB_FPGA", "0x3475", "0x0001", "0x3475", "0x0003",
-                         self.symlinkDeviceName )
+                         symlinkDeviceName="MERU800BIA_SMB_FPGA" )
       ] )
 
       smbFpga = self.pciDeviceConfigs[ 0 ]
