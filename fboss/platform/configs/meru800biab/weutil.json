@@ -6,7 +6,7 @@
       "offset": 15360
     },
     "SMB": {
-      "path": "/run/devmap/eeproms/MERU800BIAB_SMB_EEPROM",
+      "path": "/run/devmap/eeproms/MERU800BIA_SMB_EEPROM",
       "offset": 15360
     }
   }
