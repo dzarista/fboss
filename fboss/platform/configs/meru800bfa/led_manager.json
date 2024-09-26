@@ -1,22 +1,22 @@
 {
   "systemLedConfig": {
     "presentLedColor": 1,
-    "presentLedSysfsPath": "/sys/class/leds/status_led1:green:status/brightness",
+    "presentLedSysfsPath": "/sys/class/leds/sys_led:green:status/brightness",
     "absentLedColor": 2,
-    "absentLedSysfsPath": "/sys/class/leds/status_led1:red:status/brightness"
+    "absentLedSysfsPath": "/sys/class/leds/sys_led:red:status/brightness"
   },
   "fruTypeLedConfigs": {
     "FAN": {
       "presentLedColor": 1,
-      "presentLedSysfsPath": "/sys/class/leds/status_led2:green:status/brightness",
+      "presentLedSysfsPath": "/sys/class/leds/fan_led:green:status/brightness",
       "absentLedColor": 2,
-      "absentLedSysfsPath": "/sys/class/leds/status_led2:red:status/brightness"
+      "absentLedSysfsPath": "/sys/class/leds/fan_led:red:status/brightness"
     },
     "PSU": {
       "presentLedColor": 1,
-      "presentLedSysfsPath": "/sys/class/leds/status_led3:green:status/brightness",
+      "presentLedSysfsPath": "/sys/class/leds/psu_led:green:status/brightness",
       "absentLedColor": 2,
-      "absentLedSysfsPath": "/sys/class/leds/status_led3:red:status/brightness"
+      "absentLedSysfsPath": "/sys/class/leds/psu_led:red:status/brightness"
     }
   },
   "fruConfigs": [

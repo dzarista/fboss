@@ -317,6 +317,10 @@ images:
       -
         - sh
         - -c
+        - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-darwin48v-1-1.el9.x86_64.rpm
+      -
+        - sh
+        - -c
         - test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-meru400bia-1-1.el9.x86_64.rpm
       -
         - sh

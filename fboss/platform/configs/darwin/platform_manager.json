@@ -264,6 +264,18 @@
               ]
             }
           ],
+          "watchdogConfigs": [
+            {
+              "pmUnitScopedName": "SCD_WDT1",
+              "deviceName": "watchdog_darwin",
+              "csrOffset": "0x120"
+            },
+            {
+              "pmUnitScopedName": "SCD_WDT2",
+              "deviceName": "watchdog_darwin",
+              "csrOffset": "0x304"
+            }
+          ],
           "ledCtrlConfigs": [
             {
               "fpgaIpBlockConfig": {
@@ -428,6 +440,7 @@
     "scd-leds",
     "scd-smbus",
     "scd-spi",
+    "scd-watchdog-darwin",
     "rook-fan-cpld",
     "blackhawk-cpld",
     "aslg4f4527",
