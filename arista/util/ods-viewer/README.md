@@ -41,3 +41,44 @@ The graph is generated using plotly. A couple of notes:
 The included `rsw021.p001.f01.eag6.csv` file is ODS data taken from a Rackhawk
 switch at Meta. You can use this file as an example when exploring this
 notebook.
+
+## Google Colaboratory Usage
+
+Use the following instructions to run within a Chrome browser.
+
+### Installing Google Colaboratory
+
+1. Go to Google Drive
+2. Press the `+ New` button
+3. In the `More->` sub-menu, select `+ Connect more apps`
+4. Search for `Colaboratory` and install it.
+This will now appear in the `More->` submenu.
+
+### First time Chrome MetaOdsViewer Usage
+
+1. Go to Google Drive.
+2. Press the `+ New` button and select `Google Colaboratory`
+3. Upload `MetaOdsViewer.ipynb`
+   This will be saved in a `Colab Notebooks` folder in Google Drive. The next
+   time, you can just double-click `MetaOdsViewer.ipynb` in this folder.
+
+### Running
+
+To run, select `Run all` from the `Run` menu.
+
+### Additional Chrome MetaOdsViewer Notes
+Use the file-folder icon on the left to expose the file pane. This is used to
+manage the files known to the Colaboratory workspace.
+
+To upload a csv file, press the upload button and select a file from your laptop.
+Then modify the `odsCsvFile` to the filename of the file uploaded.
+
+In order to reference Google Drive files, click on the Google Drive icon
+and give permission to access your Google Drive. The file path should start with
+`drive/MyDrive`. For example:
+`drive/MyDrive/Meta Escalations/ssw015-s002-f01-ncg3.csv`
+No need to escape spaces.
+
+Starting from the top logic pane, either press the play button or press Shift-return.
+This will run the pane and then highlight the next one. Do this for each of them.
+There are about 7. The last one generates the graph.
