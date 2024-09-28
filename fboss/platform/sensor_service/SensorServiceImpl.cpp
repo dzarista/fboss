@@ -18,6 +18,7 @@
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 
 #include "fboss/platform/config_lib/ConfigLib.h"
+#include "fboss/platform/helpers/PlatformNameLib.h"
 #include "fboss/platform/sensor_service/FsdbSyncer.h"
 #include "fboss/platform/sensor_service/SensorServiceImpl.h"
 #include "fboss/platform/sensor_service/Utils.h"
@@ -31,7 +32,8 @@ DEFINE_int32(
 namespace facebook::fboss::platform::sensor_service {
 
 SensorServiceImpl::SensorServiceImpl() {
-  std::string sensorConfJson = ConfigLib().getSensorServiceConfig();
+  auto platformName = helpers::PlatformNameLib().getPlatformName();
+  std::string sensorConfJson = ConfigLib().getSensorServiceConfig(platformName);
   XLOG(DBG2) << "Read sensor config: " << sensorConfJson;
   apache::thrift::SimpleJSONSerializer::deserialize<SensorConfig>(
       sensorConfJson, sensorConfig_);
@@ -80,12 +82,35 @@ void SensorServiceImpl::fetchSensorData() {
   // If it's defined, we will use new sensor structs
   // Otherwise fall back to the existing sensors structs.
   if (!sensorConfig_.pmUnitSensorsList()->empty()) {
+    XLOG(INFO) << "Reading SensorData using PM based sensor structs...";
     for (const auto& pmUnitSensors : *sensorConfig_.pmUnitSensorsList()) {
-      for (const auto& sensor : *pmUnitSensors.sensors()) {
+      auto pmSensors = *pmUnitSensors.sensors();
+      if (auto versionedPmSensors = Utils().resolveVersionedSensors(
+              pmUnitInfoFetcher_,
+              *pmUnitSensors.slotPath(),
+              *pmUnitSensors.versionedSensors())) {
+        XLOG(INFO) << fmt::format(
+            "Resolved to versionedPmSensors config with version {}.{}.{} for pmUnit {} at {}",
+            *versionedPmSensors->productProductionState(),
+            *versionedPmSensors->productVersion(),
+            *versionedPmSensors->productSubVersion(),
+            *pmUnitSensors.pmUnitName(),
+            *pmUnitSensors.slotPath());
+        pmSensors.insert(
+            pmSensors.end(),
+            versionedPmSensors->sensors()->begin(),
+            versionedPmSensors->sensors()->end());
+      }
+      XLOG(INFO) << fmt::format(
+          "Processing {} unit {} sensors",
+          *pmUnitSensors.pmUnitName(),
+          pmSensors.size());
+      for (const auto& sensor : pmSensors) {
         fetchSensorDataImpl(sensor, readFailures, polledData);
       }
     }
   } else {
+    XLOG(INFO) << "Fetching using legacy sensor structs...";
     for (const auto& [fruName, sensorMap] : *sensorConfig_.sensorMapList()) {
       for (const auto& [sensorName, sensor] : sensorMap) {
         fetchSensorDataImpl(
@@ -97,7 +122,9 @@ void SensorServiceImpl::fetchSensorData() {
   fb303::fbData->setCounter(kTotalReadFailure, readFailures);
   fb303::fbData->setCounter(kHasReadFailure, readFailures > 0 ? 1 : 0);
   XLOG(INFO) << fmt::format(
-      "Processed {} Sensors. {} Failures.", polledData.size(), readFailures);
+      "In Total, Processed {} Sensors. {} Failures.",
+      polledData.size(),
+      readFailures);
   polledData_.swap(polledData);
 
   if (FLAGS_publish_stats_to_fsdb) {

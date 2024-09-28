@@ -171,6 +171,7 @@ enum PortProfileID {
   PROFILE_100G_2_PAM4_RS544X2N_COPPER = 46,
   PROFILE_100G_1_PAM4_RS544_OPTICAL = 47,
   PROFILE_50G_2_NRZ_RS528_OPTICAL = 48,
+  PROFILE_100G_1_PAM4_NOFEC_COPPER = 49,
 }
 
 enum Scope {
@@ -222,6 +223,8 @@ enum IpType {
   IP = 1,
   IP4 = 2,
   IP6 = 3,
+  ARP_REQUEST = 4,
+  ARP_REPLY = 5,
 }
 
 enum EtherType {
@@ -231,6 +234,7 @@ enum EtherType {
   EAPOL = 0x888E,
   MACSEC = 0x88E5,
   LLDP = 0x88CC,
+  ARP = 0x0806,
 }
 
 struct Ttl {
@@ -355,6 +359,13 @@ struct Mirror {
   2: MirrorDestination destination;
   3: byte dscp = DEFAULT_MIRROR_DSCP;
   4: bool truncate = false;
+  /*
+   * 0 - no sampling
+   * 1 - sample all packets
+   * Any other integer value represent the 1 out of samplingRate
+   * packets will be mirrored.
+   */
+  5: optional i32 samplingRate = 0;
 }
 
 /**
@@ -415,6 +426,14 @@ enum AclLookupClass {
 
 enum PacketLookupResultType {
   PACKET_LOOKUP_RESULT_MPLS_NO_MATCH = 1,
+}
+
+struct AclUdfEntry {
+  1: string udfGroup;
+
+  2: list<byte> roceBytes;
+
+  3: list<byte> roceMask;
 }
 
 /**
@@ -527,6 +546,8 @@ struct AclEntry {
   33: optional list<byte> roceBytes;
 
   34: optional list<byte> roceMask;
+
+  35: optional list<AclUdfEntry> udfTable;
 }
 
 enum AclTableActionType {
@@ -1127,6 +1148,7 @@ struct Port {
   30: optional PortFlowletConfigName flowletConfigName;
 
   31: Scope scope = Scope.LOCAL;
+  32: optional PortQueueConfigName portVoqConfigName;
 }
 
 enum LacpPortRate {

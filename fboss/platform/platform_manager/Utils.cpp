@@ -65,7 +65,7 @@ void verifyPlatformNameMatches(
 
 PlatformConfig Utils::getConfig() {
   std::string platformNameFromBios =
-      helpers::PlatformNameLib().getPlatformNameFromBios();
+      helpers::PlatformNameLib().getPlatformNameFromBios(true);
   std::string configJson =
       ConfigLib().getPlatformManagerConfig(platformNameFromBios);
   PlatformConfig config;
@@ -86,16 +86,6 @@ PlatformConfig Utils::getConfig() {
     throw std::runtime_error("Invalid platform config");
   }
   return config;
-}
-
-bool Utils::createDirectories(const std::string& path) {
-  std::error_code errCode;
-  std::filesystem::create_directories(fs::path(path), errCode);
-  if (errCode.value() != 0) {
-    XLOG(ERR) << fmt::format(
-        "Received error code {} from creating path {}", errCode.value(), path);
-  }
-  return errCode.value() == 0;
 }
 
 std::pair<std::string, std::string> Utils::parseDevicePath(
@@ -178,15 +168,6 @@ std::string Utils::resolveWatchdogCharDevPath(const std::string& sysfsPath) {
         "{}. Reason: {} does not exist in the system", failMsg, charDevPath));
   }
   return charDevPath;
-}
-
-std::optional<std::string> Utils::getStringFileContent(
-    const std::string& path) const {
-  std::string value{};
-  if (!folly::readFile(path.c_str(), value)) {
-    return std::nullopt;
-  }
-  return folly::trimWhitespace(value).str();
 }
 
 int Utils::getGpioLineValue(const std::string& charDevPath, int lineIndex)

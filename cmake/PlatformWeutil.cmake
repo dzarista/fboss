@@ -11,9 +11,16 @@ add_fbthrift_cpp_library(
     reflection
 )
 
+add_library(weutil_crc16_ccitt_aug
+  fboss/platform/weutil/Crc16CcittAug.cpp
+)
+
 add_library(weutil_fboss_eeprom_parser
   fboss/platform/weutil/FbossEepromParser.cpp
-  fboss/platform/weutil/Crc16CcittAug.cpp
+)
+
+target_link_libraries(weutil_fboss_eeprom_parser
+  weutil_crc16_ccitt_aug
 )
 
 target_link_libraries(weutil_fboss_eeprom_parser
@@ -42,6 +49,7 @@ target_link_libraries(weutil_lib
   weutil_config_cpp2
   weutil_fboss_eeprom_parser
   platform_config_lib
+  platform_name_lib
   ioctl_smbus_eeprom_reader
 )
 

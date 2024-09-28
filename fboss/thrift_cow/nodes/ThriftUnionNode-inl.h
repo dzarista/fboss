@@ -12,7 +12,7 @@
 
 #include <fatal/container/tuple.h>
 #include <folly/json/dynamic.h>
-#include <thrift/lib/cpp2/reflection/folly_dynamic.h>
+#include <thrift/lib/cpp2/folly_dynamic/folly_dynamic.h>
 #include <thrift/lib/cpp2/reflection/reflection.h>
 #include "fboss/agent/state/NodeBase-defs.h"
 #include "fboss/thrift_cow/nodes/Types.h"
@@ -249,9 +249,7 @@ struct ThriftUnionFields {
   using TypeFor = typename fatal::find<
       MemberTypes,
       Name,
-      std::enable_if_t<
-          fatal::contains<MemberTypes, Name, fatal::get_type::name>::value,
-          std::false_type>,
+      std::false_type,
       fatal::get_type::name,
       fatal::get_type::type>;
 
@@ -293,15 +291,15 @@ struct ThriftUnionFields {
 
   folly::dynamic toDynamic() const {
     folly::dynamic out;
-    apache::thrift::to_dynamic<TC>(
-        out, toThrift(), apache::thrift::dynamic_format::JSON_1);
+    facebook::thrift::to_dynamic(
+        out, toThrift(), facebook::thrift::dynamic_format::JSON_1);
     return out;
   }
 
   void fromDynamic(const folly::dynamic& value) {
     TType thrift;
-    apache::thrift::from_dynamic<TC>(
-        thrift, value, apache::thrift::dynamic_format::JSON_1);
+    facebook::thrift::from_dynamic(
+        thrift, value, facebook::thrift::dynamic_format::JSON_1);
     fromThrift(thrift);
   }
 #endif

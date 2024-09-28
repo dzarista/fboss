@@ -204,7 +204,17 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
        */
       bcmSdkVer_(map, getCounterPrefix() + "bcm_sdk_version"),
       bcmSaiSdkVer_(map, getCounterPrefix() + "bcm_sai_sdk_version"),
-      leabaSdkVer_(map, getCounterPrefix() + "leaba_sai_sdk_version") {}
+      leabaSdkVer_(map, getCounterPrefix() + "leaba_sai_sdk_version"),
+      hwStatsCollectionFailed_(
+          map,
+          getCounterPrefix() + "hw_stats_collection_failed",
+          SUM,
+          RATE),
+      phyInfoCollectionFailed_(
+          map,
+          getCounterPrefix() + "phy_info_collection_failed",
+          SUM,
+          RATE) {}
 
 void HwSwitchFb303Stats::update(const HwSwitchDropStats& dropStats) {
   if (dropStats.globalDrops().has_value()) {
@@ -489,6 +499,8 @@ HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
     hwFb303Stats.fdr_cell_drops() = *currentDropStats_.fdrCellDrops();
   }
   hwFb303Stats.deleted_credit_bytes() = getDeletedCreditBytes();
+  hwFb303Stats.vsq_resource_exhaustion_drops() =
+      getVsqResourcesExhautionDrops();
   return hwFb303Stats;
 }
 
@@ -510,6 +522,11 @@ void HwSwitchFb303Stats::updateStats(HwSwitchFb303GlobalStats& globalStats) {
   updateValue(dramDequeuedBytes_, *globalStats.dram_dequeued_bytes());
   if (globalStats.dram_blocked_time_ns().has_value()) {
     updateValue(dramBlockedTimeNsec_, *globalStats.dram_blocked_time_ns());
+  }
+  if (globalStats.vsq_resource_exhaustion_drops().has_value()) {
+    updateValue(
+        vsqResourceExhaustionDrops_,
+        *globalStats.vsq_resource_exhaustion_drops());
   }
   updateValue(
       switchReachabilityChangeCount_,
