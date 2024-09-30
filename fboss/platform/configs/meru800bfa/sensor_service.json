@@ -82,6 +82,14 @@
         "compute": "@/1000.0",
         "type": 3
       },
+      "NVME_COMPOSITE_TEMP": {
+        "path": "/run/devmap/sensors/NVME_TEMP/temp1_input",
+        "thresholds": {
+          "upperCriticalVal": 80.0
+        },
+        "compute": "@/1000.0",
+        "type": 3
+      },
       "SCM_ECB_VIN": {
         "path": "/run/devmap/sensors/CPU_MPS_PMBUS/in1_input",
         "thresholds": {
