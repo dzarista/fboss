@@ -6,7 +6,6 @@
 #include <fstream>
 #include <iostream>
 #include <numeric>
-#include <vector>
 
 namespace showtech {
 
@@ -22,6 +21,7 @@ double forecast( double x, const std::array< double, ARRAY_SIZE > & known_x, con
     double intercept = ( sum_y - slope * sum_x ) / ARRAY_SIZE;
     return slope * x + intercept;
 }
+
 int readIntFromFile(const std::string &filePath) {
   std::ifstream file(filePath);
 
@@ -58,7 +58,7 @@ int getFanCount() {
 }
 
 int getFanId() {
-  if (getFanCount() == 1) {
+  if ( getFanCount() == VIPER_FAN_COUNT ) {
     return readIntFromFile( SENSOR_PATH + "/FAN_CPLD/fan1_id" );
   } else {
     return readIntFromFile( SENSOR_PATH + "/FAN_CPLD0/fan1_id" );
@@ -75,9 +75,9 @@ int getPsuRpm( int psuNum ) {
 }
 
 double getPsuPwm( int rpm ) {
-   // SanyoDenki
-  if ( getFanId() == 0 ) {
-     if ( getFanCount() == 1 ) {
+
+   if ( SANYO_DENKI_FAN_IDS.count( getFanId() ) ) {
+     if ( getFanCount() == VIPER_FAN_COUNT ) {
         return forecast( rpm, VIPER_SD_PSU_RPM_LINE, PWM_LINE );
      }
      else {
@@ -85,21 +85,22 @@ double getPsuPwm( int rpm ) {
      }
   }
 
-  //  Delta
-  else if ( getFanId() == 1 ) {
-     if ( getFanCount() == 1 ) {
+   else if ( DELTA_FAN_IDS.count( getFanId() ) ) {
+     if ( getFanCount() == VIPER_FAN_COUNT ) {
         return forecast( rpm, VIPER_DELTA_PSU_RPM_LINE, PWM_LINE );
      }
      else {
         return forecast( rpm, WHISTLER_DELTA_PSU_RPM_LINE, PWM_LINE );
      }
   }
-  return -1;
+
+   else
+      return -1;
 }
 
 double calcPsuCfm() {
-   if ( getFanId() == 0 ) {
-      if ( getFanCount() == 1 ) {
+   if ( SANYO_DENKI_FAN_IDS.count( getFanId() ) ) {
+      if ( getFanCount() == VIPER_FAN_COUNT ) {
          int psuRpm = getPsuRpm( 1 );
          double psuPwm = getPsuPwm( psuRpm );
          double psuCfm = forecast( psuPwm, PWM_LINE, VIPER_PSU_CFM_LINE );
@@ -115,13 +116,20 @@ double calcPsuCfm() {
          double psuCfm = forecast( psuPwm, PWM_LINE, WHISTLER_SD_PSU_CFM_LINE );
          return psuCfm;
       }
+   } else if ( DELTA_FAN_IDS.count( getFanId() ) ) {
+      if ( getFanCount() == VIPER_FAN_COUNT ) {
+         return 0;
+      }
+      else {
+         return 0;
+      }
    }
    return 0;
 }
 
 double calcFanCfm() {
-   if ( getFanId() == 0 ) {
-      if ( getFanCount() == 1 ) {
+   if ( SANYO_DENKI_FAN_IDS.count( getFanId() ) ) {
+      if ( getFanCount() == VIPER_FAN_COUNT ) {
          double fanPwmPercent = ( static_cast< double >( getFanPwm( SENSOR_PATH + "/FAN_CPLD" ) ) / MAX_PWM ) * 100.0;
          double fanCfm = forecast( fanPwmPercent, PWM_LINE, VIPER_SD_FAN_LINE );
          return fanCfm;
@@ -134,6 +142,14 @@ double calcFanCfm() {
          double fanCfm5to12 = forecast( fanPwmPercent5to12, PWM_LINE, WHISTLER_SD_FAN_LINE_5TO12 );
 
          return fanCfm1to4 + fanCfm5to12;
+      }
+   }
+   else if ( DELTA_FAN_IDS.count( getFanId() ) ) {
+      if ( getFanCount() == VIPER_FAN_COUNT ) {
+         return 0;
+      }
+      else {
+         return 0;
       }
    }
   return 0;

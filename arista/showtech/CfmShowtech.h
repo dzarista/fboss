@@ -7,13 +7,19 @@
 #include <array>
 #include <string>
 #include <set>
+
 namespace showtech {
 
-inline const std::set< int > SANYO_DENKI_FAN_IDS = {0, 10};
-inline const std::set< int > DELTA_FAN_IDS = {1, 9, 11};
-inline const std::string SENSOR_PATH = "/run/devmap/sensors";
 const int MAX_PWM = 255;
 const size_t ARRAY_SIZE = 11;
+
+const std::set< int > SANYO_DENKI_FAN_IDS = {0, 10};
+const std::set< int > DELTA_FAN_IDS = {1, 9, 11};
+
+const int VIPER_FAN_COUNT = 1;
+const int WHISTLER_FAN_COUNT = 3;
+
+const std::string SENSOR_PATH = "/run/devmap/sensors";
 
 const std::array<double, ARRAY_SIZE> PWM_LINE = {100, 90, 80, 70, 60, 50,
                                                  40,  30, 20, 10, 0};
