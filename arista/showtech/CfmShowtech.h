@@ -6,10 +6,12 @@
 
 #include <array>
 #include <string>
-
+#include <set>
 namespace showtech {
 
-inline const std::string sensorPath = "/run/devmap/sensors";
+inline const std::set< int > SANYO_DENKI_FAN_IDS = {0, 10};
+inline const std::set< int > DELTA_FAN_IDS = {1, 9, 11};
+inline const std::string SENSOR_PATH = "/run/devmap/sensors";
 const int MAX_PWM = 255;
 const size_t ARRAY_SIZE = 11;
 
