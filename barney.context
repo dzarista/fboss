@@ -2,7 +2,7 @@
 	"version": 1,
         "repomap": {
             "barney.ci/barneyfile": {
-               "commit": "374d416047672830088d799af5930cbae8fe146d"
+               "commit": "fa6ed11aa1b7b1b374699d11f50dabd47e5bad68"
             },
             "code.arista.io/os/fboss-centos": {
                "commit": "1bef35fd1312a074d86f1cf6f593f80bda55daf0"
