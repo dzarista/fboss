@@ -7,7 +7,7 @@
 #include <array>
 #include <string>
 
-namespace cfm {
+namespace showtech {
 
 inline const std::string sensorPath = "/run/devmap/sensors";
 const int MAX_PWM = 255;
@@ -46,5 +46,6 @@ const std::array<double, ARRAY_SIZE> WHISTLER_DELTA_PSU_CFM_LINE = {
 const std::array<double, ARRAY_SIZE> WHISTLER_DELTA_PSU_RPM_LINE = {
     23552, 23104, 20680, 18152, 15600, 12936, 10376, 7764, 6360, 6390, 6390};
 
-} // namespace cfm
+void printCfmInfo();
+} // namespace showtech
 #endif // SHOWTECH_CFMSHOWTECH_H

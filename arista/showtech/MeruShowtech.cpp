@@ -3,6 +3,7 @@
 
 #include "MeruShowtech.h"
 #include "PsuShowtech.h"
+#include "CfmShowtech.h"
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -153,12 +154,20 @@ void MeruShowtech::printPsuShowtechInfo() {
   printPsuInfo();
 }
 
+void MeruShowtech::printCfmShowtechInfo() {
+   std::cout << "####################\n";
+   std::cout << "##### CFM INFO #####\n";
+   std::cout << "####################\n\n";
+   printCfmInfo();
+}
+
 void MeruShowtech::printPlatformInfo() {
   printWeutil("SCM");
   printWeutil("SMB");
   printAllFpgaVersions();
   printFanInfo();
   printPsuShowtechInfo();
+  printCfmShowtechInfo();
   if (verbose_) {
     printI2cInfo();
   }

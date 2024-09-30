@@ -28,6 +28,7 @@ private:
   void printFanInfo();
   void printI2cInfo();
   void printPsuShowtechInfo();
+   void printCfmShowtechInfo();
 };
 } // namespace showtech
 

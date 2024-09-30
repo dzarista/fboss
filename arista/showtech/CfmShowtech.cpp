@@ -8,27 +8,20 @@
 #include <numeric>
 #include <vector>
 
-namespace cfm {
+namespace showtech {
 
-double forecast( double x, const std::array< double, ARRAY_SIZE > & x_values,
-                const std::array< double, ARRAY_SIZE > & y_values ) {
-    size_t n = x_values.size();
-
-    double sum_x = std::accumulate( x_values.begin(), x_values.end(), 0.0 );
-    double sum_y = std::accumulate( y_values.begin(), y_values.end(), 0.0 );
-
-    double sum_x2 = std::accumulate( x_values.begin(), x_values.end(), 0.0,
-                                    []( double acc, double xi ) { return acc + xi * xi; } );
-
-    double sum_xy = std::inner_product( x_values.begin(), x_values.end(),
-                                       y_values.begin(), 0.0 );
-
-    double m = ( n * sum_xy - sum_x * sum_y ) / ( n * sum_x2 - sum_x * sum_x );
-    double b = ( sum_y - m * sum_x ) / n;
-
-    return m * x + b;
+double forecast( double x, const std::array< double, ARRAY_SIZE > & known_x, const std::array< double, ARRAY_SIZE > & known_y ) {
+    double sum_x = 0.0, sum_y = 0.0, sum_x_squared = 0.0, sum_xy = 0.0;
+    for ( std::size_t i = 0; i < ARRAY_SIZE; ++i ) {
+        sum_x += known_x[i];
+        sum_y += known_y[i];
+        sum_x_squared += known_x[i] * known_x[i];
+        sum_xy += known_x[i] * known_y[i];
+    }
+    double slope = ( ARRAY_SIZE * sum_xy - sum_x * sum_y ) / ( ARRAY_SIZE * sum_x_squared - sum_x * sum_x );
+    double intercept = ( sum_y - slope * sum_x ) / ARRAY_SIZE;
+    return slope * x + intercept;
 }
-
 int readIntFromFile(const std::string &filePath) {
   std::ifstream file(filePath);
 
@@ -76,12 +69,12 @@ int getFanPwm(const std::string &filePath) {
   return readIntFromFile(filePath + "/pwm1");
 }
 
-int getPsuRpm( const std::string &filePath ) {
-   return 0;
+int getPsuRpm( int psuNum ) {
+   return readIntFromFile( sensorPath + "/PSU" + std::to_string( psuNum ) + "_PMBUS/fan1_input" ) +
+      readIntFromFile( sensorPath + "/PSU" + std::to_string( psuNum ) + "_PMBUS/fan2_input" );
 }
 
-double getPsuPwm( const std::string &filePath ) {
-   int rpm = getPsuRpm( filePath );
+double getPsuPwm( int rpm ) {
    // SanyoDenki
   if ( getFanId() == 0 ) {
      if ( getFanCount() == 1 ) {
@@ -104,18 +97,53 @@ double getPsuPwm( const std::string &filePath ) {
   return -1;
 }
 
-double calcPsuCfm() { return 0; }
+double calcPsuCfm() {
+   if ( getFanId() == 0 ) {
+      if ( getFanCount() == 1 ) {
+         int psuRpm = getPsuRpm( 1 );
+         double psuPwm = getPsuPwm( psuRpm );
+         double psuCfm = forecast( psuPwm, PWM_LINE, VIPER_PSU_CFM_LINE );
+         return psuCfm;
+      }
+      else {
+         double totalPsuRpm = 0;
+         for ( int i = 1; i <= getPsuCount(); i++ ) {
+            totalPsuRpm += getPsuRpm( 1 );
+         }
+         double averagePsuRpm = totalPsuRpm / getPsuCount() ;
+         double psuPwm = getPsuPwm( averagePsuRpm );
+         double psuCfm = forecast( psuPwm, PWM_LINE, WHISTLER_SD_PSU_CFM_LINE );
+         return psuCfm;
+      }
+   }
+   return 0;
+}
 
 double calcFanCfm() {
-  if (getFanCount() == 1) {
-     double fanPwmPercent = ( static_cast< double >( getFanPwm( sensorPath + "/FAN_CPLD" ) ) / MAX_PWM ) * 100.0;
-  }
+   if ( getFanId() == 0 ) {
+      if ( getFanCount() == 1 ) {
+         double fanPwmPercent = ( static_cast< double >( getFanPwm( sensorPath + "/FAN_CPLD" ) ) / MAX_PWM ) * 100.0;
+         double fanCfm = forecast( fanPwmPercent, PWM_LINE, VIPER_SD_FAN_LINE );
+         return fanCfm;
+      }
+      else {
+         double fanPwmPercent1to4 = ( static_cast< double >( getFanPwm( sensorPath + "/FAN_CPLD0" ) ) / MAX_PWM ) * 100.0;
+         double fanCfm1to4 = forecast( fanPwmPercent1to4, PWM_LINE, WHISTLER_SD_FAN_LINE_1TO4 );
+
+         double fanPwmPercent5to12 = ( static_cast< double >( getFanPwm( sensorPath + "/FAN_CPLD1" ) ) / MAX_PWM ) * 100.0;
+         double fanCfm5to12 = forecast( fanPwmPercent5to12, PWM_LINE, WHISTLER_SD_FAN_LINE_5TO12 );
+
+         return fanCfm1to4 + fanCfm5to12;
+      }
+   }
   return 0;
 }
 
 void printCfmInfo() {
   double totalCfm = calcFanCfm() + calcPsuCfm();
+  std::cout << "FAN CFM: " << calcFanCfm() << std::endl;
+  std::cout << "PSU CFM: " << calcPsuCfm() << std::endl;
   std::cout << "TOTAL CFM: " << totalCfm << std::endl;
 }
 
-} // namespace cfm
+} // namespace showtech
