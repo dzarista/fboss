@@ -323,6 +323,7 @@ class PmUnitConfig:
       if self.pmUnitName == "SCM":
          for slotConfig in self.outgoingSlotConfigs:
             if slotConfig.slotType == "SMB_SLOT":
+               # Add unit test support for SMB EEPROM PM config generation bb/1015713
                smbPmUnit = self.parentConfig.getPmUnit( "SMB" )
                symlinkDeviceName = smbPmUnit.prefixSymlink or platform.upper()
                symlinkDict[
