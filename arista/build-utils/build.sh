@@ -124,11 +124,10 @@ if [ "$CENTOS_RELEASE_MAJOR" = "8" ]; then
 fi
 
 # install missing dependencies for SDK build.
-dnf install -y sudo
-sudo dnf install --enablerepo "$DEV_TOOLS_REPO" -y perl-List-MoreUtils perl-YAML.noarch \
+dnf install --enablerepo "$DEV_TOOLS_REPO" -y perl-List-MoreUtils perl-YAML.noarch \
    perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel doxygen \
    yaml-cpp-static
-sudo dnf install -y python3-filelock platform-python-devel double-conversion-devel
+dnf install -y python3-filelock platform-python-devel double-conversion-devel
 
 # Link the libyaml cpp staticl library to the path that the SDK build expects.
 ln -s /usr/lib64/libyaml-cpp.a  /usr/lib64/libyaml.a
@@ -219,7 +218,7 @@ then
    rm -rf "$SCRATCH_DIR"/fboss_bins*
    rm -rf $SCRATCH_DIR/bsp-kmods
    rm -rf $SCRATCH_DIR/showtech
-   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
+   make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
    make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 fi
 cd $FBOSS_DIR/fboss.git
@@ -231,9 +230,6 @@ rm -rf build/deps/github_hashes/facebookincubator
 tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
 
 echo "======= Starting FBOSS build ========"
-
-# Install dependencies for FBOSS build
-bash $FBOSS_DIR/fboss.git/installer/centos-8-x64_64/install-tools.sh
 
 # Prepare FBOSS Build
 echo "****FBOSS_BINS_ONLY $FBOSS_BINS_ONLY"
@@ -291,10 +287,9 @@ else
          sed -i 's/STANDARD 17/STANDARD 20/g' "$REPO_PREFIX-$fboss_dep.git/CMakeLists.txt"
       done
    fi
-   echo "******22222222*******"
+   # rm -rf "$SCRATCH_DIR"/fboss_bins*
    time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
       --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
-   echo "******33333333*******"
    cd $FBOSS_DIR/fboss.git
    ./fboss/oss/scripts/package-fboss.py --scratch-path "$SCRATCH_DIR"
 
