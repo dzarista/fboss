@@ -281,7 +281,7 @@ class WhistlerSMB( SMBUnit ):
          SensorConfig( "VRM_R3R1_ANLG1_VOUT_1V8", "in5_input", SensorType.VOLTAGE,
                        compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.44, lowerCriticalVal=0.96
+                           upperCriticalVal=2.16, lowerCriticalVal=1.44
                        ) ),
          SensorConfig( "VRM_R3R1_ANLG1_TEMP_0V9", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
