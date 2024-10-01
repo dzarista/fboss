@@ -5,16 +5,16 @@
 #define SHOWTECH_CFMSHOWTECH_H
 
 #include <array>
-#include <string>
 #include <set>
+#include <string>
 
 namespace showtech {
 
 const int MAX_PWM = 255;
 const size_t ARRAY_SIZE = 11;
 
-const std::set< int > SANYO_DENKI_FAN_IDS = {0, 10};
-const std::set< int > DELTA_FAN_IDS = {1, 9, 11};
+const std::set<int> SANYO_DENKI_FAN_IDS = {0, 10};
+const std::set<int> DELTA_FAN_IDS = {1, 9, 11};
 
 const int VIPER_FAN_COUNT = 1;
 const int WHISTLER_FAN_COUNT = 3;
