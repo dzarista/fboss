@@ -153,7 +153,8 @@ find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/
 SRC_MAPPING_DIR="${FBOSS_REPO}/fboss/agent/platforms/common"
 SRC_MAPPING_FILES=(
     "${SRC_MAPPING_DIR}/meru800bia/Meru800biaPlatformMapping.cpp"
-    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaPlatformMapping.cpp"
+    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaP2PlatformMapping.h"
+    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaProdPlatformMapping.h"
     "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaP1PlatformMapping.cpp"
 )
 $FBOSS_REPO/arista/build-utils/ExtractMappings.py -d "${SCRATCH_DIR}/PlatformMappings" "${SRC_MAPPING_FILES[@]}"
