@@ -109,7 +109,7 @@ maybe_setup_build_env() {
    cd "${FBOSS_HOST_DIR}"
 
    # Clone the SAI + SDK and download patches.
-   git clone git@github.com:eerpini/Aqua_SAI.git
+   git clone https://github.com/eerpini/Aqua_SAI.git
    cd "${FBOSS_HOST_DIR}/Aqua_SAI"
    git pull
    git checkout seerpini.aqua_sai_11.3.0.0_GA
