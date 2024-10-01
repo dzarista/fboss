@@ -88,7 +88,7 @@ class PlatformConfig:
          "upstreamKmodsToLoad": []
       }
 
-   def getPmunit( self, pmUnitName ):
+   def getPmUnit( self, pmUnitName ):
       for pmUnit in self.pmUnitConfigs:
          if pmUnit.pmUnitName == pmUnitName:
             return pmUnit
@@ -323,7 +323,7 @@ class PmUnitConfig:
       if self.pmUnitName == "SCM":
          for slotConfig in self.outgoingSlotConfigs:
             if slotConfig.slotType == "SMB_SLOT":
-               smbPmUnit = self.parentConfig.getPmunit( "SMB" )
+               smbPmUnit = self.parentConfig.getPmUnit( "SMB" )
                symlinkDeviceName = smbPmUnit.prefixSymlink or platform.upper()
                symlinkDict[
                   f"/run/devmap/eeproms/{ symlinkDeviceName }_SMB_EEPROM"
@@ -1316,11 +1316,10 @@ class SCMFairywren( SCMUnit ):
 
       i2cDeviceConfigs = [
          scmMpsDev,
-         scmIdprom
       ]
 
-      if not self.supportsP1:
-         i2cDeviceConfigs.remove( scmIdprom )
+      if self.supportsP1:
+         i2cDeviceConfigs.append( scmIdprom )
 
       self.addI2cDeviceConfigs( i2cDeviceConfigs )
 
