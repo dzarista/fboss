@@ -332,6 +332,12 @@ else
    cp -f $FBOSS_DIR/fboss.git/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
    make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 
+   echo "****BUILDING PSU UPGRADE DEPENDENCIES"
+   make -C $FBOSS_DIR/fboss.git/arista/psu-upgrade
+   mkdir -p $SCRATCH_DIR/psu-upgrade
+   cp -f $FBOSS_DIR/fboss.git/arista/psu-upgrade/psu-upgrade $SCRATCH_DIR/psu-upgrade/
+   make -C $FBOSS_DIR/fboss.git/arista/psu-upgrade clean
+
    # Copy over kernel modules
    mkdir -p "$fboss_output_dir/lib/modules"
    for kernel_module in linux-kernel-bde.ko linux-user-bde.ko linux-bcm-knet.ko
