@@ -148,7 +148,6 @@ utility::RouteDistributionGenerator::ThriftRouteChunks getRoutes(
       asicType == cfg::AsicType::ASIC_TYPE_GARONNE ||
       asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
       asicType == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3B ||
       asicType == cfg::AsicType::ASIC_TYPE_RAMON ||
       asicType == cfg::AsicType::ASIC_TYPE_TOMAHAWK5) {
     return utility::HgridUuRouteScaleGenerator(swSwitch->getState())

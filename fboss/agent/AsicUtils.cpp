@@ -45,17 +45,6 @@ const HwAsic& getHwAsicForAsicType(const cfg::AsicType& asicType) {
 
       return jericho3Asic;
     }
-    case cfg::AsicType::ASIC_TYPE_JERICHO3B: {
-      static Jericho3BAsic jericho3BAsic{
-          cfg::SwitchType::VOQ,
-          switchId,
-          switchIndex,
-          systemPortRange,
-          mac,
-          std::nullopt};
-
-      return jericho3BAsic;
-    }
     case cfg::AsicType::ASIC_TYPE_RAMON: {
       static RamonAsic ramonAsic{
           cfg::SwitchType::FABRIC,
@@ -104,7 +93,6 @@ uint32_t getFabricPortsPerVirtualDevice(const cfg::AsicType asicType) {
     case cfg::AsicType::ASIC_TYPE_RAMON:
       return 192;
     case cfg::AsicType::ASIC_TYPE_JERICHO3:
-    case cfg::AsicType::ASIC_TYPE_JERICHO3B:
       return 160;
     case cfg::AsicType::ASIC_TYPE_RAMON3:
       return 256;

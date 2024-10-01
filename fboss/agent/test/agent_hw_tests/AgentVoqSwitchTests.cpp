@@ -1168,8 +1168,7 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
             }
             auto afterSwitchDropStats = getAggregatedSwitchDropStats();
             if (asicMode != HwAsic::AsicMode::ASIC_MODE_SIM &&
-                asicType == cfg::AsicType::ASIC_TYPE_JERICHO3 &&
-                asicType == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+                asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
               XLOG(DBG2) << " Queue resolution drops, before: "
                          << *beforeSwitchDropStats.queueResolutionDrops()
                          << " after: "
@@ -1333,8 +1332,7 @@ TEST_F(AgentVoqSwitchTest, packetIntegrityError) {
       getAgentEnsemble()->runDiagCommand(
           "m SPB_FORCE_CRC_ERROR FORCE_CRC_ERROR_ON_DATA=1 FORCE_CRC_ERROR_ON_CRC=1\n",
           out);
-    } else if (switchAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-               switchAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+    } else if (switchAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
       getAgentEnsemble()->runDiagCommand(
           "m IRE_FORCE_CRC_ERROR FORCE_CRC_ERROR_ON_CRC=1\n", out);
     } else {
@@ -1489,9 +1487,7 @@ class AgentVoqSwitchWithMultipleDsfNodesTest : public AgentVoqSwitchTest {
     });
     WITH_RETRIES({
       if (utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
-              ->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-          utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
-              ->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+              ->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
         auto switchIndices = getSw()->getSwitchInfoTable().getSwitchIndices();
         int totalVoqResourceExhaustionDrops = 0;
         for (const auto& switchIndex : switchIndices) {

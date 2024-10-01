@@ -48,8 +48,7 @@ void configureAllIpQualifiers(
   cfg::Ttl ttl;
   std::tie(*ttl.value(), *ttl.mask()) = std::make_tuple(0x80, 0x80);
 
-  if (asicType != cfg::AsicType::ASIC_TYPE_JERICHO3 && 
-      asicType != cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+  if (asicType != cfg::AsicType::ASIC_TYPE_JERICHO3) {
     // TODO(daiweix): remove after J3 ACL supports IP_TYPE
     configureQualifier(acl->ipType(), enable, ipType);
   }
@@ -123,8 +122,7 @@ class HwAclQualifierTest : public HwTest {
     configureQualifier(
         acl->srcPort(), enable, masterLogicalInterfacePortIds()[0]);
     if ((getAsicType() != cfg::AsicType::ASIC_TYPE_JERICHO2) &&
-        (getAsicType() != cfg::AsicType::ASIC_TYPE_JERICHO3) &&
-        (getAsicType() != cfg::AsicType::ASIC_TYPE_JERICHO3B)) {
+        (getAsicType() != cfg::AsicType::ASIC_TYPE_JERICHO3)) {
       // No out port support on J2. Out port not used in prod
       configureQualifier(
           acl->dstPort(), enable, masterLogicalInterfacePortIds()[1]);
@@ -157,8 +155,7 @@ class HwAclQualifierTest : public HwTest {
     cfg::Ttl ttl;
     std::tie(*ttl.value(), *ttl.mask()) = std::make_tuple(0x80, 0x80);
 
-    if (asicType != cfg::AsicType::ASIC_TYPE_JERICHO3 &&
-        asicType != cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+    if (asicType != cfg::AsicType::ASIC_TYPE_JERICHO3) {
       // TODO(daiweix): remove after J3 ACL supports IP_TYPE
       configureQualifier(acl->ipType(), true, cfg::IpType::IP4);
     }
@@ -175,8 +172,7 @@ class HwAclQualifierTest : public HwTest {
     cfg::Ttl ttl;
     std::tie(*ttl.value(), *ttl.mask()) = std::make_tuple(0x80, 0x80);
 
-    if (asicType != cfg::AsicType::ASIC_TYPE_JERICHO3 &&
-        asicType != cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+    if (asicType != cfg::AsicType::ASIC_TYPE_JERICHO3) {
       // TODO(daiweix): remove after J3 ACL supports IP_TYPE
       configureQualifier(acl->ipType(), true, cfg::IpType::IP6);
     }

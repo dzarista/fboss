@@ -161,8 +161,7 @@ class AgentSflowMirrorTest : public AgentHwTest {
         asic->getAsicType() == cfg::AsicType::ASIC_TYPE_YUBA) {
       auto systemPortId = sflowPayload[0] << 8 | sflowPayload[1];
       return static_cast<PortID>(systemPortId - asic->getSystemPortIDOffset());
-    } else if (asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-               asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+    } else if (asic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
       /*
        * Bytes 68 through 71 carry the ingress ifindex in sflow v5 header
        * which is a 32 bit field
@@ -292,8 +291,8 @@ class AgentSflowMirrorTest : public AgentHwTest {
     EXPECT_GE(capturedPkt.length(), getSflowPacketHeaderLength(!isV4));
 
     auto payloadLength = length;
-    if (checkSameAndGetAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-        checkSameAndGetAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+    if (checkSameAndGetAsic()->getAsicType() ==
+        cfg::AsicType::ASIC_TYPE_JERICHO3) {
       /*
        * J3 pads upto 512 bytes if the packet size is < 512 bytes.
        * J3 trimes upto 512 bytes if the packet size is > 512 bytes.
@@ -314,8 +313,8 @@ class AgentSflowMirrorTest : public AgentHwTest {
 
     if (checkSameAndGetAsic()->getAsicType() != cfg::AsicType::ASIC_TYPE_EBRO &&
         checkSameAndGetAsic()->getAsicType() != cfg::AsicType::ASIC_TYPE_YUBA &&
-        checkSameAndGetAsic()->getAsicType() != cfg::AsicType::ASIC_TYPE_JERICHO3 &&
-        checkSameAndGetAsic()->getAsicType() != cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+        checkSameAndGetAsic()->getAsicType() !=
+            cfg::AsicType::ASIC_TYPE_JERICHO3) {
       // Call parseSflowShim here. And verify
       // 1. Src port is correct
       // 2. Parser correctly identified whether the pkt is from TH3 or TH4.

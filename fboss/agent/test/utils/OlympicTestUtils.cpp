@@ -270,8 +270,7 @@ cfg::ActiveQueueManagement kGetWredConfig(
 }
 
 int getTrafficClassToCpuEgressQueueId(const HwAsic* hwAsic, int trafficClass) {
-  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 || 
-      hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
     // Jericho3 only has two egress queues for cpu port and recycle port
     // match default/low/med to queue 0, high to 1
     return trafficClass == kOlympicNCQueueId ? 1 : 0;
@@ -756,8 +755,7 @@ void addQosMapsHelper(
 
   // configure cpu qos policy
   std::string cpuQosPolicyName = qosPolicyName;
-  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-      hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
     // create and apply a separate qos policy for Jericho3 cpu port
     cpuQosPolicyName = qosPolicyName + "_cpu";
     cfg::QosMap cpuQosMap = qosMap;
@@ -783,8 +781,7 @@ void addQosMapsHelper(
   cpuConfig.trafficPolicy() = cpuTrafficPolicy;
   cfg.cpuTrafficPolicy() = cpuConfig;
 
-  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-      hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
     // also apply cpu qos policy for recycle port
     // TODO(daiweix): properly set qos policy for rcy/mgmt ports
     // based on port type/scope

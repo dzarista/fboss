@@ -22,7 +22,6 @@
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/hw/switch_asics/Jericho2Asic.h"
 #include "fboss/agent/hw/switch_asics/Jericho3Asic.h"
-#include "fboss/agent/hw/switch_asics/Jericho3BAsic.h"
 #include "fboss/agent/hw/switch_asics/Tomahawk3Asic.h"
 #include "fboss/agent/hw/switch_asics/Tomahawk4Asic.h"
 #include "fboss/agent/hw/switch_asics/Tomahawk5Asic.h"
@@ -73,7 +72,6 @@ void assertMaxBufferPoolSize(const SaiPlatform* platform) {
       break;
     case cfg::AsicType::ASIC_TYPE_JERICHO2:
     case cfg::AsicType::ASIC_TYPE_JERICHO3:
-    case cfg::AsicType::ASIC_TYPE_JERICHO3B:
     case cfg::AsicType::ASIC_TYPE_TRIDENT2:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK3:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK4:
@@ -134,7 +132,6 @@ uint64_t SaiBufferManager::getMaxEgressPoolBytes(const SaiPlatform* platform) {
     }
     case cfg::AsicType::ASIC_TYPE_JERICHO2:
     case cfg::AsicType::ASIC_TYPE_JERICHO3:
-    case cfg::AsicType::ASIC_TYPE_JERICHO3B:
       /*
        * XXX: TODO: Need to check if there is a way to compute the
        * buffers available for use in Jericho2 without using the
@@ -304,9 +301,7 @@ void SaiBufferManager::updateIngressBufferPoolStats() {
     if ((platform_->getAsic()->getAsicType() ==
          cfg::AsicType::ASIC_TYPE_JERICHO2) ||
         (platform_->getAsic()->getAsicType() ==
-         cfg::AsicType::ASIC_TYPE_JERICHO3) ||
-        (platform_->getAsic()->getAsicType() ==
-         cfg::AsicType::ASIC_TYPE_JERICHO3B)) {
+         cfg::AsicType::ASIC_TYPE_JERICHO3)) {
       // TODO: Wait for the fix for CS00012274607 to enable this for all!
       counterIdsToReadAndClear.push_back(
           SAI_BUFFER_POOL_STAT_XOFF_ROOM_WATERMARK_BYTES);
@@ -360,9 +355,7 @@ SaiBufferManager::supportedIngressPriorityGroupWatermarkStats() const {
   if ((platform_->getAsic()->getAsicType() ==
            cfg::AsicType::ASIC_TYPE_JERICHO2 ||
        platform_->getAsic()->getAsicType() ==
-           cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-       platform_->getAsic()->getAsicType() ==
-           cfg::AsicType::ASIC_TYPE_JERICHO3B) &&
+           cfg::AsicType::ASIC_TYPE_JERICHO3) &&
       std::find(
           stats.begin(),
           stats.end(),

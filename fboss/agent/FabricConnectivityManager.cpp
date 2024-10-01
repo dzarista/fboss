@@ -19,7 +19,6 @@
 
 #include "fboss/agent/hw/switch_asics/Jericho2Asic.h"
 #include "fboss/agent/hw/switch_asics/Jericho3Asic.h"
-#include "fboss/agent/hw/switch_asics/Jericho3BAsic.h"
 #include "fboss/agent/hw/switch_asics/Ramon3Asic.h"
 #include "fboss/agent/hw/switch_asics/RamonAsic.h"
 

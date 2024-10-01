@@ -122,7 +122,6 @@ void triggerParityError(HwSwitchEnsemble* ensemble) {
       triggerBcmJericho2ParityError(ensemble);
       break;
     case cfg::AsicType::ASIC_TYPE_JERICHO3:
-    case cfg::AsicType::ASIC_TYPE_JERICHO3B:
       triggerBcmJericho3ParityError(ensemble);
       break;
   }

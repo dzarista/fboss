@@ -51,8 +51,7 @@ class HwHashConsistencyTest : public HwLinkStateDependentTest {
 
     } else if (
         asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
-        asicType == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-        asicType == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+        asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
       tcpPortsForSai_[0] = {10002, 10010};
       tcpPortsForSai_[1] = {10002, 10006};
       tcpPortsForSai_[2] = {10002, 10014};

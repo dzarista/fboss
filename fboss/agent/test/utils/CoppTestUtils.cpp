@@ -114,7 +114,6 @@ uint16_t getCoppHighPriQueueId(const HwAsic* hwAsic) {
     case cfg::AsicType::ASIC_TYPE_YUBA:
     case cfg::AsicType::ASIC_TYPE_JERICHO2:
     case cfg::AsicType::ASIC_TYPE_JERICHO3:
-    case cfg::AsicType::ASIC_TYPE_JERICHO3B:
       return 7;
     case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
@@ -128,8 +127,7 @@ uint16_t getCoppHighPriQueueId(const HwAsic* hwAsic) {
 
 uint16_t getCoppMidPriQueueId(const std::vector<const HwAsic*>& hwAsics) {
   auto hwAsic = checkSameAndGetAsic(hwAsics);
-  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-      hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+  if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
     return kJ3CoppMidPriQueueId;
   }
   return kCoppMidPriQueueId;
@@ -155,7 +153,6 @@ cfg::ToCpuAction getCpuActionType(const HwAsic* hwAsic) {
       return cfg::ToCpuAction::COPY;
     case cfg::AsicType::ASIC_TYPE_JERICHO2:
     case cfg::AsicType::ASIC_TYPE_JERICHO3:
-    case cfg::AsicType::ASIC_TYPE_JERICHO3B:
       return cfg::ToCpuAction::TRAP;
     case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
@@ -225,8 +222,7 @@ cfg::PortQueueRate setPortQueueRate(const HwAsic* hwAsic, uint16_t queueId) {
     portQueueRate.pktsPerSec_ref() = getRange(0, pps);
   } else {
     uint32_t kbps;
-    if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
-        hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
+    if (hwAsic->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
       kbps = kCoppDnxLowPriKbitsPerSec;
     } else {
       kbps = getCoppQueueKbpsFromPps(hwAsic, pps);
