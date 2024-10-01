@@ -1391,7 +1391,18 @@ class SCMFairywren( SCMUnit ):
                        ) )
       ] )
 
-      self.addEmbeddedSensorConfigs( [ cpuCoreTemp ] )
+      nvmeTemp = EmbeddedSensorConfig(
+         pmUnitScopedName="NVME_TEMP",
+         sysfsPath="/sys/class/nvme/nvme0"
+      )
+      nvmeTemp.addSensorConfigs( [
+         SensorConfig( "NVME_COMPOSITE_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
+                       thresholds=Thresholds(
+                          upperCriticalVal=80.0
+                       ) )
+      ] )
+      self.addEmbeddedSensorConfigs( [ cpuCoreTemp, nvmeTemp ] )
 
 
 class SMBUnit( PmUnitConfig ):

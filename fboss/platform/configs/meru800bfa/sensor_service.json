@@ -82,6 +82,14 @@
         "compute": "@/1000.0",
         "type": 3
       },
+      "NVME_COMPOSITE_TEMP": {
+        "path": "/run/devmap/sensors/NVME_TEMP/temp1_input",
+        "thresholds": {
+          "upperCriticalVal": 80.0
+        },
+        "compute": "@/1000.0",
+        "type": 3
+      },
       "SCM_ECB_VIN": {
         "path": "/run/devmap/sensors/CPU_MPS_PMBUS/in1_input",
         "thresholds": {
@@ -452,8 +460,8 @@
       "SMB_VRM_R3R1_ANLG1_VOUT_1V8": {
         "path": "/run/devmap/sensors/SMB_ISL68226_R3R1_ANLG1/in5_input",
         "thresholds": {
-          "upperCriticalVal": 1.44,
-          "lowerCriticalVal": 0.96
+          "upperCriticalVal": 2.16,
+          "lowerCriticalVal": 1.44
         },
         "compute": "@/1000.0",
         "type": 1

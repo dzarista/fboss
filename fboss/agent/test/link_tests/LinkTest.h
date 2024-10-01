@@ -19,7 +19,6 @@ DECLARE_bool(disable_neighbor_updates);
 DECLARE_bool(link_stress_test);
 DECLARE_bool(enable_macsec);
 
-DECLARE_bool(skip_drain_check_for_prbs);
 namespace facebook::fboss {
 
 using namespace std::chrono_literals;
@@ -95,7 +94,8 @@ class LinkTest : public AgentTest {
 
   std::set<std::pair<PortID, PortID>> getConnectedOpticalPortPairWithFeature(
       TransceiverFeature feature,
-      phy::Side side) const;
+      phy::Side side,
+      bool skipLoopback = false) const;
 
   void waitForLldpOnCabledPorts(
       uint32_t retries = 60,
@@ -109,8 +109,6 @@ class LinkTest : public AgentTest {
   void setLinkState(bool enable, std::vector<PortID>& portIds);
 
   std::vector<std::pair<PortID, PortID>> getPortPairsForFecErrInj() const;
-
-  const TransceiverSpec* getTransceiverSpec(const SwSwitch* sw, PortID portId);
 
  private:
   void programDefaultRoute(

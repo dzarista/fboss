@@ -83,6 +83,7 @@ target_link_libraries(olympic_qos_utils
   packet_factory
   Folly::folly
   switch_config_cpp2
+  traffic_policy_utils
 )
 
 add_library(port_test_utils
@@ -144,6 +145,7 @@ add_library(l2learn_observer_util
 target_link_libraries(l2learn_observer_util
   core
   l2learn_event_observer
+  agent_hw_test_ctrl_cpp2
   Folly::folly
 )
 
@@ -371,6 +373,7 @@ target_link_libraries(mirror_test_utils
   fboss_types
   trap_packet_utils
   switch_config_cpp2
+  agent_hw_test_ctrl_cpp2
   Folly::folly
 )
 
