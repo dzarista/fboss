@@ -4007,7 +4007,9 @@ void SaiSwitch::reportAsymmetricTopology() const {
 void SaiSwitch::reportInterPortGroupCableSkew() const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
   if (getPlatform()->getAsic()->getAsicType() !=
-      cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      cfg::AsicType::ASIC_TYPE_JERICHO3 && 
+      getPlatform()->getAsic()->getAsicType() !=
+      cfg::AsicType::ASIC_TYPE_JERICHO3B) {
     // Port group skew relevant only for J3
     return;
   }

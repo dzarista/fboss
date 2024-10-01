@@ -22,6 +22,7 @@
 #include "fboss/agent/hw/sai/switch/SaiUdfManager.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/hw/switch_asics/Jericho3Asic.h"
+#include "fboss/agent/hw/switch_asics/Jericho3BAsic.h"
 #include "fboss/agent/platforms/sai/SaiPlatform.h"
 #include "fboss/agent/state/DeltaFunctions.h"
 #include "fboss/agent/state/LoadBalancer.h"
@@ -68,7 +69,8 @@ sai_hash_algorithm_t toSaiHashAlgo(cfg::HashingAlgorithm algo) {
 
 bool isJerichoAsic(cfg::AsicType asicType) {
   return asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
-      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3;
+      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
+      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3B;
 }
 
 void fillHwSwitchDropStats(
@@ -747,7 +749,8 @@ const std::vector<sai_stat_id_t>& SaiSwitchManager::supportedDropStats() const {
           kJerichoConfigDropStats.end());
     }
     if (platform_->getAsic()->getAsicType() ==
-        cfg::AsicType::ASIC_TYPE_JERICHO3) {
+        cfg::AsicType::ASIC_TYPE_JERICHO3 || platform_->getAsic()->getAsicType() ==
+        cfg::AsicType::ASIC_TYPE_JERICHO3B) {
       static const std::vector<sai_stat_id_t> kJericho3ConfigDropStats{
           // IN configured drop reasons
           SAI_SWITCH_STAT_IN_CONFIGURED_DROP_REASONS_0_DROPPED_PKTS,

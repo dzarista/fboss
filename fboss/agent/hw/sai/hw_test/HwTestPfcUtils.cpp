@@ -164,7 +164,8 @@ cfg::PfcWatchdog getExpectedPfcWatchdogProgrammingInHwFromConfig(
   cfg::PfcWatchdog expectedWd{configuredWd};
   // Modify the fields that we expect to be different from config
   if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2 ||
-      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
+      asicType == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
     expectedWd.detectionTimeMsecs() = findExpectedHwTimerClosestToConfiguredDnx(
         asicType, *configuredWd.detectionTimeMsecs());
   } else {

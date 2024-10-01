@@ -62,6 +62,11 @@ static const std::
                  8,
                  2),
              "4"},
+            {std::make_tuple(
+                 facebook::fboss::cfg::AsicType::ASIC_TYPE_JERICHO3B,
+                 8,
+                 2),
+             "4"},
 };
 
 struct PfcBufferParams {
@@ -444,7 +449,8 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
           EXPECT_EVENTUALLY_GT(ingressCongestionDiscards, 0);
         }
       }
-      if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+      if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
+          getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
         // Jericho3 has additional VSQ drops counters which accounts for
         // ingress buffer drops.
         getHwSwitchEnsemble()->getHwSwitch()->updateStats();
@@ -474,7 +480,8 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
     std::vector<PortID> portIds = portIdsForTest();
     auto setup = [&]() {
       if ((getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2) ||
-          (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3)) {
+          (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) ||
+          (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B)) {
         // Keep low scaling factor so that headroom usage is attempted
         // for Jericho family of ASICs.
         testParams.buffer.scalingFactor = cfg::MMUScalingFactor::ONE_32768TH;
@@ -564,7 +571,8 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
     // Return false for ASICs that cannot trigger PFC detection with
     // loop traffic!
     if ((getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2) ||
-        (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3)) {
+        (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) ||
+        (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B)) {
       return false;
     } else {
       return true;
@@ -646,7 +654,8 @@ class HwTrafficPfcTest : public HwLinkStateDependentTest {
 
   void triggerPfcDeadlockDetection(const PortID& port) {
     if ((getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO2) ||
-        (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3)) {
+        (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) ||
+        (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3B)) {
       // As traffic cannot trigger deadlock for DNX, force back
       // to back PFC frame generation which causes a deadlock!
       XLOG(DBG0) << "Triggering PFC deadlock detection on port ID : "

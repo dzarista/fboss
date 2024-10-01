@@ -43,6 +43,7 @@ void verifySafeDiagCmds(TestEnsembleIf* ensemble) {
       case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
       case cfg::AsicType::ASIC_TYPE_JERICHO2:
       case cfg::AsicType::ASIC_TYPE_JERICHO3:
+      case cfg::AsicType::ASIC_TYPE_JERICHO3B:
       case cfg::AsicType::ASIC_TYPE_RAMON:
       case cfg::AsicType::ASIC_TYPE_RAMON3:
       case cfg::AsicType::ASIC_TYPE_TOMAHAWK5:

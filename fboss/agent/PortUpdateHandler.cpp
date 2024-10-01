@@ -253,6 +253,7 @@ void PortUpdateHandler::computeFabricOverdrainPct(const StateDelta& delta) {
       case cfg::AsicType::ASIC_TYPE_JERICHO2:
         return 1.12;
       case cfg::AsicType::ASIC_TYPE_JERICHO3:
+      case cfg::AsicType::ASIC_TYPE_JERICHO3B:
         return 1.06;
       case cfg::AsicType::ASIC_TYPE_MOCK:
       case cfg::AsicType::ASIC_TYPE_FAKE:

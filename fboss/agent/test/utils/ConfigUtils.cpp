@@ -417,7 +417,7 @@ cfg::DsfNode dsfNodeConfig(
             ? platformType.value()
             : PlatformType::PLATFORM_MERU800BIAB;
         return std::pair(
-            std::make_unique<Jericho3Asic>(
+            std::make_unique<Jericho3BAsic>(
                 fromAsic.getSwitchType(),
                 switchId,
                 fromAsic.getSwitchIndex(),
@@ -757,7 +757,8 @@ cfg::SwitchConfig genPortVlanCfg(
     } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO2) {
       switchInfo.switchMac() = "02:00:00:00:00:01";
       switchInfo.connectionHandle() = "68:00";
-    } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    } else if (asicType == cfg::AsicType::ASIC_TYPE_JERICHO3 ||
+               asicType == cfg::AsicType::ASIC_TYPE_JERICHO3B) {
       switchInfo.switchMac() = "02:00:00:00:00:01";
       switchInfo.connectionHandle() = "15:00";
     } else if (
