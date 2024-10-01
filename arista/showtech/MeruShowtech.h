@@ -21,14 +21,13 @@ public:
 
 private:
   int numFansPerCpld = 4;
-  void printFpgaVersion(std::string name,
-                        std::string major_rev_path,
+  void printFpgaVersion(std::string name, std::string major_rev_path,
                         std::string minor_rev_path);
   void printAllFpgaVersions();
   void printFanInfo();
   void printI2cInfo();
   void printPsuShowtechInfo();
-   void printCfmShowtechInfo();
+  void printCfmShowtechInfo();
 };
 } // namespace showtech
 
