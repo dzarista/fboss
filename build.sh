@@ -43,11 +43,6 @@ cd $FBOSS_REPO/fboss/oss/scripts
 export SAI_ONLY=1
 export SAI_BRCM_IMPL=1 # Needed only for BRCM SAI
 export GETDEPS_USE_WGET=1
-# 11.3 GA and later releases include a EDK firmware image for firmware based isolate.
-# Env var pointing to the EDK firmware image ld script file. We use the env var in
-# the FBOSS cmake configuration to make the linker use this script for linking all
-# FBOSS binaries.
-export SAI_EDK_HOST_LDS_PATH="$SAI_DIR/libraries/edk-host-image.lds"
 cd "$FBOSS_REPO"
 
 export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
