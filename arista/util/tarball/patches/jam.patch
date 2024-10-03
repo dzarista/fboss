@@ -7205,9 +7205,7 @@ diff -Naur original/jp_25/source/jamutil.h jp_25/source/jamutil.h
 diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 --- original/jp_25/source/jtag_intf.c	1969-12-31 16:00:00.000000000 -0800
 +++ jp_25/source/jtag_intf.c	2023-11-13 15:09:39.344841188 -0800
-@@ -0,0 +1,442 @@
-+// Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
-+// Arista Networks, Inc. Confidential and Proprietary.
+@@ -0,0 +1,443 @@
 +
 +#include <assert.h>
 +#include <errno.h>
@@ -7226,6 +7224,9 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +static const U32 WEST_PORT_ID = 0xc2;
 +static const U32 EAST_PORT_ID = 0xc5;
 +
++bool is_meru_product() {
++   return system("dmidecode -s system-product-name | grep -i meru") == 0;
++}
 +// Grab a kernel flock on LOCK_FILE to prevent more than one
 +// process from accessing the JTAG pins at once.
 +static void jtag_intf_flock(jtag_intf * jif) {
@@ -7479,14 +7480,14 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   jif->sel1_val = false;
 +   jif->sel2_val = false;
 +
-+   if (!strncmp(fpga, MERU_CPU_CPLD, STR_MAX)) {
++   if (!strncmp(fpga, CPU_CPLD, STR_MAX) && is_meru_product()) {
 +      jif->sel0.sel0_u32 = ( WEST_PORT_ID << 16 ) | 0xb90;
 +      jif->tms.tms_u32 = ( WEST_PORT_ID << 16 ) | 0xb50;
 +      jif->tclk.tclk_u32 = ( WEST_PORT_ID << 16 ) | 0xb40;
 +      jif->tdi.tdi_u32 = ( WEST_PORT_ID << 16 ) | 0xb20;
 +      jif->tdo.tdo_u32 = ( WEST_PORT_ID << 16 ) | 0xb60;
 +      jif->trstl.trstl_u32 = ( WEST_PORT_ID << 16 ) | 0xb80;
-+   } else if (!strncmp(fpga, MERU_SWITCH_CPLD, STR_MAX)) {
++   } else if (!strncmp(fpga, SWITCH_CPLD, STR_MAX) && is_meru_product()) {
 +      jif->sel0.sel0_u32 = ( WEST_PORT_ID << 16 ) | 0xb90;
 +      jif->tms.tms_u32 = ( EAST_PORT_ID << 16 ) | 0x920;
 +      jif->tclk.tclk_u32 = ( EAST_PORT_ID << 16 ) | 0x910;
@@ -7494,7 +7495,7 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +      jif->tdo.tdo_u32 = ( EAST_PORT_ID << 16 ) | 0x930;
 +      jif->trstl.trstl_u32 = ( EAST_PORT_ID << 16 ) | 0x940;
 +      jif->sel0_val = true;
-+   } else if (!strncmp(fpga, MERU_FAN_CPLD, STR_MAX)) {
++   } else if (!strncmp(fpga, FAN_CPLD, STR_MAX) && is_meru_product()) {
 +      jif->sel0.sel0_u32 = ( WEST_PORT_ID << 16 ) | 0xb90;
 +      jif->tms.tms_u32 = ( EAST_PORT_ID << 16 ) | 0x920;
 +      jif->tclk.tclk_u32 = ( EAST_PORT_ID << 16 ) | 0x910;
@@ -7549,9 +7550,9 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +void jtag_intf_select(jtag_intf * jif, char * fpga) {
 +   int32_t rc;
 +
-+   if (!strncmp(fpga, MERU_CPU_CPLD, STR_MAX) ||
-+         !strncmp(fpga, MERU_SWITCH_CPLD, STR_MAX) ||
-+         !strncmp(fpga, MERU_FAN_CPLD, STR_MAX)) {
++   if ((!strncmp(fpga, CPU_CPLD, STR_MAX) && is_meru_product()) ||
++         (!strncmp(fpga, SWITCH_CPLD, STR_MAX) && is_meru_product()) ||
++         (!strncmp(fpga, FAN_CPLD, STR_MAX) && is_meru_product())) {
 +      jif->platform = MERU;
 +      jtag_intf_select_meru(jif, fpga);
 +      return;
@@ -7651,9 +7652,7 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
 --- original/jp_25/source/jtag_intf.h	1969-12-31 16:00:00.000000000 -0800
 +++ jp_25/source/jtag_intf.h	2023-11-13 15:04:55.535622967 -0800
-@@ -0,0 +1,146 @@
-+// Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
-+// Arista Networks, Inc. Confidential and Proprietary.
+@@ -0,0 +1,143 @@
 +
 +#ifndef SRC_PCI_INTF_H
 +#define SRC_PCI_INTF_H
@@ -7671,9 +7670,8 @@ diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
 +#define SC_CPLD "sc_cpld"
 +#define SC_SCD "sc_scd"
 +#define SC_SAT_CPLD "sc_sat_cpld"
-+#define MERU_CPU_CPLD "meru_cpu_cpld"
-+#define MERU_SWITCH_CPLD "meru_switch_cpld"
-+#define MERU_FAN_CPLD "meru_fan_cpld"
++#define SWITCH_CPLD "switch_cpld"
++#define FAN_CPLD "fan_cpld"
 +
 +// Hardcoded reference to LPC PCI interface in sysfs.
 +#define LPC_PCI_SYSFS "/sys/bus/pci/devices/0000:00:1f.0/config"
