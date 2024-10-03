@@ -76,19 +76,19 @@ class SetupFboss:
                 *[os.environ["FBOSS_DATA"], SetupFboss.J2CP, SetupFboss.BDE_CONF]
             )
     ### ARISTA START ###
-        elif [x for x in output if "Broadcom" in x and "8860" in x and "rev 01" in x]:
-            self.src_fruid_full_path = os.path.join(
-                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.FRUID_CONF]
-            )
-            self.src_bde_full_path = os.path.join(
-                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
-            )
         elif [x for x in output if "Broadcom" in x and "8860" in x and "rev 11" in x]:
             self.src_fruid_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J3B, SetupFboss.FRUID_CONF]
             )
             self.src_bde_full_path = os.path.join(
-                *[os.environ["FBOSS_DATA"], SetupFboss.J3B, SetupFboss.BDE_CONF]
+                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
+            )
+        elif [x for x in output if "Broadcom" in x and "8860" in x]:
+            self.src_fruid_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.FRUID_CONF]
+            )
+            self.src_bde_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
             )
         elif [x for x in output if "Broadcom" in x and "8920" in x]:
             self.src_fruid_full_path = os.path.join(
