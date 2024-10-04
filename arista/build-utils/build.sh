@@ -287,7 +287,10 @@ else
          sed -i 's/STANDARD 17/STANDARD 20/g' "$REPO_PREFIX-$fboss_dep.git/CMakeLists.txt"
       done
    fi
-   # rm -rf "$SCRATCH_DIR"/fboss_bins*
+   rm -rf "$SCRATCH_DIR"/fboss_bins*
+
+   # clear repo symlink as it throws "file exists" error when attempting to create it again
+   rm -rf "$SCRATCH_DIR"/repos/github.com-facebook-fboss.git
    time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
       --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
    cd $FBOSS_DIR/fboss.git
@@ -350,7 +353,8 @@ else
    # Copy over firmware files
    for fw in custom_led.bin linkscan_led_fw.bin
    do
-      fw_path=$(find $FBOSS_DIR -name "$fw")
+      # find each file's path and avoid system loops
+      fw_path=$(find $FBOSS_DIR -path $FBOSS_DIR/fboss.git -prune -o -name "$fw" -print)
       echo "Copying $fw from $fw_path to $fboss_output_dir"
       cp $fw_path $fboss_output_dir
    done
@@ -366,7 +370,7 @@ else
 
    # Cache the fboss commit that we built, this will be packaged and available on the
    # box at /opt/fboss when arista-fboss-core RPM is installed.
-   fboss_commit=$(cd $SCRATCH_DIR/repos/github.com-facebook-fboss.git && git rev-parse HEAD)
+   fboss_commit=$(cd $SCRATCH_DIR/repos/github.com-facebook-fboss.git && git -c safe.directory=$FBOSS_DIR/fboss.git rev-parse HEAD)
    echo "arista-fboss@$fboss_commit" > $fboss_output_dir/arista-fboss-version
 fi
 
