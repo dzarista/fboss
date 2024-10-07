@@ -53,23 +53,25 @@ bool isPsuPowerOn(int psuNum) {
                           "_PMBUS/power1_input") != 0);
 }
 
-int getFanCount() {
-  int fanCount = 0;
-  for (const auto &entry : std::filesystem::directory_iterator(SENSOR_PATH)) {
-    std::string fileName = entry.path().filename().string();
-    if (fileName.find("FAN_CPLD") == 0) {
-      fanCount++;
-    }
+std::string getProductName() {
+  if (std::system("dmidecode -s system-product-name | grep -i meru800bia > "
+                  "/dev/null 2>&1") == 0) {
+    return "meru800bia";
+  } else if (std::system("dmidecode -s system-product-name | grep -i "
+                         "meru800bfa > /dev/null 2>&1") == 0) {
+    return "meru800bfa";
   }
-  return fanCount;
+
+  return "Invalid product";
 }
 
 int getFanId() {
-  if (getFanCount() == VIPER_FAN_COUNT) {
+  if (getProductName() == "meru800bia") {
     return readIntFromFile(SENSOR_PATH + "/FAN_CPLD/fan1_id");
-  } else {
+  } else if (getProductName() == "meru800bfa") {
     return readIntFromFile(SENSOR_PATH + "/FAN_CPLD0/fan1_id");
-  }
+  } else
+    return -1;
 }
 
 int getFanPwm(const std::string &filePath) {
@@ -85,19 +87,21 @@ int getPsuRpm(int psuNum) {
 
 double getPsuPwm(int rpm) {
   if (SANYO_DENKI_FAN_IDS.count(getFanId())) {
-    if (getFanCount() == VIPER_FAN_COUNT) {
+    if (getProductName() == "meru800bia") {
       return forecast(rpm, VIPER_SD_PSU_RPM_LINE, PWM_LINE);
-    } else {
+    } else if (getProductName() == "meru800bfa") {
       return forecast(rpm, WHISTLER_SD_PSU_RPM_LINE, PWM_LINE);
-    }
+    } else
+      return -1;
   }
 
   else if (DELTA_FAN_IDS.count(getFanId())) {
-    if (getFanCount() == VIPER_FAN_COUNT) {
+    if (getProductName() == "meru800bia") {
       return forecast(rpm, VIPER_DELTA_PSU_RPM_LINE, PWM_LINE);
-    } else {
+    } else if (getProductName() == "meru800bfa") {
       return forecast(rpm, WHISTLER_DELTA_PSU_RPM_LINE, PWM_LINE);
-    }
+    } else
+      return -1;
   }
 
   else
@@ -117,28 +121,30 @@ double calcPsuCfm() {
   double psuPwm = getPsuPwm(averagePsuRpm);
 
   if (SANYO_DENKI_FAN_IDS.count(getFanId())) {
-    if (getFanCount() == VIPER_FAN_COUNT) {
+    if (getProductName() == "meru800bia") {
       double psuCfm = forecast(psuPwm, PWM_LINE, VIPER_PSU_CFM_LINE);
       return psuCfm;
-    } else if (getFanCount() == WHISTLER_FAN_COUNT) {
+    } else if (getProductName() == "meru800bfa") {
       double psuCfm = forecast(psuPwm, PWM_LINE, WHISTLER_SD_PSU_CFM_LINE);
       return psuCfm;
-    }
+    } else
+      return -1;
   }
 
   else if (DELTA_FAN_IDS.count(getFanId())) {
-    if (getFanCount() == VIPER_FAN_COUNT) {
+    if (getProductName() == "meru800bia") {
       double psuCfm = forecast(psuPwm, PWM_LINE, VIPER_PSU_CFM_LINE);
       return psuCfm;
-    } else if (getFanCount() == WHISTLER_FAN_COUNT) {
+    } else if (getProductName() == "meru800bfa") {
       double psuCfm = forecast(psuPwm, PWM_LINE, WHISTLER_DELTA_PSU_CFM_LINE);
       return psuCfm;
-    }
+    } else
+      return -1;
   }
   return -1;
 }
 double calcFanCfm() {
-  if (getFanCount() == VIPER_FAN_COUNT) {
+  if (getProductName() == "meru800bia") {
     double fanPwmPercent =
         (static_cast<double>(getFanPwm(SENSOR_PATH + "/FAN_CPLD")) / MAX_PWM) *
         100.0;
@@ -148,10 +154,11 @@ double calcFanCfm() {
     } else if (DELTA_FAN_IDS.count(getFanId())) {
       double fanCfm = forecast(fanPwmPercent, PWM_LINE, VIPER_DELTA_FAN_LINE);
       return fanCfm;
-    }
+    } else
+      return -1;
   }
 
-  else if (getFanCount() == WHISTLER_FAN_COUNT) {
+  else if (getProductName() == "meru800bfa") {
     double fanPwmPercent1to4 =
         (static_cast<double>(getFanPwm(SENSOR_PATH + "/FAN_CPLD0")) / MAX_PWM) *
         100.0;
@@ -171,7 +178,8 @@ double calcFanCfm() {
       double fanCfm5to12 =
           forecast(fanPwmPercent5to12, PWM_LINE, WHISTLER_DELTA_FAN_LINE_5TO12);
       return fanCfm1to4 + fanCfm5to12;
-    }
+    } else
+      return -1;
   }
 
   return -1;
