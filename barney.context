@@ -8,7 +8,7 @@
                "commit": "1bef35fd1312a074d86f1cf6f593f80bda55daf0"
             },
             "code.arista.io/aqua-sai/in-eos": {
-               "commit": "618d5b0befada2053e59c815ca12870e05fd35c0"
+               "commit": "89493d8eea3d75090b6dc6523f949169e401e0cb"
             },
             "code.arista.io/infra/barney/barnzilla": {
                "commit": "c52cb09db478de33d12f68ebc675d4cd561b3be8"
