@@ -21,7 +21,10 @@ std::unique_ptr<Showtech> get_platform_showtech(bool verbose) {
                    ::tolower);
     if (platform == "darwin" || platform == "darwin48v") {
       return std::make_unique<DarwinShowtech>(verbose);
-    } else if (platform == "meru800bia" || platform == "meru800bfa") {
+    } else if (
+      platform == "meru800bia" ||
+      platform == "meru800biab" ||
+      platform == "meru800bfa") {
       return std::make_unique<MeruShowtech>(verbose);
     }
   }

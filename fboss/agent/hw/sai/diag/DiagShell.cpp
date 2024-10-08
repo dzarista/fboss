@@ -164,6 +164,7 @@ std::unique_ptr<Repl> DiagShell::makeRepl() const {
     case PlatformType::PLATFORM_DARWIN48V:
     case PlatformType::PLATFORM_MERU400BIU:
     case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_MERU800BIAB:
     case PlatformType::PLATFORM_MERU800BFA:
     case PlatformType::PLATFORM_MERU800BFA_P1:
     case PlatformType::PLATFORM_MERU400BIA:
@@ -397,6 +398,7 @@ std::string DiagCmdServer::getDelimiterDiagCmd(const std::string& UUID) const {
     case PlatformType::PLATFORM_DARWIN48V:
     case PlatformType::PLATFORM_MERU400BIU:
     case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_MERU800BIAB:
     case PlatformType::PLATFORM_MERU800BFA:
     case PlatformType::PLATFORM_MERU800BFA_P1:
     case PlatformType::PLATFORM_MERU400BIA:
@@ -445,6 +447,7 @@ std::string& DiagCmdServer::cleanUpOutput(
     case PlatformType::PLATFORM_DARWIN48V:
     case PlatformType::PLATFORM_MERU400BIU:
     case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_MERU800BIAB:
     case PlatformType::PLATFORM_MERU800BFA:
     case PlatformType::PLATFORM_MERU800BFA_P1:
     case PlatformType::PLATFORM_MERU400BIA:
