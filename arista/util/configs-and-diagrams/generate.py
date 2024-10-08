@@ -3,7 +3,7 @@
 import argparse
 
 from GenerateConfigsAndDiagrams.Platforms.Rackhawk import RackhawkORv3
-from GenerateConfigsAndDiagrams.Platforms.Viper import Viper
+from GenerateConfigsAndDiagrams.Platforms.Viper import Viper, ViperB0
 from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
 
 
@@ -11,6 +11,7 @@ def main():
    platforms = {
       'RackhawkORv3': RackhawkORv3,
       'Viper': Viper,
+      'ViperB0': ViperB0,
       'Whistler': Whistler
    }
 
