@@ -145,10 +145,16 @@ std::vector<std::pair<std::string, std::string>> getPsuI2cBuses() {
       std::filesystem::path psuSymlinkPath =
           std::filesystem::read_symlink(entry.path());
       // Get PSU number from filename, which is in the format PSU#_PMBUS
-      static const std::regex pattern("PSU(\\d+)_");
+      static const std::regex pattern("PSU(\\d*)_");
       std::smatch match;
       std::regex_search(fileName, match, pattern);
-      std::string psuNum = match[1].str();
+      std::string psuNum;
+      if (match[1].str().empty()) {
+        psuNum = "1";
+      } else {
+        psuNum = match[1].str();
+      }
+
       psus.emplace(psuNum, psuSymlinkPath);
     }
   }
