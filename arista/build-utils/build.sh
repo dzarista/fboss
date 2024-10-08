@@ -158,7 +158,7 @@ fi
 export SDK=""
 cd $SAI_BUILD_DIR
 export KERNDIR="$KERNEL_SRC"
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.30_SAI_11.3.0_GA/$ARCH-sdk-6.5.30-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA/$ARCH-sdk-6.5.30-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
@@ -252,12 +252,6 @@ else
    export SAI_ONLY=1
    export SAI_BRCM_IMPL=1 # Needed only for BRCM SAI
    export GETDEPS_USE_WGET=1
-   # 11.3 GA and later releases include a EDK firmware image for firmware based
-   # isolate.
-   # Env var pointing to the EDK firmware image ld script file. We use the env var in
-   # the FBOSS cmake configuration to make the linker use this script for linking all
-   # FBOSS binaries.
-   export SAI_EDK_HOST_LDS_PATH="$SAI_BUILD_DIR/libraries/edk-host-image.lds"
    cd "$FBOSS_DIR/fboss.git"
 
    echo "****BUILD_KNOWN_GOOD_HASH $BUILD_KNOWN_GOOD_HASH"

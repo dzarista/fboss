@@ -116,13 +116,13 @@ maybe_setup_build_env() {
    # Use patch0-Jupiter-SAI-Makefile.patch w/SAI < 10.0.0
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
-   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.30_SAI_11.3.0_GA"
-   sdk_file="sai-sdk-all-6.5.30-cd5b8091e0-patched.tar.xz"
+   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA"
+   sdk_file="sai-sdk-all-6.5.30-18ace2038c-patched.tar.xz"
    wget http://dist/storage/fboss/FBOSS-SAI/$sdk_file
    tar -xf "$sdk_file"
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29
-   wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
-   patch "dnx-sdk-6.5.30-gpl-modules/make/Make.config" < patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
+   wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_30_DNX_Kernel_Module_fixes-EDK.patch
+   patch "dnx-sdk-6.5.30-gpl-modules/make/Make.config" < patch3-SDK-6_5_30_DNX_Kernel_Module_fixes-EDK.patch
    # Patch to skip check for proto R3 ASICs.
    wget http://dist/storage/fboss/FBOSS-SAI/patch11-SDK-6_5_29-Ramon3-proto-fix.patch
    patch "hsdk-all-6.5.30/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
@@ -203,7 +203,7 @@ do_build() {
    setup
    run_cmd_container bash build.sh $@ --kernel "${FBOSS_LINUX_KERNEL}"
    # Restore files that have potentially been clobbered by the FBOSS build process.
-   git -C "$FBOSS_REPO_DIR" restore "build/*"
+   sudo git -C "$FBOSS_REPO_DIR" restore "build/*"
 }
 
 do_package() {
