@@ -147,7 +147,7 @@ class ViperSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbFanCpld = FANCpld( "0x60", "pali2_cpld", "FAN_CPLD", incomingBusIndex=2 )
+      smbFanCpld = FANCpld( "0x60", "fan_cpld", "FAN_CPLD", incomingBusIndex=2 )
       smbFanCpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
       smbRaa = Sensor( "0x45", "raa228228", "SMB_RAA228926_J3" )

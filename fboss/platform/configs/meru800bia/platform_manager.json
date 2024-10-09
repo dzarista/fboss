@@ -190,7 +190,7 @@
         {
           "busName": "INCOMING@2",
           "address": "0x60",
-          "kernelDeviceName": "pali2_cpld",
+          "kernelDeviceName": "fan_cpld",
           "pmUnitScopedName": "FAN_CPLD"
         },
         {
