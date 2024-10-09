@@ -82,11 +82,17 @@ class PlatformConfig:
       self.i2cAdaptersFromCpu = []
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
-         "bspKmodsRpmVersion": "0.7.3-1",
+         "bspKmodsRpmVersion": "0.7.4-1",
          "bspKmodsToReload": [],
          "sharedKmodsToReload": [],
          "upstreamKmodsToLoad": []
       }
+
+   def getPmUnit( self, pmUnitName ):
+      for pmUnit in self.pmUnitConfigs:
+         if pmUnit.pmUnitName == pmUnitName:
+            return pmUnit
+      return None
 
    def getSlotTypeConfigsDict( self ):
       jsonDict = {}
@@ -211,7 +217,7 @@ class SlotTypeConfig:
 
 
 class PmUnitConfig:
-   def __init__( self, pmUnitName ):
+   def __init__( self, pmUnitName, prefixSymlink=None ):
       self.pmUnitName = pmUnitName
       self.slotTypeConfig = SlotTypeConfig( self.pmUnitName )
       self.i2cDeviceConfigs = []
@@ -219,6 +225,7 @@ class PmUnitConfig:
       self.pciDeviceConfigs = []
       self.embeddedSensorConfigs = []
       self.symlinkToDevicePaths = {}
+      self.prefixSymlink = prefixSymlink
       self.parentConfig = None
 
    def setSlotTypeConfig( self, numOutgoingI2cBuses=0, idPromConfigBusName=None,
@@ -316,8 +323,11 @@ class PmUnitConfig:
       if self.pmUnitName == "SCM":
          for slotConfig in self.outgoingSlotConfigs:
             if slotConfig.slotType == "SMB_SLOT":
+               # Add unit test support for SMB EEPROM PM config generation bb/1015713
+               smbPmUnit = self.parentConfig.getPmUnit( "SMB" )
+               symlinkDeviceName = smbPmUnit.prefixSymlink or platform.upper()
                symlinkDict[
-                  f"/run/devmap/eeproms/{ platform.upper() }_SMB_EEPROM"
+                  f"/run/devmap/eeproms/{ symlinkDeviceName }_SMB_EEPROM"
                ] = f"/{ slotConfig.slotName }/[IDPROM]"
       return symlinkDict
 
@@ -1274,6 +1284,8 @@ class SCMUnit( PmUnitConfig ):
 
 
 class SCMFairywren( SCMUnit ):
+   supportsP1 = True
+
    def __init__( self ):
       super().__init__()
 
@@ -1303,10 +1315,14 @@ class SCMFairywren( SCMUnit ):
       scmIdprom = FairywrenIdProm( "0x50", "24c512", "SCM_IDPROM_P1",
                                    hasCpuMac=True )
 
-      self.addI2cDeviceConfigs( [
+      i2cDeviceConfigs = [
          scmMpsDev,
-         scmIdprom
-      ] )
+      ]
+
+      if self.supportsP1:
+         i2cDeviceConfigs.append( scmIdprom )
+
+      self.addI2cDeviceConfigs( i2cDeviceConfigs )
 
       self.scmFpga = PciDeviceConfig( "SCM_FPGA", "0x3475", "0x0001", "0x3475",
                                       "0x0008", symlinkDeviceName="MERU_SCM_CPLD" )
@@ -1316,7 +1332,9 @@ class SCMFairywren( SCMUnit ):
 
       self.scmI2cMaster0 = self.scmFpga.i2cAdapterConfigs[ 0 ]
       self.scmI2cMaster0.buses[ 0 ].addI2cDevices( [ scmMpsDev ] )
-      self.scmI2cMaster0.buses[ 1 ].addI2cDevices( [ scmIdprom ] )
+
+      if self.supportsP1:
+         self.scmI2cMaster0.buses[ 1 ].addI2cDevices( [ scmIdprom ] )
 
       self.scmI2cMaster1 = self.scmFpga.i2cAdapterConfigs[ 1 ]
 
@@ -1388,8 +1406,8 @@ class SCMFairywren( SCMUnit ):
 
 
 class SMBUnit( PmUnitConfig ):
-   def __init__( self ):
-      super().__init__( "SMB" )
+   def __init__( self, prefixSymlink=None ):
+      super().__init__( "SMB", prefixSymlink )
 
 
 class PSUUnit( PmUnitConfig ):

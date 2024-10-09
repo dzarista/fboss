@@ -1,9 +1,4 @@
 cmake_minimum_required(VERSION 3.8)
-# SAI 11.3 GA and later package a LD script that is required for the EDK firmware
-# image to be linked correctly with the FBOSS binaries. The SAI/SDK build produces
-# this script and is copied over to SAI_EDK_HOST_LDS_PATH as part of the setup for
-# FBOSS build.
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -T $ENV{SAI_EDK_HOST_LDS_PATH}")
 
 option(WITH_ASAN "Turn ON address sanitizer build options" OFF)
 if ($ENV{WITH_ASAN})
