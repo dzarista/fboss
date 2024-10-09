@@ -8,11 +8,13 @@
 #include "ShowtechUtils.h"
 #include <memory>
 #include <set>
+#include <string>
 
 namespace showtech {
 class DarwinShowtech : public Showtech {
 public:
-  DarwinShowtech(bool verbose) : Showtech(verbose) {}
+  DarwinShowtech(bool verbose, std::string product)
+      : Showtech(verbose), product(product) {}
   void printPlatformInfo() override;
   std::set<int> i2cBusIgnore() override { return {}; }
 
@@ -23,8 +25,10 @@ private:
   void printPemInfo();
   void printFanspinnerInfo();
   void printFanInfo();
+  void printPsuShowtechInfo();
   void printRackmonInfo();
   void printI2cInfo();
+  std::string product;
 
   // Platform devices defined here.
   std::unique_ptr<PciScdDevice> cpuCpld;

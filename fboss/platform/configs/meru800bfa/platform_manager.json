@@ -198,7 +198,7 @@
         {
           "busName": "INCOMING@3",
           "address": "0x60",
-          "kernelDeviceName": "oasis_cpld0",
+          "kernelDeviceName": "fan_cpld0",
           "pmUnitScopedName": "FAN0_CPLD"
         },
         {
@@ -210,7 +210,7 @@
         {
           "busName": "INCOMING@3",
           "address": "0x61",
-          "kernelDeviceName": "oasis_cpld1",
+          "kernelDeviceName": "fan_cpld1",
           "pmUnitScopedName": "FAN1_CPLD"
         },
         {
@@ -222,7 +222,7 @@
         {
           "busName": "INCOMING@3",
           "address": "0x62",
-          "kernelDeviceName": "oasis_cpld2",
+          "kernelDeviceName": "fan_cpld2",
           "pmUnitScopedName": "FAN2_CPLD"
         }
       ],

@@ -423,7 +423,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbFan0Cpld = FANCpld( "0x60", "oasis_cpld0", "FAN0_CPLD", incomingBusIndex=3 )
+      smbFan0Cpld = FANCpld( "0x60", "fan_cpld0", "FAN0_CPLD", incomingBusIndex=3 )
       smbFan0Cpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
       smbFan1Tmp = Sensor( "0x49", "lm75", "FAN1_TMP75", incomingBusIndex=3 )
@@ -435,7 +435,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbFan1Cpld = FANCpld( "0x61", "oasis_cpld1", "FAN1_CPLD", incomingBusIndex=3 )
+      smbFan1Cpld = FANCpld( "0x61", "fan_cpld1", "FAN1_CPLD", incomingBusIndex=3 )
       smbFan1Cpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
       smbFan2Tmp = Sensor( "0x4A", "lm75", "FAN2_TMP75", incomingBusIndex=3 )
@@ -447,7 +447,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbFan2Cpld = FANCpld( "0x62", "oasis_cpld2", "FAN2_CPLD", incomingBusIndex=3 )
+      smbFan2Cpld = FANCpld( "0x62", "fan_cpld2", "FAN2_CPLD", incomingBusIndex=3 )
       smbFan2Cpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
       self.addI2cDeviceConfigs( [

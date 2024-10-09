@@ -2,6 +2,7 @@
 // Arista Networks, Inc. Confidential and Proprietary.
 
 #include "DarwinShowtech.h"
+#include "PsuShowtech.h"
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -187,6 +188,13 @@ void DarwinShowtech::printI2cInfo() {
   std::cout << fanCpld->i2cDump() << std::endl;
 }
 
+void DarwinShowtech::printPsuShowtechInfo() {
+  std::cout << "##########################\n";
+  std::cout << "##### PSU DEBUG INFO #####\n";
+  std::cout << "##########################\n\n";
+  printPsuInfo();
+}
+
 void DarwinShowtech::printPlatformInfo() {
   cpuCpld = std::make_unique<PciScdDevice>("0000:ff:0b.3");
   switchcardScd = std::make_unique<PciScdDevice>("0000:07:00.0");
@@ -201,16 +209,20 @@ void DarwinShowtech::printPlatformInfo() {
 
   printSwitchcardPowergood();
 
-  // TODO: enable weutil support
-  // printWeutil("chassis");
-  // printWeutil("pem");
-  // printWeutil("fanspinner");
-  // printWeutil("rackmon");
+  printWeutil("chassis");
+  if (product == "darwin") {
+    printWeutil("pem");
+  }
+  printWeutil("fanspinner");
+  printWeutil("rackmon");
 
   printAllFpgaVersions();
   printPemInfo();
   printFanspinnerInfo();
   printFanInfo();
+  if (product == "darwin48v") {
+    printPsuShowtechInfo();
+  }
   printRackmonInfo();
 
   if (verbose_) {
