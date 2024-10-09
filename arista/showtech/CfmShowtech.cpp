@@ -80,9 +80,7 @@ int getFanPwm(const std::string &filePath) {
 
 int getPsuRpm(int psuNum) {
   return readIntFromFile(SENSOR_PATH + "/PSU" + std::to_string(psuNum) +
-                         "_PMBUS/fan1_input") +
-         readIntFromFile(SENSOR_PATH + "/PSU" + std::to_string(psuNum) +
-                         "_PMBUS/fan2_input");
+                         "_PMBUS/fan1_input");
 }
 
 double getPsuPwm(int rpm) {
