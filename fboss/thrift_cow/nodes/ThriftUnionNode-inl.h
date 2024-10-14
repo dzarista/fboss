@@ -265,10 +265,10 @@ struct ThriftUnionFields {
 
   ThriftUnionFields() {}
 
-  template <
-      typename T,
-      typename = std::enable_if_t<std::is_same<std::decay_t<T>, TType>::value>>
-  explicit ThriftUnionFields(T&& thrift) {
+  template <typename T>
+  explicit ThriftUnionFields(T&& thrift)
+    requires(std::is_same_v<std::decay_t<T>, TType>)
+  {
     fromThrift(std::forward<T>(thrift));
   }
 
@@ -279,10 +279,10 @@ struct ThriftUnionFields {
     return thrift;
   }
 
-  template <
-      typename T,
-      typename = std::enable_if_t<std::is_same<std::decay_t<T>, TType>::value>>
-  void fromThrift(T&& thrift) {
+  template <typename T>
+  void fromThrift(T&& thrift)
+    requires(std::is_same_v<std::decay_t<T>, TType>)
+  {
     fatal::foreach<MemberTypes>(
         union_helpers::CopyToMember<Self>(), storage_, std::forward<T>(thrift));
   }
@@ -500,7 +500,7 @@ class ThriftUnionNode
   }
 
   template <typename Name>
-  void modify() {
+  void modify(bool construct = true) {
     DCHECK(!this->isPublished());
 
     if (this->template isSet<Name>()) {
@@ -511,16 +511,16 @@ class ThriftUnionNode
           child.swap(clonedChild);
         }
       }
-    } else {
+    } else if (construct) {
       // default construct target member
       this->template set<Name>();
     }
   }
 
-  virtual void modify(const std::string& token) {
+  virtual void modify(const std::string& token, bool construct = true) {
     visitMember<typename Fields::MemberTypes>(token, [&](auto tag) {
       using name = typename decltype(fatal::tag_type(tag))::name;
-      this->template modify<name>();
+      this->template modify<name>(construct);
     });
   }
 
