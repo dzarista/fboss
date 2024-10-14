@@ -885,7 +885,6 @@ void SaiPortManager::programPfcBuffers(const std::shared_ptr<Port>& swPort) {
   if (!platform_->getAsic()->isSupported(HwAsic::Feature::BUFFER_POOL)) {
     return;
   }
-  managerTable_->bufferManager().createIngressBufferPool(swPort);
   SaiPortHandle* portHandle = getPortHandle(swPort->getID());
   const auto& portPgCfgs = swPort->getPortPgConfigs();
   if (portPgCfgs) {
@@ -1786,12 +1785,6 @@ void SaiPortManager::updateStats(
     return;
   }
   auto portType = getPortType(portId);
-  if (portType == cfg::PortType::EVENTOR_PORT) {
-    // (TODO): Get port stats fails on eventor port and
-    // hence skipping it for now. Following up in
-    // CS00012349052.
-    return;
-  }
   auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
   auto* handle = handlesItr->second.get();
   auto portStatItr = portStats_.find(portId);

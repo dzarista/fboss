@@ -58,10 +58,10 @@ struct ThriftListFields {
 
   ThriftListFields() {}
 
-  template <
-      typename T,
-      typename = std::enable_if_t<std::is_same<std::decay_t<T>, TType>::value>>
-  explicit ThriftListFields(T&& thrift) {
+  template <typename T>
+  explicit ThriftListFields(T&& thrift)
+    requires(std::is_same_v<std::decay_t<T>, TType>)
+  {
     fromThrift(std::forward<T>(thrift));
   }
 
@@ -73,10 +73,10 @@ struct ThriftListFields {
     return thrift;
   }
 
-  template <
-      typename T,
-      typename = std::enable_if_t<std::is_same<std::decay_t<T>, TType>::value>>
-  void fromThrift(T&& thrift) {
+  template <typename T>
+  void fromThrift(T&& thrift)
+    requires(std::is_same_v<std::decay_t<T>, TType>)
+  {
     storage_.clear();
     for (const auto& elem : thrift) {
       emplace_back(elem);
@@ -350,11 +350,11 @@ class ThriftListNode : public NodeBaseT<
     return this->writableFields()->remove(index);
   }
 
-  void modify(std::string token) {
-    modify(folly::to<std::size_t>(token));
+  void modify(std::string token, bool construct = true) {
+    modify(folly::to<std::size_t>(token), construct);
   }
 
-  virtual void modify(std::size_t index) {
+  virtual void modify(std::size_t index, bool construct = true) {
     DCHECK(!this->isPublished());
 
     if (index < this->size()) {
@@ -365,7 +365,7 @@ class ThriftListNode : public NodeBaseT<
           child.swap(clonedChild);
         }
       }
-    } else {
+    } else if (construct) {
       // create unpublished default constructed child if missing
       while (this->size() <= index) {
         emplace_back();

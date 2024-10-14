@@ -235,6 +235,7 @@ enum EtherType {
   MACSEC = 0x88E5,
   LLDP = 0x88CC,
   ARP = 0x0806,
+  LACP = 0x8809,
 }
 
 struct Ttl {
@@ -365,7 +366,7 @@ struct Mirror {
    * Any other integer value represent the 1 out of samplingRate
    * packets will be mirrored.
    */
-  5: optional i32 samplingRate = 0;
+  5: optional i32 samplingRate;
 }
 
 /**
@@ -836,6 +837,9 @@ struct PortQueue {
   // this specifies the dynamic max threshold in buffer profile,
   // e.g. when scalingFactor/alpha is used
   15: optional i32 maxDynamicSharedBytes;
+  // Specifies the buffer pool that should be used for this queue.
+  // An option to force a queue to use a non-default buffer pool.
+  16: optional string bufferPoolName;
 }
 
 struct DscpQosMap {
@@ -1681,10 +1685,13 @@ struct SwitchSettings {
   18: optional bool needL2EntryForNeighbor;
 }
 
-// Global buffer pool shared by {port, pgs}
+// Global buffer pool
+//  (1) shared by {port, pgs} at ingress
+//  (2) shared by {port, queues} at egress
 struct BufferPoolConfig {
   1: i32 sharedBytes;
-  2: i32 headroomBytes;
+  2: optional i32 headroomBytes;
+  3: optional i32 reservedBytes;
 }
 
 // max PG/port supported

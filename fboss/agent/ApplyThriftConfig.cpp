@@ -1769,6 +1769,21 @@ std::shared_ptr<PortQueue> ThriftConfigApplier::createPortQueue(
   if (auto maxDynamicSharedBytes = cfg->maxDynamicSharedBytes()) {
     queue->setMaxDynamicSharedBytes(*maxDynamicSharedBytes);
   }
+  if (auto bufferPoolName = cfg->bufferPoolName()) {
+    auto bufferPoolCfgMap = new_->getBufferPoolCfgs();
+    // bufferPool cfg is keyed on the buffer pool name
+    auto bufferPoolCfg = bufferPoolCfgMap->getNodeIf(*bufferPoolName);
+    if (!bufferPoolCfg) {
+      throw FbossError(
+          "Queue: ",
+          queue->getID(),
+          " buffer pool: ",
+          *bufferPoolName,
+          " doesn't exist in the bufferPool map.");
+    }
+    queue->setBufferPoolName(*bufferPoolName);
+    queue->setBufferPoolConfig(bufferPoolCfg);
+  }
   return queue;
 }
 
@@ -4136,7 +4151,13 @@ std::shared_ptr<BufferPoolCfg> ThriftConfigApplier::createBufferPoolConfig(
     const cfg::BufferPoolConfig& bufferPoolConfig) {
   auto bufferPoolCfg = std::make_shared<BufferPoolCfg>(id);
   bufferPoolCfg->setSharedBytes(*bufferPoolConfig.sharedBytes());
-  bufferPoolCfg->setHeadroomBytes(*bufferPoolConfig.headroomBytes());
+  if (bufferPoolConfig.headroomBytes().has_value()) {
+    bufferPoolCfg->setHeadroomBytes(*bufferPoolConfig.headroomBytes());
+  }
+  if (bufferPoolConfig.reservedBytes().has_value()) {
+    bufferPoolCfg->setReservedBytes(*bufferPoolConfig.reservedBytes());
+  }
+
   return bufferPoolCfg;
 }
 
@@ -4972,6 +4993,11 @@ std::shared_ptr<Mirror> ThriftConfigApplier::createMirror(
     egressPortDesc = PortDescriptor(mirrorEgressPort.value());
   }
 
+  std::optional<uint32_t> samplingRate;
+  if (mirrorConfig->samplingRate().has_value()) {
+    samplingRate = mirrorConfig->samplingRate().value();
+  }
+
   auto mirror = make_shared<Mirror>(
       *mirrorConfig->name(),
       egressPortDesc,
@@ -4979,7 +5005,8 @@ std::shared_ptr<Mirror> ThriftConfigApplier::createMirror(
       srcIp,
       udpPorts,
       dscpMark,
-      truncate);
+      truncate,
+      samplingRate);
   return mirror;
 }
 
@@ -4993,7 +5020,8 @@ std::shared_ptr<Mirror> ThriftConfigApplier::updateMirror(
       newMirror->getTruncate() == orig->getTruncate() &&
       (!newMirror->configHasEgressPort() ||
        newMirror->getEgressPort() == orig->getEgressPort() ||
-       newMirror->getEgressPortDesc() == orig->getEgressPortDesc())) {
+       newMirror->getEgressPortDesc() == orig->getEgressPortDesc()) &&
+      newMirror->getSamplingRate() == orig->getSamplingRate()) {
     if (orig->getMirrorTunnel()) {
       newMirror->setMirrorTunnel(orig->getMirrorTunnel().value());
     }
