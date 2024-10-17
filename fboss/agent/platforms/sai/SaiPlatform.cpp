@@ -343,7 +343,9 @@ void SaiPlatform::initPorts() {
         platformMode == PlatformType::PLATFORM_WEDGE400 ||
         platformMode == PlatformType::PLATFORM_WEDGE400_GRANDTETON) {
       saiPort = std::make_unique<SaiBcmWedge400PlatformPort>(portId, this);
-    } else if (platformMode == PlatformType::PLATFORM_DARWIN) {
+    } else if (
+        platformMode == PlatformType::PLATFORM_DARWIN ||
+        platformMode == PlatformType::PLATFORM_DARWIN48V) {
       saiPort = std::make_unique<SaiBcmDarwinPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_MINIPACK) {
       saiPort = std::make_unique<SaiBcmMinipackPlatformPort>(portId, this);
@@ -362,7 +364,9 @@ void SaiPlatform::initPorts() {
       }
     } else if (platformMode == PlatformType::PLATFORM_MERU400BIU) {
       saiPort = std::make_unique<SaiMeru400biuPlatformPort>(portId, this);
-    } else if (platformMode == PlatformType::PLATFORM_MERU800BIA) {
+    } else if (
+        platformMode == PlatformType::PLATFORM_MERU800BIA ||
+        platformMode == PlatformType::PLATFORM_MERU800BIAB) {
       saiPort = std::make_unique<SaiMeru800biaPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_MERU400BIA) {
       saiPort = std::make_unique<SaiMeru400biaPlatformPort>(portId, this);

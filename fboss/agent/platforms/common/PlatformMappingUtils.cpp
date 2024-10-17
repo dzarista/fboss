@@ -119,6 +119,7 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
           ? std::make_unique<CloudRipperPlatformMapping>()
           : std::make_unique<CloudRipperPlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_DARWIN:
+    case PlatformType::PLATFORM_DARWIN48V:
       return platformMappingStr.empty()
           ? std::make_unique<DarwinPlatformMapping>()
           : std::make_unique<DarwinPlatformMapping>(platformMappingStr);
@@ -148,6 +149,7 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
           ? std::make_unique<Meru400biuPlatformMapping>()
           : std::make_unique<Meru400biuPlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_MERU800BIAB:
       return platformMappingStr.empty()
           ? std::make_unique<Meru800biaPlatformMapping>()
           : std::make_unique<Meru800biaPlatformMapping>(platformMappingStr);

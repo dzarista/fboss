@@ -107,4 +107,8 @@ void switchPreInitSequence(cfg::AsicType asicType) {
   folly::writeFile(kSaiPostInitCmdFileContent, kSaiPostInitCmdFilePath.c_str());
 #endif
 }
+
+// ARISTA hack to get build to pass, publishSwitchWatermarks() is called from
+// link_test/wedge_agent.
+void publishSwitchWatermarks(HwSwitchWatermarkStats& /*watermarkStats*/) {}
 } // namespace facebook::fboss

@@ -65,7 +65,9 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
     return std::make_unique<GalaxyManager>(mode, platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_YAMP) {
     return createYampWedgeManager(platformMappingStr);
-  } else if (mode == PlatformType::PLATFORM_DARWIN) {
+  } else if (
+      mode == PlatformType::PLATFORM_DARWIN ||
+      mode == PlatformType::PLATFORM_DARWIN48V) {
     return createDarwinWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_ELBERT) {
     return createElbertWedgeManager(platformMappingStr);
@@ -75,7 +77,9 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
     return createMeru400biaWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_MERU400BIU) {
     return createMeru400biuWedgeManager(platformMappingStr);
-  } else if (mode == PlatformType::PLATFORM_MERU800BIA) {
+  } else if (
+      mode == PlatformType::PLATFORM_MERU800BIA ||
+      mode == PlatformType::PLATFORM_MERU800BIAB) {
     return createMeru800biaWedgeManager(platformMappingStr);
   } else if (
       mode == PlatformType::PLATFORM_MERU800BFA ||

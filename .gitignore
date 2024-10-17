@@ -4,3 +4,6 @@
 /external
 /external.install
 .*.swp
+arista/util/DSF*
+*__pycache__*
+arista/build-utils/tmp_build_dir/

@@ -50,7 +50,9 @@ std::unique_ptr<SaiPlatform> chooseSaiPlatform(
     auto type = productInfo->getType();
     return std::make_unique<SaiBcmWedge400Platform>(
         std::move(productInfo), type, localMac, platformMappingStr);
-  } else if (productInfo->getType() == PlatformType::PLATFORM_DARWIN) {
+  } else if (
+      productInfo->getType() == PlatformType::PLATFORM_DARWIN ||
+      productInfo->getType() == PlatformType::PLATFORM_DARWIN48V) {
     return std::make_unique<SaiBcmDarwinPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
   } else if (productInfo->getType() == PlatformType::PLATFORM_MINIPACK) {
@@ -74,7 +76,9 @@ std::unique_ptr<SaiPlatform> chooseSaiPlatform(
   } else if (productInfo->getType() == PlatformType::PLATFORM_MERU400BIU) {
     return std::make_unique<SaiMeru400biuPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
-  } else if (productInfo->getType() == PlatformType::PLATFORM_MERU800BIA) {
+  } else if (
+      productInfo->getType() == PlatformType::PLATFORM_MERU800BIA ||
+      productInfo->getType() == PlatformType::PLATFORM_MERU800BIAB) {
     return std::make_unique<SaiMeru800biaPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
   } else if (productInfo->getType() == PlatformType::PLATFORM_MERU800BFA) {

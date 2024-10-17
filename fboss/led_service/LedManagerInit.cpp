@@ -36,7 +36,9 @@ std::unique_ptr<LedManager> createLedManager() {
     return std::make_unique<YampLedManager>();
   } else if (mode == PlatformType::PLATFORM_ELBERT) {
     return std::make_unique<ElbertLedManager>();
-  } else if (mode == PlatformType::PLATFORM_DARWIN) {
+  } else if (
+      mode == PlatformType::PLATFORM_DARWIN ||
+      mode == PlatformType::PLATFORM_DARWIN48V) {
     return std::make_unique<DarwinLedManager>();
   } else if (mode == PlatformType::PLATFORM_WEDGE400) {
     return std::make_unique<Wedge400LedManager>();
@@ -44,7 +46,9 @@ std::unique_ptr<LedManager> createLedManager() {
       mode == PlatformType::PLATFORM_MERU800BFA ||
       mode == PlatformType::PLATFORM_MERU800BFA_P1) {
     return std::make_unique<Meru800bfaLedManager>();
-  } else if (mode == PlatformType::PLATFORM_MERU800BIA) {
+  } else if (
+      mode == PlatformType::PLATFORM_MERU800BIA ||
+      mode == PlatformType::PLATFORM_MERU800BIAB) {
     return std::make_unique<Meru800biaLedManager>();
   } else if (mode == PlatformType::PLATFORM_MORGAN800CC) {
     return std::make_unique<Morgan800ccLedManager>();

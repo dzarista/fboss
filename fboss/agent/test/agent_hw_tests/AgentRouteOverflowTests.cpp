@@ -50,6 +50,7 @@ TEST_F(AgentRouteOverflowTest, overflowRoutes) {
     case PlatformType::PLATFORM_MINIPACK:
     case PlatformType::PLATFORM_YAMP:
     case PlatformType::PLATFORM_DARWIN:
+    case PlatformType::PLATFORM_DARWIN48V:
       /*
        * A route distribution 200,000 /128 does overflow the ASIC tables
        * but it takes 15min to generate, program and clean up such a
@@ -87,6 +88,7 @@ TEST_F(AgentRouteOverflowTest, overflowRoutes) {
       break;
     case PlatformType::PLATFORM_MERU400BIU:
     case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_MERU800BIAB:
     case PlatformType::PLATFORM_MERU800BFA:
     case PlatformType::PLATFORM_MERU800BFA_P1:
       // No overflow test for MERU400BIU yet

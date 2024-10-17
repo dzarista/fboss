@@ -893,6 +893,7 @@ uint32_t getRemotePortOffset(const PlatformType platformType) {
     case PlatformType::PLATFORM_MERU800BFA_P1:
       return 0;
     case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_MERU800BIAB:
     case PlatformType::PLATFORM_JANGA800BIC:
       return 1024;
 
@@ -1027,8 +1028,10 @@ CpuCosQueueId hwQueueIdToCpuCosQueueId(uint8_t hwQueueId) {
     case 9:
       return CpuCosQueueId::HIPRI;
     default:
-      XLOG(FATAL) << "Got Invalid hwQueueId " << hwQueueId;
-      break;
+      // ARISTA Hack to avoid fboss_hw_agent crash on J3.
+      //XLOG(FATAL) << "Got Invalid hwQueueId " << hwQueueId;
+      //break;
+      return CpuCosQueueId::DEFAULT;
   }
 }
 

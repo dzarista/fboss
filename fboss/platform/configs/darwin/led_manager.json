@@ -71,6 +71,11 @@
       }
     },
     {
+      "fruName": "FAN6",
+      "fruType": "FAN",
+      "presenceSysfsPath": "/run/devmap/fpgas/SCD_FPGA/rackmon_present"
+    },
+    {
       "fruName": "PEM1",
       "fruType": "PEM",
       "presenceDetection": {

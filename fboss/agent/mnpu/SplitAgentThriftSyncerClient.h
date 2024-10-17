@@ -85,7 +85,7 @@ using StatsEventQueueType = folly::coro::UnboundedQueue<
     true /*SingleProducer*/,
     true /* SingleConsumer*/>;
 #else
-using FdbEventQueueType = std::queue<multiswitch::HwSwitchStats>;
+using StatsEventQueueType = std::queue<multiswitch::HwSwitchStats>;
 #endif
 
 #if FOLLY_HAS_COROUTINES

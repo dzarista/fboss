@@ -583,6 +583,57 @@ class BuildCmd(ProjectCmdBase):
 
         for m in projects:
             dep_manifests.append(m)
+            ### ARISTA START ###
+            # In Arista build environment, don't fetch fboss repo code from
+            # GitHub known hash. Instead, build code from local repo by
+            # symlinking the local repo_root to the repos directory and skipping
+            # the fetcher. Putting all code in one block to lessen chance of
+            # merge conflicts.
+            if m.name == 'fboss' and os.environ.get("ARISTA_LOCAL_BUILD"):
+                print("Arista local fboss build" )
+                reconfigure = True
+                build_dir = loader.get_project_build_dir(m)
+                inst_dir = loader.get_project_install_dir(m)
+                src_dir = os.path.join(
+                      loader.build_opts.scratch_dir,
+                      'repos/github.com-facebook-fboss.git'
+                )
+                os.symlink( loader.build_opts.repo_root, src_dir )
+
+                extra_cmake_defines = (
+                    json.loads(args.extra_cmake_defines)
+                    if args.extra_cmake_defines
+                    else {}
+                )
+                extra_b2_args = args.extra_b2_args or []
+                prepare_builders = m.create_prepare_builders(
+                    loader.build_opts,
+                    ctx,
+                    src_dir,
+                    build_dir,
+                    inst_dir,
+                    loader,
+                    dep_manifests,
+                )
+                for preparer in prepare_builders:
+                    preparer.prepare(reconfigure=reconfigure)
+
+                builder = m.create_builder(
+                    loader.build_opts,
+                    src_dir,
+                    build_dir,
+                    inst_dir,
+                    ctx,
+                    loader,
+                    dep_manifests,
+                    final_install_prefix=loader.get_project_install_prefix(m),
+                    extra_cmake_defines=extra_cmake_defines,
+                    cmake_target=args.cmake_target if m == manifest else "install",
+                    extra_b2_args=extra_b2_args,
+                )
+                builder.build(reconfigure=reconfigure)
+                continue
+            ### ARISTA END ###
 
             fetcher = loader.create_fetcher(m)
 
@@ -959,20 +1010,10 @@ class GenerateGitHubActionsCmd(ProjectCmdBase):
     def write_job_for_platform(self, platform, args):  # noqa: C901
         build_opts = setup_build_options(args, platform)
         ctx_gen = build_opts.get_context_generator()
-        if args.enable_tests:
-            ctx_gen.set_value_for_project(args.project, "test", "on")
-        else:
-            ctx_gen.set_value_for_project(args.project, "test", "off")
         loader = ManifestLoader(build_opts, ctx_gen)
         self.process_project_dir_arguments(args, loader)
         manifest = loader.load_manifest(args.project)
         manifest_ctx = loader.ctx_gen.get_context(manifest.name)
-        run_tests = (
-            args.enable_tests
-            and manifest.get("github.actions", "run_tests", ctx=manifest_ctx) != "off"
-        )
-        if run_tests:
-            manifest_ctx.set("test", "on")
         run_on = self.get_run_on(args)
 
         # Some projects don't do anything "useful" as a leaf project, only
@@ -1099,30 +1140,14 @@ jobs:
                 if build_opts.is_darwin():
                     # brew is installed as regular user
                     sudo_arg = ""
-                tests_arg = "--no-tests "
-                if run_tests:
-                    tests_arg = ""
                 out.write(
-                    f"      run: {sudo_arg}python3 build/fbcode_builder/getdeps.py --allow-system-packages install-system-deps {tests_arg}--recursive {manifest.name}\n"
+                    f"      run: {sudo_arg}python3 build/fbcode_builder/getdeps.py --allow-system-packages install-system-deps --recursive {manifest.name}\n"
                 )
                 if build_opts.is_linux() or build_opts.is_freebsd():
                     out.write("    - name: Install packaging system deps\n")
                     out.write(
-                        f"      run: {sudo_arg}python3 build/fbcode_builder/getdeps.py --allow-system-packages install-system-deps {tests_arg}--recursive patchelf\n"
+                        f"      run: {sudo_arg}python3 build/fbcode_builder/getdeps.py --allow-system-packages install-system-deps --recursive patchelf\n"
                     )
-                required_locales = manifest.get(
-                    "github.actions", "required_locales", ctx=manifest_ctx
-                )
-                if (
-                    build_opts.host_type.get_package_manager() == "deb"
-                    and required_locales
-                ):
-                    # ubuntu doesn't include this by default
-                    out.write("    - name: Install locale-gen\n")
-                    out.write(f"      run: {sudo_arg}apt-get install locales\n")
-                    for loc in required_locales.split():
-                        out.write(f"    - name: Ensure {loc} locale present\n")
-                        out.write(f"      run: {sudo_arg}locale-gen {loc}\n")
 
             projects = loader.manifests_in_dependency_order()
 
@@ -1186,7 +1211,7 @@ jobs:
                 no_deps_arg = "--no-deps "
 
             no_tests_arg = ""
-            if not run_tests:
+            if not args.enable_tests:
                 no_tests_arg = "--no-tests "
 
             out.write(
@@ -1214,7 +1239,11 @@ jobs:
             out.write("        name: %s\n" % manifest.name)
             out.write("        path: _artifacts\n")
 
-            if run_tests:
+            if (
+                args.enable_tests
+                and manifest.get("github.actions", "run_tests", ctx=manifest_ctx)
+                != "off"
+            ):
                 num_jobs_arg = ""
                 if args.num_jobs:
                     num_jobs_arg = f"--num-jobs {args.num_jobs} "
@@ -1225,7 +1254,6 @@ jobs:
                 )
             if build_opts.free_up_disk and not build_opts.is_windows():
                 out.write("    - name: Show disk space at end\n")
-                out.write("      if: always()\n")
                 out.write("      run: df -h\n")
 
     def setup_project_cmd_parser(self, parser):

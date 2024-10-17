@@ -52,6 +52,8 @@ inline std::string toString(PlatformType mode) {
       return "CLOUDRIPPER";
     case PlatformType::PLATFORM_DARWIN:
       return "DARWIN";
+    case PlatformType::PLATFORM_DARWIN48V:
+      return "DARWIN48V";
     case PlatformType::PLATFORM_LASSEN_DEPRECATED:
       return "LASSEN";
     case PlatformType::PLATFORM_SANDIA:
@@ -76,6 +78,8 @@ inline std::string toString(PlatformType mode) {
       return "MONTBLANC";
     case PlatformType::PLATFORM_MERU800BIA:
       return "MERU800BIA";
+    case PlatformType::PLATFORM_MERU800BIAB:
+      return "MERU800BIAB";
     case PlatformType::PLATFORM_MERU800BFA:
       return "MERU800BFA";
     case PlatformType::PLATFORM_MERU800BFA_P1:

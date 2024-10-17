@@ -1,0 +1,258 @@
+#!/bin/bash
+
+# fbossctl
+#
+# This script allows users to build, package, and install FBOSS OSS, as well as
+# enter the containerized build environment.
+
+DEFAULT_BUILD_DIR="//garage/${USER}/fboss-build"
+if [[ -z "${FBOSS_BUILD_DIR}" ]]; then
+   echo "No FBOSS_BUILD_DIR defined in environment, using ${DEFAULT_BUILD_DIR}" 
+   FBOSS_BUILD_DIR="${DEFAULT_BUILD_DIR}"
+fi
+
+DEFAULT_LINUX_KERNEL="6.4"
+if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
+   echo "No FBOSS_LINUX_KERNEL defined in environment, using ${DEFAULT_LINUX_KERNEL}"
+   FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
+fi
+
+DEFAULT_CENTOS_RELEASE="9"
+if [[ -z "${CENTOS_RELEASE}" ]]; then
+   echo "No Centos release defined in environment, using Centos${DEFAULT_CENTOS_RELEASE}"
+   CENTOS_RELEASE="${DEFAULT_CENTOS_RELEASE}"
+fi
+
+FBOSS_IMG="docker.corp.arista.io/fboss-centos${CENTOS_RELEASE}:latest"
+
+DEFAULT_DOCKER_NAME="FBOSS_CENTOS${CENTOS_RELEASE}-1-${USER}"
+if [[ -z "${DOCKER_NAME}" ]]; then
+   echo "No docker container name specified. using ${DEFAULT_DOCKER_NAME}"
+   DOCKER_NAME="${DEFAULT_DOCKER_NAME}"
+fi
+
+FBOSS_HOST_DIR="${FBOSS_BUILD_DIR}/FBOSS_DIR"
+FBOSS_CONTAINER_BASE="/var/FBOSS"
+FBOSS_REPO_DIR="$(git rev-parse --show-toplevel)"
+FBOSS_RPM_DIR="${FBOSS_HOST_DIR}/rpmbuild/RPMS/"
+
+prog="$0"
+
+usage() {
+   echo "Usage: $prog <command> [command options]"
+   echo
+   echo "Commands:"
+   echo "  shell: Enter an FBOSS OSS build container"
+   echo
+   echo "  build: Build FBOSS OSS + SAI + SDK"
+   echo "    options:"
+   echo "      --rebuild-all: rebuild SDK and FBOSS OSS"
+   echo "      --rebuild-fboss: rebuild FBOSS OSS only"
+   echo "      --fboss-bins-only: rebuild only FBOSS OSS binaries (fastest)"
+   echo "      --arch: specify the SDK architecture (dnx|xgs)"
+   echo "      --known-good-hash: build FBOSS at known good hash rather than local"
+   echo "      --with-debug-symbols: Build with debug symbols."
+   echo
+   echo "  package: Package FBOSS OSS into RPMs"
+   echo "    options:"
+   echo "      [rpm]: package only the specified RPM(s)"
+   echo
+   echo "  update-dut <dut>: copy latest RPMs to specified DUT"
+   echo
+   echo "  clean: Cleanup the FBOSS build environment"
+   echo
+   echo "  help: print this help message"
+   echo
+   echo
+}
+
+maybe_pull_docker_image() {
+   # If the docker image isn't installed locally, then pull it.
+   echo "Checking for required docker image: ${FBOSS_IMG}"
+   if [[ "$(docker images -q ${FBOSS_IMG} 2> /dev/null)" == "" ]]; then
+      echo "Cannot find ${FBOSS_IMG} locally. Pulling..."
+      docker pull "${FBOSS_IMG}"
+   fi
+}
+
+maybe_setup_build_env() {
+   # Setup the build environment by cloning SAI + SDK and creating the
+   # local FBOSS directory.
+
+   # Select kernel.
+   if [[ "${FBOSS_LINUX_KERNEL}" == "5.12" ]]; then
+      KERNEL_TAR="FBOSS_KERNEL_SRC_5.12.0-0_fbk2_3390_g7ecb4ac46d7f.tar.gz"
+   elif [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]]; then
+      KERNEL_TAR="FBOSS_KERNEL_SRC_5.19.0.tar.gz"
+   elif [[ "${FBOSS_LINUX_KERNEL}" == "4.18" ]]; then
+      KERNEL_TAR="FBOSS_KERNEL_SRC_4.18.0-408.el8.x86_64.tar.gz"
+   elif [[ "${FBOSS_LINUX_KERNEL}" == "6.4" ]]; then
+      KERNEL_TAR="FBOSS_KERNEL_SRC_6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4.tar.gz"
+   else
+      echo "Unsupported kernel version: ${FBOSS_LINUX_KERNEL}"
+      exit 1
+   fi
+   echo "Using Linux Kernel ${FBOSS_LINUX_KERNEL} from ${KERNEL_TAR}"
+
+   if [[ -d "${FBOSS_HOST_DIR}" ]] && [[ -f "${FBOSS_HOST_DIR}/${KERNEL_TAR}" ]]; then
+      echo "Found build environment in ${FBOSS_HOST_DIR}, skipping setup"
+      return
+   elif [[ -d "${FBOSS_HOST_DIR}" ]] && [[ ! -f "${FBOSS_HOST_DIR}/${KERNEL_TAR}" ]]; then
+      echo "Build environment found but has wrong linux kernel. Cleaning up and rebuilding."
+      cleanup_build_env
+   fi
+
+   echo "Creating build environment in ${FBOSS_HOST_DIR}"
+   set -ex
+   mkdir -p "${FBOSS_BUILD_DIR}"
+   mkdir "${FBOSS_HOST_DIR}"
+   cd "${FBOSS_HOST_DIR}"
+
+   # Clone the SAI + SDK and download patches.
+   git clone git@github.com:eerpini/Aqua_SAI.git
+   cd "${FBOSS_HOST_DIR}/Aqua_SAI"
+   git pull
+   git checkout seerpini.aqua_sai_11.3.0.0_GA
+   # Use patch0-Jupiter-SAI-Makefile.patch w/SAI < 10.0.0
+   wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
+   git apply patch4-Jupiter-SAI-Makefile.patch
+   cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.30_SAI_11.3.0_GA"
+   sdk_file="sai-sdk-all-6.5.30-cd5b8091e0-patched.tar.xz"
+   wget http://dist/storage/fboss/FBOSS-SAI/$sdk_file
+   tar -xf "$sdk_file"
+   # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29
+   wget http://dist/storage/fboss/FBOSS-SAI/patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
+   patch "dnx-sdk-6.5.30-gpl-modules/make/Make.config" < patch3-SDK-6_5_30_DNX_Kernel_Module_fixes.patch
+   # Patch to skip check for proto R3 ASICs.
+   wget http://dist/storage/fboss/FBOSS-SAI/patch11-SDK-6_5_29-Ramon3-proto-fix.patch
+   patch "hsdk-all-6.5.30/src/soc/dnxc/drv.c" -p1 < patch11-SDK-6_5_29-Ramon3-proto-fix.patch
+   # Patch to rename get_time for centos9 build (collides with the same symbol in
+   # iproute2)
+   wget http://dist/storage/fboss/FBOSS-SAI/patch12-SDK-6_5_29-get_time-symbol-fix.patch
+   patch "hsdk-all-6.5.30/src/appl/diag/gdpll.c" -p1 < patch12-SDK-6_5_29-get_time-symbol-fix.patch
+
+   # Patch bcm-knet.c kernel module to workaround some missing netdev_* API calls in
+   # the kernel we are building. Should be available in the 6.x kernels.
+   wget http://dist/storage/fboss/FBOSS-SAI/patch15-SDK-6_5_30_SP1_bcm-knet-build-fixes.patch
+   patch "dnx-sdk-6.5.30-gpl-modules/systems/linux/kernel/modules/bcm-knet/bcm-knet.c" < patch15-SDK-6_5_30_SP1_bcm-knet-build-fixes.patch
+
+   # Kernel 5.19 patches.
+   if [[ "${FBOSS_LINUX_KERNEL}" == "5.19" ]] || [[ "${FBOSS_LINUX_KERNEL}" == "6.4" ]]; then
+      # We need to fix some conflicting build options and fix the linux-user-bde Makefile
+      # to support NO_PRECOMPILED_MODULE=1.
+      wget http://dist/storage/fboss/FBOSS-SAI/patch9-SDK-5.19-post-SDK-6_5_30.patch
+      patch -p1 < patch9-SDK-5.19-post-SDK-6_5_30.patch
+   fi
+
+   # Kernel 6.4 patches.
+   if [[ "${FBOSS_LINUX_KERNEL}" == "6.4" ]]; then
+      # Need to adjust for breaking change in netif_napi_add parameters.
+      wget http://dist/storage/fboss/FBOSS-SAI/patch16-SDK-6.4-post-SDK-6_5_30-bcm-knet-netif.patch
+      patch "dnx-sdk-6.5.30-gpl-modules/systems/linux/kernel/modules/bcm-knet/bcm-knet.c" < patch16-SDK-6.4-post-SDK-6_5_30-bcm-knet-netif.patch
+   fi
+
+   # Centos 9 build related deps
+   if [[ "${CENTOS_RELEASE}" == "9" ]];
+   then
+      # Copy deps required for centos 9 build.
+      # libnsl.a needs to be copied over to /usr/lib64 in the container.
+      cd "${FBOSS_HOST_DIR}"
+      wget http://dist/storage/fboss/FBOSS-SAI/el9/libnsl.a
+   fi
+
+   # Download FBOSS linux header files.
+   cd "${FBOSS_HOST_DIR}"
+   wget http://dist/storage/fboss/fbossImageFiles/"${KERNEL_TAR}"
+   tar -xf "${KERNEL_TAR}"
+   set +ex
+}
+
+cleanup_build_env() {
+   if [[ -d "${FBOSS_HOST_DIR}" ]]; then
+      echo "Deleting "${FBOSS_HOST_DIR}" contents"
+      sudo rm -rf "${FBOSS_HOST_DIR}"
+   fi
+}
+
+setup() {
+   maybe_pull_docker_image
+   maybe_setup_build_env
+   # Docker run's volume mount can't handle symlinks, so copy the latest versions
+   # of the build scripts every time.
+   cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/build.sh "${FBOSS_HOST_DIR}"
+   cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/package.sh "${FBOSS_HOST_DIR}"
+}
+
+run_cmd_container() {
+   # Run the given command in an FBOSS OSS build container. Note that we mount
+   # the git repo inside of the build directory: this is needed for the build
+   # scripts.
+   docker run -l owner="${USER}" --privileged --rm -it \
+      -v "${FBOSS_HOST_DIR}":/var/FBOSS/ \
+      -v "${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
+      -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" $@
+}
+
+enter_container_shell() {
+   setup
+   echo "Entering FBOSS OSS build container ('exit' or ctrl-d to exit)"
+   run_cmd_container bash
+}
+
+do_build() {
+   setup
+   run_cmd_container bash build.sh $@ --kernel "${FBOSS_LINUX_KERNEL}"
+   # Restore files that have potentially been clobbered by the FBOSS build process.
+   git -C "$FBOSS_REPO_DIR" restore "build/*"
+}
+
+do_package() {
+   setup
+   run_cmd_container bash package.sh $@
+}
+
+do_update_dut() {
+   dut="$1"
+
+   rpms=$(ls -A ${FBOSS_RPM_DIR})
+   if [[ -z "${rpms}" ]]; then
+      echo "Found no built RPMs in ${FBOSS_RPM_DIR}"
+      exit 1
+   fi
+
+   sshpass -p arastra a4 scp "${FBOSS_RPM_DIR}"/* root@"${dut}":/tmp/
+   echo "The following RPMs were copied to ${dut}:/tmp/"
+   echo "${rpms}"
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
+fi
+
+command="$1"
+shift
+
+case "${command}" in
+   shell)
+      enter_container_shell
+      ;;
+   build)
+      do_build $@
+      ;;
+   package)
+      do_package $@
+      ;;
+   clean)
+      cleanup_build_env
+      ;;
+   update-dut)
+      do_update_dut $1
+      ;;
+   *)
+      usage
+      exit 1
+      ;;
+esac
+
+exit $?

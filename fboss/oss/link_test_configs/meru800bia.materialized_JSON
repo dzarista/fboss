@@ -6,7 +6,8 @@
     "enable_replayer": "true",
     "intf_nbr_tables": "true",
     "log_variable_name": "true",
-    "sai_configure_six_tap": "true"
+    "sai_configure_six_tap": "true",
+    "dsf_subscribe": "false"
   },
   "sw": {
     "version": 0,
@@ -7700,6 +7701,10 @@
           "queueId": 7
         },
         {
+          "rxReason": 13,
+          "queueId": 7
+        },
+        {
           "rxReason": 2,
           "queueId": 3
         },
@@ -7833,7 +7838,7 @@
             "custom_feature_statdma_enable": "0",
             "custom_feature_use_new_access.BCM8889X": "1",
             "custom_feature_use_new_access.BCM8889X_ADAPTER": "1",
-            "dpp_db_path": "/tmp/db",
+            "dpp_db_path": "/opt/fboss/share/db",
             "dram_temperature_monitor_enable.BCM8889X_ADAPTER": "0",
             "dtm_flow_mapping_mode_region_65.BCM8889X": "3",
             "dtm_flow_mapping_mode_region_66.BCM8889X": "3",
