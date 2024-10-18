@@ -2,19 +2,19 @@
 	"version": 1,
         "repomap": {
             "barney.ci/barneyfile": {
-               "commit": "82d3f283869f1a32f81a5224c3382326dfa723c4"
+               "commit": "ed88c1c8bb4f634a5ec1b75578cd10a63dd31585"
             },
             "code.arista.io/os/fboss-centos": {
                "commit": "1bef35fd1312a074d86f1cf6f593f80bda55daf0"
             },
             "code.arista.io/aqua-sai/in-eos": {
-               "commit": "89493d8eea3d75090b6dc6523f949169e401e0cb"
+               "commit": "4837b96e0a5d42d8636d7190acc56e1ccdf4be32"
             },
             "code.arista.io/infra/barney/barnzilla": {
-               "commit": "e629d7a20d98505eec5e4275d7b966360e31432f"
+               "commit": "835a13f314cc857c027f4eaf21733d1ff2ac486e"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "022805b9b29961ccf1b899a0eb04481e18b0b8a5"
+               "commit": "5850cdc204644b936180a42c74a4c82232f795b5"
             },
             "barney.ci/alpine": {
                "commit": "f2fa545e3fafa3387f2d7269721d16f3f499cc3b"
