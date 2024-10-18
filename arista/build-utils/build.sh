@@ -3,7 +3,7 @@
 # Add /usr/local/bin, for doxygen.
 export PATH="$PATH:/usr/local/bin"
 
-if [ -f /.dockerenv ]; then
+if [ -f /proc/self/cgroup ]; then
    echo "running in a container - assuming /var/FBOSS base"
    FBOSS_DIR="/var/FBOSS"
 else
