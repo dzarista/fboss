@@ -93,8 +93,8 @@
       "SCM_ECB_VIN": {
         "path": "/run/devmap/sensors/CPU_MPS_PMBUS/in1_input",
         "thresholds": {
-          "upperCriticalVal": 3.96,
-          "lowerCriticalVal": 2.64
+          "upperCriticalVal": 14.4,
+          "lowerCriticalVal": 10.5
         },
         "compute": "@/32000.0",
         "type": 1
