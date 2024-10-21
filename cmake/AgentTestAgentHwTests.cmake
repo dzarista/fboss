@@ -93,6 +93,7 @@ target_link_libraries(agent_hw_test_src
   load_balancer_test_utils
   l2learn_observer_util
   mac_test_utils
+  multi_port_traffic_test_utils
   port_stats_test_utils
   utils
   sflow_shim_utils
