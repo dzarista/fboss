@@ -20,6 +20,15 @@ The table below outlines the structure of this directory.
 
 ## How to Build
 
+## Building on Homebus User Server
+
+The tool defauls to build on your homebus user server. The tool assumes you have
+enough space and its recommended that you have a large instance as the build does
+take a lot of space.
+
+NOTE: To build on non-homebus servers, pass the following flag at the end of the
+fbossctl command `--non_homebus`
+
 ### In a Docker Container
 
 The simplest way to build the FBOSS OSS + SAI + SDK is in an FBOSS CentOS 8 build
