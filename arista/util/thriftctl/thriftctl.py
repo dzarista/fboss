@@ -1,4 +1,5 @@
 import argparse
+import ast
 import importlib
 import sys
 
@@ -40,9 +41,9 @@ class FbossThriftctl:
 
    def listMethods( self ):
       unfiltered_methods = dir( self.client )
-      # ignore send_ recv_ methods and the full method wraps both
-      methods = [m for m in unfiltered_methods if "_" not in m]
-      print( f'Available methods under port:{self.port}' )
+      # ignore send_ recv_ methods, the full method wraps both
+      methods = [ m for m in unfiltered_methods if "_" not in m ]
+      print( f'Found {len( methods )} available methods under port:{self.port}' )
       for m in methods:
          print( f'\t{m}' )
 
@@ -62,18 +63,24 @@ class FbossThriftctl:
       if self.transport:
          self.transport.close()
 
-def call_method( client, method_name ):
-    try:
-        func = getattr( client, method_name )
+def call_method( client, method_name, *args, **kwargs ):
+   try:
+      func = getattr( client, method_name )
 
-        if callable( func ):
-            return func()
-        else:
-            print( f"{method_name} is not a callable method." )
-            return None
-    except AttributeError:
-        print( f"Method '{method_name}' not found in the object." )
-        return None
+      if callable( func ):
+         return func( *args, **kwargs )
+      else:
+         print( f"{method_name} is not a callable method." )
+         return None
+   except AttributeError:
+      print( f"Method '{method_name}' not found in the object." )
+      return None
+
+def process_arg( arg ):
+   try:
+      return ast.literal_eval( arg )
+   except ( ValueError, SyntaxError ):
+      return arg
 
 def parseArgs( argv ):
    parser = argparse.ArgumentParser( prog='thriftctl', description=tool_description )
@@ -82,7 +89,9 @@ def parseArgs( argv ):
                                         help='Available subcommands' )
 
    request = subparsers.add_parser( 'request', help='Install a package' )
-   request.add_argument('method', help='The name of the method to call')
+   request.add_argument( 'method', help='The name of the method to call' )
+   request.add_argument( 'args', nargs='*', default=None,
+                          help='arguments to pass into the method' )
    request.add_argument( '-p', '--port', required=True, type=int,
                           help='Port on which the thrift endpoint is on' )
    request.add_argument( '--host', default='localhost', required=False )
@@ -101,14 +110,15 @@ def main( argv ):
 
    if args.operation == 'listPorts':
       for port, path in SERVICE_MAPPING.items():
-         print( f'{port}: {path.split("neteng.fboss.")[1]}' )
+         print( f'{port}: {path.split( "neteng.fboss." )[1]}' )
    elif args.operation == 'request' or args.operation == 'listMethods':
       thirftctl = FbossThriftctl( host=args.host, port=args.port )
 
       thirftctl.connect()
 
       if args.operation == 'request':   
-         result = call_method( thirftctl.client, args.method )
+         processed_args = [ process_arg( arg ) for arg in args.args ]
+         result = call_method( thirftctl.client, args.method, *processed_args )
          print(result)
       elif args.operation == 'listMethods':
          result = thirftctl.listMethods()
