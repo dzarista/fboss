@@ -22,6 +22,7 @@ set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/tmp_build_dir/fboss_bins-* .
 cp -af %{SOURCEURL0}/tmp_build_dir/psu-upgrade .
+cp -af %{SOURCEURL0}/fboss.git/arista/util/thriftctl/thriftctl.py .
 cp -af %{SOURCEURL0}/%{_fboss_core_dir}/* .
 find %{SOURCEURL0}/%{_fboss_build_dir} -maxdepth 1 -type f -executable -exec cp {} ./fboss_bins-*/bin/ \;
 
@@ -44,6 +45,9 @@ cp -f scripts/switch-to-bmc.sh %{_fboss_target_bin}
 
 # Install utility binaries
 cp -f psu-upgrade/psu-upgrade %{_fboss_target_bin}
+
+# Install thriftctl utility
+cp -f thriftctl.py %{_fboss_target_bin}/thriftctl
 
 # Install systemd services.
 mkdir -p %{_fboss_target_systemd}
