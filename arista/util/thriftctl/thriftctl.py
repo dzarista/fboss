@@ -16,12 +16,21 @@ Example:
 python3 thriftctl.py request getTransceiverInfo --port 5910'''
 
 
+# NOTE: Not comprehensive and may diverge depending on upstream changes
 SERVICE_MAPPING = {
-    5909: 'neteng.fboss.ctrl.FbossCtrl',
-    5910: 'neteng.fboss.qsfp.QsfpService',
-    5931: 'neteng.fboss.hw_ctrl.FbossHwCtrl',
-    5932: 'neteng.fboss.hw_ctrl.FbossHwCtrl'
-   #  5972: 'neteng.fboss.platform.FanService'
+   # 5908: TODO: fsdb,
+   5909: 'neteng.fboss.ctrl.FbossCtrl',
+   5910: 'neteng.fboss.qsfp.QsfpService', # Meta plans to migrate this to 5960
+   # 5930: TODO: ledService,
+   5931: 'neteng.fboss.hw_ctrl.FbossHwCtrl',
+   5932: 'neteng.fboss.hw_ctrl.FbossHwCtrl',
+   # 5959: TODO: SwSwitch,
+   5970: 'neteng.fboss.platform.sensor_service.SensorServiceThrift',
+   # 5971: TODO: datacorral,
+   5972: 'fan_service.FanService',
+   5973: 'rackmonsvc.rackmonsvc.RackmonCtrl',
+   # 5975: TODO: platform_manager,
+   # 6909: TODO: bgpThriftPort, 
 }
 
 class FbossThriftctl:
@@ -62,6 +71,10 @@ class FbossThriftctl:
    def close(self):
       if self.transport:
          self.transport.close()
+
+def list_ports():
+   for port, path in SERVICE_MAPPING.items():
+      print( f'{port}: {path}' )
 
 def call_method( client, method_name, *args, **kwargs ):
    try:
@@ -109,8 +122,7 @@ def main( argv ):
    args = parseArgs( argv )
 
    if args.operation == 'listPorts':
-      for port, path in SERVICE_MAPPING.items():
-         print( f'{port}: {path.split( "neteng.fboss." )[1]}' )
+      list_ports()
    elif args.operation == 'request' or args.operation == 'listMethods':
       thirftctl = FbossThriftctl( host=args.host, port=args.port )
 
