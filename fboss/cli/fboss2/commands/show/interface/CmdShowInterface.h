@@ -118,8 +118,10 @@ class CmdShowInterface
     int32_t minSystemPort = 0;
     for (const auto& idAndNode : dsfNodes) {
       const auto& node = idAndNode.second;
-      if (hostInfo.getName() == *node.name()) {
+      if (utils::removeFbDomains(hostInfo.getName()) ==
+          utils::removeFbDomains(*node.name())) {
         minSystemPort = *node.systemPortRange()->minimum();
+        break;
       }
     }
 
@@ -133,6 +135,7 @@ class CmdShowInterface
             (operState == facebook::fboss::PortOperState::UP) ? "up" : "down";
         ifModel.speed() = std::to_string(*portInfo.speedMbps() / 1000) + "G";
         ifModel.prefixes() = {};
+        ifModel.portType() = *portInfo.portType();
 
         // We assume that there is a one-to-one association between
         // port, interface, and VLAN.
@@ -189,6 +192,10 @@ class CmdShowInterface
       std::unordered_map<int32_t, std::vector<cli::IpPrefix>>& vlanToPrefixes,
       const std::map<int32_t, facebook::fboss::InterfaceDetail>& intfDetails) {
     for (const auto& [intfId, intfDetail] : intfDetails) {
+      if (intfDetail.remoteIntfType() == RemoteInterfaceType::DYNAMIC_ENTRY) {
+        continue; // Only search for local interfaces
+      }
+
       const auto& vlan = *intfDetail.vlanId();
       for (const auto& ifAddr : *intfDetail.address()) {
         cli::IpPrefix prefix;
@@ -275,13 +282,19 @@ class CmdShowInterface
     }
 
     for (const auto& interface : *model.interfaces()) {
+      std::string name = *interface.name();
       std::vector<std::string> prefixes;
-      for (const auto& prefix : *interface.prefixes()) {
-        prefixes.push_back(
-            fmt::format("{}/{}", *prefix.ip(), *prefix.prefixLength()));
+
+      // TODO (jycleung) portType is a new field addition to the interface.
+      // When D63407523 is rolled out to the fleet, remove the name check.
+      if (interface.portType() != cfg::PortType::FABRIC_PORT &&
+          !name.starts_with("fab")) { // Skip addresses for fabric ports
+        for (const auto& prefix : *interface.prefixes()) {
+          prefixes.push_back(
+              fmt::format("{}/{}", *prefix.ip(), *prefix.prefixLength()));
+        }
       }
 
-      std::string name = *interface.name();
       std::vector<Table::RowData> row;
       if (isVoq) {
         outTable.addRow(

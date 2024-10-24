@@ -390,7 +390,7 @@ class TestRunner(abc.ABC):
                 if not class_name:
                     raise "error"
                 func_name = line.strip()
-                ret.append("%s.%s" % (class_name, func_name))
+                ret.append("{}.{}".format(class_name, func_name))
 
         return ret
 
@@ -551,7 +551,7 @@ class TestRunner(abc.ABC):
 
     def _string_in_file(self, file_path, string):
         try:
-            with open(file_path, "r") as file:
+            with open(file_path) as file:
                 file_contents = file.read()
             return string in file_contents
         except FileNotFoundError:
@@ -559,7 +559,7 @@ class TestRunner(abc.ABC):
 
     def _replace_string_in_file(self, file_path, old_str, new_str):
         try:
-            with open(file_path, "r") as file:
+            with open(file_path) as file:
                 file_contents = file.read()
 
             new_file_contents = file_contents.replace(old_str, new_str)

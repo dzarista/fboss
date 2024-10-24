@@ -192,9 +192,9 @@ inline void voqRouteBenchmark(bool add) {
             true, /*setInterfaceMac*/
             utility::kBaseVlanId,
             true /*enable fabric ports*/);
-        utility::populatePortExpectedNeighbors(
+        utility::populatePortExpectedNeighborsToSelf(
             ensemble.masterLogicalPortIds(), config);
-        config.dsfNodes() = *utility::addRemoteDsfNodeCfg(*config.dsfNodes());
+        config.dsfNodes() = *utility::addRemoteIntfNodeCfg(*config.dsfNodes());
         return config;
       };
   auto ensemble =

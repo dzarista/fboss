@@ -86,6 +86,7 @@ class SwitchState;
 class Interface;
 class SwitchSettings;
 class SwitchIdScopeResolver;
+struct AgentConfig;
 
 constexpr auto kRecyclePortIdOffset = 1;
 
@@ -440,4 +441,7 @@ bool haveParallelLinksToInterfaceNodes(
     SwitchIdScopeResolver& scopeResolver);
 
 CpuCosQueueId hwQueueIdToCpuCosQueueId(uint8_t hwQueueId);
+int numFabricLevels(const std::map<int64_t, cfg::DsfNode>& dsfNodes);
+
+std::unique_ptr<AgentConfig> getConfigFileForTesting(int switchIndex);
 } // namespace facebook::fboss

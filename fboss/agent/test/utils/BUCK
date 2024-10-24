@@ -35,6 +35,7 @@ cpp_library(
         "//fboss/agent:switch_config-cpp2-types",
         "//fboss/agent/hw:hardware_stats-cpp2-types",
         "//fboss/agent/hw/switch_asics:switch_asics",
+        "//fboss/agent/packet:packet",
         "//fboss/agent/packet:packet_factory",
         "//fboss/agent/state:state",
         "//fboss/agent/test:test_ensemble_if",
@@ -451,9 +452,10 @@ cpp_library(
     exported_deps = [
         "fbsource//third-party/googletest:gtest",
         ":acl_test_utils",
-        "//fboss/agent:fboss-types",
         "//fboss/agent:switch_config-cpp2-types",
         "//fboss/agent:utils",
+        "//fboss/agent/hw:hardware_stats-cpp2-types",
+        "//fboss/agent/test:agent_hw_test",
     ],
 )
 
@@ -500,13 +502,46 @@ cpp_library(
         "VoqTestUtils.h",
     ],
     exported_deps = [
+        ":dsf_config_utils",
         "//fboss/agent:fboss-types",
         "//fboss/agent:switch_config-cpp2-types",
         "//fboss/agent:switchid_scope_resolver",
-        "//fboss/agent/hw/switch_asics:switch_asics",
         "//fboss/agent/hw/test:config_factory",
         "//fboss/agent/state:state",
         "//fboss/agent/test:ecmp_helper",
         "//fboss/agent/test:test_ensemble_if",
+    ],
+)
+
+cpp_library(
+    name = "dsf_config_utils",
+    srcs = [
+        "DsfConfigUtils.cpp",
+    ],
+    headers = [
+        "DsfConfigUtils.h",
+    ],
+    exported_deps = [
+        ":config_utils",
+        "//fboss/agent:asic_utils",
+        "//fboss/agent:switch_config-cpp2-types",
+        "//fboss/agent/hw/switch_asics:switch_asics",
+    ],
+)
+
+cpp_library(
+    name = "multi_port_traffic_test_utils",
+    srcs = [
+        "MultiPortTrafficTestUtils.cpp",
+    ],
+    headers = [
+        "MultiPortTrafficTestUtils.h",
+    ],
+    exported_deps = [
+        ":qos_test_utils",
+        "//fboss/agent:utils",
+        "//fboss/agent/state:state_utils",
+        "//fboss/agent/test:agent_hw_test",
+        "//fboss/agent/test:ecmp_helper",
     ],
 )

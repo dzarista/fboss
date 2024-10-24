@@ -19,13 +19,11 @@
 #include "fboss/agent/platforms/sai/SaiBcmDarwinPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmElbertPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmFujiPlatformPort.h"
-#include "fboss/agent/platforms/sai/SaiBcmGalaxyPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmMinipackPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmMontblancPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmWedge100PlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmWedge400PlatformPort.h"
-#include "fboss/agent/platforms/sai/SaiBcmWedge40PlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmYampPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiCloudRipperPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiElbert8DDPhyPlatformPort.h"
@@ -54,6 +52,11 @@ DEFINE_string(
     firmware_path,
     "/etc/packages/neteng-fboss-wedge_agent/current",
     "Path to load the firmware");
+
+DEFINE_bool(
+    enable_delay_drop_congestion_threshold,
+    false,
+    "Enable new delay drop congestion threshold in CGM");
 
 namespace {
 
@@ -255,6 +258,17 @@ std::string SaiPlatform::getHwAsicConfig(
   for (const auto& entry : commonConfigs) {
     addNameValue(entry);
   }
+
+#if defined(SAI_VERSION_11_3_0_0_DNX_ODP)
+  if (getAsic()->isSupported(HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW)) {
+    // Interim workaround for 11.0.0.14 as this SoC property is needed for
+    // J3AI 11.x but not for 12.x until 12.0.0.3.
+    // TODO: While integrating 12.0.0.3, this workaround needs to be removed
+    // and instead this SoC property would be added in config directly.
+    nameValStrs.push_back("eventor_sbus_dma_channels.BCM8889X=0,6,0,7");
+  }
+#endif
+
   /*
    * Single NPU platfroms will not have any npu entries. In such cases,
    * we can directly use the common config.
@@ -323,14 +337,8 @@ void SaiPlatform::initPorts() {
         platformMode == PlatformType::PLATFORM_CLOUDRIPPER_VOQ ||
         platformMode == PlatformType::PLATFORM_CLOUDRIPPER_FABRIC) {
       saiPort = std::make_unique<SaiCloudRipperPlatformPort>(portId, this);
-    } else if (platformMode == PlatformType::PLATFORM_WEDGE) {
-      saiPort = std::make_unique<SaiBcmWedge40PlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_WEDGE100) {
       saiPort = std::make_unique<SaiBcmWedge100PlatformPort>(portId, this);
-    } else if (
-        platformMode == PlatformType::PLATFORM_GALAXY_LC ||
-        platformMode == PlatformType::PLATFORM_GALAXY_FC) {
-      saiPort = std::make_unique<SaiBcmGalaxyPlatformPort>(portId, this);
     } else if (
         platformMode == PlatformType::PLATFORM_WEDGE400 ||
         platformMode == PlatformType::PLATFORM_WEDGE400_GRANDTETON) {
@@ -584,6 +592,29 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     routeNoImplicitMetaData = true;
   }
 #endif
+  std::optional<SaiSwitchTraits::Attributes::DelayDropCongThreshold>
+      delayDropCongThreshold{std::nullopt};
+#if defined(TAJO_SDK_VERSION_1_42_8)
+  if (getAsic()->isSupported(
+          HwAsic::Feature::ENABLE_DELAY_DROP_CONGESTION_THRESHOLD) &&
+      FLAGS_enable_delay_drop_congestion_threshold) {
+    XLOG(DBG2) << "Enable new CGM delay drop congestion thresholds";
+    delayDropCongThreshold = 1;
+  }
+#endif
+  std::optional<
+      SaiSwitchTraits::Attributes::FabricLinkLayerFlowControlThreshold>
+      fabricLLFC;
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
+  if (getAsic()->getSwitchType() == cfg::SwitchType::FABRIC &&
+      getAsic()->getFabricNodeRole() == HwAsic::FabricNodeRole::DUAL_STAGE_L1) {
+    CHECK(getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_RAMON3)
+        << " LLFC threshold values for no R3 chips in DUAL_STAGE_L1 role needs to figured out";
+    // Vendor suggested valie
+    constexpr uint32_t kRamon3LlfcThreshold{800};
+    fabricLLFC = std::vector<uint32_t>({kRamon3LlfcThreshold});
+  }
+#endif
 
   return {
       initSwitch,
@@ -647,6 +678,8 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
       std::nullopt, // ARS profile
 #endif
       std::nullopt, // ReachabilityGroupList
+      delayDropCongThreshold, // Delay Drop Cong Threshold
+      fabricLLFC,
   };
 }
 

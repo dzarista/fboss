@@ -30,6 +30,10 @@ union TestUnion {
   20: set<string> setOfString;
 }
 
+struct ChildStruct {
+  1: map<i32, bool> childMap;
+}
+
 struct TestStruct {
   1: bool inlineBool;
   2: i32 inlineInt;
@@ -55,11 +59,19 @@ struct TestStruct {
   22: optional string optionalString;
   @cpp.Type{name = "uint64_t"}
   23: i64 unsigned_int64;
-  24: map<string, TestStruct> mapA; // (allow_skip_thrift_cow = true)
+  24: map<string, TestStruct> mapA;
   25: map<string, TestStruct> mapB;
   26: map<i32, bool> cowMap;
-  27: map<i32, bool> hybridMap; // (allow_skip_thrift_cow = true);
-} // (allow_skip_thrift_cow = true)
+  27: map<i32, bool> hybridMap (allow_skip_thrift_cow = true);
+  28: list<i32> hybridList (allow_skip_thrift_cow = true);
+  29: set<i32> hybridSet (allow_skip_thrift_cow = true);
+  30: TestUnion hybridUnion (allow_skip_thrift_cow = true);
+  31: ChildStruct hybridStruct (allow_skip_thrift_cow = true);
+  32: map<i32, switch_config.L4PortRange> hybridMapOfI32ToStruct (
+    allow_skip_thrift_cow = true,
+  );
+  33: map<i32, map<i32, i32>> hybridMapOfMap (allow_skip_thrift_cow = true);
+} (allow_skip_thrift_cow = true)
 
 struct ParentTestStruct {
   1: TestStruct childStruct;

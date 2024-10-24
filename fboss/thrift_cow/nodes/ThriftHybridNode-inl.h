@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <folly/DynamicConverter.h>
 #include <thrift/lib/cpp2/reflection/reflection.h>
 #include "fboss/agent/state/NodeBase-defs.h"
 #include "fboss/thrift_cow/nodes/NodeUtils.h"
@@ -22,6 +23,7 @@ template <typename TypeClass, typename TType>
 struct ThriftHybridNode : public thrift_cow::Serializable {
  public:
   using ThriftType = TType;
+  using TC = TypeClass;
   using CowType = HybridNodeType;
   using Self = ThriftHybridNode<TypeClass, TType>;
   using PathIter = typename std::vector<std::string>::const_iterator;
@@ -99,6 +101,25 @@ struct ThriftHybridNode : public thrift_cow::Serializable {
   std::size_t hash() const {
     return std::hash<TType>()(obj_);
   }
+
+#ifdef ENABLE_DYNAMIC_APIS
+  folly::dynamic toFollyDynamic() const {
+    folly::dynamic dyn;
+    facebook::thrift::to_dynamic(
+        dyn, this->ref(), facebook::thrift::dynamic_format::JSON_1);
+    return dyn;
+  }
+
+  // this would override the underlying thrift object
+  void fromFollyDynamic(const folly::dynamic& obj) {
+    facebook::thrift::from_dynamic(
+        this->ref(), obj, facebook::thrift::dynamic_format::JSON_1);
+  }
+#else
+  folly::dynamic toFollyDynamic() const {
+    return {};
+  }
+#endif
 
  private:
   TType obj_{};

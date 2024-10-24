@@ -43,6 +43,7 @@ DEFINE_int32(
     time_for_tcvr_ready_after_fw_upgrade_s,
     60,
     "max time after firmware upgrade sequence when the the tcvr is expected to be ready for link up");
+DEFINE_bool(remediation_enabled, true, "Flag to disable/enable remediation.");
 
 using folly::IOBuf;
 using std::lock_guard;
@@ -491,6 +492,16 @@ void QsfpModule::updateCachedTransceiverInfoLocked(ModuleStatus moduleStatus) {
           std::vector<int>(it.second.begin(), it.second.end());
     }
     tcvrStats.portNameToMediaLanes() = *tcvrState.portNameToMediaLanes();
+
+    for (const auto& [portName, lanes] : *tcvrStats.portNameToHostLanes()) {
+      int lastDataPathResetTime = 0;
+      for (const auto& lane : lanes) {
+        // Get the most recent reset time (max) for any of the port lanes.
+        lastDataPathResetTime = std::max<long>(
+            lastDataPathResetTime, getLastDatapathResetTime(lane));
+      }
+      tcvrStats.lastDatapathResetTime()[portName] = lastDataPathResetTime;
+    }
 
     auto diagCapability = getDiagsCapability();
     if (diagCapability.has_value()) {
@@ -999,7 +1010,7 @@ bool QsfpModule::shouldRemediate(time_t pauseRemidiation) {
 }
 
 bool QsfpModule::shouldRemediateLocked(time_t pauseRemidiation) {
-  if (!supportRemediate()) {
+  if (!FLAGS_remediation_enabled || !supportRemediate()) {
     return false;
   }
 
@@ -1348,6 +1359,10 @@ void QsfpModule::programTransceiver(
       }
       updateCachedTransceiverInfoLocked({});
     }
+
+    // We are done programming the transceivers. Clear the pending datapath mask
+    // and start fresh for the next programTransceiver call
+    datapathResetPendingMask_ = 0;
   };
 
   auto i2cEvb = qsfpImpl_->getI2cEventBase();

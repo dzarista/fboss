@@ -55,6 +55,7 @@ bool Trident2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
     case HwAsic::Feature::SAI_ECMP_HASH_ALGORITHM:
     case HwAsic::Feature::ACL_BYTE_COUNTER:
+    case HwAsic::Feature::L3_INTF_MTU:
       return true;
     case HwAsic::Feature::ERSPANv6:
     case HwAsic::Feature::SFLOWv4:
@@ -179,6 +180,8 @@ bool Trident2Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::EGRESS_GVOQ_WATERMARK_BYTES:
     case HwAsic::Feature::INGRESS_PRIORITY_GROUP_SHARED_WATERMARK:
     case HwAsic::Feature::MULTIPLE_EGRESS_BUFFER_POOL:
+    case HwAsic::Feature::ENABLE_DELAY_DROP_CONGESTION_THRESHOLD:
+    case HwAsic::Feature::PORT_MTU_ERROR_TRAP:
       return false;
   }
   return false;

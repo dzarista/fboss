@@ -20,6 +20,7 @@
 
 #include "fboss/agent/AclNexthopHandler.h"
 
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/AsicUtils.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/HwAsicTable.h"
@@ -802,7 +803,7 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
   {
     // Update reachability group setting for input balanced
     auto localFabricSwitchIds = getLocalFabricSwitchIds();
-    if (!localFabricSwitchIds.empty()) {
+    if (FLAGS_enable_balanced_intput_mode && !localFabricSwitchIds.empty()) {
       processReachabilityGroup(localFabricSwitchIds);
     }
   }
@@ -3467,10 +3468,11 @@ void ThriftConfigApplier::checkAcl(const cfg::AclEntry* config) const {
           std::to_string(AclEntry::kMaxIcmpCode));
     }
   }
-  if (config->icmpType() &&
-      (!config->proto() ||
-       !(*config->proto() == AclEntry::kProtoIcmp ||
-         *config->proto() == AclEntry::kProtoIcmpv6))) {
+  // TODO(daiweix): check proto should be 58 if icmp type/code is specified
+  // after CS00012373216 is resolved.
+  if (config->icmpType() && config->proto() &&
+      !(*config->proto() == AclEntry::kProtoIcmp ||
+        *config->proto() == AclEntry::kProtoIcmpv6)) {
     throw FbossError(
         "proto must be either icmp or icmpv6 ", "if icmp type is set");
   }

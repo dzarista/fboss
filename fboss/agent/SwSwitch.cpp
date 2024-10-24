@@ -183,6 +183,7 @@ DEFINE_bool(rx_sw_priority, false, "Enable rx packet prioritization");
 
 DEFINE_int32(rx_pkt_thread_timeout, 100, "Rx packet thread timeout (ms)");
 
+using namespace facebook::fboss;
 namespace {
 
 /**
@@ -367,6 +368,16 @@ void updatePhyFb303Stats(
     }
   }
 }
+
+bool isPortDrained(
+    const std::shared_ptr<SwitchState>& state,
+    const Port* port,
+    SwitchID portSwitchId) {
+  HwSwitchMatcher matcher(std::unordered_set<SwitchID>({portSwitchId}));
+  const auto& switchSettings = state->getSwitchSettings()->getSwitchSettings(
+      HwSwitchMatcher(std::unordered_set<SwitchID>({portSwitchId})));
+  return switchSettings->isSwitchDrained() || port->isDrained();
+}
 } // anonymous namespace
 
 namespace std {
@@ -514,8 +525,6 @@ void SwSwitch::stop(bool isGracefulStop, bool revertToMinAlpmState) {
 
   XLOG(DBG2) << "Stopping SwSwitch...";
 
-  dsfSubscriber_.reset();
-
   // First tell the hw to stop sending us events by unregistering the callback
   // After this we should no longer receive packets or link state changed events
   // while we are destroying ourselves
@@ -573,6 +582,11 @@ void SwSwitch::stop(bool isGracefulStop, bool revertToMinAlpmState) {
   if (rib_) {
     rib_->stop();
   }
+
+  // free dsfSubscriber_ only after thread heartbeats are freed.
+  dsfSubscriberReconnectThreadHeartbeat_.reset();
+  dsfSubscriberStreamThreadHeartbeat_.reset();
+  dsfSubscriber_.reset();
 
   lookupClassUpdater_.reset();
   lookupClassRouteUpdater_.reset();
@@ -886,6 +900,32 @@ void SwSwitch::updateStats() {
     for (auto& [_, hwSwitchStats] : *lockedStats) {
       for (auto& [portID, phyInfoEntry] : *hwSwitchStats.phyInfo()) {
         phyInfo.insert({PortID(portID), phyInfoEntry});
+      }
+    }
+    auto state = getState();
+    for (const auto& portMap : std::as_const(*state->getPorts())) {
+      for (const auto& [_, port] : std::as_const(*portMap.second)) {
+        auto portSwitchId = scopeResolver_->scope(port).switchId();
+        auto portSwitchIdx =
+            switchInfoTable_.getSwitchIndexFromSwitchId(portSwitchId);
+        auto sitr = lockedStats->find(portSwitchIdx);
+        if (sitr == lockedStats->cend()) {
+          continue;
+        }
+        auto pitr = sitr->second.hwPortStats()->find(port->getName());
+        if (pitr == sitr->second.hwPortStats()->cend()) {
+          continue;
+        }
+        std::optional<bool> portActive;
+        if (port->getActiveState().has_value()) {
+          portActive = *port->getActiveState() == Port::ActiveState::ACTIVE;
+        }
+        auto portStat = portStats(port->getID());
+        const auto& hwPortStats = pitr->second;
+        auto portDrained = isPortDrained(state, port.get(), portSwitchId);
+        portStat->inErrors(*hwPortStats.inErrors_(), portDrained, portActive);
+        portStat->fecUncorrectableErrors(
+            *hwPortStats.fecUncorrectableErrors(), portDrained, portActive);
       }
     }
   }
@@ -2092,7 +2132,13 @@ void SwSwitch::linkStateChanged(
         // Log event and update counters if there is a change
         logLinkStateEvent(portId, up);
         setPortStatusCounter(portId, up);
-        portStats(portId)->linkStateChange(up);
+        std::optional<bool> portActive;
+        if (port->getActiveState().has_value()) {
+          portActive = *port->getActiveState() == Port::ActiveState::ACTIVE;
+        }
+        auto portSwitchId = scopeResolver_->scope(port->getID()).switchId();
+        portStats(portId)->linkStateChange(
+            up, isPortDrained(state, port, portSwitchId), portActive);
 
         XLOG(DBG2) << "SW Link state changed: " << port->getName()
                    << " id: " << portId << " [" << (!up ? "UP" : "DOWN") << "->"
@@ -2353,6 +2399,23 @@ void SwSwitch::postInit() {
         stats()->neighborCacheEventBacklog(backlog);
       });
 
+  dsfSubscriberReconnectThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
+      dsfSubscriber_->getReconnectThreadEvb(),
+      "DsfSubscriberReconnectThread",
+      FLAGS_dsf_subscriber_reconnect_thread_heartbeat_ms,
+      [this](int delay, int backlog) {
+        stats()->dsfSubReconnectThreadHeartbeatDelay(delay);
+        stats()->dsfSubReconnectThreadEventBacklog(backlog);
+      });
+  dsfSubscriberStreamThreadHeartbeat_ = std::make_shared<ThreadHeartbeat>(
+      dsfSubscriber_->getStreamThreadEvb(),
+      "DsfSubscriberStreamThread",
+      FLAGS_dsf_subscriber_stream_thread_heartbeat_ms,
+      [this](int delay, int backlog) {
+        stats()->dsfSubStreamThreadHeartbeatDelay(delay);
+        stats()->dsfSubStreamThreadEventBacklog(backlog);
+      });
+
   heartbeatWatchdog_ = std::make_unique<ThreadHeartbeatWatchdog>(
       std::chrono::milliseconds(FLAGS_thread_heartbeat_ms * 10),
       [this]() { stats()->ThreadHeartbeatMissCount(); });
@@ -2361,6 +2424,10 @@ void SwSwitch::postInit() {
   heartbeatWatchdog_->startMonitoringHeartbeat(updThreadHeartbeat_);
   heartbeatWatchdog_->startMonitoringHeartbeat(lacpThreadHeartbeat_);
   heartbeatWatchdog_->startMonitoringHeartbeat(neighborCacheThreadHeartbeat_);
+  heartbeatWatchdog_->startMonitoringHeartbeat(
+      dsfSubscriberReconnectThreadHeartbeat_);
+  heartbeatWatchdog_->startMonitoringHeartbeat(
+      dsfSubscriberStreamThreadHeartbeat_);
   heartbeatWatchdog_->start();
 
   setSwitchRunState(SwitchRunState::INITIALIZED);

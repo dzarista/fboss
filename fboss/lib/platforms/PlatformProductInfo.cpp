@@ -97,7 +97,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_GALAXY_FC;
     } else if (
         modelName.find("Montblanc") == 0 || modelName.find("MONTBLANC") == 0 ||
-        modelName.find("MINIPACK3_CHASSIS_BUNDLE") == 0) {
+        modelName.find("MINIPACK3_CHASSIS_BUNDLE") == 0 ||
+        modelName.find("MINIPACK3") == 0) {
       type_ = PlatformType::PLATFORM_MONTBLANC;
     } else if (
         modelName.find("MINIPACK") == 0 || modelName.find("MINIPHOTON") == 0) {
@@ -113,10 +114,6 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_FAKE_WEDGE;
     } else if (modelName.find("CLOUDRIPPER") == 0) {
       type_ = PlatformType::PLATFORM_CLOUDRIPPER;
-    } else if (
-        modelName.find("Sandia") == 0 || modelName.find("SANDIA") == 0 ||
-        modelName.find("8508-F-SYS-HV") == 0) {
-      type_ = PlatformType::PLATFORM_SANDIA;
     } else if (
         modelName.find("Meru400biu") == 0 ||
         modelName.find("S9710-76D-BB12") == 0) {
@@ -193,8 +190,6 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_DARWIN;
     } else if (FLAGS_mode == "darwin48v") {
       type_ = PlatformType::PLATFORM_DARWIN48V;
-    } else if (FLAGS_mode == "sandia") {
-      type_ = PlatformType::PLATFORM_SANDIA;
     } else if (FLAGS_mode == "meru400biu") {
       type_ = PlatformType::PLATFORM_MERU400BIU;
     } else if (FLAGS_mode == "meru800bia") {

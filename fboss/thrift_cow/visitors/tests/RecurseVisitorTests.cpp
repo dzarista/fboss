@@ -37,7 +37,11 @@ folly::dynamic createTestDynamic() {
       "setOfI32", dynamic::array())("setOfString", dynamic::array())(
       "unsigned_int64", 123)("mapA", dynamic::object())(
       "mapB", dynamic::object())("cowMap", dynamic::object())(
-      "hybridMap", dynamic::object());
+      "hybridMap", dynamic::object())("hybridList", dynamic::array())(
+      "hybridSet", dynamic::array())("hybridUnion", dynamic::object())(
+      "hybridStruct", dynamic::object("childMap", dynamic::object()))(
+      "hybridMapOfI32ToStruct", dynamic::object())(
+      "hybridMapOfMap", dynamic::object());
 }
 
 TestStruct createTestStruct(folly::dynamic testDyn) {
@@ -65,6 +69,15 @@ TEST(RecurseVisitorTests, TestFullRecurse) {
       {{}, testDyn},
       {{"cowMap"}, dynamic::object()},
       {{"hybridMap"}, dynamic::object()},
+      {{"hybridMapOfI32ToStruct"}, dynamic::object()},
+      {{"hybridMapOfMap"}, dynamic::object()},
+      {{"hybridList"}, dynamic::array()},
+      {{"hybridSet"}, dynamic::array()},
+      {{"hybridUnion"}, dynamic::object()},
+      {{"hybridStruct"}, testDyn["hybridStruct"]},
+#ifndef __ENABLE_HYBRID_THRIFT_COW_TESTS__
+      {{"hybridStruct", "childMap"}, testDyn["hybridStruct"]["childMap"]},
+#endif // __ENABLE_HYBRID_THRIFT_COW_TESTS__
       {{"inlineBool"}, testDyn["inlineBool"]},
       {{"inlineInt"}, testDyn["inlineInt"]},
       {{"inlineString"}, testDyn["inlineString"]},
@@ -121,6 +134,15 @@ TEST(RecurseVisitorTests, TestLeafRecurse) {
   RootRecurseVisitor::visit(nodeA, RecurseVisitMode::LEAVES, processPath);
 
   std::map<std::vector<std::string>, folly::dynamic> expected = {
+#ifdef __ENABLE_HYBRID_THRIFT_COW_TESTS__
+      {{"hybridMap"}, testDyn["hybridMap"]},
+      {{"hybridMapOfI32ToStruct"}, testDyn["hybridMapOfI32ToStruct"]},
+      {{"hybridMapOfMap"}, testDyn["hybridMapOfMap"]},
+      {{"hybridList"}, testDyn["hybridList"]},
+      {{"hybridSet"}, testDyn["hybridSet"]},
+      {{"hybridUnion"}, testDyn["hybridUnion"]},
+      {{"hybridStruct"}, testDyn["hybridStruct"]},
+#endif // __ENABLE_HYBRID_THRIFT_COW_TESTS__
       {{"inlineBool"}, testDyn["inlineBool"]},
       {{"inlineInt"}, testDyn["inlineInt"]},
       {{"inlineString"}, testDyn["inlineString"]},
@@ -151,6 +173,15 @@ TEST(RecurseVisitorTests, TestLeafRecurse) {
       processPath);
 
   expected = {
+#ifdef __ENABLE_HYBRID_THRIFT_COW_TESTS__
+      {{"27"}, testDyn["hybridMap"]},
+      {{"28"}, testDyn["hybridList"]},
+      {{"29"}, testDyn["hybridSet"]},
+      {{"30"}, testDyn["hybridUnion"]},
+      {{"31"}, testDyn["hybridStruct"]},
+      {{"32"}, testDyn["hybridMapOfI32ToStruct"]},
+      {{"33"}, testDyn["hybridMapOfMap"]},
+#endif // __ENABLE_HYBRID_THRIFT_COW_TESTS__
       {{"1"}, testDyn["inlineBool"]},
       {{"2"}, testDyn["inlineInt"]},
       {{"3"}, testDyn["inlineString"]},

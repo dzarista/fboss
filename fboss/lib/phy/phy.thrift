@@ -146,6 +146,13 @@ struct TxSettings {
   22: optional i32 innerEyePos;
   23: optional i32 ffeCoeff5;
   24: optional i32 ldoBypass;
+  25: optional i32 firPre1;
+  26: optional i32 firPre2;
+  27: optional i32 firPre3;
+  28: optional i32 firMain;
+  29: optional i32 firPost1;
+  30: optional i32 firPost2;
+  31: optional i32 firPost3;
 }
 
 struct RxSettings {
@@ -184,6 +191,11 @@ struct RxSettings {
   33: optional i32 cdrTdetFineStepOvVal;
   34: optional i32 ldoBypass;
   35: optional i32 ffeLengthBitmap;
+  36: optional i32 instgEnableScan;
+  37: optional i32 dcwEn;
+  38: optional i32 dcwStepCoarseOvVal;
+  39: optional i32 dcwStepFineOvVal;
+  40: optional i32 dcwOvEn;
 }
 
 struct LaneMap {

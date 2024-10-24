@@ -20,6 +20,7 @@ enum QsfpServiceRunState {
   INITIALIZED = 1,
   ACTIVE = 2,
   EXITING = 3,
+  UPGRADING_FIRMWARE = 4,
 }
 
 struct Vendor {
@@ -533,6 +534,7 @@ struct TcvrStats {
   12: optional VdmPerfMonitorStats vdmPerfMonitorStats;
   13: optional VdmPerfMonitorStatsForOds vdmPerfMonitorStatsForOds;
   14: map<string, CdbDatapathSymErrHistogram> cdbDatapathSymErrHistogram;
+  15: map<string, i64> lastDatapathResetTime;
 }
 
 struct TransceiverInfo {
@@ -728,4 +730,10 @@ struct QsfpToBmcSyncData {
   2: i64 timestamp;
   3: SwitchDeploymentInfo switchDeploymentInfo;
   4: map<string, TransceiverThermalData> transceiverThermalData;
+}
+
+struct FirmwareUpgradeData {
+  1: string partNumber;
+  2: string currentFirmwareVersion;
+  3: string desiredFirmwareVersion;
 }

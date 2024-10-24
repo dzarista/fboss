@@ -1475,6 +1475,12 @@ vector<string> SaiTracer::setAttrList(
     case SAI_OBJECT_TYPE_TAM_REPORT:
       setTamReportAttributes(attr_list, attr_count, attrLines, rv);
       break;
+    case SAI_OBJECT_TYPE_TAM_TRANSPORT:
+      setTamTransportAttributes(attr_list, attr_count, attrLines, rv);
+      break;
+    case SAI_OBJECT_TYPE_TAM_COLLECTOR:
+      setTamCollectorAttributes(attr_list, attr_count, attrLines, rv);
+      break;
     case SAI_OBJECT_TYPE_TUNNEL:
       setTunnelAttributes(attr_list, attr_count, attrLines, rv);
       break;
@@ -1836,6 +1842,8 @@ void SaiTracer::initVarCounts() {
   varCounts_.emplace(SAI_OBJECT_TYPE_SCHEDULER_GROUP, 0);
   varCounts_.emplace(SAI_OBJECT_TYPE_SWITCH, 0);
   varCounts_.emplace(SAI_OBJECT_TYPE_SYSTEM_PORT, 0);
+  varCounts_.emplace(SAI_OBJECT_TYPE_TAM_COLLECTOR, 0);
+  varCounts_.emplace(SAI_OBJECT_TYPE_TAM_TRANSPORT, 0);
   varCounts_.emplace(SAI_OBJECT_TYPE_TAM_REPORT, 0);
   varCounts_.emplace(SAI_OBJECT_TYPE_TAM_EVENT_ACTION, 0);
   varCounts_.emplace(SAI_OBJECT_TYPE_TAM_EVENT, 0);
