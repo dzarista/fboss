@@ -242,11 +242,11 @@ class ViperSMB( SMBUnit ):
          smbTmp75Back,
          smbMax,
          smbFanTmp,
-         smbFanCpld,
          smbRaa,
          smbIsl,
          smbIslOptics,
-         smbMgmtTemp
+         smbMgmtTemp,
+         smbFanCpld
       ] )
 
       self.addPciDeviceConfigs( [
