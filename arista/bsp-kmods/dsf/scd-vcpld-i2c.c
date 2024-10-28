@@ -49,7 +49,7 @@ struct encoded_reload_cause {
 	.description = fault_desc				\
 }
 
-struct encoded_reload_cause meru_vcpld_reload_causes[] = {
+struct encoded_reload_cause scd_vcpld_reload_causes[] = {
 	DEFINE_RELOAD_CAUSE(1, "Overtemp Fault"),
 	DEFINE_RELOAD_CAUSE(2, "SCD CRC"),
 	DEFINE_RELOAD_CAUSE(3, "Watchdog Fault"),
@@ -72,13 +72,12 @@ struct encoded_reload_cause meru_vcpld_reload_causes[] = {
 };
 
 #define MERU_VCPLD_FAULT_COUNT \
-	(sizeof meru_vcpld_reload_causes / sizeof meru_vcpld_reload_causes[0])
+	(sizeof scd_vcpld_reload_causes / sizeof scd_vcpld_reload_causes[0])
 
 struct i2c_client *vcpld_i2c_client;
-static struct timer_list rtc_write_timer;
 
 static void workqueue_func(struct work_struct *work);
-DECLARE_DELAYED_WORK(delay_workqueue, workqueue_func);
+DECLARE_DELAYED_WORK(vcpld_delayed_work, workqueue_func);
 static void workqueue_func(struct work_struct *work) {
 	time64_t cur_time;
 	u8 rtc_byte;
@@ -86,7 +85,7 @@ static void workqueue_func(struct work_struct *work) {
 
 	cur_time = ktime_get_real_seconds();
 	cur_time -= MILLENIUM_UNIX_TIMESTAMP;
-	schedule_delayed_work(&delay_workqueue, RTC_UPDATE_INTERVAL*HZ);
+	schedule_delayed_work(&vcpld_delayed_work, RTC_UPDATE_INTERVAL*HZ);
 
 	for (u8 byte = 0; byte < VCPLD_RTC_FRACTIONAL_SEC_REG_CNT; byte++) {
 		op_status = i2c_smbus_write_byte_data(
@@ -128,7 +127,7 @@ static int process_reload_cause(struct i2c_client *client)
 	fault_cause = (u8)op_status;
 	fault_cause &= VCPLD_REG_LATCHED_FAULT_CAUSE_MASK;
 	for (fault_loop = 0; fault_loop < MERU_VCPLD_FAULT_COUNT; fault_loop++) {
-		if (meru_vcpld_reload_causes[fault_loop].id == fault_cause) {
+		if (scd_vcpld_reload_causes[fault_loop].id == fault_cause) {
 			break;
 		}
 	}
@@ -136,8 +135,8 @@ static int process_reload_cause(struct i2c_client *client)
 		dev_info(&client->dev, "fault not found in list of reload causes\n");
 		ret_val = -1;
 	} else {
-		dev_info(&client->dev, "meru vcpld reload cause:%s\n",
-			meru_vcpld_reload_causes[fault_loop].description);
+		dev_info(&client->dev, "scd vcpld reload cause: %s\n",
+			scd_vcpld_reload_causes[fault_loop].description);
 	}
 
 	for (byte = 0; byte < VCPLD_RTC_SEC_REG_CNT; byte++) {
@@ -152,7 +151,7 @@ static int process_reload_cause(struct i2c_client *client)
 		}
 	}
 	if (byte == VCPLD_RTC_SEC_REG_CNT) {
-		dev_info(&client->dev, "meru vcpld reload cause timestamp:%u\n",
+		dev_info(&client->dev, "scd vcpld reload cause timestamp: %u\n",
 			fault_timestamp);
 	}
 
@@ -177,12 +176,7 @@ static int process_reload_cause(struct i2c_client *client)
 	return ret_val;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
 static int vcpld_i2c_probe(struct i2c_client *client)
-#else
-static int vcpld_i2c_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
-#endif
 {
 	int op_status;
 	u8 scratchpad, major_rev, minor_rev;
@@ -200,7 +194,7 @@ static int vcpld_i2c_probe(struct i2c_client *client,
 		return op_status;
 	}
 	major_rev = (u8)op_status;
-	dev_info(&client->dev, "meru vcpld revision: %02x.%02x\n",
+	dev_info(&client->dev, "scd vcpld revision: %02x.%02x\n",
 		major_rev, minor_rev);
 
 	op_status = i2c_smbus_read_byte_data(client, VCPLD_REG_SCRATCHPAD);
@@ -220,22 +214,28 @@ static int vcpld_i2c_probe(struct i2c_client *client,
 		"not processing relaod cause");
 	}
 
-	schedule_delayed_work(&delay_workqueue, RTC_UPDATE_INTERVAL*HZ);
+	schedule_delayed_work(&vcpld_delayed_work, RTC_UPDATE_INTERVAL*HZ);
 
 	return 0;
 }
 
+static void vcpld_i2c_remove(struct i2c_client *client)
+{
+	cancel_delayed_work_sync(&vcpld_delayed_work);
+}
+
 static const struct i2c_device_id cpld_dev_ids[] = {
-	{ "meru_vcpld", 0 },
+	{ "scd_vcpld", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cpld_dev_ids);
 
 static struct i2c_driver cpld_i2c_driver = {
 	.driver = {
-		.name = "meru-vcpld",
+		.name = "scd-vcpld",
 	},
 	.probe = vcpld_i2c_probe,
+	.remove = vcpld_i2c_remove,
 	.id_table = cpld_dev_ids,
 };
 module_i2c_driver(cpld_i2c_driver);

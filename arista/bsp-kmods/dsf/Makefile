@@ -4,6 +4,6 @@
 
 obj-m += dsf-fan-cpld.o
 obj-m += decker-cpld.o
-obj-m += meru-vcpld.o
+obj-m += scd-vcpld.o
 decker-cpld-objs := decker-cpld-i2c.o ../lib/regbit-sysfs.o
-meru-vcpld-objs := meru-vcpld-i2c.o
+scd-vcpld-objs := scd-vcpld-i2c.o
