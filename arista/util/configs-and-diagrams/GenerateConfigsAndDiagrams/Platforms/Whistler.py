@@ -466,10 +466,10 @@ class WhistlerSMB( SMBUnit ):
          smbIslBackRight,
          smbUcd,
          smbFan0Tmp,
-         smbFan0Cpld,
          smbFan1Tmp,
-         smbFan1Cpld,
          smbFan2Tmp,
+         smbFan0Cpld,
+         smbFan1Cpld,
          smbFan2Cpld
       ] )
 
