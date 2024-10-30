@@ -118,8 +118,8 @@ class RackhawkSwitch( PmUnitConfig ):
       self.pciDevices.append( self.cpuCpld )
       self.addEmbeddedSensors()
       self.addCpuCardTempSensors()
-      self.addCpuCardDpm()
       self.addCpuCardVrms()
+      self.addCpuCardDpm()
 
       # Fan card devices.
       self.addFanCpld()
@@ -200,9 +200,22 @@ class RackhawkSwitch( PmUnitConfig ):
                               upperCriticalVal=105.0
                           ) ),
       ] )
+
+      pchThermal = EmbeddedSensorConfig(
+            pmUnitScopedName='PCH_THERMAL',
+            sysfsPath='/sys/devices/virtual/thermal/thermal_zone0'
+      )
+      pchThermal.addSensorConfigs( [
+            SensorConfig( "PCH_TEMP", "temp1_input", SensorType.TEMP,
+                          compute="@/1000.0", prependPmUnit=False,
+                          thresholds=Thresholds(
+                             upperCriticalVal=85.0
+                          ) ),
+      ] )
+
       self.addEmbeddedSensorConfigs( [
-         cpuCoreTemp,
-         # TODO: PCH thermal support
+            pchThermal,
+            cpuCoreTemp
       ] )
 
    def addCpuCardTempSensors( self ):
