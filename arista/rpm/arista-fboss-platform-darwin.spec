@@ -11,6 +11,7 @@ Source: %{expand:%%(pwd)}
 %define _fboss_darwin_dir fboss.git/arista/platform/darwin
 %define _fboss_build_repo_dir tmp_build_dir/repos/github.com-facebook-fboss.git
 %define _fboss_config_dir %{_fboss_build_repo_dir}/fboss/platform/configs
+%define _fboss_platform_dir %{_fboss_build_repo_dir}/arista/platform
 
 %define _fboss_target_udev %{root}/%{buildroot}/etc/udev/rules.d/
 %define _fboss_target_bin %{root}/%{buildroot}/opt/fboss/bin/
@@ -27,6 +28,8 @@ find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_darwin_dir}/* .
 mkdir -p platform_configs
 cp -af %{SOURCEURL0}/%{_fboss_config_dir}/darwin/* platform_configs/
+mkdir -p firmware
+cp -af %{SOURCEURL0}/%{_fboss_platform_dir}/darwin/firmware/* firmware/
 
 %install
 mkdir -p %{_fboss_target_var}
@@ -37,9 +40,12 @@ mkdir -p %{_fboss_target_udev}
 install config/udev/99-darwin.rules %{_fboss_target_udev}
 mkdir -p %{_fboss_target_share}/platform_configs
 cp -rf platform_configs/* %{_fboss_target_share}/platform_configs/
+mkdir -p %{_fboss_target_share}/firmware
+cp -rf firmware/* %{_fboss_target_share}/firmware/
 
 %files
 /var/facebook/fboss/fruid.json
 /opt/fboss/bin/platform_init.sh
 /etc/udev/rules.d/99-darwin.rules
 /opt/fboss/share/platform_configs
+/opt/fboss/share/firmware
