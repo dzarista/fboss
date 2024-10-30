@@ -695,7 +695,7 @@ class RackhawkSwitch( PmUnitConfig ):
 
 
 class RackhawkRackmon( PmUnitConfig ):
-   def __init__( self ):
+   def __init__( self, eepromOffset ):
       super().__init__( 'RACKMON' )
 
       # TODO: Need PM to be able to handle other EEPROM formats
@@ -704,7 +704,7 @@ class RackhawkRackmon( PmUnitConfig ):
          idPromConfigBusName='INCOMING@0',
          idPromConfigAddress='0x52',
          idPromConfigKernelDeviceName='24c512',
-         idPromConfigOffset=15360
+         idPromConfigOffset=eepromOffset
       )
 
       aslg4f4527 = Sensor( '0x08', 'aslg4f4527', 'FS_FAN_SLG4F4527',
@@ -745,7 +745,7 @@ class RackhawkPEM( PmUnitConfig ):
          idPromConfigBusName='INCOMING@0',
          idPromConfigAddress='0x50',
          idPromConfigKernelDeviceName='24c512',
-         idPromConfigOffset=15360
+         idPromConfigOffset=0
       )
 
       pemEcb = Sensor( '0x3A', 'amax5970', 'PEM_ECB_MAX5970', incomingBusIndex=0 )
@@ -817,6 +817,7 @@ class RackhawkPEM( PmUnitConfig ):
 class Rackhawk( PlatformConfig ):
    codename = 'darwin'
    hasPem = True
+   eepromOffset = 0
 
    def __init__( self ):
       super().__init__( self.codename, rootPmUnitName='SMB' )
@@ -824,7 +825,7 @@ class Rackhawk( PlatformConfig ):
       pmUnits = [
             RackhawkSwitch( self.hasPem ),
             FANUnit(),
-            RackhawkRackmon(),
+            RackhawkRackmon( self.eepromOffset ),
       ]
       if self.hasPem:
          pmUnits.append( RackhawkPEM() )
@@ -862,3 +863,4 @@ class Rackhawk( PlatformConfig ):
 class RackhawkORv3( Rackhawk ):
    codename = 'darwin48v'
    hasPem = False
+   eepromOffset = 15360

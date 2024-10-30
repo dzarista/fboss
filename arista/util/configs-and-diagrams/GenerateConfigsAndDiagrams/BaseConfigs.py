@@ -196,14 +196,14 @@ class SlotTypeConfig:
 
    def asJson( self ):
       idpCfg = self.parseIdpromConfig()
-
       assert self.numOutgoingI2cBuses is not None, (
          "numOutgoingI2cBuses is required"
       )
 
       return {
          "numOutgoingI2cBuses": self.numOutgoingI2cBuses,
-         **({ "idpromConfig": idpCfg } if idpCfg and all( idpCfg.values() ) else {}),
+         **({ "idpromConfig": idpCfg } if idpCfg and 
+            all( value is not None for value in idpCfg.values() ) else {}),
          "pmUnitName": self.pmUnitName
       }
 
