@@ -11,6 +11,7 @@ from ..BaseConfigs import (
    I2cDeviceConfig,
    I2cIdProm,
    LedConfig,
+   MiscConfig,
    PciDeviceConfig,
    PlatformConfig,
    PmUnitConfig,
@@ -92,6 +93,12 @@ class RackhawkScd( PciDeviceConfig ):
          LedConfig( ledName='FAN_STATUS_LED', offset='0x6060' ),
          LedConfig( ledName='PSU_STATUS_LED', offset='0x6070' ),
       ] )
+    
+   def addWatchdog( self ):
+      self.addMiscCtrlConfigs( [
+         MiscConfig( name="SCD_WDT1", deviceName="watchdog_darwin", offset="0x120" ),
+         MiscConfig( name="SCD_WDT2", deviceName="watchdog_darwin", offset="0x304" )
+      ] )
 
    @property
    def switchcardSmbusAccel( self ):
@@ -105,7 +112,7 @@ class BlackhawkCpld( I2cDeviceConfig ):
 
 
 class RackhawkSwitch( PmUnitConfig ):
-   def __init__( self, hasPem=True ):
+   def __init__( self, hasPem=True, hasWdt=True ):
       super().__init__( 'SMB' )
 
       self.hasPem = hasPem
@@ -134,6 +141,10 @@ class RackhawkSwitch( PmUnitConfig ):
 
       self.addPciDeviceConfigs( self.pciDevices )
       self.addI2cDeviceConfigs( self.i2cDevices )
+
+      # add watchdog settings
+      if hasWdt:
+         self.switchcardScd.addWatchdog()
 
       # Slots to Rackmon and PEM/PSU.
       outgoingSlotConfigs = [
@@ -817,13 +828,14 @@ class RackhawkPEM( PmUnitConfig ):
 class Rackhawk( PlatformConfig ):
    codename = 'darwin'
    hasPem = True
+   hasWdt = True
    eepromOffset = 0
 
    def __init__( self ):
       super().__init__( self.codename, rootPmUnitName='SMB' )
 
       pmUnits = [
-            RackhawkSwitch( self.hasPem ),
+            RackhawkSwitch( self.hasPem, self.hasWdt ),
             FANUnit(),
             RackhawkRackmon( self.eepromOffset ),
       ]
@@ -863,4 +875,5 @@ class Rackhawk( PlatformConfig ):
 class RackhawkORv3( Rackhawk ):
    codename = 'darwin48v'
    hasPem = False
+   hasWdt = False
    eepromOffset = 15360

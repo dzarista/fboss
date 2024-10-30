@@ -293,7 +293,19 @@
               "ledId": 1
             }
           ],
-          "xcvrCtrlConfigs": []
+          "xcvrCtrlConfigs": [],
+          "miscCtrlConfigs": [
+            {
+              "pmUnitScopedName": "SCD_WDT1",
+              "deviceName": "watchdog_darwin",
+              "csrOffset": "0x120"
+            },
+            {
+              "pmUnitScopedName": "SCD_WDT2",
+              "deviceName": "watchdog_darwin",
+              "csrOffset": "0x304"
+            }
+          ]
         }
       ],
       "embeddedSensorConfigs": [

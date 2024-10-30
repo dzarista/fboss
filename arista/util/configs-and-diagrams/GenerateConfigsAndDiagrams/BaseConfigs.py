@@ -836,6 +836,7 @@ class PciDeviceConfig:
       self.spiMasterConfigs = []
       self.ledCtrlConfigs = []
       self.xcvrCtrlConfigs = []
+      self.miscCtrlConfigs = []
       self.parentConfig = None
       self.node = None
 
@@ -872,6 +873,9 @@ class PciDeviceConfig:
          config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
 
+   def addMiscCtrlConfigs( self, newConfigs ):
+      self.miscCtrlConfigs.extend( newConfigs )
+
    def addLedCtrlConfigs( self, newConfigs ):
       self.ledCtrlConfigs.extend( newConfigs )
 
@@ -891,7 +895,9 @@ class PciDeviceConfig:
          "i2cAdapterConfigs": self.getI2cAdapterConfigsList(),
          "spiMasterConfigs": self.getSpiMasterConfigsList(),
          "ledCtrlConfigs": self.getLedCtrlConfigsList(),
-         "xcvrCtrlConfigs": self.getXcvrConfigsList()
+         "xcvrCtrlConfigs": self.getXcvrConfigsList(),
+         **({ "miscCtrlConfigs": [ cfg.asJson() for cfg in self.miscCtrlConfigs ] }
+            if self.miscCtrlConfigs else {}),
       }
 
    def getI2cAdapterConfigsList( self ):
@@ -1159,6 +1165,22 @@ class LedConfig:
       }
 
       return led
+
+
+class MiscConfig:
+   def __init__( self, name, deviceName, offset ):
+      self.name = name
+      self.deviceName = deviceName
+      self.offset = offset
+
+   def asJson( self ):
+      assert self.name and self.deviceName and self.offset, (
+         "Invalid misc config")
+      return {
+         "pmUnitScopedName": self.name,
+         "deviceName": self.deviceName,
+         "csrOffset": self.offset
+      }
 
 
 def enumerateXcvrConfigs( numConfigs, basePortNumber, portType, xcvrBaseOffset,
