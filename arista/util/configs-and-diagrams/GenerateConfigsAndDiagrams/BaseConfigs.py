@@ -1341,7 +1341,7 @@ class SCMFairywren( SCMUnit ):
          SensorConfig( "ECB_VIN", "in1_input", SensorType.VOLTAGE,
                        compute="@/32000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                           upperCriticalVal=14.4, lowerCriticalVal=10.5
                        ) ),
          SensorConfig( "ECB_VOUT", "in2_input", SensorType.VOLTAGE,
                        compute="@/32000.0",
