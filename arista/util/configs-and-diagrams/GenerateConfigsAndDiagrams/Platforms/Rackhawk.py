@@ -852,6 +852,7 @@ class Rackhawk( PlatformConfig ):
          'scd-leds',
          'scd-smbus',
          'scd-spi',
+         'scd-watchdog-darwin',
          'rook-fan-cpld',
          'blackhawk-cpld',
          'aslg4f4527',
