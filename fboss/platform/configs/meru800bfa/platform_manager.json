@@ -197,27 +197,27 @@
         },
         {
           "busName": "INCOMING@3",
-          "address": "0x60",
-          "kernelDeviceName": "fan_cpld0",
-          "pmUnitScopedName": "FAN0_CPLD"
-        },
-        {
-          "busName": "INCOMING@3",
           "address": "0x49",
           "kernelDeviceName": "lm75",
           "pmUnitScopedName": "FAN1_TMP75"
         },
         {
           "busName": "INCOMING@3",
-          "address": "0x61",
-          "kernelDeviceName": "fan_cpld1",
-          "pmUnitScopedName": "FAN1_CPLD"
-        },
-        {
-          "busName": "INCOMING@3",
           "address": "0x4a",
           "kernelDeviceName": "lm75",
           "pmUnitScopedName": "FAN2_TMP75"
+        },
+        {
+          "busName": "INCOMING@3",
+          "address": "0x60",
+          "kernelDeviceName": "fan_cpld0",
+          "pmUnitScopedName": "FAN0_CPLD"
+        },
+        {
+          "busName": "INCOMING@3",
+          "address": "0x61",
+          "kernelDeviceName": "fan_cpld1",
+          "pmUnitScopedName": "FAN1_CPLD"
         },
         {
           "busName": "INCOMING@3",
@@ -4284,12 +4284,12 @@
     "/run/devmap/sensors/SMB_ISL68226_OSFP_BR": "/SMB_SLOT@0/[SMB_ISL68226_OSFP_BR]",
     "/run/devmap/sensors/SMB_UCD90320": "/SMB_SLOT@0/[SMB_UCD90320]",
     "/run/devmap/sensors/FAN0_TMP75": "/SMB_SLOT@0/[FAN0_TMP75]",
+    "/run/devmap/sensors/FAN1_TMP75": "/SMB_SLOT@0/[FAN1_TMP75]",
+    "/run/devmap/sensors/FAN2_TMP75": "/SMB_SLOT@0/[FAN2_TMP75]",
     "/run/devmap/cplds/FAN0_CPLD": "/SMB_SLOT@0/[FAN0_CPLD]",
     "/run/devmap/sensors/FAN_CPLD0": "/SMB_SLOT@0/[FAN0_CPLD]",
-    "/run/devmap/sensors/FAN1_TMP75": "/SMB_SLOT@0/[FAN1_TMP75]",
     "/run/devmap/cplds/FAN1_CPLD": "/SMB_SLOT@0/[FAN1_CPLD]",
     "/run/devmap/sensors/FAN_CPLD1": "/SMB_SLOT@0/[FAN1_CPLD]",
-    "/run/devmap/sensors/FAN2_TMP75": "/SMB_SLOT@0/[FAN2_TMP75]",
     "/run/devmap/cplds/FAN2_CPLD": "/SMB_SLOT@0/[FAN2_CPLD]",
     "/run/devmap/sensors/FAN_CPLD2": "/SMB_SLOT@0/[FAN2_CPLD]",
     "/run/devmap/xcvrs/xcvr_1": "/SMB_SLOT@0/[OSFP_PORT1_XCVR]",
@@ -4430,7 +4430,7 @@
     "/run/devmap/sensors/PSU4_PMBUS": "/SMB_SLOT@0/PSU_SLOT@3/[PSU_PMBUS]"
   },
   "bspKmodsRpmName": "arista_bsp_kmods",
-  "bspKmodsRpmVersion": "0.7.4-1",
+  "bspKmodsRpmVersion": "0.7.5-1",
   "bspKmodsToReload": [
     "scd-xcvr",
     "scd-spi",

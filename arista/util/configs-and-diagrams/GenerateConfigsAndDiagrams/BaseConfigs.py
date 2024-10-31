@@ -26,7 +26,7 @@ def constructHelper( currDevice, currPath, outputList ):
       currDevice = currDevice.parentConfig
    platformConfig = currDevice.parentConfig
    if currDevice.pmUnitName == platformConfig.rootPmUnitName:
-      outputList.append( currPath )
+      outputList.append( currPath if currPath else "/" )
       return
    for pmUnit in platformConfig.pmUnitConfigs:
       for slotConfig in pmUnit.outgoingSlotConfigs:
@@ -51,6 +51,13 @@ def constructDevicePaths( device ):
    constructHelper( device, startPath, outputList )
    return outputList
 
+def constructSlotPaths( pmUnit ):
+   outputList = []
+   constructHelper( pmUnit, "", outputList )
+   return outputList
+
+def filterByPrefix( data, prefix ):
+   return [ item for item in data if item.get( 'name', '' ).startswith( prefix ) ]
 
 class Node:
    def __init__( self, name, shape="record", fillcolor="#5f97e4", **kwargs ):
@@ -82,7 +89,7 @@ class PlatformConfig:
       self.i2cAdaptersFromCpu = []
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
-         "bspKmodsRpmVersion": "0.7.4-1",
+         "bspKmodsRpmVersion": "0.7.5-1",
          "bspKmodsToReload": [],
          "sharedKmodsToReload": [],
          "upstreamKmodsToLoad": []
@@ -131,10 +138,12 @@ class PlatformConfig:
       self.kmodsSettings.update( newConfigDict )
 
    def sensorServiceJson( self ):
-      jsonDict = OrderedDict()
+      pmUnitSensorsList = []
       for pmConfig in self.pmUnitConfigs:
-         jsonDict.update( pmConfig.getSensorServiceDict() )
-      sensorConfigDict = { 'sensorMapList': jsonDict }
+         sensorServiceDictList = pmConfig.getSensorServiceDictList()
+         if sensorServiceDictList:
+            pmUnitSensorsList.extend( sensorServiceDictList )
+      sensorConfigDict = { 'pmUnitSensorsList': pmUnitSensorsList }
       output = json.dumps( sensorConfigDict, indent=2 )
       return output
 
@@ -187,14 +196,14 @@ class SlotTypeConfig:
 
    def asJson( self ):
       idpCfg = self.parseIdpromConfig()
-
       assert self.numOutgoingI2cBuses is not None, (
          "numOutgoingI2cBuses is required"
       )
 
       return {
          "numOutgoingI2cBuses": self.numOutgoingI2cBuses,
-         **({ "idpromConfig": idpCfg } if idpCfg and all( idpCfg.values() ) else {}),
+         **({ "idpromConfig": idpCfg } if idpCfg and 
+            all( value is not None for value in idpCfg.values() ) else {}),
          "pmUnitName": self.pmUnitName
       }
 
@@ -373,23 +382,36 @@ class PmUnitConfig:
    def getPciDeviceConfigsList( self ):
       return [ config.asJson() for config in self.pciDeviceConfigs ]
 
-   def getSensorServiceDict( self ):
-      sensorServiceDict = OrderedDict()
+   def getSensorServiceDictList( self ):
+      sensorsList = []
       for embeddedDevice in self.embeddedSensorConfigs:
-         configDict = embeddedDevice.getSensorConfigsDict()
-         for pmUnit in configDict:
-            if configDict[ pmUnit ]:
-               sensorServiceDict.setdefault( pmUnit, {} ).update(
-                  configDict[ pmUnit ]
-               )
+         configDict = embeddedDevice.getSensorConfigsList()
+         for sensorConfigItem in configDict:
+            sensorsList.append( sensorConfigItem )
       for i2cDevice in self.i2cDeviceConfigs:
-         configDict = i2cDevice.getSensorConfigsDict()
-         for pmUnit in configDict:
-            if configDict[ pmUnit ]:
-               sensorServiceDict.setdefault( pmUnit, {} ).update(
-                  configDict[ pmUnit ]
-               )
-      return sensorServiceDict
+         configDict = i2cDevice.getSensorConfigsList()
+         for sensorConfigItem in configDict:
+            sensorsList.append( sensorConfigItem )
+
+      if sensorsList:
+         sensorServiceDictList = []
+         slotPaths = constructSlotPaths( self )
+         assert slotPaths, f"Failed to generate slot path for {self.pmUnitName}"
+
+         for slotPath in slotPaths:
+            sensorServiceDict = OrderedDict()
+            sensorServiceDict.update( {"slotPath": slotPath} )
+            sensorServiceDict.update( {"pmUnitName": self.pmUnitName} )
+
+            if len( slotPaths ) > 1 and '@' in slotPath:
+               slotIdx = int( slotPath.split( '@' )[ -1 ] )
+               sensorsList2 = filterByPrefix( sensorsList, f'PSU{slotIdx + 1}' )
+               sensorServiceDict.update( {"sensors": sensorsList2} )
+            else:
+               sensorServiceDict.update( {"sensors": sensorsList} )   
+            
+            sensorServiceDictList.append( sensorServiceDict )
+         return sensorServiceDictList
 
    def renderCluster( self, incomingSlot ):
       # NOTE: FANs are handled as a special case since they don't contain any
@@ -517,26 +539,19 @@ class EmbeddedSensorConfig:
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
 
-   def getSensorConfigsDict( self ):
-      sensorDict = OrderedDict()
+   def getSensorConfigsList( self ):
+      sensorsList = []
       devicePaths = constructDevicePaths( self )
       pmUnitName = self.parentConfig.pmUnitName
       if len( devicePaths ) == 1:
-         sensorDict[ pmUnitName ] = OrderedDict()
          for config in self.sensorConfigs:
-            if config.prependPmUnit:
-               sensorDict[ pmUnitName ][
-                  f"{ pmUnitName }_{ config.name }" ] = config.toDict()
-            else:
-               sensorDict[ pmUnitName ][ config.name ] = config.toDict()
+            sensorsList.append( config.toDict() )
       else:
          for i in range( len( devicePaths ) ):
             pmUnit = f"{ pmUnitName }{ i+1 }"
-            sensorDict[ pmUnit ] = OrderedDict()
             for config in self.sensorConfigs:
-               sensorDict[ pmUnit ][
-                  f"{ pmUnitName }{ i+1 }_{ config.name }" ] = config.toDict( i+1 )
-      return sensorDict
+               sensorsList.append( config.toDict( i+1 ) )
+      return sensorsList
 
    def addSensorConfigs( self, newConfigs ):
       for config in newConfigs:
@@ -582,26 +597,21 @@ class I2cDeviceConfig:
          config.addParentConfigPointer( self )
       self.sensorConfigs.extend( newConfigs )
 
-   def getSensorConfigsDict( self ):
-      sensorDict = OrderedDict()
+   def getSensorConfigsList( self ):
+      sensorsList = []
       devicePaths = constructDevicePaths( self )
       pmUnitName = self.parentConfig.pmUnitName
       if len( devicePaths ) == 1:
-         sensorDict[ pmUnitName ] = OrderedDict()
          for config in self.sensorConfigs:
-            if config.prependPmUnit:
-               sensorDict[ pmUnitName ][
-                  f"{ pmUnitName }_{ config.name }" ] = config.toDict()
-            else:
-               sensorDict[ pmUnitName ][ config.name ] = config.toDict()
+            sensorsList.append( config.toDict() )
       else:
          for i in range( len( devicePaths ) ):
             pmUnit = f"{ pmUnitName }{ i+1 }"
-            sensorDict[ pmUnit ] = OrderedDict()
             for config in self.sensorConfigs:
-               sensorDict[ pmUnit ][
-                  f"{ pmUnitName }{ i+1 }_{ config.name }" ] = config.toDict( i+1 )
-      return sensorDict
+               thisConfig = config.toDict( i+1 )
+               thisConfig['name'] = f"{ pmUnitName }{ i+1 }_{ config.name }" 
+               sensorsList.append( thisConfig )
+      return sensorsList
 
    def asJson( self ):
       busName = self.busName
@@ -691,15 +701,15 @@ class FANCpld( I2cDeviceConfig ):
          self.symlinkPath: devicePath
       }
 
-   def getSensorConfigsDict( self ):
-      sensorDict = OrderedDict()
+   def getSensorConfigsList( self ):
+      sensorsList = []
       match = re.search( r'FAN(\d+)', self.pmUnitScopedName )
       baseFanIndex = 4 * int( match.group( 1 ) ) if match else 0
       for i, config in enumerate( self.sensorConfigs ):
-         sensorDict[ f"FAN{ baseFanIndex+i+1 }" ] = OrderedDict()
-         sensorDict[ f"FAN{ baseFanIndex+i+1 }" ][
-            f"FAN{ baseFanIndex+i+1 }_{ config.name }" ] = config.toDict()
-      return sensorDict
+         thisConfig = config.toDict( i )
+         thisConfig['name'] = f"FAN{ baseFanIndex+i+1 }_{ config.name }"
+         sensorsList.append( thisConfig )
+      return sensorsList
 
    def addFANRpms( self, numConfigs, upperCriticalVal, lowerCriticalVal ):
       newConfigs = []
@@ -826,6 +836,7 @@ class PciDeviceConfig:
       self.spiMasterConfigs = []
       self.ledCtrlConfigs = []
       self.xcvrCtrlConfigs = []
+      self.miscCtrlConfigs = []
       self.parentConfig = None
       self.node = None
 
@@ -862,6 +873,9 @@ class PciDeviceConfig:
          config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
 
+   def addMiscCtrlConfigs( self, newConfigs ):
+      self.miscCtrlConfigs.extend( newConfigs )
+
    def addLedCtrlConfigs( self, newConfigs ):
       self.ledCtrlConfigs.extend( newConfigs )
 
@@ -881,7 +895,9 @@ class PciDeviceConfig:
          "i2cAdapterConfigs": self.getI2cAdapterConfigsList(),
          "spiMasterConfigs": self.getSpiMasterConfigsList(),
          "ledCtrlConfigs": self.getLedCtrlConfigsList(),
-         "xcvrCtrlConfigs": self.getXcvrConfigsList()
+         "xcvrCtrlConfigs": self.getXcvrConfigsList(),
+         **({ "miscCtrlConfigs": [ cfg.asJson() for cfg in self.miscCtrlConfigs ] }
+            if self.miscCtrlConfigs else {}),
       }
 
    def getI2cAdapterConfigsList( self ):
@@ -1151,6 +1167,22 @@ class LedConfig:
       return led
 
 
+class MiscConfig:
+   def __init__( self, name, deviceName, offset ):
+      self.name = name
+      self.deviceName = deviceName
+      self.offset = offset
+
+   def asJson( self ):
+      assert self.name and self.deviceName and self.offset, (
+         "Invalid misc config")
+      return {
+         "pmUnitScopedName": self.name,
+         "deviceName": self.deviceName,
+         "csrOffset": self.offset
+      }
+
+
 def enumerateXcvrConfigs( numConfigs, basePortNumber, portType, xcvrBaseOffset,
                           ledBaseOffset, ledsPerXcvr, portNumberSkipStep=1 ):
    configs = []
@@ -1262,16 +1294,24 @@ class SensorConfig:
    def toDict( self, pmUnitIndex=None ):
       sensorDict = OrderedDict()
       baseSensorPath = self.parentConfig.symlinkPath
-      sensorDict[ 'path' ] = (
+      
+      if self.prependPmUnit and self.parentConfig:
+         pmUnitName = self.parentConfig.parentConfig.pmUnitName
+         sensorDict[ 'name' ] = f"{ pmUnitName }_{ self.name }"
+      else:
+         sensorDict[ 'name' ] = self.name
+
+      sensorDict[ 'sysfsPath' ] = (
          f"{ baseSensorPath.format( pmUnitIndex ) }/{ self.filename }"
          if pmUnitIndex and "{}" in baseSensorPath
          else f"{ baseSensorPath.format( pmUnitIndex ) }/{ self.filename }"
       )
+      sensorDict[ 'type' ] = self.sensorType.value
       if self.thresholds:
          sensorDict[ 'thresholds' ] = self.thresholds.toDict()
       if self.compute:
          sensorDict[ 'compute' ] = self.compute
-      sensorDict[ 'type' ] = self.sensorType.value
+      
       return sensorDict
 
    def addParentConfigPointer( self, parentConfig ):
@@ -1301,7 +1341,7 @@ class SCMFairywren( SCMUnit ):
          SensorConfig( "ECB_VIN", "in1_input", SensorType.VOLTAGE,
                        compute="@/32000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                           upperCriticalVal=14.4, lowerCriticalVal=10.5
                        ) ),
          SensorConfig( "ECB_VOUT", "in2_input", SensorType.VOLTAGE,
                        compute="@/32000.0",

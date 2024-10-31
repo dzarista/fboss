@@ -11,6 +11,7 @@ from ..BaseConfigs import (
    I2cDeviceConfig,
    I2cIdProm,
    LedConfig,
+   MiscConfig,
    PciDeviceConfig,
    PlatformConfig,
    PmUnitConfig,
@@ -92,6 +93,12 @@ class RackhawkScd( PciDeviceConfig ):
          LedConfig( ledName='FAN_STATUS_LED', offset='0x6060' ),
          LedConfig( ledName='PSU_STATUS_LED', offset='0x6070' ),
       ] )
+    
+   def addWatchdog( self ):
+      self.addMiscCtrlConfigs( [
+         MiscConfig( name="SCD_WDT1", deviceName="watchdog_darwin", offset="0x120" ),
+         MiscConfig( name="SCD_WDT2", deviceName="watchdog_darwin", offset="0x304" )
+      ] )
 
    @property
    def switchcardSmbusAccel( self ):
@@ -105,7 +112,7 @@ class BlackhawkCpld( I2cDeviceConfig ):
 
 
 class RackhawkSwitch( PmUnitConfig ):
-   def __init__( self, hasPem=True ):
+   def __init__( self, hasPem=True, hasWdt=True ):
       super().__init__( 'SMB' )
 
       self.hasPem = hasPem
@@ -118,8 +125,8 @@ class RackhawkSwitch( PmUnitConfig ):
       self.pciDevices.append( self.cpuCpld )
       self.addEmbeddedSensors()
       self.addCpuCardTempSensors()
-      self.addCpuCardDpm()
       self.addCpuCardVrms()
+      self.addCpuCardDpm()
 
       # Fan card devices.
       self.addFanCpld()
@@ -134,6 +141,10 @@ class RackhawkSwitch( PmUnitConfig ):
 
       self.addPciDeviceConfigs( self.pciDevices )
       self.addI2cDeviceConfigs( self.i2cDevices )
+
+      # add watchdog settings
+      if hasWdt:
+         self.switchcardScd.addWatchdog()
 
       # Slots to Rackmon and PEM/PSU.
       outgoingSlotConfigs = [
@@ -200,9 +211,22 @@ class RackhawkSwitch( PmUnitConfig ):
                               upperCriticalVal=105.0
                           ) ),
       ] )
+
+      pchThermal = EmbeddedSensorConfig(
+            pmUnitScopedName='PCH_THERMAL',
+            sysfsPath='/sys/devices/virtual/thermal/thermal_zone0'
+      )
+      pchThermal.addSensorConfigs( [
+            SensorConfig( "PCH_TEMP", "temp1_input", SensorType.TEMP,
+                          compute="@/1000.0", prependPmUnit=False,
+                          thresholds=Thresholds(
+                             upperCriticalVal=85.0
+                          ) ),
+      ] )
+
       self.addEmbeddedSensorConfigs( [
-         cpuCoreTemp,
-         # TODO: PCH thermal support
+            pchThermal,
+            cpuCoreTemp
       ] )
 
    def addCpuCardTempSensors( self ):
@@ -682,7 +706,7 @@ class RackhawkSwitch( PmUnitConfig ):
 
 
 class RackhawkRackmon( PmUnitConfig ):
-   def __init__( self ):
+   def __init__( self, eepromOffset ):
       super().__init__( 'RACKMON' )
 
       # TODO: Need PM to be able to handle other EEPROM formats
@@ -691,7 +715,7 @@ class RackhawkRackmon( PmUnitConfig ):
          idPromConfigBusName='INCOMING@0',
          idPromConfigAddress='0x52',
          idPromConfigKernelDeviceName='24c512',
-         idPromConfigOffset=15360
+         idPromConfigOffset=eepromOffset
       )
 
       aslg4f4527 = Sensor( '0x08', 'aslg4f4527', 'FS_FAN_SLG4F4527',
@@ -732,7 +756,7 @@ class RackhawkPEM( PmUnitConfig ):
          idPromConfigBusName='INCOMING@0',
          idPromConfigAddress='0x50',
          idPromConfigKernelDeviceName='24c512',
-         idPromConfigOffset=15360
+         idPromConfigOffset=0
       )
 
       pemEcb = Sensor( '0x3A', 'amax5970', 'PEM_ECB_MAX5970', incomingBusIndex=0 )
@@ -804,14 +828,16 @@ class RackhawkPEM( PmUnitConfig ):
 class Rackhawk( PlatformConfig ):
    codename = 'darwin'
    hasPem = True
+   hasWdt = True
+   eepromOffset = 0
 
    def __init__( self ):
       super().__init__( self.codename, rootPmUnitName='SMB' )
 
       pmUnits = [
-            RackhawkSwitch( self.hasPem ),
+            RackhawkSwitch( self.hasPem, self.hasWdt ),
             FANUnit(),
-            RackhawkRackmon(),
+            RackhawkRackmon( self.eepromOffset ),
       ]
       if self.hasPem:
          pmUnits.append( RackhawkPEM() )
@@ -826,6 +852,7 @@ class Rackhawk( PlatformConfig ):
          'scd-leds',
          'scd-smbus',
          'scd-spi',
+         'scd-watchdog-darwin',
          'rook-fan-cpld',
          'blackhawk-cpld',
          'aslg4f4527',
@@ -849,3 +876,5 @@ class Rackhawk( PlatformConfig ):
 class RackhawkORv3( Rackhawk ):
    codename = 'darwin48v'
    hasPem = False
+   hasWdt = False
+   eepromOffset = 15360
