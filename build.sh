@@ -19,7 +19,7 @@ else
 fi
 
 CENTOS_RELEASE_MAJOR=$(grep -o "[^ ]*$" /etc/centos-release | cut -d '.' -f 1)
-echo "Build iamge base centos version : el$CENTOS_RELEASE_MAJOR"
+echo "Build image base centos version : el$CENTOS_RELEASE_MAJOR"
 
 # workaround: barney doesn't process git files, so we need
 # simulated that .git dir exist for copytree.py:containing_repo_type

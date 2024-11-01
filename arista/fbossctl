@@ -5,11 +5,7 @@
 # This script allows users to build, package, and install FBOSS OSS, as well as
 # enter the containerized build environment.
 
-DEFAULT_BUILD_DIR="//garage/${USER}/fboss-build"
-if [[ -z "${FBOSS_BUILD_DIR}" ]]; then
-   echo "No FBOSS_BUILD_DIR defined in environment, using ${DEFAULT_BUILD_DIR}" 
-   FBOSS_BUILD_DIR="${DEFAULT_BUILD_DIR}"
-fi
+ARGS=("$@")
 
 DEFAULT_LINUX_KERNEL="6.4"
 if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
@@ -31,9 +27,10 @@ if [[ -z "${DOCKER_NAME}" ]]; then
    DOCKER_NAME="${DEFAULT_DOCKER_NAME}"
 fi
 
-FBOSS_HOST_DIR="${FBOSS_BUILD_DIR}/FBOSS_DIR"
 FBOSS_CONTAINER_BASE="/var/FBOSS"
 FBOSS_REPO_DIR="$(git rev-parse --show-toplevel)"
+FBOSS_BUILD_DIR="${FBOSS_REPO_DIR}/fboss-build"
+FBOSS_HOST_DIR="${FBOSS_BUILD_DIR}/FBOSS_DIR"
 FBOSS_RPM_DIR="${FBOSS_HOST_DIR}/rpmbuild/RPMS/"
 
 prog="$0"
@@ -187,10 +184,25 @@ run_cmd_container() {
    # Run the given command in an FBOSS OSS build container. Note that we mount
    # the git repo inside of the build directory: this is needed for the build
    # scripts.
-   docker run -l owner="${USER}" --privileged --rm -it \
-      -v "${FBOSS_HOST_DIR}":/var/FBOSS/ \
-      -v "${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
-      -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" $@
+   if [[ " ${ARGS[*]} " =~ "--non_homebus" ]]; then
+      echo "--non_homebus flag is passed"
+
+      # Filter out --non_homebus flag
+      for arg in "$@"; do
+         [[ "$arg" != "--non_homebus" ]] && filtered_args+=("$arg")
+      done
+
+      docker run -l owner="${USER}" --privileged --rm -it \
+         -v "${FBOSS_HOST_DIR}":/var/FBOSS/ \
+         -v "${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
+         -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" "${filtered_args[@]}"
+   else
+      echo "Running fbossctl on homebus"
+      docker run -l owner="${USER}" --rm -it \
+         -v "/b5/container/$(hostname)/rootfs/data${FBOSS_HOST_DIR}":/var/FBOSS/ \
+         -v "/b5/container/$(hostname)/rootfs/data${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
+         -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" $@
+   fi
 }
 
 enter_container_shell() {
@@ -203,7 +215,7 @@ do_build() {
    setup
    run_cmd_container bash build.sh $@ --kernel "${FBOSS_LINUX_KERNEL}"
    # Restore files that have potentially been clobbered by the FBOSS build process.
-   git -C "$FBOSS_REPO_DIR" restore "build/*"
+   sudo git -C "$FBOSS_REPO_DIR" restore "build/*"
 }
 
 do_package() {
