@@ -852,7 +852,7 @@ class Rackhawk( PlatformConfig ):
          'scd-leds',
          'scd-smbus',
          'scd-spi',
-         'scd-watchdog-darwin',
+         *( [ 'scd-watchdog-darwin' ] if self.hasWdt else [] ),
          'rook-fan-cpld',
          'blackhawk-cpld',
          'aslg4f4527',
