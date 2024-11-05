@@ -3,14 +3,14 @@
 import argparse
 import ast
 import importlib
+import json
 import sys
 
 sys.path.append( "/opt/fboss/lib/fb-py-libs" )
 sys.path.append( "/opt/fboss/lib/fb-py-libs/gen-py" )
 
-from thrift.transport import TSocket
-from thrift.transport import TTransport
-from thrift.protocol import TBinaryProtocol
+from thrift.protocol import TBinaryProtocol, TJSONProtocol
+from thrift.transport import TSocket, TTransport
 
 tool_description = '''This tool can be used to fetch data on a device from thrift
 
@@ -35,10 +35,21 @@ SERVICE_MAPPING = {
    # 6909: TODO: bgpThriftPort, 
 }
 
+def thrift_to_dict( obj ):
+   if isinstance( obj, list ):
+      return [ thrift_to_dict( item ) for item in obj ]
+   elif isinstance( obj, dict ):
+      return { key: thrift_to_dict( value ) for key, value in obj.items() }
+   elif hasattr( obj, "__dict__" ):
+      return { key: thrift_to_dict( value ) for key, value in obj.__dict__.items() }
+   else:
+      return obj
+
 class FbossThriftctl:
    def __init__( self, port, host='localhost' ):
       self.host = host
       self.port = port
+      self.transport = None
 
    def getClient( self, protocol, port ):
       service_path = SERVICE_MAPPING.get( port )
@@ -70,9 +81,15 @@ class FbossThriftctl:
       except Exception as e:
          print( f"Error connecting: {str(e)}" )
 
-   def close(self):
+   def close( self ):
       if self.transport:
          self.transport.close()
+   
+   def parseResponseJson( self, response ):
+      pf = TJSONProtocol.TJSONProtocolFactory()
+      json_protocol = pf.getProtocol( self.transport )
+      json_data = thrift_to_dict( response )
+      return json.dumps( json_data, indent=2 )
 
 def list_ports():
    for port, path in SERVICE_MAPPING.items():
@@ -110,6 +127,8 @@ def parseArgs( argv ):
    request.add_argument( '-p', '--port', required=True, type=int,
                           help='Port on which the thrift endpoint is on' )
    request.add_argument( '--host', default='localhost', required=False )
+   request.add_argument( '--json', action='store_true', default=False,
+                          required=False )
 
    listports = subparsers.add_parser( 'listPorts', help='list ports' )
 
@@ -133,6 +152,8 @@ def main( argv ):
       if args.operation == 'request':   
          processed_args = [ process_arg( arg ) for arg in args.args ]
          result = call_method( thirftctl.client, args.method, *processed_args )
+         if args.json:
+            result = thirftctl.parseResponseJson( result )
          print(result)
       elif args.operation == 'listMethods':
          result = thirftctl.listMethods()
