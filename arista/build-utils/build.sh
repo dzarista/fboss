@@ -3,7 +3,7 @@
 # Add /usr/local/bin, for doxygen.
 export PATH="$PATH:/usr/local/bin"
 
-if [ -f /.dockerenv ]; then
+if [ -f /proc/self/cgroup ]; then
    echo "running in a container - assuming /var/FBOSS base"
    FBOSS_DIR="/var/FBOSS"
 else
@@ -124,11 +124,10 @@ if [ "$CENTOS_RELEASE_MAJOR" = "8" ]; then
 fi
 
 # install missing dependencies for SDK build.
-dnf install -y sudo
-sudo dnf install --enablerepo "$DEV_TOOLS_REPO" -y perl-List-MoreUtils perl-YAML.noarch \
+dnf install --enablerepo "$DEV_TOOLS_REPO" -y perl-List-MoreUtils perl-YAML.noarch \
    perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel doxygen \
    yaml-cpp-static
-sudo dnf install -y python3-filelock platform-python-devel double-conversion-devel
+dnf install -y python3-filelock platform-python-devel double-conversion-devel
 
 # Link the libyaml cpp staticl library to the path that the SDK build expects.
 ln -s /usr/lib64/libyaml-cpp.a  /usr/lib64/libyaml.a
@@ -159,7 +158,7 @@ fi
 export SDK=""
 cd $SAI_BUILD_DIR
 export KERNDIR="$KERNEL_SRC"
-export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.30_SAI_11.3.0_GA/$ARCH-sdk-6.5.30-gpl-modules"
+export BCM_KERNEL_MODULES_DIR="$SAI_DIR/sdk-src/hsdk_6.5.30_SAI_11.0.0_EA/$ARCH-sdk-6.5.30-gpl-modules"
 echo "****REBUILD_SDK $REBUILD_SDK"
 if ! [ -z "$REBUILD_SDK" ];
 then
@@ -228,12 +227,9 @@ cd $FBOSS_DIR/fboss.git
 # stable commit hash
 rm -rf build/deps/github_hashes/facebook
 rm -rf build/deps/github_hashes/facebookincubator
-tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz
+tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
 
 echo "======= Starting FBOSS build ========"
-
-# Install dependencies for FBOSS build
-bash $FBOSS_DIR/fboss.git/installer/centos-8-x64_64/install-tools.sh
 
 # Prepare FBOSS Build
 echo "****FBOSS_BINS_ONLY $FBOSS_BINS_ONLY"
@@ -256,12 +252,6 @@ else
    export SAI_ONLY=1
    export SAI_BRCM_IMPL=1 # Needed only for BRCM SAI
    export GETDEPS_USE_WGET=1
-   # 11.3 GA and later releases include a EDK firmware image for firmware based
-   # isolate.
-   # Env var pointing to the EDK firmware image ld script file. We use the env var in
-   # the FBOSS cmake configuration to make the linker use this script for linking all
-   # FBOSS binaries.
-   export SAI_EDK_HOST_LDS_PATH="$SAI_BUILD_DIR/libraries/edk-host-image.lds"
    cd "$FBOSS_DIR/fboss.git"
 
    echo "****BUILD_KNOWN_GOOD_HASH $BUILD_KNOWN_GOOD_HASH"
@@ -291,6 +281,10 @@ else
          sed -i 's/STANDARD 17/STANDARD 20/g' "$REPO_PREFIX-$fboss_dep.git/CMakeLists.txt"
       done
    fi
+   rm -rf "$SCRATCH_DIR"/fboss_bins*
+
+   # clear repo symlink as it throws "file exists" error when attempting to create it again
+   rm -rf "$SCRATCH_DIR"/repos/github.com-facebook-fboss.git
    time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
       --scratch-path "$SCRATCH_DIR" fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$BUILD_TYPE\"}"
    cd $FBOSS_DIR/fboss.git
@@ -335,6 +329,12 @@ else
    cp -f $FBOSS_DIR/fboss.git/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
    make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 
+   echo "****BUILDING PSU UPGRADE DEPENDENCIES"
+   make -C $FBOSS_DIR/fboss.git/arista/psu-upgrade
+   mkdir -p $SCRATCH_DIR/psu-upgrade
+   cp -f $FBOSS_DIR/fboss.git/arista/psu-upgrade/psu-upgrade $SCRATCH_DIR/psu-upgrade/
+   make -C $FBOSS_DIR/fboss.git/arista/psu-upgrade clean
+
    # Copy over kernel modules
    mkdir -p "$fboss_output_dir/lib/modules"
    for kernel_module in linux-kernel-bde.ko linux-user-bde.ko linux-bcm-knet.ko
@@ -347,7 +347,8 @@ else
    # Copy over firmware files
    for fw in custom_led.bin linkscan_led_fw.bin
    do
-      fw_path=$(find $FBOSS_DIR -name "$fw")
+      # find each file's path and avoid system loops
+      fw_path=$(find $FBOSS_DIR -path $FBOSS_DIR/fboss.git -prune -o -name "$fw" -print)
       echo "Copying $fw from $fw_path to $fboss_output_dir"
       cp $fw_path $fboss_output_dir
    done
@@ -356,6 +357,9 @@ else
    $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/ctrl.thrift
    $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/hw_ctrl.thrift
    $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/qsfp_service/if/qsfp.thrift
+   $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/platform/fan_service/if/fan_service.thrift
+   $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/platform/rackmon/if/rackmonsvc.thrift
+   $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/platform/sensor_service/if/sensor_service.thrift
    mkdir -p $fboss_output_dir/lib/fb-py-libs
    cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
    cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
@@ -363,7 +367,7 @@ else
 
    # Cache the fboss commit that we built, this will be packaged and available on the
    # box at /opt/fboss when arista-fboss-core RPM is installed.
-   fboss_commit=$(cd $SCRATCH_DIR/repos/github.com-facebook-fboss.git && git rev-parse HEAD)
+   fboss_commit=$(cd $SCRATCH_DIR/repos/github.com-facebook-fboss.git && git -c safe.directory=$FBOSS_DIR/fboss.git rev-parse HEAD)
    echo "arista-fboss@$fboss_commit" > $fboss_output_dir/arista-fboss-version
 fi
 

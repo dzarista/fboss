@@ -3,6 +3,7 @@
 #include "fboss/agent/test/utils/PfcTestUtils.h"
 #include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
+#include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 #include "fboss/agent/test/utils/AclTestUtils.h"
 
 #include <gtest/gtest.h>
@@ -15,8 +16,8 @@ static const std::vector<int> kLossyPgIds{0};
 
 void setupQosMapForPfc(
     cfg::QosMap& qosMap,
-    const std::map<int, int>& tc2PgOverride = {},
-    const std::map<int, int>& pfcPri2PgIdOverride = {}) {
+    bool isCpuQosMap,
+    const std::map<int, int>& tc2PgOverride = {}) {
   // update pfc maps
   std::map<int16_t, int16_t> tc2PgId;
   std::map<int16_t, int16_t> tc2QueueId;
@@ -25,19 +26,20 @@ void setupQosMapForPfc(
   // program defaults
   for (auto i = 0; i < 8; i++) {
     tc2PgId.emplace(i, i);
-    // Jericho3 cpu/recycle port only has 2 egress queues. Tomahawk has more
-    // queues, but we stick to the lowest common denominator here.
-    // See https://fburl.com/gdoc/nyyg1cve and https://fburl.com/code/mhdeuiky
-    tc2QueueId.emplace(i, i < 7 ? 0 : 1);
+    if (isCpuQosMap) {
+      // Jericho3 cpu/recycle port only has 2 egress queues. Tomahawk has more
+      // queues, but we stick to the lowest common denominator here.
+      // See https://fburl.com/gdoc/nyyg1cve and https://fburl.com/code/mhdeuiky
+      tc2QueueId.emplace(i, i < 7 ? 0 : 1);
+    } else {
+      tc2QueueId.emplace(i, i);
+    }
     pfcPri2PgId.emplace(i, i);
     pfcPri2QueueId.emplace(i, i);
   }
 
   for (auto& tc2Pg : tc2PgOverride) {
     tc2PgId[tc2Pg.first] = tc2Pg.second;
-  }
-  for (auto& tmp : pfcPri2PgIdOverride) {
-    pfcPri2PgId[tmp.first] = tmp.second;
   }
 
   qosMap.dscpMaps()->resize(8);
@@ -53,23 +55,15 @@ void setupQosMapForPfc(
   qosMap.pfcPriorityToQueueId() = std::move(pfcPri2QueueId);
 }
 
-void setupPfc(cfg::SwitchConfig& cfg, const std::vector<PortID>& ports) {
+void setupPfc(
+    facebook::fboss::AgentEnsemble* ensemble,
+    cfg::SwitchConfig& cfg,
+    const std::vector<PortID>& ports,
+    const std::map<int, int>& tcToPgOverride) {
   cfg::PortPfc pfc;
   pfc.tx() = true;
   pfc.rx() = true;
   pfc.portPgConfigName() = "foo";
-
-  cfg::QosMap qosMap;
-  // setup qos map with pfc structs
-  setupQosMapForPfc(qosMap);
-
-  // setup qosPolicy
-  cfg.qosPolicies()->resize(1);
-  cfg.qosPolicies()[0].name() = "qp";
-  cfg.qosPolicies()[0].qosMap() = std::move(qosMap);
-  cfg::TrafficPolicyConfig dataPlaneTrafficPolicy;
-  dataPlaneTrafficPolicy.defaultQosPolicy() = "qp";
-  cfg.dataPlaneTrafficPolicy() = std::move(dataPlaneTrafficPolicy);
 
   for (const auto& portID : ports) {
     auto portCfg = std::find_if(
@@ -78,6 +72,39 @@ void setupPfc(cfg::SwitchConfig& cfg, const std::vector<PortID>& ports) {
         });
     portCfg->pfc() = pfc;
   }
+
+  // setup qosPolicy
+  auto setupQosPolicy = [&](bool isCpuQosMap, const std::string& name) {
+    cfg::QosMap qosMap;
+    setupQosMapForPfc(qosMap, isCpuQosMap, tcToPgOverride);
+    auto qosPolicy = cfg::QosPolicy();
+    *qosPolicy.name() = name;
+    qosPolicy.qosMap() = std::move(qosMap);
+    cfg.qosPolicies()->push_back(qosPolicy);
+    cfg::TrafficPolicyConfig trafficPolicy;
+    trafficPolicy.defaultQosPolicy() = name;
+    return trafficPolicy;
+  };
+  auto dataTrafficPolicy = setupQosPolicy(false /*isCpuQosMap*/, "qp");
+  if (ensemble->getHwAsicTable()
+          ->getHwAsics()
+          .cbegin()
+          ->second->getSwitchType() == cfg::SwitchType::VOQ) {
+    cfg::CPUTrafficPolicyConfig cpuPolicy;
+    const std::string kCpuQueueingPolicy{"cpuQp"};
+    cpuPolicy.trafficPolicy() =
+        setupQosPolicy(true /*isCpuQosMap*/, kCpuQueueingPolicy);
+    cfg.cpuTrafficPolicy() = std::move(cpuPolicy);
+    std::map<int, std::string> portIdToQosPolicy{};
+    for (const auto& portId : ensemble->masterLogicalPortIds(
+             {cfg::PortType::CPU_PORT, cfg::PortType::RECYCLE_PORT})) {
+      portIdToQosPolicy[static_cast<int>(portId)] = kCpuQueueingPolicy;
+    }
+    if (portIdToQosPolicy.size()) {
+      dataTrafficPolicy.portIdToQosPolicy() = std::move(portIdToQosPolicy);
+    }
+  }
+  cfg.dataPlaneTrafficPolicy() = dataTrafficPolicy;
 }
 
 void setupBufferPoolConfig(
@@ -149,11 +176,13 @@ void setupPortPgConfig(
 } // namespace
 
 void setupPfcBuffers(
+    facebook::fboss::AgentEnsemble* ensemble,
     cfg::SwitchConfig& cfg,
     const std::vector<PortID>& ports,
     const std::vector<int>& losslessPgIds,
+    const std::map<int, int>& tcToPgOverride,
     PfcBufferParams buffer) {
-  setupPfc(cfg, ports);
+  setupPfc(ensemble, cfg, ports, tcToPgOverride);
 
   std::map<std::string, std::vector<cfg::PortPgConfig>> portPgConfigMap;
   setupPortPgConfig(
@@ -166,7 +195,8 @@ void setupPfcBuffers(
   cfg.portPgConfigs() = std::move(portPgConfigMap);
 
   // create buffer pool
-  std::map<std::string, cfg::BufferPoolConfig> bufferPoolCfgMap;
+  std::map<std::string, cfg::BufferPoolConfig> bufferPoolCfgMap =
+      cfg.bufferPoolConfigs().ensure();
   setupBufferPoolConfig(
       bufferPoolCfgMap, buffer.globalShared, buffer.globalHeadroom);
   cfg.bufferPoolConfigs() = std::move(bufferPoolCfgMap);
@@ -192,6 +222,23 @@ void addPuntPfcPacketAcl(cfg::SwitchConfig& cfg, uint16_t queueId) {
       .matchToAction()
       .ensure()
       .push_back(matchToAction);
+}
+
+std::string pfcStatsString(const HwPortStats& stats) {
+  std::stringstream ss;
+  ss << "outBytes=" << stats.get_outBytes_()
+     << " inBytes=" << stats.get_inBytes_()
+     << " outUnicastPkts=" << stats.get_outUnicastPkts_()
+     << " inUnicastPkts=" << stats.get_inUnicastPkts_()
+     << " inDiscards=" << stats.get_inDiscards_()
+     << " inErrors=" << stats.get_inErrors_();
+  for (auto [qos, value] : stats.get_inPfc_()) {
+    ss << " inPfc[" << qos << "]=" << value;
+  }
+  for (auto [qos, value] : stats.get_outPfc_()) {
+    ss << " outPfc[" << qos << "]=" << value;
+  }
+  return ss.str();
 }
 
 } // namespace facebook::fboss::utility

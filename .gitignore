@@ -3,7 +3,9 @@
 /build
 /external
 /external.install
+/fboss-build
 .*.swp
 arista/util/DSF*
 *__pycache__*
 arista/build-utils/tmp_build_dir/
+gen-py/

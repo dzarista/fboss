@@ -25,6 +25,7 @@ cpp_library(
         ":serializer",
         "//fatal:fatal",
         "//folly:conv",
+        "//thrift/lib/cpp/util:enum_utils",
         "//thrift/lib/cpp2/reflection:reflection",
     ],
 )
@@ -32,6 +33,7 @@ cpp_library(
 cpp_library(
     name = "nodes",
     headers = [
+        "ThriftHybridNode-inl.h",
         "ThriftListNode-inl.h",
         "ThriftMapNode-inl.h",
         "ThriftPrimitiveNode-inl.h",
@@ -51,6 +53,7 @@ cpp_library(
         "//fboss/fsdb/if:fsdb_oper-cpp2-types",
         "//fboss/thrift_cow/visitors:visitors",
         "//folly:conv",
+        "//folly:dynamic",
         "//folly:fbstring",
         "//folly/json:dynamic",
         "//thrift/lib/cpp2/folly_dynamic:folly_dynamic",

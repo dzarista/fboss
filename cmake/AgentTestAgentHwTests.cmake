@@ -50,6 +50,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/MultiNodeAgentVoqSwitchTests.cpp
   fboss/agent/test/agent_hw_tests/AgentHwAclMatchActionsTest.cpp
   fboss/agent/test/agent_hw_tests/AgentHwAclQualifierTest.cpp
+  fboss/agent/test/agent_hw_tests/AgentHwAclStatTests.cpp
 )
 
 target_link_libraries(agent_hw_test_src
@@ -77,6 +78,7 @@ target_link_libraries(agent_hw_test_src
   trunk_utils
   traffic_policy_utils
   olympic_qos_utils
+  pfc_test_utils
   qos_test_utils
   queue_test_utils
   invariant_test_utils
@@ -91,6 +93,7 @@ target_link_libraries(agent_hw_test_src
   load_balancer_test_utils
   l2learn_observer_util
   mac_test_utils
+  multi_port_traffic_test_utils
   port_stats_test_utils
   utils
   sflow_shim_utils

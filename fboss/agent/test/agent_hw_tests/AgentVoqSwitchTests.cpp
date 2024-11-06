@@ -1,6 +1,8 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
 #include "fboss/agent/DsfStateUpdaterUtil.h"
+#include "fboss/agent/FabricConnectivityManager.h"
+#include "fboss/agent/FbossHwUpdateError.h"
 #include "fboss/agent/TxPacket.h"
 #include "fboss/agent/hw/HwResourceStatsPublisher.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
@@ -11,6 +13,7 @@
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/utils/AclTestUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
+#include "fboss/agent/test/utils/DsfConfigUtils.h"
 #include "fboss/agent/test/utils/FabricTestUtils.h"
 #include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
@@ -212,12 +215,12 @@ class AgentVoqSwitchTest : public AgentHwTest {
   }
 
   int sendPacket(
-      const folly::IPAddressV6& dstIp,
+      const folly::IPAddress& dstIp,
       std::optional<PortID> frontPanelPort,
       std::optional<std::vector<uint8_t>> payload =
           std::optional<std::vector<uint8_t>>(),
       int dscp = 0x24) {
-    folly::IPAddressV6 kSrcIp("1::1");
+    folly::IPAddress kSrcIp(dstIp.isV6() ? "1::1" : "1.0.0.1");
     const auto srcMac = utility::kLocalCpuMac();
     const auto dstMac = utility::kLocalCpuMac();
 
@@ -439,7 +442,7 @@ class AgentVoqSwitchWithFabricPortsTest : public AgentVoqSwitchTest {
         true, /*setInterfaceMac*/
         utility::kBaseVlanId,
         true /*enable fabric ports*/);
-    utility::populatePortExpectedNeighbors(
+    utility::populatePortExpectedNeighborsToSelf(
         ensemble.masterLogicalPortIds(), config);
     return config;
   }
@@ -493,6 +496,10 @@ class AgentVoqSwitchWithFabricPortsTest : public AgentVoqSwitchTest {
     // Allow disabling of looped ports. This should
     // be a noop for VOQ switches
     FLAGS_disable_looped_fabric_ports = true;
+    // Fabric connectivity manager to expect single NPU
+    if (!FLAGS_multi_switch) {
+      FLAGS_janga_single_npu_for_testing = true;
+    }
   }
 };
 
@@ -527,6 +534,27 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, collectStats) {
         auto pitr = port2Stats.find(portId);
         EXPECT_EVENTUALLY_TRUE(pitr != port2Stats.end());
         EXPECT_EVENTUALLY_TRUE(pitr->second.cableLengthMeters().has_value());
+      }
+      auto state = getProgrammedState();
+      for (auto& portMap : std::as_const(*state->getPorts())) {
+        for (auto& [_, port] : std::as_const(*portMap.second)) {
+          auto loadBearingInErrors = fb303::fbData->getCounterIfExists(
+              port->getName() + ".load_bearing_in_errors.sum.60");
+          auto loadBearingFecErrors = fb303::fbData->getCounterIfExists(
+              port->getName() +
+              ".load_bearing_fec_uncorrectable_errors.sum.60");
+          auto loadBearingFlaps = fb303::fbData->getCounterIfExists(
+              port->getName() + ".load_bearing_link_state.flap.sum.60");
+          if (port->getPortType() == cfg::PortType::FABRIC_PORT) {
+            EXPECT_EVENTUALLY_TRUE(loadBearingInErrors.has_value());
+            EXPECT_EVENTUALLY_TRUE(loadBearingFecErrors.has_value());
+            EXPECT_EVENTUALLY_TRUE(loadBearingFlaps.has_value());
+          } else {
+            EXPECT_FALSE(loadBearingInErrors.has_value());
+            EXPECT_FALSE(loadBearingFecErrors.has_value());
+            EXPECT_FALSE(loadBearingFlaps.has_value());
+          }
+        }
       }
     });
   };
@@ -1348,14 +1376,24 @@ TEST_F(AgentVoqSwitchTest, packetIntegrityError) {
       auto switchStats = getSw()->getHwSwitchStatsExpensive()[switchIndex];
       auto pktIntegrityDrops =
           switchStats.switchDropStats()->packetIntegrityDrops().value_or(0);
-      XLOG(INFO) << " Packet integrity drops: " << pktIntegrityDrops;
+      auto corruptedCellPacketIntegrityDrops =
+          switchStats.switchDropStats()
+              ->corruptedCellPacketIntegrityDrops()
+              .value_or(0);
+      XLOG(INFO) << " Packet integrity drops: " << pktIntegrityDrops
+                 << " Corrupted cell integrity drops: "
+                 << corruptedCellPacketIntegrityDrops;
       EXPECT_EVENTUALLY_GT(pktIntegrityDrops, 0);
+      // TODO: corruptedCellPacketIntegrityDrops should increment here.
+      // But its not, uncomment the check below once we get
+      // CS00012336139 resolved
+      // EXPECT_EVENTUALLY_GT(corruptedCellPacketIntegrityDrops, 0);
     });
     // Assert that packet Integrity drops don't continuously increment.
     // Packet integrity drop counter is clear on read from HW. So we
     // accumulate its value in memory. If HW/SDK ever changed this to
     // not be clear on read, but cumulative, then our approach would
-    // yeild constantly increasing values. Assert against that.
+    // yield constantly increasing values. Assert against that.
     checkNoStatsChange(30);
   };
   verifyAcrossWarmBoots(setup, verify);
@@ -1457,7 +1495,7 @@ class AgentVoqSwitchWithMultipleDsfNodesTest : public AgentVoqSwitchTest {
 
   std::optional<std::map<int64_t, cfg::DsfNode>> overrideDsfNodes(
       const std::map<int64_t, cfg::DsfNode>& curDsfNodes) const {
-    return utility::addRemoteDsfNodeCfg(curDsfNodes, 1);
+    return utility::addRemoteIntfNodeCfg(curDsfNodes, 1);
   }
   SwitchID getRemoteVoqSwitchId() const {
     auto dsfNodes = getSw()->getConfig().dsfNodes();
@@ -1512,7 +1550,7 @@ TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, twoDsfNodes) {
 
 TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, remoteSystemPort) {
   auto setup = [this]() {
-    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // in addRemoteIntfNodeCfg, we use numCores to calculate the remoteSwitchId
     // keeping remote switch id passed below in sync with it
     int numCores =
         utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
@@ -1545,7 +1583,7 @@ TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, remoteSystemPort) {
 
 TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, remoteRouterInterface) {
   auto setup = [this]() {
-    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // in addRemoteIntfNodeCfg, we use numCores to calculate the remoteSwitchId
     // keeping remote switch id passed below in sync with it
     int numCores =
         utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
@@ -1580,7 +1618,7 @@ TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, remoteRouterInterface) {
 
 TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, addRemoveRemoteNeighbor) {
   auto setup = [this]() {
-    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // in addRemoteIntfNodeCfg, we use numCores to calculate the remoteSwitchId
     // keeping remote switch id passed below in sync with it
     int numCores =
         utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
@@ -1645,7 +1683,7 @@ TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, voqDelete) {
   const SystemPortID kRemoteSysPortId(remotePortId);
   folly::IPAddressV6 kNeighborIp("100::2");
   auto setup = [=, this]() {
-    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // in addRemoteIntfNodeCfg, we use numCores to calculate the remoteSwitchId
     // keeping remote switch id passed below in sync with it
     int numCores =
         utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
@@ -1725,7 +1763,7 @@ TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, stressAddRemoveObjects) {
     const SystemPortID kRemoteSysPortId(remotePortId);
     folly::IPAddressV6 kNeighborIp("100::2");
     utility::EcmpSetupAnyNPorts6 ecmpHelper(getProgrammedState());
-    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // in addRemoteIntfNodeCfg, we use numCores to calculate the remoteSwitchId
     // keeping remote switch id passed below in sync with it
     int numCores =
         utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
@@ -1828,7 +1866,7 @@ TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, voqTailDropCounter) {
   auto constexpr remotePortId = 401;
   const SystemPortID kRemoteSysPortId(remotePortId);
   auto setup = [=, this]() {
-    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // in addRemoteIntfNodeCfg, we use numCores to calculate the remoteSwitchId
     // keeping remote switch id passed below in sync with it
     int numCores =
         utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
@@ -1874,12 +1912,81 @@ TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, voqTailDropCounter) {
   verifyAcrossWarmBoots(setup, verify);
 };
 
+TEST_F(
+    AgentVoqSwitchWithMultipleDsfNodesTest,
+    sendPktsToRemoteUnresolvedNeighbor) {
+  auto constexpr kRemotePortId = 401;
+  const SystemPortID kRemoteSysPortId(kRemotePortId);
+  auto setup = [=, this]() {
+    // in addRemoteIntfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // keeping remote switch id passed below in sync with it
+    int numCores =
+        utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+            ->getNumCores();
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteSysPort(
+          in,
+          scopeResolver(),
+          kRemoteSysPortId,
+          static_cast<SwitchID>(
+              numCores * getAgentEnsemble()->getNumL3Asics()));
+    });
+    const InterfaceID kIntfId(kRemotePortId);
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      return utility::addRemoteInterface(
+          in,
+          scopeResolver(),
+          kIntfId,
+          {
+              {folly::IPAddress("100::1"), 64},
+              {folly::IPAddress("100.0.0.1"), 24},
+          });
+    });
+  };
+
+  auto verify = [=, this]() {
+    PortID portId = masterLogicalInterfacePortIds()[0];
+    folly::IPAddressV6 kNeighbor6Ip("100::2");
+    folly::IPAddressV4 kNeighbor4Ip("100.0.0.2");
+    auto portStatsBefore = getLatestPortStats(portId);
+    auto switchDropStatsBefore = getAggregatedSwitchDropStats();
+    sendPacket(kNeighbor6Ip, portId);
+    sendPacket(kNeighbor4Ip, portId);
+    WITH_RETRIES({
+      auto portStatsAfter = getLatestPortStats(portId);
+      auto switchDropStatsAfter = getAggregatedSwitchDropStats();
+      EXPECT_EVENTUALLY_EQ(
+          2,
+          *portStatsAfter.inDiscardsRaw_() - *portStatsBefore.inDiscardsRaw_());
+      EXPECT_EVENTUALLY_EQ(
+          2,
+          *portStatsAfter.inDstNullDiscards_() -
+              *portStatsBefore.inDstNullDiscards_());
+      EXPECT_EVENTUALLY_EQ(
+          *portStatsAfter.inDiscardsRaw_(),
+          *portStatsAfter.inDstNullDiscards_());
+      EXPECT_EVENTUALLY_EQ(
+          *switchDropStatsAfter.ingressPacketPipelineRejectDrops() -
+              *switchDropStatsBefore.ingressPacketPipelineRejectDrops(),
+          2);
+      // Pipeline reject drop, not a queue resolution drop,
+      // which happens say when a pkt comes in with a non router
+      // MAC
+      EXPECT_EQ(
+          *switchDropStatsAfter.queueResolutionDrops() -
+              *switchDropStatsBefore.queueResolutionDrops(),
+          0);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+};
+
 TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, verifyDscpToVoqMapping) {
   folly::IPAddressV6 kNeighborIp("100::2");
   auto constexpr remotePortId = 401;
   const SystemPortID kRemoteSysPortId(remotePortId);
   auto setup = [=, this]() {
-    // in addRemoteDsfNodeCfg, we use numCores to calculate the remoteSwitchId
+    // in addRemoteIntfNodeCfg, we use numCores to calculate the remoteSwitchId
     // keeping remote switch id passed below in sync with it
     int numCores =
         utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
@@ -1964,7 +2071,7 @@ class AgentVoqSwitchFullScaleDsfNodesTest : public AgentVoqSwitchTest {
 
   std::optional<std::map<int64_t, cfg::DsfNode>> overrideDsfNodes(
       const std::map<int64_t, cfg::DsfNode>& curDsfNodes) const {
-    return utility::addRemoteDsfNodeCfg(curDsfNodes);
+    return utility::addRemoteIntfNodeCfg(curDsfNodes);
   }
 
  protected:
@@ -2045,7 +2152,7 @@ class AgentVoqSwitchFullScaleDsfNodesTest : public AgentVoqSwitchTest {
     return portDescs;
   }
 
- private:
+ protected:
   void setCmdLineFlagOverrides() const override {
     AgentVoqSwitchTest::setCmdLineFlagOverrides();
     // Disable stats update to improve performance
@@ -2053,6 +2160,20 @@ class AgentVoqSwitchFullScaleDsfNodesTest : public AgentVoqSwitchTest {
     // Allow 100% ECMP resource usage
     FLAGS_ecmp_resource_percentage = 100;
     FLAGS_ecmp_width = 512;
+  }
+};
+
+class AgentVoqSwitchFullScaleDsfNodesWithFabricPortsTest
+    : public AgentVoqSwitchFullScaleDsfNodesTest {
+ private:
+  void setCmdLineFlagOverrides() const override {
+    AgentVoqSwitchFullScaleDsfNodesTest::setCmdLineFlagOverrides();
+    // Unhide fabric ports
+    FLAGS_hide_fabric_ports = false;
+    // Fabric connectivity manager to expect single NPU
+    if (!FLAGS_multi_switch) {
+      FLAGS_janga_single_npu_for_testing = true;
+    }
   }
 };
 
@@ -2258,7 +2379,59 @@ TEST_F(AgentVoqSwitchLineRateTest, dramBlockedTime) {
       WITH_RETRIES({
         std::string out;
         getAgentEnsemble()->runDiagCommand(
-            "m IPS_DRAM_ONLY_PROFILE  DRAM_ONLY_PROFILE=-1\nmod CGM_VOQ_SRAM_DRAM_MODE 0 127 VOQ_SRAM_DRAM_MODE_DATA=0x2\ns CGM_DRAM_BOUND_STATE_TH 0\nmodreg TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_WRITE_LEAKY_BUCKET_ASSERT_THRESHOLD=2 DRAM_BLOCKED_WRITE_LEAKY_BUCKET_DEASSERT_THRESHOLD=1 DRAM_BLOCKED_WRITE_PLUS_READ_LEAKY_BUCKET_ASSERT_THRESHOLD=2 DRAM_BLOCKED_WRITE_PLUS_READ_LEAKY_BUCKET_DEASSERT_THRESHOLD=1 DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_ASSERT_THRESHOLD=3 DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_DEASSERT_THRESHOLD=1\n",
+            "m IPS_DRAM_ONLY_PROFILE DRAM_ONLY_PROFILE=-1\n", out, switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "mod CGM_VOQ_SRAM_DRAM_MODE 0 127 VOQ_SRAM_DRAM_MODE_DATA=0x2\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "s CGM_DRAM_BOUND_STATE_TH 0\n", out, switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_WRITE_LEAKY_BUCKET_ASSERT_THRESHOLD=2\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_WRITE_LEAKY_BUCKET_DEASSERT_THRESHOLD=1\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_WRITE_PLUS_READ_LEAKY_BUCKET_ASSERT_THRESHOLD=2\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_WRITE_PLUS_READ_LEAKY_BUCKET_DEASSERT_THRESHOLD=1\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_ASSERT_THRESHOLD=2\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_DEASSERT_THRESHOLD=1\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_INCREMENT_THRESHOLD_0=1\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_INCREMENT_THRESHOLD_1=1\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_INCREMENT_THRESHOLD_2=1\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_INCREMENT_SIZE_0=8\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_INCREMENT_SIZE_1=8\n",
+            out,
+            switchId);
+        getAgentEnsemble()->runDiagCommand(
+            "m TDU_DRAM_BLOCKED_CONFIG DRAM_BLOCKED_AVERAGE_READ_INFLIGHTS_LEAKY_BUCKET_INCREMENT_SIZE_2=8\n",
             out,
             switchId);
         getAgentEnsemble()->runDiagCommand("quit\n", out, switchId);
@@ -2300,6 +2473,41 @@ TEST_F(AgentVoqSwitchLineRateTest, creditsDeleted) {
     addRemoveNeighbor(PortDescriptor(kPort), true);
   };
   this->verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(
+    AgentVoqSwitchFullScaleDsfNodesWithFabricPortsTest,
+    failUpdateAtFullSysPortScale) {
+  auto setup = [this]() { setupRemoteIntfAndSysPorts(); };
+  auto verify = [this]() {
+    getSw()->getRib()->updateStateInRibThread([this]() {
+      EXPECT_THROW(
+          getSw()->updateStateWithHwFailureProtection(
+              "Add bogus intf",
+              [this](const std::shared_ptr<SwitchState>& in) {
+                auto out = in->clone();
+                auto remoteIntfs = out->getRemoteInterfaces()->modify(&out);
+                auto remoteIntf = std::make_shared<Interface>(
+                    InterfaceID(INT32_MAX),
+                    RouterID(0),
+                    std::optional<VlanID>(std::nullopt),
+                    folly::StringPiece("RemoteIntf"),
+                    folly::MacAddress("c6:ca:2b:2a:b1:b6"),
+                    9000,
+                    false,
+                    false,
+                    cfg::InterfaceType::SYSTEM_PORT);
+                remoteIntf->setScope(cfg::Scope::GLOBAL);
+                remoteIntfs->addNode(
+                    remoteIntf,
+                    HwSwitchMatcher(
+                        getSw()->getSwitchInfoTable().getL3SwitchIDs()));
+                return out;
+              }),
+          FbossHwUpdateError);
+    });
+  };
+  verifyAcrossWarmBoots(setup, verify);
 }
 
 } // namespace facebook::fboss

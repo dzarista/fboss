@@ -20,6 +20,7 @@
 
 #include "fboss/agent/AclNexthopHandler.h"
 
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/AsicUtils.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/HwAsicTable.h"
@@ -802,7 +803,7 @@ shared_ptr<SwitchState> ThriftConfigApplier::run() {
   {
     // Update reachability group setting for input balanced
     auto localFabricSwitchIds = getLocalFabricSwitchIds();
-    if (!localFabricSwitchIds.empty()) {
+    if (FLAGS_enable_balanced_intput_mode && !localFabricSwitchIds.empty()) {
       processReachabilityGroup(localFabricSwitchIds);
     }
   }
@@ -1768,6 +1769,21 @@ std::shared_ptr<PortQueue> ThriftConfigApplier::createPortQueue(
   }
   if (auto maxDynamicSharedBytes = cfg->maxDynamicSharedBytes()) {
     queue->setMaxDynamicSharedBytes(*maxDynamicSharedBytes);
+  }
+  if (auto bufferPoolName = cfg->bufferPoolName()) {
+    auto bufferPoolCfgMap = new_->getBufferPoolCfgs();
+    // bufferPool cfg is keyed on the buffer pool name
+    auto bufferPoolCfg = bufferPoolCfgMap->getNodeIf(*bufferPoolName);
+    if (!bufferPoolCfg) {
+      throw FbossError(
+          "Queue: ",
+          queue->getID(),
+          " buffer pool: ",
+          *bufferPoolName,
+          " doesn't exist in the bufferPool map.");
+    }
+    queue->setBufferPoolName(*bufferPoolName);
+    queue->setBufferPoolConfig(bufferPoolCfg);
   }
   return queue;
 }
@@ -3452,10 +3468,11 @@ void ThriftConfigApplier::checkAcl(const cfg::AclEntry* config) const {
           std::to_string(AclEntry::kMaxIcmpCode));
     }
   }
-  if (config->icmpType() &&
-      (!config->proto() ||
-       !(*config->proto() == AclEntry::kProtoIcmp ||
-         *config->proto() == AclEntry::kProtoIcmpv6))) {
+  // TODO(daiweix): check proto should be 58 if icmp type/code is specified
+  // after CS00012373216 is resolved.
+  if (config->icmpType() && config->proto() &&
+      !(*config->proto() == AclEntry::kProtoIcmp ||
+        *config->proto() == AclEntry::kProtoIcmpv6)) {
     throw FbossError(
         "proto must be either icmp or icmpv6 ", "if icmp type is set");
   }
@@ -4136,7 +4153,13 @@ std::shared_ptr<BufferPoolCfg> ThriftConfigApplier::createBufferPoolConfig(
     const cfg::BufferPoolConfig& bufferPoolConfig) {
   auto bufferPoolCfg = std::make_shared<BufferPoolCfg>(id);
   bufferPoolCfg->setSharedBytes(*bufferPoolConfig.sharedBytes());
-  bufferPoolCfg->setHeadroomBytes(*bufferPoolConfig.headroomBytes());
+  if (bufferPoolConfig.headroomBytes().has_value()) {
+    bufferPoolCfg->setHeadroomBytes(*bufferPoolConfig.headroomBytes());
+  }
+  if (bufferPoolConfig.reservedBytes().has_value()) {
+    bufferPoolCfg->setReservedBytes(*bufferPoolConfig.reservedBytes());
+  }
+
   return bufferPoolCfg;
 }
 
@@ -4972,6 +4995,11 @@ std::shared_ptr<Mirror> ThriftConfigApplier::createMirror(
     egressPortDesc = PortDescriptor(mirrorEgressPort.value());
   }
 
+  std::optional<uint32_t> samplingRate;
+  if (mirrorConfig->samplingRate().has_value()) {
+    samplingRate = mirrorConfig->samplingRate().value();
+  }
+
   auto mirror = make_shared<Mirror>(
       *mirrorConfig->name(),
       egressPortDesc,
@@ -4979,7 +5007,8 @@ std::shared_ptr<Mirror> ThriftConfigApplier::createMirror(
       srcIp,
       udpPorts,
       dscpMark,
-      truncate);
+      truncate,
+      samplingRate);
   return mirror;
 }
 
@@ -4993,7 +5022,8 @@ std::shared_ptr<Mirror> ThriftConfigApplier::updateMirror(
       newMirror->getTruncate() == orig->getTruncate() &&
       (!newMirror->configHasEgressPort() ||
        newMirror->getEgressPort() == orig->getEgressPort() ||
-       newMirror->getEgressPortDesc() == orig->getEgressPortDesc())) {
+       newMirror->getEgressPortDesc() == orig->getEgressPortDesc()) &&
+      newMirror->getSamplingRate() == orig->getSamplingRate()) {
     if (orig->getMirrorTunnel()) {
       newMirror->setMirrorTunnel(orig->getMirrorTunnel().value());
     }

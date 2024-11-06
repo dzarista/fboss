@@ -119,8 +119,10 @@ add_library(utils
 
 target_link_libraries(utils
   asic_utils
+  agent_dir_util
   error
   ctrl_cpp2
+  load_agent_config
   state
   switchid_scope_resolver
   Folly::folly
@@ -169,6 +171,7 @@ add_library(core
   fboss/agent/DsfStateUpdaterUtil.cpp
   fboss/agent/DsfSubscriber.cpp
   fboss/agent/DsfSubscription.cpp
+  fboss/agent/DsfUpdateValidator.cpp
   fboss/agent/FabricConnectivityManager.cpp
   fboss/agent/EncapIndexAllocator.cpp
   fboss/agent/FibHelpers.cpp

@@ -33,7 +33,7 @@ def extractMapping( srcFile, dstDir ):
    endRe = re.compile( R'^\)";$' )
 
    # File name regex to extract platform name like 'Meru800bfaPlatformMapping.cpp'
-   pMatch = re.match( R".*?([^/]+)PlatformMapping.cpp.*", srcFile )
+   pMatch = re.match( R".*?([^/]+)PlatformMapping.*", srcFile )
    assert pMatch, f'Couldn\'t find platform name in path {srcFile}'
    platform = pMatch.group( 1 )
 

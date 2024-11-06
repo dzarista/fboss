@@ -14,7 +14,7 @@ public:
   virtual ~Showtech() = default;
   void printShowtech();
 
-  std::string version = "1.2";
+  std::string version = "1.3";
 
 protected:
   // These should be common between platforms.
@@ -37,7 +37,7 @@ protected:
 class GenericShowtech : public Showtech {
 public:
   GenericShowtech(bool verbose) : Showtech(verbose) {}
-  void printPlatformInfo() override {};
+  void printPlatformInfo() override{};
   std::set<int> i2cBusIgnore() override { return {}; }
 };
 } // namespace showtech

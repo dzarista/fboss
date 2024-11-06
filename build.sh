@@ -19,7 +19,7 @@ else
 fi
 
 CENTOS_RELEASE_MAJOR=$(grep -o "[^ ]*$" /etc/centos-release | cut -d '.' -f 1)
-echo "Build iamge base centos version : el$CENTOS_RELEASE_MAJOR"
+echo "Build image base centos version : el$CENTOS_RELEASE_MAJOR"
 
 # workaround: barney doesn't process git files, so we need
 # simulated that .git dir exist for copytree.py:containing_repo_type
@@ -43,11 +43,6 @@ cd $FBOSS_REPO/fboss/oss/scripts
 export SAI_ONLY=1
 export SAI_BRCM_IMPL=1 # Needed only for BRCM SAI
 export GETDEPS_USE_WGET=1
-# 11.3 GA and later releases include a EDK firmware image for firmware based isolate.
-# Env var pointing to the EDK firmware image ld script file. We use the env var in
-# the FBOSS cmake configuration to make the linker use this script for linking all
-# FBOSS binaries.
-export SAI_EDK_HOST_LDS_PATH="$SAI_DIR/libraries/edk-host-image.lds"
 cd "$FBOSS_REPO"
 
 export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
@@ -149,6 +144,9 @@ cp -f $FBOSS_REPO/arista/psu-upgrade/psu-upgrade $SCRATCH_DIR/psu-upgrade/
 $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/ctrl.thrift
 $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/hw_ctrl.thrift
 $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/qsfp_service/if/qsfp.thrift
+$SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/platform/fan_service/if/fan_service.thrift
+$SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/platform/rackmon/if/rackmonsvc.thrift
+$SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/platform/sensor_service/if/sensor_service.thrift
 mkdir -p $fboss_output_dir/lib/fb-py-libs
 cp -rf gen-py $fboss_output_dir/lib/fb-py-libs/
 cp -rf $SCRATCH_DIR/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ $fboss_output_dir/lib/fb-py-libs/
@@ -158,7 +156,8 @@ find $fboss_output_dir/lib/fb-py-libs/gen-py/ -type f  -exec sed -i '1s|^#!/usr/
 SRC_MAPPING_DIR="${FBOSS_REPO}/fboss/agent/platforms/common"
 SRC_MAPPING_FILES=(
     "${SRC_MAPPING_DIR}/meru800bia/Meru800biaPlatformMapping.cpp"
-    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaPlatformMapping.cpp"
+    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaP2PlatformMapping.h"
+    "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaProdPlatformMapping.h"
     "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaP1PlatformMapping.cpp"
 )
 $FBOSS_REPO/arista/build-utils/ExtractMappings.py -d "${SCRATCH_DIR}/PlatformMappings" "${SRC_MAPPING_FILES[@]}"

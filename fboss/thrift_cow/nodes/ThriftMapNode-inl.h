@@ -72,10 +72,10 @@ struct ThriftMapFields {
 
   ThriftMapFields() {}
 
-  template <
-      typename T,
-      typename = std::enable_if_t<std::is_same<std::decay_t<T>, TType>::value>>
-  explicit ThriftMapFields(T&& thrift) {
+  template <typename T>
+  explicit ThriftMapFields(T&& thrift)
+    requires(std::is_same_v<std::decay_t<T>, TType>)
+  {
     fromThrift(std::forward<T>(thrift));
   }
 
@@ -95,10 +95,10 @@ struct ThriftMapFields {
     return thrift;
   }
 
-  template <
-      typename T,
-      typename = std::enable_if_t<std::is_same<std::decay_t<T>, TType>::value>>
-  void fromThrift(T&& thrift) {
+  template <typename T>
+  void fromThrift(T&& thrift)
+    requires(std::is_same_v<std::decay_t<T>, TType>)
+  {
     storage_.clear();
     for (const auto& [key, elem] : thrift) {
       emplace(key, elem);
@@ -441,22 +441,22 @@ class ThriftMapNode
     return size() == 0;
   }
 
-  bool tryModify(const std::string& token) {
+  bool tryModify(const std::string& token, bool construct = true) {
     if (auto parsedKey =
             tryParseKey<key_type, typename Fields::KeyTypeClass>(token)) {
-      modifyTyped(parsedKey.value());
+      modifyTyped(parsedKey.value(), construct);
       return true;
     }
     return false;
   }
 
-  void modify(const std::string& token) {
-    if (!tryModify(token)) {
+  void modify(const std::string& token, bool construct = true) {
+    if (!tryModify(token, construct)) {
       throw std::runtime_error(folly::to<std::string>("Invalid key: ", token));
     }
   }
 
-  virtual void modifyTyped(key_type key) {
+  virtual void modifyTyped(key_type key, bool construct = true) {
     DCHECK(!this->isPublished());
 
     if (auto it = this->find(key); it != this->end()) {
@@ -467,7 +467,7 @@ class ThriftMapNode
           child.swap(clonedChild);
         }
       }
-    } else {
+    } else if (construct) {
       // create unpublished default constructed child if missing
       this->emplace(key).first->second;
     }

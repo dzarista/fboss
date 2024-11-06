@@ -353,6 +353,18 @@ target_link_libraries(route_test_utils
   route_distribution_gen
 )
 
+add_library(pfc_test_utils
+  fboss/agent/test/utils/PfcTestUtils.cpp
+)
+
+target_link_libraries(pfc_test_utils
+  acl_test_utils
+  agent_hw_test_ctrl_cpp2
+  hardware_stats_cpp2
+  switch_config_cpp2
+  utils
+)
+
 add_library(queue_test_utils
   fboss/agent/test/utils/QueueTestUtils.cpp
 )
@@ -377,17 +389,39 @@ target_link_libraries(mirror_test_utils
   Folly::folly
 )
 
+add_library(dsf_config_utils
+  fboss/agent/test/utils/DsfConfigUtils.cpp
+)
+
+target_link_libraries(dsf_config_utils
+  asic_test_utils
+  config_utils
+  switch_config_cpp2
+  switch_asics
+)
+
 add_library(voq_test_utils
   fboss/agent/test/utils/VoqTestUtils.cpp
 )
 
 target_link_libraries(voq_test_utils
+  dsf_config_utils
   config_factory
-  switch_asics
   fboss_types
   switchid_scope_resolver
   switch_config_cpp2
   state
   ecmp_helper
   test_ensemble_if
+)
+
+add_library(multi_port_traffic_test_utils
+  fboss/agent/test/utils/MultiPortTrafficTestUtils.cpp
+)
+
+target_link_libraries(multi_port_traffic_test_utils
+  agent_hw_test_ctrl_cpp2
+  qos_test_utils
+  state
+  ecmp_helper
 )

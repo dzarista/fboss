@@ -371,8 +371,9 @@ bool ControlLogic::isFanPresentInDevice(const Fan& fan) {
   } else if (fan.presenceGpio()) {
     struct gpiod_chip* chip =
         gpiod_chip_open(fan.presenceGpio()->path()->c_str());
-    GpiodLine line(chip, *fan.presenceGpio()->lineIndex(), "gpioline");
-    int16_t value = line.getValue();
+    // Ensure GpiodLine is destroyed before gpiod_chip_close
+    int value = GpiodLine(chip, *fan.presenceGpio()->lineIndex(), "gpioline")
+                    .getValue();
     gpiod_chip_close(chip);
     if (value == *fan.presenceGpio()->desiredValue()) {
       fanPresent = true;
@@ -457,14 +458,20 @@ std::pair<bool, int16_t> ControlLogic::programFan(
 }
 
 void ControlLogic::programLed(const Fan& fan, bool fanFailed) {
-  unsigned int valueToWrite =
-      (fanFailed ? *fan.fanFailLedVal() : *fan.fanGoodLedVal());
-  pBsp_->setFanLedSysfs(*fan.ledSysfsPath(), valueToWrite);
-  XLOG(INFO) << fmt::format(
-      "{}: Setting LED to {} (value: {})",
-      *fan.fanName(),
-      (fanFailed ? "Fail" : "Good"),
-      valueToWrite);
+  if (!fan.ledSysfsPath()->empty()) {
+    unsigned int valueToWrite =
+        (fanFailed ? *fan.fanFailLedVal() : *fan.fanGoodLedVal());
+    pBsp_->setFanLedSysfs(*fan.ledSysfsPath(), valueToWrite);
+    XLOG(INFO) << fmt::format(
+        "{}: Setting LED to {} (value: {})",
+        *fan.fanName(),
+        (fanFailed ? "Fail" : "Good"),
+        valueToWrite);
+  } else {
+    XLOG(DBG1) << fmt::format(
+        "{}: FAN LED sysfs path is empty. It's likely that FAN LED is controlled by hardware.",
+        *fan.fanName());
+  }
 }
 
 int16_t ControlLogic::calculateZonePwm(const Zone& zone, bool boostMode) {
@@ -567,15 +574,7 @@ void ControlLogic::updateControl(std::shared_ptr<SensorData> pS) {
     pBsp_->getSensorData(pSensor_);
   }
 
-  // STEP 1: Read sensor values and calculate their PWM
-  XLOG(INFO) << "Processing Sensors ...";
-  getSensorUpdate();
-
-  // STEP 2: Read optics values and calculate their PWM
-  XLOG(INFO) << "Processing Optics ...";
-  getOpticsUpdate();
-
-  // STEP 3: Check presence/rpm of fans
+  // STEP 1: Check presence/rpm of fans
   XLOG(INFO) << "Processing Fans ...";
   fanStatuses_.withWLock([&](auto& fanStatuses) {
     // Update fan status with new rpm and timestamp.
@@ -620,6 +619,14 @@ void ControlLogic::updateControl(std::shared_ptr<SensorData> pS) {
       fanStatuses[*fan.fanName()].fanFailed() = fanFailed;
     }
   });
+
+  // STEP 2: Read sensor values and calculate their PWM
+  XLOG(INFO) << "Processing Sensors ...";
+  getSensorUpdate();
+
+  // STEP 3: Read optics values and calculate their PWM
+  XLOG(INFO) << "Processing Optics ...";
+  getOpticsUpdate();
 
   // STEP 4: Determine whether boost mode is necessary
   uint64_t secondsSinceLastOpticsUpdate =

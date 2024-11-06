@@ -3693,6 +3693,8 @@ std::string SaiSwitch::listObjects(
         objTypes.push_back(SAI_OBJECT_TYPE_DEBUG_COUNTER);
         break;
       case HwObjectType::TELEMETRY:
+        objTypes.push_back(SAI_OBJECT_TYPE_TAM_COLLECTOR);
+        objTypes.push_back(SAI_OBJECT_TYPE_TAM_TRANSPORT);
         objTypes.push_back(SAI_OBJECT_TYPE_TAM_REPORT);
         objTypes.push_back(SAI_OBJECT_TYPE_TAM_EVENT_ACTION);
         objTypes.push_back(SAI_OBJECT_TYPE_TAM_EVENT);
@@ -4074,5 +4076,9 @@ std::shared_ptr<MultiSwitchAclMap> SaiSwitch::reconstructMultiSwitchAclMap()
 
 void SaiSwitch::injectSwitchReachabilityChangeNotification() {
   switchReachabilityChangeTopHalf();
+}
+
+HwResourceStats SaiSwitch::getResourceStats() const {
+  return hwResourceStats_;
 }
 } // namespace facebook::fboss

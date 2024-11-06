@@ -71,15 +71,15 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
     return createDarwinWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_ELBERT) {
     return createElbertWedgeManager(platformMappingStr);
-  } else if (mode == PlatformType::PLATFORM_SANDIA) {
-    return createSandiaWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_MERU400BFU) {
     return createMeru400bfuWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_MERU400BIA) {
     return createMeru400biaWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_MERU400BIU) {
     return createMeru400biuWedgeManager(platformMappingStr);
-  } else if (mode == PlatformType::PLATFORM_MERU800BIA) {
+  } else if (
+      mode == PlatformType::PLATFORM_MERU800BIA ||
+      mode == PlatformType::PLATFORM_MERU800BIAB) {
     return createMeru800biaWedgeManager(platformMappingStr);
   } else if (
       mode == PlatformType::PLATFORM_MERU800BFA ||

@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "fboss/agent/Utils.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
-#include "fboss/agent/types.h"
+#include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
+#include "fboss/agent/test/AgentHwTest.h"
 
 namespace facebook::fboss::utility {
 
@@ -18,11 +20,15 @@ struct PfcBufferParams {
 };
 
 void setupPfcBuffers(
+    facebook::fboss::AgentEnsemble* ensemble,
     cfg::SwitchConfig& cfg,
     const std::vector<PortID>& ports,
     const std::vector<int>& losslessPgIds,
+    const std::map<int, int>& tcToPgOverride = {},
     PfcBufferParams buffer = PfcBufferParams{});
 
 void addPuntPfcPacketAcl(cfg::SwitchConfig& cfg, uint16_t queueId);
+
+std::string pfcStatsString(const HwPortStats& stats);
 
 } // namespace facebook::fboss::utility

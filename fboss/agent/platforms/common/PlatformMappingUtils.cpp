@@ -31,7 +31,6 @@
 #include "fboss/agent/platforms/common/minipack/MinipackPlatformMapping.h"
 #include "fboss/agent/platforms/common/montblanc/MontblancPlatformMapping.h"
 #include "fboss/agent/platforms/common/morgan800cc/Morgan800ccPlatformMapping.h"
-#include "fboss/agent/platforms/common/sandia/SandiaPlatformMapping.h"
 #include "fboss/agent/platforms/common/tahan800bc/Tahan800bcPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge100/Wedge100PlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge40/Wedge40PlatformMapping.h"
@@ -124,8 +123,6 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
       return platformMappingStr.empty()
           ? std::make_unique<DarwinPlatformMapping>()
           : std::make_unique<DarwinPlatformMapping>(platformMappingStr);
-    case PlatformType::PLATFORM_SANDIA:
-      return std::make_unique<SandiaPlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_MONTBLANC:
       return platformMappingStr.empty()
           ? std::make_unique<MontblancPlatformMapping>()
@@ -152,6 +149,7 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
           ? std::make_unique<Meru400biuPlatformMapping>()
           : std::make_unique<Meru400biuPlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_MERU800BIAB:
       return platformMappingStr.empty()
           ? std::make_unique<Meru800biaPlatformMapping>()
           : std::make_unique<Meru800biaPlatformMapping>(platformMappingStr);
@@ -184,6 +182,7 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
     case PlatformType::PLATFORM_CLOUDRIPPER_VOQ:
     case PlatformType::PLATFORM_WEDGE400C_FABRIC:
     case PlatformType::PLATFORM_WEDGE400C_VOQ:
+    case PlatformType::PLATFORM_SANDIA:
       throw FbossError("Unsupported platform type");
   }
   return nullptr;

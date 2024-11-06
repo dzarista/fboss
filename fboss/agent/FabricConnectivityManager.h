@@ -11,6 +11,8 @@
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/agent/types.h"
 
+DECLARE_bool(janga_single_npu_for_testing);
+
 namespace facebook::fboss {
 class HwAsic;
 class SwitchState;
@@ -61,6 +63,13 @@ class FabricConnectivityManager {
   static int virtualDevicesWithAsymmetricConnectivity(
       const std::map<int64_t, RemoteConnectionGroups>&
           virtualDevice2RemoteConnectionGroups);
+  std::optional<PortID> getActualPortIdForSwitch(
+      int32_t portId,
+      uint64_t switchId,
+      uint64_t baseSwitchId,
+      const auto& switchName);
+  std::pair<std::optional<std::string>, std::optional<std::string>>
+  getActualSwitchNameAndPortName(uint64_t switchId, int32_t portId);
 
  private:
   void updateExpectedSwitchIdAndPortIdForPort(PortID portID);
@@ -75,6 +84,8 @@ class FabricConnectivityManager {
 
   std::unordered_map<uint64_t, std::shared_ptr<DsfNode>> switchIdToDsfNode_;
   std::unordered_map<std::string, std::set<uint64_t>> switchNameToSwitchIDs_;
+  std::unordered_map<uint64_t, std::pair<uint64_t, std::string>>
+      switchIdToBaseSwitchIdAndSwitchName_;
   std::map<PortID, FabricEndpoint> currentNeighborConnectivity_;
   std::map<PortID, std::string> fabricPortId2Name_;
 };

@@ -12,6 +12,8 @@
 #include <sys/resource.h>
 #include <sys/syscall.h>
 
+#include "fboss/agent/AgentConfig.h"
+#include "fboss/agent/AgentDirectoryUtil.h"
 #include "fboss/agent/AsicUtils.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/FsdbHelper.h"
@@ -25,6 +27,7 @@
 #include "fboss/agent/state/NdpTable.h"
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/state/Vlan.h"
+#include "fboss/lib/CommonFileUtils.h"
 
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
 
@@ -890,6 +893,7 @@ uint32_t getRemotePortOffset(const PlatformType platformType) {
     case PlatformType::PLATFORM_MERU800BFA_P1:
       return 0;
     case PlatformType::PLATFORM_MERU800BIA:
+    case PlatformType::PLATFORM_MERU800BIAB:
     case PlatformType::PLATFORM_JANGA800BIC:
       return 1024;
 
@@ -1029,5 +1033,41 @@ CpuCosQueueId hwQueueIdToCpuCosQueueId(uint8_t hwQueueId) {
       //break;
       return CpuCosQueueId::DEFAULT;
   }
+}
+
+int numFabricLevels(const std::map<int64_t, cfg::DsfNode>& dsfNodes) {
+  int maxFabricLevel{0};
+  std::for_each(
+      dsfNodes.begin(),
+      dsfNodes.end(),
+      [&maxFabricLevel](const auto& idAndDsfNode) {
+        const auto& dsfNode = idAndDsfNode.second;
+        int nodeFabricLevel = dsfNode.fabricLevel().value_or(0);
+        if (nodeFabricLevel == 0 &&
+            dsfNode.type() == cfg::DsfNodeType::FABRIC_NODE) {
+          nodeFabricLevel = 1;
+        }
+        maxFabricLevel = std::max(maxFabricLevel, nodeFabricLevel);
+      });
+  return maxFabricLevel;
+}
+
+std::unique_ptr<AgentConfig> getConfigFileForTesting(int switchIndex) {
+  auto configFileName =
+      AgentDirectoryUtil().getTestHwAgentConfigFile(switchIndex);
+  std::condition_variable configFileCv;
+  std::mutex configFileMutex;
+  std::unique_lock<std::mutex> lock(configFileMutex);
+  XLOG(INFO) << "Waiting on config file " << configFileName
+             << " to init hw agent";
+  while (!checkFileExists(configFileName)) {
+    configFileCv.wait_for(lock, std::chrono::milliseconds(100), [&]() {
+      return checkFileExists(configFileName);
+    });
+  }
+  XLOG(INFO) << "Using config file " << configFileName << " to init hw agent";
+  auto config = AgentConfig::fromFile(configFileName);
+  removeFile(configFileName);
+  return config;
 }
 } // namespace facebook::fboss
