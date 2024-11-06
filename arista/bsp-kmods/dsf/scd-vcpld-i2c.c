@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/version.h>
 #include <linux/jiffies.h>
+#include <linux/rtc.h>
 #include <linux/workqueue.h>
 #include "scratchpad-bits.h"
 
@@ -117,6 +118,8 @@ static int process_reload_cause(struct i2c_client *client)
 	u8 fault_cause;
 	size_t fault_loop;
 	u32 fault_timestamp = 0;
+	time64_t rtc_counter_val;
+	struct rtc_time rtc_time_val;
 	u8 byte;
 
 	op_status = i2c_smbus_read_byte_data(client, VCPLD_REG_LATCHED_FAULT_CAUSE);
@@ -151,8 +154,15 @@ static int process_reload_cause(struct i2c_client *client)
 		}
 	}
 	if (byte == VCPLD_RTC_SEC_REG_CNT) {
-		dev_info(&client->dev, "scd vcpld reload cause timestamp: %u\n",
-			fault_timestamp);
+		rtc_counter_val = (time64_t)fault_timestamp + MILLENIUM_UNIX_TIMESTAMP;
+		rtc_time64_to_tm(rtc_counter_val, &rtc_time_val);
+		dev_info(&client->dev, "scd vcpld reload cause timestamp: %d-%d-%d, %d:%d:%d\n",
+			rtc_time_val.tm_mon + 1,
+			rtc_time_val.tm_mday,
+			rtc_time_val.tm_year + 1900,
+			rtc_time_val.tm_hour,
+			rtc_time_val.tm_min,
+			rtc_time_val.tm_sec);
 	}
 
 	op_status = i2c_smbus_write_byte_data(
