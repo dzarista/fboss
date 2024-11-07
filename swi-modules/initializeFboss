@@ -43,6 +43,9 @@ case "$system_product" in
     "Darwin")
         install_rpm_by_keyword "darwin-"
         ;;
+    "Darwin48V")
+        install_rpm_by_keyword "darwin48v-"
+        ;;
     *)
         echo "Unknown product: $system_product. No additional RPMs installed."
         ;;

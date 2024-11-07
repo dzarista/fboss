@@ -55,3 +55,6 @@ done
 
 # Copy platform mappings
 cp -rf /src/dest/tmp_build_dir/PlatformMappings "${FBOSS_PTEST_DATA_DIR}/"
+
+# Copy swi modules
+cp -rf "${FBOSS_REPO}/swi-modules" "${FBOSS_PTEST_DATA_DIR}/"
