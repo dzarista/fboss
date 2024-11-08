@@ -1,0 +1,2 @@
+# The purpose of this file is testing RITS
+# TODO: remove after finish this task: 870631

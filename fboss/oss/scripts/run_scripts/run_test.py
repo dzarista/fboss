@@ -167,10 +167,14 @@ OPT_ARG_FBOSS_LOGGING = "--fboss_logging"
 OPT_ARG_PRODUCTION_FEATURES = "--production-features"
 SUB_CMD_BCM = "bcm"
 SUB_CMD_SAI = "sai"
+SUB_CMD_SAI_AGENT = "sai_agent"
 SUB_CMD_QSFP = "qsfp"
 SUB_CMD_LINK = "link"
 SAI_HW_KNOWN_BAD_TESTS = (
     "./share/hw_known_bad_tests/sai_known_bad_tests.materialized_JSON"
+)
+SAI_AGENT_HW_KNOWN_BAD_TESTS = (
+    "./share/hw_known_bad_tests/sai_agent_known_bad_tests.materialized_JSON"
 )
 QSFP_KNOWN_BAD_TESTS = (
     "./share/qsfp_known_bad_tests/fboss_qsfp_known_bad_tests.materialized_JSON"
@@ -777,7 +781,7 @@ class SaiTestRunner(TestRunner):
         return ""
 
     def _get_test_binary_name(self):
-        return args.sai_bin if args.sai_bin else "sai_test-sai_impl-1.13.0"
+        return args.sai_bin if args.sai_bin else "sai_test-sai_impl"
 
     def _get_sai_replayer_logging_flags(
         self, sai_replayer_logging_dir, test_prefix, test_to_run
@@ -811,6 +815,13 @@ class SaiTestRunner(TestRunner):
     def _end_run(self):
         return
 
+# Test runner for Agent HW tests.
+class SaiAgentTestRunner(SaiTestRunner):
+    def _get_known_bad_tests_file(self):
+        return SAI_AGENT_HW_KNOWN_BAD_TESTS
+
+    def _get_test_binary_name(self):
+        return args.sai_bin if args.sai_bin else "sai_agent_hw_test-sai_impl"
 
 class QsfpTestRunner(TestRunner):
     def add_subcommand_arguments(self, sub_parser: ArgumentParser):
@@ -872,7 +883,7 @@ class LinkTestRunner(TestRunner):
         return ""
 
     def _get_test_binary_name(self):
-        return "sai_link_test-sai_impl-1.13.0"
+        return "sai_link_test-sai_impl"
 
     def _get_sai_replayer_logging_flags(
         self, sai_replayer_logging_dir, test_prefix, test_to_run
@@ -1031,6 +1042,10 @@ if __name__ == "__main__":
     # Add subparser for SAI tests
     sai_test_parser = subparsers.add_parser(SUB_CMD_SAI, help="run sai tests")
     sai_test_parser.set_defaults(func=SaiTestRunner().run_test)
+
+    # Add subparser for SAI Agent tests
+    sai_agent_test_parser = subparsers.add_parser(SUB_CMD_SAI_AGENT, help="run sai agent tests")
+    sai_agent_test_parser.set_defaults(func=SaiAgentTestRunner().run_test)
 
     # Add subparser for QSFP tests
     qsfp_test_parser = subparsers.add_parser(SUB_CMD_QSFP, help="run qsfp tests")

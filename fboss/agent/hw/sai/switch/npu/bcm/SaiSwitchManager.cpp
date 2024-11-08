@@ -82,4 +82,8 @@ void fillHwSwitchCreditStats(
     }
   }
 }
+
+// ARISTA hack to get build to pass, publishSwitchWatermarks() is called from
+// link_test/wedge_agent.
+void publishSwitchWatermarks(HwSwitchWatermarkStats& /*watermarkStats*/) {}
 } // namespace facebook::fboss

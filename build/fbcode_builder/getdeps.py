@@ -583,6 +583,57 @@ class BuildCmd(ProjectCmdBase):
 
         for m in projects:
             dep_manifests.append(m)
+            ### ARISTA START ###
+            # In Arista build environment, don't fetch fboss repo code from
+            # GitHub known hash. Instead, build code from local repo by
+            # symlinking the local repo_root to the repos directory and skipping
+            # the fetcher. Putting all code in one block to lessen chance of
+            # merge conflicts.
+            if m.name == 'fboss' and os.environ.get("ARISTA_LOCAL_BUILD"):
+                print("Arista local fboss build" )
+                reconfigure = True
+                build_dir = loader.get_project_build_dir(m)
+                inst_dir = loader.get_project_install_dir(m)
+                src_dir = os.path.join(
+                      loader.build_opts.scratch_dir,
+                      'repos/github.com-facebook-fboss.git'
+                )
+                os.symlink( loader.build_opts.repo_root, src_dir )
+
+                extra_cmake_defines = (
+                    json.loads(args.extra_cmake_defines)
+                    if args.extra_cmake_defines
+                    else {}
+                )
+                extra_b2_args = args.extra_b2_args or []
+                prepare_builders = m.create_prepare_builders(
+                    loader.build_opts,
+                    ctx,
+                    src_dir,
+                    build_dir,
+                    inst_dir,
+                    loader,
+                    dep_manifests,
+                )
+                for preparer in prepare_builders:
+                    preparer.prepare(reconfigure=reconfigure)
+
+                builder = m.create_builder(
+                    loader.build_opts,
+                    src_dir,
+                    build_dir,
+                    inst_dir,
+                    ctx,
+                    loader,
+                    dep_manifests,
+                    final_install_prefix=loader.get_project_install_prefix(m),
+                    extra_cmake_defines=extra_cmake_defines,
+                    cmake_target=args.cmake_target if m == manifest else "install",
+                    extra_b2_args=extra_b2_args,
+                )
+                builder.build(reconfigure=reconfigure)
+                continue
+            ### ARISTA END ###
 
             fetcher = loader.create_fetcher(m)
 

@@ -13,7 +13,7 @@
       "preUpgradeCmd": "",
       "getVersionCmd": "cat /run/devmap/fpgas/MERU_SCM_CPLD/fw_ver",
       "priority": 3,
-      "upgradeCmd": "cpu_cpld_filename=$(head -n 1 /home/scm_cpld_filename.txt);jam -aprogram -fmeru_cpu_cpld -v $cpu_cpld_filename",
+      "upgradeCmd": "cpu_cpld_filename=$(head -n 1 /home/scm_cpld_filename.txt);jam -aprogram -fcpu_cpld -v $cpu_cpld_filename",
       "postUpgradeCmd": ""
     },
     "smb_fpga": {
@@ -27,7 +27,7 @@
       "preUpgradeCmd": "echo 1 > /run/devmap/fpgas/MERU_SCM_CPLD/switch_jtag_enable",
       "getVersionCmd": "cat /run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/fw_ver",
       "priority": 1,
-      "upgradeCmd": "fan_cpld_filename=$(head -n 1 /home/fan_cpld_filename.txt);jam -aprogram -fmeru_fan_cpld -v $fan_cpld_filename",
+      "upgradeCmd": "fan_cpld_filename=$(head -n 1 /home/fan_cpld_filename.txt);jam -aprogram -ffan_cpld -v $fan_cpld_filename",
       "postUpgradeCmd": ""
     }
   }
