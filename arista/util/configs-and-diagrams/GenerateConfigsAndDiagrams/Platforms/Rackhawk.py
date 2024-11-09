@@ -551,8 +551,8 @@ class RackhawkSwitch( PmUnitConfig ):
             SensorConfig( "SC_POS_1V5_B", "in13_input", SensorType.VOLTAGE,
                           compute="@/1000.0", prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.38,
-                              lowerCriticalVal=1.02
+                              upperCriticalVal=1.725,
+                              lowerCriticalVal=1.275
                           ) ),
             SensorConfig( "SC_POS_1V2", "in14_input", SensorType.VOLTAGE,
                           compute="@/1000.0", prependPmUnit=False,
