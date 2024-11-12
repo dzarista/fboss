@@ -7,6 +7,7 @@ from ..BaseConfigs import (
    FANCpld,
    Flash,
    GpioChip,
+   I2cDeviceConfig,
    InitRegSettings,
    LedConfig,
    PciDeviceConfig,
@@ -59,6 +60,8 @@ class ViperSMB( SMBUnit ):
       # -121 in 8-bit two's complement has the same binary representation as
       # 135 in 8-bit unsigned. Register values represent temperature in Celsius and
       # are used to overwrite the default temperature settings.
+      scdVcpld = I2cDeviceConfig( "0x23", "scd_vcpld", "SCD_VCPLD", incomingBusIndex=0 )
+
       smbPca = GpioChip( "0x74", "pca9539", "SMB_PCA", incomingBusIndex=0 )
 
       smbTmp75Front = Sensor( "0x49", "lm75", "SMB_TMP75_FRONT", incomingBusIndex=1,
@@ -237,6 +240,7 @@ class ViperSMB( SMBUnit ):
       ] )
 
       self.addI2cDeviceConfigs( [
+         scdVcpld,
          smbPca,
          smbTmp75Front,
          smbTmp75Back,
@@ -322,7 +326,8 @@ class Viper( PlatformConfig ):
                "scd-spi",
                "scd-leds",
                "scd-smbus",
-               "dsf-fan-cpld"
+               "dsf-fan-cpld",
+               "scd-vcpld"
             ],
             "sharedKmodsToReload": [ "scd" ],
             "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ]

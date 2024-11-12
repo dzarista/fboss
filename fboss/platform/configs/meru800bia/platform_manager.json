@@ -106,6 +106,12 @@
       "i2cDeviceConfigs": [
         {
           "busName": "INCOMING@0",
+          "address": "0x23",
+          "kernelDeviceName": "scd_vcpld",
+          "pmUnitScopedName": "SCD_VCPLD"
+        },
+        {
+          "busName": "INCOMING@0",
           "address": "0x74",
           "kernelDeviceName": "pca9539",
           "pmUnitScopedName": "SMB_PCA",
@@ -1595,7 +1601,8 @@
     "scd-spi",
     "scd-leds",
     "scd-smbus",
-    "dsf-fan-cpld"
+    "dsf-fan-cpld",
+    "scd-vcpld"
   ],
   "sharedKmodsToReload": [
     "scd"
