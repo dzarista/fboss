@@ -24,7 +24,9 @@
 namespace facebook {
 namespace fboss {
 
-constexpr uint64_t post_write_delay_us = 20000;
+constexpr uint64_t POST_I2C_WRITE_DELAY_US = 20000;
+constexpr uint64_t POST_I2C_WRITE_DELAY_CDB_US = 5000;
+constexpr uint64_t POST_I2C_WRITE_NO_DELAY_US = 0;
 
 /*
  * This is class is the SFP implementation class
@@ -51,7 +53,7 @@ class TransceiverImpl {
   virtual int writeTransceiver(
       const TransceiverAccessParameter& param,
       const uint8_t* fieldValue,
-      uint64_t delay = post_write_delay_us) = 0;
+      uint64_t delay) = 0;
 
   /*
    * This function will check if the transceiver is present or not

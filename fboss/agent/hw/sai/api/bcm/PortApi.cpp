@@ -237,4 +237,46 @@ std::optional<sai_attr_id_t> SaiPortSerdesTraits::Attributes::
   return std::nullopt;
 }
 
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeCondEntropyRehashEnable::operator()() {
+// TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  return SAI_PORT_ATTR_COND_ENTROPY_REHASH_ENABLE;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeCondEntropyRehashPeriodUS::operator()() {
+// TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  // TODO: Fix this properly as SAI_PORT_ATTR_COND_ENTROPY_REHASH_PERIOD_US
+  // port extension attribute is removed and no longer supported.
+  // This is just a workaround to integrate BRCM SAI 11.7 GA
+  return std::nullopt;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeCondEntropyRehashSeed::operator()() {
+// TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  return SAI_PORT_ATTR_COND_ENTROPY_REHASH_SEED;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeShelEnable::operator()() {
+// TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  return SAI_PORT_ATTR_SHEL_ENABLE;
+#else
+  return std::nullopt;
+#endif
+}
 } // namespace facebook::fboss

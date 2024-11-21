@@ -72,6 +72,46 @@ SaiSwitchTraits::Attributes::AttributeSdkBootTimeWrapper::operator()() {
   return SAI_SWITCH_ATTR_CUSTOM_RANGE_START + 1;
 }
 
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeSramFreePercentXoffThWrapper::operator()() {
+// TODO: Support is not yet available in 12.0
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  return SAI_SWITCH_ATTR_SRAM_FREE_PERCENT_XOFF_TH;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeSramFreePercentXonThWrapper::operator()() {
+// TODO: Support is not yet available in 12.0
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  return SAI_SWITCH_ATTR_SRAM_FREE_PERCENT_XON_TH;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
+    AttributeFabricCllfcTxCreditThWrapper::operator()() {
+// TODO: Support is not yet available in 12.0
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  return SAI_SWITCH_ATTR_FABRIC_CLLFC_TX_CREDIT_TH;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeVoqDramBoundThWrapper::operator()() {
+// TODO: Support is not yet available in 12.0
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  return SAI_SWITCH_ATTR_VOQ_DRAM_BOUND_TH;
+#else
+  return std::nullopt;
+#endif
+}
+
 const std::vector<sai_stat_id_t>& SaiSwitchTraits::dramStats() {
 #if defined(BRCM_SAI_SDK_DNX)
   static const std::vector<sai_stat_id_t> stats{
@@ -151,14 +191,26 @@ void SwitchApi::registerSwitchEventCallback(
         rv, ApiType, "Unable to register parity error switch event callback");
 
     // Register switch events
-#if defined BRCM_SAI_SDK_GTE_11_0
-    std::array<uint32_t, 6> events = {
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+    // SAI_SWITCH_EVENT_TYPE_FIRMWARE_CRASHED is not supported on 12.0 yet
+    std::array<uint32_t, 8> events = {
         SAI_SWITCH_EVENT_TYPE_PARITY_ERROR,
         SAI_SWITCH_EVENT_TYPE_STABLE_FULL,
         SAI_SWITCH_EVENT_TYPE_STABLE_ERROR,
         SAI_SWITCH_EVENT_TYPE_UNCONTROLLED_SHUTDOWN,
         SAI_SWITCH_EVENT_TYPE_WARM_BOOT_DOWNGRADE,
-        SAI_SWITCH_EVENT_TYPE_INTERRUPT};
+        SAI_SWITCH_EVENT_TYPE_INTERRUPT,
+        SAI_SWITCH_EVENT_TYPE_FABRIC_AUTO_ISOLATE,
+        SAI_SWITCH_EVENT_TYPE_FIRMWARE_CRASHED};
+#elif defined BRCM_SAI_SDK_GTE_11_0
+    std::array<uint32_t, 7> events = {
+        SAI_SWITCH_EVENT_TYPE_PARITY_ERROR,
+        SAI_SWITCH_EVENT_TYPE_STABLE_FULL,
+        SAI_SWITCH_EVENT_TYPE_STABLE_ERROR,
+        SAI_SWITCH_EVENT_TYPE_UNCONTROLLED_SHUTDOWN,
+        SAI_SWITCH_EVENT_TYPE_WARM_BOOT_DOWNGRADE,
+        SAI_SWITCH_EVENT_TYPE_INTERRUPT,
+        SAI_SWITCH_EVENT_TYPE_FABRIC_AUTO_ISOLATE};
 #else
     std::array<uint32_t, 5> events = {
         SAI_SWITCH_EVENT_TYPE_PARITY_ERROR,
@@ -300,6 +352,91 @@ std::optional<sai_attr_id_t> SaiSwitchTraits::Attributes::
     AttributeFabricLinkLayerFlowControlThreshold::operator()() {
 #if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
   return SAI_SWITCH_ATTR_FABRIC_LLFC_THRESHOLD;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeNoAclsForTrapsWrapper::operator()() {
+#if defined(BRCM_SAI_SDK_GTE_11_0)
+  return SAI_SWITCH_ATTR_NO_ACLS_FOR_TRAPS;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeMaxSystemPortId::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
+  return SAI_SWITCH_ATTR_MAX_SYSTEM_PORT_ID;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeMaxLocalSystemPortId::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
+  return SAI_SWITCH_ATTR_MAX_LOCAL_SYSTEM_PORT_ID;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeMaxSystemPorts::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
+  return SAI_SWITCH_ATTR_MAX_SYSTEM_PORTS;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeMaxVoqs::operator()() {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
+  return SAI_SWITCH_ATTR_MAX_VOQS;
+#endif
+  return std::nullopt;
+}
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeCondEntropyRehashPeriodUS::operator()() {
+// TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  return SAI_SWITCH_ATTR_COND_ENTROPY_REHASH_PERIOD_US;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeShelSrcIp::operator()() {
+// TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  return SAI_SWITCH_ATTR_SHEL_SRC_IP;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeShelDstIp::operator()() {
+// TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  return SAI_SWITCH_ATTR_SHEL_DST_IP;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeShelSrcMac::operator()() {
+// TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  return SAI_SWITCH_ATTR_SHEL_SRC_MAC;
+#endif
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeShelPeriodicInterval::operator()() {
+// TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  return SAI_SWITCH_ATTR_SHEL_PERIODIC_INTERVAL;
 #endif
   return std::nullopt;
 }

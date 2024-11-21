@@ -335,7 +335,6 @@ class SaiSwitch : public HwSwitch {
       PortID port) const;
 
   void fdbEventCallbackLockedBottomHalf(
-      const std::lock_guard<std::mutex>& lock,
       std::vector<FdbEventNotificationData> data);
 
   const SaiManagerTable* managerTableLocked(
@@ -387,7 +386,10 @@ class SaiSwitch : public HwSwitch {
 
   void linkStateChangedCallbackBottomHalf(
       std::vector<sai_port_oper_status_notification_t> data);
-  void txReadyStatusChangeCallbackBottomHalf();
+  void txReadyStatusChangeOrFwIsolateCallbackBottomHalf(
+      bool fwIsolated = false,
+      const std::optional<uint32_t>& numActiveFabricPortsAtFwIsolate =
+          std::nullopt);
   void switchReachabilityChangeBottomHalf();
   std::set<PortID> getFabricReachabilityPortIds(
       const std::vector<sai_object_id_t>& switchIdAndFabricPortSaiIds) const;
@@ -395,12 +397,23 @@ class SaiSwitch : public HwSwitch {
   uint64_t getDeviceWatermarkBytesLocked(
       const std::lock_guard<std::mutex>& lock) const;
 
-  void processSwitchSettingsChangedLocked(
+  void processSwitchSettingsChangeSansDrainedLocked(
       const std::lock_guard<std::mutex>& lock,
       const StateDelta& delta);
 
-  void processSwitchSettingsChangedEntryLocked(
+  void processSwitchSettingsChangeSansDrainedEntryLocked(
       const std::lock_guard<std::mutex>& lock,
+      const std::shared_ptr<SwitchSettings>& oldSwitchSettings,
+      const std::shared_ptr<SwitchSettings>& newSwitchSettings);
+
+  void processSwitchSettingsDrainStateChangeLocked(
+      const std::lock_guard<std::mutex>& lock,
+      cfg::SwitchDrainState drainStateToProcess,
+      const StateDelta& delta);
+
+  void processSwitchSettingsChangeDrainedEntryLocked(
+      const std::lock_guard<std::mutex>& lock,
+      cfg::SwitchDrainState drainStateToProcess,
       const std::shared_ptr<SwitchSettings>& oldSwitchSettings,
       const std::shared_ptr<SwitchSettings>& newSwitchSettings);
 
@@ -489,8 +502,14 @@ class SaiSwitch : public HwSwitch {
       Args... args);
 
   template <typename LockPolicyT>
-  void processSwitchSettingsChanged(
+  void processSwitchSettingsChangeSansDrained(
       const StateDelta& delta,
+      const LockPolicyT& lockPolicy);
+
+  template <typename LockPolicyT>
+  void processSwitchSettingsDrainStateChange(
+      const StateDelta& delta,
+      cfg::SwitchDrainState drainStateToProcess,
       const LockPolicyT& lockPolicy);
 
   PortSaiId getCPUPortSaiId() const;
@@ -614,6 +633,7 @@ class SaiSwitch : public HwSwitch {
   std::unique_ptr<FabricConnectivityManager> fabricConnectivityManager_;
   bool pfcDeadlockEnabled_{false};
   folly::Synchronized<int> switchReachabilityChangePending_{0};
+  folly::Synchronized<bool> txReadyStatusChangePending_{false};
 };
 
 } // namespace facebook::fboss

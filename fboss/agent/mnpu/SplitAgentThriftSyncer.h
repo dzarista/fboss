@@ -45,10 +45,13 @@ class SplitAgentThriftSyncer : public HwSwitchCallback {
   void linkStateChanged(
       PortID port,
       bool up,
+      cfg::PortType portType,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override;
-  void linkActiveStateChanged(
-      const std::map<PortID, bool>& port2IsActive) override;
+  void linkActiveStateChangedOrFwIsolated(
+      const std::map<PortID, bool>& port2IsActive,
+      bool fwIsolated,
+      const std::optional<uint32_t>& numActiveFabricPortsAtFwIsolate) override;
   void linkConnectivityChanged(
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&
           port2OldAndNewConnectivity) override;
@@ -75,6 +78,7 @@ class SplitAgentThriftSyncer : public HwSwitchCallback {
  private:
   std::shared_ptr<folly::ScopedEventBaseThread> retryThread_;
   SwitchID switchId_;
+  HwSwitch* hwSwitch_;
   std::unique_ptr<LinkChangeEventSyncer> linkChangeEventSinkClient_;
   std::unique_ptr<TxPktEventSyncer> txPktEventStreamClient_;
   std::unique_ptr<OperDeltaSyncer> operDeltaClient_;

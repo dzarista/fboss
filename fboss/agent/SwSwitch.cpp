@@ -57,6 +57,7 @@
 #include "fboss/agent/PhySnapshotManager.h"
 #include "fboss/agent/PortStats.h"
 #include "fboss/agent/PortUpdateHandler.h"
+#include "fboss/agent/RemoteNeighborUpdater.h"
 #include "fboss/agent/ResolvedNexthopMonitor.h"
 #include "fboss/agent/ResolvedNexthopProbeScheduler.h"
 #include "fboss/agent/RestartTimeTracker.h"
@@ -183,6 +184,13 @@ DEFINE_bool(rx_sw_priority, false, "Enable rx packet prioritization");
 
 DEFINE_int32(rx_pkt_thread_timeout, 100, "Rx packet thread timeout (ms)");
 
+DEFINE_int32(max_l2_entries, 1000, "Maximum L2 entries supported");
+
+DEFINE_bool(
+    enable_mac_update_protection,
+    false,
+    "Enable MAC table update protection");
+
 using namespace facebook::fboss;
 namespace {
 
@@ -264,11 +272,11 @@ std::string getDrainThresholdStr(
     const SwitchSettings& switchSettings) {
   if (newState == SwitchDrainState::UNDRAINED) {
     auto minLinks = switchSettings.getMinLinksToRemainInVOQDomain();
-    return "drains when active ports is below " +
+    return "drains at < " +
         (minLinks.has_value() ? std::to_string(minLinks.value()) : "N/A") + ")";
   } else {
     auto minLinks = switchSettings.getMinLinksToJoinVOQDomain();
-    return "undrains when active ports is above" +
+    return "undrains at >= " +
         (minLinks.has_value() ? std::to_string(minLinks.value()) : "N/A") + ")";
   }
 }
@@ -429,6 +437,7 @@ SwSwitch::SwSwitch(
       routeUpdateLogger_(new RouteUpdateLogger(this)),
       resolvedNexthopMonitor_(new ResolvedNexthopMonitor(this)),
       resolvedNexthopProbeScheduler_(new ResolvedNexthopProbeScheduler(this)),
+      remoteNeighborUpdater_(new RemoteNeighborUpdater(this)),
       portUpdateHandler_(new PortUpdateHandler(this)),
       lookupClassUpdater_(new LookupClassUpdater(this)),
       lookupClassRouteUpdater_(new LookupClassRouteUpdater(this)),
@@ -541,6 +550,7 @@ void SwSwitch::stop(bool isGracefulStop, bool revertToMinAlpmState) {
 
   resolvedNexthopMonitor_.reset();
   resolvedNexthopProbeScheduler_.reset();
+  remoteNeighborUpdater_.reset();
   // Several member variables are performing operations in the background
   // thread.  Ask them to stop, before we shut down the background thread.
   //
@@ -1165,6 +1175,11 @@ std::shared_ptr<SwitchState> SwSwitch::preInit(SwitchFlags flags) {
              << " | SDK version: " << getAsicSdkVersion(sdkVersion_)
              << " | Agent version: " << getBuildPackageVersion();
 
+  swSwitchWarmbootHelper_->logBoot(
+      apache::thrift::util::enumNameSafe(bootType_),
+      getAsicSdkVersion(sdkVersion_),
+      getBuildPackageVersion());
+
   multiHwSwitchHandler_->start();
   std::optional<state::WarmbootState> wbState{};
   if (bootType_ == BootType::WARM_BOOT) {
@@ -1753,7 +1768,7 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
     return oldState;
   }
 
-  if (!resourceAccountant_->isValidRouteUpdate(delta)) {
+  if (!resourceAccountant_->isValidUpdate(delta)) {
     // Notify resource account to revert back to previous state
     resourceAccountant_->stateChanged(StateDelta(newState, oldState));
     return oldState;
@@ -1927,7 +1942,8 @@ void SwSwitch::packetReceived(std::unique_ptr<RxPacket> pkt) noexcept {
     handlePacket(std::move(pkt));
   } catch (const std::exception& ex) {
     portStats(port)->pktError();
-    XLOG(ERR) << "error processing trapped packet: " << folly::exceptionStr(ex);
+    XLOG(ERR) << "error processing trapped packet: " << folly::exceptionStr(ex)
+              << " from port: " << port;
     // Return normally, without letting the exception propagate to our caller.
     return;
   }
@@ -2109,6 +2125,7 @@ void SwSwitch::pfcWatchdogStateChanged(
 void SwSwitch::linkStateChanged(
     PortID portId,
     bool up,
+    cfg::PortType portType,
     std::optional<phy::LinkFaultStatus> iPhyFaultStatus) {
   if (!isFullyInitialized()) {
     XLOG(ERR)
@@ -2148,12 +2165,26 @@ void SwSwitch::linkStateChanged(
 
     return newState;
   };
-  updateStateNoCoalescing(
-      "Port OperState (UP/DOWN) Update", std::move(updateOperStateFn));
+
+  // Note: On NIF ports, we never coalesce link up/down updates to ensure
+  // expiry of NDP/ARP entries, but that is not applicable for Fabric port.
+  // Thus, coalesce updates on Fabric ports. This is especially useful for a
+  // flapping fabric ports as coalescing means that fewer state updates get
+  // queued and other state updates (e.g. drain request to take a flapping
+  // link off the prod) can get through quicker.
+  if (portType == cfg::PortType::FABRIC_PORT) {
+    updateState(
+        "Fabric Port OperState (UP/DOWN) Update", std::move(updateOperStateFn));
+  } else {
+    updateStateNoCoalescing(
+        "Port OperState (UP/DOWN) Update", std::move(updateOperStateFn));
+  }
 }
 
-void SwSwitch::linkActiveStateChanged(
-    const std::map<PortID, bool>& port2IsActive) {
+void SwSwitch::linkActiveStateChangedOrFwIsolated(
+    const std::map<PortID, bool>& port2IsActive,
+    bool fwIsolated,
+    const std::optional<uint32_t>& numActiveFabricPortsAtFwIsolate) {
   if (!isFullyInitialized()) {
     XLOG(ERR)
         << "Ignore link active state change event before we are fully initialized...";
@@ -2202,8 +2233,21 @@ void SwSwitch::linkActiveStateChanged(
     auto matcher = getScopeResolver()->scope(port2IsActive.cbegin()->first);
     auto switchSettings =
         state->getSwitchSettings()->getNodeIf(matcher.matcherString());
-    auto newActualSwitchDrainState =
-        computeActualSwitchDrainState(switchSettings, numActiveFabricPorts);
+
+    SwitchDrainState newActualSwitchDrainState;
+    if (fwIsolated) {
+      if (isSwitchErrorFirmwareIsolate(
+              numActiveFabricPortsAtFwIsolate, switchSettings)) {
+        newActualSwitchDrainState =
+            cfg::SwitchDrainState::DRAINED_DUE_TO_ASIC_ERROR;
+      } else {
+        newActualSwitchDrainState = cfg::SwitchDrainState::DRAINED;
+      }
+    } else {
+      newActualSwitchDrainState =
+          computeActualSwitchDrainState(switchSettings, numActiveFabricPorts);
+    }
+
     auto currentActualDrainState = switchSettings->getActualSwitchDrainState();
 
     if (newActualSwitchDrainState != currentActualDrainState) {
@@ -2211,10 +2255,16 @@ void SwSwitch::linkActiveStateChanged(
       newSwitchSettings->setActualSwitchDrainState(newActualSwitchDrainState);
     }
 
-    XLOG(DBG2) << "Switch state: "
+    XLOG(DBG2) << "SwitchID: " << static_cast<int>(matcher.switchId())
+               << " | FwIsolated: " << (fwIsolated ? "Y" : "N")
+               << " | ActivePortsAtFwIsolate: "
+               << (numActiveFabricPortsAtFwIsolate.has_value()
+                       ? folly::to<std::string>(
+                             numActiveFabricPortsAtFwIsolate.value())
+                       : "--")
+               << " | "
                << getDrainStateChangedStr(getState(), newState, matcher)
-               << " | SwitchIDs: " << matcher.matcherString()
-               << " | Active ports: " << numActiveFabricPorts << "/"
+               << " | ActivePorts: " << numActiveFabricPorts << "/"
                << port2IsActive.size() << " ("
                << getDrainThresholdStr(
                       newActualSwitchDrainState, switchSettings.get())
@@ -2222,9 +2272,45 @@ void SwSwitch::linkActiveStateChanged(
 
     return newState;
   };
-  updateStateNoCoalescing(
-      "Port ActiveState (ACTIVE/INACTIVE) Update",
-      std::move(updateActiveStateFn));
+
+  /*
+   * Consider the following scenario:
+   *  - Continuous flaps on fabric port(s).
+   *  - linkActiveStateChanged callbacks for each flap.
+   *  - A large number of state updates will be queued.
+   *  - If processed without coalescing, state update queue will build up.
+   *  - This will significantly delay any other state updates.
+   *  - For example, Self Healing's attempt to drain a flapping link will
+   *    require a state update, and could get significantly delayed.
+   *
+   * Thus, process linkActiveStateChanged with coalescing.
+   *
+   * Note: On NIF ports, we never coalesce link up/down updates to ensure
+   * expiry of NDP/ARP entries, but that is not applicable for Fabric port.
+   *
+   * But, there is an exception, consider the following scenario:
+   *   - A large number of fabric links flap.
+   *   - These links will transition ACTIVE => INACTIVE => ACTIVE.
+   *   - It is possible that the Firmware may isolate the device.
+   *   - Device is isolated, but SwitchState is UNDRAINED(unisolated)..(0)
+   *   - Firmware cb handling will decide to DRAIN (isolate) the device..(1)
+   *   - Switch active/inactive cb processing may decide to UNDRAIN.. (2)
+   *   - If (1) and (2) are coalesced, SwitchState will remain UNDRAINED and
+   *     the device will be isolated i.e. state (0), not what we want.
+   *
+   * Prevent this by not coalesing state update on Firmware Isolate.
+   *
+   * Firmware Isolate is a rare event, and thus it is OK to not coalesce these
+   * updates.
+   */
+  if (!fwIsolated) {
+    updateState(
+        "Port ActiveState (ACTIVE/INACTIVE) Update",
+        std::move(updateActiveStateFn));
+  } else {
+    updateStateNoCoalescing(
+        "Fw Isolate Update", std::move(updateActiveStateFn));
+  }
 }
 
 void SwSwitch::switchReachabilityChanged(
@@ -3461,7 +3547,8 @@ void SwSwitch::setPortsDownForSwitch(SwitchID switchId) {
     if (HwSwitchMatcher(matcher).has(switchId)) {
       for (const auto& port : std::as_const(*portMap)) {
         if (port.second->isUp()) {
-          linkStateChanged(port.second->getID(), false);
+          linkStateChanged(
+              port.second->getID(), false, port.second->getPortType());
         }
       }
     }

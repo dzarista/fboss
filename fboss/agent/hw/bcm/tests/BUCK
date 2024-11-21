@@ -53,6 +53,7 @@ cpp_library(
     link_whole = True,
     exported_deps = [
         ":bcm_test_handler",
+        "//fboss/agent:agent_features",
         "//fboss/agent:fboss-error",
         "//fboss/agent:load_agent_config",
         "//fboss/agent:setup_thrift",
@@ -627,5 +628,8 @@ cpp_library(
         "//fboss/agent/hw/test:hw_test_ecmp_utils",
         "//fboss/agent/hw/test:hw_test_thrift_handler_h",
         "//fboss/agent/test/utils:acl_test_utils",
+    ],
+    exported_external_deps = [
+        ("broadcom-xgs-robo", None, "xgs_robo"),
     ],
 )

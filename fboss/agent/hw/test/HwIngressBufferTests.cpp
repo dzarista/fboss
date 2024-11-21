@@ -38,7 +38,8 @@ std::vector<cfg::PortPgConfig> getPortPgConfig(
     int mmuCellBytes,
     const std::vector<int>& queues,
     int deltaValue = 0,
-    const bool enableHeadroom = true) {
+    const bool enableHeadroom = true,
+    const bool zeroHeadroom = false) {
   std::vector<cfg::PortPgConfig> portPgConfigs;
 
   for (const auto queueId : queues) {
@@ -46,8 +47,12 @@ std::vector<cfg::PortPgConfig> getPortPgConfig(
     pgConfig.id() = queueId;
     // use queueId value to assign different values for each param/queue
     if (enableHeadroom) {
-      pgConfig.headroomLimitBytes() =
-          (kPgHeadroomLimitCells + queueId + deltaValue) * mmuCellBytes;
+      if (zeroHeadroom) {
+        pgConfig.headroomLimitBytes() = 0;
+      } else {
+        pgConfig.headroomLimitBytes() =
+            (kPgHeadroomLimitCells + queueId + deltaValue) * mmuCellBytes;
+      }
     }
     pgConfig.minLimitBytes() =
         (kPgMinLimitCells + queueId + deltaValue) * mmuCellBytes;
@@ -85,6 +90,10 @@ namespace facebook::fboss {
 
 class HwIngressBufferTest : public HwTest {
  protected:
+  void SetUp() override {
+    FLAGS_fix_lossless_mode_per_pg = true;
+    HwTest::SetUp();
+  }
   cfg::SwitchConfig initialConfig() const {
     return utility::onePortPerInterfaceConfig(
         getHwSwitch(), masterLogicalPortIds());
@@ -204,6 +213,88 @@ TEST_F(HwIngressBufferTest, validatePGParamChange) {
     std::map<std::string, std::vector<cfg::PortPgConfig>> portPgConfigMap;
     portPgConfigMap["foo"] = getPortPgConfig(
         getPlatform()->getAsic()->getPacketBufferUnitSize(), {0, 1}, 1);
+    cfg_.portPgConfigs() = portPgConfigMap;
+    applyNewConfig(cfg_);
+  };
+
+  auto verify = [&]() {
+    utility::checkSwHwPgCfgMatch(
+        getHwSwitch(),
+        getProgrammedState()->getPorts()->getNodeIf(
+            PortID(masterLogicalInterfacePortIds()[0])),
+        true /*pfcEnable*/);
+  };
+
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+// For each of the below transitions, ensure headroom is programmed
+TEST_F(HwIngressBufferTest, validatePGHeadroomLimitChange) {
+  auto setup = [&]() {
+    // Start with PG0 and PG1 with non-zero headroom
+    setupHelper();
+
+    // Modify PG1 headroom value
+    // This ensure the new value is getting programmed after config update
+    // For both PGs, they will be created in lossless mode
+    std::map<std::string, std::vector<cfg::PortPgConfig>> portPgConfigMap;
+    auto portPgConfigs = getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(), {0}, 0);
+    portPgConfigs.push_back(getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(), {1}, 1)[0]);
+    portPgConfigMap["foo"] = portPgConfigs;
+    cfg_.portPgConfigs() = portPgConfigMap;
+    applyNewConfig(cfg_);
+    utility::checkSwHwPgCfgMatch(
+        getHwSwitch(),
+        getProgrammedState()->getPorts()->getNodeIf(
+            PortID(masterLogicalInterfacePortIds()[0])),
+        true /*pfcEnable*/);
+
+    // Remove PG1 headroom field and add a new PG2 with no headroom field
+    // both cases, PG1 and PG2 should be created in lossy mode
+    portPgConfigs = getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(), {0}, 0);
+    portPgConfigs.push_back(getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(), {1}, 1, false)[0]);
+    portPgConfigs.push_back(getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(), {2}, 0, false)[0]);
+    portPgConfigMap["foo"] = portPgConfigs;
+    cfg_.portPgConfigs() = portPgConfigMap;
+    applyNewConfig(cfg_);
+    utility::checkSwHwPgCfgMatch(
+        getHwSwitch(),
+        getProgrammedState()->getPorts()->getNodeIf(
+            PortID(masterLogicalInterfacePortIds()[0])),
+        true /*pfcEnable*/);
+
+    // Remove PG1 and update PG2 headroom to non-zero
+    // This ensure counters are accurately updated per PG. PFC counters are
+    // are created only for non-zero headroom PGs
+    // Also ensures, PG2 is updated to lossless mode.
+    portPgConfigs = getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(), {0}, 0);
+    portPgConfigs.push_back(getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(), {2}, 0)[0]);
+    portPgConfigMap["foo"] = portPgConfigs;
+    cfg_.portPgConfigs() = portPgConfigMap;
+    applyNewConfig(cfg_);
+    utility::checkSwHwPgCfgMatch(
+        getHwSwitch(),
+        getProgrammedState()->getPorts()->getNodeIf(
+            PortID(masterLogicalInterfacePortIds()[0])),
+        true /*pfcEnable*/);
+
+    // Make PG2 headroom value 0. This also make PG2 lossy
+    portPgConfigs = getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(), {0}, 0);
+    portPgConfigs.push_back(getPortPgConfig(
+        getPlatform()->getAsic()->getPacketBufferUnitSize(),
+        {2},
+        0,
+        true, /* enableHeadroom */
+        true /* zeroHeadroom */)[0]);
+    portPgConfigMap["foo"] = portPgConfigs;
     cfg_.portPgConfigs() = portPgConfigMap;
     applyNewConfig(cfg_);
   };

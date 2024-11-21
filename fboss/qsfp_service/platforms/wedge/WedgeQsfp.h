@@ -9,10 +9,8 @@
  */
 #pragma once
 
-#include <chrono>
 #include <cstdint>
 #include <memory>
-#include <mutex>
 
 #include <folly/futures/Future.h>
 #include <folly/io/async/EventBase.h>
@@ -21,7 +19,6 @@
 #include "fboss/qsfp_service/TransceiverManager.h"
 #include "fboss/qsfp_service/module/I2cLogBuffer.h"
 #include "fboss/qsfp_service/module/TransceiverImpl.h"
-#include "fboss/qsfp_service/platforms/wedge/WedgeI2CBusLock.h"
 
 namespace facebook {
 namespace fboss {
@@ -49,7 +46,7 @@ class WedgeQsfp : public TransceiverImpl {
   int writeTransceiver(
       const TransceiverAccessParameter& param,
       const uint8_t* fieldValue,
-      uint64_t delay = post_write_delay_us) override;
+      uint64_t delay) override;
 
   /* Returns the name for the port */
   folly::StringPiece getName() override;
@@ -110,6 +107,12 @@ class WedgeQsfp : public TransceiverImpl {
 
   // Get the capacity of the i2c buffer.
   size_t getI2cLogBufferCapacity();
+
+  void setTcvrInfoInLog(
+      const TransceiverManagementInterface& mgmtIf,
+      const std::set<std::string>& portNames,
+      const std::optional<FirmwareStatus>& status,
+      const std::optional<Vendor>& vendor);
 
  private:
   int module_;

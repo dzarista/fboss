@@ -199,6 +199,7 @@ void getPortInfoHelper(
     portInfo.hwLogicalPortId() = *id;
   }
   *portInfo.portType() = port->getPortType();
+  *portInfo.scope() = port->getScope();
 
   std::shared_ptr<QosPolicy> qosPolicy;
   auto state = sw.getState();
@@ -659,11 +660,13 @@ void addRecylePortRifNeighbors(
       continue;
     }
     auto switchId = SwitchID(switchIdAndInfo.first);
+    auto inbandSysPortId = getInbandSystemPortID(state, switchId);
     auto dsfNode = state->getDsfNodes()->getNodeIf(switchId);
-    CHECK(dsfNode);
-    constexpr auto kRecyclePortId = 1;
+    if (!dsfNode || !dsfNode->getInbandPortId().has_value()) {
+      throw FbossError("Unable to lookup inband port for : ", switchId);
+    }
     auto localRecycleRifId =
-        InterfaceID(*dsfNode->getSystemPortRange()->minimum() + kRecyclePortId);
+        InterfaceID(static_cast<uint32_t>(inbandSysPortId));
     const auto& localRecycleRif =
         state->getInterfaces()->getNode(localRecycleRifId);
     const auto& nbrTable =
@@ -673,13 +676,13 @@ void addRecylePortRifNeighbors(
       NeighborThriftT nbrThrift;
       nbrThrift.ip() = facebook::network::toBinaryAddress(entry->getIP());
       nbrThrift.mac() = entry->getMac().toString();
-      nbrThrift.port() = kRecyclePortId;
-      nbrThrift.portDescriptor()->portId() = kRecyclePortId;
+      nbrThrift.port() = dsfNode->getInbandPortId().value();
+      nbrThrift.portDescriptor()->portId() = dsfNode->getInbandPortId().value();
       nbrThrift.portDescriptor()->portType() =
           cfg::PortDescriptorType::Physical;
 
       nbrThrift.vlanName() = "--";
-      nbrThrift.interfaceID() = kRecyclePortId;
+      nbrThrift.interfaceID() = static_cast<uint32_t>(localRecycleRifId);
       // Local recycle port for RIF, should always be STATIC
       CHECK(entry->getType() == state::NeighborEntryType::STATIC_ENTRY);
       nbrThrift.state() = "STATIC";
@@ -1171,7 +1174,9 @@ void ThriftHandler::getAclTableGroup(AclTableThrift& aclTableEntry) {
   } else {
     std::vector<AclEntryThrift> aclTable;
     getAclTable(aclTable);
-    aclTableEntry.aclTableEntries_ref()["AclTable1"] = std::move(aclTable);
+    aclTableEntry.aclTableEntries_ref()
+        [cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE()] =
+        std::move(aclTable);
   }
 }
 

@@ -97,8 +97,10 @@ SaiSystemPortManager::attributesFromSwSystemPort(
     qosTcToQueueMap =
         SaiSystemPortTraits::Attributes::QosTcToQueueMap{qosMapId};
   }
+  std::optional<SaiSystemPortTraits::Attributes::ShelPktDstEnable>
+      shelPktDstEnable = std::nullopt;
   return SaiSystemPortTraits::CreateAttributes{
-      config, true /*enabled*/, qosTcToQueueMap};
+      config, true /*enabled*/, qosTcToQueueMap, shelPktDstEnable};
 }
 
 SystemPortSaiId SaiSystemPortManager::addSystemPort(
@@ -356,7 +358,10 @@ std::shared_ptr<SystemPortMap> SaiSystemPortManager::constructSystemPorts(
         continue;
       }
       auto sysPort = std::make_shared<SystemPort>(getSystemPortID(
-          port.second->getID(), switchIdToSwitchInfo, switchId));
+          port.second->getID(),
+          port.second->getScope(),
+          switchIdToSwitchInfo,
+          SwitchID(switchId)));
       sysPort->setSwitchId(SwitchID(switchId));
       sysPort->setName(
           folly::sformat("{}:{}", switchId, port.second->getName()));

@@ -11,11 +11,8 @@ namespace facebook::fboss {
 class HwAsic {
  public:
   HwAsic(
-      cfg::SwitchType switchType,
       std::optional<int64_t> switchId,
-      int16_t switchIndex,
-      std::optional<cfg::Range64> systemPortRange,
-      const folly::MacAddress& mac,
+      const cfg::SwitchInfo& switchInfo,
       std::optional<cfg::SdkVersion> sdkVersion = std::nullopt,
       std::unordered_set<cfg::SwitchType> supportedModes = {
           cfg::SwitchType::NPU});
@@ -198,6 +195,8 @@ class HwAsic {
     ENABLE_DELAY_DROP_CONGESTION_THRESHOLD,
     PORT_MTU_ERROR_TRAP,
     L3_INTF_MTU,
+    DEDICATED_CPU_BUFFER_POOL,
+    EGRESS_ACL_TABLE,
   };
 
   enum class AsicMode {
@@ -210,6 +209,7 @@ class HwAsic {
     ASIC_VENDOR_TAJO,
     ASIC_VENDOR_CREDO,
     ASIC_VENDOR_MARVELL,
+    ASIC_VENDOR_CHENAB,
     ASIC_VENDOR_MOCK,
     ASIC_VENDOR_FAKE,
   };
@@ -220,12 +220,8 @@ class HwAsic {
   };
   virtual ~HwAsic() {}
   static std::unique_ptr<HwAsic> makeAsic(
-      cfg::AsicType asicType,
-      cfg::SwitchType switchType,
       std::optional<int64_t> switchID,
-      int16_t switchIndex,
-      std::optional<cfg::Range64> systemPortRange,
-      const folly::MacAddress& mac,
+      const cfg::SwitchInfo& switchInfo,
       std::optional<cfg::SdkVersion> sdkVersion);
   virtual bool isSupported(Feature) const = 0;
   virtual cfg::AsicType getAsicType() const = 0;
@@ -355,8 +351,8 @@ class HwAsic {
   int16_t getSwitchIndex() const {
     return switchIndex_;
   }
-  std::optional<cfg::Range64> getSystemPortRange() const {
-    return systemPortRange_;
+  const cfg::SystemPortRanges& getSystemPortRanges() const {
+    return systemPortRanges_;
   }
 
   virtual cfg::StreamType getDefaultStreamType() const {
@@ -409,6 +405,9 @@ class HwAsic {
     return 32;
   }
 
+  virtual int getMidPriCpuQueueId() const = 0;
+  virtual int getHiPriCpuQueueId() const = 0;
+
  protected:
   static cfg::Range64 makeRange(int64_t min, int64_t max);
 
@@ -416,7 +415,7 @@ class HwAsic {
   cfg::SwitchType switchType_;
   std::optional<int64_t> switchId_;
   int16_t switchIndex_;
-  std::optional<cfg::Range64> systemPortRange_;
+  cfg::SystemPortRanges systemPortRanges_;
   cfg::StreamType defaultStreamType_{cfg::StreamType::ALL};
   folly::MacAddress asicMac_;
   std::optional<cfg::SdkVersion> sdkVersion_;

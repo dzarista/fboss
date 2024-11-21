@@ -10,6 +10,7 @@
 #pragma once
 
 #include "fboss/agent/FbossError.h"
+#include "fboss/agent/gen-cpp2/switch_config_constants.h"
 #include "fboss/agent/hw/sai/api/AclApi.h"
 #include "fboss/agent/hw/sai/api/AdapterKeySerializers.h"
 #include "fboss/agent/hw/sai/api/LagApi.h"
@@ -45,6 +46,10 @@ struct AdapterHostKeyWarmbootRecoverable<SaiNextHopGroupTraits>
 
 template <>
 struct AdapterHostKeyWarmbootRecoverable<SaiAclTableTraits> : std::false_type {
+};
+
+template <>
+struct AdapterHostKeyWarmbootRecoverable<SaiUdfGroupTraits> : std::false_type {
 };
 
 #if defined(BRCM_SAI_SDK_XGS_AND_DNX)
@@ -433,13 +438,22 @@ class SaiObjectStore {
         if constexpr (std::is_same_v<ObjectTraits, SaiAclTableTraits>) {
           // TODO(pshaikh): hack to allow warm boot from version which doesn't
           // save ahk
-          return ObjectType(key, SaiAclTableTraits::AdapterHostKey{kAclTable1});
+          return ObjectType(
+              key,
+              SaiAclTableTraits::AdapterHostKey{
+                  cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE()});
         }
         if constexpr (std::is_same_v<ObjectTraits, SaiNextHopGroupTraits>) {
           // a special handling has been added to deal with next hop group to
           // recover itself even if adapter host key is not saved in warm boot
           // state.
           return ObjectType(key);
+        }
+        if constexpr (std::is_same_v<ObjectTraits, SaiUdfGroupTraits>) {
+          // UDF groups are similar to ACL tables above where adapterHostKey is
+          // a string. This if condition is strictly not required and here only
+          // to allow build
+          return ObjectType(key, SaiUdfGroupTraits::AdapterHostKey{"udfGroup"});
         }
 #if defined(BRCM_SAI_SDK_XGS)
         if constexpr (std::is_same_v<ObjectTraits, SaiWredTraits>) {
@@ -627,6 +641,9 @@ class SaiStore {
       SaiObjectStore<SaiTamTraits>,
       SaiObjectStore<SaiTamReportTraits>,
       SaiObjectStore<SaiTamEventActionTraits>,
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+      SaiObjectStore<SaiTamEventAgingGroupTraits>,
+#endif
       SaiObjectStore<SaiTamEventTraits>,
       SaiObjectStore<SaiTamTransportTraits>,
       SaiObjectStore<SaiTamCollectorTraits>,

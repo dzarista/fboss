@@ -140,6 +140,7 @@ target_link_libraries(platform_manager_config_validator
   platform_manager_i2c_explorer
   platform_manager_config_cpp2
   Folly::folly
+  range-v3
 )
 
 add_executable(platform_manager
@@ -171,7 +172,9 @@ target_link_libraries(platform_manager
   ioctl_smbus_eeprom_reader
   i2c_ctrl
   ${LIBGPIOD}
+  ${SYSTEMD}
   gpiod_line
+  range-v3
 )
 
 install(TARGETS platform_manager)

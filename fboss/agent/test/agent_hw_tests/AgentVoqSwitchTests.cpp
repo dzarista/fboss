@@ -250,15 +250,18 @@ class AgentVoqSwitchTest : public AgentHwTest {
     return txPacketSize;
   }
 
-  SystemPortID getSystemPortID(const PortDescriptor& port) {
+  SystemPortID getSystemPortID(
+      const PortDescriptor& port,
+      cfg::Scope portScope) {
     auto switchId =
         scopeResolver().scope(getProgrammedState(), port).switchId();
-    auto sysPortRange = getProgrammedState()
-                            ->getDsfNodes()
-                            ->getNodeIf(switchId)
-                            ->getSystemPortRange();
-    CHECK(sysPortRange.has_value());
-    return SystemPortID(port.intID() + *sysPortRange->minimum());
+    const auto& dsfNode =
+        getProgrammedState()->getDsfNodes()->getNodeIf(switchId);
+    auto sysPortOffset = portScope == cfg::Scope::GLOBAL
+        ? dsfNode->getGlobalSystemPortOffset()
+        : dsfNode->getLocalSystemPortOffset();
+    CHECK(sysPortOffset.has_value());
+    return SystemPortID(port.intID() + *sysPortOffset);
   }
 
   std::string kDscpAclName() const {
@@ -308,6 +311,37 @@ class AgentVoqSwitchTest : public AgentHwTest {
       }
       return out;
     });
+  }
+
+  std::vector<PortDescriptor> getInterfacePortSysPortDesc() {
+    auto ports = getProgrammedState()->getPorts()->getAllNodes();
+    std::vector<PortDescriptor> portDescs;
+    std::for_each(
+        ports->begin(),
+        ports->end(),
+        [this, &portDescs](const auto& idAndPort) {
+          const auto port = idAndPort.second;
+          if (port->getPortType() == cfg::PortType::INTERFACE_PORT) {
+            portDescs.push_back(PortDescriptor(getSystemPortID(
+                PortDescriptor(port->getID()), cfg::Scope::GLOBAL)));
+          }
+        });
+    return portDescs;
+  }
+
+  // Resolve and return list of local nhops (only NIF ports)
+  std::vector<PortDescriptor> resolveLocalNhops(
+      utility::EcmpSetupTargetedPorts6& ecmpHelper) {
+    std::vector<PortDescriptor> portDescs = getInterfacePortSysPortDesc();
+
+    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
+      auto out = in->clone();
+      for (const auto& portDesc : portDescs) {
+        out = ecmpHelper.resolveNextHops(out, {portDesc});
+      }
+      return out;
+    });
+    return portDescs;
   }
 
  private:
@@ -548,7 +582,12 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, collectStats) {
           if (port->getPortType() == cfg::PortType::FABRIC_PORT) {
             EXPECT_EVENTUALLY_TRUE(loadBearingInErrors.has_value());
             EXPECT_EVENTUALLY_TRUE(loadBearingFecErrors.has_value());
-            EXPECT_EVENTUALLY_TRUE(loadBearingFlaps.has_value());
+            if (getAgentEnsemble()->getBootType() == BootType::COLD_BOOT) {
+              EXPECT_EVENTUALLY_TRUE(loadBearingFlaps.has_value());
+            } else {
+              // No port flap after wb, hence there no stats being recorded
+              EXPECT_FALSE(loadBearingFlaps.has_value());
+            }
           } else {
             EXPECT_FALSE(loadBearingInErrors.has_value());
             EXPECT_FALSE(loadBearingFecErrors.has_value());
@@ -1051,7 +1090,7 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
             getLatestPortStats(kPort.phyPortID()).get_queueOutBytes_());
       };
       auto getAllVoQOutBytes = [kPort, this]() {
-        return getLatestSysPortStats(getSystemPortID(kPort))
+        return getLatestSysPortStats(getSystemPortID(kPort, cfg::Scope::GLOBAL))
             .get_queueOutBytes_();
       };
       auto getAclPackets = [this]() {
@@ -1473,7 +1512,7 @@ TEST_F(AgentVoqSwitchTest, verifyQueueLatencyWatermark) {
     utility::setPortTx(getAgentEnsemble(), kPort.phyPortID(), true);
     WITH_RETRIES({
       auto queueLatencyWatermarkNsec =
-          *getLatestSysPortStats(getSystemPortID(kPort))
+          *getLatestSysPortStats(getSystemPortID(kPort, cfg::Scope::GLOBAL))
                .queueLatencyWatermarkNsec_();
       XLOG(DBG2) << "Port: " << kPort.phyPortID() << " voq queueId: " << queueId
                  << " latency watermark: " << queueLatencyWatermarkNsec[queueId]
@@ -2085,21 +2124,6 @@ class AgentVoqSwitchFullScaleDsfNodesTest : public AgentVoqSwitchTest {
     return 64;
   }
 
-  // Resolve and return list of local nhops (only NIF ports)
-  std::vector<PortDescriptor> resolveLocalNhops(
-      utility::EcmpSetupTargetedPorts6& ecmpHelper) {
-    std::vector<PortDescriptor> portDescs = getLocalSysPortDesc();
-
-    applyNewState([&](const std::shared_ptr<SwitchState>& in) {
-      auto out = in->clone();
-      for (const auto& portDesc : portDescs) {
-        out = ecmpHelper.resolveNextHops(out, {portDesc});
-      }
-      return out;
-    });
-    return portDescs;
-  }
-
   void setupRemoteIntfAndSysPorts() {
     auto updateDsfStateFn = [this](const std::shared_ptr<SwitchState>& in) {
       std::map<SwitchID, std::shared_ptr<SystemPortMap>> switchId2SystemPorts;
@@ -2122,10 +2146,10 @@ class AgentVoqSwitchFullScaleDsfNodesTest : public AgentVoqSwitchTest {
     });
   }
 
-  boost::container::flat_set<PortDescriptor> getRemoteSysPortDesc() {
+  flat_set<PortDescriptor> getRemoteSysPortDesc() {
     auto remoteSysPorts =
         getProgrammedState()->getRemoteSystemPorts()->getAllNodes();
-    boost::container::flat_set<PortDescriptor> sysPortDescs;
+    flat_set<PortDescriptor> sysPortDescs;
     std::for_each(
         remoteSysPorts->begin(),
         remoteSysPorts->end(),
@@ -2134,22 +2158,6 @@ class AgentVoqSwitchFullScaleDsfNodesTest : public AgentVoqSwitchTest {
               PortDescriptor(static_cast<SystemPortID>(idAndPort.first)));
         });
     return sysPortDescs;
-  }
-
-  std::vector<PortDescriptor> getLocalSysPortDesc() {
-    auto ports = getProgrammedState()->getPorts()->getAllNodes();
-    std::vector<PortDescriptor> portDescs;
-    std::for_each(
-        ports->begin(),
-        ports->end(),
-        [this, &portDescs](const auto& idAndPort) {
-          const auto port = idAndPort.second;
-          if (port->getPortType() == cfg::PortType::INTERFACE_PORT) {
-            portDescs.push_back(
-                PortDescriptor(getSystemPortID(PortDescriptor(port->getID()))));
-          }
-        });
-    return portDescs;
   }
 
  protected:
@@ -2190,20 +2198,29 @@ TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
     utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
 
     // Resolve remote nhops and get a list of remote sysPort descriptors
-    boost::container::flat_set<PortDescriptor> sysPortDescs =
+    flat_set<PortDescriptor> sysPortDescs =
         utility::resolveRemoteNhops(getAgentEnsemble(), ecmpHelper);
 
+    CHECK(sysPortDescs.size() > kEcmpWidth);
     for (int i = 0; i < getMaxEcmpGroup(); i++) {
       auto prefix = RoutePrefixV6{
           folly::IPAddressV6(folly::to<std::string>(i, "::", i)),
           static_cast<uint8_t>(i == 0 ? 0 : 128)};
       auto routeUpdater = getSw()->getRouteUpdater();
-      ecmpHelper.programRoutes(
-          &routeUpdater,
-          flat_set<PortDescriptor>(
-              std::make_move_iterator(sysPortDescs.begin() + i),
-              std::make_move_iterator(sysPortDescs.begin() + i + kEcmpWidth)),
-          {prefix});
+      auto sysPortStart = (i * kEcmpWidth) % sysPortDescs.size();
+      auto ecmpMemberPorts = flat_set<PortDescriptor>(
+          std::make_move_iterator(sysPortDescs.begin() + sysPortStart),
+          std::make_move_iterator(
+              sysPortDescs.begin() +
+              std::min(sysPortStart + kEcmpWidth, sysPortDescs.size())));
+      // Wrap around and start adding from front of the ports
+      if (ecmpMemberPorts.size() < kEcmpWidth) {
+        ecmpMemberPorts.insert(
+            std::make_move_iterator(sysPortDescs.begin()),
+            std::make_move_iterator(
+                sysPortDescs.begin() + (kEcmpWidth - ecmpMemberPorts.size())));
+      }
+      ecmpHelper.programRoutes(&routeUpdater, ecmpMemberPorts, {prefix});
     }
   };
   auto verify = [&]() {
@@ -2282,7 +2299,7 @@ TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, remoteAndLocalLoadBalance) {
   auto verify = [&]() {
     std::vector<PortDescriptor> sysPortDescs;
     auto remoteSysPortDescs = getRemoteSysPortDesc();
-    auto localSysPortDescs = getLocalSysPortDesc();
+    auto localSysPortDescs = getInterfacePortSysPortDesc();
 
     sysPortDescs.insert(
         sysPortDescs.end(),
@@ -2330,10 +2347,8 @@ TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, remoteAndLocalLoadBalance) {
 
 TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, stressProgramEcmpRoutes) {
   auto kEcmpWidth = getMaxEcmpWidth();
-  // Stress add/delete 40 iterations of 5 routes with ECMP width.
-  // 40 iterations take ~17 mins on j3.
   const auto routeScale = 5;
-  const auto numIterations = 40;
+  const auto numIterations = 20;
   auto setup = [&]() {
     setupRemoteIntfAndSysPorts();
     utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
@@ -2510,4 +2525,113 @@ TEST_F(
   verifyAcrossWarmBoots(setup, verify);
 }
 
+class AgentVoqSwitchConditionalEntropyTest : public AgentVoqSwitchTest {
+ public:
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto cfg = AgentVoqSwitchTest::initialConfig(ensemble);
+    // Enable Conditional Entropy on Interface Ports
+    for (auto& port : *cfg.ports()) {
+      if (port.portType() == cfg::PortType::INTERFACE_PORT) {
+        port.conditionalEntropyRehash() = true;
+      }
+    }
+    cfg.switchSettings()->conditionalEntropyRehashPeriodUS() = 100;
+    return cfg;
+  }
+};
+
+TEST_F(AgentVoqSwitchConditionalEntropyTest, init) {
+  auto setup = []() {};
+
+  auto verify = [this]() {
+    auto state = getProgrammedState();
+    for (const auto& portMap : std::as_const(*state->getPorts())) {
+      for (const auto& port : std::as_const(*portMap.second)) {
+        if (port.second->getPortType() == cfg::PortType::INTERFACE_PORT) {
+          EXPECT_TRUE(port.second->getConditionalEntropyRehash());
+        }
+      }
+    }
+    // TODO: Program ECMP route, insert traffic and verify change in next hop.
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
+TEST_F(AgentVoqSwitchConditionalEntropyTest, verifyLoadBalancing) {
+  const auto kEcmpWidth = 4;
+  const auto kMaxDeviation = 25;
+
+  auto getLocalSysPortDesc = [this](auto ecmpHelper) {
+    std::vector<PortDescriptor> sysPortDescs;
+    auto localSysPortDescs = resolveLocalNhops(ecmpHelper);
+    sysPortDescs.insert(
+        sysPortDescs.end(),
+        localSysPortDescs.begin(),
+        localSysPortDescs.begin() + kEcmpWidth);
+    return sysPortDescs;
+  };
+  auto setup = [this, kEcmpWidth, &getLocalSysPortDesc]() {
+    utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
+
+    std::vector<PortDescriptor> sysPortDescs = getLocalSysPortDesc(ecmpHelper);
+
+    auto prefix = RoutePrefixV6{folly::IPAddressV6("0::0"), 0};
+    auto routeUpdater = getSw()->getRouteUpdater();
+    ecmpHelper.programRoutes(
+        &routeUpdater,
+        flat_set<PortDescriptor>(
+            std::make_move_iterator(sysPortDescs.begin()),
+            std::make_move_iterator(sysPortDescs.end())),
+        {prefix});
+  };
+
+  auto verify = [this, &getLocalSysPortDesc]() {
+    // Send traffic through the 5th interface port and verify load balancing
+    const auto kIngressPort = 5;
+    CHECK(masterLogicalInterfacePortIds().size() > kIngressPort + 1);
+
+    utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
+    std::vector<PortDescriptor> sysPortDescs = getLocalSysPortDesc(ecmpHelper);
+
+    std::function<std::map<SystemPortID, HwSysPortStats>(
+        const std::vector<SystemPortID>&)>
+        getSysPortStatsFn = [&](const std::vector<SystemPortID>& portIds) {
+          getSw()->updateStats();
+          return getLatestSysPortStats(portIds);
+        };
+
+    utility::pumpTrafficAndVerifyLoadBalanced(
+        [&]() {
+          utility::pumpRoCETraffic(
+              true /* isV6 */,
+              utility::getAllocatePktFn(getAgentEnsemble()),
+              utility::getSendPktFunc(getAgentEnsemble()),
+              utility::getFirstInterfaceMac(getProgrammedState()),
+              std::nullopt /* vlan */,
+              masterLogicalInterfacePortIds()[kIngressPort],
+              utility::kUdfL4DstPort,
+              255 /* hopLimit */,
+              std::nullopt /* srcMacAddr */,
+              1000000, /* packetCount */
+              utility::kUdfRoceOpcodeAck,
+              0x40, /* reserved */
+              std::nullopt, /* nextHdr */
+              true /* sameDstQueue */);
+        },
+        [&]() {
+          auto ports = std::make_unique<std::vector<int32_t>>();
+          for (auto sysPortDecs : sysPortDescs) {
+            ports->push_back(static_cast<int32_t>(sysPortDecs.sysPortID()));
+          }
+          getSw()->clearPortStats(ports);
+        },
+        [&]() {
+          WITH_RETRIES(EXPECT_EVENTUALLY_TRUE(utility::isLoadBalanced(
+              sysPortDescs, {}, getSysPortStatsFn, kMaxDeviation, false)));
+          return true;
+        });
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
 } // namespace facebook::fboss

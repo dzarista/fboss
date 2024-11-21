@@ -85,8 +85,10 @@ inline const int kUdfAclRethDmaLenFieldSizeInBytes(2);
 class SwitchState;
 class Interface;
 class SwitchSettings;
-class SwitchIdScopeResolver;
+class PlatformMapping;
 struct AgentConfig;
+class HwAsic;
+class HwSwitchFb303Stats;
 
 constexpr auto kRecyclePortIdOffset = 1;
 
@@ -249,17 +251,21 @@ PortID getPortID(
 
 SystemPortID getSystemPortID(
     const PortID& portId,
-    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo,
-    int64_t switchId);
-
-SystemPortID getSystemPortID(
-    const PortID& portId,
+    cfg::Scope portScope,
     const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo,
     SwitchID switchId);
 
 SystemPortID getSystemPortID(
     const PortID& portId,
     const std::shared_ptr<SwitchState>& state,
+    SwitchID switchId);
+
+SystemPortID getInbandSystemPortID(
+    const std::shared_ptr<SwitchState>& state,
+    SwitchID switchId);
+
+SystemPortID getInbandSystemPortID(
+    const std::map<int64_t, cfg::SwitchInfo>& switchToSwitchInfo,
     SwitchID switchId);
 
 cfg::Range64 getFirstSwitchSystemPortIdRange(
@@ -403,6 +409,10 @@ size_t getNumActiveFabricPorts(
     const std::shared_ptr<SwitchState>& state,
     const HwSwitchMatcher& matcher);
 
+bool isSwitchErrorFirmwareIsolate(
+    const std::optional<uint32_t>& numActiveFabricPortsAtFwIsolate,
+    const std::shared_ptr<SwitchSettings>& switchSettings);
+
 cfg::SwitchDrainState computeActualSwitchDrainState(
     const std::shared_ptr<SwitchSettings>& switchSettings,
     int numActiveFabricPorts);
@@ -420,7 +430,7 @@ uint32_t getRemotePortOffset(const PlatformType platformType);
 
 std::string runShellCmd(const std::string& cmd);
 
-InterfaceID getRecyclePortIntfID(
+InterfaceID getInbandPortIntfID(
     const std::shared_ptr<SwitchState>& state,
     const SwitchID& switchId);
 
@@ -433,15 +443,9 @@ int getRemoteSwitchID(
     const std::unordered_map<std::string, std::vector<uint32_t>>&
         switchNameToSwitchIds);
 
-bool haveParallelLinksToInterfaceNodes(
-    const cfg::SwitchConfig* cfg,
-    const std::vector<SwitchID>& localFabricSwitchIds,
-    const std::unordered_map<std::string, std::vector<uint32_t>>&
-        switchNameToSwitchIds,
-    SwitchIdScopeResolver& scopeResolver);
-
-CpuCosQueueId hwQueueIdToCpuCosQueueId(uint8_t hwQueueId);
+CpuCosQueueId hwQueueIdToCpuCosQueueId(
+    uint8_t hwQueueId,
+    const HwAsic* asic,
+    HwSwitchFb303Stats* hwswitchStats);
 int numFabricLevels(const std::map<int64_t, cfg::DsfNode>& dsfNodes);
-
-std::unique_ptr<AgentConfig> getConfigFileForTesting(int switchIndex);
 } // namespace facebook::fboss

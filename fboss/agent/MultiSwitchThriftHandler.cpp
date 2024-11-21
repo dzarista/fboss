@@ -64,11 +64,12 @@ void MultiSwitchThriftHandler::processLinkState(
              << *linkStateEvent.port()
              << " up :" << (*linkStateEvent.up() ? "UP" : "DOWN");
   PortID portId = PortID(*linkStateEvent.port());
+  cfg::PortType portType = *linkStateEvent.portType();
   std::optional<phy::LinkFaultStatus> faultStatus;
   if (linkStateEvent.iPhyLinkFaultStatus()) {
     faultStatus = *linkStateEvent.iPhyLinkFaultStatus();
   }
-  sw_->linkStateChanged(portId, *linkStateEvent.up(), faultStatus);
+  sw_->linkStateChanged(portId, *linkStateEvent.up(), portType, faultStatus);
 }
 
 void MultiSwitchThriftHandler::processLinkActiveState(
@@ -86,7 +87,17 @@ void MultiSwitchThriftHandler::processLinkActiveState(
        *linkChangeEvent.linkActiveEvents()->port2IsActive()) {
     port2IsActive[PortID(portID)] = isActive;
   }
-  sw_->linkActiveStateChanged(port2IsActive);
+
+  auto fwIsolated = *linkChangeEvent.linkActiveEvents()->fwIsolated();
+
+  std::optional<uint32_t> numActiveFabricPortsAtFwIsolate;
+  if (linkChangeEvent.linkActiveEvents()->numActiveFabricPortsAtFwIsolate()) {
+    numActiveFabricPortsAtFwIsolate =
+        *linkChangeEvent.linkActiveEvents()->numActiveFabricPortsAtFwIsolate();
+  }
+
+  sw_->linkActiveStateChangedOrFwIsolated(
+      port2IsActive, fwIsolated, numActiveFabricPortsAtFwIsolate);
 }
 
 void MultiSwitchThriftHandler::processLinkConnectivity(

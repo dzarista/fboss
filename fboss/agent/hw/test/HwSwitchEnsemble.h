@@ -32,10 +32,8 @@
 #include <thread>
 
 DECLARE_bool(mmu_lossless_mode);
-DECLARE_bool(qgroup_guarantee_enable);
 DECLARE_bool(enable_exact_match);
 DECLARE_bool(flowletSwitchingEnable);
-DECLARE_bool(skip_buffer_reservation);
 
 namespace folly {
 class FunctionScheduler;
@@ -81,8 +79,11 @@ class HwSwitchEnsemble : public TestEnsembleIf {
    private:
     virtual void packetReceived(RxPacket* pkt) noexcept = 0;
     virtual void linkStateChanged(PortID port, bool up) = 0;
-    virtual void linkActiveStateChanged(
-        const std::map<PortID, bool>& port2IsActive) = 0;
+    virtual void linkActiveStateChangedOrFwIsolated(
+        const std::map<PortID, bool>& port2IsActive,
+        bool /* fwIsolated */,
+        const std::optional<
+            uint32_t>& /* numActiveFabricPortsAtFwIsolate */) = 0;
     virtual void linkConnectivityChanged(
         const std::map<PortID, multiswitch::FabricConnectivityDelta>&
             port2OldAndNewConnectivity) = 0;
@@ -181,10 +182,14 @@ class HwSwitchEnsemble : public TestEnsembleIf {
   void linkStateChanged(
       PortID port,
       bool up,
+      cfg::PortType portType,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override;
-  void linkActiveStateChanged(
-      const std::map<PortID, bool>& /*port2IsActive */) override;
+  void linkActiveStateChangedOrFwIsolated(
+      const std::map<PortID, bool>& /*port2IsActive */,
+      bool /* fwIsolated */,
+      const std::optional<uint32_t>& /* numActiveFabricPortsAtFwIsolate */
+      ) override;
   void linkConnectivityChanged(
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&
       /*port2OldAndNewConnectivity*/) override {

@@ -127,7 +127,7 @@ fi
 dnf install --enablerepo "$DEV_TOOLS_REPO" -y perl-List-MoreUtils perl-YAML.noarch \
    perl-Data-Compare perl-Moose perl-MooseX-Role* perl-Clone libyaml-devel doxygen \
    yaml-cpp-static
-dnf install -y python3-filelock platform-python-devel double-conversion-devel
+dnf install -y python3-filelock platform-python-devel double-conversion-devel range-v3-devel xxhash-devel systemd-devel
 
 # Link the libyaml cpp staticl library to the path that the SDK build expects.
 ln -s /usr/lib64/libyaml-cpp.a  /usr/lib64/libyaml.a

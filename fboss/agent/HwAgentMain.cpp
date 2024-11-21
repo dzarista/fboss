@@ -22,7 +22,7 @@
 #include "fboss/agent/HwSwitch.h"
 #include "fboss/agent/RestartTimeTracker.h"
 #include "fboss/agent/SetupThrift.h"
-#include "fboss/agent/Utils.h"
+#include "fboss/agent/TestUtils.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/mnpu/SplitAgentThriftSyncer.h"
 #include "fboss/agent/state/StateDelta.h"
@@ -160,6 +160,7 @@ int hwAgentMain(
 
   if (FLAGS_thrift_test_utils_thrift_handler || FLAGS_hw_agent_for_testing) {
     config = getConfigFileForTesting(FLAGS_switchIndex);
+    initFlagDefaults(*config->thrift.defaultCommandLineArgs());
   }
 
   auto hwAgent = std::make_unique<HwAgent>(

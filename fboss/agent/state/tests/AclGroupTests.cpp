@@ -19,6 +19,8 @@
 #include "fboss/agent/state/SwitchState.h"
 #include "fboss/agent/test/TestUtils.h"
 
+#include "fboss/agent/gen-cpp2/switch_config_constants.h"
+
 #include <gtest/gtest.h>
 
 using namespace facebook::fboss;
@@ -40,14 +42,12 @@ const uint8_t kDscpVal4 = 4;
 const std::string kTable1 = "table1";
 const std::string kTable2 = "table2";
 const std::string kTable3 = "table3";
-const std::string kAclTable1 = "AclTable1";
 
 const cfg::AclStage kAclStage1 = cfg::AclStage::INGRESS;
 const cfg::AclStage kAclStage2 = cfg::AclStage::INGRESS_MACSEC;
 
 const std::string kGroup1 = "group1";
 const std::string kGroup2 = "group2";
-const std::string kAclTableGroupName = "ingress-ACL-Table-Group";
 
 const std::string kAcl1a = "acl1a";
 const std::string kAcl1b = "acl1b";
@@ -68,11 +68,21 @@ const std::vector<cfg::AclTableQualifier> kQualifiers = {
     cfg::AclTableQualifier::SRC_IPV4,
     cfg::AclTableQualifier::DST_IPV4};
 
+const std::string kUdfGroup1 = "udfGroup1";
+const std::string kUdfGroup2 = "udfGroup2";
+const std::string kUdfGroup3 = "udfGroup3";
+
+const std::vector<std::string> kAclUdfGroups = {
+    kUdfGroup1,
+    kUdfGroup2,
+    kUdfGroup3};
+
 namespace {
 
 std::shared_ptr<const AclMap> getAclMapFromState(
     std::shared_ptr<SwitchState> state) {
-  auto aclMap = state->getAclsForTable(kAclStage1, kAclTable1);
+  auto aclMap = state->getAclsForTable(
+      kAclStage1, cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE());
   EXPECT_NE(nullptr, aclMap);
   return aclMap;
 }
@@ -185,10 +195,12 @@ TEST(AclGroup, TestEquality) {
   table1->setAclMap(map1);
   table1->setActionTypes(kActionTypes);
   table1->setQualifiers(kQualifiers);
+  table1->setUdfGroups(kAclUdfGroups);
   auto table2 = std::make_shared<AclTable>(2, kTable1);
   table2->setAclMap(map2);
   table2->setActionTypes(kActionTypes);
   table2->setQualifiers(kQualifiers);
+  table2->setUdfGroups(kAclUdfGroups);
   validateNodeSerialization(*table1);
   validateNodeSerialization(*table2);
 
@@ -292,6 +304,7 @@ TEST(AclGroup, SerializeAclTable) {
   table->setAclMap(map);
   table->setActionTypes(kActionTypes);
   table->setQualifiers(kQualifiers);
+  table->setUdfGroups(kAclUdfGroups);
   validateNodeSerialization(*table);
 
   auto serialized = table->toThrift();
@@ -303,6 +316,7 @@ TEST(AclGroup, SerializeAclTable) {
   EXPECT_EQ(*(tableBack->getAclMap()), *map);
   EXPECT_EQ(tableBack->getActionTypes(), kActionTypes);
   EXPECT_EQ(tableBack->getQualifiers(), kQualifiers);
+  EXPECT_EQ(tableBack->getUdfGroups()->toThrift(), kAclUdfGroups);
 
   // change the priority
   table->setPriority(2);
@@ -317,6 +331,7 @@ TEST(AclGroup, SerializeAclTable) {
   EXPECT_EQ(*(tableBack->getAclMap()), *map);
   EXPECT_EQ(tableBack->getActionTypes(), kActionTypes);
   EXPECT_EQ(tableBack->getQualifiers(), kQualifiers);
+  EXPECT_EQ(tableBack->getUdfGroups()->toThrift(), kAclUdfGroups);
 }
 
 TEST(AclGroup, SerializeAclTableMap) {
@@ -429,7 +444,9 @@ TEST(AclGroup, SerializeMultiSwitchAclTableGroupMap) {
   map1->addEntry(entry2);
   map1->addEntry(entry3);
 
-  auto table1 = std::make_shared<AclTable>(0, kAclTable1);
+  const std::string table1Name =
+      cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE();
+  auto table1 = std::make_shared<AclTable>(0, table1Name);
   table1->setAclMap(map1);
 
   auto tableMap = std::make_shared<AclTableMap>();
@@ -437,7 +454,8 @@ TEST(AclGroup, SerializeMultiSwitchAclTableGroupMap) {
 
   auto tableGroup = std::make_shared<AclTableGroup>(kAclStage1);
   tableGroup->setAclTableMap(tableMap);
-  tableGroup->setName(kAclTableGroupName);
+  tableGroup->setName(
+      cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE_GROUP());
 
   auto tableGroups = std::make_shared<MultiSwitchAclTableGroupMap>();
   tableGroups->addNode(tableGroup, scope());
@@ -495,6 +513,7 @@ TEST(AclGroup, ApplyConfigColdbootMultipleAclTable) {
   table1->setAclMap(map1);
   table1->setActionTypes(kActionTypes);
   table1->setQualifiers(kQualifiers);
+  table1->setUdfGroups(kAclUdfGroups);
   validateNodeSerialization(*table1);
 
   auto tableMap = make_shared<AclTableMap>();
@@ -520,6 +539,9 @@ TEST(AclGroup, ApplyConfigColdbootMultipleAclTable) {
 
   cfgTable1.qualifiers_ref()->resize(kQualifiers.size());
   cfgTable1.qualifiers_ref() = kQualifiers;
+
+  cfgTable1.udfGroups_ref()->resize(kAclUdfGroups.size());
+  cfgTable1.udfGroups_ref() = kAclUdfGroups;
 
   cfg::SwitchConfig config;
   cfg::AclTableGroup cfgTableGroup;
@@ -579,6 +601,14 @@ TEST(AclGroup, ApplyConfigColdbootMultipleAclTable) {
           ->getTableIf(table1->getID())
           ->getQualifiers(),
       kQualifiers);
+  EXPECT_EQ(
+      stateV1->getAclTableGroups()
+          ->getNodeIf(kAclStage1)
+          ->getAclTableMap()
+          ->getTableIf(table1->getID())
+          ->getUdfGroups()
+          ->toThrift(),
+      kAclUdfGroups);
   EXPECT_EQ(
       *(stateV1->getAclTableGroups()
             ->getNodeIf(kAclStage1)

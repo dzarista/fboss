@@ -115,12 +115,17 @@ class CmdShowInterface
     populateVlanToMtu(vlanToMtu, intfDetails);
     populateVlanToPrefixes(vlanToPrefixes, intfDetails);
 
-    int32_t minSystemPort = 0;
+    std::optional<int32_t> localSysPortOffset, globalSysPortOffset;
     for (const auto& idAndNode : dsfNodes) {
       const auto& node = idAndNode.second;
       if (utils::removeFbDomains(hostInfo.getName()) ==
           utils::removeFbDomains(*node.name())) {
-        minSystemPort = *node.systemPortRange()->minimum();
+        if (node.localSystemPortOffset().has_value()) {
+          localSysPortOffset = *node.localSystemPortOffset();
+        }
+        if (node.globalSystemPortOffset().has_value()) {
+          globalSysPortOffset = *node.globalSystemPortOffset();
+        }
         break;
       }
     }
@@ -136,6 +141,7 @@ class CmdShowInterface
         ifModel.speed() = std::to_string(*portInfo.speedMbps() / 1000) + "G";
         ifModel.prefixes() = {};
         ifModel.portType() = *portInfo.portType();
+        ifModel.scope() = *portInfo.scope();
 
         // We assume that there is a one-to-one association between
         // port, interface, and VLAN.
@@ -150,8 +156,13 @@ class CmdShowInterface
           }
         }
 
-        if (dsfNodes.size() > 0) {
-          int systemPortId = minSystemPort + portId;
+        if (localSysPortOffset.has_value() && globalSysPortOffset.has_value()) {
+          // TODO factor in portId range for this switchId. Needed for
+          // multi-asic systems
+          int systemPortId =
+              (portInfo.scope() == cfg::Scope::GLOBAL ? *globalSysPortOffset
+                                                      : *localSysPortOffset) +
+              portId;
           ifModel.systemPortId() = systemPortId;
 
           // Extract IP addresses for DSF switches
@@ -281,6 +292,8 @@ class CmdShowInterface
       });
     }
 
+    bool foundInbandPort = false;
+
     for (const auto& interface : *model.interfaces()) {
       std::string name = *interface.name();
       std::vector<std::string> prefixes;
@@ -295,6 +308,18 @@ class CmdShowInterface
         }
       }
 
+      // Tag first global recycle port as the inband port
+      auto description = *interface.description();
+      if (!foundInbandPort &&
+          interface.portType() == cfg::PortType::RECYCLE_PORT &&
+          interface.scope() == cfg::Scope::GLOBAL) {
+        if (!description.empty() && !description.ends_with("\n")) {
+          description += "\n";
+        }
+        description += "Inband port";
+        foundInbandPort = true;
+      }
+
       std::vector<Table::RowData> row;
       if (isVoq) {
         outTable.addRow(
@@ -305,7 +330,7 @@ class CmdShowInterface
              (interface.vlan() ? std::to_string(*interface.vlan()) : ""),
              (interface.mtu() ? std::to_string(*interface.mtu()) : ""),
              (prefixes.size() > 0 ? folly::join("\n", prefixes) : ""),
-             *interface.description()});
+             description});
       } else {
         outTable.addRow(
             {name,
@@ -314,7 +339,7 @@ class CmdShowInterface
              (interface.vlan() ? std::to_string(*interface.vlan()) : ""),
              (interface.mtu() ? std::to_string(*interface.mtu()) : ""),
              (prefixes.size() > 0 ? folly::join("\n", prefixes) : ""),
-             *interface.description()});
+             description});
       }
     }
     out << outTable << std::endl;

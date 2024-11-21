@@ -15,6 +15,33 @@
 
 namespace facebook::fboss::thrift_cow::test {
 
+struct GetVisitedPathsOperator : public BasePathVisitorOperator {
+ public:
+  const std::set<std::string>& getVisited() {
+    return visited;
+  }
+
+ protected:
+  void visit(
+      Serializable& /* node */,
+      pv_detail::PathIter begin,
+      pv_detail::PathIter end) override {
+    visited.insert(
+        "/" + folly::join('/', std::vector<std::string>(begin, end)));
+  }
+
+  template <typename Node>
+  void visit(Node& node, pv_detail::PathIter begin, pv_detail::PathIter end)
+    requires(!is_cow_type_v<Node>)
+  {
+    SerializableReader dummy(node);
+    visit(dummy, begin, end);
+  }
+
+ private:
+  std::set<std::string> visited;
+};
+
 TEST(PathVisitorTests, AccessField) {
   auto structA = createSimpleTestStruct();
 
@@ -58,11 +85,13 @@ TEST(PathVisitorTests, AccessField) {
   EXPECT_TRUE(dyn.asBool());
 }
 
-#ifdef __ENABLE_HYBRID_THRIFT_COW_TESTS__
 TEST(PathVisitorTests, HybridMapPrimitiveAccess) {
   auto structA = createHybridMapTestStruct();
 
-  auto nodeA = std::make_shared<ThriftStructNode<TestStruct>>(structA);
+  auto nodeA = std::make_shared<ThriftStructNode<
+      TestStruct,
+      ThriftStructResolver<TestStruct, true>,
+      true>>(structA);
   folly::dynamic dyn;
   auto processPath = pvlambda([&dyn](auto& node, auto begin, auto end) {
     EXPECT_EQ(begin, end);
@@ -100,6 +129,26 @@ TEST(PathVisitorTests, HybridMapPrimitiveAccess) {
         *nodeA, path.begin(), path.end(), PathVisitMode::LEAF, processPath);
     EXPECT_EQ(result, ThriftTraverseResult::INVALID_MAP_KEY);
   }
+}
+TEST(PathVisitorTests, HybridMapStructAccess) {
+  auto structA = createHybridMapTestStruct();
+
+  auto nodeA = std::make_shared<ThriftStructNode<
+      TestStruct,
+      ThriftStructResolver<TestStruct, true>,
+      true>>(structA);
+  folly::dynamic dyn;
+  auto processPath = pvlambda([&dyn](auto& node, auto begin, auto end) {
+    EXPECT_EQ(begin, end);
+    if constexpr (std::is_base_of_v<
+                      Serializable,
+                      std::remove_cvref_t<decltype(node)>>) {
+      dyn = node.toFollyDynamic();
+    } else {
+      facebook::thrift::to_dynamic(
+          dyn, node, facebook::thrift::dynamic_format::JSON_1);
+    }
+  });
   // hybridMapOfI32ToStruct
   {
     std::vector<std::string> path = {"hybridMapOfI32ToStruct"};
@@ -136,7 +185,77 @@ TEST(PathVisitorTests, HybridMapPrimitiveAccess) {
     EXPECT_EQ(result, ThriftTraverseResult::INVALID_MAP_KEY);
   }
 }
-#endif // __ENABLE_HYBRID_THRIFT_COW_TESTS__
+
+TEST(PathVisitorTests, HybridMapOfMapAccess) {
+  auto structA = createHybridMapTestStruct();
+
+  auto nodeA = std::make_shared<ThriftStructNode<
+      TestStruct,
+      ThriftStructResolver<TestStruct, true>,
+      true>>(structA);
+  folly::dynamic dyn;
+  auto processPath = pvlambda([&dyn](auto& node, auto begin, auto end) {
+    EXPECT_EQ(begin, end);
+    if constexpr (std::is_base_of_v<
+                      Serializable,
+                      std::remove_cvref_t<decltype(node)>>) {
+      dyn = node.toFollyDynamic();
+    } else {
+      facebook::thrift::to_dynamic(
+          dyn, node, facebook::thrift::dynamic_format::JSON_1);
+    }
+  });
+  // hybridMapOfMap
+  {
+    std::vector<std::string> path = {"hybridMapOfMap"};
+    auto result = RootPathVisitor::visit(
+        *nodeA, path.begin(), path.end(), PathVisitMode::LEAF, processPath);
+    EXPECT_EQ(result, ThriftTraverseResult::OK);
+    EXPECT_NE(dyn.find(10), dyn.items().end());
+    EXPECT_NE(dyn[10].find(20), dyn[10].items().end());
+    EXPECT_EQ(dyn[10][20].asInt(), 30);
+  }
+
+  // hybridMapOfMap/10
+  {
+    std::vector<std::string> path = {"hybridMapOfMap", "10"};
+    auto result = RootPathVisitor::visit(
+        *nodeA, path.begin(), path.end(), PathVisitMode::LEAF, processPath);
+    EXPECT_EQ(result, ThriftTraverseResult::OK);
+    EXPECT_NE(dyn.find(20), dyn.items().end());
+    EXPECT_EQ(dyn[20].asInt(), 30);
+  }
+
+  // hybridMapOfMap/10/20
+  {
+    std::vector<std::string> path = {"hybridMapOfMap", "10", "20"};
+    auto result = RootPathVisitor::visit(
+        *nodeA, path.begin(), path.end(), PathVisitMode::LEAF, processPath);
+    EXPECT_EQ(result, ThriftTraverseResult::OK);
+    EXPECT_EQ(dyn.asInt(), 30);
+  }
+
+  // Invalid path
+  // hybridMapOfMap/10/30
+  {
+    std::vector<std::string> path = {"hybridMapOfMap", "10", "30"};
+    auto result = RootPathVisitor::visit(
+        *nodeA, path.begin(), path.end(), PathVisitMode::LEAF, processPath);
+    EXPECT_EQ(result, ThriftTraverseResult::INVALID_MAP_KEY);
+  }
+  // full visit mode
+  {
+    auto op = GetVisitedPathsOperator();
+    std::vector<std::string> path{"hybridMapOfMap", "10", "20"};
+    auto result = RootPathVisitor::visit(
+        *nodeA, path.begin(), path.end(), PathVisitMode::FULL, op);
+    EXPECT_EQ(result, ThriftTraverseResult::OK);
+    EXPECT_THAT(
+        op.getVisited(),
+        ::testing::ContainerEq(std::set<std::string>{
+            "/", "/10/20", "/20", "/hybridMapOfMap/10/20"}));
+  }
+}
 
 TEST(PathVisitorTests, AccessFieldInContainer) {
   auto structA = createSimpleTestStruct();
@@ -171,33 +290,6 @@ TEST(PathVisitorTests, AccessFieldInContainer) {
   EXPECT_EQ(*got.min(), 100);
   EXPECT_EQ(*got.max(), 200);
 }
-
-struct GetVisitedPathsOperator : public BasePathVisitorOperator {
- public:
-  const std::set<std::string>& getVisited() {
-    return visited;
-  }
-
- protected:
-  void visit(
-      Serializable& /* node */,
-      pv_detail::PathIter begin,
-      pv_detail::PathIter end) override {
-    visited.insert(
-        "/" + folly::join('/', std::vector<std::string>(begin, end)));
-  }
-
-  template <typename Node>
-  void visit(Node& node, pv_detail::PathIter begin, pv_detail::PathIter end)
-    requires(!is_cow_type_v<Node>)
-  {
-    SerializableReader dummy(node);
-    visit(dummy, begin, end);
-  }
-
- private:
-  std::set<std::string> visited;
-};
 
 TEST(PathVisitorTests, TraversalModeFull) {
   auto structA = createSimpleTestStruct();

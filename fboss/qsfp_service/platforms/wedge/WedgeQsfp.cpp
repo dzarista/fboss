@@ -260,7 +260,8 @@ std::array<uint8_t, 16> WedgeQsfp::getModulePartNo() {
   if (savedPage != page) {
     writeTransceiver(
         {TransceiverAccessParameter::ADDR_QSFP, kCommonModulePageReg, 1},
-        &page);
+        &page,
+        POST_I2C_WRITE_DELAY_US);
   }
 
   readTransceiver(
@@ -269,7 +270,8 @@ std::array<uint8_t, 16> WedgeQsfp::getModulePartNo() {
   if (savedPage != page) {
     writeTransceiver(
         {TransceiverAccessParameter::ADDR_QSFP, kCommonModulePageReg, 1},
-        &savedPage);
+        &savedPage,
+        POST_I2C_WRITE_DELAY_US);
   }
 
   return partNo;
@@ -296,6 +298,16 @@ size_t WedgeQsfp::getI2cLogBufferCapacity() {
     return logBuffer_->getI2cLogBufferCapacity();
   }
   return 0;
+}
+
+void WedgeQsfp::setTcvrInfoInLog(
+    const TransceiverManagementInterface& mgmtIf,
+    const std::set<std::string>& portNames,
+    const std::optional<FirmwareStatus>& status,
+    const std::optional<Vendor>& vendor) {
+  if (logBuffer_) {
+    logBuffer_->setTcvrInfoInLog(mgmtIf, portNames, status, vendor);
+  }
 }
 
 std::pair<size_t, size_t> WedgeQsfp::dumpTransceiverI2cLog() {

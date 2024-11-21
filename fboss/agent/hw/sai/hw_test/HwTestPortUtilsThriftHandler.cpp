@@ -4,12 +4,22 @@
 #include "fboss/agent/hw/sai/switch/SaiSwitch.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/hw/test/HwTestThriftHandler.h"
+#include "fboss/agent/platforms/common/utils/Wedge100LedUtils.h"
 
 #include "folly/testing/TestUtil.h"
 
 namespace facebook {
 namespace fboss {
 namespace utility {
+
+namespace {
+SaiPortTraits::AdapterKey getPortAdapterKey(const HwSwitch* hw, PortID port) {
+  auto saiSwitch = static_cast<const SaiSwitch*>(hw);
+  auto handle = saiSwitch->managerTable()->portManager().getPortHandle(port);
+  CHECK(handle);
+  return handle->port->adapterKey();
+}
+} // namespace
 
 void HwTestThriftHandler::injectFecError(
     std::unique_ptr<std::vector<int>> hwPorts,
@@ -60,6 +70,45 @@ void HwTestThriftHandler::injectFecError(
   diagCmdServer->diagCmd(
       std::make_unique<fbstring>("quit\n"),
       std::make_unique<ClientInformation>(clientInfo));
+}
+
+void HwTestThriftHandler::getPortInfo(
+    ::std::vector<::facebook::fboss::utility::PortInfo>& portInfos,
+    std::unique_ptr<::std::vector<::std::int32_t>> portIds) {
+  for (const auto& portId : *portIds) {
+    PortInfo portInfo;
+    auto key = getPortAdapterKey(hwSwitch_, PortID(portId));
+#if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
+    SaiPortTraits::Attributes::PortLoopbackMode loopbackMode;
+    SaiApiTable::getInstance()->portApi().getAttribute(key, loopbackMode);
+    portInfo.loopbackMode() = loopbackMode.value();
+#else
+    SaiPortTraits::Attributes::InternalLoopbackMode internalLoopbackMode;
+    SaiApiTable::getInstance()->portApi().getAttribute(
+        key, internalLoopbackMode);
+    portInfo.loopbackMode() = internalLoopbackMode.value();
+#endif
+    portInfos.push_back(portInfo);
+  }
+  return;
+}
+
+bool HwTestThriftHandler::verifyPortLedStatus(int portId, bool status) {
+  SaiPlatform* platform = static_cast<SaiPlatform*>(hwSwitch_->getPlatform());
+  SaiPlatformPort* platformPort = platform->getPort(PortID(portId));
+  uint32_t currentVal = platformPort->getCurrentLedState();
+  uint32_t expectedVal = 0;
+  switch (platform->getType()) {
+    case PlatformType::PLATFORM_WEDGE100: {
+      expectedVal = static_cast<uint32_t>(Wedge100LedUtils::getExpectedLEDState(
+          platform->getLaneCount(platformPort->getCurrentProfile()),
+          status,
+          status));
+      return currentVal == expectedVal;
+    }
+    default:
+      throw FbossError("Unsupported platform type");
+  }
 }
 
 } // namespace utility

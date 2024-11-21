@@ -98,7 +98,7 @@ AclTableSaiId SaiAclTableManager::addAclTable(
     const std::shared_ptr<AclTable>& addedAclTable,
     cfg::AclStage aclStage) {
   auto saiAclStage =
-      managerTable_->aclTableGroupManager().cfgAclStageToSaiAclStage(aclStage);
+      SaiAclTableGroupManager::cfgAclStageToSaiAclStage(aclStage);
 
   /*
    * TODO(skhare)
@@ -107,7 +107,7 @@ AclTableSaiId SaiAclTableManager::addAclTable(
    * addAclTable.
    *
    * After ACL table is added, add it to appropriate ACL group:
-   * managerTable_->switchManager().addTableGroupMember(SAI_ACL_STAGE_INGRESS,
+   * managerTable_->switchManager().addTableGroupMember(aclStage,
    * aclTableSaiId);
    */
 
@@ -150,7 +150,7 @@ AclTableSaiId SaiAclTableManager::addAclTable(
   // Add ACL Table to group based on the stage
   if (platform_->getAsic()->isSupported(HwAsic::Feature::ACL_TABLE_GROUP)) {
     managerTable_->aclTableGroupManager().addAclTableGroupMember(
-        SAI_ACL_STAGE_INGRESS, aclTableSaiId, aclTableName);
+        saiAclStage, aclTableSaiId, aclTableName);
   }
 
   return aclTableSaiId;
@@ -158,13 +158,15 @@ AclTableSaiId SaiAclTableManager::addAclTable(
 
 void SaiAclTableManager::removeAclTable(
     const std::shared_ptr<AclTable>& removedAclTable,
-    cfg::AclStage /*aclStage*/) {
+    cfg::AclStage aclStage) {
+  auto saiAclStage =
+      SaiAclTableGroupManager::cfgAclStageToSaiAclStage(aclStage);
   auto aclTableName = removedAclTable->getID();
 
   // remove from acl table group
   if (hasTableGroups_) {
     managerTable_->aclTableGroupManager().removeAclTableGroupMember(
-        SAI_ACL_STAGE_INGRESS, aclTableName);
+        saiAclStage, aclTableName);
   }
 
   // remove from handles
@@ -697,7 +699,10 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
 #endif
   std::optional<SaiAclEntryTraits::Attributes::FieldIpProtocol> fieldIpProtocol{
       std::nullopt};
-  auto qualifierSet = getSupportedQualifierSet();
+
+  auto stage = static_cast<sai_acl_stage_t>(
+      GET_ATTR(AclTable, Stage, aclTableHandle->aclTable->attributes()));
+  auto qualifierSet = getSupportedQualifierSet(stage);
   if (qualifierSet.find(cfg::AclTableQualifier::IP_PROTOCOL) !=
           qualifierSet.end() &&
       matchV4 && addedAclEntry->getProto()) {
@@ -743,26 +748,34 @@ AclEntrySaiId SaiAclTableManager::addAclEntry(
   std::optional<SaiAclEntryTraits::Attributes::FieldIcmpV6Code> fieldIcmpV6Code{
       std::nullopt};
   if (addedAclEntry->getIcmpType()) {
-    if (addedAclEntry->getProto()) {
-      if (addedAclEntry->getProto().value() == AclEntry::kProtoIcmp) {
-        fieldIcmpV4Type = SaiAclEntryTraits::Attributes::FieldIcmpV4Type{
+    if ((addedAclEntry->getProto() &&
+         addedAclEntry->getProto().value() == AclEntry::kProtoIcmp) ||
+        (addedAclEntry->getEtherType() &&
+         addedAclEntry->getEtherType().value() == cfg::EtherType::IPv4)) {
+      fieldIcmpV4Type = SaiAclEntryTraits::Attributes::FieldIcmpV4Type{
+          AclEntryFieldU8(std::make_pair(
+              addedAclEntry->getIcmpType().value(), kIcmpTypeMask))};
+      if (addedAclEntry->getIcmpCode()) {
+        fieldIcmpV4Code = SaiAclEntryTraits::Attributes::FieldIcmpV4Code{
             AclEntryFieldU8(std::make_pair(
-                addedAclEntry->getIcmpType().value(), kIcmpTypeMask))};
-        if (addedAclEntry->getIcmpCode()) {
-          fieldIcmpV4Code = SaiAclEntryTraits::Attributes::FieldIcmpV4Code{
-              AclEntryFieldU8(std::make_pair(
-                  addedAclEntry->getIcmpCode().value(), kIcmpCodeMask))};
-        }
-      } else if (addedAclEntry->getProto().value() == AclEntry::kProtoIcmpv6) {
-        fieldIcmpV6Type = SaiAclEntryTraits::Attributes::FieldIcmpV6Type{
-            AclEntryFieldU8(std::make_pair(
-                addedAclEntry->getIcmpType().value(), kIcmpTypeMask))};
-        if (addedAclEntry->getIcmpCode()) {
-          fieldIcmpV6Code = SaiAclEntryTraits::Attributes::FieldIcmpV6Code{
-              AclEntryFieldU8(std::make_pair(
-                  addedAclEntry->getIcmpCode().value(), kIcmpCodeMask))};
-        }
+                addedAclEntry->getIcmpCode().value(), kIcmpCodeMask))};
       }
+    } else if (
+        (addedAclEntry->getProto() &&
+         addedAclEntry->getProto().value() == AclEntry::kProtoIcmpv6) ||
+        (addedAclEntry->getEtherType() &&
+         addedAclEntry->getEtherType().value() == cfg::EtherType::IPv6)) {
+      fieldIcmpV6Type = SaiAclEntryTraits::Attributes::FieldIcmpV6Type{
+          AclEntryFieldU8(std::make_pair(
+              addedAclEntry->getIcmpType().value(), kIcmpTypeMask))};
+      if (addedAclEntry->getIcmpCode()) {
+        fieldIcmpV6Code = SaiAclEntryTraits::Attributes::FieldIcmpV6Code{
+            AclEntryFieldU8(std::make_pair(
+                addedAclEntry->getIcmpCode().value(), kIcmpCodeMask))};
+      }
+    } else {
+      throw FbossError(
+          "proto or etherType not sepcified in ACL when matching icmp type/code");
     }
   }
 
@@ -1389,8 +1402,18 @@ std::pair<int32_t, int32_t> SaiAclTableManager::getAclResourceUsage() {
   return std::make_pair(aclEntriesFree, aclCountersFree);
 }
 
-std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
-    const {
+std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet(
+    cfg::AclStage stage) const {
+  return getSupportedQualifierSet(
+      SaiAclTableGroupManager::cfgAclStageToSaiAclStage(stage));
+}
+
+std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet(
+    sai_acl_stage_t aclStage) const {
+  if (aclStage == SAI_ACL_STAGE_EGRESS &&
+      platform_->getAsic()->isSupported(HwAsic::Feature::EGRESS_ACL_TABLE)) {
+    throw FbossError("egress acl table is not supported on switch asic");
+  }
   /*
    * Not all the qualifiers are supported by every ASIC.
    * Moreover, different ASICs have different max key widths.
@@ -1410,6 +1433,8 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
       platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3;
   bool isTomahawk5 =
       platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_TOMAHAWK5;
+  bool isChenab =
+      platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_CHENAB;
 
   if (isTajo) {
     std::set<cfg::AclTableQualifier> tajoQualifiers = {
@@ -1482,6 +1507,30 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
         cfg::AclTableQualifier::DST_MAC,
         cfg::AclTableQualifier::BTH_OPCODE};
     return jericho3Qualifiers;
+  } else if (isChenab) {
+    /* TODO(pshaikh): review the qualifiers */
+    if (aclStage == SAI_ACL_STAGE_INGRESS) {
+      return {
+          cfg::AclTableQualifier::SRC_IPV6,
+          cfg::AclTableQualifier::DST_IPV6,
+          cfg::AclTableQualifier::SRC_IPV4,
+          cfg::AclTableQualifier::DST_IPV4,
+          cfg::AclTableQualifier::L4_SRC_PORT,
+          cfg::AclTableQualifier::L4_DST_PORT,
+          cfg::AclTableQualifier::IP_PROTOCOL,
+          cfg::AclTableQualifier::SRC_PORT,
+          cfg::AclTableQualifier::DSCP,
+          cfg::AclTableQualifier::TTL,
+          cfg::AclTableQualifier::OUTER_VLAN,
+          // TODO(pshaikh): Add UDF?
+      };
+    } else {
+      return {
+          cfg::AclTableQualifier::OUT_PORT,
+          cfg::AclTableQualifier::LOOKUP_CLASS_L2,
+          cfg::AclTableQualifier::LOOKUP_CLASS_ROUTE,
+      };
+    }
   } else {
     std::set<cfg::AclTableQualifier> bcmQualifiers = {
         cfg::AclTableQualifier::SRC_IPV6,
@@ -1528,28 +1577,34 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getSupportedQualifierSet()
   }
 }
 
-void SaiAclTableManager::addDefaultAclTable() {
-  if (handles_.find(kAclTable1) != handles_.end()) {
-    throw FbossError("default acl table already exists.");
+void SaiAclTableManager::addDefaultAclTable(
+    cfg::AclStage stage,
+    const std::string& name) {
+  if (handles_.find(name) != handles_.end()) {
+    throw FbossError("default acl table ", name, " already exists.");
   }
   // TODO(saranicholas): set appropriate table priority
   state::AclTableFields aclTableFields{};
   aclTableFields.priority() = 0;
-  aclTableFields.id() = kAclTable1;
+  aclTableFields.id() = name;
   auto table1 = std::make_shared<AclTable>(std::move(aclTableFields));
-  addAclTable(table1, cfg::AclStage::INGRESS);
+  addAclTable(table1, stage);
 }
 
-void SaiAclTableManager::removeDefaultAclTable() {
-  if (handles_.find(kAclTable1) == handles_.end()) {
+void SaiAclTableManager::removeDefaultAclTable(
+    cfg::AclStage stage,
+    const std::string& name) {
+  if (handles_.find(name) == handles_.end()) {
     return;
   }
   // remove from acl table group
+  sai_acl_stage_t saiAclStage =
+      SaiAclTableGroupManager::cfgAclStageToSaiAclStage(stage);
   if (platform_->getAsic()->isSupported(HwAsic::Feature::ACL_TABLE_GROUP)) {
     managerTable_->aclTableGroupManager().removeAclTableGroupMember(
-        SAI_ACL_STAGE_INGRESS, kAclTable1);
+        saiAclStage, name);
   }
-  handles_.erase(kAclTable1);
+  handles_.erase(cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE());
 }
 
 bool SaiAclTableManager::isQualifierSupported(
@@ -1715,7 +1770,8 @@ bool SaiAclTableManager::areQualifiersSupported(
 
 bool SaiAclTableManager::areQualifiersSupportedInDefaultAclTable(
     const std::set<cfg::AclTableQualifier>& qualifiers) const {
-  return areQualifiersSupported(kAclTable1, qualifiers);
+  return areQualifiersSupported(
+      cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE(), qualifiers);
 }
 
 void SaiAclTableManager::recreateAclTable(
@@ -1836,5 +1892,16 @@ std::shared_ptr<AclEntry> SaiAclTableManager::reconstructAclEntry(
     const std::string& /*aclEntryName*/,
     int /*priority*/) const {
   throw FbossError("reconstructAclEntry not implemented in SaiAclTableManager");
+}
+
+void SaiAclTableManager::addDefaultIngressAclTable() {
+  addDefaultAclTable(
+      cfg::AclStage::INGRESS,
+      cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE());
+}
+void SaiAclTableManager::removeDefaultIngressAclTable() {
+  removeDefaultAclTable(
+      cfg::AclStage::INGRESS,
+      cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE());
 }
 } // namespace facebook::fboss

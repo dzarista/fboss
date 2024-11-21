@@ -185,13 +185,13 @@ SaiSwitchManager::SaiSwitchManager(
     std::optional<int64_t> switchId)
     : managerTable_(managerTable), platform_(platform) {
   int64_t swId = switchId.value_or(0);
-  switchPreInitSequence(platform->getAsic()->getAsicType());
   if (bootType == BootType::WARM_BOOT) {
     // Extract switch adapter key and create switch only with the mandatory
     // init attribute (warm boot path)
     auto& switchApi = SaiApiTable::getInstance()->switchApi();
     auto newSwitchId = switchApi.create<SaiSwitchTraits>(
-        platform->getSwitchAttributes(true, switchType, switchId), swId);
+        platform->getSwitchAttributes(true, switchType, switchId, bootType),
+        swId);
     // Load all switch attributes
     switch_ = std::make_unique<SaiSwitchObj>(newSwitchId);
     if (switchType != cfg::SwitchType::FABRIC) {
@@ -205,7 +205,7 @@ SaiSwitchManager::SaiSwitchManager(
   } else {
     switch_ = std::make_unique<SaiSwitchObj>(
         std::monostate(),
-        platform->getSwitchAttributes(false, switchType, switchId),
+        platform->getSwitchAttributes(false, switchType, switchId, bootType),
         swId);
 
     const auto& asic = platform_->getAsic();
@@ -1008,4 +1008,54 @@ void SaiSwitchManager::setReachabilityGroupList(int reachabilityGroupListSize) {
   }
 #endif
 }
+
+void SaiSwitchManager::setSramGlobalFreePercentXoffTh(
+    uint8_t sramFreePercentXoffThreshold) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::SramFreePercentXoffTh{
+          sramFreePercentXoffThreshold});
+#endif
+}
+
+void SaiSwitchManager::setSramGlobalFreePercentXonTh(
+    uint8_t sramFreePercentXonThreshold) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::SramFreePercentXonTh{
+          sramFreePercentXonThreshold});
+#endif
+}
+
+void SaiSwitchManager::setLinkFlowControlCreditTh(
+    uint16_t linkFlowControlThreshold) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::FabricCllfcTxCreditTh{
+          linkFlowControlThreshold});
+#endif
+}
+
+void SaiSwitchManager::setVoqDramBoundTh(uint32_t dramBoundThreshold) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  // There are 3 different types of rate classes available and
+  // dramBound, upper and lower limits are applied to each of
+  // those. However, in our case, we just need to set the same
+  // DRAM bounds value for all the rate classes.
+  std::vector<uint32_t> dramBounds(6, dramBoundThreshold);
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqDramBoundTh{dramBounds});
+#endif
+}
+
+void SaiSwitchManager::setConditionalEntropyRehashPeriodUS(
+    int conditionalEntropyRehashPeriodUS) {
+  // TODO(zecheng): Update flag when new 12.0 release has the attribute
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::CondEntropyRehashPeriodUS{
+          conditionalEntropyRehashPeriodUS});
+#endif
+}
+
 } // namespace facebook::fboss

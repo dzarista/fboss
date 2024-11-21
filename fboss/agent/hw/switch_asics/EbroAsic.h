@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "fboss/agent/FbossError.h"
 #include "fboss/agent/hw/sai/impl/util.h"
 #include "fboss/agent/hw/switch_asics/TajoAsic.h"
 
@@ -11,22 +10,10 @@ namespace facebook::fboss {
 class EbroAsic : public TajoAsic {
  public:
   EbroAsic(
-      cfg::SwitchType type,
-      std::optional<int64_t> id,
-      int16_t index,
-      std::optional<cfg::Range64> systemPortRange,
-      const folly::MacAddress& mac,
+      std::optional<int64_t> switchId,
+      cfg::SwitchInfo switchInfo,
       std::optional<cfg::SdkVersion> sdkVersion = std::nullopt)
-      : TajoAsic(
-            type,
-            id,
-            index,
-            systemPortRange,
-            mac,
-            sdkVersion,
-            {cfg::SwitchType::NPU,
-             cfg::SwitchType::VOQ,
-             cfg::SwitchType::FABRIC}) {
+      : TajoAsic(switchId, switchInfo, sdkVersion, {cfg::SwitchType::NPU}) {
     if (sdkVersion.has_value() && sdkVersion->asicSdk().has_value()) {
       currentSdkVersion_ = getAsicSdkVersion(sdkVersion->asicSdk().value());
       auto p4WarmbootSdkVersion = getAsicSdkVersion(p4WarmbootBaseSdk);
@@ -57,7 +44,9 @@ class EbroAsic : public TajoAsic {
       cfg::StreamType streamType,
       cfg::PortType /*portType*/) const override;
   uint32_t getMaxLabelStackDepth() const override {
-    return 3;
+    //  sdk > 1.42.8  MAX_LABEL_STACK_SIZE = 9 sai/src/sai_device_params.h
+    //  Remove this once new SDK rolls out
+    return isP4WarmbootEnabled() ? 9 : 3;
   }
   uint64_t getMMUSizeBytes() const override {
     return 108 * 1024 * 1024;

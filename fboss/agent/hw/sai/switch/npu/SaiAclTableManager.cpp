@@ -89,6 +89,8 @@ std::vector<sai_int32_t> SaiAclTableManager::getActionTypeList(
         cfg::AsicType::ASIC_TYPE_JERICHO2;
     bool isJericho3 = platform_->getAsic()->getAsicType() ==
         cfg::AsicType::ASIC_TYPE_JERICHO3;
+    bool isChenab =
+        platform_->getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_CHENAB;
 
     std::vector<sai_int32_t> actionTypeList{
         SAI_ACL_ACTION_TYPE_PACKET_ACTION,
@@ -97,7 +99,8 @@ std::vector<sai_int32_t> SaiAclTableManager::getActionTypeList(
         SAI_ACL_ACTION_TYPE_SET_DSCP,
         SAI_ACL_ACTION_TYPE_MIRROR_INGRESS};
 
-    if (!(isTajo || isJericho2 || isJericho3)) {
+    if (!(isTajo || isJericho2 || isJericho3 || isChenab)) {
+      // Chenab supports egress mirror action in egress table
       actionTypeList.push_back(SAI_ACL_ACTION_TYPE_MIRROR_EGRESS);
     }
     if (platform_->getAsic()->isSupported(
@@ -110,6 +113,7 @@ std::vector<sai_int32_t> SaiAclTableManager::getActionTypeList(
 }
 
 std::set<cfg::AclTableQualifier> SaiAclTableManager::getQualifierSet(
+    sai_acl_stage_t aclStage,
     const std::shared_ptr<AclTable>& addedAclTable) {
   auto aclQualifiers = addedAclTable->getQualifiers();
   /*
@@ -124,7 +128,7 @@ std::set<cfg::AclTableQualifier> SaiAclTableManager::getQualifierSet(
 
     return qualifiers;
   } else {
-    return getSupportedQualifierSet();
+    return getSupportedQualifierSet(aclStage);
   }
 }
 
@@ -138,7 +142,7 @@ std::
 
   auto actionTypeList = getActionTypeList(addedAclTable);
 
-  auto qualifierSet = getQualifierSet(addedAclTable);
+  auto qualifierSet = getQualifierSet(aclStage, addedAclTable);
   auto qualifierExistsFn = [qualifierSet](cfg::AclTableQualifier qualifier) {
     return qualifierSet.find(qualifier) != qualifierSet.end();
   };

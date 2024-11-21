@@ -7339,6 +7339,56 @@
         "etherType": 34525
       },
       {
+        "icmpType": 133,
+        "name": "cpuPolicing-high-ndp-router-solicit",
+        "actionType": 1,
+        "ttl": {
+          "value": 255,
+          "mask": 255
+        },
+        "etherType": 34525
+      },
+      {
+        "icmpType": 134,
+        "name": "cpuPolicing-high-ndp-router-advertisement",
+        "actionType": 1,
+        "ttl": {
+          "value": 255,
+          "mask": 255
+        },
+        "etherType": 34525
+      },
+      {
+        "icmpType": 135,
+        "name": "cpuPolicing-high-ndp-neighbor-solicit",
+        "actionType": 1,
+        "ttl": {
+          "value": 255,
+          "mask": 255
+        },
+        "etherType": 34525
+      },
+      {
+        "icmpType": 136,
+        "name": "cpuPolicing-high-ndp-neighbor-advertisement",
+        "actionType": 1,
+        "ttl": {
+          "value": 255,
+          "mask": 255
+        },
+        "etherType": 34525
+      },
+      {
+        "icmpType": 137,
+        "name": "cpuPolicing-high-ndp-redirect",
+        "actionType": 1,
+        "ttl": {
+          "value": 255,
+          "mask": 255
+        },
+        "etherType": 34525
+      },
+      {
         "proto": 6,
         "name": "cpuPolicing-high-BGPSrcPort-dstLocalIp4",
         "actionType": 1,
@@ -7550,6 +7600,66 @@
             }
           },
           {
+            "matcher": "cpuPolicing-high-ndp-router-solicit",
+            "action": {
+              "sendToQueue": {
+                "queueId": 7
+              },
+              "toCpuAction": 1,
+              "setTc": {
+                "tcValue": 7
+              }
+            }
+          },
+          {
+            "matcher": "cpuPolicing-high-ndp-router-advertisement",
+            "action": {
+              "sendToQueue": {
+                "queueId": 7
+              },
+              "toCpuAction": 1,
+              "setTc": {
+                "tcValue": 7
+              }
+            }
+          },
+          {
+            "matcher": "cpuPolicing-high-ndp-neighbor-solicit",
+            "action": {
+              "sendToQueue": {
+                "queueId": 7
+              },
+              "toCpuAction": 1,
+              "setTc": {
+                "tcValue": 7
+              }
+            }
+          },
+          {
+            "matcher": "cpuPolicing-high-ndp-neighbor-advertisement",
+            "action": {
+              "sendToQueue": {
+                "queueId": 7
+              },
+              "toCpuAction": 1,
+              "setTc": {
+                "tcValue": 7
+              }
+            }
+          },
+          {
+            "matcher": "cpuPolicing-high-ndp-redirect",
+            "action": {
+              "sendToQueue": {
+                "queueId": 7
+              },
+              "toCpuAction": 1,
+              "setTc": {
+                "tcValue": 7
+              }
+            }
+          },
+          {
             "matcher": "cpuPolicing-high-BGPSrcPort-dstLocalIp4",
             "action": {
               "sendToQueue": {
@@ -7696,14 +7806,6 @@
         ]
       },
       "rxReasonToQueueOrderedList": [
-        {
-          "rxReason": 8,
-          "queueId": 7
-        },
-        {
-          "rxReason": 13,
-          "queueId": 7
-        },
         {
           "rxReason": 2,
           "queueId": 3
@@ -8913,7 +9015,7 @@
             "sai_pkt_rx_custom_cfg": "1",
             "sai_pkt_rx_pkt_size": "16512",
             "sai_recycle_port_lane_base": "440",
-            "sai_trigger_linkscan_remote_local_faults": "0",
+            "sai_trigger_linkscan_remote_local_faults": "1",
             "sai_voq_wm_latency_enable": "1",
             "sat_enable.BCM8889X_ADAPTER": "1",
             "soc_family.BCM8889X": "BCM8889X",

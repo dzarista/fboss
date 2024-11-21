@@ -32,7 +32,8 @@ class HwSwitch;
 
 using AgentEnsembleSwitchConfigFn =
     std::function<cfg::SwitchConfig(const AgentEnsemble&)>;
-using AgentEnsemblePlatformConfigFn = std::function<void(cfg::PlatformConfig&)>;
+using AgentEnsemblePlatformConfigFn =
+    std::function<void(const cfg::SwitchConfig& sw, cfg::PlatformConfig&)>;
 
 class AgentEnsemble : public TestEnsembleIf {
  public:
@@ -134,19 +135,26 @@ class AgentEnsemble : public TestEnsembleIf {
   void linkStateChanged(
       PortID port,
       bool up,
+      cfg::PortType portType,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override {
-    if (getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED) {
-      if (linkToggler_) {
-        linkToggler_->linkStateChanged(port, up);
-      }
-      getSw()->linkStateChanged(port, up);
+    if (linkToggler_ &&
+        getSw()->getSwitchRunState() >= SwitchRunState::CONFIGURED) {
+      linkToggler_->linkStateChanged(port, up);
+    } else if (getSw()->getSwitchRunState() >= SwitchRunState::INITIALIZED) {
+      getSw()->linkStateChanged(port, up, portType);
+    } else {
+      XLOG(DBG2) << "Agent Ensemble dropping link state change for port "
+                 << port << " UP:" << up;
     }
   }
 
-  void linkActiveStateChanged(
-      const std::map<PortID, bool>& port2IsActive) override {
-    getSw()->linkActiveStateChanged(port2IsActive);
+  void linkActiveStateChangedOrFwIsolated(
+      const std::map<PortID, bool>& port2IsActive,
+      bool fwIsolated,
+      const std::optional<uint32_t>& numActiveFabricPortsAtFwIsolate) override {
+    getSw()->linkActiveStateChangedOrFwIsolated(
+        port2IsActive, fwIsolated, numActiveFabricPortsAtFwIsolate);
   }
   void linkConnectivityChanged(
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&

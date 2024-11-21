@@ -9,6 +9,7 @@ include "thrift/annotation/cpp.thrift"
 include "fboss/agent/switch_state.thrift"
 include "fboss/agent/switch_config.thrift"
 include "fboss/agent/if/ctrl.thrift"
+include "fboss/agent/if/mpls.thrift"
 include "common/network/if/Address.thrift"
 
 struct NeighborInfo {
@@ -29,6 +30,10 @@ struct RouteInfo {
   3: bool isMultiPath;
   4: bool isRouteUnresolvedToClassId;
   5: optional i32 classId;
+}
+
+struct PortInfo {
+  1: i32 loopbackMode;
 }
 
 service AgentHwTestCtrl {
@@ -73,6 +78,7 @@ service AgentHwTestCtrl {
   NeighborInfo getNeighborInfo(1: ctrl.IfAndIP neighbor);
 
   i32 getHwEcmpSize(1: CIDRNetwork prefix, 2: i32 routerID, 3: i32 sizeInSw);
+  map<i32, i32> getEcmpWeights(1: CIDRNetwork prefix, 2: i32 routerID);
 
   void injectFecError(1: list<i32> hwPorts, 2: bool injectCorrectable);
 
@@ -86,4 +92,14 @@ service AgentHwTestCtrl {
     1: ctrl.IpPrefix prefix,
     2: Address.BinaryAddress address,
   );
+  bool isProgrammedInHw(
+    1: i32 intfID,
+    2: ctrl.IpPrefix prefix,
+    3: mpls.MplsLabelStack labelStack,
+    4: i32 refCount,
+  );
+
+  // port utils
+  list<PortInfo> getPortInfo(1: list<i32> portIds);
+  bool verifyPortLedStatus(1: i32 port, 2: bool status);
 }

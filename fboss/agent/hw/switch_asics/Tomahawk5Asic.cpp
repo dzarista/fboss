@@ -184,6 +184,8 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::MULTIPLE_EGRESS_BUFFER_POOL:
     case HwAsic::Feature::ENABLE_DELAY_DROP_CONGESTION_THRESHOLD:
     case HwAsic::Feature::PORT_MTU_ERROR_TRAP:
+    case HwAsic::Feature::DEDICATED_CPU_BUFFER_POOL:
+    case HwAsic::Feature::EGRESS_ACL_TABLE:
       return false;
   }
   return false;

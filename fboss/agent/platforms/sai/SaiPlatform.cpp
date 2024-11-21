@@ -37,6 +37,7 @@
 #include "fboss/agent/platforms/sai/SaiMorgan800ccPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiTahan800bcPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiWedge400CPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiYangraPlatformPort.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -259,13 +260,13 @@ std::string SaiPlatform::getHwAsicConfig(
     addNameValue(entry);
   }
 
-#if defined(SAI_VERSION_11_3_0_0_DNX_ODP)
-  if (getAsic()->isSupported(HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW)) {
-    // Interim workaround for 11.0.0.14 as this SoC property is needed for
-    // J3AI 11.x but not for 12.x until 12.0.0.3.
-    // TODO: While integrating 12.0.0.3, this workaround needs to be removed
-    // and instead this SoC property would be added in config directly.
-    nameValStrs.push_back("eventor_sbus_dma_channels.BCM8889X=0,6,0,7");
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  // Interim workaround for 11.7 GA as this SoC property is needed for
+  // J3AI 11.x but not for 12.x until 12.0.0.4.
+  // TODO: While integrating 12.0.0.4, these workarounds need to be removed
+  // and instead this SoC property would be added in config directly.
+  if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
+    nameValStrs.push_back("custom_feature_shel_arm_enable=1");
   }
 #endif
 
@@ -382,6 +383,8 @@ void SaiPlatform::initPorts() {
       saiPort = std::make_unique<SaiJanga800bicPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_TAHAN800BC) {
       saiPort = std::make_unique<SaiTahan800bcPlatformPort>(portId, this);
+    } else if (platformMode == PlatformType::PLATFORM_YANGRA) {
+      saiPort = std::make_unique<SaiYangraPlatformPort>(portId, this);
     } else {
       saiPort = std::make_unique<SaiFakePlatformPort>(portId, this);
     }
@@ -455,7 +458,8 @@ std::vector<SaiPlatformPort*> SaiPlatform::getPortsWithTransceiverID(
 SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     bool mandatoryOnly,
     cfg::SwitchType swType,
-    std::optional<int64_t> swId) {
+    std::optional<int64_t> swId,
+    BootType bootType) {
   SaiSwitchTraits::Attributes::InitSwitch initSwitch(true);
 
   std::optional<SaiSwitchTraits::Attributes::HwInfo> hwInfo = getHwInfo(this);
@@ -498,12 +502,12 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
       uint32_t maxCoreCount = 0;
       uint32_t maxSystemCoreCount = 0;
       auto localMac = getLocalMac();
-      const EbroAsic ebro(
-          cfg::SwitchType::VOQ, 0, 0, std::nullopt, localMac, std::nullopt);
-      const Jericho2Asic j2(
-          cfg::SwitchType::VOQ, 0, 0, std::nullopt, localMac, std::nullopt);
-      const Jericho3Asic j3(
-          cfg::SwitchType::VOQ, 0, 0, std::nullopt, localMac, std::nullopt);
+      cfg::SwitchInfo swInfo;
+      swInfo.switchIndex() = 0;
+      swInfo.switchType() = cfg::SwitchType::VOQ;
+      swInfo.switchMac() = localMac.toString();
+      const Jericho2Asic j2(0, swInfo);
+      const Jericho3Asic j3(0, swInfo);
       for (const auto& [id, dsfNode] : *agentCfg->thrift.sw()->dsfNodes()) {
         if (dsfNode.type() != cfg::DsfNodeType::INTERFACE_NODE) {
           continue;
@@ -522,8 +526,6 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
             maxCoreCount = std::max(j3.getNumCores(), maxCoreCount);
             maxSystemCoreCount =
                 std::max(maxSystemCoreCount, uint32_t(id + j3.getNumCores()));
-            break;
-          case cfg::AsicType::ASIC_TYPE_EBRO:
             break;
           default:
             throw FbossError("Unexpected asic type: ", *dsfNode.asicType());
@@ -552,13 +554,32 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
 
   std::optional<SaiSwitchTraits::Attributes::FirmwarePathName> firmwarePathName{
       std::nullopt};
-  if (getAsic()->isSupported(HwAsic::Feature::SAI_FIRMWARE_PATH)) {
+
+  const auto switchSettings = config()->thrift.sw()->switchSettings();
+  if (switchSettings->firmwarePath().has_value()) {
     std::vector<int8_t> firmwarePathNameArray;
     std::copy(
-        FLAGS_firmware_path.c_str(),
-        FLAGS_firmware_path.c_str() + FLAGS_firmware_path.size() + 1,
+        switchSettings->firmwarePath().value().c_str(),
+        switchSettings->firmwarePath().value().c_str() +
+            switchSettings->firmwarePath().value().size() + 1,
         std::back_inserter(firmwarePathNameArray));
+
     firmwarePathName = firmwarePathNameArray;
+  } else {
+    // TODO
+    // We plan to migrate all use cases that use firmware path to more
+    // geentalized config driven approach i.e. if-block.
+    // After that migration, we will remove this else-block, HwAsic feature
+    // SAI_FIRWWARE_PATH and FLAGS_firmware_path.
+    // Fallback in the meanwhile.
+    if (getAsic()->isSupported(HwAsic::Feature::SAI_FIRMWARE_PATH)) {
+      std::vector<int8_t> firmwarePathNameArray;
+      std::copy(
+          FLAGS_firmware_path.c_str(),
+          FLAGS_firmware_path.c_str() + FLAGS_firmware_path.size() + 1,
+          std::back_inserter(firmwarePathNameArray));
+      firmwarePathName = firmwarePathNameArray;
+    }
   }
 
   std::optional<SaiSwitchTraits::Attributes::SwitchIsolate> switchIsolate{
@@ -605,6 +626,10 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
   std::optional<
       SaiSwitchTraits::Attributes::FabricLinkLayerFlowControlThreshold>
       fabricLLFC;
+  std::optional<int32_t> maxSystemPortId;
+  std::optional<int32_t> maxLocalSystemPortId;
+  std::optional<int32_t> maxSystemPorts;
+  std::optional<int32_t> maxVoqs;
 #if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
   if (getAsic()->getSwitchType() == cfg::SwitchType::FABRIC &&
       getAsic()->getFabricNodeRole() == HwAsic::FabricNodeRole::DUAL_STAGE_L1) {
@@ -614,7 +639,19 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     constexpr uint32_t kRamon3LlfcThreshold{800};
     fabricLLFC = std::vector<uint32_t>({kRamon3LlfcThreshold});
   }
+  // TODO: Using the hard coding values for now from single stage system config
+  // to integrate 12.0.0.3. This needs to be fixed properly post
+  // 12.0.0.3 integration. Also, this can be skipped for fabric switches.
+  maxSystemPortId = 6143;
+  maxLocalSystemPortId = -1;
+  maxSystemPorts = 6144;
+  maxVoqs = 6144 * 8;
 #endif
+  if (swType == cfg::SwitchType::FABRIC && bootType == BootType::COLD_BOOT) {
+    // FABRIC switches should always start in isolated state until we configure
+    // the switch
+    switchIsolate = true;
+  }
 
   return {
       initSwitch,
@@ -680,6 +717,20 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
       std::nullopt, // ReachabilityGroupList
       delayDropCongThreshold, // Delay Drop Cong Threshold
       fabricLLFC,
+      std::nullopt, // SRAM free percent XOFF threshold
+      std::nullopt, // SRAM free percent XON threshold
+      std::nullopt, // No acls for traps
+      maxSystemPortId,
+      maxLocalSystemPortId,
+      maxSystemPorts,
+      maxVoqs,
+      std::nullopt, // Fabric CLLFC TX credit threshold
+      std::nullopt, // VOQ DRAM bound threshold
+      std::nullopt, // Conditional Entropy Rehash Period
+      std::nullopt, // Shel Source IP
+      std::nullopt, // Shel Destination IP
+      std::nullopt, // Shel Source MAC
+      std::nullopt, // Shel Periodic Interval
   };
 }
 

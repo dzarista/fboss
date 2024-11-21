@@ -44,10 +44,10 @@ constexpr int moduleDatapathInitDurationUsec = 5000000;
 CmisFirmwareUpgrader::CmisFirmwareUpgrader(
     TransceiverImpl* bus,
     unsigned int modId,
-    std::unique_ptr<FbossFirmware> fbossFirmware)
-    : bus_(bus), moduleId_(modId), fbossFirmware_(std::move(fbossFirmware)) {
+    FbossFirmware* fbossFirmware)
+    : bus_(bus), moduleId_(modId), fbossFirmware_(fbossFirmware) {
   // Check the FbossFirmware object first
-  if (fbossFirmware_.get() == nullptr) {
+  if (fbossFirmware_ == nullptr) {
     XLOG(ERR) << "FbossFirmware object is null, returning...";
     return;
   }
@@ -105,7 +105,7 @@ bool CmisFirmwareUpgrader::cmisModuleFirmwareDownload(
   bus_->writeTransceiver(
       {TransceiverAccessParameter::ADDR_QSFP, kModulePasswordEntryReg, 4},
       msaPassword_.data(),
-      0 /*delay*/);
+      POST_I2C_WRITE_NO_DELAY_US);
 
   CdbCommandBlock commandBlockBuf;
   CdbCommandBlock* commandBlock = &commandBlockBuf;
@@ -295,7 +295,7 @@ bool CmisFirmwareUpgrader::cmisModuleFirmwareDownload(
   bus_->writeTransceiver(
       {TransceiverAccessParameter::ADDR_QSFP, kModulePasswordEntryReg, 4},
       msaPassword_.data(),
-      0 /*delay*/);
+      POST_I2C_WRITE_NO_DELAY_US);
 
   // Step 5: Issue CDB command: Commit the downloaded firmware
   commandBlock->createCdbCmdFwCommit();
@@ -325,7 +325,7 @@ bool CmisFirmwareUpgrader::cmisModuleFirmwareDownload(
   bus_->writeTransceiver(
       {TransceiverAccessParameter::ADDR_QSFP, kModulePasswordEntryReg, 4},
       msaPassword_.data(),
-      0 /*delay*/);
+      POST_I2C_WRITE_NO_DELAY_US);
 
   // Print IO profiling info
   auto ioTiming = bus_->getI2cTimeProfileMsec();

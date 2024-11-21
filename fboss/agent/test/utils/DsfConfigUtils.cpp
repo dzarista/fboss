@@ -44,16 +44,23 @@ std::optional<std::map<int64_t, cfg::DsfNode>> addRemoteIntfNodeCfg(
   CHECK(!curDsfNodes.empty());
   auto dsfNodes = curDsfNodes;
   const auto& firstDsfNode = dsfNodes.begin()->second;
-  CHECK(firstDsfNode.systemPortRange().has_value());
+  CHECK(!firstDsfNode.systemPortRanges()->systemPortRanges()->empty());
   CHECK(firstDsfNode.nodeMac().has_value());
-  auto asic = HwAsic::makeAsic(
-      *firstDsfNode.asicType(),
-      cfg::SwitchType::VOQ,
-      *firstDsfNode.switchId(),
-      0,
-      *firstDsfNode.systemPortRange(),
-      folly::MacAddress(*firstDsfNode.nodeMac()),
-      std::nullopt);
+  CHECK(firstDsfNode.localSystemPortOffset().has_value());
+  CHECK(firstDsfNode.globalSystemPortOffset().has_value());
+  CHECK(firstDsfNode.inbandPortId().has_value());
+  cfg::SwitchInfo switchInfo;
+  switchInfo.asicType() = *firstDsfNode.asicType();
+  switchInfo.switchType() = cfg::SwitchType::VOQ;
+  switchInfo.switchIndex() = 0;
+  switchInfo.switchMac() = *firstDsfNode.nodeMac();
+  switchInfo.systemPortRanges() = *firstDsfNode.systemPortRanges();
+  switchInfo.localSystemPortOffset() = *firstDsfNode.localSystemPortOffset();
+  switchInfo.globalSystemPortOffset() = *firstDsfNode.globalSystemPortOffset();
+  switchInfo.inbandPortId() = *firstDsfNode.inbandPortId();
+
+  auto asic =
+      HwAsic::makeAsic(*firstDsfNode.switchId(), switchInfo, std::nullopt);
   int numCores = asic->getNumCores();
   CHECK(
       !numRemoteNodes.has_value() ||
@@ -71,12 +78,10 @@ std::optional<std::map<int64_t, cfg::DsfNode>> addRemoteIntfNodeCfg(
     systemPortRange.minimum() = systemPortMin;
     systemPortRange.maximum() =
         systemPortMin + getPerNodeSysPorts(*asic, remoteSwitchId) - 1;
+    cfg::SystemPortRanges ranges;
+    ranges.systemPortRanges()->push_back(systemPortRange);
     auto remoteDsfNodeCfg = dsfNodeConfig(
-        *asic,
-        SwitchID(remoteSwitchId),
-        systemPortMin,
-        *systemPortRange.maximum(),
-        *firstDsfNode.platformType());
+        *asic, SwitchID(remoteSwitchId), ranges, *firstDsfNode.platformType());
     dsfNodes.insert({remoteSwitchId, remoteDsfNodeCfg});
     systemPortMin = *systemPortRange.maximum() + 1;
   }

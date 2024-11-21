@@ -17,7 +17,16 @@ class ConfigValidator {
   bool isValidFpgaIpBlockConfig(const FpgaIpBlockConfig& fpgaIpBlockConfig);
   bool isValidPciDeviceConfig(const PciDeviceConfig& pciDeviceConfig);
   bool isValidI2cDeviceConfig(const I2cDeviceConfig& i2cDeviceConfig);
-  bool isValidDevicePath(const std::string& devicePath);
+  bool isValidDevicePath(
+      const PlatformConfig& platformConfig,
+      const std::string& devicePath);
+  bool isValidSlotPath(
+      const PlatformConfig& platformConfig,
+      const std::string& slotPath);
+  bool isValidDeviceName(
+      const PlatformConfig& platformConfig,
+      const std::string& slotPath,
+      const std::string& deviceName);
   bool isValidSymlink(const std::string& symlink);
   bool isValidPresenceDetection(const PresenceDetection& presenceDetection);
   bool isValidSpiDeviceConfigs(

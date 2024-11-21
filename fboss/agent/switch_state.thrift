@@ -28,6 +28,11 @@ struct PortPgFields {
   6: string bufferPoolName;
   7: optional string scalingFactor;
   8: optional common.BufferPoolFields bufferPoolConfig;
+  9: optional i64 maxSharedXoffThresholdBytes;
+  10: optional i64 minSharedXoffThresholdBytes;
+  11: optional i64 maxSramXoffThresholdBytes;
+  12: optional i64 minSramXoffThresholdBytes;
+  13: optional i64 sramResumeOffsetBytes;
 }
 
 struct MKASakKey {
@@ -129,6 +134,8 @@ struct PortFields {
   52: list<ctrl.PortError> activeErrors;
   53: switch_config.Scope scope = switch_config.Scope.LOCAL;
   54: optional i32 reachabilityGroupId;
+  // DSF Interface node to enable conditional entropy, rotating hash seed periodically to increase entropy.
+  55: bool conditionalEntropyRehash = false;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields
@@ -314,6 +321,7 @@ struct ControlPlaneFields {
   1: list<ctrl.PortQueueFields> queues;
   2: list<switch_config.PacketRxReasonToQueue> rxReasonToQueue;
   3: optional string defaultQosPolicy;
+  4: optional list<ctrl.PortQueueFields> voqs;
 }
 
 struct PortFlowletFields {
@@ -384,6 +392,14 @@ struct SwitchSettingsFields {
   42: Address.BinaryAddress icmpV4UnavailableSrcAddress;
   // Switch property of reachability group size, for the use of input balanced mode.
   43: optional i32 reachabilityGroupListSize;
+  // SRAM global thresholds to send PFC XOFF/XON
+  44: optional byte sramGlobalFreePercentXoffThreshold;
+  45: optional byte sramGlobalFreePercentXonThreshold;
+  46: optional i16 linkFlowControlCreditThreshold;
+  47: optional i32 voqDramBoundThreshold;
+  // Conditional Entropy Rehash Period for VOQ devices
+  48: optional i32 conditionalEntropyRehashPeriodUS;
+  49: optional string firmwarePath;
 }
 
 struct RoutePrefix {
@@ -574,6 +590,7 @@ struct AclTableFields {
   3: optional map<string, AclEntryFields> aclMap;
   4: list<switch_config.AclTableActionType> actionTypes;
   5: list<switch_config.AclTableQualifier> qualifiers;
+  6: list<string> udfGroups;
 }
 
 struct AclTableGroupFields {

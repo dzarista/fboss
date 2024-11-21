@@ -118,6 +118,7 @@ add_library(utils
 )
 
 target_link_libraries(utils
+  agent_dir_util
   asic_utils
   agent_dir_util
   error
@@ -208,6 +209,7 @@ add_library(core
   fboss/agent/NeighborUpdaterImpl.cpp
   fboss/agent/NeighborUpdaterNoopImpl.cpp
   fboss/agent/PortUpdateHandler.cpp
+  fboss/agent/RemoteNeighborUpdater.cpp
   fboss/agent/ResolvedNexthopMonitor.cpp
   fboss/agent/ResolvedNexthopProbe.cpp
   fboss/agent/ResolvedNexthopProbeScheduler.cpp
@@ -456,6 +458,7 @@ target_link_libraries(switchid_scope_resolver
   fboss_error
   hwswitch_matcher
   state
+  switchinfo_utils
 )
 
 add_library(hwagent
@@ -484,6 +487,8 @@ target_link_libraries(hwagent-main
   split_agent_thrift_syncer
   Folly::folly
   agent_hw_test_thrift_handler
+  utils
+  test_utils
 )
 
 add_library(restart_time_tracker
@@ -689,4 +694,15 @@ target_link_libraries(hw_asic_table
   product_info
   switch_asics
   utils
+)
+
+add_library(test_utils
+  fboss/agent/TestUtils.cpp
+)
+
+target_link_libraries(test_utils
+  agent_dir_util
+  load_agent_config
+  common_file_utils
+  Folly::folly
 )

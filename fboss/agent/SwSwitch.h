@@ -106,6 +106,7 @@ class SwSwitchWarmBootHelper;
 class AgentDirectoryUtil;
 class HwSwitchThriftClientTable;
 class ResourceAccountant;
+class RemoteNeighborUpdater;
 
 inline static const int kHiPriorityBufferSize{1000};
 inline static const int kMidPriorityBufferSize{1000};
@@ -217,6 +218,9 @@ class SwSwitch : public HwSwitchCallback {
     return hwSwitchThriftClientTable_.get();
   }
 
+  ResourceAccountant* getResourceAccountant() const {
+    return resourceAccountant_.get();
+  }
   /*
    * Initialize the switch.
    *
@@ -560,10 +564,13 @@ class SwSwitch : public HwSwitchCallback {
   void linkStateChanged(
       PortID port,
       bool up,
+      cfg::PortType portType,
       std::optional<phy::LinkFaultStatus> iPhyFaultStatus =
           std::nullopt) override;
-  void linkActiveStateChanged(
-      const std::map<PortID, bool>& port2IsActive) override;
+  void linkActiveStateChangedOrFwIsolated(
+      const std::map<PortID, bool>& port2IsActive,
+      bool fwIsolated,
+      const std::optional<uint32_t>& numActiveFabricPortsAtFwIsolate) override;
   void linkConnectivityChanged(
       const std::map<PortID, multiswitch::FabricConnectivityDelta>&
           port2OldAndNewConnectivity) override;
@@ -1275,6 +1282,7 @@ class SwSwitch : public HwSwitchCallback {
 
   BootType bootType_{BootType::UNINITIALIZED};
   std::unique_ptr<LldpManager> lldpManager_;
+  std::unique_ptr<RemoteNeighborUpdater> remoteNeighborUpdater_;
   std::unique_ptr<PortUpdateHandler> portUpdateHandler_;
   SwitchFlags flags_{SwitchFlags::DEFAULT};
 

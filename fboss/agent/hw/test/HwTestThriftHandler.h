@@ -77,6 +77,11 @@ class HwTestThriftHandler : public AgentHwTestCtrlSvIf {
       int routerID,
       int sizeInSw) override;
 
+  void getEcmpWeights(
+      std::map<::std::int32_t, ::std::int32_t>& weights,
+      std::unique_ptr<CIDRNetwork> prefix,
+      int routerID) override;
+
   void injectFecError(
       std::unique_ptr<std::vector<int>> hwPorts,
       bool injectCorrectable) override;
@@ -89,6 +94,17 @@ class HwTestThriftHandler : public AgentHwTestCtrlSvIf {
   bool isRouteToNexthop(
       std::unique_ptr<IpPrefix> prefix,
       std::unique_ptr<network::thrift::BinaryAddress> nexthop) override;
+  bool isProgrammedInHw(
+      int intfID,
+      std::unique_ptr<IpPrefix> prefix,
+      std::unique_ptr<MplsLabelStack> labelStack,
+      int refCount) override;
+
+  void getPortInfo(
+      ::std::vector<::facebook::fboss::utility::PortInfo>& portInfos,
+      std::unique_ptr<::std::vector<::std::int32_t>> portIds) override;
+
+  bool verifyPortLedStatus(int portId, bool status) override;
 
  private:
   HwSwitch* hwSwitch_;

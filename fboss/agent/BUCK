@@ -469,17 +469,16 @@ cpp_library(
         "facebook/Utils.cpp",
     ],
     exported_deps = [
-        ":agent_dir_util",
         ":asic_utils",
         ":fboss-error",
         ":fboss-types",
         ":fsdb_helper",
         ":hwswitch_matcher",
-        ":load_agent_config",
         ":switch_config-cpp2-types",
         ":switch_state-cpp2-types",
         ":switchid_scope_resolver",
         "//common/network:util",
+        "//fboss/agent/hw:hw_switch_fb303_stats",
         "//fboss/agent/if:ctrl-cpp2-types",
         "//fboss/agent/platforms/common/janga800bic:janga800bic_platform_mapping",
         "//fboss/agent/platforms/common/meru400bfu:meru400bfu_platform_mapping",
@@ -489,7 +488,6 @@ cpp_library(
         "//fboss/agent/platforms/common/meru800bia:meru800bia_platform_mapping",
         "//fboss/agent/state:state",
         "//fboss/fsdb/if:fsdb_oper-cpp2-types",
-        "//fboss/lib:common_file_utils",
         "//folly:file_util",
         "//folly:network_address",
         "//folly:range",
@@ -575,7 +573,6 @@ cpp_library(
     srcs = ["ApplyThriftConfig.cpp"],
     exported_deps = [
         ":agent_features",
-        ":asic_utils",
         ":core",
         ":fboss-error",
         ":hw_asic_table",
@@ -620,6 +617,22 @@ cpp_library(
 )
 
 cpp_library(
+    name = "fsdb_adapted_sub_manager",
+    srcs = [
+        "FsdbAdaptedSubManager.cpp",
+    ],
+    headers = [
+        "FsdbAdaptedSubManager.h",
+    ],
+    exported_deps = [
+        "//fboss/agent/state:state",
+        "//fboss/fsdb/client:fsdb_sub_manager",
+        "//fboss/fsdb/if:fsdb_model",
+        "//fboss/thrift_cow/storage:cow_storage",
+    ],
+)
+
+cpp_library(
     name = "core",
     srcs = [
         "AclNexthopHandler.cpp",
@@ -636,7 +649,6 @@ cpp_library(
         "EncapIndexAllocator.cpp",
         "FabricConnectivityManager.cpp",
         "FibHelpers.cpp",
-        "FsdbAdaptedSubManager.cpp",
         "FsdbSyncer.cpp",
         "HwAsicTable.cpp",
         "HwSwitchConnectionStatusTable.cpp",
@@ -667,6 +679,7 @@ cpp_library(
         "NeighborUpdaterImpl.cpp",
         "NeighborUpdaterNoopImpl.cpp",
         "PortUpdateHandler.cpp",
+        "RemoteNeighborUpdater.cpp",
         "ResolvedNexthopMonitor.cpp",
         "ResolvedNexthopProbe.cpp",
         "ResolvedNexthopProbeScheduler.cpp",
@@ -721,8 +734,9 @@ cpp_library(
         ":constants",
         ":dhcpv4_options_of_interest",
         ":fboss-error",
-        ":fboss-event-base",
         ":fboss-types",
+        ":fboss_event_base",
+        ":fsdb_adapted_sub_manager",
         ":hw_switch_handler",
         ":hwswitchcallback",
         ":l2learn_event_observer",
@@ -805,6 +819,7 @@ cpp_library(
         "//fboss/lib/phy:phy-cpp2-types",
         "//fboss/lib/phy:prbs-cpp2-types",
         "//fboss/lib/platforms:product-info",
+        "//fboss/lib/thrift_service_client:thrift-service-client",
         "//fboss/thrift_cow/nodes:nodes",
         "//fboss/thrift_cow/nodes:serializer",
         "//fboss/thrift_cow/storage:cow_storage",
@@ -875,8 +890,8 @@ cpp_library(
         ":address_utils",
         ":core",
         ":fboss-error",
-        ":fboss-event-base",
         ":fboss-types",
+        ":fboss_event_base",
         ":hw_asic_table",
         ":packet",
         ":stats",
@@ -956,11 +971,12 @@ cpp_library(
 )
 
 cpp_library(
-    name = "fboss-event-base",
+    name = "fboss_event_base",
     headers = [
         "FbossEventBase.h",
     ],
     exported_deps = [
+        ":agent_features",
         "//folly/io/async:async_base",
         "//folly/logging:logging",
     ],
@@ -1011,8 +1027,8 @@ cpp_library(
         ":agent_dir_util",
         ":agent_features",
         ":fboss-error",
-        ":fboss-event-base",
         ":fboss-types",
+        ":fboss_event_base",
         ":load_agent_config",
         ":platform_config-cpp2-types",
         ":switch_config-cpp2-types",
@@ -1182,6 +1198,7 @@ cpp_library(
         ":fboss-error",
         ":fboss-types",
         ":hwswitch_matcher",
+        ":switchinfo_utils",
         "//fboss/agent/state:state",
     ],
     exported_external_deps = [
@@ -1218,8 +1235,8 @@ cpp_library(
         "HwSwitchHandler.h",
     ],
     exported_deps = [
-        ":fboss-event-base",
         ":fboss-types",
+        ":fboss_event_base",
         ":hwswitchcallback",
         ":load_agent_config",
         ":switch_config-cpp2-types",
@@ -1354,6 +1371,7 @@ cpp_library(
         ":restart_time_tracker",
         ":setup_thrift",
         ":split_agent_thrift_syncer",
+        ":test_utils",
         ":utils",
         "//common/fb303/cpp:default_control",
         "//fb303:logging",
@@ -1439,6 +1457,7 @@ cpp_library(
         ":packet",
         "//fboss/agent/state:state",
         "//fboss/lib:common_thrift_utils",
+        "//fboss/lib/thrift_service_client:thrift-service-client",
         "//folly:cancellation_token",
         "//folly:network_address",
         "//folly:synchronized",
@@ -1728,6 +1747,19 @@ cpp_library(
         "//fboss/agent/hw/switch_asics:switch_asics",
         "//fboss/agent/platforms/common:platform_mapping_utils",
         "//fboss/lib/platforms:product-info",
+    ],
+)
+
+cpp_library(
+    name = "test_utils",
+    srcs = [
+        "TestUtils.cpp",
+    ],
+    exported_deps = [
+        ":agent_dir_util",
+        ":load_agent_config",
+        "//fboss/lib:common_file_utils",
+        "//folly/logging:logging",
     ],
 )
 

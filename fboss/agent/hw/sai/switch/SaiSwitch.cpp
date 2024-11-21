@@ -85,6 +85,15 @@
 
 extern "C" {
 #include <sai.h>
+
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+#include <saiextensions.h>
+#ifndef IS_OSS_BRCM_SAI
+#include <experimental/saiexperimentaltameventaginggroup.h>
+#else
+#include <saiexperimentaltameventaginggroup.h>
+#endif
+#endif
 }
 
 using std::chrono::duration_cast;
@@ -603,8 +612,11 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
   // Unsupported features
   checkUnsupportedDelta(
       delta.getTeFlowEntriesDelta(), managerTable_->teFlowEntryManager());
-  // update switch settings first
-  processSwitchSettingsChanged(delta, lockPolicy);
+  // update switch settings first. In particular drain box first if drain ==
+  // true
+  processSwitchSettingsDrainStateChange(
+      delta, cfg::SwitchDrainState::DRAINED, lockPolicy);
+  processSwitchSettingsChangeSansDrained(delta, lockPolicy);
   processLocalCapsuleSwitchIdsDelta(delta, lockPolicy);
 
   // process non-default qos policies, which are stored in
@@ -1095,8 +1107,8 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
       // remove default acl table and add a new one. table removal should
       // clear acl entries too
       managerTable_->switchManager().resetIngressAcl();
-      managerTable_->aclTableManager().removeDefaultAclTable();
-      managerTable_->aclTableManager().addDefaultAclTable();
+      managerTable_->aclTableManager().removeDefaultIngressAclTable();
+      managerTable_->aclTableManager().addDefaultIngressAclTable();
       managerTable_->switchManager().setIngressAcl();
     }
 
@@ -1107,7 +1119,7 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
         &SaiAclTableManager::changedAclEntry,
         &SaiAclTableManager::addAclEntry,
         &SaiAclTableManager::removeAclEntry,
-        kAclTable1);
+        cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE());
   }
 
   processPfcWatchdogGlobalDelta(delta, lockPolicy);
@@ -1119,6 +1131,9 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
 
   // Process link state change delta and update the LED status
   processLinkStateChangeDelta(delta, lockPolicy);
+  // Undrain switch last
+  processSwitchSettingsDrainStateChange(
+      delta, cfg::SwitchDrainState::UNDRAINED, lockPolicy);
 
   return delta.newState();
 }
@@ -1186,29 +1201,73 @@ void SaiSwitch::updateResourceUsage(const LockPolicyT& lockPolicy) {
   }
 }
 
-void SaiSwitch::processSwitchSettingsChangedLocked(
+void SaiSwitch::processSwitchSettingsDrainStateChangeLocked(
+    const std::lock_guard<std::mutex>& lock,
+    cfg::SwitchDrainState drainStateToProcess,
+    const StateDelta& delta) {
+  const auto switchSettingDelta = delta.getSwitchSettingsDelta();
+  DeltaFunctions::forEachAdded(
+      switchSettingDelta, [&](const auto& newSwitchSettings) {
+        processSwitchSettingsChangeDrainedEntryLocked(
+            lock,
+            drainStateToProcess,
+            std::make_shared<SwitchSettings>(),
+            newSwitchSettings);
+      });
+  DeltaFunctions::forEachChanged(
+      switchSettingDelta,
+      [&](const auto& oldSwitchSettings, const auto& newSwitchSettings) {
+        processSwitchSettingsChangeDrainedEntryLocked(
+            lock, drainStateToProcess, oldSwitchSettings, newSwitchSettings);
+      });
+  DeltaFunctions::forEachRemoved(
+      switchSettingDelta, [&](const auto& oldSwitchSettings) {
+        processSwitchSettingsChangeDrainedEntryLocked(
+            lock,
+            drainStateToProcess,
+            oldSwitchSettings,
+            std::make_shared<SwitchSettings>());
+      });
+}
+
+void SaiSwitch::processSwitchSettingsChangeDrainedEntryLocked(
+    const std::lock_guard<std::mutex>& lock,
+    cfg::SwitchDrainState drainStateToProcess,
+    const std::shared_ptr<SwitchSettings>& oldSwitchSettings,
+    const std::shared_ptr<SwitchSettings>& newSwitchSettings) {
+  const auto oldVal = oldSwitchSettings->isSwitchDrained();
+  const auto newVal = newSwitchSettings->isSwitchDrained();
+  cfg::SwitchDrainState newDrainState = newVal
+      ? cfg::SwitchDrainState::DRAINED
+      : cfg::SwitchDrainState::UNDRAINED;
+  if (oldVal != newVal && newDrainState == drainStateToProcess) {
+    managerTable_->switchManager().setSwitchIsolate(newVal);
+  }
+}
+
+void SaiSwitch::processSwitchSettingsChangeSansDrainedLocked(
     const std::lock_guard<std::mutex>& lock,
     const StateDelta& delta) {
   const auto switchSettingDelta = delta.getSwitchSettingsDelta();
   DeltaFunctions::forEachAdded(
       switchSettingDelta, [&](const auto& newSwitchSettings) {
-        processSwitchSettingsChangedEntryLocked(
+        processSwitchSettingsChangeSansDrainedEntryLocked(
             lock, std::make_shared<SwitchSettings>(), newSwitchSettings);
       });
   DeltaFunctions::forEachChanged(
       switchSettingDelta,
       [&](const auto& oldSwitchSettings, const auto& newSwitchSettings) {
-        processSwitchSettingsChangedEntryLocked(
+        processSwitchSettingsChangeSansDrainedEntryLocked(
             lock, oldSwitchSettings, newSwitchSettings);
       });
   DeltaFunctions::forEachRemoved(
       switchSettingDelta, [&](const auto& oldSwitchSettings) {
-        processSwitchSettingsChangedEntryLocked(
+        processSwitchSettingsChangeSansDrainedEntryLocked(
             lock, oldSwitchSettings, std::make_shared<SwitchSettings>());
       });
 }
 
-void SaiSwitch::processSwitchSettingsChangedEntryLocked(
+void SaiSwitch::processSwitchSettingsChangeSansDrainedEntryLocked(
     const std::lock_guard<std::mutex>& /*lock*/,
     const std::shared_ptr<SwitchSettings>& oldSwitchSettings,
     const std::shared_ptr<SwitchSettings>& newSwitchSettings) {
@@ -1253,14 +1312,6 @@ void SaiSwitch::processSwitchSettingsChangedEntryLocked(
   }
 
   {
-    const auto oldVal = oldSwitchSettings->isSwitchDrained();
-    const auto newVal = newSwitchSettings->isSwitchDrained();
-    if (oldVal != newVal) {
-      managerTable_->switchManager().setSwitchIsolate(newVal);
-    }
-  }
-
-  {
     const auto oldVal = oldSwitchSettings->getForceTrafficOverFabric();
     const auto newVal = newSwitchSettings->getForceTrafficOverFabric();
     if (oldVal != newVal) {
@@ -1286,10 +1337,62 @@ void SaiSwitch::processSwitchSettingsChangedEntryLocked(
           newVal.has_value() ? newVal.value() : 0);
     }
   }
+
+  {
+    const auto oldSramGlobalXoffTh =
+        oldSwitchSettings->getSramGlobalFreePercentXoffThreshold();
+    const auto newSramGlobalXoffTh =
+        newSwitchSettings->getSramGlobalFreePercentXoffThreshold();
+    if (oldSramGlobalXoffTh != newSramGlobalXoffTh) {
+      managerTable_->switchManager().setSramGlobalFreePercentXoffTh(
+          newSramGlobalXoffTh.value_or(0));
+    }
+
+    const auto oldSramGlobalXonTh =
+        oldSwitchSettings->getSramGlobalFreePercentXonThreshold();
+    const auto newSramGlobalXonTh =
+        newSwitchSettings->getSramGlobalFreePercentXonThreshold();
+    if (oldSramGlobalXonTh != newSramGlobalXonTh) {
+      managerTable_->switchManager().setSramGlobalFreePercentXonTh(
+          newSramGlobalXonTh.value_or(0));
+    }
+  }
+  {
+    const auto oldLinkFlowControlCreditTh =
+        oldSwitchSettings->getLinkFlowControlCreditThreshold();
+    const auto newLinkFlowControlCreditTh =
+        newSwitchSettings->getLinkFlowControlCreditThreshold();
+    if (oldLinkFlowControlCreditTh != newLinkFlowControlCreditTh) {
+      managerTable_->switchManager().setLinkFlowControlCreditTh(
+          newLinkFlowControlCreditTh.value_or(0));
+    }
+  }
+  {
+    const auto oldVoqDramBoundTh =
+        oldSwitchSettings->getVoqDramBoundThreshold();
+    const auto newVoqDramBoundTh =
+        newSwitchSettings->getVoqDramBoundThreshold();
+    if (oldVoqDramBoundTh != newVoqDramBoundTh) {
+      managerTable_->switchManager().setVoqDramBoundTh(
+          newVoqDramBoundTh.value_or(0));
+    }
+  }
+
+  {
+    const auto oldConditionalEntropyRehashPeriodUS =
+        oldSwitchSettings->getConditionalEntropyRehashPeriodUS();
+    const auto newConditionalEntropyRehashPeriodUS =
+        newSwitchSettings->getConditionalEntropyRehashPeriodUS();
+    if (oldConditionalEntropyRehashPeriodUS !=
+        newConditionalEntropyRehashPeriodUS) {
+      managerTable_->switchManager().setConditionalEntropyRehashPeriodUS(
+          newConditionalEntropyRehashPeriodUS.value_or(0));
+    }
+  }
 }
 
 template <typename LockPolicyT>
-void SaiSwitch::processSwitchSettingsChanged(
+void SaiSwitch::processSwitchSettingsChangeSansDrained(
     const StateDelta& delta,
     const LockPolicyT& lockPolicy) {
   const auto switchSettingsDelta = delta.getSwitchSettingsDelta();
@@ -1304,7 +1407,29 @@ void SaiSwitch::processSwitchSettingsChanged(
   CHECK(newSwitchSettings);
 
   if (oldSwitchSettings != newSwitchSettings) {
-    processSwitchSettingsChangedLocked(lockPolicy.lock(), delta);
+    processSwitchSettingsChangeSansDrainedLocked(lockPolicy.lock(), delta);
+  }
+}
+
+template <typename LockPolicyT>
+void SaiSwitch::processSwitchSettingsDrainStateChange(
+    const StateDelta& delta,
+    cfg::SwitchDrainState drainStateToProcess,
+    const LockPolicyT& lockPolicy) {
+  const auto switchSettingsDelta = delta.getSwitchSettingsDelta();
+  const auto& oldSwitchSettings = switchSettingsDelta.getOld();
+  const auto& newSwitchSettings = switchSettingsDelta.getNew();
+
+  /*
+   * SwitchSettings are mandatory and can thus only be modified.
+   * Every field in SwitchSettings must always be set in new SwitchState.
+   */
+  CHECK(oldSwitchSettings);
+  CHECK(newSwitchSettings);
+
+  if (oldSwitchSettings != newSwitchSettings) {
+    processSwitchSettingsDrainStateChangeLocked(
+        lockPolicy.lock(), drainStateToProcess, delta);
   }
 }
 
@@ -2043,7 +2168,9 @@ void SaiSwitch::linkStateChangedCallbackBottomHalf(
   // does with the callback notification.
   for (auto swPortIdAndStatus : swPortId2Status) {
     callback_->linkStateChanged(
-        swPortIdAndStatus.first, swPortIdAndStatus.second);
+        swPortIdAndStatus.first,
+        swPortIdAndStatus.second,
+        managerTable_->portManager().getPortType(swPortIdAndStatus.first));
   }
 }
 
@@ -2059,12 +2186,31 @@ void SaiSwitch::txReadyStatusChangeCallbackTopHalf(SwitchSaiId switchId) {
     return;
   }
 
-  txReadyStatusChangeBottomHalfEventBase_.runInFbossEventBaseThread(
-      [this]() mutable { txReadyStatusChangeCallbackBottomHalf(); });
+  // When txReadyStatusChangeOrFwIsolateCallbackBottomHalf runs, it queries for
+  // active/inactive link status of all the links at that time.
+  // Thus, if we txReadyStatusChangeOrFwIsolateCallbackBottomHalf is already
+  // queued for run, we can skip scheduling another.
+  // Note: txReadyStatusChangeOrFwIsolateCallbackBottomHalf sets changePending
+  // to false before querying link active/inactive status, so avoid race.
+  auto changePending = txReadyStatusChangePending_.wlock();
+  if (!(*changePending)) {
+    *changePending = true;
+    txReadyStatusChangeBottomHalfEventBase_.runInFbossEventBaseThread(
+        [this]() mutable {
+          txReadyStatusChangeOrFwIsolateCallbackBottomHalf();
+        });
+  }
 }
 
-void SaiSwitch::txReadyStatusChangeCallbackBottomHalf() {
+void SaiSwitch::txReadyStatusChangeOrFwIsolateCallbackBottomHalf(
+    bool fwIsolated,
+    const std::optional<uint32_t>& numActiveFabricPortsAtFwIsolate) {
 #if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  {
+    auto changePending = txReadyStatusChangePending_.wlock();
+    *changePending = false;
+  }
+
   std::vector<SaiPortTraits::AdapterKey> adapterKeys;
   for (const auto& [portSaiId, portInfo] :
        concurrentIndices_->portSaiId2PortInfo) {
@@ -2091,7 +2237,7 @@ void SaiSwitch::txReadyStatusChangeCallbackBottomHalf() {
     return;
   }
 
-  auto numActiveFabricLinks = 0, numInactiveFabricLinks = 0;
+  auto numActiveFabricPorts = 0, numInactiveFabricPorts = 0;
   std::map<PortID, bool> port2IsActive;
   for (auto tuple : boost::combine(adapterKeys, txReadyStatusesGot)) {
     auto portSaiId = tuple.get<0>();
@@ -2109,18 +2255,25 @@ void SaiSwitch::txReadyStatusChangeCallbackBottomHalf() {
     port2IsActive[portID] = isActive;
 
     if (isActive) {
-      numActiveFabricLinks++;
+      numActiveFabricPorts++;
     } else {
-      numInactiveFabricLinks++;
+      numInactiveFabricPorts++;
     }
   }
 
-  XLOG(DBG2)
-      << "TX Ready status changed callback received:: NumActiveFabricLinks: "
-      << numActiveFabricLinks
-      << " NumInactiveFabricLinks: " << numInactiveFabricLinks;
+  std::string logPrefix =
+      fwIsolated ? "Firmware Isolate" : "TX Ready status change";
+  XLOG(DBG2) << logPrefix << " callback received:: NumActiveFabricPorts: "
+             << numActiveFabricPorts
+             << " NumInactiveFabricPorts: " << numInactiveFabricPorts
+             << " NumActiveFabricPortsAtFwIsolate: "
+             << (numActiveFabricPortsAtFwIsolate.has_value()
+                     ? folly::to<std::string>(
+                           numActiveFabricPortsAtFwIsolate.value())
+                     : "--");
 
-  callback_->linkActiveStateChanged(port2IsActive);
+  callback_->linkActiveStateChangedOrFwIsolated(
+      port2IsActive, fwIsolated, numActiveFabricPortsAtFwIsolate);
 #endif
 }
 
@@ -2280,8 +2433,8 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
       scopeResolver->switchIdToSwitchInfo());
   multiSwitchSwitchSettings->addNode(matcher.matcherString(), switchSettings);
 
-  if (platform_->getAsic()->isSupported(
-          HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
+  if (getSwitchType() == cfg::SwitchType::VOQ ||
+      getSwitchType() == cfg::SwitchType::FABRIC) {
     CHECK(getSwitchId().has_value());
     // In practice, this will read and populate the value set during switch
     // create viz. DRAINED
@@ -2290,6 +2443,11 @@ std::shared_ptr<SwitchState> SaiSwitch::getColdBootSwitchState() {
         saiSwitchId_, SaiSwitchTraits::Attributes::SwitchIsolate{});
     auto drainState = switchIsolate ? cfg::SwitchDrainState::DRAINED
                                     : cfg::SwitchDrainState::UNDRAINED;
+    CHECK(drainState == cfg::SwitchDrainState::DRAINED)
+        << " Switch must be drained on cold boot";
+    XLOG(DBG2) << " On cold boot, switch came up:  "
+               << (drainState == cfg::SwitchDrainState::DRAINED ? "DRAINED"
+                                                                : "UNDRAINED");
     switchSettings->setActualSwitchDrainState(drainState);
   }
 
@@ -2341,6 +2499,15 @@ HwInitResult SaiSwitch::initLocked(
       adapterKeysJson.get(),
       adapterKeys2AdapterHostKeysJson.get());
   if (bootType_ != BootType::WARM_BOOT) {
+    if (getSwitchType() == cfg::SwitchType::FABRIC) {
+      // 11.0 is not honoring isolate attribute during fabric switch create
+      // We still want the switch to be isolated before we start enabling ports
+      // after cold boot. This is tracked in CS00012372888.
+      // TODO: get rid of this call once CS00012372888 is resolved
+      auto& switchApi = SaiApiTable::getInstance()->switchApi();
+      switchApi.setAttribute(
+          saiSwitchId_, SaiSwitchTraits::Attributes::SwitchIsolate{true});
+    }
     ret.switchState = getColdBootSwitchState();
     ret.switchState->publish();
     setProgrammedState(ret.switchState);
@@ -2438,7 +2605,7 @@ void SaiSwitch::initStoreAndManagersLocked(
             std::make_shared<AclTableGroup>(cfg::AclStage::INGRESS);
         managerTable_->aclTableGroupManager().addAclTableGroup(aclTableGroup);
 
-        managerTable_->aclTableManager().addDefaultAclTable();
+        managerTable_->aclTableManager().addDefaultIngressAclTable();
       }
     }
 
@@ -2492,7 +2659,9 @@ void SaiSwitch::syncLinkStatesLocked(
                << portIdAndHandle.first << " with oper status: "
                << (operStatus == SAI_PORT_OPER_STATUS_UP ? "UP" : "DOWN");
     callback_->linkStateChanged(
-        portIdAndHandle.first, operStatus == SAI_PORT_OPER_STATUS_UP);
+        portIdAndHandle.first,
+        operStatus == SAI_PORT_OPER_STATUS_UP,
+        managerTable_->portManager().getPortType(portIdAndHandle.first));
   }
 }
 
@@ -2539,7 +2708,7 @@ void SaiSwitch::syncLinkActiveStates() {
   if (platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORTS)) {
     std::lock_guard<std::mutex> lock(saiSwitchMutex_);
     txReadyStatusChangeBottomHalfEventBase_.runInFbossEventBaseThread(
-        [=, this]() { txReadyStatusChangeCallbackBottomHalf(); });
+        [=, this]() { txReadyStatusChangeOrFwIsolateCallbackBottomHalf(); });
   }
 }
 
@@ -2578,7 +2747,7 @@ void SaiSwitch::initTxReadyStatusChangeLocked(
          * callback to guarantee that we don't miss any callbacks and those are
          * always ordered.
          */
-        txReadyStatusChangeCallbackBottomHalf();
+        txReadyStatusChangeOrFwIsolateCallbackBottomHalf();
       });
 #endif
 }
@@ -3043,7 +3212,8 @@ bool SaiSwitch::isValidStateUpdateLocked(
       });
 
   auto qualifiersSupported =
-      managerTable_->aclTableManager().getSupportedQualifierSet();
+      managerTable_->aclTableManager().getSupportedQualifierSet(
+          cfg::AclStage::INGRESS);
   DeltaFunctions::forEachChanged(
       delta.getAclsDelta(),
       [qualifiersSupported, &isValid](
@@ -3369,32 +3539,39 @@ void SaiSwitch::fdbEventCallback(
   fdbEventBottomHalfEventBase_.runInFbossEventBaseThread(
       [this,
        fdbNotifications = std::move(fdbEventNotificationDataTmp)]() mutable {
-        auto lock = std::lock_guard<std::mutex>(saiSwitchMutex_);
-        fdbEventCallbackLockedBottomHalf(lock, std::move(fdbNotifications));
+        fdbEventCallbackLockedBottomHalf(std::move(fdbNotifications));
       });
 }
 
 void SaiSwitch::fdbEventCallbackLockedBottomHalf(
-    const std::lock_guard<std::mutex>& /*lock*/,
     std::vector<FdbEventNotificationData> fdbNotifications) {
-  if (managerTable_->bridgeManager().getL2LearningMode() !=
-      cfg::L2LearningMode::SOFTWARE) {
-    // Some platforms call fdb callback even when mode is set to HW. In
-    // keeping with our native SDK approach, don't send these events up.
-    return;
-  }
-  for (const auto& fdbNotification : fdbNotifications) {
-    auto ditr =
-        kL2AddrUpdateOperationsOfInterest.find(fdbNotification.eventType);
-    if (ditr != kL2AddrUpdateOperationsOfInterest.end()) {
-      auto updateTypeStr = fdbEventToString(ditr->first);
-      auto l2Entry = getL2Entry(fdbNotification);
-      if (l2Entry) {
-        XLOG(DBG2) << "Received FDB " << updateTypeStr
-                   << " notification for: " << l2Entry->str();
-        callback_->l2LearningUpdateReceived(l2Entry.value(), ditr->second);
+  std::vector<std::pair<L2Entry, L2EntryUpdateType>> l2Entries;
+  {
+    auto lock = std::lock_guard<std::mutex>(saiSwitchMutex_);
+    if (managerTable_->bridgeManager().getL2LearningMode() !=
+        cfg::L2LearningMode::SOFTWARE) {
+      // Some platforms call fdb callback even when mode is set to HW. In
+      // keeping with our native SDK approach, don't send these events up.
+      return;
+    }
+
+    for (const auto& fdbNotification : fdbNotifications) {
+      auto ditr =
+          kL2AddrUpdateOperationsOfInterest.find(fdbNotification.eventType);
+      if (ditr != kL2AddrUpdateOperationsOfInterest.end()) {
+        auto updateTypeStr = fdbEventToString(ditr->first);
+        auto l2Entry = getL2Entry(fdbNotification);
+        if (l2Entry) {
+          XLOG(DBG2) << "Received FDB " << updateTypeStr
+                     << " notification for: " << l2Entry->str();
+          l2Entries.push_back({l2Entry.value(), ditr->second});
+        }
       }
     }
+  }
+
+  for (auto& l2Entry : l2Entries) {
+    callback_->l2LearningUpdateReceived(l2Entry.first, l2Entry.second);
   }
 }
 
@@ -3697,6 +3874,10 @@ std::string SaiSwitch::listObjects(
         objTypes.push_back(SAI_OBJECT_TYPE_TAM_TRANSPORT);
         objTypes.push_back(SAI_OBJECT_TYPE_TAM_REPORT);
         objTypes.push_back(SAI_OBJECT_TYPE_TAM_EVENT_ACTION);
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+        objTypes.push_back(static_cast<sai_object_type_t>(
+            SAI_OBJECT_TYPE_TAM_EVENT_AGING_GROUP));
+#endif
         objTypes.push_back(SAI_OBJECT_TYPE_TAM_EVENT);
         objTypes.push_back(SAI_OBJECT_TYPE_TAM);
         break;
@@ -4066,7 +4247,9 @@ std::shared_ptr<MultiSwitchAclMap> SaiSwitch::reconstructMultiSwitchAclMap()
     for (const auto& [name, aclEntry] : std::as_const(*aclMap)) {
       auto reconstructedAclEntry =
           managerTable_->aclTableManager().reconstructAclEntry(
-              kAclTable1, name, aclEntry->getPriority());
+              cfg::switch_config_constants::DEFAULT_INGRESS_ACL_TABLE(),
+              name,
+              aclEntry->getPriority());
       reconstructedMultiSwitchAclMap->addNode(
           reconstructedAclEntry, HwSwitchMatcher(matcher));
     }

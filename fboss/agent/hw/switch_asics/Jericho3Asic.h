@@ -10,20 +10,11 @@ namespace facebook::fboss {
 class Jericho3Asic : public BroadcomAsic {
  public:
   Jericho3Asic(
-      cfg::SwitchType type,
-      std::optional<int64_t> id,
-      int16_t index,
-      std::optional<cfg::Range64> systemPortRange,
-      const folly::MacAddress& mac,
+      std::optional<int64_t> switchId,
+      cfg::SwitchInfo switchInfo,
       std::optional<cfg::SdkVersion> sdkVersion = std::nullopt)
-      : BroadcomAsic(
-            type,
-            id,
-            index,
-            systemPortRange,
-            mac,
-            sdkVersion,
-            {cfg::SwitchType::VOQ}) {}
+      : BroadcomAsic(switchId, switchInfo, sdkVersion, {cfg::SwitchType::VOQ}) {
+  }
   bool isSupported(Feature) const override;
   const std::map<cfg::PortType, cfg::PortLoopbackMode>& desiredLoopbackModes()
       const override;
@@ -143,6 +134,8 @@ class Jericho3Asic : public BroadcomAsic {
   std::optional<uint32_t> computePortGroupSkew(
       const std::map<PortID, uint32_t>& portId2cableLen) const override;
   std::vector<std::pair<int, int>> getPortGroups() const;
+  int getMidPriCpuQueueId() const override;
+  int getHiPriCpuQueueId() const override;
 };
 
 } // namespace facebook::fboss

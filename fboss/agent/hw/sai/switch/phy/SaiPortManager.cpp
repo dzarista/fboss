@@ -258,6 +258,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
       std::nullopt,   std::nullopt,
       std::nullopt,   std::nullopt,
       intfType,       std::nullopt,
+      std::nullopt, // TAM Object
       std::nullopt,   std::nullopt,
       std::nullopt,   std::nullopt,
       std::nullopt,   std::nullopt,
@@ -286,6 +287,10 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
       std::nullopt, // ARS port load future weight
 #endif
       std::nullopt, // Reachability Group
+      std::nullopt, // CondEntropyRehashEnable
+      std::nullopt, // CondEntropyRehashPeriodUS
+      std::nullopt, // CondEntropyRehashSeed
+      std::nullopt, // ShelEnable
   };
 }
 
@@ -365,7 +370,8 @@ SaiPortSerdesTraits::CreateAttributes
 SaiPortManager::serdesAttributesFromSwPinConfigs(
     PortSaiId portSaiId,
     const std::vector<phy::PinConfig>& pinConfigs,
-    const std::shared_ptr<SaiPortSerdes>& /* serdes */) {
+    const std::shared_ptr<SaiPortSerdes>& /* serdes */,
+    bool /* zeroPreemphasis */) {
   SaiPortSerdesTraits::CreateAttributes attrs;
 
   SaiPortSerdesTraits::Attributes::TxFirPre1::ValueType txPre1;
