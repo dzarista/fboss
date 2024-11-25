@@ -255,12 +255,27 @@ static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 	},
 };
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf) {
+	int ret;
+	u8 major_rev, minor_rev;
+	struct i2c_client *client = to_i2c_client(dev);
+
+	ret = i2c_smbus_read_byte_data(client, CPLD_REG_REV_MAJOR);
+	if (ret < 0)
+		return ret;
+	major_rev = (u8)ret;
+
+	ret = i2c_smbus_read_byte_data(client, CPLD_REG_REV_MINOR);
+	if (ret < 0)
+		return ret;
+	minor_rev = (u8)ret;
+
+	return sprintf(buf, "%u.%u\n", major_rev, minor_rev);
+}
+
+DEVICE_ATTR(fw_ver, 0444, fw_ver_show, NULL);
+
 static int cpld_i2c_probe(struct i2c_client *client)
-#else
-static int cpld_i2c_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
-#endif
 {
 	int ret;
 	u8 major_rev, minor_rev;
@@ -276,6 +291,15 @@ static int cpld_i2c_probe(struct i2c_client *client,
 	major_rev = (u8)ret;
 	dev_info(&client->dev, "decker cpld revision: %02x.%02x\n",
 		 major_rev, minor_rev);
+
+	ret = sysfs_create_file(&client->dev.kobj, &dev_attr_fw_ver.attr);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"could not create %s attribute for cpld: %d",
+			dev_attr_fw_ver.attr.name,
+			ret);
+		return ret;
+	}
 
 	return regbit_sysfs_init_i2c(&client->dev, cpld_sys_attrs,
 				     ARRAY_SIZE(cpld_sys_attrs));
@@ -299,3 +323,4 @@ module_i2c_driver(cpld_i2c_driver);
 MODULE_AUTHOR("Arista Networks");
 MODULE_DESCRIPTION("Decker CPLD I2C Driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(BSP_VERSION);

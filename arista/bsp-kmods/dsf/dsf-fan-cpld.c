@@ -784,6 +784,15 @@ static struct attribute_group *fan_groups[] = {
 	FAN_ATTR_GROUP(7), FAN_ATTR_GROUP(8), NULL,
 };
 
+static ssize_t fw_ver_show(struct device *dev, 
+								struct device_attribute *attr, char *buf) 
+{
+	struct cpld_data *cpld = dev_get_drvdata(dev);
+	return sprintf(buf, "%u.%u\n", cpld->major, cpld->minor);
+}
+
+DEVICE_ATTR(fw_ver, S_IRUGO, fw_ver_show, NULL);
+
 static ssize_t cpld_ver_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -857,6 +866,7 @@ DEVICE_ATTR(wdt_boost_pwm, S_IRUGO | S_IWGRP | S_IWUSR, wdt_boost_pwm_show,
 	    wdt_boost_pwm_store);
 
 static struct attribute *cpld_attrs[] = {
+	&dev_attr_fw_ver.attr,
 	&dev_attr_cpld_ver.attr,
 	&dev_attr_cpld_sub_ver.attr,
 	&dev_attr_update.attr,
@@ -954,7 +964,6 @@ static const struct watchdog_info fan_wdt_info = {
 };
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 static void cpld_remove(struct i2c_client *client)
 {
 	struct cpld_data *cpld = i2c_get_clientdata(client);
@@ -965,35 +974,17 @@ static void cpld_remove(struct i2c_client *client)
 
 	return;
 }
-#else
-static int cpld_remove(struct i2c_client *client)
-{
-	struct cpld_data *cpld = i2c_get_clientdata(client);
 
-	mutex_lock(&cpld->lock);
-	cancel_delayed_work_sync(&cpld->dwork);
-	mutex_unlock(&cpld->lock);
-
-	return 0;
-}
-#endif
-
-static const struct i2c_device_id cpld_id[] = { { "fan_cpld0", OASIS_CPLD0 },
-						{ "fan_cpld1", OASIS_CPLD1 },
-						{ "fan_cpld2", OASIS_CPLD2 },
-						{ "fan_cpld", PALI2_CPLD },
+static const struct i2c_device_id cpld_id[] = { { "oasis_cpld0", OASIS_CPLD0 },
+						{ "oasis_cpld1", OASIS_CPLD1 },
+						{ "oasis_cpld2", OASIS_CPLD2 },
+						{ "pali2_cpld", PALI2_CPLD },
 						{} };
-
 MODULE_DEVICE_TABLE(i2c, cpld_id);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
 static int cpld_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id;
-#else
-static int cpld_probe(struct i2c_client *client, const struct i2c_device_id *id)
-{
-#endif
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct cpld_data *cpld;
@@ -1102,3 +1093,4 @@ module_exit(dsf_fan_cpld_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arista Networks");
 MODULE_DESCRIPTION("DSF Fan Cpld Driver");
+MODULE_VERSION(BSP_VERSION);

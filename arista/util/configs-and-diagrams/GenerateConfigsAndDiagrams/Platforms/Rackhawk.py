@@ -857,6 +857,7 @@ class Rackhawk( PlatformConfig ):
          'blackhawk-cpld',
          'aslg4f4527',
          'bp4a_lm90',
+         "scd-info"
       ]
       if self.hasPem:
          kmods.append( 'amax5970' )

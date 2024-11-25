@@ -316,3 +316,4 @@ module_auxiliary_driver(scd_spi_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arista Networks");
 MODULE_DESCRIPTION("SCD SPI driver");
+MODULE_VERSION(BSP_VERSION);

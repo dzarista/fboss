@@ -573,6 +573,7 @@ class Whistler( PlatformConfig ):
                "scd-spi",
                "scd-leds",
                "scd-smbus",
+               "scd-info",
                "dsf-fan-cpld",
                "decker-cpld"
             ],

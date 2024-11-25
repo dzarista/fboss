@@ -326,6 +326,7 @@ class Viper( PlatformConfig ):
                "scd-spi",
                "scd-leds",
                "scd-smbus",
+               "scd-info",
                "dsf-fan-cpld",
                "scd-vcpld"
             ],
