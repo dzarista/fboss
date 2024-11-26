@@ -228,7 +228,8 @@
           ],
           "spiMasterConfigs": [],
           "ledCtrlConfigs": [],
-          "xcvrCtrlConfigs": []
+          "xcvrCtrlConfigs": [],
+          "desiredDriver": "scd"
         },
         {
           "pmUnitScopedName": "SCD_FPGA",

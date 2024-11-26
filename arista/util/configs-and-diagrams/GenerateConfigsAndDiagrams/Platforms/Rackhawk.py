@@ -29,7 +29,8 @@ from ..BaseConfigs import (
 class RookCpld( PciDeviceConfig ):
    def __init__( self ):
       super().__init__( 'ROOK_CPU_CPLD', '0x8086', '0x6f76', '0x0000', '0x0000',
-                        symlinkDeviceName='ROOK_CPU_CPLD', symlinkDir='cplds' )
+                        symlinkDeviceName='ROOK_CPU_CPLD', symlinkDir='cplds',
+                        desiredDriver='scd' )
       self.addI2cAdapters()
 
    def addI2cAdapters( self ):

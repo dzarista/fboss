@@ -824,7 +824,8 @@ class SlotConfig:
 
 class PciDeviceConfig:
    def __init__( self, pmUnitScopedName, vendorId, deviceId, subSystemVendorId,
-                 subSystemDeviceId, symlinkDeviceName=None, symlinkDir='fpgas' ):
+                 subSystemDeviceId, symlinkDeviceName=None, symlinkDir='fpgas', 
+                 desiredDriver=None ):
       self.pmUnitScopedName = pmUnitScopedName
       self.vendorId = vendorId
       self.deviceId = deviceId
@@ -838,6 +839,7 @@ class PciDeviceConfig:
       self.xcvrCtrlConfigs = []
       self.miscCtrlConfigs = []
       self.parentConfig = None
+      self.desiredDriver = desiredDriver
       self.node = None
 
    def addParentConfigPointer( self, parentConfig ):
@@ -898,6 +900,7 @@ class PciDeviceConfig:
          "xcvrCtrlConfigs": self.getXcvrConfigsList(),
          **({ "miscCtrlConfigs": [ cfg.asJson() for cfg in self.miscCtrlConfigs ] }
             if self.miscCtrlConfigs else {}),
+         **({"desiredDriver": self.desiredDriver} if self.desiredDriver else {})
       }
 
    def getI2cAdapterConfigsList( self ):
