@@ -24,7 +24,8 @@
 
 namespace facebook::fboss::platform::platform_manager {
 namespace {
-constexpr auto kTotalFailures = "total_failures";
+constexpr auto kTotalFailures = "platform_explorer.total_failures";
+constexpr auto kExplorationFail = "platform_explorer.exploration_fail";
 constexpr auto kRootSlotPath = "/";
 
 std::string getSlotPath(
@@ -187,6 +188,11 @@ void PlatformExplorer::explore() {
   }
   publishFirmwareVersions();
   auto explorationStatus = concludeExploration();
+  fb303::fbData->setCounter(
+      kExplorationFail,
+      explorationStatus != ExplorationStatus::SUCCEEDED &&
+          explorationStatus !=
+              ExplorationStatus::SUCCEEDED_WITH_EXPECTED_ERRORS);
   updatePmStatus(createPmStatus(
       explorationStatus,
       std::chrono::duration_cast<std::chrono::seconds>(
@@ -478,12 +484,7 @@ void PlatformExplorer::explorePciDevices(
     const std::vector<PciDeviceConfig>& pciDeviceConfigs) {
   for (const auto& pciDeviceConfig : pciDeviceConfigs) {
     try {
-      auto pciDevice = PciDevice(
-          *pciDeviceConfig.pmUnitScopedName(),
-          *pciDeviceConfig.vendorId(),
-          *pciDeviceConfig.deviceId(),
-          *pciDeviceConfig.subSystemVendorId(),
-          *pciDeviceConfig.subSystemDeviceId());
+      auto pciDevice = PciDevice(pciDeviceConfig);
       auto charDevPath = pciDevice.charDevPath();
       auto instId =
           getFpgaInstanceId(slotPath, *pciDeviceConfig.pmUnitScopedName());
