@@ -75,6 +75,8 @@ class RackhawkScd( PciDeviceConfig ):
                            ) ]
                         )
       ] )
+      self.addInfoRomConfigs()
+
    def addI2cAdapters( self ):
       baseAccelOffset = 0x8000
       accelStride = 0x80
@@ -122,6 +124,7 @@ class RackhawkSwitch( PmUnitConfig ):
 
       # CPU card devices.
       self.cpuCpld = RookCpld()
+      self.cpuCpld.addInfoRomConfigs()
       self.pciDevices.append( self.cpuCpld )
       self.addEmbeddedSensors()
       self.addCpuCardTempSensors()
@@ -853,6 +856,7 @@ class Rackhawk( PlatformConfig ):
          'scd-smbus',
          'scd-spi',
          *( [ 'scd-watchdog-darwin' ] if self.hasWdt else [] ),
+         'scd-info',
          'rook-fan-cpld',
          'blackhawk-cpld',
          'aslg4f4527',
