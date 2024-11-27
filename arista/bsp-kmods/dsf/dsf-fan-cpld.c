@@ -975,10 +975,10 @@ static void cpld_remove(struct i2c_client *client)
 	return;
 }
 
-static const struct i2c_device_id cpld_id[] = { { "oasis_cpld0", OASIS_CPLD0 },
-						{ "oasis_cpld1", OASIS_CPLD1 },
-						{ "oasis_cpld2", OASIS_CPLD2 },
-						{ "pali2_cpld", PALI2_CPLD },
+static const struct i2c_device_id cpld_id[] = { { "fan_cpld0", OASIS_CPLD0 },
+						{ "fan_cpld1", OASIS_CPLD1 },
+						{ "fan_cpld2", OASIS_CPLD2 },
+						{ "fan_cpld", PALI2_CPLD },
 						{} };
 MODULE_DEVICE_TABLE(i2c, cpld_id);
 
