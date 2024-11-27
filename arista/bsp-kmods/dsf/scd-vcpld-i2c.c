@@ -253,4 +253,3 @@ module_i2c_driver(cpld_i2c_driver);
 MODULE_AUTHOR("Arista Networks");
 MODULE_DESCRIPTION("Meru VCPLD I2C Driver");
 MODULE_LICENSE("GPL");
-

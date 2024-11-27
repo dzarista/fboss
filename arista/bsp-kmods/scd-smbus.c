@@ -677,3 +677,4 @@ module_auxiliary_driver(scd_smbus_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arista Networks");
 MODULE_DESCRIPTION("SCD SMBus driver");
+MODULE_VERSION(BSP_VERSION);

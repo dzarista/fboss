@@ -275,6 +275,9 @@ class ViperSMB( SMBUnit ):
       smbFpga.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39,
                                     portType="qsfp", xcvrBaseOffset="0xA290",
                                     ledBaseOffset="0x65C0", ledsPerXcvr=4 )
+
+      smbFpga.addInfoRomConfigs()
+
       smbFpga.addLedCtrlConfigs( [
          LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
          LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
@@ -326,6 +329,7 @@ class Viper( PlatformConfig ):
                "scd-spi",
                "scd-leds",
                "scd-smbus",
+               "scd-info",
                "dsf-fan-cpld",
                "scd-vcpld"
             ],

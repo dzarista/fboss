@@ -374,3 +374,4 @@ module_auxiliary_driver(scd_led_driver);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Arista SCD LEDs");
 MODULE_AUTHOR("Facebook Inc.");
+MODULE_VERSION(BSP_VERSION);

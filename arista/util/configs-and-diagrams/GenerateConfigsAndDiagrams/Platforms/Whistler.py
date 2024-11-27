@@ -515,6 +515,11 @@ class WhistlerSMB( SMBUnit ):
          numConfigs=32, basePortNumber=69, portNumberSkipStep=4
       )
 
+      smbFpga0.addInfoRomConfigs()
+      smbFpga1.addInfoRomConfigs()
+      smbFpga2.addInfoRomConfigs()
+      smbFpga3.addInfoRomConfigs()
+
       smbFpga2.addLedCtrlConfigs( [
          LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
          LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
@@ -573,6 +578,7 @@ class Whistler( PlatformConfig ):
                "scd-spi",
                "scd-leds",
                "scd-smbus",
+               "scd-info",
                "dsf-fan-cpld",
                "decker-cpld"
             ],

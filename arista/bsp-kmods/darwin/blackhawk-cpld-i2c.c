@@ -240,3 +240,4 @@ module_i2c_driver(blackhawk_cpld_driver);
 MODULE_AUTHOR("Facebook, Inc.");
 MODULE_DESCRIPTION("Blackhawk CPLD I2C Driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(BSP_VERSION);
