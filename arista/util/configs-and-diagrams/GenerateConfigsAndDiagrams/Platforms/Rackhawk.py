@@ -860,8 +860,7 @@ class Rackhawk( PlatformConfig ):
          'rook-fan-cpld',
          'blackhawk-cpld',
          'aslg4f4527',
-         'bp4a_lm90',
-         "scd-info"
+         'bp4a_lm90'
       ]
       if self.hasPem:
          kmods.append( 'amax5970' )
