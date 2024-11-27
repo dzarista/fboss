@@ -4478,8 +4478,7 @@
     "scd-smbus",
     "scd-info",
     "dsf-fan-cpld",
-    "decker-cpld",
-    "scd_info"
+    "decker-cpld"
   ],
   "sharedKmodsToReload": [
     "scd"
