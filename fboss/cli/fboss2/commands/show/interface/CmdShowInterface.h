@@ -148,10 +148,10 @@ class CmdShowInterface
         if (portInfo.vlans()->size() == 1) {
           const auto& vlan = portInfo.vlans()->at(0);
           ifModel.vlan() = vlan;
-          if (vlanToMtu.contains(vlan)) {
+          if (vlanToMtu.find(vlan) != vlanToMtu.end() ) {
             ifModel.mtu() = vlanToMtu[vlan];
           }
-          if (vlanToPrefixes.contains(vlan)) {
+          if (vlanToPrefixes.find(vlan) != vlanToPrefixes.end()) {
             ifModel.prefixes() = vlanToPrefixes[vlan];
           }
         }
@@ -234,8 +234,8 @@ class CmdShowInterface
         model.interfaces()->begin(),
         model.interfaces()->end(),
         [&nameToPortPosition](cli::Interface& a, cli::Interface b) {
-          if (nameToPortPosition.contains(*a.name()) and
-              nameToPortPosition.contains(*b.name())) {
+          if (nameToPortPosition.find(*a.name()) != nameToPortPosition.end() and
+              nameToPortPosition.find(*b.name()) != nameToPortPosition.end()) {
             const auto& aPos = nameToPortPosition[*a.name()];
             const auto& bPos = nameToPortPosition[*b.name()];
             if (aPos.linecard != bPos.linecard) {
