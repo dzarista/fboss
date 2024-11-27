@@ -10,6 +10,8 @@
 
 #include "fbiob-ioctl.h"
 
+#define SCD_MODULE_NAME			"scd"
+
 /*
  * Register block size of the Meta IOB FPGA I/O controllers.
  * The size is used by the I/O controller drivers to request and map

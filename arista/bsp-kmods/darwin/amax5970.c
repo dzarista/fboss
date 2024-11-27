@@ -406,3 +406,4 @@ module_i2c_driver(amax5970_driver);
 MODULE_AUTHOR("Tom Meng");
 MODULE_DESCRIPTION("Arista MAX5970 Driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(BSP_VERSION);

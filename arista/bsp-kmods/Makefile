@@ -5,9 +5,12 @@
 PWD := $(shell pwd)
 
 subdir-ccflags-y += -I${M}/lib
+subdir-ccflags-y += -DBSP_VERSION=\"${BSP_VERSION}\"
 
 obj-m += scd.o
-scd-objs := scd-pci.o lib/fbiob-auxdev.o lib/fbiob-cdev.o
+scd-objs := scd-pci.o lib/fbiob-auxdev.o lib/fbiob-cdev.o lib/regbit-sysfs.o
+obj-m += scd-info.o
+scd-info-objs := scd-info-aux.o lib/regbit-sysfs.o
 obj-m += scd-smbus.o
 obj-m += scd-leds.o
 obj-m += scd-xcvr.o

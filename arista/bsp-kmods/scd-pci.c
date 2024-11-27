@@ -34,7 +34,6 @@
 #include "fbiob-auxdev.h"
 #include "fbiob-cdev.h"
 
-#define SCD_MODULE_NAME			"scd"
 #define REG_BLK_SIZE			4
 #define REG_MAX_BITSIZE			32
 #define MAX_NUM_REGS			10
@@ -57,6 +56,15 @@
 
 #define RECONFIG_PCI_SUBSYSTEM_ID	0x14
 #define RECONFIG_STATE_BAR_VALUE	0xdeadface
+
+
+#define FPGA_VER_REG 0x100
+#define FPGA_VER_OFFSET 16
+#define FPGA_VER_BITLEN 16
+
+#define FPGA_SUB_VER_REG 0x100
+#define FPGA_SUB_VER_OFFSET 0
+#define FPGA_SUB_VER_NUM_BITS 8
 
 #define ASSERT(expr)                                                           \
 	do {                                                                   \
@@ -290,27 +298,43 @@ static ssize_t chassis_power_cycle(struct device *dev,
 	return -ENOENT;
 }
 
+static int scd_read_regbit(struct device *dev, 
+						   u32 reg_offset, 
+						   u32 bit_len, 
+						   u32 bit_offset, 
+						   u32 *data)
+{
+	u32 mask;
+	struct scd_reg *reg;
+	struct scd_dev_priv *priv = dev_get_drvdata(dev);
+	reg = scd_reg_at_offset(priv, reg_offset);
+	if (!reg)
+		return -ENODEV;
+
+	*data = scd_read_register(priv->pdev, reg);
+	mask = GENMASK(bit_len - 1, 0);
+	*data = (*data >> bit_offset) & mask;	
+	return 0;
+}
+
 static ssize_t regbit_sysfs_show(struct device *dev,
 				 struct device_attribute *dattr, char *buf)
 {
-	u32 data, mask;
+	int ret;
+	u32 data;
 	struct attribute *attr = &dattr->attr;
 	struct scd_dev_priv *priv = dev_get_drvdata(dev);
 	struct regbit_sysfs_entry *entry = priv->regbit_sysfs_table;
-	struct scd_reg *reg;
 
 	if (entry == NULL)
 		return -ENOENT;
 
 	for (; entry->name != NULL; entry++) {
 		if (strcmp(entry->name, attr->name) == 0) {
-			reg = scd_reg_at_offset(priv, entry->reg_offset);
-			if (!reg)
+			ret = scd_read_regbit(dev, entry->reg_offset, entry->bit_len, 
+								  entry->bit_offset, &data);
+			if (ret)
 				continue;
-
-			data = scd_read_register(priv->pdev, reg);
-			mask = GENMASK(entry->bit_len - 1, 0);
-			data = (data >> entry->bit_offset) & mask;
 
 			if (entry->bit_len == 1) return sprintf(buf, "%d\n", data);
 			return sprintf(buf, "0x%x\n", data);
@@ -363,6 +387,24 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	return -ENOENT;
 }
 
+static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf) {
+	int ret;
+	u32 major_rev, minor_rev;
+
+	ret = scd_read_regbit(dev, FPGA_VER_REG, FPGA_VER_BITLEN, FPGA_VER_OFFSET, 
+						  &major_rev);
+	if (ret)
+		return ret;
+	ret = scd_read_regbit(dev, FPGA_SUB_VER_REG, FPGA_SUB_VER_NUM_BITS, 
+						  FPGA_SUB_VER_OFFSET, &minor_rev);
+	if (ret)
+		return ret;
+	
+	return sprintf(buf, "%u.%u\n", major_rev, minor_rev);
+}
+
+DEVICE_ATTR(fw_ver, 0444, fw_ver_show, NULL);
+
 /*
  * Below macros define a set of sysfs files, and each file is mapped to
  * a specific bit field in SCD/CPU_CPLD registers.
@@ -371,8 +413,10 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 #define FMODE_RW	(S_IRUGO | S_IWUSR | S_IWGRP)
 
 #define REGBIT_COMMON_FILES								\
-	REGBIT_FILE(fpga_sub_ver, 0x100, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(fpga_ver, 0x100, 16, 16, FMODE_RO, regbit_sysfs_show, NULL)
+	REGBIT_FILE(fpga_sub_ver, FPGA_SUB_VER_REG, FPGA_SUB_VER_OFFSET, \
+				FPGA_SUB_VER_NUM_BITS, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(fpga_ver, FPGA_VER_REG, FPGA_VER_OFFSET, FPGA_VER_BITLEN, \
+				FMODE_RO, regbit_sysfs_show, NULL)
 
 #define DARWIN_REGBIT_FPGA_FILES							\
 	REGBIT_FILE(sat0_cpld_sub_ver, 0x400, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
@@ -563,6 +607,7 @@ BLACKCOMB0_REGBIT_FPGA_FILES
 
 static struct attribute *scd_attrs[] = {
 	REGBIT_COMMON_FILES
+	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -573,6 +618,7 @@ static struct attribute_group scd_attr_group = {
 static struct attribute *darwin_scd_attrs[] = {
 	REGBIT_COMMON_FILES
 	DARWIN_REGBIT_FPGA_FILES
+	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -583,6 +629,7 @@ static struct attribute_group darwin_scd_attr_group = {
 static struct attribute *fairywren_scd_attrs[] = {
 	REGBIT_COMMON_FILES
 	FAIRYWREN_REGBIT_FPGA_FILES
+	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -593,6 +640,7 @@ static struct attribute_group fairywren_scd_attr_group = {
 static struct attribute *viper_scd_attrs[] = {
 	REGBIT_COMMON_FILES
 	VIPER_REGBIT_FPGA_FILES
+	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -603,6 +651,7 @@ static struct attribute_group viper_scd_attr_group = {
 static struct attribute *blackcomb_scd0_attrs[] = {
 	REGBIT_COMMON_FILES
 	BLACKCOMB0_REGBIT_FPGA_FILES
+	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -614,6 +663,7 @@ static struct attribute_group blackcomb_scd0_attr_group = {
 #define BLACKCOMB_SCD_ATTRS(_id)					\
 static struct attribute *blackcomb_scd##_id##_attrs[] = {		\
 	REGBIT_COMMON_FILES						\
+	&dev_attr_fw_ver.attr,					\
 	NULL,								\
 };									\
 									\
@@ -903,15 +953,9 @@ static struct pci_device_id scd_pci_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, scd_pci_table);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
-static pci_ers_result_t scd_error_detected(struct pci_dev *pdev,
-					   enum pci_channel_state state)
-{
-#else
 static pci_ers_result_t scd_error_detected(struct pci_dev *pdev,
 					   pci_channel_state_t state)
 {
-#endif
 	dev_err(&pdev->dev, "error detected (state=%d)\n", state);
 	return PCI_ERS_RESULT_DISCONNECT;
 }
@@ -934,3 +978,4 @@ module_pci_driver(scd_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Hugh Holbrook and James Lingard");
 MODULE_DESCRIPTION("scd driver");
+MODULE_VERSION(BSP_VERSION);

@@ -1,25 +1,13 @@
-#!/bin/sh
+#!/usr/bin/sh
 
-KMOD_DRIVERS=(
-    amax5970
-    aslg4f4527
-    blackhawk_cpld
-    bp4a_lm90
-    bp4a_max1363
-    decker_cpld
-    dsf_fan_cpld
-    rook_fan_cpld
-    scd
-    scd_leds
-    scd_smbus
-    scd_spi
-    scd_watchdog_darwin
-    scd_xcvr
-)
+#
+# This script is designed to unload all the FBOSS BSP kernel modules
+# from running system.
+#
 
-KMOD_SHARED=(
-    scd
-)
+# "kmods.json" contains the list of kmods included in the BSP package.
+KVER=$(uname -r)
+KMOD_LIST="/usr/local/arista_bsp/${KVER}/kmods.json"
 
 kmod_is_loaded() {
     kmod="$1"
@@ -32,18 +20,20 @@ kmod_is_loaded() {
 }
 
 kmod_remove_all() {
-    for kmod in "${KMOD_DRIVERS[@]}"; do
-        if kmod_is_loaded "$kmod"; then
-            echo "rmmod $kmod.."
-            rmmod "$kmod"
-        fi
-    done
+    if [ ! -e "$KMOD_LIST" ]; then
+	echo "Unable to locate $KMOD_LIST. Exiting.."
+	exit 0
+    fi
 
-    for kmod in "${KMOD_SHARED[@]}"; do
-        if kmod_is_loaded "$kmod"; then
-            echo "rmmod $kmod.."
-            rmmod "$kmod"
-        fi
+    # Make sure "sharedKmods" are removed after "bspKmods", because some
+    # bspKmods depend on sharedKmods.
+    for kmodType in "bspKmods" "sharedKmods"; do
+        jq -r ".${kmodType}[]" "$KMOD_LIST" | while read kmod; do
+            if kmod_is_loaded "$kmod"; then
+                echo "rmmod $kmod.."
+                rmmod "$kmod"
+            fi
+        done
     done
 }
 
@@ -56,14 +46,14 @@ warn_and_confirm() {
     read -r -t 10 -p "Do you wish to continue? [y/N]: " user_input
     if [ "$user_input" != "y" ] && [ "$user_input" != "Y" ] ; then
         echo ""
-        echo "Task cancelled. Exiting now."
+	echo "Task cancelled. Exiting now."
         exit 0
     fi
 }
 
 #
-# Main entry
+# Main entry starts here.
 #
-
 warn_and_confirm "$1"
+
 kmod_remove_all
