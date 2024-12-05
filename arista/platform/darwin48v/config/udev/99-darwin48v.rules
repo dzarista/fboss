@@ -1,0 +1,1 @@
+SUBSYSTEM=="module", ACTION=="add", KERNEL=="scd", RUN+="/bin/sh -c 'echo \"8086 6f76\" > /sys/bus/pci/drivers/scd/new_id'"

@@ -1,0 +1,19 @@
+- FBOSS BSP:
+  - Meru800bia udev rules updated to support all SMB/fan/PSU devices.
+  - Arista scd driver functional for Fairywren SCM CPLD and Viper SMB FPGA.
+  - Arista dsf-fan-cpld driver functional for Viper fan CPLD (no watchdog).
+  - Initial sensor_service updated to support Viper SMB/fan/PSU sensors.
+  - Initial fan_service config added which sets fans to 30%.
+- OpenBMC:
+  - New OpenBMC image meru-7e944fc2d42-dirty.
+  - aconf_util.sh supports encoding board name and board version in DMI using
+    DMI_BOARD_NAME and DMI_BOARD_VERSION variables; -p option specifies the
+    board name. This is used during Arista manufacturing and should not be
+    run manually. Running aconf_util.sh will cause the x86 CPU to reboot.
+  - bios_util.sh supports 32MB (P0) and 64MB (P1 onward) Aboot flash. Running
+    bios_util.sh will cause the x86 CPU to reboot.
+- Programmables:
+  - Fairywren SCM CPLD 0.15 -> 0.19
+    - New image supports PCIe interface.
+  - Aboot Aboot-norcal13-13.1.0-32240247 -> Aboot-norcal13-13.1.0-lcc-32m-ENG-33260098.rom
+    - New image supports DMI_BOARD_NAME and DMI_BOARD_VERSION.
