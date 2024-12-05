@@ -88,6 +88,10 @@ class MockAsic : public HwAsic {
     // Fake MMU size
     return 64 * 1024 * 1024;
   }
+  uint64_t getSramSizeBytes() const override {
+    // No HBM!
+    return getMMUSizeBytes();
+  }
   uint32_t getMaxMirrors() const override {
     return 4;
   }
@@ -192,11 +196,13 @@ class MockAsic : public HwAsic {
   cfg::Range64 getReservedEncapIndexRange() const override {
     return makeRange(1000, 2000);
   }
-  HwAsic::RecyclePortInfo getRecyclePortInfo() const override {
+  HwAsic::RecyclePortInfo getRecyclePortInfo(
+      InterfaceNodeRole /* intfRole */) const override {
     return {
         .coreId = 0,
         .corePortIndex = 1,
-        .speedMbps = 10000 // 10G
+        .speedMbps = 10000, // 10G
+        .inbandPortId = 1,
     };
   }
   uint32_t getNumMemoryBuffers() const override {

@@ -369,6 +369,27 @@ struct Mirror {
   5: optional i32 samplingRate;
 }
 
+struct MirrorOnDropReport {
+  1: string name;
+  /*
+   * Possible options as below:
+   * 1. Recycle port: MOD packets will be injected back into the pipeline via recycle port.
+   * 2. Eventor port: MOD packets will be injected back into the pipeline via eventor port. Provides the option to pack multiple MOD packets.
+   * 3. Front panel Ethernet port: MOD packets will be forwarded out of the specified port.
+   */
+  2: i32 mirrorPortId;
+  // Source IP will be populated based on switch IP at runtime, so not configurable.
+  3: i16 localSrcPort;
+  4: string collectorIp;
+  5: i16 collectorPort;
+  6: i16 mtu;
+  // Contents of the dropped packet will be truncated when mirroring.
+  7: i16 truncateSize = 128;
+  8: byte dscp = 0;
+  // At most one mirrored packet will be sent per port/PG/VOQ within an interval. Granularity is not configurable as of now.
+  9: optional i32 agingIntervalUsecs;
+}
+
 /**
  * The action for an access control entry
  */
@@ -560,6 +581,7 @@ enum AclTableActionType {
   MIRROR_INGRESS = 4,
   MIRROR_EGRESS = 5,
   SET_USER_DEFINED_TRAP = 6,
+  DISABLE_ARS_FORWARDING = 7,
 }
 
 enum AclTableQualifier {
@@ -971,6 +993,8 @@ typedef string BufferPoolConfigName
 
 typedef string PortFlowletConfigName
 
+typedef string FirmwareName
+
 const i32 DEFAULT_PORT_MTU = 9412;
 
 const string DEFAULT_INGRESS_ACL_TABLE_GROUP = "ingress-ACL-Table-Group";
@@ -1166,6 +1190,11 @@ struct Port {
    * DSF Interface node to enable conditional entropy, rotating hash seed periodically to increase entropy.
    */
   33: bool conditionalEntropyRehash = false;
+
+  /*
+   * DSF Interface node to enable SHEL messages - port UP/DOWN notification to other interface nodes.
+   */
+  34: optional bool selfHealingECMPLagEnable;
 }
 
 enum LacpPortRate {
@@ -1338,6 +1367,7 @@ struct NdpConfig {
 enum InterfaceType {
   VLAN = 1,
   SYSTEM_PORT = 2,
+  PORT = 3,
 }
 
 enum AsicType {
@@ -1418,6 +1448,9 @@ struct Interface {
   14: optional map<string, string> dhcpRelayOverridesV4;
   15: optional map<string, string> dhcpRelayOverridesV6;
   16: Scope scope = Scope.LOCAL;
+
+  /* valid only for port type of interface */
+  17: optional i32 portID;
 }
 
 struct StaticRouteWithNextHops {
@@ -1627,9 +1660,29 @@ struct ExactMatchTableConfig {
 const i16 DEFAULT_FLOWLET_TABLE_SIZE = 4096;
 const i64 DEFAULT_PORT_ID_RANGE_MIN = 0;
 const i64 DEFAULT_PORT_ID_RANGE_MAX = 2047;
+const i64 DEFAULT_DUAL_STAGE_3Q_2Q_PORT_ID_RANGE_MIN = 0;
+const i64 DEFAULT_DUAL_STAGE_3Q_2Q_PORT_ID_RANGE_MAX = 65536;
 
 struct SystemPortRanges {
   1: list<Range64> systemPortRanges;
+}
+
+enum FirmwareLoadType {
+  FIRMWARE_LOAD_TYPE_START = 0,
+  FIRMWARE_LOAD_TYPE_STOP = 1,
+}
+
+struct FirmwareInfo {
+  1: i32 coreToUse;
+  2: string path;
+  3: string logPath;
+  4: FirmwareLoadType firmwareLoadType;
+}
+
+struct SelfHealingEcmpLagConfig {
+  1: string shelSrcIp;
+  2: string shelDstIp;
+  3: i32 shelPeriodicIntervalMS;
 }
 
 struct SwitchInfo {
@@ -1653,6 +1706,7 @@ struct SwitchInfo {
   // as part of config for other nodes to bootstrap
   // communication to this node
   11: optional i32 inbandPortId;
+  12: map<FirmwareName, FirmwareInfo> firmwareNameToFirmwareInfo;
 }
 
 /*
@@ -1729,6 +1783,8 @@ struct SwitchSettings {
   // Conditional Entropy Rehash Period for VOQ devices
   23: optional i32 conditionalEntropyRehashPeriodUS;
   24: optional string firmwarePath;
+  // SHEL attributes to configure 1. SHEL message SrcIP, 2. DstIp, and 3. Interval for SHEL periodic messages
+  25: optional SelfHealingEcmpLagConfig selfHealingEcmpLagConfig;
 }
 
 // Global buffer pool
@@ -2110,5 +2166,6 @@ struct SwitchConfig {
   54: optional string hostname;
   55: optional list<PortQueue> cpuVoqs;
   // list of ACL table groups, prefer this over aclTableGroup, aclTableGroup will be deprecated
-  56: list<AclTableGroup> aclTableGroups;
+  56: optional list<AclTableGroup> aclTableGroups;
+  57: list<MirrorOnDropReport> mirrorOnDropReports = [];
 }

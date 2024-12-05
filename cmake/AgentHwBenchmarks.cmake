@@ -24,6 +24,7 @@ add_library(hw_stats_collection_speed
 target_link_libraries(hw_stats_collection_speed
   config_factory
   hw_packet_utils
+  dsf_config_utils
   voq_test_utils
   ecmp_helper
   mono_agent_ensemble
@@ -302,6 +303,7 @@ add_library(hw_init_and_exit_benchmark_helper
 
 target_link_libraries(hw_init_and_exit_benchmark_helper
   config_factory
+  dsf_config_utils
   fabric_test_utils
   voq_test_utils
   mono_agent_ensemble
@@ -413,6 +415,7 @@ add_library(hw_voq_scale_route_add_speed
 target_link_libraries(hw_voq_scale_route_add_speed
   fabric_test_utils
   route_scale_gen
+  dsf_config_utils
   voq_test_utils
   agent_hw_test_ctrl_cpp2
   Folly::folly
@@ -426,6 +429,7 @@ add_library(hw_voq_scale_route_del_speed
 target_link_libraries(hw_voq_scale_route_del_speed
   fabric_test_utils
   route_scale_gen
+  dsf_config_utils
   voq_test_utils
   agent_hw_test_ctrl_cpp2
   Folly::folly
@@ -433,13 +437,15 @@ target_link_libraries(hw_voq_scale_route_del_speed
 )
 
 add_library(hw_switch_reachability_change_speed
-  fboss/agent/hw/benchmarks/HwSwitchReachabilityChangeBenchmark.cpp
+  fboss/agent/hw/benchmarks/HwSwitchReachabilityChangeBenchmarkHelper.cpp
+  fboss/agent/hw/benchmarks/HwSwitchReachabilityChangeVoqBenchmark.cpp
 )
 
 target_link_libraries(hw_switch_reachability_change_speed
   mono_agent_ensemble
   mono_agent_benchmarks
   config_factory
+  dsf_config_utils
   voq_test_utils
   fabric_test_utils
   Folly::folly

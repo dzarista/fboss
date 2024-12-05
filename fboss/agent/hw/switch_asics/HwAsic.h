@@ -174,7 +174,6 @@ class HwAsic {
     FABRIC_LINK_DOWN_CELL_DROP_COUNTER,
     CRC_ERROR_DETECT,
     EVENTOR_PORT_FOR_SFLOW,
-    CPU_VOQ_BUFFER_PROFILE,
     SAI_ECMP_HASH_ALGORITHM,
     SWITCH_REACHABILITY_CHANGE_NOTIFY,
     CABLE_PROPOGATION_DELAY,
@@ -197,6 +196,10 @@ class HwAsic {
     L3_INTF_MTU,
     DEDICATED_CPU_BUFFER_POOL,
     EGRESS_ACL_TABLE,
+    FAST_LLFC_COUNTER,
+    INGRESS_SRAM_MIN_BUFFER_WATERMARK,
+    FDR_FIFO_WATERMARK,
+    EGRESS_CELL_ERROR_STATS,
   };
 
   enum class AsicMode {
@@ -217,6 +220,10 @@ class HwAsic {
     SINGLE_STAGE_L1,
     DUAL_STAGE_L1,
     DUAL_STAGE_L2,
+  };
+  enum InterfaceNodeRole {
+    IN_CLUSTER_NODE,
+    DUAL_STAGE_EDGE_NODE,
   };
   virtual ~HwAsic() {}
   static std::unique_ptr<HwAsic> makeAsic(
@@ -303,7 +310,7 @@ class HwAsic {
    * This will be added to PortID and will be carried in the
    * sflow shim header
    */
-  virtual int getSystemPortIDOffset() const {
+  virtual int getSflowPortIDOffset() const {
     return 0;
   }
 
@@ -373,13 +380,15 @@ class HwAsic {
     uint32_t coreId;
     uint32_t corePortIndex;
     uint32_t speedMbps;
+    uint32_t inbandPortId;
   };
 
   std::optional<cfg::SdkVersion> getSdkVersion() const {
     return sdkVersion_;
   }
 
-  virtual RecyclePortInfo getRecyclePortInfo() const;
+  virtual RecyclePortInfo getRecyclePortInfo(
+      InterfaceNodeRole /* intfRole */) const;
   cfg::PortLoopbackMode getDesiredLoopbackMode(
       cfg::PortType portType = cfg::PortType::INTERFACE_PORT) const;
 
@@ -408,6 +417,17 @@ class HwAsic {
   virtual int getMidPriCpuQueueId() const = 0;
   virtual int getHiPriCpuQueueId() const = 0;
 
+  virtual uint64_t getSramSizeBytes() const = 0;
+  std::optional<int32_t> getGlobalSystemPortOffset() const {
+    return globalSystemPortOffset_;
+  }
+  std::optional<int32_t> getLocalSystemPortOffset() const {
+    return localSystemPortOffset_;
+  }
+  std::optional<int32_t> getInbandPortId() const {
+    return inbandPortId_;
+  }
+
  protected:
   static cfg::Range64 makeRange(int64_t min, int64_t max);
 
@@ -419,6 +439,8 @@ class HwAsic {
   cfg::StreamType defaultStreamType_{cfg::StreamType::ALL};
   folly::MacAddress asicMac_;
   std::optional<cfg::SdkVersion> sdkVersion_;
+  std::optional<int32_t> localSystemPortOffset_, globalSystemPortOffset_,
+      inbandPortId_;
 };
 
 } // namespace facebook::fboss

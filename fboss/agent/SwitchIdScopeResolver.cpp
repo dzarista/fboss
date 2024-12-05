@@ -8,6 +8,7 @@
 #include "fboss/agent/state/ForwardingInformationBaseMap.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/state/LabelForwardingEntry.h"
+#include "fboss/agent/state/MirrorOnDropReport.h"
 #include "fboss/agent/state/Port.h"
 #include "fboss/agent/state/PortDescriptor.h"
 #include "fboss/agent/state/SflowCollector.h"
@@ -84,10 +85,11 @@ const HwSwitchMatcher& SwitchIdScopeResolver::voqSwitchMatcher() const {
 
 HwSwitchMatcher SwitchIdScopeResolver::scope(PortID portId) const {
   for (const auto& switchIdAndSwitchInfo : switchIdToSwitchInfo_) {
-    if (portId >=
-            PortID(*switchIdAndSwitchInfo.second.portIdRange()->minimum()) &&
-        portId <=
-            PortID(*switchIdAndSwitchInfo.second.portIdRange()->maximum())) {
+    auto switchInfo = switchIdAndSwitchInfo.second;
+    if (static_cast<int64_t>(portId) >=
+            *switchIdAndSwitchInfo.second.portIdRange()->minimum() &&
+        static_cast<int64_t>(portId) <=
+            *switchIdAndSwitchInfo.second.portIdRange()->maximum()) {
       return HwSwitchMatcher(std::unordered_set<SwitchID>(
           {SwitchID(switchIdAndSwitchInfo.first)}));
     }
@@ -189,6 +191,8 @@ HwSwitchMatcher SwitchIdScopeResolver::scope(
     case cfg::InterfaceType::VLAN:
       return scope(
           state->getVlans()->getNode(VlanID(static_cast<int>(intf->getID()))));
+    case cfg::InterfaceType::PORT:
+      return scope(intf->getPortID());
   }
   throw FbossError(
       "Unexpected interface type: ", static_cast<int>(intf->getType()));
@@ -223,6 +227,26 @@ HwSwitchMatcher SwitchIdScopeResolver::scope(
         }
       }
       return scope(std::make_shared<Vlan>(&*vitr, vlanMembers));
+    }
+    case cfg::InterfaceType::PORT: {
+      auto itr = std::find_if(
+          cfg.interfaces()->cbegin(),
+          cfg.interfaces()->cend(),
+          [interfaceId](const auto& intf) {
+            return InterfaceID(*intf.intfID()) == interfaceId;
+          });
+      if (itr == cfg.interfaces()->cend()) {
+        throw FbossError("No interface found for : ", interfaceId);
+      }
+      auto pitr = std::find_if(
+          cfg.ports()->cbegin(), cfg.ports()->cend(), [itr](const auto& port) {
+            return *port.logicalID() == *(itr->portID());
+          });
+      if (pitr == cfg.ports()->cend()) {
+        throw FbossError("No port found for : ", interfaceId);
+      }
+      const auto& port = *pitr;
+      return scope(PortID(*port.logicalID()));
     }
   }
   throw FbossError("Unexpected interface type: ", static_cast<int>(type));
@@ -317,6 +341,16 @@ HwSwitchMatcher SwitchIdScopeResolver::scope(
   std::unordered_set<SwitchID> switchIds;
   switchIds.insert(SwitchID(mirror->getSwitchId()));
   return HwSwitchMatcher(switchIds);
+}
+
+HwSwitchMatcher SwitchIdScopeResolver::scope(
+    const cfg::MirrorOnDropReport& report) const {
+  return scope(PortID(report.get_mirrorPortId()));
+}
+
+HwSwitchMatcher SwitchIdScopeResolver::scope(
+    const std::shared_ptr<MirrorOnDropReport>& report) const {
+  return scope(PortID(report->getMirrorPortId()));
 }
 
 } // namespace facebook::fboss

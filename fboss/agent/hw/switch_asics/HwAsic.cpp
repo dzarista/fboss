@@ -53,6 +53,15 @@ HwAsic::HwAsic(
     throw std::runtime_error(
         folly::to<std::string>("Unsupported Mode: ", switchType_));
   }
+  if (switchInfo.globalSystemPortOffset()) {
+    globalSystemPortOffset_ = *switchInfo.globalSystemPortOffset();
+  }
+  if (switchInfo.localSystemPortOffset()) {
+    localSystemPortOffset_ = *switchInfo.localSystemPortOffset();
+  }
+  if (switchInfo.inbandPortId()) {
+    inbandPortId_ = *switchInfo.inbandPortId();
+  }
 }
 /*
  * Default Content Aware Processor group ID for ACLs
@@ -141,7 +150,8 @@ cfg::Range64 HwAsic::getReservedEncapIndexRange() const {
       "Reserved encap idx range unimplemented for: ", getAsicTypeStr());
 }
 
-HwAsic::RecyclePortInfo HwAsic::getRecyclePortInfo() const {
+HwAsic::RecyclePortInfo HwAsic::getRecyclePortInfo(
+    InterfaceNodeRole /* intfRole */) const {
   throw FbossError("Recycle port info unimplemented for: ", getAsicTypeStr());
 }
 

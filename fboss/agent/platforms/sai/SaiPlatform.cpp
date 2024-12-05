@@ -123,6 +123,18 @@ SaiSwitchTraits::Attributes::HwInfo getHwInfo(SaiPlatform* platform) {
   }
   return connectionHandle;
 }
+
+const auto& getFirmwareForSwitch(
+    const auto& switchIdToSwitchInfo,
+    int64_t switchId) {
+  auto iter = switchIdToSwitchInfo.value().find(switchId);
+  if (iter == switchIdToSwitchInfo.value().end()) {
+    throw FbossError("SwitchId not found: ", switchId);
+  }
+
+  return *iter->second.firmwareNameToFirmwareInfo();
+}
+
 } // namespace
 
 namespace facebook::fboss {
@@ -259,16 +271,6 @@ std::string SaiPlatform::getHwAsicConfig(
   for (const auto& entry : commonConfigs) {
     addNameValue(entry);
   }
-
-#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
-  // Interim workaround for 11.7 GA as this SoC property is needed for
-  // J3AI 11.x but not for 12.x until 12.0.0.4.
-  // TODO: While integrating 12.0.0.4, these workarounds need to be removed
-  // and instead this SoC property would be added in config directly.
-  if (getAsic()->getAsicType() == cfg::AsicType::ASIC_TYPE_JERICHO3) {
-    nameValStrs.push_back("custom_feature_shel_arm_enable=1");
-  }
-#endif
 
   /*
    * Single NPU platfroms will not have any npu entries. In such cases,
@@ -582,6 +584,65 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     }
   }
 
+  std::optional<SaiSwitchTraits::Attributes::FirmwareCoreToUse>
+      firmwareCoreToUse{std::nullopt};
+  std::optional<SaiSwitchTraits::Attributes::FirmwareLogFile> firmwareLogFile{
+      std::nullopt};
+  std::optional<SaiSwitchTraits::Attributes::FirmwareLoadType> firmwareLoadType{
+      std::nullopt};
+
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  if (swId.has_value()) {
+    const auto& firmwareNameToFirmwareInfo = getFirmwareForSwitch(
+        switchSettings->switchIdToSwitchInfo(), swId.value());
+
+    if (firmwareNameToFirmwareInfo.size() != 0) {
+      if (firmwareNameToFirmwareInfo.size() > 1) {
+        throw FbossError("Setting only one firmware is supported today");
+      }
+      auto [firmwareName, firmwareInfo] = *firmwareNameToFirmwareInfo.begin();
+      XLOG(DBG2) << "FirmwareName: " << firmwareName
+                 << " coreToUse: " << *firmwareInfo.coreToUse()
+                 << " path: " << *firmwareInfo.path()
+                 << " logPath: " << *firmwareInfo.logPath()
+                 << " firmwareLoadType: "
+                 << apache::thrift::util::enumNameSafe(
+                        *firmwareInfo.firmwareLoadType());
+
+      // Set Core
+      firmwareCoreToUse = *firmwareInfo.coreToUse();
+
+      // Set firmware path
+      std::string firmwarePath = *firmwareInfo.path();
+      std::vector<int8_t> firmwarePathNameArray;
+      std::copy(
+          firmwarePath.c_str(),
+          firmwarePath.c_str() + firmwarePath.size() + 1,
+          std::back_inserter(firmwarePathNameArray));
+      firmwarePathName = firmwarePathNameArray;
+
+      // Set firmware log path
+      std::string firmwareLogPath = *firmwareInfo.logPath();
+      std::vector<int8_t> firmwareLogPathArray;
+      std::copy(
+          firmwareLogPath.c_str(),
+          firmwareLogPath.c_str() + firmwareLogPath.size() + 1,
+          std::back_inserter(firmwareLogPathArray));
+      firmwareLogFile = firmwareLogPathArray;
+
+      // Set firmware load type
+      switch (*firmwareInfo.firmwareLoadType()) {
+        case cfg::FirmwareLoadType::FIRMWARE_LOAD_TYPE_START:
+          firmwareLoadType = SAI_SWITCH_FIRMWARE_LOAD_TYPE_AUTO;
+          break;
+        case cfg::FirmwareLoadType::FIRMWARE_LOAD_TYPE_STOP:
+          firmwareLoadType = SAI_SWITCH_FIRMWARE_LOAD_TYPE_STOP;
+          break;
+      }
+    }
+  }
+#endif
+
   std::optional<SaiSwitchTraits::Attributes::SwitchIsolate> switchIsolate{
       std::nullopt};
   if (getAsic()->isSupported(HwAsic::Feature::LINK_INACTIVE_BASED_ISOLATE)) {
@@ -639,13 +700,17 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     constexpr uint32_t kRamon3LlfcThreshold{800};
     fabricLLFC = std::vector<uint32_t>({kRamon3LlfcThreshold});
   }
-  // TODO: Using the hard coding values for now from single stage system config
-  // to integrate 12.0.0.3. This needs to be fixed properly post
-  // 12.0.0.3 integration. Also, this can be skipped for fabric switches.
-  maxSystemPortId = 6143;
-  maxLocalSystemPortId = -1;
-  maxSystemPorts = 6144;
-  maxVoqs = 6144 * 8;
+  if (isDualStage3Q2QMode()) {
+    maxSystemPortId = 32515;
+    maxLocalSystemPortId = 5;
+    maxSystemPorts = 21766;
+    maxVoqs = 64512;
+  } else {
+    maxSystemPortId = 6143;
+    maxLocalSystemPortId = -1;
+    maxSystemPorts = 6144;
+    maxVoqs = 6144 * 8;
+  }
 #endif
   if (swType == cfg::SwitchType::FABRIC && bootType == BootType::COLD_BOOT) {
     // FABRIC switches should always start in isolated state until we configure
@@ -677,9 +742,11 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
       std::nullopt, // tam object list
       useEcnThresholds,
       std::nullopt, // counter refresh interval
+      firmwareCoreToUse,
       firmwarePathName, // Firmware path name
+      firmwareLogFile, // Firmware log file
       std::nullopt, // Firmware load method
-      std::nullopt, // Firmware load type
+      firmwareLoadType, // Firmware load type
       std::nullopt, // Hardware access bus
       std::nullopt, // Platform context
       std::nullopt, // Switch profile id

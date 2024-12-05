@@ -38,7 +38,7 @@ std::optional<SaiPortTraits::Attributes::SystemPortId> getSystemPortId(
   if (platform->getAsic()->getAsicVendor() ==
       HwAsic::AsicVendor::ASIC_VENDOR_TAJO) {
     return std::optional<SaiPortTraits::Attributes::SystemPortId>{
-        portId + platform->getAsic()->getSystemPortIDOffset()};
+        portId + platform->getAsic()->getSflowPortIDOffset()};
   }
   return std::nullopt;
 }
@@ -82,6 +82,17 @@ SaiPortTraits::AdapterHostKey getPortAdapterHostKeyFromAttr(
       GET_ATTR(Port, HwLaneList, attributes)};
 
   return portKey;
+}
+
+static const std::vector<PfcPriority> allPfcPriorities() {
+  static std::vector<PfcPriority> priorities;
+  if (priorities.empty()) {
+    for (int i = 0; i <= cfg::switch_config_constants::PFC_PRIORITY_VALUE_MAX();
+         i++) {
+      priorities.push_back(PfcPriority(i));
+    }
+  }
+  return priorities;
 }
 
 } // namespace
@@ -246,7 +257,7 @@ PortSaiId SaiPortManager::addPortImpl(const std::shared_ptr<Port>& swPort) {
     portStats_.emplace(
         swPort->getID(),
         std::make_unique<HwPortFb303Stats>(
-            swPort->getName(), queueId2Name, swPort->getPfcPriorities()));
+            swPort->getName(), queueId2Name, allPfcPriorities()));
   }
 
   bool samplingMirror = swPort->getSampleDestination().has_value() &&
@@ -445,6 +456,8 @@ void SaiPortManager::attributesFromSaiStore(
       port->attributes(),
       attributes,
       SaiPortTraits::Attributes::QosPfcPriorityToQueueMap{});
+  getAndSetAttribute(
+      port->attributes(), attributes, SaiPortTraits::Attributes::TamObject{});
   if (platform_->getAsic()->isSupported(
           HwAsic::Feature::PORT_TTL_DECREMENT_DISABLE)) {
     getAndSetAttribute(
