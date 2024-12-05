@@ -79,7 +79,6 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::EGRESS_ACL_TABLE:
       return true;
     case HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW:
-    case HwAsic::Feature::CPU_VOQ_BUFFER_PROFILE:
     case HwAsic::Feature::SAI_ECMP_HASH_ALGORITHM:
     case HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY:
     case HwAsic::Feature::CABLE_PROPOGATION_DELAY:
@@ -195,6 +194,10 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::INGRESS_PRIORITY_GROUP_SHARED_WATERMARK:
     case HwAsic::Feature::MULTIPLE_EGRESS_BUFFER_POOL:
     case HwAsic::Feature::ENABLE_DELAY_DROP_CONGESTION_THRESHOLD:
+    case HwAsic::Feature::FAST_LLFC_COUNTER:
+    case HwAsic::Feature::INGRESS_SRAM_MIN_BUFFER_WATERMARK:
+    case HwAsic::Feature::FDR_FIFO_WATERMARK:
+    case HwAsic::Feature::EGRESS_CELL_ERROR_STATS:
       return false;
   }
   return false;
@@ -295,6 +298,11 @@ uint32_t ChenabAsic::getMaxLabelStackDepth() const {
 uint64_t ChenabAsic::getMMUSizeBytes() const {
   return 420000; // return 108 * 1024 * 1024;
 }
+uint64_t ChenabAsic::getSramSizeBytes() const {
+  // No HBM!
+  return getMMUSizeBytes();
+}
+
 uint32_t ChenabAsic::getMaxMirrors() const {
   // TODO - verify this
   return 4;
@@ -324,7 +332,7 @@ uint32_t ChenabAsic::getMaxWideEcmpSize() const {
 uint32_t ChenabAsic::getMaxLagMemberSize() const {
   return 512;
 }
-int ChenabAsic::getSystemPortIDOffset() const {
+int ChenabAsic::getSflowPortIDOffset() const {
   return 500;
 }
 uint32_t ChenabAsic::getSflowShimHeaderSize() const {

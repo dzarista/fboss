@@ -51,6 +51,10 @@ class EbroAsic : public TajoAsic {
   uint64_t getMMUSizeBytes() const override {
     return 108 * 1024 * 1024;
   }
+  uint64_t getSramSizeBytes() const override {
+    // No HBM!
+    return getMMUSizeBytes();
+  }
   uint32_t getMaxMirrors() const override {
     // TODO - verify this
     return 4;
@@ -80,7 +84,7 @@ class EbroAsic : public TajoAsic {
   uint32_t getMaxLagMemberSize() const override {
     return 512;
   }
-  int getSystemPortIDOffset() const override {
+  int getSflowPortIDOffset() const override {
     return 1000;
   }
   uint32_t getSflowShimHeaderSize() const override {

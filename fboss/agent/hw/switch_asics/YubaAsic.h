@@ -49,6 +49,10 @@ class YubaAsic : public TajoAsic {
   uint64_t getMMUSizeBytes() const override {
     return 256 * 1024 * 1024;
   }
+  uint64_t getSramSizeBytes() const override {
+    // No HBM!
+    return getMMUSizeBytes();
+  }
   uint32_t getMaxMirrors() const override {
     // TODO - verify this
     return 4;
@@ -65,6 +69,8 @@ class YubaAsic : public TajoAsic {
     // Concept of scaling factor does not apply returning the same value TH3
     return cfg::MMUScalingFactor::TWO;
   }
+  const std::map<cfg::PortType, cfg::PortLoopbackMode>& desiredLoopbackModes()
+      const override;
   int getMaxNumLogicalPorts() const override {
     // 256 physical lanes + cpu
     return 257;
@@ -78,7 +84,7 @@ class YubaAsic : public TajoAsic {
   uint32_t getMaxLagMemberSize() const override {
     return 512;
   }
-  int getSystemPortIDOffset() const override {
+  int getSflowPortIDOffset() const override {
     return 0;
   }
   uint32_t getSflowShimHeaderSize() const override {
@@ -98,6 +104,12 @@ class YubaAsic : public TajoAsic {
   }
   uint32_t getMaxEcmpSize() const override {
     return 512;
+  }
+  std::optional<uint32_t> getMaxEcmpGroups() const override {
+    return 1024;
+  }
+  std::optional<uint32_t> getMaxEcmpMembers() const override {
+    return 32768;
   }
   uint32_t getNumCores() const override {
     return 12;

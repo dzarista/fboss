@@ -15,7 +15,7 @@ from thrift.transport import TSocket, TTransport
 tool_description = '''This tool can be used to fetch data on a device from thrift
 
 Example:
-python3 thriftctl.py request getTransceiverInfo --port 5910'''
+thriftctl request getTransceiverInfo -p 5910'''
 
 
 # NOTE: Not comprehensive and may diverge depending on upstream changes
@@ -86,8 +86,6 @@ class FbossThriftctl:
          self.transport.close()
    
    def parseResponseJson( self, response ):
-      pf = TJSONProtocol.TJSONProtocolFactory()
-      json_protocol = pf.getProtocol( self.transport )
       json_data = thrift_to_dict( response )
       return json.dumps( json_data, indent=2 )
 
@@ -95,17 +93,50 @@ def list_ports():
    for port, path in SERVICE_MAPPING.items():
       print( f'{port}: {path}' )
 
+def resolve_args( client, arg ):
+   '''Dynamically resolve and create Thrift struct objects.
+   e.g. {"struct": "PwmHoldRequest", "pwm": 70}'''
+   try:
+      # If the argument is a string, safely parse it
+      if isinstance( arg, str ):
+         arg = ast.literal_eval( arg )
+
+      # Intrepret arg using the struct key
+      if isinstance( arg, dict ) and "struct" in arg:
+         struct_name = arg.pop( "struct" )
+         module_name = client.__class__.__module__
+
+         thrift_module = __import__( module_name, fromlist=[ struct_name ] )
+         struct_class = getattr( thrift_module, struct_name, None )
+
+         if struct_class:
+            return struct_class( **arg )
+         else:
+            raise ValueError( f'Struct "{struct_name}" not in "{module_name}"' )
+
+      return arg
+   except Exception as e:
+      print( f"Error resolving struct for argument '{arg}': {e}" )
+      return arg 
+
 def call_method( client, method_name, *args, **kwargs ):
    try:
       func = getattr( client, method_name )
 
       if callable( func ):
-         return func( *args, **kwargs )
+         # arguments may be complex structs and need to be parsed
+         parsed_args = [ resolve_args( client, arg ) for arg in args ]
+         parsed_kwargs = { k: resolve_args( client, v ) for k, v in kwargs.items() }
+
+         return func( *parsed_args, **parsed_kwargs )
       else:
          print( f"{method_name} is not a callable method." )
          return None
-   except AttributeError:
-      print( f"Method '{method_name}' not found in the object." )
+   except AttributeError as e:
+      print( f"Method '{method_name}' not found in the object. Error: {e}" )
+      return None
+   except Exception as e:
+      print( f"An error occurred: {e}" )
       return None
 
 def process_arg( arg ):
@@ -123,14 +154,17 @@ def parseArgs( argv ):
    request = subparsers.add_parser( 'request', help='Install a package' )
    request.add_argument( 'method', help='The name of the method to call' )
    request.add_argument( 'args', nargs='*', default=None,
-                          help='arguments to pass into the method' )
+                          help='Arguments to pass into the method. Pass each '
+                          'arguments as a seperate string. '
+                          'E.g. \'["CPU_CORE2_TEMP", "CPU_CORE3_TEMP"]\' '
+                          'E.g. \'{"struct": "PwmHoldRequest", "pwm": 70}\'' )
    request.add_argument( '-p', '--port', required=True, type=int,
                           help='Port on which the thrift endpoint is on' )
    request.add_argument( '--host', default='localhost', required=False )
    request.add_argument( '--json', action='store_true', default=False,
                           required=False )
 
-   listports = subparsers.add_parser( 'listPorts', help='list ports' )
+   subparsers.add_parser( 'listPorts', help='list ports' )
 
    listmethods = subparsers.add_parser( 'listMethods', help='list methods' )
    listmethods.add_argument( '-p', '--port', required=True, type=int,

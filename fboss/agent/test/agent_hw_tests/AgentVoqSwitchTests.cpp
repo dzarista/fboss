@@ -1037,13 +1037,23 @@ TEST_F(AgentVoqSwitchWithFabricPortsTest, fdrCellDrops) {
             std::vector<uint8_t>(1024, 0xff));
       }
     };
+    int64_t fdrFifoWatermark = 0;
     int64_t fdrCellDrops = 0;
     WITH_RETRIES({
       sendPkts();
+      for (const auto& switchWatermarksIter : getAllSwitchWatermarkStats()) {
+        if (switchWatermarksIter.second.fdrFifoWatermarkBytes().has_value()) {
+          fdrFifoWatermark +=
+              switchWatermarksIter.second.fdrFifoWatermarkBytes().value();
+        }
+      }
+      EXPECT_EVENTUALLY_GT(fdrFifoWatermark, 0);
       fdrCellDrops = *getAggregatedSwitchDropStats().fdrCellDrops();
       // TLTimeseries value > 0
       EXPECT_EVENTUALLY_GT(fdrCellDrops, 0);
     });
+    XLOG(DBG0) << "FDR fifo watermark: " << fdrFifoWatermark
+               << ", FDR cell drops: " << fdrCellDrops;
     // Assert that we don't spuriously increment fdrCellDrops on every drop
     // stats. This would happen if we treated a stat as clear on read, while
     // in HW it was cumulative
@@ -1113,6 +1123,13 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
       int64_t afterQueueOutPkts = 0, afterQueueOutBytes = 0;
       int64_t beforeVoQOutBytes = 0, afterVoQOutBytes = 0;
       int64_t egressCoreWatermarkBytes = 0;
+      // Get SRAM size per core as thats the highest possible free SRAM
+      const uint64_t kSramSize =
+          utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+              ->getSramSizeBytes() /
+          utility::checkSameAndGetAsic(getAgentEnsemble()->getL3Asics())
+              ->getNumCores();
+      int64_t sramMinBufferWatermarkBytes = kSramSize + 1;
 
       if (isSupportedOnAllAsics(HwAsic::Feature::L3_QOS)) {
         auto beforeAllQueueOut = getAllQueueOutPktsBytes();
@@ -1175,6 +1192,12 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
                     switchWatermarksIter.second.egressCoreBufferWatermarkBytes()
                         .value();
               }
+              if (switchWatermarksIter.second.sramMinBufferWatermarkBytes()
+                      .has_value()) {
+                sramMinBufferWatermarkBytes = std::min(
+                    sramMinBufferWatermarkBytes,
+                    *switchWatermarksIter.second.sramMinBufferWatermarkBytes());
+              }
             }
             XLOG(DBG2) << "Verifying: "
                        << (isFrontPanel ? "Send Packet from Front Panel Port"
@@ -1198,7 +1221,9 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
                        << " afterFrontPanelBytes: " << afterFrontPanelOutBytes
                        << " afterRecyclePkts: " << afterRecyclePkts
                        << " egressCoreWatermarkBytes: "
-                       << egressCoreWatermarkBytes;
+                       << egressCoreWatermarkBytes
+                       << " sramMinBufferWatermarkBytes: "
+                       << sramMinBufferWatermarkBytes;
 
             EXPECT_EVENTUALLY_EQ(afterOutPkts - 1, beforeOutPkts);
             int extraByteOffset = 0;
@@ -1247,6 +1272,10 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
             if (isSupportedOnAllAsics(
                     HwAsic::Feature::EGRESS_CORE_BUFFER_WATERMARK)) {
               EXPECT_EVENTUALLY_GT(egressCoreWatermarkBytes, 0);
+            }
+            if (isSupportedOnAllAsics(
+                    HwAsic::Feature::INGRESS_SRAM_MIN_BUFFER_WATERMARK)) {
+              EXPECT_EVENTUALLY_LE(sramMinBufferWatermarkBytes, kSramSize);
             }
           });
     };
@@ -1613,8 +1642,13 @@ TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, remoteSystemPort) {
                  << " after sysPortsFree: " << afterSysPortsFree
                  << " voqsFree: " << afterVoqsFree;
       EXPECT_EVENTUALLY_EQ(beforeSysPortsFree - 1, afterSysPortsFree);
-      // 8 VOQs allocated per sys port
-      EXPECT_EVENTUALLY_EQ(beforeVoqsFree - 8, afterVoqsFree);
+      // 8 VOQs allocated per sys port for single stage
+      // 4 VOQs allocated per sys port for dual stage - 3 VOQs for the system
+      // port itself (since it's <16k port), and 1 VOQ for the 16k+ port. Please
+      // see 3Q2Q mode VOQ allocation for more details.
+      EXPECT_EVENTUALLY_EQ(
+          isDualStage3Q2QMode() ? beforeVoqsFree - 4 : beforeVoqsFree - 8,
+          afterVoqsFree);
     });
   };
   verifyAcrossWarmBoots(setup, [] {});
@@ -2124,28 +2158,6 @@ class AgentVoqSwitchFullScaleDsfNodesTest : public AgentVoqSwitchTest {
     return 64;
   }
 
-  void setupRemoteIntfAndSysPorts() {
-    auto updateDsfStateFn = [this](const std::shared_ptr<SwitchState>& in) {
-      std::map<SwitchID, std::shared_ptr<SystemPortMap>> switchId2SystemPorts;
-      std::map<SwitchID, std::shared_ptr<InterfaceMap>> switchId2Rifs;
-      utility::populateRemoteIntfAndSysPorts(
-          switchId2SystemPorts,
-          switchId2Rifs,
-          getSw()->getConfig(),
-          isSupportedOnAllAsics(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE));
-      return DsfStateUpdaterUtil::getUpdatedState(
-          in,
-          getSw()->getScopeResolver(),
-          getSw()->getRib(),
-          switchId2SystemPorts,
-          switchId2Rifs);
-    };
-    getSw()->getRib()->updateStateInRibThread([this, updateDsfStateFn]() {
-      getSw()->updateStateWithHwFailureProtection(
-          folly::sformat("Update state for node: {}", 0), updateDsfStateFn);
-    });
-  }
-
   flat_set<PortDescriptor> getRemoteSysPortDesc() {
     auto remoteSysPorts =
         getProgrammedState()->getRemoteSystemPorts()->getAllNodes();
@@ -2186,7 +2198,11 @@ class AgentVoqSwitchFullScaleDsfNodesWithFabricPortsTest
 };
 
 TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, systemPortScaleTest) {
-  auto setup = [this]() { setupRemoteIntfAndSysPorts(); };
+  auto setup = [this]() {
+    utility::setupRemoteIntfAndSysPorts(
+        getSw(),
+        isSupportedOnAllAsics(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE));
+  };
   verifyAcrossWarmBoots(setup, [] {});
 }
 
@@ -2194,7 +2210,9 @@ TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, remoteNeighborWithEcmpGroup) {
   const auto kEcmpWidth = getMaxEcmpWidth();
   const auto kMaxDeviation = 25;
   auto setup = [&]() {
-    setupRemoteIntfAndSysPorts();
+    utility::setupRemoteIntfAndSysPorts(
+        getSw(),
+        isSupportedOnAllAsics(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE));
     utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
 
     // Resolve remote nhops and get a list of remote sysPort descriptors
@@ -2270,7 +2288,9 @@ TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, remoteAndLocalLoadBalance) {
   const auto kEcmpWidth = 16;
   const auto kMaxDeviation = 25;
   auto setup = [&]() {
-    setupRemoteIntfAndSysPorts();
+    utility::setupRemoteIntfAndSysPorts(
+        getSw(),
+        isSupportedOnAllAsics(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE));
     utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
 
     // Resolve remote and local nhops and get a list of sysPort descriptors
@@ -2350,7 +2370,9 @@ TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, stressProgramEcmpRoutes) {
   const auto routeScale = 5;
   const auto numIterations = 20;
   auto setup = [&]() {
-    setupRemoteIntfAndSysPorts();
+    utility::setupRemoteIntfAndSysPorts(
+        getSw(),
+        isSupportedOnAllAsics(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE));
     utility::EcmpSetupTargetedPorts6 ecmpHelper(getProgrammedState());
 
     // Resolve remote nhops and get a list of remote sysPort descriptors
@@ -2493,7 +2515,11 @@ TEST_F(AgentVoqSwitchLineRateTest, creditsDeleted) {
 TEST_F(
     AgentVoqSwitchFullScaleDsfNodesWithFabricPortsTest,
     failUpdateAtFullSysPortScale) {
-  auto setup = [this]() { setupRemoteIntfAndSysPorts(); };
+  auto setup = [this]() {
+    utility::setupRemoteIntfAndSysPorts(
+        getSw(),
+        isSupportedOnAllAsics(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE));
+  };
   auto verify = [this]() {
     getSw()->getRib()->updateStateInRibThread([this]() {
       EXPECT_THROW(
