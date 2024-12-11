@@ -15,19 +15,21 @@
  *
  */
 
-#ifndef __SCRATCHPAD_BITS_H__
-#define __SCRATCHPAD_BITS_H__
+#ifndef __SCD_RELOAD_CAUSE_H__
+#define __SCD_RELOAD_CAUSE_H__
 
-#define MERU_VCPLD_RELOAD_CAUSE_COOKIE_BITPOS   (0U)
-#define MERU_VCPLD_RELOAD_CAUSE_COOKIE_LEN      (1U)
-#define MERU_VCPLD_RELOAD_CAUSE_COOKIE_MASK \
-		(((1U << MERU_VCPLD_RELOAD_CAUSE_COOKIE_LEN) - 1) << \
-		MERU_VCPLD_RELOAD_CAUSE_COOKIE_BITPOS)
+#include <linux/types.h>
 
-#define FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_BITPOS   (0U)
-#define FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_LEN      (1U)
-#define FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_MASK \
-		(((1U << FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_LEN) - 1) << \
-		FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_BITPOS)
+struct encoded_reload_cause {
+	u8 id;
+	const char *description;
+};
 
-#endif /* __SCRATCHPAD_BITS_H__ */
+#define DEFINE_RELOAD_CAUSE(fault_id, fault_desc)		\
+{								\
+	.id = fault_id,						\
+	.description = fault_desc				\
+}
+
+#endif /* __SCD_RELOAD_CAUSE_H__ */
+

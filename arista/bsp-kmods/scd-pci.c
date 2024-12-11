@@ -33,6 +33,8 @@
 
 #include "fbiob-auxdev.h"
 #include "fbiob-cdev.h"
+#include "scratchpad-bits.h"
+#include "scd-reload-cause-pci.h"
 
 #define REG_BLK_SIZE			4
 #define REG_MAX_BITSIZE			32
@@ -385,6 +387,54 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	}
 
 	return -ENOENT;
+}
+
+static void print_reload_cause_info(struct scd_dev_priv *priv) {
+	struct mapped_register *reload_cause_reg_map;
+	size_t reload_cause_reg_count;
+	size_t reload_cause_reg_loop;
+	void __iomem *scratchpad_map;
+	u32 scratchpad_val;
+	bool power_cycle_detected = false;
+	int op_status;
+
+	get_reload_cause_register_map(&reload_cause_reg_map, &reload_cause_reg_count);
+	for (reload_cause_reg_loop = 0; reload_cause_reg_loop < reload_cause_reg_count; reload_cause_reg_loop++) {
+		reload_cause_reg_map[reload_cause_reg_loop].mem = devm_ioremap(
+			&(priv->pdev->dev), priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			REG_BLK_SIZE);
+		if (!reload_cause_reg_map[reload_cause_reg_loop].mem) {
+			dev_err(&(priv->pdev->dev), "cannot remap reload cause PCI registers - "
+			"relaod cause functionality disabled\n");
+			break;
+		}
+	}
+	if (reload_cause_reg_loop == reload_cause_reg_count) {
+		scratchpad_map = devm_ioremap(
+				&(priv->pdev->dev), priv->csr_bus_addr + get_reload_cause_scratchpad_reg_offset(),
+				REG_BLK_SIZE);
+		if (!scratchpad_map) {
+			dev_err(&(priv->pdev->dev), "cannot remap scratchpad register - "
+			"not processing relaod cause\n");
+		} else {
+			scratchpad_val = ioread32(scratchpad_map);
+			if ((scratchpad_val & FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_MASK) == 0) {
+				iowrite32((1 << FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_BITPOS), scratchpad_map);
+				power_cycle_detected = true;
+			} else {
+				dev_info(&(priv->pdev->dev), "didn't detect a system power cycle - "
+				"not processing relaod cause");
+			}
+			iounmap(scratchpad_map);
+		}
+		if (power_cycle_detected == true) {
+			op_status = process_reload_cause(&(priv->pdev->dev));
+			if (op_status < 0) {
+				dev_info(&(priv->pdev->dev), "error in processing reload cause\n");
+			}
+		}
+		start_reload_cause_periodic_task();
+	}
 }
 
 static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf) {
@@ -791,6 +841,10 @@ static void scd_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 	memset(priv, 0, sizeof(*priv));
 
+	if (pdev->subsystem_device == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
+		stop_reload_cause_periodic_task();
+	}
+
 	kfree(priv);
 }
 
@@ -876,6 +930,10 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err) {
 		goto fail;
 	}
+
+	if (ent->subdevice == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
+		print_reload_cause_info(priv);
+        }
 
 	err = sysfs_create_group(&pdev->dev.kobj, priv->sysfs_attr_group);
 	if (err) {

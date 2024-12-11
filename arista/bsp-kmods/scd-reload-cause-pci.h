@@ -15,19 +15,18 @@
  *
  */
 
-#ifndef __SCRATCHPAD_BITS_H__
-#define __SCRATCHPAD_BITS_H__
+#ifndef __SCD_RELOAD_CAUSE_PCI_H__
+#define __SCD_RELOAD_CAUSE_PCI_H__
 
-#define MERU_VCPLD_RELOAD_CAUSE_COOKIE_BITPOS   (0U)
-#define MERU_VCPLD_RELOAD_CAUSE_COOKIE_LEN      (1U)
-#define MERU_VCPLD_RELOAD_CAUSE_COOKIE_MASK \
-		(((1U << MERU_VCPLD_RELOAD_CAUSE_COOKIE_LEN) - 1) << \
-		MERU_VCPLD_RELOAD_CAUSE_COOKIE_BITPOS)
+#include "scd-reload-cause.h"
+#include "reg-access-pci.h"
+#include <linux/device.h>
 
-#define FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_BITPOS   (0U)
-#define FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_LEN      (1U)
-#define FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_MASK \
-		(((1U << FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_LEN) - 1) << \
-		FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_BITPOS)
+void start_reload_cause_periodic_task(void);
+void stop_reload_cause_periodic_task(void);
+void get_reload_cause_register_map(struct mapped_register **reg_map, size_t *reg_count);
+u32 get_reload_cause_scratchpad_reg_offset(void);
+int process_reload_cause(struct device *dev);
 
-#endif /* __SCRATCHPAD_BITS_H__ */
+#endif /* __SCD_RELOAD_CAUSE_PCI_H__ */
+

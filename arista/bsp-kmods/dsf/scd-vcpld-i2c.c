@@ -22,6 +22,7 @@
 #include <linux/rtc.h>
 #include <linux/workqueue.h>
 #include "scratchpad-bits.h"
+#include "scd-reload-cause.h"
 
 #define VCPLD_REG_MINOR_REV			(0x0)
 #define VCPLD_REG_MAJOR_REV			(0x1)
@@ -38,17 +39,6 @@
 
 #define RTC_UPDATE_INTERVAL			(10U)
 #define MILLENIUM_UNIX_TIMESTAMP 		(946684800U)
-
-struct encoded_reload_cause {
-	u8 id;
-	const char *description;
-};
-
-#define DEFINE_RELOAD_CAUSE(fault_id, fault_desc)		\
-{								\
-	.id = fault_id,						\
-	.description = fault_desc				\
-}
 
 struct encoded_reload_cause scd_vcpld_reload_causes[] = {
 	DEFINE_RELOAD_CAUSE(1, "Overtemp Fault"),
@@ -135,7 +125,7 @@ static int process_reload_cause(struct i2c_client *client)
 		}
 	}
 	if (fault_loop == MERU_VCPLD_FAULT_COUNT) {
-		dev_info(&client->dev, "fault not found in list of reload causes\n");
+		dev_info(&client->dev, "scd vcpld fault not found in list of reload causes\n");
 		ret_val = -1;
 	} else {
 		dev_info(&client->dev, "scd vcpld reload cause: %s\n",
