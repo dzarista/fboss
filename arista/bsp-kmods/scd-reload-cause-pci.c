@@ -25,6 +25,7 @@
 
 #include <linux/workqueue.h>
 #include <linux/rtc.h>
+#include <linux/mutex.h>
 #include "scd-reload-cause-pci.h"
 
 #define RTC_UPDATE_INTERVAL			(10U)
@@ -98,6 +99,9 @@ struct encoded_reload_cause fairywren_scd_reload_causes[] = {
 	(sizeof fairywren_scd_reload_causes / sizeof fairywren_scd_reload_causes[0])
 #define FAIRYWREN_SCD_RELOAD_CAUSE_CONTROL_CLEAR_BITS	(0x1)
 
+static bool periodic_task_started = false;
+static DEFINE_MUTEX(periodic_task_mutex);
+
 static void workqueue_func(struct work_struct *work);
 static DECLARE_DELAYED_WORK(scd_delayed_work, workqueue_func);
 static void workqueue_func(struct work_struct *work) {
@@ -114,11 +118,28 @@ static void workqueue_func(struct work_struct *work) {
 }
 
 void start_reload_cause_periodic_task(void) {
-	schedule_delayed_work(&scd_delayed_work, RTC_UPDATE_INTERVAL*HZ);
+	bool task_running;
+
+	mutex_lock(&periodic_task_mutex);
+	task_running = periodic_task_started;
+	periodic_task_started = true;
+	mutex_unlock(&periodic_task_mutex);
+	if (task_running == false) {
+		schedule_delayed_work(&scd_delayed_work, RTC_UPDATE_INTERVAL*HZ);
+	}
 }
 
 void stop_reload_cause_periodic_task(void) {
-	cancel_delayed_work_sync(&scd_delayed_work);
+	bool task_running;
+
+	mutex_lock(&periodic_task_mutex);
+	task_running = periodic_task_started;
+	periodic_task_started = false;
+	mutex_unlock(&periodic_task_mutex);
+	if (task_running == true) {
+		cancel_delayed_work_sync(&scd_delayed_work);
+	}
+	mutex_destroy(&periodic_task_mutex);
 }
 
 void get_reload_cause_register_map(struct mapped_register **reg_map, size_t *reg_count) {

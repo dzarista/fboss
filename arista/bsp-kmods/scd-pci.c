@@ -155,6 +155,10 @@ static int lpc_irq = 7;
 module_param(lpc_irq, int, 0);
 MODULE_PARM_DESC(lpc_irq, "interrupt of LPC SCD");
 
+/* Lock to protect CPLD scratchpad register. Each register bit acts as a flag -
+   hence the register might be updated at different places */
+static DEFINE_MUTEX(scratchpad_mutex);
+
 u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
 {
 	u32 res = 0;
@@ -389,6 +393,14 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	return -ENOENT;
 }
 
+static void scratchpad_lock(void) {
+	mutex_lock(&scratchpad_mutex);
+}
+
+static void scratchpad_unlock(void) {
+	mutex_unlock(&scratchpad_mutex);
+}
+
 static void print_reload_cause_info(struct scd_dev_priv *priv) {
 	struct mapped_register *reload_cause_reg_map;
 	size_t reload_cause_reg_count;
@@ -417,14 +429,13 @@ static void print_reload_cause_info(struct scd_dev_priv *priv) {
 			dev_err(&(priv->pdev->dev), "cannot remap scratchpad register - "
 			"not processing relaod cause\n");
 		} else {
+			scratchpad_lock();
 			scratchpad_val = ioread32(scratchpad_map);
 			if ((scratchpad_val & FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_MASK) == 0) {
 				iowrite32((1 << FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_BITPOS), scratchpad_map);
 				power_cycle_detected = true;
-			} else {
-				dev_info(&(priv->pdev->dev), "didn't detect a system power cycle - "
-				"not processing relaod cause");
 			}
+			scratchpad_unlock();
 			iounmap(scratchpad_map);
 		}
 		if (power_cycle_detected == true) {
@@ -432,6 +443,9 @@ static void print_reload_cause_info(struct scd_dev_priv *priv) {
 			if (op_status < 0) {
 				dev_info(&(priv->pdev->dev), "error in processing reload cause\n");
 			}
+		} else {
+			dev_info(&(priv->pdev->dev), "didn't detect a system power cycle - "
+			"not processing relaod cause");
 		}
 		start_reload_cause_periodic_task();
 	}
@@ -846,6 +860,8 @@ static void scd_remove(struct pci_dev *pdev)
 	}
 
 	kfree(priv);
+
+	mutex_destroy(&scratchpad_mutex);
 }
 
 static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
