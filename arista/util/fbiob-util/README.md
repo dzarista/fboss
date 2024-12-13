@@ -1,0 +1,1 @@
+The purpose of the fbiob-util tool is to create instances of aux drivers without relying on platform manager.

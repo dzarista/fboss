@@ -1,0 +1,3 @@
+- BUG872202: On Meru800bfa, the system will powercycle after JTAG upgrading the SCM CPLD.
+- BUG868799: On Meru800bfa, UCD90320 hwmon isn't functional because the
+  MONITOR_CONFIG command is not yet supported.
