@@ -1292,7 +1292,9 @@ TEST_F(AgentVoqSwitchTest, trapPktsOnPort) {
   const auto kPort = ecmpHelper.ecmpPortDescriptorAt(0);
   auto setup = [this, kPort, &ecmpHelper]() {
     auto cfg = initialConfig(*getAgentEnsemble());
-    utility::addTrapPacketAcl(&cfg, kPort.phyPortID());
+    auto l3Asics = getAgentEnsemble()->getL3Asics();
+    auto asic = utility::checkSameAndGetAsic(l3Asics);
+    utility::addTrapPacketAcl(asic, &cfg, kPort.phyPortID());
     applyNewConfig(cfg);
     applyNewState([=](const std::shared_ptr<SwitchState>& in) {
       return ecmpHelper.resolveNextHops(in, {kPort});
@@ -2403,7 +2405,10 @@ TEST_F(AgentVoqSwitchFullScaleDsfNodesTest, stressProgramEcmpRoutes) {
 
 TEST_F(AgentVoqSwitchLineRateTest, dramBlockedTime) {
   auto setup = [=, this]() {
-    constexpr int kNumberOfPortsForDramBlock{6};
+    // Use just one port for the dramBlockedTime test
+    // Note: If more than 3 ports are used, then traffic wouldn't
+    // reach line rate which is a prerequisite for this test
+    constexpr int kNumberOfPortsForDramBlock{1};
     setupEcmpDataplaneLoopOnAllPorts();
     createTrafficOnMultiplePorts(kNumberOfPortsForDramBlock);
   };
@@ -2660,4 +2665,45 @@ TEST_F(AgentVoqSwitchConditionalEntropyTest, verifyLoadBalancing) {
   };
   verifyAcrossWarmBoots(setup, verify);
 }
+
+class AgentVoqShelSwitchTest : public AgentVoqSwitchWithMultipleDsfNodesTest {
+ public:
+  cfg::SwitchConfig initialConfig(
+      const AgentEnsemble& ensemble) const override {
+    auto config =
+        AgentVoqSwitchWithMultipleDsfNodesTest::initialConfig(ensemble);
+    cfg::SelfHealingEcmpLagConfig shelConfig;
+    shelConfig.shelSrcIp() = "2222::1";
+    shelConfig.shelDstIp() = "2222::2";
+    shelConfig.shelPeriodicIntervalMS() = 5000;
+    config.switchSettings()->selfHealingEcmpLagConfig() = shelConfig;
+    return config;
+  }
+};
+
+TEST_F(AgentVoqShelSwitchTest, init) {
+  auto setup = [this]() {
+    auto config = initialConfig(*getAgentEnsemble());
+    // Enable Conditional Entropy on Interface Ports
+    for (auto& port : *config.ports()) {
+      if (port.portType() == cfg::PortType::INTERFACE_PORT) {
+        port.selfHealingECMPLagEnable() = true;
+      }
+    }
+    applyNewConfig(config);
+  };
+
+  auto verify = [this]() {
+    auto state = getProgrammedState();
+    for (const auto& portMap : std::as_const(*state->getPorts())) {
+      for (const auto& port : std::as_const(*portMap.second)) {
+        if (port.second->getPortType() == cfg::PortType::INTERFACE_PORT) {
+          EXPECT_TRUE(port.second->getSelfHealingECMPLagEnable());
+        }
+      }
+    }
+  };
+  verifyAcrossWarmBoots(setup, verify);
+}
+
 } // namespace facebook::fboss

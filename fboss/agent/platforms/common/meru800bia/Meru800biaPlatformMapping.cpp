@@ -165854,4 +165854,13 @@ Meru800biaPlatformMapping::Meru800biaPlatformMapping(
     const std::string& platformMappingStr)
     : PlatformMapping(platformMappingStr) {}
 
+Meru800biaPlatformMapping::Meru800biaPlatformMapping(
+    HwAsic::InterfaceNodeRole intfRole)
+    : PlatformMapping(
+          intfRole == HwAsic::InterfaceNodeRole::DUAL_STAGE_EDGE_NODE
+              ? kJsonDualStageEdsw3q2qPlatformMappingStr
+              : (isDualStage3Q2QMode()
+                     ? kJsonDualStageRdsw3q2qPlatformMappingStr
+                     : kJsonPlatformMappingStr)) {}
+
 } // namespace facebook::fboss
