@@ -406,14 +406,27 @@ static void print_reload_cause_info(struct scd_dev_priv *priv) {
 	size_t reload_cause_reg_count;
 	size_t reload_cause_reg_loop;
 	void __iomem *scratchpad_map;
+	struct resource *res;
 	u32 scratchpad_val;
 	bool power_cycle_detected = false;
 	int op_status;
 
 	get_reload_cause_register_map(&reload_cause_reg_map, &reload_cause_reg_count);
 	for (reload_cause_reg_loop = 0; reload_cause_reg_loop < reload_cause_reg_count; reload_cause_reg_loop++) {
+		res = NULL;
+		res = devm_request_mem_region(
+			&(priv->pdev->dev),
+			priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			REG_BLK_SIZE,
+			SCD_MODULE_NAME);
+		if (!res) {
+			dev_err(&(priv->pdev->dev), "cannot request PCI memory region - "
+			"relaod cause functionality disabled\n");
+			break;
+		}
 		reload_cause_reg_map[reload_cause_reg_loop].mem = devm_ioremap(
-			&(priv->pdev->dev), priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			&(priv->pdev->dev),
+			priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
 			REG_BLK_SIZE);
 		if (!reload_cause_reg_map[reload_cause_reg_loop].mem) {
 			dev_err(&(priv->pdev->dev), "cannot remap reload cause PCI registers - "
@@ -436,7 +449,7 @@ static void print_reload_cause_info(struct scd_dev_priv *priv) {
 				power_cycle_detected = true;
 			}
 			scratchpad_unlock();
-			iounmap(scratchpad_map);
+			devm_iounmap(&(priv->pdev->dev), scratchpad_map);
 		}
 		if (power_cycle_detected == true) {
 			op_status = process_reload_cause(&(priv->pdev->dev));
@@ -448,6 +461,21 @@ static void print_reload_cause_info(struct scd_dev_priv *priv) {
 			"not processing relaod cause");
 		}
 		start_reload_cause_periodic_task();
+	}
+}
+
+static void release_reload_cause_resources(struct scd_dev_priv *priv) {
+	struct mapped_register *reload_cause_reg_map;
+	size_t reload_cause_reg_count;
+	size_t reload_cause_reg_loop;
+
+	get_reload_cause_register_map(&reload_cause_reg_map, &reload_cause_reg_count);
+	for (reload_cause_reg_loop = 0; reload_cause_reg_loop < reload_cause_reg_count; reload_cause_reg_loop++) {
+		devm_iounmap(&(priv->pdev->dev), reload_cause_reg_map[reload_cause_reg_loop].mem);
+		devm_release_mem_region(
+			&(priv->pdev->dev),
+			priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			REG_BLK_SIZE);
 	}
 }
 
@@ -836,6 +864,12 @@ static void scd_remove(struct pci_dev *pdev)
 	if (priv == NULL)
 		return;
 
+	if (pdev->subsystem_device == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
+		stop_reload_cause_periodic_task();
+		release_reload_cause_resources(priv);
+	}
+	mutex_destroy(&scratchpad_mutex);
+
 	priv->magic = 0;
 
 	if (priv->cdev_initialized)
@@ -855,13 +889,7 @@ static void scd_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 	memset(priv, 0, sizeof(*priv));
 
-	if (pdev->subsystem_device == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
-		stop_reload_cause_periodic_task();
-	}
-
 	kfree(priv);
-
-	mutex_destroy(&scratchpad_mutex);
 }
 
 static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -913,7 +941,7 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		default:
 			sysfs_attr_group = &scd_attr_group;
 			regbit_sysfs_table = scd_regbit_sysfs;
-       }
+	}
 
 	if (pci_get_drvdata(pdev)) {
 		dev_warn(&pdev->dev, "private data already attached %p",
@@ -949,7 +977,7 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (ent->subdevice == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
 		print_reload_cause_info(priv);
-        }
+	}
 
 	err = sysfs_create_group(&pdev->dev.kobj, priv->sysfs_attr_group);
 	if (err) {
