@@ -324,17 +324,7 @@ class Viper( PlatformConfig ):
 
       self.addKmodsSettings(
          {
-            "bspKmodsToReload" : [
-               "scd-xcvr",
-               "scd-spi",
-               "scd-leds",
-               "scd-smbus",
-               "scd-info",
-               "dsf-fan-cpld",
-               "scd-vcpld"
-            ],
-            "sharedKmodsToReload": [ "scd" ],
-            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ]
+            "requiredKmodsToLoad": [ "spidev", "i2c-i801", "scd" ]
          }
       )
 

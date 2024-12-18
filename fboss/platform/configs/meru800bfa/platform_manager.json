@@ -4471,20 +4471,9 @@
   },
   "bspKmodsRpmName": "arista_bsp_kmods",
   "bspKmodsRpmVersion": "0.7.6-1",
-  "bspKmodsToReload": [
-    "scd-xcvr",
-    "scd-spi",
-    "scd-leds",
-    "scd-smbus",
-    "scd-info",
-    "dsf-fan-cpld",
-    "decker-cpld"
-  ],
-  "sharedKmodsToReload": [
-    "scd"
-  ],
-  "upstreamKmodsToLoad": [
+  "requiredKmodsToLoad": [
     "spidev",
-    "i2c-i801"
+    "i2c-i801",
+    "scd"
   ]
 }
