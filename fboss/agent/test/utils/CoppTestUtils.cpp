@@ -116,8 +116,9 @@ uint16_t getCoppHighPriQueueId(const HwAsic* hwAsic) {
     case cfg::AsicType::ASIC_TYPE_YUBA:
     case cfg::AsicType::ASIC_TYPE_JERICHO2:
     case cfg::AsicType::ASIC_TYPE_JERICHO3:
-    case cfg::AsicType::ASIC_TYPE_CHENAB:
       return 7;
+    case cfg::AsicType::ASIC_TYPE_CHENAB:
+      return 3;
     case cfg::AsicType::ASIC_TYPE_ELBERT_8DD:
     case cfg::AsicType::ASIC_TYPE_SANDIA_PHY:
     case cfg::AsicType::ASIC_TYPE_RAMON:
@@ -1166,9 +1167,13 @@ cfg::MatchAction getToQueueActionForSai(
     const std::optional<cfg::ToCpuAction> toCpuAction) {
   cfg::MatchAction action;
   if (FLAGS_sai_user_defined_trap) {
-    cfg::UserDefinedTrapAction userDefinedTrap;
-    userDefinedTrap.queueId() = queueId;
-    action.userDefinedTrap() = userDefinedTrap;
+    if (toCpuAction.has_value()) {
+      // if toCpuAction is null, then its forward by default, so don't add a
+      // user defined trap as packet neither copied nor trapped to CPU
+      cfg::UserDefinedTrapAction userDefinedTrap;
+      userDefinedTrap.queueId() = queueId;
+      action.userDefinedTrap() = userDefinedTrap;
+    }
     // assume tc i maps to queue i for all i on sai switches
     cfg::SetTcAction setTc;
     setTc.tcValue() = queueId;

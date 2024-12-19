@@ -66,6 +66,8 @@ std::string readVersionString(
       re2::RE2(PlatformExplorer::kFwVerXYPatternStr);
   static const re2::RE2 kFwVerXYZPattern =
       re2::RE2(PlatformExplorer::kFwVerXYZPatternStr);
+  static const re2::RE2 kFwVerValidCharsPattern =
+      re2::RE2(PlatformExplorer::kFwVerValidCharsPatternStr);
   const auto versionFileContent = platformFsUtils->getStringFileContent(path);
   if (!versionFileContent) {
     XLOGF(
@@ -75,15 +77,23 @@ std::string readVersionString(
         folly::errnoStr(errno));
     return fmt::format("ERROR_FILE_{}", errno);
   }
-  const auto versionString = versionFileContent.value();
+  const auto& versionString = versionFileContent.value();
   if (versionString.empty()) {
     XLOGF(ERR, "Empty firmware version file {}", path);
     return PlatformExplorer::kFwVerErrorEmptyFile;
   }
-  if (folly::hasSpaceOrCntrlSymbols(versionString)) {
+  if (versionString.length() > 64) {
     XLOGF(
         ERR,
-        "Firmware version string \"{}\" from file {} contains whitespace or control characters.",
+        "Firmware version \"{}\" from file {} is longer than 64 characters.",
+        versionString,
+        path);
+    return PlatformExplorer::kFwVerErrorInvalidString;
+  }
+  if (!re2::RE2::FullMatch(versionString, kFwVerValidCharsPattern)) {
+    XLOGF(
+        ERR,
+        "Firmware version \"{}\" from file {} contains invalid characters.",
         versionString,
         path);
     return PlatformExplorer::kFwVerErrorInvalidString;
@@ -129,7 +139,6 @@ PlatformExplorer::PlatformExplorer(
     const PlatformConfig& config,
     const std::shared_ptr<PlatformFsUtils> platformFsUtils)
     : platformConfig_(config),
-      pciExplorer_(platformFsUtils),
       dataStore_(platformConfig_),
       devicePathResolver_(dataStore_),
       presenceChecker_(devicePathResolver_),
@@ -220,15 +229,30 @@ void PlatformExplorer::exploreSlot(
   // condition is satisfied
   if (const auto presenceDetection = slotConfig.presenceDetection()) {
     try {
-      if (!presenceChecker_.isPresent(
-              presenceDetection.value(), childSlotPath)) {
+      auto isPmUnitPresent =
+          presenceChecker_.isPresent(presenceDetection.value(), childSlotPath);
+      if (!isPmUnitPresent) {
+        auto errMsg = fmt::format(
+            "Skipping exploring Slot {} at {}. No PmUnit in the Slot",
+            slotName,
+            childSlotPath);
+        XLOG(ERR) << errMsg;
+        explorationSummary_.addError(
+            ExplorationErrorType::SLOT_PM_UNIT_ABSENCE,
+            Utils().createDevicePath(childSlotPath, "<ABSENT>"),
+            errMsg);
         return;
       }
     } catch (const std::exception& ex) {
-      XLOG(ERR) << fmt::format(
-          "Error checking for presence in slotpath {}: {}",
+      auto errMsg = fmt::format(
+          "Error checking for presence in SlotPath {}: {}",
           slotName,
           ex.what());
+      XLOG(ERR) << errMsg;
+      explorationSummary_.addError(
+          ExplorationErrorType::SLOT_PRESENCE_CHECK,
+          Utils().createDevicePath(childSlotPath, "<ABSENT>"),
+          errMsg);
       return;
     }
   }
@@ -452,7 +476,7 @@ void PlatformExplorer::explorePciDevices(
     const std::vector<PciDeviceConfig>& pciDeviceConfigs) {
   for (const auto& pciDeviceConfig : pciDeviceConfigs) {
     try {
-      auto pciDevice = PciDevice(pciDeviceConfig, platformFsUtils_);
+      auto pciDevice = PciDevice(pciDeviceConfig);
       auto charDevPath = pciDevice.charDevPath();
       auto instId =
           getFpgaInstanceId(slotPath, *pciDeviceConfig.pmUnitScopedName());

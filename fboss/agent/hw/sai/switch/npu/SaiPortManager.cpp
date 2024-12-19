@@ -458,6 +458,16 @@ void SaiPortManager::attributesFromSaiStore(
       SaiPortTraits::Attributes::QosPfcPriorityToQueueMap{});
   getAndSetAttribute(
       port->attributes(), attributes, SaiPortTraits::Attributes::TamObject{});
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
+  getAndSetAttribute(
+      port->attributes(),
+      attributes,
+      SaiPortTraits::Attributes::PfcTcDldInterval{});
+  getAndSetAttribute(
+      port->attributes(),
+      attributes,
+      SaiPortTraits::Attributes::PfcTcDlrInterval{});
+#endif
   if (platform_->getAsic()->isSupported(
           HwAsic::Feature::PORT_TTL_DECREMENT_DISABLE)) {
     getAndSetAttribute(
@@ -625,7 +635,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   auto portPfcInfo = getPortPfcAttributes(swPort);
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
-  std::optional<SaiPortTraits::Attributes::ArsEnable> arsEnable = false;
+  std::optional<SaiPortTraits::Attributes::ArsEnable> arsEnable = std::nullopt;
   std::optional<SaiPortTraits::Attributes::ArsPortLoadScalingFactor>
       arsPortLoadScalingFactor = std::nullopt;
   std::optional<SaiPortTraits::Attributes::ArsPortLoadPastWeight>
@@ -657,8 +667,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
 
   std::optional<SaiPortTraits::Attributes::CondEntropyRehashEnable>
       condEntropyRehashEnable{};
-// TODO(zecheng): Update flag when new 12.0 release has the attribute
-#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   condEntropyRehashEnable = swPort->getConditionalEntropyRehash();
 #endif
   std::optional<SaiPortTraits::Attributes::ShelEnable> shelEnable{};

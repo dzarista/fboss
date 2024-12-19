@@ -1099,7 +1099,7 @@ void SaiSwitchManager::setLinkFlowControlCreditTh(
 }
 
 void SaiSwitchManager::setVoqDramBoundTh(uint32_t dramBoundThreshold) {
-#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   // There are 3 different types of rate classes available and
   // dramBound, upper and lower limits are applied to each of
   // those. However, in our case, we just need to set the same
@@ -1112,11 +1112,10 @@ void SaiSwitchManager::setVoqDramBoundTh(uint32_t dramBoundThreshold) {
 
 void SaiSwitchManager::setConditionalEntropyRehashPeriodUS(
     int conditionalEntropyRehashPeriodUS) {
-  // TODO(zecheng): Update flag when new 12.0 release has the attribute
-#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   switch_->setOptionalAttribute(
       SaiSwitchTraits::Attributes::CondEntropyRehashPeriodUS{
-          conditionalEntropyRehashPeriodUS});
+          static_cast<uint32_t>(conditionalEntropyRehashPeriodUS)});
 #endif
 }
 
@@ -1141,4 +1140,43 @@ void SaiSwitchManager::setShelConfig(
   }
 }
 
+void SaiSwitchManager::setLocalVoqMaxExpectedLatency(
+    int localVoqMaxExpectedLatencyNsec) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMinLocalNs{
+          localVoqMaxExpectedLatencyNsec});
+#endif
+}
+
+void SaiSwitchManager::setRemoteL1VoqMaxExpectedLatency(
+    int remoteL1VoqMaxExpectedLatencyNsec) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMinLevel1Ns{
+          remoteL1VoqMaxExpectedLatencyNsec});
+#endif
+}
+
+void SaiSwitchManager::setRemoteL2VoqMaxExpectedLatency(
+    int remoteL2VoqMaxExpectedLatencyNsec) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMinLevel2Ns{
+          remoteL2VoqMaxExpectedLatencyNsec});
+#endif
+}
+
+void SaiSwitchManager::setVoqOutOfBoundsLatency(int voqOutOfBoundsLatency) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMaxLocalNs{voqOutOfBoundsLatency});
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMaxLevel1Ns{
+          voqOutOfBoundsLatency});
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMaxLevel2Ns{
+          voqOutOfBoundsLatency});
+#endif
+}
 } // namespace facebook::fboss
