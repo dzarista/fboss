@@ -9,3 +9,4 @@ arista/util/DSF*
 *__pycache__*
 arista/build-utils/tmp_build_dir/
 gen-py/
+arista/util/live-image/build_dir/

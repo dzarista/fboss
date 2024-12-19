@@ -1,7 +1,7 @@
 #! /bin/bash
 
 usage() {
-   echo "Pass the kernel version and CentOS stream used for building the live image as arguments"
+   echo "Pass the kernel version and CentOS major release version used for building the live image as arguments"
    echo "usage: $0 <kernel version> <centos stream number>"
 }
 
@@ -13,12 +13,12 @@ fi
 kernel_version=$1
 centos_stream_number=$2
 
-# Clean up build_dir if it already exists. This is where the live image related files will be stored
-sudo rm -rf build_dir
-# Set up build_dir and update permissions to mount it in docker container
-mkdir build_dir
-chmod -R a+rw build_dir
 build_dir_path=$(pwd)/build_dir
+# Clean up build_dir if it already exists. This is where the live image related files will be stored
+sudo rm -rf $build_dir_path
+# Set up build_dir and update permissions to mount it in docker container
+mkdir $build_dir_path
+chmod -R a+rw $build_dir_path
 # Script to be run from the docker container
 cp docker_script.sh $build_dir_path
 # Script to be run from the chroot environment created in the container

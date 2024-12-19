@@ -30,6 +30,4 @@ buildDeps=(
    double-conversion
    xxhash-libs
 )
-for i in "${buildDeps[@]}"; do
-   yum install -y $i
-done
+yum install "${buildDeps[*]}" -y
