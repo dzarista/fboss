@@ -235,7 +235,8 @@
               "deviceName": "fpga_info_iob",
               "csrOffset": "0x0000"
             }
-          ]
+          ],
+          "desiredDriver": "scd"
         },
         {
           "pmUnitScopedName": "SCD_FPGA",
