@@ -90,9 +90,7 @@ class PlatformConfig:
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
          "bspKmodsRpmVersion": "0.7.6-1",
-         "bspKmodsToReload": [],
-         "sharedKmodsToReload": [],
-         "upstreamKmodsToLoad": []
+         "requiredKmodsToLoad": [],
       }
 
    def getPmUnit( self, pmUnitName ):
@@ -160,9 +158,7 @@ class PlatformConfig:
       )
       jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings[ "bspKmodsRpmName" ]
       jsonDict[ "bspKmodsRpmVersion" ] = self.kmodsSettings[ "bspKmodsRpmVersion" ]
-      jsonDict[ "bspKmodsToReload" ] = self.kmodsSettings[ "bspKmodsToReload" ]
-      jsonDict[ "sharedKmodsToReload" ] = self.kmodsSettings[ "sharedKmodsToReload" ]
-      jsonDict[ "upstreamKmodsToLoad" ] = self.kmodsSettings[ "upstreamKmodsToLoad" ]
+      jsonDict[ "requiredKmodsToLoad" ] = self.kmodsSettings[ "requiredKmodsToLoad" ]
 
       jsonDump = json.dumps( jsonDict, indent=2 )
       output = reformatOneElementLists( jsonDump )

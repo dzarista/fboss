@@ -573,17 +573,7 @@ class Whistler( PlatformConfig ):
 
       self.addKmodsSettings(
          {
-            "bspKmodsToReload" : [
-               "scd-xcvr",
-               "scd-spi",
-               "scd-leds",
-               "scd-smbus",
-               "scd-info",
-               "dsf-fan-cpld",
-               "decker-cpld"
-            ],
-            "sharedKmodsToReload": [ "scd" ],
-            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ]
+            "requiredKmodsToLoad": [ "spidev", "i2c-i801", "scd" ]
          }
       )
 
