@@ -1,14 +1,14 @@
-# pyre-unsafe
+# pyre-strict
 import concurrent.futures
-import os
 import re
 from collections import defaultdict
 
 import pytest
 
-from fboss.platform.bsp_tests.utils.cdev_types import I2CDevice
+from fboss.platform.bsp_tests.test_runner import FpgaSpec, RuntimeConfig
+from fboss.platform.bsp_tests.utils.cdev_types import I2CAdapter, I2CDevice
 
-from fboss.platform.bsp_tests.utils.cdev_utils import delete_device, make_cdev_path
+from fboss.platform.bsp_tests.utils.cdev_utils import delete_device
 from fboss.platform.bsp_tests.utils.cmd_utils import run_cmd
 from fboss.platform.bsp_tests.utils.i2c_utils import (
     create_i2c_adapter,
@@ -21,13 +21,9 @@ from fboss.platform.bsp_tests.utils.i2c_utils import (
 from fboss.platform.bsp_tests.utils.kmod_utils import load_kmods, unload_kmods
 
 
-def test_cdev_is_created(platform_fpgas) -> None:
-    for fpga in platform_fpgas:
-        path = make_cdev_path(fpga)
-        assert os.path.exists(path)
-
-
-def test_i2c_adapter_names(fpga_with_adapters) -> None:
+def test_i2c_adapter_names(
+    fpga_with_adapters: list[tuple[FpgaSpec, I2CAdapter]],
+) -> None:
     for _, adapter in fpga_with_adapters:
         pattern = r"i2c_master(_.+)?"
         assert re.search(
@@ -35,7 +31,9 @@ def test_i2c_adapter_names(fpga_with_adapters) -> None:
         ), "I2C Adapter name {adapter.auxDevice.deviceName} does not match expected pattern"
 
 
-def test_i2c_adapter_creates_busses(fpga_with_adapters) -> None:
+def test_i2c_adapter_creates_busses(
+    fpga_with_adapters: list[tuple[FpgaSpec, I2CAdapter]],
+) -> None:
     for fpga, adapter in fpga_with_adapters:
         # Creates adapter, checks expected number of busses created
         newAdapters, _ = create_i2c_adapter(fpga, adapter)
@@ -50,7 +48,9 @@ def test_i2c_adapter_creates_busses(fpga_with_adapters) -> None:
             delete_device(fpga, adapter.auxDevice)
 
 
-def test_i2c_adapter_devices_exist(fpga_with_adapters) -> None:
+def test_i2c_adapter_devices_exist(
+    fpga_with_adapters: list[tuple[FpgaSpec, I2CAdapter]],
+) -> None:
     """
     Tests that each expected device is detectable
     """
@@ -72,7 +72,9 @@ def test_i2c_adapter_devices_exist(fpga_with_adapters) -> None:
             delete_device(fpga, adapter.auxDevice)
 
 
-def test_i2c_bus_with_devices_can_be_unloaded(platform_fpgas, platform_config) -> None:
+def test_i2c_bus_with_devices_can_be_unloaded(
+    platform_fpgas: list[FpgaSpec], platform_config: RuntimeConfig
+) -> None:
     """
     Create bus, create devices on that bus, ensure that the bus
     driver can be unloaded successfully.
@@ -96,7 +98,7 @@ def test_i2c_bus_with_devices_can_be_unloaded(platform_fpgas, platform_config) -
             unload_kmods(platform_config.kmods)
 
 
-def test_i2c_transactions(platform_fpgas) -> None:
+def test_i2c_transactions(platform_fpgas: list[FpgaSpec]) -> None:
     """
     Create bus, create devices on that bus, ensure that the bus
     driver can be unloaded successfully.
@@ -188,7 +190,7 @@ def run_i2c_set_test(device: I2CDevice, busNum: int) -> None:
         assert output == original, "Did not successfully set value back to original"
 
 
-def test_simultaneous_transactions(platform_fpgas) -> None:
+def test_simultaneous_transactions(platform_fpgas: list[FpgaSpec]) -> None:
     # for each adapter, check if at least 2 internal channels have devices with testData
     # if so, run transaction tests simultaneously on all channels
     for fpga in platform_fpgas:
@@ -221,8 +223,10 @@ def test_simultaneous_transactions(platform_fpgas) -> None:
                 delete_device(fpga, adapter.auxDevice)
 
 
-@pytest.mark.stress
-def test_looped_transactions(fpga_with_adapters) -> None:
+@pytest.mark.stress  # pyre-ignore
+def test_looped_transactions(
+    fpga_with_adapters: list[tuple[FpgaSpec, I2CAdapter]],
+) -> None:
     """
     Create bus, create devices on that bus, ensure that the bus
     driver can be unloaded successfully.

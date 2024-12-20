@@ -202,6 +202,18 @@ SaiSwitchManager::SaiSwitchManager(
       switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::MacAgingTime{
           platform->getDefaultMacAgingTime()});
     }
+    if (switchType == cfg::SwitchType::VOQ) {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
+      // We learnt of the need to set a non-default max switch id on J3 only
+      // later. And we incorporated it in create switch attributes.
+      // However, BRCM-SAI does not look at create switch attributes on
+      // warm boot. So, to cater to the systems which will only
+      // WB to this change, set the attribute post WB. It should
+      // be a no-op if already set.
+      switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::MaxSwitchId{
+          platform->getAsic()->getMaxSwitchId()});
+#endif
+    }
   } else {
     switch_ = std::make_unique<SaiSwitchObj>(
         std::monostate(),
@@ -677,8 +689,7 @@ void SaiSwitchManager::setArsProfile(
 
 void SaiSwitchManager::resetArsProfile() {
 #if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
-  if (FLAGS_flowletSwitchingEnable &&
-      platform_->getAsic()->isSupported(HwAsic::Feature::FLOWLET)) {
+  if (FLAGS_flowletSwitchingEnable) {
     switch_->setOptionalAttribute(
         SaiSwitchTraits::Attributes::ArsProfile{SAI_NULL_OBJECT_ID});
   }
