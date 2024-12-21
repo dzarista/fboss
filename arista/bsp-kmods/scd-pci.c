@@ -49,7 +49,6 @@
 #define BLACKCOMB_SCD3_PCI_SUBDEVICE_ID	0x0007
 #define SCD_BAR_REGS			0
 #define SCD_BAR_1			1
-#define SCD_REVISION_OFFSET 		0x100
 #define SCD_MAGIC			0xdeadbeef
 #define SCD_FPGA_REV_MASK		0xffff0000
 #define SCD_BOARD_REV_MASK		0xfff
@@ -331,8 +330,8 @@ static ssize_t regbit_sysfs_show(struct device *dev,
 
 	for (; entry->name != NULL; entry++) {
 		if (strcmp(entry->name, attr->name) == 0) {
-			ret = scd_read_regbit(dev, entry->reg_offset, entry->bit_len, 
-								  entry->bit_offset, &data);
+			ret = scd_read_regbit(dev, entry->reg_offset,
+				entry->bit_len, entry->bit_offset, &data);
 			if (ret)
 				continue;
 
@@ -387,36 +386,12 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	return -ENOENT;
 }
 
-static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf) {
-	int ret;
-	u32 major_rev, minor_rev;
-
-	ret = scd_read_regbit(dev, FPGA_VER_REG, FPGA_VER_BITLEN, FPGA_VER_OFFSET, 
-						  &major_rev);
-	if (ret)
-		return ret;
-	ret = scd_read_regbit(dev, FPGA_SUB_VER_REG, FPGA_SUB_VER_NUM_BITS, 
-						  FPGA_SUB_VER_OFFSET, &minor_rev);
-	if (ret)
-		return ret;
-	
-	return sprintf(buf, "%u.%u\n", major_rev, minor_rev);
-}
-
-DEVICE_ATTR(fw_ver, 0444, fw_ver_show, NULL);
-
 /*
  * Below macros define a set of sysfs files, and each file is mapped to
  * a specific bit field in SCD/CPU_CPLD registers.
  */
 #define FMODE_RO	(S_IRUGO)
 #define FMODE_RW	(S_IRUGO | S_IWUSR | S_IWGRP)
-
-#define REGBIT_COMMON_FILES								\
-	REGBIT_FILE(fpga_sub_ver, FPGA_SUB_VER_REG, FPGA_SUB_VER_OFFSET, \
-				FPGA_SUB_VER_NUM_BITS, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(fpga_ver, FPGA_VER_REG, FPGA_VER_OFFSET, FPGA_VER_BITLEN, \
-				FMODE_RO, regbit_sysfs_show, NULL)
 
 #define DARWIN_REGBIT_FPGA_FILES							\
 	REGBIT_FILE(sat0_cpld_sub_ver, 0x400, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
@@ -530,8 +505,6 @@ DEVICE_ATTR(fw_ver, 0444, fw_ver_show, NULL);
 	},
 
 struct regbit_sysfs_entry scd_regbit_sysfs[] = {
-	REGBIT_COMMON_FILES
-
 	/* Always the last entry */
 	{
 		.name = NULL,
@@ -539,7 +512,6 @@ struct regbit_sysfs_entry scd_regbit_sysfs[] = {
 };
 
 struct regbit_sysfs_entry darwin_scd_regbit_sysfs[] = {
-	REGBIT_COMMON_FILES
 	DARWIN_REGBIT_FPGA_FILES
 
 	/* Always the last entry */
@@ -549,7 +521,6 @@ struct regbit_sysfs_entry darwin_scd_regbit_sysfs[] = {
 };
 
 struct regbit_sysfs_entry fairywren_scd_regbit_sysfs[] = {
-	REGBIT_COMMON_FILES
 	FAIRYWREN_REGBIT_FPGA_FILES
 
 	/* Always the last entry */
@@ -559,7 +530,6 @@ struct regbit_sysfs_entry fairywren_scd_regbit_sysfs[] = {
 };
 
 struct regbit_sysfs_entry viper_scd_regbit_sysfs[] = {
-	REGBIT_COMMON_FILES
 	VIPER_REGBIT_FPGA_FILES
 
 	/* Always the last entry */
@@ -569,7 +539,6 @@ struct regbit_sysfs_entry viper_scd_regbit_sysfs[] = {
 };
 
 struct regbit_sysfs_entry blackcomb_scd0_regbit_sysfs[] = {
-	REGBIT_COMMON_FILES
 	BLACKCOMB0_REGBIT_FPGA_FILES
 
 	/* Always the last entry */
@@ -581,8 +550,6 @@ struct regbit_sysfs_entry blackcomb_scd0_regbit_sysfs[] = {
 /* Blackcomb SCDs 1-3 are the same */
 #define BLACKCOMB_REGBIT_SYSFS(_id)					\
 struct regbit_sysfs_entry blackcomb_scd##_id##_regbit_sysfs[] = {	\
-	REGBIT_COMMON_FILES						\
-									\
 	/* Always the last entry */					\
 	{								\
 		.name = NULL,						\
@@ -595,7 +562,6 @@ BLACKCOMB_REGBIT_SYSFS(3)
 
 #define REGBIT_FILE(_name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
 static DEVICE_ATTR(_name, _mode, _show, _store);
-REGBIT_COMMON_FILES
 DARWIN_REGBIT_FPGA_FILES
 FAIRYWREN_REGBIT_FPGA_FILES
 VIPER_REGBIT_FPGA_FILES
@@ -606,8 +572,6 @@ BLACKCOMB0_REGBIT_FPGA_FILES
 	&dev_attr_##_name.attr,
 
 static struct attribute *scd_attrs[] = {
-	REGBIT_COMMON_FILES
-	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -616,9 +580,7 @@ static struct attribute_group scd_attr_group = {
 };
 
 static struct attribute *darwin_scd_attrs[] = {
-	REGBIT_COMMON_FILES
 	DARWIN_REGBIT_FPGA_FILES
-	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -627,9 +589,7 @@ static struct attribute_group darwin_scd_attr_group = {
 };
 
 static struct attribute *fairywren_scd_attrs[] = {
-	REGBIT_COMMON_FILES
 	FAIRYWREN_REGBIT_FPGA_FILES
-	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -638,9 +598,7 @@ static struct attribute_group fairywren_scd_attr_group = {
 };
 
 static struct attribute *viper_scd_attrs[] = {
-	REGBIT_COMMON_FILES
 	VIPER_REGBIT_FPGA_FILES
-	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -649,9 +607,7 @@ static struct attribute_group viper_scd_attr_group = {
 };
 
 static struct attribute *blackcomb_scd0_attrs[] = {
-	REGBIT_COMMON_FILES
 	BLACKCOMB0_REGBIT_FPGA_FILES
-	&dev_attr_fw_ver.attr,
 	NULL,
 };
 
@@ -662,8 +618,6 @@ static struct attribute_group blackcomb_scd0_attr_group = {
 /* Blackcomb SCDs 1-3 are the same */
 #define BLACKCOMB_SCD_ATTRS(_id)					\
 static struct attribute *blackcomb_scd##_id##_attrs[] = {		\
-	REGBIT_COMMON_FILES						\
-	&dev_attr_fw_ver.attr,					\
 	NULL,								\
 };									\
 									\
@@ -797,12 +751,10 @@ static void scd_remove(struct pci_dev *pdev)
 static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct scd_dev_priv *priv;
-	u32 fpga_rev, board_rev;
 	int err;
 	const struct scd_driver_cb *scd_cb;
 	struct attribute_group *sysfs_attr_group = NULL;
 	struct regbit_sysfs_entry *regbit_sysfs_table = NULL;
-	struct scd_reg *rev_reg;
 
 	if (pci_match_id(scd_lpc_table, pdev)) {
 		dev_info(&pdev->dev, "apply scd_lpc settings\n");
@@ -877,12 +829,14 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto fail;
 	}
 
-	err = sysfs_create_group(&pdev->dev.kobj, priv->sysfs_attr_group);
-	if (err) {
-		dev_err(&pdev->dev, "sysfs_create_group() error %d\n", err);
-		goto fail;
+	if (priv->sysfs_attr_group->attrs[0]) {
+		err = sysfs_create_group(&pdev->dev.kobj, priv->sysfs_attr_group);
+		if (err) {
+			dev_err(&pdev->dev, "sysfs_create_group() error %d\n", err);
+			goto fail;
+		}
+		priv->sysfs_initialized = 1;
 	}
-	priv->sysfs_initialized = 1;
 
 	err = fbiob_auxbus_init(&priv->aux_bus, &pdev->dev);
 	if (err) {
@@ -899,24 +853,12 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	priv->cdev_initialized = 1;
 
-	rev_reg = scd_reg_at_offset(priv, SCD_REVISION_OFFSET);
-	if (!rev_reg) {
-		dev_err(&pdev->dev, "failed to map revision register\n");
-		goto fail;
-	}
-	priv->scd_revision = scd_read_register(priv->pdev, rev_reg);
-	fpga_rev = (priv->scd_revision & 0xffff0000) >> 16;
-	board_rev = priv->scd_revision & 0x00000fff;
-
 	if (priv->is_reconfig &&
 	    (priv->scd_revision == RECONFIG_STATE_BAR_VALUE))
 		dev_info(&pdev->dev,
 			 "scd detected: FPGA in reconfig state\n");
 	else
-		dev_info(
-			&pdev->dev,
-			"scd detected: FPGA revision %d, board revision %d\n",
-			fpga_rev, board_rev);
+		dev_info(&pdev->dev, "scd initialized successfully\n");
 
 	return 0;
 
