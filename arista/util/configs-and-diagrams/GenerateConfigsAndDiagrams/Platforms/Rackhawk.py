@@ -76,7 +76,7 @@ class RackhawkScd( PciDeviceConfig ):
                            ) ]
                         )
       ] )
-      self.addInfoRomConfigs()
+      self.addInfoRomConfigs( "0x100" )
 
    def addI2cAdapters( self ):
       baseAccelOffset = 0x8000
@@ -125,7 +125,7 @@ class RackhawkSwitch( PmUnitConfig ):
 
       # CPU card devices.
       self.cpuCpld = RookCpld()
-      self.cpuCpld.addInfoRomConfigs()
+      self.cpuCpld.addInfoRomConfigs( "0x100" )
       self.pciDevices.append( self.cpuCpld )
       self.addEmbeddedSensors()
       self.addCpuCardTempSensors()

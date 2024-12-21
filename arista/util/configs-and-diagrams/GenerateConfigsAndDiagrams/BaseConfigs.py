@@ -321,19 +321,6 @@ class PmUnitConfig:
       for pciConfig in self.pciDeviceConfigs:
          symlinkDict.update( pciConfig.generateSymlinkDevicePath() )
       return symlinkDict
-   
-   # def generateInfoRomSymlinks( self ):
-   #    symlinkDict = OrderedDict()
-   #    for pciConfig in self.pciDeviceConfigs:
-   #       for infoRomConfig in pciConfig.infoRomConfigs:
-   #          platform = self.parentConfig.parentConfig.platformName
-   #          symlinkDeviceName = (
-   #             self.symlinkDeviceName or f"{ platform.upper() }_{ self.pmUnitScopedName }"
-   #          )
-   #          symlinkDict[ f"/run/devmap/fpgas/{ pciConfig.pmUnitScopedName }" ] = (
-   #             constructDevicePaths( infoRomConfig )[ 0 ]
-   #          )
-   #    return symlinkDict
 
    def generateSMBIdPromSymlinks( self ):
       platform = self.parentConfig.platformName
@@ -885,8 +872,8 @@ class PciDeviceConfig:
          config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
    
-   def addInfoRomConfigs( self ):
-      infoRomConfig = InfoRomConfigs( self.pmUnitScopedName )
+   def addInfoRomConfigs( self, offset ):
+      infoRomConfig = InfoRomConfigs( self.pmUnitScopedName, offset )
       infoRomConfig.addParentConfigPointer( self )
       self.infoRomConfigs.extend( [ infoRomConfig ] )
 
@@ -1197,14 +1184,15 @@ class LedConfig:
 
 
 class InfoRomConfigs:
-   def __init__( self, fpgaPrefix ):
+   def __init__( self, fpgaPrefix, offset ):
       self.pmUnitScopedName = f'{fpgaPrefix}_INFO_ROM'
+      self.offset = offset
 
    def asJson( self ):
       return {
          "pmUnitScopedName": self.pmUnitScopedName,
          "deviceName": "fpga_info_iob",
-         "csrOffset": "0x0000"
+         "csrOffset": self.offset
       }
 
    def addParentConfigPointer( self, parentConfig ):
@@ -1409,7 +1397,7 @@ class SCMFairywren( SCMUnit ):
 
       self.scmFpga = PciDeviceConfig( "SCM_FPGA", "0x3475", "0x0001", "0x3475",
                                       "0x0008", symlinkDeviceName="MERU_SCM_CPLD" )
-      self.scmFpga.addInfoRomConfigs()
+      self.scmFpga.addInfoRomConfigs( "0x100" )
       self.addPciDeviceConfigs( [ self.scmFpga ] )
 
       self.scmFpga.addI2cAdapterConfigs( 2, "SCM_I2C_MASTER{}", "0x8000" )

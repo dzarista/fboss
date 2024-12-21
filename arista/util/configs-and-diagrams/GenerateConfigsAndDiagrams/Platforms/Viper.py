@@ -276,7 +276,7 @@ class ViperSMB( SMBUnit ):
                                     portType="qsfp", xcvrBaseOffset="0xA290",
                                     ledBaseOffset="0x65C0", ledsPerXcvr=4 )
 
-      smbFpga.addInfoRomConfigs()
+      smbFpga.addInfoRomConfigs( "0x100" )
 
       smbFpga.addLedCtrlConfigs( [
          LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
