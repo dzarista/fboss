@@ -29,7 +29,7 @@
 #include "scd-reload-cause-pci.h"
 
 #define RTC_UPDATE_INTERVAL			(10U)
-#define MILLENIUM_UNIX_TIMESTAMP 		(946684800U)
+#define MILLENIUM_UNIX_TIMESTAMP		(946684800U)
 
 /* Macros for reload cause register addresses along with their indices in the memory map database */
 #define LATCHED_RELOAD_CAUSE_REG_OFFSET		(0x4f80)
@@ -49,7 +49,7 @@
 
 #define DEFINE_REG_MAP(reg_offset)				\
 {								\
-	.offset = reg_offset 					\
+	.offset = reg_offset					\
 }
 
 struct mapped_register reload_cause_registers[] = {
@@ -95,16 +95,16 @@ struct encoded_reload_cause fairywren_scd_reload_causes[] = {
 	DEFINE_RELOAD_CAUSE(0x3E, "CPU DRAM Power OK")
 };
 
-#define FAIRYWREN_SCD_FAULT_COUNT \
-	(sizeof fairywren_scd_reload_causes / sizeof fairywren_scd_reload_causes[0])
+#define FAIRYWREN_SCD_FAULT_COUNT			ARRAY_SIZE(fairywren_scd_reload_causes)
 #define FAIRYWREN_SCD_RELOAD_CAUSE_CONTROL_CLEAR_BITS	(0x1)
 
-static bool periodic_task_started = false;
+static bool periodic_task_started;
 static DEFINE_MUTEX(periodic_task_mutex);
 
 static void workqueue_func(struct work_struct *work);
 static DECLARE_DELAYED_WORK(scd_delayed_work, workqueue_func);
-static void workqueue_func(struct work_struct *work) {
+static void workqueue_func(struct work_struct *work)
+{
 	time64_t cur_time;
 	u8 rtc_byte;
 	int op_status;
@@ -117,37 +117,39 @@ static void workqueue_func(struct work_struct *work) {
 	iowrite32((u32)cur_time, reload_cause_registers[RTC_SEC_REG_MAP_INDEX].mem);
 }
 
-void start_reload_cause_periodic_task(void) {
+void start_reload_cause_periodic_task(void)
+{
 	bool task_running;
 
 	mutex_lock(&periodic_task_mutex);
 	task_running = periodic_task_started;
 	periodic_task_started = true;
 	mutex_unlock(&periodic_task_mutex);
-	if (task_running == false) {
+	if (task_running == false)
 		schedule_delayed_work(&scd_delayed_work, RTC_UPDATE_INTERVAL*HZ);
-	}
 }
 
-void stop_reload_cause_periodic_task(void) {
+void stop_reload_cause_periodic_task(void)
+{
 	bool task_running;
 
 	mutex_lock(&periodic_task_mutex);
 	task_running = periodic_task_started;
 	periodic_task_started = false;
 	mutex_unlock(&periodic_task_mutex);
-	if (task_running == true) {
+	if (task_running == true)
 		cancel_delayed_work_sync(&scd_delayed_work);
-	}
 	mutex_destroy(&periodic_task_mutex);
 }
 
-void get_reload_cause_register_map(struct mapped_register **reg_map, size_t *reg_count) {
+void get_reload_cause_register_map(struct mapped_register **reg_map, size_t *reg_count)
+{
 	*reg_map = reload_cause_registers;
 	*reg_count = sizeof(reload_cause_registers) / sizeof(struct mapped_register);
 }
 
-u32 get_reload_cause_scratchpad_reg_offset(void) {
+u32 get_reload_cause_scratchpad_reg_offset(void)
+{
 	return SCRATCHPAD_REG_OFFSET;
 }
 
@@ -165,9 +167,8 @@ int process_reload_cause(struct device *dev)
 	reg_val = ioread32(reload_cause_registers[LATCHED_RELOAD_CAUSE_REG_MAP_INDEX].mem);
 	fault_cause = (u8)reg_val;
 	for (fault_loop = 0; fault_loop < FAIRYWREN_SCD_FAULT_COUNT; fault_loop++) {
-		if (fairywren_scd_reload_causes[fault_loop].id == fault_cause) {
+		if (fairywren_scd_reload_causes[fault_loop].id == fault_cause)
 			break;
-		}
 	}
 	if (fault_loop == FAIRYWREN_SCD_FAULT_COUNT) {
 		dev_info(dev, "scd fault not found in list of reload causes\n");
