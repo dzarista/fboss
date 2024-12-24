@@ -139889,17 +139889,17 @@ constexpr auto kJsonDualStageRdsw3q2qPlatformMappingStr = R"(
     "32769": {
         "mapping": {
           "id": 32769,
-          "name": "rcy1/1/441",
+          "name": "evt1/1/501",
           "controllingPort": 32769,
           "pins": [
             {
               "a": {
-                "chip": "NPU-J3_RCY-slot1/chip1/core441",
+                "chip": "NPU-J3_EVT-slot1/chip1/core501",
                 "lane": 0
               }
             }
           ],
-          "portType": 3,
+          "portType": 5,
           "attachedCoreId": 1,
           "attachedCorePortIndex": 18,
           "virtualDeviceId": 0,
@@ -139911,7 +139911,7 @@ constexpr auto kJsonDualStageRdsw3q2qPlatformMappingStr = R"(
                 "iphy": [
                   {
                     "id": {
-                      "chip": "NPU-J3_RCY-slot1/chip1/core441",
+                      "chip": "NPU-J3_EVT-slot1/chip1/core501",
                       "lane": 0
                     }
                   }
@@ -139934,8 +139934,8 @@ constexpr auto kJsonDualStageRdsw3q2qPlatformMappingStr = R"(
             }
           ],
           "portType": 3,
-          "attachedCoreId": 0,
-          "attachedCorePortIndex": 16,
+          "attachedCoreId": 1,
+          "attachedCorePortIndex": 20,
           "virtualDeviceId": 0,
           "scope": 0
         },
@@ -139968,7 +139968,7 @@ constexpr auto kJsonDualStageRdsw3q2qPlatformMappingStr = R"(
             }
           ],
           "portType": 3,
-          "attachedCoreId": 2,
+          "attachedCoreId": 0,
           "attachedCorePortIndex": 16,
           "virtualDeviceId": 0,
           "scope": 0
@@ -139991,19 +139991,19 @@ constexpr auto kJsonDualStageRdsw3q2qPlatformMappingStr = R"(
     "32772": {
         "mapping": {
           "id": 32772,
-          "name": "evt1/1/504",
+          "name": "rcy1/1/444",
           "controllingPort": 32772,
           "pins": [
             {
               "a": {
-                "chip": "NPU-J3_EVT-slot1/chip1/core504",
+                "chip": "NPU-J3_RCY-slot1/chip1/core444",
                 "lane": 0
               }
             }
           ],
-          "portType": 5,
+          "portType": 3,
           "attachedCoreId": 2,
-          "attachedCorePortIndex": 18,
+          "attachedCorePortIndex": 16,
           "virtualDeviceId": 0,
           "scope": 0
         },
@@ -140013,7 +140013,7 @@ constexpr auto kJsonDualStageRdsw3q2qPlatformMappingStr = R"(
                 "iphy": [
                   {
                     "id": {
-                      "chip": "NPU-J3_EVT-slot1/chip1/core504",
+                      "chip": "NPU-J3_RCY-slot1/chip1/core444",
                       "lane": 0
                     }
                   }
@@ -140284,9 +140284,9 @@ constexpr auto kJsonDualStageRdsw3q2qPlatformMappingStr = R"(
       "physicalID": 447
     },
     {
-      "name": "NPU-J3_EVT-slot1/chip1/core504",
+      "name": "NPU-J3_EVT-slot1/chip1/core501",
       "type": 1,
-      "physicalID": 504
+      "physicalID": 501
     },
     {
       "name": "NPU-J3_EVT-slot1/chip1/core506",
@@ -165114,17 +165114,17 @@ constexpr auto kJsonDualStageEdsw3q2qPlatformMappingStr = R"(
     "32769": {
         "mapping": {
           "id": 32769,
-          "name": "rcy1/1/441",
+          "name": "evt1/1/501",
           "controllingPort": 32769,
           "pins": [
             {
               "a": {
-                "chip": "NPU-J3_RCY-slot1/chip1/core441",
+                "chip": "NPU-J3_EVT-slot1/chip1/core501",
                 "lane": 0
               }
             }
           ],
-          "portType": 3,
+          "portType": 5,
           "attachedCoreId": 1,
           "attachedCorePortIndex": 18,
           "virtualDeviceId": 0,
@@ -165136,7 +165136,7 @@ constexpr auto kJsonDualStageEdsw3q2qPlatformMappingStr = R"(
                 "iphy": [
                   {
                     "id": {
-                      "chip": "NPU-J3_RCY-slot1/chip1/core441",
+                      "chip": "NPU-J3_EVT-slot1/chip1/core501",
                       "lane": 0
                     }
                   }
@@ -165159,8 +165159,8 @@ constexpr auto kJsonDualStageEdsw3q2qPlatformMappingStr = R"(
             }
           ],
           "portType": 3,
-          "attachedCoreId": 0,
-          "attachedCorePortIndex": 16,
+          "attachedCoreId": 1,
+          "attachedCorePortIndex": 20,
           "virtualDeviceId": 0,
           "scope": 0
         },
@@ -165193,7 +165193,7 @@ constexpr auto kJsonDualStageEdsw3q2qPlatformMappingStr = R"(
             }
           ],
           "portType": 3,
-          "attachedCoreId": 2,
+          "attachedCoreId": 0,
           "attachedCorePortIndex": 16,
           "virtualDeviceId": 0,
           "scope": 0
@@ -165216,19 +165216,19 @@ constexpr auto kJsonDualStageEdsw3q2qPlatformMappingStr = R"(
     "32772": {
         "mapping": {
           "id": 32772,
-          "name": "evt1/1/504",
+          "name": "rcy1/1/444",
           "controllingPort": 32772,
           "pins": [
             {
               "a": {
-                "chip": "NPU-J3_EVT-slot1/chip1/core504",
+                "chip": "NPU-J3_RCY-slot1/chip1/core444",
                 "lane": 0
               }
             }
           ],
-          "portType": 5,
+          "portType": 3,
           "attachedCoreId": 2,
-          "attachedCorePortIndex": 18,
+          "attachedCorePortIndex": 16,
           "virtualDeviceId": 0,
           "scope": 0
         },
@@ -165238,7 +165238,7 @@ constexpr auto kJsonDualStageEdsw3q2qPlatformMappingStr = R"(
                 "iphy": [
                   {
                     "id": {
-                      "chip": "NPU-J3_EVT-slot1/chip1/core504",
+                      "chip": "NPU-J3_RCY-slot1/chip1/core444",
                       "lane": 0
                     }
                   }
@@ -165509,9 +165509,9 @@ constexpr auto kJsonDualStageEdsw3q2qPlatformMappingStr = R"(
       "physicalID": 447
     },
     {
-      "name": "NPU-J3_EVT-slot1/chip1/core504",
+      "name": "NPU-J3_EVT-slot1/chip1/core501",
       "type": 1,
-      "physicalID": 504
+      "physicalID": 501
     },
     {
       "name": "NPU-J3_EVT-slot1/chip1/core506",

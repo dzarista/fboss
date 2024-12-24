@@ -271,7 +271,7 @@ PortSaiId SaiPortManager::addPortImpl(const std::shared_ptr<Port>& swPort) {
   addSamplePacket(swPort);
   addNode(swPort);
   addPfc(swPort);
-  programPfcBuffers(swPort);
+  changePfcBuffers(nullptr, swPort);
 
   // set platform port's speed
   auto platformPort = platform_->getPort(swPort->getID());
@@ -355,7 +355,7 @@ void SaiPortManager::changePortImpl(
   changePfc(oldPort, newPort);
   changeRxLaneSquelch(oldPort, newPort);
   changeTxEnable(oldPort, newPort);
-  programPfcBuffers(newPort);
+  changePfcBuffers(oldPort, newPort);
 
   if (newPort->isEnabled()) {
     if (!oldPort->isEnabled()) {
@@ -746,6 +746,12 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         std::nullopt, // ShelEnable
     };
   }
+  std::optional<SaiPortTraits::Attributes::PortVlanId> vlanIdAttr{vlanId};
+  if (vlanId == 0) {
+    // vlan ID with value 0 is invalid
+    vlanIdAttr.reset();
+  }
+
   return SaiPortTraits::CreateAttributes{
 #if defined(BRCM_SAI_SDK_DNX)
       getPortTypeFromCfg(swPort->getPortType()),
@@ -768,7 +774,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
 #endif
       mediaType,
       globalFlowControlMode,
-      vlanId,
+      vlanIdAttr,
       mtu,
       std::nullopt,
       std::nullopt,

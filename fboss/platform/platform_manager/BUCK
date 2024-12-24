@@ -9,6 +9,7 @@ thrift_library(
     languages = [
         "cpp2",
         "python",
+        "py3",
     ],
     thrift_cpp2_options = ["json"],
     thrift_srcs = [
@@ -243,6 +244,7 @@ cpp_binary(
         "//fb303:service_data",
         "//fboss/platform/helpers:init",
     ],
+    external_deps = [("systemd", None, "systemd")],
 )
 
 cpp_library(
