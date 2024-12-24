@@ -19,9 +19,7 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
      */
     case HwAsic::Feature::SPAN:
     case HwAsic::Feature::ERSPANv4:
-    case HwAsic::Feature::SFLOWv4:
     case HwAsic::Feature::ERSPANv6:
-    case HwAsic::Feature::SFLOWv6:
     case HwAsic::Feature::ECN:
     case HwAsic::Feature::QOS_MAP_GLOBAL:
     case HwAsic::Feature::SMAC_EQUALS_DMAC_CHECK_ENABLED:
@@ -29,7 +27,6 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::SAI_WEIGHTED_NEXTHOPGROUP_MEMBER:
     case HwAsic::Feature::BUFFER_POOL:
     case HwAsic::Feature::MIRROR_PACKET_TRUNCATION:
-    case HwAsic::Feature::SFLOW_SAMPLING:
     case HwAsic::Feature::SAI_ECN_WRED:
     case HwAsic::Feature::MAC_AGING:
     case HwAsic::Feature::TELEMETRY_AND_MONITORING:
@@ -75,9 +72,10 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::RESOURCE_USAGE_STATS:
     case HwAsic::Feature::SAI_TTL0_PACKET_FORWARD_ENABLE:
     case HwAsic::Feature::L3_INTF_MTU:
-    case HwAsic::Feature::PORT_MTU_ERROR_TRAP:
     case HwAsic::Feature::EGRESS_ACL_TABLE:
+    case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
       return true;
+    case HwAsic::Feature::PORT_MTU_ERROR_TRAP:
     case HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW:
     case HwAsic::Feature::SAI_ECMP_HASH_ALGORITHM:
     case HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY:
@@ -171,7 +169,6 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::FLOWLET_PORT_ATTRIBUTES:
     case HwAsic::Feature::P4_WARMBOOT:
     case HwAsic::Feature::SAI_EAPOL_TRAP:
-    case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::CREDIT_WATCHDOG:
     case HwAsic::Feature::ECMP_DLB_OFFSET:
     case HwAsic::Feature::SAI_FEC_CORRECTED_BITS:
@@ -198,6 +195,10 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::INGRESS_SRAM_MIN_BUFFER_WATERMARK:
     case HwAsic::Feature::FDR_FIFO_WATERMARK:
     case HwAsic::Feature::EGRESS_CELL_ERROR_STATS:
+    case HwAsic::Feature::CPU_QUEUE_WATERMARK_STATS:
+    case HwAsic::Feature::SFLOWv4:
+    case HwAsic::Feature::SFLOWv6:
+    case HwAsic::Feature::SFLOW_SAMPLING:
       return false;
   }
   return false;
@@ -296,7 +297,8 @@ uint32_t ChenabAsic::getMaxLabelStackDepth() const {
   return 3;
 }
 uint64_t ChenabAsic::getMMUSizeBytes() const {
-  return 420000; // return 108 * 1024 * 1024;
+  // Egress buffer pool size for Chenab Asics is 150MB
+  return 150 * 1024 * 1024;
 }
 uint64_t ChenabAsic::getSramSizeBytes() const {
   // No HBM!
@@ -361,6 +363,9 @@ uint32_t ChenabAsic::getStaticQueueLimitBytes() const {
 }
 uint32_t ChenabAsic::getNumMemoryBuffers() const {
   return 1;
+}
+uint16_t ChenabAsic::getGreProtocol() const {
+  return 0x8949;
 }
 int ChenabAsic::getMidPriCpuQueueId() const {
   return kDefaultMidPriCpuQueueId;

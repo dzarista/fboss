@@ -200,6 +200,7 @@ class HwAsic {
     INGRESS_SRAM_MIN_BUFFER_WATERMARK,
     FDR_FIFO_WATERMARK,
     EGRESS_CELL_ERROR_STATS,
+    CPU_QUEUE_WATERMARK_STATS,
   };
 
   enum class AsicMode {
@@ -338,6 +339,17 @@ class HwAsic {
     return std::nullopt;
   }
 
+  //  SAI implementaion doen not support attribute
+  //  SAI_SWITCH_ATTR_L3_NEIGHBOR_TABLE_SIZE yet, so decided to add these
+  //  functions to return max neighbot table size
+  virtual std::optional<uint32_t> getMaxNdpTableSize() const {
+    return std::nullopt;
+  }
+
+  virtual std::optional<uint32_t> getMaxArpTableSize() const {
+    return std::nullopt;
+  }
+
   virtual bool scalingFactorBasedDynamicThresholdSupported() const = 0;
 
   virtual int getBufferDynThreshFromScalingFactor(
@@ -426,6 +438,11 @@ class HwAsic {
   }
   std::optional<int32_t> getInbandPortId() const {
     return inbandPortId_;
+  }
+  virtual uint32_t getMaxSwitchId() const;
+
+  virtual uint16_t getGreProtocol() const {
+    return 0x88be;
   }
 
  protected:

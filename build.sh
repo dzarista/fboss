@@ -128,6 +128,7 @@ if [ "$KERNEL" == "5.19" ] || [ "$KERNEL" == "6.4" ]; then
    make -C $SCRATCH_DIR/installed/$KERNEL_SRC M=$FBOSS_REPO/arista/bsp-kmods modules
    mkdir -p $SCRATCH_DIR/bsp-kmods
    find $FBOSS_REPO/arista/bsp-kmods -type f -name "*.ko" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
+   find $FBOSS_REPO/arista/bsp-kmods -type f -name "kmods.json" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
 fi
 
 # Building showtech dependencies

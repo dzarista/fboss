@@ -515,10 +515,10 @@ class WhistlerSMB( SMBUnit ):
          numConfigs=32, basePortNumber=69, portNumberSkipStep=4
       )
 
-      smbFpga0.addInfoRomConfigs()
-      smbFpga1.addInfoRomConfigs()
-      smbFpga2.addInfoRomConfigs()
-      smbFpga3.addInfoRomConfigs()
+      smbFpga0.addInfoRomConfigs( "0x100" )
+      smbFpga1.addInfoRomConfigs( "0x100" )
+      smbFpga2.addInfoRomConfigs( "0x100" )
+      smbFpga3.addInfoRomConfigs( "0x100" )
 
       smbFpga2.addLedCtrlConfigs( [
          LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
@@ -573,17 +573,7 @@ class Whistler( PlatformConfig ):
 
       self.addKmodsSettings(
          {
-            "bspKmodsToReload" : [
-               "scd-xcvr",
-               "scd-spi",
-               "scd-leds",
-               "scd-smbus",
-               "scd-info",
-               "dsf-fan-cpld",
-               "decker-cpld"
-            ],
-            "sharedKmodsToReload": [ "scd" ],
-            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ]
+            "requiredKmodsToLoad": [ "spidev", "i2c-i801", "scd" ]
          }
       )
 

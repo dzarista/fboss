@@ -202,6 +202,18 @@ SaiSwitchManager::SaiSwitchManager(
       switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::MacAgingTime{
           platform->getDefaultMacAgingTime()});
     }
+    if (switchType == cfg::SwitchType::VOQ) {
+#if defined(BRCM_SAI_SDK_DNX) && defined(BRCM_SAI_SDK_GTE_12_0)
+      // We learnt of the need to set a non-default max switch id on J3 only
+      // later. And we incorporated it in create switch attributes.
+      // However, BRCM-SAI does not look at create switch attributes on
+      // warm boot. So, to cater to the systems which will only
+      // WB to this change, set the attribute post WB. It should
+      // be a no-op if already set.
+      switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::MaxSwitchId{
+          platform->getAsic()->getMaxSwitchId()});
+#endif
+    }
   } else {
     switch_ = std::make_unique<SaiSwitchObj>(
         std::monostate(),
@@ -677,8 +689,7 @@ void SaiSwitchManager::setArsProfile(
 
 void SaiSwitchManager::resetArsProfile() {
 #if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
-  if (FLAGS_flowletSwitchingEnable &&
-      platform_->getAsic()->isSupported(HwAsic::Feature::FLOWLET)) {
+  if (FLAGS_flowletSwitchingEnable) {
     switch_->setOptionalAttribute(
         SaiSwitchTraits::Attributes::ArsProfile{SAI_NULL_OBJECT_ID});
   }
@@ -1099,7 +1110,7 @@ void SaiSwitchManager::setLinkFlowControlCreditTh(
 }
 
 void SaiSwitchManager::setVoqDramBoundTh(uint32_t dramBoundThreshold) {
-#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   // There are 3 different types of rate classes available and
   // dramBound, upper and lower limits are applied to each of
   // those. However, in our case, we just need to set the same
@@ -1112,12 +1123,71 @@ void SaiSwitchManager::setVoqDramBoundTh(uint32_t dramBoundThreshold) {
 
 void SaiSwitchManager::setConditionalEntropyRehashPeriodUS(
     int conditionalEntropyRehashPeriodUS) {
-  // TODO(zecheng): Update flag when new 12.0 release has the attribute
-#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   switch_->setOptionalAttribute(
       SaiSwitchTraits::Attributes::CondEntropyRehashPeriodUS{
-          conditionalEntropyRehashPeriodUS});
+          static_cast<uint32_t>(conditionalEntropyRehashPeriodUS)});
 #endif
 }
 
+void SaiSwitchManager::setShelConfig(
+    const std::optional<cfg::SelfHealingEcmpLagConfig>& shelConfig) {
+  if (shelConfig.has_value()) {
+    switch_->setOptionalAttribute(
+        SaiSwitchTraits::Attributes::ShelSrcMac{platform_->getLocalMac()});
+    switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::ShelSrcIp{
+        folly::IPAddressV6(*shelConfig.value().shelSrcIp())});
+    switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::ShelDstIp{
+        folly::IPAddressV6(*shelConfig.value().shelDstIp())});
+    switch_->setOptionalAttribute(
+        SaiSwitchTraits::Attributes::ShelPeriodicInterval{static_cast<uint32_t>(
+            *shelConfig.value().shelPeriodicIntervalMS())});
+  } else {
+    switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::ShelSrcMac{});
+    switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::ShelSrcIp{});
+    switch_->setOptionalAttribute(SaiSwitchTraits::Attributes::ShelDstIp{});
+    switch_->setOptionalAttribute(
+        SaiSwitchTraits::Attributes::ShelPeriodicInterval{0});
+  }
+}
+
+void SaiSwitchManager::setLocalVoqMaxExpectedLatency(
+    int localVoqMaxExpectedLatencyNsec) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMinLocalNs{
+          localVoqMaxExpectedLatencyNsec});
+#endif
+}
+
+void SaiSwitchManager::setRemoteL1VoqMaxExpectedLatency(
+    int remoteL1VoqMaxExpectedLatencyNsec) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMinLevel1Ns{
+          remoteL1VoqMaxExpectedLatencyNsec});
+#endif
+}
+
+void SaiSwitchManager::setRemoteL2VoqMaxExpectedLatency(
+    int remoteL2VoqMaxExpectedLatencyNsec) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMinLevel2Ns{
+          remoteL2VoqMaxExpectedLatencyNsec});
+#endif
+}
+
+void SaiSwitchManager::setVoqOutOfBoundsLatency(int voqOutOfBoundsLatency) {
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMaxLocalNs{voqOutOfBoundsLatency});
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMaxLevel1Ns{
+          voqOutOfBoundsLatency});
+  switch_->setOptionalAttribute(
+      SaiSwitchTraits::Attributes::VoqLatencyMaxLevel2Ns{
+          voqOutOfBoundsLatency});
+#endif
+}
 } // namespace facebook::fboss

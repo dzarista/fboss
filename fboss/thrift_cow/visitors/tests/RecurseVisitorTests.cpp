@@ -42,8 +42,9 @@ folly::dynamic createTestDynamic() {
       "hybridMap", dynamic::object())("hybridList", dynamic::array())(
       "hybridSet", dynamic::array())("hybridUnion", dynamic::object())(
       "hybridStruct",
-      dynamic::object("childMap", dynamic::object())(
-          "strMap", dynamic::object())("structMap", dynamic::object()))(
+      dynamic::object("childMap", dynamic::object())("leafI32", 0)(
+          "listOfStruct", dynamic::array())("strMap", dynamic::object())(
+          "structMap", dynamic::object()))(
       "hybridMapOfI32ToStruct", dynamic::object())(
       "hybridMapOfMap", dynamic::object());
 }
@@ -85,8 +86,7 @@ TYPED_TEST(RecurseVisitorTests, TestFullRecurse) {
 
   auto nodeA = this->initNode(structA);
   std::map<std::vector<std::string>, folly::dynamic> visited;
-  auto processPath = [&visited](
-                         const std::vector<std::string>& path, auto&& node) {
+  auto processPath = [&visited](SimpleTraverseHelper& traverser, auto&& node) {
     folly::dynamic dyn;
     if constexpr (is_cow_type_v<decltype(*node)>) {
       dyn = node->toFollyDynamic();
@@ -94,11 +94,16 @@ TYPED_TEST(RecurseVisitorTests, TestFullRecurse) {
       facebook::thrift::to_dynamic(
           dyn, *node, facebook::thrift::dynamic_format::JSON_1);
     }
-    visited.emplace(path, dyn);
+    visited.emplace(traverser.path(), dyn);
   };
 
+  SimpleTraverseHelper traverser;
   RootRecurseVisitor::visit(
-      nodeA, RecurseVisitMode::FULL, std::move(processPath));
+      traverser,
+      nodeA,
+      RecurseVisitOptions(
+          RecurseVisitMode::FULL, RecurseVisitOrder::PARENTS_FIRST),
+      std::move(processPath));
 
   std::map<std::vector<std::string>, folly::dynamic> expected = {
       {{}, testDyn},
@@ -146,6 +151,9 @@ TYPED_TEST(RecurseVisitorTests, TestFullRecurse) {
       {{"hybridStruct", "childMap"}, testDyn["hybridStruct"]["childMap"]},
       {{"hybridStruct", "strMap"}, testDyn["hybridStruct"]["strMap"]},
       {{"hybridStruct", "structMap"}, testDyn["hybridStruct"]["structMap"]},
+      {{"hybridStruct", "leafI32"}, testDyn["hybridStruct"]["leafI32"]},
+      {{"hybridStruct", "listOfStruct"},
+       testDyn["hybridStruct"]["listOfStruct"]},
       {{"mapOfEnumToStruct"}, testDyn["mapOfEnumToStruct"]},
       {{"mapOfEnumToStruct", "3"}, testDyn["mapOfEnumToStruct"][3]},
       {{"mapOfEnumToStruct", "3", "min"},
@@ -166,6 +174,10 @@ TYPED_TEST(RecurseVisitorTests, TestFullRecurse) {
   }
 
   EXPECT_EQ(visited.size(), expected.size());
+  for (auto& [path, dyn] : visited) {
+    EXPECT_EQ(dyn, visited[path])
+        << "Path /" << folly::join('/', path) << " does not match visited";
+  }
   for (auto& [path, dyn] : expected) {
     EXPECT_EQ(dyn, visited[path])
         << "Path /" << folly::join('/', path) << " does not match expected";
@@ -178,8 +190,7 @@ TYPED_TEST(RecurseVisitorTests, TestLeafRecurse) {
 
   auto nodeA = this->initNode(structA);
   std::map<std::vector<std::string>, folly::dynamic> visited;
-  auto processPath = [&visited](
-                         const std::vector<std::string>& path, auto&& node) {
+  auto processPath = [&visited](SimpleTraverseHelper& traverser, auto&& node) {
     folly::dynamic dyn;
     if constexpr (is_cow_type_v<decltype(*node)>) {
       dyn = node->toFollyDynamic();
@@ -187,10 +198,16 @@ TYPED_TEST(RecurseVisitorTests, TestLeafRecurse) {
       facebook::thrift::to_dynamic(
           dyn, *node, facebook::thrift::dynamic_format::JSON_1);
     }
-    visited.emplace(path, dyn);
+    visited.emplace(traverser.path(), dyn);
   };
 
-  RootRecurseVisitor::visit(nodeA, RecurseVisitMode::LEAVES, processPath);
+  SimpleTraverseHelper traverser;
+  RootRecurseVisitor::visit(
+      traverser,
+      nodeA,
+      RecurseVisitOptions(
+          RecurseVisitMode::LEAVES, RecurseVisitOrder::PARENTS_FIRST),
+      processPath);
 
   std::map<std::vector<std::string>, folly::dynamic> expected = {
       {{"inlineBool"}, testDyn["inlineBool"]},
@@ -209,7 +226,8 @@ TYPED_TEST(RecurseVisitorTests, TestLeafRecurse) {
       {{"mapOfEnumToStruct", "3", "max"},
        testDyn["mapOfEnumToStruct"][3]["max"]},
       {{"mapOfEnumToStruct", "3", "invert"},
-       testDyn["mapOfEnumToStruct"][3]["invert"]}};
+       testDyn["mapOfEnumToStruct"][3]["invert"]},
+      {{"hybridStruct", "leafI32"}, testDyn["hybridStruct"]["leafI32"]}};
 
   std::map<std::vector<std::string>, folly::dynamic> hybridNodes = {
       {{"mapOfEnumToStruct", "3"}, testDyn["mapOfEnumToStruct"][3]},
@@ -228,6 +246,10 @@ TYPED_TEST(RecurseVisitorTests, TestLeafRecurse) {
   }
 
   EXPECT_EQ(visited.size(), expected.size());
+  for (auto& [path, dyn] : visited) {
+    EXPECT_EQ(dyn, expected[path])
+        << "Path /" << folly::join('/', path) << " does not match visited";
+  }
   for (auto& [path, dyn] : expected) {
     EXPECT_EQ(dyn, visited[path])
         << "Path /" << folly::join('/', path) << " does not match expected";
@@ -235,6 +257,7 @@ TYPED_TEST(RecurseVisitorTests, TestLeafRecurse) {
 
   visited.clear();
   RootRecurseVisitor::visit(
+      traverser,
       nodeA,
       RecurseVisitOptions(
           RecurseVisitMode::LEAVES, RecurseVisitOrder::PARENTS_FIRST, true),
@@ -254,7 +277,8 @@ TYPED_TEST(RecurseVisitorTests, TestLeafRecurse) {
   hybridDeepLeaves = {
       {{"15", "3", "1"}, testDyn["mapOfEnumToStruct"][3]["min"]},
       {{"15", "3", "2"}, testDyn["mapOfEnumToStruct"][3]["max"]},
-      {{"15", "3", "3"}, testDyn["mapOfEnumToStruct"][3]["invert"]}};
+      {{"15", "3", "3"}, testDyn["mapOfEnumToStruct"][3]["invert"]},
+      {{"31", "5"}, testDyn["hybridStruct"]["leafI32"]}};
 
   hybridNodes = {
       {{"15", "3"}, testDyn["mapOfEnumToStruct"][3]},
@@ -273,6 +297,10 @@ TYPED_TEST(RecurseVisitorTests, TestLeafRecurse) {
   }
 
   EXPECT_EQ(visited.size(), expected.size());
+  for (auto& [path, dyn] : visited) {
+    EXPECT_EQ(dyn, expected[path])
+        << "Path /" << folly::join('/', path) << " does not match visited";
+  }
   for (auto& [path, dyn] : expected) {
     EXPECT_EQ(dyn, visited[path])
         << "Path /" << folly::join('/', path) << " does not match expected";

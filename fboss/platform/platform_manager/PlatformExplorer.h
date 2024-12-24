@@ -9,7 +9,7 @@
 #include "fboss/platform/helpers/PlatformFsUtils.h"
 #include "fboss/platform/platform_manager/DataStore.h"
 #include "fboss/platform/platform_manager/DevicePathResolver.h"
-#include "fboss/platform/platform_manager/ExplorationErrorMap.h"
+#include "fboss/platform/platform_manager/ExplorationSummary.h"
 #include "fboss/platform/platform_manager/I2cExplorer.h"
 #include "fboss/platform/platform_manager/PciExplorer.h"
 #include "fboss/platform/platform_manager/PresenceChecker.h"
@@ -24,6 +24,7 @@ class PlatformExplorer {
   auto static constexpr kFwVerXYPatternStr = R"((\d{1,3})\.(\d{1,3}))";
   auto static constexpr kFwVerXYZPatternStr =
       R"((\d{1,3})\.(\d{1,3})\.(\d{1,3}))";
+  auto static constexpr kFwVerValidCharsPatternStr = R"([a-zA-Z0-9\.\-_]+)";
 
   auto static constexpr kFirmwareVersion = "{}.firmware_version";
   auto static constexpr kGroupedFirmwareVersion = "{}.firmware_version.{}";
@@ -98,8 +99,6 @@ class PlatformExplorer {
   void createDeviceSymLink(
       const std::string& linkPath,
       const std::string& devicePath);
-  ExplorationStatus concludeExploration();
-  void reportExplorationSummary(ExplorationStatus finalStatus);
   void setupI2cDevice(
       const std::string& devicePath,
       uint16_t busNum,
@@ -110,6 +109,11 @@ class PlatformExplorer {
       const std::string& deviceName,
       uint16_t busNum,
       const I2cAddr& addr);
+  template <typename T>
+  void createPciSubDevices(
+      const std::string& slotPath,
+      const std::vector<T>& pciSubDeviceConfigs,
+      auto&& deviceCreationLambda);
 
   PlatformConfig platformConfig_{};
   I2cExplorer i2cExplorer_{};
@@ -118,7 +122,7 @@ class PlatformExplorer {
   DataStore dataStore_;
   DevicePathResolver devicePathResolver_;
   PresenceChecker presenceChecker_;
-  ExplorationErrorMap explorationErrMap_;
+  ExplorationSummary explorationSummary_;
   std::shared_ptr<PlatformFsUtils> platformFsUtils_;
 
   // Map from <pmUnitPath, pmUnitScopeBusName> to kernel i2c bus name.

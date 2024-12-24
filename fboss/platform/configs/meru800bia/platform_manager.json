@@ -92,7 +92,7 @@
             {
               "pmUnitScopedName": "SCM_FPGA_INFO_ROM",
               "deviceName": "fpga_info_iob",
-              "csrOffset": "0x0000"
+              "csrOffset": "0x100"
             }
           ]
         }
@@ -1453,7 +1453,7 @@
             {
               "pmUnitScopedName": "SMB_FPGA_INFO_ROM",
               "deviceName": "fpga_info_iob",
-              "csrOffset": "0x0000"
+              "csrOffset": "0x100"
             }
           ]
         }
@@ -1612,20 +1612,9 @@
   },
   "bspKmodsRpmName": "arista_bsp_kmods",
   "bspKmodsRpmVersion": "0.7.6-1",
-  "bspKmodsToReload": [
-    "scd-xcvr",
-    "scd-spi",
-    "scd-leds",
-    "scd-smbus",
-    "scd-info",
-    "dsf-fan-cpld",
-    "scd-vcpld"
-  ],
-  "sharedKmodsToReload": [
-    "scd"
-  ],
-  "upstreamKmodsToLoad": [
+  "requiredKmodsToLoad": [
     "spidev",
-    "i2c-i801"
+    "i2c-i801",
+    "scd"
   ]
 }

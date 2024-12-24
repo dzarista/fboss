@@ -29,7 +29,8 @@ from ..BaseConfigs import (
 class RookCpld( PciDeviceConfig ):
    def __init__( self ):
       super().__init__( 'ROOK_CPU_CPLD', '0x8086', '0x6f76', '0x0000', '0x0000',
-                        symlinkDeviceName='ROOK_CPU_CPLD', symlinkDir='cplds' )
+                        symlinkDeviceName='ROOK_CPU_CPLD', symlinkDir='cplds',
+                        desiredDriver='scd' )
       self.addI2cAdapters()
 
    def addI2cAdapters( self ):
@@ -75,7 +76,7 @@ class RackhawkScd( PciDeviceConfig ):
                            ) ]
                         )
       ] )
-      self.addInfoRomConfigs()
+      self.addInfoRomConfigs( "0x100" )
 
    def addI2cAdapters( self ):
       baseAccelOffset = 0x8000
@@ -124,7 +125,7 @@ class RackhawkSwitch( PmUnitConfig ):
 
       # CPU card devices.
       self.cpuCpld = RookCpld()
-      self.cpuCpld.addInfoRomConfigs()
+      self.cpuCpld.addInfoRomConfigs( "0x100" )
       self.pciDevices.append( self.cpuCpld )
       self.addEmbeddedSensors()
       self.addCpuCardTempSensors()
@@ -867,9 +868,7 @@ class Rackhawk( PlatformConfig ):
          kmods.append( 'bp4a_max1363' )
       self.addKmodsSettings(
          {
-            'bspKmodsToReload': kmods,
-            'sharedKmodsToReload': [ 'scd' ],
-            'upstreamKmodsToLoad': [ 'i2c-i801' ]
+            'requiredKmodsToLoad': [ 'i2c-i801', 'scd' ]
          }
       )
 

@@ -9,6 +9,7 @@ thrift_library(
     languages = [
         "cpp2",
         "python",
+        "py3",
     ],
     thrift_cpp2_options = ["json"],
     thrift_srcs = [
@@ -126,16 +127,22 @@ cpp_library(
     exported_deps = [
         ":platform_manager_config-cpp2-types",
         "//fb303:service_data",
+        "//fboss/platform/helpers:platform_fs_utils",
         "//fboss/platform/helpers:platform_utils",
+        "//folly:file_util",
         "//folly:string",
         "//folly/logging:logging",
+        "//thrift/lib/cpp2/protocol:protocol",
+    ],
+    exported_external_deps = [
+        "re2",
     ],
 )
 
 cpp_library(
     name = "platform_explorer",
     srcs = [
-        "ExplorationErrorMap.cpp",
+        "ExplorationSummary.cpp",
         "PlatformExplorer.cpp",
     ],
     exported_deps = [
@@ -237,6 +244,7 @@ cpp_binary(
         "//fb303:service_data",
         "//fboss/platform/helpers:init",
     ],
+    external_deps = [("systemd", None, "systemd")],
 )
 
 cpp_library(

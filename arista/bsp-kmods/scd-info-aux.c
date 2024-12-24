@@ -16,7 +16,7 @@
 
 #define FPGA_INFO_MEM_SIZE	4
 
-#define FPGA_VER_REG 0x100
+#define FPGA_VER_REG 0
 #define FPGA_VER_OFFSET 16
 #define FPGA_VER_BITLEN 16
 
@@ -63,6 +63,7 @@ struct regbit_sysfs_config sysfs_files[] = {
 static int scd_info_probe(struct auxiliary_device *auxdev,
 			   const struct auxiliary_device_id *id)
 {
+	int ret;
 	struct resource *res;
 	void __iomem *mmio_base;
 	struct device *dev = &auxdev->dev;
@@ -73,15 +74,27 @@ static int scd_info_probe(struct auxiliary_device *auxdev,
 
 	res = devm_request_mem_region(dev, bus_addr, FPGA_INFO_MEM_SIZE,
 					auxdev->name);
-	if (!res)
+	if (!res) {
+		dev_err(dev, "failed to request mem_region (0x%x-0x%x)\n",
+			bus_addr, bus_addr + FPGA_INFO_MEM_SIZE - 1);
 		return -EBUSY;
+	}
 
 	mmio_base = devm_ioremap(dev, bus_addr, FPGA_INFO_MEM_SIZE);
 	if (!mmio_base)
 		return -ENOMEM;
 
-	return regbit_sysfs_init_mmio(dev, mmio_base, sysfs_files,
+	ret = regbit_sysfs_init_mmio(dev, mmio_base, sysfs_files,
 				      ARRAY_SIZE(sysfs_files));
+	if (ret) {
+		dev_err(dev, "failed to initizlize regbit_sysfs, error=%d\n",
+			ret);
+		return ret;
+	}
+
+	dev_info(dev, "fpga_info (base=0x%x) initialized successfully\n",
+		bus_addr);
+	return 0;
 }
 
 static const struct auxiliary_device_id scd_info_ids[] = {

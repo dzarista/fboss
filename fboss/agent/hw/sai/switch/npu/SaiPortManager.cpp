@@ -271,7 +271,7 @@ PortSaiId SaiPortManager::addPortImpl(const std::shared_ptr<Port>& swPort) {
   addSamplePacket(swPort);
   addNode(swPort);
   addPfc(swPort);
-  programPfcBuffers(swPort);
+  changePfcBuffers(nullptr, swPort);
 
   // set platform port's speed
   auto platformPort = platform_->getPort(swPort->getID());
@@ -355,7 +355,7 @@ void SaiPortManager::changePortImpl(
   changePfc(oldPort, newPort);
   changeRxLaneSquelch(oldPort, newPort);
   changeTxEnable(oldPort, newPort);
-  programPfcBuffers(newPort);
+  changePfcBuffers(oldPort, newPort);
 
   if (newPort->isEnabled()) {
     if (!oldPort->isEnabled()) {
@@ -458,6 +458,16 @@ void SaiPortManager::attributesFromSaiStore(
       SaiPortTraits::Attributes::QosPfcPriorityToQueueMap{});
   getAndSetAttribute(
       port->attributes(), attributes, SaiPortTraits::Attributes::TamObject{});
+#if SAI_API_VERSION >= SAI_VERSION(1, 10, 2)
+  getAndSetAttribute(
+      port->attributes(),
+      attributes,
+      SaiPortTraits::Attributes::PfcTcDldInterval{});
+  getAndSetAttribute(
+      port->attributes(),
+      attributes,
+      SaiPortTraits::Attributes::PfcTcDlrInterval{});
+#endif
   if (platform_->getAsic()->isSupported(
           HwAsic::Feature::PORT_TTL_DECREMENT_DISABLE)) {
     getAndSetAttribute(
@@ -625,7 +635,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   auto portPfcInfo = getPortPfcAttributes(swPort);
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
-  std::optional<SaiPortTraits::Attributes::ArsEnable> arsEnable = false;
+  std::optional<SaiPortTraits::Attributes::ArsEnable> arsEnable = std::nullopt;
   std::optional<SaiPortTraits::Attributes::ArsPortLoadScalingFactor>
       arsPortLoadScalingFactor = std::nullopt;
   std::optional<SaiPortTraits::Attributes::ArsPortLoadPastWeight>
@@ -657,9 +667,13 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
 
   std::optional<SaiPortTraits::Attributes::CondEntropyRehashEnable>
       condEntropyRehashEnable{};
-// TODO(zecheng): Update flag when new 12.0 release has the attribute
-#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   condEntropyRehashEnable = swPort->getConditionalEntropyRehash();
+#endif
+  std::optional<SaiPortTraits::Attributes::ShelEnable> shelEnable{};
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  shelEnable = SaiPortTraits::Attributes::ShelEnable{
+      swPort->getSelfHealingECMPLagEnable()};
 #endif
 
   if (basicAttributeOnly) {
@@ -732,6 +746,12 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         std::nullopt, // ShelEnable
     };
   }
+  std::optional<SaiPortTraits::Attributes::PortVlanId> vlanIdAttr{vlanId};
+  if (vlanId == 0) {
+    // vlan ID with value 0 is invalid
+    vlanIdAttr.reset();
+  }
+
   return SaiPortTraits::CreateAttributes{
 #if defined(BRCM_SAI_SDK_DNX)
       getPortTypeFromCfg(swPort->getPortType()),
@@ -754,7 +774,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
 #endif
       mediaType,
       globalFlowControlMode,
-      vlanId,
+      vlanIdAttr,
       mtu,
       std::nullopt,
       std::nullopt,
@@ -799,10 +819,10 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
       arsPortLoadFutureWeight, // ARS port load future weight
 #endif
       reachabilityGroup,
-      condEntropyRehashEnable, // CondEntropyRehashEnable
+      condEntropyRehashEnable,
       std::nullopt, // CondEntropyRehashPeriodUS
       std::nullopt, // CondEntropyRehashSeed
-      std::nullopt, // ShelEnable
+      shelEnable,
   };
 }
 

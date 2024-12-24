@@ -56,6 +56,8 @@ usage() {
    echo
    echo "  update-dut <dut>: copy latest RPMs to specified DUT"
    echo
+   echo "  run_sw_tests: Run software breath tests inside container (requires prior successful build)"
+   echo
    echo "  clean: Cleanup the FBOSS build environment"
    echo
    echo "  help: print this help message"
@@ -114,7 +116,7 @@ maybe_setup_build_env() {
    wget http://dist/storage/fboss/FBOSS-SAI/patch4-Jupiter-SAI-Makefile.patch
    git apply patch4-Jupiter-SAI-Makefile.patch
    cd "${FBOSS_HOST_DIR}/Aqua_SAI/sdk-src/hsdk_6.5.30_SAI_11.7.0_GA"
-   sdk_file="sai-sdk-all-6.5.30-16c067e717.tar.xz"
+   sdk_file="sai-sdk-all-6.5.30-16c067e717-patched.tar.xz"
    wget http://dist/storage/fboss/FBOSS-SAI/$sdk_file
    tar -xf "$sdk_file"
    # Patch Broadcom DNX kernel module make file fixes for SDK 6.5.29
@@ -178,6 +180,7 @@ setup() {
    # of the build scripts every time.
    cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/build.sh "${FBOSS_HOST_DIR}"
    cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/package.sh "${FBOSS_HOST_DIR}"
+   cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/run_sw_tests.sh "${FBOSS_HOST_DIR}"
 }
 
 run_cmd_container() {
@@ -237,6 +240,11 @@ do_update_dut() {
    echo "${rpms}"
 }
 
+do_sw_tests() {
+    setup
+    run_cmd_container bash run_sw_tests.sh
+}
+
 if [[ $# -lt 1 ]]; then
     usage
     exit 1
@@ -260,6 +268,9 @@ case "${command}" in
       ;;
    update-dut)
       do_update_dut $1
+      ;;
+   run_sw_tests)
+      do_sw_tests
       ;;
    *)
       usage

@@ -896,18 +896,23 @@ SaiPortManager::getIngressPriorityGroupSaiIds(
   return ingressPgSaiIds;
 }
 
-void SaiPortManager::programPfcBuffers(const std::shared_ptr<Port>& swPort) {
+void SaiPortManager::changePfcBuffers(
+    std::shared_ptr<Port> oldPort,
+    std::shared_ptr<Port> newPort) {
   if (!platform_->getAsic()->isSupported(HwAsic::Feature::BUFFER_POOL)) {
     return;
   }
-  SaiPortHandle* portHandle = getPortHandle(swPort->getID());
-  const auto& portPgCfgs = swPort->getPortPgConfigs();
-  if (portPgCfgs) {
-    const auto& ingressPgSaiIds = getIngressPriorityGroupSaiIds(swPort);
+  SaiPortHandle* portHandle = getPortHandle(newPort->getID());
+  auto& configuredIpgs = portHandle->configuredIngressPriorityGroups;
+
+  const auto& newPortPgCfgs = newPort->getPortPgConfigs();
+  std::set<int> programmedPgIds;
+  if (newPortPgCfgs) {
+    const auto& ingressPgSaiIds = getIngressPriorityGroupSaiIds(newPort);
     auto ingressPriorityGroupHandles =
         managerTable_->bufferManager().loadIngressPriorityGroups(
             ingressPgSaiIds);
-    for (const auto& portPgCfg : *portPgCfgs) {
+    for (const auto& portPgCfg : *newPortPgCfgs) {
       // THRIFT_COPY
       auto portPgCfgThrift = portPgCfg->toThrift();
       auto pgId = *portPgCfgThrift.id();
@@ -918,10 +923,32 @@ void SaiPortManager::programPfcBuffers(const std::shared_ptr<Port>& swPort) {
           ingressPriorityGroupHandles[pgId]->ingressPriorityGroup,
           bufferProfile);
       // Keep track of ingressPriorityGroupHandle and bufferProfile per PG ID
-      portHandle
-          ->configuredIngressPriorityGroups[static_cast<IngressPriorityGroupID>(
-              pgId)] = SaiIngressPriorityGroupHandleAndProfile{
-          std::move(ingressPriorityGroupHandles[pgId]), bufferProfile};
+      configuredIpgs[static_cast<IngressPriorityGroupID>(pgId)] =
+          SaiIngressPriorityGroupHandleAndProfile{
+              std::move(ingressPriorityGroupHandles[pgId]), bufferProfile};
+      programmedPgIds.insert(pgId);
+    }
+  }
+
+  // Delete removed buffer profiles.
+  if (oldPort != nullptr) {
+    const auto& oldPortPgCfgs = oldPort->getPortPgConfigs();
+    if (oldPortPgCfgs) {
+      for (const auto& portPgCfg : *oldPortPgCfgs) {
+        // THRIFT_COPY
+        auto portPgCfgThrift = portPgCfg->toThrift();
+        auto pgId = *portPgCfgThrift.id();
+        if (programmedPgIds.find(pgId) == programmedPgIds.end()) {
+          auto ipgInfo =
+              configuredIpgs.find(static_cast<IngressPriorityGroupID>(pgId));
+          if (ipgInfo != configuredIpgs.end()) {
+            managerTable_->bufferManager().setIngressPriorityGroupBufferProfile(
+                ipgInfo->second.pgHandle->ingressPriorityGroup,
+                std::nullptr_t());
+            configuredIpgs.erase(ipgInfo);
+          }
+        }
+      }
     }
   }
 }
@@ -1526,11 +1553,11 @@ std::shared_ptr<Port> SaiPortManager::swPortFromAttributes(
 #endif
   port->setScope(platform_->getPlatformMapping()->getPortScope(port->getID()));
 
-// TODO(zecheng): Update flag when new 12.0 release has the attribute
-#if defined(BRCM_SAI_SDK_DNX_GTE_11_0) && !defined(BRCM_SAI_SDK_DNX_GTE_12_0)
-  port->setReachabilityGroupId(
-      GET_OPT_ATTR(Port, CondEntropyRehashEnable, attributes));
+#if defined(SAI_VERSION_11_7_0_0_DNX_ODP)
+  auto shelEnable = GET_OPT_ATTR(Port, ShelEnable, attributes);
+  port->setSelfHealingECMPLagEnable(shelEnable);
 #endif
+
   return port;
 }
 
@@ -1826,6 +1853,7 @@ void SaiPortManager::updateStats(
   // All stats start with a unitialized (-1) value. If there are no in
   // discards (first collection) we will just report that -1 as the monotonic
   // counter. Instead set it to 0 if uninintialized
+  setUninitializedStatsToZero(*curPortStats.inCongestionDiscards_());
   setUninitializedStatsToZero(*curPortStats.inDiscards_());
   setUninitializedStatsToZero(*curPortStats.fecCorrectableErrors());
   setUninitializedStatsToZero(*curPortStats.fecUncorrectableErrors());
@@ -1966,11 +1994,15 @@ void SaiPortManager::updateStats(
       platform_->getAsic()->isSupported(HwAsic::Feature::DATA_CELL_FILTER)) {
     std::optional<SaiPortTraits::Attributes::FabricDataCellsFilterStatus>
         attrT = SaiPortTraits::Attributes::FabricDataCellsFilterStatus{};
-    curPortStats.dataCellsFilterOn() =
+
+    auto dataCelllsFilterOn =
         SaiApiTable::getInstance()->portApi().getAttribute(
-            handle->port->adapterKey(), attrT)
-        ? true
-        : false;
+            handle->port->adapterKey(), attrT);
+    if (dataCelllsFilterOn.has_value() && dataCelllsFilterOn.value() == true) {
+      curPortStats.dataCellsFilterOn() = true;
+    } else {
+      curPortStats.dataCellsFilterOn() = false;
+    }
   }
   portStats_[portId]->updateStats(curPortStats, now);
   auto lastPrbsRxStateReadTimeIt = lastPrbsRxStateReadTime_.find(portId);

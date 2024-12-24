@@ -140,6 +140,10 @@ void handleExtensionAttributes() {
   SAI_EXT_ATTR_MAP(Switch, ShelPeriodicInterval);
   SAI_EXT_ATTR_MAP(Switch, FirmwareCoreToUse);
   SAI_EXT_ATTR_MAP(Switch, FirmwareLogFile);
+  SAI_EXT_ATTR_MAP(Switch, MaxSwitchId);
+#if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
+  SAI_EXT_ATTR_MAP(Switch, ArsAvailableFlows);
+#endif
 }
 
 } // namespace

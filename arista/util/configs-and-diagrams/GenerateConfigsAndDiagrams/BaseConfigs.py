@@ -90,9 +90,7 @@ class PlatformConfig:
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
          "bspKmodsRpmVersion": "0.7.6-1",
-         "bspKmodsToReload": [],
-         "sharedKmodsToReload": [],
-         "upstreamKmodsToLoad": []
+         "requiredKmodsToLoad": [],
       }
 
    def getPmUnit( self, pmUnitName ):
@@ -160,9 +158,7 @@ class PlatformConfig:
       )
       jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings[ "bspKmodsRpmName" ]
       jsonDict[ "bspKmodsRpmVersion" ] = self.kmodsSettings[ "bspKmodsRpmVersion" ]
-      jsonDict[ "bspKmodsToReload" ] = self.kmodsSettings[ "bspKmodsToReload" ]
-      jsonDict[ "sharedKmodsToReload" ] = self.kmodsSettings[ "sharedKmodsToReload" ]
-      jsonDict[ "upstreamKmodsToLoad" ] = self.kmodsSettings[ "upstreamKmodsToLoad" ]
+      jsonDict[ "requiredKmodsToLoad" ] = self.kmodsSettings[ "requiredKmodsToLoad" ]
 
       jsonDump = json.dumps( jsonDict, indent=2 )
       output = reformatOneElementLists( jsonDump )
@@ -325,19 +321,6 @@ class PmUnitConfig:
       for pciConfig in self.pciDeviceConfigs:
          symlinkDict.update( pciConfig.generateSymlinkDevicePath() )
       return symlinkDict
-   
-   # def generateInfoRomSymlinks( self ):
-   #    symlinkDict = OrderedDict()
-   #    for pciConfig in self.pciDeviceConfigs:
-   #       for infoRomConfig in pciConfig.infoRomConfigs:
-   #          platform = self.parentConfig.parentConfig.platformName
-   #          symlinkDeviceName = (
-   #             self.symlinkDeviceName or f"{ platform.upper() }_{ self.pmUnitScopedName }"
-   #          )
-   #          symlinkDict[ f"/run/devmap/fpgas/{ pciConfig.pmUnitScopedName }" ] = (
-   #             constructDevicePaths( infoRomConfig )[ 0 ]
-   #          )
-   #    return symlinkDict
 
    def generateSMBIdPromSymlinks( self ):
       platform = self.parentConfig.platformName
@@ -837,7 +820,8 @@ class SlotConfig:
 
 class PciDeviceConfig:
    def __init__( self, pmUnitScopedName, vendorId, deviceId, subSystemVendorId,
-                 subSystemDeviceId, symlinkDeviceName=None, symlinkDir='fpgas' ):
+                 subSystemDeviceId, symlinkDeviceName=None, symlinkDir='fpgas', 
+                 desiredDriver=None ):
       self.pmUnitScopedName = pmUnitScopedName
       self.vendorId = vendorId
       self.deviceId = deviceId
@@ -852,6 +836,7 @@ class PciDeviceConfig:
       self.infoRomConfigs = []
       self.miscCtrlConfigs = []
       self.parentConfig = None
+      self.desiredDriver = desiredDriver
       self.node = None
 
    def addParentConfigPointer( self, parentConfig ):
@@ -887,8 +872,8 @@ class PciDeviceConfig:
          config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
    
-   def addInfoRomConfigs( self ):
-      infoRomConfig = InfoRomConfigs( self.pmUnitScopedName )
+   def addInfoRomConfigs( self, offset ):
+      infoRomConfig = InfoRomConfigs( self.pmUnitScopedName, offset )
       infoRomConfig.addParentConfigPointer( self )
       self.infoRomConfigs.extend( [ infoRomConfig ] )
 
@@ -918,6 +903,7 @@ class PciDeviceConfig:
          "infoRomConfigs": self.getInfoRomConfigsList(),
          **({ "miscCtrlConfigs": [ cfg.asJson() for cfg in self.miscCtrlConfigs ] }
             if self.miscCtrlConfigs else {}),
+         **({"desiredDriver": self.desiredDriver} if self.desiredDriver else {})
       }
 
    def getI2cAdapterConfigsList( self ):
@@ -1198,14 +1184,15 @@ class LedConfig:
 
 
 class InfoRomConfigs:
-   def __init__( self, fpgaPrefix ):
+   def __init__( self, fpgaPrefix, offset ):
       self.pmUnitScopedName = f'{fpgaPrefix}_INFO_ROM'
+      self.offset = offset
 
    def asJson( self ):
       return {
          "pmUnitScopedName": self.pmUnitScopedName,
          "deviceName": "fpga_info_iob",
-         "csrOffset": "0x0000"
+         "csrOffset": self.offset
       }
 
    def addParentConfigPointer( self, parentConfig ):
@@ -1410,7 +1397,7 @@ class SCMFairywren( SCMUnit ):
 
       self.scmFpga = PciDeviceConfig( "SCM_FPGA", "0x3475", "0x0001", "0x3475",
                                       "0x0008", symlinkDeviceName="MERU_SCM_CPLD" )
-      self.scmFpga.addInfoRomConfigs()
+      self.scmFpga.addInfoRomConfigs( "0x100" )
       self.addPciDeviceConfigs( [ self.scmFpga ] )
 
       self.scmFpga.addI2cAdapterConfigs( 2, "SCM_I2C_MASTER{}", "0x8000" )

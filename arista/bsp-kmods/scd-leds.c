@@ -283,7 +283,7 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 			   const struct auxiliary_device_id *id)
 {
 	u8 num_leds;
-	u32 reg, csr_addr;
+	u32 csr_addr;
 	int ret;
 	char led_name[NAME_MAX];
 	struct resource *res;

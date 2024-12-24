@@ -376,4 +376,46 @@ cfg::SwitchType getSwitchType(
   return switchType;
 }
 
+std::map<std::string, FabricEndpoint> getFabricEndpoints(
+    const HostInfo& hostInfo) {
+  std::map<std::string, FabricEndpoint> entries;
+  if (utils::isFbossFeatureEnabled(hostInfo.getName(), "multi_switch")) {
+    auto hwAgentQueryFn =
+        [&entries](
+            apache::thrift::Client<facebook::fboss::FbossHwCtrl>& client) {
+          std::map<std::string, FabricEndpoint> hwagentEntries;
+          client.sync_getHwFabricConnectivity(hwagentEntries);
+          entries.merge(hwagentEntries);
+        };
+    utils::runOnAllHwAgents(hostInfo, hwAgentQueryFn);
+  } else {
+    utils::createClient<apache::thrift::Client<FbossCtrl>>(hostInfo)
+        ->sync_getFabricConnectivity(entries);
+  }
+  return entries;
+}
+
+std::map<std::string, int64_t> getAgentFb303RegexCounters(
+    const HostInfo& hostInfo,
+    const std::string& regex) {
+  std::map<std::string, int64_t> counters;
+#ifndef IS_OSS
+  // TODO: sync_getRegexCounters is not available in OSS
+  if (utils::isFbossFeatureEnabled(hostInfo.getName(), "multi_switch")) {
+    auto hwAgentQueryFn =
+        [&counters,
+         &regex](apache::thrift::Client<facebook::fboss::FbossCtrl>& client) {
+          std::map<std::string, int64_t> hwagentCounters;
+          client.sync_getRegexCounters(hwagentCounters, regex);
+          counters.merge(hwagentCounters);
+        };
+    utils::runOnAllHwAgents(hostInfo, hwAgentQueryFn);
+  } else {
+    utils::createClient<apache::thrift::Client<FbossCtrl>>(hostInfo)
+        ->sync_getRegexCounters(counters, regex);
+  }
+#endif
+  return counters;
+}
+
 } // namespace facebook::fboss::utils
