@@ -93,7 +93,7 @@
             {
               "pmUnitScopedName": "SCM_FPGA_INFO_ROM",
               "deviceName": "fpga_info_iob",
-              "csrOffset": "0x0000"
+              "csrOffset": "0x100"
             }
           ]
         }
@@ -1325,7 +1325,7 @@
             {
               "pmUnitScopedName": "SMB_FPGA0_INFO_ROM",
               "deviceName": "fpga_info_iob",
-              "csrOffset": "0x0000"
+              "csrOffset": "0x100"
             }
           ]
         },
@@ -2234,7 +2234,7 @@
             {
               "pmUnitScopedName": "SMB_FPGA1_INFO_ROM",
               "deviceName": "fpga_info_iob",
-              "csrOffset": "0x0000"
+              "csrOffset": "0x100"
             }
           ]
         },
@@ -3179,7 +3179,7 @@
             {
               "pmUnitScopedName": "SMB_FPGA2_INFO_ROM",
               "deviceName": "fpga_info_iob",
-              "csrOffset": "0x0000"
+              "csrOffset": "0x100"
             }
           ]
         },
@@ -4088,7 +4088,7 @@
             {
               "pmUnitScopedName": "SMB_FPGA3_INFO_ROM",
               "deviceName": "fpga_info_iob",
-              "csrOffset": "0x0000"
+              "csrOffset": "0x100"
             }
           ]
         }
