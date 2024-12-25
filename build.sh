@@ -135,6 +135,7 @@ fi
 make -C $FBOSS_REPO/arista/showtech
 mkdir -p $SCRATCH_DIR/showtech
 cp -f $FBOSS_REPO/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
+cp -f $FBOSS_REPO/arista/showtech/Makefile $SCRATCH_DIR/showtech/
 
 # Building psu-upgrade dependencies
 make -C $FBOSS_REPO/arista/psu-upgrade

@@ -328,6 +328,7 @@ else
    make -C $FBOSS_DIR/fboss.git/arista/showtech
    mkdir -p $SCRATCH_DIR/showtech
    cp -f $FBOSS_DIR/fboss.git/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
+   cp -f $FBOSS_DIR/fboss.git/arista/showtech/Makefile $SCRATCH_DIR/showtech/
    make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 
    echo "****BUILDING PSU UPGRADE DEPENDENCIES"

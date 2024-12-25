@@ -17,11 +17,17 @@ namespace showtech {
 
 void MeruShowtech::printFpgaVersion(std::string name,
                                     std::string major_rev_path,
-                                    std::string minor_rev_path) {
+                                    std::string minor_rev_path,
+                                    std::string combined_rev_path = "") {
   std::string major_rev;
   std::string minor_rev;
+  std::string combined_rev;
 
-  if (run_cmd("head -n 1 " + major_rev_path, major_rev) == 0 &&
+  if (!combined_rev_path.empty() &&
+      run_cmd("head -n 1 " + combined_rev_path, combined_rev) == 0) {
+    strip(combined_rev);
+    std::cout << name << ": " << combined_rev << std::endl;
+  } else if (run_cmd("head -n 1 " + major_rev_path, major_rev) == 0 &&
       run_cmd("head -n 1 " + minor_rev_path, minor_rev) == 0 &&
       major_rev != "" && minor_rev != "") {
     strip(major_rev);
@@ -34,7 +40,7 @@ void MeruShowtech::printFpgaVersion(std::string name,
 }
 
 void MeruShowtech::printAllFpgaVersions() {
-  std::string major_rev_path, minor_rev_path;
+  std::string major_rev_path, minor_rev_path, combined_path;
   std::set<std::filesystem::path> fpga_sorted_by_name, cpld_sorted_by_name;
   std::string fpga_path = "/run/devmap/fpgas/";
   std::string cpld_path = "/run/devmap/cplds/";
@@ -42,12 +48,13 @@ void MeruShowtech::printAllFpgaVersions() {
   std::cout << "##### FPGA VERSIONS #####\n";
 
   for (const auto &fpga : std::filesystem::directory_iterator(fpga_path)) {
-    fpga_sorted_by_name.insert(fpga.path());
+    if (fpga.is_directory() &&
+        fpga.path().filename().string().find("INFO_ROM") != std::string::npos)
+        fpga_sorted_by_name.insert(fpga.path());
   }
   for (const auto &path : fpga_sorted_by_name) {
-    major_rev_path = path.string() + "/fpga_ver";
-    minor_rev_path = path.string() + "/fpga_sub_ver";
-    printFpgaVersion(path.filename().string(), major_rev_path, minor_rev_path);
+    combined_path = path.string() + "/fw_ver";
+    printFpgaVersion(path.filename().string(), "", "", combined_path);
   }
 
   for (const auto &cpld : std::filesystem::directory_iterator(cpld_path)) {
