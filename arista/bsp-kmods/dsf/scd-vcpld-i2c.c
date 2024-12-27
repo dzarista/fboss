@@ -22,6 +22,7 @@
 #include <linux/rtc.h>
 #include <linux/workqueue.h>
 #include "scratchpad-bits.h"
+#include "scd-reload-cause.h"
 
 #define VCPLD_REG_MINOR_REV			(0x0)
 #define VCPLD_REG_MAJOR_REV			(0x1)
@@ -37,18 +38,7 @@
 #define VCPLD_RTC_SEC_REG_CNT			(4U)
 
 #define RTC_UPDATE_INTERVAL			(10U)
-#define MILLENIUM_UNIX_TIMESTAMP 		(946684800U)
-
-struct encoded_reload_cause {
-	u8 id;
-	const char *description;
-};
-
-#define DEFINE_RELOAD_CAUSE(fault_id, fault_desc)		\
-{								\
-	.id = fault_id,						\
-	.description = fault_desc				\
-}
+#define MILLENIUM_UNIX_TIMESTAMP		(946684800U)
 
 struct encoded_reload_cause scd_vcpld_reload_causes[] = {
 	DEFINE_RELOAD_CAUSE(1, "Overtemp Fault"),
@@ -72,14 +62,14 @@ struct encoded_reload_cause scd_vcpld_reload_causes[] = {
 	DEFINE_RELOAD_CAUSE(40, "P3V3_OPTICS_PGOOD")
 };
 
-#define MERU_VCPLD_FAULT_COUNT \
-	(sizeof scd_vcpld_reload_causes / sizeof scd_vcpld_reload_causes[0])
+#define MERU_VCPLD_FAULT_COUNT			ARRAY_SIZE(scd_vcpld_reload_causes)
 
 struct i2c_client *vcpld_i2c_client;
 
 static void workqueue_func(struct work_struct *work);
 DECLARE_DELAYED_WORK(vcpld_delayed_work, workqueue_func);
-static void workqueue_func(struct work_struct *work) {
+static void workqueue_func(struct work_struct *work)
+{
 	time64_t cur_time;
 	u8 rtc_byte;
 	int op_status;
@@ -130,12 +120,11 @@ static int process_reload_cause(struct i2c_client *client)
 	fault_cause = (u8)op_status;
 	fault_cause &= VCPLD_REG_LATCHED_FAULT_CAUSE_MASK;
 	for (fault_loop = 0; fault_loop < MERU_VCPLD_FAULT_COUNT; fault_loop++) {
-		if (scd_vcpld_reload_causes[fault_loop].id == fault_cause) {
+		if (scd_vcpld_reload_causes[fault_loop].id == fault_cause)
 			break;
-		}
 	}
 	if (fault_loop == MERU_VCPLD_FAULT_COUNT) {
-		dev_info(&client->dev, "fault not found in list of reload causes\n");
+		dev_info(&client->dev, "scd vcpld fault not found in list of reload causes\n");
 		ret_val = -1;
 	} else {
 		dev_info(&client->dev, "scd vcpld reload cause: %s\n",
@@ -149,9 +138,8 @@ static int process_reload_cause(struct i2c_client *client)
 		if (op_status < 0) {
 			dev_info(&client->dev, "failed to read fault timestamp\n");
 			break;
-		} else {
-			fault_timestamp |= op_status << (8 * byte);
 		}
+		fault_timestamp |= op_status << (8 * byte);
 	}
 	if (byte == VCPLD_RTC_SEC_REG_CNT) {
 		rtc_counter_val = (time64_t)fault_timestamp + MILLENIUM_UNIX_TIMESTAMP;
@@ -193,14 +181,14 @@ static int vcpld_i2c_probe(struct i2c_client *client)
 
 	op_status = i2c_smbus_read_byte_data(client, VCPLD_REG_MINOR_REV);
 	if (op_status < 0) {
-                dev_info(&client->dev, "failed to read minor revision register\n");
+		dev_info(&client->dev, "failed to read minor revision register\n");
 		return op_status;
 	}
 	minor_rev = (u8)op_status;
 
 	op_status = i2c_smbus_read_byte_data(client, VCPLD_REG_MAJOR_REV);
 	if (op_status < 0) {
-                dev_info(&client->dev, "failed to read major revision register\n");
+		dev_info(&client->dev, "failed to read major revision register\n");
 		return op_status;
 	}
 	major_rev = (u8)op_status;
@@ -209,19 +197,17 @@ static int vcpld_i2c_probe(struct i2c_client *client)
 
 	op_status = i2c_smbus_read_byte_data(client, VCPLD_REG_SCRATCHPAD);
 	if (op_status < 0) {
-                dev_info(&client->dev, "failed to read scratchpad register\n");
+		dev_info(&client->dev, "failed to read scratchpad register\n");
 		return op_status;
 	}
 	vcpld_i2c_client = client;
 	scratchpad = (u8)op_status;
 	if ((scratchpad & MERU_VCPLD_RELOAD_CAUSE_COOKIE_MASK) == 0) {
 		op_status = process_reload_cause(client);
-		if (op_status < 0) {
-                	dev_info(&client->dev, "error in processing reload cause\n");
-		}
+		if (op_status < 0)
+			dev_info(&client->dev, "error in processing reload cause\n");
 	} else {
-		dev_info(&client->dev, "didn't detect a system power cycle - "
-		"not processing relaod cause");
+		dev_info(&client->dev, "didn't detect a system power cycle - not processing relaod cause");
 	}
 
 	schedule_delayed_work(&vcpld_delayed_work, RTC_UPDATE_INTERVAL*HZ);

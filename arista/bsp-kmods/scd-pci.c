@@ -33,6 +33,8 @@
 
 #include "fbiob-auxdev.h"
 #include "fbiob-cdev.h"
+#include "scratchpad-bits.h"
+#include "scd-reload-cause-pci.h"
 
 #define REG_BLK_SIZE			4
 #define REG_MAX_BITSIZE			32
@@ -151,6 +153,10 @@ MODULE_PARM_DESC(lpc_res_size, "size of LPC resource");
 static int lpc_irq = 7;
 module_param(lpc_irq, int, 0);
 MODULE_PARM_DESC(lpc_irq, "interrupt of LPC SCD");
+
+/* Lock to protect CPLD scratchpad register. Each register bit acts as a flag -
+   hence the register might be updated at different places */
+static DEFINE_MUTEX(scratchpad_mutex);
 
 u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
 {
@@ -384,6 +390,92 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	}
 
 	return -ENOENT;
+}
+
+static void scratchpad_lock(void) {
+	mutex_lock(&scratchpad_mutex);
+}
+
+static void scratchpad_unlock(void) {
+	mutex_unlock(&scratchpad_mutex);
+}
+
+static void print_reload_cause_info(struct scd_dev_priv *priv) {
+	struct mapped_register *reload_cause_reg_map;
+	size_t reload_cause_reg_count;
+	size_t reload_cause_reg_loop;
+	void __iomem *scratchpad_map;
+	struct resource *res;
+	u32 scratchpad_val;
+	bool power_cycle_detected = false;
+	int op_status;
+
+	get_reload_cause_register_map(&reload_cause_reg_map, &reload_cause_reg_count);
+	for (reload_cause_reg_loop = 0; reload_cause_reg_loop < reload_cause_reg_count; reload_cause_reg_loop++) {
+		res = NULL;
+		res = devm_request_mem_region(
+			&(priv->pdev->dev),
+			priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			REG_BLK_SIZE,
+			SCD_MODULE_NAME);
+		if (!res) {
+			dev_err(&(priv->pdev->dev), "cannot request PCI memory region - "
+			"relaod cause functionality disabled\n");
+			break;
+		}
+		reload_cause_reg_map[reload_cause_reg_loop].mem = devm_ioremap(
+			&(priv->pdev->dev),
+			priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			REG_BLK_SIZE);
+		if (!reload_cause_reg_map[reload_cause_reg_loop].mem) {
+			dev_err(&(priv->pdev->dev), "cannot remap reload cause PCI registers - "
+			"relaod cause functionality disabled\n");
+			break;
+		}
+	}
+	if (reload_cause_reg_loop == reload_cause_reg_count) {
+		scratchpad_map = devm_ioremap(
+				&(priv->pdev->dev), priv->csr_bus_addr + get_reload_cause_scratchpad_reg_offset(),
+				REG_BLK_SIZE);
+		if (!scratchpad_map) {
+			dev_err(&(priv->pdev->dev), "cannot remap scratchpad register - "
+			"not processing relaod cause\n");
+		} else {
+			scratchpad_lock();
+			scratchpad_val = ioread32(scratchpad_map);
+			if ((scratchpad_val & FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_MASK) == 0) {
+				iowrite32((1 << FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_BITPOS), scratchpad_map);
+				power_cycle_detected = true;
+			}
+			scratchpad_unlock();
+			devm_iounmap(&(priv->pdev->dev), scratchpad_map);
+		}
+		if (power_cycle_detected == true) {
+			op_status = process_reload_cause(&(priv->pdev->dev));
+			if (op_status < 0) {
+				dev_info(&(priv->pdev->dev), "error in processing reload cause\n");
+			}
+		} else {
+			dev_info(&(priv->pdev->dev), "didn't detect a system power cycle - "
+			"not processing relaod cause");
+		}
+		start_reload_cause_periodic_task();
+	}
+}
+
+static void release_reload_cause_resources(struct scd_dev_priv *priv) {
+	struct mapped_register *reload_cause_reg_map;
+	size_t reload_cause_reg_count;
+	size_t reload_cause_reg_loop;
+
+	get_reload_cause_register_map(&reload_cause_reg_map, &reload_cause_reg_count);
+	for (reload_cause_reg_loop = 0; reload_cause_reg_loop < reload_cause_reg_count; reload_cause_reg_loop++) {
+		devm_iounmap(&(priv->pdev->dev), reload_cause_reg_map[reload_cause_reg_loop].mem);
+		devm_release_mem_region(
+			&(priv->pdev->dev),
+			priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			REG_BLK_SIZE);
+	}
 }
 
 /*
@@ -726,6 +818,12 @@ static void scd_remove(struct pci_dev *pdev)
 	if (priv == NULL)
 		return;
 
+	if (pdev->subsystem_device == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
+		stop_reload_cause_periodic_task();
+		release_reload_cause_resources(priv);
+	}
+	mutex_destroy(&scratchpad_mutex);
+
 	priv->magic = 0;
 
 	if (priv->cdev_initialized)
@@ -795,7 +893,7 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		default:
 			sysfs_attr_group = &scd_attr_group;
 			regbit_sysfs_table = scd_regbit_sysfs;
-       }
+	}
 
 	if (pci_get_drvdata(pdev)) {
 		dev_warn(&pdev->dev, "private data already attached %p",
@@ -827,6 +925,10 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = scd_sysfs_regs_init(priv);
 	if (err) {
 		goto fail;
+	}
+
+	if (ent->subdevice == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
+		print_reload_cause_info(priv);
 	}
 
 	if (priv->sysfs_attr_group->attrs[0]) {
