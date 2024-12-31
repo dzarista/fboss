@@ -22,7 +22,8 @@ public:
 private:
   int numFansPerCpld = 4;
   void printFpgaVersion(std::string name, std::string major_rev_path,
-                        std::string minor_rev_path);
+                        std::string minor_rev_path,
+                        std::string combined_rev_path);
   void printAllFpgaVersions();
   void printFanInfo();
   void printI2cInfo();

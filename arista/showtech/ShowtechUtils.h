@@ -26,11 +26,13 @@ public:
 
 class PciScdDevice : public Device {
 public:
-  PciScdDevice(std::string pciAddr) {
+  PciScdDevice(std::string pciAddr, std::string infoRomDir) {
     addr = pciAddr;
     sysfsPath = "/sys/bus/pci/drivers/scd/" + pciAddr + "/";
+    infoRomPath = "/run/devmap/" + infoRomDir + "/";
   }
   std::string addr;
+  std::string infoRomPath;
 };
 
 class I2cDevice : public Device {

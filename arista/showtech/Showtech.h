@@ -14,7 +14,7 @@ public:
   virtual ~Showtech() = default;
   void printShowtech();
 
-  std::string version = "1.3";
+  std::string version = "1.4";
 
 protected:
   // These should be common between platforms.

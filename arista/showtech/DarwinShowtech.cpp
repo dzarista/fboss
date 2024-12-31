@@ -22,12 +22,13 @@ void DarwinShowtech::printFpgaVersion(std::string target,
                                       std::string sysfsPath) {
   std::string majorRevFile;
   std::string minorRevFile;
+  std::string combinedRevFile;
   std::string majorRev;
   std::string minorRev;
-
+  std::string combinedRev;
+  
   if (target == "CPU_CPLD" || target == "SWITCHCARD_SCD") {
-    majorRevFile = "fpga_ver";
-    minorRevFile = "fpga_sub_ver";
+    combinedRevFile = "fw_ver";
   } else if (target == "SWITCHCARD_CPLD" || target == "FAN_CPLD") {
     majorRevFile = "cpld_ver";
     minorRevFile = "cpld_sub_ver";
@@ -39,7 +40,11 @@ void DarwinShowtech::printFpgaVersion(std::string target,
     minorRevFile = "sat1_cpld_sub_ver";
   }
 
-  if (run_cmd("head -n 1 " + sysfsPath + majorRevFile, majorRev) == 0 &&
+  if (!combinedRevFile.empty() &&
+      run_cmd("head -n 1 " + sysfsPath + combinedRevFile, combinedRev) == 0) {
+    strip(combinedRev);
+    std::cout << target << ": " << combinedRev << std::endl;
+  } else if (run_cmd("head -n 1 " + sysfsPath + majorRevFile, majorRev) == 0 &&
       run_cmd("head -n 1 " + sysfsPath + minorRevFile, minorRev) == 0 &&
       majorRev != "" && minorRev != "") {
     strip(majorRev);
@@ -54,9 +59,9 @@ void DarwinShowtech::printFpgaVersion(std::string target,
 void DarwinShowtech::printAllFpgaVersions() {
   std::cout << "##### FPGA VERSIONS #####\n";
 
-  printFpgaVersion("CPU_CPLD", cpuCpld->sysfsPath);
+  printFpgaVersion("CPU_CPLD", cpuCpld->infoRomPath);
   printFpgaVersion("SWITCHCARD_CPLD", switchcardCpld->sysfsPath);
-  printFpgaVersion("SWITCHCARD_SCD", switchcardScd->sysfsPath);
+  printFpgaVersion("SWITCHCARD_SCD", switchcardScd->infoRomPath);
   printFpgaVersion("SAT_CPLD0", switchcardScd->sysfsPath);
   printFpgaVersion("SAT_CPLD1", switchcardScd->sysfsPath);
   printFpgaVersion("FAN_CPLD", fanCpld->sysfsPath);
@@ -196,8 +201,10 @@ void DarwinShowtech::printPsuShowtechInfo() {
 }
 
 void DarwinShowtech::printPlatformInfo() {
-  cpuCpld = std::make_unique<PciScdDevice>("0000:ff:0b.3");
-  switchcardScd = std::make_unique<PciScdDevice>("0000:07:00.0");
+  cpuCpld = std::make_unique<PciScdDevice>("0000:ff:0b.3",
+                                           "cplds/ROOK_CPU_CPLD_INFO_ROM");
+  switchcardScd = std::make_unique<PciScdDevice>("0000:07:00.0",
+                                                 "fpgas/SCD_FPGA_INFO_ROM");
   switchcardCpld =
       std::make_unique<I2cDevice>(cpuCpld->addr, 2, 0, "23", "blackhawk-cpld");
   fanCpld = std::make_unique<I2cHwmonDevice>(cpuCpld->addr, 3, 0, "60",
