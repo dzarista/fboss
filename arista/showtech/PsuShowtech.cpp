@@ -120,11 +120,14 @@ std::vector<uint8_t> readI2c(const char *i2cDevice, int chipAddr,
     numBytesToRead = lengthByte + 1;
     readBuffer =
         makeI2cRdwrRequest(i2cDevice, chipAddr, regAddr, numBytesToRead);
+    
+    if (readBuffer.empty()) return {};
     readBuffer.erase(readBuffer.begin());
     return readBuffer;
   } else {
     readBuffer =
         makeI2cRdwrRequest(i2cDevice, chipAddr, regAddr, numBytesToRead);
+    if (readBuffer.empty()) return {};
     return readBuffer;
   }
   return {};
