@@ -1589,6 +1589,7 @@ void SwSwitch::handlePendingUpdates() {
   // might also end up finding 0 updates to process if a previous
   // handlePendingUpdates() call processed multiple updates.
   StateUpdateList updates;
+  auto pendingUpdateQueueLength = 0;
   {
     std::unique_lock guard(pendingUpdatesLock_);
     // When deciding how many elements to pull off the pendingUpdates_
@@ -1613,7 +1614,9 @@ void SwSwitch::handlePendingUpdates() {
     }
     updates.splice(
         updates.begin(), pendingUpdates_, pendingUpdates_.begin(), iter);
+    pendingUpdateQueueLength = pendingUpdates_.size();
   }
+  stats()->pendingStateUpdateCount(pendingUpdateQueueLength);
 
   // handlePendingUpdates() is invoked once for each update, but a previous
   // call might have already processed everything.  If we don't have anything
@@ -1647,7 +1650,8 @@ void SwSwitch::handlePendingUpdates() {
     ++iter;
 
     shared_ptr<SwitchState> intermediateState;
-    XLOG(DBG2) << "preparing state update " << update->getName();
+    XLOG(DBG2) << "preparing state update " << update->getName()
+               << "; # Pending updates " << pendingUpdateQueueLength;
     try {
       intermediateState = update->applyUpdate(newDesiredState);
     } catch (const std::exception& ex) {

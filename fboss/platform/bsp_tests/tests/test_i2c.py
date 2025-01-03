@@ -4,9 +4,9 @@ import re
 from collections import defaultdict
 
 import pytest
+from fboss.platform.bsp_tests.cdev_types import I2CAdapter, I2CDevice
 
-from fboss.platform.bsp_tests.test_runner import FpgaSpec, RuntimeConfig
-from fboss.platform.bsp_tests.utils.cdev_types import I2CAdapter, I2CDevice
+from fboss.platform.bsp_tests.config import FpgaSpec, RuntimeConfig
 
 from fboss.platform.bsp_tests.utils.cdev_utils import delete_device
 from fboss.platform.bsp_tests.utils.cmd_utils import run_cmd
@@ -233,6 +233,7 @@ def test_looped_transactions(
     """
     for fpga, adapter in fpga_with_adapters:
         # if any of the i2cDevices has testData
+        # TODO: Don't  need testData  to test
         if not any(device.testData for device in adapter.i2cDevices):
             continue
         newAdapters, adapterBaseBusNum = create_i2c_adapter(fpga, adapter)

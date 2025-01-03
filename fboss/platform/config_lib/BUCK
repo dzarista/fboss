@@ -29,7 +29,7 @@ cpp_binary(
 
 custom_rule(
     name = "config_generator_h",
-    build_args = "--json_config_dir $(location fbcode//fboss/platform:configs)",
+    build_args = "--json_config_dir $(location fbcode//fboss/platform:configs)/configs",
     build_script_dep = ":config_generator",
     output_gen_files = ["GeneratedConfig.h"],
 )
@@ -43,8 +43,7 @@ cpp_library(
         ":config_generator_h[GeneratedConfig.h]",
     ],
     exported_deps = [
-        "//fboss/lib/platforms:platform_mode",
-        "//fboss/lib/platforms:product-info",
+        "//fboss/platform/helpers:platform_name_lib",
         "//folly:file_util",
         "//folly/logging:logging",
     ],

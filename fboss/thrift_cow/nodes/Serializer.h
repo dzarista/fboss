@@ -218,7 +218,9 @@ struct Serializable {
   virtual ~Serializable() = default;
 
   folly::fbstring encode(fsdb::OperProtocol proto) const {
-    return encodeBuf(proto).moveToFbString();
+    auto str = encodeBuf(proto).moveToFbString();
+    str.shrink_to_fit();
+    return str;
   }
 
   virtual folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const = 0;
@@ -236,9 +238,12 @@ struct Serializable {
   virtual folly::dynamic toFollyDynamic() const = 0;
 };
 
+struct ThriftObject {};
+
 template <typename TC, typename TType>
 class SerializableWrapper : public Serializable {
  public:
+  using CowType = ThriftObject;
   explicit SerializableWrapper(TType& node) : node_(node) {}
 
   folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const override {

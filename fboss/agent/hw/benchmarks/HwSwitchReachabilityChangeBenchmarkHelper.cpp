@@ -47,6 +47,22 @@ void switchReachabilityChangeBenchmarkHelper(cfg::SwitchType switchType) {
         config.dsfNodes() = *utility::addRemoteIntfNodeCfg(*config.dsfNodes());
         return config;
       };
+  AgentEnsembleSwitchConfigFn fabricInitialConfig =
+      [](const AgentEnsemble& ensemble) {
+        FLAGS_hide_fabric_ports = false;
+        FLAGS_disable_looped_fabric_ports = false;
+        FLAGS_detect_wrong_fabric_connections = false;
+        auto config = utility::onePortPerInterfaceConfig(
+            ensemble.getSw(),
+            ensemble.masterLogicalPortIds(),
+            false /*interfaceHasSubnet*/,
+            false /*setInterfaceMac*/,
+            utility::kBaseVlanId,
+            true /*enable fabric ports*/);
+        utility::populatePortExpectedNeighborsToSelf(
+            ensemble.masterLogicalPortIds(), config);
+        return config;
+      };
   std::unique_ptr<AgentEnsemble> ensemble{};
   switch (switchType) {
     case cfg::SwitchType::VOQ: {
@@ -76,7 +92,9 @@ void switchReachabilityChangeBenchmarkHelper(cfg::SwitchType switchType) {
       });
     } break;
     case cfg::SwitchType::FABRIC:
-    // TODO: Support to be added!
+      ensemble = createAgentEnsemble(
+          fabricInitialConfig, false /*disableLinkStateToggler*/);
+      break;
     case cfg::SwitchType::NPU:
     case cfg::SwitchType::PHY:
       throw FbossError(
@@ -85,15 +103,21 @@ void switchReachabilityChangeBenchmarkHelper(cfg::SwitchType switchType) {
 
   XLOG(DBG0) << "Wait for all fabric ports to be ACTIVE";
   // Wait for all fabric ports to be ACTIVE
+  int activeFabricPortCount;
   WITH_RETRIES_N_TIMED(240, std::chrono::milliseconds(1000), {
+    activeFabricPortCount = 0;
     for (const PortID& portId : ensemble->masterLogicalFabricPortIds()) {
       auto fabricPort =
           ensemble->getProgrammedState()->getPorts()->getNodeIf(portId);
       EXPECT_EVENTUALLY_TRUE(fabricPort->isActive().has_value());
       EXPECT_EVENTUALLY_TRUE(*fabricPort->isActive());
+      activeFabricPortCount++;
     }
   });
 
+  if (activeFabricPortCount != ensemble->masterLogicalFabricPortIds().size()) {
+    throw FbossError("All fabric ports are not ACTIVE yet!");
+  }
   XLOG(DBG0) << "Inject and wait for "
              << kNumberOfSwitchReachabilityChangeEvents
              << " switch reachability events to be processed!";
@@ -112,5 +136,9 @@ void switchReachabilityChangeBenchmarkHelper(cfg::SwitchType switchType) {
     // NOOP
   }
   suspender.rehire();
+  XLOG(DBG0)
+      << "Switch reachability events processed at the start: "
+      << reachabilityProcessedCountAtStart << " and at the end: "
+      << ensemble->getSw()->stats()->getSwitchReachabilityChangeProcessed();
 }
 } // namespace facebook::fboss::utility

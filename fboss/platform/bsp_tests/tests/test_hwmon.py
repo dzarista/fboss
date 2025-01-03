@@ -2,9 +2,9 @@
 import pytest
 
 import sensors
+from fboss.platform.bsp_tests.cdev_types import I2CAdapter
 
-from fboss.platform.bsp_tests.test_runner import FpgaSpec
-from fboss.platform.bsp_tests.utils.cdev_types import I2CAdapter
+from fboss.platform.bsp_tests.config import FpgaSpec
 
 from fboss.platform.bsp_tests.utils.cdev_utils import delete_device
 from fboss.platform.bsp_tests.utils.cmd_utils import check_cmd
@@ -24,10 +24,10 @@ def install_sensors() -> None:
 def test_hwmon_sensors(fpga_with_adapters: list[tuple[FpgaSpec, I2CAdapter]]) -> None:
     for fpga, adapter in fpga_with_adapters:
         for i2cdevice in adapter.i2cDevices:
-            if not i2cdevice.hwmonTestData:
+            if not i2cdevice.testData or not i2cdevice.testData.hwmonTestData:
                 continue
             try:
-                testData = i2cdevice.hwmonTestData
+                testData = i2cdevice.testData.hwmonTestData
                 newAdapters, baseBusNum = create_i2c_adapter(fpga, adapter)
                 busNum = baseBusNum + i2cdevice.channel
                 assert create_i2c_device(

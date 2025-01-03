@@ -167,37 +167,59 @@ bool ResourceAccountant::checkAndUpdateEcmpResource(
 }
 
 bool ResourceAccountant::shouldCheckRouteUpdate() const {
+  if (!FLAGS_enable_route_resource_protection) {
+    return false;
+  }
   for (const auto& [_, hwAsic] : asicTable_->getHwAsics()) {
     if (hwAsic->getMaxEcmpGroups().has_value() ||
-        hwAsic->getMaxEcmpMembers().has_value()) {
+        hwAsic->getMaxEcmpMembers().has_value() ||
+        hwAsic->getMaxRoutes().has_value()) {
       return true;
     }
   }
   return false;
 }
 
-bool ResourceAccountant::ecmpStateChangedImpl(const StateDelta& delta) {
-  if (!checkRouteUpdate_) {
+bool ResourceAccountant::checkAndUpdateRouteResource(bool add) {
+  // Staring with the simpliest computation - treat all routes the same.
+  // We will graually evolve this to be more accurate (e.g. v4 /32, v4 </32,
+  // v6/64 etc.).
+  if (add) {
+    routeUsage_++;
+    for (const auto& [_, hwAsic] : asicTable_->getHwAsics()) {
+      const auto routeLimit = hwAsic->getMaxRoutes();
+      if (routeLimit.has_value() && routeUsage_ > routeLimit.value()) {
+        return false;
+      }
+    }
+    return true;
+  }
+  routeUsage_--;
+  return true;
+}
+
+bool ResourceAccountant::routeAndEcmpStateChangedImpl(const StateDelta& delta) {
+  if (!checkRouteUpdate_ || !FLAGS_enable_route_resource_protection) {
     return true;
   }
   bool validRouteUpdate = true;
 
   auto processRoutesDelta = [&](const auto& routesDelta) {
+    DeltaFunctions::forEachRemoved(routesDelta, [&](const auto& delRoute) {
+      validRouteUpdate &= checkAndUpdateEcmpResource(delRoute, false /* add */);
+      validRouteUpdate &= checkAndUpdateRouteResource(false /* add */);
+    });
+
     DeltaFunctions::forEachChanged(
-        routesDelta,
-        [&](const auto& oldRoute, const auto& newRoute) {
+        routesDelta, [&](const auto& oldRoute, const auto& newRoute) {
           validRouteUpdate &= checkAndUpdateEcmpResource(newRoute, true);
           validRouteUpdate &= checkAndUpdateEcmpResource(oldRoute, false);
-          return LoopAction::CONTINUE;
-        },
-        [&](const auto& newRoute) {
-          validRouteUpdate &= checkAndUpdateEcmpResource(newRoute, true);
-          return LoopAction::CONTINUE;
-        },
-        [&](const auto& delRoute) {
-          validRouteUpdate &= checkAndUpdateEcmpResource(delRoute, false);
-          return LoopAction::CONTINUE;
         });
+
+    DeltaFunctions::forEachAdded(routesDelta, [&](const auto& newRoute) {
+      validRouteUpdate &= checkAndUpdateEcmpResource(newRoute, true /* add */);
+      validRouteUpdate &= checkAndUpdateRouteResource(true /* add */);
+    });
   };
 
   for (const auto& routeDelta : delta.getFibsDelta()) {
@@ -211,7 +233,7 @@ bool ResourceAccountant::ecmpStateChangedImpl(const StateDelta& delta) {
 }
 
 bool ResourceAccountant::isValidRouteUpdate(const StateDelta& delta) {
-  bool validRouteUpdate = ecmpStateChangedImpl(delta);
+  bool validRouteUpdate = routeAndEcmpStateChangedImpl(delta);
 
   if (FLAGS_dlbResourceCheckEnable && FLAGS_flowletSwitchingEnable &&
       checkDlbResource_ && !validRouteUpdate) {
@@ -237,13 +259,18 @@ bool ResourceAccountant::isValidRouteUpdate(const StateDelta& delta) {
 
   if (!validRouteUpdate) {
     XLOG(WARNING)
-        << "Invalid route update - exceeding ECMP resource limits. New state consumes "
-        << ecmpMemberUsage_ << " ECMP members and " << ecmpGroupRefMap_.size()
-        << " ECMP groups.";
+        << "Invalid route update - exceeding route or ECMP resource limits. New state consumes "
+        << routeUsage_ << " routes, " << ecmpMemberUsage_
+        << " ECMP members and " << ecmpGroupRefMap_.size() << " ECMP groups.";
     for (const auto& [switchId, hwAsic] : asicTable_->getHwAsics()) {
       const auto ecmpGroupLimit = hwAsic->getMaxEcmpGroups();
       const auto ecmpMemberLimit = hwAsic->getMaxEcmpMembers();
+      const auto routeLimit = hwAsic->getMaxRoutes();
       XLOG(WARNING) << "ECMP resource limits for Switch " << switchId
+                    << ": max routes="
+                    << (routeLimit.has_value()
+                            ? folly::to<std::string>(routeLimit.value())
+                            : "None")
                     << ": max ECMP groups="
                     << (ecmpGroupLimit.has_value()
                             ? folly::to<std::string>(ecmpGroupLimit.value())
@@ -303,7 +330,7 @@ bool ResourceAccountant::l2StateChangedImpl(const StateDelta& delta) {
 }
 
 void ResourceAccountant::stateChanged(const StateDelta& delta) {
-  ecmpStateChangedImpl(delta);
+  routeAndEcmpStateChangedImpl(delta);
   if (FLAGS_enable_hw_update_protection) {
     l2StateChangedImpl(delta);
   }
