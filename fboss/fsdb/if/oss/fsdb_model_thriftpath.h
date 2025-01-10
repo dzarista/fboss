@@ -18808,7 +18808,8 @@ std::pair<strings::lanePam4Level3SD, ChildThriftPath<::std::map<::std::int32_t, 
 std::pair<strings::lanePam4MPI, ChildThriftPath<::std::map<::std::int32_t, double>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
 std::pair<strings::lanePam4LTP, ChildThriftPath<::std::map<::std::int32_t, double>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
 std::pair<strings::fecTailMax, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>,
-std::pair<strings::fecTailCurr, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>>;
+std::pair<strings::fecTailCurr, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>,
+std::pair<strings::maxSupportedFecTail, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>>;
   using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, ChildThriftPath<::facebook::fboss::link::LinkPerfMonitorParamEachSideVal, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, ChildThriftPath<::facebook::fboss::link::LinkPerfMonitorParamEachSideVal, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, ChildThriftPath<::std::map<::std::int32_t, double>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
@@ -18819,7 +18820,8 @@ std::pair<strings::fecTailCurr, Child<::std::int16_t, ::apache::thrift::type_cla
    std::pair<std::integral_constant<apache::thrift::field_id_t, 8>, ChildThriftPath<::std::map<::std::int32_t, double>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 9>, ChildThriftPath<::std::map<::std::int32_t, double>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 10>, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>>;
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 11>, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 12>, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>>;
   template <typename Name>
   using NameToId = fatal::tuple<std::pair<strings::datapathBER, std::integral_constant<apache::thrift::field_id_t, 1>>,
 std::pair<strings::datapathErroredFrames, std::integral_constant<apache::thrift::field_id_t, 2>>,
@@ -18831,7 +18833,8 @@ std::pair<strings::lanePam4Level3SD, std::integral_constant<apache::thrift::fiel
 std::pair<strings::lanePam4MPI, std::integral_constant<apache::thrift::field_id_t, 8>>,
 std::pair<strings::lanePam4LTP, std::integral_constant<apache::thrift::field_id_t, 9>>,
 std::pair<strings::fecTailMax, std::integral_constant<apache::thrift::field_id_t, 10>>,
-std::pair<strings::fecTailCurr, std::integral_constant<apache::thrift::field_id_t, 11>>>::template type_of<Name>;
+std::pair<strings::fecTailCurr, std::integral_constant<apache::thrift::field_id_t, 11>>,
+std::pair<strings::maxSupportedFecTail, std::integral_constant<apache::thrift::field_id_t, 12>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -18848,6 +18851,7 @@ std::pair<strings::fecTailCurr, std::integral_constant<apache::thrift::field_id_
     STRUCT_CHILD_GETTERS(lanePam4LTP, 9);
     STRUCT_CHILD_GETTERS(fecTailMax, 10);
     STRUCT_CHILD_GETTERS(fecTailCurr, 11);
+    STRUCT_CHILD_GETTERS(maxSupportedFecTail, 12);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
@@ -18862,6 +18866,7 @@ std::pair<strings::fecTailCurr, std::integral_constant<apache::thrift::field_id_
     else if constexpr (__id == 9) { return lanePam4LTP(); }
     else if constexpr (__id == 10) { return fecTailMax(); }
     else if constexpr (__id == 11) { return fecTailCurr(); }
+    else if constexpr (__id == 12) { return maxSupportedFecTail(); }
   }
 
   template <typename T, T... Values>
@@ -21997,20 +22002,23 @@ std::pair<strings::uncorrectedCodewords, Child<::std::int64_t, ::apache::thrift:
 std::pair<strings::correctedBits, Child<::std::int64_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i64_t>>,
 std::pair<strings::preFECBer, Child<double, ::apache::thrift::type_class::floating_point, ::apache::thrift::type::double_t>>,
 std::pair<strings::codewordStats, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-std::pair<strings::fecTail, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>>;
+std::pair<strings::fecTail, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>,
+std::pair<strings::maxSupportedFecTail, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>>;
   using ChildrenById = fatal::tuple<   std::pair<std::integral_constant<apache::thrift::field_id_t, 1>, Child<::std::int64_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i64_t>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 2>, Child<::std::int64_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i64_t>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 3>, Child<::std::int64_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i64_t>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 4>, Child<double, ::apache::thrift::type_class::floating_point, ::apache::thrift::type::double_t>>,
    std::pair<std::integral_constant<apache::thrift::field_id_t, 5>, ChildThriftPath<::std::map<::std::int16_t, ::std::int64_t>, ::facebook::fboss::fsdb::FsdbOperStatsRoot, Self>>,
-   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>>;
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 6>, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>,
+   std::pair<std::integral_constant<apache::thrift::field_id_t, 7>, Child<::std::int16_t, ::apache::thrift::type_class::integral, ::apache::thrift::type::i16_t>>>;
   template <typename Name>
   using NameToId = fatal::tuple<std::pair<strings::correctedCodewords, std::integral_constant<apache::thrift::field_id_t, 1>>,
 std::pair<strings::uncorrectedCodewords, std::integral_constant<apache::thrift::field_id_t, 2>>,
 std::pair<strings::correctedBits, std::integral_constant<apache::thrift::field_id_t, 3>>,
 std::pair<strings::preFECBer, std::integral_constant<apache::thrift::field_id_t, 4>>,
 std::pair<strings::codewordStats, std::integral_constant<apache::thrift::field_id_t, 5>>,
-std::pair<strings::fecTail, std::integral_constant<apache::thrift::field_id_t, 6>>>::template type_of<Name>;
+std::pair<strings::fecTail, std::integral_constant<apache::thrift::field_id_t, 6>>,
+std::pair<strings::maxSupportedFecTail, std::integral_constant<apache::thrift::field_id_t, 7>>>::template type_of<Name>;
 
   template <typename Name>
   using TypeFor = typename Children::template type_of<Name>;
@@ -22022,6 +22030,7 @@ std::pair<strings::fecTail, std::integral_constant<apache::thrift::field_id_t, 6
     STRUCT_CHILD_GETTERS(preFECBer, 4);
     STRUCT_CHILD_GETTERS(codewordStats, 5);
     STRUCT_CHILD_GETTERS(fecTail, 6);
+    STRUCT_CHILD_GETTERS(maxSupportedFecTail, 7);
 
   template <apache::thrift::field_id_t __id>
   auto operator()(const std::integral_constant<apache::thrift::field_id_t, __id>&) {
@@ -22031,6 +22040,7 @@ std::pair<strings::fecTail, std::integral_constant<apache::thrift::field_id_t, 6
     else if constexpr (__id == 4) { return preFECBer(); }
     else if constexpr (__id == 5) { return codewordStats(); }
     else if constexpr (__id == 6) { return fecTail(); }
+    else if constexpr (__id == 7) { return maxSupportedFecTail(); }
   }
 
   template <typename T, T... Values>
