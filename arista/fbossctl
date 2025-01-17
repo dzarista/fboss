@@ -180,7 +180,7 @@ setup() {
    # of the build scripts every time.
    cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/build.sh "${FBOSS_HOST_DIR}"
    cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/package.sh "${FBOSS_HOST_DIR}"
-   cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/run_sw_tests.sh "${FBOSS_HOST_DIR}"
+   cp -f "${FBOSS_REPO_DIR}"/arista/core/scripts/run_sw_tests.sh "${FBOSS_HOST_DIR}"
 }
 
 run_cmd_container() {

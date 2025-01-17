@@ -142,6 +142,10 @@ make -C $FBOSS_REPO/arista/psu-upgrade
 mkdir -p $SCRATCH_DIR/psu-upgrade
 cp -f $FBOSS_REPO/arista/psu-upgrade/psu-upgrade $SCRATCH_DIR/psu-upgrade/
 
+# Add files necessary for sw_test
+mkdir -p $SCRATCH_DIR/sw_test
+cp -rf $FBOSS_REPO/fboss/platform/configs/sample/ $SCRATCH_DIR/sw_test/
+
 # Generate python thrift libraries
 $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/ctrl.thrift
 $SCRATCH_DIR/installed/fbthrift/bin/thrift1 -r --gen py -I $SCRATCH_DIR/repos/github.com-facebook-fboss.git -I $SCRATCH_DIR/repos/github.com-facebook-fbthrift.git/ $SCRATCH_DIR/repos/github.com-facebook-fboss.git/fboss/agent/if/hw_ctrl.thrift
