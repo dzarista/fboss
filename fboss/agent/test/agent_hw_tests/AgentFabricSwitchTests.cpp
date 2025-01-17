@@ -21,13 +21,7 @@ class AgentFabricSwitchTest : public AgentHwTest {
  public:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    auto config = utility::onePortPerInterfaceConfig(
-        ensemble.getSw(),
-        ensemble.masterLogicalPortIds(),
-        false /*interfaceHasSubnet*/,
-        false /*setInterfaceMac*/,
-        utility::kBaseVlanId,
-        true /*enable fabric ports*/);
+    auto config = AgentHwTest::initialConfig(ensemble);
     utility::populatePortExpectedNeighborsToSelf(
         ensemble.masterLogicalPortIds(), config);
     return config;
@@ -199,11 +193,20 @@ TEST_F(AgentFabricSwitchTest, fabricPortIsolate) {
               return fabricPortIds.find(portId) != fabricPortIds.end();
             }),
         undrainedPortIds.end());
-    // Only drained port will be inactive
-    utility::checkFabricPortsActiveState(
-        getAgentEnsemble(), drainedPortIds, false /*expectActive*/);
-    utility::checkFabricPortsActiveState(
-        getAgentEnsemble(), undrainedPortIds, true /*expectActive*/);
+    auto checkActiveInactiveState = [&]() {
+      // Only drained port will be inactive
+      utility::checkFabricPortsActiveState(
+          getAgentEnsemble(), drainedPortIds, false /*expectActive*/);
+      utility::checkFabricPortsActiveState(
+          getAgentEnsemble(), undrainedPortIds, true /*expectActive*/);
+    };
+    checkActiveInactiveState();
+    auto portsToFlap = drainedPortIds;
+    portsToFlap.push_back(*undrainedPortIds.begin());
+    // Flap ports. Active/inactive state should restore after
+    bringDownPorts(portsToFlap);
+    bringUpPorts(portsToFlap);
+    checkActiveInactiveState();
   };
   verifyAcrossWarmBoots(setup, verify);
 }
@@ -381,16 +384,14 @@ TEST_F(AgentFabricSwitchSelfLoopTest, portDrained) {
 TEST_F(AgentFabricSwitchTest, reachDiscard) {
   auto verify = [this]() {
     for (auto switchId : getFabricSwitchIdsWithPorts()) {
-      auto beforeSwitchDrops =
-          *getSw()->getHwSwitchStatsExpensive(switchId).switchDropStats();
+      auto beforeSwitchDrops = *getHwSwitchStats(switchId).switchDropStats();
       std::string out;
       getAgentEnsemble()->runDiagCommand(
           "TX 1 destination=-1 destinationModid=-1 flags=0x8000\n",
           out,
           switchId);
       WITH_RETRIES({
-        auto afterSwitchDrops =
-            *getSw()->getHwSwitchStatsExpensive(switchId).switchDropStats();
+        auto afterSwitchDrops = *getHwSwitchStats(switchId).switchDropStats();
         XLOG(INFO) << " Before reach drops: "
                    << *beforeSwitchDrops.globalReachabilityDrops()
                    << " After reach drops: "
@@ -407,7 +408,7 @@ TEST_F(AgentFabricSwitchTest, reachDiscard) {
             *afterSwitchDrops.globalDrops(), *beforeSwitchDrops.globalDrops());
       });
     }
-    checkNoStatsChange();
+    checkStatsStabilize();
   };
   verifyAcrossWarmBoots([]() {}, verify);
 }
@@ -485,13 +486,7 @@ class AgentBalancedInputModeTest : public AgentFabricSwitchTest {
  public:
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
-    auto config = utility::onePortPerInterfaceConfig(
-        ensemble.getSw(),
-        ensemble.masterLogicalPortIds(),
-        false /*interfaceHasSubnet*/,
-        false /*setInterfaceMac*/,
-        utility::kBaseVlanId,
-        true /*enable fabric ports*/);
+    auto config = AgentFabricSwitchTest::initialConfig(ensemble);
     // Initialize local switch as level 2 (SDSW)
     const auto selfFabricLevel = 2;
     const auto remoteFabricLevel = 1;

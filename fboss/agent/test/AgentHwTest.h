@@ -4,6 +4,7 @@
 
 #include "fboss/agent/FbossInit.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
+#include "fboss/agent/if/gen-cpp2/multiswitch_ctrl_types.h"
 #include "fboss/agent/test/AgentEnsemble.h"
 #include "fboss/agent/test/gen-cpp2/production_features_types.h"
 #include "fboss/agent/test/utils/AgentHwTestConstants.h"
@@ -141,6 +142,8 @@ class AgentHwTest : public ::testing::Test {
       const std::vector<PortID>& ports);
   HwPortStats getNextUpdatedPortStats(const PortID& port);
   HwPortStats getLastIncrementedPortStats(const PortID& port);
+  multiswitch::HwSwitchStats getHwSwitchStats(uint16_t switchIndex) const;
+  std::map<uint16_t, multiswitch::HwSwitchStats> getHwSwitchStats() const;
   std::map<PortID, std::pair<HwPortStats, HwPortStats>>
   sendTrafficAndCollectStats(
       const std::vector<PortID>& ports,
@@ -149,6 +152,12 @@ class AgentHwTest : public ::testing::Test {
       const std::function<void()>& stopSendFn = []() {},
       bool keepTrafficRunning = false);
 
+  std::map<PortID, HwPortStats> extractPortStats(
+      const std::vector<PortID>& ports,
+      const std::map<uint16_t, multiswitch::HwSwitchStats>& switch2Stats);
+  HwPortStats extractPortStats(
+      PortID port,
+      const std::map<uint16_t, multiswitch::HwSwitchStats>& switch2Stats);
   std::map<SystemPortID, HwSysPortStats> getLatestSysPortStats(
       const std::vector<SystemPortID>& ports);
 
@@ -193,7 +202,23 @@ class AgentHwTest : public ::testing::Test {
     agentEnsemble_->bringDownPorts(ports);
   }
 
-  void checkNoStatsChange(int trys = 10);
+  /*
+   * Check that stats stabilize after X rounds of collection.
+   * The extra retries are to allow for
+   * i. Pkts in flight
+   * ii. Dependent stats - for e.g. test asserted for port
+   * stats, but did not account for VOQ stats, which may
+   * increment async.
+   * Optionally a test can pass in a lambda which asserts
+   * for the particular stats the test is interested in to
+   * not change anymore. This is test specific check
+   * which can't be generalized, hence the lambda
+   */
+  void checkStatsStabilize(
+      int trys = 10,
+      const std::function<
+          void(const std::map<uint16_t, multiswitch::HwSwitchStats>&)>&
+          assertForNoChange = [](const auto&) {});
   /*
    * API to all flag overrides for individual tests. Primarily
    * used for features which we don't want to enable for

@@ -25,6 +25,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentMacLearningTests.cpp
   fboss/agent/test/agent_hw_tests/AgentMacLearningAndNeighborResolutionTests.cpp
   fboss/agent/test/agent_hw_tests/AgentMirroringTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentMirroringScaleTests.cpp
   fboss/agent/test/agent_hw_tests/AgentNeighborTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosTests.cpp
   fboss/agent/test/agent_hw_tests/AgentOlympicQosSchedulerTests.cpp
@@ -32,12 +33,16 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentQueuePerHostTests.cpp
   fboss/agent/test/agent_hw_tests/AgentQueuePerHostRouteTests.cpp
   fboss/agent/test/agent_hw_tests/AgentRouteTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentVoqSwitchFullScaleDsfTests.cpp
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentVoqSwitchLineRateTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentVoqSwitchWithFabricPortsTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentVoqSwitchWithMultipleDsfNodesTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentVoqConditionalEntropyTests.cpp
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchInterruptsTests.cpp
   fboss/agent/test/agent_hw_tests/AgentFabricSwitchTests.cpp
   fboss/agent/test/agent_hw_tests/AgentPortBandWidthTests.cpp
   fboss/agent/test/agent_hw_tests/AgentPortLedTests.cpp
-  fboss/agent/test/agent_hw_tests/AgentPortTests.cpp
   fboss/agent/test/agent_hw_tests/AgentPrbsTests.cpp
   fboss/agent/test/agent_hw_tests/AgentAclCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentAqmTests.cpp
