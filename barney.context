@@ -11,7 +11,7 @@
                "commit": "591636c667d7754293c80ae5f250287a420239b7"
             },
             "code.arista.io/infra/barney/barnzilla": {
-               "commit": "af23d029f4dd29707032ec7f5c5d4edaa149d5d0"
+               "commit": "93907118440a4f9addf1606bbf1be7a5f1e9b6b6"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
                "commit": "8e57a682b8f4dd871d68cf22376cf26499c35551"
@@ -26,7 +26,7 @@
                "commit": "194de8fbfaf4c3ed54e1a3c1b14fc67a830b8d95"
             },
             "barney.ci/byob": {
-               "commit": "2c29f9b3a86d24224227f18fe57d441ed94cbbd7"
+               "commit": "9efb95e79d6833e48d670a809a6d18bd156bb594"
             },
             "github.com/goreleaser/nfpm": {
                "commit": "9af00e6421bae54bdb7a36f60055d0d66c07909d"
