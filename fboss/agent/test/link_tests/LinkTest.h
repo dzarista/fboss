@@ -17,7 +17,6 @@ DECLARE_bool(setup_for_warmboot);
 DECLARE_string(config);
 DECLARE_string(volatile_state_dir);
 DECLARE_bool(disable_neighbor_updates);
-DECLARE_bool(link_stress_test);
 DECLARE_bool(enable_macsec);
 DECLARE_bool(list_production_feature);
 
@@ -92,7 +91,9 @@ class LinkTest : public AgentTest {
   std::vector<std::string> getPortName(
       const std::vector<PortID>& portIDs) const;
 
-  std::optional<PortID> getPeerPortID(PortID portId) const;
+  std::optional<PortID> getPeerPortID(
+      PortID portId,
+      const std::set<std::pair<PortID, PortID>>& connectedPairs) const;
 
   std::set<std::pair<PortID, PortID>> getConnectedOpticalPortPairWithFeature(
       TransceiverFeature feature,

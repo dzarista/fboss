@@ -599,30 +599,6 @@ void translateToFibError(const FbossHwUpdateError& updError) {
   throw fibError;
 }
 
-void translateToTeUpdateError(const FbossHwUpdateError& updError) {
-  FbossTeUpdateError teError;
-  StateDelta delta(updError.appliedState, updError.desiredState);
-
-  facebook::fboss::DeltaFunctions::forEachChanged(
-      delta.getTeFlowEntriesDelta(),
-      [&](const shared_ptr<TeFlowEntry>& removedTeFlowEntry,
-          const shared_ptr<TeFlowEntry>& addedTeFlowEntry) {
-        if (*removedTeFlowEntry != *addedTeFlowEntry) {
-          teError.failedAddUpdateFlows_ref()->push_back(
-              addedTeFlowEntry->getFlow()->toThrift());
-        }
-      },
-      [&](const shared_ptr<TeFlowEntry>& addedTeFlowEntry) {
-        teError.failedAddUpdateFlows_ref()->push_back(
-            addedTeFlowEntry->getFlow()->toThrift());
-      },
-      [&](const shared_ptr<TeFlowEntry>& deletedTeFlowEntry) {
-        teError.failedDeleteFlows_ref()->push_back(
-            deletedTeFlowEntry->getFlow()->toThrift());
-      });
-  throw teError;
-}
-
 cfg::PortLoopbackMode toLoopbackMode(PortLoopbackMode mode) {
   switch (mode) {
     case PortLoopbackMode::NONE:
@@ -2814,6 +2790,13 @@ void ThriftHandler::setNeighborsToBlock(
   auto switchSettings =
       utility::getFirstNodeIf(sw_->getState()->getSwitchSettings());
   if (neighborsToBlock) {
+    if (neighborsToBlock->size() > FLAGS_max_neighbors_to_block) {
+      throw FbossError(
+          "Neighbor entries to block list size ",
+          neighborsToBlock->size(),
+          " exceeds limit ",
+          FLAGS_max_neighbors_to_block);
+    }
     if ((*neighborsToBlock).size() != 0 &&
         switchSettings->getMacAddrsToBlock()->size() != 0) {
       throw FbossError(
@@ -2877,6 +2860,13 @@ void ThriftHandler::setMacAddrsToBlock(
   std::vector<std::pair<VlanID, folly::MacAddress>> blockMacAddrs;
 
   if (macAddrsToBlock) {
+    if (macAddrsToBlock->size() > FLAGS_max_mac_address_to_block) {
+      throw FbossError(
+          "MAC addresses to block list size ",
+          macAddrsToBlock->size(),
+          " exceeds limit ",
+          FLAGS_max_mac_address_to_block);
+    }
     if ((*macAddrsToBlock).size() != 0 &&
         utility::getFirstNodeIf(sw_->getState()->getSwitchSettings())
                 ->getBlockNeighbors()
@@ -2976,89 +2966,27 @@ void ThriftHandler::getActualSwitchDrainState(
 }
 
 void ThriftHandler::addTeFlows(
-    std::unique_ptr<std::vector<FlowEntry>> teFlowEntries) {
+    std::unique_ptr<std::vector<FlowEntry>> /*teFlowEntries*/) {
   auto log = LOG_THRIFT_CALL(DBG1);
-  ensureConfigured(__func__);
-  auto updateFn = [=, teFlows = std::move(*teFlowEntries), this](
-                      const std::shared_ptr<SwitchState>& state) {
-    TeFlowSyncer teFlowSyncer;
-    auto newState = teFlowSyncer.programFlowEntries(
-        sw_->getScopeResolver()->scope(std::shared_ptr<TeFlowEntry>()),
-        state,
-        teFlows,
-        {},
-        false);
-    if (!sw_->isValidStateUpdate(StateDelta(state, newState))) {
-      throw FbossError("Invalid TE flow entries");
-    }
-    return newState;
-  };
-  try {
-    sw_->updateStateWithHwFailureProtection("addTEFlowEntries", updateFn);
-  } catch (const FbossHwUpdateError& ex) {
-    translateToTeUpdateError(ex);
-  }
+  throw FbossError("addTeFlows is deprecated");
 }
 
 void ThriftHandler::deleteTeFlows(
-    std::unique_ptr<std::vector<TeFlow>> teFlows) {
+    std::unique_ptr<std::vector<TeFlow>> /*teFlows*/) {
   auto log = LOG_THRIFT_CALL(DBG1);
-  ensureConfigured(__func__);
-  auto updateFn = [=, flows = std::move(*teFlows), this](
-                      const std::shared_ptr<SwitchState>& state) {
-    TeFlowSyncer teFlowSyncer;
-    auto newState = teFlowSyncer.programFlowEntries(
-        sw_->getScopeResolver()->scope(std::shared_ptr<TeFlowEntry>()),
-        state,
-        {},
-        flows,
-        false);
-    return newState;
-  };
-  sw_->updateStateBlocking("deleteTeFlows", updateFn);
+  throw FbossError("deleteTeFlows is deprecated");
 }
 
 void ThriftHandler::syncTeFlows(
-    std::unique_ptr<std::vector<FlowEntry>> teFlowEntries) {
+    std::unique_ptr<std::vector<FlowEntry>> /*teFlowEntries*/) {
   auto log = LOG_THRIFT_CALL(DBG1);
-  ensureConfigured(__func__);
-  auto updateFn = [=, teFlows = std::move(*teFlowEntries), this](
-                      const std::shared_ptr<SwitchState>& state)
-      -> shared_ptr<SwitchState> {
-    TeFlowSyncer teFlowSyncer;
-    auto newState = teFlowSyncer.programFlowEntries(
-        sw_->getScopeResolver()->scope(std::shared_ptr<TeFlowEntry>()),
-        state,
-        teFlows,
-        {},
-        true);
-    if (state == newState) {
-      return nullptr;
-    }
-    if (!sw_->isValidStateUpdate(StateDelta(state, newState))) {
-      throw FbossError("Invalid TE flows");
-    }
-    return newState;
-  };
-  try {
-    sw_->updateStateWithHwFailureProtection("syncTeFlows", updateFn);
-  } catch (const FbossHwUpdateError& ex) {
-    translateToTeUpdateError(ex);
-  }
+  throw FbossError("syncTeFlows is deprecated");
 }
 
 void ThriftHandler::getTeFlowTableDetails(
-    std::vector<TeFlowDetails>& flowTable) {
+    std::vector<TeFlowDetails>& /*flowTable*/) {
   auto log = LOG_THRIFT_CALL(DBG1);
-  ensureConfigured(__func__);
-  auto multiTeFlowTable = sw_->getState()->getTeFlowTable();
-  for (auto iter = multiTeFlowTable->cbegin(); iter != multiTeFlowTable->cend();
-       iter++) {
-    auto teFlowTable = iter->second;
-    for (const auto& [flowStr, flowEntry] : std::as_const(*teFlowTable)) {
-      flowTable.emplace_back(flowEntry->toDetails());
-    }
-  }
+  throw FbossError("getTeFlowTableDetails is deprecated");
 }
 
 void ThriftHandler::getFabricReachability(

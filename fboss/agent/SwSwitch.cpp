@@ -457,7 +457,8 @@ SwSwitch::SwSwitch(
       scopeResolver_(
           new SwitchIdScopeResolver(getSwitchInfoFromConfig(config))),
       switchStatsObserver_(new SwitchStatsObserver(this)),
-      resourceAccountant_(new ResourceAccountant(hwAsicTable_.get())),
+      resourceAccountant_(
+          new ResourceAccountant(hwAsicTable_.get(), scopeResolver_.get())),
       packetStreamMap_(new MultiSwitchPacketStreamMap()),
       swSwitchWarmbootHelper_(
           new SwSwitchWarmBootHelper(agentDirUtil_, hwAsicTable_.get())),
@@ -522,6 +523,12 @@ bool SwSwitch::fsdbStatPublishReady() const {
 bool SwSwitch::fsdbStatePublishReady() const {
   return fsdbSyncer_.withRLock(
       [](const auto& syncer) { return syncer->isReadyForStatePublishing(); });
+}
+
+uint64_t SwSwitch::fsdbPublishQueueLength() const {
+  return fsdbSyncer_.withRLock([](const auto& syncer) {
+    return syncer->getPendingUpdatesQueueLength();
+  });
 }
 
 void SwSwitch::stop(bool isGracefulStop, bool revertToMinAlpmState) {
@@ -887,6 +894,7 @@ void SwSwitch::updateStats() {
   updateMultiSwitchGlobalFb303Stats();
   stats()->maxNumOfPhysicalHostsPerQueue(
       getLookupClassUpdater()->getMaxNumHostsPerQueue());
+  stats()->fsdbPublishQueueLength(fsdbPublishQueueLength());
 
   if (!isRunModeMultiSwitch()) {
     multiswitch::HwSwitchStats hwStats;
