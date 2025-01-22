@@ -322,8 +322,12 @@ class PmUnitConfig:
       for pciConfig in self.pciDeviceConfigs:
          for xcvrConfig in pciConfig.xcvrCtrlConfigs:
             portNumber = xcvrConfig.portNumber
+            outputList = []
+            constructHelper( xcvrConfig,
+                             f"/[{pciConfig.portI2cAdapterMap[ portNumber ]}]",
+                             outputList )
             symlinkDict[ f"/run/devmap/xcvrs/xcvr_io_{portNumber}" ] = (
-               pciConfig.portI2cAdapterMap[ portNumber ]
+               outputList[ 0 ]
             )
             symlinkDict[ f"/run/devmap/xcvrs/xcvr_ctrl_{ portNumber }" ] = (
                constructDevicePaths( xcvrConfig )[ 0 ]
