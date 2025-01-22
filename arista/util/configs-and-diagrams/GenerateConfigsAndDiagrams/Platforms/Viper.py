@@ -271,10 +271,26 @@ class ViperSMB( SMBUnit ):
                            ) ]
                         )
       ] )
-      smbFpga.addXcvrCtrlConfigs( numConfigs=38, basePortNumber=1 )
+
+      smbFpga.addXcvrCtrlConfigs( numConfigs=32, basePortNumber=1 )
+      smbFpga.updatePortI2cAdapterMap( { port: f"SMB_I2C_MASTER{((port-1)//8) + 1}@{(port-1) % 8}"
+                                      for port in range( 1, 33 )
+                                     } )
+
+      smbFpga.addXcvrCtrlConfigs( numConfigs=6, basePortNumber=33,
+                                  portI2cAdapterMap={
+                                     port: f"SMB_I2C_MASTER5@{(port - 33)}"
+                                     for port in range( 33, 39 )
+                                  } )
+      smbFpga.updatePortI2cAdapterMap( { port: f"SMB_I2C_MASTER5@{(port - 33)}"
+                                         for port in range( 33, 39 )
+                                        } )
+
       smbFpga.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39,
                                     portType="qsfp", xcvrBaseOffset="0xA290",
-                                    ledBaseOffset="0x65C0", ledsPerXcvr=4 )
+                                    ledBaseOffset="0x65C0", ledsPerXcvr=4,
+                                 )
+      smbFpga.updatePortI2cAdapterMap( {39: "SMB_I2C_MASTER0@4"} )
 
       smbFpga.addInfoRomConfigs( "0x100" )
 

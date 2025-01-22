@@ -275,7 +275,8 @@ class PmUnitConfig:
          **self.generateI2cDeviceSymlinks(),
          **self.generateEmbeddedSensorSymlinks(),
          **self.generateXcvrSymlinks(),
-         **self.generateSpiDeviceSymlinks()
+         **self.generateSpiDeviceSymlinks(),
+         **self.generateNewXcvrSymlinks()
       }
       self.symlinkToDevicePaths.update( addedPaths )
 
@@ -309,6 +310,25 @@ class PmUnitConfig:
                constructDevicePaths( xcvrConfig )[ 0 ]
             )
       symlinkDict = OrderedDict(
+         sorted(
+            symlinkDict.items(),
+            key=lambda x: int( re.search( r'\d+', x[ 0 ] ).group() )
+         )
+      )
+      return symlinkDict
+
+   def generateNewXcvrSymlinks( self ):
+      symlinkDict = {}
+      for pciConfig in self.pciDeviceConfigs:
+         for xcvrConfig in pciConfig.xcvrCtrlConfigs:
+            portNumber = xcvrConfig.portNumber
+            symlinkDict[ f"/run/devmap/xcvrs/xcvr_io_{portNumber}" ] = (
+               pciConfig.portI2cAdapterMap[ portNumber ]
+            )
+            symlinkDict[ f"/run/devmap/xcvrs/xcvr_ctrl_{ portNumber }" ] = (
+               constructDevicePaths( xcvrConfig )[ 0 ]
+            )
+         symlinkDict = OrderedDict(
          sorted(
             symlinkDict.items(),
             key=lambda x: int( re.search( r'\d+', x[ 0 ] ).group() )
@@ -838,6 +858,7 @@ class PciDeviceConfig:
       self.parentConfig = None
       self.desiredDriver = desiredDriver
       self.node = None
+      self.portI2cAdapterMap = {}
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -862,16 +883,19 @@ class PciDeviceConfig:
          config.addParentConfigPointer( self )
       self.spiMasterConfigs.extend( newConfigs )
 
+   def updatePortI2cAdapterMap( self, newMappings ):
+      self.portI2cAdapterMap.update( newMappings )
+
    def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, portType="osfp",
                            xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
-                           ledsPerXcvr=2, portNumberSkipStep=1 ):
+                           ledsPerXcvr=2, portNumberSkipStep=1, portI2cAdapterMap={} ):
       newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, portType,
                                          xcvrBaseOffset, ledBaseOffset, ledsPerXcvr,
                                          portNumberSkipStep )
       for config in newConfigs:
          config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
-   
+
    def addInfoRomConfigs( self, offset ):
       infoRomConfig = InfoRomConfigs( self.pmUnitScopedName, offset )
       infoRomConfig.addParentConfigPointer( self )
