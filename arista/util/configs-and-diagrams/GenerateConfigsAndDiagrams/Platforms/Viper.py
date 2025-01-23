@@ -277,7 +277,8 @@ class ViperSMB( SMBUnit ):
                                       for port in range( 1, 33 )
                                      } )
 
-      smbFpga.addXcvrCtrlConfigs( numConfigs=6, basePortNumber=33, xcvrBaseOffset="0x6500",
+      smbFpga.addXcvrCtrlConfigs( numConfigs=6, basePortNumber=33,
+                                  xcvrBaseOffset="0xA210", ledBaseOffset="0x6500",
                                   portI2cAdapterMap={
                                      port: f"SMB_I2C_MASTER5@{(port - 33)}"
                                      for port in range( 33, 39 )
