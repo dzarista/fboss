@@ -2,6 +2,7 @@
 
 import argparse
 
+from GenerateConfigsAndDiagrams.Platforms.QuicksilverPFb import QuicksilverPFb
 from GenerateConfigsAndDiagrams.Platforms.Rackhawk import RackhawkORv3, Rackhawk
 from GenerateConfigsAndDiagrams.Platforms.Viper import Viper, ViperB0
 from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
@@ -9,6 +10,7 @@ from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
 
 def main():
    platforms = {
+      'QuicksilverPFb': QuicksilverPFb,
       'Rackhawk': Rackhawk,
       'RackhawkORv3': RackhawkORv3,
       'Viper': Viper,
