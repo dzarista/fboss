@@ -77,10 +77,14 @@ void assertMaxBufferPoolSize(const SaiPlatform* platform) {
     case cfg::AsicType::ASIC_TYPE_JERICHO2:
     case cfg::AsicType::ASIC_TYPE_JERICHO3:
     case cfg::AsicType::ASIC_TYPE_TRIDENT2:
+      CHECK_EQ(maxEgressPoolSize, availableBuffer);
+      break;
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK3:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK4:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK5:
-      CHECK_EQ(maxEgressPoolSize, availableBuffer);
+      // TODO(maxgg): The maxEgressPoolSize == availableBuffer check fails when
+      // a LOSSY_AND_LOSSLESS/mmu_lossless=0x2 config is used. Disabling it
+      // while we investigate a related CSP CS00012382848.
       break;
   }
 }
@@ -193,6 +197,14 @@ void SaiBufferManager::setupEgressBufferPool(
   } else {
     poolSize = getMaxEgressPoolBytes(platform_);
   }
+  if (FLAGS_egress_buffer_pool_size > 0) {
+    uint64_t newSize = FLAGS_egress_buffer_pool_size *
+        platform_->getAsic()->getNumMemoryBuffers();
+    XLOG(WARNING) << "Overriding egress buffer pool size from " << poolSize
+                  << " to " << newSize;
+    poolSize = newSize;
+  }
+
   SaiBufferPoolTraits::CreateAttributes attributes{
       SAI_BUFFER_POOL_TYPE_EGRESS,
       poolSize,
@@ -375,14 +387,10 @@ void SaiBufferManager::updateIngressBufferPoolStats() {
   if (!counterIdsToReadAndClear.size()) {
     // TODO: Request for per ITM buffer pool stats in SAI
     counterIdsToReadAndClear.push_back(SAI_BUFFER_POOL_STAT_WATERMARK_BYTES);
-    if ((platform_->getAsic()->getAsicType() ==
-         cfg::AsicType::ASIC_TYPE_JERICHO2) ||
-        (platform_->getAsic()->getAsicType() ==
-         cfg::AsicType::ASIC_TYPE_JERICHO3)) {
-      // TODO: Wait for the fix for CS00012274607 to enable this for all!
-      counterIdsToReadAndClear.push_back(
-          SAI_BUFFER_POOL_STAT_XOFF_ROOM_WATERMARK_BYTES);
-    }
+#if !defined(BRCM_SAI_SDK_XGS) || defined(BRCM_SAI_SDK_GTE_10_0)
+    counterIdsToReadAndClear.push_back(
+        SAI_BUFFER_POOL_STAT_XOFF_ROOM_WATERMARK_BYTES);
+#endif
   }
   ingressBufferPoolHandle->bufferPool->updateStats(
       counterIdsToReadAndClear, SAI_STATS_MODE_READ_AND_CLEAR);

@@ -315,7 +315,10 @@ void fillHwPortStats(
         break;
 #if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
       case SAI_PORT_STAT_IF_IN_LINK_DOWN_CELL_DROP:
-        hwPortStats.fabricLinkDownDroppedCells_() = value;
+        // FABRIC link down cell drop is a clear on read counter from SAI
+        // POV, so doing the counter accumulation here.
+        hwPortStats.fabricLinkDownDroppedCells_() =
+            hwPortStats.fabricLinkDownDroppedCells_().value_or(0) + value;
         break;
 #endif
 #if defined(BRCM_SAI_SDK_DNX_GTE_12_0)
@@ -1392,6 +1395,13 @@ bool SaiPortManager::createOnlyAttributeChanged(
         std::get<SaiPortTraits::Attributes::Speed>(newAttributes)));
 }
 
+bool SaiPortManager::createOnlyAttributeChanged(
+    const std::shared_ptr<Port>& oldPort,
+    const std::shared_ptr<Port>& newPort) {
+  return createOnlyAttributeChanged(
+      attributesFromSwPort(oldPort), attributesFromSwPort(newPort));
+}
+
 cfg::PortType SaiPortManager::derivePortTypeOfLogicalPort(
     PortSaiId portSaiId) const {
   // TODO: An extension attribute has been added for MANAGEMENT port type,
@@ -1673,7 +1683,7 @@ bool SaiPortManager::rxSNRSupported() const {
 
 bool SaiPortManager::fecCodewordsStatsSupported(PortID portId) const {
 #if defined(BRCM_SAI_SDK_GTE_10_0) || defined(BRCM_SAI_SDK_DNX_GTE_11_0) || \
-    defined(TAJO_SDK_MORGAN)
+    defined(TAJO_SDK_GTE_24_4_90)
   return platform_->getAsic()->isSupported(
              HwAsic::Feature::SAI_FEC_CODEWORDS_STATS) &&
       utility::isReedSolomonFec(getFECMode(portId)) &&
@@ -1957,7 +1967,7 @@ void SaiPortManager::updateStats(
     ** in periodic stat collection is that we may need to try multiple times
     ** since when port comes up, not everything  is synchronized immediately
     */
-    if (isUp(portId) && !curPortStats.cableLengthMeters().has_value()) {
+    if (isPortUp(portId) && !curPortStats.cableLengthMeters().has_value()) {
       std::optional<SaiPortTraits::Attributes::CablePropogationDelayNS> attrT =
           SaiPortTraits::Attributes::CablePropogationDelayNS{};
 
@@ -2095,7 +2105,8 @@ void SaiPortManager::setQosMapsOnPort(
   auto& port = portHandle->port;
   auto isPfcSupported =
       (portType != cfg::PortType::RECYCLE_PORT &&
-       portType != cfg::PortType::EVENTOR_PORT);
+       portType != cfg::PortType::EVENTOR_PORT &&
+       portType != cfg::PortType::MANAGEMENT_PORT);
   for (auto qosMapTypeToSaiId : qosMaps) {
     auto mapping = qosMapTypeToSaiId.second;
     switch (qosMapTypeToSaiId.first) {
@@ -2184,8 +2195,7 @@ SaiPortManager::getSaiIdsForQosMaps(const SaiQosMapHandle* qosMapHandle) {
 void SaiPortManager::setQosPolicy(
     PortID portID,
     const std::optional<std::string>& qosPolicy) {
-  if (getPortType(portID) == cfg::PortType::FABRIC_PORT ||
-      getPortType(portID) == cfg::PortType::MANAGEMENT_PORT) {
+  if (getPortType(portID) == cfg::PortType::FABRIC_PORT) {
     return;
   }
   XLOG(DBG2) << "set QoS policy " << (qosPolicy ? qosPolicy.value() : "null")
@@ -2488,7 +2498,7 @@ void SaiPortManager::changeBridgePort(
   return addBridgePort(newPort);
 }
 
-bool SaiPortManager::isUp(PortID portID) const {
+bool SaiPortManager::isPortUp(PortID portID) const {
   auto handle = getPortHandle(portID);
   auto saiPortId = handle->port->adapterKey();
   // Need to get Oper State from SDK since it's not part of the create
@@ -2497,7 +2507,7 @@ bool SaiPortManager::isUp(PortID portID) const {
   auto operStatus = SaiApiTable::getInstance()->portApi().getAttribute(
       saiPortId, SaiPortTraits::Attributes::OperStatus{});
   return GET_OPT_ATTR(Port, AdminState, handle->port->attributes()) &&
-      (operStatus == SAI_PORT_OPER_STATUS_UP);
+      utility::isPortOperUp(static_cast<sai_port_oper_status_t>(operStatus));
 }
 
 std::optional<SaiPortTraits::Attributes::PtpMode> SaiPortManager::getPtpMode()

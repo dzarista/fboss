@@ -143,6 +143,10 @@ class SaiPortManager {
       const std::shared_ptr<Port>& newPort);
 
   bool createOnlyAttributeChanged(
+      const std::shared_ptr<Port>& oldPort,
+      const std::shared_ptr<Port>& newPort);
+
+  bool createOnlyAttributeChanged(
       const SaiPortTraits::CreateAttributes& oldAttributes,
       const SaiPortTraits::CreateAttributes& newAttributes);
 
@@ -235,7 +239,7 @@ class SaiPortManager {
       const std::shared_ptr<Port>& oldPort,
       const std::shared_ptr<Port>& newPort);
 
-  bool isUp(PortID portID) const;
+  bool isPortUp(PortID portID) const;
 
   void setPtpTcEnable(bool enable);
   bool isPtpTcEnabled() const;

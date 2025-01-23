@@ -837,8 +837,6 @@ class SwSwitch : public HwSwitchCallback {
   cfg::AgentConfig getAgentConfig() const;
 
   AdminDistance clientIdToAdminDistance(int clientId) const;
-  void publishRxPacket(RxPacket* packet, uint16_t ethertype);
-  void publishTxPacket(TxPacket* packet, uint16_t ethertype);
 
   /*
    * Clear PortStats of the specified port.
@@ -1072,6 +1070,8 @@ class SwSwitch : public HwSwitchCallback {
       SwitchRunState newState);
 
   void onSwitchRunStateChange(SwitchRunState newState);
+
+  uint64_t fsdbPublishQueueLength() const;
 
   // Sets the counter that tracks port status
   void setPortStatusCounter(PortID port, bool up);

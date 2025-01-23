@@ -254,6 +254,10 @@ static const std::vector<PfcPriority> allPfcPriorities() {
   return priorities;
 }
 
+std::string getPriorityGroupStatsKey(folly::StringPiece statKey, int pg) {
+  return folly::to<std::string>(statKey, ".pg", pg);
+}
+
 } // namespace
 
 namespace facebook::fboss {
@@ -411,6 +415,11 @@ void BcmPort::reinitPortStatsLocked(
   if (swPort->getPfc().has_value()) {
     // Init port PFC stats only if PFC is enabled on the port!
     reinitPortPfcStats(swPort);
+  }
+
+  for (int i = 0; i <= cfg::switch_config_constants::PORT_PG_VALUE_MAX(); ++i) {
+    reinitPortStat(
+        getPriorityGroupStatsKey(kInCongestionDiscards(), i), portName);
   }
 
   if (swPort) {
@@ -1235,7 +1244,7 @@ phy::PhyInfo BcmPort::updateIPhyInfo() {
       if (hw_->getPlatform()->getAsic()->isSupported(
               HwAsic::Feature::FEC_DIAG_COUNTERS)) {
         rsFec.codewordStats() = codewordStats_;
-        utility::updateFecTail(rsFec, lastRsFec);
+        utility::updateFecTail(rsFec, lastRsFec, fecMode);
       }
       std::optional<uint64_t> correctedBitsFromHw;
 #if defined(BCM_SDK_VERSION_GTE_6_5_26)
@@ -1469,11 +1478,14 @@ void BcmPort::updateStats() {
 
   auto settings = getProgrammedSettings();
   uint64_t inCongestionDiscards = 0;
+  std::map<int16_t, int64_t> pgInCongestionDiscards;
   if (isMmuLossless()) {
     // although this stat can be derived in the lossy world as well, but use
     // case is only for mmu lossless
-    updateInCongestionDiscardStats(now, &inCongestionDiscards);
+    updateInCongestionDiscardStats(
+        now, &inCongestionDiscards, &pgInCongestionDiscards);
     *curPortStats.inCongestionDiscards_() = inCongestionDiscards;
+    *curPortStats.pgInCongestionDiscards_() = pgInCongestionDiscards;
   }
 
   // InDiscards will be read along with PFC if PFC is enabled
@@ -1786,9 +1798,10 @@ void BcmPort::updateStat(
 
 void BcmPort::updateInCongestionDiscardStats(
     std::chrono::seconds now,
-    uint64_t* portStatVal) {
+    uint64_t* portStatVal,
+    std::map<int16_t, int64_t>* /*portPgStatVal*/) {
   *portStatVal = 0;
-  auto rv = bcm_cosq_stat_sync_get(
+  auto rv = bcm_cosq_stat_get(
       hw_->getUnit(),
       getBcmGport(),
       -1,
@@ -1800,6 +1813,12 @@ void BcmPort::updateInCongestionDiscardStats(
   }
   auto stat = getPortCounterIf(kInCongestionDiscards());
   stat->updateValue(now, *portStatVal);
+
+  for (int16_t priority = 0;
+       priority <= cfg::switch_config_constants::PORT_PG_VALUE_MAX();
+       ++priority) {
+    // TODO(maxgg); Query flexctr
+  }
 }
 
 void BcmPort::updateWredStats(std::chrono::seconds now, int64_t* portStatVal) {

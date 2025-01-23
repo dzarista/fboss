@@ -1640,7 +1640,7 @@ std::map<PortID, phy::PhyInfo> SaiSwitch::updateAllPhyInfoLocked() {
       phyChip.type() = chipType;
       bool isXphy = *phyChip.type() == phy::DataPlanePhyChipType::XPHY;
       phyParams.state()->phyChip() = phyChip;
-      phyParams.state()->linkState() = portManager.isUp(portID);
+      phyParams.state()->linkState() = portManager.isPortUp(portID);
       phyParams.state()->speed() = portManager.getSpeed(portID);
 
       if (isXphy) {
@@ -1943,8 +1943,8 @@ void SaiSwitch::updatePcsInfo(
         speed /* operational Speed */);
     utility::updateFecTail(
         rsFec, /* current RsFecInfo to update */
-        lastRsFec /* previous RsFecInfo */
-    );
+        lastRsFec, /* previous RsFecInfo */
+        fecMode);
     pcsStats.rsFec() = rsFec;
     sideStats.pcs() = pcsStats;
   }
@@ -2736,14 +2736,15 @@ void SaiSwitch::syncLinkStatesLocked(
     const std::lock_guard<std::mutex>& /* lock */) {
   for (const auto& portIdAndHandle : managerTable_->portManager()) {
     const auto& port = portIdAndHandle.second->port;
-    auto operStatus = SaiApiTable::getInstance()->portApi().getAttribute(
-        port->adapterKey(), SaiPortTraits::Attributes::OperStatus{});
+    auto operStatus = static_cast<sai_port_oper_status_t>(
+        SaiApiTable::getInstance()->portApi().getAttribute(
+            port->adapterKey(), SaiPortTraits::Attributes::OperStatus{}));
     XLOG(DBG2) << "Sending link state change notification for port "
                << portIdAndHandle.first << " with oper status: "
-               << (operStatus == SAI_PORT_OPER_STATUS_UP ? "UP" : "DOWN");
+               << (utility::isPortOperUp(operStatus) ? "UP" : "DOWN");
     callback_->linkStateChanged(
         portIdAndHandle.first,
-        operStatus == SAI_PORT_OPER_STATUS_UP,
+        utility::isPortOperUp(operStatus),
         managerTable_->portManager().getPortType(portIdAndHandle.first));
   }
 }
@@ -2928,7 +2929,7 @@ void SaiSwitch::packetRxCallback(
         hostifQueueIdOpt = attr_list[index].value.u8;
         break;
       default:
-        XLOG(DBG2) << "invalid attribute received";
+        XLOG_EVERY_MS(DBG3, 5000) << "invalid attribute received";
     }
   }
 
@@ -3364,8 +3365,8 @@ bool SaiSwitch::sendPacketSwitchedSync(std::unique_ptr<TxPacket> pkt) noexcept {
   auto& hostifApi = SaiApiTable::getInstance()->hostifApi();
   auto rv = hostifApi.send(attributes, saiSwitchId_, txPacket);
   if (rv != SAI_STATUS_SUCCESS) {
-    saiLogError(
-        rv, SAI_API_HOSTIF, "failed to send packet with pipeline lookup");
+    saiLogErrorEveryMs(
+        5000, rv, SAI_API_HOSTIF, "failed to send packet with pipeline lookup");
   }
   return rv == SAI_STATUS_SUCCESS;
 }
@@ -3424,7 +3425,8 @@ bool SaiSwitch::sendPacketOutOfPortSync(
   auto& hostifApi = SaiApiTable::getInstance()->hostifApi();
   auto rv = hostifApi.send(attributes, saiSwitchId_, txPacket);
   if (rv != SAI_STATUS_SUCCESS) {
-    saiLogError(rv, SAI_API_HOSTIF, "failed to send packet pipeline bypass");
+    saiLogErrorEveryMs(
+        5000, rv, SAI_API_HOSTIF, "failed to send packet pipeline bypass");
   }
   return rv == SAI_STATUS_SUCCESS;
 }

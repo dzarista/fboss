@@ -286,8 +286,9 @@ bool AgentEnsembleLinkTest::checkReachabilityOnAllCabledPorts() const {
 }
 
 std::optional<PortID> AgentEnsembleLinkTest::getPeerPortID(
-    PortID portId) const {
-  for (auto portPair : getConnectedPairs()) {
+    PortID portId,
+    const std::set<std::pair<PortID, PortID>>& connectedPairs) const {
+  for (auto portPair : connectedPairs) {
     if (portPair.first == portId) {
       return portPair.second;
     } else if (portPair.second == portId) {
@@ -314,8 +315,16 @@ std::set<std::pair<PortID, PortID>> AgentEnsembleLinkTest::getConnectedPairs()
         XLOG(DBG2) << " No fabric end points on : " << getPortName(cabledPort);
         continue;
       }
-      neighborPort = PortID(fabricPortEndpoint->second.get_portId()) +
-          getRemotePortOffset(getSw()->getPlatformType());
+      auto portName = fabricPortEndpoint->second.portName();
+      if (!portName) {
+        XLOG(DBG2) << " No neighbor port name found on : "
+                   << getPortName(cabledPort);
+        continue;
+      }
+      neighborPort = getPortID(portName.value());
+      XLOG(DBG2) << "Get neighbor port " << portName.value()
+                 << " and neighbor port id " << neighborPort
+                 << " on : " << getPortName(cabledPort);
     } else {
       auto lldpNeighbors =
           getSw()->getLldpMgr()->getDB()->getNeighbors(cabledPort);
@@ -347,7 +356,8 @@ std::set<std::pair<PortID, PortID>> AgentEnsembleLinkTest::getConnectedPairs()
 std::set<std::pair<PortID, PortID>>
 AgentEnsembleLinkTest::getConnectedOpticalPortPairWithFeature(
     TransceiverFeature feature,
-    phy::Side side) const {
+    phy::Side side,
+    bool skipLoopback) const {
   auto connectedPairs = getConnectedPairs();
   auto opticalPorts = std::get<0>(getOpticalCabledPortsAndNames(false));
 
@@ -356,6 +366,9 @@ AgentEnsembleLinkTest::getConnectedOpticalPortPairWithFeature(
     if (std::find(
             opticalPorts.begin(), opticalPorts.end(), connectedPair.first) !=
         opticalPorts.end()) {
+      if (connectedPair.first == connectedPair.second && skipLoopback) {
+        continue;
+      }
       connectedOpticalPortPairs.insert(connectedPair);
     }
   }

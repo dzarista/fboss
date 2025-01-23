@@ -116,6 +116,19 @@ target_link_libraries(agent_ensemble_test_lib
   ${LIBGMOCK_LIBRARIES}
 )
 
+add_library(agent_ensemble_integration_test_base
+  fboss/agent/test/AgentEnsembleIntegrationTestBase.cpp
+)
+
+target_link_libraries(agent_ensemble_integration_test_base
+  agent_ensemble_test_lib
+  main
+  config_factory
+  fboss_config_utils
+  ${GTEST}
+  ${LIBGMOCK_LIBRARIES}
+)
+
 add_library(agent_integration_test_base
   fboss/agent/test/AgentIntegrationTestBase.cpp
 )
@@ -142,6 +155,7 @@ target_link_libraries(agent_hw_test
   hw_copp_utils
   stats_test_utils
   hardware_stats_cpp2
+  multiswitch_ctrl_cpp2
   ${GTEST}
 )
 

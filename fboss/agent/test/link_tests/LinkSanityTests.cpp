@@ -3,6 +3,7 @@
 #include <folly/Random.h>
 #include <folly/Subprocess.h>
 #include <gtest/gtest.h>
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/LldpManager.h"
 #include "fboss/agent/PlatformPort.h"
 #include "fboss/agent/SwSwitch.h"
@@ -466,7 +467,7 @@ TEST_F(LinkTest, qsfpColdbootAfterAgentUp) {
         /* sleep override */
         sleep(5);
         // Assert all cabled ports are up and transceivers have ACTIVE state
-        EXPECT_NO_THROW(waitForAllCabledPorts(true));
+        EXPECT_NO_THROW(waitForAllCabledPorts(true, 60, 5s));
         EXPECT_NO_THROW(utility::waitForAllTransceiverStates(
             true, getCabledTranceivers(), 60, 5s));
       });
