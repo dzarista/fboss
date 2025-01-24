@@ -890,7 +890,6 @@ class PciDeviceConfig:
    def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, smbusName, i2cBusStart, i2cAddrRange,
                            portType="osfp", xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
                            ledsPerXcvr=2, portNumberSkipStep=1 ):
-      import pdb; pdb.set_trace()
       newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, i2cBusStart,
                                          i2cAddrRange, portType, 
                                          xcvrBaseOffset, ledBaseOffset, ledsPerXcvr,
