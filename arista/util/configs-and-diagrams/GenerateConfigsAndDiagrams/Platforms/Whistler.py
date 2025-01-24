@@ -503,44 +503,24 @@ class WhistlerSMB( SMBUnit ):
          ] )
 
       smbFpga0.addXcvrCtrlConfigs(
-         numConfigs=32, basePortNumber=1, portNumberSkipStep=4
+         numConfigs=32, basePortNumber=1, portNumberSkipStep=4,
+         smbusName="SMB_FPGA0", i2cBusStart=0, i2cAddrRange=( 0, 7 )
       )
-      smbFpga0.updatePortI2cAdapterMap( {
-         port: f"SMB_FPGA0_I2C_MASTER{index//8}@{index%8}"
-         for index, port in enumerate(
-               [ p for start in range( 1, 65, 8 ) for p in range( start, start + 4 ) ]
-         )
-      } )
 
       smbFpga1.addXcvrCtrlConfigs(
-         numConfigs=32, basePortNumber=5, portNumberSkipStep=4
+         numConfigs=32, basePortNumber=5, portNumberSkipStep=4,
+         smbusName="SMB_FPGA1", i2cBusStart=0, i2cAddrRange=( 0, 7 )
       )
-      smbFpga1.updatePortI2cAdapterMap( {
-         port: f"SMB_FPGA1_I2C_MASTER{index//8}@{index%8}"
-         for index, port in enumerate(
-               [ p for start in range( 5, 69, 8 ) for p in range( start, start + 4 ) ]
-         )
-      } )
 
       smbFpga2.addXcvrCtrlConfigs(
-         numConfigs=32, basePortNumber=65, portNumberSkipStep=4
+         numConfigs=32, basePortNumber=65, portNumberSkipStep=4,
+         smbusName="SMB_FPGA2", i2cBusStart=0, i2cAddrRange=( 0, 7 )
       )
-      smbFpga2.updatePortI2cAdapterMap( {
-         port: f"SMB_FPGA2_I2C_MASTER{index//8}@{index%8}"
-         for index, port in enumerate(
-               [ p for start in range( 65, 129, 8 ) for p in range( start, start + 4 ) ]
-         )
-      } )
 
       smbFpga3.addXcvrCtrlConfigs(
-         numConfigs=32, basePortNumber=69, portNumberSkipStep=4
+         numConfigs=32, basePortNumber=69, portNumberSkipStep=4,
+         smbusName="SMB_FPGA3", i2cBusStart=0, i2cAddrRange=( 0, 7 )
       )
-      smbFpga3.updatePortI2cAdapterMap( {
-         port: f"SMB_FPGA3_I2C_MASTER{index//8}@{index%8}"
-         for index, port in enumerate(
-               [ p for start in range( 69, 133, 8 ) for p in range( start, start + 4 ) ]
-         )
-      } )
 
       smbFpga0.addInfoRomConfigs( "0x100" )
       smbFpga1.addInfoRomConfigs( "0x100" )
