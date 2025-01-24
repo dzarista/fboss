@@ -887,11 +887,11 @@ class PciDeviceConfig:
       self.spiMasterConfigs.extend( newConfigs )
 
 
-   def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, smbusName, i2cBusStart, i2cAddrRange,
+   def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, smbusName, smbusAccelStart, accelBusRange,
                            portType="osfp", xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
                            ledsPerXcvr=2, portNumberSkipStep=1 ):
-      newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, i2cBusStart,
-                                         i2cAddrRange, portType, 
+      newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart,
+                                         accelBusRange, portType, 
                                          xcvrBaseOffset, ledBaseOffset, ledsPerXcvr,
                                          portNumberSkipStep )
       for config in newConfigs:
@@ -1241,18 +1241,18 @@ class MiscConfig:
       }
 
 
-def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, i2cBusStart, i2cAddrRange,
+def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart, accelBusRange,
                           portType, xcvrBaseOffset, ledBaseOffset, ledsPerXcvr, portNumberSkipStep=1 ):
    configs = []
    currIndex = basePortNumber
    currLedOffset = int( ledBaseOffset, 16 )
-   currI2cBus = i2cBusStart
-   currI2cAddr = i2cAddrRange[ 0 ]
+   currSmbusAccel = smbusAccelStart
+   currAccelBus = accelBusRange[ 0 ]
    for i in range( numConfigs ):
       xcvrCtrlOffset = hex( int( xcvrBaseOffset, 16 ) + i * 0x10 )
       ledOffsets = [ hex( currLedOffset + i * 0x10 )
                      for i in range( ledsPerXcvr ) ]
-      i2cPath = f"{smbusName}_I2C_MASTER{currI2cBus}@{currI2cAddr}"
+      i2cPath = f"{smbusName}_I2C_MASTER{currSmbusAccel}@{currAccelBus}"
       configs.append(
          XcvrConfig(
             portNumber=currIndex,
@@ -1270,11 +1270,11 @@ def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, i2cBusStart, i2
             currIndex += portNumberSkipStep
       currIndex += 1
       currLedOffset += ledsPerXcvr * 0x10
-      if currI2cAddr == i2cAddrRange[ 1 ]:
-         currI2cBus += 1
-         currI2cAddr = 0
+      if currAccelBus == accelBusRange[ 1 ]:
+         currSmbusAccel += 1
+         currAccelBus = 0
       else:
-         currI2cAddr += 1
+         currAccelBus += 1
    return configs
 
 

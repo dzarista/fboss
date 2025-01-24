@@ -504,22 +504,22 @@ class WhistlerSMB( SMBUnit ):
 
       smbFpga0.addXcvrCtrlConfigs(
          numConfigs=32, basePortNumber=1, portNumberSkipStep=4,
-         smbusName="SMB_FPGA0", i2cBusStart=0, i2cAddrRange=( 0, 7 )
+         smbusName="SMB_FPGA0", smbusAccelStart=0, accelBusRange=( 0, 7 )
       )
 
       smbFpga1.addXcvrCtrlConfigs(
          numConfigs=32, basePortNumber=5, portNumberSkipStep=4,
-         smbusName="SMB_FPGA1", i2cBusStart=0, i2cAddrRange=( 0, 7 )
+         smbusName="SMB_FPGA1", smbusAccelStart=0, accelBusRange=( 0, 7 )
       )
 
       smbFpga2.addXcvrCtrlConfigs(
          numConfigs=32, basePortNumber=65, portNumberSkipStep=4,
-         smbusName="SMB_FPGA2", i2cBusStart=0, i2cAddrRange=( 0, 7 )
+         smbusName="SMB_FPGA2", smbusAccelStart=0, accelBusRange=( 0, 7 )
       )
 
       smbFpga3.addXcvrCtrlConfigs(
          numConfigs=32, basePortNumber=69, portNumberSkipStep=4,
-         smbusName="SMB_FPGA3", i2cBusStart=0, i2cAddrRange=( 0, 7 )
+         smbusName="SMB_FPGA3", smbusAccelStart=0, accelBusRange=( 0, 7 )
       )
 
       smbFpga0.addInfoRomConfigs( "0x100" )
