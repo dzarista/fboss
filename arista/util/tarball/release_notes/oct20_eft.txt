@@ -1,0 +1,36 @@
+- FBOSS BSP:
+  - Meru800bia:
+    - fw_util.json updated to support SMB FPGA JTAG upgrade
+      - requires included xapp patch
+    - fan_service.json updated (untuned based on inlet temp sensor)
+    - initial platform_manager.json added (all devices included)
+  - Meru800bfa:
+    - udev rules updated to fix SMB IDPROM address
+    - initial fan_service.json added (untuned based on inlet temp sensor)
+    - initial fw_util.json added, including SMB CPLD JTAG upgrade
+      - SMB CPLD JTAG upgrade requires updated jam patch (included)
+    - initial platform_manager.json added (all devices included)
+    - initial sensor_service.json added
+    - initial weutil.json added
+  - Kernel drivers:
+    - scd-smbus driver updated to fix BUG854014 (out-of-bounds memory access)
+    - scd-xcvr driver updated to fix BUG872149 (kernel error when unloading driver)
+- Programmables:
+   - OpenBMC image meru-9fb5556a8dd-dirty
+     - ipmi-lite SEL support added
+     - dhcp-id support added
+  - Aboot-norcal13-13.1.0-lcc-64m-ENG-33784852.rom
+    - Vendor-specific information removed from DHCP request for PXE boot.
+  - Meru SCM CPLD 0x0_0x16
+    - Same image as shared with September 20 tarball.
+  - Meru800bia SMB FPGA 0x1_0x9
+    - Initial FPGA JTAG image
+  - Meru800bfa SMB CPLD 0x1_0x7
+    - Initial CPLD JTAG image
+- EFT Systems:
+  - 6x Meru800bia (Viper) EFT Shipment is P1C Hardware with the following
+    mechanical changes:
+    - Fans in P1C are not mechanically compatible with older prototypes
+    - Starting with P1C, Viper can support 2 PSU slots
+    - The hardware version in the Meta EEPROM region has been bumped to "2"
+      as a result of these SW impacting HW changes
