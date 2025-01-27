@@ -275,7 +275,8 @@ class PmUnitConfig:
          **self.generateI2cDeviceSymlinks(),
          **self.generateEmbeddedSensorSymlinks(),
          **self.generateXcvrSymlinks(),
-         **self.generateSpiDeviceSymlinks()
+         **self.generateSpiDeviceSymlinks(),
+         **self.generateXcvrCtrlSymlinks()
       }
       self.symlinkToDevicePaths.update( addedPaths )
 
@@ -309,6 +310,29 @@ class PmUnitConfig:
                constructDevicePaths( xcvrConfig )[ 0 ]
             )
       symlinkDict = OrderedDict(
+         sorted(
+            symlinkDict.items(),
+            key=lambda x: int( re.search( r'\d+', x[ 0 ] ).group() )
+         )
+      )
+      return symlinkDict
+
+   def generateXcvrCtrlSymlinks( self ):
+      symlinkDict = {}
+      for pciConfig in self.pciDeviceConfigs:
+         for xcvrConfig in pciConfig.xcvrCtrlConfigs:
+            portNumber = xcvrConfig.portNumber
+            outputList = []
+            constructHelper( xcvrConfig,
+                             f"/[{xcvrConfig.i2cPath}]",
+                             outputList )
+            symlinkDict[ f"/run/devmap/xcvrs/xcvr_io_{portNumber}" ] = (
+               outputList[ 0 ]
+            )
+            symlinkDict[ f"/run/devmap/xcvrs/xcvr_ctrl_{ portNumber }" ] = (
+               constructDevicePaths( xcvrConfig )[ 0 ]
+            )
+         symlinkDict = OrderedDict(
          sorted(
             symlinkDict.items(),
             key=lambda x: int( re.search( r'\d+', x[ 0 ] ).group() )
@@ -862,16 +886,18 @@ class PciDeviceConfig:
          config.addParentConfigPointer( self )
       self.spiMasterConfigs.extend( newConfigs )
 
-   def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, portType="osfp",
-                           xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
+
+   def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, smbusName, smbusAccelStart, accelBusRange,
+                           portType="osfp", xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
                            ledsPerXcvr=2, portNumberSkipStep=1 ):
-      newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, portType,
+      newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart,
+                                         accelBusRange, portType, 
                                          xcvrBaseOffset, ledBaseOffset, ledsPerXcvr,
                                          portNumberSkipStep )
       for config in newConfigs:
          config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
-   
+
    def addInfoRomConfigs( self, offset ):
       infoRomConfig = InfoRomConfigs( self.pmUnitScopedName, offset )
       infoRomConfig.addParentConfigPointer( self )
@@ -1094,7 +1120,7 @@ class Flash( SpiDeviceConfig ):
 
 class XcvrConfig:
    def __init__( self, portNumber, portType,	xcvrCtrlOffset, led1Offset,
-                 led2Offset, led3Offset, led4Offset ):
+                 led2Offset, led3Offset, led4Offset, i2cPath ):
       self.portNumber = portNumber
       self.portType = portType
       self.xcvrCtrlOffset = xcvrCtrlOffset
@@ -1104,6 +1130,7 @@ class XcvrConfig:
       self.led4Offset = led4Offset
       self.pmUnitScopedName = f"{ portType }_PORT{ portNumber }_XCVR".upper()
       self.parentConfig = None
+      self.i2cPath = i2cPath
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -1214,15 +1241,18 @@ class MiscConfig:
       }
 
 
-def enumerateXcvrConfigs( numConfigs, basePortNumber, portType, xcvrBaseOffset,
-                          ledBaseOffset, ledsPerXcvr, portNumberSkipStep=1 ):
+def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart, accelBusRange,
+                          portType, xcvrBaseOffset, ledBaseOffset, ledsPerXcvr, portNumberSkipStep=1 ):
    configs = []
    currIndex = basePortNumber
    currLedOffset = int( ledBaseOffset, 16 )
+   currSmbusAccel = smbusAccelStart
+   currAccelBus = accelBusRange[ 0 ]
    for i in range( numConfigs ):
       xcvrCtrlOffset = hex( int( xcvrBaseOffset, 16 ) + i * 0x10 )
       ledOffsets = [ hex( currLedOffset + i * 0x10 )
                      for i in range( ledsPerXcvr ) ]
+      i2cPath = f"{smbusName}_I2C_MASTER{currSmbusAccel}@{currAccelBus}"
       configs.append(
          XcvrConfig(
             portNumber=currIndex,
@@ -1231,7 +1261,8 @@ def enumerateXcvrConfigs( numConfigs, basePortNumber, portType, xcvrBaseOffset,
             led1Offset=ledOffsets[ 0 ],
             led2Offset=ledOffsets[ 1 ],
             led3Offset=ledOffsets[ 2 ] if ledsPerXcvr > 2 else None,
-            led4Offset=ledOffsets[ 3 ] if ledsPerXcvr > 3 else None
+            led4Offset=ledOffsets[ 3 ] if ledsPerXcvr > 3 else None,
+            i2cPath=i2cPath
          )
       )
       if portNumberSkipStep > 1:
@@ -1239,6 +1270,11 @@ def enumerateXcvrConfigs( numConfigs, basePortNumber, portType, xcvrBaseOffset,
             currIndex += portNumberSkipStep
       currIndex += 1
       currLedOffset += ledsPerXcvr * 0x10
+      if currAccelBus == accelBusRange[ 1 ]:
+         currSmbusAccel += 1
+         currAccelBus = 0
+      else:
+         currAccelBus += 1
    return configs
 
 
