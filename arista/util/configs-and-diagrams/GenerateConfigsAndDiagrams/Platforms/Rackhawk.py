@@ -64,6 +64,7 @@ class RackhawkScd( PciDeviceConfig ):
       super().__init__( 'SCD_FPGA', '0x3475', '0x0001', '0x3475', '0x0002',
                         symlinkDeviceName='SCD_FPGA' )
       self.addI2cAdapters()
+      self.addXcvrConfigs()
       self.addLeds()
       self.addSpiMasterConfigs( [
          SpiMasterConfig( "SCD_SPI_MASTER", "spi_master", -1,
@@ -87,8 +88,13 @@ class RackhawkScd( PciDeviceConfig ):
                               busSymlinkPrefix='SCD_SMBUS' )
             # Accel 0 is unused and really shouldn't be here, but PM can't handle
             # non-contiguous adapters correctly (the adapter names are incorrect).
-            for accelNum in [ 0, 1 ]
+            for accelNum in [ 0, 1, 2, 3, 4, 5, 6 ]
       ]
+
+   def addXcvrConfigs( self ):
+      self.addXcvrCtrlConfigs( numConfigs=32, basePortNumber=1, ledsPerXcvr=1,
+                              smbusName="SCD_SMBUS", smbusAccelStart=2,
+                              accelBusRange=( 0, 7 ), portLedOffsetStep=0x40 )
 
    def addLeds( self ):
       self.addLedCtrlConfigs( [
@@ -868,7 +874,7 @@ class Rackhawk( PlatformConfig ):
          kmods.append( 'bp4a_max1363' )
       self.addKmodsSettings(
          {
-            'requiredKmodsToLoad': [ 'i2c-i801', 'scd' ]
+            'requiredKmodsToLoad': [ 'i2c_i801', 'scd' ]
          }
       )
 
