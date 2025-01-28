@@ -93,8 +93,9 @@ class RackhawkScd( PciDeviceConfig ):
 
    def addXcvrConfigs( self ):
       self.addXcvrCtrlConfigs( numConfigs=32, basePortNumber=1, ledsPerXcvr=1,
-                              smbusName="SCD_SMBUS", smbusAccelStart=2,
-                              accelBusRange=( 0, 7 ), portLedOffsetStep=0x40 )
+                               portLedOffsetStep=0x40, portType="qsfp",
+                               smbusName="SCD_SMBUS", smbusAccelStart=2,
+                               accelBusRange=( 0, 7 ),  )
 
    def addLeds( self ):
       self.addLedCtrlConfigs( [
