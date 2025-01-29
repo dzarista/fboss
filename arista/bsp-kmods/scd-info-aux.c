@@ -24,6 +24,7 @@
 #define FPGA_SUB_VER_OFFSET 0
 #define FPGA_SUB_VER_BITLEN 8
 
+static
 ssize_t fpga_fw_ver_show(struct device *dev,
 			 struct device_attribute *attr,
 			 char *buf)

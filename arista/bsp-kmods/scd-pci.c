@@ -158,6 +158,7 @@ MODULE_PARM_DESC(lpc_irq, "interrupt of LPC SCD");
    hence the register might be updated at different places */
 static DEFINE_MUTEX(scratchpad_mutex);
 
+static
 u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
 {
 	u32 res = 0;
@@ -173,6 +174,7 @@ u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
 	return res;
 }
 
+static
 void scd_write_register(struct pci_dev *pdev, struct scd_reg *reg, u32 val)
 {
 	struct scd_dev_priv *priv = pci_get_drvdata(pdev);
@@ -303,10 +305,10 @@ static ssize_t chassis_power_cycle(struct device *dev,
 	return -ENOENT;
 }
 
-static int scd_read_regbit(struct device *dev, 
-						   u32 reg_offset, 
-						   u32 bit_len, 
-						   u32 bit_offset, 
+static int scd_read_regbit(struct device *dev,
+						   u32 reg_offset,
+						   u32 bit_len,
+						   u32 bit_offset,
 						   u32 *data)
 {
 	u32 mask;
@@ -318,7 +320,7 @@ static int scd_read_regbit(struct device *dev,
 
 	*data = scd_read_register(priv->pdev, reg);
 	mask = GENMASK(bit_len - 1, 0);
-	*data = (*data >> bit_offset) & mask;	
+	*data = (*data >> bit_offset) & mask;
 	return 0;
 }
 

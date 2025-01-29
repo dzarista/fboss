@@ -1647,7 +1647,7 @@ static struct i2c_driver bp4a_max1363_driver = {
 		.name = "bp4a_max1363",
 		.of_match_table = bp4a_max1363_of_match,
 	},
-	.probe_new = max1363_probe,
+	.probe    = max1363_probe,
 	.id_table = bp4a_max1363_id,
 };
 module_i2c_driver(bp4a_max1363_driver);

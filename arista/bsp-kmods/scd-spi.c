@@ -178,7 +178,7 @@ static int scd_spi_transfer_one(struct scd_spi_devdata *devdata,
 	return 0;
 }
 
-static int scd_spi_transfer_one_message(struct spi_master *controller,
+static int scd_spi_transfer_one_message(struct spi_controller *controller,
 					struct spi_message *msg)
 {
 	struct scd_spi_devdata *devdata;
@@ -186,7 +186,7 @@ static int scd_spi_transfer_one_message(struct spi_master *controller,
 	bool last_xfer;
 	unsigned int total_len = 0;
 
-	devdata = spi_master_get_devdata(controller);
+	devdata = spi_controller_get_devdata(controller);
 
 	list_for_each_entry (t, &msg->transfers, transfer_list) {
 		last_xfer = list_is_last(&t->transfer_list, &msg->transfers);
@@ -207,7 +207,7 @@ static int scd_spi_controller_probe(struct auxiliary_device *auxdev,
 {
 	int err;
 	struct resource *res;
-	struct spi_master *controller;
+	struct spi_controller *controller;
 	struct scd_spi_devdata *devdata;
 	struct spi_device *device;
 	struct spi_board_info info = { { 0 } };
@@ -223,7 +223,7 @@ static int scd_spi_controller_probe(struct auxiliary_device *auxdev,
 	if (!controller) {
 		return -ENOMEM;
 	}
-	devdata = spi_master_get_devdata(controller);
+	devdata = spi_controller_get_devdata(controller);
 	dev_set_drvdata(dev, devdata);
 
 	devdata->csr_addr = pdata->csr_offset;
@@ -244,7 +244,7 @@ static int scd_spi_controller_probe(struct auxiliary_device *auxdev,
 
 	controller->bus_num = auxdev->id;
 	controller->num_chipselect = 1;
-	controller->flags = SPI_MASTER_MUST_TX;
+	controller->flags = SPI_CONTROLLER_MUST_TX;
 	controller->transfer_one_message = scd_spi_transfer_one_message;
 
 	if (scd_spi_sanitize(devdata)) {
@@ -259,9 +259,9 @@ static int scd_spi_controller_probe(struct auxiliary_device *auxdev,
 		goto fail_controller;
 	}
 
-	spi_register_master(controller);
+	spi_register_controller(controller);
 
-	// Update spi device configs from PM config 
+	// Update spi device configs from PM config
 	strscpy(info.modalias, spi_data.spidevs->modalias, sizeof(info.modalias));
 	info.max_speed_hz = spi_data.spidevs->max_speed_hz;
   	info.chip_select = spi_data.spidevs->chip_select;
@@ -284,7 +284,7 @@ static int scd_spi_controller_probe(struct auxiliary_device *auxdev,
 	return 0;
 
 fail_controller:
-	spi_master_put(controller);
+	spi_controller_put(controller);
 	return err;
 }
 
@@ -292,7 +292,7 @@ static void scd_spi_controller_remove(struct auxiliary_device *auxdev)
 {
 	struct scd_spi_devdata *devdata = dev_get_drvdata(&auxdev->dev);
 	spi_unregister_device(devdata->device);
-	spi_unregister_master(devdata->controller);
+	spi_unregister_controller(devdata->controller);
 	dev_info(&auxdev->dev, "spi @ 0x%x removed\n", devdata->csr_addr);
 }
 
