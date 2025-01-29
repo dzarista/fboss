@@ -272,17 +272,20 @@ class ViperSMB( SMBUnit ):
                         )
       ] )
 
-      smbFpga.addXcvrCtrlConfigs( numConfigs=32, basePortNumber=1, smbusName="SMB", smbusAccelStart=1, accelBusRange=( 0, 7 ) )
+      smbFpga.addXcvrCtrlConfigs( numConfigs=32, basePortNumber=1,
+                                  smbusName="SMB_I2C_MASTER", smbusAccelStart=1,
+                                  accelBusRange=( 0, 7 ) )
 
       smbFpga.addXcvrCtrlConfigs( numConfigs=6, basePortNumber=33,
                                   xcvrBaseOffset="0xA210", ledBaseOffset="0x6500",
-                                  smbusName="SMB",
+                                  smbusName="SMB_I2C_MASTER",
                                   smbusAccelStart=5, accelBusRange=( 0, 5 ) )
 
       smbFpga.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39,
-                                    portType="qsfp", xcvrBaseOffset="0xA290",
-                                    ledBaseOffset="0x65C0", ledsPerXcvr=4,
-                                  smbusName="SMB", smbusAccelStart=0, accelBusRange=( 4, 4 )
+                                  portType="qsfp", xcvrBaseOffset="0xA290",
+                                  ledBaseOffset="0x65C0", ledsPerXcvr=4,
+                                  smbusName="SMB_I2C_MASTER", smbusAccelStart=0,
+                                  accelBusRange=( 4, 4 )
                                  )
 
       smbFpga.addInfoRomConfigs( "0x100" )

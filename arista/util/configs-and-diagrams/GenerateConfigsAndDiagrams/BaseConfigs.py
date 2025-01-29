@@ -887,13 +887,16 @@ class PciDeviceConfig:
       self.spiMasterConfigs.extend( newConfigs )
 
 
-   def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, smbusName, smbusAccelStart, accelBusRange,
-                           portType="osfp", xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
-                           ledsPerXcvr=2, portNumberSkipStep=1 ):
-      newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart,
-                                         accelBusRange, portType, 
+   def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, smbusName,
+                           smbusAccelStart, accelBusRange, portType="osfp", 
+                           xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
+                           ledsPerXcvr=2, portNumberSkipStep=1, xcvrOffsetStep=0x10,
+                           portLedOffsetStep=0x10 ):
+      newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName,
+                                         smbusAccelStart, accelBusRange, portType, 
                                          xcvrBaseOffset, ledBaseOffset, ledsPerXcvr,
-                                         portNumberSkipStep )
+                                         portNumberSkipStep, xcvrOffsetStep,
+                                         portLedOffsetStep )
       for config in newConfigs:
          config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
@@ -1146,15 +1149,19 @@ class XcvrConfig:
             ledList.append( getattr( self, attribute ) )
       ledIdx = 1
 
-      assert portNumber and portType and len( ledList ) >= 2, (
+      assert portNumber and portType and len( ledList ) >= 1, (
             "missing details in xcvr leds"
       )
 
       for idx, ledOffset in enumerate( ledList ):
+         if len( ledList ) == 1:
+            portLedName = f'{ portType }_PORT{ portNumber }_LED'.upper()
+         else:
+            portLedName = f'{ portType }_PORT{ portNumber }_LED{ idx+1 }'.upper()
+
          returnList.append( {
             "fpgaIpBlockConfig": {
-               "pmUnitScopedName":
-                  f'{ portType }_PORT{ portNumber }_LED{ idx+1 }'.upper(),
+               "pmUnitScopedName": portLedName,
                "deviceName": 'port_led',
                "csrOffset": ledOffset.lower()
             },
@@ -1241,25 +1248,27 @@ class MiscConfig:
       }
 
 
-def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart, accelBusRange,
-                          portType, xcvrBaseOffset, ledBaseOffset, ledsPerXcvr, portNumberSkipStep=1 ):
+def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart, 
+                          accelBusRange, portType, xcvrBaseOffset, ledBaseOffset,
+                          ledsPerXcvr, portNumberSkipStep=1, xcvrOffsetStep=0x10,
+                          portLedOffsetStep=0x10 ):
    configs = []
    currIndex = basePortNumber
    currLedOffset = int( ledBaseOffset, 16 )
    currSmbusAccel = smbusAccelStart
    currAccelBus = accelBusRange[ 0 ]
    for i in range( numConfigs ):
-      xcvrCtrlOffset = hex( int( xcvrBaseOffset, 16 ) + i * 0x10 )
+      xcvrCtrlOffset = hex( int( xcvrBaseOffset, 16 ) + i * xcvrOffsetStep )
       ledOffsets = [ hex( currLedOffset + i * 0x10 )
                      for i in range( ledsPerXcvr ) ]
-      i2cPath = f"{smbusName}_I2C_MASTER{currSmbusAccel}@{currAccelBus}"
+      i2cPath = f"{smbusName}{currSmbusAccel}@{currAccelBus}"
       configs.append(
          XcvrConfig(
             portNumber=currIndex,
             portType=portType,
             xcvrCtrlOffset=xcvrCtrlOffset,
             led1Offset=ledOffsets[ 0 ],
-            led2Offset=ledOffsets[ 1 ],
+            led2Offset=ledOffsets[ 1 ] if ledsPerXcvr > 1 else None,
             led3Offset=ledOffsets[ 2 ] if ledsPerXcvr > 2 else None,
             led4Offset=ledOffsets[ 3 ] if ledsPerXcvr > 3 else None,
             i2cPath=i2cPath
@@ -1269,7 +1278,7 @@ def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart
          if currIndex % portNumberSkipStep == 0:
             currIndex += portNumberSkipStep
       currIndex += 1
-      currLedOffset += ledsPerXcvr * 0x10
+      currLedOffset += ledsPerXcvr * portLedOffsetStep
       if currAccelBus == accelBusRange[ 1 ]:
          currSmbusAccel += 1
          currAccelBus = 0
