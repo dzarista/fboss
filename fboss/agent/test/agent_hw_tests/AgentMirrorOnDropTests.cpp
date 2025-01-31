@@ -11,6 +11,7 @@
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/utils/ConfigUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
+#include "fboss/agent/test/utils/MirrorTestUtils.h"
 #include "fboss/agent/test/utils/PacketSnooper.h"
 #include "fboss/agent/test/utils/TrapPacketUtils.h"
 #include "fboss/lib/CommonUtils.h"
@@ -20,6 +21,8 @@ DEFINE_bool(
     mod_pp_test_use_pipeline_lookup,
     false,
     "Use pipeline lookup mode in packet processing drop test");
+
+const std::string kSflowMirror = "sflow_mirror";
 
 namespace facebook::fboss {
 
@@ -74,21 +77,8 @@ class AgentMirrorOnDropTest : public AgentHwTest {
   // MOD settings
   const int kTruncateSize = 128;
 
-  // MOD constants. TODO(maxgg): remove 11.7 after CS00012377720 closure.
-  const int kRouteMissingTrapID_11 = 0x0F1EF9;
-  const int kRouteMissingTrapID_12 = 0x10001B;
-
-  // TODO(maxgg): temp hack, remove once CS00012385223 is resolved.
-  int routeMissingTrapID() {
-    std::string out;
-    getAgentEnsemble()->runDiagCommand("\n", out);
-    getAgentEnsemble()->runDiagCommand("bcmsai ver\n", out);
-    if (out.find("11.7") != std::string::npos) {
-      return kRouteMissingTrapID_11;
-    } else {
-      return kRouteMissingTrapID_12;
-    }
-  }
+  // MOD constants.
+  const int kRouteMissingTrapID = 0x1B;
 
   std::string portDesc(PortID portId) {
     const auto& cfg = getAgentEnsemble()->getCurrentConfig();
@@ -116,12 +106,23 @@ class AgentMirrorOnDropTest : public AgentHwTest {
     ecmpHelper.programRoutes(&routeUpdater, {port}, {route});
   }
 
+  cfg::MirrorOnDropEventConfig makeEventConfig(
+      std::optional<cfg::MirrorOnDropAgingGroup> group,
+      const std::vector<cfg::MirrorOnDropReasonAggregation>& reasonAggs) {
+    cfg::MirrorOnDropEventConfig eventCfg;
+    if (group.has_value()) {
+      eventCfg.agingGroup() = group.value();
+    }
+    eventCfg.dropReasonAggregations() = reasonAggs;
+    return eventCfg;
+  }
+
   void setupMirrorOnDrop(
       cfg::SwitchConfig* config,
       PortID portId,
       const folly::IPAddressV6& collectorIp,
-      const std::map<int8_t, std::vector<cfg::MirrorOnDropReasonAggregation>>&
-          eventIdToDropReasons) {
+      const std::map<int8_t, cfg::MirrorOnDropEventConfig>&
+          modEventToConfigMap) {
     cfg::MirrorOnDropReport report;
     report.name() = "mod-1";
     report.mirrorPortId() = portId;
@@ -131,9 +132,47 @@ class AgentMirrorOnDropTest : public AgentHwTest {
     report.mtu() = 1500;
     report.truncateSize() = kTruncateSize;
     report.dscp() = 0;
-    report.agingIntervalUsecs() = 100;
-    report.eventIdToDropReasons() = eventIdToDropReasons;
+    report.modEventToConfigMap() = modEventToConfigMap;
+    report.agingGroupAgingIntervalUsecs()[cfg::MirrorOnDropAgingGroup::GLOBAL] =
+        100;
+    report.agingGroupAgingIntervalUsecs()[cfg::MirrorOnDropAgingGroup::PORT] =
+        200;
     config->mirrorOnDropReports()->push_back(report);
+  }
+
+  void configureMirror(cfg::SwitchConfig& cfg) const {
+    utility::configureSflowMirror(
+        cfg,
+        kSflowMirror,
+        true /*truncate*/,
+        utility::getSflowMirrorDestination(false /*v4*/).str());
+  }
+
+  template <typename T = folly::IPAddressV6>
+  void resolveRouteForMirrorDestination(
+      PortID mirrorDestinationPort,
+      cfg::PortType portType) {
+    boost::container::flat_set<PortDescriptor> nhopPorts{
+        PortDescriptor(mirrorDestinationPort)};
+
+    applyNewState(
+        [&](const std::shared_ptr<SwitchState>& state) {
+          utility::EcmpSetupTargetedPorts<T> ecmpHelper(
+              state, RouterID(0), {portType});
+          auto newState = ecmpHelper.resolveNextHops(state, nhopPorts);
+          return newState;
+        },
+        "resolve mirror nexthop");
+
+    auto mirror = getSw()->getState()->getMirrors()->getNodeIf(kSflowMirror);
+    auto dip = mirror->getDestinationIp();
+
+    RoutePrefix<T> prefix(T(dip->str()), dip->bitCount());
+    utility::EcmpSetupTargetedPorts<T> ecmpHelper(
+        getProgrammedState(), RouterID(0), {portType});
+
+    ecmpHelper.programRoutes(
+        getAgentEnsemble()->getRouteUpdaterWrapper(), nhopPorts, {prefix});
   }
 
   // Create a packet that will be dropped. The entire packet is expected to be
@@ -198,7 +237,7 @@ class AgentMirrorOnDropTest : public AgentHwTest {
   }
 
   int32_t makeTrapDSPA(int trapId) {
-    return static_cast<int32_t>(trapId);
+    return (0x10 << 16) | trapId;
   }
 
   void validateMirrorOnDropPacket(
@@ -273,8 +312,10 @@ TEST_F(AgentMirrorOnDropTest, ConfigChangePostWarmboot) {
         mirrorPortId,
         kCollectorIp_,
         {{0,
-          {cfg::MirrorOnDropReasonAggregation::
-               INGRESS_PACKET_PROCESSING_DISCARDS}}});
+          makeEventConfig(
+              std::nullopt, // use default aging group
+              {cfg::MirrorOnDropReasonAggregation::
+                   INGRESS_PACKET_PROCESSING_DISCARDS})}});
     applyNewConfig(config);
   };
 
@@ -285,13 +326,47 @@ TEST_F(AgentMirrorOnDropTest, ConfigChangePostWarmboot) {
         &config,
         mirrorPortId,
         kCollectorIp_,
-        {{1,
-          {cfg::MirrorOnDropReasonAggregation::
-               INGRESS_PACKET_PROCESSING_DISCARDS}}});
+        {{0,
+          makeEventConfig(
+              cfg::MirrorOnDropAgingGroup::PORT,
+              {cfg::MirrorOnDropReasonAggregation::
+                   INGRESS_PACKET_PROCESSING_DISCARDS})}});
     applyNewConfig(config);
   };
 
   verifyAcrossWarmBoots(setup, []() {}, setupWb, []() {});
+}
+
+TEST_F(AgentMirrorOnDropTest, ModWithSflowMirrorPresent) {
+  auto mirrorPortId = masterLogicalPortIds({cfg::PortType::RECYCLE_PORT})[0];
+  auto sampledPortId = masterLogicalInterfacePortIds()[1];
+  auto sflowPortId = masterLogicalInterfacePortIds()[2];
+  XLOG(DBG3) << "MoD port: " << portDesc(mirrorPortId);
+  XLOG(DBG3) << "Sampled port: " << portDesc(sampledPortId);
+  XLOG(DBG3) << "sFlow destination port: " << portDesc(sflowPortId);
+
+  auto setup = [&]() {
+    auto config = getAgentEnsemble()->getCurrentConfig();
+    configureMirror(config);
+    utility::configureSflowSampling(config, kSflowMirror, {sampledPortId}, 1);
+    setupMirrorOnDrop(
+        &config,
+        mirrorPortId,
+        kCollectorIp_,
+        {{0,
+          makeEventConfig(
+              std::nullopt,
+              {cfg::MirrorOnDropReasonAggregation::
+                   INGRESS_PACKET_PROCESSING_DISCARDS})}});
+    applyNewConfig(config);
+    resolveRouteForMirrorDestination(
+        sflowPortId, cfg::PortType::INTERFACE_PORT);
+
+    config.mirrorOnDropReports()->clear();
+    applyNewConfig(config);
+  };
+
+  verifyAcrossWarmBoots(setup, []() {});
 }
 
 TEST_F(AgentMirrorOnDropTest, PacketProcessingError) {
@@ -310,8 +385,10 @@ TEST_F(AgentMirrorOnDropTest, PacketProcessingError) {
         mirrorPortId,
         kCollectorIp_,
         {{kEventId,
-          {cfg::MirrorOnDropReasonAggregation::
-               INGRESS_PACKET_PROCESSING_DISCARDS}}});
+          makeEventConfig(
+              std::nullopt, // use default aging group
+              {cfg::MirrorOnDropReasonAggregation::
+                   INGRESS_PACKET_PROCESSING_DISCARDS})}});
     utility::addTrapPacketAcl(&config, kCollectorNextHopMac_);
     applyNewConfig(config);
 
@@ -339,7 +416,7 @@ TEST_F(AgentMirrorOnDropTest, PacketProcessingError) {
             pkt->buf(),
             kEventId,
             makeSSPA(injectionPortId),
-            makeTrapDSPA(routeMissingTrapID()),
+            makeTrapDSPA(kRouteMissingTrapID),
             0 /*payloadOffset*/);
       }
     });
@@ -363,16 +440,36 @@ TEST_F(AgentMirrorOnDropTest, MultipleEventIDs) {
         &config,
         mirrorPortId,
         kCollectorIp_,
-        // Sandwich PP drops between other reasons and see if it still works
-        {{0,
-          {cfg::MirrorOnDropReasonAggregation::
-               INGRESS_SOURCE_CONGESTION_DISCARDS}},
-         {1,
-          {cfg::MirrorOnDropReasonAggregation::
-               INGRESS_PACKET_PROCESSING_DISCARDS}},
-         {2,
-          {cfg::MirrorOnDropReasonAggregation::
-               INGRESS_DESTINATION_CONGESTION_DISCARDS}}});
+        // Sandwich PP drops between other reasons and see if it still works.
+        // Ensure all aging group tests are tested.
+        // Also make sure to test multiple reason aggregations in one event.
+        {
+            {0,
+             makeEventConfig(
+                 cfg::MirrorOnDropAgingGroup::GLOBAL,
+                 {cfg::MirrorOnDropReasonAggregation::
+                      INGRESS_SOURCE_CONGESTION_DISCARDS})},
+            {1,
+             makeEventConfig(
+                 cfg::MirrorOnDropAgingGroup::PORT,
+                 {cfg::MirrorOnDropReasonAggregation::
+                      INGRESS_PACKET_PROCESSING_DISCARDS,
+                  cfg::MirrorOnDropReasonAggregation::
+                      INGRESS_QUEUE_RESOLUTION_DISCARDS})},
+            {2,
+             makeEventConfig(
+                 cfg::MirrorOnDropAgingGroup::VOQ,
+                 {cfg::MirrorOnDropReasonAggregation::
+                      INGRESS_DESTINATION_CONGESTION_DISCARDS})},
+            {3,
+             makeEventConfig(
+                 cfg::MirrorOnDropAgingGroup::PRIORITY_GROUP,
+                 {
+                     cfg::MirrorOnDropReasonAggregation::INGRESS_MISC_DISCARDS,
+                     cfg::MirrorOnDropReasonAggregation::
+                         UNEXPECTED_REASON_DISCARDS,
+                 })},
+        });
     utility::addTrapPacketAcl(&config, kCollectorNextHopMac_);
     applyNewConfig(config);
 
@@ -395,7 +492,7 @@ TEST_F(AgentMirrorOnDropTest, MultipleEventIDs) {
             pkt->buf(),
             kEventId,
             makeSSPA(injectionPortId),
-            makeTrapDSPA(routeMissingTrapID()),
+            makeTrapDSPA(kRouteMissingTrapID),
             0 /*payloadOffset*/);
       }
     });

@@ -329,13 +329,18 @@ struct MirrorOnDropReportFields {
   7: i16 mtu;
   8: i16 truncateSize;
   9: byte dscp;
-  10: optional i32 agingIntervalUsecs;
+  10: optional i32 agingIntervalUsecs_DEPRECATED;
   11: string switchMac; // Populated at runtime
   12: string firstInterfaceMac; // Populated at runtime
   13: map<
     byte,
     list<switch_config.MirrorOnDropReasonAggregation>
-  > eventIdToDropReasons;
+  > eventIdToDropReasons_DEPRECATED;
+  14: map<byte, switch_config.MirrorOnDropEventConfig> modEventToConfigMap;
+  15: map<
+    switch_config.MirrorOnDropAgingGroup,
+    i32
+  > agingGroupAgingIntervalUsecs;
 }
 
 struct ControlPlaneFields {

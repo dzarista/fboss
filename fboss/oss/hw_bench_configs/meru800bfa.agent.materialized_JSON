@@ -1,6 +1,7 @@
 {
   "defaultCommandLineArgs": {
     "check_wb_handles": "true",
+    "enable_route_resource_protection": "false",
     "log_variable_name": "true",
     "skip_transceiver_programming": "true"
   },
@@ -140,7 +141,26 @@
       "saiSdk": "sai"
     },
     "dsfNodes": {
-      
+      "0": {
+          "name": "fabricNode0",
+          "switchId": 0,
+          "type": 1,
+          "loopbackIps": [
+            
+          ],
+          "asicType": 16,
+          "platformType": 30
+      },
+      "2": {
+          "name": "fabricNode2",
+          "switchId": 2,
+          "type": 1,
+          "loopbackIps": [
+            
+          ],
+          "asicType": 16,
+          "platformType": 30
+      }
     },
     "defaultVoqConfig": [
       

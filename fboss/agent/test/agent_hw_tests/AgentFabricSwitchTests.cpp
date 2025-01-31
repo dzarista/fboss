@@ -108,9 +108,11 @@ TEST_F(AgentFabricSwitchTest, checkFabricConnectivityStats) {
     WITH_RETRIES({
       auto reachabilityStats = getAgentEnsemble()->getFabricReachabilityStats();
       EXPECT_EVENTUALLY_EQ(
-          reachabilityStats.missingCount(),
+          *reachabilityStats.missingCount(),
           masterLogicalFabricPortIds().size());
-      EXPECT_EVENTUALLY_EQ(reachabilityStats.mismatchCount(), 0);
+      EXPECT_EVENTUALLY_EQ(
+          *reachabilityStats.mismatchCount(),
+          masterLogicalFabricPortIds().size());
     });
   };
   verifyAcrossWarmBoots(setup, verify);
@@ -423,7 +425,7 @@ TEST_F(AgentFabricSwitchTest, dtlQueueWatermarks) {
           true /*expectActive*/);
       WITH_RETRIES({
         auto beforeWatermarks = getAllSwitchWatermarkStats()[switchId];
-        EXPECT_EVENTUALLY_TRUE(
+        ASSERT_EVENTUALLY_TRUE(
             beforeWatermarks.dtlQueueWatermarkBytes().has_value());
         EXPECT_EVENTUALLY_EQ(*beforeWatermarks.dtlQueueWatermarkBytes(), 0);
       });
@@ -433,7 +435,7 @@ TEST_F(AgentFabricSwitchTest, dtlQueueWatermarks) {
           switchId);
       WITH_RETRIES({
         auto afterWatermarks = getAllSwitchWatermarkStats()[switchId];
-        EXPECT_EVENTUALLY_TRUE(
+        ASSERT_EVENTUALLY_TRUE(
             afterWatermarks.dtlQueueWatermarkBytes().has_value());
         EXPECT_EVENTUALLY_GT(*afterWatermarks.dtlQueueWatermarkBytes(), 0);
         XLOG(INFO) << "SwitchId: " << switchId

@@ -623,12 +623,14 @@ class AgentSflowMirrorOnTrunkTest : public AgentSflowMirrorTruncateTest<AddrT> {
       return {
           production_features::ProductionFeature::SFLOWv4_SAMPLING,
           production_features::ProductionFeature::LAG,
-          production_features::ProductionFeature::MIRROR_PACKET_TRUNCATION};
+          production_features::ProductionFeature::MIRROR_PACKET_TRUNCATION,
+          production_features::ProductionFeature::LAG_MIRRORING};
     } else {
       return {
           production_features::ProductionFeature::SFLOWv6_SAMPLING,
           production_features::ProductionFeature::LAG,
-          production_features::ProductionFeature::MIRROR_PACKET_TRUNCATION};
+          production_features::ProductionFeature::MIRROR_PACKET_TRUNCATION,
+          production_features::ProductionFeature::LAG_MIRRORING};
     }
   }
 
@@ -900,7 +902,7 @@ TEST_F(AgentSflowMirrorTestV6, MoveToV4) {
       setup, verify, setupPostWb, [=, this]() { verifySampledPacket(true); });
 }
 
-TEST_F(AgentSflowMirrorTestV6, verifyL4SrcPortRandomization) {
+TEST_F(AgentSflowMirrorTruncateTestV6, verifyL4SrcPortRandomization) {
   auto setup = [=, this]() {
     auto config = initialConfig(*getAgentEnsemble());
     configureMirror(config, false, 0);

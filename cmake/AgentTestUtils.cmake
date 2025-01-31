@@ -436,6 +436,7 @@ add_library(multi_port_traffic_test_utils
 )
 
 target_link_libraries(multi_port_traffic_test_utils
+  agent_hw_test
   agent_hw_test_ctrl_cpp2
   qos_test_utils
   state

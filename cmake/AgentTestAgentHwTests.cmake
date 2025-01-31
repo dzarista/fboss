@@ -40,6 +40,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchWithMultipleDsfNodesTests.cpp
   fboss/agent/test/agent_hw_tests/AgentVoqConditionalEntropyTests.cpp
   fboss/agent/test/agent_hw_tests/AgentVoqSwitchInterruptsTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentVoqSwitchFirmwareTests.cpp
   fboss/agent/test/agent_hw_tests/AgentFabricSwitchTests.cpp
   fboss/agent/test/agent_hw_tests/AgentPortBandWidthTests.cpp
   fboss/agent/test/agent_hw_tests/AgentPortLedTests.cpp
@@ -59,12 +60,13 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentTrunkTests.cpp
   fboss/agent/test/agent_hw_tests/AgentRxReasonTests.cpp
   fboss/agent/test/agent_hw_tests/AgentRouteScaleTests.cpp
-  fboss/agent/test/agent_hw_tests/MultiNodeAgentVoqSwitchTests.cpp
   fboss/agent/test/agent_hw_tests/AgentHwAclMatchActionsTest.cpp
   fboss/agent/test/agent_hw_tests/AgentHwAclQualifierTest.cpp
   fboss/agent/test/agent_hw_tests/AgentHwAclStatTests.cpp
   fboss/agent/test/agent_hw_tests/AgentHwResourceStatsTests.cpp
   fboss/agent/test/agent_hw_tests/AgentHwParityErrorTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentTrafficPfcTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentIpInIpTunnelTests.cpp
 )
 
 target_link_libraries(agent_hw_test_src

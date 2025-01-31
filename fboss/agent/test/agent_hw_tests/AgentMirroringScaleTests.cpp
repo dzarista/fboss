@@ -60,6 +60,19 @@ class AgentMirroringScaleTest : public AgentHwTest {
  public:
   std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const override {
+    if constexpr (std::is_same<typename MirrorT::AddrT, folly::IPAddressV6>::
+                      value) {
+      if constexpr (MirrorT::mirrorType == MirrorType::INGRESS_ERSPAN) {
+        return {
+            production_features::ProductionFeature::ERSPANV6_MIRRORING,
+            production_features::ProductionFeature::INGRESS_MIRRORING};
+      }
+      if constexpr (MirrorT::mirrorType == MirrorType::EGRESS_ERSPAN) {
+        return {
+            production_features::ProductionFeature::ERSPANV6_MIRRORING,
+            production_features::ProductionFeature::EGRESS_MIRRORING};
+      }
+    }
     if constexpr (
         MirrorT::mirrorType == MirrorType::INGRESS_SPAN ||
         MirrorT::mirrorType == MirrorType::INGRESS_ERSPAN) {
@@ -132,9 +145,7 @@ class AgentMirroringScaleTest : public AgentHwTest {
   }
 
   PortID getTrafficPort(const AgentEnsemble& ensemble, int portIndex) const {
-    if (portIndex >= ensemble.masterLogicalInterfacePortIds().size()) {
-      throw FbossError("portIndex is out of range");
-    }
+    CHECK_LE(portIndex, ensemble.masterLogicalInterfacePortIds().size());
     return ensemble.masterLogicalPortIds(
         {cfg::PortType::INTERFACE_PORT})[portIndex];
   }

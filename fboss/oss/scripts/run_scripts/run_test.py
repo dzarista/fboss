@@ -11,6 +11,7 @@ import sys
 import time
 from argparse import ArgumentParser
 from datetime import datetime
+from typing import List
 
 # Helper to run HwTests
 #
@@ -165,16 +166,21 @@ OPT_ARG_SIMULATOR = "--simulator"
 OPT_ARG_SAI_LOGGING = "--sai_logging"
 OPT_ARG_FBOSS_LOGGING = "--fboss_logging"
 OPT_ARG_PRODUCTION_FEATURES = "--production-features"
+OPT_ARG_ENABLE_PRODUCTION_FEATURES = "--enable-production-features"
+OPT_ARG_ASIC = "--asic"
+OPT_KNOWN_BAD_TESTS_FILE = "--known-bad-tests-file"
+OPT_UNSUPPORTED_TESTS_FILE = "--unsupported-tests-file"
+OPT_ARG_SETUP_CB = "--setup-for-coldboot"
+OPT_ARG_SETUP_WB = "--setup-for-warmboot"
+OPT_AGENT_TEST_MODE = "--mode"
 SUB_CMD_BCM = "bcm"
 SUB_CMD_SAI = "sai"
-SUB_CMD_SAI_AGENT = "sai_agent"
 SUB_CMD_QSFP = "qsfp"
 SUB_CMD_LINK = "link"
+SUB_CMD_SAI_AGENT = "sai_agent"
+
 SAI_HW_KNOWN_BAD_TESTS = (
     "./share/hw_known_bad_tests/sai_known_bad_tests.materialized_JSON"
-)
-SAI_AGENT_HW_KNOWN_BAD_TESTS = (
-    "./share/hw_known_bad_tests/sai_agent_known_bad_tests.materialized_JSON"
 )
 QSFP_KNOWN_BAD_TESTS = (
     "./share/qsfp_known_bad_tests/fboss_qsfp_known_bad_tests.materialized_JSON"
@@ -184,6 +190,15 @@ QSFP_UNSUPPORTED_TESTS = (
 )
 LINK_KNOWN_BAD_TESTS = (
     "./share/link_known_bad_tests/fboss_link_known_bad_tests.materialized_JSON"
+)
+SAI_AGENT_TEST_KNOWN_BAD_TESTS = (
+    "./share/hw_known_bad_tests/sai_agent_known_bad_tests.materialized_JSON"
+)
+ASIC_PRODUCTION_FEATURES = (
+    "./share/production_features/asic_production_features.materialized_JSON"
+)
+SAI_UNSUPPORTED_TESTS = (
+    "./share/sai_hw_unsupported_tests/sai_hw_unsupported_tests.materialized_JSON"
 )
 QSFP_SERVICE_FOR_TESTING = "qsfp_service_for_testing"
 QSFP_SERVICE_DIR = "/dev/shm/fboss/qsfp_service"
@@ -219,6 +234,17 @@ XGS_SIMULATOR_ASICS = ["th3", "th4", "th4_b0", "th5"]
 DNX_SIMULATOR_ASICS = ["j3"]
 
 ALL_SIMUALTOR_ASICS_STR = "|".join(XGS_SIMULATOR_ASICS + DNX_SIMULATOR_ASICS)
+
+GTEST_NAME_PREFIX = "[ RUN      ] "
+FEATURE_LIST_PREFIX = "Feature List: "
+
+
+def run_script(script_file: str):
+    if not os.path.exists(script_file):
+        raise Exception(f"Script file {script_file} does not exist")
+    if not os.access(script_file, os.X_OK):
+        raise Exception(f"Script file {script_file} is not executable")
+    subprocess.run(script_file, shell=True)
 
 
 class TestRunner(abc.ABC):
@@ -282,6 +308,10 @@ class TestRunner(abc.ABC):
     def add_subcommand_arguments(self, sub_parser: ArgumentParser):
         pass
 
+    @abc.abstractmethod
+    def _filter_tests(self, tests: List[str]) -> List[str]:
+        pass
+
     def setup_qsfp_service(self, is_warm_boot):
         subprocess.run(CLEANUP_QSFP_SERVICE_CMD, shell=True)
         qsfp_service_file = f"/tmp/{QSFP_SERVICE_FOR_TESTING}.service"
@@ -342,9 +372,11 @@ class TestRunner(abc.ABC):
 
         with open(known_bad_tests_file) as f:
             known_bad_test_json = json.load(f)
-            known_bad_test_structs = known_bad_test_json["known_bad_tests"][
-                args.skip_known_bad_tests
-            ]
+            known_bad_tests = known_bad_test_json["known_bad_tests"]
+            key = args.skip_known_bad_tests
+            if key not in known_bad_tests:
+                key = key + "/" + args.mode
+            known_bad_test_structs = known_bad_tests[key]
             known_bad_tests = []
             for test_struct in known_bad_test_structs:
                 known_bad_test = test_struct["test_name_regex"]
@@ -710,6 +742,7 @@ class TestRunner(abc.ABC):
 
     def run_test(self, args):
         tests_to_run = self._get_tests_to_run()
+        tests_to_run = self._filter_tests(tests_to_run)
 
         # Check if tests need to be run or only listed
         if args.list_tests is False:
@@ -765,6 +798,9 @@ class BcmTestRunner(TestRunner):
     def _end_run(self):
         return
 
+    def _filter_tests(self, tests: List[str]) -> List[str]:
+        return tests
+
 
 class SaiTestRunner(TestRunner):
     def add_subcommand_arguments(self, sub_parser: ArgumentParser):
@@ -775,10 +811,14 @@ class SaiTestRunner(TestRunner):
         return ""
 
     def _get_known_bad_tests_file(self):
-        return SAI_HW_KNOWN_BAD_TESTS
+        if not args.known_bad_tests_file:
+            return SAI_HW_KNOWN_BAD_TESTS
+        return args.known_bad_tests_file
 
     def _get_unsupported_tests_file(self):
-        return ""
+        if not args.unsupported_tests_file:
+            return SAI_UNSUPPORTED_TESTS
+        return args.unsupported_tests_file
 
     def _get_test_binary_name(self):
         return args.sai_bin if args.sai_bin else "sai_test-sai_impl"
@@ -807,21 +847,18 @@ class SaiTestRunner(TestRunner):
         return ["--config", conf_file, "--mgmt-if", args.mgmt_if]
 
     def _setup_coldboot_test(self):
-        return
+        if args.setup_for_coldboot:
+            run_script(args.setup_for_coldboot)
 
     def _setup_warmboot_test(self):
-        return
+        if args.setup_for_warmboot:
+            run_script(args.setup_for_warmboot)
 
     def _end_run(self):
         return
 
-# Test runner for Agent HW tests.
-class SaiAgentTestRunner(SaiTestRunner):
-    def _get_known_bad_tests_file(self):
-        return SAI_AGENT_HW_KNOWN_BAD_TESTS
-
-    def _get_test_binary_name(self):
-        return args.sai_bin if args.sai_bin else "sai_agent_hw_test-sai_impl"
+    def _filter_tests(self, tests: List[str]) -> List[str]:
+        return tests
 
 class QsfpTestRunner(TestRunner):
     def add_subcommand_arguments(self, sub_parser: ArgumentParser):
@@ -868,6 +905,9 @@ class QsfpTestRunner(TestRunner):
     def _end_run(self):
         return
 
+    def _filter_tests(self, tests: List[str]) -> List[str]:
+        return tests
+
 
 class LinkTestRunner(TestRunner):
     def add_subcommand_arguments(self, sub_parser: ArgumentParser):
@@ -908,6 +948,124 @@ class LinkTestRunner(TestRunner):
 
     def _end_run(self):
         subprocess.run(CLEANUP_QSFP_SERVICE_CMD, shell=True)
+
+    def _filter_tests(self, tests: List[str]) -> List[str]:
+        return tests
+
+
+class SaiAgentTestRunner(TestRunner):
+    def add_subcommand_arguments(self, sub_parser: ArgumentParser):
+        sub_parser.add_argument(
+            OPT_ARG_PRODUCTION_FEATURES,
+            type=str,
+            help="production features json file",
+            default=ASIC_PRODUCTION_FEATURES,
+        )
+        sub_parser.add_argument(
+            OPT_ARG_ENABLE_PRODUCTION_FEATURES,
+            action="store_true",
+            help="enable/disable filtering by production feature",
+            default=False,
+        )
+        sub_parser.add_argument(
+            OPT_ARG_ASIC,
+            type=str,
+            help="Specify asic to filter production feature",
+            default=None,
+        )
+        sub_parser.add_argument(
+            OPT_AGENT_TEST_MODE,
+            type=str,
+            help="Specify asic to filter production feature",
+            default="mono",
+        )
+
+    def _get_config_path(self):
+        # TOOO Not available in OSS
+        return ""
+
+    def _get_known_bad_tests_file(self):
+        if not args.known_bad_tests_file:
+            return SAI_AGENT_TEST_KNOWN_BAD_TESTS
+        return args.known_bad_tests_file
+
+    def _get_unsupported_tests_file(self):
+        if not args.unsupported_tests_file:
+            return SAI_UNSUPPORTED_TESTS
+        return args.unsupported_tests_file
+
+    def _get_test_binary_name(self):
+        return args.sai_bin if args.sai_bin else "sai_agent_hw_test-sai_impl"
+
+    def _get_sai_replayer_logging_flags(
+        self, sai_replayer_logging_dir, test_prefix, test_to_run
+    ):
+        return [
+            "--enable-replayer",
+            "--enable_get_attr_log",
+            "--enable_packet_log",
+            "--sai-log",
+            os.path.join(
+                sai_replayer_logging_dir,
+                "replayer-log-" + test_prefix + test_to_run.replace("/", "-"),
+            ),
+        ]
+
+    def _get_sai_logging_flags(self, sai_logging):
+        return ["--enable_sai_log", sai_logging]
+
+    def _get_warmboot_check_file(self):
+        return AGENT_WARMBOOT_CHECK_FILE
+
+    def _get_test_run_args(self, conf_file):
+        return ["--config", conf_file, "--mgmt-if", args.mgmt_if]
+
+    def _setup_coldboot_test(self):
+        if args.setup_for_coldboot:
+            run_script(args.setup_for_coldboot)
+
+    def _setup_warmboot_test(self):
+        if args.setup_for_coldboot:
+            run_script(args.setup_for_warmboot)
+
+    def _end_run(self):
+        return
+
+    def _filter_tests(self, tests: List[str]) -> List[str]:
+        if not args.enable_production_features:
+            return tests
+        asic = str(args.asic)
+        asic_production_features = json.load(open(args.production_features))
+        producition_features = {
+            feature for feature in asic_production_features["asicToFeatureNames"][asic]
+        }
+        tests_to_run = []
+        for test in tests:
+            cmd = [
+                self._get_test_binary_name(),
+                f"--gtest_filter={test}",
+                "--list_production_feature",
+            ]
+            ret = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            for line in ret.stdout.split("\n"):
+                if not line.startswith(FEATURE_LIST_PREFIX):
+                    continue
+                test_feature_str = line[len(FEATURE_LIST_PREFIX) :]
+                test_features = (
+                    set(test_feature_str.split(",")) if test_feature_str else set()
+                )
+                if "HW_SWITCH" in test_features:
+                    tests_to_run += (test,)
+                    break
+                if test_features.issubset(producition_features):
+                    tests_to_run += (test,)
+                    break
+        return tests_to_run
 
 
 if __name__ == "__main__":
@@ -980,6 +1138,18 @@ if __name__ == "__main__":
         ),
     )
     ap.add_argument(
+        OPT_KNOWN_BAD_TESTS_FILE,
+        type=str,
+        default=None,
+        help=("Specify file for storing the known bad tests. "),
+    )
+    ap.add_argument(
+        OPT_UNSUPPORTED_TESTS_FILE,
+        type=str,
+        default=None,
+        help=("Specify file for storing the unsupported tests. "),
+    )
+    ap.add_argument(
         OPT_ARG_MGT_IF,
         type=str,
         default="eth0",
@@ -1032,6 +1202,19 @@ if __name__ == "__main__":
         help=("Enable FBOSS logging (Options: INFO|ERR|DBG0-9)"),
     )
 
+    ap.add_argument(
+        OPT_ARG_SETUP_CB,
+        type=str,
+        default=None,
+        help=("run script before cold boot run"),
+    )
+    ap.add_argument(
+        OPT_ARG_SETUP_WB,
+        type=str,
+        default=None,
+        help=("run script before warm boot run"),
+    )
+
     # Add subparsers for different test types
     subparsers = ap.add_subparsers()
 
@@ -1043,10 +1226,6 @@ if __name__ == "__main__":
     sai_test_parser = subparsers.add_parser(SUB_CMD_SAI, help="run sai tests")
     sai_test_parser.set_defaults(func=SaiTestRunner().run_test)
 
-    # Add subparser for SAI Agent tests
-    sai_agent_test_parser = subparsers.add_parser(SUB_CMD_SAI_AGENT, help="run sai agent tests")
-    sai_agent_test_parser.set_defaults(func=SaiAgentTestRunner().run_test)
-
     # Add subparser for QSFP tests
     qsfp_test_parser = subparsers.add_parser(SUB_CMD_QSFP, help="run qsfp tests")
     qsfp_test_runner = QsfpTestRunner()
@@ -1056,6 +1235,14 @@ if __name__ == "__main__":
     # Add subparser for Link tests
     link_test_parser = subparsers.add_parser(SUB_CMD_LINK, help="run link tests")
     link_test_parser.set_defaults(func=LinkTestRunner().run_test)
+
+    # Add subparser for SAI Agent tests
+    sai_agent_test_parser = subparsers.add_parser(
+        SUB_CMD_SAI_AGENT, help="run sai agent tests"
+    )
+    sai_agent_test_runner = SaiAgentTestRunner()
+    sai_agent_test_parser.set_defaults(func=sai_agent_test_runner.run_test)
+    sai_agent_test_runner.add_subcommand_arguments(sai_agent_test_parser)
 
     # Parse the args
     args = ap.parse_known_args()

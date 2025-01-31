@@ -20,6 +20,7 @@ extern "C" {
 
 namespace {
 using facebook::fboss::FbossError;
+using facebook::fboss::cfg::MirrorOnDropAgingGroup;
 using facebook::fboss::cfg::MirrorOnDropReasonAggregation;
 
 // Must be less than BRCM_SAI_DNX_MOD_MAX_SUPP_AGE_TIME (776 on J3).
@@ -128,6 +129,21 @@ std::vector<sai_int32_t> getMirrorOnDropReasonsFromAggregation(
         allReasons.end(), reasons->second.begin(), reasons->second.end());
   }
   return allReasons;
+}
+
+sai_tam_event_aging_group_type_t getMirrorOnDropAgingGroupType(
+    MirrorOnDropAgingGroup group) {
+  switch (group) {
+    case MirrorOnDropAgingGroup::PORT:
+      return SAI_TAM_EVENT_AGING_GROUP_TYPE_PORT;
+    case MirrorOnDropAgingGroup::PRIORITY_GROUP:
+      return SAI_TAM_EVENT_AGING_GROUP_TYPE_PRIORITY_GROUP;
+    case MirrorOnDropAgingGroup::VOQ:
+      return SAI_TAM_EVENT_AGING_GROUP_TYPE_VOQ;
+    case MirrorOnDropAgingGroup::GLOBAL:
+    default:
+      return SAI_TAM_EVENT_AGING_GROUP_TYPE_GLOBAL;
+  }
 }
 
 } // namespace
@@ -241,9 +257,9 @@ void SaiTamManager::addMirrorOnDropReport(
   std::vector<std::shared_ptr<SaiTamEventAgingGroup>> agingGroups;
   std::vector<std::shared_ptr<SaiTamEvent>> events;
   std::vector<sai_object_id_t> eventIds;
-  for (const auto& [eventId, reasonAggs] :
-       report->getEventIdToDropReasonAggregations()) {
-    auto reasons = getMirrorOnDropReasonsFromAggregation(reasonAggs);
+  for (const auto& [eventId, eventCfg] : report->getModEventToConfigMap()) {
+    auto reasons = getMirrorOnDropReasonsFromAggregation(
+        *eventCfg.dropReasonAggregations());
     if (reasons.empty()) {
       XLOG(WARN) << "No mirror on drop reasons specified for event " << eventId;
       continue;
@@ -251,10 +267,15 @@ void SaiTamManager::addMirrorOnDropReport(
 
     // Create aging group
     auto& agingGroupStore = saiStore_->get<SaiTamEventAgingGroupTraits>();
-    sai_uint16_t agingInterval =
-        report->getAgingIntervalUsecs().value_or(kDefaultAgingIntervalUsecs);
+    auto groupType =
+        eventCfg.agingGroup().value_or(cfg::MirrorOnDropAgingGroup::GLOBAL);
+    auto agingIntervals = report->getAgingGroupAgingIntervalUsecs();
+    auto agingTimeIt = agingIntervals.find(groupType);
+    sai_uint32_t agingTime = agingTimeIt == agingIntervals.end()
+        ? kDefaultAgingIntervalUsecs
+        : agingTimeIt->second;
     auto agingGroupTraits = SaiTamEventAgingGroupTraits::CreateAttributes{
-        SAI_TAM_EVENT_AGING_GROUP_TYPE_VOQ, agingInterval};
+        getMirrorOnDropAgingGroupType(groupType), agingTime};
     auto agingGroup =
         agingGroupStore.setObject(agingGroupTraits, agingGroupTraits);
     agingGroups.push_back(agingGroup);
