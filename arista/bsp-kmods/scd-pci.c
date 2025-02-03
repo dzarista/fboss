@@ -43,12 +43,13 @@
 #define SCD_PCI_VENDOR_ID		0x3475
 #define SCD_PCI_DEVICE_ID		0x0001
 #define DARWIN_SCD_PCI_SUBDEVICE_ID	0x0002
-#define FAIRYWREN_SCD_PCI_SUBDEVICE_ID	0x0008
 #define VIPER_SCD_PCI_SUBDEVICE_ID	0x0003
 #define BLACKCOMB_SCD0_PCI_SUBDEVICE_ID	0x0004
 #define BLACKCOMB_SCD1_PCI_SUBDEVICE_ID	0x0005
 #define BLACKCOMB_SCD2_PCI_SUBDEVICE_ID	0x0006
 #define BLACKCOMB_SCD3_PCI_SUBDEVICE_ID	0x0007
+#define FAIRYWREN_SCD_PCI_SUBDEVICE_ID	0x0008
+#define QUICKSILVER_SCD_PCI_SUBDEVICE_ID	0x0009
 #define SCD_BAR_REGS			0
 #define SCD_BAR_1			1
 #define SCD_MAGIC			0xdeadbeef
@@ -590,6 +591,22 @@ static void release_reload_cause_resources(struct scd_dev_priv *priv) {
 	REGBIT_FILE(psu3_out_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(psu4_out_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)
 
+#define QUICKSILVER_REGBIT_FPGA_FILES								\
+	REGBIT_FILE(th5_sys_reset_set, 0x4000, 2, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(th5_pcie_reset_set, 0x4000, 3, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(th5_sys_reset_clear, 0x4010, 2, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(th5_pcie_reset_clear, 0x4010, 3, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(meru800ba_psu1_prsnt, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(meru800ba_psu2_prsnt, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(meru800ba_psu1_out_ok, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(meru800ba_psu2_out_ok, 0x5000, 9, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(meru800ba_psu1_in_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(meru800ba_psu2_in_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)
+
 #define REGBIT_FILE(_name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
 	{									\
 		.name = #_name,							\
@@ -652,6 +669,15 @@ struct regbit_sysfs_entry blackcomb_scd##_id##_regbit_sysfs[] = {	\
 BLACKCOMB_REGBIT_SYSFS(1)
 BLACKCOMB_REGBIT_SYSFS(2)
 BLACKCOMB_REGBIT_SYSFS(3)
+
+struct regbit_sysfs_entry quicksilver_scd_regbit_sysfs[] = {
+	QUICKSILVER_REGBIT_FPGA_FILES
+
+	/* Always the last entry */
+	{
+		.name = NULL,
+	},
+};
 #undef REGBIT_FILE
 
 #define REGBIT_FILE(_name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
@@ -660,6 +686,7 @@ DARWIN_REGBIT_FPGA_FILES
 FAIRYWREN_REGBIT_FPGA_FILES
 VIPER_REGBIT_FPGA_FILES
 BLACKCOMB0_REGBIT_FPGA_FILES
+QUICKSILVER_REGBIT_FPGA_FILES
 #undef REGBIT_FILE
 
 #define REGBIT_FILE(_name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
@@ -721,6 +748,15 @@ static struct attribute_group blackcomb_scd##_id##_attr_group = {	\
 BLACKCOMB_SCD_ATTRS(1)
 BLACKCOMB_SCD_ATTRS(2)
 BLACKCOMB_SCD_ATTRS(3)
+
+static struct attribute *quicksilver_scd_attrs[] = {
+	QUICKSILVER_REGBIT_FPGA_FILES
+	NULL,
+};
+
+static struct attribute_group quicksilver_scd_attr_group = {
+	.attrs = quicksilver_scd_attrs,
+};
 #undef REGBIT_FILE
 
 /*
@@ -892,6 +928,10 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			sysfs_attr_group = &blackcomb_scd3_attr_group;
 			regbit_sysfs_table = blackcomb_scd3_regbit_sysfs;
 			break;
+		case QUICKSILVER_SCD_PCI_SUBDEVICE_ID:
+			sysfs_attr_group = &quicksilver_scd_attr_group;
+			regbit_sysfs_table = quicksilver_scd_regbit_sysfs;
+			break;
 		default:
 			sysfs_attr_group = &scd_attr_group;
 			regbit_sysfs_table = scd_regbit_sysfs;
@@ -993,6 +1033,8 @@ static struct pci_device_id scd_pci_table[] = {
 			 SCD_PCI_VENDOR_ID, BLACKCOMB_SCD2_PCI_SUBDEVICE_ID) },
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
 			 SCD_PCI_VENDOR_ID, BLACKCOMB_SCD3_PCI_SUBDEVICE_ID) },
+	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
+			 SCD_PCI_VENDOR_ID, QUICKSILVER_SCD_PCI_SUBDEVICE_ID) },
 	{
 		0,
 	},
