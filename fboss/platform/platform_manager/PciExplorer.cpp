@@ -67,6 +67,7 @@ PciDevice::PciDevice(const PciDeviceConfig& pciDeviceConfig)
   checkCharDevReadiness();
 }
 
+
 void PciDevice::checkSysfsReadiness() {
   for (const auto& dirEntry : fs::directory_iterator("/sys/bus/pci/devices")) {
     std::string vendor, device, subSystemVendor, subSystemDevice;
