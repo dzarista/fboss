@@ -102,25 +102,44 @@ int Bsp::emergencyShutdown(bool enable) {
   return rc;
 }
 
-int Bsp::kickWatchdog() {
-  int rc = 0;
-  bool sysfsSuccess = false;
-  std::string cmdLine;
-  if (config_.watchdog()) {
-    AccessMethod access = *config_.watchdog()->access();
-    if (*access.accessType() == constants::ACCESS_TYPE_UTIL()) {
-      cmdLine =
-          fmt::format("{} {}", *access.path(), *config_.watchdog()->value());
-      auto [exitStatus, standardOut] = PlatformUtils().execCommand(cmdLine);
-      rc = exitStatus;
-    } else if (*access.accessType() == constants::ACCESS_TYPE_SYSFS()) {
-      sysfsSuccess = writeSysfs(*access.path(), *config_.watchdog()->value());
-      rc = sysfsSuccess ? 0 : -1;
-    } else {
-      throw facebook::fboss::FbossError("Invalid watchdog access type!");
-    }
+void Bsp::kickWatchdog() {
+  if (!config_.watchdog()) {
+    return;
   }
-  return rc;
+  std::string valueStr = std::to_string(*config_.watchdog()->value());
+  if (!writeToWatchdog(valueStr)) {
+    XLOG(ERR) << "Failed to kick watchdog";
+  }
+}
+
+void Bsp::closeWatchdog() {
+  if (!watchdogFd_.has_value()) {
+    return;
+  }
+  std::cout << "Closing watchdog" << std::endl;
+  try {
+    writeToWatchdog("V");
+    close(watchdogFd_.value());
+  } catch (std::exception& e) {
+    XLOG(ERR) << "Error closing watchdog: " << e.what();
+  }
+}
+
+bool Bsp::writeToWatchdog(const std::string& value) {
+  std::string cmdLine;
+  if (!config_.watchdog().has_value()) {
+    return false;
+  }
+  try {
+    auto sysfsPath = config_.watchdog()->sysfsPath()->c_str();
+    if (!watchdogFd_.has_value()) {
+      watchdogFd_ = open(sysfsPath, O_WRONLY);
+    }
+    return writeFd(watchdogFd_.value(), value);
+  } catch (std::exception& e) {
+    XLOG(ERR) << "Could not write to watchdog: " << e.what();
+    return false;
+  }
 }
 
 std::vector<std::pair<std::string, float>> Bsp::processOpticEntries(
@@ -338,6 +357,7 @@ Bsp::~Bsp() {
   }
   fsdbSensorSubscriber_.reset();
   fsdbPubSubMgr_.reset();
+  closeWatchdog();
 }
 
 } // namespace facebook::fboss::platform::fan_service
