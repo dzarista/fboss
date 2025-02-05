@@ -94,7 +94,9 @@ class ViperSMB( SMBUnit ):
                            ( 36, -121 ),
                            ( 37, -121 ),
                            ( 38, -121 ),
-                           ( 39, -121 )
+                           ( 39, -121 ),
+                           ( 75, 31 ),
+                           ( 76, 127 )
                         ] )
                      )
       smbMax.addSensorConfigs( [

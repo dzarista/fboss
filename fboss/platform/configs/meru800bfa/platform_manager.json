@@ -122,7 +122,17 @@
           "busName": "INCOMING@0",
           "address": "0x4d",
           "kernelDeviceName": "max6581",
-          "pmUnitScopedName": "SMB_MAX6581"
+          "pmUnitScopedName": "SMB_MAX6581",
+          "initRegSettings": [
+            {
+              "regOffset": 75,
+              "ioBuf": [31]
+            },
+            {
+              "regOffset": 76,
+              "ioBuf": [3]
+            }
+          ]
         },
         {
           "busName": "INCOMING@0",

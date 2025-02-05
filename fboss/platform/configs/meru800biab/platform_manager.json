@@ -178,6 +178,14 @@
             {
               "regOffset": 39,
               "ioBuf": [-121]
+            },
+            {
+              "regOffset": 75,
+              "ioBuf": [31]
+            },
+            {
+              "regOffset": 76,
+              "ioBuf": [127]
             }
           ]
         },
