@@ -55,6 +55,10 @@ ln -sf /opt/fboss/lib/lib* /usr/lib/
 ln -sf /opt/fboss/lib64/* /usr/lib64/
 ldconfig
 
+# Link flashrom and jam to expected paths by fw_util
+ln -sf /usr/sbin/jam /usr/local/bin/jam
+ln -sf /usr/sbin/flashrom /usr/bin/flashrom
+
 # Create links for services.
 echo -ne "\nInstalling services\n"
 for service in /opt/fboss/share/systemd/*; do
