@@ -89,7 +89,7 @@ class PlatformConfig:
       self.i2cAdaptersFromCpu = []
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
-         "bspKmodsRpmVersion": "0.7.6-1",
+         "bspKmodsRpmVersion": "0.7.7-1",
          "requiredKmodsToLoad": [],
       }
 

@@ -1160,7 +1160,7 @@
     "/run/devmap/sensors/PSU_PMBUS": "/PSU_SLOT@0/[PSU_PMBUS]"
   },
   "bspKmodsRpmName": "arista_bsp_kmods",
-  "bspKmodsRpmVersion": "0.7.6-1",
+  "bspKmodsRpmVersion": "0.7.7-1",
   "requiredKmodsToLoad": [
     "i2c_i801",
     "scd"

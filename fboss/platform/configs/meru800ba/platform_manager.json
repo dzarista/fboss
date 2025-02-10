@@ -149,10 +149,10 @@
     "/run/devmap/fpgas/MERU800BA_SMB_FPGA_INFO_ROM": "/SMB_SLOT@0/[SMB_FPGA_INFO_ROM]"
   },
   "bspKmodsRpmName": "arista_bsp_kmods",
-  "bspKmodsRpmVersion": "0.7.6-1",
+  "bspKmodsRpmVersion": "0.7.7-1",
   "requiredKmodsToLoad": [
     "spidev",
-    "i2c-i801",
+    "i2c_i801",
     "scd"
   ]
 }
