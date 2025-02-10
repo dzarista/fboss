@@ -218,6 +218,7 @@ then
    rm -rf "$SCRATCH_DIR"/fboss_bins*
    rm -rf $SCRATCH_DIR/bsp-kmods
    rm -rf $SCRATCH_DIR/showtech
+   rm -rf $SCRATCH_DIR/sw_test
    make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
    make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 fi
@@ -336,6 +337,10 @@ else
    mkdir -p $SCRATCH_DIR/psu-upgrade
    cp -f $FBOSS_DIR/fboss.git/arista/psu-upgrade/psu-upgrade $SCRATCH_DIR/psu-upgrade/
    make -C $FBOSS_DIR/fboss.git/arista/psu-upgrade clean
+
+   # Add files necessary for sw_test
+   mkdir -p $SCRATCH_DIR/sw_test
+   cp -rf $FBOSS_DIR/fboss.git/fboss/platform/configs/sample/ $SCRATCH_DIR/sw_test/
 
    # Copy over kernel modules
    mkdir -p "$fboss_output_dir/lib/modules"
