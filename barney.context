@@ -23,7 +23,7 @@
                "commit": "636c95302b0312be8cb0af3288602d7a47eb815c"
             },
             "github.com/golang/go": {
-               "commit": "a991f9c34d454d3d844f21dc08f2d05df35a8c60"
+               "commit": "3901409b5d0fb7c85a3e6730a59943cc93b2835c"
             },
             "barney.ci/byob": {
                "commit": "c3a49dcd93bd98b45a3450d88bd5416844d506f8"
