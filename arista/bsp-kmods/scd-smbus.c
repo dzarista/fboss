@@ -546,7 +546,7 @@ static int scd_smbus_bus_add(struct scd_smbus_master *master, int port)
 
 	scnprintf(bus->adap.name, sizeof(bus->adap.name),
 		  "SCD %s SMBus master %d bus %d", pci_name(master->pci_dev),
-		  master->id % 10, bus->id);
+		  master->id % 100, bus->id);
 	i2c_set_adapdata(&bus->adap, bus);
 
 	err = i2c_add_adapter(&bus->adap);
