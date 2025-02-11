@@ -64,7 +64,7 @@ class QuicksilverPFb( PlatformConfig ):
 
       self.addKmodsSettings(
          {
-            "requiredKmodsToLoad": [ "spidev", "i2c-i801", "scd" ]
+            "requiredKmodsToLoad": [ "spidev", "i2c_i801", "scd" ]
          }
       )
 

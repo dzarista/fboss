@@ -85,7 +85,7 @@ class PlatformConfigTest( unittest.TestCase ):
                "decker-cpld"
             ],
             "sharedKmodsToReload": [ "scd" ],
-            "upstreamKmodsToLoad": [ "spidev", "i2c-i801" ]
+            "upstreamKmodsToLoad": [ "spidev", "i2c_i801" ]
          }
       )
       self.assertEqual(
@@ -104,7 +104,7 @@ class PlatformConfigTest( unittest.TestCase ):
       )
       self.assertEqual(
          platform.kmodsSettings[ "upstreamKmodsToLoad" ],
-         [ "spidev", "i2c-i801" ]
+         [ "spidev", "i2c_i801" ]
       )
 
 
