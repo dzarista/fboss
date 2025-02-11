@@ -47,6 +47,7 @@ class QuicksilverPFbSMB( SMBUnit ):
 
       smbFpga = self.pciDeviceConfigs[ 0 ]
       smbFpga.addInfoRomConfigs( "0x100" )
+      smbFpga.addI2cAdapterConfigs( 11, "SMB_I2C_MASTER{}", "0x8080" )
 
 
 class QuicksilverPFb( PlatformConfig ):
