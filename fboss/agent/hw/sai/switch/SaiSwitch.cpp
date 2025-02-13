@@ -885,6 +885,43 @@ std::shared_ptr<SwitchState> SaiSwitch::stateChangedImplLocked(
       };
   processNeighborChangedAndAddedDeltaForIntfs(delta.getIntfsDelta());
   processNeighborChangedAndAddedDeltaForIntfs(delta.getRemoteIntfsDelta());
+
+  processAddedDelta(
+      delta.getPortsDelta(),
+      managerTable_->portManager(),
+      lockPolicy,
+      &SaiPortManager::addPortShelEnable);
+
+  processChangedDelta(
+      delta.getPortsDelta(),
+      managerTable_->portManager(),
+      lockPolicy,
+      &SaiPortManager::changePortShelEnable);
+
+  processAddedDelta(
+      delta.getSystemPortsDelta(),
+      managerTable_->systemPortManager(),
+      lockPolicy,
+      &SaiSystemPortManager::addSystemPortShelPktDstEnable);
+
+  processChangedDelta(
+      delta.getSystemPortsDelta(),
+      managerTable_->systemPortManager(),
+      lockPolicy,
+      &SaiSystemPortManager::changeSystemPortShelPktDstEnable);
+
+  processAddedDelta(
+      delta.getRemoteSystemPortsDelta(),
+      managerTable_->systemPortManager(),
+      lockPolicy,
+      &SaiSystemPortManager::addSystemPortShelPktDstEnable);
+
+  processChangedDelta(
+      delta.getRemoteSystemPortsDelta(),
+      managerTable_->systemPortManager(),
+      lockPolicy,
+      &SaiSystemPortManager::changeSystemPortShelPktDstEnable);
+
   for (const auto& vlanDelta : delta.getVlansDelta()) {
     processChangedDelta(
         vlanDelta.getArpDelta(),

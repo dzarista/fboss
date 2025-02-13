@@ -137,7 +137,8 @@ struct PortFields {
   54: optional i32 reachabilityGroupId;
   // DSF Interface node to enable conditional entropy, rotating hash seed periodically to increase entropy.
   55: bool conditionalEntropyRehash = false;
-  56: bool selfHealingECMPLagEnable = false;
+  56: bool selfHealingECMPLagEnable_DEPRECATED = false;
+  57: optional bool selfHealingECMPLagEnable;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields
@@ -436,6 +437,8 @@ struct SwitchSettingsFields {
   53: optional i32 remoteL1VoqMaxExpectedLatencyNsec;
   54: optional i32 remoteL2VoqMaxExpectedLatencyNsec;
   55: optional i32 voqOutOfBoundsLatencyNsec;
+  // Number of sflow samples to pack in a single packet being sent out
+  56: optional byte numberOfSflowSamplesPerPacket;
 }
 
 struct RoutePrefix {

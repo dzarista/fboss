@@ -922,7 +922,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/14/1"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -959,7 +959,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/14/2"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -996,7 +996,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/14/3"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -1033,7 +1033,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/14/4"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -1070,7 +1070,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/14/5"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -1107,7 +1107,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/14/6"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -1144,7 +1144,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/14/7"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -1181,7 +1181,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/14/8"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -3882,7 +3882,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/4/1"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -3919,7 +3919,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/4/2"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -3956,7 +3956,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/4/3"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -3993,7 +3993,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/4/4"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -4030,7 +4030,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/4/5"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -4067,7 +4067,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/4/6"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -4104,7 +4104,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/4/7"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -4141,7 +4141,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/4/8"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -34666,7 +34666,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/128/1"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -34703,7 +34703,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/128/2"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -34740,7 +34740,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/128/3"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -34777,7 +34777,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/128/4"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -34814,7 +34814,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/128/5"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -34851,7 +34851,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/128/6"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -34888,7 +34888,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/128/7"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -34925,7 +34925,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/128/8"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -37626,7 +37626,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/118/1"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -37663,7 +37663,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/118/2"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -37700,7 +37700,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/118/3"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -37737,7 +37737,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/118/4"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -37774,7 +37774,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/118/5"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -37811,7 +37811,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/118/6"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -37848,7 +37848,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/118/7"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [
@@ -37885,7 +37885,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "fab1/118/8"
         },
         "portQueueConfigName": "FabricTxQueueConfig",
         "lookupClasses": [

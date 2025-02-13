@@ -296,6 +296,10 @@ class SaiPortManager {
   bool rxFrequencyRPMSupported() const;
   bool rxSNRSupported() const;
   bool fecCodewordsStatsSupported(PortID portID) const;
+  void addPortShelEnable(const std::shared_ptr<Port>& swPort) const;
+  void changePortShelEnable(
+      const std::shared_ptr<Port>& oldPort,
+      const std::shared_ptr<Port>& newPort) const;
 
  private:
   PortSaiId addPortImpl(const std::shared_ptr<Port>& swPort);
@@ -373,8 +377,7 @@ class SaiPortManager {
       const bool portPfcWdEnabled);
   void programPfcWatchdogTimers(
       const std::shared_ptr<Port>& swPort,
-      std::vector<PfcPriority>& enabledPfcPriorities,
-      const bool portPfcWdEnabled);
+      std::vector<PfcPriority>& enabledPfcPriorities);
   void programPfcWatchdogPerQueueEnable(
       const std::shared_ptr<Port>& swPort,
       std::vector<PfcPriority>& enabledPfcPriorities,

@@ -2566,7 +2566,7 @@ shared_ptr<Port> ThriftConfigApplier::updatePort(
       *portConf->conditionalEntropyRehash() ==
           orig->getConditionalEntropyRehash() &&
       portConf->selfHealingECMPLagEnable().value_or(false) ==
-          orig->getSelfHealingECMPLagEnable()) {
+          orig->getSelfHealingECMPLagEnable().value_or(false)) {
     return nullptr;
   }
 

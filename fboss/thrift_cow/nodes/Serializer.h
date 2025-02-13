@@ -66,6 +66,9 @@ struct Serializer {
   using Writer = typename Serializers::Writer;
   using TSerializer = apache::thrift::Serializer<Reader, Writer>;
 
+  // default size to serialize is 1KB instead of 16KB in writer::setOutput()
+  static const size_t maxGrowth = 1024;
+
   template <typename TC, typename TType>
   static folly::fbstring serialize(const TType& ttype)
     requires(detail::tc_is_struct_or_union<TC>)
@@ -90,7 +93,9 @@ struct Serializer {
     requires(detail::tc_is_struct_or_union<TC>)
   {
     folly::IOBufQueue queue;
-    TSerializer::serialize(ttype, &queue);
+    Writer writer;
+    writer.setOutput(&queue, maxGrowth);
+    apache::thrift::Cpp2Ops<TType>::write(&writer, &ttype);
     return queue.moveAsValue();
   }
 
@@ -100,7 +105,7 @@ struct Serializer {
   {
     folly::IOBufQueue queue;
     Writer writer;
-    writer.setOutput(&queue);
+    writer.setOutput(&queue, maxGrowth);
     apache::thrift::detail::pm::protocol_methods<TC, TType>::write(
         writer, ttype);
     return queue.moveAsValue();
@@ -247,22 +252,20 @@ class SerializableWrapper : public Serializable {
   explicit SerializableWrapper(TType& node) : node_(node) {}
 
   folly::IOBuf encodeBuf(fsdb::OperProtocol proto) const override {
-    folly::IOBufQueue queue;
     switch (proto) {
       case fsdb::OperProtocol::BINARY:
-        apache::thrift::BinarySerializer::serialize(node_, &queue);
-        break;
-      case fsdb::OperProtocol::COMPACT:
-        apache::thrift::CompactSerializer::serialize(node_, &queue);
-        break;
+        return Serializer<fsdb::OperProtocol::BINARY>::template serializeBuf<
+            TC>(node_);
       case fsdb::OperProtocol::SIMPLE_JSON:
-        apache::thrift::SimpleJSONSerializer::serialize(node_, &queue);
-        break;
+        return Serializer<
+            fsdb::OperProtocol::SIMPLE_JSON>::template serializeBuf<TC>(node_);
+      case fsdb::OperProtocol::COMPACT:
+        return Serializer<fsdb::OperProtocol::COMPACT>::template serializeBuf<
+            TC>(node_);
       default:
         throw std::runtime_error(folly::to<std::string>(
             "Unknown protocol: ", static_cast<int>(proto)));
     }
-    return queue.moveAsValue();
   }
 
   void fromEncodedBuf(fsdb::OperProtocol proto, folly::IOBuf&& encoded)
@@ -284,6 +287,58 @@ class SerializableWrapper : public Serializable {
 #endif
 
  private:
+  TType& node_;
+};
+
+template <typename TC, typename TType>
+class WritableWrapper {
+ public:
+  using CowType = ThriftObject;
+  explicit WritableWrapper(TType& node) : node_(node) {}
+
+  bool remove(const std::string& token) {
+    throw std::runtime_error("Not implemented remove for writable wrapper yet");
+  }
+
+  bool remove(const std::string& token)
+    requires(std::is_same_v<
+             TType,
+             std::map<
+                 typename TType::key_type,
+                 typename TType::value_type::second_type>>)
+  {
+    if constexpr (std::is_same_v<typename TType::key_type, std::string>) {
+      return node_.erase(token);
+    } else if (auto key = folly::tryTo<typename TType::key_type>(token)) {
+      return node_.erase(key.value());
+    }
+    return false;
+  }
+
+  bool remove(const std::string& token)
+    requires(std::is_same_v<TType, std::vector<typename TType::value_type>>)
+  {
+    auto index = folly::tryTo<std::size_t>(token);
+    if (index.hasValue()) {
+      if (index.value() < node_.size()) {
+        node_.erase(node_.begin() + index.value());
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool remove(const std::string& token)
+    requires(std::is_same_v<TType, std::set<typename TType::value_type>>)
+  {
+    if constexpr (std::is_same_v<typename TType::value_type, std::string>) {
+      return node_.erase(token);
+    } else if (auto key = folly::tryTo<typename TType::value_type>(token)) {
+      return node_.erase(key.value());
+    }
+    return false;
+  }
+
   TType& node_;
 };
 

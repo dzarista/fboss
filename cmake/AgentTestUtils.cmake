@@ -204,6 +204,7 @@ target_link_libraries(load_balancer_test_utils
   packet_factory
   resourcelibutil
   common_utils
+  voq_test_utils
 )
 
 add_library(dscp_marking_utils

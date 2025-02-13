@@ -148,20 +148,48 @@ class AgentVoqSwitchIsolationFirmwareTest : public AgentVoqSwitchTest {
 
 class AgentVoqSwitchIsolationFirmwareWBEventsTest
     : public AgentVoqSwitchIsolationFirmwareTest {
+  static bool isColdBoot;
+  static uint16_t fwCapableSwitchIndex;
+
  public:
   static constexpr auto kEventDelay = 20;
   void tearDownAgentEnsemble(bool warmboot = false) override {
     // We check for agentEnsemble not being NULL since the tests
     // are also invoked for just listing their prod features.
     // Then in such case, agentEnsemble is never setup
-    bool isColdBoot =
+    isColdBoot =
         getAgentEnsemble() && getSw()->getBootType() == BootType::COLD_BOOT;
-    AgentHwTest::tearDownAgentEnsemble(warmboot);
     if (isColdBoot) {
-      sleep(kEventDelay * 2);
+      // We use just the first FW capable switch index for asserting for
+      // counter.
+      fwCapableSwitchIndex =
+          *getFWCapableSwitchIndices(getSw()->getConfig()).begin();
     }
+    std::atexit([]() {
+      if (isColdBoot) {
+        WITH_RETRIES({
+          auto fwIsolated = fb303::fbData->getCounterIfExists(
+              "fw_drained_with_high_num_active_fabric_links.sum");
+          EXPECT_EVENTUALLY_TRUE(
+              fwIsolated.has_value() && fwIsolated.value() == 0);
+          auto crashCounterRegex = std::string("(switch.") +
+              folly::to<std::string>(fwCapableSwitchIndex) + ".)?" +
+              "bcm.isolationFirmwareCrash.sum";
+          auto fwCrashedCounters =
+              fb303::fbData->getRegexCounters(crashCounterRegex);
+          EXPECT_EVENTUALLY_TRUE(
+              fwCrashedCounters.size() == 1 &&
+              fwCrashedCounters.begin()->second == 0);
+        });
+        sleep(kEventDelay * 2);
+      }
+    });
+    AgentHwTest::tearDownAgentEnsemble(warmboot);
   }
 };
+
+bool AgentVoqSwitchIsolationFirmwareWBEventsTest::isColdBoot = false;
+uint16_t AgentVoqSwitchIsolationFirmwareWBEventsTest::fwCapableSwitchIndex = 0;
 
 class AgentVoqSwitchIsolationFirmwareUpdateTest
     : public AgentVoqSwitchIsolationFirmwareTest {
