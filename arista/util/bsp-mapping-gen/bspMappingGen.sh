@@ -25,3 +25,6 @@ cd /var/FBOSS/fboss.git
 ./fboss/lib/bsp/bspmapping/run-helper.py
 
 cp -rf /tmp/generated_configs $FBOSS_DIR/fboss.git/tmp/
+
+echo "Mapping files generated successfully"
+echo "See configs located under tmp/generated_configs"
