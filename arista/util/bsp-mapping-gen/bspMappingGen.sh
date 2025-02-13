@@ -7,7 +7,6 @@ fboss_output_dir=$(find $SCRATCH_DIR -maxdepth 1 -name "fboss_bins*")
 
 BSPMAPPING_GEN="$fboss_output_dir/bin/fboss-bspmapping-gen"
 
-
 if [ ! -e "$BSPMAPPING_GEN" ]; then
     echo "$BSPMAPPING_GEN doesn't exist. A prior successful build is required."
     exit 1
