@@ -8,7 +8,7 @@ from deepdiff import DeepDiff
 from datetime import datetime
 
 # Hardcoded or configurable paths/URLs
-LOCAL_REPO = "../../"
+LOCAL_REPO = "../../../"
 UPSTREAM_REPO_URL = "https://github.com/facebook/fboss.git"
 CONFIG_DIR = "fboss/platform/configs"
 
