@@ -7,6 +7,7 @@ from ..BaseConfigs import (
    FANCpld,
    FANUnit,
    Flash,
+   InitRegSettings,
    LedConfig,
    PlatformConfig,
    PSUUnit,
@@ -53,7 +54,12 @@ class WhistlerSMB( SMBUnit ):
 
       smbCpld = SMBCpld( "0x23", "decker_cpld", "SMB_CPLD", incomingBusIndex=0 )
 
-      smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=0 )
+      smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=0,
+                       initRegSettings=InitRegSettings( [
+                           ( 75, 31 ),
+                           ( 76, 3 )
+                       ] )
+                     )
       smbMax.addSensorConfigs( [
          SensorConfig( "BOARD_TOP_CENTER_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
