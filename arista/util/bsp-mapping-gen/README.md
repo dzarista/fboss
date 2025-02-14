@@ -2,7 +2,7 @@
 
 This tool is a wrapper around the bspMapping genration tool located under `fboss/lib/bsp/bspmapping`.
 
-Prior to using this tool, ensure that you have added the csv file representation of the mapping under `fboss/lib/bsp/bspmapping/input` and add references to `Main.cpp` and `Parser.h`.
+Prior to using this tool, ensure that you have added the csv file representation of the mapping under `fboss/lib/bsp/bspmapping/input` and add references to `Main.cpp` and `Parser.h`. A new fboss build is required after adding those changes.
 
 To use the tool, run the following under the arista directory.
 ```shell
