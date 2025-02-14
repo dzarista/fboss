@@ -219,27 +219,19 @@ static int scd_leds_init( struct scd_led_priv *priv, const char *name )
         u32 reg;
         int ret = 0;
         const char *portColors[] = {"green", "yellow"};
-        const char *statusColors[] = {"green", "red,", "blue", "yellow"};
-        const char **colors;
 
-        // Init color and brightness to ON depending on led type
+        // Init color and brightness to ON 
         reg = csr_read( priv->mmio_csr );
         reg &= ~SCD_LED_MASK_ALL;
 
-        if ( priv->num_leds == 2 ) {
-                colors = portColors;
-                reg |= SCD_LED_BLUE | SCD_LED_INTENSITY_BLUE;
-        } else {
-                colors = statusColors;
-                reg |= SCD_LED_GREEN | SCD_LED_INTENSITY_GREEN;
+        reg |= SCD_LED_GREEN;
+
+        for ( int i = 0; i < priv->num_leds; ++i ) {
+           ret = scd_led_init( priv, name, portColors[i], &priv->leds[i] );
+           if ( ret ) return ret;
         }
 
-    for ( int i = 0; i < priv->num_leds; ++i ) {
-                ret = scd_led_init( priv, name, colors[i], &priv->leds[i] );
-        if ( ret ) return ret;
-    }
-
-        // Initialize register and sysfs value for blue/green led
+        // Initialize register and sysfs value for yellow/green led
         priv->leds[0].cdev.brightness = 1;
         csr_write( priv->mmio_csr, reg );
 
@@ -319,11 +311,7 @@ static void scd_led_remove( struct auxiliary_device *auxdev ) {
 }
 
 static const struct auxiliary_device_id scd_led_ids[] = {
-        { .name = "scd.fan_led" },
-        { .name = "scd.port_led" },
-        { .name = "scd.psu_led" },
-        { .name = "scd.smb_led" },
-        { .name = "scd.sys_led" },
+        { .name = "scd.port_led_darwin" },
         {},
 };
 MODULE_DEVICE_TABLE( auxiliary, scd_led_ids );
