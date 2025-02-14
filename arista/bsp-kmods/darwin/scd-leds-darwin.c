@@ -316,7 +316,7 @@ static const struct auxiliary_device_id scd_led_ids[] = {
 };
 MODULE_DEVICE_TABLE( auxiliary, scd_led_ids );
 
-static struct auxiliary_driver scd_led_driver = {
+static struct auxiliary_driver scd_led_darwin_driver = {
         .driver = {
                 .name = DRIVER_NAME,
         },
@@ -324,9 +324,9 @@ static struct auxiliary_driver scd_led_driver = {
         .remove = scd_led_remove,
         .id_table = scd_led_ids,
 };
-module_auxiliary_driver( scd_led_driver );
+module_auxiliary_driver( scd_led_darwin_driver );
 
 MODULE_LICENSE( "GPL" );
-MODULE_DESCRIPTION( "Driver for Arista SCD LEDs" );
+MODULE_DESCRIPTION( "Driver for Arista Darwin SCD Port LEDs" );
 MODULE_AUTHOR( "Facebook Inc." );
 MODULE_VERSION( BSP_VERSION );
