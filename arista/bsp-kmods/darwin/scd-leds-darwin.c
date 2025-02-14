@@ -241,7 +241,7 @@ static int scd_leds_init( struct scd_led_priv *priv, const char *name )
 static int scd_led_probe( struct auxiliary_device *auxdev,
                            const struct auxiliary_device_id *id )
 {
-        u8 num_leds;
+        u8 num_leds = 2;
         u32 csr_addr;
         int ret;
         char led_name[NAME_MAX];
@@ -253,10 +253,6 @@ static int scd_led_probe( struct auxiliary_device *auxdev,
                                         struct fbiob_aux_adapter, auxdev );
         struct fbiob_aux_data *pdata = &aux_adap->data;
         struct fbiob_led_data led_data = pdata->led_data;
-
-
-        if ( led_data.port_num > 0 ) num_leds = 2;
-        else num_leds = 4;
 
         priv = devm_kzalloc( dev, sizeof( *priv ) +
                                 num_leds * sizeof( priv->leds[0] ),
