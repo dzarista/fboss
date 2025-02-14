@@ -20,6 +20,27 @@
 
 namespace facebook::fboss::thrift_cow {
 
+// Parse keys for maps and sets. Keeping this outside nodes to reduce
+// instatiations because it only depends on the type and tc of the key, not the
+// type of the node itself.
+template <typename KeyT, typename KeyTC>
+std::optional<KeyT> tryParseKey(const std::string& token) {
+  if constexpr (std::
+                    is_same_v<KeyTC, apache::thrift::type_class::enumeration>) {
+    // special handling for enum keyed maps
+    KeyT enumKey;
+    if (apache::thrift::util::tryParseEnum(token, &enumKey)) {
+      return enumKey;
+    }
+  }
+  auto key = folly::tryTo<KeyT>(token);
+  if (key.hasValue()) {
+    return *key;
+  }
+
+  return std::nullopt;
+}
+
 struct FieldBaseType {};
 
 template <typename T>
@@ -290,6 +311,143 @@ class SerializableWrapper : public Serializable {
   TType& node_;
 };
 
+template <typename TC>
+struct WritableImpl;
+
+/**
+ * primitives
+ */
+template <typename TC>
+struct WritableImpl {
+  static_assert(
+      !std::is_same<apache::thrift::type_class::unknown, TC>::value,
+      "No static reflection support for the given type. "
+      "Forgot to specify reflection option or include fatal header file? "
+      "Refer to thrift/lib/cpp2/reflection/reflection.h");
+  template <typename TType>
+  static inline bool remove(TType&, const std::string& token) {
+    throw std::runtime_error(folly::to<std::string>(
+        "Cannot remove a child from a primitive node: ", token));
+  }
+
+  template <typename TType>
+  static inline void
+  modify(TType& node, const std::string& token, bool construct) {
+    throw std::runtime_error("Cannot mutate an immutable primitive node");
+  }
+};
+
+/**
+ * structure
+ */
+template <>
+struct WritableImpl<apache::thrift::type_class::structure> {
+  template <typename TType>
+  static inline bool remove(TType&, const std::string&) {
+    throw std::runtime_error("not implemented remove structure");
+  }
+
+  template <typename TType>
+  static inline void
+  modify(TType& node, const std::string& token, bool construct) {
+    throw std::runtime_error("not implemented modify structure");
+  }
+};
+
+/**
+ * Variant
+ */
+template <>
+struct WritableImpl<apache::thrift::type_class::variant> {
+  template <typename TType>
+  static inline bool remove(TType&, const std::string&) {
+    throw std::runtime_error("not implemented remove variant");
+  }
+
+  template <typename TType>
+  static inline void
+  modify(TType& node, const std::string& token, bool construct) {
+    throw std::runtime_error("not implemented modify variant");
+  }
+};
+
+/**
+ * Map
+ */
+template <typename KeyTypeClass, typename MappedTypeClass>
+struct WritableImpl<
+    apache::thrift::type_class::map<KeyTypeClass, MappedTypeClass>> {
+  template <typename TType>
+  static inline bool remove(TType& node, const std::string& token) {
+    if constexpr (std::is_same_v<typename TType::key_type, std::string>) {
+      return node.erase(token);
+    } else if (auto key = folly::tryTo<typename TType::key_type>(token)) {
+      return node.erase(key.value());
+    }
+    return false;
+  }
+
+  template <typename TType>
+  static inline void
+  modify(TType& node, const std::string& token, bool construct) {
+    if (auto parsedKey =
+            tryParseKey<typename TType::key_type, KeyTypeClass>(token)) {
+      if (auto it = node.find(parsedKey.value()); it != node.end()) {
+        // key exists
+      } else if (construct) {
+        // create unpublished default constructed child if missing
+        node.try_emplace(parsedKey.value());
+      }
+    }
+  }
+};
+
+/**
+ * List
+ */
+template <typename ValueTypeClass>
+struct WritableImpl<apache::thrift::type_class::list<ValueTypeClass>> {
+  template <typename TType>
+  static inline bool remove(TType& node, const std::string& token) {
+    auto index = folly::tryTo<std::size_t>(token);
+    if (index.hasValue()) {
+      if (index.value() < node.size()) {
+        node.erase(node.begin() + index.value());
+        return true;
+      }
+    }
+    return false;
+  }
+
+  template <typename TType>
+  static inline void
+  modify(TType& node, const std::string& token, bool construct) {
+    throw std::runtime_error("not implemented modify list");
+  }
+};
+
+/**
+ * Set
+ */
+template <typename ValueTypeClass>
+struct WritableImpl<apache::thrift::type_class::set<ValueTypeClass>> {
+  template <typename TType>
+  static inline bool remove(TType& node, const std::string& token) {
+    if constexpr (std::is_same_v<typename TType::value_type, std::string>) {
+      return node.erase(token);
+    } else if (auto key = folly::tryTo<typename TType::value_type>(token)) {
+      return node.erase(key.value());
+    }
+    return false;
+  }
+
+  template <typename TType>
+  static inline void
+  modify(TType& node, const std::string& token, bool construct) {
+    throw std::runtime_error("not implemented modify set");
+  }
+};
+
 template <typename TC, typename TType>
 class WritableWrapper {
  public:
@@ -297,46 +455,11 @@ class WritableWrapper {
   explicit WritableWrapper(TType& node) : node_(node) {}
 
   bool remove(const std::string& token) {
-    throw std::runtime_error("Not implemented remove for writable wrapper yet");
+    return WritableImpl<TC>::remove(node_, token);
   }
 
-  bool remove(const std::string& token)
-    requires(std::is_same_v<
-             TType,
-             std::map<
-                 typename TType::key_type,
-                 typename TType::value_type::second_type>>)
-  {
-    if constexpr (std::is_same_v<typename TType::key_type, std::string>) {
-      return node_.erase(token);
-    } else if (auto key = folly::tryTo<typename TType::key_type>(token)) {
-      return node_.erase(key.value());
-    }
-    return false;
-  }
-
-  bool remove(const std::string& token)
-    requires(std::is_same_v<TType, std::vector<typename TType::value_type>>)
-  {
-    auto index = folly::tryTo<std::size_t>(token);
-    if (index.hasValue()) {
-      if (index.value() < node_.size()) {
-        node_.erase(node_.begin() + index.value());
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool remove(const std::string& token)
-    requires(std::is_same_v<TType, std::set<typename TType::value_type>>)
-  {
-    if constexpr (std::is_same_v<typename TType::value_type, std::string>) {
-      return node_.erase(token);
-    } else if (auto key = folly::tryTo<typename TType::value_type>(token)) {
-      return node_.erase(key.value());
-    }
-    return false;
+  void modify(const std::string& token, bool construct = true) {
+    WritableImpl<TC>::modify(node_, token, construct);
   }
 
   TType& node_;

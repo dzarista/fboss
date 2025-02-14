@@ -74,6 +74,7 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::EGRESS_ACL_TABLE:
     case HwAsic::Feature::SAI_USER_DEFINED_TRAP:
     case HwAsic::Feature::ACL_ENTRY_ETHER_TYPE:
+    case HwAsic::Feature::DEDICATED_CPU_BUFFER_POOL:
       return true;
     case HwAsic::Feature::PORT_MTU_ERROR_TRAP:
     case HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW:
@@ -184,7 +185,6 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::PQP_ERROR_EGRESS_DROP_COUNTER:
     case HwAsic::Feature::FABRIC_LINK_DOWN_CELL_DROP_COUNTER:
     case HwAsic::Feature::CRC_ERROR_DETECT:
-    case HwAsic::Feature::DEDICATED_CPU_BUFFER_POOL:
     case HwAsic::Feature::NO_RX_REASON_TRAP:
     case HwAsic::Feature::EGRESS_GVOQ_WATERMARK_BYTES:
     case HwAsic::Feature::INGRESS_PRIORITY_GROUP_SHARED_WATERMARK:
@@ -221,6 +221,10 @@ bool ChenabAsic::isSupportedFabric(Feature feature) const {
 int ChenabAsic::getDefaultNumPortQueues(
     cfg::StreamType streamType,
     cfg::PortType portType) const {
+  if (portType == cfg::PortType::CPU_PORT) {
+    // Chenab supports 4 CPU port queues
+    return 4;
+  }
   switch (streamType) {
     case cfg::StreamType::MULTICAST:
       throw FbossError(
