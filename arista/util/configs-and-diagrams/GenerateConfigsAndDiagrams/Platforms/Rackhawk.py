@@ -861,6 +861,7 @@ class Rackhawk( PlatformConfig ):
       kmods = [
          'scd',
          'scd-leds',
+         'scd-leds-darwin',
          'scd-smbus',
          'scd-spi',
          *( [ 'scd-watchdog-darwin' ] if self.hasWdt else [] ),
