@@ -269,7 +269,8 @@ static int scd_leds_init(struct scd_led_priv *priv, const char *name)
 
     for (int i = 0; i < priv->num_leds; ++i) {
 		ret = scd_led_init(priv, name, colors[i], &priv->leds[i]);
-	if (ret) return ret;
+	if (ret)
+		return ret;
     }
 
 	// Initialize register and sysfs value for blue/green led
@@ -296,8 +297,10 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	struct fbiob_led_data led_data = pdata->led_data;
 
 
-	if (led_data.port_num > 0) num_leds = 2;
-	else num_leds = 4;
+	if (led_data.port_num > 0)
+		num_leds = 2;
+	else
+		num_leds = 4;
 
 	priv = devm_kzalloc(dev, sizeof(*priv) +
 				num_leds * sizeof(priv->leds[0]),
@@ -328,10 +331,10 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	/*
 	* Register led for each color.
 	*/
-	if (led_data.port_num > 0) {
+	if (led_data.port_num > 0)
 		sprintf(led_name, "port%d_led%d", led_data.port_num, led_data.led_idx);
-	}
-	else strcpy(led_name, pdata->id.name);
+	else
+		strcpy(led_name, pdata->id.name);
 
 	ret = scd_leds_init(priv, led_name);
 
@@ -341,7 +344,8 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	return 0;
 }
 
-static void scd_led_remove(struct auxiliary_device *auxdev) {
+static void scd_led_remove(struct auxiliary_device *auxdev)
+{
 	struct scd_led_priv *priv = dev_get_drvdata(&auxdev->dev);
 
 	for (int i = 0; i < priv->num_leds; ++i) {

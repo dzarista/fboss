@@ -68,11 +68,11 @@
 #define FAN_MAX_PWM 255
 #define FAN_DFT_PWM 77	/* default 30% duty cycle */
 
-static bool safe_mode = false;
+static bool safe_mode;
 module_param(safe_mode, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(safe_mode, "force fan speed to 100% during probe");
 
-static unsigned long poll_interval = 0;
+static unsigned long poll_interval;
 module_param(poll_interval, ulong, S_IRUSR);
 MODULE_PARM_DESC(poll_interval, "interval between two polling in ms");
 

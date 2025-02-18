@@ -250,7 +250,8 @@ static int scd_xcvr_probe(struct auxiliary_device *auxdev,
 	priv->xcvr.port_num = xcvr_data.port_num;
 
 	ret = scd_xcvr_init(priv);
-	if (ret) goto fail_xcvr;
+	if (ret)
+		goto fail_xcvr;
 	return 0;
 
 fail_xcvr:
