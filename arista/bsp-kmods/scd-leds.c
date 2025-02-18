@@ -81,7 +81,7 @@ struct scd_led_priv {
 	u32 id;
 	u8 num_leds;
 	struct mutex lock;
-	struct scd_led_dev leds[0];
+	struct scd_led_dev leds[];
 };
 
 static u32 csr_read(void __iomem *reg_offset)
@@ -267,11 +267,11 @@ static int scd_leds_init(struct scd_led_priv *priv, const char *name)
 		reg |= SCD_LED_GREEN | SCD_LED_INTENSITY_GREEN;
 	}
 
-    for (int i = 0; i < priv->num_leds; ++i) {
+	for (int i = 0; i < priv->num_leds; ++i) {
 		ret = scd_led_init(priv, name, colors[i], &priv->leds[i]);
-	if (ret)
-		return ret;
-    }
+		if (ret)
+			return ret;
+	}
 
 	// Initialize register and sysfs value for blue/green led
 	priv->leds[0].cdev.brightness = 1;
@@ -302,8 +302,7 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	else
 		num_leds = 4;
 
-	priv = devm_kzalloc(dev, sizeof(*priv) +
-				num_leds * sizeof(priv->leds[0]),
+	priv = devm_kzalloc(dev, struct_size(priv, leds, num_leds),
 				GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
