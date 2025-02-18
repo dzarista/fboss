@@ -421,7 +421,7 @@ static s32 cpld_read_fan_tach(struct cpld_data *cpld, u8 fan_id)
 	u16 tach;
 	int i;
 
-        fan->tach = 0;
+	fan->tach = 0;
 	for (i = 0; i < cpld->info->rotors; i++) {
 		err = cpld_read_tach_single(cpld, fan->index, i, &tach);
 		if (err)
@@ -784,8 +784,8 @@ static struct attribute_group *fan_groups[] = {
 	FAN_ATTR_GROUP(7), FAN_ATTR_GROUP(8), NULL,
 };
 
-static ssize_t fw_ver_show(struct device *dev, 
-								struct device_attribute *attr, char *buf) 
+static ssize_t fw_ver_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct cpld_data *cpld = dev_get_drvdata(dev);
 	return sprintf(buf, "%u.%u\n", cpld->major, cpld->minor);

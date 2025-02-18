@@ -225,7 +225,7 @@ static int scd_led_init(struct scd_led_priv *priv,
 			struct scd_led_dev *ldev)
 {
 	if (!strcmp(color, "yellow"))
-		ldev->led_on_mask = (SCD_LED_RED | SCD_LED_GREEN | 
+		ldev->led_on_mask = (SCD_LED_RED | SCD_LED_GREEN |
 			 SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN);
 	else if (!strcmp(color, "blue"))
 		ldev->led_on_mask = SCD_LED_BLUE | SCD_LED_INTENSITY_BLUE;
@@ -269,7 +269,7 @@ static int scd_leds_init(struct scd_led_priv *priv, const char *name)
 
     for (int i = 0; i < priv->num_leds; ++i) {
 		ret = scd_led_init(priv, name, colors[i], &priv->leds[i]);
-        if (ret) return ret;
+	if (ret) return ret;
     }
 
 	// Initialize register and sysfs value for blue/green led

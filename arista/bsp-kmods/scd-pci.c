@@ -139,8 +139,8 @@ struct scd_dev_priv {
  */
 
 static struct pci_device_id scd_lpc_table[] = {
-        { PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f76) },
-        { 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f76) },
+	{ 0 },
 };
 
 static unsigned long lpc_res_addr = 0xb0000000;
@@ -899,7 +899,7 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		scd_cb = &scd_pci_cb;
 	}
 
-	switch(ent->subdevice) {
+	switch (ent->subdevice) {
 		case DARWIN_SCD_PCI_SUBDEVICE_ID:
 			sysfs_attr_group = &darwin_scd_attr_group;
 			regbit_sysfs_table = darwin_scd_regbit_sysfs;
