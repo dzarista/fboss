@@ -35,7 +35,9 @@
         47,
         50,
         51,
-        53
+        53,
+        59,
+        60
     ],
     "ebro": [
         2,
@@ -70,7 +72,8 @@
         50,
         51,
         53,
-        54
+        54,
+        59
     ],
     "jericho2": [
         2,
@@ -111,7 +114,6 @@
         16,
         18,
         20,
-        21,
         23,
         24,
         26,
@@ -132,7 +134,8 @@
         35,
         34,
         48,
-        49
+        49,
+        58
     ],
     "ramon": [
         1
@@ -169,7 +172,9 @@
         46,
         51,
         54,
-        33
+        33,
+        59,
+        60
     ],
     "tomahawk3": [
         2,
@@ -212,7 +217,9 @@
         51,
         53,
         54,
-        33
+        33,
+        59,
+        60
     ],
     "tomahawk4": [
         2,
@@ -254,7 +261,9 @@
         51,
         53,
         54,
-        33
+        33,
+        59,
+        60
     ],
     "tomahawk5": [
         2,
@@ -295,7 +304,9 @@
         51,
         53,
         54,
-        33
+        33,
+        59,
+        60
     ],
     "yuba": [
         2,
@@ -331,7 +342,9 @@
         50,
         51,
         53,
-        54
+        54,
+        59,
+        60
     ]
   },
   "asicToFeatureNames": {
@@ -370,7 +383,9 @@
         "PFC_CAPTURE",
         "PAUSE",
         "SEPARATE_INGRESS_EGRESS_BUFFER_POOL",
-        "ERSPANV6_MIRRORING"
+        "ERSPANV6_MIRRORING",
+        "CLASS_ID_FOR_CONNECTED_ROUTE",
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
     ],
     "ebro": [
         "CPU_RX_TX",
@@ -405,7 +420,8 @@
         "PAUSE",
         "SEPARATE_INGRESS_EGRESS_BUFFER_POOL",
         "ERSPANV6_MIRRORING",
-        "IP_IN_IP_DECAP"
+        "IP_IN_IP_DECAP",
+        "CLASS_ID_FOR_CONNECTED_ROUTE"
     ],
     "jericho2": [
         "CPU_RX_TX",
@@ -446,7 +462,6 @@
         "SINGLE_ACL_TABLE",
         "BTH_OPCODE_ACL",
         "ECN",
-        "WRED",
         "JUMBO_FRAMES",
         "TRAP_DISCARDS_COUNTER",
         "SCHEDULER_PPS",
@@ -467,7 +482,8 @@
         "EGRESS_MIRRORING",
         "INGRESS_MIRRORING",
         "LINERATE_SFLOW",
-        "MIRROR_ON_DROP"
+        "MIRROR_ON_DROP",
+        "SFLOW_SAMPLES_PACKING"
     ],
     "ramon": [
         "FABRIC"
@@ -504,7 +520,9 @@
         "LED_PROGRAMMING",
         "SEPARATE_INGRESS_EGRESS_BUFFER_POOL",
         "IP_IN_IP_DECAP",
-        "INTERFACE_NEIGHBOR_TABLE"
+        "INTERFACE_NEIGHBOR_TABLE",
+        "CLASS_ID_FOR_CONNECTED_ROUTE",
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
     ],
     "tomahawk3": [
         "CPU_RX_TX",
@@ -547,7 +565,9 @@
         "SEPARATE_INGRESS_EGRESS_BUFFER_POOL",
         "ERSPANV6_MIRRORING",
         "IP_IN_IP_DECAP",
-        "INTERFACE_NEIGHBOR_TABLE"
+        "INTERFACE_NEIGHBOR_TABLE",
+        "CLASS_ID_FOR_CONNECTED_ROUTE",
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
     ],
     "tomahawk4": [
         "CPU_RX_TX",
@@ -589,7 +609,9 @@
         "SEPARATE_INGRESS_EGRESS_BUFFER_POOL",
         "ERSPANV6_MIRRORING",
         "IP_IN_IP_DECAP",
-        "INTERFACE_NEIGHBOR_TABLE"
+        "INTERFACE_NEIGHBOR_TABLE",
+        "CLASS_ID_FOR_CONNECTED_ROUTE",
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
     ],
     "tomahawk5": [
         "CPU_RX_TX",
@@ -630,7 +652,9 @@
         "SEPARATE_INGRESS_EGRESS_BUFFER_POOL",
         "ERSPANV6_MIRRORING",
         "IP_IN_IP_DECAP",
-        "INTERFACE_NEIGHBOR_TABLE"
+        "INTERFACE_NEIGHBOR_TABLE",
+        "CLASS_ID_FOR_CONNECTED_ROUTE",
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
     ],
     "yuba": [
         "CPU_RX_TX",
@@ -666,7 +690,9 @@
         "PAUSE",
         "SEPARATE_INGRESS_EGRESS_BUFFER_POOL",
         "ERSPANV6_MIRRORING",
-        "IP_IN_IP_DECAP"
+        "IP_IN_IP_DECAP",
+        "CLASS_ID_FOR_CONNECTED_ROUTE",
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
     ]
   }
 }
