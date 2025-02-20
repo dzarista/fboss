@@ -316,7 +316,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT1_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6100"
               },
               "portNumber": 1,
@@ -325,7 +325,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT2_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6140"
               },
               "portNumber": 2,
@@ -334,7 +334,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT3_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6180"
               },
               "portNumber": 3,
@@ -343,7 +343,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT4_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x61c0"
               },
               "portNumber": 4,
@@ -352,7 +352,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT5_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6200"
               },
               "portNumber": 5,
@@ -361,7 +361,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT6_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6240"
               },
               "portNumber": 6,
@@ -370,7 +370,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT7_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6280"
               },
               "portNumber": 7,
@@ -379,7 +379,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT8_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x62c0"
               },
               "portNumber": 8,
@@ -388,7 +388,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT9_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6300"
               },
               "portNumber": 9,
@@ -397,7 +397,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT10_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6340"
               },
               "portNumber": 10,
@@ -406,7 +406,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT11_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6380"
               },
               "portNumber": 11,
@@ -415,7 +415,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT12_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x63c0"
               },
               "portNumber": 12,
@@ -424,7 +424,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT13_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6400"
               },
               "portNumber": 13,
@@ -433,7 +433,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT14_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6440"
               },
               "portNumber": 14,
@@ -442,7 +442,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT15_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6480"
               },
               "portNumber": 15,
@@ -451,7 +451,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT16_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x64c0"
               },
               "portNumber": 16,
@@ -460,7 +460,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT17_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6500"
               },
               "portNumber": 17,
@@ -469,7 +469,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT18_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6540"
               },
               "portNumber": 18,
@@ -478,7 +478,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT19_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6580"
               },
               "portNumber": 19,
@@ -487,7 +487,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT20_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x65c0"
               },
               "portNumber": 20,
@@ -496,7 +496,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT21_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6600"
               },
               "portNumber": 21,
@@ -505,7 +505,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT22_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6640"
               },
               "portNumber": 22,
@@ -514,7 +514,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT23_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6680"
               },
               "portNumber": 23,
@@ -523,7 +523,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT24_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x66c0"
               },
               "portNumber": 24,
@@ -532,7 +532,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT25_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6700"
               },
               "portNumber": 25,
@@ -541,7 +541,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT26_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6740"
               },
               "portNumber": 26,
@@ -550,7 +550,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT27_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6780"
               },
               "portNumber": 27,
@@ -559,7 +559,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT28_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x67c0"
               },
               "portNumber": 28,
@@ -568,7 +568,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT29_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6800"
               },
               "portNumber": 29,
@@ -577,7 +577,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT30_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6840"
               },
               "portNumber": 30,
@@ -586,7 +586,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT31_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x6880"
               },
               "portNumber": 31,
@@ -595,7 +595,7 @@
             {
               "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "QSFP_PORT32_LED",
-                "deviceName": "port_led",
+                "deviceName": "port_led_darwin",
                 "csrOffset": "0x68c0"
               },
               "portNumber": 32,

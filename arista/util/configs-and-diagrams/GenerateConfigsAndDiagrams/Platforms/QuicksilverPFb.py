@@ -7,7 +7,8 @@ from ..BaseConfigs import (
    SCMFairywren,
    SlotConfig,
    SMBCpld,
-   SMBUnit
+   SMBUnit,
+   LedConfig
 )
 
 
@@ -53,6 +54,13 @@ class QuicksilverPFbSMB( SMBUnit ):
       smbFpga = self.pciDeviceConfigs[ 0 ]
       smbFpga.addInfoRomConfigs( "0x100" )
       smbFpga.addI2cAdapterConfigs( 11, "SMB_I2C_MASTER{}", "0x8080" )
+
+      smbFpga.addLedCtrlConfigs( [
+         LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
+         LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
+         LedConfig( ledName="PSU1_STATUS_LED", offset="0x6070" ),
+         LedConfig( ledName="PSU2_STATUS_LED", offset="0x6080" ),
+      ] )
 
 
 class QuicksilverPFb( PlatformConfig ):

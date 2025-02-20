@@ -95,7 +95,7 @@ class RackhawkScd( PciDeviceConfig ):
       self.addXcvrCtrlConfigs( numConfigs=32, basePortNumber=1, ledsPerXcvr=1,
                                portLedOffsetStep=0x40, portType="qsfp",
                                smbusName="SCD_SMBUS", smbusAccelStart=2,
-                               accelBusRange=( 0, 7 ),  )
+                               accelBusRange=( 0, 7 ), ledDeviceName='port_led_darwin' )
 
    def addLeds( self ):
       self.addLedCtrlConfigs( [
@@ -861,6 +861,7 @@ class Rackhawk( PlatformConfig ):
       kmods = [
          'scd',
          'scd-leds',
+         'scd-leds-darwin',
          'scd-smbus',
          'scd-spi',
          *( [ 'scd-watchdog-darwin' ] if self.hasWdt else [] ),

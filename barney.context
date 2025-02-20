@@ -11,16 +11,16 @@
                "commit": "591636c667d7754293c80ae5f250287a420239b7"
             },
             "code.arista.io/infra/barney/barnzilla": {
-               "commit": "7c5fd77c5e9283163685f883e279639d9a3a8c7f"
+               "commit": "07c2fa251086468fe356d340c1438694f9c2f750"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "399bb89fdf2ed03ef500b4df937d91312987c911"
+               "commit": "03af28575bbfc2bccacbd9151defbe16a4f3b26f"
             },
             "barney.ci/alpine": {
                "commit": "1f812eb95cb7652fb6449ea34135939cbde70f5a"
             },
             "barney.ci/golang": {
-               "commit": "636c95302b0312be8cb0af3288602d7a47eb815c"
+               "commit": "7fcef2ce718cd722cff17258f17e47a771978500"
             },
             "github.com/golang/go": {
                "commit": "3901409b5d0fb7c85a3e6730a59943cc93b2835c"
