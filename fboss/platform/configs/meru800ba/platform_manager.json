@@ -198,16 +198,15 @@
           "ledCtrlConfigs": [
             {
               "fpgaIpBlockConfig": {
-                "pmUnitScopedName": "SYSTEM_STATUS_LED",
-                "deviceName": "sys_led",
-                "csrOffset": "0x6050"
+                "pmUnitScopedName": "OSFP_PORT1_LED1",
+                "deviceName": "port_led",
+                "csrOffset": "0x6100"
               },
-              "portNumber": -1,
+              "portNumber": 1,
               "ledId": 1
             },
             {
               "fpgaIpBlockConfig": {
-
                 "pmUnitScopedName": "OSFP_PORT1_LED2",
                 "deviceName": "port_led",
                 "csrOffset": "0x6110"
@@ -1347,6 +1346,42 @@
                 "csrOffset": "0x68f0"
               },
               "portNumber": 64,
+              "ledId": 2
+            },
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SYSTEM_STATUS_LED",
+                "deviceName": "sys_led",
+                "csrOffset": "0x6050"
+              },
+              "portNumber": -1,
+              "ledId": 1
+            },
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "FAN_STATUS_LED",
+                "deviceName": "fan_led",
+                "csrOffset": "0x6060"
+              },
+              "portNumber": -1,
+              "ledId": 1
+            },
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "PSU1_STATUS_LED",
+                "deviceName": "psu_led",
+                "csrOffset": "0x6070"
+              },
+              "portNumber": -1,
+              "ledId": 1
+            },
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "PSU2_STATUS_LED",
+                "deviceName": "psu_led",
+                "csrOffset": "0x6080"
+              },
+              "portNumber": -1,
               "ledId": 2
             }
           ],
