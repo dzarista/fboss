@@ -13,7 +13,8 @@
         "scd_spi",
         "scd_xcvr",
         "scd_watchdog_darwin",
-        "scd_info"
+        "scd_info",
+        "scd_leds_darwin"
     ],
     "sharedKmods": [
         "scd"

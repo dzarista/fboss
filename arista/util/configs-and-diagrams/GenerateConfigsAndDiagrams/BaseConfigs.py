@@ -890,12 +890,13 @@ class PciDeviceConfig:
    def addXcvrCtrlConfigs( self, numConfigs, basePortNumber, smbusName,
                            smbusAccelStart, accelBusRange, portType="osfp", 
                            xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
-                           ledsPerXcvr=2, portNumberSkipStep=1, xcvrOffsetStep=0x10,
+                           ledsPerXcvr=2, ledDeviceName='port_led',
+                           portNumberSkipStep=1, xcvrOffsetStep=0x10,
                            portLedOffsetStep=0x10 ):
       newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName,
                                          smbusAccelStart, accelBusRange, portType, 
                                          xcvrBaseOffset, ledBaseOffset, ledsPerXcvr,
-                                         portNumberSkipStep, xcvrOffsetStep,
+                                         ledDeviceName, portNumberSkipStep, xcvrOffsetStep,
                                          portLedOffsetStep )
       for config in newConfigs:
          config.addParentConfigPointer( self )
@@ -1122,11 +1123,12 @@ class Flash( SpiDeviceConfig ):
 
 
 class XcvrConfig:
-   def __init__( self, portNumber, portType,	xcvrCtrlOffset, led1Offset,
-                 led2Offset, led3Offset, led4Offset, i2cPath ):
+   def __init__( self, portNumber, portType, xcvrCtrlOffset, ledDeviceName,
+                 led1Offset, led2Offset, led3Offset, led4Offset, i2cPath ):
       self.portNumber = portNumber
       self.portType = portType
       self.xcvrCtrlOffset = xcvrCtrlOffset
+      self.ledDeviceName = ledDeviceName
       self.led1Offset = led1Offset
       self.led2Offset = led2Offset
       self.led3Offset = led3Offset
@@ -1142,6 +1144,7 @@ class XcvrConfig:
       returnList = []
       portNumber = self.portNumber
       portType = self.portType
+      ledDeviceName = self.ledDeviceName
       ledList = []
       for i in range( 1, 5 ):
          attribute = f"led{ i }Offset"
@@ -1162,7 +1165,7 @@ class XcvrConfig:
          returnList.append( {
             "fpgaIpBlockConfig": {
                "pmUnitScopedName": portLedName,
-               "deviceName": 'port_led',
+               "deviceName": ledDeviceName,
                "csrOffset": ledOffset.lower()
             },
             "portNumber": portNumber,
@@ -1250,8 +1253,8 @@ class MiscConfig:
 
 def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart, 
                           accelBusRange, portType, xcvrBaseOffset, ledBaseOffset,
-                          ledsPerXcvr, portNumberSkipStep=1, xcvrOffsetStep=0x10,
-                          portLedOffsetStep=0x10 ):
+                          ledsPerXcvr, ledDeviceName, portNumberSkipStep=1,
+                          xcvrOffsetStep=0x10, portLedOffsetStep=0x10 ):
    configs = []
    currIndex = basePortNumber
    currLedOffset = int( ledBaseOffset, 16 )
@@ -1267,6 +1270,7 @@ def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart
             portNumber=currIndex,
             portType=portType,
             xcvrCtrlOffset=xcvrCtrlOffset,
+            ledDeviceName=ledDeviceName,
             led1Offset=ledOffsets[ 0 ],
             led2Offset=ledOffsets[ 1 ] if ledsPerXcvr > 1 else None,
             led3Offset=ledOffsets[ 2 ] if ledsPerXcvr > 2 else None,

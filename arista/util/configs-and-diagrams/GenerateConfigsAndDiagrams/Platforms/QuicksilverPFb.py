@@ -6,7 +6,8 @@ from ..BaseConfigs import (
    PlatformConfig,
    SCMFairywren,
    SlotConfig,
-   SMBUnit
+   SMBUnit,
+   LedConfig
 )
 
 
@@ -52,6 +53,14 @@ class QuicksilverPFbSMB( SMBUnit ):
       smbFpga.addXcvrCtrlConfigs( numConfigs=64, basePortNumber=1, ledsPerXcvr=2,
                                   smbusAccelStart=3, smbusName="SMB_I2C_MASTER",
                                   xcvrBaseOffset="0xA000", accelBusRange=( 0, 7 ) )
+
+      smbFpga.addLedCtrlConfigs( [
+         LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
+         LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
+         LedConfig( ledName="PSU1_STATUS_LED", offset="0x6070" ),
+         LedConfig( ledName="PSU2_STATUS_LED", offset="0x6080" ),
+      ] )
+
 
 class QuicksilverPFb( PlatformConfig ):
    codename = 'meru800ba'
