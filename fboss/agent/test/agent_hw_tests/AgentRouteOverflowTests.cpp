@@ -91,6 +91,7 @@ TEST_F(AgentRouteOverflowTest, overflowRoutes) {
     case PlatformType::PLATFORM_MERU800BIAB:
     case PlatformType::PLATFORM_MERU800BFA:
     case PlatformType::PLATFORM_MERU800BFA_P1:
+    case PlatformType::PLATFORM_MERU800BA:
       // No overflow test for MERU400BIU yet
       // TODO: DSF deivces take longer time to program routes. We should try and
       // verify the logic.
