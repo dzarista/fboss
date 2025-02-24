@@ -55,6 +55,10 @@ class QuicksilverPFbSMB( SMBUnit ):
       smbFpga.addInfoRomConfigs( "0x100" )
       smbFpga.addI2cAdapterConfigs( 11, "SMB_I2C_MASTER{}", "0x8080" )
 
+      smbFpga.addXcvrCtrlConfigs( numConfigs=64, basePortNumber=1, ledsPerXcvr=2,
+                                  smbusAccelStart=3, smbusName="SMB_I2C_MASTER",
+                                  xcvrBaseOffset="0xA000", accelBusRange=( 0, 7 ) )
+
       smbFpga.addLedCtrlConfigs( [
          LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
          LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
