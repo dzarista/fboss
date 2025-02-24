@@ -25,6 +25,9 @@ obj-y += dsf/
 #Device drivers for Darwin.
 obj-y += darwin/
 
+#Device drivers for QuickSilver.
+obj-y += quicksilver/
+
 KDIR ?= /lib/modules/${BUILD_KERNEL}/build
 
 kmods:
