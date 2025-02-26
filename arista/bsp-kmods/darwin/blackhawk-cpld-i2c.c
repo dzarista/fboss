@@ -16,24 +16,6 @@
 
 static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 	/*
-	 * CPLD version/sub_version @ address/offset 0x0 and 0x1.
-	 */
-	{
-		.name = "cpld_sub_ver",
-		.mode = REGBIT_FMODE_RO,
-		.reg_addr = CPLD_REG_REV_MINOR,
-		.bit_offset = 0,
-		.num_bits = 8,
-	},
-	{
-		.name = "cpld_ver",
-		.mode = REGBIT_FMODE_RO,
-		.reg_addr = CPLD_REG_REV_MAJOR,
-		.bit_offset = 0,
-		.num_bits = 8,
-	},
-
-	/*
 	 * Power Ctrl/Stat register @ address/offset 0x5.
 	 */
 	{
@@ -200,23 +182,53 @@ static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 	},
 };
 
-static int cpld_i2c_probe(struct i2c_client *client)
-{
+static int fw_ver_read(struct i2c_client *client, bool updatebuf, char *buf) {
 	int ret;
 	u8 major_rev, minor_rev;
-
-	ret = i2c_smbus_read_byte_data(client, CPLD_REG_REV_MINOR);
-	if (ret < 0)
-		return ret;
-	minor_rev = (u8)ret;
 
 	ret = i2c_smbus_read_byte_data(client, CPLD_REG_REV_MAJOR);
 	if (ret < 0)
 		return ret;
 	major_rev = (u8)ret;
 
-	dev_info(&client->dev, "blackhawk cpld revision: %02x.%02x\n",
-		major_rev, minor_rev);
+	ret = i2c_smbus_read_byte_data(client, CPLD_REG_REV_MINOR);
+	if (ret < 0)
+		return ret;
+	minor_rev = (u8)ret;
+
+	if (updatebuf) {
+		return sprintf(buf, "%u.%u\n", major_rev, minor_rev);
+	} else {
+		dev_info(&client->dev, "blackhawk cpld revision: %02x.%02x\n",
+			major_rev, minor_rev);
+		return 0;
+	}
+}
+
+static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf) {
+	struct i2c_client *client = to_i2c_client(dev);
+
+	return fw_ver_read(client, true, buf);
+}
+
+DEVICE_ATTR(fw_ver, 0444, fw_ver_show, NULL);
+
+static int cpld_i2c_probe(struct i2c_client *client)
+{
+	int ret;
+
+	ret = fw_ver_read(client, false, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = sysfs_create_file(&client->dev.kobj, &dev_attr_fw_ver.attr);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"could not create %s attribute for cpld: %d",
+			dev_attr_fw_ver.attr.name,
+			ret);
+		return ret;
+	}
 
 	return regbit_sysfs_init_i2c(&client->dev, cpld_sys_attrs,
 				     ARRAY_SIZE(cpld_sys_attrs));
