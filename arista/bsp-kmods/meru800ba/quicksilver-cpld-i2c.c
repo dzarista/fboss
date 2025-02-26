@@ -180,7 +180,7 @@ static int cpld_i2c_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 	major_rev = (u8)ret;
-	dev_info(&client->dev, "quicksilver cpld revision: %02x.%02x\n",
+	dev_info(&client->dev, "meru800ba cpld revision: %02x.%02x\n",
 		 major_rev, minor_rev);
 
 	ret = sysfs_create_file(&client->dev.kobj, &dev_attr_fw_ver.attr);
@@ -197,14 +197,14 @@ static int cpld_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cpld_dev_ids[] = {
-	{ "quicksilver_cpld", 0 },
+	{ "meru800ba_cpld", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, cpld_dev_ids);
 
 static struct i2c_driver cpld_i2c_driver = {
 	.driver = {
-		.name = "quicksilver-cpld",
+		.name = "meru800ba-cpld",
 	},
 	.probe = cpld_i2c_probe,
 	.id_table = cpld_dev_ids,
@@ -212,6 +212,6 @@ static struct i2c_driver cpld_i2c_driver = {
 module_i2c_driver(cpld_i2c_driver);
 
 MODULE_AUTHOR("Arista Networks");
-MODULE_DESCRIPTION("Quicksilver CPLD I2C Driver");
+MODULE_DESCRIPTION("Meru800ba CPLD I2C Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(BSP_VERSION);

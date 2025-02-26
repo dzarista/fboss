@@ -99,7 +99,7 @@
         {
           "busName": "INCOMING@0",
           "address": "0x23",
-          "kernelDeviceName": "quicksilver_cpld",
+          "kernelDeviceName": "meru800ba_cpld",
           "pmUnitScopedName": "SMB_CPLD"
         }
       ],
