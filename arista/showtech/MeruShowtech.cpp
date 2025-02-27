@@ -48,18 +48,26 @@ void MeruShowtech::printAllFpgaVersions() {
 
   std::cout << "##### FPGA VERSIONS #####\n";
 
-  for (const auto &fpga : std::filesystem::directory_iterator(fpga_path)) {
-    if (fpga.is_directory() &&
-        fpga.path().filename().string().find("INFO_ROM") != std::string::npos)
-      fpga_sorted_by_name.insert(fpga.path());
+  if (std::filesystem::exists(fpga_path)) {
+    for (const auto &fpga : std::filesystem::directory_iterator(fpga_path)) {
+      if (fpga.is_directory() &&
+          fpga.path().filename().string().find("INFO_ROM") != std::string::npos)
+        fpga_sorted_by_name.insert(fpga.path());
+    }
+  } else {
+    std::cout << fpga_path << " does not exist" << std::endl;
   }
   for (const auto &path : fpga_sorted_by_name) {
     combined_path = path.string() + "/fw_ver";
     printFpgaVersion(path.filename().string(), "", "", combined_path);
   }
 
-  for (const auto &cpld : std::filesystem::directory_iterator(cpld_path)) {
-    cpld_sorted_by_name.insert(cpld.path());
+  if (std::filesystem::exists(cpld_path)) {
+    for (const auto &cpld : std::filesystem::directory_iterator(cpld_path)) {
+      cpld_sorted_by_name.insert(cpld.path());
+    }
+  } else {
+    std::cout << cpld_path << " does not exist" << std::endl;
   }
   for (const auto &path : cpld_sorted_by_name) {
     if (path.string().find("FAN") != std::string::npos) {
@@ -84,9 +92,14 @@ void MeruShowtech::printFanInfo() {
 
   std::cout << "##### FANS #####\n";
 
-  // This is dependent on the numbering of the FAN_CPLDs in the filenames.
-  for (const auto &sensor : std::filesystem::directory_iterator(sensor_path)) {
-    path_sorted_by_name.insert(sensor.path());
+  if (std::filesystem::exists(sensor_path)) {
+    // This is dependent on the numbering of the FAN_CPLDs in the filenames.
+    for (const auto &sensor :
+         std::filesystem::directory_iterator(sensor_path)) {
+      path_sorted_by_name.insert(sensor.path());
+    }
+  } else {
+    std::cout << sensor_path << " does not exist" << std::endl;
   }
 
   for (auto &path : path_sorted_by_name) {
@@ -137,28 +150,32 @@ void MeruShowtech::printI2cInfo() {
   std::cout << "##########################\n\n";
 
   std::string cpldPath = "/run/devmap/cplds/";
-  for (const auto &entry : std::filesystem::directory_iterator(cpldPath)) {
-    if (std::filesystem::is_symlink(entry.path())) {
-      symlink = std::filesystem::read_symlink(entry.path());
-      i2c_dev_str = symlink.filename().string();
-      if (regex_search(i2c_dev_str.cbegin(), i2c_dev_str.cend(), i2c_dev_match,
-                       i2c_dev_regex)) {
-        /*
-        match[0] = Full match,
-        match[1] = First capture group,
-        match[2] = Second capture group
-        e.g for i2c_device AB-00CD, match[0] = AB-00CD, match[1] = AB,
-        match[2] = 00CD, so match.size() must be 3
-        */
-        if (i2c_dev_match.size() == 3) {
-          i2c_bus = std::stoi(i2c_dev_match[1]);
-          i2c_addr = std::stoi(i2c_dev_match[2], 0, 16);
-          std::cout << "##### " << entry.path().filename().string()
-                    << " I2CDUMP #####\n"
-                    << i2c_dump(i2c_bus, i2c_addr) << std::endl;
+  if (std::filesystem::exists(cpldPath)) {
+    for (const auto &entry : std::filesystem::directory_iterator(cpldPath)) {
+      if (std::filesystem::is_symlink(entry.path())) {
+        symlink = std::filesystem::read_symlink(entry.path());
+        i2c_dev_str = symlink.filename().string();
+        if (regex_search(i2c_dev_str.cbegin(), i2c_dev_str.cend(),
+                         i2c_dev_match, i2c_dev_regex)) {
+          /*
+          match[0] = Full match,
+          match[1] = First capture group,
+          match[2] = Second capture group
+          e.g for i2c_device AB-00CD, match[0] = AB-00CD, match[1] = AB,
+          match[2] = 00CD, so match.size() must be 3
+          */
+          if (i2c_dev_match.size() == 3) {
+            i2c_bus = std::stoi(i2c_dev_match[1]);
+            i2c_addr = std::stoi(i2c_dev_match[2], 0, 16);
+            std::cout << "##### " << entry.path().filename().string()
+                      << " I2CDUMP #####\n"
+                      << i2c_dump(i2c_bus, i2c_addr) << std::endl;
+          }
         }
       }
     }
+  } else {
+    std::cout << cpldPath << " does not exist" << std::endl;
   }
 }
 
@@ -175,44 +192,48 @@ void MeruShowtech::printPwrCtrlerInfo() {
 
   std::string pwrCtrlerPath = "/sys/bus/i2c/drivers/isl68137";
   std::vector<std::tuple<std::string, int, std::string>> pwrCtrlerInfos;
-
-  for (const auto &entry : std::filesystem::directory_iterator(pwrCtrlerPath)) {
-    if (std::filesystem::is_symlink(entry.path())) {
-      symlink = std::filesystem::read_symlink(entry.path());
-      i2c_dev_str = symlink.filename().string();
-      if (regex_search(i2c_dev_str.cbegin(), i2c_dev_str.cend(), i2c_dev_match,
-                       i2c_dev_regex)) {
-        /*
-        match[0] = Full match,
-        match[1] = First capture group,
-        match[2] = Second capture group
-        e.g for i2c_device AB-00CD, match[0] = AB-00CD, match[1] = AB,
-        match[2] = 00CD, so match.size() must be 3
-        */
-        if (i2c_dev_match.size() == 3) {
-          i2c_bus = std::stoi(i2c_dev_match[1]);
-          i2c_addr = std::stoi(i2c_dev_match[2], 0, 16);
-          std::string pwrCtrlerType = run_cmd_no_check(
-              "cat /sys/bus/i2c/drivers/isl68137/" + i2c_dev_str + "/name");
-          pwrCtrlerType.pop_back();
-          std::string mfrModel = run_cmd_no_check(
-              "i2cget -f -y " + std::to_string(i2c_bus) + " " +
-              std::to_string(i2c_addr) +
-              " 0x9a s | sed 's/0x//g' | awk '{print $4$3$2$1}'");
-          std::string mfrRevision = run_cmd_no_check(
-              "i2cget -f -y " + std::to_string(i2c_bus) + " " +
-              std::to_string(i2c_addr) +
-              " 0x9b s | sed 's/0x//g' | awk '{print $4$3$2$1}'");
-          std::string sftNum =
-              "SFT-" + mfrModel.substr(1, 5) + "-" + mfrModel.substr(6, 2) +
-              " " +
-              (std::ostringstream() << std::setfill('0') << std::setw(2)
-                                    << std::stoi(mfrRevision, nullptr, 16))
-                  .str();
-          pwrCtrlerInfos.push_back({pwrCtrlerType, i2c_addr, sftNum});
+  if (std::filesystem::exists(pwrCtrlerPath)) {
+    for (const auto &entry :
+         std::filesystem::directory_iterator(pwrCtrlerPath)) {
+      if (std::filesystem::is_symlink(entry.path())) {
+        symlink = std::filesystem::read_symlink(entry.path());
+        i2c_dev_str = symlink.filename().string();
+        if (regex_search(i2c_dev_str.cbegin(), i2c_dev_str.cend(),
+                         i2c_dev_match, i2c_dev_regex)) {
+          /*
+          match[0] = Full match,
+          match[1] = First capture group,
+          match[2] = Second capture group
+          e.g for i2c_device AB-00CD, match[0] = AB-00CD, match[1] = AB,
+          match[2] = 00CD, so match.size() must be 3
+          */
+          if (i2c_dev_match.size() == 3) {
+            i2c_bus = std::stoi(i2c_dev_match[1]);
+            i2c_addr = std::stoi(i2c_dev_match[2], 0, 16);
+            std::string pwrCtrlerType = run_cmd_no_check(
+                "cat /sys/bus/i2c/drivers/isl68137/" + i2c_dev_str + "/name");
+            pwrCtrlerType.pop_back();
+            std::string mfrModel = run_cmd_no_check(
+                "i2cget -f -y " + std::to_string(i2c_bus) + " " +
+                std::to_string(i2c_addr) +
+                " 0x9a s | sed 's/0x//g' | awk '{print $4$3$2$1}'");
+            std::string mfrRevision = run_cmd_no_check(
+                "i2cget -f -y " + std::to_string(i2c_bus) + " " +
+                std::to_string(i2c_addr) +
+                " 0x9b s | sed 's/0x//g' | awk '{print $4$3$2$1}'");
+            std::string sftNum =
+                "SFT-" + mfrModel.substr(1, 5) + "-" + mfrModel.substr(6, 2) +
+                " " +
+                (std::ostringstream() << std::setfill('0') << std::setw(2)
+                                      << std::stoi(mfrRevision, nullptr, 16))
+                    .str();
+            pwrCtrlerInfos.push_back({pwrCtrlerType, i2c_addr, sftNum});
+          }
         }
       }
     }
+  } else {
+    std::cout << pwrCtrlerPath << " does not exist" << std::endl;
   }
   std::cout << "Type       Address    Version\n";
   std::cout << "-----------------------------\n";
