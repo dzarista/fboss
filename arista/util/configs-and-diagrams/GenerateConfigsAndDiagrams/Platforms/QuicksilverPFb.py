@@ -53,7 +53,6 @@ class QuicksilverPFbSMB( SMBUnit ):
       )
 
       smbCpld = SMBCpld( "0x23", "meru800ba_cpld", "SMB_CPLD", incomingBusIndex=0 )
-
       smbFanTmp = Sensor( "0x48", "lm75", "FAN_TMP75", incomingBusIndex=2 )
       smbMgmtTemp = Sensor( "0x48", "lm75", "SMB_MGMT_TMP75" )
       smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581" )
