@@ -7,6 +7,7 @@
         "bp4a_max1363",
         "decker_cpld",
         "dsf_fan_cpld",
+        "quicksilver_fan_cpld",
         "rook_fan_cpld",
         "scd_leds",
         "scd_smbus",

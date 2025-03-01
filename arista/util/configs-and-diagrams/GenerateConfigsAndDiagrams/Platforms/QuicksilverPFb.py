@@ -40,7 +40,8 @@ class QuicksilverPFbSMB( SMBUnit ):
    def __init__( self ):
       super().__init__( self.prefixSymlink )
 
-      smbFanCpld = FANCpld( "0x60", "fan_cpld", "FAN_CPLD", incomingBusIndex=2 )
+      smbFanCpld = FANCpld( "0x60", "meru800ba_fan_cpld", "FAN_CPLD",
+                            incomingBusIndex=2 )
       smbFanCpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
       self.setSlotTypeConfig(
@@ -64,6 +65,7 @@ class QuicksilverPFbSMB( SMBUnit ):
 
       self.addI2cDeviceConfigs( [
          smbCpld,
+         smbFanCpld,
          smbFanTmp,
          smbMgmtTemp,
          smbMax,
@@ -72,10 +74,6 @@ class QuicksilverPFbSMB( SMBUnit ):
          smbIsl0V75,
          smbIslOpticsA,
          smbIslOpticsB
-      ] )
-
-      self.addI2cDeviceConfigs( [
-         smbFanCpld
       ] )
 
       self.addPciDeviceConfigs( [
