@@ -108,6 +108,12 @@
         },
         {
           "busName": "INCOMING@2",
+          "address": "0x60",
+          "kernelDeviceName": "meru800ba_fan_cpld",
+          "pmUnitScopedName": "FAN_CPLD"
+        },
+        {
+          "busName": "INCOMING@2",
           "address": "0x48",
           "kernelDeviceName": "lm75",
           "pmUnitScopedName": "FAN_TMP75"
@@ -2117,6 +2123,8 @@
     "/run/devmap/i2c-busses/MERU800BA_SMB_FPGA_SMBUS10_CH6": "/SMB_SLOT@0/[SMB_I2C_MASTER10@6]",
     "/run/devmap/i2c-busses/MERU800BA_SMB_FPGA_SMBUS10_CH7": "/SMB_SLOT@0/[SMB_I2C_MASTER10@7]",
     "/run/devmap/cplds/MERU800BA_SMB_CPLD": "/SMB_SLOT@0/[SMB_CPLD]",
+    "/run/devmap/cplds/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]",
+    "/run/devmap/sensors/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]",
     "/run/devmap/sensors/FAN_TMP75": "/SMB_SLOT@0/[FAN_TMP75]",
     "/run/devmap/sensors/SMB_MGMT_TMP75": "/SMB_SLOT@0/[SMB_MGMT_TMP75]",
     "/run/devmap/sensors/SMB_MAX6581": "/SMB_SLOT@0/[SMB_MAX6581]",

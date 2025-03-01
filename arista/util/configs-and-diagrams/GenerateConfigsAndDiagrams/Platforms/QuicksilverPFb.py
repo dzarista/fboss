@@ -2,6 +2,7 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from ..BaseConfigs import (
+   FANCpld,
    PciDeviceConfig,
    PlatformConfig,
    SCMFairywren,
@@ -39,6 +40,10 @@ class QuicksilverPFbSMB( SMBUnit ):
    def __init__( self ):
       super().__init__( self.prefixSymlink )
 
+      smbFanCpld = FANCpld( "0x60", "meru800ba_fan_cpld", "FAN_CPLD",
+                            incomingBusIndex=2 )
+      smbFanCpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
+
       self.setSlotTypeConfig(
          numOutgoingI2cBuses=3,
          idPromConfigBusName="INCOMING@0",
@@ -48,7 +53,6 @@ class QuicksilverPFbSMB( SMBUnit ):
       )
 
       smbCpld = SMBCpld( "0x23", "meru800ba_cpld", "SMB_CPLD", incomingBusIndex=0 )
-
       smbFanTmp = Sensor( "0x48", "lm75", "FAN_TMP75", incomingBusIndex=2 )
       smbMgmtTemp = Sensor( "0x48", "lm75", "SMB_MGMT_TMP75" )
       smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581" )
@@ -60,6 +64,7 @@ class QuicksilverPFbSMB( SMBUnit ):
 
       self.addI2cDeviceConfigs( [
          smbCpld,
+         smbFanCpld,
          smbFanTmp,
          smbMgmtTemp,
          smbMax,

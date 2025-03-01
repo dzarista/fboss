@@ -4,3 +4,4 @@
 
 obj-m += meru800ba-cpld.o
 meru800ba-cpld-objs := meru800ba-cpld-i2c.o ../lib/regbit-sysfs.o
+obj-m += meru800ba-fan-cpld.o
