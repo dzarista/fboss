@@ -108,6 +108,12 @@
         },
         {
           "busName": "INCOMING@2",
+          "address": "0x60",
+          "kernelDeviceName": "fan_cpld",
+          "pmUnitScopedName": "FAN_CPLD"
+        },
+        {
+          "busName": "INCOMING@2",
           "address": "0x48",
           "kernelDeviceName": "lm75",
           "pmUnitScopedName": "FAN_TMP75"
@@ -2319,6 +2325,8 @@
     "/run/devmap/xcvrs/xcvr_ctrl_64": "/SMB_SLOT@0/[OSFP_PORT64_XCVR]",
     "/run/devmap/sensors/PSU1_PMBUS": "/SMB_SLOT@0/PSU_SLOT@0/[PSU_PMBUS]",
     "/run/devmap/sensors/PSU2_PMBUS": "/SMB_SLOT@0/PSU_SLOT@1/[PSU_PMBUS]"
+    "/run/devmap/cplds/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]",
+    "/run/devmap/sensors/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]"
   },
   "bspKmodsRpmName": "arista_bsp_kmods",
   "bspKmodsRpmVersion": "0.7.7-1",

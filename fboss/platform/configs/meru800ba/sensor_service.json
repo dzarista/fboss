@@ -132,6 +132,7 @@
       ]
     },
     {
+<<<<<<< HEAD
       "slotPath": "/SMB_SLOT@0/PSU_SLOT@0",
       "pmUnitName": "PSU",
       "sensors": [
@@ -316,6 +317,48 @@
           "sysfsPath": "/run/devmap/sensors/PSU2_PMBUS/power2_input",
           "type": 0,
           "compute": "@/1000000.0"
+        }
+      ]
+    },
+    {
+      "slotPath": "/SMB_SLOT@0",
+      "pmUnitName": "SMB",
+      "sensors": [
+        {
+          "name": "FAN1_RPM",
+          "sysfsPath": "/run/devmap/sensors/FAN_CPLD/fan1_input",
+          "type": 4,
+          "thresholds": {
+            "upperCriticalVal": 14900.0,
+            "lowerCriticalVal": 1100.0
+          }
+        },
+        {
+          "name": "FAN2_RPM",
+          "sysfsPath": "/run/devmap/sensors/FAN_CPLD/fan2_input",
+          "type": 4,
+          "thresholds": {
+            "upperCriticalVal": 14900.0,
+            "lowerCriticalVal": 1100.0
+          }
+        },
+        {
+          "name": "FAN3_RPM",
+          "sysfsPath": "/run/devmap/sensors/FAN_CPLD/fan3_input",
+          "type": 4,
+          "thresholds": {
+            "upperCriticalVal": 14900.0,
+            "lowerCriticalVal": 1100.0
+          }
+        },
+        {
+          "name": "FAN4_RPM",
+          "sysfsPath": "/run/devmap/sensors/FAN_CPLD/fan4_input",
+          "type": 4,
+          "thresholds": {
+            "upperCriticalVal": 14900.0,
+            "lowerCriticalVal": 1100.0
+          }
         }
       ]
     }
