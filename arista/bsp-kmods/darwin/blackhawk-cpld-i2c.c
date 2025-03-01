@@ -16,6 +16,24 @@
 
 static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 	/*
+	 * CPLD version/sub_version @ address/offset 0x0 and 0x1.
+	 */
+	{
+		.name = "cpld_sub_ver",
+		.mode = REGBIT_FMODE_RO,
+		.reg_addr = CPLD_REG_REV_MINOR,
+		.bit_offset = 0,
+		.num_bits = 8,
+	},
+	{
+		.name = "cpld_ver",
+		.mode = REGBIT_FMODE_RO,
+		.reg_addr = CPLD_REG_REV_MAJOR,
+		.bit_offset = 0,
+		.num_bits = 8,
+	},
+
+	/*
 	 * Power Ctrl/Stat register @ address/offset 0x5.
 	 */
 	{

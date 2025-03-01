@@ -818,6 +818,24 @@ static struct attribute_group *fan_groups[] = {
 	FAN_ATTR_GROUP(7), FAN_ATTR_GROUP(8), NULL,
 };
 
+static ssize_t cpld_ver_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct cpld_data *cpld = dev_get_drvdata(dev);
+	return sprintf(buf, "%02x\n", cpld->major);
+}
+
+DEVICE_ATTR(cpld_ver, S_IRUGO, cpld_ver_show, NULL);
+
+static ssize_t cpld_sub_ver_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct cpld_data *cpld = dev_get_drvdata(dev);
+	return sprintf(buf, "%02x\n", cpld->minor);
+}
+
+DEVICE_ATTR(cpld_sub_ver, S_IRUGO, cpld_sub_ver_show, NULL);
+
 static ssize_t fw_ver_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -843,6 +861,8 @@ static ssize_t cpld_update_show(struct device *dev,
 DEVICE_ATTR(update, S_IRUGO, cpld_update_show, NULL);
 
 static struct attribute *cpld_attrs[] = {
+	&dev_attr_cpld_ver.attr,
+	&dev_attr_cpld_sub_ver.attr,
 	&dev_attr_fw_ver.attr,
 	&dev_attr_update.attr,
 	NULL,

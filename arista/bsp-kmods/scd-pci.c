@@ -518,8 +518,14 @@ static void release_reload_cause_resources(struct scd_dev_priv *priv) {
 #define FMODE_RW	(S_IRUGO | S_IWUSR | S_IWGRP)
 
 #define DARWIN_REGBIT_FPGA_FILES							\
-	REGBIT_FILE(sat0_cpld_fw_ver, 0x400, 0, 16, FMODE_RO, sat_cpld_fw_ver_show, NULL)	\
-	REGBIT_FILE(sat1_cpld_fw_ver, 0x400, 16, 16, FMODE_RO, sat_cpld_fw_ver_show, NULL)	\
+	REGBIT_FILE(sat0_cpld_sub_ver, 0x400, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(sat0_cpld_ver, 0x400, 8, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(sat1_cpld_sub_ver, 0x400, 16, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(sat1_cpld_ver, 0x400, 24, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(sat0_cpld_fw_ver, 0x400, 0, 16, FMODE_RO,				\
+		    sat_cpld_fw_ver_show, NULL)						\
+	REGBIT_FILE(sat1_cpld_fw_ver, 0x400, 16, 16, FMODE_RO,				\
+		    sat_cpld_fw_ver_show, NULL)						\
 	REGBIT_FILE(pem_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(rackmon_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(pem_status, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
