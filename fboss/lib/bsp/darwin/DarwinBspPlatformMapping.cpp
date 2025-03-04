@@ -19,7 +19,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 1,
           "accessControl": {
             "controllerId": "1",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_1/xcvr1_reset",
               "mask": 1,
@@ -54,7 +54,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 2,
           "accessControl": {
             "controllerId": "2",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_2/xcvr2_reset",
               "mask": 1,
@@ -89,7 +89,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 3,
           "accessControl": {
             "controllerId": "3",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_3/xcvr3_reset",
               "mask": 1,
@@ -124,7 +124,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 4,
           "accessControl": {
             "controllerId": "4",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_4/xcvr4_reset",
               "mask": 1,
@@ -159,7 +159,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 5,
           "accessControl": {
             "controllerId": "5",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_5/xcvr5_reset",
               "mask": 1,
@@ -194,7 +194,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 6,
           "accessControl": {
             "controllerId": "6",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_6/xcvr6_reset",
               "mask": 1,
@@ -229,7 +229,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 7,
           "accessControl": {
             "controllerId": "7",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_7/xcvr7_reset",
               "mask": 1,
@@ -264,7 +264,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 8,
           "accessControl": {
             "controllerId": "8",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_8/xcvr8_reset",
               "mask": 1,
@@ -299,7 +299,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 9,
           "accessControl": {
             "controllerId": "9",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_9/xcvr9_reset",
               "mask": 1,
@@ -334,7 +334,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 10,
           "accessControl": {
             "controllerId": "10",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_10/xcvr10_reset",
               "mask": 1,
@@ -369,7 +369,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 11,
           "accessControl": {
             "controllerId": "11",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_11/xcvr11_reset",
               "mask": 1,
@@ -404,7 +404,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 12,
           "accessControl": {
             "controllerId": "12",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_12/xcvr12_reset",
               "mask": 1,
@@ -439,7 +439,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 13,
           "accessControl": {
             "controllerId": "13",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_13/xcvr13_reset",
               "mask": 1,
@@ -474,7 +474,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 14,
           "accessControl": {
             "controllerId": "14",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_14/xcvr14_reset",
               "mask": 1,
@@ -509,7 +509,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 15,
           "accessControl": {
             "controllerId": "15",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_15/xcvr15_reset",
               "mask": 1,
@@ -544,7 +544,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 16,
           "accessControl": {
             "controllerId": "16",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_16/xcvr16_reset",
               "mask": 1,
@@ -579,7 +579,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 17,
           "accessControl": {
             "controllerId": "17",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_17/xcvr17_reset",
               "mask": 1,
@@ -614,7 +614,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 18,
           "accessControl": {
             "controllerId": "18",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_18/xcvr18_reset",
               "mask": 1,
@@ -649,7 +649,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 19,
           "accessControl": {
             "controllerId": "19",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_19/xcvr19_reset",
               "mask": 1,
@@ -684,7 +684,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 20,
           "accessControl": {
             "controllerId": "20",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_20/xcvr20_reset",
               "mask": 1,
@@ -719,7 +719,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 21,
           "accessControl": {
             "controllerId": "21",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_21/xcvr21_reset",
               "mask": 1,
@@ -754,7 +754,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 22,
           "accessControl": {
             "controllerId": "22",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_22/xcvr22_reset",
               "mask": 1,
@@ -789,7 +789,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 23,
           "accessControl": {
             "controllerId": "23",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_23/xcvr23_reset",
               "mask": 1,
@@ -824,7 +824,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 24,
           "accessControl": {
             "controllerId": "24",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_24/xcvr24_reset",
               "mask": 1,
@@ -859,7 +859,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 25,
           "accessControl": {
             "controllerId": "25",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_25/xcvr25_reset",
               "mask": 1,
@@ -894,7 +894,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 26,
           "accessControl": {
             "controllerId": "26",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_26/xcvr26_reset",
               "mask": 1,
@@ -929,7 +929,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 27,
           "accessControl": {
             "controllerId": "27",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_27/xcvr27_reset",
               "mask": 1,
@@ -964,7 +964,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 28,
           "accessControl": {
             "controllerId": "28",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_28/xcvr28_reset",
               "mask": 1,
@@ -999,7 +999,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 29,
           "accessControl": {
             "controllerId": "29",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_29/xcvr29_reset",
               "mask": 1,
@@ -1034,7 +1034,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 30,
           "accessControl": {
             "controllerId": "30",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_30/xcvr30_reset",
               "mask": 1,
@@ -1069,7 +1069,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 31,
           "accessControl": {
             "controllerId": "31",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_31/xcvr31_reset",
               "mask": 1,
@@ -1104,7 +1104,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
           "tcvrId": 32,
           "accessControl": {
             "controllerId": "32",
-            "type": 2,
+            "type": 1,
             "reset": {
               "sysfsPath": "/run/devmap/xcvrs/xcvr_ctrl_32/xcvr32_reset",
               "mask": 1,
