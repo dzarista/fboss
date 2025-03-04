@@ -21,6 +21,9 @@ This package provides core utilities to run Meta FBOSS OSS on Arista switches.
 set -x
 find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/tmp_build_dir/fboss_bins-* .
+# Remove non-executable files from fboss_bins-*/bin, this trims all the static
+# libraries which result in bloat.
+find fboss_bins-*/bin -maxdepth 1 -type f ! -perm /0111 -exec rm {} \;
 cp -af %{SOURCEURL0}/tmp_build_dir/psu-upgrade .
 cp -af %{SOURCEURL0}/tmp_build_dir/sw_test .
 cp -af %{SOURCEURL0}/fboss.git/arista/util/thriftctl/thriftctl.py .
