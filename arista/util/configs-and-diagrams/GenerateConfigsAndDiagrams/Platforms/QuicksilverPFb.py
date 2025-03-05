@@ -14,7 +14,8 @@ from ..BaseConfigs import (
    Sensor,
    SensorConfig,
    SensorType,
-   Thresholds
+   Thresholds,
+   InitRegSettings
 )
 
 
@@ -52,15 +53,179 @@ class QuicksilverPFbSMB( SMBUnit ):
          idPromConfigOffset=15360
       )
 
+
       smbCpld = SMBCpld( "0x23", "meru800ba_cpld", "SMB_CPLD", incomingBusIndex=0 )
-      smbFanTmp = Sensor( "0x48", "lm75", "FAN_TMP75", incomingBusIndex=2 )
-      smbMgmtTemp = Sensor( "0x48", "lm75", "SMB_MGMT_TMP75" )
+
+      smbFanTmp = Sensor( "0x48", "lm75", "FAN_TMP75", incomingBusIndex=2,
+                          # Overtemperature threshold set to match EOS
+                          initRegSettings = InitRegSettings( [ ( 3, 100 ) ] ) )
+      smbFanTmp.addSensorConfigs( [
+         SensorConfig( "FAN_BOARD_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0", prependPmUnit=False,
+                       thresholds=Thresholds(
+                           upperCriticalVal=95.0, maxAlarmVal=85.0
+                       ) )
+      ] )
+
+      smbMgmtTemp = Sensor( "0x48", "lm75", "SMB_MGMT_TMP75",
+                            # Overtemperature threshold set to match EOS
+                            initRegSettings = InitRegSettings( [ ( 3, 110 ) ] ) )
+      smbMgmtTemp.addSensorConfigs( [
+         SensorConfig( "MGMT_INLET_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=105.0, maxAlarmVal=95.0
+                       ) )
+      ] )
+
       smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581" )
+      smbMax.addSensorConfigs( [
+         SensorConfig( "SCM_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=105.0, maxAlarmVal=95.0
+                       ) ),
+         SensorConfig( "TH5_AIR_BEHIND_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=105.0, maxAlarmVal=95.0
+                       ) ),
+         SensorConfig( "LEFT_EDGE_PCB_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=105.0, maxAlarmVal=95.0
+                       ) ),
+         SensorConfig( "AIR_INLET_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=105.0, maxAlarmVal=95.0
+                       ) ),
+         SensorConfig( "TH5_DIODE_1_TEMP", "temp7_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH5_DIODE_2_TEMP", "temp8_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) )
+      ] )
+
       smbRaa = Sensor( "0x45", "raa228228", "SMB_RAA228926_TH5_CORE" )
+      smbRaa.addSensorConfigs( [
+         SensorConfig( "RAA_TH5_CORE_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=115.0, maxAlarmVal=105.0
+                       ) ),
+         SensorConfig( "RAA_TH5_CORE_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                       ) ),
+         SensorConfig( "RAA_TH5_CORE_VDD", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=1.0, lowerCriticalVal=0.6
+                       ) )
+      ] )
+
       smbIsl0V9 = Sensor( "0x46", "isl68226", "SMB_ISL68226_TH5_0V9_ANALOG" )
+      smbIsl0V9.addSensorConfigs( [
+         SensorConfig( "ISL_TH5_0V9_TEMP1", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=115.0, maxAlarmVal=105.0
+                       ) ),
+         SensorConfig( "ISL_TH5_0V9_TEMP2", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=115.0, maxAlarmVal=105.0
+                       ) ),
+         SensorConfig( "ISL_TH5_0V9_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                       ) ),
+         SensorConfig( "ISL_TH5_0V9_AVDD_0", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=1.08, lowerCriticalVal=0.675
+                       ) ),
+         SensorConfig( "ISL_TH5_0V9_AVDD_1", "in4_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=1.08, lowerCriticalVal=0.675
+                       ) )
+      ] )
+
       smbIsl0V75 = Sensor( "0x47", "isl68226", "SMB_ISL68226_TH5_0V75_ANALOG" )
+      smbIsl0V75.addSensorConfigs( [
+         SensorConfig( "ISL_TH5_0V75_TEMP1", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=115.0, maxAlarmVal=105.0
+                       ) ),
+         SensorConfig( "ISL_TH5_0V75_TEMP2", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=115.0, maxAlarmVal=105.0
+                       ) ),
+         SensorConfig( "ISL_TH5_0V75_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                       ) ),
+         SensorConfig( "ISL_TH5_0V75_AVDD_0", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=0.9375, lowerCriticalVal=0.5625
+                       ) ),
+         SensorConfig( "ISL_TH5_0V75_AVDD_1", "in4_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=0.9375, lowerCriticalVal=0.5625
+                       ) )
+      ] )
+
       smbIslOpticsA = Sensor( "0x4D", "isl68226", "SMB_ISL68226_OPTICS_A" )
+      smbIslOpticsA.addSensorConfigs( [
+         SensorConfig( "ISL_OPTICS_A_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=115.0, maxAlarmVal=105.0
+                       ) ),
+         SensorConfig( "ISL_OPTICS_A_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                       ) ),
+         SensorConfig( "ISL_OPTICS_A_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=4.125, lowerCriticalVal=2.475
+                       ) )
+      ] )
+
       smbIslOpticsB = Sensor( "0x4C", "isl68226", "SMB_ISL68226_OPTICS_B" )
+      smbIslOpticsB.addSensorConfigs( [
+         SensorConfig( "ISL_OPTICS_B_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=115.0, maxAlarmVal=105.0
+                       ) ),
+         SensorConfig( "ISL_OPTICS_B_VIN", "in1_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                       ) ),
+         SensorConfig( "ISL_OPTICS_B_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=4.125, lowerCriticalVal=2.475
+                       ) )
+      ] )
 
       self.addI2cDeviceConfigs( [
          smbCpld,
