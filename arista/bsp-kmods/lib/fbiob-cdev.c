@@ -79,9 +79,9 @@ int fbiob_cdev_init(struct fbiob_cdev_desc *cdesc,
 		 pcidev->subsystem_device);
 
 	cdesc->miscdev.minor = MISC_DYNAMIC_MINOR;
-        cdesc->miscdev.name = cdesc->name;
-        cdesc->miscdev.fops = &fbiob_cdev_fops;
-        cdesc->miscdev.parent = &pcidev->dev;
+	cdesc->miscdev.name = cdesc->name;
+	cdesc->miscdev.fops = &fbiob_cdev_fops;
+	cdesc->miscdev.parent = &pcidev->dev;
 
-        return misc_register(&cdesc->miscdev);
+	return misc_register(&cdesc->miscdev);
 }
