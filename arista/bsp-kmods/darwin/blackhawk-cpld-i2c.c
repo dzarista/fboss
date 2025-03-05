@@ -200,7 +200,8 @@ static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 	},
 };
 
-static int fw_ver_read(struct i2c_client *client, bool updatebuf, char *buf) {
+static int fw_ver_read(struct i2c_client *client, char *buf)
+{
 	int ret;
 	u8 major_rev, minor_rev;
 
@@ -214,7 +215,8 @@ static int fw_ver_read(struct i2c_client *client, bool updatebuf, char *buf) {
 		return ret;
 	minor_rev = (u8)ret;
 
-	if (updatebuf) {
+	/* If buf is NULL. print the CPLD revision instead of updating the buffer */
+	if (buf) {
 		return sprintf(buf, "%u.%u\n", major_rev, minor_rev);
 	} else {
 		dev_info(&client->dev, "blackhawk cpld revision: %02x.%02x\n",
@@ -223,10 +225,11 @@ static int fw_ver_read(struct i2c_client *client, bool updatebuf, char *buf) {
 	}
 }
 
-static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf) {
+static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
 	struct i2c_client *client = to_i2c_client(dev);
 
-	return fw_ver_read(client, true, buf);
+	return fw_ver_read(client, buf);
 }
 
 DEVICE_ATTR(fw_ver, 0444, fw_ver_show, NULL);
@@ -235,7 +238,7 @@ static int cpld_i2c_probe(struct i2c_client *client)
 {
 	int ret;
 
-	ret = fw_ver_read(client, false, NULL);
+	ret = fw_ver_read(client, NULL);
 	if (ret < 0)
 		return ret;
 
