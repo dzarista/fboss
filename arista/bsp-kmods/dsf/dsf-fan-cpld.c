@@ -68,11 +68,11 @@
 #define FAN_MAX_PWM 255
 #define FAN_DFT_PWM 77	/* default 30% duty cycle */
 
-static bool safe_mode = false;
+static bool safe_mode;
 module_param(safe_mode, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(safe_mode, "force fan speed to 100% during probe");
 
-static unsigned long poll_interval = 0;
+static unsigned long poll_interval;
 module_param(poll_interval, ulong, S_IRUSR);
 MODULE_PARM_DESC(poll_interval, "interval between two polling in ms");
 
@@ -421,7 +421,7 @@ static s32 cpld_read_fan_tach(struct cpld_data *cpld, u8 fan_id)
 	u16 tach;
 	int i;
 
-        fan->tach = 0;
+	fan->tach = 0;
 	for (i = 0; i < cpld->info->rotors; i++) {
 		err = cpld_read_tach_single(cpld, fan->index, i, &tach);
 		if (err)
@@ -784,8 +784,8 @@ static struct attribute_group *fan_groups[] = {
 	FAN_ATTR_GROUP(7), FAN_ATTR_GROUP(8), NULL,
 };
 
-static ssize_t fw_ver_show(struct device *dev, 
-								struct device_attribute *attr, char *buf) 
+static ssize_t fw_ver_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	struct cpld_data *cpld = dev_get_drvdata(dev);
 	return sprintf(buf, "%u.%u\n", cpld->major, cpld->minor);

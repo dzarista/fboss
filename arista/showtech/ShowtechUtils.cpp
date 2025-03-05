@@ -35,8 +35,10 @@ std::string run_cmd_no_check(std::string cmd) {
 }
 
 void print_fboss2_show_cmd(std::string cmd) {
-  std::cout << "#### fboss2 show " << cmd << " ####\n";
-  std::cout << run_cmd_no_check("fboss2 show " + cmd) << std::endl;
+  if (!std::filesystem::exists("/etc/ramdisk")) {
+    std::cout << "#### fboss2 show " << cmd << " ####\n";
+    std::cout << run_cmd_no_check("fboss2 show " + cmd) << std::endl;
+  }
 }
 
 void strip(std::string &str) {
@@ -57,7 +59,8 @@ int get_max_i2c_bus() {
 }
 
 std::string i2c_dump(int bus, int addr) {
-  std::string cmd = "i2cdump -f -y " + std::to_string(bus) + " " + std::to_string(addr) + " b";
+  std::string cmd = "i2cdump -f -y " + std::to_string(bus) + " " +
+                    std::to_string(addr) + " b";
   return cmd + "\n" + run_cmd_no_check(cmd);
 }
 

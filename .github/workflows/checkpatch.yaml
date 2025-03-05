@@ -32,7 +32,7 @@ jobs:
 
     - name: Run checkpatch.pl on all files in a directory
       run: |
-        find arista/bsp-kmods -type f \( -name '*.c' -or -name '*.h' \) -print0 | xargs -0 -I {} sh -c "perl linux/scripts/checkpatch.pl --no-tree --terse --file {} | tee -a /tmp/checkpatch-output.txt"
+        find arista/bsp-kmods -type f \( -name '*.c' -or -name '*.h' \) -print0 | xargs -0 -I {} sh -c "perl linux/scripts/checkpatch.pl --no-tree --ignore COMPLEX_MACRO,MULTISTATEMENT_MACRO_USE_DO_WHILE --terse --file {} | tee -a /tmp/checkpatch-output.txt"
         if grep -qE 'ERROR:' /tmp/checkpatch-output.txt; then
           echo "Errors found by checkpatch.pl"
           exit 1

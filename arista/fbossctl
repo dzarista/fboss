@@ -58,6 +58,8 @@ usage() {
    echo
    echo "  run_sw_tests: Run software breath tests inside container (requires prior successful build)"
    echo
+   echo "  bsp_mapping_gen: Generate bsp mapping configs based on CSV files under fboss/lib/bsp/bspmapping/input/"
+   echo
    echo "  clean: Cleanup the FBOSS build environment"
    echo
    echo "  help: print this help message"
@@ -181,6 +183,7 @@ setup() {
    cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/build.sh "${FBOSS_HOST_DIR}"
    cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/package.sh "${FBOSS_HOST_DIR}"
    cp -f "${FBOSS_REPO_DIR}"/arista/core/scripts/run_sw_tests.sh "${FBOSS_HOST_DIR}"
+   cp -f "${FBOSS_REPO_DIR}"/arista/util/bsp-mapping-gen/bspMappingGen.sh "${FBOSS_HOST_DIR}"
 }
 
 run_cmd_container() {
@@ -245,6 +248,11 @@ do_sw_tests() {
     run_cmd_container bash run_sw_tests.sh
 }
 
+do_bsp_mapping_gen() {
+    setup
+    run_cmd_container bash bspMappingGen.sh
+}
+
 if [[ $# -lt 1 ]]; then
     usage
     exit 1
@@ -271,6 +279,9 @@ case "${command}" in
       ;;
    run_sw_tests)
       do_sw_tests
+      ;;
+   bsp_mapping_gen)
+      do_bsp_mapping_gen
       ;;
    *)
       usage

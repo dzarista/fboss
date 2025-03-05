@@ -213,8 +213,8 @@ static int scd_spi_controller_probe(struct auxiliary_device *auxdev,
 	struct spi_board_info info = { { 0 } };
 	struct device *dev = &auxdev->dev;
     struct fbiob_aux_adapter *aux_adap =
-                (struct fbiob_aux_adapter *)container_of(auxdev,
-                        struct fbiob_aux_adapter, auxdev);
+		(struct fbiob_aux_adapter *)container_of(auxdev,
+			struct fbiob_aux_adapter, auxdev);
 	struct fbiob_aux_data *pdata = &aux_adap->data;
 	struct fbiob_spi_data spi_data = pdata->spi_data;
 
@@ -264,7 +264,7 @@ static int scd_spi_controller_probe(struct auxiliary_device *auxdev,
 	// Update spi device configs from PM config
 	strscpy(info.modalias, spi_data.spidevs->modalias, sizeof(info.modalias));
 	info.max_speed_hz = spi_data.spidevs->max_speed_hz;
-  	info.chip_select = spi_data.spidevs->chip_select;
+	info.chip_select = spi_data.spidevs->chip_select;
 	dev_info(dev, "Modalias: %s, MaxSpeed: %d, ChipSelect: %d\n", info.modalias,
 		info.max_speed_hz, info.chip_select);
 

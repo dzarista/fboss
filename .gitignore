@@ -10,3 +10,4 @@ arista/util/DSF*
 arista/build-utils/tmp_build_dir/
 gen-py/
 arista/util/live-image/build_dir/
+tmp/

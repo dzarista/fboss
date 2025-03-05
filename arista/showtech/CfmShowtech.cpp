@@ -39,11 +39,15 @@ int readIntFromFile(const std::string &filePath) {
 
 int getPsuCount() {
   int psuCount = 0;
-  for (const auto &entry : std::filesystem::directory_iterator(SENSOR_PATH)) {
-    std::string fileName = entry.path().filename().string();
-    if (fileName.find("PSU") == 0) {
-      psuCount++;
+  if (std::filesystem::exists(SENSOR_PATH)) {
+    for (const auto &entry : std::filesystem::directory_iterator(SENSOR_PATH)) {
+      std::string fileName = entry.path().filename().string();
+      if (fileName.find("PSU") == 0) {
+        psuCount++;
+      }
     }
+  } else {
+    std::cout << SENSOR_PATH << " does not exist" << std::endl;
   }
   return psuCount;
 }

@@ -139,8 +139,8 @@ struct scd_dev_priv {
  */
 
 static struct pci_device_id scd_lpc_table[] = {
-        { PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f76) },
-        { 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f76) },
+	{ 0 },
 };
 
 static unsigned long lpc_res_addr = 0xb0000000;
@@ -424,15 +424,18 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	return -ENOENT;
 }
 
-static void scratchpad_lock(void) {
+static void scratchpad_lock(void)
+{
 	mutex_lock(&scratchpad_mutex);
 }
 
-static void scratchpad_unlock(void) {
+static void scratchpad_unlock(void)
+{
 	mutex_unlock(&scratchpad_mutex);
 }
 
-static void print_reload_cause_info(struct scd_dev_priv *priv) {
+static void print_reload_cause_info(struct scd_dev_priv *priv)
+{
 	struct mapped_register *reload_cause_reg_map;
 	size_t reload_cause_reg_count;
 	size_t reload_cause_reg_loop;
@@ -495,7 +498,8 @@ static void print_reload_cause_info(struct scd_dev_priv *priv) {
 	}
 }
 
-static void release_reload_cause_resources(struct scd_dev_priv *priv) {
+static void release_reload_cause_resources(struct scd_dev_priv *priv)
+{
 	struct mapped_register *reload_cause_reg_map;
 	size_t reload_cause_reg_count;
 	size_t reload_cause_reg_loop;
@@ -932,42 +936,42 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		scd_cb = &scd_pci_cb;
 	}
 
-	switch(ent->subdevice) {
-		case DARWIN_SCD_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &darwin_scd_attr_group;
-			regbit_sysfs_table = darwin_scd_regbit_sysfs;
-			break;
-		case FAIRYWREN_SCD_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &fairywren_scd_attr_group;
-			regbit_sysfs_table = fairywren_scd_regbit_sysfs;
-			break;
-		case VIPER_SCD_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &viper_scd_attr_group;
-			regbit_sysfs_table = viper_scd_regbit_sysfs;
-			break;
-		case BLACKCOMB_SCD0_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &blackcomb_scd0_attr_group;
-			regbit_sysfs_table = blackcomb_scd0_regbit_sysfs;
-			break;
-		case BLACKCOMB_SCD1_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &blackcomb_scd1_attr_group;
-			regbit_sysfs_table = blackcomb_scd1_regbit_sysfs;
-			break;
-		case BLACKCOMB_SCD2_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &blackcomb_scd2_attr_group;
-			regbit_sysfs_table = blackcomb_scd2_regbit_sysfs;
-			break;
-		case BLACKCOMB_SCD3_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &blackcomb_scd3_attr_group;
-			regbit_sysfs_table = blackcomb_scd3_regbit_sysfs;
-			break;
-		case QUICKSILVER_SCD_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &quicksilver_scd_attr_group;
-			regbit_sysfs_table = quicksilver_scd_regbit_sysfs;
-			break;
-		default:
-			sysfs_attr_group = &scd_attr_group;
-			regbit_sysfs_table = scd_regbit_sysfs;
+	switch (ent->subdevice) {
+	case DARWIN_SCD_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &darwin_scd_attr_group;
+		regbit_sysfs_table = darwin_scd_regbit_sysfs;
+		break;
+	case FAIRYWREN_SCD_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &fairywren_scd_attr_group;
+		regbit_sysfs_table = fairywren_scd_regbit_sysfs;
+		break;
+	case VIPER_SCD_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &viper_scd_attr_group;
+		regbit_sysfs_table = viper_scd_regbit_sysfs;
+		break;
+	case BLACKCOMB_SCD0_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &blackcomb_scd0_attr_group;
+		regbit_sysfs_table = blackcomb_scd0_regbit_sysfs;
+		break;
+	case BLACKCOMB_SCD1_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &blackcomb_scd1_attr_group;
+		regbit_sysfs_table = blackcomb_scd1_regbit_sysfs;
+		break;
+	case BLACKCOMB_SCD2_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &blackcomb_scd2_attr_group;
+		regbit_sysfs_table = blackcomb_scd2_regbit_sysfs;
+		break;
+	case BLACKCOMB_SCD3_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &blackcomb_scd3_attr_group;
+		regbit_sysfs_table = blackcomb_scd3_regbit_sysfs;
+		break;
+	case QUICKSILVER_SCD_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &quicksilver_scd_attr_group;
+		regbit_sysfs_table = quicksilver_scd_regbit_sysfs;
+		break;
+	default:
+		sysfs_attr_group = &scd_attr_group;
+		regbit_sysfs_table = scd_regbit_sysfs;
 	}
 
 	if (pci_get_drvdata(pdev)) {
