@@ -345,7 +345,8 @@ static ssize_t regbit_sysfs_read(struct device *dev,
 			if (ret)
 				continue;
 			if (updatebuf) {
-				if (entry->bit_len == 1) return sprintf(buf, "%d\n", data);
+				if (entry->bit_len == 1)
+					return sprintf(buf, "%d\n", data);
 				return sprintf(buf, "0x%x\n", data);
 			} else {
 				*regval = data;
