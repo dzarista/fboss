@@ -1,0 +1,26 @@
+- FBOSS BSP:
+  - Meru800bfa initial udev rules added
+  - Meru800bfa platform mapping shared
+  - Arista scd driver functional for Meru800bfa SMB FPGAs 0-3
+  - Arista dsf-fan-cpld driver functional for Meru800bfa fan CPLD.
+    - Fans initialized to 30% when driver is loaded
+  - Fan watchdog support added for dsf-fan-cpld driver on Meru800bia and Meru800bfa
+     - Fan service powercycle endpoint updated for powercycle
+  - weutil for FBOSS requires some FBOSS OSS patches to both the parser and platform config
+     - To be shared over PR/email
+  - weutil for BMC with Meta format works on all three Viper EFT systems
+- Programmables:
+   - OpenBMC:
+     - New OpenBMC image from 9/19
+     - weutil now uses meta-fboss-lite/wedge-eeprom v2 with support for Meta V4 EEPROM format.
+       - This image will not be compatible with Fairywren bench setup as Meta EEPROM is not updated
+       - 'weutil -e bmc/scm/smb'  is expected to work on Viper EFT systems
+       - OpenBMC ipmi SEL logging targeting next drop
+     - OpenBMC code pending Meta adding initial meru layer in shared repo with new generation scripts
+        - Arista will post new diffs once we rebase and resolve any conflicts
+  - Aboot-norcal13-13.1.0-lcc-64m-ENG-33522315.rom
+     - Viper EFT systems have 64MB Aboot
+     - This is not compatible with Fairywren Bench Setup
+  - Meru SCM CPLD 0x0_0x16
+     - Programmed on all Viper EFT units already - No action needed to update Viper units
+     - allows wedge_power.sh reset -s to powercycle entire system instead of just SCM

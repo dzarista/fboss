@@ -50,7 +50,7 @@
           "jamArgs": {
             "jamExtraArgs": [
               "-aprogram",
-              "-fmeru_cpu_cpld",
+              "-fcpu_cpld",
               "-v"
             ]
           }
@@ -58,7 +58,7 @@
       ],
       "version": {
         "versionType": "sysfs",
-        "path": "/run/devmap/fpgas/MERU_SCM_CPLD/fw_ver"
+        "path": "/run/devmap/fpgas/MERU_SCM_CPLD_INFO_ROM/fw_ver"
       },
       "priority": 3
     },
@@ -83,7 +83,7 @@
       ],
       "version": {
         "versionType": "sysfs",
-        "path": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA/fw_ver"
+        "path": "/run/devmap/fpgas/MERU800BIA_SMB_FPGA_INFO_ROM/fw_ver"
       },
       "priority": 2
     },
@@ -103,7 +103,7 @@
           "jamArgs": {
             "jamExtraArgs": [
               "-aprogram",
-              "-fmeru_fan_cpld",
+              "-ffan_cpld",
               "-v"
             ]
           }

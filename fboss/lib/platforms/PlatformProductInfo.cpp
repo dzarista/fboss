@@ -210,6 +210,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_ELBERT;
     } else if (FLAGS_mode == "darwin") {
       type_ = PlatformType::PLATFORM_DARWIN;
+    } else if (FLAGS_mode == "darwin48v") {
+      type_ = PlatformType::PLATFORM_DARWIN48V;
     } else if (FLAGS_mode == "meru400biu") {
       type_ = PlatformType::PLATFORM_MERU400BIU;
     } else if (FLAGS_mode == "meru800bia") {
