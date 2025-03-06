@@ -325,8 +325,9 @@ static int scd_read_regbit(struct device *dev,
 	return 0;
 }
 
-static ssize_t regbit_sysfs_show(struct device *dev,
-				 struct device_attribute *dattr, char *buf)
+static ssize_t regbit_sysfs_read(struct device *dev,
+				 struct device_attribute *dattr, bool updatebuf,
+				 char *buf, u32 *regval)
 {
 	int ret;
 	u32 data;
@@ -343,15 +344,42 @@ static ssize_t regbit_sysfs_show(struct device *dev,
 				entry->bit_len, entry->bit_offset, &data);
 			if (ret)
 				continue;
-
-			if (entry->bit_len == 1)
-				return sprintf(buf, "%d\n", data);
-
-			return sprintf(buf, "0x%x\n", data);
+			if (updatebuf) {
+				if (entry->bit_len == 1)
+					return sprintf(buf, "%d\n", data);
+				return sprintf(buf, "0x%x\n", data);
+			} else {
+				*regval = data;
+				return 0;
+			}
 		}
 	}
 
 	return -ENOENT;
+}
+
+static ssize_t sat_cpld_fw_ver_show(struct device *dev,
+				 struct device_attribute *dattr, char *buf)
+{
+	ssize_t ret;
+	u32 data;
+	u32 fw_ver;
+	u32 fw_sub_ver;
+
+	ret = regbit_sysfs_read(dev, dattr, false, NULL, &data);
+	if (ret) {
+		return ret;
+	} else {
+		fw_ver = (data & 0xFF00) >> 8;
+		fw_sub_ver = data & 0xFF;
+		return sprintf(buf, "%u.%u\n", fw_ver, fw_sub_ver);
+	}
+}
+
+static ssize_t regbit_sysfs_show(struct device *dev,
+				 struct device_attribute *dattr, char *buf)
+{
+	return regbit_sysfs_read(dev, dattr, true, buf, NULL);
 }
 
 static ssize_t regbit_sysfs_store(struct device *dev,
@@ -499,6 +527,10 @@ static void release_reload_cause_resources(struct scd_dev_priv *priv)
 	REGBIT_FILE(sat0_cpld_ver, 0x400, 8, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(sat1_cpld_sub_ver, 0x400, 16, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(sat1_cpld_ver, 0x400, 24, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(sat0_cpld_fw_ver, 0x400, 0, 16, FMODE_RO,				\
+		    sat_cpld_fw_ver_show, NULL)						\
+	REGBIT_FILE(sat1_cpld_fw_ver, 0x400, 16, 16, FMODE_RO,				\
+		    sat_cpld_fw_ver_show, NULL)						\
 	REGBIT_FILE(pem_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(rackmon_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(pem_status, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
