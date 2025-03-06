@@ -311,8 +311,8 @@ static s32 write_pwm(struct i2c_client *client, u8 pwm_target)
 	}
 
 	/* PWM target registers don't support 0 and 255 values, so adjust as
-   	 * needed.
-   	 */
+	 * needed.
+	 */
 	if (pwm_target < PWM_MIN) {
 		pwm_target = PWM_MIN;
 	} else if (pwm_target > PWM_MAX) {
@@ -383,58 +383,58 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#define SLG4F4527_FAN_ATTR(_name, _idx)                                        \
-	static ssize_t _name##_show(struct device *dev,                        \
-				    struct device_attribute *attr, char *buf)  \
-	{                                                                      \
-		struct aslg4f4527_data *data = sample_rpm(dev);                \
-                                                                               \
-		if (IS_ERR(data)) {                                            \
-			return PTR_ERR(data);                                  \
-		}                                                              \
-                                                                               \
-		return sprintf(buf, "%d\n", data->_name);                      \
-	}                                                                      \
-                                                                               \
+#define SLG4F4527_FAN_ATTR(_name, _idx)                                        	\
+	static ssize_t _name##_show(struct device *dev,                        	\
+				    struct device_attribute *attr, char *buf)  	\
+	{                                                                      	\
+		struct aslg4f4527_data *data = sample_rpm(dev);                	\
+										\
+		if (IS_ERR(data)) {                                            	\
+			return PTR_ERR(data);                                  	\
+		}                                                              	\
+										\
+		return sprintf(buf, "%d\n", data->_name);                      	\
+	}                                                                      	\
+										\
 	static SENSOR_DEVICE_ATTR(_name, S_IRUGO, _name##_show, NULL, _idx);
 
-#define SLG4F4527_GPO_ATTR(_name, _reg)                                        \
-	static ssize_t _name##_show(struct device *dev,                        \
-				    struct device_attribute *attr, char *buf)  \
-	{                                                                      \
-		struct aslg4f4527_data *data = dev_get_drvdata(dev);           \
-		u8 val;                                                        \
-                                                                               \
-		mutex_lock(&data->update_lock);                                \
-		read_virtual_input(data->client, _reg, &val);                  \
-		mutex_unlock(&data->update_lock);                              \
-                                                                               \
-		return sprintf(buf, "%hhu\n", val);                            \
-	}                                                                      \
-                                                                               \
-	static ssize_t _name##_store(struct device *dev,                       \
-				     struct device_attribute *attr,            \
-				     const char *buf, size_t count)            \
-	{                                                                      \
-		struct aslg4f4527_data *data = dev_get_drvdata(dev);           \
-		u8 val;                                                        \
-		s32 err;                                                       \
-                                                                               \
-		if (sscanf(buf, "%hhu", &val) != 1) {                          \
-			return -EINVAL;                                        \
-		}                                                              \
-                                                                               \
-		mutex_lock(&data->update_lock);                                \
-		err = write_virtual_input(data->client, _reg, val);            \
-		mutex_unlock(&data->update_lock);                              \
-                                                                               \
-		if (err < 0) {                                                 \
-			return err;                                            \
-		}                                                              \
-                                                                               \
-		return count;                                                  \
-	}                                                                      \
-	static DEVICE_ATTR(_name, S_IRUGO | S_IWGRP | S_IWUSR, _name##_show,   \
+#define SLG4F4527_GPO_ATTR(_name, _reg)                                        	\
+	static ssize_t _name##_show(struct device *dev,                        	\
+				    struct device_attribute *attr, char *buf)  	\
+	{                                                                      	\
+		struct aslg4f4527_data *data = dev_get_drvdata(dev);           	\
+		u8 val;                                                        	\
+										\
+		mutex_lock(&data->update_lock);                                	\
+		read_virtual_input(data->client, _reg, &val);                  	\
+		mutex_unlock(&data->update_lock);                              	\
+										\
+		return sprintf(buf, "%hhu\n", val);                            	\
+	}                                                                      	\
+										\
+	static ssize_t _name##_store(struct device *dev,                       	\
+				     struct device_attribute *attr,            	\
+				     const char *buf, size_t count)            	\
+	{									\
+		struct aslg4f4527_data *data = dev_get_drvdata(dev);           	\
+		u8 val;                                                        	\
+		s32 err;                                                       	\
+										\
+		if (sscanf(buf, "%hhu", &val) != 1) {                          	\
+			return -EINVAL;                                        	\
+		}                                                              	\
+										\
+		mutex_lock(&data->update_lock);                                	\
+		err = write_virtual_input(data->client, _reg, val);            	\
+		mutex_unlock(&data->update_lock);                              	\
+										\
+		if (err < 0) {                                                 	\
+			return err;                                            	\
+		}                                                              	\
+										\
+		return count;                                                 	\
+	}                                                                      	\
+	static DEVICE_ATTR(_name, S_IRUGO | S_IWGRP | S_IWUSR, _name##_show,   	\
 			   _name##_store);
 
 DEVICE_ATTR(pwm, S_IRUGO | S_IWGRP | S_IWUSR, pwm_show, pwm_store);
@@ -532,8 +532,8 @@ static int aslg4f4527_init_client(struct aslg4f4527_data *data,
 	data->pwm_updated = 1;
 
 	/* Read tach counter initial values. Tach counters cound down from
-   	 * initial values.
-   	 */
+	 * initial values.
+	 */
 	ret = i2c_smbus_read_word_data(client, REG_CNT0_CONTROL_DATA);
 	if (ret < 0) {
 		goto abort_init;

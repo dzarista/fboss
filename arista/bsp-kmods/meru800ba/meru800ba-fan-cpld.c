@@ -26,7 +26,7 @@
 #include <linux/watchdog.h>
 #include <linux/version.h>
 
-#define DRIVER_NAME "dsf-fan-cpld"
+#define DRIVER_NAME "meru800ba-fan-cpld"
 
 #define LED_NAME_MAX_SZ 20
 #define FAN_LED_COUNT 2
@@ -68,21 +68,18 @@
 #define FAN_MAX_PWM 255
 #define FAN_DFT_PWM 77	/* default 30% duty cycle */
 
-static bool safe_mode;
+static bool safe_mode = false;
 module_param(safe_mode, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(safe_mode, "force fan speed to 100% during probe");
 
-static unsigned long poll_interval;
+static unsigned long poll_interval = 0;
 module_param(poll_interval, ulong, S_IRUSR);
 MODULE_PARM_DESC(poll_interval, "interval between two polling in ms");
 
 static struct workqueue_struct *dsf_fan_cpld_workqueue;
 
 enum cpld_type {
-	OASIS_CPLD0 = 0,
-	OASIS_CPLD1 = 1,
-	OASIS_CPLD2 = 2,
-	PALI2_CPLD = 3,
+	PALI2_CPLD = 0,
 };
 
 struct cpld_info {
@@ -96,30 +93,6 @@ struct cpld_info {
 
 // This information can be deduced from the id register
 static struct cpld_info cpld_infos[] = {
-	[OASIS_CPLD0] = {
-		.id = OASIS_CPLD0,
-		.fan_count = 4,
-		.rotors = 2,
-		.pulses = 2,
-		.hz = 100000,
-		.fan_global_offset = 0,
-	},
-	[OASIS_CPLD1] = {
-		.id = OASIS_CPLD1,
-		.fan_count = 4,
-		.rotors = 2,
-		.pulses = 2,
-		.hz = 100000,
-		.fan_global_offset = 4,
-	},
-	[OASIS_CPLD2] = {
-		.id = OASIS_CPLD2,
-		.fan_count = 4,
-		.rotors = 2,
-		.pulses = 2,
-		.hz = 100000,
-		.fan_global_offset = 8,
-	},
 	[PALI2_CPLD] = {
 		.id = PALI2_CPLD,
 		.fan_count = 4,
@@ -421,7 +394,7 @@ static s32 cpld_read_fan_tach(struct cpld_data *cpld, u8 fan_id)
 	u16 tach;
 	int i;
 
-	fan->tach = 0;
+        fan->tach = 0;
 	for (i = 0; i < cpld->info->rotors; i++) {
 		err = cpld_read_tach_single(cpld, fan->index, i, &tach);
 		if (err)
@@ -784,8 +757,8 @@ static struct attribute_group *fan_groups[] = {
 	FAN_ATTR_GROUP(7), FAN_ATTR_GROUP(8), NULL,
 };
 
-static ssize_t fw_ver_show(struct device *dev,
-			   struct device_attribute *attr, char *buf)
+static ssize_t fw_ver_show(struct device *dev, 
+								struct device_attribute *attr, char *buf) 
 {
 	struct cpld_data *cpld = dev_get_drvdata(dev);
 	return sprintf(buf, "%u.%u\n", cpld->major, cpld->minor);
@@ -975,10 +948,8 @@ static void cpld_remove(struct i2c_client *client)
 	return;
 }
 
-static const struct i2c_device_id cpld_id[] = { { "fan_cpld0", OASIS_CPLD0 },
-						{ "fan_cpld1", OASIS_CPLD1 },
-						{ "fan_cpld2", OASIS_CPLD2 },
-						{ "fan_cpld", PALI2_CPLD },
+static const struct i2c_device_id cpld_id[] = {
+                  { "meru800ba_fan_cpld", PALI2_CPLD },
 						{} };
 MODULE_DEVICE_TABLE(i2c, cpld_id);
 

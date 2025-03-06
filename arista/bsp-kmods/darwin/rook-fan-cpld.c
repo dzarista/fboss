@@ -66,7 +66,7 @@
 #define FAN_MAX_PWM 255
 #define FAN_DFT_PWM 127	/* default 50% duty cycle */
 
-static bool safe_mode = false;
+static bool safe_mode;
 module_param(safe_mode, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(safe_mode, "force fan speed to 100% during probe");
 
@@ -74,7 +74,7 @@ static bool managed_leds = true;
 module_param(managed_leds, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(managed_leds, "let the driver handle the leds");
 
-static unsigned long poll_interval = 0;
+static unsigned long poll_interval;
 module_param(poll_interval, ulong, S_IRUSR);
 MODULE_PARM_DESC(poll_interval, "interval between two polling in ms");
 
@@ -116,7 +116,7 @@ static struct cpld_info cpld_infos[] = {
 
 struct cpld_fan_led_data {
 	u8 fan_index;
-        u8 reg;
+	u8 reg;
 	char name[LED_NAME_MAX_SZ];
 	struct led_classdev cdev;
 };
@@ -444,7 +444,7 @@ static s32 cpld_read_fan_tach(struct cpld_data *cpld, u8 fan_slot)
 	u16 tach;
 	int i;
 
-        fan->tach = 0;
+	fan->tach = 0;
 	for (i = 0; i < cpld->info->rotors; i++) {
 		err = cpld_read_tach_single(cpld, fan->index, i, &tach);
 		if (err)
@@ -560,16 +560,16 @@ static enum led_brightness brightness_get(struct led_classdev *led_cdev)
 
 static int led_init(struct cpld_fan_led_data *led,
 		    struct i2c_client *client, struct cpld_fan_data *fan,
-                    u8 led_index)
+		    u8 led_index)
 {
 	char *color;
 
 	if (led_index + 1 == FAN_LED_GREEN) {
 		color = "green";
-                led->reg = FAN_GREEN_LED_REG;
+		led->reg = FAN_GREEN_LED_REG;
 	} else if (led_index + 1 == FAN_LED_RED) {
 		color = "red";
-                led->reg = FAN_RED_LED_REG;
+		led->reg = FAN_RED_LED_REG;
 	} else {
 		return -EINVAL;
 	}
@@ -708,8 +708,8 @@ static ssize_t cpld_fan_led_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct cpld_data *cpld = dev_get_drvdata(dev);
-        struct cpld_fan_led_data *led;
-        u8 val_tmp;
+	struct cpld_fan_led_data *led;
+	u8 val_tmp;
 	u8 val = 0;
 	int led_id;
 	int err;
@@ -731,7 +731,7 @@ static ssize_t cpld_fan_led_store(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct cpld_data *cpld = dev_get_drvdata(dev);
-        struct cpld_fan_led_data *led;
+	struct cpld_fan_led_data *led;
 	u8 val;
 	int led_id;
 	int err;
@@ -765,42 +765,42 @@ static ssize_t cpld_fan_airflow_show(struct device *dev,
 	return sprintf(buf, "%s\n", (fan->forward) ? "forward" : "reverse");
 }
 
-#define FAN_DEVICE_ATTR(_name)                                                 \
-	static SENSOR_DEVICE_ATTR(pwm##_name, S_IRUGO | S_IWGRP | S_IWUSR,     \
-				  cpld_fan_pwm_show, cpld_fan_pwm_store,       \
-				  _name - 1);                                  \
-	static SENSOR_DEVICE_ATTR(fan##_name##_id, S_IRUGO, cpld_fan_id_show,  \
-				  NULL, _name - 1);                            \
-	static SENSOR_DEVICE_ATTR(fan##_name##_input, S_IRUGO,                 \
-				  cpld_fan_tach_show, NULL, _name - 1);        \
-	static SENSOR_DEVICE_ATTR(fan##_name##_fault, S_IRUGO,                 \
-				  cpld_fan_fault_show, NULL, _name - 1);       \
-	static SENSOR_DEVICE_ATTR(fan##_name##_present, S_IRUGO,               \
-				  cpld_fan_present_show, NULL, _name - 1);     \
-	static SENSOR_DEVICE_ATTR(fan##_name##_led,                            \
-				  S_IRUGO | S_IWGRP | S_IWUSR,                 \
-				  cpld_fan_led_show, cpld_fan_led_store,       \
-				  _name - 1);                                  \
-	static SENSOR_DEVICE_ATTR(fan##_name##_airflow, S_IRUGO,               \
+#define FAN_DEVICE_ATTR(_name)							\
+	static SENSOR_DEVICE_ATTR(pwm##_name, S_IRUGO | S_IWGRP | S_IWUSR,     	\
+				  cpld_fan_pwm_show, cpld_fan_pwm_store,       	\
+				  _name - 1);                                  	\
+	static SENSOR_DEVICE_ATTR(fan##_name##_id, S_IRUGO, cpld_fan_id_show,  	\
+				  NULL, _name - 1);                            	\
+	static SENSOR_DEVICE_ATTR(fan##_name##_input, S_IRUGO,                 	\
+				  cpld_fan_tach_show, NULL, _name - 1);        	\
+	static SENSOR_DEVICE_ATTR(fan##_name##_fault, S_IRUGO,                 	\
+				  cpld_fan_fault_show, NULL, _name - 1);       	\
+	static SENSOR_DEVICE_ATTR(fan##_name##_present, S_IRUGO,               	\
+				  cpld_fan_present_show, NULL, _name - 1);     	\
+	static SENSOR_DEVICE_ATTR(fan##_name##_led,                            	\
+				  S_IRUGO | S_IWGRP | S_IWUSR,                 	\
+				  cpld_fan_led_show, cpld_fan_led_store,       	\
+				  _name - 1);                                  	\
+	static SENSOR_DEVICE_ATTR(fan##_name##_airflow, S_IRUGO,               	\
 				  cpld_fan_airflow_show, NULL, _name - 1);
 
-#define FAN_ATTR(_name)                                                        \
-	&sensor_dev_attr_pwm##_name.dev_attr.attr,                             \
-		&sensor_dev_attr_fan##_name##_id.dev_attr.attr,                \
-		&sensor_dev_attr_fan##_name##_input.dev_attr.attr,             \
-		&sensor_dev_attr_fan##_name##_fault.dev_attr.attr,             \
-		&sensor_dev_attr_fan##_name##_present.dev_attr.attr,           \
-		&sensor_dev_attr_fan##_name##_led.dev_attr.attr,               \
+#define FAN_ATTR(_name)								\
+	&sensor_dev_attr_pwm##_name.dev_attr.attr,                             	\
+		&sensor_dev_attr_fan##_name##_id.dev_attr.attr,                	\
+		&sensor_dev_attr_fan##_name##_input.dev_attr.attr,             	\
+		&sensor_dev_attr_fan##_name##_fault.dev_attr.attr,             	\
+		&sensor_dev_attr_fan##_name##_present.dev_attr.attr,           	\
+		&sensor_dev_attr_fan##_name##_led.dev_attr.attr,               	\
 		&sensor_dev_attr_fan##_name##_airflow.dev_attr.attr
 
 #define FAN_ATTR_GROUP(_name) &fan##_name##_attr_group
 
-#define DEVICE_FAN_ATTR_GROUP(_name)                                           \
-	FAN_DEVICE_ATTR(_name);                                                \
-	static struct attribute *fan##_name##_attrs[] = { FAN_ATTR(_name),     \
-							  NULL };              \
-	static struct attribute_group fan##_name##_attr_group = {              \
-		.attrs = fan##_name##_attrs,                                   \
+#define DEVICE_FAN_ATTR_GROUP(_name)                                           	\
+	FAN_DEVICE_ATTR(_name);                                                	\
+	static struct attribute *fan##_name##_attrs[] = { FAN_ATTR(_name),     	\
+							  NULL };              	\
+	static struct attribute_group fan##_name##_attr_group = {              	\
+		.attrs = fan##_name##_attrs,                                   	\
 	}
 
 DEVICE_FAN_ATTR_GROUP(1);
@@ -879,7 +879,7 @@ static int cpld_init(struct cpld_data *cpld)
 	struct cpld_fan_led_data *led;
 	int err;
 	int i;
-        int j;
+	int j;
 
 	err = cpld_read_byte(cpld, MINOR_VERSION_REG, &cpld->minor);
 	if (err)

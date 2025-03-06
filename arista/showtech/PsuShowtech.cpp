@@ -120,14 +120,16 @@ std::vector<uint8_t> readI2c(const char *i2cDevice, int chipAddr,
     numBytesToRead = lengthByte + 1;
     readBuffer =
         makeI2cRdwrRequest(i2cDevice, chipAddr, regAddr, numBytesToRead);
-    
-    if (readBuffer.empty()) return {};
+
+    if (readBuffer.empty())
+      return {};
     readBuffer.erase(readBuffer.begin());
     return readBuffer;
   } else {
     readBuffer =
         makeI2cRdwrRequest(i2cDevice, chipAddr, regAddr, numBytesToRead);
-    if (readBuffer.empty()) return {};
+    if (readBuffer.empty())
+      return {};
     return readBuffer;
   }
   return {};
@@ -142,24 +144,28 @@ std::vector<std::pair<std::string, std::string>> getPsuI2cBuses() {
   std::string sensorPath = "/run/devmap/sensors/";
   std::set<std::pair<std::string, std::filesystem::path>> psus;
 
-  for (const auto &entry : std::filesystem::directory_iterator(sensorPath)) {
-    std::string fileName = entry.path().filename().string();
-    if (fileName.find("PSU") == 0) {
-      std::filesystem::path psuSymlinkPath =
-          std::filesystem::read_symlink(entry.path());
-      // Get PSU number from filename, which is in the format PSU#_PMBUS
-      static const std::regex pattern("PSU(\\d*)_");
-      std::smatch match;
-      std::regex_search(fileName, match, pattern);
-      std::string psuNum;
-      if (match[1].str().empty()) {
-        psuNum = "1";
-      } else {
-        psuNum = match[1].str();
-      }
+  if (std::filesystem::exists(sensorPath)) {
+    for (const auto &entry : std::filesystem::directory_iterator(sensorPath)) {
+      std::string fileName = entry.path().filename().string();
+      if (fileName.find("PSU") == 0) {
+        std::filesystem::path psuSymlinkPath =
+            std::filesystem::read_symlink(entry.path());
+        // Get PSU number from filename, which is in the format PSU#_PMBUS
+        static const std::regex pattern("PSU(\\d*)_");
+        std::smatch match;
+        std::regex_search(fileName, match, pattern);
+        std::string psuNum;
+        if (match[1].str().empty()) {
+          psuNum = "1";
+        } else {
+          psuNum = match[1].str();
+        }
 
-      psus.emplace(psuNum, psuSymlinkPath);
+        psus.emplace(psuNum, psuSymlinkPath);
+      }
     }
+  } else {
+    std::cout << sensorPath << " does not exist" << std::endl;
   }
 
   std::vector<std::pair<std::string, std::string>> psuI2cBusNums;
