@@ -5,9 +5,9 @@ import subprocess
 import tempfile
 from pathlib import Path
 from deepdiff import DeepDiff
-import textwrap
 import argparse
 import sys
+import difflib
 
 LOCAL_REPO = "../../../"
 UPSTREAM_REPO_URL = "https://github.com/facebook/fboss.git"
@@ -95,43 +95,10 @@ def get_nested_value(obj, path):
     return current
 
 
-def format_value(value, indent=4):
+def format_value(value):
     if isinstance(value, (dict, list)):
-        return json.dumps(value, indent=indent)
-    return str(value)
-
-
-def side_by_side(left, right, width=40, separator="│"):
-    left_lines = format_value(left).split('\n')
-    right_lines = format_value(right).split('\n')
-
-    max_lines = max(len(left_lines), len(right_lines))
-    left_lines += [''] * (max_lines - len(left_lines))
-    right_lines += [''] * (max_lines - len(right_lines))
-
-    wrapped_left = []
-    for line in left_lines:
-        if len(line) > width:
-            wrapped_left.extend(textwrap.wrap(line, width))
-        else:
-            wrapped_left.append(line.ljust(width))
-
-    wrapped_right = []
-    for line in right_lines:
-        if len(line) > width:
-            wrapped_right.extend(textwrap.wrap(line, width))
-        else:
-            wrapped_right.append(line)
-
-    max_wrapped_lines = max(len(wrapped_left), len(wrapped_right))
-    wrapped_left += [''] * (max_wrapped_lines - len(wrapped_left))
-    wrapped_right += [''] * (max_wrapped_lines - len(wrapped_right))
-
-    result = []
-    for l, r in zip(wrapped_left, wrapped_right):
-        result.append(f"{l.ljust(width)} {separator} {r}")
-
-    return result
+        return json.dumps(value, indent=4).splitlines()
+    return str(value).splitlines()
 
 
 def print_formatted_diff(file_path, formatted_diff):
@@ -148,10 +115,13 @@ def print_formatted_diff(file_path, formatted_diff):
             print(f"  {key}: {value}")
 
     if 'value_changes' in formatted_diff:
-        print("Value changes: LOCAL value on left side, UPSTREAM value on right side")
+        print("Value changes:")
         for key, change in formatted_diff['value_changes'].items():
             print(f"  {key}:")
-            for line in side_by_side(change['local'], change['upstream']):
+            local_lines = format_value(change['local'])
+            upstream_lines = format_value(change['upstream'])
+            diff_lines = difflib.unified_diff(local_lines, upstream_lines, fromfile='local', tofile='upstream', lineterm='')
+            for line in diff_lines:
                 print(f"    {line}")
 
     if 'type_changes' in formatted_diff:
@@ -160,7 +130,10 @@ def print_formatted_diff(file_path, formatted_diff):
             print(f"  {key}:")
             local_val = f"{change['local']['value']} (type: {change['local']['type']})"
             upstream_val = f"{change['upstream']['value']} (type: {change['upstream']['type']})"
-            for line in side_by_side(local_val, upstream_val):
+            local_lines = local_val.splitlines()
+            upstream_lines = upstream_val.splitlines()
+            diff_lines = difflib.unified_diff(local_lines, upstream_lines, fromfile='local', tofile='upstream', lineterm='')
+            for line in diff_lines:
                 print(f"    {line}")
 
     print("-" * 40)
