@@ -251,15 +251,29 @@ class AgentTrafficPfcTest : public AgentHwTest {
     return {production_features::ProductionFeature::PFC};
   }
 
-  std::vector<PortID> portIdsForTest() {
-    return {
-        masterLogicalInterfacePortIds()[0], masterLogicalInterfacePortIds()[1]};
+  std::string portDesc(const PortID& portId) {
+    const auto& cfg = getAgentEnsemble()->getCurrentConfig();
+    for (const auto& port : *cfg.ports()) {
+      if (PortID(*port.logicalID()) == portId) {
+        return folly::sformat(
+            "portId={} name={}", *port.logicalID(), *port.name());
+      }
+    }
+    return "";
   }
 
-  std::vector<folly::IPAddressV6> kDestIps() const {
-    return {
-        folly::IPAddressV6("2620:0:1cfe:face:b00c::4"),
-        folly::IPAddressV6("2620:0:1cfe:face:b00c::5")};
+  std::vector<PortID> portIdsForTest(bool scaleTest = false) {
+    auto allPorts = masterLogicalInterfacePortIds();
+    int numPorts = scaleTest ? allPorts.size() : 2;
+    return std::vector<PortID>(allPorts.begin(), allPorts.begin() + numPorts);
+  }
+
+  std::vector<folly::IPAddressV6> getDestinationIps(int count = 2) const {
+    std::vector<folly::IPAddressV6> ips;
+    for (int i = 4; i < count + 4; i++) {
+      ips.emplace_back(folly::sformat("2620:0:1cfe:face:b00c::{}", i));
+    }
+    return ips;
   }
 
   folly::MacAddress getIntfMac() const {
@@ -312,9 +326,10 @@ class AgentTrafficPfcTest : public AgentHwTest {
   }
 
   void setupEcmpTraffic(const std::vector<PortID>& portIds) {
-    CHECK_LE(portIds.size(), kDestIps().size());
+    auto ips = getDestinationIps(portIds.size());
+    CHECK_EQ(portIds.size(), ips.size());
     for (int i = 0; i < portIds.size(); ++i) {
-      setupEcmpTraffic(portIds[i], kDestIps()[i]);
+      setupEcmpTraffic(portIds[i], ips[i]);
     }
   }
 
@@ -342,8 +357,13 @@ class AgentTrafficPfcTest : public AgentHwTest {
         auto ingressDropRaw = *portStats.inDiscardsRaw_();
         uint64_t ingressCongestionDiscards = 0;
         std::string ingressCongestionDiscardLog{};
-        if (isSupportedOnAllAsics(
-                HwAsic::Feature::INGRESS_PRIORITY_GROUP_DROPPED_PACKETS)) {
+        // In congestion discard stats is supported in native impl
+        // and in sai platforms with HwAsic::Feature enabled.
+        bool isIngressCongestionDiscardsSupported =
+            isSupportedOnAllAsics(
+                HwAsic::Feature::INGRESS_PRIORITY_GROUP_DROPPED_PACKETS) ||
+            !getAgentEnsemble()->isSai();
+        if (isIngressCongestionDiscardsSupported) {
           ingressCongestionDiscards = *portStats.inCongestionDiscards_();
           ingressCongestionDiscardLog = " IngressCongestionDiscards: " +
               std::to_string(ingressCongestionDiscards);
@@ -352,9 +372,13 @@ class AgentTrafficPfcTest : public AgentHwTest {
                    << " IngressDropRaw: " << ingressDropRaw
                    << ingressCongestionDiscardLog;
         EXPECT_EVENTUALLY_GT(ingressDropRaw, 0);
-        if (isSupportedOnAllAsics(
-                HwAsic::Feature::INGRESS_PRIORITY_GROUP_DROPPED_PACKETS)) {
+        if (isIngressCongestionDiscardsSupported) {
           EXPECT_EVENTUALLY_GT(ingressCongestionDiscards, 0);
+          // Ingress congestion discards should be less than
+          // the total packets received on this port.
+          uint64_t inPackets = *portStats.inUnicastPkts_() +
+              *portStats.inMulticastPkts_() + *portStats.inBroadcastPkts_();
+          EXPECT_EVENTUALLY_LT(ingressCongestionDiscards, inPackets);
         }
       }
       for (auto [switchId, asic] : getAsics()) {
@@ -382,6 +406,7 @@ class AgentTrafficPfcTest : public AgentHwTest {
 
   void pumpTraffic(
       const int priority,
+      const std::optional<uint8_t> queue,
       const std::vector<PortID>& portIds,
       const std::vector<folly::IPAddressV6>& ips) {
     auto vlanId = utility::firstVlanID(getProgrammedState());
@@ -394,6 +419,7 @@ class AgentTrafficPfcTest : public AgentHwTest {
     // Some asics (e.g. Yuba) won't let traffic build up evenly if all packets
     // were sent to one port before another. It's better to alternate the ports.
     for (int i = 0; i < numPacketsPerFlow; i++) {
+      XLOG_EVERY_N(INFO, 100) << "Sending packet " << i;
       for (int j = 0; j < ips.size(); j++) {
         auto txPacket = utility::makeUDPTxPacket(
             getSw(),
@@ -408,20 +434,18 @@ class AgentTrafficPfcTest : public AgentHwTest {
             255,
             std::vector<uint8_t>(2000, 0xff));
 
-        // If we don't specify the outgoing port, watermarks sometimes end up as
-        // 0, but it's not clear why.
+        // TODO(maxgg): Investigate TH3/4 WithScaleCfg failure when queue is
+        // set to losslessPriority (2).
         getAgentEnsemble()->sendPacketAsync(
-            std::move(txPacket), PortDescriptor(portIds[j]), std::nullopt);
+            std::move(txPacket), PortDescriptor(portIds[j]), queue);
       }
     }
   }
 
-  void pumpTraffic(const int priority) {
-    std::vector<PortID> portIds;
-    for (int i = 0; i < kDestIps().size(); i++) {
-      portIds.push_back(masterLogicalInterfacePortIds()[i]);
-    }
-    pumpTraffic(priority, portIds, kDestIps());
+  void pumpTraffic(const int priority, bool scaleTest) {
+    std::vector<PortID> portIds = portIdsForTest(scaleTest);
+    pumpTraffic(
+        priority, std::nullopt, portIds, getDestinationIps(portIds.size()));
   }
 
   void stopTraffic(const std::vector<PortID>& portIds) {
@@ -442,20 +466,19 @@ class AgentTrafficPfcTest : public AgentHwTest {
           const int pri,
           const std::vector<PortID>& portIdsToValidate)> validateCounterFn =
           validatePfcCountersIncreased) {
-    std::vector<PortID> portIds = portIdsForTest();
+    std::vector<PortID> portIds = portIdsForTest(testParams.scale);
+    for (const auto& portId : portIds) {
+      XLOG(INFO) << "Testing port: " << portDesc(portId);
+    }
 
     auto setup = [&]() {
       // Setup PFC
       auto cfg = getAgentEnsemble()->getCurrentConfig();
-      std::vector<PortID> portIdsToConfigure = portIds;
-      if (testParams.scale) {
-        // Apply PFC config to all ports
-        portIdsToConfigure = masterLogicalInterfacePortIds();
-      }
+      // Apply PFC config to all ports of interest
       utility::setupPfcBuffers(
           getAgentEnsemble(),
           cfg,
-          portIdsToConfigure,
+          portIds,
           kLosslessPgIds,
           tcToPgOverride,
           testParams.buffer);
@@ -489,7 +512,7 @@ class AgentTrafficPfcTest : public AgentHwTest {
       validateInitPfcCounters(portIds, pfcPriority);
     };
     auto verifyCommon = [&](bool postWb) {
-      pumpTraffic(trafficClass);
+      pumpTraffic(trafficClass, testParams.scale);
       // Sleep for a bit before validation, so that the test will fail if
       // traffic doesn't actually build up, instead of passing by luck.
       // NOLINTNEXTLINE(facebook-hte-BadCall-sleep)
@@ -545,6 +568,12 @@ INSTANTIATE_TEST_SUITE_P(
             .name = "WithZeroGlobalHeadRoomCfg",
             .buffer = PfcBufferParams{.globalHeadroom = 0},
             .expectDrop = true,
+        },
+        TrafficTestParams{
+            .name = "WithScaleCfgInCongestionDrops",
+            .buffer = PfcBufferParams{.pgHeadroom = 0},
+            .expectDrop = true,
+            .scale = true,
         }),
     [](const ::testing::TestParamInfo<TrafficTestParams>& info) {
       return info.param.name;
@@ -699,7 +728,7 @@ class AgentTrafficPfcWatchdogTest : public AgentTrafficPfcTest {
       // Disable Tx on the outbound port so that queues will build up.
       utility::setCreditWatchdogAndPortTx(
           getAgentEnsemble(), txOffPortId, false);
-      pumpTraffic(kLosslessTrafficClass, {port}, {ip});
+      pumpTraffic(kLosslessTrafficClass, kLosslessPriority, {port}, {ip});
       validatePfcCounterIncrement(port, kLosslessPriority);
     }
   }
@@ -730,9 +759,10 @@ class AgentTrafficPfcWatchdogTest : public AgentTrafficPfcTest {
     };
   }
 
-  void validatePfcWatchdogCountersIncrease(const PortID& portId) {
-    auto [deadlockCtrBefore, recoveryCtrBefore] =
-        getPfcDeadlockCounters(portId);
+  void validatePfcWatchdogCountersIncrease(
+      const PortID& portId,
+      const uint64_t& deadlockCtrBefore,
+      const uint64_t& recoveryCtrBefore) {
     WITH_RETRIES_N_TIMED(10, std::chrono::milliseconds(1000), {
       auto [deadlockCtr, recoveryCtr] = getPfcDeadlockCounters(portId);
       XLOG(DBG0) << "For port: " << portId << " deadlockCtr = " << deadlockCtr
@@ -755,15 +785,20 @@ class AgentTrafficPfcWatchdogTest : public AgentTrafficPfcTest {
 TEST_F(AgentTrafficPfcWatchdogTest, PfcWatchdogDetection) {
   PortID portId = masterLogicalInterfacePortIds()[0];
   PortID txOffPortId = masterLogicalInterfacePortIds()[1];
-  auto ip = kDestIps()[0];
+  XLOG(DBG3) << "Injection port: " << portDesc(portId);
+  XLOG(DBG3) << "Tx off port: " << portDesc(txOffPortId);
+  auto ip = getDestinationIps()[0];
 
   auto setup = [&]() {
     setupConfigAndEcmpTraffic(portId, txOffPortId, ip);
     setupWatchdog({portId}, true /* enable watchdog */);
   };
   auto verify = [&]() {
+    auto [deadlockCtrBefore, recoveryCtrBefore] =
+        getPfcDeadlockCounters(portId);
     triggerPfcDeadlockDetection(portId, txOffPortId, ip);
-    validatePfcWatchdogCountersIncrease(portId);
+    validatePfcWatchdogCountersIncrease(
+        portId, deadlockCtrBefore, recoveryCtrBefore);
     reEnablePort(txOffPortId);
   };
   verifyAcrossWarmBoots(setup, verify);
@@ -777,7 +812,9 @@ TEST_F(AgentTrafficPfcWatchdogTest, PfcWatchdogDetection) {
 TEST_F(AgentTrafficPfcWatchdogTest, PfcWatchdogReset) {
   PortID portId = masterLogicalInterfacePortIds()[0];
   PortID txOffPortId = masterLogicalInterfacePortIds()[1];
-  auto ip = kDestIps()[0];
+  XLOG(DBG3) << "Injection port: " << portDesc(portId);
+  XLOG(DBG3) << "Tx off port: " << portDesc(txOffPortId);
+  auto ip = getDestinationIps()[0];
 
   int deadlockCtrBefore = 0;
   int recoveryCtrBefore = 0;
@@ -785,9 +822,12 @@ TEST_F(AgentTrafficPfcWatchdogTest, PfcWatchdogReset) {
   auto setup = [&]() {
     setupConfigAndEcmpTraffic(portId, txOffPortId, ip);
     setupWatchdog({portId}, true /* enable watchdog */);
+    std::tie(deadlockCtrBefore, recoveryCtrBefore) =
+        getPfcDeadlockCounters(portId);
     triggerPfcDeadlockDetection(portId, txOffPortId, ip);
     // lets wait for the watchdog counters to be populated
-    validatePfcWatchdogCountersIncrease(portId);
+    validatePfcWatchdogCountersIncrease(
+        portId, deadlockCtrBefore, recoveryCtrBefore);
     // reset watchdog
     setupWatchdog({portId}, false /* disable */);
     // sleep a bit to let counters stabilize

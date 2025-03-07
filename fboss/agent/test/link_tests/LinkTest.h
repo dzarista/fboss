@@ -71,6 +71,11 @@ class LinkTest : public AgentTest {
   const std::vector<PortID>& getCabledFabricPorts() const {
     return cabledFabricPorts_;
   }
+
+  void checkQsfpServiceMemoryInBounds() const;
+  void checkFsdbMemoryInBounds() const;
+  void checkAgentMemoryInBounds() const;
+
   /*
    * Program default (v6) route over ports
    */

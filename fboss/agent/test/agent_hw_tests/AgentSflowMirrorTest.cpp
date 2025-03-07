@@ -20,6 +20,7 @@
 #include "fboss/agent/test/utils/CoppTestUtils.h"
 #include "fboss/agent/test/utils/MirrorTestUtils.h"
 #include "fboss/agent/test/utils/MultiPortTrafficTestUtils.h"
+#include "fboss/agent/test/utils/NetworkAITestUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/agent/test/utils/PacketSnooper.h"
 #include "fboss/agent/test/utils/PfcTestUtils.h"
@@ -573,6 +574,40 @@ class AgentSflowMirrorTest : public AgentHwTest {
     verifyAcrossWarmBoots(setup, verify);
   }
 
+  void stressRecreateMirror(bool truncate = false) {
+    auto setup = [=, this]() {
+      auto ports = getPortsForSampling();
+
+      // Test for resource leaks by repeatedly creating and removing mirror.
+      for (int i = 0; i < 50; i++) {
+        XLOG(INFO) << "Add mirror iteration " << i;
+        auto config = initialConfig(*getAgentEnsemble());
+        configureMirrorWithSampling(config, 1 /*sampleRate*/);
+        applyNewConfig(config);
+        resolveRouteForMirrorDestination();
+
+        XLOG(INFO) << "Remove mirror iteration " << i;
+        config = initialConfig(*getAgentEnsemble()); // remove mirror
+        applyNewConfig(config);
+      }
+
+      XLOG(INFO) << "Final add mirror";
+      auto config = initialConfig(*getAgentEnsemble());
+      configureMirrorWithSampling(config, 1 /*sampleRate*/);
+      configureTrapAcl(config);
+      applyNewConfig(config);
+      resolveRouteForMirrorDestination();
+    };
+    auto verify = [=, this]() {
+      if (!truncate) {
+        verifySampledPacket();
+      } else {
+        verifySampledPacketWithTruncate();
+      }
+    };
+    verifyAcrossWarmBoots(setup, verify);
+  }
+
   void verifySrsPortRandomizationOnSflowPacket(uint16_t numPackets = 10) {
     auto ports = getPortsForSampling();
     getAgentEnsemble()->bringDownPorts(
@@ -699,8 +734,16 @@ class AgentSflowMirrorWithLineRateTrafficTest
         production_features::ProductionFeature::LINERATE_SFLOW);
     return productionFeatures;
   }
+
+  void setCmdLineFlagOverrides() const override {
+    AgentSflowMirrorTruncateTest::setCmdLineFlagOverrides();
+    // VerifySflowEgressCongestionShort is also used in n-warmboot tests, where
+    // we want to test basic fabric port init.
+    FLAGS_hide_fabric_ports = false;
+  }
+
   static const int kLosslessPriority{2};
-  void testSflowEgressCongestion() {
+  void testSflowEgressCongestion(int iterations) {
     constexpr int kNumDataTrafficPorts{6};
     auto setup = [=, this]() {
       auto allPorts = masterLogicalInterfacePortIds();
@@ -739,7 +782,7 @@ class AgentSflowMirrorWithLineRateTrafficTest
           1 /*desiredPctLineRate*/);
     };
     auto verify = [=, this]() {
-      verifySflowEgressPortNotStuck();
+      verifySflowEgressPortNotStuck(iterations);
       if (checkSameAndGetAsic()->isSupported(
               HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW)) {
         validateEventorPortQueueLimitRespected();
@@ -773,17 +816,31 @@ class AgentSflowMirrorWithLineRateTrafficTest
     ensemble->getSw()->sendPacketSwitchedAsync(std::move(txPacket));
   }
 
-  void verifySflowEgressPortNotStuck() {
+  void verifySflowEgressPortNotStuck(int iterations) {
+    if (checkSameAndGetAsic()->isSupported(
+            HwAsic::Feature::EVENTOR_PORT_FOR_SFLOW)) {
+      // Ensure eventor port stats keep incrementing
+      const PortID kEventorPortId =
+          masterLogicalPortIds({cfg::PortType::EVENTOR_PORT})[0];
+      auto eventorStatsBefore = getLatestPortStats(kEventorPortId);
+      WITH_RETRIES({
+        auto eventorStatsAfter = getLatestPortStats(kEventorPortId);
+        XLOG(DBG0) << "Eventor port outPackets: "
+                   << *eventorStatsAfter.outUnicastPkts_();
+        EXPECT_EVENTUALLY_GT(
+            *eventorStatsAfter.outUnicastPkts_(),
+            *eventorStatsBefore.outUnicastPkts_());
+      });
+    }
     auto portId = getNonSflowSampledInterfacePort();
     // Expect atleast 1Gbps of mirror traffic!
     const uint64_t kDesiredMirroredTrafficRate{1000000000};
     EXPECT_NO_THROW(getAgentEnsemble()->waitForSpecificRateOnPort(
         portId, kDesiredMirroredTrafficRate));
     // Make sure that we can sustain the rate for longer duration
-    constexpr int kNumberOfIterations{6};
     constexpr int kWaitPeriod{5};
     auto prevPortStats = getLatestPortStats(portId);
-    for (int iter = 0; iter < kNumberOfIterations; iter++) {
+    for (int iter = 0; iter < iterations; iter++) {
       sleep(kWaitPeriod);
       auto curPortStats = getLatestPortStats(portId);
       auto rate = getAgentEnsemble()->getTrafficRate(
@@ -919,12 +976,18 @@ SFLOW_SAMPLING_TEST_V4_V6(VerifySampledPacket, { this->testSampledPacket(); })
 SFLOW_SAMPLING_TEST_V4_V6(VerifySampledPacketRate, {
   this->testSampledPacketRate();
 })
+SFLOW_SAMPLING_TEST_V4_V6(StressRecreateMirror, {
+  this->stressRecreateMirror();
+})
 
 SFLOW_SAMPLING_TRUNCATE_TEST_V4_V6(VerifyTruncate, {
   this->testSampledPacket(true);
 })
 SFLOW_SAMPLING_TRUNCATE_TEST_V4_V6(VerifySampledPacketRate, {
   this->testSampledPacketRate(true);
+})
+SFLOW_SAMPLING_TRUNCATE_TEST_V4_V6(StressRecreateMirror, {
+  this->stressRecreateMirror(true);
 })
 
 SFLOW_SAMPLING_TRUNK_TEST_V4_V6(VerifySampledPacket, {
@@ -935,7 +998,14 @@ SFLOW_SAMPLING_TRUNK_TEST_V4_V6(VerifySampledPacketRate, {
 })
 
 TEST_F(AgentSflowMirrorWithLineRateTrafficTest, VerifySflowEgressCongestion) {
-  this->testSflowEgressCongestion();
+  this->testSflowEgressCongestion(6);
+}
+
+TEST_F(
+    AgentSflowMirrorWithLineRateTrafficTest,
+    VerifySflowEgressCongestionShort) {
+  // Test fewer iterations as we will be using this in an n-warmboot test.
+  this->testSflowEgressCongestion(1);
 }
 
 TEST_F(AgentSflowMirrorTestV4, MoveToV6) {

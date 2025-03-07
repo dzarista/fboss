@@ -7,10 +7,9 @@
  *  of patent rights can be found in the PATENTS file in the same directory.
  *
  */
-#include "fboss/agent/RestartTimeTracker.h"
+#include "fboss/lib/restart_tracker/RestartTimeTracker.h"
 
 #include <fb303/ServiceData.h>
-#include "fboss/agent/Utils.h"
 
 #include <folly/Conv.h>
 #include <folly/FileUtil.h>
@@ -31,6 +30,7 @@ using TimePoint = time_point<steady_clock>;
 namespace {
 constexpr auto kWarmBootPrefix = "warm_boot.";
 constexpr auto kColdBootPrefix = "cold_boot.";
+constexpr auto kRestartPrefix = "restart.";
 constexpr auto kStageCounterSuffix = "stage_duration_ms";
 constexpr auto kTotalCounterSuffix = "total_duration_ms";
 constexpr auto kMaxWarmBootTime = minutes(5);
@@ -118,9 +118,15 @@ void exportDurationCounter(
 
 class RestartTimeTracker {
  public:
-  RestartTimeTracker(const std::string& warmBootDir, bool warmBoot)
+  RestartTimeTracker(
+      const std::string& warmBootDir,
+      bool warmBoot,
+      const std::optional<std::string>& serviceName)
       : warmBootDir_(warmBootDir),
-        prefix_((warmBoot) ? kWarmBootPrefix : kColdBootPrefix) {
+        prefix_(
+            (serviceName) ? kRestartPrefix
+                          : (warmBoot ? kWarmBootPrefix : kColdBootPrefix)),
+        serviceName_(serviceName) {
     if (warmBoot) {
       auto signalled = newEvent(RestartEvent::SIGNAL_RECEIVED);
       // only consider recent warm boots to avoid bogus high readings
@@ -161,7 +167,12 @@ class RestartTimeTracker {
 
  private:
   std::string savePath(RestartEvent type) {
-    return folly::to<std::string>(warmBootDir_, "/", to_string(type));
+    if (serviceName_) {
+      return folly::to<std::string>(
+          warmBootDir_, "/", *serviceName_, "/", to_string(type));
+    } else {
+      return folly::to<std::string>(warmBootDir_, "/", to_string(type));
+    }
   }
 
   std::string stageCounterName(RestartEvent type) {
@@ -199,6 +210,7 @@ class RestartTimeTracker {
 
   const std::string warmBootDir_;
   const std::string prefix_;
+  const std::optional<std::string> serviceName_;
   std::optional<TimePoint> firstEvent_;
   std::optional<TimePoint> lastEvent_;
   bool completed_{false};
@@ -209,12 +221,16 @@ namespace restart_time {
 
 folly::Synchronized<std::unique_ptr<RestartTimeTracker>, std::mutex> impl_;
 
-void init(const std::string& warmBootDir, bool warmBoot) {
+void init(
+    const std::string& warmBootDir,
+    bool warmBoot,
+    const std::optional<std::string>& serviceName) {
   auto tracker = impl_.lock();
   if (*tracker) {
     throw std::runtime_error("Called restart_time::init twice...");
   }
-  *tracker = std::make_unique<RestartTimeTracker>(warmBootDir, warmBoot);
+  *tracker =
+      std::make_unique<RestartTimeTracker>(warmBootDir, warmBoot, serviceName);
 }
 
 void mark(RestartEvent event) {

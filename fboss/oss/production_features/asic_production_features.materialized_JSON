@@ -10,6 +10,8 @@
         8,
         10,
         11,
+        61,
+        66,
         12,
         13,
         16,
@@ -37,7 +39,8 @@
         51,
         53,
         59,
-        60
+        60,
+        63
     ],
     "ebro": [
         2,
@@ -46,6 +49,7 @@
         8,
         10,
         11,
+        66,
         52,
         13,
         16,
@@ -73,32 +77,8 @@
         51,
         53,
         54,
-        59
-    ],
-    "jericho2": [
-        2,
-        3,
-        5,
-        0,
-        4,
-        8,
-        10,
-        11,
-        17,
-        20,
-        21,
-        23,
-        26,
-        28,
-        31,
-        33,
-        36,
-        37,
-        38,
-        39,
-        41,
-        40,
-        42
+        59,
+        63
     ],
     "jericho3": [
         2,
@@ -110,6 +90,7 @@
         8,
         10,
         11,
+        61,
         15,
         16,
         18,
@@ -152,6 +133,7 @@
         8,
         10,
         11,
+        66,
         52,
         12,
         13,
@@ -174,7 +156,10 @@
         54,
         33,
         59,
-        60
+        60,
+        63,
+        65,
+        67
     ],
     "tomahawk3": [
         2,
@@ -185,6 +170,8 @@
         9,
         10,
         11,
+        61,
+        66,
         52,
         12,
         13,
@@ -219,7 +206,12 @@
         54,
         33,
         59,
-        60
+        60,
+        62,
+        63,
+        64,
+        65,
+        67
     ],
     "tomahawk4": [
         2,
@@ -230,6 +222,8 @@
         9,
         10,
         11,
+        61,
+        66,
         52,
         12,
         13,
@@ -263,7 +257,11 @@
         54,
         33,
         59,
-        60
+        60,
+        62,
+        63,
+        64,
+        67
     ],
     "tomahawk5": [
         2,
@@ -274,6 +272,8 @@
         9,
         10,
         11,
+        61,
+        66,
         52,
         12,
         13,
@@ -306,7 +306,9 @@
         54,
         33,
         59,
-        60
+        60,
+        62,
+        63
     ],
     "yuba": [
         2,
@@ -315,6 +317,8 @@
         8,
         10,
         11,
+        61,
+        66,
         52,
         16,
         20,
@@ -344,7 +348,8 @@
         53,
         54,
         59,
-        60
+        60,
+        63
     ]
   },
   "asicToFeatureNames": {
@@ -358,6 +363,8 @@
         "COPP",
         "DSCP_REMARKING",
         "L3_QOS",
+        "NETWORKAI_QOS",
+        "OLYMPIC_QOS",
         "ACL_COUNTER",
         "ECMP_LOAD_BALANCER",
         "SINGLE_ACL_TABLE",
@@ -385,7 +392,8 @@
         "SEPARATE_INGRESS_EGRESS_BUFFER_POOL",
         "ERSPANV6_MIRRORING",
         "CLASS_ID_FOR_CONNECTED_ROUTE",
-        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS",
+        "UCMP"
     ],
     "ebro": [
         "CPU_RX_TX",
@@ -394,6 +402,7 @@
         "COPP",
         "DSCP_REMARKING",
         "L3_QOS",
+        "OLYMPIC_QOS",
         "NIF_POLICER",
         "ECMP_LOAD_BALANCER",
         "SINGLE_ACL_TABLE",
@@ -421,32 +430,8 @@
         "SEPARATE_INGRESS_EGRESS_BUFFER_POOL",
         "ERSPANV6_MIRRORING",
         "IP_IN_IP_DECAP",
-        "CLASS_ID_FOR_CONNECTED_ROUTE"
-    ],
-    "jericho2": [
-        "CPU_RX_TX",
-        "L3_FORWARDING",
-        "NULL_ROUTE_IN_DISCARDS_COUNTER",
-        "VOQ",
-        "ACL_PORT_IN_DISCARDS_COUNTER",
-        "COPP",
-        "DSCP_REMARKING",
-        "L3_QOS",
-        "MULTI_ACL_TABLE",
-        "ECN",
-        "WRED",
-        "JUMBO_FRAMES",
-        "SCHEDULER_PPS",
-        "PORT_TX_DISABLE",
-        "MIRROR_PACKET_TRUNCATION",
-        "INTERFACE_NEIGHBOR_TABLE",
-        "RSW_ROUTE_SCALE",
-        "FSW_ROUTE_SCALE",
-        "HGRID_DU_ROUTE_SCALE",
-        "HGRID_UU_ROUTE_SCALE",
-        "TH_ALPM_ROUTE_SCALE",
-        "HUNDRED_THOUSAND_ROUTE_SCALE",
-        "PFC"
+        "CLASS_ID_FOR_CONNECTED_ROUTE",
+        "UCMP"
     ],
     "jericho3": [
         "CPU_RX_TX",
@@ -458,6 +443,7 @@
         "COPP",
         "DSCP_REMARKING",
         "L3_QOS",
+        "NETWORKAI_QOS",
         "VOQ_DNX_INTERRUPTS",
         "SINGLE_ACL_TABLE",
         "BTH_OPCODE_ACL",
@@ -500,6 +486,7 @@
         "COPP",
         "DSCP_REMARKING",
         "L3_QOS",
+        "OLYMPIC_QOS",
         "NIF_POLICER",
         "ACL_COUNTER",
         "ECMP_LOAD_BALANCER",
@@ -522,7 +509,10 @@
         "IP_IN_IP_DECAP",
         "INTERFACE_NEIGHBOR_TABLE",
         "CLASS_ID_FOR_CONNECTED_ROUTE",
-        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS",
+        "UCMP",
+        "MMU_TUNING",
+        "UNTRUNCATED_SFLOW"
     ],
     "tomahawk3": [
         "CPU_RX_TX",
@@ -533,6 +523,8 @@
         "LAG",
         "DSCP_REMARKING",
         "L3_QOS",
+        "NETWORKAI_QOS",
+        "OLYMPIC_QOS",
         "NIF_POLICER",
         "ACL_COUNTER",
         "ECMP_LOAD_BALANCER",
@@ -567,7 +559,12 @@
         "IP_IN_IP_DECAP",
         "INTERFACE_NEIGHBOR_TABLE",
         "CLASS_ID_FOR_CONNECTED_ROUTE",
-        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS",
+        "EAPOL_TRAP",
+        "UCMP",
+        "MULTICAST_QUEUE",
+        "MMU_TUNING",
+        "UNTRUNCATED_SFLOW"
     ],
     "tomahawk4": [
         "CPU_RX_TX",
@@ -578,6 +575,8 @@
         "LAG",
         "DSCP_REMARKING",
         "L3_QOS",
+        "NETWORKAI_QOS",
+        "OLYMPIC_QOS",
         "NIF_POLICER",
         "ACL_COUNTER",
         "ECMP_LOAD_BALANCER",
@@ -611,7 +610,11 @@
         "IP_IN_IP_DECAP",
         "INTERFACE_NEIGHBOR_TABLE",
         "CLASS_ID_FOR_CONNECTED_ROUTE",
-        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS",
+        "EAPOL_TRAP",
+        "UCMP",
+        "MULTICAST_QUEUE",
+        "UNTRUNCATED_SFLOW"
     ],
     "tomahawk5": [
         "CPU_RX_TX",
@@ -622,6 +625,8 @@
         "LAG",
         "DSCP_REMARKING",
         "L3_QOS",
+        "NETWORKAI_QOS",
+        "OLYMPIC_QOS",
         "NIF_POLICER",
         "ACL_COUNTER",
         "ECMP_LOAD_BALANCER",
@@ -654,7 +659,9 @@
         "IP_IN_IP_DECAP",
         "INTERFACE_NEIGHBOR_TABLE",
         "CLASS_ID_FOR_CONNECTED_ROUTE",
-        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS",
+        "EAPOL_TRAP",
+        "UCMP"
     ],
     "yuba": [
         "CPU_RX_TX",
@@ -663,6 +670,8 @@
         "COPP",
         "DSCP_REMARKING",
         "L3_QOS",
+        "NETWORKAI_QOS",
+        "OLYMPIC_QOS",
         "NIF_POLICER",
         "SINGLE_ACL_TABLE",
         "ECN",
@@ -692,7 +701,8 @@
         "ERSPANV6_MIRRORING",
         "IP_IN_IP_DECAP",
         "CLASS_ID_FOR_CONNECTED_ROUTE",
-        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS"
+        "SEPARATE_BYTE_AND_PACKET_ACL_COUNTERS",
+        "UCMP"
     ]
   }
 }

@@ -26,6 +26,8 @@ inline constexpr std::string_view kRss{"rss"};
 inline constexpr std::string_view kRegisteredSubs{"subscriptions.registered"};
 inline constexpr std::string_view kPathStoreNum{"object.count.pathStores"};
 inline constexpr std::string_view kPathStoreAllocs{"object.allocs.pathStores"};
+inline constexpr std::string_view kPublishTimePrefix{"publish_time_ms"};
+inline constexpr std::string_view kSubscribeTimePrefix{"subscribe_time_ms"};
 
 // non-templated parts of NaivePeriodicSubscribableStorage to help with
 // compilation
@@ -82,10 +84,12 @@ class NaivePeriodicSubscribableStorageBase {
       FsdbErrorCode disconnectReason = FsdbErrorCode::ALL_PUBLISHERS_GONE);
 
   template <typename T, typename TC>
-  folly::coro::AsyncGenerator<DeltaValue<T>&&>
-  subscribe_impl(SubscriberId subscriber, PathIter begin, PathIter end) {
-    auto sourceGen =
-        subscribe_encoded_impl(subscriber, begin, end, OperProtocol::BINARY);
+  folly::coro::AsyncGenerator<DeltaValue<T>&&> subscribe_impl(
+      SubscriptionIdentifier&& subscriber,
+      PathIter begin,
+      PathIter end) {
+    auto sourceGen = subscribe_encoded_impl(
+        std::move(subscriber), begin, end, OperProtocol::BINARY);
     return folly::coro::co_invoke(
         [&, gen = std::move(sourceGen)]() mutable
         -> folly::coro::AsyncGenerator<DeltaValue<T>&&> {
@@ -110,7 +114,7 @@ class NaivePeriodicSubscribableStorageBase {
   }
 
   folly::coro::AsyncGenerator<DeltaValue<OperState>&&> subscribe_encoded_impl(
-      SubscriberId subscriber,
+      SubscriptionIdentifier&& subscriber,
       PathIter begin,
       PathIter end,
       OperProtocol protocol,
@@ -118,7 +122,7 @@ class NaivePeriodicSubscribableStorageBase {
           std::nullopt);
 
   folly::coro::AsyncGenerator<OperDelta&&> subscribe_delta_impl(
-      SubscriberId subscriber,
+      SubscriptionIdentifier&& subscriber,
       PathIter begin,
       PathIter end,
       OperProtocol protocol,
@@ -127,7 +131,7 @@ class NaivePeriodicSubscribableStorageBase {
 
   folly::coro::AsyncGenerator<std::vector<DeltaValue<TaggedOperState>>&&>
   subscribe_encoded_extended_impl(
-      SubscriberId subscriber,
+      SubscriptionIdentifier&& subscriber,
       std::vector<ExtendedOperPath> paths,
       OperProtocol protocol,
       std::optional<SubscriptionStorageParams> subscriptionParams =
@@ -135,21 +139,21 @@ class NaivePeriodicSubscribableStorageBase {
 
   folly::coro::AsyncGenerator<std::vector<TaggedOperDelta>&&>
   subscribe_delta_extended_impl(
-      SubscriberId subscriber,
+      SubscriptionIdentifier&& subscriber,
       std::vector<ExtendedOperPath> paths,
       OperProtocol protocol,
       std::optional<SubscriptionStorageParams> subscriptionParams =
           std::nullopt);
 
   folly::coro::AsyncGenerator<SubscriberMessage&&> subscribe_patch_impl(
-      SubscriberId subscriber,
+      SubscriptionIdentifier&& subscriber,
       std::map<SubscriptionKey, RawOperPath> rawPaths,
       std::optional<SubscriptionStorageParams> subscriptionParams =
           std::nullopt);
 
   folly::coro::AsyncGenerator<SubscriberMessage&&>
   subscribe_patch_extended_impl(
-      SubscriberId subscriber,
+      SubscriptionIdentifier&& subscriber,
       std::map<SubscriptionKey, ExtendedOperPath> paths,
       std::optional<SubscriptionStorageParams> subscriptionParams =
           std::nullopt);
@@ -187,7 +191,9 @@ class NaivePeriodicSubscribableStorageBase {
 
   SubscriptionMetadataServer getCurrentMetadataServer();
   void exportServeMetrics(
-      std::chrono::steady_clock::time_point serveStartTime) const;
+      std::chrono::steady_clock::time_point serveStartTime,
+      SubscriptionMetadataServer& metadata,
+      std::map<std::string, uint64_t>& lastServedPublisherRootUpdates) const;
 
   std::optional<std::string> getPublisherRoot(PathIter begin, PathIter end)
       const;
@@ -223,6 +229,8 @@ class NaivePeriodicSubscribableStorageBase {
   const OperProtocol patchOperProtocol_{OperProtocol::COMPACT};
 
  private:
+  folly::Synchronized<std::map<std::string, std::string>>
+      registeredPublisherRoots_;
   folly::coro::CancellableAsyncScope backgroundScope_;
   std::unique_ptr<std::thread> subscriptionServingThread_;
   folly::EventBase evb_;
@@ -237,6 +245,9 @@ class NaivePeriodicSubscribableStorageBase {
   const std::string nPathStoreAllocs_{""};
   const std::string serveSubMs_{""};
   const std::string serveSubNum_{""};
+  // per-PublisherRoot metrics
+  const std::string publishTimePrefix_;
+  const std::string subscribeTimePrefix_;
 
   // delete copy constructors
   NaivePeriodicSubscribableStorageBase(

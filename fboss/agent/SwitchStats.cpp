@@ -101,7 +101,10 @@ SwitchStats::SwitchStats(ThreadLocalStatsMap* map, int numSwitches)
           kCounterPrefix + "ip.dst_lookup_failure",
           SUM,
           RATE),
-      updateState_(map, kCounterPrefix + "state_update.us", 50000, 0, 1000000),
+      updateState_(
+          kCounterPrefix + "state_update.us",
+          facebook::fb303::ExportTypeConsts::kCountAvg,
+          facebook::fb303::QuantileConsts::kP50_P95_P99_P100),
       routeUpdate_(map, kCounterPrefix + "route_update.us", 50, 0, 500),
       bgHeartbeatDelay_(
           map,
@@ -440,6 +443,21 @@ InterfaceStats* SwitchStats::createInterfaceStats(
     std::string intfName) {
   auto rv = intfIDToStats_.emplace(
       intfID, std::make_unique<InterfaceStats>(intfID, intfName, this));
+  DCHECK(rv.second);
+  const auto& it = rv.first;
+  return it->second.get();
+}
+
+PortStats* SwitchStats::updatePortName(
+    PortID portID,
+    const std::string& portName) {
+  auto existing = ports_.find(portID);
+  if (existing != ports_.end()) {
+    existing->second->clearCounters();
+  }
+
+  auto rv = ports_.insert_or_assign(
+      portID, std::make_unique<PortStats>(portID, portName, this));
   DCHECK(rv.second);
   const auto& it = rv.first;
   return it->second.get();

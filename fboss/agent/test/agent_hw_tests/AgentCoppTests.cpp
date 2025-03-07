@@ -23,10 +23,12 @@
 #include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/ConfigUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
+#include "fboss/agent/test/utils/NetworkAITestUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/agent/test/utils/PacketSnooper.h"
 #include "fboss/agent/test/utils/PacketTestUtils.h"
 #include "fboss/agent/test/utils/QosTestUtils.h"
+#include "fboss/agent/test/utils/QueueTestUtils.h"
 #include "fboss/agent/test/utils/TrapPacketUtils.h"
 #include "fboss/agent/types.h"
 #include "fboss/lib/CommonUtils.h"
@@ -886,20 +888,6 @@ TYPED_TEST(AgentCoppTest, SlowProtocolsMacToHighPriQ) {
   this->verifyAcrossWarmBoots(setup, verify);
 }
 
-TYPED_TEST(AgentCoppTest, EapolToHighPriQ) {
-  auto setup = [=, this]() { this->setup(); };
-
-  auto verify = [=, this]() {
-    this->sendPktAndVerifyEthPacketsCpuQueue(
-        utility::getCoppHighPriQueueId(utility::checkSameAndGetAsic(
-            this->getAgentEnsemble()->getL3Asics())),
-        facebook::fboss::ETHERTYPE::ETHERTYPE_EAPOL,
-        folly::MacAddress("ff:ff:ff:ff:ff:ff"));
-  };
-
-  this->verifyAcrossWarmBoots(setup, verify);
-}
-
 TYPED_TEST(AgentCoppTest, DstIpNetworkControlDscpToHighPriQ) {
   auto setup = [=, this]() { this->setup(); };
 
@@ -1643,7 +1631,7 @@ class AgentCoppQosTest : public AgentHwTest {
     queue0.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
     if (addEcnConfig) {
       queue0.aqms() = {};
-      queue0.aqms()->push_back(utility::kGetOlympicEcnConfig(hwAsic));
+      queue0.aqms()->push_back(utility::kGetEcnConfig(hwAsic));
     }
     if (addQueueRate) {
       queue0.portQueueRate() =
@@ -1659,7 +1647,7 @@ class AgentCoppQosTest : public AgentHwTest {
     queue2.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
     if (addEcnConfig) {
       queue2.aqms() = {};
-      queue2.aqms()->push_back(utility::kGetOlympicEcnConfig(hwAsic));
+      queue2.aqms()->push_back(utility::kGetEcnConfig(hwAsic));
     }
     utility::setPortQueueMaxDynamicSharedBytes(queue2, hwAsic);
     cpuQueues.push_back(queue2);
@@ -1671,7 +1659,7 @@ class AgentCoppQosTest : public AgentHwTest {
     queue9.scheduling() = cfg::QueueScheduling::STRICT_PRIORITY;
     if (addEcnConfig) {
       queue9.aqms() = {};
-      queue9.aqms()->push_back(utility::kGetOlympicEcnConfig(hwAsic));
+      queue9.aqms()->push_back(utility::kGetEcnConfig(hwAsic));
     }
     cpuQueues.push_back(queue9);
 
@@ -1893,6 +1881,40 @@ TEST_F(AgentCoppQosTest, HighVsLowerPriorityCpuQueueTrafficPrioritization) {
             lowPriorityWaterMarkBytes > watermarkBytesLow);
       });
     }
+  };
+
+  this->verifyAcrossWarmBoots(setup, verify);
+}
+
+template <typename TestType>
+class AgentCoppEapolTest : public AgentCoppTest<TestType> {
+ public:
+  std::vector<production_features::ProductionFeature>
+  getProductionFeaturesVerified() const override {
+    if constexpr (std::is_same_v<TestType, PortID>) {
+      return {
+          production_features::ProductionFeature::COPP,
+          production_features::ProductionFeature::EAPOL_TRAP};
+    } else {
+      return {
+          production_features::ProductionFeature::COPP,
+          production_features::ProductionFeature::LAG,
+          production_features::ProductionFeature::EAPOL_TRAP};
+    }
+  }
+};
+
+TYPED_TEST_SUITE(AgentCoppEapolTest, TestTypes);
+
+TYPED_TEST(AgentCoppEapolTest, EapolToHighPriQ) {
+  auto setup = [=, this]() { this->setup(); };
+
+  auto verify = [=, this]() {
+    this->sendPktAndVerifyEthPacketsCpuQueue(
+        utility::getCoppHighPriQueueId(utility::checkSameAndGetAsic(
+            this->getAgentEnsemble()->getL3Asics())),
+        facebook::fboss::ETHERTYPE::ETHERTYPE_EAPOL,
+        folly::MacAddress("ff:ff:ff:ff:ff:ff"));
   };
 
   this->verifyAcrossWarmBoots(setup, verify);

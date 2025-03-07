@@ -139,6 +139,10 @@ std::string kDefaultAclTableGroupName() {
   return "acl-table-group-ingress";
 }
 
+std::string kDefaultEgressAclTableGroupName() {
+  return "acl-table-group-egress";
+}
+
 std::vector<cfg::AclEntry>& getAcls(
     cfg::SwitchConfig* cfg,
     const std::optional<std::string>& tableName) {
@@ -181,7 +185,14 @@ void addAclTableGroup(
   cfg::AclTableGroup cfgTableGroup;
   cfgTableGroup.name() = aclTableGroupName;
   cfgTableGroup.stage() = aclStage;
-  cfg->aclTableGroups() = {std::move(cfgTableGroup)};
+  if (auto aclTableGroup = getAclTableGroup(*cfg, aclStage)) {
+    *aclTableGroup = cfgTableGroup;
+    return;
+  }
+  if (!cfg->aclTableGroups()) {
+    cfg->aclTableGroups() = {};
+  }
+  cfg->aclTableGroups()->push_back(std::move(cfgTableGroup));
 }
 
 void addDefaultAclTable(cfg::SwitchConfig& cfg) {
@@ -224,7 +235,9 @@ cfg::AclTable* addAclTable(
   auto aclTableGroup = getAclTableGroup(*cfg, aclStage);
   if (!aclTableGroup) {
     throw FbossError(
-        "Attempted to add acl table without first creating acl table group");
+        "Attempted to add acl table ",
+        aclTableName,
+        " without first creating acl table group");
   }
 
   cfg::AclTable aclTable;
@@ -443,9 +456,69 @@ getAclTableGroup(cfg::SwitchConfig& config, cfg::AclStage aclStage) {
   return nullptr;
 }
 
-void setupDefaultAclTableGroups(cfg::SwitchConfig& config) {
+void setupDefaultEgressAclTableGroup(cfg::SwitchConfig& config) {
+  if (config.switchSettings()->switchIdToSwitchInfo()->empty()) {
+    return;
+  }
+  auto switchId2SwitchInfo = *config.switchSettings()->switchIdToSwitchInfo();
+  std::optional<cfg::SdkVersion> version{};
+  if (config.sdkVersion()) {
+    version = *config.sdkVersion();
+  }
+
+  HwAsicTable asicTable(switchId2SwitchInfo, version);
+  if (!asicTable.isFeatureSupportedOnAnyAsic(
+          HwAsic::Feature::EGRESS_ACL_TABLE)) {
+    return;
+  }
+
+  if (getAclTableGroup(config, cfg::AclStage::EGRESS)) {
+    return;
+  }
+  utility::addAclTableGroup(
+      &config, cfg::AclStage::EGRESS, kDefaultEgressAclTableGroupName());
+  utility::addAclTable(
+      &config,
+      cfg::AclStage::EGRESS,
+      "eAclTable1",
+      0,
+      {
+          cfg::AclTableActionType::PACKET_ACTION,
+      },
+      {
+          cfg::AclTableQualifier::DSCP,
+      },
+      {});
+}
+
+void setupDefaultIngressAclTableGroup(cfg::SwitchConfig& config) {
+  if (getAclTableGroup(config, cfg::AclStage::INGRESS)) {
+    // default table group already exists
+    return;
+  }
   utility::addAclTableGroup(
       &config, cfg::AclStage::INGRESS, utility::kDefaultAclTableGroupName());
   utility::addDefaultAclTable(config);
+}
+
+void setupDefaultAclTableGroups(cfg::SwitchConfig& config) {
+  setupDefaultIngressAclTableGroup(config);
+  setupDefaultEgressAclTableGroup(config);
+}
+
+cfg::AclTable* getAclTable(
+    cfg::SwitchConfig& cfg,
+    cfg::AclStage aclStage,
+    const std::string& aclTableName) {
+  auto aclTableGroup = getAclTableGroup(cfg, aclStage);
+  if (!aclTableGroup) {
+    return nullptr;
+  }
+  for (auto& aclTable : *aclTableGroup->aclTables()) {
+    if (*aclTable.name() == aclTableName) {
+      return &aclTable;
+    }
+  }
+  return nullptr;
 }
 } // namespace facebook::fboss::utility

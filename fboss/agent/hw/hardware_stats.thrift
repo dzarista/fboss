@@ -235,6 +235,7 @@ struct HwAsicErrors {
   12: optional i64 fdrFifoOverflowErrors;
   13: optional i64 fdaFifoOverflowErrors;
   14: optional i64 isolationFirmwareCrashes;
+  15: optional i64 rxFifoStuckDetected;
 }
 
 struct HwTeFlowStats {
@@ -251,6 +252,7 @@ struct FabricReachabilityStats {
   2: i64 missingCount;
   3: i64 virtualDevicesWithAsymmetricConnectivity;
   4: i64 switchReachabilityChangeCount;
+  5: i64 bogusCount;
 }
 
 struct HwRxReasonStats {
@@ -364,6 +366,7 @@ struct HwSwitchFb303GlobalStats {
   31: optional i64 rqp_non_fabric_cell_corruption;
   32: optional i64 rqp_non_fabric_cell_missing;
   33: optional i64 rqp_parity_error;
+  34: i64 fabric_connectivity_bogus;
 }
 
 struct HwFlowletStats {

@@ -16,6 +16,7 @@
 #include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/ConfigUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
+#include "fboss/agent/test/utils/NetworkAITestUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/agent/test/utils/PacketTestUtils.h"
 #include "fboss/agent/test/utils/QosTestUtils.h"
@@ -55,24 +56,16 @@ class AgentOlympicQosSchedulerTest : public AgentQosSchedulerTestBase {
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
-    if (isDualStage3Q2QQos()) {
-      auto hwAsic = utility::checkSameAndGetAsic(ensemble.getL3Asics());
-      auto streamType =
-          *hwAsic->getQueueStreamTypes(cfg::PortType::INTERFACE_PORT).begin();
-      utility::addNetworkAIQueueConfig(
-          &cfg, streamType, cfg::QueueScheduling::STRICT_PRIORITY, hwAsic);
-      // TODO(daiweix): enhance qos scheduler test cases to work with network ai
-      // qos map and use addNetworkAIQosToConfig() here
-    } else {
-      utility::addOlympicQueueConfig(&cfg, ensemble.getL3Asics());
-    }
+    utility::addOlympicQueueConfig(&cfg, ensemble.getL3Asics());
     utility::addOlympicQosMaps(cfg, ensemble.getL3Asics());
     utility::setTTLZeroCpuConfig(ensemble.getL3Asics(), cfg);
     return cfg;
   }
   std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const override {
-    return {production_features::ProductionFeature::L3_QOS};
+    return {
+        production_features::ProductionFeature::L3_QOS,
+        production_features::ProductionFeature::OLYMPIC_QOS};
   }
   void verifyWRR();
   void verifySP(bool frontPanelTraffic = true);

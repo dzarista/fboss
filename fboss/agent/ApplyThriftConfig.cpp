@@ -1328,6 +1328,19 @@ void ThriftConfigApplier::processReachabilityGroup(
             portCfg.expectedNeighborReachability()->size() > 0) {
           auto neighborRemoteSwitchId =
               getRemoteSwitchID(cfg_, portCfg, switchNameToSwitchIds);
+
+          if (std::find(
+                  localFabricSwitchIds.begin(),
+                  localFabricSwitchIds.end(),
+                  SwitchID(neighborRemoteSwitchId)) !=
+              localFabricSwitchIds.end()) {
+            // Skip processing links that are expected to connected to self -
+            // this should not happen in PROD since expected neighbors should be
+            // other devices. However during testing, ports are put in loopback
+            // mode and hence the expected neighbor will be populated to self.
+            // Skip processing these links for reachability group.
+            continue;
+          }
           const auto& neighborDsfNode =
               new_->getDsfNodes()->getNode(neighborRemoteSwitchId);
 
@@ -3207,9 +3220,12 @@ std::shared_ptr<AclTableGroupMap> ThriftConfigApplier::updateAclTableGroups() {
   auto origAclTableGroups = orig_->getAclTableGroups();
   AclTableGroupMap::NodeContainer newAclTableGroups;
 
+  flat_map<std::string, const cfg::AclEntry*> aclByName{};
+
   auto updateAclTableGroupsInternal =
-      [this, origAclTableGroups, &newAclTableGroups](
+      [this, origAclTableGroups, &newAclTableGroups, &aclByName](
           const cfg::AclTableGroup& cfgAclTableGroup) {
+        aclByName.merge(getAllAclsByName(cfgAclTableGroup));
         auto origAclTableGroup =
             origAclTableGroups->getNodeIf(*cfgAclTableGroup.stage());
         auto newAclTableGroup = updateAclTableGroup(
@@ -3227,8 +3243,19 @@ std::shared_ptr<AclTableGroupMap> ThriftConfigApplier::updateAclTableGroups() {
     changed = updateAclTableGroupsInternal(*cfgAclTableGroup);
   } else {
     for (const auto& entry : *cfg_->aclTableGroups()) {
+      // acl entry names must be unique across all acl table groups.
       changed = updateAclTableGroupsInternal(entry);
     }
+  }
+
+  // Check for controlPlane traffic acls
+  if (cfg_->cpuTrafficPolicy() && cfg_->cpuTrafficPolicy()->trafficPolicy()) {
+    checkTrafficPolicyAclsExistInConfig(
+        *cfg_->cpuTrafficPolicy()->trafficPolicy(), aclByName);
+  }
+  // Check for dataPlane traffic acls
+  if (auto dataPlaneTrafficPolicy = cfg_->dataPlaneTrafficPolicy()) {
+    checkTrafficPolicyAclsExistInConfig(*dataPlaneTrafficPolicy, aclByName);
   }
 
   if (!changed) {
@@ -3245,16 +3272,6 @@ std::shared_ptr<AclTableGroup> ThriftConfigApplier::updateAclTableGroup(
   auto newAclTableMap = std::make_shared<AclTableMap>();
   bool changed = false;
   int numExistingTablesProcessed = 0;
-  auto aclByName = getAllAclsByName(cfgAclTableGroup);
-  // Check for controlPlane traffic acls
-  if (cfg_->cpuTrafficPolicy() && cfg_->cpuTrafficPolicy()->trafficPolicy()) {
-    checkTrafficPolicyAclsExistInConfig(
-        *cfg_->cpuTrafficPolicy()->trafficPolicy(), aclByName);
-  }
-  // Check for dataPlane traffic acls
-  if (auto dataPlaneTrafficPolicy = cfg_->dataPlaneTrafficPolicy()) {
-    checkTrafficPolicyAclsExistInConfig(*dataPlaneTrafficPolicy, aclByName);
-  }
 
   // For each table in the config, update the table entries and priority
   for (const auto& aclTable : *cfgAclTableGroup.aclTables()) {
@@ -5093,6 +5110,24 @@ shared_ptr<MultiControlPlane> ThriftConfigApplier::updateControlPlane() {
         qosMap);
     newQueues.insert(
         newQueues.begin(), tmpPortQueues.begin(), tmpPortQueues.end());
+
+    if (asic->getAsicType() == cfg::AsicType::ASIC_TYPE_CHENAB) {
+      // TODO-Chenab: ensure queue scheduling is set to internal until cpu
+      // queues can be configured.
+      std::transform(
+          newQueues.cbegin(),
+          newQueues.cend(),
+          newQueues.begin(),
+          [](auto queue) {
+            if (queue->getScheduling() == cfg::QueueScheduling::INTERNAL) {
+              return queue;
+            }
+            auto newQueue = queue->clone();
+            newQueue->setScheduling(cfg::QueueScheduling::INTERNAL);
+            return newQueue;
+          });
+    }
+
     if (cfg_->cpuVoqs()) {
       std::vector<cfg::PortQueue> cfgCpuVoqs = *cfg_->cpuVoqs();
       auto tmpPortVoqs = updatePortQueues(

@@ -594,7 +594,9 @@ cpp_library(
     name = "agent_hw_test_thrift_handler",
     srcs = [
         "HwTestAclUtilsThriftHandler.cpp",
+        "HwTestCommonUtilsThriftHandler.cpp",
         "HwTestEcmpUtilsThriftHandler.cpp",
+        "HwTestFlowletUtilsThriftHandler.cpp",
         "HwTestMirrorUtilsThriftHandler.cpp",
         "HwTestNeighborUtilsThriftHandler.cpp",
         "HwTestPortUtilsThriftHandler.cpp",

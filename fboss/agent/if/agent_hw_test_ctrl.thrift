@@ -116,4 +116,10 @@ service AgentHwTestCtrl {
 
   //tam utils
   void triggerParityError();
+
+  // print diag
+  void printDiagCmd(1: string cmd);
+
+  // Flowlet utils
+  void updateFlowletStats();
 }

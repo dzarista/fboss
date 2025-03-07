@@ -96,6 +96,7 @@ target_link_libraries(agent_hw_test_src
   trunk_utils
   traffic_policy_utils
   olympic_qos_utils
+  network_ai_qos_utils
   pfc_test_utils
   qos_test_utils
   queue_test_utils
@@ -121,6 +122,7 @@ target_link_libraries(agent_hw_test_src
   dsf_config_utils
   voq_test_utils
   fib_updater
+  ecmp_test_utils
 )
 
 function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
@@ -142,6 +144,7 @@ function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
     sai_copp_utils
     hw_packet_utils
     olympic_qos_utils
+    network_ai_qos_utils
     traffic_policy_utils
     sai_traced_api
     -Wl,--no-whole-archive
