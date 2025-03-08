@@ -50,7 +50,7 @@
           "jamArgs": {
             "jamExtraArgs": [
               "-aprogram",
-              "-fcpu_cpld",
+              "-fmeru_cpu_cpld",
               "-v"
             ]
           }
@@ -85,7 +85,7 @@
           "jamArgs": {
             "jamExtraArgs": [
               "-aprogram",
-              "-fswitch_cpld",
+              "-fmeru_switch_cpld",
               "-v"
             ]
           }
@@ -120,7 +120,7 @@
           "jamArgs": {
             "jamExtraArgs": [
               "-aprogram",
-              "-ffan_cpld",
+              "-fmeru_fan_cpld",
               "-v"
             ]
           }
@@ -155,7 +155,7 @@
           "jamArgs": {
             "jamExtraArgs": [
               "-aprogram",
-              "-ffan_cpld",
+              "-fmeru_fan_cpld",
               "-v"
             ]
           }
