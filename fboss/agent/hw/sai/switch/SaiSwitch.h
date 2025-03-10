@@ -153,10 +153,12 @@ class SaiSwitch : public HwSwitch {
       const void* buffer,
       uint32_t event_type);
   void pfcDeadlockNotificationCallback(
-      PortSaiId portSaiId,
-      uint8_t queueId,
-      sai_queue_pfc_deadlock_event_type_t deadlockEvent,
-      uint32_t count);
+      uint32_t count,
+      const sai_queue_deadlock_notification_data_t* data);
+  void vendorSwitchEventNotificationCallback(
+      sai_size_t bufferSize,
+      const void* buffer,
+      uint32_t eventType);
 
   void txReadyStatusChangeCallbackTopHalf(SwitchSaiId switchId);
   void linkConnectivityChanged(
@@ -393,7 +395,11 @@ class SaiSwitch : public HwSwitch {
       bool fwIsolated = false,
       const std::optional<uint32_t>& numActiveFabricPortsAtFwIsolate =
           std::nullopt);
-  void switchReachabilityChangeBottomHalf();
+
+  void setSwitchReachabilityChangePending();
+  std::map<SwitchID, std::set<PortID>> getSwitchReachabilityChange();
+  void processSwitchReachabilityChange(
+      const std::map<SwitchID, std::set<PortID>>& reachabilityInfo);
   std::set<PortID> getFabricReachabilityPortIds(
       const std::vector<sai_object_id_t>& switchIdAndFabricPortSaiIds) const;
 
@@ -628,8 +634,8 @@ class SaiSwitch : public HwSwitch {
   std::unique_ptr<std::thread> linkConnectivityChangeBottomHalfThread_;
   FbossEventBase linkConnectivityChangeBottomHalfEventBase_{
       "LinkConnectivityChangeBottomHalfEventBase"};
-  std::unique_ptr<std::thread> switchReachabilityChangeBottomHalfThread_;
-  FbossEventBase switchReachabilityChangeBottomHalfEventBase_{
+  std::unique_ptr<std::thread> switchReachabilityChangeProcessThread_;
+  FbossEventBase switchReachabilityChangeProcessEventBase_{
       "SwitchReachabilityChangeBottomHalfEventBase"};
 
   HwResourceStats hwResourceStats_;

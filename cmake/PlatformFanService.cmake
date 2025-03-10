@@ -37,6 +37,7 @@ add_library(fan_service_lib
   fboss/platform/fan_service/FsdbSensorSubscriber.cpp
   fboss/platform/fan_service/PidLogic.cpp
   fboss/platform/fan_service/SensorData.cpp
+  fboss/platform/fan_service/OvertempCondition.cpp
   fboss/platform/fan_service/oss/FsdbSensorSubscriber.cpp
   fboss/platform/fan_service/oss/DataFetcher.cpp
 )
@@ -75,6 +76,7 @@ install(TARGETS fan_service)
 add_executable(fan_service_sw_test
   fboss/platform/fan_service/tests/BspTests.cpp
   fboss/platform/fan_service/tests/ControlLogicTests.cpp
+  fboss/platform/fan_service/tests/OvertempTests.cpp
 )
 
 target_link_libraries(fan_service_sw_test

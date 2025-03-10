@@ -15,6 +15,7 @@
 #include <thrift/lib/cpp2/folly_dynamic/folly_dynamic.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 #include <thrift/lib/cpp2/protocol/detail/protocol_methods.h>
+#include <thrift/lib/cpp2/reflection/reflection.h>
 #include <utility>
 #include "fboss/fsdb/if/gen-cpp2/fsdb_oper_types.h"
 
@@ -343,14 +344,53 @@ struct WritableImpl {
 template <>
 struct WritableImpl<apache::thrift::type_class::structure> {
   template <typename TType>
-  static inline bool remove(TType&, const std::string&) {
-    throw std::runtime_error("not implemented remove structure");
+  static inline bool remove(TType& node, const std::string& token) {
+    bool removed = false;
+    fatal::foreach<typename apache::thrift::reflect_struct<TType>::members>(
+        [&](auto indexed) {
+          using member = decltype(fatal::tag_type(indexed));
+          const std::string fieldNameStr =
+              fatal::to_instance<std::string, typename member::name>();
+          if (fieldNameStr != token) {
+            return;
+          }
+          if constexpr (
+              member::optional::value ==
+              apache::thrift::optionality::optional) {
+            if (member::is_set(node)) {
+              member::mark_set(node, false);
+              removed = true;
+            }
+          }
+          return;
+        });
+    return removed;
   }
 
   template <typename TType>
   static inline void
   modify(TType& node, const std::string& token, bool construct) {
-    throw std::runtime_error("not implemented modify structure");
+    if (!construct) {
+      return;
+    }
+    fatal::foreach<typename apache::thrift::reflect_struct<TType>::members>(
+        [&](auto indexed) {
+          using member = decltype(fatal::tag_type(indexed));
+          const std::string fieldNameStr =
+              fatal::to_instance<std::string, typename member::name>();
+          if (fieldNameStr != token) {
+            return;
+          }
+          if constexpr (
+              member::optional::value ==
+              apache::thrift::optionality::optional) {
+            if (!member::is_set(node)) {
+              member::mark_set(node, true);
+              return;
+            }
+          }
+          return;
+        });
   }
 };
 
@@ -422,7 +462,14 @@ struct WritableImpl<apache::thrift::type_class::list<ValueTypeClass>> {
   template <typename TType>
   static inline void
   modify(TType& node, const std::string& token, bool construct) {
-    throw std::runtime_error("not implemented modify list");
+    auto index = folly::tryTo<std::size_t>(token);
+    if (construct) {
+      if (index.hasValue()) {
+        while (node.size() <= index.value()) {
+          node.emplace_back();
+        }
+      }
+    }
   }
 };
 
@@ -444,7 +491,14 @@ struct WritableImpl<apache::thrift::type_class::set<ValueTypeClass>> {
   template <typename TType>
   static inline void
   modify(TType& node, const std::string& token, bool construct) {
-    throw std::runtime_error("not implemented modify set");
+    if (!construct) {
+      return;
+    }
+    if constexpr (std::is_same_v<typename TType::value_type, std::string>) {
+      node.insert(token);
+    } else if (auto key = folly::tryTo<typename TType::value_type>(token)) {
+      node.insert(key.value());
+    }
   }
 };
 

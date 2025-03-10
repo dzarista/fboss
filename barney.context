@@ -5,7 +5,7 @@
                "commit": "370d45e73577ff66e7db927a0abfb3f0bd12018f"
             },
             "code.arista.io/os/fboss-centos": {
-               "commit": "b7216685cd837743e04f92ca1c3cbc3bf8bfafd9"
+               "commit": "0b6fd54c9f3415b621e9d7e3620fe945db443564"
             },
             "code.arista.io/aqua-sai/in-eos": {
                "commit": "591636c667d7754293c80ae5f250287a420239b7"
@@ -14,7 +14,7 @@
                "commit": "07c2fa251086468fe356d340c1438694f9c2f750"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "0eedbc6a9a0c0026e6e9ce704d28039f339c62a6"
+               "commit": "3915f237a3bbb3fa6a7bdbd4625f85906e1cbd24"
             },
             "barney.ci/alpine": {
                "commit": "1f812eb95cb7652fb6449ea34135939cbde70f5a"

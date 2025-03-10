@@ -17084,6 +17084,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "PtpTests.enablePtpPortDown.*$"
         },
         {
@@ -17159,6 +17162,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "PtpTests.enablePtpPortDown.*$"
@@ -17238,6 +17244,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "PtpTests.enablePtpPortDown.*$"
         },
         {
@@ -17313,6 +17322,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "PtpTests.enablePtpPortDown.*$"
@@ -17392,6 +17404,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "PtpTests.enablePtpPortDown.*$"
         },
         {
@@ -17467,6 +17482,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "PtpTests.enablePtpPortDown.*$"
@@ -17546,6 +17564,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "PtpTests.enablePtpPortDown.*$"
         },
         {
@@ -17621,6 +17642,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "PtpTests.enablePtpPortDown.*$"
@@ -17700,6 +17724,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "PtpTests.enablePtpPortDown.*$"
         },
         {
@@ -17777,6 +17804,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -17849,6 +17879,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -17925,6 +17958,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -17997,6 +18033,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18073,6 +18112,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -18145,6 +18187,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18221,6 +18266,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -18293,6 +18341,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18369,6 +18420,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -18441,6 +18495,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18517,6 +18574,9 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -18589,6 +18649,9 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18666,6 +18729,12 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18748,6 +18817,12 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -18826,6 +18901,12 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18908,6 +18989,12 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -18986,6 +19073,12 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19068,6 +19161,12 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -19146,6 +19245,12 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19228,6 +19333,12 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -19306,6 +19417,12 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19388,6 +19505,12 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -19466,6 +19589,12 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
+        },
+        {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19548,6 +19677,12 @@
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
+          "test_name_regex": "LinkTest.ecmpShrink$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap$"
+        },
+        {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
         },
         {
@@ -19623,9 +19758,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -19711,9 +19843,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -19795,9 +19924,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -19883,9 +20009,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -19967,9 +20090,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -20055,9 +20175,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -20139,9 +20256,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -20227,9 +20341,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -20311,9 +20422,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -20399,9 +20507,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -20480,9 +20585,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -20565,9 +20667,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -20646,9 +20745,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -20731,9 +20827,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -20812,9 +20905,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -20897,9 +20987,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -20978,9 +21065,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -21063,9 +21147,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -21144,9 +21225,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
@@ -21229,9 +21307,6 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
         },
         {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
-        },
-        {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
@@ -21310,9 +21385,6 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_200G.*$"
-        },
-        {
-          "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*FR4_400G.*$"
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"

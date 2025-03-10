@@ -298,7 +298,23 @@
               "numberOfAdapters": 8
             }
           ],
-          "spiMasterConfigs": [],
+          "spiMasterConfigs": [
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SMB_SPI_MASTER0",
+                "deviceName": "spi_master",
+                "csrOffset": "0x7900"
+              },
+              "spiDeviceConfigs": [
+                {
+                  "pmUnitScopedName": "SMB_SPI_MASTER0_DEVICE1",
+                  "chipSelect": 0,
+                  "modalias": "spidev",
+                  "maxSpeedHz": 25000000
+                }
+              ]
+            }
+          ],
           "ledCtrlConfigs": [
             {
               "fpgaIpBlockConfig": {
@@ -2209,6 +2225,7 @@
     "/run/devmap/xcvrs/xcvr_62": "/SMB_SLOT@0/[OSFP_PORT62_XCVR]",
     "/run/devmap/xcvrs/xcvr_63": "/SMB_SLOT@0/[OSFP_PORT63_XCVR]",
     "/run/devmap/xcvrs/xcvr_64": "/SMB_SLOT@0/[OSFP_PORT64_XCVR]",
+    "/run/devmap/flashes/SMB_SPI_MASTER0_DEVICE1": "/SMB_SLOT@0/[SMB_SPI_MASTER0_DEVICE1]",
     "/run/devmap/xcvrs/xcvr_io_1": "/SMB_SLOT@0/[SMB_I2C_MASTER3@0]",
     "/run/devmap/xcvrs/xcvr_ctrl_1": "/SMB_SLOT@0/[OSFP_PORT1_XCVR]",
     "/run/devmap/xcvrs/xcvr_io_2": "/SMB_SLOT@0/[SMB_I2C_MASTER3@1]",

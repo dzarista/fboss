@@ -97,6 +97,17 @@ target_link_libraries(switchinfo_utils
   agent_config_cpp2
 )
 
+add_library(dsfnode_utils
+  fboss/agent/DsfNodeUtils.cpp
+)
+
+target_link_libraries(dsfnode_utils
+  agent_config_cpp2
+  fboss_error
+  load_agent_config
+  switch_config_cpp2
+)
+
 add_library(voq_utils
   fboss/agent/VoqUtils.cpp
 )
@@ -512,16 +523,6 @@ target_link_libraries(hwagent-main
   agent_hw_test_thrift_handler
   utils
   test_utils
-)
-
-add_library(restart_time_tracker
-  fboss/agent/RestartTimeTracker.cpp
-)
-
-target_link_libraries(restart_time_tracker
-  utils
-  fb303::fb303
-  Folly::folly
 )
 
 add_library(multiswitch_service

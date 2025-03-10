@@ -48,6 +48,7 @@ cpp_library(
         "AgentMirroringTests.cpp",
         "AgentMmuTuningTests.cpp",
         "AgentNeighborTests.cpp",
+        "AgentNetworkAIQosSchedulerTests.cpp",
         "AgentOlympicQosSchedulerTests.cpp",
         "AgentOlympicQosTests.cpp",
         "AgentOverflowTestBase.cpp",
@@ -138,6 +139,7 @@ cpp_library(
         "//fboss/agent/test/utils:dscp_marking_utils",
         "//fboss/agent/test/utils:dsf_config_utils",
         "//fboss/agent/test/utils:ecmp_dataplane_test_util",
+        "//fboss/agent/test/utils:ecmp_test_utils",
         "//fboss/agent/test/utils:fabric_test_utils",
         "//fboss/agent/test/utils:invariant_test_utils",
         "//fboss/agent/test/utils:l2learn_observer_util",
@@ -146,6 +148,7 @@ cpp_library(
         "//fboss/agent/test/utils:mac_test_utils",
         "//fboss/agent/test/utils:mirror_test_utils",
         "//fboss/agent/test/utils:multi_port_traffic_test_utils",
+        "//fboss/agent/test/utils:network_ai_qos_utils",
         "//fboss/agent/test/utils:olympic_qos_utils",
         "//fboss/agent/test/utils:packet_snooper",
         "//fboss/agent/test/utils:pfc_test_utils",
@@ -299,7 +302,7 @@ _sai_agent_scale_test_prefix = "sai_agent_scale_test"
         linker_flags = [
             "--export-dynamic",
             "--unresolved-symbols=ignore-all",
-        ] if sai_impl.name == "nv_sai_sdk" else [],
+        ] if sai_impl.name == "nv" else [],
         versions = {
             sai_impl.sdk_name: sai_impl.version,
         },

@@ -55,6 +55,7 @@
 #include "fboss/agent/hw/sai/switch/SaiTunnelManager.h"
 #include "fboss/agent/hw/sai/switch/SaiTxPacket.h"
 #include "fboss/agent/hw/sai/switch/SaiUdfManager.h"
+#include "fboss/agent/hw/sai/switch/SaiVendorSwitchManager.h"
 #include "fboss/agent/hw/sai/switch/SaiVlanManager.h"
 #include "fboss/agent/packet/EthHdr.h"
 #include "fboss/agent/packet/PktUtil.h"
@@ -234,14 +235,16 @@ void __gTamEventCallback(
 void _gPfcDeadlockNotificationCallback(
     uint32_t count,
     const sai_queue_deadlock_notification_data_t* data) {
-  auto portSaiId = SaiApiTable::getInstance()->queueApi().getAttribute(
-      static_cast<QueueSaiId>(data->queue_id),
-      SaiQueueTraits::Attributes::Port{});
-  auto queueId = SaiApiTable::getInstance()->queueApi().getAttribute(
-      static_cast<QueueSaiId>(data->queue_id),
-      SaiQueueTraits::Attributes::Index{});
   __gSaiIdToSwitch.begin()->second->pfcDeadlockNotificationCallback(
-      static_cast<PortSaiId>(portSaiId), queueId, data->event, count);
+      count, data);
+}
+
+void __gVendorSwitchEventNotificationCallback(
+    sai_size_t buffer_size,
+    const void* buffer,
+    uint32_t event_type) {
+  __gSaiIdToSwitch.begin()->second->vendorSwitchEventNotificationCallback(
+      buffer_size, buffer, event_type);
 }
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
@@ -357,11 +360,11 @@ void SaiSwitch::unregisterCallbacks() noexcept {
   if (runState_ >= SwitchRunState::CONFIGURED &&
       platform_->getAsic()->isSupported(
           HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY)) {
-    switchReachabilityChangeBottomHalfEventBase_
-        .runInFbossEventBaseThreadAndWait([this]() {
-          switchReachabilityChangeBottomHalfEventBase_.terminateLoopSoon();
+    switchReachabilityChangeProcessEventBase_.runInFbossEventBaseThreadAndWait(
+        [this]() {
+          switchReachabilityChangeProcessEventBase_.terminateLoopSoon();
         });
-    switchReachabilityChangeBottomHalfThread_->join();
+    switchReachabilityChangeProcessThread_->join();
     // switch reachability change processing is completely shut-off
   }
 
@@ -2426,12 +2429,7 @@ void SaiSwitch::switchReachabilityChangeTopHalf() {
     // Callback handling and rest of the flow is unsupported!
     return;
   }
-  auto changePending = switchReachabilityChangePending_.wlock();
-  if (*changePending < FLAGS_max_unprocessed_switch_reachability_changes) {
-    *changePending += 1;
-    switchReachabilityChangeBottomHalfEventBase_.runInFbossEventBaseThread(
-        [this]() mutable { switchReachabilityChangeBottomHalf(); });
-  }
+  setSwitchReachabilityChangePending();
 }
 
 std::set<PortID> SaiSwitch::getFabricReachabilityPortIds(
@@ -2460,16 +2458,51 @@ std::set<PortID> SaiSwitch::getFabricReachabilityPortIds(
   return portIds;
 }
 
-void SaiSwitch::switchReachabilityChangeBottomHalf() {
-  {
-    auto changePending = switchReachabilityChangePending_.wlock();
-    *changePending -= 1;
+void SaiSwitch::setSwitchReachabilityChangePending() {
+  // UpdateStats (runs every second):
+  //    - Acquires saiSwitchMutex_
+  //    - Later, acquires SaiApiLock.
+  //    - Queries stats, and releases both the locks.
+  //    - Repeats the above for every object type.
+  //
+  // When SwitchReachability changes:
+  //   - Acquires SaiApiLock
+  //   - Queries SDK for reachability change: one query for every remote Switch.
+  //
+  // When several links flap:
+  //   - SDK issues SwitchReachability callback often.
+  //   - Each callback processing triggers multiple calls to SDK under
+  //     SaiApiLock as outlined above.
+  //
+  // If SaiApiLock is acquired by SwitchReachability often:
+  //  - updateStats holds saiSwitchMutex_ and waits for SaiApiLock.
+  //  - Any state update (e.g. set PRBS) waits on saiSwitchMutex
+  //
+  // This wait can be considerable:
+  //  - Without link flaps: set PRBS calls takes about 20 milisecond
+  //  - With link flaps: set PRBS calls take > 10 seconds!
+  //
+  // Thus, don't process SwitchReachability in the BottomHalf. Instead:
+  //  - SwitchReachability TopHalf signals switchReachabilityChangePending.
+  //  - updateStats checks switchReachabilityChangePending in every run (every
+  //    second) and process reachability if requested.
+
+  auto changePending = switchReachabilityChangePending_.wlock();
+  if (*changePending < FLAGS_max_unprocessed_switch_reachability_changes) {
+    *changePending += 1;
   }
+}
+
+std::map<SwitchID, std::set<PortID>> SaiSwitch::getSwitchReachabilityChange() {
+  std::map<SwitchID, std::set<PortID>> reachabilityInfo{};
+
   auto& switchApi = SaiApiTable::getInstance()->switchApi();
 
+  // There is only one DSF Node map for the given SwitchID.
+  // Thus, the 'outer for loop' runs only once and reachabilityInfo values are
+  // never overwritten in below loops.
   for (const auto& [_, dsfNodes] :
        std::as_const(*getProgrammedState()->getDsfNodes())) {
-    std::map<SwitchID, std::set<PortID>> reachabilityInfo{};
     for (const auto& [switchId, node] : std::as_const(*dsfNodes)) {
       auto maxFabricPorts =
           getMaxNumberOfFabricPorts(*node->toThrift().asicType());
@@ -2486,10 +2519,15 @@ void SaiSwitch::switchReachabilityChangeBottomHalf() {
       reachabilityInfo[SwitchID(switchId)] =
           getFabricReachabilityPortIds(switchIdAndFabricPortSaiIds);
     }
-    callback_->switchReachabilityChanged(
-        SwitchID(platform_->getAsic()->getSwitchId().value()),
-        reachabilityInfo);
   }
+
+  return reachabilityInfo;
+}
+
+void SaiSwitch::processSwitchReachabilityChange(
+    const std::map<SwitchID, std::set<PortID>>& reachabilityInfo) {
+  callback_->switchReachabilityChanged(
+      SwitchID(platform_->getAsic()->getSwitchId().value()), reachabilityInfo);
 }
 
 BootType SaiSwitch::getBootType() const {
@@ -2855,8 +2893,7 @@ void SaiSwitch::syncSwitchReachability() {
   if (platform_->getAsic()->isSupported(
           HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY)) {
     std::lock_guard<std::mutex> lock(saiSwitchMutex_);
-    switchReachabilityChangeBottomHalfEventBase_.runInFbossEventBaseThread(
-        [=, this]() { switchReachabilityChangeBottomHalf(); });
+    setSwitchReachabilityChangePending();
   }
 }
 
@@ -2893,23 +2930,18 @@ void SaiSwitch::initTxReadyStatusChangeLocked(
 
 void SaiSwitch::initSwitchReachabilityChangeLocked(
     const std::lock_guard<std::mutex>& /* lock */) {
-  switchReachabilityChangeBottomHalfThread_ =
+  switchReachabilityChangeProcessThread_ =
       std::make_unique<std::thread>([this]() {
         initThread("fbossSaiSwitchReachabilityChangeBH");
-        switchReachabilityChangeBottomHalfEventBase_.loopForever();
+        switchReachabilityChangeProcessEventBase_.loopForever();
       });
-  switchReachabilityChangeBottomHalfEventBase_.runInFbossEventBaseThread(
-      [=, this]() {
-        /*
-         * Query the initial state after registering the callbacks to avoid a
-         * potentially missed callback and update.
-         *
-         * Moreover, query/process in the same context that registers/processes
-         * callback to guarantee that we don't miss any callbacks and those are
-         * always ordered.
-         */
-        switchReachabilityChangeBottomHalf();
-      });
+
+  /*
+   * Query the initial state after registering the callbacks to avoid a
+   * potentially missed callback and update.
+   * More details in comments in setSwitchReachabilityChangePending.
+   */
+  setSwitchReachabilityChangePending();
 }
 
 bool SaiSwitch::isMissingSrcPortAllowed(HostifTrapSaiId hostifTrapSaiId) {
@@ -3270,6 +3302,12 @@ void SaiSwitch::unregisterCallbacksLocked(
     }
   }
 #endif
+#if defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::VENDOR_SWITCH_NOTIFICATION)) {
+    switchApi.unregisterVendorSwitchEventNotifyCallback(saiSwitchId_);
+  }
+#endif
 }
 
 bool SaiSwitch::isValidStateUpdateLocked(
@@ -3586,6 +3624,16 @@ void SaiSwitch::switchRunStateChangedImplLocked(
               HwAsic::Feature::SWITCH_REACHABILITY_CHANGE_NOTIFY)) {
         initSwitchReachabilityChangeLocked(lock);
       }
+#if defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+      if (platform_->getAsic()->isSupported(
+              HwAsic::Feature::VENDOR_SWITCH_NOTIFICATION)) {
+        auto& switchApi = SaiApiTable::getInstance()->switchApi();
+        switchApi.registerVendorSwitchEventNotifyCallback(
+            saiSwitchId_, __gVendorSwitchEventNotificationCallback);
+        // Init the vendor switch events now that callback is registered
+        managerTable_->vendorSwitchManager().initVendorSwitchEvents();
+      }
+#endif
     } break;
     default:
       break;
@@ -4286,31 +4334,58 @@ void SaiSwitch::processFlowletSwitchingConfigDelta(
 }
 
 void SaiSwitch::pfcDeadlockNotificationCallback(
-    PortSaiId portSaiId,
-    uint8_t queueId,
-    sai_queue_pfc_deadlock_event_type_t deadlockEvent,
-    uint32_t /* count */) {
-  const auto portItr = concurrentIndices_->portSaiId2PortInfo.find(portSaiId);
-  if (portItr == concurrentIndices_->portSaiId2PortInfo.cend()) {
-    XLOG(ERR) << "Unable to map Sai Port ID " << portSaiId
-              << " in PFC deadlock notification processing to a valid port!";
-    return;
+    uint32_t count,
+    const sai_queue_deadlock_notification_data_t* data) {
+  // The handling for PFC deadlock notification is pretty simple and
+  // should just increment a counter at port level for PFC deadlock
+  // detection or recovery. No further actions are expected and do not
+  // expect a callback into SDK. If more processing is needed, we'll
+  // need to switch to a tophalf/bottom half model, avoiding it for now.
+  for (int idx = 0; idx < count; ++idx) {
+    auto queueSaiId = static_cast<QueueSaiId>(data[idx].queue_id);
+    auto queueInfo =
+        managerTable_->queueManager().getQueueIndexAndPortSaiId(queueSaiId);
+    if (!queueInfo.has_value()) {
+      XLOG(ERR) << "PFC deadlock notification callback failure getting queue "
+                   "ID/port SAI ID, port deadlock counter not incremented!";
+      continue;
+    }
+    auto [qId, portSaiId] = *queueInfo;
+
+    auto deadlockEvent = data[idx].event;
+    const auto portItr = concurrentIndices_->portSaiId2PortInfo.find(portSaiId);
+    if (portItr == concurrentIndices_->portSaiId2PortInfo.cend()) {
+      XLOG(ERR) << "Unable to map Sai Port ID " << portSaiId << "in PFC"
+                << " deadlock notification processing to a valid port!";
+      continue;
+    }
+    PortID portId = portItr->second.portID;
+    XLOG_EVERY_MS(WARNING, 5000)
+        << "PFC deadlock notification callback invoked for qid: " << qId
+        << ", on port: " << portId << ", with event: " << deadlockEvent;
+    switch (deadlockEvent) {
+      case SAI_QUEUE_PFC_DEADLOCK_EVENT_TYPE_DETECTED:
+        callback_->pfcWatchdogStateChanged(portId, true);
+        break;
+      case SAI_QUEUE_PFC_DEADLOCK_EVENT_TYPE_RECOVERED:
+        callback_->pfcWatchdogStateChanged(portId, false);
+        break;
+      default:
+        XLOG(ERR) << "Unknown event " << deadlockEvent
+                  << " in PFC deadlock notify callback";
+    }
   }
-  PortID portId = portItr->second.portID;
-  XLOG_EVERY_MS(WARNING, 5000)
-      << "PFC deadlock notification callback invoked for qid: " << queueId
-      << ", on port: " << portId << ", with event: " << deadlockEvent;
-  switch (deadlockEvent) {
-    case SAI_QUEUE_PFC_DEADLOCK_EVENT_TYPE_DETECTED:
-      callback_->pfcWatchdogStateChanged(portId, true);
-      break;
-    case SAI_QUEUE_PFC_DEADLOCK_EVENT_TYPE_RECOVERED:
-      callback_->pfcWatchdogStateChanged(portId, false);
-      break;
-    default:
-      XLOG(ERR) << "Unknown event " << deadlockEvent
-                << " in PFC deadlock notify callback";
-  }
+}
+
+void SaiSwitch::vendorSwitchEventNotificationCallback(
+    sai_size_t bufferSize,
+    const void* buffer,
+    uint32_t eventType) {
+  // The vendor switch event callback should at most increment a counter
+  // and log the event, no additional processing expected. Hence not
+  // splitting the callback to bottom / top half processing.
+  managerTable_->vendorSwitchManager().vendorSwitchEventNotificationCallback(
+      bufferSize, buffer, eventType);
 }
 
 TeFlowStats SaiSwitch::getTeFlowStats() const {

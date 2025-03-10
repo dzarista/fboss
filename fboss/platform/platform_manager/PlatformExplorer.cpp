@@ -138,13 +138,14 @@ namespace constants = platform_manager_config_constants;
 
 PlatformExplorer::PlatformExplorer(
     const PlatformConfig& config,
-    const std::shared_ptr<PlatformFsUtils> platformFsUtils)
+    std::shared_ptr<PlatformFsUtils> platformFsUtils)
     : explorationSummary_(platformConfig_, dataStore_),
       platformConfig_(config),
+      pciExplorer_(platformFsUtils),
       dataStore_(platformConfig_),
       devicePathResolver_(dataStore_),
       presenceChecker_(devicePathResolver_),
-      platformFsUtils_(platformFsUtils) {
+      platformFsUtils_(std::move(platformFsUtils)) {
   updatePmStatus(createPmStatus(ExplorationStatus::UNSTARTED));
 }
 
@@ -477,12 +478,13 @@ void PlatformExplorer::explorePciDevices(
     const std::string& slotPath,
     const std::vector<PciDeviceConfig>& pciDeviceConfigs) {
   for (const auto& pciDeviceConfig : pciDeviceConfigs) {
-    auto pciDevice = PciDevice(pciDeviceConfig);
+    auto pciDevice = PciDevice(pciDeviceConfig, platformFsUtils_);
     auto instId =
         getFpgaInstanceId(slotPath, *pciDeviceConfig.pmUnitScopedName());
     createPciSubDevices(
         slotPath,
         *pciDeviceConfig.i2cAdapterConfigs(),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_I2C_ADAPTER,
         [&](const auto& i2cAdapterConfig) {
           auto busNums = pciExplorer_.createI2cAdapter(
               pciDevice, i2cAdapterConfig, instId++);
@@ -508,6 +510,7 @@ void PlatformExplorer::explorePciDevices(
     createPciSubDevices(
         slotPath,
         *pciDeviceConfig.spiMasterConfigs(),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_SPI_MASTER,
         [&](const auto& spiMasterConfig) {
           auto spiCharDevPaths = pciExplorer_.createSpiMaster(
               pciDevice, spiMasterConfig, instId++);
@@ -521,6 +524,7 @@ void PlatformExplorer::explorePciDevices(
     createPciSubDevices(
         slotPath,
         *pciDeviceConfig.gpioChipConfigs(),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_GPIO_CHIP,
         [&](const auto& gpioChipConfig) {
           auto gpioCharDevPath =
               pciExplorer_.createGpioChip(pciDevice, gpioChipConfig, instId++);
@@ -532,6 +536,7 @@ void PlatformExplorer::explorePciDevices(
     createPciSubDevices(
         slotPath,
         *pciDeviceConfig.watchdogConfigs(),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_WATCH_DOG,
         [&](const auto& watchdogConfig) {
           auto watchdogCharDevPath =
               pciExplorer_.createWatchdog(pciDevice, watchdogConfig, instId++);
@@ -543,6 +548,7 @@ void PlatformExplorer::explorePciDevices(
     createPciSubDevices(
         slotPath,
         *pciDeviceConfig.fanTachoPwmConfigs(),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_FAN_CTRL,
         [&](const auto& fanPwmCtrlConfig) {
           auto fanCtrlSysfsPath = pciExplorer_.createFanPwmCtrl(
               pciDevice, fanPwmCtrlConfig, instId++);
@@ -555,12 +561,14 @@ void PlatformExplorer::explorePciDevices(
     createPciSubDevices(
         slotPath,
         *pciDeviceConfig.ledCtrlConfigs(),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_LED_CTRL,
         [&](const auto& ledCtrlConfig) {
           pciExplorer_.createLedCtrl(pciDevice, ledCtrlConfig, instId++);
         });
     createPciSubDevices(
         slotPath,
         *pciDeviceConfig.xcvrCtrlConfigs(),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_XCVR_CTRL,
         [&](const auto& xcvrCtrlConfig) {
           auto devicePath = Utils().createDevicePath(
               slotPath,
@@ -572,6 +580,7 @@ void PlatformExplorer::explorePciDevices(
     createPciSubDevices(
         slotPath,
         *pciDeviceConfig.infoRomConfigs(),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_INFO_ROM,
         [&](const auto& infoRomConfig) {
           auto infoRomSysfsPath =
               pciExplorer_.createInfoRom(pciDevice, infoRomConfig, instId++);
@@ -583,6 +592,7 @@ void PlatformExplorer::explorePciDevices(
     createPciSubDevices(
         slotPath,
         *pciDeviceConfig.miscCtrlConfigs(),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_MISC_CTRL,
         [&](const auto& miscCtrlConfig) {
           pciExplorer_.createFpgaIpBlock(pciDevice, miscCtrlConfig, instId++);
         });
@@ -630,7 +640,9 @@ void PlatformExplorer::createDeviceSymLink(
       } else {
         targetPath = devicePathResolver_.resolvePciDevicePath(devicePath);
       }
-    } else if (linkParentPath.string() == "/run/devmap/fpgas") {
+    } else if (
+        linkParentPath.string() == "/run/devmap/fpgas" ||
+        linkParentPath.string() == "/run/devmap/inforoms") {
       targetPath = devicePathResolver_.resolvePciDevicePath(devicePath);
     } else if (linkParentPath.string() == "/run/devmap/i2c-busses") {
       targetPath = devicePathResolver_.resolveI2cBusPath(devicePath);
@@ -683,9 +695,8 @@ void PlatformExplorer::createDeviceSymLink(
 void PlatformExplorer::publishFirmwareVersions() {
   for (const auto& [linkPath, _] :
        *platformConfig_.symbolicLinkToDevicePath()) {
-    // TODO: Replace fpgas with inforoms when updating configs.
     if (!linkPath.starts_with("/run/devmap/cplds") &&
-        !linkPath.starts_with("/run/devmap/fpgas")) {
+        !linkPath.starts_with("/run/devmap/inforoms")) {
       continue;
     }
     std::vector<folly::StringPiece> linkPathParts;
@@ -737,8 +748,12 @@ PmUnitInfo PlatformExplorer::getPmUnitInfo(const std::string& slotPath) const {
 }
 
 void PlatformExplorer::updatePmStatus(const PlatformManagerStatus& newStatus) {
-  platformManagerStatus_.withWLock(
-      [&](PlatformManagerStatus& status) { status = newStatus; });
+  platformManagerStatus_.withWLock([&](PlatformManagerStatus& status) {
+    status = newStatus;
+    if (status.explorationStatus() == ExplorationStatus::FAILED) {
+      status.failedDevices() = explorationSummary_.getFailedDevices();
+    }
+  });
 }
 
 void PlatformExplorer::setupI2cDevice(
@@ -777,6 +792,7 @@ template <typename T>
 void PlatformExplorer::createPciSubDevices(
     const std::string& slotPath,
     const std::vector<T>& pciSubDeviceConfigs,
+    ExplorationErrorType errorType,
     auto&& deviceCreationLambda) {
   for (const auto& pciSubDeviceConfig : pciSubDeviceConfigs) {
     try {
@@ -789,10 +805,7 @@ void PlatformExplorer::createPciSubDevices(
           ex.what());
       XLOG(ERR) << errMsg;
       explorationSummary_.addError(
-          ExplorationErrorType::PCI_DEVICE_EXPLORE,
-          slotPath,
-          ex.getPmUnitScopedName(),
-          errMsg);
+          errorType, slotPath, ex.getPmUnitScopedName(), errMsg);
     }
   }
 }

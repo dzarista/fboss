@@ -32,7 +32,8 @@ ssize_t fpga_fw_ver_show(struct device *dev,
 	int ret;
 	u32 val;
 	struct regmap *regmap;
-	u8 major_rev, minor_rev;
+	u16 major_rev;
+	u8 minor_rev;
 	u32 ver_mask, subver_mask;
 
 	regmap = dev_get_regmap(dev, NULL);
@@ -47,7 +48,7 @@ ssize_t fpga_fw_ver_show(struct device *dev,
 	subver_mask = GENMASK(FPGA_SUB_VER_BITLEN - 1, 0);
 
 
-	major_rev = (u8)((val >> FPGA_VER_OFFSET) & ver_mask);
+	major_rev = (u16)((val >> FPGA_VER_OFFSET) & ver_mask);
 	minor_rev = (u8)((val >> FPGA_SUB_VER_OFFSET) &
 			    subver_mask);
 	return sprintf(buf, "%u.%u\n", major_rev, minor_rev);

@@ -698,6 +698,14 @@ void SaiSwitch::switchEventCallback(
       break;
     }
 #endif
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_7)
+    case SAI_SWITCH_EVENT_TYPE_RX_FIFO_STUCK_DETECTED: {
+      XLOG(ERR) << "RX FIFO stuck seen on link: " << eventInfo->index
+                << ", pipe: " << eventInfo->index2;
+      getSwitchStats()->rxFifoStuckDetected();
+      break;
+    }
+#endif
   }
 }
 

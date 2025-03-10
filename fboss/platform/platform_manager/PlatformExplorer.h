@@ -35,7 +35,7 @@ class PlatformExplorer {
 
   explicit PlatformExplorer(
       const PlatformConfig& config,
-      const std::shared_ptr<PlatformFsUtils> platformFsUtils =
+      std::shared_ptr<PlatformFsUtils> platformFsUtils =
           std::make_shared<PlatformFsUtils>());
 
   virtual ~PlatformExplorer() = default;
@@ -114,11 +114,12 @@ class PlatformExplorer {
   void createPciSubDevices(
       const std::string& slotPath,
       const std::vector<T>& pciSubDeviceConfigs,
+      ExplorationErrorType errorType,
       auto&& deviceCreationLambda);
 
   PlatformConfig platformConfig_{};
   I2cExplorer i2cExplorer_{};
-  PciExplorer pciExplorer_{};
+  PciExplorer pciExplorer_;
   CachedFbossEepromParser eepromParser_{};
   DataStore dataStore_;
   DevicePathResolver devicePathResolver_;

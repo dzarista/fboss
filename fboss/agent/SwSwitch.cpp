@@ -59,7 +59,6 @@
 #include "fboss/agent/RemoteNeighborUpdater.h"
 #include "fboss/agent/ResolvedNexthopMonitor.h"
 #include "fboss/agent/ResolvedNexthopProbeScheduler.h"
-#include "fboss/agent/RestartTimeTracker.h"
 #include "fboss/agent/RouteUpdateLogger.h"
 #include "fboss/agent/RxPacket.h"
 #include "fboss/agent/StaticL2ForNeighborObserver.h"
@@ -90,6 +89,7 @@
 #include "fboss/lib/config/PlatformConfigUtils.h"
 #include "fboss/lib/phy/gen-cpp2/phy_types.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
+#include "fboss/lib/restart_tracker/RestartTimeTracker.h"
 #include "fboss/util/Logging.h"
 
 #include <fb303/ServiceData.h>
@@ -1950,10 +1950,22 @@ PortDescriptor SwSwitch::getPortFromPkt(const RxPacket* pkt) const {
 }
 
 void SwSwitch::handlePacket(std::unique_ptr<RxPacket> pkt) {
+  auto port = getPortFromPkt(pkt.get());
+
+  // Handle packets for CPU port separately
+  if (port.type() == PortDescriptor::PortType::PHYSICAL &&
+      port.phyPortID() == PortID(0)) {
+    XLOG(DBG2) << "Dropping packet received from CPU port (" << port.str()
+               << ").";
+    portStats(port.phyPortID())->pktDropped();
+    return;
+  }
+
   if (FLAGS_intf_nbr_tables) {
-    auto intf = getState()->getInterfaces()->getNodeIf(
-        getState()->getInterfaceIDForPort(getPortFromPkt(pkt.get())));
-    handlePacketImpl(std::move(pkt), intf);
+    handlePacketImpl(
+        std::move(pkt),
+        getState()->getInterfaces()->getNodeIf(
+            getState()->getInterfaceIDForPort(port)));
   } else {
     auto vlan =
         getState()->getVlans()->getNodeIf(getVlanIDHelper(pkt->getSrcVlanIf()));
@@ -3550,6 +3562,7 @@ FabricReachabilityStats SwSwitch::getFabricReachabilityStats() {
     *reachStats.virtualDevicesWithAsymmetricConnectivity() +=
         *stats.fabricReachabilityStats()
              ->virtualDevicesWithAsymmetricConnectivity();
+    *reachStats.bogusCount() += *stats.fabricReachabilityStats()->bogusCount();
   }
   return reachStats;
 }

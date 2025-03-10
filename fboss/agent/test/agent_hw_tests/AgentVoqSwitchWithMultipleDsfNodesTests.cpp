@@ -9,6 +9,7 @@
 #include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/DsfConfigUtils.h"
 #include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
+#include "fboss/agent/test/utils/NetworkAITestUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/agent/test/utils/PortTestUtils.h"
 #include "fboss/agent/test/utils/VoqTestUtils.h"
@@ -564,7 +565,7 @@ TEST_F(AgentVoqSwitchWithMultipleDsfNodesTest, verifyDscpToVoqMapping) {
   };
 
   auto verify = [=, this]() {
-    for (const auto& q2dscps : utility::kNetworkAIV2QueueToDscp()) {
+    for (const auto& q2dscps : utility::kNetworkAIQueueToDscp()) {
       auto queueId = q2dscps.first;
       for (auto dscp : q2dscps.second) {
         XLOG(DBG2) << "verify packet with dscp " << static_cast<int>(dscp)

@@ -15,7 +15,9 @@ from ..BaseConfigs import (
    SensorConfig,
    SensorType,
    Thresholds,
-   InitRegSettings
+   InitRegSettings,
+   SpiMasterConfig,
+   Flash
 )
 
 
@@ -248,6 +250,17 @@ class QuicksilverPFbSMB( SMBUnit ):
       smbFpga = self.pciDeviceConfigs[ 0 ]
       smbFpga.addInfoRomConfigs( "0x100" )
       smbFpga.addI2cAdapterConfigs( 11, "SMB_I2C_MASTER{}", "0x8080" )
+      smbFpga.addSpiMasterConfigs( [
+         SpiMasterConfig( "SMB_SPI_MASTER0", "spi_master", -1,
+                           "0x7900",
+                           spiDeviceConfigs=[ Flash(
+                              pmUnitScopedName="SMB_SPI_MASTER0_DEVICE1",
+                              chipSelect=0,
+                              modalias="spidev",
+                              maxSpeedHz=25000000
+                           ) ]
+                        )
+      ] )
 
       smbFpga.addXcvrCtrlConfigs( numConfigs=64, basePortNumber=1, ledsPerXcvr=2,
                                   smbusAccelStart=3, smbusName="SMB_I2C_MASTER",

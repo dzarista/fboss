@@ -173,12 +173,15 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
           getCounterPrefix() + "rqp_parity_error_drops",
           SUM,
           RATE),
-      fabricReachabilityMissingCount_(
+      fabricConnectivityMissingCount_(
           map,
-          getCounterPrefix() + "fabric_reachability_missing"),
-      fabricReachabilityMismatchCount_(
+          getCounterPrefix() + "fabric_connectivity_missing"),
+      fabricConnectivityMismatchCount_(
           map,
-          getCounterPrefix() + "fabric_reachability_mismatch"),
+          getCounterPrefix() + "fabric_connectivity_mismatch"),
+      fabricConnectivityBogusCount_(
+          map,
+          getCounterPrefix() + "fabric_connectivity_bogus"),
       virtualDevicesWithAsymmetricConnectivity_(
           map,
           getCounterPrefix() + "virtual_devices_with_asymmetric_connectivity"),
@@ -224,6 +227,11 @@ HwSwitchFb303Stats::HwSwitchFb303Stats(
       isolationFirmwareCrashes_(
           map,
           getCounterPrefix() + vendor + ".isolationFirmwareCrash",
+          SUM,
+          RATE),
+      rxFifoStuckDetected_(
+          map,
+          getCounterPrefix() + vendor + ".rxFifoStuckDetected.errors",
           SUM,
           RATE),
       hwInitializedTimeMs_(
@@ -424,6 +432,10 @@ int64_t HwSwitchFb303Stats::getIsolationFirmwareCrashes() const {
   return getCumulativeValue(isolationFirmwareCrashes_);
 }
 
+int64_t HwSwitchFb303Stats::getRxFifoStuckDetected() const {
+  return getCumulativeValue(rxFifoStuckDetected_);
+}
+
 int64_t HwSwitchFb303Stats::getPacketIntegrityDrops() const {
   return currentDropStats_.packetIntegrityDrops().value_or(0);
 }
@@ -485,25 +497,31 @@ HwAsicErrors HwSwitchFb303Stats::getHwAsicErrors() const {
   asicErrors.allReassemblyContextsTaken() =
       getAllReassemblyContextsTakenError();
   asicErrors.isolationFirmwareCrashes() = getIsolationFirmwareCrashes();
+  asicErrors.rxFifoStuckDetected() = getRxFifoStuckDetected();
   return asicErrors;
 }
 
 FabricReachabilityStats HwSwitchFb303Stats::getFabricReachabilityStats() {
   FabricReachabilityStats stats;
-  stats.mismatchCount() = getFabricReachabilityMismatchCount();
-  stats.missingCount() = getFabricReachabilityMissingCount();
+  stats.mismatchCount() = getFabricConnectivityMismatchCount();
+  stats.missingCount() = getFabricConnectivityMissingCount();
   stats.virtualDevicesWithAsymmetricConnectivity() =
       getVirtualDevicesWithAsymmetricConnectivityCount();
   stats.switchReachabilityChangeCount() = getSwitchReachabilityChangeCount();
+  stats.bogusCount() = getFabricConnectivityBogusCount();
   return stats;
 }
 
-void HwSwitchFb303Stats::fabricReachabilityMissingCount(int64_t value) {
-  fb303::fbData->setCounter(fabricReachabilityMissingCount_.name(), value);
+void HwSwitchFb303Stats::fabricConnectivityMissingCount(int64_t value) {
+  fb303::fbData->setCounter(fabricConnectivityMissingCount_.name(), value);
 }
 
-void HwSwitchFb303Stats::fabricReachabilityMismatchCount(int64_t value) {
-  fb303::fbData->setCounter(fabricReachabilityMismatchCount_.name(), value);
+void HwSwitchFb303Stats::fabricConnectivityMismatchCount(int64_t value) {
+  fb303::fbData->setCounter(fabricConnectivityMismatchCount_.name(), value);
+}
+
+void HwSwitchFb303Stats::fabricConnectivityBogusCount(int64_t value) {
+  fb303::fbData->setCounter(fabricConnectivityBogusCount_.name(), value);
 }
 
 void HwSwitchFb303Stats::virtualDevicesWithAsymmetricConnectivity(
@@ -527,15 +545,21 @@ void HwSwitchFb303Stats::leabaSdkVer(int64_t ver) {
   fb303::fbData->setCounter(leabaSdkVer_.name(), ver);
 }
 
-int64_t HwSwitchFb303Stats::getFabricReachabilityMismatchCount() const {
+int64_t HwSwitchFb303Stats::getFabricConnectivityMismatchCount() const {
   auto counterVal = fb303::fbData->getCounterIfExists(
-      fabricReachabilityMismatchCount_.name());
+      fabricConnectivityMismatchCount_.name());
   return counterVal ? *counterVal : 0;
 }
 
-int64_t HwSwitchFb303Stats::getFabricReachabilityMissingCount() const {
+int64_t HwSwitchFb303Stats::getFabricConnectivityMissingCount() const {
   auto counterVal =
-      fb303::fbData->getCounterIfExists(fabricReachabilityMissingCount_.name());
+      fb303::fbData->getCounterIfExists(fabricConnectivityMissingCount_.name());
+  return counterVal ? *counterVal : 0;
+}
+
+int64_t HwSwitchFb303Stats::getFabricConnectivityBogusCount() const {
+  auto counterVal =
+      fb303::fbData->getCounterIfExists(fabricConnectivityBogusCount_.name());
   return counterVal ? *counterVal : 0;
 }
 
@@ -569,9 +593,10 @@ HwSwitchFb303GlobalStats HwSwitchFb303Stats::getAllFb303Stats() const {
   hwFb303Stats.dram_blocked_time_ns() =
       getCumulativeValue(dramBlockedTimeNsec_);
   hwFb303Stats.fabric_reachability_missing() =
-      getFabricReachabilityMismatchCount();
+      getFabricConnectivityMismatchCount();
   hwFb303Stats.fabric_reachability_mismatch() =
-      getFabricReachabilityMissingCount();
+      getFabricConnectivityMissingCount();
+  hwFb303Stats.fabric_connectivity_bogus() = getFabricConnectivityBogusCount();
   hwFb303Stats.virtual_devices_with_asymmetric_connectivity() =
       getVirtualDevicesWithAsymmetricConnectivityCount();
   hwFb303Stats.switch_reachability_change() =
@@ -623,11 +648,14 @@ void HwSwitchFb303Stats::updateStats(HwSwitchFb303GlobalStats& globalStats) {
       switchReachabilityChangeCount_,
       *globalStats.switch_reachability_change());
   fb303::fbData->setCounter(
-      fabricReachabilityMissingCount_.name(),
+      fabricConnectivityMissingCount_.name(),
       *globalStats.fabric_reachability_missing());
   fb303::fbData->setCounter(
-      fabricReachabilityMismatchCount_.name(),
+      fabricConnectivityMismatchCount_.name(),
       *globalStats.fabric_reachability_mismatch());
+  fb303::fbData->setCounter(
+      fabricConnectivityBogusCount_.name(),
+      *globalStats.fabric_connectivity_bogus());
 }
 
 } // namespace facebook::fboss

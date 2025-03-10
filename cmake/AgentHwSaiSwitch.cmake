@@ -57,6 +57,7 @@ if (SAI_TAJO_IMPL)
     fboss/agent/hw/sai/switch/npu/tajo/SaiAclTableManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiSwitchManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiQueueManager.cpp
+    fboss/agent/hw/sai/switch/oss/SaiVendorSwitchManager.cpp
   )
 elseif (SAI_BRCM_IMPL)
   list(APPEND SAI_SWITCH_SRC
@@ -67,7 +68,9 @@ elseif (SAI_BRCM_IMPL)
     fboss/agent/hw/sai/switch/npu/bcm/SaiSwitchManager.cpp
     fboss/agent/hw/sai/switch/npu/bcm/oss/SaiSwitchManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiAclTableManager.cpp
+    fboss/agent/hw/sai/switch/oss/SaiVendorSwitchManager.cpp
     fboss/agent/hw/sai/api/bcm/DebugCounterApi.cpp
+
   )
 elseif (CHENAB_SAI_SDK)
 # Chenab-TODO: Use non-default files here
@@ -78,6 +81,7 @@ elseif (CHENAB_SAI_SDK)
     fboss/agent/hw/sai/switch/oss/SaiAclTableManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiSwitchManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiQueueManager.cpp
+    fboss/agent/hw/sai/switch/oss/SaiVendorSwitchManager.cpp
   )
 else()
   list(APPEND SAI_SWITCH_SRC
@@ -87,6 +91,7 @@ else()
     fboss/agent/hw/sai/switch/oss/SaiAclTableManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiSwitchManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiQueueManager.cpp
+    fboss/agent/hw/sai/switch/oss/SaiVendorSwitchManager.cpp
   )
 endif()
 

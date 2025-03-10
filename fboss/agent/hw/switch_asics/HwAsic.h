@@ -203,6 +203,8 @@ class HwAsic {
     CPU_QUEUE_WATERMARK_STATS,
     SAMPLE_RATE_CONFIG_PER_MIRROR,
     SFLOW_SAMPLES_PACKING,
+    VENDOR_SWITCH_NOTIFICATION,
+    SDK_REGISTER_DUMP,
   };
 
   enum class AsicMode {
@@ -450,6 +452,11 @@ class HwAsic {
 
   virtual uint16_t getGreProtocol() const {
     return 0x88be;
+  }
+
+  // Applicable only when IP_IN_IP_DECAP feature is enabled.
+  virtual cfg::IpTunnelMode getTunnelDscpMode() const {
+    return cfg::IpTunnelMode::PIPE;
   }
 
  protected:

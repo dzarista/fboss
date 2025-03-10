@@ -15,6 +15,7 @@
 #include "fboss/agent/test/utils/DsfConfigUtils.h"
 #include "fboss/agent/test/utils/FabricTestUtils.h"
 #include "fboss/agent/test/utils/LoadBalancerTestUtils.h"
+#include "fboss/agent/test/utils/NetworkAITestUtils.h"
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/agent/test/utils/PacketSnooper.h"
 #include "fboss/agent/test/utils/PortTestUtils.h"
@@ -24,6 +25,10 @@
 
 DECLARE_bool(disable_looped_fabric_ports);
 DECLARE_bool(enable_stats_update_thread);
+
+namespace {
+constexpr auto kDefaultEgressQueue = 0;
+} // namespace
 
 using namespace facebook::fb303;
 namespace facebook::fboss {
@@ -403,10 +408,8 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
 
       if (isSupportedOnAllAsics(HwAsic::Feature::L3_QOS)) {
         auto beforeAllQueueOut = getAllQueueOutPktsBytes();
-        beforeQueueOutPkts =
-            beforeAllQueueOut.first.at(utility::getDefaultQueue());
-        beforeQueueOutBytes =
-            beforeAllQueueOut.second.at(utility::getDefaultQueue());
+        beforeQueueOutPkts = beforeAllQueueOut.first.at(kDefaultEgressQueue);
+        beforeQueueOutBytes = beforeAllQueueOut.second.at(kDefaultEgressQueue);
         printQueueStats("Before Queue Out", "Packets", beforeAllQueueOut.first);
         printQueueStats("Before Queue Out", "Bytes", beforeAllQueueOut.second);
         auto beforeAllVoQOutBytes = getAllVoQOutBytes();
@@ -438,9 +441,9 @@ TEST_F(AgentVoqSwitchTest, sendPacketCpuAndFrontPanel) {
             if (isSupportedOnAllAsics(HwAsic::Feature::L3_QOS)) {
               auto afterAllQueueOut = getAllQueueOutPktsBytes();
               afterQueueOutPkts =
-                  afterAllQueueOut.first.at(utility::getDefaultQueue());
+                  afterAllQueueOut.first.at(kDefaultEgressQueue);
               afterQueueOutBytes =
-                  afterAllQueueOut.second.at(utility::getDefaultQueue());
+                  afterAllQueueOut.second.at(kDefaultEgressQueue);
               auto afterAllVoQOutBytes = getAllVoQOutBytes();
               afterVoQOutBytes =
                   afterAllVoQOutBytes.at(utility::getDefaultQueue());

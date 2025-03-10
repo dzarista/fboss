@@ -116,8 +116,12 @@ class HwSwitchFb303Stats {
   void isolationFirmwareCrash() {
     isolationFirmwareCrashes_.addValue(1);
   }
-  void fabricReachabilityMissingCount(int64_t value);
-  void fabricReachabilityMismatchCount(int64_t value);
+  void rxFifoStuckDetected() {
+    rxFifoStuckDetected_.addValue(1);
+  }
+  void fabricConnectivityMissingCount(int64_t value);
+  void fabricConnectivityMismatchCount(int64_t value);
+  void fabricConnectivityBogusCount(int64_t value);
   void virtualDevicesWithAsymmetricConnectivity(int64_t value);
   void portGroupSkew(int64_t value);
 
@@ -156,8 +160,9 @@ class HwSwitchFb303Stats {
   int64_t getAsicErrorCount() const {
     return asicErrors_.count();
   }
-  int64_t getFabricReachabilityMismatchCount() const;
-  int64_t getFabricReachabilityMissingCount() const;
+  int64_t getFabricConnectivityMismatchCount() const;
+  int64_t getFabricConnectivityMissingCount() const;
+  int64_t getFabricConnectivityBogusCount() const;
   int64_t getVirtualDevicesWithAsymmetricConnectivityCount() const;
   int64_t getPortGroupSkewCount() const;
   int64_t getSwitchReachabilityChangeCount() const;
@@ -182,6 +187,7 @@ class HwSwitchFb303Stats {
   int64_t getAllReassemblyContextsTakenError() const;
   // FW Errors
   int64_t getIsolationFirmwareCrashes() const;
+  int64_t getRxFifoStuckDetected() const;
 
   // Switch drops
   int64_t getPacketIntegrityDrops() const;
@@ -259,9 +265,10 @@ class HwSwitchFb303Stats {
   TLTimeseries rqpNonFabricCellCorruptionDrops_;
   TLTimeseries rqpNonFabricCellMissingDrops_;
   TLTimeseries rqpParityErrorDrops_;
-  // fabric reachability errors
-  TLCounter fabricReachabilityMissingCount_;
-  TLCounter fabricReachabilityMismatchCount_;
+  // fabric connectivity errors
+  TLCounter fabricConnectivityMissingCount_;
+  TLCounter fabricConnectivityMismatchCount_;
+  TLCounter fabricConnectivityBogusCount_;
   TLCounter virtualDevicesWithAsymmetricConnectivity_;
   TLCounter portGroupSkew_;
   TLTimeseries switchReachabilityChangeCount_;
@@ -275,6 +282,7 @@ class HwSwitchFb303Stats {
   TLTimeseries forwardingQueueProcessorErrors_;
   TLTimeseries allReassemblyContextsTaken_;
   TLTimeseries isolationFirmwareCrashes_;
+  TLTimeseries rxFifoStuckDetected_;
   TLTimeseries hwInitializedTimeMs_;
   TLTimeseries bootTimeMs_;
   TLTimeseries coldBoot_;
