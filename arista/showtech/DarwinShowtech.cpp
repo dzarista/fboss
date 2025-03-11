@@ -220,7 +220,6 @@ void DarwinShowtech::printPlatformInfo() {
   if (product == "darwin") {
     printWeutil("pem");
   }
-  printWeutil("fanspinner");
   printWeutil("rackmon");
 
   printAllFpgaVersions();
