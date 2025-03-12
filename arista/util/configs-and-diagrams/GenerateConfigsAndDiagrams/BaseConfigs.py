@@ -1532,7 +1532,7 @@ class SMBUnit( PmUnitConfig ):
 
 
 class PSUUnit( PmUnitConfig ):
-   def __init__( self, singlePSU=False ):
+   def __init__( self, singlePSU=False, *args, **kwargs ):
       super().__init__( "PSU" )
 
       self.setSlotTypeConfig(
@@ -1540,7 +1540,7 @@ class PSUUnit( PmUnitConfig ):
       )
 
       psuBus = PSUBus( "0x58", "pmbus", "PSU_PMBUS", incomingBusIndex=0,
-                       singlePSU=singlePSU )
+                       singlePSU=singlePSU, *args, **kwargs )
       psuBus.addSensorConfigs( [
          SensorConfig( "VIN", "in1_input", SensorType.VOLTAGE, compute="@/1000.0" ),
          SensorConfig( "VOUT", "in3_input", SensorType.VOLTAGE, compute="@/1000.0",
