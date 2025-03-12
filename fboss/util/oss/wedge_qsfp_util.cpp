@@ -220,6 +220,8 @@ getTransceiverPlatformAPI(TransceiverI2CApi* i2cBus) {
       mode = PlatformType::PLATFORM_JANGA800BIC;
     } else if (FLAGS_platform == "tahan800bc") {
       mode = PlatformType::PLATFORM_TAHAN800BC;
+    } else if (FLAGS_platform == "darwin") {
+      mode = PlatformType::PLATFORM_DARWIN;
     }
   } else {
     // If the platform is not provided by the user then use current hardware's
