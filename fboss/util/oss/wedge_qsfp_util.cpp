@@ -101,6 +101,9 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
     } else if (FLAGS_platform == "minipack3n") {
       auto systemContainer =
           BspGenericSystemContainer<Minipack3NBspPlatformMapping>::getInstance()
+              .get();
+      auto ioBus = std::make_unique<BspIOBus>(systemContainer);
+      return std::make_pair(std::move(ioBus), 0);
     } else if (
       FLAGS_platform == "darwin" || FLAGS_platform == "darwin48v") {
       auto systemContainer =
@@ -170,6 +173,9 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
   } else if (mode == PlatformType::PLATFORM_MINIPACK3N) {
     auto systemContainer =
         BspGenericSystemContainer<Minipack3NBspPlatformMapping>::getInstance()
+            .get();
+    auto ioBus = std::make_unique<BspIOBus>(systemContainer);
+    return std::make_pair(std::move(ioBus), 0);
   } else if (
     mode == PlatformType::PLATFORM_DARWIN ||
     mode == PlatformType::PLATFORM_DARWIN48V) {
