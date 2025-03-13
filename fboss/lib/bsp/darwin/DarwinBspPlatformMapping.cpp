@@ -9,6 +9,7 @@ using namespace facebook::fboss;
 
 namespace {
 
+// This is generated from the csv under fboss/lib/bsp/bspmapping/input
 constexpr auto kJsonBspPlatformMappingStr = R"(
 {
   "pimMapping": {
