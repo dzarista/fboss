@@ -854,6 +854,7 @@ class Rackhawk( PlatformConfig ):
       if self.hasPem:
          pmUnits.append( RackhawkPEM() )
       else:
+         # BUG1104357: Tracking WP workaround on PWR-00591
          pmUnits.append( PSUUnit( singlePSU=True, 
                      initRegSettings=InitRegSettings( [ ( 16, -128 ) ] ) ) )
 
