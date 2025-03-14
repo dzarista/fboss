@@ -6,10 +6,12 @@ from ..BaseConfigs import (
    EmbeddedSensorConfig,
    FANUnit,
    FANCpld,
+   Flash,
    GpioChip,
    I2cAdapterConfig,
    I2cDeviceConfig,
    I2cIdProm,
+   InitRegSettings,
    LedConfig,
    MiscConfig,
    PciDeviceConfig,
@@ -20,9 +22,8 @@ from ..BaseConfigs import (
    SensorConfig,
    SensorType,
    SlotConfig,
-   Thresholds,
    SpiMasterConfig,
-   Flash
+   Thresholds
 )
 
 
@@ -853,7 +854,10 @@ class Rackhawk( PlatformConfig ):
       if self.hasPem:
          pmUnits.append( RackhawkPEM() )
       else:
-         pmUnits.append( PSUUnit( singlePSU=True ) )
+         # BUG1104357: Tracking WP workaround on PWR-00591
+         pmUnits.append( PSUUnit( singlePSU=True, 
+                     initRegSettings=InitRegSettings( [ ( 16, -128 ) ] ) ) )
+
       self.addPmUnitConfigs( pmUnits )
 
       self.addI2cAdaptersFromCpu( [ 'SMBus I801 adapter at 1020' ] )
