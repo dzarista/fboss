@@ -30,6 +30,12 @@
             },
             "github.com/goreleaser/nfpm": {
                "commit": "9af00e6421bae54bdb7a36f60055d0d66c07909d"
+            },
+            "code.arista.io/fboss/fboss-bcm-sai": {
+               "commit": "ad2703c66562d32c46e4a6d74a285a3a506df34f"
+            },
+            "code.arista.io/fboss/fboss-bcm-sdk": {
+               "commit": "3e08460635f2cb338eb02aeb2eb8ffe5db205629"
             }
         }
 }
