@@ -19,6 +19,24 @@
               "N25Q128..3E"
             ]
           }
+        },
+        {
+          "commandType": "flashrom",
+          "flashromArgs": {
+            "spi_layout": "9FA000:9FEFFF aboot_conf",
+            "custom_content": "BOOT_METHOD1=SVBWNl9QWEU=\nBOOT_METHOD2=TE9DQUw=\nBOOT_METHOD3=QVJJU1RB\nBOOT_METHOD4=UkVCT09U\nDMI_BOARD_NAME=REFSV0lONDhW\n",
+            "custom_content_offset": 10461184,
+            "programmer_type": "internal",
+            "flashromExtraArgs": [
+              "-i",
+              "aboot_conf",
+              "--noverify-all"
+            ],
+            "chip": [
+              "MX25L12805D",
+              "N25Q128..3E"
+            ]
+          }
         }
       ],
       "verify": {
