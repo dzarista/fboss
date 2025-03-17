@@ -29,5 +29,6 @@ buildDeps=(
    libgpiod-utils
    double-conversion
    xxhash-libs
+   lz4
 )
-yum install "${buildDeps[*]}" -y
+yum install ${buildDeps[*]} -y
