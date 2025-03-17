@@ -86,11 +86,10 @@ bool isFileContents1(const std::filesystem::path &filePath) {
 }
 
 bool isPsuPresent(int psuNum) {
+  std::string suffix = "psu" + std::to_string(psuNum) + "_present";
   if (std::filesystem::exists(vprPsuInfoIn)) {
-    std::string suffix = "psu" + std::to_string(psuNum) + "_present";
     return isFileContents1(vprPsuInfoIn / suffix);
   } else if (std::filesystem::exists(wlrPsuInfoIn)) {
-    std::string suffix = "psu" + std::to_string(psuNum) + "_prsnt";
     return isFileContents1(wlrPsuInfoIn / suffix);
   } else {
     std::cout << "Cannot find PSU info" << std::endl;
@@ -99,14 +98,12 @@ bool isPsuPresent(int psuNum) {
 }
 
 bool isPsuPowerOk(int psuNum) {
+  std::string inputSuffix = "psu" + std::to_string(psuNum) + "_input_ok";
+  std::string outputSuffix = "psu" + std::to_string(psuNum) + "_output_ok";
   if (std::filesystem::exists(vprPsuInfoIn)) {
-    std::string inputSuffix = "psu" + std::to_string(psuNum) + "_input_ok";
-    std::string outputSuffix = "psu" + std::to_string(psuNum) + "_output_ok";
     return isFileContents1(vprPsuInfoIn / inputSuffix) &&
            isFileContents1(vprPsuInfoIn / outputSuffix);
   } else if (std::filesystem::exists(wlrPsuInfoIn)) {
-    std::string inputSuffix = "psu" + std::to_string(psuNum) + "_in_ok";
-    std::string outputSuffix = "psu" + std::to_string(psuNum) + "_out_ok";
     return isFileContents1(wlrPsuInfoIn / inputSuffix) &&
            isFileContents1(wlrPsuInfoIn / outputSuffix);
   } else {

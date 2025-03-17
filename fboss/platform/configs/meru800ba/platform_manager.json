@@ -179,7 +179,7 @@
           "presenceDetection": {
             "sysfsFileHandle": {
               "devicePath": "/SMB_SLOT@0/[SMB_FPGA]",
-              "presenceFileName": "meru800ba_psu1_prsnt",
+              "presenceFileName": "psu1_present",
               "desiredValue": 1
             }
           },
@@ -192,7 +192,7 @@
           "presenceDetection": {
             "sysfsFileHandle": {
               "devicePath": "/SMB_SLOT@0/[SMB_FPGA]",
-              "presenceFileName": "meru800ba_psu2_prsnt",
+              "presenceFileName": "psu2_present",
               "desiredValue": 1
             }
           },

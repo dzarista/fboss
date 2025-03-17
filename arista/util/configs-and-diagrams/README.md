@@ -383,13 +383,13 @@ Finally, let's add two PSU slots and map them to buses `SMB_FPGA0_I2C_MASTER1@5`
         self.addOutgoingSlotConfigs( [
             SlotConfig(
                 slotName="PSU_SLOT@0",
-                presenceFileName="psu1_prsnt",
+                presenceFileName="psu1_present",
                 presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
                 outgoingI2cBuses=[ smbFpga0Master1.buses[ 5 ] ]
             ),
             SlotConfig(
                 slotName="PSU_SLOT@1",
-                presenceFileName="psu2_prsnt",
+                presenceFileName="psu2_present",
                 presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
                 outgoingI2cBuses=[ smbFpga1Master1.buses[ 5 ] ]
             )
@@ -530,13 +530,13 @@ class EagleSMB( SMBUnit ):
         self.addOutgoingSlotConfigs( [
             SlotConfig(
                 slotName="PSU_SLOT@0",
-                presenceFileName="psu1_prsnt",
+                presenceFileName="psu1_present",
                 presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
                 outgoingI2cBuses=[ smbFpga0Master1.buses[ 5 ] ]
             ),
             SlotConfig(
                 slotName="PSU_SLOT@1",
-                presenceFileName="psu2_prsnt",
+                presenceFileName="psu2_present",
                 presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
                 outgoingI2cBuses=[ smbFpga1Master1.buses[ 5 ] ]
             )

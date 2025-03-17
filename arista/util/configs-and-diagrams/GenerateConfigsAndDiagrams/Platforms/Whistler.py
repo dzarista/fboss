@@ -545,25 +545,25 @@ class WhistlerSMB( SMBUnit ):
       self.addOutgoingSlotConfigs( [
          SlotConfig(
             slotName="PSU_SLOT@0",
-            presenceFileName="psu1_prsnt",
+            presenceFileName="psu1_present",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
             outgoingI2cBuses=[ smbFpga3Master4.buses[ 0 ] ]
          ),
          SlotConfig(
             slotName="PSU_SLOT@1",
-            presenceFileName="psu2_prsnt",
+            presenceFileName="psu2_present",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
             outgoingI2cBuses=[ smbFpga2Master4.buses[ 0 ] ]
          ),
          SlotConfig(
             slotName="PSU_SLOT@2",
-            presenceFileName="psu3_prsnt",
+            presenceFileName="psu3_present",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
             outgoingI2cBuses=[ smbFpga3Master4.buses[ 1 ] ]
          ),
          SlotConfig(
             slotName="PSU_SLOT@3",
-            presenceFileName="psu4_prsnt",
+            presenceFileName="psu4_present",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
             outgoingI2cBuses=[ smbFpga2Master4.buses[ 1 ] ]
          ),
