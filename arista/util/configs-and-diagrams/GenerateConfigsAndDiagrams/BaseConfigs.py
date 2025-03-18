@@ -976,11 +976,14 @@ class PciDeviceConfig:
          fpgaSymlinks[ path ] = (
                constructDevicePaths( infoRomConfig )[ 0 ]
          )
-         path_inforoms = (
-            f"/run/devmap/inforoms/{ self.symlinkDeviceName }_INFO_ROM" )
-         fpgaSymlinks[ path_inforoms ] = (
-               constructDevicePaths( infoRomConfig )[ 0 ]
-         )
+
+         # inforoms subdirectory to only contain fpga versions
+         if self.symlinkDir == 'fpgas':
+            path_inforoms = (
+               f"/run/devmap/inforoms/{ self.symlinkDeviceName }_INFO_ROM" )
+            fpgaSymlinks[ path_inforoms ] = (
+                  constructDevicePaths( infoRomConfig )[ 0 ]
+            )
       return fpgaSymlinks
 
    def renderNode(self):

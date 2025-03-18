@@ -966,7 +966,6 @@
   "symbolicLinkToDevicePath": {
     "/run/devmap/cplds/ROOK_CPU_CPLD": "/[ROOK_CPU_CPLD]",
     "/run/devmap/cplds/ROOK_CPU_CPLD_INFO_ROM": "/[ROOK_CPU_CPLD_INFO_ROM]",
-    "/run/devmap/inforoms/ROOK_CPU_CPLD_INFO_ROM": "/[ROOK_CPU_CPLD_INFO_ROM]",
     "/run/devmap/fpgas/SCD_FPGA": "/[SCD_FPGA]",
     "/run/devmap/fpgas/SCD_FPGA_INFO_ROM": "/[SCD_FPGA_INFO_ROM]",
     "/run/devmap/inforoms/SCD_FPGA_INFO_ROM": "/[SCD_FPGA_INFO_ROM]",
