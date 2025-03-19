@@ -1,0 +1,22 @@
+{
+    "bspKmods": [
+        "amax5970",
+        "aslg4f4527",
+        "blackhawk_cpld",
+        "bp4a_lm90",
+        "bp4a_max1363",
+        "decker_cpld",
+        "dsf_fan_cpld",
+        "ledtrig_timer",
+        "rook_fan_cpld",
+        "scd_leds",
+        "scd_smbus",
+        "scd_spi",
+        "scd_xcvr",
+        "scd_watchdog_darwin",
+        "scd_info"
+    ],
+    "sharedKmods": [
+        "scd"
+    ]
+}
