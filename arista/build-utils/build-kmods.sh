@@ -3,7 +3,7 @@
 set -e
 
 UTIL_DIR=$(dirname "$(realpath "$0")")
-KMODS_DIR=$(realpath "$UTIL_DIR/../bsp-kmods")
+KMODS_DIR=$(realpath "$UTIL_DIR/../../fboss.bsp.arista/bsp-kmods")
 RPM_DIR=$(realpath "$UTIL_DIR/../rpm")
 
 BUILD_DIR="$UTIL_DIR/tmp_build_dir"
