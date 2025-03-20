@@ -55,7 +55,6 @@ static struct regmap_config i2c_regmap_cfg = {
 	.max_register = I2C_REG_OFFSET_MAX,
 };
 
-
 static ssize_t regbit_sysfs_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)

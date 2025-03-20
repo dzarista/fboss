@@ -8,3 +8,4 @@ obj-m += aslg4f4527.o
 obj-m += blackhawk-cpld.o
 blackhawk-cpld-objs := blackhawk-cpld-i2c.o ../lib/regbit-sysfs.o
 obj-m += rook-fan-cpld.o
+obj-m += scd-leds-darwin.o

@@ -48,7 +48,6 @@ struct regbit_sysfs_config {
 #define RBS_FLAG_SHOW_DEC	BIT(2)
 };
 
-
 int regbit_sysfs_init_mmio(struct device *dev,
 			void __iomem *mmio_base,
 			const struct regbit_sysfs_config *configs,

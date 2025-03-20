@@ -222,7 +222,7 @@ static void scd_smbus_master_leave(struct scd_smbus_master *master, int err)
 		int i;
 
 		/* Show data left in the response fifo.
-         Unconsumed PEC codes etc. */
+		   Unconsumed PEC codes etc. */
 		master_dbg(master, "cs " CS_FMT " dropping %d rsps\n",
 			   CS_ARGS(cs), cs.nrs);
 
@@ -395,7 +395,7 @@ static int scd_smbus_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		err = smbus_check_resp(rsp, ti);
 		if (err) {
 			/* nak for msg[0].addr is not a protocol violation, so lower
-            the log level. */
+			 the log level. */
 			union smbus_response_reg nak = { .ti = 0,
 							 .ss = ss,
 							 .ack_error = 1 };
@@ -434,29 +434,29 @@ static int scd_smbus_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 			if (i == 0 && br) {
 				/*
-              msg.len (I2C_M_RECV_LEN block transfer)
+				msg.len (I2C_M_RECV_LEN block transfer)
 
-              At time of user entry
+				At time of user entry
 
-              - msg.len holds msg.buf size.
-              - msg.buf[0] holds extra byte count: len [, pec..])
+				- msg.len holds msg.buf size.
+				- msg.buf[0] holds extra byte count: len [, pec..])
 
-              Next, i2cdev_ioctl_rdwr will
+				Next, i2cdev_ioctl_rdwr will
 
-              1. check msg.buf[0] >= 1, to accomodate len.
-              2. check msg.len >= msg.buf[0] + I2C_SMBUS_BLOCK_MAX
-              3. set msg.len := msg.buf[0]
-              4. call master_xfer
-              5. copy_to_user(..., msg->buf, msg->len)
+				1. check msg.buf[0] >= 1, to accomodate len.
+				2. check msg.len >= msg.buf[0] + I2C_SMBUS_BLOCK_MAX
+				3. set msg.len := msg.buf[0]
+				4. call master_xfer
+				5. copy_to_user(..., msg->buf, msg->len)
 
-              Therefore, master_xfer will
+				Therefore, master_xfer will
 
-              1. receive msg.buf[0]
-              2. add msg.buf[0] to to msg.len
+				1. receive msg.buf[0]
+				2. add msg.buf[0] to to msg.len
 
-              As with smbus block transfers:
-                1 <= valid len <= I2C_SMBUS_BLOCK_MAX.
-            */
+				As with smbus block transfers:
+				1 <= valid len <= I2C_SMBUS_BLOCK_MAX.
+				*/
 
 				if (msg->buf[0] < 1 ||
 				    msg->buf[0] > I2C_SMBUS_BLOCK_MAX) {

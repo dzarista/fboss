@@ -1,4 +1,4 @@
-/* Copyright (c) 2023 Arista Networks, Inc.
+/* Copyright (c) 2025 Arista Networks, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,17 +21,12 @@
 
 #include "regbit-sysfs.h"
 
-#define CPLD_REG_REV_MINOR	0x0
-#define CPLD_REG_REV_MAJOR	0x1
-#define CPLD_REG_CTRL_STS	0x5
-#define CPLD_REG_SYS_STS	0x8
-#define CPLD_REG_SCD_FPGA_STA	0xA
-#define CPLD_REG_JTAG_SEL	0xC
-#define CPLD_REG_IDPROM_WP	0x22
-#define CPLD_SCD0_CTRL_STA	0xA0
-#define CPLD_SCD1_CTRL_STA	0xA1
-#define CPLD_SCD2_CTRL_STA	0xA2
-#define CPLD_SCD3_CTRL_STA	0xA3
+#define CPLD_REG_REV_MINOR	        0x0
+#define CPLD_REG_REV_MAJOR	        0x1
+#define CPLD_REG_CTRL_STS	        0x5
+#define CPLD_REG_SCD_FPGA_STA	        0xA
+#define CPLD_REG_JTAG_SEL	        0xC
+#define CPLD_REG_IDPROM_WP	        0x22
 
 static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 	/*
@@ -65,8 +60,6 @@ static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 		.help_str = "0: switch card power bad\n"
 			    "1: switch card power good",
 	},
-
-	/* MERU TODO: add ASIC/port status registers. */
 
 	/*
 	 * SCD_FPGA_STA @ address/offset 0xA.
@@ -123,19 +116,12 @@ static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 		.num_bits = 4,
 		.flags = RBS_FLAG_SHOW_NOTES,
 		.help_str = "0: No connection (default)\n"
-			    "1: JTAG connected to Blackcomb SCD 0\n"
-			    "2: JTAG connected to Blackcomb SCD 1\n"
-			    "3: JTAG connected to Blackcomb SCD 2\n"
-			    "4: JTAG connected to Blackcomb SCD 3\n"
-			    "5: JTAG connected to Oasis CPLD 0\n"
-			    "6: JTAG connected to Oasis CPLD 1\n"
-			    "7: JTAG connected to Oasis CPLD 2\n"
-			    "8: JTAG connected to Ramon ASIC 0\n"
-			    "9: JTAG connected to Ramon ASIC 1",
+			    "1: SCD\n"
+			    "2: FAN",
 	},
 	{
 		.name = "cpld_jtag_sel",
-		.mode = REGBIT_FMODE_RW,
+		.mode = REGBIT_FMODE_RO,
 		.reg_addr = CPLD_REG_JTAG_SEL,
 		.bit_offset = 7,
 		.num_bits = 1,
@@ -156,102 +142,6 @@ static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 		.flags = RBS_FLAG_SHOW_NOTES,
 		.help_str = "0: IDPROM write-protect disabled\n"
 			    "1: IDPROM write-protect enabled (default)",
-	},
-
-	/*
-	 * SCD0_CTRL_STA @ address/offset 0xA0.
-	 */
-	{
-		.name = "scd0_config_done",
-		.mode = REGBIT_FMODE_RO,
-		.reg_addr = CPLD_SCD0_CTRL_STA,
-		.bit_offset = 0,
-		.num_bits = 1,
-		.flags = RBS_FLAG_SHOW_NOTES,
-		.help_str = "0: SCD0 configuration not done yet\n"
-			    "1: SCD0 configuration done",
-	},
-	{
-		.name = "scd0_config",
-		.mode = REGBIT_FMODE_RW,
-		.reg_addr = CPLD_SCD0_CTRL_STA,
-		.bit_offset = 3,
-		.num_bits = 1,
-		.flags = RBS_FLAG_SHOW_NOTES,
-		.help_str = "0: normal operation. Default\n"
-			    "1: initiate SCD0 re-configuration",
-	},
-
-	/*
-	 * SCD1_CTRL_STA @ address/offset 0xA1.
-	 */
-	{
-		.name = "scd1_config_done",
-		.mode = REGBIT_FMODE_RO,
-		.reg_addr = CPLD_SCD1_CTRL_STA,
-		.bit_offset = 0,
-		.num_bits = 1,
-		.flags = RBS_FLAG_SHOW_NOTES,
-		.help_str = "0: SCD1 configuration not done yet\n"
-			    "1: SCD1 configuration done",
-	},
-	{
-		.name = "scd1_config",
-		.mode = REGBIT_FMODE_RW,
-		.reg_addr = CPLD_SCD1_CTRL_STA,
-		.bit_offset = 3,
-		.num_bits = 1,
-		.flags = RBS_FLAG_SHOW_NOTES,
-		.help_str = "0: normal operation. Default\n"
-			    "1: initiate SCD1 re-configuration",
-	},
-
-	/*
-	 * SCD2_CTRL_STA @ address/offset 0xA2.
-	 */
-	{
-		.name = "scd2_config_done",
-		.mode = REGBIT_FMODE_RO,
-		.reg_addr = CPLD_SCD2_CTRL_STA,
-		.bit_offset = 0,
-		.num_bits = 1,
-		.flags = RBS_FLAG_SHOW_NOTES,
-		.help_str = "0: SCD2 configuration not done yet\n"
-			    "1: SCD2 configuration done",
-	},
-	{
-		.name = "scd2_config",
-		.mode = REGBIT_FMODE_RW,
-		.reg_addr = CPLD_SCD2_CTRL_STA,
-		.bit_offset = 3,
-		.num_bits = 1,
-		.flags = RBS_FLAG_SHOW_NOTES,
-		.help_str = "0: normal operation. Default\n"
-			    "1: initiate SCD2 re-configuration",
-	},
-
-	/*
-	 * SCD3_CTRL_STA @ address/offset 0xA3.
-	 */
-	{
-		.name = "scd3_config_done",
-		.mode = REGBIT_FMODE_RO,
-		.reg_addr = CPLD_SCD3_CTRL_STA,
-		.bit_offset = 0,
-		.num_bits = 1,
-		.flags = RBS_FLAG_SHOW_NOTES,
-		.help_str = "0: SCD3 configuration not done yet\n"
-			    "1: SCD3 configuration done",
-	},
-	{
-		.name = "scd3_config",
-		.mode = REGBIT_FMODE_RW,
-		.reg_addr = CPLD_SCD3_CTRL_STA,
-		.bit_offset = 3,
-		.num_bits = 1,
-		.flags = RBS_FLAG_SHOW_NOTES,
-		.help_str = "0: normal operation. Default\n"
-			    "1: initiate SCD3 re-configuration",
 	},
 };
 
@@ -290,7 +180,7 @@ static int cpld_i2c_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 	major_rev = (u8)ret;
-	dev_info(&client->dev, "decker cpld revision: %02x.%02x\n",
+	dev_info(&client->dev, "meru800ba cpld revision: %02x.%02x\n",
 		 major_rev, minor_rev);
 
 	ret = sysfs_create_file(&client->dev.kobj, &dev_attr_fw_ver.attr);
@@ -307,14 +197,14 @@ static int cpld_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cpld_dev_ids[] = {
-	{ "decker_cpld", 0 },
+	{ "meru800ba_cpld", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, cpld_dev_ids);
 
 static struct i2c_driver cpld_i2c_driver = {
 	.driver = {
-		.name = "decker-cpld",
+		.name = "meru800ba-cpld",
 	},
 	.probe = cpld_i2c_probe,
 	.id_table = cpld_dev_ids,
@@ -322,6 +212,6 @@ static struct i2c_driver cpld_i2c_driver = {
 module_i2c_driver(cpld_i2c_driver);
 
 MODULE_AUTHOR("Arista Networks");
-MODULE_DESCRIPTION("Decker CPLD I2C Driver");
+MODULE_DESCRIPTION("Meru800ba CPLD I2C Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(BSP_VERSION);
