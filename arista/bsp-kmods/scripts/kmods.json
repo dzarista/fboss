@@ -7,6 +7,7 @@
         "bp4a_max1363",
         "decker_cpld",
         "dsf_fan_cpld",
+        "meru800ba_cpld",
         "meru800ba_fan_cpld",
         "rook_fan_cpld",
         "scd_leds",
@@ -15,7 +16,8 @@
         "scd_xcvr",
         "scd_watchdog_darwin",
         "scd_info",
-        "scd_leds_darwin"
+        "scd_leds_darwin",
+        "scd_vcpld"
     ],
     "sharedKmods": [
         "scd"
