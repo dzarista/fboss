@@ -1,0 +1,11 @@
+- OpenBMC image supports backup Meru SCM CPLD JTAG upgrade
+  - To upgrade, run: fpga_util.sh scm program meru-cpu-cpld.stp
+- Initial Meru SCM udev rules added in apl.facebook
+  - Includes Meru SCM SMBus, Meru SCM sensors, and Meru SCM IDPROM
+- Initial DSF kernel driver stubs added in apl.facebook, tested with 5.19 kernel
+  - New drivers for DSF:
+    - scd-xcvrs: PCI transceiver control driver for Meru800bia/Meru800bfa
+    - scd-spi: PCI SCD SPI controller driver
+    - decker-cpld: Meru800bfa SMB CPLD I2C driver
+    - dsf-fan-cpld: Meru800bia/Meru800bfa FAN controller I2C driver
+- The CPLD and Aboot images included in this bundle are the same versions as previously shared

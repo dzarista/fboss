@@ -63,6 +63,7 @@ TEST_F(HwXphyFirmwareTest, CheckDefaultXphyFirmwareVersion) {
     case PlatformType::PLATFORM_CLOUDRIPPER_DEPRECATED:
     case PlatformType::PLATFORM_CLOUDRIPPER_VOQ_DEPRECATED:
     case PlatformType::PLATFORM_CLOUDRIPPER_FABRIC_DEPRECATED:
+    case PlatformType::PLATFORM_MERU800BA:
       throw FbossError("No xphys to check FW version on");
     case PlatformType::PLATFORM_ELBERT:
       desiredFw.version() = 1;

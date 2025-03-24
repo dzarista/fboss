@@ -182,6 +182,9 @@ void PlatformProductInfo::initMode() {
         modelName.find("TAHAN") == 0 || modelName.find("TAHAN800BC") == 0 ||
         modelName.find("R4063-F9001-01") == 0) {
       type_ = PlatformType::PLATFORM_TAHAN800BC;
+    } else if (
+        modelName.find("Meru800ba") == 0 || modelName.find("MERU800BA") == 0) {
+      type_ = PlatformType::PLATFORM_MERU800BA;
     } else {
       throw FbossError("invalid model name " + modelName);
     }
@@ -210,6 +213,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_ELBERT;
     } else if (FLAGS_mode == "darwin") {
       type_ = PlatformType::PLATFORM_DARWIN;
+    } else if (FLAGS_mode == "darwin48v") {
+      type_ = PlatformType::PLATFORM_DARWIN48V;
     } else if (FLAGS_mode == "meru400biu") {
       type_ = PlatformType::PLATFORM_MERU400BIU;
     } else if (FLAGS_mode == "meru800bia") {
@@ -244,6 +249,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_YANGRA;
     } else if (FLAGS_mode == "minipack3n") {
       type_ = PlatformType::PLATFORM_MINIPACK3N;
+    } else if (FLAGS_mode == "meru800ba") {
+      type_ = PlatformType::PLATFORM_MERU800BA;
     } else {
       throw std::runtime_error("invalid mode " + FLAGS_mode);
     }

@@ -77,6 +77,8 @@ target_link_libraries(hw_copp_utils
   switch_config_cpp2
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}
+  hw_packet_utils
+  sai_copp_utils
 )
 
 add_library(hw_qos_utils
