@@ -96,7 +96,11 @@ else
 fi
 
 # QSFP service config
-QSFP_PLATFORM_CONFIG="$FBOSS_SHARE_DIR/qsfp_test_configs/$MODEL_NAME.materialized_JSON"
+QSFP_CONF_PREFIX=$MODEL_NAME
+if [ $MODEL_NAME == "darwin" ]; then
+   QSFP_CONF_PREFIX="darwin_original"
+fi
+QSFP_PLATFORM_CONFIG="$FBOSS_SHARE_DIR/qsfp_test_configs/$QSFP_CONF_PREFIX.materialized_JSON"
 QSFP_DEFAULT_CONFIG="/etc/coop/qsfp.conf"
 if [ -f "$QSFP_PLATFORM_CONFIG" ]; then
    echo "Linking $QSFP_PLATFORM_CONFIG to $QSFP_DEFAULT_CONFIG"
